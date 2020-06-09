@@ -81,7 +81,7 @@ func NewClient(config *Config) (*Client, error) {
 		if err != nil {
 			return nil, fmt.Errorf("Failed to decode remote '%s': %s", s, err)
 		}
-		if r.Socks && r.Reverse {
+		if r.Socks {
 			createSocksServer = true
 		}
 		shared.Remotes = append(shared.Remotes, r)
@@ -151,15 +151,7 @@ func (c *Client) Start(ctx context.Context) error {
 	if c.proxyURL != nil {
 		via = " via " + c.proxyURL.String()
 	}
-	//prepare non-reverse proxies
-	for i, r := range c.config.shared.Remotes {
-		if !r.Reverse {
-			proxy := chshare.NewTCPProxy(c.Logger, func() ssh.Conn { return c.sshConn }, i, r)
-			if err := proxy.Start(ctx); err != nil {
-				return err
-			}
-		}
-	}
+
 	c.Infof("Connecting to %s%s\n", c.server, via)
 	//optional keepalive loop
 	if c.config.KeepAlive > 0 {

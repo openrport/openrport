@@ -101,24 +101,12 @@ func (s *Server) handleWebsocket(w http.ResponseWriter, req *http.Request) {
 		clog.Infof("Client version (%s) differs from server version (%s)",
 			v, chshare.BuildVersion)
 	}
-	//confirm reverse tunnels are allowed
-	for _, r := range c.Remotes {
-		if r.Reverse && !s.reverseOk {
-			clog.Debugf("Denied reverse port forwarding request, please enable --reverse")
-			failed(s.Errorf("Reverse port forwaring not enabled on server"))
-			return
-		}
-	}
+
 	//if user is provided, ensure they have
 	//access to the desired remotes
 	if user != nil {
 		for _, r := range c.Remotes {
-			var addr string
-			if r.Reverse {
-				addr = "R:" + r.LocalHost + ":" + r.LocalPort
-			} else {
-				addr = r.RemoteHost + ":" + r.RemotePort
-			}
+			var addr = r.LocalHost + ":" + r.LocalPort
 			if !user.HasAccess(addr) {
 				failed(s.Errorf("access to '%s' denied", addr))
 				return
@@ -129,12 +117,10 @@ func (s *Server) handleWebsocket(w http.ResponseWriter, req *http.Request) {
 	ctx, cancel := context.WithCancel(context.Background())
 	defer cancel()
 	for i, r := range c.Remotes {
-		if r.Reverse {
-			proxy := chshare.NewTCPProxy(s.Logger, func() ssh.Conn { return sshConn }, i, r)
-			if err := proxy.Start(ctx); err != nil {
-				failed(s.Errorf("%s", err))
-				return
-			}
+		proxy := chshare.NewTCPProxy(s.Logger, func() ssh.Conn { return sshConn }, i, r)
+		if err := proxy.Start(ctx); err != nil {
+			failed(s.Errorf("%s", err))
+			return
 		}
 	}
 	//success!

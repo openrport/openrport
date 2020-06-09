@@ -114,10 +114,7 @@ var serverHelp = `
       }
     when <user> connects, their <pass> will be verified and then
     each of the remote addresses will be compared against the list
-    of address regular expressions for a match. Addresses will
-    always come in the form "<remote-host>:<remote-port>" for normal remotes
-    and "R:<local-interface>:<local-port>" for reverse port forwarding
-    remotes. This file will be automatically reloaded on change.
+    of address regular expressions for a match.
 
     --auth, An optional string representing a single user with full
     access, in the form of <user:pass>. This is equivalent to creating an
@@ -130,8 +127,6 @@ var serverHelp = `
     --socks5, Allow clients to access the internal SOCKS5 proxy. See
     rport client --help for more information.
 
-    --reverse, Allow clients to specify reverse port forwarding remotes
-    in addition to normal remotes.
 ` + commonHelp
 
 func server(args []string) {
@@ -146,7 +141,6 @@ func server(args []string) {
 	auth := flags.String("auth", "", "")
 	proxy := flags.String("proxy", "", "")
 	socks5 := flags.Bool("socks5", false, "")
-	reverse := flags.Bool("reverse", false, "")
 	pid := flags.Bool("pid", false, "")
 	verbose := flags.Bool("v", false, "")
 
@@ -184,7 +178,6 @@ func server(args []string) {
 		Auth:     *auth,
 		Proxy:    *proxy,
 		Socks5:   *socks5,
-		Reverse:  *reverse,
 	})
 	if err != nil {
 		log.Fatal(err)
@@ -233,17 +226,7 @@ var clientHelp = `
   <remote>s are remote connections tunneled through the server, each of
   which come in the form:
 
-    <local-host>:<local-port>:<remote-host>:<remote-port>
-
-    ■ local-host defaults to 0.0.0.0 (all interfaces).
-    ■ local-port defaults to remote-port.
-    ■ remote-port is required*.
-    ■ remote-host defaults to 0.0.0.0 (server localhost).
-
-  which shares <remote-host>:<remote-port> from the server to the client
-  as <local-host>:<local-port>, or:
-
-    R:<local-interface>:<local-port>:<remote-host>:<remote-port>
+    <local-interface>:<local-port>:<remote-host>:<remote-port>
 
   which does reverse port forwarding, sharing <remote-host>:<remote-port>
   from the client to the server's <local-interface>:<local-port>.
@@ -256,9 +239,6 @@ var clientHelp = `
       192.168.0.5:3000:google.com:80
       socks
       5000:socks
-      R:2222:localhost:22
-      R:socks
-      R:5000:socks
 
     When the rport server has --socks5 enabled, remotes can
     specify "socks" in place of remote-host and remote-port.
@@ -266,11 +246,7 @@ var clientHelp = `
     127.0.0.1:1080. Connections to this remote will terminate
     at the server's internal SOCKS5 proxy.
 
-    When the rport server has --reverse enabled, remotes can
-    be prefixed with R to denote that they are reversed. That
-    is, the server will listen and accept connections, and they
-    will be proxied through the client which specified the remote.
-    Reverse remotes specifying "R:socks" will listen on the server's
+    Remotes specifying "socks" will listen on the server's
     default socks port (1080) and terminate the connection at the
     client's internal SOCKS5 proxy.
 

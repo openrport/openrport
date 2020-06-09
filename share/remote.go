@@ -23,22 +23,16 @@ import (
 
 type Remote struct {
 	LocalHost, LocalPort, RemoteHost, RemotePort string
-	Socks, Reverse                               bool
+	Socks                                        bool
 }
 
-const revPrefix = "R:"
-
 func DecodeRemote(s string) (*Remote, error) {
-	reverse := false
-	if strings.HasPrefix(s, revPrefix) {
-		s = strings.TrimPrefix(s, revPrefix)
-		reverse = true
-	}
 	parts := strings.Split(s, ":")
 	if len(parts) <= 0 || len(parts) >= 5 {
 		return nil, errors.New("Invalid remote")
 	}
-	r := &Remote{Reverse: reverse}
+
+	r := &Remote{}
 	for i := len(parts) - 1; i >= 0; i-- {
 		p := parts[i]
 		//last part "socks"?
@@ -96,11 +90,7 @@ func isHost(s string) bool {
 
 //implement Stringer
 func (r *Remote) String() string {
-	tag := ""
-	if r.Reverse {
-		tag = revPrefix
-	}
-	return tag + r.LocalHost + ":" + r.LocalPort + "=>" + r.Remote()
+	return r.LocalHost + ":" + r.LocalPort + "=>" + r.Remote()
 }
 
 func (r *Remote) Remote() string {
