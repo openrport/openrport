@@ -18,7 +18,7 @@ import (
 	chshare "github.com/cloudradar-monitoring/rport/share"
 )
 
-// Config is the configuration for the chisel service
+// Config is the configuration for the rport service
 type Config struct {
 	KeySeed  string
 	AuthFile string
@@ -27,7 +27,7 @@ type Config struct {
 	Socks5   bool
 }
 
-// Server respresent a chisel service
+// Server represents a rport service
 type Server struct {
 	*chshare.Logger
 	connStats    chshare.ConnStats
@@ -47,7 +47,7 @@ var upgrader = websocket.Upgrader{
 	CheckOrigin:     func(r *http.Request) bool { return true },
 }
 
-// NewServer creates and returns a new chisel server
+// NewServer creates and returns a new rport server
 func NewServer(config *Config) (*Server, error) {
 	s := &Server{
 		httpServer: chshare.NewHTTPServer(),
@@ -118,7 +118,7 @@ func NewServer(config *Config) (*Server, error) {
 	return s, nil
 }
 
-// Run is responsible for starting the chisel service
+// Run is responsible for starting the rport service
 func (s *Server) Run(host, port string) error {
 	if err := s.Start(host, port); err != nil {
 		return err
