@@ -25,7 +25,7 @@ func TestCustomHeaders(t *testing.T) {
 		MaxRetryCount:    0,
 		MaxRetryInterval: time.Second,
 		Server:           server.URL,
-		Remotes:          []string{"socks"},
+		Remotes:          []string{"192.168.0.5:3000:google.com:80"},
 		Headers:          headers,
 	}
 	c, err := NewClient(&config)

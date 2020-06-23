@@ -124,9 +124,6 @@ var serverHelp = `
     rport receives a normal HTTP request. Useful for hiding rport in
     plain sight.
 
-    --socks5, Allow clients to access the internal SOCKS5 proxy. See
-    rport client --help for more information.
-
 ` + commonHelp
 
 func server(args []string) {
@@ -140,7 +137,6 @@ func server(args []string) {
 	authfile := flags.String("authfile", "", "")
 	auth := flags.String("auth", "", "")
 	proxy := flags.String("proxy", "", "")
-	socks5 := flags.Bool("socks5", false, "")
 	pid := flags.Bool("pid", false, "")
 	verbose := flags.Bool("v", false, "")
 
@@ -177,7 +173,6 @@ func server(args []string) {
 		AuthFile: *authfile,
 		Auth:     *auth,
 		Proxy:    *proxy,
-		Socks5:   *socks5,
 	})
 	if err != nil {
 		log.Fatal(err)
@@ -231,24 +226,12 @@ var clientHelp = `
   which does reverse port forwarding, sharing <remote-host>:<remote-port>
   from the client to the server's <local-interface>:<local-port>.
 
-    example remotes
+  Example remotes:
 
       3000
       example.com:3000
       3000:google.com:80
       192.168.0.5:3000:google.com:80
-      socks
-      5000:socks
-
-    When the rport server has --socks5 enabled, remotes can
-    specify "socks" in place of remote-host and remote-port.
-    The default local host and port for a "socks" remote is
-    127.0.0.1:1080. Connections to this remote will terminate
-    at the server's internal SOCKS5 proxy.
-
-    Remotes specifying "socks" will listen on the server's
-    default socks port (1080) and terminate the connection at the
-    client's internal SOCKS5 proxy.
 
   Options:
 

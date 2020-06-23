@@ -147,13 +147,6 @@ func (s *Server) handleSSHRequests(clientLog *chshare.Logger, reqs <-chan *ssh.R
 func (s *Server) handleSSHChannels(clientLog *chshare.Logger, chans <-chan ssh.NewChannel) {
 	for ch := range chans {
 		remote := string(ch.ExtraData())
-		socks := remote == "socks"
-		//dont accept socks when --socks5 isn't enabled
-		if socks && s.socksServer == nil {
-			clientLog.Debugf("Denied socks request, please enable --socks5")
-			_ = ch.Reject(ssh.Prohibited, "SOCKS5 is not enabled on the server")
-			continue
-		}
 		//accept rest
 		stream, reqs, err := ch.Accept()
 		if err != nil {
@@ -163,10 +156,6 @@ func (s *Server) handleSSHChannels(clientLog *chshare.Logger, chans <-chan ssh.N
 		go ssh.DiscardRequests(reqs)
 		//handle stream type
 		connID := s.connStats.New()
-		if socks {
-			go chshare.HandleSocksStream(clientLog.Fork("socksconn#%d", connID), s.socksServer, &s.connStats, stream)
-		} else {
-			go chshare.HandleTCPStream(clientLog.Fork("conn#%d", connID), &s.connStats, stream, remote)
-		}
+		go chshare.HandleTCPStream(clientLog.Fork("conn#%d", connID), &s.connStats, stream, remote)
 	}
 }

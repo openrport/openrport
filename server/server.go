@@ -2,15 +2,12 @@ package chserver
 
 import (
 	"errors"
-	"io/ioutil"
 	"log"
 	"net/http"
 	"net/http/httputil"
 	"net/url"
-	"os"
 	"regexp"
 
-	socks5 "github.com/armon/go-socks5"
 	"github.com/gorilla/websocket"
 	"github.com/jpillora/requestlog"
 	"golang.org/x/crypto/ssh"
@@ -24,7 +21,6 @@ type Config struct {
 	AuthFile string
 	Auth     string
 	Proxy    string
-	Socks5   bool
 }
 
 // Server represents a rport service
@@ -36,7 +32,6 @@ type Server struct {
 	reverseProxy *httputil.ReverseProxy
 	sessCount    int32
 	sessions     *chshare.Users
-	socksServer  *socks5.Server
 	sshConfig    *ssh.ServerConfig
 	users        *chshare.UserIndex
 }
@@ -100,20 +95,6 @@ func NewServer(config *Config) (*Server, error) {
 			r.URL.Host = u.Host
 			r.Host = u.Host
 		}
-	}
-	//setup socks server (not listening on any port!)
-	if config.Socks5 {
-		socksConfig := &socks5.Config{}
-		if s.Debug {
-			socksConfig.Logger = log.New(os.Stdout, "[socks]", log.Ldate|log.Ltime)
-		} else {
-			socksConfig.Logger = log.New(ioutil.Discard, "", 0)
-		}
-		s.socksServer, err = socks5.New(socksConfig)
-		if err != nil {
-			return nil, err
-		}
-		s.Infof("SOCKS5 server enabled")
 	}
 	return s, nil
 }
