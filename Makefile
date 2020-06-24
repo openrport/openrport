@@ -1,19 +1,19 @@
 .PHONY: all
 
 # Go parameters
-BINARY=rport
+BINARIES=rport rportd
 
 all: test build
 
 build:
-	go build -o $(BINARY) -v ./cmd/$(BINARY)/...
+	$(foreach BINARY,$(BINARIES),go build -o $(BINARY) -v ./cmd/$(BINARY)/...;)
 
 test:
 	go test -v ./...
 
 clean:
 	go clean
-	rm -f $(BINARY)
+	rm -f $(BINARIES)
 
 docker-goreleaser:
 	docker run -it --rm --privileged \

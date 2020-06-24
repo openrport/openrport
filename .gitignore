@@ -1,5 +1,8 @@
 .idea
 .DS_Store
 vendor
+dist
 rport
 rport.exe
+rportd
+rportd.exe

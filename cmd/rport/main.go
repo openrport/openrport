@@ -6,171 +6,11 @@ import (
 	"log"
 	"net/http"
 	"os"
-	"runtime"
 	"strings"
 
 	chclient "github.com/cloudradar-monitoring/rport/client"
-	chserver "github.com/cloudradar-monitoring/rport/server"
 	chshare "github.com/cloudradar-monitoring/rport/share"
 )
-
-var help = `
-  Usage: rport [command] [--help]
-
-  Version: ` + chshare.BuildVersion + `
-
-  Commands:
-    server - runs rport in server mode
-    client - runs rport in client mode
-
-  Read more:
-    https://github.com/cloudradar-monitoring/rport
-
-`
-
-func main() {
-
-	version := flag.Bool("version", false, "")
-	v := flag.Bool("v", false, "")
-	flag.Bool("help", false, "")
-	flag.Bool("h", false, "")
-	flag.Usage = func() {}
-	flag.Parse()
-
-	if *version || *v {
-		fmt.Println(chshare.BuildVersion)
-		os.Exit(1)
-	}
-
-	args := flag.Args()
-
-	subcmd := ""
-	if len(args) > 0 {
-		subcmd = args[0]
-		args = args[1:]
-	}
-
-	switch subcmd {
-	case "server":
-		server(args)
-	case "client":
-		client(args)
-	default:
-		fmt.Fprintf(os.Stderr, help)
-		os.Exit(1)
-	}
-}
-
-var commonHelp = `
-    -v, Enable verbose logging
-
-    --help, This help text
-
-  Signals:
-    The rport process is listening for:
-      a SIGUSR2 to print process stats, and
-      a SIGHUP to short-circuit the client reconnect timer
-
-  Version:
-    ` + chshare.BuildVersion + ` (` + runtime.Version() + `)
-
-  Read more:
-    https://github.com/cloudradar-monitoring/rport
-
-`
-
-var serverHelp = `
-  Usage: rport server [options]
-
-  Options:
-
-    --host, Defines the HTTP listening host – the network interface
-    (defaults the environment variable HOST and falls back to 0.0.0.0).
-
-    --port, -p, Defines the HTTP listening port (defaults to the environment
-    variable PORT and fallsback to port 8080).
-
-    --key, An optional string to seed the generation of a ECDSA public
-    and private key pair. All communications will be secured using this
-    key pair. Share the subsequent fingerprint with clients to enable detection
-    of man-in-the-middle attacks (defaults to the RPORT_KEY environment
-    variable, otherwise a new key is generate each run).
-
-    --authfile, An optional path to a users.json file. This file should
-    be an object with users defined like:
-      {
-        "<user:pass>": ["<addr-regex>","<addr-regex>"]
-      }
-    when <user> connects, their <pass> will be verified and then
-    each of the remote addresses will be compared against the list
-    of address regular expressions for a match.
-
-    --auth, An optional string representing a single user with full
-    access, in the form of <user:pass>. This is equivalent to creating an
-    authfile with {"<user:pass>": [""]}.
-
-    --proxy, Specifies another HTTP server to proxy requests to when
-    rport receives a normal HTTP request. Useful for hiding rport in
-    plain sight.
-
-` + commonHelp
-
-func server(args []string) {
-
-	flags := flag.NewFlagSet("server", flag.ContinueOnError)
-
-	host := flags.String("host", "", "")
-	p := flags.String("p", "", "")
-	port := flags.String("port", "", "")
-	key := flags.String("key", "", "")
-	authfile := flags.String("authfile", "", "")
-	auth := flags.String("auth", "", "")
-	proxy := flags.String("proxy", "", "")
-	verbose := flags.Bool("v", false, "")
-
-	flags.Usage = func() {
-		fmt.Print(serverHelp)
-		os.Exit(1)
-	}
-	err := flags.Parse(args)
-	if err != nil {
-		fmt.Print(err)
-		os.Exit(1)
-	}
-
-	if *host == "" {
-		*host = os.Getenv("HOST")
-	}
-	if *host == "" {
-		*host = "0.0.0.0"
-	}
-	if *port == "" {
-		*port = *p
-	}
-	if *port == "" {
-		*port = os.Getenv("PORT")
-	}
-	if *port == "" {
-		*port = "8080"
-	}
-	if *key == "" {
-		*key = os.Getenv("RPORT_KEY")
-	}
-	s, err := chserver.NewServer(&chserver.Config{
-		KeySeed:  *key,
-		AuthFile: *authfile,
-		Auth:     *auth,
-		Proxy:    *proxy,
-	})
-	if err != nil {
-		log.Fatal(err)
-	}
-	s.Debug = *verbose
-	go chshare.GoStats()
-	if err = s.Run(*host, *port); err != nil {
-		log.Fatal(err)
-	}
-}
 
 type headerFlags struct {
 	http.Header
@@ -199,7 +39,7 @@ func (flag *headerFlags) Set(arg string) error {
 }
 
 var clientHelp = `
-  Usage: rport client [options] <server> <remote> [remote] [remote] ...
+  Usage: rport [options] <server> <remote> [remote] [remote] ...
 
   <server> is the URL to the rport server.
 
@@ -253,33 +93,48 @@ var clientHelp = `
 
     --hostname, Optionally set the 'Host' header (defaults to the host
     found in the server url).
-` + commonHelp
 
-func client(args []string) {
-	flags := flag.NewFlagSet("client", flag.ContinueOnError)
+    -v, Enable verbose logging
+
+    --help, This help text
+
+    --version, Print version info and exit
+
+  Signals:
+    The rport process is listening for:
+      a SIGUSR2 to print process stats, and
+      a SIGHUP to short-circuit the client reconnect timer
+
+`
+
+func main() {
 	config := chclient.Config{Headers: http.Header{}}
-	flags.StringVar(&config.Fingerprint, "fingerprint", "", "")
-	flags.StringVar(&config.Auth, "auth", "", "")
-	flags.DurationVar(&config.KeepAlive, "keepalive", 0, "")
-	flags.IntVar(&config.MaxRetryCount, "max-retry-count", -1, "")
-	flags.DurationVar(&config.MaxRetryInterval, "max-retry-interval", 0, "")
-	flags.StringVar(&config.Proxy, "proxy", "", "")
-	flags.Var(&headerFlags{config.Headers}, "header", "")
-	hostname := flags.String("hostname", "", "")
-	verbose := flags.Bool("v", false, "")
-	flags.Usage = func() {
+	flag.StringVar(&config.Fingerprint, "fingerprint", "", "")
+	flag.StringVar(&config.Auth, "auth", "", "")
+	flag.DurationVar(&config.KeepAlive, "keepalive", 0, "")
+	flag.IntVar(&config.MaxRetryCount, "max-retry-count", -1, "")
+	flag.DurationVar(&config.MaxRetryInterval, "max-retry-interval", 0, "")
+	flag.StringVar(&config.Proxy, "proxy", "", "")
+	flag.Var(&headerFlags{config.Headers}, "header", "")
+	hostname := flag.String("hostname", "", "")
+	verbose := flag.Bool("v", false, "")
+	version := flag.Bool("version", false, "")
+
+	flag.Usage = func() {
 		fmt.Print(clientHelp)
 		os.Exit(1)
 	}
-	err := flags.Parse(args)
-	if err != nil {
-		fmt.Print(err)
+	flag.Parse()
+
+	if *version {
+		fmt.Println(chshare.BuildVersion)
 		os.Exit(1)
 	}
+
 	//pull out options, put back remaining args
-	args = flags.Args()
+	args := flag.Args()
 	if len(args) < 2 {
-		log.Fatalf("A server and least one remote is required")
+		log.Fatalf("A server and least one remote is required. See --help")
 	}
 	config.Server = args[0]
 	config.Remotes = args[1:]
@@ -297,7 +152,9 @@ func client(args []string) {
 		log.Fatal(err)
 	}
 	c.Debug = *verbose
+
 	go chshare.GoStats()
+
 	if err = c.Run(); err != nil {
 		log.Fatal(err)
 	}
