@@ -3,12 +3,10 @@ package main
 import (
 	"flag"
 	"fmt"
-	"io/ioutil"
 	"log"
 	"net/http"
 	"os"
 	"runtime"
-	"strconv"
 	"strings"
 
 	chclient "github.com/cloudradar-monitoring/rport/client"
@@ -64,8 +62,6 @@ func main() {
 }
 
 var commonHelp = `
-    --pid Generate pid file in current working directory
-
     -v, Enable verbose logging
 
     --help, This help text
@@ -82,13 +78,6 @@ var commonHelp = `
     https://github.com/cloudradar-monitoring/rport
 
 `
-
-func generatePidFile() {
-	pid := []byte(strconv.Itoa(os.Getpid()))
-	if err := ioutil.WriteFile("rport.pid", pid, 0644); err != nil {
-		log.Fatal(err)
-	}
-}
 
 var serverHelp = `
   Usage: rport server [options]
@@ -137,7 +126,6 @@ func server(args []string) {
 	authfile := flags.String("authfile", "", "")
 	auth := flags.String("auth", "", "")
 	proxy := flags.String("proxy", "", "")
-	pid := flags.Bool("pid", false, "")
 	verbose := flags.Bool("v", false, "")
 
 	flags.Usage = func() {
@@ -178,9 +166,6 @@ func server(args []string) {
 		log.Fatal(err)
 	}
 	s.Debug = *verbose
-	if *pid {
-		generatePidFile()
-	}
 	go chshare.GoStats()
 	if err = s.Run(*host, *port); err != nil {
 		log.Fatal(err)
@@ -281,7 +266,6 @@ func client(args []string) {
 	flags.StringVar(&config.Proxy, "proxy", "", "")
 	flags.Var(&headerFlags{config.Headers}, "header", "")
 	hostname := flags.String("hostname", "", "")
-	pid := flags.Bool("pid", false, "")
 	verbose := flags.Bool("v", false, "")
 	flags.Usage = func() {
 		fmt.Print(clientHelp)
@@ -313,9 +297,6 @@ func client(args []string) {
 		log.Fatal(err)
 	}
 	c.Debug = *verbose
-	if *pid {
-		generatePidFile()
-	}
 	go chshare.GoStats()
 	if err = c.Run(); err != nil {
 		log.Fatal(err)
