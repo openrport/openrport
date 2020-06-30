@@ -23,7 +23,6 @@ docker-goreleaser:
 		-w ${PWD} \
 		goreleaser/goreleaser:v0.135 --snapshot --rm-dist --skip-publish
 
-
 docker-golangci-lint:
 	docker run -it --rm \
 		-v ${PWD}:${PWD} \
