@@ -133,8 +133,8 @@ func main() {
 
 	//pull out options, put back remaining args
 	args := flag.Args()
-	if len(args) < 2 {
-		log.Fatalf("A server and least one remote is required. See --help")
+	if len(args) < 1 {
+		log.Fatalf("Server address is required. See --help")
 	}
 	config.Server = args[0]
 	config.Remotes = args[1:]
