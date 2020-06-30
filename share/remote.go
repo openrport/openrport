@@ -22,7 +22,10 @@ import (
 //     remote google.com:80
 
 type Remote struct {
-	LocalHost, LocalPort, RemoteHost, RemotePort string
+	LocalHost  string `json:"lhost"`
+	LocalPort  string `json:"lport"`
+	RemoteHost string `json:"rhost"`
+	RemotePort string `json:"rport"`
 }
 
 func DecodeRemote(s string) (*Remote, error) {

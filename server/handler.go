@@ -2,11 +2,13 @@ package chserver
 
 import (
 	"context"
+	"fmt"
 	"net/http"
 	"strings"
 	"sync/atomic"
 	"time"
 
+	"github.com/gorilla/mux"
 	"golang.org/x/crypto/ssh"
 
 	chshare "github.com/cloudradar-monitoring/rport/share"
@@ -14,6 +16,12 @@ import (
 
 // handleClientHandler is the main http websocket handler for the rport server
 func (s *Server) handleClientHandler(w http.ResponseWriter, r *http.Request) {
+	defer func() {
+		if err := recover(); err != nil {
+			s.Infof("panic while handling client request: %s", err)
+		}
+	}()
+
 	//websockets upgrade AND has rport prefix
 	upgrade := strings.ToLower(r.Header.Get("Upgrade"))
 	protocol := r.Header.Get("Sec-WebSocket-Protocol")
@@ -31,23 +39,26 @@ func (s *Server) handleClientHandler(w http.ResponseWriter, r *http.Request) {
 		s.reverseProxy.ServeHTTP(w, r)
 		return
 	}
-	//no proxy defined, provide access to health/version checks
-	switch r.URL.String() {
-	case "/health":
-		_, _ = w.Write([]byte("OK\n"))
-		return
-	case "/version":
-		_, _ = w.Write([]byte(chshare.BuildVersion))
+
+	//no proxy defined, provide access to REST API
+	s.handleAPIRequest(w, r)
+}
+
+func (s *Server) handleAPIRequest(w http.ResponseWriter, req *http.Request) {
+	var matchedRoute mux.RouteMatch
+	routeExists := s.apiRouter.Match(req, &matchedRoute)
+	if routeExists {
+		mux.SetURLVars(req, matchedRoute.Vars) // allows retrieving Vars later from request object
+		matchedRoute.Handler.ServeHTTP(w, req)
 		return
 	}
-	//missing :O
 	w.WriteHeader(404)
-	_, _ = w.Write([]byte("Not found"))
+	_, _ = w.Write([]byte{})
 }
 
 // handleWebsocket is responsible for handling the websocket connection
 func (s *Server) handleWebsocket(w http.ResponseWriter, req *http.Request) {
-	id := atomic.AddInt32(&s.sessCount, 1)
+	id := atomic.AddInt32(&s.sessionIDAutoIncrement, 1)
 	clog := s.Fork("session#%d", id)
 	wsConn, err := upgrader.Upgrade(w, req, nil)
 	if err != nil {
@@ -64,10 +75,10 @@ func (s *Server) handleWebsocket(w http.ResponseWriter, req *http.Request) {
 	}
 	// pull the users from the session map
 	var user *chshare.User
+	sid := fmt.Sprintf("%x", sshConn.SessionID())
 	if s.users.Len() > 0 {
-		sid := string(sshConn.SessionID())
-		user, _ = s.sessions.Get(sid)
-		s.sessions.Del(sid)
+		user, _ = s.authenticatedUsers.Get(sid)
+		s.authenticatedUsers.Del(sid)
 	}
 	//verify configuration
 	clog.Debugf("Verifying configuration")
@@ -76,7 +87,7 @@ func (s *Server) handleWebsocket(w http.ResponseWriter, req *http.Request) {
 	select {
 	case r = <-reqs:
 	case <-time.After(10 * time.Second):
-		sshConn.Close()
+		_ = sshConn.Close()
 		return
 	}
 	failed := func(err error) {
@@ -113,6 +124,14 @@ func (s *Server) handleWebsocket(w http.ResponseWriter, req *http.Request) {
 			}
 		}
 	}
+
+	sessionInfo := &ClientSession{
+		ID:      sid,
+		Version: c.Version,
+		Address: sshConn.RemoteAddr().String(),
+		Remotes: c.Remotes,
+	}
+
 	//set up reverse port forwarding
 	ctx, cancel := context.WithCancel(context.Background())
 	defer cancel()
@@ -125,12 +144,14 @@ func (s *Server) handleWebsocket(w http.ResponseWriter, req *http.Request) {
 	}
 	//success!
 	_ = r.Reply(true, nil)
-	//prepare connection logger
-	clog.Debugf("Open")
+
+	clog.Debugf("Open %s", sessionInfo.ID)
+	s.sessions[sessionInfo.ID] = sessionInfo
 	go s.handleSSHRequests(clog, reqs)
 	go s.handleSSHChannels(clog, chans)
 	_ = sshConn.Wait()
-	clog.Debugf("Close")
+	delete(s.sessions, sessionInfo.ID)
+	clog.Debugf("Close %s", sessionInfo.ID)
 }
 
 func (s *Server) handleSSHRequests(clientLog *chshare.Logger, reqs <-chan *ssh.Request) {

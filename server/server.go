@@ -8,6 +8,7 @@ import (
 	"net/url"
 	"regexp"
 
+	"github.com/gorilla/mux"
 	"github.com/gorilla/websocket"
 	"github.com/jpillora/requestlog"
 	"golang.org/x/crypto/ssh"
@@ -26,14 +27,16 @@ type Config struct {
 // Server represents a rport service
 type Server struct {
 	*chshare.Logger
-	connStats    chshare.ConnStats
-	fingerprint  string
-	httpServer   *chshare.HTTPServer
-	reverseProxy *httputil.ReverseProxy
-	sessCount    int32
-	sessions     *chshare.Users
-	sshConfig    *ssh.ServerConfig
-	users        *chshare.UserIndex
+	connStats              chshare.ConnStats
+	fingerprint            string
+	httpServer             *chshare.HTTPServer
+	apiRouter              *mux.Router
+	reverseProxy           *httputil.ReverseProxy
+	sessionIDAutoIncrement int32
+	authenticatedUsers     *chshare.Users
+	sshConfig              *ssh.ServerConfig
+	users                  *chshare.UserIndex
+	sessions               map[string]*ClientSession
 }
 
 var upgrader = websocket.Upgrader{
@@ -45,12 +48,14 @@ var upgrader = websocket.Upgrader{
 // NewServer creates and returns a new rport server
 func NewServer(config *Config) (*Server, error) {
 	s := &Server{
-		httpServer: chshare.NewHTTPServer(),
-		Logger:     chshare.NewLogger("server"),
-		sessions:   chshare.NewUsers(),
+		httpServer:         chshare.NewHTTPServer(),
+		Logger:             chshare.NewLogger("server"),
+		authenticatedUsers: chshare.NewUsers(),
+		sessions:           make(map[string]*ClientSession),
 	}
 	s.Info = true
 	s.users = chshare.NewUserIndex(s.Logger)
+	s.apiRouter = NewAPIRouter(s)
 	if config.AuthFile != "" {
 		if err := s.users.LoadUsers(config.AuthFile); err != nil {
 			return nil, err
@@ -157,7 +162,7 @@ func (s *Server) authUser(c ssh.ConnMetadata, password []byte) (*ssh.Permissions
 	}
 	// insert the user session map
 	// @note: this should probably have a lock on it given the map isn't thread-safe??
-	s.sessions.Set(string(c.SessionID()), user)
+	s.authenticatedUsers.Set(string(c.SessionID()), user)
 	return nil, nil
 }
 

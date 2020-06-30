@@ -6,3 +6,4 @@ rport
 rport.exe
 rportd
 rportd.exe
+deploy.sh
