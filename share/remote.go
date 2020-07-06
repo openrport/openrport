@@ -86,3 +86,7 @@ func (r *Remote) String() string {
 func (r *Remote) Remote() string {
 	return r.RemoteHost + ":" + r.RemotePort
 }
+
+func (r *Remote) Equals(other *Remote) bool {
+	return r.String() == other.String()
+}

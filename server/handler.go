@@ -48,7 +48,7 @@ func (s *Server) handleAPIRequest(w http.ResponseWriter, req *http.Request) {
 	var matchedRoute mux.RouteMatch
 	routeExists := s.apiRouter.Match(req, &matchedRoute)
 	if routeExists {
-		mux.SetURLVars(req, matchedRoute.Vars) // allows retrieving Vars later from request object
+		req = mux.SetURLVars(req, matchedRoute.Vars) // allows retrieving Vars later from request object
 		matchedRoute.Handler.ServeHTTP(w, req)
 		return
 	}
@@ -103,7 +103,7 @@ func (s *Server) handleWebsocket(w http.ResponseWriter, req *http.Request) {
 		failed(s.Errorf("invalid config"))
 		return
 	}
-	//print if client and server  versions dont match
+	//print if client and server versions dont match
 	if c.Version != chshare.BuildVersion {
 		v := c.Version
 		if v == "" {
@@ -116,32 +116,37 @@ func (s *Server) handleWebsocket(w http.ResponseWriter, req *http.Request) {
 	//if user is provided, ensure they have
 	//access to the desired remotes
 	if user != nil {
-		for _, r := range c.Remotes {
-			var addr = r.LocalHost + ":" + r.LocalPort
-			if !user.HasAccess(addr) {
-				failed(s.Errorf("access to '%s' denied", addr))
+		for _, remote := range c.Remotes {
+			if !user.HasAccess(remote) {
+				failed(s.Errorf("access to '%s' denied", remote))
 				return
 			}
 		}
 	}
 
+	ctx, cancel := context.WithCancel(context.Background())
+	defer cancel()
+
 	sessionInfo := &ClientSession{
-		ID:      sid,
-		Version: c.Version,
-		Address: sshConn.RemoteAddr().String(),
-		Remotes: c.Remotes,
+		ID:         sid,
+		Version:    c.Version,
+		Address:    sshConn.RemoteAddr().String(),
+		Remotes:    make([]*chshare.Remote, 0),
+		Connection: sshConn,
+		Context:    ctx,
+		User:       user,
+		Logger:     clog,
 	}
 
 	//set up reverse port forwarding
-	ctx, cancel := context.WithCancel(context.Background())
-	defer cancel()
-	for i, r := range c.Remotes {
-		proxy := chshare.NewTCPProxy(s.Logger, func() ssh.Conn { return sshConn }, i, r)
-		if err := proxy.Start(ctx); err != nil {
+	for _, r := range c.Remotes {
+		err = sessionInfo.StartRemoteTunnel(r)
+		if err != nil {
 			failed(s.Errorf("%s", err))
 			return
 		}
 	}
+
 	//success!
 	_ = r.Reply(true, nil)
 

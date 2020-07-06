@@ -15,13 +15,12 @@ type GetSSHConn func() ssh.Conn
 type TCPProxy struct {
 	*Logger
 	ssh    GetSSHConn
-	id     int
+	id     int32
 	count  int
 	remote *Remote
 }
 
-func NewTCPProxy(logger *Logger, ssh GetSSHConn, index int, remote *Remote) *TCPProxy {
-	id := index + 1
+func NewTCPProxy(logger *Logger, ssh GetSSHConn, id int32, remote *Remote) *TCPProxy {
 	return &TCPProxy{
 		Logger: logger.Fork("proxy#%d:%s", id, remote),
 		ssh:    ssh,

@@ -21,7 +21,8 @@ type User struct {
 	Addrs []*regexp.Regexp
 }
 
-func (u *User) HasAccess(addr string) bool {
+func (u *User) HasAccess(remote *Remote) bool {
+	var addr = remote.LocalHost + ":" + remote.LocalPort
 	m := false
 	for _, r := range u.Addrs {
 		if r.MatchString(addr) {
