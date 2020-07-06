@@ -39,7 +39,7 @@ func (flag *headerFlags) Set(arg string) error {
 }
 
 var clientHelp = `
-  Usage: rport [options] <server> <remote> [remote] [remote] ...
+  Usage: rport [options] <server> [remote] [remote] [remote] ...
 
   <server> is the URL to the rport server.
 
