@@ -64,9 +64,10 @@ builds:
       - hardfloat
       - softfloat
 archives:
-  - format: gz
-    files:
-      - none*
+  -
+    format_overrides:
+      - goos: windows
+        format: zip
 changelog:
   sort: asc
 
