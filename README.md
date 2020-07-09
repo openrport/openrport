@@ -1,7 +1,30 @@
 # rport
 Create reverse tunnels with ease.
 
+## At a glance
+Rport helps you to manage your remote servers without the hassle of VPNs, chained SSH connections, jump-hosts, or the use of commercial tools like TeamViewer and its clones. 
+
+Rport acts as server and client establishing permanent or on-demand secure tunnels to devices inside protected intranets behind a firewall. 
+
+All operating systems provide secure and well-established mechanisms for remote management, being SSH and Remote Desktop the most widely used. Rport makes them accessible easily and securely. 
+
+**Is Rport a replacement for TeamViewer?**
+Yes and no. It depends on your needs.
+TeamViewer and a couple of similar products are focused on giving access to a remote graphical desktop bypassing the Remote Desktop implementation of Microsoft. They fall short in a heterogeneous environment where access to headless Linux machines is needed. But they are without alternatives for Windows Home Editions.
+Apart from remote management, they offer supplementary services like Video Conferences, desktop sharing, screen mirroring, or spontaneous remote assistance for desktop users.
+
+**Goal of Rport**
+Rport focusses only on remote management of those operating systems where an existing login mechanism can be used. It can be used for Linux and Windows, but also appliances and IoT devices providing a web-based configuration. 
+From a technological perspective, [Ngork](https://ngrok.com/) and [openport.io](openport.io) are similar products. Rport differs from them in many aspects.
+* Rport is 100% open source. Client and Server. Remote management is a matter of trust and security. Rport is fully transparent.
+* Rport will come with a user interface making the management of remote systems easy and user-friendly.
+* Rport is made for all operating systems with native and small binaries. No need for Python or similar heavyweights.
+* Rport allows you to self-host the server.
+* Rport allows clients to wait in standby mode without an active tunnel. Tunnels can be requested on-demand by the user remotely.
+
+
 ## Build and installation
+We provide [pre-compiled binaries](https://github.com/cloudradar-monitoring/rport/releases).
 ### From source
 1) Build from source (Linux or Mac OS/X.):
     ```bash
@@ -156,6 +179,60 @@ If you want to maintain multiple users with different passwords, create a json-f
 *Rportd reads the file immediately after writing without the need for a sighub. This might change in the future.*
 
 Start the server with `rportd --authfile /etc/rport-auth.json`. Change the `ExecStart` line of the systemd service file accordingly. 
+
+### On-demand tunnels
+Initializing the creation of a tunnel from the client is nice but not a perfect solution for secure and reliable remote access to a large number of machines.
+Most of the time the tunnel wouldn't be used. Network resources would be wasted and a port is exposed to the internet for an unnecessarily long time.
+Rport provides the option to establish tunnels from the server only when you need them.
+
+Invoke the client without specifying a tunnel.  
+```
+rport node2.rport.io:19075
+```
+*Add auth and fingerprint as already explained.*
+
+This attaches the client to the message queue of the server without creating a tunnel.
+On the server, you can supervise the attached clients using 
+`curl -s http://localhost:19075/api/v1/sessions`. *Use `jq` for pretty-printing json.*
+Here is an example:
+```
+curl -s http://localhost:19075/api/v1/sessions|jq
+[
+  {
+    "id": "b10a1419102708c1a8202eba0c2970f2e6410201c752fe7479724c52a8a137d9",
+    "version": "0.1.0-SNAPSHOT-7323e7c",
+    "address": "88.198.189.xxx:58354",
+    "remotes": [
+      {
+        "lhost": "0.0.0.0",
+        "lport": "2222",
+        "rhost": "0.0.0.0",
+        "rport": "22"
+      }
+    ]
+  },
+  {
+    "id": "24fc518c23ddbacc109382c5b1b420c51ebb6b21ac214e095ef410c820ae6cd3",
+    "version": "0.1.0-SNAPSHOT-7323e7c",
+    "address": "88.198.189.xxx:54664",
+    "remotes": []
+  }
+]
+```
+There is one client connected with an active tunnel. The second client is in standby mode.
+
+Now use `PUT /api/v1/sessions/{id}/tunnels?local={port}&remote={port}` to request a new tunnel for a client session.
+For example
+```
+ID=24fc518c23ddbacc109382c5b1b420c51ebb6b21ac214e095ef410c820ae6cd3
+LOCAL_PORT=4000 
+REMOTE_PORT=3389
+curl -X PUT "http://localhost:19075/api/v1/sessions/$ID/tunnels?local=$LOCAL_PORT&remote=$REMOTE_PORT"
+```
+The ports are defined from the servers' perspective. The above example opens port 4000 on the rport server and forwards to the port 3389 of the client.
+
+The API is very basic still. Authentication, a UI and many more options will follow soon. Stay connected with us.
+
 
 ### Credits
 Forked from [jpillora/chisel](https://github.com/jpillora/chisel)
