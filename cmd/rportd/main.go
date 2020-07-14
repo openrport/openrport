@@ -16,10 +16,10 @@ var serverHelp = `
   Options:
 
     --host, Defines the HTTP listening host – the network interface
-    (defaults the environment variable HOST and falls back to 0.0.0.0).
+    (defaults the environment variable RPORT_HOST and falls back to 0.0.0.0).
 
     --port, -p, Defines the HTTP listening port (defaults to the environment
-    variable PORT and fallsback to port 8080).
+    variable RPORT_PORT and fallsback to port 8080).
 
     --key, An optional string to seed the generation of a ECDSA public
     and private key pair. All communications will be secured using this
@@ -84,7 +84,7 @@ func main() {
 	}
 
 	if *host == "" {
-		*host = os.Getenv("HOST")
+		*host = os.Getenv("RPORT_HOST")
 	}
 	if *host == "" {
 		*host = "0.0.0.0"
@@ -93,7 +93,7 @@ func main() {
 		*port = *p
 	}
 	if *port == "" {
-		*port = os.Getenv("PORT")
+		*port = os.Getenv("RPORT_PORT")
 	}
 	if *port == "" {
 		*port = "8080"

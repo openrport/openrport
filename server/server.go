@@ -162,7 +162,7 @@ func (s *Server) authUser(c ssh.ConnMetadata, password []byte) (*ssh.Permissions
 	}
 	// insert the user session map
 	// @note: this should probably have a lock on it given the map isn't thread-safe??
-	s.authenticatedUsers.Set(string(c.SessionID()), user)
+	s.authenticatedUsers.Set(GetSessionID(c), user)
 	return nil, nil
 }
 

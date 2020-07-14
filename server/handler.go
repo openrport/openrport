@@ -2,7 +2,6 @@ package chserver
 
 import (
 	"context"
-	"fmt"
 	"net/http"
 	"strings"
 	"sync/atomic"
@@ -75,7 +74,7 @@ func (s *Server) handleWebsocket(w http.ResponseWriter, req *http.Request) {
 	}
 	// pull the users from the session map
 	var user *chshare.User
-	sid := fmt.Sprintf("%x", sshConn.SessionID())
+	sid := GetSessionID(sshConn)
 	if s.users.Len() > 0 {
 		user, _ = s.authenticatedUsers.Get(sid)
 		s.authenticatedUsers.Del(sid)
@@ -118,7 +117,7 @@ func (s *Server) handleWebsocket(w http.ResponseWriter, req *http.Request) {
 	if user != nil {
 		for _, remote := range c.Remotes {
 			if !user.HasAccess(remote) {
-				failed(s.Errorf("access to '%s' denied", remote))
+				failed(s.Errorf("access to requested address denied (%s:%s)", remote.LocalHost, remote.LocalPort))
 				return
 			}
 		}
