@@ -105,8 +105,8 @@ func NewServer(config *Config) (*Server, error) {
 }
 
 // Run is responsible for starting the rport service
-func (s *Server) Run(host, port string) error {
-	if err := s.Start(host, port); err != nil {
+func (s *Server) Run(listenAddr string) error {
+	if err := s.Start(listenAddr); err != nil {
 		return err
 	}
 
@@ -114,7 +114,7 @@ func (s *Server) Run(host, port string) error {
 }
 
 // Start is responsible for kicking off the http server
-func (s *Server) Start(host, port string) error {
+func (s *Server) Start(listenAddr string) error {
 	s.Infof("Fingerprint %s", s.fingerprint)
 	if s.users.Len() > 0 {
 		s.Infof("User authenication enabled")
@@ -122,14 +122,14 @@ func (s *Server) Start(host, port string) error {
 	if s.reverseProxy != nil {
 		s.Infof("Reverse proxy enabled")
 	}
-	s.Infof("Listening on %s:%s...", host, port)
+	s.Infof("Listening on %s...", listenAddr)
 	h := http.Handler(http.HandlerFunc(s.handleClientHandler))
 	if s.Debug {
 		o := requestlog.DefaultOptions
 		o.TrustProxy = true
 		h = requestlog.WrapWith(h, o)
 	}
-	return s.httpServer.GoListenAndServe(host+":"+port, h)
+	return s.httpServer.GoListenAndServe(listenAddr, h)
 }
 
 // Wait waits for the http server to close

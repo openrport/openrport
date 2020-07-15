@@ -15,8 +15,8 @@ var serverHelp = `
 
   Options:
 
-    --host, Defines the HTTP listening host – the network interface
-    (defaults the environment variable RPORT_HOST and falls back to 0.0.0.0).
+    --listen, Defines the IP address the HTTP server listens on.
+    (defaults to the environment variable RPORT_LISTEN and falls back to 0.0.0.0).
 
     --port, -p, Defines the HTTP listening port (defaults to the environment
     variable RPORT_PORT and fallsback to port 8080).
@@ -56,7 +56,7 @@ var serverHelp = `
 `
 
 func main() {
-	host := flag.String("host", "", "")
+	listenInterface := flag.String("listen", "", "")
 	p := flag.String("p", "", "")
 	port := flag.String("port", "", "")
 	key := flag.String("key", "", "")
@@ -83,11 +83,11 @@ func main() {
 		os.Exit(1)
 	}
 
-	if *host == "" {
-		*host = os.Getenv("RPORT_HOST")
+	if *listenInterface == "" {
+		*listenInterface = os.Getenv("RPORT_LISTEN")
 	}
-	if *host == "" {
-		*host = "0.0.0.0"
+	if *listenInterface == "" {
+		*listenInterface = "0.0.0.0"
 	}
 	if *port == "" {
 		*port = *p
@@ -114,7 +114,7 @@ func main() {
 
 	go chshare.GoStats()
 
-	if err = s.Run(*host, *port); err != nil {
+	if err = s.Run(*listenInterface + ":" + *port); err != nil {
 		log.Fatal(err)
 	}
 }
