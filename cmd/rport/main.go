@@ -51,12 +51,22 @@ var clientHelp = `
   which does reverse port forwarding, sharing <remote-host>:<remote-port>
   from the client to the server's <local-interface>:<local-port>.
 
-  Example remotes:
+  Examples:
 
-      3000
-      example.com:3000
-      3000:google.com:80
-      192.168.0.5:3000:google.com:80
+    ./rport <SERVER>:<PORT> 2222:127.0.0.1:22 
+    forwards port 2222 of the server to port 22 of the client
+
+    ./rport <SERVER>:<PORT> 3000 
+    forwards port 3000 of the server to port 3000 of the client
+
+    ./rport <SERVER>:<PORT> example.com:3000
+    forwards port 3000 of the server to port 3000 of example.com originating the connection from the client
+
+    ./rport <SERVER>:<PORT> 3000:google.com:80
+    forwards port 3000 of the server to port 80 of google.com originating the connection from the client
+
+    ./rport <SERVER>:<PORT> 192.168.0.5:3000:google.com:80
+    server will listen on 192.168.0.5 interface forwarding all packets from port 3000 to port 80 of google.com originating the connection from the client
 
   Options:
 

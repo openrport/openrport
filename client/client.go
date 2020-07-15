@@ -164,20 +164,10 @@ func (c *Client) connectionLoop() {
 	for c.running {
 		if connerr != nil {
 			attempt := int(b.Attempt())
-			maxAttempt := c.config.MaxRetryCount
 			d := b.Duration()
-			//show error and attempt counts
-			msg := fmt.Sprintf("Connection error: %s", connerr)
-			if attempt > 0 {
-				msg += fmt.Sprintf(" (Attempt: %d", attempt)
-				if maxAttempt > 0 {
-					msg += fmt.Sprintf("/%d", maxAttempt)
-				}
-				msg += ")"
-			}
-			c.Debugf(msg)
+			c.showConnectionError(connerr, attempt)
 			//give up?
-			if maxAttempt >= 0 && attempt >= maxAttempt {
+			if c.config.MaxRetryCount >= 0 && attempt >= c.config.MaxRetryCount {
 				break
 			}
 			c.Infof("Retrying in %s...", d)
@@ -235,22 +225,27 @@ func (c *Client) connectionLoop() {
 			if strings.Contains(err.Error(), "unable to authenticate") {
 				c.Infof("Authentication failed")
 				c.Debugf(err.Error())
-			} else {
-				c.Infof(err.Error())
+				connerr = err
+				continue
 			}
+			c.Infof(err.Error())
 			break
 		}
 		c.config.shared.Version = chshare.BuildVersion
 		conf, _ := chshare.EncodeConfig(c.config.shared)
 		c.Debugf("Sending config")
 		t0 := time.Now()
-		_, configerr, err := sshConn.SendRequest("config", true, conf)
+		_, configReply, err := sshConn.SendRequest("config", true, conf)
 		if err != nil {
 			c.Infof("Config verification failed")
 			break
 		}
-		if len(configerr) > 0 {
-			c.Infof(string(configerr))
+		if len(configReply) > 0 {
+			c.Infof(string(configReply))
+			if strings.Contains(string(configReply), "access to requested address denied") {
+				connerr = fmt.Errorf(string(configReply))
+				continue
+			}
 			break
 		}
 		c.Infof("Connected (Latency %s)", time.Since(t0))
@@ -269,6 +264,20 @@ func (c *Client) connectionLoop() {
 		c.Infof("Disconnected\n")
 	}
 	close(c.runningc)
+}
+
+func (c *Client) showConnectionError(connerr error, attempt int) {
+	maxAttempt := c.config.MaxRetryCount
+	//show error and attempt counts
+	msg := fmt.Sprintf("Connection error: %s", connerr)
+	if attempt > 0 {
+		msg += fmt.Sprintf(" (Attempt: %d", attempt)
+		if maxAttempt > 0 {
+			msg += fmt.Sprintf("/%d", maxAttempt)
+		}
+		msg += ")"
+	}
+	c.Debugf(msg)
 }
 
 //Wait blocks while the client is running.

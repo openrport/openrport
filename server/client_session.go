@@ -2,6 +2,7 @@ package chserver
 
 import (
 	"context"
+	"fmt"
 	"sync"
 	"sync/atomic"
 
@@ -9,6 +10,10 @@ import (
 
 	chshare "github.com/cloudradar-monitoring/rport/share"
 )
+
+func GetSessionID(sshConn ssh.ConnMetadata) string {
+	return fmt.Sprintf("%x", sshConn.SessionID())
+}
 
 type ClientSession struct {
 	ID      string            `json:"id"`
