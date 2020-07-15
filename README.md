@@ -15,7 +15,7 @@ Apart from remote management, they offer supplementary services like Video Confe
 
 **Goal of Rport**
 Rport focusses only on remote management of those operating systems where an existing login mechanism can be used. It can be used for Linux and Windows, but also appliances and IoT devices providing a web-based configuration. 
-From a technological perspective, [Ngork](https://ngrok.com/) and [openport.io](openport.io) are similar products. Rport differs from them in many aspects.
+From a technological perspective, [Ngork](https://ngrok.com/) and [openport.io](https://openport.io) are similar products. Rport differs from them in many aspects.
 * Rport is 100% open source. Client and Server. Remote management is a matter of trust and security. Rport is fully transparent.
 * Rport will come with a user interface making the management of remote systems easy and user-friendly.
 * Rport is made for all operating systems with native and small binaries. No need for Python or similar heavyweights.
@@ -138,7 +138,7 @@ mkdir /var/log/rportd
 chown rport:root /var/log/rportd
 ```
 
-Create a config file `/etc/default/rport` like this exmaple.
+Create a config file `/etc/default/rport` like this example.
 ```
 RPORT_KEY=<YOUR_KEY>
 HOST=0.0.0.0
@@ -232,6 +232,12 @@ curl -X PUT "http://localhost:19075/api/v1/sessions/$ID/tunnels?local=$LOCAL_POR
 The ports are defined from the servers' perspective. The above example opens port 4000 on the rport server and forwards to the port 3389 of the client.
 
 The API is very basic still. Authentication, a UI and many more options will follow soon. Stay connected with us.
+
+
+### Versioning model
+rport uses <major>.<minor>.<buildnumber> version pattern for compatibility with a maximum number of package managers.
+
+Starting from version 1.0.0 packages with even <minor> number are considered stable.
 
 
 ### Credits
