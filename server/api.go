@@ -14,7 +14,8 @@ func NewAPIRouter(s *Server) *mux.Router {
 	sub := r.PathPrefix("/api/v1").Subrouter()
 	sub.HandleFunc("/status", s.handleGetStatus).Methods(http.MethodGet)
 	sub.HandleFunc("/sessions", s.handleGetSessions).Methods(http.MethodGet)
-	sub.HandleFunc("/sessions/{id}/tunnels", s.handlePutSessionTunnel).Methods(http.MethodPut)
+	sub.HandleFunc("/sessions/{session_id}/tunnels", s.handlePutSessionTunnel).Methods(http.MethodPut)
+	sub.HandleFunc("/sessions/{session_id}/tunnels/{tunnel_id}", s.handleDeleteSessionTunnel).Methods(http.MethodDelete)
 	return r
 }
 
@@ -53,7 +54,7 @@ func (s *Server) handleGetSessions(w http.ResponseWriter, req *http.Request) {
 
 func (s *Server) handlePutSessionTunnel(w http.ResponseWriter, req *http.Request) {
 	vars := mux.Vars(req)
-	sessionID, exists := vars["id"]
+	sessionID, exists := vars["session_id"]
 	if !exists || sessionID == "" {
 		s.jsonErrorResponse(w, http.StatusBadRequest, s.Errorf("invalid session id supplied: %s", sessionID))
 		return
@@ -92,11 +93,48 @@ func (s *Server) handlePutSessionTunnel(w http.ResponseWriter, req *http.Request
 		return
 	}
 
-	err = session.StartRemoteTunnel(remote)
+	tunnelID, err := session.StartRemoteTunnel(remote)
 	if err != nil {
 		s.jsonErrorResponse(w, http.StatusConflict, s.Errorf("can't create tunnel: %s", err))
 		return
 	}
+	response["tunnel_id"] = tunnelID
 
+	s.writeJSONResponse(w, http.StatusOK, response)
+}
+
+func (s *Server) handleDeleteSessionTunnel(w http.ResponseWriter, req *http.Request) {
+	vars := mux.Vars(req)
+	sessionID, exists := vars["session_id"]
+	if !exists || sessionID == "" {
+		s.jsonErrorResponse(w, http.StatusBadRequest, s.Errorf("invalid session id supplied: %s", sessionID))
+		return
+	}
+
+	session, exists := s.sessions[sessionID]
+	if !exists {
+		s.jsonErrorResponse(w, http.StatusNotFound, s.Errorf("session not found"))
+		return
+	}
+
+	tunnelID, exists := vars["tunnel_id"]
+	if !exists || tunnelID == "" {
+		s.jsonErrorResponse(w, http.StatusBadRequest, s.Errorf("invalid session id supplied: %s", sessionID))
+		return
+	}
+
+	// make next steps thread-safe
+	session.Lock()
+	defer session.Unlock()
+
+	tunnel := session.FindTunnel(tunnelID)
+	if tunnel == nil {
+		s.jsonErrorResponse(w, http.StatusNotFound, s.Errorf("tunnel not found"))
+		return
+	}
+
+	session.TerminateTunnel(tunnel)
+
+	response := map[string]interface{}{"success": 1}
 	s.writeJSONResponse(w, http.StatusOK, response)
 }
