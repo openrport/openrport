@@ -130,7 +130,7 @@ func (s *Server) handleWebsocket(w http.ResponseWriter, req *http.Request) {
 		ID:         sid,
 		Version:    c.Version,
 		Address:    sshConn.RemoteAddr().String(),
-		Remotes:    make([]*chshare.Remote, 0),
+		Tunnels:    make([]*Tunnel, 0),
 		Connection: sshConn,
 		Context:    ctx,
 		User:       user,
@@ -139,7 +139,7 @@ func (s *Server) handleWebsocket(w http.ResponseWriter, req *http.Request) {
 
 	//set up reverse port forwarding
 	for _, r := range c.Remotes {
-		err = sessionInfo.StartRemoteTunnel(r)
+		_, err = sessionInfo.StartRemoteTunnel(r)
 		if err != nil {
 			failed(s.Errorf("%s", err))
 			return

@@ -3,6 +3,7 @@ package chserver
 import (
 	"context"
 	"fmt"
+	"strconv"
 	"sync"
 	"sync/atomic"
 
@@ -15,18 +16,19 @@ func GetSessionID(sshConn ssh.ConnMetadata) string {
 	return fmt.Sprintf("%x", sshConn.SessionID())
 }
 
+// ClientSession represents active client connection
 type ClientSession struct {
-	ID      string            `json:"id"`
-	Version string            `json:"version"`
-	Address string            `json:"address"`
-	Remotes []*chshare.Remote `json:"remotes"`
+	ID      string    `json:"id"`
+	Version string    `json:"version"`
+	Address string    `json:"address"`
+	Tunnels []*Tunnel `json:"tunnels"`
 
 	Connection ssh.Conn        `json:"-"`
 	Context    context.Context `json:"-"`
 	User       *chshare.User   `json:"-"`
 	Logger     *chshare.Logger `json:"-"`
 
-	tunnelIDAutoIncrement int32
+	tunnelIDAutoIncrement int64
 	lock                  sync.Mutex
 }
 
@@ -39,7 +41,7 @@ func (c *ClientSession) Unlock() {
 }
 
 func (c *ClientSession) HasRemote(r *chshare.Remote) bool {
-	for _, curr := range c.Remotes {
+	for _, curr := range c.Tunnels {
 		if curr.Equals(r) {
 			return true
 		}
@@ -47,16 +49,42 @@ func (c *ClientSession) HasRemote(r *chshare.Remote) bool {
 	return false
 }
 
-func (c *ClientSession) StartRemoteTunnel(r *chshare.Remote) error {
-	proxy := chshare.NewTCPProxy(c.Logger, func() ssh.Conn { return c.Connection }, c.generateNewTunnelID(), r)
-	err := proxy.Start(c.Context)
+func (c *ClientSession) StartRemoteTunnel(r *chshare.Remote) (string, error) {
+	tunnelID := strconv.FormatInt(c.generateNewTunnelID(), 10)
+	t := NewTunnel(c.Logger, c.Connection, tunnelID, r)
+	err := t.Start(c.Context)
 	if err != nil {
-		return err
+		return "", err
 	}
-	c.Remotes = append(c.Remotes, r)
+	c.Tunnels = append(c.Tunnels, t)
+	return tunnelID, nil
+}
+
+func (c *ClientSession) TerminateTunnel(t *Tunnel) {
+	c.Logger.Infof("Terminating tunnel %s...", t.ID)
+	t.Terminate()
+	c.removeTunnel(t)
+}
+
+func (c *ClientSession) FindTunnel(id string) *Tunnel {
+	for _, curr := range c.Tunnels {
+		if curr.ID == id {
+			return curr
+		}
+	}
 	return nil
 }
 
-func (c *ClientSession) generateNewTunnelID() int32 {
-	return atomic.AddInt32(&c.tunnelIDAutoIncrement, 1)
+func (c *ClientSession) generateNewTunnelID() int64 {
+	return atomic.AddInt64(&c.tunnelIDAutoIncrement, 1)
+}
+
+func (c *ClientSession) removeTunnel(t *Tunnel) {
+	result := make([]*Tunnel, 0)
+	for _, curr := range c.Tunnels {
+		if curr.ID != t.ID {
+			result = append(result, curr)
+		}
+	}
+	c.Tunnels = result
 }
