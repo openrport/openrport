@@ -30,6 +30,7 @@ type Config struct {
 	MaxRetryInterval time.Duration
 	Server           string
 	Proxy            string
+	ID               string
 	Remotes          []string
 	Headers          http.Header
 	DialContext      func(ctx context.Context, network, addr string) (net.Conn, error)

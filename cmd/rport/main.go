@@ -107,7 +107,9 @@ var clientHelp = `
     Can be used multiple times. (e.g --header "Foo: Bar" --header "Hello: World")
 
     --hostname, Optionally set the 'Host' header (defaults to the host
-    found in the server url).
+	found in the server url).
+
+	--id, Optionally set the 'ID' header (defaults to auto generated id).
 
     -v, Enable verbose logging
 
@@ -131,6 +133,7 @@ func main() {
 	flag.DurationVar(&config.MaxRetryInterval, "max-retry-interval", 0, "")
 	flag.StringVar(&config.Proxy, "proxy", "", "")
 	flag.Var(&headerFlags{config.Headers}, "header", "")
+	flag.StringVar(&config.ID, "id", "", "")
 	hostname := flag.String("hostname", "", "")
 	verbose := flag.Bool("v", false, "")
 	version := flag.Bool("version", false, "")
