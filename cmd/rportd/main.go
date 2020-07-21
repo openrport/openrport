@@ -44,6 +44,10 @@ var serverHelp = `
     rport receives a normal HTTP request. Useful for hiding rport in
     plain sight.
 
+    --api-addr, Defines the IP address and port the API server listens on.
+    e.g. "0.0.0.0:7777". (defaults to the environment variable RPORT_API_ADDR
+    and fallsback to empty string: API not available)
+
     -v, Enable verbose logging
 
     --help, This help text
@@ -63,6 +67,7 @@ func main() {
 	authfile := flag.String("authfile", "", "")
 	auth := flag.String("auth", "", "")
 	proxy := flag.String("proxy", "", "")
+	apiAddr := flag.String("api-addr", "", "")
 	verbose := flag.Bool("v", false, "")
 	version := flag.Bool("version", false, "")
 
@@ -101,20 +106,25 @@ func main() {
 	if *key == "" {
 		*key = os.Getenv("RPORT_KEY")
 	}
+
+	if *apiAddr == "" {
+		*apiAddr = os.Getenv("RPORT_API_ADDR")
+	}
+
 	s, err := chserver.NewServer(&chserver.Config{
 		KeySeed:  *key,
 		AuthFile: *authfile,
 		Auth:     *auth,
 		Proxy:    *proxy,
+		Verbose:  *verbose,
 	})
 	if err != nil {
 		log.Fatal(err)
 	}
-	s.Debug = *verbose
 
 	go chshare.GoStats()
 
-	if err = s.Run(*listenInterface + ":" + *port); err != nil {
+	if err = s.Run(*listenInterface+":"+*port, *apiAddr); err != nil {
 		log.Fatal(err)
 	}
 }
