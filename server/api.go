@@ -9,17 +9,18 @@ import (
 	chshare "github.com/cloudradar-monitoring/rport/share"
 )
 
-func NewAPIRouter(s *Server) *mux.Router {
+func (al *APIListener) initRouter() {
 	r := mux.NewRouter()
 	sub := r.PathPrefix("/api/v1").Subrouter()
-	sub.HandleFunc("/status", s.handleGetStatus).Methods(http.MethodGet)
-	sub.HandleFunc("/sessions", s.handleGetSessions).Methods(http.MethodGet)
-	sub.HandleFunc("/sessions/{session_id}/tunnels", s.handlePutSessionTunnel).Methods(http.MethodPut)
-	sub.HandleFunc("/sessions/{session_id}/tunnels/{tunnel_id}", s.handleDeleteSessionTunnel).Methods(http.MethodDelete)
-	return r
+	sub.HandleFunc("/status", al.handleGetStatus).Methods(http.MethodGet)
+	sub.HandleFunc("/sessions", al.handleGetSessions).Methods(http.MethodGet)
+	sub.HandleFunc("/sessions/{session_id}/tunnels", al.handlePutSessionTunnel).Methods(http.MethodPut)
+	sub.HandleFunc("/sessions/{session_id}/tunnels/{tunnel_id}", al.handleDeleteSessionTunnel).Methods(http.MethodDelete)
+
+	al.router = r
 }
 
-func (s *Server) writeJSONResponse(w http.ResponseWriter, statusCode int, response interface{}) {
+func (al *APIListener) writeJSONResponse(w http.ResponseWriter, statusCode int, response interface{}) {
 	b, err := json.Marshal(response)
 	if err != nil {
 		http.Error(w, err.Error(), http.StatusInternalServerError)
@@ -29,40 +30,36 @@ func (s *Server) writeJSONResponse(w http.ResponseWriter, statusCode int, respon
 	w.Header().Set("Content-Type", "application/json; charset=UTF-8")
 	w.WriteHeader(statusCode)
 	if _, err := w.Write(b); err != nil {
-		s.Infof("error writing response: %s", err)
+		al.Infof("error writing response: %s", err)
 	}
 }
 
-func (s *Server) jsonErrorResponse(w http.ResponseWriter, statusCode int, err error) {
-	s.writeJSONResponse(w, statusCode, map[string]string{"error": err.Error()})
+func (al *APIListener) jsonErrorResponse(w http.ResponseWriter, statusCode int, err error) {
+	al.writeJSONResponse(w, statusCode, map[string]string{"error": err.Error()})
 }
 
-func (s *Server) handleGetStatus(w http.ResponseWriter, req *http.Request) {
-	s.writeJSONResponse(w, http.StatusOK, map[string]interface{}{
+func (al *APIListener) handleGetStatus(w http.ResponseWriter, req *http.Request) {
+	al.writeJSONResponse(w, http.StatusOK, map[string]interface{}{
 		"version":        chshare.BuildVersion,
-		"sessions_count": len(s.sessions),
+		"sessions_count": al.sessionRepo.Count(),
 	})
 }
 
-func (s *Server) handleGetSessions(w http.ResponseWriter, req *http.Request) {
-	var result = make([]*ClientSession, 0)
-	for _, c := range s.sessions {
-		result = append(result, c)
-	}
-	s.writeJSONResponse(w, http.StatusOK, result)
+func (al *APIListener) handleGetSessions(w http.ResponseWriter, req *http.Request) {
+	al.writeJSONResponse(w, http.StatusOK, al.sessionRepo.GetAll())
 }
 
-func (s *Server) handlePutSessionTunnel(w http.ResponseWriter, req *http.Request) {
+func (al *APIListener) handlePutSessionTunnel(w http.ResponseWriter, req *http.Request) {
 	vars := mux.Vars(req)
 	sessionID, exists := vars["session_id"]
 	if !exists || sessionID == "" {
-		s.jsonErrorResponse(w, http.StatusBadRequest, s.Errorf("invalid session id supplied: %s", sessionID))
+		al.jsonErrorResponse(w, http.StatusBadRequest, al.Errorf("invalid session id supplied: %s", sessionID))
 		return
 	}
 
-	session, exists := s.sessions[sessionID]
-	if !exists {
-		s.jsonErrorResponse(w, http.StatusNotFound, s.Errorf("session not found"))
+	session := al.sessionRepo.FindOne(sessionID)
+	if session == nil {
+		al.jsonErrorResponse(w, http.StatusNotFound, al.Errorf("session not found"))
 		return
 	}
 
@@ -70,13 +67,13 @@ func (s *Server) handlePutSessionTunnel(w http.ResponseWriter, req *http.Request
 	remoteAddr := req.URL.Query().Get("remote")
 	remote, err := chshare.DecodeRemote(localAddr + ":" + remoteAddr)
 	if err != nil {
-		s.jsonErrorResponse(w, http.StatusBadRequest, s.Errorf("invalid request: %s", err))
+		al.jsonErrorResponse(w, http.StatusBadRequest, al.Errorf("invalid request: %s", err))
 		return
 	}
 
 	// check user permissions
 	if session.User != nil && !session.User.HasAccess(remote) {
-		s.jsonErrorResponse(w, http.StatusForbidden, s.Errorf("access is not allowed for current session"))
+		al.jsonErrorResponse(w, http.StatusForbidden, al.Errorf("access is not allowed for current session"))
 		return
 	}
 
@@ -89,37 +86,37 @@ func (s *Server) handlePutSessionTunnel(w http.ResponseWriter, req *http.Request
 	// check if such remote already exists
 	if session.HasRemote(remote) {
 		response["msg"] = "requested tunnel already exists"
-		s.writeJSONResponse(w, http.StatusNoContent, response)
+		al.writeJSONResponse(w, http.StatusNoContent, response)
 		return
 	}
 
 	tunnelID, err := session.StartRemoteTunnel(remote)
 	if err != nil {
-		s.jsonErrorResponse(w, http.StatusConflict, s.Errorf("can't create tunnel: %s", err))
+		al.jsonErrorResponse(w, http.StatusConflict, al.Errorf("can't create tunnel: %s", err))
 		return
 	}
 	response["tunnel_id"] = tunnelID
 
-	s.writeJSONResponse(w, http.StatusOK, response)
+	al.writeJSONResponse(w, http.StatusOK, response)
 }
 
-func (s *Server) handleDeleteSessionTunnel(w http.ResponseWriter, req *http.Request) {
+func (al *APIListener) handleDeleteSessionTunnel(w http.ResponseWriter, req *http.Request) {
 	vars := mux.Vars(req)
 	sessionID, exists := vars["session_id"]
 	if !exists || sessionID == "" {
-		s.jsonErrorResponse(w, http.StatusBadRequest, s.Errorf("invalid session id supplied: %s", sessionID))
+		al.jsonErrorResponse(w, http.StatusBadRequest, al.Errorf("invalid session id supplied: %s", sessionID))
 		return
 	}
 
-	session, exists := s.sessions[sessionID]
-	if !exists {
-		s.jsonErrorResponse(w, http.StatusNotFound, s.Errorf("session not found"))
+	session := al.sessionRepo.FindOne(sessionID)
+	if session == nil {
+		al.jsonErrorResponse(w, http.StatusNotFound, al.Errorf("session not found"))
 		return
 	}
 
 	tunnelID, exists := vars["tunnel_id"]
 	if !exists || tunnelID == "" {
-		s.jsonErrorResponse(w, http.StatusBadRequest, s.Errorf("invalid session id supplied: %s", sessionID))
+		al.jsonErrorResponse(w, http.StatusBadRequest, al.Errorf("invalid session id supplied: %s", sessionID))
 		return
 	}
 
@@ -129,12 +126,12 @@ func (s *Server) handleDeleteSessionTunnel(w http.ResponseWriter, req *http.Requ
 
 	tunnel := session.FindTunnel(tunnelID)
 	if tunnel == nil {
-		s.jsonErrorResponse(w, http.StatusNotFound, s.Errorf("tunnel not found"))
+		al.jsonErrorResponse(w, http.StatusNotFound, al.Errorf("tunnel not found"))
 		return
 	}
 
 	session.TerminateTunnel(tunnel)
 
 	response := map[string]interface{}{"success": 1}
-	s.writeJSONResponse(w, http.StatusOK, response)
+	al.writeJSONResponse(w, http.StatusOK, response)
 }
