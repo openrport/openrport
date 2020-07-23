@@ -19,6 +19,7 @@ func GetSessionID(sshConn ssh.ConnMetadata) string {
 // ClientSession represents active client connection
 type ClientSession struct {
 	ID      string    `json:"id"`
+	Name    string    `json:"name"`
 	Version string    `json:"version"`
 	Address string    `json:"address"`
 	Tunnels []*Tunnel `json:"tunnels"`

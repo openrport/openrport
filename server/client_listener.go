@@ -210,6 +210,7 @@ func (cl *ClientListener) handleWebsocket(w http.ResponseWriter, req *http.Reque
 		return
 	}
 	c, err := chshare.DecodeConfig(r.Payload)
+
 	if err != nil {
 		failed(cl.Errorf("invalid config"))
 		return

@@ -111,6 +111,8 @@ var clientHelp = `
 
 	--id, Optionally set the 'ID' header (defaults to auto generated id).
 
+	--name, Optionally set the 'Name' header (defaults to unset).
+
     -v, Enable verbose logging
 
     --help, This help text
@@ -134,6 +136,7 @@ func main() {
 	flag.StringVar(&config.Proxy, "proxy", "", "")
 	flag.Var(&headerFlags{config.Headers}, "header", "")
 	flag.StringVar(&config.ID, "id", "", "")
+	flag.StringVar(&config.Name, "name", "", "")
 	hostname := flag.String("hostname", "", "")
 	verbose := flag.Bool("v", false, "")
 	version := flag.Bool("version", false, "")
