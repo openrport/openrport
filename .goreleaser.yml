@@ -6,7 +6,7 @@ builds:
     main: ./cmd/rport
     binary: rport
     ldflags:
-      - "-s -w  -X {{.Env.PROJECT}}/share.BuildVersion={{.Version}}"
+      - "-s -w -X {{.Env.PROJECT}}/share.BuildVersion={{.Version}}"
     goos:
       - linux
       - darwin
@@ -40,7 +40,7 @@ builds:
     main: ./cmd/rportd
     binary: rportd
     ldflags:
-      - "-s -w  -X {{.Env.PROJECT}}/share.BuildVersion={{.Version}}"
+      - "-s -w -X {{.Env.PROJECT}}/share.BuildVersion={{.Version}}"
     goos:
       - linux
       - darwin
