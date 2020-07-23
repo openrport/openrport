@@ -116,7 +116,7 @@ func (al *APIListener) handleDeleteSessionTunnel(w http.ResponseWriter, req *htt
 
 	tunnelID, exists := vars["tunnel_id"]
 	if !exists || tunnelID == "" {
-		al.jsonErrorResponse(w, http.StatusBadRequest, al.Errorf("invalid session id supplied: %s", sessionID))
+		al.jsonErrorResponse(w, http.StatusBadRequest, al.Errorf("invalid tunnel id supplied: %s", sessionID))
 		return
 	}
 
