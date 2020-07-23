@@ -233,6 +233,7 @@ func (c *Client) connectionLoop() {
 			break
 		}
 		c.config.shared.Version = chshare.BuildVersion
+		c.config.shared.ID = c.config.ID
 		conf, _ := chshare.EncodeConfig(c.config.shared)
 		c.Debugf("Sending config")
 		t0 := time.Now()

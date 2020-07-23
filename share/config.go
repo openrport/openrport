@@ -7,6 +7,7 @@ import (
 
 type Config struct {
 	Version string
+	ID      string
 	Remotes []*Remote
 }
 

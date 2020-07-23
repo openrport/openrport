@@ -191,13 +191,6 @@ func (cl *ClientListener) handleWebsocket(w http.ResponseWriter, req *http.Reque
 		cl.Debugf("Failed to handshake (%s)", err)
 		return
 	}
-	// pull the users from the session map
-	var user *chshare.User
-	sid := GetSessionID(sshConn)
-	if cl.users.Len() > 0 {
-		user, _ = cl.authenticatedUsers.Get(sid)
-		cl.authenticatedUsers.Del(sid)
-	}
 	//verify configuration
 	clog.Debugf("Verifying configuration")
 	//wait for request, with timeout
@@ -221,6 +214,7 @@ func (cl *ClientListener) handleWebsocket(w http.ResponseWriter, req *http.Reque
 		failed(cl.Errorf("invalid config"))
 		return
 	}
+
 	//print if client and server versions dont match
 	if c.Version != chshare.BuildVersion {
 		v := c.Version
@@ -229,6 +223,19 @@ func (cl *ClientListener) handleWebsocket(w http.ResponseWriter, req *http.Reque
 		}
 		clog.Infof("Client version (%s) differs from server version (%s)",
 			v, chshare.BuildVersion)
+	}
+
+	// pull the users from the session map
+	var user *chshare.User
+	var sid string
+	if c.ID == "" {
+		sid = GetSessionID(sshConn)
+	} else {
+		sid = c.ID
+	}
+	if cl.users.Len() > 0 {
+		user, _ = cl.authenticatedUsers.Get(sid)
+		cl.authenticatedUsers.Del(sid)
 	}
 
 	//if user is provided, ensure they have
