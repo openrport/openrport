@@ -9,6 +9,7 @@ type Config struct {
 	Version string
 	ID      string
 	Name    string
+	Tags    []string
 	Remotes []*Remote
 }
 

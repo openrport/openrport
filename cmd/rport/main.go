@@ -113,6 +113,9 @@ var clientHelp = `
 
 	--name, Optionally set the 'Name' header (defaults to unset).
 
+	--tag, Optionally set a tag.
+	Can be used multiple times. (e.g --tag "foobaz" --tag "bingo")
+
     -v, Enable verbose logging
 
     --help, This help text
@@ -137,6 +140,7 @@ func main() {
 	flag.Var(&headerFlags{config.Headers}, "header", "")
 	flag.StringVar(&config.ID, "id", "", "")
 	flag.StringVar(&config.Name, "name", "", "")
+	flag.Var(&config.Tags, "tag", "")
 	hostname := flag.String("hostname", "", "")
 	verbose := flag.Bool("v", false, "")
 	version := flag.Bool("version", false, "")

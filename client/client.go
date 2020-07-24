@@ -32,9 +32,21 @@ type Config struct {
 	Proxy            string
 	ID               string
 	Name             string
+	Tags             tags
 	Remotes          []string
 	Headers          http.Header
 	DialContext      func(ctx context.Context, network, addr string) (net.Conn, error)
+}
+
+type tags []string
+
+func (t *tags) String() string {
+	return strings.Join(*t, ",")
+}
+
+func (t *tags) Set(value string) error {
+	*t = append(*t, value)
+	return nil
 }
 
 //Client represents a client instance
@@ -236,6 +248,7 @@ func (c *Client) connectionLoop() {
 		c.config.shared.Version = chshare.BuildVersion
 		c.config.shared.ID = c.config.ID
 		c.config.shared.Name = c.config.Name
+		c.config.shared.Tags = c.config.Tags
 		conf, _ := chshare.EncodeConfig(c.config.shared)
 		c.Debugf("Sending config")
 		t0 := time.Now()
