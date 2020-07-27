@@ -6,7 +6,10 @@ BINARIES=rport rportd
 all: test build
 
 build:
-	$(foreach BINARY,$(BINARIES),go build -o $(BINARY) -v ./cmd/$(BINARY)/...;)
+	CGO_ENABLED=0 $(foreach BINARY,$(BINARIES),go build -ldflags "-s -w" -o $(BINARY) -v ./cmd/$(BINARY)/...;)
+
+build-debug:
+	$(foreach BINARY,$(BINARIES),go build -race -gcflags "all=-N -l" -o $(BINARY) -v ./cmd/$(BINARY)/...;)
 
 test:
 	go test -v ./...
