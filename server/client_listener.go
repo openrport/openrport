@@ -255,6 +255,8 @@ func (cl *ClientListener) handleWebsocket(w http.ResponseWriter, req *http.Reque
 
 	sessionInfo := &ClientSession{
 		ID:         sid,
+		Name:       c.Name,
+		Tags:       c.Tags,
 		Version:    c.Version,
 		Address:    sshConn.RemoteAddr().String(),
 		Tunnels:    make([]*Tunnel, 0),
@@ -282,11 +284,21 @@ func (cl *ClientListener) handleWebsocket(w http.ResponseWriter, req *http.Reque
 	//success!
 	_ = r.Reply(true, nil)
 
-	clog.Debugf("Open %s", sessionInfo.ID)
+	sessionBanner := sessionInfo.ID
+	if sessionInfo.Name != "" {
+		sessionBanner += " (" + sessionInfo.Name + ")"
+	}
+	if len(sessionInfo.Tags) != 0 {
+		for _, t := range sessionInfo.Tags {
+			sessionBanner += " #" + t
+		}
+	}
+
+	clog.Debugf("Open %s", sessionBanner)
 	go cl.handleSSHRequests(clog, reqs)
 	go cl.handleSSHChannels(clog, chans)
 	_ = sshConn.Wait()
-	clog.Debugf("Close %s", sessionInfo.ID)
+	clog.Debugf("Close %s", sessionBanner)
 
 	err = cl.sessionRepo.Delete(sessionInfo)
 	if err != nil {

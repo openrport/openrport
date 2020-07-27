@@ -20,6 +20,7 @@ func GetSessionID(sshConn ssh.ConnMetadata) string {
 type ClientSession struct {
 	ID      string    `json:"id"`
 	Name    string    `json:"name"`
+	Tags    []string  `json:"tags"`
 	Version string    `json:"version"`
 	Address string    `json:"address"`
 	Tunnels []*Tunnel `json:"tunnels"`
