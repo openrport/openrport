@@ -1,0 +1,212 @@
+swagger: "2.0"
+info:
+  description: "To run API handler, use `--api-addr=0.0.0.0:8888` CLI argument"
+  version: "1.0.0"
+  title: "rportd HTTP API"
+host: "yourserver:8888"
+basePath: "/api/v1"
+securityDefinitions:
+  basic_auth:
+    type: basic
+    description: "HTTP-basic authentication works for all routes"
+  bearer_auth:
+    description: "Instead of HTTP basic authentication you can retrieve a bearer token using /login endpoint. Send the retrieved token in 'Authorization: Bearer <TOKEN>' header"
+    type: apiKey # actually apiKey is not correct type but 'bearer' type is not supported in swaggger v2.0
+    in: header
+    name: "Authorization"
+security:
+  - bearer_auth: []
+  - basic_auth: []
+paths:
+  /login:
+    get:
+      summary: "Generate or renew auth token. Requires HTTP-basic authorization."
+      description: ""
+      parameters:
+        - name: "token-lifetime"
+          in: "query"
+          description: "initial lifetime in seconds. Max value is 90 days. Default: 10 min"
+          required: false
+          type: "number"
+          format: "int32"
+      produces:
+      - "application/json"
+      responses:
+        "200":
+          description: ""
+          schema:
+            type: "object"
+            properties:
+              token:
+                type: "string"
+    post:
+      summary: "Generate or renew auth token. Requires username and password provided in request body"
+      description: "username and password parameters are required. They can be provided either in JSON either in x-www-formurlencoded format"
+      # swagger 2.0 does not allow describing a method that accepts multiple content-types
+      parameters:
+        - name: "token-lifetime"
+          in: "query"
+          description: "initial lifetime in seconds. Max value is 90 days. Default: 10 min"
+          required: false
+          type: "number"
+          format: "int32"
+      produces:
+      - "application/json"
+      responses:
+        "200":
+          description: ""
+          schema:
+            type: "object"
+            properties:
+              token:
+                type: "string"
+    delete:
+      summary: "Revoke token (logoff). Requires Bearer authorization provided"
+      description: ""
+      produces:
+        - "application/json"
+      responses:
+        "200":
+          description: "token revoked"
+  /status:
+    get:
+      summary: "Get information about rport server"
+      description: "show health status and server version"
+      produces:
+      - "application/json"
+      responses:
+        "200":
+          description: "success response"
+          schema:
+            type: "object"
+            properties:
+              version:
+                type: "string"
+              sessions_count:
+                type: "integer"
+  /sessions:
+    get:
+      summary: "List active client connections"
+      description: ""
+      produces:
+      - "application/json"
+      responses:
+        "200":
+          description: "success response"
+          schema:
+            items:
+              $ref: "#/definitions/Session"
+  /sessions/{session_id}/tunnels:
+    parameters:
+      - name: "session_id"
+        in: "path"
+        description: "unique session id retrieved previously"
+        required: true
+        type: "string"
+    put:
+      summary: "Request new tunnel for active client connection"
+      description: ""
+      produces:
+      - "application/json"
+      responses:
+        "200":
+          description: "success response"
+          schema:
+            allOf:
+              - $ref: "#/definitions/ApiResponse"
+              - type: "object"
+                properties:
+                  tunnel_id:
+                    type: "string"
+        "204":
+          description: "success response. Tunnel with such endpoints already exists"
+          schema:
+            items:
+              $ref: "#/definitions/ApiResponse"
+        "400":
+          description: "invalid parameters"
+          schema:
+            $ref: "#/definitions/ErrorResponse"
+        "403":
+          description: "creating this tunnel is not allowed"
+          schema:
+            $ref: "#/definitions/ErrorResponse"
+        "404":
+          description: "specified session does not exist or already terminated"
+          schema:
+            $ref: "#/definitions/ErrorResponse"
+        "409":
+          description: "can't create requested tunnel. Probably port already busy"
+          schema:
+            $ref: "#/definitions/ErrorResponse"
+  /sessions/{session_id}/tunnels/{tunnel_id}:
+    parameters:
+      - name: "session_id"
+        in: "path"
+        description: "unique session id retrieved previously"
+        required: true
+        type: "string"
+      - name: "tunnel_id"
+        in: "path"
+        description: "unique tunnel id retrieved previously"
+        required: true
+        type: "string"
+    delete:
+      summary:  "Terminate specified tunnel"
+      description: ""
+      responses:
+        "200":
+          description: "tunnel terminated"
+          schema:
+            $ref: "#/definitions/ApiResponse"
+        "400":
+          description: "invalid parameters"
+          schema:
+            $ref: "#/definitions/ErrorResponse"
+        "404":
+          description: "specified session or tunnel does not exist or already terminated"
+          schema:
+            $ref: "#/definitions/ErrorResponse"
+definitions:
+  Tunnel:
+    type: "object"
+    properties:
+      id:
+        type: "string"
+      lhost:
+        type: "string"
+        description: "server listens to this host"
+      lport:
+        type: "string"
+        description: "server listens to this port"
+      rhost:
+        type: "string"
+        description: "client proxies connection to this host"
+      rport:
+        type: "string"
+        description: "client proxies connection to this port"
+  Session:
+    type: "object"
+    properties:
+      id:
+        type: "string"
+      version:
+        type: "string"
+        description: "client version"
+      address:
+        type: "string"
+        description: "client address"
+      tunnels:
+        items:
+          $ref: "#/definitions/Tunnel"
+  ApiResponse:
+    type: "object"
+    properties:
+      success:
+        type: "integer"
+        format: "int32"
+  ErrorResponse:
+    type: "object"
+    properties:
+      error:
+        type: "string"

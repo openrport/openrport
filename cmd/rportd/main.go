@@ -1,6 +1,8 @@
 package main
 
 import (
+	"crypto/rand"
+	"crypto/sha256"
 	"flag"
 	"fmt"
 	"log"
@@ -48,6 +50,14 @@ var serverHelp = `
     e.g. "0.0.0.0:7777". (defaults to the environment variable RPORT_API_ADDR
     and fallsback to empty string: API not available)
 
+   --api-auth, Defines "user:password"" authentication pair for accessing API
+    e.g. "admin:1234". (defaults to the environment variable RPORT_API_AUTH
+    and fallsback to empty string: authorization not required).
+
+   --api-jwt-secret, Defines JWT secret used to generate new tokens.
+   (defaults to the environment variable RPORT_AUTH_JWT_SECRET and fallsback
+    to auto-generated value).
+
     -v, Enable verbose logging
 
     --help, This help text
@@ -68,6 +78,8 @@ func main() {
 	auth := flag.String("auth", "", "")
 	proxy := flag.String("proxy", "", "")
 	apiAddr := flag.String("api-addr", "", "")
+	apiAuth := flag.String("api-auth", "", "")
+	apiJWTSecret := flag.String("api-jwt-secret", "", "")
 	verbose := flag.Bool("v", false, "")
 	version := flag.Bool("version", false, "")
 
@@ -106,17 +118,27 @@ func main() {
 	if *key == "" {
 		*key = os.Getenv("RPORT_KEY")
 	}
-
 	if *apiAddr == "" {
 		*apiAddr = os.Getenv("RPORT_API_ADDR")
 	}
+	if *apiAuth == "" {
+		*apiAuth = os.Getenv("RPORT_API_AUTH")
+	}
+	if *apiJWTSecret == "" {
+		*apiJWTSecret = os.Getenv("RPORT_API_JWT_SECRET")
+	}
+	if *apiJWTSecret == "" {
+		*apiJWTSecret = generateJWTSecret()
+	}
 
 	s, err := chserver.NewServer(&chserver.Config{
-		KeySeed:  *key,
-		AuthFile: *authfile,
-		Auth:     *auth,
-		Proxy:    *proxy,
-		Verbose:  *verbose,
+		KeySeed:      *key,
+		AuthFile:     *authfile,
+		Auth:         *auth,
+		Proxy:        *proxy,
+		Verbose:      *verbose,
+		APIAuth:      *apiAuth,
+		APIJWTSecret: *apiJWTSecret,
 	})
 	if err != nil {
 		log.Fatal(err)
@@ -127,4 +149,12 @@ func main() {
 	if err = s.Run(*listenInterface+":"+*port, *apiAddr); err != nil {
 		log.Fatal(err)
 	}
+}
+
+func generateJWTSecret() string {
+	data := make([]byte, 10)
+	if _, err := rand.Read(data); err != nil {
+		log.Fatalf("can't generate API JWT secret: %s", err)
+	}
+	return fmt.Sprintf("%x", sha256.Sum256(data))
 }

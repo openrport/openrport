@@ -6,11 +6,13 @@ import (
 
 // Config is the configuration for the rport service
 type Config struct {
-	KeySeed  string
-	AuthFile string
-	Auth     string
-	Proxy    string
-	Verbose  bool
+	KeySeed      string
+	AuthFile     string
+	Auth         string
+	Proxy        string
+	Verbose      bool
+	APIAuth      string
+	APIJWTSecret string
 }
 
 // Server represents a rport service
@@ -31,7 +33,10 @@ func NewServer(config *Config) (*Server, error) {
 		return nil, err
 	}
 
-	s.apiListener = NewAPIListener(config, sessionRepo)
+	s.apiListener, err = NewAPIListener(config, sessionRepo)
+	if err != nil {
+		return nil, err
+	}
 
 	return s, nil
 }

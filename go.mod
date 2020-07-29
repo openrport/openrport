@@ -4,6 +4,7 @@ go 1.13
 
 require (
 	github.com/andrew-d/go-termutil v0.0.0-20150726205930-009166a695a2 // indirect
+	github.com/dgrijalva/jwt-go v3.2.0+incompatible
 	github.com/fsnotify/fsnotify v1.4.9
 	github.com/gorilla/mux v1.7.4
 	github.com/gorilla/websocket v1.4.2
