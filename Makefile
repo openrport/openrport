@@ -27,7 +27,8 @@ goreleaser-snapshot:
 docker-goreleaser:
 	docker run -it --rm --privileged \
 		-v ${PWD}:${PWD} \
-		-v $(go env GOCACHE):/root/.cache/go-build \
+		-v $(shell go env GOCACHE):/cache/go \
+		-e GOCACHE=/cache/go \
 		-v /var/run/docker.sock:/var/run/docker.sock \
 		-w ${PWD} \
 		goreleaser/goreleaser:v0.126 --snapshot --rm-dist --skip-publish
