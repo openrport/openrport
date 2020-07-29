@@ -265,17 +265,25 @@ func (cl *ClientListener) handleWebsocket(w http.ResponseWriter, req *http.Reque
 		}
 	}
 
+	err = cl.sessionRepo.Save(sessionInfo)
+	if err != nil {
+		failed(cl.Errorf("%s", err))
+		return
+	}
+
 	//success!
 	_ = r.Reply(true, nil)
 
 	clog.Debugf("Open %s", sessionInfo.ID)
-	cl.sessionRepo.Add(sessionInfo)
-
 	go cl.handleSSHRequests(clog, reqs)
 	go cl.handleSSHChannels(clog, chans)
 	_ = sshConn.Wait()
-	cl.sessionRepo.Delete(sessionInfo)
 	clog.Debugf("Close %s", sessionInfo.ID)
+
+	err = cl.sessionRepo.Delete(sessionInfo)
+	if err != nil {
+		cl.Debugf("could not delete session from repo: %s", err)
+	}
 }
 
 func (cl *ClientListener) handleSSHRequests(clientLog *chshare.Logger, reqs <-chan *ssh.Request) {

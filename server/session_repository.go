@@ -10,30 +10,32 @@ func NewSessionRepository() *SessionRepository {
 	}
 }
 
-func (s *SessionRepository) Add(session *ClientSession) {
+func (s *SessionRepository) Save(session *ClientSession) error {
 	s.sessions[session.ID] = session
+	return nil
 }
 
-func (s *SessionRepository) Delete(session *ClientSession) {
+func (s *SessionRepository) Delete(session *ClientSession) error {
 	delete(s.sessions, session.ID)
+	return nil
 }
 
-func (s *SessionRepository) Count() int {
-	return len(s.sessions)
+func (s *SessionRepository) Count() (int, error) {
+	return len(s.sessions), nil
 }
 
-func (s *SessionRepository) FindOne(id string) *ClientSession {
+func (s *SessionRepository) FindOne(id string) (*ClientSession, error) {
 	c, exists := s.sessions[id]
 	if !exists {
-		return nil
+		return nil, nil
 	}
-	return c
+	return c, nil
 }
 
-func (s *SessionRepository) GetAll() []*ClientSession {
+func (s *SessionRepository) GetAll() ([]*ClientSession, error) {
 	var result = make([]*ClientSession, 0)
 	for _, c := range s.sessions {
 		result = append(result, c)
 	}
-	return result
+	return result, nil
 }
