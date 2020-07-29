@@ -50,12 +50,15 @@ var serverHelp = `
     e.g. "0.0.0.0:7777". (defaults to the environment variable RPORT_API_ADDR
     and fallsback to empty string: API not available)
 
-   --api-auth, Defines "user:password"" authentication pair for accessing API
+    --doc-root, Specifies local directory path. If specified, rportd will serve
+    files from this directory on the same API address (--api-addr).
+
+    --api-auth, Defines "user:password"" authentication pair for accessing API
     e.g. "admin:1234". (defaults to the environment variable RPORT_API_AUTH
     and fallsback to empty string: authorization not required).
 
-   --api-jwt-secret, Defines JWT secret used to generate new tokens.
-   (defaults to the environment variable RPORT_AUTH_JWT_SECRET and fallsback
+    --api-jwt-secret, Defines JWT secret used to generate new tokens.
+    (defaults to the environment variable RPORT_AUTH_JWT_SECRET and fallsback
     to auto-generated value).
 
     -v, Enable verbose logging
@@ -80,6 +83,7 @@ func main() {
 	apiAddr := flag.String("api-addr", "", "")
 	apiAuth := flag.String("api-auth", "", "")
 	apiJWTSecret := flag.String("api-jwt-secret", "", "")
+	docRoot := flag.String("doc-root", "", "")
 	verbose := flag.Bool("v", false, "")
 	version := flag.Bool("version", false, "")
 
@@ -131,6 +135,10 @@ func main() {
 		*apiJWTSecret = generateJWTSecret()
 	}
 
+	if *docRoot != "" && *apiAddr == "" {
+		log.Fatal("To use --doc-root you need to specify API address (see --api-addr)")
+	}
+
 	s, err := chserver.NewServer(&chserver.Config{
 		KeySeed:      *key,
 		AuthFile:     *authfile,
@@ -139,6 +147,7 @@ func main() {
 		Verbose:      *verbose,
 		APIAuth:      *apiAuth,
 		APIJWTSecret: *apiJWTSecret,
+		DocRoot:      *docRoot,
 	})
 	if err != nil {
 		log.Fatal(err)

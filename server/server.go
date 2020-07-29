@@ -13,6 +13,7 @@ type Config struct {
 	Verbose      bool
 	APIAuth      string
 	APIJWTSecret string
+	DocRoot      string
 }
 
 // Server represents a rport service

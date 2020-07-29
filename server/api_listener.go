@@ -22,6 +22,7 @@ type APIListener struct {
 	apiSessionRepo *APISessionRepository
 	router         *mux.Router
 	httpServer     *chshare.HTTPServer
+	docRoot        string
 }
 
 func NewAPIListener(config *Config, s *SessionRepository) (*APIListener, error) {
@@ -38,6 +39,7 @@ func NewAPIListener(config *Config, s *SessionRepository) (*APIListener, error) 
 		sessionRepo:    s,
 		apiSessionRepo: NewAPISessionRepository(),
 		httpServer:     chshare.NewHTTPServer(),
+		docRoot:        config.DocRoot,
 	}
 	a.Info = true
 	a.Debug = config.Verbose
@@ -82,6 +84,12 @@ func (al *APIListener) handleAPIRequest(w http.ResponseWriter, r *http.Request) 
 		matchedRoute.Handler.ServeHTTP(w, r)
 		return
 	}
+
+	if al.docRoot != "" {
+		http.FileServer(http.Dir(al.docRoot)).ServeHTTP(w, r)
+		return
+	}
+
 	w.WriteHeader(404)
 	_, _ = w.Write([]byte{})
 }
