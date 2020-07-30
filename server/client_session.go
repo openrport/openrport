@@ -94,3 +94,16 @@ func (c *ClientSession) removeTunnel(t *Tunnel) {
 	}
 	c.Tunnels = result
 }
+
+func (c *ClientSession) banner() string {
+	banner := c.ID
+	if c.Name != "" {
+		banner += " (" + c.Name + ")"
+	}
+	if len(c.Tags) != 0 {
+		for _, t := range c.Tags {
+			banner += " #" + t
+		}
+	}
+	return banner
+}

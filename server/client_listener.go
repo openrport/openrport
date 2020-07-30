@@ -296,16 +296,7 @@ func (cl *ClientListener) handleWebsocket(w http.ResponseWriter, req *http.Reque
 	//success!
 	_ = r.Reply(true, nil)
 
-	sessionBanner := sessionInfo.ID
-	if sessionInfo.Name != "" {
-		sessionBanner += " (" + sessionInfo.Name + ")"
-	}
-	if len(sessionInfo.Tags) != 0 {
-		for _, t := range sessionInfo.Tags {
-			sessionBanner += " #" + t
-		}
-	}
-
+	sessionBanner := sessionInfo.banner()
 	clog.Debugf("Open %s", sessionBanner)
 	go cl.handleSSHRequests(clog, reqs)
 	go cl.handleSSHChannels(clog, chans)
