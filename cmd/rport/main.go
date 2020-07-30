@@ -107,14 +107,14 @@ var clientHelp = `
     Can be used multiple times. (e.g --header "Foo: Bar" --header "Hello: World")
 
     --hostname, Optionally set the 'Host' header (defaults to the host
-	found in the server url).
+    found in the server url).
 
-	--id, Optionally set the 'ID' header (defaults to auto generated id).
+    --id, Optionally set the 'ID' header (defaults to auto generated id).
 
-	--name, Optionally set the 'Name' header (defaults to unset).
+    --name, Optionally set the 'Name' header (defaults to unset).
 
-	--tag, Optionally set a tag.
-	Can be used multiple times. (e.g --tag "foobaz" --tag "bingo")
+    --tag, Optionally set a tag.
+    Can be used multiple times. (e.g --tag "foobaz" --tag "bingo")
 
     -v, Enable verbose logging
 
