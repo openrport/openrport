@@ -18,12 +18,16 @@ func GetSessionID(sshConn ssh.ConnMetadata) string {
 
 // ClientSession represents active client connection
 type ClientSession struct {
-	ID      string    `json:"id"`
-	Name    string    `json:"name"`
-	Tags    []string  `json:"tags"`
-	Version string    `json:"version"`
-	Address string    `json:"address"`
-	Tunnels []*Tunnel `json:"tunnels"`
+	ID       string    `json:"id"`
+	Name     string    `json:"name"`
+	OS       string    `json:"os"`
+	Hostname string    `json:"hostname"`
+	IPv4     []string  `json:"ipv4"`
+	IPv6     []string  `json:"ipv6"`
+	Tags     []string  `json:"tags"`
+	Version  string    `json:"version"`
+	Address  string    `json:"address"`
+	Tunnels  []*Tunnel `json:"tunnels"`
 
 	Connection ssh.Conn        `json:"-"`
 	Context    context.Context `json:"-"`

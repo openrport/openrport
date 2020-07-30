@@ -12,6 +12,7 @@ require (
 	github.com/jpillora/backoff v1.0.0
 	github.com/jpillora/requestlog v1.0.0
 	github.com/jpillora/sizestr v1.0.0
+	github.com/shirou/gopsutil v2.20.6+incompatible
 	github.com/tomasen/realip v0.0.0-20180522021738-f0c99a92ddce // indirect
 	golang.org/x/crypto v0.0.0-20200510223506-06a226fb4e37
 	golang.org/x/net v0.0.0-20200520004742-59133d7f0dd7
