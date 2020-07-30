@@ -109,6 +109,13 @@ var clientHelp = `
     --hostname, Optionally set the 'Host' header (defaults to the host
     found in the server url).
 
+    --id, Optionally set the 'ID' header (defaults to auto generated id).
+
+    --name, Optionally set the 'Name' header (defaults to unset).
+
+    --tag, Optionally set a tag.
+    Can be used multiple times. (e.g --tag "foobaz" --tag "bingo")
+
     -v, Enable verbose logging
 
     --help, This help text
@@ -131,6 +138,9 @@ func main() {
 	flag.DurationVar(&config.MaxRetryInterval, "max-retry-interval", 0, "")
 	flag.StringVar(&config.Proxy, "proxy", "", "")
 	flag.Var(&headerFlags{config.Headers}, "header", "")
+	flag.StringVar(&config.ID, "id", "", "")
+	flag.StringVar(&config.Name, "name", "", "")
+	flag.Var(&config.Tags, "tag", "")
 	hostname := flag.String("hostname", "", "")
 	verbose := flag.Bool("v", false, "")
 	version := flag.Bool("version", false, "")

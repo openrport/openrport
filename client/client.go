@@ -7,6 +7,7 @@ import (
 	"net"
 	"net/http"
 	"net/url"
+	"os"
 	"regexp"
 	"strings"
 	"time"
@@ -30,9 +31,23 @@ type Config struct {
 	MaxRetryInterval time.Duration
 	Server           string
 	Proxy            string
+	ID               string
+	Name             string
+	Tags             tags
 	Remotes          []string
 	Headers          http.Header
 	DialContext      func(ctx context.Context, network, addr string) (net.Conn, error)
+}
+
+type tags []string
+
+func (t *tags) String() string {
+	return strings.Join(*t, ",")
+}
+
+func (t *tags) Set(value string) error {
+	*t = append(*t, value)
+	return nil
 }
 
 //Client represents a client instance
@@ -232,6 +247,14 @@ func (c *Client) connectionLoop() {
 			break
 		}
 		c.config.shared.Version = chshare.BuildVersion
+		c.config.shared.ID = c.config.ID
+		c.config.shared.Name = c.config.Name
+		c.config.shared.Tags = c.config.Tags
+		c.config.shared.OS, _ = chshare.Uname()
+		c.config.shared.Hostname, _ = os.Hostname()
+		ipv4, ipv6, _ := localIPAddresses()
+		c.config.shared.IPv4 = ipv4
+		c.config.shared.IPv6 = ipv6
 		conf, _ := chshare.EncodeConfig(c.config.shared)
 		c.Debugf("Sending config")
 		t0 := time.Now()
@@ -307,4 +330,40 @@ func (c *Client) connectStreams(chans <-chan ssh.NewChannel) {
 		l := c.Logger.Fork("conn#%d", c.connStats.New())
 		go chshare.HandleTCPStream(l, &c.connStats, stream, remote)
 	}
+}
+
+// returns all local ipv4, ipv6 addresses
+func localIPAddresses() ([]string, []string, error) {
+	ifaces, err := net.Interfaces()
+	if err != nil {
+		return nil, nil, err
+	}
+
+	ipv4 := []string{}
+	ipv6 := []string{}
+
+	for _, i := range ifaces {
+		addrs, err := i.Addrs()
+		if err != nil {
+			return nil, nil, err
+		}
+		for _, addr := range addrs {
+			var ip net.IP
+			switch v := addr.(type) {
+			case *net.IPNet:
+				ip = v.IP
+			case *net.IPAddr:
+				ip = v.IP
+			}
+			if ip.IsLoopback() {
+				continue
+			}
+			if ip.To4() != nil {
+				ipv4 = append(ipv4, ip.String())
+			} else if ip.To16() != nil {
+				ipv6 = append(ipv6, ip.String())
+			}
+		}
+	}
+	return ipv4, ipv6, nil
 }

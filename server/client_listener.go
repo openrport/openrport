@@ -191,13 +191,6 @@ func (cl *ClientListener) handleWebsocket(w http.ResponseWriter, req *http.Reque
 		cl.Debugf("Failed to handshake (%s)", err)
 		return
 	}
-	// pull the users from the session map
-	var user *chshare.User
-	sid := GetSessionID(sshConn)
-	if cl.users.Len() > 0 {
-		user, _ = cl.authenticatedUsers.Get(sid)
-		cl.authenticatedUsers.Del(sid)
-	}
 	//verify configuration
 	clog.Debugf("Verifying configuration")
 	//wait for request, with timeout
@@ -217,10 +210,12 @@ func (cl *ClientListener) handleWebsocket(w http.ResponseWriter, req *http.Reque
 		return
 	}
 	c, err := chshare.DecodeConfig(r.Payload)
+
 	if err != nil {
 		failed(cl.Errorf("invalid config"))
 		return
 	}
+
 	//print if client and server versions dont match
 	if c.Version != chshare.BuildVersion {
 		v := c.Version
@@ -229,6 +224,27 @@ func (cl *ClientListener) handleWebsocket(w http.ResponseWriter, req *http.Reque
 		}
 		clog.Infof("Client version (%s) differs from server version (%s)",
 			v, chshare.BuildVersion)
+	}
+
+	var sid string
+	if c.ID == "" {
+		sid = GetSessionID(sshConn)
+	} else {
+		sid = c.ID
+	}
+
+	// if session id is in use, deny connection
+	session, _ := cl.sessionRepo.FindOne(sid)
+	if session != nil {
+		failed(cl.Errorf("session id `%s` is already in use", sid))
+		return
+	}
+
+	// pull the users from the session map
+	var user *chshare.User
+	if cl.users.Len() > 0 {
+		user, _ = cl.authenticatedUsers.Get(sid)
+		cl.authenticatedUsers.Del(sid)
 	}
 
 	//if user is provided, ensure they have
@@ -247,7 +263,13 @@ func (cl *ClientListener) handleWebsocket(w http.ResponseWriter, req *http.Reque
 
 	sessionInfo := &ClientSession{
 		ID:         sid,
+		Name:       c.Name,
+		Tags:       c.Tags,
+		OS:         c.OS,
+		Hostname:   c.Hostname,
 		Version:    c.Version,
+		IPv4:       c.IPv4,
+		IPv6:       c.IPv6,
 		Address:    sshConn.RemoteAddr().String(),
 		Tunnels:    make([]*Tunnel, 0),
 		Connection: sshConn,
@@ -274,11 +296,12 @@ func (cl *ClientListener) handleWebsocket(w http.ResponseWriter, req *http.Reque
 	//success!
 	_ = r.Reply(true, nil)
 
-	clog.Debugf("Open %s", sessionInfo.ID)
+	sessionBanner := sessionInfo.Banner()
+	clog.Debugf("Open %s", sessionBanner)
 	go cl.handleSSHRequests(clog, reqs)
 	go cl.handleSSHChannels(clog, chans)
 	_ = sshConn.Wait()
-	clog.Debugf("Close %s", sessionInfo.ID)
+	clog.Debugf("Close %s", sessionBanner)
 
 	err = cl.sessionRepo.Delete(sessionInfo)
 	if err != nil {

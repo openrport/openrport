@@ -6,8 +6,15 @@ import (
 )
 
 type Config struct {
-	Version string
-	Remotes []*Remote
+	Version  string
+	ID       string
+	Name     string
+	OS       string
+	Hostname string
+	IPv4     []string
+	IPv6     []string
+	Tags     []string
+	Remotes  []*Remote
 }
 
 func DecodeConfig(b []byte) (*Config, error) {
