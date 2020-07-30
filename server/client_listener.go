@@ -226,8 +226,6 @@ func (cl *ClientListener) handleWebsocket(w http.ResponseWriter, req *http.Reque
 			v, chshare.BuildVersion)
 	}
 
-	// pull the users from the session map
-	var user *chshare.User
 	var sid string
 	if c.ID == "" {
 		sid = GetSessionID(sshConn)
@@ -242,6 +240,8 @@ func (cl *ClientListener) handleWebsocket(w http.ResponseWriter, req *http.Reque
 		return
 	}
 
+	// pull the users from the session map
+	var user *chshare.User
 	if cl.users.Len() > 0 {
 		user, _ = cl.authenticatedUsers.Get(sid)
 		cl.authenticatedUsers.Del(sid)
