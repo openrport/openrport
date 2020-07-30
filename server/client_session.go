@@ -95,7 +95,7 @@ func (c *ClientSession) removeTunnel(t *Tunnel) {
 	c.Tunnels = result
 }
 
-func (c *ClientSession) banner() string {
+func (c *ClientSession) Banner() string {
 	banner := c.ID
 	if c.Name != "" {
 		banner += " (" + c.Name + ")"
