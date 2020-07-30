@@ -9,7 +9,7 @@ type Config struct {
 	Version  string
 	ID       string
 	Name     string
-	OS       string //uname
+	OS       string
 	Hostname string
 	IPv4     []string
 	IPv6     []string
