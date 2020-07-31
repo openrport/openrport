@@ -310,7 +310,7 @@ Tunnels initiated by the client survive a restart of the server. Tunnels created
 
 
 ### Versioning model
-rport uses <major>.<minor>.<buildnumber> version pattern for compatibility with a maximum number of package managers.
+rport uses `<major>.<minor>.<buildnumber>` version pattern for compatibility with a maximum number of package managers.
 
 Starting from version 1.0.0 packages with even <minor> number are considered stable.
 

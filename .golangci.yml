@@ -8,6 +8,8 @@ run:
   # include test files or not, default is true
   tests: true
 
+  modules-download-mode: vendor
+
 output:
   # colored-line-number|line-number|json|tab|checkstyle, default is "colored-line-number"
   format: colored-line-number
