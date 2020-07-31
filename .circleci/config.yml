@@ -34,6 +34,7 @@ jobs:
     <<: *docker_job
     steps:
       - <<: *workspace
+      - run: go mod vendor
       - run: golangci-lint -c .golangci.yml run
 
   test:
