@@ -277,7 +277,7 @@ For example
 ```
 CLIENTID=2ba9174e-640e-4694-ad35-34a2d6f3986b
 LOCAL_PORT=4000 
-REMOTE_PORT=22
+REMOTE_PORT=22:80
 curl -u admin:foobaz -X PUT "http://localhost:3000/api/v1/sessions/$CLIENTID/tunnels?local=$LOCAL_PORT&remote=$REMOTE_PORT"
 ```
 The ports are defined from the servers' perspective. The above example opens port 4000 on the rport server and forwards to the port 22 of the client.
@@ -290,6 +290,27 @@ Using `curl -u admin:foobaz -s http://localhost:3000/api/v1/sessions|jq` again c
         "lport": "4000",
         "rhost": "0.0.0.0",
         "rport": "22",
+        "id": "1"
+      }
+    ]
+```
+
+The rport client is not limited to establish tunnels only to the system it runs on. You can use it as a jump host to create tunnels to foreign systems to.
+
+```
+CLIENTID=2ba9174e-640e-4694-ad35-34a2d6f3986b
+LOCAL_PORT=4001
+REMOTE_PORT=192.168.178.1:80
+curl -u admin:foobaz -X PUT "http://localhost:3000/api/v1/sessions/$CLIENTID/tunnels?local=$LOCAL_PORT&remote=$REMOTE_PORT"
+```
+This example forwards port 4001 of the rport server to port 80 of 192.168.178.1 using the rport client in the middle. 
+```
+"tunnels": [
+      {
+        "lhost": "0.0.0.0",
+        "lport": "4001",
+        "rhost": "192.168.178.1",
+        "rport": "80",
         "id": "1"
       }
     ]
