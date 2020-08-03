@@ -73,6 +73,10 @@ var clientHelp = `
     from port 3000 to port 80 of google.com
     originating the connection from the client
 
+    ./rport "[2a01:4f9:c010:b278::1]:9999" 3389
+    using IPv6 server address. Forwards port 3389 of the server
+    to port 3389 of the client
+
   Options:
 
     --fingerprint, A *strongly recommended* fingerprint string

@@ -14,8 +14,8 @@ TeamViewer and a couple of similar products are focused on giving access to a re
 Apart from remote management, they offer supplementary services like Video Conferences, desktop sharing, screen mirroring, or spontaneous remote assistance for desktop users.
 
 **Goal of Rport**
-Rport focusses only on remote management of those operating systems where an existing login mechanism can be used. It can be used for Linux and Windows, but also appliances and IoT devices providing a web-based configuration. 
-From a technological perspective, [Ngork](https://ngrok.com/) and [openport.io](https://openport.io) are similar products. Rport differs from them in many aspects.
+Rport focuses only on remote management of those operating systems where an existing login mechanism can be used. It can be used for Linux and Windows, but also appliances and IoT devices providing a web-based configuration. 
+From a technological perspective, [Ngrok](https://ngrok.com/) and [openport.io](https://openport.io) are similar products. Rport differs from them in many aspects.
 * Rport is 100% open source. Client and Server. Remote management is a matter of trust and security. Rport is fully transparent.
 * Rport will come with a user interface making the management of remote systems easy and user-friendly.
 * Rport is made for all operating systems with native and small binaries. No need for Python or similar heavyweights.
@@ -26,7 +26,7 @@ From a technological perspective, [Ngork](https://ngrok.com/) and [openport.io](
 ## Build and installation
 We provide [pre-compiled binaries](https://github.com/cloudradar-monitoring/rport/releases).
 ### From source
-1) Build from source (Linux or Mac OS/X.):
+1) Build from source (Linux or Mac OS/X):
     ```bash
     make all
     ```
@@ -36,7 +36,7 @@ We provide [pre-compiled binaries](https://github.com/cloudradar-monitoring/rpor
     ```bash
     make docker-goreleaser
     ```
-    will create binaries for all supported platforms in ./dist directory.
+    will create binaries for all supported platforms in `./dist` directory.
 
 ## Usage
 `rportd` should be executed on the machine, acting as a server.
@@ -44,7 +44,7 @@ We provide [pre-compiled binaries](https://github.com/cloudradar-monitoring/rpor
 `rport` is a client app which will try to establish long-running connection to the server.
 
 Minimal setup:
-1) Execute `./rportd -p 9999` on a server.
+1) Execute `./rportd --addr 0.0.0.0:9999` on a server.
 1) Execute `./rport <SERVER_IP>:9999 3389:3389` on a client.
 1) Now end-users can connect to `<SERVER_IP>:3389` (e.g. using Remote Desktop Connection). The connection will be proxied to client machine.
 
@@ -55,6 +55,7 @@ See `./rportd --help` and `./rport --help` for more options, like:
 - Specifying additional intermediate HTTP proxy
 - Using POSIX signals to control running apps
 - Setting custom HTTP headers
+- Using IPv6 addresses when starting a server
 
 ## Quickstart guide
 ### Install and run the rport server
@@ -74,7 +75,7 @@ openssl rand -hex 18
 
 Start the server as a background task.
 ```
-nohup rportd --key <YOUR_KEY> -p 19075 &>/tmp/rportd.log &
+nohup rportd --key <YOUR_KEY> --addr 0.0.0.0:19075 &>/tmp/rportd.log &
 ```
 For the first testing leave the console open and observe the log with `tail -f /tmp/rportd.log`. Note the fingerprint. You will use it later. 
 
@@ -83,7 +84,7 @@ To safely store and reuse the key use these commands.
 echo "RPORT_KEY=$(openssl rand -hex 18)">/etc/default/rport
 . /etc/default/rport
 export RPORT_KEY=$RPORT_KEY
-nohup rportd -p 19075 &>/tmp/rportd.log &
+nohup rportd --addr 0.0.0.0:19075 &>/tmp/rportd.log &
 ```
 rportd reads the key from the environment so it does not appear in the process list or the history. 
 
@@ -143,11 +144,10 @@ Create a config file `/etc/default/rport` like this example.
 # Key to generate the fingerprint
 RPORT_KEY=<YOUR_KEY>
 # Listen for rport clients connections
-RPORT_LISTEN=0.0.0.0
-RPORT_PORT=19075
+RPORT_ADDR=0.0.0.0:19075
 ```
 
-Start it and enable the autostart on boot
+Start it and enable the auto-start on boot
 ```
 systemctl daemon-reload
 systemctl start rportd
@@ -189,12 +189,11 @@ Most of the time the tunnel wouldn't be used. Network resources would be wasted 
 Rport provides the option to establish tunnels from the server only when you need them.
 
 #### Step 1: activate the API
-The internal management API is disabled by default. The active extend your rportd configuration file `/etc/default/rport` like this example. This opens the API and a username and passwort for HTTP baisc auth is set. 
+The internal management API is disabled by default. The active extend your rportd configuration file `/etc/default/rport` like this example. This opens the API and a username and password for HTTP basic auth is set. 
 ```
 RPORT_KEY=<YOUR_KEY>
 # Listen for rport clients connections
-RPORT_LISTEN=0.0.0.0
-RPORT_PORT=19075
+RPORT_ADDR=0.0.0.0:19075
 
 # Open the management API
 RPORT_API_ADDR=127.0.0.1:3000
@@ -282,7 +281,7 @@ curl -u admin:foobaz -X PUT "http://localhost:3000/api/v1/sessions/$CLIENTID/tun
 ```
 The ports are defined from the servers' perspective. The above example opens port 4000 on the rport server and forwards to the port 22 of the client.
 
-Using `curl -u admin:foobaz -s http://localhost:3000/api/v1/sessions|jq` again confims the tunnel has been established.
+Using `curl -u admin:foobaz -s http://localhost:3000/api/v1/sessions|jq` again confirms the tunnel has been established.
 ```
 "tunnels": [
       {
