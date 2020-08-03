@@ -15,13 +15,19 @@ import (
 var serverHelp = `
   Usage: rportd [options]
 
+  Examples:
+
+    ./rportd --addr=0.0.0.0:9999 
+    starts server, listening to client connections on port 9999
+
+    ./rportd --addr="[2a01:4f9:c010:b278::1]:9999" --api-addr=0.0.0.0:9000 --api-auth=admin:1234
+    starts server, listening to client connections on IPv6 interface,
+    also enabling HTTP API, available at http://0.0.0.0:9000/
+
   Options:
 
-    --listen, Defines the IP address the HTTP server listens on.
-    (defaults to the environment variable RPORT_LISTEN and falls back to 0.0.0.0).
-
-    --port, -p, Defines the HTTP listening port (defaults to the environment
-    variable RPORT_PORT and fallsback to port 8080).
+    --addr, -a, Defines the IP address and port the HTTP server listens on.
+    (defaults to the environment variable RPORT_ADDR and falls back to 0.0.0.0:8080).
 
     --key, An optional string to seed the generation of a ECDSA public
     and private key pair. All communications will be secured using this
@@ -73,9 +79,8 @@ var serverHelp = `
 `
 
 func main() {
-	listenInterface := flag.String("listen", "", "")
-	p := flag.String("p", "", "")
-	port := flag.String("port", "", "")
+	a := flag.String("a", "", "")
+	listenAddr := flag.String("addr", "", "")
 	key := flag.String("key", "", "")
 	authfile := flag.String("authfile", "", "")
 	auth := flag.String("auth", "", "")
@@ -104,20 +109,14 @@ func main() {
 		os.Exit(1)
 	}
 
-	if *listenInterface == "" {
-		*listenInterface = os.Getenv("RPORT_LISTEN")
+	if *listenAddr == "" {
+		*listenAddr = *a
 	}
-	if *listenInterface == "" {
-		*listenInterface = "0.0.0.0"
+	if *listenAddr == "" {
+		*listenAddr = os.Getenv("RPORT_ADDR")
 	}
-	if *port == "" {
-		*port = *p
-	}
-	if *port == "" {
-		*port = os.Getenv("RPORT_PORT")
-	}
-	if *port == "" {
-		*port = "8080"
+	if *listenAddr == "" {
+		*listenAddr = "0.0.0.0:8080"
 	}
 	if *key == "" {
 		*key = os.Getenv("RPORT_KEY")
@@ -155,7 +154,7 @@ func main() {
 
 	go chshare.GoStats()
 
-	if err = s.Run(*listenInterface+":"+*port, *apiAddr); err != nil {
+	if err = s.Run(*listenAddr, *apiAddr); err != nil {
 		log.Fatal(err)
 	}
 }
