@@ -295,7 +295,7 @@ Using `curl -u admin:foobaz -s http://localhost:3000/api/v1/sessions|jq` again c
     ]
 ```
 
-The rport client is not limited to establish tunnels only to the system it runs on. You can use it as a jump host to create tunnels to foreign systems to.
+The rport client is not limited to establish tunnels only to the system it runs on. You can use it as a jump host to create tunnels to foreign systems too.
 
 ```
 CLIENTID=2ba9174e-640e-4694-ad35-34a2d6f3986b
