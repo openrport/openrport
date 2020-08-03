@@ -63,7 +63,7 @@ The server is called node1.example.com in this example.
 
 Install client and server
 ```
-curl -LSs https://github.com/cloudradar-monitoring/rport/releases/download/0.1.0/rport_0.1.0-SNAPSHOT-7323e7c_linux_amd64.tar.gz|\
+curl -LSs https://github.com/cloudradar-monitoring/rport/releases/download/0.1.6/rport_0.1.6_Linux_x86_64.tar.gz|\
 tar vxzf - -C /usr/local/bin/
 ````
 
@@ -91,7 +91,7 @@ rportd reads the key from the environment so it does not appear in the process l
 We call the client `client1.local.localdomain`.
 On your client just install the client binary 
 ```
-curl -LSs https://github.com/cloudradar-monitoring/rport/releases/download/0.1.0/rport_0.1.0-SNAPSHOT-7323e7c_linux_amd64.tar.gz|\
+curl -LSs https://github.com/cloudradar-monitoring/rport/releases/download/0.1.6/rport_0.1.6_Linux_x86_64.tar.gz|\
 tar vxzf - rport -C /usr/local/bin/
 ```
 
@@ -108,7 +108,7 @@ Copy the fingerprint the server has generated on startup to your clipboard and u
 This ensures you connect only to trusted servers. If you omit this step a man in the middle can bring up a rport server and hijack your tunnels.
 If you do ssh or rdp through the tunnel, a hijacked tunnel will not expose your credentials because the data inside the tunnel is still encrypted. But if you use rport for unencrypted protocols like HTTP, sniffing credentials would be possible.
 
-### Using systemd
+### Run the server with systemd
 Packages for most common distributions and Windows are on our roadmap. In the meantime create a systemd service file in `/etc/systemd/system/rportd.service` with the following lines manually.
 ``` 
 [Unit]
@@ -140,15 +140,18 @@ chown rport:root /var/log/rportd
 
 Create a config file `/etc/default/rport` like this example.
 ```
+# Key to generate the fingerprint
 RPORT_KEY=<YOUR_KEY>
-HOST=0.0.0.0
-PORT=19075
+# Listen for rport clients connections
+RPORT_LISTEN=0.0.0.0
+RPORT_PORT=19075
 ```
 
-Start it
+Start it and enable the autostart on boot
 ```
 systemctl daemon-reload
-service rportd restart
+systemctl start rportd
+systemctl enable rportd
 ```
 
 ### Using authentication
@@ -157,7 +160,7 @@ Anyone who knows the address and the port of your rport server can use it for tu
 For the server `rportd --auth rport:password123` is the most basic option. All clients must use the username `rport` and the given password. 
 
 On the client start the tunnel this way
-`rport --auth rport:password123 --fingerprint <YOUR_FINGERPRINT> node2.rport.io:19075 2222:0.0.0.0:22`
+`rport --auth rport:password123 --fingerprint <YOUR_FINGERPRINT> node1.example.com:19075 2222:0.0.0.0:22`
 *Note that in this early version the order of the command line options is still important. This might change later.*
 
 If you want to maintain multiple users with different passwords, create a json-file `/etc/rportd-auth.json` with credentials, for example
@@ -180,42 +183,90 @@ If you want to maintain multiple users with different passwords, create a json-f
 
 Start the server with `rportd --authfile /etc/rport-auth.json`. Change the `ExecStart` line of the systemd service file accordingly. 
 
-### On-demand tunnels
+### On-demand tunnels using the API
 Initializing the creation of a tunnel from the client is nice but not a perfect solution for secure and reliable remote access to a large number of machines.
 Most of the time the tunnel wouldn't be used. Network resources would be wasted and a port is exposed to the internet for an unnecessarily long time.
 Rport provides the option to establish tunnels from the server only when you need them.
 
-Invoke the client without specifying a tunnel.  
+#### Step 1: activate the API
+The internal management API is disabled by default. The active extend your rportd configuration file `/etc/default/rport` like this example. This opens the API and a username and passwort for HTTP baisc auth is set. 
 ```
-rport node2.rport.io:19075
+RPORT_KEY=<YOUR_KEY>
+# Listen for rport clients connections
+RPORT_LISTEN=0.0.0.0
+RPORT_PORT=19075
+
+# Open the management API
+RPORT_API_ADDR=127.0.0.1:3000
+RPORT_API_AUTH=admin:foobaz
+```
+Restart the rportd after any changes to the configuration.
+
+#### Step 2: Connect a client
+Invoke the client without specifying a tunnel but with some extra data.  
+```
+rport --id 2ba9174e-640e-4694-ad35-34a2d6f3986b \
+  --fingerprint c5:26:2b:65:29:a8:0f:ed:ef:77:c9:5c:f1:2a:36:8a \
+  --tag Linux --tag "Office Berlin" \
+  --name "My Test VM" --auth user1:Aiphei4d \
+  node1.example.com:19075
 ```
 *Add auth and fingerprint as already explained.*
 
 This attaches the client to the message queue of the server without creating a tunnel.
+
+#### Step 3: Manage clients and tunnels
 On the server, you can supervise the attached clients using 
-`curl -s http://localhost:19075/api/v1/sessions`. *Use `jq` for pretty-printing json.*
+`curl -s -u admin:foobaz http://localhost:3000/api/v1/sessions`. *Use `jq` for pretty-printing json.*
 Here is an example:
 ```
-curl -s http://localhost:19075/api/v1/sessions|jq
+curl -s -u admin:foobaz http://localhost:3000/api/v1/sessions|jq
 [
   {
-    "id": "b10a1419102708c1a8202eba0c2970f2e6410201c752fe7479724c52a8a137d9",
-    "version": "0.1.0-SNAPSHOT-7323e7c",
-    "address": "88.198.189.xxx:58354",
-    "remotes": [
+    "id": "2ba9174e-640e-4694-ad35-34a2d6f3986b",
+    "name": "My Test VM",
+    "os": "Linux my-devvm-v3 5.4.0-37-generic #41-Ubuntu SMP Wed Jun 3 18:57:02 UTC 2020 x86_64 x86_64 x86_64 GNU/Linux",
+    "hostname": "my-devvm-v3",
+    "ipv4": [
+      "192.168.3.148"
+    ],
+    "ipv6": [
+      "fe80::20c:29ff:fec8:b1f"
+    ],
+    "tags": [
+      "Linux",
+      "Office Berlin"
+    ],
+    "version": "0.1.6",
+    "address": "87.123.136.***:63552",
+    "tunnels": []
+  },
+   {
+    "id": "aa1210c7-1899-491e-8e71-564cacaf1df8",
+    "name": "Random Rport Client",
+    "os": "Linux alpine-3-10-tk-01 4.19.80-0-virt #1-Alpine SMP Fri Oct 18 11:51:24 UTC 2019 x86_64 Linux",
+    "hostname": "alpine-3-10-tk-01",
+    "ipv4": [
+      "192.168.122.117"
+    ],
+    "ipv6": [
+      "fe80::b84f:aff:fe59:a0ba"
+    ],
+    "tags": [
+      "Linux",
+      "Datacenter 1"
+    ],
+    "version": "0.1.6",
+    "address": "88.198.189.***:43206",
+    "tunnels": [
       {
         "lhost": "0.0.0.0",
         "lport": "2222",
         "rhost": "0.0.0.0",
-        "rport": "22"
+        "rport": "22",
+        "id": "1"
       }
     ]
-  },
-  {
-    "id": "24fc518c23ddbacc109382c5b1b420c51ebb6b21ac214e095ef410c820ae6cd3",
-    "version": "0.1.0-SNAPSHOT-7323e7c",
-    "address": "88.198.189.xxx:54664",
-    "remotes": []
   }
 ]
 ```
@@ -224,14 +275,59 @@ There is one client connected with an active tunnel. The second client is in sta
 Now use `PUT /api/v1/sessions/{id}/tunnels?local={port}&remote={port}` to request a new tunnel for a client session.
 For example
 ```
-ID=24fc518c23ddbacc109382c5b1b420c51ebb6b21ac214e095ef410c820ae6cd3
+CLIENTID=2ba9174e-640e-4694-ad35-34a2d6f3986b
 LOCAL_PORT=4000 
-REMOTE_PORT=3389
-curl -X PUT "http://localhost:19075/api/v1/sessions/$ID/tunnels?local=$LOCAL_PORT&remote=$REMOTE_PORT"
+REMOTE_PORT=22:80
+curl -u admin:foobaz -X PUT "http://localhost:3000/api/v1/sessions/$CLIENTID/tunnels?local=$LOCAL_PORT&remote=$REMOTE_PORT"
 ```
-The ports are defined from the servers' perspective. The above example opens port 4000 on the rport server and forwards to the port 3389 of the client.
+The ports are defined from the servers' perspective. The above example opens port 4000 on the rport server and forwards to the port 22 of the client.
 
-The API is very basic still. Authentication, a UI and many more options will follow soon. Stay connected with us.
+Using `curl -u admin:foobaz -s http://localhost:3000/api/v1/sessions|jq` again confims the tunnel has been established.
+```
+"tunnels": [
+      {
+        "lhost": "0.0.0.0",
+        "lport": "4000",
+        "rhost": "0.0.0.0",
+        "rport": "22",
+        "id": "1"
+      }
+    ]
+```
+
+The rport client is not limited to establish tunnels only to the system it runs on. You can use it as a jump host to create tunnels to foreign systems too.
+
+```
+CLIENTID=2ba9174e-640e-4694-ad35-34a2d6f3986b
+LOCAL_PORT=4001
+REMOTE_PORT=192.168.178.1:80
+curl -u admin:foobaz -X PUT "http://localhost:3000/api/v1/sessions/$CLIENTID/tunnels?local=$LOCAL_PORT&remote=$REMOTE_PORT"
+```
+This example forwards port 4001 of the rport server to port 80 of 192.168.178.1 using the rport client in the middle. 
+```
+"tunnels": [
+      {
+        "lhost": "0.0.0.0",
+        "lport": "4001",
+        "rhost": "192.168.178.1",
+        "rport": "80",
+        "id": "1"
+      }
+    ]
+```
+
+Using a DELETE request with the tunnel id allows terminating a tunnel.
+
+```
+CLIENTID=2ba9174e-640e-4694-ad35-34a2d6f3986b
+TUNNELID=1 
+curl -u admin:foobaz -X DELETE "http://localhost:3000/api/v1/sessions/$CLIENTID/tunnels/$TUNNELID"
+```
+
+#### Limitations
+The API is very basic still. A UI and many more options will follow soon. Stay connected with us.
+
+Tunnels initiated by the client survive a restart of the server. Tunnels created by the server don't. This will change in the future. 
 
 
 ### Versioning model
