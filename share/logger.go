@@ -6,49 +6,69 @@ import (
 	"os"
 )
 
-//Logger is ...
+type LogLevel int
+
+const (
+	LogLevelError LogLevel = 0
+	LogLevelInfo  LogLevel = 1
+	LogLevelDebug LogLevel = 2
+)
+
+func ParseLogLevel(str string) (LogLevel, error) {
+	var m = map[string]LogLevel{
+		"error": LogLevelError,
+		"info":  LogLevelInfo,
+		"debug": LogLevelDebug,
+	}
+	if result, ok := m[str]; ok {
+		return result, nil
+	}
+	return LogLevelError, fmt.Errorf("invalid log level")
+}
+
 type Logger struct {
-	prefix      string
-	logger      *log.Logger
-	Info, Debug bool
+	prefix string
+	logger *log.Logger
+	output *os.File
+	level  LogLevel
 }
 
-func NewLogger(prefix string) *Logger {
-	return NewLoggerFlag(prefix, log.Ldate|log.Ltime)
-}
-
-func NewLoggerFlag(prefix string, flag int) *Logger {
+func NewLogger(prefix string, output *os.File, level LogLevel) *Logger {
 	l := &Logger{
 		prefix: prefix,
-		logger: log.New(os.Stdout, "", flag),
-		Info:   false,
-		Debug:  false,
+		logger: log.New(output, "", log.Ldate|log.Ltime),
+		output: output,
+		level:  level,
 	}
 	return l
 }
 
+func (l *Logger) Errorf(f string, args ...interface{}) {
+	l.Logf(LogLevelError, f, args...)
+}
+
 func (l *Logger) Infof(f string, args ...interface{}) {
-	if l.Info {
-		l.logger.Printf(l.prefix+": "+f, args...)
-	}
+	l.Logf(LogLevelInfo, f, args...)
 }
 
 func (l *Logger) Debugf(f string, args ...interface{}) {
-	if l.Debug {
+	l.Logf(LogLevelDebug, f, args...)
+}
+
+func (l *Logger) Logf(severity LogLevel, f string, args ...interface{}) {
+	if l.level >= severity {
 		l.logger.Printf(l.prefix+": "+f, args...)
 	}
 }
 
-func (l *Logger) Errorf(f string, args ...interface{}) error {
+func (l *Logger) FormatError(f string, args ...interface{}) error {
 	return fmt.Errorf(l.prefix+": "+f, args...)
 }
 
 func (l *Logger) Fork(prefix string, args ...interface{}) *Logger {
 	//slip the parent prefix at the front
 	args = append([]interface{}{l.prefix}, args...)
-	ll := NewLogger(fmt.Sprintf("%s: "+prefix, args...))
-	ll.Info = l.Info
-	ll.Debug = l.Debug
+	ll := NewLogger(fmt.Sprintf("%s: "+prefix, args...), l.output, l.level)
 	return ll
 }
 

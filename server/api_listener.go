@@ -15,14 +15,15 @@ import (
 type APIListener struct {
 	*chshare.Logger
 
-	authUser       string
-	authPassword   string
-	jwtSecret      string
-	sessionRepo    *SessionRepository
-	apiSessionRepo *APISessionRepository
-	router         *mux.Router
-	httpServer     *chshare.HTTPServer
-	docRoot        string
+	authUser          string
+	authPassword      string
+	jwtSecret         string
+	sessionRepo       *SessionRepository
+	apiSessionRepo    *APISessionRepository
+	router            *mux.Router
+	httpServer        *chshare.HTTPServer
+	docRoot           string
+	requestLogOptions *requestlog.Options
 }
 
 func NewAPIListener(config *Config, s *SessionRepository) (*APIListener, error) {
@@ -32,17 +33,16 @@ func NewAPIListener(config *Config, s *SessionRepository) (*APIListener, error) 
 	}
 
 	a := &APIListener{
-		Logger:         chshare.NewLogger("api-listener"),
-		authUser:       authUser,
-		authPassword:   authPassword,
-		jwtSecret:      config.APIJWTSecret,
-		sessionRepo:    s,
-		apiSessionRepo: NewAPISessionRepository(),
-		httpServer:     chshare.NewHTTPServer(),
-		docRoot:        config.DocRoot,
+		Logger:            chshare.NewLogger("api-listener", config.LogOutput, config.LogLevel),
+		authUser:          authUser,
+		authPassword:      authPassword,
+		jwtSecret:         config.APIJWTSecret,
+		sessionRepo:       s,
+		apiSessionRepo:    NewAPISessionRepository(),
+		httpServer:        chshare.NewHTTPServer(),
+		docRoot:           config.DocRoot,
+		requestLogOptions: config.InitRequestLogOptions(),
 	}
-	a.Info = true
-	a.Debug = config.Verbose
 
 	a.initRouter()
 
@@ -53,12 +53,7 @@ func (al *APIListener) Start(addr string) error {
 	al.Infof("API Listening on %s...", addr)
 
 	h := http.Handler(http.HandlerFunc(al.handleAPIRequest))
-
-	if al.Debug {
-		o := requestlog.DefaultOptions
-		o.TrustProxy = true
-		h = requestlog.WrapWith(h, o)
-	}
+	h = requestlog.WrapWith(h, *al.requestLogOptions)
 	return al.httpServer.GoListenAndServe(addr, h)
 }
 

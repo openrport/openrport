@@ -80,7 +80,7 @@ func (t *Tunnel) listen(ctx context.Context, l net.Listener) {
 			case <-ctx.Done():
 				//listener closed
 			default:
-				t.Infof("Accept error: %s", err)
+				t.Errorf("Accept error: %s", err)
 			}
 			close(done)
 			return
@@ -102,7 +102,7 @@ func (t *Tunnel) accept(src io.ReadWriteCloser) {
 	//ssh request for tcp connection for this proxy's remote
 	dst, reqs, err := t.sshConn.OpenChannel("rport", []byte(t.Remote.Remote()))
 	if err != nil {
-		l.Infof("Stream error: %s", err)
+		l.Errorf("Stream error: %s", err)
 		return
 	}
 	go ssh.DiscardRequests(reqs)

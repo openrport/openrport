@@ -120,7 +120,9 @@ var clientHelp = `
     --tag, Optionally set a tag.
     Can be used multiple times. (e.g --tag "foobaz" --tag "bingo")
 
-    -v, Enable verbose logging
+    -v, Specify log level. Values: "error", "info", "debug" (defaults to "error")
+
+    -l, Specifies log file path. (defaults to empty string: log printed to stdout)
 
     --help, This help text
 
@@ -134,7 +136,7 @@ var clientHelp = `
 `
 
 func main() {
-	config := chclient.Config{Headers: http.Header{}}
+	config := chclient.Config{Headers: http.Header{}, LogOutput: os.Stdout}
 	flag.StringVar(&config.Fingerprint, "fingerprint", "", "")
 	flag.StringVar(&config.Auth, "auth", "", "")
 	flag.DurationVar(&config.KeepAlive, "keepalive", 0, "")
@@ -146,7 +148,8 @@ func main() {
 	flag.StringVar(&config.Name, "name", "", "")
 	flag.Var(&config.Tags, "tag", "")
 	hostname := flag.String("hostname", "", "")
-	verbose := flag.Bool("v", false, "")
+	logLevelStr := flag.String("v", "error", "")
+	logFilePath := flag.String("l", "", "")
 	version := flag.Bool("version", false, "")
 
 	flag.Usage = func() {
@@ -175,16 +178,45 @@ func main() {
 	if *hostname != "" {
 		config.Headers.Set("Host", *hostname)
 	}
+
+	config.LogLevel = tryParseLogLevel(*logLevelStr)
+
+	var logFile *os.File
+	if *logFilePath != "" {
+		logFile = tryOpenLogFile(*logFilePath)
+		config.LogOutput = logFile
+	}
+	defer func() {
+		if logFile != nil {
+			_ = logFile.Close()
+		}
+	}()
+
 	//ready
 	c, err := chclient.NewClient(&config)
 	if err != nil {
 		log.Fatal(err)
 	}
-	c.Debug = *verbose
 
 	go chshare.GoStats()
 
 	if err = c.Run(); err != nil {
 		log.Fatal(err)
 	}
+}
+
+func tryParseLogLevel(s string) chshare.LogLevel {
+	var logLevel, err = chshare.ParseLogLevel(s)
+	if err != nil {
+		log.Fatalf("can't parse log level: %s", err)
+	}
+	return logLevel
+}
+
+func tryOpenLogFile(path string) *os.File {
+	logFile, err := os.OpenFile(path, os.O_WRONLY|os.O_CREATE|os.O_APPEND, 0644)
+	if err != nil {
+		log.Fatalf("can't open log file: %s", err)
+	}
+	return logFile
 }

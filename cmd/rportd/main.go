@@ -67,7 +67,9 @@ var serverHelp = `
     (defaults to the environment variable RPORT_AUTH_JWT_SECRET and fallsback
     to auto-generated value).
 
-    -v, Enable verbose logging
+    -v, Specify log level. Values: "error", "info", "debug" (defaults to "error")
+
+    -l, Specifies log file path. (defaults to empty string: log printed to stdout)
 
     --help, This help text
 
@@ -89,7 +91,8 @@ func main() {
 	apiAuth := flag.String("api-auth", "", "")
 	apiJWTSecret := flag.String("api-jwt-secret", "", "")
 	docRoot := flag.String("doc-root", "", "")
-	verbose := flag.Bool("v", false, "")
+	logLevelStr := flag.String("v", "error", "")
+	logFilePath := flag.String("l", "", "")
 	version := flag.Bool("version", false, "")
 
 	flag.Usage = func() {
@@ -138,16 +141,30 @@ func main() {
 		log.Fatal("To use --doc-root you need to specify API address (see --api-addr)")
 	}
 
-	s, err := chserver.NewServer(&chserver.Config{
+	config := &chserver.Config{
 		KeySeed:      *key,
 		AuthFile:     *authfile,
 		Auth:         *auth,
 		Proxy:        *proxy,
-		Verbose:      *verbose,
 		APIAuth:      *apiAuth,
 		APIJWTSecret: *apiJWTSecret,
 		DocRoot:      *docRoot,
-	})
+		LogOutput:    os.Stdout,
+		LogLevel:     tryParseLogLevel(*logLevelStr),
+	}
+
+	var logFile *os.File
+	if *logFilePath != "" {
+		logFile = tryOpenLogFile(*logFilePath)
+		config.LogOutput = logFile
+	}
+	defer func() {
+		if logFile != nil {
+			_ = logFile.Close()
+		}
+	}()
+
+	s, err := chserver.NewServer(config)
 	if err != nil {
 		log.Fatal(err)
 	}
@@ -165,4 +182,20 @@ func generateJWTSecret() string {
 		log.Fatalf("can't generate API JWT secret: %s", err)
 	}
 	return fmt.Sprintf("%x", sha256.Sum256(data))
+}
+
+func tryParseLogLevel(s string) chshare.LogLevel {
+	var logLevel, err = chshare.ParseLogLevel(s)
+	if err != nil {
+		log.Fatalf("can't parse log level: %s", err)
+	}
+	return logLevel
+}
+
+func tryOpenLogFile(path string) *os.File {
+	logFile, err := os.OpenFile(path, os.O_WRONLY|os.O_CREATE|os.O_APPEND, 0644)
+	if err != nil {
+		log.Fatalf("can't open log file: %s", err)
+	}
+	return logFile
 }

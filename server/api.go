@@ -54,7 +54,7 @@ func (al *APIListener) writeJSONResponse(w http.ResponseWriter, statusCode int, 
 	w.Header().Set("Content-Type", "application/json; charset=UTF-8")
 	w.WriteHeader(statusCode)
 	if _, err := w.Write(b); err != nil {
-		al.Infof("error writing response: %s", err)
+		al.Errorf("error writing response: %s", err)
 	}
 }
 
@@ -200,7 +200,7 @@ func (al *APIListener) handlePutSessionTunnel(w http.ResponseWriter, req *http.R
 	vars := mux.Vars(req)
 	sessionID, exists := vars["session_id"]
 	if !exists || sessionID == "" {
-		al.jsonErrorResponse(w, http.StatusBadRequest, al.Errorf("invalid session id supplied: %s", sessionID))
+		al.jsonErrorResponse(w, http.StatusBadRequest, al.FormatError("invalid session id supplied: %s", sessionID))
 		return
 	}
 
@@ -210,7 +210,7 @@ func (al *APIListener) handlePutSessionTunnel(w http.ResponseWriter, req *http.R
 		return
 	}
 	if session == nil {
-		al.jsonErrorResponse(w, http.StatusNotFound, al.Errorf("session not found"))
+		al.jsonErrorResponse(w, http.StatusNotFound, al.FormatError("session not found"))
 		return
 	}
 
@@ -218,13 +218,13 @@ func (al *APIListener) handlePutSessionTunnel(w http.ResponseWriter, req *http.R
 	remoteAddr := req.URL.Query().Get("remote")
 	remote, err := chshare.DecodeRemote(localAddr + ":" + remoteAddr)
 	if err != nil {
-		al.jsonErrorResponse(w, http.StatusBadRequest, al.Errorf("invalid request: %s", err))
+		al.jsonErrorResponse(w, http.StatusBadRequest, al.FormatError("invalid request: %s", err))
 		return
 	}
 
 	// check user permissions
 	if session.User != nil && !session.User.HasAccess(remote) {
-		al.jsonErrorResponse(w, http.StatusForbidden, al.Errorf("access is not allowed for current session"))
+		al.jsonErrorResponse(w, http.StatusForbidden, al.FormatError("access is not allowed for current session"))
 		return
 	}
 
@@ -243,7 +243,7 @@ func (al *APIListener) handlePutSessionTunnel(w http.ResponseWriter, req *http.R
 
 	tunnelID, err := session.StartRemoteTunnel(remote)
 	if err != nil {
-		al.jsonErrorResponse(w, http.StatusConflict, al.Errorf("can't create tunnel: %s", err))
+		al.jsonErrorResponse(w, http.StatusConflict, al.FormatError("can't create tunnel: %s", err))
 		return
 	}
 	response["tunnel_id"] = tunnelID
@@ -255,7 +255,7 @@ func (al *APIListener) handleDeleteSessionTunnel(w http.ResponseWriter, req *htt
 	vars := mux.Vars(req)
 	sessionID, exists := vars["session_id"]
 	if !exists || sessionID == "" {
-		al.jsonErrorResponse(w, http.StatusBadRequest, al.Errorf("invalid session id supplied: %s", sessionID))
+		al.jsonErrorResponse(w, http.StatusBadRequest, al.FormatError("invalid session id supplied: %s", sessionID))
 		return
 	}
 
@@ -265,13 +265,13 @@ func (al *APIListener) handleDeleteSessionTunnel(w http.ResponseWriter, req *htt
 		return
 	}
 	if session == nil {
-		al.jsonErrorResponse(w, http.StatusNotFound, al.Errorf("session not found"))
+		al.jsonErrorResponse(w, http.StatusNotFound, al.FormatError("session not found"))
 		return
 	}
 
 	tunnelID, exists := vars["tunnel_id"]
 	if !exists || tunnelID == "" {
-		al.jsonErrorResponse(w, http.StatusBadRequest, al.Errorf("invalid tunnel id supplied: %s", sessionID))
+		al.jsonErrorResponse(w, http.StatusBadRequest, al.FormatError("invalid tunnel id supplied: %s", sessionID))
 		return
 	}
 
@@ -281,7 +281,7 @@ func (al *APIListener) handleDeleteSessionTunnel(w http.ResponseWriter, req *htt
 
 	tunnel := session.FindTunnel(tunnelID)
 	if tunnel == nil {
-		al.jsonErrorResponse(w, http.StatusNotFound, al.Errorf("tunnel not found"))
+		al.jsonErrorResponse(w, http.StatusNotFound, al.FormatError("tunnel not found"))
 		return
 	}
 

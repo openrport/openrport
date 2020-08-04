@@ -37,6 +37,8 @@ type Config struct {
 	Remotes          []string
 	Headers          http.Header
 	DialContext      func(ctx context.Context, network, addr string) (net.Conn, error)
+	LogOutput        *os.File
+	LogLevel         chshare.LogLevel
 }
 
 type tags []string
@@ -97,13 +99,12 @@ func NewClient(config *Config) (*Client, error) {
 	}
 	config.shared = shared
 	client := &Client{
-		Logger:   chshare.NewLogger("client"),
+		Logger:   chshare.NewLogger("client", config.LogOutput, config.LogLevel),
 		config:   config,
 		server:   u.String(),
 		running:  true,
 		runningc: make(chan error, 1),
 	}
-	client.Info = true
 
 	if p := config.Proxy; p != "" {
 		client.proxyURL, err = url.Parse(p)
@@ -185,7 +186,7 @@ func (c *Client) connectionLoop() {
 			if c.config.MaxRetryCount >= 0 && attempt >= c.config.MaxRetryCount {
 				break
 			}
-			c.Infof("Retrying in %s...", d)
+			c.Errorf("Retrying in %s...", d)
 			connerr = nil
 			chshare.SleepSignal(d)
 		}
@@ -201,7 +202,7 @@ func (c *Client) connectionLoop() {
 			if strings.HasPrefix(c.proxyURL.Scheme, "socks") {
 				// SOCKS5 proxy
 				if c.proxyURL.Scheme != "socks" && c.proxyURL.Scheme != "socks5h" {
-					c.Infof(
+					c.Errorf(
 						"unsupported socks proxy type: %s:// (only socks5h:// or socks:// is supported)",
 						c.proxyURL.Scheme)
 					break
@@ -238,12 +239,12 @@ func (c *Client) connectionLoop() {
 		sshConn, chans, reqs, err := ssh.NewClientConn(conn, "", c.sshConfig)
 		if err != nil {
 			if strings.Contains(err.Error(), "unable to authenticate") {
-				c.Infof("Authentication failed")
+				c.Errorf("Authentication failed")
 				c.Debugf(err.Error())
 				connerr = err
 				continue
 			}
-			c.Infof(err.Error())
+			c.Errorf(err.Error())
 			break
 		}
 		c.config.shared.Version = chshare.BuildVersion
@@ -260,7 +261,7 @@ func (c *Client) connectionLoop() {
 		t0 := time.Now()
 		_, configReply, err := sshConn.SendRequest("config", true, conf)
 		if err != nil {
-			c.Infof("Config verification failed")
+			c.Errorf("Config verification failed")
 			break
 		}
 		if len(configReply) > 0 {
@@ -300,7 +301,7 @@ func (c *Client) showConnectionError(connerr error, attempt int) {
 		}
 		msg += ")"
 	}
-	c.Debugf(msg)
+	c.Errorf(msg)
 }
 
 //Wait blocks while the client is running.

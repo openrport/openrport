@@ -3,7 +3,6 @@ package chserver
 import (
 	"context"
 	"errors"
-	"log"
 	"net/http"
 	"net/http/httputil"
 	"net/url"
@@ -31,6 +30,7 @@ type ClientListener struct {
 	sshConfig          *ssh.ServerConfig
 	authenticatedUsers *chshare.Users
 	users              *chshare.UserIndex
+	requestLogOptions  *requestlog.Options
 
 	sessionIndexAutoIncrement int32
 }
@@ -46,10 +46,9 @@ func NewClientListener(config *Config, s *SessionRepository) (*ClientListener, e
 		sessionRepo:        s,
 		httpServer:         chshare.NewHTTPServer(),
 		authenticatedUsers: chshare.NewUsers(),
-		Logger:             chshare.NewLogger("client-listener"),
+		Logger:             chshare.NewLogger("client-listener", config.LogOutput, config.LogLevel),
+		requestLogOptions:  config.InitRequestLogOptions(),
 	}
-	cl.Info = true
-	cl.Debug = config.Verbose
 	cl.users = chshare.NewUserIndex(cl.Logger)
 	if config.AuthFile != "" {
 		if err := cl.users.LoadUsers(config.AuthFile); err != nil {
@@ -68,7 +67,7 @@ func NewClientListener(config *Config, s *SessionRepository) (*ClientListener, e
 	//convert into ssh.PrivateKey
 	private, err := ssh.ParsePrivateKey(key)
 	if err != nil {
-		log.Fatal("Failed to parse key")
+		return nil, cl.FormatError("Failed to parse key")
 	}
 	//fingerprint this key
 	cl.fingerprint = chshare.FingerprintKey(private.PublicKey())
@@ -86,7 +85,7 @@ func NewClientListener(config *Config, s *SessionRepository) (*ClientListener, e
 			return nil, err
 		}
 		if u.Host == "" {
-			return nil, cl.Errorf("Missing protocol (%s)", u)
+			return nil, cl.FormatError("Missing protocol (%s)", u)
 		}
 		cl.reverseProxy = httputil.NewSingleHostReverseProxy(u)
 		//always use proxy host
@@ -130,11 +129,7 @@ func (cl *ClientListener) Start(listenAddr string) error {
 	cl.Infof("Listening on %s...", listenAddr)
 
 	h := http.Handler(http.HandlerFunc(cl.handleClient))
-	if cl.Debug {
-		o := requestlog.DefaultOptions
-		o.TrustProxy = true
-		h = requestlog.WrapWith(h, o)
-	}
+	h = requestlog.WrapWith(h, *cl.requestLogOptions)
 	return cl.httpServer.GoListenAndServe(listenAddr, h)
 }
 
@@ -206,13 +201,13 @@ func (cl *ClientListener) handleWebsocket(w http.ResponseWriter, req *http.Reque
 		_ = r.Reply(false, []byte(err.Error()))
 	}
 	if r.Type != "config" {
-		failed(cl.Errorf("expecting config request"))
+		failed(cl.FormatError("expecting config request"))
 		return
 	}
 	c, err := chshare.DecodeConfig(r.Payload)
 
 	if err != nil {
-		failed(cl.Errorf("invalid config"))
+		failed(cl.FormatError("invalid config"))
 		return
 	}
 
@@ -236,7 +231,7 @@ func (cl *ClientListener) handleWebsocket(w http.ResponseWriter, req *http.Reque
 	// if session id is in use, deny connection
 	session, _ := cl.sessionRepo.FindOne(sid)
 	if session != nil {
-		failed(cl.Errorf("session id `%s` is already in use", sid))
+		failed(cl.FormatError("session id `%s` is already in use", sid))
 		return
 	}
 
@@ -252,7 +247,7 @@ func (cl *ClientListener) handleWebsocket(w http.ResponseWriter, req *http.Reque
 	if user != nil {
 		for _, remote := range c.Remotes {
 			if !user.HasAccess(remote) {
-				failed(cl.Errorf("access to requested address denied (%s:%s)", remote.LocalHost, remote.LocalPort))
+				failed(cl.FormatError("access to requested address denied (%s:%s)", remote.LocalHost, remote.LocalPort))
 				return
 			}
 		}
@@ -282,14 +277,14 @@ func (cl *ClientListener) handleWebsocket(w http.ResponseWriter, req *http.Reque
 	for _, r := range c.Remotes {
 		_, err = sessionInfo.StartRemoteTunnel(r)
 		if err != nil {
-			failed(cl.Errorf("%s", err))
+			failed(cl.FormatError("%s", err))
 			return
 		}
 	}
 
 	err = cl.sessionRepo.Save(sessionInfo)
 	if err != nil {
-		failed(cl.Errorf("%s", err))
+		failed(cl.FormatError("%s", err))
 		return
 	}
 

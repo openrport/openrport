@@ -1,6 +1,12 @@
 package chserver
 
 import (
+	"net/http"
+	"os"
+	"time"
+
+	"github.com/jpillora/requestlog"
+
 	chshare "github.com/cloudradar-monitoring/rport/share"
 )
 
@@ -10,10 +16,20 @@ type Config struct {
 	AuthFile     string
 	Auth         string
 	Proxy        string
-	Verbose      bool
 	APIAuth      string
 	APIJWTSecret string
 	DocRoot      string
+	LogOutput    *os.File
+	LogLevel     chshare.LogLevel
+}
+
+func (c *Config) InitRequestLogOptions() *requestlog.Options {
+	o := requestlog.DefaultOptions
+	o.Writer = c.LogOutput
+	o.Filter = func(r *http.Request, code int, duration time.Duration, size int64) bool {
+		return c.LogLevel == chshare.LogLevelInfo || c.LogLevel == chshare.LogLevelDebug
+	}
+	return &o
 }
 
 // Server represents a rport service
