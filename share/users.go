@@ -103,7 +103,7 @@ func (u *UserIndex) addWatchEvents() error {
 				continue
 			}
 			if err := u.loadUserIndex(); err != nil {
-				u.Infof("Failed to reload the users configuration: %s", err)
+				u.Errorf("Failed to reload the users configuration: %s", err)
 			} else {
 				u.Debugf("Users configuration successfully reloaded from: %s", u.configFile)
 			}
