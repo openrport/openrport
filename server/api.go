@@ -222,12 +222,6 @@ func (al *APIListener) handlePutSessionTunnel(w http.ResponseWriter, req *http.R
 		return
 	}
 
-	// check user permissions
-	if session.User != nil && !session.User.HasAccess(remote) {
-		al.jsonErrorResponse(w, http.StatusForbidden, al.FormatError("access is not allowed for current session"))
-		return
-	}
-
 	response := map[string]interface{}{"success": 1}
 
 	// make next steps thread-safe

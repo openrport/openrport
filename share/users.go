@@ -6,7 +6,6 @@ import (
 	"fmt"
 	"io/ioutil"
 	"path/filepath"
-	"regexp"
 	"sync"
 
 	"github.com/fsnotify/fsnotify"
@@ -74,7 +73,7 @@ func NewUserIndex(logger *Logger) *UserIndex {
 // LoadUsers is responsible for loading users from a file
 func (u *UserIndex) LoadUsers(configFile string) error {
 	u.configFile = configFile
-	u.Infof("Loading the configuraion from: %s", configFile)
+	u.Infof("Loading the configuration from: %s", configFile)
 	if err := u.loadUserIndex(); err != nil {
 		return err
 	}
@@ -121,29 +120,19 @@ func (u *UserIndex) loadUserIndex() error {
 	if err != nil {
 		return fmt.Errorf("Failed to read auth file: %s, error: %s", u.configFile, err)
 	}
-	var raw map[string][]string
+
+	var raw map[string]string
 	if err := json.Unmarshal(b, &raw); err != nil {
 		return errors.New("Invalid JSON: " + err.Error())
 	}
-	for auth, remotes := range raw {
-		user := &User{}
-		user.Name, user.Pass = ParseAuth(auth)
-		if user.Name == "" {
-			return errors.New("Invalid user:pass string")
+	for username, password := range raw {
+		if username == "" || password == "" {
+			return fmt.Errorf("empty username or password is not allowed")
 		}
-		for _, r := range remotes {
-			if r == "" || r == "*" {
-				user.Addrs = append(user.Addrs, UserAllowAll)
-			} else {
-				re, err := regexp.Compile(r)
-				if err != nil {
-					return errors.New("Invalid address regex")
-				}
-				user.Addrs = append(user.Addrs, re)
-			}
-
-		}
-		u.Users.AddUser(user)
+		u.Users.AddUser(&User{
+			Name: username,
+			Pass: password,
+		})
 	}
 	return nil
 }
