@@ -103,11 +103,21 @@ paths:
         description: "unique session id retrieved previously"
         required: true
         type: "string"
+      - name: "local"
+        in: "query"
+        description: "server address to use for a new tunnel, e.g. '3390' or '0.0.0.0:3390'"
+        required: false
+        type: "string"
+      - name: "remote"
+        in: "query"
+        description: "remote address endpoint, e.g. '3389'"
+        required: false
+        type: "string"
     put:
       summary: "Request new tunnel for active client connection"
       description: ""
       produces:
-      - "application/json"
+        - "application/json"
       responses:
         "200":
           description: "success response"
@@ -116,13 +126,9 @@ paths:
               - $ref: "#/definitions/ApiResponse"
               - type: "object"
                 properties:
-                  tunnel_id:
-                    type: "string"
-        "204":
-          description: "success response. Tunnel with such endpoints already exists"
-          schema:
-            items:
-              $ref: "#/definitions/ApiResponse"
+                  tunnel:
+                    $ref: "#/definitions/Tunnel"
+                    type: "object"
         "400":
           description: "invalid parameters"
           schema:

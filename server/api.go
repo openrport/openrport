@@ -228,19 +228,12 @@ func (al *APIListener) handlePutSessionTunnel(w http.ResponseWriter, req *http.R
 	session.Lock()
 	defer session.Unlock()
 
-	// check if such remote already exists
-	if session.HasRemote(remote) {
-		response["msg"] = "requested tunnel already exists"
-		al.writeJSONResponse(w, http.StatusNoContent, response)
-		return
-	}
-
-	tunnelID, err := session.StartRemoteTunnel(remote)
+	tunnel, err := session.StartRemoteTunnel(remote)
 	if err != nil {
 		al.jsonErrorResponse(w, http.StatusConflict, al.FormatError("can't create tunnel: %s", err))
 		return
 	}
-	response["tunnel_id"] = tunnelID
+	response["tunnel"] = tunnel
 
 	al.writeJSONResponse(w, http.StatusOK, response)
 }
