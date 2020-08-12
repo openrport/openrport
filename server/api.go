@@ -216,7 +216,11 @@ func (al *APIListener) handlePutSessionTunnel(w http.ResponseWriter, req *http.R
 
 	localAddr := req.URL.Query().Get("local")
 	remoteAddr := req.URL.Query().Get("remote")
-	remote, err := chshare.DecodeRemote(localAddr + ":" + remoteAddr)
+	remoteStr := localAddr + ":" + remoteAddr
+	if localAddr == "" {
+		remoteStr = remoteAddr
+	}
+	remote, err := chshare.DecodeRemote(remoteStr)
 	if err != nil {
 		al.jsonErrorResponse(w, http.StatusBadRequest, al.FormatError("invalid request: %s", err))
 		return
@@ -228,12 +232,12 @@ func (al *APIListener) handlePutSessionTunnel(w http.ResponseWriter, req *http.R
 	session.Lock()
 	defer session.Unlock()
 
-	tunnel, err := session.StartRemoteTunnel(remote)
+	tunnels, err := al.sessionService.StartSessionTunnels(session, []*chshare.Remote{remote})
 	if err != nil {
 		al.jsonErrorResponse(w, http.StatusConflict, al.FormatError("can't create tunnel: %s", err))
 		return
 	}
-	response["tunnel"] = tunnel
+	response["tunnel"] = tunnels[0]
 
 	al.writeJSONResponse(w, http.StatusOK, response)
 }

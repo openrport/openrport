@@ -47,10 +47,13 @@ var clientHelp = `
   which come in the form:
 
     <local-interface>:<local-port>:<remote-host>:<remote-port>
+    or
+    <remote-host>:<remote-port>
 
   which does reverse port forwarding, sharing <remote-host>:<remote-port>
   from the client to the server's <local-interface>:<local-port>.
-  Only IPv4 tunnels are supported.
+  If local part is omitted, a randomly chosen server port will be assigned. 
+  Only IPv4 addresses are supported.
 
   Examples:
 
@@ -58,7 +61,7 @@ var clientHelp = `
     forwards port 2222 of the server to port 22 of the client
 
     ./rport <SERVER>:<PORT> 3000 
-    forwards port 3000 of the server to port 3000 of the client
+    forwards randomly-assigned free port of the server to port 3000 of the client
 
     ./rport <SERVER>:<PORT> example.com:3000
     forwards port 3000 of the server to port 3000 of example.com
@@ -74,7 +77,7 @@ var clientHelp = `
     originating the connection from the client
 
     ./rport "[2a01:4f9:c010:b278::1]:9999" 3389
-    using IPv6 server address. Forwards port 3389 of the server
+    using IPv6 server address. Forwards randomly-assigned free port of the server
     to port 3389 of the client
 
   Options:

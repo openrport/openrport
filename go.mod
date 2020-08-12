@@ -5,6 +5,7 @@ go 1.13
 require (
 	github.com/StackExchange/wmi v0.0.0-20190523213315-cbe66965904d // indirect
 	github.com/andrew-d/go-termutil v0.0.0-20150726205930-009166a695a2 // indirect
+	github.com/deckarep/golang-set v1.7.1
 	github.com/dgrijalva/jwt-go v3.2.0+incompatible
 	github.com/fsnotify/fsnotify v1.4.9
 	github.com/go-ole/go-ole v1.2.4 // indirect
