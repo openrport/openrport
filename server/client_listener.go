@@ -20,7 +20,7 @@ import (
 type ClientListener struct {
 	*chshare.Logger
 
-	sessionRepo *SessionRepository
+	sessionService *SessionService
 
 	connStats          chshare.ConnStats
 	fingerprint        string
@@ -40,9 +40,9 @@ var upgrader = websocket.Upgrader{
 	CheckOrigin:     func(r *http.Request) bool { return true },
 }
 
-func NewClientListener(config *Config, s *SessionRepository) (*ClientListener, error) {
+func NewClientListener(config *Config, s *SessionService) (*ClientListener, error) {
 	cl := &ClientListener{
-		sessionRepo:        s,
+		sessionService:     s,
 		httpServer:         chshare.NewHTTPServer(),
 		authenticatedUsers: chshare.NewUsers(),
 		Logger:             chshare.NewLogger("client-listener", config.LogOutput, config.LogLevel),
@@ -228,7 +228,7 @@ func (cl *ClientListener) handleWebsocket(w http.ResponseWriter, req *http.Reque
 	}
 
 	// if session id is in use, deny connection
-	session, _ := cl.sessionRepo.FindOne(sid)
+	session, _ := cl.sessionService.FindOne(sid)
 	if session != nil {
 		failed(cl.FormatError("session id `%s` is already in use", sid))
 		return
@@ -244,33 +244,7 @@ func (cl *ClientListener) handleWebsocket(w http.ResponseWriter, req *http.Reque
 	ctx, cancel := context.WithCancel(context.Background())
 	defer cancel()
 
-	sessionInfo := &ClientSession{
-		ID:         sid,
-		Name:       c.Name,
-		Tags:       c.Tags,
-		OS:         c.OS,
-		Hostname:   c.Hostname,
-		Version:    c.Version,
-		IPv4:       c.IPv4,
-		IPv6:       c.IPv6,
-		Address:    sshConn.RemoteAddr().String(),
-		Tunnels:    make([]*Tunnel, 0),
-		Connection: sshConn,
-		Context:    ctx,
-		User:       user,
-		Logger:     clog,
-	}
-
-	//set up reverse port forwarding
-	for _, r := range c.Remotes {
-		_, err = sessionInfo.StartRemoteTunnel(r)
-		if err != nil {
-			failed(cl.FormatError("%s", err))
-			return
-		}
-	}
-
-	err = cl.sessionRepo.Save(sessionInfo)
+	clientSession, err := cl.sessionService.StartClientSession(ctx, sid, sshConn, c, user, clog)
 	if err != nil {
 		failed(cl.FormatError("%s", err))
 		return
@@ -279,16 +253,16 @@ func (cl *ClientListener) handleWebsocket(w http.ResponseWriter, req *http.Reque
 	//success!
 	_ = r.Reply(true, nil)
 
-	sessionBanner := sessionInfo.Banner()
+	sessionBanner := clientSession.Banner()
 	clog.Debugf("Open %s", sessionBanner)
 	go cl.handleSSHRequests(clog, reqs)
 	go cl.handleSSHChannels(clog, chans)
 	_ = sshConn.Wait()
 	clog.Debugf("Close %s", sessionBanner)
 
-	err = cl.sessionRepo.Delete(sessionInfo)
+	err = cl.sessionService.Terminate(clientSession)
 	if err != nil {
-		cl.Debugf("could not delete session from repo: %s", err)
+		cl.Errorf("could not terminate client session: %s", err)
 	}
 }
 

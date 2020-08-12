@@ -17,7 +17,7 @@ type APIListener struct {
 	authUser          string
 	authPassword      string
 	jwtSecret         string
-	sessionRepo       *SessionRepository
+	sessionService    *SessionService
 	apiSessionRepo    *APISessionRepository
 	router            *mux.Router
 	httpServer        *chshare.HTTPServer
@@ -25,7 +25,7 @@ type APIListener struct {
 	requestLogOptions *requestlog.Options
 }
 
-func NewAPIListener(config *Config, s *SessionRepository) (*APIListener, error) {
+func NewAPIListener(config *Config, s *SessionService) (*APIListener, error) {
 	authUser, authPassword, err := parseHTTPAuthStr(config.APIAuth)
 	if err != nil {
 		return nil, err
@@ -36,7 +36,7 @@ func NewAPIListener(config *Config, s *SessionRepository) (*APIListener, error) 
 		authUser:          authUser,
 		authPassword:      authPassword,
 		jwtSecret:         config.APIJWTSecret,
-		sessionRepo:       s,
+		sessionService:    s,
 		apiSessionRepo:    NewAPISessionRepository(),
 		httpServer:        chshare.NewHTTPServer(),
 		docRoot:           config.DocRoot,
