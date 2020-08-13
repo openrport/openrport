@@ -127,10 +127,6 @@ paths:
           description: "invalid parameters"
           schema:
             $ref: "#/definitions/ErrorResponse"
-        "403":
-          description: "creating this tunnel is not allowed"
-          schema:
-            $ref: "#/definitions/ErrorResponse"
         "404":
           description: "specified session does not exist or already terminated"
           schema:

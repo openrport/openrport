@@ -1,11 +1,8 @@
 package chshare
 
 import (
-	"regexp"
 	"strings"
 )
-
-var UserAllowAll = regexp.MustCompile("")
 
 func ParseAuth(auth string) (string, string) {
 	if strings.Contains(auth, ":") {
@@ -16,19 +13,6 @@ func ParseAuth(auth string) (string, string) {
 }
 
 type User struct {
-	Name  string
-	Pass  string
-	Addrs []*regexp.Regexp
-}
-
-func (u *User) HasAccess(remote *Remote) bool {
-	var addr = remote.LocalHost + ":" + remote.LocalPort
-	m := false
-	for _, r := range u.Addrs {
-		if r.MatchString(addr) {
-			m = true
-			break
-		}
-	}
-	return m
+	Name string
+	Pass string
 }

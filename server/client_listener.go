@@ -6,7 +6,6 @@ import (
 	"net/http"
 	"net/http/httputil"
 	"net/url"
-	"regexp"
 	"strings"
 	"sync/atomic"
 	"time"
@@ -56,7 +55,7 @@ func NewClientListener(config *Config, s *SessionRepository) (*ClientListener, e
 		}
 	}
 	if config.Auth != "" {
-		u := &chshare.User{Addrs: []*regexp.Regexp{chshare.UserAllowAll}}
+		u := &chshare.User{}
 		u.Name, u.Pass = chshare.ParseAuth(config.Auth)
 		if u.Name != "" {
 			cl.users.AddUser(u)
@@ -240,17 +239,6 @@ func (cl *ClientListener) handleWebsocket(w http.ResponseWriter, req *http.Reque
 	if cl.users.Len() > 0 {
 		user, _ = cl.authenticatedUsers.Get(sid)
 		cl.authenticatedUsers.Del(sid)
-	}
-
-	//if user is provided, ensure they have
-	//access to the desired remotes
-	if user != nil {
-		for _, remote := range c.Remotes {
-			if !user.HasAccess(remote) {
-				failed(cl.FormatError("access to requested address denied (%s:%s)", remote.LocalHost, remote.LocalPort))
-				return
-			}
-		}
 	}
 
 	ctx, cancel := context.WithCancel(context.Background())

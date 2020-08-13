@@ -166,20 +166,13 @@ On the client start the tunnel this way
 If you want to maintain multiple users with different passwords, create a json-file `/etc/rportd-auth.json` with credentials, for example
 ```
 {
-    "user1:foobaz": [
-        ".*"
-    ],
-    "user2:bingo": [
-        "210\\.211\\.212.*",
-        "107\\.108\\.109.*"
-    ],
-    "rport:password123": [
-        "^999"
-    ]
+    "user1": "foobaz",
+    "user2": "bingo",
+    "rport": "password123"
 }
 ```
-*For now, rportd reads only the user and password. The optional filters to limit the tunnels to match a regex are under construction.*
-*Rportd reads the file immediately after writing without the need for a sighub. This might change in the future.*
+*For now, rportd reads only the user and password.*
+*Rportd re-reads the file immediately after writing without the need for a sighup. This might change in the future.*
 
 Start the server with `rportd --authfile /etc/rport-auth.json`. Change the `ExecStart` line of the systemd service file accordingly. 
 

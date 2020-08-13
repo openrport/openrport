@@ -4,7 +4,6 @@ import (
 	"crypto/subtle"
 	"fmt"
 	"net/http"
-	"strings"
 
 	"github.com/gorilla/mux"
 	"github.com/jpillora/requestlog"
@@ -143,10 +142,10 @@ func parseHTTPAuthStr(basicAuth string) (string, string, error) {
 		return "", "", nil
 	}
 
-	parts := strings.Split(basicAuth, ":")
-	if len(parts) != 2 || len(parts[0]) == 0 || len(parts[1]) == 0 {
+	user, pass := chshare.ParseAuth(basicAuth)
+	if user == "" || pass == "" {
 		return "", "", fmt.Errorf("can't parse basic-auth string")
 	}
 
-	return parts[0], parts[1], nil
+	return user, pass, nil
 }

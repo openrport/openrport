@@ -266,10 +266,6 @@ func (c *Client) connectionLoop() {
 		}
 		if len(configReply) > 0 {
 			c.Infof(string(configReply))
-			if strings.Contains(string(configReply), "access to requested address denied") {
-				connerr = fmt.Errorf(string(configReply))
-				continue
-			}
 			break
 		}
 		c.Infof("Connected (Latency %s)", time.Since(t0))
