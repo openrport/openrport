@@ -12,6 +12,11 @@ import (
 	chshare "github.com/cloudradar-monitoring/rport/share"
 )
 
+type paginatedAPIResponse struct {
+	Data interface{} `json:"data"`
+	Meta interface{} `json:"meta"`
+}
+
 func (al *APIListener) wrapWithAuthMiddleware(f http.Handler) http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
 		ok := al.handleAuthorization(w, r)
@@ -195,7 +200,8 @@ func (al *APIListener) handleGetSessions(w http.ResponseWriter, req *http.Reques
 		al.jsonErrorResponse(w, http.StatusInternalServerError, err)
 		return
 	}
-	al.writeJSONResponse(w, http.StatusOK, clientSessions)
+	resp := paginatedAPIResponse{Data: clientSessions}
+	al.writeJSONResponse(w, http.StatusOK, resp)
 }
 
 func (al *APIListener) handlePutSessionTunnel(w http.ResponseWriter, req *http.Request) {
