@@ -199,6 +199,29 @@ definitions:
         properties:
           id:
             type: "string"
+          name:
+            type: "string"
+            description: "client name"
+          os:
+            type: "string"
+            description: "client OS"
+          hostname:
+            type: "string"
+            description: "client hostname"
+          ipv4:
+            type: "array"
+            items:
+              type: string
+            description: "list of IPv4 addresses of the client"
+          ipv6:
+            type: "array"
+            items:
+              type: string
+            description: "list of IPv6 addresses of the client"
+          tags:
+            type: "array"
+            items:
+              type: string
           version:
             type: "string"
             description: "client version"
