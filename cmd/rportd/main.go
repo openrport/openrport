@@ -7,6 +7,7 @@ import (
 	"fmt"
 	"log"
 	"math"
+	"net/url"
 	"os"
 	"strconv"
 	"strings"
@@ -33,6 +34,8 @@ var serverHelp = `
 
     --addr, -a, Defines the IP address and port the HTTP server listens on.
     (defaults to the environment variable RPORT_ADDR and falls back to 0.0.0.0:8080).
+
+    --url, Defines full client connect URL. Defaults to "http://{addr}"
 
     --exclude-ports, -e, Defines port numbers or ranges of server ports,
     separated with comma that would not be used for automatic port assignment.
@@ -93,6 +96,7 @@ var serverHelp = `
 func main() {
 	a := flag.String("a", "", "")
 	listenAddr := flag.String("addr", "", "")
+	url := flag.String("url", "", "")
 	key := flag.String("key", "", "")
 	authfile := flag.String("authfile", "", "")
 	auth := flag.String("auth", "", "")
@@ -133,6 +137,9 @@ func main() {
 	if *listenAddr == "" {
 		*listenAddr = "0.0.0.0:8080"
 	}
+	if *url == "" {
+		*url = "http://" + *listenAddr
+	}
 	if *key == "" {
 		*key = os.Getenv("RPORT_KEY")
 	}
@@ -158,6 +165,7 @@ func main() {
 	}
 
 	config := &chserver.Config{
+		URL:           tryParseURL(*url),
 		KeySeed:       *key,
 		AuthFile:      *authfile,
 		Auth:          *auth,
@@ -252,4 +260,15 @@ func tryOpenLogFile(path string) *os.File {
 		log.Fatalf("can't open log file: %s", err)
 	}
 	return logFile
+}
+
+func tryParseURL(urlRaw string) string {
+	u, err := url.Parse(urlRaw)
+	if err != nil {
+		log.Fatalf("invalid --url: %s", err)
+	}
+	if u.Host == "" {
+		log.Fatalf("invalid --url: must be absolute url")
+	}
+	return urlRaw
 }

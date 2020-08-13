@@ -1,12 +1,14 @@
 package chserver
 
 import (
+	"fmt"
 	"net/http"
 	"os"
 	"time"
 
 	mapset "github.com/deckarep/golang-set"
 	"github.com/jpillora/requestlog"
+	"golang.org/x/crypto/ssh"
 
 	"github.com/cloudradar-monitoring/rport/server/ports"
 	chshare "github.com/cloudradar-monitoring/rport/share"
@@ -14,6 +16,7 @@ import (
 
 // Config is the configuration for the rport service
 type Config struct {
+	URL           string
 	KeySeed       string
 	AuthFile      string
 	Auth          string
@@ -37,30 +40,50 @@ func (c *Config) InitRequestLogOptions() *requestlog.Options {
 
 // Server represents a rport service
 type Server struct {
+	*chshare.Logger
 	clientListener *ClientListener
 	apiListener    *APIListener
 }
 
 // NewServer creates and returns a new rport server
 func NewServer(config *Config) (*Server, error) {
-	s := &Server{}
+	s := &Server{
+		Logger: chshare.NewLogger("server", config.LogOutput, config.LogLevel),
+	}
 
-	var err error
+	privateKey, err := initPrivateKey(config.KeySeed)
+	if err != nil {
+		return nil, err
+	}
+	fingerprint := chshare.FingerprintKey(privateKey.PublicKey())
+	s.Infof("Fingerprint %s", fingerprint)
+
 	sessionService := NewSessionService(
 		ports.NewPortDistributor(config.ExcludedPorts),
 	)
 
-	s.clientListener, err = NewClientListener(config, sessionService)
+	s.clientListener, err = NewClientListener(config, sessionService, privateKey)
 	if err != nil {
 		return nil, err
 	}
 
-	s.apiListener, err = NewAPIListener(config, sessionService)
+	s.apiListener, err = NewAPIListener(config, sessionService, fingerprint)
 	if err != nil {
 		return nil, err
 	}
 
 	return s, nil
+}
+
+func initPrivateKey(seed string) (ssh.Signer, error) {
+	//generate private key (optionally using seed)
+	key, _ := chshare.GenerateKey(seed)
+	//convert into ssh.PrivateKey
+	private, err := ssh.ParsePrivateKey(key)
+	if err != nil {
+		return nil, fmt.Errorf("failed to parse key: %s", err)
+	}
+	return private, nil
 }
 
 // Run is responsible for starting the rport service
