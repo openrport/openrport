@@ -46,24 +46,29 @@ func (c *ClientSession) Unlock() {
 	c.lock.Unlock()
 }
 
-func (c *ClientSession) HasRemote(r *chshare.Remote) bool {
+func (c *ClientSession) findTunnelByRemote(r *chshare.Remote) *Tunnel {
 	for _, curr := range c.Tunnels {
 		if curr.Equals(r) {
-			return true
+			return curr
 		}
 	}
-	return false
+	return nil
 }
 
-func (c *ClientSession) StartRemoteTunnel(r *chshare.Remote) (string, error) {
+func (c *ClientSession) StartRemoteTunnel(r *chshare.Remote) (*Tunnel, error) {
+	t := c.findTunnelByRemote(r)
+	if t != nil {
+		return t, nil
+	}
+
 	tunnelID := strconv.FormatInt(c.generateNewTunnelID(), 10)
-	t := NewTunnel(c.Logger, c.Connection, tunnelID, r)
+	t = NewTunnel(c.Logger, c.Connection, tunnelID, r)
 	err := t.Start(c.Context)
 	if err != nil {
-		return "", err
+		return nil, err
 	}
 	c.Tunnels = append(c.Tunnels, t)
-	return tunnelID, nil
+	return t, nil
 }
 
 func (c *ClientSession) TerminateTunnel(t *Tunnel) {

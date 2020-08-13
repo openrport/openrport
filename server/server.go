@@ -43,14 +43,14 @@ func NewServer(config *Config) (*Server, error) {
 	s := &Server{}
 
 	var err error
-	sessionRepo := NewSessionRepository()
+	sessionService := NewSessionService()
 
-	s.clientListener, err = NewClientListener(config, sessionRepo)
+	s.clientListener, err = NewClientListener(config, sessionService)
 	if err != nil {
 		return nil, err
 	}
 
-	s.apiListener, err = NewAPIListener(config, sessionRepo)
+	s.apiListener, err = NewAPIListener(config, sessionService)
 	if err != nil {
 		return nil, err
 	}

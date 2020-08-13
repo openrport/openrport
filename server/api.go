@@ -176,7 +176,7 @@ func (al *APIListener) handleDeleteLogin(w http.ResponseWriter, req *http.Reques
 }
 
 func (al *APIListener) handleGetStatus(w http.ResponseWriter, req *http.Request) {
-	count, err := al.sessionRepo.Count()
+	count, err := al.sessionService.Count()
 	if err != nil {
 		al.jsonErrorResponse(w, http.StatusInternalServerError, err)
 		return
@@ -188,7 +188,7 @@ func (al *APIListener) handleGetStatus(w http.ResponseWriter, req *http.Request)
 }
 
 func (al *APIListener) handleGetSessions(w http.ResponseWriter, req *http.Request) {
-	clientSessions, err := al.sessionRepo.GetAll()
+	clientSessions, err := al.sessionService.GetAll()
 	if err != nil {
 		al.jsonErrorResponse(w, http.StatusInternalServerError, err)
 		return
@@ -204,7 +204,7 @@ func (al *APIListener) handlePutSessionTunnel(w http.ResponseWriter, req *http.R
 		return
 	}
 
-	session, err := al.sessionRepo.FindOne(sessionID)
+	session, err := al.sessionService.FindOne(sessionID)
 	if err != nil {
 		al.jsonErrorResponse(w, http.StatusInternalServerError, err)
 		return
@@ -228,19 +228,12 @@ func (al *APIListener) handlePutSessionTunnel(w http.ResponseWriter, req *http.R
 	session.Lock()
 	defer session.Unlock()
 
-	// check if such remote already exists
-	if session.HasRemote(remote) {
-		response["msg"] = "requested tunnel already exists"
-		al.writeJSONResponse(w, http.StatusNoContent, response)
-		return
-	}
-
-	tunnelID, err := session.StartRemoteTunnel(remote)
+	tunnel, err := session.StartRemoteTunnel(remote)
 	if err != nil {
 		al.jsonErrorResponse(w, http.StatusConflict, al.FormatError("can't create tunnel: %s", err))
 		return
 	}
-	response["tunnel_id"] = tunnelID
+	response["tunnel"] = tunnel
 
 	al.writeJSONResponse(w, http.StatusOK, response)
 }
@@ -253,7 +246,7 @@ func (al *APIListener) handleDeleteSessionTunnel(w http.ResponseWriter, req *htt
 		return
 	}
 
-	session, err := al.sessionRepo.FindOne(sessionID)
+	session, err := al.sessionService.FindOne(sessionID)
 	if err != nil {
 		al.jsonErrorResponse(w, http.StatusInternalServerError, err)
 		return
