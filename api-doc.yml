@@ -194,17 +194,22 @@ definitions:
   Session:
     type: "object"
     properties:
-      id:
-        type: "string"
-      version:
-        type: "string"
-        description: "client version"
-      address:
-        type: "string"
-        description: "client address"
-      tunnels:
-        items:
-          $ref: "#/definitions/Tunnel"
+      data:
+        type: "object"
+        properties:
+          id:
+            type: "string"
+          version:
+            type: "string"
+            description: "client version"
+          address:
+            type: "string"
+            description: "client address"
+          tunnels:
+            items:
+              $ref: "#/definitions/Tunnel"
+      meta:
+        type: "object"
   ApiResponse:
     type: "object"
     properties:
