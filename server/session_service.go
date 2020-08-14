@@ -56,6 +56,9 @@ func (s *SessionService) StartClientSession(
 	}
 
 	_, err := s.StartSessionTunnels(session, cfg.Remotes)
+	if err != nil {
+		return nil, err
+	}
 
 	err = s.repo.Save(session)
 	if err != nil {

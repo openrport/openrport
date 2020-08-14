@@ -24,7 +24,6 @@ type ClientListener struct {
 	sessionService *SessionService
 
 	connStats          chshare.ConnStats
-	fingerprint        string
 	httpServer         *chshare.HTTPServer
 	reverseProxy       *httputil.ReverseProxy
 	sshConfig          *ssh.ServerConfig
@@ -41,7 +40,7 @@ var upgrader = websocket.Upgrader{
 	CheckOrigin:     func(r *http.Request) bool { return true },
 }
 
-func NewClientListener(config *Config, s *SessionService) (*ClientListener, error) {
+func NewClientListener(config *Config, s *SessionService, privateKey ssh.Signer) (*ClientListener, error) {
 	cl := &ClientListener{
 		sessionService:     s,
 		httpServer:         chshare.NewHTTPServer(),
@@ -62,25 +61,15 @@ func NewClientListener(config *Config, s *SessionService) (*ClientListener, erro
 			cl.users.AddUser(u)
 		}
 	}
-	//generate private key (optionally using seed)
-	key, _ := chshare.GenerateKey(config.KeySeed)
-	//convert into ssh.PrivateKey
-	private, err := ssh.ParsePrivateKey(key)
-	if err != nil {
-		return nil, cl.FormatError("Failed to parse key")
-	}
-	//fingerprint this key
-	cl.fingerprint = chshare.FingerprintKey(private.PublicKey())
 	//create ssh config
 	cl.sshConfig = &ssh.ServerConfig{
 		ServerVersion:    "SSH-" + chshare.ProtocolVersion + "-server",
 		PasswordCallback: cl.authUser,
 	}
-	cl.sshConfig.AddHostKey(private)
+	cl.sshConfig.AddHostKey(privateKey)
 	//setup reverse proxy
 	if config.Proxy != "" {
-		var u *url.URL
-		u, err = url.Parse(config.Proxy)
+		u, err := url.Parse(config.Proxy)
 		if err != nil {
 			return nil, err
 		}
@@ -119,7 +108,6 @@ func (cl *ClientListener) authUser(c ssh.ConnMetadata, password []byte) (*ssh.Pe
 }
 
 func (cl *ClientListener) Start(listenAddr string) error {
-	cl.Infof("Fingerprint %s", cl.fingerprint)
 	if cl.users.Len() > 0 {
 		cl.Infof("User authentication enabled")
 	}

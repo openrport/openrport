@@ -184,6 +184,8 @@ func (al *APIListener) handleGetStatus(w http.ResponseWriter, req *http.Request)
 	al.writeJSONResponse(w, http.StatusOK, map[string]interface{}{
 		"version":        chshare.BuildVersion,
 		"sessions_count": count,
+		"fingerprint":    al.fingerprint,
+		"connect_url":    al.connectURL,
 	})
 }
 

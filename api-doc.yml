@@ -84,6 +84,10 @@ paths:
                 type: "string"
               sessions_count:
                 type: "integer"
+              fingerprint:
+                type: "string"
+              connect_url:
+                type: "string"
   /sessions:
     get:
       summary: "List active client connections"

@@ -14,6 +14,8 @@ import (
 type APIListener struct {
 	*chshare.Logger
 
+	fingerprint       string
+	connectURL        string
 	authUser          string
 	authPassword      string
 	jwtSecret         string
@@ -25,7 +27,7 @@ type APIListener struct {
 	requestLogOptions *requestlog.Options
 }
 
-func NewAPIListener(config *Config, s *SessionService) (*APIListener, error) {
+func NewAPIListener(config *Config, s *SessionService, fingerprint string) (*APIListener, error) {
 	authUser, authPassword, err := parseHTTPAuthStr(config.APIAuth)
 	if err != nil {
 		return nil, err
@@ -33,6 +35,8 @@ func NewAPIListener(config *Config, s *SessionService) (*APIListener, error) {
 
 	a := &APIListener{
 		Logger:            chshare.NewLogger("api-listener", config.LogOutput, config.LogLevel),
+		connectURL:        config.URL,
+		fingerprint:       fingerprint,
 		authUser:          authUser,
 		authPassword:      authPassword,
 		jwtSecret:         config.APIJWTSecret,
