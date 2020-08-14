@@ -2,6 +2,7 @@ package chserver
 
 import (
 	"context"
+	"encoding/json"
 	"errors"
 	"net/http"
 	"net/http/httputil"
@@ -100,7 +101,7 @@ func NewClientListener(config *Config, s *SessionService) (*ClientListener, erro
 
 // authUser is responsible for validating the ssh user / password combination
 func (cl *ClientListener) authUser(c ssh.ConnMetadata, password []byte) (*ssh.Permissions, error) {
-	// check if user authenication is enable and it not allow all
+	// check if user authentication is enable and it not allow all
 	if cl.users.Len() == 0 {
 		return nil, nil
 	}
@@ -197,14 +198,13 @@ func (cl *ClientListener) handleWebsocket(w http.ResponseWriter, req *http.Reque
 	}
 	failed := func(err error) {
 		clog.Debugf("Failed: %s", err)
-		_ = r.Reply(false, []byte(err.Error()))
+		cl.replyConnectionError(r, err)
 	}
 	if r.Type != "config" {
 		failed(cl.FormatError("expecting config request"))
 		return
 	}
 	c, err := chshare.DecodeConfig(r.Payload)
-
 	if err != nil {
 		failed(cl.FormatError("invalid config"))
 		return
@@ -250,8 +250,7 @@ func (cl *ClientListener) handleWebsocket(w http.ResponseWriter, req *http.Reque
 		return
 	}
 
-	//success!
-	_ = r.Reply(true, nil)
+	cl.replyConnectionSuccess(r, c.Remotes)
 
 	sessionBanner := clientSession.Banner()
 	clog.Debugf("Open %s", sessionBanner)
@@ -264,6 +263,21 @@ func (cl *ClientListener) handleWebsocket(w http.ResponseWriter, req *http.Reque
 	if err != nil {
 		cl.Errorf("could not terminate client session: %s", err)
 	}
+}
+
+func (cl *ClientListener) replyConnectionSuccess(r *ssh.Request, remotes []*chshare.Remote) {
+	replyPayload, err := json.Marshal(remotes)
+	if err != nil {
+		cl.Errorf("can't encode success reply payload")
+		cl.replyConnectionError(r, err)
+		return
+	}
+
+	_ = r.Reply(true, replyPayload)
+}
+
+func (cl *ClientListener) replyConnectionError(r *ssh.Request, err error) {
+	_ = r.Reply(false, []byte(err.Error()))
 }
 
 func (cl *ClientListener) handleSSHRequests(clientLog *chshare.Logger, reqs <-chan *ssh.Request) {

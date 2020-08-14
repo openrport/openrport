@@ -6,7 +6,12 @@ import (
 	"flag"
 	"fmt"
 	"log"
+	"math"
 	"os"
+	"strconv"
+	"strings"
+
+	mapset "github.com/deckarep/golang-set"
 
 	chserver "github.com/cloudradar-monitoring/rport/server"
 	chshare "github.com/cloudradar-monitoring/rport/share"
@@ -28,6 +33,11 @@ var serverHelp = `
 
     --addr, -a, Defines the IP address and port the HTTP server listens on.
     (defaults to the environment variable RPORT_ADDR and falls back to 0.0.0.0:8080).
+
+    --exclude-ports, -e, Defines port numbers or ranges of server ports,
+    separated with comma that would not be used for automatic port assignment.
+    Defaults to 1-1000.
+    e.g.: --exclude-ports=1-1000,8080 or -e 22,443,80,8080,5000-5999
 
     --key, An optional string to seed the generation of a ECDSA public
     and private key pair. All communications will be secured using this
@@ -94,6 +104,8 @@ func main() {
 	logLevelStr := flag.String("v", "error", "")
 	logFilePath := flag.String("l", "", "")
 	version := flag.Bool("version", false, "")
+	e := flag.String("e", "1-1000", "")
+	excludePorts := flag.String("exclude-ports", "", "")
 
 	flag.Usage = func() {
 		fmt.Print(serverHelp)
@@ -141,16 +153,21 @@ func main() {
 		log.Fatal("To use --doc-root you need to specify API address (see --api-addr)")
 	}
 
+	if *excludePorts == "" {
+		*excludePorts = *e
+	}
+
 	config := &chserver.Config{
-		KeySeed:      *key,
-		AuthFile:     *authfile,
-		Auth:         *auth,
-		Proxy:        *proxy,
-		APIAuth:      *apiAuth,
-		APIJWTSecret: *apiJWTSecret,
-		DocRoot:      *docRoot,
-		LogOutput:    os.Stdout,
-		LogLevel:     tryParseLogLevel(*logLevelStr),
+		KeySeed:       *key,
+		AuthFile:      *authfile,
+		Auth:          *auth,
+		Proxy:         *proxy,
+		APIAuth:       *apiAuth,
+		APIJWTSecret:  *apiJWTSecret,
+		DocRoot:       *docRoot,
+		LogOutput:     os.Stdout,
+		LogLevel:      tryParseLogLevel(*logLevelStr),
+		ExcludedPorts: tryParseExcludedPorts(*excludePorts),
 	}
 
 	var logFile *os.File
@@ -190,6 +207,43 @@ func tryParseLogLevel(s string) chshare.LogLevel {
 		log.Fatalf("can't parse log level: %s", err)
 	}
 	return logLevel
+}
+
+func tryParseExcludedPorts(val string) mapset.Set {
+	result := mapset.NewThreadUnsafeSet()
+	values := strings.Split(val, ",")
+	for _, v := range values {
+		rangeParts := strings.Split(v, "-")
+		if len(rangeParts) == 1 {
+			result.Add(tryParsePortNumber(rangeParts[0]))
+		} else if len(rangeParts) == 2 {
+			result = result.Union(tryParsePortNumberRange(rangeParts[0], rangeParts[1]))
+		} else {
+			log.Fatalf("can't parse exclude-ports parameter: incorrect range %s", v)
+		}
+	}
+	return result
+}
+
+func tryParsePortNumber(portNumberStr string) int {
+	num, err := strconv.Atoi(portNumberStr)
+	if err != nil {
+		log.Fatalf("can't parse port number %s: %s", portNumberStr, err)
+	}
+	if num < 0 || num > math.MaxUint16 {
+		log.Fatalf("invalid port number: %d", num)
+	}
+	return num
+}
+
+func tryParsePortNumberRange(rangeStart, rangeEnd string) mapset.Set {
+	start := tryParsePortNumber(rangeStart)
+	end := tryParsePortNumber(rangeEnd)
+	if start > end {
+		log.Fatalf("invalid port range %s-%s", rangeStart, rangeEnd)
+	}
+
+	return chshare.SetFromRange(start, end)
 }
 
 func tryOpenLogFile(path string) *os.File {

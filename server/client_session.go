@@ -55,7 +55,7 @@ func (c *ClientSession) findTunnelByRemote(r *chshare.Remote) *Tunnel {
 	return nil
 }
 
-func (c *ClientSession) StartRemoteTunnel(r *chshare.Remote) (*Tunnel, error) {
+func (c *ClientSession) StartTunnel(r *chshare.Remote) (*Tunnel, error) {
 	t := c.findTunnelByRemote(r)
 	if t != nil {
 		return t, nil

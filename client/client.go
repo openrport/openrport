@@ -2,6 +2,7 @@ package chclient
 
 import (
 	"context"
+	"encoding/json"
 	"fmt"
 	"io"
 	"net"
@@ -259,16 +260,26 @@ func (c *Client) connectionLoop() {
 		conf, _ := chshare.EncodeConfig(c.config.shared)
 		c.Debugf("Sending config")
 		t0 := time.Now()
-		_, configReply, err := sshConn.SendRequest("config", true, conf)
+		configReplyOk, configReply, err := sshConn.SendRequest("config", true, conf)
 		if err != nil {
 			c.Errorf("Config verification failed")
 			break
 		}
-		if len(configReply) > 0 {
-			c.Infof(string(configReply))
+		if !configReplyOk {
+			c.Errorf(string(configReply))
+			break
+		}
+		var remotes []*chshare.Remote
+		err = json.Unmarshal(configReply, &remotes)
+		if err != nil {
+			err = fmt.Errorf("can't decode config reply payload: %s", err)
+			c.Errorf(err.Error())
 			break
 		}
 		c.Infof("Connected (Latency %s)", time.Since(t0))
+		for _, r := range remotes {
+			c.Infof("new tunnel: %s", r.String())
+		}
 		//connected
 		b.Reset()
 		c.sshConn = sshConn

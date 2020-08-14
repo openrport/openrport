@@ -40,7 +40,6 @@ func DecodeRemote(s string) (*Remote, error) {
 		if isPort(p) {
 			if r.RemotePort == "" {
 				r.RemotePort = p
-				r.LocalPort = p
 			} else {
 				r.LocalPort = p
 			}
@@ -58,7 +57,7 @@ func DecodeRemote(s string) (*Remote, error) {
 			r.LocalHost = p
 		}
 	}
-	if r.LocalHost == "" {
+	if r.LocalHost == "" && r.LocalPort != "" {
 		r.LocalHost = "0.0.0.0"
 	}
 	if r.RemoteHost == "" {
@@ -89,4 +88,8 @@ func (r *Remote) Remote() string {
 
 func (r *Remote) Equals(other *Remote) bool {
 	return r.String() == other.String()
+}
+
+func (r *Remote) IsLocalSpecified() bool {
+	return r.LocalHost != "" && r.LocalPort != ""
 }

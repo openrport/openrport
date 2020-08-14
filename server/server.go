@@ -5,22 +5,25 @@ import (
 	"os"
 	"time"
 
+	mapset "github.com/deckarep/golang-set"
 	"github.com/jpillora/requestlog"
 
+	"github.com/cloudradar-monitoring/rport/server/ports"
 	chshare "github.com/cloudradar-monitoring/rport/share"
 )
 
 // Config is the configuration for the rport service
 type Config struct {
-	KeySeed      string
-	AuthFile     string
-	Auth         string
-	Proxy        string
-	APIAuth      string
-	APIJWTSecret string
-	DocRoot      string
-	LogOutput    *os.File
-	LogLevel     chshare.LogLevel
+	KeySeed       string
+	AuthFile      string
+	Auth          string
+	Proxy         string
+	APIAuth       string
+	APIJWTSecret  string
+	DocRoot       string
+	LogOutput     *os.File
+	LogLevel      chshare.LogLevel
+	ExcludedPorts mapset.Set
 }
 
 func (c *Config) InitRequestLogOptions() *requestlog.Options {
@@ -43,7 +46,9 @@ func NewServer(config *Config) (*Server, error) {
 	s := &Server{}
 
 	var err error
-	sessionService := NewSessionService()
+	sessionService := NewSessionService(
+		ports.NewPortDistributor(config.ExcludedPorts),
+	)
 
 	s.clientListener, err = NewClientListener(config, sessionService)
 	if err != nil {
