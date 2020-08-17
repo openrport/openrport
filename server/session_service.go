@@ -55,7 +55,7 @@ func (s *SessionService) StartClientSession(
 		Logger:     clog,
 	}
 
-	_, err := s.StartSessionTunnels(session, cfg.Remotes)
+	_, err := s.StartSessionTunnels(session, cfg.Remotes, TunnelACL{})
 	if err != nil {
 		return nil, err
 	}
@@ -68,7 +68,7 @@ func (s *SessionService) StartClientSession(
 }
 
 // StartSessionTunnels returns a new tunnel for each requested remote or nil if error occurred
-func (s *SessionService) StartSessionTunnels(session *ClientSession, remotes []*chshare.Remote) ([]*Tunnel, error) {
+func (s *SessionService) StartSessionTunnels(session *ClientSession, remotes []*chshare.Remote, acl TunnelACL) ([]*Tunnel, error) {
 	err := s.portDistributor.Refresh()
 	if err != nil {
 		return nil, err
@@ -85,7 +85,7 @@ func (s *SessionService) StartSessionTunnels(session *ClientSession, remotes []*
 			remote.LocalHost = "0.0.0.0"
 		}
 
-		t, err := session.StartTunnel(remote)
+		t, err := session.StartTunnel(remote, acl)
 		if err != nil {
 			return nil, err
 		}
