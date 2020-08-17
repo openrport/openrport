@@ -22,24 +22,27 @@ import (
 	"golang.org/x/net/proxy"
 )
 
-//Config represents a client configuration
-type Config struct {
-	shared           *chshare.Config
-	Fingerprint      string
-	Auth             string
+type ConnectionOptions struct {
 	KeepAlive        time.Duration
 	MaxRetryCount    int
 	MaxRetryInterval time.Duration
-	Server           string
-	Proxy            string
-	ID               string
-	Name             string
-	Tags             tags
-	Remotes          []string
 	Headers          http.Header
-	DialContext      func(ctx context.Context, network, addr string) (net.Conn, error)
-	LogOutput        *os.File
-	LogLevel         chshare.LogLevel
+}
+
+//Config represents a client configuration
+type Config struct {
+	Fingerprint string
+	Auth        string
+	Connection  ConnectionOptions
+	Server      string
+	Proxy       string
+	ID          string
+	Name        string
+	Tags        tags
+	Remotes     []string
+
+	LogOutput *os.File
+	LogLevel  chshare.LogLevel
 }
 
 type tags []string
@@ -56,14 +59,17 @@ func (t *tags) Set(value string) error {
 //Client represents a client instance
 type Client struct {
 	*chshare.Logger
-	config    *Config
-	sshConfig *ssh.ClientConfig
-	sshConn   ssh.Conn
-	proxyURL  *url.URL
-	server    string
-	running   bool
-	runningc  chan error
-	connStats chshare.ConnStats
+	connReq *chshare.ConnectionRequest
+
+	connOptions       ConnectionOptions
+	sshConfig         *ssh.ClientConfig
+	sshConn           ssh.Conn
+	proxyURL          *url.URL
+	server            string
+	serverFingerprint string
+	running           bool
+	runningc          chan error
+	connStats         chshare.ConnStats
 }
 
 //NewClient creates a new client instance
@@ -72,8 +78,8 @@ func NewClient(config *Config) (*Client, error) {
 	if !strings.HasPrefix(config.Server, "http") {
 		config.Server = "http://" + config.Server
 	}
-	if config.MaxRetryInterval < time.Second {
-		config.MaxRetryInterval = 5 * time.Minute
+	if config.Connection.MaxRetryInterval < time.Second {
+		config.Connection.MaxRetryInterval = 5 * time.Minute
 	}
 	u, err := url.Parse(config.Server)
 	if err != nil {
@@ -89,22 +95,32 @@ func NewClient(config *Config) (*Client, error) {
 	}
 	//swap to websockets scheme
 	u.Scheme = strings.Replace(u.Scheme, "http", "ws", 1)
-	shared := &chshare.Config{}
+	connectionReq := &chshare.ConnectionRequest{
+		Version: chshare.BuildVersion,
+		ID:      config.ID,
+		Name:    config.Name,
+		Tags:    config.Tags,
+	}
+	connectionReq.OS, _ = chshare.Uname()
+	connectionReq.Hostname, _ = os.Hostname()
+
 	for _, s := range config.Remotes {
 		var r *chshare.Remote
 		r, err = chshare.DecodeRemote(s)
 		if err != nil {
 			return nil, fmt.Errorf("Failed to decode remote '%s': %s", s, err)
 		}
-		shared.Remotes = append(shared.Remotes, r)
+		connectionReq.Remotes = append(connectionReq.Remotes, r)
 	}
-	config.shared = shared
+
 	client := &Client{
-		Logger:   chshare.NewLogger("client", config.LogOutput, config.LogLevel),
-		config:   config,
-		server:   u.String(),
-		running:  true,
-		runningc: make(chan error, 1),
+		Logger:            chshare.NewLogger("client", config.LogOutput, config.LogLevel),
+		connReq:           connectionReq,
+		connOptions:       config.Connection,
+		server:            u.String(),
+		serverFingerprint: config.Fingerprint,
+		running:           true,
+		runningc:          make(chan error, 1),
 	}
 
 	if p := config.Proxy; p != "" {
@@ -138,9 +154,8 @@ func (c *Client) Run() error {
 }
 
 func (c *Client) verifyServer(hostname string, remote net.Addr, key ssh.PublicKey) error {
-	expect := c.config.Fingerprint
 	got := chshare.FingerprintKey(key)
-	if expect != "" && !strings.HasPrefix(got, expect) {
+	if c.serverFingerprint != "" && !strings.HasPrefix(got, c.serverFingerprint) {
 		return fmt.Errorf("Invalid fingerprint (%s)", got)
 	}
 	//overwrite with complete fingerprint
@@ -157,7 +172,7 @@ func (c *Client) Start(ctx context.Context) error {
 
 	c.Infof("Connecting to %s%s\n", c.server, via)
 	//optional keepalive loop
-	if c.config.KeepAlive > 0 {
+	if c.connOptions.KeepAlive > 0 {
 		go c.keepAliveLoop()
 	}
 	//connection loop
@@ -167,7 +182,7 @@ func (c *Client) Start(ctx context.Context) error {
 
 func (c *Client) keepAliveLoop() {
 	for c.running {
-		time.Sleep(c.config.KeepAlive)
+		time.Sleep(c.connOptions.KeepAlive)
 		if c.sshConn != nil {
 			_, _, _ = c.sshConn.SendRequest("ping", true, nil)
 		}
@@ -177,14 +192,14 @@ func (c *Client) keepAliveLoop() {
 func (c *Client) connectionLoop() {
 	//connection loop!
 	var connerr error
-	b := &backoff.Backoff{Max: c.config.MaxRetryInterval}
+	b := &backoff.Backoff{Max: c.connOptions.MaxRetryInterval}
 	for c.running {
 		if connerr != nil {
 			attempt := int(b.Attempt())
 			d := b.Duration()
 			c.showConnectionError(connerr, attempt)
 			//give up?
-			if c.config.MaxRetryCount >= 0 && attempt >= c.config.MaxRetryCount {
+			if c.connOptions.MaxRetryCount >= 0 && attempt >= c.connOptions.MaxRetryCount {
 				break
 			}
 			c.Errorf("Retrying in %s...", d)
@@ -196,7 +211,6 @@ func (c *Client) connectionLoop() {
 			WriteBufferSize:  1024,
 			HandshakeTimeout: 45 * time.Second,
 			Subprotocols:     []string{chshare.ProtocolVersion},
-			NetDialContext:   c.config.DialContext,
 		}
 		//optionally proxy
 		if c.proxyURL != nil {
@@ -229,7 +243,7 @@ func (c *Client) connectionLoop() {
 				}
 			}
 		}
-		wsConn, _, err := d.Dial(c.server, c.config.Headers)
+		wsConn, _, err := d.Dial(c.server, c.connOptions.Headers)
 		if err != nil {
 			connerr = err
 			continue
@@ -248,31 +262,25 @@ func (c *Client) connectionLoop() {
 			c.Errorf(err.Error())
 			break
 		}
-		c.config.shared.Version = chshare.BuildVersion
-		c.config.shared.ID = c.config.ID
-		c.config.shared.Name = c.config.Name
-		c.config.shared.Tags = c.config.Tags
-		c.config.shared.OS, _ = chshare.Uname()
-		c.config.shared.Hostname, _ = os.Hostname()
 		ipv4, ipv6, _ := localIPAddresses()
-		c.config.shared.IPv4 = ipv4
-		c.config.shared.IPv6 = ipv6
-		conf, _ := chshare.EncodeConfig(c.config.shared)
-		c.Debugf("Sending config")
+		c.connReq.IPv4 = ipv4
+		c.connReq.IPv6 = ipv6
+		req, _ := chshare.EncodeConnectionRequest(c.connReq)
+		c.Debugf("Sending connection request")
 		t0 := time.Now()
-		configReplyOk, configReply, err := sshConn.SendRequest("config", true, conf)
+		replyOk, configReply, err := sshConn.SendRequest("new_connection", true, req)
 		if err != nil {
-			c.Errorf("Config verification failed")
+			c.Errorf("connection request verification failed")
 			break
 		}
-		if !configReplyOk {
+		if !replyOk {
 			c.Errorf(string(configReply))
 			break
 		}
 		var remotes []*chshare.Remote
 		err = json.Unmarshal(configReply, &remotes)
 		if err != nil {
-			err = fmt.Errorf("can't decode config reply payload: %s", err)
+			err = fmt.Errorf("can't decode reply payload: %s", err)
 			c.Errorf(err.Error())
 			break
 		}
@@ -298,7 +306,7 @@ func (c *Client) connectionLoop() {
 }
 
 func (c *Client) showConnectionError(connerr error, attempt int) {
-	maxAttempt := c.config.MaxRetryCount
+	maxAttempt := c.connOptions.MaxRetryCount
 	//show error and attempt counts
 	msg := fmt.Sprintf("Connection error: %s", connerr)
 	if attempt > 0 {

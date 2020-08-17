@@ -188,19 +188,19 @@ func (cl *ClientListener) handleWebsocket(w http.ResponseWriter, req *http.Reque
 		clog.Debugf("Failed: %s", err)
 		cl.replyConnectionError(r, err)
 	}
-	if r.Type != "config" {
-		failed(cl.FormatError("expecting config request"))
+	if r.Type != "new_connection" {
+		failed(cl.FormatError("expecting connection request"))
 		return
 	}
-	c, err := chshare.DecodeConfig(r.Payload)
+	connRequest, err := chshare.DecodeConnectionRequest(r.Payload)
 	if err != nil {
-		failed(cl.FormatError("invalid config"))
+		failed(cl.FormatError("invalid connection request"))
 		return
 	}
 
 	//print if client and server versions dont match
-	if c.Version != chshare.BuildVersion {
-		v := c.Version
+	if connRequest.Version != chshare.BuildVersion {
+		v := connRequest.Version
 		if v == "" {
 			v = "<unknown>"
 		}
@@ -209,10 +209,10 @@ func (cl *ClientListener) handleWebsocket(w http.ResponseWriter, req *http.Reque
 	}
 
 	var sid string
-	if c.ID == "" {
+	if connRequest.ID == "" {
 		sid = GetSessionID(sshConn)
 	} else {
-		sid = c.ID
+		sid = connRequest.ID
 	}
 
 	// if session id is in use, deny connection
@@ -232,13 +232,13 @@ func (cl *ClientListener) handleWebsocket(w http.ResponseWriter, req *http.Reque
 	ctx, cancel := context.WithCancel(context.Background())
 	defer cancel()
 
-	clientSession, err := cl.sessionService.StartClientSession(ctx, sid, sshConn, c, user, clog)
+	clientSession, err := cl.sessionService.StartClientSession(ctx, sid, sshConn, connRequest, user, clog)
 	if err != nil {
 		failed(cl.FormatError("%s", err))
 		return
 	}
 
-	cl.replyConnectionSuccess(r, c.Remotes)
+	cl.replyConnectionSuccess(r, connRequest.Remotes)
 
 	sessionBanner := clientSession.Banner()
 	clog.Debugf("Open %s", sessionBanner)
