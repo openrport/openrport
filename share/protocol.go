@@ -5,7 +5,8 @@ import (
 	"fmt"
 )
 
-type Config struct {
+// ConnectionRequest represents configuration options when initiating client-server connection
+type ConnectionRequest struct {
 	Version  string
 	ID       string
 	Name     string
@@ -17,8 +18,8 @@ type Config struct {
 	Remotes  []*Remote
 }
 
-func DecodeConfig(b []byte) (*Config, error) {
-	c := &Config{}
+func DecodeConnectionRequest(b []byte) (*ConnectionRequest, error) {
+	c := &ConnectionRequest{}
 	err := json.Unmarshal(b, c)
 	if err != nil {
 		return nil, fmt.Errorf("Invalid JSON config")
@@ -26,6 +27,6 @@ func DecodeConfig(b []byte) (*Config, error) {
 	return c, nil
 }
 
-func EncodeConfig(c *Config) ([]byte, error) {
+func EncodeConnectionRequest(c *ConnectionRequest) ([]byte, error) {
 	return json.Marshal(c)
 }

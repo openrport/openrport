@@ -139,14 +139,14 @@ var clientHelp = `
 `
 
 func main() {
-	config := chclient.Config{Headers: http.Header{}, LogOutput: os.Stdout}
+	config := chclient.Config{Connection: chclient.ConnectionOptions{Headers: http.Header{}}, LogOutput: os.Stdout}
 	flag.StringVar(&config.Fingerprint, "fingerprint", "", "")
 	flag.StringVar(&config.Auth, "auth", "", "")
-	flag.DurationVar(&config.KeepAlive, "keepalive", 0, "")
-	flag.IntVar(&config.MaxRetryCount, "max-retry-count", -1, "")
-	flag.DurationVar(&config.MaxRetryInterval, "max-retry-interval", 0, "")
+	flag.DurationVar(&config.Connection.KeepAlive, "keepalive", 0, "")
+	flag.IntVar(&config.Connection.MaxRetryCount, "max-retry-count", -1, "")
+	flag.DurationVar(&config.Connection.MaxRetryInterval, "max-retry-interval", 0, "")
 	flag.StringVar(&config.Proxy, "proxy", "", "")
-	flag.Var(&headerFlags{config.Headers}, "header", "")
+	flag.Var(&headerFlags{config.Connection.Headers}, "header", "")
 	flag.StringVar(&config.ID, "id", "", "")
 	flag.StringVar(&config.Name, "name", "", "")
 	flag.Var(&config.Tags, "tag", "")
@@ -179,7 +179,7 @@ func main() {
 	}
 	//move hostname onto headers
 	if *hostname != "" {
-		config.Headers.Set("Host", *hostname)
+		config.Connection.Headers.Set("Host", *hostname)
 	}
 
 	config.LogLevel = tryParseLogLevel(*logLevelStr)

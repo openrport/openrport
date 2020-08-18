@@ -19,14 +19,16 @@ func TestCustomHeaders(t *testing.T) {
 	headers := http.Header{}
 	headers.Set("Foo", "Bar")
 	config := Config{
-		Fingerprint:      "",
-		Auth:             "",
-		KeepAlive:        time.Second,
-		MaxRetryCount:    0,
-		MaxRetryInterval: time.Second,
-		Server:           server.URL,
-		Remotes:          []string{"192.168.0.5:3000:google.com:80"},
-		Headers:          headers,
+		Fingerprint: "",
+		Auth:        "",
+		Connection: ConnectionOptions{
+			KeepAlive:        time.Second,
+			MaxRetryCount:    0,
+			MaxRetryInterval: time.Second,
+			Headers:          headers,
+		},
+		Server:  server.URL,
+		Remotes: []string{"192.168.0.5:3000:google.com:80"},
 	}
 	c, err := NewClient(&config)
 	if err != nil {

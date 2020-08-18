@@ -36,17 +36,17 @@ func (s *SessionService) GetAll() ([]*ClientSession, error) {
 
 func (s *SessionService) StartClientSession(
 	ctx context.Context, sid string, sshConn ssh.Conn,
-	cfg *chshare.Config, user *chshare.User, clog *chshare.Logger,
+	req *chshare.ConnectionRequest, user *chshare.User, clog *chshare.Logger,
 ) (*ClientSession, error) {
 	session := &ClientSession{
 		ID:         sid,
-		Name:       cfg.Name,
-		Tags:       cfg.Tags,
-		OS:         cfg.OS,
-		Hostname:   cfg.Hostname,
-		Version:    cfg.Version,
-		IPv4:       cfg.IPv4,
-		IPv6:       cfg.IPv6,
+		Name:       req.Name,
+		Tags:       req.Tags,
+		OS:         req.OS,
+		Hostname:   req.Hostname,
+		Version:    req.Version,
+		IPv4:       req.IPv4,
+		IPv6:       req.IPv6,
 		Address:    sshConn.RemoteAddr().String(),
 		Tunnels:    make([]*Tunnel, 0),
 		Connection: sshConn,
@@ -55,7 +55,7 @@ func (s *SessionService) StartClientSession(
 		Logger:     clog,
 	}
 
-	_, err := s.StartSessionTunnels(session, cfg.Remotes)
+	_, err := s.StartSessionTunnels(session, req.Remotes)
 	if err != nil {
 		return nil, err
 	}
