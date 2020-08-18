@@ -228,13 +228,23 @@ func (al *APIListener) handlePutSessionTunnel(w http.ResponseWriter, req *http.R
 		return
 	}
 
+	aclStr := req.URL.Query().Get("acl")
+	var acl = &TunnelACL{}
+	if aclStr != "" {
+		acl, err = ParseTunnelACL(aclStr)
+		if err != nil {
+			al.jsonErrorResponse(w, http.StatusBadRequest, al.FormatError("invalid request: %s", err))
+			return
+		}
+	}
+
 	response := map[string]interface{}{"success": 1}
 
 	// make next steps thread-safe
 	session.Lock()
 	defer session.Unlock()
 
-	tunnels, err := al.sessionService.StartSessionTunnels(session, []*chshare.Remote{remote})
+	tunnels, err := al.sessionService.StartSessionTunnels(session, []*chshare.Remote{remote}, *acl)
 	if err != nil {
 		al.jsonErrorResponse(w, http.StatusConflict, al.FormatError("can't create tunnel: %s", err))
 		return

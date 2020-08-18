@@ -55,14 +55,14 @@ func (c *ClientSession) findTunnelByRemote(r *chshare.Remote) *Tunnel {
 	return nil
 }
 
-func (c *ClientSession) StartTunnel(r *chshare.Remote) (*Tunnel, error) {
+func (c *ClientSession) StartTunnel(r *chshare.Remote, acl TunnelACL) (*Tunnel, error) {
 	t := c.findTunnelByRemote(r)
 	if t != nil {
 		return t, nil
 	}
 
 	tunnelID := strconv.FormatInt(c.generateNewTunnelID(), 10)
-	t = NewTunnel(c.Logger, c.Connection, tunnelID, r)
+	t = NewTunnel(c.Logger, c.Connection, tunnelID, r, acl)
 	err := t.Start(c.Context)
 	if err != nil {
 		return nil, err
