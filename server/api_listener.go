@@ -4,6 +4,7 @@ import (
 	"crypto/subtle"
 	"fmt"
 	"net/http"
+	"runtime"
 
 	"github.com/gorilla/mux"
 	"github.com/jpillora/requestlog"
@@ -75,6 +76,16 @@ func (al *APIListener) Close() error {
 }
 
 func (al *APIListener) handleAPIRequest(w http.ResponseWriter, r *http.Request) {
+	defer func() {
+		if err := recover(); err != nil {
+			buf := make([]byte, 1<<20)
+			stackLen := runtime.Stack(buf, false)
+			al.Errorf("panic: %v", err)
+			al.Errorf("stack: %s", buf[:stackLen])
+			al.writeJSONResponse(w, http.StatusInternalServerError, map[string]interface{}{"error": err})
+		}
+	}()
+
 	var matchedRoute mux.RouteMatch
 	routeExists := al.router.Match(r, &matchedRoute)
 	if routeExists {
