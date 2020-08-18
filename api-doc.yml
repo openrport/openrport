@@ -37,8 +37,13 @@ paths:
           schema:
             type: "object"
             properties:
-              token:
-                type: "string"
+              data:
+                type: "object"
+                properties:
+                  token:
+                    type: "string"
+              meta:
+                type: "object"
     post:
       summary: "Generate or renew auth token. Requires username and password provided in request body"
       description: "username and password parameters are required. They can be provided either in JSON either in x-www-formurlencoded format"
@@ -58,8 +63,13 @@ paths:
           schema:
             type: "object"
             properties:
-              token:
-                type: "string"
+              data:
+                type: "object"
+                properties:
+                  token:
+                    type: "string"
+              meta:
+                type: "object"
     delete:
       summary: "Revoke token (logoff). Requires Bearer authorization provided"
       description: ""
@@ -80,14 +90,19 @@ paths:
           schema:
             type: "object"
             properties:
-              version:
-                type: "string"
-              sessions_count:
-                type: "integer"
-              fingerprint:
-                type: "string"
-              connect_url:
-                type: "string"
+              data:
+                type: "object"
+                properties:
+                  version:
+                    type: "string"
+                  sessions_count:
+                    type: "integer"
+                  fingerprint:
+                    type: "string"
+                  connect_url:
+                    type: "string"
+              meta:
+                type: "object"
   /sessions:
     get:
       summary: "List active client connections"
@@ -126,13 +141,19 @@ paths:
         "200":
           description: "success response"
           schema:
-            allOf:
-              - $ref: "#/definitions/ApiResponse"
-              - type: "object"
-                properties:
-                  tunnel:
-                    $ref: "#/definitions/Tunnel"
-                    type: "object"
+            type: "object"
+            properties:
+              data:
+                type: "object"
+                allOf:
+                  - $ref: "#/definitions/ApiResponse"
+                  - type: "object"
+                    properties:
+                      tunnel:
+                        $ref: "#/definitions/Tunnel"
+                        type: "object"
+              meta:
+                type: "object"
         "400":
           description: "invalid parameters"
           schema:
@@ -164,7 +185,12 @@ paths:
         "200":
           description: "tunnel terminated"
           schema:
-            $ref: "#/definitions/ApiResponse"
+            type: "object"
+            properties:
+              data:
+                $ref: "#/definitions/ApiResponse"
+              meta:
+                type: "object"
         "400":
           description: "invalid parameters"
           schema:
@@ -194,17 +220,45 @@ definitions:
   Session:
     type: "object"
     properties:
-      id:
-        type: "string"
-      version:
-        type: "string"
-        description: "client version"
-      address:
-        type: "string"
-        description: "client address"
-      tunnels:
-        items:
-          $ref: "#/definitions/Tunnel"
+      data:
+        type: "object"
+        properties:
+          id:
+            type: "string"
+          name:
+            type: "string"
+            description: "client name"
+          os:
+            type: "string"
+            description: "client OS"
+          hostname:
+            type: "string"
+            description: "client hostname"
+          ipv4:
+            type: "array"
+            items:
+              type: string
+            description: "list of IPv4 addresses of the client"
+          ipv6:
+            type: "array"
+            items:
+              type: string
+            description: "list of IPv6 addresses of the client"
+          tags:
+            type: "array"
+            items:
+              type: string
+          version:
+            type: "string"
+            description: "client version"
+          address:
+            type: "string"
+            description: "client address"
+          tunnels:
+            items:
+              $ref: "#/definitions/Tunnel"
+      meta:
+        type: "object"
   ApiResponse:
     type: "object"
     properties:

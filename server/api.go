@@ -12,6 +12,21 @@ import (
 	chshare "github.com/cloudradar-monitoring/rport/share"
 )
 
+// default API response container
+type apiResponse struct {
+	Data interface{} `json:"data"`
+	Meta interface{} `json:"meta"`
+}
+
+type successAPIResponse struct {
+	Success int `json:"success"`
+}
+
+type sessionTunnelPUTResponse struct {
+	Success int     `json:"success"`
+	Tunnel  *Tunnel `json:"tunnel"`
+}
+
 func (al *APIListener) wrapWithAuthMiddleware(f http.Handler) http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
 		ok := al.handleAuthorization(w, r)
@@ -75,7 +90,8 @@ func (al *APIListener) handleGetLogin(w http.ResponseWriter, req *http.Request) 
 		return
 	}
 
-	al.writeJSONResponse(w, http.StatusOK, map[string]string{"token": tokenStr})
+	response := apiResponse{Data: map[string]string{"token": tokenStr}}
+	al.writeJSONResponse(w, http.StatusOK, response)
 }
 
 func (al *APIListener) handlePostLogin(w http.ResponseWriter, req *http.Request) {
@@ -102,7 +118,8 @@ func (al *APIListener) handlePostLogin(w http.ResponseWriter, req *http.Request)
 		return
 	}
 
-	al.writeJSONResponse(w, http.StatusOK, map[string]string{"token": tokenStr})
+	response := apiResponse{Data: map[string]string{"token": tokenStr}}
+	al.writeJSONResponse(w, http.StatusOK, response)
 }
 
 func parseLoginPostRequestBody(req *http.Request) (string, string, error) {
@@ -171,7 +188,7 @@ func (al *APIListener) handleDeleteLogin(w http.ResponseWriter, req *http.Reques
 		return
 	}
 
-	response := map[string]interface{}{"success": 1}
+	response := apiResponse{Data: successAPIResponse{Success: 1}}
 	al.writeJSONResponse(w, http.StatusOK, response)
 }
 
@@ -181,12 +198,14 @@ func (al *APIListener) handleGetStatus(w http.ResponseWriter, req *http.Request)
 		al.jsonErrorResponse(w, http.StatusInternalServerError, err)
 		return
 	}
-	al.writeJSONResponse(w, http.StatusOK, map[string]interface{}{
+
+	response := apiResponse{Data: map[string]interface{}{
 		"version":        chshare.BuildVersion,
 		"sessions_count": count,
 		"fingerprint":    al.fingerprint,
 		"connect_url":    al.connectURL,
-	})
+	}}
+	al.writeJSONResponse(w, http.StatusOK, response)
 }
 
 func (al *APIListener) handleGetSessions(w http.ResponseWriter, req *http.Request) {
@@ -195,7 +214,8 @@ func (al *APIListener) handleGetSessions(w http.ResponseWriter, req *http.Reques
 		al.jsonErrorResponse(w, http.StatusInternalServerError, err)
 		return
 	}
-	al.writeJSONResponse(w, http.StatusOK, clientSessions)
+	response := apiResponse{Data: clientSessions}
+	al.writeJSONResponse(w, http.StatusOK, response)
 }
 
 func (al *APIListener) handlePutSessionTunnel(w http.ResponseWriter, req *http.Request) {
@@ -238,7 +258,7 @@ func (al *APIListener) handlePutSessionTunnel(w http.ResponseWriter, req *http.R
 		}
 	}
 
-	response := map[string]interface{}{"success": 1}
+	response := apiResponse{}
 
 	// make next steps thread-safe
 	session.Lock()
@@ -249,8 +269,7 @@ func (al *APIListener) handlePutSessionTunnel(w http.ResponseWriter, req *http.R
 		al.jsonErrorResponse(w, http.StatusConflict, al.FormatError("can't create tunnel: %s", err))
 		return
 	}
-	response["tunnel"] = tunnels[0]
-
+	response.Data = sessionTunnelPUTResponse{Success: 1, Tunnel: tunnels[0]}
 	al.writeJSONResponse(w, http.StatusOK, response)
 }
 
@@ -290,6 +309,6 @@ func (al *APIListener) handleDeleteSessionTunnel(w http.ResponseWriter, req *htt
 
 	session.TerminateTunnel(tunnel)
 
-	response := map[string]interface{}{"success": 1}
+	response := successAPIResponse{Success: 1}
 	al.writeJSONResponse(w, http.StatusOK, response)
 }
