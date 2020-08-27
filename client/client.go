@@ -38,22 +38,11 @@ type Config struct {
 	Proxy       string
 	ID          string
 	Name        string
-	Tags        tags
+	Tags        []string
 	Remotes     []string
 
 	LogOutput *os.File
 	LogLevel  chshare.LogLevel
-}
-
-type tags []string
-
-func (t *tags) String() string {
-	return strings.Join(*t, ",")
-}
-
-func (t *tags) Set(value string) error {
-	*t = append(*t, value)
-	return nil
 }
 
 //Client represents a client instance
