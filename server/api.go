@@ -226,7 +226,7 @@ func (al *APIListener) handlePutSessionTunnel(w http.ResponseWriter, req *http.R
 		return
 	}
 
-	session, err := al.sessionService.FindOne(sessionID)
+	session, err := al.sessionService.GetActiveByID(sessionID)
 	if err != nil {
 		al.jsonErrorResponse(w, http.StatusInternalServerError, err)
 		return
@@ -281,7 +281,7 @@ func (al *APIListener) handleDeleteSessionTunnel(w http.ResponseWriter, req *htt
 		return
 	}
 
-	session, err := al.sessionService.FindOne(sessionID)
+	session, err := al.sessionService.GetActiveByID(sessionID)
 	if err != nil {
 		al.jsonErrorResponse(w, http.StatusInternalServerError, err)
 		return

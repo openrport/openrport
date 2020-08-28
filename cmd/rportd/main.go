@@ -1,6 +1,7 @@
 package main
 
 import (
+	"context"
 	"crypto/rand"
 	"crypto/sha256"
 	"flag"
@@ -11,11 +12,22 @@ import (
 	"os"
 	"strconv"
 	"strings"
+	"time"
 
 	mapset "github.com/deckarep/golang-set"
 
+	"github.com/cloudradar-monitoring/rport/constant"
 	chserver "github.com/cloudradar-monitoring/rport/server"
+	"github.com/cloudradar-monitoring/rport/server/csr"
+	"github.com/cloudradar-monitoring/rport/server/scheduler"
 	chshare "github.com/cloudradar-monitoring/rport/share"
+)
+
+const (
+	DefaultCSRFileName          = "csr.json"
+	DefaultKeepLostClients      = time.Hour
+	DefaultCacheClientsInterval = 1 * time.Second
+	DefaultCleanClientsInterval = 5 * time.Minute
 )
 
 var serverHelp = `
@@ -94,6 +106,8 @@ var serverHelp = `
 `
 
 func main() {
+	ctx := context.Background()
+
 	a := flag.String("a", "", "")
 	listenAddr := flag.String("addr", "", "")
 	url := flag.String("url", "", "")
@@ -110,6 +124,24 @@ func main() {
 	version := flag.Bool("version", false, "")
 	e := flag.String("e", "1-1000", "")
 	excludePorts := flag.String("exclude-ports", "", "")
+	dataDir := flag.String("clients-file", constant.DataDirectory, "")
+	csrFileName := flag.String("csr-filename", DefaultCSRFileName, "")
+	keepLostClients := flag.Duration("keep-lost-clients", DefaultKeepLostClients, "")
+	saveClients := flag.Duration("save-clients", DefaultCacheClientsInterval, "")
+	cleanupClients := flag.Duration("cleanup-clients", DefaultCleanClientsInterval, "")
+
+	if dataDir == nil || *dataDir == "" {
+		log.Fatal("--data-dir cannot be empty")
+	}
+	if err := os.MkdirAll(*dataDir, os.ModePerm); err != nil {
+		log.Printf("ERROR: failed to create --data-dir %q: %v\n", *dataDir, err)
+	}
+
+	if csrFileName == nil || *csrFileName == "" {
+		log.Fatal("--csr-filename cannot be empty")
+	}
+	csrFile := *dataDir + "/" + *csrFileName
+	log.Printf("csr file: %q\n", csrFile)
 
 	flag.Usage = func() {
 		fmt.Print(serverHelp)
@@ -189,12 +221,21 @@ func main() {
 		}
 	}()
 
-	s, err := chserver.NewServer(config)
+	repo, err := csr.InitAndPopulateFromFile(csrFile, keepLostClients)
+	if err != nil {
+		log.Printf("Failed to populate CSR: %v\n", err)
+	}
+
+	s, err := chserver.NewServer(config, &repo)
 	if err != nil {
 		log.Fatal(err)
 	}
 
 	go chshare.GoStats()
+	if keepLostClients != nil {
+		go scheduler.Run(ctx, s.Logger, csr.NewCleanupTask(s.Logger, &repo), *cleanupClients)
+	}
+	go scheduler.Run(ctx, s.Logger, csr.NewSaveToFileTask(s.Logger, &repo, csrFile), *saveClients)
 
 	if err = s.Run(*listenAddr, *apiAddr); err != nil {
 		log.Fatal(err)

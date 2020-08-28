@@ -3,6 +3,7 @@ package chserver
 import (
 	"context"
 	"strconv"
+	"time"
 
 	"golang.org/x/crypto/ssh"
 
@@ -15,10 +16,14 @@ type SessionService struct {
 	portDistributor *ports.PortDistributor
 }
 
-func NewSessionService(portDistributor *ports.PortDistributor) *SessionService {
+// NewSessionService returns a new instance of client session service.
+func NewSessionService(
+	portDistributor *ports.PortDistributor,
+	repo *ClientSessionRepository,
+) *SessionService {
 	return &SessionService{
-		repo:            NewSessionRepository(),
 		portDistributor: portDistributor,
+		repo:            repo,
 	}
 }
 
@@ -26,8 +31,8 @@ func (s *SessionService) Count() (int, error) {
 	return s.repo.Count()
 }
 
-func (s *SessionService) FindOne(id string) (*ClientSession, error) {
-	return s.repo.FindOne(id)
+func (s *SessionService) GetActiveByID(id string) (*ClientSession, error) {
+	return s.repo.GetActiveByID(id)
 }
 
 func (s *SessionService) GetAll() ([]*ClientSession, error) {
@@ -95,5 +100,11 @@ func (s *SessionService) StartSessionTunnels(session *ClientSession, remotes []*
 }
 
 func (s *SessionService) Terminate(session *ClientSession) error {
-	return s.repo.Delete(session)
+	if s.repo.keepLostClients == nil {
+		return s.repo.Delete(session)
+	}
+
+	now := time.Now()
+	session.Disconnected = &now
+	return s.repo.Save(session)
 }

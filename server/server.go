@@ -46,7 +46,7 @@ type Server struct {
 }
 
 // NewServer creates and returns a new rport server
-func NewServer(config *Config) (*Server, error) {
+func NewServer(config *Config, repo *ClientSessionRepository) (*Server, error) {
 	s := &Server{
 		Logger: chshare.NewLogger("server", config.LogOutput, config.LogLevel),
 	}
@@ -60,6 +60,7 @@ func NewServer(config *Config) (*Server, error) {
 
 	sessionService := NewSessionService(
 		ports.NewPortDistributor(config.ExcludedPorts),
+		repo,
 	)
 
 	s.clientListener, err = NewClientListener(config, sessionService, privateKey)

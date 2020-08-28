@@ -6,7 +6,9 @@ import (
 	"strconv"
 	"sync"
 	"sync/atomic"
+	"time"
 
+	"github.com/google/go-cmp/cmp"
 	"golang.org/x/crypto/ssh"
 
 	chshare "github.com/cloudradar-monitoring/rport/share"
@@ -16,7 +18,7 @@ func GetSessionID(sshConn ssh.ConnMetadata) string {
 	return fmt.Sprintf("%x", sshConn.SessionID())
 }
 
-// ClientSession represents active client connection
+// ClientSession represents client connection
 type ClientSession struct {
 	ID       string    `json:"id"`
 	Name     string    `json:"name"`
@@ -28,14 +30,23 @@ type ClientSession struct {
 	Version  string    `json:"version"`
 	Address  string    `json:"address"`
 	Tunnels  []*Tunnel `json:"tunnels"`
+	// Disconnected is a time when a client session was disconnected. If nil - it's connected.
+	Disconnected *time.Time `json:"disconnected,omitempty"`
 
 	Connection ssh.Conn        `json:"-"`
 	Context    context.Context `json:"-"`
 	User       *chshare.User   `json:"-"`
 	Logger     *chshare.Logger `json:"-"`
 
-	tunnelIDAutoIncrement int64
-	lock                  sync.Mutex
+	tunnelIDAutoIncrement int64      `json:"-"`
+	lock                  sync.Mutex `json:"-"`
+}
+
+// Obsolete returns true if a given client session was disconnected longer than a given duration.
+// If a given duration is nil - returns false.
+func (c *ClientSession) Obsolete(duration *time.Duration) bool {
+	return duration != nil && c.Disconnected != nil &&
+		c.Disconnected.Add(*duration).Before(time.Now())
 }
 
 func (c *ClientSession) Lock() {
@@ -111,4 +122,34 @@ func (c *ClientSession) Banner() string {
 		}
 	}
 	return banner
+}
+
+func (c *ClientSession) Equal(other *ClientSession) bool {
+	if c == nil && other == nil {
+		return true
+	}
+	if c == nil || other == nil {
+		return false
+	}
+	return c.ID == other.ID &&
+		c.Name == other.Name &&
+		c.OS == other.OS &&
+		c.Hostname == other.Hostname &&
+		cmp.Equal(c.IPv4, other.IPv4) &&
+		cmp.Equal(c.IPv6, other.IPv6) &&
+		cmp.Equal(c.Tags, other.Tags) &&
+		c.Version == other.Version &&
+		c.Address == other.Address &&
+		cmp.Equal(c.Tunnels, other.Tunnels) &&
+		timesEqual(c.Disconnected, other.Disconnected)
+}
+
+func timesEqual(t1, t2 *time.Time) bool {
+	if t1 == nil && t2 == nil {
+		return true
+	}
+	if t1 == nil || t2 == nil {
+		return false
+	}
+	return t1.Equal(*t2)
 }

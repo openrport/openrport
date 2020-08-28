@@ -216,7 +216,11 @@ func (cl *ClientListener) handleWebsocket(w http.ResponseWriter, req *http.Reque
 	}
 
 	// if session id is in use, deny connection
-	session, _ := cl.sessionService.FindOne(sid)
+	session, err := cl.sessionService.GetActiveByID(sid)
+	if err != nil {
+		failed(cl.FormatError("failed to get session by id `%s`", sid))
+		return
+	}
 	if session != nil {
 		failed(cl.FormatError("session id `%s` is already in use", sid))
 		return
