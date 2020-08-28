@@ -6,18 +6,17 @@ import (
 	"io"
 	"os"
 
-	chserver "github.com/cloudradar-monitoring/rport/server"
 	chshare "github.com/cloudradar-monitoring/rport/share"
 )
 
 type SaveToFileTask struct {
 	log      *chshare.Logger
-	csr      *chserver.ClientSessionRepository
+	csr      *ClientSessionRepository
 	fileName string
 }
 
 // NewSaveToFileTask returns a task to save Client Session Repository to a given file on disk.
-func NewSaveToFileTask(log *chshare.Logger, csr *chserver.ClientSessionRepository, fileName string) *SaveToFileTask {
+func NewSaveToFileTask(log *chshare.Logger, csr *ClientSessionRepository, fileName string) *SaveToFileTask {
 	return &SaveToFileTask{
 		log:      log,
 		csr:      csr,

@@ -7,12 +7,10 @@ import (
 	"log"
 	"os"
 	"time"
-
-	chserver "github.com/cloudradar-monitoring/rport/server"
 )
 
 // GetInitStateFromFile returns an initial Client Session Repository state populated with sessions from the file.
-func GetInitStateFromFile(fileName string, expiration *time.Duration) ([]*chserver.ClientSession, error) {
+func GetInitStateFromFile(fileName string, expiration *time.Duration) ([]*ClientSession, error) {
 	log.Println("Start to get init Client Session Repository state from file.")
 
 	file, err := os.Open(fileName)
@@ -25,7 +23,7 @@ func GetInitStateFromFile(fileName string, expiration *time.Duration) ([]*chserv
 	return getInitState(file, expiration)
 }
 
-func getInitState(r io.Reader, expiration *time.Duration) ([]*chserver.ClientSession, error) {
+func getInitState(r io.Reader, expiration *time.Duration) ([]*ClientSession, error) {
 	decoder := json.NewDecoder(r)
 	// read array open bracket
 	if _, err := decoder.Token(); err != nil {
@@ -35,10 +33,10 @@ func getInitState(r io.Reader, expiration *time.Duration) ([]*chserver.ClientSes
 		return nil, fmt.Errorf("failed to parse CSR data: %v", err)
 	}
 
-	var sessions []*chserver.ClientSession
+	var sessions []*ClientSession
 	var obsolete int
 	for decoder.More() {
-		var session chserver.ClientSession
+		var session ClientSession
 		if err := decoder.Decode(&session); err != nil {
 			return sessions, fmt.Errorf("failed to parse client session: %v", err)
 		}

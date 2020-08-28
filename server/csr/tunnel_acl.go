@@ -1,4 +1,4 @@
-package chserver
+package csr
 
 import (
 	"fmt"

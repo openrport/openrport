@@ -1,15 +1,14 @@
-package chserver
+package csr
 
 import (
 	"sync"
 	"time"
 )
 
-// TODO(mterel): move to csr package
 type ClientSessionRepository struct {
 	sessions        map[string]*ClientSession
 	mu              sync.RWMutex
-	keepLostClients *time.Duration
+	KeepLostClients *time.Duration
 }
 
 func NewSessionRepository(initSessions []*ClientSession, keepLostClients *time.Duration) *ClientSessionRepository {
@@ -19,7 +18,7 @@ func NewSessionRepository(initSessions []*ClientSession, keepLostClients *time.D
 	}
 	return &ClientSessionRepository{
 		sessions:        sessions,
-		keepLostClients: keepLostClients,
+		KeepLostClients: keepLostClients,
 	}
 }
 
@@ -43,7 +42,7 @@ func (s *ClientSessionRepository) DeleteObsolete() ([]*ClientSession, error) {
 	defer s.mu.Unlock()
 	var deleted []*ClientSession
 	for _, session := range s.sessions {
-		if session.Obsolete(s.keepLostClients) {
+		if session.Obsolete(s.KeepLostClients) {
 			delete(s.sessions, session.ID)
 			deleted = append(deleted, session)
 		}
@@ -80,7 +79,7 @@ func (s *ClientSessionRepository) GetAll() ([]*ClientSession, error) {
 func (s *ClientSessionRepository) getNonObsolete() ([]*ClientSession, error) {
 	result := make([]*ClientSession, 0, len(s.sessions))
 	for _, session := range s.sessions {
-		if !session.Obsolete(s.keepLostClients) {
+		if !session.Obsolete(s.KeepLostClients) {
 			result = append(result, session)
 		}
 	}

@@ -2,6 +2,7 @@ package chserver
 
 import (
 	"fmt"
+	"github.com/cloudradar-monitoring/rport/server/csr"
 	"net/http"
 	"os"
 	"time"
@@ -46,7 +47,7 @@ type Server struct {
 }
 
 // NewServer creates and returns a new rport server
-func NewServer(config *Config, repo *ClientSessionRepository) (*Server, error) {
+func NewServer(config *Config, repo *csr.ClientSessionRepository) (*Server, error) {
 	s := &Server{
 		Logger: chshare.NewLogger("server", config.LogOutput, config.LogLevel),
 	}

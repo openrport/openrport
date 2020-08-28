@@ -226,7 +226,7 @@ func main() {
 		log.Printf("Failed to get init CSR state from file: %v\n", err)
 		// proceed further
 	}
-	repo := chserver.NewSessionRepository(initSessions, keepLostClients)
+	repo := csr.NewSessionRepository(initSessions, keepLostClients)
 
 	s, err := chserver.NewServer(config, repo)
 	if err != nil {

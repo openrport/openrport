@@ -4,17 +4,16 @@ package csr
 import (
 	"fmt"
 
-	chserver "github.com/cloudradar-monitoring/rport/server"
 	chshare "github.com/cloudradar-monitoring/rport/share"
 )
 
 type CleanupTask struct {
 	log *chshare.Logger
-	csr *chserver.ClientSessionRepository
+	csr *ClientSessionRepository
 }
 
 // NewCleanupTask returns a task to cleanup Client Session Repository from obsolete client sessions.
-func NewCleanupTask(log *chshare.Logger, csr *chserver.ClientSessionRepository) *CleanupTask {
+func NewCleanupTask(log *chshare.Logger, csr *ClientSessionRepository) *CleanupTask {
 	return &CleanupTask{
 		log: log,
 		csr: csr,

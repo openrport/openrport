@@ -4,6 +4,7 @@ import (
 	"context"
 	"encoding/json"
 	"errors"
+	"github.com/cloudradar-monitoring/rport/server/csr"
 	"net/http"
 	"net/http/httputil"
 	"net/url"
@@ -103,7 +104,7 @@ func (cl *ClientListener) authUser(c ssh.ConnMetadata, password []byte) (*ssh.Pe
 	}
 	// insert the user session map
 	// @note: this should probably have a lock on it given the map isn't thread-safe??
-	cl.authenticatedUsers.Set(GetSessionID(c), user)
+	cl.authenticatedUsers.Set(csr.GetSessionID(c), user)
 	return nil, nil
 }
 
@@ -210,7 +211,7 @@ func (cl *ClientListener) handleWebsocket(w http.ResponseWriter, req *http.Reque
 
 	var sid string
 	if connRequest.ID == "" {
-		sid = GetSessionID(sshConn)
+		sid = csr.GetSessionID(sshConn)
 	} else {
 		sid = connRequest.ID
 	}
