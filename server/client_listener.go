@@ -4,7 +4,6 @@ import (
 	"context"
 	"encoding/json"
 	"errors"
-	"github.com/cloudradar-monitoring/rport/server/csr"
 	"net/http"
 	"net/http/httputil"
 	"net/url"
@@ -16,6 +15,7 @@ import (
 	"github.com/jpillora/requestlog"
 	"golang.org/x/crypto/ssh"
 
+	"github.com/cloudradar-monitoring/rport/server/csr"
 	chshare "github.com/cloudradar-monitoring/rport/share"
 )
 
