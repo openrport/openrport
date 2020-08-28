@@ -1,51 +1,19 @@
 package main
 
 import (
-	"flag"
 	"fmt"
 	"log"
-	"net/http"
 	"os"
-	"strings"
 
 	"github.com/spf13/cobra"
+	"github.com/spf13/viper"
 
 	chclient "github.com/cloudradar-monitoring/rport/client"
 	chshare "github.com/cloudradar-monitoring/rport/share"
 )
 
-type headerFlags struct {
-	http.Header
-}
-
-func (flag *headerFlags) String() string {
-	out := ""
-	for k, v := range flag.Header {
-		out += fmt.Sprintf("%s: %s\n", k, v)
-	}
-	return out
-}
-
-func (flag *headerFlags) Type() string {
-	return "headerFlags"
-}
-
-func (flag *headerFlags) Set(arg string) error {
-	index := strings.Index(arg, ":")
-	if index < 0 {
-		return fmt.Errorf(`Invalid header (%s). Should be in the format "HeaderName: HeaderContent"`, arg)
-	}
-	if flag.Header == nil {
-		flag.Header = http.Header{}
-	}
-	key := arg[0:index]
-	value := arg[index+1:]
-	flag.Header.Set(key, strings.TrimSpace(value))
-	return nil
-}
-
 var clientHelp = `
-  Usage: rport [options] <server> [remote] [remote] [remote] ...
+  Usage: rport [options] [<server> [remote] [remote] [remote] ...]
 
   <server> is the URL to the rport server.
 
@@ -108,7 +76,7 @@ var clientHelp = `
     Defaults to unlimited.
 
     --max-retry-interval, Maximum wait time before retrying after a
-    disconnection. Defaults to 5 minutes.
+    disconnection. Defaults to 5 minutes ('5m').
 
     --proxy, An optional HTTP CONNECT or SOCKS5 proxy which will be
     used to reach the rport server. Authentication can be specified
@@ -122,11 +90,11 @@ var clientHelp = `
     --hostname, Optionally set the 'Host' header (defaults to the host
     found in the server url).
 
-    --id, Optionally set the 'ID' header (defaults to auto generated id).
+    --id, Optionally set the client 'ID' (defaults to auto generated id).
 
-    --name, Optionally set the 'Name' header (defaults to unset).
+    --name, Optionally set the client 'Name' (defaults to unset).
 
-    --tag, Optionally set a tag.
+    --tag, -t, Optionally set client tags.
     Can be used multiple times. (e.g --tag "foobaz" --tag "bingo")
 
     --verbose, -v, Specify log level. Values: "error", "info", "debug" (defaults to "error")
@@ -148,43 +116,61 @@ var (
 	RootCmd = &cobra.Command{
 		Version: chshare.BuildVersion,
 		Run:     runMain,
-		Args:    cobra.MinimumNArgs(1),
 	}
 
-	config = &chclient.Config{
-		Connection: chclient.ConnectionOptions{
-			Headers: http.Header{},
-		},
-		LogOutput: os.Stdout,
-	}
-
-	hostname    *string
-	logLevelStr *string
-	logFilePath *string
+	cfgPath  *string
+	viperCfg *viper.Viper
+	config   = &chclient.Config{}
 )
 
 func init() {
 	pFlags := RootCmd.PersistentFlags()
 
-	pFlags.StringVar(&config.Fingerprint, "fingerprint", "", "")
-	pFlags.StringVar(&config.Auth, "auth", os.Getenv("AUTH"), "")
-	pFlags.DurationVar(&config.Connection.KeepAlive, "keepalive", 0, "")
-	pFlags.IntVar(&config.Connection.MaxRetryCount, "max-retry-count", -1, "")
-	pFlags.DurationVar(&config.Connection.MaxRetryInterval, "max-retry-interval", 0, "")
-	pFlags.StringVar(&config.Proxy, "proxy", "", "")
-	pFlags.Var(&headerFlags{config.Connection.Headers}, "header", "")
-	pFlags.StringVar(&config.ID, "id", "", "")
-	pFlags.StringVar(&config.Name, "name", "", "")
-	pFlags.StringArrayVarP(&config.Tags, "tag", "t", []string{}, "")
-	hostname = flag.String("hostname", "", "")
-	logFilePath = pFlags.StringP("log-file", "l", "", "")
-	logLevelStr = pFlags.StringP("verbose", "v", "error", "")
+	pFlags.String("fingerprint", "", "")
+	pFlags.String("auth", "", "")
+	pFlags.Duration("keepalive", 0, "")
+	pFlags.Int("max-retry-count", 0, "")
+	pFlags.Duration("max-retry-interval", 0, "")
+	pFlags.String("proxy", "", "")
+	pFlags.StringArray("header", []string{}, "")
+	pFlags.String("id", "", "")
+	pFlags.String("name", "", "")
+	pFlags.StringArrayP("tag", "t", []string{}, "")
+	pFlags.String("hostname", "", "")
+	pFlags.StringP("log-file", "l", "", "")
+	pFlags.StringP("verbose", "v", "", "")
+
+	cfgPath = pFlags.StringP("config", "c", "", "")
 
 	RootCmd.SetUsageFunc(func(*cobra.Command) error {
 		fmt.Printf(clientHelp)
 		os.Exit(1)
 		return nil
 	})
+
+	viperCfg = viper.New()
+	viperCfg.SetConfigType("toml")
+
+	viperCfg.SetDefault("log_level", "error")
+	viperCfg.SetDefault("connection.max_retry_count", -1)
+
+	// map config fields to CLI args:
+	_ = viperCfg.BindPFlag("log_file", pFlags.Lookup("log-file"))
+	_ = viperCfg.BindPFlag("log_level", pFlags.Lookup("verbose"))
+	_ = viperCfg.BindPFlag("fingerprint", pFlags.Lookup("fingerprint"))
+	_ = viperCfg.BindPFlag("auth", pFlags.Lookup("auth"))
+	_ = viperCfg.BindPFlag("connection.keep_alive", pFlags.Lookup("keepalive"))
+	_ = viperCfg.BindPFlag("connection.max_retry_count", pFlags.Lookup("max-retry-count"))
+	_ = viperCfg.BindPFlag("connection.max_retry_interval", pFlags.Lookup("max-retry-interval"))
+	_ = viperCfg.BindPFlag("connection.headers", pFlags.Lookup("header"))
+	_ = viperCfg.BindPFlag("proxy", pFlags.Lookup("proxy"))
+	_ = viperCfg.BindPFlag("id", pFlags.Lookup("id"))
+	_ = viperCfg.BindPFlag("name", pFlags.Lookup("name"))
+	_ = viperCfg.BindPFlag("tags", pFlags.Lookup("tag"))
+	_ = viperCfg.BindPFlag("hostname", pFlags.Lookup("hostname"))
+
+	// map ENV variables
+	_ = viperCfg.BindEnv("auth", "AUTH")
 }
 
 func main() {
@@ -194,31 +180,45 @@ func main() {
 	}
 }
 
+func tryDecodeConfig() error {
+	if *cfgPath != "" {
+		viperCfg.SetConfigFile(*cfgPath)
+	} else {
+		viperCfg.AddConfigPath(".")
+		viperCfg.SetConfigName("rport.conf")
+	}
+
+	return chshare.DecodeViperConfig(viperCfg, config)
+}
+
 func runMain(cmd *cobra.Command, args []string) {
-	if len(args) < 1 {
+	err := tryDecodeConfig()
+	if err != nil {
+		log.Fatal(err)
+	}
+
+	if len(args) > 0 {
+		config.Server = args[0]
+		config.Remotes = args[1:]
+	}
+
+	if config.Server == "" {
 		log.Fatalf("Server address is required. See --help")
 	}
-	config.Server = args[0]
-	config.Remotes = args[1:]
-	//move hostname onto headers
-	if *hostname != "" {
-		config.Connection.Headers.Set("Host", *hostname)
+
+	err = config.ParseAndValidate()
+	if err != nil {
+		log.Fatal(err)
 	}
 
-	config.LogLevel = tryParseLogLevel(*logLevelStr)
-
-	var logFile *os.File
-	if *logFilePath != "" {
-		logFile = tryOpenLogFile(*logFilePath)
-		config.LogOutput = logFile
+	err = config.LogOutput.Start()
+	if err != nil {
+		log.Fatal(err)
 	}
 	defer func() {
-		if logFile != nil {
-			_ = logFile.Close()
-		}
+		config.LogOutput.Shutdown()
 	}()
 
-	//ready
 	c, err := chclient.NewClient(config)
 	if err != nil {
 		log.Fatal(err)
@@ -229,20 +229,4 @@ func runMain(cmd *cobra.Command, args []string) {
 	if err = c.Run(); err != nil {
 		log.Fatal(err)
 	}
-}
-
-func tryParseLogLevel(s string) chshare.LogLevel {
-	var logLevel, err = chshare.ParseLogLevel(s)
-	if err != nil {
-		log.Fatalf("can't parse log level: %s", err)
-	}
-	return logLevel
-}
-
-func tryOpenLogFile(path string) *os.File {
-	logFile, err := os.OpenFile(path, os.O_WRONLY|os.O_CREATE|os.O_APPEND, 0644)
-	if err != nil {
-		log.Fatalf("can't open log file: %s", err)
-	}
-	return logFile
 }

@@ -1,18 +1,12 @@
 package main
 
 import (
-	"crypto/rand"
-	"crypto/sha256"
 	"fmt"
 	"log"
-	"math"
-	"net/url"
 	"os"
-	"strconv"
-	"strings"
 
-	mapset "github.com/deckarep/golang-set"
 	"github.com/spf13/cobra"
+	"github.com/spf13/viper"
 
 	chserver "github.com/cloudradar-monitoring/rport/server"
 	chshare "github.com/cloudradar-monitoring/rport/share"
@@ -77,7 +71,7 @@ var serverHelp = `
     and fallsback to empty string: authorization not required).
 
     --api-jwt-secret, Defines JWT secret used to generate new tokens.
-    (defaults to the environment variable RPORT_API_AUTH_JWT_SECRET and fallsback
+    (defaults to the environment variable RPORT_API_JWT_SECRET and fallsback
     to auto-generated value).
 
     --verbose, -v, Specify log level. Values: "error", "info", "debug" (defaults to "error")
@@ -99,38 +93,65 @@ var (
 		Run:     runMain,
 	}
 
-	listenAddr       *string
-	connectURL       *string
-	apiAddr          *string
-	excludedPortsStr *string
-	logLevelStr      *string
-	logFilePath      *string
-
-	cfg = &chserver.Config{}
+	cfgPath  *string
+	viperCfg *viper.Viper
+	cfg      = &chserver.Config{}
 )
 
 func init() {
 	pFlags := RootCmd.PersistentFlags()
 
-	listenAddr = pFlags.StringP("addr", "a", os.Getenv("RPORT_ADDR"), "")
-	connectURL = pFlags.String("url", "", "")
-	pFlags.StringVar(&cfg.KeySeed, "key", os.Getenv("RPORT_KEY"), "")
-	pFlags.StringVar(&cfg.AuthFile, "authfile", "", "")
-	pFlags.StringVar(&cfg.Auth, "auth", "", "")
-	pFlags.StringVar(&cfg.Proxy, "proxy", "", "")
-	apiAddr = pFlags.String("api-addr", os.Getenv("RPORT_API_ADDR"), "")
-	pFlags.StringVar(&cfg.APIAuth, "api-auth", os.Getenv("RPORT_API_AUTH"), "")
-	pFlags.StringVar(&cfg.APIJWTSecret, "api-jwt-secret", os.Getenv("RPORT_API_AUTH_JWT_SECRET"), "")
-	pFlags.StringVar(&cfg.DocRoot, "api-doc-root", "", "")
-	logFilePath = pFlags.StringP("log-file", "l", "", "")
-	logLevelStr = pFlags.StringP("verbose", "v", "error", "")
-	excludedPortsStr = pFlags.StringP("exclude-ports", "e", "1-1000", "")
+	pFlags.StringP("addr", "a", "", "")
+	pFlags.String("url", "", "")
+	pFlags.String("key", "", "")
+	pFlags.String("authfile", "", "")
+	pFlags.String("auth", "", "")
+	pFlags.String("proxy", "", "")
+	pFlags.String("api-addr", "", "")
+	pFlags.String("api-auth", "", "")
+	pFlags.String("api-jwt-secret", "", "")
+	pFlags.String("api-doc-root", "", "")
+	pFlags.StringP("log-file", "l", "", "")
+	pFlags.StringP("verbose", "v", "", "")
+	pFlags.StringSliceP("exclude-ports", "e", []string{}, "")
+
+	cfgPath = pFlags.StringP("config", "c", "", "")
 
 	RootCmd.SetUsageFunc(func(*cobra.Command) error {
 		fmt.Printf(serverHelp)
 		os.Exit(1)
 		return nil
 	})
+
+	viperCfg = viper.New()
+	viperCfg.SetConfigType("toml")
+
+	viperCfg.SetDefault("log_level", "error")
+	viperCfg.SetDefault("address", "0.0.0.0:8080")
+	viperCfg.SetDefault("excluded_ports", "0-1000")
+
+	// map config fields to CLI args:
+	_ = viperCfg.BindPFlag("log_file", pFlags.Lookup("log-file"))
+	_ = viperCfg.BindPFlag("log_level", pFlags.Lookup("verbose"))
+	_ = viperCfg.BindPFlag("address", pFlags.Lookup("addr"))
+	_ = viperCfg.BindPFlag("url", pFlags.Lookup("url"))
+	_ = viperCfg.BindPFlag("key_seed", pFlags.Lookup("key"))
+	_ = viperCfg.BindPFlag("auth_file", pFlags.Lookup("authfile"))
+	_ = viperCfg.BindPFlag("auth", pFlags.Lookup("auth"))
+	_ = viperCfg.BindPFlag("proxy", pFlags.Lookup("proxy"))
+	_ = viperCfg.BindPFlag("api.address", pFlags.Lookup("api-addr"))
+	_ = viperCfg.BindPFlag("api.auth", pFlags.Lookup("api-auth"))
+	_ = viperCfg.BindPFlag("api.jwt_secret", pFlags.Lookup("api-jwt-secret"))
+	_ = viperCfg.BindPFlag("api.doc_root", pFlags.Lookup("api-doc-root"))
+	_ = viperCfg.BindPFlag("excluded_ports", pFlags.Lookup("exclude-ports"))
+
+	// map ENV variables
+	_ = viperCfg.BindEnv("address", "RPORT_ADDR")
+	_ = viperCfg.BindEnv("url", "RPORT_URL")
+	_ = viperCfg.BindEnv("key_seed", "RPORT_KEY")
+	_ = viperCfg.BindEnv("api.address", "RPORT_API_ADDR")
+	_ = viperCfg.BindEnv("api.auth", "RPORT_API_AUTH")
+	_ = viperCfg.BindEnv("api.jwt_secret", "RPORT_JWT_SECRET")
 }
 
 func main() {
@@ -140,34 +161,34 @@ func main() {
 	}
 }
 
+func tryDecodeConfig() error {
+	if *cfgPath != "" {
+		viperCfg.SetConfigFile(*cfgPath)
+	} else {
+		viperCfg.AddConfigPath(".")
+		viperCfg.SetConfigName("rportd.conf")
+	}
+
+	return chshare.DecodeViperConfig(viperCfg, cfg)
+}
+
 func runMain(*cobra.Command, []string) {
-	if *listenAddr == "" {
-		*listenAddr = "0.0.0.0:8080"
-	}
-	if *connectURL == "" {
-		*connectURL = "http://" + *listenAddr
-	}
-	if cfg.APIJWTSecret == "" {
-		cfg.APIJWTSecret = generateJWTSecret()
-	}
-	if cfg.DocRoot != "" && *apiAddr == "" {
-		log.Fatal("To use --api-doc-root you need to specify API address (see --api-addr)")
+	err := tryDecodeConfig()
+	if err != nil {
+		log.Fatal(err)
 	}
 
-	cfg.URL = tryParseURL(*connectURL)
-	cfg.LogLevel = tryParseLogLevel(*logLevelStr)
-	cfg.ExcludedPorts = tryParseExcludedPorts(*excludedPortsStr)
-	cfg.LogOutput = os.Stdout
+	err = cfg.ParseAndValidate()
+	if err != nil {
+		log.Fatal(err)
+	}
 
-	var logFile *os.File
-	if *logFilePath != "" {
-		logFile = tryOpenLogFile(*logFilePath)
-		cfg.LogOutput = logFile
+	err = cfg.LogOutput.Start()
+	if err != nil {
+		log.Fatal(err)
 	}
 	defer func() {
-		if logFile != nil {
-			_ = logFile.Close()
-		}
+		cfg.LogOutput.Shutdown()
 	}()
 
 	s, err := chserver.NewServer(cfg)
@@ -177,79 +198,7 @@ func runMain(*cobra.Command, []string) {
 
 	go chshare.GoStats()
 
-	if err = s.Run(*listenAddr, *apiAddr); err != nil {
+	if err = s.Run(); err != nil {
 		log.Fatal(err)
 	}
-}
-
-func generateJWTSecret() string {
-	data := make([]byte, 10)
-	if _, err := rand.Read(data); err != nil {
-		log.Fatalf("can't generate API JWT secret: %s", err)
-	}
-	return fmt.Sprintf("%x", sha256.Sum256(data))
-}
-
-func tryParseLogLevel(s string) chshare.LogLevel {
-	var logLevel, err = chshare.ParseLogLevel(s)
-	if err != nil {
-		log.Fatalf("can't parse log level: %s", err)
-	}
-	return logLevel
-}
-
-func tryParseExcludedPorts(val string) mapset.Set {
-	result := mapset.NewThreadUnsafeSet()
-	values := strings.Split(val, ",")
-	for _, v := range values {
-		rangeParts := strings.Split(v, "-")
-		if len(rangeParts) == 1 {
-			result.Add(tryParsePortNumber(rangeParts[0]))
-		} else if len(rangeParts) == 2 {
-			result = result.Union(tryParsePortNumberRange(rangeParts[0], rangeParts[1]))
-		} else {
-			log.Fatalf("can't parse exclude-ports parameter: incorrect range %s", v)
-		}
-	}
-	return result
-}
-
-func tryParsePortNumber(portNumberStr string) int {
-	num, err := strconv.Atoi(portNumberStr)
-	if err != nil {
-		log.Fatalf("can't parse port number %s: %s", portNumberStr, err)
-	}
-	if num < 0 || num > math.MaxUint16 {
-		log.Fatalf("invalid port number: %d", num)
-	}
-	return num
-}
-
-func tryParsePortNumberRange(rangeStart, rangeEnd string) mapset.Set {
-	start := tryParsePortNumber(rangeStart)
-	end := tryParsePortNumber(rangeEnd)
-	if start > end {
-		log.Fatalf("invalid port range %s-%s", rangeStart, rangeEnd)
-	}
-
-	return chshare.SetFromRange(start, end)
-}
-
-func tryOpenLogFile(path string) *os.File {
-	logFile, err := os.OpenFile(path, os.O_WRONLY|os.O_CREATE|os.O_APPEND, 0644)
-	if err != nil {
-		log.Fatalf("can't open log file: %s", err)
-	}
-	return logFile
-}
-
-func tryParseURL(urlRaw string) string {
-	u, err := url.Parse(urlRaw)
-	if err != nil {
-		log.Fatalf("invalid --url: %s", err)
-	}
-	if u.Host == "" {
-		log.Fatalf("invalid --url: must be absolute url")
-	}
-	return urlRaw
 }

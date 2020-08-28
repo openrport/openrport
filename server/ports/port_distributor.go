@@ -6,8 +6,6 @@ import (
 
 	mapset "github.com/deckarep/golang-set"
 	"github.com/shirou/gopsutil/net"
-
-	chshare "github.com/cloudradar-monitoring/rport/share"
 )
 
 type PortDistributor struct {
@@ -17,7 +15,7 @@ type PortDistributor struct {
 
 func NewPortDistributor(excludedPorts mapset.Set) *PortDistributor {
 	return &PortDistributor{
-		allowedPorts: chshare.SetFromRange(1, math.MaxUint16).Difference(excludedPorts),
+		allowedPorts: setFromRange(1, math.MaxUint16).Difference(excludedPorts),
 	}
 }
 

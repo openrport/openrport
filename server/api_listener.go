@@ -29,7 +29,7 @@ type APIListener struct {
 }
 
 func NewAPIListener(config *Config, s *SessionService, fingerprint string) (*APIListener, error) {
-	authUser, authPassword, err := parseHTTPAuthStr(config.APIAuth)
+	authUser, authPassword, err := parseHTTPAuthStr(config.API.Auth)
 	if err != nil {
 		return nil, err
 	}
@@ -40,11 +40,11 @@ func NewAPIListener(config *Config, s *SessionService, fingerprint string) (*API
 		fingerprint:       fingerprint,
 		authUser:          authUser,
 		authPassword:      authPassword,
-		jwtSecret:         config.APIJWTSecret,
+		jwtSecret:         config.API.JWTSecret,
 		sessionService:    s,
 		apiSessionRepo:    NewAPISessionRepository(),
 		httpServer:        chshare.NewHTTPServer(),
-		docRoot:           config.DocRoot,
+		docRoot:           config.API.DocRoot,
 		requestLogOptions: config.InitRequestLogOptions(),
 	}
 
