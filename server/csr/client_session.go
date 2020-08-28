@@ -14,6 +14,11 @@ import (
 	chshare "github.com/cloudradar-monitoring/rport/share"
 )
 
+// now is used to stub time.Now in tests
+var now = func() time.Time {
+	return time.Now()
+}
+
 func GetSessionID(sshConn ssh.ConnMetadata) string {
 	return fmt.Sprintf("%x", sshConn.SessionID())
 }
@@ -46,7 +51,7 @@ type ClientSession struct {
 // If a given duration is nil - returns false.
 func (c *ClientSession) Obsolete(duration *time.Duration) bool {
 	return duration != nil && c.Disconnected != nil &&
-		c.Disconnected.Add(*duration).Before(time.Now())
+		c.Disconnected.Add(*duration).Before(now())
 }
 
 func (c *ClientSession) Lock() {

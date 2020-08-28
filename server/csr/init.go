@@ -34,11 +34,13 @@ func getInitState(r io.Reader, expiration *time.Duration) ([]*ClientSession, err
 	}
 
 	var sessions []*ClientSession
+	var err error
 	var obsolete int
 	for decoder.More() {
 		var session ClientSession
-		if err := decoder.Decode(&session); err != nil {
-			return sessions, fmt.Errorf("failed to parse client session: %v", err)
+		if err = decoder.Decode(&session); err != nil {
+			err = fmt.Errorf("failed to parse client session: %v", err)
+			break
 		}
 
 		if session.Disconnected == nil || !session.Obsolete(expiration) {
@@ -51,12 +53,12 @@ func getInitState(r io.Reader, expiration *time.Duration) ([]*ClientSession, err
 	log.Printf("Got %d and skipped %d obsolete client session(s).\n", len(sessions), obsolete)
 
 	// mark previously connected client sessions as disconnected with current time
-	now := time.Now().UTC()
+	now := now()
 	for _, session := range sessions {
 		if session.Disconnected == nil {
 			session.Disconnected = &now
 		}
 	}
 
-	return sessions, nil
+	return sessions, err
 }

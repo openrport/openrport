@@ -223,7 +223,11 @@ func main() {
 
 	initSessions, err := csr.GetInitStateFromFile(csrFile, keepLostClients)
 	if err != nil {
-		log.Printf("Failed to get init CSR state from file: %v\n", err)
+		if len(initSessions) == 0 {
+			log.Printf("Failed to get init CSR state from file: %v\n", err)
+		} else {
+			log.Printf("Partial failure. Successfuly read %d sessions from file. Error: %v\n", len(initSessions), err)
+		}
 		// proceed further
 	}
 	repo := csr.NewSessionRepository(initSessions, keepLostClients)
