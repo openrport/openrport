@@ -221,21 +221,23 @@ func main() {
 		}
 	}()
 
-	repo, err := csr.InitAndPopulateFromFile(csrFile, keepLostClients)
+	initSessions, err := csr.GetInitStateFromFile(csrFile, keepLostClients)
 	if err != nil {
-		log.Printf("Failed to populate CSR: %v\n", err)
+		log.Printf("Failed to get init CSR state from file: %v\n", err)
+		// proceed further
 	}
+	repo := chserver.NewSessionRepository(initSessions, keepLostClients)
 
-	s, err := chserver.NewServer(config, &repo)
+	s, err := chserver.NewServer(config, repo)
 	if err != nil {
 		log.Fatal(err)
 	}
 
 	go chshare.GoStats()
 	if keepLostClients != nil {
-		go scheduler.Run(ctx, s.Logger, csr.NewCleanupTask(s.Logger, &repo), *cleanupClients)
+		go scheduler.Run(ctx, s.Logger, csr.NewCleanupTask(s.Logger, repo), *cleanupClients)
 	}
-	go scheduler.Run(ctx, s.Logger, csr.NewSaveToFileTask(s.Logger, &repo, csrFile), *saveClients)
+	go scheduler.Run(ctx, s.Logger, csr.NewSaveToFileTask(s.Logger, repo, csrFile), *saveClients)
 
 	if err = s.Run(*listenAddr, *apiAddr); err != nil {
 		log.Fatal(err)

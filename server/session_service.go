@@ -104,7 +104,7 @@ func (s *SessionService) Terminate(session *ClientSession) error {
 		return s.repo.Delete(session)
 	}
 
-	now := time.Now()
+	now := time.Now().UTC()
 	session.Disconnected = &now
 	return s.repo.Save(session)
 }

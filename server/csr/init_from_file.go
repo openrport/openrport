@@ -3,6 +3,7 @@ package csr
 import (
 	"encoding/json"
 	"fmt"
+	"io"
 	"log"
 	"os"
 	"time"
@@ -10,35 +11,28 @@ import (
 	chserver "github.com/cloudradar-monitoring/rport/server"
 )
 
-// InitAndPopulateFromFile returns a Client Session Repository populated with sessions from the file.
-func InitAndPopulateFromFile(fileName string, expiration *time.Duration) (chserver.ClientSessionRepository, error) {
-	log.Println("Start to init Client Session Repository from file.")
-	sessions, err := readNonObsoleteFromFile(fileName, expiration)
-	// proceed further in case some sessions were parsed successfully and return the error at the end
+// GetInitStateFromFile returns an initial Client Session Repository state populated with sessions from the file.
+func GetInitStateFromFile(fileName string, expiration *time.Duration) ([]*chserver.ClientSession, error) {
+	log.Println("Start to get init Client Session Repository state from file.")
 
-	// mark previously connected client sessions as disconnected with current time
-	now := time.Now()
-	for _, session := range sessions {
-		if session.Disconnected == nil {
-			session.Disconnected = &now
-		}
-	}
-
-	return *chserver.NewSessionRepository(sessions, expiration), err
-}
-
-func readNonObsoleteFromFile(fileName string, expiration *time.Duration) ([]*chserver.ClientSession, error) {
 	file, err := os.Open(fileName)
 	if err != nil {
 		return nil, fmt.Errorf("failed to open CSR file: %v", err)
 	}
-	log.Printf("CSR file [%q] opened. Parsing...\n", fileName)
+	log.Printf("CSR file [%q] opened. Reading...\n", fileName)
 	defer file.Close()
 
-	decoder := json.NewDecoder(file)
+	return getInitState(file, expiration)
+}
+
+func getInitState(r io.Reader, expiration *time.Duration) ([]*chserver.ClientSession, error) {
+	decoder := json.NewDecoder(r)
 	// read array open bracket
 	if _, err := decoder.Token(); err != nil {
-		return nil, fmt.Errorf("failed to parse CSR file: %v", err)
+		if err == io.EOF {
+			return nil, nil
+		}
+		return nil, fmt.Errorf("failed to parse CSR data: %v", err)
 	}
 
 	var sessions []*chserver.ClientSession
@@ -46,7 +40,7 @@ func readNonObsoleteFromFile(fileName string, expiration *time.Duration) ([]*chs
 	for decoder.More() {
 		var session chserver.ClientSession
 		if err := decoder.Decode(&session); err != nil {
-			return sessions, fmt.Errorf("failed to parse CSR data: %v", err)
+			return sessions, fmt.Errorf("failed to parse client session: %v", err)
 		}
 
 		if session.Disconnected == nil || !session.Obsolete(expiration) {
@@ -56,7 +50,15 @@ func readNonObsoleteFromFile(fileName string, expiration *time.Duration) ([]*chs
 		}
 	}
 
-	log.Printf("Got %d and skipped %d obsolete client session(s) from CSR file.\n", len(sessions), obsolete)
+	log.Printf("Got %d and skipped %d obsolete client session(s).\n", len(sessions), obsolete)
+
+	// mark previously connected client sessions as disconnected with current time
+	now := time.Now().UTC()
+	for _, session := range sessions {
+		if session.Disconnected == nil {
+			session.Disconnected = &now
+		}
+	}
 
 	return sessions, nil
 }
