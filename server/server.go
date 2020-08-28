@@ -2,45 +2,18 @@ package chserver
 
 import (
 	"fmt"
-	"net/http"
-	"os"
-	"time"
 
-	mapset "github.com/deckarep/golang-set"
-	"github.com/jpillora/requestlog"
 	"golang.org/x/crypto/ssh"
 
 	"github.com/cloudradar-monitoring/rport/server/ports"
 	chshare "github.com/cloudradar-monitoring/rport/share"
 )
 
-// Config is the configuration for the rport service
-type Config struct {
-	URL           string
-	KeySeed       string
-	AuthFile      string
-	Auth          string
-	Proxy         string
-	APIAuth       string
-	APIJWTSecret  string
-	DocRoot       string
-	LogOutput     *os.File
-	LogLevel      chshare.LogLevel
-	ExcludedPorts mapset.Set
-}
-
-func (c *Config) InitRequestLogOptions() *requestlog.Options {
-	o := requestlog.DefaultOptions
-	o.Writer = c.LogOutput
-	o.Filter = func(r *http.Request, code int, duration time.Duration, size int64) bool {
-		return c.LogLevel == chshare.LogLevelInfo || c.LogLevel == chshare.LogLevelDebug
-	}
-	return &o
-}
-
 // Server represents a rport service
 type Server struct {
 	*chshare.Logger
+	listenAddr     string
+	apiAddr        string
 	clientListener *ClientListener
 	apiListener    *APIListener
 }
@@ -48,7 +21,9 @@ type Server struct {
 // NewServer creates and returns a new rport server
 func NewServer(config *Config) (*Server, error) {
 	s := &Server{
-		Logger: chshare.NewLogger("server", config.LogOutput, config.LogLevel),
+		Logger:     chshare.NewLogger("server", config.LogOutput, config.LogLevel),
+		listenAddr: config.ListenAddress,
+		apiAddr:    config.API.Address,
 	}
 
 	privateKey, err := initPrivateKey(config.KeySeed)
@@ -59,7 +34,7 @@ func NewServer(config *Config) (*Server, error) {
 	s.Infof("Fingerprint %s", fingerprint)
 
 	sessionService := NewSessionService(
-		ports.NewPortDistributor(config.ExcludedPorts),
+		ports.NewPortDistributor(config.GetExcludedPorts()),
 	)
 
 	s.clientListener, err = NewClientListener(config, sessionService, privateKey)
@@ -87,8 +62,8 @@ func initPrivateKey(seed string) (ssh.Signer, error) {
 }
 
 // Run is responsible for starting the rport service
-func (s *Server) Run(listenAddr string, apiAddr string) error {
-	if err := s.Start(listenAddr, apiAddr); err != nil {
+func (s *Server) Run() error {
+	if err := s.Start(); err != nil {
 		return err
 	}
 
@@ -96,14 +71,14 @@ func (s *Server) Run(listenAddr string, apiAddr string) error {
 }
 
 // Start is responsible for kicking off the http server
-func (s *Server) Start(listenAddr string, apiAddr string) error {
-	err := s.clientListener.Start(listenAddr)
+func (s *Server) Start() error {
+	err := s.clientListener.Start(s.listenAddr)
 	if err != nil {
 		return err
 	}
 
-	if apiAddr != "" {
-		err = s.apiListener.Start(apiAddr)
+	if s.apiAddr != "" {
+		err = s.apiListener.Start(s.apiAddr)
 	}
 	return err
 }
