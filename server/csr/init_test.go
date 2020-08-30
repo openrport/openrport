@@ -10,9 +10,21 @@ import (
 	"github.com/stretchr/testify/require"
 )
 
+var emptyFile = ``
+var jsonEmptyArray = `[]`
+var jsonWithThreeClients = fmt.Sprintf("[%s,%s,%s]", s1JSON, s2JSON, s3JSON)
+var jsonCorruptedWithOneClient = fmt.Sprintf("[%s,%s", s1JSON, `
+ {
+   "id": "2fb5eca74d7bdf5f5b879ebadb446af7c113b076354d74e1882d8101e9f4b918",
+   "name": "Random Rport Client 2",
+   "os": "Linux alpine-3-10-tk-02 4.19.80-0-virt #1-Alpine SMP Fri Oct 18 11:51:24 UTC 2019 x86_64 Linux",
+   "host`)
+
 func TestGetInitState(t *testing.T) {
 	now = nowMockF
-	hour := time.Hour
+
+	wantS1 := *s1
+	wantS1.Disconnected = &nowMock
 
 	testCases := []struct {
 		descr string // Test Case Description
@@ -37,10 +49,17 @@ func TestGetInitState(t *testing.T) {
 		},
 		{
 			descr:           "1 connected, 1 disconnected, 1 obsolete",
-			csrJSONBytes:    jsonOneEach,
-			wantRes:         []*ClientSession{s1, s2},
+			csrJSONBytes:    jsonWithThreeClients,
+			wantRes:         []*ClientSession{&wantS1, s2},
 			wantErrContains: "",
 			expiration:      &hour,
+		},
+		{
+			descr:           "1 connected, 2 disconnected with unset expiration",
+			csrJSONBytes:    jsonWithThreeClients,
+			wantRes:         []*ClientSession{&wantS1, s2, s3},
+			wantErrContains: "",
+			expiration:      nil,
 		},
 		{
 			descr:           "corrupted json",
@@ -52,7 +71,7 @@ func TestGetInitState(t *testing.T) {
 		{
 			descr:           "partially corrupted json at the end, valid 1 connected client",
 			csrJSONBytes:    jsonCorruptedWithOneClient,
-			wantRes:         []*ClientSession{s1},
+			wantRes:         []*ClientSession{&wantS1},
 			wantErrContains: "failed to parse client session",
 			expiration:      &hour,
 		},

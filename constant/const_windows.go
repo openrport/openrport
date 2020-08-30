@@ -3,5 +3,5 @@
 package constant
 
 const (
-	DataDirectory = "/var/lib/rportd"
+	DataDirectory = "C:\\ProgramData\\rportd"
 )

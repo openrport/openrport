@@ -1,7 +1,7 @@
 package csr
 
 import (
-	"fmt"
+	"os"
 	"time"
 
 	chshare "github.com/cloudradar-monitoring/rport/share"
@@ -13,9 +13,13 @@ var nowMockF = func() time.Time {
 }
 
 var (
+	hour    = time.Hour
 	nowMock = nowMockF()
 	// s2DisconnectedTime is "Random Rport Client 2" disconnected time
 	s2DisconnectedTime, _ = time.Parse(time.RFC3339, "2020-08-19T13:04:23+03:00")
+	s3DisconnectedTime    = s2DisconnectedTime.Add(-time.Hour)
+	s4DisconnectedTime    = s2DisconnectedTime.Add(-2 * time.Hour)
+	testLog               = chshare.NewLogger("server", os.Stdout, chshare.LogLevelDebug)
 )
 
 var s1JSON = `{
@@ -83,7 +87,7 @@ var s1 = &ClientSession{
 			},
 		},
 	},
-	Disconnected: &nowMock,
+	Disconnected: nil,
 }
 
 var s2JSON = `{
@@ -157,15 +161,33 @@ var s3JSON = `{
     "version": "0.1.12",
     "address": "88.198.189.163:50078",
     "tunnels": [],
-    "disconnected": "2020-08-19T10:04:23+03:00"
+    "disconnected": "2020-08-19T12:04:23+03:00"
   }`
 
-var emptyFile = ``
-var jsonEmptyArray = `[]`
-var jsonOneEach = fmt.Sprintf("[%s,%s,%s]", s1JSON, s2JSON, s3JSON)
-var jsonCorruptedWithOneClient = fmt.Sprintf("[%s,%s", s1JSON, `
- {
-   "id": "2fb5eca74d7bdf5f5b879ebadb446af7c113b076354d74e1882d8101e9f4b918",
-   "name": "Random Rport Client 2",
-   "os": "Linux alpine-3-10-tk-02 4.19.80-0-virt #1-Alpine SMP Fri Oct 18 11:51:24 UTC 2019 x86_64 Linux",
-   "host`)
+var s3 = &ClientSession{
+	ID:           "c1d3c6811e1282c675495c0b3149dfa3201883188c42727a318d4a0742564c96",
+	Name:         "Random Rport Client 3",
+	OS:           "Linux alpine-3-10-tk-03 4.19.80-0-virt #1-Alpine SMP Fri Oct 18 11:51:24 UTC 2019 x86_64 Linux",
+	Hostname:     "alpine-3-10-tk-03",
+	IPv4:         []string{"192.168.122.113"},
+	IPv6:         []string{"fe80::b84f:aff:fe59:a0b3"},
+	Tags:         []string{"Linux", "Datacenter 3"},
+	Version:      "0.1.12",
+	Address:      "88.198.189.163:50078",
+	Tunnels:      make([]*Tunnel, 0),
+	Disconnected: &s3DisconnectedTime,
+}
+
+var s4 = &ClientSession{
+	ID:           "7d2e0e7b92115970d0aef41b8e23c080e3c41df10a042c5179c79973ae5bd235",
+	Name:         "Random Rport Client 4",
+	OS:           "Linux alpine-3-10-tk-04",
+	Hostname:     "alpine-3-10-tk-04",
+	IPv4:         []string{"192.168.122.114"},
+	IPv6:         []string{"fe80::b84f:aff:fe59:a0b4"},
+	Tags:         []string{"Linux", "Datacenter 4"},
+	Version:      "0.1.12",
+	Address:      "88.198.189.164:50078",
+	Tunnels:      make([]*Tunnel, 0),
+	Disconnected: &s4DisconnectedTime,
+}
