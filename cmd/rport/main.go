@@ -8,6 +8,8 @@ import (
 	"os"
 	"strings"
 
+	"github.com/spf13/cobra"
+
 	chclient "github.com/cloudradar-monitoring/rport/client"
 	chshare "github.com/cloudradar-monitoring/rport/share"
 )
@@ -22,6 +24,10 @@ func (flag *headerFlags) String() string {
 		out += fmt.Sprintf("%s: %s\n", k, v)
 	}
 	return out
+}
+
+func (flag *headerFlags) Type() string {
+	return "headerFlags"
 }
 
 func (flag *headerFlags) Set(arg string) error {
@@ -123,9 +129,9 @@ var clientHelp = `
     --tag, Optionally set a tag.
     Can be used multiple times. (e.g --tag "foobaz" --tag "bingo")
 
-    -v, Specify log level. Values: "error", "info", "debug" (defaults to "error")
+    --verbose, -v, Specify log level. Values: "error", "info", "debug" (defaults to "error")
 
-    -l, Specifies log file path. (defaults to empty string: log printed to stdout)
+    --log-file, -l, Specifies log file path. (defaults to empty string: log printed to stdout)
 
     --help, This help text
 
@@ -138,45 +144,62 @@ var clientHelp = `
 
 `
 
+var (
+	RootCmd = &cobra.Command{
+		Version: chshare.BuildVersion,
+		Run:     runMain,
+		Args:    cobra.MinimumNArgs(1),
+	}
+
+	config = &chclient.Config{
+		Connection: chclient.ConnectionOptions{
+			Headers: http.Header{},
+		},
+		LogOutput: os.Stdout,
+	}
+
+	hostname    *string
+	logLevelStr *string
+	logFilePath *string
+)
+
+func init() {
+	pFlags := RootCmd.PersistentFlags()
+
+	pFlags.StringVar(&config.Fingerprint, "fingerprint", "", "")
+	pFlags.StringVar(&config.Auth, "auth", os.Getenv("AUTH"), "")
+	pFlags.DurationVar(&config.Connection.KeepAlive, "keepalive", 0, "")
+	pFlags.IntVar(&config.Connection.MaxRetryCount, "max-retry-count", -1, "")
+	pFlags.DurationVar(&config.Connection.MaxRetryInterval, "max-retry-interval", 0, "")
+	pFlags.StringVar(&config.Proxy, "proxy", "", "")
+	pFlags.Var(&headerFlags{config.Connection.Headers}, "header", "")
+	pFlags.StringVar(&config.ID, "id", "", "")
+	pFlags.StringVar(&config.Name, "name", "", "")
+	pFlags.StringArrayVarP(&config.Tags, "tag", "t", []string{}, "")
+	hostname = flag.String("hostname", "", "")
+	logFilePath = pFlags.StringP("log-file", "l", "", "")
+	logLevelStr = pFlags.StringP("verbose", "v", "error", "")
+
+	RootCmd.SetUsageFunc(func(*cobra.Command) error {
+		fmt.Printf(clientHelp)
+		os.Exit(1)
+		return nil
+	})
+}
+
 func main() {
-	config := chclient.Config{Connection: chclient.ConnectionOptions{Headers: http.Header{}}, LogOutput: os.Stdout}
-	flag.StringVar(&config.Fingerprint, "fingerprint", "", "")
-	flag.StringVar(&config.Auth, "auth", "", "")
-	flag.DurationVar(&config.Connection.KeepAlive, "keepalive", 0, "")
-	flag.IntVar(&config.Connection.MaxRetryCount, "max-retry-count", -1, "")
-	flag.DurationVar(&config.Connection.MaxRetryInterval, "max-retry-interval", 0, "")
-	flag.StringVar(&config.Proxy, "proxy", "", "")
-	flag.Var(&headerFlags{config.Connection.Headers}, "header", "")
-	flag.StringVar(&config.ID, "id", "", "")
-	flag.StringVar(&config.Name, "name", "", "")
-	flag.Var(&config.Tags, "tag", "")
-	hostname := flag.String("hostname", "", "")
-	logLevelStr := flag.String("v", "error", "")
-	logFilePath := flag.String("l", "", "")
-	version := flag.Bool("version", false, "")
-
-	flag.Usage = func() {
-		fmt.Print(clientHelp)
+	if err := RootCmd.Execute(); err != nil {
+		fmt.Println(err)
 		os.Exit(1)
 	}
-	flag.Parse()
+}
 
-	if *version {
-		fmt.Println(chshare.BuildVersion)
-		os.Exit(1)
-	}
-
-	//pull out options, put back remaining args
-	args := flag.Args()
+func runMain(cmd *cobra.Command, args []string) {
 	if len(args) < 1 {
 		log.Fatalf("Server address is required. See --help")
 	}
 	config.Server = args[0]
 	config.Remotes = args[1:]
-	//default auth
-	if config.Auth == "" {
-		config.Auth = os.Getenv("AUTH")
-	}
 	//move hostname onto headers
 	if *hostname != "" {
 		config.Connection.Headers.Set("Host", *hostname)
@@ -196,7 +219,7 @@ func main() {
 	}()
 
 	//ready
-	c, err := chclient.NewClient(&config)
+	c, err := chclient.NewClient(config)
 	if err != nil {
 		log.Fatal(err)
 	}

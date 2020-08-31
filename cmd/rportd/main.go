@@ -4,7 +4,6 @@ import (
 	"context"
 	"crypto/rand"
 	"crypto/sha256"
-	"flag"
 	"fmt"
 	"log"
 	"math"
@@ -15,6 +14,7 @@ import (
 	"time"
 
 	mapset "github.com/deckarep/golang-set"
+	"github.com/spf13/cobra"
 
 	"github.com/cloudradar-monitoring/rport/constant"
 	chserver "github.com/cloudradar-monitoring/rport/server"
@@ -73,17 +73,17 @@ var serverHelp = `
     authfile with {"<user:pass>": [""]}.
 
     --proxy, Specifies another HTTP server to proxy requests to when
-    rport receives a normal HTTP request. Useful for hiding rport in
+    rportd receives a normal HTTP request. Useful for hiding rportd in
     plain sight.
 
     --api-addr, Defines the IP address and port the API server listens on.
     e.g. "0.0.0.0:7777". (defaults to the environment variable RPORT_API_ADDR
     and fallsback to empty string: API not available)
 
-    --doc-root, Specifies local directory path. If specified, rportd will serve
+    --api-doc-root, Specifies local directory path. If specified, rportd will serve
     files from this directory on the same API address (--api-addr).
 
-    --api-auth, Defines "user:password"" authentication pair for accessing API
+    --api-auth, Defines <user:password> authentication pair for accessing API
     e.g. "admin:1234". (defaults to the environment variable RPORT_API_AUTH
     and fallsback to empty string: authorization not required).
 
@@ -105,14 +105,14 @@ var serverHelp = `
     disconnected clients. By default, "csr.json" is used.
 
     --api-jwt-secret, Defines JWT secret used to generate new tokens.
-    (defaults to the environment variable RPORT_AUTH_JWT_SECRET and fallsback
+    (defaults to the environment variable RPORT_API_AUTH_JWT_SECRET and fallsback
     to auto-generated value).
 
-    -v, Specify log level. Values: "error", "info", "debug" (defaults to "error")
+    --verbose, -v, Specify log level. Values: "error", "info", "debug" (defaults to "error")
 
-    -l, Specifies log file path. (defaults to empty string: log printed to stdout)
+    --log-file, -l, Specifies log file path. (defaults to empty string: log printed to stdout)
 
-    --help, This help text
+    --help, -h, This help text
 
     --version, Print version info and exit
 
@@ -121,30 +121,65 @@ var serverHelp = `
 
 `
 
-func main() {
-	ctx := context.Background()
+var (
+	RootCmd = &cobra.Command{
+		Version: chshare.BuildVersion,
+		Run:     runMain,
+	}
 
-	a := flag.String("a", "", "")
-	listenAddr := flag.String("addr", "", "")
-	url := flag.String("url", "", "")
-	key := flag.String("key", "", "")
-	authfile := flag.String("authfile", "", "")
-	auth := flag.String("auth", "", "")
-	proxy := flag.String("proxy", "", "")
-	apiAddr := flag.String("api-addr", "", "")
-	apiAuth := flag.String("api-auth", "", "")
-	apiJWTSecret := flag.String("api-jwt-secret", "", "")
-	docRoot := flag.String("doc-root", "", "")
-	logLevelStr := flag.String("v", "error", "")
-	logFilePath := flag.String("l", "", "")
-	version := flag.Bool("version", false, "")
-	e := flag.String("e", "1-1000", "")
-	excludePorts := flag.String("exclude-ports", "", "")
-	dataDir := flag.String("data-dir", constant.DefaultDataDirectory, "")
-	csrFileName := flag.String("csr-filename", DefaultCSRFileName, "")
-	keepLostClients := flag.Duration("keep-lost-clients", 0, "")
-	saveClients := flag.Duration("save-clients-interval", DefaultCacheClientsInterval, "")
-	cleanupClients := flag.Duration("cleanup-clients-interval", DefaultCleanClientsInterval, "")
+	listenAddr       *string
+	connectURL       *string
+	apiAddr          *string
+	excludedPortsStr *string
+	logLevelStr      *string
+	logFilePath      *string
+	dataDir *string
+	csrFileName *string
+	keepLostClients *time.Duration
+	saveClients *time.Duration
+	cleanupClients *time.Duration
+
+	cfg = &chserver.Config{}
+)
+
+func init() {
+	pFlags := RootCmd.PersistentFlags()
+
+	listenAddr = pFlags.StringP("addr", "a", os.Getenv("RPORT_ADDR"), "")
+	connectURL = pFlags.String("url", "", "")
+	pFlags.StringVar(&cfg.KeySeed, "key", os.Getenv("RPORT_KEY"), "")
+	pFlags.StringVar(&cfg.AuthFile, "authfile", "", "")
+	pFlags.StringVar(&cfg.Auth, "auth", "", "")
+	pFlags.StringVar(&cfg.Proxy, "proxy", "", "")
+	apiAddr = pFlags.String("api-addr", os.Getenv("RPORT_API_ADDR"), "")
+	pFlags.StringVar(&cfg.APIAuth, "api-auth", os.Getenv("RPORT_API_AUTH"), "")
+	pFlags.StringVar(&cfg.APIJWTSecret, "api-jwt-secret", os.Getenv("RPORT_API_AUTH_JWT_SECRET"), "")
+	pFlags.StringVar(&cfg.DocRoot, "api-doc-root", "", "")
+	logFilePath = pFlags.StringP("log-file", "l", "", "")
+	logLevelStr = pFlags.StringP("verbose", "v", "error", "")
+	excludedPortsStr = pFlags.StringP("exclude-ports", "e", "1-1000", "")
+	dataDir = pFlags.StringVar("data-dir", constant.DefaultDataDirectory, "")
+	csrFileName = pFlags.StringVar("csr-filename", DefaultCSRFileName, "")
+	keepLostClients = pFlags.DurationVar("keep-lost-clients", 0, "")
+	saveClients = pFlags.DurationVar("save-clients-interval", DefaultCacheClientsInterval, "")
+	cleanupClients = pFlags.DurationVar("cleanup-clients-interval", DefaultCleanClientsInterval, "")
+
+	RootCmd.SetUsageFunc(func(*cobra.Command) error {
+		fmt.Printf(serverHelp)
+		os.Exit(1)
+		return nil
+	})
+}
+
+func main() {
+	if err := RootCmd.Execute(); err != nil {
+		fmt.Println(err)
+		os.Exit(1)
+	}
+}
+
+func runMain(*cobra.Command, []string) {
+	ctx := context.Background()
 
 	if dataDir == nil || *dataDir == "" {
 		log.Fatal("--data-dir cannot be empty")
@@ -159,77 +194,28 @@ func main() {
 	csrFile := *dataDir + "/" + *csrFileName
 	log.Printf("csr file: %q\n", csrFile)
 
-	flag.Usage = func() {
-		fmt.Print(serverHelp)
-		os.Exit(1)
-	}
-	flag.Parse()
-
-	if *version {
-		fmt.Println(chshare.BuildVersion)
-		os.Exit(1)
-	}
-
-	if flag.NArg() > 0 {
-		fmt.Println("Unsupported command or argument.")
-		fmt.Print(serverHelp)
-		os.Exit(1)
-	}
-
-	if *listenAddr == "" {
-		*listenAddr = *a
-	}
-	if *listenAddr == "" {
-		*listenAddr = os.Getenv("RPORT_ADDR")
-	}
 	if *listenAddr == "" {
 		*listenAddr = "0.0.0.0:8080"
 	}
-	if *url == "" {
-		*url = "http://" + *listenAddr
+	if *connectURL == "" {
+		*connectURL = "http://" + *listenAddr
 	}
-	if *key == "" {
-		*key = os.Getenv("RPORT_KEY")
+	if cfg.APIJWTSecret == "" {
+		cfg.APIJWTSecret = generateJWTSecret()
 	}
-	if *apiAddr == "" {
-		*apiAddr = os.Getenv("RPORT_API_ADDR")
-	}
-	if *apiAuth == "" {
-		*apiAuth = os.Getenv("RPORT_API_AUTH")
-	}
-	if *apiJWTSecret == "" {
-		*apiJWTSecret = os.Getenv("RPORT_API_JWT_SECRET")
-	}
-	if *apiJWTSecret == "" {
-		*apiJWTSecret = generateJWTSecret()
+	if cfg.DocRoot != "" && *apiAddr == "" {
+		log.Fatal("To use --api-doc-root you need to specify API address (see --api-addr)")
 	}
 
-	if *docRoot != "" && *apiAddr == "" {
-		log.Fatal("To use --doc-root you need to specify API address (see --api-addr)")
-	}
-
-	if *excludePorts == "" {
-		*excludePorts = *e
-	}
-
-	config := &chserver.Config{
-		URL:           tryParseURL(*url),
-		KeySeed:       *key,
-		AuthFile:      *authfile,
-		Auth:          *auth,
-		Proxy:         *proxy,
-		APIAuth:       *apiAuth,
-		APIJWTSecret:  *apiJWTSecret,
-		DocRoot:       *docRoot,
-		LogOutput:     os.Stdout,
-		LogLevel:      tryParseLogLevel(*logLevelStr),
-		ExcludedPorts: tryParseExcludedPorts(*excludePorts),
-	}
+	cfg.URL = tryParseURL(*connectURL)
+	cfg.LogLevel = tryParseLogLevel(*logLevelStr)
+	cfg.ExcludedPorts = tryParseExcludedPorts(*excludedPortsStr)
+	cfg.LogOutput = os.Stdout
 
 	var logFile *os.File
 	if *logFilePath != "" {
 		logFile = tryOpenLogFile(*logFilePath)
-		config.LogOutput = logFile
+		cfg.LogOutput = logFile
 	}
 	defer func() {
 		if logFile != nil {
