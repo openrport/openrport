@@ -1,4 +1,4 @@
-package csr
+package sessions
 
 import (
 	"fmt"

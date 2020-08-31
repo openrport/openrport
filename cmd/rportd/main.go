@@ -17,8 +17,8 @@ import (
 	"github.com/spf13/cobra"
 
 	chserver "github.com/cloudradar-monitoring/rport/server"
-	"github.com/cloudradar-monitoring/rport/server/csr"
 	"github.com/cloudradar-monitoring/rport/server/scheduler"
+	"github.com/cloudradar-monitoring/rport/server/sessions"
 	chshare "github.com/cloudradar-monitoring/rport/share"
 )
 
@@ -208,7 +208,7 @@ func runMain(*cobra.Command, []string) {
 	if cfg.KeepLostClients > 0 {
 		keepLostClients = &cfg.KeepLostClients
 	}
-	initSessions, err := csr.GetInitStateFromFile(cfg.CSRFilePath(), keepLostClients)
+	initSessions, err := sessions.GetInitStateFromFile(cfg.CSRFilePath(), keepLostClients)
 	if err != nil {
 		if len(initSessions) == 0 {
 			log.Printf("Failed to get init CSR state from file %q: %v\n", cfg.CSRFilePath(), err)
@@ -217,7 +217,7 @@ func runMain(*cobra.Command, []string) {
 		}
 		// proceed further
 	}
-	repo := csr.NewSessionRepository(initSessions, keepLostClients)
+	repo := sessions.NewSessionRepository(initSessions, keepLostClients)
 
 	s, err := chserver.NewServer(cfg, repo)
 	if err != nil {
@@ -231,8 +231,8 @@ func runMain(*cobra.Command, []string) {
 
 	go chshare.GoStats()
 	if keepLostClients != nil {
-		go scheduler.Run(ctx, s.Logger, csr.NewCleanupTask(s.Logger, repo), cfg.CleanupClients)
-		go scheduler.Run(ctx, s.Logger, csr.NewSaveToFileTask(s.Logger, repo, cfg.CSRFilePath()), cfg.SaveClients)
+		go scheduler.Run(ctx, s.Logger, sessions.NewCleanupTask(s.Logger, repo), cfg.CleanupClients)
+		go scheduler.Run(ctx, s.Logger, sessions.NewSaveToFileTask(s.Logger, repo, cfg.CSRFilePath()), cfg.SaveClients)
 	}
 
 	if err = s.Run(*listenAddr, *apiAddr); err != nil {

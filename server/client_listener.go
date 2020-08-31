@@ -15,7 +15,7 @@ import (
 	"github.com/jpillora/requestlog"
 	"golang.org/x/crypto/ssh"
 
-	"github.com/cloudradar-monitoring/rport/server/csr"
+	"github.com/cloudradar-monitoring/rport/server/sessions"
 	chshare "github.com/cloudradar-monitoring/rport/share"
 )
 
@@ -104,7 +104,7 @@ func (cl *ClientListener) authUser(c ssh.ConnMetadata, password []byte) (*ssh.Pe
 	}
 	// insert the user session map
 	// @note: this should probably have a lock on it given the map isn't thread-safe??
-	cl.authenticatedUsers.Set(csr.GetSessionID(c), user)
+	cl.authenticatedUsers.Set(sessions.GetSessionID(c), user)
 	return nil, nil
 }
 
@@ -211,7 +211,7 @@ func (cl *ClientListener) handleWebsocket(w http.ResponseWriter, req *http.Reque
 
 	var sid string
 	if connRequest.ID == "" {
-		sid = csr.GetSessionID(sshConn)
+		sid = sessions.GetSessionID(sshConn)
 	} else {
 		sid = connRequest.ID
 	}

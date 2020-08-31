@@ -1,4 +1,4 @@
-package csr
+package sessions
 
 import (
 	"os"
@@ -7,7 +7,7 @@ import (
 	chshare "github.com/cloudradar-monitoring/rport/share"
 )
 
-// nowMockF is used to override csr.now
+// nowMockF is used to override sessions.now
 var nowMockF = func() time.Time {
 	return s2DisconnectedTime.Add(5 * time.Minute)
 }

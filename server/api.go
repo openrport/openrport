@@ -9,7 +9,7 @@ import (
 
 	"github.com/gorilla/mux"
 
-	"github.com/cloudradar-monitoring/rport/server/csr"
+	"github.com/cloudradar-monitoring/rport/server/sessions"
 	chshare "github.com/cloudradar-monitoring/rport/share"
 )
 
@@ -24,8 +24,8 @@ type successAPIResponse struct {
 }
 
 type sessionTunnelPUTResponse struct {
-	Success int         `json:"success"`
-	Tunnel  *csr.Tunnel `json:"tunnel"`
+	Success int              `json:"success"`
+	Tunnel  *sessions.Tunnel `json:"tunnel"`
 }
 
 func (al *APIListener) wrapWithAuthMiddleware(f http.Handler) http.HandlerFunc {
@@ -250,9 +250,9 @@ func (al *APIListener) handlePutSessionTunnel(w http.ResponseWriter, req *http.R
 	}
 
 	aclStr := req.URL.Query().Get("acl")
-	var acl = &csr.TunnelACL{}
+	var acl = &sessions.TunnelACL{}
 	if aclStr != "" {
-		acl, err = csr.ParseTunnelACL(aclStr)
+		acl, err = sessions.ParseTunnelACL(aclStr)
 		if err != nil {
 			al.jsonErrorResponse(w, http.StatusBadRequest, al.FormatError("invalid request: %s", err))
 			return

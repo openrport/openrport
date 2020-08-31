@@ -7,20 +7,20 @@ import (
 
 	"golang.org/x/crypto/ssh"
 
-	"github.com/cloudradar-monitoring/rport/server/csr"
 	"github.com/cloudradar-monitoring/rport/server/ports"
+	"github.com/cloudradar-monitoring/rport/server/sessions"
 	chshare "github.com/cloudradar-monitoring/rport/share"
 )
 
 type SessionService struct {
-	repo            *csr.ClientSessionRepository
+	repo            *sessions.ClientSessionRepository
 	portDistributor *ports.PortDistributor
 }
 
 // NewSessionService returns a new instance of client session service.
 func NewSessionService(
 	portDistributor *ports.PortDistributor,
-	repo *csr.ClientSessionRepository,
+	repo *sessions.ClientSessionRepository,
 ) *SessionService {
 	return &SessionService{
 		portDistributor: portDistributor,
@@ -32,19 +32,19 @@ func (s *SessionService) Count() (int, error) {
 	return s.repo.Count()
 }
 
-func (s *SessionService) GetActiveByID(id string) (*csr.ClientSession, error) {
+func (s *SessionService) GetActiveByID(id string) (*sessions.ClientSession, error) {
 	return s.repo.GetActiveByID(id)
 }
 
-func (s *SessionService) GetAll() ([]*csr.ClientSession, error) {
+func (s *SessionService) GetAll() ([]*sessions.ClientSession, error) {
 	return s.repo.GetAll()
 }
 
 func (s *SessionService) StartClientSession(
 	ctx context.Context, sid string, sshConn ssh.Conn,
 	req *chshare.ConnectionRequest, user *chshare.User, clog *chshare.Logger,
-) (*csr.ClientSession, error) {
-	session := &csr.ClientSession{
+) (*sessions.ClientSession, error) {
+	session := &sessions.ClientSession{
 		ID:         sid,
 		Name:       req.Name,
 		Tags:       req.Tags,
@@ -54,14 +54,14 @@ func (s *SessionService) StartClientSession(
 		IPv4:       req.IPv4,
 		IPv6:       req.IPv6,
 		Address:    sshConn.RemoteAddr().String(),
-		Tunnels:    make([]*csr.Tunnel, 0),
+		Tunnels:    make([]*sessions.Tunnel, 0),
 		Connection: sshConn,
 		Context:    ctx,
 		User:       user,
 		Logger:     clog,
 	}
 
-	_, err := s.StartSessionTunnels(session, req.Remotes, csr.TunnelACL{})
+	_, err := s.StartSessionTunnels(session, req.Remotes, sessions.TunnelACL{})
 	if err != nil {
 		return nil, err
 	}
@@ -74,13 +74,13 @@ func (s *SessionService) StartClientSession(
 }
 
 // StartSessionTunnels returns a new tunnel for each requested remote or nil if error occurred
-func (s *SessionService) StartSessionTunnels(session *csr.ClientSession, remotes []*chshare.Remote, acl csr.TunnelACL) ([]*csr.Tunnel, error) {
+func (s *SessionService) StartSessionTunnels(session *sessions.ClientSession, remotes []*chshare.Remote, acl sessions.TunnelACL) ([]*sessions.Tunnel, error) {
 	err := s.portDistributor.Refresh()
 	if err != nil {
 		return nil, err
 	}
 
-	tunnels := make([]*csr.Tunnel, 0, len(remotes))
+	tunnels := make([]*sessions.Tunnel, 0, len(remotes))
 	for _, remote := range remotes {
 		if !remote.IsLocalSpecified() {
 			port, err := s.portDistributor.GetRandomPort()
@@ -100,7 +100,7 @@ func (s *SessionService) StartSessionTunnels(session *csr.ClientSession, remotes
 	return tunnels, nil
 }
 
-func (s *SessionService) Terminate(session *csr.ClientSession) error {
+func (s *SessionService) Terminate(session *sessions.ClientSession) error {
 	if s.repo.KeepLostClients == nil {
 		return s.repo.Delete(session)
 	}

@@ -11,8 +11,8 @@ import (
 	"github.com/jpillora/requestlog"
 	"golang.org/x/crypto/ssh"
 
-	"github.com/cloudradar-monitoring/rport/server/csr"
 	"github.com/cloudradar-monitoring/rport/server/ports"
+	"github.com/cloudradar-monitoring/rport/server/sessions"
 	chshare "github.com/cloudradar-monitoring/rport/share"
 )
 
@@ -62,7 +62,7 @@ type Server struct {
 }
 
 // NewServer creates and returns a new rport server
-func NewServer(config *Config, repo *csr.ClientSessionRepository) (*Server, error) {
+func NewServer(config *Config, repo *sessions.ClientSessionRepository) (*Server, error) {
 	s := &Server{
 		Logger: chshare.NewLogger("server", config.LogOutput, config.LogLevel),
 	}

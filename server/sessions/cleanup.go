@@ -1,5 +1,5 @@
 // Package contains everything related to Client Session Repository (CSR).
-package csr
+package sessions
 
 import (
 	"fmt"
