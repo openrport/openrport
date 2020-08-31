@@ -127,13 +127,3 @@ func (t *Tunnel) accept(src io.ReadWriteCloser) {
 	s, r := chshare.Pipe(src, dst)
 	l.Debugf("Close (sent %s received %s)", sizestr.ToString(s), sizestr.ToString(r))
 }
-
-func (t *Tunnel) Equal(other *Tunnel) bool {
-	if t == nil && other == nil {
-		return true
-	}
-	if t == nil || other == nil {
-		return false
-	}
-	return t.ID == other.ID && t.Remote == other.Remote
-}

@@ -8,7 +8,6 @@ import (
 	"sync/atomic"
 	"time"
 
-	"github.com/google/go-cmp/cmp"
 	"golang.org/x/crypto/ssh"
 
 	chshare "github.com/cloudradar-monitoring/rport/share"
@@ -127,34 +126,4 @@ func (c *ClientSession) Banner() string {
 		}
 	}
 	return banner
-}
-
-func (c *ClientSession) Equal(other *ClientSession) bool {
-	if c == nil && other == nil {
-		return true
-	}
-	if c == nil || other == nil {
-		return false
-	}
-	return c.ID == other.ID &&
-		c.Name == other.Name &&
-		c.OS == other.OS &&
-		c.Hostname == other.Hostname &&
-		cmp.Equal(c.IPv4, other.IPv4) &&
-		cmp.Equal(c.IPv6, other.IPv6) &&
-		cmp.Equal(c.Tags, other.Tags) &&
-		c.Version == other.Version &&
-		c.Address == other.Address &&
-		cmp.Equal(c.Tunnels, other.Tunnels) &&
-		timesEqual(c.Disconnected, other.Disconnected)
-}
-
-func timesEqual(t1, t2 *time.Time) bool {
-	if t1 == nil && t2 == nil {
-		return true
-	}
-	if t1 == nil || t2 == nil {
-		return false
-	}
-	return t1.Equal(*t2)
 }
