@@ -16,7 +16,6 @@ import (
 	mapset "github.com/deckarep/golang-set"
 	"github.com/spf13/cobra"
 
-	"github.com/cloudradar-monitoring/rport/constant"
 	chserver "github.com/cloudradar-monitoring/rport/server"
 	"github.com/cloudradar-monitoring/rport/server/csr"
 	"github.com/cloudradar-monitoring/rport/server/scheduler"
@@ -133,11 +132,6 @@ var (
 	excludedPortsStr *string
 	logLevelStr      *string
 	logFilePath      *string
-	dataDir *string
-	csrFileName *string
-	keepLostClients *time.Duration
-	saveClients *time.Duration
-	cleanupClients *time.Duration
 
 	cfg = &chserver.Config{}
 )
@@ -158,11 +152,11 @@ func init() {
 	logFilePath = pFlags.StringP("log-file", "l", "", "")
 	logLevelStr = pFlags.StringP("verbose", "v", "error", "")
 	excludedPortsStr = pFlags.StringP("exclude-ports", "e", "1-1000", "")
-	dataDir = pFlags.StringVar("data-dir", constant.DefaultDataDirectory, "")
-	csrFileName = pFlags.StringVar("csr-filename", DefaultCSRFileName, "")
-	keepLostClients = pFlags.DurationVar("keep-lost-clients", 0, "")
-	saveClients = pFlags.DurationVar("save-clients-interval", DefaultCacheClientsInterval, "")
-	cleanupClients = pFlags.DurationVar("cleanup-clients-interval", DefaultCleanClientsInterval, "")
+	pFlags.StringVar(&cfg.DataDir, "data-dir", DefaultDataDirectory, "")
+	pFlags.StringVar(&cfg.CSRFileName, "csr-filename", DefaultCSRFileName, "")
+	pFlags.DurationVar(&cfg.KeepLostClients, "keep-lost-clients", 0, "")
+	pFlags.DurationVar(&cfg.SaveClients, "save-clients-interval", DefaultCacheClientsInterval, "")
+	pFlags.DurationVar(&cfg.CleanupClients, "cleanup-clients-interval", DefaultCleanClientsInterval, "")
 
 	RootCmd.SetUsageFunc(func(*cobra.Command) error {
 		fmt.Printf(serverHelp)
@@ -180,19 +174,6 @@ func main() {
 
 func runMain(*cobra.Command, []string) {
 	ctx := context.Background()
-
-	if dataDir == nil || *dataDir == "" {
-		log.Fatal("--data-dir cannot be empty")
-	}
-	if err := os.MkdirAll(*dataDir, os.ModePerm); err != nil {
-		log.Printf("ERROR: failed to create --data-dir %q: %v\n", *dataDir, err)
-	}
-
-	if csrFileName == nil || *csrFileName == "" {
-		log.Fatal("--csr-filename cannot be empty")
-	}
-	csrFile := *dataDir + "/" + *csrFileName
-	log.Printf("csr file: %q\n", csrFile)
 
 	if *listenAddr == "" {
 		*listenAddr = "0.0.0.0:8080"
@@ -223,26 +204,35 @@ func runMain(*cobra.Command, []string) {
 		}
 	}()
 
-	initSessions, err := csr.GetInitStateFromFile(csrFile, keepLostClients)
+	var keepLostClients *time.Duration
+	if cfg.KeepLostClients > 0 {
+		keepLostClients = &cfg.KeepLostClients
+	}
+	initSessions, err := csr.GetInitStateFromFile(cfg.CSRFilePath(), keepLostClients)
 	if err != nil {
 		if len(initSessions) == 0 {
-			log.Printf("Failed to get init CSR state from file: %v\n", err)
+			log.Printf("Failed to get init CSR state from file %q: %v\n", cfg.CSRFilePath(), err)
 		} else {
-			log.Printf("Partial failure. Successfuly read %d sessions from file. Error: %v\n", len(initSessions), err)
+			log.Printf("Partial failure. Successfuly read %d sessions from file %q. Error: %v\n", len(initSessions), cfg.CSRFilePath(), err)
 		}
 		// proceed further
 	}
 	repo := csr.NewSessionRepository(initSessions, keepLostClients)
 
-	s, err := chserver.NewServer(config, repo)
+	s, err := chserver.NewServer(cfg, repo)
 	if err != nil {
 		log.Fatal(err)
 	}
 
+	// create --data-dir path if not exist
+	if err := os.MkdirAll(cfg.DataDir, os.ModePerm); err != nil {
+		log.Printf("ERROR: failed to create --data-dir %q: %v\n", cfg.DataDir, err)
+	}
+
 	go chshare.GoStats()
 	if keepLostClients != nil {
-		go scheduler.Run(ctx, s.Logger, csr.NewCleanupTask(s.Logger, repo), *cleanupClients)
-		go scheduler.Run(ctx, s.Logger, csr.NewSaveToFileTask(s.Logger, repo, csrFile), *saveClients)
+		go scheduler.Run(ctx, s.Logger, csr.NewCleanupTask(s.Logger, repo), cfg.CleanupClients)
+		go scheduler.Run(ctx, s.Logger, csr.NewSaveToFileTask(s.Logger, repo, cfg.CSRFilePath()), cfg.SaveClients)
 	}
 
 	if err = s.Run(*listenAddr, *apiAddr); err != nil {

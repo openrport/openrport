@@ -1,6 +1,6 @@
 //+build !windows
 
-package constant
+package main
 
 // Contains constants applicable only to non windows OS.
 const (

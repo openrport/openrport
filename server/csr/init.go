@@ -17,7 +17,7 @@ func GetInitStateFromFile(fileName string, expiration *time.Duration) ([]*Client
 	if err != nil {
 		return nil, fmt.Errorf("failed to open CSR file: %v", err)
 	}
-	log.Printf("CSR file [%q] opened. Reading...\n", fileName)
+	log.Println("CSR file opened. Reading...")
 	defer file.Close()
 
 	return getInitState(file, expiration)

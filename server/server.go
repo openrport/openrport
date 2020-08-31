@@ -1,6 +1,7 @@
 package chserver
 
 import (
+	"errors"
 	"fmt"
 	"net/http"
 	"os"
@@ -15,19 +16,33 @@ import (
 	chshare "github.com/cloudradar-monitoring/rport/share"
 )
 
+const (
+	MinKeepLostClients = time.Second
+	MaxKeepLostClients = 7 * 24 * time.Hour
+)
+
 // Config is the configuration for the rport service
 type Config struct {
-	URL           string
-	KeySeed       string
-	AuthFile      string
-	Auth          string
-	Proxy         string
-	APIAuth       string
-	APIJWTSecret  string
-	DocRoot       string
-	LogOutput     *os.File
-	LogLevel      chshare.LogLevel
-	ExcludedPorts mapset.Set
+	URL             string
+	KeySeed         string
+	AuthFile        string
+	Auth            string
+	Proxy           string
+	APIAuth         string
+	APIJWTSecret    string
+	DocRoot         string
+	LogOutput       *os.File
+	LogLevel        chshare.LogLevel
+	ExcludedPorts   mapset.Set
+	DataDir         string
+	CSRFileName     string
+	KeepLostClients time.Duration
+	SaveClients     time.Duration
+	CleanupClients  time.Duration
+}
+
+func (c *Config) CSRFilePath() string {
+	return c.DataDir + "/" + c.CSRFileName
 }
 
 func (c *Config) InitRequestLogOptions() *requestlog.Options {
@@ -50,6 +65,22 @@ type Server struct {
 func NewServer(config *Config, repo *csr.ClientSessionRepository) (*Server, error) {
 	s := &Server{
 		Logger: chshare.NewLogger("server", config.LogOutput, config.LogLevel),
+	}
+
+	if config.DataDir == "" {
+		return nil, errors.New("'data directory path' cannot be empty")
+	}
+	s.Infof("data directory path: %q", config.DataDir)
+
+	if config.CSRFileName == "" {
+		return nil, errors.New("'csr filename' cannot be empty")
+	}
+
+	s.Infof("csr file path: %q", config.CSRFilePath())
+
+	if config.KeepLostClients.Nanoseconds() < MinKeepLostClients.Nanoseconds() ||
+		config.KeepLostClients.Nanoseconds() > MaxKeepLostClients.Nanoseconds() {
+		return nil, fmt.Errorf("'Keep Lost Clients' can be in range [%v, %v]", MinKeepLostClients, MaxKeepLostClients)
 	}
 
 	privateKey, err := initPrivateKey(config.KeySeed)
