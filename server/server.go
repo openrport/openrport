@@ -78,9 +78,9 @@ func NewServer(config *Config, repo *sessions.ClientSessionRepository) (*Server,
 
 	s.Infof("csr file path: %q", config.CSRFilePath())
 
-	if config.KeepLostClients.Nanoseconds() < MinKeepLostClients.Nanoseconds() ||
-		config.KeepLostClients.Nanoseconds() > MaxKeepLostClients.Nanoseconds() {
-		return nil, fmt.Errorf("'Keep Lost Clients' can be in range [%v, %v]", MinKeepLostClients, MaxKeepLostClients)
+	if config.KeepLostClients != 0 && (config.KeepLostClients.Nanoseconds() < MinKeepLostClients.Nanoseconds() ||
+		config.KeepLostClients.Nanoseconds() > MaxKeepLostClients.Nanoseconds()) {
+		return nil, fmt.Errorf("expected 'Keep Lost Clients' can be in range [%v, %v], actual: %v", MinKeepLostClients, MaxKeepLostClients, config.KeepLostClients)
 	}
 
 	privateKey, err := initPrivateKey(config.KeySeed)
