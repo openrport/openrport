@@ -2,6 +2,7 @@
 
 package constant
 
+// Contains constants applicable only to windows OS.
 const (
-	DataDirectory = "C:\\ProgramData\\rportd"
+	DefaultDataDirectory = "C:\\ProgramData\\rportd"
 )

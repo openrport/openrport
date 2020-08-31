@@ -11,6 +11,9 @@ type ClientSessionRepository struct {
 	KeepLostClients *time.Duration
 }
 
+// NewSessionRepository returns a new thread-safe in-memory cache to store Client Sessions populated with given sessions if any.
+// keepLostClients is a duration to keep disconnected clients. If a client session was disconnected longer than a given
+// duration it will be treated as obsolete.
 func NewSessionRepository(initSessions []*ClientSession, keepLostClients *time.Duration) *ClientSessionRepository {
 	sessions := make(map[string]*ClientSession)
 	for i := range initSessions {

@@ -25,7 +25,6 @@ import (
 
 const (
 	DefaultCSRFileName          = "csr.json"
-	DefaultKeepLostClients      = time.Hour
 	DefaultCacheClientsInterval = 1 * time.Second
 	DefaultCleanClientsInterval = 5 * time.Minute
 )
@@ -88,6 +87,23 @@ var serverHelp = `
     e.g. "admin:1234". (defaults to the environment variable RPORT_API_AUTH
     and fallsback to empty string: authorization not required).
 
+    --data-dir, Defines a local directory path to store internal data.
+    By default, "/var/lib/rportd" is used on Linux, "C:\ProgramData\rportd" is used on Windows.
+
+    --keep-lost-clients, Defines a duration to keep disconnected clients. For example,
+    "--keep-lost-clients=1h30m". It can contain "h"(hours), "m"(minutes), "s"(seconds).
+
+    --save-clients-interval, Only valid if --keep-lost-clients is specified. Defines an
+    interval to flush info about active and disconnected clients to disk. By default,
+    1 second is used.  It can contain "h"(hours), "m"(minutes), "s"(seconds).
+
+    --cleanup-clients-interval, Only valid if --keep-lost-clients is specified. Defines an
+    interval to clean up internal storage from obsolete disconnected clients. By default,
+    5 minutes is used.  It can contain "h"(hours), "m"(minutes), "s"(seconds).
+
+    --csr-filename, Defines a file name in --data-dir directory to store active and
+    disconnected clients. By default, "csr.json" is used.
+
     --api-jwt-secret, Defines JWT secret used to generate new tokens.
     (defaults to the environment variable RPORT_AUTH_JWT_SECRET and fallsback
     to auto-generated value).
@@ -124,11 +140,11 @@ func main() {
 	version := flag.Bool("version", false, "")
 	e := flag.String("e", "1-1000", "")
 	excludePorts := flag.String("exclude-ports", "", "")
-	dataDir := flag.String("clients-file", constant.DataDirectory, "")
+	dataDir := flag.String("data-dir", constant.DefaultDataDirectory, "")
 	csrFileName := flag.String("csr-filename", DefaultCSRFileName, "")
-	keepLostClients := flag.Duration("keep-lost-clients", DefaultKeepLostClients, "")
-	saveClients := flag.Duration("save-clients", DefaultCacheClientsInterval, "")
-	cleanupClients := flag.Duration("cleanup-clients", DefaultCleanClientsInterval, "")
+	keepLostClients := flag.Duration("keep-lost-clients", 0, "")
+	saveClients := flag.Duration("save-clients-interval", DefaultCacheClientsInterval, "")
+	cleanupClients := flag.Duration("cleanup-clients-interval", DefaultCleanClientsInterval, "")
 
 	if dataDir == nil || *dataDir == "" {
 		log.Fatal("--data-dir cannot be empty")
@@ -240,8 +256,8 @@ func main() {
 	go chshare.GoStats()
 	if keepLostClients != nil {
 		go scheduler.Run(ctx, s.Logger, csr.NewCleanupTask(s.Logger, repo), *cleanupClients)
+		go scheduler.Run(ctx, s.Logger, csr.NewSaveToFileTask(s.Logger, repo, csrFile), *saveClients)
 	}
-	go scheduler.Run(ctx, s.Logger, csr.NewSaveToFileTask(s.Logger, repo, csrFile), *saveClients)
 
 	if err = s.Run(*listenAddr, *apiAddr); err != nil {
 		log.Fatal(err)

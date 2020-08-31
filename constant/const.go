@@ -2,6 +2,7 @@
 
 package constant
 
+// Contains constants applicable only to non windows OS.
 const (
-	DataDirectory = "/var/lib/rportd"
+	DefaultDataDirectory = "/var/lib/rportd"
 )
