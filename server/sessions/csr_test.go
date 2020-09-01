@@ -54,11 +54,11 @@ func TestCSRWithNoExpiration(t *testing.T) {
 	now = nowMockF
 
 	repo := NewSessionRepository([]*ClientSession{s1, s2, s3}, nil)
-	s4Active := *s4
+	s4Active := shallowCopy(s4)
 	s4Active.Disconnected = nil
 
 	assert := assert.New(t)
-	assert.NoError(repo.Save(&s4Active))
+	assert.NoError(repo.Save(s4Active))
 
 	gotCount, err := repo.Count()
 	assert.NoError(err)
@@ -66,7 +66,7 @@ func TestCSRWithNoExpiration(t *testing.T) {
 
 	gotSessions, err := repo.GetAll()
 	assert.NoError(err)
-	assert.ElementsMatch([]*ClientSession{s1, s2, s3, &s4Active}, gotSessions)
+	assert.ElementsMatch([]*ClientSession{s1, s2, s3, s4Active}, gotSessions)
 
 	// active
 	gotSession, err := repo.GetActiveByID(s1.ID)
@@ -82,7 +82,7 @@ func TestCSRWithNoExpiration(t *testing.T) {
 	assert.NoError(err)
 	assert.Len(deleted, 0)
 
-	assert.NoError(repo.Delete(&s4Active))
+	assert.NoError(repo.Delete(s4Active))
 	gotSessions, err = repo.GetAll()
 	assert.NoError(err)
 	assert.ElementsMatch([]*ClientSession{s1, s2, s3}, gotSessions)

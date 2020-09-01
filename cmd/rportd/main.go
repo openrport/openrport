@@ -159,7 +159,7 @@ func init() {
 	pFlags.DurationVar(&cfg.CleanupClients, "cleanup-clients-interval", DefaultCleanClientsInterval, "")
 
 	RootCmd.SetUsageFunc(func(*cobra.Command) error {
-		fmt.Printf(serverHelp)
+		fmt.Print(serverHelp)
 		os.Exit(1)
 		return nil
 	})
@@ -213,7 +213,7 @@ func runMain(*cobra.Command, []string) {
 		if len(initSessions) == 0 {
 			log.Printf("Failed to get init CSR state from file %q: %v\n", cfg.CSRFilePath(), err)
 		} else {
-			log.Printf("Partial failure. Successfuly read %d sessions from file %q. Error: %v\n", len(initSessions), cfg.CSRFilePath(), err)
+			log.Printf("Partial failure. Successfully read %d sessions from file %q. Error: %v\n", len(initSessions), cfg.CSRFilePath(), err)
 		}
 		// proceed further
 	}
@@ -225,8 +225,8 @@ func runMain(*cobra.Command, []string) {
 	}
 
 	// create --data-dir path if not exist
-	if err := os.MkdirAll(cfg.DataDir, os.ModePerm); err != nil {
-		log.Printf("ERROR: failed to create --data-dir %q: %v\n", cfg.DataDir, err)
+	if makedirErr := os.MkdirAll(cfg.DataDir, os.ModePerm); makedirErr != nil {
+		log.Printf("ERROR: failed to create --data-dir %q: %v\n", cfg.DataDir, makedirErr)
 	}
 
 	go chshare.GoStats()

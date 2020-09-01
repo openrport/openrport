@@ -20,11 +20,11 @@ type Tunnel struct {
 
 	ID string `json:"id"`
 
-	sshConn                   ssh.Conn       `json:"-"`
-	connectionIDAutoIncrement int            `json:"-"`
-	stopFn                    func()         `json:"-"`
-	wg                        sync.WaitGroup `json:"-"`
-	acl                       TunnelACL      `json:"-"`
+	sshConn                   ssh.Conn
+	connectionIDAutoIncrement int
+	stopFn                    func()
+	wg                        sync.WaitGroup
+	acl                       TunnelACL
 }
 
 func NewTunnel(logger *chshare.Logger, ssh ssh.Conn, id string, remote *chshare.Remote, acl TunnelACL) *Tunnel {
