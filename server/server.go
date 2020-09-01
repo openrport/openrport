@@ -42,7 +42,7 @@ type Config struct {
 }
 
 func (c *Config) CSRFilePath() string {
-	return c.DataDir + DirectorySeperator + c.CSRFileName
+	return c.DataDir + string(os.PathSeparator) + c.CSRFileName
 }
 
 func (c *Config) InitRequestLogOptions() *requestlog.Options {
