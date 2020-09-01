@@ -37,4 +37,4 @@ docker-golangci-lint:
 	docker run -it --rm \
 		-v ${PWD}:${PWD} \
 		-w ${PWD} \
-		golangci/golangci-lint:v1.17 golangci-lint -c .golangci.yml run
+		golangci/golangci-lint:v1.30 golangci-lint -c .golangci.yml run
