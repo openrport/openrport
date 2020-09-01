@@ -15,11 +15,10 @@ import (
 
 	"github.com/gorilla/websocket"
 	"github.com/jpillora/backoff"
-
-	chshare "github.com/cloudradar-monitoring/rport/share"
-
 	"golang.org/x/crypto/ssh"
 	"golang.org/x/net/proxy"
+
+	chshare "github.com/cloudradar-monitoring/rport/share"
 )
 
 type ConnectionOptions struct {

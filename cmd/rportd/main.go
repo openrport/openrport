@@ -1,6 +1,7 @@
 package main
 
 import (
+	"context"
 	"crypto/rand"
 	"crypto/sha256"
 	"fmt"
@@ -10,12 +11,21 @@ import (
 	"os"
 	"strconv"
 	"strings"
+	"time"
 
 	mapset "github.com/deckarep/golang-set"
 	"github.com/spf13/cobra"
 
 	chserver "github.com/cloudradar-monitoring/rport/server"
+	"github.com/cloudradar-monitoring/rport/server/scheduler"
+	"github.com/cloudradar-monitoring/rport/server/sessions"
 	chshare "github.com/cloudradar-monitoring/rport/share"
+)
+
+const (
+	DefaultCSRFileName          = "csr.json"
+	DefaultCacheClientsInterval = 1 * time.Second
+	DefaultCleanClientsInterval = 5 * time.Minute
 )
 
 var serverHelp = `
@@ -76,6 +86,23 @@ var serverHelp = `
     e.g. "admin:1234". (defaults to the environment variable RPORT_API_AUTH
     and fallsback to empty string: authorization not required).
 
+    --data-dir, Defines a local directory path to store internal data.
+    By default, "/var/lib/rportd" is used on Linux, "C:\ProgramData\rportd" is used on Windows.
+
+    --keep-lost-clients, Defines a duration to keep disconnected clients. For example,
+    "--keep-lost-clients=1h30m". It can contain "h"(hours), "m"(minutes), "s"(seconds).
+
+    --save-clients-interval, Only valid if --keep-lost-clients is specified. Defines an
+    interval to flush info about active and disconnected clients to disk. By default,
+    1 second is used.  It can contain "h"(hours), "m"(minutes), "s"(seconds).
+
+    --cleanup-clients-interval, Only valid if --keep-lost-clients is specified. Defines an
+    interval to clean up internal storage from obsolete disconnected clients. By default,
+    5 minutes is used.  It can contain "h"(hours), "m"(minutes), "s"(seconds).
+
+    --csr-filename, Defines a file name in --data-dir directory to store active and
+    disconnected clients. By default, "csr.json" is used.
+
     --api-jwt-secret, Defines JWT secret used to generate new tokens.
     (defaults to the environment variable RPORT_API_AUTH_JWT_SECRET and fallsback
     to auto-generated value).
@@ -125,6 +152,11 @@ func init() {
 	logFilePath = pFlags.StringP("log-file", "l", "", "")
 	logLevelStr = pFlags.StringP("verbose", "v", "error", "")
 	excludedPortsStr = pFlags.StringP("exclude-ports", "e", "1-1000", "")
+	pFlags.StringVar(&cfg.DataDir, "data-dir", chserver.DefaultDataDirectory, "")
+	pFlags.StringVar(&cfg.CSRFileName, "csr-filename", DefaultCSRFileName, "")
+	pFlags.DurationVar(&cfg.KeepLostClients, "keep-lost-clients", 0, "")
+	pFlags.DurationVar(&cfg.SaveClients, "save-clients-interval", DefaultCacheClientsInterval, "")
+	pFlags.DurationVar(&cfg.CleanupClients, "cleanup-clients-interval", DefaultCleanClientsInterval, "")
 
 	RootCmd.SetUsageFunc(func(*cobra.Command) error {
 		fmt.Printf(serverHelp)
@@ -141,6 +173,8 @@ func main() {
 }
 
 func runMain(*cobra.Command, []string) {
+	ctx := context.Background()
+
 	if *listenAddr == "" {
 		*listenAddr = "0.0.0.0:8080"
 	}
@@ -170,12 +204,36 @@ func runMain(*cobra.Command, []string) {
 		}
 	}()
 
-	s, err := chserver.NewServer(cfg)
+	var keepLostClients *time.Duration
+	if cfg.KeepLostClients > 0 {
+		keepLostClients = &cfg.KeepLostClients
+	}
+	initSessions, err := sessions.GetInitStateFromFile(cfg.CSRFilePath(), keepLostClients)
+	if err != nil {
+		if len(initSessions) == 0 {
+			log.Printf("Failed to get init CSR state from file %q: %v\n", cfg.CSRFilePath(), err)
+		} else {
+			log.Printf("Partial failure. Successfuly read %d sessions from file %q. Error: %v\n", len(initSessions), cfg.CSRFilePath(), err)
+		}
+		// proceed further
+	}
+	repo := sessions.NewSessionRepository(initSessions, keepLostClients)
+
+	s, err := chserver.NewServer(cfg, repo)
 	if err != nil {
 		log.Fatal(err)
 	}
 
+	// create --data-dir path if not exist
+	if err := os.MkdirAll(cfg.DataDir, os.ModePerm); err != nil {
+		log.Printf("ERROR: failed to create --data-dir %q: %v\n", cfg.DataDir, err)
+	}
+
 	go chshare.GoStats()
+	if keepLostClients != nil {
+		go scheduler.Run(ctx, s.Logger, sessions.NewCleanupTask(s.Logger, repo), cfg.CleanupClients)
+		go scheduler.Run(ctx, s.Logger, sessions.NewSaveToFileTask(s.Logger, repo, cfg.CSRFilePath()), cfg.SaveClients)
+	}
 
 	if err = s.Run(*listenAddr, *apiAddr); err != nil {
 		log.Fatal(err)
