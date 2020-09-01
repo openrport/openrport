@@ -152,7 +152,7 @@ func init() {
 	logFilePath = pFlags.StringP("log-file", "l", "", "")
 	logLevelStr = pFlags.StringP("verbose", "v", "error", "")
 	excludedPortsStr = pFlags.StringP("exclude-ports", "e", "1-1000", "")
-	pFlags.StringVar(&cfg.DataDir, "data-dir", DefaultDataDirectory, "")
+	pFlags.StringVar(&cfg.DataDir, "data-dir", chserver.DefaultDataDirectory, "")
 	pFlags.StringVar(&cfg.CSRFileName, "csr-filename", DefaultCSRFileName, "")
 	pFlags.DurationVar(&cfg.KeepLostClients, "keep-lost-clients", 0, "")
 	pFlags.DurationVar(&cfg.SaveClients, "save-clients-interval", DefaultCacheClientsInterval, "")
