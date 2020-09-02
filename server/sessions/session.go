@@ -1,4 +1,4 @@
-package chserver
+package sessions
 
 import (
 	"context"
@@ -6,17 +6,23 @@ import (
 	"strconv"
 	"sync"
 	"sync/atomic"
+	"time"
 
 	"golang.org/x/crypto/ssh"
 
 	chshare "github.com/cloudradar-monitoring/rport/share"
 )
 
+// now is used to stub time.Now in tests
+var now = func() time.Time {
+	return time.Now()
+}
+
 func GetSessionID(sshConn ssh.ConnMetadata) string {
 	return fmt.Sprintf("%x", sshConn.SessionID())
 }
 
-// ClientSession represents active client connection
+// ClientSession represents client connection
 type ClientSession struct {
 	ID       string    `json:"id"`
 	Name     string    `json:"name"`
@@ -28,6 +34,8 @@ type ClientSession struct {
 	Version  string    `json:"version"`
 	Address  string    `json:"address"`
 	Tunnels  []*Tunnel `json:"tunnels"`
+	// Disconnected is a time when a client session was disconnected. If nil - it's connected.
+	Disconnected *time.Time `json:"disconnected,omitempty"`
 
 	Connection ssh.Conn        `json:"-"`
 	Context    context.Context `json:"-"`
@@ -36,6 +44,13 @@ type ClientSession struct {
 
 	tunnelIDAutoIncrement int64
 	lock                  sync.Mutex
+}
+
+// Obsolete returns true if a given client session was disconnected longer than a given duration.
+// If a given duration is nil - returns false.
+func (c *ClientSession) Obsolete(duration *time.Duration) bool {
+	return duration != nil && c.Disconnected != nil &&
+		c.Disconnected.Add(*duration).Before(now())
 }
 
 func (c *ClientSession) Lock() {

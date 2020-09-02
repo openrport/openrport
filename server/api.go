@@ -9,6 +9,7 @@ import (
 
 	"github.com/gorilla/mux"
 
+	"github.com/cloudradar-monitoring/rport/server/sessions"
 	chshare "github.com/cloudradar-monitoring/rport/share"
 )
 
@@ -23,8 +24,8 @@ type successAPIResponse struct {
 }
 
 type sessionTunnelPUTResponse struct {
-	Success int     `json:"success"`
-	Tunnel  *Tunnel `json:"tunnel"`
+	Success int              `json:"success"`
+	Tunnel  *sessions.Tunnel `json:"tunnel"`
 }
 
 func (al *APIListener) wrapWithAuthMiddleware(f http.Handler) http.HandlerFunc {
@@ -226,7 +227,7 @@ func (al *APIListener) handlePutSessionTunnel(w http.ResponseWriter, req *http.R
 		return
 	}
 
-	session, err := al.sessionService.FindOne(sessionID)
+	session, err := al.sessionService.GetActiveByID(sessionID)
 	if err != nil {
 		al.jsonErrorResponse(w, http.StatusInternalServerError, err)
 		return
@@ -249,9 +250,9 @@ func (al *APIListener) handlePutSessionTunnel(w http.ResponseWriter, req *http.R
 	}
 
 	aclStr := req.URL.Query().Get("acl")
-	var acl = &TunnelACL{}
+	var acl = &sessions.TunnelACL{}
 	if aclStr != "" {
-		acl, err = ParseTunnelACL(aclStr)
+		acl, err = sessions.ParseTunnelACL(aclStr)
 		if err != nil {
 			al.jsonErrorResponse(w, http.StatusBadRequest, al.FormatError("invalid request: %s", err))
 			return
@@ -281,7 +282,7 @@ func (al *APIListener) handleDeleteSessionTunnel(w http.ResponseWriter, req *htt
 		return
 	}
 
-	session, err := al.sessionService.FindOne(sessionID)
+	session, err := al.sessionService.GetActiveByID(sessionID)
 	if err != nil {
 		al.jsonErrorResponse(w, http.StatusInternalServerError, err)
 		return

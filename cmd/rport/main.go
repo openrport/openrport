@@ -143,7 +143,7 @@ func init() {
 	cfgPath = pFlags.StringP("config", "c", "", "")
 
 	RootCmd.SetUsageFunc(func(*cobra.Command) error {
-		fmt.Printf(clientHelp)
+		fmt.Print(clientHelp)
 		os.Exit(1)
 		return nil
 	})

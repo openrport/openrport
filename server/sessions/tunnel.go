@@ -1,4 +1,4 @@
-package chserver
+package sessions
 
 import (
 	"context"
