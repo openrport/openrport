@@ -1,7 +1,6 @@
 package chserver
 
 import (
-	"errors"
 	"fmt"
 
 	"golang.org/x/crypto/ssh"
@@ -26,22 +25,6 @@ func NewServer(config *Config, repo *sessions.ClientSessionRepository) (*Server,
 		Logger:     chshare.NewLogger("server", config.LogOutput, config.LogLevel),
 		listenAddr: config.ListenAddress,
 		apiAddr:    config.API.Address,
-	}
-
-	if config.DataDir == "" {
-		return nil, errors.New("'data directory path' cannot be empty")
-	}
-	s.Infof("data directory path: %q", config.DataDir)
-
-	if config.CSRFileName == "" {
-		return nil, errors.New("'csr filename' cannot be empty")
-	}
-
-	s.Infof("csr file path: %q", config.CSRFilePath())
-
-	if config.KeepLostClients != 0 && (config.KeepLostClients.Nanoseconds() < MinKeepLostClients.Nanoseconds() ||
-		config.KeepLostClients.Nanoseconds() > MaxKeepLostClients.Nanoseconds()) {
-		return nil, fmt.Errorf("expected 'Keep Lost Clients' can be in range [%v, %v], actual: %v", MinKeepLostClients, MaxKeepLostClients, config.KeepLostClients)
 	}
 
 	privateKey, err := initPrivateKey(config.KeySeed)
