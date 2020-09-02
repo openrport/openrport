@@ -181,7 +181,7 @@ func init() {
 	logLevelStr = pFlags.StringP("verbose", "v", "error", "")
 
 	RootCmd.SetUsageFunc(func(*cobra.Command) error {
-		fmt.Printf(clientHelp)
+		fmt.Print(clientHelp)
 		os.Exit(1)
 		return nil
 	})

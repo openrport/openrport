@@ -23,7 +23,7 @@ var jsonCorruptedWithOneClient = fmt.Sprintf("[%s,%s", s1JSON, `
 func TestGetInitState(t *testing.T) {
 	now = nowMockF
 
-	wantS1 := *s1
+	wantS1 := shallowCopy(s1)
 	wantS1.Disconnected = &nowMock
 
 	testCases := []struct {
@@ -50,14 +50,14 @@ func TestGetInitState(t *testing.T) {
 		{
 			descr:           "1 connected, 1 disconnected, 1 obsolete",
 			csrJSONBytes:    jsonWithThreeClients,
-			wantRes:         []*ClientSession{&wantS1, s2},
+			wantRes:         []*ClientSession{wantS1, s2},
 			wantErrContains: "",
 			expiration:      &hour,
 		},
 		{
 			descr:           "1 connected, 2 disconnected with unset expiration",
 			csrJSONBytes:    jsonWithThreeClients,
-			wantRes:         []*ClientSession{&wantS1, s2, s3},
+			wantRes:         []*ClientSession{wantS1, s2, s3},
 			wantErrContains: "",
 			expiration:      nil,
 		},
@@ -71,7 +71,7 @@ func TestGetInitState(t *testing.T) {
 		{
 			descr:           "partially corrupted json at the end, valid 1 connected client",
 			csrJSONBytes:    jsonCorruptedWithOneClient,
-			wantRes:         []*ClientSession{&wantS1},
+			wantRes:         []*ClientSession{wantS1},
 			wantErrContains: "failed to parse client session",
 			expiration:      &hour,
 		},

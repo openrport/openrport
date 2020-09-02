@@ -42,8 +42,8 @@ type ClientSession struct {
 	User       *chshare.User   `json:"-"`
 	Logger     *chshare.Logger `json:"-"`
 
-	tunnelIDAutoIncrement int64      `json:"-"`
-	lock                  sync.Mutex `json:"-"`
+	tunnelIDAutoIncrement int64
+	lock                  sync.Mutex
 }
 
 // Obsolete returns true if a given client session was disconnected longer than a given duration.
