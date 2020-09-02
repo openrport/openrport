@@ -21,29 +21,6 @@ import (
 	chshare "github.com/cloudradar-monitoring/rport/share"
 )
 
-type ConnectionOptions struct {
-	KeepAlive        time.Duration
-	MaxRetryCount    int
-	MaxRetryInterval time.Duration
-	Headers          http.Header
-}
-
-//Config represents a client configuration
-type Config struct {
-	Fingerprint string
-	Auth        string
-	Connection  ConnectionOptions
-	Server      string
-	Proxy       string
-	ID          string
-	Name        string
-	Tags        []string
-	Remotes     []string
-
-	LogOutput *os.File
-	LogLevel  chshare.LogLevel
-}
-
 //Client represents a client instance
 type Client struct {
 	*chshare.Logger
@@ -231,7 +208,7 @@ func (c *Client) connectionLoop() {
 				}
 			}
 		}
-		wsConn, _, err := d.Dial(c.server, c.connOptions.Headers)
+		wsConn, _, err := d.Dial(c.server, c.connOptions.GetHeaders())
 		if err != nil {
 			connerr = err
 			continue

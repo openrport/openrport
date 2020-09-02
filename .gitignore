@@ -7,3 +7,5 @@ rport.exe
 rportd
 rportd.exe
 deploy.sh
+rport.conf
+rportd.conf

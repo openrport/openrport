@@ -16,8 +16,7 @@ func TestCustomHeaders(t *testing.T) {
 	}))
 	// Close the server when test finishes
 	defer server.Close()
-	headers := http.Header{}
-	headers.Set("Foo", "Bar")
+
 	config := Config{
 		Fingerprint: "",
 		Auth:        "",
@@ -25,10 +24,14 @@ func TestCustomHeaders(t *testing.T) {
 			KeepAlive:        time.Second,
 			MaxRetryCount:    0,
 			MaxRetryInterval: time.Second,
-			Headers:          headers,
+			HeadersRaw:       []string{"Foo: Bar"},
 		},
 		Server:  server.URL,
 		Remotes: []string{"192.168.0.5:3000:google.com:80"},
+	}
+	err := config.ParseAndValidate()
+	if err != nil {
+		log.Fatal(err)
 	}
 	c, err := NewClient(&config)
 	if err != nil {

@@ -26,17 +26,48 @@ func ParseLogLevel(str string) (LogLevel, error) {
 	return LogLevelError, fmt.Errorf("invalid log level")
 }
 
+type LogOutput struct {
+	File     *os.File
+	filePath string
+}
+
+func NewLogOutput(filePath string) LogOutput {
+	return LogOutput{
+		filePath: filePath,
+	}
+}
+
+func (o *LogOutput) Start() error {
+	if o.filePath == "" {
+		o.File = os.Stdout
+		return nil
+	}
+
+	var err error
+	o.File, err = os.OpenFile(o.filePath, os.O_WRONLY|os.O_CREATE|os.O_APPEND, 0644)
+	if err != nil {
+		return fmt.Errorf("can't open log file %s: %s", o.filePath, err)
+	}
+	return nil
+}
+
+func (o *LogOutput) Shutdown() {
+	if o.File != nil && o.File != os.Stdout {
+		_ = o.File.Close()
+	}
+}
+
 type Logger struct {
 	prefix string
 	logger *log.Logger
-	output *os.File
+	output LogOutput
 	level  LogLevel
 }
 
-func NewLogger(prefix string, output *os.File, level LogLevel) *Logger {
+func NewLogger(prefix string, output LogOutput, level LogLevel) *Logger {
 	l := &Logger{
 		prefix: prefix,
-		logger: log.New(output, "", log.Ldate|log.Ltime),
+		logger: log.New(output.File, "", log.Ldate|log.Ltime),
 		output: output,
 		level:  level,
 	}
