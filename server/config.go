@@ -7,6 +7,7 @@ import (
 	"fmt"
 	"net/http"
 	"net/url"
+	"os"
 	"time"
 
 	mapset "github.com/deckarep/golang-set"
@@ -23,20 +24,34 @@ type APIConfig struct {
 	DocRoot   string `mapstructure:"doc_root"`
 }
 
+const (
+	MinKeepLostClients = time.Second
+	MaxKeepLostClients = 7 * 24 * time.Hour
+)
+
 type Config struct {
 	LogOutput chshare.LogOutput `mapstructure:"log_file"`
 	LogLevel  chshare.LogLevel  `mapstructure:"log_level"`
 
-	ListenAddress    string    `mapstructure:"address"`
-	URL              string    `mapstructure:"url"`
-	KeySeed          string    `mapstructure:"key_seed"`
-	AuthFile         string    `mapstructure:"auth_file"`
-	Auth             string    `mapstructure:"auth"`
-	Proxy            string    `mapstructure:"proxy"`
-	API              APIConfig `mapstructure:"api"`
-	ExcludedPortsRaw []string  `mapstructure:"excluded_ports"`
+	ListenAddress    string        `mapstructure:"address"`
+	URL              string        `mapstructure:"url"`
+	KeySeed          string        `mapstructure:"key_seed"`
+	AuthFile         string        `mapstructure:"auth_file"`
+	Auth             string        `mapstructure:"auth"`
+	Proxy            string        `mapstructure:"proxy"`
+	API              APIConfig     `mapstructure:"api"`
+	ExcludedPortsRaw []string      `mapstructure:"excluded_ports"`
+	DataDir          string        `mapstructure:"data_dir"`
+	CSRFileName      string        `mapstructure:"csr_file_name"`
+	KeepLostClients  time.Duration `mapstructure:"keep_lost_clients"`
+	SaveClients      time.Duration `mapstructure:"save_clients_interval"`
+	CleanupClients   time.Duration `mapstructure:"cleanup_clients_interval"`
 
 	excludedPorts mapset.Set
+}
+
+func (c *Config) CSRFilePath() string {
+	return c.DataDir + string(os.PathSeparator) + c.CSRFileName
 }
 
 func (c *Config) InitRequestLogOptions() *requestlog.Options {
@@ -48,7 +63,7 @@ func (c *Config) InitRequestLogOptions() *requestlog.Options {
 	return &o
 }
 
-func (c *Config) GetExcludedPorts() mapset.Set {
+func (c *Config) ExcludedPorts() mapset.Set {
 	return c.excludedPorts
 }
 
@@ -79,6 +94,19 @@ func (c *Config) ParseAndValidate() error {
 		if err != nil {
 			return err
 		}
+	}
+
+	if c.DataDir == "" {
+		return errors.New("'data directory path' cannot be empty")
+	}
+
+	if c.CSRFileName == "" {
+		return errors.New("'csr filename' cannot be empty")
+	}
+
+	if c.KeepLostClients != 0 && (c.KeepLostClients.Nanoseconds() < MinKeepLostClients.Nanoseconds() ||
+		c.KeepLostClients.Nanoseconds() > MaxKeepLostClients.Nanoseconds()) {
+		return fmt.Errorf("expected 'Keep Lost Clients' can be in range [%v, %v], actual: %v", MinKeepLostClients, MaxKeepLostClients, c.KeepLostClients)
 	}
 
 	return nil

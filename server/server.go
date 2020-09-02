@@ -52,7 +52,7 @@ func NewServer(config *Config, repo *sessions.ClientSessionRepository) (*Server,
 	s.Infof("Fingerprint %s", fingerprint)
 
 	sessionService := NewSessionService(
-		ports.NewPortDistributor(config.GetExcludedPorts()),
+		ports.NewPortDistributor(config.ExcludedPorts()),
 		repo,
 	)
 

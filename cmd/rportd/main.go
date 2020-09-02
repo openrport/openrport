@@ -94,7 +94,7 @@ var serverHelp = `
     interval to clean up internal storage from obsolete disconnected clients. By default,
     5 minutes is used.  It can contain "h"(hours), "m"(minutes), "s"(seconds).
 
-    --csr-filename, Defines a file name in --data-dir directory to store active and
+    --csr-file-name, Defines a file name in --data-dir directory to store active and
     disconnected clients. By default, "csr.json" is used.
 
     --api-jwt-secret, Defines JWT secret used to generate new tokens.
@@ -141,11 +141,11 @@ func init() {
 	pFlags.StringP("log-file", "l", "", "")
 	pFlags.StringP("verbose", "v", "", "")
 	pFlags.StringSliceP("exclude-ports", "e", []string{}, "")
-	pFlags.StringVar(&cfg.DataDir, "data-dir", chserver.DefaultDataDirectory, "")
-	pFlags.StringVar(&cfg.CSRFileName, "csr-filename", DefaultCSRFileName, "")
-	pFlags.DurationVar(&cfg.KeepLostClients, "keep-lost-clients", 0, "")
-	pFlags.DurationVar(&cfg.SaveClients, "save-clients-interval", DefaultCacheClientsInterval, "")
-	pFlags.DurationVar(&cfg.CleanupClients, "cleanup-clients-interval", DefaultCleanClientsInterval, "")
+	pFlags.String("data-dir", chserver.DefaultDataDirectory, "")
+	pFlags.String("csr-file-name", DefaultCSRFileName, "")
+	pFlags.Duration("keep-lost-clients", 0, "")
+	pFlags.Duration("save-clients-interval", DefaultCacheClientsInterval, "")
+	pFlags.Duration("cleanup-clients-interval", DefaultCleanClientsInterval, "")
 
 	cfgPath = pFlags.StringP("config", "c", "", "")
 
@@ -163,27 +163,32 @@ func init() {
 	viperCfg.SetDefault("excluded_ports", "0-1000")
 
 	// map config fields to CLI args:
-	_ = viperCfg.BindPFlag("log_file", pFlags.Lookup("log-file"))
-	_ = viperCfg.BindPFlag("log_level", pFlags.Lookup("verbose"))
-	_ = viperCfg.BindPFlag("address", pFlags.Lookup("addr"))
-	_ = viperCfg.BindPFlag("url", pFlags.Lookup("url"))
-	_ = viperCfg.BindPFlag("key_seed", pFlags.Lookup("key"))
-	_ = viperCfg.BindPFlag("auth_file", pFlags.Lookup("authfile"))
-	_ = viperCfg.BindPFlag("auth", pFlags.Lookup("auth"))
-	_ = viperCfg.BindPFlag("proxy", pFlags.Lookup("proxy"))
-	_ = viperCfg.BindPFlag("api.address", pFlags.Lookup("api-addr"))
-	_ = viperCfg.BindPFlag("api.auth", pFlags.Lookup("api-auth"))
-	_ = viperCfg.BindPFlag("api.jwt_secret", pFlags.Lookup("api-jwt-secret"))
-	_ = viperCfg.BindPFlag("api.doc_root", pFlags.Lookup("api-doc-root"))
-	_ = viperCfg.BindPFlag("excluded_ports", pFlags.Lookup("exclude-ports"))
+	viperCfg.BindPFlag("log_file", pFlags.Lookup("log-file"))
+	viperCfg.BindPFlag("log_level", pFlags.Lookup("verbose"))
+	viperCfg.BindPFlag("address", pFlags.Lookup("addr"))
+	viperCfg.BindPFlag("url", pFlags.Lookup("url"))
+	viperCfg.BindPFlag("key_seed", pFlags.Lookup("key"))
+	viperCfg.BindPFlag("auth_file", pFlags.Lookup("authfile"))
+	viperCfg.BindPFlag("auth", pFlags.Lookup("auth"))
+	viperCfg.BindPFlag("proxy", pFlags.Lookup("proxy"))
+	viperCfg.BindPFlag("api.address", pFlags.Lookup("api-addr"))
+	viperCfg.BindPFlag("api.auth", pFlags.Lookup("api-auth"))
+	viperCfg.BindPFlag("api.jwt_secret", pFlags.Lookup("api-jwt-secret"))
+	viperCfg.BindPFlag("api.doc_root", pFlags.Lookup("api-doc-root"))
+	viperCfg.BindPFlag("excluded_ports", pFlags.Lookup("exclude-ports"))
+	viperCfg.BindPFlag("data_dir", pFlags.Lookup("data-dir"))
+	viperCfg.BindPFlag("csr_file_name", pFlags.Lookup("csr-file-name"))
+	viperCfg.BindPFlag("keep_lost_clients", pFlags.Lookup("keep-lost-clients"))
+	viperCfg.BindPFlag("save_clients_interval", pFlags.Lookup("save-clients-interval"))
+	viperCfg.BindPFlag("cleanup_clients_interval", pFlags.Lookup("cleanup-clients-interval"))
 
 	// map ENV variables
-	_ = viperCfg.BindEnv("address", "RPORT_ADDR")
-	_ = viperCfg.BindEnv("url", "RPORT_URL")
-	_ = viperCfg.BindEnv("key_seed", "RPORT_KEY")
-	_ = viperCfg.BindEnv("api.address", "RPORT_API_ADDR")
-	_ = viperCfg.BindEnv("api.auth", "RPORT_API_AUTH")
-	_ = viperCfg.BindEnv("api.jwt_secret", "RPORT_JWT_SECRET")
+	viperCfg.BindEnv("address", "RPORT_ADDR")
+	viperCfg.BindEnv("url", "RPORT_URL")
+	viperCfg.BindEnv("key_seed", "RPORT_KEY")
+	viperCfg.BindEnv("api.address", "RPORT_API_ADDR")
+	viperCfg.BindEnv("api.auth", "RPORT_API_AUTH")
+	viperCfg.BindEnv("api.jwt_secret", "RPORT_JWT_SECRET")
 }
 
 func main() {
@@ -210,10 +215,6 @@ func runMain(*cobra.Command, []string) {
 	err := tryDecodeConfig()
 	if err != nil {
 		log.Fatal(err)
-	}
-
-	if cfg.DocRoot != "" && *apiAddr == "" {
-		log.Fatal("To use --api-doc-root you need to specify API address (see --api-addr)")
 	}
 
 	err = cfg.ParseAndValidate()
@@ -249,6 +250,7 @@ func runMain(*cobra.Command, []string) {
 		log.Fatal(err)
 	}
 
+	s.Infof("data directory path: %q", cfg.DataDir)
 	// create --data-dir path if not exist
 	if makedirErr := os.MkdirAll(cfg.DataDir, os.ModePerm); makedirErr != nil {
 		log.Printf("ERROR: failed to create --data-dir %q: %v\n", cfg.DataDir, makedirErr)
@@ -256,8 +258,13 @@ func runMain(*cobra.Command, []string) {
 
 	go chshare.GoStats()
 	if keepLostClients != nil {
+		s.Infof("Variable to keep lost clients is set. Enables keeping disconnected clients for period: %v", cfg.KeepLostClients)
+		s.Infof("csr file path: %q", cfg.CSRFilePath())
+
 		go scheduler.Run(ctx, s.Logger, sessions.NewCleanupTask(s.Logger, repo), cfg.CleanupClients)
+		s.Infof("Task to cleanup obsolete clients will run with interval %v", cfg.CleanupClients)
 		go scheduler.Run(ctx, s.Logger, sessions.NewSaveToFileTask(s.Logger, repo, cfg.CSRFilePath()), cfg.SaveClients)
+		s.Infof("Task to save clients to disk will run with interval %v", cfg.SaveClients)
 	}
 
 	if err = s.Run(); err != nil {

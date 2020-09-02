@@ -19,7 +19,7 @@ var (
 	s2DisconnectedTime, _ = time.Parse(time.RFC3339, "2020-08-19T13:04:23+03:00")
 	s3DisconnectedTime    = s2DisconnectedTime.Add(-time.Hour)
 	s4DisconnectedTime    = s2DisconnectedTime.Add(-2 * time.Hour)
-	testLog               = chshare.NewLogger("server", os.Stdout, chshare.LogLevelDebug)
+	testLog               = chshare.NewLogger("server", chshare.LogOutput{File: os.Stdout}, chshare.LogLevelDebug)
 )
 
 var s1JSON = `{
