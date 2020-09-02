@@ -191,3 +191,24 @@ var s4 = &ClientSession{
 	Tunnels:      make([]*Tunnel, 0),
 	Disconnected: &s4DisconnectedTime,
 }
+
+// shallowCopy is used only in tests.
+func shallowCopy(s *ClientSession) *ClientSession {
+	if s == nil {
+		return nil
+	}
+
+	return &ClientSession{
+		ID:           s.ID,
+		Name:         s.Name,
+		OS:           s.OS,
+		Hostname:     s.Hostname,
+		IPv4:         append([]string{}, s.IPv4...),
+		IPv6:         append([]string{}, s.IPv6...),
+		Tags:         append([]string{}, s.Tags...),
+		Version:      s.Version,
+		Address:      s.Address,
+		Tunnels:      append([]*Tunnel{}, s.Tunnels...),
+		Disconnected: s.Disconnected,
+	}
+}
