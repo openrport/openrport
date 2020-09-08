@@ -32,6 +32,10 @@ func (s *SessionService) Count() (int, error) {
 	return s.repo.Count()
 }
 
+func (s *SessionService) GetByID(id string) (*sessions.ClientSession, error) {
+	return s.repo.GetByID(id)
+}
+
 func (s *SessionService) GetActiveByID(id string) (*sessions.ClientSession, error) {
 	return s.repo.GetActiveByID(id)
 }
@@ -89,6 +93,7 @@ func (s *SessionService) StartSessionTunnels(session *sessions.ClientSession, re
 			}
 			remote.LocalPort = strconv.Itoa(port)
 			remote.LocalHost = "0.0.0.0"
+			remote.LocalPortRandom = true
 		}
 
 		t, err := session.StartTunnel(remote, acl)

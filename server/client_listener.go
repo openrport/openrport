@@ -217,14 +217,23 @@ func (cl *ClientListener) handleWebsocket(w http.ResponseWriter, req *http.Reque
 	}
 
 	// if session id is in use, deny connection
-	session, err := cl.sessionService.GetActiveByID(sid)
+	session, err := cl.sessionService.GetByID(sid)
 	if err != nil {
 		failed(cl.FormatError("failed to get session by id `%s`", sid))
 		return
 	}
 	if session != nil {
-		failed(cl.FormatError("session id `%s` is already in use", sid))
-		return
+		if session.Disconnected == nil {
+			failed(cl.FormatError("session id `%s` is already in use", sid))
+			return
+		}
+
+		oldTunnels := GetTunnelsToReestablish(getRemotes(session.Tunnels), connRequest.Remotes)
+		clog.Infof("Tunnels to create %d: %v", len(connRequest.Remotes), connRequest.Remotes)
+		if len(oldTunnels) > 0 {
+			clog.Infof("Old tunnels to re-establish %d: %v", len(oldTunnels), oldTunnels)
+			connRequest.Remotes = append(connRequest.Remotes, oldTunnels...)
+		}
 	}
 
 	// pull the users from the session map
@@ -256,6 +265,70 @@ func (cl *ClientListener) handleWebsocket(w http.ResponseWriter, req *http.Reque
 	if err != nil {
 		cl.Errorf("could not terminate client session: %s", err)
 	}
+}
+
+func getRemotes(tunnels []*sessions.Tunnel) []*chshare.Remote {
+	r := make([]*chshare.Remote, 0, len(tunnels))
+	for _, t := range tunnels {
+		r = append(r, &t.Remote)
+	}
+	return r
+}
+
+// GetTunnelsToReestablish returns old tunnels that should be re-establish taking into account new tunnels.
+func GetTunnelsToReestablish(old, new []*chshare.Remote) []*chshare.Remote {
+	if len(new) >= len(old) {
+		return nil
+	}
+
+	// check if old tunnels contain all new tunnels
+	// NOTE: old tunnels contain random port if local was not specified
+	oldMarked := make([]bool, len(old))
+
+	// at first check new with local specified. It's done at first to cover a case when a new tunnel was specified
+	// with a port that is among random ports in old tunnels.
+loop1:
+	for _, curNew := range new {
+		if curNew.IsLocalSpecified() {
+			for i, curOld := range old {
+				if !oldMarked[i] && curNew.String() == curOld.String() {
+					oldMarked[i] = true
+					continue loop1
+				}
+			}
+			return nil
+		}
+	}
+
+	// then check without local
+loop2:
+	for _, curNew := range new {
+		if !curNew.IsLocalSpecified() {
+			for i, curOld := range old {
+				if !oldMarked[i] && curOld.LocalPortRandom && curNew.Remote() == curOld.Remote() {
+					oldMarked[i] = true
+					continue loop2
+				}
+			}
+			return nil
+		}
+	}
+
+	// add tunnels that left among old
+	var res []*chshare.Remote
+	for i, marked := range oldMarked {
+		if !marked {
+			r := *old[i]
+			// if it was random then set up zero values
+			if r.LocalPortRandom {
+				r.LocalHost = ""
+				r.LocalPort = ""
+			}
+			res = append(res, &r)
+		}
+	}
+
+	return res
 }
 
 func (cl *ClientListener) replyConnectionSuccess(r *ssh.Request, remotes []*chshare.Remote) {

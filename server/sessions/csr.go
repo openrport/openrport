@@ -61,6 +61,17 @@ func (s *ClientSessionRepository) Count() (int, error) {
 	return len(sessions), err
 }
 
+// GetActiveByID returns non-obsolete active or disconnected client session by a given id.
+func (s *ClientSessionRepository) GetByID(id string) (*ClientSession, error) {
+	s.mu.RLock()
+	defer s.mu.RUnlock()
+	session := s.sessions[id]
+	if session != nil && session.Obsolete(s.KeepLostClients) {
+		return nil, nil
+	}
+	return session, nil
+}
+
 // GetActiveByID returns an active client session by a given id.
 func (s *ClientSessionRepository) GetActiveByID(id string) (*ClientSession, error) {
 	s.mu.RLock()

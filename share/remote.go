@@ -22,10 +22,11 @@ import (
 //     remote google.com:80
 
 type Remote struct {
-	LocalHost  string `json:"lhost"`
-	LocalPort  string `json:"lport"`
-	RemoteHost string `json:"rhost"`
-	RemotePort string `json:"rport"`
+	LocalHost       string `json:"lhost"`
+	LocalPort       string `json:"lport"`
+	RemoteHost      string `json:"rhost"`
+	RemotePort      string `json:"rport"`
+	LocalPortRandom bool   `json:"lport_random"`
 }
 
 func DecodeRemote(s string) (*Remote, error) {
@@ -79,7 +80,7 @@ func isHost(s string) bool {
 
 //implement Stringer
 func (r *Remote) String() string {
-	return r.LocalHost + ":" + r.LocalPort + "=>" + r.Remote()
+	return r.LocalHost + ":" + r.LocalPort + ":" + r.Remote()
 }
 
 func (r *Remote) Remote() string {
