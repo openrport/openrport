@@ -101,6 +101,10 @@ var clientHelp = `
 
     --log-file, -l, Specifies log file path. (defaults to empty string: log printed to stdout)
 
+    --config, -c, An optional arg to define a path to a config file. If it is set then
+    configuration will be loaded from the file. Note: command arguments and env variables will override them.
+    Config file should be in TOML format. You can find an example "rport.example.conf" in the release archive.
+
     --help, This help text
 
     --version, Print version info and exit

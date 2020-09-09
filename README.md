@@ -45,7 +45,7 @@ We provide [pre-compiled binaries](https://github.com/cloudradar-monitoring/rpor
 
 Minimal setup:
 1) Execute `./rportd --addr 0.0.0.0:9999` on a server.
-1) Execute `./rport <SERVER_IP>:9999 3389:3389` on a client.
+1) Execute `./rport <SERVER_IP>:9999 3389:3389` on a client or `./rport <SERVER_IP>:9999 3389` and the server tunnel port will be randomly chosen for you.
 1) Now end-users can connect to `<SERVER_IP>:3389` (e.g. using Remote Desktop Connection). The connection will be proxied to client machine.
 
 See `./rportd --help` and `./rport --help` for more options, like:
@@ -64,9 +64,9 @@ The server is called node1.example.com in this example.
 
 Install client and server
 ```
-curl -LSs https://github.com/cloudradar-monitoring/rport/releases/download/0.1.6/rport_0.1.6_Linux_x86_64.tar.gz|\
+curl -LSs https://github.com/cloudradar-monitoring/rport/releases/download/0.1.17/rport_0.1.17_Linux_x86_64.tar.gz|\
 tar vxzf - -C /usr/local/bin/
-````
+```
 
 Create a key for the server instance. Store this key and don't change it. Otherwise, your fingerprint will change and your clients might be rejected. 
 ```
@@ -92,7 +92,7 @@ rportd reads the key from the environment so it does not appear in the process l
 We call the client `client1.local.localdomain`.
 On your client just install the client binary 
 ```
-curl -LSs https://github.com/cloudradar-monitoring/rport/releases/download/0.1.6/rport_0.1.6_Linux_x86_64.tar.gz|\
+curl -LSs https://github.com/cloudradar-monitoring/rport/releases/download/0.1.17/rport_0.1.17_Linux_x86_64.tar.gz|\
 tar vxzf - rport -C /usr/local/bin/
 ```
 
@@ -108,6 +108,163 @@ Copy the fingerprint the server has generated on startup to your clipboard and u
 
 This ensures you connect only to trusted servers. If you omit this step a man in the middle can bring up a rport server and hijack your tunnels.
 If you do ssh or rdp through the tunnel, a hijacked tunnel will not expose your credentials because the data inside the tunnel is still encrypted. But if you use rport for unencrypted protocols like HTTP, sniffing credentials would be possible.
+
+### Config files
+Config files can be used to set up both the rport server and clients. In order to use it an arg `--config`(or `-c`) should be passed to a command with a path to the file. Config examples `rportd.example.conf` and `rport.example.conf` can be found in the release archive or in the source.
+
+NOTE: command arguments and env variables will override values from the config file.
+
+#### Rport server
+In order to load configuration from the file run:
+```
+rportd -c /var/lib/rportd/rportd.conf
+```
+Here is an example of a config file for the server:
+```
+# Specifies log file path
+log_file = "/tmp/rportd.log"
+
+# Specify log level. Values: 'error', 'info', 'debug'.
+# Defaults to 'error'
+log_level = "info"
+
+# Defines the IP address and port the HTTP server listens on.
+address = "0.0.0.0:7777"
+
+# Defines full client connect URL. Defaults to http://{addr}
+url = "http://example.com"
+
+# An optional string to seed the generation of a ECDSA public
+# and private key pair.
+# key_seed = "youknownothing1"
+
+# An optional path to a json file with clients credentials.
+# This is for authentication of the rport tunnel clients.
+# The file should contain a map with clients credentials defined like:
+# {
+#   "<client1-id>": "<password1>"
+#   "<client2-id>": "<password2>"
+# }
+# auth_file = "/etc/rportd/users.json"
+
+# An optional string representing a single client with full access, in the form of <client-id>:<password>.
+# This is equivalent to creating an [auth_file] with {"<client-id>":"<password>"}.
+auth = "user1:1234"
+
+# Specifies another HTTP server to proxy requests to when
+# rportd receives a normal HTTP request
+# proxy = "http://intranet.lan:8080/"
+
+# Defines a list of port numbers or ranges of server ports,
+# that would not be used for automatic port assignment.
+# Defaults to ['1-1000'].
+excluded_ports = [
+  '1-1000',
+  '8888',
+  '8080'
+]
+
+# An optional param to define a local directory path to store internal data.
+# By default, "/var/lib/rportd" is used on Linux, "C:\ProgramData\rportd" is used on Windows.
+#data_dir = "/var/lib/rportd"
+
+# An optional param to define a duration to keep info (sessions, tunnels, etc) about active and disconnected clients.
+# Enables to identify disconnected clients at server restart and to reestablish previous tunnels on reconnect.
+# By default is "0"(is disabled). It can contain "h"(hours), "m"(minutes), "s"(seconds).
+#keep_lost_clients = "1h"
+
+# Applicable only if [keep_lost_clients] is specified. An optional param to define an interval
+# to flush info (sessions, tunnels, etc) about active and disconnected clients to disk.
+# By default, 1 second is used. It can contain "h"(hours), "m"(minutes), "s"(seconds).
+# save_clients_interval = "5s"
+
+# Applicable only if [keep_lost_clients] is specified. An optional param to define an
+# interval to clean up internal storage from obsolete disconnected clients.
+# By default, 5 minutes is used. It can contain "h"(hours), "m"(minutes), "s"(seconds).
+# cleanup-clients-interval = "3m"
+
+# An optional param to define a file name in [data_dir] directory to store info about
+# active and disconnected clients. By default, "csr.json" is used.
+#csr_file_name = "csr.json"
+
+# specify non-empty api.address to enable API support
+[api]
+  # Defines the IP address and port the API server listens on
+  address = "0.0.0.0:9999"
+
+  # Defines <user:password> authentication pair for accessing API
+  auth = "admin:1234"
+
+  # Defines JWT secret used to generate new tokens
+  # jwt_secret = "foobar2"
+
+  # If specified, rportd will serve files from this directory on the same API address
+  # doc_root = "/var/rportd/www"
+```
+
+#### Rport client
+In order to load configuration from the file run:
+```
+rport -c /var/tmp/rport.conf
+```
+Here is an example of a config file for the client:
+```
+# Specifies log file path
+log_file = "/tmp/rport.log"
+
+# Specify log level. Values: 'error', 'info', 'debug'.
+# Defaults to 'error'
+log_level = "info"
+
+# rportd server address
+server = "rportd.lan:9000"
+
+# fingerprint string to perform host-key validation against the server's public key
+# fingerprint = ""
+
+# An optional username and password (client authentication) in the form: "<user>:<pass>"
+auth = "user1:1234"
+
+# An optional HTTP CONNECT or SOCKS5 proxy which will be used to reach the rport server.
+# Authentication can be specified inside the URL
+proxy = "http://admin:password@my-server.com:8081"
+
+# client ID
+id = "client id #1"
+
+# client name
+name = "my_win_vm_1"
+
+# client tags
+tags = ['win', 'server', 'vm']
+
+# remote connections tunneled through the server, each of which come in the form:
+#   <local-interface>:<local-port>:<remote-host>:<remote-port>
+#   or
+#   <remote-host>:<remote-port>
+# sharing <remote-host>:<remote-port> from the client to the server's <local-interface>:<local-port>
+remotes = [
+  '3389:3389',
+  '5050'
+]
+
+[connection]
+  # An optional keepalive interval. You must specify a time with a unit, for example '30s' or '2m'.
+  # Defaults to '0s' (disabled)
+  keep_alive = '30s'
+
+  # Maximum number of times to retry before exiting. Defaults to unlimited (-1)
+  max_retry_count = 10
+
+  # Maximum wait time before retrying after a disconnection. Defaults to 5 minutes
+  max_retry_interval = '5m'
+
+  # Optionally set the 'Host' header (defaults to the host found in the server url)
+  hostname = "myvm1.lan"
+
+  # Other custom headers in the form "HeaderName: HeaderContent"
+  headers = ['User-Agent: test1', 'Authorization: Basic XXXXXX']
+```
 
 ### Run the server with systemd
 Packages for most common distributions and Windows are on our roadmap. In the meantime create a systemd service file in `/etc/systemd/system/rportd.service` with the following lines manually.

@@ -52,18 +52,17 @@ var serverHelp = `
     of man-in-the-middle attacks (defaults to the RPORT_KEY environment
     variable, otherwise a new key is generate each run).
 
-    --authfile, An optional path to a users.json file. This file should
-    be an object with users defined like:
+    --authfile, An optional path to a json file with clients credentials.
+    This is for authentication of the rport tunnel clients.
+    The file should contain a map with clients credentials defined like:
       {
-        "<user:pass>": ["<addr-regex>","<addr-regex>"]
+        "<client1-id>": "<password1>"
+        "<client2-id>": "<password2>"
       }
-    when <user> connects, their <pass> will be verified and then
-    each of the remote addresses will be compared against the list
-    of address regular expressions for a match.
 
-    --auth, An optional string representing a single user with full
-    access, in the form of <user:pass>. This is equivalent to creating an
-    authfile with {"<user:pass>": [""]}.
+    --auth, An optional string representing a single client with full
+    access, in the form of <client-id>:<password>. This is equivalent to creating an
+    authfile with {"<client-id>":"<password>"}.
 
     --proxy, Specifies another HTTP server to proxy requests to when
     rportd receives a normal HTTP request. Useful for hiding rportd in
@@ -76,26 +75,29 @@ var serverHelp = `
     --api-doc-root, Specifies local directory path. If specified, rportd will serve
     files from this directory on the same API address (--api-addr).
 
-    --api-auth, Defines <user:password> authentication pair for accessing API
+    --api-auth, Defines <user>:<password> authentication pair for accessing API
     e.g. "admin:1234". (defaults to the environment variable RPORT_API_AUTH
     and fallsback to empty string: authorization not required).
 
-    --data-dir, Defines a local directory path to store internal data.
+    --data-dir, An optional arg to define a local directory path to store internal data.
     By default, "/var/lib/rportd" is used on Linux, "C:\ProgramData\rportd" is used on Windows.
 
-    --keep-lost-clients, Defines a duration to keep disconnected clients. For example,
-    "--keep-lost-clients=1h30m". It can contain "h"(hours), "m"(minutes), "s"(seconds).
+    --keep-lost-clients, An optional arg to define a duration to keep info(sessions, tunnels, etc)
+    about active and disconnected clients. Enables to identify disconnected clients
+    at server restart and to reestablish previous tunnels on reconnect.
+    By default is "0"(is disabled). For example, "--keep-lost-clients=1h30m".
+    It can contain "h"(hours), "m"(minutes), "s"(seconds).
 
-    --save-clients-interval, Only valid if --keep-lost-clients is specified. Defines an
-    interval to flush info about active and disconnected clients to disk. By default,
-    1 second is used.  It can contain "h"(hours), "m"(minutes), "s"(seconds).
+    --save-clients-interval, Applicable only if --keep-lost-clients is specified. An optional arg to define
+    an interval to flush info (sessions, tunnels, etc) about active and disconnected clients to disk.
+    By default, 1 second is used. It can contain "h"(hours), "m"(minutes), "s"(seconds).
 
-    --cleanup-clients-interval, Only valid if --keep-lost-clients is specified. Defines an
-    interval to clean up internal storage from obsolete disconnected clients. By default,
-    5 minutes is used.  It can contain "h"(hours), "m"(minutes), "s"(seconds).
+    --cleanup-clients-interval, Applicable only if --keep-lost-clients is specified. An optional
+    arg to define an interval to clean up internal storage from obsolete disconnected clients.
+    By default, 5 minutes is used. It can contain "h"(hours), "m"(minutes), "s"(seconds).
 
-    --csr-file-name, Defines a file name in --data-dir directory to store active and
-    disconnected clients. By default, "csr.json" is used.
+    --csr-file-name, An optional arg to define a file name in --data-dir directory to store
+    info about active and disconnected clients. By default, "csr.json" is used.
 
     --api-jwt-secret, Defines JWT secret used to generate new tokens.
     (defaults to the environment variable RPORT_API_JWT_SECRET and fallsback
@@ -104,6 +106,10 @@ var serverHelp = `
     --verbose, -v, Specify log level. Values: "error", "info", "debug" (defaults to "error")
 
     --log-file, -l, Specifies log file path. (defaults to empty string: log printed to stdout)
+
+    --config, -c, An optional arg to define a path to a config file. If it is set then
+    configuration will be loaded from the file. Note: command arguments and env variables will override them.
+    Config file should be in TOML format. You can find an example "rportd.example.conf" in the release archive.
 
     --help, -h, This help text
 
