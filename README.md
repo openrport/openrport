@@ -339,17 +339,27 @@ Most of the time the tunnel wouldn't be used. Network resources would be wasted 
 Rport provides the option to establish tunnels from the server only when you need them.
 
 #### Step 1: activate the API
-The internal management API is disabled by default. The active extend your rportd configuration file `/etc/default/rport` like this example. This opens the API and a username and password for HTTP basic auth is set. 
-```
-RPORT_KEY=<YOUR_KEY>
-# Listen for rport clients connections
-RPORT_ADDR=0.0.0.0:19075
-
-# Open the management API
-RPORT_API_ADDR=127.0.0.1:3000
-RPORT_API_AUTH=admin:foobaz
-```
-Restart the rportd after any changes to the configuration.
+The internal management API is disabled by default. It can be activated in one of two ways:
+1) Use a config file that is described in ["Config files"](https://github.com/cloudradar-monitoring/rport#rport-server) section. Set up `[api]` config params. For example:
+   ```
+   # specify non-empty api.address to enable API support
+   [api]
+     # Defines the IP address and port the API server listens on
+     address = "127.0.0.1:3000"
+     # Defines <user:password> authentication pair for accessing API
+     auth = "admin:foobaz"
+   ```
+2) Extend your rportd configuration file `/etc/default/rport` like this example: 
+   ```
+   RPORT_KEY=<YOUR_KEY>
+   # Listen for rport clients connections
+   RPORT_ADDR=0.0.0.0:19075
+   
+   # Open the management API
+   RPORT_API_ADDR=127.0.0.1:3000
+   RPORT_API_AUTH=admin:foobaz
+   ```
+This opens the API and a username and password for HTTP basic auth is set. Restart the rportd after any changes to the configuration.
 
 #### Step 2: Connect a client
 Invoke the client without specifying a tunnel but with some extra data.  
