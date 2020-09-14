@@ -131,7 +131,8 @@ func (al *APIListener) handleAPIRequest(w http.ResponseWriter, r *http.Request) 
 	}
 
 	if al.docRoot != "" {
-		middleware.Redirect404(http.FileServer(http.Dir(al.docRoot))).ServeHTTP(w, r)
+		redirectURL := al.docRoot + string(os.PathSeparator) + "index.html"
+		middleware.Redirect404(http.FileServer(http.Dir(al.docRoot)), redirectURL).ServeHTTP(w, r)
 		return
 	}
 

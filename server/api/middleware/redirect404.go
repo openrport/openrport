@@ -24,13 +24,13 @@ func (w *NotFoundRedirectResponseWriter) Write(p []byte) (int, error) {
 	return len(p), nil // lie that it was successfully written
 }
 
-func Redirect404(h http.Handler) http.HandlerFunc {
+func Redirect404(h http.Handler, redirectURL string) http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
 		newW := &NotFoundRedirectResponseWriter{ResponseWriter: w}
 		h.ServeHTTP(newW, r)
 		if newW.status == http.StatusNotFound {
-			log.Printf("Redirecting %s to /index.html.", r.RequestURI)
-			http.Redirect(w, r, "/index.html", http.StatusOK)
+			log.Printf("Redirecting %q to %q.", r.RequestURI, redirectURL)
+			http.Redirect(w, r, redirectURL, http.StatusOK)
 		}
 	}
 }
