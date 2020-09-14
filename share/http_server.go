@@ -16,9 +16,9 @@ type HTTPServer struct {
 }
 
 //NewHTTPServer creates a new HTTPServer
-func NewHTTPServer() *HTTPServer {
+func NewHTTPServer(maxHeaderBytes int) *HTTPServer {
 	return &HTTPServer{
-		Server:   &http.Server{},
+		Server:   &http.Server{MaxHeaderBytes: maxHeaderBytes},
 		listener: nil,
 		running:  make(chan error, 1),
 	}

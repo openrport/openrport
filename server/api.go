@@ -11,6 +11,7 @@ import (
 	"github.com/gorilla/mux"
 
 	"github.com/cloudradar-monitoring/rport/server/api"
+	"github.com/cloudradar-monitoring/rport/server/api/middleware"
 	"github.com/cloudradar-monitoring/rport/server/sessions"
 	chshare "github.com/cloudradar-monitoring/rport/share"
 )
@@ -70,6 +71,14 @@ func (al *APIListener) initRouter() {
 	// all routes defined below will not require authorization
 	sub.HandleFunc("/login", al.handlePostLogin).Methods(http.MethodPost)
 	sub.HandleFunc("/login", al.handleDeleteLogin).Methods(http.MethodDelete)
+
+	// add max bytes middleware
+	if al.authorizationOn {
+		_ = sub.Walk(func(route *mux.Route, router *mux.Router, ancestors []*mux.Route) error {
+			route.HandlerFunc(middleware.MaxBytes(route.GetHandler(), al.maxRequestBytes))
+			return nil
+		})
+	}
 
 	al.router = r
 }

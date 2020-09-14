@@ -33,6 +33,7 @@ type APIListener struct {
 	requestLogOptions *requestlog.Options
 	authorizationOn   bool
 	userSrv           UserService
+	maxRequestBytes   int64
 }
 
 type UserService interface {
@@ -67,11 +68,12 @@ func NewAPIListener(config *Config, s *SessionService, fingerprint string) (*API
 		jwtSecret:         config.API.JWTSecret,
 		sessionService:    s,
 		apiSessionRepo:    NewAPISessionRepository(),
-		httpServer:        chshare.NewHTTPServer(),
+		httpServer:        chshare.NewHTTPServer(int(config.MaxRequestBytes)),
 		docRoot:           config.API.DocRoot,
 		requestLogOptions: config.InitRequestLogOptions(),
 		userSrv:           users.NewUserRepository(authUsers),
 		authorizationOn:   authorizationOn,
+		maxRequestBytes:   config.MaxRequestBytes,
 	}
 
 	a.initRouter()

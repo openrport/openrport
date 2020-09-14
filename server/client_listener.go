@@ -15,6 +15,7 @@ import (
 	"github.com/jpillora/requestlog"
 	"golang.org/x/crypto/ssh"
 
+	"github.com/cloudradar-monitoring/rport/server/api/middleware"
 	"github.com/cloudradar-monitoring/rport/server/sessions"
 	chshare "github.com/cloudradar-monitoring/rport/share"
 )
@@ -31,6 +32,7 @@ type ClientListener struct {
 	authenticatedUsers *chshare.Users
 	users              *chshare.UserIndex
 	requestLogOptions  *requestlog.Options
+	maxRequestBytes    int64
 
 	sessionIndexAutoIncrement int32
 }
@@ -44,10 +46,11 @@ var upgrader = websocket.Upgrader{
 func NewClientListener(config *Config, s *SessionService, privateKey ssh.Signer) (*ClientListener, error) {
 	cl := &ClientListener{
 		sessionService:     s,
-		httpServer:         chshare.NewHTTPServer(),
+		httpServer:         chshare.NewHTTPServer(int(config.MaxRequestBytes)),
 		authenticatedUsers: chshare.NewUsers(),
 		Logger:             chshare.NewLogger("client-listener", config.LogOutput, config.LogLevel),
 		requestLogOptions:  config.InitRequestLogOptions(),
+		maxRequestBytes:    config.MaxRequestBytes,
 	}
 	cl.users = chshare.NewUserIndex(cl.Logger)
 	if config.AuthFile != "" {
@@ -117,7 +120,7 @@ func (cl *ClientListener) Start(listenAddr string) error {
 	}
 	cl.Infof("Listening on %s...", listenAddr)
 
-	h := http.Handler(http.HandlerFunc(cl.handleClient))
+	h := http.Handler(middleware.MaxBytes(http.HandlerFunc(cl.handleClient), cl.maxRequestBytes))
 	h = requestlog.WrapWith(h, *cl.requestLogOptions)
 	return cl.httpServer.GoListenAndServe(listenAddr, h)
 }
@@ -191,6 +194,10 @@ func (cl *ClientListener) handleWebsocket(w http.ResponseWriter, req *http.Reque
 	}
 	if r.Type != "new_connection" {
 		failed(cl.FormatError("expecting connection request"))
+		return
+	}
+	if len(r.Payload) > int(cl.maxRequestBytes) {
+		failed(cl.FormatError("request data exceeds the limit of %d bytes, actual size: %d", cl.maxRequestBytes, len(r.Payload)))
 		return
 	}
 	connRequest, err := chshare.DecodeConnectionRequest(r.Payload)

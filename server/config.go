@@ -47,6 +47,7 @@ type Config struct {
 	KeepLostClients  time.Duration `mapstructure:"keep_lost_clients"`
 	SaveClients      time.Duration `mapstructure:"save_clients_interval"`
 	CleanupClients   time.Duration `mapstructure:"cleanup_clients_interval"`
+	MaxRequestBytes  int64         `mapstructure:"max_request_bytes"`
 
 	excludedPorts mapset.Set
 }

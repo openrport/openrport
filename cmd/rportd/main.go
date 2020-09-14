@@ -20,6 +20,7 @@ const (
 	DefaultCSRFileName          = "csr.json"
 	DefaultCacheClientsInterval = 1 * time.Second
 	DefaultCleanClientsInterval = 5 * time.Minute
+	DefaultMaxRequestBytes      = 2 * 1024 // 2 KB
 )
 
 var serverHelp = `
@@ -117,6 +118,9 @@ var serverHelp = `
     (defaults to the environment variable RPORT_API_JWT_SECRET and fallsback
     to auto-generated value).
 
+    --max-request-bytes, An optional arg to define a limit for data that can be sent by rport clients and API requests.
+    By default is set to 2048(2Kb).
+
     --verbose, -v, Specify log level. Values: "error", "info", "debug" (defaults to "error")
 
     --log-file, -l, Specifies log file path. (defaults to empty string: log printed to stdout)
@@ -155,6 +159,7 @@ func init() {
 	pFlags.String("auth", "", "")
 	pFlags.String("proxy", "", "")
 	pFlags.String("api-addr", "", "")
+	pFlags.String("api-authfile", "", "")
 	pFlags.String("api-auth", "", "")
 	pFlags.String("api-jwt-secret", "", "")
 	pFlags.String("api-doc-root", "", "")
@@ -166,7 +171,7 @@ func init() {
 	pFlags.Duration("keep-lost-clients", 0, "")
 	pFlags.Duration("save-clients-interval", DefaultCacheClientsInterval, "")
 	pFlags.Duration("cleanup-clients-interval", DefaultCleanClientsInterval, "")
-	pFlags.String("api-authfile", "", "")
+	pFlags.Int64("max-request-bytes", DefaultMaxRequestBytes, "")
 
 	cfgPath = pFlags.StringP("config", "c", "", "")
 
@@ -204,6 +209,7 @@ func init() {
 	_ = viperCfg.BindPFlag("keep_lost_clients", pFlags.Lookup("keep-lost-clients"))
 	_ = viperCfg.BindPFlag("save_clients_interval", pFlags.Lookup("save-clients-interval"))
 	_ = viperCfg.BindPFlag("cleanup_clients_interval", pFlags.Lookup("cleanup-clients-interval"))
+	_ = viperCfg.BindPFlag("max_request_bytes", pFlags.Lookup("max-request-bytes"))
 
 	// map ENV variables
 	_ = viperCfg.BindEnv("address", "RPORT_ADDR")
