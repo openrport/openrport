@@ -6,6 +6,7 @@ import (
 	"fmt"
 	"net/http"
 	"strconv"
+	"strings"
 	"time"
 
 	"github.com/gorilla/mux"
@@ -14,6 +15,10 @@ import (
 	"github.com/cloudradar-monitoring/rport/server/api/middleware"
 	"github.com/cloudradar-monitoring/rport/server/sessions"
 	chshare "github.com/cloudradar-monitoring/rport/share"
+)
+
+const (
+	queryParamSort = "sort"
 )
 
 // default API response container
@@ -238,13 +243,50 @@ func (al *APIListener) handleGetStatus(w http.ResponseWriter, req *http.Request)
 }
 
 func (al *APIListener) handleGetSessions(w http.ResponseWriter, req *http.Request) {
+	sortFunc, desc, err := getCorrespondingSortFunc(req.URL.Query().Get(queryParamSort))
+	if err != nil {
+		al.jsonErrorResponse(w, http.StatusBadRequest, err)
+		return
+	}
+
 	clientSessions, err := al.sessionService.GetAll()
 	if err != nil {
 		al.jsonErrorResponse(w, http.StatusInternalServerError, err)
 		return
 	}
+
+	sortFunc(clientSessions, desc)
+
 	response := apiResponse{Data: clientSessions}
 	al.writeJSONResponse(w, http.StatusOK, response)
+}
+
+func getCorrespondingSortFunc(sortStr string) (sortFunc func(a []*sessions.ClientSession, desc bool), desc bool, err error) {
+	var sortField string
+	if strings.HasPrefix(sortStr, "-") {
+		desc = true
+		sortField = sortStr[1:]
+	} else {
+		sortField = sortStr
+	}
+
+	switch sortField {
+	case "":
+		sortFunc = sessions.SortByID
+	case "id":
+		sortFunc = sessions.SortByID
+	case "name":
+		sortFunc = sessions.SortByName
+	case "os":
+		sortFunc = sessions.SortByOS
+	case "hostname":
+		sortFunc = sessions.SortByHostname
+	case "version":
+		sortFunc = sessions.SortByVersion
+	default:
+		err = fmt.Errorf("incorrect format of %q query param", queryParamSort)
+	}
+	return
 }
 
 func (al *APIListener) handlePutSessionTunnel(w http.ResponseWriter, req *http.Request) {
