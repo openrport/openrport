@@ -14,6 +14,7 @@ import (
 	"github.com/jpillora/requestlog"
 	"golang.org/x/crypto/bcrypt"
 
+	"github.com/cloudradar-monitoring/rport/server/api/middleware"
 	"github.com/cloudradar-monitoring/rport/server/api/users"
 	chshare "github.com/cloudradar-monitoring/rport/share"
 )
@@ -130,7 +131,7 @@ func (al *APIListener) handleAPIRequest(w http.ResponseWriter, r *http.Request) 
 	}
 
 	if al.docRoot != "" {
-		http.FileServer(http.Dir(al.docRoot)).ServeHTTP(w, r)
+		middleware.Redirect404(http.FileServer(http.Dir(al.docRoot))).ServeHTTP(w, r)
 		return
 	}
 
