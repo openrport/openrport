@@ -78,6 +78,29 @@ paths:
       responses:
         "200":
           description: "token revoked"
+  /me:
+    get:
+      summary: "Returns currently logged in user and groups the user belongs to"
+      description: ""
+      produces:
+        - "application/json"
+      responses:
+        "200":
+          description: "success response"
+          schema:
+            type: "object"
+            properties:
+              data:
+                type: "object"
+                properties:
+                  user:
+                    type: "string"
+                  groups:
+                    type: "array"
+                    items:
+                      type: string
+              meta:
+                type: "object"
   /status:
     get:
       summary: "Get information about rport server"

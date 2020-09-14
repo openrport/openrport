@@ -75,6 +75,20 @@ var serverHelp = `
     --api-doc-root, Specifies local directory path. If specified, rportd will serve
     files from this directory on the same API address (--api-addr).
 
+    --api-authfile, Defines a path to a JSON file that contains users for accessing API.
+    This file should be structured like:
+    [{
+       "username": "admin",
+       "password": "$2y$10$ezwCZekHE/qxMb4g9n6rU.XIIdCnHnOo.q2wqqA8LyYf3ihonenmu",
+       "groups": ["admins", "users", "gods"]
+     },
+     {
+       "username": "minion",
+       "password": "$2y$40$eqwLZekPE/pxLb4g9n8rU.OLIdPnWnOo.q5wqqA0LyYf3ihonenlu",
+       "groups": ["users"]
+     }
+     ]
+
     --api-auth, Defines <user>:<password> authentication pair for accessing API
     e.g. "admin:1234". (defaults to the environment variable RPORT_API_AUTH
     and fallsback to empty string: authorization not required).
@@ -152,6 +166,7 @@ func init() {
 	pFlags.Duration("keep-lost-clients", 0, "")
 	pFlags.Duration("save-clients-interval", DefaultCacheClientsInterval, "")
 	pFlags.Duration("cleanup-clients-interval", DefaultCleanClientsInterval, "")
+	pFlags.String("api-authfile", "", "")
 
 	cfgPath = pFlags.StringP("config", "c", "", "")
 
@@ -180,6 +195,7 @@ func init() {
 	_ = viperCfg.BindPFlag("proxy", pFlags.Lookup("proxy"))
 	_ = viperCfg.BindPFlag("api.address", pFlags.Lookup("api-addr"))
 	_ = viperCfg.BindPFlag("api.auth", pFlags.Lookup("api-auth"))
+	_ = viperCfg.BindPFlag("api.auth_file", pFlags.Lookup("api-authfile"))
 	_ = viperCfg.BindPFlag("api.jwt_secret", pFlags.Lookup("api-jwt-secret"))
 	_ = viperCfg.BindPFlag("api.doc_root", pFlags.Lookup("api-doc-root"))
 	_ = viperCfg.BindPFlag("excluded_ports", pFlags.Lookup("exclude-ports"))
@@ -270,6 +286,7 @@ func runMain(*cobra.Command, []string) {
 
 		go scheduler.Run(ctx, s.Logger, sessions.NewCleanupTask(s.Logger, repo), cfg.CleanupClients)
 		s.Infof("Task to cleanup obsolete clients will run with interval %v", cfg.CleanupClients)
+		// TODO(m-terel): add graceful shutdown of background task
 		go scheduler.Run(ctx, s.Logger, sessions.NewSaveToFileTask(s.Logger, repo, cfg.CSRFilePath()), cfg.SaveClients)
 		s.Infof("Task to save clients to disk will run with interval %v", cfg.SaveClients)
 	}

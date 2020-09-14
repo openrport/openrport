@@ -20,6 +20,7 @@ import (
 type APIConfig struct {
 	Address   string `mapstructure:"address"`
 	Auth      string `mapstructure:"auth"`
+	AuthFile  string `mapstructure:"auth_file"`
 	JWTSecret string `mapstructure:"jwt_secret"`
 	DocRoot   string `mapstructure:"doc_root"`
 }

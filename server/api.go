@@ -2,6 +2,7 @@ package chserver
 
 import (
 	"encoding/json"
+	"errors"
 	"fmt"
 	"net/http"
 	"strconv"
@@ -9,6 +10,7 @@ import (
 
 	"github.com/gorilla/mux"
 
+	"github.com/cloudradar-monitoring/rport/server/api"
 	"github.com/cloudradar-monitoring/rport/server/sessions"
 	chshare "github.com/cloudradar-monitoring/rport/share"
 )
@@ -30,11 +32,20 @@ type sessionTunnelPUTResponse struct {
 
 func (al *APIListener) wrapWithAuthMiddleware(f http.Handler) http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
-		ok := al.handleAuthorization(w, r)
-		if !ok {
+		authorized, username, err := al.lookupUser(r)
+		if err != nil {
+			al.jsonErrorResponse(w, http.StatusInternalServerError, err)
 			return
 		}
-		f.ServeHTTP(w, r)
+
+		if !authorized || username == "" {
+			w.Header().Set("WWW-Authenticate", `Basic realm="rportd-api"`)
+			al.jsonErrorResponse(w, http.StatusUnauthorized, errors.New("unauthorized"))
+			return
+		}
+
+		newCtx := api.WithUser(r.Context(), username)
+		f.ServeHTTP(w, r.WithContext(newCtx))
 	}
 }
 
@@ -43,17 +54,20 @@ func (al *APIListener) initRouter() {
 	sub := r.PathPrefix("/api/v1").Subrouter()
 	sub.HandleFunc("/login", al.handleGetLogin).Methods(http.MethodGet)
 	sub.HandleFunc("/status", al.handleGetStatus).Methods(http.MethodGet)
+	sub.HandleFunc("/me", al.handleGetMe).Methods(http.MethodGet)
 	sub.HandleFunc("/sessions", al.handleGetSessions).Methods(http.MethodGet)
 	sub.HandleFunc("/sessions/{session_id}/tunnels", al.handlePutSessionTunnel).Methods(http.MethodPut)
 	sub.HandleFunc("/sessions/{session_id}/tunnels/{tunnel_id}", al.handleDeleteSessionTunnel).Methods(http.MethodDelete)
 
-	// add authorization middleware
-	_ = sub.Walk(func(route *mux.Route, router *mux.Router, ancestors []*mux.Route) error {
-		route.HandlerFunc(al.wrapWithAuthMiddleware(route.GetHandler()))
-		return nil
-	})
-	// all routes defined below will not require authorization
+	// add authorization middleware if needed
+	if al.authorizationOn {
+		_ = sub.Walk(func(route *mux.Route, router *mux.Router, ancestors []*mux.Route) error {
+			route.HandlerFunc(al.wrapWithAuthMiddleware(route.GetHandler()))
+			return nil
+		})
+	}
 
+	// all routes defined below will not require authorization
 	sub.HandleFunc("/login", al.handlePostLogin).Methods(http.MethodPost)
 	sub.HandleFunc("/login", al.handleDeleteLogin).Methods(http.MethodDelete)
 
@@ -85,7 +99,7 @@ func (al *APIListener) handleGetLogin(w http.ResponseWriter, req *http.Request) 
 		return
 	}
 
-	tokenStr, err := al.createAuthToken(lifetime)
+	tokenStr, err := al.createAuthToken(lifetime, api.GetUser(req.Context(), al.Logger))
 	if err != nil {
 		al.jsonErrorResponse(w, http.StatusInternalServerError, err)
 		return
@@ -108,12 +122,17 @@ func (al *APIListener) handlePostLogin(w http.ResponseWriter, req *http.Request)
 		return
 	}
 
-	if !al.validateUserPasswordPair(user, pwd) {
+	authorized, err := al.validateCredentials(user, pwd)
+	if err != nil {
+		al.jsonErrorResponse(w, http.StatusInternalServerError, fmt.Errorf("can't validate credentials: %v", err))
+		return
+	}
+	if !authorized {
 		al.jsonErrorResponse(w, http.StatusUnauthorized, fmt.Errorf("unauthorized"))
 		return
 	}
 
-	tokenStr, err := al.createAuthToken(lifetime)
+	tokenStr, err := al.createAuthToken(lifetime, user)
 	if err != nil {
 		al.jsonErrorResponse(w, http.StatusInternalServerError, err)
 		return
@@ -173,7 +192,7 @@ func (al *APIListener) handleDeleteLogin(w http.ResponseWriter, req *http.Reques
 		return
 	}
 
-	valid, apiSession, err := al.validateBearerToken(token)
+	valid, _, apiSession, err := al.validateBearerToken(token)
 	if err != nil {
 		al.jsonErrorResponse(w, http.StatusInternalServerError, err)
 		return
@@ -311,5 +330,34 @@ func (al *APIListener) handleDeleteSessionTunnel(w http.ResponseWriter, req *htt
 	session.TerminateTunnel(tunnel)
 
 	response := successAPIResponse{Success: 1}
+	al.writeJSONResponse(w, http.StatusOK, response)
+}
+
+// handleGetMe returns the currently logged in user and the groups the user belongs to.
+func (al *APIListener) handleGetMe(w http.ResponseWriter, req *http.Request) {
+	curUsername := api.GetUser(req.Context(), al.Logger)
+	if curUsername == "" {
+		al.writeJSONResponse(w, http.StatusOK, apiResponse{})
+		return
+	}
+
+	user, err := al.userSrv.GetByUsername(curUsername)
+	if err != nil {
+		al.jsonErrorResponse(w, http.StatusInternalServerError, err)
+		return
+	}
+	if user == nil {
+		al.jsonErrorResponse(w, http.StatusNotFound, al.FormatError("user not found"))
+		return
+	}
+
+	me := struct {
+		User   string   `json:"user"`
+		Groups []string `json:"groups,omitempty"`
+	}{
+		User:   user.Username,
+		Groups: user.Groups,
+	}
+	response := apiResponse{Data: me}
 	al.writeJSONResponse(w, http.StatusOK, response)
 }

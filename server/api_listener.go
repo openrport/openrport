@@ -4,11 +4,17 @@ import (
 	"crypto/subtle"
 	"fmt"
 	"net/http"
+	"os"
+	"os/signal"
 	"runtime"
+	"strings"
+	"syscall"
 
 	"github.com/gorilla/mux"
 	"github.com/jpillora/requestlog"
+	"golang.org/x/crypto/bcrypt"
 
+	"github.com/cloudradar-monitoring/rport/server/api/users"
 	chshare "github.com/cloudradar-monitoring/rport/share"
 )
 
@@ -17,8 +23,7 @@ type APIListener struct {
 
 	fingerprint       string
 	connectURL        string
-	authUser          string
-	authPassword      string
+	authFile          string
 	jwtSecret         string
 	sessionService    *SessionService
 	apiSessionRepo    *APISessionRepository
@@ -26,10 +31,30 @@ type APIListener struct {
 	httpServer        *chshare.HTTPServer
 	docRoot           string
 	requestLogOptions *requestlog.Options
+	authorizationOn   bool
+	userSrv           UserService
+}
+
+type UserService interface {
+	GetByUsername(username string) (*users.User, error)
+	Count() (int, error)
 }
 
 func NewAPIListener(config *Config, s *SessionService, fingerprint string) (*APIListener, error) {
-	authUser, authPassword, err := parseHTTPAuthStr(config.API.Auth)
+	var authUsers []*users.User
+	var err error
+	authorizationOn := false
+	// auth-file has precedence over auth
+	if config.API.AuthFile != "" {
+		authorizationOn = true
+		authUsers, err = users.GetUsersFromFile(config.API.AuthFile)
+	} else if config.API.Auth != "" {
+		authorizationOn = true
+		var authUser *users.User
+		if authUser, err = parseHTTPAuthStr(config.API.Auth); authUser != nil {
+			authUsers = append(authUsers, authUser)
+		}
+	}
 	if err != nil {
 		return nil, err
 	}
@@ -38,14 +63,15 @@ func NewAPIListener(config *Config, s *SessionService, fingerprint string) (*API
 		Logger:            chshare.NewLogger("api-listener", config.LogOutput, config.LogLevel),
 		connectURL:        config.URL,
 		fingerprint:       fingerprint,
-		authUser:          authUser,
-		authPassword:      authPassword,
+		authFile:          config.API.AuthFile,
 		jwtSecret:         config.API.JWTSecret,
 		sessionService:    s,
 		apiSessionRepo:    NewAPISessionRepository(),
 		httpServer:        chshare.NewHTTPServer(),
 		docRoot:           config.API.DocRoot,
 		requestLogOptions: config.InitRequestLogOptions(),
+		userSrv:           users.NewUserRepository(authUsers),
+		authorizationOn:   authorizationOn,
 	}
 
 	a.initRouter()
@@ -58,7 +84,14 @@ func (al *APIListener) Start(addr string) error {
 
 	h := http.Handler(http.HandlerFunc(al.handleAPIRequest))
 	h = requestlog.WrapWith(h, *al.requestLogOptions)
-	return al.httpServer.GoListenAndServe(addr, h)
+	err := al.httpServer.GoListenAndServe(addr, h)
+	if err != nil {
+		return err
+	}
+
+	go al.ReloadAPIUsers()
+
+	return nil
 }
 
 func (al *APIListener) Wait() error {
@@ -103,64 +136,91 @@ func (al *APIListener) handleAPIRequest(w http.ResponseWriter, r *http.Request) 
 	_, _ = w.Write([]byte{})
 }
 
-func (al *APIListener) handleAuthorization(w http.ResponseWriter, r *http.Request) bool {
-	if al.authUser == "" || al.authPassword == "" {
-		return true
+func (al *APIListener) lookupUser(r *http.Request) (authorized bool, username string, err error) {
+	if basicUser, basicPwd, basicAuthProvided := r.BasicAuth(); basicAuthProvided {
+		authorized, err = al.validateCredentials(basicUser, basicPwd)
+		username = basicUser
+		return
 	}
 
-	basicUser, basicPwd, basicAuthProvided := r.BasicAuth()
-	bearerToken, bearerAuthProvided := getBearerToken(r)
-
-	var err error
-	var authorized bool
-	if basicAuthProvided {
-		authorized = al.validateUserPasswordPair(basicUser, basicPwd)
-	} else if bearerAuthProvided {
-		authorized, err = al.handleBearerToken(bearerToken)
-		if err != nil {
-			al.jsonErrorResponse(w, http.StatusInternalServerError, err)
-			return false
-		}
+	if bearerToken, bearerAuthProvided := getBearerToken(r); bearerAuthProvided {
+		authorized, username, err = al.handleBearerToken(bearerToken)
 	}
 
-	if !authorized {
-		w.Header().Set("WWW-Authenticate", `Basic realm="rportd-api"`)
-		w.WriteHeader(http.StatusUnauthorized)
-		_, _ = w.Write([]byte{})
-	}
-
-	return authorized
+	return
 }
 
-func (al *APIListener) handleBearerToken(bearerToken string) (bool, error) {
-	authorized, apiSession, err := al.validateBearerToken(bearerToken)
+func (al *APIListener) handleBearerToken(bearerToken string) (bool, string, error) {
+	authorized, username, apiSession, err := al.validateBearerToken(bearerToken)
 	if err != nil {
-		return false, err
+		return false, "", err
 	}
 	if authorized {
 		err = al.increaseSessionLifetime(apiSession)
 		if err != nil {
-			return true, err
+			return false, "", err
 		}
 	}
-	return authorized, nil
+	return authorized, username, nil
 }
 
-func (al *APIListener) validateUserPasswordPair(basicUser, basicPwd string) bool {
-	return subtle.ConstantTimeCompare([]byte(basicUser), []byte(al.authUser)) == 1 &&
-		subtle.ConstantTimeCompare([]byte(basicPwd), []byte(al.authPassword)) == 1
+const htpasswdBcryptPrefix = "$2y$"
+
+// validateCredentials returns true if given credentials belong to a user with an access to API.
+func (al *APIListener) validateCredentials(username, password string) (bool, error) {
+	if username == "" {
+		return false, nil
+	}
+
+	user, err := al.userSrv.GetByUsername(username)
+	if err != nil {
+		return false, fmt.Errorf("failed to get user: %v", err)
+	}
+	if user == nil {
+		return false, nil
+	}
+
+	// bcrypt hashed password
+	if strings.HasPrefix(user.Password, htpasswdBcryptPrefix) {
+		return bcrypt.CompareHashAndPassword([]byte(user.Password), []byte(password)) == nil, nil
+	}
+
+	// plaintext password, constant time compare is used for security reasons
+	return subtle.ConstantTimeCompare([]byte(password), []byte(user.Password)) == 1, nil
 }
 
-// parseHTTPAuthStr parses <user>:<password> string, returns (user, password, nil) or an error
-func parseHTTPAuthStr(basicAuth string) (string, string, error) {
+// parseHTTPAuthStr parses <user>:<password> string, returns (user, nil) or (nil, error)
+func parseHTTPAuthStr(basicAuth string) (*users.User, error) {
 	if basicAuth == "" {
-		return "", "", nil
+		return nil, nil
 	}
 
 	user, pass := chshare.ParseAuth(basicAuth)
 	if user == "" || pass == "" {
-		return "", "", fmt.Errorf("can't parse basic-auth string")
+		return nil, fmt.Errorf("invalid auth format: expected <user>:<password>, actual %s", basicAuth)
 	}
 
-	return user, pass, nil
+	return &users.User{Username: user, Password: pass}, nil
+}
+
+// IsAuthorizationOn returns true if authorization for accessing API is enabled.
+func (al *APIListener) IsAuthorizationOn() bool {
+	return al.authorizationOn
+}
+
+// ReloadAPIUsers reloads API users from file when SIGUSR1 is received.
+func (al *APIListener) ReloadAPIUsers() {
+	signals := make(chan os.Signal, 1)
+	signal.Notify(signals, syscall.SIGUSR1)
+	for range signals {
+		al.Infof("Signal SIGUSR1 received. Start to reload API users from file.")
+		newUsers, err := users.GetUsersFromFile(al.authFile)
+		if err != nil {
+			al.Errorf("Failed to reload API users from the file: %v", err)
+			continue
+		}
+
+		al.userSrv = users.NewUserRepository(newUsers)
+		al.Infof("Finished to reload API users from file. Loaded %d users.", len(newUsers))
+	}
 }
