@@ -76,7 +76,7 @@ paths:
       produces:
         - "application/json"
       responses:
-        "200":
+        "204":
           description: "token revoked"
   /me:
     get:
@@ -164,31 +164,19 @@ paths:
         "200":
           description: "success response"
           schema:
-            type: "object"
-            properties:
-              data:
-                type: "object"
-                allOf:
-                  - $ref: "#/definitions/ApiResponse"
-                  - type: "object"
-                    properties:
-                      tunnel:
-                        $ref: "#/definitions/Tunnel"
-                        type: "object"
-              meta:
-                type: "object"
+            $ref: "#/definitions/Tunnel"
         "400":
           description: "invalid parameters"
           schema:
-            $ref: "#/definitions/ErrorResponse"
+            $ref: "#/definitions/ErrorPayload"
         "404":
           description: "specified session does not exist or already terminated"
           schema:
-            $ref: "#/definitions/ErrorResponse"
+            $ref: "#/definitions/ErrorPayload"
         "409":
           description: "can't create requested tunnel. Probably port already busy"
           schema:
-            $ref: "#/definitions/ErrorResponse"
+            $ref: "#/definitions/ErrorPayload"
   /sessions/{session_id}/tunnels/{tunnel_id}:
     parameters:
       - name: "session_id"
@@ -205,23 +193,16 @@ paths:
       summary:  "Terminate specified tunnel"
       description: ""
       responses:
-        "200":
+        "204":
           description: "tunnel terminated"
-          schema:
-            type: "object"
-            properties:
-              data:
-                $ref: "#/definitions/ApiResponse"
-              meta:
-                type: "object"
         "400":
           description: "invalid parameters"
           schema:
-            $ref: "#/definitions/ErrorResponse"
+            $ref: "#/definitions/ErrorPayload"
         "404":
           description: "specified session or tunnel does not exist or already terminated"
           schema:
-            $ref: "#/definitions/ErrorResponse"
+            $ref: "#/definitions/ErrorPayload"
 definitions:
   Tunnel:
     type: "object"
@@ -282,14 +263,16 @@ definitions:
               $ref: "#/definitions/Tunnel"
       meta:
         type: "object"
-  ApiResponse:
+  ErrorPayload:
+    type: "array"
+    items:
+      $ref: "#/definitions/ErrorPayloadItem"
+  ErrorPayloadItem:
     type: "object"
     properties:
-      success:
-        type: "integer"
-        format: "int32"
-  ErrorResponse:
-    type: "object"
-    properties:
-      error:
+      code:
+        type: "string"
+      title:
+        type: "string"
+      detial:
         type: "string"

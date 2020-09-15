@@ -21,21 +21,6 @@ const (
 	queryParamSort = "sort"
 )
 
-// default API response container
-type apiResponse struct {
-	Data interface{} `json:"data"`
-	Meta interface{} `json:"meta"`
-}
-
-type successAPIResponse struct {
-	Success int `json:"success"`
-}
-
-type sessionTunnelPUTResponse struct {
-	Success int              `json:"success"`
-	Tunnel  *sessions.Tunnel `json:"tunnel"`
-}
-
 func (al *APIListener) wrapWithAuthMiddleware(f http.Handler) http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
 		authorized, username, err := al.lookupUser(r)
@@ -103,7 +88,7 @@ func (al *APIListener) writeJSONResponse(w http.ResponseWriter, statusCode int, 
 }
 
 func (al *APIListener) jsonErrorResponse(w http.ResponseWriter, statusCode int, err error) {
-	al.writeJSONResponse(w, statusCode, map[string]string{"error": err.Error()})
+	al.writeJSONResponse(w, statusCode, api.NewErrorPayload(err))
 }
 
 func (al *APIListener) handleGetLogin(w http.ResponseWriter, req *http.Request) {
@@ -119,7 +104,7 @@ func (al *APIListener) handleGetLogin(w http.ResponseWriter, req *http.Request) 
 		return
 	}
 
-	response := apiResponse{Data: map[string]string{"token": tokenStr}}
+	response := api.NewSuccessPayload(map[string]string{"token": tokenStr})
 	al.writeJSONResponse(w, http.StatusOK, response)
 }
 
@@ -152,7 +137,7 @@ func (al *APIListener) handlePostLogin(w http.ResponseWriter, req *http.Request)
 		return
 	}
 
-	response := apiResponse{Data: map[string]string{"token": tokenStr}}
+	response := api.NewSuccessPayload(map[string]string{"token": tokenStr})
 	al.writeJSONResponse(w, http.StatusOK, response)
 }
 
@@ -222,8 +207,7 @@ func (al *APIListener) handleDeleteLogin(w http.ResponseWriter, req *http.Reques
 		return
 	}
 
-	response := apiResponse{Data: successAPIResponse{Success: 1}}
-	al.writeJSONResponse(w, http.StatusOK, response)
+	w.WriteHeader(http.StatusNoContent)
 }
 
 func (al *APIListener) handleGetStatus(w http.ResponseWriter, req *http.Request) {
@@ -233,12 +217,12 @@ func (al *APIListener) handleGetStatus(w http.ResponseWriter, req *http.Request)
 		return
 	}
 
-	response := apiResponse{Data: map[string]interface{}{
+	response := api.NewSuccessPayload(map[string]interface{}{
 		"version":        chshare.BuildVersion,
 		"sessions_count": count,
 		"fingerprint":    al.fingerprint,
 		"connect_url":    al.connectURL,
-	}}
+	})
 	al.writeJSONResponse(w, http.StatusOK, response)
 }
 
@@ -257,8 +241,7 @@ func (al *APIListener) handleGetSessions(w http.ResponseWriter, req *http.Reques
 
 	sortFunc(clientSessions, desc)
 
-	response := apiResponse{Data: clientSessions}
-	al.writeJSONResponse(w, http.StatusOK, response)
+	al.writeJSONResponse(w, http.StatusOK, api.NewSuccessPayload(clientSessions))
 }
 
 func getCorrespondingSortFunc(sortStr string) (sortFunc func(a []*sessions.ClientSession, desc bool), desc bool, err error) {
@@ -329,8 +312,6 @@ func (al *APIListener) handlePutSessionTunnel(w http.ResponseWriter, req *http.R
 		}
 	}
 
-	response := apiResponse{}
-
 	// make next steps thread-safe
 	session.Lock()
 	defer session.Unlock()
@@ -340,7 +321,7 @@ func (al *APIListener) handlePutSessionTunnel(w http.ResponseWriter, req *http.R
 		al.jsonErrorResponse(w, http.StatusConflict, al.FormatError("can't create tunnel: %s", err))
 		return
 	}
-	response.Data = sessionTunnelPUTResponse{Success: 1, Tunnel: tunnels[0]}
+	response := api.NewSuccessPayload(tunnels[0])
 	al.writeJSONResponse(w, http.StatusOK, response)
 }
 
@@ -380,15 +361,14 @@ func (al *APIListener) handleDeleteSessionTunnel(w http.ResponseWriter, req *htt
 
 	session.TerminateTunnel(tunnel)
 
-	response := successAPIResponse{Success: 1}
-	al.writeJSONResponse(w, http.StatusOK, response)
+	w.WriteHeader(http.StatusNoContent)
 }
 
 // handleGetMe returns the currently logged in user and the groups the user belongs to.
 func (al *APIListener) handleGetMe(w http.ResponseWriter, req *http.Request) {
 	curUsername := api.GetUser(req.Context(), al.Logger)
 	if curUsername == "" {
-		al.writeJSONResponse(w, http.StatusOK, apiResponse{})
+		al.writeJSONResponse(w, http.StatusOK, api.NewSuccessPayload(nil))
 		return
 	}
 
@@ -409,6 +389,6 @@ func (al *APIListener) handleGetMe(w http.ResponseWriter, req *http.Request) {
 		User:   user.Username,
 		Groups: user.Groups,
 	}
-	response := apiResponse{Data: me}
+	response := api.NewSuccessPayload(me)
 	al.writeJSONResponse(w, http.StatusOK, response)
 }
