@@ -70,7 +70,7 @@ func (c *ClientSession) FindTunnelByRemote(r *chshare.Remote) *Tunnel {
 	return nil
 }
 
-func (c *ClientSession) StartTunnel(r *chshare.Remote, acl TunnelACL) (*Tunnel, error) {
+func (c *ClientSession) StartTunnel(r *chshare.Remote, acl *TunnelACL) (*Tunnel, error) {
 	t := c.FindTunnelByRemote(r)
 	if t != nil {
 		return t, nil

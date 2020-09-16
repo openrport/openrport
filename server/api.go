@@ -321,14 +321,11 @@ func (al *APIListener) handlePutSessionTunnel(w http.ResponseWriter, req *http.R
 	}
 
 	aclStr := req.URL.Query().Get("acl")
-	var acl = &sessions.TunnelACL{}
-	if aclStr != "" {
-		acl, err = sessions.ParseTunnelACL(aclStr)
-		if err != nil {
-			al.jsonErrorResponse(w, http.StatusBadRequest, al.FormatError("invalid request: %s", err))
-			return
-		}
+	if _, err = sessions.ParseTunnelACL(aclStr); err != nil {
+		al.jsonErrorResponse(w, http.StatusBadRequest, al.FormatError("invalid request: %s", err))
+		return
 	}
+	remote.ACL = aclStr
 
 	schemeStr := req.URL.Query().Get("scheme")
 	if len(schemeStr) > URISchemeMaxLength {
@@ -373,7 +370,7 @@ func (al *APIListener) handlePutSessionTunnel(w http.ResponseWriter, req *http.R
 		}
 	}
 
-	tunnels, err := al.sessionService.StartSessionTunnels(session, []*chshare.Remote{remote}, *acl)
+	tunnels, err := al.sessionService.StartSessionTunnels(session, []*chshare.Remote{remote})
 	if err != nil {
 		al.jsonErrorResponse(w, http.StatusConflict, al.FormatError("can't create tunnel: %s", err))
 		return

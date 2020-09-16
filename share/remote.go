@@ -21,6 +21,7 @@ import (
 //     local  192.168.0.1:3000
 //     remote google.com:80
 
+// TODO(m-terel): Remote should be only used for parsing command args and URL query params. Cyrrent Remote is kind of a Tunnel model. Refactor to use separate models for representation and business logic.
 type Remote struct {
 	LocalHost       string `json:"lhost"`
 	LocalPort       string `json:"lport"`
@@ -28,6 +29,7 @@ type Remote struct {
 	RemotePort      string `json:"rport"`
 	LocalPortRandom bool   `json:"lport_random"`
 	Scheme          string `json:"scheme,omitempty"`
+	ACL             string `json:"acl,omitempty"` // string representation of Tunnel.TunnelACL field
 }
 
 func DecodeRemote(s string) (*Remote, error) {

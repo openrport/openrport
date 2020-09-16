@@ -11,7 +11,7 @@ securityDefinitions:
     description: "HTTP-basic authentication works for all routes"
   bearer_auth:
     description: "Instead of HTTP basic authentication you can retrieve a bearer token using /login endpoint. Send the retrieved token in 'Authorization: Bearer <TOKEN>' header"
-    type: apiKey # actually apiKey is not correct type but 'bearer' type is not supported in swaggger v2.0
+    type: apiKey # actually apiKey is not correct type but 'bearer' type is not supported in swagger v2.0
     in: header
     name: "Authorization"
 security:
@@ -128,7 +128,13 @@ paths:
                 type: "object"
   /sessions:
     get:
-      summary: "List active client connections"
+      parameters:
+        - name: "sort"
+          in: "query"
+          description: "Sort option '-<field>'(desc) or '<field>'(asc). <field> can be one of 'id', 'name', 'os', 'hostname', 'version'."
+          required: false
+          type: "string"
+      summary: "List active and disconnected client connections. By default sorted by ID."
       description: ""
       produces:
       - "application/json"
@@ -155,6 +161,21 @@ paths:
         description: "remote address endpoint, e.g. '3389'"
         required: false
         type: "string"
+      - name: "scheme"
+        in: "query"
+        description: "URI scheme to be used. For example, 'ssh', 'rdp', etc."
+        required: false
+        type: "string"
+      - name: "acl"
+        in: "query"
+        description: "ACL, IP addresses who is allowed to use the tunnel. For example, '142.78.90.8,201.98.123.0/24,'"
+        required: false
+        type: "string"
+      - name: "check_port"
+        in: "query"
+        description: "A flag whether to check availability of a public port. By default check is enabled. To disable it specify 'check_port=0'."
+        required: false
+        type: "string"
     put:
       summary: "Request new tunnel for active client connection"
       description: ""
@@ -166,7 +187,7 @@ paths:
           schema:
             $ref: "#/definitions/Tunnel"
         "400":
-          description: "invalid parameters"
+          description: "invalid parameters. Error codes: ERR_CODE_PORT_IN_USE, ERR_CODE_TUNNEL_EXIST, ERR_CODE_TUNNEL_TO_PORT_EXIST, ERR_CODE_URI_SCHEME_LENGTH_EXCEED."
           schema:
             $ref: "#/definitions/ErrorPayload"
         "404":
@@ -221,6 +242,15 @@ definitions:
       rport:
         type: "string"
         description: "client proxies connection to this port"
+      lport_random:
+        type: "boolean"
+        description: "True if lport was chosen automatically with a random available port."
+      scheme:
+        type: "string"
+        description: "URI scheme."
+      acl:
+        type: "string"
+        description: "IP addresses who is allowed to use the tunnel. For example, '142.78.90.8,201.98.123.0/24,'."
   Session:
     type: "object"
     properties:

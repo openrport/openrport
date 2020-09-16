@@ -13,6 +13,7 @@ import (
 	chshare "github.com/cloudradar-monitoring/rport/share"
 )
 
+// TODO(m-terel): Refactor to use separate models for representation and business logic.
 // Tunnel represents active remote proxy connection
 type Tunnel struct {
 	chshare.Remote
@@ -24,10 +25,10 @@ type Tunnel struct {
 	connectionIDAutoIncrement int
 	stopFn                    func()
 	wg                        sync.WaitGroup
-	acl                       TunnelACL
+	acl                       *TunnelACL // parsed Remote.ACL field
 }
 
-func NewTunnel(logger *chshare.Logger, ssh ssh.Conn, id string, remote *chshare.Remote, acl TunnelACL) *Tunnel {
+func NewTunnel(logger *chshare.Logger, ssh ssh.Conn, id string, remote *chshare.Remote, acl *TunnelACL) *Tunnel {
 	return &Tunnel{
 		Logger:  logger.Fork("tunnel#%s:%s", id, remote),
 		Remote:  *remote,
@@ -88,20 +89,23 @@ func (t *Tunnel) listen(ctx context.Context, l net.Listener) {
 			return
 		}
 
-		tcpAddr, ok := src.RemoteAddr().(*net.TCPAddr)
-		if !ok {
-			ctx.Done()
-			t.Errorf("unsupported remote address type. Expected net.TCPAddr. %v", src.RemoteAddr())
-			close(done)
-			return
+		if t.acl != nil {
+			tcpAddr, ok := src.RemoteAddr().(*net.TCPAddr)
+			if !ok {
+				ctx.Done()
+				t.Errorf("unsupported remote address type. Expected net.TCPAddr. %v", src.RemoteAddr())
+				close(done)
+				return
+			}
+
+			if !t.acl.CheckAccess(tcpAddr) {
+				ctx.Done()
+				t.Debugf("access rejected. Remote addr: %s", tcpAddr)
+				close(done)
+				return
+			}
 		}
 
-		if !t.acl.CheckAccess(tcpAddr) {
-			ctx.Done()
-			t.Debugf("access rejected. Remote addr: %s", tcpAddr)
-			close(done)
-			return
-		}
 		go t.accept(src)
 	}
 }
