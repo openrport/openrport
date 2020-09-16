@@ -96,6 +96,10 @@ func (al *APIListener) jsonErrorResponseWithErrCode(w http.ResponseWriter, statu
 	al.writeJSONResponse(w, statusCode, api.NewErrorPayloadWithCode(errCode, msg, ""))
 }
 
+func (al *APIListener) jsonErrorResponseWithDetail(w http.ResponseWriter, statusCode int, errCode, msg, detail string) {
+	al.writeJSONResponse(w, statusCode, api.NewErrorPayloadWithCode(errCode, msg, detail))
+}
+
 func (al *APIListener) handleGetLogin(w http.ResponseWriter, req *http.Request) {
 	lifetime, err := parseTokenLifetime(req)
 	if err != nil {
@@ -278,9 +282,12 @@ func getCorrespondingSortFunc(sortStr string) (sortFunc func(a []*sessions.Clien
 }
 
 const (
-	ErrCodePortInUse         = "ERR_CODE_PORT_IN_USE"
-	ErrCodeTunnelExist       = "ERR_CODE_TUNNEL_EXIST"
-	ErrCodeTunnelToPortExist = "ERR_CODE_TUNNEL_TO_PORT_EXIST"
+	URISchemeMaxLength = 15
+
+	ErrCodePortInUse             = "ERR_CODE_PORT_IN_USE"
+	ErrCodeTunnelExist           = "ERR_CODE_TUNNEL_EXIST"
+	ErrCodeTunnelToPortExist     = "ERR_CODE_TUNNEL_TO_PORT_EXIST"
+	ErrCodeURISchemeLengthExceed = "ERR_CODE_URI_SCHEME_LENGTH_EXCEED"
 )
 
 func (al *APIListener) handlePutSessionTunnel(w http.ResponseWriter, req *http.Request) {
@@ -322,6 +329,13 @@ func (al *APIListener) handlePutSessionTunnel(w http.ResponseWriter, req *http.R
 			return
 		}
 	}
+
+	schemeStr := req.URL.Query().Get("scheme")
+	if len(schemeStr) > URISchemeMaxLength {
+		al.jsonErrorResponseWithDetail(w, http.StatusBadRequest, ErrCodeURISchemeLengthExceed, "Invalid URI scheme.", "Exceeds the max length.")
+		return
+	}
+	remote.Scheme = schemeStr
 
 	if existing := session.FindTunnelByRemote(remote); existing != nil {
 		al.jsonErrorResponseWithErrCode(w, http.StatusBadRequest, ErrCodeTunnelExist, "Tunnel already exist.")

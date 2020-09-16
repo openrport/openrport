@@ -27,6 +27,7 @@ type Remote struct {
 	RemoteHost      string `json:"rhost"`
 	RemotePort      string `json:"rport"`
 	LocalPortRandom bool   `json:"lport_random"`
+	Scheme          string `json:"scheme,omitempty"`
 }
 
 func DecodeRemote(s string) (*Remote, error) {
