@@ -35,7 +35,7 @@ func (d *PortDistributor) GetRandomPort() (int, error) {
 }
 
 func (d *PortDistributor) Refresh() error {
-	busyPorts, err := listBusyPorts()
+	busyPorts, err := ListBusyPorts()
 	if err != nil {
 		return err
 	}
@@ -44,7 +44,7 @@ func (d *PortDistributor) Refresh() error {
 	return nil
 }
 
-func listBusyPorts() (mapset.Set, error) {
+func ListBusyPorts() (mapset.Set, error) {
 	result := mapset.NewThreadUnsafeSet()
 	connections, err := net.Connections("all")
 	if err != nil {

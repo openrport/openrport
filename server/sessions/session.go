@@ -61,7 +61,7 @@ func (c *ClientSession) Unlock() {
 	c.lock.Unlock()
 }
 
-func (c *ClientSession) findTunnelByRemote(r *chshare.Remote) *Tunnel {
+func (c *ClientSession) FindTunnelByRemote(r *chshare.Remote) *Tunnel {
 	for _, curr := range c.Tunnels {
 		if curr.Equals(r) {
 			return curr
@@ -71,7 +71,7 @@ func (c *ClientSession) findTunnelByRemote(r *chshare.Remote) *Tunnel {
 }
 
 func (c *ClientSession) StartTunnel(r *chshare.Remote, acl TunnelACL) (*Tunnel, error) {
-	t := c.findTunnelByRemote(r)
+	t := c.FindTunnelByRemote(r)
 	if t != nil {
 		return t, nil
 	}

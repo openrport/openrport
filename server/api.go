@@ -13,6 +13,7 @@ import (
 
 	"github.com/cloudradar-monitoring/rport/server/api"
 	"github.com/cloudradar-monitoring/rport/server/api/middleware"
+	"github.com/cloudradar-monitoring/rport/server/ports"
 	"github.com/cloudradar-monitoring/rport/server/sessions"
 	chshare "github.com/cloudradar-monitoring/rport/share"
 )
@@ -89,6 +90,10 @@ func (al *APIListener) writeJSONResponse(w http.ResponseWriter, statusCode int, 
 
 func (al *APIListener) jsonErrorResponse(w http.ResponseWriter, statusCode int, err error) {
 	al.writeJSONResponse(w, statusCode, api.NewErrorPayload(err))
+}
+
+func (al *APIListener) jsonErrorResponseWithErrCode(w http.ResponseWriter, statusCode int, errCode, msg string) {
+	al.writeJSONResponse(w, statusCode, api.NewErrorPayloadWithCode(errCode, msg, ""))
 }
 
 func (al *APIListener) handleGetLogin(w http.ResponseWriter, req *http.Request) {
@@ -272,6 +277,12 @@ func getCorrespondingSortFunc(sortStr string) (sortFunc func(a []*sessions.Clien
 	return
 }
 
+const (
+	ErrCodePortInUse         = "ERR_CODE_PORT_IN_USE"
+	ErrCodeTunnelExist       = "ERR_CODE_TUNNEL_EXIST"
+	ErrCodeTunnelToPortExist = "ERR_CODE_TUNNEL_TO_PORT_EXIST"
+)
+
 func (al *APIListener) handlePutSessionTunnel(w http.ResponseWriter, req *http.Request) {
 	vars := mux.Vars(req)
 	sessionID, exists := vars["session_id"]
@@ -312,9 +323,41 @@ func (al *APIListener) handlePutSessionTunnel(w http.ResponseWriter, req *http.R
 		}
 	}
 
+	if existing := session.FindTunnelByRemote(remote); existing != nil {
+		al.jsonErrorResponseWithErrCode(w, http.StatusBadRequest, ErrCodeTunnelExist, "Tunnel already exist.")
+		return
+	}
+
+	for _, t := range session.Tunnels {
+		if t.Remote.Remote() == remote.Remote() {
+			al.jsonErrorResponseWithErrCode(w, http.StatusBadRequest, ErrCodeTunnelToPortExist, fmt.Sprintf("Tunnel to port %s already exist.", remote.RemotePort))
+			return
+		}
+	}
+	checkPortStr := req.URL.Query().Get("check_port")
+
 	// make next steps thread-safe
 	session.Lock()
 	defer session.Unlock()
+
+	if checkPortStr != "0" && remote.IsLocalSpecified() {
+		lport, inErr := strconv.Atoi(remote.LocalPort)
+		if inErr != nil {
+			al.jsonErrorResponse(w, http.StatusBadRequest, al.FormatError("invalid port: %s", inErr))
+			return
+		}
+
+		busyPorts, inErr := ports.ListBusyPorts()
+		if inErr != nil {
+			al.jsonErrorResponse(w, http.StatusInternalServerError, inErr)
+			return
+		}
+
+		if busyPorts.Contains(lport) {
+			al.jsonErrorResponseWithErrCode(w, http.StatusBadRequest, ErrCodePortInUse, fmt.Sprintf("Port %d already in use.", lport))
+			return
+		}
+	}
 
 	tunnels, err := al.sessionService.StartSessionTunnels(session, []*chshare.Remote{remote}, *acl)
 	if err != nil {

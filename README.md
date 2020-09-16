@@ -489,7 +489,7 @@ For example
 ```
 CLIENTID=2ba9174e-640e-4694-ad35-34a2d6f3986b
 LOCAL_PORT=4000 
-REMOTE_PORT=22:80
+REMOTE_PORT=22
 curl -u admin:foobaz -X PUT "http://localhost:3000/api/v1/sessions/$CLIENTID/tunnels?local=$LOCAL_PORT&remote=$REMOTE_PORT"
 ```
 The ports are defined from the servers' perspective. The above example opens port 4000 on the rport server and forwards to the port 22 of the client.

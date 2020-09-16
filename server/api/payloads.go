@@ -19,22 +19,23 @@ type ErrorPayload struct {
 
 // ErrorPayloadItem represents a uniform format for a single error used in API responses.
 type ErrorPayloadItem struct {
+	Code   string `json:"code"`
 	Title  string `json:"title"`
 	Detail string `json:"detail"`
-	Code   string `json:"code"`
 }
 
-func NewErrorPayloadWithCode(err error, code string) ErrorPayload {
+func NewErrorPayloadWithCode(code, title, detail string) ErrorPayload {
 	return ErrorPayload{
 		Errors: []ErrorPayloadItem{
 			{
-				Detail: err.Error(),
 				Code:   code,
+				Title:  title,
+				Detail: detail,
 			},
 		},
 	}
 }
 
 func NewErrorPayload(err error) ErrorPayload {
-	return NewErrorPayloadWithCode(err, "")
+	return NewErrorPayloadWithCode("", "", err.Error())
 }
