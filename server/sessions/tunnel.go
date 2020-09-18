@@ -39,12 +39,14 @@ func NewTunnel(logger *chshare.Logger, ssh ssh.Conn, id string, remote *chshare.
 }
 
 func (t *Tunnel) Start(ctx context.Context) error {
+	// TODO(m-terel): consider to use ListenTCP
 	l, err := net.Listen("tcp4", t.LocalHost+":"+t.LocalPort)
 	if err != nil {
 		return fmt.Errorf("%s: %s", t.Logger.Prefix(), err)
 	}
 
 	ctx, t.stopFn = context.WithCancel(ctx)
+	t.wg.Add(1)
 	go t.listen(ctx, l)
 	return nil
 }
@@ -61,52 +63,57 @@ func (t *Tunnel) Terminate() {
 }
 
 func (t *Tunnel) listen(ctx context.Context, l net.Listener) {
-	t.wg.Add(1)
 	defer func() {
 		t.wg.Done()
 	}()
 
 	t.Infof("Listening")
-	done := make(chan struct{})
+
+	// background goroutine to close the listener when Done channel is closed
 	go func() {
-		select {
-		case <-ctx.Done():
-			l.Close()
-			t.Infof("Closed")
-		case <-done:
+		<-ctx.Done()
+		if err := l.Close(); err != nil {
+			t.Errorf("Failed to close: %v", err)
+			return
 		}
+		t.Infof("Closed")
 	}()
+
 	for {
-		src, err := l.Accept()
+		conn, err := l.Accept()
 		if err != nil {
+			// If Done channel was closed then listener was closed by the background goroutine. It causes
+			// Accept to return an err. Check the Done channel to see whether it should continue or quit.
 			select {
 			case <-ctx.Done():
 				//listener closed
+				return
 			default:
-				t.Errorf("Accept error: %s", err)
+				t.Errorf("Failed to accept connection: %v", err)
 			}
-			close(done)
-			return
+			continue
 		}
 
 		if t.acl != nil {
-			tcpAddr, ok := src.RemoteAddr().(*net.TCPAddr)
+			tcpAddr, ok := conn.RemoteAddr().(*net.TCPAddr)
 			if !ok {
-				ctx.Done()
-				t.Errorf("unsupported remote address type. Expected net.TCPAddr. %v", src.RemoteAddr())
-				close(done)
-				return
+				t.Errorf("Unsupported remote address type. Expected net.TCPAddr. %v", conn.RemoteAddr())
+				conn.Close()
+				continue
 			}
 
 			if !t.acl.CheckAccess(tcpAddr) {
-				ctx.Done()
-				t.Debugf("access rejected. Remote addr: %s", tcpAddr)
-				close(done)
-				return
+				t.Debugf("Access rejected. Remote addr: %s", tcpAddr)
+				conn.Close()
+				continue
 			}
 		}
 
-		go t.accept(src)
+		t.wg.Add(1)
+		go func() {
+			t.accept(conn)
+			t.wg.Done()
+		}()
 	}
 }
 
