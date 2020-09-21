@@ -29,7 +29,7 @@ type Remote struct {
 	RemotePort      string `json:"rport"`
 	LocalPortRandom bool   `json:"lport_random"`
 	Scheme          string `json:"scheme,omitempty"`
-	ACL             string `json:"acl,omitempty"` // string representation of Tunnel.TunnelACL field
+	ACL             string `json:"acl"` // string representation of Tunnel.TunnelACL field
 }
 
 func DecodeRemote(s string) (*Remote, error) {
