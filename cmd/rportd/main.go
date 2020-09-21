@@ -76,8 +76,8 @@ var serverHelp = `
     --api-doc-root, Specifies local directory path. If specified, rportd will serve
     files from this directory on the same API address (--api-addr).
 
-    --api-authfile, Defines a path to a JSON file that contains users for accessing API.
-    This file should be structured like:
+    --api-authfile, Defines a path to a JSON file that contains users, password, and groups for accessing the API.
+    Passwords must be bcrypt encrypted. This file should be structured like:
     [{
        "username": "admin",
        "password": "$2y$10$ezwCZekHE/qxMb4g9n6rU.XIIdCnHnOo.q2wqqA8LyYf3ihonenmu",
