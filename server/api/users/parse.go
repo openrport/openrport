@@ -14,13 +14,13 @@ const htpasswdBcryptPrefix = "$2y$"
 
 // GetUsersFromFile returns users from a given file.
 func GetUsersFromFile(fileName string) ([]*User, error) {
-	log.Println("Start to get users from file.")
+	log.Println("Start to get API users from file.")
 
 	file, err := os.Open(fileName)
 	if err != nil {
 		return nil, fmt.Errorf("failed to open users file: %v", err)
 	}
-	log.Println("Users file opened. Parsing...")
+	log.Println("API users file opened. Parsing...")
 	defer file.Close()
 
 	return parseUsers(file)

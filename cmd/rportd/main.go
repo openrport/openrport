@@ -78,17 +78,18 @@ var serverHelp = `
 
     --api-authfile, Defines a path to a JSON file that contains users, password, and groups for accessing the API.
     Passwords must be bcrypt encrypted. This file should be structured like:
-    [{
-       "username": "admin",
-       "password": "$2y$10$ezwCZekHE/qxMb4g9n6rU.XIIdCnHnOo.q2wqqA8LyYf3ihonenmu",
-       "groups": ["admins", "users", "gods"]
-     },
-     {
-       "username": "minion",
-       "password": "$2y$40$eqwLZekPE/pxLb4g9n8rU.OLIdPnWnOo.q5wqqA0LyYf3ihonenlu",
-       "groups": ["users"]
-     }
-     ]
+    [
+      {
+        "username": "admin",
+        "password": "$2y$10$ezwCZekHE/qxMb4g9n6rU.XIIdCnHnOo.q2wqqA8LyYf3ihonenmu",
+        "groups": ["admins", "users", "gods"]
+      },
+      {
+        "username": "minion",
+        "password": "$2y$40$eqwLZekPE/pxLb4g9n8rU.OLIdPnWnOo.q5wqqA0LyYf3ihonenlu",
+        "groups": ["users"]
+      }
+    ]
 
     --api-auth, Defines <user>:<password> authentication pair for accessing API
     e.g. "admin:1234". (defaults to the environment variable RPORT_API_AUTH

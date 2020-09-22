@@ -96,9 +96,13 @@ func (s *SessionService) StartSessionTunnels(session *sessions.ClientSession, re
 			remote.LocalPortRandom = true
 		}
 
-		acl, err := sessions.ParseTunnelACL(remote.ACL)
-		if err != nil {
-			return nil, err
+		var acl *sessions.TunnelACL
+		if remote.ACL != nil {
+			var err error
+			acl, err = sessions.ParseTunnelACL(*remote.ACL)
+			if err != nil {
+				return nil, err
+			}
 		}
 
 		t, err := session.StartTunnel(remote, acl)

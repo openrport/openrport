@@ -325,14 +325,18 @@ func (al *APIListener) handlePutSessionTunnel(w http.ResponseWriter, req *http.R
 		al.jsonErrorResponse(w, http.StatusBadRequest, al.FormatError("invalid request: %s", err))
 		return
 	}
-	remote.ACL = aclStr
+	if aclStr != "" {
+		remote.ACL = &aclStr
+	}
 
 	schemeStr := req.URL.Query().Get("scheme")
 	if len(schemeStr) > URISchemeMaxLength {
 		al.jsonErrorResponseWithDetail(w, http.StatusBadRequest, ErrCodeURISchemeLengthExceed, "Invalid URI scheme.", "Exceeds the max length.")
 		return
 	}
-	remote.Scheme = schemeStr
+	if schemeStr != "" {
+		remote.Scheme = &schemeStr
+	}
 
 	if existing := session.FindTunnelByRemote(remote); existing != nil {
 		al.jsonErrorResponseWithErrCode(w, http.StatusBadRequest, ErrCodeTunnelExist, "Tunnel already exist.")
