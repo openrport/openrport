@@ -4,6 +4,7 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
+	"net"
 	"net/http"
 	"strconv"
 	"strings"
@@ -97,6 +98,14 @@ func (al *APIListener) jsonErrorResponseWithErrCode(w http.ResponseWriter, statu
 }
 
 func (al *APIListener) jsonErrorResponseWithDetail(w http.ResponseWriter, statusCode int, errCode, msg, detail string) {
+	al.writeJSONResponse(w, statusCode, api.NewErrorPayloadWithCode(errCode, msg, detail))
+}
+
+func (al *APIListener) jsonErrorResponseWithError(w http.ResponseWriter, statusCode int, errCode, msg string, err error) {
+	var detail string
+	if err != nil {
+		detail = err.Error()
+	}
 	al.writeJSONResponse(w, statusCode, api.NewErrorPayloadWithCode(errCode, msg, detail))
 }
 
@@ -285,6 +294,7 @@ const (
 	URISchemeMaxLength = 15
 
 	ErrCodePortInUse             = "ERR_CODE_PORT_IN_USE"
+	ErrCodePortNotOpen           = "ERR_CODE_PORT_NOT_OPEN"
 	ErrCodeTunnelExist           = "ERR_CODE_TUNNEL_EXIST"
 	ErrCodeTunnelToPortExist     = "ERR_CODE_TUNNEL_TO_PORT_EXIST"
 	ErrCodeURISchemeLengthExceed = "ERR_CODE_URI_SCHEME_LENGTH_EXCEED"
@@ -349,29 +359,19 @@ func (al *APIListener) handlePutSessionTunnel(w http.ResponseWriter, req *http.R
 			return
 		}
 	}
-	checkPortStr := req.URL.Query().Get("check_port")
+
+	if checkPortStr := req.URL.Query().Get("check_port"); checkPortStr != "0" {
+		if !al.checkRemotePort(w, *remote, session.Address) {
+			return
+		}
+	}
 
 	// make next steps thread-safe
 	session.Lock()
 	defer session.Unlock()
 
-	if checkPortStr != "0" && remote.IsLocalSpecified() {
-		lport, inErr := strconv.Atoi(remote.LocalPort)
-		if inErr != nil {
-			al.jsonErrorResponse(w, http.StatusBadRequest, al.FormatError("invalid port: %s", inErr))
-			return
-		}
-
-		busyPorts, inErr := ports.ListBusyPorts()
-		if inErr != nil {
-			al.jsonErrorResponse(w, http.StatusInternalServerError, inErr)
-			return
-		}
-
-		if busyPorts.Contains(lport) {
-			al.jsonErrorResponseWithErrCode(w, http.StatusBadRequest, ErrCodePortInUse, fmt.Sprintf("Port %d already in use.", lport))
-			return
-		}
+	if remote.IsLocalSpecified() && !al.checkLocalPort(w, remote.LocalPort) {
+		return
 	}
 
 	tunnels, err := al.sessionService.StartSessionTunnels(session, []*chshare.Remote{remote})
@@ -381,6 +381,48 @@ func (al *APIListener) handlePutSessionTunnel(w http.ResponseWriter, req *http.R
 	}
 	response := api.NewSuccessPayload(tunnels[0])
 	al.writeJSONResponse(w, http.StatusOK, response)
+}
+
+func (al *APIListener) checkLocalPort(w http.ResponseWriter, localPort string) bool {
+	lport, err := strconv.Atoi(localPort)
+	if err != nil {
+		al.jsonErrorResponseWithError(w, http.StatusBadRequest, "", fmt.Sprintf("Invalid port: %s.", localPort), err)
+		return false
+	}
+
+	busyPorts, err := ports.ListBusyPorts()
+	if err != nil {
+		al.jsonErrorResponse(w, http.StatusInternalServerError, err)
+		return false
+	}
+
+	if busyPorts.Contains(lport) {
+		al.jsonErrorResponseWithErrCode(w, http.StatusBadRequest, ErrCodePortInUse, fmt.Sprintf("Port %d already in use.", lport))
+		return false
+	}
+
+	return true
+}
+
+func (al *APIListener) checkRemotePort(w http.ResponseWriter, remote chshare.Remote, remoteAddress string) bool {
+	remoteHost := remote.RemoteHost
+
+	// if it's 0.0.0.0 then get the remote address from the session
+	if remoteHost == chshare.ZeroHost {
+		host, _, err := net.SplitHostPort(remoteAddress)
+		if err != nil || host == "" {
+			al.jsonErrorResponseWithError(w, http.StatusInternalServerError, "", fmt.Sprintf("Session contain invalid remote address: %s.", remoteAddress), err)
+			return false
+		}
+		remoteHost = host
+	}
+
+	if open, checkErr := ports.IsPortOpen(remoteHost, remote.RemotePort); !open {
+		al.jsonErrorResponseWithError(w, http.StatusBadRequest, ErrCodePortNotOpen, fmt.Sprintf("Port %s is not in listening state.", remote.RemotePort), checkErr)
+		return false
+	}
+
+	return true
 }
 
 func (al *APIListener) handleDeleteSessionTunnel(w http.ResponseWriter, req *http.Request) {

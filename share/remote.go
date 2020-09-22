@@ -21,6 +21,8 @@ import (
 //     local  192.168.0.1:3000
 //     remote google.com:80
 
+const ZeroHost = "0.0.0.0"
+
 // TODO(m-terel): Remote should be only used for parsing command args and URL query params. Current Remote is kind of a Tunnel model. Refactor to use separate models for representation and business logic.
 type Remote struct {
 	LocalHost       string  `json:"lhost"`
@@ -62,10 +64,10 @@ func DecodeRemote(s string) (*Remote, error) {
 		}
 	}
 	if r.LocalHost == "" && r.LocalPort != "" {
-		r.LocalHost = "0.0.0.0"
+		r.LocalHost = ZeroHost
 	}
 	if r.RemoteHost == "" {
-		r.RemoteHost = "0.0.0.0"
+		r.RemoteHost = ZeroHost
 	}
 	return r, nil
 }
