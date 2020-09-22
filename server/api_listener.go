@@ -158,9 +158,9 @@ func (al *APIListener) handleBearerToken(bearerToken string) (bool, string, erro
 		return false, "", err
 	}
 	if authorized {
-		err = al.increaseSessionLifetime(apiSession)
-		if err != nil {
-			return false, "", err
+		if err := al.increaseSessionLifetime(apiSession); err != nil {
+			// do not return error since it should respond with 401 instead of 500, just log it
+			al.Errorf("Failed to increase jwt token lifetime: %v", err)
 		}
 	}
 	return authorized, username, nil

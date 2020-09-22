@@ -2,7 +2,6 @@ package chserver
 
 import (
 	"errors"
-	"fmt"
 	"math/rand"
 	"net/http"
 	"strconv"
@@ -63,7 +62,9 @@ func (al *APIListener) validateBearerToken(tokenStr string) (bool, string, *APIS
 		return []byte(al.jwtSecret), nil
 	})
 	if err != nil {
-		return false, "", nil, fmt.Errorf("failed to parse jwt token: %v", err)
+		// do not return error since it should respond with 401 instead of 500, just log it
+		al.Debugf("failed to parse jwt token: %v", err)
+		return false, "", nil, nil
 	}
 	if !token.Valid || tk.Username == "" {
 		return false, "", nil, nil
