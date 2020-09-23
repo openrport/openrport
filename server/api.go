@@ -4,7 +4,6 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
-	"net"
 	"net/http"
 	"strconv"
 	"strings"
@@ -361,7 +360,7 @@ func (al *APIListener) handlePutSessionTunnel(w http.ResponseWriter, req *http.R
 	}
 
 	if checkPortStr := req.URL.Query().Get("check_port"); checkPortStr != "0" {
-		if !al.checkRemotePort(w, *remote, session.Address) {
+		if !al.checkRemotePort(w, *remote, session.IPv4) {
 			return
 		}
 	}
@@ -404,25 +403,27 @@ func (al *APIListener) checkLocalPort(w http.ResponseWriter, localPort string) b
 	return true
 }
 
-func (al *APIListener) checkRemotePort(w http.ResponseWriter, remote chshare.Remote, remoteAddress string) bool {
-	remoteHost := remote.RemoteHost
+func (al *APIListener) checkRemotePort(w http.ResponseWriter, remote chshare.Remote, ipv4 []string) bool {
+	var remoteHosts []string
 
-	// if it's 0.0.0.0 then get the remote address from the session
-	if remoteHost == chshare.ZeroHost {
-		host, _, err := net.SplitHostPort(remoteAddress)
-		if err != nil || host == "" {
-			al.jsonErrorResponseWithError(w, http.StatusInternalServerError, "", fmt.Sprintf("Session contain invalid remote address: %s.", remoteAddress), err)
-			return false
+	// if it's 0.0.0.0 then use ipv4 addresses
+	if remote.RemoteHost != chshare.ZeroHost {
+		remoteHosts = []string{remote.RemoteHost}
+	} else {
+		remoteHosts = ipv4
+	}
+
+	var detail string
+	for _, remoteHost := range remoteHosts {
+		open, checkErr := ports.IsPortOpen(remoteHost, remote.RemotePort)
+		if open {
+			return true
 		}
-		remoteHost = host
+		detail += checkErr.Error() + " "
 	}
 
-	if open, checkErr := ports.IsPortOpen(remoteHost, remote.RemotePort); !open {
-		al.jsonErrorResponseWithError(w, http.StatusBadRequest, ErrCodePortNotOpen, fmt.Sprintf("Port %s is not in listening state.", remote.RemotePort), checkErr)
-		return false
-	}
-
-	return true
+	al.jsonErrorResponseWithDetail(w, http.StatusBadRequest, ErrCodePortNotOpen, fmt.Sprintf("Port %s is not in listening state.", remote.RemotePort), detail)
+	return false
 }
 
 func (al *APIListener) handleDeleteSessionTunnel(w http.ResponseWriter, req *http.Request) {
