@@ -10,12 +10,14 @@ import (
 	"time"
 
 	"github.com/gorilla/mux"
+	"golang.org/x/crypto/ssh"
 
 	"github.com/cloudradar-monitoring/rport/server/api"
 	"github.com/cloudradar-monitoring/rport/server/api/middleware"
 	"github.com/cloudradar-monitoring/rport/server/ports"
 	"github.com/cloudradar-monitoring/rport/server/sessions"
 	chshare "github.com/cloudradar-monitoring/rport/share"
+	"github.com/cloudradar-monitoring/rport/share/comm"
 )
 
 const (
@@ -360,7 +362,7 @@ func (al *APIListener) handlePutSessionTunnel(w http.ResponseWriter, req *http.R
 	}
 
 	if checkPortStr := req.URL.Query().Get("check_port"); checkPortStr != "0" {
-		if !al.checkRemotePort(w, *remote, session.IPv4) {
+		if !al.checkRemotePort(w, *remote, session.Connection) {
 			return
 		}
 	}
@@ -403,27 +405,29 @@ func (al *APIListener) checkLocalPort(w http.ResponseWriter, localPort string) b
 	return true
 }
 
-func (al *APIListener) checkRemotePort(w http.ResponseWriter, remote chshare.Remote, ipv4 []string) bool {
-	var remoteHosts []string
-
-	// if it's 0.0.0.0 then use ipv4 addresses
-	if remote.RemoteHost != chshare.ZeroHost {
-		remoteHosts = []string{remote.RemoteHost}
-	} else {
-		remoteHosts = ipv4
+func (al *APIListener) checkRemotePort(w http.ResponseWriter, remote chshare.Remote, conn ssh.Conn) bool {
+	req := &comm.CheckPortRequest{
+		HostPort: remote.Remote(),
+		Timeout:  al.checkPortTimeout,
+	}
+	resp := &comm.CheckPortResponse{}
+	if err := comm.HandleSSHRequestJSON(conn, comm.RequestTypeCheckPort, req, resp); err != nil {
+		al.jsonErrorResponse(w, http.StatusInternalServerError, err)
+		return false
 	}
 
-	var detail string
-	for _, remoteHost := range remoteHosts {
-		open, checkErr := ports.IsPortOpen(remoteHost, remote.RemotePort)
-		if open {
-			return true
-		}
-		detail += checkErr.Error() + " "
+	if !resp.Open {
+		al.jsonErrorResponseWithDetail(
+			w,
+			http.StatusBadRequest,
+			ErrCodePortNotOpen,
+			fmt.Sprintf("Port %s is not in listening state.", remote.RemotePort),
+			resp.ErrMsg,
+		)
+		return false
 	}
 
-	al.jsonErrorResponseWithDetail(w, http.StatusBadRequest, ErrCodePortNotOpen, fmt.Sprintf("Port %s is not in listening state.", remote.RemotePort), detail)
-	return false
+	return true
 }
 
 func (al *APIListener) handleDeleteSessionTunnel(w http.ResponseWriter, req *http.Request) {

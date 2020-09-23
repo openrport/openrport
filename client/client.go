@@ -19,6 +19,7 @@ import (
 	"golang.org/x/net/proxy"
 
 	chshare "github.com/cloudradar-monitoring/rport/share"
+	"github.com/cloudradar-monitoring/rport/share/comm"
 )
 
 //Client represents a client instance
@@ -256,7 +257,7 @@ func (c *Client) connectionLoop() {
 		//connected
 		b.Reset()
 		c.sshConn = sshConn
-		go ssh.DiscardRequests(reqs)
+		go c.handleSSHRequests(reqs)
 		go c.connectStreams(chans)
 		err = sshConn.Wait()
 		//disconnected
@@ -268,6 +269,41 @@ func (c *Client) connectionLoop() {
 		c.Infof("Disconnected\n")
 	}
 	close(c.runningc)
+}
+
+func (c *Client) handleSSHRequests(reqs <-chan *ssh.Request) {
+	for r := range reqs {
+		switch r.Type {
+		case comm.RequestTypeCheckPort:
+			resp, err := checkPort(r.Payload)
+			if err != nil {
+				c.Errorf("Failed to check whether a port is open: %v", err)
+				comm.ReplyError(c.Logger, r, err)
+				continue
+			}
+
+			comm.ReplySuccessJSON(c.Logger, r, resp)
+		default:
+			c.Debugf("Unknown request: %q", r.Type)
+		}
+	}
+}
+
+func checkPort(payload []byte) (*comm.CheckPortResponse, error) {
+	req, err := comm.DecodeCheckPortRequest(payload)
+	if err != nil {
+		return nil, err
+	}
+
+	open, checkErr := IsPortOpen(req.HostPort, req.Timeout)
+	var errMsg string
+	if checkErr != nil {
+		errMsg = checkErr.Error()
+	}
+	return &comm.CheckPortResponse{
+		Open:   open,
+		ErrMsg: errMsg,
+	}, nil
 }
 
 func (c *Client) showConnectionError(connerr error, attempt int) {

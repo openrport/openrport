@@ -7,6 +7,7 @@ import (
 	"os"
 	"runtime"
 	"strings"
+	"time"
 
 	"github.com/gorilla/mux"
 	"github.com/jpillora/requestlog"
@@ -15,6 +16,10 @@ import (
 	"github.com/cloudradar-monitoring/rport/server/api/middleware"
 	"github.com/cloudradar-monitoring/rport/server/api/users"
 	chshare "github.com/cloudradar-monitoring/rport/share"
+)
+
+const (
+	DefaultMaxCheckPortTimeout = time.Minute
 )
 
 type APIListener struct {
@@ -33,6 +38,7 @@ type APIListener struct {
 	authorizationOn   bool
 	userSrv           UserService
 	maxRequestBytes   int64
+	checkPortTimeout  time.Duration
 }
 
 type UserService interface {
@@ -59,6 +65,10 @@ func NewAPIListener(config *Config, s *SessionService, fingerprint string) (*API
 		return nil, err
 	}
 
+	if config.CheckPortTimeout > DefaultMaxCheckPortTimeout {
+		return nil, fmt.Errorf("'check_port_timeout' can not be more than %s", DefaultMaxCheckPortTimeout)
+	}
+
 	a := &APIListener{
 		Logger:            chshare.NewLogger("api-listener", config.LogOutput, config.LogLevel),
 		connectURL:        config.URL,
@@ -73,6 +83,7 @@ func NewAPIListener(config *Config, s *SessionService, fingerprint string) (*API
 		userSrv:           users.NewUserRepository(authUsers),
 		authorizationOn:   authorizationOn,
 		maxRequestBytes:   config.MaxRequestBytes,
+		checkPortTimeout:  config.CheckPortTimeout,
 	}
 
 	a.initRouter()

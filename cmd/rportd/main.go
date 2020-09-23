@@ -21,6 +21,7 @@ const (
 	DefaultCacheClientsInterval = 1 * time.Second
 	DefaultCleanClientsInterval = 5 * time.Minute
 	DefaultMaxRequestBytes      = 2 * 1024 // 2 KB
+	DefaultCheckPortTimeout     = 2 * time.Second
 )
 
 var serverHelp = `
@@ -115,6 +116,9 @@ var serverHelp = `
     --csr-file-name, An optional arg to define a file name in --data-dir directory to store
     info about active and disconnected clients. By default, "csr.json" is used.
 
+    --check-port-timeout, An optional arg to define a timeout to check whether a remote destination of a requested
+    new tunnel is available, i.e. whether a given remote port is open on a client machine. By default, "2s" is used.
+
     --api-jwt-secret, Defines JWT secret used to generate new tokens.
     (defaults to the environment variable RPORT_API_JWT_SECRET and fallsback
     to auto-generated value).
@@ -173,6 +177,7 @@ func init() {
 	pFlags.Duration("save-clients-interval", DefaultCacheClientsInterval, "")
 	pFlags.Duration("cleanup-clients-interval", DefaultCleanClientsInterval, "")
 	pFlags.Int64("max-request-bytes", DefaultMaxRequestBytes, "")
+	pFlags.Duration("check-port-timeout", DefaultCheckPortTimeout, "")
 
 	cfgPath = pFlags.StringP("config", "c", "", "")
 
@@ -211,6 +216,7 @@ func init() {
 	_ = viperCfg.BindPFlag("save_clients_interval", pFlags.Lookup("save-clients-interval"))
 	_ = viperCfg.BindPFlag("cleanup_clients_interval", pFlags.Lookup("cleanup-clients-interval"))
 	_ = viperCfg.BindPFlag("max_request_bytes", pFlags.Lookup("max-request-bytes"))
+	_ = viperCfg.BindPFlag("check_port_timeout", pFlags.Lookup("check-port-timeout"))
 
 	// map ENV variables
 	_ = viperCfg.BindEnv("address", "RPORT_ADDR")
