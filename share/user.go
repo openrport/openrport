@@ -11,8 +11,3 @@ func ParseAuth(auth string) (string, string) {
 	}
 	return "", ""
 }
-
-type User struct {
-	Name string
-	Pass string
-}

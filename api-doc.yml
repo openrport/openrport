@@ -142,8 +142,7 @@ paths:
         "200":
           description: "success response"
           schema:
-            items:
-              $ref: "#/definitions/Session"
+            $ref: "#/definitions/Sessions"
   /sessions/{session_id}/tunnels:
     parameters:
       - name: "session_id"
@@ -224,6 +223,73 @@ paths:
           description: "specified session or tunnel does not exist or already terminated"
           schema:
             $ref: "#/definitions/ErrorPayload"
+  /clients:
+    get:
+      summary: "Returns all rport clients credentials. Sorted by ID in asc order."
+      description: ""
+      produces:
+        - "application/json"
+      responses:
+        "200":
+          description: "Success response."
+          schema:
+            $ref: "#/definitions/Clients"
+        "405":
+          description: "Operation not allowed. Error codes: ERR_CODE_CLIENT_AUTH_DISABLED"
+          schema:
+            $ref: "#/definitions/ErrorPayload"
+    post:
+      summary: "Add a new rport client credentials."
+      description: ""
+      produces:
+      - "application/json"
+      parameters:
+      - in: "body"
+        name: "body"
+        description: "Client credentials that needs to be added"
+        required: true
+        schema:
+          $ref: "#/definitions/Client"
+      responses:
+        "204":
+          description: "New client added."
+        "400":
+          description: "invalid parameters"
+          schema:
+            $ref: "#/definitions/ErrorPayload"
+        "405":
+          description: "Operation not allowed. Error codes: ERR_CODE_CLIENT_AUTH_DISABLED, ERR_CODE_CLIENT_SINGLE_CLIENT, ERR_CODE_CLIENT_AUTH_RO"
+          schema:
+            $ref: "#/definitions/ErrorPayload"
+        "409":
+          description: "Client already exist. Err code: ERR_CODE_ALREADY_EXIST"
+          schema:
+            $ref: "#/definitions/ErrorPayload"
+  /clients/{client_id}:
+    parameters:
+      - name: "client_id"
+        in: "path"
+        description: "client ID"
+        required: true
+        type: "string"
+    delete:
+      summary:  "Delete rport client credentials."
+      description: ""
+      responses:
+        "204":
+          description: "Client deleted."
+        "400":
+          description: "invalid parameters. Err codes: ERR_CODE_CLIENT_NOT_FOUND"
+          schema:
+            $ref: "#/definitions/ErrorPayload"
+        "405":
+          description: "Operation not allowed. Error codes: ERR_CODE_CLIENT_AUTH_DISABLED, ERR_CODE_CLIENT_SINGLE_CLIENT, ERR_CODE_CLIENT_AUTH_RO"
+          schema:
+            $ref: "#/definitions/ErrorPayload"
+        "409":
+          description: "Could not delete. Client has active or disconnected session(s). Err code: ERR_CODE_CLIENT_HAS_SESSION"
+          schema:
+            $ref: "#/definitions/ErrorPayload"
 definitions:
   Tunnel:
     type: "object"
@@ -251,47 +317,69 @@ definitions:
       acl:
         type: "string"
         description: "IP addresses who is allowed to use the tunnel. For example, '142.78.90.8,201.98.123.0/24,'."
-  Session:
+  Sessions:
     type: "object"
     properties:
       data:
+        type: "array"
+        items:
+          $ref: "#/definitions/Session"
+      meta:
         type: "object"
-        properties:
-          id:
-            type: "string"
-          name:
-            type: "string"
-            description: "client name"
-          os:
-            type: "string"
-            description: "client OS"
-          hostname:
-            type: "string"
-            description: "client hostname"
-          ipv4:
-            type: "array"
-            items:
-              type: string
-            description: "list of IPv4 addresses of the client"
-          ipv6:
-            type: "array"
-            items:
-              type: string
-            description: "list of IPv6 addresses of the client"
-          tags:
-            type: "array"
-            items:
-              type: string
-          version:
-            type: "string"
-            description: "client version"
-          address:
-            type: "string"
-            description: "client address"
-          tunnels:
-            type: "array"
-            items:
-              $ref: "#/definitions/Tunnel"
+  Session:
+    type: "object"
+    properties:
+      id:
+        type: "string"
+      name:
+        type: "string"
+        description: "client name"
+      os:
+        type: "string"
+        description: "client OS"
+      hostname:
+        type: "string"
+        description: "client hostname"
+      ipv4:
+        type: "array"
+        items:
+          type: string
+        description: "list of IPv4 addresses of the client"
+      ipv6:
+        type: "array"
+        items:
+          type: string
+        description: "list of IPv6 addresses of the client"
+      tags:
+        type: "array"
+        items:
+          type: string
+      version:
+        type: "string"
+        description: "client version"
+      address:
+        type: "string"
+        description: "client address"
+      tunnels:
+        type: "array"
+        items:
+          $ref: "#/definitions/Tunnel"
+  Client:
+    type: "object"
+    properties:
+      id:
+        type: "string"
+        description: "client ID"
+      password:
+        type: "string"
+        description: "client password"
+  Clients:
+    type: "object"
+    properties:
+      data:
+        type: "array"
+        items:
+          $ref: "#/definitions/Client"
       meta:
         type: "object"
   ErrorPayload:

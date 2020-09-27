@@ -8,7 +8,7 @@ import (
 )
 
 func TestCleanup(t *testing.T) {
-	now = nowMockF
+	Now = nowMockF
 
 	// given
 	sessions := []*ClientSession{s1, s2, s3}

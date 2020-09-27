@@ -9,7 +9,7 @@ import (
 )
 
 func TestCSRWithExpiration(t *testing.T) {
-	now = nowMockF
+	Now = nowMockF
 
 	exp := 2 * time.Hour
 	repo := NewSessionRepository([]*ClientSession{s1, s2}, &exp)
@@ -51,7 +51,7 @@ func TestCSRWithExpiration(t *testing.T) {
 }
 
 func TestCSRWithNoExpiration(t *testing.T) {
-	now = nowMockF
+	Now = nowMockF
 
 	repo := NewSessionRepository([]*ClientSession{s1, s2, s3}, nil)
 	s4Active := shallowCopy(s4)

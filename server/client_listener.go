@@ -2,8 +2,9 @@ package chserver
 
 import (
 	"context"
+	"crypto/subtle"
 	"encoding/json"
-	"errors"
+	"fmt"
 	"net/http"
 	"net/http/httputil"
 	"net/url"
@@ -16,6 +17,7 @@ import (
 	"golang.org/x/crypto/ssh"
 
 	"github.com/cloudradar-monitoring/rport/server/api/middleware"
+	"github.com/cloudradar-monitoring/rport/server/clients"
 	"github.com/cloudradar-monitoring/rport/server/sessions"
 	chshare "github.com/cloudradar-monitoring/rport/share"
 )
@@ -25,14 +27,14 @@ type ClientListener struct {
 
 	sessionService *SessionService
 
-	connStats          chshare.ConnStats
-	httpServer         *chshare.HTTPServer
-	reverseProxy       *httputil.ReverseProxy
-	sshConfig          *ssh.ServerConfig
-	authenticatedUsers *chshare.Users
-	users              *chshare.UserIndex
-	requestLogOptions  *requestlog.Options
-	maxRequestBytes    int64
+	connStats         chshare.ConnStats
+	httpServer        *chshare.HTTPServer
+	reverseProxy      *httputil.ReverseProxy
+	sshConfig         *ssh.ServerConfig
+	sshSessionClients *clients.ClientCache // [ssh_session_id, Client] pairs, applicable only when auth is enabled
+	allClients        *clients.ClientCache
+	requestLogOptions *requestlog.Options
+	maxRequestBytes   int64
 
 	sessionIndexAutoIncrement int32
 }
@@ -43,32 +45,22 @@ var upgrader = websocket.Upgrader{
 	CheckOrigin:     func(r *http.Request) bool { return true },
 }
 
-func NewClientListener(config *Config, s *SessionService, privateKey ssh.Signer) (*ClientListener, error) {
+func NewClientListener(config *Config, s *SessionService, allClients *clients.ClientCache, privateKey ssh.Signer) (*ClientListener, error) {
 	cl := &ClientListener{
-		sessionService:     s,
-		httpServer:         chshare.NewHTTPServer(int(config.MaxRequestBytes)),
-		authenticatedUsers: chshare.NewUsers(),
-		Logger:             chshare.NewLogger("client-listener", config.LogOutput, config.LogLevel),
-		requestLogOptions:  config.InitRequestLogOptions(),
-		maxRequestBytes:    config.MaxRequestBytes,
-	}
-	cl.users = chshare.NewUserIndex(cl.Logger)
-	if config.AuthFile != "" {
-		if err := cl.users.LoadUsers(config.AuthFile); err != nil {
-			return nil, err
-		}
-	}
-	if config.Auth != "" {
-		u := &chshare.User{}
-		u.Name, u.Pass = chshare.ParseAuth(config.Auth)
-		if u.Name != "" {
-			cl.users.AddUser(u)
-		}
+		sessionService:    s,
+		httpServer:        chshare.NewHTTPServer(int(config.MaxRequestBytes)),
+		allClients:        allClients,
+		sshSessionClients: clients.NewEmptyClientCache(),
+		Logger:            chshare.NewLogger("client-listener", config.LogOutput, config.LogLevel),
+		requestLogOptions: config.InitRequestLogOptions(),
+		maxRequestBytes:   config.MaxRequestBytes,
 	}
 	//create ssh config
 	cl.sshConfig = &ssh.ServerConfig{
-		ServerVersion:    "SSH-" + chshare.ProtocolVersion + "-server",
-		PasswordCallback: cl.authUser,
+		ServerVersion: "SSH-" + chshare.ProtocolVersion + "-server",
+	}
+	if cl.allClients != nil {
+		cl.sshConfig.PasswordCallback = cl.authUser
 	}
 	cl.sshConfig.AddHostKey(privateKey)
 	//setup reverse proxy
@@ -94,27 +86,22 @@ func NewClientListener(config *Config, s *SessionService, privateKey ssh.Signer)
 
 // authUser is responsible for validating the ssh user / password combination
 func (cl *ClientListener) authUser(c ssh.ConnMetadata, password []byte) (*ssh.Permissions, error) {
-	// check if user authentication is enable and it not allow all
-	if cl.users.Len() == 0 {
-		return nil, nil
+	clientID := c.User()
+	client := cl.allClients.Get(clientID)
+	// constant time compare is used for security reasons
+	if client == nil || subtle.ConstantTimeCompare([]byte(client.Password), password) != 1 {
+		cl.Debugf("Login failed for client: %s", clientID)
+		return nil, fmt.Errorf("invalid authentication for client: %s", clientID)
 	}
-	// check the user exists and has matching password
-	n := c.User()
-	user, found := cl.users.Get(n)
-	if !found || user.Pass != string(password) {
-		cl.Debugf("Login failed for user: %s", n)
-		return nil, errors.New("Invalid authentication for username: %s")
-	}
-	// insert the user session map
-	// @note: this should probably have a lock on it given the map isn't thread-safe??
-	cl.authenticatedUsers.Set(sessions.GetSessionID(c), user)
+
+	// add to session clients to retrieve him later by SSH session ID
+	sshID := sessions.GetSessionID(c)
+	cl.sshSessionClients.Set(sshID, client)
+
 	return nil, nil
 }
 
 func (cl *ClientListener) Start(listenAddr string) error {
-	if cl.users.Len() > 0 {
-		cl.Infof("User authentication enabled")
-	}
 	if cl.reverseProxy != nil {
 		cl.Infof("Reverse proxy enabled")
 	}
@@ -243,17 +230,19 @@ func (cl *ClientListener) handleWebsocket(w http.ResponseWriter, req *http.Reque
 		}
 	}
 
-	// pull the users from the session map
-	var user *chshare.User
-	if cl.users.Len() > 0 {
-		user, _ = cl.authenticatedUsers.Get(sid)
-		cl.authenticatedUsers.Del(sid)
+	// get the current client
+	var client *clients.Client
+	if cl.allClients != nil {
+		sshID := sessions.GetSessionID(sshConn)
+		client = cl.sshSessionClients.Get(sshID)
+		// no need to keep it, remove
+		cl.sshSessionClients.Delete(sshID)
 	}
 
 	ctx, cancel := context.WithCancel(context.Background())
 	defer cancel()
 
-	clientSession, err := cl.sessionService.StartClientSession(ctx, sid, sshConn, connRequest, user, clog)
+	clientSession, err := cl.sessionService.StartClientSession(ctx, sid, sshConn, connRequest, client, clog)
 	if err != nil {
 		failed(cl.FormatError("%s", err))
 		return

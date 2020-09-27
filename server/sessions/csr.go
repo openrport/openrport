@@ -83,6 +83,19 @@ func (s *ClientSessionRepository) GetActiveByID(id string) (*ClientSession, erro
 	return session, nil
 }
 
+// TODO(m-terel): make it consistent with others whether to return an error. In general it's just a cache, so should not return an err.
+func (s *ClientSessionRepository) GetByClientID(clientID string, active bool) []*ClientSession {
+	all, _ := s.GetAll()
+	var res []*ClientSession
+	for _, v := range all {
+		vActive := v.Disconnected == nil
+		if v.ClientID != nil && *v.ClientID == clientID && vActive == active {
+			res = append(res, v)
+		}
+	}
+	return res
+}
+
 // GetAll returns all non-obsolete active and disconnected client sessions.
 func (s *ClientSessionRepository) GetAll() ([]*ClientSession, error) {
 	s.mu.RLock()

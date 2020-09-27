@@ -53,7 +53,7 @@ func getInitState(r io.Reader, expiration *time.Duration) ([]*ClientSession, err
 	log.Printf("Got %d and skipped %d obsolete client session(s).\n", len(sessions), obsolete)
 
 	// mark previously connected client sessions as disconnected with current time
-	now := now()
+	now := Now()
 	for _, session := range sessions {
 		if session.Disconnected == nil {
 			session.Disconnected = &now

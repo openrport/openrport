@@ -18,7 +18,7 @@ type CheckPortRequest struct {
 func DecodeCheckPortRequest(b []byte) (*CheckPortRequest, error) {
 	res := &CheckPortRequest{}
 	if err := json.Unmarshal(b, res); err != nil {
-		return nil, fmt.Errorf("failed to unmarshall %T: %v", res, err)
+		return nil, fmt.Errorf("failed to decode %T: %v", res, err)
 	}
 	return res, nil
 }

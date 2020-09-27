@@ -17,11 +17,12 @@ import (
 )
 
 const (
-	DefaultCSRFileName          = "csr.json"
-	DefaultCacheClientsInterval = 1 * time.Second
-	DefaultCleanClientsInterval = 5 * time.Minute
-	DefaultMaxRequestBytes      = 2 * 1024 // 2 KB
-	DefaultCheckPortTimeout     = 2 * time.Second
+	DefaultCSRFileName             = "csr.json"
+	DefaultCacheClientsInterval    = 1 * time.Second
+	DefaultSaveClientsAuthInterval = 5 * time.Second
+	DefaultCleanClientsInterval    = 5 * time.Minute
+	DefaultMaxRequestBytes         = 2 * 1024 // 2 KB
+	DefaultCheckPortTimeout        = 2 * time.Second
 )
 
 var serverHelp = `
@@ -54,7 +55,7 @@ var serverHelp = `
     of man-in-the-middle attacks (defaults to the RPORT_KEY environment
     variable, otherwise a new key is generate each run).
 
-    --authfile, An optional path to a json file with clients credentials.
+    --authfile, An optional path to a json file with client credentials.
     This is for authentication of the rport tunnel clients.
     The file should contain a map with clients credentials defined like:
       {
@@ -62,9 +63,16 @@ var serverHelp = `
         "<client2-id>": "<password2>"
       }
 
-    --auth, An optional string representing a single client with full
-    access, in the form of <client-id>:<password>. This is equivalent to creating an
-    authfile with {"<client-id>":"<password>"}.
+    --auth, An optional string representing a single client with full access, in the form of <client-id>:<password>.
+    This is equivalent to creating an authfile with {"<client-id>":"<password>"}.
+    Use either "authfile" or "auth". Not both.
+
+    --auth-write, If you want to delegate the creation and maintenance to an external tool
+    you should set this value to "false". The API will reject all writing access to the
+    client auth with HTTP 403. Applies only to --authfile and --auth-table. Default is "true".
+
+    --save-clients-auth-interval, Applicable only if --authfile is specified and --auth-write is true.
+    An optional arg to define an interval to flush rport clients auth info to disk. By default, '5s' is used.
 
     --proxy, Specifies another HTTP server to proxy requests to when
     rportd receives a normal HTTP request. Useful for hiding rportd in
@@ -178,6 +186,8 @@ func init() {
 	pFlags.Duration("cleanup-clients-interval", DefaultCleanClientsInterval, "")
 	pFlags.Int64("max-request-bytes", DefaultMaxRequestBytes, "")
 	pFlags.Duration("check-port-timeout", DefaultCheckPortTimeout, "")
+	pFlags.Bool("auth-write", true, "")
+	pFlags.Duration("save-clients-auth-interval", DefaultSaveClientsAuthInterval, "")
 
 	cfgPath = pFlags.StringP("config", "c", "", "")
 
@@ -217,6 +227,8 @@ func init() {
 	_ = viperCfg.BindPFlag("cleanup_clients_interval", pFlags.Lookup("cleanup-clients-interval"))
 	_ = viperCfg.BindPFlag("max_request_bytes", pFlags.Lookup("max-request-bytes"))
 	_ = viperCfg.BindPFlag("check_port_timeout", pFlags.Lookup("check-port-timeout"))
+	_ = viperCfg.BindPFlag("auth_write", pFlags.Lookup("auth-write"))
+	_ = viperCfg.BindPFlag("save_clients_auth_interval", pFlags.Lookup("save-clients-auth-interval"))
 
 	// map ENV variables
 	_ = viperCfg.BindEnv("address", "RPORT_ADDR")

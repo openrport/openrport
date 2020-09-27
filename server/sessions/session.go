@@ -13,8 +13,8 @@ import (
 	chshare "github.com/cloudradar-monitoring/rport/share"
 )
 
-// now is used to stub time.Now in tests
-var now = func() time.Time {
+// Now is used to stub time.Now in tests
+var Now = func() time.Time {
 	return time.Now()
 }
 
@@ -36,10 +36,10 @@ type ClientSession struct {
 	Tunnels  []*Tunnel `json:"tunnels"`
 	// Disconnected is a time when a client session was disconnected. If nil - it's connected.
 	Disconnected *time.Time `json:"disconnected,omitempty"`
+	ClientID     *string    `json:"client,omitempty"`
 
 	Connection ssh.Conn        `json:"-"`
 	Context    context.Context `json:"-"`
-	User       *chshare.User   `json:"-"`
 	Logger     *chshare.Logger `json:"-"`
 
 	tunnelIDAutoIncrement int64
@@ -50,7 +50,7 @@ type ClientSession struct {
 // If a given duration is nil - returns false.
 func (c *ClientSession) Obsolete(duration *time.Duration) bool {
 	return duration != nil && c.Disconnected != nil &&
-		c.Disconnected.Add(*duration).Before(now())
+		c.Disconnected.Add(*duration).Before(Now())
 }
 
 func (c *ClientSession) Lock() {

@@ -7,6 +7,7 @@ import (
 
 	"golang.org/x/crypto/ssh"
 
+	"github.com/cloudradar-monitoring/rport/server/clients"
 	"github.com/cloudradar-monitoring/rport/server/ports"
 	"github.com/cloudradar-monitoring/rport/server/sessions"
 	chshare "github.com/cloudradar-monitoring/rport/share"
@@ -40,13 +41,18 @@ func (s *SessionService) GetActiveByID(id string) (*sessions.ClientSession, erro
 	return s.repo.GetActiveByID(id)
 }
 
+// TODO(m-terel): make it consistent with others whether to return an error. No need for now return an err
+func (s *SessionService) GetByClientID(clientID string, active bool) []*sessions.ClientSession {
+	return s.repo.GetByClientID(clientID, active)
+}
+
 func (s *SessionService) GetAll() ([]*sessions.ClientSession, error) {
 	return s.repo.GetAll()
 }
 
 func (s *SessionService) StartClientSession(
 	ctx context.Context, sid string, sshConn ssh.Conn,
-	req *chshare.ConnectionRequest, user *chshare.User, clog *chshare.Logger,
+	req *chshare.ConnectionRequest, client *clients.Client, clog *chshare.Logger,
 ) (*sessions.ClientSession, error) {
 	session := &sessions.ClientSession{
 		ID:         sid,
@@ -61,8 +67,11 @@ func (s *SessionService) StartClientSession(
 		Tunnels:    make([]*sessions.Tunnel, 0),
 		Connection: sshConn,
 		Context:    ctx,
-		User:       user,
 		Logger:     clog,
+	}
+
+	if client != nil {
+		session.ClientID = &client.ID
 	}
 
 	_, err := s.StartSessionTunnels(session, req.Remotes)

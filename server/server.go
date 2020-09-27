@@ -1,11 +1,15 @@
 package chserver
 
 import (
+	"context"
+	"errors"
 	"fmt"
 
 	"golang.org/x/crypto/ssh"
 
+	"github.com/cloudradar-monitoring/rport/server/clients"
 	"github.com/cloudradar-monitoring/rport/server/ports"
+	"github.com/cloudradar-monitoring/rport/server/scheduler"
 	"github.com/cloudradar-monitoring/rport/server/sessions"
 	chshare "github.com/cloudradar-monitoring/rport/share"
 )
@@ -17,6 +21,7 @@ type Server struct {
 	apiAddr        string
 	clientListener *ClientListener
 	apiListener    *APIListener
+	config         *Config
 }
 
 // NewServer creates and returns a new rport server
@@ -25,6 +30,7 @@ func NewServer(config *Config, repo *sessions.ClientSessionRepository) (*Server,
 		Logger:     chshare.NewLogger("server", config.LogOutput, config.LogLevel),
 		listenAddr: config.ListenAddress,
 		apiAddr:    config.API.Address,
+		config:     config,
 	}
 
 	privateKey, err := initPrivateKey(config.KeySeed)
@@ -39,17 +45,53 @@ func NewServer(config *Config, repo *sessions.ClientSessionRepository) (*Server,
 		repo,
 	)
 
-	s.clientListener, err = NewClientListener(config, sessionService, privateKey)
+	clientProvider, err := getClientProvider(s.Logger, config)
 	if err != nil {
 		return nil, err
 	}
 
-	s.apiListener, err = NewAPIListener(config, sessionService, fingerprint)
+	var rClients *clients.ClientCache
+	if clientProvider != nil {
+		s.Infof("Client authentication enabled.")
+
+		all, InErr := clientProvider.GetAll()
+		if InErr != nil {
+			return nil, InErr
+		}
+		rClients = clients.NewClientCache(all)
+	}
+
+	s.clientListener, err = NewClientListener(config, sessionService, rClients, privateKey)
+	if err != nil {
+		return nil, err
+	}
+
+	s.apiListener, err = NewAPIListener(config, sessionService, rClients, clientProvider, config.AuthWrite, fingerprint)
 	if err != nil {
 		return nil, err
 	}
 
 	return s, nil
+}
+
+type ClientProvider interface {
+	GetAll() ([]*clients.Client, error)
+}
+
+func getClientProvider(log *chshare.Logger, config *Config) (ClientProvider, error) {
+	if config.AuthFile != "" && config.Auth != "" {
+		return nil, errors.New("'auth_file' and 'auth' are both set: expected only one of them ")
+	}
+
+	if config.AuthFile != "" {
+		return clients.NewFileClients(log, config.AuthFile), nil
+	}
+
+	if config.Auth != "" {
+		return clients.NewSingleClient(log, config.Auth), nil
+	}
+
+	return nil, nil
 }
 
 func initPrivateKey(seed string) (ssh.Signer, error) {
@@ -67,6 +109,13 @@ func initPrivateKey(seed string) (ssh.Signer, error) {
 func (s *Server) Run() error {
 	if err := s.Start(); err != nil {
 		return err
+	}
+
+	if s.config.AuthFile != "" && s.config.AuthWrite {
+		ctx := context.Background()
+		// TODO(m-terel): add graceful shutdown when a global shutdown mechanism will be ready and working
+		go scheduler.Run(ctx, s.Logger, clients.NewSaveToFileTask(s.Logger, s.apiListener.clientCache, s.config.AuthFile), s.config.SaveClientsAuth)
+		s.Infof("Task to save rport clients auth credentials to disk will run with interval %v", s.config.SaveClientsAuth)
 	}
 
 	return s.Wait()

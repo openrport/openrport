@@ -21,7 +21,7 @@ var jsonCorruptedWithOneClient = fmt.Sprintf("[%s,%s", s1JSON, `
    "host`)
 
 func TestGetInitState(t *testing.T) {
-	now = nowMockF
+	Now = nowMockF
 
 	wantS1 := shallowCopy(s1)
 	wantS1.Disconnected = &nowMock

@@ -4,6 +4,7 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
+	"io"
 	"net/http"
 	"strconv"
 	"strings"
@@ -14,6 +15,7 @@ import (
 
 	"github.com/cloudradar-monitoring/rport/server/api"
 	"github.com/cloudradar-monitoring/rport/server/api/middleware"
+	"github.com/cloudradar-monitoring/rport/server/clients"
 	"github.com/cloudradar-monitoring/rport/server/ports"
 	"github.com/cloudradar-monitoring/rport/server/sessions"
 	chshare "github.com/cloudradar-monitoring/rport/share"
@@ -22,6 +24,10 @@ import (
 
 const (
 	queryParamSort = "sort"
+
+	ErrCodeMissingRouteVar = "ERR_CODE_MISSING_ROUTE_VAR"
+	ErrCodeInvalidRequest  = "ERR_CODE_INVALID_REQUEST"
+	ErrCodeAlreadyExist    = "ERR_CODE_ALREADY_EXIST"
 )
 
 func (al *APIListener) wrapWithAuthMiddleware(f http.Handler) http.HandlerFunc {
@@ -52,6 +58,9 @@ func (al *APIListener) initRouter() {
 	sub.HandleFunc("/sessions", al.handleGetSessions).Methods(http.MethodGet)
 	sub.HandleFunc("/sessions/{session_id}/tunnels", al.handlePutSessionTunnel).Methods(http.MethodPut)
 	sub.HandleFunc("/sessions/{session_id}/tunnels/{tunnel_id}", al.handleDeleteSessionTunnel).Methods(http.MethodDelete)
+	sub.HandleFunc("/clients", al.handleGetClients).Methods(http.MethodGet)
+	sub.HandleFunc("/clients", al.handlePostClients).Methods(http.MethodPost)
+	sub.HandleFunc("/clients/{client_id}", al.handleDeleteClient).Methods(http.MethodDelete)
 
 	// add authorization middleware if needed
 	if al.authorizationOn {
@@ -94,20 +103,24 @@ func (al *APIListener) jsonErrorResponse(w http.ResponseWriter, statusCode int, 
 	al.writeJSONResponse(w, statusCode, api.NewErrorPayload(err))
 }
 
-func (al *APIListener) jsonErrorResponseWithErrCode(w http.ResponseWriter, statusCode int, errCode, msg string) {
-	al.writeJSONResponse(w, statusCode, api.NewErrorPayloadWithCode(errCode, msg, ""))
+func (al *APIListener) jsonErrorResponseWithErrCode(w http.ResponseWriter, statusCode int, errCode, title string) {
+	al.writeJSONResponse(w, statusCode, api.NewErrorPayloadWithCode(errCode, title, ""))
 }
 
-func (al *APIListener) jsonErrorResponseWithDetail(w http.ResponseWriter, statusCode int, errCode, msg, detail string) {
-	al.writeJSONResponse(w, statusCode, api.NewErrorPayloadWithCode(errCode, msg, detail))
+func (al *APIListener) jsonErrorResponseWithTitle(w http.ResponseWriter, statusCode int, title string) {
+	al.writeJSONResponse(w, statusCode, api.NewErrorPayloadWithCode("", title, ""))
 }
 
-func (al *APIListener) jsonErrorResponseWithError(w http.ResponseWriter, statusCode int, errCode, msg string, err error) {
+func (al *APIListener) jsonErrorResponseWithDetail(w http.ResponseWriter, statusCode int, errCode, title, detail string) {
+	al.writeJSONResponse(w, statusCode, api.NewErrorPayloadWithCode(errCode, title, detail))
+}
+
+func (al *APIListener) jsonErrorResponseWithError(w http.ResponseWriter, statusCode int, errCode, title string, err error) {
 	var detail string
 	if err != nil {
 		detail = err.Error()
 	}
-	al.writeJSONResponse(w, statusCode, api.NewErrorPayloadWithCode(errCode, msg, detail))
+	al.writeJSONResponse(w, statusCode, api.NewErrorPayloadWithCode(errCode, title, detail))
 }
 
 func (al *APIListener) handleGetLogin(w http.ResponseWriter, req *http.Request) {
@@ -496,4 +509,129 @@ func (al *APIListener) handleGetMe(w http.ResponseWriter, req *http.Request) {
 	}
 	response := api.NewSuccessPayload(me)
 	al.writeJSONResponse(w, http.StatusOK, response)
+}
+
+const (
+	MinCredentialsLength = 3
+
+	ErrCodeClientAuthDisabled     = "ERR_CODE_CLIENT_AUTH_DISABLED"
+	ErrCodeClientAuthSingleClient = "ERR_CODE_CLIENT_SINGLE_CLIENT"
+	ErrCodeClientAuthRO           = "ERR_CODE_CLIENT_AUTH_RO"
+
+	ErrCodeClientHasSession = "ERR_CODE_CLIENT_HAS_SESSION"
+	ErrCodeClientNotFound   = "ERR_CODE_CLIENT_NOT_FOUND"
+)
+
+func (al *APIListener) handleGetClients(w http.ResponseWriter, req *http.Request) {
+	if !al.allowClientAuthRead(w) {
+		return
+	}
+
+	rClients := al.clientCache.GetAll()
+	clients.SortByID(rClients, false)
+
+	al.writeJSONResponse(w, http.StatusOK, api.NewSuccessPayload(rClients))
+}
+
+func (al *APIListener) handlePostClients(w http.ResponseWriter, req *http.Request) {
+	if !al.allowClientAuthWrite(w) {
+		return
+	}
+
+	var newClient clients.Client
+	err := json.NewDecoder(req.Body).Decode(&newClient)
+	if err == io.EOF {
+		al.jsonErrorResponseWithErrCode(w, http.StatusBadRequest, ErrCodeInvalidRequest, "Missing data.")
+		return
+	} else if err != nil {
+		al.jsonErrorResponseWithError(w, http.StatusBadRequest, ErrCodeInvalidRequest, "Invalid JSON data.", err)
+		return
+	}
+
+	if len(newClient.ID) < MinCredentialsLength {
+		al.jsonErrorResponseWithDetail(w, http.StatusBadRequest, ErrCodeInvalidRequest, "Invalid or missing ID.", fmt.Sprintf("Min size is %d.", MinCredentialsLength))
+		return
+	}
+
+	if len(newClient.Password) < MinCredentialsLength {
+		al.jsonErrorResponseWithDetail(w, http.StatusBadRequest, ErrCodeInvalidRequest, "Invalid or missing password.", fmt.Sprintf("Min size is %d.", MinCredentialsLength))
+		return
+	}
+
+	if al.clientCache.Get(newClient.ID) != nil {
+		al.jsonErrorResponseWithDetail(w, http.StatusConflict, ErrCodeAlreadyExist, fmt.Sprintf("Client with ID %q already exist.", newClient.ID), "")
+		return
+	}
+
+	al.clientCache.Set(newClient.ID, &newClient)
+	al.Infof("Client %q created.", newClient.ID)
+
+	w.WriteHeader(http.StatusCreated)
+}
+
+func (al *APIListener) handleDeleteClient(w http.ResponseWriter, req *http.Request) {
+	if !al.allowClientAuthWrite(w) {
+		return
+	}
+
+	vars := mux.Vars(req)
+	clientID := vars["client_id"]
+	if clientID == "" {
+		al.jsonErrorResponseWithErrCode(w, http.StatusBadRequest, ErrCodeMissingRouteVar, "Missing 'client_id' route param.")
+		return
+	}
+
+	if al.clientCache.Get(clientID) == nil {
+		al.jsonErrorResponseWithErrCode(w, http.StatusBadRequest, ErrCodeClientNotFound, fmt.Sprintf("Client with ID=%q not found.", clientID))
+		return
+	}
+
+	activeSessions := al.sessionService.GetByClientID(clientID, true)
+	if len(activeSessions) > 0 {
+		al.jsonErrorResponseWithErrCode(w, http.StatusConflict, ErrCodeClientHasSession, fmt.Sprintf("Client expected to have no active session(s), got %d.", len(activeSessions)))
+		return
+	}
+
+	disconnectedSessions := al.sessionService.GetByClientID(clientID, false)
+	if len(disconnectedSessions) > 0 {
+		al.jsonErrorResponseWithErrCode(w, http.StatusConflict, ErrCodeClientHasSession, fmt.Sprintf("Client expected to have no disconnected session(s), got %d.", len(disconnectedSessions)))
+		return
+	}
+
+	al.clientCache.Delete(clientID)
+	al.Infof("Client %q deleted.", clientID)
+
+	w.WriteHeader(http.StatusNoContent)
+}
+
+func (al *APIListener) allowClientAuthRead(w http.ResponseWriter) bool {
+	if al.clientProvider == nil {
+		al.jsonErrorResponseWithErrCode(w, http.StatusMethodNotAllowed, ErrCodeClientAuthDisabled, "Client authentication is disabled.")
+		return false
+	}
+	if al.clientCache == nil {
+		al.jsonErrorResponseWithTitle(w, http.StatusInternalServerError, "Rport clients cache is not initialized.")
+		return false
+	}
+	return true
+}
+
+func (al *APIListener) allowClientAuthWrite(w http.ResponseWriter) bool {
+	if !al.allowClientAuthRead(w) {
+		return false
+	}
+
+	var i interface{} = al.clientProvider
+	switch i.(type) {
+	case *clients.SingleClient:
+		al.jsonErrorResponseWithErrCode(w, http.StatusMethodNotAllowed, ErrCodeClientAuthSingleClient, "Client authentication is enabled only for a single user.")
+		return false
+	}
+
+	if !al.clientAuthWrite {
+		al.jsonErrorResponseWithErrCode(w, http.StatusMethodNotAllowed, ErrCodeClientAuthRO, "Client authentication has been attached in read-only mode.")
+		return false
+	}
+
+	return true
 }

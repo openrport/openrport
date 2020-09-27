@@ -15,6 +15,7 @@ import (
 
 	"github.com/cloudradar-monitoring/rport/server/api/middleware"
 	"github.com/cloudradar-monitoring/rport/server/api/users"
+	"github.com/cloudradar-monitoring/rport/server/clients"
 	chshare "github.com/cloudradar-monitoring/rport/share"
 )
 
@@ -37,6 +38,9 @@ type APIListener struct {
 	requestLogOptions *requestlog.Options
 	authorizationOn   bool
 	userSrv           UserService
+	clientCache       *clients.ClientCache
+	clientProvider    ClientProvider
+	clientAuthWrite   bool
 	maxRequestBytes   int64
 	checkPortTimeout  time.Duration
 }
@@ -46,7 +50,14 @@ type UserService interface {
 	Count() (int, error)
 }
 
-func NewAPIListener(config *Config, s *SessionService, fingerprint string) (*APIListener, error) {
+func NewAPIListener(
+	config *Config,
+	s *SessionService,
+	clientCache *clients.ClientCache,
+	clientProvider ClientProvider,
+	clientAuthWrite bool,
+	fingerprint string,
+) (*APIListener, error) {
 	var authUsers []*users.User
 	var err error
 	authorizationOn := false
@@ -81,6 +92,9 @@ func NewAPIListener(config *Config, s *SessionService, fingerprint string) (*API
 		docRoot:           config.API.DocRoot,
 		requestLogOptions: config.InitRequestLogOptions(),
 		userSrv:           users.NewUserRepository(authUsers),
+		clientCache:       clientCache,
+		clientProvider:    clientProvider,
+		clientAuthWrite:   clientAuthWrite,
 		authorizationOn:   authorizationOn,
 		maxRequestBytes:   config.MaxRequestBytes,
 		checkPortTimeout:  config.CheckPortTimeout,

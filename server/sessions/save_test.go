@@ -9,7 +9,7 @@ import (
 )
 
 func TestSaveToFile(t *testing.T) {
-	now = nowMockF
+	Now = nowMockF
 
 	// given
 	var fileMock bytes.Buffer
