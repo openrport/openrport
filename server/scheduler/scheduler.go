@@ -18,12 +18,9 @@ func Run(ctx context.Context, log *chshare.Logger, task Task, interval time.Dura
 	for {
 		select {
 		case <-tick.C:
-			start := time.Now()
-			log.Debugf("Start to run %T.", task)
 			if err := task.Run(); err != nil {
 				log.Errorf("Task %T finished with an error: %v.", task, err)
 			}
-			log.Debugf("Finished to run %T in %v.", task, time.Since(start))
 		case <-ctx.Done():
 			return
 		}

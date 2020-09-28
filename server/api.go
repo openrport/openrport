@@ -558,12 +558,11 @@ func (al *APIListener) handlePostClients(w http.ResponseWriter, req *http.Reques
 		return
 	}
 
-	if al.clientCache.Get(newClient.ID) != nil {
+	if !al.clientCache.Add(newClient.ID, &newClient) {
 		al.jsonErrorResponseWithDetail(w, http.StatusConflict, ErrCodeAlreadyExist, fmt.Sprintf("Client with ID %q already exist.", newClient.ID), "")
 		return
 	}
 
-	al.clientCache.Set(newClient.ID, &newClient)
 	al.Infof("Client %q created.", newClient.ID)
 
 	w.WriteHeader(http.StatusCreated)

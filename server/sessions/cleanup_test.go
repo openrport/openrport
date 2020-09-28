@@ -14,7 +14,7 @@ func TestCleanup(t *testing.T) {
 	sessions := []*ClientSession{s1, s2, s3}
 	repo := NewSessionRepository(sessions, &hour)
 	require.Len(t, repo.sessions, 3)
-	task := NewCleanupTask(testLog, repo)
+	task := NewCleanupTask(testLog, repo, nil)
 
 	// when
 	err := task.Run()

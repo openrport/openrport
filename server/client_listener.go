@@ -35,6 +35,7 @@ type ClientListener struct {
 	allClients        *clients.ClientCache
 	requestLogOptions *requestlog.Options
 	maxRequestBytes   int64
+	config            *Config
 
 	sessionIndexAutoIncrement int32
 }
@@ -47,6 +48,7 @@ var upgrader = websocket.Upgrader{
 
 func NewClientListener(config *Config, s *SessionService, allClients *clients.ClientCache, privateKey ssh.Signer) (*ClientListener, error) {
 	cl := &ClientListener{
+		config:            config,
 		sessionService:    s,
 		httpServer:        chshare.NewHTTPServer(int(config.MaxRequestBytes)),
 		allClients:        allClients,
@@ -193,22 +195,15 @@ func (cl *ClientListener) handleWebsocket(w http.ResponseWriter, req *http.Reque
 		return
 	}
 
-	//print if client and server versions dont match
-	if connRequest.Version != chshare.BuildVersion {
-		v := connRequest.Version
-		if v == "" {
-			v = "<unknown>"
-		}
-		clog.Infof("Client version (%s) differs from server version (%s)",
-			v, chshare.BuildVersion)
-	}
+	checkVersions(clog, connRequest.Version)
 
-	var sid string
-	if connRequest.ID == "" {
-		sid = sessions.GetSessionID(sshConn)
-	} else {
-		sid = connRequest.ID
-	}
+	sshID := sessions.GetSessionID(sshConn)
+
+	// get the current client
+	client := cl.getSessionClient(sshID)
+
+	// client session id
+	sid := cl.getSID(connRequest.ID, cl.config, client, sshID)
 
 	// if session id is in use, deny connection
 	session, err := cl.sessionService.GetByID(sid)
@@ -230,13 +225,26 @@ func (cl *ClientListener) handleWebsocket(w http.ResponseWriter, req *http.Reque
 		}
 	}
 
-	// get the current client
-	var client *clients.Client
-	if cl.allClients != nil {
-		sshID := sessions.GetSessionID(sshConn)
-		client = cl.sshSessionClients.Get(sshID)
-		// no need to keep it, remove
-		cl.sshSessionClients.Delete(sshID)
+	// lock client credentials if needed
+	locked, err := cl.lockClientIfNeeded(client, sid)
+	if err != nil {
+		failed(err)
+		return
+	}
+
+	// unlock client credentials if needed
+	unlockClient := true
+	if locked {
+		defer func() {
+			if !unlockClient {
+				return
+			}
+			if unlockErr := cl.allClients.Unlock(client.ID); unlockErr != nil {
+				clog.Errorf("Failed to unlock client credentials, clientID=%q: %v", client.ID, unlockErr)
+			} else {
+				clog.Debugf("Client credentials unlocked: %q.", client.ID)
+			}
+		}()
 	}
 
 	ctx, cancel := context.WithCancel(context.Background())
@@ -261,6 +269,75 @@ func (cl *ClientListener) handleWebsocket(w http.ResponseWriter, req *http.Reque
 	if err != nil {
 		cl.Errorf("could not terminate client session: %s", err)
 	}
+
+	// if keeping lost client enabled - do not unlock client credentials. They unlock in session cleanup task.
+	if cl.config.KeepLostClients > 0 {
+		unlockClient = false
+	}
+}
+
+// checkVersions print if client and server versions dont match.
+func checkVersions(log *chshare.Logger, clientVersion string) {
+	if clientVersion == chshare.BuildVersion {
+		return
+	}
+
+	v := clientVersion
+	if v == "" {
+		v = "<unknown>"
+	}
+
+	log.Infof("Client version (%s) differs from server version (%s)", v, chshare.BuildVersion)
+}
+
+func (cl *ClientListener) getSessionClient(sshID string) *clients.Client {
+	if cl.allClients == nil {
+		return nil
+	}
+	client := cl.sshSessionClients.Get(sshID)
+	if client == nil {
+		cl.Errorf("Could not get client for SSH session id: %s", sshID)
+	}
+
+	// no need to keep it, remove
+	cl.sshSessionClients.Delete(sshID)
+
+	return client
+}
+
+func (cl *ClientListener) getSID(reqID string, config *Config, client *clients.Client, sshSessionID string) string {
+	if reqID != "" {
+		return reqID
+	}
+
+	// use client id as session id if proper configs are set
+	if !config.AuthMultiuseCreds && config.EquateAuthusernameClientid && client != nil {
+		return client.ID
+	}
+
+	return sshSessionID
+}
+
+func (cl *ClientListener) lockClientIfNeeded(client *clients.Client, sid string) (bool, error) {
+	if cl.allClients == nil || cl.config.AuthMultiuseCreds || client == nil {
+		return false, nil
+	}
+
+	clientID := client.ID
+	ok, err := cl.allClients.LockWith(clientID, sid)
+	if err != nil {
+		cl.Debugf("Client has been deleted: %s", clientID)
+		return false, fmt.Errorf("client not found: %s", clientID)
+	}
+
+	if !ok {
+		cl.Debugf("Client %q is already connected", clientID)
+		return false, fmt.Errorf("client %q is already connected", clientID)
+	}
+
+	cl.Debugf("Client credentials locked: %q.", clientID)
+
+	return true, nil
 }
 
 func getRemotes(tunnels []*sessions.Tunnel) []*chshare.Remote {

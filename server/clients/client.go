@@ -4,8 +4,9 @@ import "sort"
 
 // Client represents rport clients.
 type Client struct {
-	ID       string `json:"id"`
-	Password string `json:"password"`
+	ID          string `json:"id"`
+	Password    string `json:"password"`
+	lockedBySID string
 }
 
 func SortByID(a []*Client, desc bool) {

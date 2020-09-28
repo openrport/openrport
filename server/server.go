@@ -4,6 +4,8 @@ import (
 	"context"
 	"errors"
 	"fmt"
+	"os"
+	"time"
 
 	"golang.org/x/crypto/ssh"
 
@@ -25,7 +27,7 @@ type Server struct {
 }
 
 // NewServer creates and returns a new rport server
-func NewServer(config *Config, repo *sessions.ClientSessionRepository) (*Server, error) {
+func NewServer(config *Config) (*Server, error) {
 	s := &Server{
 		Logger:     chshare.NewLogger("server", config.LogOutput, config.LogLevel),
 		listenAddr: config.ListenAddress,
@@ -39,6 +41,27 @@ func NewServer(config *Config, repo *sessions.ClientSessionRepository) (*Server,
 	}
 	fingerprint := chshare.FingerprintKey(privateKey.PublicKey())
 	s.Infof("Fingerprint %s", fingerprint)
+
+	s.Infof("data directory path: %q", config.DataDir)
+	// create --data-dir path if not exist
+	if makedirErr := os.MkdirAll(config.DataDir, os.ModePerm); makedirErr != nil {
+		s.Errorf("Failed to create data dir %q: %v", config.DataDir, makedirErr)
+	}
+
+	var keepLostClients *time.Duration
+	if config.KeepLostClients > 0 {
+		keepLostClients = &config.KeepLostClients
+	}
+	initSessions, err := sessions.GetInitStateFromFile(config.CSRFilePath(), keepLostClients)
+	if err != nil {
+		if len(initSessions) == 0 {
+			s.Errorf("Failed to get init CSR state from file %q: %v", config.CSRFilePath(), err)
+		} else {
+			s.Infof("Partial failure. Successfully read %d sessions from file %q. Error: %v", len(initSessions), config.CSRFilePath(), err)
+		}
+		// proceed further
+	}
+	repo := sessions.NewSessionRepository(initSessions, keepLostClients)
 
 	sessionService := NewSessionService(
 		ports.NewPortDistributor(config.ExcludedPorts()),
@@ -107,8 +130,26 @@ func initPrivateKey(seed string) (ssh.Signer, error) {
 
 // Run is responsible for starting the rport service
 func (s *Server) Run() error {
+	ctx := context.Background()
+
 	if err := s.Start(); err != nil {
 		return err
+	}
+
+	if s.config.KeepLostClients > 0 {
+		repo := s.clientListener.sessionService.repo
+		s.Infof("Variable to keep lost clients is set. Enables keeping disconnected clients for period: %v", s.config.KeepLostClients)
+		s.Infof("csr file path: %q", s.config.CSRFilePath())
+
+		var lockableClients *clients.ClientCache
+		if !s.config.AuthMultiuseCreds {
+			lockableClients = s.clientListener.allClients
+		}
+		go scheduler.Run(ctx, s.Logger, sessions.NewCleanupTask(s.Logger, repo, lockableClients), s.config.CleanupClients)
+		s.Infof("Task to cleanup obsolete clients will run with interval %v", s.config.CleanupClients)
+		// TODO(m-terel): add graceful shutdown of background task
+		go scheduler.Run(ctx, s.Logger, sessions.NewSaveToFileTask(s.Logger, repo, s.config.CSRFilePath()), s.config.SaveClients)
+		s.Infof("Task to save clients to disk will run with interval %v", s.config.SaveClients)
 	}
 
 	if s.config.AuthFile != "" && s.config.AuthWrite {

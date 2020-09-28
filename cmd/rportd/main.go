@@ -1,7 +1,6 @@
 package main
 
 import (
-	"context"
 	"fmt"
 	"log"
 	"os"
@@ -11,8 +10,6 @@ import (
 	"github.com/spf13/viper"
 
 	chserver "github.com/cloudradar-monitoring/rport/server"
-	"github.com/cloudradar-monitoring/rport/server/scheduler"
-	"github.com/cloudradar-monitoring/rport/server/sessions"
 	chshare "github.com/cloudradar-monitoring/rport/share"
 )
 
@@ -20,7 +17,7 @@ const (
 	DefaultCSRFileName             = "csr.json"
 	DefaultCacheClientsInterval    = 1 * time.Second
 	DefaultSaveClientsAuthInterval = 5 * time.Second
-	DefaultCleanClientsInterval    = 5 * time.Minute
+	DefaultCleanClientsInterval    = 3 * time.Second
 	DefaultMaxRequestBytes         = 2 * 1024 // 2 KB
 	DefaultCheckPortTimeout        = 2 * time.Second
 )
@@ -71,6 +68,16 @@ var serverHelp = `
     you should set this value to "false". The API will reject all writing access to the
     client auth with HTTP 403. Applies only to --authfile and --auth-table. Default is "true".
 
+    --auth-multiuse-creds, When using --authfile creating separate credentials for each client is recommended.
+    It increases security because you can lock out clients individually. 
+    If auth-multiuse-creds is false a client is rejected if another client with the same username is connected
+    or has been connected within the --keep-lost-clients interval.
+    Defaults: true
+
+    --equate-authusername-clientid, Having set "--auth-multiuse-creds=false", you can omit specifying a client-id.
+    You can us the authentication username as client-id to slim down the client configuration.
+    Defaults: false
+
     --save-clients-auth-interval, Applicable only if --authfile is specified and --auth-write is true.
     An optional arg to define an interval to flush rport clients auth info to disk. By default, '5s' is used.
 
@@ -119,7 +126,7 @@ var serverHelp = `
 
     --cleanup-clients-interval, Applicable only if --keep-lost-clients is specified. An optional
     arg to define an interval to clean up internal storage from obsolete disconnected clients.
-    By default, 5 minutes is used. It can contain "h"(hours), "m"(minutes), "s"(seconds).
+    By default, '3s' is used. It can contain "h"(hours), "m"(minutes), "s"(seconds).
 
     --csr-file-name, An optional arg to define a file name in --data-dir directory to store
     info about active and disconnected clients. By default, "csr.json" is used.
@@ -187,6 +194,8 @@ func init() {
 	pFlags.Int64("max-request-bytes", DefaultMaxRequestBytes, "")
 	pFlags.Duration("check-port-timeout", DefaultCheckPortTimeout, "")
 	pFlags.Bool("auth-write", true, "")
+	pFlags.Bool("auth-multiuse-creds", true, "")
+	pFlags.Bool("equate-authusername-clientid", false, "")
 	pFlags.Duration("save-clients-auth-interval", DefaultSaveClientsAuthInterval, "")
 
 	cfgPath = pFlags.StringP("config", "c", "", "")
@@ -228,6 +237,8 @@ func init() {
 	_ = viperCfg.BindPFlag("max_request_bytes", pFlags.Lookup("max-request-bytes"))
 	_ = viperCfg.BindPFlag("check_port_timeout", pFlags.Lookup("check-port-timeout"))
 	_ = viperCfg.BindPFlag("auth_write", pFlags.Lookup("auth-write"))
+	_ = viperCfg.BindPFlag("auth_multiuse_creds", pFlags.Lookup("auth-multiuse-creds"))
+	_ = viperCfg.BindPFlag("equate_authusername_clientid", pFlags.Lookup("equate-authusername-clientid"))
 	_ = viperCfg.BindPFlag("save_clients_auth_interval", pFlags.Lookup("save-clients-auth-interval"))
 
 	// map ENV variables
@@ -258,8 +269,6 @@ func tryDecodeConfig() error {
 }
 
 func runMain(*cobra.Command, []string) {
-	ctx := context.Background()
-
 	err := tryDecodeConfig()
 	if err != nil {
 		log.Fatal(err)
@@ -278,43 +287,12 @@ func runMain(*cobra.Command, []string) {
 		cfg.LogOutput.Shutdown()
 	}()
 
-	var keepLostClients *time.Duration
-	if cfg.KeepLostClients > 0 {
-		keepLostClients = &cfg.KeepLostClients
-	}
-	initSessions, err := sessions.GetInitStateFromFile(cfg.CSRFilePath(), keepLostClients)
-	if err != nil {
-		if len(initSessions) == 0 {
-			log.Printf("Failed to get init CSR state from file %q: %v\n", cfg.CSRFilePath(), err)
-		} else {
-			log.Printf("Partial failure. Successfully read %d sessions from file %q. Error: %v\n", len(initSessions), cfg.CSRFilePath(), err)
-		}
-		// proceed further
-	}
-	repo := sessions.NewSessionRepository(initSessions, keepLostClients)
-
-	s, err := chserver.NewServer(cfg, repo)
+	s, err := chserver.NewServer(cfg)
 	if err != nil {
 		log.Fatal(err)
 	}
 
-	s.Infof("data directory path: %q", cfg.DataDir)
-	// create --data-dir path if not exist
-	if makedirErr := os.MkdirAll(cfg.DataDir, os.ModePerm); makedirErr != nil {
-		log.Printf("ERROR: failed to create --data-dir %q: %v\n", cfg.DataDir, makedirErr)
-	}
-
 	go chshare.GoStats()
-	if keepLostClients != nil {
-		s.Infof("Variable to keep lost clients is set. Enables keeping disconnected clients for period: %v", cfg.KeepLostClients)
-		s.Infof("csr file path: %q", cfg.CSRFilePath())
-
-		go scheduler.Run(ctx, s.Logger, sessions.NewCleanupTask(s.Logger, repo), cfg.CleanupClients)
-		s.Infof("Task to cleanup obsolete clients will run with interval %v", cfg.CleanupClients)
-		// TODO(m-terel): add graceful shutdown of background task
-		go scheduler.Run(ctx, s.Logger, sessions.NewSaveToFileTask(s.Logger, repo, cfg.CSRFilePath()), cfg.SaveClients)
-		s.Infof("Task to save clients to disk will run with interval %v", cfg.SaveClients)
-	}
 
 	if err = s.Run(); err != nil {
 		log.Fatal(err)

@@ -34,23 +34,25 @@ type Config struct {
 	LogOutput chshare.LogOutput `mapstructure:"log_file"`
 	LogLevel  chshare.LogLevel  `mapstructure:"log_level"`
 
-	ListenAddress    string        `mapstructure:"address"`
-	URL              string        `mapstructure:"url"`
-	KeySeed          string        `mapstructure:"key_seed"`
-	AuthFile         string        `mapstructure:"auth_file"`
-	Auth             string        `mapstructure:"auth"`
-	Proxy            string        `mapstructure:"proxy"`
-	API              APIConfig     `mapstructure:"api"`
-	ExcludedPortsRaw []string      `mapstructure:"excluded_ports"`
-	DataDir          string        `mapstructure:"data_dir"`
-	CSRFileName      string        `mapstructure:"csr_file_name"`
-	KeepLostClients  time.Duration `mapstructure:"keep_lost_clients"`
-	SaveClients      time.Duration `mapstructure:"save_clients_interval"`
-	CleanupClients   time.Duration `mapstructure:"cleanup_clients_interval"`
-	MaxRequestBytes  int64         `mapstructure:"max_request_bytes"`
-	CheckPortTimeout time.Duration `mapstructure:"check_port_timeout"`
-	AuthWrite        bool          `mapstructure:"auth_write"`
-	SaveClientsAuth  time.Duration `mapstructure:"save_clients_auth_interval"`
+	ListenAddress              string        `mapstructure:"address"`
+	URL                        string        `mapstructure:"url"`
+	KeySeed                    string        `mapstructure:"key_seed"`
+	AuthFile                   string        `mapstructure:"auth_file"`
+	Auth                       string        `mapstructure:"auth"`
+	Proxy                      string        `mapstructure:"proxy"`
+	API                        APIConfig     `mapstructure:"api"`
+	ExcludedPortsRaw           []string      `mapstructure:"excluded_ports"`
+	DataDir                    string        `mapstructure:"data_dir"`
+	CSRFileName                string        `mapstructure:"csr_file_name"`
+	KeepLostClients            time.Duration `mapstructure:"keep_lost_clients"`
+	SaveClients                time.Duration `mapstructure:"save_clients_interval"`
+	CleanupClients             time.Duration `mapstructure:"cleanup_clients_interval"`
+	MaxRequestBytes            int64         `mapstructure:"max_request_bytes"`
+	CheckPortTimeout           time.Duration `mapstructure:"check_port_timeout"`
+	AuthWrite                  bool          `mapstructure:"auth_write"`
+	AuthMultiuseCreds          bool          `mapstructure:"auth_multiuse_creds"`
+	EquateAuthusernameClientid bool          `mapstructure:"equate_authusername_clientid"`
+	SaveClientsAuth            time.Duration `mapstructure:"save_clients_auth_interval"`
 
 	excludedPorts mapset.Set
 }
