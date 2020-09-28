@@ -3,6 +3,7 @@ package chclient
 import (
 	"context"
 	"encoding/json"
+	"errors"
 	"fmt"
 	"io"
 	"net"
@@ -234,17 +235,28 @@ func (c *Client) connectionLoop() {
 		req, _ := chshare.EncodeConnectionRequest(c.connReq)
 		c.Debugf("Sending connection request")
 		t0 := time.Now()
-		replyOk, configReply, err := sshConn.SendRequest("new_connection", true, req)
+		replyOk, respBytes, err := sshConn.SendRequest("new_connection", true, req)
 		if err != nil {
 			c.Errorf("connection request verification failed")
 			break
 		}
 		if !replyOk {
-			c.Errorf(string(configReply))
+			msg := string(respBytes)
+			c.Errorf(msg)
+
+			// if replied with client credentials already used - retry
+			if strings.Contains(msg, "client is already connected:") {
+				connerr = errors.New(msg)
+				if closeErr := sshConn.Close(); closeErr != nil {
+					c.Errorf(closeErr.Error())
+				}
+				continue
+			}
+
 			break
 		}
 		var remotes []*chshare.Remote
-		err = json.Unmarshal(configReply, &remotes)
+		err = json.Unmarshal(respBytes, &remotes)
 		if err != nil {
 			err = fmt.Errorf("can't decode reply payload: %s", err)
 			c.Errorf(err.Error())

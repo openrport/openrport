@@ -331,8 +331,8 @@ func (cl *ClientListener) lockClientIfNeeded(client *clients.Client, sid string)
 	}
 
 	if !ok {
-		cl.Debugf("Client %q is already connected", clientID)
-		return false, fmt.Errorf("client %q is already connected", clientID)
+		cl.Debugf("Client is already connected: %q", clientID)
+		return false, fmt.Errorf("client is already connected: %q", clientID)
 	}
 
 	cl.Debugf("Client credentials locked: %q.", clientID)
