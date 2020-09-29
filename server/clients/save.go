@@ -25,7 +25,8 @@ func NewSaveToFileTask(log *chshare.Logger, clients *ClientCache, fileName strin
 }
 
 func (t *SaveToFileTask) Run() error {
-	file, err := os.Create(t.fileName)
+	// truncate the file
+	file, err := os.OpenFile(t.fileName, os.O_RDWR|os.O_TRUNC, os.ModePerm)
 	if err != nil {
 		return fmt.Errorf("failed to open rport clients file: %v", err)
 	}
