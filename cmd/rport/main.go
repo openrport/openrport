@@ -15,7 +15,7 @@ import (
 var clientHelp = `
   Usage: rport [options] [<server> [remote] [remote] [remote] ...]
 
-  <server> is the URL to the rport server.
+  <server>, rportd server address. Mandatory IP address and port divided by a colon, unless --config(-c) is used.
 
   <remote>s are remote connections tunneled through the server, each of
   which come in the form:
@@ -28,6 +28,7 @@ var clientHelp = `
   from the client to the server's <local-interface>:<local-port>.
   If local part is omitted, a randomly chosen server port will be assigned. 
   Only IPv4 addresses are supported.
+  If not set, client connects without active tunnel(s) waiting for tunnels to be initialized by the server.
 
   Examples:
 
@@ -54,6 +55,9 @@ var clientHelp = `
     using IPv6 server address. Forwards randomly-assigned free port of the server
     to port 3389 of the client
 
+    ./rport -c /etc/rport/rport.conf 
+    starts client with configuration loaded from the file
+
   Options:
 
     --fingerprint, A *strongly recommended* fingerprint string
@@ -61,10 +65,8 @@ var clientHelp = `
     You may provide just a prefix of the key or the entire string.
     Fingerprint mismatches will close the connection.
 
-    --auth, An optional username and password (client authentication)
-    in the form: "<user>:<pass>". These credentials are compared to
-    the credentials inside the server's --authfile. defaults to the
-    AUTH environment variable.
+    --auth, An optional username and password (client authentication) in the form: "<user>:<password>".
+    Highly recommended. Required if client authentication in enabled on the rport server.
 
     --keepalive, An optional keepalive interval. Since the underlying
     transport is HTTP, in many instances we'll be traversing through
@@ -73,7 +75,7 @@ var clientHelp = `
     to '0s' (disabled).
 
     --max-retry-count, Maximum number of times to retry before exiting.
-    Defaults to unlimited.
+    Defaults to unlimited (-1).
 
     --max-retry-interval, Maximum wait time before retrying after a
     disconnection. Defaults to 5 minutes ('5m').
@@ -85,16 +87,22 @@ var clientHelp = `
              or: socks://admin:password@my-server.com:1080
 
     --header, Set a custom header in the form "HeaderName: HeaderContent".
-    Can be used multiple times. (e.g --header "Foo: Bar" --header "Hello: World")
+    Can be used multiple times. (e.g --header "User-Agent: test1" --header "Authorization: Basic XXXXXX")
 
     --hostname, Optionally set the 'Host' header (defaults to the host
     found in the server url).
 
-    --id, Optionally set the client 'ID' (defaults to auto generated id).
+    --id, An optional client ID to better identify the client.
+    If not set, a random id will be crated that changes on every client start.
+    The server rejects connections on duplicated ids.
 
-    --name, Optionally set the client 'Name' (defaults to unset).
+    --name, An optional client name to better identify the client.
+    Useful if you use numeric ids to make client identification easier.
+    For example, --name "my_win_vm_1"
+    Defaults to unset.
 
-    --tag, -t, Optionally set client tags.
+    --tag, -t, Optional values to give your clients attributes.
+    Used for filtering clients on the server.
     Can be used multiple times. (e.g --tag "foobaz" --tag "bingo")
 
     --verbose, -v, Specify log level. Values: "error", "info", "debug" (defaults to "error")
@@ -155,26 +163,25 @@ func init() {
 	viperCfg = viper.New()
 	viperCfg.SetConfigType("toml")
 
-	viperCfg.SetDefault("log_level", "error")
+	viperCfg.SetDefault("logging.log_level", "error")
 	viperCfg.SetDefault("connection.max_retry_count", -1)
 
 	// map config fields to CLI args:
-	_ = viperCfg.BindPFlag("log_file", pFlags.Lookup("log-file"))
-	_ = viperCfg.BindPFlag("log_level", pFlags.Lookup("verbose"))
-	_ = viperCfg.BindPFlag("fingerprint", pFlags.Lookup("fingerprint"))
-	_ = viperCfg.BindPFlag("auth", pFlags.Lookup("auth"))
+	_ = viperCfg.BindPFlag("client.fingerprint", pFlags.Lookup("fingerprint"))
+	_ = viperCfg.BindPFlag("client.auth", pFlags.Lookup("auth"))
+	_ = viperCfg.BindPFlag("client.proxy", pFlags.Lookup("proxy"))
+	_ = viperCfg.BindPFlag("client.id", pFlags.Lookup("id"))
+	_ = viperCfg.BindPFlag("client.name", pFlags.Lookup("name"))
+	_ = viperCfg.BindPFlag("client.tags", pFlags.Lookup("tag"))
+
+	_ = viperCfg.BindPFlag("logging.log_file", pFlags.Lookup("log-file"))
+	_ = viperCfg.BindPFlag("logging.log_level", pFlags.Lookup("verbose"))
+
 	_ = viperCfg.BindPFlag("connection.keep_alive", pFlags.Lookup("keepalive"))
 	_ = viperCfg.BindPFlag("connection.max_retry_count", pFlags.Lookup("max-retry-count"))
 	_ = viperCfg.BindPFlag("connection.max_retry_interval", pFlags.Lookup("max-retry-interval"))
+	_ = viperCfg.BindPFlag("connection.hostname", pFlags.Lookup("hostname"))
 	_ = viperCfg.BindPFlag("connection.headers", pFlags.Lookup("header"))
-	_ = viperCfg.BindPFlag("proxy", pFlags.Lookup("proxy"))
-	_ = viperCfg.BindPFlag("id", pFlags.Lookup("id"))
-	_ = viperCfg.BindPFlag("name", pFlags.Lookup("name"))
-	_ = viperCfg.BindPFlag("tags", pFlags.Lookup("tag"))
-	_ = viperCfg.BindPFlag("hostname", pFlags.Lookup("hostname"))
-
-	// map ENV variables
-	_ = viperCfg.BindEnv("auth", "AUTH")
 }
 
 func main() {
@@ -202,11 +209,11 @@ func runMain(cmd *cobra.Command, args []string) {
 	}
 
 	if len(args) > 0 {
-		config.Server = args[0]
-		config.Remotes = args[1:]
+		config.Client.Server = args[0]
+		config.Client.Remotes = args[1:]
 	}
 
-	if config.Server == "" {
+	if config.Client.Server == "" {
 		log.Fatalf("Server address is required. See --help")
 	}
 
@@ -215,12 +222,12 @@ func runMain(cmd *cobra.Command, args []string) {
 		log.Fatal(err)
 	}
 
-	err = config.LogOutput.Start()
+	err = config.Logging.LogOutput.Start()
 	if err != nil {
 		log.Fatal(err)
 	}
 	defer func() {
-		config.LogOutput.Shutdown()
+		config.Logging.LogOutput.Shutdown()
 	}()
 
 	c, err := chclient.NewClient(config)

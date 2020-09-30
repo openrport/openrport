@@ -4,5 +4,5 @@ package chserver
 
 // Contains constants applicable only to windows OS.
 const (
-	DefaultDataDirectory = "C:\\ProgramData\\rportd"
+	DefaultDataDirectory = "C:\\ProgramData\\rport"
 )

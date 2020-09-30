@@ -2,6 +2,7 @@ package chserver
 
 import (
 	"crypto/subtle"
+	"errors"
 	"fmt"
 	"net/http"
 	"os"
@@ -58,14 +59,18 @@ func NewAPIListener(
 	clientAuthWrite bool,
 	fingerprint string,
 ) (*APIListener, error) {
+	if config.API.AuthFile != "" && config.API.Auth != "" {
+		return nil, errors.New("API: 'auth_file' and 'auth' are both set: expected only one of them ")
+	}
+
 	var authUsers []*users.User
 	var err error
 	authorizationOn := false
-	// auth-file has precedence over auth
 	if config.API.AuthFile != "" {
 		authorizationOn = true
 		authUsers, err = users.GetUsersFromFile(config.API.AuthFile)
-	} else if config.API.Auth != "" {
+	}
+	if config.API.Auth != "" {
 		authorizationOn = true
 		var authUser *users.User
 		if authUser, err = parseHTTPAuthStr(config.API.Auth); authUser != nil {
@@ -76,19 +81,19 @@ func NewAPIListener(
 		return nil, err
 	}
 
-	if config.CheckPortTimeout > DefaultMaxCheckPortTimeout {
+	if config.Server.CheckPortTimeout > DefaultMaxCheckPortTimeout {
 		return nil, fmt.Errorf("'check_port_timeout' can not be more than %s", DefaultMaxCheckPortTimeout)
 	}
 
 	a := &APIListener{
-		Logger:            chshare.NewLogger("api-listener", config.LogOutput, config.LogLevel),
-		connectURL:        config.URL,
+		Logger:            chshare.NewLogger("api-listener", config.Logging.LogOutput, config.Logging.LogLevel),
+		connectURL:        config.Server.URL,
 		fingerprint:       fingerprint,
 		authFile:          config.API.AuthFile,
 		jwtSecret:         config.API.JWTSecret,
 		sessionService:    s,
 		apiSessionRepo:    NewAPISessionRepository(),
-		httpServer:        chshare.NewHTTPServer(int(config.MaxRequestBytes)),
+		httpServer:        chshare.NewHTTPServer(int(config.Server.MaxRequestBytes)),
 		docRoot:           config.API.DocRoot,
 		requestLogOptions: config.InitRequestLogOptions(),
 		userSrv:           users.NewUserRepository(authUsers),
@@ -96,8 +101,8 @@ func NewAPIListener(
 		clientProvider:    clientProvider,
 		clientAuthWrite:   clientAuthWrite,
 		authorizationOn:   authorizationOn,
-		maxRequestBytes:   config.MaxRequestBytes,
-		checkPortTimeout:  config.CheckPortTimeout,
+		maxRequestBytes:   config.Server.MaxRequestBytes,
+		checkPortTimeout:  config.Server.CheckPortTimeout,
 	}
 
 	a.initRouter()

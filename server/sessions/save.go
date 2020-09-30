@@ -43,6 +43,7 @@ func (t *SaveToFileTask) getAndSave(w io.Writer) error {
 	t.log.Debugf("Got %d client sessions from CSR. Writing...", len(sessions))
 
 	encoder := json.NewEncoder(w)
+	encoder.SetIndent("", "	")
 	if err := encoder.Encode(sessions); err != nil {
 		return fmt.Errorf("failed to write CSR: %v", err)
 	}

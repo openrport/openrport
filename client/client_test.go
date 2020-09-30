@@ -18,16 +18,18 @@ func TestCustomHeaders(t *testing.T) {
 	defer server.Close()
 
 	config := Config{
-		Fingerprint: "",
-		Auth:        "",
-		Connection: ConnectionOptions{
+		Client: ClientConfig{
+			Fingerprint: "",
+			Auth:        "",
+			Server:      server.URL,
+			Remotes:     []string{"192.168.0.5:3000:google.com:80"},
+		},
+		Connection: ConnectionConfig{
 			KeepAlive:        time.Second,
 			MaxRetryCount:    0,
 			MaxRetryInterval: time.Second,
 			HeadersRaw:       []string{"Foo: Bar"},
 		},
-		Server:  server.URL,
-		Remotes: []string{"192.168.0.5:3000:google.com:80"},
 	}
 	err := config.ParseAndValidate()
 	if err != nil {

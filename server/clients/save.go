@@ -45,6 +45,7 @@ func (t *SaveToFileTask) getAndSave(w io.Writer) error {
 	}
 
 	encoder := json.NewEncoder(w)
+	encoder.SetIndent("", "	")
 	if err := encoder.Encode(idPswdPairs); err != nil {
 		return fmt.Errorf("failed to write rport clients: %v", err)
 	}

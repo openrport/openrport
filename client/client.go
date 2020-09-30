@@ -28,7 +28,7 @@ type Client struct {
 	*chshare.Logger
 	connReq *chshare.ConnectionRequest
 
-	connOptions       ConnectionOptions
+	connOptions       ConnectionConfig
 	sshConfig         *ssh.ClientConfig
 	sshConn           ssh.Conn
 	proxyURL          *url.URL
@@ -42,13 +42,13 @@ type Client struct {
 //NewClient creates a new client instance
 func NewClient(config *Config) (*Client, error) {
 	//apply default scheme
-	if !strings.HasPrefix(config.Server, "http") {
-		config.Server = "http://" + config.Server
+	if !strings.HasPrefix(config.Client.Server, "http") {
+		config.Client.Server = "http://" + config.Client.Server
 	}
 	if config.Connection.MaxRetryInterval < time.Second {
 		config.Connection.MaxRetryInterval = 5 * time.Minute
 	}
-	u, err := url.Parse(config.Server)
+	u, err := url.Parse(config.Client.Server)
 	if err != nil {
 		return nil, err
 	}
@@ -64,14 +64,14 @@ func NewClient(config *Config) (*Client, error) {
 	u.Scheme = strings.Replace(u.Scheme, "http", "ws", 1)
 	connectionReq := &chshare.ConnectionRequest{
 		Version: chshare.BuildVersion,
-		ID:      config.ID,
-		Name:    config.Name,
-		Tags:    config.Tags,
+		ID:      config.Client.ID,
+		Name:    config.Client.Name,
+		Tags:    config.Client.Tags,
 	}
 	connectionReq.OS, _ = chshare.Uname()
 	connectionReq.Hostname, _ = os.Hostname()
 
-	for _, s := range config.Remotes {
+	for _, s := range config.Client.Remotes {
 		var r *chshare.Remote
 		r, err = chshare.DecodeRemote(s)
 		if err != nil {
@@ -81,23 +81,23 @@ func NewClient(config *Config) (*Client, error) {
 	}
 
 	client := &Client{
-		Logger:            chshare.NewLogger("client", config.LogOutput, config.LogLevel),
+		Logger:            chshare.NewLogger("client", config.Logging.LogOutput, config.Logging.LogLevel),
 		connReq:           connectionReq,
 		connOptions:       config.Connection,
 		server:            u.String(),
-		serverFingerprint: config.Fingerprint,
+		serverFingerprint: config.Client.Fingerprint,
 		running:           true,
 		runningc:          make(chan error, 1),
 	}
 
-	if p := config.Proxy; p != "" {
+	if p := config.Client.Proxy; p != "" {
 		client.proxyURL, err = url.Parse(p)
 		if err != nil {
 			return nil, fmt.Errorf("Invalid proxy URL (%s)", err)
 		}
 	}
 
-	user, pass := chshare.ParseAuth(config.Auth)
+	user, pass := chshare.ParseAuth(config.Client.Auth)
 
 	client.sshConfig = &ssh.ClientConfig{
 		User:            user,
@@ -210,7 +210,7 @@ func (c *Client) connectionLoop() {
 				}
 			}
 		}
-		wsConn, _, err := d.Dial(c.server, c.connOptions.GetHeaders())
+		wsConn, _, err := d.Dial(c.server, c.connOptions.Headers())
 		if err != nil {
 			connerr = err
 			continue

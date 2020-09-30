@@ -14,12 +14,14 @@ import (
 )
 
 const (
-	DefaultCSRFileName             = "csr.json"
 	DefaultCacheClientsInterval    = 1 * time.Second
 	DefaultSaveClientsAuthInterval = 5 * time.Second
 	DefaultCleanClientsInterval    = 3 * time.Second
 	DefaultMaxRequestBytes         = 2 * 1024 // 2 KB
 	DefaultCheckPortTimeout        = 2 * time.Second
+	DefaultExcludedPorts           = "1-1024"
+	DefaultServerAddress           = "0.0.0.0:8080"
+	DefaultLogLevel                = "error"
 )
 
 var serverHelp = `
@@ -34,23 +36,29 @@ var serverHelp = `
     starts server, listening to client connections on IPv6 interface,
     also enabling HTTP API, available at http://0.0.0.0:9000/
 
+    ./rportd -c /etc/rport/rportd.conf 
+    starts server with configuration loaded from the file
+
   Options:
 
     --addr, -a, Defines the IP address and port the HTTP server listens on.
-    (defaults to the environment variable RPORT_ADDR and falls back to 0.0.0.0:8080).
+    This is where the rport clients connect to.
+    Defaults: "0.0.0.0:8080"
 
     --url, Defines full client connect URL. Defaults to "http://{addr}"
+    This setting is only used to return via an API call where rportd is listening for connections.
+    Useful, if you run the rportd behind a reverse proxy and the external URL differs from the internal address and port.
 
     --exclude-ports, -e, Defines port numbers or ranges of server ports,
     separated with comma that would not be used for automatic port assignment.
-    Defaults to 1-1000.
-    e.g.: --exclude-ports=1-1000,8080 or -e 22,443,80,8080,5000-5999
+    Defaults to 1-1024. If all ports should be used then set to ""(empty string).
+    e.g.: --exclude-ports=1-1024,8080 or -e 22,443,80,8080,5000-5999
 
     --key, An optional string to seed the generation of a ECDSA public
     and private key pair. All communications will be secured using this
     key pair. Share the subsequent fingerprint with clients to enable detection
-    of man-in-the-middle attacks (defaults to the RPORT_KEY environment
-    variable, otherwise a new key is generate each run).
+    of man-in-the-middle attacks. If not specified, a new key is generate each run.
+    Use "openssl rand -hex 18" to generate a secure key seed
 
     --authfile, An optional path to a json file with client credentials.
     This is for authentication of the rport tunnel clients.
@@ -62,7 +70,7 @@ var serverHelp = `
 
     --auth, An optional string representing a single client with full access, in the form of <client-id>:<password>.
     This is equivalent to creating an authfile with {"<client-id>":"<password>"}.
-    Use either "authfile" or "auth". Not both.
+    Use either "authfile" or "auth". Not both. If multiple auth options are enabled, rportd exists with an error.
 
     --auth-write, If you want to delegate the creation and maintenance to an external tool
     you should set this value to "false". The API will reject all writing access to the
@@ -86,8 +94,7 @@ var serverHelp = `
     plain sight.
 
     --api-addr, Defines the IP address and port the API server listens on.
-    e.g. "0.0.0.0:7777". (defaults to the environment variable RPORT_API_ADDR
-    and fallsback to empty string: API not available)
+    e.g. "0.0.0.0:7777". Defaults to empty string: API not available.
 
     --api-doc-root, Specifies local directory path. If specified, rportd will serve
     files from this directory on the same API address (--api-addr).
@@ -108,11 +115,14 @@ var serverHelp = `
     ]
 
     --api-auth, Defines <user>:<password> authentication pair for accessing API
-    e.g. "admin:1234". (defaults to the environment variable RPORT_API_AUTH
-    and fallsback to empty string: authorization not required).
+    e.g. "admin:1234". Defaults to empty string: authorization not required.
 
     --data-dir, An optional arg to define a local directory path to store internal data.
     By default, "/var/lib/rportd" is used on Linux, "C:\ProgramData\rportd" is used on Windows.
+    If the directory doesn't exist, it will be created. On Linux you must create this directory
+    because an unprivileged user don't have the right to create a directory in /var/lib.
+    Ideally this directory is the homedir of the rport user and has been created along with the user.
+    Example: useradd -r -d /var/lib/rportd -m -s /bin/false -U -c "System user for rport client and server" rport
 
     --keep-lost-clients, An optional arg to define a duration to keep info(sessions, tunnels, etc)
     about active and disconnected clients. Enables to identify disconnected clients
@@ -128,15 +138,11 @@ var serverHelp = `
     arg to define an interval to clean up internal storage from obsolete disconnected clients.
     By default, '3s' is used. It can contain "h"(hours), "m"(minutes), "s"(seconds).
 
-    --csr-file-name, An optional arg to define a file name in --data-dir directory to store
-    info about active and disconnected clients. By default, "csr.json" is used.
-
     --check-port-timeout, An optional arg to define a timeout to check whether a remote destination of a requested
     new tunnel is available, i.e. whether a given remote port is open on a client machine. By default, "2s" is used.
 
     --api-jwt-secret, Defines JWT secret used to generate new tokens.
-    (defaults to the environment variable RPORT_API_JWT_SECRET and fallsback
-    to auto-generated value).
+    Defaults to auto-generated value.
 
     --max-request-bytes, An optional arg to define a limit for data that can be sent by rport clients and API requests.
     By default is set to 2048(2Kb).
@@ -185,9 +191,8 @@ func init() {
 	pFlags.String("api-doc-root", "", "")
 	pFlags.StringP("log-file", "l", "", "")
 	pFlags.StringP("verbose", "v", "", "")
-	pFlags.StringSliceP("exclude-ports", "e", []string{}, "")
+	pFlags.StringSliceP("exclude-ports", "e", []string{DefaultExcludedPorts}, "")
 	pFlags.String("data-dir", chserver.DefaultDataDirectory, "")
-	pFlags.String("csr-file-name", DefaultCSRFileName, "")
 	pFlags.Duration("keep-lost-clients", 0, "")
 	pFlags.Duration("save-clients-interval", DefaultCacheClientsInterval, "")
 	pFlags.Duration("cleanup-clients-interval", DefaultCleanClientsInterval, "")
@@ -209,45 +214,37 @@ func init() {
 	viperCfg = viper.New()
 	viperCfg.SetConfigType("toml")
 
-	viperCfg.SetDefault("log_level", "error")
-	viperCfg.SetDefault("address", "0.0.0.0:8080")
-	viperCfg.SetDefault("excluded_ports", "0-1000")
+	viperCfg.SetDefault("logging.log_level", DefaultLogLevel)
+	viperCfg.SetDefault("server.address", DefaultServerAddress)
 
 	// map config fields to CLI args:
 	// _ is used to ignore errors to pass linter check
-	_ = viperCfg.BindPFlag("log_file", pFlags.Lookup("log-file"))
-	_ = viperCfg.BindPFlag("log_level", pFlags.Lookup("verbose"))
-	_ = viperCfg.BindPFlag("address", pFlags.Lookup("addr"))
-	_ = viperCfg.BindPFlag("url", pFlags.Lookup("url"))
-	_ = viperCfg.BindPFlag("key_seed", pFlags.Lookup("key"))
-	_ = viperCfg.BindPFlag("auth_file", pFlags.Lookup("authfile"))
-	_ = viperCfg.BindPFlag("auth", pFlags.Lookup("auth"))
-	_ = viperCfg.BindPFlag("proxy", pFlags.Lookup("proxy"))
+	_ = viperCfg.BindPFlag("server.address", pFlags.Lookup("addr"))
+	_ = viperCfg.BindPFlag("server.url", pFlags.Lookup("url"))
+	_ = viperCfg.BindPFlag("server.key_seed", pFlags.Lookup("key"))
+	_ = viperCfg.BindPFlag("server.auth", pFlags.Lookup("auth"))
+	_ = viperCfg.BindPFlag("server.auth_file", pFlags.Lookup("authfile"))
+	_ = viperCfg.BindPFlag("server.save_clients_auth_interval", pFlags.Lookup("save-clients-auth-interval"))
+	_ = viperCfg.BindPFlag("server.auth_multiuse_creds", pFlags.Lookup("auth-multiuse-creds"))
+	_ = viperCfg.BindPFlag("server.equate_authusername_clientid", pFlags.Lookup("equate-authusername-clientid"))
+	_ = viperCfg.BindPFlag("server.auth_write", pFlags.Lookup("auth-write"))
+	_ = viperCfg.BindPFlag("server.proxy", pFlags.Lookup("proxy"))
+	_ = viperCfg.BindPFlag("server.excluded_ports", pFlags.Lookup("exclude-ports"))
+	_ = viperCfg.BindPFlag("server.data_dir", pFlags.Lookup("data-dir"))
+	_ = viperCfg.BindPFlag("server.keep_lost_clients", pFlags.Lookup("keep-lost-clients"))
+	_ = viperCfg.BindPFlag("server.save_clients_interval", pFlags.Lookup("save-clients-interval"))
+	_ = viperCfg.BindPFlag("server.cleanup_clients_interval", pFlags.Lookup("cleanup-clients-interval"))
+	_ = viperCfg.BindPFlag("server.max_request_bytes", pFlags.Lookup("max-request-bytes"))
+	_ = viperCfg.BindPFlag("server.check_port_timeout", pFlags.Lookup("check-port-timeout"))
+
+	_ = viperCfg.BindPFlag("logging.log_file", pFlags.Lookup("log-file"))
+	_ = viperCfg.BindPFlag("logging.log_level", pFlags.Lookup("verbose"))
+
 	_ = viperCfg.BindPFlag("api.address", pFlags.Lookup("api-addr"))
 	_ = viperCfg.BindPFlag("api.auth", pFlags.Lookup("api-auth"))
 	_ = viperCfg.BindPFlag("api.auth_file", pFlags.Lookup("api-authfile"))
 	_ = viperCfg.BindPFlag("api.jwt_secret", pFlags.Lookup("api-jwt-secret"))
 	_ = viperCfg.BindPFlag("api.doc_root", pFlags.Lookup("api-doc-root"))
-	_ = viperCfg.BindPFlag("excluded_ports", pFlags.Lookup("exclude-ports"))
-	_ = viperCfg.BindPFlag("data_dir", pFlags.Lookup("data-dir"))
-	_ = viperCfg.BindPFlag("csr_file_name", pFlags.Lookup("csr-file-name"))
-	_ = viperCfg.BindPFlag("keep_lost_clients", pFlags.Lookup("keep-lost-clients"))
-	_ = viperCfg.BindPFlag("save_clients_interval", pFlags.Lookup("save-clients-interval"))
-	_ = viperCfg.BindPFlag("cleanup_clients_interval", pFlags.Lookup("cleanup-clients-interval"))
-	_ = viperCfg.BindPFlag("max_request_bytes", pFlags.Lookup("max-request-bytes"))
-	_ = viperCfg.BindPFlag("check_port_timeout", pFlags.Lookup("check-port-timeout"))
-	_ = viperCfg.BindPFlag("auth_write", pFlags.Lookup("auth-write"))
-	_ = viperCfg.BindPFlag("auth_multiuse_creds", pFlags.Lookup("auth-multiuse-creds"))
-	_ = viperCfg.BindPFlag("equate_authusername_clientid", pFlags.Lookup("equate-authusername-clientid"))
-	_ = viperCfg.BindPFlag("save_clients_auth_interval", pFlags.Lookup("save-clients-auth-interval"))
-
-	// map ENV variables
-	_ = viperCfg.BindEnv("address", "RPORT_ADDR")
-	_ = viperCfg.BindEnv("url", "RPORT_URL")
-	_ = viperCfg.BindEnv("key_seed", "RPORT_KEY")
-	_ = viperCfg.BindEnv("api.address", "RPORT_API_ADDR")
-	_ = viperCfg.BindEnv("api.auth", "RPORT_API_AUTH")
-	_ = viperCfg.BindEnv("api.jwt_secret", "RPORT_JWT_SECRET")
 }
 
 func main() {
@@ -279,12 +276,12 @@ func runMain(*cobra.Command, []string) {
 		log.Fatal(err)
 	}
 
-	err = cfg.LogOutput.Start()
+	err = cfg.Logging.LogOutput.Start()
 	if err != nil {
 		log.Fatal(err)
 	}
 	defer func() {
-		cfg.LogOutput.Shutdown()
+		cfg.Logging.LogOutput.Shutdown()
 	}()
 
 	s, err := chserver.NewServer(cfg)

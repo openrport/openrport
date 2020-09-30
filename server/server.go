@@ -29,29 +29,30 @@ type Server struct {
 // NewServer creates and returns a new rport server
 func NewServer(config *Config) (*Server, error) {
 	s := &Server{
-		Logger:     chshare.NewLogger("server", config.LogOutput, config.LogLevel),
-		listenAddr: config.ListenAddress,
+		Logger:     chshare.NewLogger("server", config.Logging.LogOutput, config.Logging.LogLevel),
+		listenAddr: config.Server.ListenAddress,
 		apiAddr:    config.API.Address,
 		config:     config,
 	}
 
-	privateKey, err := initPrivateKey(config.KeySeed)
+	privateKey, err := initPrivateKey(config.Server.KeySeed)
 	if err != nil {
 		return nil, err
 	}
 	fingerprint := chshare.FingerprintKey(privateKey.PublicKey())
 	s.Infof("Fingerprint %s", fingerprint)
 
-	s.Infof("data directory path: %q", config.DataDir)
+	s.Infof("data directory path: %q", config.Server.DataDir)
 	// create --data-dir path if not exist
-	if makedirErr := os.MkdirAll(config.DataDir, os.ModePerm); makedirErr != nil {
-		s.Errorf("Failed to create data dir %q: %v", config.DataDir, makedirErr)
+	if makedirErr := os.MkdirAll(config.Server.DataDir, os.ModePerm); makedirErr != nil {
+		s.Errorf("Failed to create data dir %q: %v", config.Server.DataDir, makedirErr)
 	}
 
 	var keepLostClients *time.Duration
-	if config.KeepLostClients > 0 {
-		keepLostClients = &config.KeepLostClients
+	if config.Server.KeepLostClients > 0 {
+		keepLostClients = &config.Server.KeepLostClients
 	}
+	// TODO(m-terel): add a check whether a file exists
 	initSessions, err := sessions.GetInitStateFromFile(config.CSRFilePath(), keepLostClients)
 	if err != nil {
 		if len(initSessions) == 0 {
@@ -89,7 +90,7 @@ func NewServer(config *Config) (*Server, error) {
 		return nil, err
 	}
 
-	s.apiListener, err = NewAPIListener(config, sessionService, rClients, clientProvider, config.AuthWrite, fingerprint)
+	s.apiListener, err = NewAPIListener(config, sessionService, rClients, clientProvider, config.Server.AuthWrite, fingerprint)
 	if err != nil {
 		return nil, err
 	}
@@ -102,16 +103,16 @@ type ClientProvider interface {
 }
 
 func getClientProvider(log *chshare.Logger, config *Config) (ClientProvider, error) {
-	if config.AuthFile != "" && config.Auth != "" {
+	if config.Server.AuthFile != "" && config.Server.Auth != "" {
 		return nil, errors.New("'auth_file' and 'auth' are both set: expected only one of them ")
 	}
 
-	if config.AuthFile != "" {
-		return clients.NewFileClients(log, config.AuthFile), nil
+	if config.Server.AuthFile != "" {
+		return clients.NewFileClients(log, config.Server.AuthFile), nil
 	}
 
-	if config.Auth != "" {
-		return clients.NewSingleClient(log, config.Auth), nil
+	if config.Server.Auth != "" {
+		return clients.NewSingleClient(log, config.Server.Auth), nil
 	}
 
 	return nil, nil
@@ -136,27 +137,27 @@ func (s *Server) Run() error {
 		return err
 	}
 
-	if s.config.KeepLostClients > 0 {
+	if s.config.Server.KeepLostClients > 0 {
 		repo := s.clientListener.sessionService.repo
-		s.Infof("Variable to keep lost clients is set. Enables keeping disconnected clients for period: %v", s.config.KeepLostClients)
+		s.Infof("Variable to keep lost clients is set. Enables keeping disconnected clients for period: %v", s.config.Server.KeepLostClients)
 		s.Infof("csr file path: %q", s.config.CSRFilePath())
 
 		var lockableClients *clients.ClientCache
-		if !s.config.AuthMultiuseCreds {
+		if !s.config.Server.AuthMultiuseCreds {
 			lockableClients = s.clientListener.allClients
 		}
-		go scheduler.Run(ctx, s.Logger, sessions.NewCleanupTask(s.Logger, repo, lockableClients), s.config.CleanupClients)
-		s.Infof("Task to cleanup obsolete clients will run with interval %v", s.config.CleanupClients)
+		go scheduler.Run(ctx, s.Logger, sessions.NewCleanupTask(s.Logger, repo, lockableClients), s.config.Server.CleanupClients)
+		s.Infof("Task to cleanup obsolete clients will run with interval %v", s.config.Server.CleanupClients)
 		// TODO(m-terel): add graceful shutdown of background task
-		go scheduler.Run(ctx, s.Logger, sessions.NewSaveToFileTask(s.Logger, repo, s.config.CSRFilePath()), s.config.SaveClients)
-		s.Infof("Task to save clients to disk will run with interval %v", s.config.SaveClients)
+		go scheduler.Run(ctx, s.Logger, sessions.NewSaveToFileTask(s.Logger, repo, s.config.CSRFilePath()), s.config.Server.SaveClients)
+		s.Infof("Task to save clients to disk will run with interval %v", s.config.Server.SaveClients)
 	}
 
-	if s.config.AuthFile != "" && s.config.AuthWrite {
+	if s.config.Server.AuthFile != "" && s.config.Server.AuthWrite {
 		ctx := context.Background()
 		// TODO(m-terel): add graceful shutdown when a global shutdown mechanism will be ready and working
-		go scheduler.Run(ctx, s.Logger, clients.NewSaveToFileTask(s.Logger, s.apiListener.clientCache, s.config.AuthFile), s.config.SaveClientsAuth)
-		s.Infof("Task to save rport clients auth credentials to disk will run with interval %v", s.config.SaveClientsAuth)
+		go scheduler.Run(ctx, s.Logger, clients.NewSaveToFileTask(s.Logger, s.apiListener.clientCache, s.config.Server.AuthFile), s.config.Server.SaveClientsAuth)
+		s.Infof("Task to save rport clients auth credentials to disk will run with interval %v", s.config.Server.SaveClientsAuth)
 	}
 
 	return s.Wait()

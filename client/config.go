@@ -9,7 +9,7 @@ import (
 	chshare "github.com/cloudradar-monitoring/rport/share"
 )
 
-type ConnectionOptions struct {
+type ConnectionConfig struct {
 	KeepAlive        time.Duration `mapstructure:"keep_alive"`
 	MaxRetryCount    int           `mapstructure:"max_retry_count"`
 	MaxRetryInterval time.Duration `mapstructure:"max_retry_interval"`
@@ -19,23 +19,30 @@ type ConnectionOptions struct {
 	headers http.Header
 }
 
-type Config struct {
+type LogConfig struct {
 	LogOutput chshare.LogOutput `mapstructure:"log_file"`
 	LogLevel  chshare.LogLevel  `mapstructure:"log_level"`
-
-	Fingerprint string            `mapstructure:"fingerprint"`
-	Auth        string            `mapstructure:"auth"`
-	Connection  ConnectionOptions `mapstructure:"connection"`
-	Server      string            `mapstructure:"server"`
-	Proxy       string            `mapstructure:"proxy"`
-	ID          string            `mapstructure:"id"`
-	Name        string            `mapstructure:"name"`
-	Tags        []string          `mapstructure:"tags"`
-	Remotes     []string          `mapstructure:"remotes"`
 }
 
-func (c *ConnectionOptions) GetHeaders() http.Header {
+type ClientConfig struct {
+	Server      string   `mapstructure:"server"`
+	Fingerprint string   `mapstructure:"fingerprint"`
+	Auth        string   `mapstructure:"auth"`
+	Proxy       string   `mapstructure:"proxy"`
+	ID          string   `mapstructure:"id"`
+	Name        string   `mapstructure:"name"`
+	Tags        []string `mapstructure:"tags"`
+	Remotes     []string `mapstructure:"remotes"`
+}
+
+func (c *ConnectionConfig) Headers() http.Header {
 	return c.headers
+}
+
+type Config struct {
+	Client     ClientConfig     `mapstructure:"client"`
+	Connection ConnectionConfig `mapstructure:"connection"`
+	Logging    LogConfig        `mapstructure:"logging"`
 }
 
 func (c *Config) ParseAndValidate() error {

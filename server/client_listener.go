@@ -50,12 +50,12 @@ func NewClientListener(config *Config, s *SessionService, allClients *clients.Cl
 	cl := &ClientListener{
 		config:            config,
 		sessionService:    s,
-		httpServer:        chshare.NewHTTPServer(int(config.MaxRequestBytes)),
+		httpServer:        chshare.NewHTTPServer(int(config.Server.MaxRequestBytes)),
 		allClients:        allClients,
 		sshSessionClients: clients.NewEmptyClientCache(),
-		Logger:            chshare.NewLogger("client-listener", config.LogOutput, config.LogLevel),
+		Logger:            chshare.NewLogger("client-listener", config.Logging.LogOutput, config.Logging.LogLevel),
 		requestLogOptions: config.InitRequestLogOptions(),
-		maxRequestBytes:   config.MaxRequestBytes,
+		maxRequestBytes:   config.Server.MaxRequestBytes,
 	}
 	//create ssh config
 	cl.sshConfig = &ssh.ServerConfig{
@@ -66,8 +66,8 @@ func NewClientListener(config *Config, s *SessionService, allClients *clients.Cl
 	}
 	cl.sshConfig.AddHostKey(privateKey)
 	//setup reverse proxy
-	if config.Proxy != "" {
-		u, err := url.Parse(config.Proxy)
+	if config.Server.Proxy != "" {
+		u, err := url.Parse(config.Server.Proxy)
 		if err != nil {
 			return nil, err
 		}
@@ -271,7 +271,7 @@ func (cl *ClientListener) handleWebsocket(w http.ResponseWriter, req *http.Reque
 	}
 
 	// if keeping lost client enabled - do not unlock client credentials. They unlock in session cleanup task.
-	if cl.config.KeepLostClients > 0 {
+	if cl.config.Server.KeepLostClients > 0 {
 		unlockClient = false
 	}
 }
@@ -311,7 +311,7 @@ func (cl *ClientListener) getSID(reqID string, config *Config, client *clients.C
 	}
 
 	// use client id as session id if proper configs are set
-	if !config.AuthMultiuseCreds && config.EquateAuthusernameClientid && client != nil {
+	if !config.Server.AuthMultiuseCreds && config.Server.EquateAuthusernameClientid && client != nil {
 		return client.ID
 	}
 
@@ -319,7 +319,7 @@ func (cl *ClientListener) getSID(reqID string, config *Config, client *clients.C
 }
 
 func (cl *ClientListener) lockClientIfNeeded(client *clients.Client, sid string) (bool, error) {
-	if cl.allClients == nil || cl.config.AuthMultiuseCreds || client == nil {
+	if cl.allClients == nil || cl.config.Server.AuthMultiuseCreds || client == nil {
 		return false, nil
 	}
 

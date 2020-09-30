@@ -64,11 +64,11 @@ The server is called node1.example.com in this example.
 
 Install client and server
 ```
-curl -LSs https://github.com/cloudradar-monitoring/rport/releases/download/0.1.17/rport_0.1.17_Linux_x86_64.tar.gz|\
+curl -LSs https://github.com/cloudradar-monitoring/rport/releases/download/0.1.19/rport_0.1.19_Linux_x86_64.tar.gz|\
 tar vxzf - -C /usr/local/bin/
 ```
 
-Create a key for the server instance. Store this key and don't change it. Otherwise, your fingerprint will change and your clients might be rejected. 
+Create a key for the server instance. Store this key and don't change it. You will use it later. Otherwise, your fingerprint will change and your clients might be rejected. 
 ```
 openssl rand -hex 18
 ```  
@@ -77,22 +77,13 @@ Start the server as a background task.
 ```
 nohup rportd --key <YOUR_KEY> --addr 0.0.0.0:19075 &>/tmp/rportd.log &
 ```
-For the first testing leave the console open and observe the log with `tail -f /tmp/rportd.log`. Note the fingerprint. You will use it later. 
-
-To safely store and reuse the key use these commands.
-```
-echo "RPORT_KEY=$(openssl rand -hex 18)">/etc/default/rport
-. /etc/default/rport
-export RPORT_KEY=$RPORT_KEY
-nohup rportd --addr 0.0.0.0:19075 &>/tmp/rportd.log &
-```
-rportd reads the key from the environment so it does not appear in the process list or the history. 
+For the first testing leave the console open and observe the log with `tail -f /tmp/rportd.log`. 
 
 ### Connect a client
 We call the client `client1.local.localdomain`.
 On your client just install the client binary 
 ```
-curl -LSs https://github.com/cloudradar-monitoring/rport/releases/download/0.1.17/rport_0.1.17_Linux_x86_64.tar.gz|\
+curl -LSs https://github.com/cloudradar-monitoring/rport/releases/download/0.1.19/rport_0.1.19_Linux_x86_64.tar.gz|\
 tar vxzf - rport -C /usr/local/bin/
 ```
 
@@ -109,191 +100,25 @@ Copy the fingerprint the server has generated on startup to your clipboard and u
 This ensures you connect only to trusted servers. If you omit this step a man in the middle can bring up a rport server and hijack your tunnels.
 If you do ssh or rdp through the tunnel, a hijacked tunnel will not expose your credentials because the data inside the tunnel is still encrypted. But if you use rport for unencrypted protocols like HTTP, sniffing credentials would be possible.
 
-### Config files
-Config files can be used to set up both the rport server and clients. In order to use it an arg `--config`(or `-c`) should be passed to a command with a path to the file. Config examples `rportd.example.conf` and `rport.example.conf` can be found in the release archive or in the source.
+## Configuration files
+Config files can be used to set up both the rport server and clients. In order to use it an arg `--config`(or `-c`) should be passed to a command with a path to the file. Configuration examples `rportd.example.conf` ([view online](rportd.example.conf)) and `rport.example.conf` ([view online](rport.example.conf)) can be found in the release archive or in the source.
 
 NOTE: command arguments and env variables will override values from the config file.
 
-#### Rport server
-In order to load configuration from the file run:
+In order to load the configuration from a file run:
 ```
-rportd -c /var/lib/rportd/rportd.conf
-```
-Here is an example of a config file for the server:
-```
-# Specifies log file path
-log_file = "/tmp/rportd.log"
-
-# Specify log level. Values: 'error', 'info', 'debug'.
-# Defaults to 'error'
-log_level = "info"
-
-# Defines the IP address and port the HTTP server listens on.
-address = "0.0.0.0:7777"
-
-# Defines full client connect URL. Defaults to http://{addr}
-url = "http://example.com"
-
-# An optional string to seed the generation of a ECDSA public
-# and private key pair.
-# key_seed = "youknownothing1"
-
-# An optional path to a json file with clients credentials.
-# This is for authentication of the rport tunnel clients.
-# The file should contain a map with clients credentials defined like:
-# {
-#   "<client1-id>": "<password1>"
-#   "<client2-id>": "<password2>"
-# }
-# auth_file = "/etc/rportd/users.json"
-
-# An optional string representing a single client with full access, in the form of <client-id>:<password>.
-# This is equivalent to creating an [auth_file] with {"<client-id>":"<password>"}.
-auth = "user1:1234"
-
-# Specifies another HTTP server to proxy requests to when
-# rportd receives a normal HTTP request
-# proxy = "http://intranet.lan:8080/"
-
-# Defines a list of port numbers or ranges of server ports,
-# that would not be used for automatic port assignment.
-# Defaults to ['1-1000'].
-excluded_ports = [
-  '1-1000',
-  '8888',
-  '8080'
-]
-
-# An optional param to define a local directory path to store internal data.
-# By default, "/var/lib/rportd" is used on Linux, "C:\ProgramData\rportd" is used on Windows.
-#data_dir = "/var/lib/rportd"
-
-# An optional param to define a duration to keep info (sessions, tunnels, etc) about active and disconnected clients.
-# Enables to identify disconnected clients at server restart and to reestablish previous tunnels on reconnect.
-# By default is "0"(is disabled). It can contain "h"(hours), "m"(minutes), "s"(seconds).
-#keep_lost_clients = "1h"
-
-# Applicable only if [keep_lost_clients] is specified. An optional param to define an interval
-# to flush info (sessions, tunnels, etc) about active and disconnected clients to disk.
-# By default, 1 second is used. It can contain "h"(hours), "m"(minutes), "s"(seconds).
-# save_clients_interval = "5s"
-
-# Applicable only if [keep_lost_clients] is specified. An optional param to define an
-# interval to clean up internal storage from obsolete disconnected clients.
-# By default, 5 minutes is used. It can contain "h"(hours), "m"(minutes), "s"(seconds).
-# cleanup-clients-interval = "3m"
-
-# An optional param to define a file name in [data_dir] directory to store info about
-# active and disconnected clients. By default, "csr.json" is used.
-#csr_file_name = "csr.json"
-
-# An optional param to define a limit for data that can be sent by rport clients and API requests.
-# By default is set to 2048(2Kb).
-max_request_bytes = 2048
-
-# specify non-empty api.address to enable API support
-[api]
-  # Defines the IP address and port the API server listens on
-  address = "0.0.0.0:9999"
-
-  # An optional path to a json file with users credentials for API authentication.
-  # The file should contain an array with users credentials defined like:
-  # [
-  # {
-  #   "username": "<username>",
-  #   "password": "<password>",
-  #   "groups": ["<group>", "<group>"]
-  # },
-  # {
-  #   "username": "admin",
-  #   "password": "$2y$05$cIOk1IlsdgdUeZpV464d6OXKI1tF2Yc3MWo55xDu4XhopEJmGb2KC",
-  #   "groups": ["admins", "sysadmins", "users", "sudo", "some-group"]
-  # }
-  # ]
-  # Use either [api.auth_file] or [api.auth]. Not both.
-  # If both are enabled, [api.auth_file] has precedence and [api.auth] is ignored.
-  # If both are disabled, API authentication is turned off.
-  # The passwords are expected to be bcrypt hashed and they must be compatible with
-  # the passwords generated by: htpasswd -bnBC 10 "" password | tr -d ':'.
-  # auth_file = "/etc/rportd/api-auth.json"
-
-  # An optional string representing a single pair of user credentials for accessing API,
-  # in the form of "<user>:<password>". Use either [api.auth_file] or [api.auth]. Not both.
-  # If both are enabled, [api.auth_file] has precedence and [api.auth] is ignored.
-  # If both are disabled, API authentication is turned off.
-  auth = "admin:1234"
-
-  # Defines JWT secret used to generate new tokens
-  # jwt_secret = "foobar2"
-
-  # If specified, rportd will serve files from this directory on the same API address
-  # doc_root = "/var/rportd/www"
+rportd -c /etc/rport/rportd.conf
+rport -c /etc/rport/rport.conf
 ```
 
-#### Rport client
-In order to load configuration from the file run:
+## Proper client and server installation
+### Don't use the root user
+Client and server don't require running as root in Linux. You should avoid this. Create an unprivileged system-user instead.
 ```
-rport -c /var/tmp/rport.conf
+useradd -r -d /var/lib/rport -m -s /bin/false -U -c "System user for rport client and server" rport
+mkdir /var/log/rport/
+chown rport:root /var/log/rport/
 ```
-Here is an example of a config file for the client:
-```
-# Specifies log file path
-log_file = "/tmp/rport.log"
-
-# Specify log level. Values: 'error', 'info', 'debug'.
-# Defaults to 'error'
-log_level = "info"
-
-# rportd server address
-server = "rportd.lan:9000"
-
-# fingerprint string to perform host-key validation against the server's public key
-# fingerprint = ""
-
-# An optional username and password (client authentication) in the form: "<user>:<pass>"
-auth = "user1:1234"
-
-# An optional HTTP CONNECT or SOCKS5 proxy which will be used to reach the rport server.
-# Authentication can be specified inside the URL
-proxy = "http://admin:password@my-server.com:8081"
-
-# client ID
-id = "client id #1"
-
-# client name
-name = "my_win_vm_1"
-
-# client tags
-tags = ['win', 'server', 'vm']
-
-# remote connections tunneled through the server, each of which come in the form:
-#   <local-interface>:<local-port>:<remote-host>:<remote-port>
-#   or
-#   <remote-host>:<remote-port>
-# sharing <remote-host>:<remote-port> from the client to the server's <local-interface>:<local-port>
-remotes = [
-  '3389:3389',
-  '5050'
-]
-
-[connection]
-  # An optional keepalive interval. You must specify a time with a unit, for example '30s' or '2m'.
-  # Defaults to '0s' (disabled)
-  keep_alive = '30s'
-
-  # Maximum number of times to retry before exiting. Defaults to unlimited (-1)
-  max_retry_count = 10
-
-  # Maximum wait time before retrying after a disconnection. Defaults to 5 minutes
-  max_retry_interval = '5m'
-
-  # Optionally set the 'Host' header (defaults to the host found in the server url)
-  hostname = "myvm1.lan"
-
-  # Other custom headers in the form "HeaderName: HeaderContent"
-  headers = ['User-Agent: test1', 'Authorization: Basic XXXXXX']
-```
-
 ### Run the server with systemd
 Packages for most common distributions and Windows are on our roadmap. In the meantime create a systemd service file in `/etc/systemd/system/rportd.service` with the following lines manually.
 ``` 
@@ -306,30 +131,15 @@ Wants=network-online.target systemd-networkd-wait-online.service
 User=rport
 Group=rport
 WorkingDirectory=/var/lib/rport/
-EnvironmentFile=/etc/default/rportd
-ExecStart=/usr/local/bin/rportd
+ExecStart=/usr/local/bin/rportd --config /etc/rport/rportd.conf
+ExecReload=kill -SIGUSR1 $MAINPID
 Restart=on-failure
 RestartSec=5
-StandardOutput=file:/var/log/rportd/rportd.log
-StandardError=file:/var/log/rportd/rportd.log
+StandardOutput=file:/var/log/rport/rportd.log
+StandardError=file:/var/log/rport/rportd.log
 
 [Install]
 WantedBy=multi-user.target
-```
-
-Create a user because rport has no requirement to run as root
-```
-useradd -m -r -s /bin/false -d /var/lib/rport rport
-mkdir /var/log/rportd
-chown rport:root /var/log/rportd
-```
-
-Create a config file `/etc/default/rport` like this example.
-```
-# Key to generate the fingerprint
-RPORT_KEY=<YOUR_KEY>
-# Listen for rport clients connections
-RPORT_ADDR=0.0.0.0:19075
 ```
 
 Start it and enable the auto-start on boot
@@ -340,79 +150,38 @@ systemctl enable rportd
 ```
 
 ### Using authentication
-Anyone who knows the address and the port of your rport server can use it for tunneling. In most cases, this is not desired. Your rport server could be abused for example to publish content under your IP address. Therefore using rport with authentication is highly recommended.
+Anyone who knows the address and the port of your rport server can use it for tunneling. In most cases, this is not desired. Your rport server could be abused for example to publish content under your IP address. Therefore, using rport with authentication is highly recommended.
 
-For the server `rportd --auth rport:password123` is the most basic option. All clients must use the username `rport` and the given password. 
+Using a static username password pair is the most basic option. See the comments in the [rportd.example.conf](rportd.example.conf) and read more about all supported [authentication options](docs/client-auth.md). 
 
 On the client start the tunnel this way
 `rport --auth rport:password123 --fingerprint <YOUR_FINGERPRINT> node1.example.com:19075 2222:0.0.0.0:22`
 *Note that in this early version the order of the command line options is still important. This might change later.*
 
-If you want to maintain multiple users with different passwords, create a json-file `/etc/rportd-auth.json` with credentials, for example
-```
-{
-    "user1": "foobaz",
-    "user2": "bingo",
-    "rport": "password123"
-}
-```
-*For now, rportd reads only the user and password.*
-*Rportd re-reads the file immediately after writing without the need for a sighup. This might change in the future.*
 
-Start the server with `rportd --authfile /etc/rport-auth.json`. Change the `ExecStart` line of the systemd service file accordingly. 
-
-### On-demand tunnels using the API
+## On-demand tunnels using the API
 Initializing the creation of a tunnel from the client is nice but not a perfect solution for secure and reliable remote access to a large number of machines.
 Most of the time the tunnel wouldn't be used. Network resources would be wasted and a port is exposed to the internet for an unnecessarily long time.
 Rport provides the option to establish tunnels from the server only when you need them.
 
 #### Step 1: activate the API
-The internal management API is disabled by default. It can be activated in one of two ways:
-1) Use a config file that is described in ["Config files"](https://github.com/cloudradar-monitoring/rport#rport-server) section. Set up `[api]` config params. For example:
+The internal management API is disabled by default. To activate it use a config file that is described
+in ["Configuration files"](https://github.com/cloudradar-monitoring/rport#configuration-files) section.
+Set up `[api]` config params. For example:
    ```
    # specify non-empty api.address to enable API support
    [api]
      # Defines the IP address and port the API server listens on
      address = "127.0.0.1:3000"
-
-     # An optional path to a json file with users credentials for API authentication.
-     # The file should contain an array with users credentials defined like:
-     # [
-     # {
-     #   "username": "<username>",
-     #   "password": "<password>",
-     #   "groups": ["<group>", "<group>"]
-     # },
-     # {
-     #   "username": "admin",
-     #   "password": "$2y$05$cIOk1IlsdgdUeZpV464d6OXKI1tF2Yc3MWo55xDu4XhopEJmGb2KC",
-     #   "groups": ["admins", "sysadmins", "users", "sudo", "some-group"]
-     # }
-     # ]
-     # Use either [api.auth_file] or [api.auth]. Not both.
-     # If both are enabled, [api.auth_file] has precedence and [api.auth] is ignored.
-     # If both are disabled, API authentication is turned off.
-     # The passwords are expected to be bcrypt hashed and they must be compatible with
-     # the passwords generated by: htpasswd -bnBC 10 "" password | tr -d ':'.
-     # auth_file = "/etc/rportd/api-auth.json"
-   
-     # An optional string representing a single pair of user credentials for accessing API,
-     # in the form of "<user>:<password>". Use either [api.auth_file] or [api.auth]. Not both.
-     # If both are enabled, [api.auth_file] has precedence and [api.auth] is ignored.
-     # If both are disabled, API authentication is turned off.
+     # Defines <user:password> authentication pair for accessing API
      auth = "admin:foobaz"
    ```
-2) Extend your rportd configuration file `/etc/default/rport` like this example: 
-   ```
-   RPORT_KEY=<YOUR_KEY>
-   # Listen for rport clients connections
-   RPORT_ADDR=0.0.0.0:19075
-   
-   # Open the management API
-   RPORT_API_ADDR=127.0.0.1:3000
-   RPORT_API_AUTH=admin:foobaz
-   ```
-This opens the API and enables HTTP basic authentication with a single user "admin:foobaz" who has access to the API. To enable access to multiple users and to mange them in the file use "api.auth_file" config param (or "--api-authfile" rportd command arg). Restart the rportd after any changes to the configuration.
+This opens the API and enables HTTP basic authentication with a single user "admin:foobaz" who has access to the API.
+To enable access to multiple users and to mange them in the file use "api.auth_file" config param (or "--api-authfile" rportd command arg).
+Restart the rportd after any changes to the configuration.
+Read more about the supported [api authentication options](docs/api-auth.md).
+
+Read the [Swagger API docs](https://petstore.swagger.io/?url=https://raw.githubusercontent.com/cloudradar-monitoring/rport/master/api-doc.yml).
 
 #### Step 2: Connect a client
 Invoke the client without specifying a tunnel but with some extra data.  
@@ -483,64 +252,10 @@ curl -s -u admin:foobaz http://localhost:3000/api/v1/sessions|jq
 ]
 ```
 There is one client connected with an active tunnel. The second client is in standby mode.
+Read more about the [management of tunnel via the API](docs/managing-tunnels.md) or read the [Swagger API docs](https://petstore.swagger.io/?url=https://raw.githubusercontent.com/cloudradar-monitoring/rport/master/api-doc.yml).
 
-Now use `PUT /api/v1/sessions/{id}/tunnels?local={port}&remote={port}` to request a new tunnel for a client session.
-For example
-```
-CLIENTID=2ba9174e-640e-4694-ad35-34a2d6f3986b
-LOCAL_PORT=4000 
-REMOTE_PORT=22
-curl -u admin:foobaz -X PUT "http://localhost:3000/api/v1/sessions/$CLIENTID/tunnels?local=$LOCAL_PORT&remote=$REMOTE_PORT"
-```
-The ports are defined from the servers' perspective. The above example opens port 4000 on the rport server and forwards to the port 22 of the client.
-
-Using `curl -u admin:foobaz -s http://localhost:3000/api/v1/sessions|jq` again confirms the tunnel has been established.
-```
-"tunnels": [
-      {
-        "lhost": "0.0.0.0",
-        "lport": "4000",
-        "rhost": "0.0.0.0",
-        "rport": "22",
-        "id": "1"
-      }
-    ]
-```
-
-The rport client is not limited to establish tunnels only to the system it runs on. You can use it as a jump host to create tunnels to foreign systems too.
-
-```
-CLIENTID=2ba9174e-640e-4694-ad35-34a2d6f3986b
-LOCAL_PORT=4001
-REMOTE_PORT=192.168.178.1:80
-curl -u admin:foobaz -X PUT "http://localhost:3000/api/v1/sessions/$CLIENTID/tunnels?local=$LOCAL_PORT&remote=$REMOTE_PORT"
-```
-This example forwards port 4001 of the rport server to port 80 of 192.168.178.1 using the rport client in the middle. 
-```
-"tunnels": [
-      {
-        "lhost": "0.0.0.0",
-        "lport": "4001",
-        "rhost": "192.168.178.1",
-        "rport": "80",
-        "id": "1"
-      }
-    ]
-```
-
-Using a DELETE request with the tunnel id allows terminating a tunnel.
-
-```
-CLIENTID=2ba9174e-640e-4694-ad35-34a2d6f3986b
-TUNNELID=1 
-curl -u admin:foobaz -X DELETE "http://localhost:3000/api/v1/sessions/$CLIENTID/tunnels/$TUNNELID"
-```
-
-#### Limitations
-The API is very basic still. A UI and many more options will follow soon. Stay connected with us.
-
-Tunnels initiated by the client survive a restart of the server. Tunnels created by the server don't. This will change in the future. 
-
+#### Step 4: Install a web-based frontend
+Rport comes with a user-friendly web-based frontend. The frontend has it's own none-open-source repository. The installation is quick and easy. [Learn more](docs/frontend.md).
 
 ### Versioning model
 rport uses `<major>.<minor>.<buildnumber>` version pattern for compatibility with a maximum number of package managers.
