@@ -258,7 +258,7 @@ paths:
           schema:
             $ref: "#/definitions/ErrorPayload"
         "405":
-          description: "Operation not allowed. Error codes: ERR_CODE_CLIENT_AUTH_DISABLED, ERR_CODE_CLIENT_SINGLE_CLIENT, ERR_CODE_CLIENT_AUTH_RO"
+          description: "Operation not allowed. Error codes: ERR_CODE_CLIENT_AUTH_DISABLED, ERR_CODE_CLIENT_AUTH_SINGLE, ERR_CODE_CLIENT_AUTH_RO"
           schema:
             $ref: "#/definitions/ErrorPayload"
         "409":
@@ -283,7 +283,7 @@ paths:
           schema:
             $ref: "#/definitions/ErrorPayload"
         "405":
-          description: "Operation not allowed. Error codes: ERR_CODE_CLIENT_AUTH_DISABLED, ERR_CODE_CLIENT_SINGLE_CLIENT, ERR_CODE_CLIENT_AUTH_RO"
+          description: "Operation not allowed. Error codes: ERR_CODE_CLIENT_AUTH_DISABLED, ERR_CODE_CLIENT_AUTH_SINGLE, ERR_CODE_CLIENT_AUTH_RO"
           schema:
             $ref: "#/definitions/ErrorPayload"
         "409":

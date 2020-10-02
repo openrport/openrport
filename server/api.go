@@ -515,7 +515,7 @@ const (
 	MinCredentialsLength = 3
 
 	ErrCodeClientAuthDisabled     = "ERR_CODE_CLIENT_AUTH_DISABLED"
-	ErrCodeClientAuthSingleClient = "ERR_CODE_CLIENT_SINGLE_CLIENT"
+	ErrCodeClientAuthSingleClient = "ERR_CODE_CLIENT_AUTH_SINGLE"
 	ErrCodeClientAuthRO           = "ERR_CODE_CLIENT_AUTH_RO"
 
 	ErrCodeClientHasSession = "ERR_CODE_CLIENT_HAS_SESSION"
