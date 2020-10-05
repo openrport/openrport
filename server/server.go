@@ -20,7 +20,6 @@ import (
 type Server struct {
 	*chshare.Logger
 	listenAddr     string
-	apiAddr        string
 	clientListener *ClientListener
 	apiListener    *APIListener
 	config         *Config
@@ -31,7 +30,6 @@ func NewServer(config *Config) (*Server, error) {
 	s := &Server{
 		Logger:     chshare.NewLogger("server", config.Logging.LogOutput, config.Logging.LogLevel),
 		listenAddr: config.Server.ListenAddress,
-		apiAddr:    config.API.Address,
 		config:     config,
 	}
 
@@ -170,8 +168,8 @@ func (s *Server) Start() error {
 		return err
 	}
 
-	if s.apiAddr != "" {
-		err = s.apiListener.Start(s.apiAddr)
+	if s.config.API.Address != "" {
+		err = s.apiListener.Start(s.config.API.Address)
 	}
 	return err
 }

@@ -93,7 +93,7 @@ func NewAPIListener(
 		jwtSecret:         config.API.JWTSecret,
 		sessionService:    s,
 		apiSessionRepo:    NewAPISessionRepository(),
-		httpServer:        chshare.NewHTTPServer(int(config.Server.MaxRequestBytes)),
+		httpServer:        chshare.NewHTTPServer(int(config.Server.MaxRequestBytes), chshare.WithTLS(config.API.CertFile, config.API.KeyFile)),
 		docRoot:           config.API.DocRoot,
 		requestLogOptions: config.InitRequestLogOptions(),
 		userSrv:           users.NewUserRepository(authUsers),

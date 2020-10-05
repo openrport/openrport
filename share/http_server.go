@@ -6,6 +6,17 @@ import (
 	"net/http"
 )
 
+var netListen = net.Listen
+
+type ServerOption func(*HTTPServer)
+
+func WithTLS(certFile, keyFile string) ServerOption {
+	return func(s *HTTPServer) {
+		s.certFile = certFile
+		s.keyFile = keyFile
+	}
+}
+
 //HTTPServer extends net/http Server and
 //adds graceful shutdowns
 type HTTPServer struct {
@@ -13,19 +24,27 @@ type HTTPServer struct {
 	listener  net.Listener
 	running   chan error
 	isRunning bool
+	certFile  string
+	keyFile   string
 }
 
 //NewHTTPServer creates a new HTTPServer
-func NewHTTPServer(maxHeaderBytes int) *HTTPServer {
-	return &HTTPServer{
+func NewHTTPServer(maxHeaderBytes int, options ...ServerOption) *HTTPServer {
+	s := &HTTPServer{
 		Server:   &http.Server{MaxHeaderBytes: maxHeaderBytes},
 		listener: nil,
 		running:  make(chan error, 1),
 	}
+
+	for _, o := range options {
+		o(s)
+	}
+
+	return s
 }
 
 func (h *HTTPServer) GoListenAndServe(addr string, handler http.Handler) error {
-	l, err := net.Listen("tcp", addr)
+	l, err := netListen("tcp", addr)
 	if err != nil {
 		return err
 	}
@@ -33,7 +52,11 @@ func (h *HTTPServer) GoListenAndServe(addr string, handler http.Handler) error {
 	h.Handler = handler
 	h.listener = l
 	go func() {
-		h.closeWith(h.Serve(l))
+		if h.certFile != "" && h.keyFile != "" {
+			h.closeWith(h.ServeTLS(l, h.certFile, h.keyFile))
+		} else {
+			h.closeWith(h.Serve(l))
+		}
 	}()
 	return nil
 }

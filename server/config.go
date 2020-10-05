@@ -23,6 +23,8 @@ type APIConfig struct {
 	AuthFile  string `mapstructure:"auth_file"`
 	JWTSecret string `mapstructure:"jwt_secret"`
 	DocRoot   string `mapstructure:"doc_root"`
+	CertFile  string `mapstructure:"cert_file"`
+	KeyFile   string `mapstructure:"key_file"`
 }
 
 const (
