@@ -17,6 +17,9 @@ securityDefinitions:
 security:
   - bearer_auth: []
   - basic_auth: []
+schemes:
+  - http
+  - https
 paths:
   /login:
     get:
