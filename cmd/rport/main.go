@@ -5,6 +5,7 @@ import (
 	"log"
 	"os"
 
+	"github.com/kardianos/service"
 	"github.com/spf13/cobra"
 	"github.com/spf13/viper"
 
@@ -26,16 +27,16 @@ var clientHelp = `
 
   which does reverse port forwarding, sharing <remote-host>:<remote-port>
   from the client to the server's <local-interface>:<local-port>.
-  If local part is omitted, a randomly chosen server port will be assigned. 
+  If local part is omitted, a randomly chosen server port will be assigned.
   Only IPv4 addresses are supported.
   If not set, client connects without active tunnel(s) waiting for tunnels to be initialized by the server.
 
   Examples:
 
-    ./rport <SERVER>:<PORT> 2222:127.0.0.1:22 
+    ./rport <SERVER>:<PORT> 2222:127.0.0.1:22
     forwards port 2222 of the server to port 22 of the client
 
-    ./rport <SERVER>:<PORT> 3000 
+    ./rport <SERVER>:<PORT> 3000
     forwards randomly-assigned free port of the server to port 3000 of the client
 
     ./rport <SERVER>:<PORT> example.com:3000
@@ -55,7 +56,7 @@ var clientHelp = `
     using IPv6 server address. Forwards randomly-assigned free port of the server
     to port 3389 of the client
 
-    ./rport -c /etc/rport/rport.conf 
+    ./rport -c /etc/rport/rport.conf
     starts client with configuration loaded from the file
 
   Options:
@@ -105,6 +106,8 @@ var clientHelp = `
     Used for filtering clients on the server.
     Can be used multiple times. (e.g --tag "foobaz" --tag "bingo")
 
+    --service, Manages rport running as a service. Possible commands are "install", "uninstall", "start" and "stop".
+
     --verbose, -v, Specify log level. Values: "error", "info", "debug" (defaults to "error")
 
     --log-file, -l, Specifies log file path. (defaults to empty string: log printed to stdout)
@@ -133,6 +136,8 @@ var (
 	cfgPath  *string
 	viperCfg *viper.Viper
 	config   = &chclient.Config{}
+
+	svcCommand *string
 )
 
 func init() {
@@ -153,6 +158,7 @@ func init() {
 	pFlags.StringP("verbose", "v", "", "")
 
 	cfgPath = pFlags.StringP("config", "c", "", "")
+	svcCommand = pFlags.String("service", "", "")
 
 	RootCmd.SetUsageFunc(func(*cobra.Command) error {
 		fmt.Print(clientHelp)
@@ -230,9 +236,23 @@ func runMain(cmd *cobra.Command, args []string) {
 		config.Logging.LogOutput.Shutdown()
 	}()
 
+	if svcCommand != nil && *svcCommand != "" {
+		if err := handleSvcCommand(*svcCommand, *cfgPath); err != nil {
+			log.Fatal(err)
+		}
+		return
+	}
+
 	c, err := chclient.NewClient(config)
 	if err != nil {
 		log.Fatal(err)
+	}
+
+	if !service.Interactive() {
+		if err := runAsService(c, *cfgPath); err != nil {
+			log.Fatal(err)
+		}
+		return
 	}
 
 	go chshare.GoStats()

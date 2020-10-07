@@ -6,6 +6,7 @@ import (
 	"os"
 	"time"
 
+	"github.com/kardianos/service"
 	"github.com/spf13/cobra"
 	"github.com/spf13/viper"
 
@@ -153,6 +154,8 @@ var serverHelp = `
     --max-request-bytes, An optional arg to define a limit for data that can be sent by rport clients and API requests.
     By default is set to 2048(2Kb).
 
+    --service, Manages rportd running as a service. Possible commands are "install", "uninstall", "start" and "stop".
+
     --verbose, -v, Specify log level. Values: "error", "info", "debug" (defaults to "error")
 
     --log-file, -l, Specifies log file path. (defaults to empty string: log printed to stdout)
@@ -179,6 +182,8 @@ var (
 	cfgPath  *string
 	viperCfg *viper.Viper
 	cfg      = &chserver.Config{}
+
+	svcCommand *string
 )
 
 func init() {
@@ -212,6 +217,7 @@ func init() {
 	pFlags.Duration("save-clients-auth-interval", DefaultSaveClientsAuthInterval, "")
 
 	cfgPath = pFlags.StringP("config", "c", "", "")
+	svcCommand = pFlags.String("service", "", "")
 
 	RootCmd.SetUsageFunc(func(*cobra.Command) error {
 		fmt.Print(serverHelp)
@@ -294,9 +300,23 @@ func runMain(*cobra.Command, []string) {
 		cfg.Logging.LogOutput.Shutdown()
 	}()
 
+	if svcCommand != nil && *svcCommand != "" {
+		if err := handleSvcCommand(*svcCommand, *cfgPath); err != nil {
+			log.Fatal(err)
+		}
+		return
+	}
+
 	s, err := chserver.NewServer(cfg)
 	if err != nil {
 		log.Fatal(err)
+	}
+
+	if !service.Interactive() {
+		if err := runAsService(s, *cfgPath); err != nil {
+			log.Fatal(err)
+		}
+		return
 	}
 
 	go chshare.GoStats()
