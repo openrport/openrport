@@ -8,6 +8,7 @@ import (
 	"time"
 
 	"golang.org/x/crypto/ssh"
+	"golang.org/x/sync/errgroup"
 
 	"github.com/cloudradar-monitoring/rport/server/clients"
 	"github.com/cloudradar-monitoring/rport/server/ports"
@@ -175,15 +176,15 @@ func (s *Server) Start() error {
 }
 
 func (s *Server) Wait() error {
-	return chshare.SyncCall(
-		s.clientListener.Wait,
-		s.apiListener.Wait,
-	)
+	wg := &errgroup.Group{}
+	wg.Go(s.clientListener.Wait)
+	wg.Go(s.apiListener.Wait)
+	return wg.Wait()
 }
 
 func (s *Server) Close() error {
-	return chshare.SyncCall(
-		s.clientListener.Close,
-		s.apiListener.Close,
-	)
+	wg := &errgroup.Group{}
+	wg.Go(s.clientListener.Close)
+	wg.Go(s.apiListener.Close)
+	return wg.Wait()
 }
