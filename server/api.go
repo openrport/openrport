@@ -39,7 +39,6 @@ func (al *APIListener) wrapWithAuthMiddleware(f http.Handler) http.HandlerFunc {
 		}
 
 		if !authorized || username == "" {
-			w.Header().Set("WWW-Authenticate", `Basic realm="rportd-api"`)
 			al.jsonErrorResponse(w, http.StatusUnauthorized, errors.New("unauthorized"))
 			return
 		}
