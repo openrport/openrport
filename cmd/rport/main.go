@@ -237,7 +237,8 @@ func runMain(cmd *cobra.Command, args []string) {
 	}()
 
 	if svcCommand != nil && *svcCommand != "" {
-		if err := handleSvcCommand(*svcCommand, *cfgPath); err != nil {
+		err = handleSvcCommand(*svcCommand, *cfgPath)
+		if err != nil {
 			log.Fatal(err)
 		}
 		return
@@ -249,7 +250,8 @@ func runMain(cmd *cobra.Command, args []string) {
 	}
 
 	if !service.Interactive() {
-		if err := runAsService(c, *cfgPath); err != nil {
+		err = runAsService(c, *cfgPath)
+		if err != nil {
 			log.Fatal(err)
 		}
 		return

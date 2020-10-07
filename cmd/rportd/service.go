@@ -1,6 +1,7 @@
 package main
 
 import (
+	"log"
 	"path/filepath"
 
 	"github.com/kardianos/service"
@@ -52,7 +53,11 @@ func (w *serviceWrapper) Start(service.Service) error {
 	if w.Server == nil {
 		return nil
 	}
-	go w.Server.Run()
+	go func() {
+		if err := w.Server.Run(); err != nil {
+			log.Println(err)
+		}
+	}()
 	return nil
 }
 
