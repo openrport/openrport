@@ -29,14 +29,14 @@ var serverHelp = `
 
   Examples:
 
-    ./rportd --addr=0.0.0.0:9999 
+    ./rportd --addr=0.0.0.0:9999
     starts server, listening to client connections on port 9999
 
     ./rportd --addr="[2a01:4f9:c010:b278::1]:9999" --api-addr=0.0.0.0:9000 --api-auth=admin:1234
     starts server, listening to client connections on IPv6 interface,
     also enabling HTTP API, available at http://0.0.0.0:9000/
 
-    ./rportd -c /etc/rport/rportd.conf 
+    ./rportd -c /etc/rport/rportd.conf
     starts server with configuration loaded from the file
 
   Options:
@@ -77,7 +77,7 @@ var serverHelp = `
     client auth with HTTP 403. Applies only to --authfile and --auth-table. Default is "true".
 
     --auth-multiuse-creds, When using --authfile creating separate credentials for each client is recommended.
-    It increases security because you can lock out clients individually. 
+    It increases security because you can lock out clients individually.
     If auth-multiuse-creds is false a client is rejected if another client with the same username is connected
     or has been connected within the --keep-lost-clients interval.
     Defaults: true
@@ -116,6 +116,12 @@ var serverHelp = `
 
     --api-auth, Defines <user>:<password> authentication pair for accessing API
     e.g. "admin:1234". Defaults to empty string: authorization not required.
+
+    --api-cert-file, An optional arg to specify certificate file for API with https.
+    Https will be activated if both cert and key file are set.
+
+    --api-key-file, An optional arg to specify private key file for API with https.
+    Https will be activated if both cert and key file are set.
 
     --data-dir, An optional arg to define a local directory path to store internal data.
     By default, "/var/lib/rportd" is used on Linux, "C:\ProgramData\rportd" is used on Windows.
@@ -189,6 +195,8 @@ func init() {
 	pFlags.String("api-auth", "", "")
 	pFlags.String("api-jwt-secret", "", "")
 	pFlags.String("api-doc-root", "", "")
+	pFlags.String("api-cert-file", "", "")
+	pFlags.String("api-key-file", "", "")
 	pFlags.StringP("log-file", "l", "", "")
 	pFlags.StringP("verbose", "v", "", "")
 	pFlags.StringSliceP("exclude-ports", "e", []string{DefaultExcludedPorts}, "")
@@ -245,6 +253,8 @@ func init() {
 	_ = viperCfg.BindPFlag("api.auth_file", pFlags.Lookup("api-authfile"))
 	_ = viperCfg.BindPFlag("api.jwt_secret", pFlags.Lookup("api-jwt-secret"))
 	_ = viperCfg.BindPFlag("api.doc_root", pFlags.Lookup("api-doc-root"))
+	_ = viperCfg.BindPFlag("api.cert_file", pFlags.Lookup("api-cert-file"))
+	_ = viperCfg.BindPFlag("api.key_file", pFlags.Lookup("api-key-file"))
 }
 
 func main() {
