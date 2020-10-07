@@ -6,8 +6,6 @@ import (
 	"net/http"
 )
 
-var netListen = net.Listen
-
 type ServerOption func(*HTTPServer)
 
 func WithTLS(certFile, keyFile string) ServerOption {
@@ -44,7 +42,7 @@ func NewHTTPServer(maxHeaderBytes int, options ...ServerOption) *HTTPServer {
 }
 
 func (h *HTTPServer) GoListenAndServe(addr string, handler http.Handler) error {
-	l, err := netListen("tcp", addr)
+	l, err := net.Listen("tcp", addr)
 	if err != nil {
 		return err
 	}
