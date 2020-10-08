@@ -6,8 +6,9 @@ import (
 
 type NotFoundRewriteResponseWriter struct {
 	http.ResponseWriter
-	status int
-	header http.Header
+	headerWritten bool
+	status        int
+	header        http.Header
 }
 
 func (w *NotFoundRewriteResponseWriter) Header() http.Header {
@@ -23,12 +24,18 @@ func (w *NotFoundRewriteResponseWriter) WriteHeader(status int) {
 		for key, values := range w.header {
 			w.ResponseWriter.Header()[key] = values
 		}
+		w.headerWritten = true
 		w.ResponseWriter.WriteHeader(status)
 	}
 }
 
 func (w *NotFoundRewriteResponseWriter) Write(p []byte) (int, error) {
 	if w.status != http.StatusNotFound {
+		if !w.headerWritten {
+			for key, values := range w.header {
+				w.ResponseWriter.Header()[key] = values
+			}
+		}
 		return w.ResponseWriter.Write(p)
 	}
 	return len(p), nil // lie that it was successfully written
