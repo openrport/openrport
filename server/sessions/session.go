@@ -127,3 +127,7 @@ func (c *ClientSession) Banner() string {
 	}
 	return banner
 }
+
+func (c *ClientSession) Close() error {
+	return c.Connection.Close()
+}

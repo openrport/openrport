@@ -130,5 +130,19 @@ func (s *SessionService) Terminate(session *sessions.ClientSession) error {
 
 	now := time.Now()
 	session.Disconnected = &now
+
+	// Do not save if session doesn't exist in repo - it was force deleted
+	existing, err := s.repo.GetByID(session.ID)
+	if err != nil {
+		return err
+	}
+	if existing == nil {
+		return nil
+	}
 	return s.repo.Save(session)
+}
+
+// ForceDelete deletes session from repo regardless off KeepLostClients setting
+func (s *SessionService) ForceDelete(session *sessions.ClientSession) error {
+	return s.repo.Delete(session)
 }

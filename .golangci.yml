@@ -123,7 +123,7 @@ linters:
     - ineffassign
     - varcheck
     - unconvert
-    
+
   enable-all: false
   disable:
   disable-all: true
@@ -137,5 +137,7 @@ issues:
     - "G401: Use of weak cryptographic primitive"
     - "G404: Use of weak random number generator \\(math/rand instead of crypto/rand\\)"
     - "G501: Blocklisted import crypto/md5: weak cryptographic primitive"
+    # govet
+    - "shadow: declaration of .err. shadows declaration"
 
 new: true

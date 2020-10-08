@@ -17,6 +17,7 @@ import (
 	"github.com/gorilla/mux"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
+	"golang.org/x/crypto/ssh"
 
 	"github.com/cloudradar-monitoring/rport/server/api"
 	"github.com/cloudradar-monitoring/rport/server/clients"
@@ -437,9 +438,18 @@ func TestHandlePostClients(t *testing.T) {
 	}
 }
 
+type mockConnection struct {
+	ssh.Conn
+	closed bool
+}
+
+func (m *mockConnection) Close() error {
+	m.closed = true
+	return nil
+}
+
 func TestHandleDeleteClient(t *testing.T) {
-	require := require.New(t)
-	assert := assert.New(t)
+	mockConn := &mockConnection{}
 
 	initCacheState := []*clients.Client{cl1, cl2, cl3}
 
@@ -475,6 +485,7 @@ func TestHandleDeleteClient(t *testing.T) {
 		},
 		Disconnected: nil,
 		ClientID:     &cl1.ID,
+		Connection:   mockConn,
 	}
 
 	s2DisconnectedTime, _ := time.Parse(time.RFC3339, "2020-08-19T13:04:23+03:00")
@@ -506,12 +517,15 @@ func TestHandleDeleteClient(t *testing.T) {
 		sessions        []*sessions.ClientSession
 		clientAuthWrite bool
 		clientID        string
+		force           bool
 
 		wantStatusCode int
 		wantClients    []*clients.Client
 		wantErrCode    string
 		wantErrTitle   string
 		wantErrDetail  string
+		wantClosedConn bool
+		wantSessions   []*sessions.ClientSession
 	}{
 		{
 			descr:           "auth file, success delete",
@@ -553,6 +567,7 @@ func TestHandleDeleteClient(t *testing.T) {
 			wantErrCode:     ErrCodeClientHasSession,
 			wantErrTitle:    fmt.Sprintf("Client expected to have no active session(s), got %d.", 1),
 			wantClients:     initCacheState,
+			wantSessions:    []*sessions.ClientSession{s1},
 		},
 		{
 			descr:           "auth file, client has disconnected session",
@@ -565,6 +580,7 @@ func TestHandleDeleteClient(t *testing.T) {
 			wantErrCode:     ErrCodeClientHasSession,
 			wantErrTitle:    fmt.Sprintf("Client expected to have no disconnected session(s), got %d.", 1),
 			wantClients:     initCacheState,
+			wantSessions:    []*sessions.ClientSession{s2},
 		},
 		{
 			descr:           "auth file, auth in Read-Only mode",
@@ -576,6 +592,29 @@ func TestHandleDeleteClient(t *testing.T) {
 			wantErrCode:     ErrCodeClientAuthRO,
 			wantErrTitle:    "Client authentication has been attached in read-only mode.",
 			wantClients:     initCacheState,
+		},
+		{
+			descr:           "auth file, client has active session, force",
+			clientProvider:  clientsFileProvider,
+			clientCache:     clients.NewClientCache(initCacheState),
+			sessions:        []*sessions.ClientSession{s1},
+			clientAuthWrite: true,
+			clientID:        cl1.ID,
+			force:           true,
+			wantStatusCode:  http.StatusNoContent,
+			wantClients:     []*clients.Client{cl2, cl3},
+			wantClosedConn:  true,
+		},
+		{
+			descr:           "auth file, client has disconnected session, force",
+			clientProvider:  clientsFileProvider,
+			clientCache:     clients.NewClientCache(initCacheState),
+			sessions:        []*sessions.ClientSession{s2},
+			clientAuthWrite: true,
+			clientID:        cl1.ID,
+			force:           true,
+			wantStatusCode:  http.StatusNoContent,
+			wantClients:     []*clients.Client{cl2, cl3},
 		},
 		{
 			descr:           "auth, single client",
@@ -601,41 +640,53 @@ func TestHandleDeleteClient(t *testing.T) {
 	}
 
 	for _, tc := range testCases {
-		msg := fmt.Sprintf("test case: %q", tc.descr)
+		t.Run(tc.descr, func(t *testing.T) {
+			require := require.New(t)
+			assert := assert.New(t)
 
-		// given
-		al := APIListener{
-			Logger:          testLog,
-			clientProvider:  tc.clientProvider,
-			clientCache:     tc.clientCache,
-			clientAuthWrite: tc.clientAuthWrite,
-			sessionService:  NewSessionService(nil, sessions.NewSessionRepository(tc.sessions, &hour)),
-		}
+			// given
+			al := APIListener{
+				Logger:          testLog,
+				clientProvider:  tc.clientProvider,
+				clientCache:     tc.clientCache,
+				clientAuthWrite: tc.clientAuthWrite,
+				sessionService:  NewSessionService(nil, sessions.NewSessionRepository(tc.sessions, &hour)),
+			}
+			mockConn.closed = false
 
-		req, err := http.NewRequest(http.MethodDelete, fmt.Sprintf("/clients/%s", tc.clientID), nil)
-		require.NoErrorf(err, msg)
+			url := fmt.Sprintf("/clients/%s", tc.clientID)
+			if tc.force {
+				url += "?force=true"
+			}
+			req, err := http.NewRequest(http.MethodDelete, url, nil)
+			require.NoError(err)
 
-		// when
-		router := mux.NewRouter()
-		router.HandleFunc("/clients/{client_id}", al.handleDeleteClient)
-		w := httptest.NewRecorder()
-		router.ServeHTTP(w, req)
+			// when
+			router := mux.NewRouter()
+			router.HandleFunc("/clients/{client_id}", al.handleDeleteClient)
+			w := httptest.NewRecorder()
+			router.ServeHTTP(w, req)
 
-		// then
-		assert.Equalf(tc.wantStatusCode, w.Code, msg)
-		var wantRespStr string
-		if tc.wantErrTitle == "" {
-			// success case: empty body
-		} else {
-			// failure case
-			wantResp := api.NewErrorPayloadWithCode(tc.wantErrCode, tc.wantErrTitle, tc.wantErrDetail)
-			wantRespBytes, err := json.Marshal(wantResp)
-			require.NoErrorf(err, msg)
-			wantRespStr = string(wantRespBytes)
-		}
-		assert.Equalf(wantRespStr, w.Body.String(), msg)
-		if al.clientCache != nil {
-			assert.ElementsMatchf(tc.wantClients, al.clientCache.GetAll(), msg)
-		}
+			// then
+			assert.Equal(tc.wantStatusCode, w.Code)
+			var wantRespStr string
+			if tc.wantErrTitle == "" {
+				// success case: empty body
+			} else {
+				// failure case
+				wantResp := api.NewErrorPayloadWithCode(tc.wantErrCode, tc.wantErrTitle, tc.wantErrDetail)
+				wantRespBytes, err := json.Marshal(wantResp)
+				require.NoError(err)
+				wantRespStr = string(wantRespBytes)
+			}
+			assert.Equal(wantRespStr, w.Body.String())
+			if al.clientCache != nil {
+				assert.ElementsMatch(tc.wantClients, al.clientCache.GetAll())
+			}
+			assert.Equal(tc.wantClosedConn, mockConn.closed)
+			allSessions, err := al.sessionService.GetAll()
+			require.NoError(err)
+			assert.ElementsMatch(tc.wantSessions, allSessions)
+		})
 	}
 }
