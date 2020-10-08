@@ -5,7 +5,6 @@ import (
 	"errors"
 	"fmt"
 	"net/http"
-	"os"
 	"runtime"
 	"strings"
 	"time"
@@ -136,8 +135,7 @@ func (al *APIListener) handleAPIRequest(w http.ResponseWriter, r *http.Request) 
 
 	docRoot := al.config.API.DocRoot
 	if docRoot != "" {
-		redirectURL := docRoot + string(os.PathSeparator) + "index.html"
-		middleware.Redirect404(http.FileServer(http.Dir(docRoot)), redirectURL).ServeHTTP(w, r)
+		middleware.Rewrite404(http.FileServer(http.Dir(docRoot)), "/").ServeHTTP(w, r)
 		return
 	}
 
