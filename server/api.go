@@ -595,19 +595,12 @@ func (al *APIListener) handleDeleteClient(w http.ResponseWriter, req *http.Reque
 		return
 	}
 
-	activeSessions := al.sessionService.GetByClientID(clientID, true)
-	if !force && len(activeSessions) > 0 {
-		al.jsonErrorResponseWithErrCode(w, http.StatusConflict, ErrCodeClientHasSession, fmt.Sprintf("Client expected to have no active session(s), got %d.", len(activeSessions)))
-		return
-	}
-
-	disconnectedSessions := al.sessionService.GetByClientID(clientID, false)
-	if !force && len(disconnectedSessions) > 0 {
-		al.jsonErrorResponseWithErrCode(w, http.StatusConflict, ErrCodeClientHasSession, fmt.Sprintf("Client expected to have no disconnected session(s), got %d.", len(disconnectedSessions)))
-		return
-	}
-
 	allSessions := al.sessionService.GetAllByClientID(clientID)
+	if !force && len(allSessions) > 0 {
+		al.jsonErrorResponseWithErrCode(w, http.StatusConflict, ErrCodeClientHasSession, fmt.Sprintf("Client expected to have no active or disconnected session(s), got %d.", len(allSessions)))
+		return
+	}
+
 	for _, s := range allSessions {
 		if err := al.sessionService.ForceDelete(s); err != nil {
 			al.jsonErrorResponse(w, http.StatusInternalServerError, err)

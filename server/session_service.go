@@ -42,10 +42,6 @@ func (s *SessionService) GetActiveByID(id string) (*sessions.ClientSession, erro
 }
 
 // TODO(m-terel): make it consistent with others whether to return an error. No need for now return an err
-func (s *SessionService) GetByClientID(clientID string, active bool) []*sessions.ClientSession {
-	return s.repo.GetByClientID(clientID, active)
-}
-
 func (s *SessionService) GetAllByClientID(clientID string) []*sessions.ClientSession {
 	return s.repo.GetAllByClientID(clientID)
 }
