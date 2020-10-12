@@ -3,8 +3,10 @@
 vendor
 dist
 rport
+!cmd/rport
 rport.exe
 rportd
+!cmd/rportd
 rportd.exe
 deploy.sh
 rport.conf
