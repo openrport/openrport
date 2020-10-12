@@ -585,7 +585,7 @@ func (al *APIListener) handleDeleteClient(w http.ResponseWriter, req *http.Reque
 		var err error
 		force, err = strconv.ParseBool(forceStr)
 		if err != nil {
-			al.jsonErrorResponse(w, http.StatusBadRequest, al.FormatError("invalid force param %v", forceStr))
+			al.jsonErrorResponseWithErrCode(w, http.StatusBadRequest, ErrCodeInvalidRequest, fmt.Sprintf("Invalid force param %v.", forceStr))
 			return
 		}
 	}
@@ -600,23 +600,15 @@ func (al *APIListener) handleDeleteClient(w http.ResponseWriter, req *http.Reque
 		al.jsonErrorResponseWithErrCode(w, http.StatusConflict, ErrCodeClientHasSession, fmt.Sprintf("Client expected to have no active session(s), got %d.", len(activeSessions)))
 		return
 	}
-	for _, s := range activeSessions {
-		if err := s.Close(); err != nil {
-			al.jsonErrorResponse(w, http.StatusInternalServerError, err)
-			return
-		}
-		if err := al.sessionService.ForceDelete(s); err != nil {
-			al.jsonErrorResponse(w, http.StatusInternalServerError, err)
-			return
-		}
-	}
 
 	disconnectedSessions := al.sessionService.GetByClientID(clientID, false)
 	if !force && len(disconnectedSessions) > 0 {
 		al.jsonErrorResponseWithErrCode(w, http.StatusConflict, ErrCodeClientHasSession, fmt.Sprintf("Client expected to have no disconnected session(s), got %d.", len(disconnectedSessions)))
 		return
 	}
-	for _, s := range disconnectedSessions {
+
+	allSessions := al.sessionService.GetAllByClientID(clientID)
+	for _, s := range allSessions {
 		if err := al.sessionService.ForceDelete(s); err != nil {
 			al.jsonErrorResponse(w, http.StatusInternalServerError, err)
 			return

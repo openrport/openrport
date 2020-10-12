@@ -46,6 +46,10 @@ func (s *SessionService) GetByClientID(clientID string, active bool) []*sessions
 	return s.repo.GetByClientID(clientID, active)
 }
 
+func (s *SessionService) GetAllByClientID(clientID string) []*sessions.ClientSession {
+	return s.repo.GetAllByClientID(clientID)
+}
+
 func (s *SessionService) GetAll() ([]*sessions.ClientSession, error) {
 	return s.repo.GetAll()
 }
@@ -142,7 +146,13 @@ func (s *SessionService) Terminate(session *sessions.ClientSession) error {
 	return s.repo.Save(session)
 }
 
-// ForceDelete deletes session from repo regardless off KeepLostClients setting
+// ForceDelete deletes session from repo regardless off KeepLostClients setting,
+// if session is active it will be closed
 func (s *SessionService) ForceDelete(session *sessions.ClientSession) error {
+	if session.Disconnected == nil {
+		if err := session.Close(); err != nil {
+			return err
+		}
+	}
 	return s.repo.Delete(session)
 }

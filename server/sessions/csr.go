@@ -96,6 +96,17 @@ func (s *ClientSessionRepository) GetByClientID(clientID string, active bool) []
 	return res
 }
 
+func (s *ClientSessionRepository) GetAllByClientID(clientID string) []*ClientSession {
+	all, _ := s.GetAll()
+	var res []*ClientSession
+	for _, v := range all {
+		if v.ClientID != nil && *v.ClientID == clientID {
+			res = append(res, v)
+		}
+	}
+	return res
+}
+
 // GetAll returns all non-obsolete active and disconnected client sessions.
 func (s *ClientSessionRepository) GetAll() ([]*ClientSession, error) {
 	s.mu.RLock()

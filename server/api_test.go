@@ -517,7 +517,7 @@ func TestHandleDeleteClient(t *testing.T) {
 		sessions        []*sessions.ClientSession
 		clientAuthWrite bool
 		clientID        string
-		force           bool
+		urlSuffix       string
 
 		wantStatusCode int
 		wantClients    []*clients.Client
@@ -600,7 +600,7 @@ func TestHandleDeleteClient(t *testing.T) {
 			sessions:        []*sessions.ClientSession{s1},
 			clientAuthWrite: true,
 			clientID:        cl1.ID,
-			force:           true,
+			urlSuffix:       "?force=true",
 			wantStatusCode:  http.StatusNoContent,
 			wantClients:     []*clients.Client{cl2, cl3},
 			wantClosedConn:  true,
@@ -612,9 +612,23 @@ func TestHandleDeleteClient(t *testing.T) {
 			sessions:        []*sessions.ClientSession{s2},
 			clientAuthWrite: true,
 			clientID:        cl1.ID,
-			force:           true,
+			urlSuffix:       "?force=true",
 			wantStatusCode:  http.StatusNoContent,
 			wantClients:     []*clients.Client{cl2, cl3},
+		},
+		{
+			descr:           "invalid force param",
+			clientProvider:  clientsFileProvider,
+			clientCache:     clients.NewClientCache(initCacheState),
+			sessions:        []*sessions.ClientSession{s1, s2},
+			clientAuthWrite: true,
+			clientID:        cl1.ID,
+			urlSuffix:       "?force=test",
+			wantStatusCode:  http.StatusBadRequest,
+			wantErrCode:     ErrCodeInvalidRequest,
+			wantErrTitle:    "Invalid force param test.",
+			wantClients:     initCacheState,
+			wantSessions:    []*sessions.ClientSession{s1, s2},
 		},
 		{
 			descr:           "auth, single client",
@@ -655,9 +669,7 @@ func TestHandleDeleteClient(t *testing.T) {
 			mockConn.closed = false
 
 			url := fmt.Sprintf("/clients/%s", tc.clientID)
-			if tc.force {
-				url += "?force=true"
-			}
+			url += tc.urlSuffix
 			req, err := http.NewRequest(http.MethodDelete, url, nil)
 			require.NoError(err)
 
