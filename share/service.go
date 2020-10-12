@@ -7,6 +7,8 @@ import (
 	"github.com/kardianos/service"
 )
 
+// HandleServiceCommand handles string command and executes appropriate method.
+// We do not use service.Control, because on uninstall it leaves the service running.
 func HandleServiceCommand(svc service.Service, command string) error {
 	switch command {
 	case "install":
