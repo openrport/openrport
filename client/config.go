@@ -57,6 +57,9 @@ func (c *Config) ParseAndValidate() error {
 	if c.Connection.Hostname != "" {
 		c.Connection.headers.Set("Host", c.Connection.Hostname)
 	}
+	if len(c.Connection.headers.Values("User-Agent")) == 0 {
+		c.Connection.headers.Set("User-Agent", fmt.Sprintf("rport %s", chshare.BuildVersion))
+	}
 	return nil
 }
 
