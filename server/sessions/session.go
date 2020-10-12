@@ -127,3 +127,8 @@ func (c *ClientSession) Banner() string {
 	}
 	return banner
 }
+
+func (c *ClientSession) Close() error {
+	// The tunnels are closed automatically when ssh connection is closed.
+	return c.Connection.Close()
+}

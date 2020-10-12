@@ -275,6 +275,11 @@ paths:
         description: "client ID"
         required: true
         type: "string"
+      - name: "force"
+        in: "query"
+        description: "If true, delete a client even when it has active/disconnected sessions."
+        required: false
+        type: "boolean"
     delete:
       summary:  "Delete rport client credentials."
       description: ""

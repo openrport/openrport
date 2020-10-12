@@ -42,8 +42,8 @@ func (s *SessionService) GetActiveByID(id string) (*sessions.ClientSession, erro
 }
 
 // TODO(m-terel): make it consistent with others whether to return an error. No need for now return an err
-func (s *SessionService) GetByClientID(clientID string, active bool) []*sessions.ClientSession {
-	return s.repo.GetByClientID(clientID, active)
+func (s *SessionService) GetAllByClientID(clientID string) []*sessions.ClientSession {
+	return s.repo.GetAllByClientID(clientID)
 }
 
 func (s *SessionService) GetAll() ([]*sessions.ClientSession, error) {
@@ -130,5 +130,25 @@ func (s *SessionService) Terminate(session *sessions.ClientSession) error {
 
 	now := time.Now()
 	session.Disconnected = &now
+
+	// Do not save if session doesn't exist in repo - it was force deleted
+	existing, err := s.repo.GetByID(session.ID)
+	if err != nil {
+		return err
+	}
+	if existing == nil {
+		return nil
+	}
 	return s.repo.Save(session)
+}
+
+// ForceDelete deletes session from repo regardless off KeepLostClients setting,
+// if session is active it will be closed
+func (s *SessionService) ForceDelete(session *sessions.ClientSession) error {
+	if session.Disconnected == nil {
+		if err := session.Close(); err != nil {
+			return err
+		}
+	}
+	return s.repo.Delete(session)
 }

@@ -84,12 +84,11 @@ func (s *ClientSessionRepository) GetActiveByID(id string) (*ClientSession, erro
 }
 
 // TODO(m-terel): make it consistent with others whether to return an error. In general it's just a cache, so should not return an err.
-func (s *ClientSessionRepository) GetByClientID(clientID string, active bool) []*ClientSession {
+func (s *ClientSessionRepository) GetAllByClientID(clientID string) []*ClientSession {
 	all, _ := s.GetAll()
 	var res []*ClientSession
 	for _, v := range all {
-		vActive := v.Disconnected == nil
-		if v.ClientID != nil && *v.ClientID == clientID && vActive == active {
+		if v.ClientID != nil && *v.ClientID == clientID {
 			res = append(res, v)
 		}
 	}

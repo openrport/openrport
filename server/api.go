@@ -579,21 +579,33 @@ func (al *APIListener) handleDeleteClient(w http.ResponseWriter, req *http.Reque
 		return
 	}
 
+	force := false
+	forceStr := req.URL.Query().Get("force")
+	if forceStr != "" {
+		var err error
+		force, err = strconv.ParseBool(forceStr)
+		if err != nil {
+			al.jsonErrorResponseWithErrCode(w, http.StatusBadRequest, ErrCodeInvalidRequest, fmt.Sprintf("Invalid force param %v.", forceStr))
+			return
+		}
+	}
+
 	if al.clientCache.Get(clientID) == nil {
 		al.jsonErrorResponseWithErrCode(w, http.StatusBadRequest, ErrCodeClientNotFound, fmt.Sprintf("Client with ID=%q not found.", clientID))
 		return
 	}
 
-	activeSessions := al.sessionService.GetByClientID(clientID, true)
-	if len(activeSessions) > 0 {
-		al.jsonErrorResponseWithErrCode(w, http.StatusConflict, ErrCodeClientHasSession, fmt.Sprintf("Client expected to have no active session(s), got %d.", len(activeSessions)))
+	allSessions := al.sessionService.GetAllByClientID(clientID)
+	if !force && len(allSessions) > 0 {
+		al.jsonErrorResponseWithErrCode(w, http.StatusConflict, ErrCodeClientHasSession, fmt.Sprintf("Client expected to have no active or disconnected session(s), got %d.", len(allSessions)))
 		return
 	}
 
-	disconnectedSessions := al.sessionService.GetByClientID(clientID, false)
-	if len(disconnectedSessions) > 0 {
-		al.jsonErrorResponseWithErrCode(w, http.StatusConflict, ErrCodeClientHasSession, fmt.Sprintf("Client expected to have no disconnected session(s), got %d.", len(disconnectedSessions)))
-		return
+	for _, s := range allSessions {
+		if err := al.sessionService.ForceDelete(s); err != nil {
+			al.jsonErrorResponse(w, http.StatusInternalServerError, err)
+			return
+		}
 	}
 
 	al.clientCache.Delete(clientID)
