@@ -159,6 +159,9 @@ var serverHelp = `
     --max-request-bytes, An optional arg to define a limit for data that can be sent by rport clients and API requests.
     By default is set to 2048(2Kb).
 
+    --allow-root, An optional arg to allow running rportd as root. There is no technical requirement to run the rport
+    server under the root user. Running it as root is an unnecessary security risk.
+
     --service, Manages rportd running as a service. Possible commands are "install", "uninstall", "start" and "stop".
 
     --verbose, -v, Specify log level. Values: "error", "info", "debug" (defaults to "error")
@@ -221,6 +224,7 @@ func init() {
 	pFlags.Bool("equate-authusername-clientid", false, "")
 	pFlags.Duration("save-clients-auth-interval", DefaultSaveClientsAuthInterval, "")
 	pFlags.Duration("run-remote-cmd-timeout", DefaultRunRemoteCmdTimeout, "")
+	pFlags.Bool("allow-root", false, "")
 
 	cfgPath = pFlags.StringP("config", "c", "", "")
 	svcCommand = pFlags.String("service", "", "")
@@ -257,6 +261,7 @@ func init() {
 	_ = viperCfg.BindPFlag("server.max_request_bytes", pFlags.Lookup("max-request-bytes"))
 	_ = viperCfg.BindPFlag("server.check_port_timeout", pFlags.Lookup("check-port-timeout"))
 	_ = viperCfg.BindPFlag("server.run_remote_cmd_timeout", pFlags.Lookup("run-remote-cmd-timeout"))
+	_ = viperCfg.BindPFlag("server.allow_root", pFlags.Lookup("allow-root"))
 
 	_ = viperCfg.BindPFlag("logging.log_file", pFlags.Lookup("log-file"))
 	_ = viperCfg.BindPFlag("logging.log_level", pFlags.Lookup("verbose"))
@@ -297,6 +302,10 @@ func runMain(*cobra.Command, []string) {
 	err = cfg.ParseAndValidate()
 	if err != nil {
 		log.Fatal(err)
+	}
+
+	if !cfg.Server.AllowRoot && os.Geteuid() == 0 {
+		log.Fatal("Running as root is not allowed.")
 	}
 
 	err = cfg.Logging.LogOutput.Start()

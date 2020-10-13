@@ -33,6 +33,7 @@ type ClientConfig struct {
 	Name        string   `mapstructure:"name"`
 	Tags        []string `mapstructure:"tags"`
 	Remotes     []string `mapstructure:"remotes"`
+	AllowRoot   bool     `mapstructure:"allow_root"`
 }
 
 func (c *ConnectionConfig) Headers() http.Header {
