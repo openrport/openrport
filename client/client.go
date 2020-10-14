@@ -32,7 +32,6 @@ type Client struct {
 	connOptions       ConnectionConfig
 	sshConfig         *ssh.ClientConfig
 	sshConn           ssh.Conn
-	proxyURL          *url.URL
 	serverFingerprint string
 	running           bool
 	runningc          chan error
@@ -74,13 +73,6 @@ func NewClient(config *Config) (*Client, error) {
 		cmdExec:           NewCmdExecutor(),
 	}
 
-	if p := config.Client.Proxy; p != "" {
-		client.proxyURL, err = url.Parse(p)
-		if err != nil {
-			return nil, fmt.Errorf("Invalid proxy URL (%s)", err)
-		}
-	}
-
 	user, pass := chshare.ParseAuth(config.Client.Auth)
 
 	client.sshConfig = &ssh.ClientConfig{
@@ -117,8 +109,8 @@ func (c *Client) verifyServer(hostname string, remote net.Addr, key ssh.PublicKe
 //Start client and does not block
 func (c *Client) Start(ctx context.Context) error {
 	via := ""
-	if c.proxyURL != nil {
-		via = " via " + c.proxyURL.String()
+	if c.Config.Client.proxyURL != nil {
+		via = " via " + c.Config.Client.proxyURL.String()
 	}
 
 	c.Infof("Connecting to %s%s\n", c.Config.Client.Server, via)
@@ -164,24 +156,24 @@ func (c *Client) connectionLoop(ctx context.Context) {
 			Subprotocols:     []string{chshare.ProtocolVersion},
 		}
 		//optionally proxy
-		if c.proxyURL != nil {
-			if strings.HasPrefix(c.proxyURL.Scheme, "socks") {
+		if c.Config.Client.proxyURL != nil {
+			if strings.HasPrefix(c.Config.Client.proxyURL.Scheme, "socks") {
 				// SOCKS5 proxy
-				if c.proxyURL.Scheme != "socks" && c.proxyURL.Scheme != "socks5h" {
+				if c.Config.Client.proxyURL.Scheme != "socks" && c.Config.Client.proxyURL.Scheme != "socks5h" {
 					c.Errorf(
 						"unsupported socks proxy type: %s:// (only socks5h:// or socks:// is supported)",
-						c.proxyURL.Scheme)
+						c.Config.Client.proxyURL.Scheme)
 					break
 				}
 				var auth *proxy.Auth
-				if c.proxyURL.User != nil {
-					pass, _ := c.proxyURL.User.Password()
+				if c.Config.Client.proxyURL.User != nil {
+					pass, _ := c.Config.Client.proxyURL.User.Password()
 					auth = &proxy.Auth{
-						User:     c.proxyURL.User.Username(),
+						User:     c.Config.Client.proxyURL.User.Username(),
 						Password: pass,
 					}
 				}
-				socksDialer, err := proxy.SOCKS5("tcp", c.proxyURL.Host, auth, proxy.Direct)
+				socksDialer, err := proxy.SOCKS5("tcp", c.Config.Client.proxyURL.Host, auth, proxy.Direct)
 				if err != nil {
 					connerr = err
 					continue
@@ -190,7 +182,7 @@ func (c *Client) connectionLoop(ctx context.Context) {
 			} else {
 				// CONNECT proxy
 				d.Proxy = func(*http.Request) (*url.URL, error) {
-					return c.proxyURL, nil
+					return c.Config.Client.proxyURL, nil
 				}
 			}
 		}

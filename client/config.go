@@ -36,6 +36,8 @@ type ClientConfig struct {
 	Tags        []string `mapstructure:"tags"`
 	Remotes     []string `mapstructure:"remotes"`
 	AllowRoot   bool     `mapstructure:"allow_root"`
+
+	proxyURL *url.URL
 }
 
 func (c *ConnectionConfig) Headers() http.Header {
@@ -53,6 +55,9 @@ func (c *Config) ParseAndValidate() error {
 		return err
 	}
 	if err := c.parseServerURL(); err != nil {
+		return err
+	}
+	if err := c.parseProxyURL(); err != nil {
 		return err
 	}
 	if c.Connection.MaxRetryInterval < time.Second {
@@ -104,6 +109,17 @@ func (c *Config) parseServerURL() error {
 	//swap to websockets scheme
 	u.Scheme = strings.Replace(u.Scheme, "http", "ws", 1)
 	c.Client.Server = u.String()
+	return nil
+}
+
+func (c *Config) parseProxyURL() error {
+	if p := c.Client.Proxy; p != "" {
+		proxyURL, err := url.Parse(p)
+		if err != nil {
+			return fmt.Errorf("Invalid proxy URL (%s)", err)
+		}
+		c.Client.proxyURL = proxyURL
+	}
 	return nil
 }
 

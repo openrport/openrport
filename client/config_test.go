@@ -2,7 +2,9 @@ package chclient
 
 import (
 	"net/http"
+	"net/url"
 	"testing"
+	"time"
 
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
@@ -115,6 +117,91 @@ func TestConfigParseAndValidateServerURL(t *testing.T) {
 			if tc.ExpectedError == "" {
 				require.NoError(t, err)
 				assert.Equal(t, tc.ExpectedURL, config.Client.Server)
+			} else {
+				require.Error(t, err)
+				assert.Equal(t, tc.ExpectedError, err.Error())
+			}
+		})
+	}
+}
+
+func TestConfigParseAndValidateMaxRetryInterval(t *testing.T) {
+	testCases := []struct {
+		Name                     string
+		MaxRetryInterval         time.Duration
+		ExpectedMaxRetryInterval time.Duration
+	}{
+		{
+			Name:                     "minimum max retry interval",
+			MaxRetryInterval:         time.Second,
+			ExpectedMaxRetryInterval: time.Second,
+		}, {
+			Name:                     "set max retry interval",
+			MaxRetryInterval:         time.Minute,
+			ExpectedMaxRetryInterval: time.Minute,
+		}, {
+			Name:                     "default",
+			MaxRetryInterval:         time.Duration(0),
+			ExpectedMaxRetryInterval: 5 * time.Minute,
+		},
+	}
+
+	for _, tc := range testCases {
+		t.Run(tc.Name, func(t *testing.T) {
+			config := &Config{
+				Client: ClientConfig{
+					Server: "test.com",
+				},
+				Connection: ConnectionConfig{
+					MaxRetryInterval: tc.MaxRetryInterval,
+				},
+			}
+			err := config.ParseAndValidate()
+
+			require.NoError(t, err)
+			assert.Equal(t, tc.ExpectedMaxRetryInterval, config.Connection.MaxRetryInterval)
+		})
+	}
+}
+
+func TestConfigParseAndValidateProxyURL(t *testing.T) {
+	expectedProxyURL, err := url.Parse("http://proxy.com")
+	require.NoError(t, err)
+
+	testCases := []struct {
+		Name             string
+		Proxy            string
+		ExpectedProxyURL *url.URL
+		ExpectedError    string
+	}{
+		{
+			Name:             "not set",
+			Proxy:            "",
+			ExpectedProxyURL: nil,
+		}, {
+			Name:          "invalid",
+			Proxy:         "http://proxy\n.com",
+			ExpectedError: `Invalid proxy URL (parse "http://proxy\n.com": net/url: invalid control character in URL)`,
+		}, {
+			Name:             "with proxy",
+			Proxy:            "http://proxy.com",
+			ExpectedProxyURL: expectedProxyURL,
+		},
+	}
+
+	for _, tc := range testCases {
+		t.Run(tc.Name, func(t *testing.T) {
+			config := &Config{
+				Client: ClientConfig{
+					Server: "test.com",
+					Proxy:  tc.Proxy,
+				},
+			}
+			err := config.ParseAndValidate()
+
+			if tc.ExpectedError == "" {
+				require.NoError(t, err)
+				assert.Equal(t, tc.ExpectedProxyURL, config.Client.proxyURL)
 			} else {
 				require.Error(t, err)
 				assert.Equal(t, tc.ExpectedError, err.Error())
