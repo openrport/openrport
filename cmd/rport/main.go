@@ -233,7 +233,7 @@ func runMain(cmd *cobra.Command, args []string) {
 		log.Fatal(err)
 	}
 
-	if !config.Client.AllowRoot && os.Geteuid() == 0 {
+	if !config.Client.AllowRoot && chshare.IsRunningAsRoot() {
 		log.Fatal("Running as root is not allowed.")
 	}
 

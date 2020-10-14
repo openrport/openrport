@@ -73,7 +73,7 @@ var serverHelp = `
 
     --auth, An optional string representing a single client with full access, in the form of <client-id>:<password>.
     This is equivalent to creating an authfile with {"<client-id>":"<password>"}.
-    Use either "authfile" or "auth". Not both. If multiple auth options are enabled, rportd exists with an error.
+    Use either "authfile" or "auth". Not both. If multiple auth options are enabled, rportd exits with an error.
 
     --auth-write, If you want to delegate the creation and maintenance to an external tool
     you should set this value to "false". The API will reject all writing access to the
@@ -304,7 +304,7 @@ func runMain(*cobra.Command, []string) {
 		log.Fatal(err)
 	}
 
-	if !cfg.Server.AllowRoot && os.Geteuid() == 0 {
+	if !cfg.Server.AllowRoot && chshare.IsRunningAsRoot() {
 		log.Fatal("Running as root is not allowed.")
 	}
 
