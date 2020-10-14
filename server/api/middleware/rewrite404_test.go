@@ -15,7 +15,7 @@ func TestRewrite404(t *testing.T) {
 		Path string
 	}{
 		{
-			Path: "/testpath",
+			Path: "/not_found_path",
 		}, {
 			Path: "/",
 		},
