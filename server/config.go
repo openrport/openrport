@@ -58,6 +58,7 @@ type ServerConfig struct {
 	AuthMultiuseCreds          bool          `mapstructure:"auth_multiuse_creds"`
 	EquateAuthusernameClientid bool          `mapstructure:"equate_authusername_clientid"`
 	SaveClientsAuth            time.Duration `mapstructure:"save_clients_auth_interval"`
+	AllowRoot                  bool          `mapstructure:"allow_root"`
 
 	excludedPorts mapset.Set
 }

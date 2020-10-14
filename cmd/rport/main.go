@@ -106,6 +106,9 @@ var clientHelp = `
     Used for filtering clients on the server.
     Can be used multiple times. (e.g --tag "foobaz" --tag "bingo")
 
+    --allow-root, An optional arg to allow running rport as root. There is no technical requirement to run the rport
+    client under the root user. Running it as root is an unnecessary security risk.
+
     --service, Manages rport running as a service. Possible commands are "install", "uninstall", "start" and "stop".
 
     --verbose, -v, Specify log level. Values: "error", "info", "debug" (defaults to "error")
@@ -156,6 +159,7 @@ func init() {
 	pFlags.String("hostname", "", "")
 	pFlags.StringP("log-file", "l", "", "")
 	pFlags.StringP("verbose", "v", "", "")
+	pFlags.Bool("allow-root", false, "")
 
 	cfgPath = pFlags.StringP("config", "c", "", "")
 	svcCommand = pFlags.String("service", "", "")
@@ -179,6 +183,7 @@ func init() {
 	_ = viperCfg.BindPFlag("client.id", pFlags.Lookup("id"))
 	_ = viperCfg.BindPFlag("client.name", pFlags.Lookup("name"))
 	_ = viperCfg.BindPFlag("client.tags", pFlags.Lookup("tag"))
+	_ = viperCfg.BindPFlag("client.allow_root", pFlags.Lookup("allow-root"))
 
 	_ = viperCfg.BindPFlag("logging.log_file", pFlags.Lookup("log-file"))
 	_ = viperCfg.BindPFlag("logging.log_level", pFlags.Lookup("verbose"))
@@ -226,6 +231,10 @@ func runMain(cmd *cobra.Command, args []string) {
 	err = config.ParseAndValidate()
 	if err != nil {
 		log.Fatal(err)
+	}
+
+	if !config.Client.AllowRoot && chshare.IsRunningAsRoot() {
+		log.Fatal("Running as root is not allowed.")
 	}
 
 	err = config.Logging.LogOutput.Start()
