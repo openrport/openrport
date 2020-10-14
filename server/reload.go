@@ -16,7 +16,7 @@ func (al *APIListener) ReloadAPIUsers() {
 	signal.Notify(signals, syscall.SIGUSR1)
 	for range signals {
 		al.Infof("Signal SIGUSR1 received. Start to reload API users from file.")
-		newUsers, err := users.GetUsersFromFile(al.authFile)
+		newUsers, err := users.GetUsersFromFile(al.config.API.AuthFile)
 		if err != nil {
 			al.Errorf("Failed to reload API users from the file: %v", err)
 			continue

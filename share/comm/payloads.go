@@ -7,7 +7,13 @@ import (
 )
 
 const (
+	// request types sent by server to clients
 	RequestTypeCheckPort = "check_port"
+	RequestTypeRunCmd    = "run_cmd"
+
+	// request types sent by clients to server
+	RequestTypePing      = "ping"
+	RequestTypeCmdResult = "cmd_result"
 )
 
 type CheckPortRequest struct {
@@ -26,4 +32,9 @@ func DecodeCheckPortRequest(b []byte) (*CheckPortRequest, error) {
 type CheckPortResponse struct {
 	Open   bool
 	ErrMsg string
+}
+
+type RunCmdResponse struct {
+	Pid       int
+	StartedAt time.Time
 }

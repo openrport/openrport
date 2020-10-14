@@ -14,21 +14,39 @@ import (
 	"golang.org/x/crypto/ssh"
 
 	"github.com/cloudradar-monitoring/rport/server/api"
+	"github.com/cloudradar-monitoring/rport/server/api/jobs"
 	"github.com/cloudradar-monitoring/rport/server/api/middleware"
 	"github.com/cloudradar-monitoring/rport/server/clients"
 	"github.com/cloudradar-monitoring/rport/server/ports"
 	"github.com/cloudradar-monitoring/rport/server/sessions"
 	chshare "github.com/cloudradar-monitoring/rport/share"
 	"github.com/cloudradar-monitoring/rport/share/comm"
+	"github.com/cloudradar-monitoring/rport/share/models"
+	"github.com/cloudradar-monitoring/rport/share/random"
 )
 
 const (
 	queryParamSort = "sort"
 
+	routeParamSessionID = "session_id"
+	routeParamJobID     = "job_id"
+
 	ErrCodeMissingRouteVar = "ERR_CODE_MISSING_ROUTE_VAR"
 	ErrCodeInvalidRequest  = "ERR_CODE_INVALID_REQUEST"
 	ErrCodeAlreadyExist    = "ERR_CODE_ALREADY_EXIST"
+
+	ErrCodeRunCmdDisabled = "ERR_CODE_RUN_CMD_DISABLED"
 )
+
+var generateNewJobID = func() string {
+	return random.UUID4()
+}
+
+type JobProvider interface {
+	GetByJID(sid, jid string) (*models.Job, error)
+	GetSummariesBySID(sid string) ([]*models.JobSummary, error)
+	SaveJob(job *models.Job) error
+}
 
 func (al *APIListener) wrapWithAuthMiddleware(f http.Handler) http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
@@ -57,12 +75,15 @@ func (al *APIListener) initRouter() {
 	sub.HandleFunc("/sessions", al.handleGetSessions).Methods(http.MethodGet)
 	sub.HandleFunc("/sessions/{session_id}/tunnels", al.handlePutSessionTunnel).Methods(http.MethodPut)
 	sub.HandleFunc("/sessions/{session_id}/tunnels/{tunnel_id}", al.handleDeleteSessionTunnel).Methods(http.MethodDelete)
+	sub.HandleFunc("/sessions/{session_id}/commands", al.handlePostCommand).Methods(http.MethodPost)
+	sub.HandleFunc("/sessions/{session_id}/commands", al.handleGetCommands).Methods(http.MethodGet)
+	sub.HandleFunc("/sessions/{session_id}/commands/{job_id}", al.handleGetCommand).Methods(http.MethodGet)
 	sub.HandleFunc("/clients", al.handleGetClients).Methods(http.MethodGet)
 	sub.HandleFunc("/clients", al.handlePostClients).Methods(http.MethodPost)
 	sub.HandleFunc("/clients/{client_id}", al.handleDeleteClient).Methods(http.MethodDelete)
 
 	// add authorization middleware if needed
-	if al.authorizationOn {
+	if al.IsAuthorizationOn() {
 		_ = sub.Walk(func(route *mux.Route, router *mux.Router, ancestors []*mux.Route) error {
 			route.HandlerFunc(al.wrapWithAuthMiddleware(route.GetHandler()))
 			return nil
@@ -74,12 +95,10 @@ func (al *APIListener) initRouter() {
 	sub.HandleFunc("/login", al.handleDeleteLogin).Methods(http.MethodDelete)
 
 	// add max bytes middleware
-	if al.authorizationOn {
-		_ = sub.Walk(func(route *mux.Route, router *mux.Router, ancestors []*mux.Route) error {
-			route.HandlerFunc(middleware.MaxBytes(route.GetHandler(), al.maxRequestBytes))
-			return nil
-		})
-	}
+	_ = sub.Walk(func(route *mux.Route, router *mux.Router, ancestors []*mux.Route) error {
+		route.HandlerFunc(middleware.MaxBytes(route.GetHandler(), al.config.Server.MaxRequestBytes))
+		return nil
+	})
 
 	al.router = r
 }
@@ -252,7 +271,7 @@ func (al *APIListener) handleGetStatus(w http.ResponseWriter, req *http.Request)
 		"version":        chshare.BuildVersion,
 		"sessions_count": count,
 		"fingerprint":    al.fingerprint,
-		"connect_url":    al.connectURL,
+		"connect_url":    al.config.Server.URL,
 	})
 	al.writeJSONResponse(w, http.StatusOK, response)
 }
@@ -315,7 +334,7 @@ const (
 
 func (al *APIListener) handlePutSessionTunnel(w http.ResponseWriter, req *http.Request) {
 	vars := mux.Vars(req)
-	sessionID, exists := vars["session_id"]
+	sessionID, exists := vars[routeParamSessionID]
 	if !exists || sessionID == "" {
 		al.jsonErrorResponse(w, http.StatusBadRequest, al.FormatError("invalid session id supplied: %s", sessionID))
 		return
@@ -420,11 +439,16 @@ func (al *APIListener) checkLocalPort(w http.ResponseWriter, localPort string) b
 func (al *APIListener) checkRemotePort(w http.ResponseWriter, remote chshare.Remote, conn ssh.Conn) bool {
 	req := &comm.CheckPortRequest{
 		HostPort: remote.Remote(),
-		Timeout:  al.checkPortTimeout,
+		Timeout:  al.config.Server.CheckPortTimeout,
 	}
 	resp := &comm.CheckPortResponse{}
-	if err := comm.HandleSSHRequestJSON(conn, comm.RequestTypeCheckPort, req, resp); err != nil {
-		al.jsonErrorResponse(w, http.StatusInternalServerError, err)
+	err := comm.SendRequestAndGetResponse(conn, comm.RequestTypeCheckPort, req, resp)
+	if err != nil {
+		if _, ok := err.(*comm.ClientError); ok {
+			al.jsonErrorResponseWithTitle(w, http.StatusConflict, err.Error())
+		} else {
+			al.jsonErrorResponse(w, http.StatusInternalServerError, err)
+		}
 		return false
 	}
 
@@ -444,7 +468,7 @@ func (al *APIListener) checkRemotePort(w http.ResponseWriter, remote chshare.Rem
 
 func (al *APIListener) handleDeleteSessionTunnel(w http.ResponseWriter, req *http.Request) {
 	vars := mux.Vars(req)
-	sessionID, exists := vars["session_id"]
+	sessionID, exists := vars[routeParamSessionID]
 	if !exists || sessionID == "" {
 		al.jsonErrorResponse(w, http.StatusBadRequest, al.FormatError("invalid session id supplied: %s", sessionID))
 		return
@@ -638,10 +662,161 @@ func (al *APIListener) allowClientAuthWrite(w http.ResponseWriter) bool {
 		return false
 	}
 
-	if !al.clientAuthWrite {
+	if !al.config.Server.AuthWrite {
 		al.jsonErrorResponseWithErrCode(w, http.StatusMethodNotAllowed, ErrCodeClientAuthRO, "Client authentication has been attached in read-only mode.")
 		return false
 	}
 
+	return true
+}
+
+func (al *APIListener) handlePostCommand(w http.ResponseWriter, req *http.Request) {
+	if !al.allowRunCommands(w) {
+		return
+	}
+
+	vars := mux.Vars(req)
+	sid := vars[routeParamSessionID]
+	if sid == "" {
+		al.jsonErrorResponseWithTitle(w, http.StatusBadRequest, fmt.Sprintf("Missing %q route param.", routeParamSessionID))
+		return
+	}
+
+	reqBody := struct {
+		Command    string `json:"command"`
+		TimeoutSec int    `json:"timeout_sec"`
+	}{}
+	err := json.NewDecoder(req.Body).Decode(&reqBody)
+	if err == io.EOF { // is handled separately to return an informative error message
+		al.jsonErrorResponseWithTitle(w, http.StatusBadRequest, "Missing body with json data.")
+		return
+	} else if err != nil {
+		al.jsonErrorResponseWithError(w, http.StatusBadRequest, "", "Invalid JSON data.", err)
+		return
+	}
+	if reqBody.Command == "" {
+		al.jsonErrorResponseWithTitle(w, http.StatusBadRequest, "Command cannot be empty.")
+		return
+	}
+
+	var cmdTimeout time.Duration
+	if reqBody.TimeoutSec == 0 {
+		cmdTimeout = al.config.Server.RunRemoteCmdTimeout
+	} else {
+		cmdTimeout = time.Duration(reqBody.TimeoutSec) * time.Second
+	}
+
+	session, err := al.sessionService.GetActiveByID(sid)
+	if err != nil {
+		al.jsonErrorResponseWithError(w, http.StatusInternalServerError, "", fmt.Sprintf("Failed to find an active client session with id=%q.", sid), err)
+		return
+	}
+	if session == nil {
+		al.jsonErrorResponseWithTitle(w, http.StatusNotFound, fmt.Sprintf("Active session with id=%q not found.", sid))
+		return
+	}
+
+	// send the command to the client
+	// Send a job with all possible info in order to get the full-populated job back (in client-listener) when it's done.
+	// Needed when server restarts to get all job data from client. Because on server restart job running info is lost.
+	curJob := models.Job{
+		JobSummary: models.JobSummary{
+			JID:        generateNewJobID(),
+			FinishedAt: nil,
+		},
+		SID:       sid,
+		Command:   reqBody.Command,
+		CreatedBy: api.GetUser(req.Context(), al.Logger),
+		Timeout:   cmdTimeout,
+		Result:    nil,
+	}
+	sshResp := &comm.RunCmdResponse{}
+	err = comm.SendRequestAndGetResponse(session.Connection, comm.RequestTypeRunCmd, curJob, sshResp)
+	if err != nil {
+		if _, ok := err.(*comm.ClientError); ok {
+			al.jsonErrorResponseWithTitle(w, http.StatusConflict, err.Error())
+		} else {
+			al.jsonErrorResponseWithError(w, http.StatusInternalServerError, "", "Failed to execute remote command.", err)
+		}
+		return
+	}
+
+	// set fields received in response
+	curJob.PID = sshResp.Pid
+	curJob.StartedAt = sshResp.StartedAt
+	curJob.Status = models.JobStatusRunning
+
+	if err := al.jobProvider.SaveJob(&curJob); err != nil {
+		al.jsonErrorResponseWithError(w, http.StatusInternalServerError, "", "Failed to persist a new job.", err)
+		return
+	}
+
+	resp := struct {
+		JID string `json:"jid"`
+	}{
+		JID: curJob.JID,
+	}
+	al.writeJSONResponse(w, http.StatusOK, api.NewSuccessPayload(resp))
+
+	al.Debugf("Job[id=%q] created to execute remote command on client with sessionID=%q: %q.", curJob.JID, sid, reqBody.Command)
+}
+
+func (al *APIListener) handleGetCommands(w http.ResponseWriter, req *http.Request) {
+	if !al.allowRunCommands(w) {
+		return
+	}
+
+	vars := mux.Vars(req)
+	sid := vars[routeParamSessionID]
+	if sid == "" {
+		al.jsonErrorResponseWithTitle(w, http.StatusBadRequest, fmt.Sprintf("Missing %q route param.", routeParamSessionID))
+		return
+	}
+
+	res, err := al.jobProvider.GetSummariesBySID(sid)
+	if err != nil {
+		al.jsonErrorResponseWithError(w, http.StatusInternalServerError, "", fmt.Sprintf("Failed to get client jobs: session_id=%q.", sid), err)
+		return
+	}
+
+	jobs.SortByFinishedAt(res, true)
+	al.writeJSONResponse(w, http.StatusOK, api.NewSuccessPayload(res))
+}
+
+func (al *APIListener) handleGetCommand(w http.ResponseWriter, req *http.Request) {
+	if !al.allowRunCommands(w) {
+		return
+	}
+
+	vars := mux.Vars(req)
+	sid := vars[routeParamSessionID]
+	if sid == "" {
+		al.jsonErrorResponseWithTitle(w, http.StatusBadRequest, fmt.Sprintf("Missing %q route param.", routeParamSessionID))
+		return
+	}
+	jid := vars[routeParamJobID]
+	if jid == "" {
+		al.jsonErrorResponseWithTitle(w, http.StatusBadRequest, fmt.Sprintf("Missing %q route param.", routeParamJobID))
+		return
+	}
+
+	job, err := al.jobProvider.GetByJID(sid, jid)
+	if err != nil {
+		al.jsonErrorResponseWithError(w, http.StatusInternalServerError, "", fmt.Sprintf("Failed to find a job[id=%q].", jid), err)
+		return
+	}
+	if job == nil {
+		al.jsonErrorResponseWithTitle(w, http.StatusNotFound, fmt.Sprintf("Job[id=%q] not found.", jid))
+		return
+	}
+
+	al.writeJSONResponse(w, http.StatusOK, api.NewSuccessPayload(job))
+}
+
+func (al *APIListener) allowRunCommands(w http.ResponseWriter) bool {
+	if al.jobProvider == nil {
+		al.jsonErrorResponseWithErrCode(w, http.StatusMethodNotAllowed, ErrCodeRunCmdDisabled, "Persistent storage required. A data dir or a database table is required to activate this feature.")
+		return false
+	}
 	return true
 }

@@ -33,7 +33,7 @@ func (al *APIListener) createAuthToken(lifetime time.Duration, username string) 
 		},
 	}
 	token := jwt.NewWithClaims(jwt.SigningMethodHS256, claims)
-	tokenStr, err := token.SignedString([]byte(al.jwtSecret))
+	tokenStr, err := token.SignedString([]byte(al.config.API.JWTSecret))
 	if err != nil {
 		return "", err
 	}
@@ -59,7 +59,7 @@ func (al *APIListener) increaseSessionLifetime(s *APISession) error {
 func (al *APIListener) validateBearerToken(tokenStr string) (bool, string, *APISession, error) {
 	tk := &Token{}
 	token, err := jwt.ParseWithClaims(tokenStr, tk, func(token *jwt.Token) (i interface{}, err error) {
-		return []byte(al.jwtSecret), nil
+		return []byte(al.config.API.JWTSecret), nil
 	})
 	if err != nil {
 		// do not return error since it should respond with 401 instead of 500, just log it

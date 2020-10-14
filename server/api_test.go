@@ -2,7 +2,9 @@ package chserver
 
 import (
 	"bytes"
+	"context"
 	"encoding/json"
+	"errors"
 	"fmt"
 	"io"
 	"net/http"
@@ -10,6 +12,7 @@ import (
 	"os"
 	"reflect"
 	"runtime"
+	"strconv"
 	"strings"
 	"testing"
 	"time"
@@ -22,10 +25,46 @@ import (
 	"github.com/cloudradar-monitoring/rport/server/api"
 	"github.com/cloudradar-monitoring/rport/server/clients"
 	"github.com/cloudradar-monitoring/rport/server/sessions"
+	"github.com/cloudradar-monitoring/rport/server/test/jb"
+	"github.com/cloudradar-monitoring/rport/server/test/sb"
 	chshare "github.com/cloudradar-monitoring/rport/share"
+	"github.com/cloudradar-monitoring/rport/share/comm"
+	"github.com/cloudradar-monitoring/rport/share/models"
+	"github.com/cloudradar-monitoring/rport/share/test"
 )
 
 var testLog = chshare.NewLogger("api-listener-test", chshare.LogOutput{File: os.Stdout}, chshare.LogLevelDebug)
+var hour = time.Hour
+
+type JobProviderMock struct {
+	ReturnJob          *models.Job
+	ReturnJobSummaries []*models.JobSummary
+	ReturnErr          error
+
+	InputSID string
+	InputJID string
+	InputJob *models.Job
+}
+
+func NewJobProviderMock() *JobProviderMock {
+	return &JobProviderMock{}
+}
+
+func (p *JobProviderMock) GetByJID(sid, jid string) (*models.Job, error) {
+	p.InputSID = sid
+	p.InputJID = jid
+	return p.ReturnJob, p.ReturnErr
+}
+
+func (p *JobProviderMock) GetSummariesBySID(sid string) ([]*models.JobSummary, error) {
+	p.InputSID = sid
+	return p.ReturnJobSummaries, p.ReturnErr
+}
+
+func (p *JobProviderMock) SaveJob(job *models.Job) error {
+	p.InputJob = job
+	return p.ReturnErr
+}
 
 func TestGetCorrespondingSortFuncPositive(t *testing.T) {
 	testCases := []struct {
@@ -183,7 +222,9 @@ func TestHandleGetClients(t *testing.T) {
 		al := APIListener{
 			Logger:         testLog,
 			clientProvider: tc.clientProvider,
-			clientCache:    tc.clientCache,
+			Server: &Server{
+				clientCache: tc.clientCache,
+			},
 		}
 
 		// when
@@ -406,10 +447,14 @@ func TestHandlePostClients(t *testing.T) {
 
 		// given
 		al := APIListener{
-			Logger:          testLog,
-			clientProvider:  tc.clientProvider,
-			clientCache:     tc.clientCache,
-			clientAuthWrite: tc.clientAuthWrite,
+			Server: &Server{
+				clientCache: tc.clientCache,
+				config: &Config{
+					Server: ServerConfig{AuthWrite: tc.clientAuthWrite},
+				},
+			},
+			Logger:         testLog,
+			clientProvider: tc.clientProvider,
 		}
 
 		req, err := http.NewRequest(http.MethodPost, "/clients", tc.requestBody)
@@ -453,61 +498,8 @@ func TestHandleDeleteClient(t *testing.T) {
 
 	initCacheState := []*clients.Client{cl1, cl2, cl3}
 
-	s1 := &sessions.ClientSession{
-		ID:       "aa1210c7-1899-491e-8e71-564cacaf1df8",
-		Name:     "Random Rport Client 1",
-		OS:       "Linux alpine-3-10-tk-01 4.19.80-0-virt #1-Alpine SMP Fri Oct 18 11:51:24 UTC 2019 x86_64 Linux",
-		Hostname: "alpine-3-10-tk-01",
-		IPv4:     []string{"192.168.122.111"},
-		IPv6:     []string{"fe80::b84f:aff:fe59:a0b1"},
-		Tags:     []string{"Linux", "Datacenter 1"},
-		Version:  "0.1.12",
-		Address:  "88.198.189.161:50078",
-		Tunnels: []*sessions.Tunnel{
-			{
-				ID: "1",
-				Remote: chshare.Remote{
-					LocalHost:  "0.0.0.0",
-					LocalPort:  "2222",
-					RemoteHost: "0.0.0.0",
-					RemotePort: "22",
-				},
-			},
-			{
-				ID: "2",
-				Remote: chshare.Remote{
-					LocalHost:  "0.0.0.0",
-					LocalPort:  "4000",
-					RemoteHost: "0.0.0.0",
-					RemotePort: "80",
-				},
-			},
-		},
-		Disconnected: nil,
-		ClientID:     &cl1.ID,
-		Connection:   mockConn,
-	}
-
-	s2DisconnectedTime, _ := time.Parse(time.RFC3339, "2020-08-19T13:04:23+03:00")
-	sessions.Now = func() time.Time {
-		return s2DisconnectedTime.Add(5 * time.Minute)
-	}
-	hour := time.Hour
-
-	s2 := &sessions.ClientSession{
-		ID:           "2fb5eca74d7bdf5f5b879ebadb446af7c113b076354d74e1882d8101e9f4b918",
-		Name:         "Random Rport Client 2",
-		OS:           "Linux alpine-3-10-tk-02 4.19.80-0-virt #1-Alpine SMP Fri Oct 18 11:51:24 UTC 2019 x86_64 Linux",
-		Hostname:     "alpine-3-10-tk-02",
-		IPv4:         []string{"192.168.122.112"},
-		IPv6:         []string{"fe80::b84f:aff:fe59:a0b2"},
-		Tags:         []string{"Linux", "Datacenter 2"},
-		Version:      "0.1.12",
-		Address:      "88.198.189.162:50078",
-		Tunnels:      make([]*sessions.Tunnel, 0),
-		Disconnected: &s2DisconnectedTime,
-		ClientID:     &cl1.ID,
-	}
+	s1 := sb.New(t).ClientID(&cl1.ID).Connection(mockConn).Build()
+	s2 := sb.New(t).ClientID(&cl1.ID).DisconnectedDuration(5 * time.Minute).Build()
 
 	testCases := []struct {
 		descr string // Test Case Description
@@ -660,11 +652,15 @@ func TestHandleDeleteClient(t *testing.T) {
 
 			// given
 			al := APIListener{
-				Logger:          testLog,
-				clientProvider:  tc.clientProvider,
-				clientCache:     tc.clientCache,
-				clientAuthWrite: tc.clientAuthWrite,
-				sessionService:  NewSessionService(nil, sessions.NewSessionRepository(tc.sessions, &hour)),
+				Server: &Server{
+					sessionService: NewSessionService(nil, sessions.NewSessionRepository(tc.sessions, &hour)),
+					clientCache:    tc.clientCache,
+					config: &Config{
+						Server: ServerConfig{AuthWrite: tc.clientAuthWrite},
+					},
+				},
+				Logger:         testLog,
+				clientProvider: tc.clientProvider,
 			}
 			mockConn.closed = false
 
@@ -699,6 +695,422 @@ func TestHandleDeleteClient(t *testing.T) {
 			allSessions, err := al.sessionService.GetAll()
 			require.NoError(err)
 			assert.ElementsMatch(tc.wantSessions, allSessions)
+		})
+	}
+}
+
+var generateNewJobIDMockF = func() string {
+	return "test-job-id"
+}
+
+func TestHandlePostCommand(t *testing.T) {
+	generateNewJobID = generateNewJobIDMockF
+	testJID := generateNewJobIDMockF()
+	testUser := "test-user"
+
+	defaultTimeout := 60 * time.Second
+	gotCmd := "/bin/date;foo;whoami"
+	gotCmdTimeoutSec := 30
+	gotCmdTimeout := time.Duration(gotCmdTimeoutSec) * time.Second
+	validReqBody := `{"command": "` + gotCmd + `","timeout_sec": ` + strconv.Itoa(gotCmdTimeoutSec) + `}`
+
+	connMock := test.NewConnMock()
+	// by default set to return success
+	connMock.ReturnOk = true
+	sshSuccessResp := comm.RunCmdResponse{Pid: 123, StartedAt: time.Date(2020, 10, 10, 10, 10, 10, 0, time.UTC)}
+	sshRespBytes, err := json.Marshal(sshSuccessResp)
+	require.NoError(t, err)
+	connMock.ReturnResponsePayload = sshRespBytes
+
+	s1 := sb.New(t).Connection(connMock).Build()
+	s2 := sb.New(t).DisconnectedDuration(5 * time.Minute).Build()
+
+	testCases := []struct {
+		name string
+
+		sid             string
+		requestBody     string
+		noJobProvider   bool
+		jpReturnSaveErr error
+		connReturnErr   error
+		connReturnNotOk bool
+		connReturnResp  []byte
+		runningJob      *models.Job
+		sessions        []*sessions.ClientSession
+
+		wantStatusCode int
+		wantTimeout    time.Duration
+		wantErrCode    string
+		wantErrTitle   string
+		wantErrDetail  string
+	}{
+		{
+			name:           "valid cmd",
+			requestBody:    validReqBody,
+			sid:            s1.ID,
+			sessions:       []*sessions.ClientSession{s1},
+			wantStatusCode: http.StatusOK,
+			wantTimeout:    gotCmdTimeout,
+		},
+		{
+			name:           "valid cmd with no timeout",
+			requestBody:    `{"command": "/bin/date;foo;whoami"}`,
+			sid:            s1.ID,
+			sessions:       []*sessions.ClientSession{s1},
+			wantTimeout:    defaultTimeout,
+			wantStatusCode: http.StatusOK,
+		},
+		{
+			name:           "valid cmd with 0 timeout",
+			requestBody:    `{"command": "/bin/date;foo;whoami", "timeout_sec": 0}`,
+			sid:            s1.ID,
+			sessions:       []*sessions.ClientSession{s1},
+			wantTimeout:    defaultTimeout,
+			wantStatusCode: http.StatusOK,
+		},
+		{
+			name:           "empty cmd",
+			requestBody:    `{"command": "", "timeout_sec": 30}`,
+			sid:            s1.ID,
+			sessions:       []*sessions.ClientSession{s1},
+			wantStatusCode: http.StatusBadRequest,
+			wantErrTitle:   "Command cannot be empty.",
+		},
+		{
+			name:           "no cmd",
+			requestBody:    `{"timeout_sec": 30}`,
+			sid:            s1.ID,
+			sessions:       []*sessions.ClientSession{s1},
+			wantStatusCode: http.StatusBadRequest,
+			wantErrTitle:   "Command cannot be empty.",
+		},
+		{
+			name:           "empty body",
+			requestBody:    "",
+			sid:            s1.ID,
+			sessions:       []*sessions.ClientSession{s1},
+			wantStatusCode: http.StatusBadRequest,
+			wantErrTitle:   "Missing body with json data.",
+		},
+		{
+			name:           "invalid request body",
+			requestBody:    "sdfn fasld fasdf sdlf jd",
+			sid:            s1.ID,
+			sessions:       []*sessions.ClientSession{s1},
+			wantStatusCode: http.StatusBadRequest,
+			wantErrTitle:   "Invalid JSON data.",
+			wantErrDetail:  "invalid character 's' looking for beginning of value",
+		},
+		{
+			name:           "no active session",
+			requestBody:    validReqBody,
+			sid:            s1.ID,
+			sessions:       []*sessions.ClientSession{},
+			wantStatusCode: http.StatusNotFound,
+			wantErrTitle:   fmt.Sprintf("Active session with id=%q not found.", s1.ID),
+		},
+		{
+			name:           "disconnected session",
+			requestBody:    validReqBody,
+			sid:            s2.ID,
+			sessions:       []*sessions.ClientSession{s1, s2},
+			wantStatusCode: http.StatusNotFound,
+			wantErrTitle:   fmt.Sprintf("Active session with id=%q not found.", s2.ID),
+		},
+		{
+			name:           "no persistent storage",
+			requestBody:    validReqBody,
+			noJobProvider:  true,
+			sid:            s1.ID,
+			sessions:       []*sessions.ClientSession{s1},
+			wantStatusCode: http.StatusMethodNotAllowed,
+			wantErrCode:    ErrCodeRunCmdDisabled,
+			wantErrTitle:   "Persistent storage required. A data dir or a database table is required to activate this feature.",
+		},
+		{
+			name:            "error on save job",
+			requestBody:     validReqBody,
+			jpReturnSaveErr: errors.New("save fake error"),
+			sid:             s1.ID,
+			sessions:        []*sessions.ClientSession{s1},
+			wantStatusCode:  http.StatusInternalServerError,
+			wantErrTitle:    "Failed to persist a new job.",
+			wantErrDetail:   "save fake error",
+		},
+		{
+			name:           "error on send request",
+			requestBody:    validReqBody,
+			connReturnErr:  errors.New("send fake error"),
+			sid:            s1.ID,
+			sessions:       []*sessions.ClientSession{s1},
+			wantStatusCode: http.StatusInternalServerError,
+			wantErrTitle:   "Failed to execute remote command.",
+			wantErrDetail:  "failed to send request: send fake error",
+		},
+		{
+			name:           "invalid ssh response format",
+			requestBody:    validReqBody,
+			connReturnResp: []byte("invalid ssh response data"),
+			sid:            s1.ID,
+			sessions:       []*sessions.ClientSession{s1},
+			wantStatusCode: http.StatusConflict,
+			wantErrTitle:   "invalid client response format: failed to decode response into *comm.RunCmdResponse: invalid character 'i' looking for beginning of value",
+		},
+		{
+			name:            "failure response on send request",
+			requestBody:     validReqBody,
+			connReturnNotOk: true,
+			connReturnResp:  []byte("fake failure msg"),
+			sid:             s1.ID,
+			sessions:        []*sessions.ClientSession{s1},
+			wantStatusCode:  http.StatusConflict,
+			wantErrTitle:    "client error: fake failure msg",
+		},
+	}
+
+	for _, tc := range testCases {
+		t.Run(tc.name, func(t *testing.T) {
+			// given
+			al := APIListener{
+				Server: &Server{
+					sessionService: NewSessionService(nil, sessions.NewSessionRepository(tc.sessions, &hour)),
+					config: &Config{
+						Server: ServerConfig{RunRemoteCmdTimeout: defaultTimeout},
+					},
+				},
+				Logger: testLog,
+			}
+
+			jp := NewJobProviderMock()
+			jp.ReturnErr = tc.jpReturnSaveErr
+			if !tc.noJobProvider {
+				al.jobProvider = jp
+			}
+
+			connMock.ReturnErr = tc.connReturnErr
+			connMock.ReturnOk = !tc.connReturnNotOk
+			if len(tc.connReturnResp) > 0 {
+				connMock.ReturnResponsePayload = tc.connReturnResp // override stubbed success payload
+			}
+
+			ctx := api.WithUser(context.Background(), testUser)
+			req, err := http.NewRequestWithContext(ctx, http.MethodPost, fmt.Sprintf("/sessions/%s/commands", tc.sid), strings.NewReader(tc.requestBody))
+			require.NoError(t, err)
+
+			// when
+			router := mux.NewRouter()
+			router.HandleFunc("/sessions/{session_id}/commands", al.handlePostCommand)
+			w := httptest.NewRecorder()
+			router.ServeHTTP(w, req)
+
+			// then
+			assert.Equal(t, tc.wantStatusCode, w.Code)
+			if tc.wantErrTitle == "" {
+				// success case
+				assert.Equal(t, fmt.Sprintf("{\"data\":{\"jid\":\"%s\"}}", testJID), w.Body.String())
+				gotRunningJob := jp.InputJob
+				assert.NotNil(t, gotRunningJob)
+				assert.Equal(t, testJID, gotRunningJob.JID)
+				assert.Equal(t, models.JobStatusRunning, gotRunningJob.Status)
+				assert.Nil(t, gotRunningJob.FinishedAt)
+				assert.Equal(t, tc.sid, gotRunningJob.SID)
+				assert.Equal(t, gotCmd, gotRunningJob.Command)
+				assert.Equal(t, sshSuccessResp.Pid, gotRunningJob.PID)
+				assert.Equal(t, sshSuccessResp.StartedAt, gotRunningJob.StartedAt)
+				assert.Equal(t, testUser, gotRunningJob.CreatedBy)
+				assert.Equal(t, tc.wantTimeout, gotRunningJob.Timeout)
+				assert.Nil(t, gotRunningJob.Result)
+			} else {
+				// failure case
+				wantResp := api.NewErrorPayloadWithCode(tc.wantErrCode, tc.wantErrTitle, tc.wantErrDetail)
+				wantRespBytes, err := json.Marshal(wantResp)
+				require.NoError(t, err)
+				require.Equal(t, string(wantRespBytes), w.Body.String())
+			}
+		})
+	}
+}
+
+func TestHandleGetCommand(t *testing.T) {
+	wantJob := jb.New(t).SID("sid-1234").JID("jid-1234").Build()
+	wantJobResp := api.NewSuccessPayload(wantJob)
+	b, err := json.Marshal(wantJobResp)
+	require.NoError(t, err)
+	wantJobRespJSON := string(b)
+
+	testCases := []struct {
+		name string
+
+		noJobProvider bool
+		jpReturnErr   error
+		jpReturnJob   *models.Job
+
+		wantStatusCode int
+		wantErrCode    string
+		wantErrTitle   string
+		wantErrDetail  string
+	}{
+		{
+			name:           "job found",
+			jpReturnJob:    wantJob,
+			wantStatusCode: http.StatusOK,
+		},
+		{
+			name:           "not found",
+			jpReturnJob:    nil,
+			wantStatusCode: http.StatusNotFound,
+			wantErrTitle:   fmt.Sprintf("Job[id=%q] not found.", wantJob.JID),
+		},
+		{
+			name:           "error on get job",
+			jpReturnErr:    errors.New("get job fake error"),
+			wantStatusCode: http.StatusInternalServerError,
+			wantErrTitle:   fmt.Sprintf("Failed to find a job[id=%q].", wantJob.JID),
+			wantErrDetail:  "get job fake error",
+		},
+		{
+			name:           "no persistent storage",
+			noJobProvider:  true,
+			wantStatusCode: http.StatusMethodNotAllowed,
+			wantErrCode:    ErrCodeRunCmdDisabled,
+			wantErrTitle:   "Persistent storage required. A data dir or a database table is required to activate this feature.",
+		},
+	}
+
+	for _, tc := range testCases {
+		t.Run(tc.name, func(t *testing.T) {
+			// given
+			al := APIListener{
+				Logger: testLog,
+				Server: &Server{},
+			}
+
+			jp := NewJobProviderMock()
+			jp.ReturnErr = tc.jpReturnErr
+			jp.ReturnJob = tc.jpReturnJob
+			if !tc.noJobProvider {
+				al.jobProvider = jp
+			}
+
+			req, err := http.NewRequest(http.MethodGet, fmt.Sprintf("/sessions/%s/commands/%s", wantJob.SID, wantJob.JID), nil)
+			require.NoError(t, err)
+
+			// when
+			router := mux.NewRouter()
+			router.HandleFunc("/sessions/{session_id}/commands/{job_id}", al.handleGetCommand)
+			w := httptest.NewRecorder()
+			router.ServeHTTP(w, req)
+
+			// then
+			assert.Equal(t, tc.wantStatusCode, w.Code)
+			if tc.wantErrTitle == "" {
+				// success case
+				assert.Equal(t, wantJobRespJSON, w.Body.String())
+				assert.Equal(t, wantJob.SID, jp.InputSID)
+				assert.Equal(t, wantJob.JID, jp.InputJID)
+			} else {
+				// failure case
+				wantResp := api.NewErrorPayloadWithCode(tc.wantErrCode, tc.wantErrTitle, tc.wantErrDetail)
+				wantRespBytes, err := json.Marshal(wantResp)
+				require.NoError(t, err)
+				require.Equal(t, string(wantRespBytes), w.Body.String())
+			}
+		})
+	}
+}
+
+func TestHandleGetCommands(t *testing.T) {
+	ft := time.Date(2020, 10, 10, 10, 10, 10, 0, time.UTC)
+	testSID := "sid-1234"
+	jb := jb.New(t).SID(testSID)
+	job1 := jb.Status(models.JobStatusFinished).FinishedAt(ft).Build().JobSummary
+	job2 := jb.Status(models.JobStatusUnknown).FinishedAt(ft.Add(-time.Hour)).Build().JobSummary
+	job3 := jb.Status(models.JobStatusFailed).FinishedAt(ft.Add(time.Minute)).Build().JobSummary
+	job4 := jb.Status(models.JobStatusRunning).Build().JobSummary
+	jpSuccessReturnJobSummaries := []*models.JobSummary{&job1, &job2, &job3, &job4}
+	wantSuccessResp := api.NewSuccessPayload([]*models.JobSummary{&job4, &job3, &job1, &job2}) // sorted in desc
+	b, err := json.Marshal(wantSuccessResp)
+	require.NoError(t, err)
+	wantSuccessRespJobsJSON := string(b)
+
+	testCases := []struct {
+		name string
+
+		noJobProvider        bool
+		jpReturnErr          error
+		jpReturnJobSummaries []*models.JobSummary
+
+		wantStatusCode  int
+		wantSuccessResp string
+		wantErrCode     string
+		wantErrTitle    string
+		wantErrDetail   string
+	}{
+		{
+			name:                 "found few jobs",
+			jpReturnJobSummaries: jpSuccessReturnJobSummaries,
+			wantSuccessResp:      wantSuccessRespJobsJSON,
+			wantStatusCode:       http.StatusOK,
+		},
+		{
+			name:                 "not found",
+			jpReturnJobSummaries: []*models.JobSummary{},
+			wantSuccessResp:      `{"data":[]}`,
+			wantStatusCode:       http.StatusOK,
+		},
+		{
+			name:           "error on get job summaries",
+			jpReturnErr:    errors.New("get job summaries fake error"),
+			wantStatusCode: http.StatusInternalServerError,
+			wantErrTitle:   fmt.Sprintf("Failed to get client jobs: session_id=%q.", testSID),
+			wantErrDetail:  "get job summaries fake error",
+		},
+		{
+			name:           "no persistent storage",
+			noJobProvider:  true,
+			wantStatusCode: http.StatusMethodNotAllowed,
+			wantErrCode:    ErrCodeRunCmdDisabled,
+			wantErrTitle:   "Persistent storage required. A data dir or a database table is required to activate this feature.",
+		},
+	}
+
+	for _, tc := range testCases {
+		t.Run(tc.name, func(t *testing.T) {
+			// given
+			al := APIListener{
+				Logger: testLog,
+				Server: &Server{},
+			}
+
+			jp := NewJobProviderMock()
+			jp.ReturnErr = tc.jpReturnErr
+			jp.ReturnJobSummaries = tc.jpReturnJobSummaries
+			if !tc.noJobProvider {
+				al.jobProvider = jp
+			}
+
+			req, err := http.NewRequest(http.MethodGet, fmt.Sprintf("/sessions/%s/commands", testSID), nil)
+			require.NoError(t, err)
+
+			// when
+			router := mux.NewRouter()
+			router.HandleFunc("/sessions/{session_id}/commands", al.handleGetCommands)
+			w := httptest.NewRecorder()
+			router.ServeHTTP(w, req)
+
+			// then
+			assert.Equal(t, tc.wantStatusCode, w.Code)
+			if tc.wantErrTitle == "" {
+				// success case
+				assert.Equal(t, tc.wantSuccessResp, w.Body.String())
+				assert.Equal(t, testSID, jp.InputSID)
+			} else {
+				// failure case
+				wantResp := api.NewErrorPayloadWithCode(tc.wantErrCode, tc.wantErrTitle, tc.wantErrDetail)
+				wantRespBytes, err := json.Marshal(wantResp)
+				require.NoError(t, err)
+				require.Equal(t, string(wantRespBytes), w.Body.String())
+			}
 		})
 	}
 }

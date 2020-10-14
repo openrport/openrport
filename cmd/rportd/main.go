@@ -12,6 +12,7 @@ import (
 
 	chserver "github.com/cloudradar-monitoring/rport/server"
 	chshare "github.com/cloudradar-monitoring/rport/share"
+	"github.com/cloudradar-monitoring/rport/share/files"
 )
 
 const (
@@ -23,6 +24,7 @@ const (
 	DefaultExcludedPorts           = "1-1024"
 	DefaultServerAddress           = "0.0.0.0:8080"
 	DefaultLogLevel                = "error"
+	DefaultRunRemoteCmdTimeout     = time.Minute
 )
 
 var serverHelp = `
@@ -148,6 +150,9 @@ var serverHelp = `
     --check-port-timeout, An optional arg to define a timeout to check whether a remote destination of a requested
     new tunnel is available, i.e. whether a given remote port is open on a client machine. By default, "2s" is used.
 
+    --run-remote-cmd-timeout, An optional arg to define a timeout to observe the remote command execution.
+    Defaults: '1m'
+
     --api-jwt-secret, Defines JWT secret used to generate new tokens.
     Defaults to auto-generated value.
 
@@ -215,6 +220,7 @@ func init() {
 	pFlags.Bool("auth-multiuse-creds", true, "")
 	pFlags.Bool("equate-authusername-clientid", false, "")
 	pFlags.Duration("save-clients-auth-interval", DefaultSaveClientsAuthInterval, "")
+	pFlags.Duration("run-remote-cmd-timeout", DefaultRunRemoteCmdTimeout, "")
 
 	cfgPath = pFlags.StringP("config", "c", "", "")
 	svcCommand = pFlags.String("service", "", "")
@@ -250,6 +256,7 @@ func init() {
 	_ = viperCfg.BindPFlag("server.cleanup_clients_interval", pFlags.Lookup("cleanup-clients-interval"))
 	_ = viperCfg.BindPFlag("server.max_request_bytes", pFlags.Lookup("max-request-bytes"))
 	_ = viperCfg.BindPFlag("server.check_port_timeout", pFlags.Lookup("check-port-timeout"))
+	_ = viperCfg.BindPFlag("server.run_remote_cmd_timeout", pFlags.Lookup("run-remote-cmd-timeout"))
 
 	_ = viperCfg.BindPFlag("logging.log_file", pFlags.Lookup("log-file"))
 	_ = viperCfg.BindPFlag("logging.log_level", pFlags.Lookup("verbose"))
@@ -308,7 +315,7 @@ func runMain(*cobra.Command, []string) {
 		return
 	}
 
-	s, err := chserver.NewServer(cfg)
+	s, err := chserver.NewServer(cfg, files.NewFileSystem())
 	if err != nil {
 		log.Fatal(err)
 	}

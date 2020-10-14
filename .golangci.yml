@@ -137,6 +137,8 @@ issues:
     - "G401: Use of weak cryptographic primitive"
     - "G404: Use of weak random number generator \\(math/rand instead of crypto/rand\\)"
     - "G501: Blocklisted import crypto/md5: weak cryptographic primitive"
+    - "G505: Blocklisted import crypto/sha1: weak cryptographic primitive"
+    - "G204: Subprocess launched with function call as argument or cmd arguments"
     # govet
     - "shadow: declaration of .err. shadows declaration"
 

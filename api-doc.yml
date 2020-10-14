@@ -226,6 +226,131 @@ paths:
           description: "specified session or tunnel does not exist or already terminated"
           schema:
             $ref: "#/definitions/ErrorPayload"
+  /sessions/{session_id}/commands:
+    get:
+      tags:
+        - "commands"
+      summary: "Returns a short info about all client commands"
+      description: "Returns a list of all running and finished commands sorted by finished time in desc with running commands at the beginning"
+      produces:
+        - "application/json"
+      parameters:
+        - name: "session_id"
+          in: "path"
+          description: "unique session id retrieved previously"
+          required: true
+          type: "string"
+      responses:
+        "200":
+          description: "successful operation"
+          schema:
+            type: "object"
+            properties:
+             data:
+               type: "array"
+               items:
+                 $ref: "#/definitions/JobSummary"
+        "405":
+          description: "Persistent storage required. A data dir or a database table is required to activate this feature."
+          schema:
+            $ref: "#/definitions/ErrorPayload"
+        "500":
+          description: "Invalid Operation"
+          schema:
+            $ref: "#/definitions/ErrorPayload"
+    post:
+      tags:
+        - "commands"
+      summary: "Execute a command by the rport client"
+      description: ""
+      produces:
+        - "application/json"
+      parameters:
+        - name: "session_id"
+          in: "path"
+          description: "unique session id retrieved previously"
+          required: true
+          type: "string"
+        - in: "body"
+          name: "body"
+          description: "remote command to execute by the rport client"
+          required: true
+          schema:
+            type: "object"
+            properties:
+              command:
+                type: "string"
+                description: "remote command to execute by the rport client"
+              timeout_sec:
+                type: "integer"
+                description: "timeout in seconds to observe the command execution. If not set a default value is used"
+      responses:
+        "200":
+          description: "successful operation"
+          schema:
+            type: "object"
+            properties:
+              data:
+                type: "object"
+                properties:
+                  jid:
+                    type: "string"
+                    description: "job id of the corresponding command"
+        "400":
+          description: "Active session not found"
+          schema:
+            $ref: "#/definitions/ErrorPayload"
+        "405":
+          description: "Persistent storage required. A data dir or a database table is required to activate this feature."
+          schema:
+            $ref: "#/definitions/ErrorPayload"
+        "409":
+          description: "Could not execute the command. Probably a previous command is still running"
+          schema:
+            $ref: "#/definitions/ErrorPayload"
+        "500":
+          description: "Invalid Operation"
+          schema:
+            $ref: "#/definitions/ErrorPayload"
+  /sessions/{session_id}/commands/{job_id}:
+    get:
+      tags:
+        - "commands"
+      summary: "Returns a detailed info about a specific client command"
+      description: "Returns a detailed info about a command by given id"
+      produces:
+        - "application/json"
+      parameters:
+        - name: "session_id"
+          in: "path"
+          description: "unique session id retrieved previously"
+          required: true
+          type: "string"
+        - name: "job_id"
+          in: "path"
+          description: "unique job id retrieved previously"
+          required: true
+          type: "string"
+      responses:
+        "200":
+          description: "successful operation"
+          schema:
+            type: "object"
+            properties:
+              data:
+                $ref: "#/definitions/Job"
+        "400":
+          description: "Command not found"
+          schema:
+            $ref: "#/definitions/ErrorPayload"
+        "405":
+          description: "Persistent storage required. A data dir or a database table is required to activate this feature."
+          schema:
+            $ref: "#/definitions/ErrorPayload"
+        "500":
+          description: "Invalid Operation"
+          schema:
+            $ref: "#/definitions/ErrorPayload"
   /clients:
     get:
       summary: "Returns all rport clients credentials. Sorted by ID in asc order."
@@ -388,6 +513,80 @@ definitions:
         type: "array"
         items:
           $ref: "#/definitions/Client"
+      meta:
+        type: "object"
+  JobStatus:
+    type: "string"
+    enum: &JOB_STATUS
+      - "running"
+      - "finished"
+      - "unknown"
+      - "failed"
+  Job:
+    type: "object"
+    properties:
+      jid:
+        type: "string"
+        description: "job ID"
+      sid:
+        type: "string"
+        description: "session ID"
+      pid:
+        type: "integer"
+        description: "process ID"
+      status:
+        type: "string"
+        enum: *JOB_STATUS
+        description: "command status"
+      command:
+        type: "string"
+        description: "executed command"
+      started_at:
+        type: "string"
+        format: "data-time"
+        description: "command start time"
+      finished_at:
+        type: "string"
+        format: "data-time"
+        description: "command finish time"
+      created_by:
+        type: "string"
+        description: "API username who run the command"
+      timeout:
+        type: "integer"
+        format: "int64"
+        description: "timeout in nanoseconds that was used to observe the command execution"
+      result:
+        type: "object"
+        description: "command execution result"
+        properties:
+          stdout:
+            type: "string"
+            description: "process standard output"
+          stderr:
+            type: "string"
+            description: "process standard error"
+  JobSummary:
+    type: "object"
+    properties:
+      jid:
+        type: "string"
+        description: "job ID"
+      status:
+        type: "string"
+        enum: [running, finished]
+        description: "command status"
+      finished_at:
+        type: "string"
+        format: "data-time"
+        description: "command finis time"
+  JobSummaries:
+    type: "object"
+    properties:
+      data:
+        type: "array"
+        items:
+          $ref: "#/definitions/JobSummary"
       meta:
         type: "object"
   ErrorPayload:

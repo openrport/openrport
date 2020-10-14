@@ -12,6 +12,7 @@ import (
 	"os"
 	"regexp"
 	"strings"
+	"sync"
 	"time"
 
 	"github.com/gorilla/websocket"
@@ -37,6 +38,9 @@ type Client struct {
 	running           bool
 	runningc          chan error
 	connStats         chshare.ConnStats
+	cmdExec           CmdExecutor
+	curCmdPID         *int
+	curCmdPIDMutex    sync.Mutex
 }
 
 //NewClient creates a new client instance
@@ -88,6 +92,7 @@ func NewClient(config *Config) (*Client, error) {
 		serverFingerprint: config.Client.Fingerprint,
 		running:           true,
 		runningc:          make(chan error, 1),
+		cmdExec:           NewCmdExecutor(),
 	}
 
 	if p := config.Client.Proxy; p != "" {
@@ -143,7 +148,7 @@ func (c *Client) Start(ctx context.Context) error {
 		go c.keepAliveLoop()
 	}
 	//connection loop
-	go c.connectionLoop()
+	go c.connectionLoop(ctx)
 	return nil
 }
 
@@ -151,12 +156,12 @@ func (c *Client) keepAliveLoop() {
 	for c.running {
 		time.Sleep(c.connOptions.KeepAlive)
 		if c.sshConn != nil {
-			_, _, _ = c.sshConn.SendRequest("ping", true, nil)
+			_, _, _ = c.sshConn.SendRequest(comm.RequestTypePing, true, nil)
 		}
 	}
 }
 
-func (c *Client) connectionLoop() {
+func (c *Client) connectionLoop(ctx context.Context) {
 	//connection loop!
 	var connerr error
 	b := &backoff.Backoff{Max: c.connOptions.MaxRetryInterval}
@@ -269,7 +274,7 @@ func (c *Client) connectionLoop() {
 		//connected
 		b.Reset()
 		c.sshConn = sshConn
-		go c.handleSSHRequests(reqs)
+		go c.handleSSHRequests(ctx, reqs)
 		go c.connectStreams(chans)
 		err = sshConn.Wait()
 		//disconnected
@@ -283,21 +288,27 @@ func (c *Client) connectionLoop() {
 	close(c.runningc)
 }
 
-func (c *Client) handleSSHRequests(reqs <-chan *ssh.Request) {
+func (c *Client) handleSSHRequests(ctx context.Context, reqs <-chan *ssh.Request) {
 	for r := range reqs {
+		var err error
+		var resp interface{}
 		switch r.Type {
 		case comm.RequestTypeCheckPort:
-			resp, err := checkPort(r.Payload)
-			if err != nil {
-				c.Errorf("Failed to check whether a port is open: %v", err)
-				comm.ReplyError(c.Logger, r, err)
-				continue
-			}
-
-			comm.ReplySuccessJSON(c.Logger, r, resp)
+			resp, err = checkPort(r.Payload)
+		case comm.RequestTypeRunCmd:
+			resp, err = c.HandleRunCmdRequest(ctx, r.Payload)
 		default:
 			c.Debugf("Unknown request: %q", r.Type)
+			continue
 		}
+
+		if err != nil {
+			c.Errorf("Failed to handle %q request: %v", r.Type, err)
+			comm.ReplyError(c.Logger, r, err)
+			continue
+		}
+
+		comm.ReplySuccessJSON(c.Logger, r, resp)
 	}
 }
 
@@ -395,4 +406,16 @@ func localIPAddresses() ([]string, []string, error) {
 		}
 	}
 	return ipv4, ipv6, nil
+}
+
+func (c *Client) getCurCmdPID() *int {
+	c.curCmdPIDMutex.Lock()
+	defer c.curCmdPIDMutex.Unlock()
+	return c.curCmdPID
+}
+
+func (c *Client) setCurCmdPID(pid *int) {
+	c.curCmdPIDMutex.Lock()
+	defer c.curCmdPIDMutex.Unlock()
+	c.curCmdPID = pid
 }

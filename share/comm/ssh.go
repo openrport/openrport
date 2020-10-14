@@ -37,12 +37,13 @@ func ReplySuccessJSON(log *chshare.Logger, req *ssh.Request, resp interface{}) {
 	}
 }
 
-// HandleSSHRequestJSON sends a given request, parses the returned response and stores the result in a given destination value.
-// Both request and response are expected to be JSON. Returns an error on a failure response or if an error happen.
-func HandleSSHRequestJSON(conn ssh.Conn, reqType string, req, respDest interface{}) error {
+// SendRequestAndGetResponse sends a given request, parses a returned response and stores a success result in a given destination value.
+// Returns an error on a failure response or if an error happen. Error will be ClientError type if the error is a client error.
+// Both request and response are expected to be JSON.
+func SendRequestAndGetResponse(conn ssh.Conn, reqType string, req, successRespDest interface{}) error {
 	reqBytes, err := json.Marshal(req)
 	if err != nil {
-		return fmt.Errorf("failed to encode %T: %v", req, err)
+		return fmt.Errorf("failed to encode request %T: %v", req, err)
 	}
 
 	ok, respBytes, err := conn.SendRequest(reqType, true, reqBytes)
@@ -51,12 +52,27 @@ func HandleSSHRequestJSON(conn ssh.Conn, reqType string, req, respDest interface
 	}
 
 	if !ok {
-		return fmt.Errorf("received an error response: %s", respBytes)
+		return NewClientError(fmt.Errorf("client error: %s", respBytes))
 	}
 
-	if err := json.Unmarshal(respBytes, respDest); err != nil {
-		return fmt.Errorf("failed to decode success response %T: %v", respDest, err)
+	if err := json.Unmarshal(respBytes, successRespDest); err != nil {
+		return NewClientError(fmt.Errorf("invalid client response format: failed to decode response into %T: %v", successRespDest, err))
 	}
 
 	return nil
+}
+
+type ClientError struct {
+	err error
+}
+
+func NewClientError(err error) *ClientError {
+	return &ClientError{err: err}
+}
+
+func (e *ClientError) Error() string {
+	if e.err == nil {
+		return ""
+	}
+	return e.err.Error()
 }

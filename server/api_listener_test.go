@@ -132,3 +132,49 @@ func TestValidateCredentials(t *testing.T) {
 		assert.Equalf(t, gotRes, tc.wantRes, msg)
 	}
 }
+
+func TestIsAuthorizationOn(t *testing.T) {
+	for _, tc := range []struct {
+		name    string
+		config  *Config
+		wantRes bool
+	}{
+		{
+			name:    "no config",
+			config:  nil,
+			wantRes: false,
+		},
+		{
+			name:    "no api auth",
+			config:  &Config{},
+			wantRes: false,
+		},
+		{
+			name: "api auth file",
+			config: &Config{
+				API: APIConfig{
+					AuthFile: "auth-file",
+				},
+			},
+			wantRes: true,
+		},
+		{
+			name: "api single auth",
+			config: &Config{
+				API: APIConfig{
+					Auth: "user:pswd",
+				},
+			},
+			wantRes: true,
+		},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			al := APIListener{
+				Server: &Server{
+					config: tc.config,
+				},
+			}
+			assert.Equal(t, tc.wantRes, al.IsAuthorizationOn())
+		})
+	}
+}

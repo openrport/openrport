@@ -20,22 +20,20 @@ import (
 	"github.com/cloudradar-monitoring/rport/server/clients"
 	"github.com/cloudradar-monitoring/rport/server/sessions"
 	chshare "github.com/cloudradar-monitoring/rport/share"
+	"github.com/cloudradar-monitoring/rport/share/comm"
+	"github.com/cloudradar-monitoring/rport/share/models"
 )
 
 type ClientListener struct {
 	*chshare.Logger
-
-	sessionService *SessionService
+	*Server
 
 	connStats         chshare.ConnStats
 	httpServer        *chshare.HTTPServer
 	reverseProxy      *httputil.ReverseProxy
 	sshConfig         *ssh.ServerConfig
 	sshSessionClients *clients.ClientCache // [ssh_session_id, Client] pairs, applicable only when auth is enabled
-	allClients        *clients.ClientCache
 	requestLogOptions *requestlog.Options
-	maxRequestBytes   int64
-	config            *Config
 
 	sessionIndexAutoIncrement int32
 }
@@ -46,22 +44,20 @@ var upgrader = websocket.Upgrader{
 	CheckOrigin:     func(r *http.Request) bool { return true },
 }
 
-func NewClientListener(config *Config, s *SessionService, allClients *clients.ClientCache, privateKey ssh.Signer) (*ClientListener, error) {
+func NewClientListener(server *Server, privateKey ssh.Signer) (*ClientListener, error) {
+	config := server.config
 	cl := &ClientListener{
-		config:            config,
-		sessionService:    s,
+		Server:            server,
 		httpServer:        chshare.NewHTTPServer(int(config.Server.MaxRequestBytes)),
-		allClients:        allClients,
 		sshSessionClients: clients.NewEmptyClientCache(),
 		Logger:            chshare.NewLogger("client-listener", config.Logging.LogOutput, config.Logging.LogLevel),
 		requestLogOptions: config.InitRequestLogOptions(),
-		maxRequestBytes:   config.Server.MaxRequestBytes,
 	}
 	//create ssh config
 	cl.sshConfig = &ssh.ServerConfig{
 		ServerVersion: "SSH-" + chshare.ProtocolVersion + "-server",
 	}
-	if cl.allClients != nil {
+	if cl.clientCache != nil {
 		cl.sshConfig.PasswordCallback = cl.authUser
 	}
 	cl.sshConfig.AddHostKey(privateKey)
@@ -89,7 +85,7 @@ func NewClientListener(config *Config, s *SessionService, allClients *clients.Cl
 // authUser is responsible for validating the ssh user / password combination
 func (cl *ClientListener) authUser(c ssh.ConnMetadata, password []byte) (*ssh.Permissions, error) {
 	clientID := c.User()
-	client := cl.allClients.Get(clientID)
+	client := cl.clientCache.Get(clientID)
 	// constant time compare is used for security reasons
 	if client == nil || subtle.ConstantTimeCompare([]byte(client.Password), password) != 1 {
 		cl.Debugf("Login failed for client: %s", clientID)
@@ -109,7 +105,7 @@ func (cl *ClientListener) Start(listenAddr string) error {
 	}
 	cl.Infof("Listening on %s...", listenAddr)
 
-	h := http.Handler(middleware.MaxBytes(http.HandlerFunc(cl.handleClient), cl.maxRequestBytes))
+	h := http.Handler(middleware.MaxBytes(http.HandlerFunc(cl.handleClient), cl.config.Server.MaxRequestBytes))
 	h = requestlog.WrapWith(h, *cl.requestLogOptions)
 	return cl.httpServer.GoListenAndServe(listenAddr, h)
 }
@@ -185,8 +181,8 @@ func (cl *ClientListener) handleWebsocket(w http.ResponseWriter, req *http.Reque
 		failed(cl.FormatError("expecting connection request"))
 		return
 	}
-	if len(r.Payload) > int(cl.maxRequestBytes) {
-		failed(cl.FormatError("request data exceeds the limit of %d bytes, actual size: %d", cl.maxRequestBytes, len(r.Payload)))
+	if len(r.Payload) > int(cl.config.Server.MaxRequestBytes) {
+		failed(cl.FormatError("request data exceeds the limit of %d bytes, actual size: %d", cl.config.Server.MaxRequestBytes, len(r.Payload)))
 		return
 	}
 	connRequest, err := chshare.DecodeConnectionRequest(r.Payload)
@@ -239,7 +235,7 @@ func (cl *ClientListener) handleWebsocket(w http.ResponseWriter, req *http.Reque
 			if !unlockClient {
 				return
 			}
-			if unlockErr := cl.allClients.Unlock(client.ID); unlockErr != nil {
+			if unlockErr := cl.clientCache.Unlock(client.ID); unlockErr != nil {
 				clog.Errorf("Failed to unlock client credentials, clientID=%q: %v", client.ID, unlockErr)
 			} else {
 				clog.Debugf("Client credentials unlocked: %q.", client.ID)
@@ -291,7 +287,7 @@ func checkVersions(log *chshare.Logger, clientVersion string) {
 }
 
 func (cl *ClientListener) getSessionClient(sshID string) *clients.Client {
-	if cl.allClients == nil {
+	if cl.clientCache == nil {
 		return nil
 	}
 	client := cl.sshSessionClients.Get(sshID)
@@ -319,12 +315,12 @@ func (cl *ClientListener) getSID(reqID string, config *Config, client *clients.C
 }
 
 func (cl *ClientListener) lockClientIfNeeded(client *clients.Client, sid string) (bool, error) {
-	if cl.allClients == nil || cl.config.Server.AuthMultiuseCreds || client == nil {
+	if cl.clientCache == nil || cl.config.Server.AuthMultiuseCreds || client == nil {
 		return false, nil
 	}
 
 	clientID := client.ID
-	ok, err := cl.allClients.LockWith(clientID, sid)
+	ok, err := cl.clientCache.LockWith(clientID, sid)
 	if err != nil {
 		cl.Debugf("Client has been deleted: %s", clientID)
 		return false, fmt.Errorf("client not found: %s", clientID)
@@ -422,12 +418,33 @@ func (cl *ClientListener) replyConnectionError(r *ssh.Request, err error) {
 func (cl *ClientListener) handleSSHRequests(clientLog *chshare.Logger, reqs <-chan *ssh.Request) {
 	for r := range reqs {
 		switch r.Type {
-		case "ping":
+		case comm.RequestTypePing:
 			_ = r.Reply(true, nil)
+		case comm.RequestTypeCmdResult:
+			if err := cl.saveCmdResult(r.Payload); err != nil {
+				clientLog.Errorf("Failed to save cmd result: %s", err)
+			} else {
+				clientLog.Debugf("Command result saved successfully.")
+			}
 		default:
 			clientLog.Debugf("Unknown request: %s", r.Type)
 		}
 	}
+}
+
+func (cl *ClientListener) saveCmdResult(respBytes []byte) error {
+	resp := models.Job{}
+	err := json.Unmarshal(respBytes, &resp)
+	if err != nil {
+		return fmt.Errorf("failed to decode cmd result request: %s", err)
+	}
+
+	err = cl.jobProvider.SaveJob(&resp)
+	if err != nil {
+		return fmt.Errorf("failed to save job result: %s", err)
+	}
+
+	return nil
 }
 
 func (cl *ClientListener) handleSSHChannels(clientLog *chshare.Logger, chans <-chan ssh.NewChannel) {

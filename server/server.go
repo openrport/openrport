@@ -4,34 +4,37 @@ import (
 	"context"
 	"errors"
 	"fmt"
-	"os"
+	"path"
 	"time"
 
 	"golang.org/x/crypto/ssh"
 	"golang.org/x/sync/errgroup"
 
+	"github.com/cloudradar-monitoring/rport/server/api/jobs"
 	"github.com/cloudradar-monitoring/rport/server/clients"
 	"github.com/cloudradar-monitoring/rport/server/ports"
 	"github.com/cloudradar-monitoring/rport/server/scheduler"
 	"github.com/cloudradar-monitoring/rport/server/sessions"
 	chshare "github.com/cloudradar-monitoring/rport/share"
+	"github.com/cloudradar-monitoring/rport/share/files"
 )
 
 // Server represents a rport service
 type Server struct {
 	*chshare.Logger
-	listenAddr     string
 	clientListener *ClientListener
 	apiListener    *APIListener
 	config         *Config
+	sessionService *SessionService
+	clientCache    *clients.ClientCache
+	jobProvider    JobProvider
 }
 
 // NewServer creates and returns a new rport server
-func NewServer(config *Config) (*Server, error) {
+func NewServer(config *Config, filesAPI files.FileAPI) (*Server, error) {
 	s := &Server{
-		Logger:     chshare.NewLogger("server", config.Logging.LogOutput, config.Logging.LogLevel),
-		listenAddr: config.Server.ListenAddress,
-		config:     config,
+		Logger: chshare.NewLogger("server", config.Logging.LogOutput, config.Logging.LogLevel),
+		config: config,
 	}
 
 	privateKey, err := initPrivateKey(config.Server.KeySeed)
@@ -42,9 +45,18 @@ func NewServer(config *Config) (*Server, error) {
 	s.Infof("Fingerprint %s", fingerprint)
 
 	s.Infof("data directory path: %q", config.Server.DataDir)
-	// create --data-dir path if not exist
-	if makedirErr := os.MkdirAll(config.Server.DataDir, os.ModePerm); makedirErr != nil {
-		s.Errorf("Failed to create data dir %q: %v", config.Server.DataDir, makedirErr)
+	if config.Server.DataDir != "" {
+		// create --data-dir path if not exist
+		if makedirErr := filesAPI.MakeDirAll(config.Server.DataDir); makedirErr != nil {
+			s.Errorf("Failed to create data dir %q: %v", config.Server.DataDir, makedirErr)
+		} else {
+			jobsDir := getJobsDirectory(config.Server.DataDir)
+			if err := filesAPI.MakeDirAll(jobsDir); err != nil {
+				s.Errorf("Failed to create jobs dir %q: %s", jobsDir, err)
+			} else {
+				s.jobProvider = jobs.NewFileProvider(filesAPI, jobsDir)
+			}
+		}
 	}
 
 	var keepLostClients *time.Duration
@@ -63,7 +75,7 @@ func NewServer(config *Config) (*Server, error) {
 	}
 	repo := sessions.NewSessionRepository(initSessions, keepLostClients)
 
-	sessionService := NewSessionService(
+	s.sessionService = NewSessionService(
 		ports.NewPortDistributor(config.ExcludedPorts()),
 		repo,
 	)
@@ -73,7 +85,6 @@ func NewServer(config *Config) (*Server, error) {
 		return nil, err
 	}
 
-	var rClients *clients.ClientCache
 	if clientProvider != nil {
 		s.Infof("Client authentication enabled.")
 
@@ -81,20 +92,27 @@ func NewServer(config *Config) (*Server, error) {
 		if InErr != nil {
 			return nil, InErr
 		}
-		rClients = clients.NewClientCache(all)
+		s.clientCache = clients.NewClientCache(all)
 	}
 
-	s.clientListener, err = NewClientListener(config, sessionService, rClients, privateKey)
+	s.clientListener, err = NewClientListener(s, privateKey)
 	if err != nil {
 		return nil, err
 	}
 
-	s.apiListener, err = NewAPIListener(config, sessionService, rClients, clientProvider, config.Server.AuthWrite, fingerprint)
+	s.apiListener, err = NewAPIListener(s, clientProvider, fingerprint)
 	if err != nil {
 		return nil, err
 	}
 
 	return s, nil
+}
+
+func getJobsDirectory(datDir string) string {
+	if datDir == "" {
+		return ""
+	}
+	return path.Join(datDir, "jobs")
 }
 
 type ClientProvider interface {
@@ -143,7 +161,7 @@ func (s *Server) Run() error {
 
 		var lockableClients *clients.ClientCache
 		if !s.config.Server.AuthMultiuseCreds {
-			lockableClients = s.clientListener.allClients
+			lockableClients = s.clientListener.clientCache
 		}
 		go scheduler.Run(ctx, s.Logger, sessions.NewCleanupTask(s.Logger, repo, lockableClients), s.config.Server.CleanupClients)
 		s.Infof("Task to cleanup obsolete clients will run with interval %v", s.config.Server.CleanupClients)
@@ -164,7 +182,7 @@ func (s *Server) Run() error {
 
 // Start is responsible for kicking off the http server
 func (s *Server) Start() error {
-	err := s.clientListener.Start(s.listenAddr)
+	err := s.clientListener.Start(s.config.Server.ListenAddress)
 	if err != nil {
 		return err
 	}

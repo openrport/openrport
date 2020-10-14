@@ -16,7 +16,6 @@ import (
 
 	"github.com/cloudradar-monitoring/rport/server/api/middleware"
 	"github.com/cloudradar-monitoring/rport/server/api/users"
-	"github.com/cloudradar-monitoring/rport/server/clients"
 	chshare "github.com/cloudradar-monitoring/rport/share"
 )
 
@@ -26,24 +25,15 @@ const (
 
 type APIListener struct {
 	*chshare.Logger
+	*Server
 
 	fingerprint       string
-	connectURL        string
-	authFile          string
-	jwtSecret         string
-	sessionService    *SessionService
 	apiSessionRepo    *APISessionRepository
 	router            *mux.Router
 	httpServer        *chshare.HTTPServer
-	docRoot           string
 	requestLogOptions *requestlog.Options
-	authorizationOn   bool
 	userSrv           UserService
-	clientCache       *clients.ClientCache
 	clientProvider    ClientProvider
-	clientAuthWrite   bool
-	maxRequestBytes   int64
-	checkPortTimeout  time.Duration
 }
 
 type UserService interface {
@@ -52,26 +42,21 @@ type UserService interface {
 }
 
 func NewAPIListener(
-	config *Config,
-	s *SessionService,
-	clientCache *clients.ClientCache,
+	server *Server,
 	clientProvider ClientProvider,
-	clientAuthWrite bool,
 	fingerprint string,
 ) (*APIListener, error) {
+	config := server.config
 	if config.API.AuthFile != "" && config.API.Auth != "" {
 		return nil, errors.New("API: 'auth_file' and 'auth' are both set: expected only one of them ")
 	}
 
 	var authUsers []*users.User
 	var err error
-	authorizationOn := false
 	if config.API.AuthFile != "" {
-		authorizationOn = true
 		authUsers, err = users.GetUsersFromFile(config.API.AuthFile)
 	}
 	if config.API.Auth != "" {
-		authorizationOn = true
 		var authUser *users.User
 		if authUser, err = parseHTTPAuthStr(config.API.Auth); authUser != nil {
 			authUsers = append(authUsers, authUser)
@@ -86,23 +71,14 @@ func NewAPIListener(
 	}
 
 	a := &APIListener{
+		Server:            server,
 		Logger:            chshare.NewLogger("api-listener", config.Logging.LogOutput, config.Logging.LogLevel),
-		connectURL:        config.Server.URL,
 		fingerprint:       fingerprint,
-		authFile:          config.API.AuthFile,
-		jwtSecret:         config.API.JWTSecret,
-		sessionService:    s,
 		apiSessionRepo:    NewAPISessionRepository(),
 		httpServer:        chshare.NewHTTPServer(int(config.Server.MaxRequestBytes), chshare.WithTLS(config.API.CertFile, config.API.KeyFile)),
-		docRoot:           config.API.DocRoot,
 		requestLogOptions: config.InitRequestLogOptions(),
 		userSrv:           users.NewUserRepository(authUsers),
-		clientCache:       clientCache,
 		clientProvider:    clientProvider,
-		clientAuthWrite:   clientAuthWrite,
-		authorizationOn:   authorizationOn,
-		maxRequestBytes:   config.Server.MaxRequestBytes,
-		checkPortTimeout:  config.Server.CheckPortTimeout,
 	}
 
 	a.initRouter()
@@ -158,9 +134,10 @@ func (al *APIListener) handleAPIRequest(w http.ResponseWriter, r *http.Request) 
 		return
 	}
 
-	if al.docRoot != "" {
-		redirectURL := al.docRoot + string(os.PathSeparator) + "index.html"
-		middleware.Redirect404(http.FileServer(http.Dir(al.docRoot)), redirectURL).ServeHTTP(w, r)
+	docRoot := al.config.API.DocRoot
+	if docRoot != "" {
+		redirectURL := docRoot + string(os.PathSeparator) + "index.html"
+		middleware.Redirect404(http.FileServer(http.Dir(docRoot)), redirectURL).ServeHTTP(w, r)
 		return
 	}
 
@@ -237,5 +214,8 @@ func parseHTTPAuthStr(basicAuth string) (*users.User, error) {
 
 // IsAuthorizationOn returns true if authorization for accessing API is enabled.
 func (al *APIListener) IsAuthorizationOn() bool {
-	return al.authorizationOn
+	if al.config == nil {
+		return false
+	}
+	return al.config.API.AuthFile != "" || al.config.API.Auth != ""
 }
