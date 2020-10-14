@@ -38,6 +38,7 @@ type ClientConfig struct {
 	AllowRoot   bool     `mapstructure:"allow_root"`
 
 	proxyURL *url.URL
+	remotes  []*chshare.Remote
 }
 
 func (c *ConnectionConfig) Headers() http.Header {
@@ -58,6 +59,9 @@ func (c *Config) ParseAndValidate() error {
 		return err
 	}
 	if err := c.parseProxyURL(); err != nil {
+		return err
+	}
+	if err := c.parseRemotes(); err != nil {
 		return err
 	}
 	if c.Connection.MaxRetryInterval < time.Second {
@@ -119,6 +123,17 @@ func (c *Config) parseProxyURL() error {
 			return fmt.Errorf("Invalid proxy URL (%s)", err)
 		}
 		c.Client.proxyURL = proxyURL
+	}
+	return nil
+}
+
+func (c *Config) parseRemotes() error {
+	for _, s := range c.Client.Remotes {
+		r, err := chshare.DecodeRemote(s)
+		if err != nil {
+			return fmt.Errorf("Failed to decode remote '%s': %s", s, err)
+		}
+		c.Client.remotes = append(c.Client.remotes, r)
 	}
 	return nil
 }

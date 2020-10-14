@@ -249,10 +249,7 @@ func runMain(cmd *cobra.Command, args []string) {
 		return
 	}
 
-	c, err := chclient.NewClient(config)
-	if err != nil {
-		log.Fatal(err)
-	}
+	c := chclient.NewClient(config)
 
 	if !service.Interactive() {
 		err = runAsService(c, *cfgPath)

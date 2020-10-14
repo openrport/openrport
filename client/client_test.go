@@ -35,10 +35,7 @@ func TestCustomHeaders(t *testing.T) {
 	if err != nil {
 		log.Fatal(err)
 	}
-	c, err := NewClient(&config)
-	if err != nil {
-		log.Fatal(err)
-	}
+	c := NewClient(&config)
 	if err = c.Run(); err != nil {
 		log.Fatal(err)
 	}

@@ -6,6 +6,7 @@ import (
 	"testing"
 	"time"
 
+	chshare "github.com/cloudradar-monitoring/rport/share"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 )
@@ -202,6 +203,67 @@ func TestConfigParseAndValidateProxyURL(t *testing.T) {
 			if tc.ExpectedError == "" {
 				require.NoError(t, err)
 				assert.Equal(t, tc.ExpectedProxyURL, config.Client.proxyURL)
+			} else {
+				require.Error(t, err)
+				assert.Equal(t, tc.ExpectedError, err.Error())
+			}
+		})
+	}
+}
+
+func TestConfigParseAndValidateRemotes(t *testing.T) {
+	testCases := []struct {
+		Name            string
+		Remotes         []string
+		ExpectedRemotes []*chshare.Remote
+		ExpectedError   string
+	}{
+		{
+			Name:            "not set",
+			Remotes:         []string{},
+			ExpectedRemotes: []*chshare.Remote{},
+		}, {
+			Name:    "one",
+			Remotes: []string{"8000"},
+			ExpectedRemotes: []*chshare.Remote{
+				&chshare.Remote{
+					RemoteHost: "0.0.0.0",
+					RemotePort: "8000",
+				},
+			},
+		}, {
+			Name:    "multiple",
+			Remotes: []string{"8000", "3000"},
+			ExpectedRemotes: []*chshare.Remote{
+				&chshare.Remote{
+					RemoteHost: "0.0.0.0",
+					RemotePort: "8000",
+				},
+				&chshare.Remote{
+					RemoteHost: "0.0.0.0",
+					RemotePort: "3000",
+				},
+			},
+		}, {
+			Name:          "invalid",
+			Remotes:       []string{"abc"},
+			ExpectedError: "Failed to decode remote 'abc': Missing ports",
+		},
+	}
+
+	for _, tc := range testCases {
+		t.Run(tc.Name, func(t *testing.T) {
+			config := &Config{
+				Client: ClientConfig{
+					Server:  "test.com",
+					Remotes: tc.Remotes,
+				},
+			}
+			err := config.ParseAndValidate()
+
+			if tc.ExpectedError == "" {
+				require.NoError(t, err)
+				assert.ElementsMatch(t, tc.ExpectedRemotes, config.Client.remotes)
 			} else {
 				require.Error(t, err)
 				assert.Equal(t, tc.ExpectedError, err.Error())
