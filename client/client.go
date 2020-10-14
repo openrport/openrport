@@ -10,7 +10,6 @@ import (
 	"net/http"
 	"net/url"
 	"os"
-	"regexp"
 	"strings"
 	"sync"
 	"time"
@@ -29,11 +28,11 @@ type Client struct {
 	*chshare.Logger
 	connReq *chshare.ConnectionRequest
 
+	Config            *Config
 	connOptions       ConnectionConfig
 	sshConfig         *ssh.ClientConfig
 	sshConn           ssh.Conn
 	proxyURL          *url.URL
-	server            string
 	serverFingerprint string
 	running           bool
 	runningc          chan error
@@ -45,27 +44,7 @@ type Client struct {
 
 //NewClient creates a new client instance
 func NewClient(config *Config) (*Client, error) {
-	//apply default scheme
-	if !strings.HasPrefix(config.Client.Server, "http") {
-		config.Client.Server = "http://" + config.Client.Server
-	}
-	if config.Connection.MaxRetryInterval < time.Second {
-		config.Connection.MaxRetryInterval = 5 * time.Minute
-	}
-	u, err := url.Parse(config.Client.Server)
-	if err != nil {
-		return nil, err
-	}
-	//apply default port
-	if !regexp.MustCompile(`:\d+$`).MatchString(u.Host) {
-		if u.Scheme == "https" || u.Scheme == "wss" {
-			u.Host = u.Host + ":443"
-		} else {
-			u.Host = u.Host + ":80"
-		}
-	}
-	//swap to websockets scheme
-	u.Scheme = strings.Replace(u.Scheme, "http", "ws", 1)
+	var err error
 	connectionReq := &chshare.ConnectionRequest{
 		Version: chshare.BuildVersion,
 		ID:      config.Client.ID,
@@ -86,9 +65,9 @@ func NewClient(config *Config) (*Client, error) {
 
 	client := &Client{
 		Logger:            chshare.NewLogger("client", config.Logging.LogOutput, config.Logging.LogLevel),
+		Config:            config,
 		connReq:           connectionReq,
 		connOptions:       config.Connection,
-		server:            u.String(),
 		serverFingerprint: config.Client.Fingerprint,
 		running:           true,
 		runningc:          make(chan error, 1),
@@ -142,7 +121,7 @@ func (c *Client) Start(ctx context.Context) error {
 		via = " via " + c.proxyURL.String()
 	}
 
-	c.Infof("Connecting to %s%s\n", c.server, via)
+	c.Infof("Connecting to %s%s\n", c.Config.Client.Server, via)
 	//optional keepalive loop
 	if c.connOptions.KeepAlive > 0 {
 		go c.keepAliveLoop()
@@ -215,7 +194,7 @@ func (c *Client) connectionLoop(ctx context.Context) {
 				}
 			}
 		}
-		wsConn, _, err := d.Dial(c.server, c.connOptions.Headers())
+		wsConn, _, err := d.Dial(c.Config.Client.Server, c.connOptions.Headers())
 		if err != nil {
 			connerr = err
 			continue

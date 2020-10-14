@@ -3,6 +3,8 @@ package chclient
 import (
 	"fmt"
 	"net/http"
+	"net/url"
+	"regexp"
 	"strings"
 	"time"
 
@@ -47,6 +49,19 @@ type Config struct {
 }
 
 func (c *Config) ParseAndValidate() error {
+	if err := c.parseHeaders(); err != nil {
+		return err
+	}
+	if err := c.parseServerURL(); err != nil {
+		return err
+	}
+	if c.Connection.MaxRetryInterval < time.Second {
+		c.Connection.MaxRetryInterval = 5 * time.Minute
+	}
+	return nil
+}
+
+func (c *Config) parseHeaders() error {
 	c.Connection.headers = http.Header{}
 	for _, h := range c.Connection.HeadersRaw {
 		name, val, err := parseHeader(h)
@@ -61,6 +76,34 @@ func (c *Config) ParseAndValidate() error {
 	if len(c.Connection.headers.Values("User-Agent")) == 0 {
 		c.Connection.headers.Set("User-Agent", fmt.Sprintf("rport %s", chshare.BuildVersion))
 	}
+	return nil
+}
+
+func (c *Config) parseServerURL() error {
+	if c.Client.Server == "" {
+		return fmt.Errorf("Server address is required. See --help")
+	}
+
+	//apply default scheme
+	if !strings.Contains(c.Client.Server, "://") {
+		c.Client.Server = "http://" + c.Client.Server
+	}
+
+	u, err := url.Parse(c.Client.Server)
+	if err != nil {
+		return fmt.Errorf("Invalid server address: %v", err)
+	}
+	//apply default port
+	if !regexp.MustCompile(`:\d+$`).MatchString(u.Host) {
+		if u.Scheme == "https" || u.Scheme == "wss" {
+			u.Host = u.Host + ":443"
+		} else {
+			u.Host = u.Host + ":80"
+		}
+	}
+	//swap to websockets scheme
+	u.Scheme = strings.Replace(u.Scheme, "http", "ws", 1)
+	c.Client.Server = u.String()
 	return nil
 }
 

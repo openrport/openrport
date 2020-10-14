@@ -224,10 +224,6 @@ func runMain(cmd *cobra.Command, args []string) {
 		config.Client.Remotes = args[1:]
 	}
 
-	if config.Client.Server == "" {
-		log.Fatalf("Server address is required. See --help")
-	}
-
 	err = config.ParseAndValidate()
 	if err != nil {
 		log.Fatal(err)
