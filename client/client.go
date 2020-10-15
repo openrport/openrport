@@ -10,7 +10,6 @@ import (
 	"net/http"
 	"net/url"
 	"os"
-	"regexp"
 	"strings"
 	"sync"
 	"time"
@@ -29,90 +28,47 @@ type Client struct {
 	*chshare.Logger
 	connReq *chshare.ConnectionRequest
 
-	connOptions       ConnectionConfig
-	sshConfig         *ssh.ClientConfig
-	sshConn           ssh.Conn
-	proxyURL          *url.URL
-	server            string
-	serverFingerprint string
-	running           bool
-	runningc          chan error
-	connStats         chshare.ConnStats
-	cmdExec           CmdExecutor
-	curCmdPID         *int
-	curCmdPIDMutex    sync.Mutex
+	config         *Config
+	sshConfig      *ssh.ClientConfig
+	sshConn        ssh.Conn
+	running        bool
+	runningc       chan error
+	connStats      chshare.ConnStats
+	cmdExec        CmdExecutor
+	curCmdPID      *int
+	curCmdPIDMutex sync.Mutex
 }
 
 //NewClient creates a new client instance
-func NewClient(config *Config) (*Client, error) {
-	//apply default scheme
-	if !strings.HasPrefix(config.Client.Server, "http") {
-		config.Client.Server = "http://" + config.Client.Server
-	}
-	if config.Connection.MaxRetryInterval < time.Second {
-		config.Connection.MaxRetryInterval = 5 * time.Minute
-	}
-	u, err := url.Parse(config.Client.Server)
-	if err != nil {
-		return nil, err
-	}
-	//apply default port
-	if !regexp.MustCompile(`:\d+$`).MatchString(u.Host) {
-		if u.Scheme == "https" || u.Scheme == "wss" {
-			u.Host = u.Host + ":443"
-		} else {
-			u.Host = u.Host + ":80"
-		}
-	}
-	//swap to websockets scheme
-	u.Scheme = strings.Replace(u.Scheme, "http", "ws", 1)
+func NewClient(config *Config) *Client {
 	connectionReq := &chshare.ConnectionRequest{
 		Version: chshare.BuildVersion,
 		ID:      config.Client.ID,
 		Name:    config.Client.Name,
 		Tags:    config.Client.Tags,
+		Remotes: config.Client.remotes,
 	}
 	connectionReq.OS, _ = chshare.Uname()
 	connectionReq.Hostname, _ = os.Hostname()
 
-	for _, s := range config.Client.Remotes {
-		var r *chshare.Remote
-		r, err = chshare.DecodeRemote(s)
-		if err != nil {
-			return nil, fmt.Errorf("Failed to decode remote '%s': %s", s, err)
-		}
-		connectionReq.Remotes = append(connectionReq.Remotes, r)
-	}
-
 	client := &Client{
-		Logger:            chshare.NewLogger("client", config.Logging.LogOutput, config.Logging.LogLevel),
-		connReq:           connectionReq,
-		connOptions:       config.Connection,
-		server:            u.String(),
-		serverFingerprint: config.Client.Fingerprint,
-		running:           true,
-		runningc:          make(chan error, 1),
-		cmdExec:           NewCmdExecutor(),
+		Logger:   chshare.NewLogger("client", config.Logging.LogOutput, config.Logging.LogLevel),
+		config:   config,
+		connReq:  connectionReq,
+		running:  true,
+		runningc: make(chan error, 1),
+		cmdExec:  NewCmdExecutor(),
 	}
-
-	if p := config.Client.Proxy; p != "" {
-		client.proxyURL, err = url.Parse(p)
-		if err != nil {
-			return nil, fmt.Errorf("Invalid proxy URL (%s)", err)
-		}
-	}
-
-	user, pass := chshare.ParseAuth(config.Client.Auth)
 
 	client.sshConfig = &ssh.ClientConfig{
-		User:            user,
-		Auth:            []ssh.AuthMethod{ssh.Password(pass)},
+		User:            config.Client.authUser,
+		Auth:            []ssh.AuthMethod{ssh.Password(config.Client.authPass)},
 		ClientVersion:   "SSH-" + chshare.ProtocolVersion + "-client",
 		HostKeyCallback: client.verifyServer,
 		Timeout:         30 * time.Second,
 	}
 
-	return client, nil
+	return client
 }
 
 //Run starts client and blocks while connected
@@ -127,7 +83,7 @@ func (c *Client) Run() error {
 
 func (c *Client) verifyServer(hostname string, remote net.Addr, key ssh.PublicKey) error {
 	got := chshare.FingerprintKey(key)
-	if c.serverFingerprint != "" && !strings.HasPrefix(got, c.serverFingerprint) {
+	if c.config.Client.Fingerprint != "" && !strings.HasPrefix(got, c.config.Client.Fingerprint) {
 		return fmt.Errorf("Invalid fingerprint (%s)", got)
 	}
 	//overwrite with complete fingerprint
@@ -138,13 +94,13 @@ func (c *Client) verifyServer(hostname string, remote net.Addr, key ssh.PublicKe
 //Start client and does not block
 func (c *Client) Start(ctx context.Context) error {
 	via := ""
-	if c.proxyURL != nil {
-		via = " via " + c.proxyURL.String()
+	if c.config.Client.proxyURL != nil {
+		via = " via " + c.config.Client.proxyURL.String()
 	}
 
-	c.Infof("Connecting to %s%s\n", c.server, via)
+	c.Infof("Connecting to %s%s\n", c.config.Client.Server, via)
 	//optional keepalive loop
-	if c.connOptions.KeepAlive > 0 {
+	if c.config.Connection.KeepAlive > 0 {
 		go c.keepAliveLoop()
 	}
 	//connection loop
@@ -154,7 +110,7 @@ func (c *Client) Start(ctx context.Context) error {
 
 func (c *Client) keepAliveLoop() {
 	for c.running {
-		time.Sleep(c.connOptions.KeepAlive)
+		time.Sleep(c.config.Connection.KeepAlive)
 		if c.sshConn != nil {
 			_, _, _ = c.sshConn.SendRequest(comm.RequestTypePing, true, nil)
 		}
@@ -164,14 +120,14 @@ func (c *Client) keepAliveLoop() {
 func (c *Client) connectionLoop(ctx context.Context) {
 	//connection loop!
 	var connerr error
-	b := &backoff.Backoff{Max: c.connOptions.MaxRetryInterval}
+	b := &backoff.Backoff{Max: c.config.Connection.MaxRetryInterval}
 	for c.running {
 		if connerr != nil {
 			attempt := int(b.Attempt())
 			d := b.Duration()
 			c.showConnectionError(connerr, attempt)
 			//give up?
-			if c.connOptions.MaxRetryCount >= 0 && attempt >= c.connOptions.MaxRetryCount {
+			if c.config.Connection.MaxRetryCount >= 0 && attempt >= c.config.Connection.MaxRetryCount {
 				break
 			}
 			c.Errorf("Retrying in %s...", d)
@@ -185,24 +141,24 @@ func (c *Client) connectionLoop(ctx context.Context) {
 			Subprotocols:     []string{chshare.ProtocolVersion},
 		}
 		//optionally proxy
-		if c.proxyURL != nil {
-			if strings.HasPrefix(c.proxyURL.Scheme, "socks") {
+		if c.config.Client.proxyURL != nil {
+			if strings.HasPrefix(c.config.Client.proxyURL.Scheme, "socks") {
 				// SOCKS5 proxy
-				if c.proxyURL.Scheme != "socks" && c.proxyURL.Scheme != "socks5h" {
+				if c.config.Client.proxyURL.Scheme != "socks" && c.config.Client.proxyURL.Scheme != "socks5h" {
 					c.Errorf(
 						"unsupported socks proxy type: %s:// (only socks5h:// or socks:// is supported)",
-						c.proxyURL.Scheme)
+						c.config.Client.proxyURL.Scheme)
 					break
 				}
 				var auth *proxy.Auth
-				if c.proxyURL.User != nil {
-					pass, _ := c.proxyURL.User.Password()
+				if c.config.Client.proxyURL.User != nil {
+					pass, _ := c.config.Client.proxyURL.User.Password()
 					auth = &proxy.Auth{
-						User:     c.proxyURL.User.Username(),
+						User:     c.config.Client.proxyURL.User.Username(),
 						Password: pass,
 					}
 				}
-				socksDialer, err := proxy.SOCKS5("tcp", c.proxyURL.Host, auth, proxy.Direct)
+				socksDialer, err := proxy.SOCKS5("tcp", c.config.Client.proxyURL.Host, auth, proxy.Direct)
 				if err != nil {
 					connerr = err
 					continue
@@ -211,11 +167,11 @@ func (c *Client) connectionLoop(ctx context.Context) {
 			} else {
 				// CONNECT proxy
 				d.Proxy = func(*http.Request) (*url.URL, error) {
-					return c.proxyURL, nil
+					return c.config.Client.proxyURL, nil
 				}
 			}
 		}
-		wsConn, _, err := d.Dial(c.server, c.connOptions.Headers())
+		wsConn, _, err := d.Dial(c.config.Client.Server, c.config.Connection.Headers())
 		if err != nil {
 			connerr = err
 			continue
@@ -330,7 +286,7 @@ func checkPort(payload []byte) (*comm.CheckPortResponse, error) {
 }
 
 func (c *Client) showConnectionError(connerr error, attempt int) {
-	maxAttempt := c.connOptions.MaxRetryCount
+	maxAttempt := c.config.Connection.MaxRetryCount
 	//show error and attempt counts
 	msg := fmt.Sprintf("Connection error: %s", connerr)
 	if attempt > 0 {

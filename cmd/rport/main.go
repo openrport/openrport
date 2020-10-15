@@ -224,13 +224,9 @@ func runMain(cmd *cobra.Command, args []string) {
 		config.Client.Remotes = args[1:]
 	}
 
-	if config.Client.Server == "" {
-		log.Fatalf("Server address is required. See --help")
-	}
-
 	err = config.ParseAndValidate()
 	if err != nil {
-		log.Fatal(err)
+		log.Fatalf("Invalid config: %v", err)
 	}
 
 	if !config.Client.AllowRoot && chshare.IsRunningAsRoot() {
@@ -253,10 +249,7 @@ func runMain(cmd *cobra.Command, args []string) {
 		return
 	}
 
-	c, err := chclient.NewClient(config)
-	if err != nil {
-		log.Fatal(err)
-	}
+	c := chclient.NewClient(config)
 
 	if !service.Interactive() {
 		err = runAsService(c, *cfgPath)

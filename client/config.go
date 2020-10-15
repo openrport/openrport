@@ -1,8 +1,11 @@
 package chclient
 
 import (
+	"errors"
 	"fmt"
 	"net/http"
+	"net/url"
+	"regexp"
 	"strings"
 	"time"
 
@@ -34,6 +37,11 @@ type ClientConfig struct {
 	Tags        []string `mapstructure:"tags"`
 	Remotes     []string `mapstructure:"remotes"`
 	AllowRoot   bool     `mapstructure:"allow_root"`
+
+	proxyURL *url.URL
+	remotes  []*chshare.Remote
+	authUser string
+	authPass string
 }
 
 func (c *ConnectionConfig) Headers() http.Header {
@@ -47,6 +55,26 @@ type Config struct {
 }
 
 func (c *Config) ParseAndValidate() error {
+	if err := c.parseHeaders(); err != nil {
+		return err
+	}
+	if err := c.parseServerURL(); err != nil {
+		return err
+	}
+	if err := c.parseProxyURL(); err != nil {
+		return err
+	}
+	if err := c.parseRemotes(); err != nil {
+		return err
+	}
+	if c.Connection.MaxRetryInterval < time.Second {
+		c.Connection.MaxRetryInterval = 5 * time.Minute
+	}
+	c.Client.authUser, c.Client.authPass = chshare.ParseAuth(c.Client.Auth)
+	return nil
+}
+
+func (c *Config) parseHeaders() error {
 	c.Connection.headers = http.Header{}
 	for _, h := range c.Connection.HeadersRaw {
 		name, val, err := parseHeader(h)
@@ -64,10 +92,60 @@ func (c *Config) ParseAndValidate() error {
 	return nil
 }
 
+func (c *Config) parseServerURL() error {
+	if c.Client.Server == "" {
+		return errors.New("server address is required. See --help")
+	}
+
+	//apply default scheme
+	if !strings.Contains(c.Client.Server, "://") {
+		c.Client.Server = "http://" + c.Client.Server
+	}
+
+	u, err := url.Parse(c.Client.Server)
+	if err != nil {
+		return fmt.Errorf("invalid server address: %v", err)
+	}
+	//apply default port
+	if !regexp.MustCompile(`:\d+$`).MatchString(u.Host) {
+		if u.Scheme == "https" || u.Scheme == "wss" {
+			u.Host = u.Host + ":443"
+		} else {
+			u.Host = u.Host + ":80"
+		}
+	}
+	//swap to websockets scheme
+	u.Scheme = strings.Replace(u.Scheme, "http", "ws", 1)
+	c.Client.Server = u.String()
+	return nil
+}
+
+func (c *Config) parseProxyURL() error {
+	if p := c.Client.Proxy; p != "" {
+		proxyURL, err := url.Parse(p)
+		if err != nil {
+			return fmt.Errorf("invalid proxy URL: %v", err)
+		}
+		c.Client.proxyURL = proxyURL
+	}
+	return nil
+}
+
+func (c *Config) parseRemotes() error {
+	for _, s := range c.Client.Remotes {
+		r, err := chshare.DecodeRemote(s)
+		if err != nil {
+			return fmt.Errorf("failed to decode remote %q: %v", s, err)
+		}
+		c.Client.remotes = append(c.Client.remotes, r)
+	}
+	return nil
+}
+
 func parseHeader(h string) (string, string, error) {
 	index := strings.Index(h, ":")
 	if index < 0 {
-		return "", "", fmt.Errorf(`invalid header (%s). Should be in the format "HeaderName: HeaderContent"`, h)
+		return "", "", fmt.Errorf(`invalid header %q. Should be in the format "HeaderName: HeaderContent"`, h)
 	}
 	return h[0:index], strings.TrimSpace(h[index+1:]), nil
 }
