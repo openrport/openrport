@@ -94,8 +94,6 @@ func TestHandleRunCmdRequestNormalCase(t *testing.T) {
 	wantJob := parseJob(t, wantJobJSON)
 	gotJob := parseJob(t, string(inputPayload))
 	assert.Equal(wantJob, gotJob)
-
-	assert.Nil(c.getCurCmdPID())
 }
 
 func TestHandleRunCmdRequestHasRunningCmd(t *testing.T) {
@@ -110,9 +108,12 @@ func TestHandleRunCmdRequestHasRunningCmd(t *testing.T) {
 	execMock.ReturnStdErr = []string{"error1", "error2"}
 
 	connMock := test.NewConnMock()
+
 	// mimic real behavior to have the 1st command still running when the 2nd request comes
-	done := make(chan bool)
-	connMock.DoneChannel = done
+	doneSendResp := make(chan bool)
+	connMock.DoneChannel = doneSendResp
+	doneCmd := make(chan bool)
+	execMock.DoneChannel = doneCmd
 
 	c := Client{
 		cmdExec: execMock,
@@ -130,8 +131,13 @@ func TestHandleRunCmdRequestHasRunningCmd(t *testing.T) {
 	curPID := c.getCurCmdPID()
 	require.NotNil(t, curPID)
 	assert.Equal(wantPID, *curPID)
-	// finish the background task that observes the 1st command
-	<-done
+	// finish the cmd execution
+	<-doneCmd
+	// finish to send the response to server
+	<-doneSendResp
+	// check that running new commands is not blocked anymore
+	curPID = c.getCurCmdPID()
+	assert.Nil(curPID)
 
 	// check the result
 	require.NoError(t, err1)

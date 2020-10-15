@@ -56,9 +56,6 @@ func (c *Client) HandleRunCmdRequest(ctx context.Context, reqPayload []byte) (*c
 	go func() {
 		c.Debugf("started to observe cmd [jid=%q,pid=%d]", job.JID, res.Pid)
 
-		// unset PID when it's done
-		defer c.setCurCmdPID(nil)
-
 		// after timeout stop observing but leave the cmd running
 		done := make(chan error)
 		go func() { done <- c.cmdExec.Wait(cmd) }()
@@ -76,6 +73,9 @@ func (c *Client) HandleRunCmdRequest(ctx context.Context, reqPayload []byte) (*c
 			status = models.JobStatusUnknown
 			c.Debugf("timeout %s reached, stop observing command[jid=%q,pid=%d]:\n%s", job.Timeout, job.JID, res.Pid, job.Command)
 		}
+
+		// observing stopped - unset PID
+		c.setCurCmdPID(nil)
 
 		// fill all unset fields
 		now := now()

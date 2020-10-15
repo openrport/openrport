@@ -8,6 +8,7 @@ import (
 )
 
 type CmdExecutorMock struct {
+	DoneChannel    chan bool
 	ReturnPID      int
 	ReturnStartErr error
 	ReturnWaitErr  error
@@ -66,5 +67,9 @@ func (e *CmdExecutorMock) Wait(cmd *exec.Cmd) error {
 		return e.ReturnWaitErr
 	}
 	e.wg.Wait()
+	// wait if needed
+	if e.DoneChannel != nil {
+		e.DoneChannel <- true
+	}
 	return nil
 }
