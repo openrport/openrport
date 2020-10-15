@@ -226,7 +226,7 @@ func runMain(cmd *cobra.Command, args []string) {
 
 	err = config.ParseAndValidate()
 	if err != nil {
-		log.Fatal(err)
+		log.Fatalf("Invalid config: %v", err)
 	}
 
 	if !config.Client.AllowRoot && chshare.IsRunningAsRoot() {

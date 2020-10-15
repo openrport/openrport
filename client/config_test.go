@@ -79,7 +79,7 @@ func TestConfigParseAndValidateServerURL(t *testing.T) {
 	}{
 		{
 			ServerURL:     "",
-			ExpectedError: "Server address is required. See --help",
+			ExpectedError: "server address is required. See --help",
 		}, {
 			ServerURL:   "test.com",
 			ExpectedURL: "ws://test.com:80",
@@ -103,7 +103,7 @@ func TestConfigParseAndValidateServerURL(t *testing.T) {
 			ExpectedURL: "wss://test.com:1234",
 		}, {
 			ServerURL:     "test\n.com",
-			ExpectedError: `Invalid server address: parse "http://test\n.com": net/url: invalid control character in URL`,
+			ExpectedError: `invalid server address: parse "http://test\n.com": net/url: invalid control character in URL`,
 		},
 	}
 
@@ -145,6 +145,10 @@ func TestConfigParseAndValidateMaxRetryInterval(t *testing.T) {
 			Name:                     "default",
 			MaxRetryInterval:         time.Duration(0),
 			ExpectedMaxRetryInterval: 5 * time.Minute,
+		}, {
+			Name:                     "small retry interval",
+			MaxRetryInterval:         time.Millisecond,
+			ExpectedMaxRetryInterval: 5 * time.Minute,
 		},
 	}
 
@@ -183,7 +187,7 @@ func TestConfigParseAndValidateProxyURL(t *testing.T) {
 		}, {
 			Name:          "invalid",
 			Proxy:         "http://proxy\n.com",
-			ExpectedError: `Invalid proxy URL (parse "http://proxy\n.com": net/url: invalid control character in URL)`,
+			ExpectedError: `invalid proxy URL: parse "http://proxy\n.com": net/url: invalid control character in URL`,
 		}, {
 			Name:             "with proxy",
 			Proxy:            "http://proxy.com",
@@ -248,7 +252,7 @@ func TestConfigParseAndValidateRemotes(t *testing.T) {
 		}, {
 			Name:          "invalid",
 			Remotes:       []string{"abc"},
-			ExpectedError: "Failed to decode remote 'abc': Missing ports",
+			ExpectedError: `failed to decode remote "abc": Missing ports`,
 		},
 	}
 
@@ -269,6 +273,40 @@ func TestConfigParseAndValidateRemotes(t *testing.T) {
 				require.Error(t, err)
 				assert.Equal(t, tc.ExpectedError, err.Error())
 			}
+		})
+	}
+}
+
+func TestConfigParseAndValidateAuth(t *testing.T) {
+	testCases := []struct {
+		Auth         string
+		ExpectedUser string
+		ExpectedPass string
+	}{
+		{
+			Auth:         "",
+			ExpectedUser: "",
+			ExpectedPass: "",
+		}, {
+			Auth:         "test:pass123",
+			ExpectedUser: "test",
+			ExpectedPass: "pass123",
+		},
+	}
+
+	for _, tc := range testCases {
+		t.Run(tc.Auth, func(t *testing.T) {
+			config := &Config{
+				Client: ClientConfig{
+					Server: "test.com",
+					Auth:   tc.Auth,
+				},
+			}
+			err := config.ParseAndValidate()
+
+			require.NoError(t, err)
+			assert.Equal(t, tc.ExpectedUser, config.Client.authUser)
+			assert.Equal(t, tc.ExpectedPass, config.Client.authPass)
 		})
 	}
 }

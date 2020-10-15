@@ -1,6 +1,7 @@
 package chclient
 
 import (
+	"errors"
 	"fmt"
 	"net/http"
 	"net/url"
@@ -39,6 +40,8 @@ type ClientConfig struct {
 
 	proxyURL *url.URL
 	remotes  []*chshare.Remote
+	authUser string
+	authPass string
 }
 
 func (c *ConnectionConfig) Headers() http.Header {
@@ -67,6 +70,7 @@ func (c *Config) ParseAndValidate() error {
 	if c.Connection.MaxRetryInterval < time.Second {
 		c.Connection.MaxRetryInterval = 5 * time.Minute
 	}
+	c.Client.authUser, c.Client.authPass = chshare.ParseAuth(c.Client.Auth)
 	return nil
 }
 
@@ -90,7 +94,7 @@ func (c *Config) parseHeaders() error {
 
 func (c *Config) parseServerURL() error {
 	if c.Client.Server == "" {
-		return fmt.Errorf("Server address is required. See --help")
+		return errors.New("server address is required. See --help")
 	}
 
 	//apply default scheme
@@ -100,7 +104,7 @@ func (c *Config) parseServerURL() error {
 
 	u, err := url.Parse(c.Client.Server)
 	if err != nil {
-		return fmt.Errorf("Invalid server address: %v", err)
+		return fmt.Errorf("invalid server address: %v", err)
 	}
 	//apply default port
 	if !regexp.MustCompile(`:\d+$`).MatchString(u.Host) {
@@ -120,7 +124,7 @@ func (c *Config) parseProxyURL() error {
 	if p := c.Client.Proxy; p != "" {
 		proxyURL, err := url.Parse(p)
 		if err != nil {
-			return fmt.Errorf("Invalid proxy URL (%s)", err)
+			return fmt.Errorf("invalid proxy URL: %v", err)
 		}
 		c.Client.proxyURL = proxyURL
 	}
@@ -131,7 +135,7 @@ func (c *Config) parseRemotes() error {
 	for _, s := range c.Client.Remotes {
 		r, err := chshare.DecodeRemote(s)
 		if err != nil {
-			return fmt.Errorf("Failed to decode remote '%s': %s", s, err)
+			return fmt.Errorf("failed to decode remote %q: %v", s, err)
 		}
 		c.Client.remotes = append(c.Client.remotes, r)
 	}
@@ -141,7 +145,7 @@ func (c *Config) parseRemotes() error {
 func parseHeader(h string) (string, string, error) {
 	index := strings.Index(h, ":")
 	if index < 0 {
-		return "", "", fmt.Errorf(`invalid header (%s). Should be in the format "HeaderName: HeaderContent"`, h)
+		return "", "", fmt.Errorf(`invalid header %q. Should be in the format "HeaderName: HeaderContent"`, h)
 	}
 	return h[0:index], strings.TrimSpace(h[index+1:]), nil
 }
