@@ -4,14 +4,18 @@ import (
 	"crypto/subtle"
 	"errors"
 	"fmt"
+	"io"
 	"net/http"
+	"os"
 	"runtime"
 	"strings"
 	"time"
 
+	"github.com/gorilla/handlers"
 	"github.com/gorilla/mux"
 	"github.com/jpillora/requestlog"
 	"golang.org/x/crypto/bcrypt"
+	"golang.org/x/sync/errgroup"
 
 	"github.com/cloudradar-monitoring/rport/server/api/middleware"
 	"github.com/cloudradar-monitoring/rport/server/api/users"
@@ -33,6 +37,7 @@ type APIListener struct {
 	requestLogOptions *requestlog.Options
 	userSrv           UserService
 	clientProvider    ClientProvider
+	accessLogFile     io.WriteCloser
 }
 
 type UserService interface {
@@ -80,6 +85,14 @@ func NewAPIListener(
 		clientProvider:    clientProvider,
 	}
 
+	if config.API.AccessLogFile != "" {
+		accessLogFile, err := os.OpenFile(config.API.AccessLogFile, os.O_APPEND|os.O_CREATE|os.O_WRONLY, 0644)
+		if err != nil {
+			return nil, err
+		}
+		a.accessLogFile = accessLogFile
+	}
+
 	a.initRouter()
 
 	return a, nil
@@ -90,6 +103,9 @@ func (al *APIListener) Start(addr string) error {
 
 	h := http.Handler(http.HandlerFunc(al.handleAPIRequest))
 	h = requestlog.WrapWith(h, *al.requestLogOptions)
+	if al.accessLogFile != nil {
+		h = handlers.CombinedLoggingHandler(al.accessLogFile, h)
+	}
 	err := al.httpServer.GoListenAndServe(addr, h)
 	if err != nil {
 		return err
@@ -108,10 +124,14 @@ func (al *APIListener) Wait() error {
 }
 
 func (al *APIListener) Close() error {
-	if al.httpServer == nil {
-		return nil
+	g := &errgroup.Group{}
+	if al.httpServer != nil {
+		g.Go(al.httpServer.Close)
 	}
-	return al.httpServer.Close()
+	if al.accessLogFile != nil {
+		g.Go(al.accessLogFile.Close)
+	}
+	return g.Wait()
 }
 
 func (al *APIListener) handleAPIRequest(w http.ResponseWriter, r *http.Request) {

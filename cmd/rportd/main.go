@@ -126,6 +126,8 @@ var serverHelp = `
     --api-key-file, An optional arg to specify private key file for API with https.
     Https will be activated if both cert and key file are set.
 
+    --api-access-log-file, An optional arg to specify file for writing api access logs.
+
     --data-dir, An optional arg to define a local directory path to store internal data.
     By default, "/var/lib/rportd" is used on Linux, "C:\ProgramData\rportd" is used on Windows.
     If the directory doesn't exist, it will be created. On Linux you must create this directory
@@ -210,6 +212,7 @@ func init() {
 	pFlags.String("api-doc-root", "", "")
 	pFlags.String("api-cert-file", "", "")
 	pFlags.String("api-key-file", "", "")
+	pFlags.String("api-access-log-file", "", "")
 	pFlags.StringP("log-file", "l", "", "")
 	pFlags.StringP("verbose", "v", "", "")
 	pFlags.StringSliceP("exclude-ports", "e", []string{DefaultExcludedPorts}, "")
@@ -273,6 +276,7 @@ func init() {
 	_ = viperCfg.BindPFlag("api.doc_root", pFlags.Lookup("api-doc-root"))
 	_ = viperCfg.BindPFlag("api.cert_file", pFlags.Lookup("api-cert-file"))
 	_ = viperCfg.BindPFlag("api.key_file", pFlags.Lookup("api-key-file"))
+	_ = viperCfg.BindPFlag("api.access_log_file", pFlags.Lookup("api-access-log-file"))
 }
 
 func main() {
