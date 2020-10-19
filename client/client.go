@@ -9,13 +9,13 @@ import (
 	"net"
 	"net/http"
 	"net/url"
-	"os"
 	"strings"
 	"sync"
 	"time"
 
 	"github.com/gorilla/websocket"
 	"github.com/jpillora/backoff"
+	"github.com/shirou/gopsutil/host"
 	"golang.org/x/crypto/ssh"
 	"golang.org/x/net/proxy"
 
@@ -26,7 +26,6 @@ import (
 //Client represents a client instance
 type Client struct {
 	*chshare.Logger
-	connReq *chshare.ConnectionRequest
 
 	config         *Config
 	sshConfig      *ssh.ClientConfig
@@ -37,27 +36,18 @@ type Client struct {
 	cmdExec        CmdExecutor
 	curCmdPID      *int
 	curCmdPIDMutex sync.Mutex
+	systemInfo     SystemInfo
 }
 
 //NewClient creates a new client instance
 func NewClient(config *Config) *Client {
-	connectionReq := &chshare.ConnectionRequest{
-		Version: chshare.BuildVersion,
-		ID:      config.Client.ID,
-		Name:    config.Client.Name,
-		Tags:    config.Client.Tags,
-		Remotes: config.Client.remotes,
-	}
-	connectionReq.OS, _ = chshare.Uname()
-	connectionReq.Hostname, _ = os.Hostname()
-
 	client := &Client{
-		Logger:   chshare.NewLogger("client", config.Logging.LogOutput, config.Logging.LogLevel),
-		config:   config,
-		connReq:  connectionReq,
-		running:  true,
-		runningc: make(chan error, 1),
-		cmdExec:  NewCmdExecutor(),
+		Logger:     chshare.NewLogger("client", config.Logging.LogOutput, config.Logging.LogLevel),
+		config:     config,
+		running:    true,
+		runningc:   make(chan error, 1),
+		cmdExec:    NewCmdExecutor(),
+		systemInfo: NewSystemInfo(),
 	}
 
 	client.sshConfig = &ssh.ClientConfig{
@@ -190,10 +180,11 @@ func (c *Client) connectionLoop(ctx context.Context) {
 			c.Errorf(err.Error())
 			break
 		}
-		ipv4, ipv6, _ := localIPAddresses()
-		c.connReq.IPv4 = ipv4
-		c.connReq.IPv6 = ipv6
-		req, _ := chshare.EncodeConnectionRequest(c.connReq)
+		req, err := chshare.EncodeConnectionRequest(c.connectionRequest(ctx))
+		if err != nil {
+			c.Errorf("Could not encode connection request: %v", err)
+			break
+		}
 		c.Debugf("Sending connection request")
 		t0 := time.Now()
 		replyOk, respBytes, err := sshConn.SendRequest("new_connection", true, req)
@@ -329,36 +320,29 @@ func (c *Client) connectStreams(chans <-chan ssh.NewChannel) {
 }
 
 // returns all local ipv4, ipv6 addresses
-func localIPAddresses() ([]string, []string, error) {
-	ifaces, err := net.Interfaces()
-	if err != nil {
-		return nil, nil, err
-	}
-
+func (c *Client) localIPAddresses() ([]string, []string, error) {
 	ipv4 := []string{}
 	ipv6 := []string{}
 
-	for _, i := range ifaces {
-		addrs, err := i.Addrs()
-		if err != nil {
-			return nil, nil, err
+	addrs, err := c.systemInfo.InterfaceAddrs()
+	if err != nil {
+		return nil, nil, err
+	}
+	for _, addr := range addrs {
+		var ip net.IP
+		switch v := addr.(type) {
+		case *net.IPNet:
+			ip = v.IP
+		case *net.IPAddr:
+			ip = v.IP
 		}
-		for _, addr := range addrs {
-			var ip net.IP
-			switch v := addr.(type) {
-			case *net.IPNet:
-				ip = v.IP
-			case *net.IPAddr:
-				ip = v.IP
-			}
-			if ip.IsLoopback() {
-				continue
-			}
-			if ip.To4() != nil {
-				ipv4 = append(ipv4, ip.String())
-			} else if ip.To16() != nil {
-				ipv6 = append(ipv6, ip.String())
-			}
+		if ip.IsLoopback() {
+			continue
+		}
+		if ip.To4() != nil {
+			ipv4 = append(ipv4, ip.String())
+		} else if ip.To16() != nil {
+			ipv6 = append(ipv6, ip.String())
 		}
 	}
 	return ipv4, ipv6, nil
@@ -374,4 +358,54 @@ func (c *Client) setCurCmdPID(pid *int) {
 	c.curCmdPIDMutex.Lock()
 	defer c.curCmdPIDMutex.Unlock()
 	c.curCmdPID = pid
+}
+
+func (c *Client) connectionRequest(ctx context.Context) *chshare.ConnectionRequest {
+	ctx, cancel := context.WithTimeout(ctx, time.Second*5)
+	defer cancel()
+
+	connReq := &chshare.ConnectionRequest{
+		Version: chshare.BuildVersion,
+		ID:      c.config.Client.ID,
+		Name:    c.config.Client.Name,
+		OSArch:  c.systemInfo.GoArch(),
+		Tags:    c.config.Client.Tags,
+		Remotes: c.config.Client.remotes,
+	}
+
+	info, err := c.systemInfo.HostInfo(ctx)
+	if err != nil {
+		c.Logger.Errorf("Could not get os information: %v", err)
+		connReq.OSKernel = "unknown"
+		connReq.OSFamily = "unknown"
+	} else {
+		connReq.OSKernel = info.OS
+		connReq.OSFamily = info.PlatformFamily
+	}
+
+	connReq.OS, err = c.getOS(ctx, info)
+	if err != nil {
+		connReq.OS = "unknown"
+		c.Logger.Errorf("Could not get os name: %v", err)
+	}
+	connReq.IPv4, connReq.IPv6, err = c.localIPAddresses()
+	if err != nil {
+		c.Logger.Errorf("Could not get local ips: %v", err)
+	}
+	connReq.Hostname, err = c.systemInfo.Hostname()
+	if err != nil {
+		connReq.Hostname = "unknown"
+		c.Logger.Errorf("Could not get hostname: %v", err)
+	}
+
+	return connReq
+}
+
+func (c *Client) getOS(ctx context.Context, info *host.InfoStat) (string, error) {
+	if info == nil {
+		return "unknown", nil
+	} else if info.OS == "windows" {
+		return info.Platform + " " + info.PlatformVersion + " " + info.PlatformFamily, nil
+	}
+	return c.systemInfo.Uname(ctx)
 }

@@ -11,6 +11,9 @@ type ConnectionRequest struct {
 	ID       string
 	Name     string
 	OS       string
+	OSArch   string
+	OSFamily string
+	OSKernel string
 	Hostname string
 	IPv4     []string
 	IPv6     []string
