@@ -1,10 +1,10 @@
 # Multi tenancy (NOT SUPPORTED YET)
-Rport server can isolate clients and users from different tenants. 
+Rport server can isolate clients and users from different tenants.
 Multi tenancy is only supported when a database table is used for client- and api authentication.
-`auth_table`, `auth_user_table`, and `auth_group_table` must be used. 
+`auth_table`, `auth_user_table`, and `auth_group_table` must be used.
 Enabling multi_tenancy = true without the above prerequisites causes the rport server to exit with an error.
 
-If multi tenancy is enabled the user auth table and the client auth table need an additional column `tenant` either varchar or int, ideally with an index. 
+If multi tenancy is enabled the user auth table and the client auth table need an additional column `tenant` either varchar or int, ideally with an index.
 Usernames must be unique across tenants, otherwise mapping users to a tenant would fail.
 
 ## Examples
@@ -59,6 +59,9 @@ curl -s -u admin:foobaz http://localhost:3000/api/v1/sessions|jq
     "id": "2ba9174e-640e-4694-ad35-34a2d6f3986b",
     "name": "My Test VM",
     "os": "Linux my-devvm-v3 5.4.0-37-generic #41-Ubuntu SMP Wed Jun 3 18:57:02 UTC 2020 x86_64 x86_64 x86_64 GNU/Linux",
+    "os_arch": "amd64",
+    "os_family": "debian",
+    "os_kernel": "linux",
     "hostname": "my-devvm-v3",
     "ipv4": [
       "192.168.3.148"
@@ -76,6 +79,6 @@ curl -s -u admin:foobaz http://localhost:3000/api/v1/sessions|jq
   }
 ]
 ```
-API users will only see clients having the tenant mapped to the user. A user without a tenant will always get an empty list. 
+API users will only see clients having the tenant mapped to the user. A user without a tenant will always get an empty list.
 A client without a tenant will be orphaned and will not appear in any session listing.
 It's good to make sure on database-level the tenant column cannot be null.

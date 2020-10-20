@@ -14,6 +14,9 @@ curl -s -u admin:foobaz http://localhost:3000/api/v1/sessions|jq
     "id": "2ba9174e-640e-4694-ad35-34a2d6f3986b",
     "name": "My Test VM",
     "os": "Linux my-devvm-v3 5.4.0-37-generic #41-Ubuntu SMP Wed Jun 3 18:57:02 UTC 2020 x86_64 x86_64 x86_64 GNU/Linux",
+    "os_arch": "amd64",
+    "os_family": "debian",
+    "os_kernel": "linux",
     "hostname": "my-devvm-v3",
     "ipv4": [
       "192.168.3.148"
@@ -33,6 +36,9 @@ curl -s -u admin:foobaz http://localhost:3000/api/v1/sessions|jq
     "id": "aa1210c7-1899-491e-8e71-564cacaf1df8",
     "name": "Random Rport Client",
     "os": "Linux alpine-3-10-tk-01 4.19.80-0-virt #1-Alpine SMP Fri Oct 18 11:51:24 UTC 2019 x86_64 Linux",
+    "os_arch": "amd64",
+    "os_family": "alpine",
+    "os_kernel": "linux",
     "hostname": "alpine-3-10-tk-01",
     "ipv4": [
       "192.168.122.117"
@@ -65,7 +71,7 @@ Now use `PUT /api/v1/sessions/{id}/tunnels?local={port}&remote={port}` to reques
 For example,
 ```
 CLIENTID=2ba9174e-640e-4694-ad35-34a2d6f3986b
-LOCAL_PORT=4000 
+LOCAL_PORT=4000
 REMOTE_PORT=22
 curl -u admin:foobaz -X PUT "http://localhost:3000/api/v1/sessions/$CLIENTID/tunnels?local=$LOCAL_PORT&remote=$REMOTE_PORT"
 ```
@@ -112,7 +118,7 @@ LOCAL_PORT=4001
 REMOTE_PORT=192.168.178.1:80
 curl -u admin:foobaz -X PUT "http://localhost:3000/api/v1/sessions/$CLIENTID/tunnels?local=$LOCAL_PORT&remote=$REMOTE_PORT"
 ```
-This example forwards port 4001 of the rport server to port 80 of 192.168.178.1 using the rport client in the middle. 
+This example forwards port 4001 of the rport server to port 80 of 192.168.178.1 using the rport client in the middle.
 ```
 "tunnels": [
       {
@@ -130,7 +136,7 @@ To increase the security of remote access, you can control how it is allowed to 
 
 ```
 CLIENTID=2ba9174e-640e-4694-ad35-34a2d6f3986b
-LOCAL_PORT=4000 
+LOCAL_PORT=4000
 REMOTE_PORT=22
 ACL=213.90.90.123,189.20.90.0/24
 curl -u admin:foobaz -X PUT "http://localhost:3000/api/v1/sessions/$CLIENTID/tunnels?local=$LOCAL_PORT&remote=$REMOTE_PORT&acl=$ACL"
@@ -143,6 +149,6 @@ Using a DELETE request with the tunnel id allows terminating a tunnel.
 
 ```
 CLIENTID=2ba9174e-640e-4694-ad35-34a2d6f3986b
-TUNNELID=1 
+TUNNELID=1
 curl -u admin:foobaz -X DELETE "http://localhost:3000/api/v1/sessions/$CLIENTID/tunnels/$TUNNELID"
 ```

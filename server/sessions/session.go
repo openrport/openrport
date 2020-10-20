@@ -27,6 +27,9 @@ type ClientSession struct {
 	ID       string    `json:"id"`
 	Name     string    `json:"name"`
 	OS       string    `json:"os"`
+	OSArch   string    `json:"os_arch"`
+	OSFamily string    `json:"os_family"`
+	OSKernel string    `json:"os_kernel"`
 	Hostname string    `json:"hostname"`
 	IPv4     []string  `json:"ipv4"`
 	IPv6     []string  `json:"ipv6"`

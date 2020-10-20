@@ -17,7 +17,6 @@ import (
 	"testing"
 	"time"
 
-	"github.com/gorilla/mux"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 	"golang.org/x/crypto/ssh"
@@ -162,8 +161,7 @@ var (
 func TestHandleGetClients(t *testing.T) {
 	require := require.New(t)
 
-	req, err := http.NewRequest(http.MethodGet, "/clients", nil)
-	require.NoError(err)
+	req := httptest.NewRequest(http.MethodGet, "/api/v1/clients", nil)
 
 	testClients := clients.NewClientCache([]*clients.Client{cl1, cl3, cl2})
 	testCases := []struct {
@@ -224,6 +222,9 @@ func TestHandleGetClients(t *testing.T) {
 			clientProvider: tc.clientProvider,
 			Server: &Server{
 				clientCache: tc.clientCache,
+				config: &Config{
+					Server: ServerConfig{MaxRequestBytes: 1024 * 1024},
+				},
 			},
 		}
 
@@ -450,15 +451,17 @@ func TestHandlePostClients(t *testing.T) {
 			Server: &Server{
 				clientCache: tc.clientCache,
 				config: &Config{
-					Server: ServerConfig{AuthWrite: tc.clientAuthWrite},
+					Server: ServerConfig{
+						AuthWrite:       tc.clientAuthWrite,
+						MaxRequestBytes: 1024 * 1024,
+					},
 				},
 			},
 			Logger:         testLog,
 			clientProvider: tc.clientProvider,
 		}
 
-		req, err := http.NewRequest(http.MethodPost, "/clients", tc.requestBody)
-		require.NoErrorf(err, msg)
+		req := httptest.NewRequest(http.MethodPost, "/api/v1/clients", tc.requestBody)
 
 		// when
 		handler := http.HandlerFunc(al.handlePostClients)
@@ -656,24 +659,25 @@ func TestHandleDeleteClient(t *testing.T) {
 					sessionService: NewSessionService(nil, sessions.NewSessionRepository(tc.sessions, &hour)),
 					clientCache:    tc.clientCache,
 					config: &Config{
-						Server: ServerConfig{AuthWrite: tc.clientAuthWrite},
+						Server: ServerConfig{
+							AuthWrite:       tc.clientAuthWrite,
+							MaxRequestBytes: 1024 * 1024,
+						},
 					},
 				},
 				Logger:         testLog,
 				clientProvider: tc.clientProvider,
 			}
+			al.initRouter()
 			mockConn.closed = false
 
-			url := fmt.Sprintf("/clients/%s", tc.clientID)
+			url := fmt.Sprintf("/api/v1/clients/%s", tc.clientID)
 			url += tc.urlSuffix
-			req, err := http.NewRequest(http.MethodDelete, url, nil)
-			require.NoError(err)
+			req := httptest.NewRequest(http.MethodDelete, url, nil)
 
 			// when
-			router := mux.NewRouter()
-			router.HandleFunc("/clients/{client_id}", al.handleDeleteClient)
 			w := httptest.NewRecorder()
-			router.ServeHTTP(w, req)
+			al.router.ServeHTTP(w, req)
 
 			// then
 			assert.Equal(tc.wantStatusCode, w.Code)
@@ -875,11 +879,15 @@ func TestHandlePostCommand(t *testing.T) {
 				Server: &Server{
 					sessionService: NewSessionService(nil, sessions.NewSessionRepository(tc.sessions, &hour)),
 					config: &Config{
-						Server: ServerConfig{RunRemoteCmdTimeout: defaultTimeout},
+						Server: ServerConfig{
+							RunRemoteCmdTimeout: defaultTimeout,
+							MaxRequestBytes:     1024 * 1024,
+						},
 					},
 				},
 				Logger: testLog,
 			}
+			al.initRouter()
 
 			jp := NewJobProviderMock()
 			jp.ReturnErr = tc.jpReturnSaveErr
@@ -894,14 +902,12 @@ func TestHandlePostCommand(t *testing.T) {
 			}
 
 			ctx := api.WithUser(context.Background(), testUser)
-			req, err := http.NewRequestWithContext(ctx, http.MethodPost, fmt.Sprintf("/sessions/%s/commands", tc.sid), strings.NewReader(tc.requestBody))
-			require.NoError(t, err)
+			req := httptest.NewRequest(http.MethodPost, fmt.Sprintf("/api/v1/sessions/%s/commands", tc.sid), strings.NewReader(tc.requestBody))
+			req = req.WithContext(ctx)
 
 			// when
-			router := mux.NewRouter()
-			router.HandleFunc("/sessions/{session_id}/commands", al.handlePostCommand)
 			w := httptest.NewRecorder()
-			router.ServeHTTP(w, req)
+			al.router.ServeHTTP(w, req)
 
 			// then
 			assert.Equal(t, tc.wantStatusCode, w.Code)
@@ -982,8 +988,13 @@ func TestHandleGetCommand(t *testing.T) {
 			// given
 			al := APIListener{
 				Logger: testLog,
-				Server: &Server{},
+				Server: &Server{
+					config: &Config{
+						Server: ServerConfig{MaxRequestBytes: 1024 * 1024},
+					},
+				},
 			}
+			al.initRouter()
 
 			jp := NewJobProviderMock()
 			jp.ReturnErr = tc.jpReturnErr
@@ -992,14 +1003,11 @@ func TestHandleGetCommand(t *testing.T) {
 				al.jobProvider = jp
 			}
 
-			req, err := http.NewRequest(http.MethodGet, fmt.Sprintf("/sessions/%s/commands/%s", wantJob.SID, wantJob.JID), nil)
-			require.NoError(t, err)
+			req := httptest.NewRequest(http.MethodGet, fmt.Sprintf("/api/v1/sessions/%s/commands/%s", wantJob.SID, wantJob.JID), nil)
 
 			// when
-			router := mux.NewRouter()
-			router.HandleFunc("/sessions/{session_id}/commands/{job_id}", al.handleGetCommand)
 			w := httptest.NewRecorder()
-			router.ServeHTTP(w, req)
+			al.router.ServeHTTP(w, req)
 
 			// then
 			assert.Equal(t, tc.wantStatusCode, w.Code)
@@ -1079,8 +1087,13 @@ func TestHandleGetCommands(t *testing.T) {
 			// given
 			al := APIListener{
 				Logger: testLog,
-				Server: &Server{},
+				Server: &Server{
+					config: &Config{
+						Server: ServerConfig{MaxRequestBytes: 1024 * 1024},
+					},
+				},
 			}
+			al.initRouter()
 
 			jp := NewJobProviderMock()
 			jp.ReturnErr = tc.jpReturnErr
@@ -1089,14 +1102,11 @@ func TestHandleGetCommands(t *testing.T) {
 				al.jobProvider = jp
 			}
 
-			req, err := http.NewRequest(http.MethodGet, fmt.Sprintf("/sessions/%s/commands", testSID), nil)
-			require.NoError(t, err)
+			req := httptest.NewRequest(http.MethodGet, fmt.Sprintf("/api/v1/sessions/%s/commands", testSID), nil)
 
 			// when
-			router := mux.NewRouter()
-			router.HandleFunc("/sessions/{session_id}/commands", al.handleGetCommands)
 			w := httptest.NewRecorder()
-			router.ServeHTTP(w, req)
+			al.router.ServeHTTP(w, req)
 
 			// then
 			assert.Equal(t, tc.wantStatusCode, w.Code)
@@ -1113,4 +1123,119 @@ func TestHandleGetCommands(t *testing.T) {
 			}
 		})
 	}
+}
+
+func TestHandleGetSessions(t *testing.T) {
+	s1 := sb.New(t).ID("session-1").ClientID(&cl1.ID).Build()
+	s2 := sb.New(t).ID("session-2").ClientID(&cl1.ID).DisconnectedDuration(5 * time.Minute).Build()
+	al := APIListener{
+		Server: &Server{
+			sessionService: NewSessionService(nil, sessions.NewSessionRepository([]*sessions.ClientSession{s1, s2}, &hour)),
+			config: &Config{
+				Server: ServerConfig{MaxRequestBytes: 1024 * 1024},
+			},
+		},
+	}
+	al.initRouter()
+
+	w := httptest.NewRecorder()
+	req := httptest.NewRequest("GET", "/api/v1/sessions", nil)
+	al.router.ServeHTTP(w, req)
+
+	expectedJSON := `{
+   "data":[
+      {
+         "id":"session-1",
+         "name":"Random Rport Client",
+         "os":"Linux alpine-3-10-tk-01 4.19.80-0-virt #1-Alpine SMP Fri Oct 18 11:51:24 UTC 2019 x86_64 Linux",
+         "os_arch":"amd64",
+         "os_family":"alpine",
+         "os_kernel":"linux",
+         "hostname":"alpine-3-10-tk-01",
+         "ipv4":[
+            "192.168.122.111"
+         ],
+         "ipv6":[
+            "fe80::b84f:aff:fe59:a0b1"
+         ],
+         "tags":[
+            "Linux",
+            "Datacenter 1"
+         ],
+         "version":"0.1.12",
+         "address":"88.198.189.161:50078",
+         "tunnels":[
+            {
+               "lhost":"0.0.0.0",
+               "lport":"2222",
+               "rhost":"0.0.0.0",
+               "rport":"22",
+               "lport_random":false,
+               "scheme":null,
+               "acl":null,
+               "id":"1"
+            },
+            {
+               "lhost":"0.0.0.0",
+               "lport":"4000",
+               "rhost":"0.0.0.0",
+               "rport":"80",
+               "lport_random":false,
+               "scheme":null,
+               "acl":null,
+               "id":"2"
+            }
+         ],
+         "client":"user1"
+      },
+      {
+         "id":"session-2",
+         "name":"Random Rport Client",
+         "os":"Linux alpine-3-10-tk-01 4.19.80-0-virt #1-Alpine SMP Fri Oct 18 11:51:24 UTC 2019 x86_64 Linux",
+         "os_arch":"amd64",
+         "os_family":"alpine",
+         "os_kernel":"linux",
+         "hostname":"alpine-3-10-tk-01",
+         "ipv4":[
+            "192.168.122.111"
+         ],
+         "ipv6":[
+            "fe80::b84f:aff:fe59:a0b1"
+         ],
+         "tags":[
+            "Linux",
+            "Datacenter 1"
+         ],
+         "version":"0.1.12",
+         "address":"88.198.189.161:50078",
+         "tunnels":[
+            {
+               "lhost":"0.0.0.0",
+               "lport":"2222",
+               "rhost":"0.0.0.0",
+               "rport":"22",
+               "lport_random":false,
+               "scheme":null,
+               "acl":null,
+               "id":"1"
+            },
+            {
+               "lhost":"0.0.0.0",
+               "lport":"4000",
+               "rhost":"0.0.0.0",
+               "rport":"80",
+               "lport_random":false,
+               "scheme":null,
+               "acl":null,
+               "id":"2"
+            }
+         ],
+         "disconnected":"2020-08-19T13:04:23+03:00",
+         "client":"user1"
+      }
+   ]
+}`
+
+	assert.Equal(t, 200, w.Code)
+	assert.JSONEq(t, expectedJSON, w.Body.String())
 }

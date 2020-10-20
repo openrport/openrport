@@ -2,11 +2,11 @@
 Create reverse tunnels with ease.
 
 ## At a glance
-Rport helps you to manage your remote servers without the hassle of VPNs, chained SSH connections, jump-hosts, or the use of commercial tools like TeamViewer and its clones. 
+Rport helps you to manage your remote servers without the hassle of VPNs, chained SSH connections, jump-hosts, or the use of commercial tools like TeamViewer and its clones.
 
-Rport acts as server and client establishing permanent or on-demand secure tunnels to devices inside protected intranets behind a firewall. 
+Rport acts as server and client establishing permanent or on-demand secure tunnels to devices inside protected intranets behind a firewall.
 
-All operating systems provide secure and well-established mechanisms for remote management, being SSH and Remote Desktop the most widely used. Rport makes them accessible easily and securely. 
+All operating systems provide secure and well-established mechanisms for remote management, being SSH and Remote Desktop the most widely used. Rport makes them accessible easily and securely.
 
 **Is Rport a replacement for TeamViewer?**
 Yes and no. It depends on your needs.
@@ -14,7 +14,7 @@ TeamViewer and a couple of similar products are focused on giving access to a re
 Apart from remote management, they offer supplementary services like Video Conferences, desktop sharing, screen mirroring, or spontaneous remote assistance for desktop users.
 
 **Goal of Rport**
-Rport focuses only on remote management of those operating systems where an existing login mechanism can be used. It can be used for Linux and Windows, but also appliances and IoT devices providing a web-based configuration. 
+Rport focuses only on remote management of those operating systems where an existing login mechanism can be used. It can be used for Linux and Windows, but also appliances and IoT devices providing a web-based configuration.
 From a technological perspective, [Ngrok](https://ngrok.com/) and [openport.io](https://openport.io) are similar products. Rport differs from them in many aspects.
 * Rport is 100% open source. Client and Server. Remote management is a matter of trust and security. Rport is fully transparent.
 * Rport will come with a user interface making the management of remote systems easy and user-friendly.
@@ -30,7 +30,7 @@ We provide [pre-compiled binaries](https://github.com/cloudradar-monitoring/rpor
     ```bash
     make all
     ```
-    `rport` and `rportd` binaries will appear in directory.  
+    `rport` and `rportd` binaries will appear in directory.
 
 2) Build using Docker:
     ```bash
@@ -68,20 +68,20 @@ curl -LSs https://github.com/cloudradar-monitoring/rport/releases/download/0.1.1
 tar vxzf - -C /usr/local/bin/
 ```
 
-Create a key for the server instance. Store this key and don't change it. You will use it later. Otherwise, your fingerprint will change and your clients might be rejected. 
+Create a key for the server instance. Store this key and don't change it. You will use it later. Otherwise, your fingerprint will change and your clients might be rejected.
 ```
 openssl rand -hex 18
-```  
+```
 
 Start the server as a background task.
 ```
 nohup rportd --key <YOUR_KEY> --addr 0.0.0.0:19075 &>/tmp/rportd.log &
 ```
-For the first testing leave the console open and observe the log with `tail -f /tmp/rportd.log`. 
+For the first testing leave the console open and observe the log with `tail -f /tmp/rportd.log`.
 
 ### Connect a client
 We call the client `client1.local.localdomain`.
-On your client just install the client binary 
+On your client just install the client binary
 ```
 curl -LSs https://github.com/cloudradar-monitoring/rport/releases/download/0.1.19/rport_0.1.19_Linux_x86_64.tar.gz|\
 tar vxzf - rport -C /usr/local/bin/
@@ -94,7 +94,7 @@ Observing the log of the server you get a confirmation about the newly created t
 Now you can access your machine behind a firewall through the tunnel. Try `ssh -p 2222 node1.example.com` and you will come out on the machine where the tunnel has been initiated.
 
 #### Let's improve security by using fingerprints
-Copy the fingerprint the server has generated on startup to your clipboard and use it on the client like this 
+Copy the fingerprint the server has generated on startup to your clipboard and use it on the client like this
 `rport --fingerprint <YOUR_FINGERPRINT> node1.example.com:19075 2222:0.0.0.0:22`.
 
 This ensures you connect only to trusted servers. If you omit this step a man in the middle can bring up a rport server and hijack your tunnels.
@@ -121,7 +121,7 @@ chown rport:root /var/log/rport/
 ```
 ### Run the server with systemd
 Packages for most common distributions and Windows are on our roadmap. In the meantime create a systemd service file in `/etc/systemd/system/rportd.service` with the following lines manually.
-``` 
+```
 [Unit]
 Description=Rport Server Daemon
 After=network-online.target
@@ -152,7 +152,7 @@ systemctl enable rportd
 ### Using authentication
 Anyone who knows the address and the port of your rport server can use it for tunneling. In most cases, this is not desired. Your rport server could be abused for example to publish content under your IP address. Therefore, using rport with authentication is highly recommended.
 
-Using a static username password pair is the most basic option. See the comments in the [rportd.example.conf](rportd.example.conf) and read more about all supported [authentication options](docs/client-auth.md). 
+Using a static username password pair is the most basic option. See the comments in the [rportd.example.conf](rportd.example.conf) and read more about all supported [authentication options](docs/client-auth.md).
 
 On the client start the tunnel this way
 `rport --auth rport:password123 --fingerprint <YOUR_FINGERPRINT> node1.example.com:19075 2222:0.0.0.0:22`
@@ -184,7 +184,7 @@ Read more about the supported [api authentication options](docs/api-auth.md).
 Read the [Swagger API docs](https://petstore.swagger.io/?url=https://raw.githubusercontent.com/cloudradar-monitoring/rport/master/api-doc.yml).
 
 #### Step 2: Connect a client
-Invoke the client without specifying a tunnel but with some extra data.  
+Invoke the client without specifying a tunnel but with some extra data.
 ```
 rport --id 2ba9174e-640e-4694-ad35-34a2d6f3986b \
   --fingerprint c5:26:2b:65:29:a8:0f:ed:ef:77:c9:5c:f1:2a:36:8a \
@@ -197,7 +197,7 @@ rport --id 2ba9174e-640e-4694-ad35-34a2d6f3986b \
 This attaches the client to the message queue of the server without creating a tunnel.
 
 #### Step 3: Manage clients and tunnels
-On the server, you can supervise the attached clients using 
+On the server, you can supervise the attached clients using
 `curl -s -u admin:foobaz http://localhost:3000/api/v1/sessions`. *Use `jq` for pretty-printing json.*
 Here is an example:
 ```
@@ -207,6 +207,9 @@ curl -s -u admin:foobaz http://localhost:3000/api/v1/sessions|jq
     "id": "2ba9174e-640e-4694-ad35-34a2d6f3986b",
     "name": "My Test VM",
     "os": "Linux my-devvm-v3 5.4.0-37-generic #41-Ubuntu SMP Wed Jun 3 18:57:02 UTC 2020 x86_64 x86_64 x86_64 GNU/Linux",
+    "os_arch": "amd64",
+    "os_family": "debian",
+    "os_kernel": "linux",
     "hostname": "my-devvm-v3",
     "ipv4": [
       "192.168.3.148"
@@ -226,6 +229,9 @@ curl -s -u admin:foobaz http://localhost:3000/api/v1/sessions|jq
     "id": "aa1210c7-1899-491e-8e71-564cacaf1df8",
     "name": "Random Rport Client",
     "os": "Linux alpine-3-10-tk-01 4.19.80-0-virt #1-Alpine SMP Fri Oct 18 11:51:24 UTC 2019 x86_64 Linux",
+    "os_arch": "amd64",
+    "os_family": "alpine",
+    "os_kernel": "linux",
     "hostname": "alpine-3-10-tk-01",
     "ipv4": [
       "192.168.122.117"

@@ -469,7 +469,16 @@ definitions:
         description: "client name"
       os:
         type: "string"
-        description: "client OS"
+        description: "client OS description"
+      os_arch:
+        type: "string"
+        description: "client cpu architecture (ex: 386, amd64)"
+      os_family:
+        type: "string"
+        description: "client OS family (ex: debian, alpine, Standalone Workstation)"
+      os_kernel:
+        type: "string"
+        description: "client OS kernel (ex: linux, windows)"
       hostname:
         type: "string"
         description: "client hostname"
