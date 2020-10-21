@@ -67,7 +67,7 @@ func (c *Client) HandleRunCmdRequest(ctx context.Context, reqPayload []byte) (*c
 				status = models.JobStatusFailed
 				c.Errorf("failed to run command[jid=%q,pid=%d]:\ncmd:\n%s\nerr: %s", job.JID, res.Pid, job.Command, err)
 			} else {
-				status = models.JobStatusFinished
+				status = models.JobStatusSuccessful
 			}
 		case <-time.After(job.Timeout):
 			status = models.JobStatusUnknown

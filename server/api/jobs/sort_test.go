@@ -17,7 +17,7 @@ func TestSortByFinishedAt(t *testing.T) {
 	j2 := jb.New(t).JID("2").Status(models.JobStatusRunning).Build().JobSummary
 	j3 := jb.New(t).JID("3").Status(models.JobStatusRunning).Build().JobSummary
 	j4 := jb.New(t).JID("4").Status(models.JobStatusFailed).FinishedAt(ft.Add(time.Minute)).Build().JobSummary
-	j5 := jb.New(t).JID("5").Status(models.JobStatusFinished).FinishedAt(ft).Build().JobSummary
+	j5 := jb.New(t).JID("5").Status(models.JobStatusSuccessful).FinishedAt(ft).Build().JobSummary
 	j6 := jb.New(t).JID("6").Status(models.JobStatusUnknown).FinishedAt(ft.Add(-time.Hour)).Build().JobSummary
 
 	testCases := []struct {

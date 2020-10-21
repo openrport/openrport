@@ -528,7 +528,7 @@ definitions:
     type: "string"
     enum: &JOB_STATUS
       - "running"
-      - "finished"
+      - "successful"
       - "unknown"
       - "failed"
   Job:
@@ -583,7 +583,7 @@ definitions:
         description: "job ID"
       status:
         type: "string"
-        enum: [running, finished]
+        enum: *JOB_STATUS
         description: "command status"
       finished_at:
         type: "string"

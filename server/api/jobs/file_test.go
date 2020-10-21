@@ -19,7 +19,7 @@ func TestGetByJID(t *testing.T) {
 	job1Running := jb.New(t).Status(models.JobStatusRunning).Build()
 	job2Running := jb.New(t).SID(job1Running.SID).Status(models.JobStatusRunning).Build()
 	ft := time.Date(2020, 10, 10, 10, 10, 10, 0, time.UTC)
-	job3 := jb.New(t).Status(models.JobStatusFinished).FinishedAt(ft).Build()
+	job3 := jb.New(t).Status(models.JobStatusSuccessful).FinishedAt(ft).Build()
 
 	testCases := []struct {
 		name string
@@ -126,16 +126,20 @@ func TestGetByJID(t *testing.T) {
 			}
 			// check invoked funcs and input values
 			assert.Equal(tc.wantExistPath, fileAPIMock.ExistPathInvoked)
-			var wantFilePath string
+			var wantFilePathPrefix string
+			var wantFilePathSuffix string
 			if tc.wantExistPath || tc.wantReadFile {
-				wantFilePath = fp.getFileFullPath(tc.sid, tc.jid)
+				wantFilePathPrefix = fp.getSessionDirFullPath(tc.sid)
+				wantFilePathSuffix = tc.jid + jobFileExtension
 			}
 			if tc.wantExistPath {
-				assert.Equal(wantFilePath, fileAPIMock.InputExistPath)
+				assert.Contains(fileAPIMock.InputExistPath, wantFilePathPrefix)
+				assert.Contains(fileAPIMock.InputExistPath, wantFilePathSuffix)
 			}
 			assert.Equal(tc.wantReadFile, fileAPIMock.ReadFileInvoked)
 			if tc.wantReadFile {
-				assert.Equal(wantFilePath, fileAPIMock.InputReadFile)
+				assert.Contains(fileAPIMock.InputReadFile, wantFilePathPrefix)
+				assert.Contains(fileAPIMock.InputReadFile, wantFilePathSuffix)
 			}
 		})
 	}
@@ -145,33 +149,37 @@ func TestGetSummariesBySID(t *testing.T) {
 	job1Running := jb.New(t).Status(models.JobStatusRunning).Build()
 	job2Running := jb.New(t).Status(models.JobStatusRunning).Build() // with different sid
 	ft := time.Date(2020, 10, 10, 10, 10, 10, 0, time.UTC)
-	job1 := jb.New(t).SID(job1Running.SID).Status(models.JobStatusFinished).FinishedAt(ft).Build()
+	job1 := jb.New(t).SID(job1Running.SID).Status(models.JobStatusSuccessful).FinishedAt(ft).Build()
 	job2 := jb.New(t).SID(job1Running.SID).Status(models.JobStatusUnknown).FinishedAt(ft.Add(time.Minute)).Build()
 	job3 := jb.New(t).SID(job1Running.SID).Status(models.JobStatusFailed).FinishedAt(ft.Add(-time.Hour)).Build()
-	job4 := jb.New(t).SID(job1Running.SID).Status(models.JobStatusFinished).FinishedAt(ft).Build()
-	job5 := jb.New(t).SID(job1Running.SID).Status(models.JobStatusFinished).FinishedAt(ft).Build()
-	wantJob2Sum := job2.JobSummary
-	wantJob2Sum.Status = models.JobStatusFinished
-	wantJob3Sum := job3.JobSummary
-	wantJob3Sum.Status = models.JobStatusFinished
+	job4 := jb.New(t).SID(job1Running.SID).Status(models.JobStatusSuccessful).FinishedAt(ft).Build()
+	job5 := jb.New(t).SID(job1Running.SID).Status(models.JobStatusSuccessful).FinishedAt(ft).Build()
 	file1 := &test.FileMock{
-		ReturnName:    job1.JID + ".json",
+		ReturnName:    "s-" + job1.JID + ".json",
 		ReturnModTime: *job1.FinishedAt,
 	}
 	file2 := &test.FileMock{
-		ReturnName:    job2.JID + ".json",
+		ReturnName:    "u-" + job2.JID + ".json",
 		ReturnModTime: *job2.FinishedAt,
 	}
 	file3 := &test.FileMock{
-		ReturnName:    job3.JID + ".json",
+		ReturnName:    "f-" + job3.JID + ".json",
 		ReturnModTime: *job3.FinishedAt,
 	}
 	file4 := &test.FileMock{
-		ReturnName:    job4.JID + ".data", // wrong extension
+		ReturnName:    "s-" + job4.JID + ".data", // wrong extension
 		ReturnModTime: *job4.FinishedAt,
 	}
 	file5 := &test.FileMock{
-		ReturnName:    job5.JID, // no extension
+		ReturnName:    "s-" + job5.JID, // no extension
+		ReturnModTime: *job5.FinishedAt,
+	}
+	file6 := &test.FileMock{
+		ReturnName:    "p-" + job5.JID, // incorrect prefix
+		ReturnModTime: *job5.FinishedAt,
+	}
+	file7 := &test.FileMock{
+		ReturnName:    job5.JID, // no prefix
 		ReturnModTime: *job5.FinishedAt,
 	}
 
@@ -221,8 +229,8 @@ func TestGetSummariesBySID(t *testing.T) {
 			runningJobs:         nil,
 			sid:                 job1Running.SID,
 			fReturnExist:        true,
-			fReturnReadDirFiles: []os.FileInfo{file1, file2, file3, file4, file5},
-			wantRes:             []*models.JobSummary{&job1.JobSummary, &wantJob2Sum, &wantJob3Sum},
+			fReturnReadDirFiles: []os.FileInfo{file1, file2, file3, file4, file5, file6, file7},
+			wantRes:             []*models.JobSummary{&job1.JobSummary, &job2.JobSummary, &job3.JobSummary},
 			wantExistPath:       true,
 			wantReadDir:         true,
 		},
@@ -232,7 +240,7 @@ func TestGetSummariesBySID(t *testing.T) {
 			sid:                 job1Running.SID,
 			fReturnExist:        true,
 			fReturnReadDirFiles: []os.FileInfo{file1, file2, file3},
-			wantRes:             []*models.JobSummary{&job1Running.JobSummary, &job1.JobSummary, &wantJob2Sum, &wantJob3Sum},
+			wantRes:             []*models.JobSummary{&job1Running.JobSummary, &job1.JobSummary, &job2.JobSummary, &job3.JobSummary},
 			wantExistPath:       true,
 			wantReadDir:         true,
 		},
@@ -308,8 +316,8 @@ func TestSaveJob(t *testing.T) {
 	job2Running := jb.New(t).SID(job1Running.SID).Status(models.JobStatusRunning).Build()
 	job3Running := jb.New(t).Status(models.JobStatusRunning).Build() // with different sid
 	ft := time.Date(2020, 10, 10, 10, 10, 10, 0, time.UTC)
-	job1 := jb.New(t).SID(job1Running.SID).JID(job1Running.JID).Status(models.JobStatusFinished).FinishedAt(ft).Build()
-	job2 := jb.New(t).SID(job1Running.SID).Status(models.JobStatusFinished).FinishedAt(ft).Build() // with same SID but different JID
+	job1 := jb.New(t).SID(job1Running.SID).JID(job1Running.JID).Status(models.JobStatusSuccessful).FinishedAt(ft).Build()
+	job2 := jb.New(t).SID(job1Running.SID).Status(models.JobStatusUnknown).FinishedAt(ft).Build() // with same SID but different JID
 
 	testCases := []struct {
 		name string
@@ -425,7 +433,7 @@ func TestSaveJob(t *testing.T) {
 				assert.Equal(wantDirPath, fileAPIMock.InputMakeDir)
 			}
 			if tc.wantCreateFile {
-				wantFilePath := fp.getFileFullPath(tc.job.SID, tc.job.JID)
+				wantFilePath := fp.getFileFullPath(tc.job.SID, tc.job.JID, tc.job.Status)
 				assert.Equal(wantFilePath, fileAPIMock.InputCreateFile)
 				assert.Equal(tc.job, fileAPIMock.InputCreateFileContent)
 			}
@@ -440,9 +448,44 @@ func TestGetFileFullPath(t *testing.T) {
 	sidSHA1 := "40bd001563085fc35165329ea1ff5c5ecbdbbeef"
 	fp := NewFileProvider(test.NewFileAPIMock(), testJobsDir)
 
-	// when
-	gotRes := fp.getFileFullPath("123", testJID)
+	testCases := []struct {
+		name       string
+		status     string
+		wantPrefix string
+	}{
+		{
+			name:       "empty status",
+			status:     "",
+			wantPrefix: "",
+		},
+		{
+			name:       "unsupported status",
+			status:     "unsupported",
+			wantPrefix: "",
+		},
+		{
+			name:       "successful status",
+			status:     models.JobStatusSuccessful,
+			wantPrefix: "s-",
+		},
+		{
+			name:       "failed status",
+			status:     models.JobStatusFailed,
+			wantPrefix: "f-",
+		},
+		{
+			name:       "unknown status",
+			status:     models.JobStatusUnknown,
+			wantPrefix: "u-",
+		},
+	}
+	for _, tc := range testCases {
+		t.Run(tc.name, func(t *testing.T) {
+			// when
+			gotRes := fp.getFileFullPath("123", testJID, tc.status)
 
-	// then
-	assert.Equal(t, path.Join(testJobsDir, sidSHA1, testJID+".json"), gotRes)
+			// then
+			assert.Equal(t, path.Join(testJobsDir, sidSHA1, tc.wantPrefix+testJID+".json"), gotRes)
+		})
+	}
 }

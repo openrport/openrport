@@ -977,7 +977,7 @@ func TestHandleGetCommands(t *testing.T) {
 	ft := time.Date(2020, 10, 10, 10, 10, 10, 0, time.UTC)
 	testSID := "sid-1234"
 	jb := jb.New(t).SID(testSID)
-	job1 := jb.Status(models.JobStatusFinished).FinishedAt(ft).Build().JobSummary
+	job1 := jb.Status(models.JobStatusSuccessful).FinishedAt(ft).Build().JobSummary
 	job2 := jb.Status(models.JobStatusUnknown).FinishedAt(ft.Add(-time.Hour)).Build().JobSummary
 	job3 := jb.Status(models.JobStatusFailed).FinishedAt(ft.Add(time.Minute)).Build().JobSummary
 	job4 := jb.Status(models.JobStatusRunning).Build().JobSummary

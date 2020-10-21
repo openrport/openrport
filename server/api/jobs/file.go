@@ -14,6 +14,20 @@ import (
 
 const jobFileExtension = ".json"
 
+const prefixLength = 2
+
+var prefixStatusMapping = map[string]string{
+	"s-": models.JobStatusSuccessful,
+	"f-": models.JobStatusFailed,
+	"u-": models.JobStatusUnknown,
+}
+
+var statusPrefixMapping = map[string]string{
+	models.JobStatusSuccessful: "s-",
+	models.JobStatusFailed:     "f-",
+	models.JobStatusUnknown:    "u-",
+}
+
 type FileProvider struct {
 	fileAPI     files.FileAPI
 	jobsDir     string
@@ -41,17 +55,25 @@ func (p *FileProvider) GetByJID(sid, jid string) (*models.Job, error) {
 	}
 
 	// check among finished jobs
-	filePath := p.getFileFullPath(sid, jid)
-	exist, err := p.fileAPI.Exist(filePath)
-	if err != nil {
-		return nil, fmt.Errorf("failed to check whether job file exists: %s", err)
+	var existingFilePath string
+	// go through each possible prefix to find a requested job
+	for curStatus := range statusPrefixMapping {
+		filePath := p.getFileFullPath(sid, jid, curStatus)
+		exist, err := p.fileAPI.Exist(filePath)
+		if err != nil {
+			return nil, fmt.Errorf("failed to check whether job file exists: %s", err)
+		}
+		if exist {
+			existingFilePath = filePath
+			break
+		}
 	}
-	if !exist {
+	if existingFilePath == "" {
 		return nil, nil
 	}
 
 	job := models.Job{}
-	err = p.fileAPI.ReadFileJSON(filePath, &job)
+	err := p.fileAPI.ReadFileJSON(existingFilePath, &job)
 	if err != nil {
 		return nil, fmt.Errorf("failed to parse job file: %s", err)
 	}
@@ -125,7 +147,7 @@ func (p *FileProvider) SaveJob(job *models.Job) error {
 		return fmt.Errorf("failed to create jobs dir for client: %s", err)
 	}
 
-	if err := p.fileAPI.CreateFileJSON(p.getFileFullPath(job.SID, job.JID), job); err != nil {
+	if err := p.fileAPI.CreateFileJSON(p.getFileFullPath(job.SID, job.JID, job.Status), job); err != nil {
 		return fmt.Errorf("failed to create job file: %s", err)
 	}
 
@@ -138,17 +160,22 @@ func convertToJobSummary(file os.FileInfo) *models.JobSummary {
 	}
 
 	fileName := file.Name()
-	jid := fileName[:len(fileName)-len(jobFileExtension)]
+	prefix := fileName[:prefixLength]
+	status := prefixStatusMapping[prefix]
+	if status == "" {
+		return nil
+	}
+	jid := fileName[prefixLength : len(fileName)-len(jobFileExtension)]
 	finishedAt := file.ModTime()
 	return &models.JobSummary{
 		JID:        jid,
-		Status:     models.JobStatusFinished, // NOTE: actual status of the job can be for example 'unknown', but it's ok to set it as 'finished', since 'finished' includes 'unknown'
+		Status:     status,
 		FinishedAt: &finishedAt,
 	}
 }
 
-func (p *FileProvider) getFileFullPath(sid, jid string) string {
-	return path.Join(p.getSessionDirFullPath(sid), jid+jobFileExtension)
+func (p *FileProvider) getFileFullPath(sid, jid, status string) string {
+	return path.Join(p.getSessionDirFullPath(sid), statusPrefixMapping[status]+jid+jobFileExtension)
 }
 
 func (p *FileProvider) getSessionDirFullPath(sid string) string {

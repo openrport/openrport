@@ -5,10 +5,10 @@ import (
 )
 
 const (
-	JobStatusFinished = "finished"
-	JobStatusRunning  = "running"
-	JobStatusFailed   = "failed"
-	JobStatusUnknown  = "unknown"
+	JobStatusSuccessful = "successful"
+	JobStatusRunning    = "running"
+	JobStatusFailed     = "failed"
+	JobStatusUnknown    = "unknown"
 )
 
 type Job struct {

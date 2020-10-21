@@ -62,7 +62,7 @@ func TestHandleRunCmdRequestNormalCase(t *testing.T) {
 	wantJobJSON := `
 {
 	"jid": "5f02b216-3f8a-42be-b66c-f4c1d0ea3809",
-	"status": "finished",
+	"status": "successful",
 	"finished_at": "2020-08-19T12:00:00+03:00",
 	"sid": "d81e6b93e75aef59a7701b90555f43808458b34e30370c3b808c1816a32252b3",
 	"command": "/bin/date;foo;whoami",

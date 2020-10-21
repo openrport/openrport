@@ -32,7 +32,7 @@ func New(t *testing.T) JobBuilder {
 	return JobBuilder{
 		t:         t,
 		sid:       generateRandomSID(),
-		status:    models.JobStatusFinished,
+		status:    models.JobStatusSuccessful,
 		startedAt: time.Date(2020, 10, 10, 10, 10, 10, 0, time.UTC),
 	}
 }
