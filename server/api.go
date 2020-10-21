@@ -546,10 +546,6 @@ const (
 )
 
 func (al *APIListener) handleGetClients(w http.ResponseWriter, req *http.Request) {
-	if !al.allowClientAuthRead(w) {
-		return
-	}
-
 	rClients := al.clientCache.GetAll()
 	clients.SortByID(rClients, false)
 
@@ -638,19 +634,7 @@ func (al *APIListener) handleDeleteClient(w http.ResponseWriter, req *http.Reque
 	w.WriteHeader(http.StatusNoContent)
 }
 
-func (al *APIListener) allowClientAuthRead(w http.ResponseWriter) bool {
-	if al.clientCache == nil {
-		al.jsonErrorResponseWithErrCode(w, http.StatusMethodNotAllowed, ErrCodeClientAuthDisabled, "Client authentication is disabled.")
-		return false
-	}
-	return true
-}
-
 func (al *APIListener) allowClientAuthWrite(w http.ResponseWriter) bool {
-	if !al.allowClientAuthRead(w) {
-		return false
-	}
-
 	if al.clientCache.IsSingleClient() {
 		al.jsonErrorResponseWithErrCode(w, http.StatusMethodNotAllowed, ErrCodeClientAuthSingleClient, "Client authentication is enabled only for a single user.")
 		return false

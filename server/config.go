@@ -125,6 +125,10 @@ func (c *Config) ParseAndValidate() error {
 		return fmt.Errorf("expected 'Keep Lost Clients' can be in range [%v, %v], actual: %v", MinKeepLostClients, MaxKeepLostClients, c.Server.KeepLostClients)
 	}
 
+	if c.Server.Auth == "" && c.Server.AuthFile == "" {
+		return errors.New("client authentication must to be enabled: set either 'auth' or 'auth_file'")
+	}
+
 	return nil
 }
 

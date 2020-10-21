@@ -53,10 +53,8 @@ func NewClientListener(server *Server, privateKey ssh.Signer) (*ClientListener, 
 	}
 	//create ssh config
 	cl.sshConfig = &ssh.ServerConfig{
-		ServerVersion: "SSH-" + chshare.ProtocolVersion + "-server",
-	}
-	if cl.clientCache != nil {
-		cl.sshConfig.PasswordCallback = cl.authUser
+		ServerVersion:    "SSH-" + chshare.ProtocolVersion + "-server",
+		PasswordCallback: cl.authUser,
 	}
 	cl.sshConfig.AddHostKey(privateKey)
 	//setup reverse proxy
@@ -190,7 +188,7 @@ func (cl *ClientListener) handleWebsocket(w http.ResponseWriter, req *http.Reque
 	sshID := sessions.GetSessionID(sshConn)
 
 	// get the current client
-	client := cl.getSessionClient(sshConn.User())
+	client := cl.clientCache.Get(sshConn.User())
 
 	// client session id
 	sid := cl.getSID(connRequest.ID, cl.config, client, sshID)
@@ -278,14 +276,6 @@ func checkVersions(log *chshare.Logger, clientVersion string) {
 	}
 
 	log.Infof("Client version (%s) differs from server version (%s)", v, chshare.BuildVersion)
-}
-
-func (cl *ClientListener) getSessionClient(clientID string) *clients.Client {
-	if cl.clientCache == nil {
-		return nil
-	}
-
-	return cl.clientCache.Get(clientID)
 }
 
 func (cl *ClientListener) getSID(reqID string, config *Config, client *clients.Client, sshSessionID string) string {

@@ -84,14 +84,9 @@ func NewServer(config *Config, filesAPI files.FileAPI) (*Server, error) {
 	if err != nil {
 		return nil, err
 	}
-
-	if clientProvider != nil {
-		s.Infof("Client authentication enabled.")
-
-		s.clientCache, err = clients.NewClientCache(clientProvider)
-		if err != nil {
-			return nil, err
-		}
+	s.clientCache, err = clients.NewClientCache(clientProvider)
+	if err != nil {
+		return nil, err
 	}
 
 	s.clientListener, err = NewClientListener(s, privateKey)
@@ -127,7 +122,7 @@ func getClientProvider(log *chshare.Logger, config *Config) (clients.Provider, e
 		return clients.NewSingleClient(log, config.Server.Auth), nil
 	}
 
-	return nil, nil
+	return nil, errors.New("client authentication must to be enabled: set either 'auth' or 'auth_file'")
 }
 
 func initPrivateKey(seed string) (ssh.Signer, error) {

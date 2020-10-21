@@ -188,12 +188,6 @@ func TestHandleGetClients(t *testing.T) {
 			wantStatusCode: http.StatusOK,
 			wantClients:    []*clients.Client{cl1},
 		},
-		{
-			descr:          "no auth",
-			wantStatusCode: http.StatusMethodNotAllowed,
-			wantErrTitle:   "Client authentication is disabled.",
-			wantErrCode:    ErrCodeClientAuthDisabled,
-		},
 	}
 
 	for _, tc := range testCases {
@@ -394,14 +388,6 @@ func TestHandlePostClients(t *testing.T) {
 			wantErrTitle:    "Client authentication is enabled only for a single user.",
 			wantClients:     []*clients.Client{cl1},
 		},
-		{
-			descr:           "no auth",
-			clientAuthWrite: true,
-			requestBody:     composeRequestBody(cl4.ID, cl4.Password),
-			wantStatusCode:  http.StatusMethodNotAllowed,
-			wantErrCode:     ErrCodeClientAuthDisabled,
-			wantErrTitle:    "Client authentication is disabled.",
-		},
 	}
 
 	for _, tc := range testCases {
@@ -580,14 +566,6 @@ func TestHandleDeleteClient(t *testing.T) {
 			wantErrCode:     ErrCodeClientAuthSingleClient,
 			wantErrTitle:    "Client authentication is enabled only for a single user.",
 			wantClients:     []*clients.Client{cl1},
-		},
-		{
-			descr:           "no auth",
-			clientAuthWrite: true,
-			clientID:        cl1.ID,
-			wantStatusCode:  http.StatusMethodNotAllowed,
-			wantErrCode:     ErrCodeClientAuthDisabled,
-			wantErrTitle:    "Client authentication is disabled.",
 		},
 	}
 
