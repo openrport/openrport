@@ -639,12 +639,8 @@ func (al *APIListener) handleDeleteClient(w http.ResponseWriter, req *http.Reque
 }
 
 func (al *APIListener) allowClientAuthRead(w http.ResponseWriter) bool {
-	if al.clientProvider == nil {
-		al.jsonErrorResponseWithErrCode(w, http.StatusMethodNotAllowed, ErrCodeClientAuthDisabled, "Client authentication is disabled.")
-		return false
-	}
 	if al.clientCache == nil {
-		al.jsonErrorResponseWithTitle(w, http.StatusInternalServerError, "Rport clients cache is not initialized.")
+		al.jsonErrorResponseWithErrCode(w, http.StatusMethodNotAllowed, ErrCodeClientAuthDisabled, "Client authentication is disabled.")
 		return false
 	}
 	return true
@@ -655,9 +651,7 @@ func (al *APIListener) allowClientAuthWrite(w http.ResponseWriter) bool {
 		return false
 	}
 
-	var i interface{} = al.clientProvider
-	switch i.(type) {
-	case *clients.SingleClient:
+	if al.clientCache.IsSingleClient() {
 		al.jsonErrorResponseWithErrCode(w, http.StatusMethodNotAllowed, ErrCodeClientAuthSingleClient, "Client authentication is enabled only for a single user.")
 		return false
 	}

@@ -88,11 +88,10 @@ func NewServer(config *Config, filesAPI files.FileAPI) (*Server, error) {
 	if clientProvider != nil {
 		s.Infof("Client authentication enabled.")
 
-		all, InErr := clientProvider.GetAll()
-		if InErr != nil {
-			return nil, InErr
+		s.clientCache, err = clients.NewClientCache(clientProvider)
+		if err != nil {
+			return nil, err
 		}
-		s.clientCache = clients.NewClientCache(all)
 	}
 
 	s.clientListener, err = NewClientListener(s, privateKey)
@@ -100,7 +99,7 @@ func NewServer(config *Config, filesAPI files.FileAPI) (*Server, error) {
 		return nil, err
 	}
 
-	s.apiListener, err = NewAPIListener(s, clientProvider, fingerprint)
+	s.apiListener, err = NewAPIListener(s, fingerprint)
 	if err != nil {
 		return nil, err
 	}
@@ -115,11 +114,7 @@ func getJobsDirectory(datDir string) string {
 	return path.Join(datDir, "jobs")
 }
 
-type ClientProvider interface {
-	GetAll() ([]*clients.Client, error)
-}
-
-func getClientProvider(log *chshare.Logger, config *Config) (ClientProvider, error) {
+func getClientProvider(log *chshare.Logger, config *Config) (clients.Provider, error) {
 	if config.Server.AuthFile != "" && config.Server.Auth != "" {
 		return nil, errors.New("'auth_file' and 'auth' are both set: expected only one of them ")
 	}

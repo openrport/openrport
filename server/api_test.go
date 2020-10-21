@@ -153,9 +153,6 @@ var (
 	cl1 = &clients.Client{ID: "user1", Password: "pswd1"}
 	cl2 = &clients.Client{ID: "user2", Password: "pswd2"}
 	cl3 = &clients.Client{ID: "user3", Password: "pswd3"}
-
-	clientsFileProvider  = clients.NewFileClients(testLog, "test_file")
-	singleClientProvider = clients.NewSingleClient(testLog, cl1.ID+":"+cl1.Password)
 )
 
 func TestHandleGetClients(t *testing.T) {
@@ -163,12 +160,10 @@ func TestHandleGetClients(t *testing.T) {
 
 	req := httptest.NewRequest(http.MethodGet, "/api/v1/clients", nil)
 
-	testClients := clients.NewClientCache([]*clients.Client{cl1, cl3, cl2})
 	testCases := []struct {
 		descr string // Test Case Description
 
-		clientProvider ClientProvider
-		clientCache    *clients.ClientCache
+		provider clients.Provider
 
 		wantStatusCode int
 		wantClients    []*clients.Client
@@ -177,36 +172,24 @@ func TestHandleGetClients(t *testing.T) {
 	}{
 		{
 			descr:          "auth file, 3 clients",
-			clientProvider: clientsFileProvider,
-			clientCache:    testClients,
+			provider:       clients.NewMockProvider([]*clients.Client{cl1, cl2, cl3}),
 			wantStatusCode: http.StatusOK,
 			wantClients:    []*clients.Client{cl1, cl2, cl3},
 		},
 		{
 			descr:          "auth file, no clients",
-			clientProvider: clientsFileProvider,
-			clientCache:    clients.NewEmptyClientCache(),
+			provider:       clients.NewMockProvider([]*clients.Client{}),
 			wantStatusCode: http.StatusOK,
 			wantClients:    []*clients.Client{},
 		},
 		{
 			descr:          "auth, single client",
-			clientProvider: singleClientProvider,
-			clientCache:    clients.NewClientCache([]*clients.Client{cl1}),
+			provider:       clients.NewSingleClient(testLog, cl1.ID+":"+cl1.Password),
 			wantStatusCode: http.StatusOK,
 			wantClients:    []*clients.Client{cl1},
 		},
 		{
-			descr:          "auth file, unset clients cache",
-			clientProvider: clientsFileProvider,
-			clientCache:    nil,
-			wantStatusCode: http.StatusInternalServerError,
-			wantErrTitle:   "Rport clients cache is not initialized.",
-		},
-		{
 			descr:          "no auth",
-			clientProvider: nil,
-			clientCache:    clients.NewEmptyClientCache(),
 			wantStatusCode: http.StatusMethodNotAllowed,
 			wantErrTitle:   "Client authentication is disabled.",
 			wantErrCode:    ErrCodeClientAuthDisabled,
@@ -218,14 +201,17 @@ func TestHandleGetClients(t *testing.T) {
 
 		// given
 		al := APIListener{
-			Logger:         testLog,
-			clientProvider: tc.clientProvider,
+			Logger: testLog,
 			Server: &Server{
-				clientCache: tc.clientCache,
 				config: &Config{
 					Server: ServerConfig{MaxRequestBytes: 1024 * 1024},
 				},
 			},
+		}
+		if tc.provider != nil {
+			var err error
+			al.Server.clientCache, err = clients.NewClientCache(tc.provider)
+			require.NoError(err)
 		}
 
 		// when
@@ -265,8 +251,7 @@ func TestHandlePostClients(t *testing.T) {
 	testCases := []struct {
 		descr string // Test Case Description
 
-		clientProvider  ClientProvider
-		clientCache     *clients.ClientCache
+		provider        clients.Provider
 		clientAuthWrite bool
 		requestBody     io.Reader
 
@@ -278,8 +263,7 @@ func TestHandlePostClients(t *testing.T) {
 	}{
 		{
 			descr:           "auth file, new valid client",
-			clientProvider:  clientsFileProvider,
-			clientCache:     clients.NewClientCache(initCacheState),
+			provider:        clients.NewMockProvider(initCacheState),
 			clientAuthWrite: true,
 			requestBody:     composeRequestBody(cl4.ID, cl4.Password),
 			wantStatusCode:  http.StatusCreated,
@@ -287,26 +271,15 @@ func TestHandlePostClients(t *testing.T) {
 		},
 		{
 			descr:           "auth file, new valid client, empty cache",
-			clientProvider:  clientsFileProvider,
-			clientCache:     clients.NewEmptyClientCache(),
+			provider:        clients.NewMockProvider([]*clients.Client{}),
 			clientAuthWrite: true,
 			requestBody:     composeRequestBody(cl4.ID, cl4.Password),
 			wantStatusCode:  http.StatusCreated,
 			wantClients:     []*clients.Client{cl4},
 		},
 		{
-			descr:           "auth file, new valid client, clients cache is not initialized",
-			clientProvider:  clientsFileProvider,
-			clientCache:     nil,
-			clientAuthWrite: true,
-			requestBody:     composeRequestBody(cl4.ID, cl4.Password),
-			wantStatusCode:  http.StatusInternalServerError,
-			wantErrTitle:    "Rport clients cache is not initialized.",
-		},
-		{
 			descr:           "auth file, empty request body",
-			clientProvider:  clientsFileProvider,
-			clientCache:     clients.NewClientCache(initCacheState),
+			provider:        clients.NewMockProvider(initCacheState),
 			clientAuthWrite: true,
 			requestBody:     strings.NewReader(""),
 			wantStatusCode:  http.StatusBadRequest,
@@ -316,8 +289,7 @@ func TestHandlePostClients(t *testing.T) {
 		},
 		{
 			descr:           "auth file, invalid request body",
-			clientProvider:  clientsFileProvider,
-			clientCache:     clients.NewClientCache(initCacheState),
+			provider:        clients.NewMockProvider(initCacheState),
 			clientAuthWrite: true,
 			requestBody:     strings.NewReader("invalid json"),
 			wantStatusCode:  http.StatusBadRequest,
@@ -328,8 +300,7 @@ func TestHandlePostClients(t *testing.T) {
 		},
 		{
 			descr:           "auth file, invalid request, empty id",
-			clientProvider:  clientsFileProvider,
-			clientCache:     clients.NewClientCache(initCacheState),
+			provider:        clients.NewMockProvider(initCacheState),
 			clientAuthWrite: true,
 			requestBody:     composeRequestBody("", cl4.Password),
 			wantStatusCode:  http.StatusBadRequest,
@@ -340,8 +311,7 @@ func TestHandlePostClients(t *testing.T) {
 		},
 		{
 			descr:           "auth file, invalid request, 'id' is missing",
-			clientProvider:  clientsFileProvider,
-			clientCache:     clients.NewClientCache(initCacheState),
+			provider:        clients.NewMockProvider(initCacheState),
 			clientAuthWrite: true,
 			requestBody:     strings.NewReader(`{"password":"pswd"}`),
 			wantStatusCode:  http.StatusBadRequest,
@@ -352,8 +322,7 @@ func TestHandlePostClients(t *testing.T) {
 		},
 		{
 			descr:           "auth file, invalid request, empty password",
-			clientProvider:  clientsFileProvider,
-			clientCache:     clients.NewClientCache(initCacheState),
+			provider:        clients.NewMockProvider(initCacheState),
 			clientAuthWrite: true,
 			requestBody:     composeRequestBody(cl4.ID, ""),
 			wantStatusCode:  http.StatusBadRequest,
@@ -364,8 +333,7 @@ func TestHandlePostClients(t *testing.T) {
 		},
 		{
 			descr:           "auth file, invalid request, 'password' is missing",
-			clientProvider:  clientsFileProvider,
-			clientCache:     clients.NewClientCache(initCacheState),
+			provider:        clients.NewMockProvider(initCacheState),
 			clientAuthWrite: true,
 			requestBody:     strings.NewReader(`{"id":"user"}`),
 			wantStatusCode:  http.StatusBadRequest,
@@ -376,8 +344,7 @@ func TestHandlePostClients(t *testing.T) {
 		},
 		{
 			descr:           "auth file, invalid request, id too short",
-			clientProvider:  clientsFileProvider,
-			clientCache:     clients.NewClientCache(initCacheState),
+			provider:        clients.NewMockProvider(initCacheState),
 			clientAuthWrite: true,
 			requestBody:     composeRequestBody("12", cl4.Password),
 			wantStatusCode:  http.StatusBadRequest,
@@ -388,8 +355,7 @@ func TestHandlePostClients(t *testing.T) {
 		},
 		{
 			descr:           "auth file, invalid request, password too short",
-			clientProvider:  clientsFileProvider,
-			clientCache:     clients.NewClientCache(initCacheState),
+			provider:        clients.NewMockProvider(initCacheState),
 			clientAuthWrite: true,
 			requestBody:     composeRequestBody(cl4.ID, "12"),
 			wantStatusCode:  http.StatusBadRequest,
@@ -400,8 +366,7 @@ func TestHandlePostClients(t *testing.T) {
 		},
 		{
 			descr:           "auth file, client already exist",
-			clientProvider:  clientsFileProvider,
-			clientCache:     clients.NewClientCache(initCacheState),
+			provider:        clients.NewMockProvider(initCacheState),
 			clientAuthWrite: true,
 			requestBody:     composeRequestBody(cl1.ID, cl4.Password),
 			wantStatusCode:  http.StatusConflict,
@@ -411,8 +376,7 @@ func TestHandlePostClients(t *testing.T) {
 		},
 		{
 			descr:           "auth file, auth in Read-Only mode",
-			clientProvider:  clientsFileProvider,
-			clientCache:     clients.NewClientCache(initCacheState),
+			provider:        clients.NewMockProvider(initCacheState),
 			clientAuthWrite: false,
 			requestBody:     composeRequestBody(cl1.ID, cl4.Password),
 			wantStatusCode:  http.StatusMethodNotAllowed,
@@ -422,8 +386,7 @@ func TestHandlePostClients(t *testing.T) {
 		},
 		{
 			descr:           "auth, single client",
-			clientProvider:  singleClientProvider,
-			clientCache:     clients.NewClientCache([]*clients.Client{cl1}),
+			provider:        clients.NewSingleClient(testLog, cl1.ID+":"+cl1.Password),
 			clientAuthWrite: true,
 			requestBody:     composeRequestBody(cl4.ID, cl4.Password),
 			wantStatusCode:  http.StatusMethodNotAllowed,
@@ -433,8 +396,6 @@ func TestHandlePostClients(t *testing.T) {
 		},
 		{
 			descr:           "no auth",
-			clientProvider:  nil,
-			clientCache:     nil,
 			clientAuthWrite: true,
 			requestBody:     composeRequestBody(cl4.ID, cl4.Password),
 			wantStatusCode:  http.StatusMethodNotAllowed,
@@ -449,7 +410,6 @@ func TestHandlePostClients(t *testing.T) {
 		// given
 		al := APIListener{
 			Server: &Server{
-				clientCache: tc.clientCache,
 				config: &Config{
 					Server: ServerConfig{
 						AuthWrite:       tc.clientAuthWrite,
@@ -457,8 +417,12 @@ func TestHandlePostClients(t *testing.T) {
 					},
 				},
 			},
-			Logger:         testLog,
-			clientProvider: tc.clientProvider,
+			Logger: testLog,
+		}
+		if tc.provider != nil {
+			var err error
+			al.Server.clientCache, err = clients.NewClientCache(tc.provider)
+			require.NoError(err)
 		}
 
 		req := httptest.NewRequest(http.MethodPost, "/api/v1/clients", tc.requestBody)
@@ -507,8 +471,7 @@ func TestHandleDeleteClient(t *testing.T) {
 	testCases := []struct {
 		descr string // Test Case Description
 
-		clientProvider  ClientProvider
-		clientCache     *clients.ClientCache
+		provider        clients.Provider
 		sessions        []*sessions.ClientSession
 		clientAuthWrite bool
 		clientID        string
@@ -524,26 +487,15 @@ func TestHandleDeleteClient(t *testing.T) {
 	}{
 		{
 			descr:           "auth file, success delete",
-			clientProvider:  clientsFileProvider,
-			clientCache:     clients.NewClientCache(initCacheState),
+			provider:        clients.NewMockProvider(initCacheState),
 			clientAuthWrite: true,
 			clientID:        cl1.ID,
 			wantStatusCode:  http.StatusNoContent,
 			wantClients:     []*clients.Client{cl2, cl3},
 		},
 		{
-			descr:           "auth file, clients cache is not initialized",
-			clientProvider:  clientsFileProvider,
-			clientCache:     nil,
-			clientAuthWrite: true,
-			clientID:        cl1.ID,
-			wantStatusCode:  http.StatusInternalServerError,
-			wantErrTitle:    "Rport clients cache is not initialized.",
-		},
-		{
 			descr:           "auth file, missing client ID",
-			clientProvider:  clientsFileProvider,
-			clientCache:     clients.NewClientCache(initCacheState),
+			provider:        clients.NewMockProvider(initCacheState),
 			clientAuthWrite: true,
 			clientID:        "unknown-client-id",
 			wantStatusCode:  http.StatusBadRequest,
@@ -553,8 +505,7 @@ func TestHandleDeleteClient(t *testing.T) {
 		},
 		{
 			descr:           "auth file, client has active session",
-			clientProvider:  clientsFileProvider,
-			clientCache:     clients.NewClientCache(initCacheState),
+			provider:        clients.NewMockProvider(initCacheState),
 			sessions:        []*sessions.ClientSession{s1},
 			clientAuthWrite: true,
 			clientID:        cl1.ID,
@@ -566,8 +517,7 @@ func TestHandleDeleteClient(t *testing.T) {
 		},
 		{
 			descr:           "auth file, client has disconnected session",
-			clientProvider:  clientsFileProvider,
-			clientCache:     clients.NewClientCache(initCacheState),
+			provider:        clients.NewMockProvider(initCacheState),
 			sessions:        []*sessions.ClientSession{s2},
 			clientAuthWrite: true,
 			clientID:        cl1.ID,
@@ -579,8 +529,7 @@ func TestHandleDeleteClient(t *testing.T) {
 		},
 		{
 			descr:           "auth file, auth in Read-Only mode",
-			clientProvider:  clientsFileProvider,
-			clientCache:     clients.NewClientCache(initCacheState),
+			provider:        clients.NewMockProvider(initCacheState),
 			clientAuthWrite: false,
 			clientID:        cl1.ID,
 			wantStatusCode:  http.StatusMethodNotAllowed,
@@ -590,8 +539,7 @@ func TestHandleDeleteClient(t *testing.T) {
 		},
 		{
 			descr:           "auth file, client has active session, force",
-			clientProvider:  clientsFileProvider,
-			clientCache:     clients.NewClientCache(initCacheState),
+			provider:        clients.NewMockProvider(initCacheState),
 			sessions:        []*sessions.ClientSession{s1},
 			clientAuthWrite: true,
 			clientID:        cl1.ID,
@@ -602,8 +550,7 @@ func TestHandleDeleteClient(t *testing.T) {
 		},
 		{
 			descr:           "auth file, client has disconnected session, force",
-			clientProvider:  clientsFileProvider,
-			clientCache:     clients.NewClientCache(initCacheState),
+			provider:        clients.NewMockProvider(initCacheState),
 			sessions:        []*sessions.ClientSession{s2},
 			clientAuthWrite: true,
 			clientID:        cl1.ID,
@@ -613,8 +560,7 @@ func TestHandleDeleteClient(t *testing.T) {
 		},
 		{
 			descr:           "invalid force param",
-			clientProvider:  clientsFileProvider,
-			clientCache:     clients.NewClientCache(initCacheState),
+			provider:        clients.NewMockProvider(initCacheState),
 			sessions:        []*sessions.ClientSession{s1, s2},
 			clientAuthWrite: true,
 			clientID:        cl1.ID,
@@ -627,8 +573,7 @@ func TestHandleDeleteClient(t *testing.T) {
 		},
 		{
 			descr:           "auth, single client",
-			clientProvider:  singleClientProvider,
-			clientCache:     clients.NewClientCache([]*clients.Client{cl1}),
+			provider:        clients.NewSingleClient(testLog, cl1.ID+":"+cl1.Password),
 			clientAuthWrite: true,
 			clientID:        cl1.ID,
 			wantStatusCode:  http.StatusMethodNotAllowed,
@@ -638,8 +583,6 @@ func TestHandleDeleteClient(t *testing.T) {
 		},
 		{
 			descr:           "no auth",
-			clientProvider:  nil,
-			clientCache:     nil,
 			clientAuthWrite: true,
 			clientID:        cl1.ID,
 			wantStatusCode:  http.StatusMethodNotAllowed,
@@ -657,7 +600,6 @@ func TestHandleDeleteClient(t *testing.T) {
 			al := APIListener{
 				Server: &Server{
 					sessionService: NewSessionService(nil, sessions.NewSessionRepository(tc.sessions, &hour)),
-					clientCache:    tc.clientCache,
 					config: &Config{
 						Server: ServerConfig{
 							AuthWrite:       tc.clientAuthWrite,
@@ -665,8 +607,12 @@ func TestHandleDeleteClient(t *testing.T) {
 						},
 					},
 				},
-				Logger:         testLog,
-				clientProvider: tc.clientProvider,
+				Logger: testLog,
+			}
+			if tc.provider != nil {
+				var err error
+				al.Server.clientCache, err = clients.NewClientCache(tc.provider)
+				require.NoError(err)
 			}
 			al.initRouter()
 			mockConn.closed = false

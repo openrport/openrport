@@ -36,7 +36,6 @@ type APIListener struct {
 	httpServer        *chshare.HTTPServer
 	requestLogOptions *requestlog.Options
 	userSrv           UserService
-	clientProvider    ClientProvider
 	accessLogFile     io.WriteCloser
 }
 
@@ -47,7 +46,6 @@ type UserService interface {
 
 func NewAPIListener(
 	server *Server,
-	clientProvider ClientProvider,
 	fingerprint string,
 ) (*APIListener, error) {
 	config := server.config
@@ -82,7 +80,6 @@ func NewAPIListener(
 		httpServer:        chshare.NewHTTPServer(int(config.Server.MaxRequestBytes), chshare.WithTLS(config.API.CertFile, config.API.KeyFile)),
 		requestLogOptions: config.InitRequestLogOptions(),
 		userSrv:           users.NewUserRepository(authUsers),
-		clientProvider:    clientProvider,
 	}
 
 	if config.API.AccessLogFile != "" {

@@ -7,17 +7,25 @@ import (
 
 // ClientCache is a thread-safe in-memory cache.
 type ClientCache struct {
-	clients map[string]*Client
-	mu      sync.RWMutex
+	provider Provider
+	clients  map[string]*Client
+	mu       sync.RWMutex
 }
 
 // NewClientCache returns a thread-safe cache with ID as a key populated with given clients.
-func NewClientCache(initClients []*Client) *ClientCache {
-	m := make(map[string]*Client, len(initClients))
-	for _, v := range initClients {
+func NewClientCache(provider Provider) (*ClientCache, error) {
+	clients, err := provider.GetAll()
+	if err != nil {
+		return nil, err
+	}
+	m := make(map[string]*Client, len(clients))
+	for _, v := range clients {
 		m[v.ID] = v
 	}
-	return &ClientCache{clients: m}
+	return &ClientCache{
+		clients:  m,
+		provider: provider,
+	}, nil
 }
 
 // NewEmptyClientCache returns a thread-safe empty client cache.
@@ -129,4 +137,14 @@ func (c *ClientCache) Count() int {
 	c.mu.RLock()
 	defer c.mu.RUnlock()
 	return len(c.clients)
+}
+
+func (c *ClientCache) IsSingleClient() bool {
+	var i interface{} = c.provider
+	switch i.(type) {
+	case *SingleClient:
+		return true
+	}
+
+	return false
 }

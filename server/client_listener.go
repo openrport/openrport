@@ -32,7 +32,6 @@ type ClientListener struct {
 	httpServer        *chshare.HTTPServer
 	reverseProxy      *httputil.ReverseProxy
 	sshConfig         *ssh.ServerConfig
-	sshSessionClients *clients.ClientCache // [ssh_session_id, Client] pairs, applicable only when auth is enabled
 	requestLogOptions *requestlog.Options
 
 	sessionIndexAutoIncrement int32
@@ -49,7 +48,6 @@ func NewClientListener(server *Server, privateKey ssh.Signer) (*ClientListener, 
 	cl := &ClientListener{
 		Server:            server,
 		httpServer:        chshare.NewHTTPServer(int(config.Server.MaxRequestBytes)),
-		sshSessionClients: clients.NewEmptyClientCache(),
 		Logger:            chshare.NewLogger("client-listener", config.Logging.LogOutput, config.Logging.LogLevel),
 		requestLogOptions: config.InitRequestLogOptions(),
 	}
@@ -91,10 +89,6 @@ func (cl *ClientListener) authUser(c ssh.ConnMetadata, password []byte) (*ssh.Pe
 		cl.Debugf("Login failed for client: %s", clientID)
 		return nil, fmt.Errorf("invalid authentication for client: %s", clientID)
 	}
-
-	// add to session clients to retrieve him later by SSH session ID
-	sshID := sessions.GetSessionID(c)
-	cl.sshSessionClients.Set(sshID, client)
 
 	return nil, nil
 }
@@ -196,7 +190,7 @@ func (cl *ClientListener) handleWebsocket(w http.ResponseWriter, req *http.Reque
 	sshID := sessions.GetSessionID(sshConn)
 
 	// get the current client
-	client := cl.getSessionClient(sshID)
+	client := cl.getSessionClient(sshConn.User())
 
 	// client session id
 	sid := cl.getSID(connRequest.ID, cl.config, client, sshID)
@@ -286,19 +280,12 @@ func checkVersions(log *chshare.Logger, clientVersion string) {
 	log.Infof("Client version (%s) differs from server version (%s)", v, chshare.BuildVersion)
 }
 
-func (cl *ClientListener) getSessionClient(sshID string) *clients.Client {
+func (cl *ClientListener) getSessionClient(clientID string) *clients.Client {
 	if cl.clientCache == nil {
 		return nil
 	}
-	client := cl.sshSessionClients.Get(sshID)
-	if client == nil {
-		cl.Errorf("Could not get client for SSH session id: %s", sshID)
-	}
 
-	// no need to keep it, remove
-	cl.sshSessionClients.Delete(sshID)
-
-	return client
+	return cl.clientCache.Get(clientID)
 }
 
 func (cl *ClientListener) getSID(reqID string, config *Config, client *clients.Client, sshSessionID string) string {
