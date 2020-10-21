@@ -111,7 +111,7 @@ var clientHelp = `
 
     --service, Manages rport running as a service. Possible commands are "install", "uninstall", "start" and "stop".
 
-    --verbose, -v, Specify log level. Values: "error", "info", "debug" (defaults to "error")
+    --log-level, Specify log level. Values: "error", "info", "debug" (defaults to "error")
 
     --log-file, -l, Specifies log file path. (defaults to empty string: log printed to stdout)
 
@@ -158,7 +158,7 @@ func init() {
 	pFlags.StringArrayP("tag", "t", []string{}, "")
 	pFlags.String("hostname", "", "")
 	pFlags.StringP("log-file", "l", "", "")
-	pFlags.StringP("verbose", "v", "", "")
+	pFlags.String("log-level", "", "")
 	pFlags.Bool("allow-root", false, "")
 
 	cfgPath = pFlags.StringP("config", "c", "", "")
@@ -186,7 +186,7 @@ func init() {
 	_ = viperCfg.BindPFlag("client.allow_root", pFlags.Lookup("allow-root"))
 
 	_ = viperCfg.BindPFlag("logging.log_file", pFlags.Lookup("log-file"))
-	_ = viperCfg.BindPFlag("logging.log_level", pFlags.Lookup("verbose"))
+	_ = viperCfg.BindPFlag("logging.log_level", pFlags.Lookup("log-level"))
 
 	_ = viperCfg.BindPFlag("connection.keep_alive", pFlags.Lookup("keepalive"))
 	_ = viperCfg.BindPFlag("connection.max_retry_count", pFlags.Lookup("max-retry-count"))

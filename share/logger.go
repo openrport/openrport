@@ -23,7 +23,7 @@ func ParseLogLevel(str string) (LogLevel, error) {
 	if result, ok := m[str]; ok {
 		return result, nil
 	}
-	return LogLevelError, fmt.Errorf("invalid log level")
+	return LogLevelError, fmt.Errorf("invalid log level: %q", str)
 }
 
 type LogOutput struct {

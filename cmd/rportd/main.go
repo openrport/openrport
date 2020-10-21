@@ -166,7 +166,7 @@ var serverHelp = `
 
     --service, Manages rportd running as a service. Possible commands are "install", "uninstall", "start" and "stop".
 
-    --verbose, -v, Specify log level. Values: "error", "info", "debug" (defaults to "error")
+    --log-level, Specify log level. Values: "error", "info", "debug" (defaults to "error")
 
     --log-file, -l, Specifies log file path. (defaults to empty string: log printed to stdout)
 
@@ -214,7 +214,7 @@ func init() {
 	pFlags.String("api-key-file", "", "")
 	pFlags.String("api-access-log-file", "", "")
 	pFlags.StringP("log-file", "l", "", "")
-	pFlags.StringP("verbose", "v", "", "")
+	pFlags.String("log-level", "", "")
 	pFlags.StringSliceP("exclude-ports", "e", []string{DefaultExcludedPorts}, "")
 	pFlags.String("data-dir", chserver.DefaultDataDirectory, "")
 	pFlags.Duration("keep-lost-clients", 0, "")
@@ -267,7 +267,7 @@ func init() {
 	_ = viperCfg.BindPFlag("server.allow_root", pFlags.Lookup("allow-root"))
 
 	_ = viperCfg.BindPFlag("logging.log_file", pFlags.Lookup("log-file"))
-	_ = viperCfg.BindPFlag("logging.log_level", pFlags.Lookup("verbose"))
+	_ = viperCfg.BindPFlag("logging.log_level", pFlags.Lookup("log-level"))
 
 	_ = viperCfg.BindPFlag("api.address", pFlags.Lookup("api-addr"))
 	_ = viperCfg.BindPFlag("api.auth", pFlags.Lookup("api-auth"))
