@@ -636,10 +636,9 @@ func TestHandlePostCommand(t *testing.T) {
 	testJID := generateNewJobIDMockF()
 	testUser := "test-user"
 
-	defaultTimeout := 60 * time.Second
+	defaultTimeout := 60
 	gotCmd := "/bin/date;foo;whoami"
 	gotCmdTimeoutSec := 30
-	gotCmdTimeout := time.Duration(gotCmdTimeoutSec) * time.Second
 	validReqBody := `{"command": "` + gotCmd + `","timeout_sec": ` + strconv.Itoa(gotCmdTimeoutSec) + `}`
 
 	connMock := test.NewConnMock()
@@ -667,7 +666,7 @@ func TestHandlePostCommand(t *testing.T) {
 		sessions        []*sessions.ClientSession
 
 		wantStatusCode int
-		wantTimeout    time.Duration
+		wantTimeout    int
 		wantErrCode    string
 		wantErrTitle   string
 		wantErrDetail  string
@@ -678,7 +677,7 @@ func TestHandlePostCommand(t *testing.T) {
 			sid:            s1.ID,
 			sessions:       []*sessions.ClientSession{s1},
 			wantStatusCode: http.StatusOK,
-			wantTimeout:    gotCmdTimeout,
+			wantTimeout:    gotCmdTimeoutSec,
 		},
 		{
 			name:           "valid cmd with no timeout",
@@ -728,6 +727,15 @@ func TestHandlePostCommand(t *testing.T) {
 			wantStatusCode: http.StatusBadRequest,
 			wantErrTitle:   "Invalid JSON data.",
 			wantErrDetail:  "invalid character 's' looking for beginning of value",
+		},
+		{
+			name:           "invalid request body: unknown param",
+			requestBody:    `{"command": "/bin/date;foo;whoami", "timeout": 30}`,
+			sid:            s1.ID,
+			sessions:       []*sessions.ClientSession{s1},
+			wantStatusCode: http.StatusBadRequest,
+			wantErrTitle:   "Invalid JSON data.",
+			wantErrDetail:  "json: unknown field \"timeout\"",
 		},
 		{
 			name:           "no active session",
@@ -804,8 +812,8 @@ func TestHandlePostCommand(t *testing.T) {
 					sessionService: NewSessionService(nil, sessions.NewSessionRepository(tc.sessions, &hour)),
 					config: &Config{
 						Server: ServerConfig{
-							RunRemoteCmdTimeout: defaultTimeout,
-							MaxRequestBytes:     1024 * 1024,
+							RunRemoteCmdTimeoutSec: defaultTimeout,
+							MaxRequestBytes:        1024 * 1024,
 						},
 					},
 				},
@@ -848,7 +856,7 @@ func TestHandlePostCommand(t *testing.T) {
 				assert.Equal(t, sshSuccessResp.Pid, gotRunningJob.PID)
 				assert.Equal(t, sshSuccessResp.StartedAt, gotRunningJob.StartedAt)
 				assert.Equal(t, testUser, gotRunningJob.CreatedBy)
-				assert.Equal(t, tc.wantTimeout, gotRunningJob.Timeout)
+				assert.Equal(t, tc.wantTimeout, gotRunningJob.TimeoutSec)
 				assert.Nil(t, gotRunningJob.Result)
 			} else {
 				// failure case

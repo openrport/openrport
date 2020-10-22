@@ -54,7 +54,7 @@ type ServerConfig struct {
 	CleanupClients             time.Duration `mapstructure:"cleanup_clients_interval"`
 	MaxRequestBytes            int64         `mapstructure:"max_request_bytes"`
 	CheckPortTimeout           time.Duration `mapstructure:"check_port_timeout"`
-	RunRemoteCmdTimeout        time.Duration `mapstructure:"run_remote_cmd_timeout"`
+	RunRemoteCmdTimeoutSec     int           `mapstructure:"run_remote_cmd_timeout_sec"`
 	AuthWrite                  bool          `mapstructure:"auth_write"`
 	AuthMultiuseCreds          bool          `mapstructure:"auth_multiuse_creds"`
 	EquateAuthusernameClientid bool          `mapstructure:"equate_authusername_clientid"`

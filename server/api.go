@@ -664,7 +664,9 @@ func (al *APIListener) handlePostCommand(w http.ResponseWriter, req *http.Reques
 		Command    string `json:"command"`
 		TimeoutSec int    `json:"timeout_sec"`
 	}{}
-	err := json.NewDecoder(req.Body).Decode(&reqBody)
+	dec := json.NewDecoder(req.Body)
+	dec.DisallowUnknownFields()
+	err := dec.Decode(&reqBody)
 	if err == io.EOF { // is handled separately to return an informative error message
 		al.jsonErrorResponseWithTitle(w, http.StatusBadRequest, "Missing body with json data.")
 		return
@@ -677,11 +679,8 @@ func (al *APIListener) handlePostCommand(w http.ResponseWriter, req *http.Reques
 		return
 	}
 
-	var cmdTimeout time.Duration
-	if reqBody.TimeoutSec == 0 {
-		cmdTimeout = al.config.Server.RunRemoteCmdTimeout
-	} else {
-		cmdTimeout = time.Duration(reqBody.TimeoutSec) * time.Second
+	if reqBody.TimeoutSec <= 0 {
+		reqBody.TimeoutSec = al.config.Server.RunRemoteCmdTimeoutSec
 	}
 
 	session, err := al.sessionService.GetActiveByID(sid)
@@ -702,11 +701,11 @@ func (al *APIListener) handlePostCommand(w http.ResponseWriter, req *http.Reques
 			JID:        generateNewJobID(),
 			FinishedAt: nil,
 		},
-		SID:       sid,
-		Command:   reqBody.Command,
-		CreatedBy: api.GetUser(req.Context(), al.Logger),
-		Timeout:   cmdTimeout,
-		Result:    nil,
+		SID:        sid,
+		Command:    reqBody.Command,
+		CreatedBy:  api.GetUser(req.Context(), al.Logger),
+		TimeoutSec: reqBody.TimeoutSec,
+		Result:     nil,
 	}
 	sshResp := &comm.RunCmdResponse{}
 	err = comm.SendRequestAndGetResponse(session.Connection, comm.RequestTypeRunCmd, curJob, sshResp)

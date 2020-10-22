@@ -283,7 +283,7 @@ paths:
                 description: "remote command to execute by the rport client"
               timeout_sec:
                 type: "integer"
-                description: "timeout in seconds to observe the command execution. If not set a default value is used"
+                description: "timeout in seconds to observe the command execution. If not set a default timeout (60 seconds) is used"
       responses:
         "200":
           description: "successful operation"
@@ -561,10 +561,9 @@ definitions:
       created_by:
         type: "string"
         description: "API username who run the command"
-      timeout:
+      timeout_sec:
         type: "integer"
-        format: "int64"
-        description: "timeout in nanoseconds that was used to observe the command execution"
+        description: "timeout in seconds that was used to observe the command execution"
       result:
         type: "object"
         description: "command execution result"

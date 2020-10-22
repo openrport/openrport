@@ -35,7 +35,7 @@ const jobToRunJSON = `
 	"sid": "d81e6b93e75aef59a7701b90555f43808458b34e30370c3b808c1816a32252b3",
 	"command": "/bin/date;foo;whoami",
 	"created_by": "admin",
-	"timeout": 60000000000
+	"timeout_sec": 60
 }
 `
 
@@ -69,7 +69,7 @@ func TestHandleRunCmdRequestNormalCase(t *testing.T) {
 	"pid": 123,
 	"started_at": "2020-08-19T12:00:00+03:00",
 	"created_by": "admin",
-	"timeout": 60000000000,
+	"timeout_sec": 60,
 	"result": {
 		"stdout": "1\n2\n3\n",
 		"stderr": "error1\nerror2\n"

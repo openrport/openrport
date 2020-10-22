@@ -13,13 +13,13 @@ const (
 
 type Job struct {
 	JobSummary
-	SID       string        `json:"sid"`
-	Command   string        `json:"command"`
-	PID       int           `json:"pid"`
-	StartedAt time.Time     `json:"started_at"`
-	CreatedBy string        `json:"created_by"`
-	Timeout   time.Duration `json:"timeout"`
-	Result    *JobResult    `json:"result"`
+	SID        string     `json:"sid"`
+	Command    string     `json:"command"`
+	PID        int        `json:"pid"`
+	StartedAt  time.Time  `json:"started_at"`
+	CreatedBy  string     `json:"created_by"`
+	TimeoutSec int        `json:"timeout_sec"`
+	Result     *JobResult `json:"result"`
 }
 
 // JobSummary short info about a job.

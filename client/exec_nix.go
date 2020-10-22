@@ -69,9 +69,9 @@ func (c *Client) HandleRunCmdRequest(ctx context.Context, reqPayload []byte) (*c
 			} else {
 				status = models.JobStatusSuccessful
 			}
-		case <-time.After(job.Timeout):
+		case <-time.After(time.Duration(job.TimeoutSec) * time.Second):
 			status = models.JobStatusUnknown
-			c.Debugf("timeout %s reached, stop observing command[jid=%q,pid=%d]:\n%s", job.Timeout, job.JID, res.Pid, job.Command)
+			c.Debugf("timeout (%d seconds) reached, stop observing command[jid=%q,pid=%d]:\n%s", job.TimeoutSec, job.JID, res.Pid, job.Command)
 		}
 
 		// observing stopped - unset PID
