@@ -26,7 +26,7 @@ type Server struct {
 	apiListener    *APIListener
 	config         *Config
 	sessionService *SessionService
-	clientCache    *clients.ClientCache
+	clientProvider clients.Provider
 	jobProvider    JobProvider
 }
 
@@ -80,11 +80,7 @@ func NewServer(config *Config, filesAPI files.FileAPI) (*Server, error) {
 		repo,
 	)
 
-	clientProvider, err := getClientProvider(s.Logger, config)
-	if err != nil {
-		return nil, err
-	}
-	s.clientCache, err = clients.NewClientCache(clientProvider)
+	s.clientProvider, err = getClientProvider(config)
 	if err != nil {
 		return nil, err
 	}
@@ -109,17 +105,19 @@ func getJobsDirectory(datDir string) string {
 	return path.Join(datDir, "jobs")
 }
 
-func getClientProvider(log *chshare.Logger, config *Config) (clients.Provider, error) {
-	if config.Server.AuthFile != "" && config.Server.Auth != "" {
-		return nil, errors.New("'auth_file' and 'auth' are both set: expected only one of them ")
-	}
-
+func getClientProvider(config *Config) (clients.Provider, error) {
 	if config.Server.AuthFile != "" {
-		return clients.NewFileClients(log, config.Server.AuthFile), nil
+		fileProvider := clients.NewFileProvider(config.Server.AuthFile)
+		cachedProvider, err := clients.NewCachedProvider(fileProvider)
+		if err != nil {
+			return nil, err
+		}
+		return cachedProvider, nil
 	}
 
 	if config.Server.Auth != "" {
-		return clients.NewSingleClient(log, config.Server.Auth), nil
+
+		return clients.NewSingleProvider(config.Server.authID, config.Server.authPassword), nil
 	}
 
 	return nil, errors.New("client authentication must to be enabled: set either 'auth' or 'auth_file'")
@@ -154,13 +152,6 @@ func (s *Server) Run() error {
 		// TODO(m-terel): add graceful shutdown of background task
 		go scheduler.Run(ctx, s.Logger, sessions.NewSaveToFileTask(s.Logger, repo, s.config.CSRFilePath()), s.config.Server.SaveClients)
 		s.Infof("Task to save clients to disk will run with interval %v", s.config.Server.SaveClients)
-	}
-
-	if s.config.Server.AuthFile != "" && s.config.Server.AuthWrite {
-		ctx := context.Background()
-		// TODO(m-terel): add graceful shutdown when a global shutdown mechanism will be ready and working
-		go scheduler.Run(ctx, s.Logger, clients.NewSaveToFileTask(s.Logger, s.apiListener.clientCache, s.config.Server.AuthFile), s.config.Server.SaveClientsAuth)
-		s.Infof("Task to save rport clients auth credentials to disk will run with interval %v", s.config.Server.SaveClientsAuth)
 	}
 
 	return s.Wait()

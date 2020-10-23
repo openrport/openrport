@@ -184,7 +184,7 @@ func TestHandleGetClients(t *testing.T) {
 		},
 		{
 			descr:          "auth, single client",
-			provider:       clients.NewSingleClient(testLog, cl1.ID+":"+cl1.Password),
+			provider:       clients.NewSingleProvider(cl1.ID, cl1.Password),
 			wantStatusCode: http.StatusOK,
 			wantClients:    []*clients.Client{cl1},
 		},
@@ -200,12 +200,8 @@ func TestHandleGetClients(t *testing.T) {
 				config: &Config{
 					Server: ServerConfig{MaxRequestBytes: 1024 * 1024},
 				},
+				clientProvider: tc.provider,
 			},
-		}
-		if tc.provider != nil {
-			var err error
-			al.Server.clientCache, err = clients.NewClientCache(tc.provider)
-			require.NoError(err)
 		}
 
 		// when
@@ -380,7 +376,7 @@ func TestHandlePostClients(t *testing.T) {
 		},
 		{
 			descr:           "auth, single client",
-			provider:        clients.NewSingleClient(testLog, cl1.ID+":"+cl1.Password),
+			provider:        clients.NewSingleProvider(cl1.ID, cl1.Password),
 			clientAuthWrite: true,
 			requestBody:     composeRequestBody(cl4.ID, cl4.Password),
 			wantStatusCode:  http.StatusMethodNotAllowed,
@@ -402,13 +398,9 @@ func TestHandlePostClients(t *testing.T) {
 						MaxRequestBytes: 1024 * 1024,
 					},
 				},
+				clientProvider: tc.provider,
 			},
 			Logger: testLog,
-		}
-		if tc.provider != nil {
-			var err error
-			al.Server.clientCache, err = clients.NewClientCache(tc.provider)
-			require.NoError(err)
 		}
 
 		req := httptest.NewRequest(http.MethodPost, "/api/v1/clients", tc.requestBody)
@@ -430,9 +422,9 @@ func TestHandlePostClients(t *testing.T) {
 			require.NoErrorf(err, msg)
 			require.Equalf(string(wantRespBytes), w.Body.String(), msg)
 		}
-		if al.clientCache != nil {
-			assert.ElementsMatchf(tc.wantClients, al.clientCache.GetAll(), msg)
-		}
+		clients, err := al.clientProvider.GetAll()
+		require.NoError(err)
+		assert.ElementsMatchf(tc.wantClients, clients, msg)
 	}
 }
 
@@ -559,7 +551,7 @@ func TestHandleDeleteClient(t *testing.T) {
 		},
 		{
 			descr:           "auth, single client",
-			provider:        clients.NewSingleClient(testLog, cl1.ID+":"+cl1.Password),
+			provider:        clients.NewSingleProvider(cl1.ID, cl1.Password),
 			clientAuthWrite: true,
 			clientID:        cl1.ID,
 			wantStatusCode:  http.StatusMethodNotAllowed,
@@ -584,13 +576,9 @@ func TestHandleDeleteClient(t *testing.T) {
 							MaxRequestBytes: 1024 * 1024,
 						},
 					},
+					clientProvider: tc.provider,
 				},
 				Logger: testLog,
-			}
-			if tc.provider != nil {
-				var err error
-				al.Server.clientCache, err = clients.NewClientCache(tc.provider)
-				require.NoError(err)
 			}
 			al.initRouter()
 			mockConn.closed = false
@@ -616,9 +604,9 @@ func TestHandleDeleteClient(t *testing.T) {
 				wantRespStr = string(wantRespBytes)
 			}
 			assert.Equal(wantRespStr, w.Body.String())
-			if al.clientCache != nil {
-				assert.ElementsMatch(tc.wantClients, al.clientCache.GetAll())
-			}
+			clients, err := al.clientProvider.GetAll()
+			require.NoError(err)
+			assert.ElementsMatch(tc.wantClients, clients)
 			assert.Equal(tc.wantClosedConn, mockConn.closed)
 			allSessions, err := al.sessionService.GetAll()
 			require.NoError(err)

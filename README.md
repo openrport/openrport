@@ -44,8 +44,8 @@ We provide [pre-compiled binaries](https://github.com/cloudradar-monitoring/rpor
 `rport` is a client app which will try to establish long-running connection to the server.
 
 Minimal setup:
-1) Execute `./rportd --addr 0.0.0.0:9999` on a server.
-1) Execute `./rport <SERVER_IP>:9999 3389:3389` on a client or `./rport <SERVER_IP>:9999 3389` and the server tunnel port will be randomly chosen for you.
+1) Execute `./rportd --addr 0.0.0.0:9999 --auth rport:password123` on a server.
+1) Execute `./rport --auth rport:password123 <SERVER_IP>:9999 3389:3389` on a client or `./rport --auth rport:password123 <SERVER_IP>:9999 3389` and the server tunnel port will be randomly chosen for you.
 1) Now end-users can connect to `<SERVER_IP>:3389` (e.g. using Remote Desktop Connection). The connection will be proxied to client machine.
 
 See `./rportd --help` and `./rport --help` for more options, like:
@@ -75,7 +75,7 @@ openssl rand -hex 18
 
 Start the server as a background task.
 ```
-nohup rportd --key <YOUR_KEY> --addr 0.0.0.0:19075 &>/tmp/rportd.log &
+nohup rportd --auth rport:password123 --key <YOUR_KEY> --addr 0.0.0.0:19075 &>/tmp/rportd.log &
 ```
 For the first testing leave the console open and observe the log with `tail -f /tmp/rportd.log`.
 
@@ -88,14 +88,14 @@ tar vxzf - rport -C /usr/local/bin/
 ```
 
 Create an ad hoc tunnel that will forward the port 2222 of node1.example.com to the to local port 22 of client1.local.localdomain.
-`rport node1.example.com:19075 2222:0.0.0.0:22`
+`rport --auth rport:password123 node1.example.com:19075 2222:0.0.0.0:22`
 Observing the log of the server you get a confirmation about the newly created tunnel.
 
 Now you can access your machine behind a firewall through the tunnel. Try `ssh -p 2222 node1.example.com` and you will come out on the machine where the tunnel has been initiated.
 
 #### Let's improve security by using fingerprints
 Copy the fingerprint the server has generated on startup to your clipboard and use it on the client like this
-`rport --fingerprint <YOUR_FINGERPRINT> node1.example.com:19075 2222:0.0.0.0:22`.
+`rport --auth rport:password123 --fingerprint <YOUR_FINGERPRINT> node1.example.com:19075 2222:0.0.0.0:22`.
 
 This ensures you connect only to trusted servers. If you omit this step a man in the middle can bring up a rport server and hijack your tunnels.
 If you do ssh or rdp through the tunnel, a hijacked tunnel will not expose your credentials because the data inside the tunnel is still encrypted. But if you use rport for unencrypted protocols like HTTP, sniffing credentials would be possible.
@@ -150,7 +150,7 @@ systemctl enable rportd
 ```
 
 ### Using authentication
-Anyone who knows the address and the port of your rport server can use it for tunneling. In most cases, this is not desired. Your rport server could be abused for example to publish content under your IP address. Therefore, using rport with authentication is highly recommended.
+To prevent anyone who knows the address and the port of your rport server to use it for tunneling, using client authentication is required.
 
 Using a static username password pair is the most basic option. See the comments in the [rportd.example.conf](rportd.example.conf) and read more about all supported [authentication options](docs/client-auth.md).
 

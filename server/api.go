@@ -548,7 +548,12 @@ const (
 )
 
 func (al *APIListener) handleGetClients(w http.ResponseWriter, req *http.Request) {
-	rClients := al.clientCache.GetAll()
+	rClients, err := al.clientProvider.GetAll()
+	if err != nil {
+		al.jsonErrorResponse(w, http.StatusInternalServerError, err)
+		return
+	}
+
 	clients.SortByID(rClients, false)
 
 	al.writeJSONResponse(w, http.StatusOK, api.NewSuccessPayload(rClients))
@@ -579,7 +584,12 @@ func (al *APIListener) handlePostClients(w http.ResponseWriter, req *http.Reques
 		return
 	}
 
-	if !al.clientCache.Add(newClient.ID, &newClient) {
+	added, err := al.clientProvider.Add(&newClient)
+	if err != nil {
+		al.jsonErrorResponse(w, http.StatusInternalServerError, err)
+		return
+	}
+	if !added {
 		al.jsonErrorResponseWithDetail(w, http.StatusConflict, ErrCodeAlreadyExist, fmt.Sprintf("Client with ID %q already exist.", newClient.ID), "")
 		return
 	}
@@ -612,7 +622,12 @@ func (al *APIListener) handleDeleteClient(w http.ResponseWriter, req *http.Reque
 		}
 	}
 
-	if al.clientCache.Get(clientID) == nil {
+	existing, err := al.clientProvider.Get(clientID)
+	if err != nil {
+		al.jsonErrorResponse(w, http.StatusInternalServerError, err)
+		return
+	}
+	if existing == nil {
 		al.jsonErrorResponseWithErrCode(w, http.StatusBadRequest, ErrCodeClientNotFound, fmt.Sprintf("Client with ID=%q not found.", clientID))
 		return
 	}
@@ -630,14 +645,18 @@ func (al *APIListener) handleDeleteClient(w http.ResponseWriter, req *http.Reque
 		}
 	}
 
-	al.clientCache.Delete(clientID)
+	err = al.clientProvider.Delete(clientID)
+	if err != nil {
+		al.jsonErrorResponse(w, http.StatusInternalServerError, err)
+		return
+	}
 	al.Infof("Client %q deleted.", clientID)
 
 	w.WriteHeader(http.StatusNoContent)
 }
 
 func (al *APIListener) allowClientAuthWrite(w http.ResponseWriter) bool {
-	if al.clientCache.IsSingleClient() {
+	if !al.clientProvider.IsWriteable() {
 		al.jsonErrorResponseWithErrCode(w, http.StatusMethodNotAllowed, ErrCodeClientAuthSingleClient, "Client authentication is enabled only for a single user.")
 		return false
 	}

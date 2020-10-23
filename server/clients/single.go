@@ -1,33 +1,42 @@
 package clients
 
 import (
-	"fmt"
-
-	chshare "github.com/cloudradar-monitoring/rport/share"
+	"errors"
 )
 
-type SingleClient struct {
-	log         *chshare.Logger
-	credentials string
+type SingleProvider struct {
+	client *Client
 }
 
-func NewSingleClient(log *chshare.Logger, credentials string) *SingleClient {
-	return &SingleClient{
-		log:         log,
-		credentials: credentials,
+func NewSingleProvider(id, password string) *SingleProvider {
+	return &SingleProvider{
+		client: &Client{
+			ID:       id,
+			Password: password,
+		},
 	}
 }
 
 // GetAll returns a list with a single client credentials.
-func (c *SingleClient) GetAll() ([]*Client, error) {
-	c.log.Infof("Parsing single client auth credentials...")
+func (c *SingleProvider) GetAll() ([]*Client, error) {
+	return []*Client{c.client}, nil
+}
 
-	client := &Client{}
-	client.ID, client.Password = chshare.ParseAuth(c.credentials)
-
-	if client.ID == "" || client.Password == "" {
-		return nil, fmt.Errorf("invalid client auth credentials, expected '<client-id>:<password>', got %q", c.credentials)
+func (c *SingleProvider) Get(id string) (*Client, error) {
+	if c.client.ID == id {
+		return c.client, nil
 	}
+	return nil, nil
+}
 
-	return []*Client{client}, nil
+func (c *SingleProvider) Add(*Client) (bool, error) {
+	return false, errors.New("not implemented")
+}
+
+func (c *SingleProvider) Delete(string) error {
+	return errors.New("not implemented")
+}
+
+func (c *SingleProvider) IsWriteable() bool {
+	return false
 }

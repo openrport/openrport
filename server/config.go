@@ -58,10 +58,11 @@ type ServerConfig struct {
 	AuthWrite                  bool          `mapstructure:"auth_write"`
 	AuthMultiuseCreds          bool          `mapstructure:"auth_multiuse_creds"`
 	EquateAuthusernameClientid bool          `mapstructure:"equate_authusername_clientid"`
-	SaveClientsAuth            time.Duration `mapstructure:"save_clients_auth_interval"`
 	AllowRoot                  bool          `mapstructure:"allow_root"`
 
 	excludedPorts mapset.Set
+	authID        string
+	authPassword  string
 }
 
 type Config struct {
@@ -125,8 +126,19 @@ func (c *Config) ParseAndValidate() error {
 		return fmt.Errorf("expected 'Keep Lost Clients' can be in range [%v, %v], actual: %v", MinKeepLostClients, MaxKeepLostClients, c.Server.KeepLostClients)
 	}
 
+	if c.Server.AuthFile != "" && c.Server.Auth != "" {
+		return errors.New("'auth_file' and 'auth' are both set: expected only one of them ")
+	}
+
 	if c.Server.Auth == "" && c.Server.AuthFile == "" {
 		return errors.New("client authentication must to be enabled: set either 'auth' or 'auth_file'")
+	}
+
+	if c.Server.Auth != "" {
+		c.Server.authID, c.Server.authPassword = chshare.ParseAuth(c.Server.Auth)
+		if c.Server.authID == "" || c.Server.authPassword == "" {
+			return fmt.Errorf("invalid client auth credentials, expected '<client-id>:<password>', got %q", c.Server.Auth)
+		}
 	}
 
 	return nil

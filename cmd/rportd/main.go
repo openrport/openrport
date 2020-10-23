@@ -16,15 +16,14 @@ import (
 )
 
 const (
-	DefaultCacheClientsInterval    = 1 * time.Second
-	DefaultSaveClientsAuthInterval = 5 * time.Second
-	DefaultCleanClientsInterval    = 3 * time.Second
-	DefaultMaxRequestBytes         = 2 * 1024 // 2 KB
-	DefaultCheckPortTimeout        = 2 * time.Second
-	DefaultExcludedPorts           = "1-1024"
-	DefaultServerAddress           = "0.0.0.0:8080"
-	DefaultLogLevel                = "error"
-	DefaultRunRemoteCmdTimeoutSec  = 60
+	DefaultCacheClientsInterval   = 1 * time.Second
+	DefaultCleanClientsInterval   = 3 * time.Second
+	DefaultMaxRequestBytes        = 2 * 1024 // 2 KB
+	DefaultCheckPortTimeout       = 2 * time.Second
+	DefaultExcludedPorts          = "1-1024"
+	DefaultServerAddress          = "0.0.0.0:8080"
+	DefaultLogLevel               = "error"
+	DefaultRunRemoteCmdTimeoutSec = 60
 )
 
 var serverHelp = `
@@ -88,9 +87,6 @@ var serverHelp = `
     --equate-authusername-clientid, Having set "--auth-multiuse-creds=false", you can omit specifying a client-id.
     You can us the authentication username as client-id to slim down the client configuration.
     Defaults: false
-
-    --save-clients-auth-interval, Applicable only if --authfile is specified and --auth-write is true.
-    An optional arg to define an interval to flush rport clients auth info to disk. By default, '5s' is used.
 
     --proxy, Specifies another HTTP server to proxy requests to when
     rportd receives a normal HTTP request. Useful for hiding rportd in
@@ -225,7 +221,6 @@ func init() {
 	pFlags.Bool("auth-write", true, "")
 	pFlags.Bool("auth-multiuse-creds", true, "")
 	pFlags.Bool("equate-authusername-clientid", false, "")
-	pFlags.Duration("save-clients-auth-interval", DefaultSaveClientsAuthInterval, "")
 	pFlags.Int("run-remote-cmd-timeout-sec", DefaultRunRemoteCmdTimeoutSec, "")
 	pFlags.Bool("allow-root", false, "")
 
@@ -251,7 +246,6 @@ func init() {
 	_ = viperCfg.BindPFlag("server.key_seed", pFlags.Lookup("key"))
 	_ = viperCfg.BindPFlag("server.auth", pFlags.Lookup("auth"))
 	_ = viperCfg.BindPFlag("server.auth_file", pFlags.Lookup("authfile"))
-	_ = viperCfg.BindPFlag("server.save_clients_auth_interval", pFlags.Lookup("save-clients-auth-interval"))
 	_ = viperCfg.BindPFlag("server.auth_multiuse_creds", pFlags.Lookup("auth-multiuse-creds"))
 	_ = viperCfg.BindPFlag("server.equate_authusername_clientid", pFlags.Lookup("equate-authusername-clientid"))
 	_ = viperCfg.BindPFlag("server.auth_write", pFlags.Lookup("auth-write"))

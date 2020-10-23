@@ -2,56 +2,115 @@ package clients
 
 import (
 	"encoding/json"
+	"errors"
 	"fmt"
 	"io/ioutil"
-
-	chshare "github.com/cloudradar-monitoring/rport/share"
+	"os"
 )
 
-type FileClients struct {
-	log      *chshare.Logger
+// FileProvider is file based client provider.
+// It is not thread save so should be surrounded by CachedProvider.
+type FileProvider struct {
 	fileName string
 }
 
-func NewFileClients(log *chshare.Logger, fileName string) *FileClients {
-	return &FileClients{
-		log:      log,
+func NewFileProvider(fileName string) *FileProvider {
+	return &FileProvider{
 		fileName: fileName,
 	}
 }
 
 // GetAll returns rport clients from a given file.
-func (c *FileClients) GetAll() ([]*Client, error) {
-	c.log.Infof("Start to get rport clients from file.")
-
-	b, err := ioutil.ReadFile(c.fileName)
-	if err != nil {
-		return nil, fmt.Errorf("failed to read rport clients auth file %q: %s", c.fileName, err)
-	}
-	c.log.Infof("Parsing rport clients data...")
-
-	res, err := decodeClients(b)
+func (c *FileProvider) GetAll() ([]*Client, error) {
+	idPswdPairs, err := c.load()
 	if err != nil {
 		return nil, fmt.Errorf("failed to decode rport clients auth file: %v", err)
-	}
-
-	c.log.Infof("Loaded %d rport clients from file.", len(res))
-	return res, nil
-}
-
-func decodeClients(b []byte) ([]*Client, error) {
-	var idPswdPairs map[string]string
-	if err := json.Unmarshal(b, &idPswdPairs); err != nil {
-		return nil, err
 	}
 
 	var res []*Client
 	for id, pswd := range idPswdPairs {
 		if id == "" || pswd == "" {
-			return nil, fmt.Errorf("empty client ID or password is not allowed")
+			return nil, errors.New("empty client ID or password is not allowed")
 		}
 		res = append(res, &Client{ID: id, Password: pswd})
 	}
 
 	return res, nil
+}
+
+func (c *FileProvider) Get(id string) (*Client, error) {
+	idPswdPairs, err := c.load()
+	if err != nil {
+		return nil, fmt.Errorf("failed to decode rport clients auth file: %v", err)
+	}
+
+	return &Client{ID: id, Password: idPswdPairs[id]}, nil
+}
+
+func (c *FileProvider) Add(client *Client) (bool, error) {
+	idPswdPairs, err := c.load()
+	if err != nil {
+		return false, fmt.Errorf("failed to decode rport clients auth file: %v", err)
+	}
+
+	if _, ok := idPswdPairs[client.ID]; ok {
+		return false, nil
+	}
+
+	idPswdPairs[client.ID] = client.Password
+
+	if err := c.save(idPswdPairs); err != nil {
+		return false, fmt.Errorf("failed to encode rport clients auth file: %v", err)
+	}
+
+	return true, nil
+}
+
+func (c *FileProvider) Delete(id string) error {
+	idPswdPairs, err := c.load()
+	if err != nil {
+		return fmt.Errorf("failed to decode rport clients auth file: %v", err)
+	}
+
+	delete(idPswdPairs, id)
+
+	if err := c.save(idPswdPairs); err != nil {
+		return fmt.Errorf("failed to encode rport clients auth file: %v", err)
+	}
+
+	return nil
+}
+
+func (c *FileProvider) IsWriteable() bool {
+	return true
+}
+
+func (c *FileProvider) load() (map[string]string, error) {
+	b, err := ioutil.ReadFile(c.fileName)
+	if err != nil {
+		return nil, fmt.Errorf("failed to read rport clients auth file %q: %s", c.fileName, err)
+	}
+
+	var idPswdPairs map[string]string
+	if err := json.Unmarshal(b, &idPswdPairs); err != nil {
+		return nil, err
+	}
+
+	return idPswdPairs, nil
+}
+
+func (c *FileProvider) save(idPswdPairs map[string]string) error {
+	file, err := os.OpenFile(c.fileName, os.O_RDWR|os.O_TRUNC, os.ModePerm)
+	if err != nil {
+		return fmt.Errorf("failed to open rport clients file: %v", err)
+	}
+	defer file.Close()
+
+	encoder := json.NewEncoder(file)
+	encoder.SetIndent("", "	")
+	if err := encoder.Encode(idPswdPairs); err != nil {
+		return fmt.Errorf("failed to write rport clients: %v", err)
+	}
+
+	return nil
 }

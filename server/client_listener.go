@@ -80,7 +80,10 @@ func NewClientListener(server *Server, privateKey ssh.Signer) (*ClientListener, 
 // authUser is responsible for validating the ssh user / password combination
 func (cl *ClientListener) authUser(c ssh.ConnMetadata, password []byte) (*ssh.Permissions, error) {
 	clientID := c.User()
-	client := cl.clientCache.Get(clientID)
+	client, err := cl.clientProvider.Get(clientID)
+	if err != nil {
+		return nil, err
+	}
 	// constant time compare is used for security reasons
 	if client == nil || subtle.ConstantTimeCompare([]byte(client.Password), password) != 1 {
 		cl.Debugf("Login failed for client: %s", clientID)
