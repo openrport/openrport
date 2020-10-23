@@ -17,7 +17,6 @@ import (
 	"golang.org/x/crypto/ssh"
 
 	"github.com/cloudradar-monitoring/rport/server/api/middleware"
-	"github.com/cloudradar-monitoring/rport/server/clients"
 	"github.com/cloudradar-monitoring/rport/server/sessions"
 	chshare "github.com/cloudradar-monitoring/rport/share"
 	"github.com/cloudradar-monitoring/rport/share/comm"
@@ -188,59 +187,18 @@ func (cl *ClientListener) handleWebsocket(w http.ResponseWriter, req *http.Reque
 	sshID := sessions.GetSessionID(sshConn)
 
 	// get the current client
-	client := cl.clientCache.Get(sshConn.User())
+	clientID := sshConn.User()
 
 	// client session id
-	sid := cl.getSID(connRequest.ID, cl.config, client, sshID)
-
-	// if session id is in use, deny connection
-	session, err := cl.sessionService.GetByID(sid)
-	if err != nil {
-		failed(cl.FormatError("failed to get session by id `%s`", sid))
-		return
-	}
-	if session != nil {
-		if session.Disconnected == nil {
-			failed(cl.FormatError("session id `%s` is already in use", sid))
-			return
-		}
-
-		oldTunnels := GetTunnelsToReestablish(getRemotes(session.Tunnels), connRequest.Remotes)
-		clog.Infof("Tunnels to create %d: %v", len(connRequest.Remotes), connRequest.Remotes)
-		if len(oldTunnels) > 0 {
-			clog.Infof("Old tunnels to re-establish %d: %v", len(oldTunnels), oldTunnels)
-			connRequest.Remotes = append(connRequest.Remotes, oldTunnels...)
-		}
-	}
-
-	// lock client credentials if needed
-	locked, err := cl.lockClientIfNeeded(client, sid)
-	if err != nil {
-		failed(err)
-		return
-	}
-
-	// unlock client credentials if needed
-	unlockClient := true
-	if locked {
-		defer func() {
-			if !unlockClient {
-				return
-			}
-			if unlockErr := cl.clientCache.Unlock(client.ID); unlockErr != nil {
-				clog.Errorf("Failed to unlock client credentials, clientID=%q: %v", client.ID, unlockErr)
-			} else {
-				clog.Debugf("Client credentials unlocked: %q.", client.ID)
-			}
-		}()
-	}
+	sid := cl.getSID(connRequest.ID, cl.config, clientID, sshID)
 
 	ctx, cancel := context.WithCancel(context.Background())
 	defer cancel()
 
-	clientSession, err := cl.sessionService.StartClientSession(ctx, sid, sshConn, connRequest, client, clog)
+	clientSession, err := cl.sessionService.StartClientSession(
+		ctx, clientID, sid, sshConn, cl.config.Server.AuthMultiuseCreds, connRequest, clog)
 	if err != nil {
-		failed(cl.FormatError("%s", err))
+		failed(err)
 		return
 	}
 
@@ -256,11 +214,6 @@ func (cl *ClientListener) handleWebsocket(w http.ResponseWriter, req *http.Reque
 	err = cl.sessionService.Terminate(clientSession)
 	if err != nil {
 		cl.Errorf("could not terminate client session: %s", err)
-	}
-
-	// if keeping lost client enabled - do not unlock client credentials. They unlock in session cleanup task.
-	if cl.config.Server.KeepLostClients > 0 {
-		unlockClient = false
 	}
 }
 
@@ -278,39 +231,17 @@ func checkVersions(log *chshare.Logger, clientVersion string) {
 	log.Infof("Client version (%s) differs from server version (%s)", v, chshare.BuildVersion)
 }
 
-func (cl *ClientListener) getSID(reqID string, config *Config, client *clients.Client, sshSessionID string) string {
+func (cl *ClientListener) getSID(reqID string, config *Config, clientID string, sshSessionID string) string {
 	if reqID != "" {
 		return reqID
 	}
 
 	// use client id as session id if proper configs are set
-	if !config.Server.AuthMultiuseCreds && config.Server.EquateAuthusernameClientid && client != nil {
-		return client.ID
+	if !config.Server.AuthMultiuseCreds && config.Server.EquateAuthusernameClientid {
+		return clientID
 	}
 
 	return sshSessionID
-}
-
-func (cl *ClientListener) lockClientIfNeeded(client *clients.Client, sid string) (bool, error) {
-	if cl.clientCache == nil || cl.config.Server.AuthMultiuseCreds || client == nil {
-		return false, nil
-	}
-
-	clientID := client.ID
-	ok, err := cl.clientCache.LockWith(clientID, sid)
-	if err != nil {
-		cl.Debugf("Client has been deleted: %s", clientID)
-		return false, fmt.Errorf("client not found: %s", clientID)
-	}
-
-	if !ok {
-		cl.Debugf("Client is already connected: %q", clientID)
-		return false, fmt.Errorf("client is already connected: %q", clientID)
-	}
-
-	cl.Debugf("Client credentials locked: %q.", clientID)
-
-	return true, nil
 }
 
 func getRemotes(tunnels []*sessions.Tunnel) []*chshare.Remote {

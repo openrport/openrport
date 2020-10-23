@@ -2,12 +2,13 @@ package chserver
 
 import (
 	"context"
+	"fmt"
 	"strconv"
+	"sync"
 	"time"
 
 	"golang.org/x/crypto/ssh"
 
-	"github.com/cloudradar-monitoring/rport/server/clients"
 	"github.com/cloudradar-monitoring/rport/server/ports"
 	"github.com/cloudradar-monitoring/rport/server/sessions"
 	chshare "github.com/cloudradar-monitoring/rport/share"
@@ -16,6 +17,8 @@ import (
 type SessionService struct {
 	repo            *sessions.ClientSessionRepository
 	portDistributor *ports.PortDistributor
+
+	mu sync.Mutex
 }
 
 // NewSessionService returns a new instance of client session service.
@@ -51,11 +54,38 @@ func (s *SessionService) GetAll() ([]*sessions.ClientSession, error) {
 }
 
 func (s *SessionService) StartClientSession(
-	ctx context.Context, sid string, sshConn ssh.Conn,
-	req *chshare.ConnectionRequest, client *clients.Client, clog *chshare.Logger,
+	ctx context.Context, clientID, sessionID string, sshConn ssh.Conn, authMultiuseCreds bool,
+	req *chshare.ConnectionRequest, clog *chshare.Logger,
 ) (*sessions.ClientSession, error) {
+	s.mu.Lock()
+	defer s.mu.Unlock()
+
+	// if session id is in use, deny connection
+	oldSession, err := s.repo.GetByID(sessionID)
+	if err != nil {
+		return nil, fmt.Errorf("failed to get session by id %q", sessionID)
+	}
+	if oldSession != nil {
+		if oldSession.Disconnected == nil {
+			return nil, fmt.Errorf("session id %q is already in use", sessionID)
+		}
+
+		oldTunnels := GetTunnelsToReestablish(getRemotes(oldSession.Tunnels), req.Remotes)
+		clog.Infof("Tunnels to create %d: %v", len(req.Remotes), req.Remotes)
+		if len(oldTunnels) > 0 {
+			clog.Infof("Old tunnels to re-establish %d: %v", len(oldTunnels), oldTunnels)
+			req.Remotes = append(req.Remotes, oldTunnels...)
+		}
+	}
+
+	// check if client is already used by another session
+	if !authMultiuseCreds && s.isClientInUse(clientID, sessionID) {
+		return nil, fmt.Errorf("client is already connected: %q", clientID)
+	}
+
 	session := &sessions.ClientSession{
-		ID:         sid,
+		ID:         sessionID,
+		ClientID:   &clientID,
 		Name:       req.Name,
 		Tags:       req.Tags,
 		OS:         req.OS,
@@ -73,11 +103,7 @@ func (s *SessionService) StartClientSession(
 		Logger:     clog,
 	}
 
-	if client != nil {
-		session.ClientID = &client.ID
-	}
-
-	_, err := s.StartSessionTunnels(session, req.Remotes)
+	_, err = s.startSessionTunnels(session, req.Remotes)
 	if err != nil {
 		return nil, err
 	}
@@ -91,6 +117,12 @@ func (s *SessionService) StartClientSession(
 
 // StartSessionTunnels returns a new tunnel for each requested remote or nil if error occurred
 func (s *SessionService) StartSessionTunnels(session *sessions.ClientSession, remotes []*chshare.Remote) ([]*sessions.Tunnel, error) {
+	s.mu.Lock()
+	defer s.mu.Unlock()
+	return s.startSessionTunnels(session, remotes)
+}
+
+func (s *SessionService) startSessionTunnels(session *sessions.ClientSession, remotes []*chshare.Remote) ([]*sessions.Tunnel, error) {
 	err := s.portDistributor.Refresh()
 	if err != nil {
 		return nil, err
@@ -127,6 +159,8 @@ func (s *SessionService) StartSessionTunnels(session *sessions.ClientSession, re
 }
 
 func (s *SessionService) Terminate(session *sessions.ClientSession) error {
+	s.mu.Lock()
+	defer s.mu.Unlock()
 	if s.repo.KeepLostClients == nil {
 		return s.repo.Delete(session)
 	}
@@ -148,10 +182,22 @@ func (s *SessionService) Terminate(session *sessions.ClientSession) error {
 // ForceDelete deletes session from repo regardless off KeepLostClients setting,
 // if session is active it will be closed
 func (s *SessionService) ForceDelete(session *sessions.ClientSession) error {
+	s.mu.Lock()
+	defer s.mu.Unlock()
 	if session.Disconnected == nil {
 		if err := session.Close(); err != nil {
 			return err
 		}
 	}
 	return s.repo.Delete(session)
+}
+
+// isClientInUse returns true when the session with different id exists for the client
+func (s *SessionService) isClientInUse(clientID, sessionID string) bool {
+	for _, s := range s.repo.GetAllByClientID(clientID) {
+		if s.ID != sessionID {
+			return true
+		}
+	}
+	return false
 }

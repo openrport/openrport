@@ -1,4 +1,4 @@
-package chserver_test
+package chserver
 
 import (
 	"fmt"
@@ -7,7 +7,6 @@ import (
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 
-	chserver "github.com/cloudradar-monitoring/rport/server"
 	chshare "github.com/cloudradar-monitoring/rport/share"
 )
 
@@ -309,7 +308,7 @@ func TestGetTunnelsToReestablish(t *testing.T) {
 		}
 
 		// when
-		gotRes := chserver.GetTunnelsToReestablish(old, new)
+		gotRes := GetTunnelsToReestablish(old, new)
 
 		var gotResStr []string
 		for _, r := range gotRes {

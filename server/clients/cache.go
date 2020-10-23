@@ -1,7 +1,6 @@
 package clients
 
 import (
-	"errors"
 	"sync"
 )
 
@@ -65,66 +64,6 @@ func (c *ClientCache) Add(key string, client *Client) bool {
 	}
 	c.clients[key] = client
 	return true
-}
-
-// Lock locks a client with a given client session ID (sid), if it's unlocked or obtained by the same sid and returns true.
-// Returns false if it's already locked or if it's failed to do it.
-func (c *ClientCache) LockWith(key, sid string) (bool, error) {
-	c.mu.Lock()
-	defer c.mu.Unlock()
-
-	client := c.clients[key]
-	if client == nil {
-		return false, errors.New("not found")
-	}
-
-	if client.lockedBySID == sid || client.lockedBySID == "" {
-		client.lockedBySID = sid
-		return true, nil
-	}
-
-	return false, nil
-}
-
-// Unlock unlocks a client by a given key if it was locked and returns nil.
-// Returns an error if it's already unlocked or if it's failed to do it.
-func (c *ClientCache) Unlock(key string) error {
-	c.mu.Lock()
-	defer c.mu.Unlock()
-
-	client := c.clients[key]
-	if client == nil {
-		return errors.New("not found")
-	}
-
-	if client.lockedBySID == "" {
-		return errors.New("already unlocked")
-	}
-
-	client.lockedBySID = ""
-	return nil
-}
-
-// Unlock unlocks clients only if client session ids are the same.
-func (c *ClientCache) UnlockClientsLockedBySIDs(sidClientPairs map[string]string) []string {
-	c.mu.Lock()
-	defer c.mu.Unlock()
-
-	var unlockedClients []string
-	for sid, clientID := range sidClientPairs {
-		client := c.clients[clientID]
-		if client == nil {
-			// client can be removed, so it's ok to have nil client
-			continue
-		}
-
-		// unlock only if it was obtained by a current sid
-		if client.lockedBySID == sid {
-			client.lockedBySID = ""
-			unlockedClients = append(unlockedClients, clientID)
-		}
-	}
-	return unlockedClients
 }
 
 func (c *ClientCache) Delete(key string) {

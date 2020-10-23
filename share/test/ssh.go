@@ -1,6 +1,7 @@
 package test
 
 import (
+	"net"
 	"sync"
 
 	"golang.org/x/crypto/ssh"
@@ -14,6 +15,7 @@ type ConnMock struct {
 	ReturnOk              bool
 	ReturnResponsePayload []byte
 	ReturnErr             error
+	ReturnRemoteAddr      net.Addr
 
 	inputRequestName string
 	inputWantReply   bool
@@ -40,4 +42,8 @@ func (c *ConnMock) InputSendRequest() (name string, wantReply bool, payload []by
 	c.mu.Lock()
 	defer c.mu.Unlock()
 	return c.inputRequestName, c.inputWantReply, c.inputPayload
+}
+
+func (c *ConnMock) RemoteAddr() net.Addr {
+	return c.ReturnRemoteAddr
 }
