@@ -38,6 +38,8 @@ const (
 	ErrCodeRunCmdDisabled = "ERR_CODE_RUN_CMD_DISABLED"
 )
 
+var validInputShell = []string{"cmd", "powershell"}
+
 var generateNewJobID = func() string {
 	return random.UUID4()
 }
@@ -662,6 +664,7 @@ func (al *APIListener) handlePostCommand(w http.ResponseWriter, req *http.Reques
 
 	reqBody := struct {
 		Command    string `json:"command"`
+		Shell      string `json:"shell"`
 		TimeoutSec int    `json:"timeout_sec"`
 	}{}
 	dec := json.NewDecoder(req.Body)
@@ -676,6 +679,10 @@ func (al *APIListener) handlePostCommand(w http.ResponseWriter, req *http.Reques
 	}
 	if reqBody.Command == "" {
 		al.jsonErrorResponseWithTitle(w, http.StatusBadRequest, "Command cannot be empty.")
+		return
+	}
+	if err := validateShell(reqBody.Shell); err != nil {
+		al.jsonErrorResponseWithError(w, http.StatusBadRequest, "", "Invalid shell.", err)
 		return
 	}
 
@@ -703,6 +710,7 @@ func (al *APIListener) handlePostCommand(w http.ResponseWriter, req *http.Reques
 		},
 		SID:        sid,
 		Command:    reqBody.Command,
+		Shell:      reqBody.Shell,
 		CreatedBy:  api.GetUser(req.Context(), al.Logger),
 		TimeoutSec: reqBody.TimeoutSec,
 		Result:     nil,
@@ -736,6 +744,18 @@ func (al *APIListener) handlePostCommand(w http.ResponseWriter, req *http.Reques
 	al.writeJSONResponse(w, http.StatusOK, api.NewSuccessPayload(resp))
 
 	al.Debugf("Job[id=%q] created to execute remote command on client with sessionID=%q: %q.", curJob.JID, sid, reqBody.Command)
+}
+
+func validateShell(shell string) error {
+	if shell == "" {
+		return nil
+	}
+	for _, v := range validInputShell {
+		if shell == v {
+			return nil
+		}
+	}
+	return fmt.Errorf("expected shell to be one of: %s, actual: %s", validInputShell, shell)
 }
 
 func (al *APIListener) handleGetCommands(w http.ResponseWriter, req *http.Request) {

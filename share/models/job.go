@@ -15,6 +15,7 @@ type Job struct {
 	JobSummary
 	SID        string     `json:"sid"`
 	Command    string     `json:"command"`
+	Shell      string     `json:"shell"`
 	PID        int        `json:"pid"`
 	StartedAt  time.Time  `json:"started_at"`
 	CreatedBy  string     `json:"created_by"`

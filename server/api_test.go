@@ -670,6 +670,7 @@ func TestHandlePostCommand(t *testing.T) {
 		wantErrCode    string
 		wantErrTitle   string
 		wantErrDetail  string
+		wantShell      string
 	}{
 		{
 			name:           "valid cmd",
@@ -678,6 +679,24 @@ func TestHandlePostCommand(t *testing.T) {
 			sessions:       []*sessions.ClientSession{s1},
 			wantStatusCode: http.StatusOK,
 			wantTimeout:    gotCmdTimeoutSec,
+		},
+		{
+			name:           "valid cmd with shell",
+			requestBody:    `{"command": "` + gotCmd + `","shell": "powershell"}`,
+			sid:            s1.ID,
+			sessions:       []*sessions.ClientSession{s1},
+			wantStatusCode: http.StatusOK,
+			wantTimeout:    defaultTimeout,
+			wantShell:      "powershell",
+		},
+		{
+			name:           "invalid shell",
+			requestBody:    `{"command": "` + gotCmd + `","shell": "unsupported"}`,
+			sid:            s1.ID,
+			sessions:       []*sessions.ClientSession{s1},
+			wantStatusCode: http.StatusBadRequest,
+			wantErrTitle:   "Invalid shell.",
+			wantErrDetail:  "expected shell to be one of: [cmd powershell], actual: unsupported",
 		},
 		{
 			name:           "valid cmd with no timeout",
@@ -853,6 +872,7 @@ func TestHandlePostCommand(t *testing.T) {
 				assert.Nil(t, gotRunningJob.FinishedAt)
 				assert.Equal(t, tc.sid, gotRunningJob.SID)
 				assert.Equal(t, gotCmd, gotRunningJob.Command)
+				assert.Equal(t, tc.wantShell, gotRunningJob.Shell)
 				assert.Equal(t, sshSuccessResp.Pid, gotRunningJob.PID)
 				assert.Equal(t, sshSuccessResp.StartedAt, gotRunningJob.StartedAt)
 				assert.Equal(t, testUser, gotRunningJob.CreatedBy)
