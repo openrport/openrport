@@ -281,6 +281,10 @@ paths:
               command:
                 type: "string"
                 description: "remote command to execute by the rport client"
+              shell:
+                type: "string"
+                enum: [cmd, powershell]
+                description: "command shell to use to execute the command. Is applicable only for windows clients. If not set 'cmd' is used by default"
               timeout_sec:
                 type: "integer"
                 description: "timeout in seconds to observe the command execution. If not set a default timeout (60 seconds) is used"
@@ -550,6 +554,9 @@ definitions:
       command:
         type: "string"
         description: "executed command"
+      shell:
+        type: "string"
+        description: "command shell that was used to execute the command"
       started_at:
         type: "string"
         format: "data-time"
