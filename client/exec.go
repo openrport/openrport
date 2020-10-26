@@ -14,6 +14,7 @@ import (
 )
 
 type CmdExecutor interface {
+	New(ctx context.Context, shell, cmd string) *exec.Cmd
 	Start(cmd *exec.Cmd) error
 	Wait(cmd *exec.Cmd) error
 }
@@ -31,6 +32,14 @@ func (e *CmdExecutorImpl) Start(cmd *exec.Cmd) error {
 
 func (e *CmdExecutorImpl) Wait(cmd *exec.Cmd) error {
 	return cmd.Wait()
+}
+
+func (e *CmdExecutorImpl) newCmd(ctx context.Context, shell, command string) *exec.Cmd {
+	var args []string
+	args = append(args, shellOptions[shell]...)
+	args = append(args, command)
+	cmd := exec.CommandContext(ctx, shell, args...)
+	return cmd
 }
 
 const (
@@ -70,11 +79,7 @@ func (c *Client) HandleRunCmdRequest(ctx context.Context, reqPayload []byte) (*c
 		return nil, err
 	}
 
-	var args []string
-	args = append(args, shellOptions[job.Shell]...)
-	args = append(args, job.Command)
-
-	cmd := exec.CommandContext(ctx, job.Shell, args...)
+	cmd := c.cmdExec.New(ctx, job.Shell, job.Command)
 	var stdOut, stdErr bytes.Buffer
 	cmd.Stdout = &stdOut
 	cmd.Stderr = &stdErr

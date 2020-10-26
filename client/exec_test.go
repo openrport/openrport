@@ -33,6 +33,14 @@ func NewCmdExecutorMock() *CmdExecutorMock {
 	return &CmdExecutorMock{}
 }
 
+func (e *CmdExecutorMock) New(ctx context.Context, shell, command string) *exec.Cmd {
+	var args []string
+	args = append(args, shellOptions[shell]...)
+	args = append(args, command)
+	cmd := exec.CommandContext(ctx, shell, args...)
+	return cmd
+}
+
 func (e *CmdExecutorMock) Start(cmd *exec.Cmd) error {
 	if e.ReturnStartErr != nil {
 		return e.ReturnStartErr
