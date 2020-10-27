@@ -12,6 +12,12 @@ import (
 	chshare "github.com/cloudradar-monitoring/rport/share"
 )
 
+var defaultValidMinConfig = Config{
+	Client: ClientConfig{
+		Server: "test.com",
+	},
+}
+
 func TestConfigParseAndValidateHeaders(t *testing.T) {
 	testCases := []struct {
 		Name           string
@@ -307,6 +313,51 @@ func TestConfigParseAndValidateAuth(t *testing.T) {
 			require.NoError(t, err)
 			assert.Equal(t, tc.ExpectedUser, config.Client.authUser)
 			assert.Equal(t, tc.ExpectedPass, config.Client.authPass)
+		})
+	}
+}
+
+func TestConfigParseAndValidateSendBackLimit(t *testing.T) {
+	testCases := []struct {
+		name            string
+		sendBackLimit   int
+		wantErrContains string
+	}{
+		{
+			name:            "zero limit",
+			sendBackLimit:   0,
+			wantErrContains: "",
+		},
+		{
+			name:            "valid positive limit",
+			sendBackLimit:   1,
+			wantErrContains: "",
+		},
+		{
+			name:            "invalid limit negative",
+			sendBackLimit:   -1,
+			wantErrContains: "remote commands send back limit can not be negative",
+		},
+	}
+
+	for _, tc := range testCases {
+		t.Run(tc.name, func(t *testing.T) {
+			// given
+			config := defaultValidMinConfig
+			config.RemoteCommands = CommandsConfig{
+				SendBackLimit: tc.sendBackLimit,
+			}
+
+			// when
+			gotErr := config.ParseAndValidate()
+
+			// then
+			if tc.wantErrContains != "" {
+				require.Error(t, gotErr)
+				assert.Contains(t, gotErr.Error(), tc.wantErrContains)
+			} else {
+				require.NoError(t, gotErr)
+			}
 		})
 	}
 }

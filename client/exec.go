@@ -4,6 +4,7 @@ import (
 	"bytes"
 	"context"
 	"encoding/json"
+	"errors"
 	"fmt"
 	"os/exec"
 	"runtime"
@@ -62,6 +63,10 @@ var shellOptions = map[string][]string{
 var now = time.Now
 
 func (c *Client) HandleRunCmdRequest(ctx context.Context, reqPayload []byte) (*comm.RunCmdResponse, error) {
+	if !c.config.RemoteCommands.Enabled {
+		return nil, errors.New("remote commands execution is disabled")
+	}
+
 	// do not accept a new request when the previous is not finished yet
 	// NOTE: HandleRunCmdRequest is run sequentially, that's why no need to lock a block with read/write curPID
 	curPID := c.getCurCmdPID()
@@ -80,7 +85,8 @@ func (c *Client) HandleRunCmdRequest(ctx context.Context, reqPayload []byte) (*c
 	}
 
 	cmd := c.cmdExec.New(ctx, job.Shell, job.Command)
-	var stdOut, stdErr bytes.Buffer
+	stdOut := CapacityBuffer{capacity: c.config.RemoteCommands.SendBackLimit}
+	stdErr := CapacityBuffer{capacity: c.config.RemoteCommands.SendBackLimit}
 	cmd.Stdout = &stdOut
 	cmd.Stderr = &stdErr
 
@@ -167,4 +173,25 @@ var getShell = func(inputShell, os string) (string, error) {
 		return "", fmt.Errorf("for unix clients a command shell should not be specified, got: %q", inputShell)
 	}
 	return unixShell, nil
+}
+
+type CapacityBuffer struct {
+	bytes.Buffer
+	capacity int
+}
+
+func (b *CapacityBuffer) Write(p []byte) (n int, err error) {
+	freeCapacity := b.capacity - b.Len()
+
+	// do not write to buffer if no space left
+	if freeCapacity <= 0 {
+		return len(p), nil // pretend a successful write
+	}
+
+	// write to buffer only a part if exceeds the capacity
+	if len(p) > freeCapacity {
+		return b.Buffer.Write(p[:freeCapacity])
+	}
+
+	return b.Buffer.Write(p)
 }

@@ -115,6 +115,13 @@ var clientHelp = `
 
     --log-file, -l, Specifies log file path. (defaults to empty string: log printed to stdout)
 
+    --remote-commands-enabled, Enable or disable remote commands.
+    Defaults: true
+
+    --remote-commands-send-back-limit, Limit the maximum length of the command output that is sent back.
+    Applies to the stdout and stderr separately. If exceeded the specified number of bytes are sent.
+    Defaults: 2048
+
     --config, -c, An optional arg to define a path to a config file. If it is set then
     configuration will be loaded from the file. Note: command arguments and env variables will override them.
     Config file should be in TOML format. You can find an example "rport.example.conf" in the release archive.
@@ -160,6 +167,8 @@ func init() {
 	pFlags.StringP("log-file", "l", "", "")
 	pFlags.String("log-level", "", "")
 	pFlags.Bool("allow-root", false, "")
+	pFlags.Bool("remote-commands-enabled", true, "")
+	pFlags.Int("remote-commands-send-back-limit", 2048, "")
 
 	cfgPath = pFlags.StringP("config", "c", "", "")
 	svcCommand = pFlags.String("service", "", "")
@@ -193,6 +202,9 @@ func init() {
 	_ = viperCfg.BindPFlag("connection.max_retry_interval", pFlags.Lookup("max-retry-interval"))
 	_ = viperCfg.BindPFlag("connection.hostname", pFlags.Lookup("hostname"))
 	_ = viperCfg.BindPFlag("connection.headers", pFlags.Lookup("header"))
+
+	_ = viperCfg.BindPFlag("remote-commands.enabled", pFlags.Lookup("remote-commands-enabled"))
+	_ = viperCfg.BindPFlag("remote-commands.send_back_limit", pFlags.Lookup("remote-commands-send-back-limit"))
 }
 
 func main() {

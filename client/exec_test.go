@@ -6,6 +6,7 @@ import (
 	"log"
 	"os"
 	"os/exec"
+	"strings"
 	"sync"
 	"testing"
 	"time"
@@ -63,7 +64,7 @@ func (e *CmdExecutorMock) writeToStdOut(cmd *exec.Cmd) {
 	defer e.wg.Done()
 
 	for _, s := range e.ReturnStdOut {
-		_, err := cmd.Stdout.Write([]byte(s + "\n"))
+		_, err := cmd.Stdout.Write([]byte(s))
 		if err != nil {
 			log.Fatalf("Failed to write data into stdout: %s", err)
 		}
@@ -74,7 +75,7 @@ func (e *CmdExecutorMock) writeToStdErr(cmd *exec.Cmd) {
 	defer e.wg.Done()
 
 	for _, s := range e.ReturnStdErr {
-		_, err := cmd.Stderr.Write([]byte(s + "\n"))
+		_, err := cmd.Stderr.Write([]byte(s))
 		if err != nil {
 			log.Fatalf("Failed to write data into stderr: %s", err)
 		}
@@ -191,7 +192,7 @@ func TestGetShell(t *testing.T) {
 	}
 }
 
-func TestHandleRunCmdRequestNormalCase(t *testing.T) {
+func TestHandleRunCmdRequestPositiveCase(t *testing.T) {
 	now = nowMockF
 	assert := assert.New(t)
 
@@ -202,19 +203,21 @@ func TestHandleRunCmdRequestNormalCase(t *testing.T) {
 	wantPID := 123
 	execMock := NewCmdExecutorMock()
 	execMock.ReturnPID = wantPID
-	execMock.ReturnStdOut = []string{"1", "2", "3"}
+	execMock.ReturnStdOut = []string{"output1", "output2", "output3"}
 	execMock.ReturnStdErr = []string{"error1", "error2"}
 	connMock := test.NewConnMock()
 	// mimic real behavior and wait until background task sends the request
 	done := make(chan bool)
 	connMock.DoneChannel = done
+	configCopy := defaultValidMinConfig
 	c := Client{
 		cmdExec: execMock,
 		sshConn: connMock,
 		Logger:  testLog,
+		config:  &configCopy,
 	}
 
-	wantJobJSON := `
+	wantJSONPart1 := `
 {
 	"jid": "5f02b216-3f8a-42be-b66c-f4c1d0ea3809",
 	"status": "successful",
@@ -226,28 +229,88 @@ func TestHandleRunCmdRequestNormalCase(t *testing.T) {
 	"started_at": "2020-08-19T12:00:00+03:00",
 	"created_by": "admin",
 	"timeout_sec": 60,
-	"result": {
-		"stdout": "1\n2\n3\n",
-		"stderr": "error1\nerror2\n"
-	}
-}
-
 `
-	// when
-	res, err := c.HandleRunCmdRequest(context.Background(), []byte(jobToRunJSON))
-	<-done
+	wantJSONPart2 := `
+	   "result": {
+			"stdout": "output1output2output3",
+			"stderr": "error1error2"
+		}
+	}
+	`
+	stdOutSize := len(strings.Join(execMock.ReturnStdOut, ""))
+	stdErrSize := len(strings.Join(execMock.ReturnStdErr, ""))
 
-	// then
+	testCases := []struct {
+		name          string
+		sendBackLimit int
+		wantJSON      string
+	}{
+		{
+			name:          "limit is larger than stdout and stderr",
+			sendBackLimit: stdOutSize + 1,
+			wantJSON:      wantJSONPart1 + wantJSONPart2,
+		},
+		{
+			name:          "limit is equal to the larger output",
+			sendBackLimit: stdOutSize,
+			wantJSON:      wantJSONPart1 + wantJSONPart2,
+		},
+		{
+			name:          "limit is equal to the smaller output",
+			sendBackLimit: stdErrSize,
+			wantJSON: wantJSONPart1 + `
+        "result": {
+        "stdout": "output1outpu",
+        "stderr": "error1error2"
+    }
+}`,
+		},
+		{
+			name:          "limit is less than smaller output",
+			sendBackLimit: stdErrSize - 1,
+			wantJSON: wantJSONPart1 + `
+		"result": {
+		"stdout": "output1outp",
+		"stderr": "error1error"
+	}
+}`,
+		},
+		{
+			name:          "limit is zero",
+			sendBackLimit: 0,
+			wantJSON: wantJSONPart1 + `
+		"result": {
+		"stdout": "",
+		"stderr": ""
+	}
+}`,
+		},
+	}
+	for _, tc := range testCases {
+		t.Run(tc.name, func(t *testing.T) {
+			// given
+			c.config.RemoteCommands = CommandsConfig{
+				Enabled:       true,
+				SendBackLimit: tc.sendBackLimit,
+			}
 
-	// check returned result
-	require.NoError(t, err)
-	assert.Equal(&comm.RunCmdResponse{Pid: wantPID, StartedAt: nowMock}, res)
+			// when
+			res, err := c.HandleRunCmdRequest(context.Background(), []byte(jobToRunJSON))
+			<-done
 
-	// check job result that was sent to server
-	inputRequestName, inputWantReply, inputPayload := connMock.InputSendRequest()
-	assert.Equal(comm.RequestTypeCmdResult, inputRequestName)
-	assert.Equal(false, inputWantReply)
-	assert.JSONEq(wantJobJSON, string(inputPayload))
+			// then
+
+			// check returned result
+			require.NoError(t, err)
+			assert.Equal(&comm.RunCmdResponse{Pid: wantPID, StartedAt: nowMock}, res)
+
+			// check job result that was sent to server
+			inputRequestName, inputWantReply, inputPayload := connMock.InputSendRequest()
+			assert.Equal(comm.RequestTypeCmdResult, inputRequestName)
+			assert.Equal(false, inputWantReply)
+			assert.JSONEq(tc.wantJSON, string(inputPayload))
+		})
+	}
 }
 
 func TestHandleRunCmdRequestHasRunningCmd(t *testing.T) {
@@ -273,6 +336,12 @@ func TestHandleRunCmdRequestHasRunningCmd(t *testing.T) {
 		cmdExec: execMock,
 		sshConn: connMock,
 		Logger:  testLog,
+		config: &Config{
+			RemoteCommands: CommandsConfig{
+				Enabled:       true,
+				SendBackLimit: 2048,
+			},
+		},
 	}
 
 	// when
@@ -299,4 +368,24 @@ func TestHandleRunCmdRequestHasRunningCmd(t *testing.T) {
 	assert.Error(err2)
 	assert.Equal(fmt.Errorf("a previous command execution with PID %d is still running", wantPID), err2)
 	assert.Nil(res2)
+}
+
+func TestRemoteCommandsDisabled(t *testing.T) {
+	// given
+	c := Client{
+		Logger: testLog,
+		config: &Config{
+			RemoteCommands: CommandsConfig{
+				Enabled: false,
+			},
+		},
+	}
+
+	// when
+	gotRes, gotErr := c.HandleRunCmdRequest(context.Background(), []byte(jobToRunJSON))
+
+	// then
+	require.Error(t, gotErr)
+	assert.Equal(t, "remote commands execution is disabled", gotErr.Error())
+	assert.Nil(t, gotRes)
 }

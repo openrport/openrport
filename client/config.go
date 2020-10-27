@@ -48,10 +48,16 @@ func (c *ConnectionConfig) Headers() http.Header {
 	return c.headers
 }
 
+type CommandsConfig struct {
+	Enabled       bool `mapstructure:"enabled"`
+	SendBackLimit int  `mapstructure:"send_back_limit"`
+}
+
 type Config struct {
-	Client     ClientConfig     `mapstructure:"client"`
-	Connection ConnectionConfig `mapstructure:"connection"`
-	Logging    LogConfig        `mapstructure:"logging"`
+	Client         ClientConfig     `mapstructure:"client"`
+	Connection     ConnectionConfig `mapstructure:"connection"`
+	Logging        LogConfig        `mapstructure:"logging"`
+	RemoteCommands CommandsConfig   `mapstructure:"remote-commands"`
 }
 
 func (c *Config) ParseAndValidate() error {
@@ -69,6 +75,9 @@ func (c *Config) ParseAndValidate() error {
 	}
 	if c.Connection.MaxRetryInterval < time.Second {
 		c.Connection.MaxRetryInterval = 5 * time.Minute
+	}
+	if c.RemoteCommands.SendBackLimit < 0 {
+		return fmt.Errorf("remote commands send back limit can not be negative: %d", c.RemoteCommands.SendBackLimit)
 	}
 	c.Client.authUser, c.Client.authPass = chshare.ParseAuth(c.Client.Auth)
 	return nil

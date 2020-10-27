@@ -44,7 +44,7 @@ The rport client supervises the command for the given {timeout_sec} (in seconds)
 ### Execute on multiple hosts
 (Not implemented yet.)
 
-### Securing your environment (NOT IMPLEMENTED YET)
+### Securing your environment
 The commands are executed from the account that runs rport.
 On Linux this by default an unprivileged user. Do not run rport as root.
 On Windows, rport runs as a local service account that by default has administrative rights.
@@ -53,29 +53,32 @@ On the client using the `rport.conf` you can configure and limit the execution o
 ```
 [remote-commands]
 ## Enable or disable remote commands.
-## Defaults: True
-#enabled = True
+## Defaults: true
+#enabled = true
 
+## NOT IMPLEMENTED YET
 ## Only allow commands matching the following regular expressions.
 ## The filter is applied to the command sent and not to the full path where the command is located.
 ## Defaults: ['.*']
 #allow = ['.*']
 
+## NOT IMPLEMENTED YET
 ## Deny any commands matching one of the following regular expressions
 ## The filter is applied to the command sent.
 ## With the below default filter only single commands are allowed.
 ## Defaults: ['(\||<|>|;|\\|\n)']
 #deny = ['(\||<|>|;|\\\n)']
 
+## NOT IMPLEMENTED YET
 ## Order of which filter is applied first.
 ## Defaults: ['deny','allow']
 #order = ['deny','allow']
 
 ## Limit the maximum length of the command output that is sent back.
-## Applies to the sum of stdout and stderr.
+## Applies to the stdout and stderr separately.
 ## If exceeded {send_back_limit} bytes are sent.
-## Defaults: 4096
-#send_back_limit = 4096
+## Defaults: 2048
+#send_back_limit = 2048
 ```
 
 **Examples:**
