@@ -8,6 +8,7 @@ import (
 	"net/http"
 	"net/url"
 	"os"
+	"strings"
 	"time"
 
 	mapset "github.com/deckarep/golang-set"
@@ -33,6 +34,8 @@ const (
 
 	MinKeepLostClients = time.Second
 	MaxKeepLostClients = 7 * 24 * time.Hour
+
+	socketPrefix = "socket:"
 )
 
 type LogConfig struct {
@@ -44,8 +47,9 @@ type ServerConfig struct {
 	ListenAddress              string        `mapstructure:"address"`
 	URL                        string        `mapstructure:"url"`
 	KeySeed                    string        `mapstructure:"key_seed"`
-	AuthFile                   string        `mapstructure:"auth_file"`
 	Auth                       string        `mapstructure:"auth"`
+	AuthFile                   string        `mapstructure:"auth_file"`
+	AuthTable                  string        `mapstructure:"auth_table"`
 	Proxy                      string        `mapstructure:"proxy"`
 	ExcludedPortsRaw           []string      `mapstructure:"excluded_ports"`
 	DataDir                    string        `mapstructure:"data_dir"`
@@ -65,10 +69,22 @@ type ServerConfig struct {
 	authPassword  string
 }
 
+type DatabaseConfig struct {
+	Type     string `mapstructure:"db_type"`
+	Host     string `mapstructure:"db_host"`
+	User     string `mapstructure:"db_user"`
+	Password string `mapstructure:"db_password"`
+	Name     string `mapstructure:"db_name"`
+
+	driver string
+	dsn    string
+}
+
 type Config struct {
-	Server  ServerConfig `mapstructure:"server"`
-	Logging LogConfig    `mapstructure:"logging"`
-	API     APIConfig    `mapstructure:"api"`
+	Server   ServerConfig   `mapstructure:"server"`
+	Logging  LogConfig      `mapstructure:"logging"`
+	API      APIConfig      `mapstructure:"api"`
+	Database DatabaseConfig `mapstructure:"database"`
 }
 
 func (c *Config) CSRFilePath() string {
@@ -126,12 +142,34 @@ func (c *Config) ParseAndValidate() error {
 		return fmt.Errorf("expected 'Keep Lost Clients' can be in range [%v, %v], actual: %v", MinKeepLostClients, MaxKeepLostClients, c.Server.KeepLostClients)
 	}
 
-	if c.Server.AuthFile != "" && c.Server.Auth != "" {
-		return errors.New("'auth_file' and 'auth' are both set: expected only one of them ")
+	if err := c.parseAndValidateAuth(); err != nil {
+		return err
 	}
 
-	if c.Server.Auth == "" && c.Server.AuthFile == "" {
-		return errors.New("client authentication must to be enabled: set either 'auth' or 'auth_file'")
+	if err := c.Database.ParseAndValidate(); err != nil {
+		return err
+	}
+
+	return nil
+}
+
+func (c *Config) parseAndValidateAuth() error {
+	if c.Server.Auth == "" && c.Server.AuthFile == "" && c.Server.AuthTable == "" {
+		return errors.New("client authentication must be enabled: set either 'auth', 'auth_file' or 'auth_table'")
+	}
+
+	if c.Server.AuthFile != "" && c.Server.Auth != "" {
+		return errors.New("'auth_file' and 'auth' are both set: expected only one of them")
+	}
+	if c.Server.AuthFile != "" && c.Server.AuthTable != "" {
+		return errors.New("'auth_file' and 'auth_table' are both set: expected only one of them")
+	}
+	if c.Server.Auth != "" && c.Server.AuthTable != "" {
+		return errors.New("'auth' and 'auth_table' are both set: expected only one of them")
+	}
+
+	if c.Server.AuthTable != "" && c.Database.Type == "" {
+		return errors.New("'db_type' must be set when 'auth_table' is set")
 	}
 
 	if c.Server.Auth != "" {
@@ -139,6 +177,40 @@ func (c *Config) ParseAndValidate() error {
 		if c.Server.authID == "" || c.Server.authPassword == "" {
 			return fmt.Errorf("invalid client auth credentials, expected '<client-id>:<password>', got %q", c.Server.Auth)
 		}
+	}
+
+	return nil
+}
+
+func (d *DatabaseConfig) ParseAndValidate() error {
+	switch d.Type {
+	case "":
+		return nil
+	case "mysql":
+		d.driver = "mysql"
+		d.dsn = ""
+		if d.User != "" {
+			d.dsn += d.User
+			if d.Password != "" {
+				d.dsn += ":"
+				d.dsn += d.Password
+			}
+			d.dsn += "@"
+		}
+		if d.Host != "" {
+			if strings.HasPrefix(d.Host, socketPrefix) {
+				d.dsn += fmt.Sprintf("unix(%s)", strings.TrimPrefix(d.Host, socketPrefix))
+			} else {
+				d.dsn += fmt.Sprintf("tcp(%s)", d.Host)
+			}
+		}
+		d.dsn += "/"
+		d.dsn += d.Name
+	case "sqlite":
+		d.driver = "sqlite3"
+		d.dsn = d.Name
+	default:
+		return fmt.Errorf("invalid 'db_type', expected 'mysql' or 'sqlite', got %q", d.Type)
 	}
 
 	return nil

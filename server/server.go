@@ -7,8 +7,13 @@ import (
 	"path"
 	"time"
 
+	"github.com/jmoiron/sqlx"
 	"golang.org/x/crypto/ssh"
 	"golang.org/x/sync/errgroup"
+
+	// sql drivers
+	_ "github.com/go-sql-driver/mysql"
+	_ "github.com/mattn/go-sqlite3"
 
 	"github.com/cloudradar-monitoring/rport/server/api/jobs"
 	"github.com/cloudradar-monitoring/rport/server/clients"
@@ -28,6 +33,7 @@ type Server struct {
 	sessionService *SessionService
 	clientProvider clients.Provider
 	jobProvider    JobProvider
+	db             *sqlx.DB
 }
 
 // NewServer creates and returns a new rport server
@@ -80,7 +86,14 @@ func NewServer(config *Config, filesAPI files.FileAPI) (*Server, error) {
 		repo,
 	)
 
-	s.clientProvider, err = getClientProvider(config)
+	if config.Database.driver != "" {
+		s.db, err = sqlx.Connect(config.Database.driver, config.Database.dsn)
+		if err != nil {
+			return nil, err
+		}
+	}
+
+	s.clientProvider, err = getClientProvider(config, s.db)
 	if err != nil {
 		return nil, err
 	}
@@ -105,7 +118,16 @@ func getJobsDirectory(datDir string) string {
 	return path.Join(datDir, "jobs")
 }
 
-func getClientProvider(config *Config) (clients.Provider, error) {
+func getClientProvider(config *Config, db *sqlx.DB) (clients.Provider, error) {
+	if config.Server.AuthTable != "" {
+		dbProvider := clients.NewDatabaseProvider(db, config.Server.AuthTable)
+		cachedProvider, err := clients.NewCachedProvider(dbProvider)
+		if err != nil {
+			return nil, err
+		}
+		return cachedProvider, nil
+	}
+
 	if config.Server.AuthFile != "" {
 		fileProvider := clients.NewFileProvider(config.Server.AuthFile)
 		cachedProvider, err := clients.NewCachedProvider(fileProvider)
@@ -116,7 +138,6 @@ func getClientProvider(config *Config) (clients.Provider, error) {
 	}
 
 	if config.Server.Auth != "" {
-
 		return clients.NewSingleProvider(config.Server.authID, config.Server.authPassword), nil
 	}
 
@@ -181,5 +202,8 @@ func (s *Server) Close() error {
 	wg := &errgroup.Group{}
 	wg.Go(s.clientListener.Close)
 	wg.Go(s.apiListener.Close)
+	if s.db != nil {
+		wg.Go(s.db.Close)
+	}
 	return wg.Wait()
 }

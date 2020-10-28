@@ -72,7 +72,11 @@ var serverHelp = `
 
     --auth, An optional string representing a single client with full access, in the form of <client-id>:<password>.
     This is equivalent to creating an authfile with {"<client-id>":"<password>"}.
-    Use either "authfile" or "auth". Not both. If multiple auth options are enabled, rportd exits with an error.
+    Use either "authfile", "auth-table" or "auth". If multiple auth options are enabled, rportd exits with an error.
+
+    --auth-table, An optional name of a database table for client authentication.
+    Requires a global database connection. The table must be created manually.
+    Use either "authfile", "auth-table" or "auth". If multiple auth options are enabled, rportd exits with an error.
 
     --auth-write, If you want to delegate the creation and maintenance to an external tool
     you should set this value to "false". The API will reject all writing access to the
@@ -123,6 +127,16 @@ var serverHelp = `
     Https will be activated if both cert and key file are set.
 
     --api-access-log-file, An optional arg to specify file for writing api access logs.
+
+    --db-type, An optional arg to specify database type. Values 'mysql' or 'sqlite'.
+
+    --db-host, An optional arg to specify host for mysql database.
+
+    --db-user, An optional arg to specify user for mysql database.
+
+    --db-password, An optional arg to specify password for mysql database.
+
+    --db-name, An optional arg to specify name for mysql database or file for sqlite.
 
     --data-dir, An optional arg to define a local directory path to store internal data.
     By default, "/var/lib/rportd" is used on Linux, "C:\ProgramData\rportd" is used on Windows.
@@ -200,6 +214,7 @@ func init() {
 	pFlags.String("key", "", "")
 	pFlags.String("authfile", "", "")
 	pFlags.String("auth", "", "")
+	pFlags.String("auth-table", "", "")
 	pFlags.String("proxy", "", "")
 	pFlags.String("api-addr", "", "")
 	pFlags.String("api-authfile", "", "")
@@ -209,6 +224,11 @@ func init() {
 	pFlags.String("api-cert-file", "", "")
 	pFlags.String("api-key-file", "", "")
 	pFlags.String("api-access-log-file", "", "")
+	pFlags.String("db-type", "", "")
+	pFlags.String("db-name", "", "")
+	pFlags.String("db-host", "", "")
+	pFlags.String("db-user", "", "")
+	pFlags.String("db-password", "", "")
 	pFlags.StringP("log-file", "l", "", "")
 	pFlags.String("log-level", "", "")
 	pFlags.StringSliceP("exclude-ports", "e", []string{DefaultExcludedPorts}, "")
@@ -246,6 +266,7 @@ func init() {
 	_ = viperCfg.BindPFlag("server.key_seed", pFlags.Lookup("key"))
 	_ = viperCfg.BindPFlag("server.auth", pFlags.Lookup("auth"))
 	_ = viperCfg.BindPFlag("server.auth_file", pFlags.Lookup("authfile"))
+	_ = viperCfg.BindPFlag("server.auth_table", pFlags.Lookup("auth-table"))
 	_ = viperCfg.BindPFlag("server.auth_multiuse_creds", pFlags.Lookup("auth-multiuse-creds"))
 	_ = viperCfg.BindPFlag("server.equate_authusername_clientid", pFlags.Lookup("equate-authusername-clientid"))
 	_ = viperCfg.BindPFlag("server.auth_write", pFlags.Lookup("auth-write"))
@@ -271,6 +292,11 @@ func init() {
 	_ = viperCfg.BindPFlag("api.cert_file", pFlags.Lookup("api-cert-file"))
 	_ = viperCfg.BindPFlag("api.key_file", pFlags.Lookup("api-key-file"))
 	_ = viperCfg.BindPFlag("api.access_log_file", pFlags.Lookup("api-access-log-file"))
+	_ = viperCfg.BindPFlag("database.db_type", pFlags.Lookup("db-type"))
+	_ = viperCfg.BindPFlag("database.db_name", pFlags.Lookup("db-name"))
+	_ = viperCfg.BindPFlag("database.db_host", pFlags.Lookup("db-host"))
+	_ = viperCfg.BindPFlag("database.db_user", pFlags.Lookup("db-user"))
+	_ = viperCfg.BindPFlag("database.db_password", pFlags.Lookup("db-password"))
 }
 
 func main() {

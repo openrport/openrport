@@ -8,15 +8,18 @@ require (
 	github.com/deckarep/golang-set v1.7.1
 	github.com/dgrijalva/jwt-go v3.2.0+incompatible
 	github.com/go-ole/go-ole v1.2.4 // indirect
+	github.com/go-sql-driver/mysql v1.5.0
 	github.com/gorilla/handlers v1.5.1
 	github.com/gorilla/mux v1.7.4
 	github.com/gorilla/websocket v1.4.2
+	github.com/jmoiron/sqlx v1.2.0
 	github.com/jpillora/ansi v1.0.2 // indirect
 	github.com/jpillora/backoff v1.0.0
 	github.com/jpillora/requestlog v1.0.0
 	github.com/jpillora/sizestr v1.0.0
 	github.com/kardianos/service v1.1.0
 	github.com/magiconair/properties v1.8.1
+	github.com/mattn/go-sqlite3 v1.14.4
 	github.com/mitchellh/mapstructure v1.1.2
 	github.com/satori/go.uuid v1.2.0
 	github.com/shirou/gopsutil v2.20.6+incompatible
