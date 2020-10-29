@@ -38,6 +38,9 @@ func TestCustomHeaders(t *testing.T) {
 			MaxRetryInterval: time.Second,
 			HeadersRaw:       []string{"Foo: Bar"},
 		},
+		RemoteCommands: CommandsConfig{
+			Order: allowDenyOrder,
+		},
 	}
 	err := config.ParseAndValidate()
 	if err != nil {

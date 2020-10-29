@@ -6,6 +6,7 @@ import (
 	"log"
 	"os"
 	"os/exec"
+	"regexp"
 	"strings"
 	"sync"
 	"testing"
@@ -241,9 +242,11 @@ func TestHandleRunCmdRequestPositiveCase(t *testing.T) {
 	stdErrSize := len(strings.Join(execMock.ReturnStdErr, ""))
 
 	testCases := []struct {
-		name          string
-		sendBackLimit int
-		wantJSON      string
+		name            string
+		sendBackLimit   int
+		denyRegexp      *regexp.Regexp
+		wantJSON        string
+		wantErrContains string
 	}{
 		{
 			name:          "limit is larger than stdout and stderr",
@@ -285,20 +288,30 @@ func TestHandleRunCmdRequestPositiveCase(t *testing.T) {
 	}
 }`,
 		},
+		{
+			name:            "command is not allowed",
+			denyRegexp:      regexp.MustCompile(".*"),
+			wantErrContains: "command is not allowed",
+		},
 	}
 	for _, tc := range testCases {
 		t.Run(tc.name, func(t *testing.T) {
 			// given
-			c.config.RemoteCommands = CommandsConfig{
-				Enabled:       true,
-				SendBackLimit: tc.sendBackLimit,
+			c.config.RemoteCommands.SendBackLimit = tc.sendBackLimit
+			if tc.denyRegexp != nil {
+				c.config.RemoteCommands.denyRegexp = []*regexp.Regexp{tc.denyRegexp}
 			}
 
 			// when
 			res, err := c.HandleRunCmdRequest(context.Background(), []byte(jobToRunJSON))
-			<-done
 
 			// then
+			if tc.wantErrContains != "" {
+				require.Error(t, err)
+				assert.Contains(err.Error(), tc.wantErrContains)
+				return
+			}
+			<-done
 
 			// check returned result
 			require.NoError(t, err)
@@ -332,16 +345,12 @@ func TestHandleRunCmdRequestHasRunningCmd(t *testing.T) {
 	doneCmd := make(chan bool)
 	execMock.DoneChannel = doneCmd
 
+	configCopy := defaultValidMinConfig
 	c := Client{
 		cmdExec: execMock,
 		sshConn: connMock,
 		Logger:  testLog,
-		config: &Config{
-			RemoteCommands: CommandsConfig{
-				Enabled:       true,
-				SendBackLimit: 2048,
-			},
-		},
+		config:  &configCopy,
 	}
 
 	// when
@@ -388,4 +397,135 @@ func TestRemoteCommandsDisabled(t *testing.T) {
 	require.Error(t, gotErr)
 	assert.Equal(t, "remote commands execution is disabled", gotErr.Error())
 	assert.Nil(t, gotRes)
+}
+
+func TestIsCommandAllowed(t *testing.T) {
+	defaultTestAllow := []string{"^/usr/bin.*", "^/usr/local/bin/.*", `^C:\Windows\System32.*`}
+	testCases := []struct {
+		name string
+
+		cmd   string
+		order [2]string
+		allow []string
+		deny  []string
+
+		wantRes bool
+	}{
+		{
+			name:    "allow-deny: does not match allow regexp",
+			cmd:     "/some/cmd",
+			order:   allowDenyOrder,
+			allow:   defaultTestAllow,
+			wantRes: false,
+		},
+		{
+			name:    "allow-deny: matches both allow and deny regexp",
+			cmd:     "/usr/bin/zip",
+			order:   allowDenyOrder,
+			allow:   defaultTestAllow,
+			deny:    []string{"^/usr/bin/z.*"},
+			wantRes: false,
+		},
+		{
+			name:    "allow-deny: matches allow, empty deny",
+			cmd:     "/usr/bin/zip",
+			order:   allowDenyOrder,
+			allow:   defaultTestAllow,
+			deny:    []string{},
+			wantRes: true,
+		},
+		{
+			name:    "allow-deny: empty allow, does not match deny regexp",
+			cmd:     "/bin/some/cmd",
+			order:   allowDenyOrder,
+			allow:   []string{},
+			deny:    []string{"^/usr/bin/zip.*"},
+			wantRes: false,
+		},
+		{
+			name:    "allow-deny: matches allow regexp but not deny",
+			cmd:     "/usr/bin/zip",
+			order:   allowDenyOrder,
+			allow:   defaultTestAllow,
+			deny:    []string{"^/usr/bin/zip2.*", "zip3.*"},
+			wantRes: true,
+		},
+		{
+			name:    "allow-deny: does not match any regexp",
+			cmd:     "/bin/some/cmd",
+			order:   allowDenyOrder,
+			allow:   defaultTestAllow,
+			deny:    []string{"^/usr/bin/zip2.*"},
+			wantRes: false,
+		},
+		{
+			name:    "deny-allow: matches both deny and allow regexp",
+			cmd:     "/usr/bin/zip",
+			order:   denyAllowOrder,
+			deny:    []string{"^/usr/bin/z.*"},
+			allow:   defaultTestAllow,
+			wantRes: true,
+		},
+		{
+			name:    "deny-allow: matches deny regexp but not allow",
+			cmd:     "/usr/test/test-cmd",
+			order:   denyAllowOrder,
+			deny:    []string{".*test.*"},
+			allow:   []string{"^/usr/bin.*", "^/usr/local/bin/.*"},
+			wantRes: false,
+		},
+		{
+			name:    "deny-allow: matches allow regexp but not deny",
+			cmd:     "/usr/bin/zip",
+			order:   denyAllowOrder,
+			deny:    []string{"^/usr/bin/zip2.*", ".*zip3.*"},
+			allow:   defaultTestAllow,
+			wantRes: true,
+		},
+		{
+			name:    "allow-deny: does not match any regexp",
+			cmd:     "/bin/some/cmd",
+			order:   denyAllowOrder,
+			allow:   defaultTestAllow,
+			deny:    []string{"^/usr/bin/zip2.*"},
+			wantRes: true,
+		},
+		{
+			name:    "unknown order",
+			cmd:     "/bin/some/cmd",
+			order:   [2]string{"one", "two"},
+			allow:   defaultTestAllow,
+			deny:    []string{"^/usr/bin/zip.*"},
+			wantRes: false,
+		},
+	}
+
+	for _, tc := range testCases {
+		t.Run(tc.name, func(t *testing.T) {
+			// given
+			config := defaultValidMinConfig
+			config.RemoteCommands.Deny = tc.deny
+			c := Client{
+				Logger: testLog,
+				config: &config,
+			}
+			c.config.RemoteCommands.Order = tc.order
+			c.config.RemoteCommands.allowRegexp = getRegexpList(tc.allow)
+			c.config.RemoteCommands.denyRegexp = getRegexpList(tc.deny)
+
+			// when
+			gotRes := c.isAllowed(tc.cmd)
+
+			// then
+			assert.Equal(t, tc.wantRes, gotRes)
+		})
+	}
+}
+
+func getRegexpList(list []string) []*regexp.Regexp {
+	var res []*regexp.Regexp
+	for _, v := range list {
+		res = append(res, regexp.MustCompile(v))
+	}
+	return res
 }

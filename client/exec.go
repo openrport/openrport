@@ -7,6 +7,7 @@ import (
 	"errors"
 	"fmt"
 	"os/exec"
+	"regexp"
 	"runtime"
 	"time"
 
@@ -82,6 +83,10 @@ func (c *Client) HandleRunCmdRequest(ctx context.Context, reqPayload []byte) (*c
 	job.Shell, err = getShell(job.Shell, runtime.GOOS)
 	if err != nil {
 		return nil, err
+	}
+
+	if !c.isAllowed(job.Command) {
+		return nil, fmt.Errorf("command is not allowed: %v", job.Command)
 	}
 
 	cmd := c.cmdExec.New(ctx, job.Shell, job.Command)
@@ -173,6 +178,35 @@ var getShell = func(inputShell, os string) (string, error) {
 		return "", fmt.Errorf("for unix clients a command shell should not be specified, got: %q", inputShell)
 	}
 	return unixShell, nil
+}
+
+// isAllowed returns true if a given command passes configured restrictions.
+func (c *Client) isAllowed(cmd string) bool {
+	allowMatch := matchRegexp(cmd, c.config.RemoteCommands.allowRegexp)
+	denyMatch := matchRegexp(cmd, c.config.RemoteCommands.denyRegexp)
+	switch c.config.RemoteCommands.Order {
+	case allowDenyOrder:
+		if !allowMatch {
+			return false
+		}
+		return !denyMatch
+	case denyAllowOrder:
+		if allowMatch {
+			return true
+		}
+		return !denyMatch
+	}
+	return false
+}
+
+// matchRegexp returns true if a given command matches at least one of given regular expressions.
+func matchRegexp(cmd string, regexpList []*regexp.Regexp) bool {
+	for _, regexp := range regexpList {
+		if regexp.MatchString(cmd) {
+			return true
+		}
+	}
+	return false
 }
 
 type CapacityBuffer struct {

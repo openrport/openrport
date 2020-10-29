@@ -3,6 +3,7 @@ package chclient
 import (
 	"net/http"
 	"net/url"
+	"regexp"
 	"testing"
 	"time"
 
@@ -16,12 +17,18 @@ var defaultValidMinConfig = Config{
 	Client: ClientConfig{
 		Server: "test.com",
 	},
+	RemoteCommands: CommandsConfig{
+		Enabled:       true,
+		SendBackLimit: 2048,
+		Order:         allowDenyOrder,
+		allowRegexp:   []*regexp.Regexp{regexp.MustCompile(".*")},
+	},
 }
 
 func TestConfigParseAndValidateHeaders(t *testing.T) {
 	testCases := []struct {
 		Name           string
-		Config         Config
+		ConnConfig     ConnectionConfig
 		ExpectedHeader http.Header
 	}{
 		{
@@ -31,10 +38,8 @@ func TestConfigParseAndValidateHeaders(t *testing.T) {
 			},
 		}, {
 			Name: "host set",
-			Config: Config{
-				Connection: ConnectionConfig{
-					Hostname: "test.com",
-				},
+			ConnConfig: ConnectionConfig{
+				Hostname: "test.com",
 			},
 			ExpectedHeader: http.Header{
 				"Host":       []string{"test.com"},
@@ -42,20 +47,16 @@ func TestConfigParseAndValidateHeaders(t *testing.T) {
 			},
 		}, {
 			Name: "user agent set in config",
-			Config: Config{
-				Connection: ConnectionConfig{
-					HeadersRaw: []string{"User-Agent: test-agent"},
-				},
+			ConnConfig: ConnectionConfig{
+				HeadersRaw: []string{"User-Agent: test-agent"},
 			},
 			ExpectedHeader: http.Header{
 				"User-Agent": []string{"test-agent"},
 			},
 		}, {
 			Name: "multiple headers set",
-			Config: Config{
-				Connection: ConnectionConfig{
-					HeadersRaw: []string{"Test1: v1", "Test2: v2"},
-				},
+			ConnConfig: ConnectionConfig{
+				HeadersRaw: []string{"Test1: v1", "Test2: v2"},
 			},
 			ExpectedHeader: http.Header{
 				"Test1":      []string{"v1"},
@@ -67,12 +68,13 @@ func TestConfigParseAndValidateHeaders(t *testing.T) {
 
 	for _, tc := range testCases {
 		t.Run(tc.Name, func(t *testing.T) {
-			tc.Config.Client.Server = "test.com"
+			config := defaultValidMinConfig
+			config.Connection = tc.ConnConfig
 
-			err := tc.Config.ParseAndValidate()
+			err := config.ParseAndValidate()
 			require.NoError(t, err)
 
-			assert.Equal(t, tc.ExpectedHeader, tc.Config.Connection.Headers())
+			assert.Equal(t, tc.ExpectedHeader, config.Connection.Headers())
 		})
 	}
 }
@@ -115,11 +117,9 @@ func TestConfigParseAndValidateServerURL(t *testing.T) {
 
 	for _, tc := range testCases {
 		t.Run(tc.ServerURL, func(t *testing.T) {
-			config := &Config{
-				Client: ClientConfig{
-					Server: tc.ServerURL,
-				},
-			}
+			config := defaultValidMinConfig
+			config.Client.Server = tc.ServerURL
+
 			err := config.ParseAndValidate()
 
 			if tc.ExpectedError == "" {
@@ -160,14 +160,8 @@ func TestConfigParseAndValidateMaxRetryInterval(t *testing.T) {
 
 	for _, tc := range testCases {
 		t.Run(tc.Name, func(t *testing.T) {
-			config := &Config{
-				Client: ClientConfig{
-					Server: "test.com",
-				},
-				Connection: ConnectionConfig{
-					MaxRetryInterval: tc.MaxRetryInterval,
-				},
-			}
+			config := defaultValidMinConfig
+			config.Connection.MaxRetryInterval = tc.MaxRetryInterval
 			err := config.ParseAndValidate()
 
 			require.NoError(t, err)
@@ -203,12 +197,8 @@ func TestConfigParseAndValidateProxyURL(t *testing.T) {
 
 	for _, tc := range testCases {
 		t.Run(tc.Name, func(t *testing.T) {
-			config := &Config{
-				Client: ClientConfig{
-					Server: "test.com",
-					Proxy:  tc.Proxy,
-				},
-			}
+			config := defaultValidMinConfig
+			config.Client.Proxy = tc.Proxy
 			err := config.ParseAndValidate()
 
 			if tc.ExpectedError == "" {
@@ -264,12 +254,8 @@ func TestConfigParseAndValidateRemotes(t *testing.T) {
 
 	for _, tc := range testCases {
 		t.Run(tc.Name, func(t *testing.T) {
-			config := &Config{
-				Client: ClientConfig{
-					Server:  "test.com",
-					Remotes: tc.Remotes,
-				},
-			}
+			config := defaultValidMinConfig
+			config.Client.Remotes = tc.Remotes
 			err := config.ParseAndValidate()
 
 			if tc.ExpectedError == "" {
@@ -302,12 +288,8 @@ func TestConfigParseAndValidateAuth(t *testing.T) {
 
 	for _, tc := range testCases {
 		t.Run(tc.Auth, func(t *testing.T) {
-			config := &Config{
-				Client: ClientConfig{
-					Server: "test.com",
-					Auth:   tc.Auth,
-				},
-			}
+			config := defaultValidMinConfig
+			config.Client.Auth = tc.Auth
 			err := config.ParseAndValidate()
 
 			require.NoError(t, err)
@@ -336,7 +318,7 @@ func TestConfigParseAndValidateSendBackLimit(t *testing.T) {
 		{
 			name:            "invalid limit negative",
 			sendBackLimit:   -1,
-			wantErrContains: "remote commands send back limit can not be negative",
+			wantErrContains: "send back limit can not be negative",
 		},
 	}
 
@@ -344,9 +326,153 @@ func TestConfigParseAndValidateSendBackLimit(t *testing.T) {
 		t.Run(tc.name, func(t *testing.T) {
 			// given
 			config := defaultValidMinConfig
-			config.RemoteCommands = CommandsConfig{
-				SendBackLimit: tc.sendBackLimit,
+			config.RemoteCommands.SendBackLimit = tc.sendBackLimit
+
+			// when
+			gotErr := config.ParseAndValidate()
+
+			// then
+			if tc.wantErrContains != "" {
+				require.Error(t, gotErr)
+				assert.Contains(t, gotErr.Error(), tc.wantErrContains)
+			} else {
+				require.NoError(t, gotErr)
 			}
+		})
+	}
+}
+
+func TestConfigParseAndValidateAllowRegexp(t *testing.T) {
+	testCases := []struct {
+		name            string
+		allow           []string
+		wantErrContains string
+	}{
+		{
+			name:  "unset",
+			allow: nil,
+		},
+		{
+			name:  "empty",
+			allow: []string{},
+		},
+		{
+			name:  "valid",
+			allow: []string{"^/usr/bin.*", "^/usr/local/bin/.*", `^C:\Windows\System32.*`},
+		},
+		{
+			name:            "invalid",
+			allow:           []string{"^/usr/bin.*", "{invalid regexp)", `^C:\Windows\System32.*`},
+			wantErrContains: "allow regexp: invalid regular expression",
+		},
+	}
+
+	for _, tc := range testCases {
+		t.Run(tc.name, func(t *testing.T) {
+			// given
+			config := defaultValidMinConfig
+			config.RemoteCommands.Allow = tc.allow
+
+			// when
+			gotErr := config.ParseAndValidate()
+
+			// then
+			if tc.wantErrContains != "" {
+				require.Error(t, gotErr)
+				assert.Contains(t, gotErr.Error(), tc.wantErrContains)
+			} else {
+				require.NoError(t, gotErr)
+				assert.ElementsMatch(t, tc.allow, convertToRegexpStrList(config.RemoteCommands.allowRegexp))
+			}
+		})
+	}
+}
+
+func TestConfigParseAndValidateDenyRegexp(t *testing.T) {
+	testCases := []struct {
+		name            string
+		deny            []string
+		wantErrContains string
+	}{
+		{
+			name: "unset",
+			deny: nil,
+		},
+		{
+			name: "empty",
+			deny: []string{},
+		},
+		{
+			name: "valid",
+			deny: []string{"^/usr/bin/zip.*", `^C:\Windows\.*`},
+		},
+		{
+			name:            "invalid",
+			deny:            []string{"^/usr/bin/zip.*", "{invalid regexp)", `^C:\Windows\.*`},
+			wantErrContains: "deny regexp: invalid regular expression",
+		},
+	}
+
+	for _, tc := range testCases {
+		t.Run(tc.name, func(t *testing.T) {
+			// given
+			config := defaultValidMinConfig
+			config.RemoteCommands.Deny = tc.deny
+
+			// when
+			gotErr := config.ParseAndValidate()
+
+			// then
+			if tc.wantErrContains != "" {
+				require.Error(t, gotErr)
+				assert.Contains(t, gotErr.Error(), tc.wantErrContains)
+			} else {
+				require.NoError(t, gotErr)
+				assert.ElementsMatch(t, tc.deny, convertToRegexpStrList(config.RemoteCommands.denyRegexp))
+			}
+		})
+	}
+}
+
+func convertToRegexpStrList(regexpList []*regexp.Regexp) []string {
+	var res []string
+	for _, r := range regexpList {
+		res = append(res, r.String())
+	}
+	return res
+}
+
+func TestConfigParseAndValidateAllowDenyOrder(t *testing.T) {
+	testCases := []struct {
+		name            string
+		order           [2]string
+		wantErrContains string
+	}{
+		{
+			name:  "valid: allow deny",
+			order: allowDenyOrder,
+		},
+		{
+			name:  "valid: deny allow",
+			order: allowDenyOrder,
+		},
+		{
+			name:            "invalid: empty",
+			order:           [2]string{},
+			wantErrContains: "invalid order:",
+		},
+		{
+			name:            "invalid value",
+			order:           [2]string{"deny", "unknown"},
+			wantErrContains: "invalid order:",
+		},
+	}
+
+	for _, tc := range testCases {
+		t.Run(tc.name, func(t *testing.T) {
+			// given
+			config := defaultValidMinConfig
+			config.RemoteCommands.Order = tc.order
 
 			// when
 			gotErr := config.ParseAndValidate()

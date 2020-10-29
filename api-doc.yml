@@ -261,8 +261,8 @@ paths:
     post:
       tags:
         - "commands"
-      summary: "Execute a command by the rport client"
-      description: ""
+      summary: "Execute a command by the rport client."
+      description: "NOTE: if command limitation is enabled by an rport client then a full path command can be required to use. See https://github.com/cloudradar-monitoring/rport/blob/master/docs/command-execution.md for more details"
       produces:
         - "application/json"
       parameters:
@@ -280,7 +280,7 @@ paths:
             properties:
               command:
                 type: "string"
-                description: "remote command to execute by the rport client"
+                description: "remote command to execute by the rport client. NOTE: if command limitation is enabled by an rport client then a full path command can be required to use. See https://github.com/cloudradar-monitoring/rport/blob/master/docs/command-execution.md for more details"
               shell:
                 type: "string"
                 enum: [cmd, powershell]

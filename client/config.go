@@ -48,9 +48,20 @@ func (c *ConnectionConfig) Headers() http.Header {
 	return c.headers
 }
 
+var (
+	allowDenyOrder = [2]string{"allow", "deny"}
+	denyAllowOrder = [2]string{"deny", "allow"}
+)
+
 type CommandsConfig struct {
-	Enabled       bool `mapstructure:"enabled"`
-	SendBackLimit int  `mapstructure:"send_back_limit"`
+	Enabled       bool      `mapstructure:"enabled"`
+	SendBackLimit int       `mapstructure:"send_back_limit"`
+	Allow         []string  `mapstructure:"allow"`
+	Deny          []string  `mapstructure:"deny"`
+	Order         [2]string `mapstructure:"order"`
+
+	allowRegexp []*regexp.Regexp
+	denyRegexp  []*regexp.Regexp
 }
 
 type Config struct {
@@ -76,8 +87,8 @@ func (c *Config) ParseAndValidate() error {
 	if c.Connection.MaxRetryInterval < time.Second {
 		c.Connection.MaxRetryInterval = 5 * time.Minute
 	}
-	if c.RemoteCommands.SendBackLimit < 0 {
-		return fmt.Errorf("remote commands send back limit can not be negative: %d", c.RemoteCommands.SendBackLimit)
+	if err := c.parseRemoteCommands(); err != nil {
+		return fmt.Errorf("remote commands: %v", err)
 	}
 	c.Client.authUser, c.Client.authPass = chshare.ParseAuth(c.Client.Auth)
 	return nil
@@ -157,4 +168,40 @@ func parseHeader(h string) (string, string, error) {
 		return "", "", fmt.Errorf(`invalid header %q. Should be in the format "HeaderName: HeaderContent"`, h)
 	}
 	return h[0:index], strings.TrimSpace(h[index+1:]), nil
+}
+
+func (c *Config) parseRemoteCommands() error {
+	if c.RemoteCommands.SendBackLimit < 0 {
+		return fmt.Errorf("send back limit can not be negative: %d", c.RemoteCommands.SendBackLimit)
+	}
+
+	allow, err := parseRegexpList(c.RemoteCommands.Allow)
+	if err != nil {
+		return fmt.Errorf("allow regexp: %v", err)
+	}
+	c.RemoteCommands.allowRegexp = allow
+
+	deny, err := parseRegexpList(c.RemoteCommands.Deny)
+	if err != nil {
+		return fmt.Errorf("deny regexp: %v", err)
+	}
+	c.RemoteCommands.denyRegexp = deny
+
+	if c.RemoteCommands.Order != allowDenyOrder && c.RemoteCommands.Order != denyAllowOrder {
+		return fmt.Errorf("invalid order: %v", c.RemoteCommands.Order)
+	}
+
+	return nil
+}
+
+func parseRegexpList(regexpList []string) ([]*regexp.Regexp, error) {
+	res := make([]*regexp.Regexp, 0, len(regexpList))
+	for _, cur := range regexpList {
+		r, err := regexp.Compile(cur)
+		if err != nil {
+			return nil, fmt.Errorf("invalid regular expression %q: %v", cur, err)
+		}
+		res = append(res, r)
+	}
+	return res, nil
 }

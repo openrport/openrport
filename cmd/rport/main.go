@@ -182,9 +182,6 @@ func init() {
 	viperCfg = viper.New()
 	viperCfg.SetConfigType("toml")
 
-	viperCfg.SetDefault("logging.log_level", "error")
-	viperCfg.SetDefault("connection.max_retry_count", -1)
-
 	// map config fields to CLI args:
 	_ = viperCfg.BindPFlag("client.fingerprint", pFlags.Lookup("fingerprint"))
 	_ = viperCfg.BindPFlag("client.auth", pFlags.Lookup("auth"))
@@ -194,15 +191,20 @@ func init() {
 	_ = viperCfg.BindPFlag("client.tags", pFlags.Lookup("tag"))
 	_ = viperCfg.BindPFlag("client.allow_root", pFlags.Lookup("allow-root"))
 
+	viperCfg.SetDefault("logging.log_level", "error")
 	_ = viperCfg.BindPFlag("logging.log_file", pFlags.Lookup("log-file"))
 	_ = viperCfg.BindPFlag("logging.log_level", pFlags.Lookup("log-level"))
 
+	viperCfg.SetDefault("connection.max_retry_count", -1)
 	_ = viperCfg.BindPFlag("connection.keep_alive", pFlags.Lookup("keepalive"))
 	_ = viperCfg.BindPFlag("connection.max_retry_count", pFlags.Lookup("max-retry-count"))
 	_ = viperCfg.BindPFlag("connection.max_retry_interval", pFlags.Lookup("max-retry-interval"))
 	_ = viperCfg.BindPFlag("connection.hostname", pFlags.Lookup("hostname"))
 	_ = viperCfg.BindPFlag("connection.headers", pFlags.Lookup("header"))
 
+	viperCfg.SetDefault("remote-commands.allow", []string{"^/usr/bin/.*", "^/usr/local/bin/.*", `^C:\Windows\System32\.*`})
+	viperCfg.SetDefault("remote-commands.deny", []string{`(\||<|>|;|,|\n|&)`})
+	viperCfg.SetDefault("remote-commands.order", []string{"allow", "deny"})
 	_ = viperCfg.BindPFlag("remote-commands.enabled", pFlags.Lookup("remote-commands-enabled"))
 	_ = viperCfg.BindPFlag("remote-commands.send_back_limit", pFlags.Lookup("remote-commands-send-back-limit"))
 }

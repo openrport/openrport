@@ -56,23 +56,41 @@ On the client using the `rport.conf` you can configure and limit the execution o
 ## Defaults: true
 #enabled = true
 
-## NOT IMPLEMENTED YET
-## Only allow commands matching the following regular expressions.
-## The filter is applied to the command sent and not to the full path where the command is located.
-## Defaults: ['.*']
-#allow = ['.*']
+## Allow commands matching the following regular expressions.
+## The filter is applied to the command sent. Full path must be used.
+## See {order} parameter for more details how it's applied together with {deny}.
+## Defaults: ['^/usr/bin/.*','^/usr/local/bin/.*','^C:\Windows\System32\.*']
+#allow = ['^/usr/bin/.*','^/usr/local/bin/.*','^C:\Windows\System32\.*']
 
-## NOT IMPLEMENTED YET
-## Deny any commands matching one of the following regular expressions
-## The filter is applied to the command sent.
+## Deny commands matching one of the following regular expressions.
+## The filter is applied to the command sent. Full path must be used.
+## See {order} parameter for more details how it's applied together with {allow}.
 ## With the below default filter only single commands are allowed.
-## Defaults: ['(\||<|>|;|\\|\n)']
-#deny = ['(\||<|>|;|\\\n)']
+## Defaults: ['(\||<|>|;|,|\n|&)']
+#deny = ['(\||<|>|;|,|\n|&)']
 
-## NOT IMPLEMENTED YET
-## Order of which filter is applied first.
-## Defaults: ['deny','allow']
-#order = ['deny','allow']
+## Order: ['allow','deny'] or ['deny','allow']. Order of which filter is applied first.
+## Defaults: ['allow','deny']
+##
+## order: ['allow','deny']
+## First, all allow directives are evaluated; at least one must match, or the command is rejected.
+## Next, all deny directives are evaluated. If any matches, the command is rejected.
+## Last, any commands which do not match an allow or a deny directive are denied by default.
+## Example:
+## allow: ['^/usr/bin/.*']
+## deny: ['^/usr/bin/zip']
+## All commands in /usr/bin except '/usr/bin/zip' can be executed. Full path must be used.
+##
+## order: ['deny','allow']
+## First, all deny directives are evaluated; if any match,
+## the command is denied UNLESS it also matches an allow directive.
+## Any command which do not match any allow or deny directives are permitted.
+## Example:
+## deny: ['.*']
+## allow: ['zip$']
+## All commands are denied except those ending in zip.
+##
+#order = ['allow','deny']
 
 ## Limit the maximum length of the command output that is sent back.
 ## Applies to the stdout and stderr separately.
@@ -95,8 +113,8 @@ allow = [
 On Windows try this
 ```
 allow = [
-    '^C:\\\Windows\\\System32.*',
-    '^C:\\\Users\\\Administrator\\\scripts\\\*.\.bat'
+    '^C:\\Windows\\System32.*',
+    '^C:\\Users\\Administrator\\scripts\\.*\.bat'
 ]
 ```
 Using the above examples requires sending commands with a full path. 
