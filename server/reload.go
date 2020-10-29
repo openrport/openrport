@@ -22,7 +22,13 @@ func (al *APIListener) ReloadAPIUsers() {
 			continue
 		}
 
-		al.userSrv = users.NewUserRepository(newUsers)
+		if userCache, ok := al.userSrv.(*users.UserCache); ok {
+			userCache.Load(newUsers)
+		} else {
+			al.Errorf("Failed to reload API users: not using user cache.")
+			continue
+		}
+
 		al.Infof("Finished to reload API users from file. Loaded %d users.", len(newUsers))
 	}
 }

@@ -1,21 +1,33 @@
 package users
 
+import "sync"
+
+// UserCache is in memory user cache with thread-safe loading
 type UserCache struct {
 	byUsername map[string]*User
+	mu         sync.RWMutex
 }
 
 func NewUserCache(initUsers []*User) *UserCache {
-	m := make(map[string]*User, len(initUsers))
-	for _, u := range initUsers {
+	r := &UserCache{}
+	r.Load(initUsers)
+	return r
+}
+
+// Load replaces users in cache with given users
+func (r *UserCache) Load(users []*User) {
+	m := make(map[string]*User, len(users))
+	for _, u := range users {
 		m[u.Username] = u
 	}
-	return &UserCache{byUsername: m}
+	r.mu.Lock()
+	defer r.mu.Unlock()
+	r.byUsername = m
 }
 
-func (r *UserCache) GetByUsername(username string) *User {
-	return r.byUsername[username]
-}
-
-func (r *UserCache) Count() int {
-	return len(r.byUsername)
+// GetByUsername returns user with the given username or nil
+func (r *UserCache) GetByUsername(username string) (*User, error) {
+	r.mu.RLock()
+	defer r.mu.RUnlock()
+	return r.byUsername[username], nil
 }

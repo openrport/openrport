@@ -41,7 +41,6 @@ type APIListener struct {
 
 type UserService interface {
 	GetByUsername(username string) (*users.User, error)
-	Count() (int, error)
 }
 
 func NewAPIListener(
@@ -79,7 +78,7 @@ func NewAPIListener(
 		apiSessionRepo:    NewAPISessionRepository(),
 		httpServer:        chshare.NewHTTPServer(int(config.Server.MaxRequestBytes), chshare.WithTLS(config.API.CertFile, config.API.KeyFile)),
 		requestLogOptions: config.InitRequestLogOptions(),
-		userSrv:           users.NewUserRepository(authUsers),
+		userSrv:           users.NewUserCache(authUsers),
 	}
 
 	if config.API.AccessLogFile != "" {
@@ -108,7 +107,10 @@ func (al *APIListener) Start(addr string) error {
 		return err
 	}
 
-	go al.ReloadAPIUsers()
+	// Only reload api users from file if file auth is set
+	if al.config.API.AuthFile != "" {
+		go al.ReloadAPIUsers()
+	}
 
 	return nil
 }
