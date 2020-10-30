@@ -116,22 +116,11 @@ func (c *Config) ParseAndValidate() error {
 		return fmt.Errorf("invalid connection url %s. must be absolute url", u)
 	}
 
-	if c.API.DocRoot != "" && c.API.Address == "" {
-		return errors.New("to use document root you need to specify API address")
-	}
-
 	excludedPorts, err := ports.TryParsePortRanges(c.Server.ExcludedPortsRaw)
 	if err != nil {
 		return fmt.Errorf("can't parse excluded ports: %s", err)
 	}
 	c.Server.excludedPorts = excludedPorts
-
-	if c.API.JWTSecret == "" {
-		c.API.JWTSecret, err = generateJWTSecret()
-		if err != nil {
-			return err
-		}
-	}
 
 	if c.Server.DataDir == "" {
 		return errors.New("'data directory path' cannot be empty")
@@ -142,8 +131,12 @@ func (c *Config) ParseAndValidate() error {
 		return fmt.Errorf("expected 'Keep Lost Clients' can be in range [%v, %v], actual: %v", MinKeepLostClients, MaxKeepLostClients, c.Server.KeepLostClients)
 	}
 
-	if err := c.parseAndValidateAuth(); err != nil {
+	if err := c.parseAndValidateClientAuth(); err != nil {
 		return err
+	}
+
+	if err := c.parseAndValidateAPI(); err != nil {
+		return fmt.Errorf("API: %v", err)
 	}
 
 	if err := c.Database.ParseAndValidate(); err != nil {
@@ -153,7 +146,7 @@ func (c *Config) ParseAndValidate() error {
 	return nil
 }
 
-func (c *Config) parseAndValidateAuth() error {
+func (c *Config) parseAndValidateClientAuth() error {
 	if c.Server.Auth == "" && c.Server.AuthFile == "" && c.Server.AuthTable == "" {
 		return errors.New("client authentication must be enabled: set either 'auth', 'auth_file' or 'auth_table'")
 	}
@@ -177,6 +170,41 @@ func (c *Config) parseAndValidateAuth() error {
 		if c.Server.authID == "" || c.Server.authPassword == "" {
 			return fmt.Errorf("invalid client auth credentials, expected '<client-id>:<password>', got %q", c.Server.Auth)
 		}
+	}
+
+	return nil
+}
+
+func (c *Config) parseAndValidateAPI() error {
+	if c.API.Address != "" {
+		// API enabled
+		err := c.parseAndValidateAPIAuth()
+		if err != nil {
+			return err
+		}
+		if c.API.JWTSecret == "" {
+			c.API.JWTSecret, err = generateJWTSecret()
+			if err != nil {
+				return err
+			}
+		}
+	} else {
+		// API disabled
+		if c.API.DocRoot != "" {
+			return errors.New("to use document root you need to specify API address")
+		}
+
+	}
+	return nil
+}
+
+func (c *Config) parseAndValidateAPIAuth() error {
+	if c.API.AuthFile == "" && c.API.Auth == "" {
+		return errors.New("authentication must be enabled: set either 'auth' or 'auth_file'")
+	}
+
+	if c.API.AuthFile != "" && c.API.Auth != "" {
+		return errors.New("'auth_file' and 'auth' are both set: expected only one of them")
 	}
 
 	return nil

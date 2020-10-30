@@ -568,6 +568,7 @@ func TestHandleDeleteClient(t *testing.T) {
 
 			// given
 			al := APIListener{
+				insecureForTests: true,
 				Server: &Server{
 					sessionService: NewSessionService(nil, sessions.NewSessionRepository(tc.sessions, &hour)),
 					config: &Config{
@@ -815,6 +816,7 @@ func TestHandlePostCommand(t *testing.T) {
 		t.Run(tc.name, func(t *testing.T) {
 			// given
 			al := APIListener{
+				insecureForTests: true,
 				Server: &Server{
 					sessionService: NewSessionService(nil, sessions.NewSessionRepository(tc.sessions, &hour)),
 					config: &Config{
@@ -927,7 +929,8 @@ func TestHandleGetCommand(t *testing.T) {
 		t.Run(tc.name, func(t *testing.T) {
 			// given
 			al := APIListener{
-				Logger: testLog,
+				insecureForTests: true,
+				Logger:           testLog,
 				Server: &Server{
 					config: &Config{
 						Server: ServerConfig{MaxRequestBytes: 1024 * 1024},
@@ -1026,7 +1029,8 @@ func TestHandleGetCommands(t *testing.T) {
 		t.Run(tc.name, func(t *testing.T) {
 			// given
 			al := APIListener{
-				Logger: testLog,
+				insecureForTests: true,
+				Logger:           testLog,
 				Server: &Server{
 					config: &Config{
 						Server: ServerConfig{MaxRequestBytes: 1024 * 1024},
@@ -1069,6 +1073,7 @@ func TestHandleGetSessions(t *testing.T) {
 	s1 := sb.New(t).ID("session-1").ClientID(&cl1.ID).Build()
 	s2 := sb.New(t).ID("session-2").ClientID(&cl1.ID).DisconnectedDuration(5 * time.Minute).Build()
 	al := APIListener{
+		insecureForTests: true,
 		Server: &Server{
 			sessionService: NewSessionService(nil, sessions.NewSessionRepository([]*sessions.ClientSession{s1, s2}, &hour)),
 			config: &Config{

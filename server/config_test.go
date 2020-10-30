@@ -7,6 +7,12 @@ import (
 	"github.com/stretchr/testify/assert"
 )
 
+var defaultValidMinServerConfig = ServerConfig{
+	URL:     "http://localhost/",
+	DataDir: "./",
+	Auth:    "abc:def",
+}
+
 func TestDatabaseParseAndValidate(t *testing.T) {
 	testCases := []struct {
 		Name           string
@@ -83,7 +89,7 @@ func TestDatabaseParseAndValidate(t *testing.T) {
 	}
 }
 
-func TestParseAndValidateAuth(t *testing.T) {
+func TestParseAndValidateClientAuth(t *testing.T) {
 	testCases := []struct {
 		Name                 string
 		Config               Config
@@ -169,10 +175,89 @@ func TestParseAndValidateAuth(t *testing.T) {
 
 	for _, tc := range testCases {
 		t.Run(tc.Name, func(t *testing.T) {
-			err := tc.Config.parseAndValidateAuth()
+			err := tc.Config.parseAndValidateClientAuth()
 			assert.Equal(t, tc.ExpectedError, err)
 			assert.Equal(t, tc.ExpectedAuthID, tc.Config.Server.authID)
 			assert.Equal(t, tc.ExpectedAuthPassword, tc.Config.Server.authPassword)
+		})
+	}
+}
+
+func TestParseAndValidateAPI(t *testing.T) {
+	testCases := []struct {
+		Name                 string
+		Config               Config
+		ExpectedAuthID       string
+		ExpectedAuthPassword string
+		ExpectedJwtSecret    bool
+		ExpectedError        error
+	}{
+		{
+			Name:          "api disabled, no auth",
+			Config:        Config{},
+			ExpectedError: nil,
+		}, {
+			Name: "api disabled, doc_root specified",
+			Config: Config{
+				API: APIConfig{
+					DocRoot: "/var/lib/rport/",
+				},
+			},
+			ExpectedError: errors.New("API: to use document root you need to specify API address"),
+		}, {
+			Name: "api enabled, no auth",
+			Config: Config{
+				API: APIConfig{
+					Address: "0.0.0.0:3000",
+				},
+			},
+			ExpectedError: errors.New("API: authentication must be enabled: set either 'auth' or 'auth_file'"),
+		}, {
+			Name: "api enabled, auth and auth_file",
+			Config: Config{
+				API: APIConfig{
+					Address:  "0.0.0.0:3000",
+					Auth:     "abc:def",
+					AuthFile: "test.json",
+				},
+			},
+			ExpectedError: errors.New("API: 'auth_file' and 'auth' are both set: expected only one of them"),
+		}, {
+			Name: "api enabled, valid auth",
+			Config: Config{
+				API: APIConfig{
+					Address: "0.0.0.0:3000",
+					Auth:    "abc:def",
+				},
+			},
+		}, {
+			Name: "api enabled, valid auth_file",
+			Config: Config{
+				API: APIConfig{
+					Address:  "0.0.0.0:3000",
+					AuthFile: "test.json",
+				},
+			},
+		}, {
+			Name: "api enabled, jwt should be generated",
+			Config: Config{
+				API: APIConfig{
+					Address: "0.0.0.0:3000",
+					Auth:    "abc:def",
+				},
+			},
+			ExpectedJwtSecret: true,
+		},
+	}
+
+	for _, tc := range testCases {
+		t.Run(tc.Name, func(t *testing.T) {
+			tc.Config.Server = defaultValidMinServerConfig
+			err := tc.Config.ParseAndValidate()
+			assert.Equal(t, tc.ExpectedError, err)
+			if tc.ExpectedJwtSecret {
+				assert.NotEmpty(t, tc.Config.API.JWTSecret)
+			}
 		})
 	}
 }

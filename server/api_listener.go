@@ -37,6 +37,7 @@ type APIListener struct {
 	requestLogOptions *requestlog.Options
 	userSrv           UserService
 	accessLogFile     io.WriteCloser
+	insecureForTests  bool
 }
 
 type UserService interface {
@@ -227,12 +228,4 @@ func parseHTTPAuthStr(basicAuth string) (*users.User, error) {
 	}
 
 	return &users.User{Username: user, Password: pass}, nil
-}
-
-// IsAuthorizationOn returns true if authorization for accessing API is enabled.
-func (al *APIListener) IsAuthorizationOn() bool {
-	if al.config == nil {
-		return false
-	}
-	return al.config.API.AuthFile != "" || al.config.API.Auth != ""
 }

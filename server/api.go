@@ -84,8 +84,8 @@ func (al *APIListener) initRouter() {
 	sub.HandleFunc("/clients", al.handlePostClients).Methods(http.MethodPost)
 	sub.HandleFunc("/clients/{client_id}", al.handleDeleteClient).Methods(http.MethodDelete)
 
-	// add authorization middleware if needed
-	if al.IsAuthorizationOn() {
+	// add authorization middleware
+	if !al.insecureForTests {
 		_ = sub.Walk(func(route *mux.Route, router *mux.Router, ancestors []*mux.Route) error {
 			route.HandlerFunc(al.wrapWithAuthMiddleware(route.GetHandler()))
 			return nil
