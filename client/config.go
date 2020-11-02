@@ -114,7 +114,7 @@ func (c *Config) parseHeaders() error {
 
 func (c *Config) parseServerURL() error {
 	if c.Client.Server == "" {
-		return errors.New("server address is required. See --help")
+		return errors.New("server address is required")
 	}
 
 	//apply default scheme

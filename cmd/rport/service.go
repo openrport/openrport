@@ -16,8 +16,8 @@ var svcConfig = &service.Config{
 	Description: "Create reverse tunnels with ease.",
 }
 
-func handleSvcCommand(svcCommand string, configPath string) error {
-	svc, err := getService(nil, configPath)
+func handleSvcCommand(svcCommand string, configPath string, user *string) error {
+	svc, err := getService(nil, configPath, user)
 	if err != nil {
 		return err
 	}
@@ -26,7 +26,7 @@ func handleSvcCommand(svcCommand string, configPath string) error {
 }
 
 func runAsService(c *chclient.Client, configPath string) error {
-	svc, err := getService(c, configPath)
+	svc, err := getService(c, configPath, nil)
 	if err != nil {
 		return err
 	}
@@ -34,13 +34,14 @@ func runAsService(c *chclient.Client, configPath string) error {
 	return svc.Run()
 }
 
-func getService(c *chclient.Client, configPath string) (service.Service, error) {
-	if configPath != "" {
-		absConfigPath, err := filepath.Abs(configPath)
-		if err != nil {
-			return nil, err
-		}
-		svcConfig.Arguments = []string{"-c", absConfigPath}
+func getService(c *chclient.Client, configPath string, user *string) (service.Service, error) {
+	absConfigPath, err := filepath.Abs(configPath)
+	if err != nil {
+		return nil, err
+	}
+	svcConfig.Arguments = []string{"-c", absConfigPath}
+	if user != nil {
+		svcConfig.UserName = *user
 	}
 	return service.New(&serviceWrapper{c}, svcConfig)
 }

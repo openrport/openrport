@@ -87,7 +87,7 @@ func TestConfigParseAndValidateServerURL(t *testing.T) {
 	}{
 		{
 			ServerURL:     "",
-			ExpectedError: "server address is required. See --help",
+			ExpectedError: "server address is required",
 		}, {
 			ServerURL:   "test.com",
 			ExpectedURL: "ws://test.com:80",

@@ -4,6 +4,7 @@ import (
 	"fmt"
 	"log"
 	"os"
+	"runtime"
 	"time"
 
 	"github.com/kardianos/service"
@@ -179,6 +180,9 @@ var serverHelp = `
     server under the root user. Running it as root is an unnecessary security risk.
 
     --service, Manages rportd running as a service. Possible commands are "install", "uninstall", "start" and "stop".
+    The only arguments compatible with --service are --service-user and --config, others will be ignored.
+
+    --service-user, An optional arg specifying user to run rportd service under. Only on linux. Defaults to rport.
 
     --log-level, Specify log level. Values: "error", "info", "debug" (defaults to "error")
 
@@ -198,19 +202,22 @@ var serverHelp = `
 `
 
 var (
-	RootCmd = &cobra.Command{
-		Version: chshare.BuildVersion,
-		Run:     runMain,
-	}
-
+	RootCmd  *cobra.Command
 	cfgPath  *string
 	viperCfg *viper.Viper
 	cfg      = &chserver.Config{}
 
 	svcCommand *string
+	svcUser    *string
 )
 
 func init() {
+	// Assign root cmd late to avoid initialization loop
+	RootCmd = &cobra.Command{
+		Version: chshare.BuildVersion,
+		Run:     runMain,
+	}
+
 	pFlags := RootCmd.PersistentFlags()
 
 	pFlags.StringP("addr", "a", "", "")
@@ -237,21 +244,24 @@ func init() {
 	pFlags.String("db-password", "", "")
 	pFlags.StringP("log-file", "l", "", "")
 	pFlags.String("log-level", "", "")
-	pFlags.StringSliceP("exclude-ports", "e", []string{DefaultExcludedPorts}, "")
-	pFlags.String("data-dir", chserver.DefaultDataDirectory, "")
+	pFlags.StringSliceP("exclude-ports", "e", nil, "")
+	pFlags.String("data-dir", "", "")
 	pFlags.Duration("keep-lost-clients", 0, "")
-	pFlags.Duration("save-clients-interval", DefaultCacheClientsInterval, "")
-	pFlags.Duration("cleanup-clients-interval", DefaultCleanClientsInterval, "")
-	pFlags.Int64("max-request-bytes", DefaultMaxRequestBytes, "")
-	pFlags.Duration("check-port-timeout", DefaultCheckPortTimeout, "")
-	pFlags.Bool("auth-write", true, "")
-	pFlags.Bool("auth-multiuse-creds", true, "")
+	pFlags.Duration("save-clients-interval", 0, "")
+	pFlags.Duration("cleanup-clients-interval", 0, "")
+	pFlags.Int64("max-request-bytes", 0, "")
+	pFlags.Duration("check-port-timeout", 0, "")
+	pFlags.Bool("auth-write", false, "")
+	pFlags.Bool("auth-multiuse-creds", false, "")
 	pFlags.Bool("equate-authusername-clientid", false, "")
-	pFlags.Int("run-remote-cmd-timeout-sec", DefaultRunRemoteCmdTimeoutSec, "")
+	pFlags.Int("run-remote-cmd-timeout-sec", 0, "")
 	pFlags.Bool("allow-root", false, "")
 
-	cfgPath = pFlags.StringP("config", "c", "", "")
+	cfgPath = pFlags.StringP("config", "c", "rportd.conf", "")
 	svcCommand = pFlags.String("service", "", "")
+	if runtime.GOOS != "windows" {
+		svcUser = pFlags.String("service-user", "rport", "")
+	}
 
 	RootCmd.SetUsageFunc(func(*cobra.Command) error {
 		fmt.Print(serverHelp)
@@ -264,7 +274,19 @@ func init() {
 
 	viperCfg.SetDefault("logging.log_level", DefaultLogLevel)
 	viperCfg.SetDefault("server.address", DefaultServerAddress)
+	viperCfg.SetDefault("server.excluded_ports", []string{DefaultExcludedPorts})
+	viperCfg.SetDefault("server.data_dir", chserver.DefaultDataDirectory)
+	viperCfg.SetDefault("server.save_clients_interval", DefaultCacheClientsInterval)
+	viperCfg.SetDefault("server.cleanup_clients_interval", DefaultCleanClientsInterval)
+	viperCfg.SetDefault("server.max_request_bytes", DefaultMaxRequestBytes)
+	viperCfg.SetDefault("server.check_port_timeout", DefaultCheckPortTimeout)
+	viperCfg.SetDefault("server.auth_write", true)
+	viperCfg.SetDefault("server.auth_multiuse_creds", true)
+	viperCfg.SetDefault("server.run_remote_cmd_timeout_sec", DefaultRunRemoteCmdTimeoutSec)
+}
 
+func bindPFlags() {
+	pFlags := RootCmd.PersistentFlags()
 	// map config fields to CLI args:
 	// _ is used to ignore errors to pass linter check
 	_ = viperCfg.BindPFlag("server.address", pFlags.Lookup("addr"))
@@ -314,26 +336,45 @@ func main() {
 	}
 }
 
-func tryDecodeConfig() error {
-	if *cfgPath != "" {
-		viperCfg.SetConfigFile(*cfgPath)
-	} else {
-		viperCfg.AddConfigPath(".")
-		viperCfg.SetConfigName("rportd.conf")
+func decodeAndValidateConfig() error {
+	viperCfg.SetConfigFile(*cfgPath)
+
+	if err := chshare.DecodeViperConfig(viperCfg, cfg); err != nil {
+		return err
 	}
 
-	return chshare.DecodeViperConfig(viperCfg, cfg)
+	err := cfg.ParseAndValidate()
+	if err != nil {
+		return err
+	}
+
+	return nil
 }
 
 func runMain(*cobra.Command, []string) {
-	err := tryDecodeConfig()
-	if err != nil {
-		log.Fatal(err)
+	if svcCommand != nil && *svcCommand != "" {
+		// validate config file without command line args before installing it for the service
+		// other service commands do not change config file specified at install
+		if *svcCommand == "install" {
+			err := decodeAndValidateConfig()
+			if err != nil {
+				log.Fatalf("Invalid config: %v. Check your config file.", err)
+			}
+		}
+
+		err := handleSvcCommand(*svcCommand, *cfgPath, svcUser)
+		if err != nil {
+			log.Fatal(err)
+		}
+		return
 	}
 
-	err = cfg.ParseAndValidate()
+	// Bind command line arguments late, so they're not included in validation for service install
+	bindPFlags()
+
+	err := decodeAndValidateConfig()
 	if err != nil {
-		log.Fatal(err)
+		log.Fatalf("Invalid config: %v. See --help", err)
 	}
 
 	if !cfg.Server.AllowRoot && chshare.IsRunningAsRoot() {
@@ -347,14 +388,6 @@ func runMain(*cobra.Command, []string) {
 	defer func() {
 		cfg.Logging.LogOutput.Shutdown()
 	}()
-
-	if svcCommand != nil && *svcCommand != "" {
-		err = handleSvcCommand(*svcCommand, *cfgPath)
-		if err != nil {
-			log.Fatal(err)
-		}
-		return
-	}
 
 	s, err := chserver.NewServer(cfg, files.NewFileSystem())
 	if err != nil {

@@ -4,6 +4,7 @@ import (
 	"fmt"
 	"log"
 	"os"
+	"runtime"
 
 	"github.com/kardianos/service"
 	"github.com/spf13/cobra"
@@ -110,6 +111,9 @@ var clientHelp = `
     client under the root user. Running it as root is an unnecessary security risk.
 
     --service, Manages rport running as a service. Possible commands are "install", "uninstall", "start" and "stop".
+    The only arguments compatible with --service are --service-user and --config, others will be ignored.
+
+    --service-user, An optional arg specifying user to run rport service under. Only on linux. Defaults to rport.
 
     --log-level, Specify log level. Values: "error", "info", "debug" (defaults to "error")
 
@@ -138,19 +142,23 @@ var clientHelp = `
 `
 
 var (
-	RootCmd = &cobra.Command{
-		Version: chshare.BuildVersion,
-		Run:     runMain,
-	}
+	RootCmd *cobra.Command
 
 	cfgPath  *string
 	viperCfg *viper.Viper
 	config   = &chclient.Config{}
 
 	svcCommand *string
+	svcUser    *string
 )
 
 func init() {
+	// Assign root cmd late to avoid initialization loop
+	RootCmd = &cobra.Command{
+		Version: chshare.BuildVersion,
+		Run:     runMain,
+	}
+
 	pFlags := RootCmd.PersistentFlags()
 
 	pFlags.String("fingerprint", "", "")
@@ -167,11 +175,14 @@ func init() {
 	pFlags.StringP("log-file", "l", "", "")
 	pFlags.String("log-level", "", "")
 	pFlags.Bool("allow-root", false, "")
-	pFlags.Bool("remote-commands-enabled", true, "")
-	pFlags.Int("remote-commands-send-back-limit", 2048, "")
+	pFlags.Bool("remote-commands-enabled", false, "")
+	pFlags.Int("remote-commands-send-back-limit", 0, "")
 
-	cfgPath = pFlags.StringP("config", "c", "", "")
+	cfgPath = pFlags.StringP("config", "c", "rport.conf", "")
 	svcCommand = pFlags.String("service", "", "")
+	if runtime.GOOS != "windows" {
+		svcUser = pFlags.String("service-user", "rport", "")
+	}
 
 	RootCmd.SetUsageFunc(func(*cobra.Command) error {
 		fmt.Print(clientHelp)
@@ -182,6 +193,17 @@ func init() {
 	viperCfg = viper.New()
 	viperCfg.SetConfigType("toml")
 
+	viperCfg.SetDefault("logging.log_level", "error")
+	viperCfg.SetDefault("connection.max_retry_count", -1)
+	viperCfg.SetDefault("remote-commands.allow", []string{"^/usr/bin/.*", "^/usr/local/bin/.*", `^C:\Windows\System32\.*`})
+	viperCfg.SetDefault("remote-commands.deny", []string{`(\||<|>|;|,|\n|&)`})
+	viperCfg.SetDefault("remote-commands.order", []string{"allow", "deny"})
+	viperCfg.SetDefault("remote-commands.send_back_limit", 2048)
+	viperCfg.SetDefault("remote-commands.enabled", true)
+}
+
+func bindPFlags() {
+	pFlags := RootCmd.PersistentFlags()
 	// map config fields to CLI args:
 	_ = viperCfg.BindPFlag("client.fingerprint", pFlags.Lookup("fingerprint"))
 	_ = viperCfg.BindPFlag("client.auth", pFlags.Lookup("auth"))
@@ -191,20 +213,15 @@ func init() {
 	_ = viperCfg.BindPFlag("client.tags", pFlags.Lookup("tag"))
 	_ = viperCfg.BindPFlag("client.allow_root", pFlags.Lookup("allow-root"))
 
-	viperCfg.SetDefault("logging.log_level", "error")
 	_ = viperCfg.BindPFlag("logging.log_file", pFlags.Lookup("log-file"))
 	_ = viperCfg.BindPFlag("logging.log_level", pFlags.Lookup("log-level"))
 
-	viperCfg.SetDefault("connection.max_retry_count", -1)
 	_ = viperCfg.BindPFlag("connection.keep_alive", pFlags.Lookup("keepalive"))
 	_ = viperCfg.BindPFlag("connection.max_retry_count", pFlags.Lookup("max-retry-count"))
 	_ = viperCfg.BindPFlag("connection.max_retry_interval", pFlags.Lookup("max-retry-interval"))
 	_ = viperCfg.BindPFlag("connection.hostname", pFlags.Lookup("hostname"))
 	_ = viperCfg.BindPFlag("connection.headers", pFlags.Lookup("header"))
 
-	viperCfg.SetDefault("remote-commands.allow", []string{"^/usr/bin/.*", "^/usr/local/bin/.*", `^C:\Windows\System32\.*`})
-	viperCfg.SetDefault("remote-commands.deny", []string{`(\||<|>|;|,|\n|&)`})
-	viperCfg.SetDefault("remote-commands.order", []string{"allow", "deny"})
 	_ = viperCfg.BindPFlag("remote-commands.enabled", pFlags.Lookup("remote-commands-enabled"))
 	_ = viperCfg.BindPFlag("remote-commands.send_back_limit", pFlags.Lookup("remote-commands-send-back-limit"))
 }
@@ -216,21 +233,11 @@ func main() {
 	}
 }
 
-func tryDecodeConfig() error {
-	if *cfgPath != "" {
-		viperCfg.SetConfigFile(*cfgPath)
-	} else {
-		viperCfg.AddConfigPath(".")
-		viperCfg.SetConfigName("rport.conf")
-	}
+func decodeAndValidateConfig(args []string) error {
+	viperCfg.SetConfigFile(*cfgPath)
 
-	return chshare.DecodeViperConfig(viperCfg, config)
-}
-
-func runMain(cmd *cobra.Command, args []string) {
-	err := tryDecodeConfig()
-	if err != nil {
-		log.Fatal(err)
+	if err := chshare.DecodeViperConfig(viperCfg, config); err != nil {
+		return err
 	}
 
 	if len(args) > 0 {
@@ -238,9 +245,37 @@ func runMain(cmd *cobra.Command, args []string) {
 		config.Client.Remotes = args[1:]
 	}
 
-	err = config.ParseAndValidate()
+	err := config.ParseAndValidate()
 	if err != nil {
-		log.Fatalf("Invalid config: %v", err)
+		return err
+	}
+
+	return nil
+}
+
+func runMain(cmd *cobra.Command, args []string) {
+	if svcCommand != nil && *svcCommand != "" {
+		// validate config file without command line args before installing it for the service
+		// other service commands do not change config file specified at install
+		if *svcCommand == "install" {
+			err := decodeAndValidateConfig(nil)
+			if err != nil {
+				log.Fatalf("Invalid config: %v. Check your config file.", err)
+			}
+		}
+		err := handleSvcCommand(*svcCommand, *cfgPath, svcUser)
+		if err != nil {
+			log.Fatal(err)
+		}
+		return
+	}
+
+	// Bind command line arguments late, so they're not included in validation for service install
+	bindPFlags()
+
+	err := decodeAndValidateConfig(args)
+	if err != nil {
+		log.Fatalf("Invalid config: %v. See --help", err)
 	}
 
 	if !config.Client.AllowRoot && chshare.IsRunningAsRoot() {
@@ -254,14 +289,6 @@ func runMain(cmd *cobra.Command, args []string) {
 	defer func() {
 		config.Logging.LogOutput.Shutdown()
 	}()
-
-	if svcCommand != nil && *svcCommand != "" {
-		err = handleSvcCommand(*svcCommand, *cfgPath)
-		if err != nil {
-			log.Fatal(err)
-		}
-		return
-	}
 
 	c := chclient.NewClient(config)
 
