@@ -211,7 +211,7 @@ func TestParseAndValidateAPI(t *testing.T) {
 					Address: "0.0.0.0:3000",
 				},
 			},
-			ExpectedError: errors.New("API: authentication must be enabled: set either 'auth' or 'auth_file'"),
+			ExpectedError: errors.New("API: authentication must be enabled: set either 'auth', 'auth_file' or 'auth_user_table'"),
 		}, {
 			Name: "api enabled, auth and auth_file",
 			Config: Config{
@@ -222,6 +222,59 @@ func TestParseAndValidateAPI(t *testing.T) {
 				},
 			},
 			ExpectedError: errors.New("API: 'auth_file' and 'auth' are both set: expected only one of them"),
+		}, {
+			Name: "api enabled, auth and auth_user_table",
+			Config: Config{
+				API: APIConfig{
+					Address:        "0.0.0.0:3000",
+					Auth:           "abc:def",
+					AuthUserTable:  "users",
+					AuthGroupTable: "groups",
+				},
+			},
+			ExpectedError: errors.New("API: 'auth_user_table' and 'auth' are both set: expected only one of them"),
+		}, {
+			Name: "api enabled, auth_user_table and auth_file",
+			Config: Config{
+				API: APIConfig{
+					Address:        "0.0.0.0:3000",
+					AuthFile:       "test.json",
+					AuthUserTable:  "users",
+					AuthGroupTable: "groups",
+				},
+			},
+			ExpectedError: errors.New("API: 'auth_user_table' and 'auth_file' are both set: expected only one of them"),
+		}, {
+			Name: "api enabled, auth_user_table without auth_group_table",
+			Config: Config{
+				API: APIConfig{
+					Address:       "0.0.0.0:3000",
+					AuthUserTable: "users",
+				},
+			},
+			ExpectedError: errors.New("API: when 'auth_user_table' is set, 'auth_group_table' must be set as well"),
+		}, {
+			Name: "api enabled, auth_user_table without db",
+			Config: Config{
+				API: APIConfig{
+					Address:        "0.0.0.0:3000",
+					AuthUserTable:  "users",
+					AuthGroupTable: "groups",
+				},
+			},
+			ExpectedError: errors.New("API: 'db_type' must be set when 'auth_user_table' is set"),
+		}, {
+			Name: "api enabled, valid database auth",
+			Config: Config{
+				API: APIConfig{
+					Address:        "0.0.0.0:3000",
+					AuthUserTable:  "users",
+					AuthGroupTable: "groups",
+				},
+				Database: DatabaseConfig{
+					Type: "sqlite",
+				},
+			},
 		}, {
 			Name: "api enabled, valid auth",
 			Config: Config{

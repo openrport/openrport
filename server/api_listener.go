@@ -2,7 +2,6 @@ package chserver
 
 import (
 	"crypto/subtle"
-	"errors"
 	"fmt"
 	"io"
 	"net/http"
@@ -49,23 +48,26 @@ func NewAPIListener(
 	fingerprint string,
 ) (*APIListener, error) {
 	config := server.config
-	if config.API.AuthFile != "" && config.API.Auth != "" {
-		return nil, errors.New("API: 'auth_file' and 'auth' are both set: expected only one of them ")
-	}
 
-	var authUsers []*users.User
-	var err error
+	var userService UserService
 	if config.API.AuthFile != "" {
-		authUsers, err = users.GetUsersFromFile(config.API.AuthFile)
-	}
-	if config.API.Auth != "" {
-		var authUser *users.User
-		if authUser, err = parseHTTPAuthStr(config.API.Auth); authUser != nil {
-			authUsers = append(authUsers, authUser)
+		authUsers, err := users.GetUsersFromFile(config.API.AuthFile)
+		if err != nil {
+			return nil, err
 		}
-	}
-	if err != nil {
-		return nil, err
+		userService = users.NewUserCache(authUsers)
+	} else if config.API.Auth != "" {
+		authUser, err := parseHTTPAuthStr(config.API.Auth)
+		if err != nil {
+			return nil, err
+		}
+		userService = users.NewUserCache([]*users.User{authUser})
+	} else if config.API.AuthUserTable != "" {
+		userDB, err := users.NewUserDatabase(server.db, config.API.AuthUserTable, config.API.AuthGroupTable)
+		if err != nil {
+			return nil, err
+		}
+		userService = userDB
 	}
 
 	if config.Server.CheckPortTimeout > DefaultMaxCheckPortTimeout {
@@ -79,7 +81,7 @@ func NewAPIListener(
 		apiSessionRepo:    NewAPISessionRepository(),
 		httpServer:        chshare.NewHTTPServer(int(config.Server.MaxRequestBytes), chshare.WithTLS(config.API.CertFile, config.API.KeyFile)),
 		requestLogOptions: config.InitRequestLogOptions(),
-		userSrv:           users.NewUserCache(authUsers),
+		userSrv:           userService,
 	}
 
 	if config.API.AccessLogFile != "" {

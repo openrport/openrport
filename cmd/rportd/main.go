@@ -120,6 +120,10 @@ var serverHelp = `
     --api-auth, Defines <user>:<password> authentication pair for accessing API
     e.g. "admin:1234". Defaults to empty string: authorization not required.
 
+    --api-auth-user-table, An optional arg to specify database table to use for API auth users.
+
+    --api-auth-group-table, An optional arg to specify database table to use for API auth groups.
+
     --api-cert-file, An optional arg to specify certificate file for API with https.
     Https will be activated if both cert and key file are set.
 
@@ -219,6 +223,8 @@ func init() {
 	pFlags.String("api-addr", "", "")
 	pFlags.String("api-authfile", "", "")
 	pFlags.String("api-auth", "", "")
+	pFlags.String("api-auth-user-table", "", "")
+	pFlags.String("api-auth-group-table", "", "")
 	pFlags.String("api-jwt-secret", "", "")
 	pFlags.String("api-doc-root", "", "")
 	pFlags.String("api-cert-file", "", "")
@@ -287,6 +293,8 @@ func init() {
 	_ = viperCfg.BindPFlag("api.address", pFlags.Lookup("api-addr"))
 	_ = viperCfg.BindPFlag("api.auth", pFlags.Lookup("api-auth"))
 	_ = viperCfg.BindPFlag("api.auth_file", pFlags.Lookup("api-authfile"))
+	_ = viperCfg.BindPFlag("api.auth_user_table", pFlags.Lookup("api-auth-user-table"))
+	_ = viperCfg.BindPFlag("api.auth_group_table", pFlags.Lookup("api-auth-group-table"))
 	_ = viperCfg.BindPFlag("api.jwt_secret", pFlags.Lookup("api-jwt-secret"))
 	_ = viperCfg.BindPFlag("api.doc_root", pFlags.Lookup("api-doc-root"))
 	_ = viperCfg.BindPFlag("api.cert_file", pFlags.Lookup("api-cert-file"))

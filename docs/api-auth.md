@@ -35,7 +35,7 @@ Rportd holds the tokens in memory. Restarting rportd deletes (expires) them all.
 Tokens are based on JWT. For your security, you should enter a unique `jwt_secret` into the `rportd.conf`. Do not use the provided sample secret in a productive environment.
 
 ## Storing credentials, managing users
-The Rportd can read user credentials from three different sources. 
+The Rportd can read user credentials from three different sources.
 1. A "hardcoded" single user with a plaintext password
 2. A user file with bcrypt encoded passwords
 3. A database table with bcrypt encoded passwords (NOT SUPPORTED YET)
@@ -69,18 +69,18 @@ If you want to have more than one user, create a json file with the following st
         ]
     }
 ]
-``` 
-Using `/var/lib/rport/api-auth.json` or `C:\Program Files\rport\api-auth.json` is a good choice. 
+```
+Using `/var/lib/rport/api-auth.json` or `C:\Program Files\rport\api-auth.json` is a good choice.
 
 Enter the following line to your `rportd.config` in the `[api]` section.
 ```
 auth_file = "/var/lib/rport/api-auth.json"           # Linux
 auth_file = "C:\Program Files\rport\api-auth.json"   # Windows
 ```
-Make sure no other auth option is enabled. 
-Reload rportd to activate the changes. 
+Make sure no other auth option is enabled.
+Reload rportd to activate the changes.
 
-The file is read only on start or reload `kill -SIGUSR1 <pid>`. Changes to the file, while rportd is running, have no effect.  
+The file is read only on start or reload `kill -SIGUSR1 <pid>`. Changes to the file, while rportd is running, have no effect.
 
 To generate bcrypt hashes use for example the command `htpasswd` from the Apache Utils.
 ```
@@ -91,7 +91,7 @@ Copy the second part after the colon to the `api-auth.json` file. This is the ha
 
 htpasswd.exe for Windows can be extracted from this [ZIP file](https://de.apachehaus.com/downloads/httpd-2.4.46-o111g-x86-vc15.zip) or this [ZIP File](https://www.apachelounge.com/download/VS16/binaries/httpd-2.4.46-win64-VS16.zip) or use this [Online Hash Generator](https://bcrypt-generator.com/).
 
-### Database (NOT SUPPORTED YET)
+### Database
 If you want to integrate rport into and existing user base or if you want to implement some kind of registration, reading credentials from a database might be handy.
 Rport has no special demands on the database or the table layout.
 
@@ -102,12 +102,12 @@ Each time a http basic auth request is received, rport executes these two querie
 SELECT username,password FROM {user-table} WHERE username='{username}' LIMIT 1;
 SELECT DISTINCT(group) FROM {group-table} WHERE username='{username}';
 ```
-The password must be bcrypt-hashed. 
+The password must be bcrypt-hashed.
 
 To use the database authentication you must setup a global database connection in the `[database]` section of `rportd.config` first.
-Only MySQL/MariaDB and SQLite3 are supported at the moment. The [example config](../rport.example.conf) contains all explanations on how to set up the database connection.
+Only MySQL/MariaDB and SQLite3 are supported at the moment. The [example config](../rportd.example.conf) contains all explanations on how to set up the database connection.
 
-Having the database set up, enter the following two lines to the `[api]` section of the `rportd.config` to specify the table names. 
+Having the database set up, enter the following two lines to the `[api]` section of the `rportd.config` to specify the table names.
 ```
 auth_user_table = "users"
 auth_group_table = "groups"
@@ -116,7 +116,7 @@ Reload rportd to apply all changes.
 
 #### Examples
 Some simple example of a table layout.
-Change column types and lengths to your needs. 
+Change column types and lengths to your needs.
 
 **MySQL/MariaDB**
 
@@ -133,7 +133,7 @@ CREATE TABLE `groups` (
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8;
 ```
 
-**SQLite3** 
+**SQLite3**
 
 ```sql
 CREATE TABLE "users" (

@@ -19,14 +19,16 @@ import (
 )
 
 type APIConfig struct {
-	Address       string `mapstructure:"address"`
-	Auth          string `mapstructure:"auth"`
-	AuthFile      string `mapstructure:"auth_file"`
-	JWTSecret     string `mapstructure:"jwt_secret"`
-	DocRoot       string `mapstructure:"doc_root"`
-	CertFile      string `mapstructure:"cert_file"`
-	KeyFile       string `mapstructure:"key_file"`
-	AccessLogFile string `mapstructure:"access_log_file"`
+	Address        string `mapstructure:"address"`
+	Auth           string `mapstructure:"auth"`
+	AuthFile       string `mapstructure:"auth_file"`
+	AuthUserTable  string `mapstructure:"auth_user_table"`
+	AuthGroupTable string `mapstructure:"auth_group_table"`
+	JWTSecret      string `mapstructure:"jwt_secret"`
+	DocRoot        string `mapstructure:"doc_root"`
+	CertFile       string `mapstructure:"cert_file"`
+	KeyFile        string `mapstructure:"key_file"`
+	AccessLogFile  string `mapstructure:"access_log_file"`
 }
 
 const (
@@ -199,12 +201,28 @@ func (c *Config) parseAndValidateAPI() error {
 }
 
 func (c *Config) parseAndValidateAPIAuth() error {
-	if c.API.AuthFile == "" && c.API.Auth == "" {
-		return errors.New("authentication must be enabled: set either 'auth' or 'auth_file'")
+	if c.API.AuthFile == "" && c.API.Auth == "" && c.API.AuthUserTable == "" {
+		return errors.New("authentication must be enabled: set either 'auth', 'auth_file' or 'auth_user_table'")
 	}
 
 	if c.API.AuthFile != "" && c.API.Auth != "" {
 		return errors.New("'auth_file' and 'auth' are both set: expected only one of them")
+	}
+
+	if c.API.AuthUserTable != "" && c.API.Auth != "" {
+		return errors.New("'auth_user_table' and 'auth' are both set: expected only one of them")
+	}
+
+	if c.API.AuthUserTable != "" && c.API.AuthFile != "" {
+		return errors.New("'auth_user_table' and 'auth_file' are both set: expected only one of them")
+	}
+
+	if c.API.AuthUserTable != "" && c.API.AuthGroupTable == "" {
+		return errors.New("when 'auth_user_table' is set, 'auth_group_table' must be set as well")
+	}
+
+	if c.API.AuthUserTable != "" && c.Database.Type == "" {
+		return errors.New("'db_type' must be set when 'auth_user_table' is set")
 	}
 
 	return nil
