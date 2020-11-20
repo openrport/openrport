@@ -11,9 +11,9 @@ jobs:
         run: go mod vendor
 
       - name: golangci-lint
-        uses: golangci/golangci-lint-action@v1
+        uses: golangci/golangci-lint-action@v2
         with:
-          version: v1.30
+          version: v1.32
           args: -c .golangci.yml
   test:
     name: Test
