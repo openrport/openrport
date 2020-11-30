@@ -54,7 +54,7 @@ archives:
     files:
       - rport.example.conf
       - rportd.example.conf
-
+    allow_different_binary_count: true
 checksum:
   name_template: 'checksums.txt'
 snapshot:
