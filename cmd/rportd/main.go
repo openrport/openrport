@@ -17,6 +17,7 @@ import (
 )
 
 const (
+	DefaultKeepLostClients        = time.Hour
 	DefaultCacheClientsInterval   = 1 * time.Second
 	DefaultCleanClientsInterval   = 3 * time.Second
 	DefaultMaxRequestBytes        = 2 * 1024 // 2 KB
@@ -151,9 +152,8 @@ var serverHelp = `
     Example: useradd -r -d /var/lib/rportd -m -s /bin/false -U -c "System user for rport client and server" rport
 
     --keep-lost-clients, An optional arg to define a duration to keep info(sessions, tunnels, etc)
-    about active and disconnected clients. Enables to identify disconnected clients
-    at server restart and to reestablish previous tunnels on reconnect.
-    By default is "0"(is disabled). For example, "--keep-lost-clients=1h30m".
+    about active and disconnected clients.
+    By default is "1h". To disable it set it to "0".
     It can contain "h"(hours), "m"(minutes), "s"(seconds).
 
     --save-clients-interval, Applicable only if --keep-lost-clients is specified. An optional arg to define
@@ -276,6 +276,7 @@ func init() {
 	viperCfg.SetDefault("server.address", DefaultServerAddress)
 	viperCfg.SetDefault("server.excluded_ports", []string{DefaultExcludedPorts})
 	viperCfg.SetDefault("server.data_dir", chserver.DefaultDataDirectory)
+	viperCfg.SetDefault("server.keep_lost_clients", DefaultKeepLostClients)
 	viperCfg.SetDefault("server.save_clients_interval", DefaultCacheClientsInterval)
 	viperCfg.SetDefault("server.cleanup_clients_interval", DefaultCleanClientsInterval)
 	viperCfg.SetDefault("server.max_request_bytes", DefaultMaxRequestBytes)

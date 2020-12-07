@@ -169,16 +169,14 @@ func (s *Server) Run() error {
 		return err
 	}
 
-	if s.config.Server.KeepLostClients > 0 {
-		repo := s.clientListener.sessionService.repo
-		s.Infof("Variable to keep lost clients is set. Enables keeping disconnected clients for period: %v", s.config.Server.KeepLostClients)
+	s.Infof("Variable to keep lost clients is set to %v", s.config.Server.KeepLostClients)
 
-		go scheduler.Run(ctx, s.Logger, sessions.NewCleanupTask(s.Logger, repo, s.sessionProvider), s.config.Server.CleanupClients)
-		s.Infof("Task to cleanup obsolete clients will run with interval %v", s.config.Server.CleanupClients)
-		// TODO(m-terel): add graceful shutdown of background task
-		go scheduler.Run(ctx, s.Logger, sessions.NewSaveTask(s.Logger, repo, s.sessionProvider), s.config.Server.SaveClients)
-		s.Infof("Task to save clients to disk will run with interval %v", s.config.Server.SaveClients)
-	}
+	go scheduler.Run(ctx, s.Logger, sessions.NewCleanupTask(s.Logger, s.clientListener.sessionService.repo, s.sessionProvider), s.config.Server.CleanupClients)
+	s.Infof("Task to cleanup obsolete clients will run with interval %v", s.config.Server.CleanupClients)
+
+	// TODO(m-terel): add graceful shutdown of background task
+	go scheduler.Run(ctx, s.Logger, sessions.NewSaveTask(s.Logger, s.clientListener.sessionService.repo, s.sessionProvider), s.config.Server.SaveClients)
+	s.Infof("Task to save clients to disk will run with interval %v", s.config.Server.SaveClients)
 
 	return s.Wait()
 }
