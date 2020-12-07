@@ -9,12 +9,10 @@ import (
 	"fmt"
 	"time"
 
-	"github.com/golang-migrate/migrate/v4"
-	"github.com/golang-migrate/migrate/v4/database/sqlite3"
-	bindata "github.com/golang-migrate/migrate/v4/source/go_bindata"
 	"github.com/jmoiron/sqlx"
 
 	"github.com/cloudradar-monitoring/rport/db/migration/client_sessions"
+	"github.com/cloudradar-monitoring/rport/db/sqlite"
 )
 
 type ClientSessionProvider interface {
@@ -30,34 +28,10 @@ type SqliteProvider struct {
 }
 
 func NewSqliteProvider(dbPath string, keepLostClients time.Duration) (*SqliteProvider, error) {
-	db, err := sqlx.Connect("sqlite3", dbPath)
+	db, err := sqlite.New(dbPath, client_sessions.AssetNames(), client_sessions.Asset)
 	if err != nil {
-		return nil, fmt.Errorf("failed to connect to DB: %v", err)
+		return nil, fmt.Errorf("failed to create client_sessions DB instance: %v", err)
 	}
-
-	s := bindata.Resource(client_sessions.AssetNames(),
-		func(name string) ([]byte, error) {
-			return client_sessions.Asset(name)
-		})
-	sourceDriver, err := bindata.WithInstance(s)
-	if err != nil {
-		return nil, fmt.Errorf("failed to init DB source driver: %v", err)
-	}
-
-	dbDriver, err := sqlite3.WithInstance(db.DB, &sqlite3.Config{})
-	if err != nil {
-		return nil, fmt.Errorf("failed to init DB migration driver: %v", err)
-	}
-
-	m, err := migrate.NewWithInstance("go-bindata", sourceDriver, "client_sessions.db", dbDriver)
-	if err != nil {
-		return nil, fmt.Errorf("failed to init DB migration instance: %v", err)
-	}
-
-	if err := m.Up(); err != nil && err != migrate.ErrNoChange {
-		return nil, fmt.Errorf("failed to migarte DB to the latest version: %v", err)
-	}
-
 	return &SqliteProvider{db: db, keepLostClients: keepLostClients}, nil
 }
 
