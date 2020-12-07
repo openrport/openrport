@@ -48,6 +48,7 @@ type JobProvider interface {
 	GetByJID(sid, jid string) (*models.Job, error)
 	GetSummariesBySID(sid string) ([]*models.JobSummary, error)
 	SaveJob(job *models.Job) error
+	Close() error
 }
 
 func (al *APIListener) wrapWithAuthMiddleware(f http.Handler) http.HandlerFunc {

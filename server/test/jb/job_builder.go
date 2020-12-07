@@ -25,6 +25,7 @@ type JobBuilder struct {
 	status     string
 	startedAt  time.Time
 	finishedAt *time.Time
+	result     *models.JobResult
 }
 
 // New returns a builder to generate a job that can be used in tests.
@@ -34,6 +35,10 @@ func New(t *testing.T) JobBuilder {
 		sid:       generateRandomSID(),
 		status:    models.JobStatusSuccessful,
 		startedAt: time.Date(2020, 10, 10, 10, 10, 10, 0, time.UTC),
+		result: &models.JobResult{
+			StdOut: "Mon Sep 28 09:05:08 UTC 2020\nrport",
+			StdErr: "/bin/sh: 1: foo: not found",
+		},
 	}
 }
 
@@ -62,6 +67,11 @@ func (b JobBuilder) FinishedAt(finishedAt time.Time) JobBuilder {
 	return b
 }
 
+func (b JobBuilder) Result(result *models.JobResult) JobBuilder {
+	b.result = result
+	return b
+}
+
 func (b JobBuilder) Build() *models.Job {
 	if b.jid == "" {
 		b.jid = generateRandomJID()
@@ -79,10 +89,7 @@ func (b JobBuilder) Build() *models.Job {
 		StartedAt:  b.startedAt,
 		CreatedBy:  "test-user",
 		TimeoutSec: 60,
-		Result: &models.JobResult{
-			StdOut: "Mon Sep 28 09:05:08 UTC 2020\nrport",
-			StdErr: "/bin/sh: 1: foo: not found",
-		},
+		Result:     b.result,
 	}
 
 }

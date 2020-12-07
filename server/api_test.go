@@ -64,6 +64,10 @@ func (p *JobProviderMock) SaveJob(job *models.Job) error {
 	return p.ReturnErr
 }
 
+func (p *JobProviderMock) Close() error {
+	return nil
+}
+
 func TestGetCorrespondingSortFuncPositive(t *testing.T) {
 	testCases := []struct {
 		sortStr string

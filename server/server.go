@@ -62,11 +62,9 @@ func NewServer(config *Config, filesAPI files.FileAPI) (*Server, error) {
 		return nil, fmt.Errorf("failed to create data dir %q: %v", config.Server.DataDir, makedirErr)
 	}
 
-	jobsDir := getJobsDirectory(config.Server.DataDir)
-	if err := filesAPI.MakeDirAll(jobsDir); err != nil {
-		s.Errorf("Failed to create jobs dir %q: %s", jobsDir, err)
-	} else {
-		s.jobProvider = jobs.NewFileProvider(filesAPI, jobsDir)
+	s.jobProvider, err = jobs.NewSqliteProvider(path.Join(config.Server.DataDir, "jobs.db"))
+	if err != nil {
+		return nil, err
 	}
 
 	s.sessionProvider, err = sessions.NewSqliteProvider(
@@ -209,5 +207,6 @@ func (s *Server) Close() error {
 		wg.Go(s.db.Close)
 	}
 	wg.Go(s.sessionProvider.Close)
+	wg.Go(s.jobProvider.Close)
 	return wg.Wait()
 }

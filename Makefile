@@ -14,6 +14,10 @@ build-debug:
 test:
 	go test -v ./...
 
+bind-data:
+	cd db/migration/jobs/sql/ && go-bindata -o ../bindata.go -pkg jobs ./...
+	cd db/migration/client_sessions/sql/ && go-bindata -o ../bindata.go -pkg client_sessions ./...
+
 clean:
 	go clean
 	rm -f $(BINARIES)
