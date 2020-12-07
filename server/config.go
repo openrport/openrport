@@ -7,7 +7,6 @@ import (
 	"fmt"
 	"net/http"
 	"net/url"
-	"os"
 	"strings"
 	"time"
 
@@ -32,8 +31,6 @@ type APIConfig struct {
 }
 
 const (
-	DefaultCSRFileName = "csr.json"
-
 	MinKeepLostClients = time.Second
 	MaxKeepLostClients = 7 * 24 * time.Hour
 
@@ -87,10 +84,6 @@ type Config struct {
 	Logging  LogConfig      `mapstructure:"logging"`
 	API      APIConfig      `mapstructure:"api"`
 	Database DatabaseConfig `mapstructure:"database"`
-}
-
-func (c *Config) CSRFilePath() string {
-	return c.Server.DataDir + string(os.PathSeparator) + DefaultCSRFileName
 }
 
 func (c *Config) InitRequestLogOptions() *requestlog.Options {

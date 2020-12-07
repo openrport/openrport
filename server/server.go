@@ -27,17 +27,19 @@ import (
 // Server represents a rport service
 type Server struct {
 	*chshare.Logger
-	clientListener *ClientListener
-	apiListener    *APIListener
-	config         *Config
-	sessionService *SessionService
-	clientProvider clients.Provider
-	jobProvider    JobProvider
-	db             *sqlx.DB
+	clientListener  *ClientListener
+	apiListener     *APIListener
+	config          *Config
+	sessionService  *SessionService
+	sessionProvider sessions.ClientSessionProvider
+	clientProvider  clients.Provider
+	jobProvider     JobProvider
+	db              *sqlx.DB
 }
 
 // NewServer creates and returns a new rport server
 func NewServer(config *Config, filesAPI files.FileAPI) (*Server, error) {
+	ctx := context.Background()
 	s := &Server{
 		Logger: chshare.NewLogger("server", config.Logging.LogOutput, config.Logging.LogLevel),
 		config: config,
@@ -51,36 +53,40 @@ func NewServer(config *Config, filesAPI files.FileAPI) (*Server, error) {
 	s.Infof("Fingerprint %s", fingerprint)
 
 	s.Infof("data directory path: %q", config.Server.DataDir)
-	if config.Server.DataDir != "" {
-		// create --data-dir path if not exist
-		if makedirErr := filesAPI.MakeDirAll(config.Server.DataDir); makedirErr != nil {
-			s.Errorf("Failed to create data dir %q: %v", config.Server.DataDir, makedirErr)
-		} else {
-			jobsDir := getJobsDirectory(config.Server.DataDir)
-			if err := filesAPI.MakeDirAll(jobsDir); err != nil {
-				s.Errorf("Failed to create jobs dir %q: %s", jobsDir, err)
-			} else {
-				s.jobProvider = jobs.NewFileProvider(filesAPI, jobsDir)
-			}
-		}
+	if config.Server.DataDir == "" {
+		return nil, errors.New("data directory cannot be empty")
+	}
+
+	// create --data-dir path if not exist
+	if makedirErr := filesAPI.MakeDirAll(config.Server.DataDir); makedirErr != nil {
+		return nil, fmt.Errorf("failed to create data dir %q: %v", config.Server.DataDir, makedirErr)
+	}
+
+	jobsDir := getJobsDirectory(config.Server.DataDir)
+	if err := filesAPI.MakeDirAll(jobsDir); err != nil {
+		s.Errorf("Failed to create jobs dir %q: %s", jobsDir, err)
+	} else {
+		s.jobProvider = jobs.NewFileProvider(filesAPI, jobsDir)
+	}
+
+	s.sessionProvider, err = sessions.NewSqliteProvider(
+		path.Join(config.Server.DataDir, "client_sessions.db"),
+		config.Server.KeepLostClients,
+	)
+	if err != nil {
+		return nil, err
+	}
+
+	initSessions, err := sessions.GetInitState(ctx, s.sessionProvider)
+	if err != nil {
+		return nil, fmt.Errorf("failed to get init CSR state: %v", err)
 	}
 
 	var keepLostClients *time.Duration
 	if config.Server.KeepLostClients > 0 {
 		keepLostClients = &config.Server.KeepLostClients
 	}
-	// TODO(m-terel): add a check whether a file exists
-	initSessions, err := sessions.GetInitStateFromFile(config.CSRFilePath(), keepLostClients)
-	if err != nil {
-		if len(initSessions) == 0 {
-			s.Errorf("Failed to get init CSR state from file %q: %v", config.CSRFilePath(), err)
-		} else {
-			s.Infof("Partial failure. Successfully read %d sessions from file %q. Error: %v", len(initSessions), config.CSRFilePath(), err)
-		}
-		// proceed further
-	}
 	repo := sessions.NewSessionRepository(initSessions, keepLostClients)
-
 	s.sessionService = NewSessionService(
 		ports.NewPortDistributor(config.ExcludedPorts()),
 		repo,
@@ -166,12 +172,11 @@ func (s *Server) Run() error {
 	if s.config.Server.KeepLostClients > 0 {
 		repo := s.clientListener.sessionService.repo
 		s.Infof("Variable to keep lost clients is set. Enables keeping disconnected clients for period: %v", s.config.Server.KeepLostClients)
-		s.Infof("csr file path: %q", s.config.CSRFilePath())
 
-		go scheduler.Run(ctx, s.Logger, sessions.NewCleanupTask(s.Logger, repo), s.config.Server.CleanupClients)
+		go scheduler.Run(ctx, s.Logger, sessions.NewCleanupTask(s.Logger, repo, s.sessionProvider), s.config.Server.CleanupClients)
 		s.Infof("Task to cleanup obsolete clients will run with interval %v", s.config.Server.CleanupClients)
 		// TODO(m-terel): add graceful shutdown of background task
-		go scheduler.Run(ctx, s.Logger, sessions.NewSaveToFileTask(s.Logger, repo, s.config.CSRFilePath()), s.config.Server.SaveClients)
+		go scheduler.Run(ctx, s.Logger, sessions.NewSaveTask(s.Logger, repo, s.sessionProvider), s.config.Server.SaveClients)
 		s.Infof("Task to save clients to disk will run with interval %v", s.config.Server.SaveClients)
 	}
 
@@ -205,5 +210,6 @@ func (s *Server) Close() error {
 	if s.db != nil {
 		wg.Go(s.db.Close)
 	}
+	wg.Go(s.sessionProvider.Close)
 	return wg.Wait()
 }

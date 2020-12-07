@@ -2,6 +2,7 @@
 package sessions
 
 import (
+	"context"
 	"fmt"
 
 	chshare "github.com/cloudradar-monitoring/rport/share"
@@ -10,17 +11,19 @@ import (
 type CleanupTask struct {
 	log *chshare.Logger
 	csr *ClientSessionRepository
+	csp ClientSessionProvider
 }
 
 // NewCleanupTask returns a task to cleanup Client Session Repository from obsolete client sessions.
-func NewCleanupTask(log *chshare.Logger, csr *ClientSessionRepository) *CleanupTask {
+func NewCleanupTask(log *chshare.Logger, csr *ClientSessionRepository, csp ClientSessionProvider) *CleanupTask {
 	return &CleanupTask{
 		log: log,
 		csr: csr,
+		csp: csp,
 	}
 }
 
-func (t *CleanupTask) Run() error {
+func (t *CleanupTask) Run(ctx context.Context) error {
 	deleted, err := t.csr.DeleteObsolete()
 	if err != nil {
 		return fmt.Errorf("failed to delete obsolete client sessions from CSR: %v", err)
@@ -30,5 +33,5 @@ func (t *CleanupTask) Run() error {
 		t.log.Debugf("Deleted %d obsolete client session(s) from CSR.", len(deleted))
 	}
 
-	return nil
+	return t.csp.DeleteObsolete(ctx)
 }

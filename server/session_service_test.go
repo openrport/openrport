@@ -16,8 +16,6 @@ import (
 )
 
 func TestStartClientSession(t *testing.T) {
-	clientID := "test-client"
-
 	connMock := test.NewConnMock()
 	connMock.ReturnRemoteAddr = &net.IPAddr{IP: net.IPv4(192, 0, 2, 1)}
 
@@ -78,9 +76,9 @@ func TestStartClientSession(t *testing.T) {
 	for _, tc := range testCases {
 		t.Run(tc.Name, func(t *testing.T) {
 			ss := &SessionService{
-				repo: sessions.NewSessionRepository([]*sessions.ClientSession{&sessions.ClientSession{
+				repo: sessions.NewSessionRepository([]*sessions.ClientSession{{
 					ID:       "test-session",
-					ClientID: &clientID,
+					ClientID: "test-client",
 				}}, nil),
 				portDistributor: ports.NewPortDistributor(mapset.NewThreadUnsafeSet()),
 			}

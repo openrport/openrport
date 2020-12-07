@@ -88,7 +88,7 @@ func (s *ClientSessionRepository) GetAllByClientID(clientID string) []*ClientSes
 	all, _ := s.GetAll()
 	var res []*ClientSession
 	for _, v := range all {
-		if v.ClientID != nil && *v.ClientID == clientID {
+		if v.ClientID == clientID {
 			res = append(res, v)
 		}
 	}

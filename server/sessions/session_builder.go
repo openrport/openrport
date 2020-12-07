@@ -7,7 +7,7 @@
 // - fields set on demand.
 //
 // It can be extended by needs.
-package sb
+package sessions
 
 import (
 	"testing"
@@ -15,18 +15,22 @@ import (
 
 	"golang.org/x/crypto/ssh"
 
-	"github.com/cloudradar-monitoring/rport/server/sessions"
 	chshare "github.com/cloudradar-monitoring/rport/share"
 	"github.com/cloudradar-monitoring/rport/share/random"
 )
 
-var sessionsNow, _ = time.Parse(time.RFC3339, "2020-08-19T13:09:23+03:00")
+var sessionsNow, _ = time.ParseInLocation(time.RFC3339, "2020-08-19T13:09:23+03:00", nil)
+
+// nowMockF is used to override sessions.now
+var nowMockF = func() time.Time {
+	return sessionsNow
+}
 
 type SessionBuilder struct {
 	t *testing.T
 
 	id           string
-	clientID     *string
+	clientID     string
 	disconnected *time.Time
 	conn         ssh.Conn
 }
@@ -45,15 +49,15 @@ func (b SessionBuilder) ID(id string) SessionBuilder {
 	return b
 }
 
-func (b SessionBuilder) ClientID(clientID *string) SessionBuilder {
+func (b SessionBuilder) ClientID(clientID string) SessionBuilder {
 	b.clientID = clientID
 	return b
 }
 
 func (b SessionBuilder) DisconnectedDuration(disconnectedDuration time.Duration) SessionBuilder {
 	// override session Now with static value
-	sessions.Now = func() time.Time { return sessionsNow }
-	disconnected := sessions.Now().Add(-disconnectedDuration)
+	now = nowMockF
+	disconnected := now().Add(-disconnectedDuration)
 	b.disconnected = &disconnected
 	return b
 }
@@ -63,9 +67,9 @@ func (b SessionBuilder) Connection(conn ssh.Conn) SessionBuilder {
 	return b
 }
 
-func (b SessionBuilder) Build() *sessions.ClientSession {
+func (b SessionBuilder) Build() *ClientSession {
 	// TODO(m-terel): hardcoded values are used because currently was no need of other data, extend with more available options if needed
-	return &sessions.ClientSession{
+	return &ClientSession{
 		ID:       b.id,
 		Name:     "Random Rport Client",
 		OS:       "Linux alpine-3-10-tk-01 4.19.80-0-virt #1-Alpine SMP Fri Oct 18 11:51:24 UTC 2019 x86_64 Linux",
@@ -78,7 +82,7 @@ func (b SessionBuilder) Build() *sessions.ClientSession {
 		Tags:     []string{"Linux", "Datacenter 1"},
 		Version:  "0.1.12",
 		Address:  "88.198.189.161:50078",
-		Tunnels: []*sessions.Tunnel{
+		Tunnels: []*Tunnel{
 			{
 				ID: "1",
 				Remote: chshare.Remote{
@@ -110,7 +114,6 @@ func generateRandomSID() string {
 	return "sid-" + random.AlphaNum(12)
 }
 
-func generateRandomClientID() *string {
-	id := "client-" + random.Code(2)
-	return &id
+func generateRandomClientID() string {
+	return "client-" + random.Code(2)
 }

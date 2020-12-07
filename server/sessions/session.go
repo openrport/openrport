@@ -13,10 +13,8 @@ import (
 	chshare "github.com/cloudradar-monitoring/rport/share"
 )
 
-// Now is used to stub time.Now in tests
-var Now = func() time.Time {
-	return time.Now()
-}
+// now is used to stub time.Now in tests
+var now = time.Now
 
 func GetSessionID(sshConn ssh.ConnMetadata) string {
 	return fmt.Sprintf("%x", sshConn.SessionID())
@@ -39,7 +37,7 @@ type ClientSession struct {
 	Tunnels  []*Tunnel `json:"tunnels"`
 	// Disconnected is a time when a client session was disconnected. If nil - it's connected.
 	Disconnected *time.Time `json:"disconnected,omitempty"`
-	ClientID     *string    `json:"client,omitempty"`
+	ClientID     string     `json:"client_id"`
 
 	Connection ssh.Conn        `json:"-"`
 	Context    context.Context `json:"-"`
@@ -53,7 +51,7 @@ type ClientSession struct {
 // If a given duration is nil - returns false.
 func (c *ClientSession) Obsolete(duration *time.Duration) bool {
 	return duration != nil && c.Disconnected != nil &&
-		c.Disconnected.Add(*duration).Before(Now())
+		c.Disconnected.Add(*duration).Before(now())
 }
 
 func (c *ClientSession) Lock() {

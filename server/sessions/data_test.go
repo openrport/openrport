@@ -1,16 +1,15 @@
 package sessions
 
 import (
+	"context"
 	"os"
+	"testing"
 	"time"
+
+	"github.com/stretchr/testify/require"
 
 	chshare "github.com/cloudradar-monitoring/rport/share"
 )
-
-// nowMockF is used to override sessions.now
-var nowMockF = func() time.Time {
-	return s2DisconnectedTime.Add(5 * time.Minute)
-}
 
 var (
 	hour    = time.Hour
@@ -21,44 +20,6 @@ var (
 	s4DisconnectedTime    = s2DisconnectedTime.Add(-2 * time.Hour)
 	testLog               = chshare.NewLogger("server", chshare.LogOutput{File: os.Stdout}, chshare.LogLevelDebug)
 )
-
-var s1JSON = `{
-    "id": "aa1210c7-1899-491e-8e71-564cacaf1df8",
-    "name": "Random Rport Client 1",
-    "os": "Linux alpine-3-10-tk-01 4.19.80-0-virt #1-Alpine SMP Fri Oct 18 11:51:24 UTC 2019 x86_64 Linux",
-    "os_arch": "amd64",
-    "os_family": "alpine",
-    "os_kernel": "linux",
-    "hostname": "alpine-3-10-tk-01",
-    "ipv4": [
-      "192.168.122.111"
-    ],
-    "ipv6": [
-      "fe80::b84f:aff:fe59:a0b1"
-    ],
-    "tags": [
-      "Linux",
-      "Datacenter 1"
-    ],
-    "version": "0.1.12",
-    "address": "88.198.189.161:50078",
-    "tunnels": [
-      {
-        "lhost": "0.0.0.0",
-        "lport": "2222",
-        "rhost": "0.0.0.0",
-        "rport": "22",
-        "id": "1"
-      },
-      {
-        "lhost": "0.0.0.0",
-        "lport": "4000",
-        "rhost": "0.0.0.0",
-        "rport": "80",
-        "id": "2"
-      }
-	]
-  }`
 
 var s1 = &ClientSession{
 	ID:       "aa1210c7-1899-491e-8e71-564cacaf1df8",
@@ -93,40 +54,9 @@ var s1 = &ClientSession{
 			},
 		},
 	},
+	ClientID:     "client-1",
 	Disconnected: nil,
 }
-
-var s2JSON = `{
-    "id": "2fb5eca74d7bdf5f5b879ebadb446af7c113b076354d74e1882d8101e9f4b918",
-    "name": "Random Rport Client 2",
-    "os": "Linux alpine-3-10-tk-02 4.19.80-0-virt #1-Alpine SMP Fri Oct 18 11:51:24 UTC 2019 x86_64 Linux",
-    "os_arch": "amd64",
-    "os_family": "alpine",
-    "os_kernel": "linux",
-    "hostname": "alpine-3-10-tk-02",
-    "ipv4": [
-      "192.168.122.112"
-    ],
-    "ipv6": [
-      "fe80::b84f:aff:fe59:a0b2"
-    ],
-    "tags": [
-      "Linux",
-      "Datacenter 2"
-    ],
-    "version": "0.1.12",
-    "address": "88.198.189.162:50078",
-    "tunnels": [
-      {
-        "lhost": "0.0.0.0",
-        "lport": "2222",
-        "rhost": "0.0.0.0",
-        "rport": "22",
-        "id": "1"
-      }
-	],
-    "disconnected": "2020-08-19T13:04:23+03:00"
-  }`
 
 var s2 = &ClientSession{
 	ID:       "2fb5eca74d7bdf5f5b879ebadb446af7c113b076354d74e1882d8101e9f4b918",
@@ -152,32 +82,9 @@ var s2 = &ClientSession{
 			},
 		},
 	},
+	ClientID:     "client-2",
 	Disconnected: &s2DisconnectedTime,
 }
-
-var s3JSON = `{
-    "id": "c1d3c6811e1282c675495c0b3149dfa3201883188c42727a318d4a0742564c96",
-    "name": "Random Rport Client 3",
-    "os": "Linux alpine-3-10-tk-03 4.19.80-0-virt #1-Alpine SMP Fri Oct 18 11:51:24 UTC 2019 x86_64 Linux",
-    "os_arch": "amd64",
-    "os_family": "alpine",
-    "os_kernel": "linux",
-    "hostname": "alpine-3-10-tk-03",
-    "ipv4": [
-      "192.168.122.113"
-    ],
-    "ipv6": [
-      "fe80::b84f:aff:fe59:a0b3"
-    ],
-    "tags": [
-      "Linux",
-      "Datacenter 3"
-    ],
-    "version": "0.1.12",
-    "address": "88.198.189.163:50078",
-    "tunnels": [],
-    "disconnected": "2020-08-19T12:04:23+03:00"
-  }`
 
 var s3 = &ClientSession{
 	ID:           "c1d3c6811e1282c675495c0b3149dfa3201883188c42727a318d4a0742564c96",
@@ -193,6 +100,7 @@ var s3 = &ClientSession{
 	Version:      "0.1.12",
 	Address:      "88.198.189.163:50078",
 	Tunnels:      make([]*Tunnel, 0),
+	ClientID:     "client-3",
 	Disconnected: &s3DisconnectedTime,
 }
 
@@ -210,6 +118,7 @@ var s4 = &ClientSession{
 	Version:      "0.1.12",
 	Address:      "88.198.189.164:50078",
 	Tunnels:      make([]*Tunnel, 0),
+	ClientID:     "client-4",
 	Disconnected: &s4DisconnectedTime,
 }
 
@@ -234,5 +143,15 @@ func shallowCopy(s *ClientSession) *ClientSession {
 		Address:      s.Address,
 		Tunnels:      append([]*Tunnel{}, s.Tunnels...),
 		Disconnected: s.Disconnected,
+		ClientID:     s.ClientID,
 	}
+}
+
+func newFakeSessionProvider(t *testing.T, exp time.Duration, sessions ...*ClientSession) *SqliteProvider {
+	p, err := NewSqliteProvider(":memory:", exp)
+	require.NoError(t, err)
+	for _, cur := range sessions {
+		require.NoError(t, p.Save(context.Background(), cur))
+	}
+	return p
 }

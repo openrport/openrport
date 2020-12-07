@@ -25,7 +25,6 @@ import (
 	"github.com/cloudradar-monitoring/rport/server/clients"
 	"github.com/cloudradar-monitoring/rport/server/sessions"
 	"github.com/cloudradar-monitoring/rport/server/test/jb"
-	"github.com/cloudradar-monitoring/rport/server/test/sb"
 	chshare "github.com/cloudradar-monitoring/rport/share"
 	"github.com/cloudradar-monitoring/rport/share/comm"
 	"github.com/cloudradar-monitoring/rport/share/models"
@@ -443,8 +442,8 @@ func TestHandleDeleteClient(t *testing.T) {
 
 	initCacheState := []*clients.Client{cl1, cl2, cl3}
 
-	s1 := sb.New(t).ClientID(&cl1.ID).Connection(mockConn).Build()
-	s2 := sb.New(t).ClientID(&cl1.ID).DisconnectedDuration(5 * time.Minute).Build()
+	s1 := sessions.New(t).ClientID(cl1.ID).Connection(mockConn).Build()
+	s2 := sessions.New(t).ClientID(cl1.ID).DisconnectedDuration(5 * time.Minute).Build()
 
 	testCases := []struct {
 		descr string // Test Case Description
@@ -638,8 +637,8 @@ func TestHandlePostCommand(t *testing.T) {
 	require.NoError(t, err)
 	connMock.ReturnResponsePayload = sshRespBytes
 
-	s1 := sb.New(t).Connection(connMock).Build()
-	s2 := sb.New(t).DisconnectedDuration(5 * time.Minute).Build()
+	s1 := sessions.New(t).Connection(connMock).Build()
+	s2 := sessions.New(t).DisconnectedDuration(5 * time.Minute).Build()
 
 	testCases := []struct {
 		name string
@@ -1070,8 +1069,8 @@ func TestHandleGetCommands(t *testing.T) {
 }
 
 func TestHandleGetSessions(t *testing.T) {
-	s1 := sb.New(t).ID("session-1").ClientID(&cl1.ID).Build()
-	s2 := sb.New(t).ID("session-2").ClientID(&cl1.ID).DisconnectedDuration(5 * time.Minute).Build()
+	s1 := sessions.New(t).ID("session-1").ClientID(cl1.ID).Build()
+	s2 := sessions.New(t).ID("session-2").ClientID(cl1.ID).DisconnectedDuration(5 * time.Minute).Build()
 	al := APIListener{
 		insecureForTests: true,
 		Server: &Server{
@@ -1131,7 +1130,7 @@ func TestHandleGetSessions(t *testing.T) {
                "id":"2"
             }
          ],
-         "client":"user1"
+         "client_id":"user1"
       },
       {
          "id":"session-2",
@@ -1176,7 +1175,7 @@ func TestHandleGetSessions(t *testing.T) {
             }
          ],
          "disconnected":"2020-08-19T13:04:23+03:00",
-         "client":"user1"
+         "client_id":"user1"
       }
    ]
 }`

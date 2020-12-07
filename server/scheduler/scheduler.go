@@ -8,7 +8,7 @@ import (
 )
 
 type Task interface {
-	Run() error
+	Run(ctx context.Context) error
 }
 
 // Run runs the given task periodically with a given interval between executions.
@@ -18,7 +18,7 @@ func Run(ctx context.Context, log *chshare.Logger, task Task, interval time.Dura
 	for {
 		select {
 		case <-tick.C:
-			if err := task.Run(); err != nil {
+			if err := task.Run(ctx); err != nil {
 				log.Errorf("Task %T finished with an error: %v.", task, err)
 			}
 		case <-ctx.Done():

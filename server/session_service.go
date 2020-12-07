@@ -85,7 +85,7 @@ func (s *SessionService) StartClientSession(
 
 	session := &sessions.ClientSession{
 		ID:         sessionID,
-		ClientID:   &clientID,
+		ClientID:   clientID,
 		Name:       req.Name,
 		Tags:       req.Tags,
 		OS:         req.OS,
