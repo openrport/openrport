@@ -68,18 +68,25 @@ func (c *Client) HandleRunCmdRequest(ctx context.Context, reqPayload []byte) (*c
 		return nil, errors.New("remote commands execution is disabled")
 	}
 
-	// do not accept a new request when the previous is not finished yet
-	// NOTE: HandleRunCmdRequest is run sequentially, that's why no need to lock a block with read/write curPID
-	curPID := c.getCurCmdPID()
-	if curPID != nil {
-		return nil, fmt.Errorf("a previous command execution with PID %d is still running", *curPID)
-	}
-
 	job := models.Job{}
 	err := json.Unmarshal(reqPayload, &job)
 	if err != nil {
 		return nil, fmt.Errorf("failed to decode requested job: %s", err)
 	}
+
+	// do not accept a new request when the previous is not finished yet, except multi-client job. In this case wait
+	// NOTE: HandleRunCmdRequest is run sequentially, that's why no need to lock a block with read/write curPID
+	curPID := c.getCurCmdPID()
+	if curPID != nil {
+		if job.MultiJobID == nil {
+			return nil, fmt.Errorf("a previous command execution with PID %d is still running", *curPID)
+		}
+		c.Debugf("Waiting for a previous command with PID %d to finish", *curPID)
+	}
+
+	// TODO: refactor with using worker pool
+	c.runCmdMutex.Lock()
+
 	job.Shell, err = getShell(job.Shell, runtime.GOOS)
 	if err != nil {
 		return nil, err
@@ -133,12 +140,13 @@ func (c *Client) HandleRunCmdRequest(ctx context.Context, reqPayload []byte) (*c
 
 		// observing stopped - unset PID
 		c.setCurCmdPID(nil)
+		c.runCmdMutex.Unlock()
 
 		// fill all unset fields
 		now := now()
 		job.FinishedAt = &now
 		job.Status = status
-		job.PID = res.Pid
+		job.PID = &res.Pid
 		job.StartedAt = startedAt
 		job.Result = &models.JobResult{
 			StdOut: stdOut.String(),

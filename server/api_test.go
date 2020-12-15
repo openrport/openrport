@@ -22,12 +22,14 @@ import (
 	"golang.org/x/crypto/ssh"
 
 	"github.com/cloudradar-monitoring/rport/server/api"
+	"github.com/cloudradar-monitoring/rport/server/api/jobs"
 	"github.com/cloudradar-monitoring/rport/server/clients"
 	"github.com/cloudradar-monitoring/rport/server/sessions"
 	"github.com/cloudradar-monitoring/rport/server/test/jb"
 	chshare "github.com/cloudradar-monitoring/rport/share"
 	"github.com/cloudradar-monitoring/rport/share/comm"
 	"github.com/cloudradar-monitoring/rport/share/models"
+	"github.com/cloudradar-monitoring/rport/share/random"
 	"github.com/cloudradar-monitoring/rport/share/test"
 )
 
@@ -35,6 +37,7 @@ var testLog = chshare.NewLogger("api-listener-test", chshare.LogOutput{File: os.
 var hour = time.Hour
 
 type JobProviderMock struct {
+	JobProvider
 	ReturnJob          *models.Job
 	ReturnJobSummaries []*models.JobSummary
 	ReturnErr          error
@@ -619,13 +622,12 @@ func TestHandleDeleteClient(t *testing.T) {
 	}
 }
 
-var generateNewJobIDMockF = func() string {
-	return "test-job-id"
-}
-
 func TestHandlePostCommand(t *testing.T) {
-	generateNewJobID = generateNewJobIDMockF
-	testJID := generateNewJobIDMockF()
+	var testJID string
+	generateNewJobID = func() string {
+		testJID = random.UUID4()
+		return testJID
+	}
 	testUser := "test-user"
 
 	defaultTimeout := 60
@@ -866,7 +868,7 @@ func TestHandlePostCommand(t *testing.T) {
 				assert.Equal(t, tc.sid, gotRunningJob.SID)
 				assert.Equal(t, gotCmd, gotRunningJob.Command)
 				assert.Equal(t, tc.wantShell, gotRunningJob.Shell)
-				assert.Equal(t, sshSuccessResp.Pid, gotRunningJob.PID)
+				assert.Equal(t, &sshSuccessResp.Pid, gotRunningJob.PID)
 				assert.Equal(t, sshSuccessResp.StartedAt, gotRunningJob.StartedAt)
 				assert.Equal(t, testUser, gotRunningJob.CreatedBy)
 				assert.Equal(t, tc.wantTimeout, gotRunningJob.TimeoutSec)
@@ -1186,4 +1188,207 @@ func TestHandleGetSessions(t *testing.T) {
 
 	assert.Equal(t, 200, w.Code)
 	assert.JSONEq(t, expectedJSON, w.Body.String())
+}
+
+func TestHandlePostMultiClientCommand(t *testing.T) {
+	testUser := "test-user"
+
+	connMock1 := test.NewConnMock()
+	// by default set to return success
+	connMock1.ReturnOk = true
+	sshSuccessResp1 := comm.RunCmdResponse{Pid: 1, StartedAt: time.Date(2020, 10, 10, 10, 10, 1, 0, time.UTC)}
+	sshRespBytes1, err := json.Marshal(sshSuccessResp1)
+	require.NoError(t, err)
+	connMock1.ReturnResponsePayload = sshRespBytes1
+
+	connMock2 := test.NewConnMock()
+	// by default set to return success
+	connMock2.ReturnOk = true
+	sshSuccessResp2 := comm.RunCmdResponse{Pid: 2, StartedAt: time.Date(2020, 10, 10, 10, 10, 2, 0, time.UTC)}
+	sshRespBytes2, err := json.Marshal(sshSuccessResp2)
+	require.NoError(t, err)
+	connMock2.ReturnResponsePayload = sshRespBytes2
+
+	s1 := sessions.New(t).ID("client-1").Connection(connMock1).Build()
+	s2 := sessions.New(t).ID("client-2").Connection(connMock2).Build()
+	s3 := sessions.New(t).ID("client-3").DisconnectedDuration(5 * time.Minute).Build()
+
+	defaultTimeout := 60
+	gotCmd := "/bin/date;foo;whoami"
+	gotCmdTimeoutSec := 30
+	validReqBody := `{"command": "` + gotCmd +
+		`","timeout_sec": ` + strconv.Itoa(gotCmdTimeoutSec) +
+		`,"client_ids": ["` + s1.ID + `", "` + s2.ID + `"]` +
+		`}`
+
+	testCases := []struct {
+		name string
+
+		requestBody   string
+		noJobProvider bool
+		abortOnErr    bool
+
+		connReturnErr error
+
+		wantStatusCode int
+		wantErrCode    string
+		wantErrTitle   string
+		wantErrDetail  string
+		wantJobErr     string
+	}{
+		{
+			name:           "valid cmd",
+			requestBody:    validReqBody,
+			wantStatusCode: http.StatusOK,
+		},
+		{
+			name: "only one client",
+			requestBody: `
+		{
+			"command": "/bin/date;foo;whoami",
+			"timeout_sec": 30,
+			"client_ids": ["client-1"]
+		}`,
+			wantStatusCode: http.StatusBadRequest,
+			wantErrTitle:   "At least 2 clients should be specified.",
+		},
+		{
+			name: "disconnected session",
+			requestBody: `
+		{
+			"command": "/bin/date;foo;whoami",
+			"timeout_sec": 30,
+			"client_ids": ["client-1", "client-3"]
+		}`,
+			wantStatusCode: http.StatusBadRequest,
+			wantErrTitle:   fmt.Sprintf("Session with id=%q is not active.", s3.ID),
+		},
+		{
+			name: "session not found",
+			requestBody: `
+		{
+			"command": "/bin/date;foo;whoami",
+			"timeout_sec": 30,
+			"client_ids": ["client-1", "client-4"]
+		}`,
+			wantStatusCode: http.StatusNotFound,
+			wantErrTitle:   fmt.Sprintf("Session with id=%q not found.", "client-4"),
+		},
+		{
+			name:           "no persistent storage",
+			requestBody:    validReqBody,
+			noJobProvider:  true,
+			wantStatusCode: http.StatusMethodNotAllowed,
+			wantErrCode:    ErrCodeRunCmdDisabled,
+			wantErrTitle:   "Persistent storage required. A data dir or a database table is required to activate this feature.",
+		},
+		{
+			name:           "error on send request",
+			requestBody:    validReqBody,
+			connReturnErr:  errors.New("send fake error"),
+			wantStatusCode: http.StatusOK,
+			wantJobErr:     "failed to send request: send fake error",
+		},
+		{
+			name: "error on send request, abort on err",
+			requestBody: `
+			{
+				"command": "/bin/date;foo;whoami",
+				"timeout_sec": 30,
+				"client_ids": ["client-1", "client-2"],
+				"abort_on_error": true
+			}`,
+			abortOnErr:     true,
+			connReturnErr:  errors.New("send fake error"),
+			wantStatusCode: http.StatusOK,
+			wantJobErr:     "failed to send request: send fake error",
+		},
+	}
+
+	for _, tc := range testCases {
+		t.Run(tc.name, func(t *testing.T) {
+			// given
+			al := APIListener{
+				insecureForTests: true,
+				Server: &Server{
+					sessionService: NewSessionService(nil, sessions.NewSessionRepository([]*sessions.ClientSession{s1, s2, s3}, &hour)),
+					config: &Config{
+						Server: ServerConfig{
+							RunRemoteCmdTimeoutSec: defaultTimeout,
+							MaxRequestBytes:        1024 * 1024,
+						},
+					},
+				},
+				Logger: testLog,
+			}
+			var done chan bool
+			if tc.wantStatusCode == http.StatusOK {
+				done = make(chan bool)
+				al.testDone = done
+			}
+
+			al.initRouter()
+
+			jp, err := jobs.NewSqliteProvider("file::memory:?cache=shared")
+			require.NoError(t, err)
+			defer jp.Close()
+			if !tc.noJobProvider {
+				al.jobProvider = jp
+			}
+
+			connMock1.ReturnErr = tc.connReturnErr
+
+			ctx := api.WithUser(context.Background(), testUser)
+			req := httptest.NewRequest(http.MethodPost, "/api/v1/commands", strings.NewReader(tc.requestBody))
+			req = req.WithContext(ctx)
+
+			// when
+			w := httptest.NewRecorder()
+			al.router.ServeHTTP(w, req)
+
+			// then
+			assert.Equal(t, tc.wantStatusCode, w.Code)
+			if tc.wantStatusCode == http.StatusOK {
+				// wait until async task executeMultiClientJob finishes
+				<-al.testDone
+			}
+			if tc.wantErrTitle == "" {
+				// success case
+				assert.Contains(t, w.Body.String(), `{"data":{"jid":`)
+				gotResp := api.NewSuccessPayload(newJobResponse{})
+				require.NoError(t, json.Unmarshal(w.Body.Bytes(), &gotResp))
+				gotPropMap, ok := gotResp.Data.(map[string]interface{})
+				require.True(t, ok)
+				jidObj, found := gotPropMap["jid"]
+				require.True(t, found)
+				gotJID, ok := jidObj.(string)
+				require.True(t, ok)
+				require.NotEmpty(t, gotJID)
+
+				gotMultiJob, err := jp.GetMultiJob(gotJID)
+				require.NoError(t, err)
+				require.NotNil(t, gotMultiJob)
+				if tc.abortOnErr {
+					require.Len(t, gotMultiJob.Jobs, 1)
+				} else {
+					require.Len(t, gotMultiJob.Jobs, 2)
+				}
+				if tc.connReturnErr != nil {
+					assert.Equal(t, models.JobStatusFailed, gotMultiJob.Jobs[0].Status)
+					assert.Equal(t, tc.wantJobErr, gotMultiJob.Jobs[0].Error)
+				} else {
+					assert.Equal(t, models.JobStatusRunning, gotMultiJob.Jobs[0].Status)
+				}
+				if !tc.abortOnErr {
+					assert.Equal(t, models.JobStatusRunning, gotMultiJob.Jobs[1].Status)
+				}
+			} else {
+				// failure case
+				wantResp := api.NewErrorPayloadWithCode(tc.wantErrCode, tc.wantErrTitle, tc.wantErrDetail)
+				wantRespBytes, err := json.Marshal(wantResp)
+				require.NoError(t, err)
+				require.Equal(t, string(wantRespBytes), w.Body.String())
+			}
+		})
+	}
 }

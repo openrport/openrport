@@ -79,3 +79,29 @@ func TestJobsSqliteProvider(t *testing.T) {
 	require.NoError(t, err)
 	assert.ElementsMatch(t, []*models.JobSummary{&job1.JobSummary, &job2.JobSummary}, gotJSs1)
 }
+
+func TestGetByMultiJobID(t *testing.T) {
+	// given
+	p, err := NewSqliteProvider(":memory:")
+	require.NoError(t, err)
+	defer p.Close()
+	multiJobID := "1234"
+	t1, _ := time.ParseInLocation(time.RFC3339, "2020-08-19T13:09:23+03:00", nil)
+	job1 := jb.New(t).Status(models.JobStatusRunning).Result(nil).Build()
+	job2 := jb.New(t).MultiJobID("4321").SID(job1.SID).Build()
+	job3 := jb.New(t).JID("1111").MultiJobID(multiJobID).FinishedAt(t1).Build() // jid is set to check order by
+	job4 := jb.New(t).JID("2222").MultiJobID(multiJobID).Status(models.JobStatusRunning).Build()
+	job5 := jb.New(t).JID("3333").MultiJobID(multiJobID).Status(models.JobStatusFailed).StartedAt(job3.StartedAt.Add(time.Second)).FinishedAt(t1.Add(-time.Hour)).Build()
+	require.NoError(t, p.SaveJob(job1))
+	require.NoError(t, p.SaveJob(job2))
+	require.NoError(t, p.SaveJob(job3))
+	require.NoError(t, p.SaveJob(job4))
+	require.NoError(t, p.SaveJob(job5))
+
+	// when
+	gotJobs, err := p.GetByMultiJobID(multiJobID)
+
+	// then
+	require.NoError(t, err)
+	assert.EqualValues(t, []*models.Job{job5, job3, job4}, gotJobs)
+}

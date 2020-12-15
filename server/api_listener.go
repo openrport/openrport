@@ -37,6 +37,8 @@ type APIListener struct {
 	userSrv           UserService
 	accessLogFile     io.WriteCloser
 	insecureForTests  bool
+
+	testDone chan bool // is used only in tests to be able to wait until async task is done
 }
 
 type UserService interface {

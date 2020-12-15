@@ -47,7 +47,11 @@ var generateNewJobID = func() string {
 type JobProvider interface {
 	GetByJID(sid, jid string) (*models.Job, error)
 	GetSummariesBySID(sid string) ([]*models.JobSummary, error)
+	GetByMultiJobID(jid string) ([]*models.Job, error)
 	SaveJob(job *models.Job) error
+	GetMultiJob(jid string) (*models.MultiJob, error)
+	GetAllMultiJobSummaries() ([]*models.MultiJobSummary, error)
+	SaveMultiJob(multiJob *models.MultiJob) error
 	Close() error
 }
 
@@ -81,6 +85,9 @@ func (al *APIListener) initRouter() {
 	sub.HandleFunc("/sessions/{session_id}/commands", al.handlePostCommand).Methods(http.MethodPost)
 	sub.HandleFunc("/sessions/{session_id}/commands", al.handleGetCommands).Methods(http.MethodGet)
 	sub.HandleFunc("/sessions/{session_id}/commands/{job_id}", al.handleGetCommand).Methods(http.MethodGet)
+	sub.HandleFunc("/commands", al.handlePostMultiClientCommand).Methods(http.MethodPost)
+	sub.HandleFunc("/commands", al.handleGetMultiClientCommands).Methods(http.MethodGet)
+	sub.HandleFunc("/commands/{job_id}", al.handleGetMultiClientCommand).Methods(http.MethodGet)
 	sub.HandleFunc("/clients", al.handleGetClients).Methods(http.MethodGet)
 	sub.HandleFunc("/clients", al.handlePostClients).Methods(http.MethodPost)
 	sub.HandleFunc("/clients/{client_id}", al.handleDeleteClient).Methods(http.MethodDelete)
@@ -747,7 +754,7 @@ func (al *APIListener) handlePostCommand(w http.ResponseWriter, req *http.Reques
 	}
 
 	// set fields received in response
-	curJob.PID = sshResp.Pid
+	curJob.PID = &sshResp.Pid
 	curJob.StartedAt = sshResp.StartedAt
 	curJob.Status = models.JobStatusRunning
 
@@ -828,6 +835,199 @@ func (al *APIListener) handleGetCommand(w http.ResponseWriter, req *http.Request
 	}
 
 	al.writeJSONResponse(w, http.StatusOK, api.NewSuccessPayload(job))
+}
+
+type newJobResponse struct {
+	JID string `json:"jid"`
+}
+
+func (al *APIListener) handlePostMultiClientCommand(w http.ResponseWriter, req *http.Request) {
+	if !al.allowRunCommands(w) {
+		return
+	}
+
+	reqBody := struct {
+		ClientIDs           []string `json:"client_ids"`
+		Command             string   `json:"command"`
+		Shell               string   `json:"shell"`
+		TimeoutSec          int      `json:"timeout_sec"`
+		ExecuteConcurrently bool     `json:"execute_concurrently"`
+		AbortOnError        bool     `json:"abort_on_error"`
+	}{}
+	dec := json.NewDecoder(req.Body)
+	dec.DisallowUnknownFields()
+	err := dec.Decode(&reqBody)
+	if err == io.EOF { // is handled separately to return an informative error message
+		al.jsonErrorResponseWithTitle(w, http.StatusBadRequest, "Missing body with json data.")
+		return
+	} else if err != nil {
+		al.jsonErrorResponseWithError(w, http.StatusBadRequest, "", "Invalid JSON data.", err)
+		return
+	}
+	if reqBody.Command == "" {
+		al.jsonErrorResponseWithTitle(w, http.StatusBadRequest, "Command cannot be empty.")
+		return
+	}
+	if err := validateShell(reqBody.Shell); err != nil {
+		al.jsonErrorResponseWithError(w, http.StatusBadRequest, "", "Invalid shell.", err)
+		return
+	}
+
+	if reqBody.TimeoutSec <= 0 {
+		reqBody.TimeoutSec = al.config.Server.RunRemoteCmdTimeoutSec
+	}
+
+	minClients := 2
+	if len(reqBody.ClientIDs) < minClients {
+		al.jsonErrorResponseWithTitle(w, http.StatusBadRequest, fmt.Sprintf("At least %d clients should be specified.", minClients))
+		return
+	}
+
+	clientsConn := make(map[string]ssh.Conn)
+	for _, sid := range reqBody.ClientIDs {
+		session, err := al.sessionService.GetByID(sid)
+		if err != nil {
+			al.jsonErrorResponseWithError(w, http.StatusInternalServerError, "", fmt.Sprintf("Failed to find a client session with id=%q.", sid), err)
+			return
+		}
+		if session == nil {
+			al.jsonErrorResponseWithTitle(w, http.StatusNotFound, fmt.Sprintf("Session with id=%q not found.", sid))
+			return
+		}
+		if session.Disconnected != nil {
+			al.jsonErrorResponseWithTitle(w, http.StatusBadRequest, fmt.Sprintf("Session with id=%q is not active.", sid))
+			return
+		}
+		clientsConn[sid] = session.Connection
+	}
+
+	multiJob := &models.MultiJob{
+		MultiJobSummary: models.MultiJobSummary{
+			JID:       generateNewJobID(),
+			StartedAt: time.Now(),
+			CreatedBy: api.GetUser(req.Context(), al.Logger),
+		},
+		ClientIDs:  reqBody.ClientIDs,
+		Command:    reqBody.Command,
+		Shell:      reqBody.Shell,
+		TimeoutSec: reqBody.TimeoutSec,
+		Concurrent: reqBody.ExecuteConcurrently,
+		AbortOnErr: reqBody.AbortOnError,
+	}
+	if err := al.jobProvider.SaveMultiJob(multiJob); err != nil {
+		al.jsonErrorResponseWithError(w, http.StatusInternalServerError, "", "Failed to persist a new multi-client job.", err)
+		return
+	}
+
+	resp := newJobResponse{
+		JID: multiJob.JID,
+	}
+	al.writeJSONResponse(w, http.StatusOK, api.NewSuccessPayload(resp))
+
+	al.Debugf("Multi-client Job[id=%q] created to execute remote command on clients %s: %q.", multiJob.JID, reqBody.ClientIDs, reqBody.Command)
+
+	go al.executeMultiClientJob(multiJob, clientsConn)
+}
+
+func (al *APIListener) executeMultiClientJob(job *models.MultiJob, clientsConn map[string]ssh.Conn) {
+	for _, sid := range job.ClientIDs {
+		runCmd := func(sid string) bool {
+			err := al.createAndRunJob(job.JID, sid, job.Command, job.Shell, job.CreatedBy, job.TimeoutSec, clientsConn[sid])
+			if err != nil {
+				al.Errorf("Multi-client job[id=%q] error for client[id=%q]", job.JID, sid)
+			}
+			return err == nil
+		}
+		if job.Concurrent {
+			go runCmd(sid)
+		} else {
+			success := runCmd(sid)
+			if !success && job.AbortOnErr {
+				break
+			}
+		}
+	}
+	if al.testDone != nil {
+		al.testDone <- true
+	}
+}
+
+func (al *APIListener) createAndRunJob(jid, sid, cmd, shell, createdBy string, timeoutSec int, conn ssh.Conn) error {
+	// send the command to the client
+	curJob := models.Job{
+		JobSummary: models.JobSummary{
+			JID: generateNewJobID(),
+		},
+		StartedAt:  time.Now(),
+		SID:        sid,
+		Command:    cmd,
+		Shell:      shell,
+		CreatedBy:  createdBy,
+		TimeoutSec: timeoutSec,
+		MultiJobID: &jid,
+	}
+	sshResp := &comm.RunCmdResponse{}
+	err := comm.SendRequestAndGetResponse(conn, comm.RequestTypeRunCmd, curJob, sshResp)
+	// return an error after saving the job
+	if err != nil {
+		// failure, set fields to mark it as failed
+		al.Errorf("multi_client_id=%q, sid=%q, Error on execute remote command: %v", *curJob.MultiJobID, curJob.SID, err)
+		curJob.Status = models.JobStatusFailed
+		now := time.Now()
+		curJob.FinishedAt = &now
+		curJob.Error = err.Error()
+	} else {
+		// success, set fields received in response
+		curJob.PID = &sshResp.Pid
+		curJob.StartedAt = sshResp.StartedAt // override with the start time of the command
+		curJob.Status = models.JobStatusRunning
+	}
+
+	if dbErr := al.jobProvider.SaveJob(&curJob); dbErr != nil {
+		// just log it, cmd is running, when it's finished it can be saved on result return
+		al.Errorf("multi_client_id=%q, sid=%q, Failed to persist a child job: %v", *curJob.MultiJobID, curJob.SID, dbErr)
+	}
+
+	return err
+}
+
+func (al *APIListener) handleGetMultiClientCommand(w http.ResponseWriter, req *http.Request) {
+	if !al.allowRunCommands(w) {
+		return
+	}
+
+	vars := mux.Vars(req)
+	jid := vars[routeParamJobID]
+	if jid == "" {
+		al.jsonErrorResponseWithTitle(w, http.StatusBadRequest, fmt.Sprintf("Missing %q route param.", routeParamJobID))
+		return
+	}
+
+	job, err := al.jobProvider.GetMultiJob(jid)
+	if err != nil {
+		al.jsonErrorResponseWithError(w, http.StatusInternalServerError, "", fmt.Sprintf("Failed to find a multi-client job[id=%q].", jid), err)
+		return
+	}
+	if job == nil {
+		al.jsonErrorResponseWithTitle(w, http.StatusNotFound, fmt.Sprintf("Multi-client Job[id=%q] not found.", jid))
+		return
+	}
+
+	al.writeJSONResponse(w, http.StatusOK, api.NewSuccessPayload(job))
+}
+
+func (al *APIListener) handleGetMultiClientCommands(w http.ResponseWriter, req *http.Request) {
+	if !al.allowRunCommands(w) {
+		return
+	}
+
+	res, err := al.jobProvider.GetAllMultiJobSummaries()
+	if err != nil {
+		al.jsonErrorResponseWithError(w, http.StatusInternalServerError, "", "Failed to get multi-client jobs.", err)
+		return
+	}
+
+	al.writeJSONResponse(w, http.StatusOK, api.NewSuccessPayload(res))
 }
 
 func (al *APIListener) allowRunCommands(w http.ResponseWriter) bool {

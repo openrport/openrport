@@ -301,6 +301,10 @@ paths:
                     type: "string"
                     description: "job id of the corresponding command"
         "400":
+          description: "Invalid request parameters"
+          schema:
+            $ref: "#/definitions/ErrorPayload"
+        "404":
           description: "Active session not found"
           schema:
             $ref: "#/definitions/ErrorPayload"
@@ -343,6 +347,131 @@ paths:
             properties:
               data:
                 $ref: "#/definitions/Job"
+        "400":
+          description: "Command not found"
+          schema:
+            $ref: "#/definitions/ErrorPayload"
+        "405":
+          description: "Persistent storage required. A data dir or a database table is required to activate this feature."
+          schema:
+            $ref: "#/definitions/ErrorPayload"
+        "500":
+          description: "Invalid Operation"
+          schema:
+            $ref: "#/definitions/ErrorPayload"
+  /commands:
+    get:
+      tags:
+        - "multi-client commands"
+      summary: "Returns a short info about all multi-client commands"
+      description: "Returns a list of all running and finished commands sorted by started time in desc order"
+      produces:
+        - "application/json"
+      responses:
+        "200":
+          description: "successful operation"
+          schema:
+            type: "object"
+            properties:
+              data:
+                type: "array"
+                items:
+                  $ref: "#/definitions/MultiJobSummary"
+        "405":
+          description: "Persistent storage required. A data dir or a database table is required to activate this feature."
+          schema:
+            $ref: "#/definitions/ErrorPayload"
+        "500":
+          description: "Invalid Operation"
+          schema:
+            $ref: "#/definitions/ErrorPayload"
+    post:
+      tags:
+        - "multi-client commands"
+      summary: "Execute a command on multiple rport clients."
+      description: "NOTE: if command limitation is enabled by an rport client then a full path command can be required to use. See https://github.com/cloudradar-monitoring/rport/blob/master/docs/command-execution.md for more details"
+      produces:
+        - "application/json"
+      parameters:
+        - in: "body"
+          name: "body"
+          description: "properties and remote command to execute by rport clients"
+          required: true
+          schema:
+            type: "object"
+            properties:
+              command:
+                type: "string"
+                description: "remote command to execute by rport clients. NOTE: if command limitation is enabled by an rport client then a full path command can be required to use. See https://github.com/cloudradar-monitoring/rport/blob/master/docs/command-execution.md for more details"
+              client_ids:
+                type: "array"
+                items:
+                  type: string
+                minItems: 2
+                description: "list of client IDs (i.e. session IDs) where to run the command"
+              shell:
+                type: "string"
+                enum: [cmd, powershell]
+                description: "command shell to use to execute the command. Is applicable only for windows clients. If not set 'cmd' is used by default"
+              timeout_sec:
+                type: "integer"
+                description: "timeout in seconds to observe the command execution on each client separately. If not set a default timeout (60 seconds) is used"
+              execute_concurrently:
+                type: "boolean"
+                description: "if true - execute the command concurrently on clients. If false - sequentially in order that is in 'client_ids'. By default is false"
+              abort_on_error:
+                type: "boolean"
+                description: "applicable only if 'execute_concurrently' is false. If true - abort the entire cycle if the execution fails on some client. By default is false"
+      responses:
+        "200":
+          description: "successful operation"
+          schema:
+            type: "object"
+            properties:
+              data:
+                type: "object"
+                properties:
+                  jid:
+                    type: "string"
+                    description: "job id of the corresponding command"
+        "400":
+          description: "Invalid request parameters"
+          schema:
+            $ref: "#/definitions/ErrorPayload"
+        "404":
+          description: "Session not found"
+          schema:
+            $ref: "#/definitions/ErrorPayload"
+        "405":
+          description: "Persistent storage required. A data dir or a database table is required to activate this feature."
+          schema:
+            $ref: "#/definitions/ErrorPayload"
+        "500":
+          description: "Invalid Operation"
+          schema:
+            $ref: "#/definitions/ErrorPayload"
+  /commands/{job_id}:
+    get:
+      tags:
+        - "multi-client commands"
+      summary: "Returns a detailed info about a specific multi-client command"
+      description: "Returns a detailed info about a multi-client command by given id with child jobs as well"
+      produces:
+        - "application/json"
+      parameters:
+        - name: "job_id"
+          in: "path"
+          description: "unique job id retrieved previously"
+          required: true
+          type: "string"
+      responses:
+        "200":
+          description: "successful operation"
+          schema:
+            type: "object"
+            properties:
+              data:
+                $ref: "#/definitions/MultiJob"
         "400":
           description: "Command not found"
           schema:
@@ -571,6 +700,9 @@ definitions:
       timeout_sec:
         type: "integer"
         description: "timeout in seconds that was used to observe the command execution"
+      multi_job_id:
+        type: "string"
+        description: "multi-client job ID. If it is set then it means this command was initiated by running a multi-client job"
       result:
         type: "object"
         description: "command execution result"
@@ -594,16 +726,58 @@ definitions:
       finished_at:
         type: "string"
         format: "data-time"
-        description: "command finis time"
-  JobSummaries:
+        description: "command finish time"
+  MultiJob:
     type: "object"
     properties:
-      data:
+      jid:
+        type: "string"
+        description: "multi-client job ID"
+      started_at:
+        type: "string"
+        format: "data-time"
+        description: "command finish time"
+      created_by:
+        type: "string"
+        description: "API username who run the command"
+      client_ids:
         type: "array"
         items:
-          $ref: "#/definitions/JobSummary"
-      meta:
-        type: "object"
+          type: string
+        description: "list of client IDs (i.e. session IDs) where to run the command"
+      command:
+        type: "string"
+        description: "executed command"
+      shell:
+        type: "string"
+        description: "command shell that was used to execute the command"
+      timeout_sec:
+        type: "integer"
+        description: "timeout in seconds that was used to observe the command execution on each client"
+      concurrent:
+        type: "boolean"
+        description: "whether command was executed sequentially or concurrently on clients"
+      abort_on_err:
+        type: "boolean"
+        description: "whether command was specified to abort or not the whole cycle, if the execution fails on some client. Not applicable if 'concurrent' is true"
+      jobs:
+        type: "array"
+        items:
+          $ref: "#/definitions/Job"
+        description: "clients' jobs"
+  MultiJobSummary:
+    type: "object"
+    properties:
+      jid:
+        type: "string"
+        description: "multi-client job ID"
+      started_at:
+        type: "string"
+        format: "data-time"
+        description: "command finish time"
+      created_by:
+        type: "string"
+        description: "API username who run the command"
   ErrorPayload:
     type: "array"
     items:

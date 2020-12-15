@@ -37,6 +37,7 @@ type Client struct {
 	curCmdPID      *int
 	curCmdPIDMutex sync.Mutex
 	systemInfo     SystemInfo
+	runCmdMutex    sync.Mutex
 }
 
 //NewClient creates a new client instance

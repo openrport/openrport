@@ -39,6 +39,16 @@ func (p *SqliteProvider) GetByJID(sid, jid string) (*models.Job, error) {
 	return res.convert(), nil
 }
 
+// GetByMultiJobID returns a list of all jobs that belongs to a multi-client job with a given ID sorted by started_at(desc), jid order.
+func (p *SqliteProvider) GetByMultiJobID(jid string) ([]*models.Job, error) {
+	var res []*jobSqlite
+	err := p.db.Select(&res, "SELECT * FROM jobs WHERE multi_job_id=? ORDER BY DATETIME(started_at) DESC, jid", jid)
+	if err != nil {
+		return nil, err
+	}
+	return convertJobs(res), nil
+}
+
 func (p *SqliteProvider) GetSummariesBySID(sid string) ([]*models.JobSummary, error) {
 	var res []*jobSummarySqlite
 	err := p.db.Select(&res, "SELECT jid, finished_at, status FROM jobs WHERE sid=?", sid)
@@ -48,9 +58,10 @@ func (p *SqliteProvider) GetSummariesBySID(sid string) ([]*models.JobSummary, er
 	return convertJSs(res), nil
 }
 
+// SaveMultiJob creates a new or updates an existing job.
 func (p *SqliteProvider) SaveJob(job *models.Job) error {
-	_, err := p.db.NamedExec(`INSERT OR REPLACE INTO jobs (jid, status, started_at, finished_at, created_by, sid, details)
-														VALUES (:jid, :status, :started_at, :finished_at, :created_by, :sid, :details)`,
+	_, err := p.db.NamedExec(`INSERT OR REPLACE INTO jobs (jid, status, started_at, finished_at, created_by, sid, multi_job_id, details)
+														VALUES (:jid, :status, :started_at, :finished_at, :created_by, :sid, :multi_job_id, :details)`,
 		convertToSqlite(job))
 	return err
 }
@@ -61,10 +72,11 @@ func (p *SqliteProvider) Close() error {
 
 type jobSqlite struct {
 	jobSummarySqlite
-	StartedAt time.Time   `db:"started_at"`
-	CreatedBy string      `db:"created_by"`
-	SID       string      `db:"sid"`
-	Details   *jobDetails `db:"details"`
+	StartedAt  time.Time      `db:"started_at"`
+	CreatedBy  string         `db:"created_by"`
+	SID        string         `db:"sid"`
+	MultiJobID sql.NullString `db:"multi_job_id"`
+	Details    *jobDetails    `db:"details"`
 }
 
 type jobSummarySqlite struct {
@@ -76,8 +88,9 @@ type jobSummarySqlite struct {
 type jobDetails struct {
 	Command    string            `json:"command"`
 	Shell      string            `json:"shell"`
-	PID        int               `json:"pid"`
+	PID        *int              `json:"pid"`
 	TimeoutSec int               `json:"timeout_sec"`
+	Error      string            `json:"error,omitempty"`
 	Result     *models.JobResult `json:"result"`
 }
 
@@ -128,7 +141,7 @@ func convertJSs(list []*jobSummarySqlite) []*models.JobSummary {
 
 func (j *jobSqlite) convert() *models.Job {
 	js := j.jobSummarySqlite.convert()
-	return &models.Job{
+	res := &models.Job{
 		JobSummary: *js,
 		SID:        j.SID,
 		StartedAt:  j.StartedAt,
@@ -138,7 +151,20 @@ func (j *jobSqlite) convert() *models.Job {
 		PID:        j.Details.PID,
 		TimeoutSec: j.Details.TimeoutSec,
 		Result:     j.Details.Result,
+		Error:      j.Details.Error,
 	}
+	if j.MultiJobID.Valid {
+		res.MultiJobID = &j.MultiJobID.String
+	}
+	return res
+}
+
+func convertJobs(list []*jobSqlite) []*models.Job {
+	res := make([]*models.Job, 0, len(list))
+	for _, cur := range list {
+		res = append(res, cur.convert())
+	}
+	return res
 }
 
 func convertToSqlite(job *models.Job) *jobSqlite {
@@ -156,7 +182,11 @@ func convertToSqlite(job *models.Job) *jobSqlite {
 			PID:        job.PID,
 			TimeoutSec: job.TimeoutSec,
 			Result:     job.Result,
+			Error:      job.Error,
 		},
+	}
+	if job.MultiJobID != nil {
+		res.MultiJobID = sql.NullString{String: *job.MultiJobID, Valid: true}
 	}
 	if job.FinishedAt != nil {
 		res.jobSummarySqlite.FinishedAt = sql.NullTime{Time: *job.FinishedAt, Valid: true}

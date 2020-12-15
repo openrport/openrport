@@ -22,6 +22,7 @@ type JobBuilder struct {
 
 	jid        string
 	sid        string
+	multiJobID string
 	status     string
 	startedAt  time.Time
 	finishedAt *time.Time
@@ -52,6 +53,11 @@ func (b JobBuilder) SID(sid string) JobBuilder {
 	return b
 }
 
+func (b JobBuilder) MultiJobID(multiJobID string) JobBuilder {
+	b.multiJobID = multiJobID
+	return b
+}
+
 func (b JobBuilder) Status(status string) JobBuilder {
 	b.status = status
 	return b
@@ -76,7 +82,8 @@ func (b JobBuilder) Build() *models.Job {
 	if b.jid == "" {
 		b.jid = generateRandomJID()
 	}
-	// TODO(m-terel): hardcoded values are used because currently was no need of other data, extend with more available options if needed
+	pid := 1245
+	// hardcoded values are used because currently was no need of other data, extend with more available options if needed
 	return &models.Job{
 		JobSummary: models.JobSummary{
 			JID:        b.jid,
@@ -85,13 +92,13 @@ func (b JobBuilder) Build() *models.Job {
 		},
 		SID:        b.sid,
 		Command:    "/bin/date;foo;whoami",
-		PID:        1245,
+		PID:        &pid,
 		StartedAt:  b.startedAt,
 		CreatedBy:  "test-user",
 		TimeoutSec: 60,
 		Result:     b.result,
+		MultiJobID: &b.multiJobID,
 	}
-
 }
 
 func generateRandomSID() string {
