@@ -84,15 +84,17 @@ func (c *Client) HandleRunCmdRequest(ctx context.Context, reqPayload []byte) (*c
 		c.Debugf("Waiting for a previous command with PID %d to finish", *curPID)
 	}
 
-	// TODO: refactor with using worker pool
+	// TODO: temporary solution, refactor with using worker pool
 	c.runCmdMutex.Lock()
 
 	job.Shell, err = getShell(job.Shell, runtime.GOOS)
 	if err != nil {
+		c.runCmdMutex.Unlock()
 		return nil, err
 	}
 
 	if !c.isAllowed(job.Command) {
+		c.runCmdMutex.Unlock()
 		return nil, fmt.Errorf("command is not allowed: %v", job.Command)
 	}
 
@@ -105,6 +107,7 @@ func (c *Client) HandleRunCmdRequest(ctx context.Context, reqPayload []byte) (*c
 	startedAt := now()
 	err = c.cmdExec.Start(cmd)
 	if err != nil {
+		c.runCmdMutex.Unlock()
 		return nil, fmt.Errorf("failed to start a command: %s", err)
 	}
 
