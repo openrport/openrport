@@ -48,7 +48,10 @@ type JobProvider interface {
 	GetByJID(sid, jid string) (*models.Job, error)
 	GetSummariesBySID(sid string) ([]*models.JobSummary, error)
 	GetByMultiJobID(jid string) ([]*models.Job, error)
+	// SaveJob creates or updates a job
 	SaveJob(job *models.Job) error
+	// CreateJob creates a new job. If already exist with a given JID - do nothing and return nil
+	CreateJob(job *models.Job) error
 	GetMultiJob(jid string) (*models.MultiJob, error)
 	GetAllMultiJobSummaries() ([]*models.MultiJobSummary, error)
 	SaveMultiJob(multiJob *models.MultiJob) error
@@ -758,7 +761,7 @@ func (al *APIListener) handlePostCommand(w http.ResponseWriter, req *http.Reques
 	curJob.StartedAt = sshResp.StartedAt
 	curJob.Status = models.JobStatusRunning
 
-	if err := al.jobProvider.SaveJob(&curJob); err != nil {
+	if err := al.jobProvider.CreateJob(&curJob); err != nil {
 		al.jsonErrorResponseWithError(w, http.StatusInternalServerError, "", "Failed to persist a new job.", err)
 		return
 	}
@@ -976,7 +979,7 @@ func (al *APIListener) createAndRunJob(jid, sid, cmd, shell, createdBy string, t
 		curJob.Status = models.JobStatusRunning
 	}
 
-	if dbErr := al.jobProvider.SaveJob(&curJob); dbErr != nil {
+	if dbErr := al.jobProvider.CreateJob(&curJob); dbErr != nil {
 		// just log it, cmd is running, when it's finished it can be saved on result return
 		al.Errorf("multi_client_id=%q, sid=%q, Failed to persist a child job: %v", *curJob.MultiJobID, curJob.SID, dbErr)
 	}

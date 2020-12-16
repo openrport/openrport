@@ -109,3 +109,23 @@ func TestGetByMultiJobID(t *testing.T) {
 	require.NoError(t, err)
 	assert.EqualValues(t, []*models.Job{job5, job3, job4}, gotJobs)
 }
+
+func TestCreateJob(t *testing.T) {
+	p, err := NewSqliteProvider(":memory:", testLog)
+	require.NoError(t, err)
+	defer p.Close()
+
+	// create job
+	job := jb.New(t).Status(models.JobStatusSuccessful).Result(nil).Build()
+	require.NoError(t, p.CreateJob(job))
+
+	// try to create the same job but with different status
+	updatedJob := *job
+	updatedJob.Status = models.JobStatusRunning
+	require.NoError(t, p.CreateJob(job))
+
+	// verify the job contains the initial status
+	gotJob, err := p.GetByJID(job.SID, job.JID)
+	require.NoError(t, err)
+	require.Equal(t, job, gotJob)
+}

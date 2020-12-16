@@ -9,6 +9,7 @@ import (
 	"time"
 
 	"github.com/jmoiron/sqlx"
+	"github.com/mattn/go-sqlite3"
 
 	"github.com/cloudradar-monitoring/rport/db/migration/jobs"
 	"github.com/cloudradar-monitoring/rport/db/sqlite"
@@ -66,6 +67,24 @@ func (p *SqliteProvider) SaveJob(job *models.Job) error {
 														VALUES (:jid, :status, :started_at, :finished_at, :created_by, :sid, :multi_job_id, :details)`,
 		convertToSqlite(job))
 	if err == nil {
+		p.log.Debugf("Job saved successfully: %v", *job)
+	}
+	return err
+}
+
+// CreateJob creates a new job. If already exists with the same ID - does nothing and returns nil.
+func (p *SqliteProvider) CreateJob(job *models.Job) error {
+	_, err := p.db.NamedExec(`INSERT INTO jobs (jid, status, started_at, finished_at, created_by, sid, multi_job_id, details)
+											VALUES (:jid, :status, :started_at, :finished_at, :created_by, :sid, :multi_job_id, :details)`,
+		convertToSqlite(job))
+	if err != nil {
+		// check if it's "already exist" err
+		typeErr, ok := err.(sqlite3.Error)
+		if ok && typeErr.Code == sqlite3.ErrConstraint {
+			p.log.Debugf("Job already exist with ID: %s", job.JID)
+			return nil
+		}
+	} else {
 		p.log.Debugf("Job saved successfully: %v", *job)
 	}
 	return err

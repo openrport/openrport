@@ -42,9 +42,10 @@ type JobProviderMock struct {
 	ReturnJobSummaries []*models.JobSummary
 	ReturnErr          error
 
-	InputSID string
-	InputJID string
-	InputJob *models.Job
+	InputSID       string
+	InputJID       string
+	InputSaveJob   *models.Job
+	InputCreateJob *models.Job
 }
 
 func NewJobProviderMock() *JobProviderMock {
@@ -63,7 +64,12 @@ func (p *JobProviderMock) GetSummariesBySID(sid string) ([]*models.JobSummary, e
 }
 
 func (p *JobProviderMock) SaveJob(job *models.Job) error {
-	p.InputJob = job
+	p.InputSaveJob = job
+	return p.ReturnErr
+}
+
+func (p *JobProviderMock) CreateJob(job *models.Job) error {
+	p.InputCreateJob = job
 	return p.ReturnErr
 }
 
@@ -860,7 +866,7 @@ func TestHandlePostCommand(t *testing.T) {
 			if tc.wantErrTitle == "" {
 				// success case
 				assert.Equal(t, fmt.Sprintf("{\"data\":{\"jid\":\"%s\"}}", testJID), w.Body.String())
-				gotRunningJob := jp.InputJob
+				gotRunningJob := jp.InputCreateJob
 				assert.NotNil(t, gotRunningJob)
 				assert.Equal(t, testJID, gotRunningJob.JID)
 				assert.Equal(t, models.JobStatusRunning, gotRunningJob.Status)
