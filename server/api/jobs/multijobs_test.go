@@ -12,7 +12,7 @@ import (
 )
 
 func TestMultiJobsSqliteProvider(t *testing.T) {
-	p, err := NewSqliteProvider(":memory:")
+	p, err := NewSqliteProvider(":memory:", testLog)
 	require.NoError(t, err)
 	defer p.Close()
 

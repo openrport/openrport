@@ -12,19 +12,21 @@ import (
 
 	"github.com/cloudradar-monitoring/rport/db/migration/jobs"
 	"github.com/cloudradar-monitoring/rport/db/sqlite"
+	chshare "github.com/cloudradar-monitoring/rport/share"
 	"github.com/cloudradar-monitoring/rport/share/models"
 )
 
 type SqliteProvider struct {
-	db *sqlx.DB
+	log *chshare.Logger
+	db  *sqlx.DB
 }
 
-func NewSqliteProvider(dbPath string) (*SqliteProvider, error) {
+func NewSqliteProvider(dbPath string, log *chshare.Logger) (*SqliteProvider, error) {
 	db, err := sqlite.New(dbPath, jobs.AssetNames(), jobs.Asset)
 	if err != nil {
 		return nil, fmt.Errorf("failed to create jobs DB instance: %v", err)
 	}
-	return &SqliteProvider{db: db}, nil
+	return &SqliteProvider{db: db, log: log}, nil
 }
 
 func (p *SqliteProvider) GetByJID(sid, jid string) (*models.Job, error) {
@@ -58,11 +60,14 @@ func (p *SqliteProvider) GetSummariesBySID(sid string) ([]*models.JobSummary, er
 	return convertJSs(res), nil
 }
 
-// SaveMultiJob creates a new or updates an existing job.
+// SaveJob creates a new or updates an existing job.
 func (p *SqliteProvider) SaveJob(job *models.Job) error {
 	_, err := p.db.NamedExec(`INSERT OR REPLACE INTO jobs (jid, status, started_at, finished_at, created_by, sid, multi_job_id, details)
 														VALUES (:jid, :status, :started_at, :finished_at, :created_by, :sid, :multi_job_id, :details)`,
 		convertToSqlite(job))
+	if err != nil {
+		p.log.Debugf("Job saved successfully: %v", *job)
+	}
 	return err
 }
 

@@ -48,6 +48,9 @@ func (p *SqliteProvider) SaveMultiJob(job *models.MultiJob) error {
 	_, err := p.db.NamedExec(`INSERT OR REPLACE INTO multi_jobs (jid, started_at, created_by, details)
 															  VALUES (:jid, :started_at, :created_by, :details)`,
 		convertMultiJobToSqlite(job))
+	if err != nil {
+		p.log.Debugf("Multi-client Job saved successfully: %v", *job)
+	}
 	return err
 }
 

@@ -355,8 +355,6 @@ func (cl *ClientListener) saveCmdResult(respBytes []byte) error {
 		return fmt.Errorf("failed to save job result: %s", err)
 	}
 
-	cl.Debugf("Job saved successfully: %v", resp)
-
 	return nil
 }
 

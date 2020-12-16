@@ -1329,7 +1329,7 @@ func TestHandlePostMultiClientCommand(t *testing.T) {
 
 			al.initRouter()
 
-			jp, err := jobs.NewSqliteProvider("file::memory:?cache=shared")
+			jp, err := jobs.NewSqliteProvider("file::memory:?cache=shared", testLog)
 			require.NoError(t, err)
 			defer jp.Close()
 			if !tc.noJobProvider {

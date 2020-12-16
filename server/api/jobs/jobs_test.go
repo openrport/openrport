@@ -1,6 +1,7 @@
 package jobs
 
 import (
+	"os"
 	"testing"
 	"time"
 
@@ -9,11 +10,14 @@ import (
 	"github.com/stretchr/testify/require"
 
 	"github.com/cloudradar-monitoring/rport/server/test/jb"
+	chshare "github.com/cloudradar-monitoring/rport/share"
 	"github.com/cloudradar-monitoring/rport/share/models"
 )
 
+var testLog = chshare.NewLogger("api-listener-test", chshare.LogOutput{File: os.Stdout}, chshare.LogLevelDebug)
+
 func TestJobsSqliteProvider(t *testing.T) {
-	p, err := NewSqliteProvider(":memory:")
+	p, err := NewSqliteProvider(":memory:", testLog)
 	require.NoError(t, err)
 	defer p.Close()
 
@@ -82,7 +86,7 @@ func TestJobsSqliteProvider(t *testing.T) {
 
 func TestGetByMultiJobID(t *testing.T) {
 	// given
-	p, err := NewSqliteProvider(":memory:")
+	p, err := NewSqliteProvider(":memory:", testLog)
 	require.NoError(t, err)
 	defer p.Close()
 	multiJobID := "1234"
