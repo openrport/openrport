@@ -65,7 +65,7 @@ func (p *SqliteProvider) SaveJob(job *models.Job) error {
 	_, err := p.db.NamedExec(`INSERT OR REPLACE INTO jobs (jid, status, started_at, finished_at, created_by, sid, multi_job_id, details)
 														VALUES (:jid, :status, :started_at, :finished_at, :created_by, :sid, :multi_job_id, :details)`,
 		convertToSqlite(job))
-	if err != nil {
+	if err == nil {
 		p.log.Debugf("Job saved successfully: %v", *job)
 	}
 	return err
