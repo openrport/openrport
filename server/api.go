@@ -931,17 +931,10 @@ func (al *APIListener) handlePostMultiClientCommand(w http.ResponseWriter, req *
 
 func (al *APIListener) executeMultiClientJob(job *models.MultiJob, clientsConn map[string]ssh.Conn) {
 	for _, sid := range job.ClientIDs {
-		runCmd := func(sid string) bool {
-			err := al.createAndRunJob(job.JID, sid, job.Command, job.Shell, job.CreatedBy, job.TimeoutSec, clientsConn[sid])
-			if err != nil {
-				al.Errorf("Multi-client job[id=%q] error for client[id=%q]", job.JID, sid)
-			}
-			return err == nil
-		}
 		if job.Concurrent {
-			go runCmd(sid)
+			go al.createAndRunJob(job.JID, sid, job.Command, job.Shell, job.CreatedBy, job.TimeoutSec, clientsConn[sid])
 		} else {
-			success := runCmd(sid)
+			success := al.createAndRunJob(job.JID, sid, job.Command, job.Shell, job.CreatedBy, job.TimeoutSec, clientsConn[sid])
 			if !success && job.AbortOnErr {
 				break
 			}
@@ -952,7 +945,7 @@ func (al *APIListener) executeMultiClientJob(job *models.MultiJob, clientsConn m
 	}
 }
 
-func (al *APIListener) createAndRunJob(jid, sid, cmd, shell, createdBy string, timeoutSec int, conn ssh.Conn) error {
+func (al *APIListener) createAndRunJob(jid, sid, cmd, shell, createdBy string, timeoutSec int, conn ssh.Conn) bool {
 	// send the command to the client
 	curJob := models.Job{
 		JobSummary: models.JobSummary{
@@ -988,7 +981,7 @@ func (al *APIListener) createAndRunJob(jid, sid, cmd, shell, createdBy string, t
 		al.Errorf("multi_client_id=%q, sid=%q, Failed to persist a child job: %v", *curJob.MultiJobID, curJob.SID, dbErr)
 	}
 
-	return err
+	return err == nil
 }
 
 func (al *APIListener) handleGetMultiClientCommand(w http.ResponseWriter, req *http.Request) {

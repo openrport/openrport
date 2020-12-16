@@ -162,6 +162,7 @@ func (c *Client) HandleRunCmdRequest(ctx context.Context, reqPayload []byte) (*c
 			c.Errorf("failed to send command result for [jid=%q,pid=%d]: failed to encode job result: %s", job.JID, res.Pid, err)
 			return
 		}
+		c.Debugf("sending job to server: %v", job)
 		_, _, err = c.sshConn.SendRequest(comm.RequestTypeCmdResult, false, jobBytes)
 		if err != nil {
 			c.Errorf("failed to send command result to server[jid=%q,pid=%d]: %s", job.JID, res.Pid, err)
