@@ -22,6 +22,7 @@ import (
 	"github.com/cloudradar-monitoring/rport/server/sessions"
 	chshare "github.com/cloudradar-monitoring/rport/share"
 	"github.com/cloudradar-monitoring/rport/share/files"
+	"github.com/cloudradar-monitoring/rport/share/ws"
 )
 
 // Server represents a rport service
@@ -35,14 +36,16 @@ type Server struct {
 	clientProvider  clients.Provider
 	jobProvider     JobProvider
 	db              *sqlx.DB
+	uiJobWebSockets ws.WebSocketCache // used to push job result to UI
 }
 
 // NewServer creates and returns a new rport server
 func NewServer(config *Config, filesAPI files.FileAPI) (*Server, error) {
 	ctx := context.Background()
 	s := &Server{
-		Logger: chshare.NewLogger("server", config.Logging.LogOutput, config.Logging.LogLevel),
-		config: config,
+		Logger:          chshare.NewLogger("server", config.Logging.LogOutput, config.Logging.LogLevel),
+		config:          config,
+		uiJobWebSockets: ws.NewWebSocketCache(),
 	}
 
 	privateKey, err := initPrivateKey(config.Server.KeySeed)
@@ -208,5 +211,6 @@ func (s *Server) Close() error {
 	}
 	wg.Go(s.sessionProvider.Close)
 	wg.Go(s.jobProvider.Close)
+	wg.Go(s.uiJobWebSockets.CloseConnections)
 	return wg.Wait()
 }

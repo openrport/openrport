@@ -11,6 +11,7 @@ import (
 	"time"
 
 	"github.com/gorilla/mux"
+	"github.com/gorilla/websocket"
 	"golang.org/x/crypto/ssh"
 
 	"github.com/cloudradar-monitoring/rport/server/api"
@@ -23,6 +24,7 @@ import (
 	"github.com/cloudradar-monitoring/rport/share/comm"
 	"github.com/cloudradar-monitoring/rport/share/models"
 	"github.com/cloudradar-monitoring/rport/share/random"
+	"github.com/cloudradar-monitoring/rport/share/ws"
 )
 
 const (
@@ -42,6 +44,12 @@ var validInputShell = []string{"cmd", "powershell"}
 
 var generateNewJobID = func() string {
 	return random.UUID4()
+}
+
+var apiUpgrader = websocket.Upgrader{
+	ReadBufferSize:  1024,
+	WriteBufferSize: 1024,
+	CheckOrigin:     func(r *http.Request) bool { return true },
 }
 
 type JobProvider interface {
@@ -88,6 +96,7 @@ func (al *APIListener) initRouter() {
 	sub.HandleFunc("/sessions/{session_id}/commands", al.handlePostCommand).Methods(http.MethodPost)
 	sub.HandleFunc("/sessions/{session_id}/commands", al.handleGetCommands).Methods(http.MethodGet)
 	sub.HandleFunc("/sessions/{session_id}/commands/{job_id}", al.handleGetCommand).Methods(http.MethodGet)
+	sub.HandleFunc("/commands/ws", al.handleCommandsWS).Methods(http.MethodGet)
 	sub.HandleFunc("/commands", al.handlePostMultiClientCommand).Methods(http.MethodPost)
 	sub.HandleFunc("/commands", al.handleGetMultiClientCommands).Methods(http.MethodGet)
 	sub.HandleFunc("/commands/{job_id}", al.handleGetMultiClientCommand).Methods(http.MethodGet)
@@ -982,6 +991,178 @@ func (al *APIListener) createAndRunJob(jid, sid, cmd, shell, createdBy string, t
 	if dbErr := al.jobProvider.CreateJob(&curJob); dbErr != nil {
 		// just log it, cmd is running, when it's finished it can be saved on result return
 		al.Errorf("multi_client_id=%q, sid=%q, Failed to persist a child job: %v", *curJob.MultiJobID, curJob.SID, dbErr)
+	}
+
+	return err == nil
+}
+
+func (al *APIListener) handleCommandsWS(w http.ResponseWriter, req *http.Request) {
+	if !al.allowRunCommands(w) {
+		return
+	}
+
+	uiConn, err := apiUpgrader.Upgrade(w, req, nil)
+	if err != nil {
+		al.Errorf("Failed to establish WS connection: %v", err)
+		return
+	}
+	uiConnTS := ws.NewConcurrentWebSocket(uiConn, al.Logger)
+	inboundMsg := struct {
+		ClientIDs           []string `json:"client_ids"`
+		Command             string   `json:"command"`
+		Shell               string   `json:"shell"`
+		TimeoutSec          int      `json:"timeout_sec"`
+		ExecuteConcurrently bool     `json:"execute_concurrently"`
+		AbortOnError        bool     `json:"abort_on_error"`
+	}{}
+	err = uiConnTS.ReadJSON(&inboundMsg)
+	if err == io.EOF { // is handled separately to return an informative error message
+		uiConnTS.WriteError("Inbound message should contain non empty json object with command data.", nil)
+		return
+	} else if err != nil {
+		uiConnTS.WriteError("Invalid JSON data.", err)
+		return
+	}
+
+	if inboundMsg.Command == "" {
+		uiConnTS.WriteError("Command cannot be empty.", nil)
+		return
+	}
+	if err := validateShell(inboundMsg.Shell); err != nil {
+		uiConnTS.WriteError("Invalid shell.", err)
+		return
+	}
+
+	if inboundMsg.TimeoutSec <= 0 {
+		inboundMsg.TimeoutSec = al.config.Server.RunRemoteCmdTimeoutSec
+	}
+
+	if len(inboundMsg.ClientIDs) < 1 {
+		uiConnTS.WriteError("'client_ids' field should contain at least one client ID", nil)
+		return
+	}
+
+	clientsConn := make(map[string]ssh.Conn)
+	for _, sid := range inboundMsg.ClientIDs {
+		session, err := al.sessionService.GetByID(sid)
+		if err != nil {
+			uiConnTS.WriteError(fmt.Sprintf("Failed to find a client session with id=%q.", sid), err)
+			return
+		}
+		if session == nil {
+			uiConnTS.WriteError(fmt.Sprintf("Session with id=%q not found.", sid), nil)
+			return
+		}
+		if session.Disconnected != nil {
+			uiConnTS.WriteError(fmt.Sprintf("Session with id=%q is not active.", sid), nil)
+			return
+		}
+		clientsConn[sid] = session.Connection
+	}
+
+	jid := generateNewJobID()
+	al.Server.uiJobWebSockets.Set(jid, uiConnTS)
+	defer al.Server.uiJobWebSockets.Delete(jid)
+
+	createdBy := api.GetUser(req.Context(), al.Logger)
+	if len(inboundMsg.ClientIDs) > 1 {
+		multiJob := &models.MultiJob{
+			MultiJobSummary: models.MultiJobSummary{
+				JID:       jid,
+				StartedAt: time.Now(),
+				CreatedBy: createdBy,
+			},
+			ClientIDs:  inboundMsg.ClientIDs,
+			Command:    inboundMsg.Command,
+			Shell:      inboundMsg.Shell,
+			TimeoutSec: inboundMsg.TimeoutSec,
+			Concurrent: inboundMsg.ExecuteConcurrently,
+			AbortOnErr: inboundMsg.AbortOnError,
+		}
+		if err := al.jobProvider.SaveMultiJob(multiJob); err != nil {
+			uiConnTS.WriteError("Failed to persist a new multi-client job.", err)
+			return
+		}
+
+		al.Debugf("Multi-client Job[id=%q] created to execute remote command on clients %s: %q.", multiJob.JID, inboundMsg.ClientIDs, inboundMsg.Command)
+		uiConnTS.SetWritesBeforeClose(len(multiJob.ClientIDs))
+		for _, sid := range multiJob.ClientIDs {
+			curJID := generateNewJobID()
+			if multiJob.Concurrent {
+				go al.createAndRunJobWS(uiConnTS, &jid, curJID, sid, multiJob.Command, multiJob.Shell, createdBy, multiJob.TimeoutSec, clientsConn[sid])
+			} else {
+				success := al.createAndRunJobWS(uiConnTS, &jid, curJID, sid, multiJob.Command, multiJob.Shell, createdBy, multiJob.TimeoutSec, clientsConn[sid])
+				if !success && multiJob.AbortOnErr {
+					uiConnTS.Close()
+					return
+				}
+				// TODO: wait until job will be finished
+			}
+		}
+	} else {
+		al.createAndRunJobWS(uiConnTS, nil, jid, inboundMsg.ClientIDs[0], inboundMsg.Command, inboundMsg.Shell, createdBy, inboundMsg.TimeoutSec, clientsConn[inboundMsg.ClientIDs[0]])
+	}
+
+	// check for Close message from client to close the connection
+	mt, message, err := uiConnTS.ReadMessage()
+	if err != nil {
+		if closeErr, ok := err.(*websocket.CloseError); ok {
+			al.Debugf("Received a closed err on WS read: %v", closeErr)
+			return
+		}
+		al.Debugf("Error read from websocket: %v", err)
+		return
+	}
+
+	al.Debugf("Message received: type %v, msg %s", mt, message)
+	uiConnTS.Close()
+}
+
+func (al *APIListener) createAndRunJobWS(uiConnTS *ws.ConcurrentWebSocket, multiJobID *string, jid, sid, cmd, shell, createdBy string, timeoutSec int, clientConn ssh.Conn) bool {
+	curJob := models.Job{
+		JobSummary: models.JobSummary{
+			JID: jid,
+		},
+		StartedAt:  time.Now(),
+		SID:        sid,
+		Command:    cmd,
+		Shell:      shell,
+		CreatedBy:  createdBy,
+		TimeoutSec: timeoutSec,
+		MultiJobID: multiJobID,
+	}
+	logPrefix := curJob.LogPrefix()
+
+	// send the command to the client
+	sshResp := &comm.RunCmdResponse{}
+	err := comm.SendRequestAndGetResponse(clientConn, comm.RequestTypeRunCmd, curJob, sshResp)
+	if err != nil {
+		al.Errorf("%s, Error on execute remote command: %v", logPrefix, err)
+
+		curJob.Status = models.JobStatusFailed
+		now := time.Now()
+		curJob.FinishedAt = &now
+		curJob.Error = err.Error()
+
+		// send the failed job to UI
+		_ = uiConnTS.WriteJSON(curJob)
+	} else {
+		al.Debugf("%s, Job was sent to execute remote command: %q.", logPrefix, curJob.Command)
+
+		// success, set fields received in response
+		curJob.PID = &sshResp.Pid
+		curJob.StartedAt = sshResp.StartedAt // override with the start time of the command
+		curJob.Status = models.JobStatusRunning
+	}
+
+	// do not save the failed job if it's a single-client job
+	if err != nil && multiJobID == nil {
+		return false
+	}
+
+	if dbErr := al.jobProvider.CreateJob(&curJob); dbErr != nil {
+		// just log it, cmd is running, when it's finished it can be saved on result return
+		al.Errorf("%s, Failed to persist job: %v", logPrefix, dbErr)
 	}
 
 	return err == nil

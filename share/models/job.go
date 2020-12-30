@@ -1,6 +1,7 @@
 package models
 
 import (
+	"fmt"
 	"time"
 )
 
@@ -58,4 +59,13 @@ type MultiJobResult struct {
 	Status string     `json:"status"`
 	StdErr string     `json:"stderr"`
 	Result *JobResult `json:"result"`
+}
+
+func (j Job) LogPrefix() string {
+	var r string
+	if j.MultiJobID != nil {
+		r = fmt.Sprintf("multiJobID=%q, ", *j.MultiJobID)
+	}
+	r += fmt.Sprintf("jid=%q, sid=%q", j.JID, j.SID)
+	return r
 }

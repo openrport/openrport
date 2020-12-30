@@ -33,7 +33,7 @@ paths:
           type: "number"
           format: "int32"
       produces:
-      - "application/json"
+        - "application/json"
       responses:
         "200":
           description: ""
@@ -59,7 +59,7 @@ paths:
           type: "number"
           format: "int32"
       produces:
-      - "application/json"
+        - "application/json"
       responses:
         "200":
           description: ""
@@ -109,7 +109,7 @@ paths:
       summary: "Get information about rport server"
       description: "show health status and server version"
       produces:
-      - "application/json"
+        - "application/json"
       responses:
         "200":
           description: "success response"
@@ -140,7 +140,7 @@ paths:
       summary: "List active and disconnected client connections. By default sorted by ID."
       description: ""
       produces:
-      - "application/json"
+        - "application/json"
       responses:
         "200":
           description: "success response"
@@ -246,10 +246,10 @@ paths:
           schema:
             type: "object"
             properties:
-             data:
-               type: "array"
-               items:
-                 $ref: "#/definitions/JobSummary"
+              data:
+                type: "array"
+                items:
+                  $ref: "#/definitions/JobSummary"
         "405":
           description: "Persistent storage required. A data dir or a database table is required to activate this feature."
           schema:
@@ -484,6 +484,40 @@ paths:
           description: "Invalid Operation"
           schema:
             $ref: "#/definitions/ErrorPayload"
+  /commands/ws:
+    get:
+      tags:
+        - "Commands Web Socket"
+      summary: "Web Socket Connection to execute a remote command on rport client(s)"
+      description: "
+      NOTE: swagger is not designed to document WebSocket API. This is a temporary solution.\n
+
+      A new web socket is created for each new request to execute a remote command on rport client(s).\n
+      Steps:\n
+      1. Upgrades the current connection to Web Socket.\n
+      2. Then server waits for an inbound message from UI client. It should be a JSON object `ExecuteCmdRequest`(see in 'Models')\n
+      For example,\n
+      {\n
+        \"command\": \"/usr/bin/whoami\",\n
+        \"client_ids\": [ \"qa-lin-debian9\", \"qa-lin-debian10\", \"qa-lin-centos8\", \"qa-lin-ubuntu18\", \"qa-lin-ubuntu16\" ],\n
+        \"timeout_sec\": 30,\n
+        \"execute_concurrently\": true\n
+      }\n
+      3. Validates the inbound msg. If it fails - server sends an outbound JSON message `ErrorPayload`(see in 'Models') and closes the connection.\n
+      4. Server sends a given command to rport client(s) to execute.\n
+      5. As soon as it gets a result from each rport client - it sends an outbound JSON message `Job`(see in 'Models').\n
+         It can contain a non-empty 'error' field if server wasn't able to send the command to the rport client.\n
+         Number of outbound messages is expected to be as many as client IDs in the request. Or less if it's not a concurrent mode and 'abort_on_error' is turned on.\n
+      6. As soon as all rport clients send back the result - connection is closed by server.\n
+      7. Also, a current connection can be closed by UI client.\n
+      "
+      produces:
+        - "application/json"
+      responses:
+        "405":
+          description: "Persistent storage required. A data dir or a database table is required to activate this feature."
+          schema:
+            $ref: "#/definitions/ErrorPayload"
   /clients:
     get:
       summary: "Returns all rport clients credentials. Sorted by ID in asc order."
@@ -503,14 +537,14 @@ paths:
       summary: "Add a new rport client credentials."
       description: ""
       produces:
-      - "application/json"
+        - "application/json"
       parameters:
-      - in: "body"
-        name: "body"
-        description: "Client credentials that needs to be added"
-        required: true
-        schema:
-          $ref: "#/definitions/Client"
+        - in: "body"
+          name: "body"
+          description: "Client credentials that needs to be added"
+          required: true
+          schema:
+            $ref: "#/definitions/Client"
       responses:
         "204":
           description: "New client added."
@@ -703,6 +737,9 @@ definitions:
       multi_job_id:
         type: "string"
         description: "multi-client job ID. If it is set then it means this command was initiated by running a multi-client job"
+      error:
+        type: "string"
+        description: "is non-empty when it wasn't able to execute a command on rport client"
       result:
         type: "object"
         description: "command execution result"
@@ -791,3 +828,29 @@ definitions:
         type: "string"
       detial:
         type: "string"
+  ExecuteCmdRequeest:
+    description: "Request that contains a remote command to execute by rport client(s) and other related properties"
+    type: "object"
+    properties:
+      command:
+        type: "string"
+        description: "remote command to execute by rport client(s). NOTE: if command limitation is enabled by an rport client then a full path command can be required to use. See https://github.com/cloudradar-monitoring/rport/blob/master/docs/command-execution.md for more details"
+      client_ids:
+        type: "array"
+        items:
+          type: string
+        minItems: 1
+        description: "list of client IDs (i.e. session IDs) where to run the command"
+      shell:
+        type: "string"
+        enum: [cmd, powershell]
+        description: "command shell to use to execute the command. Is applicable only for windows clients. If not set 'cmd' is used by default"
+      timeout_sec:
+        type: "integer"
+        description: "timeout in seconds to observe the command execution on each client separately. If not set a default timeout (60 seconds) is used"
+      execute_concurrently:
+        type: "boolean"
+        description: "applicable only when multiple clients are specified. If true - execute the command concurrently on clients. If false - sequentially in order that is in 'client_ids'. By default is false"
+      abort_on_error:
+        type: "boolean"
+        description: "applicable only when multiple clients are specified. Applicable only if 'execute_concurrently' is false. If true - abort the entire cycle if the execution fails on some client. By default is false"

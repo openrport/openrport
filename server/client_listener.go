@@ -350,6 +350,23 @@ func (cl *ClientListener) saveCmdResult(respBytes []byte) error {
 		return fmt.Errorf("failed to decode cmd result request: %s", err)
 	}
 
+	var wsJID string
+	if resp.MultiJobID != nil {
+		wsJID = *resp.MultiJobID
+	} else {
+		wsJID = resp.JID
+	}
+	ws := cl.Server.uiJobWebSockets.Get(wsJID)
+	if ws != nil {
+		err := ws.WriteMessage(websocket.TextMessage, respBytes)
+		if err != nil {
+			cl.Errorf("%s, failed to write message to UI Web Socket: %v", resp.LogPrefix(), err)
+			// proceed further
+		}
+	} else {
+		cl.Debugf("%s, WS conn not found", resp.LogPrefix())
+	}
+
 	err = cl.jobProvider.SaveJob(&resp)
 	if err != nil {
 		return fmt.Errorf("failed to save job result: %s", err)
