@@ -71,16 +71,18 @@ window.addEventListener("load", function(evt) {
 <tr><td valign="top" width="50%">
 <p>Click "Open" to create a connection to the server,
 "Send" to send a message to the server and "Close" to close the connection.
-You can change the message and send multiple times.
 <p>
 <form>
 <button id="open">Open</button>
 <button id="close">Close</button>
-<p><input id="input" type="text" value="<Enter JSON request here>">
+<p>
+<textarea id="input" rows="5" cols="60" placeholder="Enter JSON request here...">
+</textarea>
+<p>
 <button id="send">Send</button>
 </form>
 </td><td valign="top" width="50%">
-<div id="output"></div>
+<pre id="output"></pre>
 </td></tr></table>
 </body>
 </html>
