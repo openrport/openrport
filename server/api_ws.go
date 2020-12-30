@@ -77,6 +77,13 @@ window.addEventListener("load", function(evt) {
 <button id="close">Close</button>
 <p>
 <textarea id="input" rows="5" cols="60" placeholder="Enter JSON request here...">
+{
+  "command": "/usr/bin/whoami",
+  "client_ids": ["qa-lin-debian9", "qa-lin-debian10", "qa-lin-centos8", "qa-lin-ubuntu18", "qa-lin-ubuntu16"],
+  "timeout_sec": 60,
+  "abort_on_error": false,
+  "execute_concurrently": true
+}
 </textarea>
 <p>
 <button id="send">Send</button>
