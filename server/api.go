@@ -116,6 +116,11 @@ func (al *APIListener) initRouter() {
 	sub.HandleFunc("/login", al.handlePostLogin).Methods(http.MethodPost)
 	sub.HandleFunc("/login", al.handleDeleteLogin).Methods(http.MethodDelete)
 
+	// only for test purpose
+	// TODO: remove
+	sub.HandleFunc("/test/commands/ws", al.handleCommandsWS).Methods(http.MethodGet)
+	sub.HandleFunc("/test/commands/ui", al.home)
+
 	// add max bytes middleware
 	_ = sub.Walk(func(route *mux.Route, router *mux.Router, ancestors []*mux.Route) error {
 		route.HandlerFunc(middleware.MaxBytes(route.GetHandler(), al.config.Server.MaxRequestBytes))
