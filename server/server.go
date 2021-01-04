@@ -17,6 +17,7 @@ import (
 
 	"github.com/cloudradar-monitoring/rport/server/api/jobs"
 	"github.com/cloudradar-monitoring/rport/server/clients"
+	"github.com/cloudradar-monitoring/rport/server/hgroups"
 	"github.com/cloudradar-monitoring/rport/server/ports"
 	"github.com/cloudradar-monitoring/rport/server/scheduler"
 	"github.com/cloudradar-monitoring/rport/server/sessions"
@@ -28,15 +29,16 @@ import (
 // Server represents a rport service
 type Server struct {
 	*chshare.Logger
-	clientListener  *ClientListener
-	apiListener     *APIListener
-	config          *Config
-	sessionService  *SessionService
-	sessionProvider sessions.ClientSessionProvider
-	clientProvider  clients.Provider
-	jobProvider     JobProvider
-	db              *sqlx.DB
-	uiJobWebSockets ws.WebSocketCache // used to push job result to UI
+	clientListener    *ClientListener
+	apiListener       *APIListener
+	config            *Config
+	sessionService    *SessionService
+	sessionProvider   sessions.ClientSessionProvider
+	clientProvider    clients.Provider
+	jobProvider       JobProvider
+	hostGroupProvider hgroups.HostGroupProvider
+	db                *sqlx.DB
+	uiJobWebSockets   ws.WebSocketCache // used to push job result to UI
 }
 
 // NewServer creates and returns a new rport server
@@ -66,6 +68,11 @@ func NewServer(config *Config, filesAPI files.FileAPI) (*Server, error) {
 	}
 
 	s.jobProvider, err = jobs.NewSqliteProvider(path.Join(config.Server.DataDir, "jobs.db"), s.Logger)
+	if err != nil {
+		return nil, err
+	}
+
+	s.hostGroupProvider, err = hgroups.NewSqliteProvider(path.Join(config.Server.DataDir, "host_groups.db"))
 	if err != nil {
 		return nil, err
 	}
@@ -211,6 +218,7 @@ func (s *Server) Close() error {
 	}
 	wg.Go(s.sessionProvider.Close)
 	wg.Go(s.jobProvider.Close)
+	wg.Go(s.hostGroupProvider.Close)
 	wg.Go(s.uiJobWebSockets.CloseConnections)
 	return wg.Wait()
 }

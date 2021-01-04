@@ -590,6 +590,133 @@ paths:
           description: "Could not delete. Client has active or disconnected session(s). Err code: ERR_CODE_CLIENT_HAS_SESSION"
           schema:
             $ref: "#/definitions/ErrorPayload"
+  /host-groups:
+    get:
+      tags:
+        - "Host Groups"
+      summary: "Returns all host groups"
+      description: "Returns a list of all existing host groups sorted by ID in asc order"
+      produces:
+        - "application/json"
+      responses:
+        "200":
+          description: "successful operation"
+          schema:
+            type: "object"
+            properties:
+              data:
+                type: "array"
+                items:
+                  $ref: "#/definitions/HostGroup"
+        "500":
+          description: "Invalid Operation"
+          schema:
+            $ref: "#/definitions/ErrorPayload"
+    post:
+      tags:
+        - "Host Groups"
+      summary: "Create a new host group"
+      description: "Creates a new host group."
+      produces:
+        - "application/json"
+      parameters:
+        - in: "body"
+          name: "host group"
+          description: "Host group to create."
+          required: true
+          schema:
+            $ref: '#/definitions/HostGroup'
+      responses:
+        "201":
+          description: "successful operation"
+        "400":
+          description: "Invalid request parameters"
+          schema:
+            $ref: "#/definitions/ErrorPayload"
+        "500":
+          description: "Invalid Operation"
+          schema:
+            $ref: "#/definitions/ErrorPayload"
+  /host-groups/{group_id}:
+    get:
+      tags:
+        - "Host Groups"
+      summary: "Returns a host group"
+      description: "Returns a detailed info about a host group by a given id"
+      produces:
+        - "application/json"
+      parameters:
+        - name: "group_id"
+          in: "path"
+          description: "unique host group ID"
+          required: true
+          type: "string"
+      responses:
+        "200":
+          description: "successful operation"
+          schema:
+            type: "object"
+            properties:
+              data:
+                $ref: "#/definitions/HostGroup"
+        "400":
+          description: "Host group not found"
+          schema:
+            $ref: "#/definitions/ErrorPayload"
+        "500":
+          description: "Invalid Operation"
+          schema:
+            $ref: "#/definitions/ErrorPayload"
+    put:
+      tags:
+        - "Host Groups"
+      summary: "Save a host group"
+      description: "Update an existing host group or save a new host group"
+      produces:
+        - "application/json"
+      parameters:
+        - name: "group_id"
+          in: "path"
+          description: "unique host group ID"
+          required: true
+          type: "string"
+        - in: "body"
+          name: "host group"
+          description: "Host group to save."
+          required: true
+          schema:
+            $ref: '#/definitions/HostGroup'
+      responses:
+        "204":
+          description: "successful operation"
+        "400":
+          description: "Invalid request parameters"
+          schema:
+            $ref: "#/definitions/ErrorPayload"
+        "500":
+          description: "Invalid Operation"
+          schema:
+            $ref: "#/definitions/ErrorPayload"
+    delete:
+      tags:
+        - "Host Groups"
+      summary: "Deletes a host group"
+      description: "Deletes a host group by a given id"
+      produces:
+        - "application/json"
+      parameters:
+        - name: "group_id"
+          in: "path"
+          description: "unique host group ID"
+          required: true
+          type: "string"
+      responses:
+        "204":
+          description: "successful operation"
+        "500":
+          description: "Invalid Operation"
+          schema:
+            $ref: "#/definitions/ErrorPayload"
 definitions:
   Tunnel:
     type: "object"
@@ -673,6 +800,88 @@ definitions:
         type: "array"
         items:
           $ref: "#/definitions/Tunnel"
+  HostGroup:
+    type: "object"
+    properties:
+      id:
+        type: "string"
+        description: "Host Group ID"
+      description:
+        type: "string"
+        description: "Host Group description"
+      params:
+        type: "object"
+        description: "Parameters that define what client sessions belong to a given host group.\n
+
+        Each parameter can be specified by:\n
+        1. exact match of the property. For example, \"client_id\": [\"test-win2019-tk01\", \"qa-lin-ubuntu16\"]\n
+        2. dynamic criteria using wildcards. For example, \"os_family\": [\"linux*\"]\n"
+        properties:
+          client_id:
+            type: "array"
+            items:
+              type: string
+            description: "client ID(s)"
+          name:
+            type: "array"
+            items:
+              type: string
+            description: "client name(s)"
+          os:
+            type: "array"
+            items:
+              type: string
+            description: "client OS description(s)"
+          os_arch:
+            type: "array"
+            items:
+              type: string
+            description: "client cpu architecture(s) (ex: 386, amd64)"
+          os_family:
+            type: "array"
+            items:
+              type: string
+            description: "client OS family (ex: debian, alpine, Standalone Workstation)"
+          os_kernel:
+            type: "array"
+            items:
+              type: string
+            description: "client OS kernel(s) (ex: linux, windows)"
+          hostname:
+            type: "array"
+            items:
+              type: string
+            description: "client hostname(s)"
+          ipv4:
+            type: "array"
+            items:
+              type: string
+            description: "client IPv4 address(es)"
+          ipv6:
+            type: "array"
+            items:
+              type: string
+            description: "client IPv6 address(es)"
+          tag:
+            type: "array"
+            items:
+              type: string
+            description: "client tag(s)"
+          version:
+            type: "array"
+            items:
+              type: string
+            description: "client version(s)"
+          address:
+            type: "array"
+            items:
+              type: string
+            description: "client address(es)"
+          client_auth_id:
+            type: "array"
+            items:
+              type: string
+            description: "client auth ID(s)"
   Client:
     type: "object"
     properties:
