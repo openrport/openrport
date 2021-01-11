@@ -484,7 +484,7 @@ paths:
           description: "Invalid Operation"
           schema:
             $ref: "#/definitions/ErrorPayload"
-  /commands/ws:
+  /ws/commands:
     get:
       tags:
         - "Commands Web Socket"
@@ -494,8 +494,9 @@ paths:
 
       A new web socket is created for each new request to execute a remote command on rport client(s).\n
       Steps:\n
-      1. Upgrades the current connection to Web Socket.\n
-      2. Then server waits for an inbound message from UI client. It should be a JSON object `ExecuteCmdRequest`(see in 'Models')\n
+      1. To pass authentication - include \"access_token\" param into the url. The value is a jwt token that is created by 'login' API endpoint.\n
+      2. Upgrades the current connection to Web Socket.\n
+      3. Then server waits for an inbound message from UI client. It should be a JSON object `ExecuteCmdRequest`(see in 'Models')\n
       For example,\n
       {\n
         \"command\": \"/usr/bin/whoami\",\n
@@ -503,16 +504,22 @@ paths:
         \"timeout_sec\": 30,\n
         \"execute_concurrently\": true\n
       }\n
-      3. Validates the inbound msg. If it fails - server sends an outbound JSON message `ErrorPayload`(see in 'Models') and closes the connection.\n
-      4. Server sends a given command to rport client(s) to execute.\n
-      5. As soon as it gets a result from each rport client - it sends an outbound JSON message `Job`(see in 'Models').\n
+      4. Validates the inbound msg. If it fails - server sends an outbound JSON message `ErrorPayload`(see in 'Models') and closes the connection.\n
+      5. Server sends a given command to rport client(s) to execute.\n
+      6. As soon as it gets a result from each rport client - it sends an outbound JSON message `Job`(see in 'Models').\n
          It can contain a non-empty 'error' field if server wasn't able to send the command to the rport client.\n
          Number of outbound messages is expected to be as many as client IDs in the request. Or less if it's not a concurrent mode and 'abort_on_error' is turned on.\n
-      6. As soon as all rport clients send back the result - connection is closed by server.\n
-      7. Also, a current connection can be closed by UI client.\n
+      7. As soon as all rport clients send back the result - connection is closed by server.\n
+      8. Also, a current connection can be closed by UI client.\n
       "
       produces:
         - "application/json"
+      parameters:
+        - name: "access_token"
+          in: "query"
+          description: "JWT token that is created by 'login' API endpoint. Required to pass the authentication."
+          required: true
+          type: "string"
       responses:
         "405":
           description: "Persistent storage required. A data dir or a database table is required to activate this feature."

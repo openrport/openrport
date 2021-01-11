@@ -103,7 +103,6 @@ func (al *APIListener) initRouter() {
 	sub.HandleFunc("/host-groups/{group_id}", al.handlePutHostGroup).Methods(http.MethodPut)
 	sub.HandleFunc("/host-groups/{group_id}", al.handleGetHostGroup).Methods(http.MethodGet)
 	sub.HandleFunc("/host-groups/{group_id}", al.handleDeleteHostGroup).Methods(http.MethodDelete)
-	sub.HandleFunc("/commands/ws", al.handleCommandsWS).Methods(http.MethodGet)
 	sub.HandleFunc("/commands", al.handlePostMultiClientCommand).Methods(http.MethodPost)
 	sub.HandleFunc("/commands", al.handleGetMultiClientCommands).Methods(http.MethodGet)
 	sub.HandleFunc("/commands/{job_id}", al.handleGetMultiClientCommand).Methods(http.MethodGet)
@@ -123,9 +122,12 @@ func (al *APIListener) initRouter() {
 	sub.HandleFunc("/login", al.handlePostLogin).Methods(http.MethodPost)
 	sub.HandleFunc("/login", al.handleDeleteLogin).Methods(http.MethodDelete)
 
+	// web sockets
+	// common auth middleware is not used due to JS issue https://stackoverflow.com/questions/22383089/is-it-possible-to-use-bearer-authentication-for-websocket-upgrade-requests
+	sub.HandleFunc("/ws/commands", al.wsAuth(http.HandlerFunc(al.handleCommandsWS))).Methods(http.MethodGet)
+
 	// only for test purpose
 	// TODO: remove
-	sub.HandleFunc("/test/commands/ws", al.handleCommandsWS).Methods(http.MethodGet)
 	sub.HandleFunc("/test/commands/ui", al.home)
 
 	// add max bytes middleware

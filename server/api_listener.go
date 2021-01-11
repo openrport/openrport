@@ -2,6 +2,7 @@ package chserver
 
 import (
 	"crypto/subtle"
+	"errors"
 	"fmt"
 	"io"
 	"net/http"
@@ -16,6 +17,7 @@ import (
 	"golang.org/x/crypto/bcrypt"
 	"golang.org/x/sync/errgroup"
 
+	"github.com/cloudradar-monitoring/rport/server/api"
 	"github.com/cloudradar-monitoring/rport/server/api/middleware"
 	"github.com/cloudradar-monitoring/rport/server/api/users"
 	chshare "github.com/cloudradar-monitoring/rport/share"
@@ -232,4 +234,35 @@ func parseHTTPAuthStr(basicAuth string) (*users.User, error) {
 	}
 
 	return &users.User{Username: user, Password: pass}, nil
+}
+
+const WebSocketAccessTokenQueryParam = "access_token"
+
+var (
+	errUnauthorized        = errors.New("unauthorized")
+	errAccessTokenRequired = errors.New("access token required")
+)
+
+func (al *APIListener) wsAuth(f http.Handler) http.HandlerFunc {
+	return func(w http.ResponseWriter, r *http.Request) {
+		token := r.URL.Query().Get(WebSocketAccessTokenQueryParam)
+		if token == "" {
+			al.jsonErrorResponse(w, http.StatusUnauthorized, errAccessTokenRequired)
+			return
+		}
+
+		authorized, username, err := al.handleBearerToken(token)
+		if err != nil {
+			al.jsonErrorResponse(w, http.StatusInternalServerError, err)
+			return
+		}
+
+		if !authorized || username == "" {
+			al.jsonErrorResponse(w, http.StatusUnauthorized, errUnauthorized)
+			return
+		}
+
+		newCtx := api.WithUser(r.Context(), username)
+		f.ServeHTTP(w, r.WithContext(newCtx))
+	}
 }

@@ -10,7 +10,7 @@ func (al *APIListener) home(w http.ResponseWriter, r *http.Request) {
 	if al.config.API.CertFile != "" && al.config.API.KeyFile != "" {
 		p = "wss://"
 	}
-	_ = homeTemplate.Execute(w, p+r.Host+"/api/v1/test/commands/ws")
+	_ = homeTemplate.Execute(w, p+r.Host+"/api/v1/ws/commands")
 }
 
 var homeTemplate = template.Must(template.New("").Parse(`
@@ -22,6 +22,7 @@ var homeTemplate = template.Must(template.New("").Parse(`
 window.addEventListener("load", function(evt) {
    var output = document.getElementById("output");
    var input = document.getElementById("input");
+   var token = document.getElementById("token");
    var ws;
    var print = function(message) {
        var d = document.createElement("div");
@@ -32,7 +33,9 @@ window.addEventListener("load", function(evt) {
        if (ws) {
            return false;
        }
-       ws = new WebSocket("{{.}}");
+       var wsURL = "{{.}}"+"?access_token="+token.value;
+       print("WS url: " + wsURL);
+       ws = new WebSocket(wsURL);
        ws.onopen = function(evt) {
            print("OPEN");
        }
@@ -75,6 +78,8 @@ window.addEventListener("load", function(evt) {
 <form>
 <button id="open">Open</button>
 <button id="close">Close</button>
+<p><textarea id="token" rows="3" cols="60" placeholder="Enter token here...">
+</textarea>
 <p>
 <textarea id="input" rows="5" cols="60" placeholder="Enter JSON request here...">
 {
