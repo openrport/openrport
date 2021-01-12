@@ -597,12 +597,12 @@ paths:
           description: "Could not delete. Client has active or disconnected session(s). Err code: ERR_CODE_CLIENT_HAS_SESSION"
           schema:
             $ref: "#/definitions/ErrorPayload"
-  /host-groups:
+  /client-groups:
     get:
       tags:
-        - "Host Groups"
-      summary: "Returns all host groups"
-      description: "Returns a list of all existing host groups sorted by ID in asc order"
+        - "Client Groups"
+      summary: "Returns all client groups"
+      description: "Returns a list of all existing client groups sorted by ID in asc order"
       produces:
         - "application/json"
       responses:
@@ -614,25 +614,25 @@ paths:
               data:
                 type: "array"
                 items:
-                  $ref: "#/definitions/HostGroup"
+                  $ref: "#/definitions/ClientGroup"
         "500":
           description: "Invalid Operation"
           schema:
             $ref: "#/definitions/ErrorPayload"
     post:
       tags:
-        - "Host Groups"
-      summary: "Create a new host group"
-      description: "Creates a new host group."
+        - "Client Groups"
+      summary: "Create a new client group"
+      description: "Creates a new client group."
       produces:
         - "application/json"
       parameters:
         - in: "body"
-          name: "host group"
-          description: "Host group to create."
+          name: "client group"
+          description: "Client group to create."
           required: true
           schema:
-            $ref: '#/definitions/HostGroup'
+            $ref: '#/definitions/ClientGroup'
       responses:
         "201":
           description: "successful operation"
@@ -644,18 +644,18 @@ paths:
           description: "Invalid Operation"
           schema:
             $ref: "#/definitions/ErrorPayload"
-  /host-groups/{group_id}:
+  /client-groups/{group_id}:
     get:
       tags:
-        - "Host Groups"
-      summary: "Returns a host group"
-      description: "Returns a detailed info about a host group by a given id"
+        - "Client Groups"
+      summary: "Returns a client group"
+      description: "Returns a detailed info about a client group by a given id"
       produces:
         - "application/json"
       parameters:
         - name: "group_id"
           in: "path"
-          description: "unique host group ID"
+          description: "unique client group ID"
           required: true
           type: "string"
       responses:
@@ -665,9 +665,9 @@ paths:
             type: "object"
             properties:
               data:
-                $ref: "#/definitions/HostGroup"
+                $ref: "#/definitions/ClientGroup"
         "400":
-          description: "Host group not found"
+          description: "Client group not found"
           schema:
             $ref: "#/definitions/ErrorPayload"
         "500":
@@ -676,23 +676,23 @@ paths:
             $ref: "#/definitions/ErrorPayload"
     put:
       tags:
-        - "Host Groups"
-      summary: "Save a host group"
-      description: "Update an existing host group or save a new host group"
+        - "Client Groups"
+      summary: "Save a client group"
+      description: "Update an existing client group or save a new client group"
       produces:
         - "application/json"
       parameters:
         - name: "group_id"
           in: "path"
-          description: "unique host group ID"
+          description: "unique client group ID"
           required: true
           type: "string"
         - in: "body"
-          name: "host group"
-          description: "Host group to save."
+          name: "client group"
+          description: "Client group to save."
           required: true
           schema:
-            $ref: '#/definitions/HostGroup'
+            $ref: '#/definitions/ClientGroup'
       responses:
         "204":
           description: "successful operation"
@@ -706,15 +706,15 @@ paths:
             $ref: "#/definitions/ErrorPayload"
     delete:
       tags:
-        - "Host Groups"
-      summary: "Deletes a host group"
-      description: "Deletes a host group by a given id"
+        - "Client Groups"
+      summary: "Deletes a client group"
+      description: "Deletes a client group by a given id"
       produces:
         - "application/json"
       parameters:
         - name: "group_id"
           in: "path"
-          description: "unique host group ID"
+          description: "unique client group ID"
           required: true
           type: "string"
       responses:
@@ -807,18 +807,18 @@ definitions:
         type: "array"
         items:
           $ref: "#/definitions/Tunnel"
-  HostGroup:
+  ClientGroup:
     type: "object"
     properties:
       id:
         type: "string"
-        description: "Host Group ID"
+        description: "Client Group ID"
       description:
         type: "string"
-        description: "Host Group description"
+        description: "Client Group description"
       params:
         type: "object"
-        description: "Parameters that define what client sessions belong to a given host group.\n
+        description: "Parameters that define what client sessions belong to a given client group.\n
 
         Each parameter can be specified by:\n
         1. exact match of the property. For example, \"client_id\": [\"test-win2019-tk01\", \"qa-lin-ubuntu16\"]\n

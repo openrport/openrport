@@ -17,8 +17,8 @@ import (
 	"github.com/cloudradar-monitoring/rport/server/api"
 	"github.com/cloudradar-monitoring/rport/server/api/jobs"
 	"github.com/cloudradar-monitoring/rport/server/api/middleware"
+	"github.com/cloudradar-monitoring/rport/server/cgroups"
 	"github.com/cloudradar-monitoring/rport/server/clients"
-	"github.com/cloudradar-monitoring/rport/server/hgroups"
 	"github.com/cloudradar-monitoring/rport/server/ports"
 	"github.com/cloudradar-monitoring/rport/server/sessions"
 	chshare "github.com/cloudradar-monitoring/rport/share"
@@ -98,11 +98,11 @@ func (al *APIListener) initRouter() {
 	sub.HandleFunc("/sessions/{session_id}/commands", al.handlePostCommand).Methods(http.MethodPost)
 	sub.HandleFunc("/sessions/{session_id}/commands", al.handleGetCommands).Methods(http.MethodGet)
 	sub.HandleFunc("/sessions/{session_id}/commands/{job_id}", al.handleGetCommand).Methods(http.MethodGet)
-	sub.HandleFunc("/host-groups", al.handleGetHostGroups).Methods(http.MethodGet)
-	sub.HandleFunc("/host-groups", al.handlePostHostGroups).Methods(http.MethodPost)
-	sub.HandleFunc("/host-groups/{group_id}", al.handlePutHostGroup).Methods(http.MethodPut)
-	sub.HandleFunc("/host-groups/{group_id}", al.handleGetHostGroup).Methods(http.MethodGet)
-	sub.HandleFunc("/host-groups/{group_id}", al.handleDeleteHostGroup).Methods(http.MethodDelete)
+	sub.HandleFunc("/client-groups", al.handleGetClientGroups).Methods(http.MethodGet)
+	sub.HandleFunc("/client-groups", al.handlePostClientGroups).Methods(http.MethodPost)
+	sub.HandleFunc("/client-groups/{group_id}", al.handlePutClientGroup).Methods(http.MethodPut)
+	sub.HandleFunc("/client-groups/{group_id}", al.handleGetClientGroup).Methods(http.MethodGet)
+	sub.HandleFunc("/client-groups/{group_id}", al.handleDeleteClientGroup).Methods(http.MethodDelete)
 	sub.HandleFunc("/commands", al.handlePostMultiClientCommand).Methods(http.MethodPost)
 	sub.HandleFunc("/commands", al.handleGetMultiClientCommands).Methods(http.MethodGet)
 	sub.HandleFunc("/commands/{job_id}", al.handleGetMultiClientCommand).Methods(http.MethodGet)
@@ -1229,8 +1229,8 @@ func (al *APIListener) allowRunCommands(w http.ResponseWriter) bool {
 	return true
 }
 
-func (al *APIListener) handlePostHostGroups(w http.ResponseWriter, req *http.Request) {
-	var group hgroups.HostGroup
+func (al *APIListener) handlePostClientGroups(w http.ResponseWriter, req *http.Request) {
+	var group cgroups.ClientGroup
 	dec := json.NewDecoder(req.Body)
 	dec.DisallowUnknownFields()
 	err := dec.Decode(&group)
@@ -1242,21 +1242,21 @@ func (al *APIListener) handlePostHostGroups(w http.ResponseWriter, req *http.Req
 		return
 	}
 
-	if err := validateInputHostGroup(group); err != nil {
-		al.jsonErrorResponseWithError(w, http.StatusBadRequest, "", "Invalid host group.", err)
+	if err := validateInputClientGroup(group); err != nil {
+		al.jsonErrorResponseWithError(w, http.StatusBadRequest, "", "Invalid client group.", err)
 		return
 	}
 
-	if err := al.hostGroupProvider.Create(req.Context(), &group); err != nil {
-		al.jsonErrorResponseWithError(w, http.StatusInternalServerError, "", "Failed to persist a new host group.", err)
+	if err := al.clientGroupProvider.Create(req.Context(), &group); err != nil {
+		al.jsonErrorResponseWithError(w, http.StatusInternalServerError, "", "Failed to persist a new client group.", err)
 		return
 	}
 
 	w.WriteHeader(http.StatusCreated)
-	al.Debugf("Host Group [id=%q] created.", group.ID)
+	al.Debugf("Client Group [id=%q] created.", group.ID)
 }
 
-func (al *APIListener) handlePutHostGroup(w http.ResponseWriter, req *http.Request) {
+func (al *APIListener) handlePutClientGroup(w http.ResponseWriter, req *http.Request) {
 	vars := mux.Vars(req)
 	id := vars[routeParamGroupID]
 	if id == "" {
@@ -1264,7 +1264,7 @@ func (al *APIListener) handlePutHostGroup(w http.ResponseWriter, req *http.Reque
 		return
 	}
 
-	var group hgroups.HostGroup
+	var group cgroups.ClientGroup
 	dec := json.NewDecoder(req.Body)
 	dec.DisallowUnknownFields()
 	err := dec.Decode(&group)
@@ -1281,28 +1281,28 @@ func (al *APIListener) handlePutHostGroup(w http.ResponseWriter, req *http.Reque
 		return
 	}
 
-	if err := validateInputHostGroup(group); err != nil {
-		al.jsonErrorResponseWithError(w, http.StatusBadRequest, "", "Invalid host group.", err)
+	if err := validateInputClientGroup(group); err != nil {
+		al.jsonErrorResponseWithError(w, http.StatusBadRequest, "", "Invalid client group.", err)
 		return
 	}
 
-	if err := al.hostGroupProvider.Update(req.Context(), &group); err != nil {
-		al.jsonErrorResponseWithError(w, http.StatusInternalServerError, "", "Failed to persist host group.", err)
+	if err := al.clientGroupProvider.Update(req.Context(), &group); err != nil {
+		al.jsonErrorResponseWithError(w, http.StatusInternalServerError, "", "Failed to persist client group.", err)
 		return
 	}
 
 	w.WriteHeader(http.StatusNoContent)
-	al.Debugf("Host Group [id=%q] updated.", group.ID)
+	al.Debugf("Client Group [id=%q] updated.", group.ID)
 }
 
-func validateInputHostGroup(group hgroups.HostGroup) error {
+func validateInputClientGroup(group cgroups.ClientGroup) error {
 	if strings.TrimSpace(group.ID) == "" {
 		return errors.New("ID cannot be empty")
 	}
 	return nil
 }
 
-func (al *APIListener) handleGetHostGroup(w http.ResponseWriter, req *http.Request) {
+func (al *APIListener) handleGetClientGroup(w http.ResponseWriter, req *http.Request) {
 	vars := mux.Vars(req)
 	id := vars[routeParamGroupID]
 	if id == "" {
@@ -1310,30 +1310,30 @@ func (al *APIListener) handleGetHostGroup(w http.ResponseWriter, req *http.Reque
 		return
 	}
 
-	group, err := al.hostGroupProvider.Get(req.Context(), id)
+	group, err := al.clientGroupProvider.Get(req.Context(), id)
 	if err != nil {
-		al.jsonErrorResponseWithError(w, http.StatusInternalServerError, "", fmt.Sprintf("Failed to find host group[id=%q].", id), err)
+		al.jsonErrorResponseWithError(w, http.StatusInternalServerError, "", fmt.Sprintf("Failed to find client group[id=%q].", id), err)
 		return
 	}
 	if group == nil {
-		al.jsonErrorResponseWithTitle(w, http.StatusNotFound, fmt.Sprintf("Host Group[id=%q] not found.", id))
+		al.jsonErrorResponseWithTitle(w, http.StatusNotFound, fmt.Sprintf("Client Group[id=%q] not found.", id))
 		return
 	}
 
 	al.writeJSONResponse(w, http.StatusOK, api.NewSuccessPayload(group))
 }
 
-func (al *APIListener) handleGetHostGroups(w http.ResponseWriter, req *http.Request) {
-	res, err := al.hostGroupProvider.GetAll(req.Context())
+func (al *APIListener) handleGetClientGroups(w http.ResponseWriter, req *http.Request) {
+	res, err := al.clientGroupProvider.GetAll(req.Context())
 	if err != nil {
-		al.jsonErrorResponseWithError(w, http.StatusInternalServerError, "", "Failed to get host groups.", err)
+		al.jsonErrorResponseWithError(w, http.StatusInternalServerError, "", "Failed to get client groups.", err)
 		return
 	}
 
 	al.writeJSONResponse(w, http.StatusOK, api.NewSuccessPayload(res))
 }
 
-func (al *APIListener) handleDeleteHostGroup(w http.ResponseWriter, req *http.Request) {
+func (al *APIListener) handleDeleteClientGroup(w http.ResponseWriter, req *http.Request) {
 	vars := mux.Vars(req)
 	id := vars[routeParamGroupID]
 	if id == "" {
@@ -1341,12 +1341,12 @@ func (al *APIListener) handleDeleteHostGroup(w http.ResponseWriter, req *http.Re
 		return
 	}
 
-	err := al.hostGroupProvider.Delete(req.Context(), id)
+	err := al.clientGroupProvider.Delete(req.Context(), id)
 	if err != nil {
-		al.jsonErrorResponseWithError(w, http.StatusInternalServerError, "", fmt.Sprintf("Failed to delete host group[id=%q].", id), err)
+		al.jsonErrorResponseWithError(w, http.StatusInternalServerError, "", fmt.Sprintf("Failed to delete client group[id=%q].", id), err)
 		return
 	}
 
 	w.WriteHeader(http.StatusNoContent)
-	al.Debugf("Host Group [id=%q] deleted.", id)
+	al.Debugf("Client Group [id=%q] deleted.", id)
 }

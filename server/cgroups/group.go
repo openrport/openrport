@@ -1,4 +1,4 @@
-package hgroups
+package cgroups
 
 import (
 	"database/sql/driver"
@@ -7,13 +7,13 @@ import (
 	"fmt"
 )
 
-type HostGroup struct {
-	ID          string      `json:"id" db:"id"`
-	Description string      `json:"description" db:"description"`
-	Params      *HostParams `json:"params" db:"params"`
+type ClientGroup struct {
+	ID          string        `json:"id" db:"id"`
+	Description string        `json:"description" db:"description"`
+	Params      *ClientParams `json:"params" db:"params"`
 }
 
-type HostParams struct {
+type ClientParams struct {
 	ClientID     []string `json:"client_id"`
 	Name         []string `json:"name"`
 	OS           []string `json:"os"`
@@ -29,7 +29,7 @@ type HostParams struct {
 	ClientAuthID []string `json:"client_auth_id"`
 }
 
-func (p *HostParams) Scan(value interface{}) error {
+func (p *ClientParams) Scan(value interface{}) error {
 	if p == nil {
 		return errors.New("'params' cannot be nil")
 	}
@@ -44,7 +44,7 @@ func (p *HostParams) Scan(value interface{}) error {
 	return nil
 }
 
-func (p *HostParams) Value() (driver.Value, error) {
+func (p *ClientParams) Value() (driver.Value, error) {
 	if p == nil {
 		return nil, errors.New("'params' cannot be nil")
 	}
