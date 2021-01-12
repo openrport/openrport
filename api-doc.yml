@@ -131,6 +131,8 @@ paths:
                 type: "object"
   /sessions:
     get:
+      tags:
+        - "Client Sessions and Tunnels"
       parameters:
         - name: "sort"
           in: "query"
@@ -145,7 +147,12 @@ paths:
         "200":
           description: "success response"
           schema:
-            $ref: "#/definitions/Sessions"
+            type: "object"
+            properties:
+              data:
+                type: "array"
+                items:
+                  $ref: "#/definitions/Session"
   /sessions/{session_id}/tunnels:
     parameters:
       - name: "session_id"
@@ -179,6 +186,8 @@ paths:
         required: false
         type: "string"
     put:
+      tags:
+        - "Client Sessions and Tunnels"
       summary: "Request new tunnel for active client connection"
       description: ""
       produces:
@@ -213,6 +222,8 @@ paths:
         required: true
         type: "string"
     delete:
+      tags:
+        - "Client Sessions and Tunnels"
       summary:  "Terminate specified tunnel"
       description: ""
       responses:
@@ -229,7 +240,7 @@ paths:
   /sessions/{session_id}/commands:
     get:
       tags:
-        - "commands"
+        - "Commands"
       summary: "Returns a short info about all client commands"
       description: "Returns a list of all running and finished commands sorted by finished time in desc with running commands at the beginning"
       produces:
@@ -260,7 +271,7 @@ paths:
             $ref: "#/definitions/ErrorPayload"
     post:
       tags:
-        - "commands"
+        - "Commands"
       summary: "Execute a command by the rport client."
       description: "NOTE: if command limitation is enabled by an rport client then a full path command can be required to use. See https://github.com/cloudradar-monitoring/rport/blob/master/docs/command-execution.md for more details"
       produces:
@@ -323,7 +334,7 @@ paths:
   /sessions/{session_id}/commands/{job_id}:
     get:
       tags:
-        - "commands"
+        - "Commands"
       summary: "Returns a detailed info about a specific client command"
       description: "Returns a detailed info about a command by given id"
       produces:
@@ -362,7 +373,7 @@ paths:
   /commands:
     get:
       tags:
-        - "multi-client commands"
+        - "Commands"
       summary: "Returns a short info about all multi-client commands"
       description: "Returns a list of all running and finished commands sorted by started time in desc order"
       produces:
@@ -387,7 +398,7 @@ paths:
             $ref: "#/definitions/ErrorPayload"
     post:
       tags:
-        - "multi-client commands"
+        - "Commands"
       summary: "Execute a command on multiple rport clients."
       description: "NOTE: if command limitation is enabled by an rport client then a full path command can be required to use. See https://github.com/cloudradar-monitoring/rport/blob/master/docs/command-execution.md for more details"
       produces:
@@ -453,7 +464,7 @@ paths:
   /commands/{job_id}:
     get:
       tags:
-        - "multi-client commands"
+        - "Commands"
       summary: "Returns a detailed info about a specific multi-client command"
       description: "Returns a detailed info about a multi-client command by given id with child jobs as well"
       produces:
@@ -487,7 +498,7 @@ paths:
   /ws/commands:
     get:
       tags:
-        - "Commands Web Socket"
+        - "Commands"
       summary: "Web Socket Connection to execute a remote command on rport client(s)"
       description: "
       NOTE: swagger is not designed to document WebSocket API. This is a temporary solution.\n
@@ -527,6 +538,8 @@ paths:
             $ref: "#/definitions/ErrorPayload"
   /clients:
     get:
+      tags:
+        - "Rport Client Auth Credentials"
       summary: "Returns all rport clients credentials. Sorted by ID in asc order."
       description: ""
       produces:
@@ -535,12 +548,19 @@ paths:
         "200":
           description: "Success response."
           schema:
-            $ref: "#/definitions/Clients"
+            type: "object"
+            properties:
+              data:
+                type: "array"
+                items:
+                  $ref: "#/definitions/Client"
         "405":
           description: "Operation not allowed. Error codes: ERR_CODE_CLIENT_AUTH_DISABLED"
           schema:
             $ref: "#/definitions/ErrorPayload"
     post:
+      tags:
+        - "Rport Client Auth Credentials"
       summary: "Add a new rport client credentials."
       description: ""
       produces:
@@ -580,6 +600,8 @@ paths:
         required: false
         type: "boolean"
     delete:
+      tags:
+        - "Rport Client Auth Credentials"
       summary:  "Delete rport client credentials."
       description: ""
       responses:
@@ -751,15 +773,6 @@ definitions:
       acl:
         type: "string"
         description: "IP addresses who is allowed to use the tunnel. For example, '142.78.90.8,201.98.123.0/24,'."
-  Sessions:
-    type: "object"
-    properties:
-      data:
-        type: "array"
-        items:
-          $ref: "#/definitions/Session"
-      meta:
-        type: "object"
   Session:
     type: "object"
     properties:
@@ -898,15 +911,6 @@ definitions:
       password:
         type: "string"
         description: "client password"
-  Clients:
-    type: "object"
-    properties:
-      data:
-        type: "array"
-        items:
-          $ref: "#/definitions/Client"
-      meta:
-        type: "object"
   JobStatus:
     type: "string"
     enum: &JOB_STATUS
@@ -1044,7 +1048,7 @@ definitions:
         type: "string"
       detial:
         type: "string"
-  ExecuteCmdRequeest:
+  ExecuteCmdRequest:
     description: "Request that contains a remote command to execute by rport client(s) and other related properties"
     type: "object"
     properties:

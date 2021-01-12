@@ -22,7 +22,31 @@ From a technological perspective, [Ngrok](https://ngrok.com/) and [openport.io](
 * Rport allows you to self-host the server.
 * Rport allows clients to wait in standby mode without an active tunnel. Tunnels can be requested on-demand by the user remotely.
 
+## Table of Contents
+* [Build and installation](#build-install)
+* [Usage](#usage)
+* [Quickstart guide](#quick-guide)
+  * [Install and run the rport server](#run-server)
+  * [Connect a client](#run-client)
+* [Configuration files](#configs)
+* [Proper client and server installation](#proper-install)
+  * [Don't use the root user](#no-root-user)
+  * [Run the server with systemd](#run-server-systemd)
+  * [Using authentication](#client-auth)
+* [On-demand tunnels using the API](#on-demand-tunnels)
+* [API](#api)
+  * [Activate the API](#api-activate)
+  * [Authentication options](#api-auth)
+  * [Install a web-based frontend](#api-front-end)
+  * [Main capabilities](#api-capabilities)
+    * [Manage clients and tunnels](#api-clients-tunnels)
+    * [Command execution](#api-execute-commands)
+    * [Manage client auth credentials](#api-clients-auth)
+    * [Manage client groups](#api-client-groups)
+* [Versioning model](#versioning)
+* [Credits](#credits)
 
+<a name="build-install"></a>
 ## Build and installation
 We provide [pre-compiled binaries](https://github.com/cloudradar-monitoring/rport/releases).
 ### From source
@@ -38,6 +62,7 @@ We provide [pre-compiled binaries](https://github.com/cloudradar-monitoring/rpor
     ```
     will create binaries for all supported platforms in `./dist` directory.
 
+<a name="usage"></a>
 ## Usage
 `rportd` should be executed on the machine, acting as a server.
 
@@ -57,7 +82,9 @@ See `./rportd --help` and `./rport --help` for more options, like:
 - Setting custom HTTP headers
 - Using IPv6 addresses when starting a server
 
+<a name="quick-guide"></a>
 ## Quickstart guide
+<a name="run-server"></a>
 ### Install and run the rport server
 On a machine connected to the public internet and ideally with an FQDN registered to a public DNS install and run the server.
 The server is called node1.example.com in this example.
@@ -79,6 +106,7 @@ nohup rportd --auth rport:password123 --key <YOUR_KEY> --addr 0.0.0.0:19075 &>/t
 ```
 For the first testing leave the console open and observe the log with `tail -f /tmp/rportd.log`.
 
+<a name="run-client"></a>
 ### Connect a client
 We call the client `client1.local.localdomain`.
 On your client just install the client binary
@@ -100,6 +128,7 @@ Copy the fingerprint the server has generated on startup to your clipboard and u
 This ensures you connect only to trusted servers. If you omit this step a man in the middle can bring up a rport server and hijack your tunnels.
 If you do ssh or rdp through the tunnel, a hijacked tunnel will not expose your credentials because the data inside the tunnel is still encrypted. But if you use rport for unencrypted protocols like HTTP, sniffing credentials would be possible.
 
+<a name="configs"></a>
 ## Configuration files
 Config files can be used to set up both the rport server and clients. In order to use it an arg `--config`(or `-c`) should be passed to a command with a path to the file. Configuration examples `rportd.example.conf` ([view online](rportd.example.conf)) and `rport.example.conf` ([view online](rport.example.conf)) can be found in the release archive or in the source.
 
@@ -111,7 +140,9 @@ rportd -c /etc/rport/rportd.conf
 rport -c /etc/rport/rport.conf
 ```
 
+<a name="proper-install"></a>
 ## Proper client and server installation
+<a name="no-root-user"></a>
 ### Don't use the root user
 Client and server don't require running as root in Linux. You should avoid this. Create an unprivileged system-user instead.
 ```
@@ -119,6 +150,7 @@ useradd -r -d /var/lib/rport -m -s /bin/false -U -c "System user for rport clien
 mkdir /var/log/rport/
 chown rport:root /var/log/rport/
 ```
+<a name="run-server-systemd"></a>
 ### Run the server with systemd
 Packages for most common distributions and Windows are on our roadmap. In the meantime create a systemd service file in `/etc/systemd/system/rportd.service` with the following lines manually.
 ```
@@ -149,6 +181,7 @@ systemctl start rportd
 systemctl enable rportd
 ```
 
+<a name="client-auth"></a>
 ### Using authentication
 To prevent anyone who knows the address and the port of your rport server to use it for tunneling, using client authentication is required.
 
@@ -159,29 +192,14 @@ On the client start the tunnel this way
 *Note that in this early version the order of the command line options is still important. This might change later.*
 
 
+<a name="on-demand-tunnels"></a>
 ## On-demand tunnels using the API
 Initializing the creation of a tunnel from the client is nice but not a perfect solution for secure and reliable remote access to a large number of machines.
 Most of the time the tunnel wouldn't be used. Network resources would be wasted and a port is exposed to the internet for an unnecessarily long time.
 Rport provides the option to establish tunnels from the server only when you need them.
 
-#### Step 1: activate the API
-The internal management API is disabled by default. To activate it use a config file that is described
-in ["Configuration files"](https://github.com/cloudradar-monitoring/rport#configuration-files) section.
-Set up `[api]` config params. For example:
-   ```
-   # specify non-empty api.address to enable API support
-   [api]
-     # Defines the IP address and port the API server listens on
-     address = "127.0.0.1:3000"
-     # Defines <user:password> authentication pair for accessing API
-     auth = "admin:foobaz"
-   ```
-This opens the API and enables HTTP basic authentication with a single user "admin:foobaz" who has access to the API.
-To enable access to multiple users and to mange them in the file use "api.auth_file" config param (or "--api-authfile" rportd command arg).
-Restart the rportd after any changes to the configuration.
-Read more about the supported [api authentication options](docs/api-auth.md).
-
-Read the [Swagger API docs](https://petstore.swagger.io/?url=https://raw.githubusercontent.com/cloudradar-monitoring/rport/master/api-doc.yml).
+#### Step 1: Activate the API
+Activate the API as described in ["Activate the API"](#api-activate).
 
 #### Step 2: Connect a client
 Invoke the client without specifying a tunnel but with some extra data.
@@ -263,11 +281,61 @@ Read more about the [management of tunnel via the API](docs/managing-tunnels.md)
 #### Step 4: Install a web-based frontend
 Rport comes with a user-friendly web-based frontend. The frontend has it's own none-open-source repository. The installation is quick and easy. [Learn more](docs/frontend.md).
 
-### Versioning model
+<a name="api"></a>
+## API
+Please read the [Swagger API docs](https://petstore.swagger.io/?url=https://raw.githubusercontent.com/cloudradar-monitoring/rport/master/api-doc.yml).
+
+<a name="api-activate"></a>
+### Activate the API
+The internal management API is disabled by default. To activate it use a config file that is described
+in ["Configuration files"](https://github.com/cloudradar-monitoring/rport#configuration-files) section.
+Set up `[api]` config params. For example:
+   ```
+   # specify non-empty api.address to enable API support
+   [api]
+     # Defines the IP address and port the API server listens on
+     address = "127.0.0.1:3000"
+     # Defines <user:password> authentication pair for accessing API
+     auth = "admin:foobaz"
+   ```
+This opens the API and enables HTTP basic authentication with a single user "admin:foobaz" who has access to the API.
+To enable access to multiple users and to mange them in the file use "api.auth_file" config param (or "--api-authfile" rportd command arg).
+Restart the rportd after any changes to the configuration. Read more about API auth options below.
+
+<a name="api-auth"></a>
+### Authentication options
+Please read the supported [api authentication options](docs/api-auth.md).
+
+<a name="api-front-end"></a>
+### Install a web-based frontend
+Rport comes with a user-friendly web-based frontend. The frontend has its own none-open-source repository. The installation is quick and easy. [Learn more](docs/frontend.md).
+
+<a name="api-capabilities"></a>
+### Main capabilities
+
+<a name="api-clients-tunnels"></a>
+* #### Manage clients and tunnels
+  Please read the [management of clients and tunnels via the API](docs/managing-tunnels.md) or the [Swagger API docs](https://petstore.swagger.io/?url=https://raw.githubusercontent.com/cloudradar-monitoring/rport/master/api-doc.yml#/Client%20Sessions%20and%20Tunnels).
+
+<a name="api-execute-commands"></a>
+* #### Command execution
+  Please read the [command execution via the API](docs/command-execution.md) or the [Swagger API docs](https://petstore.swagger.io/?url=https://raw.githubusercontent.com/cloudradar-monitoring/rport/master/api-doc.yml#/Commands).
+
+<a name="api-clients-auth"></a>
+* #### Manage client auth credentials
+  Please read the [management of client authentication credentials via the API](docs/client-auth.md) or the [Swagger API docs](https://petstore.swagger.io/?url=https://raw.githubusercontent.com/cloudradar-monitoring/rport/master/api-doc.yml#/Rport%20Client%20Auth%20Credentials).
+
+<a name="api-client-groups"></a>
+* #### Manage client groups
+  Please read the [Swagger API docs](https://petstore.swagger.io/?url=https://raw.githubusercontent.com/cloudradar-monitoring/rport/master/api-doc.yml#/Client%20Groups).
+
+<a name="versioning"></a>
+## Versioning model
 rport uses `<major>.<minor>.<buildnumber>` version pattern for compatibility with a maximum number of package managers.
 
 Starting from version 1.0.0 packages with even <minor> number are considered stable.
 
 
-### Credits
+<a name="credits"></a>
+## Credits
 Forked from [jpillora/chisel](https://github.com/jpillora/chisel)
