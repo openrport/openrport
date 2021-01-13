@@ -20,6 +20,15 @@ security:
 schemes:
   - http
   - https
+tags:
+  - name: "Client Sessions and Tunnels"
+    description: For more details https://github.com/cloudradar-monitoring/rport/blob/master/docs/managing-tunnels.md
+  - name: "Client Groups"
+    description: For more details https://github.com/cloudradar-monitoring/rport/blob/master/docs/client-groups.md
+  - name: "Rport Client Auth Credentials"
+    description: For more details https://github.com/cloudradar-monitoring/rport/blob/master/docs/client-auth.md
+  - name: "Commands"
+    description: For more details https://github.com/cloudradar-monitoring/rport/blob/master/docs/command-execution.md
 paths:
   /login:
     get:
@@ -835,7 +844,9 @@ definitions:
 
         Each parameter can be specified by:\n
         1. exact match of the property. For example, \"client_id\": [\"test-win2019-tk01\", \"qa-lin-ubuntu16\"]\n
-        2. dynamic criteria using wildcards. For example, \"os_family\": [\"linux*\"]\n"
+        2. dynamic criteria using wildcards. For example, \"os_family\": [\"linux*\"]\n
+
+        For more details please see https://github.com/cloudradar-monitoring/rport/blob/master/docs/client-groups.md\n"
         properties:
           client_id:
             type: "array"

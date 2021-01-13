@@ -327,7 +327,7 @@ Rport comes with a user-friendly web-based frontend. The frontend has its own no
 
 <a name="api-client-groups"></a>
 * #### Manage client groups
-  Please read the [Swagger API docs](https://petstore.swagger.io/?url=https://raw.githubusercontent.com/cloudradar-monitoring/rport/master/api-doc.yml#/Client%20Groups).
+  Please read the [management of client groups via the API](docs/client-groups.md) or the [Swagger API docs](https://petstore.swagger.io/?url=https://raw.githubusercontent.com/cloudradar-monitoring/rport/master/api-doc.yml#/Client%20Groups).
 
 <a name="versioning"></a>
 ## Versioning model

@@ -2,7 +2,7 @@
 The Rportd can read client credentials from three different sources.
 1. A "hardcoded" single pair of client credentials
 2. A file with client credentials
-3. A database table (NOT SUPPORTED YET)
+3. A database table
 
 Which one you choose is an either-or decision. A mixed-mode is not supported.
 If (2) or (3) is enabled then managing clients can be done via the API.
