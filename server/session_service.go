@@ -9,6 +9,7 @@ import (
 
 	"golang.org/x/crypto/ssh"
 
+	"github.com/cloudradar-monitoring/rport/server/cgroups"
 	"github.com/cloudradar-monitoring/rport/server/ports"
 	"github.com/cloudradar-monitoring/rport/server/sessions"
 	chshare "github.com/cloudradar-monitoring/rport/share"
@@ -42,6 +43,20 @@ func (s *SessionService) GetByID(id string) (*sessions.ClientSession, error) {
 
 func (s *SessionService) GetActiveByID(id string) (*sessions.ClientSession, error) {
 	return s.repo.GetActiveByID(id)
+}
+
+func (s *SessionService) GetActiveByGroups(groups []*cgroups.ClientGroup) []*sessions.ClientSession {
+	if len(groups) == 0 {
+		return nil
+	}
+
+	var res []*sessions.ClientSession
+	for _, curSess := range s.repo.GetAllActive() {
+		if curSess.BelongsToOneOf(groups) {
+			res = append(res, curSess)
+		}
+	}
+	return res
 }
 
 // TODO(m-terel): make it consistent with others whether to return an error. No need for now return an err

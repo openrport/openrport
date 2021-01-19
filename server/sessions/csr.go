@@ -102,6 +102,18 @@ func (s *ClientSessionRepository) GetAll() ([]*ClientSession, error) {
 	return s.getNonObsolete()
 }
 
+func (s *ClientSessionRepository) GetAllActive() []*ClientSession {
+	s.mu.RLock()
+	defer s.mu.RUnlock()
+	var result []*ClientSession
+	for _, session := range s.sessions {
+		if session.Disconnected == nil {
+			result = append(result, session)
+		}
+	}
+	return result
+}
+
 func (s *ClientSessionRepository) getNonObsolete() ([]*ClientSession, error) {
 	result := make([]*ClientSession, 0, len(s.sessions))
 	for _, session := range s.sessions {

@@ -67,6 +67,7 @@ type multiJobSummarySqlite struct {
 
 type multiJobDetailSqlite struct {
 	ClientIDs  []string `json:"client_ids"`
+	GroupIDs   []string `json:"group_ids"`
 	Command    string   `json:"command"`
 	Shell      string   `json:"shell"`
 	TimeoutSec int      `json:"timeout_sec"`
@@ -122,6 +123,7 @@ func (j *multiJobSqlite) convert() *models.MultiJob {
 	return &models.MultiJob{
 		MultiJobSummary: *js,
 		ClientIDs:       d.ClientIDs,
+		GroupIDs:        d.GroupIDs,
 		Command:         d.Command,
 		Shell:           d.Shell,
 		TimeoutSec:      d.TimeoutSec,
@@ -139,6 +141,7 @@ func convertMultiJobToSqlite(job *models.MultiJob) *multiJobSqlite {
 		},
 		Details: &multiJobDetailSqlite{
 			ClientIDs:  job.ClientIDs,
+			GroupIDs:   job.GroupIDs,
 			Command:    job.Command,
 			Shell:      job.Shell,
 			TimeoutSec: job.TimeoutSec,

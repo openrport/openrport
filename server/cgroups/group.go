@@ -5,6 +5,7 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
+	"strings"
 )
 
 type ClientGroup struct {
@@ -14,19 +15,54 @@ type ClientGroup struct {
 }
 
 type ClientParams struct {
-	ClientID     []string `json:"client_id"`
-	Name         []string `json:"name"`
-	OS           []string `json:"os"`
-	OSArch       []string `json:"os_arch"`
-	OSFamily     []string `json:"os_family"`
-	OSKernel     []string `json:"os_kernel"`
-	Hostname     []string `json:"hostname"`
-	IPv4         []string `json:"ipv4"`
-	IPv6         []string `json:"ipv6"`
-	Tag          []string `json:"tag"`
-	Version      []string `json:"version"`
-	Address      []string `json:"address"`
-	ClientAuthID []string `json:"client_auth_id"`
+	ClientID     ParamValues `json:"client_id"`
+	Name         ParamValues `json:"name"`
+	OS           ParamValues `json:"os"`
+	OSArch       ParamValues `json:"os_arch"`
+	OSFamily     ParamValues `json:"os_family"`
+	OSKernel     ParamValues `json:"os_kernel"`
+	Hostname     ParamValues `json:"hostname"`
+	IPv4         ParamValues `json:"ipv4"`
+	IPv6         ParamValues `json:"ipv6"`
+	Tag          ParamValues `json:"tag"`
+	Version      ParamValues `json:"version"`
+	Address      ParamValues `json:"address"`
+	ClientAuthID ParamValues `json:"client_auth_id"`
+}
+
+type Param string
+type ParamValues []Param
+
+func (p ParamValues) MatchesOneOf(values ...string) bool {
+	if len(values) == 0 || len(p) == 0 {
+		return true
+	}
+
+	for _, curParam := range p {
+		for _, curValue := range values {
+			if curParam.matches(curValue) {
+				return true
+			}
+		}
+	}
+	return false
+}
+
+func (p Param) matches(value string) bool {
+	if value == "" {
+		return true
+	}
+
+	str := string(p)
+	if len(str) == 0 {
+		return false
+	}
+
+	if strings.HasSuffix(str, "*") {
+		return strings.Contains(value, str[:len(str)-1])
+	}
+
+	return str == value
 }
 
 func (p *ClientParams) Scan(value interface{}) error {

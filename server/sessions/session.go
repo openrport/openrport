@@ -10,6 +10,7 @@ import (
 
 	"golang.org/x/crypto/ssh"
 
+	"github.com/cloudradar-monitoring/rport/server/cgroups"
 	chshare "github.com/cloudradar-monitoring/rport/share"
 )
 
@@ -132,4 +133,57 @@ func (c *ClientSession) Banner() string {
 func (c *ClientSession) Close() error {
 	// The tunnels are closed automatically when ssh connection is closed.
 	return c.Connection.Close()
+}
+
+func (c *ClientSession) BelongsToOneOf(groups []*cgroups.ClientGroup) bool {
+	for _, cur := range groups {
+		if c.belongsTo(cur) {
+			return true
+		}
+	}
+	return false
+}
+
+func (c *ClientSession) belongsTo(group *cgroups.ClientGroup) bool {
+	p := group.Params
+	if !p.ClientID.MatchesOneOf(c.ID) {
+		return false
+	}
+	if !p.Name.MatchesOneOf(c.Name) {
+		return false
+	}
+	if !p.OS.MatchesOneOf(c.OS) {
+		return false
+	}
+	if !p.OSArch.MatchesOneOf(c.OSArch) {
+		return false
+	}
+	if !p.OSFamily.MatchesOneOf(c.OSFamily) {
+		return false
+	}
+	if !p.OSKernel.MatchesOneOf(c.OSKernel) {
+		return false
+	}
+	if !p.Hostname.MatchesOneOf(c.Hostname) {
+		return false
+	}
+	if !p.IPv4.MatchesOneOf(c.IPv4...) {
+		return false
+	}
+	if !p.IPv6.MatchesOneOf(c.IPv6...) {
+		return false
+	}
+	if !p.Tag.MatchesOneOf(c.Tags...) {
+		return false
+	}
+	if !p.Version.MatchesOneOf(c.Version) {
+		return false
+	}
+	if !p.Address.MatchesOneOf(c.Address) {
+		return false
+	}
+	if !p.ClientAuthID.MatchesOneOf(c.ClientID) {
+		return false
+	}
+	return true
 }

@@ -867,19 +867,24 @@ type newJobResponse struct {
 	JID string `json:"jid"`
 }
 
+type multiClientCmdRequest struct {
+	ClientIDs           []string `json:"client_ids"`
+	GroupIDs            []string `json:"group_ids"`
+	Command             string   `json:"command"`
+	Shell               string   `json:"shell"`
+	TimeoutSec          int      `json:"timeout_sec"`
+	ExecuteConcurrently bool     `json:"execute_concurrently"`
+	AbortOnError        bool     `json:"abort_on_error"`
+}
+
+// TODO: refactor to reuse similar code for REST API and WebSocket to execute cmds
 func (al *APIListener) handlePostMultiClientCommand(w http.ResponseWriter, req *http.Request) {
 	if !al.allowRunCommands(w) {
 		return
 	}
 
-	reqBody := struct {
-		ClientIDs           []string `json:"client_ids"`
-		Command             string   `json:"command"`
-		Shell               string   `json:"shell"`
-		TimeoutSec          int      `json:"timeout_sec"`
-		ExecuteConcurrently bool     `json:"execute_concurrently"`
-		AbortOnError        bool     `json:"abort_on_error"`
-	}{}
+	ctx := req.Context()
+	reqBody := multiClientCmdRequest{}
 	dec := json.NewDecoder(req.Body)
 	dec.DisallowUnknownFields()
 	err := dec.Decode(&reqBody)
@@ -903,8 +908,29 @@ func (al *APIListener) handlePostMultiClientCommand(w http.ResponseWriter, req *
 		reqBody.TimeoutSec = al.config.Server.RunRemoteCmdTimeoutSec
 	}
 
+	var groups []*cgroups.ClientGroup
+	for _, groupID := range reqBody.GroupIDs {
+		// TODO: add sql to get groups by id list
+		group, err := al.clientGroupProvider.Get(ctx, groupID)
+		if err != nil {
+			al.jsonErrorResponseWithError(w, http.StatusInternalServerError, "", fmt.Sprintf("Failed to get a client group with id=%q.", groupID), err)
+			return
+		}
+		if group == nil {
+			al.jsonErrorResponseWithTitle(w, http.StatusBadRequest, fmt.Sprintf("Unknown group with id=%q.", groupID))
+			return
+		}
+		groups = append(groups, group)
+	}
+	groupClients := al.sessionService.GetActiveByGroups(groups)
+
+	if len(reqBody.GroupIDs) > 0 && len(groupClients) == 0 && len(reqBody.ClientIDs) == 0 {
+		al.jsonErrorResponseWithTitle(w, http.StatusBadRequest, "No active clients belong to the selected group(s).")
+		return
+	}
+
 	minClients := 2
-	if len(reqBody.ClientIDs) < minClients {
+	if len(reqBody.ClientIDs) < minClients && len(groupClients) == 0 {
 		al.jsonErrorResponseWithTitle(w, http.StatusBadRequest, fmt.Sprintf("At least %d clients should be specified.", minClients))
 		return
 	}
@@ -927,6 +953,12 @@ func (al *APIListener) handlePostMultiClientCommand(w http.ResponseWriter, req *
 		clientsConn[sid] = session.Connection
 	}
 
+	for _, groupClient := range groupClients {
+		if clientsConn[groupClient.ID] == nil {
+			clientsConn[groupClient.ID] = groupClient.Connection
+		}
+	}
+
 	multiJob := &models.MultiJob{
 		MultiJobSummary: models.MultiJobSummary{
 			JID:       generateNewJobID(),
@@ -934,6 +966,7 @@ func (al *APIListener) handlePostMultiClientCommand(w http.ResponseWriter, req *
 			CreatedBy: api.GetUser(req.Context(), al.Logger),
 		},
 		ClientIDs:  reqBody.ClientIDs,
+		GroupIDs:   reqBody.GroupIDs,
 		Command:    reqBody.Command,
 		Shell:      reqBody.Shell,
 		TimeoutSec: reqBody.TimeoutSec,
@@ -950,17 +983,17 @@ func (al *APIListener) handlePostMultiClientCommand(w http.ResponseWriter, req *
 	}
 	al.writeJSONResponse(w, http.StatusOK, api.NewSuccessPayload(resp))
 
-	al.Debugf("Multi-client Job[id=%q] created to execute remote command on clients %s: %q.", multiJob.JID, reqBody.ClientIDs, reqBody.Command)
+	al.Debugf("Multi-client Job[id=%q] created to execute remote command on clients %s, groups %s: %q.", multiJob.JID, reqBody.ClientIDs, reqBody.GroupIDs, reqBody.Command)
 
 	go al.executeMultiClientJob(multiJob, clientsConn)
 }
 
 func (al *APIListener) executeMultiClientJob(job *models.MultiJob, clientsConn map[string]ssh.Conn) {
-	for _, sid := range job.ClientIDs {
+	for sid, conn := range clientsConn {
 		if job.Concurrent {
-			go al.createAndRunJob(job.JID, sid, job.Command, job.Shell, job.CreatedBy, job.TimeoutSec, clientsConn[sid])
+			go al.createAndRunJob(job.JID, sid, job.Command, job.Shell, job.CreatedBy, job.TimeoutSec, conn)
 		} else {
-			success := al.createAndRunJob(job.JID, sid, job.Command, job.Shell, job.CreatedBy, job.TimeoutSec, clientsConn[sid])
+			success := al.createAndRunJob(job.JID, sid, job.Command, job.Shell, job.CreatedBy, job.TimeoutSec, conn)
 			if !success && job.AbortOnErr {
 				break
 			}
@@ -1015,20 +1048,14 @@ func (al *APIListener) handleCommandsWS(w http.ResponseWriter, req *http.Request
 		return
 	}
 
+	ctx := req.Context()
 	uiConn, err := apiUpgrader.Upgrade(w, req, nil)
 	if err != nil {
 		al.Errorf("Failed to establish WS connection: %v", err)
 		return
 	}
 	uiConnTS := ws.NewConcurrentWebSocket(uiConn, al.Logger)
-	inboundMsg := struct {
-		ClientIDs           []string `json:"client_ids"`
-		Command             string   `json:"command"`
-		Shell               string   `json:"shell"`
-		TimeoutSec          int      `json:"timeout_sec"`
-		ExecuteConcurrently bool     `json:"execute_concurrently"`
-		AbortOnError        bool     `json:"abort_on_error"`
-	}{}
+	inboundMsg := multiClientCmdRequest{}
 	err = uiConnTS.ReadJSON(&inboundMsg)
 	if err == io.EOF { // is handled separately to return an informative error message
 		uiConnTS.WriteError("Inbound message should contain non empty json object with command data.", nil)
@@ -1051,7 +1078,28 @@ func (al *APIListener) handleCommandsWS(w http.ResponseWriter, req *http.Request
 		inboundMsg.TimeoutSec = al.config.Server.RunRemoteCmdTimeoutSec
 	}
 
-	if len(inboundMsg.ClientIDs) < 1 {
+	var groups []*cgroups.ClientGroup
+	for _, groupID := range inboundMsg.GroupIDs {
+		// TODO: add sql to get groups by id list
+		group, err := al.clientGroupProvider.Get(ctx, groupID)
+		if err != nil {
+			uiConnTS.WriteError(fmt.Sprintf("Failed to get a client group with id=%q.", groupID), err)
+			return
+		}
+		if group == nil {
+			uiConnTS.WriteError(fmt.Sprintf("Unknown group with id=%q.", groupID), nil)
+			return
+		}
+		groups = append(groups, group)
+	}
+	groupClients := al.sessionService.GetActiveByGroups(groups)
+
+	if len(inboundMsg.GroupIDs) > 0 && len(groupClients) == 0 && len(inboundMsg.ClientIDs) == 0 {
+		uiConnTS.WriteError("No active clients belong to the selected group(s).", nil)
+		return
+	}
+
+	if len(inboundMsg.ClientIDs) < 1 && len(groupClients) == 0 {
 		uiConnTS.WriteError("'client_ids' field should contain at least one client ID", nil)
 		return
 	}
@@ -1074,12 +1122,18 @@ func (al *APIListener) handleCommandsWS(w http.ResponseWriter, req *http.Request
 		clientsConn[sid] = session.Connection
 	}
 
+	for _, groupClient := range groupClients {
+		if clientsConn[groupClient.ID] == nil {
+			clientsConn[groupClient.ID] = groupClient.Connection
+		}
+	}
+
 	jid := generateNewJobID()
 	al.Server.uiJobWebSockets.Set(jid, uiConnTS)
 	defer al.Server.uiJobWebSockets.Delete(jid)
 
 	createdBy := api.GetUser(req.Context(), al.Logger)
-	if len(inboundMsg.ClientIDs) > 1 {
+	if len(inboundMsg.ClientIDs) > 1 || len(groupClients) > 0 {
 		multiJob := &models.MultiJob{
 			MultiJobSummary: models.MultiJobSummary{
 				JID:       jid,
@@ -1087,6 +1141,7 @@ func (al *APIListener) handleCommandsWS(w http.ResponseWriter, req *http.Request
 				CreatedBy: createdBy,
 			},
 			ClientIDs:  inboundMsg.ClientIDs,
+			GroupIDs:   inboundMsg.GroupIDs,
 			Command:    inboundMsg.Command,
 			Shell:      inboundMsg.Shell,
 			TimeoutSec: inboundMsg.TimeoutSec,
@@ -1098,14 +1153,14 @@ func (al *APIListener) handleCommandsWS(w http.ResponseWriter, req *http.Request
 			return
 		}
 
-		al.Debugf("Multi-client Job[id=%q] created to execute remote command on clients %s: %q.", multiJob.JID, inboundMsg.ClientIDs, inboundMsg.Command)
-		uiConnTS.SetWritesBeforeClose(len(multiJob.ClientIDs))
-		for _, sid := range multiJob.ClientIDs {
+		al.Debugf("Multi-client Job[id=%q] created to execute remote command on clients %s, groups %s: %q.", multiJob.JID, inboundMsg.ClientIDs, inboundMsg.GroupIDs, inboundMsg.Command)
+		uiConnTS.SetWritesBeforeClose(len(clientsConn))
+		for sid, conn := range clientsConn {
 			curJID := generateNewJobID()
 			if multiJob.Concurrent {
-				go al.createAndRunJobWS(uiConnTS, &jid, curJID, sid, multiJob.Command, multiJob.Shell, createdBy, multiJob.TimeoutSec, clientsConn[sid])
+				go al.createAndRunJobWS(uiConnTS, &jid, curJID, sid, multiJob.Command, multiJob.Shell, createdBy, multiJob.TimeoutSec, conn)
 			} else {
-				success := al.createAndRunJobWS(uiConnTS, &jid, curJID, sid, multiJob.Command, multiJob.Shell, createdBy, multiJob.TimeoutSec, clientsConn[sid])
+				success := al.createAndRunJobWS(uiConnTS, &jid, curJID, sid, multiJob.Command, multiJob.Shell, createdBy, multiJob.TimeoutSec, conn)
 				if !success && multiJob.AbortOnErr {
 					uiConnTS.Close()
 					return

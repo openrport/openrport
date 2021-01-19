@@ -41,6 +41,7 @@ type JobResult struct {
 type MultiJob struct {
 	MultiJobSummary
 	ClientIDs  []string `json:"client_ids"`
+	GroupIDs   []string `json:"group_ids"`
 	Command    string   `json:"command"`
 	Shell      string   `json:"shell"`
 	TimeoutSec int      `json:"timeout_sec"`

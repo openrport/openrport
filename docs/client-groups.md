@@ -18,7 +18,7 @@ Each parameter can be specified by:
     }
     ```
     Means only clients with `id` equals to `test-win2019-tk01` or `qa-lin-ubuntu16` belong to a current group.
-  * dynamic criteria using wildcards. For example, 
+  * dynamic criteria using wildcards (`"*"` can be only at the end). For example, 
     ```
     params: {
       "os_family": ["linux*"]
@@ -27,7 +27,10 @@ Each parameter can be specified by:
     Means all clients with `os_family` that starts with `linux` belong to a current group.
     
   NOTE: if few different parameters are given then a client belongs to this group
-  only if client properties match all the given group parameters. For example,
+  only if client properties match all the given group parameters.
+  If client parameter has multiple values (like `tags`, `ipv4`, `ipv6`, etc) then
+  he belongs to a group if at least one client param matches one of group parameters.
+  For example,
   ```
     params: {
       "tag": ["QA", "my-tag*"],
@@ -35,7 +38,7 @@ Each parameter can be specified by:
     }
   ```
   Means clients belong to this group only if **both** conditions are met:
-  1. has `tag` equals to `QA` or `tag` that starts with `my-tag`;
+  1. has `tag` equals to `QA` **OR** `tag` that starts with `my-tag`;
   2. its `os_family` starts with `linux` or `ubuntu`.
 
 ### Manage client groups via the API

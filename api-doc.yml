@@ -427,8 +427,12 @@ paths:
                 type: "array"
                 items:
                   type: string
-                minItems: 2
-                description: "list of client IDs (i.e. session IDs) where to run the command"
+                description: "list of client IDs (i.e. session IDs) where to run the command. Min items is 2 if group_ids is not specified"
+              group_ids:
+                type: "array"
+                items:
+                  type: string
+                description: "list of client group IDs. A command will be executed on all clients that belong to given group(s)"
               shell:
                 type: "string"
                 enum: [cmd, powershell]
@@ -521,6 +525,7 @@ paths:
       {\n
         \"command\": \"/usr/bin/whoami\",\n
         \"client_ids\": [ \"qa-lin-debian9\", \"qa-lin-debian10\", \"qa-lin-centos8\", \"qa-lin-ubuntu18\", \"qa-lin-ubuntu16\" ],\n
+        \"group_ids\": [ \"group-1\"],\n
         \"timeout_sec\": 30,\n
         \"execute_concurrently\": true\n
       }\n
@@ -528,7 +533,7 @@ paths:
       5. Server sends a given command to rport client(s) to execute.\n
       6. As soon as it gets a result from each rport client - it sends an outbound JSON message `Job`(see in 'Models').\n
          It can contain a non-empty 'error' field if server wasn't able to send the command to the rport client.\n
-         Number of outbound messages is expected to be as many as client IDs in the request. Or less if it's not a concurrent mode and 'abort_on_error' is turned on.\n
+         Number of outbound messages is expected to be as many as rport clients. Or less if it's not a concurrent mode and 'abort_on_error' is turned on.\n
       7. As soon as all rport clients send back the result - connection is closed by server.\n
       8. Also, a current connection can be closed by UI client.\n
       "
@@ -1012,7 +1017,12 @@ definitions:
         type: "array"
         items:
           type: string
-        description: "list of client IDs (i.e. session IDs) where to run the command"
+        description: "list of client IDs (i.e. session IDs) where the command was requested to run"
+      group_ids:
+        type: "array"
+        items:
+          type: string
+        description: "list of client group IDs where the command was requested to run"
       command:
         type: "string"
         description: "executed command"
