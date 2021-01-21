@@ -58,8 +58,21 @@ func (p Param) matches(value string) bool {
 		return false
 	}
 
-	if strings.HasSuffix(str, "*") {
-		return strings.Contains(value, str[:len(str)-1])
+	if strings.Contains(str, "*") {
+		parts := strings.Split(str, "*")
+		if !strings.HasPrefix(value, parts[0]) || !strings.HasSuffix(value, parts[len(parts)-1]) {
+			return false
+		}
+
+		for _, part := range parts {
+			i := strings.Index(value, part)
+			if i == -1 {
+				return false
+			}
+			value = value[(i + len(part)):]
+		}
+
+		return true
 	}
 
 	return str == value

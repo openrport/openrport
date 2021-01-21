@@ -24,6 +24,38 @@ func TestMatchesOneOf(t *testing.T) {
 			wantRes: true,
 		},
 		{
+			name: "exact match but twice",
+
+			groupParams:  ParamValues{"123"},
+			clientParams: []string{"123123"},
+
+			wantRes: false,
+		},
+		{
+			name: "start and end shares char",
+
+			groupParams:  ParamValues{"123*31"},
+			clientParams: []string{"1231"},
+
+			wantRes: false,
+		},
+		{
+			name: "extra char at start",
+
+			groupParams:  ParamValues{"1123*31"},
+			clientParams: []string{"123431"},
+
+			wantRes: false,
+		},
+		{
+			name: "extra char at end",
+
+			groupParams:  ParamValues{"113*21"},
+			clientParams: []string{"1134121211"},
+
+			wantRes: false,
+		},
+		{
 			name: "group params contains exact client param",
 
 			groupParams:  ParamValues{"id-1", "id-2", "id-3"},
@@ -52,6 +84,54 @@ func TestMatchesOneOf(t *testing.T) {
 
 			groupParams:  ParamValues{"id-*"},
 			clientParams: []string{"id-12345678"},
+
+			wantRes: true,
+		},
+		{
+			name: "only wildcard",
+
+			groupParams:  ParamValues{"*"},
+			clientParams: []string{"id-12345678"},
+
+			wantRes: true,
+		},
+		{
+			name: "wildcards at start end",
+
+			groupParams:  ParamValues{"*-inside-*"},
+			clientParams: []string{"id-123-inside-45678"},
+
+			wantRes: true,
+		},
+		{
+			name: "wildcards, client value the same but without wildcards",
+
+			groupParams:  ParamValues{"*-*in***side**-*"},
+			clientParams: []string{"-inside-"},
+
+			wantRes: true,
+		},
+		{
+			name: "few wildcards in the middle",
+
+			groupParams:  ParamValues{"prefix*1**2*35"},
+			clientParams: []string{"prefix-id-1234567835"},
+
+			wantRes: true,
+		},
+		{
+			name: "few wildcards in the middle, no match",
+
+			groupParams:  ParamValues{"prefix*1**2*35"},
+			clientParams: []string{"prefix-id-1234567836"},
+
+			wantRes: false,
+		},
+		{
+			name: "few wildcards in all positions",
+
+			groupParams:  ParamValues{"*p**re***fix*1*2*3*"},
+			clientParams: []string{"preeeeeefix-id-111233456783"},
 
 			wantRes: true,
 		},
