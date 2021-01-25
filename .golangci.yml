@@ -46,7 +46,7 @@ linters-settings:
   gocyclo:
     # minimal code complexity to report, 30 by default (but we recommend 10-20)
     # TODO: reduce to 20 when complex code would be refactored
-    min-complexity: 31
+    min-complexity: 34
   maligned:
     # print struct with more effective memory layout or not, false by default
     suggest-new: true

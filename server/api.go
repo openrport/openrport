@@ -877,7 +877,7 @@ type multiClientCmdRequest struct {
 	AbortOnError        bool     `json:"abort_on_error"`
 }
 
-// TODO: refactor to reuse similar code for REST API and WebSocket to execute cmds
+// TODO: refactor to reuse similar code for REST API and WebSocket to execute cmds if both will be supported
 func (al *APIListener) handlePostMultiClientCommand(w http.ResponseWriter, req *http.Request) {
 	if !al.allowRunCommands(w) {
 		return
@@ -910,7 +910,6 @@ func (al *APIListener) handlePostMultiClientCommand(w http.ResponseWriter, req *
 
 	var groups []*cgroups.ClientGroup
 	for _, groupID := range reqBody.GroupIDs {
-		// TODO: add sql to get groups by id list
 		group, err := al.clientGroupProvider.Get(ctx, groupID)
 		if err != nil {
 			al.jsonErrorResponseWithError(w, http.StatusInternalServerError, "", fmt.Sprintf("Failed to get a client group with id=%q.", groupID), err)
@@ -989,12 +988,33 @@ func (al *APIListener) handlePostMultiClientCommand(w http.ResponseWriter, req *
 }
 
 func (al *APIListener) executeMultiClientJob(job *models.MultiJob, clientsConn map[string]ssh.Conn) {
+	// for sequential execution - create a channel to get the job result
+	var curJobDoneChannel chan *models.Job
+	if !job.Concurrent {
+		curJobDoneChannel = make(chan *models.Job)
+		al.jobsDoneChannel.Set(job.JID, curJobDoneChannel)
+		defer func() {
+			close(curJobDoneChannel)
+			al.jobsDoneChannel.Del(job.JID)
+		}()
+	}
 	for sid, conn := range clientsConn {
 		if job.Concurrent {
 			go al.createAndRunJob(job.JID, sid, job.Command, job.Shell, job.CreatedBy, job.TimeoutSec, conn)
 		} else {
 			success := al.createAndRunJob(job.JID, sid, job.Command, job.Shell, job.CreatedBy, job.TimeoutSec, conn)
 			if !success && job.AbortOnErr {
+				break
+			}
+
+			// in tests skip next part to avoid waiting
+			if al.insecureForTests {
+				continue
+			}
+
+			// wait until command is finished
+			jobResult := <-curJobDoneChannel
+			if job.AbortOnErr && jobResult.Status == models.JobStatusFailed {
 				break
 			}
 		}
@@ -1080,7 +1100,6 @@ func (al *APIListener) handleCommandsWS(w http.ResponseWriter, req *http.Request
 
 	var groups []*cgroups.ClientGroup
 	for _, groupID := range inboundMsg.GroupIDs {
-		// TODO: add sql to get groups by id list
 		group, err := al.clientGroupProvider.Get(ctx, groupID)
 		if err != nil {
 			uiConnTS.WriteError(fmt.Sprintf("Failed to get a client group with id=%q.", groupID), err)
@@ -1155,6 +1174,18 @@ func (al *APIListener) handleCommandsWS(w http.ResponseWriter, req *http.Request
 
 		al.Debugf("Multi-client Job[id=%q] created to execute remote command on clients %s, groups %s: %q.", multiJob.JID, inboundMsg.ClientIDs, inboundMsg.GroupIDs, inboundMsg.Command)
 		uiConnTS.SetWritesBeforeClose(len(clientsConn))
+
+		// for sequential execution - create a channel to get the job result
+		var curJobDoneChannel chan *models.Job
+		if !multiJob.Concurrent {
+			curJobDoneChannel = make(chan *models.Job)
+			al.jobsDoneChannel.Set(multiJob.JID, curJobDoneChannel)
+			defer func() {
+				close(curJobDoneChannel)
+				al.jobsDoneChannel.Del(multiJob.JID)
+			}()
+		}
+
 		for sid, conn := range clientsConn {
 			curJID := generateNewJobID()
 			if multiJob.Concurrent {
@@ -1165,7 +1196,12 @@ func (al *APIListener) handleCommandsWS(w http.ResponseWriter, req *http.Request
 					uiConnTS.Close()
 					return
 				}
-				// TODO: wait until job will be finished
+				// wait until command is finished
+				jobResult := <-curJobDoneChannel
+				if multiJob.AbortOnErr && jobResult.Status == models.JobStatusFailed {
+					uiConnTS.Close()
+					return
+				}
 			}
 		}
 	} else {

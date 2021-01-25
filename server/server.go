@@ -5,6 +5,7 @@ import (
 	"errors"
 	"fmt"
 	"path"
+	"sync"
 	"time"
 
 	"github.com/jmoiron/sqlx"
@@ -23,6 +24,7 @@ import (
 	"github.com/cloudradar-monitoring/rport/server/sessions"
 	chshare "github.com/cloudradar-monitoring/rport/share"
 	"github.com/cloudradar-monitoring/rport/share/files"
+	"github.com/cloudradar-monitoring/rport/share/models"
 	"github.com/cloudradar-monitoring/rport/share/ws"
 )
 
@@ -39,6 +41,7 @@ type Server struct {
 	clientGroupProvider cgroups.ClientGroupProvider
 	db                  *sqlx.DB
 	uiJobWebSockets     ws.WebSocketCache // used to push job result to UI
+	jobsDoneChannel     jobResultChanMap  // used for sequential command execution to know when command is finished
 }
 
 // NewServer creates and returns a new rport server
@@ -48,6 +51,9 @@ func NewServer(config *Config, filesAPI files.FileAPI) (*Server, error) {
 		Logger:          chshare.NewLogger("server", config.Logging.LogOutput, config.Logging.LogLevel),
 		config:          config,
 		uiJobWebSockets: ws.NewWebSocketCache(),
+		jobsDoneChannel: jobResultChanMap{
+			m: make(map[string]chan *models.Job),
+		},
 	}
 
 	privateKey, err := initPrivateKey(config.Server.KeySeed)
@@ -221,4 +227,28 @@ func (s *Server) Close() error {
 	wg.Go(s.clientGroupProvider.Close)
 	wg.Go(s.uiJobWebSockets.CloseConnections)
 	return wg.Wait()
+}
+
+// jobResultChanMap is thread safe map with [jobID, chan *models.Job] pairs.
+type jobResultChanMap struct {
+	m  map[string]chan *models.Job
+	mu sync.RWMutex
+}
+
+func (m *jobResultChanMap) Set(jobID string, done chan *models.Job) {
+	m.mu.Lock()
+	defer m.mu.Unlock()
+	m.m[jobID] = done
+}
+
+func (m *jobResultChanMap) Del(jobID string) {
+	m.mu.Lock()
+	defer m.mu.Unlock()
+	delete(m.m, jobID)
+}
+
+func (m *jobResultChanMap) Get(jobID string) chan *models.Job {
+	m.mu.RLock()
+	defer m.mu.RUnlock()
+	return m.m[jobID]
 }

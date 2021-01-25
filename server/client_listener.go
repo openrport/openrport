@@ -332,10 +332,21 @@ func (cl *ClientListener) handleSSHRequests(clientLog *chshare.Logger, reqs <-ch
 		case comm.RequestTypePing:
 			_ = r.Reply(true, nil)
 		case comm.RequestTypeCmdResult:
-			if err := cl.saveCmdResult(r.Payload); err != nil {
+			job, err := cl.saveCmdResult(r.Payload)
+			if err != nil {
 				clientLog.Errorf("Failed to save cmd result: %s", err)
-			} else {
-				clientLog.Debugf("Command result saved successfully.")
+				continue
+			}
+			clientLog.Debugf("Command result saved successfully.")
+
+			if job.MultiJobID != nil {
+				done := cl.jobsDoneChannel.Get(*job.MultiJobID)
+				if done != nil {
+					// to avoid blocking the exec - send job result in a new goroutine
+					go func(done2 chan *models.Job, job2 *models.Job) {
+						done2 <- job2
+					}(done, job)
+				}
 			}
 		default:
 			clientLog.Debugf("Unknown request: %s", r.Type)
@@ -343,11 +354,11 @@ func (cl *ClientListener) handleSSHRequests(clientLog *chshare.Logger, reqs <-ch
 	}
 }
 
-func (cl *ClientListener) saveCmdResult(respBytes []byte) error {
+func (cl *ClientListener) saveCmdResult(respBytes []byte) (*models.Job, error) {
 	resp := models.Job{}
 	err := json.Unmarshal(respBytes, &resp)
 	if err != nil {
-		return fmt.Errorf("failed to decode cmd result request: %s", err)
+		return nil, fmt.Errorf("failed to decode cmd result request: %s", err)
 	}
 
 	var wsJID string
@@ -369,10 +380,10 @@ func (cl *ClientListener) saveCmdResult(respBytes []byte) error {
 
 	err = cl.jobProvider.SaveJob(&resp)
 	if err != nil {
-		return fmt.Errorf("failed to save job result: %s", err)
+		return nil, fmt.Errorf("failed to save job result: %s", err)
 	}
 
-	return nil
+	return &resp, nil
 }
 
 func (cl *ClientListener) handleSSHChannels(clientLog *chshare.Logger, chans <-chan ssh.NewChannel) {

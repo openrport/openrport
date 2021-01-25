@@ -1225,6 +1225,7 @@ func TestHandlePostMultiClientCommand(t *testing.T) {
 	validReqBody := `{"command": "` + gotCmd +
 		`","timeout_sec": ` + strconv.Itoa(gotCmdTimeoutSec) +
 		`,"client_ids": ["` + s1.ID + `", "` + s2.ID + `"]` +
+		`,"execute_concurrently": false` +
 		`}`
 
 	testCases := []struct {
@@ -1323,6 +1324,9 @@ func TestHandlePostMultiClientCommand(t *testing.T) {
 							RunRemoteCmdTimeoutSec: defaultTimeout,
 							MaxRequestBytes:        1024 * 1024,
 						},
+					},
+					jobsDoneChannel: jobResultChanMap{
+						m: make(map[string]chan *models.Job),
 					},
 				},
 				Logger: testLog,
