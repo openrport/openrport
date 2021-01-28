@@ -1225,6 +1225,7 @@ func TestHandlePostMultiClientCommand(t *testing.T) {
 	validReqBody := `{"command": "` + gotCmd +
 		`","timeout_sec": ` + strconv.Itoa(gotCmdTimeoutSec) +
 		`,"client_ids": ["` + s1.ID + `", "` + s2.ID + `"]` +
+		`,"abort_on_error": false` +
 		`,"execute_concurrently": false` +
 		`}`
 

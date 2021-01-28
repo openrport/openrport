@@ -874,7 +874,7 @@ type multiClientCmdRequest struct {
 	Shell               string   `json:"shell"`
 	TimeoutSec          int      `json:"timeout_sec"`
 	ExecuteConcurrently bool     `json:"execute_concurrently"`
-	AbortOnError        bool     `json:"abort_on_error"`
+	AbortOnError        *bool    `json:"abort_on_error"` // pointer is used because it's default value is true. Otherwise it would be more difficult to check whether this field is missing or not
 }
 
 // TODO: refactor to reuse similar code for REST API and WebSocket to execute cmds if both will be supported
@@ -958,6 +958,12 @@ func (al *APIListener) handlePostMultiClientCommand(w http.ResponseWriter, req *
 		}
 	}
 
+	// by default abortOnErr is true
+	abortOnErr := true
+	if reqBody.AbortOnError != nil {
+		abortOnErr = *reqBody.AbortOnError
+	}
+
 	multiJob := &models.MultiJob{
 		MultiJobSummary: models.MultiJobSummary{
 			JID:       generateNewJobID(),
@@ -970,7 +976,7 @@ func (al *APIListener) handlePostMultiClientCommand(w http.ResponseWriter, req *
 		Shell:      reqBody.Shell,
 		TimeoutSec: reqBody.TimeoutSec,
 		Concurrent: reqBody.ExecuteConcurrently,
-		AbortOnErr: reqBody.AbortOnError,
+		AbortOnErr: abortOnErr,
 	}
 	if err := al.jobProvider.SaveMultiJob(multiJob); err != nil {
 		al.jsonErrorResponseWithError(w, http.StatusInternalServerError, "", "Failed to persist a new multi-client job.", err)
@@ -1153,6 +1159,12 @@ func (al *APIListener) handleCommandsWS(w http.ResponseWriter, req *http.Request
 
 	createdBy := api.GetUser(req.Context(), al.Logger)
 	if len(inboundMsg.ClientIDs) > 1 || len(groupClients) > 0 {
+		// by default abortOnErr is true
+		abortOnErr := true
+		if inboundMsg.AbortOnError != nil {
+			abortOnErr = *inboundMsg.AbortOnError
+		}
+
 		multiJob := &models.MultiJob{
 			MultiJobSummary: models.MultiJobSummary{
 				JID:       jid,
@@ -1165,7 +1177,7 @@ func (al *APIListener) handleCommandsWS(w http.ResponseWriter, req *http.Request
 			Shell:      inboundMsg.Shell,
 			TimeoutSec: inboundMsg.TimeoutSec,
 			Concurrent: inboundMsg.ExecuteConcurrently,
-			AbortOnErr: inboundMsg.AbortOnError,
+			AbortOnErr: abortOnErr,
 		}
 		if err := al.jobProvider.SaveMultiJob(multiJob); err != nil {
 			uiConnTS.WriteError("Failed to persist a new multi-client job.", err)

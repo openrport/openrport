@@ -445,7 +445,7 @@ paths:
                 description: "if true - execute the command concurrently on clients. If false - sequentially in order that is in 'client_ids'. By default is false"
               abort_on_error:
                 type: "boolean"
-                description: "applicable only if 'execute_concurrently' is false. If true - abort the entire cycle if the execution fails on some client. By default is false"
+                description: "applicable only if 'execute_concurrently' is false. If true - abort the entire cycle if the execution fails on some client. By default is true"
       responses:
         "200":
           description: "successful operation"
@@ -1094,4 +1094,4 @@ definitions:
         description: "applicable only when multiple clients are specified. If true - execute the command concurrently on clients. If false - sequentially in order that is in 'client_ids'. By default is false"
       abort_on_error:
         type: "boolean"
-        description: "applicable only when multiple clients are specified. Applicable only if 'execute_concurrently' is false. If true - abort the entire cycle if the execution fails on some client. By default is false"
+        description: "applicable only when multiple clients are specified. Applicable only if 'execute_concurrently' is false. If true - abort the entire cycle if the execution fails on some client. By default is true"

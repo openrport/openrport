@@ -1,6 +1,13 @@
 ## Command execution
 Via the API you can execute a command on connected clients. 
 The command and the response are transferred through the web socket connection. A tunnel is not needed.
+
+Command can be executed via:
+* [REST API](https://petstore.swagger.io/?url=https://raw.githubusercontent.com/cloudradar-monitoring/rport/master/api-doc.yml#/Commands)
+* [WebSocket API](https://petstore.swagger.io/?url=https://raw.githubusercontent.com/cloudradar-monitoring/rport/master/api-doc.yml#/Commands/get_ws_commands)
+
+Here we would show examples how to do it via REST API.
+
 ### Execute on a single host
 Example:
 ```
@@ -37,13 +44,125 @@ curl -s -u admin:foobaz http://localhost:3000/api/v1/sessions/$SESSIONID/command
 }
 ```
 
-The rport client supervises the command for the given {timeout_sec} (in seconds) period. If the timeout is exceeded the command state is considered 'unknown' but the command keeps running. 
-
-
+The rport client supervises the command for the given {timeout_sec} seconds. If the timeout is exceeded the command state is considered 'unknown' but the command keeps running. 
 
 ### Execute on multiple hosts
-(Not implemented yet.)
+It can be done by using:
+* client IDs
+* group IDs
+* both client IDs and group IDs
 
+Execution options:
+* `execute_concurrently`. By default, commands are not executed concurrently. To execute it concurrently set it to `true` in a request.
+* `abort_on_error`. By default, if the execution fails on some client, the entire cycle is aborted.
+But it is ignored in parallel mode when `"execute concurrently": true`. Disabling `abort_on_error` executes the command on all clients regardless there is an error or not.
+
+#### By client IDs
+Example:
+```
+curl -s -u admin:foobaz http://localhost:3000/api/v1/commands -H "Content-Type: application/json" -X POST \
+--data-raw '{
+  "command": "/bin/date",
+  "client_ids": ["local-test-client-2", "local-test-client-3", "local-test-client-4"],
+  "timeout_sec": 30,
+  "execute_concurrently": true
+}
+'|jq
+```
+You will get back a job id.
+Now execute a query to get the result of the command.
+```
+JOBID=f206854c-af1d-4589-9adc-bdf3553ec68b
+curl -s -u admin:foobaz http://localhost:3000/api/v1/commands/$JOBID|jq
+{
+  "data": {
+    "jid": "f206854c-af1d-4589-9adc-bdf3553ec68b",
+    "started_at": "2021-01-28T19:39:16.197965+02:00",
+    "created_by": "admin",
+    "client_ids": [
+      "local-test-client-2",
+      "local-test-client-3",
+      "local-test-client-4"
+    ],
+    "group_ids": null,
+    "command": "/bin/date",
+    "shell": "",
+    "timeout_sec": 30,
+    "concurrent": true,
+    "abort_on_err": false,
+    "jobs": [
+      {
+        "jid": "4012fcf8-0dfc-44c4-a3de-de1b133bb13e",
+        "status": "successful",
+        "finished_at": "2021-01-28T19:39:16.227685+02:00",
+        "sid": "local-test-client-2",
+        "command": "/bin/date",
+        "shell": "/bin/sh",
+        "pid": 16242,
+        "started_at": "2021-01-28T19:39:16.203396+02:00",
+        "created_by": "admin",
+        "timeout_sec": 30,
+        "multi_job_id": "f206854c-af1d-4589-9adc-bdf3553ec68b",
+        "result": {
+          "stdout": "Thu Jan 28 19:39:16 EET 2021\n",
+          "stderr": ""
+        }
+      },
+      {
+        "jid": "7b8d90a0-f100-4922-98e6-4da46853c020",
+        "status": "successful",
+        "finished_at": "2021-01-28T19:39:16.229916+02:00",
+        "sid": "local-test-client-3",
+        "command": "/bin/date",
+        "shell": "/bin/sh",
+        "pid": 16241,
+        "started_at": "2021-01-28T19:39:16.203738+02:00",
+        "created_by": "admin",
+        "timeout_sec": 30,
+        "multi_job_id": "f206854c-af1d-4589-9adc-bdf3553ec68b",
+        "result": {
+          "stdout": "Thu Jan 28 19:39:16 EET 2021\n",
+          "stderr": ""
+        }
+      },
+      {
+        "jid": "bb936408-8c02-49b2-a0ac-2750ac44026c",
+        "status": "successful",
+        "finished_at": "2021-01-28T19:39:16.228102+02:00",
+        "sid": "local-test-client-4",
+        "command": "/bin/date",
+        "shell": "/bin/sh",
+        "pid": 16243,
+        "started_at": "2021-01-28T19:39:16.204308+02:00",
+        "created_by": "admin",
+        "timeout_sec": 30,
+        "multi_job_id": "f206854c-af1d-4589-9adc-bdf3553ec68b",
+        "result": {
+          "stdout": "Thu Jan 28 19:39:16 EET 2021\n",
+          "stderr": ""
+        }
+      }
+    ]
+  }
+}
+```
+#### By client group IDs
+How to create client groups please see [the link](docs/client-groups.md).
+
+Assume we have already created a client group with `group-1` id.
+Example:
+```
+curl -s -u admin:foobaz http://localhost:3000/api/v1/commands -H "Content-Type: application/json" -X POST \
+--data-raw '{
+  "command": "/bin/date",
+  "group_ids": ["group-1"],
+  "execute_concurrently": false,
+  "abort_on_error": true
+}
+'|jq
+```
+You will get back a job id.
+Now execute the same query that is in a previous example to get the result of the command.
 ### Securing your environment
 The commands are executed from the account that runs rport.
 On Linux this by default an unprivileged user. Do not run rport as root.
