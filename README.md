@@ -22,16 +22,21 @@ From a technological perspective, [Ngrok](https://ngrok.com/) and [openport.io](
 * Rport allows you to self-host the server.
 * Rport allows clients to wait in standby mode without an active tunnel. Tunnels can be requested on-demand by the user remotely.
 
+**Supported operating systems**
+For the client almost all operating systems are supported and we provide binaries for a variaty of Linux architectures and Microsoft Windows.
+Also the server can run on any operation system supported by the golang compiler. At the moment we provide server binaries only for Linux X64 because this is the ideal platform for running it securely and cost effective. 
+
 ## Table of Contents
 * [Build and installation](#build-install)
 * [Usage](#usage)
 * [Quickstart guide](#quick-guide)
-  * [Install and run the rport server](#run-server)
-  * [Connect a client](#run-client)
-* [Configuration files](#configs)
-* [Proper client and server installation](#proper-install)
-  * [Don't use the root user](#no-root-user)
+  * [Run the rport server without installation](#run-server)
+  * [Install and run the rport server](#install-server)
   * [Run the server with systemd](#run-server-systemd)
+  * [Connect a client](#run-client)
+  * [Run a Linux the client with systemd](#linux-client-systemd)
+  * [Run a Windows client](#windows-client)
+  * [Configuration files](#configs) 
   * [Using authentication](#client-auth)
 * [On-demand tunnels using the API](#on-demand-tunnels)
 * [API](#api)
@@ -69,9 +74,9 @@ We provide [pre-compiled binaries](https://github.com/cloudradar-monitoring/rpor
 `rport` is a client app which will try to establish long-running connection to the server.
 
 Minimal setup:
-1) Execute `./rportd --addr 0.0.0.0:9999 --auth rport:password123` on a server.
-1) Execute `./rport --auth rport:password123 <SERVER_IP>:9999 3389:3389` on a client or `./rport --auth rport:password123 <SERVER_IP>:9999 3389` and the server tunnel port will be randomly chosen for you.
-1) Now end-users can connect to `<SERVER_IP>:3389` (e.g. using Remote Desktop Connection). The connection will be proxied to client machine.
+1) Execute `./rportd --addr 0.0.0.0:9999 --auth rport:password123 --data-dir /var/tmp` on a server.
+1) Execute `./rport --auth rport:password123 <SERVER_IP>:9999 2222:22` on a client or `./rport --auth rport:password123 <SERVER_IP>:9999 22` and the server tunnel port will be randomly chosen for you.
+1) Now end-users can connect to `<SERVER_IP>:2222` (e.g. using a SSH Connection). The connection will be proxied to client machine.
 
 See `./rportd --help` and `./rport --help` for more options, like:
 - Specifying certificate fingerprint to validate server authority
@@ -85,14 +90,43 @@ See `./rportd --help` and `./rport --help` for more options, like:
 <a name="quick-guide"></a>
 ## Quickstart guide
 <a name="run-server"></a>
+### Run the server without installation
+If you quickly want to run the rport server without installation, run the following commands from any unprivelegd user account.
+```
+wget https://github.com/cloudradar-monitoring/rport/releases/download/0.1.21/rport_0.1.21_Linux_x86_64.tar.gz
+sudo tar vxzf rport_0.1.21_Linux_x86_64.tar.gz rportd
+KEY=$(openssl rand -hex 18)
+./rportd --log-level info --data-dir /var/tmp/ --key $KEY --auth client1:123
+```
+Rportd will be listening on the default port 8080 for client connections. 
+Grab the generated fingerprint from `/var/tmp/reportd-fingerprint.txt` and use it for secure client connections. 
+<a name="install-server"></a>
+
 ### Install and run the rport server
+
 On a machine connected to the public internet and ideally with an FQDN registered to a public DNS install and run the server.
 The server is called node1.example.com in this example.
 
-Install client and server
+#### A note on security
+> **Do not run the server as root!** This is an unnecessary risk. Rportd should always use an unprivileged user.
+>
+>While using rport without a **fingerprint** is possible, it's highly recommended to not skip this part.
+The fingerprint ensures you connect only to trusted servers. If you omit this step a man in the middle can bring up a rport server and hijack your tunnels.
+If you do ssh or rdp through the tunnel, a hijacked tunnel will not expose your credentials because the data inside the tunnel is still encrypted. But if you use rport for unencrypted protocols like HTTP, sniffing credentials would be possible.
+>
+>You might wonder why the rport server does not provide encryption on the transport layer (TLS, SSL, HTTPS). **Encryption is always enabled.** Your connections are encrypted and secured by SSH over HTTP. When you start up the rport server, it will generate an in-memory ECDSA public/private key pair. Adding TLS by putting a SSL [reverse proxy](./docs/reverse-proxy.md) is possible so you get SSH over HTTPS.
+
+#### Install the server
+For a proper installation execute the following steps.
 ```
-curl -LSs https://github.com/cloudradar-monitoring/rport/releases/download/0.1.19/rport_0.1.19_Linux_x86_64.tar.gz|\
-tar vxzf - -C /usr/local/bin/
+wget https://github.com/cloudradar-monitoring/rport/releases/download/0.1.21/rport_0.1.21_Linux_x86_64.tar.gz
+sudo tar vxzf rport_0.1.21_Linux_x86_64.tar.gz -C /usr/local/bin/ rportd
+sudo useradd -d /var/lib/rport -m -r -s /bin/false rport
+sudo mkdir /etc/rport/
+sudo mkdir /var/log/rport/
+sudo chown rport /var/log/rport/
+sudo tar vxzf rport_0.1.21_Linux_x86_64.tar.gz -C /etc/rport/ rportd.example.conf
+sudo cp /etc/rport/rportd.example.conf /etc/rport/rportd.conf
 ```
 
 Create a key for the server instance. Store this key and don't change it. You will use it later. Otherwise, your fingerprint will change and your clients might be rejected.
@@ -100,36 +134,109 @@ Create a key for the server instance. Store this key and don't change it. You wi
 openssl rand -hex 18
 ```
 
-Start the server as a background task.
+Open the `/etc/rport/rportd.conf` with an editor. Add the generated random string as `kee_seed`. All other default settings are suitable for a quick and secure start.
+
+Change to the rport user account and check your rportd starts without errors.
 ```
-nohup rportd --auth rport:password123 --key <YOUR_KEY> --addr 0.0.0.0:19075 &>/tmp/rportd.log &
+ubuntu@node1:~$ sudo -u rport -s /bin/bash
+rport@node1:/home/ubuntu$ rportd -c /etc/rport/rportd.conf --log-level info &
+2021/01/27 16:26:55 Start to get init Client Session Repository state from file.
 ```
-For the first testing leave the console open and observe the log with `tail -f /tmp/rportd.log`.
+For the first testing leave the console open and observe the log with `tail -f /var/log/rport/rportd.log`. Copy the generated fingerprint from `/var/lib/rport/rportd-fingerprint.txt` to your clipboard. Try your first client connection now.
+
+<a name="run-server-systemd"></a>
+### Run the server with systemd
+If all works fine stop the rport server and integrate it into systemd.
+```
+sudo rportd --service install --service-user rport --config /etc/rport/rportd.conf
+```
+A file `/etc/systemd/system/rportd.service` will be created and systemd is ready to manage rportd.
+```
+sudo systemctl start rportd
+sudo systemctl enable rportd # Optionally start rportd on boot
+```
 
 <a name="run-client"></a>
 ### Connect a client
 We call the client `client1.local.localdomain`.
 On your client just install the client binary
 ```
-curl -LSs https://github.com/cloudradar-monitoring/rport/releases/download/0.1.19/rport_0.1.19_Linux_x86_64.tar.gz|\
+curl -LSs https://github.com/cloudradar-monitoring/rport/releases/download/0.1.20/rport_0.1.20_Linux_x86_64.tar.gz|\
 tar vxzf - rport -C /usr/local/bin/
 ```
 
 Create an ad hoc tunnel that will forward the port 2222 of node1.example.com to the to local port 22 of client1.local.localdomain.
-`rport --auth rport:password123 node1.example.com:19075 2222:0.0.0.0:22`
+`rport --auth user1:1234 --fingerprint <YOUR_FINGERPRINT> node1.example.com:8080 2222:0.0.0.0:22`
 Observing the log of the server you get a confirmation about the newly created tunnel.
 
 Now you can access your machine behind a firewall through the tunnel. Try `ssh -p 2222 node1.example.com` and you will come out on the machine where the tunnel has been initiated.
 
-#### Let's improve security by using fingerprints
-Copy the fingerprint the server has generated on startup to your clipboard and use it on the client like this
-`rport --auth rport:password123 --fingerprint <YOUR_FINGERPRINT> node1.example.com:19075 2222:0.0.0.0:22`.
+<a name="linux-client-systemd"></a>
+### Run a Linux client with systemd
+For a proper and permanent installation of the client execute the following steps.
+```
+wget https://github.com/cloudradar-monitoring/rport/releases/download/0.1.21/rport_0.1.21_Linux_x86_64.tar.gz
+sudo tar vxzf rport_0.1.21_Linux_x86_64.tar.gz -C /usr/local/bin/ rportd
+sudo useradd -d /var/lib/rport -m -r -s /bin/false rport
+sudo mkdir /etc/rport/
+sudo mkdir /var/log/rport/
+sudo chown rport /var/log/rport/
+sudo tar vxzf rport_0.1.21_Linux_x86_64.tar.gz -C /etc/rport/ rport.example.conf
+sudo cp /etc/rport/rport.example.conf /etc/rport/rport.conf
+sudo rport --service install --service-user rport --config /etc/rport/rport.conf
+```
+Open the config file `/etc/rport/rport.conf` and adjust it to your needs. (See below.)
+Finally start the rport client and optioanlly register it in the auto-start.
+```
+systemctl start rport
+systemctl enable rport
+```
 
-This ensures you connect only to trusted servers. If you omit this step a man in the middle can bring up a rport server and hijack your tunnels.
-If you do ssh or rdp through the tunnel, a hijacked tunnel will not expose your credentials because the data inside the tunnel is still encrypted. But if you use rport for unencrypted protocols like HTTP, sniffing credentials would be possible.
+A very minimalistic client configuration `rport.conf` can look like this:
+```
+[client]
+server = "node1.example.com:8080"
+fingerprint = "<YOUR_FINGERPRINT>"
+auth = "user1:1234"
+remotes = ['2222:22']
+```
+This will establish a permanent tunnel and the local port 22 (SSH) of the client becomes available on port 2222 of the rport server.
+
+<a name="windows-client"></a>
+### Run a Windows client
+On Microsoft Windows [download the latest client binary](https://github.com/cloudradar-monitoring/rport/releases/download/0.1.21/rport_0.1.21_Windows_x86_64.zip) and extract it ideally to `C:\Program Files\rport`. Rename the `rport.conf.example` to `rport.conf` and store it in `C:\Program Files\rport` too.
+Open the `rport.conf` file with a text exitor. On older Windows use an editor that supports unix line breaks, lilke [notepad++](https://notepad-plus-plus.org/).
+
+A very minimalistic client configuration `rport.conf` can look like this:
+```
+[client]
+server = "node1.example.com:8080"
+fingerprint = "<YOUR_FINGERPRINT>"
+auth = "user1:1234"
+remotes = ['3300:3389']
+```
+This will establish a permanent tunnel and the local port 3389 (remote desktop) of the client becomes available on port 3300 of the rport server.
+
+Before registering rport as a windows service, check your connection manually.
+
+Open a command prompt with administrative rights and type in:
+```
+cd "C:\Program Files\rport"
+rport.exe -c rport.conf
+```
+If you don't get errors on the console, try a remote desktop connection to the rport server on port 3300.
+Stop the client with CRTL-C and register it as a service and start it.
+
+```
+rport.exe --service install -c rport.conf
+sc query rport
+sc start rport
+```
+
+The windows service will be created with "Startup type = automatic". If you don't want the rport client to start on boot, you must manually disable it using for example `sc config rport start=disabled`. 
 
 <a name="configs"></a>
-## Configuration files
+### Configuration files
 Config files can be used to set up both the rport server and clients. In order to use it an arg `--config`(or `-c`) should be passed to a command with a path to the file. Configuration examples `rportd.example.conf` ([view online](rportd.example.conf)) and `rport.example.conf` ([view online](rport.example.conf)) can be found in the release archive or in the source.
 
 NOTE: command arguments and env variables will override values from the config file.
@@ -138,47 +245,6 @@ In order to load the configuration from a file run:
 ```
 rportd -c /etc/rport/rportd.conf
 rport -c /etc/rport/rport.conf
-```
-
-<a name="proper-install"></a>
-## Proper client and server installation
-<a name="no-root-user"></a>
-### Don't use the root user
-Client and server don't require running as root in Linux. You should avoid this. Create an unprivileged system-user instead.
-```
-useradd -r -d /var/lib/rport -m -s /bin/false -U -c "System user for rport client and server" rport
-mkdir /var/log/rport/
-chown rport:root /var/log/rport/
-```
-<a name="run-server-systemd"></a>
-### Run the server with systemd
-Packages for most common distributions and Windows are on our roadmap. In the meantime create a systemd service file in `/etc/systemd/system/rportd.service` with the following lines manually.
-```
-[Unit]
-Description=Rport Server Daemon
-After=network-online.target
-Wants=network-online.target systemd-networkd-wait-online.service
-
-[Service]
-User=rport
-Group=rport
-WorkingDirectory=/var/lib/rport/
-ExecStart=/usr/local/bin/rportd --config /etc/rport/rportd.conf
-ExecReload=kill -SIGUSR1 $MAINPID
-Restart=on-failure
-RestartSec=5
-StandardOutput=file:/var/log/rport/rportd.log
-StandardError=file:/var/log/rport/rportd.log
-
-[Install]
-WantedBy=multi-user.target
-```
-
-Start it and enable the auto-start on boot
-```
-systemctl daemon-reload
-systemctl start rportd
-systemctl enable rportd
 ```
 
 <a name="client-auth"></a>
