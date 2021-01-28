@@ -23,8 +23,8 @@ From a technological perspective, [Ngrok](https://ngrok.com/) and [openport.io](
 * Rport allows clients to wait in standby mode without an active tunnel. Tunnels can be requested on-demand by the user remotely.
 
 **Supported operating systems**
-For the client almost all operating systems are supported and we provide binaries for a variaty of Linux architectures and Microsoft Windows.
-Also the server can run on any operation system supported by the golang compiler. At the moment we provide server binaries only for Linux X64 because this is the ideal platform for running it securely and cost effective. 
+For the client almost all operating systems are supported and we provide binaries for a variety of Linux architectures and Microsoft Windows.
+Also, the server can run on any operation system supported by the golang compiler. At the moment we provide server binaries only for Linux X64 because this is the ideal platform for running it securely and cost effective. 
 
 ## Table of Contents
 * [Build and installation](#build-install)
@@ -34,7 +34,7 @@ Also the server can run on any operation system supported by the golang compiler
   * [Install and run the rport server](#install-server)
   * [Run the server with systemd](#run-server-systemd)
   * [Connect a client](#run-client)
-  * [Run a Linux the client with systemd](#linux-client-systemd)
+  * [Run a Linux client with systemd](#linux-client-systemd)
   * [Run a Windows client](#windows-client)
   * [Configuration files](#configs) 
   * [Using authentication](#client-auth)
@@ -91,15 +91,15 @@ See `./rportd --help` and `./rport --help` for more options, like:
 ## Quickstart guide
 <a name="run-server"></a>
 ### Run the server without installation
-If you quickly want to run the rport server without installation, run the following commands from any unprivelegd user account.
+If you quickly want to run the rport server without installation, run the following commands from any unprivileged user account.
 ```
 wget https://github.com/cloudradar-monitoring/rport/releases/download/0.1.21/rport_0.1.21_Linux_x86_64.tar.gz
 sudo tar vxzf rport_0.1.21_Linux_x86_64.tar.gz rportd
 KEY=$(openssl rand -hex 18)
-./rportd --log-level info --data-dir /var/tmp/ --key $KEY --auth client1:123
+./rportd --log-level info --data-dir /var/tmp/ --key $KEY --auth user1:1234
 ```
 Rportd will be listening on the default port 8080 for client connections. 
-Grab the generated fingerprint from `/var/tmp/reportd-fingerprint.txt` and use it for secure client connections. 
+Grab the generated fingerprint from `/var/tmp/rportd-fingerprint.txt` and use it for secure client connections. 
 <a name="install-server"></a>
 
 ### Install and run the rport server
@@ -161,7 +161,7 @@ sudo systemctl enable rportd # Optionally start rportd on boot
 We call the client `client1.local.localdomain`.
 On your client just install the client binary
 ```
-curl -LSs https://github.com/cloudradar-monitoring/rport/releases/download/0.1.20/rport_0.1.20_Linux_x86_64.tar.gz|\
+curl -LSs https://github.com/cloudradar-monitoring/rport/releases/download/0.1.21/rport_0.1.21_Linux_x86_64.tar.gz|\
 tar vxzf - rport -C /usr/local/bin/
 ```
 
@@ -186,7 +186,7 @@ sudo cp /etc/rport/rport.example.conf /etc/rport/rport.conf
 sudo rport --service install --service-user rport --config /etc/rport/rport.conf
 ```
 Open the config file `/etc/rport/rport.conf` and adjust it to your needs. (See below.)
-Finally start the rport client and optioanlly register it in the auto-start.
+Finally, start the rport client and optionally register it in the auto-start.
 ```
 systemctl start rport
 systemctl enable rport
@@ -205,7 +205,7 @@ This will establish a permanent tunnel and the local port 22 (SSH) of the client
 <a name="windows-client"></a>
 ### Run a Windows client
 On Microsoft Windows [download the latest client binary](https://github.com/cloudradar-monitoring/rport/releases/download/0.1.21/rport_0.1.21_Windows_x86_64.zip) and extract it ideally to `C:\Program Files\rport`. Rename the `rport.conf.example` to `rport.conf` and store it in `C:\Program Files\rport` too.
-Open the `rport.conf` file with a text exitor. On older Windows use an editor that supports unix line breaks, lilke [notepad++](https://notepad-plus-plus.org/).
+Open the `rport.conf` file with a text editor. On older Windows use an editor that supports unix line breaks, like [notepad++](https://notepad-plus-plus.org/).
 
 A very minimalistic client configuration `rport.conf` can look like this:
 ```
@@ -225,7 +225,7 @@ cd "C:\Program Files\rport"
 rport.exe -c rport.conf
 ```
 If you don't get errors on the console, try a remote desktop connection to the rport server on port 3300.
-Stop the client with CRTL-C and register it as a service and start it.
+Stop the client with CTRL-C and register it as a service and start it.
 
 ```
 rport.exe --service install -c rport.conf
