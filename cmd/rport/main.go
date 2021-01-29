@@ -178,7 +178,7 @@ func init() {
 	pFlags.Bool("remote-commands-enabled", false, "")
 	pFlags.Int("remote-commands-send-back-limit", 0, "")
 
-	cfgPath = pFlags.StringP("config", "c", "rport.conf", "")
+	cfgPath = pFlags.StringP("config", "c", "", "")
 	svcCommand = pFlags.String("service", "", "")
 	if runtime.GOOS != "windows" {
 		svcUser = pFlags.String("service-user", "rport", "")
@@ -234,7 +234,12 @@ func main() {
 }
 
 func decodeAndValidateConfig(args []string) error {
-	viperCfg.SetConfigFile(*cfgPath)
+	if *cfgPath != "" {
+		viperCfg.SetConfigFile(*cfgPath)
+	} else {
+		viperCfg.AddConfigPath(".")
+		viperCfg.SetConfigName("rport.conf")
+	}
 
 	if err := chshare.DecodeViperConfig(viperCfg, config); err != nil {
 		return err

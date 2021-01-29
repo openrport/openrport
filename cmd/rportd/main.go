@@ -257,7 +257,7 @@ func init() {
 	pFlags.Int("run-remote-cmd-timeout-sec", 0, "")
 	pFlags.Bool("allow-root", false, "")
 
-	cfgPath = pFlags.StringP("config", "c", "rportd.conf", "")
+	cfgPath = pFlags.StringP("config", "c", "", "")
 	svcCommand = pFlags.String("service", "", "")
 	if runtime.GOOS != "windows" {
 		svcUser = pFlags.String("service-user", "rport", "")
@@ -338,7 +338,12 @@ func main() {
 }
 
 func decodeAndValidateConfig() error {
-	viperCfg.SetConfigFile(*cfgPath)
+	if *cfgPath != "" {
+		viperCfg.SetConfigFile(*cfgPath)
+	} else {
+		viperCfg.AddConfigPath(".")
+		viperCfg.SetConfigName("rportd.conf")
+	}
 
 	if err := chshare.DecodeViperConfig(viperCfg, cfg); err != nil {
 		return err
