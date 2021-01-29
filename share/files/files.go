@@ -10,8 +10,9 @@ import (
 type FileAPI interface {
 	ReadDir(dir string) ([]os.FileInfo, error)
 	MakeDirAll(dir string) error
-	CreateFileJSON(file string, content interface{}) error
-	ReadFileJSON(file string, dest interface{}) error
+	WriteJSON(file string, content interface{}) error
+	Write(file string, content string) error
+	ReadJSON(file string, dest interface{}) error
 	Exist(path string) (bool, error)
 }
 
@@ -41,9 +42,9 @@ func (f *FileSystem) MakeDirAll(dir string) error {
 	return nil
 }
 
-// CreateFileJSON creates or truncates a given file and writes a given content to it as JSON
+// WriteJSON creates or truncates a given file and writes a given content to it as JSON
 // with indentation. If the file does not exist, it is created with mode 0666.
-func (f *FileSystem) CreateFileJSON(fileName string, content interface{}) error {
+func (f *FileSystem) WriteJSON(fileName string, content interface{}) error {
 	file, err := os.Create(fileName)
 	if err != nil {
 		return fmt.Errorf("failed to create file: %s", err)
@@ -59,9 +60,25 @@ func (f *FileSystem) CreateFileJSON(fileName string, content interface{}) error 
 	return nil
 }
 
-// ReadFileJSON reads a given file and stores the parsed content into a destination value.
+// Write creates or truncates a given file and writes a given content to it.
+// If the file does not exist, it is created with mode 0666.
+func (f *FileSystem) Write(fileName string, content string) error {
+	file, err := os.Create(fileName)
+	if err != nil {
+		return fmt.Errorf("failed to create file: %s", err)
+	}
+	defer file.Close()
+
+	if _, err := file.WriteString(content); err != nil {
+		return fmt.Errorf("failed to write data to file: %v", err)
+	}
+
+	return nil
+}
+
+// ReadJSON reads a given file and stores the parsed content into a destination value.
 // A successful call returns err == nil, not err == EOF.
-func (f *FileSystem) ReadFileJSON(file string, dest interface{}) error {
+func (f *FileSystem) ReadJSON(file string, dest interface{}) error {
 	b, err := ioutil.ReadFile(file)
 	if err != nil {
 		return fmt.Errorf("failed to read data from file: %s", err)

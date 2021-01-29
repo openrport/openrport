@@ -73,6 +73,13 @@ func NewServer(config *Config, filesAPI files.FileAPI) (*Server, error) {
 		return nil, fmt.Errorf("failed to create data dir %q: %v", config.Server.DataDir, makedirErr)
 	}
 
+	// store fingerprint in file
+	fingerprintFile := path.Join(config.Server.DataDir, "rportd-fingerprint.txt")
+	if err := filesAPI.Write(fingerprintFile, fingerprint); err != nil {
+		// juts log it and proceed
+		s.Errorf("Failed to store fingerprint %q in file %q: %v", fingerprint, fingerprintFile, err)
+	}
+
 	s.jobProvider, err = jobs.NewSqliteProvider(path.Join(config.Server.DataDir, "jobs.db"), s.Logger)
 	if err != nil {
 		return nil, err

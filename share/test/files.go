@@ -47,14 +47,14 @@ func (f *FileAPIMock) MakeDirAll(dir string) error {
 	return f.ReturnMakeDirErr
 }
 
-func (f *FileAPIMock) CreateFileJSON(file string, content interface{}) error {
+func (f *FileAPIMock) WriteJSON(file string, content interface{}) error {
 	f.CreateFileInvoked = true
 	f.InputCreateFile = file
 	f.InputCreateFileContent = content
 	return f.ReturnCreateFileErr
 }
 
-func (f *FileAPIMock) ReadFileJSON(file string, dest interface{}) error {
+func (f *FileAPIMock) ReadJSON(file string, dest interface{}) error {
 	f.ReadFileInvoked = true
 	f.InputReadFile = file
 	if f.SetReadFileDestFunc != nil {
@@ -67,6 +67,10 @@ func (f *FileAPIMock) Exist(path string) (bool, error) {
 	f.ExistPathInvoked = true
 	f.InputExistPath = path
 	return f.ReturnExist, f.ReturnExistErr
+}
+
+func (f *FileAPIMock) Write(fileName string, content string) error {
+	return nil
 }
 
 type FileMock struct {
