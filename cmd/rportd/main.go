@@ -145,7 +145,7 @@ var serverHelp = `
     --db-name, An optional arg to specify name for mysql database or file for sqlite.
 
     --data-dir, An optional arg to define a local directory path to store internal data.
-    By default, "/var/lib/rportd" is used on Linux, "C:\ProgramData\rportd" is used on Windows.
+    By default, "/var/lib/rportd" is used on Linux, 'C:\ProgramData\rportd' is used on Windows.
     If the directory doesn't exist, it will be created. On Linux you must create this directory
     because an unprivileged user don't have the right to create a directory in /var/lib.
     Ideally this directory is the homedir of the rport user and has been created along with the user.

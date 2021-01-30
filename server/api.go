@@ -573,7 +573,6 @@ func (al *APIListener) handleGetMe(w http.ResponseWriter, req *http.Request) {
 const (
 	MinCredentialsLength = 3
 
-	ErrCodeClientAuthDisabled     = "ERR_CODE_CLIENT_AUTH_DISABLED"
 	ErrCodeClientAuthSingleClient = "ERR_CODE_CLIENT_AUTH_SINGLE"
 	ErrCodeClientAuthRO           = "ERR_CODE_CLIENT_AUTH_RO"
 

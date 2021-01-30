@@ -35,7 +35,7 @@ Using `/var/lib/rport/client-auth.json` or `C:\Program Files\rport\client-auth.j
 Enter the following line to your `rportd.config` in the `[server]` section.
 ```
 auth_file = "/var/lib/rport/client-auth.json"           # Linux
-auth_file = "C:\Program Files\rport\client-auth.json"   # Windows
+auth_file = 'C:\Program Files\rport\client-auth.json'   # Windows
 ```
 Make sure no other auth option is enabled.
 Reload rportd to activate the changes.
@@ -110,8 +110,9 @@ curl -s -u admin:foobaz http://localhost:3000/api/v1/clients|jq
 Add a new client
 
 ```
-curl -X POST 'http://node2.rport.io:3000/api/v1/clients' \
+curl -X POST 'http://localhost:3000/api/v1/clients' \
 -u admin:foobaz \
+-H 'Content-Type: application/json' \
 --data-raw '{
     "id":"client3",
     "password":"hase243345"

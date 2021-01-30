@@ -400,7 +400,7 @@ func TestRemoteCommandsDisabled(t *testing.T) {
 }
 
 func TestIsCommandAllowed(t *testing.T) {
-	defaultTestAllow := []string{"^/usr/bin.*", "^/usr/local/bin/.*", `^C:\Windows\System32.*`}
+	defaultTestAllow := []string{"^/usr/bin.*", "^/usr/local/bin/.*", `^C:\\Windows\\System32.*`}
 	testCases := []struct {
 		name string
 
@@ -429,6 +429,14 @@ func TestIsCommandAllowed(t *testing.T) {
 		{
 			name:    "allow-deny: matches allow, empty deny",
 			cmd:     "/usr/bin/zip",
+			order:   allowDenyOrder,
+			allow:   defaultTestAllow,
+			deny:    []string{},
+			wantRes: true,
+		},
+		{
+			name:    "windows: allow-deny: matches allow, empty deny",
+			cmd:     `C:\Windows\System32\some`,
 			order:   allowDenyOrder,
 			allow:   defaultTestAllow,
 			deny:    []string{},

@@ -255,6 +255,14 @@ func (d *DatabaseConfig) ParseAndValidate() error {
 	return nil
 }
 
+func (d *DatabaseConfig) dsnForLogs() string {
+	if d.Password != "" {
+		// hide the password
+		return strings.Replace(d.dsn, ":"+d.Password, ":***", 1)
+	}
+	return d.dsn
+}
+
 func generateJWTSecret() (string, error) {
 	data := make([]byte, 10)
 	if _, err := rand.Read(data); err != nil {

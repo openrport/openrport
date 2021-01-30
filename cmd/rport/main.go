@@ -195,7 +195,7 @@ func init() {
 
 	viperCfg.SetDefault("logging.log_level", "error")
 	viperCfg.SetDefault("connection.max_retry_count", -1)
-	viperCfg.SetDefault("remote-commands.allow", []string{"^/usr/bin/.*", "^/usr/local/bin/.*", `^C:\Windows\System32\.*`})
+	viperCfg.SetDefault("remote-commands.allow", []string{"^/usr/bin/.*", "^/usr/local/bin/.*", `^C:\\Windows\\System32\\.*`})
 	viperCfg.SetDefault("remote-commands.deny", []string{`(\||<|>|;|,|\n|&)`})
 	viperCfg.SetDefault("remote-commands.order", []string{"allow", "deny"})
 	viperCfg.SetDefault("remote-commands.send_back_limit", 2048)

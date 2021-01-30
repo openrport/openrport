@@ -358,11 +358,11 @@ func TestConfigParseAndValidateAllowRegexp(t *testing.T) {
 		},
 		{
 			name:  "valid",
-			allow: []string{"^/usr/bin.*", "^/usr/local/bin/.*", `^C:\Windows\System32.*`},
+			allow: []string{"^/usr/bin.*", "^/usr/local/bin/.*", `^C:\\Windows\\System32.*`},
 		},
 		{
 			name:            "invalid",
-			allow:           []string{"^/usr/bin.*", "{invalid regexp)", `^C:\Windows\System32.*`},
+			allow:           []string{"^/usr/bin.*", "{invalid regexp)", `^C:\\Windows\\System32.*`},
 			wantErrContains: "allow regexp: invalid regular expression",
 		},
 	}
@@ -404,11 +404,11 @@ func TestConfigParseAndValidateDenyRegexp(t *testing.T) {
 		},
 		{
 			name: "valid",
-			deny: []string{"^/usr/bin/zip.*", `^C:\Windows\.*`},
+			deny: []string{"^/usr/bin/zip.*", `^C:\\Windows\\.*`},
 		},
 		{
 			name:            "invalid",
-			deny:            []string{"^/usr/bin/zip.*", "{invalid regexp)", `^C:\Windows\.*`},
+			deny:            []string{"^/usr/bin/zip.*", "{invalid regexp)", `^C:\\Windows\\.*`},
 			wantErrContains: "deny regexp: invalid regular expression",
 		},
 	}

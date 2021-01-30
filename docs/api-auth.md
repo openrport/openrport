@@ -75,7 +75,7 @@ Using `/var/lib/rport/api-auth.json` or `C:\Program Files\rport\api-auth.json` i
 Enter the following line to your `rportd.config` in the `[api]` section.
 ```
 auth_file = "/var/lib/rport/api-auth.json"           # Linux
-auth_file = "C:\Program Files\rport\api-auth.json"   # Windows
+auth_file = 'C:\Program Files\rport\api-auth.json'   # Windows
 ```
 Make sure no other auth option is enabled.
 Reload rportd to activate the changes.

@@ -178,8 +178,8 @@ On the client using the `rport.conf` you can configure and limit the execution o
 ## Allow commands matching the following regular expressions.
 ## The filter is applied to the command sent. Full path must be used.
 ## See {order} parameter for more details how it's applied together with {deny}.
-## Defaults: ['^/usr/bin/.*','^/usr/local/bin/.*','^C:\Windows\System32\.*']
-#allow = ['^/usr/bin/.*','^/usr/local/bin/.*','^C:\Windows\System32\.*']
+## Defaults: ['^/usr/bin/.*','^/usr/local/bin/.*','^C:\\Windows\\System32\\.*']
+#allow = ['^/usr/bin/.*','^/usr/local/bin/.*','^C:\\Windows\\System32\\.*']
 
 ## Deny commands matching one of the following regular expressions.
 ## The filter is applied to the command sent. Full path must be used.
