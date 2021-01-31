@@ -36,10 +36,10 @@ docker-goreleaser:
 		-e GOCACHE=/cache/go \
 		-v /var/run/docker.sock:/var/run/docker.sock \
 		-w ${PWD} \
-		goreleaser/goreleaser:v0.126 --snapshot --rm-dist --skip-publish
+		goreleaser/goreleaser:latest --snapshot --rm-dist --skip-publish
 
 docker-golangci-lint:
 	docker run -it --rm \
 		-v ${PWD}:${PWD} \
 		-w ${PWD} \
-		golangci/golangci-lint:v1.30 golangci-lint -c .golangci.yml run
+		golangci/golangci-lint:v1.32 golangci-lint -c .golangci.yml run
