@@ -93,8 +93,8 @@ See `./rportd --help` and `./rport --help` for more options, like:
 ### Run the server without installation
 If you quickly want to run the rport server without installation, run the following commands from any unprivileged user account.
 ```
-wget https://github.com/cloudradar-monitoring/rport/releases/download/0.1.21/rport_0.1.21_Linux_x86_64.tar.gz
-sudo tar vxzf rport_0.1.21_Linux_x86_64.tar.gz rportd
+wget https://github.com/cloudradar-monitoring/rport/releases/download/0.1.22/rport_0.1.22_Linux_x86_64.tar.gz
+sudo tar vxzf rport_0.1.22_Linux_x86_64.tar.gz rportd
 KEY=$(openssl rand -hex 18)
 ./rportd --log-level info --data-dir /var/tmp/ --key $KEY --auth user1:1234
 ```
@@ -105,7 +105,7 @@ Grab the generated fingerprint from `/var/tmp/rportd-fingerprint.txt` and use it
 ### Install and run the rport server
 
 On a machine connected to the public internet and ideally with an FQDN registered to a public DNS install and run the server.
-The server is called node1.example.com in this example.
+Assume, the server is called node1.example.com.
 
 #### A note on security
 > **Do not run the server as root!** This is an unnecessary risk. Rportd should always use an unprivileged user.
@@ -119,13 +119,13 @@ If you do ssh or rdp through the tunnel, a hijacked tunnel will not expose your 
 #### Install the server
 For a proper installation execute the following steps.
 ```
-wget https://github.com/cloudradar-monitoring/rport/releases/download/0.1.21/rport_0.1.21_Linux_x86_64.tar.gz
-sudo tar vxzf rport_0.1.21_Linux_x86_64.tar.gz -C /usr/local/bin/ rportd
+wget https://github.com/cloudradar-monitoring/rport/releases/download/0.1.22/rport_0.1.22_Linux_x86_64.tar.gz
+sudo tar vxzf rport_0.1.22_Linux_x86_64.tar.gz -C /usr/local/bin/ rportd
 sudo useradd -d /var/lib/rport -m -r -s /bin/false rport
 sudo mkdir /etc/rport/
 sudo mkdir /var/log/rport/
 sudo chown rport /var/log/rport/
-sudo tar vxzf rport_0.1.21_Linux_x86_64.tar.gz -C /etc/rport/ rportd.example.conf
+sudo tar vxzf rport_0.1.22_Linux_x86_64.tar.gz -C /etc/rport/ rportd.example.conf
 sudo cp /etc/rport/rportd.example.conf /etc/rport/rportd.conf
 ```
 
@@ -158,15 +158,17 @@ sudo systemctl enable rportd # Optionally start rportd on boot
 
 <a name="run-client"></a>
 ### Connect a client
-We call the client `client1.local.localdomain`.
+Assume, the client is called `client1.local.localdomain`.
 On your client just install the client binary
 ```
-curl -LSs https://github.com/cloudradar-monitoring/rport/releases/download/0.1.21/rport_0.1.21_Linux_x86_64.tar.gz|\
+curl -LSs https://github.com/cloudradar-monitoring/rport/releases/download/0.1.22/rport_0.1.22_Linux_x86_64.tar.gz|\
 tar vxzf - rport -C /usr/local/bin/
 ```
 
-Create an ad hoc tunnel that will forward the port 2222 of node1.example.com to the to local port 22 of client1.local.localdomain.
-`rport --auth user1:1234 --fingerprint <YOUR_FINGERPRINT> node1.example.com:8080 2222:0.0.0.0:22`
+Create an ad hoc tunnel that will forward the port 2222 of `node1.example.com` to the to local port 22 of `client1.local.localdomain`.
+```
+rport --auth user1:1234 --fingerprint <YOUR_FINGERPRINT> node1.example.com:8080 2222:0.0.0.0:22
+```
 Observing the log of the server you get a confirmation about the newly created tunnel.
 
 Now you can access your machine behind a firewall through the tunnel. Try `ssh -p 2222 node1.example.com` and you will come out on the machine where the tunnel has been initiated.
@@ -175,13 +177,13 @@ Now you can access your machine behind a firewall through the tunnel. Try `ssh -
 ### Run a Linux client with systemd
 For a proper and permanent installation of the client execute the following steps.
 ```
-wget https://github.com/cloudradar-monitoring/rport/releases/download/0.1.21/rport_0.1.21_Linux_x86_64.tar.gz
-sudo tar vxzf rport_0.1.21_Linux_x86_64.tar.gz -C /usr/local/bin/ rportd
+wget https://github.com/cloudradar-monitoring/rport/releases/download/0.1.22/rport_0.1.22_Linux_x86_64.tar.gz
+sudo tar vxzf rport_0.1.22_Linux_x86_64.tar.gz -C /usr/local/bin/ rportd
 sudo useradd -d /var/lib/rport -m -r -s /bin/false rport
 sudo mkdir /etc/rport/
 sudo mkdir /var/log/rport/
 sudo chown rport /var/log/rport/
-sudo tar vxzf rport_0.1.21_Linux_x86_64.tar.gz -C /etc/rport/ rport.example.conf
+sudo tar vxzf rport_0.1.22_Linux_x86_64.tar.gz -C /etc/rport/ rport.example.conf
 sudo cp /etc/rport/rport.example.conf /etc/rport/rport.conf
 sudo rport --service install --service-user rport --config /etc/rport/rport.conf
 ```
@@ -204,7 +206,7 @@ This will establish a permanent tunnel and the local port 22 (SSH) of the client
 
 <a name="windows-client"></a>
 ### Run a Windows client
-On Microsoft Windows [download the latest client binary](https://github.com/cloudradar-monitoring/rport/releases/download/0.1.21/rport_0.1.21_Windows_x86_64.zip) and extract it ideally to `C:\Program Files\rport`. Rename the `rport.conf.example` to `rport.conf` and store it in `C:\Program Files\rport` too.
+On Microsoft Windows [download the latest client binary](https://github.com/cloudradar-monitoring/rport/releases/download/0.1.22/rport_0.1.22_Windows_x86_64.zip) and extract it ideally to `C:\Program Files\rport`. Rename the `rport.example.conf` to `rport.conf` and store it in `C:\Program Files\rport` too.
 Open the `rport.conf` file with a text editor. On older Windows use an editor that supports unix line breaks, like [notepad++](https://notepad-plus-plus.org/).
 
 A very minimalistic client configuration `rport.conf` can look like this:
@@ -254,7 +256,9 @@ To prevent anyone who knows the address and the port of your rport server to use
 Using a static username password pair is the most basic option. See the comments in the [rportd.example.conf](rportd.example.conf) and read more about all supported [authentication options](docs/client-auth.md).
 
 On the client start the tunnel this way
-`rport --auth rport:password123 --fingerprint <YOUR_FINGERPRINT> node1.example.com:19075 2222:0.0.0.0:22`
+```
+rport --auth user1:1234 --fingerprint <YOUR_FINGERPRINT> node1.example.com:8080 2222:0.0.0.0:22
+```
 *Note that in this early version the order of the command line options is still important. This might change later.*
 
 
@@ -270,11 +274,11 @@ Activate the API as described in ["Activate the API"](#api-activate).
 #### Step 2: Connect a client
 Invoke the client without specifying a tunnel but with some extra data.
 ```
-rport --id 2ba9174e-640e-4694-ad35-34a2d6f3986b \
-  --fingerprint c5:26:2b:65:29:a8:0f:ed:ef:77:c9:5c:f1:2a:36:8a \
+rport --id my-client-1 \
+  --fingerprint <YOUR_FINGERPRINT> \
   --tag Linux --tag "Office Berlin" \
-  --name "My Test VM" --auth user1:Aiphei4d \
-  node1.example.com:19075
+  --name "My Test VM" --auth user1:1234 \
+  node1.example.com:8080
 ```
 *Add auth and fingerprint as already explained.*
 
@@ -282,13 +286,13 @@ This attaches the client to the message queue of the server without creating a t
 
 #### Step 3: Manage clients and tunnels
 On the server, you can supervise the attached clients using
-`curl -s -u admin:foobaz http://localhost:3000/api/v1/sessions`. *Use `jq` for pretty-printing json.*
+`curl -s -u admin:foobaz http://node1.example.com:3000/api/v1/sessions`. *Use `jq` for pretty-printing json.*
 Here is an example:
 ```
-curl -s -u admin:foobaz http://localhost:3000/api/v1/sessions|jq
+curl -s -u admin:foobaz http://node1.example.com:3000/api/v1/sessions|jq
 [
   {
-    "id": "2ba9174e-640e-4694-ad35-34a2d6f3986b",
+    "id": "my-client-1",
     "name": "My Test VM",
     "os": "Linux my-devvm-v3 5.4.0-37-generic #41-Ubuntu SMP Wed Jun 3 18:57:02 UTC 2020 x86_64 x86_64 x86_64 GNU/Linux",
     "os_arch": "amd64",

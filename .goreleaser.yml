@@ -30,6 +30,17 @@ builds:
     ignore:
       - goos: darwin
         goarch: 386
+      - goos: linux
+        goarch: amd64
+  - id: rport-linux-amd64
+    main: ./cmd/rport
+    binary: rport
+    ldflags:
+      - "-s -w -X {{.Env.PROJECT}}/share.BuildVersion={{.Version}}"
+    goos:
+      - linux
+    goarch:
+      - amd64
   - id: rportd
     main: ./cmd/rportd
     binary: rportd
@@ -42,7 +53,10 @@ builds:
     goarch:
       - amd64
 archives:
-  - format_overrides:
+  - id: rport-only
+    builds:
+      - rport
+    format_overrides:
       - goos: windows
         format: zip
     replacements:
@@ -53,8 +67,16 @@ archives:
       amd64: x86_64
     files:
       - rport.example.conf
+  - id: all
+    builds:
+      - rport-linux-amd64
+      - rportd
+    replacements:
+      linux: Linux
+      amd64: x86_64
+    files:
+      - rport.example.conf
       - rportd.example.conf
-    allow_different_binary_count: true
 checksum:
   name_template: 'checksums.txt'
 snapshot:

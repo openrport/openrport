@@ -118,13 +118,13 @@ func NewServer(config *Config, filesAPI files.FileAPI) (*Server, error) {
 		if err != nil {
 			return nil, err
 		}
+		s.Infof("DB: successfully connected to %s", config.Database.dsnForLogs())
 	}
 
 	s.clientProvider, err = getClientProvider(config, s.db)
 	if err != nil {
 		return nil, err
 	}
-	s.Infof("DB: successfully connected to %s", config.Database.dsnForLogs())
 	s.clientListener, err = NewClientListener(s, privateKey)
 	if err != nil {
 		return nil, err

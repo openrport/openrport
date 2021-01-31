@@ -12,7 +12,7 @@ import (
 
 var svcConfig = &service.Config{
 	Name:        "rport",
-	DisplayName: "CloudRadar Rport Client",
+	DisplayName: "Rport Client",
 	Description: "Create reverse tunnels with ease.",
 }
 
