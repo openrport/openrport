@@ -6,13 +6,13 @@ The Rportd API support two ways of authentication.
 ### HTTP Basic Auth
 The API claims to be REST compliant. Submitting credentials on each request using an HTTP basic auth header is therefore possible, for example
 ```
-curl -s -u admin:password http://localhost:3000/api/v1/sessions
+curl -s -u admin:foobaz http://localhost:3000/api/v1/sessions|jq
 ```
 ### Bearer Token Auth
-Using HTTP Basic auth you can request a token at `GET /api/v1/login` to authenticate further requests with a token.
+Using HTTP Basic auth you can request a token at [`login` endpoint](https://petstore.swagger.io/?url=https://raw.githubusercontent.com/cloudradar-monitoring/rport/master/api-doc.yml#/default/get_login) to authenticate further requests with a token.
 Example:
 ```
-curl -s -u admin:123456 http://localhost:9999/api/v1/login|jq
+curl -s -u admin:foobaz http://localhost:3000/api/v1/login|jq
 {
  "data": {
   "token": "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJqdGkiOiIxMzI2MDU3MjgzMTA4OTc4NTg1OSJ9.6HSANk3aRleJbAMvfJhUc4grieupRdfU62MMX_L6wEA"
@@ -24,10 +24,10 @@ The token has a default lifetime of 600 seconds(10 minutes). Using the query par
 Having a valid token you can execute requests, using an `Authorization: Bearer: <TOKEN>` header. For example.
 ```
 # Get and store the token
-curl -s -u admin:123456 http://localhost:9999/api/v1/login?token-lifetime=3600|jq -r .data.token > .token
+curl -s -u admin:foobaz http://localhost:3000/api/v1/login?token-lifetime=3600|jq -r .data.token > .token
 
 # Request using the stored toeken
-curl -s -H "Authorization: Bearer $(cat .token)" http://localhost:9999/api/v1/sessions
+curl -s -H "Authorization: Bearer $(cat .token)" http://localhost:3000/api/v1/sessions|jq
 ```
 
 Rportd holds the tokens in memory. Restarting rportd deletes (expires) them all.
@@ -38,16 +38,16 @@ Tokens are based on JWT. For your security, you should enter a unique `jwt_secre
 The Rportd can read user credentials from three different sources.
 1. A "hardcoded" single user with a plaintext password
 2. A user file with bcrypt encoded passwords
-3. A database table with bcrypt encoded passwords (NOT SUPPORTED YET)
+3. A database table with bcrypt encoded passwords
 
 Which one you chose is an either-or decision. A mixed-mode is not supported.
 
 ### Hardcoded single user
 To use just a single user enter the following line to the `rportd.config` in the `[api]` section.
 ```
-auth = "admin:123456"
+auth = "admin:foobaz"
 ```
-Quite simple. Now you can log in to the API using the username `admin` and the password `123456`.
+Quite simple. Now you can log in to the API using the username `admin` and the password `foobaz`.
 
 ### User File
 If you want to have more than one user, create a json file with the following structure.

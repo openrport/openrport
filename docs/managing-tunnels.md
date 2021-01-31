@@ -2,7 +2,7 @@
 ## Manage tunnel client-side
 
 ## Manage tunnel server-side
-On the server, you can supervise and manage the attached clients through the API.
+On the server, you can supervise and manage the attached clients through the [API](https://petstore.swagger.io/?url=https://raw.githubusercontent.com/cloudradar-monitoring/rport/master/api-doc.yml#/Client%20Sessions%20and%20Tunnels).
 ### List
 
 `curl -s -u admin:foobaz http://localhost:3000/api/v1/sessions`. *Use `jq` for pretty-printing json.*
@@ -73,12 +73,20 @@ For example,
 CLIENTID=2ba9174e-640e-4694-ad35-34a2d6f3986b
 LOCAL_PORT=4000
 REMOTE_PORT=22
-curl -u admin:foobaz -X PUT "http://localhost:3000/api/v1/sessions/$CLIENTID/tunnels?local=$LOCAL_PORT&remote=$REMOTE_PORT"
+curl -u admin:foobaz -X PUT "http://localhost:3000/api/v1/sessions/$CLIENTID/tunnels?local=$LOCAL_PORT&remote=$REMOTE_PORT"|jq
 ```
 The ports are defined from the servers' perspective. "Local" refers to the local ports of the rport server. "Remote" refers to the ports and interfaces of the client.
 The above example opens port 4000 on the rport server and forwards to the port 22 of the client.
 
-Using `curl -s -u admin:foobaz -X GET "http://localhost:3000/api/v1/sessions"` or `curl -s -u admin:foobaz -X GET "http://localhost:3000/api/v1/sessions"|jq ".data[] | select(.id==\"$CLIENTID\")|.tunnels"` again confirms the tunnel has been established.
+Using
+```
+curl -s -u admin:foobaz -X GET "http://localhost:3000/api/v1/sessions"
+```
+or
+```
+curl -s -u admin:foobaz -X GET "http://localhost:3000/api/v1/sessions"|jq ".data[] | select(.id==\"$CLIENTID\")|.tunnels"
+```
+confirms the tunnel has been established.
 ```
 "tunnels": [
       {
@@ -118,7 +126,7 @@ LOCAL_PORT=4001
 REMOTE_PORT=192.168.178.1:80
 curl -u admin:foobaz -X PUT "http://localhost:3000/api/v1/sessions/$CLIENTID/tunnels?local=$LOCAL_PORT&remote=$REMOTE_PORT"
 ```
-This example forwards port 4001 of the rport server to port 80 of 192.168.178.1 using the rport client in the middle.
+This example forwards port 4001 of the rport server to port 80 of `192.168.178.1` using the rport client in the middle.
 ```
 "tunnels": [
       {

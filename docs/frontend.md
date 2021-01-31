@@ -23,6 +23,6 @@ doc_root = 'C:\Program Files\rport\docroot'  # Windows
 * Download the latest release of the frontend [here](https://downloads.rport.io/).
 * Unpack to the `doc_root` folder.
 * Open the API-URL in a browser.
-* Log in with a username and password specified for the API authentication.
+* Log in with a username and password specified for the [API authentication](https://github.com/cloudradar-monitoring/rport/blob/master/docs/api-auth.md).
 
 You are done.
