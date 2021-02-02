@@ -1,6 +1,11 @@
 # Managing tunnels
 ## Manage tunnel client-side
+Specify the desired tunnel on the command line, for example
+```
+rport --auth rport:password123 <SERVER_IP>:9999 2222:22
+```
 
+Alternatively add tunnels to the configuration file `rport.conf`.
 ## Manage tunnel server-side
 On the server, you can supervise and manage the attached clients through the [API](https://petstore.swagger.io/?url=https://raw.githubusercontent.com/cloudradar-monitoring/rport/master/api-doc.yml#/Client%20Sessions%20and%20Tunnels).
 ### List
