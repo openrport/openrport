@@ -7,7 +7,7 @@ import (
 // CachedProvider is a thread-safe in-memory cache around the provider.
 type CachedProvider struct {
 	provider Provider
-	clients  map[string]*Client
+	clients  map[string]*ClientAuth
 	mu       sync.RWMutex
 }
 
@@ -17,7 +17,7 @@ func NewCachedProvider(provider Provider) (*CachedProvider, error) {
 	if err != nil {
 		return nil, err
 	}
-	m := make(map[string]*Client, len(clients))
+	m := make(map[string]*ClientAuth, len(clients))
 	for _, v := range clients {
 		m[v.ID] = v
 	}
@@ -27,25 +27,25 @@ func NewCachedProvider(provider Provider) (*CachedProvider, error) {
 	}, nil
 }
 
-func (c *CachedProvider) Get(id string) (*Client, error) {
+func (c *CachedProvider) Get(id string) (*ClientAuth, error) {
 	c.mu.RLock()
 	defer c.mu.RUnlock()
 	return c.clients[id], nil
 }
 
-func (c *CachedProvider) GetAll() ([]*Client, error) {
+func (c *CachedProvider) GetAll() ([]*ClientAuth, error) {
 	c.mu.RLock()
 	defer c.mu.RUnlock()
-	res := make([]*Client, 0, len(c.clients))
+	res := make([]*ClientAuth, 0, len(c.clients))
 	for _, v := range c.clients {
 		res = append(res, v)
 	}
 	return res, nil
 }
 
-// Add returns true if a new client by a given id was added successfully.
-// Returns false if it already contains a client with such id.
-func (c *CachedProvider) Add(client *Client) (bool, error) {
+// Add returns true if a new client auth by a given id was added successfully.
+// Returns false if it already contains a client auth with such id.
+func (c *CachedProvider) Add(client *ClientAuth) (bool, error) {
 	c.mu.Lock()
 	defer c.mu.Unlock()
 	if c.clients[client.ID] != nil {

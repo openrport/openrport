@@ -54,7 +54,7 @@ var s1 = &ClientSession{
 			},
 		},
 	},
-	ClientID:     "client-1",
+	ClientAuthID: "client-1",
 	Disconnected: nil,
 }
 
@@ -82,7 +82,7 @@ var s2 = &ClientSession{
 			},
 		},
 	},
-	ClientID:     "client-2",
+	ClientAuthID: "client-2",
 	Disconnected: &s2DisconnectedTime,
 }
 
@@ -100,7 +100,7 @@ var s3 = &ClientSession{
 	Version:      "0.1.12",
 	Address:      "88.198.189.163:50078",
 	Tunnels:      make([]*Tunnel, 0),
-	ClientID:     "client-3",
+	ClientAuthID: "client-3",
 	Disconnected: &s3DisconnectedTime,
 }
 
@@ -118,7 +118,7 @@ var s4 = &ClientSession{
 	Version:      "0.1.12",
 	Address:      "88.198.189.164:50078",
 	Tunnels:      make([]*Tunnel, 0),
-	ClientID:     "client-4",
+	ClientAuthID: "client-4",
 	Disconnected: &s4DisconnectedTime,
 }
 
@@ -143,7 +143,7 @@ func shallowCopy(s *ClientSession) *ClientSession {
 		Address:      s.Address,
 		Tunnels:      append([]*Tunnel{}, s.Tunnels...),
 		Disconnected: s.Disconnected,
-		ClientID:     s.ClientID,
+		ClientAuthID: s.ClientAuthID,
 	}
 }
 

@@ -22,19 +22,19 @@ func NewDatabaseProvider(DB *sqlx.DB, tableName string) *DatabaseProvider {
 	}
 }
 
-func (c *DatabaseProvider) GetAll() ([]*Client, error) {
-	var result []*Client
+func (c *DatabaseProvider) GetAll() ([]*ClientAuth, error) {
+	var result []*ClientAuth
 	err := c.db.Select(&result, fmt.Sprintf("SELECT id, password FROM %s", c.tableName))
 	return result, err
 }
 
-func (c *DatabaseProvider) Get(id string) (*Client, error) {
-	result := &Client{}
+func (c *DatabaseProvider) Get(id string) (*ClientAuth, error) {
+	result := &ClientAuth{}
 	err := c.db.Get(result, fmt.Sprintf("SELECT id, password FROM %s WHERE id = ?", c.tableName), id)
 	return result, err
 }
 
-func (c *DatabaseProvider) Add(client *Client) (bool, error) {
+func (c *DatabaseProvider) Add(client *ClientAuth) (bool, error) {
 	_, err := c.db.NamedExec(fmt.Sprintf("INSERT INTO %s (id, password) VALUES (:id, :password)", c.tableName), client)
 	if err != nil {
 		// Check for client already exists error

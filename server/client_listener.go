@@ -189,17 +189,17 @@ func (cl *ClientListener) handleWebsocket(w http.ResponseWriter, req *http.Reque
 
 	sshID := sessions.GetSessionID(sshConn)
 
-	// get the current client
-	clientID := sshConn.User()
+	// get the current client auth id
+	clientAuthID := sshConn.User()
 
 	// client session id
-	sid := cl.getSID(connRequest.ID, cl.config, clientID, sshID)
+	sid := cl.getSID(connRequest.ID, cl.config, clientAuthID, sshID)
 
 	ctx, cancel := context.WithCancel(context.Background())
 	defer cancel()
 
 	clientSession, err := cl.sessionService.StartClientSession(
-		ctx, clientID, sid, sshConn, cl.config.Server.AuthMultiuseCreds, connRequest, clog)
+		ctx, clientAuthID, sid, sshConn, cl.config.Server.AuthMultiuseCreds, connRequest, clog)
 	if err != nil {
 		failed(err)
 		return

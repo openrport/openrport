@@ -30,7 +30,7 @@ type SessionBuilder struct {
 	t *testing.T
 
 	id           string
-	clientID     string
+	clientAuthID string
 	disconnected *time.Time
 	conn         ssh.Conn
 }
@@ -38,9 +38,9 @@ type SessionBuilder struct {
 // New returns a builder to generate a client session that can be used in tests.
 func New(t *testing.T) SessionBuilder {
 	return SessionBuilder{
-		t:        t,
-		id:       generateRandomSID(),
-		clientID: generateRandomClientID(),
+		t:            t,
+		id:           generateRandomSID(),
+		clientAuthID: generateRandomClientID(),
 	}
 }
 
@@ -49,8 +49,8 @@ func (b SessionBuilder) ID(id string) SessionBuilder {
 	return b
 }
 
-func (b SessionBuilder) ClientID(clientID string) SessionBuilder {
-	b.clientID = clientID
+func (b SessionBuilder) ClientAuthID(clientAuthID string) SessionBuilder {
+	b.clientAuthID = clientAuthID
 	return b
 }
 
@@ -103,7 +103,7 @@ func (b SessionBuilder) Build() *ClientSession {
 			},
 		},
 		Disconnected: b.disconnected,
-		ClientID:     b.clientID,
+		ClientAuthID: b.clientAuthID,
 
 		Connection: b.conn,
 	}

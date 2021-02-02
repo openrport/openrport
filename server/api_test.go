@@ -162,15 +162,15 @@ func TestGetCorrespondingSortFuncNegative(t *testing.T) {
 }
 
 var (
-	cl1 = &clients.Client{ID: "user1", Password: "pswd1"}
-	cl2 = &clients.Client{ID: "user2", Password: "pswd2"}
-	cl3 = &clients.Client{ID: "user3", Password: "pswd3"}
+	cl1 = &clients.ClientAuth{ID: "user1", Password: "pswd1"}
+	cl2 = &clients.ClientAuth{ID: "user2", Password: "pswd2"}
+	cl3 = &clients.ClientAuth{ID: "user3", Password: "pswd3"}
 )
 
 func TestHandleGetClients(t *testing.T) {
 	require := require.New(t)
 
-	req := httptest.NewRequest(http.MethodGet, "/api/v1/clients", nil)
+	req := httptest.NewRequest(http.MethodGet, "/api/v1/clients-auth", nil)
 
 	testCases := []struct {
 		descr string // Test Case Description
@@ -178,27 +178,27 @@ func TestHandleGetClients(t *testing.T) {
 		provider clients.Provider
 
 		wantStatusCode int
-		wantClients    []*clients.Client
+		wantClients    []*clients.ClientAuth
 		wantErrCode    string
 		wantErrTitle   string
 	}{
 		{
 			descr:          "auth file, 3 clients",
-			provider:       clients.NewMockProvider([]*clients.Client{cl1, cl2, cl3}),
+			provider:       clients.NewMockProvider([]*clients.ClientAuth{cl1, cl2, cl3}),
 			wantStatusCode: http.StatusOK,
-			wantClients:    []*clients.Client{cl1, cl2, cl3},
+			wantClients:    []*clients.ClientAuth{cl1, cl2, cl3},
 		},
 		{
 			descr:          "auth file, no clients",
-			provider:       clients.NewMockProvider([]*clients.Client{}),
+			provider:       clients.NewMockProvider([]*clients.ClientAuth{}),
 			wantStatusCode: http.StatusOK,
-			wantClients:    []*clients.Client{},
+			wantClients:    []*clients.ClientAuth{},
 		},
 		{
 			descr:          "auth, single client",
 			provider:       clients.NewSingleProvider(cl1.ID, cl1.Password),
 			wantStatusCode: http.StatusOK,
-			wantClients:    []*clients.Client{cl1},
+			wantClients:    []*clients.ClientAuth{cl1},
 		},
 	}
 
@@ -217,7 +217,7 @@ func TestHandleGetClients(t *testing.T) {
 		}
 
 		// when
-		handler := http.HandlerFunc(al.handleGetClients)
+		handler := http.HandlerFunc(al.handleGetClientsAuth)
 		w := httptest.NewRecorder()
 		handler.ServeHTTP(w, req)
 
@@ -242,13 +242,13 @@ func TestHandlePostClients(t *testing.T) {
 	assert := assert.New(t)
 
 	composeRequestBody := func(id, pswd string) io.Reader {
-		c := clients.Client{ID: id, Password: pswd}
+		c := clients.ClientAuth{ID: id, Password: pswd}
 		b, err := json.Marshal(c)
 		require.NoError(err)
 		return bytes.NewBuffer(b)
 	}
-	cl4 := &clients.Client{ID: "user4", Password: "pswd4"}
-	initCacheState := []*clients.Client{cl1, cl2, cl3}
+	cl4 := &clients.ClientAuth{ID: "user4", Password: "pswd4"}
+	initCacheState := []*clients.ClientAuth{cl1, cl2, cl3}
 
 	testCases := []struct {
 		descr string // Test Case Description
@@ -258,7 +258,7 @@ func TestHandlePostClients(t *testing.T) {
 		requestBody     io.Reader
 
 		wantStatusCode int
-		wantClients    []*clients.Client
+		wantClients    []*clients.ClientAuth
 		wantErrCode    string
 		wantErrTitle   string
 		wantErrDetail  string
@@ -269,15 +269,15 @@ func TestHandlePostClients(t *testing.T) {
 			clientAuthWrite: true,
 			requestBody:     composeRequestBody(cl4.ID, cl4.Password),
 			wantStatusCode:  http.StatusCreated,
-			wantClients:     []*clients.Client{cl1, cl2, cl3, cl4},
+			wantClients:     []*clients.ClientAuth{cl1, cl2, cl3, cl4},
 		},
 		{
 			descr:           "auth file, new valid client, empty cache",
-			provider:        clients.NewMockProvider([]*clients.Client{}),
+			provider:        clients.NewMockProvider([]*clients.ClientAuth{}),
 			clientAuthWrite: true,
 			requestBody:     composeRequestBody(cl4.ID, cl4.Password),
 			wantStatusCode:  http.StatusCreated,
-			wantClients:     []*clients.Client{cl4},
+			wantClients:     []*clients.ClientAuth{cl4},
 		},
 		{
 			descr:           "auth file, empty request body",
@@ -373,7 +373,7 @@ func TestHandlePostClients(t *testing.T) {
 			requestBody:     composeRequestBody(cl1.ID, cl4.Password),
 			wantStatusCode:  http.StatusConflict,
 			wantErrCode:     ErrCodeAlreadyExist,
-			wantErrTitle:    fmt.Sprintf("Client with ID %q already exist.", cl1.ID),
+			wantErrTitle:    fmt.Sprintf("Client Auth with ID %q already exist.", cl1.ID),
 			wantClients:     initCacheState,
 		},
 		{
@@ -394,7 +394,7 @@ func TestHandlePostClients(t *testing.T) {
 			wantStatusCode:  http.StatusMethodNotAllowed,
 			wantErrCode:     ErrCodeClientAuthSingleClient,
 			wantErrTitle:    "Client authentication is enabled only for a single user.",
-			wantClients:     []*clients.Client{cl1},
+			wantClients:     []*clients.ClientAuth{cl1},
 		},
 	}
 
@@ -415,10 +415,10 @@ func TestHandlePostClients(t *testing.T) {
 			Logger: testLog,
 		}
 
-		req := httptest.NewRequest(http.MethodPost, "/api/v1/clients", tc.requestBody)
+		req := httptest.NewRequest(http.MethodPost, "/api/v1/clients-auth", tc.requestBody)
 
 		// when
-		handler := http.HandlerFunc(al.handlePostClients)
+		handler := http.HandlerFunc(al.handlePostClientsAuth)
 		w := httptest.NewRecorder()
 		handler.ServeHTTP(w, req)
 
@@ -453,10 +453,10 @@ func (m *mockConnection) Close() error {
 func TestHandleDeleteClient(t *testing.T) {
 	mockConn := &mockConnection{}
 
-	initCacheState := []*clients.Client{cl1, cl2, cl3}
+	initCacheState := []*clients.ClientAuth{cl1, cl2, cl3}
 
-	s1 := sessions.New(t).ClientID(cl1.ID).Connection(mockConn).Build()
-	s2 := sessions.New(t).ClientID(cl1.ID).DisconnectedDuration(5 * time.Minute).Build()
+	s1 := sessions.New(t).ClientAuthID(cl1.ID).Connection(mockConn).Build()
+	s2 := sessions.New(t).ClientAuthID(cl1.ID).DisconnectedDuration(5 * time.Minute).Build()
 
 	testCases := []struct {
 		descr string // Test Case Description
@@ -464,11 +464,11 @@ func TestHandleDeleteClient(t *testing.T) {
 		provider        clients.Provider
 		sessions        []*sessions.ClientSession
 		clientAuthWrite bool
-		clientID        string
+		clientAuthID    string
 		urlSuffix       string
 
 		wantStatusCode int
-		wantClients    []*clients.Client
+		wantClients    []*clients.ClientAuth
 		wantErrCode    string
 		wantErrTitle   string
 		wantErrDetail  string
@@ -479,18 +479,18 @@ func TestHandleDeleteClient(t *testing.T) {
 			descr:           "auth file, success delete",
 			provider:        clients.NewMockProvider(initCacheState),
 			clientAuthWrite: true,
-			clientID:        cl1.ID,
+			clientAuthID:    cl1.ID,
 			wantStatusCode:  http.StatusNoContent,
-			wantClients:     []*clients.Client{cl2, cl3},
+			wantClients:     []*clients.ClientAuth{cl2, cl3},
 		},
 		{
 			descr:           "auth file, missing client ID",
 			provider:        clients.NewMockProvider(initCacheState),
 			clientAuthWrite: true,
-			clientID:        "unknown-client-id",
+			clientAuthID:    "unknown-client-id",
 			wantStatusCode:  http.StatusBadRequest,
 			wantErrCode:     ErrCodeClientNotFound,
-			wantErrTitle:    fmt.Sprintf("Client with ID=%q not found.", "unknown-client-id"),
+			wantErrTitle:    fmt.Sprintf("Client Auth with ID=%q not found.", "unknown-client-id"),
 			wantClients:     initCacheState,
 		},
 		{
@@ -498,10 +498,10 @@ func TestHandleDeleteClient(t *testing.T) {
 			provider:        clients.NewMockProvider(initCacheState),
 			sessions:        []*sessions.ClientSession{s1},
 			clientAuthWrite: true,
-			clientID:        cl1.ID,
+			clientAuthID:    cl1.ID,
 			wantStatusCode:  http.StatusConflict,
 			wantErrCode:     ErrCodeClientHasSession,
-			wantErrTitle:    fmt.Sprintf("Client expected to have no active or disconnected session(s), got %d.", 1),
+			wantErrTitle:    fmt.Sprintf("Client Auth expected to have no active or disconnected bound session(s), got %d.", 1),
 			wantClients:     initCacheState,
 			wantSessions:    []*sessions.ClientSession{s1},
 		},
@@ -510,10 +510,10 @@ func TestHandleDeleteClient(t *testing.T) {
 			provider:        clients.NewMockProvider(initCacheState),
 			sessions:        []*sessions.ClientSession{s2},
 			clientAuthWrite: true,
-			clientID:        cl1.ID,
+			clientAuthID:    cl1.ID,
 			wantStatusCode:  http.StatusConflict,
 			wantErrCode:     ErrCodeClientHasSession,
-			wantErrTitle:    fmt.Sprintf("Client expected to have no active or disconnected session(s), got %d.", 1),
+			wantErrTitle:    fmt.Sprintf("Client Auth expected to have no active or disconnected bound session(s), got %d.", 1),
 			wantClients:     initCacheState,
 			wantSessions:    []*sessions.ClientSession{s2},
 		},
@@ -521,7 +521,7 @@ func TestHandleDeleteClient(t *testing.T) {
 			descr:           "auth file, auth in Read-Only mode",
 			provider:        clients.NewMockProvider(initCacheState),
 			clientAuthWrite: false,
-			clientID:        cl1.ID,
+			clientAuthID:    cl1.ID,
 			wantStatusCode:  http.StatusMethodNotAllowed,
 			wantErrCode:     ErrCodeClientAuthRO,
 			wantErrTitle:    "Client authentication has been attached in read-only mode.",
@@ -532,28 +532,28 @@ func TestHandleDeleteClient(t *testing.T) {
 			provider:        clients.NewMockProvider(initCacheState),
 			sessions:        []*sessions.ClientSession{s1},
 			clientAuthWrite: true,
-			clientID:        cl1.ID,
+			clientAuthID:    cl1.ID,
 			urlSuffix:       "?force=true",
 			wantStatusCode:  http.StatusNoContent,
-			wantClients:     []*clients.Client{cl2, cl3},
+			wantClients:     []*clients.ClientAuth{cl2, cl3},
 			wantClosedConn:  true,
 		},
 		{
-			descr:           "auth file, client has disconnected session, force",
+			descr:           "auth file, client has disconnected bound session, force",
 			provider:        clients.NewMockProvider(initCacheState),
 			sessions:        []*sessions.ClientSession{s2},
 			clientAuthWrite: true,
-			clientID:        cl1.ID,
+			clientAuthID:    cl1.ID,
 			urlSuffix:       "?force=true",
 			wantStatusCode:  http.StatusNoContent,
-			wantClients:     []*clients.Client{cl2, cl3},
+			wantClients:     []*clients.ClientAuth{cl2, cl3},
 		},
 		{
 			descr:           "invalid force param",
 			provider:        clients.NewMockProvider(initCacheState),
 			sessions:        []*sessions.ClientSession{s1, s2},
 			clientAuthWrite: true,
-			clientID:        cl1.ID,
+			clientAuthID:    cl1.ID,
 			urlSuffix:       "?force=test",
 			wantStatusCode:  http.StatusBadRequest,
 			wantErrCode:     ErrCodeInvalidRequest,
@@ -565,11 +565,11 @@ func TestHandleDeleteClient(t *testing.T) {
 			descr:           "auth, single client",
 			provider:        clients.NewSingleProvider(cl1.ID, cl1.Password),
 			clientAuthWrite: true,
-			clientID:        cl1.ID,
+			clientAuthID:    cl1.ID,
 			wantStatusCode:  http.StatusMethodNotAllowed,
 			wantErrCode:     ErrCodeClientAuthSingleClient,
 			wantErrTitle:    "Client authentication is enabled only for a single user.",
-			wantClients:     []*clients.Client{cl1},
+			wantClients:     []*clients.ClientAuth{cl1},
 		},
 	}
 
@@ -596,7 +596,7 @@ func TestHandleDeleteClient(t *testing.T) {
 			al.initRouter()
 			mockConn.closed = false
 
-			url := fmt.Sprintf("/api/v1/clients/%s", tc.clientID)
+			url := fmt.Sprintf("/api/v1/clients-auth/%s", tc.clientAuthID)
 			url += tc.urlSuffix
 			req := httptest.NewRequest(http.MethodDelete, url, nil)
 
@@ -1081,8 +1081,8 @@ func TestHandleGetCommands(t *testing.T) {
 }
 
 func TestHandleGetSessions(t *testing.T) {
-	s1 := sessions.New(t).ID("session-1").ClientID(cl1.ID).Build()
-	s2 := sessions.New(t).ID("session-2").ClientID(cl1.ID).DisconnectedDuration(5 * time.Minute).Build()
+	s1 := sessions.New(t).ID("session-1").ClientAuthID(cl1.ID).Build()
+	s2 := sessions.New(t).ID("session-2").ClientAuthID(cl1.ID).DisconnectedDuration(5 * time.Minute).Build()
 	al := APIListener{
 		insecureForTests: true,
 		Server: &Server{
@@ -1142,7 +1142,7 @@ func TestHandleGetSessions(t *testing.T) {
                "id":"2"
             }
          ],
-         "client_id":"user1"
+         "client_auth_id":"user1"
       },
       {
          "id":"session-2",
@@ -1187,7 +1187,7 @@ func TestHandleGetSessions(t *testing.T) {
             }
          ],
          "disconnected":"2020-08-19T13:04:23+03:00",
-         "client_id":"user1"
+         "client_auth_id":"user1"
       }
    ]
 }`

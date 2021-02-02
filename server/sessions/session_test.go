@@ -10,19 +10,19 @@ import (
 
 func TestSessionBelongsToGroup(t *testing.T) {
 	s1 := &ClientSession{
-		ID:       "test-client-id-1",
-		Name:     "Random Rport Client 1",
-		OS:       "Linux alpine-3-10-tk-03 4.19.80-0-virt #1-Alpine SMP Fri Oct 18 11:51:24 UTC 2019 x86_64 Linux",
-		OSArch:   "amd64",
-		OSFamily: "alpine",
-		OSKernel: "linux",
-		Hostname: "alpine-1-10-tk-01",
-		IPv4:     []string{"192.168.122.113", "192.168.122.114"},
-		IPv6:     []string{"fe80::b84f:aff:fe59:a0b3"},
-		Tags:     []string{"Linux", "Datacenter 3", "Tag1", "Tag2", "Tag3"},
-		Version:  "0.1.12",
-		Address:  "88.198.189.163:50078",
-		ClientID: "client-auth-1",
+		ID:           "test-client-id-1",
+		Name:         "Random Rport Client 1",
+		OS:           "Linux alpine-3-10-tk-03 4.19.80-0-virt #1-Alpine SMP Fri Oct 18 11:51:24 UTC 2019 x86_64 Linux",
+		OSArch:       "amd64",
+		OSFamily:     "alpine",
+		OSKernel:     "linux",
+		Hostname:     "alpine-1-10-tk-01",
+		IPv4:         []string{"192.168.122.113", "192.168.122.114"},
+		IPv6:         []string{"fe80::b84f:aff:fe59:a0b3"},
+		Tags:         []string{"Linux", "Datacenter 3", "Tag1", "Tag2", "Tag3"},
+		Version:      "0.1.12",
+		Address:      "88.198.189.163:50078",
+		ClientAuthID: "client-auth-1",
 	}
 	s2 := &ClientSession{
 		ID:       "test-client-id-1",

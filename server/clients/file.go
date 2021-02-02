@@ -20,34 +20,34 @@ func NewFileProvider(fileName string) *FileProvider {
 	}
 }
 
-// GetAll returns rport clients from a given file.
-func (c *FileProvider) GetAll() ([]*Client, error) {
+// GetAll returns rport clients auth credentials from a given file.
+func (c *FileProvider) GetAll() ([]*ClientAuth, error) {
 	idPswdPairs, err := c.load()
 	if err != nil {
 		return nil, fmt.Errorf("failed to decode rport clients auth file: %v", err)
 	}
 
-	var res []*Client
+	var res []*ClientAuth
 	for id, pswd := range idPswdPairs {
 		if id == "" || pswd == "" {
-			return nil, errors.New("empty client ID or password is not allowed")
+			return nil, errors.New("empty client auth ID or password is not allowed")
 		}
-		res = append(res, &Client{ID: id, Password: pswd})
+		res = append(res, &ClientAuth{ID: id, Password: pswd})
 	}
 
 	return res, nil
 }
 
-func (c *FileProvider) Get(id string) (*Client, error) {
+func (c *FileProvider) Get(id string) (*ClientAuth, error) {
 	idPswdPairs, err := c.load()
 	if err != nil {
 		return nil, fmt.Errorf("failed to decode rport clients auth file: %v", err)
 	}
 
-	return &Client{ID: id, Password: idPswdPairs[id]}, nil
+	return &ClientAuth{ID: id, Password: idPswdPairs[id]}, nil
 }
 
-func (c *FileProvider) Add(client *Client) (bool, error) {
+func (c *FileProvider) Add(client *ClientAuth) (bool, error) {
 	idPswdPairs, err := c.load()
 	if err != nil {
 		return false, fmt.Errorf("failed to decode rport clients auth file: %v", err)
@@ -102,14 +102,14 @@ func (c *FileProvider) load() (map[string]string, error) {
 func (c *FileProvider) save(idPswdPairs map[string]string) error {
 	file, err := os.OpenFile(c.fileName, os.O_RDWR|os.O_TRUNC, os.ModePerm)
 	if err != nil {
-		return fmt.Errorf("failed to open rport clients file: %v", err)
+		return fmt.Errorf("failed to open rport clients auth file: %v", err)
 	}
 	defer file.Close()
 
 	encoder := json.NewEncoder(file)
 	encoder.SetIndent("", "	")
 	if err := encoder.Encode(idPswdPairs); err != nil {
-		return fmt.Errorf("failed to write rport clients: %v", err)
+		return fmt.Errorf("failed to write rport clients auth: %v", err)
 	}
 
 	return nil

@@ -61,7 +61,7 @@ func (s *SessionService) GetActiveByGroups(groups []*cgroups.ClientGroup) []*ses
 
 // TODO(m-terel): make it consistent with others whether to return an error. No need for now return an err
 func (s *SessionService) GetAllByClientID(clientID string) []*sessions.ClientSession {
-	return s.repo.GetAllByClientID(clientID)
+	return s.repo.GetAllByClientAuthID(clientID)
 }
 
 func (s *SessionService) GetAll() ([]*sessions.ClientSession, error) {
@@ -69,7 +69,7 @@ func (s *SessionService) GetAll() ([]*sessions.ClientSession, error) {
 }
 
 func (s *SessionService) StartClientSession(
-	ctx context.Context, clientID, sessionID string, sshConn ssh.Conn, authMultiuseCreds bool,
+	ctx context.Context, clientAuthID, sessionID string, sshConn ssh.Conn, authMultiuseCreds bool,
 	req *chshare.ConnectionRequest, clog *chshare.Logger,
 ) (*sessions.ClientSession, error) {
 	s.mu.Lock()
@@ -93,29 +93,29 @@ func (s *SessionService) StartClientSession(
 		}
 	}
 
-	// check if client is already used by another session
-	if !authMultiuseCreds && s.isClientInUse(clientID, sessionID) {
-		return nil, fmt.Errorf("client is already connected: %q", clientID)
+	// check if client auth ID is already used by another session
+	if !authMultiuseCreds && s.isClientAuthIDInUse(clientAuthID, sessionID) {
+		return nil, fmt.Errorf("client auth ID is already in use: %q", clientAuthID)
 	}
 
 	session := &sessions.ClientSession{
-		ID:         sessionID,
-		ClientID:   clientID,
-		Name:       req.Name,
-		Tags:       req.Tags,
-		OS:         req.OS,
-		OSArch:     req.OSArch,
-		OSFamily:   req.OSFamily,
-		OSKernel:   req.OSKernel,
-		Hostname:   req.Hostname,
-		Version:    req.Version,
-		IPv4:       req.IPv4,
-		IPv6:       req.IPv6,
-		Address:    sshConn.RemoteAddr().String(),
-		Tunnels:    make([]*sessions.Tunnel, 0),
-		Connection: sshConn,
-		Context:    ctx,
-		Logger:     clog,
+		ID:           sessionID,
+		ClientAuthID: clientAuthID,
+		Name:         req.Name,
+		Tags:         req.Tags,
+		OS:           req.OS,
+		OSArch:       req.OSArch,
+		OSFamily:     req.OSFamily,
+		OSKernel:     req.OSKernel,
+		Hostname:     req.Hostname,
+		Version:      req.Version,
+		IPv4:         req.IPv4,
+		IPv6:         req.IPv6,
+		Address:      sshConn.RemoteAddr().String(),
+		Tunnels:      make([]*sessions.Tunnel, 0),
+		Connection:   sshConn,
+		Context:      ctx,
+		Logger:       clog,
 	}
 
 	_, err = s.startSessionTunnels(session, req.Remotes)
@@ -207,9 +207,9 @@ func (s *SessionService) ForceDelete(session *sessions.ClientSession) error {
 	return s.repo.Delete(session)
 }
 
-// isClientInUse returns true when the session with different id exists for the client
-func (s *SessionService) isClientInUse(clientID, sessionID string) bool {
-	for _, s := range s.repo.GetAllByClientID(clientID) {
+// isClientAuthIDInUse returns true when the session with different id exists for the client auth
+func (s *SessionService) isClientAuthIDInUse(clientAuthID, sessionID string) bool {
+	for _, s := range s.repo.GetAllByClientAuthID(clientAuthID) {
 		if s.ID != sessionID {
 			return true
 		}

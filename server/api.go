@@ -106,9 +106,9 @@ func (al *APIListener) initRouter() {
 	sub.HandleFunc("/commands", al.handlePostMultiClientCommand).Methods(http.MethodPost)
 	sub.HandleFunc("/commands", al.handleGetMultiClientCommands).Methods(http.MethodGet)
 	sub.HandleFunc("/commands/{job_id}", al.handleGetMultiClientCommand).Methods(http.MethodGet)
-	sub.HandleFunc("/clients", al.handleGetClients).Methods(http.MethodGet)
-	sub.HandleFunc("/clients", al.handlePostClients).Methods(http.MethodPost)
-	sub.HandleFunc("/clients/{client_id}", al.handleDeleteClient).Methods(http.MethodDelete)
+	sub.HandleFunc("/clients-auth", al.handleGetClientsAuth).Methods(http.MethodGet)
+	sub.HandleFunc("/clients-auth", al.handlePostClientsAuth).Methods(http.MethodPost)
+	sub.HandleFunc("/clients-auth/{client_auth_id}", al.handleDeleteClientAuth).Methods(http.MethodDelete)
 
 	// add authorization middleware
 	if !al.insecureForTests {
@@ -580,7 +580,7 @@ const (
 	ErrCodeClientNotFound   = "ERR_CODE_CLIENT_NOT_FOUND"
 )
 
-func (al *APIListener) handleGetClients(w http.ResponseWriter, req *http.Request) {
+func (al *APIListener) handleGetClientsAuth(w http.ResponseWriter, req *http.Request) {
 	rClients, err := al.clientProvider.GetAll()
 	if err != nil {
 		al.jsonErrorResponse(w, http.StatusInternalServerError, err)
@@ -592,12 +592,12 @@ func (al *APIListener) handleGetClients(w http.ResponseWriter, req *http.Request
 	al.writeJSONResponse(w, http.StatusOK, api.NewSuccessPayload(rClients))
 }
 
-func (al *APIListener) handlePostClients(w http.ResponseWriter, req *http.Request) {
+func (al *APIListener) handlePostClientsAuth(w http.ResponseWriter, req *http.Request) {
 	if !al.allowClientAuthWrite(w) {
 		return
 	}
 
-	var newClient clients.Client
+	var newClient clients.ClientAuth
 	err := json.NewDecoder(req.Body).Decode(&newClient)
 	if err == io.EOF {
 		al.jsonErrorResponseWithErrCode(w, http.StatusBadRequest, ErrCodeInvalidRequest, "Missing data.")
@@ -623,24 +623,24 @@ func (al *APIListener) handlePostClients(w http.ResponseWriter, req *http.Reques
 		return
 	}
 	if !added {
-		al.jsonErrorResponseWithDetail(w, http.StatusConflict, ErrCodeAlreadyExist, fmt.Sprintf("Client with ID %q already exist.", newClient.ID), "")
+		al.jsonErrorResponseWithDetail(w, http.StatusConflict, ErrCodeAlreadyExist, fmt.Sprintf("Client Auth with ID %q already exist.", newClient.ID), "")
 		return
 	}
 
-	al.Infof("Client %q created.", newClient.ID)
+	al.Infof("ClientAuth %q created.", newClient.ID)
 
 	w.WriteHeader(http.StatusCreated)
 }
 
-func (al *APIListener) handleDeleteClient(w http.ResponseWriter, req *http.Request) {
+func (al *APIListener) handleDeleteClientAuth(w http.ResponseWriter, req *http.Request) {
 	if !al.allowClientAuthWrite(w) {
 		return
 	}
 
 	vars := mux.Vars(req)
-	clientID := vars["client_id"]
-	if clientID == "" {
-		al.jsonErrorResponseWithErrCode(w, http.StatusBadRequest, ErrCodeMissingRouteVar, "Missing 'client_id' route param.")
+	clientAuthID := vars["client_auth_id"]
+	if clientAuthID == "" {
+		al.jsonErrorResponseWithErrCode(w, http.StatusBadRequest, ErrCodeMissingRouteVar, "Missing 'client_auth_id' route param.")
 		return
 	}
 
@@ -655,19 +655,19 @@ func (al *APIListener) handleDeleteClient(w http.ResponseWriter, req *http.Reque
 		}
 	}
 
-	existing, err := al.clientProvider.Get(clientID)
+	existing, err := al.clientProvider.Get(clientAuthID)
 	if err != nil {
 		al.jsonErrorResponse(w, http.StatusInternalServerError, err)
 		return
 	}
 	if existing == nil {
-		al.jsonErrorResponseWithErrCode(w, http.StatusBadRequest, ErrCodeClientNotFound, fmt.Sprintf("Client with ID=%q not found.", clientID))
+		al.jsonErrorResponseWithErrCode(w, http.StatusBadRequest, ErrCodeClientNotFound, fmt.Sprintf("Client Auth with ID=%q not found.", clientAuthID))
 		return
 	}
 
-	allSessions := al.sessionService.GetAllByClientID(clientID)
+	allSessions := al.sessionService.GetAllByClientID(clientAuthID)
 	if !force && len(allSessions) > 0 {
-		al.jsonErrorResponseWithErrCode(w, http.StatusConflict, ErrCodeClientHasSession, fmt.Sprintf("Client expected to have no active or disconnected session(s), got %d.", len(allSessions)))
+		al.jsonErrorResponseWithErrCode(w, http.StatusConflict, ErrCodeClientHasSession, fmt.Sprintf("Client Auth expected to have no active or disconnected bound session(s), got %d.", len(allSessions)))
 		return
 	}
 
@@ -678,12 +678,12 @@ func (al *APIListener) handleDeleteClient(w http.ResponseWriter, req *http.Reque
 		}
 	}
 
-	err = al.clientProvider.Delete(clientID)
+	err = al.clientProvider.Delete(clientAuthID)
 	if err != nil {
 		al.jsonErrorResponse(w, http.StatusInternalServerError, err)
 		return
 	}
-	al.Infof("Client %q deleted.", clientID)
+	al.Infof("ClientAuth %q deleted.", clientAuthID)
 
 	w.WriteHeader(http.StatusNoContent)
 }

@@ -5,31 +5,31 @@ import (
 )
 
 type SingleProvider struct {
-	client *Client
+	client *ClientAuth
 }
 
 func NewSingleProvider(id, password string) *SingleProvider {
 	return &SingleProvider{
-		client: &Client{
+		client: &ClientAuth{
 			ID:       id,
 			Password: password,
 		},
 	}
 }
 
-// GetAll returns a list with a single client credentials.
-func (c *SingleProvider) GetAll() ([]*Client, error) {
-	return []*Client{c.client}, nil
+// GetAll returns a list with a single client auth credentials.
+func (c *SingleProvider) GetAll() ([]*ClientAuth, error) {
+	return []*ClientAuth{c.client}, nil
 }
 
-func (c *SingleProvider) Get(id string) (*Client, error) {
+func (c *SingleProvider) Get(id string) (*ClientAuth, error) {
 	if c.client.ID == id {
 		return c.client, nil
 	}
 	return nil, nil
 }
 
-func (c *SingleProvider) Add(*Client) (bool, error) {
+func (c *SingleProvider) Add(*ClientAuth) (bool, error) {
 	return false, errors.New("not implemented")
 }
 

@@ -14,14 +14,14 @@ func TestDatabaseProvider(t *testing.T) {
 	defer db.Close()
 	_, err = db.Exec("CREATE TABLE clients (id TEXT PRIMARY KEY, password TEXT)")
 	require.NoError(t, err)
-	c := &Client{ID: "test-client", Password: "test-password"}
+	c := &ClientAuth{ID: "test-client", Password: "test-password"}
 
 	p := NewDatabaseProvider(db, "clients")
 
 	// initial empty
 	clients, err := p.GetAll()
 	require.NoError(t, err)
-	assert.ElementsMatch(t, []*Client{}, clients)
+	assert.ElementsMatch(t, []*ClientAuth{}, clients)
 
 	// add new client
 	added, err := p.Add(c)
@@ -31,7 +31,7 @@ func TestDatabaseProvider(t *testing.T) {
 	// should contain client
 	clients, err = p.GetAll()
 	require.NoError(t, err)
-	assert.ElementsMatch(t, []*Client{c}, clients)
+	assert.ElementsMatch(t, []*ClientAuth{c}, clients)
 
 	client, err := p.Get(c.ID)
 	require.NoError(t, err)
@@ -49,5 +49,5 @@ func TestDatabaseProvider(t *testing.T) {
 	// final empty
 	clients, err = p.GetAll()
 	require.NoError(t, err)
-	assert.ElementsMatch(t, []*Client{}, clients)
+	assert.ElementsMatch(t, []*ClientAuth{}, clients)
 }

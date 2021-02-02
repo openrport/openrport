@@ -64,7 +64,7 @@ func (p *SqliteProvider) get(ctx context.Context, id string) (*ClientSession, er
 func (p *SqliteProvider) Save(ctx context.Context, session *ClientSession) error {
 	_, err := p.db.NamedExecContext(
 		ctx,
-		"INSERT OR REPLACE INTO client_sessions (id, client_id, disconnected, details) VALUES (:id, :client_id, :disconnected, :details)",
+		"INSERT OR REPLACE INTO client_sessions (id, client_auth_id, disconnected, details) VALUES (:id, :client_auth_id, :disconnected, :details)",
 		convertToSqlite(session),
 	)
 	return err
@@ -88,8 +88,8 @@ func convertToSqlite(v *ClientSession) *sessionSqlite {
 		return nil
 	}
 	res := &sessionSqlite{
-		ID:       v.ID,
-		ClientID: v.ClientID,
+		ID:           v.ID,
+		ClientAuthID: v.ClientAuthID,
 		Details: &clientSessionDetails{
 			Name:     v.Name,
 			OS:       v.OS,
@@ -113,7 +113,7 @@ func convertToSqlite(v *ClientSession) *sessionSqlite {
 
 type sessionSqlite struct {
 	ID           string                `db:"id"`
-	ClientID     string                `db:"client_id"`
+	ClientAuthID string                `db:"client_auth_id"`
 	Disconnected sql.NullTime          `db:"disconnected"` // Disconnected is a time when a client session was disconnected. If nil - it's connected.
 	Details      *clientSessionDetails `db:"details"`
 }
@@ -162,20 +162,20 @@ func (d *clientSessionDetails) Value() (driver.Value, error) {
 func (s *sessionSqlite) convert() *ClientSession {
 	d := s.Details
 	res := &ClientSession{
-		ID:       s.ID,
-		ClientID: s.ClientID,
-		Name:     d.Name,
-		OS:       d.OS,
-		OSArch:   d.OSArch,
-		OSFamily: d.OSFamily,
-		OSKernel: d.OSKernel,
-		Hostname: d.Hostname,
-		IPv4:     d.IPv4,
-		IPv6:     d.IPv6,
-		Tags:     d.Tags,
-		Version:  d.Version,
-		Address:  d.Address,
-		Tunnels:  d.Tunnels,
+		ID:           s.ID,
+		ClientAuthID: s.ClientAuthID,
+		Name:         d.Name,
+		OS:           d.OS,
+		OSArch:       d.OSArch,
+		OSFamily:     d.OSFamily,
+		OSKernel:     d.OSKernel,
+		Hostname:     d.Hostname,
+		IPv4:         d.IPv4,
+		IPv6:         d.IPv6,
+		Tags:         d.Tags,
+		Version:      d.Version,
+		Address:      d.Address,
+		Tunnels:      d.Tunnels,
 	}
 	if s.Disconnected.Valid {
 		res.Disconnected = &s.Disconnected.Time

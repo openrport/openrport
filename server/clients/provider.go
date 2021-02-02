@@ -1,13 +1,13 @@
 package clients
 
 type Provider interface {
-	// Get returns client from provider or nil
-	Get(id string) (*Client, error)
-	// GetAll returns all clients from provider
-	GetAll() ([]*Client, error)
-	// Add returns true if the client was added and false if it already exists
-	Add(client *Client) (bool, error)
-	// Delete returns client by id
+	// Get returns client authentication credentials from provider or nil
+	Get(id string) (*ClientAuth, error)
+	// GetAll returns authentication credentials of all clients from provider
+	GetAll() ([]*ClientAuth, error)
+	// Add returns true if the client auth was added and false if it already exists
+	Add(client *ClientAuth) (bool, error)
+	// Delete returns client auth by id
 	Delete(id string) error
 	// IsWriteable returns true if provider is writeable
 	IsWriteable() bool
@@ -15,12 +15,12 @@ type Provider interface {
 
 // mockProvider is non thread safe in memory provider for use in tests
 type mockProvider struct {
-	clients map[string]*Client
+	clients map[string]*ClientAuth
 }
 
-func NewMockProvider(clients []*Client) Provider {
+func NewMockProvider(clients []*ClientAuth) Provider {
 	p := &mockProvider{
-		clients: make(map[string]*Client),
+		clients: make(map[string]*ClientAuth),
 	}
 	for _, c := range clients {
 		p.clients[c.ID] = c
@@ -28,19 +28,19 @@ func NewMockProvider(clients []*Client) Provider {
 	return p
 }
 
-func (p *mockProvider) GetAll() ([]*Client, error) {
-	result := make([]*Client, 0, len(p.clients))
+func (p *mockProvider) GetAll() ([]*ClientAuth, error) {
+	result := make([]*ClientAuth, 0, len(p.clients))
 	for _, c := range p.clients {
 		result = append(result, c)
 	}
 	return result, nil
 }
 
-func (p *mockProvider) Get(id string) (*Client, error) {
+func (p *mockProvider) Get(id string) (*ClientAuth, error) {
 	return p.clients[id], nil
 }
 
-func (p *mockProvider) Add(client *Client) (bool, error) {
+func (p *mockProvider) Add(client *ClientAuth) (bool, error) {
 	if _, ok := p.clients[client.ID]; ok {
 		return false, nil
 	}

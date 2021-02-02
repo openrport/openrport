@@ -38,7 +38,7 @@ type ClientSession struct {
 	Tunnels  []*Tunnel `json:"tunnels"`
 	// Disconnected is a time when a client session was disconnected. If nil - it's connected.
 	Disconnected *time.Time `json:"disconnected,omitempty"`
-	ClientID     string     `json:"client_id"`
+	ClientAuthID string     `json:"client_auth_id"`
 
 	Connection ssh.Conn        `json:"-"`
 	Context    context.Context `json:"-"`
@@ -182,7 +182,7 @@ func (c *ClientSession) belongsTo(group *cgroups.ClientGroup) bool {
 	if !p.Address.MatchesOneOf(c.Address) {
 		return false
 	}
-	if !p.ClientAuthID.MatchesOneOf(c.ClientID) {
+	if !p.ClientAuthID.MatchesOneOf(c.ClientAuthID) {
 		return false
 	}
 	return true

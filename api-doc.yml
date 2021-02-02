@@ -550,11 +550,11 @@ paths:
           description: "Persistent storage required. A data dir or a database table is required to activate this feature."
           schema:
             $ref: "#/definitions/ErrorPayload"
-  /clients:
+  /clients-auth:
     get:
       tags:
         - "Rport Client Auth Credentials"
-      summary: "Returns all rport clients credentials. Sorted by ID in asc order."
+      summary: "Returns all rport clients auth credentials. Sorted by ID in asc order."
       description: ""
       produces:
         - "application/json"
@@ -567,7 +567,7 @@ paths:
               data:
                 type: "array"
                 items:
-                  $ref: "#/definitions/Client"
+                  $ref: "#/definitions/ClientAuth"
         "405":
           description: "Operation not allowed. Error codes: ERR_CODE_CLIENT_AUTH_DISABLED"
           schema:
@@ -575,20 +575,20 @@ paths:
     post:
       tags:
         - "Rport Client Auth Credentials"
-      summary: "Add a new rport client credentials."
+      summary: "Add a new rport client auth credentials."
       description: ""
       produces:
         - "application/json"
       parameters:
         - in: "body"
           name: "body"
-          description: "Client credentials that needs to be added"
+          description: "Client auth credentials that needs to be added"
           required: true
           schema:
-            $ref: "#/definitions/Client"
+            $ref: "#/definitions/ClientAuth"
       responses:
         "204":
-          description: "New client added."
+          description: "New client auth credentials added."
         "400":
           description: "invalid parameters"
           schema:
@@ -598,29 +598,29 @@ paths:
           schema:
             $ref: "#/definitions/ErrorPayload"
         "409":
-          description: "Client already exist. Err code: ERR_CODE_ALREADY_EXIST"
+          description: "Client auth credentials already exist. Err code: ERR_CODE_ALREADY_EXIST"
           schema:
             $ref: "#/definitions/ErrorPayload"
-  /clients/{client_id}:
+  /clients-auth/{client_auth_id}:
     parameters:
-      - name: "client_id"
+      - name: "client_auth_id"
         in: "path"
-        description: "client ID"
+        description: "client auth ID"
         required: true
         type: "string"
       - name: "force"
         in: "query"
-        description: "If true, delete a client even when it has active/disconnected sessions."
+        description: "If true, delete a client auth even when it has active/disconnected sessions."
         required: false
         type: "boolean"
     delete:
       tags:
         - "Rport Client Auth Credentials"
-      summary:  "Delete rport client credentials."
+      summary:  "Delete rport client auth credentials."
       description: ""
       responses:
         "204":
-          description: "Client deleted."
+          description: "Client auth credentials deleted."
         "400":
           description: "invalid parameters. Err codes: ERR_CODE_CLIENT_NOT_FOUND"
           schema:
@@ -630,7 +630,7 @@ paths:
           schema:
             $ref: "#/definitions/ErrorPayload"
         "409":
-          description: "Could not delete. Client has active or disconnected session(s). Err code: ERR_CODE_CLIENT_HAS_SESSION"
+          description: "Could not delete. Client has active or disconnected bound session(s). Err code: ERR_CODE_CLIENT_HAS_SESSION"
           schema:
             $ref: "#/definitions/ErrorPayload"
   /client-groups:
@@ -918,12 +918,12 @@ definitions:
             items:
               type: string
             description: "client auth ID(s)"
-  Client:
+  ClientAuth:
     type: "object"
     properties:
       id:
         type: "string"
-        description: "client ID"
+        description: "client auth ID"
       password:
         type: "string"
         description: "client password"
