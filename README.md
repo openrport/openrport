@@ -280,7 +280,7 @@ Set up `[api]` config params. For example:
 This opens the API and enables HTTP basic authentication with a single user "admin:foobaz" who has access to the API.
 Restart the rportd after any changes to the configuration. Read more about API [authentication options](./docs/api-auth.md).
 
-If you expose your API to the public internet, it's highly recommended to enable HTTPS. Read the [quick HTTPS howto](./docs/https-hwoto.md).
+If you expose your API to the public internet, it's highly recommended to enable HTTPS. Read the [quick HTTPS howto](./docs/https-howto.md).
 
 Test you've set up the API properly by querying its status with `curl -s -u admin:foobaz http://localhost:3000/api/v1/status`.
 
