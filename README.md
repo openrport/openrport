@@ -39,15 +39,11 @@ Also, the server can run on any operation system supported by the golang compile
   * [Configuration files](#configs) 
   * [Using authentication](#client-auth)
 * [On-demand tunnels using the API](#on-demand-tunnels)
-* [API](#api)
   * [Activate the API](#api-activate)
-  * [Authentication options](#api-auth)
-  * [Install a web-based frontend](#api-front-end)
-  * [Main capabilities](#api-capabilities)
-    * [Manage clients and tunnels](#api-clients-tunnels)
-    * [Command execution](#api-execute-commands)
-    * [Manage client auth credentials](#api-clients-auth)
-    * [Manage client groups](#api-client-groups)
+  * [Connect a client without a tunnel](#client-no-tunnel)
+  * [Manage clients and tunnels through the API](#manage-clients)
+* [All API capabilities](#api-capabilities)
+* [Install a web-based frontend](#api-front-end)
 * [Versioning model](#versioning)
 * [Credits](#credits)
 
@@ -121,7 +117,7 @@ For a proper installation execute the following steps.
 ```
 wget https://github.com/cloudradar-monitoring/rport/releases/download/0.1.22/rport_0.1.22_Linux_x86_64.tar.gz
 sudo tar vxzf rport_0.1.22_Linux_x86_64.tar.gz -C /usr/local/bin/ rportd
-sudo useradd -d /var/lib/rport -m -r -s /bin/false rport
+sudo useradd -d /var/lib/rport -m -u -r -s /bin/false rport
 sudo mkdir /etc/rport/
 sudo mkdir /var/log/rport/
 sudo chown rport /var/log/rport/
@@ -162,7 +158,7 @@ Assume, the client is called `client1.local.localdomain`.
 On your client just install the client binary
 ```
 curl -LSs https://github.com/cloudradar-monitoring/rport/releases/download/0.1.22/rport_0.1.22_Linux_x86_64.tar.gz|\
-tar vxzf - rport -C /usr/local/bin/
+tar vxzf - -C /usr/local/bin/ rport
 ```
 
 Create an ad hoc tunnel that will forward the port 2222 of `node1.example.com` to the to local port 22 of `client1.local.localdomain`.
@@ -268,11 +264,44 @@ Initializing the creation of a tunnel from the client is nice but not a perfect 
 Most of the time the tunnel wouldn't be used. Network resources would be wasted and a port is exposed to the internet for an unnecessarily long time.
 Rport provides the option to establish tunnels from the server only when you need them.
 
-#### Step 1: Activate the API
-Activate the API as described in ["Activate the API"](#api-activate).
+<a name="api-activate"></a>
+### Activate the API
+Using the provided `rportd.example.conf` the internal management API is enabled by default listening on http://localhost:3000.
 
-#### Step 2: Connect a client
-Invoke the client without specifying a tunnel but with some extra data.
+Set up `[api]` config params. For example:
+   ```
+   # specify non-empty api.address to enable API support
+   [api]
+     # Defines the IP address and port the API server listens on
+     address = "127.0.0.1:3000"
+     # Defines <user:password> authentication pair for accessing API
+     auth = "admin:foobaz"
+   ```
+This opens the API and enables HTTP basic authentication with a single user "admin:foobaz" who has access to the API.
+Restart the rportd after any changes to the configuration. Read more about API [authentication options](./docs/api-auth.md).
+
+If you expose your API to the public internet, it's highly recommended to enable HTTPS. Read the [quick HTTPS howto](./docs/https-howto.md).
+
+Test you've set up the API properly by querying its status with `curl -s -u admin:foobaz http://localhost:3000/api/v1/status`.
+
+> The API always returns a minified json formatted response. The large output is hard to read. In all further examples, we use the command-line tool [jq](https://stedolan.github.io/jq/) to reformat the json with line breaks and indentation for better readability. `jq`is included in almost any distribution, for Windows you can download it [here](https://stedolan.github.io/jq/download/).
+
+Example of a human readable API status
+```
+~# curl -s -u admin:foobaz http://localhost:3000/api/v1/status |jq
+{
+  "data": {
+    "connect_url": "http://0.0.0.0:8080",
+    "fingerprint": "2a:c8:79:09:80:ba:7c:60:05:e5:2c:99:6d:75:56:24",
+    "sessions_count": 2,
+    "version": "0.1.22"
+  }
+}
+```
+
+<a name="client-no-tunnel"></a>
+### Connect a client without a tunnel
+Invoke the rport client without specifying a tunnel but with some extra data.
 ```
 rport --id my-client-1 \
   --fingerprint <YOUR_FINGERPRINT> \
@@ -284,12 +313,13 @@ rport --id my-client-1 \
 
 This attaches the client to the message queue of the server without creating a tunnel.
 
-#### Step 3: Manage clients and tunnels
+<a name="manage-clients"></a>
+### Manage clients and tunnels through the API
 On the server, you can supervise the attached clients using
-`curl -s -u admin:foobaz http://node1.example.com:3000/api/v1/sessions`. *Use `jq` for pretty-printing json.*
+`curl -s -u admin:foobaz http://localhost:3000/api/v1/sessions`.
 Here is an example:
 ```
-curl -s -u admin:foobaz http://node1.example.com:3000/api/v1/sessions|jq
+curl -s -u admin:foobaz http://localhost:3000/api/v1/sessions|jq
 [
   {
     "id": "my-client-1",
@@ -348,63 +378,24 @@ curl -s -u admin:foobaz http://node1.example.com:3000/api/v1/sessions|jq
 There is one client connected with an active tunnel. The second client is in standby mode.
 Read more about the [management of tunnel via the API](docs/managing-tunnels.md) or read the [Swagger API docs](https://petstore.swagger.io/?url=https://raw.githubusercontent.com/cloudradar-monitoring/rport/master/api-doc.yml).
 
-#### Step 4: Install a web-based frontend
-Rport comes with a user-friendly web-based frontend. The frontend has it's own none-open-source repository. The installation is quick and easy. [Learn more](docs/frontend.md).
-
-<a name="api"></a>
-## API
-Please read the [Swagger API docs](https://petstore.swagger.io/?url=https://raw.githubusercontent.com/cloudradar-monitoring/rport/master/api-doc.yml).
-
-<a name="api-activate"></a>
-### Activate the API
-The internal management API is disabled by default. To activate it use a config file that is described
-in ["Configuration files"](https://github.com/cloudradar-monitoring/rport#configuration-files) section.
-Set up `[api]` config params. For example:
-   ```
-   # specify non-empty api.address to enable API support
-   [api]
-     # Defines the IP address and port the API server listens on
-     address = "127.0.0.1:3000"
-     # Defines <user:password> authentication pair for accessing API
-     auth = "admin:foobaz"
-   ```
-This opens the API and enables HTTP basic authentication with a single user "admin:foobaz" who has access to the API.
-To enable access to multiple users and to mange them in the file use "api.auth_file" config param (or "--api-authfile" rportd command arg).
-Restart the rportd after any changes to the configuration. Read more about API auth options below.
-
-<a name="api-auth"></a>
-### Authentication options
-Please read the supported [api authentication options](docs/api-auth.md).
-
-<a name="api-front-end"></a>
-### Install a web-based frontend
-Rport comes with a user-friendly web-based frontend. The frontend has its own none-open-source repository. The installation is quick and easy. [Learn more](docs/frontend.md).
-
 <a name="api-capabilities"></a>
-### Main capabilities
+## All API Capabilities
+* [Swagger API docs](https://petstore.swagger.io/?url=https://raw.githubusercontent.com/cloudradar-monitoring/rport/master/api-doc.yml).
+* [API authentication options](docs/api-auth.md)
+* [Management of clients and tunnels via the API](docs/managing-tunnels.md) or the [Swagger API docs](https://petstore.swagger.io/?url=https://raw.githubusercontent.com/cloudradar-monitoring/rport/master/api-doc.yml#/Client%20Sessions%20and%20Tunnels)
+* [Command execution via the API](docs/command-execution.md) or the [Swagger API docs](https://petstore.swagger.io/?url=https://raw.githubusercontent.com/cloudradar-monitoring/rport/master/api-doc.yml#/Commands)
+* [Management of client authentication credentials via the API](docs/client-auth.md) or the [Swagger API docs](https://petstore.swagger.io/?url=https://raw.githubusercontent.com/cloudradar-monitoring/rport/master/api-doc.yml#/Rport%20Client%20Auth%20Credentials)
+* [Management of client groups via the API](docs/client-groups.md) or the [Swagger API docs](https://petstore.swagger.io/?url=https://raw.githubusercontent.com/cloudradar-monitoring/rport/master/api-doc.yml#/Client%20Groups)
 
-<a name="api-clients-tunnels"></a>
-* #### Manage clients and tunnels
-  Please read the [management of clients and tunnels via the API](docs/managing-tunnels.md) or the [Swagger API docs](https://petstore.swagger.io/?url=https://raw.githubusercontent.com/cloudradar-monitoring/rport/master/api-doc.yml#/Client%20Sessions%20and%20Tunnels).
-
-<a name="api-execute-commands"></a>
-* #### Command execution
-  Please read the [command execution via the API](docs/command-execution.md) or the [Swagger API docs](https://petstore.swagger.io/?url=https://raw.githubusercontent.com/cloudradar-monitoring/rport/master/api-doc.yml#/Commands).
-
-<a name="api-clients-auth"></a>
-* #### Manage client auth credentials
-  Please read the [management of client authentication credentials via the API](docs/client-auth.md) or the [Swagger API docs](https://petstore.swagger.io/?url=https://raw.githubusercontent.com/cloudradar-monitoring/rport/master/api-doc.yml#/Rport%20Client%20Auth%20Credentials).
-
-<a name="api-client-groups"></a>
-* #### Manage client groups
-  Please read the [management of client groups via the API](docs/client-groups.md) or the [Swagger API docs](https://petstore.swagger.io/?url=https://raw.githubusercontent.com/cloudradar-monitoring/rport/master/api-doc.yml#/Client%20Groups).
+<a name="install-frontend"></a>
+## Install a web-based frontend
+Rport comes with a user-friendly web-based frontend. The frontend has it's own none-open-source repository. The installation is quick and easy. [Learn more](docs/frontend.md).
 
 <a name="versioning"></a>
 ## Versioning model
 rport uses `<major>.<minor>.<buildnumber>` version pattern for compatibility with a maximum number of package managers.
 
 Starting from version 1.0.0 packages with even <minor> number are considered stable.
-
 
 <a name="credits"></a>
 ## Credits
