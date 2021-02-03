@@ -6,7 +6,7 @@ The Rportd API support two ways of authentication.
 ### HTTP Basic Auth
 The API claims to be REST compliant. Submitting credentials on each request using an HTTP basic auth header is therefore possible, for example
 ```
-curl -s -u admin:foobaz http://localhost:3000/api/v1/sessions|jq
+curl -s -u admin:foobaz http://localhost:3000/api/v1/clients|jq
 ```
 ### Bearer Token Auth
 Using HTTP Basic auth you can request a token at [`login` endpoint](https://petstore.swagger.io/?url=https://raw.githubusercontent.com/cloudradar-monitoring/rport/master/api-doc.yml#/default/get_login) to authenticate further requests with a token.
@@ -27,7 +27,7 @@ Having a valid token you can execute requests, using an `Authorization: Bearer: 
 curl -s -u admin:foobaz http://localhost:3000/api/v1/login?token-lifetime=3600|jq -r .data.token > .token
 
 # Request using the stored toeken
-curl -s -H "Authorization: Bearer $(cat .token)" http://localhost:3000/api/v1/sessions|jq
+curl -s -H "Authorization: Bearer $(cat .token)" http://localhost:3000/api/v1/clients|jq
 ```
 
 Rportd holds the tokens in memory. Restarting rportd deletes (expires) them all.

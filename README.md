@@ -76,7 +76,7 @@ Minimal setup:
 
 See `./rportd --help` and `./rport --help` for more options, like:
 - Specifying certificate fingerprint to validate server authority
-- Client session authentication using user:password pair
+- Client authentication using user:password pair
 - Restricting, which users can connect
 - Specifying additional intermediate HTTP proxy
 - Using POSIX signals to control running apps
@@ -136,7 +136,7 @@ Change to the rport user account and check your rportd starts without errors.
 ```
 ubuntu@node1:~$ sudo -u rport -s /bin/bash
 rport@node1:/home/ubuntu$ rportd -c /etc/rport/rportd.conf --log-level info &
-2021/01/27 16:26:55 Start to get init Client Session Repository state from file.
+2021/01/27 16:26:55 Start to get init Client Repository state from file.
 ```
 For the first testing leave the console open and observe the log with `tail -f /var/log/rport/rportd.log`. Copy the generated fingerprint from `/var/lib/rport/rportd-fingerprint.txt` to your clipboard. Try your first client connection now.
 
@@ -293,7 +293,7 @@ Example of a human readable API status
   "data": {
     "connect_url": "http://0.0.0.0:8080",
     "fingerprint": "2a:c8:79:09:80:ba:7c:60:05:e5:2c:99:6d:75:56:24",
-    "sessions_count": 2,
+    "clients_count": 2,
     "version": "0.1.22"
   }
 }
@@ -316,10 +316,10 @@ This attaches the client to the message queue of the server without creating a t
 <a name="manage-clients"></a>
 ### Manage clients and tunnels through the API
 On the server, you can supervise the attached clients using
-`curl -s -u admin:foobaz http://localhost:3000/api/v1/sessions`.
+`curl -s -u admin:foobaz http://localhost:3000/api/v1/clients`.
 Here is an example:
 ```
-curl -s -u admin:foobaz http://localhost:3000/api/v1/sessions|jq
+curl -s -u admin:foobaz http://localhost:3000/api/v1/clients|jq
 [
   {
     "id": "my-client-1",
@@ -382,7 +382,7 @@ Read more about the [management of tunnel via the API](docs/managing-tunnels.md)
 ## All API Capabilities
 * [Swagger API docs](https://petstore.swagger.io/?url=https://raw.githubusercontent.com/cloudradar-monitoring/rport/master/api-doc.yml).
 * [API authentication options](docs/api-auth.md)
-* [Management of clients and tunnels via the API](docs/managing-tunnels.md) or the [Swagger API docs](https://petstore.swagger.io/?url=https://raw.githubusercontent.com/cloudradar-monitoring/rport/master/api-doc.yml#/Client%20Sessions%20and%20Tunnels)
+* [Management of clients and tunnels via the API](docs/managing-tunnels.md) or the [Swagger API docs](https://petstore.swagger.io/?url=https://raw.githubusercontent.com/cloudradar-monitoring/rport/master/api-doc.yml#/Clients%20and%20Tunnels)
 * [Command execution via the API](docs/command-execution.md) or the [Swagger API docs](https://petstore.swagger.io/?url=https://raw.githubusercontent.com/cloudradar-monitoring/rport/master/api-doc.yml#/Commands)
 * [Management of client authentication credentials via the API](docs/client-auth.md) or the [Swagger API docs](https://petstore.swagger.io/?url=https://raw.githubusercontent.com/cloudradar-monitoring/rport/master/api-doc.yml#/Rport%20Client%20Auth%20Credentials)
 * [Management of client groups via the API](docs/client-groups.md) or the [Swagger API docs](https://petstore.swagger.io/?url=https://raw.githubusercontent.com/cloudradar-monitoring/rport/master/api-doc.yml#/Client%20Groups)

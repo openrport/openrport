@@ -11,7 +11,7 @@ type MultiJobBuilder struct {
 	t *testing.T
 
 	jid        string
-	sids       []string
+	clientIDs  []string
 	startedAt  time.Time
 	concurrent bool
 	abortOnErr bool
@@ -31,8 +31,8 @@ func (b MultiJobBuilder) JID(jid string) MultiJobBuilder {
 	return b
 }
 
-func (b MultiJobBuilder) SIDs(sids ...string) MultiJobBuilder {
-	b.sids = append(b.sids, sids...)
+func (b MultiJobBuilder) ClientIDs(clientIDs ...string) MultiJobBuilder {
+	b.clientIDs = append(b.clientIDs, clientIDs...)
 	return b
 }
 
@@ -60,14 +60,14 @@ func (b MultiJobBuilder) Build() *models.MultiJob {
 	if b.jid == "" {
 		b.jid = generateRandomJID()
 	}
-	if len(b.sids) == 0 {
-		b.sids = []string{generateRandomSID(), generateRandomSID()}
+	if len(b.clientIDs) == 0 {
+		b.clientIDs = []string{generateRandomCID(), generateRandomCID()}
 	}
 	jobs := []*models.Job{}
 	if b.withJobs {
 		st := b.startedAt.Add(time.Minute) // is used to order jobs to make tests work
-		for _, sid := range b.sids {
-			j := New(b.t).SID(sid).MultiJobID(b.jid).StartedAt(st).Build()
+		for _, clientID := range b.clientIDs {
+			j := New(b.t).ClientID(clientID).MultiJobID(b.jid).StartedAt(st).Build()
 			jobs = append(jobs, j)
 			st = st.Add(-time.Second)
 		}
@@ -78,7 +78,7 @@ func (b MultiJobBuilder) Build() *models.MultiJob {
 			StartedAt: b.startedAt,
 			CreatedBy: "test-user",
 		},
-		ClientIDs:  b.sids,
+		ClientIDs:  b.clientIDs,
 		Command:    "/bin/date;foo;whoami",
 		TimeoutSec: 60,
 		Concurrent: b.concurrent,

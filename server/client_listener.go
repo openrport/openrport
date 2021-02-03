@@ -17,7 +17,7 @@ import (
 	"golang.org/x/crypto/ssh"
 
 	"github.com/cloudradar-monitoring/rport/server/api/middleware"
-	"github.com/cloudradar-monitoring/rport/server/sessions"
+	"github.com/cloudradar-monitoring/rport/server/clients"
 	chshare "github.com/cloudradar-monitoring/rport/share"
 	"github.com/cloudradar-monitoring/rport/share/comm"
 	"github.com/cloudradar-monitoring/rport/share/models"
@@ -33,7 +33,7 @@ type ClientListener struct {
 	sshConfig         *ssh.ServerConfig
 	requestLogOptions *requestlog.Options
 
-	sessionIndexAutoIncrement int32
+	clientIndexAutoIncrement int32
 }
 
 var upgrader = websocket.Upgrader{
@@ -80,7 +80,7 @@ func NewClientListener(server *Server, privateKey ssh.Signer) (*ClientListener, 
 // authUser is responsible for validating the ssh user / password combination
 func (cl *ClientListener) authUser(c ssh.ConnMetadata, password []byte) (*ssh.Permissions, error) {
 	clientID := c.User()
-	client, err := cl.clientProvider.Get(clientID)
+	client, err := cl.clientAuthProvider.Get(clientID)
 	if err != nil {
 		return nil, err
 	}
@@ -137,13 +137,13 @@ func (cl *ClientListener) handleClient(w http.ResponseWriter, r *http.Request) {
 	_, _ = w.Write([]byte{})
 }
 
-func (cl *ClientListener) nextSessionIndex() int32 {
-	return atomic.AddInt32(&cl.sessionIndexAutoIncrement, 1)
+func (cl *ClientListener) nextClientIndex() int32 {
+	return atomic.AddInt32(&cl.clientIndexAutoIncrement, 1)
 }
 
 // handleWebsocket is responsible for handling the websocket connection
 func (cl *ClientListener) handleWebsocket(w http.ResponseWriter, req *http.Request) {
-	clog := cl.Fork("session#%d", cl.nextSessionIndex())
+	clog := cl.Fork("client#%d", cl.nextClientIndex())
 	wsConn, err := upgrader.Upgrade(w, req, nil)
 	if err != nil {
 		clog.Debugf("Failed to upgrade (%s)", err)
@@ -187,19 +187,18 @@ func (cl *ClientListener) handleWebsocket(w http.ResponseWriter, req *http.Reque
 
 	checkVersions(clog, connRequest.Version)
 
-	sshID := sessions.GetSessionID(sshConn)
+	sshID := clients.GetSessionID(sshConn)
 
 	// get the current client auth id
 	clientAuthID := sshConn.User()
 
-	// client session id
-	sid := cl.getSID(connRequest.ID, cl.config, clientAuthID, sshID)
+	// client id
+	cid := cl.getCID(connRequest.ID, cl.config, clientAuthID, sshID)
 
 	ctx, cancel := context.WithCancel(context.Background())
 	defer cancel()
 
-	clientSession, err := cl.sessionService.StartClientSession(
-		ctx, clientAuthID, sid, sshConn, cl.config.Server.AuthMultiuseCreds, connRequest, clog)
+	client, err := cl.clientService.StartClient(ctx, clientAuthID, cid, sshConn, cl.config.Server.AuthMultiuseCreds, connRequest, clog)
 	if err != nil {
 		failed(err)
 		return
@@ -207,16 +206,16 @@ func (cl *ClientListener) handleWebsocket(w http.ResponseWriter, req *http.Reque
 
 	cl.replyConnectionSuccess(r, connRequest.Remotes)
 
-	sessionBanner := clientSession.Banner()
-	clog.Debugf("Open %s", sessionBanner)
+	clientBanner := client.Banner()
+	clog.Debugf("Open %s", clientBanner)
 	go cl.handleSSHRequests(clog, reqs)
 	go cl.handleSSHChannels(clog, chans)
 	_ = sshConn.Wait()
-	clog.Debugf("Close %s", sessionBanner)
+	clog.Debugf("Close %s", clientBanner)
 
-	err = cl.sessionService.Terminate(clientSession)
+	err = cl.clientService.Terminate(client)
 	if err != nil {
-		cl.Errorf("could not terminate client session: %s", err)
+		cl.Errorf("could not terminate client: %s", err)
 	}
 }
 
@@ -234,20 +233,20 @@ func checkVersions(log *chshare.Logger, clientVersion string) {
 	log.Infof("Client version (%s) differs from server version (%s)", v, chshare.BuildVersion)
 }
 
-func (cl *ClientListener) getSID(reqID string, config *Config, clientID string, sshSessionID string) string {
+func (cl *ClientListener) getCID(reqID string, config *Config, clientAuthID string, sshSessionID string) string {
 	if reqID != "" {
 		return reqID
 	}
 
-	// use client id as session id if proper configs are set
+	// use client auth id as client id if proper configs are set
 	if !config.Server.AuthMultiuseCreds && config.Server.EquateAuthusernameClientid {
-		return clientID
+		return clientAuthID
 	}
 
 	return sshSessionID
 }
 
-func getRemotes(tunnels []*sessions.Tunnel) []*chshare.Remote {
+func getRemotes(tunnels []*clients.Tunnel) []*chshare.Remote {
 	r := make([]*chshare.Remote, 0, len(tunnels))
 	for _, t := range tunnels {
 		r = append(r, &t.Remote)
