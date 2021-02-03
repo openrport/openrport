@@ -14,7 +14,7 @@ const (
 
 type Job struct {
 	JobSummary
-	SID        string     `json:"sid"`
+	ClientID   string     `json:"client_id"`
 	Command    string     `json:"command"`
 	Shell      string     `json:"shell"`
 	PID        *int       `json:"pid"`
@@ -67,6 +67,6 @@ func (j Job) LogPrefix() string {
 	if j.MultiJobID != nil {
 		r = fmt.Sprintf("multiJobID=%q, ", *j.MultiJobID)
 	}
-	r += fmt.Sprintf("jid=%q, sid=%q", j.JID, j.SID)
+	r += fmt.Sprintf("jid=%q, clientID=%q", j.JID, j.ClientID)
 	return r
 }

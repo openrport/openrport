@@ -7,13 +7,13 @@ rport --auth rport:password123 <SERVER_IP>:9999 2222:22
 
 Alternatively add tunnels to the configuration file `rport.conf`.
 ## Manage tunnel server-side
-On the server, you can supervise and manage the attached clients through the [API](https://petstore.swagger.io/?url=https://raw.githubusercontent.com/cloudradar-monitoring/rport/master/api-doc.yml#/Client%20Sessions%20and%20Tunnels).
+On the server, you can supervise and manage the attached clients through the [API](https://petstore.swagger.io/?url=https://raw.githubusercontent.com/cloudradar-monitoring/rport/master/api-doc.yml#/Clients%20and%20Tunnels).
 ### List
 
-`curl -s -u admin:foobaz http://localhost:3000/api/v1/sessions`. *Use `jq` for pretty-printing json.*
+`curl -s -u admin:foobaz http://localhost:3000/api/v1/clients`. *Use `jq` for pretty-printing json.*
 Here is an example:
 ```
-curl -s -u admin:foobaz http://localhost:3000/api/v1/sessions|jq
+curl -s -u admin:foobaz http://localhost:3000/api/v1/clients|jq
 [
   {
     "id": "2ba9174e-640e-4694-ad35-34a2d6f3986b",
@@ -72,24 +72,24 @@ curl -s -u admin:foobaz http://localhost:3000/api/v1/sessions|jq
 The above example shows one client connected with an active tunnel. The second client is in standby mode.
 
 ### Create
-Now use `PUT /api/v1/sessions/{id}/tunnels?local={port}&remote={port}` to request a new tunnel for a client session.
+Now use `PUT /api/v1/clients/{id}/tunnels?local={port}&remote={port}` to request a new tunnel for a client.
 For example,
 ```
 CLIENTID=2ba9174e-640e-4694-ad35-34a2d6f3986b
 LOCAL_PORT=4000
 REMOTE_PORT=22
-curl -u admin:foobaz -X PUT "http://localhost:3000/api/v1/sessions/$CLIENTID/tunnels?local=$LOCAL_PORT&remote=$REMOTE_PORT"|jq
+curl -u admin:foobaz -X PUT "http://localhost:3000/api/v1/clients/$CLIENTID/tunnels?local=$LOCAL_PORT&remote=$REMOTE_PORT"|jq
 ```
 The ports are defined from the servers' perspective. "Local" refers to the local ports of the rport server. "Remote" refers to the ports and interfaces of the client.
 The above example opens port 4000 on the rport server and forwards to the port 22 of the client.
 
 Using
 ```
-curl -s -u admin:foobaz -X GET "http://localhost:3000/api/v1/sessions"
+curl -s -u admin:foobaz -X GET "http://localhost:3000/api/v1/clients"
 ```
 or
 ```
-curl -s -u admin:foobaz -X GET "http://localhost:3000/api/v1/sessions"|jq ".data[] | select(.id==\"$CLIENTID\")|.tunnels"
+curl -s -u admin:foobaz -X GET "http://localhost:3000/api/v1/clients"|jq ".data[] | select(.id==\"$CLIENTID\")|.tunnels"
 ```
 confirms the tunnel has been established.
 ```
@@ -107,7 +107,7 @@ The above example makes the tunnel available without restrictions. Learn more ab
 
 If you omit the local port a random free port on the rport server is selected. For example,
 ```
-curl -s -u admin:foobaz -X PUT "http://localhost:3000/api/v1/sessions/$CLIENTID/tunnels?remote=22"|jq
+curl -s -u admin:foobaz -X PUT "http://localhost:3000/api/v1/clients/$CLIENTID/tunnels?remote=22"|jq
 {
   "data": {
     "success": 1,
@@ -129,7 +129,7 @@ The rport client is not limited to establish tunnels only to the system it runs 
 CLIENTID=2ba9174e-640e-4694-ad35-34a2d6f3986b
 LOCAL_PORT=4001
 REMOTE_PORT=192.168.178.1:80
-curl -u admin:foobaz -X PUT "http://localhost:3000/api/v1/sessions/$CLIENTID/tunnels?local=$LOCAL_PORT&remote=$REMOTE_PORT"
+curl -u admin:foobaz -X PUT "http://localhost:3000/api/v1/clients/$CLIENTID/tunnels?local=$LOCAL_PORT&remote=$REMOTE_PORT"
 ```
 This example forwards port 4001 of the rport server to port 80 of `192.168.178.1` using the rport client in the middle.
 ```
@@ -152,7 +152,7 @@ CLIENTID=2ba9174e-640e-4694-ad35-34a2d6f3986b
 LOCAL_PORT=4000
 REMOTE_PORT=22
 ACL=213.90.90.123,189.20.90.0/24
-curl -u admin:foobaz -X PUT "http://localhost:3000/api/v1/sessions/$CLIENTID/tunnels?local=$LOCAL_PORT&remote=$REMOTE_PORT&acl=$ACL"
+curl -u admin:foobaz -X PUT "http://localhost:3000/api/v1/clients/$CLIENTID/tunnels?local=$LOCAL_PORT&remote=$REMOTE_PORT&acl=$ACL"
 ```
 A list of single ip-addresses or network segments separated by a comma is accepted.
 
@@ -163,5 +163,5 @@ Using a DELETE request with the tunnel id allows terminating a tunnel.
 ```
 CLIENTID=2ba9174e-640e-4694-ad35-34a2d6f3986b
 TUNNELID=1
-curl -u admin:foobaz -X DELETE "http://localhost:3000/api/v1/sessions/$CLIENTID/tunnels/$TUNNELID"
+curl -u admin:foobaz -X DELETE "http://localhost:3000/api/v1/clients/$CLIENTID/tunnels/$TUNNELID"
 ```

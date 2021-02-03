@@ -151,13 +151,13 @@ var serverHelp = `
     Ideally this directory is the homedir of the rport user and has been created along with the user.
     Example: useradd -r -d /var/lib/rportd -m -s /bin/false -U -c "System user for rport client and server" rport
 
-    --keep-lost-clients, An optional arg to define a duration to keep info(sessions, tunnels, etc)
+    --keep-lost-clients, An optional arg to define a duration to keep info(clients, tunnels, etc)
     about active and disconnected clients.
     By default is "1h". To disable it set it to "0".
     It can contain "h"(hours), "m"(minutes), "s"(seconds).
 
     --save-clients-interval, Applicable only if --keep-lost-clients is specified. An optional arg to define
-    an interval to flush info (sessions, tunnels, etc) about active and disconnected clients to disk.
+    an interval to flush info (clients, tunnels, etc) about active and disconnected clients to disk.
     By default, 1 second is used. It can contain "h"(hours), "m"(minutes), "s"(seconds).
 
     --cleanup-clients-interval, Applicable only if --keep-lost-clients is specified. An optional

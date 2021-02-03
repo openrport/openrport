@@ -23,46 +23,46 @@ func TestJobsSqliteProvider(t *testing.T) {
 
 	// add jobs
 	job1 := jb.New(t).Status(models.JobStatusRunning).Result(nil).Build()
-	job2 := jb.New(t).SID(job1.SID).Build()
-	job3 := jb.New(t).Build() // different sid
+	job2 := jb.New(t).ClientID(job1.ClientID).Build()
+	job3 := jb.New(t).Build() // different client ID
 	require.NoError(t, p.SaveJob(job1))
 	require.NoError(t, p.SaveJob(job2))
 	require.NoError(t, p.SaveJob(job3))
 
 	// verify added jobs
-	gotJob1, err := p.GetByJID(job1.SID, job1.JID)
+	gotJob1, err := p.GetByJID(job1.ClientID, job1.JID)
 	require.NoError(t, err)
 	require.NotNil(t, gotJob1)
 	assert.Equal(t, job1, gotJob1)
 
-	gotJob2, err := p.GetByJID(job2.SID, job2.JID)
+	gotJob2, err := p.GetByJID(job2.ClientID, job2.JID)
 	require.NoError(t, err)
 	require.NotNil(t, gotJob2)
 	assert.Equal(t, job2, gotJob2)
 
-	gotJob3, err := p.GetByJID(job3.SID, job3.JID)
+	gotJob3, err := p.GetByJID(job3.ClientID, job3.JID)
 	require.NoError(t, err)
 	require.NotNil(t, gotJob3)
 	assert.Equal(t, job3, gotJob3)
 
 	// verify not found job
-	gotJob4, err := p.GetByJID(job3.SID, "unknown-jid")
+	gotJob4, err := p.GetByJID(job3.ClientID, "unknown-jid")
 	require.NoError(t, err)
 	require.Nil(t, gotJob4)
 
 	// verify job summaries
-	gotJSs1, err := p.GetSummariesBySID(job1.SID)
+	gotJSc1, err := p.GetSummariesByClientID(job1.ClientID)
 	require.NoError(t, err)
-	assert.ElementsMatch(t, []*models.JobSummary{&job1.JobSummary, &job2.JobSummary}, gotJSs1)
+	assert.ElementsMatch(t, []*models.JobSummary{&job1.JobSummary, &job2.JobSummary}, gotJSc1)
 
-	gotJSs2, err := p.GetSummariesBySID(job3.SID)
+	gotJSc2, err := p.GetSummariesByClientID(job3.ClientID)
 	require.NoError(t, err)
-	assert.ElementsMatch(t, []*models.JobSummary{&job3.JobSummary}, gotJSs2)
+	assert.ElementsMatch(t, []*models.JobSummary{&job3.JobSummary}, gotJSc2)
 
 	// verify job summaries not found
-	gotJSs3, err := p.GetSummariesBySID("unknown-sid")
+	gotJSc3, err := p.GetSummariesByClientID("unknown-cid")
 	require.NoError(t, err)
-	require.Empty(t, gotJSs3)
+	require.Empty(t, gotJSc3)
 
 	// verify job update
 	job1.Status = models.JobStatusSuccessful
@@ -74,14 +74,14 @@ func TestJobsSqliteProvider(t *testing.T) {
 	job1.FinishedAt = &ft
 
 	require.NoError(t, p.SaveJob(job1))
-	gotJob1, err = p.GetByJID(job1.SID, job1.JID)
+	gotJob1, err = p.GetByJID(job1.ClientID, job1.JID)
 	require.NoError(t, err)
 	require.NotNil(t, gotJob1)
 	assert.Equal(t, job1, gotJob1)
 
-	gotJSs1, err = p.GetSummariesBySID(job1.SID)
+	gotJSc1, err = p.GetSummariesByClientID(job1.ClientID)
 	require.NoError(t, err)
-	assert.ElementsMatch(t, []*models.JobSummary{&job1.JobSummary, &job2.JobSummary}, gotJSs1)
+	assert.ElementsMatch(t, []*models.JobSummary{&job1.JobSummary, &job2.JobSummary}, gotJSc1)
 }
 
 func TestGetByMultiJobID(t *testing.T) {
@@ -92,7 +92,7 @@ func TestGetByMultiJobID(t *testing.T) {
 	multiJobID := "1234"
 	t1, _ := time.ParseInLocation(time.RFC3339, "2020-08-19T13:09:23+03:00", nil)
 	job1 := jb.New(t).Status(models.JobStatusRunning).Result(nil).Build()
-	job2 := jb.New(t).MultiJobID("4321").SID(job1.SID).Build()
+	job2 := jb.New(t).MultiJobID("4321").ClientID(job1.ClientID).Build()
 	job3 := jb.New(t).JID("1111").MultiJobID(multiJobID).FinishedAt(t1).Build() // jid is set to check order by
 	job4 := jb.New(t).JID("2222").MultiJobID(multiJobID).Status(models.JobStatusRunning).Build()
 	job5 := jb.New(t).JID("3333").MultiJobID(multiJobID).Status(models.JobStatusFailed).StartedAt(job3.StartedAt.Add(time.Second)).FinishedAt(t1.Add(-time.Hour)).Build()
@@ -125,7 +125,7 @@ func TestCreateJob(t *testing.T) {
 	require.NoError(t, p.CreateJob(job))
 
 	// verify the job contains the initial status
-	gotJob, err := p.GetByJID(job.SID, job.JID)
+	gotJob, err := p.GetByJID(job.ClientID, job.JID)
 	require.NoError(t, err)
 	require.Equal(t, job, gotJob)
 }

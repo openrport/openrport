@@ -19,9 +19,9 @@ import (
 	"github.com/cloudradar-monitoring/rport/server/api/jobs"
 	"github.com/cloudradar-monitoring/rport/server/cgroups"
 	"github.com/cloudradar-monitoring/rport/server/clients"
+	"github.com/cloudradar-monitoring/rport/server/clientsauth"
 	"github.com/cloudradar-monitoring/rport/server/ports"
 	"github.com/cloudradar-monitoring/rport/server/scheduler"
-	"github.com/cloudradar-monitoring/rport/server/sessions"
 	chshare "github.com/cloudradar-monitoring/rport/share"
 	"github.com/cloudradar-monitoring/rport/share/files"
 	"github.com/cloudradar-monitoring/rport/share/models"
@@ -34,9 +34,9 @@ type Server struct {
 	clientListener      *ClientListener
 	apiListener         *APIListener
 	config              *Config
-	sessionService      *SessionService
-	sessionProvider     sessions.ClientSessionProvider
-	clientProvider      clients.Provider
+	clientService       *ClientService
+	clientProvider      clients.ClientProvider
+	clientAuthProvider  clientsauth.Provider
 	jobProvider         JobProvider
 	clientGroupProvider cgroups.ClientGroupProvider
 	db                  *sqlx.DB
@@ -90,25 +90,25 @@ func NewServer(config *Config, filesAPI files.FileAPI) (*Server, error) {
 		return nil, err
 	}
 
-	s.sessionProvider, err = sessions.NewSqliteProvider(
-		path.Join(config.Server.DataDir, "client_sessions.db"),
+	s.clientProvider, err = clients.NewSqliteProvider(
+		path.Join(config.Server.DataDir, "clients.db"),
 		config.Server.KeepLostClients,
 	)
 	if err != nil {
 		return nil, err
 	}
 
-	initSessions, err := sessions.GetInitState(ctx, s.sessionProvider)
+	initClients, err := clients.GetInitState(ctx, s.clientProvider)
 	if err != nil {
-		return nil, fmt.Errorf("failed to get init CSR state: %v", err)
+		return nil, fmt.Errorf("failed to init Client Repository: %v", err)
 	}
 
 	var keepLostClients *time.Duration
 	if config.Server.KeepLostClients > 0 {
 		keepLostClients = &config.Server.KeepLostClients
 	}
-	repo := sessions.NewSessionRepository(initSessions, keepLostClients)
-	s.sessionService = NewSessionService(
+	repo := clients.NewClientRepository(initClients, keepLostClients)
+	s.clientService = NewClientService(
 		ports.NewPortDistributor(config.ExcludedPorts()),
 		repo,
 	)
@@ -121,7 +121,7 @@ func NewServer(config *Config, filesAPI files.FileAPI) (*Server, error) {
 		s.Infof("DB: successfully connected to %s", config.Database.dsnForLogs())
 	}
 
-	s.clientProvider, err = getClientProvider(config, s.db)
+	s.clientAuthProvider, err = getClientProvider(config, s.db)
 	if err != nil {
 		return nil, err
 	}
@@ -145,10 +145,10 @@ func getJobsDirectory(datDir string) string {
 	return path.Join(datDir, "jobs")
 }
 
-func getClientProvider(config *Config, db *sqlx.DB) (clients.Provider, error) {
+func getClientProvider(config *Config, db *sqlx.DB) (clientsauth.Provider, error) {
 	if config.Server.AuthTable != "" {
-		dbProvider := clients.NewDatabaseProvider(db, config.Server.AuthTable)
-		cachedProvider, err := clients.NewCachedProvider(dbProvider)
+		dbProvider := clientsauth.NewDatabaseProvider(db, config.Server.AuthTable)
+		cachedProvider, err := clientsauth.NewCachedProvider(dbProvider)
 		if err != nil {
 			return nil, err
 		}
@@ -156,8 +156,8 @@ func getClientProvider(config *Config, db *sqlx.DB) (clients.Provider, error) {
 	}
 
 	if config.Server.AuthFile != "" {
-		fileProvider := clients.NewFileProvider(config.Server.AuthFile)
-		cachedProvider, err := clients.NewCachedProvider(fileProvider)
+		fileProvider := clientsauth.NewFileProvider(config.Server.AuthFile)
+		cachedProvider, err := clientsauth.NewCachedProvider(fileProvider)
 		if err != nil {
 			return nil, err
 		}
@@ -165,7 +165,7 @@ func getClientProvider(config *Config, db *sqlx.DB) (clients.Provider, error) {
 	}
 
 	if config.Server.Auth != "" {
-		return clients.NewSingleProvider(config.Server.authID, config.Server.authPassword), nil
+		return clientsauth.NewSingleProvider(config.Server.authID, config.Server.authPassword), nil
 	}
 
 	return nil, errors.New("client authentication must to be enabled: set either 'auth' or 'auth_file'")
@@ -192,11 +192,11 @@ func (s *Server) Run() error {
 
 	s.Infof("Variable to keep lost clients is set to %v", s.config.Server.KeepLostClients)
 
-	go scheduler.Run(ctx, s.Logger, sessions.NewCleanupTask(s.Logger, s.clientListener.sessionService.repo, s.sessionProvider), s.config.Server.CleanupClients)
+	go scheduler.Run(ctx, s.Logger, clients.NewCleanupTask(s.Logger, s.clientListener.clientService.repo, s.clientProvider), s.config.Server.CleanupClients)
 	s.Infof("Task to cleanup obsolete clients will run with interval %v", s.config.Server.CleanupClients)
 
 	// TODO(m-terel): add graceful shutdown of background task
-	go scheduler.Run(ctx, s.Logger, sessions.NewSaveTask(s.Logger, s.clientListener.sessionService.repo, s.sessionProvider), s.config.Server.SaveClients)
+	go scheduler.Run(ctx, s.Logger, clients.NewSaveTask(s.Logger, s.clientListener.clientService.repo, s.clientProvider), s.config.Server.SaveClients)
 	s.Infof("Task to save clients to disk will run with interval %v", s.config.Server.SaveClients)
 
 	return s.Wait()
@@ -229,7 +229,7 @@ func (s *Server) Close() error {
 	if s.db != nil {
 		wg.Go(s.db.Close)
 	}
-	wg.Go(s.sessionProvider.Close)
+	wg.Go(s.clientProvider.Close)
 	wg.Go(s.jobProvider.Close)
 	wg.Go(s.clientGroupProvider.Close)
 	wg.Go(s.uiJobWebSockets.CloseConnections)
