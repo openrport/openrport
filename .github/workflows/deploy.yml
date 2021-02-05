@@ -36,6 +36,7 @@ jobs:
           key: ${{ secrets.KEY }}
           source: "rportd,rport"
           target: ${{ secrets.DEPLOY_FOLDER }}
+          overwrite: true
 
       - name: Start rport server
         uses: appleboy/ssh-action@master
