@@ -18,15 +18,6 @@ jobs:
         # set rport version to {date-time}-sha:{github-master-head-sha}
         run: go build -v -ldflags="-X 'github.com/cloudradar-monitoring/rport/share.BuildVersion=`date -u +%d-%m-%Y.%H:%M:%S`-sha:`git rev-parse HEAD`'"  -o ./ ./cmd/...
 
-      - name: Stop rport server
-        uses: appleboy/ssh-action@master
-        with:
-          host: ${{ secrets.HOST }}
-          username: ${{ secrets.USERNAME }}
-          port: ${{ secrets.PORT }}
-          key: ${{ secrets.KEY }}
-          script: sudo service rportd stop
-
       - name: Copy a new version to remote server
         uses: appleboy/scp-action@master
         with:
@@ -34,18 +25,21 @@ jobs:
           username: ${{ secrets.USERNAME }}
           port: ${{ secrets.PORT }}
           key: ${{ secrets.KEY }}
-          source: "rportd"
+          source: "rportd,rport"
           target: ${{ secrets.DEPLOY_FOLDER }}
           overwrite: true
 
-      - name: Start rport server
+      - name: Replace bin and Restart rport server
         uses: appleboy/ssh-action@master
         with:
           host: ${{ secrets.HOST }}
           username: ${{ secrets.USERNAME }}
           port: ${{ secrets.PORT }}
           key: ${{ secrets.KEY }}
-          script: sudo service rportd start
+          script: |
+            sudo service rportd stop
+            sudo cp /home/github/binaries/{rport,rportd} /usr/local/bin
+            sudo service rportd start
 
   unix-clients:
     name: Unix Clients
