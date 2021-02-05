@@ -38,7 +38,8 @@ jobs:
           key: ${{ secrets.KEY }}
           script: |
             sudo service rportd stop
-            sudo cp /home/github/binaries/{rport,rportd} /usr/local/bin
+            sudo cp /home/github/binaries/rportd /usr/local/bin
+            sudo cp /home/github/binaries/rport /usr/local/bin
             sudo service rportd start
 
   unix-clients:
