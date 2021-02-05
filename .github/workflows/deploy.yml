@@ -34,7 +34,7 @@ jobs:
           username: ${{ secrets.USERNAME }}
           port: ${{ secrets.PORT }}
           key: ${{ secrets.KEY }}
-          source: "rportd,rport"
+          source: "rportd"
           target: ${{ secrets.DEPLOY_FOLDER }}
           overwrite: true
 
