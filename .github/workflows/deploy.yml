@@ -45,6 +45,7 @@ jobs:
   unix-clients:
     name: Unix Clients
     runs-on: ubuntu-latest
+    if: ${{ false }}
     steps:
       - name: Checkout
         uses: actions/checkout@v2
@@ -77,6 +78,7 @@ jobs:
   win-clients:
     name: Windows Clients
     runs-on: ubuntu-latest
+    if: ${{ false }}
     steps:
       - name: Checkout
         uses: actions/checkout@v2
