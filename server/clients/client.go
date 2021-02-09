@@ -21,6 +21,13 @@ func GetSessionID(sshConn ssh.ConnMetadata) string {
 	return fmt.Sprintf("%x", sshConn.SessionID())
 }
 
+type ConnectionState string
+
+const (
+	Connected    ConnectionState = "connected"
+	Disconnected ConnectionState = "disconnected"
+)
+
 // Client represents client connection
 type Client struct {
 	ID       string    `json:"id"`
@@ -186,4 +193,11 @@ func (c *Client) belongsTo(group *cgroups.ClientGroup) bool {
 		return false
 	}
 	return true
+}
+
+func (c *Client) ConnectionState() ConnectionState {
+	if c.DisconnectedAt == nil {
+		return Connected
+	}
+	return Disconnected
 }

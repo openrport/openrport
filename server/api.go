@@ -327,7 +327,52 @@ func (al *APIListener) handleGetClients(w http.ResponseWriter, req *http.Request
 
 	sortFunc(clients, desc)
 
-	al.writeJSONResponse(w, http.StatusOK, api.NewSuccessPayload(clients))
+	clientsPayload := convertToClientsPayload(clients)
+	al.writeJSONResponse(w, http.StatusOK, api.NewSuccessPayload(clientsPayload))
+}
+
+type ClientPayload struct {
+	ID              string                  `json:"id"`
+	Name            string                  `json:"name"`
+	OS              string                  `json:"os"`
+	OSArch          string                  `json:"os_arch"`
+	OSFamily        string                  `json:"os_family"`
+	OSKernel        string                  `json:"os_kernel"`
+	Hostname        string                  `json:"hostname"`
+	IPv4            []string                `json:"ipv4"`
+	IPv6            []string                `json:"ipv6"`
+	Tags            []string                `json:"tags"`
+	Version         string                  `json:"version"`
+	Address         string                  `json:"address"`
+	Tunnels         []*clients.Tunnel       `json:"tunnels"`
+	DisconnectedAt  *time.Time              `json:"disconnected_at"`
+	ConnectionState clients.ConnectionState `json:"connection_state"`
+	ClientAuthID    string                  `json:"client_auth_id"`
+}
+
+func convertToClientsPayload(clients []*clients.Client) []ClientPayload {
+	r := make([]ClientPayload, 0, len(clients))
+	for _, cur := range clients {
+		r = append(r, ClientPayload{
+			ID:              cur.ID,
+			Name:            cur.Name,
+			OS:              cur.OS,
+			OSArch:          cur.OSArch,
+			OSFamily:        cur.OSFamily,
+			OSKernel:        cur.OSKernel,
+			Hostname:        cur.Hostname,
+			IPv4:            cur.IPv4,
+			IPv6:            cur.IPv6,
+			Tags:            cur.Tags,
+			Version:         cur.Version,
+			Address:         cur.Address,
+			Tunnels:         cur.Tunnels,
+			DisconnectedAt:  cur.DisconnectedAt,
+			ConnectionState: cur.ConnectionState(),
+			ClientAuthID:    cur.ClientAuthID,
+		})
+	}
+	return r
 }
 
 func getCorrespondingSortFunc(sortStr string) (sortFunc func(a []*clients.Client, desc bool), desc bool, err error) {
