@@ -25,14 +25,10 @@ func TestClientBelongsToGroup(t *testing.T) {
 		ClientAuthID: "client-auth-1",
 	}
 	c2 := &Client{
-		ID:       "test-client-id-1",
-		OS:       "Linux alpine-3-10-tk-03 4.19.80-0-virt #1-Alpine SMP Fri Oct 18 11:51:24 UTC 2019 x86_64 Linux",
-		OSArch:   "amd64",
-		OSFamily: "alpine",
-		OSKernel: "linux",
-		IPv4:     []string{"192.168.122.113", "192.168.122.114"},
-		Tags:     []string{"Linux", "Datacenter 3", "Tag1", "Tag2", "Tag3"},
-		Version:  "0.1.12",
+		ID:      "test-client-id-1",
+		OS:      "Linux alpine-3-10-tk-03 4.19.80-0-virt #1-Alpine SMP Fri Oct 18 11:51:24 UTC 2019 x86_64 Linux",
+		IPv4:    []string{"192.168.122.113", "192.168.122.114"},
+		Version: "0.1.12",
 	}
 	g1 := &cgroups.ClientGroup{
 		ID: "group-1",
@@ -62,6 +58,14 @@ func TestClientBelongsToGroup(t *testing.T) {
 			ClientAuthID: cgroups.ParamValues{"client-auth-1", "client-auth-2", "client-auth-3*"},
 		},
 	}
+	g3 := &cgroups.ClientGroup{
+		ID: "group-1",
+		Params: &cgroups.ClientParams{
+			ClientID: cgroups.ParamValues{"test-client-id-1", "test-client-id-2"},
+			OS:       cgroups.ParamValues{"Linux*"},
+			Version:  cgroups.ParamValues{"0.1.1*"},
+		},
+	}
 	testCases := []struct {
 		name string
 
@@ -71,7 +75,7 @@ func TestClientBelongsToGroup(t *testing.T) {
 		wantRes bool
 	}{
 		{
-			name: "all group params, all client params",
+			name: "all group param, all client params",
 
 			client: c1,
 			group:  g1,
@@ -84,13 +88,21 @@ func TestClientBelongsToGroup(t *testing.T) {
 			client: c2,
 			group:  g1,
 
-			wantRes: true,
+			wantRes: false,
 		},
 		{
-			name: "not all group params, not all client params",
+			name: "not all group params, not all client params, extra group param",
 
 			client: c2,
 			group:  g2,
+
+			wantRes: false,
+		},
+		{
+			name: "not all group params, not all client params, extra client param",
+
+			client: c2,
+			group:  g3,
 
 			wantRes: true,
 		},
