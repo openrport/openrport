@@ -3,6 +3,7 @@ package chserver
 import (
 	"context"
 	"fmt"
+	"sort"
 	"strconv"
 	"sync"
 	"time"
@@ -51,12 +52,25 @@ func (s *ClientService) GetActiveByGroups(groups []*cgroups.ClientGroup) []*clie
 	}
 
 	var res []*clients.Client
-	for _, curSess := range s.repo.GetAllActive() {
-		if curSess.BelongsToOneOf(groups) {
-			res = append(res, curSess)
+	for _, cur := range s.repo.GetAllActive() {
+		if cur.BelongsToOneOf(groups) {
+			res = append(res, cur)
 		}
 	}
 	return res
+}
+
+func (s *ClientService) PopulateGroupsWithActiveClients(groups []*cgroups.ClientGroup) {
+	for _, curClient := range s.repo.GetAllActive() {
+		for _, curGroup := range groups {
+			if curClient.BelongsTo(curGroup) {
+				curGroup.ClientIDs = append(curGroup.ClientIDs, curClient.ID)
+			}
+		}
+	}
+	for _, curGroup := range groups {
+		sort.Strings(curGroup.ClientIDs)
+	}
 }
 
 // TODO(m-terel): make it consistent with others whether to return an error. No need for now return an err

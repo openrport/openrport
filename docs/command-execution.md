@@ -147,7 +147,7 @@ curl -s -u admin:foobaz http://localhost:3000/api/v1/commands/$JOBID|jq
 }
 ```
 #### By client group IDs
-How to create client groups please see [the link](docs/client-groups.md).
+How to create client groups please see [the link](client-groups.md).
 
 Assume we have already created a client group with `group-1` id.
 Example:

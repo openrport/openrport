@@ -144,14 +144,14 @@ func (c *Client) Close() error {
 
 func (c *Client) BelongsToOneOf(groups []*cgroups.ClientGroup) bool {
 	for _, cur := range groups {
-		if c.belongsTo(cur) {
+		if c.BelongsTo(cur) {
 			return true
 		}
 	}
 	return false
 }
 
-func (c *Client) belongsTo(group *cgroups.ClientGroup) bool {
+func (c *Client) BelongsTo(group *cgroups.ClientGroup) bool {
 	p := group.Params
 	if !p.ClientID.MatchesOneOf(c.ID) {
 		return false

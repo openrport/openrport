@@ -12,6 +12,8 @@ type ClientGroup struct {
 	ID          string        `json:"id" db:"id"`
 	Description string        `json:"description" db:"description"`
 	Params      *ClientParams `json:"params" db:"params"`
+	// ClientIDs shows what active clients belong to a given group. Note: it's populated separately.
+	ClientIDs []string `json:"client_ids" db:"-"`
 }
 
 type ClientParams struct {
