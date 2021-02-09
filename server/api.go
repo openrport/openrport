@@ -561,7 +561,7 @@ func (al *APIListener) handleGetMe(w http.ResponseWriter, req *http.Request) {
 
 	me := struct {
 		User   string   `json:"user"`
-		Groups []string `json:"groups,omitempty"`
+		Groups []string `json:"groups"`
 	}{
 		User:   user.Username,
 		Groups: user.Groups,

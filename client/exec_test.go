@@ -230,6 +230,8 @@ func TestHandleRunCmdRequestPositiveCase(t *testing.T) {
 	"started_at": "2020-08-19T12:00:00+03:00",
 	"created_by": "admin",
 	"timeout_sec": 60,
+	"multi_job_id":null,
+	"error":"",
 `
 	wantJSONPart2 := `
 	   "result": {

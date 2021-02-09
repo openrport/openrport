@@ -21,8 +21,8 @@ type Job struct {
 	StartedAt  time.Time  `json:"started_at"`
 	CreatedBy  string     `json:"created_by"`
 	TimeoutSec int        `json:"timeout_sec"`
-	MultiJobID *string    `json:"multi_job_id,omitempty"`
-	Error      string     `json:"error,omitempty"`
+	MultiJobID *string    `json:"multi_job_id"`
+	Error      string     `json:"error"`
 	Result     *JobResult `json:"result"`
 }
 

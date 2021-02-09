@@ -114,7 +114,7 @@ type jobDetails struct {
 	Shell      string            `json:"shell"`
 	PID        *int              `json:"pid"`
 	TimeoutSec int               `json:"timeout_sec"`
-	Error      string            `json:"error,omitempty"`
+	Error      string            `json:"error"`
 	Result     *models.JobResult `json:"result"`
 }
 
