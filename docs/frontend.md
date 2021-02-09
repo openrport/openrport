@@ -17,8 +17,7 @@ The frontend comes as a minified and compressed bundle of Javascript files and a
 Make sure you have the below options enabled in `[api]` section of the `rportd.conf`.
 
 ```
-doc_root = "/var/lib/rport/docroot"          # Linux
-doc_root = 'C:\Program Files\rport\docroot'  # Windows
+doc_root = "/var/lib/rport/docroot"
 ```
 * Download the latest release of the frontend [here](https://downloads.rport.io/).
 * Unpack to the `doc_root` folder.
