@@ -117,7 +117,7 @@ For a proper installation execute the following steps.
 ```
 wget https://github.com/cloudradar-monitoring/rport/releases/download/0.1.23/rport_0.1.23_Linux_x86_64.tar.gz
 sudo tar vxzf rport_0.1.23_Linux_x86_64.tar.gz -C /usr/local/bin/ rportd
-sudo useradd -d /var/lib/rport -m -u -r -s /bin/false rport
+sudo useradd -d /var/lib/rport -m -U -r -s /bin/false rport
 sudo mkdir /etc/rport/
 sudo mkdir /var/log/rport/
 sudo chown rport /var/log/rport/
@@ -136,7 +136,6 @@ Change to the rport user account and check your rportd starts without errors.
 ```
 ubuntu@node1:~$ sudo -u rport -s /bin/bash
 rport@node1:/home/ubuntu$ rportd -c /etc/rport/rportd.conf --log-level info &
-2021/01/27 16:26:55 Start to get init Client Repository state from file.
 ```
 For the first testing leave the console open and observe the log with `tail -f /var/log/rport/rportd.log`. Copy the generated fingerprint from `/var/lib/rport/rportd-fingerprint.txt` to your clipboard. Try your first client connection now.
 
@@ -174,7 +173,7 @@ Now you can access your machine behind a firewall through the tunnel. Try `ssh -
 For a proper and permanent installation of the client execute the following steps.
 ```
 wget https://github.com/cloudradar-monitoring/rport/releases/download/0.1.23/rport_0.1.23_Linux_x86_64.tar.gz
-sudo tar vxzf rport_0.1.23_Linux_x86_64.tar.gz -C /usr/local/bin/ rportd
+sudo tar vxzf rport_0.1.23_Linux_x86_64.tar.gz -C /usr/local/bin/ rport
 sudo useradd -d /var/lib/rport -m -r -s /bin/false rport
 sudo mkdir /etc/rport/
 sudo mkdir /var/log/rport/
