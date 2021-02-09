@@ -1444,7 +1444,55 @@ func (al *APIListener) handlePutClientGroup(w http.ResponseWriter, req *http.Req
 
 func validateInputClientGroup(group cgroups.ClientGroup) error {
 	if strings.TrimSpace(group.ID) == "" {
-		return errors.New("ID cannot be empty")
+		return errors.New("group ID cannot be empty")
+	}
+	if err := validateGroupParams("Client ID", group.Params.ClientID); err != nil {
+		return err
+	}
+	if err := validateGroupParams("Client Name", group.Params.Name); err != nil {
+		return err
+	}
+	if err := validateGroupParams("OS", group.Params.OS); err != nil {
+		return err
+	}
+	if err := validateGroupParams("OS Arch", group.Params.OSArch); err != nil {
+		return err
+	}
+	if err := validateGroupParams("OS Family", group.Params.OSFamily); err != nil {
+		return err
+	}
+	if err := validateGroupParams("OS Kernel", group.Params.OSKernel); err != nil {
+		return err
+	}
+	if err := validateGroupParams("Hostname", group.Params.Hostname); err != nil {
+		return err
+	}
+	if err := validateGroupParams("IPv4", group.Params.IPv4); err != nil {
+		return err
+	}
+	if err := validateGroupParams("IPv6", group.Params.IPv6); err != nil {
+		return err
+	}
+	if err := validateGroupParams("Tag", group.Params.Tag); err != nil {
+		return err
+	}
+	if err := validateGroupParams("Version", group.Params.Version); err != nil {
+		return err
+	}
+	if err := validateGroupParams("Address", group.Params.Address); err != nil {
+		return err
+	}
+	if err := validateGroupParams("Client Auth ID", group.Params.ClientAuthID); err != nil {
+		return err
+	}
+	return nil
+}
+
+func validateGroupParams(paramName string, params cgroups.ParamValues) error {
+	for _, paramValue := range params {
+		if strings.TrimSpace(string(paramValue)) == "" {
+			return fmt.Errorf("group param %q cannot be empty", paramName)
+		}
 	}
 	return nil
 }

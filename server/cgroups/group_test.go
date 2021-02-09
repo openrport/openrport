@@ -152,15 +152,87 @@ func TestMatchesOneOf(t *testing.T) {
 			wantRes: false,
 		},
 		{
-			name: "empty client param",
+			name: "empty client param, nonempty group param",
 
 			groupParams:  ParamValues{"id-1"},
+			clientParams: []string{""},
+
+			wantRes: false,
+		},
+		{
+			name: "no client param, nonempty group param",
+
+			groupParams:  ParamValues{"tag-1"},
+			clientParams: []string{},
+
+			wantRes: false,
+		},
+		{
+			name: "no client param, no group param",
+
+			groupParams:  ParamValues{},
+			clientParams: []string{},
+
+			wantRes: true,
+		},
+		{
+			name: "no client param, empty group param",
+
+			groupParams:  ParamValues{""},
+			clientParams: []string{},
+
+			wantRes: false,
+		},
+		{
+			name: "empty client param, empty group param",
+
+			groupParams:  ParamValues{""},
 			clientParams: []string{""},
 
 			wantRes: true,
 		},
 		{
-			name: "no group param",
+			name: "nonempty client param, empty group param",
+
+			groupParams:  ParamValues{""},
+			clientParams: []string{"id-1"},
+
+			wantRes: false,
+		},
+		{
+			name: "nonempty client param, empty group params",
+
+			groupParams:  ParamValues{"", ""},
+			clientParams: []string{"id-1"},
+
+			wantRes: false,
+		},
+		{
+			name: "empty client param, empty group params",
+
+			groupParams:  ParamValues{"", ""},
+			clientParams: []string{"tag-1", ""},
+
+			wantRes: true,
+		},
+		{
+			name: "no client param, empty group params",
+
+			groupParams:  ParamValues{"", ""},
+			clientParams: []string{},
+
+			wantRes: false,
+		},
+		{
+			name: "empty client param, no group param",
+
+			groupParams:  ParamValues{},
+			clientParams: []string{""},
+
+			wantRes: true,
+		},
+		{
+			name: "nonempty client param, no group param",
 
 			groupParams:  ParamValues{},
 			clientParams: []string{"id-1"},
@@ -200,12 +272,12 @@ func TestMatchesOneOf(t *testing.T) {
 			wantRes: true,
 		},
 		{
-			name: "plural client param, no client params",
+			name: "no client param, plural group params",
 
 			groupParams:  ParamValues{"tag-1*", "tag-2*", "tag-c"},
 			clientParams: []string{},
 
-			wantRes: true,
+			wantRes: false,
 		},
 		{
 			name: "plural client param, no group params",
