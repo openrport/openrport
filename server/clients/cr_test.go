@@ -55,7 +55,7 @@ func TestCRWithNoExpiration(t *testing.T) {
 
 	repo := NewClientRepository([]*Client{c1, c2, c3}, nil)
 	c4Active := shallowCopy(c4)
-	c4Active.Disconnected = nil
+	c4Active.DisconnectedAt = nil
 
 	assert := assert.New(t)
 	assert.NoError(repo.Save(c4Active))

@@ -38,7 +38,7 @@ func TestSaveTask(t *testing.T) {
 	gotClients, err := GetInitState(ctx, p)
 	assert.NoError(t, err)
 	wantC1 := shallowCopy(c1)
-	wantC1.Disconnected = &nowMock
+	wantC1.DisconnectedAt = &nowMock
 	require.Len(t, gotClients, 3)
 	assert.ElementsMatch(t, gotClients, []*Client{wantC1, c2, c3})
 }

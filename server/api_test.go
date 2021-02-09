@@ -1142,6 +1142,8 @@ func TestHandleGetClients(t *testing.T) {
                "id":"2"
             }
          ],
+         "connection_state":"connected",
+         "disconnected_at":null,
          "client_auth_id":"user1"
       },
       {
@@ -1186,7 +1188,8 @@ func TestHandleGetClients(t *testing.T) {
                "id":"2"
             }
          ],
-         "disconnected":"2020-08-19T13:04:23+03:00",
+         "connection_state":"disconnected",
+         "disconnected_at":"2020-08-19T13:04:23+03:00",
          "client_auth_id":"user1"
       }
    ]

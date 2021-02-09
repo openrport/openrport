@@ -81,7 +81,7 @@ func (s *ClientService) StartClient(
 		return nil, fmt.Errorf("failed to get client by id %q", clientID)
 	}
 	if oldClient != nil {
-		if oldClient.Disconnected == nil {
+		if oldClient.DisconnectedAt == nil {
 			return nil, fmt.Errorf("client id %q is already in use", clientID)
 		}
 
@@ -181,7 +181,7 @@ func (s *ClientService) Terminate(client *clients.Client) error {
 	}
 
 	now := time.Now()
-	client.Disconnected = &now
+	client.DisconnectedAt = &now
 
 	// Do not save if client doesn't exist in repo - it was force deleted
 	existing, err := s.repo.GetByID(client.ID)
@@ -199,7 +199,7 @@ func (s *ClientService) Terminate(client *clients.Client) error {
 func (s *ClientService) ForceDelete(client *clients.Client) error {
 	s.mu.Lock()
 	defer s.mu.Unlock()
-	if client.Disconnected == nil {
+	if client.DisconnectedAt == nil {
 		if err := client.Close(); err != nil {
 			return err
 		}

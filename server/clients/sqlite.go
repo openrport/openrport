@@ -40,7 +40,7 @@ func (p *SqliteProvider) GetAll(ctx context.Context) ([]*Client, error) {
 	err := p.db.SelectContext(
 		ctx,
 		&res,
-		"SELECT * FROM clients WHERE disconnected IS NULL OR DATETIME(disconnected) >= DATETIME(?)",
+		"SELECT * FROM clients WHERE disconnected_at IS NULL OR DATETIME(disconnected_at) >= DATETIME(?)",
 		p.keepLostClientsStart(),
 	)
 	if err != nil {
@@ -64,7 +64,7 @@ func (p *SqliteProvider) get(ctx context.Context, id string) (*Client, error) {
 func (p *SqliteProvider) Save(ctx context.Context, client *Client) error {
 	_, err := p.db.NamedExecContext(
 		ctx,
-		"INSERT OR REPLACE INTO clients (id, client_auth_id, disconnected, details) VALUES (:id, :client_auth_id, :disconnected, :details)",
+		"INSERT OR REPLACE INTO clients (id, client_auth_id, disconnected_at, details) VALUES (:id, :client_auth_id, :disconnected_at, :details)",
 		convertToSqlite(client),
 	)
 	return err
@@ -73,7 +73,7 @@ func (p *SqliteProvider) Save(ctx context.Context, client *Client) error {
 func (p *SqliteProvider) DeleteObsolete(ctx context.Context) error {
 	_, err := p.db.ExecContext(
 		ctx,
-		"DELETE FROM clients WHERE disconnected IS NOT NULL AND DATETIME(disconnected) < DATETIME(?)",
+		"DELETE FROM clients WHERE disconnected_at IS NOT NULL AND DATETIME(disconnected_at) < DATETIME(?)",
 		p.keepLostClientsStart(),
 	)
 	return err
@@ -105,17 +105,17 @@ func convertToSqlite(v *Client) *clientSqlite {
 			Tunnels:  v.Tunnels,
 		},
 	}
-	if v.Disconnected != nil {
-		res.Disconnected = sql.NullTime{Time: *v.Disconnected, Valid: true}
+	if v.DisconnectedAt != nil {
+		res.DisconnectedAt = sql.NullTime{Time: *v.DisconnectedAt, Valid: true}
 	}
 	return res
 }
 
 type clientSqlite struct {
-	ID           string         `db:"id"`
-	ClientAuthID string         `db:"client_auth_id"`
-	Disconnected sql.NullTime   `db:"disconnected"` // Disconnected is a time when a client was disconnected. If nil - it's connected.
-	Details      *clientDetails `db:"details"`
+	ID             string         `db:"id"`
+	ClientAuthID   string         `db:"client_auth_id"`
+	DisconnectedAt sql.NullTime   `db:"disconnected_at"` // DisconnectedAt is a time when a client was disconnected. If nil - it's connected.
+	Details        *clientDetails `db:"details"`
 }
 
 type clientDetails struct {
@@ -177,8 +177,8 @@ func (s *clientSqlite) convert() *Client {
 		Address:      d.Address,
 		Tunnels:      d.Tunnels,
 	}
-	if s.Disconnected.Valid {
-		res.Disconnected = &s.Disconnected.Time
+	if s.DisconnectedAt.Valid {
+		res.DisconnectedAt = &s.DisconnectedAt.Time
 	}
 	return res
 }

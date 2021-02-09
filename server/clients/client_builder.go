@@ -29,10 +29,10 @@ var nowMockF = func() time.Time {
 type ClientBuilder struct {
 	t *testing.T
 
-	id           string
-	clientAuthID string
-	disconnected *time.Time
-	conn         ssh.Conn
+	id             string
+	clientAuthID   string
+	disconnectedAt *time.Time
+	conn           ssh.Conn
 }
 
 // New returns a builder to generate a client that can be used in tests.
@@ -57,8 +57,8 @@ func (b ClientBuilder) ClientAuthID(clientAuthID string) ClientBuilder {
 func (b ClientBuilder) DisconnectedDuration(disconnectedDuration time.Duration) ClientBuilder {
 	// override client Now with static value
 	now = nowMockF
-	disconnected := now().Add(-disconnectedDuration)
-	b.disconnected = &disconnected
+	disconnectedAt := now().Add(-disconnectedDuration)
+	b.disconnectedAt = &disconnectedAt
 	return b
 }
 
@@ -101,8 +101,8 @@ func (b ClientBuilder) Build() *Client {
 				},
 			},
 		},
-		Disconnected: b.disconnected,
-		ClientAuthID: b.clientAuthID,
+		DisconnectedAt: b.disconnectedAt,
+		ClientAuthID:   b.clientAuthID,
 
 		Connection: b.conn,
 	}

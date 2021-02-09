@@ -834,6 +834,17 @@ definitions:
         type: "array"
         items:
           $ref: "#/definitions/Tunnel"
+      connection_state:
+        type: "string"
+        enum: [connected, disconnected]
+        description: "indicates whether a client is connected or disconnected"
+      disconnected_at:
+        type: "string"
+        format: "data-time"
+        description: "time when a client was disconnected. If null - it's connected"
+      client_auth_id:
+        type: "string"
+        description: "rport client authentication ID that was used to connect to server"
   ClientGroup:
     type: "object"
     properties:
