@@ -34,7 +34,7 @@ type Param string
 type ParamValues []Param
 
 func (p ParamValues) MatchesOneOf(values ...string) bool {
-	if len(values) == 0 || len(p) == 0 {
+	if len(p) == 0 {
 		return true
 	}
 
@@ -49,15 +49,7 @@ func (p ParamValues) MatchesOneOf(values ...string) bool {
 }
 
 func (p Param) matches(value string) bool {
-	if value == "" {
-		return true
-	}
-
 	str := string(p)
-	if len(str) == 0 {
-		return false
-	}
-
 	if strings.Contains(str, "*") {
 		parts := strings.Split(str, "*")
 		if !strings.HasPrefix(value, parts[0]) || !strings.HasSuffix(value, parts[len(parts)-1]) {

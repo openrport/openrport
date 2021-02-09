@@ -1444,7 +1444,7 @@ func (al *APIListener) handlePutClientGroup(w http.ResponseWriter, req *http.Req
 
 func validateInputClientGroup(group cgroups.ClientGroup) error {
 	if strings.TrimSpace(group.ID) == "" {
-		return errors.New("ID cannot be empty")
+		return errors.New("group ID cannot be empty")
 	}
 	return nil
 }
