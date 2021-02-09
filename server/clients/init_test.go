@@ -12,7 +12,7 @@ func TestGetInitState(t *testing.T) {
 	ctx := context.Background()
 	c1 := New(t).Build()
 	wantC1 := shallowCopy(c1)
-	wantC1.Disconnected = &nowMock
+	wantC1.DisconnectedAt = &nowMock
 	c2 := New(t).DisconnectedDuration(5 * time.Minute).Build()
 	c3 := New(t).DisconnectedDuration(2 * time.Hour).Build()
 

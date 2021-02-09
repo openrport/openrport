@@ -36,9 +36,9 @@ type Client struct {
 	Version  string    `json:"version"`
 	Address  string    `json:"address"`
 	Tunnels  []*Tunnel `json:"tunnels"`
-	// Disconnected is a time when a client was disconnected. If nil - it's connected.
-	Disconnected *time.Time `json:"disconnected,omitempty"`
-	ClientAuthID string     `json:"client_auth_id"`
+	// DisconnectedAt is a time when a client was disconnected. If nil - it's connected.
+	DisconnectedAt *time.Time `json:"disconnected_at"`
+	ClientAuthID   string     `json:"client_auth_id"`
 
 	Connection ssh.Conn        `json:"-"`
 	Context    context.Context `json:"-"`
@@ -51,8 +51,8 @@ type Client struct {
 // Obsolete returns true if a given client was disconnected longer than a given duration.
 // If a given duration is nil - returns false.
 func (c *Client) Obsolete(duration *time.Duration) bool {
-	return duration != nil && c.Disconnected != nil &&
-		c.Disconnected.Add(*duration).Before(now())
+	return duration != nil && c.DisconnectedAt != nil &&
+		c.DisconnectedAt.Add(*duration).Before(now())
 }
 
 func (c *Client) Lock() {

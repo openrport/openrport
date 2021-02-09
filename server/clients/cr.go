@@ -77,7 +77,7 @@ func (s *ClientRepository) GetActiveByID(id string) (*Client, error) {
 	s.mu.RLock()
 	defer s.mu.RUnlock()
 	client := s.clients[id]
-	if client != nil && client.Disconnected != nil {
+	if client != nil && client.DisconnectedAt != nil {
 		return nil, nil
 	}
 	return client, nil
@@ -107,7 +107,7 @@ func (s *ClientRepository) GetAllActive() []*Client {
 	defer s.mu.RUnlock()
 	var result []*Client
 	for _, client := range s.clients {
-		if client.Disconnected == nil {
+		if client.DisconnectedAt == nil {
 			result = append(result, client)
 		}
 	}

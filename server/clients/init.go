@@ -15,8 +15,8 @@ func GetInitState(ctx context.Context, p ClientProvider) ([]*Client, error) {
 	// mark previously connected clients as disconnected with current time
 	now := now()
 	for _, cur := range all {
-		if cur.Disconnected == nil {
-			cur.Disconnected = &now
+		if cur.DisconnectedAt == nil {
+			cur.DisconnectedAt = &now
 			err := p.Save(ctx, cur)
 			if err != nil {
 				return nil, fmt.Errorf("failed to save client: %v", err)

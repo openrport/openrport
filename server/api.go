@@ -944,7 +944,7 @@ func (al *APIListener) handlePostMultiClientCommand(w http.ResponseWriter, req *
 			al.jsonErrorResponseWithTitle(w, http.StatusNotFound, fmt.Sprintf("Client with id=%q not found.", cid))
 			return
 		}
-		if client.Disconnected != nil {
+		if client.DisconnectedAt != nil {
 			al.jsonErrorResponseWithTitle(w, http.StatusBadRequest, fmt.Sprintf("Client with id=%q is not active.", cid))
 			return
 		}
@@ -1139,7 +1139,7 @@ func (al *APIListener) handleCommandsWS(w http.ResponseWriter, req *http.Request
 			uiConnTS.WriteError(fmt.Sprintf("Client with id=%q not found.", cid), nil)
 			return
 		}
-		if client.Disconnected != nil {
+		if client.DisconnectedAt != nil {
 			uiConnTS.WriteError(fmt.Sprintf("Client with id=%q is not active.", cid), nil)
 			return
 		}

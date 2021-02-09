@@ -53,7 +53,7 @@ func TestClientsSqliteProvider(t *testing.T) {
 
 	// verify update
 	d := time.Date(2020, 11, 5, 12, 11, 20, 0, time.UTC)
-	c1.Disconnected = &d
+	c1.DisconnectedAt = &d
 	require.NoError(t, p.Save(ctx, c1))
 	gotUpdated, err := p.get(ctx, c1.ID)
 	require.NoError(t, err)
