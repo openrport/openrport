@@ -665,7 +665,7 @@ paths:
       parameters:
         - in: "body"
           name: "client group"
-          description: "Client group to create."
+          description: "Client group to create. Note: ClientGroup.client_ids field should not be set."
           required: true
           schema:
             $ref: '#/definitions/ClientGroup'
@@ -725,7 +725,7 @@ paths:
           type: "string"
         - in: "body"
           name: "client group"
-          description: "Client group to save."
+          description: "Client group to save. Note: ClientGroup.client_ids field should not be set."
           required: true
           schema:
             $ref: '#/definitions/ClientGroup'
@@ -854,6 +854,11 @@ definitions:
       description:
         type: "string"
         description: "Client Group description"
+      client_ids:
+        type: "array"
+        items:
+          type: string
+        description: "Read Only field. Shows active clients that belong to this group."
       params:
         type: "object"
         description: "Parameters that define what clients belong to a given client group.\n

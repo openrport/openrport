@@ -135,7 +135,7 @@ func TestClientBelongsToGroup(t *testing.T) {
 	for _, tc := range testCases {
 		t.Run(tc.name, func(t *testing.T) {
 			// when
-			gotRes := tc.client.belongsTo(tc.group)
+			gotRes := tc.client.BelongsTo(tc.group)
 
 			// then
 			assert.Equal(t, tc.wantRes, gotRes)
