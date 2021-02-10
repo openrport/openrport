@@ -36,6 +36,7 @@ Also, the server can run on any operation system supported by the golang compile
   * [Connect a client](#run-client)
   * [Run a Linux client with systemd](#linux-client-systemd)
   * [Run a Windows client](#windows-client)
+  * [run clients on other operating systems](#other-clients)
   * [Configuration files](#configs) 
   * [Using authentication](#client-auth)
 * [On-demand tunnels using the API](#on-demand-tunnels)
@@ -174,7 +175,7 @@ For a proper and permanent installation of the client execute the following step
 ```
 wget https://github.com/cloudradar-monitoring/rport/releases/download/0.1.23/rport_0.1.23_Linux_x86_64.tar.gz
 sudo tar vxzf rport_0.1.23_Linux_x86_64.tar.gz -C /usr/local/bin/ rport
-sudo useradd -d /var/lib/rport -m -r -s /bin/false rport
+sudo useradd -d /var/lib/rport -U -m -r -s /bin/false rport
 sudo mkdir /etc/rport/
 sudo mkdir /var/log/rport/
 sudo chown rport /var/log/rport/
@@ -231,6 +232,10 @@ sc start rport
 ```
 
 The windows service will be created with "Startup type = automatic". If you don't want the rport client to start on boot, you must manually disable it using for example `sc config rport start=disabled`. 
+
+<a name="other-clients"></a>
+### Run clients on other operating systems
+Please refer to [clients on other operating systems](./docs/client-on-other-os.md).
 
 <a name="configs"></a>
 ### Configuration files
