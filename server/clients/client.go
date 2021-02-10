@@ -2,7 +2,6 @@ package clients
 
 import (
 	"context"
-	"fmt"
 	"strconv"
 	"sync"
 	"sync/atomic"
@@ -12,14 +11,11 @@ import (
 
 	"github.com/cloudradar-monitoring/rport/server/cgroups"
 	chshare "github.com/cloudradar-monitoring/rport/share"
+	"github.com/cloudradar-monitoring/rport/share/random"
 )
 
 // now is used to stub time.Now in tests
 var now = time.Now
-
-func GetSessionID(sshConn ssh.ConnMetadata) string {
-	return fmt.Sprintf("%x", sshConn.SessionID())
-}
 
 type ConnectionState string
 
@@ -200,4 +196,9 @@ func (c *Client) ConnectionState() ConnectionState {
 		return Connected
 	}
 	return Disconnected
+}
+
+// NewClientID generates a new client ID.
+func NewClientID() string {
+	return random.UUID4()
 }

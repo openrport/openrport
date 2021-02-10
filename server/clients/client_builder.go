@@ -39,7 +39,7 @@ type ClientBuilder struct {
 func New(t *testing.T) ClientBuilder {
 	return ClientBuilder{
 		t:            t,
-		id:           generateRandomCID(),
+		id:           NewClientID(),
 		clientAuthID: generateRandomClientAuthID(),
 	}
 }
@@ -107,10 +107,6 @@ func (b ClientBuilder) Build() *Client {
 		Connection: b.conn,
 	}
 
-}
-
-func generateRandomCID() string {
-	return "cid-" + random.AlphaNum(12)
 }
 
 func generateRandomClientAuthID() string {
