@@ -24,7 +24,7 @@ import (
 	"github.com/cloudradar-monitoring/rport/server/api"
 	"github.com/cloudradar-monitoring/rport/server/api/jobs"
 	"github.com/cloudradar-monitoring/rport/server/clients"
-	"github.com/cloudradar-monitoring/rport/server/sessions"
+	"github.com/cloudradar-monitoring/rport/server/clientsauth"
 	"github.com/cloudradar-monitoring/rport/server/test/jb"
 	chshare "github.com/cloudradar-monitoring/rport/share"
 	"github.com/cloudradar-monitoring/rport/share/comm"
@@ -42,7 +42,7 @@ type JobProviderMock struct {
 	ReturnJobSummaries []*models.JobSummary
 	ReturnErr          error
 
-	InputSID       string
+	InputCID       string
 	InputJID       string
 	InputSaveJob   *models.Job
 	InputCreateJob *models.Job
@@ -52,14 +52,14 @@ func NewJobProviderMock() *JobProviderMock {
 	return &JobProviderMock{}
 }
 
-func (p *JobProviderMock) GetByJID(sid, jid string) (*models.Job, error) {
-	p.InputSID = sid
+func (p *JobProviderMock) GetByJID(cid, jid string) (*models.Job, error) {
+	p.InputCID = cid
 	p.InputJID = jid
 	return p.ReturnJob, p.ReturnErr
 }
 
-func (p *JobProviderMock) GetSummariesBySID(sid string) ([]*models.JobSummary, error) {
-	p.InputSID = sid
+func (p *JobProviderMock) GetSummariesByClientID(cid string) ([]*models.JobSummary, error) {
+	p.InputCID = cid
 	return p.ReturnJobSummaries, p.ReturnErr
 }
 
@@ -81,57 +81,57 @@ func TestGetCorrespondingSortFuncPositive(t *testing.T) {
 	testCases := []struct {
 		sortStr string
 
-		wantFunc func(a []*sessions.ClientSession, desc bool)
+		wantFunc func(a []*clients.Client, desc bool)
 		wantDesc bool
 	}{
 		{
 			sortStr:  "",
-			wantFunc: sessions.SortByID,
+			wantFunc: clients.SortByID,
 			wantDesc: false,
 		},
 		{
 			sortStr:  "-",
-			wantFunc: sessions.SortByID,
+			wantFunc: clients.SortByID,
 			wantDesc: true,
 		},
 		{
 			sortStr:  "id",
-			wantFunc: sessions.SortByID,
+			wantFunc: clients.SortByID,
 			wantDesc: false,
 		},
 		{
 			sortStr:  "-id",
-			wantFunc: sessions.SortByID,
+			wantFunc: clients.SortByID,
 			wantDesc: true,
 		},
 		{
 			sortStr:  "name",
-			wantFunc: sessions.SortByName,
+			wantFunc: clients.SortByName,
 			wantDesc: false,
 		},
 		{
 			sortStr:  "-name",
-			wantFunc: sessions.SortByName,
+			wantFunc: clients.SortByName,
 			wantDesc: true,
 		},
 		{
 			sortStr:  "hostname",
-			wantFunc: sessions.SortByHostname,
+			wantFunc: clients.SortByHostname,
 			wantDesc: false,
 		},
 		{
 			sortStr:  "-hostname",
-			wantFunc: sessions.SortByHostname,
+			wantFunc: clients.SortByHostname,
 			wantDesc: true,
 		},
 		{
 			sortStr:  "os",
-			wantFunc: sessions.SortByOS,
+			wantFunc: clients.SortByOS,
 			wantDesc: false,
 		},
 		{
 			sortStr:  "-os",
-			wantFunc: sessions.SortByOS,
+			wantFunc: clients.SortByOS,
 			wantDesc: true,
 		},
 	}
@@ -162,43 +162,43 @@ func TestGetCorrespondingSortFuncNegative(t *testing.T) {
 }
 
 var (
-	cl1 = &clients.Client{ID: "user1", Password: "pswd1"}
-	cl2 = &clients.Client{ID: "user2", Password: "pswd2"}
-	cl3 = &clients.Client{ID: "user3", Password: "pswd3"}
+	cl1 = &clientsauth.ClientAuth{ID: "user1", Password: "pswd1"}
+	cl2 = &clientsauth.ClientAuth{ID: "user2", Password: "pswd2"}
+	cl3 = &clientsauth.ClientAuth{ID: "user3", Password: "pswd3"}
 )
 
-func TestHandleGetClients(t *testing.T) {
+func TestHandleGetClientsAuth(t *testing.T) {
 	require := require.New(t)
 
-	req := httptest.NewRequest(http.MethodGet, "/api/v1/clients", nil)
+	req := httptest.NewRequest(http.MethodGet, "/api/v1/clients-auth", nil)
 
 	testCases := []struct {
 		descr string // Test Case Description
 
-		provider clients.Provider
+		provider clientsauth.Provider
 
-		wantStatusCode int
-		wantClients    []*clients.Client
-		wantErrCode    string
-		wantErrTitle   string
+		wantStatusCode  int
+		wantClientsAuth []*clientsauth.ClientAuth
+		wantErrCode     string
+		wantErrTitle    string
 	}{
 		{
-			descr:          "auth file, 3 clients",
-			provider:       clients.NewMockProvider([]*clients.Client{cl1, cl2, cl3}),
-			wantStatusCode: http.StatusOK,
-			wantClients:    []*clients.Client{cl1, cl2, cl3},
+			descr:           "auth file, 3 clients",
+			provider:        clientsauth.NewMockProvider([]*clientsauth.ClientAuth{cl1, cl2, cl3}),
+			wantStatusCode:  http.StatusOK,
+			wantClientsAuth: []*clientsauth.ClientAuth{cl1, cl2, cl3},
 		},
 		{
-			descr:          "auth file, no clients",
-			provider:       clients.NewMockProvider([]*clients.Client{}),
-			wantStatusCode: http.StatusOK,
-			wantClients:    []*clients.Client{},
+			descr:           "auth file, no clients",
+			provider:        clientsauth.NewMockProvider([]*clientsauth.ClientAuth{}),
+			wantStatusCode:  http.StatusOK,
+			wantClientsAuth: []*clientsauth.ClientAuth{},
 		},
 		{
-			descr:          "auth, single client",
-			provider:       clients.NewSingleProvider(cl1.ID, cl1.Password),
-			wantStatusCode: http.StatusOK,
-			wantClients:    []*clients.Client{cl1},
+			descr:           "auth, single client",
+			provider:        clientsauth.NewSingleProvider(cl1.ID, cl1.Password),
+			wantStatusCode:  http.StatusOK,
+			wantClientsAuth: []*clientsauth.ClientAuth{cl1},
 		},
 	}
 
@@ -212,12 +212,12 @@ func TestHandleGetClients(t *testing.T) {
 				config: &Config{
 					Server: ServerConfig{MaxRequestBytes: 1024 * 1024},
 				},
-				clientProvider: tc.provider,
+				clientAuthProvider: tc.provider,
 			},
 		}
 
 		// when
-		handler := http.HandlerFunc(al.handleGetClients)
+		handler := http.HandlerFunc(al.handleGetClientsAuth)
 		w := httptest.NewRecorder()
 		handler.ServeHTTP(w, req)
 
@@ -226,7 +226,7 @@ func TestHandleGetClients(t *testing.T) {
 		var wantResp interface{}
 		if tc.wantErrTitle == "" {
 			// success case
-			wantResp = api.NewSuccessPayload(tc.wantClients)
+			wantResp = api.NewSuccessPayload(tc.wantClientsAuth)
 		} else {
 			// failure case
 			wantResp = api.NewErrorPayloadWithCode(tc.wantErrCode, tc.wantErrTitle, "")
@@ -242,159 +242,159 @@ func TestHandlePostClients(t *testing.T) {
 	assert := assert.New(t)
 
 	composeRequestBody := func(id, pswd string) io.Reader {
-		c := clients.Client{ID: id, Password: pswd}
+		c := clientsauth.ClientAuth{ID: id, Password: pswd}
 		b, err := json.Marshal(c)
 		require.NoError(err)
 		return bytes.NewBuffer(b)
 	}
-	cl4 := &clients.Client{ID: "user4", Password: "pswd4"}
-	initCacheState := []*clients.Client{cl1, cl2, cl3}
+	cl4 := &clientsauth.ClientAuth{ID: "user4", Password: "pswd4"}
+	initCacheState := []*clientsauth.ClientAuth{cl1, cl2, cl3}
 
 	testCases := []struct {
 		descr string // Test Case Description
 
-		provider        clients.Provider
+		provider        clientsauth.Provider
 		clientAuthWrite bool
 		requestBody     io.Reader
 
-		wantStatusCode int
-		wantClients    []*clients.Client
-		wantErrCode    string
-		wantErrTitle   string
-		wantErrDetail  string
+		wantStatusCode  int
+		wantClientsAuth []*clientsauth.ClientAuth
+		wantErrCode     string
+		wantErrTitle    string
+		wantErrDetail   string
 	}{
 		{
 			descr:           "auth file, new valid client",
-			provider:        clients.NewMockProvider(initCacheState),
+			provider:        clientsauth.NewMockProvider(initCacheState),
 			clientAuthWrite: true,
 			requestBody:     composeRequestBody(cl4.ID, cl4.Password),
 			wantStatusCode:  http.StatusCreated,
-			wantClients:     []*clients.Client{cl1, cl2, cl3, cl4},
+			wantClientsAuth: []*clientsauth.ClientAuth{cl1, cl2, cl3, cl4},
 		},
 		{
 			descr:           "auth file, new valid client, empty cache",
-			provider:        clients.NewMockProvider([]*clients.Client{}),
+			provider:        clientsauth.NewMockProvider([]*clientsauth.ClientAuth{}),
 			clientAuthWrite: true,
 			requestBody:     composeRequestBody(cl4.ID, cl4.Password),
 			wantStatusCode:  http.StatusCreated,
-			wantClients:     []*clients.Client{cl4},
+			wantClientsAuth: []*clientsauth.ClientAuth{cl4},
 		},
 		{
 			descr:           "auth file, empty request body",
-			provider:        clients.NewMockProvider(initCacheState),
+			provider:        clientsauth.NewMockProvider(initCacheState),
 			clientAuthWrite: true,
 			requestBody:     strings.NewReader(""),
 			wantStatusCode:  http.StatusBadRequest,
 			wantErrCode:     ErrCodeInvalidRequest,
 			wantErrTitle:    "Missing data.",
-			wantClients:     initCacheState,
+			wantClientsAuth: initCacheState,
 		},
 		{
 			descr:           "auth file, invalid request body",
-			provider:        clients.NewMockProvider(initCacheState),
+			provider:        clientsauth.NewMockProvider(initCacheState),
 			clientAuthWrite: true,
 			requestBody:     strings.NewReader("invalid json"),
 			wantStatusCode:  http.StatusBadRequest,
 			wantErrCode:     ErrCodeInvalidRequest,
 			wantErrTitle:    "Invalid JSON data.",
 			wantErrDetail:   "invalid character 'i' looking for beginning of value",
-			wantClients:     initCacheState,
+			wantClientsAuth: initCacheState,
 		},
 		{
 			descr:           "auth file, invalid request, empty id",
-			provider:        clients.NewMockProvider(initCacheState),
+			provider:        clientsauth.NewMockProvider(initCacheState),
 			clientAuthWrite: true,
 			requestBody:     composeRequestBody("", cl4.Password),
 			wantStatusCode:  http.StatusBadRequest,
 			wantErrCode:     ErrCodeInvalidRequest,
 			wantErrTitle:    "Invalid or missing ID.",
 			wantErrDetail:   fmt.Sprintf("Min size is %d.", MinCredentialsLength),
-			wantClients:     initCacheState,
+			wantClientsAuth: initCacheState,
 		},
 		{
 			descr:           "auth file, invalid request, 'id' is missing",
-			provider:        clients.NewMockProvider(initCacheState),
+			provider:        clientsauth.NewMockProvider(initCacheState),
 			clientAuthWrite: true,
 			requestBody:     strings.NewReader(`{"password":"pswd"}`),
 			wantStatusCode:  http.StatusBadRequest,
 			wantErrCode:     ErrCodeInvalidRequest,
 			wantErrTitle:    "Invalid or missing ID.",
 			wantErrDetail:   fmt.Sprintf("Min size is %d.", MinCredentialsLength),
-			wantClients:     initCacheState,
+			wantClientsAuth: initCacheState,
 		},
 		{
 			descr:           "auth file, invalid request, empty password",
-			provider:        clients.NewMockProvider(initCacheState),
+			provider:        clientsauth.NewMockProvider(initCacheState),
 			clientAuthWrite: true,
 			requestBody:     composeRequestBody(cl4.ID, ""),
 			wantStatusCode:  http.StatusBadRequest,
 			wantErrCode:     ErrCodeInvalidRequest,
 			wantErrTitle:    "Invalid or missing password.",
 			wantErrDetail:   fmt.Sprintf("Min size is %d.", MinCredentialsLength),
-			wantClients:     initCacheState,
+			wantClientsAuth: initCacheState,
 		},
 		{
 			descr:           "auth file, invalid request, 'password' is missing",
-			provider:        clients.NewMockProvider(initCacheState),
+			provider:        clientsauth.NewMockProvider(initCacheState),
 			clientAuthWrite: true,
 			requestBody:     strings.NewReader(`{"id":"user"}`),
 			wantStatusCode:  http.StatusBadRequest,
 			wantErrCode:     ErrCodeInvalidRequest,
 			wantErrTitle:    "Invalid or missing password.",
 			wantErrDetail:   fmt.Sprintf("Min size is %d.", MinCredentialsLength),
-			wantClients:     initCacheState,
+			wantClientsAuth: initCacheState,
 		},
 		{
 			descr:           "auth file, invalid request, id too short",
-			provider:        clients.NewMockProvider(initCacheState),
+			provider:        clientsauth.NewMockProvider(initCacheState),
 			clientAuthWrite: true,
 			requestBody:     composeRequestBody("12", cl4.Password),
 			wantStatusCode:  http.StatusBadRequest,
 			wantErrCode:     ErrCodeInvalidRequest,
 			wantErrTitle:    "Invalid or missing ID.",
 			wantErrDetail:   fmt.Sprintf("Min size is %d.", MinCredentialsLength),
-			wantClients:     initCacheState,
+			wantClientsAuth: initCacheState,
 		},
 		{
 			descr:           "auth file, invalid request, password too short",
-			provider:        clients.NewMockProvider(initCacheState),
+			provider:        clientsauth.NewMockProvider(initCacheState),
 			clientAuthWrite: true,
 			requestBody:     composeRequestBody(cl4.ID, "12"),
 			wantStatusCode:  http.StatusBadRequest,
 			wantErrCode:     ErrCodeInvalidRequest,
 			wantErrTitle:    "Invalid or missing password.",
 			wantErrDetail:   fmt.Sprintf("Min size is %d.", MinCredentialsLength),
-			wantClients:     initCacheState,
+			wantClientsAuth: initCacheState,
 		},
 		{
 			descr:           "auth file, client already exist",
-			provider:        clients.NewMockProvider(initCacheState),
+			provider:        clientsauth.NewMockProvider(initCacheState),
 			clientAuthWrite: true,
 			requestBody:     composeRequestBody(cl1.ID, cl4.Password),
 			wantStatusCode:  http.StatusConflict,
 			wantErrCode:     ErrCodeAlreadyExist,
-			wantErrTitle:    fmt.Sprintf("Client with ID %q already exist.", cl1.ID),
-			wantClients:     initCacheState,
+			wantErrTitle:    fmt.Sprintf("Client Auth with ID %q already exist.", cl1.ID),
+			wantClientsAuth: initCacheState,
 		},
 		{
 			descr:           "auth file, auth in Read-Only mode",
-			provider:        clients.NewMockProvider(initCacheState),
+			provider:        clientsauth.NewMockProvider(initCacheState),
 			clientAuthWrite: false,
 			requestBody:     composeRequestBody(cl1.ID, cl4.Password),
 			wantStatusCode:  http.StatusMethodNotAllowed,
 			wantErrCode:     ErrCodeClientAuthRO,
 			wantErrTitle:    "Client authentication has been attached in read-only mode.",
-			wantClients:     initCacheState,
+			wantClientsAuth: initCacheState,
 		},
 		{
 			descr:           "auth, single client",
-			provider:        clients.NewSingleProvider(cl1.ID, cl1.Password),
+			provider:        clientsauth.NewSingleProvider(cl1.ID, cl1.Password),
 			clientAuthWrite: true,
 			requestBody:     composeRequestBody(cl4.ID, cl4.Password),
 			wantStatusCode:  http.StatusMethodNotAllowed,
 			wantErrCode:     ErrCodeClientAuthSingleClient,
 			wantErrTitle:    "Client authentication is enabled only for a single user.",
-			wantClients:     []*clients.Client{cl1},
+			wantClientsAuth: []*clientsauth.ClientAuth{cl1},
 		},
 	}
 
@@ -410,15 +410,15 @@ func TestHandlePostClients(t *testing.T) {
 						MaxRequestBytes: 1024 * 1024,
 					},
 				},
-				clientProvider: tc.provider,
+				clientAuthProvider: tc.provider,
 			},
 			Logger: testLog,
 		}
 
-		req := httptest.NewRequest(http.MethodPost, "/api/v1/clients", tc.requestBody)
+		req := httptest.NewRequest(http.MethodPost, "/api/v1/clients-auth", tc.requestBody)
 
 		// when
-		handler := http.HandlerFunc(al.handlePostClients)
+		handler := http.HandlerFunc(al.handlePostClientsAuth)
 		w := httptest.NewRecorder()
 		handler.ServeHTTP(w, req)
 
@@ -434,9 +434,9 @@ func TestHandlePostClients(t *testing.T) {
 			require.NoErrorf(err, msg)
 			require.Equalf(string(wantRespBytes), w.Body.String(), msg)
 		}
-		clients, err := al.clientProvider.GetAll()
+		clients, err := al.clientAuthProvider.GetAll()
 		require.NoError(err)
-		assert.ElementsMatchf(tc.wantClients, clients, msg)
+		assert.ElementsMatchf(tc.wantClientsAuth, clients, msg)
 	}
 }
 
@@ -453,123 +453,123 @@ func (m *mockConnection) Close() error {
 func TestHandleDeleteClient(t *testing.T) {
 	mockConn := &mockConnection{}
 
-	initCacheState := []*clients.Client{cl1, cl2, cl3}
+	initCacheState := []*clientsauth.ClientAuth{cl1, cl2, cl3}
 
-	s1 := sessions.New(t).ClientID(cl1.ID).Connection(mockConn).Build()
-	s2 := sessions.New(t).ClientID(cl1.ID).DisconnectedDuration(5 * time.Minute).Build()
+	c1 := clients.New(t).ClientAuthID(cl1.ID).Connection(mockConn).Build()
+	c2 := clients.New(t).ClientAuthID(cl1.ID).DisconnectedDuration(5 * time.Minute).Build()
 
 	testCases := []struct {
 		descr string // Test Case Description
 
-		provider        clients.Provider
-		sessions        []*sessions.ClientSession
+		provider        clientsauth.Provider
+		clients         []*clients.Client
 		clientAuthWrite bool
-		clientID        string
+		clientAuthID    string
 		urlSuffix       string
 
-		wantStatusCode int
-		wantClients    []*clients.Client
-		wantErrCode    string
-		wantErrTitle   string
-		wantErrDetail  string
-		wantClosedConn bool
-		wantSessions   []*sessions.ClientSession
+		wantStatusCode  int
+		wantClientsAuth []*clientsauth.ClientAuth
+		wantErrCode     string
+		wantErrTitle    string
+		wantErrDetail   string
+		wantClosedConn  bool
+		wantClients     []*clients.Client
 	}{
 		{
 			descr:           "auth file, success delete",
-			provider:        clients.NewMockProvider(initCacheState),
+			provider:        clientsauth.NewMockProvider(initCacheState),
 			clientAuthWrite: true,
-			clientID:        cl1.ID,
+			clientAuthID:    cl1.ID,
 			wantStatusCode:  http.StatusNoContent,
-			wantClients:     []*clients.Client{cl2, cl3},
+			wantClientsAuth: []*clientsauth.ClientAuth{cl2, cl3},
 		},
 		{
 			descr:           "auth file, missing client ID",
-			provider:        clients.NewMockProvider(initCacheState),
+			provider:        clientsauth.NewMockProvider(initCacheState),
 			clientAuthWrite: true,
-			clientID:        "unknown-client-id",
+			clientAuthID:    "unknown-client-id",
 			wantStatusCode:  http.StatusBadRequest,
-			wantErrCode:     ErrCodeClientNotFound,
-			wantErrTitle:    fmt.Sprintf("Client with ID=%q not found.", "unknown-client-id"),
-			wantClients:     initCacheState,
+			wantErrCode:     ErrCodeClientAuthNotFound,
+			wantErrTitle:    fmt.Sprintf("Client Auth with ID=%q not found.", "unknown-client-id"),
+			wantClientsAuth: initCacheState,
 		},
 		{
-			descr:           "auth file, client has active session",
-			provider:        clients.NewMockProvider(initCacheState),
-			sessions:        []*sessions.ClientSession{s1},
+			descr:           "auth file, client has active client",
+			provider:        clientsauth.NewMockProvider(initCacheState),
+			clients:         []*clients.Client{c1},
 			clientAuthWrite: true,
-			clientID:        cl1.ID,
+			clientAuthID:    cl1.ID,
 			wantStatusCode:  http.StatusConflict,
-			wantErrCode:     ErrCodeClientHasSession,
-			wantErrTitle:    fmt.Sprintf("Client expected to have no active or disconnected session(s), got %d.", 1),
-			wantClients:     initCacheState,
-			wantSessions:    []*sessions.ClientSession{s1},
+			wantErrCode:     ErrCodeClientAuthHasClient,
+			wantErrTitle:    fmt.Sprintf("Client Auth expected to have no active or disconnected bound client(s), got %d.", 1),
+			wantClientsAuth: initCacheState,
+			wantClients:     []*clients.Client{c1},
 		},
 		{
-			descr:           "auth file, client has disconnected session",
-			provider:        clients.NewMockProvider(initCacheState),
-			sessions:        []*sessions.ClientSession{s2},
+			descr:           "auth file, client auth has disconnected client",
+			provider:        clientsauth.NewMockProvider(initCacheState),
+			clients:         []*clients.Client{c2},
 			clientAuthWrite: true,
-			clientID:        cl1.ID,
+			clientAuthID:    cl1.ID,
 			wantStatusCode:  http.StatusConflict,
-			wantErrCode:     ErrCodeClientHasSession,
-			wantErrTitle:    fmt.Sprintf("Client expected to have no active or disconnected session(s), got %d.", 1),
-			wantClients:     initCacheState,
-			wantSessions:    []*sessions.ClientSession{s2},
+			wantErrCode:     ErrCodeClientAuthHasClient,
+			wantErrTitle:    fmt.Sprintf("Client Auth expected to have no active or disconnected bound client(s), got %d.", 1),
+			wantClientsAuth: initCacheState,
+			wantClients:     []*clients.Client{c2},
 		},
 		{
 			descr:           "auth file, auth in Read-Only mode",
-			provider:        clients.NewMockProvider(initCacheState),
+			provider:        clientsauth.NewMockProvider(initCacheState),
 			clientAuthWrite: false,
-			clientID:        cl1.ID,
+			clientAuthID:    cl1.ID,
 			wantStatusCode:  http.StatusMethodNotAllowed,
 			wantErrCode:     ErrCodeClientAuthRO,
 			wantErrTitle:    "Client authentication has been attached in read-only mode.",
-			wantClients:     initCacheState,
+			wantClientsAuth: initCacheState,
 		},
 		{
-			descr:           "auth file, client has active session, force",
-			provider:        clients.NewMockProvider(initCacheState),
-			sessions:        []*sessions.ClientSession{s1},
+			descr:           "auth file, client auth has active client, force",
+			provider:        clientsauth.NewMockProvider(initCacheState),
+			clients:         []*clients.Client{c1},
 			clientAuthWrite: true,
-			clientID:        cl1.ID,
+			clientAuthID:    cl1.ID,
 			urlSuffix:       "?force=true",
 			wantStatusCode:  http.StatusNoContent,
-			wantClients:     []*clients.Client{cl2, cl3},
+			wantClientsAuth: []*clientsauth.ClientAuth{cl2, cl3},
 			wantClosedConn:  true,
 		},
 		{
-			descr:           "auth file, client has disconnected session, force",
-			provider:        clients.NewMockProvider(initCacheState),
-			sessions:        []*sessions.ClientSession{s2},
+			descr:           "auth file, client auth has disconnected bound client, force",
+			provider:        clientsauth.NewMockProvider(initCacheState),
+			clients:         []*clients.Client{c2},
 			clientAuthWrite: true,
-			clientID:        cl1.ID,
+			clientAuthID:    cl1.ID,
 			urlSuffix:       "?force=true",
 			wantStatusCode:  http.StatusNoContent,
-			wantClients:     []*clients.Client{cl2, cl3},
+			wantClientsAuth: []*clientsauth.ClientAuth{cl2, cl3},
 		},
 		{
 			descr:           "invalid force param",
-			provider:        clients.NewMockProvider(initCacheState),
-			sessions:        []*sessions.ClientSession{s1, s2},
+			provider:        clientsauth.NewMockProvider(initCacheState),
+			clients:         []*clients.Client{c1, c2},
 			clientAuthWrite: true,
-			clientID:        cl1.ID,
+			clientAuthID:    cl1.ID,
 			urlSuffix:       "?force=test",
 			wantStatusCode:  http.StatusBadRequest,
 			wantErrCode:     ErrCodeInvalidRequest,
 			wantErrTitle:    "Invalid force param test.",
-			wantClients:     initCacheState,
-			wantSessions:    []*sessions.ClientSession{s1, s2},
+			wantClientsAuth: initCacheState,
+			wantClients:     []*clients.Client{c1, c2},
 		},
 		{
 			descr:           "auth, single client",
-			provider:        clients.NewSingleProvider(cl1.ID, cl1.Password),
+			provider:        clientsauth.NewSingleProvider(cl1.ID, cl1.Password),
 			clientAuthWrite: true,
-			clientID:        cl1.ID,
+			clientAuthID:    cl1.ID,
 			wantStatusCode:  http.StatusMethodNotAllowed,
 			wantErrCode:     ErrCodeClientAuthSingleClient,
 			wantErrTitle:    "Client authentication is enabled only for a single user.",
-			wantClients:     []*clients.Client{cl1},
+			wantClientsAuth: []*clientsauth.ClientAuth{cl1},
 		},
 	}
 
@@ -582,21 +582,21 @@ func TestHandleDeleteClient(t *testing.T) {
 			al := APIListener{
 				insecureForTests: true,
 				Server: &Server{
-					sessionService: NewSessionService(nil, sessions.NewSessionRepository(tc.sessions, &hour)),
+					clientService: NewClientService(nil, clients.NewClientRepository(tc.clients, &hour)),
 					config: &Config{
 						Server: ServerConfig{
 							AuthWrite:       tc.clientAuthWrite,
 							MaxRequestBytes: 1024 * 1024,
 						},
 					},
-					clientProvider: tc.provider,
+					clientAuthProvider: tc.provider,
 				},
 				Logger: testLog,
 			}
 			al.initRouter()
 			mockConn.closed = false
 
-			url := fmt.Sprintf("/api/v1/clients/%s", tc.clientID)
+			url := fmt.Sprintf("/api/v1/clients-auth/%s", tc.clientAuthID)
 			url += tc.urlSuffix
 			req := httptest.NewRequest(http.MethodDelete, url, nil)
 
@@ -617,13 +617,13 @@ func TestHandleDeleteClient(t *testing.T) {
 				wantRespStr = string(wantRespBytes)
 			}
 			assert.Equal(wantRespStr, w.Body.String())
-			clients, err := al.clientProvider.GetAll()
+			clients, err := al.clientAuthProvider.GetAll()
 			require.NoError(err)
-			assert.ElementsMatch(tc.wantClients, clients)
+			assert.ElementsMatch(tc.wantClientsAuth, clients)
 			assert.Equal(tc.wantClosedConn, mockConn.closed)
-			allSessions, err := al.sessionService.GetAll()
+			allClients, err := al.clientService.GetAll()
 			require.NoError(err)
-			assert.ElementsMatch(tc.wantSessions, allSessions)
+			assert.ElementsMatch(tc.wantClients, allClients)
 		})
 	}
 }
@@ -649,13 +649,13 @@ func TestHandlePostCommand(t *testing.T) {
 	require.NoError(t, err)
 	connMock.ReturnResponsePayload = sshRespBytes
 
-	s1 := sessions.New(t).Connection(connMock).Build()
-	s2 := sessions.New(t).DisconnectedDuration(5 * time.Minute).Build()
+	c1 := clients.New(t).Connection(connMock).Build()
+	c2 := clients.New(t).DisconnectedDuration(5 * time.Minute).Build()
 
 	testCases := []struct {
 		name string
 
-		sid             string
+		cid             string
 		requestBody     string
 		noJobProvider   bool
 		jpReturnSaveErr error
@@ -663,7 +663,7 @@ func TestHandlePostCommand(t *testing.T) {
 		connReturnNotOk bool
 		connReturnResp  []byte
 		runningJob      *models.Job
-		sessions        []*sessions.ClientSession
+		clients         []*clients.Client
 
 		wantStatusCode int
 		wantTimeout    int
@@ -675,16 +675,16 @@ func TestHandlePostCommand(t *testing.T) {
 		{
 			name:           "valid cmd",
 			requestBody:    validReqBody,
-			sid:            s1.ID,
-			sessions:       []*sessions.ClientSession{s1},
+			cid:            c1.ID,
+			clients:        []*clients.Client{c1},
 			wantStatusCode: http.StatusOK,
 			wantTimeout:    gotCmdTimeoutSec,
 		},
 		{
 			name:           "valid cmd with shell",
 			requestBody:    `{"command": "` + gotCmd + `","shell": "powershell"}`,
-			sid:            s1.ID,
-			sessions:       []*sessions.ClientSession{s1},
+			cid:            c1.ID,
+			clients:        []*clients.Client{c1},
 			wantStatusCode: http.StatusOK,
 			wantTimeout:    defaultTimeout,
 			wantShell:      "powershell",
@@ -692,8 +692,8 @@ func TestHandlePostCommand(t *testing.T) {
 		{
 			name:           "invalid shell",
 			requestBody:    `{"command": "` + gotCmd + `","shell": "unsupported"}`,
-			sid:            s1.ID,
-			sessions:       []*sessions.ClientSession{s1},
+			cid:            c1.ID,
+			clients:        []*clients.Client{c1},
 			wantStatusCode: http.StatusBadRequest,
 			wantErrTitle:   "Invalid shell.",
 			wantErrDetail:  "expected shell to be one of: [cmd powershell], actual: unsupported",
@@ -701,48 +701,48 @@ func TestHandlePostCommand(t *testing.T) {
 		{
 			name:           "valid cmd with no timeout",
 			requestBody:    `{"command": "/bin/date;foo;whoami"}`,
-			sid:            s1.ID,
-			sessions:       []*sessions.ClientSession{s1},
+			cid:            c1.ID,
+			clients:        []*clients.Client{c1},
 			wantTimeout:    defaultTimeout,
 			wantStatusCode: http.StatusOK,
 		},
 		{
 			name:           "valid cmd with 0 timeout",
 			requestBody:    `{"command": "/bin/date;foo;whoami", "timeout_sec": 0}`,
-			sid:            s1.ID,
-			sessions:       []*sessions.ClientSession{s1},
+			cid:            c1.ID,
+			clients:        []*clients.Client{c1},
 			wantTimeout:    defaultTimeout,
 			wantStatusCode: http.StatusOK,
 		},
 		{
 			name:           "empty cmd",
 			requestBody:    `{"command": "", "timeout_sec": 30}`,
-			sid:            s1.ID,
-			sessions:       []*sessions.ClientSession{s1},
+			cid:            c1.ID,
+			clients:        []*clients.Client{c1},
 			wantStatusCode: http.StatusBadRequest,
 			wantErrTitle:   "Command cannot be empty.",
 		},
 		{
 			name:           "no cmd",
 			requestBody:    `{"timeout_sec": 30}`,
-			sid:            s1.ID,
-			sessions:       []*sessions.ClientSession{s1},
+			cid:            c1.ID,
+			clients:        []*clients.Client{c1},
 			wantStatusCode: http.StatusBadRequest,
 			wantErrTitle:   "Command cannot be empty.",
 		},
 		{
 			name:           "empty body",
 			requestBody:    "",
-			sid:            s1.ID,
-			sessions:       []*sessions.ClientSession{s1},
+			cid:            c1.ID,
+			clients:        []*clients.Client{c1},
 			wantStatusCode: http.StatusBadRequest,
 			wantErrTitle:   "Missing body with json data.",
 		},
 		{
 			name:           "invalid request body",
 			requestBody:    "sdfn fasld fasdf sdlf jd",
-			sid:            s1.ID,
-			sessions:       []*sessions.ClientSession{s1},
+			cid:            c1.ID,
+			clients:        []*clients.Client{c1},
 			wantStatusCode: http.StatusBadRequest,
 			wantErrTitle:   "Invalid JSON data.",
 			wantErrDetail:  "invalid character 's' looking for beginning of value",
@@ -750,34 +750,34 @@ func TestHandlePostCommand(t *testing.T) {
 		{
 			name:           "invalid request body: unknown param",
 			requestBody:    `{"command": "/bin/date;foo;whoami", "timeout": 30}`,
-			sid:            s1.ID,
-			sessions:       []*sessions.ClientSession{s1},
+			cid:            c1.ID,
+			clients:        []*clients.Client{c1},
 			wantStatusCode: http.StatusBadRequest,
 			wantErrTitle:   "Invalid JSON data.",
 			wantErrDetail:  "json: unknown field \"timeout\"",
 		},
 		{
-			name:           "no active session",
+			name:           "no active client",
 			requestBody:    validReqBody,
-			sid:            s1.ID,
-			sessions:       []*sessions.ClientSession{},
+			cid:            c1.ID,
+			clients:        []*clients.Client{},
 			wantStatusCode: http.StatusNotFound,
-			wantErrTitle:   fmt.Sprintf("Active session with id=%q not found.", s1.ID),
+			wantErrTitle:   fmt.Sprintf("Active client with id=%q not found.", c1.ID),
 		},
 		{
-			name:           "disconnected session",
+			name:           "disconnected client",
 			requestBody:    validReqBody,
-			sid:            s2.ID,
-			sessions:       []*sessions.ClientSession{s1, s2},
+			cid:            c2.ID,
+			clients:        []*clients.Client{c1, c2},
 			wantStatusCode: http.StatusNotFound,
-			wantErrTitle:   fmt.Sprintf("Active session with id=%q not found.", s2.ID),
+			wantErrTitle:   fmt.Sprintf("Active client with id=%q not found.", c2.ID),
 		},
 		{
 			name:           "no persistent storage",
 			requestBody:    validReqBody,
 			noJobProvider:  true,
-			sid:            s1.ID,
-			sessions:       []*sessions.ClientSession{s1},
+			cid:            c1.ID,
+			clients:        []*clients.Client{c1},
 			wantStatusCode: http.StatusMethodNotAllowed,
 			wantErrCode:    ErrCodeRunCmdDisabled,
 			wantErrTitle:   "Persistent storage required. A data dir or a database table is required to activate this feature.",
@@ -786,8 +786,8 @@ func TestHandlePostCommand(t *testing.T) {
 			name:            "error on save job",
 			requestBody:     validReqBody,
 			jpReturnSaveErr: errors.New("save fake error"),
-			sid:             s1.ID,
-			sessions:        []*sessions.ClientSession{s1},
+			cid:             c1.ID,
+			clients:         []*clients.Client{c1},
 			wantStatusCode:  http.StatusInternalServerError,
 			wantErrTitle:    "Failed to persist a new job.",
 			wantErrDetail:   "save fake error",
@@ -796,8 +796,8 @@ func TestHandlePostCommand(t *testing.T) {
 			name:           "error on send request",
 			requestBody:    validReqBody,
 			connReturnErr:  errors.New("send fake error"),
-			sid:            s1.ID,
-			sessions:       []*sessions.ClientSession{s1},
+			cid:            c1.ID,
+			clients:        []*clients.Client{c1},
 			wantStatusCode: http.StatusInternalServerError,
 			wantErrTitle:   "Failed to execute remote command.",
 			wantErrDetail:  "failed to send request: send fake error",
@@ -806,8 +806,8 @@ func TestHandlePostCommand(t *testing.T) {
 			name:           "invalid ssh response format",
 			requestBody:    validReqBody,
 			connReturnResp: []byte("invalid ssh response data"),
-			sid:            s1.ID,
-			sessions:       []*sessions.ClientSession{s1},
+			cid:            c1.ID,
+			clients:        []*clients.Client{c1},
 			wantStatusCode: http.StatusConflict,
 			wantErrTitle:   "invalid client response format: failed to decode response into *comm.RunCmdResponse: invalid character 'i' looking for beginning of value",
 		},
@@ -816,8 +816,8 @@ func TestHandlePostCommand(t *testing.T) {
 			requestBody:     validReqBody,
 			connReturnNotOk: true,
 			connReturnResp:  []byte("fake failure msg"),
-			sid:             s1.ID,
-			sessions:        []*sessions.ClientSession{s1},
+			cid:             c1.ID,
+			clients:         []*clients.Client{c1},
 			wantStatusCode:  http.StatusConflict,
 			wantErrTitle:    "client error: fake failure msg",
 		},
@@ -829,7 +829,7 @@ func TestHandlePostCommand(t *testing.T) {
 			al := APIListener{
 				insecureForTests: true,
 				Server: &Server{
-					sessionService: NewSessionService(nil, sessions.NewSessionRepository(tc.sessions, &hour)),
+					clientService: NewClientService(nil, clients.NewClientRepository(tc.clients, &hour)),
 					config: &Config{
 						Server: ServerConfig{
 							RunRemoteCmdTimeoutSec: defaultTimeout,
@@ -854,7 +854,7 @@ func TestHandlePostCommand(t *testing.T) {
 			}
 
 			ctx := api.WithUser(context.Background(), testUser)
-			req := httptest.NewRequest(http.MethodPost, fmt.Sprintf("/api/v1/sessions/%s/commands", tc.sid), strings.NewReader(tc.requestBody))
+			req := httptest.NewRequest(http.MethodPost, fmt.Sprintf("/api/v1/clients/%s/commands", tc.cid), strings.NewReader(tc.requestBody))
 			req = req.WithContext(ctx)
 
 			// when
@@ -871,7 +871,7 @@ func TestHandlePostCommand(t *testing.T) {
 				assert.Equal(t, testJID, gotRunningJob.JID)
 				assert.Equal(t, models.JobStatusRunning, gotRunningJob.Status)
 				assert.Nil(t, gotRunningJob.FinishedAt)
-				assert.Equal(t, tc.sid, gotRunningJob.SID)
+				assert.Equal(t, tc.cid, gotRunningJob.ClientID)
 				assert.Equal(t, gotCmd, gotRunningJob.Command)
 				assert.Equal(t, tc.wantShell, gotRunningJob.Shell)
 				assert.Equal(t, &sshSuccessResp.Pid, gotRunningJob.PID)
@@ -891,7 +891,7 @@ func TestHandlePostCommand(t *testing.T) {
 }
 
 func TestHandleGetCommand(t *testing.T) {
-	wantJob := jb.New(t).SID("sid-1234").JID("jid-1234").Build()
+	wantJob := jb.New(t).ClientID("cid-1234").JID("jid-1234").Build()
 	wantJobResp := api.NewSuccessPayload(wantJob)
 	b, err := json.Marshal(wantJobResp)
 	require.NoError(t, err)
@@ -957,7 +957,7 @@ func TestHandleGetCommand(t *testing.T) {
 				al.jobProvider = jp
 			}
 
-			req := httptest.NewRequest(http.MethodGet, fmt.Sprintf("/api/v1/sessions/%s/commands/%s", wantJob.SID, wantJob.JID), nil)
+			req := httptest.NewRequest(http.MethodGet, fmt.Sprintf("/api/v1/clients/%s/commands/%s", wantJob.ClientID, wantJob.JID), nil)
 
 			// when
 			w := httptest.NewRecorder()
@@ -968,7 +968,7 @@ func TestHandleGetCommand(t *testing.T) {
 			if tc.wantErrTitle == "" {
 				// success case
 				assert.Equal(t, wantJobRespJSON, w.Body.String())
-				assert.Equal(t, wantJob.SID, jp.InputSID)
+				assert.Equal(t, wantJob.ClientID, jp.InputCID)
 				assert.Equal(t, wantJob.JID, jp.InputJID)
 			} else {
 				// failure case
@@ -983,8 +983,8 @@ func TestHandleGetCommand(t *testing.T) {
 
 func TestHandleGetCommands(t *testing.T) {
 	ft := time.Date(2020, 10, 10, 10, 10, 10, 0, time.UTC)
-	testSID := "sid-1234"
-	jb := jb.New(t).SID(testSID)
+	testCID := "cid-1234"
+	jb := jb.New(t).ClientID(testCID)
 	job1 := jb.Status(models.JobStatusSuccessful).FinishedAt(ft).Build().JobSummary
 	job2 := jb.Status(models.JobStatusUnknown).FinishedAt(ft.Add(-time.Hour)).Build().JobSummary
 	job3 := jb.Status(models.JobStatusFailed).FinishedAt(ft.Add(time.Minute)).Build().JobSummary
@@ -1024,7 +1024,7 @@ func TestHandleGetCommands(t *testing.T) {
 			name:           "error on get job summaries",
 			jpReturnErr:    errors.New("get job summaries fake error"),
 			wantStatusCode: http.StatusInternalServerError,
-			wantErrTitle:   fmt.Sprintf("Failed to get client jobs: session_id=%q.", testSID),
+			wantErrTitle:   fmt.Sprintf("Failed to get client jobs: client_id=%q.", testCID),
 			wantErrDetail:  "get job summaries fake error",
 		},
 		{
@@ -1057,7 +1057,7 @@ func TestHandleGetCommands(t *testing.T) {
 				al.jobProvider = jp
 			}
 
-			req := httptest.NewRequest(http.MethodGet, fmt.Sprintf("/api/v1/sessions/%s/commands", testSID), nil)
+			req := httptest.NewRequest(http.MethodGet, fmt.Sprintf("/api/v1/clients/%s/commands", testCID), nil)
 
 			// when
 			w := httptest.NewRecorder()
@@ -1068,7 +1068,7 @@ func TestHandleGetCommands(t *testing.T) {
 			if tc.wantErrTitle == "" {
 				// success case
 				assert.Equal(t, tc.wantSuccessResp, w.Body.String())
-				assert.Equal(t, testSID, jp.InputSID)
+				assert.Equal(t, testCID, jp.InputCID)
 			} else {
 				// failure case
 				wantResp := api.NewErrorPayloadWithCode(tc.wantErrCode, tc.wantErrTitle, tc.wantErrDetail)
@@ -1080,13 +1080,13 @@ func TestHandleGetCommands(t *testing.T) {
 	}
 }
 
-func TestHandleGetSessions(t *testing.T) {
-	s1 := sessions.New(t).ID("session-1").ClientID(cl1.ID).Build()
-	s2 := sessions.New(t).ID("session-2").ClientID(cl1.ID).DisconnectedDuration(5 * time.Minute).Build()
+func TestHandleGetClients(t *testing.T) {
+	c1 := clients.New(t).ID("client-1").ClientAuthID(cl1.ID).Build()
+	c2 := clients.New(t).ID("client-2").ClientAuthID(cl1.ID).DisconnectedDuration(5 * time.Minute).Build()
 	al := APIListener{
 		insecureForTests: true,
 		Server: &Server{
-			sessionService: NewSessionService(nil, sessions.NewSessionRepository([]*sessions.ClientSession{s1, s2}, &hour)),
+			clientService: NewClientService(nil, clients.NewClientRepository([]*clients.Client{c1, c2}, &hour)),
 			config: &Config{
 				Server: ServerConfig{MaxRequestBytes: 1024 * 1024},
 			},
@@ -1095,13 +1095,13 @@ func TestHandleGetSessions(t *testing.T) {
 	al.initRouter()
 
 	w := httptest.NewRecorder()
-	req := httptest.NewRequest("GET", "/api/v1/sessions", nil)
+	req := httptest.NewRequest("GET", "/api/v1/clients", nil)
 	al.router.ServeHTTP(w, req)
 
 	expectedJSON := `{
    "data":[
       {
-         "id":"session-1",
+         "id":"client-1",
          "name":"Random Rport Client",
          "os":"Linux alpine-3-10-tk-01 4.19.80-0-virt #1-Alpine SMP Fri Oct 18 11:51:24 UTC 2019 x86_64 Linux",
          "os_arch":"amd64",
@@ -1142,10 +1142,12 @@ func TestHandleGetSessions(t *testing.T) {
                "id":"2"
             }
          ],
-         "client_id":"user1"
+         "connection_state":"connected",
+         "disconnected_at":null,
+         "client_auth_id":"user1"
       },
       {
-         "id":"session-2",
+         "id":"client-2",
          "name":"Random Rport Client",
          "os":"Linux alpine-3-10-tk-01 4.19.80-0-virt #1-Alpine SMP Fri Oct 18 11:51:24 UTC 2019 x86_64 Linux",
          "os_arch":"amd64",
@@ -1186,8 +1188,9 @@ func TestHandleGetSessions(t *testing.T) {
                "id":"2"
             }
          ],
-         "disconnected":"2020-08-19T13:04:23+03:00",
-         "client_id":"user1"
+         "connection_state":"disconnected",
+         "disconnected_at":"2020-08-19T13:04:23+03:00",
+         "client_auth_id":"user1"
       }
    ]
 }`
@@ -1215,16 +1218,16 @@ func TestHandlePostMultiClientCommand(t *testing.T) {
 	require.NoError(t, err)
 	connMock2.ReturnResponsePayload = sshRespBytes2
 
-	s1 := sessions.New(t).ID("client-1").Connection(connMock1).Build()
-	s2 := sessions.New(t).ID("client-2").Connection(connMock2).Build()
-	s3 := sessions.New(t).ID("client-3").DisconnectedDuration(5 * time.Minute).Build()
+	c1 := clients.New(t).ID("client-1").Connection(connMock1).Build()
+	c2 := clients.New(t).ID("client-2").Connection(connMock2).Build()
+	c3 := clients.New(t).ID("client-3").DisconnectedDuration(5 * time.Minute).Build()
 
 	defaultTimeout := 60
 	gotCmd := "/bin/date;foo;whoami"
 	gotCmdTimeoutSec := 30
 	validReqBody := `{"command": "` + gotCmd +
 		`","timeout_sec": ` + strconv.Itoa(gotCmdTimeoutSec) +
-		`,"client_ids": ["` + s1.ID + `", "` + s2.ID + `"]` +
+		`,"client_ids": ["` + c1.ID + `", "` + c2.ID + `"]` +
 		`,"abort_on_error": false` +
 		`,"execute_concurrently": false` +
 		`}`
@@ -1261,7 +1264,7 @@ func TestHandlePostMultiClientCommand(t *testing.T) {
 			wantErrTitle:   "At least 2 clients should be specified.",
 		},
 		{
-			name: "disconnected session",
+			name: "disconnected client",
 			requestBody: `
 		{
 			"command": "/bin/date;foo;whoami",
@@ -1269,10 +1272,10 @@ func TestHandlePostMultiClientCommand(t *testing.T) {
 			"client_ids": ["client-1", "client-3"]
 		}`,
 			wantStatusCode: http.StatusBadRequest,
-			wantErrTitle:   fmt.Sprintf("Session with id=%q is not active.", s3.ID),
+			wantErrTitle:   fmt.Sprintf("Client with id=%q is not active.", c3.ID),
 		},
 		{
-			name: "session not found",
+			name: "client not found",
 			requestBody: `
 		{
 			"command": "/bin/date;foo;whoami",
@@ -1280,7 +1283,7 @@ func TestHandlePostMultiClientCommand(t *testing.T) {
 			"client_ids": ["client-1", "client-4"]
 		}`,
 			wantStatusCode: http.StatusNotFound,
-			wantErrTitle:   fmt.Sprintf("Session with id=%q not found.", "client-4"),
+			wantErrTitle:   fmt.Sprintf("Client with id=%q not found.", "client-4"),
 		},
 		{
 			name:           "no persistent storage",
@@ -1320,7 +1323,7 @@ func TestHandlePostMultiClientCommand(t *testing.T) {
 			al := APIListener{
 				insecureForTests: true,
 				Server: &Server{
-					sessionService: NewSessionService(nil, sessions.NewSessionRepository([]*sessions.ClientSession{s1, s2, s3}, &hour)),
+					clientService: NewClientService(nil, clients.NewClientRepository([]*clients.Client{c1, c2, c3}, &hour)),
 					config: &Config{
 						Server: ServerConfig{
 							RunRemoteCmdTimeoutSec: defaultTimeout,

@@ -142,6 +142,6 @@ issues:
     - "G204: Subprocess launched with function call as argument or cmd arguments"
     # govet
     - "shadow: declaration of .err. shadows declaration"
-    - 'shadow: declaration of "s." shadows declaration'
+    - 'shadow: declaration of "c." shadows declaration'
 
 new: true

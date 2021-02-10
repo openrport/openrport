@@ -50,9 +50,9 @@ ON "groups" (
 ```
 
 ## How it works
-Having multi-tenancy enabled each rport client is mapped to his tenant on connect. The session tables show the additional tenant object.
+Having multi-tenancy enabled each rport client is mapped to his tenant on connect. The client tables show the additional tenant object.
 ```
-curl -s -u admin:foobaz http://localhost:3000/api/v1/sessions|jq
+curl -s -u admin:foobaz http://localhost:3000/api/v1/clients|jq
 [
   {
     "tenant": "Doe",
@@ -80,5 +80,5 @@ curl -s -u admin:foobaz http://localhost:3000/api/v1/sessions|jq
 ]
 ```
 API users will only see clients having the tenant mapped to the user. A user without a tenant will always get an empty list.
-A client without a tenant will be orphaned and will not appear in any session listing.
+A client without a tenant will be orphaned and will not appear in any client listing.
 It's good to make sure on database-level the tenant column cannot be null.

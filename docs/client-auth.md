@@ -1,14 +1,14 @@
 ## Client Authentication
-The Rportd can read client credentials from three different sources.
+The Rportd can read client auth credentials from three different sources.
 1. A "hardcoded" single pair of client credentials
 2. A file with client credentials
 3. A database table
 
 Which one you choose is an either-or decision. A mixed-mode is not supported.
-If (2) or (3) is enabled then managing clients can be done via the API.
+If (2) or (3) is enabled then managing client auth credentials can be done via the API.
 
 ### Using static credentials
-To use just a single pair of client credentials enter the following line to the server config(`rportd.config`) in the `[server]` section.
+To use just a single pair of client auth credentials enter the following line to the server config(`rportd.config`) in the `[server]` section.
 ```
 auth = "admin:123456"
 ```
@@ -22,7 +22,7 @@ auth = "admin:123456"
 ```
 
 ### Using a file
-If you want to have more than one pair of client credentials, create a json file with the following structure.
+If you want to have more than one pair of client auth credentials, create a json file with the following structure.
 ```
 {
     "admin":   "123456",
@@ -43,7 +43,7 @@ Reload rportd to activate the changes.
 The file is read only on start. Changes to the file, while rportd is running, have no effect.
 
 ### Using a database table
-Clients can be read from and written to a database table.
+Clients auth credentials can be read from and written to a database table.
 
 To use the database client authentication you must setup a global database connection in the `[database]` section of `rportd.conf` first.
 Only MySQL/MariaDB and SQLite3 are supported at the moment. The [example config](../rportd.example.conf) contains all explanations on how to set up the database connection.
@@ -53,7 +53,7 @@ The tables must be created manually.
 **MySQL/MariaDB**
 
 ```sql
-CREATE TABLE `clients` (
+CREATE TABLE `clients_auth` (
   `id` varchar(100) PRIMARY KEY,
   `password` varchar(100) NOT NULL
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8;
@@ -62,7 +62,7 @@ CREATE TABLE `clients` (
 **SQLite3**
 
 ```sql
-CREATE TABLE `clients` (
+CREATE TABLE `clients_auth` (
   `id` varchar(100) PRIMARY KEY,
   `password` varchar(100) NOT NULL
 );
@@ -70,16 +70,16 @@ CREATE TABLE `clients` (
 
 Having the database set up, enter the following to the `[server]` section of the `rportd.conf` to specify the table names.
 ```
-auth_table = "clients"
+auth_table = "clients_auth"
 ```
 Reload rportd to apply all changes.
 
 
 ### Manage client credentials via the API
 
-The [`/clients` endpoint](https://petstore.swagger.io/?url=https://raw.githubusercontent.com/cloudradar-monitoring/rport/master/api-doc.yml#/Rport%20Client%20Auth%20Credentials) allows you to manage clients and credentials through the API.
+The [`/clients-auth` endpoint](https://petstore.swagger.io/?url=https://raw.githubusercontent.com/cloudradar-monitoring/rport/master/api-doc.yml#/Rport%20Client%20Auth%20Credentials) allows you to manage client auth credentials through the API.
 This option is disabled, if you use a single static username password pair.
-If you want to delegate the management of client to a third-party app writing directly to the auth-file or the database, consider turning the endpoint off by activating the following lines in the `rportd.conf`.
+If you want to delegate the management of client auth credentials to a third-party app writing directly to the auth-file or the database, consider turning the endpoint off by activating the following lines in the `rportd.conf`.
 ```
 ## If you want to delegate the creation and maintenance to an external tool
 ## you should turn {auth_write} off.
@@ -89,10 +89,10 @@ If you want to delegate the management of client to a third-party app writing di
 auth_write = false
 ```
 
-List all client credentials.
+List all client auth credentials.
 
 ```
-curl -s -u admin:foobaz http://localhost:3000/api/v1/clients|jq
+curl -s -u admin:foobaz http://localhost:3000/api/v1/clients-auth|jq
 {
   "data": [
     {
@@ -107,10 +107,10 @@ curl -s -u admin:foobaz http://localhost:3000/api/v1/clients|jq
 }
 ```
 
-Add a new client
+Add a new client auth credentials
 
 ```
-curl -X POST 'http://localhost:3000/api/v1/clients' \
+curl -X POST 'http://localhost:3000/api/v1/clients-auth' \
 -u admin:foobaz \
 -H 'Content-Type: application/json' \
 --data-raw '{

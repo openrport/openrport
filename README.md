@@ -77,7 +77,7 @@ Minimal setup:
 
 See `./rportd --help` and `./rport --help` for more options, like:
 - Specifying certificate fingerprint to validate server authority
-- Client session authentication using user:password pair
+- Client authentication using user:password pair
 - Restricting, which users can connect
 - Specifying additional intermediate HTTP proxy
 - Using POSIX signals to control running apps
@@ -90,8 +90,8 @@ See `./rportd --help` and `./rport --help` for more options, like:
 ### Run the server without installation
 If you quickly want to run the rport server without installation, run the following commands from any unprivileged user account.
 ```
-wget https://github.com/cloudradar-monitoring/rport/releases/download/0.1.22/rport_0.1.22_Linux_x86_64.tar.gz
-sudo tar vxzf rport_0.1.22_Linux_x86_64.tar.gz rportd
+wget https://github.com/cloudradar-monitoring/rport/releases/download/0.1.23/rport_0.1.23_Linux_x86_64.tar.gz
+sudo tar vxzf rport_0.1.23_Linux_x86_64.tar.gz rportd
 KEY=$(openssl rand -hex 18)
 ./rportd --log-level info --data-dir /var/tmp/ --key $KEY --auth user1:1234
 ```
@@ -116,13 +116,13 @@ If you do ssh or rdp through the tunnel, a hijacked tunnel will not expose your 
 #### Install the server
 For a proper installation execute the following steps.
 ```
-wget https://github.com/cloudradar-monitoring/rport/releases/download/0.1.22/rport_0.1.22_Linux_x86_64.tar.gz
-sudo tar vxzf rport_0.1.22_Linux_x86_64.tar.gz -C /usr/local/bin/ rportd
+wget https://github.com/cloudradar-monitoring/rport/releases/download/0.1.23/rport_0.1.23_Linux_x86_64.tar.gz
+sudo tar vxzf rport_0.1.23_Linux_x86_64.tar.gz -C /usr/local/bin/ rportd
 sudo useradd -d /var/lib/rport -m -U -r -s /bin/false rport
 sudo mkdir /etc/rport/
 sudo mkdir /var/log/rport/
 sudo chown rport /var/log/rport/
-sudo tar vxzf rport_0.1.22_Linux_x86_64.tar.gz -C /etc/rport/ rportd.example.conf
+sudo tar vxzf rport_0.1.23_Linux_x86_64.tar.gz -C /etc/rport/ rportd.example.conf
 sudo cp /etc/rport/rportd.example.conf /etc/rport/rportd.conf
 ```
 
@@ -137,7 +137,6 @@ Change to the rport user account and check your rportd starts without errors.
 ```
 ubuntu@node1:~$ sudo -u rport -s /bin/bash
 rport@node1:/home/ubuntu$ rportd -c /etc/rport/rportd.conf --log-level info &
-2021/01/27 16:26:55 Start to get init Client Session Repository state from file.
 ```
 For the first testing leave the console open and observe the log with `tail -f /var/log/rport/rportd.log`. Copy the generated fingerprint from `/var/lib/rport/rportd-fingerprint.txt` to your clipboard. Try your first client connection now.
 
@@ -158,7 +157,7 @@ sudo systemctl enable rportd # Optionally start rportd on boot
 Assume, the client is called `client1.local.localdomain`.
 On your client just install the client binary
 ```
-curl -LSs https://github.com/cloudradar-monitoring/rport/releases/download/0.1.22/rport_0.1.22_Linux_x86_64.tar.gz|\
+curl -LSs https://github.com/cloudradar-monitoring/rport/releases/download/0.1.23/rport_0.1.23_Linux_x86_64.tar.gz|\
 tar vxzf - -C /usr/local/bin/ rport
 ```
 
@@ -174,13 +173,13 @@ Now you can access your machine behind a firewall through the tunnel. Try `ssh -
 ### Run a Linux client with systemd
 For a proper and permanent installation of the client execute the following steps.
 ```
-wget https://github.com/cloudradar-monitoring/rport/releases/download/0.1.22/rport_0.1.22_Linux_x86_64.tar.gz
-sudo tar vxzf rport_0.1.22_Linux_x86_64.tar.gz -C /usr/local/bin/ rportd
+wget https://github.com/cloudradar-monitoring/rport/releases/download/0.1.23/rport_0.1.23_Linux_x86_64.tar.gz
+sudo tar vxzf rport_0.1.23_Linux_x86_64.tar.gz -C /usr/local/bin/ rport
 sudo useradd -d /var/lib/rport -U -m -r -s /bin/false rport
 sudo mkdir /etc/rport/
 sudo mkdir /var/log/rport/
 sudo chown rport /var/log/rport/
-sudo tar vxzf rport_0.1.22_Linux_x86_64.tar.gz -C /etc/rport/ rport.example.conf
+sudo tar vxzf rport_0.1.23_Linux_x86_64.tar.gz -C /etc/rport/ rport.example.conf
 sudo cp /etc/rport/rport.example.conf /etc/rport/rport.conf
 sudo rport --service install --service-user rport --config /etc/rport/rport.conf
 ```
@@ -203,7 +202,7 @@ This will establish a permanent tunnel and the local port 22 (SSH) of the client
 
 <a name="windows-client"></a>
 ### Run a Windows client
-On Microsoft Windows [download the latest client binary](https://github.com/cloudradar-monitoring/rport/releases/download/0.1.22/rport_0.1.22_Windows_x86_64.zip) and extract it ideally to `C:\Program Files\rport`. Rename the `rport.example.conf` to `rport.conf` and store it in `C:\Program Files\rport` too.
+On Microsoft Windows [download the latest client binary](https://github.com/cloudradar-monitoring/rport/releases/download/0.1.23/rport_0.1.23_Windows_x86_64.zip) and extract it ideally to `C:\Program Files\rport`. Rename the `rport.example.conf` to `rport.conf` and store it in `C:\Program Files\rport` too.
 Open the `rport.conf` file with a text editor. On older Windows use an editor that supports unix line breaks, like [notepad++](https://notepad-plus-plus.org/).
 
 A very minimalistic client configuration `rport.conf` can look like this:
@@ -285,7 +284,7 @@ Set up `[api]` config params. For example:
 This opens the API and enables HTTP basic authentication with a single user "admin:foobaz" who has access to the API.
 Restart the rportd after any changes to the configuration. Read more about API [authentication options](./docs/api-auth.md).
 
-If you expose your API to the public internet, it's highly recommended to enable HTTPS. Read the [quick HTTPS howto](./docs/https-hwoto.md).
+If you expose your API to the public internet, it's highly recommended to enable HTTPS. Read the [quick HTTPS howto](./docs/https-howto.md).
 
 Test you've set up the API properly by querying its status with `curl -s -u admin:foobaz http://localhost:3000/api/v1/status`.
 
@@ -298,8 +297,8 @@ Example of a human readable API status
   "data": {
     "connect_url": "http://0.0.0.0:8080",
     "fingerprint": "2a:c8:79:09:80:ba:7c:60:05:e5:2c:99:6d:75:56:24",
-    "sessions_count": 2,
-    "version": "0.1.22"
+    "clients_count": 2,
+    "version": "0.1.23"
   }
 }
 ```
@@ -321,10 +320,10 @@ This attaches the client to the message queue of the server without creating a t
 <a name="manage-clients"></a>
 ### Manage clients and tunnels through the API
 On the server, you can supervise the attached clients using
-`curl -s -u admin:foobaz http://localhost:3000/api/v1/sessions`.
+`curl -s -u admin:foobaz http://localhost:3000/api/v1/clients`.
 Here is an example:
 ```
-curl -s -u admin:foobaz http://localhost:3000/api/v1/sessions|jq
+curl -s -u admin:foobaz http://localhost:3000/api/v1/clients|jq
 [
   {
     "id": "my-client-1",
@@ -387,7 +386,7 @@ Read more about the [management of tunnel via the API](docs/managing-tunnels.md)
 ## All API Capabilities
 * [Swagger API docs](https://petstore.swagger.io/?url=https://raw.githubusercontent.com/cloudradar-monitoring/rport/master/api-doc.yml).
 * [API authentication options](docs/api-auth.md)
-* [Management of clients and tunnels via the API](docs/managing-tunnels.md) or the [Swagger API docs](https://petstore.swagger.io/?url=https://raw.githubusercontent.com/cloudradar-monitoring/rport/master/api-doc.yml#/Client%20Sessions%20and%20Tunnels)
+* [Management of clients and tunnels via the API](docs/managing-tunnels.md) or the [Swagger API docs](https://petstore.swagger.io/?url=https://raw.githubusercontent.com/cloudradar-monitoring/rport/master/api-doc.yml#/Clients%20and%20Tunnels)
 * [Command execution via the API](docs/command-execution.md) or the [Swagger API docs](https://petstore.swagger.io/?url=https://raw.githubusercontent.com/cloudradar-monitoring/rport/master/api-doc.yml#/Commands)
 * [Management of client authentication credentials via the API](docs/client-auth.md) or the [Swagger API docs](https://petstore.swagger.io/?url=https://raw.githubusercontent.com/cloudradar-monitoring/rport/master/api-doc.yml#/Rport%20Client%20Auth%20Credentials)
 * [Management of client groups via the API](docs/client-groups.md) or the [Swagger API docs](https://petstore.swagger.io/?url=https://raw.githubusercontent.com/cloudradar-monitoring/rport/master/api-doc.yml#/Client%20Groups)

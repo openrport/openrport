@@ -30,7 +30,7 @@ func NewSqliteProvider(dbPath string, log *chshare.Logger) (*SqliteProvider, err
 	return &SqliteProvider{db: db, log: log}, nil
 }
 
-func (p *SqliteProvider) GetByJID(sid, jid string) (*models.Job, error) {
+func (p *SqliteProvider) GetByJID(clientID, jid string) (*models.Job, error) {
 	res := &jobSqlite{}
 	err := p.db.Get(res, "SELECT * FROM jobs WHERE jid=?", jid)
 	if err != nil {
@@ -52,9 +52,9 @@ func (p *SqliteProvider) GetByMultiJobID(jid string) ([]*models.Job, error) {
 	return convertJobs(res), nil
 }
 
-func (p *SqliteProvider) GetSummariesBySID(sid string) ([]*models.JobSummary, error) {
+func (p *SqliteProvider) GetSummariesByClientID(clientID string) ([]*models.JobSummary, error) {
 	var res []*jobSummarySqlite
-	err := p.db.Select(&res, "SELECT jid, finished_at, status FROM jobs WHERE sid=?", sid)
+	err := p.db.Select(&res, "SELECT jid, finished_at, status FROM jobs WHERE client_id=?", clientID)
 	if err != nil {
 		return nil, err
 	}
@@ -63,8 +63,8 @@ func (p *SqliteProvider) GetSummariesBySID(sid string) ([]*models.JobSummary, er
 
 // SaveJob creates a new or updates an existing job.
 func (p *SqliteProvider) SaveJob(job *models.Job) error {
-	_, err := p.db.NamedExec(`INSERT OR REPLACE INTO jobs (jid, status, started_at, finished_at, created_by, sid, multi_job_id, details)
-														VALUES (:jid, :status, :started_at, :finished_at, :created_by, :sid, :multi_job_id, :details)`,
+	_, err := p.db.NamedExec(`INSERT OR REPLACE INTO jobs (jid, status, started_at, finished_at, created_by, client_id, multi_job_id, details)
+														VALUES (:jid, :status, :started_at, :finished_at, :created_by, :client_id, :multi_job_id, :details)`,
 		convertToSqlite(job))
 	if err == nil {
 		p.log.Debugf("Job saved successfully: %v", *job)
@@ -74,8 +74,8 @@ func (p *SqliteProvider) SaveJob(job *models.Job) error {
 
 // CreateJob creates a new job. If already exists with the same ID - does nothing and returns nil.
 func (p *SqliteProvider) CreateJob(job *models.Job) error {
-	_, err := p.db.NamedExec(`INSERT INTO jobs (jid, status, started_at, finished_at, created_by, sid, multi_job_id, details)
-											VALUES (:jid, :status, :started_at, :finished_at, :created_by, :sid, :multi_job_id, :details)`,
+	_, err := p.db.NamedExec(`INSERT INTO jobs (jid, status, started_at, finished_at, created_by, client_id, multi_job_id, details)
+											VALUES (:jid, :status, :started_at, :finished_at, :created_by, :client_id, :multi_job_id, :details)`,
 		convertToSqlite(job))
 	if err != nil {
 		// check if it's "already exist" err
@@ -98,7 +98,7 @@ type jobSqlite struct {
 	jobSummarySqlite
 	StartedAt  time.Time      `db:"started_at"`
 	CreatedBy  string         `db:"created_by"`
-	SID        string         `db:"sid"`
+	ClientID   string         `db:"client_id"`
 	MultiJobID sql.NullString `db:"multi_job_id"`
 	Details    *jobDetails    `db:"details"`
 }
@@ -114,7 +114,7 @@ type jobDetails struct {
 	Shell      string            `json:"shell"`
 	PID        *int              `json:"pid"`
 	TimeoutSec int               `json:"timeout_sec"`
-	Error      string            `json:"error,omitempty"`
+	Error      string            `json:"error"`
 	Result     *models.JobResult `json:"result"`
 }
 
@@ -167,7 +167,7 @@ func (j *jobSqlite) convert() *models.Job {
 	js := j.jobSummarySqlite.convert()
 	res := &models.Job{
 		JobSummary: *js,
-		SID:        j.SID,
+		ClientID:   j.ClientID,
 		StartedAt:  j.StartedAt,
 		CreatedBy:  j.CreatedBy,
 		Command:    j.Details.Command,
@@ -199,7 +199,7 @@ func convertToSqlite(job *models.Job) *jobSqlite {
 		},
 		StartedAt: job.StartedAt,
 		CreatedBy: job.CreatedBy,
-		SID:       job.SID,
+		ClientID:  job.ClientID,
 		Details: &jobDetails{
 			Command:    job.Command,
 			Shell:      job.Shell,

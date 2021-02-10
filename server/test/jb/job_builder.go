@@ -21,7 +21,7 @@ type JobBuilder struct {
 	t *testing.T
 
 	jid        string
-	sid        string
+	clientID   string
 	multiJobID string
 	status     string
 	startedAt  time.Time
@@ -33,7 +33,7 @@ type JobBuilder struct {
 func New(t *testing.T) JobBuilder {
 	return JobBuilder{
 		t:         t,
-		sid:       generateRandomSID(),
+		clientID:  generateRandomCID(),
 		status:    models.JobStatusSuccessful,
 		startedAt: time.Date(2020, 10, 10, 10, 10, 10, 0, time.UTC),
 		result: &models.JobResult{
@@ -48,8 +48,8 @@ func (b JobBuilder) JID(jid string) JobBuilder {
 	return b
 }
 
-func (b JobBuilder) SID(sid string) JobBuilder {
-	b.sid = sid
+func (b JobBuilder) ClientID(clientID string) JobBuilder {
+	b.clientID = clientID
 	return b
 }
 
@@ -90,7 +90,7 @@ func (b JobBuilder) Build() *models.Job {
 			Status:     b.status,
 			FinishedAt: b.finishedAt,
 		},
-		SID:        b.sid,
+		ClientID:   b.clientID,
 		Command:    "/bin/date;foo;whoami",
 		PID:        &pid,
 		StartedAt:  b.startedAt,
@@ -101,8 +101,8 @@ func (b JobBuilder) Build() *models.Job {
 	}
 }
 
-func generateRandomSID() string {
-	return "sid-" + random.AlphaNum(12)
+func generateRandomCID() string {
+	return "cid-" + random.AlphaNum(12)
 }
 
 func generateRandomJID() string {

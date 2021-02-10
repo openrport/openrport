@@ -11,8 +11,8 @@ Here we would show examples how to do it via REST API.
 ### Execute on a single host
 Example:
 ```
-SESSIONID=my-client
-curl -s -u admin:foobaz http://localhost:3000/api/v1/sessions/$SESSIONID/commands -H "Content-Type: application/json" -X POST \
+CLIENTID=my-client
+curl -s -u admin:foobaz http://localhost:3000/api/v1/clients/$CLIENTID/commands -H "Content-Type: application/json" -X POST \
 --data-raw '{
   "command": "date",
   "timeout_sec": 10
@@ -23,13 +23,13 @@ Now execute a query to get the result of the command.
 
 ```
 JOBID=f72b69fd-f418-40c3-ab62-4ce2c2022c58
-curl -s -u admin:foobaz http://localhost:3000/api/v1/sessions/$SESSIONID/commands/$JOBID|jq
+curl -s -u admin:foobaz http://localhost:3000/api/v1/clients/$CLIENTID/commands/$JOBID|jq
 {
     "data": {
         "jid": "f72b69fd-f418-40c3-ab62-4ce2c2022c58",
         "status": "successful",
         "finished_at": "2020-10-15T15:30:12.937267522Z",
-        "sid": "my-client",
+        "client_id": "my-client",
         "command": "date",
         "shell": "/bin/sh",
         "pid": 908526,
@@ -95,7 +95,7 @@ curl -s -u admin:foobaz http://localhost:3000/api/v1/commands/$JOBID|jq
         "jid": "4012fcf8-0dfc-44c4-a3de-de1b133bb13e",
         "status": "successful",
         "finished_at": "2021-01-28T19:39:16.227685+02:00",
-        "sid": "local-test-client-2",
+        "client_id": "local-test-client-2",
         "command": "/bin/date",
         "shell": "/bin/sh",
         "pid": 16242,
@@ -112,7 +112,7 @@ curl -s -u admin:foobaz http://localhost:3000/api/v1/commands/$JOBID|jq
         "jid": "7b8d90a0-f100-4922-98e6-4da46853c020",
         "status": "successful",
         "finished_at": "2021-01-28T19:39:16.229916+02:00",
-        "sid": "local-test-client-3",
+        "client_id": "local-test-client-3",
         "command": "/bin/date",
         "shell": "/bin/sh",
         "pid": 16241,
@@ -129,7 +129,7 @@ curl -s -u admin:foobaz http://localhost:3000/api/v1/commands/$JOBID|jq
         "jid": "bb936408-8c02-49b2-a0ac-2750ac44026c",
         "status": "successful",
         "finished_at": "2021-01-28T19:39:16.228102+02:00",
-        "sid": "local-test-client-4",
+        "client_id": "local-test-client-4",
         "command": "/bin/date",
         "shell": "/bin/sh",
         "pid": 16243,
@@ -147,7 +147,7 @@ curl -s -u admin:foobaz http://localhost:3000/api/v1/commands/$JOBID|jq
 }
 ```
 #### By client group IDs
-How to create client groups please see [the link](docs/client-groups.md).
+How to create client groups please see [the link](client-groups.md).
 
 Assume we have already created a client group with `group-1` id.
 Example:

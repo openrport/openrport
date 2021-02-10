@@ -12,6 +12,8 @@ type ClientGroup struct {
 	ID          string        `json:"id" db:"id"`
 	Description string        `json:"description" db:"description"`
 	Params      *ClientParams `json:"params" db:"params"`
+	// ClientIDs shows what active clients belong to a given group. Note: it's populated separately.
+	ClientIDs []string `json:"client_ids" db:"-"`
 }
 
 type ClientParams struct {
@@ -34,7 +36,7 @@ type Param string
 type ParamValues []Param
 
 func (p ParamValues) MatchesOneOf(values ...string) bool {
-	if len(values) == 0 || len(p) == 0 {
+	if len(p) == 0 {
 		return true
 	}
 
@@ -49,15 +51,7 @@ func (p ParamValues) MatchesOneOf(values ...string) bool {
 }
 
 func (p Param) matches(value string) bool {
-	if value == "" {
-		return true
-	}
-
 	str := string(p)
-	if len(str) == 0 {
-		return false
-	}
-
 	if strings.Contains(str, "*") {
 		parts := strings.Split(str, "*")
 		if !strings.HasPrefix(value, parts[0]) || !strings.HasSuffix(value, parts[len(parts)-1]) {
