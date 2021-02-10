@@ -187,13 +187,11 @@ func (cl *ClientListener) handleWebsocket(w http.ResponseWriter, req *http.Reque
 
 	checkVersions(clog, connRequest.Version)
 
-	sshID := clients.GetSessionID(sshConn)
-
 	// get the current client auth id
 	clientAuthID := sshConn.User()
 
 	// client id
-	cid := cl.getCID(connRequest.ID, cl.config, clientAuthID, sshID)
+	cid := cl.getCID(connRequest.ID, cl.config, clientAuthID)
 
 	ctx, cancel := context.WithCancel(context.Background())
 	defer cancel()
@@ -233,7 +231,7 @@ func checkVersions(log *chshare.Logger, clientVersion string) {
 	log.Infof("Client version (%s) differs from server version (%s)", v, chshare.BuildVersion)
 }
 
-func (cl *ClientListener) getCID(reqID string, config *Config, clientAuthID string, sshSessionID string) string {
+func (cl *ClientListener) getCID(reqID string, config *Config, clientAuthID string) string {
 	if reqID != "" {
 		return reqID
 	}
@@ -243,7 +241,7 @@ func (cl *ClientListener) getCID(reqID string, config *Config, clientAuthID stri
 		return clientAuthID
 	}
 
-	return sshSessionID
+	return clients.NewClientID()
 }
 
 func getRemotes(tunnels []*clients.Tunnel) []*chshare.Remote {

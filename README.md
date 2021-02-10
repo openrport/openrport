@@ -36,7 +36,7 @@ Also, the server can run on any operation system supported by the golang compile
   * [Connect a client](#run-client)
   * [Run a Linux client with systemd](#linux-client-systemd)
   * [Run a Windows client](#windows-client)
-  * [run clients on other operating systems](#other-clients)
+  * [Run clients on other operating systems](#other-clients)
   * [Configuration files](#configs) 
   * [Using authentication](#client-auth)
 * [On-demand tunnels using the API](#on-demand-tunnels)
@@ -50,15 +50,16 @@ Also, the server can run on any operation system supported by the golang compile
 
 <a name="build-install"></a>
 ## Build and installation
-We provide [pre-compiled binaries](https://github.com/cloudradar-monitoring/rport/releases).
-### From source
-1) Build from source (Linux or Mac OS/X):
+1) We provide [pre-compiled binaries](https://github.com/cloudradar-monitoring/rport/releases).
+
+2) From source:
+    * Build from source (Linux or Mac OS/X):
     ```bash
     make all
     ```
     `rport` and `rportd` binaries will appear in directory.
 
-2) Build using Docker:
+    * Build using Docker:
     ```bash
     make docker-goreleaser
     ```
@@ -77,7 +78,6 @@ Minimal setup:
 
 See `./rportd --help` and `./rport --help` for more options, like:
 - Specifying certificate fingerprint to validate server authority
-- Client authentication using user:password pair
 - Restricting, which users can connect
 - Specifying additional intermediate HTTP proxy
 - Using POSIX signals to control running apps
@@ -90,8 +90,8 @@ See `./rportd --help` and `./rport --help` for more options, like:
 ### Run the server without installation
 If you quickly want to run the rport server without installation, run the following commands from any unprivileged user account.
 ```
-wget https://github.com/cloudradar-monitoring/rport/releases/download/0.1.23/rport_0.1.23_Linux_x86_64.tar.gz
-sudo tar vxzf rport_0.1.23_Linux_x86_64.tar.gz rportd
+wget https://github.com/cloudradar-monitoring/rport/releases/download/0.1.24/rport_0.1.24_Linux_x86_64.tar.gz
+sudo tar vxzf rport_0.1.24_Linux_x86_64.tar.gz rportd
 KEY=$(openssl rand -hex 18)
 ./rportd --log-level info --data-dir /var/tmp/ --key $KEY --auth user1:1234
 ```
@@ -116,13 +116,13 @@ If you do ssh or rdp through the tunnel, a hijacked tunnel will not expose your 
 #### Install the server
 For a proper installation execute the following steps.
 ```
-wget https://github.com/cloudradar-monitoring/rport/releases/download/0.1.23/rport_0.1.23_Linux_x86_64.tar.gz
-sudo tar vxzf rport_0.1.23_Linux_x86_64.tar.gz -C /usr/local/bin/ rportd
+wget https://github.com/cloudradar-monitoring/rport/releases/download/0.1.24/rport_0.1.24_Linux_x86_64.tar.gz
+sudo tar vxzf rport_0.1.24_Linux_x86_64.tar.gz -C /usr/local/bin/ rportd
 sudo useradd -d /var/lib/rport -m -U -r -s /bin/false rport
 sudo mkdir /etc/rport/
 sudo mkdir /var/log/rport/
 sudo chown rport /var/log/rport/
-sudo tar vxzf rport_0.1.23_Linux_x86_64.tar.gz -C /etc/rport/ rportd.example.conf
+sudo tar vxzf rport_0.1.24_Linux_x86_64.tar.gz -C /etc/rport/ rportd.example.conf
 sudo cp /etc/rport/rportd.example.conf /etc/rport/rportd.conf
 ```
 
@@ -131,7 +131,7 @@ Create a key for the server instance. Store this key and don't change it. You wi
 openssl rand -hex 18
 ```
 
-Open the `/etc/rport/rportd.conf` with an editor. Add the generated random string as `kee_seed`. All other default settings are suitable for a quick and secure start.
+Open the `/etc/rport/rportd.conf` with an editor. Add the generated random string as `key_seed`. All other default settings are suitable for a quick and secure start.
 
 Change to the rport user account and check your rportd starts without errors.
 ```
@@ -157,7 +157,7 @@ sudo systemctl enable rportd # Optionally start rportd on boot
 Assume, the client is called `client1.local.localdomain`.
 On your client just install the client binary
 ```
-curl -LSs https://github.com/cloudradar-monitoring/rport/releases/download/0.1.23/rport_0.1.23_Linux_x86_64.tar.gz|\
+curl -LSs https://github.com/cloudradar-monitoring/rport/releases/download/0.1.24/rport_0.1.24_Linux_x86_64.tar.gz|\
 tar vxzf - -C /usr/local/bin/ rport
 ```
 
@@ -173,13 +173,13 @@ Now you can access your machine behind a firewall through the tunnel. Try `ssh -
 ### Run a Linux client with systemd
 For a proper and permanent installation of the client execute the following steps.
 ```
-wget https://github.com/cloudradar-monitoring/rport/releases/download/0.1.23/rport_0.1.23_Linux_x86_64.tar.gz
-sudo tar vxzf rport_0.1.23_Linux_x86_64.tar.gz -C /usr/local/bin/ rport
+wget https://github.com/cloudradar-monitoring/rport/releases/download/0.1.24/rport_0.1.24_Linux_x86_64.tar.gz
+sudo tar vxzf rport_0.1.24_Linux_x86_64.tar.gz -C /usr/local/bin/ rport
 sudo useradd -d /var/lib/rport -U -m -r -s /bin/false rport
 sudo mkdir /etc/rport/
 sudo mkdir /var/log/rport/
 sudo chown rport /var/log/rport/
-sudo tar vxzf rport_0.1.23_Linux_x86_64.tar.gz -C /etc/rport/ rport.example.conf
+sudo tar vxzf rport_0.1.24_Linux_x86_64.tar.gz -C /etc/rport/ rport.example.conf
 sudo cp /etc/rport/rport.example.conf /etc/rport/rport.conf
 sudo rport --service install --service-user rport --config /etc/rport/rport.conf
 ```
@@ -202,7 +202,7 @@ This will establish a permanent tunnel and the local port 22 (SSH) of the client
 
 <a name="windows-client"></a>
 ### Run a Windows client
-On Microsoft Windows [download the latest client binary](https://github.com/cloudradar-monitoring/rport/releases/download/0.1.23/rport_0.1.23_Windows_x86_64.zip) and extract it ideally to `C:\Program Files\rport`. Rename the `rport.example.conf` to `rport.conf` and store it in `C:\Program Files\rport` too.
+On Microsoft Windows [download the latest client binary](https://github.com/cloudradar-monitoring/rport/releases/download/0.1.24/rport_0.1.24_Windows_x86_64.zip) and extract it ideally to `C:\Program Files\rport`. Rename the `rport.example.conf` to `rport.conf` and store it in `C:\Program Files\rport` too.
 Open the `rport.conf` file with a text editor. On older Windows use an editor that supports unix line breaks, like [notepad++](https://notepad-plus-plus.org/).
 
 A very minimalistic client configuration `rport.conf` can look like this:
@@ -298,7 +298,7 @@ Example of a human readable API status
     "connect_url": "http://0.0.0.0:8080",
     "fingerprint": "2a:c8:79:09:80:ba:7c:60:05:e5:2c:99:6d:75:56:24",
     "clients_count": 2,
-    "version": "0.1.23"
+    "version": "0.1.24"
   }
 }
 ```
