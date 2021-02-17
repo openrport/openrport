@@ -1,9 +1,9 @@
 swagger: "2.0"
 info:
-  description: "To run API handler, use `--api-addr=0.0.0.0:8888` CLI argument"
+  description: "To run API handler, use `--api-addr=0.0.0.0:3000` CLI argument"
   version: "1.0.0"
-  title: "rportd HTTP API"
-host: "yourserver:8888"
+  title: "rportd HTTP(S) API"
+host: "yourserver:3000"
 basePath: "/api/v1"
 securityDefinitions:
   basic_auth:
@@ -92,7 +92,7 @@ paths:
           description: "token revoked"
   /me:
     get:
-      summary: "Returns currently logged in user and groups the user belongs to"
+      summary: "Return currently logged in user and groups the user belongs to"
       description: ""
       produces:
         - "application/json"
@@ -116,7 +116,7 @@ paths:
   /status:
     get:
       summary: "Get information about rport server"
-      description: "show health status and server version"
+      description: "show health status, server version, etc"
       produces:
         - "application/json"
       responses:
@@ -177,7 +177,7 @@ paths:
       - name: "remote"
         in: "query"
         description: "remote address endpoint, e.g. '3389'"
-        required: false
+        required: true
         type: "string"
       - name: "scheme"
         in: "query"
@@ -186,12 +186,12 @@ paths:
         type: "string"
       - name: "acl"
         in: "query"
-        description: "ACL, IP addresses who is allowed to use the tunnel. For example, '142.78.90.8,201.98.123.0/24,'"
+        description: "ACL, IP addresses who is allowed to use the tunnel. For example, '142.78.90.8,201.98.123.0/24'"
         required: false
         type: "string"
       - name: "check_port"
         in: "query"
-        description: "A flag whether to check availability of a public port. By default check is enabled. To disable it specify 'check_port=0'."
+        description: "A flag whether to check availability of a public port (remote). By default check is enabled. To disable it specify 'check_port=0'."
         required: false
         type: "string"
     put:
@@ -250,8 +250,8 @@ paths:
     get:
       tags:
         - "Commands"
-      summary: "Returns a short info about all client commands"
-      description: "Returns a list of all running and finished commands sorted by finished time in desc with running commands at the beginning"
+      summary: "Return a short info about all client commands"
+      description: "Return a list of all running and finished commands sorted by finished time in desc with running commands at the beginning"
       produces:
         - "application/json"
       parameters:
@@ -344,8 +344,8 @@ paths:
     get:
       tags:
         - "Commands"
-      summary: "Returns a detailed info about a specific client command"
-      description: "Returns a detailed info about a command by given id"
+      summary: "Return a detailed info about a specific client command"
+      description: "Return a detailed info about a command by given id"
       produces:
         - "application/json"
       parameters:
@@ -383,8 +383,8 @@ paths:
     get:
       tags:
         - "Commands"
-      summary: "Returns a short info about all multi-client commands"
-      description: "Returns a list of all running and finished commands sorted by started time in desc order"
+      summary: "Return a short info about all multi-client commands"
+      description: "Return a list of all running and finished commands sorted by started time in desc order"
       produces:
         - "application/json"
       responses:
@@ -478,8 +478,8 @@ paths:
     get:
       tags:
         - "Commands"
-      summary: "Returns a detailed info about a specific multi-client command"
-      description: "Returns a detailed info about a multi-client command by given id with child jobs as well"
+      summary: "Return a detailed info about a specific multi-client command"
+      description: "Return a detailed info about a multi-client command by given id with child jobs as well"
       produces:
         - "application/json"
       parameters:
@@ -554,7 +554,7 @@ paths:
     get:
       tags:
         - "Rport Client Auth Credentials"
-      summary: "Returns all rport clients auth credentials. Sorted by ID in asc order."
+      summary: "Return all rport clients authentication credentials. Sorted by ID in asc order."
       description: ""
       produces:
         - "application/json"
@@ -575,7 +575,7 @@ paths:
     post:
       tags:
         - "Rport Client Auth Credentials"
-      summary: "Add a new rport client auth credentials."
+      summary: "Add a new rport client authentication credentials."
       description: ""
       produces:
         - "application/json"
@@ -616,7 +616,7 @@ paths:
     delete:
       tags:
         - "Rport Client Auth Credentials"
-      summary:  "Delete rport client auth credentials."
+      summary:  "Delete rport client authentication credentials."
       description: ""
       responses:
         "204":
@@ -637,8 +637,8 @@ paths:
     get:
       tags:
         - "Client Groups"
-      summary: "Returns all client groups"
-      description: "Returns a list of all existing client groups sorted by ID in asc order"
+      summary: "Return all client groups"
+      description: "Return a list of all existing client groups sorted by ID in asc order"
       produces:
         - "application/json"
       responses:
@@ -684,8 +684,8 @@ paths:
     get:
       tags:
         - "Client Groups"
-      summary: "Returns a client group"
-      description: "Returns a detailed info about a client group by a given id"
+      summary: "Return a client group"
+      description: "Return a detailed info about a client group by a given id"
       produces:
         - "application/json"
       parameters:
@@ -743,8 +743,8 @@ paths:
     delete:
       tags:
         - "Client Groups"
-      summary: "Deletes a client group"
-      description: "Deletes a client group by a given id"
+      summary: "Delete a client group"
+      description: "Delete a client group by a given id"
       produces:
         - "application/json"
       parameters:
