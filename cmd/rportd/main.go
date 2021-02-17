@@ -384,7 +384,7 @@ func runMain(*cobra.Command, []string) {
 	}
 
 	if !cfg.Server.AllowRoot && chshare.IsRunningAsRoot() {
-		log.Fatal("Running as root is not allowed.")
+		log.Fatal("By default running as root is not allowed.")
 	}
 
 	err = cfg.Logging.LogOutput.Start()
