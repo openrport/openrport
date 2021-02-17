@@ -17,7 +17,7 @@ Apart from remote management, they offer supplementary services like Video Confe
 Rport focuses only on remote management of those operating systems where an existing login mechanism can be used. It can be used for Linux and Windows, but also appliances and IoT devices providing a web-based configuration.
 From a technological perspective, [Ngrok](https://ngrok.com/) and [openport.io](https://openport.io) are similar products. Rport differs from them in many aspects.
 * Rport is 100% open source. Client and Server. Remote management is a matter of trust and security. Rport is fully transparent.
-* Rport will come with a user interface making the management of remote systems easy and user-friendly.
+* Rport comes with a user interface making the management of remote systems easy and user-friendly.
 * Rport is made for all operating systems with native and small binaries. No need for Python or similar heavyweights.
 * Rport allows you to self-host the server.
 * Rport allows clients to wait in standby mode without an active tunnel. Tunnels can be requested on-demand by the user remotely.
@@ -102,7 +102,7 @@ Grab the generated fingerprint from `/var/tmp/rportd-fingerprint.txt` and use it
 ### Install and run the rport server
 
 On a machine connected to the public internet and ideally with an FQDN registered to a public DNS install and run the server.
-Assume, the server is called node1.example.com.
+Assume, the server is called `node1.example.com`.
 
 #### A note on security
 > **Do not run the server as root!** This is an unnecessary risk. Rportd should always use an unprivileged user.
@@ -239,15 +239,19 @@ Please refer to [clients on other operating systems](./docs/client-on-other-os.m
 
 <a name="configs"></a>
 ### Configuration files
-Config files can be used to set up both the rport server and clients. In order to use it an arg `--config`(or `-c`) should be passed to a command with a path to the file. Configuration examples `rportd.example.conf` ([view online](rportd.example.conf)) and `rport.example.conf` ([view online](rport.example.conf)) can be found in the release archive or in the source.
-
-NOTE: command arguments and env variables will override values from the config file.
-
-In order to load the configuration from a file run:
+Config files can be used to set up both the rport server and clients.
+In order to start `rportd`/`rport` with settings from a config file an arg `--config`(or `-c`) should be passed to a command with a path to the file, for example:
 ```
 rportd -c /etc/rport/rportd.conf
+```
+```
 rport -c /etc/rport/rport.conf
 ```
+Configuration examples `rportd.example.conf` ([view online](rportd.example.conf)) and `rport.example.conf` ([view online](rport.example.conf)) can be found in the release archive or in the source.
+
+NOTE:
+* command arguments and env variables will override values from a config file.
+* to apply any changes to a configuration file `rportd` or `rport` should be restarted.
 
 <a name="client-auth"></a>
 ### Using authentication
