@@ -32,7 +32,7 @@ curl -s -H "Authorization: Bearer $(cat .token)" http://localhost:3000/api/v1/cl
 
 Rportd holds the tokens in memory. Restarting rportd deletes (expires) them all.
 
-Tokens are based on JWT. For your security, you should enter a unique `jwt_secret` into the `rportd.conf`. Do not use the provided sample secret in a productive environment.
+Tokens are based on JWT. For your security, you should enter a unique `jwt_secret` into the `rportd.conf`. Do not use the provided sample secret in a production environment.
 
 ## Storing credentials, managing users
 The Rportd can read user credentials from three different sources.

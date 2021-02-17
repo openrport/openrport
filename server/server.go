@@ -173,7 +173,10 @@ func getClientProvider(config *Config, db *sqlx.DB) (clientsauth.Provider, error
 
 func initPrivateKey(seed string) (ssh.Signer, error) {
 	//generate private key (optionally using seed)
-	key, _ := chshare.GenerateKey(seed)
+	key, err := chshare.GenerateKey(seed)
+	if err != nil {
+		return nil, fmt.Errorf("failed to generate key seed: %s", err)
+	}
 	//convert into ssh.PrivateKey
 	private, err := ssh.ParsePrivateKey(key)
 	if err != nil {
