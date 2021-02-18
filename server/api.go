@@ -38,8 +38,6 @@ const (
 	ErrCodeMissingRouteVar = "ERR_CODE_MISSING_ROUTE_VAR"
 	ErrCodeInvalidRequest  = "ERR_CODE_INVALID_REQUEST"
 	ErrCodeAlreadyExist    = "ERR_CODE_ALREADY_EXIST"
-
-	ErrCodeRunCmdDisabled = "ERR_CODE_RUN_CMD_DISABLED"
 )
 
 var validInputShell = []string{"cmd", "powershell"}
@@ -748,10 +746,6 @@ func (al *APIListener) allowClientAuthWrite(w http.ResponseWriter) bool {
 }
 
 func (al *APIListener) handlePostCommand(w http.ResponseWriter, req *http.Request) {
-	if !al.allowRunCommands(w) {
-		return
-	}
-
 	vars := mux.Vars(req)
 	cid := vars[routeParamClientID]
 	if cid == "" {
@@ -856,10 +850,6 @@ func validateShell(shell string) error {
 }
 
 func (al *APIListener) handleGetCommands(w http.ResponseWriter, req *http.Request) {
-	if !al.allowRunCommands(w) {
-		return
-	}
-
 	vars := mux.Vars(req)
 	cid := vars[routeParamClientID]
 	if cid == "" {
@@ -878,10 +868,6 @@ func (al *APIListener) handleGetCommands(w http.ResponseWriter, req *http.Reques
 }
 
 func (al *APIListener) handleGetCommand(w http.ResponseWriter, req *http.Request) {
-	if !al.allowRunCommands(w) {
-		return
-	}
-
 	vars := mux.Vars(req)
 	cid := vars[routeParamClientID]
 	if cid == "" {
@@ -923,10 +909,6 @@ type multiClientCmdRequest struct {
 
 // TODO: refactor to reuse similar code for REST API and WebSocket to execute cmds if both will be supported
 func (al *APIListener) handlePostMultiClientCommand(w http.ResponseWriter, req *http.Request) {
-	if !al.allowRunCommands(w) {
-		return
-	}
-
 	ctx := req.Context()
 	reqBody := multiClientCmdRequest{}
 	dec := json.NewDecoder(req.Body)
@@ -1114,10 +1096,6 @@ func (al *APIListener) createAndRunJob(jid, cid, cmd, shell, createdBy string, t
 }
 
 func (al *APIListener) handleCommandsWS(w http.ResponseWriter, req *http.Request) {
-	if !al.allowRunCommands(w) {
-		return
-	}
-
 	ctx := req.Context()
 	uiConn, err := apiUpgrader.Upgrade(w, req, nil)
 	if err != nil {
@@ -1330,10 +1308,6 @@ func (al *APIListener) createAndRunJobWS(uiConnTS *ws.ConcurrentWebSocket, multi
 }
 
 func (al *APIListener) handleGetMultiClientCommand(w http.ResponseWriter, req *http.Request) {
-	if !al.allowRunCommands(w) {
-		return
-	}
-
 	vars := mux.Vars(req)
 	jid := vars[routeParamJobID]
 	if jid == "" {
@@ -1355,10 +1329,6 @@ func (al *APIListener) handleGetMultiClientCommand(w http.ResponseWriter, req *h
 }
 
 func (al *APIListener) handleGetMultiClientCommands(w http.ResponseWriter, req *http.Request) {
-	if !al.allowRunCommands(w) {
-		return
-	}
-
 	res, err := al.jobProvider.GetAllMultiJobSummaries()
 	if err != nil {
 		al.jsonErrorResponseWithError(w, http.StatusInternalServerError, "", "Failed to get multi-client jobs.", err)
@@ -1366,14 +1336,6 @@ func (al *APIListener) handleGetMultiClientCommands(w http.ResponseWriter, req *
 	}
 
 	al.writeJSONResponse(w, http.StatusOK, api.NewSuccessPayload(res))
-}
-
-func (al *APIListener) allowRunCommands(w http.ResponseWriter) bool {
-	if al.jobProvider == nil {
-		al.jsonErrorResponseWithErrCode(w, http.StatusMethodNotAllowed, ErrCodeRunCmdDisabled, "Persistent storage required. A data dir or a database table is required to activate this feature.")
-		return false
-	}
-	return true
 }
 
 func (al *APIListener) handlePostClientGroups(w http.ResponseWriter, req *http.Request) {
