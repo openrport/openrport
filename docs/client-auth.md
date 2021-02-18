@@ -10,24 +10,25 @@ If (2) or (3) is enabled then managing client auth credentials can be done via t
 ### Using static credentials
 To use just a single client auth credentials enter the following line to the server config(`rportd.config`) in the `[server]` section.
 ```
-auth = "admin:123456"
+auth = "clientAuth1:1234"
 ```
 Make sure no other auth option is enabled.
 Reload rportd to activate the changes.
 Quite simple. Now you can run a client using the client-auth-id `admin` and the password `123456`. It can be done in two ways:
-1. Use a command arg: `--auth admin:123456`
+1. Use a command arg: `--auth clientAuth1:1234`
 2. Enter the following line to the client config(`rport.config`) in the `[client]` section.
 ```
-auth = "admin:123456"
+auth = "clientAuth1:1234"
 ```
 
 ### Using a file
 If you want to have more than one client auth credentials, create a json file with the following structure.
 ```
 {
-    "admin":   "123456",
-    "client1": "yienei5Ch",
-    "client2": "ieRi1Noo2"
+    "clientAuth1": "1234",
+    "admin":       "123456",
+    "client1":     "yienei5Ch",
+    "client2":     "ieRi1Noo2"
 }
 ```
 Using `/var/lib/rport/client-auth.json` or `C:\Program Files\rport\client-auth.json` is a good choice.
@@ -95,6 +96,10 @@ List all client auth credentials.
 curl -s -u admin:foobaz http://localhost:3000/api/v1/clients-auth|jq
 {
   "data": [
+    {
+      "id": "clientAuth1",
+      "password": "1234"
+    },
     {
       "id": "client1",
       "password": "yienei5Ch"
