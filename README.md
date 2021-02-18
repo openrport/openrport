@@ -257,7 +257,7 @@ NOTE:
 ### Using authentication
 To prevent anyone who knows the address and the port of your rport server to use it for tunneling, using client authentication is required.
 
-Using a static username password pair is the most basic option. See the comments in the [rportd.example.conf](rportd.example.conf) and read more about all supported [authentication options](docs/client-auth.md).
+Using a static client authentication credentials is the most basic option. See the comments in the [rportd.example.conf](rportd.example.conf) and read more about all supported [authentication options](docs/client-auth.md).
 
 On the client start the tunnel this way
 ```

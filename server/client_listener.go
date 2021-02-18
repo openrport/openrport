@@ -237,7 +237,7 @@ func (cl *ClientListener) getCID(reqID string, config *Config, clientAuthID stri
 	}
 
 	// use client auth id as client id if proper configs are set
-	if !config.Server.AuthMultiuseCreds && config.Server.EquateAuthusernameClientid {
+	if !config.Server.AuthMultiuseCreds && config.Server.EquateClientauthidClientid {
 		return clientAuthID
 	}
 

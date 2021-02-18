@@ -61,7 +61,7 @@ type ServerConfig struct {
 	RunRemoteCmdTimeoutSec     int           `mapstructure:"run_remote_cmd_timeout_sec"`
 	AuthWrite                  bool          `mapstructure:"auth_write"`
 	AuthMultiuseCreds          bool          `mapstructure:"auth_multiuse_creds"`
-	EquateAuthusernameClientid bool          `mapstructure:"equate_authusername_clientid"`
+	EquateClientauthidClientid bool          `mapstructure:"equate_clientauthid_clientid"`
 	AllowRoot                  bool          `mapstructure:"allow_root"`
 
 	excludedPorts mapset.Set

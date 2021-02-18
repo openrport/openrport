@@ -1,6 +1,6 @@
 ## Client Authentication
 The Rportd can read client auth credentials from three different sources.
-1. A "hardcoded" single pair of client credentials
+1. A "hardcoded" single client credentials
 2. A file with client credentials
 3. A database table
 
@@ -8,13 +8,13 @@ Which one you choose is an either-or decision. A mixed-mode is not supported.
 If (2) or (3) is enabled then managing client auth credentials can be done via the API.
 
 ### Using static credentials
-To use just a single pair of client auth credentials enter the following line to the server config(`rportd.config`) in the `[server]` section.
+To use just a single client auth credentials enter the following line to the server config(`rportd.config`) in the `[server]` section.
 ```
 auth = "admin:123456"
 ```
 Make sure no other auth option is enabled.
 Reload rportd to activate the changes.
-Quite simple. Now you can run a client using the username `admin` and the password `123456`. It can be done in two ways:
+Quite simple. Now you can run a client using the client-auth-id `admin` and the password `123456`. It can be done in two ways:
 1. Use a command arg: `--auth admin:123456`
 2. Enter the following line to the client config(`rport.config`) in the `[client]` section.
 ```
@@ -22,7 +22,7 @@ auth = "admin:123456"
 ```
 
 ### Using a file
-If you want to have more than one pair of client auth credentials, create a json file with the following structure.
+If you want to have more than one client auth credentials, create a json file with the following structure.
 ```
 {
     "admin":   "123456",
@@ -78,7 +78,7 @@ Reload rportd to apply all changes.
 ### Manage client credentials via the API
 
 The [`/clients-auth` endpoint](https://petstore.swagger.io/?url=https://raw.githubusercontent.com/cloudradar-monitoring/rport/master/api-doc.yml#/Rport%20Client%20Auth%20Credentials) allows you to manage client auth credentials through the API.
-This option is disabled, if you use a single static username password pair.
+This option is disabled, if you use a single static client auth credentials.
 If you want to delegate the management of client auth credentials to a third-party app writing directly to the auth-file or the database, consider turning the endpoint off by activating the following lines in the `rportd.conf`.
 ```
 ## If you want to delegate the creation and maintenance to an external tool
