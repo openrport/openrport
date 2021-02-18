@@ -93,7 +93,7 @@ If you quickly want to run the rport server without installation, run the follow
 wget https://github.com/cloudradar-monitoring/rport/releases/download/0.1.24/rport_0.1.24_Linux_x86_64.tar.gz
 sudo tar vxzf rport_0.1.24_Linux_x86_64.tar.gz rportd
 KEY=$(openssl rand -hex 18)
-./rportd --log-level info --data-dir /var/tmp/ --key $KEY --auth user1:1234
+./rportd --log-level info --data-dir /var/tmp/ --key $KEY --auth clientAuth1:1234
 ```
 Rportd will be listening on the default port 8080 for client connections. 
 Grab the generated fingerprint from `/var/tmp/rportd-fingerprint.txt` and use it for secure client connections. 
@@ -163,7 +163,7 @@ tar vxzf - -C /usr/local/bin/ rport
 
 Create an ad hoc tunnel that will forward the port 2222 of `node1.example.com` to the to local port 22 of `client1.local.localdomain`.
 ```
-rport --auth user1:1234 --fingerprint <YOUR_FINGERPRINT> node1.example.com:8080 2222:0.0.0.0:22
+rport --auth clientAuth1:1234 --fingerprint <YOUR_FINGERPRINT> node1.example.com:8080 2222:0.0.0.0:22
 ```
 Observing the log of the server you get a confirmation about the newly created tunnel.
 
@@ -195,7 +195,7 @@ A very minimalistic client configuration `rport.conf` can look like this:
 [client]
 server = "node1.example.com:8080"
 fingerprint = "<YOUR_FINGERPRINT>"
-auth = "user1:1234"
+auth = "clientAuth1:1234"
 remotes = ['2222:22']
 ```
 This will establish a permanent tunnel and the local port 22 (SSH) of the client becomes available on port 2222 of the rport server.
@@ -210,7 +210,7 @@ A very minimalistic client configuration `rport.conf` can look like this:
 [client]
 server = "node1.example.com:8080"
 fingerprint = "<YOUR_FINGERPRINT>"
-auth = "user1:1234"
+auth = "clientAuth1:1234"
 remotes = ['3300:3389']
 ```
 This will establish a permanent tunnel and the local port 3389 (remote desktop) of the client becomes available on port 3300 of the rport server.
@@ -257,11 +257,11 @@ NOTE:
 ### Using authentication
 To prevent anyone who knows the address and the port of your rport server to use it for tunneling, using client authentication is required.
 
-Using a static username password pair is the most basic option. See the comments in the [rportd.example.conf](rportd.example.conf) and read more about all supported [authentication options](docs/client-auth.md).
+Using a static client authentication credentials is the most basic option. See the comments in the [rportd.example.conf](rportd.example.conf) and read more about all supported [authentication options](docs/client-auth.md).
 
 On the client start the tunnel this way
 ```
-rport --auth user1:1234 --fingerprint <YOUR_FINGERPRINT> node1.example.com:8080 2222:0.0.0.0:22
+rport --auth clientAuth1:1234 --fingerprint <YOUR_FINGERPRINT> node1.example.com:8080 2222:0.0.0.0:22
 ```
 *Note that in this early version the order of the command line options is still important. This might change later.*
 
@@ -314,7 +314,7 @@ Invoke the rport client without specifying a tunnel but with some extra data.
 rport --id my-client-1 \
   --fingerprint <YOUR_FINGERPRINT> \
   --tag Linux --tag "Office Berlin" \
-  --name "My Test VM" --auth user1:1234 \
+  --name "My Test VM" --auth clientAuth1:1234 \
   node1.example.com:8080
 ```
 *Add auth and fingerprint as already explained.*

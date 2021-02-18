@@ -67,8 +67,7 @@ var clientHelp = `
     You may provide just a prefix of the key or the entire string.
     Fingerprint mismatches will close the connection.
 
-    --auth, An optional username and password (client authentication) in the form: "<user>:<password>".
-    Highly recommended. Required if client authentication in enabled on the rport server.
+    --auth, Required client authentication credentials in the form: "<client-auth-id>:<password>".
 
     --keepalive, An optional keepalive interval. Since the underlying
     transport is HTTP, in many instances we'll be traversing through

@@ -657,7 +657,6 @@ func TestHandlePostCommand(t *testing.T) {
 
 		cid             string
 		requestBody     string
-		noJobProvider   bool
 		jpReturnSaveErr error
 		connReturnErr   error
 		connReturnNotOk bool
@@ -773,16 +772,6 @@ func TestHandlePostCommand(t *testing.T) {
 			wantErrTitle:   fmt.Sprintf("Active client with id=%q not found.", c2.ID),
 		},
 		{
-			name:           "no persistent storage",
-			requestBody:    validReqBody,
-			noJobProvider:  true,
-			cid:            c1.ID,
-			clients:        []*clients.Client{c1},
-			wantStatusCode: http.StatusMethodNotAllowed,
-			wantErrCode:    ErrCodeRunCmdDisabled,
-			wantErrTitle:   "Persistent storage required. A data dir or a database table is required to activate this feature.",
-		},
-		{
 			name:            "error on save job",
 			requestBody:     validReqBody,
 			jpReturnSaveErr: errors.New("save fake error"),
@@ -843,9 +832,7 @@ func TestHandlePostCommand(t *testing.T) {
 
 			jp := NewJobProviderMock()
 			jp.ReturnErr = tc.jpReturnSaveErr
-			if !tc.noJobProvider {
-				al.jobProvider = jp
-			}
+			al.jobProvider = jp
 
 			connMock.ReturnErr = tc.connReturnErr
 			connMock.ReturnOk = !tc.connReturnNotOk
@@ -900,9 +887,8 @@ func TestHandleGetCommand(t *testing.T) {
 	testCases := []struct {
 		name string
 
-		noJobProvider bool
-		jpReturnErr   error
-		jpReturnJob   *models.Job
+		jpReturnErr error
+		jpReturnJob *models.Job
 
 		wantStatusCode int
 		wantErrCode    string
@@ -927,13 +913,6 @@ func TestHandleGetCommand(t *testing.T) {
 			wantErrTitle:   fmt.Sprintf("Failed to find a job[id=%q].", wantJob.JID),
 			wantErrDetail:  "get job fake error",
 		},
-		{
-			name:           "no persistent storage",
-			noJobProvider:  true,
-			wantStatusCode: http.StatusMethodNotAllowed,
-			wantErrCode:    ErrCodeRunCmdDisabled,
-			wantErrTitle:   "Persistent storage required. A data dir or a database table is required to activate this feature.",
-		},
 	}
 
 	for _, tc := range testCases {
@@ -953,9 +932,7 @@ func TestHandleGetCommand(t *testing.T) {
 			jp := NewJobProviderMock()
 			jp.ReturnErr = tc.jpReturnErr
 			jp.ReturnJob = tc.jpReturnJob
-			if !tc.noJobProvider {
-				al.jobProvider = jp
-			}
+			al.jobProvider = jp
 
 			req := httptest.NewRequest(http.MethodGet, fmt.Sprintf("/api/v1/clients/%s/commands/%s", wantJob.ClientID, wantJob.JID), nil)
 
@@ -998,7 +975,6 @@ func TestHandleGetCommands(t *testing.T) {
 	testCases := []struct {
 		name string
 
-		noJobProvider        bool
 		jpReturnErr          error
 		jpReturnJobSummaries []*models.JobSummary
 
@@ -1027,13 +1003,6 @@ func TestHandleGetCommands(t *testing.T) {
 			wantErrTitle:   fmt.Sprintf("Failed to get client jobs: client_id=%q.", testCID),
 			wantErrDetail:  "get job summaries fake error",
 		},
-		{
-			name:           "no persistent storage",
-			noJobProvider:  true,
-			wantStatusCode: http.StatusMethodNotAllowed,
-			wantErrCode:    ErrCodeRunCmdDisabled,
-			wantErrTitle:   "Persistent storage required. A data dir or a database table is required to activate this feature.",
-		},
 	}
 
 	for _, tc := range testCases {
@@ -1053,9 +1022,7 @@ func TestHandleGetCommands(t *testing.T) {
 			jp := NewJobProviderMock()
 			jp.ReturnErr = tc.jpReturnErr
 			jp.ReturnJobSummaries = tc.jpReturnJobSummaries
-			if !tc.noJobProvider {
-				al.jobProvider = jp
-			}
+			al.jobProvider = jp
 
 			req := httptest.NewRequest(http.MethodGet, fmt.Sprintf("/api/v1/clients/%s/commands", testCID), nil)
 
@@ -1235,9 +1202,8 @@ func TestHandlePostMultiClientCommand(t *testing.T) {
 	testCases := []struct {
 		name string
 
-		requestBody   string
-		noJobProvider bool
-		abortOnErr    bool
+		requestBody string
+		abortOnErr  bool
 
 		connReturnErr error
 
@@ -1284,14 +1250,6 @@ func TestHandlePostMultiClientCommand(t *testing.T) {
 		}`,
 			wantStatusCode: http.StatusNotFound,
 			wantErrTitle:   fmt.Sprintf("Client with id=%q not found.", "client-4"),
-		},
-		{
-			name:           "no persistent storage",
-			requestBody:    validReqBody,
-			noJobProvider:  true,
-			wantStatusCode: http.StatusMethodNotAllowed,
-			wantErrCode:    ErrCodeRunCmdDisabled,
-			wantErrTitle:   "Persistent storage required. A data dir or a database table is required to activate this feature.",
 		},
 		{
 			name:           "error on send request",
@@ -1347,9 +1305,7 @@ func TestHandlePostMultiClientCommand(t *testing.T) {
 			jp, err := jobs.NewSqliteProvider("file::memory:?cache=shared", testLog)
 			require.NoError(t, err)
 			defer jp.Close()
-			if !tc.noJobProvider {
-				al.jobProvider = jp
-			}
+			al.jobProvider = jp
 
 			connMock1.ReturnErr = tc.connReturnErr
 

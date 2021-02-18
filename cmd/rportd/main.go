@@ -68,12 +68,12 @@ var serverHelp = `
     This is for authentication of the rport tunnel clients.
     The file should contain a map with clients credentials defined like:
       {
-        "<client1-id>": "<password1>"
-        "<client2-id>": "<password2>"
+        "<client-auth-id1>": "<password1>"
+        "<client-auth-id2>": "<password2>"
       }
 
-    --auth, An optional string representing a single client with full access, in the form of <client-id>:<password>.
-    This is equivalent to creating an authfile with {"<client-id>":"<password>"}.
+    --auth, An optional string representing a single client auth credentials, in the form of <client-auth-id>:<password>.
+    This is equivalent to creating an authfile with {"<client-auth-id>":"<password>"}.
     Use either "authfile", "auth-table" or "auth". If multiple auth options are enabled, rportd exits with an error.
 
     --auth-table, An optional name of a database table for client authentication.
@@ -86,12 +86,12 @@ var serverHelp = `
 
     --auth-multiuse-creds, When using --authfile creating separate credentials for each client is recommended.
     It increases security because you can lock out clients individually.
-    If auth-multiuse-creds is false a client is rejected if another client with the same username is connected
+    If auth-multiuse-creds is false a client is rejected if another client with the same id is connected
     or has been connected within the --keep-lost-clients interval.
     Defaults: true
 
-    --equate-authusername-clientid, Having set "--auth-multiuse-creds=false", you can omit specifying a client-id.
-    You can us the authentication username as client-id to slim down the client configuration.
+    --equate-clientauthid-clientid, Having set "--auth-multiuse-creds=false", you can omit specifying a client-id.
+    You can use the client-auth-id as client-id to slim down the client configuration.
     Defaults: false
 
     --proxy, Specifies another HTTP server to proxy requests to when
@@ -253,7 +253,7 @@ func init() {
 	pFlags.Duration("check-port-timeout", 0, "")
 	pFlags.Bool("auth-write", false, "")
 	pFlags.Bool("auth-multiuse-creds", false, "")
-	pFlags.Bool("equate-authusername-clientid", false, "")
+	pFlags.Bool("equate-clientauthid-clientid", false, "")
 	pFlags.Int("run-remote-cmd-timeout-sec", 0, "")
 	pFlags.Bool("allow-root", false, "")
 
@@ -297,7 +297,7 @@ func bindPFlags() {
 	_ = viperCfg.BindPFlag("server.auth_file", pFlags.Lookup("authfile"))
 	_ = viperCfg.BindPFlag("server.auth_table", pFlags.Lookup("auth-table"))
 	_ = viperCfg.BindPFlag("server.auth_multiuse_creds", pFlags.Lookup("auth-multiuse-creds"))
-	_ = viperCfg.BindPFlag("server.equate_authusername_clientid", pFlags.Lookup("equate-authusername-clientid"))
+	_ = viperCfg.BindPFlag("server.equate_clientauthid_clientid", pFlags.Lookup("equate-clientauthid-clientid"))
 	_ = viperCfg.BindPFlag("server.auth_write", pFlags.Lookup("auth-write"))
 	_ = viperCfg.BindPFlag("server.proxy", pFlags.Lookup("proxy"))
 	_ = viperCfg.BindPFlag("server.excluded_ports", pFlags.Lookup("exclude-ports"))

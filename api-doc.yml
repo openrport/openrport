@@ -270,10 +270,6 @@ paths:
                 type: "array"
                 items:
                   $ref: "#/definitions/JobSummary"
-        "405":
-          description: "Persistent storage required. A data dir or a database table is required to activate this feature."
-          schema:
-            $ref: "#/definitions/ErrorPayload"
         "500":
           description: "Invalid Operation"
           schema:
@@ -328,10 +324,6 @@ paths:
           description: "Active client not found"
           schema:
             $ref: "#/definitions/ErrorPayload"
-        "405":
-          description: "Persistent storage required. A data dir or a database table is required to activate this feature."
-          schema:
-            $ref: "#/definitions/ErrorPayload"
         "409":
           description: "Could not execute the command. Probably a previous command is still running"
           schema:
@@ -371,10 +363,6 @@ paths:
           description: "Command not found"
           schema:
             $ref: "#/definitions/ErrorPayload"
-        "405":
-          description: "Persistent storage required. A data dir or a database table is required to activate this feature."
-          schema:
-            $ref: "#/definitions/ErrorPayload"
         "500":
           description: "Invalid Operation"
           schema:
@@ -397,10 +385,6 @@ paths:
                 type: "array"
                 items:
                   $ref: "#/definitions/MultiJobSummary"
-        "405":
-          description: "Persistent storage required. A data dir or a database table is required to activate this feature."
-          schema:
-            $ref: "#/definitions/ErrorPayload"
         "500":
           description: "Invalid Operation"
           schema:
@@ -466,10 +450,6 @@ paths:
           description: "Client not found"
           schema:
             $ref: "#/definitions/ErrorPayload"
-        "405":
-          description: "Persistent storage required. A data dir or a database table is required to activate this feature."
-          schema:
-            $ref: "#/definitions/ErrorPayload"
         "500":
           description: "Invalid Operation"
           schema:
@@ -498,10 +478,6 @@ paths:
                 $ref: "#/definitions/MultiJob"
         "400":
           description: "Command not found"
-          schema:
-            $ref: "#/definitions/ErrorPayload"
-        "405":
-          description: "Persistent storage required. A data dir or a database table is required to activate this feature."
           schema:
             $ref: "#/definitions/ErrorPayload"
         "500":
@@ -545,11 +521,6 @@ paths:
           description: "JWT token that is created by 'login' API endpoint. Required to pass the authentication."
           required: true
           type: "string"
-      responses:
-        "405":
-          description: "Persistent storage required. A data dir or a database table is required to activate this feature."
-          schema:
-            $ref: "#/definitions/ErrorPayload"
   /clients-auth:
     get:
       tags:
