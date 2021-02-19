@@ -295,17 +295,24 @@ func (al *APIListener) handleDeleteLogin(w http.ResponseWriter, req *http.Reques
 }
 
 func (al *APIListener) handleGetStatus(w http.ResponseWriter, req *http.Request) {
-	count, err := al.clientService.Count()
+	countActive, err := al.clientService.Count()
+	if err != nil {
+		al.jsonErrorResponse(w, http.StatusInternalServerError, err)
+		return
+	}
+
+	countDisconnected, err := al.clientService.Count()
 	if err != nil {
 		al.jsonErrorResponse(w, http.StatusInternalServerError, err)
 		return
 	}
 
 	response := api.NewSuccessPayload(map[string]interface{}{
-		"version":       chshare.BuildVersion,
-		"clients_count": count,
-		"fingerprint":   al.fingerprint,
-		"connect_url":   al.config.Server.URL,
+		"version":              chshare.BuildVersion,
+		"clients_connected":    countActive,
+		"clients_disconnected": countDisconnected,
+		"fingerprint":          al.fingerprint,
+		"connect_url":          al.config.Server.URL,
 	})
 	al.writeJSONResponse(w, http.StatusOK, response)
 }

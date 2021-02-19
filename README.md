@@ -301,7 +301,8 @@ Example of a human readable API status
   "data": {
     "connect_url": "http://0.0.0.0:8080",
     "fingerprint": "2a:c8:79:09:80:ba:7c:60:05:e5:2c:99:6d:75:56:24",
-    "clients_count": 2,
+    "clients_connected": 3,
+    "clients_disconnected": 1,
     "version": "0.1.24"
   }
 }

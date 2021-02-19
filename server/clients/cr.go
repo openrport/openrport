@@ -61,6 +61,32 @@ func (s *ClientRepository) Count() (int, error) {
 	return len(clients), err
 }
 
+// CountActive returns a number of active clients.
+func (s *ClientRepository) CountActive() (int, error) {
+	s.mu.RLock()
+	defer s.mu.RUnlock()
+	return len(s.GetAllActive()), nil
+}
+
+// CountDisconnected returns a number of disconnected clients.
+func (s *ClientRepository) CountDisconnected() (int, error) {
+	s.mu.RLock()
+	defer s.mu.RUnlock()
+
+	all, err := s.getNonObsolete()
+	if err != nil {
+		return 0, err
+	}
+
+	var n int
+	for _, cur := range all {
+		if cur.DisconnectedAt != nil {
+			n++
+		}
+	}
+	return n, nil
+}
+
 // GetActiveByID returns non-obsolete active or disconnected client by a given id.
 func (s *ClientRepository) GetByID(id string) (*Client, error) {
 	s.mu.RLock()
