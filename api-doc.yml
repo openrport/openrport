@@ -130,7 +130,9 @@ paths:
                 properties:
                   version:
                     type: "string"
-                  clients_count:
+                  clients_connected:
+                    type: "integer"
+                  clients_disconnected:
                     type: "integer"
                   fingerprint:
                     type: "string"

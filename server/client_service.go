@@ -38,6 +38,14 @@ func (s *ClientService) Count() (int, error) {
 	return s.repo.Count()
 }
 
+func (s *ClientService) CountActive() (int, error) {
+	return s.repo.CountActive()
+}
+
+func (s *ClientService) CountDisconnected() (int, error) {
+	return s.repo.CountDisconnected()
+}
+
 func (s *ClientService) GetByID(id string) (*clients.Client, error) {
 	return s.repo.GetByID(id)
 }

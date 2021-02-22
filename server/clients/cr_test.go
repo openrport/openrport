@@ -22,6 +22,14 @@ func TestCRWithExpiration(t *testing.T) {
 	assert.NoError(err)
 	assert.Equal(3, gotCount)
 
+	gotCountActive, err := repo.CountActive()
+	assert.NoError(err)
+	assert.Equal(1, gotCountActive)
+
+	gotCountDisconnected, err := repo.CountDisconnected()
+	assert.NoError(err)
+	assert.Equal(2, gotCountDisconnected)
+
 	gotClients, err := repo.GetAll()
 	assert.NoError(err)
 	assert.ElementsMatch([]*Client{c1, c2, c3}, gotClients)
@@ -63,6 +71,14 @@ func TestCRWithNoExpiration(t *testing.T) {
 	gotCount, err := repo.Count()
 	assert.NoError(err)
 	assert.Equal(4, gotCount)
+
+	gotCountActive, err := repo.CountActive()
+	assert.NoError(err)
+	assert.Equal(2, gotCountActive)
+
+	gotCountDisconnected, err := repo.CountDisconnected()
+	assert.NoError(err)
+	assert.Equal(2, gotCountDisconnected)
 
 	gotClients, err := repo.GetAll()
 	assert.NoError(err)
