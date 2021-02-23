@@ -831,7 +831,7 @@ definitions:
         type: "array"
         items:
           type: string
-        description: "Read Only field. Shows active clients that belong to this group."
+        description: "Read Only field. Shows active and disconnected clients that belong to this group."
       params:
         type: "object"
         description: "Parameters that define what clients belong to a given client group.\n

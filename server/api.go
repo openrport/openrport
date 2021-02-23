@@ -1436,7 +1436,7 @@ func (al *APIListener) handleGetClientGroup(w http.ResponseWriter, req *http.Req
 		return
 	}
 
-	al.clientService.PopulateGroupsWithActiveClients([]*cgroups.ClientGroup{group})
+	al.clientService.PopulateGroupsWithClients([]*cgroups.ClientGroup{group})
 	al.writeJSONResponse(w, http.StatusOK, api.NewSuccessPayload(group))
 }
 
@@ -1447,7 +1447,7 @@ func (al *APIListener) handleGetClientGroups(w http.ResponseWriter, req *http.Re
 		return
 	}
 
-	al.clientService.PopulateGroupsWithActiveClients(res)
+	al.clientService.PopulateGroupsWithClients(res)
 	al.writeJSONResponse(w, http.StatusOK, api.NewSuccessPayload(res))
 }
 
