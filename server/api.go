@@ -422,7 +422,7 @@ func (al *APIListener) handlePutClientTunnel(w http.ResponseWriter, req *http.Re
 	vars := mux.Vars(req)
 	clientID, exists := vars[routeParamClientID]
 	if !exists || clientID == "" {
-		al.jsonErrorResponse(w, http.StatusBadRequest, al.FormatError("invalid client id supplied: %s", clientID))
+		al.jsonErrorResponseWithTitle(w, http.StatusBadRequest, "client id is missing")
 		return
 	}
 
@@ -432,7 +432,7 @@ func (al *APIListener) handlePutClientTunnel(w http.ResponseWriter, req *http.Re
 		return
 	}
 	if client == nil {
-		al.jsonErrorResponse(w, http.StatusNotFound, al.FormatError("client not found"))
+		al.jsonErrorResponseWithTitle(w, http.StatusNotFound, fmt.Sprintf("client with id %s not found", clientID))
 		return
 	}
 
@@ -444,13 +444,13 @@ func (al *APIListener) handlePutClientTunnel(w http.ResponseWriter, req *http.Re
 	}
 	remote, err := chshare.DecodeRemote(remoteStr)
 	if err != nil {
-		al.jsonErrorResponse(w, http.StatusBadRequest, al.FormatError("invalid request: %s", err))
+		al.jsonErrorResponseWithTitle(w, http.StatusBadRequest, fmt.Sprintf("failed to decode %q: %v", remoteStr, err))
 		return
 	}
 
 	aclStr := req.URL.Query().Get("acl")
 	if _, err = clients.ParseTunnelACL(aclStr); err != nil {
-		al.jsonErrorResponse(w, http.StatusBadRequest, al.FormatError("invalid request: %s", err))
+		al.jsonErrorResponseWithTitle(w, http.StatusBadRequest, fmt.Sprintf("invalid ACL: %s", err))
 		return
 	}
 	if aclStr != "" {
@@ -494,7 +494,7 @@ func (al *APIListener) handlePutClientTunnel(w http.ResponseWriter, req *http.Re
 
 	tunnels, err := al.clientService.StartClientTunnels(client, []*chshare.Remote{remote})
 	if err != nil {
-		al.jsonErrorResponse(w, http.StatusConflict, al.FormatError("can't create tunnel: %s", err))
+		al.jsonErrorResponse(w, http.StatusConflict, fmt.Errorf("can't create tunnel: %s", err))
 		return
 	}
 	response := api.NewSuccessPayload(tunnels[0])
@@ -556,7 +556,7 @@ func (al *APIListener) handleDeleteClientTunnel(w http.ResponseWriter, req *http
 	vars := mux.Vars(req)
 	clientID, exists := vars[routeParamClientID]
 	if !exists || clientID == "" {
-		al.jsonErrorResponse(w, http.StatusBadRequest, al.FormatError("invalid client id supplied: %s", clientID))
+		al.jsonErrorResponseWithTitle(w, http.StatusBadRequest, "client id is missing")
 		return
 	}
 
@@ -566,13 +566,13 @@ func (al *APIListener) handleDeleteClientTunnel(w http.ResponseWriter, req *http
 		return
 	}
 	if client == nil {
-		al.jsonErrorResponse(w, http.StatusNotFound, al.FormatError("client not found"))
+		al.jsonErrorResponseWithTitle(w, http.StatusNotFound, fmt.Sprintf("client with id %s not found", clientID))
 		return
 	}
 
 	tunnelID, exists := vars["tunnel_id"]
 	if !exists || tunnelID == "" {
-		al.jsonErrorResponse(w, http.StatusBadRequest, al.FormatError("invalid tunnel id supplied: %s", clientID))
+		al.jsonErrorResponseWithTitle(w, http.StatusBadRequest, "tunnel id is missing")
 		return
 	}
 
@@ -582,7 +582,7 @@ func (al *APIListener) handleDeleteClientTunnel(w http.ResponseWriter, req *http
 
 	tunnel := client.FindTunnel(tunnelID)
 	if tunnel == nil {
-		al.jsonErrorResponse(w, http.StatusNotFound, al.FormatError("tunnel not found"))
+		al.jsonErrorResponseWithTitle(w, http.StatusNotFound, "tunnel not found")
 		return
 	}
 
@@ -605,7 +605,7 @@ func (al *APIListener) handleGetMe(w http.ResponseWriter, req *http.Request) {
 		return
 	}
 	if user == nil {
-		al.jsonErrorResponse(w, http.StatusNotFound, al.FormatError("user not found"))
+		al.jsonErrorResponseWithTitle(w, http.StatusNotFound, "user not found")
 		return
 	}
 

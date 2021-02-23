@@ -4,6 +4,7 @@ import (
 	"context"
 	"crypto/subtle"
 	"encoding/json"
+	"errors"
 	"fmt"
 	"net/http"
 	"net/http/httputil"
@@ -63,7 +64,7 @@ func NewClientListener(server *Server, privateKey ssh.Signer) (*ClientListener, 
 			return nil, err
 		}
 		if u.Host == "" {
-			return nil, cl.FormatError("Missing protocol (%s)", u)
+			return nil, fmt.Errorf("missing protocol: %s", u)
 		}
 		cl.reverseProxy = httputil.NewSingleHostReverseProxy(u)
 		//always use proxy host
@@ -172,16 +173,16 @@ func (cl *ClientListener) handleWebsocket(w http.ResponseWriter, req *http.Reque
 		cl.replyConnectionError(r, err)
 	}
 	if r.Type != "new_connection" {
-		failed(cl.FormatError("expecting connection request"))
+		failed(errors.New("expecting connection request"))
 		return
 	}
 	if len(r.Payload) > int(cl.config.Server.MaxRequestBytes) {
-		failed(cl.FormatError("request data exceeds the limit of %d bytes, actual size: %d", cl.config.Server.MaxRequestBytes, len(r.Payload)))
+		failed(fmt.Errorf("request data exceeds the limit of %d bytes, actual size: %d", cl.config.Server.MaxRequestBytes, len(r.Payload)))
 		return
 	}
 	connRequest, err := chshare.DecodeConnectionRequest(r.Payload)
 	if err != nil {
-		failed(cl.FormatError("invalid connection request"))
+		failed(fmt.Errorf("invalid connection request: %s", err))
 		return
 	}
 
