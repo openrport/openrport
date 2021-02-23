@@ -68,8 +68,9 @@ func (s *ClientService) GetActiveByGroups(groups []*cgroups.ClientGroup) []*clie
 	return res
 }
 
-func (s *ClientService) PopulateGroupsWithActiveClients(groups []*cgroups.ClientGroup) {
-	for _, curClient := range s.repo.GetAllActive() {
+func (s *ClientService) PopulateGroupsWithClients(groups []*cgroups.ClientGroup) {
+	all, _ := s.repo.GetAll()
+	for _, curClient := range all {
 		for _, curGroup := range groups {
 			if curClient.BelongsTo(curGroup) {
 				curGroup.ClientIDs = append(curGroup.ClientIDs, curClient.ID)
