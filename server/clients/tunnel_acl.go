@@ -39,7 +39,7 @@ func ParseTunnelACL(str string) (*TunnelACL, error) {
 		if strings.ContainsRune(strVal, '/') {
 			ip, ipNet, err = net.ParseCIDR(strVal)
 			if err != nil {
-				return nil, fmt.Errorf("invalid addr range %s: %s", strVal, err)
+				return nil, err
 			}
 		} else {
 			ip = net.ParseIP(strVal)
