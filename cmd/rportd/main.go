@@ -156,11 +156,11 @@ var serverHelp = `
     By default is "1h". To disable it set it to "0".
     It can contain "h"(hours), "m"(minutes), "s"(seconds).
 
-    --save-clients-interval, Applicable only if --keep-lost-clients is specified. An optional arg to define
+    --save-clients-interval, An optional arg to define
     an interval to flush info (clients, tunnels, etc) about active and disconnected clients to disk.
     By default, 1 second is used. It can contain "h"(hours), "m"(minutes), "s"(seconds).
 
-    --cleanup-clients-interval, Applicable only if --keep-lost-clients is specified. An optional
+    --cleanup-clients-interval, An optional
     arg to define an interval to clean up internal storage from obsolete disconnected clients.
     By default, '3s' is used. It can contain "h"(hours), "m"(minutes), "s"(seconds).
 
