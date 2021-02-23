@@ -295,13 +295,13 @@ func (al *APIListener) handleDeleteLogin(w http.ResponseWriter, req *http.Reques
 }
 
 func (al *APIListener) handleGetStatus(w http.ResponseWriter, req *http.Request) {
-	countActive, err := al.clientService.Count()
+	countActive, err := al.clientService.CountActive()
 	if err != nil {
 		al.jsonErrorResponse(w, http.StatusInternalServerError, err)
 		return
 	}
 
-	countDisconnected, err := al.clientService.Count()
+	countDisconnected, err := al.clientService.CountDisconnected()
 	if err != nil {
 		al.jsonErrorResponse(w, http.StatusInternalServerError, err)
 		return
