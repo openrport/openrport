@@ -1,10 +1,13 @@
 package clients
 
-import "sort"
+import (
+	"sort"
+	"strings"
+)
 
 func SortByID(a []*Client, desc bool) {
 	sort.Slice(a, func(i, j int) bool {
-		less := a[i].ID < a[j].ID
+		less := strings.ToLower(a[i].ID) < strings.ToLower(a[j].ID)
 		if desc {
 			return !less
 		}
@@ -14,7 +17,9 @@ func SortByID(a []*Client, desc bool) {
 
 func SortByName(a []*Client, desc bool) {
 	sort.Slice(a, func(i, j int) bool {
-		less := a[i].Name < a[j].Name || a[i].Name == a[j].Name && a[i].ID < a[j].ID
+		aiName := strings.ToLower(a[i].Name)
+		ajName := strings.ToLower(a[j].Name)
+		less := aiName < ajName || aiName == ajName && strings.ToLower(a[i].ID) < strings.ToLower(a[j].ID)
 		if desc {
 			return !less
 		}
@@ -24,7 +29,9 @@ func SortByName(a []*Client, desc bool) {
 
 func SortByOS(a []*Client, desc bool) {
 	sort.Slice(a, func(i, j int) bool {
-		less := a[i].OS < a[j].OS || a[i].OS == a[j].OS && a[i].ID < a[j].ID
+		aiOS := strings.ToLower(a[i].OS)
+		ajOS := strings.ToLower(a[j].OS)
+		less := aiOS < ajOS || aiOS == ajOS && strings.ToLower(a[i].ID) < strings.ToLower(a[j].ID)
 		if desc {
 			return !less
 		}
@@ -34,7 +41,9 @@ func SortByOS(a []*Client, desc bool) {
 
 func SortByHostname(a []*Client, desc bool) {
 	sort.Slice(a, func(i, j int) bool {
-		less := a[i].Hostname < a[j].Hostname || a[i].Hostname == a[j].Hostname && a[i].ID < a[j].ID
+		aiHostname := strings.ToLower(a[i].Hostname)
+		ajHostname := strings.ToLower(a[j].Hostname)
+		less := aiHostname < ajHostname || aiHostname == ajHostname && strings.ToLower(a[i].ID) < strings.ToLower(a[j].ID)
 		if desc {
 			return !less
 		}
@@ -44,7 +53,9 @@ func SortByHostname(a []*Client, desc bool) {
 
 func SortByVersion(a []*Client, desc bool) {
 	sort.Slice(a, func(i, j int) bool {
-		less := a[i].Version < a[j].Version || a[i].Version == a[j].Version && a[i].ID < a[j].ID
+		aiVersion := strings.ToLower(a[i].Version)
+		ajVersion := strings.ToLower(a[j].Version)
+		less := aiVersion < ajVersion || aiVersion == ajVersion && strings.ToLower(a[i].ID) < strings.ToLower(a[j].ID)
 		if desc {
 			return !less
 		}

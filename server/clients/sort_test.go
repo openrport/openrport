@@ -29,13 +29,13 @@ func TestSortByIDDesc(t *testing.T) {
 }
 
 var (
-	c1N = &Client{ID: "1", Name: "name12"}
-	c2N = &Client{ID: "2", Name: "name12"}
-	c3N = &Client{ID: "3", Name: "name34"}
-	c4N = &Client{ID: "4", Name: "name34"}
-	c5N = &Client{ID: "5", Name: "name5"}
-	c6N = &Client{ID: "6", Name: "name6"}
-	c7N = &Client{ID: "7", Name: "name7"}
+	c1N = &Client{ID: "a1", Name: "name12"}
+	c2N = &Client{ID: "A2", Name: "Name12"}
+	c3N = &Client{ID: "a3", Name: "name34"}
+	c4N = &Client{ID: "a4", Name: "name34"}
+	c5N = &Client{ID: "A5", Name: "Name5"}
+	c6N = &Client{ID: "a6", Name: "name6"}
+	c7N = &Client{ID: "A7", Name: "name7"}
 )
 
 func TestSortByNameAsc(t *testing.T) {
@@ -61,13 +61,13 @@ func TestSortByNameDesc(t *testing.T) {
 }
 
 var (
-	c1OS = &Client{ID: "1", OS: "OS12"}
-	c2OS = &Client{ID: "2", OS: "OS12"}
-	c3OS = &Client{ID: "3", OS: "OS34"}
-	c4OS = &Client{ID: "4", OS: "OS34"}
-	c5OS = &Client{ID: "5", OS: "OS5"}
-	c6OS = &Client{ID: "6", OS: "OS6"}
-	c7OS = &Client{ID: "7", OS: "OS7"}
+	c1OS = &Client{ID: "a1", OS: "OS12"}
+	c2OS = &Client{ID: "A2", OS: "os12"}
+	c3OS = &Client{ID: "a3", OS: "OS34"}
+	c4OS = &Client{ID: "A4", OS: "OS34"}
+	c5OS = &Client{ID: "a5", OS: "os5"}
+	c6OS = &Client{ID: "A6", OS: "OS6"}
+	c7OS = &Client{ID: "a7", OS: "os7"}
 )
 
 func TestSortByOSAsc(t *testing.T) {
@@ -93,13 +93,13 @@ func TestSortByOSDesc(t *testing.T) {
 }
 
 var (
-	c1H = &Client{ID: "1", Hostname: "hostname12"}
-	c2H = &Client{ID: "2", Hostname: "hostname12"}
-	c3H = &Client{ID: "3", Hostname: "hostname34"}
-	c4H = &Client{ID: "4", Hostname: "hostname34"}
-	c5H = &Client{ID: "5", Hostname: "hostname5"}
-	c6H = &Client{ID: "6", Hostname: "hostname6"}
-	c7H = &Client{ID: "7", Hostname: "hostname7"}
+	c1H = &Client{ID: "A1", Hostname: "hostname12"}
+	c2H = &Client{ID: "a2", Hostname: "Hostname12"}
+	c3H = &Client{ID: "A3", Hostname: "hostname34"}
+	c4H = &Client{ID: "A4", Hostname: "HOSTNAME34"}
+	c5H = &Client{ID: "a5", Hostname: "hostname5"}
+	c6H = &Client{ID: "a6", Hostname: "hostname6"}
+	c7H = &Client{ID: "a7", Hostname: "Hostname7"}
 )
 
 func TestSortByHostnameAsc(t *testing.T) {

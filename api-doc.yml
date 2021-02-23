@@ -1,6 +1,6 @@
 swagger: "2.0"
 info:
-  description: "To run API handler, use `--api-addr=0.0.0.0:3000` CLI argument"
+  description: "To run API, use `--api-addr=yourserver:3000` CLI argument or enable it in config file"
   version: "1.0.0"
   title: "rportd HTTP(S) API"
 host: "yourserver:3000"
@@ -147,10 +147,10 @@ paths:
       parameters:
         - name: "sort"
           in: "query"
-          description: "Sort option '-<field>'(desc) or '<field>'(asc). <field> can be one of 'id', 'name', 'os', 'hostname', 'version'."
+          description: "Sort option `-<field>`(desc) or `<field>`(asc). `<field>` can be one of `'id', 'name', 'os', 'hostname', 'version'`. For example, `&sort=-name` or `&sort=hostname`, etc"
           required: false
           type: "string"
-      summary: "List active and disconnected client connections. By default sorted by ID."
+      summary: "List active and disconnected client connections. By default sorted by ID in asc order"
       description: ""
       produces:
         - "application/json"
@@ -164,6 +164,14 @@ paths:
                 type: "array"
                 items:
                   $ref: "#/definitions/Client"
+        "400":
+          description: "invalid request parameters"
+          schema:
+            $ref: "#/definitions/ErrorPayload"
+        "500":
+          description: "invalid operation"
+          schema:
+            $ref: "#/definitions/ErrorPayload"
   /clients/{client_id}/tunnels:
     parameters:
       - name: "client_id"
@@ -178,7 +186,7 @@ paths:
         type: "string"
       - name: "remote"
         in: "query"
-        description: "remote address endpoint, e.g. '3389'"
+        description: "remote address endpoint, e.g. '3389', '0.0.0.0:22' or '192.168.178.1:80', etc"
         required: true
         type: "string"
       - name: "scheme"
@@ -188,7 +196,7 @@ paths:
         type: "string"
       - name: "acl"
         in: "query"
-        description: "ACL, IP addresses who is allowed to use the tunnel. For example, '142.78.90.8,201.98.123.0/24'"
+        description: "ACL, IP addresses or ranges who is allowed to use the tunnel. For example, '142.78.90.8,201.98.123.0/24'"
         required: false
         type: "string"
       - name: "check_port"
@@ -523,6 +531,11 @@ paths:
           description: "JWT token that is created by 'login' API endpoint. Required to pass the authentication."
           required: true
           type: "string"
+      responses:
+        "200":
+          description: "Success."
+          schema:
+            type: "object"
   /clients-auth:
     get:
       tags:
