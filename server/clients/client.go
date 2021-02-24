@@ -149,6 +149,9 @@ func (c *Client) BelongsToOneOf(groups []*cgroups.ClientGroup) bool {
 
 func (c *Client) BelongsTo(group *cgroups.ClientGroup) bool {
 	p := group.Params
+	if p.HasNoParams() {
+		return false
+	}
 	if !p.ClientID.MatchesOneOf(c.ID) {
 		return false
 	}

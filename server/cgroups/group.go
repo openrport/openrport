@@ -5,6 +5,7 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
+	"reflect"
 	"strings"
 )
 
@@ -96,4 +97,13 @@ func (p *ClientParams) Value() (driver.Value, error) {
 		return nil, fmt.Errorf("failed to encode 'params' field: %v", err)
 	}
 	return string(b), nil
+}
+
+var noParams ClientParams
+
+func (p *ClientParams) HasNoParams() bool {
+	if p == nil {
+		return true
+	}
+	return reflect.DeepEqual(*p, noParams)
 }

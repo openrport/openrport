@@ -130,6 +130,20 @@ func TestClientBelongsToGroup(t *testing.T) {
 
 			wantRes: false,
 		},
+		{
+			name: "no group params, one client param",
+
+			client: &Client{
+				ID: "test-client-id-1",
+			},
+			group: &cgroups.ClientGroup{
+				ID:          "empty-group",
+				Description: "Group with no params",
+				Params:      &cgroups.ClientParams{},
+			},
+
+			wantRes: false,
+		},
 	}
 
 	for _, tc := range testCases {
