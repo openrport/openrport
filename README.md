@@ -44,7 +44,7 @@ Also, the server can run on any operation system supported by the golang compile
   * [Connect a client without a tunnel](#client-no-tunnel)
   * [Manage clients and tunnels through the API](#manage-clients)
 * [All API capabilities](#api-capabilities)
-* [Install a web-based frontend](#api-front-end)
+* [Install a web-based frontend](#install-frontend)
 * [Versioning model](#versioning)
 * [Credits](#credits)
 

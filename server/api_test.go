@@ -488,7 +488,7 @@ func TestHandleDeleteClient(t *testing.T) {
 			provider:        clientsauth.NewMockProvider(initCacheState),
 			clientAuthWrite: true,
 			clientAuthID:    "unknown-client-id",
-			wantStatusCode:  http.StatusBadRequest,
+			wantStatusCode:  http.StatusNotFound,
 			wantErrCode:     ErrCodeClientAuthNotFound,
 			wantErrTitle:    fmt.Sprintf("Client Auth with ID=%q not found.", "unknown-client-id"),
 			wantClientsAuth: initCacheState,

@@ -711,7 +711,7 @@ func (al *APIListener) handleDeleteClientAuth(w http.ResponseWriter, req *http.R
 		return
 	}
 	if existing == nil {
-		al.jsonErrorResponseWithErrCode(w, http.StatusBadRequest, ErrCodeClientAuthNotFound, fmt.Sprintf("Client Auth with ID=%q not found.", clientAuthID))
+		al.jsonErrorResponseWithErrCode(w, http.StatusNotFound, ErrCodeClientAuthNotFound, fmt.Sprintf("Client Auth with ID=%q not found.", clientAuthID))
 		return
 	}
 

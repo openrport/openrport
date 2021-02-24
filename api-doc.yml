@@ -21,6 +21,9 @@ schemes:
   - http
   - https
 tags:
+  - name: "Login"
+    description: For more details https://github.com/cloudradar-monitoring/rport/blob/master/docs/api-auth.md
+  - name: "Status"
   - name: "Clients and Tunnels"
     description: For more details https://github.com/cloudradar-monitoring/rport/blob/master/docs/managing-tunnels.md
   - name: "Client Groups"
@@ -32,20 +35,23 @@ tags:
 paths:
   /login:
     get:
-      summary: "Generate or renew auth token. Requires HTTP-basic authorization."
+      tags:
+        - "Login"
+      summary: "Generate or renew auth token. Requires HTTP-basic authorization"
       description: ""
       parameters:
         - name: "token-lifetime"
           in: "query"
           description: "initial lifetime in seconds. Max value is 90 days. Default: 10 min"
           required: false
-          type: "number"
-          format: "int32"
+          default: 360
+          maximum: 7776000
+          type: "integer"
       produces:
         - "application/json"
       responses:
         "200":
-          description: ""
+          description: "Successful Operation"
           schema:
             type: "object"
             properties:
@@ -56,7 +62,21 @@ paths:
                     type: "string"
               meta:
                 type: "object"
+        "400":
+          description: "Invalid parameters"
+          schema:
+            $ref: "#/definitions/ErrorPayload"
+        "401":
+          description: "Unauthorized"
+          schema:
+            $ref: "#/definitions/ErrorPayload"
+        "500":
+          description: "Invalid Operation"
+          schema:
+            $ref: "#/definitions/ErrorPayload"
     post:
+      tags:
+        - "Login"
       summary: "Generate or renew auth token. Requires username and password provided in request body"
       description: "username and password parameters are required. They can be provided either in JSON either in x-www-formurlencoded format"
       # swagger 2.0 does not allow describing a method that accepts multiple content-types
@@ -65,8 +85,9 @@ paths:
           in: "query"
           description: "initial lifetime in seconds. Max value is 90 days. Default: 10 min"
           required: false
-          type: "number"
-          format: "int32"
+          default: 360
+          maximum: 7776000
+          type: "integer"
       produces:
         - "application/json"
       responses:
@@ -82,23 +103,47 @@ paths:
                     type: "string"
               meta:
                 type: "object"
+        "400":
+          description: "Invalid parameters"
+          schema:
+            $ref: "#/definitions/ErrorPayload"
+        "401":
+          description: "Unauthorized"
+          schema:
+            $ref: "#/definitions/ErrorPayload"
+        "500":
+          description: "Invalid Operation"
+          schema:
+            $ref: "#/definitions/ErrorPayload"
     delete:
+      tags:
+        - "Login"
       summary: "Revoke token (logoff). Requires Bearer authorization provided"
       description: ""
       produces:
         - "application/json"
       responses:
         "204":
-          description: "token revoked"
+          description: "Token revoked"
+        "400":
+          description: "Invalid parameters"
+          schema:
+            $ref: "#/definitions/ErrorPayload"
+        "500":
+          description: "Invalid Operation"
+          schema:
+            $ref: "#/definitions/ErrorPayload"
   /me:
     get:
+      tags:
+        - "Login"
       summary: "Return currently logged in user and groups the user belongs to"
       description: ""
       produces:
         - "application/json"
       responses:
         "200":
-          description: "success response"
+          description: "Successful Operation"
           schema:
             type: "object"
             properties:
@@ -113,15 +158,25 @@ paths:
                       type: string
               meta:
                 type: "object"
+        "404":
+          description: "User not found"
+          schema:
+            $ref: "#/definitions/ErrorPayload"
+        "500":
+          description: "Invalid Operation"
+          schema:
+            $ref: "#/definitions/ErrorPayload"
   /status:
     get:
+      tags:
+        - "Status"
       summary: "Get information about rport server"
-      description: "show health status, server version, etc"
+      description: "Show health status, server version, etc"
       produces:
         - "application/json"
       responses:
         "200":
-          description: "success response"
+          description: "Successful Operation"
           schema:
             type: "object"
             properties:
@@ -140,6 +195,10 @@ paths:
                     type: "string"
               meta:
                 type: "object"
+        "500":
+          description: "Invalid Operation"
+          schema:
+            $ref: "#/definitions/ErrorPayload"
   /clients:
     get:
       tags:
@@ -150,7 +209,7 @@ paths:
           description: "Sort option `-<field>`(desc) or `<field>`(asc). `<field>` can be one of `'id', 'name', 'os', 'hostname', 'version'`. For example, `&sort=-name` or `&sort=hostname`, etc"
           required: false
           type: "string"
-      summary: "List active and disconnected client connections. By default sorted by ID in asc order"
+      summary: "List all active and disconnected client connections. By default sorted by ID in asc order"
       description: ""
       produces:
         - "application/json"
@@ -181,7 +240,7 @@ paths:
         type: "string"
       - name: "local"
         in: "query"
-        description: "server address to use for a new tunnel, e.g. '3390' or '0.0.0.0:3390'. If local is not specified, a random server port will be assigned automatically"
+        description: "local refers to the local port of the rport server to use for a new tunnel, e.g. '3390' or '0.0.0.0:3390'. If local is not specified, a random free server port will be selected automatically"
         required: false
         type: "string"
       - name: "remote"
@@ -207,7 +266,7 @@ paths:
     put:
       tags:
         - "Clients and Tunnels"
-      summary: "Request new tunnel for active client connection"
+      summary: "Request a new tunnel for an active client connection"
       description: ""
       produces:
         - "application/json"
@@ -215,17 +274,25 @@ paths:
         "200":
           description: "success response"
           schema:
-            $ref: "#/definitions/Tunnel"
+            type: "object"
+            properties:
+              data:
+                type: "object"
+                $ref: "#/definitions/Tunnel"
         "400":
-          description: "invalid parameters. Error codes: ERR_CODE_PORT_IN_USE, ERR_CODE_TUNNEL_EXIST, ERR_CODE_TUNNEL_TO_PORT_EXIST, ERR_CODE_URI_SCHEME_LENGTH_EXCEED."
+          description: "invalid parameters. Error codes: ERR_CODE_PORT_IN_USE, ERR_CODE_PORT_NOT_OPEN, ERR_CODE_TUNNEL_EXIST, ERR_CODE_TUNNEL_TO_PORT_EXIST, ERR_CODE_URI_SCHEME_LENGTH_EXCEED."
           schema:
             $ref: "#/definitions/ErrorPayload"
         "404":
-          description: "specified client does not exist or already terminated"
+          description: "specified client does not exist, already terminated ot disconnected"
           schema:
             $ref: "#/definitions/ErrorPayload"
         "409":
           description: "can't create requested tunnel. Probably port already busy"
+          schema:
+            $ref: "#/definitions/ErrorPayload"
+        "500":
+          description: "invalid operation"
           schema:
             $ref: "#/definitions/ErrorPayload"
   /clients/{client_id}/tunnels/{tunnel_id}:
@@ -243,7 +310,7 @@ paths:
     delete:
       tags:
         - "Clients and Tunnels"
-      summary:  "Terminate specified tunnel"
+      summary:  "Terminate a specified tunnel"
       description: ""
       responses:
         "204":
@@ -256,12 +323,16 @@ paths:
           description: "specified client or tunnel does not exist or already terminated"
           schema:
             $ref: "#/definitions/ErrorPayload"
+        "500":
+          description: "invalid operation"
+          schema:
+            $ref: "#/definitions/ErrorPayload"
   /clients/{client_id}/commands:
     get:
       tags:
         - "Commands"
       summary: "Return a short info about all client commands"
-      description: "Return a list of all running and finished commands sorted by finished time in desc with running commands at the beginning"
+      description: "Return a list of all running and finished commands sorted by finished time in desc order with running commands at the beginning"
       produces:
         - "application/json"
       parameters:
@@ -272,7 +343,7 @@ paths:
           type: "string"
       responses:
         "200":
-          description: "successful operation"
+          description: "Successful Operation"
           schema:
             type: "object"
             properties:
@@ -287,7 +358,7 @@ paths:
     post:
       tags:
         - "Commands"
-      summary: "Execute a command by the rport client."
+      summary: "Execute a command by the rport client"
       description: "NOTE: if command limitation is enabled by an rport client then a full path command can be required to use. See https://github.com/cloudradar-monitoring/rport/blob/master/docs/command-execution.md for more details"
       produces:
         - "application/json"
@@ -314,9 +385,10 @@ paths:
               timeout_sec:
                 type: "integer"
                 description: "timeout in seconds to observe the command execution. If not set a default timeout (60 seconds) is used"
+                default: 60
       responses:
         "200":
-          description: "successful operation"
+          description: "Successful Operation"
           schema:
             type: "object"
             properties:
@@ -347,7 +419,7 @@ paths:
       tags:
         - "Commands"
       summary: "Return a detailed info about a specific client command"
-      description: "Return a detailed info about a command by given id"
+      description: "Return a detailed info about a command by given job id"
       produces:
         - "application/json"
       parameters:
@@ -363,14 +435,14 @@ paths:
           type: "string"
       responses:
         "200":
-          description: "successful operation"
+          description: "Successful Operation"
           schema:
             type: "object"
             properties:
               data:
                 $ref: "#/definitions/Job"
-        "400":
-          description: "Command not found"
+        "404":
+          description: "Command not found with given client id and job id"
           schema:
             $ref: "#/definitions/ErrorPayload"
         "500":
@@ -387,7 +459,7 @@ paths:
         - "application/json"
       responses:
         "200":
-          description: "successful operation"
+          description: "Successful Operation"
           schema:
             type: "object"
             properties:
@@ -402,7 +474,7 @@ paths:
     post:
       tags:
         - "Commands"
-      summary: "Execute a command on multiple rport clients."
+      summary: "Execute a command on multiple rport clients"
       description: "NOTE: if command limitation is enabled by an rport client then a full path command can be required to use. See https://github.com/cloudradar-monitoring/rport/blob/master/docs/command-execution.md for more details"
       produces:
         - "application/json"
@@ -434,15 +506,18 @@ paths:
               timeout_sec:
                 type: "integer"
                 description: "timeout in seconds to observe the command execution on each client separately. If not set a default timeout (60 seconds) is used"
+                default: 60
               execute_concurrently:
                 type: "boolean"
                 description: "if true - execute the command concurrently on clients. If false - sequentially in order that is in 'client_ids'. By default is false"
+                default: false
               abort_on_error:
                 type: "boolean"
                 description: "applicable only if 'execute_concurrently' is false. If true - abort the entire cycle if the execution fails on some client. By default is true"
+                default: true
       responses:
         "200":
-          description: "successful operation"
+          description: "Successful Operation"
           schema:
             type: "object"
             properties:
@@ -451,7 +526,7 @@ paths:
                 properties:
                   jid:
                     type: "string"
-                    description: "job id of the corresponding command"
+                    description: "multi job id of the corresponding command"
         "400":
           description: "Invalid request parameters"
           schema:
@@ -475,19 +550,19 @@ paths:
       parameters:
         - name: "job_id"
           in: "path"
-          description: "unique job id retrieved previously"
+          description: "unique multi job id retrieved previously"
           required: true
           type: "string"
       responses:
         "200":
-          description: "successful operation"
+          description: "Successful Operation"
           schema:
             type: "object"
             properties:
               data:
                 $ref: "#/definitions/MultiJob"
         "400":
-          description: "Command not found"
+          description: "Command not found with a given multi job id"
           schema:
             $ref: "#/definitions/ErrorPayload"
         "500":
@@ -533,20 +608,20 @@ paths:
           type: "string"
       responses:
         "200":
-          description: "Success."
+          description: "On success upgrades current connection to websocket"
           schema:
             type: "object"
   /clients-auth:
     get:
       tags:
         - "Rport Client Auth Credentials"
-      summary: "Return all rport clients authentication credentials. Sorted by ID in asc order."
+      summary: "Return all rport clients authentication credentials. Sorted by ID in asc order"
       description: ""
       produces:
         - "application/json"
       responses:
         "200":
-          description: "Success response."
+          description: "Successful Operation"
           schema:
             type: "object"
             properties:
@@ -554,37 +629,37 @@ paths:
                 type: "array"
                 items:
                   $ref: "#/definitions/ClientAuth"
-        "405":
-          description: "Operation not allowed. Error codes: ERR_CODE_CLIENT_AUTH_DISABLED"
+        "500":
+          description: "Invalid Operation"
           schema:
             $ref: "#/definitions/ErrorPayload"
     post:
       tags:
         - "Rport Client Auth Credentials"
-      summary: "Add a new rport client authentication credentials."
+      summary: "Add new rport client authentication credentials"
       description: ""
       produces:
         - "application/json"
       parameters:
         - in: "body"
           name: "body"
-          description: "Client auth credentials that needs to be added"
+          description: "Client auth credentials to add"
           required: true
           schema:
             $ref: "#/definitions/ClientAuth"
       responses:
         "204":
-          description: "New client auth credentials added."
+          description: "New client auth credentials added"
         "400":
-          description: "invalid parameters"
-          schema:
-            $ref: "#/definitions/ErrorPayload"
-        "405":
-          description: "Operation not allowed. Error codes: ERR_CODE_CLIENT_AUTH_DISABLED, ERR_CODE_CLIENT_AUTH_SINGLE, ERR_CODE_CLIENT_AUTH_RO"
+          description: "Invalid parameters"
           schema:
             $ref: "#/definitions/ErrorPayload"
         "409":
           description: "Client auth credentials already exist. Err code: ERR_CODE_ALREADY_EXIST"
+          schema:
+            $ref: "#/definitions/ErrorPayload"
+        "500":
+          description: "Invalid Operation"
           schema:
             $ref: "#/definitions/ErrorPayload"
   /clients-auth/{client_auth_id}:
@@ -602,21 +677,29 @@ paths:
     delete:
       tags:
         - "Rport Client Auth Credentials"
-      summary:  "Delete rport client authentication credentials."
+      summary:  "Delete rport client authentication credentials"
       description: ""
       responses:
         "204":
           description: "Client auth credentials deleted."
         "400":
-          description: "invalid parameters. Err codes: ERR_CODE_CLIENT_AUTH_NOT_FOUND"
+          description: "Invalid parameters"
+          schema:
+            $ref: "#/definitions/ErrorPayload"
+        "404":
+          description: "Client auth credentials not found"
           schema:
             $ref: "#/definitions/ErrorPayload"
         "405":
-          description: "Operation not allowed. Error codes: ERR_CODE_CLIENT_AUTH_DISABLED, ERR_CODE_CLIENT_AUTH_SINGLE, ERR_CODE_CLIENT_AUTH_RO"
+          description: "Operation not allowed. Error codes: ERR_CODE_CLIENT_AUTH_SINGLE, ERR_CODE_CLIENT_AUTH_RO"
           schema:
             $ref: "#/definitions/ErrorPayload"
         "409":
           description: "Could not delete. Client Auth has active or disconnected bound client(s). Err code: ERR_CODE_CLIENT_AUTH_HAS_CLIENT"
+          schema:
+            $ref: "#/definitions/ErrorPayload"
+        "500":
+          description: "Invalid Operation"
           schema:
             $ref: "#/definitions/ErrorPayload"
   /client-groups:
@@ -629,7 +712,7 @@ paths:
         - "application/json"
       responses:
         "200":
-          description: "successful operation"
+          description: "Successful Operation"
           schema:
             type: "object"
             properties:
@@ -645,19 +728,19 @@ paths:
       tags:
         - "Client Groups"
       summary: "Create a new client group"
-      description: "Creates a new client group."
+      description: "Create a new client group."
       produces:
         - "application/json"
       parameters:
         - in: "body"
           name: "client group"
-          description: "Client group to create. Note: ClientGroup.client_ids field should not be set."
+          description: "Client group to create. Note: ClientGroup.client_ids field should not be set. It's read-only"
           required: true
           schema:
             $ref: '#/definitions/ClientGroup'
       responses:
         "201":
-          description: "successful operation"
+          description: "Successful Operation"
         "400":
           description: "Invalid request parameters"
           schema:
@@ -682,13 +765,13 @@ paths:
           type: "string"
       responses:
         "200":
-          description: "successful operation"
+          description: "Successful Operation"
           schema:
             type: "object"
             properties:
               data:
                 $ref: "#/definitions/ClientGroup"
-        "400":
+        "404":
           description: "Client group not found"
           schema:
             $ref: "#/definitions/ErrorPayload"
@@ -717,7 +800,7 @@ paths:
             $ref: '#/definitions/ClientGroup'
       responses:
         "204":
-          description: "successful operation"
+          description: "Successful Operation"
         "400":
           description: "Invalid request parameters"
           schema:
@@ -741,7 +824,7 @@ paths:
           type: "string"
       responses:
         "204":
-          description: "successful operation"
+          description: "Successful Operation"
         "500":
           description: "Invalid Operation"
           schema:
@@ -928,7 +1011,7 @@ definitions:
         description: "client auth ID"
       password:
         type: "string"
-        description: "client password"
+        description: "client auth password"
   JobStatus:
     type: "string"
     enum: &JOB_STATUS
@@ -1059,9 +1142,12 @@ definitions:
         type: "string"
         description: "API username who run the command"
   ErrorPayload:
-    type: "array"
-    items:
-      $ref: "#/definitions/ErrorPayloadItem"
+    type: "object"
+    properties:
+      errors:
+        type: "array"
+        items:
+          $ref: "#/definitions/ErrorPayloadItem"
   ErrorPayloadItem:
     type: "object"
     properties:
