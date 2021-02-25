@@ -597,6 +597,8 @@ paths:
          Number of outbound messages is expected to be as many as rport clients. Or less if it's not a concurrent mode and 'abort_on_error' is turned on.\n
       7. As soon as all rport clients send back the result - connection is closed by server.\n
       8. Also, a current connection can be closed by UI client.\n
+
+      There is a simple UI for testing. Try it out http://127.0.0.1:3000/api/v1/test/commands/ui\n
       "
       produces:
         - "application/json"
