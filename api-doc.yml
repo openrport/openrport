@@ -280,7 +280,7 @@ paths:
                 type: "object"
                 $ref: "#/definitions/Tunnel"
         "400":
-          description: "invalid parameters. Error codes: ERR_CODE_PORT_IN_USE, ERR_CODE_PORT_NOT_OPEN, ERR_CODE_TUNNEL_EXIST, ERR_CODE_TUNNEL_TO_PORT_EXIST, ERR_CODE_URI_SCHEME_LENGTH_EXCEED."
+          description: "invalid parameters. Error codes: ERR_CODE_LOCAL_PORT_IN_USE, ERR_CODE_REMOTE_PORT_NOT_OPEN, ERR_CODE_INVALID_ACL, ERR_CODE_TUNNEL_EXIST, ERR_CODE_TUNNEL_TO_PORT_EXIST, ERR_CODE_URI_SCHEME_LENGTH_EXCEED."
           schema:
             $ref: "#/definitions/ErrorPayload"
         "404":

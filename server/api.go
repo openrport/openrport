@@ -411,11 +411,12 @@ func getCorrespondingSortFunc(sortStr string) (sortFunc func(a []*clients.Client
 const (
 	URISchemeMaxLength = 15
 
-	ErrCodePortInUse             = "ERR_CODE_PORT_IN_USE"
-	ErrCodePortNotOpen           = "ERR_CODE_PORT_NOT_OPEN"
+	ErrCodeLocalPortInUse        = "ERR_CODE_LOCAL_PORT_IN_USE"
+	ErrCodeRemotePortNotOpen     = "ERR_CODE_REMOTE_PORT_NOT_OPEN"
 	ErrCodeTunnelExist           = "ERR_CODE_TUNNEL_EXIST"
 	ErrCodeTunnelToPortExist     = "ERR_CODE_TUNNEL_TO_PORT_EXIST"
 	ErrCodeURISchemeLengthExceed = "ERR_CODE_URI_SCHEME_LENGTH_EXCEED"
+	ErrCodeInvalidACL            = "ERR_CODE_INVALID_ACL"
 )
 
 func (al *APIListener) handlePutClientTunnel(w http.ResponseWriter, req *http.Request) {
@@ -450,7 +451,7 @@ func (al *APIListener) handlePutClientTunnel(w http.ResponseWriter, req *http.Re
 
 	aclStr := req.URL.Query().Get("acl")
 	if _, err = clients.ParseTunnelACL(aclStr); err != nil {
-		al.jsonErrorResponseWithTitle(w, http.StatusBadRequest, fmt.Sprintf("invalid ACL: %s", err))
+		al.jsonErrorResponseWithErrCode(w, http.StatusBadRequest, ErrCodeInvalidACL, fmt.Sprintf("Invalid ACL: %s", err))
 		return
 	}
 	if aclStr != "" {
@@ -515,7 +516,7 @@ func (al *APIListener) checkLocalPort(w http.ResponseWriter, localPort string) b
 	}
 
 	if busyPorts.Contains(lport) {
-		al.jsonErrorResponseWithErrCode(w, http.StatusBadRequest, ErrCodePortInUse, fmt.Sprintf("Port %d already in use.", lport))
+		al.jsonErrorResponseWithErrCode(w, http.StatusBadRequest, ErrCodeLocalPortInUse, fmt.Sprintf("Port %d already in use.", lport))
 		return false
 	}
 
@@ -531,7 +532,7 @@ func (al *APIListener) checkRemotePort(w http.ResponseWriter, remote chshare.Rem
 	err := comm.SendRequestAndGetResponse(conn, comm.RequestTypeCheckPort, req, resp)
 	if err != nil {
 		if _, ok := err.(*comm.ClientError); ok {
-			al.jsonErrorResponseWithTitle(w, http.StatusConflict, err.Error())
+			al.jsonErrorResponse(w, http.StatusConflict, err)
 		} else {
 			al.jsonErrorResponse(w, http.StatusInternalServerError, err)
 		}
@@ -542,7 +543,7 @@ func (al *APIListener) checkRemotePort(w http.ResponseWriter, remote chshare.Rem
 		al.jsonErrorResponseWithDetail(
 			w,
 			http.StatusBadRequest,
-			ErrCodePortNotOpen,
+			ErrCodeRemotePortNotOpen,
 			fmt.Sprintf("Port %s is not in listening state.", remote.RemotePort),
 			resp.ErrMsg,
 		)
