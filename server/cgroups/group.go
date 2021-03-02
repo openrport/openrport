@@ -18,30 +18,30 @@ type ClientGroup struct {
 }
 
 type ClientParams struct {
-	ClientID     ParamValues `json:"client_id"`
-	Name         ParamValues `json:"name"`
-	OS           ParamValues `json:"os"`
-	OSArch       ParamValues `json:"os_arch"`
-	OSFamily     ParamValues `json:"os_family"`
-	OSKernel     ParamValues `json:"os_kernel"`
-	Hostname     ParamValues `json:"hostname"`
-	IPv4         ParamValues `json:"ipv4"`
-	IPv6         ParamValues `json:"ipv6"`
-	Tag          ParamValues `json:"tag"`
-	Version      ParamValues `json:"version"`
-	Address      ParamValues `json:"address"`
-	ClientAuthID ParamValues `json:"client_auth_id"`
+	ClientID     *ParamValues `json:"client_id"`
+	Name         *ParamValues `json:"name"`
+	OS           *ParamValues `json:"os"`
+	OSArch       *ParamValues `json:"os_arch"`
+	OSFamily     *ParamValues `json:"os_family"`
+	OSKernel     *ParamValues `json:"os_kernel"`
+	Hostname     *ParamValues `json:"hostname"`
+	IPv4         *ParamValues `json:"ipv4"`
+	IPv6         *ParamValues `json:"ipv6"`
+	Tag          *ParamValues `json:"tag"`
+	Version      *ParamValues `json:"version"`
+	Address      *ParamValues `json:"address"`
+	ClientAuthID *ParamValues `json:"client_auth_id"`
 }
 
 type Param string
 type ParamValues []Param
 
-func (p ParamValues) MatchesOneOf(values ...string) bool {
-	if len(p) == 0 {
+func (p *ParamValues) MatchesOneOf(values ...string) bool {
+	if p == nil || len(*p) == 0 && len(values) == 0 {
 		return true
 	}
 
-	for _, curParam := range p {
+	for _, curParam := range *p {
 		for _, curValue := range values {
 			if curParam.matches(curValue) {
 				return true

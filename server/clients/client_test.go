@@ -33,37 +33,37 @@ func TestClientBelongsToGroup(t *testing.T) {
 	g1 := &cgroups.ClientGroup{
 		ID: "group-1",
 		Params: &cgroups.ClientParams{
-			ClientID:     cgroups.ParamValues{"test-client-id-1", "test-client-id-2"},
-			Name:         cgroups.ParamValues{"Random Rport Client*", "My Client*"},
-			OS:           cgroups.ParamValues{"Linux*"},
-			OSArch:       cgroups.ParamValues{"amd64", "darwin", "windows"},
-			OSFamily:     cgroups.ParamValues{"alpine", "win*"},
-			OSKernel:     cgroups.ParamValues{"linux", "solaris"},
-			Hostname:     cgroups.ParamValues{"a*", "l*", "w*"},
-			IPv4:         cgroups.ParamValues{"192.168.122.121", "192.168.122.11*"},
-			IPv6:         cgroups.ParamValues{"fe80::b84f:aff:fe59:a0b3"},
-			Tag:          cgroups.ParamValues{"Linux", "Tag1", "Data*", "Some Tag", "AB*"},
-			Version:      cgroups.ParamValues{"0.1.1*"},
-			Address:      cgroups.ParamValues{"88.198.189.163*"},
-			ClientAuthID: cgroups.ParamValues{"client-auth-1", "client-auth-2", "client-auth-3*"},
+			ClientID:     &cgroups.ParamValues{"test-client-id-1", "test-client-id-2"},
+			Name:         &cgroups.ParamValues{"Random Rport Client*", "My Client*"},
+			OS:           &cgroups.ParamValues{"Linux*"},
+			OSArch:       &cgroups.ParamValues{"amd64", "darwin", "windows"},
+			OSFamily:     &cgroups.ParamValues{"alpine", "win*"},
+			OSKernel:     &cgroups.ParamValues{"linux", "solaris"},
+			Hostname:     &cgroups.ParamValues{"a*", "l*", "w*"},
+			IPv4:         &cgroups.ParamValues{"192.168.122.121", "192.168.122.11*"},
+			IPv6:         &cgroups.ParamValues{"fe80::b84f:aff:fe59:a0b3"},
+			Tag:          &cgroups.ParamValues{"Linux", "Tag1", "Data*", "Some Tag", "AB*"},
+			Version:      &cgroups.ParamValues{"0.1.1*"},
+			Address:      &cgroups.ParamValues{"88.198.189.163*"},
+			ClientAuthID: &cgroups.ParamValues{"client-auth-1", "client-auth-2", "client-auth-3*"},
 		},
 	}
 	g2 := &cgroups.ClientGroup{
 		ID: "group-1",
 		Params: &cgroups.ClientParams{
-			ClientID:     cgroups.ParamValues{"test-client-id-1", "test-client-id-2"},
-			OS:           cgroups.ParamValues{"Linux*"},
-			IPv4:         cgroups.ParamValues{"192.168.122.121", "192.168.122.11*"},
-			Version:      cgroups.ParamValues{"0.1.1*"},
-			ClientAuthID: cgroups.ParamValues{"client-auth-1", "client-auth-2", "client-auth-3*"},
+			ClientID:     &cgroups.ParamValues{"test-client-id-1", "test-client-id-2"},
+			OS:           &cgroups.ParamValues{"Linux*"},
+			IPv4:         &cgroups.ParamValues{"192.168.122.121", "192.168.122.11*"},
+			Version:      &cgroups.ParamValues{"0.1.1*"},
+			ClientAuthID: &cgroups.ParamValues{"client-auth-1", "client-auth-2", "client-auth-3*"},
 		},
 	}
 	g3 := &cgroups.ClientGroup{
 		ID: "group-1",
 		Params: &cgroups.ClientParams{
-			ClientID: cgroups.ParamValues{"test-client-id-1", "test-client-id-2"},
-			OS:       cgroups.ParamValues{"Linux*"},
-			Version:  cgroups.ParamValues{"0.1.1*"},
+			ClientID: &cgroups.ParamValues{"test-client-id-1", "test-client-id-2"},
+			OS:       &cgroups.ParamValues{"Linux*"},
+			Version:  &cgroups.ParamValues{"0.1.1*"},
 		},
 	}
 	testCases := []struct {
@@ -121,10 +121,10 @@ func TestClientBelongsToGroup(t *testing.T) {
 			group: &cgroups.ClientGroup{
 				ID: "group-1",
 				Params: &cgroups.ClientParams{
-					ClientID: cgroups.ParamValues{"test-client-id-1", "test-client-id-2"},
-					Name:     cgroups.ParamValues{"Random Rport Client*", "My Client*"},
-					OS:       cgroups.ParamValues{"Linux*"},
-					Tag:      cgroups.ParamValues{"Some Tag", "AB*"},
+					ClientID: &cgroups.ParamValues{"test-client-id-1", "test-client-id-2"},
+					Name:     &cgroups.ParamValues{"Random Rport Client*", "My Client*"},
+					OS:       &cgroups.ParamValues{"Linux*"},
+					Tag:      &cgroups.ParamValues{"Some Tag", "AB*"},
 				},
 			},
 
@@ -143,6 +143,102 @@ func TestClientBelongsToGroup(t *testing.T) {
 			},
 
 			wantRes: false,
+		},
+		{
+			name: "group with no tags, client with nil tags",
+			client: &Client{
+				ID:   "test-client-id-1",
+				Tags: nil,
+			},
+			group: &cgroups.ClientGroup{
+				ID: "no tags",
+				Params: &cgroups.ClientParams{
+					ClientID: &cgroups.ParamValues{"*"},
+					Tag:      &cgroups.ParamValues{},
+				},
+			},
+
+			wantRes: true,
+		},
+		{
+			name: "group with no tags, client with no tags",
+			client: &Client{
+				ID:   "test-client-id-1",
+				Tags: []string{},
+			},
+			group: &cgroups.ClientGroup{
+				ID: "no tags",
+				Params: &cgroups.ClientParams{
+					ClientID: &cgroups.ParamValues{"*"},
+					Tag:      &cgroups.ParamValues{},
+				},
+			},
+
+			wantRes: true,
+		},
+		{
+			name: "group with no tags, client with empty tag",
+			client: &Client{
+				ID:   "test-client-id-1",
+				Tags: []string{""},
+			},
+			group: &cgroups.ClientGroup{
+				ID: "no tags",
+				Params: &cgroups.ClientParams{
+					ClientID: &cgroups.ParamValues{"*"},
+					Tag:      &cgroups.ParamValues{},
+				},
+			},
+
+			wantRes: false,
+		},
+		{
+			name: "group with no tags, client with nonempty tag",
+			client: &Client{
+				ID:   "test-client-id-1",
+				Tags: []string{"tag1"},
+			},
+			group: &cgroups.ClientGroup{
+				ID: "no tags",
+				Params: &cgroups.ClientParams{
+					ClientID: &cgroups.ParamValues{"*"},
+					Tag:      &cgroups.ParamValues{},
+				},
+			},
+
+			wantRes: false,
+		},
+		{
+			name: "group with unset tags, client with tags",
+			client: &Client{
+				ID:   "test-client-id-1",
+				Tags: []string{"tag1"},
+			},
+			group: &cgroups.ClientGroup{
+				ID: "no tags",
+				Params: &cgroups.ClientParams{
+					ClientID: &cgroups.ParamValues{"*"},
+					Tag:      nil,
+				},
+			},
+
+			wantRes: true,
+		},
+		{
+			name: "group with unset tags, client with empty tag",
+			client: &Client{
+				ID:   "test-client-id-1",
+				Tags: []string{""},
+			},
+			group: &cgroups.ClientGroup{
+				ID: "no tags",
+				Params: &cgroups.ClientParams{
+					ClientID: &cgroups.ParamValues{"*"},
+					Tag:      nil,
+				},
+			},
+
+			wantRes: true,
 		},
 	}
 
