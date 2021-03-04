@@ -1234,9 +1234,12 @@ func (al *APIListener) handleCommandsWS(w http.ResponseWriter, req *http.Request
 				go al.createAndRunJobWS(uiConnTS, &jid, curJID, cid, multiJob.Command, multiJob.Shell, createdBy, multiJob.TimeoutSec, conn)
 			} else {
 				success := al.createAndRunJobWS(uiConnTS, &jid, curJID, cid, multiJob.Command, multiJob.Shell, createdBy, multiJob.TimeoutSec, conn)
-				if !success && multiJob.AbortOnErr {
-					uiConnTS.Close()
-					return
+				if !success {
+					if multiJob.AbortOnErr {
+						uiConnTS.Close()
+						return
+					}
+					continue
 				}
 				// wait until command is finished
 				jobResult := <-curJobDoneChannel
