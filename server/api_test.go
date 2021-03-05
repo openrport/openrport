@@ -1259,21 +1259,21 @@ func TestHandlePostMultiClientCommand(t *testing.T) {
 			wantStatusCode: http.StatusOK,
 			wantJobErr:     "failed to send request: send fake error",
 		},
-		// TODO: flaky test
-		//{
-		//	name: "error on send request, abort on err",
-		//	requestBody: `
-		//	{
-		//		"command": "/bin/date;foo;whoami",
-		//		"timeout_sec": 30,
-		//		"client_ids": ["client-1", "client-2"],
-		//		"abort_on_error": true
-		//	}`,
-		//	abortOnErr:     true,
-		//	connReturnErr:  errors.New("send fake error"),
-		//	wantStatusCode: http.StatusOK,
-		//	wantJobErr:     "failed to send request: send fake error",
-		//},
+		{
+			name: "error on send request, abort on err",
+			requestBody: `
+			{
+				"command": "/bin/date;foo;whoami",
+				"timeout_sec": 30,
+				"client_ids": ["client-1", "client-2"],
+				"execute_concurrently": false,
+				"abort_on_error": true
+			}`,
+			abortOnErr:     true,
+			connReturnErr:  errors.New("send fake error"),
+			wantStatusCode: http.StatusOK,
+			wantJobErr:     "failed to send request: send fake error",
+		},
 	}
 
 	for _, tc := range testCases {

@@ -1048,8 +1048,11 @@ func (al *APIListener) executeMultiClientJob(job *models.MultiJob, clientsConn m
 			go al.createAndRunJob(job.JID, cid, job.Command, job.Shell, job.CreatedBy, job.TimeoutSec, conn)
 		} else {
 			success := al.createAndRunJob(job.JID, cid, job.Command, job.Shell, job.CreatedBy, job.TimeoutSec, conn)
-			if !success && job.AbortOnErr {
-				break
+			if !success {
+				if job.AbortOnErr {
+					break
+				}
+				continue
 			}
 
 			// in tests skip next part to avoid waiting

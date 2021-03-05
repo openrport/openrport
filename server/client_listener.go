@@ -335,7 +335,7 @@ func (cl *ClientListener) handleSSHRequests(clientLog *chshare.Logger, reqs <-ch
 				clientLog.Errorf("Failed to save cmd result: %s", err)
 				continue
 			}
-			clientLog.Debugf("Command result saved successfully.")
+			clientLog.Debugf("%s, Command result saved successfully.", job.LogPrefix())
 
 			if job.MultiJobID != nil {
 				done := cl.jobsDoneChannel.Get(*job.MultiJobID)
