@@ -23,6 +23,7 @@ import (
 
 	"github.com/cloudradar-monitoring/rport/server/api"
 	"github.com/cloudradar-monitoring/rport/server/api/jobs"
+	"github.com/cloudradar-monitoring/rport/server/cgroups"
 	"github.com/cloudradar-monitoring/rport/server/clients"
 	"github.com/cloudradar-monitoring/rport/server/clientsauth"
 	"github.com/cloudradar-monitoring/rport/server/test/jb"
@@ -1360,6 +1361,74 @@ func TestHandlePostMultiClientCommand(t *testing.T) {
 				require.NoError(t, err)
 				require.Equal(t, string(wantRespBytes), w.Body.String())
 			}
+		})
+	}
+}
+
+func TestValidateInputClientGroup(t *testing.T) {
+	testCases := []struct {
+		name    string
+		groupID string
+		wantErr error
+	}{
+		{
+			name:    "empty group ID",
+			groupID: "",
+			wantErr: errors.New("group ID cannot be empty"),
+		},
+		{
+			name:    "group ID only with whitespaces",
+			groupID: " ",
+			wantErr: errors.New("group ID cannot be empty"),
+		},
+		{
+			name:    "group ID with invalid char '?'",
+			groupID: "?",
+			wantErr: errors.New(`invalid group ID "?": it should match regexp "^[A-Za-z0-9_-]{1,30}$"`),
+		},
+		{
+			name:    "group ID with invalid char '.'",
+			groupID: "2.1",
+			wantErr: errors.New(`invalid group ID "2.1": it should match regexp "^[A-Za-z0-9_-]{1,30}$"`),
+		},
+		{
+			name:    "group ID with extra whitespaces",
+			groupID: " id ",
+			wantErr: errors.New(`invalid group ID " id ": it should match regexp "^[A-Za-z0-9_-]{1,30}$"`),
+		},
+		{
+			name:    "group ID with invalid char '/'",
+			groupID: "2/1",
+			wantErr: errors.New(`invalid group ID "2/1": it should match regexp "^[A-Za-z0-9_-]{1,30}$"`),
+		},
+		{
+			name:    "valid group ID with all available chars",
+			groupID: "abc-XYZ_09_ABC-xyz",
+			wantErr: nil,
+		},
+		{
+			name:    "valid group ID with one char",
+			groupID: "a",
+			wantErr: nil,
+		},
+		{
+			name:    "valid group ID with max number of chars",
+			groupID: "012345678901234567890123456789",
+			wantErr: nil,
+		},
+		{
+			name:    "invalid group ID with too many chars",
+			groupID: "0123456789012345678901234567890",
+			wantErr: errors.New(`invalid group ID "0123456789012345678901234567890": it should match regexp "^[A-Za-z0-9_-]{1,30}$"`),
+		},
+	}
+	for _, tc := range testCases {
+		t.Run(tc.name, func(t *testing.T) {
+			// when
+			gotErr := validateInputClientGroup(cgroups.ClientGroup{ID: tc.groupID})
+
+			// then
+			assert.Equal(t, tc.wantErr, gotErr)
 		})
 	}
 }
