@@ -1419,7 +1419,7 @@ func TestValidateInputClientGroup(t *testing.T) {
 		{
 			name:    "invalid group ID with too many chars",
 			groupID: "0123456789012345678901234567890",
-			wantErr: errors.New("invalid group ID: max length 30"),
+			wantErr: errors.New("invalid group ID: max length 30, got 31"),
 		},
 	}
 	for _, tc := range testCases {

@@ -1428,7 +1428,7 @@ func validateInputClientGroup(group cgroups.ClientGroup) error {
 		return errors.New("group ID cannot be empty")
 	}
 	if len(group.ID) > groupIDMaxLength {
-		return fmt.Errorf("invalid group ID: max length %d", groupIDMaxLength)
+		return fmt.Errorf("invalid group ID: max length %d, got %d", groupIDMaxLength, len(group.ID))
 	}
 	if invalidGroupIDRegexp.MatchString(group.ID) {
 		return fmt.Errorf("invalid group ID %q: can contain only %q", group.ID, validGroupIDChars)
