@@ -1384,22 +1384,22 @@ func TestValidateInputClientGroup(t *testing.T) {
 		{
 			name:    "group ID with invalid char '?'",
 			groupID: "?",
-			wantErr: errors.New(`invalid group ID "?": it should match regexp "^[A-Za-z0-9_-]{1,30}$"`),
+			wantErr: errors.New(`invalid group ID "?": can contain only "A-Za-z0-9_-"`),
 		},
 		{
 			name:    "group ID with invalid char '.'",
 			groupID: "2.1",
-			wantErr: errors.New(`invalid group ID "2.1": it should match regexp "^[A-Za-z0-9_-]{1,30}$"`),
+			wantErr: errors.New(`invalid group ID "2.1": can contain only "A-Za-z0-9_-"`),
 		},
 		{
 			name:    "group ID with extra whitespaces",
 			groupID: " id ",
-			wantErr: errors.New(`invalid group ID " id ": it should match regexp "^[A-Za-z0-9_-]{1,30}$"`),
+			wantErr: errors.New(`invalid group ID " id ": can contain only "A-Za-z0-9_-"`),
 		},
 		{
 			name:    "group ID with invalid char '/'",
 			groupID: "2/1",
-			wantErr: errors.New(`invalid group ID "2/1": it should match regexp "^[A-Za-z0-9_-]{1,30}$"`),
+			wantErr: errors.New(`invalid group ID "2/1": can contain only "A-Za-z0-9_-"`),
 		},
 		{
 			name:    "valid group ID with all available chars",
@@ -1419,7 +1419,7 @@ func TestValidateInputClientGroup(t *testing.T) {
 		{
 			name:    "invalid group ID with too many chars",
 			groupID: "0123456789012345678901234567890",
-			wantErr: errors.New(`invalid group ID "0123456789012345678901234567890": it should match regexp "^[A-Za-z0-9_-]{1,30}$"`),
+			wantErr: errors.New("invalid group ID: max length 30"),
 		},
 	}
 	for _, tc := range testCases {

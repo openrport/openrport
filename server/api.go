@@ -1416,14 +1416,22 @@ func (al *APIListener) handlePutClientGroup(w http.ResponseWriter, req *http.Req
 	al.Debugf("Client Group [id=%q] updated.", group.ID)
 }
 
-var validGroupIDRegexp = regexp.MustCompile("^[A-Za-z0-9_-]{1,30}$")
+const (
+	validGroupIDChars = "A-Za-z0-9_-"
+	groupIDMaxLength  = 30
+)
+
+var invalidGroupIDRegexp = regexp.MustCompile("[^" + validGroupIDChars + "]")
 
 func validateInputClientGroup(group cgroups.ClientGroup) error {
 	if strings.TrimSpace(group.ID) == "" {
 		return errors.New("group ID cannot be empty")
 	}
-	if !validGroupIDRegexp.MatchString(group.ID) {
-		return fmt.Errorf("invalid group ID %q: it should match regexp %q", group.ID, validGroupIDRegexp.String())
+	if len(group.ID) > groupIDMaxLength {
+		return fmt.Errorf("invalid group ID: max length %d", groupIDMaxLength)
+	}
+	if invalidGroupIDRegexp.MatchString(group.ID) {
+		return fmt.Errorf("invalid group ID %q: can contain only %q", group.ID, validGroupIDChars)
 	}
 	return nil
 }
