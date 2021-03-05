@@ -1416,12 +1416,10 @@ func (al *APIListener) handlePutClientGroup(w http.ResponseWriter, req *http.Req
 	al.Debugf("Client Group [id=%q] updated.", group.ID)
 }
 
-const (
-	validGroupIDChars = "A-Za-z0-9_-"
-	groupIDMaxLength  = 30
-)
+const groupIDMaxLength = 30
+const validGroupIDChars = "A-Za-z0-9_-*"
 
-var invalidGroupIDRegexp = regexp.MustCompile("[^" + validGroupIDChars + "]")
+var invalidGroupIDRegexp = regexp.MustCompile(`[^\*A-Za-z0-9_-]`)
 
 func validateInputClientGroup(group cgroups.ClientGroup) error {
 	if strings.TrimSpace(group.ID) == "" {

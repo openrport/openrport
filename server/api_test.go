@@ -1384,31 +1384,36 @@ func TestValidateInputClientGroup(t *testing.T) {
 		{
 			name:    "group ID with invalid char '?'",
 			groupID: "?",
-			wantErr: errors.New(`invalid group ID "?": can contain only "A-Za-z0-9_-"`),
+			wantErr: errors.New(`invalid group ID "?": can contain only "A-Za-z0-9_-*"`),
 		},
 		{
 			name:    "group ID with invalid char '.'",
 			groupID: "2.1",
-			wantErr: errors.New(`invalid group ID "2.1": can contain only "A-Za-z0-9_-"`),
+			wantErr: errors.New(`invalid group ID "2.1": can contain only "A-Za-z0-9_-*"`),
 		},
 		{
 			name:    "group ID with extra whitespaces",
 			groupID: " id ",
-			wantErr: errors.New(`invalid group ID " id ": can contain only "A-Za-z0-9_-"`),
+			wantErr: errors.New(`invalid group ID " id ": can contain only "A-Za-z0-9_-*"`),
 		},
 		{
 			name:    "group ID with invalid char '/'",
 			groupID: "2/1",
-			wantErr: errors.New(`invalid group ID "2/1": can contain only "A-Za-z0-9_-"`),
+			wantErr: errors.New(`invalid group ID "2/1": can contain only "A-Za-z0-9_-*"`),
 		},
 		{
 			name:    "valid group ID with all available chars",
-			groupID: "abc-XYZ_09_ABC-xyz",
+			groupID: "*abc-XYZ_09_ABC-xyz*",
 			wantErr: nil,
 		},
 		{
 			name:    "valid group ID with one char",
 			groupID: "a",
+			wantErr: nil,
+		},
+		{
+			name:    "valid group ID with one char '*'",
+			groupID: "*",
 			wantErr: nil,
 		},
 		{
