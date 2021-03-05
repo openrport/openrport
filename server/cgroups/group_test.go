@@ -24,6 +24,22 @@ func TestMatchesOneOf(t *testing.T) {
 			wantRes: true,
 		},
 		{
+			name: "exact match, client param in upper case",
+
+			groupParams:  &ParamValues{"id-1"},
+			clientParams: []string{"ID-1"},
+
+			wantRes: true,
+		},
+		{
+			name: "exact match, group param in upper case",
+
+			groupParams:  &ParamValues{"Name-1"},
+			clientParams: []string{"name-1"},
+
+			wantRes: true,
+		},
+		{
 			name: "exact match but twice",
 
 			groupParams:  &ParamValues{"123"},
@@ -76,6 +92,22 @@ func TestMatchesOneOf(t *testing.T) {
 
 			groupParams:  &ParamValues{"id-*"},
 			clientParams: []string{"id-2"},
+
+			wantRes: true,
+		},
+		{
+			name: "wildcard group param in upper case, client in lower",
+
+			groupParams:  &ParamValues{"ID-*"},
+			clientParams: []string{"id-2"},
+
+			wantRes: true,
+		},
+		{
+			name: "wildcard group param in lower case, client in upper",
+
+			groupParams:  &ParamValues{"id-*"},
+			clientParams: []string{"Id-2"},
 
 			wantRes: true,
 		},

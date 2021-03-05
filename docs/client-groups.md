@@ -11,14 +11,14 @@ As listed in the API docs Client Group is defined by:
 * `description` - group description
 * `params` - parameters that define what clients belong to a current group.
 Each parameter can be specified by:
-  * exact match of the property. For example,
+  * exact match of the property **(ignoring case)**. For example,
     ```
     params: {
       "client_id": ["test-win2019-tk01", "qa-lin-ubuntu16"]
     }
     ```
     Means only clients with `id` equals to `test-win2019-tk01` or `qa-lin-ubuntu16` belong to a current group.
-  * dynamic criteria using wildcards. For example,
+  * dynamic criteria using wildcards **(ignoring case)**. For example,
     ```
     params: {
       "os_family": ["linux*", "*win*"]

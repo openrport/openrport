@@ -52,7 +52,8 @@ func (p *ParamValues) MatchesOneOf(values ...string) bool {
 }
 
 func (p Param) matches(value string) bool {
-	str := string(p)
+	str := strings.ToLower(string(p))
+	value = strings.ToLower(value)
 	if strings.Contains(str, "*") {
 		parts := strings.Split(str, "*")
 		if !strings.HasPrefix(value, parts[0]) || !strings.HasSuffix(value, parts[len(parts)-1]) {

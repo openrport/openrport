@@ -935,8 +935,8 @@ definitions:
         description: "Parameters that define what clients belong to a given client group.\n
 
         Each parameter can be specified by:\n
-        1. exact match of the property. For example, \"client_id\": [\"test-win2019-tk01\", \"qa-lin-ubuntu16\"]\n
-        2. dynamic criteria using wildcards. For example, \"os_family\": [\"linux*\"]\n
+        1. exact match of the property (ignoring case). For example, \"client_id\": [\"test-win2019-tk01\", \"qa-lin-ubuntu16\"]\n
+        2. dynamic criteria using wildcards (ignoring case). For example, \"os_family\": [\"linux*\"]\n
 
         For more details please see https://github.com/cloudradar-monitoring/rport/blob/master/docs/client-groups.md\n"
         properties:
