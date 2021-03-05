@@ -6,6 +6,7 @@ import (
 	"fmt"
 	"io"
 	"net/http"
+	"regexp"
 	"strconv"
 	"strings"
 	"time"
@@ -1415,9 +1416,22 @@ func (al *APIListener) handlePutClientGroup(w http.ResponseWriter, req *http.Req
 	al.Debugf("Client Group [id=%q] updated.", group.ID)
 }
 
+const (
+	validGroupIDChars = "A-Za-z0-9_-"
+	groupIDMaxLength  = 30
+)
+
+var invalidGroupIDRegexp = regexp.MustCompile("[^" + validGroupIDChars + "]")
+
 func validateInputClientGroup(group cgroups.ClientGroup) error {
 	if strings.TrimSpace(group.ID) == "" {
 		return errors.New("group ID cannot be empty")
+	}
+	if len(group.ID) > groupIDMaxLength {
+		return fmt.Errorf("invalid group ID: max length %d, got %d", groupIDMaxLength, len(group.ID))
+	}
+	if invalidGroupIDRegexp.MatchString(group.ID) {
+		return fmt.Errorf("invalid group ID %q: can contain only %q", group.ID, validGroupIDChars)
 	}
 	return nil
 }
