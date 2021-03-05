@@ -987,9 +987,12 @@ func (al *APIListener) handlePostMultiClientCommand(w http.ResponseWriter, req *
 		clientsConn[cid] = client.Connection
 	}
 
+	var orderedClientIDs []string
+	orderedClientIDs = append(orderedClientIDs, reqBody.ClientIDs...)
 	for _, groupClient := range groupClients {
 		if clientsConn[groupClient.ID] == nil {
 			clientsConn[groupClient.ID] = groupClient.Connection
+			orderedClientIDs = append(orderedClientIDs, groupClient.ID)
 		}
 	}
 
@@ -1025,10 +1028,10 @@ func (al *APIListener) handlePostMultiClientCommand(w http.ResponseWriter, req *
 
 	al.Debugf("Multi-client Job[id=%q] created to execute remote command on clients %s, groups %s: %q.", multiJob.JID, reqBody.ClientIDs, reqBody.GroupIDs, reqBody.Command)
 
-	go al.executeMultiClientJob(multiJob, clientsConn)
+	go al.executeMultiClientJob(multiJob, clientsConn, orderedClientIDs)
 }
 
-func (al *APIListener) executeMultiClientJob(job *models.MultiJob, clientsConn map[string]ssh.Conn) {
+func (al *APIListener) executeMultiClientJob(job *models.MultiJob, clientsConn map[string]ssh.Conn, orderedClientIDs []string) {
 	// for sequential execution - create a channel to get the job result
 	var curJobDoneChannel chan *models.Job
 	if !job.Concurrent {
@@ -1039,7 +1042,8 @@ func (al *APIListener) executeMultiClientJob(job *models.MultiJob, clientsConn m
 			al.jobsDoneChannel.Del(job.JID)
 		}()
 	}
-	for cid, conn := range clientsConn {
+	for _, cid := range orderedClientIDs {
+		conn := clientsConn[cid]
 		if job.Concurrent {
 			go al.createAndRunJob(job.JID, cid, job.Command, job.Shell, job.CreatedBy, job.TimeoutSec, conn)
 		} else {
@@ -1178,9 +1182,12 @@ func (al *APIListener) handleCommandsWS(w http.ResponseWriter, req *http.Request
 		clientsConn[cid] = client.Connection
 	}
 
+	var orderedClientIDs []string
+	orderedClientIDs = append(orderedClientIDs, inboundMsg.ClientIDs...)
 	for _, groupClient := range groupClients {
 		if clientsConn[groupClient.ID] == nil {
 			clientsConn[groupClient.ID] = groupClient.Connection
+			orderedClientIDs = append(orderedClientIDs, groupClient.ID)
 		}
 	}
 
@@ -1229,7 +1236,8 @@ func (al *APIListener) handleCommandsWS(w http.ResponseWriter, req *http.Request
 			}()
 		}
 
-		for cid, conn := range clientsConn {
+		for _, cid := range orderedClientIDs {
+			conn := clientsConn[cid]
 			curJID := generateNewJobID()
 			if multiJob.Concurrent {
 				go al.createAndRunJobWS(uiConnTS, &jid, curJID, cid, multiJob.Command, multiJob.Shell, createdBy, multiJob.TimeoutSec, conn)
