@@ -189,6 +189,14 @@ paths:
                     type: "integer"
                   clients_disconnected:
                     type: "integer"
+                  clients_auth_source:
+                    description: "The source of clients authentication credentials"
+                    type: "string"
+                    enum: ["Static Credentials", "File", "DB"]
+                  clients_auth_mode:
+                    description: "Shows whether it's allowed or not to create/update/delete clients authentication credentials"
+                    type: "string"
+                    enum: ["Read Only", "Read Write"]
                   fingerprint:
                     type: "string"
                   connect_url:

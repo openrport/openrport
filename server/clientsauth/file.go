@@ -14,6 +14,8 @@ type FileProvider struct {
 	fileName string
 }
 
+var _ Provider = &FileProvider{}
+
 func NewFileProvider(fileName string) *FileProvider {
 	return &FileProvider{
 		fileName: fileName,
@@ -113,4 +115,8 @@ func (c *FileProvider) save(idPswdPairs map[string]string) error {
 	}
 
 	return nil
+}
+
+func (c *FileProvider) Source() ProviderSource {
+	return ProviderSourceFile
 }

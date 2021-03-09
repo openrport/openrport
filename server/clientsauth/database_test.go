@@ -17,6 +17,7 @@ func TestDatabaseProvider(t *testing.T) {
 	c := &ClientAuth{ID: "test-client", Password: "test-password"}
 
 	p := NewDatabaseProvider(db, "clients")
+	assert.Equal(t, ProviderSourceDB, p.Source())
 
 	// initial empty
 	clients, err := p.GetAll()

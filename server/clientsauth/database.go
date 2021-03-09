@@ -15,6 +15,8 @@ type DatabaseProvider struct {
 	tableName string
 }
 
+var _ Provider = &DatabaseProvider{}
+
 func NewDatabaseProvider(DB *sqlx.DB, tableName string) *DatabaseProvider {
 	return &DatabaseProvider{
 		db:        DB,
@@ -60,4 +62,8 @@ func (c *DatabaseProvider) Delete(id string) error {
 
 func (c *DatabaseProvider) IsWriteable() bool {
 	return true
+}
+
+func (c *DatabaseProvider) Source() ProviderSource {
+	return ProviderSourceDB
 }

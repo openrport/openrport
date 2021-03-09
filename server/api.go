@@ -314,6 +314,8 @@ func (al *APIListener) handleGetStatus(w http.ResponseWriter, req *http.Request)
 		"clients_disconnected": countDisconnected,
 		"fingerprint":          al.fingerprint,
 		"connect_url":          al.config.Server.URL,
+		"clients_auth_source":  al.clientAuthProvider.Source(),
+		"clients_auth_mode":    al.getClientsAuthMode(),
 	})
 	al.writeJSONResponse(w, http.StatusOK, response)
 }
@@ -738,6 +740,24 @@ func (al *APIListener) handleDeleteClientAuth(w http.ResponseWriter, req *http.R
 	al.Infof("ClientAuth %q deleted.", clientAuthID)
 
 	w.WriteHeader(http.StatusNoContent)
+}
+
+type clientsAuthMode string
+
+const (
+	clientsAuthModeRO = "Read Only"
+	clientsAuthModeRW = "Read Write"
+)
+
+func (al *APIListener) getClientsAuthMode() clientsAuthMode {
+	if al.isClientsAuthWriteable() {
+		return clientsAuthModeRW
+	}
+	return clientsAuthModeRO
+}
+
+func (al *APIListener) isClientsAuthWriteable() bool {
+	return al.clientAuthProvider.IsWriteable() && al.config.Server.AuthWrite
 }
 
 func (al *APIListener) allowClientAuthWrite(w http.ResponseWriter) bool {

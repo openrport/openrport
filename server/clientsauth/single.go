@@ -8,6 +8,8 @@ type SingleProvider struct {
 	client *ClientAuth
 }
 
+var _ Provider = &SingleProvider{}
+
 func NewSingleProvider(id, password string) *SingleProvider {
 	return &SingleProvider{
 		client: &ClientAuth{
@@ -39,4 +41,8 @@ func (c *SingleProvider) Delete(string) error {
 
 func (c *SingleProvider) IsWriteable() bool {
 	return false
+}
+
+func (c *SingleProvider) Source() ProviderSource {
+	return ProviderSourceStatic
 }

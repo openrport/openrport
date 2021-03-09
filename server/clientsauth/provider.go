@@ -1,5 +1,14 @@
 package clientsauth
 
+type ProviderSource string
+
+const (
+	ProviderSourceStatic ProviderSource = "Static Credentials"
+	ProviderSourceFile   ProviderSource = "File"
+	ProviderSourceDB     ProviderSource = "DB"
+	ProviderSourceMock   ProviderSource = "Mock"
+)
+
 type Provider interface {
 	// Get returns client authentication credentials from provider or nil
 	Get(id string) (*ClientAuth, error)
@@ -11,12 +20,16 @@ type Provider interface {
 	Delete(id string) error
 	// IsWriteable returns true if provider is writeable
 	IsWriteable() bool
+	// Source returns a provider source
+	Source() ProviderSource
 }
 
 // mockProvider is non thread safe in memory provider for use in tests
 type mockProvider struct {
 	clients map[string]*ClientAuth
 }
+
+var _ Provider = &mockProvider{}
 
 func NewMockProvider(clients []*ClientAuth) Provider {
 	p := &mockProvider{
@@ -55,4 +68,8 @@ func (p *mockProvider) Delete(id string) error {
 
 func (p *mockProvider) IsWriteable() bool {
 	return true
+}
+
+func (p *mockProvider) Source() ProviderSource {
+	return ProviderSourceMock
 }

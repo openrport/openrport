@@ -11,6 +11,8 @@ type CachedProvider struct {
 	mu       sync.RWMutex
 }
 
+var _ Provider = &CachedProvider{}
+
 // NewCachedProvider returns a thread-safe cache around the provider.
 func NewCachedProvider(provider Provider) (*CachedProvider, error) {
 	clients, err := provider.GetAll()
@@ -72,4 +74,8 @@ func (c *CachedProvider) Delete(id string) error {
 
 func (c *CachedProvider) IsWriteable() bool {
 	return c.provider.IsWriteable()
+}
+
+func (c *CachedProvider) Source() ProviderSource {
+	return c.provider.Source()
 }
