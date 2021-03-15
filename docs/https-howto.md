@@ -13,7 +13,7 @@ Open the `rportd.conf` file and enter the path to a certificate or certificate c
   #cert_file = "/var/lib/rport/server.crt"
   #key_file = "/var/lib/rport/server.key"
 ```
-If a cert_file and a key_file are specified, the protocol automatically switches from HTTP to HTTPs.
+If a `cert_file` and a `key_file` are specified, the protocol automatically switches from HTTP to HTTPs.
 
 If the IP address of your server has a public domain name you can generate a free certificate quite easily using Let's encrypt. 
 
@@ -55,4 +55,4 @@ Now set up your `rportd.conf` like this.
 
 Restart rportd after any changes to the configuration file. Check your SSL setup is working properly by executing `curl -Iv -u admin:foobaz https://$DOMAIN:3000/api/v1/status`. You should not get any errors.
 
-On Ubuntu a systemd timer to renew the certificates every 12 hours is created on the installation of the certbot package. For details look at `/etc/systemd/system/timers.target.wants/certbot.timer ` . On other distribution you might set up a cron manually that executes `certbot -q renew` every 12 hours.
+On Ubuntu a systemd timer to renew the certificates every 12 hours is created on the installation of the certbot package. For details look at `/etc/systemd/system/timers.target.wants/certbot.timer`. On other distribution you might set up a cron manually that executes `certbot -q renew` every 12 hours.
