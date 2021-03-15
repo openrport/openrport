@@ -5,7 +5,6 @@ The Rportd can read client credentials from three different sources.
 3. A database table
 
 Which one you choose is an either-or decision. A mixed-mode is not supported.
-If (2) or (3) is enabled then managing clients can be done via the API.
 
 If you select option 2 or 3 client access and the needed credentials can be managed through the API and the UI.
 
@@ -19,7 +18,7 @@ auth = "rport:a-strong-password12345"
 Make sure no other auth option is enabled.
 Reload rportd to activate the changes.
 Quite simple. Now you can run a client using the username `rport` and the password `a-strong-password12345`. It can be done in two ways:
-1. Use a command arg: `rport:a-strong-password12345`
+1. Use a command arg: `--auth rport:a-strong-password12345`
 2. Enter the following line to the client config(`rport.config`) in the `[client]` section.
 ```
 auth = "rport:a-strong-password12345"
