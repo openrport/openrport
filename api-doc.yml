@@ -166,6 +166,25 @@ paths:
           description: "Invalid Operation"
           schema:
             $ref: "#/definitions/ErrorPayload"
+  /me/ip:
+    get:
+      tags:
+        - "Login"
+      summary: "Return a public ip address of a client who makes the request."
+      description: ""
+      produces:
+        - "application/json"
+      responses:
+        "200":
+          description: "Client's ip address"
+          schema:
+            type: "object"
+            properties:
+              data:
+                type: "object"
+                properties:
+                  ip:
+                    type: "string"
   /status:
     get:
       tags:
