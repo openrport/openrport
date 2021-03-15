@@ -6,12 +6,14 @@ import (
 	"fmt"
 	"io"
 	"net/http"
+	"regexp"
 	"strconv"
 	"strings"
 	"time"
 
 	"github.com/gorilla/mux"
 	"github.com/gorilla/websocket"
+	"github.com/tomasen/realip"
 	"golang.org/x/crypto/ssh"
 
 	"github.com/cloudradar-monitoring/rport/server/api"
@@ -19,8 +21,8 @@ import (
 	"github.com/cloudradar-monitoring/rport/server/api/middleware"
 	"github.com/cloudradar-monitoring/rport/server/cgroups"
 	"github.com/cloudradar-monitoring/rport/server/clients"
+	"github.com/cloudradar-monitoring/rport/server/clientsauth"
 	"github.com/cloudradar-monitoring/rport/server/ports"
-	"github.com/cloudradar-monitoring/rport/server/sessions"
 	chshare "github.com/cloudradar-monitoring/rport/share"
 	"github.com/cloudradar-monitoring/rport/share/comm"
 	"github.com/cloudradar-monitoring/rport/share/models"
@@ -31,15 +33,13 @@ import (
 const (
 	queryParamSort = "sort"
 
-	routeParamSessionID = "session_id"
-	routeParamJobID     = "job_id"
-	routeParamGroupID   = "group_id"
+	routeParamClientID = "client_id"
+	routeParamJobID    = "job_id"
+	routeParamGroupID  = "group_id"
 
 	ErrCodeMissingRouteVar = "ERR_CODE_MISSING_ROUTE_VAR"
 	ErrCodeInvalidRequest  = "ERR_CODE_INVALID_REQUEST"
 	ErrCodeAlreadyExist    = "ERR_CODE_ALREADY_EXIST"
-
-	ErrCodeRunCmdDisabled = "ERR_CODE_RUN_CMD_DISABLED"
 )
 
 var validInputShell = []string{"cmd", "powershell"}
@@ -55,8 +55,8 @@ var apiUpgrader = websocket.Upgrader{
 }
 
 type JobProvider interface {
-	GetByJID(sid, jid string) (*models.Job, error)
-	GetSummariesBySID(sid string) ([]*models.JobSummary, error)
+	GetByJID(clientID, jid string) (*models.Job, error)
+	GetSummariesByClientID(clientID string) ([]*models.JobSummary, error)
 	GetByMultiJobID(jid string) ([]*models.Job, error)
 	// SaveJob creates or updates a job
 	SaveJob(job *models.Job) error
@@ -92,12 +92,13 @@ func (al *APIListener) initRouter() {
 	sub.HandleFunc("/login", al.handleGetLogin).Methods(http.MethodGet)
 	sub.HandleFunc("/status", al.handleGetStatus).Methods(http.MethodGet)
 	sub.HandleFunc("/me", al.handleGetMe).Methods(http.MethodGet)
-	sub.HandleFunc("/sessions", al.handleGetSessions).Methods(http.MethodGet)
-	sub.HandleFunc("/sessions/{session_id}/tunnels", al.handlePutSessionTunnel).Methods(http.MethodPut)
-	sub.HandleFunc("/sessions/{session_id}/tunnels/{tunnel_id}", al.handleDeleteSessionTunnel).Methods(http.MethodDelete)
-	sub.HandleFunc("/sessions/{session_id}/commands", al.handlePostCommand).Methods(http.MethodPost)
-	sub.HandleFunc("/sessions/{session_id}/commands", al.handleGetCommands).Methods(http.MethodGet)
-	sub.HandleFunc("/sessions/{session_id}/commands/{job_id}", al.handleGetCommand).Methods(http.MethodGet)
+	sub.HandleFunc("/me/ip", al.handleGetIP).Methods(http.MethodGet)
+	sub.HandleFunc("/clients", al.handleGetClients).Methods(http.MethodGet)
+	sub.HandleFunc("/clients/{client_id}/tunnels", al.handlePutClientTunnel).Methods(http.MethodPut)
+	sub.HandleFunc("/clients/{client_id}/tunnels/{tunnel_id}", al.handleDeleteClientTunnel).Methods(http.MethodDelete)
+	sub.HandleFunc("/clients/{client_id}/commands", al.handlePostCommand).Methods(http.MethodPost)
+	sub.HandleFunc("/clients/{client_id}/commands", al.handleGetCommands).Methods(http.MethodGet)
+	sub.HandleFunc("/clients/{client_id}/commands/{job_id}", al.handleGetCommand).Methods(http.MethodGet)
 	sub.HandleFunc("/client-groups", al.handleGetClientGroups).Methods(http.MethodGet)
 	sub.HandleFunc("/client-groups", al.handlePostClientGroups).Methods(http.MethodPost)
 	sub.HandleFunc("/client-groups/{group_id}", al.handlePutClientGroup).Methods(http.MethodPut)
@@ -106,9 +107,9 @@ func (al *APIListener) initRouter() {
 	sub.HandleFunc("/commands", al.handlePostMultiClientCommand).Methods(http.MethodPost)
 	sub.HandleFunc("/commands", al.handleGetMultiClientCommands).Methods(http.MethodGet)
 	sub.HandleFunc("/commands/{job_id}", al.handleGetMultiClientCommand).Methods(http.MethodGet)
-	sub.HandleFunc("/clients", al.handleGetClients).Methods(http.MethodGet)
-	sub.HandleFunc("/clients", al.handlePostClients).Methods(http.MethodPost)
-	sub.HandleFunc("/clients/{client_id}", al.handleDeleteClient).Methods(http.MethodDelete)
+	sub.HandleFunc("/clients-auth", al.handleGetClientsAuth).Methods(http.MethodGet)
+	sub.HandleFunc("/clients-auth", al.handlePostClientsAuth).Methods(http.MethodPost)
+	sub.HandleFunc("/clients-auth/{client_auth_id}", al.handleDeleteClientAuth).Methods(http.MethodDelete)
 
 	// add authorization middleware
 	if !al.insecureForTests {
@@ -297,40 +298,94 @@ func (al *APIListener) handleDeleteLogin(w http.ResponseWriter, req *http.Reques
 }
 
 func (al *APIListener) handleGetStatus(w http.ResponseWriter, req *http.Request) {
-	count, err := al.sessionService.Count()
+	countActive, err := al.clientService.CountActive()
+	if err != nil {
+		al.jsonErrorResponse(w, http.StatusInternalServerError, err)
+		return
+	}
+
+	countDisconnected, err := al.clientService.CountDisconnected()
 	if err != nil {
 		al.jsonErrorResponse(w, http.StatusInternalServerError, err)
 		return
 	}
 
 	response := api.NewSuccessPayload(map[string]interface{}{
-		"version":        chshare.BuildVersion,
-		"sessions_count": count,
-		"fingerprint":    al.fingerprint,
-		"connect_url":    al.config.Server.URL,
+		"version":              chshare.BuildVersion,
+		"clients_connected":    countActive,
+		"clients_disconnected": countDisconnected,
+		"fingerprint":          al.fingerprint,
+		"connect_url":          al.config.Server.URL,
+		"clients_auth_source":  al.clientAuthProvider.Source(),
+		"clients_auth_mode":    al.getClientsAuthMode(),
 	})
 	al.writeJSONResponse(w, http.StatusOK, response)
 }
 
-func (al *APIListener) handleGetSessions(w http.ResponseWriter, req *http.Request) {
+func (al *APIListener) handleGetClients(w http.ResponseWriter, req *http.Request) {
 	sortFunc, desc, err := getCorrespondingSortFunc(req.URL.Query().Get(queryParamSort))
 	if err != nil {
 		al.jsonErrorResponse(w, http.StatusBadRequest, err)
 		return
 	}
 
-	clientSessions, err := al.sessionService.GetAll()
+	clients, err := al.clientService.GetAll()
 	if err != nil {
 		al.jsonErrorResponse(w, http.StatusInternalServerError, err)
 		return
 	}
 
-	sortFunc(clientSessions, desc)
+	sortFunc(clients, desc)
 
-	al.writeJSONResponse(w, http.StatusOK, api.NewSuccessPayload(clientSessions))
+	clientsPayload := convertToClientsPayload(clients)
+	al.writeJSONResponse(w, http.StatusOK, api.NewSuccessPayload(clientsPayload))
 }
 
-func getCorrespondingSortFunc(sortStr string) (sortFunc func(a []*sessions.ClientSession, desc bool), desc bool, err error) {
+type ClientPayload struct {
+	ID              string                  `json:"id"`
+	Name            string                  `json:"name"`
+	OS              string                  `json:"os"`
+	OSArch          string                  `json:"os_arch"`
+	OSFamily        string                  `json:"os_family"`
+	OSKernel        string                  `json:"os_kernel"`
+	Hostname        string                  `json:"hostname"`
+	IPv4            []string                `json:"ipv4"`
+	IPv6            []string                `json:"ipv6"`
+	Tags            []string                `json:"tags"`
+	Version         string                  `json:"version"`
+	Address         string                  `json:"address"`
+	Tunnels         []*clients.Tunnel       `json:"tunnels"`
+	DisconnectedAt  *time.Time              `json:"disconnected_at"`
+	ConnectionState clients.ConnectionState `json:"connection_state"`
+	ClientAuthID    string                  `json:"client_auth_id"`
+}
+
+func convertToClientsPayload(clients []*clients.Client) []ClientPayload {
+	r := make([]ClientPayload, 0, len(clients))
+	for _, cur := range clients {
+		r = append(r, ClientPayload{
+			ID:              cur.ID,
+			Name:            cur.Name,
+			OS:              cur.OS,
+			OSArch:          cur.OSArch,
+			OSFamily:        cur.OSFamily,
+			OSKernel:        cur.OSKernel,
+			Hostname:        cur.Hostname,
+			IPv4:            cur.IPv4,
+			IPv6:            cur.IPv6,
+			Tags:            cur.Tags,
+			Version:         cur.Version,
+			Address:         cur.Address,
+			Tunnels:         cur.Tunnels,
+			DisconnectedAt:  cur.DisconnectedAt,
+			ConnectionState: cur.ConnectionState(),
+			ClientAuthID:    cur.ClientAuthID,
+		})
+	}
+	return r
+}
+
+func getCorrespondingSortFunc(sortStr string) (sortFunc func(a []*clients.Client, desc bool), desc bool, err error) {
 	var sortField string
 	if strings.HasPrefix(sortStr, "-") {
 		desc = true
@@ -341,17 +396,17 @@ func getCorrespondingSortFunc(sortStr string) (sortFunc func(a []*sessions.Clien
 
 	switch sortField {
 	case "":
-		sortFunc = sessions.SortByID
+		sortFunc = clients.SortByID
 	case "id":
-		sortFunc = sessions.SortByID
+		sortFunc = clients.SortByID
 	case "name":
-		sortFunc = sessions.SortByName
+		sortFunc = clients.SortByName
 	case "os":
-		sortFunc = sessions.SortByOS
+		sortFunc = clients.SortByOS
 	case "hostname":
-		sortFunc = sessions.SortByHostname
+		sortFunc = clients.SortByHostname
 	case "version":
-		sortFunc = sessions.SortByVersion
+		sortFunc = clients.SortByVersion
 	default:
 		err = fmt.Errorf("incorrect format of %q query param", queryParamSort)
 	}
@@ -361,28 +416,29 @@ func getCorrespondingSortFunc(sortStr string) (sortFunc func(a []*sessions.Clien
 const (
 	URISchemeMaxLength = 15
 
-	ErrCodePortInUse             = "ERR_CODE_PORT_IN_USE"
-	ErrCodePortNotOpen           = "ERR_CODE_PORT_NOT_OPEN"
+	ErrCodeLocalPortInUse        = "ERR_CODE_LOCAL_PORT_IN_USE"
+	ErrCodeRemotePortNotOpen     = "ERR_CODE_REMOTE_PORT_NOT_OPEN"
 	ErrCodeTunnelExist           = "ERR_CODE_TUNNEL_EXIST"
 	ErrCodeTunnelToPortExist     = "ERR_CODE_TUNNEL_TO_PORT_EXIST"
 	ErrCodeURISchemeLengthExceed = "ERR_CODE_URI_SCHEME_LENGTH_EXCEED"
+	ErrCodeInvalidACL            = "ERR_CODE_INVALID_ACL"
 )
 
-func (al *APIListener) handlePutSessionTunnel(w http.ResponseWriter, req *http.Request) {
+func (al *APIListener) handlePutClientTunnel(w http.ResponseWriter, req *http.Request) {
 	vars := mux.Vars(req)
-	sessionID, exists := vars[routeParamSessionID]
-	if !exists || sessionID == "" {
-		al.jsonErrorResponse(w, http.StatusBadRequest, al.FormatError("invalid session id supplied: %s", sessionID))
+	clientID, exists := vars[routeParamClientID]
+	if !exists || clientID == "" {
+		al.jsonErrorResponseWithTitle(w, http.StatusBadRequest, "client id is missing")
 		return
 	}
 
-	session, err := al.sessionService.GetActiveByID(sessionID)
+	client, err := al.clientService.GetActiveByID(clientID)
 	if err != nil {
 		al.jsonErrorResponse(w, http.StatusInternalServerError, err)
 		return
 	}
-	if session == nil {
-		al.jsonErrorResponse(w, http.StatusNotFound, al.FormatError("session not found"))
+	if client == nil {
+		al.jsonErrorResponseWithTitle(w, http.StatusNotFound, fmt.Sprintf("client with id %s not found", clientID))
 		return
 	}
 
@@ -394,13 +450,13 @@ func (al *APIListener) handlePutSessionTunnel(w http.ResponseWriter, req *http.R
 	}
 	remote, err := chshare.DecodeRemote(remoteStr)
 	if err != nil {
-		al.jsonErrorResponse(w, http.StatusBadRequest, al.FormatError("invalid request: %s", err))
+		al.jsonErrorResponseWithTitle(w, http.StatusBadRequest, fmt.Sprintf("failed to decode %q: %v", remoteStr, err))
 		return
 	}
 
 	aclStr := req.URL.Query().Get("acl")
-	if _, err = sessions.ParseTunnelACL(aclStr); err != nil {
-		al.jsonErrorResponse(w, http.StatusBadRequest, al.FormatError("invalid request: %s", err))
+	if _, err = clients.ParseTunnelACL(aclStr); err != nil {
+		al.jsonErrorResponseWithErrCode(w, http.StatusBadRequest, ErrCodeInvalidACL, fmt.Sprintf("Invalid ACL: %s", err))
 		return
 	}
 	if aclStr != "" {
@@ -416,12 +472,12 @@ func (al *APIListener) handlePutSessionTunnel(w http.ResponseWriter, req *http.R
 		remote.Scheme = &schemeStr
 	}
 
-	if existing := session.FindTunnelByRemote(remote); existing != nil {
+	if existing := client.FindTunnelByRemote(remote); existing != nil {
 		al.jsonErrorResponseWithErrCode(w, http.StatusBadRequest, ErrCodeTunnelExist, "Tunnel already exist.")
 		return
 	}
 
-	for _, t := range session.Tunnels {
+	for _, t := range client.Tunnels {
 		if t.Remote.Remote() == remote.Remote() {
 			al.jsonErrorResponseWithErrCode(w, http.StatusBadRequest, ErrCodeTunnelToPortExist, fmt.Sprintf("Tunnel to port %s already exist.", remote.RemotePort))
 			return
@@ -429,22 +485,22 @@ func (al *APIListener) handlePutSessionTunnel(w http.ResponseWriter, req *http.R
 	}
 
 	if checkPortStr := req.URL.Query().Get("check_port"); checkPortStr != "0" {
-		if !al.checkRemotePort(w, *remote, session.Connection) {
+		if !al.checkRemotePort(w, *remote, client.Connection) {
 			return
 		}
 	}
 
 	// make next steps thread-safe
-	session.Lock()
-	defer session.Unlock()
+	client.Lock()
+	defer client.Unlock()
 
 	if remote.IsLocalSpecified() && !al.checkLocalPort(w, remote.LocalPort) {
 		return
 	}
 
-	tunnels, err := al.sessionService.StartSessionTunnels(session, []*chshare.Remote{remote})
+	tunnels, err := al.clientService.StartClientTunnels(client, []*chshare.Remote{remote})
 	if err != nil {
-		al.jsonErrorResponse(w, http.StatusConflict, al.FormatError("can't create tunnel: %s", err))
+		al.jsonErrorResponse(w, http.StatusConflict, fmt.Errorf("can't create tunnel: %s", err))
 		return
 	}
 	response := api.NewSuccessPayload(tunnels[0])
@@ -465,7 +521,7 @@ func (al *APIListener) checkLocalPort(w http.ResponseWriter, localPort string) b
 	}
 
 	if busyPorts.Contains(lport) {
-		al.jsonErrorResponseWithErrCode(w, http.StatusBadRequest, ErrCodePortInUse, fmt.Sprintf("Port %d already in use.", lport))
+		al.jsonErrorResponseWithErrCode(w, http.StatusBadRequest, ErrCodeLocalPortInUse, fmt.Sprintf("Port %d already in use.", lport))
 		return false
 	}
 
@@ -481,7 +537,7 @@ func (al *APIListener) checkRemotePort(w http.ResponseWriter, remote chshare.Rem
 	err := comm.SendRequestAndGetResponse(conn, comm.RequestTypeCheckPort, req, resp)
 	if err != nil {
 		if _, ok := err.(*comm.ClientError); ok {
-			al.jsonErrorResponseWithTitle(w, http.StatusConflict, err.Error())
+			al.jsonErrorResponse(w, http.StatusConflict, err)
 		} else {
 			al.jsonErrorResponse(w, http.StatusInternalServerError, err)
 		}
@@ -492,7 +548,7 @@ func (al *APIListener) checkRemotePort(w http.ResponseWriter, remote chshare.Rem
 		al.jsonErrorResponseWithDetail(
 			w,
 			http.StatusBadRequest,
-			ErrCodePortNotOpen,
+			ErrCodeRemotePortNotOpen,
 			fmt.Sprintf("Port %s is not in listening state.", remote.RemotePort),
 			resp.ErrMsg,
 		)
@@ -502,41 +558,41 @@ func (al *APIListener) checkRemotePort(w http.ResponseWriter, remote chshare.Rem
 	return true
 }
 
-func (al *APIListener) handleDeleteSessionTunnel(w http.ResponseWriter, req *http.Request) {
+func (al *APIListener) handleDeleteClientTunnel(w http.ResponseWriter, req *http.Request) {
 	vars := mux.Vars(req)
-	sessionID, exists := vars[routeParamSessionID]
-	if !exists || sessionID == "" {
-		al.jsonErrorResponse(w, http.StatusBadRequest, al.FormatError("invalid session id supplied: %s", sessionID))
+	clientID, exists := vars[routeParamClientID]
+	if !exists || clientID == "" {
+		al.jsonErrorResponseWithTitle(w, http.StatusBadRequest, "client id is missing")
 		return
 	}
 
-	session, err := al.sessionService.GetActiveByID(sessionID)
+	client, err := al.clientService.GetActiveByID(clientID)
 	if err != nil {
 		al.jsonErrorResponse(w, http.StatusInternalServerError, err)
 		return
 	}
-	if session == nil {
-		al.jsonErrorResponse(w, http.StatusNotFound, al.FormatError("session not found"))
+	if client == nil {
+		al.jsonErrorResponseWithTitle(w, http.StatusNotFound, fmt.Sprintf("client with id %s not found", clientID))
 		return
 	}
 
 	tunnelID, exists := vars["tunnel_id"]
 	if !exists || tunnelID == "" {
-		al.jsonErrorResponse(w, http.StatusBadRequest, al.FormatError("invalid tunnel id supplied: %s", sessionID))
+		al.jsonErrorResponseWithTitle(w, http.StatusBadRequest, "tunnel id is missing")
 		return
 	}
 
 	// make next steps thread-safe
-	session.Lock()
-	defer session.Unlock()
+	client.Lock()
+	defer client.Unlock()
 
-	tunnel := session.FindTunnel(tunnelID)
+	tunnel := client.FindTunnel(tunnelID)
 	if tunnel == nil {
-		al.jsonErrorResponse(w, http.StatusNotFound, al.FormatError("tunnel not found"))
+		al.jsonErrorResponseWithTitle(w, http.StatusNotFound, "tunnel not found")
 		return
 	}
 
-	session.TerminateTunnel(tunnel)
+	client.TerminateTunnel(tunnel)
 
 	w.WriteHeader(http.StatusNoContent)
 }
@@ -555,13 +611,13 @@ func (al *APIListener) handleGetMe(w http.ResponseWriter, req *http.Request) {
 		return
 	}
 	if user == nil {
-		al.jsonErrorResponse(w, http.StatusNotFound, al.FormatError("user not found"))
+		al.jsonErrorResponseWithTitle(w, http.StatusNotFound, "user not found")
 		return
 	}
 
 	me := struct {
 		User   string   `json:"user"`
-		Groups []string `json:"groups,omitempty"`
+		Groups []string `json:"groups"`
 	}{
 		User:   user.Username,
 		Groups: user.Groups,
@@ -570,34 +626,43 @@ func (al *APIListener) handleGetMe(w http.ResponseWriter, req *http.Request) {
 	al.writeJSONResponse(w, http.StatusOK, response)
 }
 
+func (al *APIListener) handleGetIP(w http.ResponseWriter, req *http.Request) {
+	ipResp := struct {
+		IP string `json:"ip"`
+	}{
+		IP: realip.FromRequest(req),
+	}
+	al.writeJSONResponse(w, http.StatusOK, api.NewSuccessPayload(ipResp))
+}
+
 const (
 	MinCredentialsLength = 3
 
 	ErrCodeClientAuthSingleClient = "ERR_CODE_CLIENT_AUTH_SINGLE"
 	ErrCodeClientAuthRO           = "ERR_CODE_CLIENT_AUTH_RO"
 
-	ErrCodeClientHasSession = "ERR_CODE_CLIENT_HAS_SESSION"
-	ErrCodeClientNotFound   = "ERR_CODE_CLIENT_NOT_FOUND"
+	ErrCodeClientAuthHasClient = "ERR_CODE_CLIENT_AUTH_HAS_CLIENT"
+	ErrCodeClientAuthNotFound  = "ERR_CODE_CLIENT_AUTH_NOT_FOUND"
 )
 
-func (al *APIListener) handleGetClients(w http.ResponseWriter, req *http.Request) {
-	rClients, err := al.clientProvider.GetAll()
+func (al *APIListener) handleGetClientsAuth(w http.ResponseWriter, req *http.Request) {
+	rClients, err := al.clientAuthProvider.GetAll()
 	if err != nil {
 		al.jsonErrorResponse(w, http.StatusInternalServerError, err)
 		return
 	}
 
-	clients.SortByID(rClients, false)
+	clientsauth.SortByID(rClients, false)
 
 	al.writeJSONResponse(w, http.StatusOK, api.NewSuccessPayload(rClients))
 }
 
-func (al *APIListener) handlePostClients(w http.ResponseWriter, req *http.Request) {
+func (al *APIListener) handlePostClientsAuth(w http.ResponseWriter, req *http.Request) {
 	if !al.allowClientAuthWrite(w) {
 		return
 	}
 
-	var newClient clients.Client
+	var newClient clientsauth.ClientAuth
 	err := json.NewDecoder(req.Body).Decode(&newClient)
 	if err == io.EOF {
 		al.jsonErrorResponseWithErrCode(w, http.StatusBadRequest, ErrCodeInvalidRequest, "Missing data.")
@@ -617,30 +682,30 @@ func (al *APIListener) handlePostClients(w http.ResponseWriter, req *http.Reques
 		return
 	}
 
-	added, err := al.clientProvider.Add(&newClient)
+	added, err := al.clientAuthProvider.Add(&newClient)
 	if err != nil {
 		al.jsonErrorResponse(w, http.StatusInternalServerError, err)
 		return
 	}
 	if !added {
-		al.jsonErrorResponseWithDetail(w, http.StatusConflict, ErrCodeAlreadyExist, fmt.Sprintf("Client with ID %q already exist.", newClient.ID), "")
+		al.jsonErrorResponseWithDetail(w, http.StatusConflict, ErrCodeAlreadyExist, fmt.Sprintf("Client Auth with ID %q already exist.", newClient.ID), "")
 		return
 	}
 
-	al.Infof("Client %q created.", newClient.ID)
+	al.Infof("ClientAuth %q created.", newClient.ID)
 
 	w.WriteHeader(http.StatusCreated)
 }
 
-func (al *APIListener) handleDeleteClient(w http.ResponseWriter, req *http.Request) {
+func (al *APIListener) handleDeleteClientAuth(w http.ResponseWriter, req *http.Request) {
 	if !al.allowClientAuthWrite(w) {
 		return
 	}
 
 	vars := mux.Vars(req)
-	clientID := vars["client_id"]
-	if clientID == "" {
-		al.jsonErrorResponseWithErrCode(w, http.StatusBadRequest, ErrCodeMissingRouteVar, "Missing 'client_id' route param.")
+	clientAuthID := vars["client_auth_id"]
+	if clientAuthID == "" {
+		al.jsonErrorResponseWithErrCode(w, http.StatusBadRequest, ErrCodeMissingRouteVar, "Missing 'client_auth_id' route param.")
 		return
 	}
 
@@ -655,41 +720,59 @@ func (al *APIListener) handleDeleteClient(w http.ResponseWriter, req *http.Reque
 		}
 	}
 
-	existing, err := al.clientProvider.Get(clientID)
+	existing, err := al.clientAuthProvider.Get(clientAuthID)
 	if err != nil {
 		al.jsonErrorResponse(w, http.StatusInternalServerError, err)
 		return
 	}
 	if existing == nil {
-		al.jsonErrorResponseWithErrCode(w, http.StatusBadRequest, ErrCodeClientNotFound, fmt.Sprintf("Client with ID=%q not found.", clientID))
+		al.jsonErrorResponseWithErrCode(w, http.StatusNotFound, ErrCodeClientAuthNotFound, fmt.Sprintf("Client Auth with ID=%q not found.", clientAuthID))
 		return
 	}
 
-	allSessions := al.sessionService.GetAllByClientID(clientID)
-	if !force && len(allSessions) > 0 {
-		al.jsonErrorResponseWithErrCode(w, http.StatusConflict, ErrCodeClientHasSession, fmt.Sprintf("Client expected to have no active or disconnected session(s), got %d.", len(allSessions)))
+	allClients := al.clientService.GetAllByClientID(clientAuthID)
+	if !force && len(allClients) > 0 {
+		al.jsonErrorResponseWithErrCode(w, http.StatusConflict, ErrCodeClientAuthHasClient, fmt.Sprintf("Client Auth expected to have no active or disconnected bound client(s), got %d.", len(allClients)))
 		return
 	}
 
-	for _, s := range allSessions {
-		if err := al.sessionService.ForceDelete(s); err != nil {
+	for _, s := range allClients {
+		if err := al.clientService.ForceDelete(s); err != nil {
 			al.jsonErrorResponse(w, http.StatusInternalServerError, err)
 			return
 		}
 	}
 
-	err = al.clientProvider.Delete(clientID)
+	err = al.clientAuthProvider.Delete(clientAuthID)
 	if err != nil {
 		al.jsonErrorResponse(w, http.StatusInternalServerError, err)
 		return
 	}
-	al.Infof("Client %q deleted.", clientID)
+	al.Infof("ClientAuth %q deleted.", clientAuthID)
 
 	w.WriteHeader(http.StatusNoContent)
 }
 
+type clientsAuthMode string
+
+const (
+	clientsAuthModeRO = "Read Only"
+	clientsAuthModeRW = "Read Write"
+)
+
+func (al *APIListener) getClientsAuthMode() clientsAuthMode {
+	if al.isClientsAuthWriteable() {
+		return clientsAuthModeRW
+	}
+	return clientsAuthModeRO
+}
+
+func (al *APIListener) isClientsAuthWriteable() bool {
+	return al.clientAuthProvider.IsWriteable() && al.config.Server.AuthWrite
+}
+
 func (al *APIListener) allowClientAuthWrite(w http.ResponseWriter) bool {
-	if !al.clientProvider.IsWriteable() {
+	if !al.clientAuthProvider.IsWriteable() {
 		al.jsonErrorResponseWithErrCode(w, http.StatusMethodNotAllowed, ErrCodeClientAuthSingleClient, "Client authentication is enabled only for a single user.")
 		return false
 	}
@@ -703,14 +786,10 @@ func (al *APIListener) allowClientAuthWrite(w http.ResponseWriter) bool {
 }
 
 func (al *APIListener) handlePostCommand(w http.ResponseWriter, req *http.Request) {
-	if !al.allowRunCommands(w) {
-		return
-	}
-
 	vars := mux.Vars(req)
-	sid := vars[routeParamSessionID]
-	if sid == "" {
-		al.jsonErrorResponseWithTitle(w, http.StatusBadRequest, fmt.Sprintf("Missing %q route param.", routeParamSessionID))
+	cid := vars[routeParamClientID]
+	if cid == "" {
+		al.jsonErrorResponseWithTitle(w, http.StatusBadRequest, fmt.Sprintf("Missing %q route param.", routeParamClientID))
 		return
 	}
 
@@ -742,13 +821,13 @@ func (al *APIListener) handlePostCommand(w http.ResponseWriter, req *http.Reques
 		reqBody.TimeoutSec = al.config.Server.RunRemoteCmdTimeoutSec
 	}
 
-	session, err := al.sessionService.GetActiveByID(sid)
+	client, err := al.clientService.GetActiveByID(cid)
 	if err != nil {
-		al.jsonErrorResponseWithError(w, http.StatusInternalServerError, "", fmt.Sprintf("Failed to find an active client session with id=%q.", sid), err)
+		al.jsonErrorResponseWithError(w, http.StatusInternalServerError, "", fmt.Sprintf("Failed to find an active client with id=%q.", cid), err)
 		return
 	}
-	if session == nil {
-		al.jsonErrorResponseWithTitle(w, http.StatusNotFound, fmt.Sprintf("Active session with id=%q not found.", sid))
+	if client == nil {
+		al.jsonErrorResponseWithTitle(w, http.StatusNotFound, fmt.Sprintf("Active client with id=%q not found.", cid))
 		return
 	}
 
@@ -760,7 +839,7 @@ func (al *APIListener) handlePostCommand(w http.ResponseWriter, req *http.Reques
 			JID:        generateNewJobID(),
 			FinishedAt: nil,
 		},
-		SID:        sid,
+		ClientID:   cid,
 		Command:    reqBody.Command,
 		Shell:      reqBody.Shell,
 		CreatedBy:  api.GetUser(req.Context(), al.Logger),
@@ -768,7 +847,7 @@ func (al *APIListener) handlePostCommand(w http.ResponseWriter, req *http.Reques
 		Result:     nil,
 	}
 	sshResp := &comm.RunCmdResponse{}
-	err = comm.SendRequestAndGetResponse(session.Connection, comm.RequestTypeRunCmd, curJob, sshResp)
+	err = comm.SendRequestAndGetResponse(client.Connection, comm.RequestTypeRunCmd, curJob, sshResp)
 	if err != nil {
 		if _, ok := err.(*comm.ClientError); ok {
 			al.jsonErrorResponseWithTitle(w, http.StatusConflict, err.Error())
@@ -795,7 +874,7 @@ func (al *APIListener) handlePostCommand(w http.ResponseWriter, req *http.Reques
 	}
 	al.writeJSONResponse(w, http.StatusOK, api.NewSuccessPayload(resp))
 
-	al.Debugf("Job[id=%q] created to execute remote command on client with sessionID=%q: %q.", curJob.JID, sid, reqBody.Command)
+	al.Debugf("Job[id=%q] created to execute remote command on client with id=%q: %q.", curJob.JID, cid, reqBody.Command)
 }
 
 func validateShell(shell string) error {
@@ -811,20 +890,16 @@ func validateShell(shell string) error {
 }
 
 func (al *APIListener) handleGetCommands(w http.ResponseWriter, req *http.Request) {
-	if !al.allowRunCommands(w) {
-		return
-	}
-
 	vars := mux.Vars(req)
-	sid := vars[routeParamSessionID]
-	if sid == "" {
-		al.jsonErrorResponseWithTitle(w, http.StatusBadRequest, fmt.Sprintf("Missing %q route param.", routeParamSessionID))
+	cid := vars[routeParamClientID]
+	if cid == "" {
+		al.jsonErrorResponseWithTitle(w, http.StatusBadRequest, fmt.Sprintf("Missing %q route param.", routeParamClientID))
 		return
 	}
 
-	res, err := al.jobProvider.GetSummariesBySID(sid)
+	res, err := al.jobProvider.GetSummariesByClientID(cid)
 	if err != nil {
-		al.jsonErrorResponseWithError(w, http.StatusInternalServerError, "", fmt.Sprintf("Failed to get client jobs: session_id=%q.", sid), err)
+		al.jsonErrorResponseWithError(w, http.StatusInternalServerError, "", fmt.Sprintf("Failed to get client jobs: client_id=%q.", cid), err)
 		return
 	}
 
@@ -833,14 +908,10 @@ func (al *APIListener) handleGetCommands(w http.ResponseWriter, req *http.Reques
 }
 
 func (al *APIListener) handleGetCommand(w http.ResponseWriter, req *http.Request) {
-	if !al.allowRunCommands(w) {
-		return
-	}
-
 	vars := mux.Vars(req)
-	sid := vars[routeParamSessionID]
-	if sid == "" {
-		al.jsonErrorResponseWithTitle(w, http.StatusBadRequest, fmt.Sprintf("Missing %q route param.", routeParamSessionID))
+	cid := vars[routeParamClientID]
+	if cid == "" {
+		al.jsonErrorResponseWithTitle(w, http.StatusBadRequest, fmt.Sprintf("Missing %q route param.", routeParamClientID))
 		return
 	}
 	jid := vars[routeParamJobID]
@@ -849,7 +920,7 @@ func (al *APIListener) handleGetCommand(w http.ResponseWriter, req *http.Request
 		return
 	}
 
-	job, err := al.jobProvider.GetByJID(sid, jid)
+	job, err := al.jobProvider.GetByJID(cid, jid)
 	if err != nil {
 		al.jsonErrorResponseWithError(w, http.StatusInternalServerError, "", fmt.Sprintf("Failed to find a job[id=%q].", jid), err)
 		return
@@ -878,10 +949,6 @@ type multiClientCmdRequest struct {
 
 // TODO: refactor to reuse similar code for REST API and WebSocket to execute cmds if both will be supported
 func (al *APIListener) handlePostMultiClientCommand(w http.ResponseWriter, req *http.Request) {
-	if !al.allowRunCommands(w) {
-		return
-	}
-
 	ctx := req.Context()
 	reqBody := multiClientCmdRequest{}
 	dec := json.NewDecoder(req.Body)
@@ -920,7 +987,7 @@ func (al *APIListener) handlePostMultiClientCommand(w http.ResponseWriter, req *
 		}
 		groups = append(groups, group)
 	}
-	groupClients := al.sessionService.GetActiveByGroups(groups)
+	groupClients := al.clientService.GetActiveByGroups(groups)
 
 	if len(reqBody.GroupIDs) > 0 && len(groupClients) == 0 && len(reqBody.ClientIDs) == 0 {
 		al.jsonErrorResponseWithTitle(w, http.StatusBadRequest, "No active clients belong to the selected group(s).")
@@ -934,26 +1001,29 @@ func (al *APIListener) handlePostMultiClientCommand(w http.ResponseWriter, req *
 	}
 
 	clientsConn := make(map[string]ssh.Conn)
-	for _, sid := range reqBody.ClientIDs {
-		session, err := al.sessionService.GetByID(sid)
+	for _, cid := range reqBody.ClientIDs {
+		client, err := al.clientService.GetByID(cid)
 		if err != nil {
-			al.jsonErrorResponseWithError(w, http.StatusInternalServerError, "", fmt.Sprintf("Failed to find a client session with id=%q.", sid), err)
+			al.jsonErrorResponseWithError(w, http.StatusInternalServerError, "", fmt.Sprintf("Failed to find a client with id=%q.", cid), err)
 			return
 		}
-		if session == nil {
-			al.jsonErrorResponseWithTitle(w, http.StatusNotFound, fmt.Sprintf("Session with id=%q not found.", sid))
+		if client == nil {
+			al.jsonErrorResponseWithTitle(w, http.StatusNotFound, fmt.Sprintf("Client with id=%q not found.", cid))
 			return
 		}
-		if session.Disconnected != nil {
-			al.jsonErrorResponseWithTitle(w, http.StatusBadRequest, fmt.Sprintf("Session with id=%q is not active.", sid))
+		if client.DisconnectedAt != nil {
+			al.jsonErrorResponseWithTitle(w, http.StatusBadRequest, fmt.Sprintf("Client with id=%q is not active.", cid))
 			return
 		}
-		clientsConn[sid] = session.Connection
+		clientsConn[cid] = client.Connection
 	}
 
+	var orderedClientIDs []string
+	orderedClientIDs = append(orderedClientIDs, reqBody.ClientIDs...)
 	for _, groupClient := range groupClients {
 		if clientsConn[groupClient.ID] == nil {
 			clientsConn[groupClient.ID] = groupClient.Connection
+			orderedClientIDs = append(orderedClientIDs, groupClient.ID)
 		}
 	}
 
@@ -989,10 +1059,10 @@ func (al *APIListener) handlePostMultiClientCommand(w http.ResponseWriter, req *
 
 	al.Debugf("Multi-client Job[id=%q] created to execute remote command on clients %s, groups %s: %q.", multiJob.JID, reqBody.ClientIDs, reqBody.GroupIDs, reqBody.Command)
 
-	go al.executeMultiClientJob(multiJob, clientsConn)
+	go al.executeMultiClientJob(multiJob, clientsConn, orderedClientIDs)
 }
 
-func (al *APIListener) executeMultiClientJob(job *models.MultiJob, clientsConn map[string]ssh.Conn) {
+func (al *APIListener) executeMultiClientJob(job *models.MultiJob, clientsConn map[string]ssh.Conn, orderedClientIDs []string) {
 	// for sequential execution - create a channel to get the job result
 	var curJobDoneChannel chan *models.Job
 	if !job.Concurrent {
@@ -1003,13 +1073,17 @@ func (al *APIListener) executeMultiClientJob(job *models.MultiJob, clientsConn m
 			al.jobsDoneChannel.Del(job.JID)
 		}()
 	}
-	for sid, conn := range clientsConn {
+	for _, cid := range orderedClientIDs {
+		conn := clientsConn[cid]
 		if job.Concurrent {
-			go al.createAndRunJob(job.JID, sid, job.Command, job.Shell, job.CreatedBy, job.TimeoutSec, conn)
+			go al.createAndRunJob(job.JID, cid, job.Command, job.Shell, job.CreatedBy, job.TimeoutSec, conn)
 		} else {
-			success := al.createAndRunJob(job.JID, sid, job.Command, job.Shell, job.CreatedBy, job.TimeoutSec, conn)
-			if !success && job.AbortOnErr {
-				break
+			success := al.createAndRunJob(job.JID, cid, job.Command, job.Shell, job.CreatedBy, job.TimeoutSec, conn)
+			if !success {
+				if job.AbortOnErr {
+					break
+				}
+				continue
 			}
 
 			// in tests skip next part to avoid waiting
@@ -1029,14 +1103,14 @@ func (al *APIListener) executeMultiClientJob(job *models.MultiJob, clientsConn m
 	}
 }
 
-func (al *APIListener) createAndRunJob(jid, sid, cmd, shell, createdBy string, timeoutSec int, conn ssh.Conn) bool {
+func (al *APIListener) createAndRunJob(jid, cid, cmd, shell, createdBy string, timeoutSec int, conn ssh.Conn) bool {
 	// send the command to the client
 	curJob := models.Job{
 		JobSummary: models.JobSummary{
 			JID: generateNewJobID(),
 		},
 		StartedAt:  time.Now(),
-		SID:        sid,
+		ClientID:   cid,
 		Command:    cmd,
 		Shell:      shell,
 		CreatedBy:  createdBy,
@@ -1048,7 +1122,7 @@ func (al *APIListener) createAndRunJob(jid, sid, cmd, shell, createdBy string, t
 	// return an error after saving the job
 	if err != nil {
 		// failure, set fields to mark it as failed
-		al.Errorf("multi_client_id=%q, sid=%q, Error on execute remote command: %v", *curJob.MultiJobID, curJob.SID, err)
+		al.Errorf("multi_client_id=%q, client_id=%q, Error on execute remote command: %v", *curJob.MultiJobID, curJob.ClientID, err)
 		curJob.Status = models.JobStatusFailed
 		now := time.Now()
 		curJob.FinishedAt = &now
@@ -1062,17 +1136,13 @@ func (al *APIListener) createAndRunJob(jid, sid, cmd, shell, createdBy string, t
 
 	if dbErr := al.jobProvider.CreateJob(&curJob); dbErr != nil {
 		// just log it, cmd is running, when it's finished it can be saved on result return
-		al.Errorf("multi_client_id=%q, sid=%q, Failed to persist a child job: %v", *curJob.MultiJobID, curJob.SID, dbErr)
+		al.Errorf("multi_client_id=%q, client_id=%q, Failed to persist a child job: %v", *curJob.MultiJobID, curJob.ClientID, dbErr)
 	}
 
 	return err == nil
 }
 
 func (al *APIListener) handleCommandsWS(w http.ResponseWriter, req *http.Request) {
-	if !al.allowRunCommands(w) {
-		return
-	}
-
 	ctx := req.Context()
 	uiConn, err := apiUpgrader.Upgrade(w, req, nil)
 	if err != nil {
@@ -1116,7 +1186,7 @@ func (al *APIListener) handleCommandsWS(w http.ResponseWriter, req *http.Request
 		}
 		groups = append(groups, group)
 	}
-	groupClients := al.sessionService.GetActiveByGroups(groups)
+	groupClients := al.clientService.GetActiveByGroups(groups)
 
 	if len(inboundMsg.GroupIDs) > 0 && len(groupClients) == 0 && len(inboundMsg.ClientIDs) == 0 {
 		uiConnTS.WriteError("No active clients belong to the selected group(s).", nil)
@@ -1129,26 +1199,29 @@ func (al *APIListener) handleCommandsWS(w http.ResponseWriter, req *http.Request
 	}
 
 	clientsConn := make(map[string]ssh.Conn)
-	for _, sid := range inboundMsg.ClientIDs {
-		session, err := al.sessionService.GetByID(sid)
+	for _, cid := range inboundMsg.ClientIDs {
+		client, err := al.clientService.GetByID(cid)
 		if err != nil {
-			uiConnTS.WriteError(fmt.Sprintf("Failed to find a client session with id=%q.", sid), err)
+			uiConnTS.WriteError(fmt.Sprintf("Failed to find a client with id=%q.", cid), err)
 			return
 		}
-		if session == nil {
-			uiConnTS.WriteError(fmt.Sprintf("Session with id=%q not found.", sid), nil)
+		if client == nil {
+			uiConnTS.WriteError(fmt.Sprintf("Client with id=%q not found.", cid), nil)
 			return
 		}
-		if session.Disconnected != nil {
-			uiConnTS.WriteError(fmt.Sprintf("Session with id=%q is not active.", sid), nil)
+		if client.DisconnectedAt != nil {
+			uiConnTS.WriteError(fmt.Sprintf("Client with id=%q is not active.", cid), nil)
 			return
 		}
-		clientsConn[sid] = session.Connection
+		clientsConn[cid] = client.Connection
 	}
 
+	var orderedClientIDs []string
+	orderedClientIDs = append(orderedClientIDs, inboundMsg.ClientIDs...)
 	for _, groupClient := range groupClients {
 		if clientsConn[groupClient.ID] == nil {
 			clientsConn[groupClient.ID] = groupClient.Connection
+			orderedClientIDs = append(orderedClientIDs, groupClient.ID)
 		}
 	}
 
@@ -1197,15 +1270,19 @@ func (al *APIListener) handleCommandsWS(w http.ResponseWriter, req *http.Request
 			}()
 		}
 
-		for sid, conn := range clientsConn {
+		for _, cid := range orderedClientIDs {
+			conn := clientsConn[cid]
 			curJID := generateNewJobID()
 			if multiJob.Concurrent {
-				go al.createAndRunJobWS(uiConnTS, &jid, curJID, sid, multiJob.Command, multiJob.Shell, createdBy, multiJob.TimeoutSec, conn)
+				go al.createAndRunJobWS(uiConnTS, &jid, curJID, cid, multiJob.Command, multiJob.Shell, createdBy, multiJob.TimeoutSec, conn)
 			} else {
-				success := al.createAndRunJobWS(uiConnTS, &jid, curJID, sid, multiJob.Command, multiJob.Shell, createdBy, multiJob.TimeoutSec, conn)
-				if !success && multiJob.AbortOnErr {
-					uiConnTS.Close()
-					return
+				success := al.createAndRunJobWS(uiConnTS, &jid, curJID, cid, multiJob.Command, multiJob.Shell, createdBy, multiJob.TimeoutSec, conn)
+				if !success {
+					if multiJob.AbortOnErr {
+						uiConnTS.Close()
+						return
+					}
+					continue
 				}
 				// wait until command is finished
 				jobResult := <-curJobDoneChannel
@@ -1234,13 +1311,13 @@ func (al *APIListener) handleCommandsWS(w http.ResponseWriter, req *http.Request
 	uiConnTS.Close()
 }
 
-func (al *APIListener) createAndRunJobWS(uiConnTS *ws.ConcurrentWebSocket, multiJobID *string, jid, sid, cmd, shell, createdBy string, timeoutSec int, clientConn ssh.Conn) bool {
+func (al *APIListener) createAndRunJobWS(uiConnTS *ws.ConcurrentWebSocket, multiJobID *string, jid, cid, cmd, shell, createdBy string, timeoutSec int, clientConn ssh.Conn) bool {
 	curJob := models.Job{
 		JobSummary: models.JobSummary{
 			JID: jid,
 		},
 		StartedAt:  time.Now(),
-		SID:        sid,
+		ClientID:   cid,
 		Command:    cmd,
 		Shell:      shell,
 		CreatedBy:  createdBy,
@@ -1285,10 +1362,6 @@ func (al *APIListener) createAndRunJobWS(uiConnTS *ws.ConcurrentWebSocket, multi
 }
 
 func (al *APIListener) handleGetMultiClientCommand(w http.ResponseWriter, req *http.Request) {
-	if !al.allowRunCommands(w) {
-		return
-	}
-
 	vars := mux.Vars(req)
 	jid := vars[routeParamJobID]
 	if jid == "" {
@@ -1310,10 +1383,6 @@ func (al *APIListener) handleGetMultiClientCommand(w http.ResponseWriter, req *h
 }
 
 func (al *APIListener) handleGetMultiClientCommands(w http.ResponseWriter, req *http.Request) {
-	if !al.allowRunCommands(w) {
-		return
-	}
-
 	res, err := al.jobProvider.GetAllMultiJobSummaries()
 	if err != nil {
 		al.jsonErrorResponseWithError(w, http.StatusInternalServerError, "", "Failed to get multi-client jobs.", err)
@@ -1321,14 +1390,6 @@ func (al *APIListener) handleGetMultiClientCommands(w http.ResponseWriter, req *
 	}
 
 	al.writeJSONResponse(w, http.StatusOK, api.NewSuccessPayload(res))
-}
-
-func (al *APIListener) allowRunCommands(w http.ResponseWriter) bool {
-	if al.jobProvider == nil {
-		al.jsonErrorResponseWithErrCode(w, http.StatusMethodNotAllowed, ErrCodeRunCmdDisabled, "Persistent storage required. A data dir or a database table is required to activate this feature.")
-		return false
-	}
-	return true
 }
 
 func (al *APIListener) handlePostClientGroups(w http.ResponseWriter, req *http.Request) {
@@ -1397,9 +1458,20 @@ func (al *APIListener) handlePutClientGroup(w http.ResponseWriter, req *http.Req
 	al.Debugf("Client Group [id=%q] updated.", group.ID)
 }
 
+const groupIDMaxLength = 30
+const validGroupIDChars = "A-Za-z0-9_-*"
+
+var invalidGroupIDRegexp = regexp.MustCompile(`[^\*A-Za-z0-9_-]`)
+
 func validateInputClientGroup(group cgroups.ClientGroup) error {
 	if strings.TrimSpace(group.ID) == "" {
-		return errors.New("ID cannot be empty")
+		return errors.New("group ID cannot be empty")
+	}
+	if len(group.ID) > groupIDMaxLength {
+		return fmt.Errorf("invalid group ID: max length %d, got %d", groupIDMaxLength, len(group.ID))
+	}
+	if invalidGroupIDRegexp.MatchString(group.ID) {
+		return fmt.Errorf("invalid group ID %q: can contain only %q", group.ID, validGroupIDChars)
 	}
 	return nil
 }
@@ -1422,6 +1494,7 @@ func (al *APIListener) handleGetClientGroup(w http.ResponseWriter, req *http.Req
 		return
 	}
 
+	al.clientService.PopulateGroupsWithClients([]*cgroups.ClientGroup{group})
 	al.writeJSONResponse(w, http.StatusOK, api.NewSuccessPayload(group))
 }
 
@@ -1432,6 +1505,7 @@ func (al *APIListener) handleGetClientGroups(w http.ResponseWriter, req *http.Re
 		return
 	}
 
+	al.clientService.PopulateGroupsWithClients(res)
 	al.writeJSONResponse(w, http.StatusOK, api.NewSuccessPayload(res))
 }
 

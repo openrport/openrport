@@ -301,6 +301,30 @@ func TestParseAndValidateAPI(t *testing.T) {
 			},
 			ExpectedJwtSecret: true,
 		},
+		{
+			Name: "api enabled, no key file",
+			Config: Config{
+				API: APIConfig{
+					Address:  "0.0.0.0:3000",
+					Auth:     "abc:def",
+					CertFile: "/var/lib/rport/server.crt",
+					KeyFile:  "",
+				},
+			},
+			ExpectedError: errors.New("API: when 'cert_file' is set, 'key_file' must be set as well"),
+		},
+		{
+			Name: "api enabled, no cert file",
+			Config: Config{
+				API: APIConfig{
+					Address:  "0.0.0.0:3000",
+					Auth:     "abc:def",
+					CertFile: "",
+					KeyFile:  "/var/lib/rport/server.key",
+				},
+			},
+			ExpectedError: errors.New("API: when 'key_file' is set, 'cert_file' must be set as well"),
+		},
 	}
 
 	for _, tc := range testCases {

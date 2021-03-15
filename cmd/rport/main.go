@@ -67,8 +67,7 @@ var clientHelp = `
     You may provide just a prefix of the key or the entire string.
     Fingerprint mismatches will close the connection.
 
-    --auth, An optional username and password (client authentication) in the form: "<user>:<password>".
-    Highly recommended. Required if client authentication in enabled on the rport server.
+    --auth, Required client authentication credentials in the form: "<client-auth-id>:<password>".
 
     --keepalive, An optional keepalive interval. Since the underlying
     transport is HTTP, in many instances we'll be traversing through
@@ -95,7 +94,7 @@ var clientHelp = `
     found in the server url).
 
     --id, An optional client ID to better identify the client.
-    If not set, a random id will be crated that changes on every client start.
+    If not set, a random id will be created that changes on every client start.
     The server rejects connections on duplicated ids.
 
     --name, An optional client name to better identify the client.
@@ -284,7 +283,7 @@ func runMain(cmd *cobra.Command, args []string) {
 	}
 
 	if !config.Client.AllowRoot && chshare.IsRunningAsRoot() {
-		log.Fatal("Running as root is not allowed.")
+		log.Fatal("By default running as root is not allowed.")
 	}
 
 	err = config.Logging.LogOutput.Start()

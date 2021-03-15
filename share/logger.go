@@ -92,10 +92,6 @@ func (l *Logger) Logf(severity LogLevel, f string, args ...interface{}) {
 	}
 }
 
-func (l *Logger) FormatError(f string, args ...interface{}) error {
-	return fmt.Errorf(l.prefix+": "+f, args...)
-}
-
 func (l *Logger) Fork(prefix string, args ...interface{}) *Logger {
 	//slip the parent prefix at the front
 	args = append([]interface{}{l.prefix}, args...)

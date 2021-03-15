@@ -11,14 +11,14 @@ As listed in the API docs Client Group is defined by:
 * `description` - group description
 * `params` - parameters that define what clients belong to a current group.
 Each parameter can be specified by:
-  * exact match of the property. For example,
+  * exact match of the property **(ignoring case)**. For example,
     ```
     params: {
       "client_id": ["test-win2019-tk01", "qa-lin-ubuntu16"]
     }
     ```
     Means only clients with `id` equals to `test-win2019-tk01` or `qa-lin-ubuntu16` belong to a current group.
-  * dynamic criteria using wildcards. For example,
+  * dynamic criteria using wildcards **(ignoring case)**. For example,
     ```
     params: {
       "os_family": ["linux*", "*win*"]
@@ -40,6 +40,7 @@ Each parameter can be specified by:
   Means clients belong to this group only if **both** conditions are met:
   1. has `tag` equals to `QA` **OR** `tag` that starts with `my-tag`;
   2. its `os_family` starts with `linux` or `ubuntu`.
+* `client_ids` - read-only field that is populated with IDs of active clients that belong to this group.
 
 ### Manage client groups via the API
 Here are some examples how to manage client groups.
@@ -102,7 +103,12 @@ curl -s -u admin:foobaz http://localhost:3000/api/v1/client-groups/group-1|jq
       "version": null,
       "address": null,
       "client_auth_id": null
-    }
+    },
+    "client_ids": [
+      "qa-lin-ubuntu16",
+      "qa-lin-ubuntu19",
+      "qa-lin-ubuntu23"
+    ]
   }
 }
 ```

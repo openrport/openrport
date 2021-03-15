@@ -3,6 +3,7 @@ package chserver
 import (
 	"crypto/rand"
 	"crypto/sha256"
+	"crypto/tls"
 	"errors"
 	"fmt"
 	"net/http"
@@ -60,7 +61,7 @@ type ServerConfig struct {
 	RunRemoteCmdTimeoutSec     int           `mapstructure:"run_remote_cmd_timeout_sec"`
 	AuthWrite                  bool          `mapstructure:"auth_write"`
 	AuthMultiuseCreds          bool          `mapstructure:"auth_multiuse_creds"`
-	EquateAuthusernameClientid bool          `mapstructure:"equate_authusername_clientid"`
+	EquateClientauthidClientid bool          `mapstructure:"equate_clientauthid_clientid"`
 	AllowRoot                  bool          `mapstructure:"allow_root"`
 
 	excludedPorts mapset.Set
@@ -177,6 +178,10 @@ func (c *Config) parseAndValidateAPI() error {
 		if err != nil {
 			return err
 		}
+		err = c.parseAndValidateAPIHTTPSOptions()
+		if err != nil {
+			return err
+		}
 		if c.API.JWTSecret == "" {
 			c.API.JWTSecret, err = generateJWTSecret()
 			if err != nil {
@@ -218,6 +223,23 @@ func (c *Config) parseAndValidateAPIAuth() error {
 		return errors.New("'db_type' must be set when 'auth_user_table' is set")
 	}
 
+	return nil
+}
+
+func (c *Config) parseAndValidateAPIHTTPSOptions() error {
+	if c.API.CertFile == "" && c.API.KeyFile == "" {
+		return nil
+	}
+	if c.API.CertFile != "" && c.API.KeyFile == "" {
+		return errors.New("when 'cert_file' is set, 'key_file' must be set as well")
+	}
+	if c.API.CertFile == "" && c.API.KeyFile != "" {
+		return errors.New("when 'key_file' is set, 'cert_file' must be set as well")
+	}
+	_, err := tls.LoadX509KeyPair(c.API.CertFile, c.API.KeyFile)
+	if err != nil {
+		return fmt.Errorf("invalid 'cert_file', 'key_file': %v", err)
+	}
 	return nil
 }
 

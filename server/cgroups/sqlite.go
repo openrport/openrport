@@ -37,7 +37,7 @@ func (p *SqliteProvider) GetAll(ctx context.Context) ([]*ClientGroup, error) {
 	err := p.db.SelectContext(
 		ctx,
 		&res,
-		"SELECT * FROM client_groups ORDER BY id",
+		"SELECT * FROM client_groups ORDER BY id COLLATE NOCASE",
 	)
 	if err != nil {
 		return nil, err

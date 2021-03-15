@@ -17,7 +17,7 @@ Apart from remote management, they offer supplementary services like Video Confe
 Rport focuses only on remote management of those operating systems where an existing login mechanism can be used. It can be used for Linux and Windows, but also appliances and IoT devices providing a web-based configuration.
 From a technological perspective, [Ngrok](https://ngrok.com/) and [openport.io](https://openport.io) are similar products. Rport differs from them in many aspects.
 * Rport is 100% open source. Client and Server. Remote management is a matter of trust and security. Rport is fully transparent.
-* Rport will come with a user interface making the management of remote systems easy and user-friendly.
+* Rport comes with a user interface making the management of remote systems easy and user-friendly.
 * Rport is made for all operating systems with native and small binaries. No need for Python or similar heavyweights.
 * Rport allows you to self-host the server.
 * Rport allows clients to wait in standby mode without an active tunnel. Tunnels can be requested on-demand by the user remotely.
@@ -39,7 +39,7 @@ Also, the server can run on any operation system supported by the golang compile
   * [Connect a client](#run-client)
   * [Run a Linux client with systemd](#linux-client-systemd)
   * [Run a Windows client](#windows-client)
-  * [run clients on other operating systems](#other-clients)
+  * [Run clients on other operating systems](#other-clients)
   * [Configuration files](#configs) 
   * [Using authentication](#client-auth)
 * [On-demand tunnels using the API](#on-demand-tunnels)
@@ -47,22 +47,23 @@ Also, the server can run on any operation system supported by the golang compile
   * [Connect a client without a tunnel](#client-no-tunnel)
   * [Manage clients and tunnels through the API](#manage-clients)
 * [All API capabilities](#api-capabilities)
-* [Install a web-based frontend](#api-front-end)
+* [Install a web-based frontend](#install-frontend)
 * [Install the command-line interface](#cli)
 * [Versioning model](#versioning)
 * [Credits](#credits)
 
 <a name="build-install"></a>
 ## Build and installation
-We provide [pre-compiled binaries](https://github.com/cloudradar-monitoring/rport/releases).
-### From source
-1) Build from source (Linux or Mac OS/X):
+1) We provide [pre-compiled binaries](https://github.com/cloudradar-monitoring/rport/releases).
+
+2) From source:
+    * Build from source (Linux or Mac OS/X):
     ```bash
     make all
     ```
     `rport` and `rportd` binaries will appear in directory.
 
-2) Build using Docker:
+    * Build using Docker:
     ```bash
     make docker-goreleaser
     ```
@@ -81,7 +82,6 @@ Minimal setup:
 
 See `./rportd --help` and `./rport --help` for more options, like:
 - Specifying certificate fingerprint to validate server authority
-- Client session authentication using user:password pair
 - Restricting, which users can connect
 - Specifying additional intermediate HTTP proxy
 - Using POSIX signals to control running apps
@@ -105,10 +105,10 @@ Please share positive feedback also. Give us a star. Write a review. Share our p
 ### Run the server without installation
 If you quickly want to run the rport server without installation, run the following commands from any unprivileged user account.
 ```
-wget https://github.com/cloudradar-monitoring/rport/releases/download/0.1.22/rport_0.1.22_Linux_x86_64.tar.gz
-sudo tar vxzf rport_0.1.22_Linux_x86_64.tar.gz rportd
+wget https://github.com/cloudradar-monitoring/rport/releases/download/0.1.25/rport_0.1.25_Linux_x86_64.tar.gz
+sudo tar vxzf rport_0.1.25_Linux_x86_64.tar.gz rportd
 KEY=$(openssl rand -hex 18)
-./rportd --log-level info --data-dir /var/tmp/ --key $KEY --auth user1:1234
+./rportd --log-level info --data-dir /var/tmp/ --key $KEY --auth clientAuth1:1234
 ```
 Rportd will be listening on the default port 8080 for client connections. 
 Grab the generated fingerprint from `/var/tmp/rportd-fingerprint.txt` and use it for secure client connections. 
@@ -117,7 +117,7 @@ Grab the generated fingerprint from `/var/tmp/rportd-fingerprint.txt` and use it
 ### Install and run the rport server
 
 On a machine connected to the public internet and ideally with an FQDN registered to a public DNS install and run the server.
-Assume, the server is called node1.example.com.
+Assume, the server is called `node1.example.com`.
 
 #### A note on security
 > **Do not run the server as root!** This is an unnecessary risk. Rportd should always use an unprivileged user.
@@ -131,13 +131,13 @@ If you do ssh or rdp through the tunnel, a hijacked tunnel will not expose your 
 #### Install the server
 For a proper installation execute the following steps.
 ```
-wget https://github.com/cloudradar-monitoring/rport/releases/download/0.1.22/rport_0.1.22_Linux_x86_64.tar.gz
-sudo tar vxzf rport_0.1.22_Linux_x86_64.tar.gz -C /usr/local/bin/ rportd
+wget https://github.com/cloudradar-monitoring/rport/releases/download/0.1.25/rport_0.1.25_Linux_x86_64.tar.gz
+sudo tar vxzf rport_0.1.25_Linux_x86_64.tar.gz -C /usr/local/bin/ rportd
 sudo useradd -d /var/lib/rport -m -U -r -s /bin/false rport
 sudo mkdir /etc/rport/
 sudo mkdir /var/log/rport/
 sudo chown rport /var/log/rport/
-sudo tar vxzf rport_0.1.22_Linux_x86_64.tar.gz -C /etc/rport/ rportd.example.conf
+sudo tar vxzf rport_0.1.25_Linux_x86_64.tar.gz -C /etc/rport/ rportd.example.conf
 sudo cp /etc/rport/rportd.example.conf /etc/rport/rportd.conf
 ```
 
@@ -146,13 +146,12 @@ Create a key for the server instance. Store this key and don't change it. You wi
 openssl rand -hex 18
 ```
 
-Open the `/etc/rport/rportd.conf` with an editor. Add the generated random string as `kee_seed`. All other default settings are suitable for a quick and secure start.
+Open the `/etc/rport/rportd.conf` with an editor. Add the generated random string as `key_seed`. All other default settings are suitable for a quick and secure start.
 
 Change to the rport user account and check your rportd starts without errors.
 ```
 ubuntu@node1:~$ sudo -u rport -s /bin/bash
 rport@node1:/home/ubuntu$ rportd -c /etc/rport/rportd.conf --log-level info &
-2021/01/27 16:26:55 Start to get init Client Session Repository state from file.
 ```
 For the first testing leave the console open and observe the log with `tail -f /var/log/rport/rportd.log`. Copy the generated fingerprint from `/var/lib/rport/rportd-fingerprint.txt` to your clipboard. Try your first client connection now.
 
@@ -173,13 +172,13 @@ sudo systemctl enable rportd # Optionally start rportd on boot
 Assume, the client is called `client1.local.localdomain`.
 On your client just install the client binary
 ```
-curl -LSs https://github.com/cloudradar-monitoring/rport/releases/download/0.1.22/rport_0.1.22_Linux_x86_64.tar.gz|\
+curl -LSs https://github.com/cloudradar-monitoring/rport/releases/download/0.1.25/rport_0.1.25_Linux_x86_64.tar.gz|\
 tar vxzf - -C /usr/local/bin/ rport
 ```
 
 Create an ad hoc tunnel that will forward the port 2222 of `node1.example.com` to the to local port 22 of `client1.local.localdomain`.
 ```
-rport --auth user1:1234 --fingerprint <YOUR_FINGERPRINT> node1.example.com:8080 2222:0.0.0.0:22
+rport --auth clientAuth1:1234 --fingerprint <YOUR_FINGERPRINT> node1.example.com:8080 2222:0.0.0.0:22
 ```
 Observing the log of the server you get a confirmation about the newly created tunnel.
 
@@ -189,13 +188,13 @@ Now you can access your machine behind a firewall through the tunnel. Try `ssh -
 ### Run a Linux client with systemd
 For a proper and permanent installation of the client execute the following steps.
 ```
-wget https://github.com/cloudradar-monitoring/rport/releases/download/0.1.22/rport_0.1.22_Linux_x86_64.tar.gz
-sudo tar vxzf rport_0.1.22_Linux_x86_64.tar.gz -C /usr/local/bin/ rportd
+wget https://github.com/cloudradar-monitoring/rport/releases/download/0.1.25/rport_0.1.25_Linux_x86_64.tar.gz
+sudo tar vxzf rport_0.1.25_Linux_x86_64.tar.gz -C /usr/local/bin/ rport
 sudo useradd -d /var/lib/rport -U -m -r -s /bin/false rport
 sudo mkdir /etc/rport/
 sudo mkdir /var/log/rport/
 sudo chown rport /var/log/rport/
-sudo tar vxzf rport_0.1.22_Linux_x86_64.tar.gz -C /etc/rport/ rport.example.conf
+sudo tar vxzf rport_0.1.25_Linux_x86_64.tar.gz -C /etc/rport/ rport.example.conf
 sudo cp /etc/rport/rport.example.conf /etc/rport/rport.conf
 sudo rport --service install --service-user rport --config /etc/rport/rport.conf
 ```
@@ -211,14 +210,14 @@ A very minimalistic client configuration `rport.conf` can look like this:
 [client]
 server = "node1.example.com:8080"
 fingerprint = "<YOUR_FINGERPRINT>"
-auth = "user1:1234"
+auth = "clientAuth1:1234"
 remotes = ['2222:22']
 ```
 This will establish a permanent tunnel and the local port 22 (SSH) of the client becomes available on port 2222 of the rport server.
 
 <a name="windows-client"></a>
 ### Run a Windows client
-On Microsoft Windows [download the latest client binary](https://github.com/cloudradar-monitoring/rport/releases/download/0.1.22/rport_0.1.22_Windows_x86_64.zip) and extract it ideally to `C:\Program Files\rport`. Rename the `rport.example.conf` to `rport.conf` and store it in `C:\Program Files\rport` too.
+On Microsoft Windows [download the latest client binary](https://github.com/cloudradar-monitoring/rport/releases/download/0.1.25/rport_0.1.25_Windows_x86_64.zip) and extract it ideally to `C:\Program Files\rport`. Rename the `rport.example.conf` to `rport.conf` and store it in `C:\Program Files\rport` too.
 Open the `rport.conf` file with a text editor. On older Windows use an editor that supports unix line breaks, like [notepad++](https://notepad-plus-plus.org/).
 
 A very minimalistic client configuration `rport.conf` can look like this:
@@ -226,7 +225,7 @@ A very minimalistic client configuration `rport.conf` can look like this:
 [client]
 server = "node1.example.com:8080"
 fingerprint = "<YOUR_FINGERPRINT>"
-auth = "user1:1234"
+auth = "clientAuth1:1234"
 remotes = ['3300:3389']
 ```
 This will establish a permanent tunnel and the local port 3389 (remote desktop) of the client becomes available on port 3300 of the rport server.
@@ -255,25 +254,29 @@ Please refer to [clients on other operating systems](./docs/client-on-other-os.m
 
 <a name="configs"></a>
 ### Configuration files
-Config files can be used to set up both the rport server and clients. In order to use it an arg `--config`(or `-c`) should be passed to a command with a path to the file. Configuration examples `rportd.example.conf` ([view online](rportd.example.conf)) and `rport.example.conf` ([view online](rport.example.conf)) can be found in the release archive or in the source.
-
-NOTE: command arguments and env variables will override values from the config file.
-
-In order to load the configuration from a file run:
+Config files can be used to set up both the rport server and clients.
+In order to start `rportd`/`rport` with settings from a config file an arg `--config`(or `-c`) should be passed to a command with a path to the file, for example:
 ```
 rportd -c /etc/rport/rportd.conf
+```
+```
 rport -c /etc/rport/rport.conf
 ```
+Configuration examples `rportd.example.conf` ([view online](rportd.example.conf)) and `rport.example.conf` ([view online](rport.example.conf)) can be found in the release archive or in the source.
+
+NOTE:
+* command arguments and env variables will override values from a config file.
+* to apply any changes to a configuration file `rportd` or `rport` should be restarted.
 
 <a name="client-auth"></a>
 ### Using authentication
 To prevent anyone who knows the address and the port of your rport server to use it for tunneling, using client authentication is required.
 
-Using a static username password pair is the most basic option. See the comments in the [rportd.example.conf](rportd.example.conf) and read more about all supported [authentication options](docs/client-auth.md).
+Using a static client authentication credentials is the most basic option. See the comments in the [rportd.example.conf](rportd.example.conf) and read more about all supported [authentication options](docs/client-auth.md).
 
 On the client start the tunnel this way
 ```
-rport --auth user1:1234 --fingerprint <YOUR_FINGERPRINT> node1.example.com:8080 2222:0.0.0.0:22
+rport --auth clientAuth1:1234 --fingerprint <YOUR_FINGERPRINT> node1.example.com:8080 2222:0.0.0.0:22
 ```
 *Note that in this early version the order of the command line options is still important. This might change later.*
 
@@ -303,7 +306,7 @@ Restart the rportd after any changes to the configuration. Read more about API [
 
 **Caution:** Do not run the API on public servers with the default credentials. Change the `auth=` settings and generate your own `jwt_secret` using for example the command `pwgen 24 1` or `openssl rand -hex 12`. 
 
-If you expose your API to the public internet, it's highly recommended to enable HTTPS. Read the [quick HTTPS howto](./docs/https-hwoto.md).
+If you expose your API to the public internet, it's highly recommended to enable HTTPS. Read the [quick HTTPS howto](./docs/https-howto.md).
 
 Test you've set up the API properly by querying its status with `curl -s -u admin:foobaz http://localhost:3000/api/v1/status`.
 
@@ -316,8 +319,9 @@ Example of a human readable API status
   "data": {
     "connect_url": "http://0.0.0.0:8080",
     "fingerprint": "2a:c8:79:09:80:ba:7c:60:05:e5:2c:99:6d:75:56:24",
-    "sessions_count": 2,
-    "version": "0.1.22"
+    "clients_connected": 3,
+    "clients_disconnected": 1,
+    "version": "0.1.25"
   }
 }
 ```
@@ -329,7 +333,7 @@ Invoke the rport client without specifying a tunnel but with some extra data.
 rport --id my-client-1 \
   --fingerprint <YOUR_FINGERPRINT> \
   --tag Linux --tag "Office Berlin" \
-  --name "My Test VM" --auth user1:1234 \
+  --name "My Test VM" --auth clientAuth1:1234 \
   node1.example.com:8080
 ```
 *Add auth and fingerprint as already explained.*
@@ -339,10 +343,10 @@ This attaches the client to the message queue of the server without creating a t
 <a name="manage-clients"></a>
 ### Manage clients and tunnels through the API
 On the server, you can supervise the attached clients using
-`curl -s -u admin:foobaz http://localhost:3000/api/v1/sessions`.
+`curl -s -u admin:foobaz http://localhost:3000/api/v1/clients`.
 Here is an example:
 ```
-curl -s -u admin:foobaz http://localhost:3000/api/v1/sessions|jq
+curl -s -u admin:foobaz http://localhost:3000/api/v1/clients|jq
 [
   {
     "id": "my-client-1",
@@ -405,7 +409,7 @@ Read more about the [management of tunnel via the API](docs/managing-tunnels.md)
 ## All API Capabilities
 * [Swagger API docs](https://petstore.swagger.io/?url=https://raw.githubusercontent.com/cloudradar-monitoring/rport/master/api-doc.yml).
 * [API authentication options](docs/api-auth.md)
-* [Management of clients and tunnels via the API](docs/managing-tunnels.md) or the [Swagger API docs](https://petstore.swagger.io/?url=https://raw.githubusercontent.com/cloudradar-monitoring/rport/master/api-doc.yml#/Client%20Sessions%20and%20Tunnels)
+* [Management of clients and tunnels via the API](docs/managing-tunnels.md) or the [Swagger API docs](https://petstore.swagger.io/?url=https://raw.githubusercontent.com/cloudradar-monitoring/rport/master/api-doc.yml#/Clients%20and%20Tunnels)
 * [Command execution via the API](docs/command-execution.md) or the [Swagger API docs](https://petstore.swagger.io/?url=https://raw.githubusercontent.com/cloudradar-monitoring/rport/master/api-doc.yml#/Commands)
 * [Management of client authentication credentials via the API](docs/client-auth.md) or the [Swagger API docs](https://petstore.swagger.io/?url=https://raw.githubusercontent.com/cloudradar-monitoring/rport/master/api-doc.yml#/Rport%20Client%20Auth%20Credentials)
 * [Management of client groups via the API](docs/client-groups.md) or the [Swagger API docs](https://petstore.swagger.io/?url=https://raw.githubusercontent.com/cloudradar-monitoring/rport/master/api-doc.yml#/Client%20Groups)

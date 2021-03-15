@@ -1,12 +1,12 @@
 # Install and run a rport client
 ## On Mac OS (intel based)
-Open the terminal and as an unprivileged user download the binary and put it /usr/local/bin
+Open the terminal and as an unprivileged user download the binary and put it in `/usr/local/bin`
 ```
-curl -OL https://github.com/cloudradar-monitoring/rport/releases/download/0.1.23/rport_0.1.23_Darwin_x86_64.tar.gz
+curl -OL https://github.com/cloudradar-monitoring/rport/releases/download/0.1.25/rport_0.1.25_Darwin_x86_64.tar.gz
 test -e /usr/local/bin/||sudo mkdir /usr/local/bin
-sudo tar xzf rport_0.1.23_Darwin_x86_64.tar.gz -C /usr/local/bin/ rport
+sudo tar xzf rport_0.1.25_Darwin_x86_64.tar.gz -C /usr/local/bin/ rport
 sudo mkdir /etc/rport
-tar xzf rport_0.1.23_Darwin_x86_64.tar.gz rport.example.conf
+tar xzf rport_0.1.25_Darwin_x86_64.tar.gz rport.example.conf
 sudo mv rport.example.conf /etc/rport/rport.conf
 sudo mkdir /var/log/rport
 ```
