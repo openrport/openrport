@@ -427,4 +427,4 @@ Starting from version 1.0.0 packages with even <minor> number are considered sta
 <a name="credits"></a>
 ## Credits
 * Forked from [jpillora/chisel](https://github.com/jpillora/chisel)
-* Image by [pch.vector / Freepik](ttp://www.freepik.com)
+* Image by [pch.vector / Freepik](http://www.freepik.com)
