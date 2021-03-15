@@ -26,9 +26,12 @@ From a technological perspective, [Ngrok](https://ngrok.com/) and [openport.io](
 For the client almost all operating systems are supported and we provide binaries for a variety of Linux architectures and Microsoft Windows.
 Also, the server can run on any operation system supported by the golang compiler. At the moment we provide server binaries only for Linux X64 because this is the ideal platform for running it securely and cost effective. 
 
+![Rport Principle](./docs/rport-principle.svg "Rport Principle")
+
 ## Table of Contents
 * [Build and installation](#build-install)
 * [Usage](#usage)
+* [Feedback and Help](#feedback)
 * [Quickstart guide](#quick-guide)
   * [Run the rport server without installation](#run-server)
   * [Install and run the rport server](#install-server)
@@ -45,6 +48,7 @@ Also, the server can run on any operation system supported by the golang compile
   * [Manage clients and tunnels through the API](#manage-clients)
 * [All API capabilities](#api-capabilities)
 * [Install a web-based frontend](#api-front-end)
+* [Install the command-line interface](#cli)
 * [Versioning model](#versioning)
 * [Credits](#credits)
 
@@ -83,6 +87,17 @@ See `./rportd --help` and `./rport --help` for more options, like:
 - Using POSIX signals to control running apps
 - Setting custom HTTP headers
 - Using IPv6 addresses when starting a server
+
+<a name="feedback"></a>
+## Feedback and Help
+**We need your feedback**.
+Our vision is to establish Rport as a serious alternative to all the black box software for remote management. To make it a success, please share your feedback. 
+### Report bugs
+If you encounter errors while installing or using Rport, please let us know. [File an issue report](https://github.com/cloudradar-monitoring/rport/issues) here on Github.
+### Ask question
+If you have difficulties installing or using rport, don't hesitate to ask us anything. Often questions give us a hint on how to improve the documentation. Do not use issue reports for asking questions. Use the [discussion forum](https://github.com/cloudradar-monitoring/rport/discussions) instead. 
+### Positive Feedback
+Please share positive feedback also. Give us a star. Write a review. Share our project page on your social media. Contribute to the [discussion](https://github.com/cloudradar-monitoring/rport/discussions). Is Rport suitable for your needs? What is missing?
 
 <a name="quick-guide"></a>
 ## Quickstart guide
@@ -281,9 +296,12 @@ Set up `[api]` config params. For example:
      address = "127.0.0.1:3000"
      # Defines <user:password> authentication pair for accessing API
      auth = "admin:foobaz"
+     jwt_secret = "quei1too2Jae3xootu"
    ```
 This opens the API and enables HTTP basic authentication with a single user "admin:foobaz" who has access to the API.
 Restart the rportd after any changes to the configuration. Read more about API [authentication options](./docs/api-auth.md).
+
+**Caution:** Do not run the API on public servers with the default credentials. Change the `auth=` settings and generate your own `jwt_secret` using for example the command `pwgen 24 1` or `openssl rand -hex 12`. 
 
 If you expose your API to the public internet, it's highly recommended to enable HTTPS. Read the [quick HTTPS howto](./docs/https-hwoto.md).
 
@@ -396,6 +414,10 @@ Read more about the [management of tunnel via the API](docs/managing-tunnels.md)
 ## Install a web-based frontend
 Rport comes with a user-friendly web-based frontend. The frontend has it's own none-open-source repository. The installation is quick and easy. [Learn more](docs/frontend.md).
 
+<a name="cli"></a>
+## Install the command-line interface
+You can also manage clients, tunnels, and commandd from a user-friendly command-line utility. It's available as a stand-alone static binary for Windows and Linux. See [https://github.com/cloudradar-monitoring/rportcli](https://github.com/cloudradar-monitoring/rportcli). The command-line utility does not cover all API capabilities yet. But it's already a very useful tool making rport even more powerful.
+
 <a name="versioning"></a>
 ## Versioning model
 rport uses `<major>.<minor>.<buildnumber>` version pattern for compatibility with a maximum number of package managers.
@@ -404,4 +426,5 @@ Starting from version 1.0.0 packages with even <minor> number are considered sta
 
 <a name="credits"></a>
 ## Credits
-Forked from [jpillora/chisel](https://github.com/jpillora/chisel)
+* Forked from [jpillora/chisel](https://github.com/jpillora/chisel)
+* Image by [pch.vector / Freepik](ttp://www.freepik.com)
