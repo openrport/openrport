@@ -138,13 +138,6 @@ func NewServer(config *Config, filesAPI files.FileAPI) (*Server, error) {
 	return s, nil
 }
 
-func getJobsDirectory(datDir string) string {
-	if datDir == "" {
-		return ""
-	}
-	return path.Join(datDir, "jobs")
-}
-
 func getClientProvider(config *Config, db *sqlx.DB) (clientsauth.Provider, error) {
 	if config.Server.AuthTable != "" {
 		dbProvider := clientsauth.NewDatabaseProvider(db, config.Server.AuthTable)
