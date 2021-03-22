@@ -15,6 +15,7 @@ const (
 type Job struct {
 	JobSummary
 	ClientID   string     `json:"client_id"`
+	ClientName string     `json:"client_name"`
 	Command    string     `json:"command"`
 	Shell      string     `json:"shell"`
 	PID        *int       `json:"pid"`

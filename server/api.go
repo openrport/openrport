@@ -840,6 +840,7 @@ func (al *APIListener) handlePostCommand(w http.ResponseWriter, req *http.Reques
 			FinishedAt: nil,
 		},
 		ClientID:   cid,
+		ClientName: client.Name,
 		Command:    reqBody.Command,
 		Shell:      reqBody.Shell,
 		CreatedBy:  api.GetUser(req.Context(), al.Logger),
@@ -1000,7 +1001,8 @@ func (al *APIListener) handlePostMultiClientCommand(w http.ResponseWriter, req *
 		return
 	}
 
-	clientsConn := make(map[string]ssh.Conn)
+	var orderedClients []*clients.Client
+	usedClientIDs := make(map[string]bool)
 	for _, cid := range reqBody.ClientIDs {
 		client, err := al.clientService.GetByID(cid)
 		if err != nil {
@@ -1015,15 +1017,15 @@ func (al *APIListener) handlePostMultiClientCommand(w http.ResponseWriter, req *
 			al.jsonErrorResponseWithTitle(w, http.StatusBadRequest, fmt.Sprintf("Client with id=%q is not active.", cid))
 			return
 		}
-		clientsConn[cid] = client.Connection
+		usedClientIDs[cid] = true
+		orderedClients = append(orderedClients, client)
 	}
 
-	var orderedClientIDs []string
-	orderedClientIDs = append(orderedClientIDs, reqBody.ClientIDs...)
+	// append group clients
 	for _, groupClient := range groupClients {
-		if clientsConn[groupClient.ID] == nil {
-			clientsConn[groupClient.ID] = groupClient.Connection
-			orderedClientIDs = append(orderedClientIDs, groupClient.ID)
+		if !usedClientIDs[groupClient.ID] {
+			usedClientIDs[groupClient.ID] = true
+			orderedClients = append(orderedClients, groupClient)
 		}
 	}
 
@@ -1059,10 +1061,10 @@ func (al *APIListener) handlePostMultiClientCommand(w http.ResponseWriter, req *
 
 	al.Debugf("Multi-client Job[id=%q] created to execute remote command on clients %s, groups %s: %q.", multiJob.JID, reqBody.ClientIDs, reqBody.GroupIDs, reqBody.Command)
 
-	go al.executeMultiClientJob(multiJob, clientsConn, orderedClientIDs)
+	go al.executeMultiClientJob(multiJob, orderedClients)
 }
 
-func (al *APIListener) executeMultiClientJob(job *models.MultiJob, clientsConn map[string]ssh.Conn, orderedClientIDs []string) {
+func (al *APIListener) executeMultiClientJob(job *models.MultiJob, orderedClients []*clients.Client) {
 	// for sequential execution - create a channel to get the job result
 	var curJobDoneChannel chan *models.Job
 	if !job.Concurrent {
@@ -1073,12 +1075,11 @@ func (al *APIListener) executeMultiClientJob(job *models.MultiJob, clientsConn m
 			al.jobsDoneChannel.Del(job.JID)
 		}()
 	}
-	for _, cid := range orderedClientIDs {
-		conn := clientsConn[cid]
+	for _, client := range orderedClients {
 		if job.Concurrent {
-			go al.createAndRunJob(job.JID, cid, job.Command, job.Shell, job.CreatedBy, job.TimeoutSec, conn)
+			go al.createAndRunJob(job.JID, job.Command, job.Shell, job.CreatedBy, job.TimeoutSec, client)
 		} else {
-			success := al.createAndRunJob(job.JID, cid, job.Command, job.Shell, job.CreatedBy, job.TimeoutSec, conn)
+			success := al.createAndRunJob(job.JID, job.Command, job.Shell, job.CreatedBy, job.TimeoutSec, client)
 			if !success {
 				if job.AbortOnErr {
 					break
@@ -1103,14 +1104,15 @@ func (al *APIListener) executeMultiClientJob(job *models.MultiJob, clientsConn m
 	}
 }
 
-func (al *APIListener) createAndRunJob(jid, cid, cmd, shell, createdBy string, timeoutSec int, conn ssh.Conn) bool {
+func (al *APIListener) createAndRunJob(jid, cmd, shell, createdBy string, timeoutSec int, client *clients.Client) bool {
 	// send the command to the client
 	curJob := models.Job{
 		JobSummary: models.JobSummary{
 			JID: generateNewJobID(),
 		},
 		StartedAt:  time.Now(),
-		ClientID:   cid,
+		ClientID:   client.ID,
+		ClientName: client.Name,
 		Command:    cmd,
 		Shell:      shell,
 		CreatedBy:  createdBy,
@@ -1118,7 +1120,7 @@ func (al *APIListener) createAndRunJob(jid, cid, cmd, shell, createdBy string, t
 		MultiJobID: &jid,
 	}
 	sshResp := &comm.RunCmdResponse{}
-	err := comm.SendRequestAndGetResponse(conn, comm.RequestTypeRunCmd, curJob, sshResp)
+	err := comm.SendRequestAndGetResponse(client.Connection, comm.RequestTypeRunCmd, curJob, sshResp)
 	// return an error after saving the job
 	if err != nil {
 		// failure, set fields to mark it as failed
@@ -1198,7 +1200,8 @@ func (al *APIListener) handleCommandsWS(w http.ResponseWriter, req *http.Request
 		return
 	}
 
-	clientsConn := make(map[string]ssh.Conn)
+	var orderedClients []*clients.Client
+	usedClientIDs := make(map[string]bool)
 	for _, cid := range inboundMsg.ClientIDs {
 		client, err := al.clientService.GetByID(cid)
 		if err != nil {
@@ -1213,15 +1216,15 @@ func (al *APIListener) handleCommandsWS(w http.ResponseWriter, req *http.Request
 			uiConnTS.WriteError(fmt.Sprintf("Client with id=%q is not active.", cid), nil)
 			return
 		}
-		clientsConn[cid] = client.Connection
+		usedClientIDs[cid] = true
+		orderedClients = append(orderedClients, client)
 	}
 
-	var orderedClientIDs []string
-	orderedClientIDs = append(orderedClientIDs, inboundMsg.ClientIDs...)
+	// append group clients
 	for _, groupClient := range groupClients {
-		if clientsConn[groupClient.ID] == nil {
-			clientsConn[groupClient.ID] = groupClient.Connection
-			orderedClientIDs = append(orderedClientIDs, groupClient.ID)
+		if !usedClientIDs[groupClient.ID] {
+			usedClientIDs[groupClient.ID] = true
+			orderedClients = append(orderedClients, groupClient)
 		}
 	}
 
@@ -1257,7 +1260,7 @@ func (al *APIListener) handleCommandsWS(w http.ResponseWriter, req *http.Request
 		}
 
 		al.Debugf("Multi-client Job[id=%q] created to execute remote command on clients %s, groups %s: %q.", multiJob.JID, inboundMsg.ClientIDs, inboundMsg.GroupIDs, inboundMsg.Command)
-		uiConnTS.SetWritesBeforeClose(len(clientsConn))
+		uiConnTS.SetWritesBeforeClose(len(orderedClients))
 
 		// for sequential execution - create a channel to get the job result
 		var curJobDoneChannel chan *models.Job
@@ -1270,13 +1273,12 @@ func (al *APIListener) handleCommandsWS(w http.ResponseWriter, req *http.Request
 			}()
 		}
 
-		for _, cid := range orderedClientIDs {
-			conn := clientsConn[cid]
+		for _, client := range orderedClients {
 			curJID := generateNewJobID()
 			if multiJob.Concurrent {
-				go al.createAndRunJobWS(uiConnTS, &jid, curJID, cid, multiJob.Command, multiJob.Shell, createdBy, multiJob.TimeoutSec, conn)
+				go al.createAndRunJobWS(uiConnTS, &jid, curJID, multiJob.Command, multiJob.Shell, createdBy, multiJob.TimeoutSec, client)
 			} else {
-				success := al.createAndRunJobWS(uiConnTS, &jid, curJID, cid, multiJob.Command, multiJob.Shell, createdBy, multiJob.TimeoutSec, conn)
+				success := al.createAndRunJobWS(uiConnTS, &jid, curJID, multiJob.Command, multiJob.Shell, createdBy, multiJob.TimeoutSec, client)
 				if !success {
 					if multiJob.AbortOnErr {
 						uiConnTS.Close()
@@ -1293,7 +1295,7 @@ func (al *APIListener) handleCommandsWS(w http.ResponseWriter, req *http.Request
 			}
 		}
 	} else {
-		al.createAndRunJobWS(uiConnTS, nil, jid, inboundMsg.ClientIDs[0], inboundMsg.Command, inboundMsg.Shell, createdBy, inboundMsg.TimeoutSec, clientsConn[inboundMsg.ClientIDs[0]])
+		al.createAndRunJobWS(uiConnTS, nil, jid, inboundMsg.Command, inboundMsg.Shell, createdBy, inboundMsg.TimeoutSec, orderedClients[0])
 	}
 
 	// check for Close message from client to close the connection
@@ -1311,13 +1313,14 @@ func (al *APIListener) handleCommandsWS(w http.ResponseWriter, req *http.Request
 	uiConnTS.Close()
 }
 
-func (al *APIListener) createAndRunJobWS(uiConnTS *ws.ConcurrentWebSocket, multiJobID *string, jid, cid, cmd, shell, createdBy string, timeoutSec int, clientConn ssh.Conn) bool {
+func (al *APIListener) createAndRunJobWS(uiConnTS *ws.ConcurrentWebSocket, multiJobID *string, jid, cmd, shell, createdBy string, timeoutSec int, client *clients.Client) bool {
 	curJob := models.Job{
 		JobSummary: models.JobSummary{
 			JID: jid,
 		},
 		StartedAt:  time.Now(),
-		ClientID:   cid,
+		ClientID:   client.ID,
+		ClientName: client.Name,
 		Command:    cmd,
 		Shell:      shell,
 		CreatedBy:  createdBy,
@@ -1328,7 +1331,7 @@ func (al *APIListener) createAndRunJobWS(uiConnTS *ws.ConcurrentWebSocket, multi
 
 	// send the command to the client
 	sshResp := &comm.RunCmdResponse{}
-	err := comm.SendRequestAndGetResponse(clientConn, comm.RequestTypeRunCmd, curJob, sshResp)
+	err := comm.SendRequestAndGetResponse(client.Connection, comm.RequestTypeRunCmd, curJob, sshResp)
 	if err != nil {
 		al.Errorf("%s, Error on execute remote command: %v", logPrefix, err)
 

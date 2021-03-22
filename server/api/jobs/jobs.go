@@ -116,6 +116,7 @@ type jobDetails struct {
 	TimeoutSec int               `json:"timeout_sec"`
 	Error      string            `json:"error"`
 	Result     *models.JobResult `json:"result"`
+	ClientName string            `json:"client_name"`
 }
 
 func (d *jobDetails) Scan(value interface{}) error {
@@ -168,6 +169,7 @@ func (j *jobSqlite) convert() *models.Job {
 	res := &models.Job{
 		JobSummary: *js,
 		ClientID:   j.ClientID,
+		ClientName: j.Details.ClientName,
 		StartedAt:  j.StartedAt,
 		CreatedBy:  j.CreatedBy,
 		Command:    j.Details.Command,
@@ -207,6 +209,7 @@ func convertToSqlite(job *models.Job) *jobSqlite {
 			TimeoutSec: job.TimeoutSec,
 			Result:     job.Result,
 			Error:      job.Error,
+			ClientName: job.ClientName,
 		},
 	}
 	if job.MultiJobID != nil {

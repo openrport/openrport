@@ -22,6 +22,7 @@ type JobBuilder struct {
 
 	jid        string
 	clientID   string
+	clientName string
 	multiJobID string
 	status     string
 	startedAt  time.Time
@@ -32,10 +33,11 @@ type JobBuilder struct {
 // New returns a builder to generate a job that can be used in tests.
 func New(t *testing.T) JobBuilder {
 	return JobBuilder{
-		t:         t,
-		clientID:  generateRandomCID(),
-		status:    models.JobStatusSuccessful,
-		startedAt: time.Date(2020, 10, 10, 10, 10, 10, 0, time.UTC),
+		t:          t,
+		clientID:   generateRandomCID(),
+		clientName: generateRandomClientName(),
+		status:     models.JobStatusSuccessful,
+		startedAt:  time.Date(2020, 10, 10, 10, 10, 10, 0, time.UTC),
 		result: &models.JobResult{
 			StdOut: "Mon Sep 28 09:05:08 UTC 2020\nrport",
 			StdErr: "/bin/sh: 1: foo: not found",
@@ -50,6 +52,11 @@ func (b JobBuilder) JID(jid string) JobBuilder {
 
 func (b JobBuilder) ClientID(clientID string) JobBuilder {
 	b.clientID = clientID
+	return b
+}
+
+func (b JobBuilder) ClientName(clientName string) JobBuilder {
+	b.clientName = clientName
 	return b
 }
 
@@ -91,6 +98,7 @@ func (b JobBuilder) Build() *models.Job {
 			FinishedAt: b.finishedAt,
 		},
 		ClientID:   b.clientID,
+		ClientName: b.clientName,
 		Command:    "/bin/date;foo;whoami",
 		PID:        &pid,
 		StartedAt:  b.startedAt,
@@ -103,6 +111,10 @@ func (b JobBuilder) Build() *models.Job {
 
 func generateRandomCID() string {
 	return "cid-" + random.AlphaNum(12)
+}
+
+func generateRandomClientName() string {
+	return "client-name-" + random.AlphaNum(12)
 }
 
 func generateRandomJID() string {

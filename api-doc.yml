@@ -1057,6 +1057,9 @@ definitions:
       client_id:
         type: "string"
         description: "client ID"
+      client_name:
+        type: "string"
+        description: "client name"
       pid:
         type: "integer"
         description: "process ID"

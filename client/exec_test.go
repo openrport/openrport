@@ -224,6 +224,7 @@ func TestHandleRunCmdRequestPositiveCase(t *testing.T) {
 	"status": "successful",
 	"finished_at": "2020-08-19T12:00:00+03:00",
 	"client_id": "d81e6b93e75aef59a7701b90555f43808458b34e30370c3b808c1816a32252b3",
+	"client_name": "",
 	"command": "/bin/date;foo;whoami",
 	"shell": "test-shell",
 	"pid": 123,
