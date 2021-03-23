@@ -350,6 +350,10 @@ paths:
           description: "specified client or tunnel does not exist or already terminated"
           schema:
             $ref: "#/definitions/ErrorPayload"
+        "409":
+          description: "specified tunnel is still active: it has active connections"
+          schema:
+            $ref: "#/definitions/ErrorPayload"
         "500":
           description: "invalid operation"
           schema:

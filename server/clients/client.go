@@ -91,10 +91,14 @@ func (c *Client) StartTunnel(r *chshare.Remote, acl *TunnelACL) (*Tunnel, error)
 	return t, nil
 }
 
-func (c *Client) TerminateTunnel(t *Tunnel) {
+func (c *Client) TerminateTunnel(t *Tunnel) error {
 	c.Logger.Infof("Terminating tunnel %s...", t.ID)
-	t.Terminate()
+	err := t.Terminate()
+	if err != nil {
+		return err
+	}
 	c.removeTunnel(t)
+	return nil
 }
 
 func (c *Client) FindTunnel(id string) *Tunnel {

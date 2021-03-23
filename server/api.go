@@ -592,7 +592,11 @@ func (al *APIListener) handleDeleteClientTunnel(w http.ResponseWriter, req *http
 		return
 	}
 
-	client.TerminateTunnel(tunnel)
+	err = client.TerminateTunnel(tunnel)
+	if err != nil {
+		al.jsonErrorResponseWithTitle(w, http.StatusConflict, err.Error())
+		return
+	}
 
 	w.WriteHeader(http.StatusNoContent)
 }

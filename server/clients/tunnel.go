@@ -6,6 +6,7 @@ import (
 	"io"
 	"net"
 	"sync"
+	"sync/atomic"
 
 	"github.com/jpillora/sizestr"
 	"golang.org/x/crypto/ssh"
@@ -23,6 +24,7 @@ type Tunnel struct {
 
 	sshConn                   ssh.Conn
 	connectionIDAutoIncrement int
+	connCount                 int32
 	stopFn                    func()
 	wg                        sync.WaitGroup
 	acl                       *TunnelACL // parsed Remote.ACL field
@@ -51,15 +53,20 @@ func (t *Tunnel) Start(ctx context.Context) error {
 	return nil
 }
 
-func (t *Tunnel) Terminate() {
+func (t *Tunnel) Terminate() error {
+	n := atomic.LoadInt32(&t.connCount)
+	if n > 0 {
+		return fmt.Errorf("tunnel is still active: it has %d active connections", n)
+	}
 	if t.stopFn == nil {
-		return
+		return nil
 	}
 
 	t.stopFn()
 	t.wg.Wait()
 	t.Infof("stopped")
 	t.stopFn = nil
+	return nil
 }
 
 func (t *Tunnel) listen(ctx context.Context, l net.Listener) {
@@ -120,6 +127,9 @@ func (t *Tunnel) listen(ctx context.Context, l net.Listener) {
 func (t *Tunnel) accept(src io.ReadWriteCloser) {
 	defer src.Close()
 	t.connectionIDAutoIncrement++
+	atomic.AddInt32(&t.connCount, 1)
+	defer atomic.AddInt32(&t.connCount, -1)
+
 	cid := t.connectionIDAutoIncrement
 	l := t.Fork("conn#%d", cid)
 	l.Debugf("Open")
