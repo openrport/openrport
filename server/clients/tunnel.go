@@ -94,11 +94,10 @@ func (t *Tunnel) listen(ctx context.Context, l net.Listener) {
 			select {
 			case <-ctx.Done():
 				//listener closed
-				return
 			default:
 				t.Errorf("Failed to accept connection: %v", err)
 			}
-			continue // TODO: return?
+			return
 		}
 
 		if t.acl != nil {
@@ -134,11 +133,16 @@ func (t *Tunnel) accept(ctx context.Context, src io.ReadWriteCloser) {
 	l := t.Fork("conn#%d", cid)
 	l.Debugf("Open")
 
+	done := make(chan bool)
 	// link ctx to conn
 	go func() {
-		<-ctx.Done()
-		if src.Close() == nil {
-			l.Debugf("closed")
+		select {
+		case <-ctx.Done():
+			if src.Close() == nil {
+				l.Debugf("closed")
+			}
+		case <-done:
+			// do nothing
 		}
 	}()
 
@@ -156,4 +160,5 @@ func (t *Tunnel) accept(ctx context.Context, src io.ReadWriteCloser) {
 	//then pipe
 	s, r := chshare.Pipe(src, dst)
 	l.Debugf("Close (sent %s received %s)", sizestr.ToString(s), sizestr.ToString(r))
+	close(done)
 }
