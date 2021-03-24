@@ -26,8 +26,8 @@ type Tunnel struct {
 	connectionIDAutoIncrement int
 	connCount                 int32
 	stopFn                    func()
-	wg                        sync.WaitGroup
-	acl                       *TunnelACL // parsed Remote.ACL field
+	wg                        sync.WaitGroup // TODO: verify whether wait group is needed here
+	acl                       *TunnelACL     // parsed Remote.ACL field
 }
 
 func NewTunnel(logger *chshare.Logger, ssh ssh.Conn, id string, remote *chshare.Remote, acl *TunnelACL) *Tunnel {
@@ -53,10 +53,10 @@ func (t *Tunnel) Start(ctx context.Context) error {
 	return nil
 }
 
-func (t *Tunnel) Terminate() error {
+func (t *Tunnel) Terminate(force bool) error {
 	n := atomic.LoadInt32(&t.connCount)
-	if n > 0 {
-		return fmt.Errorf("tunnel is still active: it has %d active connections", n)
+	if !force && n > 0 {
+		return fmt.Errorf("tunnel is still active: it has %d active connection(s)", n)
 	}
 	if t.stopFn == nil {
 		return nil
@@ -76,14 +76,14 @@ func (t *Tunnel) listen(ctx context.Context, l net.Listener) {
 
 	t.Infof("Listening")
 
-	// background goroutine to close the listener when Done channel is closed
+	// background goroutine to close the listener when context is canceled
 	go func() {
 		<-ctx.Done()
 		if err := l.Close(); err != nil {
-			t.Errorf("Failed to close: %v", err)
+			t.Errorf("Failed to close listener: %v", err)
 			return
 		}
-		t.Infof("Closed")
+		t.Debugf("Listener closed")
 	}()
 
 	for {
@@ -98,7 +98,7 @@ func (t *Tunnel) listen(ctx context.Context, l net.Listener) {
 			default:
 				t.Errorf("Failed to accept connection: %v", err)
 			}
-			continue
+			continue // TODO: return?
 		}
 
 		if t.acl != nil {
@@ -118,13 +118,13 @@ func (t *Tunnel) listen(ctx context.Context, l net.Listener) {
 
 		t.wg.Add(1)
 		go func() {
-			t.accept(conn)
+			t.accept(ctx, conn)
 			t.wg.Done()
 		}()
 	}
 }
 
-func (t *Tunnel) accept(src io.ReadWriteCloser) {
+func (t *Tunnel) accept(ctx context.Context, src io.ReadWriteCloser) {
 	defer src.Close()
 	t.connectionIDAutoIncrement++
 	atomic.AddInt32(&t.connCount, 1)
@@ -133,6 +133,15 @@ func (t *Tunnel) accept(src io.ReadWriteCloser) {
 	cid := t.connectionIDAutoIncrement
 	l := t.Fork("conn#%d", cid)
 	l.Debugf("Open")
+
+	// link ctx to conn
+	go func() {
+		<-ctx.Done()
+		if src.Close() == nil {
+			l.Debugf("closed")
+		}
+	}()
+
 	if t.sshConn == nil {
 		l.Debugf("No remote connection")
 		return

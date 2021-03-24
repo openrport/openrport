@@ -334,6 +334,11 @@ paths:
         description: "unique tunnel id retrieved previously"
         required: true
         type: "string"
+      - name: "force"
+        in: "query"
+        description: "If true, terminate a tunnel even when it is still active."
+        required: false
+        type: "boolean"
     delete:
       tags:
         - "Clients and Tunnels"

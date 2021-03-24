@@ -91,9 +91,9 @@ func (c *Client) StartTunnel(r *chshare.Remote, acl *TunnelACL) (*Tunnel, error)
 	return t, nil
 }
 
-func (c *Client) TerminateTunnel(t *Tunnel) error {
-	c.Logger.Infof("Terminating tunnel %s...", t.ID)
-	err := t.Terminate()
+func (c *Client) TerminateTunnel(t *Tunnel, force bool) error {
+	c.Logger.Infof("Terminating tunnel %s (force: %v) ...", t.ID, force)
+	err := t.Terminate(force)
 	if err != nil {
 		return err
 	}

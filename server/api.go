@@ -566,6 +566,17 @@ func (al *APIListener) handleDeleteClientTunnel(w http.ResponseWriter, req *http
 		return
 	}
 
+	force := false
+	forceStr := req.URL.Query().Get("force")
+	if forceStr != "" {
+		var err error
+		force, err = strconv.ParseBool(forceStr)
+		if err != nil {
+			al.jsonErrorResponseWithTitle(w, http.StatusBadRequest, fmt.Sprintf("Invalid force param: %v.", forceStr))
+			return
+		}
+	}
+
 	client, err := al.clientService.GetActiveByID(clientID)
 	if err != nil {
 		al.jsonErrorResponse(w, http.StatusInternalServerError, err)
@@ -592,7 +603,7 @@ func (al *APIListener) handleDeleteClientTunnel(w http.ResponseWriter, req *http
 		return
 	}
 
-	err = client.TerminateTunnel(tunnel)
+	err = client.TerminateTunnel(tunnel, force)
 	if err != nil {
 		al.jsonErrorResponseWithTitle(w, http.StatusConflict, err.Error())
 		return

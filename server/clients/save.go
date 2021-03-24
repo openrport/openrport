@@ -27,7 +27,6 @@ func (t *SaveTask) Run(ctx context.Context) error {
 	if err != nil {
 		return fmt.Errorf("failed to get clients from Repository: %v", err)
 	}
-	t.log.Debugf("Got %d clients from Repository. Writing...", len(clients))
 
 	for _, cur := range clients {
 		err := t.cp.Save(ctx, cur)
