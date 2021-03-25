@@ -416,12 +416,17 @@ func getCorrespondingSortFunc(sortStr string) (sortFunc func(a []*clients.Client
 const (
 	URISchemeMaxLength = 15
 
+	idleTimeoutMinutesQueryParam = "idle-timeout-minutes"
+	idleTimeoutMin               = 0
+	idleTimeoutMax               = 7 * 24 * 60 // week
+
 	ErrCodeLocalPortInUse        = "ERR_CODE_LOCAL_PORT_IN_USE"
 	ErrCodeRemotePortNotOpen     = "ERR_CODE_REMOTE_PORT_NOT_OPEN"
 	ErrCodeTunnelExist           = "ERR_CODE_TUNNEL_EXIST"
 	ErrCodeTunnelToPortExist     = "ERR_CODE_TUNNEL_TO_PORT_EXIST"
 	ErrCodeURISchemeLengthExceed = "ERR_CODE_URI_SCHEME_LENGTH_EXCEED"
 	ErrCodeInvalidACL            = "ERR_CODE_INVALID_ACL"
+	ErrCodeInvalidIdleTimeout    = "ERR_CODE_INVALID_IDLE_TIMEOUT"
 )
 
 func (al *APIListener) handlePutClientTunnel(w http.ResponseWriter, req *http.Request) {
@@ -453,6 +458,22 @@ func (al *APIListener) handlePutClientTunnel(w http.ResponseWriter, req *http.Re
 		al.jsonErrorResponseWithTitle(w, http.StatusBadRequest, fmt.Sprintf("failed to decode %q: %v", remoteStr, err))
 		return
 	}
+
+	idleTimeoutMinutesStr := req.URL.Query().Get(idleTimeoutMinutesQueryParam)
+	var idleTimeoutMinutes int
+	if idleTimeoutMinutesStr != "" {
+		idleTimeoutMinutes, err = strconv.Atoi(idleTimeoutMinutesStr)
+		if err != nil {
+			al.jsonErrorResponseWithError(w, http.StatusBadRequest, ErrCodeInvalidIdleTimeout, fmt.Sprintf("invalid %q param", idleTimeoutMinutesQueryParam), err)
+			return
+		}
+
+		if idleTimeoutMin > idleTimeoutMinutes || idleTimeoutMinutes > idleTimeoutMax {
+			al.jsonErrorResponseWithErrCode(w, http.StatusBadRequest, ErrCodeInvalidIdleTimeout, fmt.Sprintf("%q param should be in range [%d,%d]", idleTimeoutMinutesQueryParam, idleTimeoutMin, idleTimeoutMax))
+			return
+		}
+	}
+	remote.IdleTimeoutMinutes = idleTimeoutMinutes
 
 	aclStr := req.URL.Query().Get("acl")
 	if _, err = clients.ParseTunnelACL(aclStr); err != nil {

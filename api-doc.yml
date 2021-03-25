@@ -290,6 +290,13 @@ paths:
         description: "A flag whether to check availability of a public port (remote). By default check is enabled. To disable it specify 'check_port=0'."
         required: false
         type: "string"
+      - name: "idle-timeout-minutes"
+        in: "query"
+        description: "Auto-close the tunnel after given period of inactivity in minutes. If 0 or not provided - auto-closing is disabled."
+        required: false
+        type: "integer"
+        maximum: 10080
+        minimum: 0
     put:
       tags:
         - "Clients and Tunnels"
@@ -307,7 +314,7 @@ paths:
                 type: "object"
                 $ref: "#/definitions/Tunnel"
         "400":
-          description: "invalid parameters. Error codes: ERR_CODE_LOCAL_PORT_IN_USE, ERR_CODE_REMOTE_PORT_NOT_OPEN, ERR_CODE_INVALID_ACL, ERR_CODE_TUNNEL_EXIST, ERR_CODE_TUNNEL_TO_PORT_EXIST, ERR_CODE_URI_SCHEME_LENGTH_EXCEED."
+          description: "invalid parameters. Error codes: ERR_CODE_LOCAL_PORT_IN_USE, ERR_CODE_REMOTE_PORT_NOT_OPEN, ERR_CODE_INVALID_ACL, ERR_CODE_TUNNEL_EXIST, ERR_CODE_TUNNEL_TO_PORT_EXIST, ERR_CODE_URI_SCHEME_LENGTH_EXCEED, ERR_CODE_INVALID_IDLE_TIMEOUT."
           schema:
             $ref: "#/definitions/ErrorPayload"
         "404":

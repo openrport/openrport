@@ -1097,6 +1097,7 @@ func TestHandleGetClients(t *testing.T) {
                "lport_random":false,
                "scheme":null,
                "acl":null,
+			   "idle_timeout_minutes": 0,
                "id":"1"
             },
             {
@@ -1107,6 +1108,7 @@ func TestHandleGetClients(t *testing.T) {
                "lport_random":false,
                "scheme":null,
                "acl":null,
+			   "idle_timeout_minutes": 0,
                "id":"2"
             }
          ],
@@ -1143,6 +1145,7 @@ func TestHandleGetClients(t *testing.T) {
                "lport_random":false,
                "scheme":null,
                "acl":null,
+			   "idle_timeout_minutes": 0,
                "id":"1"
             },
             {
@@ -1153,6 +1156,7 @@ func TestHandleGetClients(t *testing.T) {
                "lport_random":false,
                "scheme":null,
                "acl":null,
+			   "idle_timeout_minutes": 0,
                "id":"2"
             }
          ],

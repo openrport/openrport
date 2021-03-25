@@ -83,10 +83,27 @@ func (c *Client) StartTunnel(r *chshare.Remote, acl *TunnelACL) (*Tunnel, error)
 
 	tunnelID := strconv.FormatInt(c.generateNewTunnelID(), 10)
 	t = NewTunnel(c.Logger, c.Connection, tunnelID, r, acl)
-	err := t.Start(c.Context)
+	autoCloseChan, err := t.Start(c.Context)
 	if err != nil {
 		return nil, err
 	}
+
+	// in case tunnel auto-closed due to inactivity - run background task to remove the tunnel from the list
+	// TODO: in case tunnel would be extended to have active/inactive status this wouldn't be needed
+	if autoCloseChan != nil {
+		go func() {
+			select {
+			case <-c.Context.Done():
+				return
+			case <-autoCloseChan:
+				c.Lock()
+				defer c.Unlock()
+				c.removeTunnelByID(t.ID)
+				c.Logger.Debugf("tunnel with id=%s removed", t.ID)
+			}
+		}()
+	}
+
 	c.Tunnels = append(c.Tunnels, t)
 	return t, nil
 }
@@ -97,7 +114,7 @@ func (c *Client) TerminateTunnel(t *Tunnel, force bool) error {
 	if err != nil {
 		return err
 	}
-	c.removeTunnel(t)
+	c.removeTunnelByID(t.ID)
 	return nil
 }
 
@@ -114,10 +131,10 @@ func (c *Client) generateNewTunnelID() int64 {
 	return atomic.AddInt64(&c.tunnelIDAutoIncrement, 1)
 }
 
-func (c *Client) removeTunnel(t *Tunnel) {
+func (c *Client) removeTunnelByID(tunnelID string) {
 	result := make([]*Tunnel, 0)
 	for _, curr := range c.Tunnels {
-		if curr.ID != t.ID {
+		if curr.ID != tunnelID {
 			result = append(result, curr)
 		}
 	}
