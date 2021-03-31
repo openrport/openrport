@@ -32,6 +32,9 @@ builds:
         goarch: 386
       - goos: linux
         goarch: amd64
+      # TODO: remove when https://github.com/go-ole/go-ole/issues/202 will be fixed
+      - goos: windows
+        goarch: arm
   - id: rport-linux-amd64
     main: ./cmd/rport
     binary: rport
