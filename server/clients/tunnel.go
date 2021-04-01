@@ -149,7 +149,7 @@ func (t *Tunnel) getAutoCloseChan(ctx context.Context) chan bool {
 				if atomic.LoadInt32(&t.connCount) > 0 {
 					continue
 				}
-				t.Infof("Terminating... inactivity period is reached: %d minute(s)", t.connectionIDAutoIncrement)
+				t.Infof("Terminating... inactivity period is reached: %d minute(s)", t.IdleTimeoutMinutes)
 				_ = t.Terminate(true)
 				close(autoCloseChan)
 				return
