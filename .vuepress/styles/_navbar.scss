@@ -1,10 +1,13 @@
+// Navbar
+
 .navbar {
   padding-top: 1rem;
   padding-bottom: 1rem;
   box-shadow: $shadowMedium;
 
   .logo {
-    height: 2rem;
+    max-width: 7.5rem;
+    height: auto;
   }
 
   .site-name {

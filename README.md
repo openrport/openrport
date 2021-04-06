@@ -14,8 +14,8 @@ Rport acts as server and client establishing permanent or on-demand secure tunne
 
 All operating systems provide secure and well-established mechanisms for remote management, being SSH and Remote Desktop the most widely used. Rport makes them accessible easily and securely.
 
-<div class="text-center">
-    <iframe src="https://player.vimeo.com/video/530717168?byline=0&portrait=0" width="640" height="360" allow="autoplay; fullscreen; picture-in-picture" allowfullscreen></iframe>
+<div class="iframe-container">
+    <iframe src="https://player.vimeo.com/video/530717168?byline=0&portrait=0" allow="autoplay; fullscreen; picture-in-picture" allowfullscreen></iframe>
 </div>
 
 Watch our short [explainer video](https://vimeo.com/530717168).
