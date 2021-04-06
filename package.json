@@ -1,0 +1,19 @@
+{
+  "name": "rport-site",
+  "version": "1.0.0",
+  "description": "rport site made with Vuepress, hosted on Github Pages",
+  "dependencies": {},
+  "devDependencies": {
+    "vuepress": "^2.0.0-beta.6"
+  },
+  "scripts": {
+    "docs:dev": "vuepress dev",
+    "docs:build": "vuepress build"
+  },
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/cloudradar-monitoring/rport.git"
+  },
+  "author": "cloudradar-monitoring",
+  "homepage": "https://cloudradar-monitoring.github.io/rport/"
+}

@@ -8,6 +8,10 @@ Rport acts as server and client establishing permanent or on-demand secure tunne
 
 All operating systems provide secure and well-established mechanisms for remote management, being SSH and Remote Desktop the most widely used. Rport makes them accessible easily and securely.
 
+Watch our short [explainer video](https://vimeo.com/530717168).
+[![Watch the video](./docs/video-thumbnail.jpg)](https://vimeo.com/530717168)
+
+
 **Is Rport a replacement for TeamViewer?**
 Yes and no. It depends on your needs.
 TeamViewer and a couple of similar products are focused on giving access to a remote graphical desktop bypassing the Remote Desktop implementation of Microsoft. They fall short in a heterogeneous environment where access to headless Linux machines is needed. But they are without alternatives for Windows Home Editions.
@@ -17,14 +21,14 @@ Apart from remote management, they offer supplementary services like Video Confe
 Rport focuses only on remote management of those operating systems where an existing login mechanism can be used. It can be used for Linux and Windows, but also appliances and IoT devices providing a web-based configuration.
 From a technological perspective, [Ngrok](https://ngrok.com/) and [openport.io](https://openport.io) are similar products. Rport differs from them in many aspects.
 * Rport is 100% open source. Client and Server. Remote management is a matter of trust and security. Rport is fully transparent.
-* Rport comes with a user interface making the management of remote systems easy and user-friendly.
+* Rport will come with a user interface making the management of remote systems easy and user-friendly.
 * Rport is made for all operating systems with native and small binaries. No need for Python or similar heavyweights.
 * Rport allows you to self-host the server.
 * Rport allows clients to wait in standby mode without an active tunnel. Tunnels can be requested on-demand by the user remotely.
 
 **Supported operating systems**
 For the client almost all operating systems are supported and we provide binaries for a variety of Linux architectures and Microsoft Windows.
-Also, the server can run on any operation system supported by the golang compiler. At the moment we provide server binaries only for Linux X64 because this is the ideal platform for running it securely and cost effective. 
+Also, the server can run on any operation system supported by the golang compiler. At the moment we provide server binaries only for Linux X64 because this is the ideal platform for running it securely and cost effective.
 
 ![Rport Principle](./docs/rport-principle.svg "Rport Principle")
 
@@ -33,19 +37,19 @@ Also, the server can run on any operation system supported by the golang compile
 * [Usage](#usage)
 * [Feedback and Help](#feedback)
 * [Quickstart guide](#quick-guide)
-  * [Run the rport server without installation](#run-server)
-  * [Install and run the rport server](#install-server)
-  * [Run the server with systemd](#run-server-systemd)
-  * [Connect a client](#run-client)
-  * [Run a Linux client with systemd](#linux-client-systemd)
-  * [Run a Windows client](#windows-client)
-  * [Run clients on other operating systems](#other-clients)
-  * [Configuration files](#configs) 
-  * [Using authentication](#client-auth)
+    * [Run the rport server without installation](#run-server)
+    * [Install and run the rport server](#install-server)
+    * [Run the server with systemd](#run-server-systemd)
+    * [Connect a client](#run-client)
+    * [Run a Linux client with systemd](#linux-client-systemd)
+    * [Run a Windows client](#windows-client)
+    * [Run clients on other operating systems](#other-clients)
+    * [Configuration files](#configs)
+    * [Using authentication](#client-auth)
 * [On-demand tunnels using the API](#on-demand-tunnels)
-  * [Activate the API](#api-activate)
-  * [Connect a client without a tunnel](#client-no-tunnel)
-  * [Manage clients and tunnels through the API](#manage-clients)
+    * [Activate the API](#api-activate)
+    * [Connect a client without a tunnel](#client-no-tunnel)
+    * [Manage clients and tunnels through the API](#manage-clients)
 * [All API capabilities](#api-capabilities)
 * [Install a web-based frontend](#install-frontend)
 * [Install the command-line interface](#cli)
@@ -54,20 +58,19 @@ Also, the server can run on any operation system supported by the golang compile
 
 <a name="build-install"></a>
 ## Build and installation
-1) We provide [pre-compiled binaries](https://github.com/cloudradar-monitoring/rport/releases).
-
-2) From source:
-    * Build from source (Linux or Mac OS/X):
+We provide [pre-compiled binaries](https://github.com/cloudradar-monitoring/rport/releases).
+### From source
+1) Build from source (Linux or Mac OS/X):
     ```bash
     make all
     ```
-    `rport` and `rportd` binaries will appear in directory.
+   `rport` and `rportd` binaries will appear in directory.
 
-    * Build using Docker:
+2) Build using Docker:
     ```bash
     make docker-goreleaser
     ```
-    will create binaries for all supported platforms in `./dist` directory.
+   will create binaries for all supported platforms in `./dist` directory.
 
 <a name="usage"></a>
 ## Usage
@@ -82,6 +85,7 @@ Minimal setup:
 
 See `./rportd --help` and `./rport --help` for more options, like:
 - Specifying certificate fingerprint to validate server authority
+- Client session authentication using user:password pair
 - Restricting, which users can connect
 - Specifying additional intermediate HTTP proxy
 - Using POSIX signals to control running apps
@@ -91,11 +95,11 @@ See `./rportd --help` and `./rport --help` for more options, like:
 <a name="feedback"></a>
 ## Feedback and Help
 **We need your feedback**.
-Our vision is to establish Rport as a serious alternative to all the black box software for remote management. To make it a success, please share your feedback. 
+Our vision is to establish Rport as a serious alternative to all the black box software for remote management. To make it a success, please share your feedback.
 ### Report bugs
 If you encounter errors while installing or using Rport, please let us know. [File an issue report](https://github.com/cloudradar-monitoring/rport/issues) here on Github.
 ### Ask question
-If you have difficulties installing or using rport, don't hesitate to ask us anything. Often questions give us a hint on how to improve the documentation. Do not use issue reports for asking questions. Use the [discussion forum](https://github.com/cloudradar-monitoring/rport/discussions) instead. 
+If you have difficulties installing or using rport, don't hesitate to ask us anything. Often questions give us a hint on how to improve the documentation. Do not use issue reports for asking questions. Use the [discussion forum](https://github.com/cloudradar-monitoring/rport/discussions) instead.
 ### Positive Feedback
 Please share positive feedback also. Give us a star. Write a review. Share our project page on your social media. Contribute to the [discussion](https://github.com/cloudradar-monitoring/rport/discussions). Is Rport suitable for your needs? What is missing?
 
@@ -108,10 +112,10 @@ If you quickly want to run the rport server without installation, run the follow
 wget https://github.com/cloudradar-monitoring/rport/releases/download/0.1.28/rport_0.1.28_Linux_x86_64.tar.gz
 sudo tar vxzf rport_0.1.28_Linux_x86_64.tar.gz rportd
 KEY=$(openssl rand -hex 18)
-./rportd --log-level info --data-dir /var/tmp/ --key $KEY --auth clientAuth1:1234
+./rportd --log-level info --data-dir /var/tmp/ --key $KEY --auth user1:1234
 ```
-Rportd will be listening on the default port 8080 for client connections. 
-Grab the generated fingerprint from `/var/tmp/rportd-fingerprint.txt` and use it for secure client connections. 
+Rportd will be listening on the default port 8080 for client connections.
+Grab the generated fingerprint from `/var/tmp/rportd-fingerprint.txt` and use it for secure client connections.
 <a name="install-server"></a>
 
 ### Install and run the rport server
@@ -178,7 +182,7 @@ tar vxzf - -C /usr/local/bin/ rport
 
 Create an ad hoc tunnel that will forward the port 2222 of `node1.example.com` to the to local port 22 of `client1.local.localdomain`.
 ```
-rport --auth clientAuth1:1234 --fingerprint <YOUR_FINGERPRINT> node1.example.com:8080 2222:0.0.0.0:22
+rport --auth user1:1234 --fingerprint <YOUR_FINGERPRINT> node1.example.com:8080 2222:0.0.0.0:22
 ```
 Observing the log of the server you get a confirmation about the newly created tunnel.
 
@@ -210,7 +214,7 @@ A very minimalistic client configuration `rport.conf` can look like this:
 [client]
 server = "node1.example.com:8080"
 fingerprint = "<YOUR_FINGERPRINT>"
-auth = "clientAuth1:1234"
+auth = "user1:1234"
 remotes = ['2222:22']
 ```
 This will establish a permanent tunnel and the local port 22 (SSH) of the client becomes available on port 2222 of the rport server.
@@ -225,7 +229,7 @@ A very minimalistic client configuration `rport.conf` can look like this:
 [client]
 server = "node1.example.com:8080"
 fingerprint = "<YOUR_FINGERPRINT>"
-auth = "clientAuth1:1234"
+auth = "user1:1234"
 remotes = ['3300:3389']
 ```
 This will establish a permanent tunnel and the local port 3389 (remote desktop) of the client becomes available on port 3300 of the rport server.
@@ -246,7 +250,7 @@ sc query rport
 sc start rport
 ```
 
-The windows service will be created with "Startup type = automatic". If you don't want the rport client to start on boot, you must manually disable it using for example `sc config rport start=disabled`. 
+The windows service will be created with "Startup type = automatic". If you don't want the rport client to start on boot, you must manually disable it using for example `sc config rport start=disabled`.
 
 <a name="other-clients"></a>
 ### Run clients on other operating systems
@@ -254,29 +258,25 @@ Please refer to [clients on other operating systems](./docs/client-on-other-os.m
 
 <a name="configs"></a>
 ### Configuration files
-Config files can be used to set up both the rport server and clients.
-In order to start `rportd`/`rport` with settings from a config file an arg `--config`(or `-c`) should be passed to a command with a path to the file, for example:
+Config files can be used to set up both the rport server and clients. In order to use it an arg `--config`(or `-c`) should be passed to a command with a path to the file. Configuration examples `rportd.example.conf` ([view online](rportd.example.conf)) and `rport.example.conf` ([view online](rport.example.conf)) can be found in the release archive or in the source.
+
+NOTE: command arguments and env variables will override values from the config file.
+
+In order to load the configuration from a file run:
 ```
 rportd -c /etc/rport/rportd.conf
-```
-```
 rport -c /etc/rport/rport.conf
 ```
-Configuration examples `rportd.example.conf` ([view online](rportd.example.conf)) and `rport.example.conf` ([view online](rport.example.conf)) can be found in the release archive or in the source.
-
-NOTE:
-* command arguments and env variables will override values from a config file.
-* to apply any changes to a configuration file `rportd` or `rport` should be restarted.
 
 <a name="client-auth"></a>
 ### Using authentication
 To prevent anyone who knows the address and the port of your rport server to use it for tunneling, using client authentication is required.
 
-Using a static client authentication credentials is the most basic option. See the comments in the [rportd.example.conf](rportd.example.conf) and read more about all supported [authentication options](docs/client-auth.md).
+Using a static username password pair is the most basic option. See the comments in the [rportd.example.conf](rportd.example.conf) and read more about all supported [authentication options](docs/client-auth.md).
 
 On the client start the tunnel this way
 ```
-rport --auth clientAuth1:1234 --fingerprint <YOUR_FINGERPRINT> node1.example.com:8080 2222:0.0.0.0:22
+rport --auth user1:1234 --fingerprint <YOUR_FINGERPRINT> node1.example.com:8080 2222:0.0.0.0:22
 ```
 *Note that in this early version the order of the command line options is still important. This might change later.*
 
@@ -304,7 +304,7 @@ Set up `[api]` config params. For example:
 This opens the API and enables HTTP basic authentication with a single user "admin:foobaz" who has access to the API.
 Restart the rportd after any changes to the configuration. Read more about API [authentication options](./docs/api-auth.md).
 
-**Caution:** Do not run the API on public servers with the default credentials. Change the `auth=` settings and generate your own `jwt_secret` using for example the command `pwgen 24 1` or `openssl rand -hex 12`. 
+**Caution:** Do not run the API on public servers with the default credentials. Change the `auth=` settings and generate your own `jwt_secret` using for example the command `pwgen 24 1` or `openssl rand -hex 12`.
 
 If you expose your API to the public internet, it's highly recommended to enable HTTPS. Read the [quick HTTPS howto](./docs/https-howto.md).
 
@@ -333,7 +333,7 @@ Invoke the rport client without specifying a tunnel but with some extra data.
 rport --id my-client-1 \
   --fingerprint <YOUR_FINGERPRINT> \
   --tag Linux --tag "Office Berlin" \
-  --name "My Test VM" --auth clientAuth1:1234 \
+  --name "My Test VM" --auth user1:1234 \
   node1.example.com:8080
 ```
 *Add auth and fingerprint as already explained.*
@@ -409,7 +409,7 @@ Read more about the [management of tunnel via the API](docs/managing-tunnels.md)
 ## All API Capabilities
 * [Swagger API docs](https://petstore.swagger.io/?url=https://raw.githubusercontent.com/cloudradar-monitoring/rport/master/api-doc.yml).
 * [API authentication options](docs/api-auth.md)
-* [Management of clients and tunnels via the API](docs/managing-tunnels.md) or the [Swagger API docs](https://petstore.swagger.io/?url=https://raw.githubusercontent.com/cloudradar-monitoring/rport/master/api-doc.yml#/Clients%20and%20Tunnels)
+* [Management of clients and tunnels via the API](docs/managing-tunnels.md) or the [Swagger API docs](https://petstore.swagger.io/?url=https://raw.githubusercontent.com/cloudradar-monitoring/rport/master/api-doc.yml#/Client%20Sessions%20and%20Tunnels)
 * [Command execution via the API](docs/command-execution.md) or the [Swagger API docs](https://petstore.swagger.io/?url=https://raw.githubusercontent.com/cloudradar-monitoring/rport/master/api-doc.yml#/Commands)
 * [Management of client authentication credentials via the API](docs/client-auth.md) or the [Swagger API docs](https://petstore.swagger.io/?url=https://raw.githubusercontent.com/cloudradar-monitoring/rport/master/api-doc.yml#/Rport%20Client%20Auth%20Credentials)
 * [Management of client groups via the API](docs/client-groups.md) or the [Swagger API docs](https://petstore.swagger.io/?url=https://raw.githubusercontent.com/cloudradar-monitoring/rport/master/api-doc.yml#/Client%20Groups)

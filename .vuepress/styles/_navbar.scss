@@ -1,0 +1,13 @@
+.navbar {
+  padding-top: 1rem;
+  padding-bottom: 1rem;
+  box-shadow: $shadowMedium;
+
+  .logo {
+    height: 2rem;
+  }
+
+  .site-name {
+    display: none;
+  }
+}

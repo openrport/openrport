@@ -11,3 +11,6 @@ rportd.exe
 deploy.sh
 rport.conf
 rportd.conf
+.cache
+.temp
+node_modules
