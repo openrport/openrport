@@ -1,5 +1,11 @@
-# rport
-Create reverse tunnels with ease.
+---
+home: true
+heroImage: images/hero.png
+heroText: Manage Your Entire IT Infrastructure From One Central Place
+tagline: Works for any OS - Windows, Linux, Mac, IoT, Printers, Routers, anything.
+footerHtml: true
+footer: MIT License | Copyright &copy; 2020 CloudRadar
+---
 
 ## At a glance
 Rport helps you to manage your remote servers without the hassle of VPNs, chained SSH connections, jump-hosts, or the use of commercial tools like TeamViewer and its clones.
@@ -9,8 +15,6 @@ Rport acts as server and client establishing permanent or on-demand secure tunne
 All operating systems provide secure and well-established mechanisms for remote management, being SSH and Remote Desktop the most widely used. Rport makes them accessible easily and securely.
 
 Watch our short [explainer video](https://vimeo.com/530717168).
-[![Watch the video](./docs/video-thumbnail.jpg)](https://vimeo.com/530717168)
-
 
 **Is Rport a replacement for TeamViewer?**
 Yes and no. It depends on your needs.
@@ -426,7 +430,7 @@ You can also manage clients, tunnels, and commandd from a user-friendly command-
 ## Versioning model
 rport uses `<major>.<minor>.<buildnumber>` version pattern for compatibility with a maximum number of package managers.
 
-Starting from version 1.0.0 packages with even <minor> number are considered stable.
+Starting from version 1.0.0 packages with even `<minor>` number are considered stable.
 
 <a name="credits"></a>
 ## Credits
