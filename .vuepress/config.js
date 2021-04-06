@@ -42,6 +42,8 @@ module.exports = {
   editLink: false,
 
   themeConfig: {
+    contributors: false,
+    editLink: false,
     logo: 'logo/rport-img-text.svg',
     lastUpdated: false,
     navbar: [
@@ -62,6 +64,8 @@ module.exports = {
         link: 'https://github.com/cloudradar-monitoring/rport/releases',
       },
     ],
+    repo: 'cloudradar-monitoring/rport',
+    repoLabel: 'Github-Repo',
     sidebar: {
       '/docs/': [
         {

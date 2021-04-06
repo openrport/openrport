@@ -1,4 +1,4 @@
-## Client Groups
+# Client Groups
 Rport client group can be created by:
 1. adding single clients to it;
 2. dynamic criteria using wildcards.
@@ -42,10 +42,10 @@ Each parameter can be specified by:
   2. its `os_family` starts with `linux` or `ubuntu`.
 * `client_ids` - read-only field that is populated with IDs of active clients that belong to this group.
 
-### Manage client groups via the API
+## Manage client groups via the API
 Here are some examples how to manage client groups.
 
-#### Create
+### Create
 ```
 curl -X POST 'http://localhost:3000/api/v1/client-groups' \
 -u admin:foobaz \
@@ -60,7 +60,7 @@ curl -X POST 'http://localhost:3000/api/v1/client-groups' \
     }
 }'
 ```
-#### Update
+### Update
 Note all the parameters will be overridden.
 ```
 curl -X PUT 'http://localhost:3000/api/v1/client-groups/group-1' \
@@ -76,7 +76,7 @@ curl -X PUT 'http://localhost:3000/api/v1/client-groups/group-1' \
     }
 }'
 ```
-#### List all client groups.
+### List all client groups
 ```
 curl -s -u admin:foobaz http://localhost:3000/api/v1/client-groups/group-1|jq
 {
@@ -112,7 +112,7 @@ curl -s -u admin:foobaz http://localhost:3000/api/v1/client-groups/group-1|jq
   }
 }
 ```
-#### Delete
+### Delete
 ```
 curl -u admin:foobaz -X DELETE 'http://localhost:3000/api/v1/client-groups/group-1'
 ```

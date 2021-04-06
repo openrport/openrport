@@ -8,8 +8,10 @@ If multi tenancy is enabled the user auth table and the client auth table need a
 Usernames must be unique across tenants, otherwise mapping users to a tenant would fail.
 
 ## Examples
-### MySQL/MariaDB
-```sql
+
+:::: code-group
+::: code-group-item MySQL
+```mysql
 CREATE TABLE `users` (
   `username` varchar(150) NOT NULL,
   `password` varchar(255) NOT NULL,
@@ -23,10 +25,9 @@ CREATE TABLE `groups` (
   UNIQUE KEY `username_group_tenant` (`username`,`group`,`tenant`)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8;
 ```
-
-### SQlite3
-
-```sql
+:::
+::: code-group-item SQlite3
+```sqlite
 CREATE TABLE "users" (
   "username" TEXT(150) NOT NULL,
   "password" TEXT(255) NOT NULL,
@@ -48,6 +49,8 @@ ON "groups" (
   "teant" ASC
 );
 ```
+:::
+::::
 
 ## How it works
 Having multi-tenancy enabled each rport client is mapped to his tenant on connect. The client tables show the additional tenant object.
