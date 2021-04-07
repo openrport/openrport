@@ -41,6 +41,28 @@ module.exports = {
   ],
   editLink: false,
 
+  plugins: [
+    [
+      '@vuepress/container',
+      {
+        type: 'vimeo',
+        validate: (params) => {
+          return params.trim().match(/^vimeo\s(.*)$/);
+        },
+        render: (tokens, index) => {
+          if (tokens[index].nesting === 1) {
+            const info = tokens[index].info.trim().split(' ');
+            // opening tag
+            return `<div class="iframe-container">\n<iframe src="${info[1]}?byline=0&portrait=0" allow="autoplay; fullscreen; picture-in-picture" allowfullscreen></iframe>`;
+          } else {
+            // closing tag
+            return '</div>\n';
+          }
+        }
+      },
+    ],
+  ],
+
   themeConfig: {
     contributors: false,
     editLink: false,
