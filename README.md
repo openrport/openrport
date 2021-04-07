@@ -1,12 +1,3 @@
----
-home: true
-heroImage: images/hero.png
-heroText: Manage Your Entire IT Infrastructure From One Central Place
-tagline: Works for any OS - Windows, Linux, Mac, IoT, Printers, Routers, anything.
-footerHtml: true
-footer: MIT License | Copyright &copy; 2020 CloudRadar
----
-
 ## At a glance
 Rport helps you to manage your remote servers without the hassle of VPNs, chained SSH connections, jump-hosts, or the use of commercial tools like TeamViewer and its clones.
 

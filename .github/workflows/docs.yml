@@ -41,6 +41,10 @@ jobs:
         if: steps.yarn-cache.outputs.cache-hit != 'true'
         run: yarn --frozen-lockfile
 
+      # include Front Matter into index README for VuePress
+      - name: Include Front Matter into README
+        run: cat README-frontmatter.yaml README.md > .README.md && rm README.md && mv .README.md README.md
+
       # run build script
       - name: Build VuePress site
         run: yarn docs:build
