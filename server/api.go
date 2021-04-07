@@ -499,7 +499,7 @@ func (al *APIListener) handlePutClientTunnel(w http.ResponseWriter, req *http.Re
 	}
 
 	for _, t := range client.Tunnels {
-		if t.Remote.Remote() == remote.Remote() {
+		if t.Remote.Remote() == remote.Remote() && t.EqualACL(remote.ACL) {
 			al.jsonErrorResponseWithErrCode(w, http.StatusBadRequest, ErrCodeTunnelToPortExist, fmt.Sprintf("Tunnel to port %s already exist.", remote.RemotePort))
 			return
 		}

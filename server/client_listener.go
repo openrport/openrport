@@ -255,7 +255,7 @@ func getRemotes(tunnels []*clients.Tunnel) []*chshare.Remote {
 
 // GetTunnelsToReestablish returns old tunnels that should be re-establish taking into account new tunnels.
 func GetTunnelsToReestablish(old, new []*chshare.Remote) []*chshare.Remote {
-	if len(new) >= len(old) {
+	if len(new) > len(old) {
 		return nil
 	}
 
@@ -283,7 +283,7 @@ loop2:
 	for _, curNew := range new {
 		if !curNew.IsLocalSpecified() {
 			for i, curOld := range old {
-				if !oldMarked[i] && curOld.LocalPortRandom && curNew.Remote() == curOld.Remote() {
+				if !oldMarked[i] && curOld.LocalPortRandom && curNew.Remote() == curOld.Remote() && curNew.EqualACL(curOld.ACL) {
 					oldMarked[i] = true
 					continue loop2
 				}
