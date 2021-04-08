@@ -2,7 +2,7 @@ const fs = require('fs');
 const path = require('path');
 
 module.exports = {
-  base: '/rport/',
+  base: '/',
   lang: 'en-DE',
   title: 'rport',
   description: 'Rport helps you to manage your remote servers without the hassle of VPNs, chained SSH connections, jump-hosts, or the use of commercial tools like TeamViewer and its clones.',
@@ -13,7 +13,7 @@ module.exports = {
         rel: 'icon',
         type: 'image/png',
         sizes: '16x16',
-        href: `/rport/favicon/favicon-16x16.png`,
+        href: `/favicon/favicon-16x16.png`,
       },
     ],
     [
@@ -22,10 +22,10 @@ module.exports = {
         rel: 'icon',
         type: 'image/png',
         sizes: '32x32',
-        href: `/rport/favicon/favicon-32x32.png`,
+        href: `/favicon/favicon-32x32.png`,
       },
     ],
-    ['link', { rel: 'manifest', href: '/rport/favicon/site.webmanifest' }],
+    ['link', { rel: 'manifest', href: '/favicon/site.webmanifest' }],
     ['meta', { name: 'application-name', content: 'docs' }],
     ['meta', { name: 'apple-mobile-web-app-title', content: 'docs' }],
     [
@@ -34,7 +34,7 @@ module.exports = {
     ],
     [
       'link',
-      { rel: 'apple-touch-icon', href: `/rport/favicon/apple-touch-icon.png` },
+      { rel: 'apple-touch-icon', href: `/favicon/apple-touch-icon.png` },
     ],
     ['meta', { name: 'msapplication-TileColor', content: '#0075ec' }],
     ['meta', { name: 'theme-color', content: '#0075ec' }],

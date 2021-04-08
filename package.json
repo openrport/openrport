@@ -13,5 +13,5 @@
     "docs:build": "vuepress build"
   },
   "author": "cloudradar-monitoring",
-  "homepage": "https://cloudradar-monitoring.github.io/rport/"
+  "homepage": "https://oss.rport.io"
 }
