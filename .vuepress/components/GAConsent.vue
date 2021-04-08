@@ -23,7 +23,7 @@ export default defineComponent({
   },
 
   mounted () {
-    if (__DEV__ || __SSR__) {
+    if (process.env.NODE_ENV === 'development') {
       return;
     }
     if (localStorage.getItem(this.localStorageItemKey)) {
