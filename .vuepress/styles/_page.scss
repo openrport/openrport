@@ -1,0 +1,14 @@
+// Page
+
+.page-meta {
+  display: none;
+}
+
+.page-nav {
+  // account for ga consent layer
+  padding-bottom: 5.5rem;
+
+  @media (min-width: $MQMobileNarrow) {
+    padding-bottom: 2.5rem;
+  }
+}

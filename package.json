@@ -2,10 +2,11 @@
   "name": "rport-site",
   "version": "1.0.0",
   "description": "rport site made with Vuepress, hosted on Github Pages",
-  "dependencies": {},
+  "dependencies": {
+    "vue-gtag-next": "^1.14.0"
+  },
   "devDependencies": {
-    "vuepress": "^2.0.0-beta.6",
-    "@vuepress/plugin-google-analytics": "^2.0.0-beta.6"
+    "vuepress": "^2.0.0-beta.6"
   },
   "scripts": {
     "docs:dev": "vuepress dev",

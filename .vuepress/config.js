@@ -63,15 +63,16 @@ module.exports = {
         }
       },
     ],
-    // google-analytics
-    // Docs: https://vuepress2.netlify.app/reference/plugin/google-analytics.html
-    [
-      '@vuepress/google-analytics',
-      {
-        id: 'G-PXBRC7P992',
-      },
-    ],
   ],
+
+  // additional global constants
+  define: {
+    __GA4_ID__: 'G-PXBRC7P992',
+  },
+
+  // client app root component files
+  clientAppRootComponentFiles: path.resolve(__dirname, './components/GAConsent.vue'),
+
   themeConfig: {
     contributors: false,
     editLink: false,

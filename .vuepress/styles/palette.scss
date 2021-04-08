@@ -4,6 +4,13 @@
 // colors
 $accentColor: #0075ec;
 $textColor: #1b1b19;
+$borderColor: #eaecef;
 
 // layout
 $homePageWidth: 100%;
+$contentWidth: 960px;
+
+// responsive breakpoints
+$MQNarrow: 959px !default;
+$MQMobile: 719px !default;
+$MQMobileNarrow: 419px !default;

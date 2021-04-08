@@ -428,15 +428,6 @@
     "@vuepress/core" "2.0.0-beta.6"
     execa "^5.0.0"
 
-"@vuepress/plugin-google-analytics@^2.0.0-beta.6":
-  version "2.0.0-beta.6"
-  resolved "https://registry.yarnpkg.com/@vuepress/plugin-google-analytics/-/plugin-google-analytics-2.0.0-beta.6.tgz#25f7163b003533a61481f3f37f2e96d0f549defe"
-  integrity sha512-/7GjyLK3RniJsQRfIulkrEN1EafwcknVGMi81v+pVm/CYcLp8ARgPIV0n/SM21ptnQF+XPoZd3fyGp7j0ief5g==
-  dependencies:
-    "@vuepress/client" "2.0.0-beta.6"
-    "@vuepress/core" "2.0.0-beta.6"
-    "@vuepress/utils" "2.0.0-beta.5"
-
 "@vuepress/plugin-medium-zoom@2.0.0-beta.6":
   version "2.0.0-beta.6"
   resolved "https://registry.yarnpkg.com/@vuepress/plugin-medium-zoom/-/plugin-medium-zoom-2.0.0-beta.6.tgz#7c5aa72713b4b1049f5f54486c5feacd3a5eb72e"
@@ -3770,6 +3761,11 @@ vary@~1.1.2:
   version "1.1.2"
   resolved "https://registry.yarnpkg.com/vary/-/vary-1.1.2.tgz#2299f02c6ded30d4a5961b0b9f74524a18f634fc"
   integrity sha1-IpnwLG3tMNSllhsLn3RSShj2NPw=
+
+vue-gtag-next@^1.14.0:
+  version "1.14.0"
+  resolved "https://registry.yarnpkg.com/vue-gtag-next/-/vue-gtag-next-1.14.0.tgz#793aef0b90dff4213b9f3a79827cd99b06e678dd"
+  integrity sha512-iJl+cOG2GU5NuxqzSSIpt03WVOvZqyKB9TOy7d55KiuvRklcnb2nlqxW5B/a3/sbIt7fla+XEkRyMCcoz0zAHw==
 
 vue-loader@^16.1.2:
   version "16.2.0"
