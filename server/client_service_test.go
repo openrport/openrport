@@ -17,7 +17,7 @@ import (
 
 func TestStartClient(t *testing.T) {
 	connMock := test.NewConnMock()
-	connMock.ReturnRemoteAddr = &net.IPAddr{IP: net.IPv4(192, 0, 2, 1)}
+	connMock.ReturnRemoteAddr = &net.TCPAddr{IP: net.IPv4(192, 0, 2, 1), Port: 2345}
 
 	testCases := []struct {
 		Name              string

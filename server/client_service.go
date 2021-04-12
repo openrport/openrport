@@ -3,6 +3,7 @@ package chserver
 import (
 	"context"
 	"fmt"
+	"net"
 	"sort"
 	"strconv"
 	"sync"
@@ -121,6 +122,12 @@ func (s *ClientService) StartClient(
 		return nil, fmt.Errorf("client auth ID is already in use: %q", clientAuthID)
 	}
 
+	clientAddr := sshConn.RemoteAddr().String()
+	clientHost, _, err := net.SplitHostPort(clientAddr)
+	if err != nil {
+		return nil, fmt.Errorf("failed to get host for address %q: %v", clientAddr, err)
+	}
+
 	client := &clients.Client{
 		ID:           clientID,
 		ClientAuthID: clientAuthID,
@@ -134,7 +141,7 @@ func (s *ClientService) StartClient(
 		Version:      req.Version,
 		IPv4:         req.IPv4,
 		IPv6:         req.IPv6,
-		Address:      sshConn.RemoteAddr().String(),
+		Address:      clientHost,
 		Tunnels:      make([]*clients.Tunnel, 0),
 		Connection:   sshConn,
 		Context:      ctx,
