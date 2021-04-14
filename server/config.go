@@ -63,6 +63,7 @@ type ServerConfig struct {
 	AuthMultiuseCreds          bool          `mapstructure:"auth_multiuse_creds"`
 	EquateClientauthidClientid bool          `mapstructure:"equate_clientauthid_clientid"`
 	AllowRoot                  bool          `mapstructure:"allow_root"`
+	ClientLoginWait            float32       `mapstructure:"client_login_wait"`
 
 	excludedPorts mapset.Set
 	authID        string

@@ -6,6 +6,7 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
+	"net"
 	"net/http"
 	"net/http/httputil"
 	"net/url"
@@ -22,6 +23,7 @@ import (
 	chshare "github.com/cloudradar-monitoring/rport/share"
 	"github.com/cloudradar-monitoring/rport/share/comm"
 	"github.com/cloudradar-monitoring/rport/share/models"
+	"github.com/cloudradar-monitoring/rport/share/security"
 )
 
 type ClientListener struct {
@@ -33,6 +35,7 @@ type ClientListener struct {
 	reverseProxy      *httputil.ReverseProxy
 	sshConfig         *ssh.ServerConfig
 	requestLogOptions *requestlog.Options
+	bannedClientAuths *security.BanList
 
 	clientIndexAutoIncrement int32
 }
@@ -50,6 +53,7 @@ func NewClientListener(server *Server, privateKey ssh.Signer) (*ClientListener, 
 		httpServer:        chshare.NewHTTPServer(int(config.Server.MaxRequestBytes)),
 		Logger:            chshare.NewLogger("client-listener", config.Logging.LogOutput, config.Logging.LogLevel),
 		requestLogOptions: config.InitRequestLogOptions(),
+		bannedClientAuths: security.NewBanList(time.Duration(config.Server.ClientLoginWait) * time.Second),
 	}
 	//create ssh config
 	cl.sshConfig = &ssh.ServerConfig{
@@ -80,15 +84,31 @@ func NewClientListener(server *Server, privateKey ssh.Signer) (*ClientListener, 
 
 // authUser is responsible for validating the ssh user / password combination
 func (cl *ClientListener) authUser(c ssh.ConnMetadata, password []byte) (*ssh.Permissions, error) {
-	clientID := c.User()
-	client, err := cl.clientAuthProvider.Get(clientID)
+	clientAuthID := c.User()
+
+	if cl.bannedClientAuths.IsBanned(clientAuthID) {
+		addr := c.RemoteAddr().String()
+		host, _, err := net.SplitHostPort(addr)
+		if err != nil {
+			cl.Debugf("failed to split host port for %q: %v", addr, err)
+		} else {
+			addr = host
+		}
+
+		cl.Infof("too many requests for client auth id %q, ip address: %s", clientAuthID, addr)
+		return nil, errors.New("too many requests, please try later")
+	}
+
+	clientAuth, err := cl.clientAuthProvider.Get(clientAuthID)
 	if err != nil {
 		return nil, err
 	}
+
 	// constant time compare is used for security reasons
-	if client == nil || subtle.ConstantTimeCompare([]byte(client.Password), password) != 1 {
-		cl.Debugf("Login failed for client: %s", clientID)
-		return nil, fmt.Errorf("invalid authentication for client: %s", clientID)
+	if clientAuth == nil || subtle.ConstantTimeCompare([]byte(clientAuth.Password), password) != 1 {
+		cl.Debugf("Login failed for client auth id: %s", clientAuthID)
+		cl.bannedClientAuths.Add(clientAuthID)
+		return nil, fmt.Errorf("invalid authentication for client auth id: %s", clientAuthID)
 	}
 
 	return nil, nil
