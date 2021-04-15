@@ -138,11 +138,13 @@ func (al *APIListener) initRouter() {
 	_ = al.home // added to avoid lint errors, comment when test router is enabled
 	//sub.HandleFunc("/test/commands/ui", al.home)
 
-	// add middleware to ban bad IPs. NOTE: api handlers should not return 2xx without passing the auth
-	_ = sub.Walk(func(route *mux.Route, router *mux.Router, ancestors []*mux.Route) error {
-		route.HandlerFunc(security.BanIPsOn401(route.GetHandler(), al.bannedIPs))
-		return nil
-	})
+	if al.bannedIPs != nil {
+		// add middleware to ban bad IPs. NOTE: api handlers should not return 2xx without passing the auth
+		_ = sub.Walk(func(route *mux.Route, router *mux.Router, ancestors []*mux.Route) error {
+			route.HandlerFunc(security.BanIPsOn401(route.GetHandler(), al.bannedIPs))
+			return nil
+		})
+	}
 
 	// add max bytes middleware
 	_ = sub.Walk(func(route *mux.Route, router *mux.Router, ancestors []*mux.Route) error {
