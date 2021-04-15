@@ -27,6 +27,7 @@ import (
 	"github.com/cloudradar-monitoring/rport/share/comm"
 	"github.com/cloudradar-monitoring/rport/share/models"
 	"github.com/cloudradar-monitoring/rport/share/random"
+	"github.com/cloudradar-monitoring/rport/share/security"
 	"github.com/cloudradar-monitoring/rport/share/ws"
 )
 
@@ -136,6 +137,12 @@ func (al *APIListener) initRouter() {
 	// TODO: uncomment when needed
 	_ = al.home // added to avoid lint errors, comment when test router is enabled
 	//sub.HandleFunc("/test/commands/ui", al.home)
+
+	// add middleware to ban bad IPs. NOTE: api handlers should not return 2xx without passing the auth
+	_ = sub.Walk(func(route *mux.Route, router *mux.Router, ancestors []*mux.Route) error {
+		route.HandlerFunc(security.BanIPsOn401(route.GetHandler(), al.bannedIPs))
+		return nil
+	})
 
 	// add max bytes middleware
 	_ = sub.Walk(func(route *mux.Route, router *mux.Router, ancestors []*mux.Route) error {
