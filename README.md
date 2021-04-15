@@ -29,11 +29,6 @@ Also, the server can run on any operation system supported by the golang compile
 
 ![Rport Principle](./docs/rport-principle.svg "Rport Principle")
 
-## Versioning model
-rport uses `<major>.<minor>.<buildnumber>` version pattern for compatibility with a maximum number of package managers.
-
-Starting from version 1.0.0 packages with even `<minor>` number are considered stable.
-
 ## Feedback and Help
 **We need your feedback**.
 Our vision is to establish Rport as a serious alternative to all the black box software for remote management. To make it a success, please share your feedback.
@@ -43,7 +38,14 @@ If you encounter errors while installing or using Rport, please let us know. [Fi
 If you have difficulties installing or using rport, don't hesitate to ask us anything. Often questions give us a hint on how to improve the documentation. Do not use issue reports for asking questions. Use the [discussion forum](https://github.com/cloudradar-monitoring/rport/discussions) instead.
 ### Positive Feedback
 Please share positive feedback also. Give us a star. Write a review. Share our project page on your social media. Contribute to the [discussion](https://github.com/cloudradar-monitoring/rport/discussions). Is Rport suitable for your needs? What is missing?
+### Stay tuned
+Click on the Watch button on the top right corner of the [Repository Page](https://github.com/cloudradar-monitoring/rport). This way you won't miss any updates and the upcoming features.
 
 ## Credits
-* Forked from [jpillora/chisel](https://github.com/jpillora/chisel)
+* Thanks to [jpillora/chisel](https://github.com/jpillora/chisel) for the great groundwork of tunnels
 * Image by [pch.vector / Freepik](http://www.freepik.com)
+
+## Versioning model
+rport uses `<major>.<minor>.<buildnumber>` version pattern for compatibility with a maximum number of package managers.
+
+Starting from version 1.0.0 packages with even `<minor>` number are considered stable.
