@@ -5,6 +5,7 @@ import (
 	"errors"
 	"fmt"
 	"io"
+	"net"
 	"net/http"
 	"regexp"
 	"strconv"
@@ -81,6 +82,10 @@ func (al *APIListener) wrapWithAuthMiddleware(f http.Handler) http.HandlerFunc {
 			return
 		}
 
+		if !al.handleBannedIPs(w, r, authorized) {
+			return
+		}
+
 		if !authorized || username == "" {
 			al.bannedUsers.Add(username)
 			al.jsonErrorResponse(w, http.StatusUnauthorized, errors.New("unauthorized"))
@@ -90,6 +95,24 @@ func (al *APIListener) wrapWithAuthMiddleware(f http.Handler) http.HandlerFunc {
 		newCtx := api.WithUser(r.Context(), username)
 		f.ServeHTTP(w, r.WithContext(newCtx))
 	}
+}
+
+func (al *APIListener) handleBannedIPs(w http.ResponseWriter, r *http.Request, authorized bool) (ok bool) {
+	if al.bannedIPs != nil {
+		ip, _, err := net.SplitHostPort(r.RemoteAddr)
+		if err != nil {
+			al.jsonErrorResponse(w, http.StatusInternalServerError, fmt.Errorf("failed to split host port for %q: %v", r.RemoteAddr, err))
+			return false
+		}
+
+		if authorized {
+			al.bannedIPs.AddSuccessAttempt(ip)
+		} else {
+			al.bannedIPs.AddBadAttempt(ip)
+		}
+	}
+
+	return true
 }
 
 func (al *APIListener) initRouter() {
@@ -139,9 +162,9 @@ func (al *APIListener) initRouter() {
 	//sub.HandleFunc("/test/commands/ui", al.home)
 
 	if al.bannedIPs != nil {
-		// add middleware to ban bad IPs. NOTE: api handlers should not return 2xx without passing the auth
+		// add middleware to reject banned IPs
 		_ = sub.Walk(func(route *mux.Route, router *mux.Router, ancestors []*mux.Route) error {
-			route.HandlerFunc(security.BanIPsOn401(route.GetHandler(), al.bannedIPs))
+			route.HandlerFunc(security.RejectBannedIPs(route.GetHandler(), al.bannedIPs))
 			return nil
 		})
 	}
@@ -213,6 +236,10 @@ func (al *APIListener) handleGetLogin(w http.ResponseWriter, req *http.Request) 
 func (al *APIListener) handlePostLogin(w http.ResponseWriter, req *http.Request) {
 	user, pwd, err := parseLoginPostRequestBody(req)
 	if err != nil {
+		// ban IP if it sends a lot of bad requests
+		if !al.handleBannedIPs(w, req, false) {
+			return
+		}
 		al.jsonErrorResponse(w, http.StatusBadRequest, fmt.Errorf("can't parse request body: %s", err))
 		return
 	}
@@ -227,6 +254,11 @@ func (al *APIListener) handlePostLogin(w http.ResponseWriter, req *http.Request)
 		al.jsonErrorResponse(w, http.StatusInternalServerError, fmt.Errorf("can't validate credentials: %v", err))
 		return
 	}
+
+	if !al.handleBannedIPs(w, req, authorized) {
+		return
+	}
+
 	if !authorized {
 		al.bannedUsers.Add(user)
 		al.jsonErrorResponse(w, http.StatusUnauthorized, fmt.Errorf("unauthorized"))
@@ -295,6 +327,10 @@ func parseTokenLifetime(req *http.Request) (time.Duration, error) {
 func (al *APIListener) handleDeleteLogin(w http.ResponseWriter, req *http.Request) {
 	token, tokenProvided := getBearerToken(req)
 	if token == "" || !tokenProvided {
+		// ban IP if it sends a lot of bad requests
+		if !al.handleBannedIPs(w, req, false) {
+			return
+		}
 		al.jsonErrorResponse(w, http.StatusBadRequest, fmt.Errorf("authorization Bearer token required"))
 		return
 	}
@@ -306,6 +342,9 @@ func (al *APIListener) handleDeleteLogin(w http.ResponseWriter, req *http.Reques
 			return
 		}
 		al.jsonErrorResponse(w, http.StatusInternalServerError, err)
+		return
+	}
+	if !al.handleBannedIPs(w, req, valid) {
 		return
 	}
 	if !valid {

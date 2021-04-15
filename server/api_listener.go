@@ -264,6 +264,9 @@ func (al *APIListener) wsAuth(f http.Handler) http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
 		token := r.URL.Query().Get(WebSocketAccessTokenQueryParam)
 		if token == "" {
+			if !al.handleBannedIPs(w, r, false) {
+				return
+			}
 			al.jsonErrorResponse(w, http.StatusUnauthorized, errAccessTokenRequired)
 			return
 		}
@@ -275,6 +278,10 @@ func (al *APIListener) wsAuth(f http.Handler) http.HandlerFunc {
 				return
 			}
 			al.jsonErrorResponse(w, http.StatusInternalServerError, err)
+			return
+		}
+
+		if !al.handleBannedIPs(w, r, authorized) {
 			return
 		}
 
