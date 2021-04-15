@@ -72,11 +72,16 @@ func (al *APIListener) wrapWithAuthMiddleware(f http.Handler) http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
 		authorized, username, err := al.lookupUser(r)
 		if err != nil {
+			if errors.Is(err, ErrTooManyRequests) {
+				al.jsonErrorResponse(w, http.StatusTooManyRequests, err)
+				return
+			}
 			al.jsonErrorResponse(w, http.StatusInternalServerError, err)
 			return
 		}
 
 		if !authorized || username == "" {
+			al.bannedUsers.Add(username)
 			al.jsonErrorResponse(w, http.StatusUnauthorized, errors.New("unauthorized"))
 			return
 		}
@@ -128,8 +133,9 @@ func (al *APIListener) initRouter() {
 	sub.HandleFunc("/ws/commands", al.wsAuth(http.HandlerFunc(al.handleCommandsWS))).Methods(http.MethodGet)
 
 	// only for test purpose
-	// TODO: remove
-	sub.HandleFunc("/test/commands/ui", al.home)
+	// TODO: uncomment when needed
+	_ = al.home // added to avoid lint errors, comment when test router is enabled
+	//sub.HandleFunc("/test/commands/ui", al.home)
 
 	// add max bytes middleware
 	_ = sub.Walk(func(route *mux.Route, router *mux.Router, ancestors []*mux.Route) error {
@@ -196,15 +202,14 @@ func (al *APIListener) handleGetLogin(w http.ResponseWriter, req *http.Request) 
 }
 
 func (al *APIListener) handlePostLogin(w http.ResponseWriter, req *http.Request) {
-	lifetime, err := parseTokenLifetime(req)
-	if err != nil {
-		al.jsonErrorResponse(w, http.StatusBadRequest, err)
-		return
-	}
-
 	user, pwd, err := parseLoginPostRequestBody(req)
 	if err != nil {
 		al.jsonErrorResponse(w, http.StatusBadRequest, fmt.Errorf("can't parse request body: %s", err))
+		return
+	}
+
+	if al.bannedUsers.IsBanned(user) {
+		al.jsonErrorResponse(w, http.StatusTooManyRequests, ErrTooManyRequests)
 		return
 	}
 
@@ -214,7 +219,14 @@ func (al *APIListener) handlePostLogin(w http.ResponseWriter, req *http.Request)
 		return
 	}
 	if !authorized {
+		al.bannedUsers.Add(user)
 		al.jsonErrorResponse(w, http.StatusUnauthorized, fmt.Errorf("unauthorized"))
+		return
+	}
+
+	lifetime, err := parseTokenLifetime(req)
+	if err != nil {
+		al.jsonErrorResponse(w, http.StatusBadRequest, err)
 		return
 	}
 
@@ -278,12 +290,17 @@ func (al *APIListener) handleDeleteLogin(w http.ResponseWriter, req *http.Reques
 		return
 	}
 
-	valid, _, apiSession, err := al.validateBearerToken(token)
+	valid, user, apiSession, err := al.validateBearerToken(token)
 	if err != nil {
+		if errors.Is(err, ErrTooManyRequests) {
+			al.jsonErrorResponse(w, http.StatusTooManyRequests, err)
+			return
+		}
 		al.jsonErrorResponse(w, http.StatusInternalServerError, err)
 		return
 	}
 	if !valid {
+		al.bannedUsers.Add(user)
 		al.jsonErrorResponse(w, http.StatusBadRequest, fmt.Errorf("token is invalid or expired"))
 		return
 	}
