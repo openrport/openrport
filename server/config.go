@@ -30,6 +30,8 @@ type APIConfig struct {
 	KeyFile        string  `mapstructure:"key_file"`
 	AccessLogFile  string  `mapstructure:"access_log_file"`
 	UserLoginWait  float32 `mapstructure:"user_login_wait"`
+	MaxFailedLogin int     `mapstructure:"max_failed_login"`
+	BanTime        int     `mapstructure:"ban_time"`
 }
 
 const (

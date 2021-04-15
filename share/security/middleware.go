@@ -6,7 +6,7 @@ import (
 	"net/http"
 )
 
-func BanOnMaxBadAttempts(f http.Handler, bannedIPs *MaxBadAttemptsBanList) http.HandlerFunc {
+func RejectBannedIPs(f http.Handler, bannedIPs *MaxBadAttemptsBanList) http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
 		ip, _, err := net.SplitHostPort(r.RemoteAddr)
 		if err != nil {

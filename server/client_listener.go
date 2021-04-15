@@ -141,7 +141,7 @@ func (cl *ClientListener) Start(listenAddr string) error {
 
 	h := http.Handler(middleware.MaxBytes(http.HandlerFunc(cl.handleClient), cl.config.Server.MaxRequestBytes))
 	if cl.bannedIPs != nil {
-		h = http.Handler(security.BanOnMaxBadAttempts(h, cl.bannedIPs))
+		h = http.Handler(security.RejectBannedIPs(h, cl.bannedIPs))
 	}
 	h = requestlog.WrapWith(h, *cl.requestLogOptions)
 	return cl.httpServer.GoListenAndServe(listenAddr, h)

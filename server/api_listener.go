@@ -41,6 +41,7 @@ type APIListener struct {
 	accessLogFile     io.WriteCloser
 	insecureForTests  bool
 	bannedUsers       *security.BanList
+	bannedIPs         *security.MaxBadAttemptsBanList
 
 	testDone chan bool // is used only in tests to be able to wait until async task is done
 }
@@ -89,6 +90,14 @@ func NewAPIListener(
 		requestLogOptions: config.InitRequestLogOptions(),
 		userSrv:           userService,
 		bannedUsers:       security.NewBanList(time.Duration(config.API.UserLoginWait) * time.Second),
+	}
+
+	if config.API.MaxFailedLogin > 0 && config.API.BanTime > 0 {
+		a.bannedIPs = security.NewMaxBadAttemptsBanList(
+			config.API.MaxFailedLogin,
+			time.Duration(config.API.BanTime)*time.Second,
+			a.Logger,
+		)
 	}
 
 	if config.API.AccessLogFile != "" {
@@ -255,6 +264,9 @@ func (al *APIListener) wsAuth(f http.Handler) http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
 		token := r.URL.Query().Get(WebSocketAccessTokenQueryParam)
 		if token == "" {
+			if !al.handleBannedIPs(w, r, false) {
+				return
+			}
 			al.jsonErrorResponse(w, http.StatusUnauthorized, errAccessTokenRequired)
 			return
 		}
@@ -266,6 +278,10 @@ func (al *APIListener) wsAuth(f http.Handler) http.HandlerFunc {
 				return
 			}
 			al.jsonErrorResponse(w, http.StatusInternalServerError, err)
+			return
+		}
+
+		if !al.handleBannedIPs(w, r, authorized) {
 			return
 		}
 
