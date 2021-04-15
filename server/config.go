@@ -64,6 +64,8 @@ type ServerConfig struct {
 	EquateClientauthidClientid bool          `mapstructure:"equate_clientauthid_clientid"`
 	AllowRoot                  bool          `mapstructure:"allow_root"`
 	ClientLoginWait            float32       `mapstructure:"client_login_wait"`
+	MaxFailedLogin             int           `mapstructure:"max_failed_login"`
+	BanTime                    int           `mapstructure:"ban_time"`
 
 	excludedPorts mapset.Set
 	authID        string

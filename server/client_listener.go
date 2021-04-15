@@ -36,6 +36,7 @@ type ClientListener struct {
 	sshConfig         *ssh.ServerConfig
 	requestLogOptions *requestlog.Options
 	bannedClientAuths *security.BanList
+	bannedIPs         *security.MaxBadAttemptsBanList
 
 	clientIndexAutoIncrement int32
 }
@@ -55,6 +56,15 @@ func NewClientListener(server *Server, privateKey ssh.Signer) (*ClientListener, 
 		requestLogOptions: config.InitRequestLogOptions(),
 		bannedClientAuths: security.NewBanList(time.Duration(config.Server.ClientLoginWait) * time.Second),
 	}
+
+	if config.Server.MaxFailedLogin > 0 && config.Server.BanTime > 0 {
+		cl.bannedIPs = security.NewMaxBadAttemptsBanList(
+			config.Server.MaxFailedLogin,
+			time.Duration(config.Server.BanTime)*time.Second,
+			cl.Logger,
+		)
+	}
+
 	//create ssh config
 	cl.sshConfig = &ssh.ServerConfig{
 		ServerVersion:    "SSH-" + chshare.ProtocolVersion + "-server",
@@ -87,15 +97,7 @@ func (cl *ClientListener) authUser(c ssh.ConnMetadata, password []byte) (*ssh.Pe
 	clientAuthID := c.User()
 
 	if cl.bannedClientAuths.IsBanned(clientAuthID) {
-		addr := c.RemoteAddr().String()
-		host, _, err := net.SplitHostPort(addr)
-		if err != nil {
-			cl.Debugf("failed to split host port for %q: %v", addr, err)
-		} else {
-			addr = host
-		}
-
-		cl.Infof("too many requests for client auth id %q, ip address: %s", clientAuthID, addr)
+		cl.Infof("Too many requests for client auth id %q, ip address: %s", clientAuthID, cl.getIP(c.RemoteAddr()))
 		return nil, errors.New("too many requests, please try later")
 	}
 
@@ -104,14 +106,31 @@ func (cl *ClientListener) authUser(c ssh.ConnMetadata, password []byte) (*ssh.Pe
 		return nil, err
 	}
 
+	ip := cl.getIP(c.RemoteAddr())
 	// constant time compare is used for security reasons
 	if clientAuth == nil || subtle.ConstantTimeCompare([]byte(clientAuth.Password), password) != 1 {
 		cl.Debugf("Login failed for client auth id: %s", clientAuthID)
 		cl.bannedClientAuths.Add(clientAuthID)
+		if cl.bannedIPs != nil {
+			cl.bannedIPs.AddBadAttempt(ip)
+		}
 		return nil, fmt.Errorf("invalid authentication for client auth id: %s", clientAuthID)
 	}
 
+	if cl.bannedIPs != nil {
+		cl.bannedIPs.AddSuccessAttempt(ip)
+	}
 	return nil, nil
+}
+
+func (cl *ClientListener) getIP(addr net.Addr) string {
+	addrStr := addr.String()
+	host, _, err := net.SplitHostPort(addrStr)
+	if err != nil {
+		cl.Errorf("failed to split host port for %q: %v", addr, err)
+		return addrStr
+	}
+	return host
 }
 
 func (cl *ClientListener) Start(listenAddr string) error {
@@ -121,6 +140,9 @@ func (cl *ClientListener) Start(listenAddr string) error {
 	cl.Infof("Listening on %s...", listenAddr)
 
 	h := http.Handler(middleware.MaxBytes(http.HandlerFunc(cl.handleClient), cl.config.Server.MaxRequestBytes))
+	if cl.bannedIPs != nil {
+		h = http.Handler(security.BanOnMaxBadAttempts(h, cl.bannedIPs))
+	}
 	h = requestlog.WrapWith(h, *cl.requestLogOptions)
 	return cl.httpServer.GoListenAndServe(listenAddr, h)
 }
