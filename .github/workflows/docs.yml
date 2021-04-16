@@ -3,9 +3,11 @@ name: Docs
 # https://cloudradar-monitoring.github.io/rport/ (Github Pages)
 
 on:
-  # trigger deployment on every push to documentation branch
+  # trigger deployment on every push to documentation branch or master
   push:
-    branches: [documentation]
+    branches:
+      - documentation
+      - master
   # trigger deployment manually
   workflow_dispatch:
 
