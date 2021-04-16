@@ -195,6 +195,12 @@ func (al *APIListener) lookupUser(r *http.Request) (authorized bool, username st
 
 	if bearerToken, bearerAuthProvided := getBearerToken(r); bearerAuthProvided {
 		authorized, username, err = al.handleBearerToken(bearerToken)
+		return
+	}
+
+	// case when no auth method is provided
+	if al.bannedUsers.IsBanned("") {
+		return false, "", ErrTooManyRequests
 	}
 
 	return
