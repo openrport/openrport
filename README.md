@@ -29,6 +29,9 @@ Also, the server can run on any operation system supported by the golang compile
 
 ![Rport Principle](./docs/rport-principle.svg "Rport Principle")
 
+## Documentation
+Please follow the [link](https://oss.rport.io/docs/) to see the full documentation.
+
 ## Feedback and Help
 **We need your feedback**.
 Our vision is to establish Rport as a serious alternative to all the black box software for remote management. To make it a success, please share your feedback.
