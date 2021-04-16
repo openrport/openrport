@@ -19,16 +19,19 @@ import (
 )
 
 type APIConfig struct {
-	Address        string `mapstructure:"address"`
-	Auth           string `mapstructure:"auth"`
-	AuthFile       string `mapstructure:"auth_file"`
-	AuthUserTable  string `mapstructure:"auth_user_table"`
-	AuthGroupTable string `mapstructure:"auth_group_table"`
-	JWTSecret      string `mapstructure:"jwt_secret"`
-	DocRoot        string `mapstructure:"doc_root"`
-	CertFile       string `mapstructure:"cert_file"`
-	KeyFile        string `mapstructure:"key_file"`
-	AccessLogFile  string `mapstructure:"access_log_file"`
+	Address        string  `mapstructure:"address"`
+	Auth           string  `mapstructure:"auth"`
+	AuthFile       string  `mapstructure:"auth_file"`
+	AuthUserTable  string  `mapstructure:"auth_user_table"`
+	AuthGroupTable string  `mapstructure:"auth_group_table"`
+	JWTSecret      string  `mapstructure:"jwt_secret"`
+	DocRoot        string  `mapstructure:"doc_root"`
+	CertFile       string  `mapstructure:"cert_file"`
+	KeyFile        string  `mapstructure:"key_file"`
+	AccessLogFile  string  `mapstructure:"access_log_file"`
+	UserLoginWait  float32 `mapstructure:"user_login_wait"`
+	MaxFailedLogin int     `mapstructure:"max_failed_login"`
+	BanTime        int     `mapstructure:"ban_time"`
 }
 
 const (
@@ -63,6 +66,9 @@ type ServerConfig struct {
 	AuthMultiuseCreds          bool          `mapstructure:"auth_multiuse_creds"`
 	EquateClientauthidClientid bool          `mapstructure:"equate_clientauthid_clientid"`
 	AllowRoot                  bool          `mapstructure:"allow_root"`
+	ClientLoginWait            float32       `mapstructure:"client_login_wait"`
+	MaxFailedLogin             int           `mapstructure:"max_failed_login"`
+	BanTime                    int           `mapstructure:"ban_time"`
 
 	excludedPorts mapset.Set
 	authID        string
