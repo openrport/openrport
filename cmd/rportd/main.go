@@ -24,7 +24,7 @@ const (
 	DefaultCheckPortTimeout       = 2 * time.Second
 	DefaultExcludedPorts          = "1-1024"
 	DefaultServerAddress          = "0.0.0.0:8080"
-	DefaultLogLevel               = "error"
+	DefaultLogLevel               = "info"
 	DefaultRunRemoteCmdTimeoutSec = 60
 )
 
@@ -184,7 +184,7 @@ var serverHelp = `
 
     --service-user, An optional arg specifying user to run rportd service under. Only on linux. Defaults to rport.
 
-    --log-level, Specify log level. Values: "error", "info", "debug" (defaults to "error")
+    --log-level, Specify log level. Values: "error", "info", "debug" (defaults to "info")
 
     --log-file, -l, Specifies log file path. (defaults to empty string: log printed to stdout)
 
