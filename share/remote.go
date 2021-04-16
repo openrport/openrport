@@ -86,7 +86,11 @@ func isHost(s string) bool {
 
 //implement Stringer
 func (r *Remote) String() string {
-	return r.LocalHost + ":" + r.LocalPort + ":" + r.Remote()
+	s := r.LocalHost + ":" + r.LocalPort + ":" + r.Remote()
+	if r.ACL == nil {
+		return s
+	}
+	return s + "(acl:" + *r.ACL + ")"
 }
 
 func (r *Remote) Remote() string {
@@ -95,6 +99,16 @@ func (r *Remote) Remote() string {
 
 func (r *Remote) Equals(other *Remote) bool {
 	return r.String() == other.String()
+}
+
+func (r *Remote) EqualACL(acl *string) bool {
+	if r.ACL != nil && acl != nil {
+		return *r.ACL == *acl
+	}
+	if r.ACL == nil && acl == nil {
+		return true
+	}
+	return false
 }
 
 func (r *Remote) IsLocalSpecified() bool {

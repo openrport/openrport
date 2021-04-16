@@ -16,7 +16,9 @@ func TestGetTunnelsToReestablish(t *testing.T) {
 		descr string // Test Case Description
 
 		oldStr []string
+		oldACL []string
 		newStr []string
+		newACL []string
 
 		wantResStr []string
 	}{
@@ -284,6 +286,102 @@ func TestGetTunnelsToReestablish(t *testing.T) {
 			},
 			wantResStr: nil,
 		},
+		{
+			descr: "same old and new tunnel but different ACLs",
+			oldStr: []string{
+				"5432:0.0.0.0:22",
+			},
+			oldACL: []string{
+				"95.67.52.213",
+			},
+			newStr: []string{
+				"5432:0.0.0.0:22",
+			},
+			newACL: []string{
+				"95.67.52.214",
+			},
+			wantResStr: nil,
+		},
+		{
+			descr: "same old and new tunnel without local but different ACLs",
+			oldStr: []string{
+				"22",
+			},
+			oldACL: []string{
+				"95.67.52.213",
+			},
+			newStr: []string{
+				"22",
+			},
+			newACL: []string{
+				"95.67.52.214",
+			},
+			wantResStr: nil,
+		},
+		{
+			descr: "old tunnels have 2 similar tunnels but different ACLs, new tunnels contains one of them",
+			oldStr: []string{
+				"2222:0.0.0.0:22",
+				"3333:0.0.0.0:22",
+			},
+			oldACL: []string{
+				"95.67.52.213",
+				"95.67.52.214",
+			},
+			newStr: []string{
+				"2222:0.0.0.0:22",
+			},
+			newACL: []string{
+				"95.67.52.213",
+			},
+			wantResStr: []string{
+				"0.0.0.0:3333:0.0.0.0:22(acl:95.67.52.214)",
+			},
+		},
+		{
+			descr: "old and new tunnels have 2 same tunnels without local but different ACLs",
+			oldStr: []string{
+				"22",
+				"22",
+			},
+			oldACL: []string{
+				"95.67.52.213",
+				"95.67.52.214",
+			},
+			newStr: []string{
+				"22",
+				"22",
+			},
+			newACL: []string{
+				"95.67.52.213",
+				"95.67.52.214",
+			},
+			wantResStr: nil,
+		},
+		{
+			descr: "old tunnels have 3 same tunnels without local but different ACLs, new tunnels have 2 of them",
+			oldStr: []string{
+				"22",
+				"22",
+				"22",
+			},
+			oldACL: []string{
+				"95.67.52.213",
+				"95.67.52.214",
+				"95.67.52.215",
+			},
+			newStr: []string{
+				"22",
+				"22",
+			},
+			newACL: []string{
+				"95.67.52.213",
+				"95.67.52.214",
+			},
+			wantResStr: []string{
+				"::0.0.0.0:22(acl:95.67.52.215)",
+			},
+		},
 	}
 	for _, tc := range testCases {
 		msg := fmt.Sprintf("test case: %q", tc.descr)
@@ -299,11 +397,17 @@ func TestGetTunnelsToReestablish(t *testing.T) {
 				r.LocalPort = randomPorts[i]
 				r.LocalPortRandom = true
 			}
+			if tc.oldACL != nil && tc.oldACL[i] != "" {
+				r.ACL = &tc.oldACL[i]
+			}
 			old = append(old, r)
 		}
-		for _, v := range tc.newStr {
+		for i, v := range tc.newStr {
 			r, err := chshare.DecodeRemote(v)
 			require.NoErrorf(t, err, msg)
+			if tc.newACL != nil && tc.newACL[i] != "" {
+				r.ACL = &tc.newACL[i]
+			}
 			new = append(new, r)
 		}
 
