@@ -97,7 +97,11 @@ func (cl *ClientListener) authUser(c ssh.ConnMetadata, password []byte) (*ssh.Pe
 	clientAuthID := c.User()
 
 	if cl.bannedClientAuths.IsBanned(clientAuthID) {
-		cl.Infof("Too many requests for client auth id %q, ip address: %s", clientAuthID, cl.getIP(c.RemoteAddr()))
+		cl.Infof("Failed login attempt for client auth id %q, forcing to wait for %s (%s)",
+			clientAuthID,
+			cl.config.Server.MaxFailedLogin,
+			cl.getIP(c.RemoteAddr()),
+		)
 		return nil, ErrTooManyRequests
 	}
 
