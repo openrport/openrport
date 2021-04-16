@@ -21,6 +21,7 @@ import (
 	"github.com/cloudradar-monitoring/rport/server/api/middleware"
 	"github.com/cloudradar-monitoring/rport/server/api/users"
 	chshare "github.com/cloudradar-monitoring/rport/share"
+	"github.com/cloudradar-monitoring/rport/share/security"
 )
 
 const (
@@ -39,6 +40,8 @@ type APIListener struct {
 	userSrv           UserService
 	accessLogFile     io.WriteCloser
 	insecureForTests  bool
+	bannedUsers       *security.BanList
+	bannedIPs         *security.MaxBadAttemptsBanList
 
 	testDone chan bool // is used only in tests to be able to wait until async task is done
 }
@@ -86,6 +89,15 @@ func NewAPIListener(
 		httpServer:        chshare.NewHTTPServer(int(config.Server.MaxRequestBytes), chshare.WithTLS(config.API.CertFile, config.API.KeyFile)),
 		requestLogOptions: config.InitRequestLogOptions(),
 		userSrv:           userService,
+		bannedUsers:       security.NewBanList(time.Duration(config.API.UserLoginWait) * time.Second),
+	}
+
+	if config.API.MaxFailedLogin > 0 && config.API.BanTime > 0 {
+		a.bannedIPs = security.NewMaxBadAttemptsBanList(
+			config.API.MaxFailedLogin,
+			time.Duration(config.API.BanTime)*time.Second,
+			a.Logger,
+		)
 	}
 
 	if config.API.AccessLogFile != "" {
@@ -169,8 +181,13 @@ func (al *APIListener) handleAPIRequest(w http.ResponseWriter, r *http.Request) 
 	_, _ = w.Write([]byte{})
 }
 
+var ErrTooManyRequests = errors.New("too many requests, please try later")
+
 func (al *APIListener) lookupUser(r *http.Request) (authorized bool, username string, err error) {
 	if basicUser, basicPwd, basicAuthProvided := r.BasicAuth(); basicAuthProvided {
+		if al.bannedUsers.IsBanned(basicUser) {
+			return false, basicUser, ErrTooManyRequests
+		}
 		authorized, err = al.validateCredentials(basicUser, basicPwd)
 		username = basicUser
 		return
@@ -186,7 +203,7 @@ func (al *APIListener) lookupUser(r *http.Request) (authorized bool, username st
 func (al *APIListener) handleBearerToken(bearerToken string) (bool, string, error) {
 	authorized, username, apiSession, err := al.validateBearerToken(bearerToken)
 	if err != nil {
-		return false, "", err
+		return false, username, err
 	}
 	if authorized {
 		if err := al.increaseSessionLifetime(apiSession); err != nil {
@@ -247,17 +264,29 @@ func (al *APIListener) wsAuth(f http.Handler) http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
 		token := r.URL.Query().Get(WebSocketAccessTokenQueryParam)
 		if token == "" {
+			if !al.handleBannedIPs(w, r, false) {
+				return
+			}
 			al.jsonErrorResponse(w, http.StatusUnauthorized, errAccessTokenRequired)
 			return
 		}
 
 		authorized, username, err := al.handleBearerToken(token)
 		if err != nil {
+			if errors.Is(err, ErrTooManyRequests) {
+				al.jsonErrorResponse(w, http.StatusTooManyRequests, err)
+				return
+			}
 			al.jsonErrorResponse(w, http.StatusInternalServerError, err)
 			return
 		}
 
+		if !al.handleBannedIPs(w, r, authorized) {
+			return
+		}
+
 		if !authorized || username == "" {
+			al.bannedUsers.Add(username)
 			al.jsonErrorResponse(w, http.StatusUnauthorized, errUnauthorized)
 			return
 		}

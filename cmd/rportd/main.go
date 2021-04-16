@@ -284,6 +284,8 @@ func init() {
 	viperCfg.SetDefault("server.auth_write", true)
 	viperCfg.SetDefault("server.auth_multiuse_creds", true)
 	viperCfg.SetDefault("server.run_remote_cmd_timeout_sec", DefaultRunRemoteCmdTimeoutSec)
+	viperCfg.SetDefault("server.client_login_wait", 2)
+	viperCfg.SetDefault("api.user_login_wait", 2)
 }
 
 func bindPFlags() {

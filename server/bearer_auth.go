@@ -70,6 +70,10 @@ func (al *APIListener) validateBearerToken(tokenStr string) (bool, string, *APIS
 		return false, "", nil, nil
 	}
 
+	if al.bannedUsers.IsBanned(tk.Username) {
+		return false, tk.Username, nil, ErrTooManyRequests
+	}
+
 	apiSession, err := al.apiSessionRepo.FindOne(tokenStr)
 	if err != nil || apiSession == nil {
 		return false, "", nil, err
