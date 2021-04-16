@@ -285,7 +285,11 @@ func init() {
 	viperCfg.SetDefault("server.auth_multiuse_creds", true)
 	viperCfg.SetDefault("server.run_remote_cmd_timeout_sec", DefaultRunRemoteCmdTimeoutSec)
 	viperCfg.SetDefault("server.client_login_wait", 2)
+	viperCfg.SetDefault("server.max_failed_login", 5)
+	viperCfg.SetDefault("server.ban_time", 3600)
 	viperCfg.SetDefault("api.user_login_wait", 2)
+	viperCfg.SetDefault("api.max_failed_login", 10)
+	viperCfg.SetDefault("api.ban_time", 600)
 }
 
 func bindPFlags() {
