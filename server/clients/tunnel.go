@@ -62,7 +62,7 @@ func (t *Tunnel) Start(ctx context.Context) (autoCloseChan chan bool, err error)
 func (t *Tunnel) Terminate(force bool) error {
 	n := atomic.LoadInt32(&t.connCount)
 	if !force && n > 0 {
-		return fmt.Errorf("tunnel is still active: it has %d active connection(s)", n)
+		return fmt.Errorf("tunnel has %d active connection(s)", n)
 	}
 	if t.stopFn == nil {
 		return nil
