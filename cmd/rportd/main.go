@@ -24,7 +24,7 @@ const (
 	DefaultCheckPortTimeout       = 2 * time.Second
 	DefaultExcludedPorts          = "1-1024"
 	DefaultServerAddress          = "0.0.0.0:8080"
-	DefaultLogLevel               = "error"
+	DefaultLogLevel               = "info"
 	DefaultRunRemoteCmdTimeoutSec = 60
 )
 
@@ -184,7 +184,7 @@ var serverHelp = `
 
     --service-user, An optional arg specifying user to run rportd service under. Only on linux. Defaults to rport.
 
-    --log-level, Specify log level. Values: "error", "info", "debug" (defaults to "error")
+    --log-level, Specify log level. Values: "error", "info", "debug" (defaults to "info")
 
     --log-file, -l, Specifies log file path. (defaults to empty string: log printed to stdout)
 
@@ -285,7 +285,11 @@ func init() {
 	viperCfg.SetDefault("server.auth_multiuse_creds", true)
 	viperCfg.SetDefault("server.run_remote_cmd_timeout_sec", DefaultRunRemoteCmdTimeoutSec)
 	viperCfg.SetDefault("server.client_login_wait", 2)
+	viperCfg.SetDefault("server.max_failed_login", 5)
+	viperCfg.SetDefault("server.ban_time", 3600)
 	viperCfg.SetDefault("api.user_login_wait", 2)
+	viperCfg.SetDefault("api.max_failed_login", 10)
+	viperCfg.SetDefault("api.ban_time", 600)
 }
 
 func bindPFlags() {
