@@ -1,4 +1,5 @@
 # API Authentication
+
 ## Authentication Mechanisms
 The Rportd API support two ways of authentication.
 1. HTTP Basic Auth
@@ -8,6 +9,7 @@ The API claims to be REST compliant. Submitting credentials on each request usin
 ```
 curl -s -u admin:foobaz http://localhost:3000/api/v1/clients|jq
 ```
+
 ### Bearer Token Auth
 Using HTTP Basic auth you can request a token at [`login` endpoint](https://petstore.swagger.io/?url=https://raw.githubusercontent.com/cloudradar-monitoring/rport/master/api-doc.yml#/default/get_login) to authenticate further requests with a token.
 Example:
@@ -105,7 +107,7 @@ SELECT DISTINCT(group) FROM {group-table} WHERE username='{username}';
 The password must be bcrypt-hashed.
 
 To use the database authentication you must setup a global database connection in the `[database]` section of `rportd.config` first.
-Only MySQL/MariaDB and SQLite3 are supported at the moment. The [example config](../rportd.example.conf) contains all explanations on how to set up the database connection.
+Only MySQL/MariaDB and SQLite3 are supported at the moment. The [example config](https://github.com/cloudradar-monitoring/rport/blob/master/rportd.example.conf) contains all explanations on how to set up the database connection.
 
 Having the database set up, enter the following two lines to the `[api]` section of the `rportd.config` to specify the table names.
 ```
@@ -118,9 +120,9 @@ Reload rportd to apply all changes.
 Some simple example of a table layout.
 Change column types and lengths to your needs.
 
-**MySQL/MariaDB**
-
-```sql
+:::: code-group
+::: code-group-item MySQL
+```mysql
 CREATE TABLE `users` (
   `username` varchar(150) NOT NULL,
   `password` varchar(255) NOT NULL,
@@ -132,10 +134,9 @@ CREATE TABLE `groups` (
   UNIQUE KEY `username_group` (`username`,`group`)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8;
 ```
-
-**SQLite3**
-
-```sql
+:::
+::: code-group-item SQLite3
+```sqlite
 CREATE TABLE "users" (
   "username" TEXT(150) NOT NULL,
   "password" TEXT(255) NOT NULL
@@ -154,3 +155,5 @@ ON "groups" (
   "group" ASC
 );
 ```
+:::
+::::

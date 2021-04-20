@@ -11,3 +11,14 @@ rportd.exe
 deploy.sh
 rport.conf
 rportd.conf
+
+# Vuepress
+.vuepress/.cache
+.vuepress/.temp
+
+# dependencies
+node_modules
+
+# Yarn logs
+yarn-debug.log*
+yarn-error.log*

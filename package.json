@@ -1,0 +1,17 @@
+{
+  "name": "rport-site",
+  "version": "1.0.0",
+  "description": "rport site made with Vuepress, hosted on Github Pages",
+  "dependencies": {
+    "vue-gtag-next": "^1.14.0"
+  },
+  "devDependencies": {
+    "vuepress": "^2.0.0-beta.6"
+  },
+  "scripts": {
+    "docs:dev": "vuepress dev",
+    "docs:build": "vuepress build"
+  },
+  "author": "cloudradar-monitoring",
+  "homepage": "https://oss.rport.io"
+}

@@ -1,4 +1,4 @@
-## Client Authentication
+# Client Authentication
 The Rportd can read client auth credentials from three different sources.
 1. A "hardcoded" single credentail pair
 2. A file with client credentials
@@ -8,8 +8,11 @@ Which one you choose is an either-or decision. A mixed-mode is not supported.
 
 If you select option 2 or 3 client access and the needed credentials can be managed through the API and the UI.
 
-### Using a static credential
-> **Caution:** A single static clientauthid-password pair is not recommended for productive use. If all your clients use the same credential you cannot expire clients individually. If the password falls into wrong hands you must reconfigure all your clients.
+## Using a static credential
+
+::: danger
+A single static clientauthid-password pair is not recommended for productive use. If all your clients use the same credential you cannot expire clients individually. If the password falls into wrong hands you must reconfigure all your clients.
+:::
 
 To use just a single pair consisting of a client-auth-id and a password enter the following line to the server config(`rportd.config`) in the `[server]` section.
 ```
@@ -24,7 +27,7 @@ Quite simple. Now you can run a client using the client-auth-id `rport` and the 
 auth = "rport:a-strong-password12345"
 ```
 
-### Using a file
+## Using a file
 If you want to have more than one credential, create a json file with the following structure.
 ```
 {
@@ -47,31 +50,33 @@ The file is read only on start. Changes to the file, while rportd is running, ha
 
 If you want to manage the client authentication through the API make sure the auth file is writable by the rport user for example by executing `chown rport /var/lib/rport/client-auth.json`.
 
-### Using a database table
+## Using a database table
 Clients auth credentials can be read from and written to a database table.
 
 To use the database client authentication you must set up a global database connection in the `[database]` section of `rportd.conf` first.
-Only MySQL/MariaDB and SQLite3 are supported at the moment. The [example config](../rportd.example.conf) contains all explanations on how to set up the database connection.
+Only MySQL/MariaDB and SQLite3 are supported at the moment. The [example config](https://github.com/cloudradar-monitoring/rport/blob/master/rportd.example.conf) contains all explanations on how to set up the database connection.
 
 The tables must be created manually.
 
-**MySQL/MariaDB**
 
-```sql
+:::: code-group
+::: code-group-item MySQL
+```mysql
 CREATE TABLE `clients_auth` (
   `id` varchar(100) PRIMARY KEY,
   `password` varchar(100) NOT NULL
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8;
 ```
-
-**SQLite3**
-
-```sql
+:::
+::: code-group-item SQLite3
+```sqlite
 CREATE TABLE `clients_auth` (
   `id` varchar(100) PRIMARY KEY,
   `password` varchar(100) NOT NULL
 );
 ```
+:::
+::::
 
 Having the database set up, enter the following to the `[server]` section of the `rportd.conf` to specify the table names.
 ```
@@ -79,8 +84,7 @@ auth_table = "clients_auth"
 ```
 Reload rportd to apply all changes.
 
-
-### Manage client credentials via the API
+## Manage client credentials via the API
 
 The [`/clients-auth` endpoint](https://petstore.swagger.io/?url=https://raw.githubusercontent.com/cloudradar-monitoring/rport/master/api-doc.yml#/Rport%20Client%20Auth%20Credentials) allows you to manage clients and credentials through the API.
 This option is disabled if you use a single static clientauthid-password pair.

@@ -1,4 +1,4 @@
-## Command execution
+# Command execution
 Via the API you can execute a command on connected clients. 
 The command and the response are transferred through the web socket connection. A tunnel is not needed.
 
@@ -8,7 +8,7 @@ Command can be executed via:
 
 Here we would show examples how to do it via REST API.
 
-### Execute on a single host
+## Execute on a single host
 Example:
 ```
 CLIENTID=my-client
@@ -46,7 +46,7 @@ curl -s -u admin:foobaz http://localhost:3000/api/v1/clients/$CLIENTID/commands/
 
 The rport client supervises the command for the given {timeout_sec} seconds. If the timeout is exceeded the command state is considered 'unknown' but the command keeps running. 
 
-### Execute on multiple hosts
+## Execute on multiple hosts
 It can be done by using:
 * client IDs
 * group IDs
@@ -57,7 +57,7 @@ Execution options:
 * `abort_on_error`. By default, if the execution fails on some client, the entire cycle is aborted.
 But it is ignored in parallel mode when `"execute concurrently": true`. Disabling `abort_on_error` executes the command on all clients regardless there is an error or not.
 
-#### By client IDs
+### By client IDs
 Example:
 ```
 curl -s -u admin:foobaz http://localhost:3000/api/v1/commands -H "Content-Type: application/json" -X POST \
@@ -146,8 +146,8 @@ curl -s -u admin:foobaz http://localhost:3000/api/v1/commands/$JOBID|jq
   }
 }
 ```
-#### By client group IDs
-How to create client groups please see [the link](client-groups.md).
+### By client group IDs
+How to create client groups please see [the link](no04-client-groups.md).
 
 Assume we have already created a client group with `group-1` id.
 Example:
@@ -163,7 +163,8 @@ curl -s -u admin:foobaz http://localhost:3000/api/v1/commands -H "Content-Type: 
 ```
 You will get back a job id.
 Now execute the same query that is in a previous example to get the result of the command.
-### Securing your environment
+
+## Securing your environment
 The commands are executed from the account that runs rport.
 On Linux this by default an unprivileged user. Do not run rport as root.
 On Windows, rport runs as a local service account that by default has administrative rights.
