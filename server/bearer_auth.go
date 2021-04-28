@@ -66,12 +66,13 @@ func (al *APIListener) validateBearerToken(tokenStr string) (bool, string, *APIS
 		al.Debugf("failed to parse jwt token: %v", err)
 		return false, "", nil, nil
 	}
-	if !token.Valid || tk.Username == "" {
-		return false, "", nil, nil
-	}
 
 	if al.bannedUsers.IsBanned(tk.Username) {
 		return false, tk.Username, nil, ErrTooManyRequests
+	}
+
+	if !token.Valid || tk.Username == "" {
+		return false, "", nil, nil
 	}
 
 	apiSession, err := al.apiSessionRepo.FindOne(tokenStr)
