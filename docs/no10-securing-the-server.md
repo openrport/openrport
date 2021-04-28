@@ -1,7 +1,7 @@
 # Securing the rport server
-Your rport server usualy exposes two TCP ports to the public internet.
-* One for the client connections
-* and one for the API and the web frontend
+Your rport server usually exposes two TCP ports to the public internet:
+* one for the client connections
+* one for the API and the web frontend
 
 Both require authentication and unless you use weak passwords you are safe.
 But even if login attempts are prevented on the HTTP level they produce some load on your server. 
@@ -14,11 +14,11 @@ By default, the following options are activated for the client connection listen
 ```
 ## Protect your server against password guessing.
 ## Force clients to wait N seconds (float) between unsuccessful login attempts.
-## This is per client auth id. 
+## This is per client auth id.
 ## A message like
-##    'client-listener: Failed login attempt for client auth id "abc", forcing to wait for Ns (ip)'
+##    'client-listener: Failed login attempt for client auth id "abc", forcing to wait for {client_login_wait}s ({ip})'
 ## is logged to the info log.
-## Consider changing the log_level to 'info' to trace failed login attempts. 
+## Consider changing the log_level to 'info' to trace failed login attempts.
 ## Learn more https://oss.rport.io/docs/no10-securing-the-server.html
 ## Defaults: 2.0
 #client_login_wait = 2.0
@@ -26,7 +26,7 @@ By default, the following options are activated for the client connection listen
 ## After {max_failed_login} consecutive failed login-in attempts ban the source IP address for {ban_time} seconds.
 ## HTTP Status 423 is returned.
 ## A message like
-##     'Maximum of {max_failed_login} login attempts exceeded. IP address banned. ban expiry: 2021-04-16T11:22:26+00:00 ({remote-ip})'
+##     'Maximum of {max_failed_login} login attempts reached. Visitor ({remote-ip}) banned. Ban expiry: 2021-04-16T11:22:26+00:00'
 ## is logged to the info log.
 ## Banning happens on HTTP level.
 ## Consider banning on network level using fail2ban.
@@ -37,14 +37,14 @@ By default, the following options are activated for the client connection listen
 ```
 
 These are good settings to protect your server against password guessing.
-The counters for failed logins are constantly increasing and only reset by successfully logins or a server restart.
+The counters for failed logins are constantly increasing and only reset by a successful login or a server restart.
 
-For example, if a client fails to log in for the sixth time, any login attempts of the IP address are blocked for one hour. 
+For example, if a client fails to log in for the fifth time, any login attempts of the IP address are blocked for one hour. 
 If there are more clients on the same network with correct credentials but sharing common internet access and these clients are restarted, they are banned too. 
 
 
 ::: warning
-Because rejecting connections on failed logins a handled properly by the server, they are not considered an error and not logged to the log file when you are on the `error` log level.
+Because rejecting connections on failed logins is handled properly by the server, they are not considered an error and not logged to the log file when you are on the `error` log level.
 Consider changing the `log_level` to `info` to trace failed logins and to eventually activate fail2ban.
 :::
 
@@ -52,7 +52,8 @@ Consider changing the `log_level` to `info` to trace failed logins and to eventu
 #### Ban password guesser
 
 #### Ban scanners
-After a short period, you will notice HTTP requests to arbitrary files and folders on the client connect port that are answered with HTTP 404. The internet is full of scanners searching for vulnerable web applications.
+After a short period, you will notice HTTP requests to arbitrary files and folders on the client connect port that are answered with HTTP 404.
+The internet is full of scanners searching for vulnerable web applications.
 You can safely ban any IP address that produces HTTP 404. A rport client will never do this.
 
 Search your log file for the following pattern:
@@ -104,7 +105,6 @@ findtime = 20
 bantime = 3600
 ```
 
-
 Restart fail2ban to activate the new configuration with `service fail2ban restart` and check the status.
 ```
 root@localhost:~# fail2ban-client status
@@ -129,7 +129,10 @@ Status for the jail: rportd-client-connect
 ```
 
 ::: warning
-Fail2ban ships with a lot of default rules and the SSH is enabled by default. To enable fail2ban only for rportd and to disable the ssh rule, make sure only rportd rules are in `/etc/fail2ban/jail.d/`. Either delete  /etc/fail2ban/jail.d/defaults-debian.conf or open the file and comment out all lines. Use `fail2ban-client status` to verify which rules are active.
+Fail2ban ships with a lot of default rules and the SSH is enabled by default.
+To enable fail2ban only for rportd and to disable the ssh rule, make sure only rportd rules are in `/etc/fail2ban/jail.d/`.
+Either delete `/etc/fail2ban/jail.d/defaults-debian.conf` or open the file and comment out all lines.
+Use `fail2ban-client status` to verify which rules are active.
 :::
 
 ## Securing the API

@@ -97,7 +97,7 @@ func (cl *ClientListener) authUser(c ssh.ConnMetadata, password []byte) (*ssh.Pe
 	clientAuthID := c.User()
 
 	if cl.bannedClientAuths.IsBanned(clientAuthID) {
-		cl.Infof("Failed login attempt for client auth id %q, forcing to wait for %ss (%s)",
+		cl.Infof("Failed login attempt for client auth id %q, forcing to wait for %vs (%s)",
 			clientAuthID,
 			cl.config.Server.ClientLoginWait,
 			cl.getIP(c.RemoteAddr()),
