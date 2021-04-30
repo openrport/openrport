@@ -22,16 +22,16 @@ schemes:
   - https
 tags:
   - name: "Login"
-    description: For more details https://github.com/cloudradar-monitoring/rport/blob/master/docs/api-auth.md
+    description: For more details https://oss.rport.io/docs/no02-api-auth.html
   - name: "Status"
   - name: "Clients and Tunnels"
-    description: For more details https://github.com/cloudradar-monitoring/rport/blob/master/docs/managing-tunnels.md
+    description: For more details https://oss.rport.io/docs/no09-managing-tunnels.html
   - name: "Client Groups"
-    description: For more details https://github.com/cloudradar-monitoring/rport/blob/master/docs/client-groups.md
+    description: For more details https://oss.rport.io/docs/no04-client-groups.html
   - name: "Rport Client Auth Credentials"
-    description: For more details https://github.com/cloudradar-monitoring/rport/blob/master/docs/client-auth.md
+    description: For more details https://oss.rport.io/docs/no03-client-auth.html
   - name: "Commands"
-    description: For more details https://github.com/cloudradar-monitoring/rport/blob/master/docs/command-execution.md
+    description: For more details https://oss.rport.io/docs/no06-command-execution.html
 paths:
   /login:
     get:
@@ -402,7 +402,7 @@ paths:
       tags:
         - "Commands"
       summary: "Execute a command by the rport client"
-      description: "NOTE: if command limitation is enabled by an rport client then a full path command can be required to use. See https://github.com/cloudradar-monitoring/rport/blob/master/docs/command-execution.md for more details"
+      description: "NOTE: if command limitation is enabled by an rport client then a full path command can be required to use. See https://oss.rport.io/docs/no06-command-execution.html for more details"
       produces:
         - "application/json"
       parameters:
@@ -420,7 +420,7 @@ paths:
             properties:
               command:
                 type: "string"
-                description: "remote command to execute by the rport client. NOTE: if command limitation is enabled by an rport client then a full path command can be required to use. See https://github.com/cloudradar-monitoring/rport/blob/master/docs/command-execution.md for more details"
+                description: "remote command to execute by the rport client. NOTE: if command limitation is enabled by an rport client then a full path command can be required to use. See https://oss.rport.io/docs/no06-command-execution.html for more details"
               shell:
                 type: "string"
                 enum: [cmd, powershell]
@@ -518,7 +518,7 @@ paths:
       tags:
         - "Commands"
       summary: "Execute a command on multiple rport clients"
-      description: "NOTE: if command limitation is enabled by an rport client then a full path command can be required to use. See https://github.com/cloudradar-monitoring/rport/blob/master/docs/command-execution.md for more details"
+      description: "NOTE: if command limitation is enabled by an rport client then a full path command can be required to use. See https://oss.rport.io/docs/no06-command-execution.html for more details"
       produces:
         - "application/json"
       parameters:
@@ -531,7 +531,7 @@ paths:
             properties:
               command:
                 type: "string"
-                description: "remote command to execute by rport clients. NOTE: if command limitation is enabled by an rport client then a full path command can be required to use. See https://github.com/cloudradar-monitoring/rport/blob/master/docs/command-execution.md for more details"
+                description: "remote command to execute by rport clients. NOTE: if command limitation is enabled by an rport client then a full path command can be required to use. See https://oss.rport.io/docs/no06-command-execution.html for more details"
               client_ids:
                 type: "array"
                 items:
@@ -981,7 +981,7 @@ definitions:
         1. exact match of the property (ignoring case). For example, \"client_id\": [\"test-win2019-tk01\", \"qa-lin-ubuntu16\"]\n
         2. dynamic criteria using wildcards (ignoring case). For example, \"os_family\": [\"linux*\"]\n
 
-        For more details please see https://github.com/cloudradar-monitoring/rport/blob/master/docs/client-groups.md\n"
+        For more details please see https://oss.rport.io/docs/no04-client-groups.html\n"
         properties:
           client_id:
             type: "array"
@@ -1211,7 +1211,7 @@ definitions:
     properties:
       command:
         type: "string"
-        description: "remote command to execute by rport client(s). NOTE: if command limitation is enabled by an rport client then a full path command can be required to use. See https://github.com/cloudradar-monitoring/rport/blob/master/docs/command-execution.md for more details"
+        description: "remote command to execute by rport client(s). NOTE: if command limitation is enabled by an rport client then a full path command can be required to use. See https://oss.rport.io/docs/no06-command-execution.html for more details"
       client_ids:
         type: "array"
         items:

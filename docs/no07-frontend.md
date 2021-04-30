@@ -23,6 +23,6 @@ doc_root = "/var/lib/rport/docroot"
 * Download the latest release of the frontend from [https://downloads.rport.io/frontend/stable](https://downloads.rport.io/frontend/stable/?sort=time&order=desc).
 * Unpack to the `doc_root` folder.
 * Open the API-URL in a browser.
-* Log in with a username and password specified for the [API authentication](https://github.com/cloudradar-monitoring/rport/blob/master/docs/api-auth.md).
+* Log in with a username and password specified for the [API authentication](no02-api-auth.md).
 
 You are done.
