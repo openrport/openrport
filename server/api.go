@@ -1,6 +1,7 @@
 package chserver
 
 import (
+	"context"
 	"encoding/json"
 	"errors"
 	"fmt"
@@ -11,6 +12,9 @@ import (
 	"strconv"
 	"strings"
 	"time"
+
+	errors2 "github.com/cloudradar-monitoring/rport/server/api/errors"
+	"github.com/cloudradar-monitoring/rport/server/api/users"
 
 	"github.com/gorilla/mux"
 	"github.com/gorilla/websocket"
@@ -36,6 +40,7 @@ const (
 	queryParamSort = "sort"
 
 	routeParamClientID = "client_id"
+	routeParamUserID   = "user_id"
 	routeParamJobID    = "job_id"
 	routeParamGroupID  = "group_id"
 
@@ -133,6 +138,10 @@ func (al *APIListener) initRouter() {
 	sub.HandleFunc("/client-groups/{group_id}", al.handlePutClientGroup).Methods(http.MethodPut)
 	sub.HandleFunc("/client-groups/{group_id}", al.handleGetClientGroup).Methods(http.MethodGet)
 	sub.HandleFunc("/client-groups/{group_id}", al.handleDeleteClientGroup).Methods(http.MethodDelete)
+	sub.HandleFunc("/users", al.wrapStaticPassModeMiddleware(al.handleGetUsers)).Methods(http.MethodGet)
+	sub.HandleFunc("/users", al.wrapStaticPassModeMiddleware(al.handleChangeUser)).Methods(http.MethodPost)
+	sub.HandleFunc("/users/{user_id}", al.wrapStaticPassModeMiddleware(al.handleChangeUser)).Methods(http.MethodPut)
+	sub.HandleFunc("/users/{user_id}", al.wrapStaticPassModeMiddleware(al.handleDeleteUser)).Methods(http.MethodDelete)
 	sub.HandleFunc("/commands", al.handlePostMultiClientCommand).Methods(http.MethodPost)
 	sub.HandleFunc("/commands", al.handleGetMultiClientCommands).Methods(http.MethodGet)
 	sub.HandleFunc("/commands/{job_id}", al.handleGetMultiClientCommand).Methods(http.MethodGet)
@@ -194,6 +203,30 @@ func (al *APIListener) writeJSONResponse(w http.ResponseWriter, statusCode int, 
 
 func (al *APIListener) jsonErrorResponse(w http.ResponseWriter, statusCode int, err error) {
 	al.writeJSONResponse(w, statusCode, api.NewErrorPayload(err))
+}
+
+func (al *APIListener) jsonError(w http.ResponseWriter, err error) {
+	statusCode := http.StatusInternalServerError
+	errCode := strconv.Itoa(statusCode)
+	msg := err.Error()
+	switch apiErr := err.(type) {
+	case errors2.APIError:
+		statusCode = apiErr.Code
+		errCode = strconv.Itoa(statusCode)
+		if apiErr.Message != "" {
+			msg = apiErr.Message
+		}
+		al.writeJSONResponse(w, statusCode, api.NewErrorPayloadWithCode(errCode, msg, ""))
+		return
+	case errors2.APIErrors:
+		if len(apiErr) > 0 {
+			statusCode = apiErr[0].Code
+		}
+		al.writeJSONResponse(w, statusCode, api.NewAPIErrorsPayloadWithCode(apiErr))
+		return
+	}
+
+	al.writeJSONResponse(w, statusCode, api.NewErrorPayloadWithCode(errCode, msg, ""))
 }
 
 func (al *APIListener) jsonErrorResponseWithErrCode(w http.ResponseWriter, statusCode int, errCode, title string) {
@@ -404,6 +437,103 @@ func (al *APIListener) handleGetClients(w http.ResponseWriter, req *http.Request
 
 	clientsPayload := convertToClientsPayload(clients)
 	al.writeJSONResponse(w, http.StatusOK, api.NewSuccessPayload(clientsPayload))
+}
+
+type UserPayload struct {
+	Username string   `json:"username"`
+	Groups   []string `json:"groups"`
+}
+
+func (al *APIListener) handleGetUsers(w http.ResponseWriter, req *http.Request) {
+	ctx := req.Context()
+
+	err := al.validateGroupAccess(ctx, users.Administrators)
+	if err != nil {
+		al.jsonError(w, err)
+		return
+	}
+
+	usrs, err := al.usersService.GetAll()
+	if err != nil {
+		al.jsonError(w, err)
+		return
+	}
+
+	usersToSend := make([]UserPayload, 0, len(usrs))
+	for i := range usrs {
+		user := usrs[i]
+		usersToSend = append(usersToSend, UserPayload{
+			Username: user.Username,
+			Groups:   user.Groups,
+		})
+	}
+
+	response := api.NewSuccessPayload(usersToSend)
+	al.writeJSONResponse(w, http.StatusOK, response)
+}
+
+func (al *APIListener) handleChangeUser(w http.ResponseWriter, req *http.Request) {
+	ctx := req.Context()
+	err := al.validateGroupAccess(ctx, users.Administrators)
+	if err != nil {
+		al.jsonError(w, err)
+		return
+	}
+
+	vars := mux.Vars(req)
+	userID, userIDExists := vars[routeParamUserID]
+	if !userIDExists {
+		userID = ""
+	}
+
+	var user users.User
+	dec := json.NewDecoder(req.Body)
+	dec.DisallowUnknownFields()
+	err = dec.Decode(&user)
+	if err == io.EOF { // is handled separately to return an informative error message
+		al.jsonErrorResponseWithTitle(w, http.StatusBadRequest, "Missing body with json data.")
+		return
+	} else if err != nil {
+		al.jsonErrorResponseWithError(w, http.StatusBadRequest, "", "Invalid JSON data.", err)
+		return
+	}
+
+	if err := al.usersService.Change(&user, userID); err != nil {
+		al.jsonError(w, err)
+		return
+	}
+
+	if userIDExists {
+		al.Debugf("User [%s] updated.", user.Username)
+		w.WriteHeader(http.StatusNoContent)
+	} else {
+		al.Debugf("User [%s] created.", user.Username)
+		w.WriteHeader(http.StatusCreated)
+	}
+}
+
+func (al *APIListener) handleDeleteUser(w http.ResponseWriter, req *http.Request) {
+	ctx := req.Context()
+	err := al.validateGroupAccess(ctx, users.Administrators)
+	if err != nil {
+		al.jsonError(w, err)
+		return
+	}
+
+	vars := mux.Vars(req)
+	userID, userIDExists := vars[routeParamUserID]
+	if !userIDExists {
+		al.jsonErrorResponseWithTitle(w, http.StatusBadRequest, "Empty user id provided")
+		return
+	}
+
+	if err := al.usersService.Delete(userID); err != nil {
+		al.jsonError(w, err)
+		return
+	}
+
+	w.WriteHeader(http.StatusNoContent)
+	al.Debugf("User [%s] deleted.", userID)
 }
 
 type ClientPayload struct {
@@ -1629,4 +1759,53 @@ func (al *APIListener) handleDeleteClientGroup(w http.ResponseWriter, req *http.
 
 	w.WriteHeader(http.StatusNoContent)
 	al.Debugf("Client Group [id=%q] deleted.", id)
+}
+
+func (al *APIListener) validateGroupAccess(ctx context.Context, group string) (err error) {
+	curUsername := api.GetUser(ctx, al.Logger)
+	if curUsername == "" {
+		return errors2.APIError{
+			Message: "unauthorized access",
+			Code:    http.StatusUnauthorized,
+		}
+	}
+
+	curUser, err := al.userSrv.GetByUsername(curUsername)
+	if err != nil {
+		return errors2.APIError{
+			Err:  err,
+			Code: http.StatusInternalServerError,
+		}
+	}
+
+	if curUser == nil {
+		return errors2.APIError{
+			Message: "unauthorized access",
+			Code:    http.StatusUnauthorized,
+		}
+	}
+
+	for i := range curUser.Groups {
+		if curUser.Groups[i] == group {
+			return nil
+		}
+	}
+
+	return errors2.APIError{
+		Message: fmt.Sprintf("current user should belong to %s group to access this resource", group),
+		Code:    http.StatusForbidden,
+	}
+}
+
+func (al *APIListener) wrapStaticPassModeMiddleware(next http.HandlerFunc) http.HandlerFunc {
+	return func(w http.ResponseWriter, r *http.Request) {
+		if al.usersService.ProviderType == clientsauth.ProviderSourceStatic {
+			al.jsonError(w, errors2.APIError{
+				Code:    http.StatusBadRequest,
+				Message: "server runs on a static user-password pair, please use JSON file or database for user data",
+			})
+			return
+		}
+		next.ServeHTTP(w, r)
+	}
 }

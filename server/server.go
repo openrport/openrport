@@ -200,6 +200,7 @@ func (s *Server) Run() error {
 
 // Start is responsible for kicking off the http server
 func (s *Server) Start() error {
+	s.Logger.Infof("will start server on %s", s.config.Server.ListenAddress)
 	err := s.clientListener.Start(s.config.Server.ListenAddress)
 	if err != nil {
 		return err

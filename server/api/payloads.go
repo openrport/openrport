@@ -1,5 +1,11 @@
 package api
 
+import (
+	"strconv"
+
+	"github.com/cloudradar-monitoring/rport/server/api/errors"
+)
+
 // SuccessPayload represents a uniform format for all successful API responses.
 type SuccessPayload struct {
 	Data interface{} `json:"data"`
@@ -38,4 +44,18 @@ func NewErrorPayloadWithCode(code, title, detail string) ErrorPayload {
 
 func NewErrorPayload(err error) ErrorPayload {
 	return NewErrorPayloadWithCode("", "", err.Error())
+}
+
+func NewAPIErrorsPayloadWithCode(errors []errors.APIError) ErrorPayload {
+	ep := ErrorPayload{
+		Errors: make([]ErrorPayloadItem, 0, len(errors)),
+	}
+	for i := range errors {
+		ep.Errors = append(ep.Errors, ErrorPayloadItem{
+			Code:   strconv.Itoa(errors[i].Code),
+			Title:  errors[i].Error(),
+			Detail: "",
+		})
+	}
+	return ep
 }

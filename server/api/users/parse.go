@@ -5,25 +5,54 @@ import (
 	"errors"
 	"fmt"
 	"io"
+	"io/ioutil"
 	"log"
 	"os"
 	"strings"
+	"sync"
 )
 
 const htpasswdBcryptPrefix = "$2y$"
+const htpasswdBcryptAltPrefix = "$2a$"
+
+type FileManager struct {
+	FileName       string
+	FileAccessLock sync.Mutex
+}
 
 // GetUsersFromFile returns users from a given file.
-func GetUsersFromFile(fileName string) ([]*User, error) {
+func (fm *FileManager) ReadUsersFromFile() ([]*User, error) {
+	fm.FileAccessLock.Lock()
+	defer fm.FileAccessLock.Unlock()
 	log.Println("Start to get API users from file.")
 
-	file, err := os.Open(fileName)
+	file, err := os.Open(fm.FileName)
 	if err != nil {
 		return nil, fmt.Errorf("failed to open users file: %v", err)
 	}
-	log.Println("API users file opened. Parsing...")
+	log.Printf("API users file %s opened. Parsing...", fm.FileName)
 	defer file.Close()
 
-	return parseUsers(file)
+	users, err := parseUsers(file)
+	if err != nil {
+		return users, err
+	}
+	log.Printf("API users file %s is parsed successfully", fm.FileName)
+
+	return users, nil
+}
+
+// SaveUsersToFile writes users to a file in json format
+func (fm *FileManager) SaveUsersToFile(usrs []*User) error {
+	fm.FileAccessLock.Lock()
+	defer fm.FileAccessLock.Unlock()
+
+	file, err := json.MarshalIndent(usrs, "", " ")
+	if err != nil {
+		return err
+	}
+
+	return ioutil.WriteFile(fm.FileName, file, 0600)
 }
 
 func parseUsers(r io.Reader) ([]*User, error) {

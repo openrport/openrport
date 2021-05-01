@@ -32,6 +32,8 @@ tags:
     description: For more details https://oss.rport.io/docs/no03-client-auth.html
   - name: "Commands"
     description: For more details https://oss.rport.io/docs/no06-command-execution.html
+  - name: "Users"
+    description: For more details https://oss.rport.io/docs/no11-user.html
 paths:
   /login:
     get:
@@ -874,6 +876,132 @@ paths:
           description: "Invalid Operation"
           schema:
             $ref: "#/definitions/ErrorPayload"
+  /users:
+    get:
+      tags:
+        - "Users"
+      summary: "Return all users"
+      description: "Return a list of all existing users sorted by username in asc order.
+      This API requites the current user to be member of group `Administrators`. Returns 403 otherwise.
+      The `Administrators` group name is hardcoded and cannot be changed at the moment"
+      produces:
+        - "application/json"
+      responses:
+        "200":
+          description: "Successful Operation"
+          schema:
+            type: "object"
+            properties:
+              data:
+                type: "array"
+                items:
+                  $ref: "#/definitions/UserGet"
+        "400":
+          description: "server runs on a static user-password pair, please use JSON file or database for user data"
+          schema:
+            $ref: "#/definitions/ErrorPayload"
+        "403":
+          description: "current user should belong to Administrators group to access this resource"
+          schema:
+            $ref: "#/definitions/ErrorPayload"
+        "500":
+          description: "Invalid Operation"
+          schema:
+            $ref: "#/definitions/ErrorPayload"
+    post:
+      tags:
+        - "Users"
+      summary: "Create a new user"
+      description: "Create a new user.
+      This API requites the current user to be member of group `Administrators`. Returns 403 otherwise.
+      The `Administrators` group name is hardcoded and cannot be changed at the moment"
+      produces:
+        - "application/json"
+      parameters:
+        - in: "body"
+          name: "user"
+          description: "User to create."
+          required: true
+          schema:
+            $ref: '#/definitions/UserPost'
+      responses:
+        "201":
+          description: "Successful Operation"
+        "400":
+          description: "Invalid request parameters"
+          schema:
+            $ref: "#/definitions/ErrorPayload"
+        "403":
+          description: "current user should belong to Administrators group to access this resource"
+          schema:
+            $ref: "#/definitions/ErrorPayload"
+        "500":
+          description: "Invalid Operation"
+          schema:
+            $ref: "#/definitions/ErrorPayload"
+  /users/{user_id}:
+    put:
+      tags:
+        - "Users"
+      summary: "Update a user identified by the provided id"
+      description: "Update an existing user.
+      This API requites the current user to be member of group `Administrators`. Returns 403 otherwise.
+            The `Administrators` group name is hardcoded and cannot be changed at the moment."
+      produces:
+        - "application/json"
+      parameters:
+        - name: "user_id"
+          in: "path"
+          description: "unique user ID"
+          required: true
+          type: "string"
+        - in: "body"
+          name: "user"
+          description: "User to update. Please note, that if you provide some key/values like `username: login1`, the not mentioned keys won't be changed, e.g. `password`"
+          required: true
+          schema:
+            $ref: '#/definitions/UserPost'
+      responses:
+        "204":
+          description: "Successful Operation"
+        "400":
+          description: "Invalid request parameters"
+          schema:
+            $ref: "#/definitions/ErrorPayload"
+        "403":
+          description: "current user should belong to Administrators group to access this resource"
+          schema:
+            $ref: "#/definitions/ErrorPayload"
+        "500":
+          description: "Invalid Operation"
+          schema:
+            $ref: "#/definitions/ErrorPayload"
+    delete:
+      tags:
+        - "Users"
+      summary: "Delete a user"
+      description: "Deletes a user by a given id.
+      This API requites the current user to be member of group `Administrators`. Returns 403 otherwise.
+            The `Administrators` group name is hardcoded and cannot be changed at the moment"
+      produces:
+        - "application/json"
+      parameters:
+        - name: "user_id"
+          in: "path"
+          description: "unique user  ID"
+          required: true
+          type: "string"
+      responses:
+        "204":
+          description: "Successful Operation"
+        "403":
+          description: "current user should belong to Administrators group to access this resource"
+          schema:
+            $ref: "#/definitions/ErrorPayload"
+        "500":
+          description: "Invalid Operation"
+          schema:
+            $ref: "#/definitions/ErrorPayload"
 definitions:
   Tunnel:
     type: "object"
@@ -1189,6 +1317,31 @@ definitions:
       created_by:
         type: "string"
         description: "API username who run the command"
+  UserGet:
+    type: "object"
+    properties:
+      username:
+        type: "string"
+        description: "Username"
+      groups:
+        type: "array"
+        items:
+          type: string
+        description: "List of groups to which the current user belongs"
+  UserPost:
+    type: "object"
+    properties:
+      username:
+        type: "string"
+        description: "Username for the credentials pair"
+      password:
+        type: "string"
+        description: "Password for the credentials pair"
+      groups:
+        type: "array"
+        items:
+          type: string
+        description: "List of groups to which the current user belongs"
   ErrorPayload:
     type: "object"
     properties:
@@ -1203,7 +1356,7 @@ definitions:
         type: "string"
       title:
         type: "string"
-      detial:
+      detail:
         type: "string"
   ExecuteCmdRequest:
     description: "Request that contains a remote command to execute by rport client(s) and other related properties"

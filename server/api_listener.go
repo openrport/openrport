@@ -9,7 +9,10 @@ import (
 	"os"
 	"runtime"
 	"strings"
+	"sync"
 	"time"
+
+	"github.com/cloudradar-monitoring/rport/server/clientsauth"
 
 	"github.com/gorilla/handlers"
 	"github.com/gorilla/mux"
@@ -43,7 +46,8 @@ type APIListener struct {
 	bannedUsers       *security.BanList
 	bannedIPs         *security.MaxBadAttemptsBanList
 
-	testDone chan bool // is used only in tests to be able to wait until async task is done
+	testDone     chan bool // is used only in tests to be able to wait until async task is done
+	usersService *users.APIService
 }
 
 type UserService interface {
@@ -57,24 +61,35 @@ func NewAPIListener(
 	config := server.config
 
 	var userService UserService
+	var usersProviderType clientsauth.ProviderSource
+	var userDB *users.UserDatabase
+	var err error
+	usersFromFileProvider := &users.FileManager{
+		FileAccessLock: sync.Mutex{},
+	}
 	if config.API.AuthFile != "" {
-		authUsers, err := users.GetUsersFromFile(config.API.AuthFile)
-		if err != nil {
-			return nil, err
+		usersFromFileProvider.FileName = config.API.AuthFile
+		authUsers, e := usersFromFileProvider.ReadUsersFromFile()
+		if e != nil {
+			return nil, e
 		}
 		userService = users.NewUserCache(authUsers)
+		usersProviderType = clientsauth.ProviderSourceFile
 	} else if config.API.Auth != "" {
-		authUser, err := parseHTTPAuthStr(config.API.Auth)
-		if err != nil {
-			return nil, err
+		authUser, e := parseHTTPAuthStr(config.API.Auth)
+		if e != nil {
+			return nil, e
 		}
 		userService = users.NewUserCache([]*users.User{authUser})
+		usersProviderType = clientsauth.ProviderSourceStatic
 	} else if config.API.AuthUserTable != "" {
-		userDB, err := users.NewUserDatabase(server.db, config.API.AuthUserTable, config.API.AuthGroupTable)
+		logger := chshare.NewLogger("database", config.Logging.LogOutput, config.Logging.LogLevel)
+		userDB, err = users.NewUserDatabase(server.db, config.API.AuthUserTable, config.API.AuthGroupTable, logger)
 		if err != nil {
 			return nil, err
 		}
 		userService = userDB
+		usersProviderType = clientsauth.ProviderSourceDB
 	}
 
 	if config.Server.CheckPortTimeout > DefaultMaxCheckPortTimeout {
@@ -90,6 +105,11 @@ func NewAPIListener(
 		requestLogOptions: config.InitRequestLogOptions(),
 		userSrv:           userService,
 		bannedUsers:       security.NewBanList(time.Duration(config.API.UserLoginWait) * time.Second),
+		usersService: &users.APIService{
+			ProviderType: usersProviderType,
+			FileProvider: usersFromFileProvider,
+			DB:           userDB,
+		},
 	}
 
 	if config.API.MaxFailedLogin > 0 && config.API.BanTime > 0 {
