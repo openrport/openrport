@@ -260,6 +260,35 @@ paths:
           description: "invalid operation"
           schema:
             $ref: "#/definitions/ErrorPayload"
+  /clients/{client_id}:
+    delete:
+      tags:
+        - "Clients and Tunnels"
+      summary:  "Delete a disconnected client by id"
+      description: "Deletes a client by a given id. This API requires the current client to be offline. Returns 400 otherwise."
+      produces:
+        - "application/json"
+      parameters:
+        - name: "client_id"
+          in: "path"
+          description: "unique client ID"
+          required: true
+          type: "string"
+      responses:
+        "204":
+          description: "Successful operation."
+        "400":
+          description: "Invalid request: client is active or provided client ID is empty."
+          schema:
+            $ref: "#/definitions/ErrorPayload"
+        "404":
+          description: "Client not found"
+          schema:
+            $ref: "#/definitions/ErrorPayload"
+        "500":
+          description: "Invalid operation"
+          schema:
+            $ref: "#/definitions/ErrorPayload"
   /clients/{client_id}/tunnels:
     parameters:
       - name: "client_id"
@@ -882,7 +911,7 @@ paths:
         - "Users"
       summary: "Return all users"
       description: "Return a list of all existing users sorted by username in asc order.
-      This API requites the current user to be member of group `Administrators`. Returns 403 otherwise.
+      This API requires the current user to be member of group `Administrators`. Returns 403 otherwise.
       The `Administrators` group name is hardcoded and cannot be changed at the moment"
       produces:
         - "application/json"
@@ -913,7 +942,7 @@ paths:
         - "Users"
       summary: "Create a new user"
       description: "Create a new user.
-      This API requites the current user to be member of group `Administrators`. Returns 403 otherwise.
+      This API requires the current user to be member of group `Administrators`. Returns 403 otherwise.
       The `Administrators` group name is hardcoded and cannot be changed at the moment"
       produces:
         - "application/json"
@@ -945,7 +974,7 @@ paths:
         - "Users"
       summary: "Update a user identified by the provided id"
       description: "Update an existing user.
-      This API requites the current user to be member of group `Administrators`. Returns 403 otherwise.
+      This API requires the current user to be member of group `Administrators`. Returns 403 otherwise.
             The `Administrators` group name is hardcoded and cannot be changed at the moment."
       produces:
         - "application/json"
@@ -981,14 +1010,14 @@ paths:
         - "Users"
       summary: "Delete a user"
       description: "Deletes a user by a given id.
-      This API requites the current user to be member of group `Administrators`. Returns 403 otherwise.
+      This API requires the current user to be member of group `Administrators`. Returns 403 otherwise.
             The `Administrators` group name is hardcoded and cannot be changed at the moment"
       produces:
         - "application/json"
       parameters:
         - name: "user_id"
           in: "path"
-          description: "unique user  ID"
+          description: "unique user ID"
           required: true
           type: "string"
       responses:

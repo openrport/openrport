@@ -128,6 +128,7 @@ func (al *APIListener) initRouter() {
 	sub.HandleFunc("/me", al.handleGetMe).Methods(http.MethodGet)
 	sub.HandleFunc("/me/ip", al.handleGetIP).Methods(http.MethodGet)
 	sub.HandleFunc("/clients", al.handleGetClients).Methods(http.MethodGet)
+	sub.HandleFunc("/clients/{client_id}", al.handleDeleteClient).Methods(http.MethodDelete)
 	sub.HandleFunc("/clients/{client_id}/tunnels", al.handlePutClientTunnel).Methods(http.MethodPut)
 	sub.HandleFunc("/clients/{client_id}/tunnels/{tunnel_id}", al.handleDeleteClientTunnel).Methods(http.MethodDelete)
 	sub.HandleFunc("/clients/{client_id}/commands", al.handlePostCommand).Methods(http.MethodPost)
@@ -606,6 +607,19 @@ func getCorrespondingSortFunc(sortStr string) (sortFunc func(a []*clients.Client
 		err = fmt.Errorf("incorrect format of %q query param", queryParamSort)
 	}
 	return
+}
+
+func (al *APIListener) handleDeleteClient(w http.ResponseWriter, req *http.Request) {
+	vars := mux.Vars(req)
+	clientID := vars[routeParamClientID]
+	err := al.clientService.DeleteOffline(clientID)
+	if err != nil {
+		al.jsonError(w, err)
+		return
+	}
+
+	w.WriteHeader(http.StatusNoContent)
+	al.Debugf("Client %q deleted.", clientID)
 }
 
 const (
