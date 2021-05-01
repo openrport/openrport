@@ -239,7 +239,6 @@ func (s *ClientService) ForceDelete(client *clients.Client) error {
 	return s.repo.Delete(client)
 }
 
-// TODO: add tests
 func (s *ClientService) DeleteOffline(clientID string) error {
 	if clientID == "" {
 		return errors.APIError{
