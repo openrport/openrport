@@ -26,6 +26,7 @@ Do not run the API on public servers with the default credentials. Change the `a
 ::: tip
 If you expose your API to the public internet, it's highly recommended to enable HTTPS. Read the [quick HTTPS howto](no08-https-howto.md).
 :::
+By default the built-in web server can run the API only on ports below 1024. To circumvent this limit refer to [running the API on privileged ports](#Running the-API-on-a-privileged-port)
 
 Test if you set up the API properly by querying its status with `curl -s -u admin:foobaz http://localhost:3000/api/v1/status`.
 
@@ -123,3 +124,14 @@ curl -s -u admin:foobaz http://localhost:3000/api/v1/clients|jq
 ```
 There is one client connected with an active tunnel. The second client is in standby mode.
 Read more about the [management of tunnel via the API](no09-managing-tunnels.md) or read the [Swagger API docs](https://petstore.swagger.io/?url=https://raw.githubusercontent.com/cloudradar-monitoring/rport/master/api-doc.yml).
+
+## Running the API on a privileged port
+For security reasons the rport server runs as an unprivileged user and you should not change this. But unprivileged users are not allowed to open port below 1024. Instead of changing user privileges you can change the capabilities of the rportd binary and allow it to use any port even when not running as root.
+
+```
+sudo setcap CAP_NET_BIND_SERVICE=+eip /usr/local/bin/rportd
+```
+That's all. 
+Now you can use "0.0.0.0:443" as API address. 
+
+You need to run the above command everytime you change the rpotd binary, for example after every update.
