@@ -44,6 +44,8 @@ The Rportd can read user credentials from three different sources.
 
 Which one you chose is an either-or decision. A mixed-mode is not supported.
 
+If you are planning to manage API users through the API or if you want to manage users comfortable usinig the graphical frontend, you must store users in a database.
+
 ### Hardcoded single user
 To use just a single user enter the following line to the `rportd.config` in the `[api]` section.
 ```
@@ -116,13 +118,9 @@ auth_group_table = "groups"
 ```
 Reload rportd to apply all changes.
 
-#### Examples
-Some simple example of a table layout.
-Change column types and lengths to your needs.
-
-:::: code-group
-::: code-group-item MySQL
-```mysql
+#### MySQL Example
+Create table. Change column types and lengths to your needs.
+```sql
 CREATE TABLE `users` (
   `username` varchar(150) NOT NULL,
   `password` varchar(255) NOT NULL,
@@ -134,9 +132,37 @@ CREATE TABLE `groups` (
   UNIQUE KEY `username_group` (`username`,`group`)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8;
 ```
-:::
-::: code-group-item SQLite3
-```sqlite
+
+
+#### SQlite Example
+Enter the following line to the `rportd.conf` file in the `[api]` and `[database]` section:
+```
+[api]
+  #auth = "admin:foobaz" <-- Must be disabled
+  auth_user_table = "users"
+  auth_group_table = "groups"
+[database]
+  db_type = "sqlite"
+  db_name = "/var/lib/rport/database.sqlite3"
+```
+
+Create the database and set the ownership. Restart rport afterwards. 
+```
+touch /var/lib/rport/database.sqlite3
+chown rport:rport /var/lib/rport/database.sqlite3
+systemctl restart rportd
+```
+
+Now connect to the database and create the tables.
+*Change column types and lengths to your needs.* 
+```
+sqlite3 /var/lib/rport/database.sqlite3 
+SQLite version 3.31.1 2020-01-27 19:55:54
+Enter ".help" for usage hints.
+sqlite> 
+```
+
+```sql
 CREATE TABLE "users" (
   "username" TEXT(150) NOT NULL,
   "password" TEXT(255) NOT NULL
@@ -155,5 +181,56 @@ ON "groups" (
   "group" ASC
 );
 ```
-:::
-::::
+
+Sqlite does not print any confirmation. To confirm your tables have been created execute:
+```
+sqlite> SELECT name FROM sqlite_master WHERE type='table';
+users
+groups
+```
+
+Now insert the first user:
+```
+sqlite> INSERT INTO users VALUES('admin','$2y$05$zfvuP4PvjsNWTqRFLdswEeRzETE2KiZONJQyVn7T3ZV5qcYAlmNWO');
+sqlite> INSERT INTO groups VALUES('admin','Administrators');
+```
+This creates a user `admin` with the password `password`. To use another password, create the apropiated bycrypt hash [here](https://bcrypt-generator.com/).
+
+#### API Usage examples
+
+To verify the user is able to authenticate execute:
+```
+curl -Ss http://localhost:3000/api/v1/users -u admin:password|jq
+{
+  "data": [
+    {
+      "username": "admin",
+      "groups": [
+        "Administrators"
+      ]
+    }
+  ]
+}
+``` 
+
+Create a new user:
+```
+curl -Ss -X POST http://localhost:3000/api/v1/users \
+-u admin:password \
+-H "content-type:application/json" \
+--data-raw '{
+  "username": "Willy",
+  "password": "pass1234",
+  "groups": [
+    "Administrators"
+  ]
+}'
+```
+
+Change the password of an existing user:
+```
+curl -Ss -X PUT https://localhost/api/v1/users/Willy \
+-u admin:password \
+-H "content-type:application/json" \
+--data-raw '{"password": "4321ssap"}'
+```
