@@ -33,7 +33,7 @@ tags:
   - name: "Commands"
     description: For more details https://oss.rport.io/docs/no06-command-execution.html
   - name: "Users"
-    description: For more details https://oss.rport.io/docs/no11-user.html
+    description: For more details https://oss.rport.io/docs/no12-user.html
 paths:
   /login:
     get:
