@@ -19,19 +19,25 @@ import (
 )
 
 type APIConfig struct {
-	Address        string  `mapstructure:"address"`
-	Auth           string  `mapstructure:"auth"`
-	AuthFile       string  `mapstructure:"auth_file"`
-	AuthUserTable  string  `mapstructure:"auth_user_table"`
-	AuthGroupTable string  `mapstructure:"auth_group_table"`
-	JWTSecret      string  `mapstructure:"jwt_secret"`
-	DocRoot        string  `mapstructure:"doc_root"`
-	CertFile       string  `mapstructure:"cert_file"`
-	KeyFile        string  `mapstructure:"key_file"`
-	AccessLogFile  string  `mapstructure:"access_log_file"`
-	UserLoginWait  float32 `mapstructure:"user_login_wait"`
-	MaxFailedLogin int     `mapstructure:"max_failed_login"`
-	BanTime        int     `mapstructure:"ban_time"`
+	Address              string  `mapstructure:"address"`
+	Auth                 string  `mapstructure:"auth"`
+	AuthFile             string  `mapstructure:"auth_file"`
+	AuthUserTable        string  `mapstructure:"auth_user_table"`
+	AuthGroupTable       string  `mapstructure:"auth_group_table"`
+	JWTSecret            string  `mapstructure:"jwt_secret"`
+	DocRoot              string  `mapstructure:"doc_root"`
+	CertFile             string  `mapstructure:"cert_file"`
+	KeyFile              string  `mapstructure:"key_file"`
+	AccessLogFile        string  `mapstructure:"access_log_file"`
+	UserLoginWait        float32 `mapstructure:"user_login_wait"`
+	MaxFailedLogin       int     `mapstructure:"max_failed_login"`
+	BanTime              int     `mapstructure:"ban_time"`
+	TwoFATokenDelivery   string  `mapstructure:"2fa_token_delivery"`
+	TwoFATokenTTLSeconds int     `mapstructure:"2fa_token_ttl_seconds"`
+}
+
+func (c *APIConfig) IsTwoFAOn() bool {
+	return c.TwoFATokenDelivery != ""
 }
 
 const (
@@ -86,11 +92,22 @@ type DatabaseConfig struct {
 	dsn    string
 }
 
+type PushoverConfig struct {
+	PushoverToken string `mapstructure:"pushover_token"`
+	PushoverUser  string `mapstructure:"pushover_user"`
+}
+
+func (c *PushoverConfig) Validate() error {
+	// TODO: implement
+	return nil
+}
+
 type Config struct {
 	Server   ServerConfig   `mapstructure:"server"`
 	Logging  LogConfig      `mapstructure:"logging"`
 	API      APIConfig      `mapstructure:"api"`
 	Database DatabaseConfig `mapstructure:"database"`
+	Pushover PushoverConfig `mapstructure:"pushover"`
 }
 
 func (c *Config) InitRequestLogOptions() *requestlog.Options {
@@ -193,6 +210,10 @@ func (c *Config) parseAndValidateAPI() error {
 			if err != nil {
 				return err
 			}
+		}
+		// todo: to do better handling with using marshal/unmarshal, enum
+		if c.API.TwoFATokenDelivery != "pushover" && c.API.TwoFATokenDelivery != "smtp" {
+			return fmt.Errorf("unknown 2fa token delivery method: %s", c.API.TwoFATokenDelivery)
 		}
 	} else {
 		// API disabled
