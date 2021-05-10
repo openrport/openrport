@@ -110,6 +110,7 @@ func NewAPIListener(
 			ProviderType: usersProviderType,
 			FileProvider: usersFromFileProvider,
 			DB:           userDB,
+			TwoFAOn:      config.API.IsTwoFAOn(),
 		},
 	}
 

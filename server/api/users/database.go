@@ -171,6 +171,11 @@ func (d *UserDatabase) Update(usr *User, usernameToUpdate string) error {
 		params = append(params, usr.Password)
 	}
 
+	if usr.TwoFASendTo != "" {
+		statements = append(statements, "`two_fa_send_to` = ?")
+		params = append(params, usr.TwoFASendTo)
+	}
+
 	if usr.Username != "" && usr.Username != usernameToUpdate {
 		statements = append(statements, "`username` = ?")
 		params = append(params, usr.Username)

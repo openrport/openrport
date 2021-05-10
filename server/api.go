@@ -583,8 +583,9 @@ func (al *APIListener) handleGetClients(w http.ResponseWriter, req *http.Request
 }
 
 type UserPayload struct {
-	Username string   `json:"username"`
-	Groups   []string `json:"groups"`
+	Username    string   `json:"username"`
+	Groups      []string `json:"groups"`
+	TwoFASendTo string   `json:"two_fa_send_to"`
 }
 
 func (al *APIListener) handleGetUsers(w http.ResponseWriter, req *http.Request) {
@@ -606,8 +607,9 @@ func (al *APIListener) handleGetUsers(w http.ResponseWriter, req *http.Request) 
 	for i := range usrs {
 		user := usrs[i]
 		usersToSend = append(usersToSend, UserPayload{
-			Username: user.Username,
-			Groups:   user.Groups,
+			Username:    user.Username,
+			Groups:      user.Groups,
+			TwoFASendTo: user.TwoFASendTo,
 		})
 	}
 
