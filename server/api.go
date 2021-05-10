@@ -860,12 +860,9 @@ func (al *APIListener) handleGetMe(w http.ResponseWriter, req *http.Request) {
 		return
 	}
 
-	me := struct {
-		User   string   `json:"user"`
-		Groups []string `json:"groups"`
-	}{
-		User:   user.Username,
-		Groups: user.Groups,
+	me := UserPayload{
+		Username: user.Username,
+		Groups:   user.Groups,
 	}
 	response := api.NewSuccessPayload(me)
 	al.writeJSONResponse(w, http.StatusOK, response)
