@@ -28,6 +28,7 @@ type APIService struct {
 	ProviderType clientsauth.ProviderSource
 	FileProvider FileProvider
 	DB           DatabaseProvider
+	TwoFAOn      bool
 }
 
 func (as *APIService) GetAll() ([]*User, error) {
@@ -90,8 +91,15 @@ func (as *APIService) validate(dataToChange *User, usernameToFind string) error 
 				Code:    http.StatusBadRequest,
 			})
 		}
+		if as.TwoFAOn && dataToChange.TwoFASendTo == "" {
+			errs = append(errs, errors2.APIError{
+				Message: "two_fa_send_to is required",
+				Code:    http.StatusBadRequest,
+			})
+		}
 	} else {
-		if (dataToChange.Username == "" || dataToChange.Username == usernameToFind) && dataToChange.Password == "" && dataToChange.Groups == nil {
+		if (dataToChange.Username == "" || dataToChange.Username == usernameToFind) &&
+			dataToChange.Password == "" && dataToChange.Groups == nil && dataToChange.TwoFASendTo == "" {
 			errs = append(errs, errors2.APIError{
 				Message: "nothing to change",
 				Code:    http.StatusBadRequest,
