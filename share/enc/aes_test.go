@@ -2,9 +2,10 @@ package enc
 
 import (
 	"fmt"
+	"testing"
+
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
-	"testing"
 )
 
 func TestAesEncryptDecrypt(t *testing.T) {
@@ -57,7 +58,7 @@ func TestAesEncryptWrongKeySize(t *testing.T) {
 	keysWithWrongSize := []string{"string_with_more_than_32_characters"}
 	for charsCount := 1; charsCount < 32; charsCount++ {
 		keyWithWrongSize := ""
-		for i:= 0; i < charsCount; i++ {
+		for i := 0; i < charsCount; i++ {
 			keyWithWrongSize += "a"
 		}
 		keysWithWrongSize = append(keysWithWrongSize, keyWithWrongSize)

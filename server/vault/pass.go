@@ -5,11 +5,12 @@ import (
 	"crypto/subtle"
 	"errors"
 	"fmt"
-	errors2 "github.com/cloudradar-monitoring/rport/server/api/errors"
-	"github.com/cloudradar-monitoring/rport/share/enc"
 	"net/http"
 	"strconv"
 	"time"
+
+	errors2 "github.com/cloudradar-monitoring/rport/server/api/errors"
+	"github.com/cloudradar-monitoring/rport/share/enc"
 )
 
 const (
@@ -69,10 +70,10 @@ func (apm *Aes256PassManager) GetEncRandValue(pass string) (encValue, decValue s
 	timestampStr := strconv.FormatInt(time.Now().UnixNano(), 10)
 	timestampHash := sha256.New().Sum([]byte(timestampStr))
 
-	encValueBytes, err := enc.Aes256EncryptByPassToBase64String(timestampHash, pass)
+	encValue, err = enc.Aes256EncryptByPassToBase64String(timestampHash, pass)
 	if err != nil {
 		return encValue, decValue, err
 	}
 
-	return string(encValueBytes), string(timestampHash), nil
+	return encValue, string(timestampHash), nil
 }

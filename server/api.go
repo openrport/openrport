@@ -5,7 +5,6 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
-	"github.com/cloudradar-monitoring/rport/server/vault"
 	"io"
 	"net"
 	"net/http"
@@ -13,6 +12,8 @@ import (
 	"strconv"
 	"strings"
 	"time"
+
+	"github.com/cloudradar-monitoring/rport/server/vault"
 
 	errors2 "github.com/cloudradar-monitoring/rport/server/api/errors"
 	"github.com/cloudradar-monitoring/rport/server/api/users"
@@ -1841,18 +1842,13 @@ func (al *APIListener) handleGetVaultStatus(w http.ResponseWriter, req *http.Req
 }
 
 func (al *APIListener) handleVaultUnlock(w http.ResponseWriter, req *http.Request) {
-	var passReq vault.PassRequest
-	err := json.NewDecoder(req.Body).Decode(&passReq)
-	if err == io.EOF {
-		al.jsonErrorResponseWithErrCode(w, http.StatusBadRequest, ErrCodeInvalidRequest, "Missing password.")
-		return
-	} else if err != nil {
-		al.jsonErrorResponseWithError(w, http.StatusBadRequest, ErrCodeInvalidRequest, "Invalid JSON data.", err)
+	passReq, err := al.extractPassRequest(req)
+	if err != nil {
+		al.jsonError(w, err)
 		return
 	}
 
-	ctx := req.Context()
-	err = al.vaultManager.UnLock(ctx, passReq.Password)
+	err = al.vaultManager.UnLock(req.Context(), passReq.Password)
 	if err != nil {
 		al.jsonError(w, err)
 		return
@@ -1872,22 +1868,36 @@ func (al *APIListener) handleVaultLock(w http.ResponseWriter, req *http.Request)
 }
 
 func (al *APIListener) handleVaultInit(w http.ResponseWriter, req *http.Request) {
-	var passReq vault.PassRequest
-	err := json.NewDecoder(req.Body).Decode(&passReq)
-	if err == io.EOF {
-		al.jsonErrorResponseWithErrCode(w, http.StatusBadRequest, ErrCodeInvalidRequest, "Missing password.")
-		return
-	} else if err != nil {
-		al.jsonErrorResponseWithError(w, http.StatusBadRequest, ErrCodeInvalidRequest, "Invalid JSON data.", err)
+	passReq, err := al.extractPassRequest(req)
+	if err != nil {
+		al.jsonError(w, err)
 		return
 	}
 
-	ctx := req.Context()
-	err = al.vaultManager.Init(ctx, passReq.Password)
+	err = al.vaultManager.Init(req.Context(), passReq.Password)
 	if err != nil {
 		al.jsonError(w, err)
 		return
 	}
 
 	w.WriteHeader(http.StatusCreated)
+}
+
+func (al *APIListener) extractPassRequest(req *http.Request) (vault.PassRequest, error) {
+	var passReq vault.PassRequest
+	err := json.NewDecoder(req.Body).Decode(&passReq)
+	if err == io.EOF {
+		return passReq, errors2.APIError{
+			Message: "Missing password.",
+			Code:    http.StatusBadRequest,
+		}
+	} else if err != nil {
+		return passReq, errors2.APIError{
+			Err:     err,
+			Message: "Invalid JSON data.",
+			Code:    http.StatusBadRequest,
+		}
+	}
+
+	return passReq, nil
 }

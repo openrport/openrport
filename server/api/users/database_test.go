@@ -2,9 +2,10 @@ package users
 
 import (
 	"fmt"
-	"github.com/cloudradar-monitoring/rport/share/test"
 	"os"
 	"testing"
+
+	"github.com/cloudradar-monitoring/rport/share/test"
 
 	chshare "github.com/cloudradar-monitoring/rport/share"
 

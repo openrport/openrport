@@ -2,9 +2,10 @@ package vault
 
 import (
 	"context"
-	errors2 "github.com/cloudradar-monitoring/rport/server/api/errors"
 	"net/http"
 	"sync"
+
+	errors2 "github.com/cloudradar-monitoring/rport/server/api/errors"
 )
 
 const defaultDBName = "vault.sqlite3"
@@ -63,8 +64,8 @@ func (m *Manager) Init(ctx context.Context, pass string) error {
 	}
 	if dbStatus.StatusName == DbStatusInit {
 		return errors2.APIError{
-			Message: "vault is already initialised",
-			Code: http.StatusConflict,
+			Message: "vault is already initialized",
+			Code:    http.StatusConflict,
 		}
 	}
 
@@ -91,7 +92,7 @@ func (m *Manager) UnLock(ctx context.Context, pass string) error {
 	if !m.IsLocked() {
 		return errors2.APIError{
 			Message: "vault is already unlocked",
-			Code: http.StatusConflict,
+			Code:    http.StatusConflict,
 		}
 	}
 
@@ -101,8 +102,8 @@ func (m *Manager) UnLock(ctx context.Context, pass string) error {
 	}
 	if dbStatus.StatusName == "" || dbStatus.StatusName == DbStatusNotInit {
 		return errors2.APIError{
-			Message: "vault is not yet initialised",
-			Code: http.StatusConflict,
+			Message: "vault is not yet initialized",
+			Code:    http.StatusConflict,
 		}
 	}
 
@@ -127,7 +128,7 @@ func (m *Manager) Lock(ctx context.Context) error {
 	if m.IsLocked() {
 		return errors2.APIError{
 			Message: "vault is already locked",
-			Code: http.StatusConflict,
+			Code:    http.StatusConflict,
 		}
 	}
 
@@ -137,8 +138,8 @@ func (m *Manager) Lock(ctx context.Context) error {
 	}
 	if dbStatus.StatusName == "" || dbStatus.StatusName == DbStatusNotInit {
 		return errors2.APIError{
-			Message: "vault is not yet initialised",
-			Code: http.StatusConflict,
+			Message: "vault is not yet initialized",
+			Code:    http.StatusConflict,
 		}
 	}
 

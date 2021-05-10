@@ -4,7 +4,6 @@ import (
 	"crypto/subtle"
 	"errors"
 	"fmt"
-	"github.com/cloudradar-monitoring/rport/server/vault"
 	"io"
 	"net/http"
 	"os"
@@ -12,6 +11,8 @@ import (
 	"strings"
 	"sync"
 	"time"
+
+	"github.com/cloudradar-monitoring/rport/server/vault"
 
 	"github.com/cloudradar-monitoring/rport/server/clientsauth"
 

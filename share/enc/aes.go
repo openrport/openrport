@@ -13,7 +13,10 @@ import (
 // AesEncryptStringToBase64String a user friendly wrapper of AesEncrypt which converts a password of any length to 32byte aes256 key
 // and returns a base64 encoded encrypted data
 func Aes256EncryptByPassToBase64String(payload []byte, password string) (encryptedBase64Data string, err error) {
-	aes32Key := convertPasswordToFixedLength32ByteAesKey(password)
+	aes32Key, err := convertPasswordToFixedLength32ByteAesKey(password)
+	if err != nil {
+		return encryptedBase64Data, err
+	}
 
 	var encryptedBytes []byte
 	encryptedBytes, err = Aes256Encrypt(payload, aes32Key)
@@ -60,7 +63,10 @@ func Aes256Encrypt(payload, aes32Key []byte) (encryptedData []byte, err error) {
 // Aes256DecryptByPassFromBase64String a user friendly wrapper of AesDecrypt and the revere operation of AesEncryptStringToBase64String:
 // it accepts base64 encrypted string and a password and returns a decrypted data
 func Aes256DecryptByPassFromBase64String(encryptedBase64Data, password string) (decryptedBytes []byte, err error) {
-	aes32Key := convertPasswordToFixedLength32ByteAesKey(password)
+	aes32Key, err := convertPasswordToFixedLength32ByteAesKey(password)
+	if err != nil {
+		return decryptedBytes, err
+	}
 
 	encryptedBytesData, err := base64.StdEncoding.DecodeString(encryptedBase64Data)
 	if err != nil {
@@ -98,9 +104,11 @@ func AesDecrypt(encryptedData, key []byte) (decryptedData []byte, err error) {
 	return plaintext, nil
 }
 
-func convertPasswordToFixedLength32ByteAesKey(password string) []byte {
+func convertPasswordToFixedLength32ByteAesKey(password string) ([]byte, error) {
 	hasher := sha256.New()
-	hasher.Write([]byte(password))
-
-	return hasher.Sum(nil)
+	_, err := hasher.Write([]byte(password))
+	if err != nil {
+		return []byte{}, err
+	}
+	return hasher.Sum(nil), nil
 }

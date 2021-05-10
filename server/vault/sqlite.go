@@ -5,6 +5,7 @@ import (
 	"database/sql"
 	"errors"
 	"fmt"
+
 	"github.com/cloudradar-monitoring/rport/db/migration/vaults"
 	chshare "github.com/cloudradar-monitoring/rport/share"
 
@@ -102,7 +103,7 @@ func (p *SqliteProvider) SetStatus(ctx context.Context, newStatus DbStatus) erro
 		}
 	} else {
 		q := "UPDATE `status` SET db_status=?, enc_check = ?, dec_check = ? WHERE id = ?"
-		params := []interface{} {
+		params := []interface{}{
 			newStatus.StatusName,
 			newStatus.EncCheckValue,
 			newStatus.DecCheckValue,
@@ -125,7 +126,7 @@ func (p *SqliteProvider) SetStatus(ctx context.Context, newStatus DbStatus) erro
 
 func (p *SqliteProvider) getDb() (*sqlx.DB, error) {
 	if p.db == nil {
-		return nil, errors.New("vault is not initialised yet")
+		return nil, errors.New("vault is not initialized yet")
 	}
 
 	return p.db, nil

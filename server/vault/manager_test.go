@@ -3,11 +3,13 @@ package vault
 import (
 	"context"
 	"errors"
-	errors2 "github.com/cloudradar-monitoring/rport/server/api/errors"
-	"github.com/stretchr/testify/assert"
-	"github.com/stretchr/testify/require"
 	"net/http"
 	"testing"
+
+	"github.com/stretchr/testify/assert"
+	"github.com/stretchr/testify/require"
+
+	errors2 "github.com/cloudradar-monitoring/rport/server/api/errors"
 )
 
 type DbProviderMock struct {
@@ -128,7 +130,7 @@ func TestManagerAlreadyInitError(t *testing.T) {
 	mngr := NewManager(dbProv, passManagerProv)
 
 	err := mngr.Init(context.Background(), "12")
-	assert.EqualError(t, err, "vault is already initialised")
+	assert.EqualError(t, err, "vault is already initialized")
 }
 
 func TestManagerReadEncValueErr(t *testing.T) {
@@ -216,7 +218,7 @@ func TestUnlockWhenDbIsNotInit(t *testing.T) {
 	mngr := NewManager(dbProv, passManagerProv)
 
 	err := mngr.UnLock(context.Background(), "12")
-	require.EqualError(t, err, "vault is not yet initialised")
+	require.EqualError(t, err, "vault is not yet initialized")
 
 	appErr, ok := err.(errors2.APIError)
 	require.True(t, ok)
@@ -315,7 +317,7 @@ func TestLockWhenDBIsNotInitialized(t *testing.T) {
 	mngr.pass = "123"
 
 	err := mngr.Lock(context.Background())
-	require.EqualError(t, err, "vault is not yet initialised")
+	require.EqualError(t, err, "vault is not yet initialized")
 }
 
 func TestReadStatusNotInitialised(t *testing.T) {

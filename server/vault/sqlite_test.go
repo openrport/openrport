@@ -2,12 +2,14 @@ package vault
 
 import (
 	"context"
-	chshare "github.com/cloudradar-monitoring/rport/share"
-	"github.com/cloudradar-monitoring/rport/share/test"
-	"github.com/stretchr/testify/assert"
-	"github.com/stretchr/testify/require"
 	"os"
 	"testing"
+
+	"github.com/stretchr/testify/assert"
+	"github.com/stretchr/testify/require"
+
+	chshare "github.com/cloudradar-monitoring/rport/share"
+	"github.com/cloudradar-monitoring/rport/share/test"
 )
 
 var testLog = chshare.NewLogger("client", chshare.LogOutput{File: os.Stdout}, chshare.LogLevelDebug)
@@ -22,7 +24,7 @@ func (cm configMock) GetDatabasePath() string {
 func TestCallsBeforeInit(t *testing.T) {
 	dbProv := NewSqliteProvider(configMock{}, testLog)
 
-	expectedErrorText := "vault is not initialised yet"
+	const expectedErrorText = "vault is not initialized yet"
 	_, err := dbProv.GetStatus(context.Background())
 	assert.EqualError(t, err, expectedErrorText)
 
