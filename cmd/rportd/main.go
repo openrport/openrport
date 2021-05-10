@@ -290,6 +290,7 @@ func init() {
 	viperCfg.SetDefault("api.user_login_wait", 2)
 	viperCfg.SetDefault("api.max_failed_login", 10)
 	viperCfg.SetDefault("api.ban_time", 600)
+	viperCfg.SetDefault("api.two_fa_token_ttl_seconds", 600)
 }
 
 func bindPFlags() {
