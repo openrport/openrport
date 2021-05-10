@@ -4,6 +4,7 @@ import (
 	"crypto/subtle"
 	"errors"
 	"fmt"
+	"github.com/cloudradar-monitoring/rport/server/vault"
 	"io"
 	"net/http"
 	"os"
@@ -48,6 +49,7 @@ type APIListener struct {
 
 	testDone     chan bool // is used only in tests to be able to wait until async task is done
 	usersService *users.APIService
+	vaultManager *vault.Manager
 }
 
 type UserService interface {
@@ -96,6 +98,10 @@ func NewAPIListener(
 		return nil, fmt.Errorf("'check_port_timeout' can not be more than %s", DefaultMaxCheckPortTimeout)
 	}
 
+	vaultLogger := chshare.NewLogger("vault", config.Logging.LogOutput, config.Logging.LogLevel)
+	vaultDbProvider := vault.NewSqliteProvider(config.VaultConfig, vaultLogger)
+	defer vaultDbProvider.Close()
+
 	a := &APIListener{
 		Server:            server,
 		Logger:            chshare.NewLogger("api-listener", config.Logging.LogOutput, config.Logging.LogLevel),
@@ -110,6 +116,7 @@ func NewAPIListener(
 			FileProvider: usersFromFileProvider,
 			DB:           userDB,
 		},
+		vaultManager: vault.NewManager(vaultDbProvider, &vault.Aes256PassManager{}),
 	}
 
 	if config.API.MaxFailedLogin > 0 && config.API.BanTime > 0 {

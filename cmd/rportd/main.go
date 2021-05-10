@@ -334,6 +334,7 @@ func bindPFlags() {
 	_ = viperCfg.BindPFlag("database.db_host", pFlags.Lookup("db-host"))
 	_ = viperCfg.BindPFlag("database.db_user", pFlags.Lookup("db-user"))
 	_ = viperCfg.BindPFlag("database.db_password", pFlags.Lookup("db-password"))
+	_ = viperCfg.BindPFlag("vault.db_name", pFlags.Lookup("vault-db-name"))
 }
 
 func main() {

@@ -5,6 +5,7 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
+	"github.com/cloudradar-monitoring/rport/server/vault"
 	"io"
 	"net"
 	"net/http"
@@ -149,6 +150,10 @@ func (al *APIListener) initRouter() {
 	sub.HandleFunc("/clients-auth", al.handleGetClientsAuth).Methods(http.MethodGet)
 	sub.HandleFunc("/clients-auth", al.handlePostClientsAuth).Methods(http.MethodPost)
 	sub.HandleFunc("/clients-auth/{client_auth_id}", al.handleDeleteClientAuth).Methods(http.MethodDelete)
+	sub.HandleFunc("/vault-admin", al.handleGetVaultStatus).Methods(http.MethodGet)
+	sub.HandleFunc("/vault-admin/sesame", al.handleVaultUnlock).Methods(http.MethodPost)
+	sub.HandleFunc("/vault-admin/init", al.handleVaultInit).Methods(http.MethodPost)
+	sub.HandleFunc("/vault-admin/sesame", al.handleVaultLock).Methods(http.MethodDelete)
 
 	// add authorization middleware
 	if !al.insecureForTests {
@@ -1822,4 +1827,67 @@ func (al *APIListener) wrapStaticPassModeMiddleware(next http.HandlerFunc) http.
 		}
 		next.ServeHTTP(w, r)
 	}
+}
+
+func (al *APIListener) handleGetVaultStatus(w http.ResponseWriter, req *http.Request) {
+	ctx := req.Context()
+	st, err := al.vaultManager.Status(ctx)
+	if err != nil {
+		al.jsonError(w, err)
+		return
+	}
+
+	al.writeJSONResponse(w, http.StatusOK, api.NewSuccessPayload(st))
+}
+
+func (al *APIListener) handleVaultUnlock(w http.ResponseWriter, req *http.Request) {
+	var passReq vault.PassRequest
+	err := json.NewDecoder(req.Body).Decode(&passReq)
+	if err == io.EOF {
+		al.jsonErrorResponseWithErrCode(w, http.StatusBadRequest, ErrCodeInvalidRequest, "Missing password.")
+		return
+	} else if err != nil {
+		al.jsonErrorResponseWithError(w, http.StatusBadRequest, ErrCodeInvalidRequest, "Invalid JSON data.", err)
+		return
+	}
+
+	ctx := req.Context()
+	err = al.vaultManager.UnLock(ctx, passReq.Password)
+	if err != nil {
+		al.jsonError(w, err)
+		return
+	}
+
+	w.WriteHeader(http.StatusCreated)
+}
+
+func (al *APIListener) handleVaultLock(w http.ResponseWriter, req *http.Request) {
+	err := al.vaultManager.Lock(req.Context())
+	if err != nil {
+		al.jsonError(w, err)
+		return
+	}
+
+	w.WriteHeader(http.StatusNoContent)
+}
+
+func (al *APIListener) handleVaultInit(w http.ResponseWriter, req *http.Request) {
+	var passReq vault.PassRequest
+	err := json.NewDecoder(req.Body).Decode(&passReq)
+	if err == io.EOF {
+		al.jsonErrorResponseWithErrCode(w, http.StatusBadRequest, ErrCodeInvalidRequest, "Missing password.")
+		return
+	} else if err != nil {
+		al.jsonErrorResponseWithError(w, http.StatusBadRequest, ErrCodeInvalidRequest, "Invalid JSON data.", err)
+		return
+	}
+
+	ctx := req.Context()
+	err = al.vaultManager.Init(ctx, passReq.Password)
+	if err != nil {
+		al.jsonError(w, err)
+		return
+	}
+
+	w.WriteHeader(http.StatusCreated)
 }

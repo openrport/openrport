@@ -2,6 +2,7 @@ package users
 
 import (
 	"fmt"
+	"github.com/cloudradar-monitoring/rport/share/test"
 	"os"
 	"testing"
 
@@ -485,33 +486,11 @@ func prepareDummyData(db *sqlx.DB) error {
 }
 
 func assertUserTableEquals(t *testing.T, db *sqlx.DB, usersTableName string, expectedRows []map[string]interface{}) {
-	dbRows, err := db.Queryx(fmt.Sprintf("SELECT `username`, `password` FROM `%s` order by `username`", usersTableName))
-	require.NoError(t, err)
-
-	userRows, err := convertDbRowsToMapSlice(dbRows)
-	require.NoError(t, err)
-	assert.Equal(t, expectedRows, userRows)
+	query := fmt.Sprintf("SELECT `username`, `password` FROM `%s` order by `username`", usersTableName)
+	test.AssertRowsEqual(t, db, expectedRows, query, []interface{}{})
 }
 
 func assertGroupTableEquals(t *testing.T, db *sqlx.DB, groupTableName string, expectedRows []map[string]interface{}) {
-	dbRows, err := db.Queryx(fmt.Sprintf("SELECT `username`, `group` FROM `%s` order by `username`, `group`", groupTableName))
-	require.NoError(t, err)
-
-	groupRows, err := convertDbRowsToMapSlice(dbRows)
-	require.NoError(t, err)
-	assert.Equal(t, expectedRows, groupRows)
-}
-
-func convertDbRowsToMapSlice(dbRows *sqlx.Rows) ([]map[string]interface{}, error) {
-	dataRows := make([]map[string]interface{}, 0)
-	for dbRows.Next() {
-		dataRow := make(map[string]interface{})
-		err := dbRows.MapScan(dataRow)
-		if err != nil {
-			return nil, err
-		}
-		dataRows = append(dataRows, dataRow)
-	}
-
-	return dataRows, nil
+	query := fmt.Sprintf("SELECT `username`, `group` FROM `%s` order by `username`, `group`", groupTableName)
+	test.AssertRowsEqual(t, db, expectedRows, query, []interface{}{})
 }
