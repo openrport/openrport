@@ -1,2 +1,2 @@
-DROP TABLE values;
-DROP TABLE status;
+DROP TABLE `values`;
+DROP TABLE `status`;

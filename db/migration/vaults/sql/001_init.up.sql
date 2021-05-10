@@ -17,22 +17,22 @@ CREATE TABLE "values"
 -- ----------------------------
 -- Auto increment value for vault
 -- ----------------------------
-UPDATE "main"."sqlite_sequence"
-SET seq = 1
-WHERE name = 'values';
+UPDATE `sqlite_sequence`
+SET `seq` = 1
+WHERE `name` = 'values';
 -- ----------------------------
 -- Indexes structure for table vault
 -- ----------------------------
-CREATE INDEX "main"."client_id"
-    ON "values" (
+CREATE INDEX "client_id"
+    ON `values` (
                  "client_id" ASC
         );
-CREATE INDEX "main"."key"
-    ON "values" (
+CREATE INDEX "key"
+    ON `values` (
                  "key" ASC
         );
-CREATE UNIQUE INDEX "main"."unique_client_id_key"
-    ON "values" (
+CREATE UNIQUE INDEX "unique_client_id_key"
+    ON `values` (
                  "client_id" ASC,
                  "key" ASC
         );
@@ -48,4 +48,4 @@ CREATE TABLE "status"
 -- ----------------------------
 -- Auto increment value for status
 -- ----------------------------
-UPDATE "main"."sqlite_sequence" SET seq = 1 WHERE name = 'status';
+UPDATE `sqlite_sequence` SET `seq` = 1 WHERE `name` = 'status';
