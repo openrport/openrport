@@ -160,7 +160,7 @@ func (al *APIListener) initRouter() {
 	sub.HandleFunc("/login", al.handleGetLogin).Methods(http.MethodGet)
 	sub.HandleFunc("/login", al.handlePostLogin).Methods(http.MethodPost)
 	sub.HandleFunc("/login", al.handleDeleteLogin).Methods(http.MethodDelete) // TODO: rename to logout
-	sub.HandleFunc("/send-2fa", al.handlePostSend2FAToken).Methods(http.MethodPost)
+	sub.HandleFunc("/send-2fa", al.handleGetSend2FAToken).Methods(http.MethodGet)
 
 	// web sockets
 	// common auth middleware is not used due to JS issue https://stackoverflow.com/questions/22383089/is-it-possible-to-use-bearer-authentication-for-websocket-upgrade-requests
@@ -496,7 +496,7 @@ func (al *APIListener) handleDeleteLogin(w http.ResponseWriter, req *http.Reques
 	w.WriteHeader(http.StatusNoContent)
 }
 
-func (al *APIListener) handlePostSend2FAToken(w http.ResponseWriter, req *http.Request) {
+func (al *APIListener) handleGetSend2FAToken(w http.ResponseWriter, req *http.Request) {
 	if !al.config.API.IsTwoFAOn() {
 		al.jsonErrorResponseWithTitle(w, http.StatusMethodNotAllowed, "2fa is disabled")
 		return
