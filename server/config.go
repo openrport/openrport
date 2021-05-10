@@ -12,6 +12,7 @@ import (
 	"time"
 
 	mapset "github.com/deckarep/golang-set"
+	"github.com/gregdel/pushover"
 	"github.com/jpillora/requestlog"
 
 	"github.com/cloudradar-monitoring/rport/server/ports"
@@ -32,8 +33,8 @@ type APIConfig struct {
 	UserLoginWait        float32 `mapstructure:"user_login_wait"`
 	MaxFailedLogin       int     `mapstructure:"max_failed_login"`
 	BanTime              int     `mapstructure:"ban_time"`
-	TwoFATokenDelivery   string  `mapstructure:"2fa_token_delivery"`
-	TwoFATokenTTLSeconds int     `mapstructure:"2fa_token_ttl_seconds"`
+	TwoFATokenDelivery   string  `mapstructure:"two_fa_token_delivery"`
+	TwoFATokenTTLSeconds int     `mapstructure:"two_fa_token_ttl_seconds"`
 }
 
 func (c *APIConfig) IsTwoFAOn() bool {
@@ -98,7 +99,12 @@ type PushoverConfig struct {
 }
 
 func (c *PushoverConfig) Validate() error {
-	// TODO: implement
+	p := pushover.New(c.PushoverToken)
+	r := pushover.NewRecipient(c.PushoverUser)
+	_, err := p.GetRecipientDetails(r)
+	if err != nil {
+		return fmt.Errorf("pushover: failed to validate API token and user: %v", err)
+	}
 	return nil
 }
 
@@ -211,9 +217,9 @@ func (c *Config) parseAndValidateAPI() error {
 				return err
 			}
 		}
-		// todo: to do better handling with using marshal/unmarshal, enum
-		if c.API.TwoFATokenDelivery != "pushover" && c.API.TwoFATokenDelivery != "smtp" {
-			return fmt.Errorf("unknown 2fa token delivery method: %s", c.API.TwoFATokenDelivery)
+		err = c.parseAndValidate2FA()
+		if err != nil {
+			return err
 		}
 	} else {
 		// API disabled
@@ -223,6 +229,22 @@ func (c *Config) parseAndValidateAPI() error {
 
 	}
 	return nil
+}
+
+func (c *Config) parseAndValidate2FA() error {
+	if c.API.TwoFATokenDelivery == "" {
+		return nil
+	}
+
+	// TODO: to do better handling, maybe with using enums
+	switch c.API.TwoFATokenDelivery {
+	case "pushover":
+		return c.Pushover.Validate()
+	case "smtp":
+		return errors.New("not implemented yet")
+	}
+
+	return fmt.Errorf("unknown 2fa token delivery method: %s", c.API.TwoFATokenDelivery)
 }
 
 func (c *Config) parseAndValidateAPIAuth() error {
