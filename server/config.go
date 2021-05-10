@@ -236,6 +236,10 @@ func (c *Config) parseAndValidate2FA() error {
 		return nil
 	}
 
+	if c.API.Auth != "" {
+		return errors.New("2FA is not available if you use a single static user-password pair")
+	}
+
 	// TODO: to do better handling, maybe with using enums
 	switch c.API.TwoFATokenDelivery {
 	case "pushover":
