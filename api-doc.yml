@@ -33,14 +33,15 @@ tags:
   - name: "Commands"
     description: For more details https://oss.rport.io/docs/no06-command-execution.html
   - name: "Users"
-    description: For more details https://oss.rport.io/docs/no11-user.html
+    description: For more details https://oss.rport.io/docs/no12-user.html
 paths:
   /login:
     get:
       tags:
         - "Login"
-      summary: "Generate or renew auth token. Requires HTTP-basic authorization"
-      description: ""
+      summary: "Generate or renew auth token"
+      description: "If 2FA is disabled: requires HTTP-basic authorization.\n
+      If 2FA is enabled: requires `username` and 2FA `token` URL query parameters. `token` can be requested using `/send-2fa` endpoint."
       parameters:
         - name: "token-lifetime"
           in: "query"
@@ -49,6 +50,14 @@ paths:
           default: 360
           maximum: 7776000
           type: "integer"
+        - name: "username"
+          in: "query"
+          description: "Applicable and required only when 2FA is enabled. Unique username"
+          type: "string"
+        - name: "token"
+          in: "query"
+          description: "Applicable and required only when 2FA is enabled. Use `/send-2fa` API to get the 2FA token"
+          type: "string"
       produces:
         - "application/json"
       responses:
@@ -79,8 +88,10 @@ paths:
     post:
       tags:
         - "Login"
-      summary: "Generate or renew auth token. Requires username and password provided in request body"
-      description: "username and password parameters are required. They can be provided either in JSON either in x-www-formurlencoded format"
+      summary: "Generate or renew auth token"
+      description: "If 2FA is disabled: requires `username` and `password`.\n
+      If 2FA is enabled: requires `username` and 2FA `token`. `token` can be requested using `/send-2fa` endpoint.\n
+      They should be provided in request body either in JSON either in x-www-formurlencoded format"
       # swagger 2.0 does not allow describing a method that accepts multiple content-types
       parameters:
         - name: "token-lifetime"
@@ -135,6 +146,47 @@ paths:
           description: "Invalid Operation"
           schema:
             $ref: "#/definitions/ErrorPayload"
+  /send-2fa:
+    get:
+      tags:
+        - "Login"
+      summary: "Triggers generating and sending 2FA token to the user. Requires HTTP-basic authorization"
+      description: "Requires user to have valid `two_fa_send_to` delivery option. Learn more on https://oss.rport.io/docs/no02-api-auth.html#two-factor"
+      produces:
+        - "application/json"
+      responses:
+        "200":
+          description: "Successful Operation"
+          schema:
+            type: "object"
+            properties:
+              data:
+                type: "object"
+                properties:
+                  token:
+                    type: "string"
+              meta:
+                type: "object"
+        "400":
+          description: "two_fa_send_to is not set for user or other delivery issues"
+          schema:
+            $ref: "#/definitions/ErrorPayload"
+        "401":
+          description: "Unauthorized"
+          schema:
+            $ref: "#/definitions/ErrorPayload"
+        "404":
+          description: "User not found"
+          schema:
+            $ref: "#/definitions/ErrorPayload"
+        "405":
+          description: "2FA is disabled"
+          schema:
+            $ref: "#/definitions/ErrorPayload"
+        "500":
+          description: "Invalid Operation"
+          schema:
+            $ref: "#/definitions/ErrorPayload"
   /me:
     get:
       tags:
@@ -160,7 +212,7 @@ paths:
     get:
       tags:
         - "Login"
-      summary: "Return a public ip address of a client who makes the request."
+      summary: "Return a public ip address of a client who makes the request"
       description: ""
       produces:
         - "application/json"
@@ -1345,6 +1397,9 @@ definitions:
         items:
           type: string
         description: "List of groups to which the current user belongs"
+      two_fa_send_to:
+        type: "string"
+        description: "Holds either the email or the pushover token of the user. It's used to deliver 2FA token to user when 2FA is enabled"
   UserPost:
     type: "object"
     properties:
@@ -1359,6 +1414,9 @@ definitions:
         items:
           type: string
         description: "List of groups to which the current user belongs"
+      two_fa_send_to:
+        type: "string"
+        description: "Holds either the email or the pushover token of the user. It's used to deliver 2FA token to user when 2FA is enabled"
   ErrorPayload:
     type: "object"
     properties:

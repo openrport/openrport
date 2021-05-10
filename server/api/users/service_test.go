@@ -251,6 +251,7 @@ func TestValidate(t *testing.T) {
 		expectedError    string
 		userKeyToProvide string
 		user             *User
+		twoFAOn          bool
 	}{
 		{
 			user:             &User{},
@@ -285,11 +286,21 @@ func TestValidate(t *testing.T) {
 			name:             "nothing to change for the same username",
 			userKeyToProvide: "user123",
 		},
+		{
+			twoFAOn: true,
+			user: &User{
+				Username: "user123",
+				Password: "123",
+			},
+			expectedError: "two_fa_send_to is required",
+			name:          "no two_fa_send_to provided on create when 2fa is enabled",
+		},
 	}
 
 	for i := range testCases {
 		testCase := testCases[i]
 		t.Run(testCase.name, func(t *testing.T) {
+			service.TwoFAOn = testCase.twoFAOn
 			err := service.Change(testCase.user, testCase.userKeyToProvide)
 			require.EqualError(t, err, testCase.expectedError)
 		})

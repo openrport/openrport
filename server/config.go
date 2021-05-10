@@ -12,6 +12,7 @@ import (
 	"time"
 
 	mapset "github.com/deckarep/golang-set"
+	"github.com/gregdel/pushover"
 	"github.com/jpillora/requestlog"
 
 	"github.com/cloudradar-monitoring/rport/server/ports"
@@ -19,19 +20,25 @@ import (
 )
 
 type APIConfig struct {
-	Address        string  `mapstructure:"address"`
-	Auth           string  `mapstructure:"auth"`
-	AuthFile       string  `mapstructure:"auth_file"`
-	AuthUserTable  string  `mapstructure:"auth_user_table"`
-	AuthGroupTable string  `mapstructure:"auth_group_table"`
-	JWTSecret      string  `mapstructure:"jwt_secret"`
-	DocRoot        string  `mapstructure:"doc_root"`
-	CertFile       string  `mapstructure:"cert_file"`
-	KeyFile        string  `mapstructure:"key_file"`
-	AccessLogFile  string  `mapstructure:"access_log_file"`
-	UserLoginWait  float32 `mapstructure:"user_login_wait"`
-	MaxFailedLogin int     `mapstructure:"max_failed_login"`
-	BanTime        int     `mapstructure:"ban_time"`
+	Address              string  `mapstructure:"address"`
+	Auth                 string  `mapstructure:"auth"`
+	AuthFile             string  `mapstructure:"auth_file"`
+	AuthUserTable        string  `mapstructure:"auth_user_table"`
+	AuthGroupTable       string  `mapstructure:"auth_group_table"`
+	JWTSecret            string  `mapstructure:"jwt_secret"`
+	DocRoot              string  `mapstructure:"doc_root"`
+	CertFile             string  `mapstructure:"cert_file"`
+	KeyFile              string  `mapstructure:"key_file"`
+	AccessLogFile        string  `mapstructure:"access_log_file"`
+	UserLoginWait        float32 `mapstructure:"user_login_wait"`
+	MaxFailedLogin       int     `mapstructure:"max_failed_login"`
+	BanTime              int     `mapstructure:"ban_time"`
+	TwoFATokenDelivery   string  `mapstructure:"two_fa_token_delivery"`
+	TwoFATokenTTLSeconds int     `mapstructure:"two_fa_token_ttl_seconds"`
+}
+
+func (c *APIConfig) IsTwoFAOn() bool {
+	return c.TwoFATokenDelivery != ""
 }
 
 const (
@@ -86,11 +93,27 @@ type DatabaseConfig struct {
 	dsn    string
 }
 
+type PushoverConfig struct {
+	PushoverToken string `mapstructure:"pushover_token"`
+	PushoverUser  string `mapstructure:"pushover_user"`
+}
+
+func (c *PushoverConfig) Validate() error {
+	p := pushover.New(c.PushoverToken)
+	r := pushover.NewRecipient(c.PushoverUser)
+	_, err := p.GetRecipientDetails(r)
+	if err != nil {
+		return fmt.Errorf("pushover: failed to validate API token and user: %v", err)
+	}
+	return nil
+}
+
 type Config struct {
 	Server   ServerConfig   `mapstructure:"server"`
 	Logging  LogConfig      `mapstructure:"logging"`
 	API      APIConfig      `mapstructure:"api"`
 	Database DatabaseConfig `mapstructure:"database"`
+	Pushover PushoverConfig `mapstructure:"pushover"`
 }
 
 func (c *Config) InitRequestLogOptions() *requestlog.Options {
@@ -194,6 +217,10 @@ func (c *Config) parseAndValidateAPI() error {
 				return err
 			}
 		}
+		err = c.parseAndValidate2FA()
+		if err != nil {
+			return err
+		}
 	} else {
 		// API disabled
 		if c.API.DocRoot != "" {
@@ -202,6 +229,26 @@ func (c *Config) parseAndValidateAPI() error {
 
 	}
 	return nil
+}
+
+func (c *Config) parseAndValidate2FA() error {
+	if c.API.TwoFATokenDelivery == "" {
+		return nil
+	}
+
+	if c.API.Auth != "" {
+		return errors.New("2FA is not available if you use a single static user-password pair")
+	}
+
+	// TODO: to do better handling, maybe with using enums
+	switch c.API.TwoFATokenDelivery {
+	case "pushover":
+		return c.Pushover.Validate()
+	case "smtp":
+		return errors.New("not implemented yet")
+	}
+
+	return fmt.Errorf("unknown 2fa token delivery method: %s", c.API.TwoFATokenDelivery)
 }
 
 func (c *Config) parseAndValidateAPIAuth() error {

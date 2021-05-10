@@ -15,14 +15,16 @@ type UserDatabase struct {
 	db              *sqlx.DB
 	usersTableName  string
 	groupsTableName string
+	twoFAOn         bool
 	logger          *chshare.Logger
 }
 
-func NewUserDatabase(DB *sqlx.DB, usersTableName, groupsTableName string, logger *chshare.Logger) (*UserDatabase, error) {
+func NewUserDatabase(DB *sqlx.DB, usersTableName, groupsTableName string, twoFAOn bool, logger *chshare.Logger) (*UserDatabase, error) {
 	d := &UserDatabase{
 		db:              DB,
 		usersTableName:  usersTableName,
 		groupsTableName: groupsTableName,
+		twoFAOn:         twoFAOn,
 		logger:          logger,
 	}
 	if err := d.checkDatabaseTables(); err != nil {
@@ -31,9 +33,17 @@ func NewUserDatabase(DB *sqlx.DB, usersTableName, groupsTableName string, logger
 	return d, nil
 }
 
+func (d *UserDatabase) getSelectClause() string {
+	s := "username, password"
+	if d.twoFAOn {
+		s += ", two_fa_send_to"
+	}
+	return s
+}
+
 // todo use context for all db operations
 func (d *UserDatabase) checkDatabaseTables() error {
-	_, err := d.db.Exec(fmt.Sprintf("SELECT username, password FROM `%s` LIMIT 0", d.usersTableName))
+	_, err := d.db.Exec(fmt.Sprintf("SELECT %s FROM `%s` LIMIT 0", d.getSelectClause(), d.usersTableName))
 	if err != nil {
 		return err
 	}
@@ -47,7 +57,7 @@ func (d *UserDatabase) checkDatabaseTables() error {
 // todo use context for all db operations
 func (d *UserDatabase) GetByUsername(username string) (*User, error) {
 	user := &User{}
-	err := d.db.Get(user, fmt.Sprintf("SELECT username, password FROM `%s` WHERE username = ? LIMIT 1", d.usersTableName), username)
+	err := d.db.Get(user, fmt.Sprintf("SELECT %s FROM `%s` WHERE username = ? LIMIT 1", d.getSelectClause(), d.usersTableName), username)
 	if err != nil {
 		if err == sql.ErrNoRows {
 			return nil, nil
@@ -65,7 +75,7 @@ func (d *UserDatabase) GetByUsername(username string) (*User, error) {
 // todo use context for all db operations
 func (d *UserDatabase) GetAll() ([]*User, error) {
 	var usrs []*User
-	err := d.db.Select(&usrs, fmt.Sprintf("SELECT username, password FROM `%s` ORDER BY username", d.usersTableName))
+	err := d.db.Select(&usrs, fmt.Sprintf("SELECT %s FROM `%s` ORDER BY username", d.getSelectClause(), d.usersTableName))
 	if err != nil {
 		if err == sql.ErrNoRows {
 			return nil, nil
@@ -109,11 +119,20 @@ func (d *UserDatabase) Add(usr *User) error {
 		return err
 	}
 
-	_, err = tx.Exec(
-		fmt.Sprintf("INSERT INTO `%s` (`username`, `password`) VALUES (?, ?)", d.usersTableName),
-		usr.Username,
-		usr.Password,
-	)
+	if d.twoFAOn {
+		_, err = tx.Exec(
+			fmt.Sprintf("INSERT INTO `%s` (`username`, `password`, `two_fa_send_to`) VALUES (?, ?, ?)", d.usersTableName),
+			usr.Username,
+			usr.Password,
+			usr.TwoFASendTo,
+		)
+	} else {
+		_, err = tx.Exec(
+			fmt.Sprintf("INSERT INTO `%s` (`username`, `password`) VALUES (?, ?)", d.usersTableName),
+			usr.Username,
+			usr.Password,
+		)
+	}
 	if err != nil {
 		d.handleRollback(tx)
 		return err
@@ -150,6 +169,11 @@ func (d *UserDatabase) Update(usr *User, usernameToUpdate string) error {
 	if usr.Password != "" {
 		statements = append(statements, "`password` = ?")
 		params = append(params, usr.Password)
+	}
+
+	if usr.TwoFASendTo != "" {
+		statements = append(statements, "`two_fa_send_to` = ?")
+		params = append(params, usr.TwoFASendTo)
 	}
 
 	if usr.Username != "" && usr.Username != usernameToUpdate {

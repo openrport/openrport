@@ -12,8 +12,6 @@ import (
 	"sync"
 	"time"
 
-	"github.com/cloudradar-monitoring/rport/server/clientsauth"
-
 	"github.com/gorilla/handlers"
 	"github.com/gorilla/mux"
 	"github.com/jpillora/requestlog"
@@ -21,8 +19,10 @@ import (
 	"golang.org/x/sync/errgroup"
 
 	"github.com/cloudradar-monitoring/rport/server/api"
+	"github.com/cloudradar-monitoring/rport/server/api/message"
 	"github.com/cloudradar-monitoring/rport/server/api/middleware"
 	"github.com/cloudradar-monitoring/rport/server/api/users"
+	"github.com/cloudradar-monitoring/rport/server/clientsauth"
 	chshare "github.com/cloudradar-monitoring/rport/share"
 	"github.com/cloudradar-monitoring/rport/share/security"
 )
@@ -45,6 +45,7 @@ type APIListener struct {
 	insecureForTests  bool
 	bannedUsers       *security.BanList
 	bannedIPs         *security.MaxBadAttemptsBanList
+	twoFASrv          TwoFAService
 
 	testDone     chan bool // is used only in tests to be able to wait until async task is done
 	usersService *users.APIService
@@ -84,7 +85,7 @@ func NewAPIListener(
 		usersProviderType = clientsauth.ProviderSourceStatic
 	} else if config.API.AuthUserTable != "" {
 		logger := chshare.NewLogger("database", config.Logging.LogOutput, config.Logging.LogLevel)
-		userDB, err = users.NewUserDatabase(server.db, config.API.AuthUserTable, config.API.AuthGroupTable, logger)
+		userDB, err = users.NewUserDatabase(server.db, config.API.AuthUserTable, config.API.AuthGroupTable, config.API.IsTwoFAOn(), logger)
 		if err != nil {
 			return nil, err
 		}
@@ -109,7 +110,23 @@ func NewAPIListener(
 			ProviderType: usersProviderType,
 			FileProvider: usersFromFileProvider,
 			DB:           userDB,
+			TwoFAOn:      config.API.IsTwoFAOn(),
 		},
+	}
+
+	if config.API.IsTwoFAOn() {
+		var msgSrv message.Service
+		switch config.API.TwoFATokenDelivery {
+		case "pushover":
+			msgSrv = message.NewPushoverService(config.Pushover.PushoverToken)
+		case "smtp":
+			return nil, errors.New("2fa with smtp support is not implemented")
+		default:
+			return nil, fmt.Errorf("unknown 2fa delivery: %s", config.API.TwoFATokenDelivery)
+		}
+
+		a.twoFASrv = NewTwoFAService(config.API.TwoFATokenTTLSeconds, userService, msgSrv)
+		a.Logger.Infof("2FA is enabled via using %s", config.API.TwoFATokenDelivery)
 	}
 
 	if config.API.MaxFailedLogin > 0 && config.API.BanTime > 0 {
@@ -204,13 +221,16 @@ func (al *APIListener) handleAPIRequest(w http.ResponseWriter, r *http.Request) 
 var ErrTooManyRequests = errors.New("too many requests, please try later")
 
 func (al *APIListener) lookupUser(r *http.Request) (authorized bool, username string, err error) {
-	if basicUser, basicPwd, basicAuthProvided := r.BasicAuth(); basicAuthProvided {
-		if al.bannedUsers.IsBanned(basicUser) {
-			return false, basicUser, ErrTooManyRequests
+	// skip basic auth when 2fa is enabled
+	if !al.config.API.IsTwoFAOn() {
+		if basicUser, basicPwd, basicAuthProvided := r.BasicAuth(); basicAuthProvided {
+			if al.bannedUsers.IsBanned(basicUser) {
+				return false, basicUser, ErrTooManyRequests
+			}
+			authorized, err = al.validateCredentials(basicUser, basicPwd)
+			username = basicUser
+			return
 		}
-		authorized, err = al.validateCredentials(basicUser, basicPwd)
-		username = basicUser
-		return
 	}
 
 	if bearerToken, bearerAuthProvided := getBearerToken(r); bearerAuthProvided {
