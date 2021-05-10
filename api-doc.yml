@@ -147,19 +147,7 @@ paths:
         "200":
           description: "Successful Operation"
           schema:
-            type: "object"
-            properties:
-              data:
-                type: "object"
-                properties:
-                  user:
-                    type: "string"
-                  groups:
-                    type: "array"
-                    items:
-                      type: string
-              meta:
-                type: "object"
+            $ref: "#/definitions/UserGet"
         "404":
           description: "User not found"
           schema:
