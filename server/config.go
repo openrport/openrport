@@ -6,7 +6,9 @@ import (
 	"crypto/tls"
 	"errors"
 	"fmt"
+	"net"
 	"net/http"
+	"net/smtp"
 	"net/url"
 	"strings"
 	"time"
@@ -126,17 +128,70 @@ func (c *SMTPConfig) Validate() error {
 	if c.Server == "" {
 		return errors.New("smtp.server is required")
 	}
-	if c.SenderEmail == "" {
+	host, _, err := net.SplitHostPort(c.Server)
+	if err != nil {
+		return fmt.Errorf("invalid smtp.server, expected to be server and port separated by a colon. e.g. 'smtp.gmail.com:587'; error: %v", err)
+	}
+
+	if c.SenderEmail == "" { // TODO: validate email
 		return errors.New("smtp.sender_email is required")
 	}
-	// TODO: verify actual connection
+
+	client, err := smtp.Dial(c.Server)
+	if err != nil {
+		return fmt.Errorf("could not connect to smtp.server: %v", err)
+	}
+
+	tlsConfig := &tls.Config{
+		InsecureSkipVerify: true,
+		ServerName:         host,
+	}
+	err = client.StartTLS(tlsConfig)
+	if err != nil {
+		return fmt.Errorf("failed to start tls: %v", err)
+	}
+
+	err = client.Auth(smtp.PlainAuth("", c.AuthUsername, c.AuthPassword, host))
+	if err != nil {
+		return fmt.Errorf("failed to connect to smtp server using provided auth_username and auth_password: %v", err)
+	}
+
+	err = client.Close()
+	if err != nil {
+		fmt.Printf("failed to close smtp client: %v", err)
+	}
+
+	// TODO: improve smtp config validation
+	//var client *smtp.Client
 	//if c.Secure {
-	//	tlsConfig := &tls.Config {
+	//	// TODO: it doesn't work with SMTP+STARTTLS
+	//	tlsConfig := &tls.Config{
 	//		InsecureSkipVerify: true,
 	//		ServerName: host,
 	//	}
+	//	conn, err := tls.Dial("tcp", c.Server, tlsConfig)
+	//	if err != nil {
+	//		return fmt.Errorf("could not connect to smtp.server: %v", err)
+	//	}
+	//
+	//	client, err = smtp.NewClient(conn, host)
+	//} else {
+	//	client, err = smtp.Dial(c.Server)
 	//}
-	//client, err := smtp.Dial()
+	//if err != nil {
+	//	return fmt.Errorf("could not connect to smtp.server: %v", err)
+	//}
+	//
+	//err = client.Auth(smtp.PlainAuth("", c.AuthUsername, c.AuthPassword, host))
+	//if err != nil {
+	//	return fmt.Errorf("failed to connect to smtp server using provided auth_username and auth_password: %v", err)
+	//}
+	//
+	//err = client.Close()
+	//if err != nil {
+	//	fmt.Printf("failed to close smtp client (secure): %v", err)
+	//}
+
 	return nil
 }
 
