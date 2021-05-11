@@ -108,12 +108,41 @@ func (c *PushoverConfig) Validate() error {
 	return nil
 }
 
+type SMTPConfig struct {
+	Server       string `mapstructure:"server"`
+	AuthUsername string `mapstructure:"auth_username"`
+	AuthPassword string `mapstructure:"auth_password"`
+	Secure       bool   `mapstructure:"secure"`
+}
+
+func (c *SMTPConfig) Validate() error {
+	if c.Server == "" {
+		return errors.New("smtp.server is required")
+	}
+	if c.AuthUsername == "" {
+		return errors.New("smtp.auth_username is required")
+	}
+	if c.AuthPassword == "" {
+		return errors.New("smtp.auth_password is required")
+	}
+	// TODO: verify actual connection
+	//if c.Secure {
+	//	tlsConfig := &tls.Config {
+	//		InsecureSkipVerify: true,
+	//		ServerName: host,
+	//	}
+	//}
+	//client, err := smtp.Dial()
+	return nil
+}
+
 type Config struct {
 	Server   ServerConfig   `mapstructure:"server"`
 	Logging  LogConfig      `mapstructure:"logging"`
 	API      APIConfig      `mapstructure:"api"`
 	Database DatabaseConfig `mapstructure:"database"`
 	Pushover PushoverConfig `mapstructure:"pushover"`
+	SMTP     SMTPConfig     `mapstructure:"smtp"`
 }
 
 func (c *Config) InitRequestLogOptions() *requestlog.Options {
@@ -245,7 +274,7 @@ func (c *Config) parseAndValidate2FA() error {
 	case "pushover":
 		return c.Pushover.Validate()
 	case "smtp":
-		return errors.New("not implemented yet")
+		return c.SMTP.Validate()
 	}
 
 	return fmt.Errorf("unknown 2fa token delivery method: %s", c.API.TwoFATokenDelivery)
