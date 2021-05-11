@@ -120,7 +120,12 @@ func NewAPIListener(
 		case "pushover":
 			msgSrv = message.NewPushoverService(config.Pushover.APIToken)
 		case "smtp":
-			return nil, errors.New("2fa with smtp support is not implemented")
+			msgSrv, err = message.NewSMTPService(
+				config.SMTP.Server,
+				config.SMTP.AuthUsername,
+				config.SMTP.AuthPassword,
+				config.SMTP.SenderEmail,
+			)
 		default:
 			return nil, fmt.Errorf("unknown 2fa delivery: %s", config.API.TwoFATokenDelivery)
 		}

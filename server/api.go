@@ -210,20 +210,19 @@ func (al *APIListener) jsonError(w http.ResponseWriter, err error) {
 	statusCode := http.StatusInternalServerError
 	errCode := strconv.Itoa(statusCode)
 	msg := err.Error()
-	switch apiErr := err.(type) {
-	case errors2.APIError:
+	var apiErr errors2.APIError
+	var apiErrs errors2.APIErrors
+	switch {
+	case errors.As(err, &apiErr):
 		statusCode = apiErr.Code
 		errCode = strconv.Itoa(statusCode)
-		if apiErr.Message != "" {
-			msg = apiErr.Message
-		}
 		al.writeJSONResponse(w, statusCode, api.NewErrorPayloadWithCode(errCode, msg, ""))
 		return
-	case errors2.APIErrors:
-		if len(apiErr) > 0 {
-			statusCode = apiErr[0].Code
+	case errors.As(err, &apiErrs):
+		if len(apiErrs) > 0 {
+			statusCode = apiErrs[0].Code
 		}
-		al.writeJSONResponse(w, statusCode, api.NewAPIErrorsPayloadWithCode(apiErr))
+		al.writeJSONResponse(w, statusCode, api.NewAPIErrorsPayloadWithCode(apiErrs))
 		return
 	}
 

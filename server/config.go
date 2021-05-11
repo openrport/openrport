@@ -118,6 +118,7 @@ type SMTPConfig struct {
 	Server       string `mapstructure:"server"`
 	AuthUsername string `mapstructure:"auth_username"`
 	AuthPassword string `mapstructure:"auth_password"`
+	SenderEmail  string `mapstructure:"sender_email"`
 	Secure       bool   `mapstructure:"secure"`
 }
 
@@ -125,11 +126,8 @@ func (c *SMTPConfig) Validate() error {
 	if c.Server == "" {
 		return errors.New("smtp.server is required")
 	}
-	if c.AuthUsername == "" {
-		return errors.New("smtp.auth_username is required")
-	}
-	if c.AuthPassword == "" {
-		return errors.New("smtp.auth_password is required")
+	if c.SenderEmail == "" {
+		return errors.New("smtp.sender_email is required")
 	}
 	// TODO: verify actual connection
 	//if c.Secure {
