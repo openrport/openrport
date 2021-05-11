@@ -29,7 +29,7 @@ func (s *SMTPService) Send(title, msg, receiver string) error {
 	emailTemplate := "To: %s\r\n" +
 		"Subject: %s\r\n" +
 		"\r\n" +
-		"Token: %s\r\n"
+		"%s\r\n"
 	email := []byte(fmt.Sprintf(emailTemplate, receiver, title, msg))
 	err := smtp.SendMail(s.Hostport, s.Auth, s.From, []string{receiver}, email)
 	if err != nil {
