@@ -149,8 +149,7 @@ func (c *SMTPConfig) Validate() error {
 	// TODO: verify
 	if c.Secure {
 		tlsConfig := &tls.Config{
-			InsecureSkipVerify: true,
-			ServerName:         host,
+			ServerName: host,
 		}
 		err = client.StartTLS(tlsConfig)
 		if err != nil {
