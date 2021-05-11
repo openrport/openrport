@@ -126,6 +126,9 @@ func NewAPIListener(
 				config.SMTP.AuthPassword,
 				config.SMTP.SenderEmail,
 			)
+			if err != nil {
+				return nil, fmt.Errorf("failed to init smtp service: %v", err)
+			}
 		default:
 			return nil, fmt.Errorf("unknown 2fa delivery: %s", config.API.TwoFATokenDelivery)
 		}
