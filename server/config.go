@@ -10,6 +10,7 @@ import (
 	"net/http"
 	"net/smtp"
 	"net/url"
+	"regexp"
 	"strings"
 	"time"
 
@@ -133,8 +134,11 @@ func (c *SMTPConfig) Validate() error {
 		return fmt.Errorf("invalid smtp.server, expected to be server and port separated by a colon. e.g. 'smtp.gmail.com:587'; error: %v", err)
 	}
 
-	if c.SenderEmail == "" { // TODO: validate email
+	if c.SenderEmail == "" {
 		return errors.New("smtp.sender_email is required")
+	}
+	if !validateEmail(c.SenderEmail) {
+		return errors.New("invalid smtp.sender_email")
 	}
 
 	client, err := smtp.Dial(c.Server)
@@ -142,13 +146,16 @@ func (c *SMTPConfig) Validate() error {
 		return fmt.Errorf("could not connect to smtp.server: %v", err)
 	}
 
-	tlsConfig := &tls.Config{
-		InsecureSkipVerify: true,
-		ServerName:         host,
-	}
-	err = client.StartTLS(tlsConfig)
-	if err != nil {
-		return fmt.Errorf("failed to start tls: %v", err)
+	// TODO: verify
+	if c.Secure {
+		tlsConfig := &tls.Config{
+			InsecureSkipVerify: true,
+			ServerName:         host,
+		}
+		err = client.StartTLS(tlsConfig)
+		if err != nil {
+			return fmt.Errorf("failed to start tls: %v", err)
+		}
 	}
 
 	err = client.Auth(smtp.PlainAuth("", c.AuthUsername, c.AuthPassword, host))
@@ -161,38 +168,13 @@ func (c *SMTPConfig) Validate() error {
 		fmt.Printf("failed to close smtp client: %v", err)
 	}
 
-	// TODO: improve smtp config validation
-	//var client *smtp.Client
-	//if c.Secure {
-	//	// TODO: it doesn't work with SMTP+STARTTLS
-	//	tlsConfig := &tls.Config{
-	//		InsecureSkipVerify: true,
-	//		ServerName: host,
-	//	}
-	//	conn, err := tls.Dial("tcp", c.Server, tlsConfig)
-	//	if err != nil {
-	//		return fmt.Errorf("could not connect to smtp.server: %v", err)
-	//	}
-	//
-	//	client, err = smtp.NewClient(conn, host)
-	//} else {
-	//	client, err = smtp.Dial(c.Server)
-	//}
-	//if err != nil {
-	//	return fmt.Errorf("could not connect to smtp.server: %v", err)
-	//}
-	//
-	//err = client.Auth(smtp.PlainAuth("", c.AuthUsername, c.AuthPassword, host))
-	//if err != nil {
-	//	return fmt.Errorf("failed to connect to smtp server using provided auth_username and auth_password: %v", err)
-	//}
-	//
-	//err = client.Close()
-	//if err != nil {
-	//	fmt.Printf("failed to close smtp client (secure): %v", err)
-	//}
-
 	return nil
+}
+
+var emailRegex = regexp.MustCompile("^[a-zA-Z0-9.!#$%&'*+\\/=?^_`{|}~-]+@[a-zA-Z0-9](?:[a-zA-Z0-9-]{0,61}[a-zA-Z0-9])?(?:\\.[a-zA-Z0-9](?:[a-zA-Z0-9-]{0,61}[a-zA-Z0-9])?)*$")
+
+func validateEmail(email string) bool {
+	return emailRegex.MatchString(email)
 }
 
 type Config struct {
