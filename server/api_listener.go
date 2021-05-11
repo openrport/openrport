@@ -118,7 +118,7 @@ func NewAPIListener(
 		var msgSrv message.Service
 		switch config.API.TwoFATokenDelivery {
 		case "pushover":
-			msgSrv = message.NewPushoverService(config.Pushover.PushoverToken)
+			msgSrv = message.NewPushoverService(config.Pushover.APIToken)
 		case "smtp":
 			return nil, errors.New("2fa with smtp support is not implemented")
 		default:

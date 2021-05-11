@@ -94,16 +94,22 @@ type DatabaseConfig struct {
 }
 
 type PushoverConfig struct {
-	PushoverToken string `mapstructure:"pushover_token"`
-	PushoverUser  string `mapstructure:"pushover_user"`
+	APIToken string `mapstructure:"api_token"`
+	UserKey  string `mapstructure:"user_key"`
 }
 
 func (c *PushoverConfig) Validate() error {
-	p := pushover.New(c.PushoverToken)
-	r := pushover.NewRecipient(c.PushoverUser)
+	if c.APIToken == "" {
+		return errors.New("pushover.api_token is required")
+	}
+	if c.UserKey == "" {
+		return errors.New("pushover.user_key is required")
+	}
+	p := pushover.New(c.APIToken)
+	r := pushover.NewRecipient(c.UserKey)
 	_, err := p.GetRecipientDetails(r)
 	if err != nil {
-		return fmt.Errorf("pushover: failed to validate API token and user: %v", err)
+		return fmt.Errorf("failed to validate pushover API token and user key: %v", err)
 	}
 	return nil
 }
