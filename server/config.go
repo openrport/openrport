@@ -6,8 +6,11 @@ import (
 	"crypto/tls"
 	"errors"
 	"fmt"
+	"net"
 	"net/http"
+	"net/smtp"
 	"net/url"
+	"regexp"
 	"strings"
 	"time"
 
@@ -94,18 +97,99 @@ type DatabaseConfig struct {
 }
 
 type PushoverConfig struct {
-	PushoverToken string `mapstructure:"pushover_token"`
-	PushoverUser  string `mapstructure:"pushover_user"`
+	APIToken string `mapstructure:"api_token"`
+	UserKey  string `mapstructure:"user_key"`
 }
 
 func (c *PushoverConfig) Validate() error {
-	p := pushover.New(c.PushoverToken)
-	r := pushover.NewRecipient(c.PushoverUser)
+	if c.APIToken == "" {
+		return errors.New("pushover.api_token is required")
+	}
+	if c.UserKey == "" {
+		return errors.New("pushover.user_key is required")
+	}
+	p := pushover.New(c.APIToken)
+	r := pushover.NewRecipient(c.UserKey)
 	_, err := p.GetRecipientDetails(r)
 	if err != nil {
-		return fmt.Errorf("pushover: failed to validate API token and user: %v", err)
+		return fmt.Errorf("failed to validate pushover API token and user key: %v", err)
 	}
 	return nil
+}
+
+type SMTPConfig struct {
+	Server       string `mapstructure:"server"`
+	AuthUsername string `mapstructure:"auth_username"`
+	AuthPassword string `mapstructure:"auth_password"`
+	SenderEmail  string `mapstructure:"sender_email"`
+	Secure       bool   `mapstructure:"secure"`
+}
+
+func (c *SMTPConfig) Validate() error {
+	if c.Server == "" {
+		return errors.New("smtp.server is required")
+	}
+	host, _, err := net.SplitHostPort(c.Server)
+	if err != nil {
+		return fmt.Errorf("invalid smtp.server, expected to be server and port separated by a colon. e.g. 'smtp.gmail.com:587'; error: %v", err)
+	}
+
+	if c.SenderEmail == "" {
+		return errors.New("smtp.sender_email is required")
+	}
+	if !validateEmail(c.SenderEmail) {
+		return errors.New("invalid smtp.sender_email")
+	}
+
+	var client *smtp.Client
+	if c.Secure {
+		tlsConfig := &tls.Config{
+			ServerName: host,
+			MinVersion: tls.VersionTLS12,
+		}
+		conn, err := tls.Dial("tcp", c.Server, tlsConfig)
+		if err != nil {
+			return fmt.Errorf("could not connect to smtp.server using TLS: %v", err)
+		}
+
+		client, err = smtp.NewClient(conn, host)
+		if err != nil {
+			return fmt.Errorf("could not init smtp client to smtp.server: %v", err)
+		}
+		defer client.Close()
+	} else {
+		client, err = smtp.Dial(c.Server)
+		if err != nil {
+			return fmt.Errorf("could not connect to smtp.server: %v", err)
+		}
+		defer client.Close()
+
+		// use TLS if available
+		if ok, _ := client.Extension("STARTTLS"); ok {
+			tlsConfig := &tls.Config{
+				ServerName: host,
+				MinVersion: tls.VersionTLS12,
+			}
+			if err = client.StartTLS(tlsConfig); err != nil {
+				return fmt.Errorf("failed to start tls: %v", err)
+			}
+		}
+	}
+
+	if c.AuthUsername != "" || c.AuthPassword != "" {
+		err = client.Auth(smtp.PlainAuth("", c.AuthUsername, c.AuthPassword, host))
+		if err != nil {
+			return fmt.Errorf("failed to connect to smtp server using provided auth_username and auth_password: %v", err)
+		}
+	}
+
+	return nil
+}
+
+var emailRegex = regexp.MustCompile("^[a-zA-Z0-9.!#$%&'*+\\/=?^_`{|}~-]+@[a-zA-Z0-9](?:[a-zA-Z0-9-]{0,61}[a-zA-Z0-9])?(?:\\.[a-zA-Z0-9](?:[a-zA-Z0-9-]{0,61}[a-zA-Z0-9])?)*$")
+
+func validateEmail(email string) bool {
+	return emailRegex.MatchString(email)
 }
 
 type Config struct {
@@ -114,6 +198,7 @@ type Config struct {
 	API      APIConfig      `mapstructure:"api"`
 	Database DatabaseConfig `mapstructure:"database"`
 	Pushover PushoverConfig `mapstructure:"pushover"`
+	SMTP     SMTPConfig     `mapstructure:"smtp"`
 }
 
 func (c *Config) InitRequestLogOptions() *requestlog.Options {
@@ -245,7 +330,7 @@ func (c *Config) parseAndValidate2FA() error {
 	case "pushover":
 		return c.Pushover.Validate()
 	case "smtp":
-		return errors.New("not implemented yet")
+		return c.SMTP.Validate()
 	}
 
 	return fmt.Errorf("unknown 2fa token delivery method: %s", c.API.TwoFATokenDelivery)
