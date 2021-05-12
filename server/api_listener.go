@@ -125,6 +125,7 @@ func NewAPIListener(
 				config.SMTP.AuthUsername,
 				config.SMTP.AuthPassword,
 				config.SMTP.SenderEmail,
+				config.SMTP.Secure,
 			)
 			if err != nil {
 				return nil, fmt.Errorf("failed to init smtp service: %v", err)

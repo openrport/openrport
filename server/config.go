@@ -141,31 +141,46 @@ func (c *SMTPConfig) Validate() error {
 		return errors.New("invalid smtp.sender_email")
 	}
 
-	client, err := smtp.Dial(c.Server)
-	if err != nil {
-		return fmt.Errorf("could not connect to smtp.server: %v", err)
-	}
-
-	// TODO: verify
+	var client *smtp.Client
 	if c.Secure {
 		tlsConfig := &tls.Config{
 			ServerName: host,
-			MinVersion: tls.VersionTLS13,
+			MinVersion: tls.VersionTLS12,
 		}
-		err = client.StartTLS(tlsConfig)
+		conn, err := tls.Dial("tcp", c.Server, tlsConfig)
 		if err != nil {
-			return fmt.Errorf("failed to start tls: %v", err)
+			return fmt.Errorf("could not connect to smtp.server using TLS: %v", err)
+		}
+
+		client, err = smtp.NewClient(conn, host)
+		if err != nil {
+			return fmt.Errorf("could not init smtp client to smtp.server: %v", err)
+		}
+		defer client.Close()
+	} else {
+		client, err = smtp.Dial(c.Server)
+		if err != nil {
+			return fmt.Errorf("could not connect to smtp.server: %v", err)
+		}
+		defer client.Close()
+
+		// use TLS if available
+		if ok, _ := client.Extension("STARTTLS"); ok {
+			tlsConfig := &tls.Config{
+				ServerName: host,
+				MinVersion: tls.VersionTLS12,
+			}
+			if err = client.StartTLS(tlsConfig); err != nil {
+				return fmt.Errorf("failed to start tls: %v", err)
+			}
 		}
 	}
 
-	err = client.Auth(smtp.PlainAuth("", c.AuthUsername, c.AuthPassword, host))
-	if err != nil {
-		return fmt.Errorf("failed to connect to smtp server using provided auth_username and auth_password: %v", err)
-	}
-
-	err = client.Close()
-	if err != nil {
-		fmt.Printf("failed to close smtp client: %v", err)
+	if c.AuthUsername != "" || c.AuthPassword != "" {
+		err = client.Auth(smtp.PlainAuth("", c.AuthUsername, c.AuthPassword, host))
+		if err != nil {
+			return fmt.Errorf("failed to connect to smtp server using provided auth_username and auth_password: %v", err)
+		}
 	}
 
 	return nil

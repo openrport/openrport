@@ -1,39 +1,62 @@
 package message
 
 import (
+	"crypto/tls"
 	"fmt"
 	"net"
 	"net/smtp"
+
+	"github.com/jordan-wright/email"
 )
 
 type SMTPService struct {
-	Auth     smtp.Auth
-	Hostport string
-	From     string
+	Auth      smtp.Auth
+	HostPort  string
+	From      string
+	TLSConfig *tls.Config
 }
 
-func NewSMTPService(hostPort, username, password, fromEmail string) (*SMTPService, error) {
+func NewSMTPService(hostPort, username, password, fromEmail string, withTLS bool) (*SMTPService, error) {
 	host, _, err := net.SplitHostPort(hostPort)
 	if err != nil {
 		return nil, err
 	}
 
-	return &SMTPService{
-		Hostport: hostPort,
-		Auth:     smtp.PlainAuth("", username, password, host),
+	s := &SMTPService{
+		HostPort: hostPort,
 		From:     fromEmail,
-	}, nil
+	}
+	if username != "" || password != "" {
+		s.Auth = smtp.PlainAuth("", username, password, host)
+	}
+	if withTLS {
+		s.TLSConfig = &tls.Config{
+			ServerName: host,
+			MinVersion: tls.VersionTLS12,
+		}
+	}
+	return s, nil
 }
 
 func (s *SMTPService) Send(title, msg, receiver string) error {
-	emailTemplate := "To: %s\r\n" +
-		"Subject: %s\r\n" +
-		"\r\n" +
-		"%s\r\n"
-	email := []byte(fmt.Sprintf(emailTemplate, receiver, title, msg))
-	err := smtp.SendMail(s.Hostport, s.Auth, s.From, []string{receiver}, email)
-	if err != nil {
-		return fmt.Errorf("failed to send email: %v", err)
+	e := &email.Email{
+		From:    s.From,
+		To:      []string{receiver},
+		Subject: title,
+		Text:    []byte(msg),
 	}
+
+	if s.TLSConfig != nil {
+		err := e.SendWithTLS(s.HostPort, s.Auth, s.TLSConfig)
+		if err != nil {
+			return fmt.Errorf("failed to send email using TLS: %v", err)
+		}
+	} else {
+		err := e.Send(s.HostPort, s.Auth)
+		if err != nil {
+			return fmt.Errorf("failed to send email: %v", err)
+		}
+	}
+
 	return nil
 }
