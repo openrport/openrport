@@ -8,7 +8,6 @@ import (
 	"fmt"
 	"net"
 	"net/http"
-	"net/smtp"
 	"net/url"
 	"regexp"
 	"strings"
@@ -129,7 +128,7 @@ func (c *SMTPConfig) Validate() error {
 	if c.Server == "" {
 		return errors.New("smtp.server is required")
 	}
-	host, _, err := net.SplitHostPort(c.Server)
+	_, _, err := net.SplitHostPort(c.Server)
 	if err != nil {
 		return fmt.Errorf("invalid smtp.server, expected to be server and port separated by a colon. e.g. 'smtp.gmail.com:587'; error: %v", err)
 	}
@@ -141,47 +140,48 @@ func (c *SMTPConfig) Validate() error {
 		return errors.New("invalid smtp.sender_email")
 	}
 
-	var client *smtp.Client
-	if c.Secure {
-		tlsConfig := &tls.Config{
-			ServerName: host,
-			MinVersion: tls.VersionTLS12,
-		}
-		conn, err := tls.Dial("tcp", c.Server, tlsConfig)
-		if err != nil {
-			return fmt.Errorf("could not connect to smtp.server using TLS: %v", err)
-		}
-
-		client, err = smtp.NewClient(conn, host)
-		if err != nil {
-			return fmt.Errorf("could not init smtp client to smtp.server: %v", err)
-		}
-		defer client.Close()
-	} else {
-		client, err = smtp.Dial(c.Server)
-		if err != nil {
-			return fmt.Errorf("could not connect to smtp.server: %v", err)
-		}
-		defer client.Close()
-
-		// use TLS if available
-		if ok, _ := client.Extension("STARTTLS"); ok {
-			tlsConfig := &tls.Config{
-				ServerName: host,
-				MinVersion: tls.VersionTLS12,
-			}
-			if err = client.StartTLS(tlsConfig); err != nil {
-				return fmt.Errorf("failed to start tls: %v", err)
-			}
-		}
-	}
-
-	if c.AuthUsername != "" || c.AuthPassword != "" {
-		err = client.Auth(smtp.PlainAuth("", c.AuthUsername, c.AuthPassword, host))
-		if err != nil {
-			return fmt.Errorf("failed to connect to smtp server using provided auth_username and auth_password: %v", err)
-		}
-	}
+	// TODO: uncomment when will be resolved, on node1 it stuck (but locally works ok)
+	//var client *smtp.Client
+	//if c.Secure {
+	//	tlsConfig := &tls.Config{
+	//		ServerName: host,
+	//		MinVersion: tls.VersionTLS12,
+	//	}
+	//	conn, err := tls.Dial("tcp", c.Server, tlsConfig)
+	//	if err != nil {
+	//		return fmt.Errorf("could not connect to smtp.server using TLS: %v", err)
+	//	}
+	//
+	//	client, err = smtp.NewClient(conn, host)
+	//	if err != nil {
+	//		return fmt.Errorf("could not init smtp client to smtp.server: %v", err)
+	//	}
+	//	defer client.Close()
+	//} else {
+	//	client, err = smtp.Dial(c.Server)
+	//	if err != nil {
+	//		return fmt.Errorf("could not connect to smtp.server: %v", err)
+	//	}
+	//	defer client.Close()
+	//
+	//	// use TLS if available
+	//	if ok, _ := client.Extension("STARTTLS"); ok {
+	//		tlsConfig := &tls.Config{
+	//			ServerName: host,
+	//			MinVersion: tls.VersionTLS12,
+	//		}
+	//		if err = client.StartTLS(tlsConfig); err != nil {
+	//			return fmt.Errorf("failed to start tls: %v", err)
+	//		}
+	//	}
+	//}
+	//
+	//if c.AuthUsername != "" || c.AuthPassword != "" {
+	//	err = client.Auth(smtp.PlainAuth("", c.AuthUsername, c.AuthPassword, host))
+	//	if err != nil {
+	//		return fmt.Errorf("failed to connect to smtp server using provided auth_username and auth_password: %v", err)
+	//	}
+	//}
 
 	return nil
 }
