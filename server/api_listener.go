@@ -22,8 +22,8 @@ import (
 	"github.com/cloudradar-monitoring/rport/server/api/message"
 	"github.com/cloudradar-monitoring/rport/server/api/middleware"
 	"github.com/cloudradar-monitoring/rport/server/api/users"
-	"github.com/cloudradar-monitoring/rport/server/clientsauth"
 	chshare "github.com/cloudradar-monitoring/rport/share"
+	"github.com/cloudradar-monitoring/rport/share/enums"
 	"github.com/cloudradar-monitoring/rport/share/security"
 )
 
@@ -62,7 +62,7 @@ func NewAPIListener(
 	config := server.config
 
 	var userService UserService
-	var usersProviderType clientsauth.ProviderSource
+	var usersProviderType enums.ProviderSource
 	var userDB *users.UserDatabase
 	var err error
 	usersFromFileProvider := &users.FileManager{
@@ -75,14 +75,14 @@ func NewAPIListener(
 			return nil, e
 		}
 		userService = users.NewUserCache(authUsers)
-		usersProviderType = clientsauth.ProviderSourceFile
+		usersProviderType = enums.ProviderSourceFile
 	} else if config.API.Auth != "" {
 		authUser, e := parseHTTPAuthStr(config.API.Auth)
 		if e != nil {
 			return nil, e
 		}
 		userService = users.NewUserCache([]*users.User{authUser})
-		usersProviderType = clientsauth.ProviderSourceStatic
+		usersProviderType = enums.ProviderSourceStatic
 	} else if config.API.AuthUserTable != "" {
 		logger := chshare.NewLogger("database", config.Logging.LogOutput, config.Logging.LogLevel)
 		userDB, err = users.NewUserDatabase(server.db, config.API.AuthUserTable, config.API.AuthGroupTable, config.API.IsTwoFAOn(), logger)
@@ -90,7 +90,7 @@ func NewAPIListener(
 			return nil, err
 		}
 		userService = userDB
-		usersProviderType = clientsauth.ProviderSourceDB
+		usersProviderType = enums.ProviderSourceDB
 	}
 
 	if config.Server.CheckPortTimeout > DefaultMaxCheckPortTimeout {

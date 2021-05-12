@@ -2,6 +2,8 @@ package clientsauth
 
 import (
 	"sync"
+
+	"github.com/cloudradar-monitoring/rport/share/enums"
 )
 
 // CachedProvider is a thread-safe in-memory cache around the provider.
@@ -76,6 +78,6 @@ func (c *CachedProvider) IsWriteable() bool {
 	return c.provider.IsWriteable()
 }
 
-func (c *CachedProvider) Source() ProviderSource {
+func (c *CachedProvider) Source() enums.ProviderSource {
 	return c.provider.Source()
 }

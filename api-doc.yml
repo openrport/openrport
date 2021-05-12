@@ -262,6 +262,10 @@ paths:
                     type: "string"
                   connect_url:
                     type: "string"
+                  users_auth_source:
+                    description: "The source of API users authentication credentials"
+                    type: "string"
+                    enum: ["Static Credentials", "File", "DB"]
               meta:
                 type: "object"
         "500":

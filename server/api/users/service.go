@@ -8,7 +8,7 @@ import (
 	"golang.org/x/crypto/bcrypt"
 
 	errors2 "github.com/cloudradar-monitoring/rport/server/api/errors"
-	"github.com/cloudradar-monitoring/rport/server/clientsauth"
+	"github.com/cloudradar-monitoring/rport/share/enums"
 )
 
 type DatabaseProvider interface {
@@ -25,7 +25,7 @@ type FileProvider interface {
 }
 
 type APIService struct {
-	ProviderType clientsauth.ProviderSource
+	ProviderType enums.ProviderSource
 	FileProvider FileProvider
 	DB           DatabaseProvider
 	TwoFAOn      bool
@@ -33,13 +33,13 @@ type APIService struct {
 
 func (as *APIService) GetAll() ([]*User, error) {
 	switch as.ProviderType {
-	case clientsauth.ProviderSourceFile:
+	case enums.ProviderSourceFile:
 		authUsers, err := as.FileProvider.ReadUsersFromFile()
 		if err != nil {
 			return nil, err
 		}
 		return authUsers, nil
-	case clientsauth.ProviderSourceDB:
+	case enums.ProviderSourceDB:
 		usrs, err := as.DB.GetAll()
 		if err != nil {
 			return nil, err
@@ -64,11 +64,11 @@ func (as *APIService) Change(usr *User, username string) error {
 		return err
 	}
 
-	if as.ProviderType == clientsauth.ProviderSourceFile {
+	if as.ProviderType == enums.ProviderSourceFile {
 		return as.changeUserInFile(usr, username)
 	}
 
-	if as.ProviderType == clientsauth.ProviderSourceDB {
+	if as.ProviderType == enums.ProviderSourceDB {
 		return as.changeUserInDB(usr, username)
 	}
 
@@ -251,11 +251,11 @@ func (as *APIService) changeUserInFile(dataToChange *User, usernameToFind string
 }
 
 func (as *APIService) Delete(usernameToDelete string) error {
-	if as.ProviderType == clientsauth.ProviderSourceFile {
+	if as.ProviderType == enums.ProviderSourceFile {
 		return as.deleteUserFromFile(usernameToDelete)
 	}
 
-	if as.ProviderType == clientsauth.ProviderSourceDB {
+	if as.ProviderType == enums.ProviderSourceDB {
 		return as.deleteUserFromDB(usernameToDelete)
 	}
 
