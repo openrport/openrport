@@ -150,6 +150,7 @@ func (c *SMTPConfig) Validate() error {
 	if c.Secure {
 		tlsConfig := &tls.Config{
 			ServerName: host,
+			MinVersion: tls.VersionTLS13,
 		}
 		err = client.StartTLS(tlsConfig)
 		if err != nil {
