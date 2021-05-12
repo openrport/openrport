@@ -2,6 +2,8 @@ package clientsauth
 
 import (
 	"errors"
+
+	"github.com/cloudradar-monitoring/rport/share/enums"
 )
 
 type SingleProvider struct {
@@ -43,6 +45,6 @@ func (c *SingleProvider) IsWriteable() bool {
 	return false
 }
 
-func (c *SingleProvider) Source() ProviderSource {
-	return ProviderSourceStatic
+func (c *SingleProvider) Source() enums.ProviderSource {
+	return enums.ProviderSourceStatic
 }

@@ -29,6 +29,7 @@ import (
 	"github.com/cloudradar-monitoring/rport/server/ports"
 	chshare "github.com/cloudradar-monitoring/rport/share"
 	"github.com/cloudradar-monitoring/rport/share/comm"
+	"github.com/cloudradar-monitoring/rport/share/enums"
 	"github.com/cloudradar-monitoring/rport/share/models"
 	"github.com/cloudradar-monitoring/rport/share/random"
 	"github.com/cloudradar-monitoring/rport/share/security"
@@ -559,6 +560,7 @@ func (al *APIListener) handleGetStatus(w http.ResponseWriter, req *http.Request)
 		"connect_url":          al.config.Server.URL,
 		"clients_auth_source":  al.clientAuthProvider.Source(),
 		"clients_auth_mode":    al.getClientsAuthMode(),
+		"users_auth_source":    al.usersService.ProviderType,
 	})
 	al.writeJSONResponse(w, http.StatusOK, response)
 }
@@ -1954,7 +1956,7 @@ func (al *APIListener) validateGroupAccess(ctx context.Context, group string) (e
 
 func (al *APIListener) wrapStaticPassModeMiddleware(next http.HandlerFunc) http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
-		if al.usersService.ProviderType == clientsauth.ProviderSourceStatic {
+		if al.usersService.ProviderType == enums.ProviderSourceStatic {
 			al.jsonError(w, errors2.APIError{
 				Code:    http.StatusBadRequest,
 				Message: "server runs on a static user-password pair, please use JSON file or database for user data",
