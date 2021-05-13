@@ -2,6 +2,8 @@ package vault
 
 import (
 	"context"
+	"errors"
+	chshare "github.com/cloudradar-monitoring/rport/share"
 	"net/http"
 	"sync"
 
@@ -36,13 +38,15 @@ type Manager struct {
 	pass     string
 	db       DbProvider
 	pm       PassManager
+	logger   *chshare.Logger
 }
 
-func NewManager(db DbProvider, pm PassManager) *Manager {
+func NewManager(db DbProvider, pm PassManager, logger *chshare.Logger) *Manager {
 	return &Manager{
 		passLock: sync.RWMutex{},
 		db:       db,
 		pm:       pm,
+		logger:   logger,
 	}
 }
 
@@ -53,23 +57,27 @@ func (m *Manager) Init(ctx context.Context, pass string) error {
 	m.passLock.Lock()
 	defer m.passLock.Unlock()
 
-	err := m.db.Init(ctx)
+	isInit, err := m.isDatabaseInitialized(ctx)
 	if err != nil {
 		return err
 	}
 
-	dbStatus, err := m.db.GetStatus(ctx)
-	if err != nil {
-		return err
-	}
-	if dbStatus.StatusName == DbStatusInit {
+	if isInit {
 		return errors2.APIError{
 			Message: "vault is already initialized",
 			Code:    http.StatusConflict,
 		}
 	}
 
-	dbStatus.StatusName = DbStatusInit
+	err = m.db.Init(ctx)
+	if err != nil {
+		return err
+	}
+	m.logger.Infof("initialized vault")
+
+	dbStatus := DbStatus{
+		StatusName: DbStatusInit,
+	}
 	dbStatus.EncCheckValue, dbStatus.DecCheckValue, err = m.pm.GetEncRandValue(pass)
 	if err != nil {
 		return err
@@ -81,8 +89,26 @@ func (m *Manager) Init(ctx context.Context, pass string) error {
 	}
 
 	m.pass = pass
+	m.logger.Infof("unlocked vault")
 
 	return nil
+}
+
+func (m *Manager) isDatabaseInitialized(ctx context.Context) (bool, error) {
+	dbStatus, err := m.db.GetStatus(ctx)
+	if err != nil && !errors.Is(err, DatabaseNotInitialisedError) {
+		return false, err
+	}
+
+	if err != nil && errors.Is(err, DatabaseNotInitialisedError) {
+		return false, nil
+	}
+
+	if dbStatus.StatusName == DbStatusInit {
+		return true, nil
+	}
+
+	return false, nil
 }
 
 func (m *Manager) UnLock(ctx context.Context, pass string) error {
@@ -116,6 +142,8 @@ func (m *Manager) UnLock(ctx context.Context, pass string) error {
 		return WrongPasswordError
 	}
 
+	m.logger.Infof("unlocked vault")
+
 	m.pass = pass
 
 	return nil
@@ -143,6 +171,7 @@ func (m *Manager) Lock(ctx context.Context) error {
 		}
 	}
 
+	m.logger.Infof("locked vault")
 	m.pass = ""
 
 	return nil
@@ -159,7 +188,7 @@ func (m *Manager) Status(ctx context.Context) (StatusReport, error) {
 	sr := StatusReport{}
 
 	dbStatus, err := m.db.GetStatus(ctx)
-	if err != nil {
+	if err != nil && !errors.Is(err, DatabaseNotInitialisedError) {
 		return sr, err
 	}
 

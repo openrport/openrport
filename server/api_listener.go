@@ -118,7 +118,7 @@ func NewAPIListener(
 			DB:           userDB,
 			TwoFAOn:      config.API.IsTwoFAOn(),
 		},
-		vaultManager: vault.NewManager(vaultDbProvider, &vault.Aes256PassManager{}),
+		vaultManager: vault.NewManager(vaultDbProvider, &vault.Aes256PassManager{}, vaultLogger),
 	}
 
 	if config.API.IsTwoFAOn() {

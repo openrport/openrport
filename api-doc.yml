@@ -1071,6 +1071,128 @@ paths:
           description: "Invalid Operation"
           schema:
             $ref: "#/definitions/ErrorPayload"
+  /vault-admin:
+    get:
+      tags:
+        - "Vault"
+      summary: "Get status of RPort vault"
+      description: "Returns status information about the Rport vault."
+      produces:
+        - "application/json"
+      responses:
+        "200":
+          description: "Successful Operation"
+          schema:
+            type: "object"
+            properties:
+              data:
+                type: "object"
+                properties:
+                  init:
+                    type: "string"
+                    enum: [setup-completed, uninitialized]
+                    description: "vault initialization status: if setup-completed vault is initialized or uninitialized otherwise"
+                  status:
+                    type: "string"
+                    enum: [ locked, unlocked ]
+                    description: "vault lock status"
+  /vault-admin/init:
+    post:
+      tags:
+        - "Vault"
+      summary: "Initialize vault"
+      description: "Initializes vault database and stores password for further requests.
+      This API requires the current user to be member of group `Administrators`. Returns 403 otherwise.
+      The `Administrators` group name is hardcoded and cannot be changed at the moment"
+      produces:
+        - "application/json"
+      parameters:
+        - in: "body"
+          name: "password"
+          description: "Password to unlock the vault"
+          required: true
+          schema:
+            $ref: '#/definitions/SinglePassword'
+      responses:
+        "201":
+          description: "Successful Operation"
+        "409":
+          description: "vault is already initialized"
+          schema:
+            $ref: "#/definitions/ErrorPayload"
+        "400":
+          description: "Password is too short or too long"
+          schema:
+            $ref: "#/definitions/ErrorPayload"
+        "403":
+          description: "current user should belong to Administrators group to access this resource"
+          schema:
+            $ref: "#/definitions/ErrorPayload"
+        "500":
+          description: "Invalid Operation"
+          schema:
+            $ref: "#/definitions/ErrorPayload"
+  /vault-admin/sesame:
+    delete:
+      tags:
+        - "Vault"
+      summary: "Locks vault"
+      description: "Locks vault and delets it's password from server's memory.
+      This API requires the current user to be member of group `Administrators`. Returns 403 otherwise.
+            The `Administrators` group name is hardcoded and cannot be changed at the moment"
+      produces:
+        - "application/json"
+      responses:
+        "204":
+          description: "Successful Operation"
+        "403":
+          description: "current user should belong to Administrators group to access this resource"
+          schema:
+            $ref: "#/definitions/ErrorPayload"
+        "409":
+          description: "vault is already locked"
+          schema:
+            $ref: "#/definitions/ErrorPayload"
+        "500":
+          description: "Invalid Operation"
+          schema:
+            $ref: "#/definitions/ErrorPayload"
+    post:
+      tags:
+        - "Vault"
+      summary: "Unlock vault"
+      description: "Unlocks vault to make it functional. If vault is locked, it won't accept any API requests.
+       This API requires the current user to be member of group `Administrators`. Returns 403 otherwise.
+       The `Administrators` group name is hardcoded and cannot be changed at the moment"
+      produces:
+        - "application/json"
+      parameters:
+        - in: "body"
+          name: "password"
+          description: "Password to unlock the vault. It should be the same password, which was provided when the vault was initialized."
+          required: true
+          schema:
+            $ref: '#/definitions/SinglePassword'
+      responses:
+        "201":
+          description: "Successful Operation"
+        "401":
+          description: "wrong password provided"
+          schema:
+            $ref: "#/definitions/ErrorPayload"
+        "409":
+          description: "vault is already unlocked"
+          schema:
+            $ref: "#/definitions/ErrorPayload"
+        "403":
+          description: "current user should belong to Administrators group to access this resource"
+          schema:
+            $ref: "#/definitions/ErrorPayload"
+        "500":
+          description: "Invalid Operation"
+          schema:
+            $ref: "#/definitions/ErrorPayload"
+
 definitions:
   Tunnel:
     type: "object"
@@ -1254,6 +1376,12 @@ definitions:
       password:
         type: "string"
         description: "client auth password"
+  SinglePassword:
+    type: "object"
+    properties:
+      password:
+        type: "string"
+        description: "A string of printed symbols 32 and 256 bits long"
   JobStatus:
     type: "string"
     enum: &JOB_STATUS

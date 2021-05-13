@@ -256,6 +256,7 @@ func init() {
 	pFlags.Bool("equate-clientauthid-clientid", false, "")
 	pFlags.Int("run-remote-cmd-timeout-sec", 0, "")
 	pFlags.Bool("allow-root", false, "")
+	pFlags.String("vault-db-name", "vault-db.sqlite", "")
 
 	cfgPath = pFlags.StringP("config", "c", "", "")
 	svcCommand = pFlags.String("service", "", "")

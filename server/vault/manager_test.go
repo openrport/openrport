@@ -74,7 +74,7 @@ func TestManagerInit(t *testing.T) {
 		GetEncRandValueEncValueToGive: "123",
 		GetEncRandValueDecValueToGive: "345",
 	}
-	mngr := NewManager(dbProv, passManagerProv)
+	mngr := NewManager(dbProv, passManagerProv, testLog)
 
 	const passToGive = "1234"
 	err := mngr.Init(context.Background(), passToGive)
@@ -92,7 +92,7 @@ func TestManagerInitInvalidPassword(t *testing.T) {
 	passManagerProv := &PassManagerMock{
 		ValidatePassError: errors.New("invalid password"),
 	}
-	mngr := NewManager(dbProv, passManagerProv)
+	mngr := NewManager(dbProv, passManagerProv, testLog)
 
 	err := mngr.Init(context.Background(), "12")
 	assert.EqualError(t, err, "invalid password")
@@ -103,7 +103,7 @@ func TestManagerDbInitError(t *testing.T) {
 		initErr: errors.New("failed to init database"),
 	}
 	passManagerProv := &PassManagerMock{}
-	mngr := NewManager(dbProv, passManagerProv)
+	mngr := NewManager(dbProv, passManagerProv, testLog)
 
 	err := mngr.Init(context.Background(), "12")
 	assert.EqualError(t, err, "failed to init database")
@@ -114,7 +114,7 @@ func TestManagerDbStatusReadError(t *testing.T) {
 		statusToGiveErr: errors.New("failed to read status from database"),
 	}
 	passManagerProv := &PassManagerMock{}
-	mngr := NewManager(dbProv, passManagerProv)
+	mngr := NewManager(dbProv, passManagerProv, testLog)
 
 	err := mngr.Init(context.Background(), "12")
 	assert.EqualError(t, err, "failed to read status from database")
@@ -127,7 +127,7 @@ func TestManagerAlreadyInitError(t *testing.T) {
 		},
 	}
 	passManagerProv := &PassManagerMock{}
-	mngr := NewManager(dbProv, passManagerProv)
+	mngr := NewManager(dbProv, passManagerProv, testLog)
 
 	err := mngr.Init(context.Background(), "12")
 	assert.EqualError(t, err, "vault is already initialized")
@@ -138,7 +138,7 @@ func TestManagerReadEncValueErr(t *testing.T) {
 	passManagerProv := &PassManagerMock{
 		GetEncRandValueErr: errors.New("cannot enc pass"),
 	}
-	mngr := NewManager(dbProv, passManagerProv)
+	mngr := NewManager(dbProv, passManagerProv, testLog)
 
 	err := mngr.Init(context.Background(), "12")
 	assert.EqualError(t, err, "cannot enc pass")
@@ -149,7 +149,7 @@ func TestManagerSetStatusErr(t *testing.T) {
 		statusToStoreErr: errors.New("cannot store status in db"),
 	}
 	passManagerProv := &PassManagerMock{}
-	mngr := NewManager(dbProv, passManagerProv)
+	mngr := NewManager(dbProv, passManagerProv, testLog)
 
 	err := mngr.Init(context.Background(), "12")
 	assert.EqualError(t, err, "cannot store status in db")
@@ -168,7 +168,7 @@ func TestUnlock(t *testing.T) {
 	passManagerProv := &PassManagerMock{
 		PassMatchToGive: true,
 	}
-	mngr := NewManager(dbProv, passManagerProv)
+	mngr := NewManager(dbProv, passManagerProv, testLog)
 
 	assert.True(t, mngr.IsLocked())
 
@@ -188,7 +188,7 @@ func TestUnlockWhenAlreadyUnlocked(t *testing.T) {
 	passManagerProv := &PassManagerMock{
 		PassMatchToGive: true,
 	}
-	mngr := NewManager(dbProv, passManagerProv)
+	mngr := NewManager(dbProv, passManagerProv, testLog)
 
 	err := mngr.UnLock(context.Background(), "12")
 	require.NoError(t, err)
@@ -206,7 +206,7 @@ func TestUnlockStatusReadError(t *testing.T) {
 		statusToGiveErr: errors.New("status read error"),
 	}
 	passManagerProv := &PassManagerMock{}
-	mngr := NewManager(dbProv, passManagerProv)
+	mngr := NewManager(dbProv, passManagerProv, testLog)
 
 	err := mngr.UnLock(context.Background(), "12")
 	require.EqualError(t, err, "status read error")
@@ -215,7 +215,7 @@ func TestUnlockStatusReadError(t *testing.T) {
 func TestUnlockWhenDbIsNotInit(t *testing.T) {
 	dbProv := &DbProviderMock{}
 	passManagerProv := &PassManagerMock{}
-	mngr := NewManager(dbProv, passManagerProv)
+	mngr := NewManager(dbProv, passManagerProv, testLog)
 
 	err := mngr.UnLock(context.Background(), "12")
 	require.EqualError(t, err, "vault is not yet initialized")
@@ -234,7 +234,7 @@ func TestUnlockPasswordCheckError(t *testing.T) {
 	passManagerProv := &PassManagerMock{
 		PassMatchErr: errors.New("pass match error"),
 	}
-	mngr := NewManager(dbProv, passManagerProv)
+	mngr := NewManager(dbProv, passManagerProv, testLog)
 
 	err := mngr.UnLock(context.Background(), "12")
 	require.EqualError(t, err, "pass match error")
@@ -249,7 +249,7 @@ func TestUnlockWithWrongPassword(t *testing.T) {
 	passManagerProv := &PassManagerMock{
 		PassMatchToGive: false,
 	}
-	mngr := NewManager(dbProv, passManagerProv)
+	mngr := NewManager(dbProv, passManagerProv, testLog)
 
 	err := mngr.UnLock(context.Background(), "12")
 	require.EqualError(t, err, WrongPasswordError.Error())
@@ -269,7 +269,7 @@ func TestLock(t *testing.T) {
 	passManagerProv := &PassManagerMock{
 		PassMatchToGive: true,
 	}
-	mngr := NewManager(dbProv, passManagerProv)
+	mngr := NewManager(dbProv, passManagerProv, testLog)
 	err := mngr.UnLock(context.Background(), "123")
 	require.NoError(t, err)
 	assert.False(t, mngr.IsLocked())
@@ -282,7 +282,7 @@ func TestLock(t *testing.T) {
 func TestLockWhenNotUnlocked(t *testing.T) {
 	dbProv := &DbProviderMock{}
 	passManagerProv := &PassManagerMock{}
-	mngr := NewManager(dbProv, passManagerProv)
+	mngr := NewManager(dbProv, passManagerProv, testLog)
 
 	err := mngr.Lock(context.Background())
 	require.EqualError(t, err, "vault is already locked")
@@ -298,7 +298,7 @@ func TestLockWithReadStatusError(t *testing.T) {
 	}
 	passManagerProv := &PassManagerMock{}
 
-	mngr := NewManager(dbProv, passManagerProv)
+	mngr := NewManager(dbProv, passManagerProv, testLog)
 	mngr.pass = "123"
 
 	err := mngr.Lock(context.Background())
@@ -313,7 +313,7 @@ func TestLockWhenDBIsNotInitialized(t *testing.T) {
 	}
 	passManagerProv := &PassManagerMock{}
 
-	mngr := NewManager(dbProv, passManagerProv)
+	mngr := NewManager(dbProv, passManagerProv, testLog)
 	mngr.pass = "123"
 
 	err := mngr.Lock(context.Background())
@@ -328,7 +328,7 @@ func TestReadStatusNotInitialised(t *testing.T) {
 	}
 	passManagerProv := &PassManagerMock{}
 
-	mngr := NewManager(dbProv, passManagerProv)
+	mngr := NewManager(dbProv, passManagerProv, testLog)
 	st, err := mngr.Status(context.Background())
 	require.NoError(t, err)
 
@@ -344,7 +344,23 @@ func TestReadStatusNotInitialised(t *testing.T) {
 	dbProv = &DbProviderMock{
 		statusToGive: DbStatus{},
 	}
-	mngr = NewManager(dbProv, &PassManagerMock{})
+	mngr = NewManager(dbProv, &PassManagerMock{}, testLog)
+	st, err = mngr.Status(context.Background())
+	require.NoError(t, err)
+
+	assert.Equal(
+		t,
+		StatusReport{
+			InitStatus: DbStatusNotInit,
+			LockStatus: "",
+		},
+		st,
+	)
+
+	dbProv = &DbProviderMock{
+		statusToGiveErr: DatabaseNotInitialisedError,
+	}
+	mngr = NewManager(dbProv, &PassManagerMock{}, testLog)
 	st, err = mngr.Status(context.Background())
 	require.NoError(t, err)
 
@@ -366,7 +382,7 @@ func TestReadStatusLocked(t *testing.T) {
 	}
 	passManagerProv := &PassManagerMock{}
 
-	mngr := NewManager(dbProv, passManagerProv)
+	mngr := NewManager(dbProv, passManagerProv, testLog)
 	st, err := mngr.Status(context.Background())
 	require.NoError(t, err)
 
@@ -387,7 +403,7 @@ func TestReadStatusUnLocked(t *testing.T) {
 		},
 	}
 
-	mngr := NewManager(dbProv, &PassManagerMock{})
+	mngr := NewManager(dbProv, &PassManagerMock{}, testLog)
 	mngr.pass = "123"
 	st, err := mngr.Status(context.Background())
 	require.NoError(t, err)
@@ -407,7 +423,7 @@ func TestReadStatusFailure(t *testing.T) {
 		statusToGiveErr: errors.New("failed to read status"),
 	}
 
-	mngr := NewManager(dbProv, &PassManagerMock{})
+	mngr := NewManager(dbProv, &PassManagerMock{}, testLog)
 	_, err := mngr.Status(context.Background())
 	require.EqualError(t, err, "failed to read status")
 }

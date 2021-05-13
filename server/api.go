@@ -1,7 +1,6 @@
 package chserver
 
 import (
-	"context"
 	"encoding/json"
 	"errors"
 	"fmt"
@@ -139,10 +138,10 @@ func (al *APIListener) initRouter() {
 	sub.HandleFunc("/client-groups/{group_id}", al.handlePutClientGroup).Methods(http.MethodPut)
 	sub.HandleFunc("/client-groups/{group_id}", al.handleGetClientGroup).Methods(http.MethodGet)
 	sub.HandleFunc("/client-groups/{group_id}", al.handleDeleteClientGroup).Methods(http.MethodDelete)
-	sub.HandleFunc("/users", al.wrapStaticPassModeMiddleware(al.handleGetUsers)).Methods(http.MethodGet)
-	sub.HandleFunc("/users", al.wrapStaticPassModeMiddleware(al.handleChangeUser)).Methods(http.MethodPost)
-	sub.HandleFunc("/users/{user_id}", al.wrapStaticPassModeMiddleware(al.handleChangeUser)).Methods(http.MethodPut)
-	sub.HandleFunc("/users/{user_id}", al.wrapStaticPassModeMiddleware(al.handleDeleteUser)).Methods(http.MethodDelete)
+	sub.HandleFunc("/users", al.wrapStaticPassModeMiddleware(al.wrapAdminAccessMiddleware(al.handleGetUsers))).Methods(http.MethodGet)
+	sub.HandleFunc("/users", al.wrapStaticPassModeMiddleware(al.wrapAdminAccessMiddleware(al.handleChangeUser))).Methods(http.MethodPost)
+	sub.HandleFunc("/users/{user_id}", al.wrapStaticPassModeMiddleware(al.wrapAdminAccessMiddleware(al.handleChangeUser))).Methods(http.MethodPut)
+	sub.HandleFunc("/users/{user_id}", al.wrapStaticPassModeMiddleware(al.wrapAdminAccessMiddleware(al.handleDeleteUser))).Methods(http.MethodDelete)
 	sub.HandleFunc("/commands", al.handlePostMultiClientCommand).Methods(http.MethodPost)
 	sub.HandleFunc("/commands", al.handleGetMultiClientCommands).Methods(http.MethodGet)
 	sub.HandleFunc("/commands/{job_id}", al.handleGetMultiClientCommand).Methods(http.MethodGet)
@@ -150,9 +149,9 @@ func (al *APIListener) initRouter() {
 	sub.HandleFunc("/clients-auth", al.handlePostClientsAuth).Methods(http.MethodPost)
 	sub.HandleFunc("/clients-auth/{client_auth_id}", al.handleDeleteClientAuth).Methods(http.MethodDelete)
 	sub.HandleFunc("/vault-admin", al.handleGetVaultStatus).Methods(http.MethodGet)
-	sub.HandleFunc("/vault-admin/sesame", al.handleVaultUnlock).Methods(http.MethodPost)
-	sub.HandleFunc("/vault-admin/init", al.handleVaultInit).Methods(http.MethodPost)
-	sub.HandleFunc("/vault-admin/sesame", al.handleVaultLock).Methods(http.MethodDelete)
+	sub.HandleFunc("/vault-admin/sesame", al.wrapAdminAccessMiddleware(al.handleVaultUnlock)).Methods(http.MethodPost)
+	sub.HandleFunc("/vault-admin/init", al.wrapAdminAccessMiddleware(al.handleVaultInit)).Methods(http.MethodPost)
+	sub.HandleFunc("/vault-admin/sesame", al.wrapAdminAccessMiddleware(al.handleVaultLock)).Methods(http.MethodDelete)
 
 	// add authorization middleware
 	if !al.insecureForTests {
@@ -595,14 +594,6 @@ type UserPayload struct {
 }
 
 func (al *APIListener) handleGetUsers(w http.ResponseWriter, req *http.Request) {
-	ctx := req.Context()
-
-	err := al.validateGroupAccess(ctx, users.Administrators)
-	if err != nil {
-		al.jsonError(w, err)
-		return
-	}
-
 	usrs, err := al.usersService.GetAll()
 	if err != nil {
 		al.jsonError(w, err)
@@ -624,13 +615,6 @@ func (al *APIListener) handleGetUsers(w http.ResponseWriter, req *http.Request) 
 }
 
 func (al *APIListener) handleChangeUser(w http.ResponseWriter, req *http.Request) {
-	ctx := req.Context()
-	err := al.validateGroupAccess(ctx, users.Administrators)
-	if err != nil {
-		al.jsonError(w, err)
-		return
-	}
-
 	vars := mux.Vars(req)
 	userID, userIDExists := vars[routeParamUserID]
 	if !userIDExists {
@@ -640,7 +624,7 @@ func (al *APIListener) handleChangeUser(w http.ResponseWriter, req *http.Request
 	var user users.User
 	dec := json.NewDecoder(req.Body)
 	dec.DisallowUnknownFields()
-	err = dec.Decode(&user)
+	err := dec.Decode(&user)
 	if err == io.EOF { // is handled separately to return an informative error message
 		al.jsonErrorResponseWithTitle(w, http.StatusBadRequest, "Missing body with json data.")
 		return
@@ -664,13 +648,6 @@ func (al *APIListener) handleChangeUser(w http.ResponseWriter, req *http.Request
 }
 
 func (al *APIListener) handleDeleteUser(w http.ResponseWriter, req *http.Request) {
-	ctx := req.Context()
-	err := al.validateGroupAccess(ctx, users.Administrators)
-	if err != nil {
-		al.jsonError(w, err)
-		return
-	}
-
 	vars := mux.Vars(req)
 	userID, userIDExists := vars[routeParamUserID]
 	if !userIDExists {
@@ -1922,42 +1899,6 @@ func (al *APIListener) handleDeleteClientGroup(w http.ResponseWriter, req *http.
 	al.Debugf("Client Group [id=%q] deleted.", id)
 }
 
-func (al *APIListener) validateGroupAccess(ctx context.Context, group string) (err error) {
-	curUsername := api.GetUser(ctx, al.Logger)
-	if curUsername == "" {
-		return errors2.APIError{
-			Message: "unauthorized access",
-			Code:    http.StatusUnauthorized,
-		}
-	}
-
-	curUser, err := al.userSrv.GetByUsername(curUsername)
-	if err != nil {
-		return errors2.APIError{
-			Err:  err,
-			Code: http.StatusInternalServerError,
-		}
-	}
-
-	if curUser == nil {
-		return errors2.APIError{
-			Message: "unauthorized access",
-			Code:    http.StatusUnauthorized,
-		}
-	}
-
-	for i := range curUser.Groups {
-		if curUser.Groups[i] == group {
-			return nil
-		}
-	}
-
-	return errors2.APIError{
-		Message: fmt.Sprintf("current user should belong to %s group to access this resource", group),
-		Code:    http.StatusForbidden,
-	}
-}
-
 func (al *APIListener) wrapStaticPassModeMiddleware(next http.HandlerFunc) http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
 		if al.usersService.ProviderType == clientsauth.ProviderSourceStatic {
@@ -1968,6 +1909,52 @@ func (al *APIListener) wrapStaticPassModeMiddleware(next http.HandlerFunc) http.
 			return
 		}
 		next.ServeHTTP(w, r)
+	}
+}
+
+func (al *APIListener) wrapAdminAccessMiddleware(next http.HandlerFunc) http.HandlerFunc {
+	return func(w http.ResponseWriter, r *http.Request) {
+		ctx := r.Context()
+		curUsername := api.GetUser(ctx, al.Logger)
+		if curUsername == "" {
+			al.jsonError(w, errors2.APIError{
+				Message: "unauthorized access",
+				Code:    http.StatusUnauthorized,
+			})
+			return
+		}
+
+		curUser, err := al.userSrv.GetByUsername(curUsername)
+		if err != nil {
+			al.jsonError(w, errors2.APIError{
+				Err:  err,
+				Code: http.StatusInternalServerError,
+			})
+			return
+		}
+
+		if curUser == nil {
+			al.jsonError(w, errors2.APIError{
+				Message: "unauthorized access",
+				Code:    http.StatusUnauthorized,
+			})
+			return
+		}
+
+		for i := range curUser.Groups {
+			if curUser.Groups[i] == users.Administrators {
+				next.ServeHTTP(w, r)
+				return
+			}
+		}
+
+		al.jsonError(w, errors2.APIError{
+			Message: fmt.Sprintf(
+				"current user should belong to %s group to access this resource",
+				users.Administrators,
+				),
+			Code:    http.StatusForbidden,
+		})
 	}
 }
 
