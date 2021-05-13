@@ -358,7 +358,7 @@ func TestReadStatusNotInitialised(t *testing.T) {
 	)
 
 	dbProv = &DbProviderMock{
-		statusToGiveErr: DatabaseNotInitialisedError,
+		statusToGiveErr: ErrDatabaseNotInitialised,
 	}
 	mngr = NewManager(dbProv, &PassManagerMock{}, testLog)
 	st, err = mngr.Status(context.Background())

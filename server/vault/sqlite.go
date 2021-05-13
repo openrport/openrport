@@ -20,7 +20,7 @@ type SqliteProvider struct {
 	logger *chshare.Logger
 }
 
-var DatabaseNotInitialisedError = errors.New("vault is not initialized yet")
+var ErrDatabaseNotInitialised = errors.New("vault is not initialized yet")
 
 func NewSqliteProvider(c Config, logger *chshare.Logger) *SqliteProvider {
 	dbPath := c.GetDatabasePath()
@@ -129,7 +129,7 @@ func (p *SqliteProvider) SetStatus(ctx context.Context, newStatus DbStatus) erro
 
 func (p *SqliteProvider) getDb() (*sqlx.DB, error) {
 	if p.db == nil {
-		return nil, DatabaseNotInitialisedError
+		return nil, ErrDatabaseNotInitialised
 	}
 
 	return p.db, nil

@@ -1952,8 +1952,8 @@ func (al *APIListener) wrapAdminAccessMiddleware(next http.HandlerFunc) http.Han
 			Message: fmt.Sprintf(
 				"current user should belong to %s group to access this resource",
 				users.Administrators,
-				),
-			Code:    http.StatusForbidden,
+			),
+			Code: http.StatusForbidden,
 		})
 	}
 }

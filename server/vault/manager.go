@@ -3,9 +3,10 @@ package vault
 import (
 	"context"
 	"errors"
-	chshare "github.com/cloudradar-monitoring/rport/share"
 	"net/http"
 	"sync"
+
+	chshare "github.com/cloudradar-monitoring/rport/share"
 
 	errors2 "github.com/cloudradar-monitoring/rport/server/api/errors"
 )
@@ -96,11 +97,11 @@ func (m *Manager) Init(ctx context.Context, pass string) error {
 
 func (m *Manager) isDatabaseInitialized(ctx context.Context) (bool, error) {
 	dbStatus, err := m.db.GetStatus(ctx)
-	if err != nil && !errors.Is(err, DatabaseNotInitialisedError) {
+	if err != nil && !errors.Is(err, ErrDatabaseNotInitialised) {
 		return false, err
 	}
 
-	if err != nil && errors.Is(err, DatabaseNotInitialisedError) {
+	if err != nil && errors.Is(err, ErrDatabaseNotInitialised) {
 		return false, nil
 	}
 
@@ -188,7 +189,7 @@ func (m *Manager) Status(ctx context.Context) (StatusReport, error) {
 	sr := StatusReport{}
 
 	dbStatus, err := m.db.GetStatus(ctx)
-	if err != nil && !errors.Is(err, DatabaseNotInitialisedError) {
+	if err != nil && !errors.Is(err, ErrDatabaseNotInitialised) {
 		return sr, err
 	}
 
