@@ -39,10 +39,11 @@ import (
 const (
 	queryParamSort = "sort"
 
-	routeParamClientID = "client_id"
-	routeParamUserID   = "user_id"
-	routeParamJobID    = "job_id"
-	routeParamGroupID  = "group_id"
+	routeParamClientID     = "client_id"
+	routeParamUserID       = "user_id"
+	routeParamJobID        = "job_id"
+	routeParamGroupID      = "group_id"
+	routeParamVaultValueID = "vault_value_id"
 
 	ErrCodeMissingRouteVar = "ERR_CODE_MISSING_ROUTE_VAR"
 	ErrCodeInvalidRequest  = "ERR_CODE_INVALID_REQUEST"
@@ -152,6 +153,8 @@ func (al *APIListener) initRouter() {
 	sub.HandleFunc("/vault-admin/sesame", al.wrapAdminAccessMiddleware(al.handleVaultUnlock)).Methods(http.MethodPost)
 	sub.HandleFunc("/vault-admin/init", al.wrapAdminAccessMiddleware(al.handleVaultInit)).Methods(http.MethodPost)
 	sub.HandleFunc("/vault-admin/sesame", al.wrapAdminAccessMiddleware(al.handleVaultLock)).Methods(http.MethodDelete)
+	sub.HandleFunc("/vault", al.handleListVaultValues).Methods(http.MethodGet)
+	sub.HandleFunc("/vault/{"+routeParamVaultValueID+"}", al.handleReadVaultValue).Methods(http.MethodGet)
 
 	// add authorization middleware
 	if !al.insecureForTests {
@@ -2028,4 +2031,40 @@ func (al *APIListener) extractPassRequest(req *http.Request) (vault.PassRequest,
 	}
 
 	return passReq, nil
+}
+
+func (al *APIListener) handleListVaultValues(w http.ResponseWriter, req *http.Request) {
+	items, err := al.vaultManager.List(req.Context(), req)
+	if err != nil {
+		al.jsonError(w, err)
+		return
+	}
+
+	al.writeJSONResponse(w, http.StatusOK, api.NewSuccessPayload(items))
+}
+
+func (al *APIListener) handleReadVaultValue(w http.ResponseWriter, req *http.Request) {
+	vars := mux.Vars(req)
+	idStr := vars[routeParamVaultValueID]
+	if idStr == "" {
+		al.jsonErrorResponseWithTitle(w, http.StatusBadRequest, fmt.Sprintf("Missing %q route param.", routeParamVaultValueID))
+		return
+	}
+	id, err := strconv.Atoi(idStr)
+	if err != nil {
+		al.jsonErrorResponseWithTitle(w, http.StatusBadRequest, fmt.Sprintf("Non-numeric integer value provided: %s", idStr))
+		return
+	}
+
+	storedValue, found, err := al.vaultManager.GetOne(req.Context(), id)
+	if err != nil {
+		al.jsonError(w, err)
+		return
+	}
+	if !found {
+		al.jsonErrorResponseWithTitle(w, http.StatusNotFound, fmt.Sprintf("Cannot find a vault value by the provided id: %s", idStr))
+		return
+	}
+
+	al.writeJSONResponse(w, http.StatusOK, api.NewSuccessPayload(storedValue))
 }

@@ -4,7 +4,11 @@ import (
 	"context"
 	"errors"
 	"net/http"
+	"net/url"
 	"testing"
+	"time"
+
+	"github.com/cloudradar-monitoring/rport/share/enc"
 
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
@@ -13,12 +17,37 @@ import (
 )
 
 type DbProviderMock struct {
-	isInit           bool
-	initErr          error
+	isInit  bool
+	initErr error
+
 	statusToGive     DbStatus
 	statusToGiveErr  error
 	statusToStore    DbStatus
 	statusToStoreErr error
+
+	getByID            int
+	getByIDStoredValue StoredValue
+	getByIDFound       bool
+	getByIDError       error
+
+	listOptionInput  *ListOptions
+	listValuesToGive []ValueKey
+	listErrorToGive  error
+
+	findByKeyAndClientIDKey         string
+	findByKeyAndClientIDClientID    string
+	FindByKeyAndClientIDValueToGive StoredValue
+	FindByKeyAndClientIDFoundToGive bool
+	FindByKeyAndClientIDErrorToGive error
+
+	SaveUserGiven    string
+	SaveIDGiven      int
+	SaveInputGiven   *InputValue
+	SaveNowDateGiven time.Time
+	SaveErrorToGive  error
+
+	DeleteIDGiven     int
+	DeleteErrorToGive error
 }
 
 func (dpm *DbProviderMock) Init(ctx context.Context) error {
@@ -33,6 +62,39 @@ func (dpm *DbProviderMock) GetStatus(ctx context.Context) (DbStatus, error) {
 func (dpm *DbProviderMock) SetStatus(ctx context.Context, newStatus DbStatus) error {
 	dpm.statusToStore = newStatus
 	return dpm.statusToStoreErr
+}
+
+func (dpm *DbProviderMock) GetByID(ctx context.Context, id int) (val StoredValue, found bool, err error) {
+	dpm.getByID = id
+	return dpm.getByIDStoredValue, dpm.getByIDFound, dpm.getByIDError
+}
+
+func (dpm *DbProviderMock) List(ctx context.Context, lo *ListOptions) ([]ValueKey, error) {
+	dpm.listOptionInput = lo
+
+	return dpm.listValuesToGive, dpm.listErrorToGive
+}
+
+func (dpm *DbProviderMock) FindByKeyAndClientID(ctx context.Context, key, clientID string) (val StoredValue, found bool, err error) {
+	dpm.findByKeyAndClientIDKey = key
+	dpm.findByKeyAndClientIDClientID = clientID
+
+	return dpm.FindByKeyAndClientIDValueToGive, dpm.FindByKeyAndClientIDFoundToGive, dpm.FindByKeyAndClientIDErrorToGive
+}
+
+func (dpm *DbProviderMock) Save(ctx context.Context, user string, idToUpdate int, val *InputValue, nowDate time.Time) error {
+	dpm.SaveUserGiven = user
+	dpm.SaveIDGiven = idToUpdate
+	dpm.SaveInputGiven = val
+	dpm.SaveNowDateGiven = nowDate
+
+	return dpm.SaveErrorToGive
+}
+
+func (dpm *DbProviderMock) Delete(ctx context.Context, id int) error {
+	dpm.DeleteIDGiven = id
+
+	return dpm.DeleteErrorToGive
 }
 
 type PassManagerMock struct {
@@ -426,4 +488,163 @@ func TestReadStatusFailure(t *testing.T) {
 	mngr := NewManager(dbProv, &PassManagerMock{}, testLog)
 	_, err := mngr.Status(context.Background())
 	require.EqualError(t, err, "failed to read status")
+}
+
+func TestManagerList(t *testing.T) {
+	expectedValueKeys := []ValueKey{
+		{
+			ID:        1,
+			ClientID:  "client1",
+			CreatedBy: "user1",
+			CreatedAt: time.Now(),
+			Key:       "key1",
+		},
+	}
+	dbProv := &DbProviderMock{
+		listValuesToGive: expectedValueKeys,
+		statusToGive: DbStatus{
+			StatusName: "",
+		},
+	}
+
+	mngr := NewManager(dbProv, &PassManagerMock{}, testLog)
+
+	inputURL, err := url.Parse("/someu?sort=date&sort=-user&filter[field1]=val1")
+	require.NoError(t, err)
+
+	req := &http.Request{
+		URL: inputURL,
+	}
+
+	_, err = mngr.List(context.Background(), req)
+	require.EqualError(t, err, "vault is locked")
+
+	mngr.pass = "123"
+
+	_, err = mngr.List(context.Background(), req)
+	require.EqualError(t, err, "vault is not initialized")
+
+	dbProv.statusToGive = DbStatus{
+		StatusName: DbStatusInit,
+	}
+
+	actualValues, err := mngr.List(context.Background(), req)
+	require.NoError(t, err)
+
+	assert.Equal(
+		t,
+		&ListOptions{
+			Sorts: []SortOption{
+				{
+					Column: "date",
+					IsASC:  true,
+				},
+				{
+					Column: "user",
+					IsASC:  false,
+				},
+			},
+			Filters: []FilterOption{
+				{
+					Column: "field1",
+					Values: []string{"val1"},
+				},
+			},
+		},
+		dbProv.listOptionInput,
+	)
+	assert.Equal(t, expectedValueKeys, actualValues)
+
+	dbProv = &DbProviderMock{
+		listErrorToGive: errors.New("list error"),
+		statusToGive: DbStatus{
+			StatusName: DbStatusInit,
+		},
+	}
+
+	mngr = NewManager(dbProv, &PassManagerMock{}, testLog)
+	mngr.pass = "123"
+
+	_, err = mngr.List(context.Background(), req)
+	require.EqualError(t, err, "list error")
+}
+
+func TestGetOne(t *testing.T) {
+	const pass = "1234"
+	encValue, err := enc.Aes256EncryptByPassToBase64String([]byte("some val"), pass)
+	require.NoError(t, err)
+
+	givenStoredValue := StoredValue{
+		InputValue: InputValue{
+			Value: encValue,
+			Key:   "somekey1",
+		},
+		ID:        1,
+		CreatedBy: "guy",
+	}
+	expectedValue := StoredValue{
+		InputValue: InputValue{
+			Value: "some val",
+			Key:   "somekey1",
+		},
+		ID:        1,
+		CreatedBy: "guy",
+	}
+	dbProv := &DbProviderMock{
+		getByIDStoredValue: givenStoredValue,
+		getByIDFound:       true,
+		statusToGive: DbStatus{
+			StatusName: "",
+		},
+	}
+
+	mngr := NewManager(dbProv, &PassManagerMock{}, testLog)
+
+	_, _, err = mngr.GetOne(context.Background(), 1)
+	require.EqualError(t, err, "vault is locked")
+
+	mngr.pass = pass
+
+	_, _, err = mngr.GetOne(context.Background(), 1)
+	require.EqualError(t, err, "vault is not initialized")
+
+	dbProv.statusToGive = DbStatus{
+		StatusName: DbStatusInit,
+	}
+
+	val, found, err := mngr.GetOne(context.Background(), 1)
+	require.NoError(t, err)
+	assert.True(t, found)
+	assert.Equal(t, expectedValue, val)
+
+	dbProv = &DbProviderMock{
+		getByIDStoredValue: givenStoredValue,
+		getByIDFound:       false,
+		getByIDError:       nil,
+		statusToGive: DbStatus{
+			StatusName: DbStatusInit,
+		},
+	}
+
+	mngr = NewManager(dbProv, &PassManagerMock{}, testLog)
+	mngr.pass = "123"
+
+	_, found, err = mngr.GetOne(context.Background(), 1)
+	require.NoError(t, err)
+	assert.False(t, found)
+
+	dbProv = &DbProviderMock{
+		getByIDStoredValue: givenStoredValue,
+		getByIDFound:       false,
+		getByIDError:       errors.New("some get id error"),
+		statusToGive: DbStatus{
+			StatusName: DbStatusInit,
+		},
+	}
+
+	mngr = NewManager(dbProv, &PassManagerMock{}, testLog)
+	mngr.pass = pass
+
+	_, _, err = mngr.GetOne(context.Background(), 1)
+	require.EqualError(t, err, "some get id error")
 }

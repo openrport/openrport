@@ -5,6 +5,9 @@ import (
 	"errors"
 	"net/http"
 	"sync"
+	"time"
+
+	"github.com/cloudradar-monitoring/rport/share/enc"
 
 	chshare "github.com/cloudradar-monitoring/rport/share"
 
@@ -26,6 +29,11 @@ type DbProvider interface {
 	Init(ctx context.Context) error
 	GetStatus(ctx context.Context) (DbStatus, error)
 	SetStatus(ctx context.Context, newStatus DbStatus) error
+	GetByID(ctx context.Context, id int) (val StoredValue, found bool, err error)
+	List(ctx context.Context, lo *ListOptions) ([]ValueKey, error)
+	FindByKeyAndClientID(ctx context.Context, key, clientID string) (val StoredValue, found bool, err error)
+	Save(ctx context.Context, user string, idToUpdate int, val *InputValue, nowDate time.Time) error
+	Delete(ctx context.Context, id int) error
 }
 
 type PassManager interface {
@@ -210,4 +218,62 @@ func (m *Manager) Status(ctx context.Context) (StatusReport, error) {
 	}
 
 	return sr, nil
+}
+
+func (m *Manager) List(ctx context.Context, re *http.Request) ([]ValueKey, error) {
+	err := m.checkUnlockedAndInitialized(ctx)
+	if err != nil {
+		return nil, err
+	}
+
+	listOptions := ConvertGetParamsToFilterOptions(re)
+
+	return m.db.List(ctx, listOptions)
+}
+
+func (m *Manager) GetOne(ctx context.Context, id int) (StoredValue, bool, error) {
+	err := m.checkUnlockedAndInitialized(ctx)
+	if err != nil {
+		return StoredValue{}, false, err
+	}
+
+	val, found, err := m.db.GetByID(ctx, id)
+	if err != nil {
+		return StoredValue{}, false, err
+	}
+
+	if !found {
+		return StoredValue{}, false, nil
+	}
+
+	decryptedValue, err := enc.Aes256DecryptByPassFromBase64String(val.Value, m.pass)
+	if err != nil {
+		return StoredValue{}, false, err
+	}
+	val.Value = string(decryptedValue)
+
+	return val, true, nil
+}
+
+func (m *Manager) checkUnlockedAndInitialized(ctx context.Context) error {
+	if m.IsLocked() {
+		return errors2.APIError{
+			Message: "vault is locked",
+			Code:    http.StatusConflict,
+		}
+	}
+
+	isInit, err := m.isDatabaseInitialized(ctx)
+	if err != nil {
+		return err
+	}
+
+	if !isInit {
+		return errors2.APIError{
+			Message: "vault is not initialized",
+			Code:    http.StatusConflict,
+		}
+	}
+
+	return nil
 }

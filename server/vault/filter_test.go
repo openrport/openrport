@@ -68,7 +68,7 @@ func TestConvertGetParamsToFilterOptions(t *testing.T) {
 			}
 
 			actualListOptions := ConvertGetParamsToFilterOptions(req)
-			assert.Equal(t, testCases[i].expectedListOptions, actualListOptions)
+			assert.EqualValues(t, testCases[i].expectedListOptions, actualListOptions)
 		})
 	}
 }
