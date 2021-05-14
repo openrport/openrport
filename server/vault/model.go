@@ -41,10 +41,10 @@ type InputValue struct {
 }
 
 type ValueKey struct {
-	ID        int       `db:"id"`
+	ID        int       `json:"id" db:"id"`
 	ClientID  string    `json:"client_id" db:"client_id"`
-	CreatedBy string    `db:"created_by"`
-	CreatedAt time.Time `db:"created_at"`
+	CreatedBy string    `json:"created_by" db:"created_by"`
+	CreatedAt time.Time `json:"created_at" db:"created_at"`
 	Key       string    `json:"key" db:"key"`
 }
 
@@ -54,7 +54,7 @@ type StoredValue struct {
 	CreatedAt time.Time `db:"created_at"`
 	UpdatedAt time.Time `db:"updated_at"`
 	CreatedBy string    `db:"created_by"`
-	UpdatedBy string    `db:"updated_by"`
+	UpdatedBy *string    `db:"updated_by"`
 }
 
 type SortOption struct {

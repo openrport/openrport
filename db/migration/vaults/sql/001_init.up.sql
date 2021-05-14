@@ -8,7 +8,7 @@ CREATE TABLE "values"
     "required_group" TEXT,
     "created_at"     DATE    NOT NULL,
     "created_by"     TEXT    NOT NULL,
-    "updated_at"     DATE,
+    "updated_at"     DATE    NOT NULL,
     "updated_by"     TEXT,
     "key"            TEXT    NOT NULL,
     "value"          TEXT    NOT NULL,
@@ -19,23 +19,23 @@ CREATE TABLE "values"
 -- ----------------------------
 UPDATE `sqlite_sequence`
 SET `seq` = 1
-WHERE `name` = 'values';
+    WHERE `name` = 'values';
 -- ----------------------------
 -- Indexes structure for table vault
 -- ----------------------------
 CREATE INDEX "client_id"
     ON `values` (
-                 "client_id" ASC
-        );
+    "client_id" ASC
+    );
 CREATE INDEX "key"
     ON `values` (
-                 "key" ASC
-        );
+    "key" ASC
+    );
 CREATE UNIQUE INDEX "unique_client_id_key"
     ON `values` (
-                 "client_id" ASC,
-                 "key" ASC
-        );
+    "client_id" ASC,
+    "key" ASC
+    );
 
 CREATE TABLE "status"
 (
@@ -48,4 +48,6 @@ CREATE TABLE "status"
 -- ----------------------------
 -- Auto increment value for status
 -- ----------------------------
-UPDATE `sqlite_sequence` SET `seq` = 1 WHERE `name` = 'status';
+UPDATE `sqlite_sequence`
+SET `seq` = 1
+WHERE `name` = 'status';

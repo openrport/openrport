@@ -129,21 +129,6 @@ func (p *SqliteProvider) SetStatus(ctx context.Context, newStatus DbStatus) erro
 	return nil
 }
 
-func (p *SqliteProvider) getDb() (*sqlx.DB, error) {
-	if p.db == nil {
-		return nil, ErrDatabaseNotInitialised
-	}
-
-	return p.db, nil
-}
-
-func (p *SqliteProvider) handleRollback(tx *sqlx.Tx) {
-	err := tx.Rollback()
-	if err != nil {
-		p.logger.Errorf("Failed to rollback transaction: %v", err)
-	}
-}
-
 func (p *SqliteProvider) GetByID(ctx context.Context, id int) (val StoredValue, found bool, err error) {
 	db, err := p.getDb()
 	if err != nil {
@@ -174,7 +159,7 @@ func (p *SqliteProvider) List(ctx context.Context, lo *ListOptions) ([]ValueKey,
 	q, params := p.addWhere(lo, q)
 	q = p.addOrderBy(lo, q)
 
-	err = db.GetContext(ctx, &values, q, params...)
+	err = db.SelectContext(ctx, &values, q, params...)
 	if err != nil {
 		return values, err
 	}
@@ -246,22 +231,21 @@ func (p *SqliteProvider) FindByKeyAndClientID(ctx context.Context, key, clientID
 	return val, true, nil
 }
 
-func (p *SqliteProvider) Save(ctx context.Context, user string, idToUpdate int, val *InputValue) error {
+func (p *SqliteProvider) Save(ctx context.Context, user string, idToUpdate int, val *InputValue, nowDate time.Time) error {
 	db, err := p.getDb()
 	if err != nil {
 		return err
 	}
 
-	now := time.Now()
 	if idToUpdate == 0 {
 		_, err = db.ExecContext(
 			ctx,
 			"INSERT INTO `values` (`client_id`, `required_group`, `created_at`, `created_by`, `updated_at`, `updated_by`, `key`, `value`, `type`) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)",
 			val.ClientID,
 			val.RequiredGroup,
-			now.Format(time.RFC3339),
+			nowDate.Format(time.RFC3339),
 			user,
-			now.Format(time.RFC3339),
+			nowDate.Format(time.RFC3339),
 			user,
 			val.Key,
 			val.Value,
@@ -276,7 +260,7 @@ func (p *SqliteProvider) Save(ctx context.Context, user string, idToUpdate int, 
 		params := []interface{}{
 			val.ClientID,
 			val.RequiredGroup,
-			now.Format(time.RFC3339),
+			nowDate.Format(time.RFC3339),
 			user,
 			val.Key,
 			val.Value,
@@ -314,4 +298,19 @@ func (p *SqliteProvider) Delete(ctx context.Context, id int) error {
 	}
 
 	return nil
+}
+
+func (p *SqliteProvider) getDb() (*sqlx.DB, error) {
+	if p.db == nil {
+		return nil, ErrDatabaseNotInitialised
+	}
+
+	return p.db, nil
+}
+
+func (p *SqliteProvider) handleRollback(tx *sqlx.Tx) {
+	err := tx.Rollback()
+	if err != nil {
+		p.logger.Errorf("Failed to rollback transaction: %v", err)
+	}
 }
