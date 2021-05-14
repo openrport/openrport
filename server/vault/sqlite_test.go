@@ -2,10 +2,11 @@ package vault
 
 import (
 	"context"
-	"github.com/jmoiron/sqlx"
 	"os"
 	"testing"
 	"time"
+
+	"github.com/jmoiron/sqlx"
 
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
@@ -490,11 +491,11 @@ func TestFindByKeyAndClientID(t *testing.T) {
 				Value:         "val1",
 				Type:          "type1",
 			},
-			ID:         1,
-			CreatedAt:  expectedCreatedAt,
-			UpdatedAt:  expectedCreatedAt,
-			CreatedBy:  "user1",
-			UpdatedBy:  nil,
+			ID:        1,
+			CreatedAt: expectedCreatedAt,
+			UpdatedAt: expectedCreatedAt,
+			CreatedBy: "user1",
+			UpdatedBy: nil,
 		},
 		val,
 	)

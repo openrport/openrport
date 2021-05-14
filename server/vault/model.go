@@ -54,7 +54,7 @@ type StoredValue struct {
 	CreatedAt time.Time `db:"created_at"`
 	UpdatedAt time.Time `db:"updated_at"`
 	CreatedBy string    `db:"created_by"`
-	UpdatedBy *string    `db:"updated_by"`
+	UpdatedBy *string   `db:"updated_by"`
 }
 
 type SortOption struct {

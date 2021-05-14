@@ -250,7 +250,7 @@ type bintree struct {
 
 var _bintree = &bintree{nil, map[string]*bintree{
 	"001_init.down.sql": {_001_initDownSql, map[string]*bintree{}},
-	"001_init.up.sql": {_001_initUpSql, map[string]*bintree{}},
+	"001_init.up.sql":   {_001_initUpSql, map[string]*bintree{}},
 }}
 
 // RestoreAsset restores an asset under the given directory.
