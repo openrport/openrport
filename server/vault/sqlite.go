@@ -5,6 +5,8 @@ import (
 	"database/sql"
 	"errors"
 	"fmt"
+	"strings"
+	"time"
 
 	"github.com/cloudradar-monitoring/rport/db/migration/vaults"
 	chshare "github.com/cloudradar-monitoring/rport/share"
@@ -140,4 +142,176 @@ func (p *SqliteProvider) handleRollback(tx *sqlx.Tx) {
 	if err != nil {
 		p.logger.Errorf("Failed to rollback transaction: %v", err)
 	}
+}
+
+func (p *SqliteProvider) GetByID(ctx context.Context, id int) (val StoredValue, found bool, err error) {
+	db, err := p.getDb()
+	if err != nil {
+		return val, found, err
+	}
+
+	err = db.GetContext(ctx, &val, "SELECT * FROM `values` WHERE `id` = ? LIMIT 1", id)
+	if err != nil {
+		if err == sql.ErrNoRows {
+			return val, false, nil
+		}
+
+		return val, false, err
+	}
+
+	return val, true, nil
+}
+
+func (p *SqliteProvider) List(ctx context.Context, lo *ListOptions) ([]ValueKey, error) {
+	values := []ValueKey{}
+	db, err := p.getDb()
+	if err != nil {
+		return values, err
+	}
+
+	q := "SELECT `id`, `client_id`, `created_by`, `created_at`, `key` FROM `values`"
+
+	q, params := p.addWhere(lo, q)
+	q = p.addOrderBy(lo, q)
+
+	err = db.GetContext(ctx, &values, q, params...)
+	if err != nil {
+		return values, err
+	}
+
+	return values, nil
+}
+
+func (p *SqliteProvider) addWhere(lo *ListOptions, q string) (qOut string, params []interface{}) {
+	params = []interface{}{}
+	if len(lo.Filters) == 0 {
+		return q, params
+	}
+
+	whereParts := make([]string, 0, len(lo.Filters))
+	for i := range lo.Filters {
+		if len(lo.Filters[i].Values) == 1 {
+			whereParts = append(whereParts, fmt.Sprintf("%s = ?", lo.Filters[i].Column))
+			params = append(params, lo.Filters[i].Values[0])
+		} else {
+			orParts := make([]string, 0, len(lo.Filters[i].Values))
+			for y := range lo.Filters[i].Values {
+				orParts = append(orParts, fmt.Sprintf("%s = ?", lo.Filters[i].Column))
+				params = append(params, lo.Filters[i].Values[y])
+			}
+
+			whereParts = append(whereParts, fmt.Sprintf("(%s)", strings.Join(orParts, " OR ")))
+		}
+	}
+
+	q += " WHERE " + strings.Join(whereParts, " AND ")
+
+	return q, params
+}
+
+func (p *SqliteProvider) addOrderBy(lo *ListOptions, q string) string {
+	if len(lo.Sorts) == 0 {
+		return q
+	}
+	orderByValues := make([]string, 0, len(lo.Sorts))
+	for i := range lo.Sorts {
+		direction := "ASC"
+		if !lo.Sorts[i].IsASC {
+			direction = "DESC"
+		}
+		orderByValues = append(orderByValues, fmt.Sprintf("%s %s", lo.Sorts[i].Column, direction))
+	}
+	if len(orderByValues) > 0 {
+		q += "ORDER BY " + strings.Join(orderByValues, ",")
+	}
+
+	return q
+}
+
+func (p *SqliteProvider) FindByKeyAndClientID(ctx context.Context, key, clientID string) (val StoredValue, found bool, err error) {
+	db, err := p.getDb()
+	if err != nil {
+		return val, found, err
+	}
+
+	err = db.GetContext(ctx, &val, "SELECT * FROM `values` WHERE `key` = ? and `client_id` = ? LIMIT 1", key, clientID)
+	if err != nil {
+		if err == sql.ErrNoRows {
+			return val, false, nil
+		}
+
+		return val, false, err
+	}
+
+	return val, true, nil
+}
+
+func (p *SqliteProvider) Save(ctx context.Context, user string, idToUpdate int, val *InputValue) error {
+	db, err := p.getDb()
+	if err != nil {
+		return err
+	}
+
+	now := time.Now()
+	if idToUpdate == 0 {
+		_, err = db.ExecContext(
+			ctx,
+			"INSERT INTO `values` (`client_id`, `required_group`, `created_at`, `created_by`, `updated_at`, `updated_by`, `key`, `value`, `type`) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)",
+			val.ClientID,
+			val.RequiredGroup,
+			now.Format(time.RFC3339),
+			user,
+			now.Format(time.RFC3339),
+			user,
+			val.Key,
+			val.Value,
+			val.Type,
+		)
+
+		if err != nil {
+			return err
+		}
+	} else {
+		q := "UPDATE `values` SET `client_id` = ?, `required_group` = ?, `updated_at` = ?, `updated_by` = ?, `key` = ?, `value` = ?, `type` = ? WHERE id = ?"
+		params := []interface{}{
+			val.ClientID,
+			val.RequiredGroup,
+			now.Format(time.RFC3339),
+			user,
+			val.Key,
+			val.Value,
+			val.Type,
+			idToUpdate,
+		}
+		_, err = db.ExecContext(ctx, q, params...)
+		if err != nil {
+			return err
+		}
+	}
+
+	return nil
+}
+
+func (p *SqliteProvider) Delete(ctx context.Context, id int) error {
+	db, err := p.getDb()
+	if err != nil {
+		return err
+	}
+
+	res, err := db.ExecContext(ctx, "DELETE FROM `values` WHERE `id` = ?", id)
+
+	if err != nil {
+		return err
+	}
+
+	affectedRows, err := res.RowsAffected()
+	if err != nil {
+		return err
+	}
+
+	if affectedRows == 0 {
+		return fmt.Errorf("cannot find entry by id %d", id)
+	}
+
+	return nil
 }
