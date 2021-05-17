@@ -60,3 +60,7 @@ func (s *SMTPService) Send(title, msg, receiver string) error {
 
 	return nil
 }
+
+func (s *SMTPService) DeliveryMethod() string {
+	return "email"
+}

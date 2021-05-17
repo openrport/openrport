@@ -38,7 +38,7 @@ type expirableToken struct {
 const twoFATokenLength = 6
 
 // TODO: add tests
-func (srv *TwoFAService) SendToken(username string) (successMsg string, err error) {
+func (srv *TwoFAService) SendToken(username string) (sendTo string, err error) {
 	if username == "" {
 		return "", errors2.APIError{
 			Message: "username cannot be empty",
@@ -59,7 +59,7 @@ func (srv *TwoFAService) SendToken(username string) (successMsg string, err erro
 
 	if user.TwoFASendTo == "" {
 		return "", errors2.APIError{
-			Message: "no 2fa_send_to set for this user",
+			Message: "no two_fa_send_to set for this user",
 			Code:    http.StatusBadRequest,
 		}
 	}
@@ -81,7 +81,7 @@ func (srv *TwoFAService) SendToken(username string) (successMsg string, err erro
 	}
 	srv.mu.Unlock()
 
-	return fmt.Sprintf("A token has been sent to %s", user.TwoFASendTo), nil
+	return user.TwoFASendTo, nil
 }
 
 // TODO: add tests

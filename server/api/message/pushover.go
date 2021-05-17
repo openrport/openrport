@@ -48,3 +48,7 @@ func (s *PushoverService) Send(title, msg, receiver string) error {
 		Code:    http.StatusBadRequest,
 	}
 }
+
+func (s *PushoverService) DeliveryMethod() string {
+	return "pushover"
+}
