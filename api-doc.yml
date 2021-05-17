@@ -179,7 +179,7 @@ paths:
           description: "User not found"
           schema:
             $ref: "#/definitions/ErrorPayload"
-        "405":
+        "409":
           description: "2FA is disabled"
           schema:
             $ref: "#/definitions/ErrorPayload"

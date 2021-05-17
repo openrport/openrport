@@ -35,6 +35,8 @@ type expirableToken struct {
 	expiry time.Time
 }
 
+const twoFATokenLength = 6
+
 // TODO: add tests
 func (srv *TwoFAService) SendToken(username string) (successMsg string, err error) {
 	if username == "" {
@@ -62,7 +64,7 @@ func (srv *TwoFAService) SendToken(username string) (successMsg string, err erro
 		}
 	}
 
-	token, err := security.NewRandomToken(6)
+	token, err := security.NewRandomToken(twoFATokenLength)
 	if err != nil {
 		return "", fmt.Errorf("failed to generate 2fa token: %wv", err)
 	}
