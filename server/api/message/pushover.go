@@ -10,6 +10,7 @@ import (
 	"github.com/cloudradar-monitoring/rport/server/api/errors"
 )
 
+// PushoverService is a service that uses Pushover API to send messages via Pushover.net.
 type PushoverService struct {
 	p *pushover.Pushover
 }

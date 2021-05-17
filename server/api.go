@@ -498,7 +498,7 @@ func (al *APIListener) handleDeleteLogin(w http.ResponseWriter, req *http.Reques
 
 func (al *APIListener) handleGetSend2FAToken(w http.ResponseWriter, req *http.Request) {
 	if !al.config.API.IsTwoFAOn() {
-		al.jsonErrorResponseWithTitle(w, http.StatusMethodNotAllowed, "2fa is disabled")
+		al.jsonErrorResponseWithTitle(w, http.StatusConflict, "2fa is disabled")
 		return
 	}
 
