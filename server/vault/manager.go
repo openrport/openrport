@@ -77,8 +77,6 @@ func (m *Manager) Init(ctx context.Context, pass string) error {
 	if err := m.pm.ValidatePass(pass); err != nil {
 		return err
 	}
-	m.passLock.Lock()
-	defer m.passLock.Unlock()
 
 	isInit, err := m.isDatabaseInitialized(ctx)
 	if err != nil {
@@ -111,6 +109,8 @@ func (m *Manager) Init(ctx context.Context, pass string) error {
 		return err
 	}
 
+	m.passLock.Lock()
+	defer m.passLock.Unlock()
 	m.pass = pass
 	m.logger.Infof("unlocked vault")
 
@@ -135,9 +135,6 @@ func (m *Manager) isDatabaseInitialized(ctx context.Context) (bool, error) {
 }
 
 func (m *Manager) UnLock(ctx context.Context, pass string) error {
-	m.passLock.Lock()
-	defer m.passLock.Unlock()
-
 	if !m.IsLocked() {
 		return errors2.APIError{
 			Message: "vault is already unlocked",
@@ -167,15 +164,15 @@ func (m *Manager) UnLock(ctx context.Context, pass string) error {
 
 	m.logger.Infof("unlocked vault")
 
+	m.passLock.Lock()
+	defer m.passLock.Unlock()
+
 	m.pass = pass
 
 	return nil
 }
 
 func (m *Manager) Lock(ctx context.Context) error {
-	m.passLock.Lock()
-	defer m.passLock.Unlock()
-
 	if m.IsLocked() {
 		return errors2.APIError{
 			Message: "vault is already locked",
@@ -195,19 +192,22 @@ func (m *Manager) Lock(ctx context.Context) error {
 	}
 
 	m.logger.Infof("locked vault")
+	m.passLock.Lock()
+	defer m.passLock.Unlock()
+
 	m.pass = ""
 
 	return nil
 }
 
 func (m *Manager) IsLocked() bool {
+	m.passLock.Lock()
+	defer m.passLock.Unlock()
+
 	return m.pass == ""
 }
 
 func (m *Manager) Status(ctx context.Context) (StatusReport, error) {
-	m.passLock.Lock()
-	defer m.passLock.Unlock()
-
 	sr := StatusReport{}
 
 	dbStatus, err := m.db.GetStatus(ctx)
