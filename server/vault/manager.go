@@ -3,6 +3,7 @@ package vault
 import (
 	"context"
 	"errors"
+	"fmt"
 	"net/http"
 	"sync"
 	"time"
@@ -15,6 +16,14 @@ import (
 )
 
 const defaultDBName = "vault.sqlite3"
+
+var supportedFields = map[string]bool{
+	"id":         true,
+	"client_id":  true,
+	"created_by": true,
+	"created_at": true,
+	"key":        true,
+}
 
 var WrongPasswordError = errors2.APIError{
 	Message: "wrong password provided",
@@ -232,7 +241,41 @@ func (m *Manager) List(ctx context.Context, re *http.Request) ([]ValueKey, error
 
 	listOptions := ConvertGetParamsToFilterOptions(re)
 
+	err = m.validateListOptions(listOptions)
+	if err != nil {
+		return nil, err
+	}
+
 	return m.db.List(ctx, listOptions)
+}
+
+func (m *Manager) validateListOptions(lo *ListOptions) error {
+	errs := errors2.APIErrors{}
+	for i := range lo.Sorts {
+		ok := supportedFields[lo.Sorts[i].Column]
+		if !ok {
+			errs = append(errs, errors2.APIError{
+				Message: fmt.Sprintf("unsupported sort field '%s'", lo.Sorts[i].Column),
+				Code:    http.StatusBadRequest,
+			})
+		}
+	}
+
+	for i := range lo.Filters {
+		ok := supportedFields[lo.Filters[i].Column]
+		if !ok {
+			errs = append(errs, errors2.APIError{
+				Message: fmt.Sprintf("unsupported filter field '%s'", lo.Filters[i].Column),
+				Code:    http.StatusBadRequest,
+			})
+		}
+	}
+
+	if len(errs) > 0 {
+		return errs
+	}
+
+	return nil
 }
 
 func (m *Manager) GetOne(ctx context.Context, id int, user UserDataProvider) (StoredValue, bool, error) {
@@ -285,6 +328,18 @@ func (m *Manager) Store(ctx context.Context, id int, iv *InputValue, username st
 	err = Validate(iv)
 	if err != nil {
 		return err
+	}
+
+	storedValue, found, err := m.db.FindByKeyAndClientID(ctx, iv.Key, iv.ClientID)
+	if err != nil {
+		return err
+	}
+
+	if found && (id == 0 || storedValue.ID != id) {
+		return errors2.APIError{
+			Message: fmt.Sprintf("another key '%s' exists for this client '%s'", iv.Key, iv.ClientID),
+			Code:    http.StatusConflict,
+		}
 	}
 
 	encValue, err := enc.Aes256EncryptByPassToBase64String([]byte(iv.Value), m.pass)

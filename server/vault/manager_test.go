@@ -517,7 +517,7 @@ func TestManagerList(t *testing.T) {
 
 	mngr := NewManager(dbProv, &PassManagerMock{}, testLog)
 
-	inputURL, err := url.Parse("/someu?sort=date&sort=-user&filter[field1]=val1")
+	inputURL, err := url.Parse("/someu?sort=key&sort=-created_at&filter[client_id]=val1")
 	require.NoError(t, err)
 
 	req := &http.Request{
@@ -544,17 +544,17 @@ func TestManagerList(t *testing.T) {
 		&ListOptions{
 			Sorts: []SortOption{
 				{
-					Column: "date",
+					Column: "key",
 					IsASC:  true,
 				},
 				{
-					Column: "user",
+					Column: "created_at",
 					IsASC:  false,
 				},
 			},
 			Filters: []FilterOption{
 				{
-					Column: "field1",
+					Column: "client_id",
 					Values: []string{"val1"},
 				},
 			},
@@ -575,6 +575,28 @@ func TestManagerList(t *testing.T) {
 
 	_, err = mngr.List(context.Background(), req)
 	require.EqualError(t, err, "list error")
+}
+
+func TestListWithUnsupportedFilterAndSort(t *testing.T) {
+	dbProv := &DbProviderMock{
+		listValuesToGive: []ValueKey{},
+		statusToGive: DbStatus{
+			StatusName: DbStatusInit,
+		},
+	}
+
+	mngr := NewManager(dbProv, &PassManagerMock{}, testLog)
+	mngr.pass = "123"
+
+	inputURL, err := url.Parse("/someu?sort=unsupportedSortField&filter[unsupportedFilter]=val1")
+	require.NoError(t, err)
+
+	req := &http.Request{
+		URL: inputURL,
+	}
+
+	_, err = mngr.List(context.Background(), req)
+	require.EqualError(t, err, "unsupported sort field 'unsupportedSortField', unsupported filter field 'unsupportedFilter'")
 }
 
 func TestGetOne(t *testing.T) {
@@ -758,6 +780,22 @@ func TestStore(t *testing.T) {
 		require.NoError(t, err)
 		assert.Equal(t, "someValue", string(actualDecryptedValue))
 	})
+
+	dbProv.FindByKeyAndClientIDFoundToGive = true
+	t.Run("store_failure_key_exists", func(t *testing.T) {
+		err := mngr.Store(context.Background(), 1, inputValue, "someuser")
+		require.EqualError(t, err, "another key 'someKey' exists for this client 'client1'")
+	})
+
+	dbProv.FindByKeyAndClientIDFoundToGive = false
+
+	dbProv.FindByKeyAndClientIDErrorToGive = errors.New("finding key and client error")
+	t.Run("store_failure_key_exists_error", func(t *testing.T) {
+		err := mngr.Store(context.Background(), 1, inputValue, "someuser")
+		require.EqualError(t, err, "finding key and client error")
+	})
+
+	dbProv.FindByKeyAndClientIDErrorToGive = nil
 
 	t.Run("invalid_input", func(t *testing.T) {
 		err := mngr.Store(context.Background(), 1, &InputValue{}, "someuser")

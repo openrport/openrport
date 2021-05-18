@@ -2049,7 +2049,7 @@ func (al *APIListener) readIntParam(paramName string, req *http.Request) (int, e
 	vars := mux.Vars(req)
 	idStr, ok := vars[paramName]
 	if !ok {
-		return 0, fmt.Errorf("missing %q route param", paramName)
+		return 0, nil
 	}
 
 	id, err := strconv.Atoi(idStr)
@@ -2065,6 +2065,13 @@ func (al *APIListener) handleReadVaultValue(w http.ResponseWriter, req *http.Req
 	if err != nil {
 		al.jsonError(w, errors2.APIError{
 			Err:  err,
+			Code: http.StatusBadRequest,
+		})
+		return
+	}
+	if id == 0 {
+		al.jsonError(w, errors2.APIError{
+			Err:  fmt.Errorf("missing %q route param", routeParamVaultValueID),
 			Code: http.StatusBadRequest,
 		})
 		return
@@ -2149,6 +2156,13 @@ func (al *APIListener) handleVaultDeleteValue(w http.ResponseWriter, req *http.R
 	if err != nil {
 		al.jsonError(w, errors2.APIError{
 			Err:  err,
+			Code: http.StatusBadRequest,
+		})
+		return
+	}
+	if id == 0 {
+		al.jsonError(w, errors2.APIError{
+			Err:  fmt.Errorf("missing %q route param", routeParamVaultValueID),
 			Code: http.StatusBadRequest,
 		})
 		return
