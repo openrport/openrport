@@ -101,7 +101,7 @@ func (as *APIService) validate(dataToChange *User, usernameToFind string) error 
 		}
 	} else {
 		if (dataToChange.Username == "" || dataToChange.Username == usernameToFind) &&
-			dataToChange.Password == "" && dataToChange.Groups == nil && dataToChange.TwoFASendTo == "" {
+			dataToChange.Password == "" && dataToChange.Groups == nil && (!as.TwoFAOn || dataToChange.TwoFASendTo == "") {
 			errs = append(errs, errors2.APIError{
 				Message: "nothing to change",
 				Code:    http.StatusBadRequest,

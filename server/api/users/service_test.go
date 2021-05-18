@@ -300,6 +300,16 @@ func TestValidate(t *testing.T) {
 			name:          "no two_fa_send_to provided on create when 2fa is enabled",
 		},
 		{
+			twoFAOn: false,
+			user: &User{
+				Username:    "user123",
+				TwoFASendTo: "some-receiver",
+			},
+			userKeyToProvide: "user123",
+			expectedError:    "nothing to change",
+			name:             "only two_fa_send_to is provided but 2fa is disabled",
+		},
+		{
 			twoFAOn:     true,
 			deliverySrv: emailSrv,
 			user: &User{
