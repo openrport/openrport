@@ -616,7 +616,7 @@ func (al *APIListener) handleChangeUser(w http.ResponseWriter, req *http.Request
 		al.Debugf("User [%s] updated.", userID)
 		w.WriteHeader(http.StatusNoContent)
 	} else {
-		al.Debugf("User [%s] created.", userID)
+		al.Debugf("User [%s] created.", user.Username)
 		w.WriteHeader(http.StatusCreated)
 	}
 }
