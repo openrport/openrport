@@ -346,17 +346,29 @@ func (m *Manager) Store(ctx context.Context, id int64, iv *InputValue, user User
 		return StoredValueID{}, err
 	}
 
+	if id > 0 {
+		val, found, err := m.db.GetByID(ctx, int(id))
+		if err != nil {
+			return StoredValueID{}, err
+		}
+
+		if !found {
+			return StoredValueID{}, errors2.APIError{
+				Message: fmt.Sprintf("cannot find entry by the provided id"),
+				Code:    http.StatusNotFound,
+			}
+		}
+
+		err = m.checkGroupAccess(&val, user)
+		if err != nil {
+			return StoredValueID{}, err
+		}
+	}
+	
 	if found && (id == 0 || storedValue.ID != int(id)) {
 		return StoredValueID{}, errors2.APIError{
 			Message: fmt.Sprintf("another key '%s' exists for this client '%s'", iv.Key, iv.ClientID),
 			Code:    http.StatusConflict,
-		}
-	}
-
-	if found {
-		err = m.checkGroupAccess(&storedValue, user)
-		if err != nil {
-			return StoredValueID{}, err
 		}
 	}
 

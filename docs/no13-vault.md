@@ -38,6 +38,8 @@ curl -X POST 'http://localhost:3000/api/v1/vault-admin/init' \
 
 Password length must be between 4 and 32 bytes, shorter and longer passwords are rejected.
 
+You need to init database every time when the rport server is restarted.
+
 ### Status
 [Any user access]
 This API allows to read the current status of the RPort vault:
@@ -177,7 +179,7 @@ The response will be
 }
 ```
 
-In the "value" field you will find the decrypted secure value. If `required_group` is not emtpy, only users of this group can read this value, e.g. if `required_group` = 'admin' and the current user doesn't belong to this group, an error will be returned.
+In the "value" field you will find the decrypted secure value. If `required_group` value of the stored vault entry is not empty, only users of this group can read this value, e.g. if `required_group` = 'admin' and the current user doesn't belong to this group, an error will be returned.
 
 ### Add a new secured value
 
@@ -216,11 +218,11 @@ Fields info:
 
 `value`: text, required representing the encrypted "body" of the document. All other columns hold clear text values. This column stores the encrypted data.
 
-`type`: text, required  ENUM('text', 'secrete', 'markdown', 'string') The frontend needs this type to render and display values properly.
+`type`: text, required  ENUM('text', 'secrete', 'markdown', 'string') Type of the secret value.
 
 
-### Change a secured value
-You need to provide all fields like that you used to create a value. Partial updates are not supported. Additionally, you need to provide `id` of a stored value in the request url. You can get it by using the listing API. You get the id also when you store a new value.
+### Change a vault entry
+You need to provide all fields like those you used to create a vault entry. Partial updates are not supported. Additionally, you need to provide `id` of a stored value in the request url. You can get it by using the listing API. You get the id also when you store a new value.
 
 ```
 curl -X PUT 'http://localhost:3000/api/v1/vault/1' \
@@ -246,3 +248,16 @@ The response will contain the id of the added element:
 ```
 
 If `required_group` value of the entry you want to change is not empty, only users of this group can change this value, otherwise an error will be returned.
+
+
+### Delete a vault entry
+
+To delete a vault entry, you need to provide id of an existing vault entry. You can get it by listing vault keys. Additionally, id is provided when you create a new vault entry. 
+You can delete a vault entry by calling the following API:
+
+```
+curl -X DELETE 'http://localhost:3000/api/v1/vault/1' \
+-u admin:foobaz'
+```
+
+If `required_group` value of the entry you want to delete is not empty, only users of this group can change this value, otherwise an error will be returned.

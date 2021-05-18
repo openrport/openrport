@@ -758,7 +758,7 @@ func TestStore(t *testing.T) {
 		GroupsToGive:   []string{},
 	}
 	t.Run("vault_locked", func(t *testing.T) {
-		_, err := mngr.Store(context.Background(), 1, inputValue, user)
+		_, err := mngr.Store(context.Background(), 0, inputValue, user)
 		require.EqualError(t, err, "vault is locked")
 	})
 
@@ -773,13 +773,13 @@ func TestStore(t *testing.T) {
 		StatusName: DbStatusInit,
 	}
 
-	t.Run("store_success", func(t *testing.T) {
-		storedID, err := mngr.Store(context.Background(), 1, inputValue, user)
+	t.Run("create_success", func(t *testing.T) {
+		storedID, err := mngr.Store(context.Background(), 0, inputValue, user)
 		require.NoError(t, err)
 		assert.Equal(t, int64(123), storedID.ID)
 
 		assert.Equal(t, "someuser", dbProv.SaveUserGiven)
-		assert.Equal(t, int64(1), dbProv.SaveIDGiven)
+		assert.Equal(t, int64(0), dbProv.SaveIDGiven)
 		assert.True(t, dbProv.SaveNowDateGiven.Equal(time.Now()) || dbProv.SaveNowDateGiven.Before(time.Now()))
 
 		actualInputValue := dbProv.SaveInputGiven
@@ -791,6 +791,15 @@ func TestStore(t *testing.T) {
 		actualDecryptedValue, err := enc.Aes256DecryptByPassFromBase64String(actualInputValue.Value, pass)
 		require.NoError(t, err)
 		assert.Equal(t, "someValue", string(actualDecryptedValue))
+	})
+
+	dbProv.getByIDFound = true
+	dbProv.getByIDStoredValue = StoredValue{
+		InputValue: InputValue{},
+	}
+	t.Run("update_success", func(t *testing.T) {
+		_, err := mngr.Store(context.Background(), 1, inputValue, user)
+		require.NoError(t, err)
 	})
 
 	dbProv.FindByKeyAndClientIDFoundToGive = true
@@ -827,8 +836,8 @@ func TestStoreWithLimitedGroupAccess(t *testing.T) {
 			StatusName: DbStatusInit,
 		},
 	}
-	dbProv.FindByKeyAndClientIDFoundToGive = true
-	dbProv.FindByKeyAndClientIDValueToGive = StoredValue{
+	dbProv.getByIDFound = true
+	dbProv.getByIDStoredValue = StoredValue{
 		InputValue: InputValue{
 			ClientID:      "client123",
 			RequiredGroup: "secure_group",
@@ -850,7 +859,7 @@ func TestStoreWithLimitedGroupAccess(t *testing.T) {
 		GroupsToGive:   []string{},
 	}
 
-	_, err := mngr.Store(context.Background(), 1, &dbProv.FindByKeyAndClientIDValueToGive.InputValue, user)
+	_, err := mngr.Store(context.Background(), 1, &dbProv.getByIDStoredValue.InputValue, user)
 	require.Equal(
 		t,
 		errors2.APIError{
@@ -865,7 +874,7 @@ func TestStoreWithLimitedGroupAccess(t *testing.T) {
 		GroupsToGive:   []string{"secure_group"},
 	}
 
-	_, err = mngr.Store(context.Background(), 1, &dbProv.FindByKeyAndClientIDValueToGive.InputValue, user2)
+	_, err = mngr.Store(context.Background(), 1, &dbProv.getByIDStoredValue.InputValue, user2)
 	assert.NoError(t, err)
 }
 
