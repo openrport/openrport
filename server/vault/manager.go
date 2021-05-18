@@ -36,6 +36,7 @@ type Config interface {
 
 type UserDataProvider interface {
 	GetGroups() []string
+	GetUsername() string
 }
 
 type DbProvider interface {
@@ -45,7 +46,7 @@ type DbProvider interface {
 	GetByID(ctx context.Context, id int) (val StoredValue, found bool, err error)
 	List(ctx context.Context, lo *ListOptions) ([]ValueKey, error)
 	FindByKeyAndClientID(ctx context.Context, key, clientID string) (val StoredValue, found bool, err error)
-	Save(ctx context.Context, user string, idToUpdate int, val *InputValue, nowDate time.Time) error
+	Save(ctx context.Context, user string, idToUpdate int64, val *InputValue, nowDate time.Time) (int64, error)
 	Delete(ctx context.Context, id int) error
 }
 
@@ -278,6 +279,28 @@ func (m *Manager) validateListOptions(lo *ListOptions) error {
 	return nil
 }
 
+func (m *Manager) checkGroupAccess(val *StoredValue, user UserDataProvider) error {
+	if val.RequiredGroup == "" || val == nil {
+		return nil
+	}
+	userGroupMatches := false
+	for _, gr := range user.GetGroups() {
+		if gr != val.RequiredGroup {
+			continue
+		}
+		userGroupMatches = true
+		break
+	}
+	if !userGroupMatches {
+		return errors2.APIError{
+			Message: "your group doesn't allow access to this value",
+			Code:    http.StatusForbidden,
+		}
+	}
+
+	return nil
+}
+
 func (m *Manager) GetOne(ctx context.Context, id int, user UserDataProvider) (StoredValue, bool, error) {
 	err := m.checkUnlockedAndInitialized(ctx)
 	if err != nil {
@@ -293,21 +316,9 @@ func (m *Manager) GetOne(ctx context.Context, id int, user UserDataProvider) (St
 		return StoredValue{}, false, nil
 	}
 
-	if val.RequiredGroup != "" {
-		userGroupMatches := false
-		for _, gr := range user.GetGroups() {
-			if gr != val.RequiredGroup {
-				continue
-			}
-			userGroupMatches = true
-			break
-		}
-		if !userGroupMatches {
-			return StoredValue{}, false, errors2.APIError{
-				Message: "your group doesn't allow access to this value",
-				Code:    http.StatusForbidden,
-			}
-		}
+	err = m.checkGroupAccess(&val, user)
+	if err != nil {
+		return StoredValue{}, false, err
 	}
 
 	decryptedValue, err := enc.Aes256DecryptByPassFromBase64String(val.Value, m.pass)
@@ -319,42 +330,50 @@ func (m *Manager) GetOne(ctx context.Context, id int, user UserDataProvider) (St
 	return val, true, nil
 }
 
-func (m *Manager) Store(ctx context.Context, id int, iv *InputValue, username string) error {
+func (m *Manager) Store(ctx context.Context, id int64, iv *InputValue, user UserDataProvider) (StoredValueID, error) {
 	err := m.checkUnlockedAndInitialized(ctx)
 	if err != nil {
-		return err
+		return StoredValueID{}, err
 	}
 
 	err = Validate(iv)
 	if err != nil {
-		return err
+		return StoredValueID{}, err
 	}
 
 	storedValue, found, err := m.db.FindByKeyAndClientID(ctx, iv.Key, iv.ClientID)
 	if err != nil {
-		return err
+		return StoredValueID{}, err
 	}
 
-	if found && (id == 0 || storedValue.ID != id) {
-		return errors2.APIError{
+	if found && (id == 0 || storedValue.ID != int(id)) {
+		return StoredValueID{}, errors2.APIError{
 			Message: fmt.Sprintf("another key '%s' exists for this client '%s'", iv.Key, iv.ClientID),
 			Code:    http.StatusConflict,
 		}
 	}
 
+	if found {
+		err = m.checkGroupAccess(&storedValue, user)
+		if err != nil {
+			return StoredValueID{}, err
+		}
+	}
+
 	encValue, err := enc.Aes256EncryptByPassToBase64String([]byte(iv.Value), m.pass)
 	if err != nil {
-		return err
+		return StoredValueID{}, err
 	}
 
 	iv.Value = encValue
 
-	err = m.db.Save(ctx, username, id, iv, time.Now())
+	res := StoredValueID{}
+	res.ID, err = m.db.Save(ctx, user.GetUsername(), id, iv, time.Now())
 	if err != nil {
-		return err
+		return StoredValueID{}, err
 	}
 
-	return nil
+	return res, nil
 }
 
 func (m *Manager) Delete(ctx context.Context, id int) error {

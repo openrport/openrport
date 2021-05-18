@@ -15,3 +15,7 @@ type User struct {
 func (u User) GetGroups() []string {
 	return u.Groups
 }
+
+func (u User) GetUsername() string {
+	return u.Username
+}

@@ -2117,11 +2117,18 @@ func (al *APIListener) handleVaultStoreValue(w http.ResponseWriter, req *http.Re
 		return
 	}
 
-	curUsername := api.GetUser(req.Context(), al.Logger)
-	if curUsername == "" {
+	curUser, err := al.getUserModel(req)
+	if err != nil {
 		al.jsonError(w, errors2.APIError{
-			Message: "empty email of the current user",
-			Code:    http.StatusUnauthorized,
+			Err:  err,
+			Code: http.StatusInternalServerError,
+		})
+		return
+	}
+	if curUser == nil {
+		al.jsonError(w, errors2.APIError{
+			Err:  errors.New("invalid user provided"),
+			Code: http.StatusUnauthorized,
 		})
 		return
 	}
@@ -2138,11 +2145,13 @@ func (al *APIListener) handleVaultStoreValue(w http.ResponseWriter, req *http.Re
 		return
 	}
 
-	err = al.vaultManager.Store(req.Context(), id, &vaultKeyValue, curUsername)
+	storedValue, err := al.vaultManager.Store(req.Context(), int64(id), &vaultKeyValue, curUser)
 	if err != nil {
 		al.jsonError(w, err)
 		return
 	}
+
+	al.writeJSONResponse(w, http.StatusOK, api.NewSuccessPayload(storedValue))
 
 	if id > 0 {
 		w.WriteHeader(http.StatusNoContent)

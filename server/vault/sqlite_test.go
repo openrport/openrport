@@ -350,7 +350,7 @@ func TestCreate(t *testing.T) {
 	require.NoError(t, err)
 
 	ctx := context.Background()
-	err = dbProv.Save(
+	_, err = dbProv.Save(
 		ctx,
 		"user123",
 		0,
@@ -368,7 +368,7 @@ func TestCreate(t *testing.T) {
 	err = dbProv.Init(ctx)
 	require.NoError(t, err)
 
-	err = dbProv.Save(
+	id, err := dbProv.Save(
 		ctx,
 		"user123",
 		0,
@@ -382,6 +382,7 @@ func TestCreate(t *testing.T) {
 		expectedCreatedAt,
 	)
 	require.NoError(t, err)
+	assert.True(t, id > 0)
 
 	expectedRows := []map[string]interface{}{
 		{
@@ -418,7 +419,7 @@ func TestUpdate(t *testing.T) {
 	err = addDemoData(dbProv.db)
 	require.NoError(t, err)
 
-	err = dbProv.Save(
+	id, err := dbProv.Save(
 		ctx,
 		"user123",
 		1,
@@ -432,6 +433,7 @@ func TestUpdate(t *testing.T) {
 		expectedUpdatedAt,
 	)
 	require.NoError(t, err)
+	assert.True(t, id > 0)
 
 	expectedRows := []map[string]interface{}{
 		{

@@ -231,14 +231,14 @@ func (p *SqliteProvider) FindByKeyAndClientID(ctx context.Context, key, clientID
 	return val, true, nil
 }
 
-func (p *SqliteProvider) Save(ctx context.Context, user string, idToUpdate int, val *InputValue, nowDate time.Time) error {
+func (p *SqliteProvider) Save(ctx context.Context, user string, idToUpdate int64, val *InputValue, nowDate time.Time) (int64, error) {
 	db, err := p.getDb()
 	if err != nil {
-		return err
+		return 0, err
 	}
 
 	if idToUpdate == 0 {
-		_, err = db.ExecContext(
+		res, err := db.ExecContext(
 			ctx,
 			"INSERT INTO `values` (`client_id`, `required_group`, `created_at`, `created_by`, `updated_at`, `updated_by`, `key`, `value`, `type`) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)",
 			val.ClientID,
@@ -253,7 +253,11 @@ func (p *SqliteProvider) Save(ctx context.Context, user string, idToUpdate int, 
 		)
 
 		if err != nil {
-			return err
+			return 0, err
+		}
+		idToUpdate, err = res.LastInsertId()
+		if err != nil {
+			return 0, err
 		}
 	} else {
 		q := "UPDATE `values` SET `client_id` = ?, `required_group` = ?, `updated_at` = ?, `updated_by` = ?, `key` = ?, `value` = ?, `type` = ? WHERE id = ?"
@@ -269,11 +273,11 @@ func (p *SqliteProvider) Save(ctx context.Context, user string, idToUpdate int, 
 		}
 		_, err = db.ExecContext(ctx, q, params...)
 		if err != nil {
-			return err
+			return 0, err
 		}
 	}
 
-	return nil
+	return idToUpdate, nil
 }
 
 func (p *SqliteProvider) Delete(ctx context.Context, id int) error {

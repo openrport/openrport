@@ -25,6 +25,10 @@ type PassRequest struct {
 	Password string `json:"password"`
 }
 
+type StoredValueID struct {
+	ID int64 `json:"id"`
+}
+
 type ValueType string
 
 const TextType ValueType = "text"

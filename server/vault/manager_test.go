@@ -41,7 +41,8 @@ type DbProviderMock struct {
 	FindByKeyAndClientIDErrorToGive error
 
 	SaveUserGiven    string
-	SaveIDGiven      int
+	SaveIDGiven      int64
+	SaveIDToGive     int64
 	SaveInputGiven   *InputValue
 	SaveNowDateGiven time.Time
 	SaveErrorToGive  error
@@ -82,13 +83,13 @@ func (dpm *DbProviderMock) FindByKeyAndClientID(ctx context.Context, key, client
 	return dpm.FindByKeyAndClientIDValueToGive, dpm.FindByKeyAndClientIDFoundToGive, dpm.FindByKeyAndClientIDErrorToGive
 }
 
-func (dpm *DbProviderMock) Save(ctx context.Context, user string, idToUpdate int, val *InputValue, nowDate time.Time) error {
+func (dpm *DbProviderMock) Save(ctx context.Context, user string, idToUpdate int64, val *InputValue, nowDate time.Time) (int64, error) {
 	dpm.SaveUserGiven = user
 	dpm.SaveIDGiven = idToUpdate
 	dpm.SaveInputGiven = val
 	dpm.SaveNowDateGiven = nowDate
 
-	return dpm.SaveErrorToGive
+	return dpm.SaveIDToGive, dpm.SaveErrorToGive
 }
 
 func (dpm *DbProviderMock) Delete(ctx context.Context, id int) error {
@@ -113,11 +114,16 @@ type PassManagerMock struct {
 }
 
 type UserDataProviderMock struct {
-	GroupsToGive []string
+	GroupsToGive   []string
+	UsernameToGive string
 }
 
 func (udpm UserDataProviderMock) GetGroups() []string {
 	return udpm.GroupsToGive
+}
+
+func (udpm UserDataProviderMock) GetUsername() string {
+	return udpm.UsernameToGive
 }
 
 func (pmm *PassManagerMock) ValidatePass(passToCheck string) error {
@@ -734,6 +740,7 @@ func TestStore(t *testing.T) {
 		statusToGive: DbStatus{
 			StatusName: "",
 		},
+		SaveIDToGive: 123,
 	}
 
 	inputValue := &InputValue{
@@ -746,15 +753,19 @@ func TestStore(t *testing.T) {
 
 	mngr := NewManager(dbProv, &PassManagerMock{}, testLog)
 
+	user := UserDataProviderMock{
+		UsernameToGive: "someuser",
+		GroupsToGive:   []string{},
+	}
 	t.Run("vault_locked", func(t *testing.T) {
-		err := mngr.Store(context.Background(), 1, inputValue, "someuser")
+		_, err := mngr.Store(context.Background(), 1, inputValue, user)
 		require.EqualError(t, err, "vault is locked")
 	})
 
 	mngr.pass = pass
 
 	t.Run("vault_not_init", func(t *testing.T) {
-		err := mngr.Store(context.Background(), 1, inputValue, "someuser")
+		_, err := mngr.Store(context.Background(), 1, inputValue, user)
 		require.EqualError(t, err, "vault is not initialized")
 	})
 
@@ -763,11 +774,12 @@ func TestStore(t *testing.T) {
 	}
 
 	t.Run("store_success", func(t *testing.T) {
-		err := mngr.Store(context.Background(), 1, inputValue, "someuser")
+		storedID, err := mngr.Store(context.Background(), 1, inputValue, user)
 		require.NoError(t, err)
+		assert.Equal(t, int64(123), storedID.ID)
 
 		assert.Equal(t, "someuser", dbProv.SaveUserGiven)
-		assert.Equal(t, 1, dbProv.SaveIDGiven)
+		assert.Equal(t, int64(1), dbProv.SaveIDGiven)
 		assert.True(t, dbProv.SaveNowDateGiven.Equal(time.Now()) || dbProv.SaveNowDateGiven.Before(time.Now()))
 
 		actualInputValue := dbProv.SaveInputGiven
@@ -783,7 +795,7 @@ func TestStore(t *testing.T) {
 
 	dbProv.FindByKeyAndClientIDFoundToGive = true
 	t.Run("store_failure_key_exists", func(t *testing.T) {
-		err := mngr.Store(context.Background(), 1, inputValue, "someuser")
+		_, err := mngr.Store(context.Background(), 1, inputValue, user)
 		require.EqualError(t, err, "another key 'someKey' exists for this client 'client1'")
 	})
 
@@ -791,22 +803,70 @@ func TestStore(t *testing.T) {
 
 	dbProv.FindByKeyAndClientIDErrorToGive = errors.New("finding key and client error")
 	t.Run("store_failure_key_exists_error", func(t *testing.T) {
-		err := mngr.Store(context.Background(), 1, inputValue, "someuser")
+		_, err := mngr.Store(context.Background(), 1, inputValue, user)
 		require.EqualError(t, err, "finding key and client error")
 	})
 
 	dbProv.FindByKeyAndClientIDErrorToGive = nil
 
 	t.Run("invalid_input", func(t *testing.T) {
-		err := mngr.Store(context.Background(), 1, &InputValue{}, "someuser")
+		_, err := mngr.Store(context.Background(), 1, &InputValue{}, user)
 		require.EqualError(t, err, "key is required, value is required, value type is required")
 	})
 
 	dbProv.SaveErrorToGive = errors.New("failed to save value to db")
 	t.Run("db_store_error", func(t *testing.T) {
-		err := mngr.Store(context.Background(), 1, inputValue, "someuser")
+		_, err := mngr.Store(context.Background(), 1, inputValue, user)
 		require.EqualError(t, err, "failed to save value to db")
 	})
+}
+
+func TestStoreWithLimitedGroupAccess(t *testing.T) {
+	dbProv := &DbProviderMock{
+		statusToGive: DbStatus{
+			StatusName: DbStatusInit,
+		},
+	}
+	dbProv.FindByKeyAndClientIDFoundToGive = true
+	dbProv.FindByKeyAndClientIDValueToGive = StoredValue{
+		InputValue: InputValue{
+			ClientID:      "client123",
+			RequiredGroup: "secure_group",
+			Key:           "key",
+			Value:         "val",
+			Type:          SecreteType,
+		},
+		ID:        1,
+		CreatedAt: time.Now(),
+		UpdatedAt: time.Now(),
+		CreatedBy: "admin",
+	}
+
+	mngr := NewManager(dbProv, &PassManagerMock{}, testLog)
+	mngr.pass = "12345"
+
+	user := UserDataProviderMock{
+		UsernameToGive: "someuser",
+		GroupsToGive:   []string{},
+	}
+
+	_, err := mngr.Store(context.Background(), 1, &dbProv.FindByKeyAndClientIDValueToGive.InputValue, user)
+	require.Equal(
+		t,
+		errors2.APIError{
+			Message: "your group doesn't allow access to this value",
+			Code:    http.StatusForbidden,
+		},
+		err,
+	)
+
+	user2 := UserDataProviderMock{
+		UsernameToGive: "someuser",
+		GroupsToGive:   []string{"secure_group"},
+	}
+
+	_, err = mngr.Store(context.Background(), 1, &dbProv.FindByKeyAndClientIDValueToGive.InputValue, user2)
+	assert.NoError(t, err)
 }
 
 func TestDeleteKey(t *testing.T) {
