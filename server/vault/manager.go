@@ -376,8 +376,25 @@ func (m *Manager) Store(ctx context.Context, id int64, iv *InputValue, user User
 	return res, nil
 }
 
-func (m *Manager) Delete(ctx context.Context, id int) error {
+func (m *Manager) Delete(ctx context.Context, id int, user UserDataProvider) error {
 	err := m.checkUnlockedAndInitialized(ctx)
+	if err != nil {
+		return err
+	}
+
+	storedValue, found, err := m.db.GetByID(ctx, id)
+	if err != nil {
+		return err
+	}
+
+	if !found {
+		return errors2.APIError{
+			Message: "cannot find this entry by the provided id",
+			Code:    http.StatusNotFound,
+		}
+	}
+
+	err = m.checkGroupAccess(&storedValue, user)
 	if err != nil {
 		return err
 	}

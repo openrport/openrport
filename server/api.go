@@ -2177,7 +2177,23 @@ func (al *APIListener) handleVaultDeleteValue(w http.ResponseWriter, req *http.R
 		return
 	}
 
-	err = al.vaultManager.Delete(req.Context(), id)
+	curUser, err := al.getUserModel(req)
+	if err != nil {
+		al.jsonError(w, errors2.APIError{
+			Err:  err,
+			Code: http.StatusInternalServerError,
+		})
+		return
+	}
+	if curUser == nil {
+		al.jsonError(w, errors2.APIError{
+			Err:  errors.New("invalid user provided"),
+			Code: http.StatusUnauthorized,
+		})
+		return
+	}
+
+	err = al.vaultManager.Delete(req.Context(), id, curUser)
 	if err != nil {
 		al.jsonError(w, err)
 		return

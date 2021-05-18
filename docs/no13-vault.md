@@ -196,6 +196,16 @@ curl -X POST 'http://localhost:3000/api/v1/vault' \
 }'
 ```
 
+The response will contain the id of the added element, which you can use then in the read value, deletion or changing APIs:
+
+```
+{
+    "data": {
+        "id": 5
+    }
+}
+```
+
 Fields info:
 
 `client_id`: text, optional, Used to tie a document to a specific client where 0 means the document can be accessed from any client.
@@ -210,7 +220,7 @@ Fields info:
 
 
 ### Change a secured value
-You need to provide all fields like that you used to create a value. Partial updates are not supported. Additionally, you need to provide `id` of a stored value in the request url.
+You need to provide all fields like that you used to create a value. Partial updates are not supported. Additionally, you need to provide `id` of a stored value in the request url. You can get it by using the listing API. You get the id also when you store a new value.
 
 ```
 curl -X PUT 'http://localhost:3000/api/v1/vault/1' \
@@ -224,3 +234,15 @@ curl -X PUT 'http://localhost:3000/api/v1/vault/1' \
 	"type": "string"
 }'
 ```
+
+The response will contain the id of the added element:
+
+```
+{
+    "data": {
+        "id": 1
+    }
+}
+```
+
+If `required_group` value of the entry you want to change is not empty, only users of this group can change this value, otherwise an error will be returned.

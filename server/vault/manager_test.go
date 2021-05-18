@@ -870,42 +870,115 @@ func TestStoreWithLimitedGroupAccess(t *testing.T) {
 }
 
 func TestDeleteKey(t *testing.T) {
-	const pass = "1234"
-
 	dbProv := &DbProviderMock{
 		statusToGive: DbStatus{
 			StatusName: "",
 		},
+		getByIDFound: true,
+		getByIDStoredValue: StoredValue{
+			InputValue: InputValue{},
+		},
+	}
+
+	user := UserDataProviderMock{
+		UsernameToGive: "someuser",
+		GroupsToGive:   []string{},
 	}
 
 	mngr := NewManager(dbProv, &PassManagerMock{}, testLog)
 
 	t.Run("vault_locked", func(t *testing.T) {
-		err := mngr.Delete(context.Background(), 1)
+		err := mngr.Delete(context.Background(), 1, user)
 		require.EqualError(t, err, "vault is locked")
 	})
 
-	mngr.pass = pass
+	mngr.pass = "1234"
 
 	t.Run("vault_not_init", func(t *testing.T) {
-		err := mngr.Delete(context.Background(), 1)
+		err := mngr.Delete(context.Background(), 1, user)
 		require.EqualError(t, err, "vault is not initialized")
 	})
 
-	dbProv.statusToGive = DbStatus{
-		StatusName: DbStatusInit,
-	}
+	dbProv.statusToGive.StatusName = DbStatusInit
 
 	t.Run("delete_success", func(t *testing.T) {
-		err := mngr.Delete(context.Background(), 1)
+		err := mngr.Delete(context.Background(), 1, user)
 		require.NoError(t, err)
 
 		assert.Equal(t, 1, dbProv.DeleteIDGiven)
 	})
 
 	dbProv.DeleteErrorToGive = errors.New("failed to delete value to db")
-	t.Run("db_store_error", func(t *testing.T) {
-		err := mngr.Delete(context.Background(), 1)
+	t.Run("db_error", func(t *testing.T) {
+		err := mngr.Delete(context.Background(), 1, user)
 		require.EqualError(t, err, "failed to delete value to db")
+	})
+	dbProv.DeleteErrorToGive = nil
+
+	dbProv.getByIDFound = false
+	t.Run("entryNotFound", func(t *testing.T) {
+		err := mngr.Delete(context.Background(), 1, user)
+		require.Equal(
+			t,
+			errors2.APIError{
+				Message: "cannot find this entry by the provided id",
+				Code:    http.StatusNotFound,
+			},
+			err,
+		)
+	})
+
+	dbProv.getByIDFound = true
+	dbProv.getByIDError = errors.New("failed to read stored value")
+	t.Run("entry read error", func(t *testing.T) {
+		err := mngr.Delete(context.Background(), 1, user)
+		require.EqualError(t, err, "failed to read stored value")
+	})
+}
+
+func TestDeleteKeyWithNoGroupAccess(t *testing.T) {
+	const pass = "1234"
+
+	dbProv := &DbProviderMock{
+		statusToGive: DbStatus{
+			StatusName: DbStatusInit,
+		},
+		getByIDFound: true,
+		getByIDStoredValue: StoredValue{
+			InputValue: InputValue{
+				RequiredGroup: "secure_group",
+			},
+		},
+	}
+
+	mngr := NewManager(dbProv, &PassManagerMock{}, testLog)
+
+	mngr.pass = pass
+
+	t.Run("user_no_key_access", func(t *testing.T) {
+		user := UserDataProviderMock{
+			UsernameToGive: "someuser",
+			GroupsToGive:   []string{},
+		}
+
+		err := mngr.Delete(context.Background(), 1, user)
+		require.Equal(
+			t,
+			errors2.APIError{
+				Message: "your group doesn't allow access to this value",
+				Code:    http.StatusForbidden,
+			},
+			err,
+		)
+	})
+
+	t.Run("user_with_key_access", func(t *testing.T) {
+		user2 := UserDataProviderMock{
+			UsernameToGive: "someuser",
+			GroupsToGive:   []string{"secure_group"},
+		}
+
+		err := mngr.Delete(context.Background(), 1, user2)
+		require.NoError(t, err)
 	})
 }
