@@ -22,9 +22,9 @@ import (
 	"github.com/cloudradar-monitoring/rport/server/api/message"
 	"github.com/cloudradar-monitoring/rport/server/api/middleware"
 	"github.com/cloudradar-monitoring/rport/server/api/users"
-	"github.com/cloudradar-monitoring/rport/server/clientsauth"
 	"github.com/cloudradar-monitoring/rport/server/vault"
 	chshare "github.com/cloudradar-monitoring/rport/share"
+	"github.com/cloudradar-monitoring/rport/share/enums"
 	"github.com/cloudradar-monitoring/rport/share/security"
 )
 
@@ -64,7 +64,7 @@ func NewAPIListener(
 	config := server.config
 
 	var userService UserService
-	var usersProviderType clientsauth.ProviderSource
+	var usersProviderType enums.ProviderSource
 	var userDB *users.UserDatabase
 	var err error
 	usersFromFileProvider := &users.FileManager{
@@ -77,14 +77,14 @@ func NewAPIListener(
 			return nil, e
 		}
 		userService = users.NewUserCache(authUsers)
-		usersProviderType = clientsauth.ProviderSourceFile
+		usersProviderType = enums.ProviderSourceFile
 	} else if config.API.Auth != "" {
 		authUser, e := parseHTTPAuthStr(config.API.Auth)
 		if e != nil {
 			return nil, e
 		}
 		userService = users.NewUserCache([]*users.User{authUser})
-		usersProviderType = clientsauth.ProviderSourceStatic
+		usersProviderType = enums.ProviderSourceStatic
 	} else if config.API.AuthUserTable != "" {
 		logger := chshare.NewLogger("database", config.Logging.LogOutput, config.Logging.LogLevel)
 		userDB, err = users.NewUserDatabase(server.db, config.API.AuthUserTable, config.API.AuthGroupTable, config.API.IsTwoFAOn(), logger)
@@ -92,7 +92,7 @@ func NewAPIListener(
 			return nil, err
 		}
 		userService = userDB
-		usersProviderType = clientsauth.ProviderSourceDB
+		usersProviderType = enums.ProviderSourceDB
 	}
 
 	if config.Server.CheckPortTimeout > DefaultMaxCheckPortTimeout {
@@ -125,9 +125,18 @@ func NewAPIListener(
 		var msgSrv message.Service
 		switch config.API.TwoFATokenDelivery {
 		case "pushover":
-			msgSrv = message.NewPushoverService(config.Pushover.PushoverToken)
+			msgSrv = message.NewPushoverService(config.Pushover.APIToken)
 		case "smtp":
-			return nil, errors.New("2fa with smtp support is not implemented")
+			msgSrv, err = message.NewSMTPService(
+				config.SMTP.Server,
+				config.SMTP.AuthUsername,
+				config.SMTP.AuthPassword,
+				config.SMTP.SenderEmail,
+				config.SMTP.Secure,
+			)
+			if err != nil {
+				return nil, fmt.Errorf("failed to init smtp service: %v", err)
+			}
 		default:
 			return nil, fmt.Errorf("unknown 2fa delivery: %s", config.API.TwoFATokenDelivery)
 		}

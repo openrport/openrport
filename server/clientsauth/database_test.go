@@ -6,6 +6,8 @@ import (
 	"github.com/jmoiron/sqlx"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
+
+	"github.com/cloudradar-monitoring/rport/share/enums"
 )
 
 func TestDatabaseProvider(t *testing.T) {
@@ -17,7 +19,7 @@ func TestDatabaseProvider(t *testing.T) {
 	c := &ClientAuth{ID: "test-client", Password: "test-password"}
 
 	p := NewDatabaseProvider(db, "clients")
-	assert.Equal(t, ProviderSourceDB, p.Source())
+	assert.Equal(t, enums.ProviderSourceDB, p.Source())
 
 	// initial empty
 	clients, err := p.GetAll()

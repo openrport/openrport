@@ -7,12 +7,11 @@ import (
 	"strings"
 	"testing"
 
-	"github.com/cloudradar-monitoring/rport/server/clientsauth"
-
-	errors2 "github.com/cloudradar-monitoring/rport/server/api/errors"
-
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
+
+	errors2 "github.com/cloudradar-monitoring/rport/server/api/errors"
+	"github.com/cloudradar-monitoring/rport/share/enums"
 )
 
 type DBProviderMock struct {
@@ -96,7 +95,7 @@ func TestGetUsersFromDB(t *testing.T) {
 	}
 
 	service := APIService{
-		ProviderType: clientsauth.ProviderSourceDB,
+		ProviderType: enums.ProviderSourceDB,
 		DB:           db,
 	}
 
@@ -111,7 +110,7 @@ func TestGetUsersFromDB(t *testing.T) {
 	}
 
 	service = APIService{
-		ProviderType: clientsauth.ProviderSourceDB,
+		ProviderType: enums.ProviderSourceDB,
 		DB:           db,
 	}
 
@@ -129,7 +128,7 @@ func TestGetUsersFromFile(t *testing.T) {
 	}
 
 	service := APIService{
-		ProviderType: clientsauth.ProviderSourceFile,
+		ProviderType: enums.ProviderSourceFile,
 		FileProvider: &FileManagerMock{
 			UsersToRead: givenUsers,
 		},
@@ -141,7 +140,7 @@ func TestGetUsersFromFile(t *testing.T) {
 	assert.Equal(t, givenUsers, actualUsers)
 
 	service = APIService{
-		ProviderType: clientsauth.ProviderSourceFile,
+		ProviderType: enums.ProviderSourceFile,
 		FileProvider: &FileManagerMock{
 			ErrorToGiveOnRead: errors.New("some file error"),
 		},
@@ -160,7 +159,7 @@ func TestAddUserToFile(t *testing.T) {
 
 	usersFileManager := &FileManagerMock{}
 	service := APIService{
-		ProviderType: clientsauth.ProviderSourceFile,
+		ProviderType: enums.ProviderSourceFile,
 		FileProvider: usersFileManager,
 	}
 
@@ -174,7 +173,7 @@ func TestAddUserToFile(t *testing.T) {
 		ErrorToGiveOnRead: errors.New("some read error"),
 	}
 	service = APIService{
-		ProviderType: clientsauth.ProviderSourceFile,
+		ProviderType: enums.ProviderSourceFile,
 		FileProvider: usersFileManager,
 	}
 	err = service.Change(givenUser, "")
@@ -184,7 +183,7 @@ func TestAddUserToFile(t *testing.T) {
 		ErrorToGiveOnWrite: errors.New("some write error"),
 	}
 	service = APIService{
-		ProviderType: clientsauth.ProviderSourceFile,
+		ProviderType: enums.ProviderSourceFile,
 		FileProvider: usersFileManager,
 	}
 	err = service.Change(givenUser, "")
@@ -210,7 +209,7 @@ func TestAddUserIfItExists(t *testing.T) {
 		},
 	}
 	service := APIService{
-		ProviderType: clientsauth.ProviderSourceFile,
+		ProviderType: enums.ProviderSourceFile,
 		FileProvider: usersFileManager,
 	}
 
@@ -221,26 +220,26 @@ func TestAddUserIfItExists(t *testing.T) {
 
 func TestUnsupportedUserProvider(t *testing.T) {
 	service := APIService{
-		ProviderType: clientsauth.ProviderSourceStatic,
+		ProviderType: enums.ProviderSourceStatic,
 	}
 
 	_, err := service.GetAll()
-	require.EqualError(t, err, fmt.Sprintf("unsupported user data provider type: %s", clientsauth.ProviderSourceStatic))
+	require.EqualError(t, err, fmt.Sprintf("unsupported user data provider type: %s", enums.ProviderSourceStatic))
 
 	userToUpdate := &User{
 		Username: "user_one",
 		Password: "pass_one",
 	}
 	err = service.Change(userToUpdate, "")
-	require.EqualError(t, err, fmt.Sprintf("unsupported user data provider type: %s", clientsauth.ProviderSourceStatic))
+	require.EqualError(t, err, fmt.Sprintf("unsupported user data provider type: %s", enums.ProviderSourceStatic))
 
 	err = service.Delete("some")
-	require.EqualError(t, err, fmt.Sprintf("unsupported user data provider type: %s", clientsauth.ProviderSourceStatic))
+	require.EqualError(t, err, fmt.Sprintf("unsupported user data provider type: %s", enums.ProviderSourceStatic))
 }
 
 func TestValidate(t *testing.T) {
 	service := APIService{
-		ProviderType: clientsauth.ProviderSourceFile,
+		ProviderType: enums.ProviderSourceFile,
 		FileProvider: &FileManagerMock{
 			UsersToRead: []*User{},
 		},
@@ -328,7 +327,7 @@ func TestUpdateUserInFile(t *testing.T) {
 		},
 	}
 	service := APIService{
-		ProviderType: clientsauth.ProviderSourceFile,
+		ProviderType: enums.ProviderSourceFile,
 		FileProvider: usersFileManager,
 	}
 
@@ -364,7 +363,7 @@ func TestUpdateUserInFile(t *testing.T) {
 	)
 
 	service = APIService{
-		ProviderType: clientsauth.ProviderSourceFile,
+		ProviderType: enums.ProviderSourceFile,
 		FileProvider: &FileManagerMock{
 			ErrorToGiveOnWrite: errors.New("failed to write to file"),
 			UsersToRead: []*User{
@@ -391,7 +390,7 @@ func TestAddUserToDB(t *testing.T) {
 
 	dbProvider := &DBProviderMock{}
 	service := APIService{
-		ProviderType: clientsauth.ProviderSourceDB,
+		ProviderType: enums.ProviderSourceDB,
 		DB:           dbProvider,
 	}
 
@@ -407,7 +406,7 @@ func TestAddUserToDB(t *testing.T) {
 		ErrorToGiveOnRead: errors.New("some read error"),
 	}
 	service = APIService{
-		ProviderType: clientsauth.ProviderSourceDB,
+		ProviderType: enums.ProviderSourceDB,
 		DB:           dbProvider,
 	}
 	err = service.Change(givenUser, "")
@@ -417,7 +416,7 @@ func TestAddUserToDB(t *testing.T) {
 		ErrorToGiveOnWrite: errors.New("some write error"),
 	}
 	service = APIService{
-		ProviderType: clientsauth.ProviderSourceDB,
+		ProviderType: enums.ProviderSourceDB,
 		DB:           dbProvider,
 	}
 	err = service.Change(givenUser, "")
@@ -444,7 +443,7 @@ func TestAddUserToDBIfItExists(t *testing.T) {
 	}
 
 	service := APIService{
-		ProviderType: clientsauth.ProviderSourceDB,
+		ProviderType: enums.ProviderSourceDB,
 		DB:           dbProvider,
 	}
 
@@ -474,7 +473,7 @@ func TestUpdateUserToDBIfItExists(t *testing.T) {
 	}
 
 	service := APIService{
-		ProviderType: clientsauth.ProviderSourceDB,
+		ProviderType: enums.ProviderSourceDB,
 		DB:           dbProvider,
 	}
 
@@ -504,7 +503,7 @@ func TestUpdateUserInDB(t *testing.T) {
 		},
 	}
 	service := APIService{
-		ProviderType: clientsauth.ProviderSourceDB,
+		ProviderType: enums.ProviderSourceDB,
 		DB:           dbProvider,
 	}
 
@@ -534,7 +533,7 @@ func TestUpdateUserInDB(t *testing.T) {
 	)
 
 	service = APIService{
-		ProviderType: clientsauth.ProviderSourceDB,
+		ProviderType: enums.ProviderSourceDB,
 		DB: &DBProviderMock{
 			ErrorToGiveOnWrite: errors.New("failed to write to DB"),
 			UsersToGive: []*User{
@@ -563,7 +562,7 @@ func TestDeleteUserFromDB(t *testing.T) {
 	}
 
 	service := APIService{
-		ProviderType: clientsauth.ProviderSourceDB,
+		ProviderType: enums.ProviderSourceDB,
 		DB:           dbProvider,
 	}
 
@@ -591,7 +590,7 @@ func TestDeleteUserFromDB(t *testing.T) {
 	}
 
 	service = APIService{
-		ProviderType: clientsauth.ProviderSourceDB,
+		ProviderType: enums.ProviderSourceDB,
 		DB:           dbProvider,
 	}
 
@@ -614,7 +613,7 @@ func TestDeleteUserFromFile(t *testing.T) {
 	}
 
 	service := APIService{
-		ProviderType: clientsauth.ProviderSourceFile,
+		ProviderType: enums.ProviderSourceFile,
 		FileProvider: usersFileManager,
 	}
 
@@ -643,7 +642,7 @@ func TestDeleteUserFromFile(t *testing.T) {
 		ErrorToGiveOnRead: errors.New("failed to read users from file"),
 	}
 	service = APIService{
-		ProviderType: clientsauth.ProviderSourceFile,
+		ProviderType: enums.ProviderSourceFile,
 		FileProvider: usersFileManager,
 	}
 	err = service.Delete("user2")
@@ -658,7 +657,7 @@ func TestDeleteUserFromFile(t *testing.T) {
 		ErrorToGiveOnWrite: errors.New("failed to write users to file"),
 	}
 	service = APIService{
-		ProviderType: clientsauth.ProviderSourceFile,
+		ProviderType: enums.ProviderSourceFile,
 		FileProvider: usersFileManager,
 	}
 	err = service.Delete("user3")

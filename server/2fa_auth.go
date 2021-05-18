@@ -35,8 +35,10 @@ type expirableToken struct {
 	expiry time.Time
 }
 
+const twoFATokenLength = 6
+
 // TODO: add tests
-func (srv *TwoFAService) SendToken(username string) (successMsg string, err error) {
+func (srv *TwoFAService) SendToken(username string) (sendTo string, err error) {
 	if username == "" {
 		return "", errors2.APIError{
 			Message: "username cannot be empty",
@@ -57,18 +59,19 @@ func (srv *TwoFAService) SendToken(username string) (successMsg string, err erro
 
 	if user.TwoFASendTo == "" {
 		return "", errors2.APIError{
-			Message: "no 2fa_send_to set for this user",
+			Message: "no two_fa_send_to set for this user",
 			Code:    http.StatusBadRequest,
 		}
 	}
 
-	token, err := security.NewRandomToken(6)
+	token, err := security.NewRandomToken(twoFATokenLength)
 	if err != nil {
 		return "", fmt.Errorf("failed to generate 2fa token: %wv", err)
 	}
 
-	if err := srv.MsgSrv.Send(token, user.TwoFASendTo); err != nil {
-		return "", err
+	msg := fmt.Sprintf("Token: %s (valid %s)", token, srv.TokenTTL)
+	if err := srv.MsgSrv.Send("Rport 2FA token", msg, user.TwoFASendTo); err != nil {
+		return "", fmt.Errorf("failed to send 2fa token: %w", err)
 	}
 
 	srv.mu.Lock()
@@ -78,7 +81,7 @@ func (srv *TwoFAService) SendToken(username string) (successMsg string, err erro
 	}
 	srv.mu.Unlock()
 
-	return fmt.Sprintf("A token has been sent to %s", user.TwoFASendTo), nil
+	return user.TwoFASendTo, nil
 }
 
 // TODO: add tests

@@ -39,40 +39,24 @@ paths:
     get:
       tags:
         - "Login"
-      summary: "Generate or renew auth token"
-      description: "If 2FA is disabled: requires HTTP-basic authorization.\n
-      If 2FA is enabled: requires `username` and 2FA `token` URL query parameters. `token` can be requested using `/send-2fa` endpoint."
+      summary: "Generate auth token. Requires HTTP-basic authorization"
+      description: "If 2FA is disabled: returns authorization JWT token.\n
+      If 2FA is enabled: triggers sending 2FA token to the user. 2fa token can be further verified using `/verify-2fa` endpoint. Requires the user to have a valid `two_fa_send_to` delivery option"
       parameters:
         - name: "token-lifetime"
           in: "query"
-          description: "initial lifetime in seconds. Max value is 90 days. Default: 10 min"
+          description: "initial lifetime of JWT token in seconds. Max value is 90 days. Default: 10 min"
           required: false
           default: 360
           maximum: 7776000
           type: "integer"
-        - name: "username"
-          in: "query"
-          description: "Applicable and required only when 2FA is enabled. Unique username"
-          type: "string"
-        - name: "token"
-          in: "query"
-          description: "Applicable and required only when 2FA is enabled. Use `/send-2fa` API to get the 2FA token"
-          type: "string"
       produces:
         - "application/json"
       responses:
         "200":
           description: "Successful Operation"
           schema:
-            type: "object"
-            properties:
-              data:
-                type: "object"
-                properties:
-                  token:
-                    type: "string"
-              meta:
-                type: "object"
+            $ref: "#/definitions/LoginResponse"
         "400":
           description: "Invalid parameters"
           schema:
@@ -88,15 +72,15 @@ paths:
     post:
       tags:
         - "Login"
-      summary: "Generate or renew auth token"
-      description: "If 2FA is disabled: requires `username` and `password`.\n
-      If 2FA is enabled: requires `username` and 2FA `token`. `token` can be requested using `/send-2fa` endpoint.\n
-      They should be provided in request body either in JSON either in x-www-formurlencoded format"
+      summary: "Generate auth token. Requires username and password in request body"
+      description: "If 2FA is disabled: returns authorization JWT token.\n
+      If 2FA is enabled: triggers sending 2FA token to the user. 2fa token can be further verified using `/verify-2fa` endpoint. Requires the user to have a valid `two_fa_send_to` delivery option.\n
+      `username` and `password` should be provided in request body either in JSON either in x-www-formurlencoded format"
       # swagger 2.0 does not allow describing a method that accepts multiple content-types
       parameters:
         - name: "token-lifetime"
           in: "query"
-          description: "initial lifetime in seconds. Max value is 90 days. Default: 10 min"
+          description: "initial lifetime of JWT token in seconds. Max value is 90 days. Default: 10 min"
           required: false
           default: 360
           maximum: 7776000
@@ -105,17 +89,9 @@ paths:
         - "application/json"
       responses:
         "200":
-          description: ""
+          description: "Successful Operation"
           schema:
-            type: "object"
-            properties:
-              data:
-                type: "object"
-                properties:
-                  token:
-                    type: "string"
-              meta:
-                type: "object"
+            $ref: "#/definitions/LoginResponse"
         "400":
           description: "Invalid parameters"
           schema:
@@ -146,14 +122,35 @@ paths:
           description: "Invalid Operation"
           schema:
             $ref: "#/definitions/ErrorPayload"
-  /send-2fa:
-    get:
+  /verify-2fa:
+    post:
       tags:
         - "Login"
-      summary: "Triggers generating and sending 2FA token to the user. Requires HTTP-basic authorization"
-      description: "Requires user to have valid `two_fa_send_to` delivery option. Learn more on https://oss.rport.io/docs/no02-api-auth.html#two-factor"
+      summary: "Verify 2FA token of the user. Requires enabled 2FA"
+      description: "Returns authorization JWT token if a provided username and his 2fa token are valid"
       produces:
         - "application/json"
+      parameters:
+        - name: "token-lifetime"
+          in: "query"
+          description: "initial lifetime of JWT token in seconds. Max value is 90 days. Default: 10 min"
+          required: false
+          default: 360
+          maximum: 7776000
+          type: "integer"
+        - in: "body"
+          name: "body"
+          description: "Username and his 2FA token"
+          required: true
+          schema:
+            type: "object"
+            properties:
+              username:
+                type: "string"
+                description: "Unique username"
+              token:
+                type: "string"
+                description: "2FA token that was sent to the user by `/login` endpoints"
       responses:
         "200":
           description: "Successful Operation"
@@ -165,21 +162,16 @@ paths:
                 properties:
                   token:
                     type: "string"
-              meta:
-                type: "object"
+                    description: "Authorization JWT token"
         "400":
-          description: "two_fa_send_to is not set for user or other delivery issues"
+          description: "Invalid Request"
           schema:
             $ref: "#/definitions/ErrorPayload"
         "401":
           description: "Unauthorized"
           schema:
             $ref: "#/definitions/ErrorPayload"
-        "404":
-          description: "User not found"
-          schema:
-            $ref: "#/definitions/ErrorPayload"
-        "405":
+        "409":
           description: "2FA is disabled"
           schema:
             $ref: "#/definitions/ErrorPayload"
@@ -262,6 +254,10 @@ paths:
                     type: "string"
                   connect_url:
                     type: "string"
+                  users_auth_source:
+                    description: "The source of API users authentication credentials"
+                    type: "string"
+                    enum: ["Static Credentials", "File", "DB"]
               meta:
                 type: "object"
         "500":
@@ -1822,6 +1818,24 @@ definitions:
       abort_on_error:
         type: "boolean"
         description: "applicable only when multiple clients are specified. Applicable only if 'execute_concurrently' is false. If true - abort the entire cycle if the execution fails on some client. By default is true"
+  LoginResponse:
+    type: "object"
+    description: "Response returned by `/login` endpoints"
+    properties:
+      token:
+        type: "string"
+        description: "Authorization JWT token. It's null when 2fa is enabled"
+      two_fa:
+        type: "object"
+        description: "2FA information. It's null when 2fa is disabled"
+        properties:
+          send_to:
+            type: "string"
+            description: "Recipient (email or pushover user key) that is used to send 2fa token to the user"
+          delivery_method:
+            type: "string"
+            enum: ["email", "pushover"]
+            description: "Delivery method that is used to send 2fa token to the user"
   VaultEntryInput:
     type: "object"
     properties:

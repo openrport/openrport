@@ -30,6 +30,7 @@ import (
 	"github.com/cloudradar-monitoring/rport/server/ports"
 	chshare "github.com/cloudradar-monitoring/rport/share"
 	"github.com/cloudradar-monitoring/rport/share/comm"
+	"github.com/cloudradar-monitoring/rport/share/enums"
 	"github.com/cloudradar-monitoring/rport/share/models"
 	"github.com/cloudradar-monitoring/rport/share/random"
 	"github.com/cloudradar-monitoring/rport/share/security"
@@ -171,7 +172,7 @@ func (al *APIListener) initRouter() {
 	sub.HandleFunc("/login", al.handleGetLogin).Methods(http.MethodGet)
 	sub.HandleFunc("/login", al.handlePostLogin).Methods(http.MethodPost)
 	sub.HandleFunc("/login", al.handleDeleteLogin).Methods(http.MethodDelete) // TODO: rename to logout
-	sub.HandleFunc("/send-2fa", al.handleGetSend2FAToken).Methods(http.MethodGet)
+	sub.HandleFunc("/verify-2fa", al.handlePostVerify2FAToken).Methods(http.MethodPost)
 
 	// web sockets
 	// common auth middleware is not used due to JS issue https://stackoverflow.com/questions/22383089/is-it-possible-to-use-bearer-authentication-for-websocket-upgrade-requests
@@ -221,20 +222,19 @@ func (al *APIListener) jsonError(w http.ResponseWriter, err error) {
 	statusCode := http.StatusInternalServerError
 	errCode := strconv.Itoa(statusCode)
 	msg := err.Error()
-	switch apiErr := err.(type) {
-	case errors2.APIError:
+	var apiErr errors2.APIError
+	var apiErrs errors2.APIErrors
+	switch {
+	case errors.As(err, &apiErr):
 		statusCode = apiErr.Code
 		errCode = strconv.Itoa(statusCode)
-		if apiErr.Message != "" {
-			msg = apiErr.Message
-		}
 		al.writeJSONResponse(w, statusCode, api.NewErrorPayloadWithCode(errCode, msg, ""))
 		return
-	case errors2.APIErrors:
-		if len(apiErr) > 0 {
-			statusCode = apiErr[0].Code
+	case errors.As(err, &apiErrs):
+		if len(apiErrs) > 0 {
+			statusCode = apiErrs[0].Code
 		}
-		al.writeJSONResponse(w, statusCode, api.NewAPIErrorsPayloadWithCode(apiErr))
+		al.writeJSONResponse(w, statusCode, api.NewAPIErrorsPayloadWithCode(apiErrs))
 		return
 	}
 
@@ -261,24 +261,78 @@ func (al *APIListener) jsonErrorResponseWithError(w http.ResponseWriter, statusC
 	al.writeJSONResponse(w, statusCode, api.NewErrorPayloadWithCode(errCode, title, detail))
 }
 
-func (al *APIListener) handleGetLogin(w http.ResponseWriter, req *http.Request) {
-	var err error
-	var username string
-	if al.config.API.IsTwoFAOn() {
-		username = req.URL.Query().Get("username")
-		token := req.URL.Query().Get("token")
-		err = al.handle2FATokenValidation(username, token)
-	} else {
-		username, err = al.handleBasicAuth(req)
-	}
-	al.handleLogin(username, err, w, req)
+type twoFAResponse struct {
+	SendTo         string `json:"send_to"`
+	DeliveryMethod string `json:"delivery_method"`
 }
 
-func (al *APIListener) handleLogin(username string, authErr error, w http.ResponseWriter, req *http.Request) {
-	if !al.handleAuthError(authErr, username, w, req) {
+type loginResponse struct {
+	Token *string        `json:"token"`  // null if 2fa is on
+	TwoFA *twoFAResponse `json:"two_fa"` // null if 2fa is off
+}
+
+func (al *APIListener) handleGetLogin(w http.ResponseWriter, req *http.Request) {
+	basicUser, basicPwd, basicAuthProvided := req.BasicAuth()
+	if !basicAuthProvided {
+		// TODO: consider to move this check from all API endpoints to middleware similar to https://github.com/cloudradar-monitoring/rport/pull/199/commits/4ca1ca9f56c557762d79a60ffc96d2de47f3133c
+		// ban IP if it sends a lot of bad requests
+		if !al.handleBannedIPs(w, req, false) {
+			return
+		}
+		al.jsonErrorResponseWithTitle(w, http.StatusUnauthorized, "basic auth is required")
 		return
 	}
 
+	al.handleLogin(basicUser, basicPwd, w, req)
+}
+
+func (al *APIListener) handleLogin(username, pwd string, w http.ResponseWriter, req *http.Request) {
+	if al.bannedUsers.IsBanned(username) {
+		al.jsonErrorResponseWithTitle(w, http.StatusTooManyRequests, ErrTooManyRequests.Error())
+		return
+	}
+
+	if username == "" {
+		al.jsonErrorResponseWithTitle(w, http.StatusUnauthorized, "username is required")
+		return
+	}
+
+	authorized, err := al.validateCredentials(username, pwd)
+	if err != nil {
+		al.jsonError(w, err)
+		return
+	}
+
+	if !al.handleBannedIPs(w, req, authorized) {
+		return
+	}
+
+	if !authorized {
+		al.bannedUsers.Add(username)
+		al.jsonErrorResponseWithTitle(w, http.StatusUnauthorized, "unauthorized")
+		return
+	}
+
+	if al.config.API.IsTwoFAOn() {
+		sendTo, err := al.twoFASrv.SendToken(username)
+		if err != nil {
+			al.jsonError(w, err)
+			return
+		}
+
+		al.writeJSONResponse(w, http.StatusOK, api.NewSuccessPayload(loginResponse{
+			TwoFA: &twoFAResponse{
+				SendTo:         sendTo,
+				DeliveryMethod: al.twoFASrv.MsgSrv.DeliveryMethod(),
+			},
+		}))
+		return
+	}
+
+	al.sendJWTToken(username, w, req)
+}
+
+func (al *APIListener) sendJWTToken(username string, w http.ResponseWriter, req *http.Request) {
 	lifetime, err := parseTokenLifetime(req)
 	if err != nil {
 		al.jsonErrorResponse(w, http.StatusBadRequest, err)
@@ -291,94 +345,24 @@ func (al *APIListener) handleLogin(username string, authErr error, w http.Respon
 		return
 	}
 
-	response := api.NewSuccessPayload(map[string]string{"token": tokenStr})
+	response := api.NewSuccessPayload(loginResponse{
+		Token: &tokenStr,
+	})
 	al.writeJSONResponse(w, http.StatusOK, response)
 }
 
-func (al *APIListener) handleBasicAuth(req *http.Request) (username string, err error) {
-	basicUser, basicPwd, basicAuthProvided := req.BasicAuth()
-	if !basicAuthProvided {
-		return "", errors2.APIError{
-			Message: "basic auth is required",
-			Code:    http.StatusUnauthorized,
-		}
-	}
-	return basicUser, al.handleCredentialValidation(basicUser, basicPwd)
-}
-
-func (al *APIListener) handleCredentialValidation(username, pwd string) error {
-	if al.bannedUsers.IsBanned(username) {
-		return errors2.APIError{
-			Err:  ErrTooManyRequests,
-			Code: http.StatusTooManyRequests,
-		}
-	}
-
-	if username == "" {
-		return errors2.APIError{
-			Message: "username is required",
-			Code:    http.StatusUnauthorized,
-		}
-	}
-
-	authorized, err := al.validateCredentials(username, pwd)
-	if err != nil {
-		return err
-	}
-
-	if !authorized {
-		return errors2.APIError{
-			Message: "unauthorized",
-			Code:    http.StatusUnauthorized,
-		}
-	}
-
-	return nil
-}
-
-func (al *APIListener) handle2FATokenValidation(username, token string) error {
-	if al.bannedUsers.IsBanned(username) {
-		return errors2.APIError{
-			Err:  ErrTooManyRequests,
-			Code: http.StatusTooManyRequests,
-		}
-	}
-
-	if username == "" {
-		return errors2.APIError{
-			Message: "username is required",
-			Code:    http.StatusBadRequest,
-		}
-	}
-
-	if token == "" {
-		return errors2.APIError{
-			Message: "token is required",
-			Code:    http.StatusBadRequest,
-		}
-	}
-
-	return al.twoFASrv.ValidateToken(username, token)
-}
-
 func (al *APIListener) handlePostLogin(w http.ResponseWriter, req *http.Request) {
-	var err error
-	var username string
-	if al.config.API.IsTwoFAOn() {
-		var token string
-		username, token, err = parseLoginPostRequestBody2FA(req)
-		if err == nil {
-			err = al.handle2FATokenValidation(username, token)
+	username, pwd, err := parseLoginPostRequestBody(req)
+	if err != nil {
+		// ban IP if it sends a lot of bad requests
+		if !al.handleBannedIPs(w, req, false) {
+			return
 		}
-	} else {
-		var pwd string
-		username, pwd, err = parseLoginPostRequestBody(req)
-		if err == nil {
-			err = al.handleCredentialValidation(username, pwd)
-		}
+		al.jsonError(w, err)
+		return
 	}
 
-	al.handleLogin(username, err, w, req)
+	al.handleLogin(username, pwd, w, req)
 }
 
 func parseLoginPostRequestBody(req *http.Request) (string, string, error) {
@@ -408,42 +392,6 @@ func parseLoginPostRequestBody(req *http.Request) (string, string, error) {
 		}
 		return params.Username, params.Password, nil
 	}
-	return "", "", errors2.APIError{
-		Message: fmt.Sprintf("unsupported content type: %s", reqContentType),
-		Code:    http.StatusBadRequest,
-	}
-}
-
-func parseLoginPostRequestBody2FA(req *http.Request) (username string, token string, err error) {
-	reqContentType := req.Header.Get("Content-Type")
-
-	switch reqContentType {
-	case "application/x-www-form-urlencoded":
-		err := req.ParseForm()
-		if err != nil {
-			return "", "", errors2.APIError{
-				Err:  fmt.Errorf("failed to parse form: %v", err),
-				Code: http.StatusBadRequest,
-			}
-		}
-		return req.PostForm.Get("username"), req.PostForm.Get("token"), nil
-
-	case "application/json":
-		type loginReq struct {
-			Username string `json:"username"`
-			Token    string `json:"token"`
-		}
-		var params loginReq
-		err := json.NewDecoder(req.Body).Decode(&params)
-		if err != nil {
-			return "", "", errors2.APIError{
-				Err:  fmt.Errorf("failed to parse request body: %v", err),
-				Code: http.StatusBadRequest,
-			}
-		}
-		return params.Username, params.Token, nil
-	}
-
 	return "", "", errors2.APIError{
 		Message: fmt.Sprintf("unsupported content type: %s", reqContentType),
 		Code:    http.StatusBadRequest,
@@ -507,46 +455,61 @@ func (al *APIListener) handleDeleteLogin(w http.ResponseWriter, req *http.Reques
 	w.WriteHeader(http.StatusNoContent)
 }
 
-func (al *APIListener) handleGetSend2FAToken(w http.ResponseWriter, req *http.Request) {
-	if !al.config.API.IsTwoFAOn() {
-		al.jsonErrorResponseWithTitle(w, http.StatusMethodNotAllowed, "2fa is disabled")
-		return
-	}
-
-	username, err := al.handleBasicAuth(req)
-	if !al.handleAuthError(err, username, w, req) {
-		return
-	}
-
-	successMsg, err := al.twoFASrv.SendToken(username)
+func (al *APIListener) handlePostVerify2FAToken(w http.ResponseWriter, req *http.Request) {
+	username, err := al.parseAndValidate2FATokenRequest(req)
 	if err != nil {
+		if !al.handleBannedIPs(w, req, false) {
+			return
+		}
 		al.jsonError(w, err)
 		return
 	}
 
-	al.writeJSONResponse(w, http.StatusOK, api.NewSuccessPayload(successMsg))
+	al.sendJWTToken(username, w, req)
 }
 
-// handleAuthError handles auth error and returns true if it's ok to continue the execution.
-func (al *APIListener) handleAuthError(err error, username string, w http.ResponseWriter, req *http.Request) bool {
-	var apiErr errors2.APIError
-	if err != nil && !errors.Is(err, apiErr) {
-		al.jsonErrorResponse(w, http.StatusInternalServerError, err)
-		return false
+func (al *APIListener) parseAndValidate2FATokenRequest(req *http.Request) (username string, err error) {
+	if !al.config.API.IsTwoFAOn() {
+		return "", errors2.APIError{
+			Code:    http.StatusConflict,
+			Message: "2fa is disabled",
+		}
 	}
 
-	authorized := err == nil
-	if !al.handleBannedIPs(w, req, authorized) {
-		return false
+	var reqBody struct {
+		Username string `json:"username"`
+		Token    string `json:"token"`
+	}
+	err = json.NewDecoder(req.Body).Decode(&reqBody)
+	if err != nil {
+		return "", errors2.APIError{
+			Code: http.StatusBadRequest,
+			Err:  fmt.Errorf("failed to parse request body: %v", err),
+		}
 	}
 
-	if !authorized {
-		al.jsonError(w, err)
-		al.bannedUsers.Add(username)
-		return false
+	if al.bannedUsers.IsBanned(reqBody.Username) {
+		return reqBody.Username, errors2.APIError{
+			Code: http.StatusTooManyRequests,
+			Err:  ErrTooManyRequests,
+		}
 	}
 
-	return true
+	if reqBody.Username == "" {
+		return "", errors2.APIError{
+			Code:    http.StatusUnauthorized,
+			Message: "username is required",
+		}
+	}
+
+	if reqBody.Token == "" {
+		return reqBody.Username, errors2.APIError{
+			Code:    http.StatusUnauthorized,
+			Message: "token is required",
+		}
+	}
+
+	return reqBody.Username, al.twoFASrv.ValidateToken(reqBody.Username, reqBody.Token)
 }
 
 func (al *APIListener) handleGetStatus(w http.ResponseWriter, req *http.Request) {
@@ -570,6 +533,7 @@ func (al *APIListener) handleGetStatus(w http.ResponseWriter, req *http.Request)
 		"connect_url":          al.config.Server.URL,
 		"clients_auth_source":  al.clientAuthProvider.Source(),
 		"clients_auth_mode":    al.getClientsAuthMode(),
+		"users_auth_source":    al.usersService.ProviderType,
 	})
 	al.writeJSONResponse(w, http.StatusOK, response)
 }
@@ -1916,7 +1880,7 @@ func (al *APIListener) handleDeleteClientGroup(w http.ResponseWriter, req *http.
 
 func (al *APIListener) wrapStaticPassModeMiddleware(next http.HandlerFunc) http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
-		if al.usersService.ProviderType == clientsauth.ProviderSourceStatic {
+		if al.usersService.ProviderType == enums.ProviderSourceStatic {
 			al.jsonError(w, errors2.APIError{
 				Code:    http.StatusBadRequest,
 				Message: "server runs on a static user-password pair, please use JSON file or database for user data",

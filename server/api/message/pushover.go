@@ -10,6 +10,7 @@ import (
 	"github.com/cloudradar-monitoring/rport/server/api/errors"
 )
 
+// PushoverService is a service that uses Pushover API to send messages via Pushover.net.
 type PushoverService struct {
 	p *pushover.Pushover
 }
@@ -22,14 +23,13 @@ func NewPushoverService(apiToken string) *PushoverService {
 
 const pushoverAPISuccessStatus = 1
 
-func (s *PushoverService) Send(msg, receiver string) error {
-	pMsg := pushover.NewMessageWithTitle(msg, "Rport 2FA token")
+func (s *PushoverService) Send(title, msg, receiver string) error {
+	pMsg := pushover.NewMessageWithTitle(msg, title)
 	pReceiver := pushover.NewRecipient(receiver)
 	resp, err := s.p.SendMessage(pMsg, pReceiver)
 	if err != nil {
 		// pushover custom errors from github.com/gregdel/pushover can be identified by 'pushover' string in it
 		isPushoverCustomErr := strings.Contains(err.Error(), "pushover")
-		err = fmt.Errorf("failed to send 2fa token: %v", err)
 		if isPushoverCustomErr {
 			return errors.APIError{
 				Err:  err,
@@ -44,7 +44,11 @@ func (s *PushoverService) Send(msg, receiver string) error {
 	}
 
 	return errors.APIError{
-		Message: fmt.Sprintf("failed to send 2fa token, request: %s, status: %v, receipt: %s, errors: %v", resp.ID, resp.Status, resp.Receipt, resp.Errors),
+		Message: fmt.Sprintf("failed to send msg, request: %s, status: %v, receipt: %s, errors: %v", resp.ID, resp.Status, resp.Receipt, resp.Errors),
 		Code:    http.StatusBadRequest,
 	}
+}
+
+func (s *PushoverService) DeliveryMethod() string {
+	return "pushover"
 }

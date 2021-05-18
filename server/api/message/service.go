@@ -1,5 +1,6 @@
 package message
 
 type Service interface {
-	Send(msg, receiver string) error
+	Send(title, msg, receiver string) error
+	DeliveryMethod() string
 }
