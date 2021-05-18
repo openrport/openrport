@@ -8,6 +8,7 @@ import (
 	"golang.org/x/crypto/bcrypt"
 
 	errors2 "github.com/cloudradar-monitoring/rport/server/api/errors"
+	"github.com/cloudradar-monitoring/rport/server/api/message"
 	"github.com/cloudradar-monitoring/rport/share/enums"
 )
 
@@ -27,6 +28,7 @@ type FileProvider interface {
 type APIService struct {
 	ProviderType enums.ProviderSource
 	FileProvider FileProvider
+	DeliverySrv  message.Service
 	DB           DatabaseProvider
 	TwoFAOn      bool
 }
@@ -103,6 +105,16 @@ func (as *APIService) validate(dataToChange *User, usernameToFind string) error 
 			errs = append(errs, errors2.APIError{
 				Message: "nothing to change",
 				Code:    http.StatusBadRequest,
+			})
+		}
+	}
+
+	if dataToChange.TwoFASendTo != "" && as.DeliverySrv != nil {
+		err := as.DeliverySrv.ValidateReceiver(dataToChange.TwoFASendTo)
+		if err != nil {
+			errs = append(errs, errors2.APIError{
+				Err:  fmt.Errorf("invalid two_fa_send_to: %v", err),
+				Code: http.StatusBadRequest,
 			})
 		}
 	}

@@ -11,6 +11,7 @@ import (
 	"github.com/stretchr/testify/require"
 
 	errors2 "github.com/cloudradar-monitoring/rport/server/api/errors"
+	"github.com/cloudradar-monitoring/rport/server/api/message"
 	"github.com/cloudradar-monitoring/rport/share/enums"
 )
 
@@ -245,12 +246,16 @@ func TestValidate(t *testing.T) {
 		},
 	}
 
+	emailSrv, err := message.NewSMTPService("host:port", "", "", "", false)
+	require.NoError(t, err)
+
 	testCases := []struct {
 		name             string
 		expectedError    string
 		userKeyToProvide string
 		user             *User
 		twoFAOn          bool
+		deliverySrv      message.Service
 	}{
 		{
 			user:             &User{},
@@ -294,10 +299,35 @@ func TestValidate(t *testing.T) {
 			expectedError: "two_fa_send_to is required",
 			name:          "no two_fa_send_to provided on create when 2fa is enabled",
 		},
+		{
+			twoFAOn:     true,
+			deliverySrv: emailSrv,
+			user: &User{
+				Username:    "user123",
+				Password:    "123",
+				TwoFASendTo: "invalid-email-format",
+			},
+			expectedError: "invalid two_fa_send_to: invalid email format",
+			name:          "invalid two_fa_send_to email is provided when 2fa is enabled on add user",
+		},
+		{
+			twoFAOn: true,
+			deliverySrv: &message.ServiceMock{
+				ReturnError: errors.New("fake error"),
+			},
+			user: &User{
+				TwoFASendTo: "invalid-receiver",
+			},
+			userKeyToProvide: "user123",
+
+			expectedError: "invalid two_fa_send_to: fake error",
+			name:          "invalid two_fa_send_to is provided when 2fa is enabled on update user",
+		},
 	}
 
 	for i := range testCases {
 		testCase := testCases[i]
+		service.DeliverySrv = testCase.deliverySrv
 		t.Run(testCase.name, func(t *testing.T) {
 			service.TwoFAOn = testCase.twoFAOn
 			err := service.Change(testCase.user, testCase.userKeyToProvide)

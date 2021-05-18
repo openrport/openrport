@@ -10,16 +10,16 @@ import (
 	"net/http"
 	"net/smtp"
 	"net/url"
-	"regexp"
 	"strings"
 	"time"
 
 	mapset "github.com/deckarep/golang-set"
-	"github.com/gregdel/pushover"
 	"github.com/jpillora/requestlog"
 
+	"github.com/cloudradar-monitoring/rport/server/api/message"
 	"github.com/cloudradar-monitoring/rport/server/ports"
 	chshare "github.com/cloudradar-monitoring/rport/share"
+	"github.com/cloudradar-monitoring/rport/share/email"
 )
 
 type APIConfig struct {
@@ -105,15 +105,14 @@ func (c *PushoverConfig) Validate() error {
 	if c.APIToken == "" {
 		return errors.New("pushover.api_token is required")
 	}
-	if c.UserKey == "" {
-		return errors.New("pushover.user_key is required")
-	}
-	p := pushover.New(c.APIToken)
-	r := pushover.NewRecipient(c.UserKey)
-	_, err := p.GetRecipientDetails(r)
+
+	p := message.NewPushoverService(c.APIToken)
+	err := p.ValidateReceiver(c.UserKey)
 	if err != nil {
-		return fmt.Errorf("failed to validate pushover API token and user key: %v", err)
+		return fmt.Errorf("invalid pushover.api_token and pushover.user_key: %v", err)
+
 	}
+
 	return nil
 }
 
@@ -134,11 +133,8 @@ func (c *SMTPConfig) Validate() error {
 		return fmt.Errorf("invalid smtp.server, expected to be server and port separated by a colon. e.g. 'smtp.gmail.com:587'; error: %v", err)
 	}
 
-	if c.SenderEmail == "" {
-		return errors.New("smtp.sender_email is required")
-	}
-	if !validateEmail(c.SenderEmail) {
-		return errors.New("invalid smtp.sender_email")
+	if err := email.Validate(c.SenderEmail); err != nil {
+		return fmt.Errorf("invalid smtp.sender_email: %v", err)
 	}
 
 	var client *smtp.Client
@@ -184,12 +180,6 @@ func (c *SMTPConfig) Validate() error {
 	}
 
 	return nil
-}
-
-var emailRegex = regexp.MustCompile("^[a-zA-Z0-9.!#$%&'*+\\/=?^_`{|}~-]+@[a-zA-Z0-9](?:[a-zA-Z0-9-]{0,61}[a-zA-Z0-9])?(?:\\.[a-zA-Z0-9](?:[a-zA-Z0-9-]{0,61}[a-zA-Z0-9])?)*$")
-
-func validateEmail(email string) bool {
-	return emailRegex.MatchString(email)
 }
 
 type Config struct {
