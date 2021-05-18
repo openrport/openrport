@@ -66,6 +66,8 @@ func (apm *Aes256PassManager) PassMatch(dbStatus DbStatus, passToCheck string) (
 	return compRes == 0, nil
 }
 
+// GetEncRandValue generates a pseudo random hash sum and encrypts it with the provided password
+// this is used to check if the provided password is correct and can potentially decrypt vault values
 func (apm *Aes256PassManager) GetEncRandValue(pass string) (encValue, decValue string, err error) {
 	timestampStr := strconv.FormatInt(time.Now().UnixNano(), 10)
 	timestampHash := sha256.New().Sum([]byte(timestampStr))

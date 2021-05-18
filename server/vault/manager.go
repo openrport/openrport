@@ -119,12 +119,11 @@ func (m *Manager) Init(ctx context.Context, pass string) error {
 
 func (m *Manager) isDatabaseInitialized(ctx context.Context) (bool, error) {
 	dbStatus, err := m.db.GetStatus(ctx)
-	if err != nil && !errors.Is(err, ErrDatabaseNotInitialised) {
+	if err != nil {
+		if errors.Is(err, ErrDatabaseNotInitialised) {
+			return false, nil
+		}
 		return false, err
-	}
-
-	if err != nil && errors.Is(err, ErrDatabaseNotInitialised) {
-		return false, nil
 	}
 
 	if dbStatus.StatusName == DbStatusInit {
@@ -280,7 +279,7 @@ func (m *Manager) validateListOptions(lo *ListOptions) error {
 }
 
 func (m *Manager) checkGroupAccess(val *StoredValue, user UserDataProvider) error {
-	if val.RequiredGroup == "" || val == nil {
+	if val == nil || val.RequiredGroup == "" {
 		return nil
 	}
 	userGroupMatches := false
