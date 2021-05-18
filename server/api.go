@@ -2115,13 +2115,13 @@ func (al *APIListener) handleVaultStoreValue(w http.ResponseWriter, req *http.Re
 		return
 	}
 
-	al.writeJSONResponse(w, http.StatusOK, api.NewSuccessPayload(storedValue))
+	status := http.StatusOK
 
-	if id > 0 {
-		w.WriteHeader(http.StatusNoContent)
-	} else {
+	if id == 0 {
 		w.WriteHeader(http.StatusCreated)
 	}
+
+	al.writeJSONResponse(w, status, api.NewSuccessPayload(storedValue))
 }
 
 func (al *APIListener) handleVaultDeleteValue(w http.ResponseWriter, req *http.Request) {
