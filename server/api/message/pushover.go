@@ -1,13 +1,14 @@
 package message
 
 import (
+	"errors"
 	"fmt"
 	"net/http"
 	"strings"
 
 	"github.com/gregdel/pushover"
 
-	"github.com/cloudradar-monitoring/rport/server/api/errors"
+	errors2 "github.com/cloudradar-monitoring/rport/server/api/errors"
 )
 
 // PushoverService is a service that uses Pushover API to send messages via Pushover.net.
@@ -31,7 +32,7 @@ func (s *PushoverService) Send(title, msg, receiver string) error {
 		// pushover custom errors from github.com/gregdel/pushover can be identified by 'pushover' string in it
 		isPushoverCustomErr := strings.Contains(err.Error(), "pushover")
 		if isPushoverCustomErr {
-			return errors.APIError{
+			return errors2.APIError{
 				Err:  err,
 				Code: http.StatusBadRequest,
 			}
@@ -43,7 +44,7 @@ func (s *PushoverService) Send(title, msg, receiver string) error {
 		return nil
 	}
 
-	return errors.APIError{
+	return errors2.APIError{
 		Message: fmt.Sprintf("failed to send msg, request: %s, status: %v, receipt: %s, errors: %v", resp.ID, resp.Status, resp.Receipt, resp.Errors),
 		Code:    http.StatusBadRequest,
 	}
@@ -51,4 +52,22 @@ func (s *PushoverService) Send(title, msg, receiver string) error {
 
 func (s *PushoverService) DeliveryMethod() string {
 	return "pushover"
+}
+
+func (s *PushoverService) ValidateReceiver(pushoverUserKey string) error {
+	if pushoverUserKey == "" {
+		return errors.New("pushover user key cannot be empty")
+	}
+
+	r := pushover.NewRecipient(pushoverUserKey)
+	resp, err := s.p.GetRecipientDetails(r)
+	if err != nil {
+		return fmt.Errorf("failed to validate pushover user key: %w", err)
+	}
+
+	if resp != nil && resp.Status != pushoverAPISuccessStatus {
+		return fmt.Errorf("failed to validate user key, pushover response: %+v", *resp)
+	}
+
+	return nil
 }
