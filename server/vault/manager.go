@@ -25,6 +25,10 @@ type Config interface {
 	GetDatabasePath() string
 }
 
+type UserDataProvider interface {
+	GetGroups() []string
+}
+
 type DbProvider interface {
 	Init(ctx context.Context) error
 	GetStatus(ctx context.Context) (DbStatus, error)
@@ -231,7 +235,7 @@ func (m *Manager) List(ctx context.Context, re *http.Request) ([]ValueKey, error
 	return m.db.List(ctx, listOptions)
 }
 
-func (m *Manager) GetOne(ctx context.Context, id int) (StoredValue, bool, error) {
+func (m *Manager) GetOne(ctx context.Context, id int, user UserDataProvider) (StoredValue, bool, error) {
 	err := m.checkUnlockedAndInitialized(ctx)
 	if err != nil {
 		return StoredValue{}, false, err
@@ -246,6 +250,23 @@ func (m *Manager) GetOne(ctx context.Context, id int) (StoredValue, bool, error)
 		return StoredValue{}, false, nil
 	}
 
+	if val.RequiredGroup != "" {
+		userGroupMatches := false
+		for _, gr := range user.GetGroups() {
+			if gr != val.RequiredGroup {
+				continue
+			}
+			userGroupMatches = true
+			break
+		}
+		if !userGroupMatches {
+			return StoredValue{}, false, errors2.APIError{
+				Message: "your group doesn't allow access to this value",
+				Code:    http.StatusForbidden,
+			}
+		}
+	}
+
 	decryptedValue, err := enc.Aes256DecryptByPassFromBase64String(val.Value, m.pass)
 	if err != nil {
 		return StoredValue{}, false, err
@@ -253,6 +274,46 @@ func (m *Manager) GetOne(ctx context.Context, id int) (StoredValue, bool, error)
 	val.Value = string(decryptedValue)
 
 	return val, true, nil
+}
+
+func (m *Manager) Store(ctx context.Context, id int, iv *InputValue, username string) error {
+	err := m.checkUnlockedAndInitialized(ctx)
+	if err != nil {
+		return err
+	}
+
+	err = Validate(iv)
+	if err != nil {
+		return err
+	}
+
+	encValue, err := enc.Aes256EncryptByPassToBase64String([]byte(iv.Value), m.pass)
+	if err != nil {
+		return err
+	}
+
+	iv.Value = encValue
+
+	err = m.db.Save(ctx, username, id, iv, time.Now())
+	if err != nil {
+		return err
+	}
+
+	return nil
+}
+
+func (m *Manager) Delete(ctx context.Context, id int) error {
+	err := m.checkUnlockedAndInitialized(ctx)
+	if err != nil {
+		return err
+	}
+
+	err = m.db.Delete(ctx, id)
+	if err != nil {
+		return err
+	}
+
+	return nil
 }
 
 func (m *Manager) checkUnlockedAndInitialized(ctx context.Context) error {

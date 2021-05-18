@@ -92,6 +92,10 @@ func AesDecrypt(encryptedData, key []byte) (decryptedData []byte, err error) {
 	//Get the nonce size
 	nonceSize := aesGCM.NonceSize()
 
+	if len(encryptedData) <= nonceSize{
+		return decryptedData, fmt.Errorf("invalid encrypted value provided: invalid nonce length")
+	}
+
 	//Extract the nonce from the encrypted data
 	nonce, ciphertext := encryptedData[:nonceSize], encryptedData[nonceSize:]
 

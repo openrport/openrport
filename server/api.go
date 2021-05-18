@@ -154,7 +154,10 @@ func (al *APIListener) initRouter() {
 	sub.HandleFunc("/vault-admin/init", al.wrapAdminAccessMiddleware(al.handleVaultInit)).Methods(http.MethodPost)
 	sub.HandleFunc("/vault-admin/sesame", al.wrapAdminAccessMiddleware(al.handleVaultLock)).Methods(http.MethodDelete)
 	sub.HandleFunc("/vault", al.handleListVaultValues).Methods(http.MethodGet)
+	sub.HandleFunc("/vault", al.handleVaultStoreValue).Methods(http.MethodPost)
 	sub.HandleFunc("/vault/{"+routeParamVaultValueID+"}", al.handleReadVaultValue).Methods(http.MethodGet)
+	sub.HandleFunc("/vault/{"+routeParamVaultValueID+"}", al.handleVaultStoreValue).Methods(http.MethodPut)
+	sub.HandleFunc("/vault/{"+routeParamVaultValueID+"}", al.handleVaultDeleteValue).Methods(http.MethodDelete)
 
 	// add authorization middleware
 	if !al.insecureForTests {
@@ -974,17 +977,12 @@ func (al *APIListener) handleDeleteClientTunnel(w http.ResponseWriter, req *http
 
 // handleGetMe returns the currently logged in user and the groups the user belongs to.
 func (al *APIListener) handleGetMe(w http.ResponseWriter, req *http.Request) {
-	curUsername := api.GetUser(req.Context(), al.Logger)
-	if curUsername == "" {
-		al.writeJSONResponse(w, http.StatusOK, api.NewSuccessPayload(nil))
-		return
-	}
-
-	user, err := al.userSrv.GetByUsername(curUsername)
+	user, err := al.getUserModel(req)
 	if err != nil {
 		al.jsonErrorResponse(w, http.StatusInternalServerError, err)
 		return
 	}
+
 	if user == nil {
 		al.jsonErrorResponseWithTitle(w, http.StatusNotFound, "user not found")
 		return
@@ -996,6 +994,20 @@ func (al *APIListener) handleGetMe(w http.ResponseWriter, req *http.Request) {
 	}
 	response := api.NewSuccessPayload(me)
 	al.writeJSONResponse(w, http.StatusOK, response)
+}
+
+func (al *APIListener) getUserModel(req *http.Request) (*users.User, error) {
+	curUsername := api.GetUser(req.Context(), al.Logger)
+	if curUsername == "" {
+		return nil, nil
+	}
+
+	user, err := al.userSrv.GetByUsername(curUsername)
+	if err != nil {
+		return nil, err
+	}
+
+	return user, err
 }
 
 func (al *APIListener) handleGetIP(w http.ResponseWriter, req *http.Request) {
@@ -1917,17 +1929,7 @@ func (al *APIListener) wrapStaticPassModeMiddleware(next http.HandlerFunc) http.
 
 func (al *APIListener) wrapAdminAccessMiddleware(next http.HandlerFunc) http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
-		ctx := r.Context()
-		curUsername := api.GetUser(ctx, al.Logger)
-		if curUsername == "" {
-			al.jsonError(w, errors2.APIError{
-				Message: "unauthorized access",
-				Code:    http.StatusUnauthorized,
-			})
-			return
-		}
-
-		curUser, err := al.userSrv.GetByUsername(curUsername)
+		user, err := al.getUserModel(r)
 		if err != nil {
 			al.jsonError(w, errors2.APIError{
 				Err:  err,
@@ -1936,7 +1938,7 @@ func (al *APIListener) wrapAdminAccessMiddleware(next http.HandlerFunc) http.Han
 			return
 		}
 
-		if curUser == nil {
+		if user == nil {
 			al.jsonError(w, errors2.APIError{
 				Message: "unauthorized access",
 				Code:    http.StatusUnauthorized,
@@ -1944,8 +1946,8 @@ func (al *APIListener) wrapAdminAccessMiddleware(next http.HandlerFunc) http.Han
 			return
 		}
 
-		for i := range curUser.Groups {
-			if curUser.Groups[i] == users.Administrators {
+		for i := range user.Groups {
+			if user.Groups[i] == users.Administrators {
 				next.ServeHTTP(w, r)
 				return
 			}
@@ -2043,28 +2045,120 @@ func (al *APIListener) handleListVaultValues(w http.ResponseWriter, req *http.Re
 	al.writeJSONResponse(w, http.StatusOK, api.NewSuccessPayload(items))
 }
 
-func (al *APIListener) handleReadVaultValue(w http.ResponseWriter, req *http.Request) {
+func (al *APIListener) readIntParam(paramName string, req *http.Request) (int, error) {
 	vars := mux.Vars(req)
-	idStr := vars[routeParamVaultValueID]
-	if idStr == "" {
-		al.jsonErrorResponseWithTitle(w, http.StatusBadRequest, fmt.Sprintf("Missing %q route param.", routeParamVaultValueID))
-		return
+	idStr, ok := vars[paramName]
+	if !ok {
+		return 0, fmt.Errorf("Missing %q route param.", paramName)
 	}
+
 	id, err := strconv.Atoi(idStr)
 	if err != nil {
-		al.jsonErrorResponseWithTitle(w, http.StatusBadRequest, fmt.Sprintf("Non-numeric integer value provided: %s", idStr))
+		return 0, fmt.Errorf("Non-numeric integer value provided: %s for param %s", idStr, paramName)
+	}
+
+	return id, nil
+}
+
+func (al *APIListener) handleReadVaultValue(w http.ResponseWriter, req *http.Request) {
+	id, err := al.readIntParam(routeParamVaultValueID, req)
+	if err != nil {
+		al.jsonError(w, errors2.APIError{
+			Err:  err,
+			Code: http.StatusBadRequest,
+		})
 		return
 	}
 
-	storedValue, found, err := al.vaultManager.GetOne(req.Context(), id)
+	curUser, err := al.getUserModel(req)
+	if err != nil {
+		al.jsonError(w, errors2.APIError{
+			Err:  err,
+			Code: http.StatusInternalServerError,
+		})
+		return
+	}
+
+	if curUser == nil {
+		al.jsonError(w, errors2.APIError{
+			Message: "unauthorized access",
+			Code:    http.StatusUnauthorized,
+		})
+		return
+	}
+
+	storedValue, found, err := al.vaultManager.GetOne(req.Context(), id, curUser)
 	if err != nil {
 		al.jsonError(w, err)
 		return
 	}
 	if !found {
-		al.jsonErrorResponseWithTitle(w, http.StatusNotFound, fmt.Sprintf("Cannot find a vault value by the provided id: %s", idStr))
+		al.jsonErrorResponseWithTitle(w, http.StatusNotFound, fmt.Sprintf("Cannot find a vault value by the provided id: %d", id))
 		return
 	}
 
 	al.writeJSONResponse(w, http.StatusOK, api.NewSuccessPayload(storedValue))
+}
+
+func (al *APIListener) handleVaultStoreValue(w http.ResponseWriter, req *http.Request) {
+	id, err := al.readIntParam(routeParamVaultValueID, req)
+	if err != nil {
+		al.jsonError(w, errors2.APIError{
+			Err:  err,
+			Code: http.StatusBadRequest,
+		})
+		return
+	}
+
+	curUsername := api.GetUser(req.Context(), al.Logger)
+	if curUsername == "" {
+		al.jsonError(w, errors2.APIError{
+			Message: "empty email of the current user",
+			Code:    http.StatusUnauthorized,
+		})
+		return
+	}
+
+	var vaultKeyValue vault.InputValue
+	dec := json.NewDecoder(req.Body)
+	dec.DisallowUnknownFields()
+	err = dec.Decode(&vaultKeyValue)
+	if err == io.EOF {
+		al.jsonErrorResponseWithTitle(w, http.StatusBadRequest, "Missing body with json data.")
+		return
+	} else if err != nil {
+		al.jsonErrorResponseWithError(w, http.StatusBadRequest, "", "Invalid JSON data.", err)
+		return
+	}
+
+	err = al.vaultManager.Store(req.Context(), id, &vaultKeyValue, curUsername)
+	if err != nil {
+		al.jsonError(w, err)
+		return
+	}
+
+	if id > 0 {
+		w.WriteHeader(http.StatusNoContent)
+	} else {
+		w.WriteHeader(http.StatusCreated)
+	}
+}
+
+func (al *APIListener) handleVaultDeleteValue(w http.ResponseWriter, req *http.Request) {
+	id, err := al.readIntParam(routeParamVaultValueID, req)
+	if err != nil {
+		al.jsonError(w, errors2.APIError{
+			Err:  err,
+			Code: http.StatusBadRequest,
+		})
+		return
+	}
+
+	err = al.vaultManager.Delete(req.Context(), id)
+	if err != nil {
+		al.jsonError(w, err)
+		return
+	}
+
+	w.WriteHeader(http.StatusNoContent)
 }

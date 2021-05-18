@@ -112,6 +112,14 @@ type PassManagerMock struct {
 	GetEncRandValueErr            error
 }
 
+type UserDataProviderMock struct {
+	GroupsToGive []string
+}
+
+func (udpm UserDataProviderMock) GetGroups() []string {
+	return udpm.GroupsToGive
+}
+
 func (pmm *PassManagerMock) ValidatePass(passToCheck string) error {
 	pmm.ValidatePassGiven = passToCheck
 	return pmm.ValidatePassError
@@ -600,19 +608,23 @@ func TestGetOne(t *testing.T) {
 
 	mngr := NewManager(dbProv, &PassManagerMock{}, testLog)
 
-	_, _, err = mngr.GetOne(context.Background(), 1)
+	user := &UserDataProviderMock{
+		GroupsToGive: []string{},
+	}
+
+	_, _, err = mngr.GetOne(context.Background(), 1, user)
 	require.EqualError(t, err, "vault is locked")
 
 	mngr.pass = pass
 
-	_, _, err = mngr.GetOne(context.Background(), 1)
+	_, _, err = mngr.GetOne(context.Background(), 1, user)
 	require.EqualError(t, err, "vault is not initialized")
 
 	dbProv.statusToGive = DbStatus{
 		StatusName: DbStatusInit,
 	}
 
-	val, found, err := mngr.GetOne(context.Background(), 1)
+	val, found, err := mngr.GetOne(context.Background(), 1, user)
 	require.NoError(t, err)
 	assert.True(t, found)
 	assert.Equal(t, expectedValue, val)
@@ -629,7 +641,7 @@ func TestGetOne(t *testing.T) {
 	mngr = NewManager(dbProv, &PassManagerMock{}, testLog)
 	mngr.pass = "123"
 
-	_, found, err = mngr.GetOne(context.Background(), 1)
+	_, found, err = mngr.GetOne(context.Background(), 1, user)
 	require.NoError(t, err)
 	assert.False(t, found)
 
@@ -645,6 +657,157 @@ func TestGetOne(t *testing.T) {
 	mngr = NewManager(dbProv, &PassManagerMock{}, testLog)
 	mngr.pass = pass
 
-	_, _, err = mngr.GetOne(context.Background(), 1)
+	_, _, err = mngr.GetOne(context.Background(), 1, user)
 	require.EqualError(t, err, "some get id error")
+}
+
+func TestGetOneWithLimitedAccess(t *testing.T) {
+	const pass = "1234"
+	encValue, err := enc.Aes256EncryptByPassToBase64String([]byte("some val"), pass)
+	require.NoError(t, err)
+
+	givenStoredValue := StoredValue{
+		InputValue: InputValue{
+			RequiredGroup: "root",
+			Value: encValue,
+		},
+	}
+	dbProv := &DbProviderMock{
+		getByIDStoredValue: givenStoredValue,
+		getByIDFound:       true,
+		statusToGive: DbStatus{
+			StatusName: DbStatusInit,
+		},
+	}
+
+	mngr := NewManager(dbProv, &PassManagerMock{}, testLog)
+	mngr.pass = pass
+
+	user := &UserDataProviderMock{
+		GroupsToGive: []string{},
+	}
+
+	_, _, err = mngr.GetOne(context.Background(), 1, user)
+	assert.Equal(
+		t,
+		errors2.APIError{
+			Message: "your group doesn't allow access to this value",
+			Code:    http.StatusForbidden,
+		},
+		err,
+	)
+
+	user2 := &UserDataProviderMock{
+		GroupsToGive: []string{"root"},
+	}
+
+	_, _, err = mngr.GetOne(context.Background(), 1, user2)
+	assert.NoError(t, err)
+}
+
+func TestStore(t *testing.T) {
+	const pass = "1234"
+
+	dbProv := &DbProviderMock{
+		statusToGive: DbStatus{
+			StatusName: "",
+		},
+	}
+
+	inputValue := &InputValue{
+		ClientID:      "client1",
+		RequiredGroup: "group1",
+		Key:           "someKey",
+		Value:         "someValue",
+		Type:          SecreteType,
+	}
+
+	mngr := NewManager(dbProv, &PassManagerMock{}, testLog)
+
+	t.Run("vault_locked", func(t *testing.T) {
+		err := mngr.Store(context.Background(), 1, inputValue, "someuser")
+		require.EqualError(t, err, "vault is locked")
+	})
+
+	mngr.pass = pass
+
+	t.Run("vault_not_init", func(t *testing.T) {
+		err := mngr.Store(context.Background(), 1, inputValue, "someuser")
+		require.EqualError(t, err, "vault is not initialized")
+	})
+
+	dbProv.statusToGive = DbStatus{
+		StatusName: DbStatusInit,
+	}
+
+	t.Run("store_success", func(t *testing.T) {
+		err := mngr.Store(context.Background(), 1, inputValue, "someuser")
+		require.NoError(t, err)
+
+		assert.Equal(t, "someuser", dbProv.SaveUserGiven, )
+		assert.Equal(t, 1, dbProv.SaveIDGiven)
+		assert.True(t, dbProv.SaveNowDateGiven.Equal(time.Now()) || dbProv.SaveNowDateGiven.Before(time.Now()))
+
+		actualInputValue := dbProv.SaveInputGiven
+		assert.Equal(t, "client1", actualInputValue.ClientID)
+		assert.Equal(t, "group1", actualInputValue.RequiredGroup)
+		assert.Equal(t, "someKey", actualInputValue.Key)
+		assert.Equal(t, SecreteType, actualInputValue.Type)
+
+		actualDecryptedValue, err := enc.Aes256DecryptByPassFromBase64String(actualInputValue.Value, pass)
+		require.NoError(t, err)
+		assert.Equal(t, "someValue", string(actualDecryptedValue))
+	})
+
+	t.Run("invalid_input", func(t *testing.T) {
+		err := mngr.Store(context.Background(), 1, &InputValue{}, "someuser")
+		require.EqualError(t, err, "key is required, value is required, value type is required")
+	})
+
+	dbProv.SaveErrorToGive = errors.New("failed to save value to db")
+	t.Run("db_store_error", func(t *testing.T) {
+		err := mngr.Store(context.Background(), 1, inputValue, "someuser")
+		require.EqualError(t, err, "failed to save value to db")
+	});
+}
+
+func TestDeleteKey(t *testing.T) {
+	const pass = "1234"
+
+	dbProv := &DbProviderMock{
+		statusToGive: DbStatus{
+			StatusName: "",
+		},
+	}
+
+	mngr := NewManager(dbProv, &PassManagerMock{}, testLog)
+
+	t.Run("vault_locked", func(t *testing.T) {
+		err := mngr.Delete(context.Background(), 1)
+		require.EqualError(t, err, "vault is locked")
+	})
+
+	mngr.pass = pass
+
+	t.Run("vault_not_init", func(t *testing.T) {
+		err := mngr.Delete(context.Background(), 1)
+		require.EqualError(t, err, "vault is not initialized")
+	})
+
+	dbProv.statusToGive = DbStatus{
+		StatusName: DbStatusInit,
+	}
+
+	t.Run("delete_success", func(t *testing.T) {
+		err := mngr.Delete(context.Background(), 1)
+		require.NoError(t, err)
+
+		assert.Equal(t, 1, dbProv.DeleteIDGiven)
+	})
+
+	dbProv.DeleteErrorToGive = errors.New("failed to delete value to db")
+	t.Run("db_store_error", func(t *testing.T) {
+		err := mngr.Delete(context.Background(), 1)
+		require.EqualError(t, err, "failed to delete value to db")
+	});
 }
