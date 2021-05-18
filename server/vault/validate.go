@@ -1,8 +1,9 @@
 package vault
 
 import (
-	errors2 "github.com/cloudradar-monitoring/rport/server/api/errors"
 	"net/http"
+
+	errors2 "github.com/cloudradar-monitoring/rport/server/api/errors"
 )
 
 func Validate(iv *InputValue) error {
@@ -27,11 +28,11 @@ func Validate(iv *InputValue) error {
 			Code:    http.StatusBadRequest,
 		})
 	} else {
-		knownTypes := map[ValueType]bool {
-			TextType: true,
-			SecreteType: true,
+		knownTypes := map[ValueType]bool{
+			TextType:     true,
+			SecreteType:  true,
 			MarkdownType: true,
-			StringType: true,
+			StringType:   true,
 		}
 
 		ok := knownTypes[iv.Type]
@@ -49,4 +50,3 @@ func Validate(iv *InputValue) error {
 
 	return errs
 }
-

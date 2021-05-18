@@ -2049,7 +2049,7 @@ func (al *APIListener) readIntParam(paramName string, req *http.Request) (int, e
 	vars := mux.Vars(req)
 	idStr, ok := vars[paramName]
 	if !ok {
-		return 0, fmt.Errorf("Missing %q route param.", paramName)
+		return 0, fmt.Errorf("missing %q route param", paramName)
 	}
 
 	id, err := strconv.Atoi(idStr)

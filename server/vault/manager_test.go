@@ -669,7 +669,7 @@ func TestGetOneWithLimitedAccess(t *testing.T) {
 	givenStoredValue := StoredValue{
 		InputValue: InputValue{
 			RequiredGroup: "root",
-			Value: encValue,
+			Value:         encValue,
 		},
 	}
 	dbProv := &DbProviderMock{
@@ -744,7 +744,7 @@ func TestStore(t *testing.T) {
 		err := mngr.Store(context.Background(), 1, inputValue, "someuser")
 		require.NoError(t, err)
 
-		assert.Equal(t, "someuser", dbProv.SaveUserGiven, )
+		assert.Equal(t, "someuser", dbProv.SaveUserGiven)
 		assert.Equal(t, 1, dbProv.SaveIDGiven)
 		assert.True(t, dbProv.SaveNowDateGiven.Equal(time.Now()) || dbProv.SaveNowDateGiven.Before(time.Now()))
 
@@ -768,7 +768,7 @@ func TestStore(t *testing.T) {
 	t.Run("db_store_error", func(t *testing.T) {
 		err := mngr.Store(context.Background(), 1, inputValue, "someuser")
 		require.EqualError(t, err, "failed to save value to db")
-	});
+	})
 }
 
 func TestDeleteKey(t *testing.T) {
@@ -809,5 +809,5 @@ func TestDeleteKey(t *testing.T) {
 	t.Run("db_store_error", func(t *testing.T) {
 		err := mngr.Delete(context.Background(), 1)
 		require.EqualError(t, err, "failed to delete value to db")
-	});
+	})
 }

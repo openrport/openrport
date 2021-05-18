@@ -1,58 +1,59 @@
 package vault
 
 import (
-	"github.com/stretchr/testify/assert"
 	"testing"
+
+	"github.com/stretchr/testify/assert"
 )
 
 func TestValidate(t *testing.T) {
-	testCases := []struct{
-		name string
-		input *InputValue
+	testCases := []struct {
+		name          string
+		input         *InputValue
 		expectedError string
-	} {
+	}{
 		{
 			name: "missing_key_value_type",
 			input: &InputValue{
-				Key:           "",
-				Value:         "",
-				Type:          "",
+				Key:   "",
+				Value: "",
+				Type:  "",
 			},
 			expectedError: "key is required, value is required, value type is required",
 		},
 		{
 			name: "all_ok0",
 			input: &InputValue{
-				Key:           "k1",
-				Value:         "val1",
-				Type:          TextType,
+				Key:   "k1",
+				Value: "val1",
+				Type:  TextType,
 			},
 			expectedError: "",
 		},
 		{
 			name: "all_ok1",
 			input: &InputValue{
-				Key:           "k1",
-				Value:         "val1",
-				Type:          SecreteType,
+				Key:   "k1",
+				Value: "val1",
+				Type:  SecreteType,
 			},
 			expectedError: "",
 		},
 		{
 			name: "all_ok2",
 			input: &InputValue{
-				Key:           "k1",
-				Value:         "val1",
-				Type:          MarkdownType,
+				Key:   "k1",
+				Value: "val1",
+				Type:  MarkdownType,
 			},
 			expectedError: "",
 		},
 		{
 			name: "invalid_value_type",
 			input: &InputValue{
-				Key:           "k1",
-				Value:         "val1",
-				Type:          "some type",
+				Key:   "k1",
+				Value: "val1",
+				Type:  "some type",
 			},
 			expectedError: "unknown or invalid value value type some type",
 		},
