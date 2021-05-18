@@ -60,9 +60,13 @@ func (s *PushoverService) ValidateReceiver(pushoverUserKey string) error {
 	}
 
 	r := pushover.NewRecipient(pushoverUserKey)
-	_, err := s.p.GetRecipientDetails(r)
+	resp, err := s.p.GetRecipientDetails(r)
 	if err != nil {
 		return fmt.Errorf("failed to validate pushover user key: %w", err)
+	}
+
+	if resp != nil && resp.Status != pushoverAPISuccessStatus {
+		return fmt.Errorf("failed to validate user key, pushover response: %+v", *resp)
 	}
 
 	return nil
