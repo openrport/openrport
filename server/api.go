@@ -969,8 +969,9 @@ func (al *APIListener) handleGetMe(w http.ResponseWriter, req *http.Request) {
 	}
 
 	me := UserPayload{
-		Username: user.Username,
-		Groups:   user.Groups,
+		Username:    user.Username,
+		Groups:      user.Groups,
+		TwoFASendTo: user.TwoFASendTo,
 	}
 	response := api.NewSuccessPayload(me)
 	al.writeJSONResponse(w, http.StatusOK, response)
