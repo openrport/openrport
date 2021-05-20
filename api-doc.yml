@@ -258,6 +258,13 @@ paths:
                     description: "The source of API users authentication credentials"
                     type: "string"
                     enum: ["Static Credentials", "File", "DB"]
+                  two_fa_enabled:
+                    description: "True if two-factor authentication is enabled"
+                    type: "boolean"
+                  two_fa_delivery_method:
+                    description: "Delivery method that is used to send auth tokens when 2FA is enabled"
+                    type: "string"
+                    enum: ["email", "pushover"]
               meta:
                 type: "object"
         "500":

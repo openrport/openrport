@@ -514,16 +514,24 @@ func (al *APIListener) handleGetStatus(w http.ResponseWriter, req *http.Request)
 		return
 	}
 
+	var twoFADelivery string
+	if al.twoFASrv.MsgSrv != nil {
+		twoFADelivery = al.twoFASrv.MsgSrv.DeliveryMethod()
+	}
+
 	response := api.NewSuccessPayload(map[string]interface{}{
-		"version":              chshare.BuildVersion,
-		"clients_connected":    countActive,
-		"clients_disconnected": countDisconnected,
-		"fingerprint":          al.fingerprint,
-		"connect_url":          al.config.Server.URL,
-		"clients_auth_source":  al.clientAuthProvider.Source(),
-		"clients_auth_mode":    al.getClientsAuthMode(),
-		"users_auth_source":    al.usersService.ProviderType,
+		"version":                chshare.BuildVersion,
+		"clients_connected":      countActive,
+		"clients_disconnected":   countDisconnected,
+		"fingerprint":            al.fingerprint,
+		"connect_url":            al.config.Server.URL,
+		"clients_auth_source":    al.clientAuthProvider.Source(),
+		"clients_auth_mode":      al.getClientsAuthMode(),
+		"users_auth_source":      al.usersService.ProviderType,
+		"two_fa_enabled":         al.config.API.IsTwoFAOn(),
+		"two_fa_delivery_method": twoFADelivery,
 	})
+
 	al.writeJSONResponse(w, http.StatusOK, response)
 }
 
