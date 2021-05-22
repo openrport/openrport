@@ -125,6 +125,7 @@ func (al *APIListener) initRouter() {
 	sub := r.PathPrefix("/api/v1").Subrouter()
 	sub.HandleFunc("/status", al.handleGetStatus).Methods(http.MethodGet)
 	sub.HandleFunc("/me", al.handleGetMe).Methods(http.MethodGet)
+	sub.HandleFunc("/me", al.handleChangeMe).Methods(http.MethodPut)
 	sub.HandleFunc("/me/ip", al.handleGetIP).Methods(http.MethodGet)
 	sub.HandleFunc("/clients", al.handleGetClients).Methods(http.MethodGet)
 	sub.HandleFunc("/clients/{client_id}", al.handleDeleteClient).Methods(http.MethodDelete)
@@ -983,6 +984,43 @@ func (al *APIListener) handleGetMe(w http.ResponseWriter, req *http.Request) {
 	}
 	response := api.NewSuccessPayload(me)
 	al.writeJSONResponse(w, http.StatusOK, response)
+}
+
+type changeMeRequest struct {
+	Username    string `json:"username"`
+	Password    string `json:"password"`
+	TwoFASendTo string `json:"two_fa_send_to"`
+}
+
+func (al *APIListener) handleChangeMe(w http.ResponseWriter, req *http.Request) {
+	curUsername := api.GetUser(req.Context(), al.Logger)
+	if curUsername == "" {
+		al.jsonErrorResponseWithTitle(w, http.StatusUnauthorized, "unauthorized")
+		return
+	}
+
+	var r changeMeRequest
+	dec := json.NewDecoder(req.Body)
+	dec.DisallowUnknownFields()
+	err := dec.Decode(&r)
+	if err == io.EOF { // is handled separately to return an informative error message
+		al.jsonErrorResponseWithTitle(w, http.StatusBadRequest, "Missing body with json data.")
+		return
+	} else if err != nil {
+		al.jsonErrorResponseWithError(w, http.StatusBadRequest, "", "Invalid JSON data.", err)
+		return
+	}
+
+	if err := al.usersService.Change(&users.User{
+		Username:    r.Username,
+		Password:    r.Password,
+		TwoFASendTo: r.TwoFASendTo,
+	}, curUsername); err != nil {
+		al.jsonError(w, err)
+		return
+	}
+
+	w.WriteHeader(http.StatusNoContent)
 }
 
 func (al *APIListener) handleGetIP(w http.ResponseWriter, req *http.Request) {
