@@ -210,23 +210,21 @@ paths:
         - "application/json"
       parameters:
         - in: "body"
-          name: "parameters to update"
+          name: "updated params"
           description: "your own parameters that you would like to update"
           required: true
           schema:
             type: "object"
             properties:
-              type: "object"
-              properties:
-                username:
-                  type: "string"
-                  description: "new username, empty if keep the same"
-                password:
-                  type: "string"
-                  description: "new password, empty if keep the same"
-                two_fa_send_to:
-                  type: "string"
-                  description: "applicable only when 2FA is enabled. New two_fa_send_to, empty if keep the same"
+              username:
+                type: "string"
+                description: "new username, empty if keep the same"
+              password:
+                type: "string"
+                description: "new password, empty if keep the same"
+              two_fa_send_to:
+                type: "string"
+                description: "applicable only when 2FA is enabled, ignored otherwise. New two_fa_send_to, empty if keep the same"
       responses:
         "204":
           description: "Successful Operation"
