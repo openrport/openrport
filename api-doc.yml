@@ -105,10 +105,11 @@ paths:
           description: "Invalid Operation"
           schema:
             $ref: "#/definitions/ErrorPayload"
+  /logout:
     delete:
       tags:
         - "Login"
-      summary: "Revoke token (logoff). Requires Bearer authorization provided"
+      summary: "Revoke token. Requires Bearer authorization provided"
       description: ""
       produces:
         - "application/json"

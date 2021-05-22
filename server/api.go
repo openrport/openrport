@@ -161,7 +161,7 @@ func (al *APIListener) initRouter() {
 	// all routes defined below do not have authorization middleware, auth is done in each handlers separately
 	sub.HandleFunc("/login", al.handleGetLogin).Methods(http.MethodGet)
 	sub.HandleFunc("/login", al.handlePostLogin).Methods(http.MethodPost)
-	sub.HandleFunc("/login", al.handleDeleteLogin).Methods(http.MethodDelete) // TODO: rename to logout
+	sub.HandleFunc("/logout", al.handleDeleteLogout).Methods(http.MethodDelete)
 	sub.HandleFunc("/verify-2fa", al.handlePostVerify2FAToken).Methods(http.MethodPost)
 
 	// web sockets
@@ -407,7 +407,7 @@ func parseTokenLifetime(req *http.Request) (time.Duration, error) {
 	return result, nil
 }
 
-func (al *APIListener) handleDeleteLogin(w http.ResponseWriter, req *http.Request) {
+func (al *APIListener) handleDeleteLogout(w http.ResponseWriter, req *http.Request) {
 	token, tokenProvided := getBearerToken(req)
 	if token == "" || !tokenProvided {
 		// ban IP if it sends a lot of bad requests
