@@ -23,7 +23,8 @@ schemes:
 tags:
   - name: "Login"
     description: For more details https://oss.rport.io/docs/no02-api-auth.html
-  - name: "Status"
+  - name: "Profile & Info"
+    description: "Profile and System Information"
   - name: "Clients and Tunnels"
     description: For more details https://oss.rport.io/docs/no09-managing-tunnels.html
   - name: "Client Groups"
@@ -104,10 +105,11 @@ paths:
           description: "Invalid Operation"
           schema:
             $ref: "#/definitions/ErrorPayload"
+  /logout:
     delete:
       tags:
         - "Login"
-      summary: "Revoke token (logoff). Requires Bearer authorization provided"
+      summary: "Revoke token. Requires Bearer authorization provided"
       description: ""
       produces:
         - "application/json"
@@ -182,7 +184,7 @@ paths:
   /me:
     get:
       tags:
-        - "Login"
+        - "Profile & Info"
       summary: "Return currently logged in user and groups the user belongs to"
       description: ""
       produces:
@@ -200,10 +202,50 @@ paths:
           description: "Invalid Operation"
           schema:
             $ref: "#/definitions/ErrorPayload"
+    put:
+      tags:
+        - "Profile & Info"
+      summary: "Update your own username, password or two_fa_send_to"
+      produces:
+        - "application/json"
+      parameters:
+        - in: "body"
+          name: "parameters to update"
+          description: "your own parameters that you would like to update"
+          required: true
+          schema:
+            type: "object"
+            properties:
+              type: "object"
+              properties:
+                username:
+                  type: "string"
+                  description: "new username, empty if keep the same"
+                password:
+                  type: "string"
+                  description: "new password, empty if keep the same"
+                two_fa_send_to:
+                  type: "string"
+                  description: "applicable only when 2FA is enabled. New two_fa_send_to, empty if keep the same"
+      responses:
+        "204":
+          description: "Successful Operation"
+        "400":
+          description: "Invalid request parameters"
+          schema:
+            $ref: "#/definitions/ErrorPayload"
+        "401":
+          description: "Unauthorized"
+          schema:
+            $ref: "#/definitions/ErrorPayload"
+        "500":
+          description: "Invalid Operation"
+          schema:
+            $ref: "#/definitions/ErrorPayload"
   /me/ip:
     get:
       tags:
-        - "Login"
+        - "Profile & Info"
       summary: "Return a public ip address of a client who makes the request"
       description: ""
       produces:
@@ -222,7 +264,7 @@ paths:
   /status:
     get:
       tags:
-        - "Status"
+        - "Profile & Info"
       summary: "Get information about rport server"
       description: "Show health status, server version, etc"
       produces:
