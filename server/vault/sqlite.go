@@ -5,8 +5,11 @@ import (
 	"database/sql"
 	"errors"
 	"fmt"
+	"net/http"
 	"strings"
 	"time"
+
+	errors2 "github.com/cloudradar-monitoring/rport/server/api/errors"
 
 	"github.com/cloudradar-monitoring/rport/db/migration/vaults"
 	chshare "github.com/cloudradar-monitoring/rport/share"
@@ -16,21 +19,30 @@ import (
 	"github.com/cloudradar-monitoring/rport/db/sqlite"
 )
 
+var ErrDatabaseNotInitialised = errors2.APIError{
+	Err:  errors.New("vault is not initialized yet"),
+	Code: http.StatusConflict,
+}
+
 type SqliteProvider struct {
-	dbPath string
 	db     *sqlx.DB
 	logger *chshare.Logger
 }
 
-var ErrDatabaseNotInitialised = errors.New("vault is not initialized yet")
-
-func NewSqliteProvider(c Config, logger *chshare.Logger) *SqliteProvider {
+func NewSqliteProvider(c Config, logger *chshare.Logger) (*SqliteProvider, error) {
 	dbPath := c.GetDatabasePath()
 	if dbPath == "" {
 		dbPath = defaultDBName
 	}
 
-	return &SqliteProvider{dbPath: dbPath, logger: logger}
+	db, err := sqlite.New(dbPath, vaults.AssetNames(), vaults.Asset)
+	if err != nil {
+		return nil, fmt.Errorf("failed init vault DB instance: %w", err)
+	}
+
+	logger.Infof("initialized database at %s", dbPath)
+
+	return &SqliteProvider{logger: logger, db: db}, nil
 }
 
 func (p *SqliteProvider) Close() error {
@@ -41,26 +53,9 @@ func (p *SqliteProvider) Close() error {
 	return nil
 }
 
-func (p *SqliteProvider) Init(ctx context.Context) error {
-	db, err := sqlite.New(p.dbPath, vaults.AssetNames(), vaults.Asset)
-	if err != nil {
-		return fmt.Errorf("failed init vault DB instance: %w", err)
-	}
-	p.logger.Infof("initialized database at %s", p.dbPath)
-
-	p.db = db
-
-	return nil
-}
-
 func (p *SqliteProvider) GetStatus(ctx context.Context) (DbStatus, error) {
-	db, err := p.getDb()
-	if err != nil {
-		return DbStatus{}, err
-	}
-
 	res := DbStatus{}
-	err = db.GetContext(ctx, &res, "SELECT * FROM `status` LIMIT 1")
+	err := p.db.GetContext(ctx, &res, "SELECT * FROM `status` LIMIT 1")
 	if err != nil {
 		if err == sql.ErrNoRows {
 			return res, nil
@@ -72,12 +67,7 @@ func (p *SqliteProvider) GetStatus(ctx context.Context) (DbStatus, error) {
 }
 
 func (p *SqliteProvider) SetStatus(ctx context.Context, newStatus DbStatus) error {
-	db, err := p.getDb()
-	if err != nil {
-		return err
-	}
-
-	tx, err := db.Beginx()
+	tx, err := p.db.Beginx()
 	if err != nil {
 		return err
 	}
@@ -130,12 +120,7 @@ func (p *SqliteProvider) SetStatus(ctx context.Context, newStatus DbStatus) erro
 }
 
 func (p *SqliteProvider) GetByID(ctx context.Context, id int) (val StoredValue, found bool, err error) {
-	db, err := p.getDb()
-	if err != nil {
-		return val, found, err
-	}
-
-	err = db.GetContext(ctx, &val, "SELECT * FROM `values` WHERE `id` = ? LIMIT 1", id)
+	err = p.db.GetContext(ctx, &val, "SELECT * FROM `values` WHERE `id` = ? LIMIT 1", id)
 	if err != nil {
 		if err == sql.ErrNoRows {
 			return val, false, nil
@@ -149,17 +134,13 @@ func (p *SqliteProvider) GetByID(ctx context.Context, id int) (val StoredValue, 
 
 func (p *SqliteProvider) List(ctx context.Context, lo *ListOptions) ([]ValueKey, error) {
 	values := []ValueKey{}
-	db, err := p.getDb()
-	if err != nil {
-		return values, err
-	}
 
 	q := "SELECT `id`, `client_id`, `created_by`, `created_at`, `key` FROM `values`"
 
 	q, params := p.addWhere(lo, q)
 	q = p.addOrderBy(lo, q)
 
-	err = db.SelectContext(ctx, &values, q, params...)
+	err := p.db.SelectContext(ctx, &values, q, params...)
 	if err != nil {
 		return values, err
 	}
@@ -214,12 +195,7 @@ func (p *SqliteProvider) addOrderBy(lo *ListOptions, q string) string {
 }
 
 func (p *SqliteProvider) FindByKeyAndClientID(ctx context.Context, key, clientID string) (val StoredValue, found bool, err error) {
-	db, err := p.getDb()
-	if err != nil {
-		return val, found, err
-	}
-
-	err = db.GetContext(ctx, &val, "SELECT * FROM `values` WHERE `key` = ? and `client_id` = ? LIMIT 1", key, clientID)
+	err = p.db.GetContext(ctx, &val, "SELECT * FROM `values` WHERE `key` = ? and `client_id` = ? LIMIT 1", key, clientID)
 	if err != nil {
 		if err == sql.ErrNoRows {
 			return val, false, nil
@@ -232,13 +208,8 @@ func (p *SqliteProvider) FindByKeyAndClientID(ctx context.Context, key, clientID
 }
 
 func (p *SqliteProvider) Save(ctx context.Context, user string, idToUpdate int64, val *InputValue, nowDate time.Time) (int64, error) {
-	db, err := p.getDb()
-	if err != nil {
-		return 0, err
-	}
-
 	if idToUpdate == 0 {
-		res, err := db.ExecContext(
+		res, err := p.db.ExecContext(
 			ctx,
 			"INSERT INTO `values` (`client_id`, `required_group`, `created_at`, `created_by`, `updated_at`, `updated_by`, `key`, `value`, `type`) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)",
 			val.ClientID,
@@ -271,7 +242,7 @@ func (p *SqliteProvider) Save(ctx context.Context, user string, idToUpdate int64
 			val.Type,
 			idToUpdate,
 		}
-		_, err = db.ExecContext(ctx, q, params...)
+		_, err := p.db.ExecContext(ctx, q, params...)
 		if err != nil {
 			return 0, err
 		}
@@ -281,12 +252,7 @@ func (p *SqliteProvider) Save(ctx context.Context, user string, idToUpdate int64
 }
 
 func (p *SqliteProvider) Delete(ctx context.Context, id int) error {
-	db, err := p.getDb()
-	if err != nil {
-		return err
-	}
-
-	res, err := db.ExecContext(ctx, "DELETE FROM `values` WHERE `id` = ?", id)
+	res, err := p.db.ExecContext(ctx, "DELETE FROM `values` WHERE `id` = ?", id)
 
 	if err != nil {
 		return err
@@ -304,17 +270,49 @@ func (p *SqliteProvider) Delete(ctx context.Context, id int) error {
 	return nil
 }
 
-func (p *SqliteProvider) getDb() (*sqlx.DB, error) {
-	if p.db == nil {
-		return nil, ErrDatabaseNotInitialised
-	}
-
-	return p.db, nil
-}
-
 func (p *SqliteProvider) handleRollback(tx *sqlx.Tx) {
 	err := tx.Rollback()
 	if err != nil {
 		p.logger.Errorf("Failed to rollback transaction: %v", err)
 	}
+}
+
+type NotInitDbProvider struct{}
+
+func (nidp *NotInitDbProvider) Init(ctx context.Context) error {
+	return ErrDatabaseNotInitialised
+}
+
+func (nidp *NotInitDbProvider) GetStatus(ctx context.Context) (DbStatus, error) {
+	return DbStatus{}, ErrDatabaseNotInitialised
+}
+
+func (nidp *NotInitDbProvider) SetStatus(ctx context.Context, newStatus DbStatus) error {
+	return ErrDatabaseNotInitialised
+}
+
+func (nidp *NotInitDbProvider) GetByID(ctx context.Context, id int) (val StoredValue, found bool, err error) {
+	err = ErrDatabaseNotInitialised
+	return
+}
+
+func (nidp *NotInitDbProvider) List(ctx context.Context, lo *ListOptions) ([]ValueKey, error) {
+	return nil, ErrDatabaseNotInitialised
+}
+
+func (nidp *NotInitDbProvider) FindByKeyAndClientID(ctx context.Context, key, clientID string) (val StoredValue, found bool, err error) {
+	err = ErrDatabaseNotInitialised
+	return
+}
+
+func (nidp *NotInitDbProvider) Save(ctx context.Context, user string, idToUpdate int64, val *InputValue, nowDate time.Time) (int64, error) {
+	return 0, ErrDatabaseNotInitialised
+}
+
+func (nidp *NotInitDbProvider) Delete(ctx context.Context, id int) error {
+	return ErrDatabaseNotInitialised
+}
+
+func (nidp *NotInitDbProvider) Close() error {
+	return nil
 }

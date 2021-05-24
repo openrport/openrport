@@ -3,6 +3,7 @@ package vault
 import (
 	"context"
 	"errors"
+	"io"
 	"net/http"
 	"net/url"
 	"testing"
@@ -49,9 +50,11 @@ type DbProviderMock struct {
 
 	DeleteIDGiven     int
 	DeleteErrorToGive error
+
+	io.Closer
 }
 
-func (dpm *DbProviderMock) Init(ctx context.Context) error {
+func (dpm *DbProviderMock) Init() error {
 	dpm.isInit = true
 	return dpm.initErr
 }
@@ -96,6 +99,10 @@ func (dpm *DbProviderMock) Delete(ctx context.Context, id int) error {
 	dpm.DeleteIDGiven = id
 
 	return dpm.DeleteErrorToGive
+}
+
+func (dpm *DbProviderMock) GetDbProvider() DbProvider {
+	return dpm
 }
 
 type PassManagerMock struct {

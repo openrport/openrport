@@ -100,8 +100,13 @@ func NewAPIListener(
 	}
 
 	vaultLogger := chshare.NewLogger("vault", config.Logging.LogOutput, config.Logging.LogLevel)
-	vaultDbProvider := vault.NewSqliteProvider(config.VaultConfig, vaultLogger)
-	defer vaultDbProvider.Close()
+
+	vaultDBProviderFactory := vault.NewStatefulDbProviderFactory(
+		func() (vault.DbProvider, error) {
+			return vault.NewSqliteProvider(config.VaultConfig, vaultLogger)
+		},
+		&vault.NotInitDbProvider{},
+	)
 
 	a := &APIListener{
 		Server:            server,
@@ -118,7 +123,7 @@ func NewAPIListener(
 			DB:           userDB,
 			TwoFAOn:      config.API.IsTwoFAOn(),
 		},
-		vaultManager: vault.NewManager(vaultDbProvider, &vault.Aes256PassManager{}, vaultLogger),
+		vaultManager: vault.NewManager(vaultDBProviderFactory, &vault.Aes256PassManager{}, vaultLogger),
 	}
 
 	if config.API.IsTwoFAOn() {
@@ -202,6 +207,11 @@ func (al *APIListener) Close() error {
 	if al.accessLogFile != nil {
 		g.Go(al.accessLogFile.Close)
 	}
+
+	if al.vaultManager != nil {
+		g.Go(al.vaultManager.Close)
+	}
+
 	return g.Wait()
 }
 

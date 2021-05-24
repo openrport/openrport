@@ -974,6 +974,25 @@ func (al *APIListener) getUserModel(req *http.Request) (*users.User, error) {
 	return user, err
 }
 
+func (al *APIListener) getUserModelForAuth(req *http.Request) (*users.User, error) {
+	usr, err := al.getUserModel(req)
+	if err != nil {
+		return nil, errors2.APIError{
+			Err:  err,
+			Code: http.StatusInternalServerError,
+		}
+	}
+
+	if usr == nil {
+		return nil, errors2.APIError{
+			Message: "unauthorized access",
+			Code:    http.StatusUnauthorized,
+		}
+	}
+
+	return usr, nil
+}
+
 func (al *APIListener) handleGetIP(w http.ResponseWriter, req *http.Request) {
 	ipResp := struct {
 		IP string `json:"ip"`
@@ -1893,20 +1912,9 @@ func (al *APIListener) wrapStaticPassModeMiddleware(next http.HandlerFunc) http.
 
 func (al *APIListener) wrapAdminAccessMiddleware(next http.HandlerFunc) http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
-		user, err := al.getUserModel(r)
+		user, err := al.getUserModelForAuth(r)
 		if err != nil {
-			al.jsonError(w, errors2.APIError{
-				Err:  err,
-				Code: http.StatusInternalServerError,
-			})
-			return
-		}
-
-		if user == nil {
-			al.jsonError(w, errors2.APIError{
-				Message: "unauthorized access",
-				Code:    http.StatusUnauthorized,
-			})
+			al.jsonError(w, err)
 			return
 		}
 
@@ -1982,7 +1990,11 @@ func (al *APIListener) handleVaultInit(w http.ResponseWriter, req *http.Request)
 
 func (al *APIListener) extractPassRequest(req *http.Request) (vault.PassRequest, error) {
 	var passReq vault.PassRequest
-	err := json.NewDecoder(req.Body).Decode(&passReq)
+
+	dec := json.NewDecoder(req.Body)
+	dec.DisallowUnknownFields()
+
+	err := dec.Decode(&passReq)
 	if err == io.EOF {
 		return passReq, errors2.APIError{
 			Message: "Missing password.",
@@ -2041,20 +2053,9 @@ func (al *APIListener) handleReadVaultValue(w http.ResponseWriter, req *http.Req
 		return
 	}
 
-	curUser, err := al.getUserModel(req)
+	curUser, err := al.getUserModelForAuth(req)
 	if err != nil {
-		al.jsonError(w, errors2.APIError{
-			Err:  err,
-			Code: http.StatusInternalServerError,
-		})
-		return
-	}
-
-	if curUser == nil {
-		al.jsonError(w, errors2.APIError{
-			Message: "unauthorized access",
-			Code:    http.StatusUnauthorized,
-		})
+		al.jsonError(w, err)
 		return
 	}
 
@@ -2081,19 +2082,9 @@ func (al *APIListener) handleVaultStoreValue(w http.ResponseWriter, req *http.Re
 		return
 	}
 
-	curUser, err := al.getUserModel(req)
+	curUser, err := al.getUserModelForAuth(req)
 	if err != nil {
-		al.jsonError(w, errors2.APIError{
-			Err:  err,
-			Code: http.StatusInternalServerError,
-		})
-		return
-	}
-	if curUser == nil {
-		al.jsonError(w, errors2.APIError{
-			Err:  errors.New("invalid user provided"),
-			Code: http.StatusUnauthorized,
-		})
+		al.jsonError(w, err)
 		return
 	}
 
@@ -2141,19 +2132,9 @@ func (al *APIListener) handleVaultDeleteValue(w http.ResponseWriter, req *http.R
 		return
 	}
 
-	curUser, err := al.getUserModel(req)
+	curUser, err := al.getUserModelForAuth(req)
 	if err != nil {
-		al.jsonError(w, errors2.APIError{
-			Err:  err,
-			Code: http.StatusInternalServerError,
-		})
-		return
-	}
-	if curUser == nil {
-		al.jsonError(w, errors2.APIError{
-			Err:  errors.New("invalid user provided"),
-			Code: http.StatusUnauthorized,
-		})
+		al.jsonError(w, err)
 		return
 	}
 

@@ -24,26 +24,11 @@ func (cm configMock) GetDatabasePath() string {
 	return ":memory:"
 }
 
-func TestCallsBeforeInit(t *testing.T) {
-	dbProv := NewSqliteProvider(configMock{}, testLog)
-
-	const expectedErrorText = "vault is not initialized yet"
-	_, err := dbProv.GetStatus(context.Background())
-	assert.EqualError(t, err, expectedErrorText)
-
-	err = dbProv.SetStatus(context.Background(), DbStatus{})
-	assert.EqualError(t, err, expectedErrorText)
-
-	err = dbProv.Close()
-	assert.NoError(t, err)
-}
-
 func TestSetStatus(t *testing.T) {
-	dbProv := NewSqliteProvider(configMock{}, testLog)
-	defer dbProv.Close()
-
-	err := dbProv.Init(context.Background())
+	dbProv, err := NewSqliteProvider(configMock{}, testLog)
 	require.NoError(t, err)
+
+	defer dbProv.Close()
 
 	statusToSet := DbStatus{
 		StatusName:    DbStatusInit,
@@ -81,11 +66,9 @@ func TestSetStatus(t *testing.T) {
 }
 
 func TestGetStatus(t *testing.T) {
-	dbProv := NewSqliteProvider(configMock{}, testLog)
-	defer dbProv.Close()
-
-	err := dbProv.Init(context.Background())
+	dbProv, err := NewSqliteProvider(configMock{}, testLog)
 	require.NoError(t, err)
+	defer dbProv.Close()
 
 	dbStatus, err := dbProv.GetStatus(context.Background())
 	require.NoError(t, err)
@@ -119,15 +102,11 @@ func TestGetStatus(t *testing.T) {
 }
 
 func TestGetByID(t *testing.T) {
-	dbProv := NewSqliteProvider(configMock{}, testLog)
+	dbProv, err := NewSqliteProvider(configMock{}, testLog)
+	require.NoError(t, err)
 	defer dbProv.Close()
 
 	ctx := context.Background()
-	_, _, err := dbProv.GetByID(ctx, 1)
-	assert.Equal(t, err, ErrDatabaseNotInitialised)
-
-	err = dbProv.Init(ctx)
-	require.NoError(t, err)
 
 	err = addDemoData(dbProv.db)
 	require.NoError(t, err)
@@ -163,22 +142,16 @@ func TestGetByID(t *testing.T) {
 }
 
 func TestList(t *testing.T) {
-	dbProv := NewSqliteProvider(configMock{}, testLog)
-	defer dbProv.Close()
-
-	ctx := context.Background()
-	_, err := dbProv.List(ctx, &ListOptions{})
-	assert.Equal(t, err, ErrDatabaseNotInitialised)
-
-	err = dbProv.Init(ctx)
+	dbProv, err := NewSqliteProvider(configMock{}, testLog)
 	require.NoError(t, err)
+	defer dbProv.Close()
 
 	err = addDemoData(dbProv.db)
 	require.NoError(t, err)
 	expectedCreatedAt, err := time.Parse("2006-01-02 15:04:05", "2001-01-01 00:00:00")
 	require.NoError(t, err)
 
-	vals, err := dbProv.List(ctx, &ListOptions{})
+	vals, err := dbProv.List(context.Background(), &ListOptions{})
 	require.NoError(t, err)
 	assert.Equal(
 		t,
@@ -201,7 +174,7 @@ func TestList(t *testing.T) {
 		vals,
 	)
 
-	vals, err = dbProv.List(ctx, &ListOptions{
+	vals, err = dbProv.List(context.Background(), &ListOptions{
 		Sorts: []SortOption{
 			{
 				Column: "client_id",
@@ -231,7 +204,7 @@ func TestList(t *testing.T) {
 		vals,
 	)
 
-	vals, err = dbProv.List(ctx, &ListOptions{
+	vals, err = dbProv.List(context.Background(), &ListOptions{
 		Sorts: []SortOption{
 			{
 				Column: "key",
@@ -267,7 +240,7 @@ func TestList(t *testing.T) {
 		vals,
 	)
 
-	vals, err = dbProv.List(ctx, &ListOptions{
+	vals, err = dbProv.List(context.Background(), &ListOptions{
 		Filters: []FilterOption{
 			{
 				Column: "client_id",
@@ -278,7 +251,7 @@ func TestList(t *testing.T) {
 	require.NoError(t, err)
 	assert.Equal(t, []ValueKey{}, vals)
 
-	vals, err = dbProv.List(ctx, &ListOptions{
+	vals, err = dbProv.List(context.Background(), &ListOptions{
 		Filters: []FilterOption{
 			{
 				Column: "key",
@@ -301,7 +274,7 @@ func TestList(t *testing.T) {
 		vals,
 	)
 
-	vals, err = dbProv.List(ctx, &ListOptions{
+	vals, err = dbProv.List(context.Background(), &ListOptions{
 		Sorts: []SortOption{
 			{
 				Column: "key",
@@ -343,30 +316,14 @@ func TestList(t *testing.T) {
 }
 
 func TestCreate(t *testing.T) {
-	dbProv := NewSqliteProvider(configMock{}, testLog)
+	dbProv, err := NewSqliteProvider(configMock{}, testLog)
+	require.NoError(t, err)
 	defer dbProv.Close()
 
 	expectedCreatedAt, err := time.Parse("2006-01-02 15:04:05", "2001-01-01 00:00:00")
 	require.NoError(t, err)
 
 	ctx := context.Background()
-	_, err = dbProv.Save(
-		ctx,
-		"user123",
-		0,
-		&InputValue{
-			ClientID:      "client123",
-			RequiredGroup: "group123",
-			Key:           "key123",
-			Value:         "value123",
-			Type:          "typ123",
-		},
-		expectedCreatedAt,
-	)
-	assert.Equal(t, err, ErrDatabaseNotInitialised)
-
-	err = dbProv.Init(ctx)
-	require.NoError(t, err)
 
 	id, err := dbProv.Save(
 		ctx,
@@ -403,7 +360,8 @@ func TestCreate(t *testing.T) {
 }
 
 func TestUpdate(t *testing.T) {
-	dbProv := NewSqliteProvider(configMock{}, testLog)
+	dbProv, err := NewSqliteProvider(configMock{}, testLog)
+	require.NoError(t, err)
 	defer dbProv.Close()
 
 	expectedCreatedAt, err := time.Parse("2006-01-02 15:04:05", "2001-01-01 00:00:00")
@@ -413,8 +371,6 @@ func TestUpdate(t *testing.T) {
 	require.NoError(t, err)
 
 	ctx := context.Background()
-	err = dbProv.Init(ctx)
-	require.NoError(t, err)
 
 	err = addDemoData(dbProv.db)
 	require.NoError(t, err)
@@ -454,19 +410,14 @@ func TestUpdate(t *testing.T) {
 }
 
 func TestFindByKeyAndClientID(t *testing.T) {
-	dbProv := NewSqliteProvider(configMock{}, testLog)
+	dbProv, err := NewSqliteProvider(configMock{}, testLog)
+	require.NoError(t, err)
 	defer dbProv.Close()
 
 	expectedCreatedAt, err := time.Parse("2006-01-02 15:04:05", "2001-01-01 00:00:00")
 	require.NoError(t, err)
 
 	ctx := context.Background()
-
-	_, _, err = dbProv.FindByKeyAndClientID(ctx, "key1", "client1")
-	assert.Equal(t, err, ErrDatabaseNotInitialised)
-
-	err = dbProv.Init(ctx)
-	require.NoError(t, err)
 
 	err = addDemoData(dbProv.db)
 	require.NoError(t, err)
@@ -504,18 +455,13 @@ func TestFindByKeyAndClientID(t *testing.T) {
 }
 
 func TestDelete(t *testing.T) {
-	dbProv := NewSqliteProvider(configMock{}, testLog)
+	dbProv, err := NewSqliteProvider(configMock{}, testLog)
+	require.NoError(t, err)
 	defer dbProv.Close()
 
 	ctx := context.Background()
 
-	err := dbProv.Delete(ctx, 1)
-	assert.Equal(t, err, ErrDatabaseNotInitialised)
-
 	expectedCreatedAt, err := time.Parse("2006-01-02 15:04:05", "2001-01-01 00:00:00")
-	require.NoError(t, err)
-
-	err = dbProv.Init(ctx)
 	require.NoError(t, err)
 
 	err = addDemoData(dbProv.db)

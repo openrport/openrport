@@ -4,6 +4,7 @@ import (
 	"context"
 	"errors"
 	"fmt"
+	"io"
 	"net/http"
 	"sync"
 	"time"
@@ -40,7 +41,6 @@ type UserDataProvider interface {
 }
 
 type DbProvider interface {
-	Init(ctx context.Context) error
 	GetStatus(ctx context.Context) (DbStatus, error)
 	SetStatus(ctx context.Context, newStatus DbStatus) error
 	GetByID(ctx context.Context, id int) (val StoredValue, found bool, err error)
@@ -48,6 +48,7 @@ type DbProvider interface {
 	FindByKeyAndClientID(ctx context.Context, key, clientID string) (val StoredValue, found bool, err error)
 	Save(ctx context.Context, user string, idToUpdate int64, val *InputValue, nowDate time.Time) (int64, error)
 	Delete(ctx context.Context, id int) error
+	io.Closer
 }
 
 type PassManager interface {
@@ -56,20 +57,25 @@ type PassManager interface {
 	GetEncRandValue(pass string) (encValue, decValue string, err error)
 }
 
-type Manager struct {
-	passLock sync.RWMutex
-	pass     string
-	db       DbProvider
-	pm       PassManager
-	logger   *chshare.Logger
+type DbProviderFactory interface {
+	GetDbProvider() DbProvider
+	Init() error
 }
 
-func NewManager(db DbProvider, pm PassManager, logger *chshare.Logger) *Manager {
+type Manager struct {
+	passLock  sync.RWMutex
+	pass      string
+	dbFactory DbProviderFactory
+	pm        PassManager
+	logger    *chshare.Logger
+}
+
+func NewManager(dbFactory DbProviderFactory, pm PassManager, logger *chshare.Logger) *Manager {
 	return &Manager{
-		passLock: sync.RWMutex{},
-		db:       db,
-		pm:       pm,
-		logger:   logger,
+		passLock:  sync.RWMutex{},
+		dbFactory: dbFactory,
+		pm:        pm,
+		logger:    logger,
 	}
 }
 
@@ -90,7 +96,7 @@ func (m *Manager) Init(ctx context.Context, pass string) error {
 		}
 	}
 
-	err = m.db.Init(ctx)
+	err = m.dbFactory.Init()
 	if err != nil {
 		return err
 	}
@@ -104,7 +110,9 @@ func (m *Manager) Init(ctx context.Context, pass string) error {
 		return err
 	}
 
-	err = m.db.SetStatus(ctx, dbStatus)
+	db := m.dbFactory.GetDbProvider()
+
+	err = db.SetStatus(ctx, dbStatus)
 	if err != nil {
 		return err
 	}
@@ -118,7 +126,9 @@ func (m *Manager) Init(ctx context.Context, pass string) error {
 }
 
 func (m *Manager) isDatabaseInitialized(ctx context.Context) (bool, error) {
-	dbStatus, err := m.db.GetStatus(ctx)
+	db := m.dbFactory.GetDbProvider()
+
+	dbStatus, err := db.GetStatus(ctx)
 	if err != nil {
 		if errors.Is(err, ErrDatabaseNotInitialised) {
 			return false, nil
@@ -141,7 +151,9 @@ func (m *Manager) UnLock(ctx context.Context, pass string) error {
 		}
 	}
 
-	dbStatus, err := m.db.GetStatus(ctx)
+	db := m.dbFactory.GetDbProvider()
+
+	dbStatus, err := db.GetStatus(ctx)
 	if err != nil {
 		return err
 	}
@@ -179,7 +191,8 @@ func (m *Manager) Lock(ctx context.Context) error {
 		}
 	}
 
-	dbStatus, err := m.db.GetStatus(ctx)
+	db := m.dbFactory.GetDbProvider()
+	dbStatus, err := db.GetStatus(ctx)
 	if err != nil {
 		return err
 	}
@@ -200,8 +213,8 @@ func (m *Manager) Lock(ctx context.Context) error {
 }
 
 func (m *Manager) IsLocked() bool {
-	m.passLock.Lock()
-	defer m.passLock.Unlock()
+	m.passLock.RLock()
+	defer m.passLock.RUnlock()
 
 	return m.pass == ""
 }
@@ -209,7 +222,8 @@ func (m *Manager) IsLocked() bool {
 func (m *Manager) Status(ctx context.Context) (StatusReport, error) {
 	sr := StatusReport{}
 
-	dbStatus, err := m.db.GetStatus(ctx)
+	db := m.dbFactory.GetDbProvider()
+	dbStatus, err := db.GetStatus(ctx)
 	if err != nil && !errors.Is(err, ErrDatabaseNotInitialised) {
 		return sr, err
 	}
@@ -246,7 +260,9 @@ func (m *Manager) List(ctx context.Context, re *http.Request) ([]ValueKey, error
 		return nil, err
 	}
 
-	return m.db.List(ctx, listOptions)
+	db := m.dbFactory.GetDbProvider()
+
+	return db.List(ctx, listOptions)
 }
 
 func (m *Manager) validateListOptions(lo *ListOptions) error {
@@ -306,7 +322,9 @@ func (m *Manager) GetOne(ctx context.Context, id int, user UserDataProvider) (St
 		return StoredValue{}, false, err
 	}
 
-	val, found, err := m.db.GetByID(ctx, id)
+	db := m.dbFactory.GetDbProvider()
+
+	val, found, err := db.GetByID(ctx, id)
 	if err != nil {
 		return StoredValue{}, false, err
 	}
@@ -340,13 +358,15 @@ func (m *Manager) Store(ctx context.Context, id int64, iv *InputValue, user User
 		return StoredValueID{}, err
 	}
 
-	storedValue, found, err := m.db.FindByKeyAndClientID(ctx, iv.Key, iv.ClientID)
+	db := m.dbFactory.GetDbProvider()
+
+	storedValue, found, err := db.FindByKeyAndClientID(ctx, iv.Key, iv.ClientID)
 	if err != nil {
 		return StoredValueID{}, err
 	}
 
 	if id > 0 {
-		val, found2, err := m.db.GetByID(ctx, int(id))
+		val, found2, err := db.GetByID(ctx, int(id))
 		if err != nil {
 			return StoredValueID{}, err
 		}
@@ -379,7 +399,7 @@ func (m *Manager) Store(ctx context.Context, id int64, iv *InputValue, user User
 	iv.Value = encValue
 
 	res := StoredValueID{}
-	res.ID, err = m.db.Save(ctx, user.GetUsername(), id, iv, time.Now())
+	res.ID, err = db.Save(ctx, user.GetUsername(), id, iv, time.Now())
 	if err != nil {
 		return StoredValueID{}, err
 	}
@@ -393,7 +413,9 @@ func (m *Manager) Delete(ctx context.Context, id int, user UserDataProvider) err
 		return err
 	}
 
-	storedValue, found, err := m.db.GetByID(ctx, id)
+	db := m.dbFactory.GetDbProvider()
+
+	storedValue, found, err := db.GetByID(ctx, id)
 	if err != nil {
 		return err
 	}
@@ -410,7 +432,7 @@ func (m *Manager) Delete(ctx context.Context, id int, user UserDataProvider) err
 		return err
 	}
 
-	err = m.db.Delete(ctx, id)
+	err = db.Delete(ctx, id)
 	if err != nil {
 		return err
 	}
@@ -439,4 +461,9 @@ func (m *Manager) checkUnlockedAndInitialized(ctx context.Context) error {
 	}
 
 	return nil
+}
+
+func (m *Manager) Close() error {
+	db := m.dbFactory.GetDbProvider()
+	return db.Close()
 }
