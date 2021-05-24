@@ -7,6 +7,8 @@ import (
 	"net/smtp"
 
 	"github.com/jordan-wright/email"
+
+	email2 "github.com/cloudradar-monitoring/rport/share/email"
 )
 
 type SMTPService struct {
@@ -63,4 +65,8 @@ func (s *SMTPService) Send(title, msg, receiver string) error {
 
 func (s *SMTPService) DeliveryMethod() string {
 	return "email"
+}
+
+func (s *SMTPService) ValidateReceiver(email string) error {
+	return email2.Validate(email)
 }

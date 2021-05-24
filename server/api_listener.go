@@ -147,6 +147,7 @@ func NewAPIListener(
 		}
 
 		a.twoFASrv = NewTwoFAService(config.API.TwoFATokenTTLSeconds, userService, msgSrv)
+		a.usersService.DeliverySrv = msgSrv
 		a.Logger.Infof("2FA is enabled via using %s", config.API.TwoFATokenDelivery)
 	}
 

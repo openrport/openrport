@@ -127,6 +127,7 @@ func (al *APIListener) initRouter() {
 	sub := r.PathPrefix("/api/v1").Subrouter()
 	sub.HandleFunc("/status", al.handleGetStatus).Methods(http.MethodGet)
 	sub.HandleFunc("/me", al.handleGetMe).Methods(http.MethodGet)
+	sub.HandleFunc("/me", al.handleChangeMe).Methods(http.MethodPut)
 	sub.HandleFunc("/me/ip", al.handleGetIP).Methods(http.MethodGet)
 	sub.HandleFunc("/clients", al.handleGetClients).Methods(http.MethodGet)
 	sub.HandleFunc("/clients/{client_id}", al.handleDeleteClient).Methods(http.MethodDelete)
@@ -171,7 +172,7 @@ func (al *APIListener) initRouter() {
 	// all routes defined below do not have authorization middleware, auth is done in each handlers separately
 	sub.HandleFunc("/login", al.handleGetLogin).Methods(http.MethodGet)
 	sub.HandleFunc("/login", al.handlePostLogin).Methods(http.MethodPost)
-	sub.HandleFunc("/login", al.handleDeleteLogin).Methods(http.MethodDelete) // TODO: rename to logout
+	sub.HandleFunc("/logout", al.handleDeleteLogout).Methods(http.MethodDelete)
 	sub.HandleFunc("/verify-2fa", al.handlePostVerify2FAToken).Methods(http.MethodPost)
 
 	// web sockets
@@ -417,7 +418,7 @@ func parseTokenLifetime(req *http.Request) (time.Duration, error) {
 	return result, nil
 }
 
-func (al *APIListener) handleDeleteLogin(w http.ResponseWriter, req *http.Request) {
+func (al *APIListener) handleDeleteLogout(w http.ResponseWriter, req *http.Request) {
 	token, tokenProvided := getBearerToken(req)
 	if token == "" || !tokenProvided {
 		// ban IP if it sends a lot of bad requests
@@ -525,16 +526,24 @@ func (al *APIListener) handleGetStatus(w http.ResponseWriter, req *http.Request)
 		return
 	}
 
+	var twoFADelivery string
+	if al.twoFASrv.MsgSrv != nil {
+		twoFADelivery = al.twoFASrv.MsgSrv.DeliveryMethod()
+	}
+
 	response := api.NewSuccessPayload(map[string]interface{}{
-		"version":              chshare.BuildVersion,
-		"clients_connected":    countActive,
-		"clients_disconnected": countDisconnected,
-		"fingerprint":          al.fingerprint,
-		"connect_url":          al.config.Server.URL,
-		"clients_auth_source":  al.clientAuthProvider.Source(),
-		"clients_auth_mode":    al.getClientsAuthMode(),
-		"users_auth_source":    al.usersService.ProviderType,
+		"version":                chshare.BuildVersion,
+		"clients_connected":      countActive,
+		"clients_disconnected":   countDisconnected,
+		"fingerprint":            al.fingerprint,
+		"connect_url":            al.config.Server.URL,
+		"clients_auth_source":    al.clientAuthProvider.Source(),
+		"clients_auth_mode":      al.getClientsAuthMode(),
+		"users_auth_source":      al.usersService.ProviderType,
+		"two_fa_enabled":         al.config.API.IsTwoFAOn(),
+		"two_fa_delivery_method": twoFADelivery,
 	})
+
 	al.writeJSONResponse(w, http.StatusOK, response)
 }
 
@@ -609,7 +618,7 @@ func (al *APIListener) handleChangeUser(w http.ResponseWriter, req *http.Request
 	}
 
 	if userIDExists {
-		al.Debugf("User [%s] updated.", user.Username)
+		al.Debugf("User [%s] updated.", userID)
 		w.WriteHeader(http.StatusNoContent)
 	} else {
 		al.Debugf("User [%s] created.", user.Username)
@@ -953,11 +962,49 @@ func (al *APIListener) handleGetMe(w http.ResponseWriter, req *http.Request) {
 	}
 
 	me := UserPayload{
-		Username: user.Username,
-		Groups:   user.Groups,
+		Username:    user.Username,
+		Groups:      user.Groups,
+		TwoFASendTo: user.TwoFASendTo,
 	}
 	response := api.NewSuccessPayload(me)
 	al.writeJSONResponse(w, http.StatusOK, response)
+}
+
+type changeMeRequest struct {
+	Username    string `json:"username"`
+	Password    string `json:"password"`
+	TwoFASendTo string `json:"two_fa_send_to"`
+}
+
+func (al *APIListener) handleChangeMe(w http.ResponseWriter, req *http.Request) {
+	curUsername := api.GetUser(req.Context(), al.Logger)
+	if curUsername == "" {
+		al.jsonErrorResponseWithTitle(w, http.StatusUnauthorized, "unauthorized")
+		return
+	}
+
+	var r changeMeRequest
+	dec := json.NewDecoder(req.Body)
+	dec.DisallowUnknownFields()
+	err := dec.Decode(&r)
+	if err == io.EOF { // is handled separately to return an informative error message
+		al.jsonErrorResponseWithTitle(w, http.StatusBadRequest, "Missing body with json data.")
+		return
+	} else if err != nil {
+		al.jsonErrorResponseWithError(w, http.StatusBadRequest, "", "Invalid JSON data.", err)
+		return
+	}
+
+	if err := al.usersService.Change(&users.User{
+		Username:    r.Username,
+		Password:    r.Password,
+		TwoFASendTo: r.TwoFASendTo,
+	}, curUsername); err != nil {
+		al.jsonError(w, err)
+		return
+	}
+
+	w.WriteHeader(http.StatusNoContent)
 }
 
 func (al *APIListener) getUserModel(req *http.Request) (*users.User, error) {
