@@ -60,18 +60,3 @@ type StoredValue struct {
 	CreatedBy string    `db:"created_by"`
 	UpdatedBy *string   `db:"updated_by"`
 }
-
-type SortOption struct {
-	Column string
-	IsASC  bool
-}
-
-type FilterOption struct {
-	Column string
-	Values []string
-}
-
-type ListOptions struct {
-	Sorts   []SortOption
-	Filters []FilterOption
-}

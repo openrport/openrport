@@ -60,7 +60,7 @@ func Aes256Encrypt(payload, aes32Key []byte) (encryptedData []byte, err error) {
 	return ciphertext, nil
 }
 
-// Aes256DecryptByPassFromBase64String a user friendly wrapper of AesDecrypt and the revere operation of AesEncryptStringToBase64String:
+// Aes256DecryptByPassFromBase64String a user friendly wrapper of AesDecrypt and the reverse operation of AesEncryptStringToBase64String:
 // it accepts base64 encrypted string and a password and returns a decrypted data
 func Aes256DecryptByPassFromBase64String(encryptedBase64Data, password string) (decryptedBytes []byte, err error) {
 	aes32Key, err := convertPasswordToFixedLength32ByteAesKey(password)

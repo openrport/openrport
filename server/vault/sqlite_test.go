@@ -6,6 +6,8 @@ import (
 	"testing"
 	"time"
 
+	"github.com/cloudradar-monitoring/rport/share/query"
+
 	"github.com/jmoiron/sqlx"
 
 	"github.com/stretchr/testify/assert"
@@ -151,7 +153,7 @@ func TestList(t *testing.T) {
 	expectedCreatedAt, err := time.Parse("2006-01-02 15:04:05", "2001-01-01 00:00:00")
 	require.NoError(t, err)
 
-	vals, err := dbProv.List(context.Background(), &ListOptions{})
+	vals, err := dbProv.List(context.Background(), &query.ListOptions{})
 	require.NoError(t, err)
 	assert.Equal(
 		t,
@@ -174,8 +176,8 @@ func TestList(t *testing.T) {
 		vals,
 	)
 
-	vals, err = dbProv.List(context.Background(), &ListOptions{
-		Sorts: []SortOption{
+	vals, err = dbProv.List(context.Background(), &query.ListOptions{
+		Sorts: []query.SortOption{
 			{
 				Column: "client_id",
 				IsASC:  false,
@@ -204,14 +206,14 @@ func TestList(t *testing.T) {
 		vals,
 	)
 
-	vals, err = dbProv.List(context.Background(), &ListOptions{
-		Sorts: []SortOption{
+	vals, err = dbProv.List(context.Background(), &query.ListOptions{
+		Sorts: []query.SortOption{
 			{
 				Column: "key",
 				IsASC:  true,
 			},
 		},
-		Filters: []FilterOption{
+		Filters: []query.FilterOption{
 			{
 				Column: "created_by",
 				Values: []string{"user1"},
@@ -240,8 +242,8 @@ func TestList(t *testing.T) {
 		vals,
 	)
 
-	vals, err = dbProv.List(context.Background(), &ListOptions{
-		Filters: []FilterOption{
+	vals, err = dbProv.List(context.Background(), &query.ListOptions{
+		Filters: []query.FilterOption{
 			{
 				Column: "client_id",
 				Values: []string{"notExistingClient"},
@@ -251,8 +253,8 @@ func TestList(t *testing.T) {
 	require.NoError(t, err)
 	assert.Equal(t, []ValueKey{}, vals)
 
-	vals, err = dbProv.List(context.Background(), &ListOptions{
-		Filters: []FilterOption{
+	vals, err = dbProv.List(context.Background(), &query.ListOptions{
+		Filters: []query.FilterOption{
 			{
 				Column: "key",
 				Values: []string{"key1"},
@@ -274,14 +276,14 @@ func TestList(t *testing.T) {
 		vals,
 	)
 
-	vals, err = dbProv.List(context.Background(), &ListOptions{
-		Sorts: []SortOption{
+	vals, err = dbProv.List(context.Background(), &query.ListOptions{
+		Sorts: []query.SortOption{
 			{
 				Column: "key",
 				IsASC:  true,
 			},
 		},
-		Filters: []FilterOption{
+		Filters: []query.FilterOption{
 			{
 				Column: "key",
 				Values: []string{"key1", "key2"},

@@ -1,10 +1,25 @@
-package vault
+package query
 
 import (
 	"net/http"
 	"regexp"
 	"strings"
 )
+
+type SortOption struct {
+	Column string
+	IsASC  bool
+}
+
+type FilterOption struct {
+	Column string
+	Values []string
+}
+
+type ListOptions struct {
+	Sorts   []SortOption
+	Filters []FilterOption
+}
 
 func ConvertGetParamsToFilterOptions(req *http.Request) *ListOptions {
 	return &ListOptions{

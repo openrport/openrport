@@ -63,21 +63,21 @@ func TestPassMatch(t *testing.T) {
 	encPass, err := enc.Aes256EncryptByPassToBase64String([]byte(dataToGive), passToGive)
 	require.NoError(t, err)
 
-	inpuDbStatus := DbStatus{
+	inputDbStatus := DbStatus{
 		EncCheckValue: encPass,
 		DecCheckValue: dataToGive,
 	}
 
-	isMatched, err := passManager.PassMatch(inpuDbStatus, passToGive)
+	isMatched, err := passManager.PassMatch(inputDbStatus, passToGive)
 	require.NoError(t, err)
 	assert.True(t, isMatched)
 
-	isMatched2, err2 := passManager.PassMatch(inpuDbStatus, passToGive+"123")
+	isMatched2, err2 := passManager.PassMatch(inputDbStatus, passToGive+"123")
 	require.NoError(t, err2)
 	assert.False(t, isMatched2)
 
-	inpuDbStatus.EncCheckValue += "123"
-	isMatched3, err3 := passManager.PassMatch(inpuDbStatus, passToGive)
+	inputDbStatus.EncCheckValue += "123"
+	isMatched3, err3 := passManager.PassMatch(inputDbStatus, passToGive)
 	require.NoError(t, err3)
 	assert.False(t, isMatched3)
 }

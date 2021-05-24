@@ -9,6 +9,8 @@ import (
 	"strings"
 	"time"
 
+	"github.com/cloudradar-monitoring/rport/share/query"
+
 	errors2 "github.com/cloudradar-monitoring/rport/server/api/errors"
 
 	"github.com/cloudradar-monitoring/rport/db/migration/vaults"
@@ -132,7 +134,7 @@ func (p *SqliteProvider) GetByID(ctx context.Context, id int) (val StoredValue, 
 	return val, true, nil
 }
 
-func (p *SqliteProvider) List(ctx context.Context, lo *ListOptions) ([]ValueKey, error) {
+func (p *SqliteProvider) List(ctx context.Context, lo *query.ListOptions) ([]ValueKey, error) {
 	values := []ValueKey{}
 
 	q := "SELECT `id`, `client_id`, `created_by`, `created_at`, `key` FROM `values`"
@@ -148,7 +150,7 @@ func (p *SqliteProvider) List(ctx context.Context, lo *ListOptions) ([]ValueKey,
 	return values, nil
 }
 
-func (p *SqliteProvider) addWhere(lo *ListOptions, q string) (qOut string, params []interface{}) {
+func (p *SqliteProvider) addWhere(lo *query.ListOptions, q string) (qOut string, params []interface{}) {
 	params = []interface{}{}
 	if len(lo.Filters) == 0 {
 		return q, params
@@ -175,7 +177,7 @@ func (p *SqliteProvider) addWhere(lo *ListOptions, q string) (qOut string, param
 	return q, params
 }
 
-func (p *SqliteProvider) addOrderBy(lo *ListOptions, q string) string {
+func (p *SqliteProvider) addOrderBy(lo *query.ListOptions, q string) string {
 	if len(lo.Sorts) == 0 {
 		return q
 	}
@@ -296,7 +298,7 @@ func (nidp *NotInitDbProvider) GetByID(ctx context.Context, id int) (val StoredV
 	return
 }
 
-func (nidp *NotInitDbProvider) List(ctx context.Context, lo *ListOptions) ([]ValueKey, error) {
+func (nidp *NotInitDbProvider) List(ctx context.Context, lo *query.ListOptions) ([]ValueKey, error) {
 	return nil, ErrDatabaseNotInitialised
 }
 

@@ -9,6 +9,8 @@ import (
 	"sync"
 	"time"
 
+	"github.com/cloudradar-monitoring/rport/share/query"
+
 	"github.com/cloudradar-monitoring/rport/share/enc"
 
 	chshare "github.com/cloudradar-monitoring/rport/share"
@@ -44,7 +46,7 @@ type DbProvider interface {
 	GetStatus(ctx context.Context) (DbStatus, error)
 	SetStatus(ctx context.Context, newStatus DbStatus) error
 	GetByID(ctx context.Context, id int) (val StoredValue, found bool, err error)
-	List(ctx context.Context, lo *ListOptions) ([]ValueKey, error)
+	List(ctx context.Context, lo *query.ListOptions) ([]ValueKey, error)
 	FindByKeyAndClientID(ctx context.Context, key, clientID string) (val StoredValue, found bool, err error)
 	Save(ctx context.Context, user string, idToUpdate int64, val *InputValue, nowDate time.Time) (int64, error)
 	Delete(ctx context.Context, id int) error
@@ -253,7 +255,7 @@ func (m *Manager) List(ctx context.Context, re *http.Request) ([]ValueKey, error
 		return nil, err
 	}
 
-	listOptions := ConvertGetParamsToFilterOptions(re)
+	listOptions := query.ConvertGetParamsToFilterOptions(re)
 
 	err = m.validateListOptions(listOptions)
 	if err != nil {
@@ -265,7 +267,7 @@ func (m *Manager) List(ctx context.Context, re *http.Request) ([]ValueKey, error
 	return db.List(ctx, listOptions)
 }
 
-func (m *Manager) validateListOptions(lo *ListOptions) error {
+func (m *Manager) validateListOptions(lo *query.ListOptions) error {
 	errs := errors2.APIErrors{}
 	for i := range lo.Sorts {
 		ok := supportedFields[lo.Sorts[i].Column]
@@ -338,6 +340,9 @@ func (m *Manager) GetOne(ctx context.Context, id int, user UserDataProvider) (St
 		return StoredValue{}, false, err
 	}
 
+	m.passLock.RLock()
+	defer m.passLock.RUnlock()
+
 	decryptedValue, err := enc.Aes256DecryptByPassFromBase64String(val.Value, m.pass)
 	if err != nil {
 		return StoredValue{}, false, err
@@ -347,33 +352,33 @@ func (m *Manager) GetOne(ctx context.Context, id int, user UserDataProvider) (St
 	return val, true, nil
 }
 
-func (m *Manager) Store(ctx context.Context, id int64, iv *InputValue, user UserDataProvider) (StoredValueID, error) {
+func (m *Manager) Store(ctx context.Context, existingID int64, valueToStore *InputValue, user UserDataProvider) (StoredValueID, error) {
 	err := m.checkUnlockedAndInitialized(ctx)
 	if err != nil {
 		return StoredValueID{}, err
 	}
 
-	err = Validate(iv)
+	err = Validate(valueToStore)
 	if err != nil {
 		return StoredValueID{}, err
 	}
 
 	db := m.dbFactory.GetDbProvider()
 
-	storedValue, found, err := db.FindByKeyAndClientID(ctx, iv.Key, iv.ClientID)
+	storedValue, found, err := db.FindByKeyAndClientID(ctx, valueToStore.Key, valueToStore.ClientID)
 	if err != nil {
 		return StoredValueID{}, err
 	}
 
-	if id > 0 {
-		val, found2, err := db.GetByID(ctx, int(id))
+	if existingID > 0 {
+		val, found2, err := db.GetByID(ctx, int(existingID))
 		if err != nil {
 			return StoredValueID{}, err
 		}
 
 		if !found2 {
 			return StoredValueID{}, errors2.APIError{
-				Message: "cannot find entry by the provided id",
+				Message: "cannot find entry by the provided existingID",
 				Code:    http.StatusNotFound,
 			}
 		}
@@ -384,22 +389,25 @@ func (m *Manager) Store(ctx context.Context, id int64, iv *InputValue, user User
 		}
 	}
 
-	if found && (id == 0 || storedValue.ID != int(id)) {
+	if found && (existingID == 0 || storedValue.ID != int(existingID)) {
 		return StoredValueID{}, errors2.APIError{
-			Message: fmt.Sprintf("another key '%s' exists for this client '%s'", iv.Key, iv.ClientID),
+			Message: fmt.Sprintf("another key '%s' exists for this client '%s'", valueToStore.Key, valueToStore.ClientID),
 			Code:    http.StatusConflict,
 		}
 	}
 
-	encValue, err := enc.Aes256EncryptByPassToBase64String([]byte(iv.Value), m.pass)
+	m.passLock.RLock()
+	defer m.passLock.RUnlock()
+
+	encValue, err := enc.Aes256EncryptByPassToBase64String([]byte(valueToStore.Value), m.pass)
 	if err != nil {
 		return StoredValueID{}, err
 	}
 
-	iv.Value = encValue
+	valueToStore.Value = encValue
 
 	res := StoredValueID{}
-	res.ID, err = db.Save(ctx, user.GetUsername(), id, iv, time.Now())
+	res.ID, err = db.Save(ctx, user.GetUsername(), existingID, valueToStore, time.Now())
 	if err != nil {
 		return StoredValueID{}, err
 	}

@@ -1,4 +1,4 @@
-package vault
+package query
 
 import (
 	"net/http"

@@ -9,6 +9,8 @@ import (
 	"testing"
 	"time"
 
+	"github.com/cloudradar-monitoring/rport/share/query"
+
 	"github.com/cloudradar-monitoring/rport/share/enc"
 
 	"github.com/stretchr/testify/assert"
@@ -31,7 +33,7 @@ type DbProviderMock struct {
 	getByIDFound       bool
 	getByIDError       error
 
-	listOptionInput  *ListOptions
+	listOptionInput  *query.ListOptions
 	listValuesToGive []ValueKey
 	listErrorToGive  error
 
@@ -73,7 +75,7 @@ func (dpm *DbProviderMock) GetByID(ctx context.Context, id int) (val StoredValue
 	return dpm.getByIDStoredValue, dpm.getByIDFound, dpm.getByIDError
 }
 
-func (dpm *DbProviderMock) List(ctx context.Context, lo *ListOptions) ([]ValueKey, error) {
+func (dpm *DbProviderMock) List(ctx context.Context, lo *query.ListOptions) ([]ValueKey, error) {
 	dpm.listOptionInput = lo
 
 	return dpm.listValuesToGive, dpm.listErrorToGive
@@ -554,8 +556,8 @@ func TestManagerList(t *testing.T) {
 
 	assert.Equal(
 		t,
-		&ListOptions{
-			Sorts: []SortOption{
+		&query.ListOptions{
+			Sorts: []query.SortOption{
 				{
 					Column: "key",
 					IsASC:  true,
@@ -565,7 +567,7 @@ func TestManagerList(t *testing.T) {
 					IsASC:  false,
 				},
 			},
-			Filters: []FilterOption{
+			Filters: []query.FilterOption{
 				{
 					Column: "client_id",
 					Values: []string{"val1"},
