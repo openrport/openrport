@@ -12,6 +12,8 @@ import (
 	"strings"
 	"time"
 
+	"github.com/cloudradar-monitoring/rport/server/script"
+
 	"github.com/cloudradar-monitoring/rport/server/vault"
 
 	"github.com/gorilla/mux"
@@ -40,11 +42,12 @@ import (
 const (
 	queryParamSort = "sort"
 
-	routeParamClientID     = "client_id"
-	routeParamUserID       = "user_id"
-	routeParamJobID        = "job_id"
-	routeParamGroupID      = "group_id"
-	routeParamVaultValueID = "vault_value_id"
+	routeParamClientID      = "client_id"
+	routeParamUserID        = "user_id"
+	routeParamJobID         = "job_id"
+	routeParamGroupID       = "group_id"
+	routeParamVaultValueID  = "vault_value_id"
+	routeParamScriptValueID = "script_value_id"
 
 	ErrCodeMissingRouteVar = "ERR_CODE_MISSING_ROUTE_VAR"
 	ErrCodeInvalidRequest  = "ERR_CODE_INVALID_REQUEST"
@@ -160,6 +163,11 @@ func (al *APIListener) initRouter() {
 	sub.HandleFunc("/vault/{"+routeParamVaultValueID+"}", al.handleReadVaultValue).Methods(http.MethodGet)
 	sub.HandleFunc("/vault/{"+routeParamVaultValueID+"}", al.handleVaultStoreValue).Methods(http.MethodPut)
 	sub.HandleFunc("/vault/{"+routeParamVaultValueID+"}", al.handleVaultDeleteValue).Methods(http.MethodDelete)
+	sub.HandleFunc("/scripts", al.handleListScripts).Methods(http.MethodGet)
+	sub.HandleFunc("/scripts", al.handleStoreScriptValue).Methods(http.MethodPost)
+	sub.HandleFunc("/scripts/{"+routeParamScriptValueID+"}", al.handleStoreScriptValue).Methods(http.MethodPut)
+	sub.HandleFunc("/scripts/{"+routeParamScriptValueID+"}", al.handleReadScriptValue).Methods(http.MethodGet)
+	sub.HandleFunc("/scripts/{"+routeParamScriptValueID+"}", al.handleDeleteScript).Methods(http.MethodDelete)
 
 	// add authorization middleware
 	if !al.insecureForTests {
@@ -2186,6 +2194,113 @@ func (al *APIListener) handleVaultDeleteValue(w http.ResponseWriter, req *http.R
 	}
 
 	err = al.vaultManager.Delete(req.Context(), id, curUser)
+	if err != nil {
+		al.jsonError(w, err)
+		return
+	}
+
+	w.WriteHeader(http.StatusNoContent)
+}
+
+func (al *APIListener) handleListScripts(w http.ResponseWriter, req *http.Request) {
+	items, err := al.scriptManager.List(req.Context(), req)
+	if err != nil {
+		al.jsonError(w, err)
+		return
+	}
+
+	al.writeJSONResponse(w, http.StatusOK, api.NewSuccessPayload(items))
+}
+
+func (al *APIListener) handleStoreScriptValue(w http.ResponseWriter, req *http.Request) {
+	curUser, err := al.getUserModelForAuth(req)
+	if err != nil {
+		al.jsonError(w, err)
+		return
+	}
+
+	id, err := al.readIntParam(routeParamScriptValueID, req)
+	if err != nil {
+		al.jsonError(w, errors2.APIError{
+			Code: http.StatusBadRequest,
+			Err:  err,
+		})
+		return
+	}
+
+	var scriptInput script.InputScript
+	dec := json.NewDecoder(req.Body)
+	dec.DisallowUnknownFields()
+	err = dec.Decode(&scriptInput)
+
+	if err != nil {
+		al.jsonErrorResponseWithError(w, http.StatusBadRequest, "", "Invalid JSON data.", err)
+		return
+	}
+
+	storedValue, err := al.scriptManager.Store(req.Context(), int64(id), &scriptInput, curUser)
+	if err != nil {
+		al.jsonError(w, err)
+		return
+	}
+
+	status := http.StatusOK
+
+	if id == 0 {
+		w.WriteHeader(http.StatusCreated)
+	}
+
+	al.writeJSONResponse(w, status, api.NewSuccessPayload(storedValue))
+}
+
+func (al *APIListener) handleReadScriptValue(w http.ResponseWriter, req *http.Request) {
+	id, err := al.readIntParam(routeParamScriptValueID, req)
+	if err != nil {
+		al.jsonError(w, errors2.APIError{
+			Err:  err,
+			Code: http.StatusBadRequest,
+		})
+		return
+	}
+	if id == 0 {
+		al.jsonError(w, errors2.APIError{
+			Err:  fmt.Errorf("missing %q route param", routeParamScriptValueID),
+			Code: http.StatusBadRequest,
+		})
+		return
+	}
+
+	froundScript, found, err := al.scriptManager.GetOne(req.Context(), int64(id))
+	if err != nil {
+		al.jsonError(w, err)
+		return
+	}
+	if !found {
+		al.jsonErrorResponseWithTitle(w, http.StatusNotFound, fmt.Sprintf("Cannot find a script by the provided id: %d", id))
+		return
+	}
+
+	al.writeJSONResponse(w, http.StatusOK, api.NewSuccessPayload(froundScript))
+}
+
+func (al *APIListener) handleDeleteScript(w http.ResponseWriter, req *http.Request) {
+	id, err := al.readIntParam(routeParamScriptValueID, req)
+	if err != nil {
+		al.jsonError(w, errors2.APIError{
+			Err:  err,
+			Code: http.StatusBadRequest,
+		})
+		return
+	}
+	if id == 0 {
+		al.jsonError(w, errors2.APIError{
+			Err:  fmt.Errorf("missing %q route param", routeParamScriptValueID),
+			Code: http.StatusBadRequest,
+		})
+		return
+	}
+
+	err = al.scriptManager.Delete(req.Context(), int64(id))
 	if err != nil {
 		al.jsonError(w, err)
 		return

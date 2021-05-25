@@ -7,10 +7,13 @@ import (
 	"io"
 	"net/http"
 	"os"
+	"path"
 	"runtime"
 	"strings"
 	"sync"
 	"time"
+
+	"github.com/cloudradar-monitoring/rport/server/script"
 
 	"github.com/gorilla/handlers"
 	"github.com/gorilla/mux"
@@ -48,9 +51,10 @@ type APIListener struct {
 	bannedIPs         *security.MaxBadAttemptsBanList
 	twoFASrv          TwoFAService
 
-	testDone     chan bool // is used only in tests to be able to wait until async task is done
-	usersService *users.APIService
-	vaultManager *vault.Manager
+	testDone      chan bool // is used only in tests to be able to wait until async task is done
+	usersService  *users.APIService
+	vaultManager  *vault.Manager
+	scriptManager *script.Manager
 }
 
 type UserService interface {
@@ -108,6 +112,14 @@ func NewAPIListener(
 		&vault.NotInitDbProvider{},
 	)
 
+	scriptLogger := chshare.NewLogger("scripts", config.Logging.LogOutput, config.Logging.LogLevel)
+	scriptDb, err := script.NewSqliteProvider(path.Join(config.Server.DataDir, "scripts.db"), scriptLogger)
+	if err != nil {
+		return nil, err
+	}
+
+	scriptManager := script.NewManager(scriptDb, scriptLogger)
+
 	a := &APIListener{
 		Server:            server,
 		Logger:            chshare.NewLogger("api-listener", config.Logging.LogOutput, config.Logging.LogLevel),
@@ -123,7 +135,8 @@ func NewAPIListener(
 			DB:           userDB,
 			TwoFAOn:      config.API.IsTwoFAOn(),
 		},
-		vaultManager: vault.NewManager(vaultDBProviderFactory, &vault.Aes256PassManager{}, vaultLogger),
+		vaultManager:  vault.NewManager(vaultDBProviderFactory, &vault.Aes256PassManager{}, vaultLogger),
+		scriptManager: scriptManager,
 	}
 
 	if config.API.IsTwoFAOn() {
@@ -211,6 +224,10 @@ func (al *APIListener) Close() error {
 
 	if al.vaultManager != nil {
 		g.Go(al.vaultManager.Close)
+	}
+
+	if al.scriptManager != nil {
+		g.Go(al.scriptManager.Close)
 	}
 
 	return g.Wait()

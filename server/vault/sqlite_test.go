@@ -17,7 +17,7 @@ import (
 	"github.com/cloudradar-monitoring/rport/share/test"
 )
 
-var testLog = chshare.NewLogger("client", chshare.LogOutput{File: os.Stdout}, chshare.LogLevelDebug)
+var testLog = chshare.NewLogger("vault", chshare.LogOutput{File: os.Stdout}, chshare.LogLevelDebug)
 
 type configMock struct {
 }
