@@ -1,7 +1,6 @@
 package chserver
 
 import (
-	"context"
 	"encoding/json"
 	"errors"
 	"fmt"
@@ -12,6 +11,8 @@ import (
 	"strconv"
 	"strings"
 	"time"
+
+	"github.com/cloudradar-monitoring/rport/server/vault"
 
 	"github.com/gorilla/mux"
 	"github.com/gorilla/websocket"
@@ -39,10 +40,11 @@ import (
 const (
 	queryParamSort = "sort"
 
-	routeParamClientID = "client_id"
-	routeParamUserID   = "user_id"
-	routeParamJobID    = "job_id"
-	routeParamGroupID  = "group_id"
+	routeParamClientID     = "client_id"
+	routeParamUserID       = "user_id"
+	routeParamJobID        = "job_id"
+	routeParamGroupID      = "group_id"
+	routeParamVaultValueID = "vault_value_id"
 
 	ErrCodeMissingRouteVar = "ERR_CODE_MISSING_ROUTE_VAR"
 	ErrCodeInvalidRequest  = "ERR_CODE_INVALID_REQUEST"
@@ -139,16 +141,25 @@ func (al *APIListener) initRouter() {
 	sub.HandleFunc("/client-groups/{group_id}", al.handlePutClientGroup).Methods(http.MethodPut)
 	sub.HandleFunc("/client-groups/{group_id}", al.handleGetClientGroup).Methods(http.MethodGet)
 	sub.HandleFunc("/client-groups/{group_id}", al.handleDeleteClientGroup).Methods(http.MethodDelete)
-	sub.HandleFunc("/users", al.wrapStaticPassModeMiddleware(al.handleGetUsers)).Methods(http.MethodGet)
-	sub.HandleFunc("/users", al.wrapStaticPassModeMiddleware(al.handleChangeUser)).Methods(http.MethodPost)
-	sub.HandleFunc("/users/{user_id}", al.wrapStaticPassModeMiddleware(al.handleChangeUser)).Methods(http.MethodPut)
-	sub.HandleFunc("/users/{user_id}", al.wrapStaticPassModeMiddleware(al.handleDeleteUser)).Methods(http.MethodDelete)
+	sub.HandleFunc("/users", al.wrapStaticPassModeMiddleware(al.wrapAdminAccessMiddleware(al.handleGetUsers))).Methods(http.MethodGet)
+	sub.HandleFunc("/users", al.wrapStaticPassModeMiddleware(al.wrapAdminAccessMiddleware(al.handleChangeUser))).Methods(http.MethodPost)
+	sub.HandleFunc("/users/{user_id}", al.wrapStaticPassModeMiddleware(al.wrapAdminAccessMiddleware(al.handleChangeUser))).Methods(http.MethodPut)
+	sub.HandleFunc("/users/{user_id}", al.wrapStaticPassModeMiddleware(al.wrapAdminAccessMiddleware(al.handleDeleteUser))).Methods(http.MethodDelete)
 	sub.HandleFunc("/commands", al.handlePostMultiClientCommand).Methods(http.MethodPost)
 	sub.HandleFunc("/commands", al.handleGetMultiClientCommands).Methods(http.MethodGet)
 	sub.HandleFunc("/commands/{job_id}", al.handleGetMultiClientCommand).Methods(http.MethodGet)
 	sub.HandleFunc("/clients-auth", al.handleGetClientsAuth).Methods(http.MethodGet)
 	sub.HandleFunc("/clients-auth", al.handlePostClientsAuth).Methods(http.MethodPost)
 	sub.HandleFunc("/clients-auth/{client_auth_id}", al.handleDeleteClientAuth).Methods(http.MethodDelete)
+	sub.HandleFunc("/vault-admin", al.handleGetVaultStatus).Methods(http.MethodGet)
+	sub.HandleFunc("/vault-admin/sesame", al.wrapAdminAccessMiddleware(al.handleVaultUnlock)).Methods(http.MethodPost)
+	sub.HandleFunc("/vault-admin/init", al.wrapAdminAccessMiddleware(al.handleVaultInit)).Methods(http.MethodPost)
+	sub.HandleFunc("/vault-admin/sesame", al.wrapAdminAccessMiddleware(al.handleVaultLock)).Methods(http.MethodDelete)
+	sub.HandleFunc("/vault", al.handleListVaultValues).Methods(http.MethodGet)
+	sub.HandleFunc("/vault", al.handleVaultStoreValue).Methods(http.MethodPost)
+	sub.HandleFunc("/vault/{"+routeParamVaultValueID+"}", al.handleReadVaultValue).Methods(http.MethodGet)
+	sub.HandleFunc("/vault/{"+routeParamVaultValueID+"}", al.handleVaultStoreValue).Methods(http.MethodPut)
+	sub.HandleFunc("/vault/{"+routeParamVaultValueID+"}", al.handleVaultDeleteValue).Methods(http.MethodDelete)
 
 	// add authorization middleware
 	if !al.insecureForTests {
@@ -562,14 +573,6 @@ type UserPayload struct {
 }
 
 func (al *APIListener) handleGetUsers(w http.ResponseWriter, req *http.Request) {
-	ctx := req.Context()
-
-	err := al.validateGroupAccess(ctx, users.Administrators)
-	if err != nil {
-		al.jsonError(w, err)
-		return
-	}
-
 	usrs, err := al.usersService.GetAll()
 	if err != nil {
 		al.jsonError(w, err)
@@ -591,13 +594,6 @@ func (al *APIListener) handleGetUsers(w http.ResponseWriter, req *http.Request) 
 }
 
 func (al *APIListener) handleChangeUser(w http.ResponseWriter, req *http.Request) {
-	ctx := req.Context()
-	err := al.validateGroupAccess(ctx, users.Administrators)
-	if err != nil {
-		al.jsonError(w, err)
-		return
-	}
-
 	vars := mux.Vars(req)
 	userID, userIDExists := vars[routeParamUserID]
 	if !userIDExists {
@@ -607,7 +603,7 @@ func (al *APIListener) handleChangeUser(w http.ResponseWriter, req *http.Request
 	var user users.User
 	dec := json.NewDecoder(req.Body)
 	dec.DisallowUnknownFields()
-	err = dec.Decode(&user)
+	err := dec.Decode(&user)
 	if err == io.EOF { // is handled separately to return an informative error message
 		al.jsonErrorResponseWithTitle(w, http.StatusBadRequest, "Missing body with json data.")
 		return
@@ -631,13 +627,6 @@ func (al *APIListener) handleChangeUser(w http.ResponseWriter, req *http.Request
 }
 
 func (al *APIListener) handleDeleteUser(w http.ResponseWriter, req *http.Request) {
-	ctx := req.Context()
-	err := al.validateGroupAccess(ctx, users.Administrators)
-	if err != nil {
-		al.jsonError(w, err)
-		return
-	}
-
 	vars := mux.Vars(req)
 	userID, userIDExists := vars[routeParamUserID]
 	if !userIDExists {
@@ -961,17 +950,12 @@ func (al *APIListener) handleDeleteClientTunnel(w http.ResponseWriter, req *http
 
 // handleGetMe returns the currently logged in user and the groups the user belongs to.
 func (al *APIListener) handleGetMe(w http.ResponseWriter, req *http.Request) {
-	curUsername := api.GetUser(req.Context(), al.Logger)
-	if curUsername == "" {
-		al.writeJSONResponse(w, http.StatusOK, api.NewSuccessPayload(nil))
-		return
-	}
-
-	user, err := al.userSrv.GetByUsername(curUsername)
+	user, err := al.getUserModel(req)
 	if err != nil {
 		al.jsonErrorResponse(w, http.StatusInternalServerError, err)
 		return
 	}
+
 	if user == nil {
 		al.jsonErrorResponseWithTitle(w, http.StatusNotFound, "user not found")
 		return
@@ -1021,6 +1005,39 @@ func (al *APIListener) handleChangeMe(w http.ResponseWriter, req *http.Request) 
 	}
 
 	w.WriteHeader(http.StatusNoContent)
+}
+
+func (al *APIListener) getUserModel(req *http.Request) (*users.User, error) {
+	curUsername := api.GetUser(req.Context(), al.Logger)
+	if curUsername == "" {
+		return nil, nil
+	}
+
+	user, err := al.userSrv.GetByUsername(curUsername)
+	if err != nil {
+		return nil, err
+	}
+
+	return user, err
+}
+
+func (al *APIListener) getUserModelForAuth(req *http.Request) (*users.User, error) {
+	usr, err := al.getUserModel(req)
+	if err != nil {
+		return nil, errors2.APIError{
+			Err:  err,
+			Code: http.StatusInternalServerError,
+		}
+	}
+
+	if usr == nil {
+		return nil, errors2.APIError{
+			Message: "unauthorized access",
+			Code:    http.StatusUnauthorized,
+		}
+	}
+
+	return usr, nil
 }
 
 func (al *APIListener) handleGetIP(w http.ResponseWriter, req *http.Request) {
@@ -1927,42 +1944,6 @@ func (al *APIListener) handleDeleteClientGroup(w http.ResponseWriter, req *http.
 	al.Debugf("Client Group [id=%q] deleted.", id)
 }
 
-func (al *APIListener) validateGroupAccess(ctx context.Context, group string) (err error) {
-	curUsername := api.GetUser(ctx, al.Logger)
-	if curUsername == "" {
-		return errors2.APIError{
-			Message: "unauthorized access",
-			Code:    http.StatusUnauthorized,
-		}
-	}
-
-	curUser, err := al.userSrv.GetByUsername(curUsername)
-	if err != nil {
-		return errors2.APIError{
-			Err:  err,
-			Code: http.StatusInternalServerError,
-		}
-	}
-
-	if curUser == nil {
-		return errors2.APIError{
-			Message: "unauthorized access",
-			Code:    http.StatusUnauthorized,
-		}
-	}
-
-	for i := range curUser.Groups {
-		if curUser.Groups[i] == group {
-			return nil
-		}
-	}
-
-	return errors2.APIError{
-		Message: fmt.Sprintf("current user should belong to %s group to access this resource", group),
-		Code:    http.StatusForbidden,
-	}
-}
-
 func (al *APIListener) wrapStaticPassModeMiddleware(next http.HandlerFunc) http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
 		if al.usersService.ProviderType == enums.ProviderSourceStatic {
@@ -1974,4 +1955,241 @@ func (al *APIListener) wrapStaticPassModeMiddleware(next http.HandlerFunc) http.
 		}
 		next.ServeHTTP(w, r)
 	}
+}
+
+func (al *APIListener) wrapAdminAccessMiddleware(next http.HandlerFunc) http.HandlerFunc {
+	return func(w http.ResponseWriter, r *http.Request) {
+		user, err := al.getUserModelForAuth(r)
+		if err != nil {
+			al.jsonError(w, err)
+			return
+		}
+
+		for i := range user.Groups {
+			if user.Groups[i] == users.Administrators {
+				next.ServeHTTP(w, r)
+				return
+			}
+		}
+
+		al.jsonError(w, errors2.APIError{
+			Message: fmt.Sprintf(
+				"current user should belong to %s group to access this resource",
+				users.Administrators,
+			),
+			Code: http.StatusForbidden,
+		})
+	}
+}
+
+func (al *APIListener) handleGetVaultStatus(w http.ResponseWriter, req *http.Request) {
+	ctx := req.Context()
+	st, err := al.vaultManager.Status(ctx)
+	if err != nil {
+		al.jsonError(w, err)
+		return
+	}
+
+	al.writeJSONResponse(w, http.StatusOK, api.NewSuccessPayload(st))
+}
+
+func (al *APIListener) handleVaultUnlock(w http.ResponseWriter, req *http.Request) {
+	passReq, err := al.extractPassRequest(req)
+	if err != nil {
+		al.jsonError(w, err)
+		return
+	}
+
+	err = al.vaultManager.UnLock(req.Context(), passReq.Password)
+	if err != nil {
+		al.jsonError(w, err)
+		return
+	}
+
+	w.WriteHeader(http.StatusCreated)
+}
+
+func (al *APIListener) handleVaultLock(w http.ResponseWriter, req *http.Request) {
+	err := al.vaultManager.Lock(req.Context())
+	if err != nil {
+		al.jsonError(w, err)
+		return
+	}
+
+	w.WriteHeader(http.StatusNoContent)
+}
+
+func (al *APIListener) handleVaultInit(w http.ResponseWriter, req *http.Request) {
+	passReq, err := al.extractPassRequest(req)
+	if err != nil {
+		al.jsonError(w, err)
+		return
+	}
+
+	err = al.vaultManager.Init(req.Context(), passReq.Password)
+	if err != nil {
+		al.jsonError(w, err)
+		return
+	}
+
+	w.WriteHeader(http.StatusCreated)
+}
+
+func (al *APIListener) extractPassRequest(req *http.Request) (vault.PassRequest, error) {
+	var passReq vault.PassRequest
+
+	dec := json.NewDecoder(req.Body)
+	dec.DisallowUnknownFields()
+
+	err := dec.Decode(&passReq)
+	if err == io.EOF {
+		return passReq, errors2.APIError{
+			Message: "Missing password.",
+			Code:    http.StatusBadRequest,
+		}
+	} else if err != nil {
+		return passReq, errors2.APIError{
+			Err:     err,
+			Message: "Invalid JSON data.",
+			Code:    http.StatusBadRequest,
+		}
+	}
+
+	return passReq, nil
+}
+
+func (al *APIListener) handleListVaultValues(w http.ResponseWriter, req *http.Request) {
+	items, err := al.vaultManager.List(req.Context(), req)
+	if err != nil {
+		al.jsonError(w, err)
+		return
+	}
+
+	al.writeJSONResponse(w, http.StatusOK, api.NewSuccessPayload(items))
+}
+
+func (al *APIListener) readIntParam(paramName string, req *http.Request) (int, error) {
+	vars := mux.Vars(req)
+	idStr, ok := vars[paramName]
+	if !ok {
+		return 0, nil
+	}
+
+	id, err := strconv.Atoi(idStr)
+	if err != nil {
+		return 0, fmt.Errorf("Non-numeric integer value provided: %s for param %s", idStr, paramName)
+	}
+
+	return id, nil
+}
+
+func (al *APIListener) handleReadVaultValue(w http.ResponseWriter, req *http.Request) {
+	id, err := al.readIntParam(routeParamVaultValueID, req)
+	if err != nil {
+		al.jsonError(w, errors2.APIError{
+			Err:  err,
+			Code: http.StatusBadRequest,
+		})
+		return
+	}
+	if id == 0 {
+		al.jsonError(w, errors2.APIError{
+			Err:  fmt.Errorf("missing %q route param", routeParamVaultValueID),
+			Code: http.StatusBadRequest,
+		})
+		return
+	}
+
+	curUser, err := al.getUserModelForAuth(req)
+	if err != nil {
+		al.jsonError(w, err)
+		return
+	}
+
+	storedValue, found, err := al.vaultManager.GetOne(req.Context(), id, curUser)
+	if err != nil {
+		al.jsonError(w, err)
+		return
+	}
+	if !found {
+		al.jsonErrorResponseWithTitle(w, http.StatusNotFound, fmt.Sprintf("Cannot find a vault value by the provided id: %d", id))
+		return
+	}
+
+	al.writeJSONResponse(w, http.StatusOK, api.NewSuccessPayload(storedValue))
+}
+
+func (al *APIListener) handleVaultStoreValue(w http.ResponseWriter, req *http.Request) {
+	id, err := al.readIntParam(routeParamVaultValueID, req)
+	if err != nil {
+		al.jsonError(w, errors2.APIError{
+			Err:  err,
+			Code: http.StatusBadRequest,
+		})
+		return
+	}
+
+	curUser, err := al.getUserModelForAuth(req)
+	if err != nil {
+		al.jsonError(w, err)
+		return
+	}
+
+	var vaultKeyValue vault.InputValue
+	dec := json.NewDecoder(req.Body)
+	dec.DisallowUnknownFields()
+	err = dec.Decode(&vaultKeyValue)
+	if err == io.EOF {
+		al.jsonErrorResponseWithTitle(w, http.StatusBadRequest, "Missing body with json data.")
+		return
+	} else if err != nil {
+		al.jsonErrorResponseWithError(w, http.StatusBadRequest, "", "Invalid JSON data.", err)
+		return
+	}
+
+	storedValue, err := al.vaultManager.Store(req.Context(), int64(id), &vaultKeyValue, curUser)
+	if err != nil {
+		al.jsonError(w, err)
+		return
+	}
+
+	status := http.StatusOK
+
+	if id == 0 {
+		w.WriteHeader(http.StatusCreated)
+	}
+
+	al.writeJSONResponse(w, status, api.NewSuccessPayload(storedValue))
+}
+
+func (al *APIListener) handleVaultDeleteValue(w http.ResponseWriter, req *http.Request) {
+	id, err := al.readIntParam(routeParamVaultValueID, req)
+	if err != nil {
+		al.jsonError(w, errors2.APIError{
+			Err:  err,
+			Code: http.StatusBadRequest,
+		})
+		return
+	}
+	if id == 0 {
+		al.jsonError(w, errors2.APIError{
+			Err:  fmt.Errorf("missing %q route param", routeParamVaultValueID),
+			Code: http.StatusBadRequest,
+		})
+		return
+	}
+
+	curUser, err := al.getUserModelForAuth(req)
+	if err != nil {
+		al.jsonError(w, err)
+		return
+	}
+
+	err = al.vaultManager.Delete(req.Context(), id, curUser)
+	if err != nil {
+		al.jsonError(w, err)
+		return
+	}
+
+	w.WriteHeader(http.StatusNoContent)
 }

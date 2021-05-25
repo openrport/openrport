@@ -1114,6 +1114,363 @@ paths:
           description: "Invalid Operation"
           schema:
             $ref: "#/definitions/ErrorPayload"
+  /vault-admin:
+    get:
+      tags:
+        - "Vault"
+      summary: "Get status of RPort vault"
+      description: "Returns status information about the Rport vault."
+      produces:
+        - "application/json"
+      responses:
+        "200":
+          description: "Successful Operation"
+          schema:
+            type: "object"
+            properties:
+              data:
+                type: "object"
+                properties:
+                  init:
+                    type: "string"
+                    enum: [setup-completed, uninitialized]
+                    description: "vault initialization status: if setup-completed vault is initialized or uninitialized otherwise"
+                  status:
+                    type: "string"
+                    enum: [ locked, unlocked ]
+                    description: "vault lock status"
+        "401":
+          description: "Unauthorized"
+          schema:
+            $ref: "#/definitions/ErrorPayload"
+        "500":
+          description: "Invalid Operation"
+          schema:
+            $ref: "#/definitions/ErrorPayload"
+  /vault:
+    get:
+      tags:
+        - "Vault"
+      summary: "Read or find vault entries"
+      description: "Reads all vault entries or find some based on the input parameters"
+      produces:
+        - "application/json"
+      parameters:
+        - in: "query"
+          name: "sort"
+          description: "Sort field to be used for values, the sorting direction is by default ASC.\n
+          To change the direction add `-` to the sorting value e.g. `-id`. Allowed values are `id`, `client_id`, `created_by`, `created_at`, `key`.\n
+          You can use as many sort parameters as you want."
+          required: false
+          type: "string"
+        - in: "query"
+          name: "filter[<FIELD>]"
+          description: "Filter to find vault entries. It should be provided in the format as `filter[<FIELD>]=<VALUE>`,\n
+            where `<FIELD>` is one of the values `id`, `client_id`, `created_by`, `created_at`, `key` and `<VALUE>` is the search value,\n
+            e.g. `filter[created_by]=admin` will request only vault entries created by admin. You can use as many filter parameters as you want.\n
+            If you want to filter by multiple values e.g. find entries either for client_id = client1 or client2 you can use following filters\n
+            `filter[client_id]=client1,client2`.
+            "
+          required: false
+          type: "string"
+      responses:
+        "200":
+          description: "Successful Operation"
+          schema:
+            type: "object"
+            properties:
+              data:
+                type: "array"
+                items:
+                  $ref: "#/definitions/VaultEntryOutputShort"
+        "400":
+          description: "unsupported sort field 'xyz'"
+          schema:
+            $ref: "#/definitions/ErrorPayload"
+        "401":
+          description: "Unauthorized"
+          schema:
+            $ref: "#/definitions/ErrorPayload"
+        "409":
+          description: "vault is locked or not initialized"
+          schema:
+            $ref: "#/definitions/ErrorPayload"
+        "500":
+          description: "Invalid Operation"
+          schema:
+            $ref: "#/definitions/ErrorPayload"
+    post:
+      tags:
+        - "Vault"
+      summary: "Creates a new vault entry"
+      description: "Creates a new entry in vault with the encrypted value field.\n
+      If another entry with the same key and client id combination exists, an error will be returned."
+      produces:
+        - "application/json"
+      parameters:
+        - in: "body"
+          name: "body"
+          description: "value in the json format"
+          required: true
+          schema:
+            $ref: "#/definitions/VaultEntryInput"
+      responses:
+        "201":
+          description: "Successful Operation"
+          schema:
+            type: "object"
+            properties:
+              data:
+                type: "object"
+                properties:
+                  id:
+                    type: "integer"
+                    description: "unique internal id of the created vault entry"
+        "400":
+          description: "Invalid request parameters"
+          schema:
+            $ref: "#/definitions/ErrorPayload"
+        "401":
+          description: "Unauthorized"
+          schema:
+            $ref: "#/definitions/ErrorPayload"
+        "409":
+          description: "vault is locked or not initialized or another key exists for this client"
+          schema:
+            $ref: "#/definitions/ErrorPayload"
+        "500":
+          description: "Invalid Operation"
+          schema:
+            $ref: "#/definitions/ErrorPayload"
+  /vault/{id}:
+    get:
+      tags:
+        - "Vault"
+      summary: "Read a decrypted vault value"
+      description: "Reads a vault entry with a decrypted value field. If `required_group` value of the stored vault entry is not emtpy,\n
+      only users of this group can read this value."
+      produces:
+        - "application/json"
+      parameters:
+        - in: "path"
+          name: "id"
+          required: true
+          description: "Unique vault entry ID"
+          type: "integer"
+      responses:
+        "200":
+          description: "Successful Operation"
+          schema:
+            type: "object"
+            properties:
+              data:
+                type: "object"
+                $ref: "#/definitions/VaultEntryOutputFull"
+        "401":
+          description: "Unauthorized"
+          schema:
+            $ref: "#/definitions/ErrorPayload"
+        "403":
+          description: "your group doesn't allow access to this value"
+          schema:
+            $ref: "#/definitions/ErrorPayload"
+        "404":
+          description: "Cannot find a vault value by the provided id"
+          schema:
+            $ref: "#/definitions/ErrorPayload"
+        "409":
+          description: "vault is locked or not initialized"
+          schema:
+            $ref: "#/definitions/ErrorPayload"
+        "500":
+          description: "Invalid Operation"
+          schema:
+            $ref: "#/definitions/ErrorPayload"
+    put:
+      tags:
+        - "Vault"
+      summary: "Updates an existing vault entry"
+      description: "Updates an existing vault entry by the provided `id` parameter.\n
+      If `required_group` value of the stored vault entry is not empty, only users of this group can change this value.\n
+      You need to provide all fields like those you used to create a vault entry. Partial updates are not supported.
+      You can get `id` it by using the listing API. You get the id also when you store a new value."
+      parameters:
+        - in: "path"
+          name: "id"
+          required: true
+          description: "Unique vault entry ID"
+          type: "integer"
+        - in: "body"
+          name: "body"
+          description: "value in the json format"
+          required: true
+          schema:
+            $ref: "#/definitions/VaultEntryInput"
+      responses:
+        "200":
+          description: "Successful Operation"
+          schema:
+            type: "object"
+            properties:
+              data:
+                type: "object"
+                properties:
+                  id:
+                    type: "integer"
+                    description: "unique internal id of the updated vault entry"
+        "400":
+          description: "Invalid body parameters"
+          schema:
+            $ref: "#/definitions/ErrorPayload"
+        "401":
+          description: "Unauthorized"
+          schema:
+            $ref: "#/definitions/ErrorPayload"
+        "403":
+          description: "your group doesn't allow access to this value"
+          schema:
+            $ref: "#/definitions/ErrorPayload"
+        "409":
+          description: "vault is locked or not initialized"
+          schema:
+            $ref: "#/definitions/ErrorPayload"
+        "500":
+          description: "Invalid Operation"
+          schema:
+            $ref: "#/definitions/ErrorPayload"
+    delete:
+      tags:
+        - "Vault"
+      summary: "Deletes an existing vault entry"
+      description: "Delete a vault entry by the provided `id` parameter.\n
+      If `required_group` value of the stored vault entry is not empty, only users of this group can delete this value."
+      parameters:
+        - in: "path"
+          name: "id"
+          required: true
+          description: "Unique vault entry ID"
+          type: "integer"
+      responses:
+        "204":
+          description: "Successful Operation"
+        "401":
+          description: "Unauthorized"
+          schema:
+            $ref: "#/definitions/ErrorPayload"
+        "403":
+          description: "your group doesn't allow access to this value"
+          schema:
+            $ref: "#/definitions/ErrorPayload"
+        "404":
+          description: "cannot find this entry by the provided id"
+          schema:
+            $ref: "#/definitions/ErrorPayload"
+        "409":
+          description: "vault is locked or not initialized"
+          schema:
+            $ref: "#/definitions/ErrorPayload"
+        "500":
+          description: "Invalid Operation"
+          schema:
+            $ref: "#/definitions/ErrorPayload"
+
+  /vault-admin/init:
+    post:
+      tags:
+        - "Vault"
+      summary: "Initialize vault"
+      description: "Initializes vault database and stores password for further requests.
+      This API requires the current user to be member of group `Administrators`. Returns 403 otherwise.
+      The `Administrators` group name is hardcoded and cannot be changed at the moment"
+      produces:
+        - "application/json"
+      parameters:
+        - in: "body"
+          name: "password"
+          description: "Password to unlock the vault"
+          required: true
+          schema:
+            $ref: '#/definitions/SinglePassword'
+      responses:
+        "201":
+          description: "Successful Operation"
+        "409":
+          description: "vault is already initialized"
+          schema:
+            $ref: "#/definitions/ErrorPayload"
+        "400":
+          description: "Password is too short or too long"
+          schema:
+            $ref: "#/definitions/ErrorPayload"
+        "403":
+          description: "current user should belong to Administrators group to access this resource"
+          schema:
+            $ref: "#/definitions/ErrorPayload"
+        "500":
+          description: "Invalid Operation"
+          schema:
+            $ref: "#/definitions/ErrorPayload"
+  /vault-admin/sesame:
+    delete:
+      tags:
+        - "Vault"
+      summary: "Locks vault"
+      description: "Locks vault and delets it's password from server's memory.
+      This API requires the current user to be member of group `Administrators`. Returns 403 otherwise.
+            The `Administrators` group name is hardcoded and cannot be changed at the moment"
+      produces:
+        - "application/json"
+      responses:
+        "204":
+          description: "Successful Operation"
+        "403":
+          description: "current user should belong to Administrators group to access this resource"
+          schema:
+            $ref: "#/definitions/ErrorPayload"
+        "409":
+          description: "vault is already locked"
+          schema:
+            $ref: "#/definitions/ErrorPayload"
+        "500":
+          description: "Invalid Operation"
+          schema:
+            $ref: "#/definitions/ErrorPayload"
+    post:
+      tags:
+        - "Vault"
+      summary: "Unlock vault"
+      description: "Unlocks vault to make it functional. If vault is locked, it won't accept any API requests.
+       This API requires the current user to be member of group `Administrators`. Returns 403 otherwise.
+       The `Administrators` group name is hardcoded and cannot be changed at the moment"
+      produces:
+        - "application/json"
+      parameters:
+        - in: "body"
+          name: "password"
+          description: "Password to unlock the vault. It should be the same password, which was provided when the vault was initialized."
+          required: true
+          schema:
+            $ref: '#/definitions/SinglePassword'
+      responses:
+        "201":
+          description: "Successful Operation"
+        "401":
+          description: "wrong password provided"
+          schema:
+            $ref: "#/definitions/ErrorPayload"
+        "409":
+          description: "vault is already unlocked"
+          schema:
+            $ref: "#/definitions/ErrorPayload"
+        "403":
+          description: "current user should belong to Administrators group to access this resource"
+          schema:
+            $ref: "#/definitions/ErrorPayload"
+        "500":
+          description: "Invalid Operation"
+          schema:
+            $ref: "#/definitions/ErrorPayload"
+
 definitions:
   Tunnel:
     type: "object"
@@ -1297,6 +1654,12 @@ definitions:
       password:
         type: "string"
         description: "client auth password"
+  SinglePassword:
+    type: "object"
+    properties:
+      password:
+        type: "string"
+        description: "A string of printed symbols 32 and 256 bits long"
   JobStatus:
     type: "string"
     enum: &JOB_STATUS
@@ -1520,3 +1883,83 @@ definitions:
             type: "string"
             enum: ["email", "pushover"]
             description: "Delivery method that is used to send 2fa token to the user"
+  VaultEntryInput:
+    type: "object"
+    properties:
+      client_id:
+        type: "string"
+        description: "Used to tie a document to a specific client where 0 means the document can be accessed from any client."
+      required_group:
+        type: "string"
+        description: "if filled, users not belonging to this group are not allowed to store or read the decrypted value"
+      key:
+        type: "string"
+        description: "[required] some string to identify the document"
+      value:
+        type: "string"
+        description: "[required] value represents the encrypted `body` of a document. It should be provided as a plain text"
+      type:
+        type: "string"
+        enum: &VAULT_VALUE_TYPE
+          - "text"
+          - "secrete"
+          - "markdown"
+          - "string"
+        description: "[required] Type of the secret value"
+  VaultEntryOutputFull:
+    type: "object"
+    properties:
+      client_id:
+        type: "string"
+        description: "Used to tie a document to a specific client where 0 means the document can be accessed from any client."
+      required_group:
+        type: "string"
+        description: "if filled, users not belonging to this group are not allowed to store or read the decrypted value"
+      key:
+        type: "string"
+        description: "some string to identify the document"
+      type:
+        type: "string"
+        enum: *VAULT_VALUE_TYPE
+        description: "Type of the secret value"
+      value:
+        type: "string"
+        description: "decrypted value of the vault entry"
+      ID:
+        type: "integer"
+        description: "Unique internal id of a vault entry"
+      CreatedAt:
+        type: "string"
+        format: "data-time"
+        description: "Date and time of vault entry creation"
+      UpdatedAt:
+        type: "string"
+        format: "data-time"
+        description: "Date and time of vault entry last update"
+      CreatedBy:
+        type: "string"
+        description: "User name who created this vault entry"
+      UpdatedBy:
+        type: "string"
+        description: "User name who last updated this vault entry"
+  VaultEntryOutputShort:
+    type: "object"
+    properties:
+      client_id:
+        type: "string"
+        description: "Used to tie a document to a specific client where 0 means the document can be accessed from any client."
+      key:
+        type: "string"
+        description: "some string to identify the document"
+      id:
+        type: "integer"
+        description: "Unique internal id of a vault entry"
+      CreatedAt:
+        type: "string"
+        format: "data-time"
+        description: "Date and time of vault entry creation"
+      CreatedBy:
+        type: "string"
+        description: "User name who created this vault entry"
+
+

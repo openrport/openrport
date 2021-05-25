@@ -11,3 +11,11 @@ type User struct {
 	Groups      []string `json:"groups" db:"-"`
 	TwoFASendTo string   `json:"two_fa_send_to" db:"two_fa_send_to"`
 }
+
+func (u User) GetGroups() []string {
+	return u.Groups
+}
+
+func (u User) GetUsername() string {
+	return u.Username
+}

@@ -22,6 +22,7 @@ import (
 	"github.com/cloudradar-monitoring/rport/server/api/message"
 	"github.com/cloudradar-monitoring/rport/server/api/middleware"
 	"github.com/cloudradar-monitoring/rport/server/api/users"
+	"github.com/cloudradar-monitoring/rport/server/vault"
 	chshare "github.com/cloudradar-monitoring/rport/share"
 	"github.com/cloudradar-monitoring/rport/share/enums"
 	"github.com/cloudradar-monitoring/rport/share/security"
@@ -49,6 +50,7 @@ type APIListener struct {
 
 	testDone     chan bool // is used only in tests to be able to wait until async task is done
 	usersService *users.APIService
+	vaultManager *vault.Manager
 }
 
 type UserService interface {
@@ -97,6 +99,15 @@ func NewAPIListener(
 		return nil, fmt.Errorf("'check_port_timeout' can not be more than %s", DefaultMaxCheckPortTimeout)
 	}
 
+	vaultLogger := chshare.NewLogger("vault", config.Logging.LogOutput, config.Logging.LogLevel)
+
+	vaultDBProviderFactory := vault.NewStatefulDbProviderFactory(
+		func() (vault.DbProvider, error) {
+			return vault.NewSqliteProvider(config.Vault, vaultLogger)
+		},
+		&vault.NotInitDbProvider{},
+	)
+
 	a := &APIListener{
 		Server:            server,
 		Logger:            chshare.NewLogger("api-listener", config.Logging.LogOutput, config.Logging.LogLevel),
@@ -112,6 +123,7 @@ func NewAPIListener(
 			DB:           userDB,
 			TwoFAOn:      config.API.IsTwoFAOn(),
 		},
+		vaultManager: vault.NewManager(vaultDBProviderFactory, &vault.Aes256PassManager{}, vaultLogger),
 	}
 
 	if config.API.IsTwoFAOn() {
@@ -196,6 +208,11 @@ func (al *APIListener) Close() error {
 	if al.accessLogFile != nil {
 		g.Go(al.accessLogFile.Close)
 	}
+
+	if al.vaultManager != nil {
+		g.Go(al.vaultManager.Close)
+	}
+
 	return g.Wait()
 }
 
