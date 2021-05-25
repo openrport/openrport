@@ -1596,7 +1596,7 @@ paths:
       tags:
         - "Scripts"
       summary: "Updates an existing script"
-      description: "Updates an existing vault entry by the provided `id` parameter.\n
+      description: "Updates an existing script by the provided `id` parameter.\n
       You need to provide all fields like those you used to create a script. Partial updates are not supported.
       You can get `id` by using the listing API. You get the id also when you store a new value."
       parameters:
