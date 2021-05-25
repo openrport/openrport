@@ -191,13 +191,13 @@ func (vc VaultConfig) GetDatabasePath() string {
 }
 
 type Config struct {
-	Server      ServerConfig   `mapstructure:"server"`
-	Logging     LogConfig      `mapstructure:"logging"`
-	API         APIConfig      `mapstructure:"api"`
-	Database    DatabaseConfig `mapstructure:"database"`
-	Pushover    PushoverConfig `mapstructure:"pushover"`
-	SMTP        SMTPConfig     `mapstructure:"smtp"`
-	VaultConfig VaultConfig    `mapstructure:"vault"`
+	Server   ServerConfig   `mapstructure:"server"`
+	Logging  LogConfig      `mapstructure:"logging"`
+	API      APIConfig      `mapstructure:"api"`
+	Database DatabaseConfig `mapstructure:"database"`
+	Pushover PushoverConfig `mapstructure:"pushover"`
+	SMTP     SMTPConfig     `mapstructure:"smtp"`
+	Vault    VaultConfig    `mapstructure:"vault"`
 }
 
 func (c *Config) InitRequestLogOptions() *requestlog.Options {

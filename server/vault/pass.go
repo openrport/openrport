@@ -57,13 +57,14 @@ func (apm *Aes256PassManager) PassMatch(dbStatus DbStatus, passToCheck string) (
 	}
 
 	decValue, err := enc.Aes256DecryptByPassFromBase64String(dbStatus.EncCheckValue, passToCheck)
+
+	subtle.ConstantTimeCompare(decValue, decValue) //to simulate constant time for password check
+
 	if err != nil {
 		return false, nil
 	}
 
-	compRes := subtle.ConstantTimeCompare(decValue, []byte(passToCheck))
-
-	return compRes == 0, nil
+	return true, nil
 }
 
 // GetEncRandValue generates a pseudo random hash sum and encrypts it with the provided password

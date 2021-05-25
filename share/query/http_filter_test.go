@@ -3,7 +3,6 @@ package query
 import (
 	"net/http"
 	"net/url"
-	"sort"
 	"testing"
 
 	"github.com/stretchr/testify/assert"
@@ -70,15 +69,8 @@ func TestConvertGetParamsToFilterOptions(t *testing.T) {
 
 			actualListOptions := ConvertGetParamsToFilterOptions(req)
 
-			sort.SliceStable(actualListOptions.Sorts, func(i, j int) bool {
-				return actualListOptions.Sorts[i].Column < actualListOptions.Sorts[j].Column
-			})
-
-			sort.SliceStable(actualListOptions.Filters, func(i, j int) bool {
-				return actualListOptions.Filters[i].Column < actualListOptions.Filters[j].Column
-			})
-
-			assert.EqualValues(t, testCases[i].expectedListOptions, actualListOptions)
+			assert.ElementsMatch(t, testCases[i].expectedListOptions.Sorts, actualListOptions.Sorts)
+			assert.ElementsMatch(t, testCases[i].expectedListOptions.Filters, actualListOptions.Filters)
 		})
 	}
 }

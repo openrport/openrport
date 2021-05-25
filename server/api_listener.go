@@ -103,7 +103,7 @@ func NewAPIListener(
 
 	vaultDBProviderFactory := vault.NewStatefulDbProviderFactory(
 		func() (vault.DbProvider, error) {
-			return vault.NewSqliteProvider(config.VaultConfig, vaultLogger)
+			return vault.NewSqliteProvider(config.Vault, vaultLogger)
 		},
 		&vault.NotInitDbProvider{},
 	)
