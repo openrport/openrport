@@ -137,16 +137,18 @@ func (m *Manager) Store(ctx context.Context, existingID string, valueToStore *In
 		}
 	}
 
+	now := time.Now()
 	scriptToSave := &Script{
 		ID:          existingID,
 		Name:        valueToStore.Name,
 		CreatedBy:   userProvider.GetUsername(),
+		CreatedAt:   now,
 		Interpreter: valueToStore.Interpreter,
 		IsSudo:      valueToStore.IsSudo,
 		Cwd:         valueToStore.Cwd,
 		Script:      valueToStore.Script,
 	}
-	scriptToSave.ID, err = m.db.Save(ctx, scriptToSave, time.Now())
+	scriptToSave.ID, err = m.db.Save(ctx, scriptToSave, now)
 	if err != nil {
 		return nil, err
 	}
