@@ -22,10 +22,10 @@ var supportedFields = map[string]bool{
 }
 
 type DbProvider interface {
-	GetByID(ctx context.Context, id int64) (val *Script, found bool, err error)
+	GetByID(ctx context.Context, id string) (val *Script, found bool, err error)
 	List(ctx context.Context, lo *query.ListOptions) ([]Script, error)
-	Save(ctx context.Context, s *Script, nowDate time.Time) (int64, error)
-	Delete(ctx context.Context, id int64) error
+	Save(ctx context.Context, s *Script, nowDate time.Time) (string, error)
+	Delete(ctx context.Context, id string) error
 	io.Closer
 }
 
@@ -85,7 +85,7 @@ func (m *Manager) validateListOptions(lo *query.ListOptions) error {
 	return nil
 }
 
-func (m *Manager) GetOne(ctx context.Context, id int64) (*Script, bool, error) {
+func (m *Manager) GetOne(ctx context.Context, id string) (*Script, bool, error) {
 	val, found, err := m.db.GetByID(ctx, id)
 	if err != nil {
 		return nil, false, err
@@ -98,7 +98,7 @@ func (m *Manager) GetOne(ctx context.Context, id int64) (*Script, bool, error) {
 	return val, true, nil
 }
 
-func (m *Manager) Store(ctx context.Context, existingID int64, valueToStore *InputScript, userProvider UserDataProvider) (*Script, error) {
+func (m *Manager) Store(ctx context.Context, existingID string, valueToStore *InputScript, userProvider UserDataProvider) (*Script, error) {
 	err := Validate(valueToStore)
 	if err != nil {
 		return nil, err
@@ -116,7 +116,7 @@ func (m *Manager) Store(ctx context.Context, existingID int64, valueToStore *Inp
 		return nil, err
 	}
 
-	if existingID > 0 {
+	if existingID != "" {
 		_, foundByID, err := m.db.GetByID(ctx, existingID)
 		if err != nil {
 			return nil, err
@@ -130,7 +130,7 @@ func (m *Manager) Store(ctx context.Context, existingID int64, valueToStore *Inp
 		}
 	}
 
-	if len(existingScript) > 0 && (existingID == 0 || existingScript[0].ID != existingID) {
+	if len(existingScript) > 0 && (existingID == "" || existingScript[0].ID != existingID) {
 		return nil, errors2.APIError{
 			Message: fmt.Sprintf("another script with the same name '%s' exists", valueToStore.Name),
 			Code:    http.StatusConflict,
@@ -154,7 +154,7 @@ func (m *Manager) Store(ctx context.Context, existingID int64, valueToStore *Inp
 	return scriptToSave, nil
 }
 
-func (m *Manager) Delete(ctx context.Context, id int64) error {
+func (m *Manager) Delete(ctx context.Context, id string) error {
 	_, found, err := m.db.GetByID(ctx, id)
 	if err != nil {
 		return errors2.APIError{

@@ -6,6 +6,8 @@ import (
 	"fmt"
 	"time"
 
+	"github.com/cloudradar-monitoring/rport/share/random"
+
 	"github.com/cloudradar-monitoring/rport/db/migration/scripts"
 
 	"github.com/cloudradar-monitoring/rport/share/query"
@@ -20,6 +22,10 @@ import (
 type SqliteProvider struct {
 	db     *sqlx.DB
 	logger *chshare.Logger
+}
+
+var generateNewScriptID = func() string {
+	return random.UUID4()
 }
 
 func NewSqliteProvider(dbPath string, logger *chshare.Logger) (*SqliteProvider, error) {
@@ -41,7 +47,7 @@ func (p *SqliteProvider) Close() error {
 	return nil
 }
 
-func (p *SqliteProvider) GetByID(ctx context.Context, id int64) (val *Script, found bool, err error) {
+func (p *SqliteProvider) GetByID(ctx context.Context, id string) (val *Script, found bool, err error) {
 	val = new(Script)
 	err = p.db.GetContext(ctx, val, "SELECT * FROM `scripts` WHERE `id` = ? LIMIT 1", id)
 	if err != nil {
@@ -70,11 +76,14 @@ func (p *SqliteProvider) List(ctx context.Context, lo *query.ListOptions) ([]Scr
 	return values, nil
 }
 
-func (p *SqliteProvider) Save(ctx context.Context, s *Script, nowDate time.Time) (int64, error) {
-	if s.ID == 0 {
-		res, err := p.db.ExecContext(
+func (p *SqliteProvider) Save(ctx context.Context, s *Script, nowDate time.Time) (string, error) {
+	if s.ID == "" {
+		scriptID := generateNewScriptID()
+
+		_, err := p.db.ExecContext(
 			ctx,
-			"INSERT INTO `scripts` (`name`, `created_at`, `created_by`, `interpreter`, `is_sudo`, `cwd`, `script`) VALUES (?, ?, ?, ?, ?, ?, ?)",
+			"INSERT INTO `scripts` (`id`, `name`, `created_at`, `created_by`, `interpreter`, `is_sudo`, `cwd`, `script`) VALUES (?, ?, ?, ?, ?, ?, ?, ?)",
+			scriptID,
 			s.Name,
 			nowDate.Format(time.RFC3339),
 			s.CreatedBy,
@@ -84,33 +93,24 @@ func (p *SqliteProvider) Save(ctx context.Context, s *Script, nowDate time.Time)
 			s.Script,
 		)
 
-		if err != nil {
-			return 0, err
-		}
-		s.ID, err = res.LastInsertId()
-		if err != nil {
-			return 0, err
-		}
-	} else {
-		q := "UPDATE `scripts` SET `name` = ?, `interpreter` = ?, `is_sudo` = ?, `cwd` = ?, `script` = ? WHERE id = ?"
-		params := []interface{}{
-			s.Name,
-			s.Interpreter,
-			s.IsSudo,
-			s.Cwd,
-			s.Script,
-			s.ID,
-		}
-		_, err := p.db.ExecContext(ctx, q, params...)
-		if err != nil {
-			return 0, err
-		}
+		return scriptID, err
 	}
 
-	return s.ID, nil
+	q := "UPDATE `scripts` SET `name` = ?, `interpreter` = ?, `is_sudo` = ?, `cwd` = ?, `script` = ? WHERE id = ?"
+	params := []interface{}{
+		s.Name,
+		s.Interpreter,
+		s.IsSudo,
+		s.Cwd,
+		s.Script,
+		s.ID,
+	}
+	_, err := p.db.ExecContext(ctx, q, params...)
+
+	return s.ID, err
 }
 
-func (p *SqliteProvider) Delete(ctx context.Context, id int64) error {
+func (p *SqliteProvider) Delete(ctx context.Context, id string) error {
 	res, err := p.db.ExecContext(ctx, "DELETE FROM `scripts` WHERE `id` = ?", id)
 
 	if err != nil {
@@ -123,7 +123,7 @@ func (p *SqliteProvider) Delete(ctx context.Context, id int64) error {
 	}
 
 	if affectedRows == 0 {
-		return fmt.Errorf("cannot find entry by id %d", id)
+		return fmt.Errorf("cannot find entry by id %s", id)
 	}
 
 	return nil

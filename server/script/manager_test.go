@@ -18,7 +18,7 @@ import (
 )
 
 type DbProviderMock struct {
-	getByIDGiven        int64
+	getByIDGiven        string
 	getByIDScriptToGive *Script
 	getByIDFoundToGive  bool
 	getByIDErrorToGive  error
@@ -30,9 +30,9 @@ type DbProviderMock struct {
 	saveScriptGiven  *Script
 	saveNowDateGiven time.Time
 	saveErrorToGive  error
-	saveIDToGive     int64
+	saveIDToGive     string
 
-	deleteIDGiven     int64
+	deleteIDGiven     string
 	deleteErrorToGive error
 
 	io.Closer
@@ -40,7 +40,7 @@ type DbProviderMock struct {
 	isClosed bool
 }
 
-func (dpm *DbProviderMock) GetByID(ctx context.Context, id int64) (val *Script, found bool, err error) {
+func (dpm *DbProviderMock) GetByID(ctx context.Context, id string) (val *Script, found bool, err error) {
 	dpm.getByIDGiven = id
 	return dpm.getByIDScriptToGive, dpm.getByIDFoundToGive, dpm.getByIDErrorToGive
 }
@@ -51,14 +51,14 @@ func (dpm *DbProviderMock) List(ctx context.Context, lo *query.ListOptions) ([]S
 	return dpm.listValuesToGive, dpm.listErrorToGive
 }
 
-func (dpm *DbProviderMock) Save(ctx context.Context, s *Script, nowDate time.Time) (int64, error) {
+func (dpm *DbProviderMock) Save(ctx context.Context, s *Script, nowDate time.Time) (string, error) {
 	dpm.saveScriptGiven = s
 	dpm.saveNowDateGiven = nowDate
 
 	return dpm.saveIDToGive, dpm.saveErrorToGive
 }
 
-func (dpm *DbProviderMock) Delete(ctx context.Context, id int64) error {
+func (dpm *DbProviderMock) Delete(ctx context.Context, id string) error {
 	dpm.deleteIDGiven = id
 	return dpm.deleteErrorToGive
 }
@@ -84,7 +84,7 @@ func (udpm UserDataProviderMock) GetUsername() string {
 func TestManagerList(t *testing.T) {
 	expectedScripts := []Script{
 		{
-			ID:        1,
+			ID:        "123",
 			CreatedBy: "user1",
 			CreatedAt: time.Now(),
 			Name:      "some nam",
@@ -173,11 +173,11 @@ func TestManagerClose(t *testing.T) {
 
 func TestGetOne(t *testing.T) {
 	givenStoredValue := &Script{
-		ID:        1,
+		ID:        "123",
 		CreatedBy: "guy",
 	}
 	expectedValue := &Script{
-		ID:        1,
+		ID:        "123",
 		CreatedBy: "guy",
 	}
 	dbProv := &DbProviderMock{
@@ -187,7 +187,7 @@ func TestGetOne(t *testing.T) {
 
 	mngr := NewManager(dbProv, testLog)
 
-	val, found, err := mngr.GetOne(context.Background(), 1)
+	val, found, err := mngr.GetOne(context.Background(), "1")
 	require.NoError(t, err)
 	assert.True(t, found)
 	assert.Equal(t, expectedValue, val)
@@ -198,7 +198,7 @@ func TestGetOne(t *testing.T) {
 
 	mngr = NewManager(dbProv, testLog)
 
-	_, found, err = mngr.GetOne(context.Background(), 1)
+	_, found, err = mngr.GetOne(context.Background(), "1")
 	require.NoError(t, err)
 	assert.False(t, found)
 
@@ -208,7 +208,7 @@ func TestGetOne(t *testing.T) {
 
 	mngr = NewManager(dbProv, testLog)
 
-	_, _, err = mngr.GetOne(context.Background(), 1)
+	_, _, err = mngr.GetOne(context.Background(), "1")
 	require.EqualError(t, err, "some get id error")
 }
 
@@ -227,14 +227,14 @@ func TestStore(t *testing.T) {
 
 	t.Run("create_success", func(t *testing.T) {
 		dbProv := &DbProviderMock{
-			saveIDToGive: int64(123),
+			saveIDToGive: "123",
 		}
 		mngr := NewManager(dbProv, testLog)
 
-		storedScript, err := mngr.Store(context.Background(), 0, inputValue, user)
+		storedScript, err := mngr.Store(context.Background(), "", inputValue, user)
 		require.NoError(t, err)
-		assert.Equal(t, int64(123), storedScript.ID)
-		assert.Equal(t, int64(123), dbProv.saveScriptGiven.ID)
+		assert.NotEqual(t, "", storedScript.ID)
+		assert.NotEqual(t, "", dbProv.saveScriptGiven.ID)
 
 		assert.Equal(t, "someuser", dbProv.saveScriptGiven.CreatedBy)
 		assert.Equal(t, "someuser", storedScript.CreatedBy)
@@ -259,7 +259,7 @@ func TestStore(t *testing.T) {
 	})
 
 	t.Run("update_success", func(t *testing.T) {
-		const idToUpdate = int64(1)
+		const idToUpdate = "123"
 		dbProv := &DbProviderMock{
 			getByIDFoundToGive: true,
 			saveIDToGive:       idToUpdate,
@@ -294,14 +294,14 @@ func TestStore(t *testing.T) {
 		dbProv := &DbProviderMock{
 			listValuesToGive: []Script{
 				{
-					ID: 2,
+					ID: "2",
 				},
 			},
 			getByIDFoundToGive: true,
 		}
 		mngr := NewManager(dbProv, testLog)
 
-		_, err := mngr.Store(context.Background(), 1, inputValue, user)
+		_, err := mngr.Store(context.Background(), "1", inputValue, user)
 		require.EqualError(t, err, "another script with the same name 'some nam' exists")
 	})
 
@@ -311,7 +311,7 @@ func TestStore(t *testing.T) {
 		}
 		mngr := NewManager(dbProv, testLog)
 
-		_, err := mngr.Store(context.Background(), 1, inputValue, user)
+		_, err := mngr.Store(context.Background(), "1", inputValue, user)
 		require.EqualError(t, err, "cannot find entry by the provided ID")
 	})
 
@@ -319,13 +319,13 @@ func TestStore(t *testing.T) {
 		dbProv := &DbProviderMock{
 			listValuesToGive: []Script{
 				{
-					ID: 3,
+					ID: "3",
 				},
 			},
 		}
 		mngr := NewManager(dbProv, testLog)
 
-		_, err := mngr.Store(context.Background(), 0, inputValue, user)
+		_, err := mngr.Store(context.Background(), "", inputValue, user)
 		require.EqualError(t, err, "another script with the same name 'some nam' exists")
 	})
 
@@ -335,7 +335,7 @@ func TestStore(t *testing.T) {
 		}
 		mngr := NewManager(dbProv, testLog)
 
-		_, err := mngr.Store(context.Background(), 1, inputValue, user)
+		_, err := mngr.Store(context.Background(), "1", inputValue, user)
 		require.EqualError(t, err, "failed to find anything")
 	})
 
@@ -343,7 +343,7 @@ func TestStore(t *testing.T) {
 		dbProv := &DbProviderMock{}
 		mngr := NewManager(dbProv, testLog)
 
-		_, err := mngr.Store(context.Background(), 1, &InputScript{}, user)
+		_, err := mngr.Store(context.Background(), "1", &InputScript{}, user)
 		require.EqualError(t, err, "name is required, script is required")
 	})
 
@@ -354,7 +354,7 @@ func TestStore(t *testing.T) {
 		}
 		mngr := NewManager(dbProv, testLog)
 
-		_, err := mngr.Store(context.Background(), 1, inputValue, user)
+		_, err := mngr.Store(context.Background(), "1", inputValue, user)
 		require.EqualError(t, err, "failed to save")
 	})
 }
@@ -366,10 +366,10 @@ func TestDeleteScript(t *testing.T) {
 		}
 		mngr := NewManager(dbProv, testLog)
 
-		err := mngr.Delete(context.Background(), 1)
+		err := mngr.Delete(context.Background(), "1")
 		require.NoError(t, err)
 
-		assert.Equal(t, int64(1), dbProv.deleteIDGiven)
+		assert.Equal(t, "1", dbProv.deleteIDGiven)
 	})
 
 	t.Run("db_error", func(t *testing.T) {
@@ -379,7 +379,7 @@ func TestDeleteScript(t *testing.T) {
 		}
 		mngr := NewManager(dbProv, testLog)
 
-		err := mngr.Delete(context.Background(), 1)
+		err := mngr.Delete(context.Background(), "1")
 		require.EqualError(t, err, "cannot delete")
 	})
 
@@ -389,7 +389,7 @@ func TestDeleteScript(t *testing.T) {
 		}
 		mngr := NewManager(dbProv, testLog)
 
-		err := mngr.Delete(context.Background(), 1)
+		err := mngr.Delete(context.Background(), "1")
 		require.Equal(
 			t,
 			errors2.APIError{
@@ -407,7 +407,7 @@ func TestDeleteScript(t *testing.T) {
 		}
 		mngr := NewManager(dbProv, testLog)
 
-		err := mngr.Delete(context.Background(), 1)
+		err := mngr.Delete(context.Background(), "1")
 		require.Equal(
 			t,
 			errors2.APIError{

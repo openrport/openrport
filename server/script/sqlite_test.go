@@ -21,7 +21,7 @@ var testLog = chshare.NewLogger("script", chshare.LogOutput{File: os.Stdout}, ch
 
 var demoData = []Script{
 	{
-		ID:          1,
+		ID:          "1",
 		Name:        "some name",
 		CreatedBy:   "user1",
 		CreatedAt:   time.Date(2001, 1, 1, 1, 0, 0, 0, time.UTC),
@@ -31,7 +31,7 @@ var demoData = []Script{
 		Script:      "ls -la",
 	},
 	{
-		ID:          2,
+		ID:          "2",
 		Name:        "other name 2",
 		CreatedBy:   "user1",
 		CreatedAt:   time.Date(2002, 1, 1, 1, 0, 0, 0, time.UTC),
@@ -52,14 +52,14 @@ func TestGetByID(t *testing.T) {
 	err = addDemoData(dbProv.db)
 	require.NoError(t, err)
 
-	val, found, err := dbProv.GetByID(ctx, 1)
+	val, found, err := dbProv.GetByID(ctx, "1")
 
 	require.NoError(t, err)
 	require.True(t, found)
 	require.NoError(t, err)
 	assert.Equal(t, demoData[0], *val)
 
-	_, found, err = dbProv.GetByID(ctx, -2)
+	_, found, err = dbProv.GetByID(ctx, "-2")
 	require.NoError(t, err)
 	require.False(t, found)
 }
@@ -158,14 +158,13 @@ func TestCreate(t *testing.T) {
 
 	ctx := context.Background()
 	itemToSave := demoData[0]
-	itemToSave.ID = 0
+	itemToSave.ID = ""
 	id, err := dbProv.Save(ctx, &itemToSave, expectedCreatedAt.UTC())
 	require.NoError(t, err)
-	assert.True(t, id > 0)
+	assert.True(t, id != "")
 
 	expectedRows := []map[string]interface{}{
 		{
-			"id":          int64(1),
 			"name":        itemToSave.Name,
 			"created_at":  itemToSave.CreatedAt,
 			"created_by":  itemToSave.CreatedBy,
@@ -175,7 +174,7 @@ func TestCreate(t *testing.T) {
 			"script":      itemToSave.Script,
 		},
 	}
-	q := "SELECT * FROM `scripts`"
+	q := "SELECT name, created_at, created_by, interpreter, is_sudo, cwd, script FROM `scripts`"
 	test.AssertRowsEqual(t, dbProv.db, expectedRows, q, []interface{}{})
 }
 
@@ -202,7 +201,7 @@ func TestUpdate(t *testing.T) {
 
 	expectedRows := []map[string]interface{}{
 		{
-			"id":          int64(1),
+			"id":          "1",
 			"name":        itemToSave.Name,
 			"created_at":  itemToSave.CreatedAt,
 			"created_by":  itemToSave.CreatedBy,
@@ -226,15 +225,15 @@ func TestDelete(t *testing.T) {
 	err = addDemoData(dbProv.db)
 	require.NoError(t, err)
 
-	err = dbProv.Delete(ctx, -2)
+	err = dbProv.Delete(ctx, "-2")
 	assert.EqualError(t, err, "cannot find entry by id -2")
 
-	err = dbProv.Delete(ctx, 2)
+	err = dbProv.Delete(ctx, "2")
 	require.NoError(t, err)
 
 	expectedRows := []map[string]interface{}{
 		{
-			"id":          int64(1),
+			"id":          "1",
 			"name":        demoData[0].Name,
 			"created_at":  demoData[0].CreatedAt,
 			"created_by":  demoData[0].CreatedBy,
@@ -251,7 +250,8 @@ func TestDelete(t *testing.T) {
 func addDemoData(db *sqlx.DB) error {
 	for i := range demoData {
 		_, err := db.Exec(
-			"INSERT INTO `scripts` (`name`, `created_at`, `created_by`, `interpreter`, `is_sudo`, `cwd`, `script`) VALUES (?,?,?,?,?,?,?)",
+			"INSERT INTO `scripts` (`id`, `name`, `created_at`, `created_by`, `interpreter`, `is_sudo`, `cwd`, `script`) VALUES (?,?,?,?,?,?,?,?)",
+			demoData[i].ID,
 			demoData[i].Name,
 			demoData[i].CreatedAt.Format(time.RFC3339),
 			demoData[i].CreatedBy,

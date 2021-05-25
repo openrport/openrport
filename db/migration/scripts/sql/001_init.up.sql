@@ -3,7 +3,7 @@
 -- ----------------------------
 create table scripts
 (
-    id INTEGER not null primary key autoincrement,
+    id TEXT PRIMARY KEY NOT NULL,
     name TEXT,
     created_at DATE not null,
     created_by TEXT not null,
@@ -12,10 +12,6 @@ create table scripts
     cwd TEXT not null,
     script TEXT not null
 );
-
-UPDATE `sqlite_sequence`
-SET `seq` = 1
-    WHERE `name` = 'scripts';
 
 CREATE INDEX "name"
     ON `scripts` (
