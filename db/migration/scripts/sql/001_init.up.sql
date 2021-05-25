@@ -4,12 +4,12 @@
 create table scripts
 (
     id TEXT PRIMARY KEY NOT NULL,
-    name TEXT,
+    name TEXT not null,
     created_at DATE not null,
     created_by TEXT not null,
-    interpreter TEXT not null,
+    interpreter TEXT,
     is_sudo INTEGER(1) default 0 not null,
-    cwd TEXT not null,
+    cwd TEXT,
     script TEXT not null
 );
 

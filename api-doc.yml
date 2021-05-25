@@ -1275,7 +1275,7 @@ paths:
           schema:
             $ref: "#/definitions/ErrorPayload"
         "404":
-          description: "Cannot find a script by the provided id"
+          description: "Cannot find a vault entry by the provided id"
           schema:
             $ref: "#/definitions/ErrorPayload"
         "409":
