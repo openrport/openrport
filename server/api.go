@@ -164,8 +164,8 @@ func (al *APIListener) initRouter() {
 	sub.HandleFunc("/vault/{"+routeParamVaultValueID+"}", al.handleVaultStoreValue).Methods(http.MethodPut)
 	sub.HandleFunc("/vault/{"+routeParamVaultValueID+"}", al.handleVaultDeleteValue).Methods(http.MethodDelete)
 	sub.HandleFunc("/scripts", al.handleListScripts).Methods(http.MethodGet)
-	sub.HandleFunc("/scripts", al.handleStoreScriptValue).Methods(http.MethodPost)
-	sub.HandleFunc("/scripts/{"+routeParamScriptValueID+"}", al.handleStoreScriptValue).Methods(http.MethodPut)
+	sub.HandleFunc("/scripts", al.handleScriptCreate).Methods(http.MethodPost)
+	sub.HandleFunc("/scripts/{"+routeParamScriptValueID+"}", al.handleScriptUpdate).Methods(http.MethodPut)
 	sub.HandleFunc("/scripts/{"+routeParamScriptValueID+"}", al.handleReadScript).Methods(http.MethodGet)
 	sub.HandleFunc("/scripts/{"+routeParamScriptValueID+"}", al.handleDeleteScript).Methods(http.MethodDelete)
 
@@ -2212,42 +2212,64 @@ func (al *APIListener) handleListScripts(w http.ResponseWriter, req *http.Reques
 	al.writeJSONResponse(w, http.StatusOK, api.NewSuccessPayload(items))
 }
 
-func (al *APIListener) handleStoreScriptValue(w http.ResponseWriter, req *http.Request) {
-	curUser, err := al.getUserModelForAuth(req)
+func (al *APIListener) handleScriptCreate(w http.ResponseWriter, req *http.Request) {
+	var scriptInput script.InputScript
+	dec := json.NewDecoder(req.Body)
+	dec.DisallowUnknownFields()
+	err := dec.Decode(&scriptInput)
+	if err != nil {
+		al.jsonErrorResponseWithError(w, http.StatusBadRequest, "", "Invalid JSON data.", err)
+		return
+	}
+
+	curUsername := api.GetUser(req.Context(), al.Logger)
+	if curUsername == "" {
+		al.jsonErrorResponseWithTitle(w, http.StatusUnauthorized, "unauthorized")
+		return
+	}
+
+	storedValue, err := al.scriptManager.Create(req.Context(), &scriptInput, curUsername)
 	if err != nil {
 		al.jsonError(w, err)
 		return
 	}
 
+	w.WriteHeader(http.StatusCreated)
+
+	al.writeJSONResponse(w, http.StatusCreated, api.NewSuccessPayload(storedValue))
+}
+
+func (al *APIListener) handleScriptUpdate(w http.ResponseWriter, req *http.Request) {
 	vars := mux.Vars(req)
 	idStr, ok := vars[routeParamScriptValueID]
 	if !ok {
-		idStr = ""
+		al.jsonErrorResponseWithTitle(w, http.StatusBadRequest, "Script ID is not provided")
+		return
+	}
+
+	curUsername := api.GetUser(req.Context(), al.Logger)
+	if curUsername == "" {
+		al.jsonErrorResponseWithTitle(w, http.StatusUnauthorized, "unauthorized")
+		return
 	}
 
 	var scriptInput script.InputScript
 	dec := json.NewDecoder(req.Body)
 	dec.DisallowUnknownFields()
-	err = dec.Decode(&scriptInput)
+	err := dec.Decode(&scriptInput)
 
 	if err != nil {
 		al.jsonErrorResponseWithError(w, http.StatusBadRequest, "", "Invalid JSON data.", err)
 		return
 	}
 
-	storedValue, err := al.scriptManager.Store(req.Context(), idStr, &scriptInput, curUser)
+	storedValue, err := al.scriptManager.Update(req.Context(), idStr, &scriptInput, curUsername)
 	if err != nil {
 		al.jsonError(w, err)
 		return
 	}
 
-	status := http.StatusOK
-
-	if idStr == "" {
-		w.WriteHeader(http.StatusCreated)
-	}
-
-	al.writeJSONResponse(w, status, api.NewSuccessPayload(storedValue))
+	al.writeJSONResponse(w, http.StatusOK, api.NewSuccessPayload(storedValue))
 }
 
 func (al *APIListener) handleReadScript(w http.ResponseWriter, req *http.Request) {
@@ -2261,7 +2283,7 @@ func (al *APIListener) handleReadScript(w http.ResponseWriter, req *http.Request
 		return
 	}
 
-	froundScript, found, err := al.scriptManager.GetOne(req.Context(), idStr)
+	foundScript, found, err := al.scriptManager.GetOne(req.Context(), idStr)
 	if err != nil {
 		al.jsonError(w, err)
 		return
@@ -2271,7 +2293,7 @@ func (al *APIListener) handleReadScript(w http.ResponseWriter, req *http.Request
 		return
 	}
 
-	al.writeJSONResponse(w, http.StatusOK, api.NewSuccessPayload(froundScript))
+	al.writeJSONResponse(w, http.StatusOK, api.NewSuccessPayload(foundScript))
 }
 
 func (al *APIListener) handleDeleteScript(w http.ResponseWriter, req *http.Request) {

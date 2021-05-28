@@ -17,3 +17,8 @@ CREATE INDEX "name"
     ON `scripts` (
     "name" ASC
     );
+
+CREATE UNIQUE INDEX "unique_name"
+    ON `scripts` (
+    "name" ASC
+);

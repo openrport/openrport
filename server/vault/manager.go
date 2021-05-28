@@ -257,7 +257,7 @@ func (m *Manager) List(ctx context.Context, re *http.Request) ([]ValueKey, error
 
 	listOptions := query.ConvertGetParamsToFilterOptions(re)
 
-	err = m.validateListOptions(listOptions)
+	err = query.ValidateListOptions(listOptions, supportedFields)
 	if err != nil {
 		return nil, err
 	}
@@ -265,35 +265,6 @@ func (m *Manager) List(ctx context.Context, re *http.Request) ([]ValueKey, error
 	db := m.dbFactory.GetDbProvider()
 
 	return db.List(ctx, listOptions)
-}
-
-func (m *Manager) validateListOptions(lo *query.ListOptions) error {
-	errs := errors2.APIErrors{}
-	for i := range lo.Sorts {
-		ok := supportedFields[lo.Sorts[i].Column]
-		if !ok {
-			errs = append(errs, errors2.APIError{
-				Message: fmt.Sprintf("unsupported sort field '%s'", lo.Sorts[i].Column),
-				Code:    http.StatusBadRequest,
-			})
-		}
-	}
-
-	for i := range lo.Filters {
-		ok := supportedFields[lo.Filters[i].Column]
-		if !ok {
-			errs = append(errs, errors2.APIError{
-				Message: fmt.Sprintf("unsupported filter field '%s'", lo.Filters[i].Column),
-				Code:    http.StatusBadRequest,
-			})
-		}
-	}
-
-	if len(errs) > 0 {
-		return errs
-	}
-
-	return nil
 }
 
 func (m *Manager) checkGroupAccess(val *StoredValue, user UserDataProvider) error {

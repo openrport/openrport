@@ -1,9 +1,12 @@
 package query
 
 import (
+	"fmt"
 	"net/http"
 	"regexp"
 	"strings"
+
+	errors2 "github.com/cloudradar-monitoring/rport/server/api/errors"
 )
 
 type SortOption struct {
@@ -56,6 +59,35 @@ func extractSortOptions(req *http.Request) []SortOption {
 	}
 
 	return res
+}
+
+func ValidateListOptions(lo *ListOptions, supportedFields map[string]bool) error {
+	errs := errors2.APIErrors{}
+	for i := range lo.Sorts {
+		ok := supportedFields[lo.Sorts[i].Column]
+		if !ok {
+			errs = append(errs, errors2.APIError{
+				Message: fmt.Sprintf("unsupported sort field '%s'", lo.Sorts[i].Column),
+				Code:    http.StatusBadRequest,
+			})
+		}
+	}
+
+	for i := range lo.Filters {
+		ok := supportedFields[lo.Filters[i].Column]
+		if !ok {
+			errs = append(errs, errors2.APIError{
+				Message: fmt.Sprintf("unsupported filter field '%s'", lo.Filters[i].Column),
+				Code:    http.StatusBadRequest,
+			})
+		}
+	}
+
+	if len(errs) > 0 {
+		return errs
+	}
+
+	return nil
 }
 
 func extractFilterOptions(req *http.Request) []FilterOption {

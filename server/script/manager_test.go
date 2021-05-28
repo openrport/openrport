@@ -73,14 +73,6 @@ func (dpm *DbProviderMock) GetDbProvider() DbProvider {
 	return dpm
 }
 
-type UserDataProviderMock struct {
-	UsernameToGive string
-}
-
-func (udpm UserDataProviderMock) GetUsername() string {
-	return udpm.UsernameToGive
-}
-
 func TestManagerList(t *testing.T) {
 	expectedScripts := []Script{
 		{
@@ -221,17 +213,13 @@ func TestStore(t *testing.T) {
 		Script:      "pwd",
 	}
 
-	user := UserDataProviderMock{
-		UsernameToGive: "someuser",
-	}
-
 	t.Run("create_success", func(t *testing.T) {
 		dbProv := &DbProviderMock{
 			saveIDToGive: "123",
 		}
 		mngr := NewManager(dbProv, testLog)
 
-		storedScript, err := mngr.Store(context.Background(), "", inputValue, user)
+		storedScript, err := mngr.Create(context.Background(), inputValue, "someuser")
 		require.NoError(t, err)
 		assert.NotEqual(t, "", storedScript.ID)
 		assert.NotEqual(t, "", dbProv.saveScriptGiven.ID)
@@ -266,7 +254,7 @@ func TestStore(t *testing.T) {
 		}
 		mngr := NewManager(dbProv, testLog)
 
-		storedScript, err := mngr.Store(context.Background(), idToUpdate, inputValue, user)
+		storedScript, err := mngr.Update(context.Background(), idToUpdate, inputValue, "someuser")
 		require.NoError(t, err)
 
 		assert.Equal(t, idToUpdate, storedScript.ID)
@@ -301,7 +289,7 @@ func TestStore(t *testing.T) {
 		}
 		mngr := NewManager(dbProv, testLog)
 
-		_, err := mngr.Store(context.Background(), "1", inputValue, user)
+		_, err := mngr.Update(context.Background(), "1", inputValue, "someuser")
 		require.EqualError(t, err, "another script with the same name 'some nam' exists")
 	})
 
@@ -311,7 +299,7 @@ func TestStore(t *testing.T) {
 		}
 		mngr := NewManager(dbProv, testLog)
 
-		_, err := mngr.Store(context.Background(), "1", inputValue, user)
+		_, err := mngr.Update(context.Background(), "1", inputValue, "someuser")
 		require.EqualError(t, err, "cannot find entry by the provided ID")
 	})
 
@@ -325,17 +313,18 @@ func TestStore(t *testing.T) {
 		}
 		mngr := NewManager(dbProv, testLog)
 
-		_, err := mngr.Store(context.Background(), "", inputValue, user)
+		_, err := mngr.Create(context.Background(), inputValue, "someuser")
 		require.EqualError(t, err, "another script with the same name 'some nam' exists")
 	})
 
-	t.Run("store_failure_name_exists_error", func(t *testing.T) {
+	t.Run("update_list_error", func(t *testing.T) {
 		dbProv := &DbProviderMock{
-			listErrorToGive: errors.New("failed to find anything"),
+			listErrorToGive:    errors.New("failed to find anything"),
+			getByIDFoundToGive: true,
 		}
 		mngr := NewManager(dbProv, testLog)
 
-		_, err := mngr.Store(context.Background(), "1", inputValue, user)
+		_, err := mngr.Update(context.Background(), "1", inputValue, "someuser")
 		require.EqualError(t, err, "failed to find anything")
 	})
 
@@ -343,7 +332,7 @@ func TestStore(t *testing.T) {
 		dbProv := &DbProviderMock{}
 		mngr := NewManager(dbProv, testLog)
 
-		_, err := mngr.Store(context.Background(), "1", &InputScript{}, user)
+		_, err := mngr.Update(context.Background(), "1", &InputScript{}, "someuser")
 		require.EqualError(t, err, "name is required, script is required")
 	})
 
@@ -354,7 +343,7 @@ func TestStore(t *testing.T) {
 		}
 		mngr := NewManager(dbProv, testLog)
 
-		_, err := mngr.Store(context.Background(), "1", inputValue, user)
+		_, err := mngr.Update(context.Background(), "1", inputValue, "someuser")
 		require.EqualError(t, err, "failed to save")
 	})
 }

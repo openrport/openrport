@@ -29,10 +29,6 @@ type DbProvider interface {
 	io.Closer
 }
 
-type UserDataProvider interface {
-	GetUsername() string
-}
-
 type Manager struct {
 	db     DbProvider
 	logger *chshare.Logger
@@ -48,41 +44,12 @@ func NewManager(db DbProvider, logger *chshare.Logger) *Manager {
 func (m *Manager) List(ctx context.Context, re *http.Request) ([]Script, error) {
 	listOptions := query.ConvertGetParamsToFilterOptions(re)
 
-	err := m.validateListOptions(listOptions)
+	err := query.ValidateListOptions(listOptions, supportedFields)
 	if err != nil {
 		return nil, err
 	}
 
 	return m.db.List(ctx, listOptions)
-}
-
-func (m *Manager) validateListOptions(lo *query.ListOptions) error {
-	errs := errors2.APIErrors{}
-	for i := range lo.Sorts {
-		ok := supportedFields[lo.Sorts[i].Column]
-		if !ok {
-			errs = append(errs, errors2.APIError{
-				Message: fmt.Sprintf("unsupported sort field '%s'", lo.Sorts[i].Column),
-				Code:    http.StatusBadRequest,
-			})
-		}
-	}
-
-	for i := range lo.Filters {
-		ok := supportedFields[lo.Filters[i].Column]
-		if !ok {
-			errs = append(errs, errors2.APIError{
-				Message: fmt.Sprintf("unsupported filter field '%s'", lo.Filters[i].Column),
-				Code:    http.StatusBadRequest,
-			})
-		}
-	}
-
-	if len(errs) > 0 {
-		return errs
-	}
-
-	return nil
 }
 
 func (m *Manager) GetOne(ctx context.Context, id string) (*Script, bool, error) {
@@ -98,7 +65,7 @@ func (m *Manager) GetOne(ctx context.Context, id string) (*Script, bool, error) 
 	return val, true, nil
 }
 
-func (m *Manager) Store(ctx context.Context, existingID string, valueToStore *InputScript, userProvider UserDataProvider) (*Script, error) {
+func (m *Manager) Create(ctx context.Context, valueToStore *InputScript, username string) (*Script, error) {
 	err := Validate(valueToStore)
 	if err != nil {
 		return nil, err
@@ -115,22 +82,62 @@ func (m *Manager) Store(ctx context.Context, existingID string, valueToStore *In
 	if err != nil {
 		return nil, err
 	}
-
-	if existingID != "" {
-		_, foundByID, err := m.db.GetByID(ctx, existingID)
-		if err != nil {
-			return nil, err
-		}
-
-		if !foundByID {
-			return nil, errors2.APIError{
-				Message: "cannot find entry by the provided ID",
-				Code:    http.StatusNotFound,
-			}
+	if len(existingScript) > 0 {
+		return nil, errors2.APIError{
+			Message: fmt.Sprintf("another script with the same name '%s' exists", valueToStore.Name),
+			Code:    http.StatusConflict,
 		}
 	}
 
-	if len(existingScript) > 0 && (existingID == "" || existingScript[0].ID != existingID) {
+	now := time.Now()
+	scriptToSave := &Script{
+		Name:        valueToStore.Name,
+		CreatedBy:   username,
+		CreatedAt:   now,
+		Interpreter: valueToStore.Interpreter,
+		IsSudo:      valueToStore.IsSudo,
+		Cwd:         valueToStore.Cwd,
+		Script:      valueToStore.Script,
+	}
+	scriptToSave.ID, err = m.db.Save(ctx, scriptToSave, now)
+	if err != nil {
+		return nil, err
+	}
+
+	return scriptToSave, nil
+}
+
+func (m *Manager) Update(ctx context.Context, existingID string, valueToStore *InputScript, username string) (*Script, error) {
+	err := Validate(valueToStore)
+	if err != nil {
+		return nil, err
+	}
+
+	_, foundByID, err := m.db.GetByID(ctx, existingID)
+	if err != nil {
+		return nil, err
+	}
+
+	if !foundByID {
+		return nil, errors2.APIError{
+			Message: "cannot find entry by the provided ID",
+			Code:    http.StatusNotFound,
+		}
+	}
+
+	scriptsWithSameName, err := m.db.List(ctx, &query.ListOptions{
+		Filters: []query.FilterOption{
+			{
+				Column: "name",
+				Values: []string{valueToStore.Name},
+			},
+		},
+	})
+	if err != nil {
+		return nil, err
+	}
+
+	if len(scriptsWithSameName) > 0 && scriptsWithSameName[0].ID != existingID {
 		return nil, errors2.APIError{
 			Message: fmt.Sprintf("another script with the same name '%s' exists", valueToStore.Name),
 			Code:    http.StatusConflict,
@@ -141,7 +148,7 @@ func (m *Manager) Store(ctx context.Context, existingID string, valueToStore *In
 	scriptToSave := &Script{
 		ID:          existingID,
 		Name:        valueToStore.Name,
-		CreatedBy:   userProvider.GetUsername(),
+		CreatedBy:   username,
 		CreatedAt:   now,
 		Interpreter: valueToStore.Interpreter,
 		IsSudo:      valueToStore.IsSudo,
