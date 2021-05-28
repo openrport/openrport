@@ -1275,7 +1275,7 @@ paths:
           schema:
             $ref: "#/definitions/ErrorPayload"
         "404":
-          description: "Cannot find a vault value by the provided id"
+          description: "Cannot find a vault entry by the provided id"
           schema:
             $ref: "#/definitions/ErrorPayload"
         "409":
@@ -1464,6 +1464,198 @@ paths:
             $ref: "#/definitions/ErrorPayload"
         "403":
           description: "current user should belong to Administrators group to access this resource"
+          schema:
+            $ref: "#/definitions/ErrorPayload"
+        "500":
+          description: "Invalid Operation"
+          schema:
+            $ref: "#/definitions/ErrorPayload"
+  /scripts:
+    get:
+      tags:
+        - "Scripts"
+      summary: "Read or find scripts"
+      description: "Reads all scripts or find some based on the input parameters"
+      produces:
+        - "application/json"
+      parameters:
+        - in: "query"
+          name: "sort"
+          description: "Sort field to be used for values, the sorting direction is by default ASC.\n
+            To change the direction add `-` to the sorting value e.g. `-id`. Allowed values are `id`, `name`, `created_by`, `created_at`.\n
+            You can use as many sort parameters as you want."
+          required: false
+          type: "string"
+        - in: "query"
+          name: "filter[<FIELD>]"
+          description: "Filter to find scripts. It should be provided in the format as `filter[<FIELD>]=<VALUE>`,\n
+              where `<FIELD>` is one of the values `id`, `name`, `created_by`, `created_at` and `<VALUE>` is the search value,\n
+              e.g. `filter[created_by]=admin` will request only scripts created by admin. You can use as many filter parameters as you want.\n
+              If you want to filter by multiple values e.g. find entries either for name = script1 or script2 you can use following filters\n
+              `filter[name]=script1,script2`."
+          required: false
+          type: "string"
+      responses:
+        "200":
+          description: "Successful Operation"
+          schema:
+            type: "object"
+            properties:
+              data:
+                type: "array"
+                items:
+                  $ref: "#/definitions/Script"
+        "400":
+          description: "unsupported sort field 'xyz'"
+          schema:
+            $ref: "#/definitions/ErrorPayload"
+        "401":
+          description: "Unauthorized"
+          schema:
+            $ref: "#/definitions/ErrorPayload"
+        "500":
+          description: "Invalid Operation"
+          schema:
+            $ref: "#/definitions/ErrorPayload"
+    post:
+      tags:
+        - "Scripts"
+      summary: "Creates a new script"
+      description: "Creates a new script.\n
+        If another entry with the same name exists, an error will be returned."
+      produces:
+        - "application/json"
+      parameters:
+        - in: "body"
+          name: "body"
+          description: "value in the json format"
+          required: true
+          schema:
+            $ref: "#/definitions/ScriptInput"
+      responses:
+        "201":
+          description: "Successful Create Operation"
+          schema:
+            type: "object"
+            properties:
+              data:
+                type: "object"
+                $ref: "#/definitions/Script"
+        "400":
+          description: "Invalid request parameters"
+          schema:
+            $ref: "#/definitions/ErrorPayload"
+        "401":
+          description: "Unauthorized"
+          schema:
+            $ref: "#/definitions/ErrorPayload"
+        "409":
+          description: "another script with the same name exists"
+          schema:
+            $ref: "#/definitions/ErrorPayload"
+        "500":
+          description: "Invalid Operation"
+          schema:
+            $ref: "#/definitions/ErrorPayload"
+  /scripts/{id}:
+    get:
+      tags:
+        - "Scripts"
+      summary: "Read a script"
+      description: "Reads a script by the provided ID"
+      produces:
+        - "application/json"
+      parameters:
+        - in: "path"
+          name: "id"
+          required: true
+          description: "Unique script ID"
+          type: "string"
+      responses:
+        "200":
+          description: "Successful Operation"
+          schema:
+            type: "object"
+            properties:
+              data:
+                type: "object"
+                $ref: "#/definitions/Script"
+        "401":
+          description: "Unauthorized"
+          schema:
+            $ref: "#/definitions/ErrorPayload"
+        "404":
+          description: "Cannot find a script by the provided id"
+          schema:
+            $ref: "#/definitions/ErrorPayload"
+        "500":
+          description: "Invalid Operation"
+          schema:
+            $ref: "#/definitions/ErrorPayload"
+    put:
+      tags:
+        - "Scripts"
+      summary: "Updates an existing script"
+      description: "Updates an existing script by the provided `id` parameter.\n
+      You need to provide all fields like those you used to create a script. Partial updates are not supported.
+      You can get `id` by using the listing API. You get the id also when you store a new value."
+      parameters:
+        - in: "path"
+          name: "id"
+          required: true
+          description: "Unique script ID"
+          type: "string"
+        - in: "body"
+          name: "body"
+          description: "value in the json format"
+          required: true
+          schema:
+            $ref: "#/definitions/ScriptInput"
+      responses:
+        "200":
+          description: "Successful Operation"
+          schema:
+            type: "object"
+            properties:
+              data:
+                type: "object"
+                $ref: "#/definitions/Script"
+        "400":
+          description: "Invalid body parameters"
+          schema:
+            $ref: "#/definitions/ErrorPayload"
+        "401":
+          description: "Unauthorized"
+          schema:
+            $ref: "#/definitions/ErrorPayload"
+        "409":
+          description: "another script with the same name exists"
+          schema:
+            $ref: "#/definitions/ErrorPayload"
+        "500":
+          description: "Invalid Operation"
+          schema:
+            $ref: "#/definitions/ErrorPayload"
+    delete:
+      tags:
+        - "Scripts"
+      summary: "Deletes an existing script"
+      description: "Delete a script by the provided `id` parameter."
+      parameters:
+        - in: "path"
+          name: "id"
+          required: true
+          description: "Unique script ID"
+          type: "string"
+      responses:
+        "204":
+          description: "Successful Operation"
+        "401":
+          description: "Unauthorized"
+          schema:
+            $ref: "#/definitions/ErrorPayload"
+        "404":
+          description: "cannot find script by the provided id"
           schema:
             $ref: "#/definitions/ErrorPayload"
         "500":
@@ -1961,5 +2153,49 @@ definitions:
       CreatedBy:
         type: "string"
         description: "User name who created this vault entry"
-
-
+  Script:
+    type: "object"
+    properties:
+      name:
+        type: "string"
+        description: "User-friendly name of a script"
+      id:
+        type: "string"
+        description: "unique internal identifier of a script in uuid4 format"
+      created_at:
+        type: "string"
+        format: "data-time"
+        description: "Date and time of script creation"
+      created_by:
+        type: "string"
+        description: "User name who created this script"
+      interpreter:
+        type: "string"
+        description: "how will the script be executed on the client, e.g. /bin/sh, cmd.exe, powershell"
+      cwd:
+        type: "string"
+        description: "current working directory, where the script should be executed"
+      script:
+        type: "string"
+        description: "text of the script"
+      is_sudo:
+        type: "boolean"
+        description: "if true, this script will be executed as a sudo user"
+  ScriptInput:
+    type: "object"
+    properties:
+      name:
+        type: "string"
+        description: "[required] User-friendly name of a script"
+      script:
+        type: "string"
+        description: "[required] text of the script"
+      interpreter:
+        type: "string"
+        description: "how will the script be executed on the client, e.g. /bin/sh, cmd.exe, powershell"
+      cwd:
+        type: "string"
+        description: "current working directory, where the script should be executed"
+      is_sudo:
+        type: "boolean"
+        description: "if true, this script will be executed as a sudo user"

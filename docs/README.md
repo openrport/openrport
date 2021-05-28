@@ -213,6 +213,7 @@ rport --auth user1:1234 --fingerprint <YOUR_FINGERPRINT> node1.example.com:8080 
 * [Management of client groups via the API](no04-client-groups.md) or the [Swagger API docs](https://petstore.swagger.io/?url=https://raw.githubusercontent.com/cloudradar-monitoring/rport/master/api-doc.yml#/Client%20Groups)
 * [Management of users via the API](no12-user.md) or the [Swagger API docs](https://petstore.swagger.io/?url=https://raw.githubusercontent.com/cloudradar-monitoring/rport/master/api-doc.yml#/Users)
 * [Vault management via the API](no13-vault.md) or the [Swagger API docs](https://petstore.swagger.io/?url=https://raw.githubusercontent.com/cloudradar-monitoring/rport/master/api-doc.yml#/Vault)
+* [Scripts management via the API](no14-scripts.md) or the [Swagger API docs](https://petstore.swagger.io/?url=https://raw.githubusercontent.com/cloudradar-monitoring/rport/master/api-doc.yml#/Scripts)
 
 ## Install a web-based frontend
 Rport comes with a user-friendly web-based frontend. The frontend has it's own none-open-source repository. The installation is quick and easy. [Learn more](no07-frontend.md)
