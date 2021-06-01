@@ -38,6 +38,7 @@ See `./rportd --help` and `./rport --help` for more options, like:
 ## Run the server without installation
 If you quickly want to run the rport server without installation, run the following commands from any unprivileged user account.
 ```
+VERSION=0.1.32
 wget https://github.com/cloudradar-monitoring/rport/releases/download/${VERSION}/rport_${VERSION}_Linux_x86_64.tar.gz
 sudo tar vxzf rport_${VERSION}_Linux_x86_64.tar.gz rportd
 KEY=$(openssl rand -hex 18)

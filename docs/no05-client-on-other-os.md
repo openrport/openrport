@@ -2,11 +2,12 @@
 ## On Mac OS (intel based)
 Open the terminal and as an unprivileged user download the binary and put it in `/usr/local/bin`
 ```
-curl -OL https://github.com/cloudradar-monitoring/rport/releases/download/0.1.29/rport_0.1.29_Darwin_x86_64.tar.gz
+VERSION=0.1.32
+curl -OL https://github.com/cloudradar-monitoring/rport/releases/download/{VERSION}/rport_{VERSION}_Darwin_x86_64.tar.gz
 test -e /usr/local/bin/||sudo mkdir /usr/local/bin
-sudo tar xzf rport_0.1.29_Darwin_x86_64.tar.gz -C /usr/local/bin/ rport
+sudo tar xzf rport_{VERSION}_Darwin_x86_64.tar.gz -C /usr/local/bin/ rport
 sudo mkdir /etc/rport
-tar xzf rport_0.1.29_Darwin_x86_64.tar.gz rport.example.conf
+tar xzf rport_{VERSION}_Darwin_x86_64.tar.gz rport.example.conf
 sudo mv rport.example.conf /etc/rport/rport.conf
 sudo mkdir /var/log/rport
 ```
