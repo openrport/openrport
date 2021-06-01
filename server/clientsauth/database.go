@@ -6,6 +6,8 @@ import (
 	"github.com/go-sql-driver/mysql"
 	"github.com/jmoiron/sqlx"
 	"github.com/mattn/go-sqlite3"
+
+	"github.com/cloudradar-monitoring/rport/share/enums"
 )
 
 const mysqlDuplicateEntryErrorCode = 1062
@@ -64,6 +66,6 @@ func (c *DatabaseProvider) IsWriteable() bool {
 	return true
 }
 
-func (c *DatabaseProvider) Source() ProviderSource {
-	return ProviderSourceDB
+func (c *DatabaseProvider) Source() enums.ProviderSource {
+	return enums.ProviderSourceDB
 }

@@ -7,9 +7,13 @@ import (
 	"io"
 	"net/http"
 	"os"
+	"path"
 	"runtime"
 	"strings"
+	"sync"
 	"time"
+
+	"github.com/cloudradar-monitoring/rport/server/script"
 
 	"github.com/gorilla/handlers"
 	"github.com/gorilla/mux"
@@ -18,9 +22,12 @@ import (
 	"golang.org/x/sync/errgroup"
 
 	"github.com/cloudradar-monitoring/rport/server/api"
+	"github.com/cloudradar-monitoring/rport/server/api/message"
 	"github.com/cloudradar-monitoring/rport/server/api/middleware"
 	"github.com/cloudradar-monitoring/rport/server/api/users"
+	"github.com/cloudradar-monitoring/rport/server/vault"
 	chshare "github.com/cloudradar-monitoring/rport/share"
+	"github.com/cloudradar-monitoring/rport/share/enums"
 	"github.com/cloudradar-monitoring/rport/share/security"
 )
 
@@ -42,8 +49,12 @@ type APIListener struct {
 	insecureForTests  bool
 	bannedUsers       *security.BanList
 	bannedIPs         *security.MaxBadAttemptsBanList
+	twoFASrv          TwoFAService
 
-	testDone chan bool // is used only in tests to be able to wait until async task is done
+	testDone      chan bool // is used only in tests to be able to wait until async task is done
+	usersService  *users.APIService
+	vaultManager  *vault.Manager
+	scriptManager *script.Manager
 }
 
 type UserService interface {
@@ -57,29 +68,57 @@ func NewAPIListener(
 	config := server.config
 
 	var userService UserService
+	var usersProviderType enums.ProviderSource
+	var userDB *users.UserDatabase
+	var err error
+	usersFromFileProvider := &users.FileManager{
+		FileAccessLock: sync.Mutex{},
+	}
 	if config.API.AuthFile != "" {
-		authUsers, err := users.GetUsersFromFile(config.API.AuthFile)
-		if err != nil {
-			return nil, err
+		usersFromFileProvider.FileName = config.API.AuthFile
+		authUsers, e := usersFromFileProvider.ReadUsersFromFile()
+		if e != nil {
+			return nil, e
 		}
 		userService = users.NewUserCache(authUsers)
+		usersProviderType = enums.ProviderSourceFile
 	} else if config.API.Auth != "" {
-		authUser, err := parseHTTPAuthStr(config.API.Auth)
-		if err != nil {
-			return nil, err
+		authUser, e := parseHTTPAuthStr(config.API.Auth)
+		if e != nil {
+			return nil, e
 		}
 		userService = users.NewUserCache([]*users.User{authUser})
+		usersProviderType = enums.ProviderSourceStatic
 	} else if config.API.AuthUserTable != "" {
-		userDB, err := users.NewUserDatabase(server.db, config.API.AuthUserTable, config.API.AuthGroupTable)
+		logger := chshare.NewLogger("database", config.Logging.LogOutput, config.Logging.LogLevel)
+		userDB, err = users.NewUserDatabase(server.db, config.API.AuthUserTable, config.API.AuthGroupTable, config.API.IsTwoFAOn(), logger)
 		if err != nil {
 			return nil, err
 		}
 		userService = userDB
+		usersProviderType = enums.ProviderSourceDB
 	}
 
 	if config.Server.CheckPortTimeout > DefaultMaxCheckPortTimeout {
 		return nil, fmt.Errorf("'check_port_timeout' can not be more than %s", DefaultMaxCheckPortTimeout)
 	}
+
+	vaultLogger := chshare.NewLogger("vault", config.Logging.LogOutput, config.Logging.LogLevel)
+
+	vaultDBProviderFactory := vault.NewStatefulDbProviderFactory(
+		func() (vault.DbProvider, error) {
+			return vault.NewSqliteProvider(config.Vault, vaultLogger)
+		},
+		&vault.NotInitDbProvider{},
+	)
+
+	scriptLogger := chshare.NewLogger("scripts", config.Logging.LogOutput, config.Logging.LogLevel)
+	scriptDb, err := script.NewSqliteProvider(path.Join(config.Server.DataDir, "scripts.db"), scriptLogger)
+	if err != nil {
+		return nil, err
+	}
+
+	scriptManager := script.NewManager(scriptDb, scriptLogger)
 
 	a := &APIListener{
 		Server:            server,
@@ -90,6 +129,39 @@ func NewAPIListener(
 		requestLogOptions: config.InitRequestLogOptions(),
 		userSrv:           userService,
 		bannedUsers:       security.NewBanList(time.Duration(config.API.UserLoginWait) * time.Second),
+		usersService: &users.APIService{
+			ProviderType: usersProviderType,
+			FileProvider: usersFromFileProvider,
+			DB:           userDB,
+			TwoFAOn:      config.API.IsTwoFAOn(),
+		},
+		vaultManager:  vault.NewManager(vaultDBProviderFactory, &vault.Aes256PassManager{}, vaultLogger),
+		scriptManager: scriptManager,
+	}
+
+	if config.API.IsTwoFAOn() {
+		var msgSrv message.Service
+		switch config.API.TwoFATokenDelivery {
+		case "pushover":
+			msgSrv = message.NewPushoverService(config.Pushover.APIToken)
+		case "smtp":
+			msgSrv, err = message.NewSMTPService(
+				config.SMTP.Server,
+				config.SMTP.AuthUsername,
+				config.SMTP.AuthPassword,
+				config.SMTP.SenderEmail,
+				config.SMTP.Secure,
+			)
+			if err != nil {
+				return nil, fmt.Errorf("failed to init smtp service: %v", err)
+			}
+		default:
+			return nil, fmt.Errorf("unknown 2fa delivery: %s", config.API.TwoFATokenDelivery)
+		}
+
+		a.twoFASrv = NewTwoFAService(config.API.TwoFATokenTTLSeconds, userService, msgSrv)
+		a.usersService.DeliverySrv = msgSrv
+		a.Logger.Infof("2FA is enabled via using %s", config.API.TwoFATokenDelivery)
 	}
 
 	if config.API.MaxFailedLogin > 0 && config.API.BanTime > 0 {
@@ -149,6 +221,15 @@ func (al *APIListener) Close() error {
 	if al.accessLogFile != nil {
 		g.Go(al.accessLogFile.Close)
 	}
+
+	if al.vaultManager != nil {
+		g.Go(al.vaultManager.Close)
+	}
+
+	if al.scriptManager != nil {
+		g.Go(al.scriptManager.Close)
+	}
+
 	return g.Wait()
 }
 
@@ -184,17 +265,26 @@ func (al *APIListener) handleAPIRequest(w http.ResponseWriter, r *http.Request) 
 var ErrTooManyRequests = errors.New("too many requests, please try later")
 
 func (al *APIListener) lookupUser(r *http.Request) (authorized bool, username string, err error) {
-	if basicUser, basicPwd, basicAuthProvided := r.BasicAuth(); basicAuthProvided {
-		if al.bannedUsers.IsBanned(basicUser) {
-			return false, basicUser, ErrTooManyRequests
+	// skip basic auth when 2fa is enabled
+	if !al.config.API.IsTwoFAOn() {
+		if basicUser, basicPwd, basicAuthProvided := r.BasicAuth(); basicAuthProvided {
+			if al.bannedUsers.IsBanned(basicUser) {
+				return false, basicUser, ErrTooManyRequests
+			}
+			authorized, err = al.validateCredentials(basicUser, basicPwd)
+			username = basicUser
+			return
 		}
-		authorized, err = al.validateCredentials(basicUser, basicPwd)
-		username = basicUser
-		return
 	}
 
 	if bearerToken, bearerAuthProvided := getBearerToken(r); bearerAuthProvided {
 		authorized, username, err = al.handleBearerToken(bearerToken)
+		return
+	}
+
+	// case when no auth method is provided
+	if al.bannedUsers.IsBanned("") {
+		return false, "", ErrTooManyRequests
 	}
 
 	return

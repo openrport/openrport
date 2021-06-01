@@ -1,13 +1,6 @@
 package clientsauth
 
-type ProviderSource string
-
-const (
-	ProviderSourceStatic ProviderSource = "Static Credentials"
-	ProviderSourceFile   ProviderSource = "File"
-	ProviderSourceDB     ProviderSource = "DB"
-	ProviderSourceMock   ProviderSource = "Mock"
-)
+import "github.com/cloudradar-monitoring/rport/share/enums"
 
 type Provider interface {
 	// Get returns client authentication credentials from provider or nil
@@ -21,7 +14,7 @@ type Provider interface {
 	// IsWriteable returns true if provider is writeable
 	IsWriteable() bool
 	// Source returns a provider source
-	Source() ProviderSource
+	Source() enums.ProviderSource
 }
 
 // mockProvider is non thread safe in memory provider for use in tests
@@ -70,6 +63,6 @@ func (p *mockProvider) IsWriteable() bool {
 	return true
 }
 
-func (p *mockProvider) Source() ProviderSource {
-	return ProviderSourceMock
+func (p *mockProvider) Source() enums.ProviderSource {
+	return enums.ProviderSourceMock
 }

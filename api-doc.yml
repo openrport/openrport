@@ -22,27 +22,31 @@ schemes:
   - https
 tags:
   - name: "Login"
-    description: For more details https://github.com/cloudradar-monitoring/rport/blob/master/docs/api-auth.md
-  - name: "Status"
+    description: For more details https://oss.rport.io/docs/no02-api-auth.html
+  - name: "Profile & Info"
+    description: "Profile and System Information"
   - name: "Clients and Tunnels"
-    description: For more details https://github.com/cloudradar-monitoring/rport/blob/master/docs/managing-tunnels.md
+    description: For more details https://oss.rport.io/docs/no09-managing-tunnels.html
   - name: "Client Groups"
-    description: For more details https://github.com/cloudradar-monitoring/rport/blob/master/docs/client-groups.md
+    description: For more details https://oss.rport.io/docs/no04-client-groups.html
   - name: "Rport Client Auth Credentials"
-    description: For more details https://github.com/cloudradar-monitoring/rport/blob/master/docs/client-auth.md
+    description: For more details https://oss.rport.io/docs/no03-client-auth.html
   - name: "Commands"
-    description: For more details https://github.com/cloudradar-monitoring/rport/blob/master/docs/command-execution.md
+    description: For more details https://oss.rport.io/docs/no06-command-execution.html
+  - name: "Users"
+    description: For more details https://oss.rport.io/docs/no12-user.html
 paths:
   /login:
     get:
       tags:
         - "Login"
-      summary: "Generate or renew auth token. Requires HTTP-basic authorization"
-      description: ""
+      summary: "Generate auth token. Requires HTTP-basic authorization"
+      description: "If 2FA is disabled: returns authorization JWT token.\n
+      If 2FA is enabled: triggers sending 2FA token to the user. 2fa token can be further verified using `/verify-2fa` endpoint. Requires the user to have a valid `two_fa_send_to` delivery option"
       parameters:
         - name: "token-lifetime"
           in: "query"
-          description: "initial lifetime in seconds. Max value is 90 days. Default: 10 min"
+          description: "initial lifetime of JWT token in seconds. Max value is 90 days. Default: 10 min"
           required: false
           default: 360
           maximum: 7776000
@@ -53,15 +57,7 @@ paths:
         "200":
           description: "Successful Operation"
           schema:
-            type: "object"
-            properties:
-              data:
-                type: "object"
-                properties:
-                  token:
-                    type: "string"
-              meta:
-                type: "object"
+            $ref: "#/definitions/LoginResponse"
         "400":
           description: "Invalid parameters"
           schema:
@@ -77,13 +73,15 @@ paths:
     post:
       tags:
         - "Login"
-      summary: "Generate or renew auth token. Requires username and password provided in request body"
-      description: "username and password parameters are required. They can be provided either in JSON either in x-www-formurlencoded format"
+      summary: "Generate auth token. Requires username and password in request body"
+      description: "If 2FA is disabled: returns authorization JWT token.\n
+      If 2FA is enabled: triggers sending 2FA token to the user. 2fa token can be further verified using `/verify-2fa` endpoint. Requires the user to have a valid `two_fa_send_to` delivery option.\n
+      `username` and `password` should be provided in request body either in JSON either in x-www-formurlencoded format"
       # swagger 2.0 does not allow describing a method that accepts multiple content-types
       parameters:
         - name: "token-lifetime"
           in: "query"
-          description: "initial lifetime in seconds. Max value is 90 days. Default: 10 min"
+          description: "initial lifetime of JWT token in seconds. Max value is 90 days. Default: 10 min"
           required: false
           default: 360
           maximum: 7776000
@@ -92,17 +90,9 @@ paths:
         - "application/json"
       responses:
         "200":
-          description: ""
+          description: "Successful Operation"
           schema:
-            type: "object"
-            properties:
-              data:
-                type: "object"
-                properties:
-                  token:
-                    type: "string"
-              meta:
-                type: "object"
+            $ref: "#/definitions/LoginResponse"
         "400":
           description: "Invalid parameters"
           schema:
@@ -115,10 +105,11 @@ paths:
           description: "Invalid Operation"
           schema:
             $ref: "#/definitions/ErrorPayload"
+  /logout:
     delete:
       tags:
         - "Login"
-      summary: "Revoke token (logoff). Requires Bearer authorization provided"
+      summary: "Revoke token. Requires Bearer authorization provided"
       description: ""
       produces:
         - "application/json"
@@ -133,14 +124,35 @@ paths:
           description: "Invalid Operation"
           schema:
             $ref: "#/definitions/ErrorPayload"
-  /me:
-    get:
+  /verify-2fa:
+    post:
       tags:
         - "Login"
-      summary: "Return currently logged in user and groups the user belongs to"
-      description: ""
+      summary: "Verify 2FA token of the user. Requires enabled 2FA"
+      description: "Returns authorization JWT token if a provided username and his 2fa token are valid"
       produces:
         - "application/json"
+      parameters:
+        - name: "token-lifetime"
+          in: "query"
+          description: "initial lifetime of JWT token in seconds. Max value is 90 days. Default: 10 min"
+          required: false
+          default: 360
+          maximum: 7776000
+          type: "integer"
+        - in: "body"
+          name: "body"
+          description: "Username and his 2FA token"
+          required: true
+          schema:
+            type: "object"
+            properties:
+              username:
+                type: "string"
+                description: "Unique username"
+              token:
+                type: "string"
+                description: "2FA token that was sent to the user by `/login` endpoints"
       responses:
         "200":
           description: "Successful Operation"
@@ -150,16 +162,78 @@ paths:
               data:
                 type: "object"
                 properties:
-                  user:
+                  token:
                     type: "string"
-                  groups:
-                    type: "array"
-                    items:
-                      type: string
-              meta:
-                type: "object"
+                    description: "Authorization JWT token"
+        "400":
+          description: "Invalid Request"
+          schema:
+            $ref: "#/definitions/ErrorPayload"
+        "401":
+          description: "Unauthorized"
+          schema:
+            $ref: "#/definitions/ErrorPayload"
+        "409":
+          description: "2FA is disabled"
+          schema:
+            $ref: "#/definitions/ErrorPayload"
+        "500":
+          description: "Invalid Operation"
+          schema:
+            $ref: "#/definitions/ErrorPayload"
+  /me:
+    get:
+      tags:
+        - "Profile & Info"
+      summary: "Return currently logged in user and groups the user belongs to"
+      description: ""
+      produces:
+        - "application/json"
+      responses:
+        "200":
+          description: "Successful Operation"
+          schema:
+            $ref: "#/definitions/UserGet"
         "404":
           description: "User not found"
+          schema:
+            $ref: "#/definitions/ErrorPayload"
+        "500":
+          description: "Invalid Operation"
+          schema:
+            $ref: "#/definitions/ErrorPayload"
+    put:
+      tags:
+        - "Profile & Info"
+      summary: "Update your own username, password or two_fa_send_to"
+      produces:
+        - "application/json"
+      parameters:
+        - in: "body"
+          name: "updated params"
+          description: "your own parameters that you would like to update"
+          required: true
+          schema:
+            type: "object"
+            properties:
+              username:
+                type: "string"
+                description: "new username, empty if keep the same"
+              password:
+                type: "string"
+                description: "new password, empty if keep the same"
+              two_fa_send_to:
+                type: "string"
+                description: "applicable only when 2FA is enabled, ignored otherwise. New two_fa_send_to, empty if keep the same"
+      responses:
+        "204":
+          description: "Successful Operation"
+        "400":
+          description: "Invalid request parameters"
+          schema:
+            $ref: "#/definitions/ErrorPayload"
+        "401":
+          description: "Unauthorized"
           schema:
             $ref: "#/definitions/ErrorPayload"
         "500":
@@ -169,8 +243,8 @@ paths:
   /me/ip:
     get:
       tags:
-        - "Login"
-      summary: "Return a public ip address of a client who makes the request."
+        - "Profile & Info"
+      summary: "Return a public ip address of a client who makes the request"
       description: ""
       produces:
         - "application/json"
@@ -188,7 +262,7 @@ paths:
   /status:
     get:
       tags:
-        - "Status"
+        - "Profile & Info"
       summary: "Get information about rport server"
       description: "Show health status, server version, etc"
       produces:
@@ -220,6 +294,17 @@ paths:
                     type: "string"
                   connect_url:
                     type: "string"
+                  users_auth_source:
+                    description: "The source of API users authentication credentials"
+                    type: "string"
+                    enum: ["Static Credentials", "File", "DB"]
+                  two_fa_enabled:
+                    description: "True if two-factor authentication is enabled"
+                    type: "boolean"
+                  two_fa_delivery_method:
+                    description: "Delivery method that is used to send auth tokens when 2FA is enabled"
+                    type: "string"
+                    enum: ["email", "pushover"]
               meta:
                 type: "object"
         "500":
@@ -256,6 +341,35 @@ paths:
             $ref: "#/definitions/ErrorPayload"
         "500":
           description: "invalid operation"
+          schema:
+            $ref: "#/definitions/ErrorPayload"
+  /clients/{client_id}:
+    delete:
+      tags:
+        - "Clients and Tunnels"
+      summary:  "Delete a disconnected client by id"
+      description: "Deletes a client by a given id. This API requires the current client to be offline. Returns 400 otherwise."
+      produces:
+        - "application/json"
+      parameters:
+        - name: "client_id"
+          in: "path"
+          description: "unique client ID"
+          required: true
+          type: "string"
+      responses:
+        "204":
+          description: "Successful operation."
+        "400":
+          description: "Invalid request: client is active or provided client ID is empty."
+          schema:
+            $ref: "#/definitions/ErrorPayload"
+        "404":
+          description: "Client not found"
+          schema:
+            $ref: "#/definitions/ErrorPayload"
+        "500":
+          description: "Invalid operation"
           schema:
             $ref: "#/definitions/ErrorPayload"
   /clients/{client_id}/tunnels:
@@ -402,7 +516,7 @@ paths:
       tags:
         - "Commands"
       summary: "Execute a command by the rport client"
-      description: "NOTE: if command limitation is enabled by an rport client then a full path command can be required to use. See https://github.com/cloudradar-monitoring/rport/blob/master/docs/command-execution.md for more details"
+      description: "NOTE: if command limitation is enabled by an rport client then a full path command can be required to use. See https://oss.rport.io/docs/no06-command-execution.html for more details"
       produces:
         - "application/json"
       parameters:
@@ -420,7 +534,7 @@ paths:
             properties:
               command:
                 type: "string"
-                description: "remote command to execute by the rport client. NOTE: if command limitation is enabled by an rport client then a full path command can be required to use. See https://github.com/cloudradar-monitoring/rport/blob/master/docs/command-execution.md for more details"
+                description: "remote command to execute by the rport client. NOTE: if command limitation is enabled by an rport client then a full path command can be required to use. See https://oss.rport.io/docs/no06-command-execution.html for more details"
               shell:
                 type: "string"
                 enum: [cmd, powershell]
@@ -518,7 +632,7 @@ paths:
       tags:
         - "Commands"
       summary: "Execute a command on multiple rport clients"
-      description: "NOTE: if command limitation is enabled by an rport client then a full path command can be required to use. See https://github.com/cloudradar-monitoring/rport/blob/master/docs/command-execution.md for more details"
+      description: "NOTE: if command limitation is enabled by an rport client then a full path command can be required to use. See https://oss.rport.io/docs/no06-command-execution.html for more details"
       produces:
         - "application/json"
       parameters:
@@ -531,7 +645,7 @@ paths:
             properties:
               command:
                 type: "string"
-                description: "remote command to execute by rport clients. NOTE: if command limitation is enabled by an rport client then a full path command can be required to use. See https://github.com/cloudradar-monitoring/rport/blob/master/docs/command-execution.md for more details"
+                description: "remote command to execute by rport clients. NOTE: if command limitation is enabled by an rport client then a full path command can be required to use. See https://oss.rport.io/docs/no06-command-execution.html for more details"
               client_ids:
                 type: "array"
                 items:
@@ -874,6 +988,681 @@ paths:
           description: "Invalid Operation"
           schema:
             $ref: "#/definitions/ErrorPayload"
+  /users:
+    get:
+      tags:
+        - "Users"
+      summary: "Return all users"
+      description: "Return a list of all existing users sorted by username in asc order.
+      This API requires the current user to be member of group `Administrators`. Returns 403 otherwise.
+      The `Administrators` group name is hardcoded and cannot be changed at the moment"
+      produces:
+        - "application/json"
+      responses:
+        "200":
+          description: "Successful Operation"
+          schema:
+            type: "object"
+            properties:
+              data:
+                type: "array"
+                items:
+                  $ref: "#/definitions/UserGet"
+        "400":
+          description: "server runs on a static user-password pair, please use JSON file or database for user data"
+          schema:
+            $ref: "#/definitions/ErrorPayload"
+        "403":
+          description: "current user should belong to Administrators group to access this resource"
+          schema:
+            $ref: "#/definitions/ErrorPayload"
+        "500":
+          description: "Invalid Operation"
+          schema:
+            $ref: "#/definitions/ErrorPayload"
+    post:
+      tags:
+        - "Users"
+      summary: "Create a new user"
+      description: "Create a new user.
+      This API requires the current user to be member of group `Administrators`. Returns 403 otherwise.
+      The `Administrators` group name is hardcoded and cannot be changed at the moment"
+      produces:
+        - "application/json"
+      parameters:
+        - in: "body"
+          name: "user"
+          description: "User to create."
+          required: true
+          schema:
+            $ref: '#/definitions/UserPost'
+      responses:
+        "201":
+          description: "Successful Operation"
+        "400":
+          description: "Invalid request parameters"
+          schema:
+            $ref: "#/definitions/ErrorPayload"
+        "403":
+          description: "current user should belong to Administrators group to access this resource"
+          schema:
+            $ref: "#/definitions/ErrorPayload"
+        "500":
+          description: "Invalid Operation"
+          schema:
+            $ref: "#/definitions/ErrorPayload"
+  /users/{user_id}:
+    put:
+      tags:
+        - "Users"
+      summary: "Update a user identified by the provided id"
+      description: "Update an existing user.
+      This API requires the current user to be member of group `Administrators`. Returns 403 otherwise.
+            The `Administrators` group name is hardcoded and cannot be changed at the moment."
+      produces:
+        - "application/json"
+      parameters:
+        - name: "user_id"
+          in: "path"
+          description: "unique user ID"
+          required: true
+          type: "string"
+        - in: "body"
+          name: "user"
+          description: "User to update. Please note, that if you provide some key/values like `username: login1`, the not mentioned keys won't be changed, e.g. `password`"
+          required: true
+          schema:
+            $ref: '#/definitions/UserPost'
+      responses:
+        "204":
+          description: "Successful Operation"
+        "400":
+          description: "Invalid request parameters"
+          schema:
+            $ref: "#/definitions/ErrorPayload"
+        "403":
+          description: "current user should belong to Administrators group to access this resource"
+          schema:
+            $ref: "#/definitions/ErrorPayload"
+        "500":
+          description: "Invalid Operation"
+          schema:
+            $ref: "#/definitions/ErrorPayload"
+    delete:
+      tags:
+        - "Users"
+      summary: "Delete a user"
+      description: "Deletes a user by a given id.
+      This API requires the current user to be member of group `Administrators`. Returns 403 otherwise.
+            The `Administrators` group name is hardcoded and cannot be changed at the moment"
+      produces:
+        - "application/json"
+      parameters:
+        - name: "user_id"
+          in: "path"
+          description: "unique user ID"
+          required: true
+          type: "string"
+      responses:
+        "204":
+          description: "Successful Operation"
+        "403":
+          description: "current user should belong to Administrators group to access this resource"
+          schema:
+            $ref: "#/definitions/ErrorPayload"
+        "500":
+          description: "Invalid Operation"
+          schema:
+            $ref: "#/definitions/ErrorPayload"
+  /vault-admin:
+    get:
+      tags:
+        - "Vault"
+      summary: "Get status of RPort vault"
+      description: "Returns status information about the Rport vault."
+      produces:
+        - "application/json"
+      responses:
+        "200":
+          description: "Successful Operation"
+          schema:
+            type: "object"
+            properties:
+              data:
+                type: "object"
+                properties:
+                  init:
+                    type: "string"
+                    enum: [setup-completed, uninitialized]
+                    description: "vault initialization status: if setup-completed vault is initialized or uninitialized otherwise"
+                  status:
+                    type: "string"
+                    enum: [ locked, unlocked ]
+                    description: "vault lock status"
+        "401":
+          description: "Unauthorized"
+          schema:
+            $ref: "#/definitions/ErrorPayload"
+        "500":
+          description: "Invalid Operation"
+          schema:
+            $ref: "#/definitions/ErrorPayload"
+  /vault:
+    get:
+      tags:
+        - "Vault"
+      summary: "Read or find vault entries"
+      description: "Reads all vault entries or find some based on the input parameters"
+      produces:
+        - "application/json"
+      parameters:
+        - in: "query"
+          name: "sort"
+          description: "Sort field to be used for values, the sorting direction is by default ASC.\n
+          To change the direction add `-` to the sorting value e.g. `-id`. Allowed values are `id`, `client_id`, `created_by`, `created_at`, `key`.\n
+          You can use as many sort parameters as you want."
+          required: false
+          type: "string"
+        - in: "query"
+          name: "filter[<FIELD>]"
+          description: "Filter to find vault entries. It should be provided in the format as `filter[<FIELD>]=<VALUE>`,\n
+            where `<FIELD>` is one of the values `id`, `client_id`, `created_by`, `created_at`, `key` and `<VALUE>` is the search value,\n
+            e.g. `filter[created_by]=admin` will request only vault entries created by admin. You can use as many filter parameters as you want.\n
+            If you want to filter by multiple values e.g. find entries either for client_id = client1 or client2 you can use following filters\n
+            `filter[client_id]=client1,client2`.
+            "
+          required: false
+          type: "string"
+      responses:
+        "200":
+          description: "Successful Operation"
+          schema:
+            type: "object"
+            properties:
+              data:
+                type: "array"
+                items:
+                  $ref: "#/definitions/VaultEntryOutputShort"
+        "400":
+          description: "unsupported sort field 'xyz'"
+          schema:
+            $ref: "#/definitions/ErrorPayload"
+        "401":
+          description: "Unauthorized"
+          schema:
+            $ref: "#/definitions/ErrorPayload"
+        "409":
+          description: "vault is locked or not initialized"
+          schema:
+            $ref: "#/definitions/ErrorPayload"
+        "500":
+          description: "Invalid Operation"
+          schema:
+            $ref: "#/definitions/ErrorPayload"
+    post:
+      tags:
+        - "Vault"
+      summary: "Creates a new vault entry"
+      description: "Creates a new entry in vault with the encrypted value field.\n
+      If another entry with the same key and client id combination exists, an error will be returned."
+      produces:
+        - "application/json"
+      parameters:
+        - in: "body"
+          name: "body"
+          description: "value in the json format"
+          required: true
+          schema:
+            $ref: "#/definitions/VaultEntryInput"
+      responses:
+        "201":
+          description: "Successful Operation"
+          schema:
+            type: "object"
+            properties:
+              data:
+                type: "object"
+                properties:
+                  id:
+                    type: "integer"
+                    description: "unique internal id of the created vault entry"
+        "400":
+          description: "Invalid request parameters"
+          schema:
+            $ref: "#/definitions/ErrorPayload"
+        "401":
+          description: "Unauthorized"
+          schema:
+            $ref: "#/definitions/ErrorPayload"
+        "409":
+          description: "vault is locked or not initialized or another key exists for this client"
+          schema:
+            $ref: "#/definitions/ErrorPayload"
+        "500":
+          description: "Invalid Operation"
+          schema:
+            $ref: "#/definitions/ErrorPayload"
+  /vault/{id}:
+    get:
+      tags:
+        - "Vault"
+      summary: "Read a decrypted vault value"
+      description: "Reads a vault entry with a decrypted value field. If `required_group` value of the stored vault entry is not emtpy,\n
+      only users of this group can read this value."
+      produces:
+        - "application/json"
+      parameters:
+        - in: "path"
+          name: "id"
+          required: true
+          description: "Unique vault entry ID"
+          type: "integer"
+      responses:
+        "200":
+          description: "Successful Operation"
+          schema:
+            type: "object"
+            properties:
+              data:
+                type: "object"
+                $ref: "#/definitions/VaultEntryOutputFull"
+        "401":
+          description: "Unauthorized"
+          schema:
+            $ref: "#/definitions/ErrorPayload"
+        "403":
+          description: "your group doesn't allow access to this value"
+          schema:
+            $ref: "#/definitions/ErrorPayload"
+        "404":
+          description: "Cannot find a vault entry by the provided id"
+          schema:
+            $ref: "#/definitions/ErrorPayload"
+        "409":
+          description: "vault is locked or not initialized"
+          schema:
+            $ref: "#/definitions/ErrorPayload"
+        "500":
+          description: "Invalid Operation"
+          schema:
+            $ref: "#/definitions/ErrorPayload"
+    put:
+      tags:
+        - "Vault"
+      summary: "Updates an existing vault entry"
+      description: "Updates an existing vault entry by the provided `id` parameter.\n
+      If `required_group` value of the stored vault entry is not empty, only users of this group can change this value.\n
+      You need to provide all fields like those you used to create a vault entry. Partial updates are not supported.
+      You can get `id` it by using the listing API. You get the id also when you store a new value."
+      parameters:
+        - in: "path"
+          name: "id"
+          required: true
+          description: "Unique vault entry ID"
+          type: "integer"
+        - in: "body"
+          name: "body"
+          description: "value in the json format"
+          required: true
+          schema:
+            $ref: "#/definitions/VaultEntryInput"
+      responses:
+        "200":
+          description: "Successful Operation"
+          schema:
+            type: "object"
+            properties:
+              data:
+                type: "object"
+                properties:
+                  id:
+                    type: "integer"
+                    description: "unique internal id of the updated vault entry"
+        "400":
+          description: "Invalid body parameters"
+          schema:
+            $ref: "#/definitions/ErrorPayload"
+        "401":
+          description: "Unauthorized"
+          schema:
+            $ref: "#/definitions/ErrorPayload"
+        "403":
+          description: "your group doesn't allow access to this value"
+          schema:
+            $ref: "#/definitions/ErrorPayload"
+        "409":
+          description: "vault is locked or not initialized"
+          schema:
+            $ref: "#/definitions/ErrorPayload"
+        "500":
+          description: "Invalid Operation"
+          schema:
+            $ref: "#/definitions/ErrorPayload"
+    delete:
+      tags:
+        - "Vault"
+      summary: "Deletes an existing vault entry"
+      description: "Delete a vault entry by the provided `id` parameter.\n
+      If `required_group` value of the stored vault entry is not empty, only users of this group can delete this value."
+      parameters:
+        - in: "path"
+          name: "id"
+          required: true
+          description: "Unique vault entry ID"
+          type: "integer"
+      responses:
+        "204":
+          description: "Successful Operation"
+        "401":
+          description: "Unauthorized"
+          schema:
+            $ref: "#/definitions/ErrorPayload"
+        "403":
+          description: "your group doesn't allow access to this value"
+          schema:
+            $ref: "#/definitions/ErrorPayload"
+        "404":
+          description: "cannot find this entry by the provided id"
+          schema:
+            $ref: "#/definitions/ErrorPayload"
+        "409":
+          description: "vault is locked or not initialized"
+          schema:
+            $ref: "#/definitions/ErrorPayload"
+        "500":
+          description: "Invalid Operation"
+          schema:
+            $ref: "#/definitions/ErrorPayload"
+
+  /vault-admin/init:
+    post:
+      tags:
+        - "Vault"
+      summary: "Initialize vault"
+      description: "Initializes vault database and stores password for further requests.
+      This API requires the current user to be member of group `Administrators`. Returns 403 otherwise.
+      The `Administrators` group name is hardcoded and cannot be changed at the moment"
+      produces:
+        - "application/json"
+      parameters:
+        - in: "body"
+          name: "password"
+          description: "Password to unlock the vault"
+          required: true
+          schema:
+            $ref: '#/definitions/SinglePassword'
+      responses:
+        "201":
+          description: "Successful Operation"
+        "409":
+          description: "vault is already initialized"
+          schema:
+            $ref: "#/definitions/ErrorPayload"
+        "400":
+          description: "Password is too short or too long"
+          schema:
+            $ref: "#/definitions/ErrorPayload"
+        "403":
+          description: "current user should belong to Administrators group to access this resource"
+          schema:
+            $ref: "#/definitions/ErrorPayload"
+        "500":
+          description: "Invalid Operation"
+          schema:
+            $ref: "#/definitions/ErrorPayload"
+  /vault-admin/sesame:
+    delete:
+      tags:
+        - "Vault"
+      summary: "Locks vault"
+      description: "Locks vault and delets it's password from server's memory.
+      This API requires the current user to be member of group `Administrators`. Returns 403 otherwise.
+            The `Administrators` group name is hardcoded and cannot be changed at the moment"
+      produces:
+        - "application/json"
+      responses:
+        "204":
+          description: "Successful Operation"
+        "403":
+          description: "current user should belong to Administrators group to access this resource"
+          schema:
+            $ref: "#/definitions/ErrorPayload"
+        "409":
+          description: "vault is already locked"
+          schema:
+            $ref: "#/definitions/ErrorPayload"
+        "500":
+          description: "Invalid Operation"
+          schema:
+            $ref: "#/definitions/ErrorPayload"
+    post:
+      tags:
+        - "Vault"
+      summary: "Unlock vault"
+      description: "Unlocks vault to make it functional. If vault is locked, it won't accept any API requests.
+       This API requires the current user to be member of group `Administrators`. Returns 403 otherwise.
+       The `Administrators` group name is hardcoded and cannot be changed at the moment"
+      produces:
+        - "application/json"
+      parameters:
+        - in: "body"
+          name: "password"
+          description: "Password to unlock the vault. It should be the same password, which was provided when the vault was initialized."
+          required: true
+          schema:
+            $ref: '#/definitions/SinglePassword'
+      responses:
+        "201":
+          description: "Successful Operation"
+        "401":
+          description: "wrong password provided"
+          schema:
+            $ref: "#/definitions/ErrorPayload"
+        "409":
+          description: "vault is already unlocked"
+          schema:
+            $ref: "#/definitions/ErrorPayload"
+        "403":
+          description: "current user should belong to Administrators group to access this resource"
+          schema:
+            $ref: "#/definitions/ErrorPayload"
+        "500":
+          description: "Invalid Operation"
+          schema:
+            $ref: "#/definitions/ErrorPayload"
+  /scripts:
+    get:
+      tags:
+        - "Scripts"
+      summary: "Read or find scripts"
+      description: "Reads all scripts or find some based on the input parameters"
+      produces:
+        - "application/json"
+      parameters:
+        - in: "query"
+          name: "sort"
+          description: "Sort field to be used for values, the sorting direction is by default ASC.\n
+            To change the direction add `-` to the sorting value e.g. `-id`. Allowed values are `id`, `name`, `created_by`, `created_at`.\n
+            You can use as many sort parameters as you want."
+          required: false
+          type: "string"
+        - in: "query"
+          name: "filter[<FIELD>]"
+          description: "Filter to find scripts. It should be provided in the format as `filter[<FIELD>]=<VALUE>`,\n
+              where `<FIELD>` is one of the values `id`, `name`, `created_by`, `created_at` and `<VALUE>` is the search value,\n
+              e.g. `filter[created_by]=admin` will request only scripts created by admin. You can use as many filter parameters as you want.\n
+              If you want to filter by multiple values e.g. find entries either for name = script1 or script2 you can use following filters\n
+              `filter[name]=script1,script2`."
+          required: false
+          type: "string"
+      responses:
+        "200":
+          description: "Successful Operation"
+          schema:
+            type: "object"
+            properties:
+              data:
+                type: "array"
+                items:
+                  $ref: "#/definitions/Script"
+        "400":
+          description: "unsupported sort field 'xyz'"
+          schema:
+            $ref: "#/definitions/ErrorPayload"
+        "401":
+          description: "Unauthorized"
+          schema:
+            $ref: "#/definitions/ErrorPayload"
+        "500":
+          description: "Invalid Operation"
+          schema:
+            $ref: "#/definitions/ErrorPayload"
+    post:
+      tags:
+        - "Scripts"
+      summary: "Creates a new script"
+      description: "Creates a new script.\n
+        If another entry with the same name exists, an error will be returned."
+      produces:
+        - "application/json"
+      parameters:
+        - in: "body"
+          name: "body"
+          description: "value in the json format"
+          required: true
+          schema:
+            $ref: "#/definitions/ScriptInput"
+      responses:
+        "201":
+          description: "Successful Create Operation"
+          schema:
+            type: "object"
+            properties:
+              data:
+                type: "object"
+                $ref: "#/definitions/Script"
+        "400":
+          description: "Invalid request parameters"
+          schema:
+            $ref: "#/definitions/ErrorPayload"
+        "401":
+          description: "Unauthorized"
+          schema:
+            $ref: "#/definitions/ErrorPayload"
+        "409":
+          description: "another script with the same name exists"
+          schema:
+            $ref: "#/definitions/ErrorPayload"
+        "500":
+          description: "Invalid Operation"
+          schema:
+            $ref: "#/definitions/ErrorPayload"
+  /scripts/{id}:
+    get:
+      tags:
+        - "Scripts"
+      summary: "Read a script"
+      description: "Reads a script by the provided ID"
+      produces:
+        - "application/json"
+      parameters:
+        - in: "path"
+          name: "id"
+          required: true
+          description: "Unique script ID"
+          type: "string"
+      responses:
+        "200":
+          description: "Successful Operation"
+          schema:
+            type: "object"
+            properties:
+              data:
+                type: "object"
+                $ref: "#/definitions/Script"
+        "401":
+          description: "Unauthorized"
+          schema:
+            $ref: "#/definitions/ErrorPayload"
+        "404":
+          description: "Cannot find a script by the provided id"
+          schema:
+            $ref: "#/definitions/ErrorPayload"
+        "500":
+          description: "Invalid Operation"
+          schema:
+            $ref: "#/definitions/ErrorPayload"
+    put:
+      tags:
+        - "Scripts"
+      summary: "Updates an existing script"
+      description: "Updates an existing script by the provided `id` parameter.\n
+      You need to provide all fields like those you used to create a script. Partial updates are not supported.
+      You can get `id` by using the listing API. You get the id also when you store a new value."
+      parameters:
+        - in: "path"
+          name: "id"
+          required: true
+          description: "Unique script ID"
+          type: "string"
+        - in: "body"
+          name: "body"
+          description: "value in the json format"
+          required: true
+          schema:
+            $ref: "#/definitions/ScriptInput"
+      responses:
+        "200":
+          description: "Successful Operation"
+          schema:
+            type: "object"
+            properties:
+              data:
+                type: "object"
+                $ref: "#/definitions/Script"
+        "400":
+          description: "Invalid body parameters"
+          schema:
+            $ref: "#/definitions/ErrorPayload"
+        "401":
+          description: "Unauthorized"
+          schema:
+            $ref: "#/definitions/ErrorPayload"
+        "409":
+          description: "another script with the same name exists"
+          schema:
+            $ref: "#/definitions/ErrorPayload"
+        "500":
+          description: "Invalid Operation"
+          schema:
+            $ref: "#/definitions/ErrorPayload"
+    delete:
+      tags:
+        - "Scripts"
+      summary: "Deletes an existing script"
+      description: "Delete a script by the provided `id` parameter."
+      parameters:
+        - in: "path"
+          name: "id"
+          required: true
+          description: "Unique script ID"
+          type: "string"
+      responses:
+        "204":
+          description: "Successful Operation"
+        "401":
+          description: "Unauthorized"
+          schema:
+            $ref: "#/definitions/ErrorPayload"
+        "404":
+          description: "cannot find script by the provided id"
+          schema:
+            $ref: "#/definitions/ErrorPayload"
+        "500":
+          description: "Invalid Operation"
+          schema:
+            $ref: "#/definitions/ErrorPayload"
+
 definitions:
   Tunnel:
     type: "object"
@@ -981,7 +1770,7 @@ definitions:
         1. exact match of the property (ignoring case). For example, \"client_id\": [\"test-win2019-tk01\", \"qa-lin-ubuntu16\"]\n
         2. dynamic criteria using wildcards (ignoring case). For example, \"os_family\": [\"linux*\"]\n
 
-        For more details please see https://github.com/cloudradar-monitoring/rport/blob/master/docs/client-groups.md\n"
+        For more details please see https://oss.rport.io/docs/no04-client-groups.html\n"
         properties:
           client_id:
             type: "array"
@@ -1057,6 +1846,12 @@ definitions:
       password:
         type: "string"
         description: "client auth password"
+  SinglePassword:
+    type: "object"
+    properties:
+      password:
+        type: "string"
+        description: "A string of printed symbols 32 and 256 bits long"
   JobStatus:
     type: "string"
     enum: &JOB_STATUS
@@ -1189,6 +1984,37 @@ definitions:
       created_by:
         type: "string"
         description: "API username who run the command"
+  UserGet:
+    type: "object"
+    properties:
+      username:
+        type: "string"
+        description: "Username"
+      groups:
+        type: "array"
+        items:
+          type: string
+        description: "List of groups to which the current user belongs"
+      two_fa_send_to:
+        type: "string"
+        description: "Holds either the email or the pushover token of the user. It's used to deliver 2FA token to user when 2FA is enabled"
+  UserPost:
+    type: "object"
+    properties:
+      username:
+        type: "string"
+        description: "Username for the credentials pair"
+      password:
+        type: "string"
+        description: "Password for the credentials pair"
+      groups:
+        type: "array"
+        items:
+          type: string
+        description: "List of groups to which the current user belongs"
+      two_fa_send_to:
+        type: "string"
+        description: "Holds either the email or the pushover token of the user. It's used to deliver 2FA token to user when 2FA is enabled"
   ErrorPayload:
     type: "object"
     properties:
@@ -1203,7 +2029,7 @@ definitions:
         type: "string"
       title:
         type: "string"
-      detial:
+      detail:
         type: "string"
   ExecuteCmdRequest:
     description: "Request that contains a remote command to execute by rport client(s) and other related properties"
@@ -1211,7 +2037,7 @@ definitions:
     properties:
       command:
         type: "string"
-        description: "remote command to execute by rport client(s). NOTE: if command limitation is enabled by an rport client then a full path command can be required to use. See https://github.com/cloudradar-monitoring/rport/blob/master/docs/command-execution.md for more details"
+        description: "remote command to execute by rport client(s). NOTE: if command limitation is enabled by an rport client then a full path command can be required to use. See https://oss.rport.io/docs/no06-command-execution.html for more details"
       client_ids:
         type: "array"
         items:
@@ -1231,3 +2057,145 @@ definitions:
       abort_on_error:
         type: "boolean"
         description: "applicable only when multiple clients are specified. Applicable only if 'execute_concurrently' is false. If true - abort the entire cycle if the execution fails on some client. By default is true"
+  LoginResponse:
+    type: "object"
+    description: "Response returned by `/login` endpoints"
+    properties:
+      token:
+        type: "string"
+        description: "Authorization JWT token. It's null when 2fa is enabled"
+      two_fa:
+        type: "object"
+        description: "2FA information. It's null when 2fa is disabled"
+        properties:
+          send_to:
+            type: "string"
+            description: "Recipient (email or pushover user key) that is used to send 2fa token to the user"
+          delivery_method:
+            type: "string"
+            enum: ["email", "pushover"]
+            description: "Delivery method that is used to send 2fa token to the user"
+  VaultEntryInput:
+    type: "object"
+    properties:
+      client_id:
+        type: "string"
+        description: "Used to tie a document to a specific client where 0 means the document can be accessed from any client."
+      required_group:
+        type: "string"
+        description: "if filled, users not belonging to this group are not allowed to store or read the decrypted value"
+      key:
+        type: "string"
+        description: "[required] some string to identify the document"
+      value:
+        type: "string"
+        description: "[required] value represents the encrypted `body` of a document. It should be provided as a plain text"
+      type:
+        type: "string"
+        enum: &VAULT_VALUE_TYPE
+          - "text"
+          - "secrete"
+          - "markdown"
+          - "string"
+        description: "[required] Type of the secret value"
+  VaultEntryOutputFull:
+    type: "object"
+    properties:
+      client_id:
+        type: "string"
+        description: "Used to tie a document to a specific client where 0 means the document can be accessed from any client."
+      required_group:
+        type: "string"
+        description: "if filled, users not belonging to this group are not allowed to store or read the decrypted value"
+      key:
+        type: "string"
+        description: "some string to identify the document"
+      type:
+        type: "string"
+        enum: *VAULT_VALUE_TYPE
+        description: "Type of the secret value"
+      value:
+        type: "string"
+        description: "decrypted value of the vault entry"
+      ID:
+        type: "integer"
+        description: "Unique internal id of a vault entry"
+      CreatedAt:
+        type: "string"
+        format: "data-time"
+        description: "Date and time of vault entry creation"
+      UpdatedAt:
+        type: "string"
+        format: "data-time"
+        description: "Date and time of vault entry last update"
+      CreatedBy:
+        type: "string"
+        description: "User name who created this vault entry"
+      UpdatedBy:
+        type: "string"
+        description: "User name who last updated this vault entry"
+  VaultEntryOutputShort:
+    type: "object"
+    properties:
+      client_id:
+        type: "string"
+        description: "Used to tie a document to a specific client where 0 means the document can be accessed from any client."
+      key:
+        type: "string"
+        description: "some string to identify the document"
+      id:
+        type: "integer"
+        description: "Unique internal id of a vault entry"
+      CreatedAt:
+        type: "string"
+        format: "data-time"
+        description: "Date and time of vault entry creation"
+      CreatedBy:
+        type: "string"
+        description: "User name who created this vault entry"
+  Script:
+    type: "object"
+    properties:
+      name:
+        type: "string"
+        description: "User-friendly name of a script"
+      id:
+        type: "string"
+        description: "unique internal identifier of a script in uuid4 format"
+      created_at:
+        type: "string"
+        format: "data-time"
+        description: "Date and time of script creation"
+      created_by:
+        type: "string"
+        description: "User name who created this script"
+      interpreter:
+        type: "string"
+        description: "how will the script be executed on the client, e.g. /bin/sh, cmd.exe, powershell"
+      cwd:
+        type: "string"
+        description: "current working directory, where the script should be executed"
+      script:
+        type: "string"
+        description: "text of the script"
+      is_sudo:
+        type: "boolean"
+        description: "if true, this script will be executed as a sudo user"
+  ScriptInput:
+    type: "object"
+    properties:
+      name:
+        type: "string"
+        description: "[required] User-friendly name of a script"
+      script:
+        type: "string"
+        description: "[required] text of the script"
+      interpreter:
+        type: "string"
+        description: "how will the script be executed on the client, e.g. /bin/sh, cmd.exe, powershell"
+      cwd:
+        type: "string"
+        description: "current working directory, where the script should be executed"
+      is_sudo:
+        type: "boolean"
+        description: "if true, this script will be executed as a sudo user"

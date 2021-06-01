@@ -24,7 +24,7 @@ const (
 	DefaultCheckPortTimeout       = 2 * time.Second
 	DefaultExcludedPorts          = "1-1024"
 	DefaultServerAddress          = "0.0.0.0:8080"
-	DefaultLogLevel               = "error"
+	DefaultLogLevel               = "info"
 	DefaultRunRemoteCmdTimeoutSec = 60
 )
 
@@ -184,13 +184,16 @@ var serverHelp = `
 
     --service-user, An optional arg specifying user to run rportd service under. Only on linux. Defaults to rport.
 
-    --log-level, Specify log level. Values: "error", "info", "debug" (defaults to "error")
+    --log-level, Specify log level. Values: "error", "info", "debug" (defaults to "info")
 
     --log-file, -l, Specifies log file path. (defaults to empty string: log printed to stdout)
 
     --config, -c, An optional arg to define a path to a config file. If it is set then
     configuration will be loaded from the file. Note: command arguments and env variables will override them.
     Config file should be in TOML format. You can find an example "rportd.example.conf" in the release archive.
+
+    --vault-db-name, An optional flag to provide full path to a secure vault database in sqlite format. 
+	The default value is 'vault-db.sqlite' in current path.
 
     --help, -h, This help text
 
@@ -256,6 +259,7 @@ func init() {
 	pFlags.Bool("equate-clientauthid-clientid", false, "")
 	pFlags.Int("run-remote-cmd-timeout-sec", 0, "")
 	pFlags.Bool("allow-root", false, "")
+	pFlags.String("vault-db-name", "vault-db.sqlite", "")
 
 	cfgPath = pFlags.StringP("config", "c", "", "")
 	svcCommand = pFlags.String("service", "", "")
@@ -285,7 +289,12 @@ func init() {
 	viperCfg.SetDefault("server.auth_multiuse_creds", true)
 	viperCfg.SetDefault("server.run_remote_cmd_timeout_sec", DefaultRunRemoteCmdTimeoutSec)
 	viperCfg.SetDefault("server.client_login_wait", 2)
+	viperCfg.SetDefault("server.max_failed_login", 5)
+	viperCfg.SetDefault("server.ban_time", 3600)
 	viperCfg.SetDefault("api.user_login_wait", 2)
+	viperCfg.SetDefault("api.max_failed_login", 10)
+	viperCfg.SetDefault("api.ban_time", 600)
+	viperCfg.SetDefault("api.two_fa_token_ttl_seconds", 600)
 }
 
 func bindPFlags() {
@@ -330,6 +339,7 @@ func bindPFlags() {
 	_ = viperCfg.BindPFlag("database.db_host", pFlags.Lookup("db-host"))
 	_ = viperCfg.BindPFlag("database.db_user", pFlags.Lookup("db-user"))
 	_ = viperCfg.BindPFlag("database.db_password", pFlags.Lookup("db-password"))
+	_ = viperCfg.BindPFlag("vault.db_name", pFlags.Lookup("vault-db-name"))
 }
 
 func main() {

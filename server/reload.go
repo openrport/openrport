@@ -5,6 +5,7 @@ package chserver
 import (
 	"os"
 	"os/signal"
+	"sync"
 	"syscall"
 
 	"github.com/cloudradar-monitoring/rport/server/api/users"
@@ -16,7 +17,11 @@ func (al *APIListener) ReloadAPIUsers() {
 	signal.Notify(signals, syscall.SIGUSR1)
 	for range signals {
 		al.Infof("Signal SIGUSR1 received. Start to reload API users from file.")
-		newUsers, err := users.GetUsersFromFile(al.config.API.AuthFile)
+		usersFromFileProvider := &users.FileManager{
+			FileName:       al.config.API.AuthFile,
+			FileAccessLock: sync.Mutex{},
+		}
+		newUsers, err := usersFromFileProvider.ReadUsersFromFile()
 		if err != nil {
 			al.Errorf("Failed to reload API users from the file: %v", err)
 			continue

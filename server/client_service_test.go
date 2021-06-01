@@ -4,11 +4,15 @@ import (
 	"context"
 	"errors"
 	"net"
+	"net/http"
 	"testing"
+	"time"
 
 	mapset "github.com/deckarep/golang-set"
 	"github.com/stretchr/testify/assert"
+	"github.com/stretchr/testify/require"
 
+	errors2 "github.com/cloudradar-monitoring/rport/server/api/errors"
 	"github.com/cloudradar-monitoring/rport/server/clients"
 	"github.com/cloudradar-monitoring/rport/server/ports"
 	chshare "github.com/cloudradar-monitoring/rport/share"
@@ -86,6 +90,74 @@ func TestStartClient(t *testing.T) {
 				context.Background(), tc.ClientAuthID, tc.ClientID, connMock, tc.AuthMultiuseCreds,
 				&chshare.ConnectionRequest{}, testLog)
 			assert.Equal(t, tc.ExpectedError, err)
+		})
+	}
+}
+
+func TestDeleteOfflineClient(t *testing.T) {
+	c1Active := clients.New(t).Build()
+	c2Active := clients.New(t).Build()
+	c3Offline := clients.New(t).DisconnectedDuration(5 * time.Minute).Build()
+	c4Offline := clients.New(t).DisconnectedDuration(time.Minute).Build()
+
+	testCases := []struct {
+		name      string
+		clientID  string
+		wantError error
+	}{
+		{
+			name:      "delete offline client",
+			clientID:  c3Offline.ID,
+			wantError: nil,
+		},
+		{
+			name:     "delete active client",
+			clientID: c1Active.ID,
+			wantError: errors2.APIError{
+				Message: "Client is active, should be disconnected",
+				Code:    http.StatusBadRequest,
+			},
+		},
+		{
+			name:     "delete unknown client",
+			clientID: "unknown-id",
+			wantError: errors2.APIError{
+				Message: "Client not found",
+				Code:    http.StatusNotFound,
+			},
+		},
+		{
+			name:     "empty client ID",
+			clientID: "",
+			wantError: errors2.APIError{
+				Message: "Client id is empty",
+				Code:    http.StatusBadRequest,
+			},
+		},
+	}
+
+	for _, tc := range testCases {
+		t.Run(tc.name, func(t *testing.T) {
+			// given
+			clientService := NewClientService(nil, clients.NewClientRepository([]*clients.Client{c1Active, c2Active, c3Offline, c4Offline}, &hour))
+			before, err := clientService.Count()
+			require.NoError(t, err)
+			require.Equal(t, 4, before)
+
+			// when
+			gotErr := clientService.DeleteOffline(tc.clientID)
+
+			// then
+			require.Equal(t, tc.wantError, gotErr)
+			var wantAfter int
+			if tc.wantError != nil {
+				wantAfter = before
+			} else {
+				wantAfter = before - 1
+			}
+			gotAfter, err := clientService.Count()
+			require.NoError(t, err)
+			assert.Equal(t, wantAfter, gotAfter)
 		})
 	}
 }

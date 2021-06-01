@@ -66,7 +66,7 @@ You might wonder why the rport server does not provide encryption on the transpo
 ### Install the server
 For a proper installation execute the following steps.
 ```
-VERSION=0.1.30
+VERSION=0.1.32
 wget https://github.com/cloudradar-monitoring/rport/releases/download/${VERSION}/rport_${VERSION}_Linux_x86_64.tar.gz
 sudo tar vxzf rport_${VERSION}_Linux_x86_64.tar.gz -C /usr/local/bin/ rportd
 sudo useradd -d /var/lib/rport -m -U -r -s /bin/false rport
@@ -108,7 +108,7 @@ sudo systemctl enable rportd # Optionally start rportd on boot
 Assume, the client is called `client1.local.localdomain`.
 On your client just install the client binary
 ```
-VERSION=0.1.30
+VERSION=0.1.32
 curl -LSs https://github.com/cloudradar-monitoring/rport/releases/download/${VERSION}/rport_${VERSION}_Linux_x86_64.tar.gz|\
 tar vxzf - -C /usr/local/bin/ rport
 ```
@@ -124,7 +124,7 @@ Now you can access your machine behind a firewall through the tunnel. Try `ssh -
 ## Run a Linux client with systemd
 For a proper and permanent installation of the client execute the following steps.
 ```
-VERSION=0.1.30
+VERSION=0.1.32
 wget https://github.com/cloudradar-monitoring/rport/releases/download/${VERSION}/rport_${VERSION}_Linux_x86_64.tar.gz
 sudo tar vxzf rport_${VERSION}_Linux_x86_64.tar.gz -C /usr/local/bin/ rport
 sudo useradd -d /var/lib/rport -U -m -r -s /bin/false rport
@@ -153,7 +153,7 @@ remotes = ['2222:22']
 This will establish a permanent tunnel and the local port 22 (SSH) of the client becomes available on port 2222 of the rport server.
 
 ## Run a Windows client
-On Microsoft Windows [download the latest client binary](https://github.com/cloudradar-monitoring/rport/releases/download/0.1.30/rport_0.1.30_Windows_x86_64.zip) and extract it ideally to `C:\Program Files\rport`. Rename the `rport.example.conf` to `rport.conf` and store it in `C:\Program Files\rport` too.
+On Microsoft Windows [download the latest client binary](https://github.com/cloudradar-monitoring/rport/releases/download/0.1.32/rport_0.1.32_Windows_x86_64.zip) and extract it ideally to `C:\Program Files\rport`. Rename the `rport.example.conf` to `rport.conf` and store it in `C:\Program Files\rport` too.
 Open the `rport.conf` file with a text editor. On older Windows use an editor that supports unix line breaks, like [notepad++](https://notepad-plus-plus.org/).
 
 A very minimalistic client configuration `rport.conf` can look like this:
@@ -216,6 +216,9 @@ rport --auth user1:1234 --fingerprint <YOUR_FINGERPRINT> node1.example.com:8080 
 * [Command execution via the API](no06-command-execution.md) or the [Swagger API docs](https://petstore.swagger.io/?url=https://raw.githubusercontent.com/cloudradar-monitoring/rport/master/api-doc.yml#/Commands)
 * [Management of client authentication credentials via the API](no03-client-auth.md) or the [Swagger API docs](https://petstore.swagger.io/?url=https://raw.githubusercontent.com/cloudradar-monitoring/rport/master/api-doc.yml#/Rport%20Client%20Auth%20Credentials)
 * [Management of client groups via the API](no04-client-groups.md) or the [Swagger API docs](https://petstore.swagger.io/?url=https://raw.githubusercontent.com/cloudradar-monitoring/rport/master/api-doc.yml#/Client%20Groups)
+* [Management of users via the API](no12-user.md) or the [Swagger API docs](https://petstore.swagger.io/?url=https://raw.githubusercontent.com/cloudradar-monitoring/rport/master/api-doc.yml#/Users)
+* [Vault management via the API](no13-vault.md) or the [Swagger API docs](https://petstore.swagger.io/?url=https://raw.githubusercontent.com/cloudradar-monitoring/rport/master/api-doc.yml#/Vault)
+* [Scripts management via the API](no14-scripts.md) or the [Swagger API docs](https://petstore.swagger.io/?url=https://raw.githubusercontent.com/cloudradar-monitoring/rport/master/api-doc.yml#/Scripts)
 
 ## Install a web-based frontend
 Rport comes with a user-friendly web-based frontend. The frontend has it's own none-open-source repository. The installation is quick and easy. [Learn more](no07-frontend.md)

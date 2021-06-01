@@ -12,20 +12,27 @@ import (
 	"strings"
 	"time"
 
+	"github.com/cloudradar-monitoring/rport/server/script"
+
+	"github.com/cloudradar-monitoring/rport/server/vault"
+
 	"github.com/gorilla/mux"
 	"github.com/gorilla/websocket"
 	"github.com/tomasen/realip"
 	"golang.org/x/crypto/ssh"
 
 	"github.com/cloudradar-monitoring/rport/server/api"
+	errors2 "github.com/cloudradar-monitoring/rport/server/api/errors"
 	"github.com/cloudradar-monitoring/rport/server/api/jobs"
 	"github.com/cloudradar-monitoring/rport/server/api/middleware"
+	"github.com/cloudradar-monitoring/rport/server/api/users"
 	"github.com/cloudradar-monitoring/rport/server/cgroups"
 	"github.com/cloudradar-monitoring/rport/server/clients"
 	"github.com/cloudradar-monitoring/rport/server/clientsauth"
 	"github.com/cloudradar-monitoring/rport/server/ports"
 	chshare "github.com/cloudradar-monitoring/rport/share"
 	"github.com/cloudradar-monitoring/rport/share/comm"
+	"github.com/cloudradar-monitoring/rport/share/enums"
 	"github.com/cloudradar-monitoring/rport/share/models"
 	"github.com/cloudradar-monitoring/rport/share/random"
 	"github.com/cloudradar-monitoring/rport/share/security"
@@ -35,9 +42,12 @@ import (
 const (
 	queryParamSort = "sort"
 
-	routeParamClientID = "client_id"
-	routeParamJobID    = "job_id"
-	routeParamGroupID  = "group_id"
+	routeParamClientID      = "client_id"
+	routeParamUserID        = "user_id"
+	routeParamJobID         = "job_id"
+	routeParamGroupID       = "group_id"
+	routeParamVaultValueID  = "vault_value_id"
+	routeParamScriptValueID = "script_value_id"
 
 	ErrCodeMissingRouteVar = "ERR_CODE_MISSING_ROUTE_VAR"
 	ErrCodeInvalidRequest  = "ERR_CODE_INVALID_REQUEST"
@@ -118,11 +128,12 @@ func (al *APIListener) handleBannedIPs(w http.ResponseWriter, r *http.Request, a
 func (al *APIListener) initRouter() {
 	r := mux.NewRouter()
 	sub := r.PathPrefix("/api/v1").Subrouter()
-	sub.HandleFunc("/login", al.handleGetLogin).Methods(http.MethodGet)
 	sub.HandleFunc("/status", al.handleGetStatus).Methods(http.MethodGet)
 	sub.HandleFunc("/me", al.handleGetMe).Methods(http.MethodGet)
+	sub.HandleFunc("/me", al.handleChangeMe).Methods(http.MethodPut)
 	sub.HandleFunc("/me/ip", al.handleGetIP).Methods(http.MethodGet)
 	sub.HandleFunc("/clients", al.handleGetClients).Methods(http.MethodGet)
+	sub.HandleFunc("/clients/{client_id}", al.handleDeleteClient).Methods(http.MethodDelete)
 	sub.HandleFunc("/clients/{client_id}/tunnels", al.handlePutClientTunnel).Methods(http.MethodPut)
 	sub.HandleFunc("/clients/{client_id}/tunnels/{tunnel_id}", al.handleDeleteClientTunnel).Methods(http.MethodDelete)
 	sub.HandleFunc("/clients/{client_id}/commands", al.handlePostCommand).Methods(http.MethodPost)
@@ -133,12 +144,30 @@ func (al *APIListener) initRouter() {
 	sub.HandleFunc("/client-groups/{group_id}", al.handlePutClientGroup).Methods(http.MethodPut)
 	sub.HandleFunc("/client-groups/{group_id}", al.handleGetClientGroup).Methods(http.MethodGet)
 	sub.HandleFunc("/client-groups/{group_id}", al.handleDeleteClientGroup).Methods(http.MethodDelete)
+	sub.HandleFunc("/users", al.wrapStaticPassModeMiddleware(al.wrapAdminAccessMiddleware(al.handleGetUsers))).Methods(http.MethodGet)
+	sub.HandleFunc("/users", al.wrapStaticPassModeMiddleware(al.wrapAdminAccessMiddleware(al.handleChangeUser))).Methods(http.MethodPost)
+	sub.HandleFunc("/users/{user_id}", al.wrapStaticPassModeMiddleware(al.wrapAdminAccessMiddleware(al.handleChangeUser))).Methods(http.MethodPut)
+	sub.HandleFunc("/users/{user_id}", al.wrapStaticPassModeMiddleware(al.wrapAdminAccessMiddleware(al.handleDeleteUser))).Methods(http.MethodDelete)
 	sub.HandleFunc("/commands", al.handlePostMultiClientCommand).Methods(http.MethodPost)
 	sub.HandleFunc("/commands", al.handleGetMultiClientCommands).Methods(http.MethodGet)
 	sub.HandleFunc("/commands/{job_id}", al.handleGetMultiClientCommand).Methods(http.MethodGet)
 	sub.HandleFunc("/clients-auth", al.handleGetClientsAuth).Methods(http.MethodGet)
 	sub.HandleFunc("/clients-auth", al.handlePostClientsAuth).Methods(http.MethodPost)
 	sub.HandleFunc("/clients-auth/{client_auth_id}", al.handleDeleteClientAuth).Methods(http.MethodDelete)
+	sub.HandleFunc("/vault-admin", al.handleGetVaultStatus).Methods(http.MethodGet)
+	sub.HandleFunc("/vault-admin/sesame", al.wrapAdminAccessMiddleware(al.handleVaultUnlock)).Methods(http.MethodPost)
+	sub.HandleFunc("/vault-admin/init", al.wrapAdminAccessMiddleware(al.handleVaultInit)).Methods(http.MethodPost)
+	sub.HandleFunc("/vault-admin/sesame", al.wrapAdminAccessMiddleware(al.handleVaultLock)).Methods(http.MethodDelete)
+	sub.HandleFunc("/vault", al.handleListVaultValues).Methods(http.MethodGet)
+	sub.HandleFunc("/vault", al.handleVaultStoreValue).Methods(http.MethodPost)
+	sub.HandleFunc("/vault/{"+routeParamVaultValueID+"}", al.handleReadVaultValue).Methods(http.MethodGet)
+	sub.HandleFunc("/vault/{"+routeParamVaultValueID+"}", al.handleVaultStoreValue).Methods(http.MethodPut)
+	sub.HandleFunc("/vault/{"+routeParamVaultValueID+"}", al.handleVaultDeleteValue).Methods(http.MethodDelete)
+	sub.HandleFunc("/scripts", al.handleListScripts).Methods(http.MethodGet)
+	sub.HandleFunc("/scripts", al.handleScriptCreate).Methods(http.MethodPost)
+	sub.HandleFunc("/scripts/{"+routeParamScriptValueID+"}", al.handleScriptUpdate).Methods(http.MethodPut)
+	sub.HandleFunc("/scripts/{"+routeParamScriptValueID+"}", al.handleReadScript).Methods(http.MethodGet)
+	sub.HandleFunc("/scripts/{"+routeParamScriptValueID+"}", al.handleDeleteScript).Methods(http.MethodDelete)
 
 	// add authorization middleware
 	if !al.insecureForTests {
@@ -148,9 +177,11 @@ func (al *APIListener) initRouter() {
 		})
 	}
 
-	// all routes defined below will not require authorization
+	// all routes defined below do not have authorization middleware, auth is done in each handlers separately
+	sub.HandleFunc("/login", al.handleGetLogin).Methods(http.MethodGet)
 	sub.HandleFunc("/login", al.handlePostLogin).Methods(http.MethodPost)
-	sub.HandleFunc("/login", al.handleDeleteLogin).Methods(http.MethodDelete)
+	sub.HandleFunc("/logout", al.handleDeleteLogout).Methods(http.MethodDelete)
+	sub.HandleFunc("/verify-2fa", al.handlePostVerify2FAToken).Methods(http.MethodPost)
 
 	// web sockets
 	// common auth middleware is not used due to JS issue https://stackoverflow.com/questions/22383089/is-it-possible-to-use-bearer-authentication-for-websocket-upgrade-requests
@@ -196,6 +227,29 @@ func (al *APIListener) jsonErrorResponse(w http.ResponseWriter, statusCode int, 
 	al.writeJSONResponse(w, statusCode, api.NewErrorPayload(err))
 }
 
+func (al *APIListener) jsonError(w http.ResponseWriter, err error) {
+	statusCode := http.StatusInternalServerError
+	errCode := strconv.Itoa(statusCode)
+	msg := err.Error()
+	var apiErr errors2.APIError
+	var apiErrs errors2.APIErrors
+	switch {
+	case errors.As(err, &apiErr):
+		statusCode = apiErr.Code
+		errCode = strconv.Itoa(statusCode)
+		al.writeJSONResponse(w, statusCode, api.NewErrorPayloadWithCode(errCode, msg, ""))
+		return
+	case errors.As(err, &apiErrs):
+		if len(apiErrs) > 0 {
+			statusCode = apiErrs[0].Code
+		}
+		al.writeJSONResponse(w, statusCode, api.NewAPIErrorsPayloadWithCode(apiErrs))
+		return
+	}
+
+	al.writeJSONResponse(w, statusCode, api.NewErrorPayloadWithCode(errCode, msg, ""))
+}
+
 func (al *APIListener) jsonErrorResponseWithErrCode(w http.ResponseWriter, statusCode int, errCode, title string) {
 	al.writeJSONResponse(w, statusCode, api.NewErrorPayloadWithCode(errCode, title, ""))
 }
@@ -216,42 +270,45 @@ func (al *APIListener) jsonErrorResponseWithError(w http.ResponseWriter, statusC
 	al.writeJSONResponse(w, statusCode, api.NewErrorPayloadWithCode(errCode, title, detail))
 }
 
-func (al *APIListener) handleGetLogin(w http.ResponseWriter, req *http.Request) {
-	lifetime, err := parseTokenLifetime(req)
-	if err != nil {
-		al.jsonErrorResponse(w, http.StatusBadRequest, err)
-		return
-	}
-
-	tokenStr, err := al.createAuthToken(lifetime, api.GetUser(req.Context(), al.Logger))
-	if err != nil {
-		al.jsonErrorResponse(w, http.StatusInternalServerError, err)
-		return
-	}
-
-	response := api.NewSuccessPayload(map[string]string{"token": tokenStr})
-	al.writeJSONResponse(w, http.StatusOK, response)
+type twoFAResponse struct {
+	SendTo         string `json:"send_to"`
+	DeliveryMethod string `json:"delivery_method"`
 }
 
-func (al *APIListener) handlePostLogin(w http.ResponseWriter, req *http.Request) {
-	user, pwd, err := parseLoginPostRequestBody(req)
-	if err != nil {
+type loginResponse struct {
+	Token *string        `json:"token"`  // null if 2fa is on
+	TwoFA *twoFAResponse `json:"two_fa"` // null if 2fa is off
+}
+
+func (al *APIListener) handleGetLogin(w http.ResponseWriter, req *http.Request) {
+	basicUser, basicPwd, basicAuthProvided := req.BasicAuth()
+	if !basicAuthProvided {
+		// TODO: consider to move this check from all API endpoints to middleware similar to https://github.com/cloudradar-monitoring/rport/pull/199/commits/4ca1ca9f56c557762d79a60ffc96d2de47f3133c
 		// ban IP if it sends a lot of bad requests
 		if !al.handleBannedIPs(w, req, false) {
 			return
 		}
-		al.jsonErrorResponse(w, http.StatusBadRequest, fmt.Errorf("can't parse request body: %s", err))
+		al.jsonErrorResponseWithTitle(w, http.StatusUnauthorized, "basic auth is required")
 		return
 	}
 
-	if al.bannedUsers.IsBanned(user) {
-		al.jsonErrorResponse(w, http.StatusTooManyRequests, ErrTooManyRequests)
+	al.handleLogin(basicUser, basicPwd, w, req)
+}
+
+func (al *APIListener) handleLogin(username, pwd string, w http.ResponseWriter, req *http.Request) {
+	if al.bannedUsers.IsBanned(username) {
+		al.jsonErrorResponseWithTitle(w, http.StatusTooManyRequests, ErrTooManyRequests.Error())
 		return
 	}
 
-	authorized, err := al.validateCredentials(user, pwd)
+	if username == "" {
+		al.jsonErrorResponseWithTitle(w, http.StatusUnauthorized, "username is required")
+		return
+	}
+
+	authorized, err := al.validateCredentials(username, pwd)
 	if err != nil {
-		al.jsonErrorResponse(w, http.StatusInternalServerError, fmt.Errorf("can't validate credentials: %v", err))
+		al.jsonError(w, err)
 		return
 	}
 
@@ -260,25 +317,61 @@ func (al *APIListener) handlePostLogin(w http.ResponseWriter, req *http.Request)
 	}
 
 	if !authorized {
-		al.bannedUsers.Add(user)
-		al.jsonErrorResponse(w, http.StatusUnauthorized, fmt.Errorf("unauthorized"))
+		al.bannedUsers.Add(username)
+		al.jsonErrorResponseWithTitle(w, http.StatusUnauthorized, "unauthorized")
 		return
 	}
 
+	if al.config.API.IsTwoFAOn() {
+		sendTo, err := al.twoFASrv.SendToken(username)
+		if err != nil {
+			al.jsonError(w, err)
+			return
+		}
+
+		al.writeJSONResponse(w, http.StatusOK, api.NewSuccessPayload(loginResponse{
+			TwoFA: &twoFAResponse{
+				SendTo:         sendTo,
+				DeliveryMethod: al.twoFASrv.MsgSrv.DeliveryMethod(),
+			},
+		}))
+		return
+	}
+
+	al.sendJWTToken(username, w, req)
+}
+
+func (al *APIListener) sendJWTToken(username string, w http.ResponseWriter, req *http.Request) {
 	lifetime, err := parseTokenLifetime(req)
 	if err != nil {
 		al.jsonErrorResponse(w, http.StatusBadRequest, err)
 		return
 	}
 
-	tokenStr, err := al.createAuthToken(lifetime, user)
+	tokenStr, err := al.createAuthToken(lifetime, username)
 	if err != nil {
 		al.jsonErrorResponse(w, http.StatusInternalServerError, err)
 		return
 	}
 
-	response := api.NewSuccessPayload(map[string]string{"token": tokenStr})
+	response := api.NewSuccessPayload(loginResponse{
+		Token: &tokenStr,
+	})
 	al.writeJSONResponse(w, http.StatusOK, response)
+}
+
+func (al *APIListener) handlePostLogin(w http.ResponseWriter, req *http.Request) {
+	username, pwd, err := parseLoginPostRequestBody(req)
+	if err != nil {
+		// ban IP if it sends a lot of bad requests
+		if !al.handleBannedIPs(w, req, false) {
+			return
+		}
+		al.jsonError(w, err)
+		return
+	}
+
+	al.handleLogin(username, pwd, w, req)
 }
 
 func parseLoginPostRequestBody(req *http.Request) (string, string, error) {
@@ -286,7 +379,10 @@ func parseLoginPostRequestBody(req *http.Request) (string, string, error) {
 	if reqContentType == "application/x-www-form-urlencoded" {
 		err := req.ParseForm()
 		if err != nil {
-			return "", "", err
+			return "", "", errors2.APIError{
+				Err:  fmt.Errorf("failed to parse form: %v", err),
+				Code: http.StatusBadRequest,
+			}
 		}
 		return req.PostForm.Get("username"), req.PostForm.Get("password"), nil
 	}
@@ -298,11 +394,17 @@ func parseLoginPostRequestBody(req *http.Request) (string, string, error) {
 		var params loginReq
 		err := json.NewDecoder(req.Body).Decode(&params)
 		if err != nil {
-			return "", "", err
+			return "", "", errors2.APIError{
+				Err:  fmt.Errorf("failed to parse request body: %v", err),
+				Code: http.StatusBadRequest,
+			}
 		}
 		return params.Username, params.Password, nil
 	}
-	return "", "", fmt.Errorf("unsupported content type")
+	return "", "", errors2.APIError{
+		Message: fmt.Sprintf("unsupported content type: %s", reqContentType),
+		Code:    http.StatusBadRequest,
+	}
 }
 
 func parseTokenLifetime(req *http.Request) (time.Duration, error) {
@@ -324,7 +426,7 @@ func parseTokenLifetime(req *http.Request) (time.Duration, error) {
 	return result, nil
 }
 
-func (al *APIListener) handleDeleteLogin(w http.ResponseWriter, req *http.Request) {
+func (al *APIListener) handleDeleteLogout(w http.ResponseWriter, req *http.Request) {
 	token, tokenProvided := getBearerToken(req)
 	if token == "" || !tokenProvided {
 		// ban IP if it sends a lot of bad requests
@@ -362,6 +464,63 @@ func (al *APIListener) handleDeleteLogin(w http.ResponseWriter, req *http.Reques
 	w.WriteHeader(http.StatusNoContent)
 }
 
+func (al *APIListener) handlePostVerify2FAToken(w http.ResponseWriter, req *http.Request) {
+	username, err := al.parseAndValidate2FATokenRequest(req)
+	if err != nil {
+		if !al.handleBannedIPs(w, req, false) {
+			return
+		}
+		al.jsonError(w, err)
+		return
+	}
+
+	al.sendJWTToken(username, w, req)
+}
+
+func (al *APIListener) parseAndValidate2FATokenRequest(req *http.Request) (username string, err error) {
+	if !al.config.API.IsTwoFAOn() {
+		return "", errors2.APIError{
+			Code:    http.StatusConflict,
+			Message: "2fa is disabled",
+		}
+	}
+
+	var reqBody struct {
+		Username string `json:"username"`
+		Token    string `json:"token"`
+	}
+	err = json.NewDecoder(req.Body).Decode(&reqBody)
+	if err != nil {
+		return "", errors2.APIError{
+			Code: http.StatusBadRequest,
+			Err:  fmt.Errorf("failed to parse request body: %v", err),
+		}
+	}
+
+	if al.bannedUsers.IsBanned(reqBody.Username) {
+		return reqBody.Username, errors2.APIError{
+			Code: http.StatusTooManyRequests,
+			Err:  ErrTooManyRequests,
+		}
+	}
+
+	if reqBody.Username == "" {
+		return "", errors2.APIError{
+			Code:    http.StatusUnauthorized,
+			Message: "username is required",
+		}
+	}
+
+	if reqBody.Token == "" {
+		return reqBody.Username, errors2.APIError{
+			Code:    http.StatusUnauthorized,
+			Message: "token is required",
+		}
+	}
+
+	return reqBody.Username, al.twoFASrv.ValidateToken(reqBody.Username, reqBody.Token)
+}
+
 func (al *APIListener) handleGetStatus(w http.ResponseWriter, req *http.Request) {
 	countActive, err := al.clientService.CountActive()
 	if err != nil {
@@ -375,15 +534,24 @@ func (al *APIListener) handleGetStatus(w http.ResponseWriter, req *http.Request)
 		return
 	}
 
+	var twoFADelivery string
+	if al.twoFASrv.MsgSrv != nil {
+		twoFADelivery = al.twoFASrv.MsgSrv.DeliveryMethod()
+	}
+
 	response := api.NewSuccessPayload(map[string]interface{}{
-		"version":              chshare.BuildVersion,
-		"clients_connected":    countActive,
-		"clients_disconnected": countDisconnected,
-		"fingerprint":          al.fingerprint,
-		"connect_url":          al.config.Server.URL,
-		"clients_auth_source":  al.clientAuthProvider.Source(),
-		"clients_auth_mode":    al.getClientsAuthMode(),
+		"version":                chshare.BuildVersion,
+		"clients_connected":      countActive,
+		"clients_disconnected":   countDisconnected,
+		"fingerprint":            al.fingerprint,
+		"connect_url":            al.config.Server.URL,
+		"clients_auth_source":    al.clientAuthProvider.Source(),
+		"clients_auth_mode":      al.getClientsAuthMode(),
+		"users_auth_source":      al.usersService.ProviderType,
+		"two_fa_enabled":         al.config.API.IsTwoFAOn(),
+		"two_fa_delivery_method": twoFADelivery,
 	})
+
 	al.writeJSONResponse(w, http.StatusOK, response)
 }
 
@@ -404,6 +572,83 @@ func (al *APIListener) handleGetClients(w http.ResponseWriter, req *http.Request
 
 	clientsPayload := convertToClientsPayload(clients)
 	al.writeJSONResponse(w, http.StatusOK, api.NewSuccessPayload(clientsPayload))
+}
+
+type UserPayload struct {
+	Username    string   `json:"username"`
+	Groups      []string `json:"groups"`
+	TwoFASendTo string   `json:"two_fa_send_to"`
+}
+
+func (al *APIListener) handleGetUsers(w http.ResponseWriter, req *http.Request) {
+	usrs, err := al.usersService.GetAll()
+	if err != nil {
+		al.jsonError(w, err)
+		return
+	}
+
+	usersToSend := make([]UserPayload, 0, len(usrs))
+	for i := range usrs {
+		user := usrs[i]
+		usersToSend = append(usersToSend, UserPayload{
+			Username:    user.Username,
+			Groups:      user.Groups,
+			TwoFASendTo: user.TwoFASendTo,
+		})
+	}
+
+	response := api.NewSuccessPayload(usersToSend)
+	al.writeJSONResponse(w, http.StatusOK, response)
+}
+
+func (al *APIListener) handleChangeUser(w http.ResponseWriter, req *http.Request) {
+	vars := mux.Vars(req)
+	userID, userIDExists := vars[routeParamUserID]
+	if !userIDExists {
+		userID = ""
+	}
+
+	var user users.User
+	dec := json.NewDecoder(req.Body)
+	dec.DisallowUnknownFields()
+	err := dec.Decode(&user)
+	if err == io.EOF { // is handled separately to return an informative error message
+		al.jsonErrorResponseWithTitle(w, http.StatusBadRequest, "Missing body with json data.")
+		return
+	} else if err != nil {
+		al.jsonErrorResponseWithError(w, http.StatusBadRequest, "", "Invalid JSON data.", err)
+		return
+	}
+
+	if err := al.usersService.Change(&user, userID); err != nil {
+		al.jsonError(w, err)
+		return
+	}
+
+	if userIDExists {
+		al.Debugf("User [%s] updated.", userID)
+		w.WriteHeader(http.StatusNoContent)
+	} else {
+		al.Debugf("User [%s] created.", user.Username)
+		w.WriteHeader(http.StatusCreated)
+	}
+}
+
+func (al *APIListener) handleDeleteUser(w http.ResponseWriter, req *http.Request) {
+	vars := mux.Vars(req)
+	userID, userIDExists := vars[routeParamUserID]
+	if !userIDExists {
+		al.jsonErrorResponseWithTitle(w, http.StatusBadRequest, "Empty user id provided")
+		return
+	}
+
+	if err := al.usersService.Delete(userID); err != nil {
+		al.jsonError(w, err)
+		return
+	}
+
+	w.WriteHeader(http.StatusNoContent)
+	al.Debugf("User [%s] deleted.", userID)
 }
 
 type ClientPayload struct {
@@ -476,6 +721,19 @@ func getCorrespondingSortFunc(sortStr string) (sortFunc func(a []*clients.Client
 		err = fmt.Errorf("incorrect format of %q query param", queryParamSort)
 	}
 	return
+}
+
+func (al *APIListener) handleDeleteClient(w http.ResponseWriter, req *http.Request) {
+	vars := mux.Vars(req)
+	clientID := vars[routeParamClientID]
+	err := al.clientService.DeleteOffline(clientID)
+	if err != nil {
+		al.jsonError(w, err)
+		return
+	}
+
+	w.WriteHeader(http.StatusNoContent)
+	al.Debugf("Client %q deleted.", clientID)
 }
 
 const (
@@ -700,31 +958,94 @@ func (al *APIListener) handleDeleteClientTunnel(w http.ResponseWriter, req *http
 
 // handleGetMe returns the currently logged in user and the groups the user belongs to.
 func (al *APIListener) handleGetMe(w http.ResponseWriter, req *http.Request) {
-	curUsername := api.GetUser(req.Context(), al.Logger)
-	if curUsername == "" {
-		al.writeJSONResponse(w, http.StatusOK, api.NewSuccessPayload(nil))
-		return
-	}
-
-	user, err := al.userSrv.GetByUsername(curUsername)
+	user, err := al.getUserModel(req)
 	if err != nil {
 		al.jsonErrorResponse(w, http.StatusInternalServerError, err)
 		return
 	}
+
 	if user == nil {
 		al.jsonErrorResponseWithTitle(w, http.StatusNotFound, "user not found")
 		return
 	}
 
-	me := struct {
-		User   string   `json:"user"`
-		Groups []string `json:"groups"`
-	}{
-		User:   user.Username,
-		Groups: user.Groups,
+	me := UserPayload{
+		Username:    user.Username,
+		Groups:      user.Groups,
+		TwoFASendTo: user.TwoFASendTo,
 	}
 	response := api.NewSuccessPayload(me)
 	al.writeJSONResponse(w, http.StatusOK, response)
+}
+
+type changeMeRequest struct {
+	Username    string `json:"username"`
+	Password    string `json:"password"`
+	TwoFASendTo string `json:"two_fa_send_to"`
+}
+
+func (al *APIListener) handleChangeMe(w http.ResponseWriter, req *http.Request) {
+	curUsername := api.GetUser(req.Context(), al.Logger)
+	if curUsername == "" {
+		al.jsonErrorResponseWithTitle(w, http.StatusUnauthorized, "unauthorized")
+		return
+	}
+
+	var r changeMeRequest
+	dec := json.NewDecoder(req.Body)
+	dec.DisallowUnknownFields()
+	err := dec.Decode(&r)
+	if err == io.EOF { // is handled separately to return an informative error message
+		al.jsonErrorResponseWithTitle(w, http.StatusBadRequest, "Missing body with json data.")
+		return
+	} else if err != nil {
+		al.jsonErrorResponseWithError(w, http.StatusBadRequest, "", "Invalid JSON data.", err)
+		return
+	}
+
+	if err := al.usersService.Change(&users.User{
+		Username:    r.Username,
+		Password:    r.Password,
+		TwoFASendTo: r.TwoFASendTo,
+	}, curUsername); err != nil {
+		al.jsonError(w, err)
+		return
+	}
+
+	w.WriteHeader(http.StatusNoContent)
+}
+
+func (al *APIListener) getUserModel(req *http.Request) (*users.User, error) {
+	curUsername := api.GetUser(req.Context(), al.Logger)
+	if curUsername == "" {
+		return nil, nil
+	}
+
+	user, err := al.userSrv.GetByUsername(curUsername)
+	if err != nil {
+		return nil, err
+	}
+
+	return user, err
+}
+
+func (al *APIListener) getUserModelForAuth(req *http.Request) (*users.User, error) {
+	usr, err := al.getUserModel(req)
+	if err != nil {
+		return nil, errors2.APIError{
+			Err:  err,
+			Code: http.StatusInternalServerError,
+		}
+	}
+
+	if usr == nil {
+		return nil, errors2.APIError{
+			Message: "unauthorized access",
+			Code:    http.StatusUnauthorized,
+		}
+	}
+
+	return usr, nil
 }
 
 func (al *APIListener) handleGetIP(w http.ResponseWriter, req *http.Request) {
@@ -1629,4 +1950,368 @@ func (al *APIListener) handleDeleteClientGroup(w http.ResponseWriter, req *http.
 
 	w.WriteHeader(http.StatusNoContent)
 	al.Debugf("Client Group [id=%q] deleted.", id)
+}
+
+func (al *APIListener) wrapStaticPassModeMiddleware(next http.HandlerFunc) http.HandlerFunc {
+	return func(w http.ResponseWriter, r *http.Request) {
+		if al.usersService.ProviderType == enums.ProviderSourceStatic {
+			al.jsonError(w, errors2.APIError{
+				Code:    http.StatusBadRequest,
+				Message: "server runs on a static user-password pair, please use JSON file or database for user data",
+			})
+			return
+		}
+		next.ServeHTTP(w, r)
+	}
+}
+
+func (al *APIListener) wrapAdminAccessMiddleware(next http.HandlerFunc) http.HandlerFunc {
+	return func(w http.ResponseWriter, r *http.Request) {
+		user, err := al.getUserModelForAuth(r)
+		if err != nil {
+			al.jsonError(w, err)
+			return
+		}
+
+		for i := range user.Groups {
+			if user.Groups[i] == users.Administrators {
+				next.ServeHTTP(w, r)
+				return
+			}
+		}
+
+		al.jsonError(w, errors2.APIError{
+			Message: fmt.Sprintf(
+				"current user should belong to %s group to access this resource",
+				users.Administrators,
+			),
+			Code: http.StatusForbidden,
+		})
+	}
+}
+
+func (al *APIListener) handleGetVaultStatus(w http.ResponseWriter, req *http.Request) {
+	ctx := req.Context()
+	st, err := al.vaultManager.Status(ctx)
+	if err != nil {
+		al.jsonError(w, err)
+		return
+	}
+
+	al.writeJSONResponse(w, http.StatusOK, api.NewSuccessPayload(st))
+}
+
+func (al *APIListener) handleVaultUnlock(w http.ResponseWriter, req *http.Request) {
+	passReq, err := al.extractPassRequest(req)
+	if err != nil {
+		al.jsonError(w, err)
+		return
+	}
+
+	err = al.vaultManager.UnLock(req.Context(), passReq.Password)
+	if err != nil {
+		al.jsonError(w, err)
+		return
+	}
+
+	w.WriteHeader(http.StatusCreated)
+}
+
+func (al *APIListener) handleVaultLock(w http.ResponseWriter, req *http.Request) {
+	err := al.vaultManager.Lock(req.Context())
+	if err != nil {
+		al.jsonError(w, err)
+		return
+	}
+
+	w.WriteHeader(http.StatusNoContent)
+}
+
+func (al *APIListener) handleVaultInit(w http.ResponseWriter, req *http.Request) {
+	passReq, err := al.extractPassRequest(req)
+	if err != nil {
+		al.jsonError(w, err)
+		return
+	}
+
+	err = al.vaultManager.Init(req.Context(), passReq.Password)
+	if err != nil {
+		al.jsonError(w, err)
+		return
+	}
+
+	w.WriteHeader(http.StatusCreated)
+}
+
+func (al *APIListener) extractPassRequest(req *http.Request) (vault.PassRequest, error) {
+	var passReq vault.PassRequest
+
+	dec := json.NewDecoder(req.Body)
+	dec.DisallowUnknownFields()
+
+	err := dec.Decode(&passReq)
+	if err == io.EOF {
+		return passReq, errors2.APIError{
+			Message: "Missing password.",
+			Code:    http.StatusBadRequest,
+		}
+	} else if err != nil {
+		return passReq, errors2.APIError{
+			Err:     err,
+			Message: "Invalid JSON data.",
+			Code:    http.StatusBadRequest,
+		}
+	}
+
+	return passReq, nil
+}
+
+func (al *APIListener) handleListVaultValues(w http.ResponseWriter, req *http.Request) {
+	items, err := al.vaultManager.List(req.Context(), req)
+	if err != nil {
+		al.jsonError(w, err)
+		return
+	}
+
+	al.writeJSONResponse(w, http.StatusOK, api.NewSuccessPayload(items))
+}
+
+func (al *APIListener) readIntParam(paramName string, req *http.Request) (int, error) {
+	vars := mux.Vars(req)
+	idStr, ok := vars[paramName]
+	if !ok {
+		return 0, nil
+	}
+
+	id, err := strconv.Atoi(idStr)
+	if err != nil {
+		return 0, fmt.Errorf("Non-numeric integer value provided: %s for param %s", idStr, paramName)
+	}
+
+	return id, nil
+}
+
+func (al *APIListener) handleReadVaultValue(w http.ResponseWriter, req *http.Request) {
+	id, err := al.readIntParam(routeParamVaultValueID, req)
+	if err != nil {
+		al.jsonError(w, errors2.APIError{
+			Err:  err,
+			Code: http.StatusBadRequest,
+		})
+		return
+	}
+	if id == 0 {
+		al.jsonError(w, errors2.APIError{
+			Err:  fmt.Errorf("missing %q route param", routeParamVaultValueID),
+			Code: http.StatusBadRequest,
+		})
+		return
+	}
+
+	curUser, err := al.getUserModelForAuth(req)
+	if err != nil {
+		al.jsonError(w, err)
+		return
+	}
+
+	storedValue, found, err := al.vaultManager.GetOne(req.Context(), id, curUser)
+	if err != nil {
+		al.jsonError(w, err)
+		return
+	}
+	if !found {
+		al.jsonErrorResponseWithTitle(w, http.StatusNotFound, fmt.Sprintf("Cannot find a vault value by the provided id: %d", id))
+		return
+	}
+
+	al.writeJSONResponse(w, http.StatusOK, api.NewSuccessPayload(storedValue))
+}
+
+func (al *APIListener) handleVaultStoreValue(w http.ResponseWriter, req *http.Request) {
+	id, err := al.readIntParam(routeParamVaultValueID, req)
+	if err != nil {
+		al.jsonError(w, errors2.APIError{
+			Err:  err,
+			Code: http.StatusBadRequest,
+		})
+		return
+	}
+
+	curUser, err := al.getUserModelForAuth(req)
+	if err != nil {
+		al.jsonError(w, err)
+		return
+	}
+
+	var vaultKeyValue vault.InputValue
+	dec := json.NewDecoder(req.Body)
+	dec.DisallowUnknownFields()
+	err = dec.Decode(&vaultKeyValue)
+	if err == io.EOF {
+		al.jsonErrorResponseWithTitle(w, http.StatusBadRequest, "Missing body with json data.")
+		return
+	} else if err != nil {
+		al.jsonErrorResponseWithError(w, http.StatusBadRequest, "", "Invalid JSON data.", err)
+		return
+	}
+
+	storedValue, err := al.vaultManager.Store(req.Context(), int64(id), &vaultKeyValue, curUser)
+	if err != nil {
+		al.jsonError(w, err)
+		return
+	}
+
+	status := http.StatusOK
+
+	if id == 0 {
+		w.WriteHeader(http.StatusCreated)
+	}
+
+	al.writeJSONResponse(w, status, api.NewSuccessPayload(storedValue))
+}
+
+func (al *APIListener) handleVaultDeleteValue(w http.ResponseWriter, req *http.Request) {
+	id, err := al.readIntParam(routeParamVaultValueID, req)
+	if err != nil {
+		al.jsonError(w, errors2.APIError{
+			Err:  err,
+			Code: http.StatusBadRequest,
+		})
+		return
+	}
+	if id == 0 {
+		al.jsonError(w, errors2.APIError{
+			Err:  fmt.Errorf("missing %q route param", routeParamVaultValueID),
+			Code: http.StatusBadRequest,
+		})
+		return
+	}
+
+	curUser, err := al.getUserModelForAuth(req)
+	if err != nil {
+		al.jsonError(w, err)
+		return
+	}
+
+	err = al.vaultManager.Delete(req.Context(), id, curUser)
+	if err != nil {
+		al.jsonError(w, err)
+		return
+	}
+
+	w.WriteHeader(http.StatusNoContent)
+}
+
+func (al *APIListener) handleListScripts(w http.ResponseWriter, req *http.Request) {
+	items, err := al.scriptManager.List(req.Context(), req)
+	if err != nil {
+		al.jsonError(w, err)
+		return
+	}
+
+	al.writeJSONResponse(w, http.StatusOK, api.NewSuccessPayload(items))
+}
+
+func (al *APIListener) handleScriptCreate(w http.ResponseWriter, req *http.Request) {
+	var scriptInput script.InputScript
+	dec := json.NewDecoder(req.Body)
+	dec.DisallowUnknownFields()
+	err := dec.Decode(&scriptInput)
+	if err != nil {
+		al.jsonErrorResponseWithError(w, http.StatusBadRequest, "", "Invalid JSON data.", err)
+		return
+	}
+
+	curUsername := api.GetUser(req.Context(), al.Logger)
+	if curUsername == "" {
+		al.jsonErrorResponseWithTitle(w, http.StatusUnauthorized, "unauthorized")
+		return
+	}
+
+	storedValue, err := al.scriptManager.Create(req.Context(), &scriptInput, curUsername)
+	if err != nil {
+		al.jsonError(w, err)
+		return
+	}
+
+	w.WriteHeader(http.StatusCreated)
+
+	al.writeJSONResponse(w, http.StatusCreated, api.NewSuccessPayload(storedValue))
+}
+
+func (al *APIListener) handleScriptUpdate(w http.ResponseWriter, req *http.Request) {
+	vars := mux.Vars(req)
+	idStr, ok := vars[routeParamScriptValueID]
+	if !ok {
+		al.jsonErrorResponseWithTitle(w, http.StatusBadRequest, "Script ID is not provided")
+		return
+	}
+
+	curUsername := api.GetUser(req.Context(), al.Logger)
+	if curUsername == "" {
+		al.jsonErrorResponseWithTitle(w, http.StatusUnauthorized, "unauthorized")
+		return
+	}
+
+	var scriptInput script.InputScript
+	dec := json.NewDecoder(req.Body)
+	dec.DisallowUnknownFields()
+	err := dec.Decode(&scriptInput)
+
+	if err != nil {
+		al.jsonErrorResponseWithError(w, http.StatusBadRequest, "", "Invalid JSON data.", err)
+		return
+	}
+
+	storedValue, err := al.scriptManager.Update(req.Context(), idStr, &scriptInput, curUsername)
+	if err != nil {
+		al.jsonError(w, err)
+		return
+	}
+
+	al.writeJSONResponse(w, http.StatusOK, api.NewSuccessPayload(storedValue))
+}
+
+func (al *APIListener) handleReadScript(w http.ResponseWriter, req *http.Request) {
+	vars := mux.Vars(req)
+	idStr, ok := vars[routeParamScriptValueID]
+	if !ok || idStr == "" {
+		al.jsonError(w, errors2.APIError{
+			Err:  errors.New("empty script id provided"),
+			Code: http.StatusBadRequest,
+		})
+		return
+	}
+
+	foundScript, found, err := al.scriptManager.GetOne(req.Context(), idStr)
+	if err != nil {
+		al.jsonError(w, err)
+		return
+	}
+	if !found {
+		al.jsonErrorResponseWithTitle(w, http.StatusNotFound, fmt.Sprintf("Cannot find a script by the provided id: %s", idStr))
+		return
+	}
+
+	al.writeJSONResponse(w, http.StatusOK, api.NewSuccessPayload(foundScript))
+}
+
+func (al *APIListener) handleDeleteScript(w http.ResponseWriter, req *http.Request) {
+	vars := mux.Vars(req)
+	idStr, ok := vars[routeParamScriptValueID]
+	if !ok || idStr == "" {
+		al.jsonError(w, errors2.APIError{
+			Err:  errors.New("empty script id provided"),
+			Code: http.StatusBadRequest,
+		})
+		return
+	}
+
+	err := al.scriptManager.Delete(req.Context(), idStr)
+	if err != nil {
+		al.jsonError(w, err)
+		return
+	}
+
+	w.WriteHeader(http.StatusNoContent)
 }

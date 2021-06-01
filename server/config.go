@@ -6,7 +6,9 @@ import (
 	"crypto/tls"
 	"errors"
 	"fmt"
+	"net"
 	"net/http"
+	"net/smtp"
 	"net/url"
 	"strings"
 	"time"
@@ -14,24 +16,32 @@ import (
 	mapset "github.com/deckarep/golang-set"
 	"github.com/jpillora/requestlog"
 
+	"github.com/cloudradar-monitoring/rport/server/api/message"
 	"github.com/cloudradar-monitoring/rport/server/ports"
 	chshare "github.com/cloudradar-monitoring/rport/share"
+	"github.com/cloudradar-monitoring/rport/share/email"
 )
 
 type APIConfig struct {
-	Address        string  `mapstructure:"address"`
-	Auth           string  `mapstructure:"auth"`
-	AuthFile       string  `mapstructure:"auth_file"`
-	AuthUserTable  string  `mapstructure:"auth_user_table"`
-	AuthGroupTable string  `mapstructure:"auth_group_table"`
-	JWTSecret      string  `mapstructure:"jwt_secret"`
-	DocRoot        string  `mapstructure:"doc_root"`
-	CertFile       string  `mapstructure:"cert_file"`
-	KeyFile        string  `mapstructure:"key_file"`
-	AccessLogFile  string  `mapstructure:"access_log_file"`
-	UserLoginWait  float32 `mapstructure:"user_login_wait"`
-	MaxFailedLogin int     `mapstructure:"max_failed_login"`
-	BanTime        int     `mapstructure:"ban_time"`
+	Address              string  `mapstructure:"address"`
+	Auth                 string  `mapstructure:"auth"`
+	AuthFile             string  `mapstructure:"auth_file"`
+	AuthUserTable        string  `mapstructure:"auth_user_table"`
+	AuthGroupTable       string  `mapstructure:"auth_group_table"`
+	JWTSecret            string  `mapstructure:"jwt_secret"`
+	DocRoot              string  `mapstructure:"doc_root"`
+	CertFile             string  `mapstructure:"cert_file"`
+	KeyFile              string  `mapstructure:"key_file"`
+	AccessLogFile        string  `mapstructure:"access_log_file"`
+	UserLoginWait        float32 `mapstructure:"user_login_wait"`
+	MaxFailedLogin       int     `mapstructure:"max_failed_login"`
+	BanTime              int     `mapstructure:"ban_time"`
+	TwoFATokenDelivery   string  `mapstructure:"two_fa_token_delivery"`
+	TwoFATokenTTLSeconds int     `mapstructure:"two_fa_token_ttl_seconds"`
+}
+
+func (c *APIConfig) IsTwoFAOn() bool {
+	return c.TwoFATokenDelivery != ""
 }
 
 const (
@@ -86,11 +96,108 @@ type DatabaseConfig struct {
 	dsn    string
 }
 
+type PushoverConfig struct {
+	APIToken string `mapstructure:"api_token"`
+	UserKey  string `mapstructure:"user_key"`
+}
+
+func (c *PushoverConfig) Validate() error {
+	if c.APIToken == "" {
+		return errors.New("pushover.api_token is required")
+	}
+
+	p := message.NewPushoverService(c.APIToken)
+	err := p.ValidateReceiver(c.UserKey)
+	if err != nil {
+		return fmt.Errorf("invalid pushover.api_token and pushover.user_key: %v", err)
+
+	}
+
+	return nil
+}
+
+type SMTPConfig struct {
+	Server       string `mapstructure:"server"`
+	AuthUsername string `mapstructure:"auth_username"`
+	AuthPassword string `mapstructure:"auth_password"`
+	SenderEmail  string `mapstructure:"sender_email"`
+	Secure       bool   `mapstructure:"secure"`
+}
+
+func (c *SMTPConfig) Validate() error {
+	if c.Server == "" {
+		return errors.New("smtp.server is required")
+	}
+	host, _, err := net.SplitHostPort(c.Server)
+	if err != nil {
+		return fmt.Errorf("invalid smtp.server, expected to be server and port separated by a colon. e.g. 'smtp.gmail.com:587'; error: %v", err)
+	}
+
+	if err := email.Validate(c.SenderEmail); err != nil {
+		return fmt.Errorf("invalid smtp.sender_email: %v", err)
+	}
+
+	var client *smtp.Client
+	if c.Secure {
+		tlsConfig := &tls.Config{
+			ServerName: host,
+			MinVersion: tls.VersionTLS12,
+		}
+		conn, err := tls.Dial("tcp", c.Server, tlsConfig)
+		if err != nil {
+			return fmt.Errorf("could not connect to smtp.server using TLS: %v", err)
+		}
+
+		client, err = smtp.NewClient(conn, host)
+		if err != nil {
+			return fmt.Errorf("could not init smtp client to smtp.server: %v", err)
+		}
+		defer client.Close()
+	} else {
+		client, err = smtp.Dial(c.Server)
+		if err != nil {
+			return fmt.Errorf("could not connect to smtp.server: %v", err)
+		}
+		defer client.Close()
+
+		// use TLS if available
+		if ok, _ := client.Extension("STARTTLS"); ok {
+			tlsConfig := &tls.Config{
+				ServerName: host,
+				MinVersion: tls.VersionTLS12,
+			}
+			if err = client.StartTLS(tlsConfig); err != nil {
+				return fmt.Errorf("failed to start tls: %v", err)
+			}
+		}
+	}
+
+	if c.AuthUsername != "" || c.AuthPassword != "" {
+		err = client.Auth(smtp.PlainAuth("", c.AuthUsername, c.AuthPassword, host))
+		if err != nil {
+			return fmt.Errorf("failed to connect to smtp server using provided auth_username and auth_password: %v", err)
+		}
+	}
+
+	return nil
+}
+
+type VaultConfig struct {
+	DBName string `mapstructure:"db_name"`
+}
+
+func (vc VaultConfig) GetDatabasePath() string {
+	return vc.DBName
+}
+
 type Config struct {
 	Server   ServerConfig   `mapstructure:"server"`
 	Logging  LogConfig      `mapstructure:"logging"`
 	API      APIConfig      `mapstructure:"api"`
 	Database DatabaseConfig `mapstructure:"database"`
+	Pushover PushoverConfig `mapstructure:"pushover"`
+	SMTP     SMTPConfig     `mapstructure:"smtp"`
+	Vault    VaultConfig    `mapstructure:"vault"`
 }
 
 func (c *Config) InitRequestLogOptions() *requestlog.Options {
@@ -194,6 +301,10 @@ func (c *Config) parseAndValidateAPI() error {
 				return err
 			}
 		}
+		err = c.parseAndValidate2FA()
+		if err != nil {
+			return err
+		}
 	} else {
 		// API disabled
 		if c.API.DocRoot != "" {
@@ -202,6 +313,26 @@ func (c *Config) parseAndValidateAPI() error {
 
 	}
 	return nil
+}
+
+func (c *Config) parseAndValidate2FA() error {
+	if c.API.TwoFATokenDelivery == "" {
+		return nil
+	}
+
+	if c.API.Auth != "" {
+		return errors.New("2FA is not available if you use a single static user-password pair")
+	}
+
+	// TODO: to do better handling, maybe with using enums
+	switch c.API.TwoFATokenDelivery {
+	case "pushover":
+		return c.Pushover.Validate()
+	case "smtp":
+		return c.SMTP.Validate()
+	}
+
+	return fmt.Errorf("unknown 2fa token delivery method: %s", c.API.TwoFATokenDelivery)
 }
 
 func (c *Config) parseAndValidateAPIAuth() error {

@@ -4,6 +4,7 @@ import (
 	"context"
 	"fmt"
 	"net"
+	"net/http"
 	"sort"
 	"strconv"
 	"sync"
@@ -11,6 +12,7 @@ import (
 
 	"golang.org/x/crypto/ssh"
 
+	"github.com/cloudradar-monitoring/rport/server/api/errors"
 	"github.com/cloudradar-monitoring/rport/server/cgroups"
 	"github.com/cloudradar-monitoring/rport/server/clients"
 	"github.com/cloudradar-monitoring/rport/server/ports"
@@ -235,6 +237,39 @@ func (s *ClientService) ForceDelete(client *clients.Client) error {
 		}
 	}
 	return s.repo.Delete(client)
+}
+
+func (s *ClientService) DeleteOffline(clientID string) error {
+	if clientID == "" {
+		return errors.APIError{
+			Message: "Client id is empty",
+			Code:    http.StatusBadRequest,
+		}
+	}
+
+	s.mu.Lock()
+	defer s.mu.Unlock()
+
+	existing, err := s.repo.GetByID(clientID)
+	if err != nil {
+		return err
+	}
+
+	if existing == nil {
+		return errors.APIError{
+			Message: "Client not found",
+			Code:    http.StatusNotFound,
+		}
+	}
+
+	if existing.DisconnectedAt == nil {
+		return errors.APIError{
+			Message: "Client is active, should be disconnected",
+			Code:    http.StatusBadRequest,
+		}
+	}
+
+	return s.repo.Delete(existing)
 }
 
 // isClientAuthIDInUse returns true when the client with different id exists for the client auth

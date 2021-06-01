@@ -72,7 +72,7 @@ func (l *MaxBadAttemptsBanList) AddBadAttempt(visitorKey string) {
 	if v.badAttempts == l.maxBadAttempts {
 		t := time.Now().Add(l.banDuration)
 		if l.logger != nil {
-			l.logger.Infof("Too many bad attempts. Client is banned, ip: %s, ban expiry: %s", visitorKey, t)
+			l.logger.Infof("Maximum of %d login attempts reached. Visitor (%s) banned. Ban expiry: %s", v.badAttempts, visitorKey, t.Format(time.RFC3339))
 		}
 		v.banTime = &t
 		v.badAttempts = 0

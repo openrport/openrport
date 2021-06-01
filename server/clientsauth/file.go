@@ -6,6 +6,8 @@ import (
 	"fmt"
 	"io/ioutil"
 	"os"
+
+	"github.com/cloudradar-monitoring/rport/share/enums"
 )
 
 // FileProvider is file based client provider.
@@ -117,6 +119,6 @@ func (c *FileProvider) save(idPswdPairs map[string]string) error {
 	return nil
 }
 
-func (c *FileProvider) Source() ProviderSource {
-	return ProviderSourceFile
+func (c *FileProvider) Source() enums.ProviderSource {
+	return enums.ProviderSourceFile
 }

@@ -61,7 +61,7 @@ If you want to have more than one user, create a json file with the following st
         "username": "Admin",
         "password": "$2y$10$ezwCZekHE/qxMb4g9n6rU.XIIdCnHnOo.q2wqqA8LyYf3ihonenmu",
         "groups": [
-            "Admins",
+            "Administrators",
             "Bunnies"
         ]
     },
