@@ -26,7 +26,7 @@ Do not run the API on public servers with the default credentials. Change the `a
 ::: tip
 If you expose your API to the public internet, it's highly recommended to enable HTTPS. Read the [quick HTTPS howto](no08-https-howto.md).
 :::
-By default the built-in web server can run the API only on ports below 1024. To circumvent this limit refer to [running the API on privileged ports](#Running the-API-on-a-privileged-port)
+By default the built-in web server can run the API only on ports below 1024. To circumvent this limit refer to [running the API on privileged ports.](#running-the-api-on-a-privileged-port)
 
 Test if you set up the API properly by querying its status with `curl -s -u admin:foobaz http://localhost:3000/api/v1/status`.
 
@@ -34,7 +34,7 @@ Test if you set up the API properly by querying its status with `curl -s -u admi
 The API always returns a minified json formatted response. The large output is hard to read. In all further examples, we use the command-line tool [jq](https://stedolan.github.io/jq/) to reformat the json with line breaks and indentation for better readability. `jq`is included in almost any distribution, for Windows you can download it [here](https://stedolan.github.io/jq/download/).
 :::
 
-Example of a human readable API status
+Example of a human-readable API status
 ```
 ~# curl -s -u admin:foobaz http://localhost:3000/api/v1/status |jq
 {

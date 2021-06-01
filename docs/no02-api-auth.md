@@ -44,7 +44,7 @@ The Rportd can read user credentials from three different sources.
 
 Which one you chose is an either-or decision. A mixed-mode is not supported.
 
-If you are planning to manage API users through the API or if you want to manage users comfortable usinig the graphical frontend, you must store users in a database.
+If you are planning to manage API users through the API or if you want to manage users comfortably using the graphical frontend, you must store users in a database.
 
 ### Hardcoded single user
 To use just a single user enter the following line to the `rportd.config` in the `[api]` section.
@@ -134,7 +134,7 @@ CREATE TABLE `groups` (
 ```
 
 
-#### SQlite Example
+#### SQLite Example
 Enter the following line to the `rportd.conf` file in the `[api]` and `[database]` section:
 ```
 [api]
@@ -194,7 +194,7 @@ Now insert the first user:
 sqlite> INSERT INTO users VALUES('admin','$2y$05$zfvuP4PvjsNWTqRFLdswEeRzETE2KiZONJQyVn7T3ZV5qcYAlmNWO');
 sqlite> INSERT INTO groups VALUES('admin','Administrators');
 ```
-This creates a user `admin` with the password `password`. To use another password, create the apropiated bycrypt hash [here](https://bcrypt-generator.com/).
+This creates a user `admin` with the password `password`. To use another password, create the appropriate bcrypt hash [here](https://bcrypt-generator.com/).
 
 #### API Usage examples
 

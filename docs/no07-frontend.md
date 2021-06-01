@@ -15,7 +15,7 @@ The uncompressed source code is not published.
 ## Installing the frontend
 The frontend comes as a minified and compressed bundle of Javascript files and all needed assets. The frontend does not require any server-side scripting support. The rport server provides static file serving for that purpose. 
 
-By default the built-in websserver listens only on localhost. Serving a web frontend on localhost is not very useful. Change the listen address of the API to "0.0.0.0:3000" or any port you like. 
+By default, the built-in web server listens only on localhost. Serving a web frontend on localhost is not very useful. Change the listen address of the API to "0.0.0.0:3000" or any port you like. 
 
 Make sure you have the below options enabled in `[api]` section of the `rportd.conf`.
 ```

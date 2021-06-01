@@ -2,7 +2,7 @@
 
 ## Build and installation
 ### Binaries
-We provide pre-complided binaries. You can download them [here](https://github.com/cloudradar-monitoring/rport/releases).
+We provide pre-compiled binaries. You can download them [here](https://github.com/cloudradar-monitoring/rport/releases).
 ### From source
 1) Build from source (Linux or Mac OS/X):
     ```bash
