@@ -1,14 +1,14 @@
 # Users
-Rport users are provided from JSON file or DB as described in [authentication section](https://oss.rport.io/docs/no03-client-auth.html).
+Rport users are provided from JSON file or DB as described in [authentication section](no03-client-auth.md).
 
 You can manage users with the [REST API](https://petstore.swagger.io/?url=https://raw.githubusercontent.com/cloudradar-monitoring/rport/master/api-doc.yml#/Users).
 
 ## API Limitations
 Before using the [User Management API](https://petstore.swagger.io/?url=https://raw.githubusercontent.com/cloudradar-monitoring/rport/master/api-doc.yml#/Users), you should provide at least one user belonging `Administrators` group either in a JSON file or DB.
 
-If rport is started with static credentials [auth mode](https://oss.rport.io/docs/no03-client-auth.html#using-a-static-credential), user management API won't be usable.
+If rport is started with static credentials [auth mode](no03-client-auth.md#using-a-static-credential), user management API won't be usable.
 
-If rport is started with JSON file credentials, changes to the users list won't be refreshed until rport is restarted since there is a [limitation](https://oss.rport.io/docs/no02-api-auth.html#user-file).
+If rport is started with JSON file credentials, changes to the users list won't be refreshed until rport is restarted since there is a [limitation](no02-api-auth.md#user-file).
 
 ## API Usage
 The `/users` endpoints allow you to create, update, delete and list users and add or remove users to/from groups.
