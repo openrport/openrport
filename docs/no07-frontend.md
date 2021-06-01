@@ -25,7 +25,7 @@ Make sure you have the below options enabled in `[api]` section of the `rportd.c
 ```
 
 ::: danger
-Usually you run rportd and the web frontend on a public server directly exposed to the internet. Running the API and serving the frontend on unencrypted HTTP is dangerous. Always use HTTPs. The built-in web server supports HTTPs. To quickly generate certificates, follow [this guide](https://oss.rport.io/docs/no08-https-howto.html).
+Usually you run rportd and the web frontend on a public server directly exposed to the internet. Running the API and serving the frontend on unencrypted HTTP is dangerous. Always use HTTPs. The built-in web server supports HTTPs. To quickly generate certificates, follow [this guide](no08-https-howto.md).
 :::
 
 * Create the doc root folder, `mkdir /var/lib/rport/docroot`
