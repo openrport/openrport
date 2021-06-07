@@ -2124,21 +2124,21 @@ definitions:
       value:
         type: "string"
         description: "decrypted value of the vault entry"
-      ID:
+      id:
         type: "integer"
         description: "Unique internal id of a vault entry"
-      CreatedAt:
+      created_at:
         type: "string"
         format: "data-time"
         description: "Date and time of vault entry creation"
-      UpdatedAt:
+      updated_at:
         type: "string"
         format: "data-time"
         description: "Date and time of vault entry last update"
-      CreatedBy:
+      created_by:
         type: "string"
         description: "User name who created this vault entry"
-      UpdatedBy:
+      updated_by:
         type: "string"
         description: "User name who last updated this vault entry"
   VaultEntryOutputShort:
@@ -2153,11 +2153,11 @@ definitions:
       id:
         type: "integer"
         description: "Unique internal id of a vault entry"
-      CreatedAt:
+      created_at:
         type: "string"
         format: "data-time"
         description: "Date and time of vault entry creation"
-      CreatedBy:
+      created_by:
         type: "string"
         description: "User name who created this vault entry"
   Script:

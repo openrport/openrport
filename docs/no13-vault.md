@@ -170,11 +170,11 @@ The response will be
         "key": "three",
         "value": "345",
         "type": "secrete",
-        "ID": 1,
-        "CreatedAt": "2021-05-18T09:46:07+03:00",
-        "UpdatedAt": "2021-05-18T09:46:07+03:00",
-        "CreatedBy": "admin",
-        "UpdatedBy": "admin"
+        "id": 1,
+        "created_at": "2021-05-18T09:46:07+03:00",
+        "updated_at": "2021-05-18T09:46:07+03:00",
+        "created_by": "admin",
+        "updated_by": "admin"
     }
 }
 ```
