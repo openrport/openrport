@@ -161,11 +161,11 @@ func (al *APIListener) initRouter() {
 	sub.HandleFunc("/vault/{"+routeParamVaultValueID+"}", al.handleReadVaultValue).Methods(http.MethodGet)
 	sub.HandleFunc("/vault/{"+routeParamVaultValueID+"}", al.handleVaultStoreValue).Methods(http.MethodPut)
 	sub.HandleFunc("/vault/{"+routeParamVaultValueID+"}", al.handleVaultDeleteValue).Methods(http.MethodDelete)
-	sub.HandleFunc("/scripts", al.handleListScripts).Methods(http.MethodGet)
-	sub.HandleFunc("/scripts", al.handleScriptCreate).Methods(http.MethodPost)
-	sub.HandleFunc("/scripts/{"+routeParamScriptValueID+"}", al.handleScriptUpdate).Methods(http.MethodPut)
-	sub.HandleFunc("/scripts/{"+routeParamScriptValueID+"}", al.handleReadScript).Methods(http.MethodGet)
-	sub.HandleFunc("/scripts/{"+routeParamScriptValueID+"}", al.handleDeleteScript).Methods(http.MethodDelete)
+	sub.HandleFunc("/library/scripts", al.handleListScripts).Methods(http.MethodGet)
+	sub.HandleFunc("/library/scripts", al.handleScriptCreate).Methods(http.MethodPost)
+	sub.HandleFunc("/library/scripts/{"+routeParamScriptValueID+"}", al.handleScriptUpdate).Methods(http.MethodPut)
+	sub.HandleFunc("/library/scripts/{"+routeParamScriptValueID+"}", al.handleReadScript).Methods(http.MethodGet)
+	sub.HandleFunc("/library/scripts/{"+routeParamScriptValueID+"}", al.handleDeleteScript).Methods(http.MethodDelete)
 
 	// add authorization middleware
 	if !al.insecureForTests {

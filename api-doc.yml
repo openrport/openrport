@@ -1477,7 +1477,7 @@ paths:
           description: "Invalid Operation"
           schema:
             $ref: "#/definitions/ErrorPayload"
-  /scripts:
+  /library/scripts:
     get:
       tags:
         - "Scripts"
@@ -1564,7 +1564,7 @@ paths:
           description: "Invalid Operation"
           schema:
             $ref: "#/definitions/ErrorPayload"
-  /scripts/{id}:
+  /library/scripts/{id}:
     get:
       tags:
         - "Scripts"
