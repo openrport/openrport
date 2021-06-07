@@ -69,9 +69,9 @@ func (srv *TwoFAService) SendToken(username string) (sendTo string, err error) {
 		return "", fmt.Errorf("failed to generate 2fa token: %wv", err)
 	}
 
-	msg := fmt.Sprintf("Token: %s (valid %s)", token, srv.TokenTTL)
-	if err := srv.MsgSrv.Send("Rport 2FA token", msg, user.TwoFASendTo); err != nil {
-		return "", fmt.Errorf("failed to send 2fa token: %w", err)
+	msg := fmt.Sprintf("Verification code: %s (valid %s)", token, srv.TokenTTL)
+	if err := srv.MsgSrv.Send("Rport 2FA", msg, user.TwoFASendTo); err != nil {
+		return "", fmt.Errorf("failed to send 2fa verification code: %w", err)
 	}
 
 	srv.mu.Lock()
