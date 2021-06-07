@@ -1,6 +1,7 @@
 package chserver
 
 import (
+	"crypto/subtle"
 	"encoding/json"
 	"errors"
 	"fmt"
@@ -981,16 +982,11 @@ func (al *APIListener) handleGetMe(w http.ResponseWriter, req *http.Request) {
 type changeMeRequest struct {
 	Username    string `json:"username"`
 	Password    string `json:"password"`
+	OldPassword string `json:"old_password"`
 	TwoFASendTo string `json:"two_fa_send_to"`
 }
 
 func (al *APIListener) handleChangeMe(w http.ResponseWriter, req *http.Request) {
-	curUsername := api.GetUser(req.Context(), al.Logger)
-	if curUsername == "" {
-		al.jsonErrorResponseWithTitle(w, http.StatusUnauthorized, "unauthorized")
-		return
-	}
-
 	var r changeMeRequest
 	dec := json.NewDecoder(req.Body)
 	dec.DisallowUnknownFields()
@@ -1003,11 +999,29 @@ func (al *APIListener) handleChangeMe(w http.ResponseWriter, req *http.Request) 
 		return
 	}
 
+	curUser, err := al.getUserModelForAuth(req)
+	if err != nil {
+		al.jsonError(w, err)
+		return
+	}
+
+	if r.Password != "" {
+		if r.OldPassword == "" {
+			al.jsonErrorResponseWithTitle(w, http.StatusForbidden, "Missing old password.")
+			return
+		}
+
+		if subtle.ConstantTimeCompare([]byte(r.OldPassword), []byte(curUser.Password)) != 1 {
+			al.jsonErrorResponseWithTitle(w, http.StatusForbidden, "Incorrect old password.")
+			return
+		}
+	}
+
 	if err := al.usersService.Change(&users.User{
 		Username:    r.Username,
 		Password:    r.Password,
 		TwoFASendTo: r.TwoFASendTo,
-	}, curUsername); err != nil {
+	}, curUser.Username); err != nil {
 		al.jsonError(w, err)
 		return
 	}

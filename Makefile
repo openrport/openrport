@@ -3,7 +3,7 @@
 # Go parameters
 BINARIES=rport rportd
 
-all: test build
+all: test build sca
 
 build:
 	CGO_ENABLED=0 $(foreach BINARY,$(BINARIES),go build -ldflags "-s -w" -o $(BINARY) -v ./cmd/$(BINARY)/...;)

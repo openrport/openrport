@@ -222,6 +222,9 @@ paths:
               password:
                 type: "string"
                 description: "new password, empty if keep the same"
+              old_password:
+                type: "string"
+                description: "old password, required only on password change"
               two_fa_send_to:
                 type: "string"
                 description: "applicable only when 2FA is enabled, ignored otherwise. New two_fa_send_to, empty if keep the same"
@@ -234,6 +237,10 @@ paths:
             $ref: "#/definitions/ErrorPayload"
         "401":
           description: "Unauthorized"
+          schema:
+            $ref: "#/definitions/ErrorPayload"
+        "403":
+          description: "Missing or incorrect old password"
           schema:
             $ref: "#/definitions/ErrorPayload"
         "500":
