@@ -1,7 +1,6 @@
 package chserver
 
 import (
-	"crypto/subtle"
 	"encoding/json"
 	"errors"
 	"fmt"
@@ -12,10 +11,6 @@ import (
 	"strconv"
 	"strings"
 	"time"
-
-	"github.com/cloudradar-monitoring/rport/server/script"
-
-	"github.com/cloudradar-monitoring/rport/server/vault"
 
 	"github.com/gorilla/mux"
 	"github.com/gorilla/websocket"
@@ -31,6 +26,8 @@ import (
 	"github.com/cloudradar-monitoring/rport/server/clients"
 	"github.com/cloudradar-monitoring/rport/server/clientsauth"
 	"github.com/cloudradar-monitoring/rport/server/ports"
+	"github.com/cloudradar-monitoring/rport/server/script"
+	"github.com/cloudradar-monitoring/rport/server/vault"
 	chshare "github.com/cloudradar-monitoring/rport/share"
 	"github.com/cloudradar-monitoring/rport/share/comm"
 	"github.com/cloudradar-monitoring/rport/share/enums"
@@ -1011,7 +1008,7 @@ func (al *APIListener) handleChangeMe(w http.ResponseWriter, req *http.Request) 
 			return
 		}
 
-		if subtle.ConstantTimeCompare([]byte(r.OldPassword), []byte(curUser.Password)) != 1 {
+		if !verifyPassword(*curUser, r.OldPassword) {
 			al.jsonErrorResponseWithTitle(w, http.StatusForbidden, "Incorrect old password.")
 			return
 		}

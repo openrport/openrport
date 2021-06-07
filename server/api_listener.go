@@ -320,13 +320,17 @@ func (al *APIListener) validateCredentials(username, password string) (bool, err
 		return false, nil
 	}
 
+	return verifyPassword(*user, password), nil
+}
+
+func verifyPassword(user users.User, password string) bool {
 	// bcrypt hashed password
 	if strings.HasPrefix(user.Password, htpasswdBcryptPrefix) {
-		return bcrypt.CompareHashAndPassword([]byte(user.Password), []byte(password)) == nil, nil
+		return bcrypt.CompareHashAndPassword([]byte(user.Password), []byte(password)) == nil
 	}
 
 	// plaintext password, constant time compare is used for security reasons
-	return subtle.ConstantTimeCompare([]byte(password), []byte(user.Password)) == 1, nil
+	return subtle.ConstantTimeCompare([]byte(password), []byte(user.Password)) == 1
 }
 
 // parseHTTPAuthStr parses <user>:<password> string, returns (user, nil) or (nil, error)
