@@ -32,7 +32,7 @@ type StoredValueID struct {
 type ValueType string
 
 const TextType ValueType = "text"
-const SecreteType ValueType = "secrete"
+const SecretType ValueType = "secret"
 const MarkdownType ValueType = "markdown"
 const StringType ValueType = "string"
 

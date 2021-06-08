@@ -88,7 +88,7 @@ The file is read only on start or reload `kill -SIGUSR1 <pid>`. Changes to the f
 
 To generate bcrypt hashes use for example the command `htpasswd` from the Apache Utils.
 ```
-htpasswd -nbB password 'Super-Secrete$Passw0rD'
+htpasswd -nbB password 'Super-Secret$Passw0rD'
 password:$2y$05$Wgzg0fwtiCNYfP69k2uYKuYbmmFtd5RPK7W7mkgemuGkfXB2kgcdW
 ```
 Copy the second part after the colon to the `api-auth.json` file. This is the hash of the password.

@@ -169,7 +169,7 @@ The response will be
         "required_group": "",
         "key": "three",
         "value": "345",
-        "type": "secrete",
+        "type": "secret",
         "id": 1,
         "created_at": "2021-05-18T09:46:07+03:00",
         "updated_at": "2021-05-18T09:46:07+03:00",
@@ -218,7 +218,7 @@ Fields info:
 
 `value`: text, required representing the encrypted "body" of the document. All other columns hold clear text values. This column stores the encrypted data.
 
-`type`: text, required  ENUM('text', 'secrete', 'markdown', 'string') Type of the secret value.
+`type`: text, required  ENUM('text', 'secret', 'markdown', 'string') Type of the secret value.
 
 
 ### Change a vault entry

@@ -2101,7 +2101,7 @@ definitions:
         type: "string"
         enum: &VAULT_VALUE_TYPE
           - "text"
-          - "secrete"
+          - "secret"
           - "markdown"
           - "string"
         description: "[required] Type of the secret value"

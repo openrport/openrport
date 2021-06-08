@@ -35,7 +35,7 @@ func TestValidate(t *testing.T) {
 			input: &InputValue{
 				Key:   "k1",
 				Value: "val1",
-				Type:  SecreteType,
+				Type:  SecretType,
 			},
 			expectedError: "",
 		},
