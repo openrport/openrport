@@ -2,6 +2,7 @@ package models
 
 import (
 	"fmt"
+	"os"
 	"time"
 )
 
@@ -70,4 +71,11 @@ func (j Job) LogPrefix() string {
 	}
 	r += fmt.Sprintf("jid=%q, clientID=%q", j.JID, j.ClientID)
 	return r
+}
+
+type File struct {
+	Name      string      `json:"name"`
+	Content   []byte      `json:"content"`
+	CreateDir bool        `json:"create_dir"`
+	Mode      os.FileMode `json:"file_mode"`
 }

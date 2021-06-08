@@ -7,6 +7,8 @@ import (
 	"net/http"
 	"time"
 
+	"github.com/cloudradar-monitoring/rport/share/random"
+
 	"github.com/cloudradar-monitoring/rport/share/query"
 
 	chshare "github.com/cloudradar-monitoring/rport/share"
@@ -188,6 +190,18 @@ func (m *Manager) Delete(ctx context.Context, id string) error {
 	}
 
 	return nil
+}
+
+func (m *Manager) CreateClientScriptPath(OSKernel string, isPowershell bool) string {
+	scriptName := random.UUID4()
+	if OSKernel == "windows" {
+		if isPowershell {
+			return scriptName + ".ps1"
+		}
+		return scriptName + ".bat"
+	}
+
+	return scriptName + ".sh"
 }
 
 func (m *Manager) Close() error {

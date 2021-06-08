@@ -1,10 +1,14 @@
 package chserver
 
 import (
+	"bytes"
+	"crypto/sha256"
+	"encoding/hex"
 	"encoding/json"
 	"errors"
 	"fmt"
 	"io"
+	"io/ioutil"
 	"net"
 	"net/http"
 	"regexp"
@@ -46,6 +50,10 @@ const (
 	routeParamGroupID       = "group_id"
 	routeParamVaultValueID  = "vault_value_id"
 	routeParamScriptValueID = "script_value_id"
+
+	isPowershellScriptParam = "isPowershell"
+	isSudoScriptParam       = "isSudo"
+	cwdScriptParam          = "cwd"
 
 	ErrCodeMissingRouteVar = "ERR_CODE_MISSING_ROUTE_VAR"
 	ErrCodeInvalidRequest  = "ERR_CODE_INVALID_REQUEST"
@@ -166,6 +174,7 @@ func (al *APIListener) initRouter() {
 	sub.HandleFunc("/library/scripts/{"+routeParamScriptValueID+"}", al.handleScriptUpdate).Methods(http.MethodPut)
 	sub.HandleFunc("/library/scripts/{"+routeParamScriptValueID+"}", al.handleReadScript).Methods(http.MethodGet)
 	sub.HandleFunc("/library/scripts/{"+routeParamScriptValueID+"}", al.handleDeleteScript).Methods(http.MethodDelete)
+	sub.HandleFunc("/clients/{client_id}/scripts", al.handlePostScript).Methods(http.MethodPost)
 
 	// add authorization middleware
 	if !al.insecureForTests {
@@ -1309,6 +1318,86 @@ func (al *APIListener) handlePostCommand(w http.ResponseWriter, req *http.Reques
 	al.writeJSONResponse(w, http.StatusOK, api.NewSuccessPayload(resp))
 
 	al.Debugf("Job[id=%q] created to execute remote command on client with id=%q: %q.", curJob.JID, cid, reqBody.Command)
+}
+
+func (al *APIListener) handlePostScript(w http.ResponseWriter, req *http.Request) {
+	vars := mux.Vars(req)
+	clientID := vars[routeParamClientID]
+	if clientID == "" {
+		al.jsonErrorResponseWithTitle(w, http.StatusBadRequest, fmt.Sprintf("Missing %q route param.", routeParamClientID))
+		return
+	}
+
+	query := req.URL.Query()
+	isPowershell := false
+	isPowershellParam, ok := query[isPowershellScriptParam]
+	if ok && len(isPowershellParam) > 0 && isPowershellParam[0] != "" {
+		isPowershell = true
+	}
+
+	//isSudo := false
+	//isSudoParam, ok := query[isSudoScriptParam]
+	//if ok && len(isSudoParam) > 0 && isSudoParam[0] != "" {
+	//	isSudo = true
+	//}
+	//
+	//cwd := ""
+	//cwdParam, ok := query[cwdScriptParam]
+	//if ok && len(cwdParam) > 0 {
+	//	cwd = cwdParam[0]
+	//}
+
+	scriptBody, err := ioutil.ReadAll(req.Body)
+	if err != nil {
+		al.jsonErrorResponseWithError(w, http.StatusInternalServerError, "", "Failed to get script body", err)
+		return
+	}
+
+	client, err := al.clientService.GetActiveByID(clientID)
+	if err != nil {
+		al.jsonErrorResponseWithError(w, http.StatusInternalServerError, "", fmt.Sprintf("Failed to find an active client with id=%q.", clientID), err)
+		return
+	}
+	if client == nil {
+		al.jsonErrorResponseWithTitle(w, http.StatusNotFound, fmt.Sprintf("Active client with id=%q not found.", clientID))
+		return
+	}
+
+	fileInput := &models.File{
+		Name:      al.scriptManager.CreateClientScriptPath(client.OSKernel, isPowershell),
+		Content:   scriptBody,
+		CreateDir: true,
+		Mode:      0744,
+	}
+
+	sshResp := &comm.CreateFileResponse{}
+	err = comm.SendRequestAndGetResponse(client.Connection, comm.RequestTypeCreateFile, fileInput, sshResp)
+	if err != nil {
+		if _, ok := err.(*comm.ClientError); ok {
+			al.jsonErrorResponseWithTitle(w, http.StatusConflict, err.Error())
+		} else {
+			al.jsonErrorResponseWithError(w, http.StatusInternalServerError, "", "Failed to create remote file "+fileInput.Name, err)
+		}
+		return
+	}
+
+	hasher := sha256.New()
+	_, err = io.Copy(hasher, bytes.NewBuffer(scriptBody))
+	if err != nil {
+		al.jsonErrorResponseWithError(w, http.StatusInternalServerError, "", "Failed to create sha256 hash from input script", err)
+		return
+	}
+
+	al.Debugf("script successfully copied to the client: %+v", sshResp)
+
+	expectedHash := hex.EncodeToString(hasher.Sum(nil))
+	if expectedHash != sshResp.Sha256Hash {
+		msg := fmt.Sprintf("mismatch of request %s and response %s script hashes", expectedHash, sshResp.Sha256Hash)
+		al.jsonErrorResponseWithTitle(w, http.StatusNotAcceptable, msg)
+		return
+	}
+
+	al.Debugf("Created script file %+v", sshResp)
 }
 
 func validateShell(shell string) error {
