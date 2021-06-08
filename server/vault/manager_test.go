@@ -757,7 +757,7 @@ func TestStore(t *testing.T) {
 		RequiredGroup: "group1",
 		Key:           "someKey",
 		Value:         "someValue",
-		Type:          SecreteType,
+		Type:          SecretType,
 	}
 
 	mngr := NewManager(dbProv, &PassManagerMock{}, testLog)
@@ -795,7 +795,7 @@ func TestStore(t *testing.T) {
 		assert.Equal(t, "client1", actualInputValue.ClientID)
 		assert.Equal(t, "group1", actualInputValue.RequiredGroup)
 		assert.Equal(t, "someKey", actualInputValue.Key)
-		assert.Equal(t, SecreteType, actualInputValue.Type)
+		assert.Equal(t, SecretType, actualInputValue.Type)
 
 		actualDecryptedValue, err := enc.Aes256DecryptByPassFromBase64String(actualInputValue.Value, pass)
 		require.NoError(t, err)
@@ -852,7 +852,7 @@ func TestStoreWithLimitedGroupAccess(t *testing.T) {
 			RequiredGroup: "secure_group",
 			Key:           "key",
 			Value:         "val",
-			Type:          SecreteType,
+			Type:          SecretType,
 		},
 		ID:        1,
 		CreatedAt: time.Now(),

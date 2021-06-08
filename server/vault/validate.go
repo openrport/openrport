@@ -30,7 +30,7 @@ func Validate(iv *InputValue) error {
 	} else {
 		knownTypes := map[ValueType]bool{
 			TextType:     true,
-			SecreteType:  true,
+			SecretType:   true,
 			MarkdownType: true,
 			StringType:   true,
 		}
