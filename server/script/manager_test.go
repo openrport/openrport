@@ -87,7 +87,7 @@ func TestManagerList(t *testing.T) {
 		listValuesToGive: expectedScripts,
 	}
 
-	mngr := NewManager(dbProv, testLog)
+	mngr := NewManager(dbProv, nil, testLog)
 
 	inputURL, err := url.Parse("/someu?sort=name&sort=-created_at&filter[name]=some nam")
 	require.NoError(t, err)
@@ -127,7 +127,7 @@ func TestManagerList(t *testing.T) {
 		listErrorToGive: errors.New("list error"),
 	}
 
-	mngr = NewManager(dbProv, testLog)
+	mngr = NewManager(dbProv, nil, testLog)
 
 	_, err = mngr.List(context.Background(), req)
 	require.EqualError(t, err, "list error")
@@ -138,7 +138,7 @@ func TestListWithUnsupportedFilterAndSort(t *testing.T) {
 		listValuesToGive: []Script{},
 	}
 
-	mngr := NewManager(dbProv, testLog)
+	mngr := NewManager(dbProv, nil, testLog)
 
 	inputURL, err := url.Parse("/someu?sort=unsupportedSortField&filter[unsupportedFilter]=val1")
 	require.NoError(t, err)
@@ -157,7 +157,7 @@ func TestManagerClose(t *testing.T) {
 		isClosed:         false,
 	}
 
-	mngr := NewManager(dbProv, testLog)
+	mngr := NewManager(dbProv, nil, testLog)
 	err := mngr.Close()
 	require.NoError(t, err)
 	require.True(t, dbProv.isClosed)
@@ -177,7 +177,7 @@ func TestGetOne(t *testing.T) {
 		getByIDFoundToGive:  true,
 	}
 
-	mngr := NewManager(dbProv, testLog)
+	mngr := NewManager(dbProv, nil, testLog)
 
 	val, found, err := mngr.GetOne(context.Background(), "1")
 	require.NoError(t, err)
@@ -188,7 +188,7 @@ func TestGetOne(t *testing.T) {
 		getByIDFoundToGive: false,
 	}
 
-	mngr = NewManager(dbProv, testLog)
+	mngr = NewManager(dbProv, nil, testLog)
 
 	_, found, err = mngr.GetOne(context.Background(), "1")
 	require.NoError(t, err)
@@ -198,7 +198,7 @@ func TestGetOne(t *testing.T) {
 		getByIDErrorToGive: errors.New("some get id error"),
 	}
 
-	mngr = NewManager(dbProv, testLog)
+	mngr = NewManager(dbProv, nil, testLog)
 
 	_, _, err = mngr.GetOne(context.Background(), "1")
 	require.EqualError(t, err, "some get id error")
@@ -217,7 +217,7 @@ func TestStore(t *testing.T) {
 		dbProv := &DbProviderMock{
 			saveIDToGive: "123",
 		}
-		mngr := NewManager(dbProv, testLog)
+		mngr := NewManager(dbProv, nil, testLog)
 
 		storedScript, err := mngr.Create(context.Background(), inputValue, "someuser")
 		require.NoError(t, err)
@@ -252,7 +252,7 @@ func TestStore(t *testing.T) {
 			getByIDFoundToGive: true,
 			saveIDToGive:       idToUpdate,
 		}
-		mngr := NewManager(dbProv, testLog)
+		mngr := NewManager(dbProv, nil, testLog)
 
 		storedScript, err := mngr.Update(context.Background(), idToUpdate, inputValue, "someuser")
 		require.NoError(t, err)
@@ -287,7 +287,7 @@ func TestStore(t *testing.T) {
 			},
 			getByIDFoundToGive: true,
 		}
-		mngr := NewManager(dbProv, testLog)
+		mngr := NewManager(dbProv, nil, testLog)
 
 		_, err := mngr.Update(context.Background(), "1", inputValue, "someuser")
 		require.EqualError(t, err, "another script with the same name 'some nam' exists")
@@ -297,7 +297,7 @@ func TestStore(t *testing.T) {
 		dbProv := &DbProviderMock{
 			getByIDFoundToGive: false,
 		}
-		mngr := NewManager(dbProv, testLog)
+		mngr := NewManager(dbProv, nil, testLog)
 
 		_, err := mngr.Update(context.Background(), "1", inputValue, "someuser")
 		require.EqualError(t, err, "cannot find entry by the provided ID")
@@ -311,7 +311,7 @@ func TestStore(t *testing.T) {
 				},
 			},
 		}
-		mngr := NewManager(dbProv, testLog)
+		mngr := NewManager(dbProv, nil, testLog)
 
 		_, err := mngr.Create(context.Background(), inputValue, "someuser")
 		require.EqualError(t, err, "another script with the same name 'some nam' exists")
@@ -322,7 +322,7 @@ func TestStore(t *testing.T) {
 			listErrorToGive:    errors.New("failed to find anything"),
 			getByIDFoundToGive: true,
 		}
-		mngr := NewManager(dbProv, testLog)
+		mngr := NewManager(dbProv, nil, testLog)
 
 		_, err := mngr.Update(context.Background(), "1", inputValue, "someuser")
 		require.EqualError(t, err, "failed to find anything")
@@ -330,7 +330,7 @@ func TestStore(t *testing.T) {
 
 	t.Run("invalid_input", func(t *testing.T) {
 		dbProv := &DbProviderMock{}
-		mngr := NewManager(dbProv, testLog)
+		mngr := NewManager(dbProv, nil, testLog)
 
 		_, err := mngr.Update(context.Background(), "1", &InputScript{}, "someuser")
 		require.EqualError(t, err, "name is required, script is required")
@@ -341,7 +341,7 @@ func TestStore(t *testing.T) {
 			saveErrorToGive:    errors.New("failed to save"),
 			getByIDFoundToGive: true,
 		}
-		mngr := NewManager(dbProv, testLog)
+		mngr := NewManager(dbProv, nil, testLog)
 
 		_, err := mngr.Update(context.Background(), "1", inputValue, "someuser")
 		require.EqualError(t, err, "failed to save")
@@ -353,7 +353,7 @@ func TestDeleteScript(t *testing.T) {
 		dbProv := &DbProviderMock{
 			getByIDFoundToGive: true,
 		}
-		mngr := NewManager(dbProv, testLog)
+		mngr := NewManager(dbProv, nil, testLog)
 
 		err := mngr.Delete(context.Background(), "1")
 		require.NoError(t, err)
@@ -366,7 +366,7 @@ func TestDeleteScript(t *testing.T) {
 			deleteErrorToGive:  errors.New("cannot delete"),
 			getByIDFoundToGive: true,
 		}
-		mngr := NewManager(dbProv, testLog)
+		mngr := NewManager(dbProv, nil, testLog)
 
 		err := mngr.Delete(context.Background(), "1")
 		require.EqualError(t, err, "cannot delete")
@@ -376,7 +376,7 @@ func TestDeleteScript(t *testing.T) {
 		dbProv := &DbProviderMock{
 			getByIDFoundToGive: false,
 		}
-		mngr := NewManager(dbProv, testLog)
+		mngr := NewManager(dbProv, nil, testLog)
 
 		err := mngr.Delete(context.Background(), "1")
 		require.Equal(
@@ -394,7 +394,7 @@ func TestDeleteScript(t *testing.T) {
 		dbProv := &DbProviderMock{
 			getByIDErrorToGive: readErr,
 		}
-		mngr := NewManager(dbProv, testLog)
+		mngr := NewManager(dbProv, nil, testLog)
 
 		err := mngr.Delete(context.Background(), "1")
 		require.Equal(

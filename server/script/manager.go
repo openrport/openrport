@@ -7,8 +7,6 @@ import (
 	"net/http"
 	"time"
 
-	"github.com/cloudradar-monitoring/rport/share/random"
-
 	"github.com/cloudradar-monitoring/rport/share/query"
 
 	chshare "github.com/cloudradar-monitoring/rport/share"
@@ -34,12 +32,14 @@ type DbProvider interface {
 type Manager struct {
 	db     DbProvider
 	logger *chshare.Logger
+	*Executor
 }
 
-func NewManager(db DbProvider, logger *chshare.Logger) *Manager {
+func NewManager(db DbProvider, ex *Executor, logger *chshare.Logger) *Manager {
 	return &Manager{
-		db:     db,
-		logger: logger,
+		db:       db,
+		logger:   logger,
+		Executor: ex,
 	}
 }
 
@@ -190,18 +190,6 @@ func (m *Manager) Delete(ctx context.Context, id string) error {
 	}
 
 	return nil
-}
-
-func (m *Manager) CreateClientScriptPath(OSKernel string, isPowershell bool) string {
-	scriptName := random.UUID4()
-	if OSKernel == "windows" {
-		if isPowershell {
-			return scriptName + ".ps1"
-		}
-		return scriptName + ".bat"
-	}
-
-	return scriptName + ".sh"
 }
 
 func (m *Manager) Close() error {

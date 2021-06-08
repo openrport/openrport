@@ -1,9 +1,6 @@
 package chserver
 
 import (
-	"bytes"
-	"crypto/sha256"
-	"encoding/hex"
 	"encoding/json"
 	"errors"
 	"fmt"
@@ -1335,17 +1332,17 @@ func (al *APIListener) handlePostScript(w http.ResponseWriter, req *http.Request
 		isPowershell = true
 	}
 
-	//isSudo := false
-	//isSudoParam, ok := query[isSudoScriptParam]
-	//if ok && len(isSudoParam) > 0 && isSudoParam[0] != "" {
-	//	isSudo = true
-	//}
-	//
-	//cwd := ""
-	//cwdParam, ok := query[cwdScriptParam]
-	//if ok && len(cwdParam) > 0 {
-	//	cwd = cwdParam[0]
-	//}
+	isSudo := false
+	isSudoParam, ok := query[isSudoScriptParam]
+	if ok && len(isSudoParam) > 0 && isSudoParam[0] != "" {
+		isSudo = true
+	}
+
+	cwd := ""
+	cwdParam, ok := query[cwdScriptParam]
+	if ok && len(cwdParam) > 0 {
+		cwd = cwdParam[0]
+	}
 
 	scriptBody, err := ioutil.ReadAll(req.Body)
 	if err != nil {
@@ -1363,41 +1360,16 @@ func (al *APIListener) handlePostScript(w http.ResponseWriter, req *http.Request
 		return
 	}
 
-	fileInput := &models.File{
-		Name:      al.scriptManager.CreateClientScriptPath(client.OSKernel, isPowershell),
-		Content:   scriptBody,
-		CreateDir: true,
-		Mode:      0744,
-	}
-
-	sshResp := &comm.CreateFileResponse{}
-	err = comm.SendRequestAndGetResponse(client.Connection, comm.RequestTypeCreateFile, fileInput, sshResp)
+	user := api.GetUser(req.Context(), al.Logger)
+	err = al.scriptManager.RunScriptOnClient(user, client, scriptBody, isSudo, isPowershell, cwd)
 	if err != nil {
 		if _, ok := err.(*comm.ClientError); ok {
 			al.jsonErrorResponseWithTitle(w, http.StatusConflict, err.Error())
 		} else {
-			al.jsonErrorResponseWithError(w, http.StatusInternalServerError, "", "Failed to create remote file "+fileInput.Name, err)
+			al.jsonError(w, err)
 		}
 		return
 	}
-
-	hasher := sha256.New()
-	_, err = io.Copy(hasher, bytes.NewBuffer(scriptBody))
-	if err != nil {
-		al.jsonErrorResponseWithError(w, http.StatusInternalServerError, "", "Failed to create sha256 hash from input script", err)
-		return
-	}
-
-	al.Debugf("script successfully copied to the client: %+v", sshResp)
-
-	expectedHash := hex.EncodeToString(hasher.Sum(nil))
-	if expectedHash != sshResp.Sha256Hash {
-		msg := fmt.Sprintf("mismatch of request %s and response %s script hashes", expectedHash, sshResp.Sha256Hash)
-		al.jsonErrorResponseWithTitle(w, http.StatusNotAcceptable, msg)
-		return
-	}
-
-	al.Debugf("Created script file %+v", sshResp)
 }
 
 func validateShell(shell string) error {
