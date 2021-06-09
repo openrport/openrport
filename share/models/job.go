@@ -18,6 +18,7 @@ type Job struct {
 	ClientID   string     `json:"client_id"`
 	ClientName string     `json:"client_name"`
 	Command    string     `json:"command"`
+	Cwd        string     `json:"cwd"`
 	Shell      string     `json:"shell"`
 	PID        *int       `json:"pid"`
 	StartedAt  time.Time  `json:"started_at"`
@@ -45,6 +46,7 @@ type MultiJob struct {
 	ClientIDs  []string `json:"client_ids"`
 	GroupIDs   []string `json:"group_ids"`
 	Command    string   `json:"command"`
+	Cwd        string   `json:"cwd"`
 	Shell      string   `json:"shell"`
 	TimeoutSec int      `json:"timeout_sec"`
 	Concurrent bool     `json:"concurrent"`

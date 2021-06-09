@@ -35,7 +35,7 @@ func NewCmdExecutorMock() *CmdExecutorMock {
 	return &CmdExecutorMock{}
 }
 
-func (e *CmdExecutorMock) New(ctx context.Context, shell, command string) *exec.Cmd {
+func (e *CmdExecutorMock) New(ctx context.Context, shell, command, cwd string) *exec.Cmd {
 	var args []string
 	args = append(args, shellOptions[shell]...)
 	args = append(args, command)
@@ -230,6 +230,7 @@ func TestHandleRunCmdRequestPositiveCase(t *testing.T) {
 	"pid": 123,
 	"started_at": "2020-08-19T12:00:00+03:00",
 	"created_by": "admin",
+	"cwd": "",
 	"timeout_sec": 60,
 	"multi_job_id":null,
 	"error":"",

@@ -546,6 +546,9 @@ paths:
                 type: "string"
                 enum: [cmd, powershell]
                 description: "command shell to use to execute the command. Is applicable only for windows clients. If not set 'cmd' is used by default"
+              cwd:
+                type: "string"
+                description: "current working directory for the executable command"
               timeout_sec:
                 type: "integer"
                 description: "timeout in seconds to observe the command execution. If not set a default timeout (60 seconds) is used"
@@ -679,6 +682,9 @@ paths:
                 type: "boolean"
                 description: "applicable only if 'execute_concurrently' is false. If true - abort the entire cycle if the execution fails on some client. By default is true"
                 default: true
+              cwd:
+                type: "string"
+                description: "current working directory for an executable command"
       responses:
         "200":
           description: "Successful Operation"
@@ -752,6 +758,7 @@ paths:
         \"client_ids\": [ \"qa-lin-debian9\", \"qa-lin-debian10\", \"qa-lin-centos8\", \"qa-lin-ubuntu18\", \"qa-lin-ubuntu16\" ],\n
         \"group_ids\": [ \"group-1\"],\n
         \"timeout_sec\": 30,\n
+        \"cwd\": \"/users/root\",\n
         \"execute_concurrently\": true\n
       }\n
       4. Validates the inbound msg. If it fails - server sends an outbound JSON message `ErrorPayload`(see in 'Models') and closes the connection.\n
@@ -1888,6 +1895,9 @@ definitions:
       command:
         type: "string"
         description: "executed command"
+      cwd:
+        type: "string"
+        description: "current working directory for an executable command"
       shell:
         type: "string"
         description: "command shell that was used to execute the command"
@@ -1961,6 +1971,9 @@ definitions:
       command:
         type: "string"
         description: "executed command"
+      cwd:
+        type: "string"
+        description: "current working directory for an executable command"
       shell:
         type: "string"
         description: "command shell that was used to execute the command"
@@ -2045,6 +2058,9 @@ definitions:
       command:
         type: "string"
         description: "remote command to execute by rport client(s). NOTE: if command limitation is enabled by an rport client then a full path command can be required to use. See https://oss.rport.io/docs/no06-command-execution.html for more details"
+      cwd:
+        type: "string"
+        description: "current working directory where the command will be executed"
       client_ids:
         type: "array"
         items:

@@ -70,6 +70,7 @@ type multiJobDetailSqlite struct {
 	GroupIDs   []string `json:"group_ids"`
 	Command    string   `json:"command"`
 	Shell      string   `json:"shell"`
+	Cwd        string   `json:"cwd"`
 	TimeoutSec int      `json:"timeout_sec"`
 	Concurrent bool     `json:"concurrent"`
 	AbortOnErr bool     `json:"abort_on_err"`
@@ -125,6 +126,7 @@ func (j *multiJobSqlite) convert() *models.MultiJob {
 		ClientIDs:       d.ClientIDs,
 		GroupIDs:        d.GroupIDs,
 		Command:         d.Command,
+		Cwd:             d.Cwd,
 		Shell:           d.Shell,
 		TimeoutSec:      d.TimeoutSec,
 		Concurrent:      d.Concurrent,
@@ -144,6 +146,7 @@ func convertMultiJobToSqlite(job *models.MultiJob) *multiJobSqlite {
 			GroupIDs:   job.GroupIDs,
 			Command:    job.Command,
 			Shell:      job.Shell,
+			Cwd:        job.Cwd,
 			TimeoutSec: job.TimeoutSec,
 			Concurrent: job.Concurrent,
 			AbortOnErr: job.AbortOnErr,

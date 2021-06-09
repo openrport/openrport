@@ -80,6 +80,7 @@ func (b MultiJobBuilder) Build() *models.MultiJob {
 		},
 		ClientIDs:  b.clientIDs,
 		Command:    "/bin/date;foo;whoami",
+		Cwd:        "",
 		TimeoutSec: 60,
 		Concurrent: b.concurrent,
 		AbortOnErr: b.abortOnErr,

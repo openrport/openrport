@@ -1235,6 +1235,7 @@ func (al *APIListener) handlePostCommand(w http.ResponseWriter, req *http.Reques
 	reqBody := struct {
 		Command    string `json:"command"`
 		Shell      string `json:"shell"`
+		Cwd        string `json:"cwd"`
 		TimeoutSec int    `json:"timeout_sec"`
 	}{}
 	dec := json.NewDecoder(req.Body)
@@ -1285,6 +1286,7 @@ func (al *APIListener) handlePostCommand(w http.ResponseWriter, req *http.Reques
 		CreatedBy:  api.GetUser(req.Context(), al.Logger),
 		TimeoutSec: reqBody.TimeoutSec,
 		Result:     nil,
+		Cwd:        reqBody.Cwd,
 	}
 	sshResp := &comm.RunCmdResponse{}
 	err = comm.SendRequestAndGetResponse(client.Connection, comm.RequestTypeRunCmd, curJob, sshResp)
@@ -1436,6 +1438,7 @@ type multiClientCmdRequest struct {
 	ClientIDs           []string `json:"client_ids"`
 	GroupIDs            []string `json:"group_ids"`
 	Command             string   `json:"command"`
+	Cwd                 string   `json:"cwd"`
 	Shell               string   `json:"shell"`
 	TimeoutSec          int      `json:"timeout_sec"`
 	ExecuteConcurrently bool     `json:"execute_concurrently"`
@@ -1539,6 +1542,7 @@ func (al *APIListener) handlePostMultiClientCommand(w http.ResponseWriter, req *
 		GroupIDs:   reqBody.GroupIDs,
 		Command:    reqBody.Command,
 		Shell:      reqBody.Shell,
+		Cwd:        reqBody.Cwd,
 		TimeoutSec: reqBody.TimeoutSec,
 		Concurrent: reqBody.ExecuteConcurrently,
 		AbortOnErr: abortOnErr,
@@ -1571,9 +1575,25 @@ func (al *APIListener) executeMultiClientJob(job *models.MultiJob, orderedClient
 	}
 	for _, client := range orderedClients {
 		if job.Concurrent {
-			go al.createAndRunJob(job.JID, job.Command, job.Shell, job.CreatedBy, job.TimeoutSec, client)
+			go al.createAndRunJob(
+				job.JID,
+				job.Command,
+				job.Shell,
+				job.CreatedBy,
+				job.Cwd,
+				job.TimeoutSec,
+				client,
+			)
 		} else {
-			success := al.createAndRunJob(job.JID, job.Command, job.Shell, job.CreatedBy, job.TimeoutSec, client)
+			success := al.createAndRunJob(
+				job.JID,
+				job.Command,
+				job.Shell,
+				job.CreatedBy,
+				job.Cwd,
+				job.TimeoutSec,
+				client,
+			)
 			if !success {
 				if job.AbortOnErr {
 					break
@@ -1598,7 +1618,11 @@ func (al *APIListener) executeMultiClientJob(job *models.MultiJob, orderedClient
 	}
 }
 
-func (al *APIListener) createAndRunJob(jid, cmd, shell, createdBy string, timeoutSec int, client *clients.Client) bool {
+func (al *APIListener) createAndRunJob(
+	jid, cmd, shell, createdBy, cwd string,
+	timeoutSec int,
+	client *clients.Client,
+) bool {
 	// send the command to the client
 	curJob := models.Job{
 		JobSummary: models.JobSummary{
@@ -1608,6 +1632,7 @@ func (al *APIListener) createAndRunJob(jid, cmd, shell, createdBy string, timeou
 		ClientID:   client.ID,
 		ClientName: client.Name,
 		Command:    cmd,
+		Cwd:        cwd,
 		Shell:      shell,
 		CreatedBy:  createdBy,
 		TimeoutSec: timeoutSec,
@@ -1743,6 +1768,7 @@ func (al *APIListener) handleCommandsWS(w http.ResponseWriter, req *http.Request
 			ClientIDs:  inboundMsg.ClientIDs,
 			GroupIDs:   inboundMsg.GroupIDs,
 			Command:    inboundMsg.Command,
+			Cwd:        inboundMsg.Cwd,
 			Shell:      inboundMsg.Shell,
 			TimeoutSec: inboundMsg.TimeoutSec,
 			Concurrent: inboundMsg.ExecuteConcurrently,
@@ -1770,9 +1796,29 @@ func (al *APIListener) handleCommandsWS(w http.ResponseWriter, req *http.Request
 		for _, client := range orderedClients {
 			curJID := generateNewJobID()
 			if multiJob.Concurrent {
-				go al.createAndRunJobWS(uiConnTS, &jid, curJID, multiJob.Command, multiJob.Shell, createdBy, multiJob.TimeoutSec, client)
+				go al.createAndRunJobWS(
+					uiConnTS,
+					&jid,
+					curJID,
+					multiJob.Command,
+					multiJob.Shell,
+					createdBy,
+					multiJob.Cwd,
+					multiJob.TimeoutSec,
+					client,
+				)
 			} else {
-				success := al.createAndRunJobWS(uiConnTS, &jid, curJID, multiJob.Command, multiJob.Shell, createdBy, multiJob.TimeoutSec, client)
+				success := al.createAndRunJobWS(
+					uiConnTS,
+					&jid,
+					curJID,
+					multiJob.Command,
+					multiJob.Shell,
+					createdBy,
+					multiJob.Cwd,
+					multiJob.TimeoutSec,
+					client,
+				)
 				if !success {
 					if multiJob.AbortOnErr {
 						uiConnTS.Close()
@@ -1789,7 +1835,17 @@ func (al *APIListener) handleCommandsWS(w http.ResponseWriter, req *http.Request
 			}
 		}
 	} else {
-		al.createAndRunJobWS(uiConnTS, nil, jid, inboundMsg.Command, inboundMsg.Shell, createdBy, inboundMsg.TimeoutSec, orderedClients[0])
+		al.createAndRunJobWS(
+			uiConnTS,
+			nil,
+			jid,
+			inboundMsg.Command,
+			inboundMsg.Shell,
+			createdBy,
+			inboundMsg.Cwd,
+			inboundMsg.TimeoutSec,
+			orderedClients[0],
+		)
 	}
 
 	// check for Close message from client to close the connection
@@ -1807,7 +1863,13 @@ func (al *APIListener) handleCommandsWS(w http.ResponseWriter, req *http.Request
 	uiConnTS.Close()
 }
 
-func (al *APIListener) createAndRunJobWS(uiConnTS *ws.ConcurrentWebSocket, multiJobID *string, jid, cmd, shell, createdBy string, timeoutSec int, client *clients.Client) bool {
+func (al *APIListener) createAndRunJobWS(
+	uiConnTS *ws.ConcurrentWebSocket,
+	multiJobID *string,
+	jid, cmd, shell, createdBy, cwd string,
+	timeoutSec int,
+	client *clients.Client,
+) bool {
 	curJob := models.Job{
 		JobSummary: models.JobSummary{
 			JID: jid,
@@ -1820,6 +1882,7 @@ func (al *APIListener) createAndRunJobWS(uiConnTS *ws.ConcurrentWebSocket, multi
 		CreatedBy:  createdBy,
 		TimeoutSec: timeoutSec,
 		MultiJobID: multiJobID,
+		Cwd:        cwd,
 	}
 	logPrefix := curJob.LogPrefix()
 

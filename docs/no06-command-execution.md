@@ -31,6 +31,7 @@ curl -s -u admin:foobaz http://localhost:3000/api/v1/clients/$CLIENTID/commands/
         "finished_at": "2020-10-15T15:30:12.937267522Z",
         "client_id": "my-client",
         "command": "date",
+        "cwd": "/users/root",
         "shell": "/bin/sh",
         "pid": 908526,
         "started_at": "2020-10-15T15:30:12.934238782Z",
@@ -65,6 +66,7 @@ curl -s -u admin:foobaz http://localhost:3000/api/v1/commands -H "Content-Type: 
   "command": "/bin/date",
   "client_ids": ["local-test-client-2", "local-test-client-3", "local-test-client-4"],
   "timeout_sec": 30,
+  "cwd": "/users/root",
   "execute_concurrently": true
 }
 '|jq
@@ -86,6 +88,7 @@ curl -s -u admin:foobaz http://localhost:3000/api/v1/commands/$JOBID|jq
     ],
     "group_ids": null,
     "command": "/bin/date",
+    "cwd": "",
     "shell": "",
     "timeout_sec": 30,
     "concurrent": true,
@@ -97,6 +100,7 @@ curl -s -u admin:foobaz http://localhost:3000/api/v1/commands/$JOBID|jq
         "finished_at": "2021-01-28T19:39:16.227685+02:00",
         "client_id": "local-test-client-2",
         "command": "/bin/date",
+        "cwd": "",
         "shell": "/bin/sh",
         "pid": 16242,
         "started_at": "2021-01-28T19:39:16.203396+02:00",
@@ -114,6 +118,7 @@ curl -s -u admin:foobaz http://localhost:3000/api/v1/commands/$JOBID|jq
         "finished_at": "2021-01-28T19:39:16.229916+02:00",
         "client_id": "local-test-client-3",
         "command": "/bin/date",
+        "cwd": "",
         "shell": "/bin/sh",
         "pid": 16241,
         "started_at": "2021-01-28T19:39:16.203738+02:00",
@@ -131,6 +136,7 @@ curl -s -u admin:foobaz http://localhost:3000/api/v1/commands/$JOBID|jq
         "finished_at": "2021-01-28T19:39:16.228102+02:00",
         "client_id": "local-test-client-4",
         "command": "/bin/date",
+        "cwd": "",
         "shell": "/bin/sh",
         "pid": 16243,
         "started_at": "2021-01-28T19:39:16.204308+02:00",
@@ -157,7 +163,8 @@ curl -s -u admin:foobaz http://localhost:3000/api/v1/commands -H "Content-Type: 
   "command": "/bin/date",
   "group_ids": ["group-1"],
   "execute_concurrently": false,
-  "abort_on_error": true
+  "abort_on_error": true,
+  "cwd": "/users/root"
 }
 '|jq
 ```

@@ -53,6 +53,7 @@ func (e *Executor) RunScriptOnClient(curUser string, cl *clients.Client, scriptB
 		Shell:      e.createShell(cl, isPowershell),
 		CreatedBy:  curUser,
 		Result:     nil,
+		Cwd:        cwd,
 	}
 	sshResp := &comm.RunCmdResponse{}
 	err = comm.SendRequestAndGetResponse(cl.Connection, comm.RequestTypeRunCmd, curJob, sshResp)
