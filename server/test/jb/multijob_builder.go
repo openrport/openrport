@@ -16,6 +16,8 @@ type MultiJobBuilder struct {
 	concurrent bool
 	abortOnErr bool
 	withJobs   bool
+	sudo       bool
+	cwd        string
 }
 
 // NewMulti returns a builder to generate a multi-client job that can be used in tests.
@@ -43,6 +45,16 @@ func (b MultiJobBuilder) WithJobs() MultiJobBuilder {
 
 func (b MultiJobBuilder) Concurrent(concurrent bool) MultiJobBuilder {
 	b.concurrent = concurrent
+	return b
+}
+
+func (b MultiJobBuilder) WithSudo() MultiJobBuilder {
+	b.sudo = true
+	return b
+}
+
+func (b MultiJobBuilder) WithCwd(cwd string) MultiJobBuilder {
+	b.cwd = cwd
 	return b
 }
 
@@ -80,7 +92,8 @@ func (b MultiJobBuilder) Build() *models.MultiJob {
 		},
 		ClientIDs:  b.clientIDs,
 		Command:    "/bin/date;foo;whoami",
-		Cwd:        "",
+		Cwd:        b.cwd,
+		IsSudo:     b.sudo,
 		TimeoutSec: 60,
 		Concurrent: b.concurrent,
 		AbortOnErr: b.abortOnErr,

@@ -549,6 +549,9 @@ paths:
               cwd:
                 type: "string"
                 description: "current working directory for the executable command"
+              sudo:
+                type: "boolean"
+                description: "execute a command as sudo user"
               timeout_sec:
                 type: "integer"
                 description: "timeout in seconds to observe the command execution. If not set a default timeout (60 seconds) is used"
@@ -685,6 +688,9 @@ paths:
               cwd:
                 type: "string"
                 description: "current working directory for an executable command"
+              sudo:
+                type: "boolean"
+                description: "execute the command as a sudo user"
       responses:
         "200":
           description: "Successful Operation"
@@ -759,7 +765,8 @@ paths:
         \"group_ids\": [ \"group-1\"],\n
         \"timeout_sec\": 30,\n
         \"cwd\": \"/users/root\",\n
-        \"execute_concurrently\": true\n
+        \"execute_concurrently\": true\n,
+        \"sudo\": true\n,
       }\n
       4. Validates the inbound msg. If it fails - server sends an outbound JSON message `ErrorPayload`(see in 'Models') and closes the connection.\n
       5. Server sends a given command to rport client(s) to execute.\n
@@ -1898,6 +1905,9 @@ definitions:
       cwd:
         type: "string"
         description: "current working directory for an executable command"
+      sudo:
+        type: "boolean"
+        description: "execute the command as a sudo user"
       shell:
         type: "string"
         description: "command shell that was used to execute the command"
@@ -1974,6 +1984,9 @@ definitions:
       cwd:
         type: "string"
         description: "current working directory for an executable command"
+      sudo:
+        type: "boolean"
+        description: "execute the command as a sudo user"
       shell:
         type: "string"
         description: "command shell that was used to execute the command"
@@ -2061,6 +2074,9 @@ definitions:
       cwd:
         type: "string"
         description: "current working directory where the command will be executed"
+      sudo:
+        type: "boolean"
+        description: "execute the command as a sudo user"
       client_ids:
         type: "array"
         items:
@@ -2201,7 +2217,7 @@ definitions:
       script:
         type: "string"
         description: "text of the script"
-      is_sudo:
+      sudo:
         type: "boolean"
         description: "if true, this script will be executed as a sudo user"
   ScriptInput:
@@ -2219,6 +2235,6 @@ definitions:
       cwd:
         type: "string"
         description: "current working directory, where the script should be executed"
-      is_sudo:
+      sudo:
         type: "boolean"
         description: "if true, this script will be executed as a sudo user"

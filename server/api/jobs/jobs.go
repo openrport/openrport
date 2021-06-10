@@ -112,6 +112,7 @@ type jobSummarySqlite struct {
 type jobDetails struct {
 	Command    string            `json:"command"`
 	Cwd        string            `json:"cwd"`
+	IsSudo     bool              `json:"sudo"`
 	Shell      string            `json:"shell"`
 	PID        *int              `json:"pid"`
 	TimeoutSec int               `json:"timeout_sec"`
@@ -180,6 +181,7 @@ func (j *jobSqlite) convert() *models.Job {
 		Result:     j.Details.Result,
 		Error:      j.Details.Error,
 		Cwd:        j.Details.Cwd,
+		IsSudo:     j.Details.IsSudo,
 	}
 	if j.MultiJobID.Valid {
 		res.MultiJobID = &j.MultiJobID.String
@@ -213,6 +215,7 @@ func convertToSqlite(job *models.Job) *jobSqlite {
 			Error:      job.Error,
 			ClientName: job.ClientName,
 			Cwd:        job.Cwd,
+			IsSudo:     job.IsSudo,
 		},
 	}
 	if job.MultiJobID != nil {

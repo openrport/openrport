@@ -27,6 +27,7 @@ type Job struct {
 	MultiJobID *string    `json:"multi_job_id"`
 	Error      string     `json:"error"`
 	Result     *JobResult `json:"result"`
+	IsSudo     bool       `json:"sudo"`
 }
 
 // JobSummary short info about a job.
@@ -52,6 +53,7 @@ type MultiJob struct {
 	Concurrent bool     `json:"concurrent"`
 	AbortOnErr bool     `json:"abort_on_err"`
 	Jobs       []*Job   `json:"jobs"`
+	IsSudo     bool     `json:"sudo"`
 }
 
 type MultiJobSummary struct {

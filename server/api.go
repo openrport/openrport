@@ -1236,6 +1236,7 @@ func (al *APIListener) handlePostCommand(w http.ResponseWriter, req *http.Reques
 		Command    string `json:"command"`
 		Shell      string `json:"shell"`
 		Cwd        string `json:"cwd"`
+		IsSudo     bool   `json:"bool"`
 		TimeoutSec int    `json:"timeout_sec"`
 	}{}
 	dec := json.NewDecoder(req.Body)
@@ -1287,6 +1288,7 @@ func (al *APIListener) handlePostCommand(w http.ResponseWriter, req *http.Reques
 		TimeoutSec: reqBody.TimeoutSec,
 		Result:     nil,
 		Cwd:        reqBody.Cwd,
+		IsSudo:     reqBody.IsSudo,
 	}
 	sshResp := &comm.RunCmdResponse{}
 	err = comm.SendRequestAndGetResponse(client.Connection, comm.RequestTypeRunCmd, curJob, sshResp)
@@ -1439,6 +1441,7 @@ type multiClientCmdRequest struct {
 	GroupIDs            []string `json:"group_ids"`
 	Command             string   `json:"command"`
 	Cwd                 string   `json:"cwd"`
+	IsSudo              bool     `json:"sudo"`
 	Shell               string   `json:"shell"`
 	TimeoutSec          int      `json:"timeout_sec"`
 	ExecuteConcurrently bool     `json:"execute_concurrently"`
@@ -1543,6 +1546,7 @@ func (al *APIListener) handlePostMultiClientCommand(w http.ResponseWriter, req *
 		Command:    reqBody.Command,
 		Shell:      reqBody.Shell,
 		Cwd:        reqBody.Cwd,
+		IsSudo:     reqBody.IsSudo,
 		TimeoutSec: reqBody.TimeoutSec,
 		Concurrent: reqBody.ExecuteConcurrently,
 		AbortOnErr: abortOnErr,
@@ -1582,6 +1586,7 @@ func (al *APIListener) executeMultiClientJob(job *models.MultiJob, orderedClient
 				job.CreatedBy,
 				job.Cwd,
 				job.TimeoutSec,
+				job.IsSudo,
 				client,
 			)
 		} else {
@@ -1592,6 +1597,7 @@ func (al *APIListener) executeMultiClientJob(job *models.MultiJob, orderedClient
 				job.CreatedBy,
 				job.Cwd,
 				job.TimeoutSec,
+				job.IsSudo,
 				client,
 			)
 			if !success {
@@ -1621,6 +1627,7 @@ func (al *APIListener) executeMultiClientJob(job *models.MultiJob, orderedClient
 func (al *APIListener) createAndRunJob(
 	jid, cmd, shell, createdBy, cwd string,
 	timeoutSec int,
+	isSudo bool,
 	client *clients.Client,
 ) bool {
 	// send the command to the client
@@ -1633,6 +1640,7 @@ func (al *APIListener) createAndRunJob(
 		ClientName: client.Name,
 		Command:    cmd,
 		Cwd:        cwd,
+		IsSudo:     isSudo,
 		Shell:      shell,
 		CreatedBy:  createdBy,
 		TimeoutSec: timeoutSec,
@@ -1773,6 +1781,7 @@ func (al *APIListener) handleCommandsWS(w http.ResponseWriter, req *http.Request
 			TimeoutSec: inboundMsg.TimeoutSec,
 			Concurrent: inboundMsg.ExecuteConcurrently,
 			AbortOnErr: abortOnErr,
+			IsSudo:     inboundMsg.IsSudo,
 		}
 		if err := al.jobProvider.SaveMultiJob(multiJob); err != nil {
 			uiConnTS.WriteError("Failed to persist a new multi-client job.", err)
@@ -1805,6 +1814,7 @@ func (al *APIListener) handleCommandsWS(w http.ResponseWriter, req *http.Request
 					createdBy,
 					multiJob.Cwd,
 					multiJob.TimeoutSec,
+					multiJob.IsSudo,
 					client,
 				)
 			} else {
@@ -1817,6 +1827,7 @@ func (al *APIListener) handleCommandsWS(w http.ResponseWriter, req *http.Request
 					createdBy,
 					multiJob.Cwd,
 					multiJob.TimeoutSec,
+					multiJob.IsSudo,
 					client,
 				)
 				if !success {
@@ -1844,6 +1855,7 @@ func (al *APIListener) handleCommandsWS(w http.ResponseWriter, req *http.Request
 			createdBy,
 			inboundMsg.Cwd,
 			inboundMsg.TimeoutSec,
+			inboundMsg.IsSudo,
 			orderedClients[0],
 		)
 	}
@@ -1868,6 +1880,7 @@ func (al *APIListener) createAndRunJobWS(
 	multiJobID *string,
 	jid, cmd, shell, createdBy, cwd string,
 	timeoutSec int,
+	isSudo bool,
 	client *clients.Client,
 ) bool {
 	curJob := models.Job{
@@ -1883,6 +1896,7 @@ func (al *APIListener) createAndRunJobWS(
 		TimeoutSec: timeoutSec,
 		MultiJobID: multiJobID,
 		Cwd:        cwd,
+		IsSudo:     isSudo,
 	}
 	logPrefix := curJob.LogPrefix()
 

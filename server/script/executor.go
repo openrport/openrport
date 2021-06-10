@@ -24,23 +24,13 @@ func NewExecutor(logger *chshare.Logger) *Executor {
 	}
 }
 
-//todo implement
-func (e *Executor) createScriptCommand(scriptPath string, cl *clients.Client, isSudo bool, cwd string) string {
-	return ""
-}
-
-//todo implement
-func (e *Executor) createShell(cl *clients.Client, isPowershell bool) string {
-	return ""
-}
-
 func (e *Executor) RunScriptOnClient(curUser string, cl *clients.Client, scriptBody []byte, isSudo, isPowershell bool, cwd string) error {
 	scriptPath, err := e.createScriptOnClient(cl, isPowershell, scriptBody)
 	if err != nil {
 		return err
 	}
 
-	command := e.createScriptCommand(scriptPath, cl, isSudo, cwd)
+	command := e.createScriptCommand(scriptPath, isPowershell)
 
 	curJob := models.Job{
 		JobSummary: models.JobSummary{
@@ -50,10 +40,11 @@ func (e *Executor) RunScriptOnClient(curUser string, cl *clients.Client, scriptB
 		ClientID:   cl.ID,
 		ClientName: cl.Name,
 		Command:    command,
-		Shell:      e.createShell(cl, isPowershell),
+		Shell:      e.createShell(isPowershell),
 		CreatedBy:  curUser,
 		Result:     nil,
 		Cwd:        cwd,
+		IsSudo:     isSudo,
 	}
 	sshResp := &comm.RunCmdResponse{}
 	err = comm.SendRequestAndGetResponse(cl.Connection, comm.RequestTypeRunCmd, curJob, sshResp)
@@ -66,7 +57,7 @@ func (e *Executor) RunScriptOnClient(curUser string, cl *clients.Client, scriptB
 
 func (e *Executor) createScriptOnClient(cl *clients.Client, isPowershell bool, scriptBody []byte) (scriptPath string, err error) {
 	fileInput := &models.File{
-		Name:      e.createClientScriptPath(cl, isPowershell),
+		Name:      e.createClientScriptPath(isPowershell),
 		Content:   scriptBody,
 		CreateDir: true,
 		Mode:      0744,
@@ -92,20 +83,4 @@ func (e *Executor) createScriptOnClient(cl *clients.Client, isPowershell bool, s
 	}
 
 	return sshResp.FilePath, nil
-}
-
-func (e *Executor) isWindowsClient(cl *clients.Client) bool {
-	return cl.OSKernel == "windows"
-}
-
-func (e *Executor) createClientScriptPath(cl *clients.Client, isPowershell bool) string {
-	scriptName := random.UUID4()
-	if e.isWindowsClient(cl) {
-		if isPowershell {
-			return scriptName + ".ps1"
-		}
-		return scriptName + ".bat"
-	}
-
-	return scriptName + ".sh"
 }

@@ -16,7 +16,7 @@ import (
 )
 
 type CmdExecutor interface {
-	New(ctx context.Context, shell, cmd, cwd string) *exec.Cmd
+	New(ctx context.Context, shell, cmd, cwd string, isSudo bool) *exec.Cmd
 	Start(cmd *exec.Cmd) error
 	Wait(cmd *exec.Cmd) error
 }
@@ -36,8 +36,12 @@ func (e *CmdExecutorImpl) Wait(cmd *exec.Cmd) error {
 	return cmd.Wait()
 }
 
-func (e *CmdExecutorImpl) newCmd(ctx context.Context, shell, command, cwd string) *exec.Cmd {
+func (e *CmdExecutorImpl) newCmd(ctx context.Context, shell, command, cwd string, isSudo bool) *exec.Cmd {
 	var args []string
+	if isSudo {
+		args = append(args, "sudo -n")
+	}
+
 	args = append(args, shellOptions[shell]...)
 	args = append(args, command)
 	cmd := exec.CommandContext(ctx, shell, args...)
@@ -99,7 +103,7 @@ func (c *Client) HandleRunCmdRequest(ctx context.Context, reqPayload []byte) (*c
 		return nil, fmt.Errorf("command is not allowed: %v", job.Command)
 	}
 
-	cmd := c.cmdExec.New(ctx, job.Shell, job.Command, job.Cwd)
+	cmd := c.cmdExec.New(ctx, job.Shell, job.Command, job.Cwd, job.IsSudo)
 	stdOut := CapacityBuffer{capacity: c.config.RemoteCommands.SendBackLimit}
 	stdErr := CapacityBuffer{capacity: c.config.RemoteCommands.SendBackLimit}
 	cmd.Stdout = &stdOut

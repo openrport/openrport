@@ -35,11 +35,15 @@ func NewCmdExecutorMock() *CmdExecutorMock {
 	return &CmdExecutorMock{}
 }
 
-func (e *CmdExecutorMock) New(ctx context.Context, shell, command, cwd string) *exec.Cmd {
+func (e *CmdExecutorMock) New(ctx context.Context, shell, command, cwd string, isSudo bool) *exec.Cmd {
 	var args []string
+	if isSudo {
+		args = append(args, "sudo -n")
+	}
 	args = append(args, shellOptions[shell]...)
 	args = append(args, command)
 	cmd := exec.CommandContext(ctx, shell, args...)
+	cmd.Dir = cwd
 	return cmd
 }
 
@@ -111,7 +115,9 @@ const jobToRunJSON = `
 	"client_id": "d81e6b93e75aef59a7701b90555f43808458b34e30370c3b808c1816a32252b3",
 	"command": "/bin/date;foo;whoami",
 	"created_by": "admin",
-	"timeout_sec": 60
+	"timeout_sec": 60,
+	"sudo": true,
+	"cwd": "/root"
 }
 `
 
@@ -222,6 +228,7 @@ func TestHandleRunCmdRequestPositiveCase(t *testing.T) {
 {
 	"jid": "5f02b216-3f8a-42be-b66c-f4c1d0ea3809",
 	"status": "successful",
+	"sudo": true,
 	"finished_at": "2020-08-19T12:00:00+03:00",
 	"client_id": "d81e6b93e75aef59a7701b90555f43808458b34e30370c3b808c1816a32252b3",
 	"client_name": "",
@@ -230,7 +237,7 @@ func TestHandleRunCmdRequestPositiveCase(t *testing.T) {
 	"pid": 123,
 	"started_at": "2020-08-19T12:00:00+03:00",
 	"created_by": "admin",
-	"cwd": "",
+	"cwd": "/root",
 	"timeout_sec": 60,
 	"multi_job_id":null,
 	"error":"",
