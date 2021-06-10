@@ -4,6 +4,7 @@ package script
 
 import (
 	"fmt"
+
 	"github.com/cloudradar-monitoring/rport/share/random"
 )
 

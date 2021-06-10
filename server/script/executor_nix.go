@@ -19,4 +19,3 @@ func (e *Executor) createShell(isPowershell bool) string {
 func (e *Executor) createScriptCommand(scriptPath string, isPowerShell bool) string {
 	return scriptPath
 }
-
