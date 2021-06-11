@@ -59,3 +59,12 @@ func NewAPIErrorsPayloadWithCode(errors []errors.APIError) ErrorPayload {
 	}
 	return ep
 }
+
+type ExecuteCommandInput struct {
+	Command    string `json:"command"`
+	Shell      string `json:"shell"`
+	Cwd        string `json:"cwd"`
+	IsSudo     bool   `json:"bool"`
+	TimeoutSec int    `json:"timeout_sec"`
+	ClientID   string
+}

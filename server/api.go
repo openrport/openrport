@@ -1,6 +1,7 @@
 package chserver
 
 import (
+	"context"
 	"encoding/json"
 	"errors"
 	"fmt"
@@ -51,6 +52,7 @@ const (
 	isPowershellScriptParam = "isPowershell"
 	isSudoScriptParam       = "isSudo"
 	cwdScriptParam          = "cwd"
+	timeoutScriptParam      = "timeout"
 
 	ErrCodeMissingRouteVar = "ERR_CODE_MISSING_ROUTE_VAR"
 	ErrCodeInvalidRequest  = "ERR_CODE_INVALID_REQUEST"
@@ -142,6 +144,7 @@ func (al *APIListener) initRouter() {
 	sub.HandleFunc("/clients/{client_id}/commands", al.handlePostCommand).Methods(http.MethodPost)
 	sub.HandleFunc("/clients/{client_id}/commands", al.handleGetCommands).Methods(http.MethodGet)
 	sub.HandleFunc("/clients/{client_id}/commands/{job_id}", al.handleGetCommand).Methods(http.MethodGet)
+	sub.HandleFunc("/clients/{client_id}/scripts", al.handleExecuteScript).Methods(http.MethodPost)
 	sub.HandleFunc("/client-groups", al.handleGetClientGroups).Methods(http.MethodGet)
 	sub.HandleFunc("/client-groups", al.handlePostClientGroups).Methods(http.MethodPost)
 	sub.HandleFunc("/client-groups/{group_id}", al.handlePutClientGroup).Methods(http.MethodPut)
@@ -171,7 +174,6 @@ func (al *APIListener) initRouter() {
 	sub.HandleFunc("/library/scripts/{"+routeParamScriptValueID+"}", al.handleScriptUpdate).Methods(http.MethodPut)
 	sub.HandleFunc("/library/scripts/{"+routeParamScriptValueID+"}", al.handleReadScript).Methods(http.MethodGet)
 	sub.HandleFunc("/library/scripts/{"+routeParamScriptValueID+"}", al.handleDeleteScript).Methods(http.MethodDelete)
-	sub.HandleFunc("/clients/{client_id}/scripts", al.handlePostScript).Methods(http.MethodPost)
 
 	// add authorization middleware
 	if !al.insecureForTests {
@@ -190,11 +192,12 @@ func (al *APIListener) initRouter() {
 	// web sockets
 	// common auth middleware is not used due to JS issue https://stackoverflow.com/questions/22383089/is-it-possible-to-use-bearer-authentication-for-websocket-upgrade-requests
 	sub.HandleFunc("/ws/commands", al.wsAuth(http.HandlerFunc(al.handleCommandsWS))).Methods(http.MethodGet)
+	sub.HandleFunc("/ws/scripts", al.wsAuth(http.HandlerFunc(al.handleScriptsWS))).Methods(http.MethodGet)
 
-	// only for test purpose
-	// TODO: uncomment when needed
-	_ = al.home // added to avoid lint errors, comment when test router is enabled
-	//sub.HandleFunc("/test/commands/ui", al.home)
+	if al.config.Server.EnableWsTestEndpoints {
+		sub.HandleFunc("/test/commands/ui", al.wsCommands)
+		sub.HandleFunc("/test/scripts/ui", al.wsScripts)
+	}
 
 	if al.bannedIPs != nil {
 		// add middleware to reject banned IPs
@@ -1232,13 +1235,7 @@ func (al *APIListener) handlePostCommand(w http.ResponseWriter, req *http.Reques
 		return
 	}
 
-	reqBody := struct {
-		Command    string `json:"command"`
-		Shell      string `json:"shell"`
-		Cwd        string `json:"cwd"`
-		IsSudo     bool   `json:"bool"`
-		TimeoutSec int    `json:"timeout_sec"`
-	}{}
+	reqBody := &api.ExecuteCommandInput{}
 	dec := json.NewDecoder(req.Body)
 	dec.DisallowUnknownFields()
 	err := dec.Decode(&reqBody)
@@ -1249,6 +1246,12 @@ func (al *APIListener) handlePostCommand(w http.ResponseWriter, req *http.Reques
 		al.jsonErrorResponseWithError(w, http.StatusBadRequest, "", "Invalid JSON data.", err)
 		return
 	}
+	reqBody.ClientID = cid
+
+	al.handleExecuteCommand(req.Context(), w, reqBody)
+}
+
+func (al *APIListener) handleExecuteCommand(ctx context.Context, w http.ResponseWriter, reqBody *api.ExecuteCommandInput) {
 	if reqBody.Command == "" {
 		al.jsonErrorResponseWithTitle(w, http.StatusBadRequest, "Command cannot be empty.")
 		return
@@ -1262,13 +1265,13 @@ func (al *APIListener) handlePostCommand(w http.ResponseWriter, req *http.Reques
 		reqBody.TimeoutSec = al.config.Server.RunRemoteCmdTimeoutSec
 	}
 
-	client, err := al.clientService.GetActiveByID(cid)
+	client, err := al.clientService.GetActiveByID(reqBody.ClientID)
 	if err != nil {
-		al.jsonErrorResponseWithError(w, http.StatusInternalServerError, "", fmt.Sprintf("Failed to find an active client with id=%q.", cid), err)
+		al.jsonErrorResponseWithError(w, http.StatusInternalServerError, "", fmt.Sprintf("Failed to find an active client with id=%q.", reqBody.ClientID), err)
 		return
 	}
 	if client == nil {
-		al.jsonErrorResponseWithTitle(w, http.StatusNotFound, fmt.Sprintf("Active client with id=%q not found.", cid))
+		al.jsonErrorResponseWithTitle(w, http.StatusNotFound, fmt.Sprintf("Active client with id=%q not found.", reqBody.ClientID))
 		return
 	}
 
@@ -1280,11 +1283,11 @@ func (al *APIListener) handlePostCommand(w http.ResponseWriter, req *http.Reques
 			JID:        generateNewJobID(),
 			FinishedAt: nil,
 		},
-		ClientID:   cid,
+		ClientID:   reqBody.ClientID,
 		ClientName: client.Name,
 		Command:    reqBody.Command,
 		Shell:      reqBody.Shell,
-		CreatedBy:  api.GetUser(req.Context(), al.Logger),
+		CreatedBy:  api.GetUser(ctx, al.Logger),
 		TimeoutSec: reqBody.TimeoutSec,
 		Result:     nil,
 		Cwd:        reqBody.Cwd,
@@ -1318,27 +1321,35 @@ func (al *APIListener) handlePostCommand(w http.ResponseWriter, req *http.Reques
 	}
 	al.writeJSONResponse(w, http.StatusOK, api.NewSuccessPayload(resp))
 
-	al.Debugf("Job[id=%q] created to execute remote command on client with id=%q: %q.", curJob.JID, cid, reqBody.Command)
+	al.Debugf("Job[id=%q] created to execute remote command on client with id=%q: %q.", curJob.JID, reqBody.ClientID, reqBody.Command)
 }
 
-func (al *APIListener) handlePostScript(w http.ResponseWriter, req *http.Request) {
+func (al *APIListener) createScriptExecutionInputFromRequest(req *http.Request) (*script.ExecutionInput, error) {
+	var err error
 	vars := mux.Vars(req)
+	query := req.URL.Query()
 	clientID := vars[routeParamClientID]
-	if clientID == "" {
-		al.jsonErrorResponseWithTitle(w, http.StatusBadRequest, fmt.Sprintf("Missing %q route param.", routeParamClientID))
-		return
+	clientIDFromQuery, clientIDFound := query[routeParamClientID]
+	if clientID == "" && !clientIDFound && len(clientIDFromQuery) == 0 {
+		return nil, errors2.APIError{
+			Message: fmt.Sprintf("Missing %q route param.", routeParamClientID),
+			Code:    http.StatusBadRequest,
+		}
 	}
 
-	query := req.URL.Query()
+	if clientID == "" {
+		clientID = clientIDFromQuery[0]
+	}
+
 	isPowershell := false
 	isPowershellParam, ok := query[isPowershellScriptParam]
-	if ok && len(isPowershellParam) > 0 && isPowershellParam[0] != "" {
+	if ok && len(isPowershellParam) > 0 && isPowershellParam[0] != "" && isPowershellParam[0] != "false" {
 		isPowershell = true
 	}
 
 	isSudo := false
 	isSudoParam, ok := query[isSudoScriptParam]
-	if ok && len(isSudoParam) > 0 && isSudoParam[0] != "" {
+	if ok && len(isSudoParam) > 0 && isSudoParam[0] != "" && isSudoParam[0] != "false" {
 		isSudo = true
 	}
 
@@ -1348,24 +1359,62 @@ func (al *APIListener) handlePostScript(w http.ResponseWriter, req *http.Request
 		cwd = cwdParam[0]
 	}
 
+	timeout := time.Duration(al.config.Server.RunRemoteCmdTimeoutSec) * time.Second
+	timeoutParam, ok := query[timeoutScriptParam]
+	if ok && len(timeoutParam) > 0 {
+		timeoutStr := timeoutParam[0]
+		timeout, err = time.ParseDuration(timeoutStr)
+		if err != nil {
+			return nil, errors2.APIError{
+				Message: fmt.Sprintf("Failed to parse timeout value %s", timeoutScriptParam),
+				Err:     err,
+				Code:    http.StatusBadRequest,
+			}
+		}
+	}
+
+	client, err := al.clientService.GetActiveByID(clientID)
+	if err != nil {
+		return nil, errors2.APIError{
+			Message: fmt.Sprintf("Failed to find an active client with id=%q.", clientID),
+			Err:     err,
+			Code:    http.StatusInternalServerError,
+		}
+	}
+	if client == nil {
+		return nil, errors2.APIError{
+			Message: fmt.Sprintf("Active client with id=%q not found.", clientID),
+			Err:     err,
+			Code:    http.StatusNotFound,
+		}
+	}
+
+	user := api.GetUser(req.Context(), al.Logger)
+	return &script.ExecutionInput{
+		UserName:     user,
+		Client:       client,
+		IsSudo:       isSudo,
+		IsPowershell: isPowershell,
+		Cwd:          cwd,
+		Timeout:      timeout,
+	}, nil
+}
+
+func (al *APIListener) handleExecuteScript(w http.ResponseWriter, req *http.Request) {
+	scriptInput, err := al.createScriptExecutionInputFromRequest(req)
+	if err != nil {
+		al.jsonError(w, err)
+		return
+	}
+
 	scriptBody, err := ioutil.ReadAll(req.Body)
 	if err != nil {
 		al.jsonErrorResponseWithError(w, http.StatusInternalServerError, "", "Failed to get script body", err)
 		return
 	}
+	scriptInput.ScriptBody = scriptBody
 
-	client, err := al.clientService.GetActiveByID(clientID)
-	if err != nil {
-		al.jsonErrorResponseWithError(w, http.StatusInternalServerError, "", fmt.Sprintf("Failed to find an active client with id=%q.", clientID), err)
-		return
-	}
-	if client == nil {
-		al.jsonErrorResponseWithTitle(w, http.StatusNotFound, fmt.Sprintf("Active client with id=%q not found.", clientID))
-		return
-	}
-
-	user := api.GetUser(req.Context(), al.Logger)
-	err = al.scriptManager.RunScriptOnClient(user, client, scriptBody, isSudo, isPowershell, cwd)
+	scriptPath, err := al.scriptManager.CreateScriptOnClient(scriptInput)
 	if err != nil {
 		if _, ok := err.(*comm.ClientError); ok {
 			al.jsonErrorResponseWithTitle(w, http.StatusConflict, err.Error())
@@ -1374,6 +1423,14 @@ func (al *APIListener) handlePostScript(w http.ResponseWriter, req *http.Request
 		}
 		return
 	}
+
+	cmdInput, err := al.scriptManager.ConvertScriptInputToCmdInput(scriptInput, scriptPath)
+	if err != nil {
+		al.jsonError(w, err)
+		return
+	}
+
+	al.handleExecuteCommand(req.Context(), w, cmdInput)
 }
 
 func validateShell(shell string) error {
@@ -1679,8 +1736,8 @@ func (al *APIListener) handleCommandsWS(w http.ResponseWriter, req *http.Request
 		return
 	}
 	uiConnTS := ws.NewConcurrentWebSocket(uiConn, al.Logger)
-	inboundMsg := multiClientCmdRequest{}
-	err = uiConnTS.ReadJSON(&inboundMsg)
+	inboundMsg := &multiClientCmdRequest{}
+	err = uiConnTS.ReadJSON(inboundMsg)
 	if err == io.EOF { // is handled separately to return an informative error message
 		uiConnTS.WriteError("Inbound message should contain non empty json object with command data.", nil)
 		return
@@ -1689,6 +1746,59 @@ func (al *APIListener) handleCommandsWS(w http.ResponseWriter, req *http.Request
 		return
 	}
 
+	al.handleCommandsExecutionWS(ctx, uiConnTS, inboundMsg)
+}
+
+func (al *APIListener) handleScriptsWS(w http.ResponseWriter, req *http.Request) {
+	ctx := req.Context()
+	uiConn, err := apiUpgrader.Upgrade(w, req, nil)
+	if err != nil {
+		al.Errorf("Failed to establish WS connection: %v", err)
+		return
+	}
+
+	uiConnTS := ws.NewConcurrentWebSocket(uiConn, al.Logger)
+	_, scriptBody, err := uiConnTS.ReadMessage()
+	if err != nil {
+		uiConnTS.WriteError("Script message should contain non empty data.", nil)
+		return
+	}
+
+	scriptInput, err := al.createScriptExecutionInputFromRequest(req)
+	if err != nil {
+		uiConnTS.WriteError("Request failure", err)
+		return
+	}
+	scriptInput.ScriptBody = scriptBody
+
+	scriptPath, err := al.scriptManager.CreateScriptOnClient(scriptInput)
+	if err != nil {
+		uiConnTS.WriteError("Script creation failure", err)
+		return
+	}
+
+	cmdInput, err := al.scriptManager.ConvertScriptInputToCmdInput(scriptInput, scriptPath)
+	if err != nil {
+		uiConnTS.WriteError("Command generation failure", err)
+		return
+	}
+
+	abortOnErr := true
+	wsCmdRequest := &multiClientCmdRequest{
+		ClientIDs:           []string{scriptInput.Client.ID},
+		Command:             cmdInput.Command,
+		Cwd:                 cmdInput.Cwd,
+		IsSudo:              cmdInput.IsSudo,
+		Shell:               cmdInput.Shell,
+		TimeoutSec:          cmdInput.TimeoutSec,
+		ExecuteConcurrently: false,
+		AbortOnError:        &abortOnErr,
+	}
+
+	al.handleCommandsExecutionWS(ctx, uiConnTS, wsCmdRequest)
+}
+
+func (al *APIListener) handleCommandsExecutionWS(ctx context.Context, uiConnTS *ws.ConcurrentWebSocket, inboundMsg *multiClientCmdRequest) {
 	if inboundMsg.Command == "" {
 		uiConnTS.WriteError("Command cannot be empty.", nil)
 		return
@@ -1759,7 +1869,7 @@ func (al *APIListener) handleCommandsWS(w http.ResponseWriter, req *http.Request
 	al.Server.uiJobWebSockets.Set(jid, uiConnTS)
 	defer al.Server.uiJobWebSockets.Delete(jid)
 
-	createdBy := api.GetUser(req.Context(), al.Logger)
+	createdBy := api.GetUser(ctx, al.Logger)
 	if len(inboundMsg.ClientIDs) > 1 || len(groupClients) > 0 {
 		// by default abortOnErr is true
 		abortOnErr := true

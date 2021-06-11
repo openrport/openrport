@@ -218,8 +218,8 @@ func (c *Client) isAllowed(cmd string) bool {
 
 // matchRegexp returns true if a given command matches at least one of given regular expressions.
 func matchRegexp(cmd string, regexpList []*regexp.Regexp) bool {
-	for _, regexp := range regexpList {
-		if regexp.MatchString(cmd) {
+	for _, regx := range regexpList {
+		if regx.MatchString(cmd) {
 			return true
 		}
 	}

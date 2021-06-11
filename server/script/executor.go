@@ -6,13 +6,25 @@ import (
 	"encoding/hex"
 	"fmt"
 	"io"
+	"time"
 
+	"github.com/cloudradar-monitoring/rport/server/api"
 	"github.com/cloudradar-monitoring/rport/server/clients"
 	chshare "github.com/cloudradar-monitoring/rport/share"
 	"github.com/cloudradar-monitoring/rport/share/comm"
 	"github.com/cloudradar-monitoring/rport/share/models"
 	"github.com/cloudradar-monitoring/rport/share/random"
 )
+
+type ExecutionInput struct {
+	UserName     string
+	Client       *clients.Client
+	ScriptBody   []byte
+	IsSudo       bool
+	IsPowershell bool
+	Cwd          string
+	Timeout      time.Duration
+}
 
 type Executor struct {
 	logger *chshare.Logger
@@ -24,53 +36,35 @@ func NewExecutor(logger *chshare.Logger) *Executor {
 	}
 }
 
-func (e *Executor) RunScriptOnClient(curUser string, cl *clients.Client, scriptBody []byte, isSudo, isPowershell bool, cwd string) error {
-	scriptPath, err := e.createScriptOnClient(cl, isPowershell, scriptBody)
-	if err != nil {
-		return err
-	}
+func (e *Executor) ConvertScriptInputToCmdInput(ei *ExecutionInput, scriptPath string) (*api.ExecuteCommandInput, error) {
+	command := e.createScriptCommand(ei.Client, scriptPath, ei.IsPowershell)
 
-	command := e.createScriptCommand(scriptPath, isPowershell)
-
-	curJob := models.Job{
-		JobSummary: models.JobSummary{
-			JID:        random.UUID4(),
-			FinishedAt: nil,
-		},
-		ClientID:   cl.ID,
-		ClientName: cl.Name,
+	return &api.ExecuteCommandInput{
 		Command:    command,
-		Shell:      e.createShell(isPowershell),
-		CreatedBy:  curUser,
-		Result:     nil,
-		Cwd:        cwd,
-		IsSudo:     isSudo,
-	}
-	sshResp := &comm.RunCmdResponse{}
-	err = comm.SendRequestAndGetResponse(cl.Connection, comm.RequestTypeRunCmd, curJob, sshResp)
-	if err != nil {
-		return err
-	}
-
-	return nil
+		Shell:      e.createShell(ei.Client, ei.IsPowershell),
+		Cwd:        ei.Cwd,
+		IsSudo:     ei.IsSudo,
+		TimeoutSec: int(ei.Timeout.Seconds()),
+		ClientID:   ei.Client.ID,
+	}, nil
 }
 
-func (e *Executor) createScriptOnClient(cl *clients.Client, isPowershell bool, scriptBody []byte) (scriptPath string, err error) {
+func (e *Executor) CreateScriptOnClient(scriptInput *ExecutionInput) (scriptPath string, err error) {
 	fileInput := &models.File{
-		Name:      e.createClientScriptPath(isPowershell),
-		Content:   scriptBody,
+		Name:      e.createClientScriptPath(scriptInput.Client, scriptInput.IsPowershell),
+		Content:   scriptInput.ScriptBody,
 		CreateDir: true,
 		Mode:      0744,
 	}
 
 	sshResp := &comm.CreateFileResponse{}
-	err = comm.SendRequestAndGetResponse(cl.Connection, comm.RequestTypeCreateFile, fileInput, sshResp)
+	err = comm.SendRequestAndGetResponse(scriptInput.Client.Connection, comm.RequestTypeCreateFile, fileInput, sshResp)
 	if err != nil {
 		return "", err
 	}
 
 	hasher := sha256.New()
-	_, err = io.Copy(hasher, bytes.NewBuffer(scriptBody))
+	_, err = io.Copy(hasher, bytes.NewBuffer(scriptInput.ScriptBody))
 	if err != nil {
 		return "", err
 	}
@@ -83,4 +77,45 @@ func (e *Executor) createScriptOnClient(cl *clients.Client, isPowershell bool, s
 	}
 
 	return sshResp.FilePath, nil
+}
+
+func (e *Executor) createClientScriptPath(cl *clients.Client, isPowershell bool) string {
+	scriptName := random.UUID4()
+	if e.isWindowsClient(cl) {
+		if isPowershell {
+			return scriptName + ".ps1"
+		}
+		return scriptName + ".bat"
+	}
+
+	return scriptName + ".sh"
+}
+
+func (e *Executor) isWindowsClient(cl *clients.Client) bool {
+	return cl.OSKernel == "windows"
+}
+
+func (e *Executor) createShell(cl *clients.Client, isPowershell bool) string {
+	if e.isWindowsClient(cl) {
+		if isPowershell {
+			return "powershell"
+		}
+
+		return "cmd"
+	}
+
+	return ""
+}
+
+func (e *Executor) createScriptCommand(cl *clients.Client, scriptPath string, isPowerShell bool) string {
+	if e.isWindowsClient(cl) {
+		if isPowerShell {
+			return fmt.Sprintf("-executionpolicy bypass -file %s; powershell Remove-Item %s", scriptPath, scriptPath)
+		}
+
+		return fmt.Sprintf("%s & del %s", scriptPath, scriptPath)
+
+	}
+
+	return fmt.Sprintf("sh %s; rm %s", scriptPath, scriptPath)
 }
