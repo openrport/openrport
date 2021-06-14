@@ -1,20 +1,29 @@
 package clients
 
 import (
+	"context"
+	"fmt"
 	"sync"
 	"time"
 )
 
 type ClientRepository struct {
+	// in-memory cache
 	clients         map[string]*Client
 	mu              sync.RWMutex
 	KeepLostClients *time.Duration
+	// storage
+	provider ClientProvider
 }
 
 // NewClientRepository returns a new thread-safe in-memory cache to store client connections populated with given clients if any.
 // keepLostClients is a duration to keep disconnected clients. If a client was disconnected longer than a given
 // duration it will be treated as obsolete.
 func NewClientRepository(initClients []*Client, keepLostClients *time.Duration) *ClientRepository {
+	return newClientRepositoryWithDB(initClients, keepLostClients, nil)
+}
+
+func newClientRepositoryWithDB(initClients []*Client, keepLostClients *time.Duration, provider ClientProvider) *ClientRepository {
 	clients := make(map[string]*Client)
 	for i := range initClients {
 		clients[initClients[i].ID] = initClients[i]
@@ -22,10 +31,27 @@ func NewClientRepository(initClients []*Client, keepLostClients *time.Duration) 
 	return &ClientRepository{
 		clients:         clients,
 		KeepLostClients: keepLostClients,
+		provider:        provider,
 	}
 }
 
+func InitClientRepository(ctx context.Context, provider ClientProvider, keepLostClients *time.Duration) (*ClientRepository, error) {
+	initClients, err := GetInitState(ctx, provider)
+	if err != nil {
+		return nil, err
+	}
+
+	return newClientRepositoryWithDB(initClients, keepLostClients, provider), nil
+}
+
 func (s *ClientRepository) Save(client *Client) error {
+	if s.provider != nil {
+		err := s.provider.Save(context.Background(), client)
+		if err != nil {
+			return fmt.Errorf("failed to save a client: %w", err)
+		}
+	}
+
 	s.mu.Lock()
 	defer s.mu.Unlock()
 	s.clients[client.ID] = client
@@ -33,6 +59,13 @@ func (s *ClientRepository) Save(client *Client) error {
 }
 
 func (s *ClientRepository) Delete(client *Client) error {
+	if s.provider != nil {
+		err := s.provider.Delete(context.Background(), client.ID)
+		if err != nil {
+			return fmt.Errorf("failed to delete a client: %w", err)
+		}
+	}
+
 	s.mu.Lock()
 	defer s.mu.Unlock()
 	delete(s.clients, client.ID)
@@ -41,6 +74,13 @@ func (s *ClientRepository) Delete(client *Client) error {
 
 // DeleteObsolete deletes obsolete disconnected clients and returns them.
 func (s *ClientRepository) DeleteObsolete() ([]*Client, error) {
+	if s.provider != nil {
+		err := s.provider.DeleteObsolete(context.Background())
+		if err != nil {
+			return nil, fmt.Errorf("failed to delete obsolete clients: %w", err)
+		}
+	}
+
 	s.mu.Lock()
 	defer s.mu.Unlock()
 	var deleted []*Client

@@ -98,20 +98,20 @@ func NewServer(config *Config, filesAPI files.FileAPI) (*Server, error) {
 		return nil, err
 	}
 
-	initClients, err := clients.GetInitState(ctx, s.clientProvider)
-	if err != nil {
-		return nil, fmt.Errorf("failed to init Client Repository: %v", err)
-	}
-
 	var keepLostClients *time.Duration
 	if config.Server.KeepLostClients > 0 {
 		keepLostClients = &config.Server.KeepLostClients
 	}
-	repo := clients.NewClientRepository(initClients, keepLostClients)
-	s.clientService = NewClientService(
+
+	s.clientService, err = InitClientService(
+		ctx,
 		ports.NewPortDistributor(config.ExcludedPorts()),
-		repo,
+		s.clientProvider,
+		keepLostClients,
 	)
+	if err != nil {
+		return nil, err
+	}
 
 	if config.Database.driver != "" {
 		s.db, err = sqlx.Connect(config.Database.driver, config.Database.dsn)
@@ -188,12 +188,9 @@ func (s *Server) Run() error {
 
 	s.Infof("Variable to keep lost clients is set to %v", s.config.Server.KeepLostClients)
 
-	go scheduler.Run(ctx, s.Logger, clients.NewCleanupTask(s.Logger, s.clientListener.clientService.repo, s.clientProvider), s.config.Server.CleanupClients)
-	s.Infof("Task to cleanup obsolete clients will run with interval %v", s.config.Server.CleanupClients)
-
 	// TODO(m-terel): add graceful shutdown of background task
-	go scheduler.Run(ctx, s.Logger, clients.NewSaveTask(s.Logger, s.clientListener.clientService.repo, s.clientProvider), s.config.Server.SaveClients)
-	s.Infof("Task to save clients to disk will run with interval %v", s.config.Server.SaveClients)
+	go scheduler.Run(ctx, s.Logger, clients.NewCleanupTask(s.Logger, s.clientListener.clientService.repo), s.config.Server.CleanupClients)
+	s.Infof("Task to cleanup obsolete clients will run with interval %v", s.config.Server.CleanupClients)
 
 	return s.Wait()
 }

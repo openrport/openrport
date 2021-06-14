@@ -19,6 +19,7 @@ type ClientProvider interface {
 	GetAll(ctx context.Context) ([]*Client, error)
 	Save(ctx context.Context, client *Client) error
 	DeleteObsolete(ctx context.Context) error
+	Delete(ctx context.Context, id string) error
 	Close() error
 }
 
@@ -76,6 +77,11 @@ func (p *SqliteProvider) DeleteObsolete(ctx context.Context) error {
 		"DELETE FROM clients WHERE disconnected_at IS NOT NULL AND DATETIME(disconnected_at) < DATETIME(?)",
 		p.keepLostClientsStart(),
 	)
+	return err
+}
+
+func (p *SqliteProvider) Delete(ctx context.Context, id string) error {
+	_, err := p.db.ExecContext(ctx, "DELETE FROM clients WHERE id = ?", id)
 	return err
 }
 

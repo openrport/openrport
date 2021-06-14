@@ -37,6 +37,23 @@ func NewClientService(
 	}
 }
 
+func InitClientService(
+	ctx context.Context,
+	portDistributor *ports.PortDistributor,
+	provider clients.ClientProvider,
+	keepLostClients *time.Duration,
+) (*ClientService, error) {
+	repo, err := clients.InitClientRepository(ctx, provider, keepLostClients)
+	if err != nil {
+		return nil, fmt.Errorf("failed to init Client Repository: %v", err)
+	}
+
+	return &ClientService{
+		portDistributor: portDistributor,
+		repo:            repo,
+	}, nil
+}
+
 func (s *ClientService) Count() (int, error) {
 	return s.repo.Count()
 }
@@ -166,7 +183,17 @@ func (s *ClientService) StartClient(
 func (s *ClientService) StartClientTunnels(client *clients.Client, remotes []*chshare.Remote) ([]*clients.Tunnel, error) {
 	s.mu.Lock()
 	defer s.mu.Unlock()
-	return s.startClientTunnels(client, remotes)
+	newTunnels, err := s.startClientTunnels(client, remotes)
+	if err != nil {
+		return nil, err
+	}
+
+	err = s.repo.Save(client)
+	if err != nil {
+		return nil, err
+	}
+
+	return newTunnels, err
 }
 
 func (s *ClientService) startClientTunnels(client *clients.Client, remotes []*chshare.Remote) ([]*clients.Tunnel, error) {

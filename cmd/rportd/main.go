@@ -18,8 +18,7 @@ import (
 
 const (
 	DefaultKeepLostClients        = time.Hour
-	DefaultCacheClientsInterval   = 1 * time.Second
-	DefaultCleanClientsInterval   = 3 * time.Second
+	DefaultCleanClientsInterval   = 1 * time.Minute
 	DefaultMaxRequestBytes        = 2 * 1024 // 2 KB
 	DefaultCheckPortTimeout       = 2 * time.Second
 	DefaultExcludedPorts          = "1-1024"
@@ -156,13 +155,9 @@ var serverHelp = `
     By default is "1h". To disable it set it to "0".
     It can contain "h"(hours), "m"(minutes), "s"(seconds).
 
-    --save-clients-interval, An optional arg to define
-    an interval to flush info (clients, tunnels, etc) about active and disconnected clients to disk.
-    By default, 1 second is used. It can contain "h"(hours), "m"(minutes), "s"(seconds).
-
     --cleanup-clients-interval, An optional
     arg to define an interval to clean up internal storage from obsolete disconnected clients.
-    By default, '3s' is used. It can contain "h"(hours), "m"(minutes), "s"(seconds).
+    By default, '1m' is used. It can contain "h"(hours), "m"(minutes), "s"(seconds).
 
     --check-port-timeout, An optional arg to define a timeout to check whether a remote destination of a requested
     new tunnel is available, i.e. whether a given remote port is open on a client machine. By default, "2s" is used.
@@ -281,7 +276,6 @@ func init() {
 	viperCfg.SetDefault("server.excluded_ports", []string{DefaultExcludedPorts})
 	viperCfg.SetDefault("server.data_dir", chserver.DefaultDataDirectory)
 	viperCfg.SetDefault("server.keep_lost_clients", DefaultKeepLostClients)
-	viperCfg.SetDefault("server.save_clients_interval", DefaultCacheClientsInterval)
 	viperCfg.SetDefault("server.cleanup_clients_interval", DefaultCleanClientsInterval)
 	viperCfg.SetDefault("server.max_request_bytes", DefaultMaxRequestBytes)
 	viperCfg.SetDefault("server.check_port_timeout", DefaultCheckPortTimeout)
@@ -314,7 +308,6 @@ func bindPFlags() {
 	_ = viperCfg.BindPFlag("server.excluded_ports", pFlags.Lookup("exclude-ports"))
 	_ = viperCfg.BindPFlag("server.data_dir", pFlags.Lookup("data-dir"))
 	_ = viperCfg.BindPFlag("server.keep_lost_clients", pFlags.Lookup("keep-lost-clients"))
-	_ = viperCfg.BindPFlag("server.save_clients_interval", pFlags.Lookup("save-clients-interval"))
 	_ = viperCfg.BindPFlag("server.cleanup_clients_interval", pFlags.Lookup("cleanup-clients-interval"))
 	_ = viperCfg.BindPFlag("server.max_request_bytes", pFlags.Lookup("max-request-bytes"))
 	_ = viperCfg.BindPFlag("server.check_port_timeout", pFlags.Lookup("check-port-timeout"))
