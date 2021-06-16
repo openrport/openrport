@@ -584,6 +584,76 @@ paths:
           description: "Invalid Operation"
           schema:
             $ref: "#/definitions/ErrorPayload"
+  /clients/{client_id}/scripts:
+    post:
+      tags:
+        - "Scripts"
+      summary: "Execute a script by a rport client."
+      description: "Rport server will copy script contents to a temp folder on the rport client. Then it will implicitly execute shell script as a command e.g. sh /tmp/script.sh.\n
+       NOTE: if command limitation is enabled by an rport client then it should allow execution commands like sh script.sh or cmd script.bat or powershell -executionpolicy bypass -file script.ps1.\n
+       See https://oss.rport.io/docs/no06-command-execution.html#securing-your-environment for more details"
+      consumes:
+        - text/plain
+      parameters:
+        - name: "client_id"
+          in: "path"
+          description: "unique client id retrieved previously"
+          required: true
+          type: "string"
+        - in: "body"
+          name: "body"
+          description: "script to execute by the rport client, the format depends on the client's OS"
+          required: true
+          schema:
+            type: string
+        - name: "isPowershell"
+          in: "query"
+          description: "will execute the provided script with Windows powershell, default is false, Windows only"
+          required: false
+          type: "boolean"
+        - name: "isSudo"
+          in: "query"
+          description: "will attempt to execute the provided script under a sudo user, default is false, *Nix, macOS only"
+          required: false
+          type: "boolean"
+        - name: "cwd"
+          in: "query"
+          description: "the working directory of the executed script"
+          required: false
+          type: "string"
+        - name: "timeout"
+          in: "query"
+          description: "max possible time for the script execution, default is unlimited, you can provide timeout values in following formats 10ms/10s/10m/10h (10 milliseconds/seconds/minutes/hours)"
+          required: false
+          type: "string"
+      responses:
+        "200":
+          description: "Successful Operation"
+          schema:
+            type: "object"
+            properties:
+              data:
+                type: "object"
+                properties:
+                  jid:
+                    type: "string"
+                    description: "job id of the underlying command which will execute the provided script"
+        "400":
+          description: "Invalid request parameters"
+          schema:
+            $ref: "#/definitions/ErrorPayload"
+        "404":
+          description: "Active client not found"
+          schema:
+            $ref: "#/definitions/ErrorPayload"
+        "409":
+          description: "Could not execute the command. Probably a previous command is still running"
+          schema:
+            $ref: "#/definitions/ErrorPayload"
+        "500":
+          description: "Invalid Operation"
+          schema:
+            $ref: "#/definitions/ErrorPayload"
   /clients/{client_id}/commands/{job_id}:
     get:
       tags:
@@ -785,6 +855,72 @@ paths:
           in: "query"
           description: "JWT token that is created by 'login' API endpoint. Required to pass the authentication."
           required: true
+          type: "string"
+      responses:
+        "200":
+          description: "On success upgrades current connection to websocket"
+          schema:
+            type: "object"
+  /ws/scripts:
+    get:
+      tags:
+        - "Scripts"
+      summary: "Web Socket Connection to execute scripts on rport client"
+      description: "
+      NOTE: swagger is not designed to document WebSocket API. This is a temporary solution.\n
+
+      A new web socket is created for each new request to execute a script on rport client.\n
+      Steps:\n
+      1. To pass authentication - include \"access_token\" param into the url. The value is a jwt token that is created by 'login' API endpoint.\n
+      2. You should provide client identifier in the URL as \"client_id\" param into the url. You can find active clients by /calling clients API (see Clients and Tunnels)\n
+      3. Upgrades the current connection to Web Socket.\n
+      4. Then server waits for an inbound script message from UI client. You can provide script as a plain text in bash/sh/powershell/windows cmd format depending on the client's OS:\n
+      For example,\n
+        cd /home/me\n
+        touch some.txt\n
+        echo 'Hello world' > some.txt\n
+        cat some.txt\n
+      5. Rport server will create the provided script as a shell script file in the target client (e.g. `/tmp/f68a779d-1d46-414a-b165-d8d2df5f348c.sh` or `f68a779d-1d46-414a-b165-d8d2df5f348.ps1`).\n
+      Then it will call the existing command execution API to run this script and delete it after disregard the script success e.g. `sh /tmp/f68a779d-1d46-414a-b165-d8d2df5f348c.sh; rm /tmp/f68a779d-1d46-414a-b165-d8d2df5f348c.sh`\n
+      If it fails, server sends an outbound JSON message `ErrorPayload`(see in 'Models') and closes the connection. The temp script will be deleted anyway.\n
+      6. As soon as Rport server gets a result from a client - it sends an outbound JSON message `Job`(see in 'Models').\n
+         It can contain a non-empty 'error' field if server wasn't able to send the command to the rport client.\n
+      7. As soon as a rport client sends back the result - connection is closed by server.\n
+      8. Also, a current connection can be closed by UI client.\n
+      There is a simple UI for testing. Try it out http://127.0.0.1:3000/api/v1/test/scripts/ui. You can enable this api by setting `enable_ws_test_endpoints=true` in the configuration file \n
+      "
+      produces:
+        - "application/json"
+      parameters:
+        - name: "access_token"
+          in: "query"
+          description: "JWT token that is created by 'login' API endpoint. Required to pass the authentication."
+          required: true
+          type: "string"
+        - name: "client_id"
+          in: "query"
+          description: "client identifier where to execute script"
+          required: true
+          type: "string"
+        - name: "isPowershell"
+          in: "query"
+          description: "will execute the provided script with Windows powershell, default is false, Windows only"
+          required: false
+          type: "boolean"
+        - name: "isSudo"
+          in: "query"
+          description: "will attempt to execute the provided script under a sudo user, default is false, *Nix, macOS only"
+          required: false
+          type: "boolean"
+        - name: "cwd"
+          in: "query"
+          description: "the working directory of the executed script"
+          required: false
+          type: "string"
+        - name: "timeout"
+          in: "query"
+          description: "max possible time for the script execution, default is unlimited, you can provide timeout values in following formats 10ms/10s/10m/10h (10 milliseconds/seconds/minutes/hours)"
+          required: false
           type: "string"
       responses:
         "200":

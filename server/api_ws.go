@@ -119,10 +119,8 @@ var scriptsTemplate = template.Must(template.New("").Parse(`
 window.addEventListener("load", function(evt) {
    var ws;
    var print = function(message) {
-       var output = document.getElementById("output");
-       var d = document.createElement("div");
-       d.textContent = message;
-       output.appendChild(d);
+       var outCont = document.getElementById("output");
+       outCont.value += message + "\n";
    };
    document.getElementById("open").onclick = function(evt) {
 	   var token = document.getElementById("token");
@@ -158,7 +156,10 @@ window.addEventListener("load", function(evt) {
            ws = null;
        }
        ws.onmessage = function(evt) {
-			print("RESP: " + evt.data);
+            const data = JSON.parse(evt.data);
+			var str = JSON.stringify(data, null, 2);
+			print("RESP:");
+			print(str);
        }
        ws.onerror = function(evt) {
            print("ERROR: " + evt.data);
@@ -230,8 +231,9 @@ pwd
 </p>
 <button id="send">Send</button>
 </form>
-</td><td valign="top" width="50%">
-<pre id="output"></pre>
+</td><td valign="top" width="45%">
+<p>Output</p>
+<textarea id="output" rows="35" cols="50" style="width:90%;"></textarea>
 </td></tr></table>
 </body>
 </html>
