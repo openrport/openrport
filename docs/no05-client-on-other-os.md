@@ -2,7 +2,7 @@
 ## On Mac OS (intel based)
 Open the terminal and as an unprivileged user download the binary and put it in `/usr/local/bin`
 ```
-VERSION=0.1.33
+VERSION=0.1.34
 curl -OL https://github.com/cloudradar-monitoring/rport/releases/download/{VERSION}/rport_{VERSION}_Darwin_x86_64.tar.gz
 test -e /usr/local/bin/||sudo mkdir /usr/local/bin
 sudo tar xzf rport_{VERSION}_Darwin_x86_64.tar.gz -C /usr/local/bin/ rport
