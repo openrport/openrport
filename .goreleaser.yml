@@ -49,7 +49,7 @@ builds:
     binary: rportd
     ldflags:
       - "-s -w -X {{.Env.PROJECT}}/share.BuildVersion={{.Version}}"
-      - #"-extldflags '-static'"
+      #- "-extldflags '-static'"
     env:
       - CGO_ENABLED=1
     goos:
