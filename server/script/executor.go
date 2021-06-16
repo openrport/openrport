@@ -17,7 +17,6 @@ import (
 )
 
 type ExecutionInput struct {
-	UserName     string
 	Client       *clients.Client
 	ScriptBody   []byte
 	IsSudo       bool
@@ -36,7 +35,7 @@ func NewExecutor(logger *chshare.Logger) *Executor {
 	}
 }
 
-func (e *Executor) ConvertScriptInputToCmdInput(ei *ExecutionInput, scriptPath string) (*api.ExecuteCommandInput, error) {
+func (e *Executor) ConvertScriptInputToCmdInput(ei *ExecutionInput, scriptPath string) *api.ExecuteCommandInput {
 	command := e.createScriptCommand(ei.Client, scriptPath, ei.IsPowershell)
 
 	return &api.ExecuteCommandInput{
@@ -46,7 +45,7 @@ func (e *Executor) ConvertScriptInputToCmdInput(ei *ExecutionInput, scriptPath s
 		IsSudo:     ei.IsSudo,
 		TimeoutSec: int(ei.Timeout.Seconds()),
 		ClientID:   ei.Client.ID,
-	}, nil
+	}
 }
 
 func (e *Executor) CreateScriptOnClient(scriptInput *ExecutionInput) (scriptPath string, err error) {

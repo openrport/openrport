@@ -1389,9 +1389,7 @@ func (al *APIListener) createScriptExecutionInputFromRequest(req *http.Request) 
 		}
 	}
 
-	user := api.GetUser(req.Context(), al.Logger)
 	return &script.ExecutionInput{
-		UserName:     user,
 		Client:       client,
 		IsSudo:       isSudo,
 		IsPowershell: isPowershell,
@@ -1424,11 +1422,7 @@ func (al *APIListener) handleExecuteScript(w http.ResponseWriter, req *http.Requ
 		return
 	}
 
-	cmdInput, err := al.scriptManager.ConvertScriptInputToCmdInput(scriptInput, scriptPath)
-	if err != nil {
-		al.jsonError(w, err)
-		return
-	}
+	cmdInput := al.scriptManager.ConvertScriptInputToCmdInput(scriptInput, scriptPath)
 
 	al.handleExecuteCommand(req.Context(), w, cmdInput)
 }
@@ -1777,11 +1771,7 @@ func (al *APIListener) handleScriptsWS(w http.ResponseWriter, req *http.Request)
 		return
 	}
 
-	cmdInput, err := al.scriptManager.ConvertScriptInputToCmdInput(scriptInput, scriptPath)
-	if err != nil {
-		uiConnTS.WriteError("Command generation failure", err)
-		return
-	}
+	cmdInput := al.scriptManager.ConvertScriptInputToCmdInput(scriptInput, scriptPath)
 
 	abortOnErr := true
 	wsCmdRequest := &multiClientCmdRequest{
