@@ -23,8 +23,8 @@ func TestMultiJobsSqliteProvider(t *testing.T) {
 
 	// add jobs
 	t1 := time.Now().UTC()
-	job1 := jb.NewMulti(t).JID("1111").StartedAt(t1.Add(-time.Hour)).WithJobs().Build()
-	job2 := jb.NewMulti(t).JID("2222").StartedAt(t1).Build() // jid used to check the order by
+	job1 := jb.NewMulti(t).JID("1111").StartedAt(t1.Add(-time.Hour)).WithJobs().WithSudo().Build()
+	job2 := jb.NewMulti(t).JID("2222").StartedAt(t1).WithCwd("/root").Build() // jid used to check the order by
 	job3 := jb.NewMulti(t).JID("3333").StartedAt(t1).Build()
 	require.NoError(t, p.SaveMultiJob(job1))
 	for _, j := range job1.Jobs {

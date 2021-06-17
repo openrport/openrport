@@ -28,6 +28,8 @@ type JobBuilder struct {
 	startedAt  time.Time
 	finishedAt *time.Time
 	result     *models.JobResult
+	sudo       bool
+	cwd        string
 }
 
 // New returns a builder to generate a job that can be used in tests.
@@ -82,6 +84,16 @@ func (b JobBuilder) FinishedAt(finishedAt time.Time) JobBuilder {
 
 func (b JobBuilder) Result(result *models.JobResult) JobBuilder {
 	b.result = result
+	return b
+}
+
+func (b JobBuilder) Sudo() JobBuilder {
+	b.sudo = true
+	return b
+}
+
+func (b JobBuilder) Cwd(cwd string) JobBuilder {
+	b.cwd = cwd
 	return b
 }
 

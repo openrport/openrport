@@ -7,6 +7,6 @@ import (
 	"os/exec"
 )
 
-func (e *CmdExecutorImpl) New(ctx context.Context, shell, command string) *exec.Cmd {
-	return e.newCmd(ctx, shell, command)
+func (e *CmdExecutorImpl) New(ctx context.Context, shell, command, cwd string, isSudo bool) *exec.Cmd {
+	return e.newCmd(ctx, shell, command, cwd, isSudo)
 }

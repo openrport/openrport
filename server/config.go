@@ -78,6 +78,7 @@ type ServerConfig struct {
 	ClientLoginWait            float32       `mapstructure:"client_login_wait"`
 	MaxFailedLogin             int           `mapstructure:"max_failed_login"`
 	BanTime                    int           `mapstructure:"ban_time"`
+	EnableWsTestEndpoints      bool          `mapstructure:"enable_ws_test_endpoints"`
 
 	excludedPorts mapset.Set
 	authID        string

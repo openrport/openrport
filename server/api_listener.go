@@ -118,7 +118,8 @@ func NewAPIListener(
 		return nil, err
 	}
 
-	scriptManager := script.NewManager(scriptDb, scriptLogger)
+	scriptExecutor := script.NewExecutor(scriptLogger)
+	scriptManager := script.NewManager(scriptDb, scriptExecutor, scriptLogger)
 
 	a := &APIListener{
 		Server:            server,
