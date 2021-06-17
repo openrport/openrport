@@ -17,6 +17,9 @@ import (
 	"github.com/cloudradar-monitoring/rport/share/models"
 )
 
+const DefaultFileMode = os.FileMode(0540)
+const DefaultDirMode = os.FileMode(0740)
+
 func (c *Client) HandleCreateFileRequest(ctx context.Context, reqPayload []byte) (*comm.CreateFileResponse, error) {
 	fileInput := models.File{}
 
@@ -33,7 +36,7 @@ func (c *Client) HandleCreateFileRequest(ctx context.Context, reqPayload []byte)
 	}
 
 	if fileInput.Mode == 0 {
-		fileInput.Mode = 0540
+		fileInput.Mode = DefaultFileMode
 	}
 
 	baseDir := filepath.Dir(fileInput.Name)
@@ -41,7 +44,7 @@ func (c *Client) HandleCreateFileRequest(ctx context.Context, reqPayload []byte)
 		baseDir = os.TempDir()
 		fileInput.Name = filepath.Join(baseDir, filepath.Base(fileInput.Name))
 	} else if fileInput.CreateDir {
-		err = os.MkdirAll(baseDir, 0740)
+		err = os.MkdirAll(baseDir, DefaultDirMode)
 		if err != nil {
 			return nil, err
 		}

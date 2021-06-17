@@ -1332,7 +1332,7 @@ func (al *APIListener) createScriptExecutionInputFromRequest(req *http.Request) 
 	clientIDFromQuery, clientIDFound := query[routeParamClientID]
 	if clientID == "" && !clientIDFound && len(clientIDFromQuery) == 0 {
 		return nil, errors2.APIError{
-			Message: fmt.Sprintf("Missing %q route param.", routeParamClientID),
+			Message: "Missing client id",
 			Code:    http.StatusBadRequest,
 		}
 	}

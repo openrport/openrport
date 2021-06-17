@@ -6,6 +6,7 @@ import (
 	"encoding/hex"
 	"fmt"
 	"io"
+	"os"
 	"time"
 
 	"github.com/cloudradar-monitoring/rport/server/api"
@@ -15,6 +16,8 @@ import (
 	"github.com/cloudradar-monitoring/rport/share/models"
 	"github.com/cloudradar-monitoring/rport/share/random"
 )
+
+const DefaultScriptFileMode = os.FileMode(0744)
 
 type ExecutionInput struct {
 	Client       *clients.Client
@@ -53,7 +56,7 @@ func (e *Executor) CreateScriptOnClient(scriptInput *ExecutionInput) (scriptPath
 		Name:      e.createClientScriptPath(scriptInput.Client, scriptInput.IsPowershell),
 		Content:   scriptInput.ScriptBody,
 		CreateDir: true,
-		Mode:      0744,
+		Mode:      DefaultScriptFileMode,
 	}
 
 	sshResp := &comm.CreateFileResponse{}
