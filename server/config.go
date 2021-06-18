@@ -49,7 +49,7 @@ const (
 	MinKeepLostClients = time.Second
 	MaxKeepLostClients = 7 * 24 * time.Hour
 
-	DefaultVaultDBName = "vault-db.sqlite3"
+	DefaultVaultDBName = "vault.sqlite.db"
 
 	socketPrefix = "socket:"
 )

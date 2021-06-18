@@ -188,7 +188,7 @@ var serverHelp = `
     Config file should be in TOML format. You can find an example "rportd.example.conf" in the release archive.
 
     --vault-db-name, An optional flag to provide full path to a secure vault database in sqlite format. 
-	The default value is 'vault-db.sqlite3' in --data-dir path.
+	The default value is 'vault.sqlite.db' in --data-dir path.
 
     --help, -h, This help text
 
