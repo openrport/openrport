@@ -31,10 +31,7 @@ type SqliteProvider struct {
 }
 
 func NewSqliteProvider(c Config, logger *chshare.Logger) (*SqliteProvider, error) {
-	dbPath := c.GetDatabasePath()
-	if dbPath == "" {
-		dbPath = defaultDBName
-	}
+	dbPath := GetDatabasePath(c)
 
 	db, err := sqlite.New(dbPath, vaults.AssetNames(), vaults.Asset)
 	if err != nil {
@@ -44,6 +41,14 @@ func NewSqliteProvider(c Config, logger *chshare.Logger) (*SqliteProvider, error
 	logger.Infof("initialized database at %s", dbPath)
 
 	return &SqliteProvider{logger: logger, db: db}, nil
+}
+
+func GetDatabasePath(c Config) string {
+	dbPath := c.GetDatabasePath()
+	if dbPath == "" {
+		dbPath = defaultDBName
+	}
+	return dbPath
 }
 
 func (p *SqliteProvider) Close() error {
