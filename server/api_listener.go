@@ -108,16 +108,16 @@ func NewAPIListener(
 
 	vaultDBProviderFactory := vault.NewStatefulDbProviderFactory(
 		func() (vault.DbProvider, error) {
-			return vault.NewSqliteProvider(config.Vault, vaultLogger)
+			return vault.NewSqliteProvider(config, vaultLogger)
 		},
 		&vault.NotInitDbProvider{},
 	)
 
 	// init vault DB if it already exists
 	fs := files.NewFileSystem()
-	exist, err := fs.Exist(vault.GetDatabasePath(config.Vault))
+	exist, err := fs.Exist(config.GetVaultDBPath())
 	if err != nil {
-		return nil, fmt.Errorf("failed to check if vault DB %q exists: %v", vault.GetDatabasePath(config.Vault), err)
+		return nil, fmt.Errorf("failed to check if vault DB %q exists: %v", config.GetVaultDBPath(), err)
 	}
 	if exist {
 		err := vaultDBProviderFactory.Init()

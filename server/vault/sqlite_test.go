@@ -22,7 +22,7 @@ var testLog = chshare.NewLogger("vault", chshare.LogOutput{File: os.Stdout}, chs
 type configMock struct {
 }
 
-func (cm configMock) GetDatabasePath() string {
+func (cm configMock) GetVaultDBPath() string {
 	return ":memory:"
 }
 

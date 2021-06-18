@@ -10,6 +10,7 @@ import (
 	"net/http"
 	"net/smtp"
 	"net/url"
+	"path"
 	"strings"
 	"time"
 
@@ -47,6 +48,8 @@ func (c *APIConfig) IsTwoFAOn() bool {
 const (
 	MinKeepLostClients = time.Second
 	MaxKeepLostClients = 7 * 24 * time.Hour
+
+	DefaultVaultDBName = "vault-db.sqlite3"
 
 	socketPrefix = "socket:"
 )
@@ -186,10 +189,6 @@ type VaultConfig struct {
 	DBName string `mapstructure:"db_name"`
 }
 
-func (vc VaultConfig) GetDatabasePath() string {
-	return vc.DBName
-}
-
 type Config struct {
 	Server   ServerConfig   `mapstructure:"server"`
 	Logging  LogConfig      `mapstructure:"logging"`
@@ -198,6 +197,13 @@ type Config struct {
 	Pushover PushoverConfig `mapstructure:"pushover"`
 	SMTP     SMTPConfig     `mapstructure:"smtp"`
 	Vault    VaultConfig    `mapstructure:"vault"`
+}
+
+func (c *Config) GetVaultDBPath() string {
+	if c.Vault.DBName != "" {
+		return c.Vault.DBName
+	}
+	return path.Join(c.Server.DataDir, DefaultVaultDBName)
 }
 
 func (c *Config) InitRequestLogOptions() *requestlog.Options {
