@@ -18,8 +18,6 @@ import (
 	errors2 "github.com/cloudradar-monitoring/rport/server/api/errors"
 )
 
-const defaultDBName = "vault.sqlite3"
-
 var supportedFields = map[string]bool{
 	"id":         true,
 	"client_id":  true,
@@ -34,7 +32,7 @@ var WrongPasswordError = errors2.APIError{
 }
 
 type Config interface {
-	GetDatabasePath() string
+	GetVaultDBPath() string
 }
 
 type UserDataProvider interface {

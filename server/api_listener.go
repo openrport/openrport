@@ -14,6 +14,7 @@ import (
 	"time"
 
 	"github.com/cloudradar-monitoring/rport/server/script"
+	"github.com/cloudradar-monitoring/rport/share/files"
 
 	"github.com/gorilla/handlers"
 	"github.com/gorilla/mux"
@@ -107,10 +108,23 @@ func NewAPIListener(
 
 	vaultDBProviderFactory := vault.NewStatefulDbProviderFactory(
 		func() (vault.DbProvider, error) {
-			return vault.NewSqliteProvider(config.Vault, vaultLogger)
+			return vault.NewSqliteProvider(config, vaultLogger)
 		},
 		&vault.NotInitDbProvider{},
 	)
+
+	// init vault DB if it already exists
+	fs := files.NewFileSystem()
+	exist, err := fs.Exist(config.GetVaultDBPath())
+	if err != nil {
+		return nil, fmt.Errorf("failed to check if vault DB %q exists: %v", config.GetVaultDBPath(), err)
+	}
+	if exist {
+		err := vaultDBProviderFactory.Init()
+		if err != nil {
+			return nil, err
+		}
+	}
 
 	scriptLogger := chshare.NewLogger("scripts", config.Logging.LogOutput, config.Logging.LogLevel)
 	scriptDb, err := script.NewSqliteProvider(path.Join(config.Server.DataDir, "scripts.db"), scriptLogger)
