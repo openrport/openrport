@@ -187,9 +187,6 @@ var serverHelp = `
     configuration will be loaded from the file. Note: command arguments and env variables will override them.
     Config file should be in TOML format. You can find an example "rportd.example.conf" in the release archive.
 
-    --vault-db-name, An optional flag to provide full path to a secure vault database in sqlite format. 
-	The default value is 'vault.sqlite.db' in --data-dir path.
-
     --help, -h, This help text
 
     --version, Print version info and exit
@@ -254,7 +251,6 @@ func init() {
 	pFlags.Bool("equate-clientauthid-clientid", false, "")
 	pFlags.Int("run-remote-cmd-timeout-sec", 0, "")
 	pFlags.Bool("allow-root", false, "")
-	pFlags.String("vault-db-name", "", "")
 
 	cfgPath = pFlags.StringP("config", "c", "", "")
 	svcCommand = pFlags.String("service", "", "")
@@ -333,7 +329,6 @@ func bindPFlags() {
 	_ = viperCfg.BindPFlag("database.db_host", pFlags.Lookup("db-host"))
 	_ = viperCfg.BindPFlag("database.db_user", pFlags.Lookup("db-user"))
 	_ = viperCfg.BindPFlag("database.db_password", pFlags.Lookup("db-password"))
-	_ = viperCfg.BindPFlag("vault.db_name", pFlags.Lookup("vault-db-name"))
 }
 
 func main() {

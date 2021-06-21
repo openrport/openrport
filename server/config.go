@@ -185,10 +185,6 @@ func (c *SMTPConfig) Validate() error {
 	return nil
 }
 
-type VaultConfig struct {
-	DBName string `mapstructure:"db_name"`
-}
-
 type Config struct {
 	Server   ServerConfig   `mapstructure:"server"`
 	Logging  LogConfig      `mapstructure:"logging"`
@@ -196,13 +192,9 @@ type Config struct {
 	Database DatabaseConfig `mapstructure:"database"`
 	Pushover PushoverConfig `mapstructure:"pushover"`
 	SMTP     SMTPConfig     `mapstructure:"smtp"`
-	Vault    VaultConfig    `mapstructure:"vault"`
 }
 
 func (c *Config) GetVaultDBPath() string {
-	if c.Vault.DBName != "" {
-		return c.Vault.DBName
-	}
 	return path.Join(c.Server.DataDir, DefaultVaultDBName)
 }
 
