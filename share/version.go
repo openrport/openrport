@@ -6,4 +6,6 @@ package chshare
 //mismatch.
 const ProtocolVersion = "rport-v1"
 
-var BuildVersion = "0.0.0-src"
+// BuildVersion represents a current build version. It can be overridden by CI workflow.
+var BuildVersion = SourceVersion
+var SourceVersion = "0.0.0-src"

@@ -57,6 +57,8 @@ const (
 	ErrCodeMissingRouteVar = "ERR_CODE_MISSING_ROUTE_VAR"
 	ErrCodeInvalidRequest  = "ERR_CODE_INVALID_REQUEST"
 	ErrCodeAlreadyExist    = "ERR_CODE_ALREADY_EXIST"
+
+	minVersionScriptExecSupport = "0.1.35"
 )
 
 var validInputShell = []string{"cmd", "powershell"}
@@ -1384,8 +1386,14 @@ func (al *APIListener) createScriptExecutionInputFromRequest(req *http.Request) 
 	if client == nil {
 		return nil, errors2.APIError{
 			Message: fmt.Sprintf("Active client with id=%q not found.", clientID),
-			Err:     err,
 			Code:    http.StatusNotFound,
+		}
+	}
+
+	if client.Version != chshare.SourceVersion && client.Version < minVersionScriptExecSupport {
+		return nil, errors2.APIError{
+			Message: fmt.Sprintf("Script Execution is supported starting from %s version, current client version is %s.", minVersionScriptExecSupport, client.Version),
+			Code:    http.StatusBadRequest,
 		}
 	}
 
