@@ -1,6 +1,7 @@
 package message
 
 import (
+	"context"
 	"errors"
 	"fmt"
 	"net/http"
@@ -23,9 +24,10 @@ func NewPushoverService(apiToken string) *PushoverService {
 
 const pushoverAPISuccessStatus = 1
 
-func (s *PushoverService) Send(title, msg, receiver string) error {
+func (s *PushoverService) Send(ctx context.Context, title, msg, receiver string) error {
 	pMsg := pushover.NewMessageWithTitle(msg, title)
 	pReceiver := pushover.NewRecipient(receiver)
+	// TODO: pass ctx when pushover lib will support it
 	resp, err := s.p.SendMessage(pMsg, pReceiver)
 	if err != nil {
 		// ErrHTTPPushover means pushover API call returned 5xx
@@ -57,12 +59,13 @@ func (s *PushoverService) DeliveryMethod() string {
 	return "pushover"
 }
 
-func (s *PushoverService) ValidateReceiver(pushoverUserKey string) error {
+func (s *PushoverService) ValidateReceiver(ctx context.Context, pushoverUserKey string) error {
 	if pushoverUserKey == "" {
 		return errors.New("pushover user key cannot be empty")
 	}
 
 	r := pushover.NewRecipient(pushoverUserKey)
+	// TODO: pass ctx when pushover lib will support it
 	resp, err := s.p.GetRecipientDetails(r)
 	if err != nil {
 		return fmt.Errorf("failed to validate pushover user key: %w", err)

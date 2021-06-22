@@ -1,6 +1,7 @@
 package message
 
 import (
+	"context"
 	"crypto/tls"
 	"fmt"
 	"net"
@@ -40,7 +41,7 @@ func NewSMTPService(hostPort, username, password, fromEmail string, withTLS bool
 	return s, nil
 }
 
-func (s *SMTPService) Send(title, msg, receiver string) error {
+func (s *SMTPService) Send(ctx context.Context, title, msg, receiver string) error {
 	e := &email.Email{
 		From:    s.From,
 		To:      []string{receiver},
@@ -67,6 +68,6 @@ func (s *SMTPService) DeliveryMethod() string {
 	return "email"
 }
 
-func (s *SMTPService) ValidateReceiver(email string) error {
+func (s *SMTPService) ValidateReceiver(ctx context.Context, email string) error {
 	return email2.Validate(email)
 }

@@ -1,6 +1,7 @@
 package users
 
 import (
+	"context"
 	"fmt"
 	"net/http"
 	"strings"
@@ -110,7 +111,8 @@ func (as *APIService) validate(dataToChange *User, usernameToFind string) error 
 	}
 
 	if dataToChange.TwoFASendTo != "" && as.DeliverySrv != nil {
-		err := as.DeliverySrv.ValidateReceiver(dataToChange.TwoFASendTo)
+		// TODO: use proper ctx when it will be propagated
+		err := as.DeliverySrv.ValidateReceiver(context.Background(), dataToChange.TwoFASendTo)
 		if err != nil {
 			errs = append(errs, errors2.APIError{
 				Err:  fmt.Errorf("invalid two_fa_send_to: %v", err),
