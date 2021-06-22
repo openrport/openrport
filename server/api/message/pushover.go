@@ -4,7 +4,6 @@ import (
 	"errors"
 	"fmt"
 	"net/http"
-	"strings"
 
 	"github.com/gregdel/pushover"
 
@@ -29,25 +28,29 @@ func (s *PushoverService) Send(title, msg, receiver string) error {
 	pReceiver := pushover.NewRecipient(receiver)
 	resp, err := s.p.SendMessage(pMsg, pReceiver)
 	if err != nil {
-		// pushover custom errors from github.com/gregdel/pushover can be identified by 'pushover' string in it
-		isPushoverCustomErr := strings.Contains(err.Error(), "pushover")
-		if isPushoverCustomErr {
+		// ErrHTTPPushover means pushover API call returned 5xx
+		if errors.Is(err, pushover.ErrHTTPPushover) {
+			return errors2.APIError{
+				Message: "pushover service unavailable",
+				Code:    http.StatusServiceUnavailable,
+			}
+		}
+
+		if is400(err) {
 			return errors2.APIError{
 				Err:  err,
 				Code: http.StatusBadRequest,
 			}
 		}
+
 		return err
 	}
 
-	if resp.Status == pushoverAPISuccessStatus {
-		return nil
+	if resp != nil && resp.Status != pushoverAPISuccessStatus {
+		return fmt.Errorf("failed to send msg, pushover response: %+v", *resp)
 	}
 
-	return errors2.APIError{
-		Message: fmt.Sprintf("failed to send msg, request: %s, status: %v, receipt: %s, errors: %v", resp.ID, resp.Status, resp.Receipt, resp.Errors),
-		Code:    http.StatusBadRequest,
-	}
+	return nil
 }
 
 func (s *PushoverService) DeliveryMethod() string {
@@ -70,4 +73,38 @@ func (s *PushoverService) ValidateReceiver(pushoverUserKey string) error {
 	}
 
 	return nil
+}
+
+var pushover400Errs = []error{
+	pushover.ErrEmptyToken,
+	pushover.ErrEmptyURL,
+	pushover.ErrEmptyRecipientToken,
+	pushover.ErrInvalidRecipientToken,
+	pushover.ErrInvalidRecipient,
+	pushover.ErrInvalidPriority,
+	pushover.ErrInvalidToken,
+	pushover.ErrMessageEmpty,
+	pushover.ErrMessageTitleTooLong,
+	pushover.ErrMessageTooLong,
+	pushover.ErrMessageAttachmentTooLarge,
+	pushover.ErrMessageURLTitleTooLong,
+	pushover.ErrMessageURLTooLong,
+	pushover.ErrMissingAttachment,
+	pushover.ErrMissingEmergencyParameter,
+	pushover.ErrInvalidDeviceName,
+	pushover.ErrEmptyReceipt,
+}
+
+func is400(err error) bool {
+	if errors.As(err, &pushover.Errors{}) {
+		return true
+	}
+
+	for _, curErr := range pushover400Errs {
+		if errors.Is(err, curErr) {
+			return true
+		}
+	}
+
+	return false
 }
