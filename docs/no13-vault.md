@@ -18,7 +18,7 @@ He should provide password which he used on init stage. If a wrong password is p
 
 - Any authorized user can get the stored secure value by provided id [vault get api](https://petstore.swagger.io/?url=https://raw.githubusercontent.com/cloudradar-monitoring/rport/master/api-doc.yml#/Vault)
 
-Any user beloning to the Administrators group can init, lock and unlock Vault. Any authorized user can read, store, delete values in an unlocked and initialized Vault. The only exception from this rule is if a value is stored with a non-empty `required_group` field, in this case the access will be allowed only to the users belonging to the specified `required_group` value.
+Any user belonging to the Administrators group can init, lock and unlock Vault. Any authorized user can read, store, delete values in an unlocked and initialized Vault. The only exception from this rule is if a value is stored with a non-empty `required_group` field, in this case the access will be allowed only to the users belonging to the specified `required_group` value.
 
 ## Admin API Usage
 The `/vault-admin` endpoints allow you to initialize, lock, unlock and read status of RPort vault.
@@ -77,7 +77,7 @@ curl -X DELETE 'http://localhost:3000/api/v1/vault-admin/sesame' \
 
 ### Unlock
 [Administrator access]
-This operation unlocks the vault. Administrator has to provide same password he used for the vault initialization. Rport will check the password validity and reject the request if a wrong password is provided. If administrator looses the password, all access to the data will be lost, so it should be kept in a secure place. If a correct password is provided, the vault will become fully functional.
+This operation unlocks the vault. Administrator has to provide same password he used for the vault initialization. Rport will check the password validity and reject the request if a wrong password is provided. If administrator loses the password, all access to the data will be lost, so it should be kept in a secure place. If a correct password is provided, the vault will become fully functional.
 
 ```
 curl -X POST 'http://localhost:3000/api/v1/vault-admin/sesame' \

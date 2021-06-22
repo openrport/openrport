@@ -48,7 +48,7 @@ paths:
           in: "query"
           description: "initial lifetime of JWT token in seconds. Max value is 90 days. Default: 10 min"
           required: false
-          default: 360
+          default: 600
           maximum: 7776000
           type: "integer"
       produces:
@@ -83,7 +83,7 @@ paths:
           in: "query"
           description: "initial lifetime of JWT token in seconds. Max value is 90 days. Default: 10 min"
           required: false
-          default: 360
+          default: 600
           maximum: 7776000
           type: "integer"
       produces:
@@ -137,7 +137,7 @@ paths:
           in: "query"
           description: "initial lifetime of JWT token in seconds. Max value is 90 days. Default: 10 min"
           required: false
-          default: 360
+          default: 600
           maximum: 7776000
           type: "integer"
         - in: "body"
