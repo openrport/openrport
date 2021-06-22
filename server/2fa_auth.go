@@ -1,6 +1,7 @@
 package chserver
 
 import (
+	"context"
 	"crypto/subtle"
 	"fmt"
 	"net/http"
@@ -38,7 +39,7 @@ type expirableToken struct {
 const twoFATokenLength = 6
 
 // TODO: add tests
-func (srv *TwoFAService) SendToken(username string) (sendTo string, err error) {
+func (srv *TwoFAService) SendToken(ctx context.Context, username string) (sendTo string, err error) {
 	if username == "" {
 		return "", errors2.APIError{
 			Message: "username cannot be empty",
@@ -70,7 +71,7 @@ func (srv *TwoFAService) SendToken(username string) (sendTo string, err error) {
 	}
 
 	msg := fmt.Sprintf("Verification code: %s (valid %s)", token, srv.TokenTTL)
-	if err := srv.MsgSrv.Send("Rport 2FA", msg, user.TwoFASendTo); err != nil {
+	if err := srv.MsgSrv.Send(ctx, "Rport 2FA", msg, user.TwoFASendTo); err != nil {
 		return "", fmt.Errorf("failed to send 2fa verification code: %w", err)
 	}
 

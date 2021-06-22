@@ -4,6 +4,7 @@
 The Rportd API support two ways of authentication.
 1. HTTP Basic Auth
 2. Bearer Token Auth
+3. Two-Factor Auth
 ### HTTP Basic Auth
 The API claims to be REST compliant. Submitting credentials on each request using an HTTP basic auth header is therefore possible, for example
 ```
@@ -36,6 +37,64 @@ Rportd holds the tokens in memory. Restarting rportd deletes (expires) them all.
 
 Tokens are based on JWT. For your security, you should enter a unique `jwt_secret` into the `rportd.conf`. Do not use the provided sample secret in a production environment.
 
+### Two-Factor Auth
+If you want an extra layer of security then you can enable 2FA. It allows you to confirm your login with a verification code sent by a chosen delivery method.
+Supported delivery methods:
+1. email (requires [SMTP setup](no15-messaging.md#smtp))
+2. [pushover.net](https://pushover.net) (requires [Pushover setup](no15-messaging.md#pushover))
+
+By default, 2FA is disabled.
+
+#### How to enable 2FA?
+1. Choose a desired delivery method. Enter the following lines to the `rportd.config` in the `[api]` section, for example:
+   ```
+   two_fa_token_delivery = 'smtp'
+   two_fa_token_ttl_seconds = 600
+   ```
+   Use either `'smtp'` or `'pushover'`.
+   `two_fa_token_ttl_seconds` is an optional param for a lifetime of 2FA verification code. By default, 600 seconds.
+2. Set up a valid [SMTP](no15-messaging.md#smtp) or [Pushover](no15-messaging.md#pushover) config.
+3. 2FA is not available if you use [a single static user-password pair](no02-api-auth.md#hardcoded-single-user).
+4. Your user-password store ([json file](no02-api-auth.md#user-file) or [DB table](no02-api-auth.md#database)) needs an additional field `two_fa_send_to`.
+   It should hold an email or pushover user key that is used to send 2FA verification code to a user.
+5. Your user's `two_fa_send_to` field needs to contain a valid email or pushover user key.
+6. Restart the server.
+
+#### How to use it?
+1. Using 2FA will disable HTTP basic auth on all API endpoints except [`/login`](https://petstore.swagger.io/?url=https://raw.githubusercontent.com/cloudradar-monitoring/rport/master/api-doc.yml#/Login/get_login).
+Login endpoints trigger sending 2FA verification code to a user. For example,
+```
+curl -s -u admin:foobaz http://localhost:3000/api/v1/login|jq
+{
+  "data": {
+    "token": null,
+    "two_fa": {
+      "send_to": "my.email@gmail.com",
+      "delivery_method": "email"
+    }
+  }
+}
+```
+2. Wait for an email with `Rport 2FA` subject with a content like:
+```
+Verification code: 05Nfqm (valid 10m0s)
+```
+3. Verify this code using [`/verify-2fa`](https://petstore.swagger.io/?url=https://raw.githubusercontent.com/cloudradar-monitoring/rport/master/api-doc.yml#/Login/post_verify_2fa) endpoint.
+It returns an auth JWT token that can be further used for any requests as listed in [here](no02-api-auth.md#bearer-token-auth). For example,
+```
+curl -s http://localhost:3000/api/v1/verify-2fa -H "Content-Type: application/json" -X POST \
+--data-raw '{
+"username": "admin",
+"token": "05Nfqm"
+}'|jq
+{
+  "data": {
+    "token": "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJ1c2VybmFtZSI6ImFkbWluIiwianRpIjoiMTcwMTc0MjY4MTkxNTQwMDA2NjQifQ.IhOK2leOdCXK5jvAO9aWEcpZ0kanpSkSbRpufha8soc",
+    "two_fa": null
+  }
+}
+```
+
 ## Storing credentials, managing users
 The Rportd can read user credentials from three different sources.
 1. A "hardcoded" single user with a plaintext password
@@ -55,7 +114,9 @@ Quite simple. Now you can log in to the API using the username `admin` and the p
 
 ### User File
 If you want to have more than one user, create a json file with the following structure.
-```
+:::: code-group
+::: code-group-item 2FA off
+```json
 [
     {
         "username": "Admin",
@@ -74,6 +135,32 @@ If you want to have more than one user, create a json file with the following st
     }
 ]
 ```
+:::
+::: code-group-item 2FA on
+```json
+[
+    {
+        "username": "Admin",
+        "password": "$2y$10$ezwCZekHE/qxMb4g9n6rU.XIIdCnHnOo.q2wqqA8LyYf3ihonenmu",
+        "groups": [
+            "Administrators",
+            "Bunnies"
+        ],
+        "two_fa_send_to": "my.email@gmail.com"
+    },
+    {
+        "username": "Bunny",
+        "password": "$2y$10$ezwCZekHE/qxMb4g9n6rU.XIIdCnHnOo.q2wqqA8LyYf3ihonenmu",
+        "groups": [
+            "Bunnies"
+        ],
+        "two_fa_send_to": "super.bunny@gmail.com"
+    }
+]
+```
+:::
+::::
+
 Using `/var/lib/rport/api-auth.json` or `C:\Program Files\rport\api-auth.json` is a good choice.
 
 Enter the following line to your `rportd.config` in the `[api]` section.
@@ -102,10 +189,20 @@ Rport has no special demands on the database or the table layout.
 The tables must be created manually.
 
 Each time a http basic auth request is received, rport executes these two queries.
+:::: code-group
+::: code-group-item 2FA off
 ```
 SELECT username,password FROM {user-table} WHERE username='{username}' LIMIT 1;
 SELECT DISTINCT(group) FROM {group-table} WHERE username='{username}';
 ```
+:::
+::: code-group-item 2FA on
+```
+SELECT username,password,two_fa_send_to FROM {user-table} WHERE username='{username}' LIMIT 1;
+SELECT DISTINCT(group) FROM {group-table} WHERE username='{username}';
+```
+:::
+::::
 The password must be bcrypt-hashed.
 
 To use the database authentication you must setup a global database connection in the `[database]` section of `rportd.config` first.
@@ -120,7 +217,9 @@ Reload rportd to apply all changes.
 
 #### MySQL Example
 Create table. Change column types and lengths to your needs.
-```sql
+:::: code-group
+::: code-group-item 2FA off
+```mysql
 CREATE TABLE `users` (
   `username` varchar(150) NOT NULL,
   `password` varchar(255) NOT NULL,
@@ -132,6 +231,23 @@ CREATE TABLE `groups` (
   UNIQUE KEY `username_group` (`username`,`group`)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8;
 ```
+:::
+::: code-group-item 2FA on
+```mysql
+CREATE TABLE `users` (
+  `username` varchar(150) NOT NULL,
+  `password` varchar(255) NOT NULL,
+  `two_fa_send_to` varchar(150),
+  UNIQUE KEY `username` (`username`)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8;
+CREATE TABLE `groups` (
+  `username` varchar(150) NOT NULL,
+  `group` varchar(150) NOT NULL,
+  UNIQUE KEY `username_group` (`username`,`group`)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8;
+```
+:::
+::::
 
 
 #### SQLite Example
@@ -162,7 +278,9 @@ Enter ".help" for usage hints.
 sqlite> 
 ```
 
-```sql
+:::: code-group
+::: code-group-item 2FA off
+```sqlite
 CREATE TABLE "users" (
   "username" TEXT(150) NOT NULL,
   "password" TEXT(255) NOT NULL
@@ -181,6 +299,30 @@ ON "groups" (
   "group" ASC
 );
 ```
+:::
+::: code-group-item 2FA on
+```sqlite
+CREATE TABLE "users" (
+  "username" TEXT(150) NOT NULL,
+  "password" TEXT(255) NOT NULL,
+  "two_fa_send_to" TEXT(150)
+);
+CREATE UNIQUE INDEX "main"."username"
+ON "users" (
+  "username" ASC
+);
+CREATE TABLE "groups" (
+  "username" TEXT(150) NOT NULL,
+  "group" TEXT(150) NOT NULL
+);
+CREATE UNIQUE INDEX "main"."username_group"
+ON "groups" (
+  "username" ASC,
+  "group" ASC
+);
+```
+:::
+::::
 
 Sqlite does not print any confirmation. To confirm your tables have been created execute:
 ```
@@ -190,10 +332,21 @@ groups
 ```
 
 Now insert the first user:
+:::: code-group
+::: code-group-item 2FA off
 ```
 sqlite> INSERT INTO users VALUES('admin','$2y$05$zfvuP4PvjsNWTqRFLdswEeRzETE2KiZONJQyVn7T3ZV5qcYAlmNWO');
 sqlite> INSERT INTO groups VALUES('admin','Administrators');
 ```
+:::
+::: code-group-item 2FA on
+```
+sqlite> INSERT INTO users VALUES('admin','$2y$05$zfvuP4PvjsNWTqRFLdswEeRzETE2KiZONJQyVn7T3ZV5qcYAlmNWO','my.email@gmail.com');
+sqlite> INSERT INTO groups VALUES('admin','Administrators');
+```
+:::
+::::
+
 This creates a user `admin` with the password `password`. To use another password, create the appropriate bcrypt hash [here](https://bcrypt-generator.com/).
 
 #### API Usage examples

@@ -1,6 +1,7 @@
 package chserver
 
 import (
+	"context"
 	"crypto/rand"
 	"crypto/sha256"
 	"crypto/tls"
@@ -110,7 +111,7 @@ func (c *PushoverConfig) Validate() error {
 	}
 
 	p := message.NewPushoverService(c.APIToken)
-	err := p.ValidateReceiver(c.UserKey)
+	err := p.ValidateReceiver(context.Background(), c.UserKey)
 	if err != nil {
 		return fmt.Errorf("invalid pushover.api_token and pushover.user_key: %v", err)
 

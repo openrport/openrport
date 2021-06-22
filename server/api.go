@@ -332,7 +332,7 @@ func (al *APIListener) handleLogin(username, pwd string, w http.ResponseWriter, 
 	}
 
 	if al.config.API.IsTwoFAOn() {
-		sendTo, err := al.twoFASrv.SendToken(username)
+		sendTo, err := al.twoFASrv.SendToken(req.Context(), username)
 		if err != nil {
 			al.jsonError(w, err)
 			return
