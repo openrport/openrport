@@ -68,6 +68,7 @@ type ServerConfig struct {
 	AuthFile                   string        `mapstructure:"auth_file"`
 	AuthTable                  string        `mapstructure:"auth_table"`
 	Proxy                      string        `mapstructure:"proxy"`
+	UsedPortsRaw               []string      `mapstructure:"used_ports"`
 	ExcludedPortsRaw           []string      `mapstructure:"excluded_ports"`
 	DataDir                    string        `mapstructure:"data_dir"`
 	KeepLostClients            time.Duration `mapstructure:"keep_lost_clients"`
@@ -84,9 +85,9 @@ type ServerConfig struct {
 	BanTime                    int           `mapstructure:"ban_time"`
 	EnableWsTestEndpoints      bool          `mapstructure:"enable_ws_test_endpoints"`
 
-	excludedPorts mapset.Set
-	authID        string
-	authPassword  string
+	allowedPorts mapset.Set
+	authID       string
+	authPassword string
 }
 
 type DatabaseConfig struct {
@@ -208,8 +209,8 @@ func (c *Config) InitRequestLogOptions() *requestlog.Options {
 	return &o
 }
 
-func (c *Config) ExcludedPorts() mapset.Set {
-	return c.Server.excludedPorts
+func (c *Config) AllowedPorts() mapset.Set {
+	return c.Server.allowedPorts
 }
 
 func (c *Config) ParseAndValidate() error {
@@ -224,11 +225,9 @@ func (c *Config) ParseAndValidate() error {
 		return fmt.Errorf("invalid connection url %s. must be absolute url", u)
 	}
 
-	excludedPorts, err := ports.TryParsePortRanges(c.Server.ExcludedPortsRaw)
-	if err != nil {
-		return fmt.Errorf("can't parse excluded ports: %s", err)
+	if err := c.Server.parseAndValidatePorts(); err != nil {
+		return err
 	}
-	c.Server.excludedPorts = excludedPorts
 
 	if c.Server.DataDir == "" {
 		return errors.New("'data directory path' cannot be empty")
@@ -376,6 +375,26 @@ func (c *Config) parseAndValidateAPIHTTPSOptions() error {
 	if err != nil {
 		return fmt.Errorf("invalid 'cert_file', 'key_file': %v", err)
 	}
+	return nil
+}
+
+func (c *ServerConfig) parseAndValidatePorts() error {
+	usedPorts, err := ports.TryParsePortRanges(c.UsedPortsRaw)
+	if err != nil {
+		return fmt.Errorf("can't parse 'used_ports': %s", err)
+	}
+
+	excludedPorts, err := ports.TryParsePortRanges(c.ExcludedPortsRaw)
+	if err != nil {
+		return fmt.Errorf("can't parse 'excluded_ports': %s", err)
+	}
+
+	c.allowedPorts = usedPorts.Difference(excludedPorts)
+
+	if c.allowedPorts.Cardinality() == 0 {
+		return errors.New("invalid 'used_ports', 'excluded_ports': at least one port should be available for port assignment")
+	}
+
 	return nil
 }
 

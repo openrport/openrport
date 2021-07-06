@@ -2,7 +2,6 @@ package ports
 
 import (
 	"fmt"
-	"math"
 
 	mapset "github.com/deckarep/golang-set"
 	"github.com/shirou/gopsutil/net"
@@ -13,9 +12,9 @@ type PortDistributor struct {
 	portsPool    mapset.Set
 }
 
-func NewPortDistributor(excludedPorts mapset.Set) *PortDistributor {
+func NewPortDistributor(allowedPorts mapset.Set) *PortDistributor {
 	return &PortDistributor{
-		allowedPorts: setFromRange(1, math.MaxUint16).Difference(excludedPorts),
+		allowedPorts: allowedPorts,
 	}
 }
 

@@ -4,7 +4,9 @@ import (
 	"errors"
 	"testing"
 
+	mapset "github.com/deckarep/golang-set"
 	"github.com/stretchr/testify/assert"
+	"github.com/stretchr/testify/require"
 )
 
 var defaultValidMinServerConfig = ServerConfig{
@@ -334,6 +336,105 @@ func TestParseAndValidateAPI(t *testing.T) {
 			assert.Equal(t, tc.ExpectedError, err)
 			if tc.ExpectedJwtSecret {
 				assert.NotEmpty(t, tc.Config.API.JWTSecret)
+			}
+		})
+	}
+}
+
+func TestParseAndValidatePorts(t *testing.T) {
+	testCases := []struct {
+		Name                      string
+		Config                    ServerConfig
+		ExpectedAllowedPorts      mapset.Set
+		ExpectedAllowedPortsCount int
+		ExpectedErrorStr          string
+	}{
+		{
+			Name: "default values",
+			Config: ServerConfig{
+				UsedPortsRaw:     []string{"20000-30000"},
+				ExcludedPortsRaw: []string{"1-1024"},
+			},
+			ExpectedAllowedPortsCount: 10001,
+		},
+		{
+			Name: "excluded ports ignored",
+			Config: ServerConfig{
+				UsedPortsRaw:     []string{"45-50"},
+				ExcludedPortsRaw: []string{"1-10", "44", "51", "80-90"},
+			},
+			ExpectedAllowedPorts: mapset.NewThreadUnsafeSetFromSlice([]interface{}{45, 46, 47, 48, 49, 50}),
+		},
+		{
+			Name: "used ports and excluded ports",
+			Config: ServerConfig{
+				UsedPortsRaw:     []string{"100-200", "205", "250-300", "305", "400-500"},
+				ExcludedPortsRaw: []string{"80-110", "114-116", "118", "120-198", "200", "240-310", "305", "401-499"},
+			},
+			ExpectedAllowedPorts: mapset.NewThreadUnsafeSetFromSlice([]interface{}{111, 112, 113, 117, 119, 199, 205, 400, 500}),
+		},
+		{
+			Name: "excluded ports empty",
+			Config: ServerConfig{
+				UsedPortsRaw:     []string{"45-46"},
+				ExcludedPortsRaw: []string{},
+			},
+			ExpectedAllowedPorts: mapset.NewThreadUnsafeSetFromSlice([]interface{}{45, 46}),
+		},
+		{
+			Name: "one allowed port",
+			Config: ServerConfig{
+				UsedPortsRaw:     []string{"20000"},
+				ExcludedPortsRaw: []string{},
+			},
+			ExpectedAllowedPorts: mapset.NewThreadUnsafeSetFromSlice([]interface{}{20000}),
+		},
+		{
+			Name: "both empty",
+			Config: ServerConfig{
+				UsedPortsRaw:     []string{},
+				ExcludedPortsRaw: []string{},
+			},
+			ExpectedErrorStr: "invalid 'used_ports', 'excluded_ports': at least one port should be available for port assignment",
+		},
+		{
+			Name: "invalid used ports",
+			Config: ServerConfig{
+				UsedPortsRaw:     []string{"9999999999"},
+				ExcludedPortsRaw: []string{"1-1024"},
+			},
+			ExpectedErrorStr: "can't parse 'used_ports': invalid port number: 9999999999",
+		},
+		{
+			Name: "invalid excluded ports",
+			Config: ServerConfig{
+				UsedPortsRaw:     []string{"10-20"},
+				ExcludedPortsRaw: []string{"a"},
+			},
+			ExpectedErrorStr: `can't parse 'excluded_ports': can't parse port number a: strconv.Atoi: parsing "a": invalid syntax`,
+		},
+		{
+			Name: "no available allowed ports",
+			Config: ServerConfig{
+				UsedPortsRaw:     []string{"1-1024", "20000-30000"},
+				ExcludedPortsRaw: []string{"1-1024", "20000-25000", "25001-29999", "30000"},
+			},
+			ExpectedErrorStr: "invalid 'used_ports', 'excluded_ports': at least one port should be available for port assignment",
+		},
+	}
+
+	for _, tc := range testCases {
+		t.Run(tc.Name, func(t *testing.T) {
+			actualErr := tc.Config.parseAndValidatePorts()
+			if tc.ExpectedErrorStr != "" {
+				require.EqualError(t, actualErr, tc.ExpectedErrorStr)
+			} else {
+				require.NoError(t, actualErr)
+				if tc.ExpectedAllowedPorts != nil {
+					assert.EqualValues(t, tc.ExpectedAllowedPorts, tc.Config.allowedPorts)
+				} else {
+					assert.Equal(t, tc.ExpectedAllowedPortsCount, tc.Config.allowedPorts.Cardinality())
+				}
 			}
 		})
 	}
