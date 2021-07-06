@@ -6,6 +6,7 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
+	"os"
 	"os/exec"
 	"regexp"
 	"runtime"
@@ -15,8 +16,16 @@ import (
 	"github.com/cloudradar-monitoring/rport/share/models"
 )
 
+type CmdExecutorContext struct {
+	Shell      string
+	Command    string
+	WorkingDir string
+	IsSudo     bool
+	IsScript   bool
+}
+
 type CmdExecutor interface {
-	New(ctx context.Context, shell, cmd, cwd string, isSudo bool) *exec.Cmd
+	New(ctx context.Context, execCtx *CmdExecutorContext) *exec.Cmd
 	Start(cmd *exec.Cmd) error
 	Wait(cmd *exec.Cmd) error
 }
@@ -36,17 +45,42 @@ func (e *CmdExecutorImpl) Wait(cmd *exec.Cmd) error {
 	return cmd.Wait()
 }
 
-func (e *CmdExecutorImpl) newCmd(ctx context.Context, shell, command, cwd string, isSudo bool) *exec.Cmd {
+func (e *CmdExecutorImpl) newCmd(ctx context.Context, execCtx *CmdExecutorContext) *exec.Cmd {
 	var args []string
-	if isSudo {
+	if execCtx.IsSudo {
 		args = append(args, "sudo -n")
 	}
 
-	args = append(args, shellOptions[shell]...)
-	args = append(args, command)
-	cmd := exec.CommandContext(ctx, shell, args...)
-	cmd.Dir = cwd
+	args = append(args, shellOptions[execCtx.Shell]...)
+
+	additionalArgs := getAdditionalArgs(execCtx.IsScript, execCtx.Shell)
+	args = append(args, additionalArgs...)
+
+	args = append(args, execCtx.Command)
+	cmd := exec.CommandContext(ctx, execCtx.Shell, args...)
+	cmd.Dir = execCtx.WorkingDir
 	return cmd
+}
+
+func getAdditionalArgs(isScript bool, shell string) []string {
+	if shell == "" {
+		return []string{}
+	}
+
+	if isScript {
+		scriptOptions, ok := shellOptionsScript[shell]
+		if ok {
+			return scriptOptions
+		}
+		return []string{}
+	}
+
+	commandOptions, ok := shellOptionsCommand[shell]
+	if ok {
+		return commandOptions
+	}
+
+	return []string{}
 }
 
 const (
@@ -61,7 +95,20 @@ var shellOptions = map[string][]string{
 	cmdShell:  {"/c"},
 	powerShell: {
 		"-Noninteractive", // Don't present an interactive prompt to the user.
+		"-executionpolicy",
+		"bypass",
+	},
+}
+
+var shellOptionsCommand = map[string][]string{
+	powerShell: {
 		"-Command",
+	},
+}
+
+var shellOptionsScript = map[string][]string{
+	powerShell: {
+		"-File",
 	},
 }
 
@@ -103,11 +150,20 @@ func (c *Client) HandleRunCmdRequest(ctx context.Context, reqPayload []byte) (*c
 		return nil, fmt.Errorf("command is not allowed: %v", job.Command)
 	}
 
-	cmd := c.cmdExec.New(ctx, job.Shell, job.Command, job.Cwd, job.IsSudo)
+	execCtx := &CmdExecutorContext{
+		Shell:      job.Shell,
+		Command:    job.Command,
+		WorkingDir: job.Cwd,
+		IsSudo:     job.IsSudo,
+		IsScript:   job.IsScript,
+	}
+	cmd := c.cmdExec.New(ctx, execCtx)
 	stdOut := CapacityBuffer{capacity: c.config.RemoteCommands.SendBackLimit}
 	stdErr := CapacityBuffer{capacity: c.config.RemoteCommands.SendBackLimit}
 	cmd.Stdout = &stdOut
 	cmd.Stderr = &stdErr
+
+	c.Debugf("Generated command is %s", cmd.String())
 
 	startedAt := now()
 	err = c.cmdExec.Start(cmd)
@@ -126,6 +182,17 @@ func (c *Client) HandleRunCmdRequest(ctx context.Context, reqPayload []byte) (*c
 
 	// observe the cmd execution in background
 	go func() {
+		if job.IsScript {
+			defer func() {
+				err := os.Remove(job.Command)
+				if err != nil {
+					c.Errorf("failed to delete script %s: %v", job.Command, err)
+				} else {
+					c.Debugf("deleted script %s after execution", job.Command)
+				}
+			}()
+		}
+
 		c.Debugf("started to observe cmd [jid=%q,pid=%d]", job.JID, res.Pid)
 
 		// after timeout stop observing but leave the cmd running
@@ -156,6 +223,7 @@ func (c *Client) HandleRunCmdRequest(ctx context.Context, reqPayload []byte) (*c
 		job.Status = status
 		job.PID = &res.Pid
 		job.StartedAt = startedAt
+
 		job.Result = &models.JobResult{
 			StdOut: stdOut.String(),
 			StdErr: stdErr.String(),

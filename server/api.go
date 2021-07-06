@@ -1294,6 +1294,7 @@ func (al *APIListener) handleExecuteCommand(ctx context.Context, w http.Response
 		Result:     nil,
 		Cwd:        reqBody.Cwd,
 		IsSudo:     reqBody.IsSudo,
+		IsScript:   reqBody.IsScript,
 	}
 	sshResp := &comm.RunCmdResponse{}
 	err = comm.SendRequestAndGetResponse(client.Connection, comm.RequestTypeRunCmd, curJob, sshResp)
@@ -1505,6 +1506,7 @@ type multiClientCmdRequest struct {
 	TimeoutSec          int      `json:"timeout_sec"`
 	ExecuteConcurrently bool     `json:"execute_concurrently"`
 	AbortOnError        *bool    `json:"abort_on_error"` // pointer is used because it's default value is true. Otherwise it would be more difficult to check whether this field is missing or not
+	IsScript            bool
 }
 
 // TODO: refactor to reuse similar code for REST API and WebSocket to execute cmds if both will be supported
@@ -1646,6 +1648,7 @@ func (al *APIListener) executeMultiClientJob(job *models.MultiJob, orderedClient
 				job.Cwd,
 				job.TimeoutSec,
 				job.IsSudo,
+				job.IsScript,
 				client,
 			)
 		} else {
@@ -1657,6 +1660,7 @@ func (al *APIListener) executeMultiClientJob(job *models.MultiJob, orderedClient
 				job.Cwd,
 				job.TimeoutSec,
 				job.IsSudo,
+				job.IsScript,
 				client,
 			)
 			if !success {
@@ -1686,7 +1690,7 @@ func (al *APIListener) executeMultiClientJob(job *models.MultiJob, orderedClient
 func (al *APIListener) createAndRunJob(
 	jid, cmd, shell, createdBy, cwd string,
 	timeoutSec int,
-	isSudo bool,
+	isSudo, isScript bool,
 	client *clients.Client,
 ) bool {
 	// send the command to the client
@@ -1700,6 +1704,7 @@ func (al *APIListener) createAndRunJob(
 		Command:    cmd,
 		Cwd:        cwd,
 		IsSudo:     isSudo,
+		IsScript:   isScript,
 		Shell:      shell,
 		CreatedBy:  createdBy,
 		TimeoutSec: timeoutSec,
@@ -1791,6 +1796,7 @@ func (al *APIListener) handleScriptsWS(w http.ResponseWriter, req *http.Request)
 		TimeoutSec:          cmdInput.TimeoutSec,
 		ExecuteConcurrently: false,
 		AbortOnError:        &abortOnErr,
+		IsScript:            cmdInput.IsScript,
 	}
 
 	al.handleCommandsExecutionWS(ctx, uiConnTS, wsCmdRequest)
@@ -1890,6 +1896,7 @@ func (al *APIListener) handleCommandsExecutionWS(ctx context.Context, uiConnTS *
 			Concurrent: inboundMsg.ExecuteConcurrently,
 			AbortOnErr: abortOnErr,
 			IsSudo:     inboundMsg.IsSudo,
+			IsScript:   inboundMsg.IsScript,
 		}
 		if err := al.jobProvider.SaveMultiJob(multiJob); err != nil {
 			uiConnTS.WriteError("Failed to persist a new multi-client job.", err)
@@ -1923,6 +1930,7 @@ func (al *APIListener) handleCommandsExecutionWS(ctx context.Context, uiConnTS *
 					multiJob.Cwd,
 					multiJob.TimeoutSec,
 					multiJob.IsSudo,
+					multiJob.IsScript,
 					client,
 				)
 			} else {
@@ -1936,6 +1944,7 @@ func (al *APIListener) handleCommandsExecutionWS(ctx context.Context, uiConnTS *
 					multiJob.Cwd,
 					multiJob.TimeoutSec,
 					multiJob.IsSudo,
+					multiJob.IsScript,
 					client,
 				)
 				if !success {
@@ -1964,6 +1973,7 @@ func (al *APIListener) handleCommandsExecutionWS(ctx context.Context, uiConnTS *
 			inboundMsg.Cwd,
 			inboundMsg.TimeoutSec,
 			inboundMsg.IsSudo,
+			inboundMsg.IsScript,
 			orderedClients[0],
 		)
 	}
@@ -1988,7 +1998,7 @@ func (al *APIListener) createAndRunJobWS(
 	multiJobID *string,
 	jid, cmd, shell, createdBy, cwd string,
 	timeoutSec int,
-	isSudo bool,
+	isSudo, isScript bool,
 	client *clients.Client,
 ) bool {
 	curJob := models.Job{
@@ -2005,6 +2015,7 @@ func (al *APIListener) createAndRunJobWS(
 		MultiJobID: multiJobID,
 		Cwd:        cwd,
 		IsSudo:     isSudo,
+		IsScript:   isScript,
 	}
 	logPrefix := curJob.LogPrefix()
 

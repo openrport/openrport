@@ -28,6 +28,7 @@ type Job struct {
 	Error      string     `json:"error"`
 	Result     *JobResult `json:"result"`
 	IsSudo     bool       `json:"sudo"`
+	IsScript   bool       `json:"is_script"`
 }
 
 // JobSummary short info about a job.
@@ -54,6 +55,7 @@ type MultiJob struct {
 	AbortOnErr bool     `json:"abort_on_err"`
 	Jobs       []*Job   `json:"jobs"`
 	IsSudo     bool     `json:"sudo"`
+	IsScript   bool     `json:"is_script"`
 }
 
 type MultiJobSummary struct {

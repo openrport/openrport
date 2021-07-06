@@ -67,4 +67,5 @@ type ExecuteCommandInput struct {
 	IsSudo     bool   `json:"bool"`
 	TimeoutSec int    `json:"timeout_sec"`
 	ClientID   string
+	IsScript   bool
 }
