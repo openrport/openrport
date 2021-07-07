@@ -5,6 +5,7 @@ import (
 	"errors"
 	"net"
 	"net/http"
+	"strconv"
 	"testing"
 	"time"
 
@@ -158,6 +159,65 @@ func TestDeleteOfflineClient(t *testing.T) {
 			gotAfter, err := clientService.Count()
 			require.NoError(t, err)
 			assert.Equal(t, wantAfter, gotAfter)
+		})
+	}
+}
+
+func TestCheckLocalPort(t *testing.T) {
+	srv := ClientService{
+		portDistributor: ports.NewPortDistributorForTests(
+			mapset.NewThreadUnsafeSetFromSlice([]interface{}{1, 2, 3, 4, 5}),
+			mapset.NewThreadUnsafeSetFromSlice([]interface{}{2, 3, 4}),
+		),
+	}
+
+	invalidPort := "24563a"
+	_, invalidPortParseErr := strconv.Atoi(invalidPort)
+
+	testCases := []struct {
+		name      string
+		port      string
+		wantError error
+	}{
+		{
+			name:      "valid port",
+			port:      "2",
+			wantError: nil,
+		},
+		{
+			name: "invalid port",
+			port: invalidPort,
+			wantError: errors2.APIError{
+				Message: "Invalid local port: 24563a.",
+				Err:     invalidPortParseErr,
+				Code:    http.StatusBadRequest,
+			},
+		},
+		{
+			name: "not allowed port",
+			port: "6",
+			wantError: errors2.APIError{
+				Message: "Local port 6 is not among allowed ports.",
+				Code:    http.StatusBadRequest,
+			},
+		},
+		{
+			name: "busy port",
+			port: "5",
+			wantError: errors2.APIError{
+				Message: "Local port 5 already in use.",
+				Code:    http.StatusConflict,
+			},
+		},
+	}
+
+	for _, tc := range testCases {
+		t.Run(tc.name, func(t *testing.T) {
+			// when
+			gotErr := srv.checkLocalPort(tc.port)
+
+			// then
+			require.Equal(t, tc.wantError, gotErr)
 		})
 	}
 }

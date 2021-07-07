@@ -10,9 +10,10 @@ import (
 )
 
 var defaultValidMinServerConfig = ServerConfig{
-	URL:     "http://localhost/",
-	DataDir: "./",
-	Auth:    "abc:def",
+	URL:          "http://localhost/",
+	DataDir:      "./",
+	Auth:         "abc:def",
+	UsedPortsRaw: []string{"10-20"},
 }
 
 func TestDatabaseParseAndValidate(t *testing.T) {

@@ -18,6 +18,14 @@ func NewPortDistributor(allowedPorts mapset.Set) *PortDistributor {
 	}
 }
 
+// NewPortDistributorForTests is used only for unit-testing.
+func NewPortDistributorForTests(allowedPorts, portsPool mapset.Set) *PortDistributor {
+	return &PortDistributor{
+		allowedPorts: allowedPorts,
+		portsPool:    portsPool,
+	}
+}
+
 func (d *PortDistributor) GetRandomPort() (int, error) {
 	if d.portsPool == nil {
 		err := d.Refresh()
@@ -31,6 +39,14 @@ func (d *PortDistributor) GetRandomPort() (int, error) {
 		return 0, fmt.Errorf("no ports available")
 	}
 	return port.(int), nil
+}
+
+func (d *PortDistributor) IsPortAllowed(port int) bool {
+	return d.allowedPorts.Contains(port)
+}
+
+func (d *PortDistributor) IsPortBusy(port int) bool {
+	return !d.portsPool.Contains(port)
 }
 
 func (d *PortDistributor) Refresh() error {
