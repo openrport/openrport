@@ -40,10 +40,6 @@ func (e *CmdExecutorMock) New(ctx context.Context, execCtx *CmdExecutorContext) 
 	if execCtx.IsSudo {
 		args = append(args, "sudo -n")
 	}
-	args = append(args, shellOptions[execCtx.Shell]...)
-
-	additionalArgs := getAdditionalArgs(execCtx.IsScript, execCtx.Shell)
-	args = append(args, additionalArgs...)
 
 	args = append(args, execCtx.Command)
 	cmd := exec.CommandContext(ctx, execCtx.Shell, args...)
