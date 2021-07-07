@@ -21,6 +21,7 @@ const (
 	DefaultCleanClientsInterval   = 1 * time.Minute
 	DefaultMaxRequestBytes        = 2 * 1024 // 2 KB
 	DefaultCheckPortTimeout       = 2 * time.Second
+	DefaultUsedPorts              = "20000-30000"
 	DefaultExcludedPorts          = "1-1024"
 	DefaultServerAddress          = "0.0.0.0:8080"
 	DefaultLogLevel               = "info"
@@ -52,9 +53,16 @@ var serverHelp = `
     This setting is only used to return via an API call where rportd is listening for connections.
     Useful, if you run the rportd behind a reverse proxy and the external URL differs from the internal address and port.
 
+    --use-ports, Defines port numbers or ranges of server ports,
+    separated with comma that would be used for automatic and manual port assignment.
+    Creating reverse tunnels will fail if the requested server port is not listed here.
+    Defaults to 20000-30000
+    e.g.: --use-ports=20000-30000,9999
+
     --exclude-ports, -e, Defines port numbers or ranges of server ports,
-    separated with comma that would not be used for automatic port assignment.
-    Defaults to 1-1024. If all ports should be used then set to ""(empty string).
+    separated with comma that would not be used for automatic and manual port assignment.
+    Values that are not included in the --use-ports are ignored.
+    Defaults to 1-1024. If no ports should be excluded then set it to ""(empty string).
     e.g.: --exclude-ports=1-1024,8080 or -e 22,443,80,8080,5000-5999
 
     --key, An optional string to seed the generation of a ECDSA public
@@ -239,6 +247,7 @@ func init() {
 	pFlags.String("db-password", "", "")
 	pFlags.StringP("log-file", "l", "", "")
 	pFlags.String("log-level", "", "")
+	pFlags.StringSlice("use-ports", nil, "")
 	pFlags.StringSliceP("exclude-ports", "e", nil, "")
 	pFlags.String("data-dir", "", "")
 	pFlags.Duration("keep-lost-clients", 0, "")
@@ -269,6 +278,7 @@ func init() {
 
 	viperCfg.SetDefault("logging.log_level", DefaultLogLevel)
 	viperCfg.SetDefault("server.address", DefaultServerAddress)
+	viperCfg.SetDefault("server.used_ports", []string{DefaultUsedPorts})
 	viperCfg.SetDefault("server.excluded_ports", []string{DefaultExcludedPorts})
 	viperCfg.SetDefault("server.data_dir", chserver.DefaultDataDirectory)
 	viperCfg.SetDefault("server.keep_lost_clients", DefaultKeepLostClients)
@@ -302,6 +312,7 @@ func bindPFlags() {
 	_ = viperCfg.BindPFlag("server.equate_clientauthid_clientid", pFlags.Lookup("equate-clientauthid-clientid"))
 	_ = viperCfg.BindPFlag("server.auth_write", pFlags.Lookup("auth-write"))
 	_ = viperCfg.BindPFlag("server.proxy", pFlags.Lookup("proxy"))
+	_ = viperCfg.BindPFlag("server.used_ports", pFlags.Lookup("use-ports"))
 	_ = viperCfg.BindPFlag("server.excluded_ports", pFlags.Lookup("exclude-ports"))
 	_ = viperCfg.BindPFlag("server.data_dir", pFlags.Lookup("data-dir"))
 	_ = viperCfg.BindPFlag("server.keep_lost_clients", pFlags.Lookup("keep-lost-clients"))

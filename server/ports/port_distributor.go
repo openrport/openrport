@@ -2,7 +2,6 @@ package ports
 
 import (
 	"fmt"
-	"math"
 
 	mapset "github.com/deckarep/golang-set"
 	"github.com/shirou/gopsutil/net"
@@ -13,9 +12,17 @@ type PortDistributor struct {
 	portsPool    mapset.Set
 }
 
-func NewPortDistributor(excludedPorts mapset.Set) *PortDistributor {
+func NewPortDistributor(allowedPorts mapset.Set) *PortDistributor {
 	return &PortDistributor{
-		allowedPorts: setFromRange(1, math.MaxUint16).Difference(excludedPorts),
+		allowedPorts: allowedPorts,
+	}
+}
+
+// NewPortDistributorForTests is used only for unit-testing.
+func NewPortDistributorForTests(allowedPorts, portsPool mapset.Set) *PortDistributor {
+	return &PortDistributor{
+		allowedPorts: allowedPorts,
+		portsPool:    portsPool,
 	}
 }
 
@@ -32,6 +39,14 @@ func (d *PortDistributor) GetRandomPort() (int, error) {
 		return 0, fmt.Errorf("no ports available")
 	}
 	return port.(int), nil
+}
+
+func (d *PortDistributor) IsPortAllowed(port int) bool {
+	return d.allowedPorts.Contains(port)
+}
+
+func (d *PortDistributor) IsPortBusy(port int) bool {
+	return !d.portsPool.Contains(port)
 }
 
 func (d *PortDistributor) Refresh() error {

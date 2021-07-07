@@ -212,6 +212,10 @@ func (s *ClientService) startClientTunnels(client *clients.Client, remotes []*ch
 			remote.LocalPort = strconv.Itoa(port)
 			remote.LocalHost = "0.0.0.0"
 			remote.LocalPortRandom = true
+		} else {
+			if err := s.checkLocalPort(remote.LocalPort); err != nil {
+				return nil, err
+			}
 		}
 
 		var acl *clients.TunnelACL
@@ -225,11 +229,41 @@ func (s *ClientService) startClientTunnels(client *clients.Client, remotes []*ch
 
 		t, err := client.StartTunnel(remote, acl)
 		if err != nil {
-			return nil, err
+			return nil, errors.APIError{
+				Code: http.StatusConflict,
+				Err:  fmt.Errorf("can't create tunnel: %s", err),
+			}
 		}
 		tunnels = append(tunnels, t)
 	}
 	return tunnels, nil
+}
+
+func (s *ClientService) checkLocalPort(port string) error {
+	localPort, err := strconv.Atoi(port)
+	if err != nil {
+		return errors.APIError{
+			Code:    http.StatusBadRequest,
+			Message: fmt.Sprintf("Invalid local port: %s.", port),
+			Err:     err,
+		}
+	}
+
+	if !s.portDistributor.IsPortAllowed(localPort) {
+		return errors.APIError{
+			Code:    http.StatusBadRequest,
+			Message: fmt.Sprintf("Local port %d is not among allowed ports.", localPort),
+		}
+	}
+
+	if s.portDistributor.IsPortBusy(localPort) {
+		return errors.APIError{
+			Code:    http.StatusConflict,
+			Message: fmt.Sprintf("Local port %d already in use.", localPort),
+		}
+	}
+
+	return nil
 }
 
 func (s *ClientService) Terminate(client *clients.Client) error {

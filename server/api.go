@@ -853,13 +853,15 @@ func (al *APIListener) handlePutClientTunnel(w http.ResponseWriter, req *http.Re
 
 	tunnels, err := al.clientService.StartClientTunnels(client, []*chshare.Remote{remote})
 	if err != nil {
-		al.jsonErrorResponse(w, http.StatusConflict, fmt.Errorf("can't create tunnel: %s", err))
+		al.jsonError(w, err)
 		return
 	}
 	response := api.NewSuccessPayload(tunnels[0])
 	al.writeJSONResponse(w, http.StatusOK, response)
 }
 
+// TODO: remove this check, do it in client srv in startClientTunnels when https://github.com/cloudradar-monitoring/rport/pull/252 will be in master.
+// APIError needs both httpStatusCode and errorCode. To avoid too many merge conflicts with PR252 temporarily use this check to avoid breaking UI
 func (al *APIListener) checkLocalPort(w http.ResponseWriter, localPort string) bool {
 	lport, err := strconv.Atoi(localPort)
 	if err != nil {
