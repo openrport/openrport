@@ -45,72 +45,11 @@ func (e *CmdExecutorImpl) Wait(cmd *exec.Cmd) error {
 	return cmd.Wait()
 }
 
-func (e *CmdExecutorImpl) newCmd(ctx context.Context, execCtx *CmdExecutorContext) *exec.Cmd {
-	var args []string
-	if execCtx.IsSudo {
-		args = append(args, "sudo -n")
-	}
-
-	args = append(args, shellOptions[execCtx.Shell]...)
-
-	additionalArgs := getAdditionalArgs(execCtx.IsScript, execCtx.Shell)
-	args = append(args, additionalArgs...)
-
-	args = append(args, execCtx.Command)
-	cmd := exec.CommandContext(ctx, execCtx.Shell, args...)
-	cmd.Dir = execCtx.WorkingDir
-	return cmd
-}
-
-func getAdditionalArgs(isScript bool, shell string) []string {
-	if shell == "" {
-		return []string{}
-	}
-
-	if isScript {
-		scriptOptions, ok := shellOptionsScript[shell]
-		if ok {
-			return scriptOptions
-		}
-		return []string{}
-	}
-
-	commandOptions, ok := shellOptionsCommand[shell]
-	if ok {
-		return commandOptions
-	}
-
-	return []string{}
-}
-
 const (
 	unixShell  = "/bin/sh"
 	cmdShell   = "cmd"
 	powerShell = "powershell"
 )
-
-var shellOptions = map[string][]string{
-	// in order to run multiple commands under one process run with these options
-	unixShell: {"-c"},
-	cmdShell:  {"/c"},
-	powerShell: {
-		"-Noninteractive", // Don't present an interactive prompt to the user.
-		"-executionpolicy",
-		"bypass",
-	},
-}
-
-var shellOptionsCommand = map[string][]string{
-	powerShell: {
-		"-Command",
-	},
-}
-
-var shellOptionsScript = map[string][]string{
-	powerShell: {
-		"-File",
-	},
-}
 
 // now is used to stub time.Now in tests
 var now = time.Now
