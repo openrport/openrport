@@ -8,7 +8,11 @@ import (
 )
 
 func (s *realSystemInfo) virtualizationInfo(ctx context.Context) (virtSystem, virtRole string, err error) {
-	cmd := s.cmdExec.New(ctx, "powerShell", "Get-Service", "", false)
+	execCtx := &CmdExecutorContext{
+		Shell:   "powerShell",
+		Command: "Get-Service",
+	}
+	cmd := s.cmdExec.New(ctx, execCtx)
 	execRes, err := cmd.CombinedOutput()
 
 	if err != nil {
