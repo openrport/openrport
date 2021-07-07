@@ -3,9 +3,11 @@ package chserver
 import (
 	"context"
 	"errors"
+	"fmt"
 	"net"
 	"net/http"
 	"strconv"
+	"strings"
 	"testing"
 	"time"
 
@@ -14,6 +16,7 @@ import (
 	"github.com/stretchr/testify/require"
 
 	errors2 "github.com/cloudradar-monitoring/rport/server/api/errors"
+	"github.com/cloudradar-monitoring/rport/server/api/users"
 	"github.com/cloudradar-monitoring/rport/server/clients"
 	"github.com/cloudradar-monitoring/rport/server/ports"
 	chshare "github.com/cloudradar-monitoring/rport/share"
@@ -123,7 +126,7 @@ func TestDeleteOfflineClient(t *testing.T) {
 			name:     "delete unknown client",
 			clientID: "unknown-id",
 			wantError: errors2.APIError{
-				Message: "Client not found",
+				Message: fmt.Sprintf("Client with id=%q not found.", "unknown-id"),
 				Code:    http.StatusNotFound,
 			},
 		},
@@ -218,6 +221,87 @@ func TestCheckLocalPort(t *testing.T) {
 
 			// then
 			require.Equal(t, tc.wantError, gotErr)
+		})
+	}
+}
+
+func TestCheckClientsAccess(t *testing.T) {
+	c1 := clients.New(t).Build()                                                             // no groups
+	c2 := clients.New(t).AllowedUserGroups([]string{users.Administrators}).Build()           // admin
+	c3 := clients.New(t).AllowedUserGroups([]string{users.Administrators, "group1"}).Build() // admin + group1
+	c4 := clients.New(t).AllowedUserGroups([]string{"group1"}).Build()                       // group1
+	c5 := clients.New(t).AllowedUserGroups([]string{"group1", "group2"}).Build()             // group1 + group2
+	c6 := clients.New(t).AllowedUserGroups([]string{"group3"}).Build()                       // group3
+
+	allClients := []*clients.Client{c1, c2, c3, c4, c5, c6}
+	testCases := []struct {
+		name                      string
+		clients                   []*clients.Client
+		user                      *users.User
+		wantClientIDsWithNoAccess []string
+	}{
+		{
+			name:                      "user with no groups has no access",
+			clients:                   allClients,
+			user:                      &users.User{Groups: nil},
+			wantClientIDsWithNoAccess: []string{c1.ID, c2.ID, c3.ID, c4.ID, c5.ID, c6.ID},
+		},
+		{
+			name:                      "admin user has access to all",
+			clients:                   allClients,
+			user:                      &users.User{Groups: []string{users.Administrators}},
+			wantClientIDsWithNoAccess: nil,
+		},
+		{
+			name:                      "non-admin user with access to all groups",
+			clients:                   []*clients.Client{c3, c4, c5, c6},
+			user:                      &users.User{Groups: []string{"group1", "group2", "group3"}},
+			wantClientIDsWithNoAccess: nil,
+		},
+		{
+			name:                      "non-admin user with no access to clients with no groups and with admin group",
+			clients:                   allClients,
+			user:                      &users.User{Groups: []string{"group1", "group2", "group3"}},
+			wantClientIDsWithNoAccess: []string{c1.ID, c2.ID},
+		},
+		{
+			name:                      "non-admin user with access to one client",
+			clients:                   allClients,
+			user:                      &users.User{Groups: []string{"group3"}},
+			wantClientIDsWithNoAccess: []string{c1.ID, c2.ID, c3.ID, c4.ID, c5.ID},
+		},
+		{
+			name:                      "non-admin user with access to few clients",
+			clients:                   allClients,
+			user:                      &users.User{Groups: []string{"group1"}},
+			wantClientIDsWithNoAccess: []string{c1.ID, c2.ID, c6.ID},
+		},
+		{
+			name:                      "non-admin user that has unknown group",
+			clients:                   allClients,
+			user:                      &users.User{Groups: []string{"group4"}},
+			wantClientIDsWithNoAccess: []string{c1.ID, c2.ID, c3.ID, c4.ID, c5.ID, c6.ID},
+		},
+	}
+
+	for _, tc := range testCases {
+		t.Run(tc.name, func(t *testing.T) {
+			// given
+			clientService := NewClientService(nil, clients.NewClientRepository(allClients, nil, testLog))
+
+			// when
+			gotErr := clientService.CheckClientsAccess(tc.clients, tc.user)
+
+			// then
+			if len(tc.wantClientIDsWithNoAccess) > 0 {
+				wantErr := errors2.APIError{
+					Message: fmt.Sprintf("Access denied to client(s) with ID(s): %v", strings.Join(tc.wantClientIDsWithNoAccess, ", ")),
+					Code:    http.StatusForbidden,
+				}
+				assert.Equal(t, wantErr, gotErr)
+			} else {
+				require.NoError(t, gotErr)
+			}
 		})
 	}
 }

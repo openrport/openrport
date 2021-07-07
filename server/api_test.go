@@ -23,6 +23,7 @@ import (
 
 	"github.com/cloudradar-monitoring/rport/server/api"
 	"github.com/cloudradar-monitoring/rport/server/api/jobs"
+	"github.com/cloudradar-monitoring/rport/server/api/users"
 	"github.com/cloudradar-monitoring/rport/server/cgroups"
 	"github.com/cloudradar-monitoring/rport/server/clients"
 	"github.com/cloudradar-monitoring/rport/server/clientsauth"
@@ -286,8 +287,8 @@ func TestHandlePostClients(t *testing.T) {
 			clientAuthWrite: true,
 			requestBody:     strings.NewReader(""),
 			wantStatusCode:  http.StatusBadRequest,
-			wantErrCode:     ErrCodeInvalidRequest,
-			wantErrTitle:    "Missing data.",
+			wantErrCode:     "",
+			wantErrTitle:    "Missing body with json data.",
 			wantClientsAuth: initCacheState,
 		},
 		{
@@ -296,7 +297,7 @@ func TestHandlePostClients(t *testing.T) {
 			clientAuthWrite: true,
 			requestBody:     strings.NewReader("invalid json"),
 			wantStatusCode:  http.StatusBadRequest,
-			wantErrCode:     ErrCodeInvalidRequest,
+			wantErrCode:     "",
 			wantErrTitle:    "Invalid JSON data.",
 			wantErrDetail:   "invalid character 'i' looking for beginning of value",
 			wantClientsAuth: initCacheState,
@@ -1049,6 +1050,10 @@ func TestHandleGetCommands(t *testing.T) {
 }
 
 func TestHandleGetClients(t *testing.T) {
+	curUser := &users.User{
+		Username: "admin",
+		Groups:   []string{users.Administrators},
+	}
 	c1 := clients.New(t).ID("client-1").ClientAuthID(cl1.ID).Build()
 	c2 := clients.New(t).ID("client-2").ClientAuthID(cl1.ID).DisconnectedDuration(5 * time.Minute).Build()
 	al := APIListener{
@@ -1059,11 +1064,14 @@ func TestHandleGetClients(t *testing.T) {
 				Server: ServerConfig{MaxRequestBytes: 1024 * 1024},
 			},
 		},
+		userSrv: users.NewUserCache([]*users.User{curUser}),
 	}
 	al.initRouter()
 
 	w := httptest.NewRecorder()
 	req := httptest.NewRequest("GET", "/api/v1/clients", nil)
+	ctx := api.WithUser(context.Background(), curUser.Username)
+	req = req.WithContext(ctx)
 	al.router.ServeHTTP(w, req)
 
 	expectedJSON := `{
@@ -1124,7 +1132,8 @@ func TestHandleGetClients(t *testing.T) {
          "cpu_model":"Virtual CPU",
          "cpu_model_name":"",
          "disconnected_at":null,
-         "client_auth_id":"user1"
+         "client_auth_id":"user1",
+		 "allowed_user_groups":null
       },
       {
          "id":"client-2",
@@ -1182,7 +1191,8 @@ func TestHandleGetClients(t *testing.T) {
          "cpu_model":"Virtual CPU",
          "cpu_model_name":"",
          "disconnected_at":"2020-08-19T13:04:23+03:00",
-         "client_auth_id":"user1"
+         "client_auth_id":"user1",
+		 "allowed_user_groups":null
       }
    ]
 }`
@@ -1192,6 +1202,10 @@ func TestHandleGetClients(t *testing.T) {
 
 func TestHandlePostMultiClientCommand(t *testing.T) {
 	testUser := "test-user"
+	curUser := &users.User{
+		Username: testUser,
+		Groups:   []string{users.Administrators},
+	}
 
 	connMock1 := test.NewConnMock()
 	// by default set to return success
@@ -1316,7 +1330,8 @@ func TestHandlePostMultiClientCommand(t *testing.T) {
 						m: make(map[string]chan *models.Job),
 					},
 				},
-				Logger: testLog,
+				userSrv: users.NewUserCache([]*users.User{curUser}),
+				Logger:  testLog,
 			}
 			var done chan bool
 			if tc.wantStatusCode == http.StatusOK {

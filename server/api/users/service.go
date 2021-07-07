@@ -2,6 +2,7 @@ package users
 
 import (
 	"context"
+	"errors"
 	"fmt"
 	"net/http"
 	"strings"
@@ -10,11 +11,13 @@ import (
 
 	errors2 "github.com/cloudradar-monitoring/rport/server/api/errors"
 	"github.com/cloudradar-monitoring/rport/server/api/message"
+	"github.com/cloudradar-monitoring/rport/share/collections"
 	"github.com/cloudradar-monitoring/rport/share/enums"
 )
 
 type DatabaseProvider interface {
 	GetAll() ([]*User, error)
+	GetAllGroups() ([]string, error)
 	GetByUsername(username string) (*User, error)
 	Add(usr *User) error
 	Update(usr *User, usernameToUpdate string) error
@@ -51,6 +54,37 @@ func (as *APIService) GetAll() ([]*User, error) {
 	}
 
 	return nil, fmt.Errorf("unsupported user data provider type: %s", as.ProviderType)
+}
+
+func (as *APIService) GetAllGroups() ([]string, error) {
+	if as.ProviderType == enums.ProviderSourceDB {
+		return as.DB.GetAllGroups()
+	}
+	return nil, errors.New("not implemented")
+}
+
+func (as *APIService) ExistGroups(groups []string) error {
+	existingGroups, err := as.GetAllGroups()
+	if err != nil {
+		return err
+	}
+
+	groupMap := collections.ConvertToStringBoolMap(existingGroups)
+	var groupsNotFound []string
+	for _, cur := range groups {
+		if !groupMap.Has(cur) {
+			groupsNotFound = append(groupsNotFound, cur)
+		}
+	}
+
+	if len(groupsNotFound) > 0 {
+		return errors2.APIError{
+			Message: fmt.Sprintf("user groups not found: %v", strings.Join(groupsNotFound, ", ")),
+			Code:    http.StatusNotFound,
+		}
+	}
+
+	return nil
 }
 
 func (as *APIService) Change(usr *User, username string) error {

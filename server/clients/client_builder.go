@@ -29,10 +29,11 @@ var nowMockF = func() time.Time {
 type ClientBuilder struct {
 	t *testing.T
 
-	id             string
-	clientAuthID   string
-	disconnectedAt *time.Time
-	conn           ssh.Conn
+	id                string
+	clientAuthID      string
+	disconnectedAt    *time.Time
+	allowedUserGroups []string
+	conn              ssh.Conn
 }
 
 // New returns a builder to generate a client that can be used in tests.
@@ -59,6 +60,11 @@ func (b ClientBuilder) DisconnectedDuration(disconnectedDuration time.Duration) 
 	now = nowMockF
 	disconnectedAt := now().Add(-disconnectedDuration)
 	b.disconnectedAt = &disconnectedAt
+	return b
+}
+
+func (b ClientBuilder) AllowedUserGroups(allowedUserGroups []string) ClientBuilder {
+	b.allowedUserGroups = allowedUserGroups
 	return b
 }
 
@@ -111,9 +117,11 @@ func (b ClientBuilder) Build() *Client {
 				},
 			},
 		},
-		DisconnectedAt: b.disconnectedAt,
-		ClientAuthID:   b.clientAuthID,
-		Connection:     b.conn,
+		DisconnectedAt:    b.disconnectedAt,
+		ClientAuthID:      b.clientAuthID,
+		AllowedUserGroups: b.allowedUserGroups,
+
+		Connection: b.conn,
 	}
 }
 

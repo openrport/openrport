@@ -1,9 +1,9 @@
 package api
 
 import (
-	"strconv"
+	"errors"
 
-	"github.com/cloudradar-monitoring/rport/server/api/errors"
+	errors2 "github.com/cloudradar-monitoring/rport/server/api/errors"
 )
 
 // SuccessPayload represents a uniform format for all successful API responses.
@@ -43,19 +43,43 @@ func NewErrorPayloadWithCode(code, title, detail string) ErrorPayload {
 }
 
 func NewErrorPayload(err error) ErrorPayload {
-	return NewErrorPayloadWithCode("", "", err.Error())
+	var apiErr errors2.APIError
+	var apiErrs errors2.APIErrors
+	switch {
+	case errors.As(err, &apiErr):
+		return newAPIErrorPayload(apiErr)
+	case errors.As(err, &apiErrs):
+		return newAPIErrorsPayload(apiErrs)
+	}
+
+	return NewErrorPayloadWithCode("", err.Error(), "")
 }
 
-func NewAPIErrorsPayloadWithCode(errors []errors.APIError) ErrorPayload {
+func newAPIErrorPayload(err errors2.APIError) ErrorPayload {
+	return ErrorPayload{
+		Errors: []ErrorPayloadItem{newAPIErrorPayloadItem(err)},
+	}
+}
+
+func newAPIErrorPayloadItem(err errors2.APIError) ErrorPayloadItem {
+	if err.Err != nil && err.Message != "" {
+		return ErrorPayloadItem{
+			Title:  err.Message,
+			Detail: err.Err.Error(),
+		}
+	}
+	return ErrorPayloadItem{
+		Title:  err.Error(),
+		Detail: "",
+	}
+}
+
+func newAPIErrorsPayload(errors errors2.APIErrors) ErrorPayload {
 	ep := ErrorPayload{
 		Errors: make([]ErrorPayloadItem, 0, len(errors)),
 	}
 	for i := range errors {
-		ep.Errors = append(ep.Errors, ErrorPayloadItem{
-			Code:   strconv.Itoa(errors[i].Code),
-			Title:  errors[i].Error(),
-			Detail: "",
-		})
+		ep.Errors = append(ep.Errors, newAPIErrorPayloadItem(errors[i]))
 	}
 	return ep
 }

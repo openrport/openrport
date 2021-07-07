@@ -9,8 +9,10 @@ import (
 
 	"golang.org/x/crypto/ssh"
 
+	"github.com/cloudradar-monitoring/rport/server/api/users"
 	"github.com/cloudradar-monitoring/rport/server/cgroups"
 	chshare "github.com/cloudradar-monitoring/rport/share"
+	"github.com/cloudradar-monitoring/rport/share/collections"
 	"github.com/cloudradar-monitoring/rport/share/random"
 )
 
@@ -50,8 +52,9 @@ type Client struct {
 	Address                string    `json:"address"`
 	Tunnels                []*Tunnel `json:"tunnels"`
 	// DisconnectedAt is a time when a client was disconnected. If nil - it's connected.
-	DisconnectedAt *time.Time `json:"disconnected_at"`
-	ClientAuthID   string     `json:"client_auth_id"`
+	DisconnectedAt    *time.Time `json:"disconnected_at"`
+	ClientAuthID      string     `json:"client_auth_id"`
+	AllowedUserGroups []string   `json:"allowed_user_groups"`
 
 	Connection ssh.Conn        `json:"-"`
 	Context    context.Context `json:"-"`
@@ -230,6 +233,18 @@ func (c *Client) ConnectionState() ConnectionState {
 		return Connected
 	}
 	return Disconnected
+}
+
+// HasAccess returns true if at least one of given user groups has access to a current client.
+func (c *Client) HasAccess(userGroups []string) bool {
+	allowedGroups := collections.ConvertToStringBoolMap(c.AllowedUserGroups)
+	for _, curUserGroup := range userGroups {
+		if curUserGroup == users.Administrators || allowedGroups.Has(curUserGroup) {
+			return true
+		}
+	}
+
+	return false
 }
 
 // NewClientID generates a new client ID.

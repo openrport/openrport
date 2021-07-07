@@ -19,6 +19,7 @@ type DBProviderMock struct {
 	UsersToGive         []*User
 	UsersToAdd          []*User
 	UsersToUpdate       []*User
+	GroupsToGive        []string
 	ErrorToGiveOnRead   error
 	ErrorToGiveOnWrite  error
 	ErrorToGiveOnDelete error
@@ -28,6 +29,10 @@ type DBProviderMock struct {
 
 func (dpm *DBProviderMock) GetAll() ([]*User, error) {
 	return dpm.UsersToGive, dpm.ErrorToGiveOnRead
+}
+
+func (dpm *DBProviderMock) GetAllGroups() ([]string, error) {
+	return dpm.GroupsToGive, dpm.ErrorToGiveOnRead
 }
 
 func (dpm *DBProviderMock) GetByUsername(username string) (*User, error) {
@@ -702,4 +707,41 @@ func TestDeleteUserFromFile(t *testing.T) {
 	}
 	err = service.Delete("user3")
 	require.EqualError(t, err, "failed to write users to file")
+}
+
+func TestExistsUserGroupsInDB(t *testing.T) {
+	givenGroups := []string{"group1", "group2", "group3", "group4", Administrators}
+	db := &DBProviderMock{
+		GroupsToGive: givenGroups,
+	}
+
+	service := APIService{
+		ProviderType: enums.ProviderSourceDB,
+		DB:           db,
+	}
+
+	gotErr1 := service.ExistGroups([]string{"group4"})
+	require.NoError(t, gotErr1)
+
+	gotErr2 := service.ExistGroups([]string{"group1", "group2", "group3", "group4", Administrators})
+	require.NoError(t, gotErr2)
+
+	gotErr3 := service.ExistGroups([]string{"group1", "group2", "admin", Administrators})
+	require.EqualError(t, gotErr3, "user groups not found: admin")
+
+	gotErr4 := service.ExistGroups([]string{"group1", "group2", "group3", "admin", Administrators, "group5"})
+	require.EqualError(t, gotErr4, "user groups not found: admin, group5")
+
+	db = &DBProviderMock{
+		GroupsToGive:      givenGroups,
+		ErrorToGiveOnRead: errors.New("some db error"),
+	}
+
+	service = APIService{
+		ProviderType: enums.ProviderSourceDB,
+		DB:           db,
+	}
+
+	gotErr5 := service.ExistGroups([]string{"group1"})
+	require.EqualError(t, gotErr5, "some db error")
 }

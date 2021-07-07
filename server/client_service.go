@@ -7,10 +7,9 @@ import (
 	"net/http"
 	"sort"
 	"strconv"
+	"strings"
 	"sync"
 	"time"
-
-	"github.com/cloudradar-monitoring/rport/share/query"
 
 	"golang.org/x/crypto/ssh"
 
@@ -19,6 +18,7 @@ import (
 	"github.com/cloudradar-monitoring/rport/server/clients"
 	"github.com/cloudradar-monitoring/rport/server/ports"
 	chshare "github.com/cloudradar-monitoring/rport/share"
+	"github.com/cloudradar-monitoring/rport/share/query"
 )
 
 type ClientService struct {
@@ -126,8 +126,8 @@ func (s *ClientService) GetAll() ([]*clients.Client, error) {
 	return s.repo.GetAll()
 }
 
-func (s *ClientService) GetFiltered(filterOptions []query.FilterOption) ([]*clients.Client, error) {
-	return s.repo.GetFiltered(filterOptions)
+func (s *ClientService) GetUserClients(user clients.User, filterOptions []query.FilterOption) ([]*clients.Client, error) {
+	return s.repo.GetUserClients(user, filterOptions)
 }
 
 func (s *ClientService) StartClient(
@@ -331,26 +331,9 @@ func (s *ClientService) ForceDelete(client *clients.Client) error {
 }
 
 func (s *ClientService) DeleteOffline(clientID string) error {
-	if clientID == "" {
-		return errors.APIError{
-			Message: "Client id is empty",
-			Code:    http.StatusBadRequest,
-		}
-	}
-
-	s.mu.Lock()
-	defer s.mu.Unlock()
-
-	existing, err := s.repo.GetByID(clientID)
+	existing, err := s.getExistingByID(clientID)
 	if err != nil {
 		return err
-	}
-
-	if existing == nil {
-		return errors.APIError{
-			Message: "Client not found",
-			Code:    http.StatusNotFound,
-		}
 	}
 
 	if existing.DisconnectedAt == nil {
@@ -371,4 +354,74 @@ func (s *ClientService) isClientAuthIDInUse(clientAuthID, clientID string) bool 
 		}
 	}
 	return false
+}
+
+func (s *ClientService) SetACL(clientID string, allowedUserGroups []string) error {
+	existing, err := s.getExistingByID(clientID)
+	if err != nil {
+		return err
+	}
+
+	existing.AllowedUserGroups = allowedUserGroups
+
+	return s.repo.Save(existing)
+}
+
+// CheckClientAccess returns nil if a given user has an access to a given client.
+// Otherwise, APIError with 403 is returned.
+func (s *ClientService) CheckClientAccess(clientID string, user clients.User) error {
+	existing, err := s.getExistingByID(clientID)
+	if err != nil {
+		return err
+	}
+
+	return s.CheckClientsAccess([]*clients.Client{existing}, user)
+}
+
+// CheckClientsAccess returns nil if a given user has an access to all of the given clients.
+// Otherwise, APIError with 403 is returned.
+func (s *ClientService) CheckClientsAccess(clients []*clients.Client, user clients.User) error {
+	if user.IsAdmin() {
+		return nil
+	}
+
+	var clientsWithNoAccess []string
+	for _, curClient := range clients {
+		if !curClient.HasAccess(user.GetGroups()) {
+			clientsWithNoAccess = append(clientsWithNoAccess, curClient.ID)
+		}
+	}
+
+	if len(clientsWithNoAccess) > 0 {
+		return errors.APIError{
+			Message: fmt.Sprintf("Access denied to client(s) with ID(s): %v", strings.Join(clientsWithNoAccess, ", ")),
+			Code:    http.StatusForbidden,
+		}
+	}
+
+	return nil
+}
+
+// getExistingByID returns non-nil client by id. If not found or failed to get a client - an error is returned.
+func (s *ClientService) getExistingByID(clientID string) (*clients.Client, error) {
+	if clientID == "" {
+		return nil, errors.APIError{
+			Message: "Client id is empty",
+			Code:    http.StatusBadRequest,
+		}
+	}
+
+	existing, err := s.repo.GetByID(clientID)
+	if err != nil {
+		return nil, fmt.Errorf("failed to find a client with id=%q: %w", clientID, err)
+	}
+
+	if existing == nil {
+		return nil, errors.APIError{
+			Message: fmt.Sprintf("Client with id=%q not found.", clientID),
+			Code:    http.StatusNotFound,
+		}
+	}
+
+	return existing, nil
 }

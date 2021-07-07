@@ -23,6 +23,11 @@ type ClientRepository struct {
 	logger   *chshare.Logger
 }
 
+type User interface {
+	IsAdmin() bool
+	GetGroups() []string
+}
+
 // NewClientRepository returns a new thread-safe in-memory cache to store client connections populated with given clients if any.
 // keepLostClients is a duration to keep disconnected clients. If a client was disconnected longer than a given
 // duration it will be treated as obsolete.
@@ -181,11 +186,11 @@ func (s *ClientRepository) GetAll() ([]*Client, error) {
 	return s.getNonObsolete()
 }
 
-// GetFiltered returns all non-obsolete active and disconnected clients filtered by os parameters
-func (s *ClientRepository) GetFiltered(filterOptions []query.FilterOption) ([]*Client, error) {
+// GetUserClients returns all non-obsolete active and disconnected clients that current user has access to, filtered by parameters
+func (s *ClientRepository) GetUserClients(user User, filterOptions []query.FilterOption) ([]*Client, error) {
 	s.mu.RLock()
 	defer s.mu.RUnlock()
-	return s.getNonObsoleteFiltered(filterOptions)
+	return s.getNonObsoleteFiltered(user, filterOptions)
 }
 
 func (s *ClientRepository) GetAllActive() []*Client {
@@ -210,17 +215,24 @@ func (s *ClientRepository) getNonObsolete() ([]*Client, error) {
 	return result, nil
 }
 
-func (s *ClientRepository) getNonObsoleteFiltered(filterOptions []query.FilterOption) ([]*Client, error) {
+func (s *ClientRepository) getNonObsoleteFiltered(user User, filterOptions []query.FilterOption) ([]*Client, error) {
+	isAdmin := user.IsAdmin()
 	result := make([]*Client, 0, len(s.clients))
 	for _, client := range s.clients {
-		if !client.Obsolete(s.KeepLostClients) {
-			matches, err := s.clientMatchesFilters(client, filterOptions)
-			if err != nil {
-				return result, err
-			}
-			if !matches {
-				continue
-			}
+		if client.Obsolete(s.KeepLostClients) {
+			continue
+		}
+
+		if !isAdmin && !client.HasAccess(user.GetGroups()) {
+			continue
+		}
+
+		matches, err := s.clientMatchesFilters(client, filterOptions)
+		if err != nil {
+			return result, err
+		}
+
+		if matches {
 			result = append(result, client)
 		}
 	}

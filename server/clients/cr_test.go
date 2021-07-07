@@ -4,11 +4,29 @@ import (
 	"testing"
 	"time"
 
-	"github.com/cloudradar-monitoring/rport/share/query"
-
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
+
+	"github.com/cloudradar-monitoring/rport/server/api/users"
+	"github.com/cloudradar-monitoring/rport/share/query"
 )
+
+type UserMock struct {
+	ReturnIsAdmin bool
+	ReturnGroups  []string
+}
+
+func (u UserMock) IsAdmin() bool {
+	return u.ReturnIsAdmin
+}
+
+func (u UserMock) GetGroups() []string {
+	return u.ReturnGroups
+}
+
+var admin = UserMock{
+	ReturnIsAdmin: true,
+}
 
 func TestCRWithExpiration(t *testing.T) {
 	now = nowMockF
@@ -239,7 +257,7 @@ func TestCRWithFilter(t *testing.T) {
 	for _, testcase := range testCases {
 		repo := NewClientRepository([]*Client{c1, c2, c5}, nil, testLog)
 
-		actualClients, err := repo.GetFiltered(testcase.filters)
+		actualClients, err := repo.GetUserClients(admin, testcase.filters)
 		require.NoError(t, err)
 
 		actualClientIDs := make([]string, 0, len(actualClients))
@@ -254,7 +272,7 @@ func TestCRWithFilter(t *testing.T) {
 
 func TestCRWithUnsupportedFilter(t *testing.T) {
 	repo := NewClientRepository([]*Client{c1}, nil, testLog)
-	_, err := repo.GetFiltered([]query.FilterOption{
+	_, err := repo.GetUserClients(admin, []query.FilterOption{
 		{
 			Column: "unknown_field",
 			Values: []string{
@@ -263,4 +281,55 @@ func TestCRWithUnsupportedFilter(t *testing.T) {
 		},
 	})
 	require.EqualError(t, err, "unsupported filter column: unknown_field")
+}
+
+func TestGetUserClients(t *testing.T) {
+	c1 := New(t).Build()                                                             // no groups
+	c2 := New(t).AllowedUserGroups([]string{users.Administrators}).Build()           // admin
+	c3 := New(t).AllowedUserGroups([]string{users.Administrators, "group1"}).Build() // admin + group1
+	c4 := New(t).AllowedUserGroups([]string{"group1"}).Build()                       // group1
+	c5 := New(t).AllowedUserGroups([]string{"group1", "group2"}).Build()             // group1 + group2
+	c6 := New(t).AllowedUserGroups([]string{"group2"}).Build()                       // group2
+	c7 := New(t).AllowedUserGroups([]string{"group3"}).Build()                       // group3
+	c8 := New(t).AllowedUserGroups([]string{"group2", "group3"}).Build()             // group2 + group3
+	allClients := []*Client{c1, c2, c3, c4, c5, c6, c7, c8}
+
+	repo := NewClientRepository(allClients, nil, testLog)
+	testCases := []struct {
+		name          string
+		user          User
+		wantClientIDs []*Client
+	}{
+		{
+			name:          "admin user",
+			user:          admin,
+			wantClientIDs: allClients,
+		},
+		{
+			name:          "user with no groups has no access",
+			user:          &UserMock{ReturnGroups: nil},
+			wantClientIDs: []*Client{},
+		},
+		{
+			name:          "user with unknown group",
+			user:          &UserMock{ReturnGroups: []string{"unknown"}},
+			wantClientIDs: []*Client{},
+		},
+		{
+			name:          "non-admin user with access to few clients",
+			user:          &users.User{Groups: []string{"group1", "group2"}},
+			wantClientIDs: []*Client{c3, c4, c5, c6, c8},
+		},
+	}
+
+	for _, tc := range testCases {
+		t.Run(tc.name, func(t *testing.T) {
+			// when
+			gotClients, gotErr := repo.GetUserClients(tc.user, nil)
+
+			// then
+			require.NoError(t, gotErr)
+			assert.ElementsMatch(t, tc.wantClientIDs, gotClients)
+		})
+	}
 }

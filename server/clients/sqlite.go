@@ -119,6 +119,7 @@ func convertToSqlite(v *Client) *clientSqlite {
 			IPv6:                   v.IPv6,
 			Tags:                   v.Tags,
 			Tunnels:                v.Tunnels,
+			AllowedUserGroups:      v.AllowedUserGroups,
 		},
 	}
 	if v.DisconnectedAt != nil {
@@ -157,6 +158,7 @@ type clientDetails struct {
 	IPv6                   []string  `json:"ipv6"`
 	Tags                   []string  `json:"tags"`
 	Tunnels                []*Tunnel `json:"tunnels"`
+	AllowedUserGroups      []string  `json:"allowed_user_groups"`
 }
 
 func (d *clientDetails) Scan(value interface{}) error {
@@ -212,6 +214,7 @@ func (s *clientSqlite) convert() *Client {
 		NumCPUs:                d.NumCPUs,
 		MemoryTotal:            d.MemoryTotal,
 		Timezone:               d.Timezone,
+		AllowedUserGroups:      d.AllowedUserGroups,
 	}
 	if s.DisconnectedAt.Valid {
 		res.DisconnectedAt = &s.DisconnectedAt.Time

@@ -5,6 +5,7 @@ import (
 
 	"github.com/stretchr/testify/assert"
 
+	"github.com/cloudradar-monitoring/rport/server/api/users"
 	"github.com/cloudradar-monitoring/rport/server/cgroups"
 )
 
@@ -246,6 +247,76 @@ func TestClientBelongsToGroup(t *testing.T) {
 		t.Run(tc.name, func(t *testing.T) {
 			// when
 			gotRes := tc.client.BelongsTo(tc.group)
+
+			// then
+			assert.Equal(t, tc.wantRes, gotRes)
+		})
+	}
+}
+
+func TestHasAccess(t *testing.T) {
+	testCases := []struct {
+		name string
+
+		client     *Client
+		userGroups []string
+
+		wantRes bool
+	}{
+		{
+			name: "empty acl, empty user groups",
+			client: &Client{
+				AllowedUserGroups: nil,
+			},
+			userGroups: nil,
+			wantRes:    false,
+		},
+		{
+			name: "non-empty acl, empty user groups",
+			client: &Client{
+				AllowedUserGroups: []string{"group1"},
+			},
+			userGroups: nil,
+			wantRes:    false,
+		},
+		{
+			name: "empty acl, non-empty user groups",
+			client: &Client{
+				AllowedUserGroups: nil,
+			},
+			userGroups: []string{"group1"},
+			wantRes:    false,
+		},
+		{
+			name: "acl with no explicit admin, user is admin",
+			client: &Client{
+				AllowedUserGroups: []string{"group1"},
+			},
+			userGroups: []string{users.Administrators},
+			wantRes:    true,
+		},
+		{
+			name: "empty acl, user is admin",
+			client: &Client{
+				AllowedUserGroups: nil,
+			},
+			userGroups: []string{users.Administrators},
+			wantRes:    true,
+		},
+		{
+			name: "acl contains user group",
+			client: &Client{
+				AllowedUserGroups: []string{"group2"},
+			},
+			userGroups: []string{"group1", "group2", "group3"},
+			wantRes:    true,
+		},
+	}
+
+	for _, tc := range testCases {
+		t.Run(tc.name, func(t *testing.T) {
+			// when
+			gotRes := tc.client.HasAccess(tc.userGroups)
 
 			// then
 			assert.Equal(t, tc.wantRes, gotRes)

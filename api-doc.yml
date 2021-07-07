@@ -499,6 +499,46 @@ paths:
           description: "invalid operation"
           schema:
             $ref: "#/definitions/ErrorPayload"
+  /clients/{client_id}/acl:
+    post:
+      tags:
+        - "Clients and Tunnels"
+      summary: "Limit access to a current client to user groups. Require admin access"
+      description: ""
+      produces:
+        - "application/json"
+      parameters:
+        - name: "client_id"
+          in: "path"
+          description: "unique client id retrieved previously"
+          required: true
+          type: "string"
+        - in: "body"
+          name: "body"
+          required: true
+          schema:
+            type: "object"
+            properties:
+              allowed_user_groups:
+                type: "array"
+                description: "list of user groups that are allowed to access this client. Empty means only Administrators can access it. You must always specify the entire list of allowed groups, partial updates are not supported"
+                items:
+                  type: "string"
+      responses:
+        "204":
+          description: "Successful Operation"
+        "400":
+          description: "Invalid request parameters"
+          schema:
+            $ref: "#/definitions/ErrorPayload"
+        "404":
+          description: "Client or specified user groups not found"
+          schema:
+            $ref: "#/definitions/ErrorPayload"
+        "500":
+          description: "Invalid Operation"
+          schema:
+            $ref: "#/definitions/ErrorPayload"
   /clients/{client_id}/commands:
     get:
       tags:
@@ -939,7 +979,7 @@ paths:
     get:
       tags:
         - "Rport Client Auth Credentials"
-      summary: "Return all rport clients authentication credentials. Sorted by ID in asc order"
+      summary: "Return all rport clients authentication credentials. Sorted by ID in asc order. Require admin access"
       description: ""
       produces:
         - "application/json"
@@ -960,7 +1000,7 @@ paths:
     post:
       tags:
         - "Rport Client Auth Credentials"
-      summary: "Add new rport client authentication credentials"
+      summary: "Add new rport client authentication credentials. Require admin access"
       description: ""
       produces:
         - "application/json"
@@ -1001,7 +1041,7 @@ paths:
     delete:
       tags:
         - "Rport Client Auth Credentials"
-      summary:  "Delete rport client authentication credentials"
+      summary:  "Delete rport client authentication credentials. Require admin access"
       description: ""
       responses:
         "204":
@@ -1051,7 +1091,7 @@ paths:
     post:
       tags:
         - "Client Groups"
-      summary: "Create a new client group"
+      summary: "Create a new client group. Require admin access"
       description: "Create a new client group."
       produces:
         - "application/json"
@@ -1106,7 +1146,7 @@ paths:
     put:
       tags:
         - "Client Groups"
-      summary: "Save a client group"
+      summary: "Save a client group. Require admin access"
       description: "Update an existing client group or save a new client group"
       produces:
         - "application/json"
@@ -1136,7 +1176,7 @@ paths:
     delete:
       tags:
         - "Client Groups"
-      summary: "Delete a client group"
+      summary: "Delete a client group. Require admin access"
       description: "Delete a client group by a given id"
       produces:
         - "application/json"
@@ -1943,6 +1983,11 @@ definitions:
       client_auth_id:
         type: "string"
         description: "rport client authentication ID that was used to connect to server"
+      allowed_user_groups:
+        type: "array"
+        items:
+          type: string
+        description: "list of user groups that are allowed to access this client. Administrators have always full-access to all clients. Empty list prevents access for everyone except admins"
   ClientGroup:
     type: "object"
     properties:

@@ -116,6 +116,36 @@ func (al *APIListener) wrapWithAuthMiddleware(f http.Handler) http.HandlerFunc {
 	}
 }
 
+func (al *APIListener) wrapClientAccessMiddleware(next http.HandlerFunc) http.HandlerFunc {
+	return func(w http.ResponseWriter, r *http.Request) {
+		if al.insecureForTests {
+			next.ServeHTTP(w, r)
+			return
+		}
+
+		vars := mux.Vars(r)
+		clientID := vars[routeParamClientID]
+		if clientID == "" {
+			al.jsonErrorResponseWithTitle(w, http.StatusBadRequest, fmt.Sprintf("Missing %q route param.", routeParamClientID))
+			return
+		}
+
+		curUser, err := al.getUserModelForAuth(r.Context())
+		if err != nil {
+			al.jsonError(w, err)
+			return
+		}
+
+		err = al.clientService.CheckClientAccess(clientID, curUser)
+		if err != nil {
+			al.jsonError(w, err)
+			return
+		}
+
+		next.ServeHTTP(w, r)
+	}
+}
+
 func (al *APIListener) handleBannedIPs(w http.ResponseWriter, r *http.Request, authorized bool) (ok bool) {
 	if al.bannedIPs != nil {
 		ip, _, err := net.SplitHostPort(r.RemoteAddr)
@@ -142,18 +172,19 @@ func (al *APIListener) initRouter() {
 	sub.HandleFunc("/me", al.handleChangeMe).Methods(http.MethodPut)
 	sub.HandleFunc("/me/ip", al.handleGetIP).Methods(http.MethodGet)
 	sub.HandleFunc("/clients", al.handleGetClients).Methods(http.MethodGet)
-	sub.HandleFunc("/clients/{client_id}", al.handleDeleteClient).Methods(http.MethodDelete)
-	sub.HandleFunc("/clients/{client_id}/tunnels", al.handlePutClientTunnel).Methods(http.MethodPut)
-	sub.HandleFunc("/clients/{client_id}/tunnels/{tunnel_id}", al.handleDeleteClientTunnel).Methods(http.MethodDelete)
-	sub.HandleFunc("/clients/{client_id}/commands", al.handlePostCommand).Methods(http.MethodPost)
-	sub.HandleFunc("/clients/{client_id}/commands", al.handleGetCommands).Methods(http.MethodGet)
-	sub.HandleFunc("/clients/{client_id}/commands/{job_id}", al.handleGetCommand).Methods(http.MethodGet)
-	sub.HandleFunc("/clients/{client_id}/scripts", al.handleExecuteScript).Methods(http.MethodPost)
+	sub.HandleFunc("/clients/{client_id}", al.wrapClientAccessMiddleware(al.handleDeleteClient)).Methods(http.MethodDelete)
+	sub.HandleFunc("/clients/{client_id}/acl", al.wrapAdminAccessMiddleware(al.handlePostClientACL)).Methods(http.MethodPost)
+	sub.HandleFunc("/clients/{client_id}/tunnels", al.wrapClientAccessMiddleware(al.handlePutClientTunnel)).Methods(http.MethodPut)
+	sub.HandleFunc("/clients/{client_id}/tunnels/{tunnel_id}", al.wrapClientAccessMiddleware(al.handleDeleteClientTunnel)).Methods(http.MethodDelete)
+	sub.HandleFunc("/clients/{client_id}/commands", al.wrapClientAccessMiddleware(al.handlePostCommand)).Methods(http.MethodPost)
+	sub.HandleFunc("/clients/{client_id}/commands", al.wrapClientAccessMiddleware(al.handleGetCommands)).Methods(http.MethodGet)
+	sub.HandleFunc("/clients/{client_id}/commands/{job_id}", al.wrapClientAccessMiddleware(al.handleGetCommand)).Methods(http.MethodGet)
+	sub.HandleFunc("/clients/{client_id}/scripts", al.wrapClientAccessMiddleware(al.handleExecuteScript)).Methods(http.MethodPost)
 	sub.HandleFunc("/client-groups", al.handleGetClientGroups).Methods(http.MethodGet)
-	sub.HandleFunc("/client-groups", al.handlePostClientGroups).Methods(http.MethodPost)
-	sub.HandleFunc("/client-groups/{group_id}", al.handlePutClientGroup).Methods(http.MethodPut)
+	sub.HandleFunc("/client-groups", al.wrapAdminAccessMiddleware(al.handlePostClientGroups)).Methods(http.MethodPost)
+	sub.HandleFunc("/client-groups/{group_id}", al.wrapAdminAccessMiddleware(al.handlePutClientGroup)).Methods(http.MethodPut)
 	sub.HandleFunc("/client-groups/{group_id}", al.handleGetClientGroup).Methods(http.MethodGet)
-	sub.HandleFunc("/client-groups/{group_id}", al.handleDeleteClientGroup).Methods(http.MethodDelete)
+	sub.HandleFunc("/client-groups/{group_id}", al.wrapAdminAccessMiddleware(al.handleDeleteClientGroup)).Methods(http.MethodDelete)
 	sub.HandleFunc("/users", al.wrapStaticPassModeMiddleware(al.wrapAdminAccessMiddleware(al.handleGetUsers))).Methods(http.MethodGet)
 	sub.HandleFunc("/users", al.wrapStaticPassModeMiddleware(al.wrapAdminAccessMiddleware(al.handleChangeUser))).Methods(http.MethodPost)
 	sub.HandleFunc("/users/{user_id}", al.wrapStaticPassModeMiddleware(al.wrapAdminAccessMiddleware(al.handleChangeUser))).Methods(http.MethodPut)
@@ -161,9 +192,9 @@ func (al *APIListener) initRouter() {
 	sub.HandleFunc("/commands", al.handlePostMultiClientCommand).Methods(http.MethodPost)
 	sub.HandleFunc("/commands", al.handleGetMultiClientCommands).Methods(http.MethodGet)
 	sub.HandleFunc("/commands/{job_id}", al.handleGetMultiClientCommand).Methods(http.MethodGet)
-	sub.HandleFunc("/clients-auth", al.handleGetClientsAuth).Methods(http.MethodGet)
-	sub.HandleFunc("/clients-auth", al.handlePostClientsAuth).Methods(http.MethodPost)
-	sub.HandleFunc("/clients-auth/{client_auth_id}", al.handleDeleteClientAuth).Methods(http.MethodDelete)
+	sub.HandleFunc("/clients-auth", al.wrapAdminAccessMiddleware(al.handleGetClientsAuth)).Methods(http.MethodGet)
+	sub.HandleFunc("/clients-auth", al.wrapAdminAccessMiddleware(al.handlePostClientsAuth)).Methods(http.MethodPost)
+	sub.HandleFunc("/clients-auth/{client_auth_id}", al.wrapAdminAccessMiddleware(al.handleDeleteClientAuth)).Methods(http.MethodDelete)
 	sub.HandleFunc("/vault-admin", al.handleGetVaultStatus).Methods(http.MethodGet)
 	sub.HandleFunc("/vault-admin/sesame", al.wrapAdminAccessMiddleware(al.handleVaultUnlock)).Methods(http.MethodPost)
 	sub.HandleFunc("/vault-admin/init", al.wrapAdminAccessMiddleware(al.handleVaultInit)).Methods(http.MethodPost)
@@ -240,25 +271,18 @@ func (al *APIListener) jsonErrorResponse(w http.ResponseWriter, statusCode int, 
 
 func (al *APIListener) jsonError(w http.ResponseWriter, err error) {
 	statusCode := http.StatusInternalServerError
-	errCode := strconv.Itoa(statusCode)
-	msg := err.Error()
 	var apiErr errors2.APIError
 	var apiErrs errors2.APIErrors
 	switch {
 	case errors.As(err, &apiErr):
 		statusCode = apiErr.Code
-		errCode = strconv.Itoa(statusCode)
-		al.writeJSONResponse(w, statusCode, api.NewErrorPayloadWithCode(errCode, msg, ""))
-		return
 	case errors.As(err, &apiErrs):
 		if len(apiErrs) > 0 {
 			statusCode = apiErrs[0].Code
 		}
-		al.writeJSONResponse(w, statusCode, api.NewAPIErrorsPayloadWithCode(apiErrs))
-		return
 	}
 
-	al.writeJSONResponse(w, statusCode, api.NewErrorPayloadWithCode(errCode, msg, ""))
+	al.writeJSONResponse(w, statusCode, api.NewErrorPayload(err))
 }
 
 func (al *APIListener) jsonErrorResponseWithErrCode(w http.ResponseWriter, statusCode int, errCode, title string) {
@@ -403,12 +427,9 @@ func parseLoginPostRequestBody(req *http.Request) (string, string, error) {
 			Password string `json:"password"`
 		}
 		var params loginReq
-		err := json.NewDecoder(req.Body).Decode(&params)
+		err := parseRequestBody(req.Body, &params)
 		if err != nil {
-			return "", "", errors2.APIError{
-				Err:  fmt.Errorf("failed to parse request body: %v", err),
-				Code: http.StatusBadRequest,
-			}
+			return "", "", err
 		}
 		return params.Username, params.Password, nil
 	}
@@ -500,12 +521,9 @@ func (al *APIListener) parseAndValidate2FATokenRequest(req *http.Request) (usern
 		Username string `json:"username"`
 		Token    string `json:"token"`
 	}
-	err = json.NewDecoder(req.Body).Decode(&reqBody)
+	err = parseRequestBody(req.Body, &reqBody)
 	if err != nil {
-		return "", errors2.APIError{
-			Code: http.StatusBadRequest,
-			Err:  fmt.Errorf("failed to parse request body: %v", err),
-		}
+		return "", err
 	}
 
 	if al.bannedUsers.IsBanned(reqBody.Username) {
@@ -581,12 +599,13 @@ func (al *APIListener) handleGetClients(w http.ResponseWriter, req *http.Request
 		return
 	}
 
-	var cls []*clients.Client
-	if len(filterOptions) > 0 {
-		cls, err = al.clientService.GetFiltered(filterOptions)
-	} else {
-		cls, err = al.clientService.GetAll()
+	curUser, err := al.getUserModelForAuth(req.Context())
+	if err != nil {
+		al.jsonError(w, err)
+		return
 	}
+
+	cls, err := al.clientService.GetUserClients(curUser, filterOptions)
 	if err != nil {
 		al.jsonError(w, err)
 		return
@@ -633,14 +652,9 @@ func (al *APIListener) handleChangeUser(w http.ResponseWriter, req *http.Request
 	}
 
 	var user users.User
-	dec := json.NewDecoder(req.Body)
-	dec.DisallowUnknownFields()
-	err := dec.Decode(&user)
-	if err == io.EOF { // is handled separately to return an informative error message
-		al.jsonErrorResponseWithTitle(w, http.StatusBadRequest, "Missing body with json data.")
-		return
-	} else if err != nil {
-		al.jsonErrorResponseWithError(w, http.StatusBadRequest, "", "Invalid JSON data.", err)
+	err := parseRequestBody(req.Body, &user)
+	if err != nil {
+		al.jsonError(w, err)
 		return
 	}
 
@@ -678,14 +692,14 @@ func (al *APIListener) handleDeleteUser(w http.ResponseWriter, req *http.Request
 type ClientPayload struct {
 	ID                     string                  `json:"id"`
 	Name                   string                  `json:"name"`
-	DisconnectedAt         *time.Time              `json:"disconnected_at"`
+	Address                string                  `json:"address"`
+	Hostname               string                  `json:"hostname"`
 	OS                     string                  `json:"os"`
+	OSFullName             string                  `json:"os_full_name"`
+	OSVersion              string                  `json:"os_version"`
 	OSArch                 string                  `json:"os_arch"`
 	OSFamily               string                  `json:"os_family"`
 	OSKernel               string                  `json:"os_kernel"`
-	Hostname               string                  `json:"hostname"`
-	OSFullName             string                  `json:"os_full_name"`
-	OSVersion              string                  `json:"os_version"`
 	OSVirtualizationSystem string                  `json:"os_virtualization_system"`
 	OSVirtualizationRole   string                  `json:"os_virtualization_role"`
 	NumCPUs                int                     `json:"num_cpus"`
@@ -694,13 +708,14 @@ type ClientPayload struct {
 	CPUModelName           string                  `json:"cpu_model_name"`
 	MemoryTotal            uint64                  `json:"mem_total"`
 	Timezone               string                  `json:"timezone"`
-	Address                string                  `json:"address"`
 	ClientAuthID           string                  `json:"client_auth_id"`
 	Version                string                  `json:"version"`
+	DisconnectedAt         *time.Time              `json:"disconnected_at"`
 	ConnectionState        clients.ConnectionState `json:"connection_state"`
 	IPv4                   []string                `json:"ipv4"`
 	IPv6                   []string                `json:"ipv6"`
 	Tags                   []string                `json:"tags"`
+	AllowedUserGroups      []string                `json:"allowed_user_groups"`
 	Tunnels                []*clients.Tunnel       `json:"tunnels"`
 }
 
@@ -734,6 +749,7 @@ func convertToClientsPayload(clients []*clients.Client) []ClientPayload {
 			Timezone:               cur.Timezone,
 			NumCPUs:                cur.NumCPUs,
 			MemoryTotal:            cur.MemoryTotal,
+			AllowedUserGroups:      cur.AllowedUserGroups,
 		})
 	}
 	return r
@@ -778,6 +794,40 @@ func (al *APIListener) handleDeleteClient(w http.ResponseWriter, req *http.Reque
 
 	w.WriteHeader(http.StatusNoContent)
 	al.Debugf("Client %q deleted.", clientID)
+}
+
+type clientACLRequest struct {
+	AllowedUserGroups []string `json:"allowed_user_groups"`
+}
+
+func (al *APIListener) handlePostClientACL(w http.ResponseWriter, req *http.Request) {
+	vars := mux.Vars(req)
+	cid := vars[routeParamClientID]
+	if cid == "" {
+		al.jsonErrorResponseWithTitle(w, http.StatusBadRequest, fmt.Sprintf("Missing %q route param.", routeParamClientID))
+		return
+	}
+
+	var reqBody clientACLRequest
+	err := parseRequestBody(req.Body, &reqBody)
+	if err != nil {
+		al.jsonError(w, err)
+		return
+	}
+
+	err = al.usersService.ExistGroups(reqBody.AllowedUserGroups)
+	if err != nil {
+		al.jsonError(w, err)
+		return
+	}
+
+	err = al.clientService.SetACL(cid, reqBody.AllowedUserGroups)
+	if err != nil {
+		al.jsonError(w, err)
+		return
+	}
+
+	w.WriteHeader(http.StatusNoContent)
 }
 
 const (
@@ -1004,7 +1054,7 @@ func (al *APIListener) handleDeleteClientTunnel(w http.ResponseWriter, req *http
 
 // handleGetMe returns the currently logged in user and the groups the user belongs to.
 func (al *APIListener) handleGetMe(w http.ResponseWriter, req *http.Request) {
-	user, err := al.getUserModel(req)
+	user, err := al.getUserModel(req.Context())
 	if err != nil {
 		al.jsonErrorResponse(w, http.StatusInternalServerError, err)
 		return
@@ -1033,18 +1083,13 @@ type changeMeRequest struct {
 
 func (al *APIListener) handleChangeMe(w http.ResponseWriter, req *http.Request) {
 	var r changeMeRequest
-	dec := json.NewDecoder(req.Body)
-	dec.DisallowUnknownFields()
-	err := dec.Decode(&r)
-	if err == io.EOF { // is handled separately to return an informative error message
-		al.jsonErrorResponseWithTitle(w, http.StatusBadRequest, "Missing body with json data.")
-		return
-	} else if err != nil {
-		al.jsonErrorResponseWithError(w, http.StatusBadRequest, "", "Invalid JSON data.", err)
+	err := parseRequestBody(req.Body, &r)
+	if err != nil {
+		al.jsonError(w, err)
 		return
 	}
 
-	curUser, err := al.getUserModelForAuth(req)
+	curUser, err := al.getUserModelForAuth(req.Context())
 	if err != nil {
 		al.jsonError(w, err)
 		return
@@ -1074,8 +1119,8 @@ func (al *APIListener) handleChangeMe(w http.ResponseWriter, req *http.Request) 
 	w.WriteHeader(http.StatusNoContent)
 }
 
-func (al *APIListener) getUserModel(req *http.Request) (*users.User, error) {
-	curUsername := api.GetUser(req.Context(), al.Logger)
+func (al *APIListener) getUserModel(ctx context.Context) (*users.User, error) {
+	curUsername := api.GetUser(ctx, al.Logger)
 	if curUsername == "" {
 		return nil, nil
 	}
@@ -1088,8 +1133,8 @@ func (al *APIListener) getUserModel(req *http.Request) (*users.User, error) {
 	return user, err
 }
 
-func (al *APIListener) getUserModelForAuth(req *http.Request) (*users.User, error) {
-	usr, err := al.getUserModel(req)
+func (al *APIListener) getUserModelForAuth(ctx context.Context) (*users.User, error) {
+	usr, err := al.getUserModel(ctx)
 	if err != nil {
 		return nil, errors2.APIError{
 			Err:  err,
@@ -1144,12 +1189,9 @@ func (al *APIListener) handlePostClientsAuth(w http.ResponseWriter, req *http.Re
 	}
 
 	var newClient clientsauth.ClientAuth
-	err := json.NewDecoder(req.Body).Decode(&newClient)
-	if err == io.EOF {
-		al.jsonErrorResponseWithErrCode(w, http.StatusBadRequest, ErrCodeInvalidRequest, "Missing data.")
-		return
-	} else if err != nil {
-		al.jsonErrorResponseWithError(w, http.StatusBadRequest, ErrCodeInvalidRequest, "Invalid JSON data.", err)
+	err := parseRequestBody(req.Body, &newClient)
+	if err != nil {
+		al.jsonError(w, err)
 		return
 	}
 
@@ -1275,14 +1317,9 @@ func (al *APIListener) handlePostCommand(w http.ResponseWriter, req *http.Reques
 	}
 
 	reqBody := &api.ExecuteCommandInput{}
-	dec := json.NewDecoder(req.Body)
-	dec.DisallowUnknownFields()
-	err := dec.Decode(&reqBody)
-	if err == io.EOF { // is handled separately to return an informative error message
-		al.jsonErrorResponseWithTitle(w, http.StatusBadRequest, "Missing body with json data.")
-		return
-	} else if err != nil {
-		al.jsonErrorResponseWithError(w, http.StatusBadRequest, "", "Invalid JSON data.", err)
+	err := parseRequestBody(req.Body, &reqBody)
+	if err != nil {
+		al.jsonError(w, err)
 		return
 	}
 	reqBody.ClientID = cid
@@ -1549,15 +1586,10 @@ type multiClientCmdRequest struct {
 // TODO: refactor to reuse similar code for REST API and WebSocket to execute cmds if both will be supported
 func (al *APIListener) handlePostMultiClientCommand(w http.ResponseWriter, req *http.Request) {
 	ctx := req.Context()
-	reqBody := multiClientCmdRequest{}
-	dec := json.NewDecoder(req.Body)
-	dec.DisallowUnknownFields()
-	err := dec.Decode(&reqBody)
-	if err == io.EOF { // is handled separately to return an informative error message
-		al.jsonErrorResponseWithTitle(w, http.StatusBadRequest, "Missing body with json data.")
-		return
-	} else if err != nil {
-		al.jsonErrorResponseWithError(w, http.StatusBadRequest, "", "Invalid JSON data.", err)
+	var reqBody multiClientCmdRequest
+	err := parseRequestBody(req.Body, &reqBody)
+	if err != nil {
+		al.jsonError(w, err)
 		return
 	}
 	if reqBody.Command == "" {
@@ -1633,11 +1665,23 @@ func (al *APIListener) handlePostMultiClientCommand(w http.ResponseWriter, req *
 		abortOnErr = *reqBody.AbortOnError
 	}
 
+	curUser, err := al.getUserModelForAuth(req.Context())
+	if err != nil {
+		al.jsonError(w, err)
+		return
+	}
+
+	err = al.clientService.CheckClientsAccess(orderedClients, curUser)
+	if err != nil {
+		al.jsonError(w, err)
+		return
+	}
+
 	multiJob := &models.MultiJob{
 		MultiJobSummary: models.MultiJobSummary{
 			JID:       generateNewJobID(),
 			StartedAt: time.Now(),
-			CreatedBy: api.GetUser(req.Context(), al.Logger),
+			CreatedBy: curUser.Username,
 		},
 		ClientIDs:  reqBody.ClientIDs,
 		GroupIDs:   reqBody.GroupIDs,
@@ -1906,11 +1950,23 @@ func (al *APIListener) handleCommandsExecutionWS(ctx context.Context, uiConnTS *
 		}
 	}
 
+	curUser, err := al.getUserModelForAuth(ctx)
+	if err != nil {
+		uiConnTS.WriteError("Could not get current user.", err)
+		return
+	}
+
+	err = al.clientService.CheckClientsAccess(orderedClients, curUser)
+	if err != nil {
+		uiConnTS.WriteError(err.Error(), nil)
+		return
+	}
+
 	jid := generateNewJobID()
 	al.Server.uiJobWebSockets.Set(jid, uiConnTS)
 	defer al.Server.uiJobWebSockets.Delete(jid)
 
-	createdBy := api.GetUser(ctx, al.Logger)
+	createdBy := curUser.Username
 	if len(inboundMsg.ClientIDs) > 1 || len(groupClients) > 0 {
 		// by default abortOnErr is true
 		abortOnErr := true
@@ -2124,14 +2180,9 @@ func (al *APIListener) handleGetMultiClientCommands(w http.ResponseWriter, req *
 
 func (al *APIListener) handlePostClientGroups(w http.ResponseWriter, req *http.Request) {
 	var group cgroups.ClientGroup
-	dec := json.NewDecoder(req.Body)
-	dec.DisallowUnknownFields()
-	err := dec.Decode(&group)
-	if err == io.EOF { // is handled separately to return an informative error message
-		al.jsonErrorResponseWithTitle(w, http.StatusBadRequest, "Missing body with json data.")
-		return
-	} else if err != nil {
-		al.jsonErrorResponseWithError(w, http.StatusBadRequest, "", "Invalid JSON data.", err)
+	err := parseRequestBody(req.Body, &group)
+	if err != nil {
+		al.jsonError(w, err)
 		return
 	}
 
@@ -2158,14 +2209,9 @@ func (al *APIListener) handlePutClientGroup(w http.ResponseWriter, req *http.Req
 	}
 
 	var group cgroups.ClientGroup
-	dec := json.NewDecoder(req.Body)
-	dec.DisallowUnknownFields()
-	err := dec.Decode(&group)
-	if err == io.EOF { // is handled separately to return an informative error message
-		al.jsonErrorResponseWithTitle(w, http.StatusBadRequest, "Missing body with json data.")
-		return
-	} else if err != nil {
-		al.jsonErrorResponseWithError(w, http.StatusBadRequest, "", "Invalid JSON data.", err)
+	err := parseRequestBody(req.Body, &group)
+	if err != nil {
+		al.jsonError(w, err)
 		return
 	}
 
@@ -2272,17 +2318,20 @@ func (al *APIListener) wrapStaticPassModeMiddleware(next http.HandlerFunc) http.
 
 func (al *APIListener) wrapAdminAccessMiddleware(next http.HandlerFunc) http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
-		user, err := al.getUserModelForAuth(r)
+		if al.insecureForTests {
+			next.ServeHTTP(w, r)
+			return
+		}
+
+		user, err := al.getUserModelForAuth(r.Context())
 		if err != nil {
 			al.jsonError(w, err)
 			return
 		}
 
-		for i := range user.Groups {
-			if user.Groups[i] == users.Administrators {
-				next.ServeHTTP(w, r)
-				return
-			}
+		if user.IsAdmin() {
+			next.ServeHTTP(w, r)
+			return
 		}
 
 		al.jsonError(w, errors2.APIError{
@@ -2307,7 +2356,8 @@ func (al *APIListener) handleGetVaultStatus(w http.ResponseWriter, req *http.Req
 }
 
 func (al *APIListener) handleVaultUnlock(w http.ResponseWriter, req *http.Request) {
-	passReq, err := al.extractPassRequest(req)
+	var passReq vault.PassRequest
+	err := parseRequestBody(req.Body, &passReq)
 	if err != nil {
 		al.jsonError(w, err)
 		return
@@ -2333,7 +2383,8 @@ func (al *APIListener) handleVaultLock(w http.ResponseWriter, req *http.Request)
 }
 
 func (al *APIListener) handleVaultInit(w http.ResponseWriter, req *http.Request) {
-	passReq, err := al.extractPassRequest(req)
+	var passReq vault.PassRequest
+	err := parseRequestBody(req.Body, &passReq)
 	if err != nil {
 		al.jsonError(w, err)
 		return
@@ -2346,29 +2397,6 @@ func (al *APIListener) handleVaultInit(w http.ResponseWriter, req *http.Request)
 	}
 
 	w.WriteHeader(http.StatusCreated)
-}
-
-func (al *APIListener) extractPassRequest(req *http.Request) (vault.PassRequest, error) {
-	var passReq vault.PassRequest
-
-	dec := json.NewDecoder(req.Body)
-	dec.DisallowUnknownFields()
-
-	err := dec.Decode(&passReq)
-	if err == io.EOF {
-		return passReq, errors2.APIError{
-			Message: "Missing password.",
-			Code:    http.StatusBadRequest,
-		}
-	} else if err != nil {
-		return passReq, errors2.APIError{
-			Err:     err,
-			Message: "Invalid JSON data.",
-			Code:    http.StatusBadRequest,
-		}
-	}
-
-	return passReq, nil
 }
 
 func (al *APIListener) handleListVaultValues(w http.ResponseWriter, req *http.Request) {
@@ -2413,7 +2441,7 @@ func (al *APIListener) handleReadVaultValue(w http.ResponseWriter, req *http.Req
 		return
 	}
 
-	curUser, err := al.getUserModelForAuth(req)
+	curUser, err := al.getUserModelForAuth(req.Context())
 	if err != nil {
 		al.jsonError(w, err)
 		return
@@ -2442,21 +2470,16 @@ func (al *APIListener) handleVaultStoreValue(w http.ResponseWriter, req *http.Re
 		return
 	}
 
-	curUser, err := al.getUserModelForAuth(req)
+	curUser, err := al.getUserModelForAuth(req.Context())
 	if err != nil {
 		al.jsonError(w, err)
 		return
 	}
 
 	var vaultKeyValue vault.InputValue
-	dec := json.NewDecoder(req.Body)
-	dec.DisallowUnknownFields()
-	err = dec.Decode(&vaultKeyValue)
-	if err == io.EOF {
-		al.jsonErrorResponseWithTitle(w, http.StatusBadRequest, "Missing body with json data.")
-		return
-	} else if err != nil {
-		al.jsonErrorResponseWithError(w, http.StatusBadRequest, "", "Invalid JSON data.", err)
+	err = parseRequestBody(req.Body, &vaultKeyValue)
+	if err != nil {
+		al.jsonError(w, err)
 		return
 	}
 
@@ -2492,7 +2515,7 @@ func (al *APIListener) handleVaultDeleteValue(w http.ResponseWriter, req *http.R
 		return
 	}
 
-	curUser, err := al.getUserModelForAuth(req)
+	curUser, err := al.getUserModelForAuth(req.Context())
 	if err != nil {
 		al.jsonError(w, err)
 		return
@@ -2519,11 +2542,9 @@ func (al *APIListener) handleListScripts(w http.ResponseWriter, req *http.Reques
 
 func (al *APIListener) handleScriptCreate(w http.ResponseWriter, req *http.Request) {
 	var scriptInput script.InputScript
-	dec := json.NewDecoder(req.Body)
-	dec.DisallowUnknownFields()
-	err := dec.Decode(&scriptInput)
+	err := parseRequestBody(req.Body, &scriptInput)
 	if err != nil {
-		al.jsonErrorResponseWithError(w, http.StatusBadRequest, "", "Invalid JSON data.", err)
+		al.jsonError(w, err)
 		return
 	}
 
@@ -2559,12 +2580,9 @@ func (al *APIListener) handleScriptUpdate(w http.ResponseWriter, req *http.Reque
 	}
 
 	var scriptInput script.InputScript
-	dec := json.NewDecoder(req.Body)
-	dec.DisallowUnknownFields()
-	err := dec.Decode(&scriptInput)
-
+	err := parseRequestBody(req.Body, &scriptInput)
 	if err != nil {
-		al.jsonErrorResponseWithError(w, http.StatusBadRequest, "", "Invalid JSON data.", err)
+		al.jsonError(w, err)
 		return
 	}
 
@@ -2619,4 +2637,26 @@ func (al *APIListener) handleDeleteScript(w http.ResponseWriter, req *http.Reque
 	}
 
 	w.WriteHeader(http.StatusNoContent)
+}
+
+func parseRequestBody(reqBody io.ReadCloser, dest interface{}) error {
+	dec := json.NewDecoder(reqBody)
+	dec.DisallowUnknownFields()
+	err := dec.Decode(dest)
+	if err == io.EOF { // is handled separately to return an informative error message
+		return errors2.APIError{
+			Message: "Missing body with json data.",
+			Code:    http.StatusBadRequest,
+		}
+	}
+
+	if err != nil {
+		return errors2.APIError{
+			Message: "Invalid JSON data.",
+			Err:     err,
+			Code:    http.StatusBadRequest,
+		}
+	}
+
+	return nil
 }

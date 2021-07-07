@@ -105,6 +105,18 @@ func (d *UserDatabase) GetAll() ([]*User, error) {
 	return usrs, nil
 }
 
+func (d *UserDatabase) GetAllGroups() ([]string, error) {
+	var groups []string
+	err := d.db.Select(&groups, fmt.Sprintf("SELECT DISTINCT `group` FROM `%s` ORDER BY `group`", d.groupsTableName))
+	if err != nil {
+		if err == sql.ErrNoRows {
+			return nil, nil
+		}
+		return nil, err
+	}
+	return groups, nil
+}
+
 func (d *UserDatabase) handleRollback(tx *sqlx.Tx) {
 	err := tx.Rollback()
 	if err != nil {

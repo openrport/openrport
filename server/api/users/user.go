@@ -19,3 +19,12 @@ func (u User) GetGroups() []string {
 func (u User) GetUsername() string {
 	return u.Username
 }
+
+func (u User) IsAdmin() bool {
+	for _, group := range u.Groups {
+		if group == Administrators {
+			return true
+		}
+	}
+	return false
+}

@@ -178,6 +178,30 @@ func TestGetAll(t *testing.T) {
 	assert.Equal(t, expectedUsers, actualUsers)
 }
 
+func TestGetAllGroups(t *testing.T) {
+	db, err := sqlx.Connect("sqlite3", ":memory:")
+	require.NoError(t, err)
+	defer db.Close()
+
+	err = prepareTables(db)
+	require.NoError(t, err)
+
+	err = prepareDummyData(db)
+	require.NoError(t, err)
+
+	d, err := NewUserDatabase(db, "users", "groups", false, testLog)
+	require.NoError(t, err)
+
+	actualGroups, err := d.GetAllGroups()
+	require.NoError(t, err)
+
+	expectedGroups := []string{
+		"group1",
+		"group2",
+	}
+	assert.Equal(t, expectedGroups, actualGroups)
+}
+
 func TestAdd(t *testing.T) {
 	testCases := []struct {
 		name              string
