@@ -10,6 +10,8 @@ import (
 	"sync"
 	"time"
 
+	"github.com/cloudradar-monitoring/rport/share/query"
+
 	"golang.org/x/crypto/ssh"
 
 	"github.com/cloudradar-monitoring/rport/server/api/errors"
@@ -24,6 +26,18 @@ type ClientService struct {
 	portDistributor *ports.PortDistributor
 
 	mu sync.Mutex
+}
+
+var clientsSupportedFields = map[string]bool{
+	"os_full_name":             true,
+	"os_virtualization_system": true,
+	"os_virtualization_role":   true,
+	"cpu_model_name":           true,
+	"timezone":                 true,
+	"os_version":               true,
+	"cpu_family":               true,
+	"cpu_model":                true,
+	"num_cpus":                 true,
 }
 
 // NewClientService returns a new instance of client service.
@@ -42,8 +56,9 @@ func InitClientService(
 	portDistributor *ports.PortDistributor,
 	provider clients.ClientProvider,
 	keepLostClients *time.Duration,
+	logger *chshare.Logger,
 ) (*ClientService, error) {
-	repo, err := clients.InitClientRepository(ctx, provider, keepLostClients)
+	repo, err := clients.InitClientRepository(ctx, provider, keepLostClients, logger)
 	if err != nil {
 		return nil, fmt.Errorf("failed to init Client Repository: %v", err)
 	}
@@ -111,6 +126,10 @@ func (s *ClientService) GetAll() ([]*clients.Client, error) {
 	return s.repo.GetAll()
 }
 
+func (s *ClientService) GetFiltered(filterOptions []query.FilterOption) ([]*clients.Client, error) {
+	return s.repo.GetFiltered(filterOptions)
+}
+
 func (s *ClientService) StartClient(
 	ctx context.Context, clientAuthID, clientID string, sshConn ssh.Conn, authMultiuseCreds bool,
 	req *chshare.ConnectionRequest, clog *chshare.Logger,
@@ -148,23 +167,34 @@ func (s *ClientService) StartClient(
 	}
 
 	client := &clients.Client{
-		ID:           clientID,
-		ClientAuthID: clientAuthID,
-		Name:         req.Name,
-		Tags:         req.Tags,
-		OS:           req.OS,
-		OSArch:       req.OSArch,
-		OSFamily:     req.OSFamily,
-		OSKernel:     req.OSKernel,
-		Hostname:     req.Hostname,
-		Version:      req.Version,
-		IPv4:         req.IPv4,
-		IPv6:         req.IPv6,
-		Address:      clientHost,
-		Tunnels:      make([]*clients.Tunnel, 0),
-		Connection:   sshConn,
-		Context:      ctx,
-		Logger:       clog,
+		ID:                     clientID,
+		Name:                   req.Name,
+		OS:                     req.OS,
+		OSArch:                 req.OSArch,
+		OSFamily:               req.OSFamily,
+		OSKernel:               req.OSKernel,
+		OSFullName:             req.OSFullName,
+		OSVersion:              req.OSVersion,
+		OSVirtualizationSystem: req.OSVirtualizationSystem,
+		OSVirtualizationRole:   req.OSVirtualizationRole,
+		Hostname:               req.Hostname,
+		CPUFamily:              req.OSFamily,
+		CPUModel:               req.CPUModel,
+		CPUModelName:           req.CPUModelName,
+		NumCPUs:                req.NumCPUs,
+		MemoryTotal:            req.MemoryTotal,
+		Timezone:               req.Timezone,
+		IPv4:                   req.IPv4,
+		IPv6:                   req.IPv6,
+		Tags:                   req.Tags,
+		Version:                req.Version,
+		Address:                clientHost,
+		Tunnels:                make([]*clients.Tunnel, 0),
+		DisconnectedAt:         nil,
+		ClientAuthID:           clientAuthID,
+		Connection:             sshConn,
+		Context:                ctx,
+		Logger:                 clog,
 	}
 
 	_, err = s.startClientTunnels(client, req.Remotes)

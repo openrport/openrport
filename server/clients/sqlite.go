@@ -97,18 +97,28 @@ func convertToSqlite(v *Client) *clientSqlite {
 		ID:           v.ID,
 		ClientAuthID: v.ClientAuthID,
 		Details: &clientDetails{
-			Name:     v.Name,
-			OS:       v.OS,
-			OSArch:   v.OSArch,
-			OSFamily: v.OSFamily,
-			OSKernel: v.OSKernel,
-			Hostname: v.Hostname,
-			Version:  v.Version,
-			Address:  v.Address,
-			IPv4:     v.IPv4,
-			IPv6:     v.IPv6,
-			Tags:     v.Tags,
-			Tunnels:  v.Tunnels,
+			Name:                   v.Name,
+			OS:                     v.OS,
+			OSArch:                 v.OSArch,
+			OSFamily:               v.OSFamily,
+			OSKernel:               v.OSKernel,
+			Hostname:               v.Hostname,
+			Version:                v.Version,
+			Address:                v.Address,
+			OSFullName:             v.OSFullName,
+			OSVersion:              v.OSVersion,
+			OSVirtualizationSystem: v.OSVirtualizationSystem,
+			OSVirtualizationRole:   v.OSVirtualizationRole,
+			CPUFamily:              v.CPUFamily,
+			CPUModel:               v.CPUModel,
+			CPUModelName:           v.CPUModelName,
+			NumCPUs:                v.NumCPUs,
+			MemoryTotal:            v.MemoryTotal,
+			Timezone:               v.Timezone,
+			IPv4:                   v.IPv4,
+			IPv6:                   v.IPv6,
+			Tags:                   v.Tags,
+			Tunnels:                v.Tunnels,
 		},
 	}
 	if v.DisconnectedAt != nil {
@@ -125,18 +135,28 @@ type clientSqlite struct {
 }
 
 type clientDetails struct {
-	Name     string    `json:"name"`
-	OS       string    `json:"os"`
-	OSArch   string    `json:"os_arch"`
-	OSFamily string    `json:"os_family"`
-	OSKernel string    `json:"os_kernel"`
-	Hostname string    `json:"hostname"`
-	Version  string    `json:"version"`
-	Address  string    `json:"address"`
-	IPv4     []string  `json:"ipv4"`
-	IPv6     []string  `json:"ipv6"`
-	Tags     []string  `json:"tags"`
-	Tunnels  []*Tunnel `json:"tunnels"`
+	NumCPUs                int       `json:"num_cpus"`
+	MemoryTotal            uint64    `json:"mem_total"`
+	Name                   string    `json:"name"`
+	OS                     string    `json:"os"`
+	OSArch                 string    `json:"os_arch"`
+	OSFamily               string    `json:"os_family"`
+	OSKernel               string    `json:"os_kernel"`
+	OSFullName             string    `json:"os_full_name"`
+	OSVersion              string    `json:"os_version"`
+	OSVirtualizationSystem string    `json:"os_virtualization_system"`
+	OSVirtualizationRole   string    `json:"os_virtualization_role"`
+	CPUFamily              string    `json:"cpu_family"`
+	CPUModel               string    `json:"cpu_model"`
+	CPUModelName           string    `json:"cpu_model_name"`
+	Timezone               string    `json:"timezone"`
+	Hostname               string    `json:"hostname"`
+	Version                string    `json:"version"`
+	Address                string    `json:"address"`
+	IPv4                   []string  `json:"ipv4"`
+	IPv6                   []string  `json:"ipv6"`
+	Tags                   []string  `json:"tags"`
+	Tunnels                []*Tunnel `json:"tunnels"`
 }
 
 func (d *clientDetails) Scan(value interface{}) error {
@@ -168,20 +188,30 @@ func (d *clientDetails) Value() (driver.Value, error) {
 func (s *clientSqlite) convert() *Client {
 	d := s.Details
 	res := &Client{
-		ID:           s.ID,
-		ClientAuthID: s.ClientAuthID,
-		Name:         d.Name,
-		OS:           d.OS,
-		OSArch:       d.OSArch,
-		OSFamily:     d.OSFamily,
-		OSKernel:     d.OSKernel,
-		Hostname:     d.Hostname,
-		IPv4:         d.IPv4,
-		IPv6:         d.IPv6,
-		Tags:         d.Tags,
-		Version:      d.Version,
-		Address:      d.Address,
-		Tunnels:      d.Tunnels,
+		ID:                     s.ID,
+		ClientAuthID:           s.ClientAuthID,
+		Name:                   d.Name,
+		OS:                     d.OS,
+		OSArch:                 d.OSArch,
+		OSFamily:               d.OSFamily,
+		OSKernel:               d.OSKernel,
+		Hostname:               d.Hostname,
+		IPv4:                   d.IPv4,
+		IPv6:                   d.IPv6,
+		Tags:                   d.Tags,
+		Version:                d.Version,
+		Address:                d.Address,
+		Tunnels:                d.Tunnels,
+		OSFullName:             d.OSFullName,
+		OSVersion:              d.OSVersion,
+		OSVirtualizationSystem: d.OSVirtualizationSystem,
+		OSVirtualizationRole:   d.OSVirtualizationRole,
+		CPUFamily:              d.CPUFamily,
+		CPUModel:               d.CPUModel,
+		CPUModelName:           d.CPUModelName,
+		NumCPUs:                d.NumCPUs,
+		MemoryTotal:            d.MemoryTotal,
+		Timezone:               d.Timezone,
 	}
 	if s.DisconnectedAt.Valid {
 		res.DisconnectedAt = &s.DisconnectedAt.Time

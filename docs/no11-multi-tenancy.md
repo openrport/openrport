@@ -65,6 +65,16 @@ curl -s -u admin:foobaz http://localhost:3000/api/v1/clients|jq
     "os_arch": "amd64",
     "os_family": "debian",
     "os_kernel": "linux",
+    "os_full_name": "Debian",
+    "os_version": "5.4.0-37",
+    "os_virtualization_system":"KVM",
+    "os_virtualization_role":"guest",
+    "cpu_family":"59",
+    "cpu_model":"6",
+    "cpu_model_name":"Intel(R) Xeon(R) Silver 4110 CPU @ 2.10GHz",
+    "num_cpus":16,
+    "mem_total":67020316672,
+    "timezone":"UTC (UTC+00:00)",
     "hostname": "my-devvm-v3",
     "ipv4": [
       "192.168.3.148"

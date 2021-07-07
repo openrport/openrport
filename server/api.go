@@ -14,6 +14,8 @@ import (
 	"strings"
 	"time"
 
+	"github.com/cloudradar-monitoring/rport/share/query"
+
 	"github.com/gorilla/mux"
 	"github.com/gorilla/websocket"
 	"github.com/tomasen/realip"
@@ -565,21 +567,34 @@ func (al *APIListener) handleGetStatus(w http.ResponseWriter, req *http.Request)
 }
 
 func (al *APIListener) handleGetClients(w http.ResponseWriter, req *http.Request) {
+	var err error
 	sortFunc, desc, err := getCorrespondingSortFunc(req.URL.Query().Get(queryParamSort))
 	if err != nil {
 		al.jsonErrorResponse(w, http.StatusBadRequest, err)
 		return
 	}
 
-	clients, err := al.clientService.GetAll()
-	if err != nil {
-		al.jsonErrorResponse(w, http.StatusInternalServerError, err)
+	filterOptions := query.ExtractFilterOptions(req)
+	filterErr := query.ValidateFilterOptions(filterOptions, clientsSupportedFields)
+	if filterErr != nil {
+		al.jsonError(w, filterErr)
 		return
 	}
 
-	sortFunc(clients, desc)
+	var cls []*clients.Client
+	if len(filterOptions) > 0 {
+		cls, err = al.clientService.GetFiltered(filterOptions)
+	} else {
+		cls, err = al.clientService.GetAll()
+	}
+	if err != nil {
+		al.jsonError(w, err)
+		return
+	}
 
-	clientsPayload := convertToClientsPayload(clients)
+	sortFunc(cls, desc)
+
+	clientsPayload := convertToClientsPayload(cls)
 	al.writeJSONResponse(w, http.StatusOK, api.NewSuccessPayload(clientsPayload))
 }
 
@@ -661,44 +676,64 @@ func (al *APIListener) handleDeleteUser(w http.ResponseWriter, req *http.Request
 }
 
 type ClientPayload struct {
-	ID              string                  `json:"id"`
-	Name            string                  `json:"name"`
-	OS              string                  `json:"os"`
-	OSArch          string                  `json:"os_arch"`
-	OSFamily        string                  `json:"os_family"`
-	OSKernel        string                  `json:"os_kernel"`
-	Hostname        string                  `json:"hostname"`
-	IPv4            []string                `json:"ipv4"`
-	IPv6            []string                `json:"ipv6"`
-	Tags            []string                `json:"tags"`
-	Version         string                  `json:"version"`
-	Address         string                  `json:"address"`
-	Tunnels         []*clients.Tunnel       `json:"tunnels"`
-	DisconnectedAt  *time.Time              `json:"disconnected_at"`
-	ConnectionState clients.ConnectionState `json:"connection_state"`
-	ClientAuthID    string                  `json:"client_auth_id"`
+	ID                     string                  `json:"id"`
+	Name                   string                  `json:"name"`
+	DisconnectedAt         *time.Time              `json:"disconnected_at"`
+	OS                     string                  `json:"os"`
+	OSArch                 string                  `json:"os_arch"`
+	OSFamily               string                  `json:"os_family"`
+	OSKernel               string                  `json:"os_kernel"`
+	Hostname               string                  `json:"hostname"`
+	OSFullName             string                  `json:"os_full_name"`
+	OSVersion              string                  `json:"os_version"`
+	OSVirtualizationSystem string                  `json:"os_virtualization_system"`
+	OSVirtualizationRole   string                  `json:"os_virtualization_role"`
+	NumCPUs                int                     `json:"num_cpus"`
+	CPUFamily              string                  `json:"cpu_family"`
+	CPUModel               string                  `json:"cpu_model"`
+	CPUModelName           string                  `json:"cpu_model_name"`
+	MemoryTotal            uint64                  `json:"mem_total"`
+	Timezone               string                  `json:"timezone"`
+	Address                string                  `json:"address"`
+	ClientAuthID           string                  `json:"client_auth_id"`
+	Version                string                  `json:"version"`
+	ConnectionState        clients.ConnectionState `json:"connection_state"`
+	IPv4                   []string                `json:"ipv4"`
+	IPv6                   []string                `json:"ipv6"`
+	Tags                   []string                `json:"tags"`
+	Tunnels                []*clients.Tunnel       `json:"tunnels"`
 }
 
 func convertToClientsPayload(clients []*clients.Client) []ClientPayload {
 	r := make([]ClientPayload, 0, len(clients))
 	for _, cur := range clients {
 		r = append(r, ClientPayload{
-			ID:              cur.ID,
-			Name:            cur.Name,
-			OS:              cur.OS,
-			OSArch:          cur.OSArch,
-			OSFamily:        cur.OSFamily,
-			OSKernel:        cur.OSKernel,
-			Hostname:        cur.Hostname,
-			IPv4:            cur.IPv4,
-			IPv6:            cur.IPv6,
-			Tags:            cur.Tags,
-			Version:         cur.Version,
-			Address:         cur.Address,
-			Tunnels:         cur.Tunnels,
-			DisconnectedAt:  cur.DisconnectedAt,
-			ConnectionState: cur.ConnectionState(),
-			ClientAuthID:    cur.ClientAuthID,
+			ID:                     cur.ID,
+			Name:                   cur.Name,
+			OS:                     cur.OS,
+			OSArch:                 cur.OSArch,
+			OSFamily:               cur.OSFamily,
+			OSKernel:               cur.OSKernel,
+			Hostname:               cur.Hostname,
+			IPv4:                   cur.IPv4,
+			IPv6:                   cur.IPv6,
+			Tags:                   cur.Tags,
+			Version:                cur.Version,
+			Address:                cur.Address,
+			Tunnels:                cur.Tunnels,
+			DisconnectedAt:         cur.DisconnectedAt,
+			ConnectionState:        cur.ConnectionState(),
+			ClientAuthID:           cur.ClientAuthID,
+			OSFullName:             cur.OSFullName,
+			OSVersion:              cur.OSVersion,
+			OSVirtualizationSystem: cur.OSVirtualizationSystem,
+			OSVirtualizationRole:   cur.OSVirtualizationRole,
+			CPUFamily:              cur.CPUFamily,
+			CPUModel:               cur.CPUModel,
+			CPUModelName:           cur.CPUModelName,
+			Timezone:               cur.Timezone,
+			NumCPUs:                cur.NumCPUs,
+			MemoryTotal:            cur.MemoryTotal,
 		})
 	}
 	return r

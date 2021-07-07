@@ -18,7 +18,7 @@ func TestCleanup(t *testing.T) {
 	clients := []*Client{c1, c2, c3}
 	p := newFakeClientProvider(t, hour, c1, c2, c3)
 	defer p.Close()
-	repo := newClientRepositoryWithDB(clients, &hour, p)
+	repo := newClientRepositoryWithDB(clients, &hour, p, testLog)
 	require.Len(t, repo.clients, 3)
 	gotObsolete, err := p.get(ctx, c3.ID)
 	require.NoError(t, err)

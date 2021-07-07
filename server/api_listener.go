@@ -127,7 +127,7 @@ func NewAPIListener(
 	}
 
 	scriptLogger := chshare.NewLogger("scripts", config.Logging.LogOutput, config.Logging.LogLevel)
-	scriptDb, err := script.NewSqliteProvider(path.Join(config.Server.DataDir, "scripts.db"), scriptLogger)
+	scriptDb, err := script.NewSqliteProvider(path.Join(config.Server.DataDir, "library.db"), scriptLogger)
 	if err != nil {
 		return nil, err
 	}

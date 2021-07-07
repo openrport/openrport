@@ -44,7 +44,7 @@ func NewManager(db DbProvider, ex *Executor, logger *chshare.Logger) *Manager {
 }
 
 func (m *Manager) List(ctx context.Context, re *http.Request) ([]Script, error) {
-	listOptions := query.ConvertGetParamsToFilterOptions(re)
+	listOptions := query.GetSortAndFilterOptions(re)
 
 	err := query.ValidateListOptions(listOptions, supportedFields)
 	if err != nil {

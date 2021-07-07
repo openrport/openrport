@@ -253,7 +253,7 @@ func (m *Manager) List(ctx context.Context, re *http.Request) ([]ValueKey, error
 		return nil, err
 	}
 
-	listOptions := query.ConvertGetParamsToFilterOptions(re)
+	listOptions := query.GetSortAndFilterOptions(re)
 
 	err = query.ValidateListOptions(listOptions, supportedFields)
 	if err != nil {

@@ -84,7 +84,7 @@ func TestStartClient(t *testing.T) {
 				repo: clients.NewClientRepository([]*clients.Client{{
 					ID:           "test-client",
 					ClientAuthID: "test-client-auth",
-				}}, nil),
+				}}, nil, testLog),
 				portDistributor: ports.NewPortDistributor(mapset.NewThreadUnsafeSet()),
 			}
 			_, err := cs.StartClient(
@@ -140,7 +140,7 @@ func TestDeleteOfflineClient(t *testing.T) {
 	for _, tc := range testCases {
 		t.Run(tc.name, func(t *testing.T) {
 			// given
-			clientService := NewClientService(nil, clients.NewClientRepository([]*clients.Client{c1Active, c2Active, c3Offline, c4Offline}, &hour))
+			clientService := NewClientService(nil, clients.NewClientRepository([]*clients.Client{c1Active, c2Active, c3Offline, c4Offline}, &hour, testLog))
 			before, err := clientService.Count()
 			require.NoError(t, err)
 			require.Equal(t, 4, before)

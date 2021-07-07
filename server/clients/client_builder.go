@@ -69,18 +69,28 @@ func (b ClientBuilder) Connection(conn ssh.Conn) ClientBuilder {
 
 func (b ClientBuilder) Build() *Client {
 	return &Client{
-		ID:       b.id,
-		Name:     "Random Rport Client",
-		OS:       "Linux alpine-3-10-tk-01 4.19.80-0-virt #1-Alpine SMP Fri Oct 18 11:51:24 UTC 2019 x86_64 Linux",
-		OSArch:   "amd64",
-		OSFamily: "alpine",
-		OSKernel: "linux",
-		Hostname: "alpine-3-10-tk-01",
-		IPv4:     []string{"192.168.122.111"},
-		IPv6:     []string{"fe80::b84f:aff:fe59:a0b1"},
-		Tags:     []string{"Linux", "Datacenter 1"},
-		Version:  "0.1.12",
-		Address:  "88.198.189.161:50078",
+		NumCPUs:                2,
+		MemoryTotal:            100000,
+		ID:                     b.id,
+		Name:                   "Random Rport Client",
+		OS:                     "Linux alpine-3-10-tk-01 4.19.80-0-virt #1-Alpine SMP Fri Oct 18 11:51:24 UTC 2019 x86_64 Linux",
+		OSArch:                 "amd64",
+		OSFamily:               "alpine",
+		OSKernel:               "linux",
+		OSFullName:             "Debian 18.0",
+		OSVersion:              "18.0",
+		OSVirtualizationSystem: "LVM",
+		OSVirtualizationRole:   "guest",
+		CPUFamily:              "Virtual CPU",
+		CPUModel:               "Virtual CPU",
+		CPUModelName:           "",
+		Timezone:               "UTC-0",
+		Hostname:               "alpine-3-10-tk-01",
+		IPv4:                   []string{"192.168.122.111"},
+		IPv6:                   []string{"fe80::b84f:aff:fe59:a0b1"},
+		Tags:                   []string{"Linux", "Datacenter 1"},
+		Version:                "0.1.12",
+		Address:                "88.198.189.161:50078",
 		Tunnels: []*Tunnel{
 			{
 				ID: "1",
@@ -103,10 +113,8 @@ func (b ClientBuilder) Build() *Client {
 		},
 		DisconnectedAt: b.disconnectedAt,
 		ClientAuthID:   b.clientAuthID,
-
-		Connection: b.conn,
+		Connection:     b.conn,
 	}
-
 }
 
 func generateRandomClientAuthID() string {

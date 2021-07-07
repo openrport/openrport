@@ -108,6 +108,7 @@ func NewServer(config *Config, filesAPI files.FileAPI) (*Server, error) {
 		ports.NewPortDistributor(config.AllowedPorts()),
 		s.clientProvider,
 		keepLostClients,
+		s.Logger,
 	)
 	if err != nil {
 		return nil, err

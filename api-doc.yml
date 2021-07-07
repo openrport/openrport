@@ -328,6 +328,14 @@ paths:
           description: "Sort option `-<field>`(desc) or `<field>`(asc). `<field>` can be one of `'id', 'name', 'os', 'hostname', 'version'`. For example, `&sort=-name` or `&sort=hostname`, etc"
           required: false
           type: "string"
+        - name: "filter"
+          in: "query"
+          description: "Filter option `filter[<field>]` or `filter[<field>,<field>] for or conditions`.\n
+          `<field>` can be one of `'os_full_name', 'os_version', 'os_virtualization_system', 'os_virtualization_role',\n
+          'cpu_family', 'cpu_model', 'cpu_model_name', 'num_cpus', 'timezone'`. For example, `&filter[os_full_name]=Ubuntu 20.04` or `filter[os_full_name]=Ubuntu 20.04,Ubuntu 18.04`, etc.\n
+          Multiple filters are possible. You can also use wildcards for partial matches e.g. `filter[os_full_name]=Ubuntu*` will list all clients whose os_full_name starts with 'Ubuntu'."
+          required: false
+          type: "string"
       summary: "List all active and disconnected client connections. By default sorted by ID in asc order"
       description: ""
       produces:
@@ -1857,7 +1865,13 @@ definitions:
         description: "client name"
       os:
         type: "string"
-        description: "client OS description"
+        description: "long description of client OS"
+      os_full_name:
+        type: "string"
+        description: "short description of client OS (e.g. Microsoft Windows Server 2016 Standard)"
+      os_version:
+        type: "string"
+        description: "version info about client's OS e.g. 10.0.14393 Build 14393"
       os_arch:
         type: "string"
         description: "client cpu architecture (ex: 386, amd64)"
@@ -1867,9 +1881,33 @@ definitions:
       os_kernel:
         type: "string"
         description: "client OS kernel (ex: linux, windows)"
+      os_virtualization_system:
+        type: "string"
+        description: "info about the VM where client is running e.g. KVM, LXC, HyperV, VMWare, Xen"
+      os_virtualization_role:
+        type: "string"
+        description: "role of the client in the running VM e.g. host or guest"
       hostname:
         type: "string"
         description: "client hostname"
+      cpu_family:
+        type: "string"
+        description: "client's processor family info"
+      cpu_model:
+        type: "string"
+        description: "client's processor model info, e.g. 85"
+      cpu_model_name:
+        type: "string"
+        description: "human readable name of the client's processor model, e.g. Intel(R) Xeon(R) Silver 4110 CPU @ 2.10GHz"
+      num_cpus:
+        type: "integer"
+        description: "Number of cpu cores in the client's machine"
+      mem_total:
+        type: "number"
+        description: "Total memory in bytes"
+      timezone:
+        type: "string"
+        description: "Client's timezone e.g. PDT (UTC-07:00)"
       ipv4:
         type: "array"
         items:
@@ -2353,7 +2391,7 @@ definitions:
       script:
         type: "string"
         description: "text of the script"
-      sudo:
+      is_sudo:
         type: "boolean"
         description: "if true, this script will be executed as a sudo user"
   ScriptInput:
@@ -2371,6 +2409,6 @@ definitions:
       cwd:
         type: "string"
         description: "current working directory, where the script should be executed"
-      sudo:
+      is_sudo:
         type: "boolean"
         description: "if true, this script will be executed as a sudo user"

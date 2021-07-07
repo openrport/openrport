@@ -583,7 +583,7 @@ func TestHandleDeleteClient(t *testing.T) {
 			al := APIListener{
 				insecureForTests: true,
 				Server: &Server{
-					clientService: NewClientService(nil, clients.NewClientRepository(tc.clients, &hour)),
+					clientService: NewClientService(nil, clients.NewClientRepository(tc.clients, &hour, testLog)),
 					config: &Config{
 						Server: ServerConfig{
 							AuthWrite:       tc.clientAuthWrite,
@@ -819,7 +819,7 @@ func TestHandlePostCommand(t *testing.T) {
 			al := APIListener{
 				insecureForTests: true,
 				Server: &Server{
-					clientService: NewClientService(nil, clients.NewClientRepository(tc.clients, &hour)),
+					clientService: NewClientService(nil, clients.NewClientRepository(tc.clients, &hour, testLog)),
 					config: &Config{
 						Server: ServerConfig{
 							RunRemoteCmdTimeoutSec: defaultTimeout,
@@ -1054,7 +1054,7 @@ func TestHandleGetClients(t *testing.T) {
 	al := APIListener{
 		insecureForTests: true,
 		Server: &Server{
-			clientService: NewClientService(nil, clients.NewClientRepository([]*clients.Client{c1, c2}, &hour)),
+			clientService: NewClientService(nil, clients.NewClientRepository([]*clients.Client{c1, c2}, &hour, testLog)),
 			config: &Config{
 				Server: ServerConfig{MaxRequestBytes: 1024 * 1024},
 			},
@@ -1070,11 +1070,17 @@ func TestHandleGetClients(t *testing.T) {
    "data":[
       {
          "id":"client-1",
+         "mem_total":100000,
          "name":"Random Rport Client",
+         "num_cpus":2,
          "os":"Linux alpine-3-10-tk-01 4.19.80-0-virt #1-Alpine SMP Fri Oct 18 11:51:24 UTC 2019 x86_64 Linux",
          "os_arch":"amd64",
          "os_family":"alpine",
+         "os_full_name":"Debian 18.0",
          "os_kernel":"linux",
+         "os_version":"18.0",
+         "os_virtualization_role":"guest",
+         "os_virtualization_system":"LVM",
          "hostname":"alpine-3-10-tk-01",
          "ipv4":[
             "192.168.122.111"
@@ -1088,6 +1094,7 @@ func TestHandleGetClients(t *testing.T) {
          ],
          "version":"0.1.12",
          "address":"88.198.189.161:50078",
+         "timezone":"UTC-0",
          "tunnels":[
             {
                "lhost":"0.0.0.0",
@@ -1113,16 +1120,25 @@ func TestHandleGetClients(t *testing.T) {
             }
          ],
          "connection_state":"connected",
+         "cpu_family":"Virtual CPU",
+         "cpu_model":"Virtual CPU",
+         "cpu_model_name":"",
          "disconnected_at":null,
          "client_auth_id":"user1"
       },
       {
          "id":"client-2",
+         "mem_total":100000,
          "name":"Random Rport Client",
+         "num_cpus":2,
          "os":"Linux alpine-3-10-tk-01 4.19.80-0-virt #1-Alpine SMP Fri Oct 18 11:51:24 UTC 2019 x86_64 Linux",
          "os_arch":"amd64",
          "os_family":"alpine",
+		 "os_full_name":"Debian 18.0",
          "os_kernel":"linux",
+         "os_version": "18.0",
+		 "os_virtualization_role":"guest",
+		 "os_virtualization_system":"LVM",
          "hostname":"alpine-3-10-tk-01",
          "ipv4":[
             "192.168.122.111"
@@ -1136,6 +1152,7 @@ func TestHandleGetClients(t *testing.T) {
          ],
          "version":"0.1.12",
          "address":"88.198.189.161:50078",
+         "timezone":"UTC-0",
          "tunnels":[
             {
                "lhost":"0.0.0.0",
@@ -1161,12 +1178,14 @@ func TestHandleGetClients(t *testing.T) {
             }
          ],
          "connection_state":"disconnected",
+         "cpu_family":"Virtual CPU",
+         "cpu_model":"Virtual CPU",
+         "cpu_model_name":"",
          "disconnected_at":"2020-08-19T13:04:23+03:00",
          "client_auth_id":"user1"
       }
    ]
 }`
-
 	assert.Equal(t, 200, w.Code)
 	assert.JSONEq(t, expectedJSON, w.Body.String())
 }
@@ -1286,7 +1305,7 @@ func TestHandlePostMultiClientCommand(t *testing.T) {
 			al := APIListener{
 				insecureForTests: true,
 				Server: &Server{
-					clientService: NewClientService(nil, clients.NewClientRepository([]*clients.Client{c1, c2, c3}, &hour)),
+					clientService: NewClientService(nil, clients.NewClientRepository([]*clients.Client{c1, c2, c3}, &hour, testLog)),
 					config: &Config{
 						Server: ServerConfig{
 							RunRemoteCmdTimeoutSec: defaultTimeout,

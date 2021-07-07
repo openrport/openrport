@@ -67,7 +67,7 @@ func TestConvertGetParamsToFilterOptions(t *testing.T) {
 				URL: inputURL,
 			}
 
-			actualListOptions := ConvertGetParamsToFilterOptions(req)
+			actualListOptions := GetSortAndFilterOptions(req)
 
 			assert.ElementsMatch(t, testCases[i].expectedListOptions.Sorts, actualListOptions.Sorts)
 			assert.ElementsMatch(t, testCases[i].expectedListOptions.Filters, actualListOptions.Filters)

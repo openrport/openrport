@@ -26,19 +26,29 @@ const (
 
 // Client represents client connection
 type Client struct {
-	ID       string    `json:"id"`
-	Name     string    `json:"name"`
-	OS       string    `json:"os"`
-	OSArch   string    `json:"os_arch"`
-	OSFamily string    `json:"os_family"`
-	OSKernel string    `json:"os_kernel"`
-	Hostname string    `json:"hostname"`
-	IPv4     []string  `json:"ipv4"`
-	IPv6     []string  `json:"ipv6"`
-	Tags     []string  `json:"tags"`
-	Version  string    `json:"version"`
-	Address  string    `json:"address"`
-	Tunnels  []*Tunnel `json:"tunnels"`
+	ID                     string    `json:"id"`
+	Name                   string    `json:"name"`
+	OS                     string    `json:"os"`
+	OSArch                 string    `json:"os_arch"`
+	OSFamily               string    `json:"os_family"`
+	OSKernel               string    `json:"os_kernel"`
+	OSFullName             string    `json:"os_full_name"`
+	OSVersion              string    `json:"os_version"`
+	OSVirtualizationSystem string    `json:"os_virtualization_system"`
+	OSVirtualizationRole   string    `json:"os_virtualization_role"`
+	CPUFamily              string    `json:"cpu_family"`
+	CPUModel               string    `json:"cpu_model"`
+	CPUModelName           string    `json:"cpu_model_name"`
+	NumCPUs                int       `json:"num_cpus"`
+	MemoryTotal            uint64    `json:"mem_total"`
+	Timezone               string    `json:"timezone"`
+	Hostname               string    `json:"hostname"`
+	IPv4                   []string  `json:"ipv4"`
+	IPv6                   []string  `json:"ipv6"`
+	Tags                   []string  `json:"tags"`
+	Version                string    `json:"version"`
+	Address                string    `json:"address"`
+	Tunnels                []*Tunnel `json:"tunnels"`
 	// DisconnectedAt is a time when a client was disconnected. If nil - it's connected.
 	DisconnectedAt *time.Time `json:"disconnected_at"`
 	ClientAuthID   string     `json:"client_auth_id"`

@@ -24,14 +24,14 @@ type ListOptions struct {
 	Filters []FilterOption
 }
 
-func ConvertGetParamsToFilterOptions(req *http.Request) *ListOptions {
+func GetSortAndFilterOptions(req *http.Request) *ListOptions {
 	return &ListOptions{
-		Sorts:   extractSortOptions(req),
-		Filters: extractFilterOptions(req),
+		Sorts:   ExtractSortOptions(req),
+		Filters: ExtractFilterOptions(req),
 	}
 }
 
-func extractSortOptions(req *http.Request) []SortOption {
+func ExtractSortOptions(req *http.Request) []SortOption {
 	res := make([]SortOption, 0)
 	query := req.URL.Query()
 
@@ -61,23 +61,13 @@ func extractSortOptions(req *http.Request) []SortOption {
 	return res
 }
 
-func ValidateListOptions(lo *ListOptions, supportedFields map[string]bool) error {
+func ValidateFilterOptions(fo []FilterOption, supportedFields map[string]bool) errors2.APIErrors {
 	errs := errors2.APIErrors{}
-	for i := range lo.Sorts {
-		ok := supportedFields[lo.Sorts[i].Column]
+	for i := range fo {
+		ok := supportedFields[fo[i].Column]
 		if !ok {
 			errs = append(errs, errors2.APIError{
-				Message: fmt.Sprintf("unsupported sort field '%s'", lo.Sorts[i].Column),
-				Code:    http.StatusBadRequest,
-			})
-		}
-	}
-
-	for i := range lo.Filters {
-		ok := supportedFields[lo.Filters[i].Column]
-		if !ok {
-			errs = append(errs, errors2.APIError{
-				Message: fmt.Sprintf("unsupported filter field '%s'", lo.Filters[i].Column),
+				Message: fmt.Sprintf("unsupported filter field '%s'", fo[i].Column),
 				Code:    http.StatusBadRequest,
 			})
 		}
@@ -90,7 +80,45 @@ func ValidateListOptions(lo *ListOptions, supportedFields map[string]bool) error
 	return nil
 }
 
-func extractFilterOptions(req *http.Request) []FilterOption {
+func ValidateSortOptions(so []SortOption, supportedFields map[string]bool) errors2.APIErrors {
+	errs := errors2.APIErrors{}
+	for i := range so {
+		ok := supportedFields[so[i].Column]
+		if !ok {
+			errs = append(errs, errors2.APIError{
+				Message: fmt.Sprintf("unsupported sort field '%s'", so[i].Column),
+				Code:    http.StatusBadRequest,
+			})
+		}
+	}
+
+	if len(errs) > 0 {
+		return errs
+	}
+
+	return nil
+}
+
+func ValidateListOptions(lo *ListOptions, supportedFields map[string]bool) error {
+	errs := errors2.APIErrors{}
+	sortErrs := ValidateSortOptions(lo.Sorts, supportedFields)
+	if sortErrs != nil {
+		errs = append(errs, sortErrs...)
+	}
+
+	filterErrs := ValidateFilterOptions(lo.Filters, supportedFields)
+	if filterErrs != nil {
+		errs = append(errs, filterErrs...)
+	}
+
+	if len(errs) > 0 {
+		return errs
+	}
+
+	return nil
+}
+
+func ExtractFilterOptions(req *http.Request) []FilterOption {
 	res := make([]FilterOption, 0)
 	for filterKey, filterValues := range req.URL.Query() {
 		if !strings.HasPrefix(filterKey, "filter") || len(filterValues) == 0 {

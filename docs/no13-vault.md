@@ -139,6 +139,15 @@ You can filter entries by `id`, `client_id`, `created_by`, `created_at`, `key` f
 
 `http://localhost:3000/api/v1/vault?filter[key]=one` will list you entries with the key=one.
 
+Note:
+If you use curl to test filters, you should switch off URL globbing parser by providing `-g` flag (see curl documentation for the details), e.g.:
+
+```
+curl -g -X GET 'http://localhost:3000/api/v1/vault?filter[created_by]=admin' \
+-u admin:foobaz \
+-H 'Content-Type: application/json'
+```
+
 You can combine filters for multiple fields:
 `http://localhost:3000/api/v1/vault?filter[client_id]=client123&filter[created_by]=admin` - gives you list of entries for client `client123` and created by `admin`
 
@@ -179,7 +188,7 @@ The response will be
 }
 ```
 
-In the "value" field you will find the decrypted secure value. If `required_group` value of the stored vault entry is not empty, only users of this group can read this value, e.g. if `required_group` = 'admin' and the current user doesn't belong to this group, an error will be returned.
+In the "value" field you will find the decrypted secure value. If `required_group` value of the stored vault entry is not empty, only users of this group can read this value, e.g. if `required_group` = 'Administrators' and the current user doesn't belong to this group, an error will be returned.
 
 ### Add a new secured value
 
@@ -257,7 +266,7 @@ You can delete a vault entry by calling the following API:
 
 ```
 curl -X DELETE 'http://localhost:3000/api/v1/vault/1' \
--u admin:foobaz'
+-u admin:foobaz
 ```
 
 If `required_group` value of the entry you want to delete is not empty, only users of this group can change this value, otherwise an error will be returned.

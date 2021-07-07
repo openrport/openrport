@@ -7,18 +7,28 @@ import (
 
 // ConnectionRequest represents configuration options when initiating client-server connection
 type ConnectionRequest struct {
-	Version  string
-	ID       string
-	Name     string
-	OS       string
-	OSArch   string
-	OSFamily string
-	OSKernel string
-	Hostname string
-	IPv4     []string
-	IPv6     []string
-	Tags     []string
-	Remotes  []*Remote
+	ID                     string
+	Name                   string
+	OS                     string
+	OSFullName             string
+	OSVersion              string
+	OSVirtualizationSystem string
+	OSVirtualizationRole   string
+	OSArch                 string
+	OSFamily               string
+	OSKernel               string
+	Version                string
+	Hostname               string
+	CPUFamily              string
+	CPUModel               string
+	CPUModelName           string
+	NumCPUs                int
+	MemoryTotal            uint64
+	Timezone               string
+	IPv4                   []string
+	IPv6                   []string
+	Tags                   []string
+	Remotes                []*Remote
 }
 
 func DecodeConnectionRequest(b []byte) (*ConnectionRequest, error) {

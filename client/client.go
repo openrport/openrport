@@ -23,6 +23,8 @@ import (
 	"github.com/cloudradar-monitoring/rport/share/comm"
 )
 
+const UnknownValue = "unknown"
+
 //Client represents a client instance
 type Client struct {
 	*chshare.Logger
@@ -42,13 +44,14 @@ type Client struct {
 
 //NewClient creates a new client instance
 func NewClient(config *Config) *Client {
+	cmdExec := NewCmdExecutor()
 	client := &Client{
 		Logger:     chshare.NewLogger("client", config.Logging.LogOutput, config.Logging.LogLevel),
 		config:     config,
 		running:    true,
 		runningc:   make(chan error, 1),
-		cmdExec:    NewCmdExecutor(),
-		systemInfo: NewSystemInfo(),
+		cmdExec:    cmdExec,
+		systemInfo: NewSystemInfo(cmdExec),
 	}
 
 	client.sshConfig = &ssh.ClientConfig{
@@ -368,47 +371,106 @@ func (c *Client) connectionRequest(ctx context.Context) *chshare.ConnectionReque
 	defer cancel()
 
 	connReq := &chshare.ConnectionRequest{
-		Version: chshare.BuildVersion,
-		ID:      c.config.Client.ID,
-		Name:    c.config.Client.Name,
-		OSArch:  c.systemInfo.GoArch(),
-		Tags:    c.config.Client.Tags,
-		Remotes: c.config.Client.remotes,
+		ID:                     c.config.Client.ID,
+		Name:                   c.config.Client.Name,
+		Tags:                   c.config.Client.Tags,
+		Remotes:                c.config.Client.remotes,
+		OS:                     UnknownValue,
+		OSArch:                 c.systemInfo.GoArch(),
+		OSKernel:               UnknownValue,
+		OSFamily:               UnknownValue,
+		OSVersion:              UnknownValue,
+		OSVirtualizationRole:   UnknownValue,
+		OSVirtualizationSystem: UnknownValue,
+		Version:                chshare.BuildVersion,
+		Hostname:               UnknownValue,
+		CPUFamily:              UnknownValue,
+		CPUModel:               UnknownValue,
+		CPUModelName:           UnknownValue,
 	}
 
 	info, err := c.systemInfo.HostInfo(ctx)
 	if err != nil {
 		c.Logger.Errorf("Could not get os information: %v", err)
-		connReq.OSKernel = "unknown"
-		connReq.OSFamily = "unknown"
 	} else {
 		connReq.OSKernel = info.OS
 		connReq.OSFamily = info.PlatformFamily
 	}
 
-	connReq.OS, err = c.getOS(ctx, info)
+	os, err := c.getOS(ctx, info)
 	if err != nil {
-		connReq.OS = "unknown"
 		c.Logger.Errorf("Could not get os name: %v", err)
+	} else {
+		connReq.OS = os
 	}
+
+	connReq.OSFullName = c.getOSFullName(info)
+	if info != nil && info.PlatformVersion != "" {
+		connReq.OSVersion = info.PlatformVersion
+	}
+
+	oSVirtualizationSystem, oSVirtualizationRole, err := c.systemInfo.VirtualizationInfo(ctx, info)
+	if err != nil {
+		c.Logger.Errorf("Could not get OS Virtualization Info: %v", err)
+	} else {
+		connReq.OSVirtualizationSystem = oSVirtualizationSystem
+		connReq.OSVirtualizationRole = oSVirtualizationRole
+	}
+
 	connReq.IPv4, connReq.IPv6, err = c.localIPAddresses()
 	if err != nil {
 		c.Logger.Errorf("Could not get local ips: %v", err)
 	}
-	connReq.Hostname, err = c.systemInfo.Hostname()
+
+	hostname, err := c.systemInfo.Hostname()
 	if err != nil {
-		connReq.Hostname = "unknown"
 		c.Logger.Errorf("Could not get hostname: %v", err)
+	} else {
+		connReq.Hostname = hostname
 	}
+
+	cpuInfo, err := c.systemInfo.CPUInfo(ctx)
+
+	if err != nil {
+		c.Logger.Errorf("Could not get cpu information: %v", err)
+	}
+
+	if len(cpuInfo.CPUs) > 0 {
+		connReq.CPUFamily = cpuInfo.CPUs[0].Family
+		connReq.CPUModel = cpuInfo.CPUs[0].Model
+		connReq.CPUModelName = cpuInfo.CPUs[0].ModelName
+	}
+	connReq.NumCPUs = cpuInfo.NumCores
+
+	memoryInfo, err := c.systemInfo.MemoryStats(ctx)
+	if err != nil {
+		c.Logger.Errorf("Could not get memory information: %v", err)
+	} else if memoryInfo != nil {
+		connReq.MemoryTotal = memoryInfo.Total
+	}
+
+	connReq.Timezone = c.getTimezone()
 
 	return connReq
 }
 
 func (c *Client) getOS(ctx context.Context, info *host.InfoStat) (string, error) {
 	if info == nil {
-		return "unknown", nil
+		return UnknownValue, nil
 	} else if info.OS == "windows" {
 		return info.Platform + " " + info.PlatformVersion + " " + info.PlatformFamily, nil
 	}
 	return c.systemInfo.Uname(ctx)
+}
+
+func (c *Client) getOSFullName(infoStat *host.InfoStat) string {
+	if infoStat == nil {
+		return UnknownValue
+	}
+
+	return fmt.Sprintf("%s %s", strings.Title(strings.ToLower(infoStat.Platform)), infoStat.PlatformVersion)
+}
+
+func (c *Client) getTimezone() string {
+	return c.systemInfo.SystemTime().Format("MST (UTC-07:00)")
 }
