@@ -19,6 +19,7 @@ func (e *CmdExecutorImpl) New(ctx context.Context, execCtx *CmdExecutorContext) 
 		e.Errorf(err.Error())
 	} else {
 		shellPath = absShellPath
+		e.Debugf("resolved absolute shell path %s for shell %s", absShellPath, execCtx.Shell)
 	}
 
 	switch execCtx.Shell {
