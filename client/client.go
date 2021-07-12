@@ -44,7 +44,7 @@ type Client struct {
 
 //NewClient creates a new client instance
 func NewClient(config *Config) *Client {
-	cmdExec := NewCmdExecutor()
+	cmdExec := NewCmdExecutor(chshare.NewLogger("cmd executor", config.Logging.LogOutput, config.Logging.LogLevel))
 	client := &Client{
 		Logger:     chshare.NewLogger("client", config.Logging.LogOutput, config.Logging.LogLevel),
 		config:     config,

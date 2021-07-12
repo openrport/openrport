@@ -12,6 +12,8 @@ import (
 	"runtime"
 	"time"
 
+	chshare "github.com/cloudradar-monitoring/rport/share"
+
 	"github.com/cloudradar-monitoring/rport/share/comm"
 	"github.com/cloudradar-monitoring/rport/share/models"
 )
@@ -31,10 +33,13 @@ type CmdExecutor interface {
 }
 
 type CmdExecutorImpl struct {
+	*chshare.Logger
 }
 
-func NewCmdExecutor() *CmdExecutorImpl {
-	return &CmdExecutorImpl{}
+func NewCmdExecutor(l *chshare.Logger) *CmdExecutorImpl {
+	return &CmdExecutorImpl{
+		Logger: l,
+	}
 }
 
 func (e *CmdExecutorImpl) Start(cmd *exec.Cmd) error {
@@ -102,7 +107,7 @@ func (c *Client) HandleRunCmdRequest(ctx context.Context, reqPayload []byte) (*c
 	cmd.Stdout = &stdOut
 	cmd.Stderr = &stdErr
 
-	c.Debugf("Generated command is %s", cmd.String())
+	c.Debugf("Generated command is %s, sysProcAttributes: %+v", cmd.String(), cmd.SysProcAttr)
 
 	startedAt := now()
 	err = c.cmdExec.Start(cmd)
