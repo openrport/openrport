@@ -21,7 +21,6 @@ builds:
       - mips64
       - mips64le
       - s390x
-      - ppc64
     goarm:
       - 6
       - 7
@@ -37,7 +36,6 @@ builds:
       - goos: windows
         goarch: arm
       - goos: linux
-        goarch: ppc64
   - id: rport-linux-amd64
     main: ./cmd/rport
     binary: rport
