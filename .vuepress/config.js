@@ -67,7 +67,7 @@ module.exports = {
 
   // additional global constants
   define: {
-    __GA4_ID__: 'G-PXBRC7P992',
+    __GA4_ID__: 'G-QVHYG93PE3',
   },
 
   // client app root component files
