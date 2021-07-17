@@ -92,3 +92,4 @@ release:
     owner: cloudradar-monitoring
     name: rport
   draft: true
+  prerelease: true
