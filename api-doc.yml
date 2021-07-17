@@ -411,7 +411,7 @@ paths:
         type: "string"
       - name: "acl"
         in: "query"
-        description: "ACL, IP addresses or ranges who is allowed to use the tunnel. For example, '142.78.90.8,201.98.123.0/24'"
+        description: "ACL, IP v4 addresses or ranges who is allowed to use the tunnel (ipv6 is not supported yet). For example, '142.78.90.8,201.98.123.0/24'"
         required: false
         type: "string"
       - name: "check_port"
@@ -1894,7 +1894,7 @@ definitions:
         description: "URI scheme."
       acl:
         type: "string"
-        description: "IP addresses who is allowed to use the tunnel. For example, '142.78.90.8,201.98.123.0/24,'."
+        description: "IP v4 addresses who is allowed to use the tunnel (ipv6 is not supported yet). For example, '142.78.90.8,201.98.123.0/24,'."
   Client:
     type: "object"
     properties:

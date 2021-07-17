@@ -165,7 +165,7 @@ This example forwards port 4001 of the rport server to port 80 of `192.168.178.1
 ```
 
 #### Tunnel access control
-To increase the security of remote access, you can control how it is allowed to use a tunnel by limiting the tunnel usage to ip-addresses or network segments.
+To increase the security of remote access, you can control how it is allowed to use a tunnel by limiting the tunnel usage to ip v4 addresses or network segments (ipv6 is not supported yet).
 
 ```
 CLIENTID=2ba9174e-640e-4694-ad35-34a2d6f3986b
