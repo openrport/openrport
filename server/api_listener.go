@@ -88,6 +88,8 @@ func NewAPIListener(
 		if e != nil {
 			return nil, e
 		}
+		// for static user set the admin group
+		authUser.Groups = []string{users.Administrators}
 		userService = users.NewUserCache([]*users.User{authUser})
 		usersProviderType = enums.ProviderSourceStatic
 	} else if config.API.AuthUserTable != "" {
