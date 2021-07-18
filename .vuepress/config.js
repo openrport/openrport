@@ -89,7 +89,7 @@ module.exports = {
       },
       {
         text: 'Wiki',
-        link: 'https://github.com/cloudradar-monitoring/rport/wiki',
+        link: 'https://kb.rport.io',
       },
       {
         text: 'Download',
