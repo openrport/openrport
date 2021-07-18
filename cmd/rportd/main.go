@@ -19,7 +19,7 @@ import (
 const (
 	DefaultKeepLostClients        = time.Hour
 	DefaultCleanClientsInterval   = 1 * time.Minute
-	DefaultMaxRequestBytes        = 2 * 1024 // 2 KB
+	DefaultMaxRequestBytes        = 10 * 1024 // 10 KB
 	DefaultCheckPortTimeout       = 2 * time.Second
 	DefaultUsedPorts              = "20000-30000"
 	DefaultExcludedPorts          = "1-1024"
@@ -177,7 +177,7 @@ var serverHelp = `
     Defaults to auto-generated value.
 
     --max-request-bytes, An optional arg to define a limit for data that can be sent by rport clients and API requests.
-    By default is set to 2048(2Kb).
+    By default is set to 10240(10Kb).
 
     --allow-root, An optional arg to allow running rportd as root. There is no technical requirement to run the rport
     server under the root user. Running it as root is an unnecessary security risk.
