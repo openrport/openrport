@@ -38,9 +38,8 @@ See `./rportd --help` and `./rport --help` for more options, like:
 ## Run the server without installation
 If you quickly want to run the rport server without installation, run the following commands from any unprivileged user account.
 ```
-VERSION=0.1.37
-wget https://github.com/cloudradar-monitoring/rport/releases/download/${VERSION}/rport_${VERSION}_Linux_x86_64.tar.gz
-sudo tar vxzf rport_${VERSION}_Linux_x86_64.tar.gz rportd
+curl -LOJ https://downloads.rport.io/rport/stable/latest.php?arch=Linux_x86_64
+sudo tar vxzf rport_*_Linux_x86_64.tar.gz rportd
 KEY=$(openssl rand -hex 18)
 ./rportd --log-level info --data-dir /var/tmp/ --key $KEY --auth user1:1234
 ```
@@ -67,14 +66,13 @@ You might wonder why the rport server does not provide encryption on the transpo
 ### Install the server
 For a proper installation execute the following steps.
 ```
-VERSION=0.1.37
-wget https://github.com/cloudradar-monitoring/rport/releases/download/${VERSION}/rport_${VERSION}_Linux_x86_64.tar.gz
-sudo tar vxzf rport_${VERSION}_Linux_x86_64.tar.gz -C /usr/local/bin/ rportd
+curl -LOJ https://downloads.rport.io/rport/stable/latest.php?arch=Linux_x86_64
+sudo tar vxzf rport_*_Linux_x86_64.tar.gz -C /usr/local/bin/ rportd
 sudo useradd -d /var/lib/rport -m -U -r -s /bin/false rport
 sudo mkdir /etc/rport/
 sudo mkdir /var/log/rport/
 sudo chown rport /var/log/rport/
-sudo tar vxzf rport_${VERSION}_Linux_x86_64.tar.gz -C /etc/rport/ rportd.example.conf
+sudo tar vxzf rport_*_Linux_x86_64.tar.gz -C /etc/rport/ rportd.example.conf
 sudo cp /etc/rport/rportd.example.conf /etc/rport/rportd.conf
 ```
 
@@ -109,9 +107,8 @@ sudo systemctl enable rportd # Optionally start rportd on boot
 Assume, the client is called `client1.local.localdomain`.
 On your client just install the client binary
 ```
-VERSION=0.1.37
-curl -LSs https://github.com/cloudradar-monitoring/rport/releases/download/${VERSION}/rport_${VERSION}_Linux_x86_64.tar.gz|\
-tar vxzf - -C /usr/local/bin/ rport
+curl -LOJ https://downloads.rport.io/rport/stable/latest.php?arch=Linux_x86_64
+sudo tar vxzf rport_*_Linux_x86_64.tar.gz -C /usr/local/bin/ rport
 ```
 
 Create an ad hoc tunnel that will forward the port 2222 of `node1.example.com` to the to local port 22 of `client1.local.localdomain`.
@@ -125,14 +122,13 @@ Now you can access your machine behind a firewall through the tunnel. Try `ssh -
 ## Run a Linux client with systemd
 For a proper and permanent installation of the client execute the following steps.
 ```
-VERSION=0.1.37
-wget https://github.com/cloudradar-monitoring/rport/releases/download/${VERSION}/rport_${VERSION}_Linux_x86_64.tar.gz
-sudo tar vxzf rport_${VERSION}_Linux_x86_64.tar.gz -C /usr/local/bin/ rport
+curl -LOJ https://downloads.rport.io/rport/stable/latest.php?arch=Linux_x86_64
+sudo tar vxzf rport_*_Linux_x86_64.tar.gz -C /usr/local/bin/ rport
 sudo useradd -d /var/lib/rport -U -m -r -s /bin/false rport
 sudo mkdir /etc/rport/
 sudo mkdir /var/log/rport/
 sudo chown rport /var/log/rport/
-sudo tar vxzf rport_${VERSION}_Linux_x86_64.tar.gz -C /etc/rport/ rport.example.conf
+sudo tar vxzf rport_*_Linux_x86_64.tar.gz -C /etc/rport/ rport.example.conf
 sudo cp /etc/rport/rport.example.conf /etc/rport/rport.conf
 sudo rport --service install --service-user rport --config /etc/rport/rport.conf
 ```
@@ -154,7 +150,8 @@ remotes = ['2222:22']
 This will establish a permanent tunnel and the local port 22 (SSH) of the client becomes available on port 2222 of the rport server.
 
 ## Run a Windows client
-On Microsoft Windows [download the latest client binary](https://github.com/cloudradar-monitoring/rport/releases/download/0.1.37/rport_0.1.37_Windows_x86_64.zip) and extract it ideally to `C:\Program Files\rport`. Rename the `rport.example.conf` to `rport.conf` and store it in `C:\Program Files\rport` too.
+On Microsoft Windows [download the latest client binary](https://downloads.rport.io/rport/stable/latest.php?arch=Windows_x86_64) and extract it ideally to `C:\Program Files\rport`.
+Rename the `rport.example.conf` to `rport.conf` and store it in `C:\Program Files\rport` too.
 Open the `rport.conf` file with a text editor. On older Windows use an editor that supports unix line breaks, like [notepad++](https://notepad-plus-plus.org/).
 
 A very minimalistic client configuration `rport.conf` can look like this:
