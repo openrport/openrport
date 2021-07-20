@@ -5,7 +5,7 @@
   padding-right: 0;
 
   > *:not(.hero):not(.footer) {
-    max-width: $contentWidth;
+    max-width: var(--content-width);
     margin: 0 auto;
     padding-left: 2rem;
     padding-right: 2rem;
@@ -46,7 +46,7 @@
     }
 
     h1, .description {
-      color: $textContrastColor;
+      color: var(--c-bg);
     }
 
     h1 {
@@ -77,6 +77,6 @@
 
   .footer {
     margin-top: 4rem;
-    background: $bgColorGray;
+    background: var(--c-bg-light);
   }
 }

@@ -1,7 +1,7 @@
 <template>
   <div class="ga-consent" :class="{ 'ga-consent--show' : show }">
     <p>
-      By clicking "Accept", you agree that we collect measurement data with Google Analytics.
+      By clicking "Accept", you agree that we store Cookies from Google to provide services and analyse traffic.
     </p>
     <button type="button" class="button primary" @click="enableGA">Accept</button>
   </div>
@@ -9,21 +9,19 @@
 
 <script>
 import { defineComponent } from 'vue';
-import { useState } from "vue-gtag-next";
 
 export default defineComponent({
   name: 'GAConsent',
 
   data () {
     return {
-      localStorageItemKey: 'rport_GA',
-      acceptedGA: false,
+      localStorageItemKey: __GTM_LS_ITEM__,
       show: false,
     }
   },
 
   mounted () {
-    if (process.env.NODE_ENV === 'development') {
+    if (__DEV__) {
       return;
     }
     if (localStorage.getItem(this.localStorageItemKey)) {
@@ -35,22 +33,15 @@ export default defineComponent({
 
   methods: {
     enableGA() {
-      const { isEnabled } = useState();
-
-      isEnabled.value = true;
+      this.$gtm.enable(true);
       localStorage.setItem(this.localStorageItemKey, 'accepted');
-      this.acceptedGA = true;
       this.show = false;
     },
     disableGA() {
-      const { isEnabled } = useState();
-
-      isEnabled.value = false;
+      this.$gtm.enable(false);
       localStorage.removeItem(this.localStorageItemKey);
-      this.acceptedGA = false;
       this.show = true;
     },
   },
-
 })
 </script>

@@ -1,9 +1,37 @@
 // Variables
 @import "palette";
 
-// colors
-$bgColorGray: #f6f8f9 !default;
-$textContrastColor: #fff !default;
+// Customizable CSS variables of Vuepress default (light) theme
+// See https://vuepress2.netlify.app/reference/default-theme/styles.html#style-file
+:root {
+  // brand colors
+  --c-brand: #0075ec;
+  --c-brand-light: #0883ff;
 
-// shadows
+  // background colors
+  --c-bg: #ffffff;
+  --c-bg-light: #f6f8f9;
+
+  // text colors
+  --c-text: #1b1b19;
+
+  // border colors
+  --c-border: #eaecef;
+
+  // layout vars
+  --navbar-padding-v: 1rem;
+  --content-width: 960px;
+  --homepage-width: 100%;
+}
+
+// Customizable CSS variables of Vuepress default (dark) theme
+// See https://vuepress2.netlify.app/reference/default-theme/styles.html#style-file
+html.dark {
+  // brand colors
+  --c-brand: #0075ec;
+  --c-brand-light: #0883ff;
+}
+
+// Custom SASS variables
 $shadowMedium: 0 4px 6px -1px rgb(0 0 0 / 10%), 0 2px 4px -1px rgb(0 0 0 / 6%) !default;
+$shadowLarge: 0 6px 40px rgb(0 0 0 / 30%) !default;

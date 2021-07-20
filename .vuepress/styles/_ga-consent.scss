@@ -1,5 +1,3 @@
-@use 'sass:color';
-
 .ga-consent {
   position: fixed;
   bottom: -50px;
@@ -11,8 +9,8 @@
   align-items: center;
   z-index: 10;
   padding: .7rem 1rem;
-  background: $bgColorGray;
-  border-top: 1px solid $borderColor;
+  background: var(--c-bg-light);
+  border: 1px solid var(--c-border);
   max-height: 0;
   transition: all .45s ease-in-out;
 
@@ -27,7 +25,15 @@
   }
 
   @media (min-width: $MQNarrow) {
+    justify-content: flex-start;
     padding: 1rem 1.5rem;
+    width: 30rem;
+    left: 10px;
+    box-shadow: $shadowLarge;
+
+    &--show {
+      bottom: 10px;
+    }
   }
 
   p {
@@ -65,21 +71,21 @@
     }
 
     &.primary {
-      color: $textContrastColor;
-      background-color: $accentColor;
-      border-color: $accentColor;
+      color: var(--c-bg);
+      background-color: var(--c-brand);
+      border-color: var(--c-brand);
       &:hover {
-        background-color: color.scale($accentColor, $lightness: 10%);
+        background-color: var(--c-brand-light);
       }
     }
 
     &.secondary {
-      color: $accentColor;
-      background-color: $textContrastColor;
-      border-color: $accentColor;
+      color: var(--c-brand);
+      background-color: var(--c-bg);
+      border-color: var(--c-brand);
       &:hover {
-        color: $textContrastColor;
-        background-color: color.scale($accentColor, $lightness: 10%);
+        color: var(--c-bg);
+        background-color: var(--c-brand-light);
       }
     }
   }
