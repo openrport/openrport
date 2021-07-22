@@ -1131,6 +1131,7 @@ func TestHandleGetClients(t *testing.T) {
          "cpu_family":"Virtual CPU",
          "cpu_model":"Virtual CPU",
          "cpu_model_name":"",
+         "cpu_vendor":"GenuineIntel",
          "disconnected_at":null,
          "client_auth_id":"user1",
 		 "allowed_user_groups":null
@@ -1190,6 +1191,7 @@ func TestHandleGetClients(t *testing.T) {
          "cpu_family":"Virtual CPU",
          "cpu_model":"Virtual CPU",
          "cpu_model_name":"",
+		 "cpu_vendor":"GenuineIntel",
          "disconnected_at":"2020-08-19T13:04:23+03:00",
          "client_auth_id":"user1",
 		 "allowed_user_groups":null

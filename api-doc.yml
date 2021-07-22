@@ -1936,6 +1936,9 @@ definitions:
       cpu_model:
         type: "string"
         description: "client's processor model info, e.g. 85"
+      cpu_vendor:
+        type: "string"
+        description: "processor's vendor name , e.g. Intel"
       cpu_model_name:
         type: "string"
         description: "human readable name of the client's processor model, e.g. Intel(R) Xeon(R) Silver 4110 CPU @ 2.10GHz"

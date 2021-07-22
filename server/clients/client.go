@@ -41,6 +41,7 @@ type Client struct {
 	CPUFamily              string    `json:"cpu_family"`
 	CPUModel               string    `json:"cpu_model"`
 	CPUModelName           string    `json:"cpu_model_name"`
+	CPUVendor              string    `json:"cpu_vendor"`
 	NumCPUs                int       `json:"num_cpus"`
 	MemoryTotal            uint64    `json:"mem_total"`
 	Timezone               string    `json:"timezone"`

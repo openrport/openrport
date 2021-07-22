@@ -387,6 +387,7 @@ func (c *Client) connectionRequest(ctx context.Context) *chshare.ConnectionReque
 		CPUFamily:              UnknownValue,
 		CPUModel:               UnknownValue,
 		CPUModelName:           UnknownValue,
+		CPUVendor:              UnknownValue,
 	}
 
 	info, err := c.systemInfo.HostInfo(ctx)
@@ -439,6 +440,7 @@ func (c *Client) connectionRequest(ctx context.Context) *chshare.ConnectionReque
 		connReq.CPUFamily = cpuInfo.CPUs[0].Family
 		connReq.CPUModel = cpuInfo.CPUs[0].Model
 		connReq.CPUModelName = cpuInfo.CPUs[0].ModelName
+		connReq.CPUVendor = cpuInfo.CPUs[0].VendorID
 	}
 	connReq.NumCPUs = cpuInfo.NumCores
 

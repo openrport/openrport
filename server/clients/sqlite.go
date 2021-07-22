@@ -112,6 +112,7 @@ func convertToSqlite(v *Client) *clientSqlite {
 			CPUFamily:              v.CPUFamily,
 			CPUModel:               v.CPUModel,
 			CPUModelName:           v.CPUModelName,
+			CPUVendor:              v.CPUVendor,
 			NumCPUs:                v.NumCPUs,
 			MemoryTotal:            v.MemoryTotal,
 			Timezone:               v.Timezone,
@@ -150,6 +151,7 @@ type clientDetails struct {
 	CPUFamily              string    `json:"cpu_family"`
 	CPUModel               string    `json:"cpu_model"`
 	CPUModelName           string    `json:"cpu_model_name"`
+	CPUVendor              string    `json:"cpu_vendor"`
 	Timezone               string    `json:"timezone"`
 	Hostname               string    `json:"hostname"`
 	Version                string    `json:"version"`
@@ -211,6 +213,7 @@ func (s *clientSqlite) convert() *Client {
 		CPUFamily:              d.CPUFamily,
 		CPUModel:               d.CPUModel,
 		CPUModelName:           d.CPUModelName,
+		CPUVendor:              d.CPUVendor,
 		NumCPUs:                d.NumCPUs,
 		MemoryTotal:            d.MemoryTotal,
 		Timezone:               d.Timezone,

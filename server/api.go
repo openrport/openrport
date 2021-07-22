@@ -706,6 +706,7 @@ type ClientPayload struct {
 	CPUFamily              string                  `json:"cpu_family"`
 	CPUModel               string                  `json:"cpu_model"`
 	CPUModelName           string                  `json:"cpu_model_name"`
+	CPUVendor              string                  `json:"cpu_vendor"`
 	MemoryTotal            uint64                  `json:"mem_total"`
 	Timezone               string                  `json:"timezone"`
 	ClientAuthID           string                  `json:"client_auth_id"`
@@ -746,6 +747,7 @@ func convertToClientsPayload(clients []*clients.Client) []ClientPayload {
 			CPUFamily:              cur.CPUFamily,
 			CPUModel:               cur.CPUModel,
 			CPUModelName:           cur.CPUModelName,
+			CPUVendor:              cur.CPUVendor,
 			Timezone:               cur.Timezone,
 			NumCPUs:                cur.NumCPUs,
 			MemoryTotal:            cur.MemoryTotal,

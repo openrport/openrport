@@ -22,6 +22,7 @@ type ConnectionRequest struct {
 	CPUFamily              string
 	CPUModel               string
 	CPUModelName           string
+	CPUVendor              string
 	NumCPUs                int
 	MemoryTotal            uint64
 	Timezone               string

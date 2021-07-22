@@ -90,6 +90,7 @@ func (b ClientBuilder) Build() *Client {
 		CPUFamily:              "Virtual CPU",
 		CPUModel:               "Virtual CPU",
 		CPUModelName:           "",
+		CPUVendor:              "GenuineIntel",
 		Timezone:               "UTC-0",
 		Hostname:               "alpine-3-10-tk-01",
 		IPv4:                   []string{"192.168.122.111"},
