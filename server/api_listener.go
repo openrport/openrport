@@ -52,8 +52,9 @@ type APIListener struct {
 	bannedIPs         *security.MaxBadAttemptsBanList
 	twoFASrv          TwoFAService
 
-	testDone      chan bool // is used only in tests to be able to wait until async task is done
-	usersService  *users.APIService
+	testDone chan bool // is used only in tests to be able to wait until async task is done
+
+	usersService  *users.APIService // TODO: merge with userSrv
 	vaultManager  *vault.Manager
 	scriptManager *script.Manager
 }

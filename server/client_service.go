@@ -103,8 +103,8 @@ func (s *ClientService) GetActiveByGroups(groups []*cgroups.ClientGroup) []*clie
 	return res
 }
 
-func (s *ClientService) PopulateGroupsWithClients(groups []*cgroups.ClientGroup) {
-	all, _ := s.repo.GetAll()
+func (s *ClientService) PopulateGroupsWithUserClients(groups []*cgroups.ClientGroup, user clients.User) {
+	all, _ := s.repo.GetUserClients(user, nil)
 	for _, curClient := range all {
 		for _, curGroup := range groups {
 			if curClient.BelongsTo(curGroup) {
@@ -117,7 +117,6 @@ func (s *ClientService) PopulateGroupsWithClients(groups []*cgroups.ClientGroup)
 	}
 }
 
-// TODO(m-terel): make it consistent with others whether to return an error. No need for now return an err
 func (s *ClientService) GetAllByClientID(clientID string) []*clients.Client {
 	return s.repo.GetAllByClientAuthID(clientID)
 }

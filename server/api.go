@@ -1121,6 +1121,7 @@ func (al *APIListener) handleChangeMe(w http.ResponseWriter, req *http.Request) 
 	w.WriteHeader(http.StatusNoContent)
 }
 
+// TODO: remove
 func (al *APIListener) getUserModel(ctx context.Context) (*users.User, error) {
 	curUsername := api.GetUser(ctx, al.Logger)
 	if curUsername == "" {
@@ -1135,6 +1136,7 @@ func (al *APIListener) getUserModel(ctx context.Context) (*users.User, error) {
 	return user, err
 }
 
+// TODO: move to userSrv
 func (al *APIListener) getUserModelForAuth(ctx context.Context) (*users.User, error) {
 	usr, err := al.getUserModel(ctx)
 	if err != nil {
@@ -2272,7 +2274,13 @@ func (al *APIListener) handleGetClientGroup(w http.ResponseWriter, req *http.Req
 		return
 	}
 
-	al.clientService.PopulateGroupsWithClients([]*cgroups.ClientGroup{group})
+	curUser, err := al.getUserModelForAuth(req.Context())
+	if err != nil {
+		al.jsonError(w, err)
+		return
+	}
+
+	al.clientService.PopulateGroupsWithUserClients([]*cgroups.ClientGroup{group}, curUser)
 	al.writeJSONResponse(w, http.StatusOK, api.NewSuccessPayload(group))
 }
 
@@ -2283,8 +2291,30 @@ func (al *APIListener) handleGetClientGroups(w http.ResponseWriter, req *http.Re
 		return
 	}
 
-	al.clientService.PopulateGroupsWithClients(res)
+	curUser, err := al.getUserModelForAuth(req.Context())
+	if err != nil {
+		al.jsonError(w, err)
+		return
+	}
+
+	al.clientService.PopulateGroupsWithUserClients(res, curUser)
+
+	// for non-admins filter out groups with no clients
+	if !curUser.IsAdmin() {
+		res = filterEmptyGroups(res)
+	}
+
 	al.writeJSONResponse(w, http.StatusOK, api.NewSuccessPayload(res))
+}
+
+func filterEmptyGroups(groups []*cgroups.ClientGroup) []*cgroups.ClientGroup {
+	var nonEmptyGroups []*cgroups.ClientGroup
+	for _, group := range groups {
+		if len(group.ClientIDs) > 0 {
+			nonEmptyGroups = append(nonEmptyGroups, group)
+		}
+	}
+	return nonEmptyGroups
 }
 
 func (al *APIListener) handleDeleteClientGroup(w http.ResponseWriter, req *http.Request) {
