@@ -251,4 +251,4 @@ allow = [
     '^C:\\Users\\Administrator\\scripts\\.*\.bat'
 ]
 ```
-Using the above examples requires sending commands with a full path. 
+Using the above examples requires sending commands with a full path.

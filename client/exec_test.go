@@ -120,6 +120,14 @@ const jobToRunJSON = `
 	"cwd": "/root"
 }
 `
+const scriptToRunJSON = `
+{
+	"jid": "5f02b216-3f8a-42be-b66c-f4c1d0ea3810",
+	"client_id": "d81e6b93e75aef59a7701b90555f43808458b34e30370c3b808c1816a32252b5",
+	"command": "pwd",
+	"is_script": true
+}
+`
 
 func TestGetShell(t *testing.T) {
 	win := "windows"
@@ -399,6 +407,9 @@ func TestRemoteCommandsDisabled(t *testing.T) {
 			RemoteCommands: CommandsConfig{
 				Enabled: false,
 			},
+			RemoteScripts: ScriptsConfig{
+				Enabled: true,
+			},
 		},
 	}
 
@@ -409,6 +420,24 @@ func TestRemoteCommandsDisabled(t *testing.T) {
 	require.Error(t, gotErr)
 	assert.Equal(t, "remote commands execution is disabled", gotErr.Error())
 	assert.Nil(t, gotRes)
+}
+
+func TestRemoteScriptsDisabled(t *testing.T) {
+	c := Client{
+		Logger: testLog,
+		config: &Config{
+			RemoteCommands: CommandsConfig{
+				Enabled: true,
+			},
+			RemoteScripts: ScriptsConfig{
+				Enabled: false,
+			},
+		},
+	}
+
+	_, gotErr := c.HandleRunCmdRequest(context.Background(), []byte(scriptToRunJSON))
+
+	require.EqualError(t, gotErr, "remote scripts are disabled")
 }
 
 func TestIsCommandAllowed(t *testing.T) {

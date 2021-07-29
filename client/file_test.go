@@ -26,7 +26,11 @@ func TestHandleCreateFileRequest(t *testing.T) {
 	inputFileBytes, err := json.Marshal(inputFile)
 	require.NoError(t, err)
 
-	config := &Config{}
+	config := &Config{
+		RemoteScripts: ScriptsConfig{
+			Enabled: true,
+		},
+	}
 
 	client := NewClient(config)
 	resp, err := client.HandleCreateFileRequest(context.Background(), inputFileBytes)
@@ -49,4 +53,16 @@ func TestHandleCreateFileRequest(t *testing.T) {
 	require.NoError(t, err)
 
 	assert.Equal(t, "1234", string(actualFileContent))
+}
+
+func TestCreateFileWhenScriptsDisabled(t *testing.T) {
+	config := &Config{
+		RemoteScripts: ScriptsConfig{
+			Enabled: false,
+		},
+	}
+
+	client := NewClient(config)
+	_, err := client.HandleCreateFileRequest(context.Background(), []byte{})
+	require.EqualError(t, err, "remote scripts are disabled")
 }

@@ -23,6 +23,9 @@ var defaultValidMinConfig = Config{
 		Order:         allowDenyOrder,
 		allowRegexp:   []*regexp.Regexp{regexp.MustCompile(".*")},
 	},
+	RemoteScripts: ScriptsConfig{
+		Enabled: false,
+	},
 }
 
 func TestConfigParseAndValidateHeaders(t *testing.T) {
@@ -297,6 +300,15 @@ func TestConfigParseAndValidateAuth(t *testing.T) {
 			assert.Equal(t, tc.ExpectedPass, config.Client.authPass)
 		})
 	}
+}
+
+func TestScriptsExecutionEnabledButCommandsDisabled(t *testing.T) {
+	config := defaultValidMinConfig
+	config.RemoteScripts.Enabled = true
+	config.RemoteCommands.Enabled = false
+	err := config.ParseAndValidate()
+
+	require.EqualError(t, err, "remote scripts execution requires remote commands to be enabled")
 }
 
 func TestConfigParseAndValidateSendBackLimit(t *testing.T) {

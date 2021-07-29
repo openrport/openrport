@@ -80,6 +80,10 @@ func (c *Client) HandleRunCmdRequest(ctx context.Context, reqPayload []byte) (*c
 		c.Debugf("Waiting for a previous command with PID %d to finish", *curPID)
 	}
 
+	if job.IsScript && !c.config.RemoteScripts.Enabled {
+		return nil, errors.New("remote scripts are disabled")
+	}
+
 	// TODO: temporary solution, refactor with using worker pool
 	c.runCmdMutex.Lock()
 

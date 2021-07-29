@@ -44,6 +44,9 @@ func TestCustomHeaders(t *testing.T) {
 		RemoteCommands: CommandsConfig{
 			Order: allowDenyOrder,
 		},
+		RemoteScripts: ScriptsConfig{
+			Enabled: false,
+		},
 	}
 	err := config.ParseAndValidate()
 	if err != nil {

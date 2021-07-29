@@ -21,6 +21,10 @@ const DefaultFileMode = os.FileMode(0540)
 const DefaultDirMode = os.FileMode(0740)
 
 func (c *Client) HandleCreateFileRequest(ctx context.Context, reqPayload []byte) (*comm.CreateFileResponse, error) {
+	if !c.config.RemoteScripts.Enabled {
+		return nil, errors.New("remote scripts are disabled")
+	}
+
 	fileInput := models.File{}
 
 	fileContentBuf := bytes.NewBuffer(reqPayload)

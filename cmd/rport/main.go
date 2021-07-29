@@ -121,6 +121,9 @@ var clientHelp = `
     --remote-commands-enabled, Enable or disable remote commands.
     Defaults: true
 
+    --remote-scripts-enabled, Enable or disable remote scripts.
+    Defaults: false
+
     --remote-commands-send-back-limit, Limit the maximum length of the command output that is sent back.
     Applies to the stdout and stderr separately. If exceeded the specified number of bytes are sent.
     Defaults: 2048
@@ -175,6 +178,7 @@ func init() {
 	pFlags.String("log-level", "", "")
 	pFlags.Bool("allow-root", false, "")
 	pFlags.Bool("remote-commands-enabled", false, "")
+	pFlags.Bool("remote-scripts-enabled", false, "")
 	pFlags.Int("remote-commands-send-back-limit", 0, "")
 
 	cfgPath = pFlags.StringP("config", "c", "", "")
@@ -199,6 +203,7 @@ func init() {
 	viperCfg.SetDefault("remote-commands.order", []string{"allow", "deny"})
 	viperCfg.SetDefault("remote-commands.send_back_limit", 2048)
 	viperCfg.SetDefault("remote-commands.enabled", true)
+	viperCfg.SetDefault("remote-scripts.enabled", false)
 }
 
 func bindPFlags() {
@@ -222,6 +227,7 @@ func bindPFlags() {
 	_ = viperCfg.BindPFlag("connection.headers", pFlags.Lookup("header"))
 
 	_ = viperCfg.BindPFlag("remote-commands.enabled", pFlags.Lookup("remote-commands-enabled"))
+	_ = viperCfg.BindPFlag("remote-scripts.enabled", pFlags.Lookup("remote-scripts-enabled"))
 	_ = viperCfg.BindPFlag("remote-commands.send_back_limit", pFlags.Lookup("remote-commands-send-back-limit"))
 }
 

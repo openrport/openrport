@@ -146,6 +146,16 @@ The response will be:
 ```
 
 ## Scripts execution
+On the client using the `rport.conf` you can enable or disable execution of remote scripts.
+```
+[remote-scripts]
+## Enable or disable remote scripts.
+## Defaults: true
+#enabled = true
+```
+
+Please note that scripts execution requires commands execution to be enabled (check https://oss.rport.io/docs/no06-command-execution.html#securing-your-environment or `[remote-commands]` enabled flag of configuration).
+
 Similar to command execution, you can run scripts both by calling a REST api or triggering scripts via websocket interface. 
 In all cases the scripts are executed by the following algorithm:
 - Rport server creates a temp script file in a target client. Depending on the client's OS it will create either a shell script file for Linux/macOS or a cmd/powershell script for Windows. The script file will get a random unique name and will be placed in the OS default temp folder e.g. `/tmp` in Linux.

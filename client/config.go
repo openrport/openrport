@@ -64,11 +64,16 @@ type CommandsConfig struct {
 	denyRegexp  []*regexp.Regexp
 }
 
+type ScriptsConfig struct {
+	Enabled bool `mapstructure:"enabled"`
+}
+
 type Config struct {
 	Client         ClientConfig     `mapstructure:"client"`
 	Connection     ConnectionConfig `mapstructure:"connection"`
 	Logging        LogConfig        `mapstructure:"logging"`
 	RemoteCommands CommandsConfig   `mapstructure:"remote-commands"`
+	RemoteScripts  ScriptsConfig    `mapstructure:"remote-scripts"`
 }
 
 func (c *Config) ParseAndValidate() error {
@@ -84,12 +89,19 @@ func (c *Config) ParseAndValidate() error {
 	if err := c.parseRemotes(); err != nil {
 		return err
 	}
+
 	if c.Connection.MaxRetryInterval < time.Second {
 		c.Connection.MaxRetryInterval = 5 * time.Minute
 	}
+
 	if err := c.parseRemoteCommands(); err != nil {
 		return fmt.Errorf("remote commands: %v", err)
 	}
+
+	if err := c.parseRemoteScripts(); err != nil {
+		return err
+	}
+
 	c.Client.authUser, c.Client.authPass = chshare.ParseAuth(c.Client.Auth)
 	return nil
 }
@@ -189,6 +201,14 @@ func (c *Config) parseRemoteCommands() error {
 
 	if c.RemoteCommands.Order != allowDenyOrder && c.RemoteCommands.Order != denyAllowOrder {
 		return fmt.Errorf("invalid order: %v", c.RemoteCommands.Order)
+	}
+
+	return nil
+}
+
+func (c *Config) parseRemoteScripts() error {
+	if c.RemoteScripts.Enabled && !c.RemoteCommands.Enabled {
+		return errors.New("remote scripts execution requires remote commands to be enabled")
 	}
 
 	return nil
