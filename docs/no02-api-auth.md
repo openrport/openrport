@@ -29,7 +29,7 @@ Having a valid token you can execute requests, using an `Authorization: Bearer: 
 # Get and store the token
 curl -s -u admin:foobaz http://localhost:3000/api/v1/login?token-lifetime=3600|jq -r .data.token > .token
 
-# Request using the stored toeken
+# Request using the stored token
 curl -s -H "Authorization: Bearer $(cat .token)" http://localhost:3000/api/v1/clients|jq
 ```
 
