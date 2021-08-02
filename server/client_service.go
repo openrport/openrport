@@ -18,6 +18,7 @@ import (
 	"github.com/cloudradar-monitoring/rport/server/clients"
 	"github.com/cloudradar-monitoring/rport/server/ports"
 	chshare "github.com/cloudradar-monitoring/rport/share"
+	"github.com/cloudradar-monitoring/rport/share/models"
 	"github.com/cloudradar-monitoring/rport/share/query"
 )
 
@@ -196,6 +197,9 @@ func (s *ClientService) StartClient(
 		Context:                ctx,
 		Logger:                 clog,
 	}
+	if oldClient != nil {
+		client.UpdatesStatus = oldClient.UpdatesStatus
+	}
 
 	_, err = s.startClientTunnels(client, req.Remotes)
 	if err != nil {
@@ -363,6 +367,17 @@ func (s *ClientService) SetACL(clientID string, allowedUserGroups []string) erro
 	}
 
 	existing.AllowedUserGroups = allowedUserGroups
+
+	return s.repo.Save(existing)
+}
+
+func (s *ClientService) SetUpdatesStatus(clientID string, updatesStatus *models.UpdatesStatus) error {
+	existing, err := s.getExistingByID(clientID)
+	if err != nil {
+		return err
+	}
+
+	existing.UpdatesStatus = updatesStatus
 
 	return s.repo.Save(existing)
 }

@@ -19,6 +19,7 @@ import (
 	"golang.org/x/crypto/ssh"
 	"golang.org/x/net/proxy"
 
+	"github.com/cloudradar-monitoring/rport/client/updates"
 	chshare "github.com/cloudradar-monitoring/rport/share"
 	"github.com/cloudradar-monitoring/rport/share/comm"
 )
@@ -40,18 +41,21 @@ type Client struct {
 	curCmdPIDMutex sync.Mutex
 	systemInfo     SystemInfo
 	runCmdMutex    sync.Mutex
+	updates        *updates.Updates
 }
 
 //NewClient creates a new client instance
 func NewClient(config *Config) *Client {
 	cmdExec := NewCmdExecutor(chshare.NewLogger("cmd executor", config.Logging.LogOutput, config.Logging.LogLevel))
+	logger := chshare.NewLogger("client", config.Logging.LogOutput, config.Logging.LogLevel)
 	client := &Client{
-		Logger:     chshare.NewLogger("client", config.Logging.LogOutput, config.Logging.LogLevel),
+		Logger:     logger,
 		config:     config,
 		running:    true,
 		runningc:   make(chan error, 1),
 		cmdExec:    cmdExec,
 		systemInfo: NewSystemInfo(cmdExec),
+		updates:    updates.New(logger, config.Client.UpdatesInterval),
 	}
 
 	client.sshConfig = &ssh.ClientConfig{
@@ -99,6 +103,9 @@ func (c *Client) Start(ctx context.Context) error {
 	}
 	//connection loop
 	go c.connectionLoop(ctx)
+
+	c.updates.Start(ctx)
+
 	return nil
 }
 
@@ -225,11 +232,13 @@ func (c *Client) connectionLoop(ctx context.Context) {
 		//connected
 		b.Reset()
 		c.sshConn = sshConn
+		c.updates.SetConn(sshConn)
 		go c.handleSSHRequests(ctx, reqs)
 		go c.connectStreams(chans)
 		err = sshConn.Wait()
 		//disconnected
 		c.sshConn = nil
+		c.updates.SetConn(nil)
 		if err != nil && err != io.EOF {
 			connerr = err
 			continue

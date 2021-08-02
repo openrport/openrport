@@ -1991,6 +1991,8 @@ definitions:
         items:
           type: string
         description: "list of user groups that are allowed to access this client. Administrators have always full-access to all clients. Empty list prevents access for everyone except admins"
+      updates_status:
+        $ref: '#/definitions/UpdatesStatus'
   ClientGroup:
     type: "object"
     properties:
@@ -2460,3 +2462,45 @@ definitions:
       is_sudo:
         type: "boolean"
         description: "if true, this script will be executed as a sudo user"
+  UpdatesStatus:
+    type: "object"
+    properties:
+      refreshed:
+        type: "string"
+        format: "date-time"
+        description: "When was the status refreshed"
+      updates_available:
+        type: "integer"
+        description: "Number of updates available"
+      security_updates_available:
+        type: "integer"
+        description: "Number of security updates available"
+      updates_summaries:
+        type: "array"
+        description: "List of available updates"
+        items:
+          $ref: "#/definitions/UpdateSummary"
+      reboot_pending:
+        type: "boolean"
+        description: "Is reboot required at the moment"
+      error:
+        type: "string"
+        description: "Error that happened when refreshing status if any"
+      hint:
+        type: "string"
+        description: "Suggested solution to the error if any"
+  UpdateSummary:
+    type: "object"
+    properties:
+      title:
+        type: "string"
+        description: "Title of the update"
+      description:
+        type: "string"
+        description: "Description of the update"
+      reboot_required:
+        type: "boolean"
+        description: "Whether the update requires reboot"
+      is_security_update:
+        type: "boolean"
+        description: "Whether this is a security update"

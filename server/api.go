@@ -718,6 +718,7 @@ type ClientPayload struct {
 	Tags                   []string                `json:"tags"`
 	AllowedUserGroups      []string                `json:"allowed_user_groups"`
 	Tunnels                []*clients.Tunnel       `json:"tunnels"`
+	UpdatesStatus          *models.UpdatesStatus   `json:"updates_status"`
 }
 
 func convertToClientsPayload(clients []*clients.Client) []ClientPayload {
@@ -752,6 +753,7 @@ func convertToClientsPayload(clients []*clients.Client) []ClientPayload {
 			NumCPUs:                cur.NumCPUs,
 			MemoryTotal:            cur.MemoryTotal,
 			AllowedUserGroups:      cur.AllowedUserGroups,
+			UpdatesStatus:          cur.UpdatesStatus,
 		})
 	}
 	return r

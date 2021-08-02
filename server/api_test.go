@@ -1134,7 +1134,8 @@ func TestHandleGetClients(t *testing.T) {
          "cpu_vendor":"GenuineIntel",
          "disconnected_at":null,
          "client_auth_id":"user1",
-		 "allowed_user_groups":null
+		 "allowed_user_groups":null,
+		 "updates_status":null
       },
       {
          "id":"client-2",
@@ -1194,7 +1195,8 @@ func TestHandleGetClients(t *testing.T) {
 		 "cpu_vendor":"GenuineIntel",
          "disconnected_at":"2020-08-19T13:04:23+03:00",
          "client_auth_id":"user1",
-		 "allowed_user_groups":null
+		 "allowed_user_groups":null,
+		 "updates_status":null
       }
    ]
 }`

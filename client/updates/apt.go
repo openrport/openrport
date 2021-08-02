@@ -9,6 +9,7 @@ import (
 	"strings"
 
 	chshare "github.com/cloudradar-monitoring/rport/share"
+	"github.com/cloudradar-monitoring/rport/share/models"
 )
 
 type AptPackageManager struct {
@@ -40,7 +41,7 @@ func (p *AptPackageManager) IsAvailable(ctx context.Context) bool {
 	return err == nil
 }
 
-func (p *AptPackageManager) GetUpdatesStatus(ctx context.Context, logger *chshare.Logger) (*Status, error) {
+func (p *AptPackageManager) GetUpdatesStatus(ctx context.Context, logger *chshare.Logger) (*models.UpdatesStatus, error) {
 	err := p.updatePackageCache(ctx)
 	if err != nil {
 		return nil, err
@@ -69,7 +70,7 @@ func (p *AptPackageManager) GetUpdatesStatus(ctx context.Context, logger *chshar
 		security = p.countSecurityUpdates(summaries)
 	}
 
-	return &Status{
+	return &models.UpdatesStatus{
 		UpdatesAvailable:         available,
 		SecurityUpdatesAvailable: security,
 		UpdateSummaries:          summaries,
@@ -100,7 +101,7 @@ func (p *AptPackageManager) getCounts(ctx context.Context) (availableUpdates int
 	return available, security, nil
 }
 
-func (p *AptPackageManager) countSecurityUpdates(summaries []Summary) int {
+func (p *AptPackageManager) countSecurityUpdates(summaries []models.UpdateSummary) int {
 	count := 0
 	for _, s := range summaries {
 		if s.IsSecurityUpdate {
@@ -120,13 +121,13 @@ func (p *AptPackageManager) checkRebootRequired() (bool, error) {
 	}
 }
 
-func (p *AptPackageManager) getSummaries(ctx context.Context) ([]Summary, error) {
+func (p *AptPackageManager) getSummaries(ctx context.Context) ([]models.UpdateSummary, error) {
 	output, err := p.runner.Run(ctx, p.getSummariesCmd...)
 	if err != nil {
 		return nil, err
 	}
 
-	var result []Summary
+	var result []models.UpdateSummary
 	for _, line := range strings.Split(output, "\n") {
 		if !strings.HasPrefix(line, "Inst") {
 			continue
@@ -149,7 +150,7 @@ func (p *AptPackageManager) getSummaries(ctx context.Context) ([]Summary, error)
 
 		isSecurity := strings.Contains(description, "-security")
 
-		result = append(result, Summary{
+		result = append(result, models.UpdateSummary{
 			Title:            title,
 			Description:      description,
 			IsSecurityUpdate: isSecurity,

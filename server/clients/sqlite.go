@@ -13,6 +13,7 @@ import (
 
 	"github.com/cloudradar-monitoring/rport/db/migration/clients"
 	"github.com/cloudradar-monitoring/rport/db/sqlite"
+	"github.com/cloudradar-monitoring/rport/share/models"
 )
 
 type ClientProvider interface {
@@ -121,6 +122,7 @@ func convertToSqlite(v *Client) *clientSqlite {
 			Tags:                   v.Tags,
 			Tunnels:                v.Tunnels,
 			AllowedUserGroups:      v.AllowedUserGroups,
+			UpdatesStatus:          v.UpdatesStatus,
 		},
 	}
 	if v.DisconnectedAt != nil {
@@ -137,30 +139,31 @@ type clientSqlite struct {
 }
 
 type clientDetails struct {
-	NumCPUs                int       `json:"num_cpus"`
-	MemoryTotal            uint64    `json:"mem_total"`
-	Name                   string    `json:"name"`
-	OS                     string    `json:"os"`
-	OSArch                 string    `json:"os_arch"`
-	OSFamily               string    `json:"os_family"`
-	OSKernel               string    `json:"os_kernel"`
-	OSFullName             string    `json:"os_full_name"`
-	OSVersion              string    `json:"os_version"`
-	OSVirtualizationSystem string    `json:"os_virtualization_system"`
-	OSVirtualizationRole   string    `json:"os_virtualization_role"`
-	CPUFamily              string    `json:"cpu_family"`
-	CPUModel               string    `json:"cpu_model"`
-	CPUModelName           string    `json:"cpu_model_name"`
-	CPUVendor              string    `json:"cpu_vendor"`
-	Timezone               string    `json:"timezone"`
-	Hostname               string    `json:"hostname"`
-	Version                string    `json:"version"`
-	Address                string    `json:"address"`
-	IPv4                   []string  `json:"ipv4"`
-	IPv6                   []string  `json:"ipv6"`
-	Tags                   []string  `json:"tags"`
-	Tunnels                []*Tunnel `json:"tunnels"`
-	AllowedUserGroups      []string  `json:"allowed_user_groups"`
+	NumCPUs                int                   `json:"num_cpus"`
+	MemoryTotal            uint64                `json:"mem_total"`
+	Name                   string                `json:"name"`
+	OS                     string                `json:"os"`
+	OSArch                 string                `json:"os_arch"`
+	OSFamily               string                `json:"os_family"`
+	OSKernel               string                `json:"os_kernel"`
+	OSFullName             string                `json:"os_full_name"`
+	OSVersion              string                `json:"os_version"`
+	OSVirtualizationSystem string                `json:"os_virtualization_system"`
+	OSVirtualizationRole   string                `json:"os_virtualization_role"`
+	CPUFamily              string                `json:"cpu_family"`
+	CPUModel               string                `json:"cpu_model"`
+	CPUModelName           string                `json:"cpu_model_name"`
+	CPUVendor              string                `json:"cpu_vendor"`
+	Timezone               string                `json:"timezone"`
+	Hostname               string                `json:"hostname"`
+	Version                string                `json:"version"`
+	Address                string                `json:"address"`
+	IPv4                   []string              `json:"ipv4"`
+	IPv6                   []string              `json:"ipv6"`
+	Tags                   []string              `json:"tags"`
+	Tunnels                []*Tunnel             `json:"tunnels"`
+	AllowedUserGroups      []string              `json:"allowed_user_groups"`
+	UpdatesStatus          *models.UpdatesStatus `json:"updates_status"`
 }
 
 func (d *clientDetails) Scan(value interface{}) error {
@@ -218,6 +221,7 @@ func (s *clientSqlite) convert() *Client {
 		MemoryTotal:            d.MemoryTotal,
 		Timezone:               d.Timezone,
 		AllowedUserGroups:      d.AllowedUserGroups,
+		UpdatesStatus:          d.UpdatesStatus,
 	}
 	if s.DisconnectedAt.Valid {
 		res.DisconnectedAt = &s.DisconnectedAt.Time

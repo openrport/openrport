@@ -2,10 +2,15 @@ package updates
 
 import (
 	"context"
+	"encoding/json"
 	"sync"
 	"time"
 
+	"golang.org/x/crypto/ssh"
+
 	chshare "github.com/cloudradar-monitoring/rport/share"
+	"github.com/cloudradar-monitoring/rport/share/comm"
+	"github.com/cloudradar-monitoring/rport/share/models"
 )
 
 var packageManagers = []PackageManager{
@@ -14,12 +19,14 @@ var packageManagers = []PackageManager{
 
 type PackageManager interface {
 	IsAvailable(context.Context) bool
-	GetUpdatesStatus(context.Context, *chshare.Logger) (*Status, error)
+	GetUpdatesStatus(context.Context, *chshare.Logger) (*models.UpdatesStatus, error)
 }
 
 type Updates struct {
-	status *Status
+	// mtx protects both conn and status
 	mtx    sync.RWMutex
+	conn   ssh.Conn
+	status *models.UpdatesStatus
 
 	interval time.Duration
 
@@ -27,61 +34,37 @@ type Updates struct {
 	logger *chshare.Logger
 }
 
-type Status struct {
-	Refreshed                time.Time
-	UpdatesAvailable         int
-	SecurityUpdatesAvailable int
-	UpdateSummaries          []Summary
-	RebootPending            bool
-	Error                    string
-	Hint                     string
-}
-
-type Summary struct {
-	Title            string
-	Description      string
-	RebootRequired   bool
-	IsSecurityUpdate bool
-}
-
-func New(ctx context.Context, logger *chshare.Logger, interval time.Duration) *Updates {
-	u := &Updates{
+func New(logger *chshare.Logger, interval time.Duration) *Updates {
+	return &Updates{
 		interval: interval,
 		logger:   logger,
 	}
-	if interval < 0 {
-		return u
+}
+
+func (u *Updates) Start(ctx context.Context) {
+	if u.interval <= 0 {
+		return
 	}
 
+	go u.refreshLoop(ctx)
+}
+
+func (u *Updates) getPackageManager(ctx context.Context) PackageManager {
+	if u.pkgMgr != nil {
+		return u.pkgMgr
+	}
 	for _, pm := range packageManagers {
 		if pm.IsAvailable(ctx) {
 			u.pkgMgr = pm
+			return pm
 		}
 	}
-
-	if u.pkgMgr == nil {
-		u.status = &Status{
-			Error: "no supported package manager found",
-		}
-		u.logger.Errorf("Update status not available: %v", u.status.Error)
-	} else {
-		go u.refreshLoop(ctx)
-	}
-
-	return u
+	return nil
 }
 
 func (u *Updates) refreshLoop(ctx context.Context) {
 	for {
 		u.refreshStatus(ctx)
-
-		status := u.GetStatus()
-		if status.Error != "" {
-			u.logger.Errorf("Update status refresh failed: %v", status.Error)
-		} else {
-			u.logger.Infof("Update status refreshed, %v updates available (%v security)",
-				status.UpdatesAvailable, status.SecurityUpdatesAvailable)
-		}
 
 		select {
 		case <-ctx.Done():
@@ -92,27 +75,63 @@ func (u *Updates) refreshLoop(ctx context.Context) {
 }
 
 func (u *Updates) refreshStatus(ctx context.Context) {
-	var newStatus *Status
+	var newStatus *models.UpdatesStatus
 
-	status, err := u.pkgMgr.GetUpdatesStatus(ctx, u.logger)
-	if err != nil {
-		newStatus = &Status{
-			Error: err.Error(),
+	pkgMgr := u.getPackageManager(ctx)
+	if pkgMgr == nil {
+		newStatus = &models.UpdatesStatus{
+			Error: "no supported package manager found",
 		}
 	} else {
-		newStatus = status
+		status, err := pkgMgr.GetUpdatesStatus(ctx, u.logger)
+		if err != nil {
+			newStatus = &models.UpdatesStatus{
+				Error: err.Error(),
+			}
+		} else {
+			newStatus = status
+		}
 	}
 	newStatus.Refreshed = time.Now()
 
-	u.mtx.Lock()
-	defer u.mtx.Unlock()
+	if newStatus.Error != "" {
+		u.logger.Errorf("Update status refresh failed: %v", newStatus.Error)
+	} else {
+		u.logger.Infof("Update status refreshed, %v updates available (%v security)",
+			newStatus.UpdatesAvailable, newStatus.SecurityUpdatesAvailable)
+	}
 
+	u.mtx.Lock()
 	u.status = newStatus
+	u.mtx.Unlock()
+
+	go u.sendUpdates()
 }
 
-func (u *Updates) GetStatus() *Status {
+// sendUpdates sends updates in background, it's called both after status is refreshed or conn set
+func (u *Updates) sendUpdates() {
 	u.mtx.RLock()
 	defer u.mtx.RUnlock()
 
-	return u.status
+	if u.conn != nil && u.status != nil {
+		data, err := json.Marshal(u.status)
+		if err != nil {
+			u.logger.Errorf("Could not marshal json for updates status: %v", err)
+			return
+		}
+
+		_, _, err = u.conn.SendRequest(comm.RequestTypeUpdatesStatus, false, data)
+		if err != nil {
+			u.logger.Errorf("Could not sent updates status: %v", err)
+			return
+		}
+	}
+}
+
+func (u *Updates) SetConn(c ssh.Conn) {
+	u.mtx.Lock()
+	defer u.mtx.Unlock()
+
+	u.conn = c
+	go u.sendUpdates()
 }

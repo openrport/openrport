@@ -253,7 +253,7 @@ func (cl *ClientListener) handleWebsocket(w http.ResponseWriter, req *http.Reque
 
 	clientBanner := client.Banner()
 	clog.Debugf("Open %s", clientBanner)
-	go cl.handleSSHRequests(clog, reqs)
+	go cl.handleSSHRequests(clog, cid, reqs)
 	go cl.handleSSHChannels(clog, chans)
 	_ = sshConn.Wait()
 	clog.Debugf("Close %s", clientBanner)
@@ -370,7 +370,7 @@ func (cl *ClientListener) replyConnectionError(r *ssh.Request, err error) {
 	_ = r.Reply(false, []byte(err.Error()))
 }
 
-func (cl *ClientListener) handleSSHRequests(clientLog *chshare.Logger, reqs <-chan *ssh.Request) {
+func (cl *ClientListener) handleSSHRequests(clientLog *chshare.Logger, clientID string, reqs <-chan *ssh.Request) {
 	for r := range reqs {
 		switch r.Type {
 		case comm.RequestTypePing:
@@ -391,6 +391,18 @@ func (cl *ClientListener) handleSSHRequests(clientLog *chshare.Logger, reqs <-ch
 						done2 <- job2
 					}(done, job)
 				}
+			}
+		case comm.RequestTypeUpdatesStatus:
+			updatesStatus := &models.UpdatesStatus{}
+			err := json.Unmarshal(r.Payload, updatesStatus)
+			if err != nil {
+				clientLog.Errorf("Failed to unmarshal updates status: %s", err)
+				continue
+			}
+			err = cl.clientService.SetUpdatesStatus(clientID, updatesStatus)
+			if err != nil {
+				clientLog.Errorf("Failed to save updates status: %s", err)
+				continue
 			}
 		default:
 			clientLog.Debugf("Unknown request: %s", r.Type)

@@ -9,6 +9,8 @@ import (
 
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
+
+	"github.com/cloudradar-monitoring/rport/share/models"
 )
 
 type mockRunner struct {
@@ -83,7 +85,7 @@ func TestAptPackageMangerGetUpdatesStatus(t *testing.T) {
 		GetSummariesCmdErr     error
 		GetCountsCmdOutput     string
 		GetCountsCmdErr        error
-		ExpectedResult         *Status
+		ExpectedResult         *models.UpdatesStatus
 		ExpectedError          error
 	}{
 		{
@@ -118,10 +120,10 @@ Conf libc6 (2.31-0ubuntu9.2 Ubuntu:20.04/focal-updates [amd64])
 Conf libc6-dev (2.31-0ubuntu9.2 Ubuntu:20.04/focal-updates [amd64])
 `,
 			GetCountsCmdErr: errors.New("command not found"),
-			ExpectedResult: &Status{
+			ExpectedResult: &models.UpdatesStatus{
 				UpdatesAvailable:         2,
 				SecurityUpdatesAvailable: 0,
-				UpdateSummaries: []Summary{
+				UpdateSummaries: []models.UpdateSummary{
 					{
 						Title:            "libc6",
 						Description:      "libc6 2.31-0ubuntu9.2 Ubuntu:20.04/focal-updates [amd64]",
@@ -157,10 +159,10 @@ Conf libc6 (2.31-0ubuntu9.2 Ubuntu:20.04/focal-updates [amd64])
 Conf openvpn [2.4.7-1ubuntu2] (2.4.7-1ubuntu2.20.04.2 Ubuntu:20.04/focal-updates, Ubuntu:20.04/focal-security [amd64])
 `,
 			GetCountsCmdErr: errors.New("command not found"),
-			ExpectedResult: &Status{
+			ExpectedResult: &models.UpdatesStatus{
 				UpdatesAvailable:         2,
 				SecurityUpdatesAvailable: 1,
-				UpdateSummaries: []Summary{
+				UpdateSummaries: []models.UpdateSummary{
 					{
 						Title:            "libc6",
 						Description:      "libc6 2.31-0ubuntu9.2 Ubuntu:20.04/focal-updates [amd64]",
@@ -196,10 +198,10 @@ Conf libc6 (2.31-0ubuntu9.2 Ubuntu:20.04/focal-updates [amd64])
 Conf libc6-dev (2.31-0ubuntu9.2 Ubuntu:20.04/focal-updates [amd64])
 `,
 			GetCountsCmdOutput: "3;1",
-			ExpectedResult: &Status{
+			ExpectedResult: &models.UpdatesStatus{
 				UpdatesAvailable:         3,
 				SecurityUpdatesAvailable: 1,
-				UpdateSummaries: []Summary{
+				UpdateSummaries: []models.UpdateSummary{
 					{
 						Title:            "libc6",
 						Description:      "libc6 2.31-0ubuntu9.2 Ubuntu:20.04/focal-updates [amd64]",
@@ -235,10 +237,10 @@ Conf libc6 (2.31-0ubuntu9.2 Ubuntu:20.04/focal-updates [amd64])
 Conf libc6-dev (2.31-0ubuntu9.2 Ubuntu:20.04/focal-updates [amd64])
 `,
 			GetCountsCmdOutput: "invalid",
-			ExpectedResult: &Status{
+			ExpectedResult: &models.UpdatesStatus{
 				UpdatesAvailable:         2,
 				SecurityUpdatesAvailable: 0,
-				UpdateSummaries: []Summary{
+				UpdateSummaries: []models.UpdateSummary{
 					{
 						Title:            "libc6",
 						Description:      "libc6 2.31-0ubuntu9.2 Ubuntu:20.04/focal-updates [amd64]",
@@ -255,14 +257,14 @@ Conf libc6-dev (2.31-0ubuntu9.2 Ubuntu:20.04/focal-updates [amd64])
 		{
 			Name:                   "Reboot pending",
 			RebootRequiredFilename: tmpFile.Name(),
-			ExpectedResult: &Status{
+			ExpectedResult: &models.UpdatesStatus{
 				RebootPending: true,
 			},
 		},
 		{
 			Name:                   "Reboot not pending",
 			RebootRequiredFilename: "/some/non/existent/file",
-			ExpectedResult: &Status{
+			ExpectedResult: &models.UpdatesStatus{
 				RebootPending: false,
 			},
 		},

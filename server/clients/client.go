@@ -13,6 +13,7 @@ import (
 	"github.com/cloudradar-monitoring/rport/server/cgroups"
 	chshare "github.com/cloudradar-monitoring/rport/share"
 	"github.com/cloudradar-monitoring/rport/share/collections"
+	"github.com/cloudradar-monitoring/rport/share/models"
 	"github.com/cloudradar-monitoring/rport/share/random"
 )
 
@@ -53,9 +54,10 @@ type Client struct {
 	Address                string    `json:"address"`
 	Tunnels                []*Tunnel `json:"tunnels"`
 	// DisconnectedAt is a time when a client was disconnected. If nil - it's connected.
-	DisconnectedAt    *time.Time `json:"disconnected_at"`
-	ClientAuthID      string     `json:"client_auth_id"`
-	AllowedUserGroups []string   `json:"allowed_user_groups"`
+	DisconnectedAt    *time.Time            `json:"disconnected_at"`
+	ClientAuthID      string                `json:"client_auth_id"`
+	AllowedUserGroups []string              `json:"allowed_user_groups"`
+	UpdatesStatus     *models.UpdatesStatus `json:"updates_status"`
 
 	Connection ssh.Conn        `json:"-"`
 	Context    context.Context `json:"-"`

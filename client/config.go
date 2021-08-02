@@ -28,15 +28,16 @@ type LogConfig struct {
 }
 
 type ClientConfig struct {
-	Server      string   `mapstructure:"server"`
-	Fingerprint string   `mapstructure:"fingerprint"`
-	Auth        string   `mapstructure:"auth"`
-	Proxy       string   `mapstructure:"proxy"`
-	ID          string   `mapstructure:"id"`
-	Name        string   `mapstructure:"name"`
-	Tags        []string `mapstructure:"tags"`
-	Remotes     []string `mapstructure:"remotes"`
-	AllowRoot   bool     `mapstructure:"allow_root"`
+	Server          string        `mapstructure:"server"`
+	Fingerprint     string        `mapstructure:"fingerprint"`
+	Auth            string        `mapstructure:"auth"`
+	Proxy           string        `mapstructure:"proxy"`
+	ID              string        `mapstructure:"id"`
+	Name            string        `mapstructure:"name"`
+	Tags            []string      `mapstructure:"tags"`
+	Remotes         []string      `mapstructure:"remotes"`
+	AllowRoot       bool          `mapstructure:"allow_root"`
+	UpdatesInterval time.Duration `mapstructure:"updates_interval"`
 
 	proxyURL *url.URL
 	remotes  []*chshare.Remote

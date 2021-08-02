@@ -5,6 +5,7 @@ import (
 	"log"
 	"os"
 	"runtime"
+	"time"
 
 	"github.com/kardianos/service"
 	"github.com/spf13/cobra"
@@ -128,6 +129,9 @@ var clientHelp = `
     Applies to the stdout and stderr separately. If exceeded the specified number of bytes are sent.
     Defaults: 2048
 
+    --updates-interval, How often after the rport client has started pending updates are summarized.
+    Defaults: 4h
+
     --config, -c, An optional arg to define a path to a config file. If it is set then
     configuration will be loaded from the file. Note: command arguments and env variables will override them.
     Config file should be in TOML format. You can find an example "rport.example.conf" in the release archive.
@@ -180,6 +184,7 @@ func init() {
 	pFlags.Bool("remote-commands-enabled", false, "")
 	pFlags.Bool("remote-scripts-enabled", false, "")
 	pFlags.Int("remote-commands-send-back-limit", 0, "")
+	pFlags.Duration("updates-interval", 0, "")
 
 	cfgPath = pFlags.StringP("config", "c", "", "")
 	svcCommand = pFlags.String("service", "", "")
@@ -204,6 +209,7 @@ func init() {
 	viperCfg.SetDefault("remote-commands.send_back_limit", 2048)
 	viperCfg.SetDefault("remote-commands.enabled", true)
 	viperCfg.SetDefault("remote-scripts.enabled", false)
+	viperCfg.SetDefault("client.updates_interval", 4*time.Hour)
 }
 
 func bindPFlags() {
@@ -216,6 +222,7 @@ func bindPFlags() {
 	_ = viperCfg.BindPFlag("client.name", pFlags.Lookup("name"))
 	_ = viperCfg.BindPFlag("client.tags", pFlags.Lookup("tag"))
 	_ = viperCfg.BindPFlag("client.allow_root", pFlags.Lookup("allow-root"))
+	_ = viperCfg.BindPFlag("client.updates_interval", pFlags.Lookup("updates-interval"))
 
 	_ = viperCfg.BindPFlag("logging.log_file", pFlags.Lookup("log-file"))
 	_ = viperCfg.BindPFlag("logging.log_level", pFlags.Lookup("log-level"))

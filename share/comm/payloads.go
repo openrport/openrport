@@ -13,8 +13,9 @@ const (
 	RequestTypeCreateFile = "create_file"
 
 	// request types sent by clients to server
-	RequestTypePing      = "ping"
-	RequestTypeCmdResult = "cmd_result"
+	RequestTypePing          = "ping"
+	RequestTypeCmdResult     = "cmd_result"
+	RequestTypeUpdatesStatus = "updates_status"
 )
 
 type CheckPortRequest struct {
