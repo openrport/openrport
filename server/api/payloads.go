@@ -84,8 +84,9 @@ func newAPIErrorsPayload(errors errors2.APIErrors) ErrorPayload {
 	return ep
 }
 
-type ExecuteCommandInput struct {
+type ExecuteInput struct {
 	Command    string `json:"command"`
+	Script     string `json:"script"`
 	Shell      string `json:"shell"`
 	Cwd        string `json:"cwd"`
 	IsSudo     bool   `json:"bool"`

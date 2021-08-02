@@ -6,6 +6,8 @@ import (
 	"testing"
 	"time"
 
+	"github.com/cloudradar-monitoring/rport/server/api"
+
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 
@@ -15,83 +17,6 @@ import (
 	"github.com/cloudradar-monitoring/rport/share/models"
 	"github.com/cloudradar-monitoring/rport/share/test"
 )
-
-func TestConvertScriptInputToCmdInput(t *testing.T) {
-	testCases := []struct {
-		name                   string
-		oskernel               string
-		clientID               string
-		isPowershell           bool
-		isSudo                 bool
-		cwd                    string
-		scriptPath             string
-		timeout                time.Duration
-		epxectedCommand        string
-		expectedSecondsTimeout int
-		expectedShell          string
-	}{
-		{
-			name:                   "windows powershell on",
-			oskernel:               "windows",
-			clientID:               "213",
-			isPowershell:           true,
-			cwd:                    "C:\\",
-			scriptPath:             "C:\\script.sh",
-			timeout:                time.Second,
-			epxectedCommand:        "C:\\script.sh",
-			expectedSecondsTimeout: 1,
-			expectedShell:          "powershell",
-		},
-		{
-			name:                   "windows powershell off",
-			oskernel:               "windows",
-			clientID:               "214",
-			isPowershell:           false,
-			cwd:                    "C:\\",
-			scriptPath:             "C:\\script.sh",
-			timeout:                time.Second * 2,
-			epxectedCommand:        "C:\\script.sh",
-			expectedSecondsTimeout: 2,
-			expectedShell:          "cmd",
-		},
-		{
-			name:                   "linux sudo",
-			oskernel:               "linux",
-			clientID:               "215",
-			isSudo:                 true,
-			cwd:                    "/root/here",
-			scriptPath:             "/tmp/script.sh",
-			timeout:                time.Minute,
-			epxectedCommand:        "/tmp/script.sh",
-			expectedSecondsTimeout: 60,
-		},
-	}
-
-	for i := range testCases {
-		t.Run(testCases[i].name, func(t *testing.T) {
-			ipt := &ExecutionInput{
-				Client: &clients.Client{
-					OSKernel: testCases[i].oskernel,
-					ID:       testCases[i].clientID,
-				},
-				IsPowershell: testCases[i].isPowershell,
-				IsSudo:       testCases[i].isSudo,
-				Cwd:          testCases[i].cwd,
-				Timeout:      testCases[i].timeout,
-			}
-
-			executor := NewExecutor(&chshare.Logger{})
-			res := executor.ConvertScriptInputToCmdInput(ipt, testCases[i].scriptPath)
-
-			assert.Equal(t, testCases[i].epxectedCommand, res.Command)
-			assert.Equal(t, testCases[i].expectedSecondsTimeout, res.TimeoutSec)
-			assert.Equal(t, testCases[i].cwd, res.Cwd)
-			assert.Equal(t, testCases[i].expectedShell, res.Shell)
-			assert.Equal(t, testCases[i].isSudo, res.IsSudo)
-			assert.Equal(t, testCases[i].clientID, res.ClientID)
-		})
-	}
-}
 
 func TestCreateScriptOnClient(t *testing.T) {
 	givenResp := &comm.CreateFileResponse{
@@ -107,18 +32,19 @@ func TestCreateScriptOnClient(t *testing.T) {
 		ReturnResponsePayload: givenRespBytes,
 		ReturnOk:              true,
 	}
-	inp := &ExecutionInput{
-		Client: &clients.Client{
-			OSKernel:   "linux",
-			ID:         "123",
-			Connection: conn,
-		},
-		ScriptBody: []byte("pwd"),
+
+	cl := &clients.Client{
+		OSKernel:   "linux",
+		ID:         "123",
+		Connection: conn,
+	}
+	inp := &api.ExecuteInput{
+		Script:     "pwd",
 		Cwd:        "/home",
-		Timeout:    time.Second,
+		TimeoutSec: 1,
 	}
 
-	res, err := executor.CreateScriptOnClient(inp)
+	res, err := executor.CreateScriptOnClient(inp, cl)
 	require.NoError(t, err)
 	assert.Equal(t, "/tmp/script.sh", res)
 

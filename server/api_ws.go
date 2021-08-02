@@ -40,7 +40,7 @@ window.addEventListener("load", function(evt) {
            return false;
        }
 
-       var wsURL = "{{.}}"+"?" + queryString;
+       var wsURL = "{{.}}"+"?access_token=" + token.value;
        print("WS url: " + wsURL);
        ws = new WebSocket(wsURL);
        ws.onopen = function(evt) {
@@ -124,18 +124,8 @@ window.addEventListener("load", function(evt) {
    };
    document.getElementById("open").onclick = function(evt) {
 	   var token = document.getElementById("token");
-	   var isSudo = document.getElementById("isSudo");
-	   var clientID = document.getElementById("client_id");
-	   var isPowershell = document.getElementById("isPowershell");
-	   var cwd = document.getElementById("cwd");
-	   var timeout = document.getElementById("timeout");
 	   var params = {
 			access_token: token.value,
-			client_id: clientID.value,
-			isSudo: isSudo.checked,
-			isPowershell: isPowershell.checked,
-			cwd: cwd.value,
-			timeout: timeout.value,
       };
        if (ws) {
            return false;
@@ -168,11 +158,18 @@ window.addEventListener("load", function(evt) {
    };
    document.getElementById("send").onclick = function(evt) {
 	   var input = document.getElementById("input");
+	   var script = document.getElementById("script");
        if (!ws) {
            return false;
-       }
-       print("SEND: " + input.value);
-       ws.send(input.value);
+       } 
+	   var inputObj = JSON.parse(input.value);
+	   inputObj.script = btoa(script.value);
+       var inputStr = JSON.stringify(inputObj, null, 2);
+
+       print("SEND: " + inputStr);
+       ws.send(inputStr);
+       input.value = inputStr;
+
        return false;
    };
    document.getElementById("close").onclick = function(evt) {
@@ -198,35 +195,20 @@ window.addEventListener("load", function(evt) {
 <br/>
 <textarea id="token" name="token" rows="3" cols="60"></textarea>
 </p>
-<p>
-<label for="client_id">Client id</label>
+<p><label for="token">Script</label>
 <br/>
-<input type="text" id="client_id" placeholder=""/>
+<textarea id="script" name="script" rows="3" cols="60"></textarea>
 </p>
-<p>
-<label for="cwd">Current working directory</label>
-<br/>
-<input type="text" id="cwd" placeholder=""/>
-</p>
-<p>
-<label for="cwd">Timeout for script execution</label>
-<br/>
-<input type="timeout" id="timeout" placeholder="" value="10s"/>
-</p>
-<p>
-<label for="isSudo">Sudo</label>
-<input name="isSudo" type="checkbox" id="isSudo"/>
-</p>
-<p>
-<label for="isPowershell">Is Powershell</label>
-<input name="isPowershell" type="checkbox" id="isPowershell"/>
-</p>
-<p>
-<label for="input">Script</label><br/>
+<label for="input">Input</label><br/>
 <textarea id="input" rows="5" cols="60">
-cd ~
-ls -la
-pwd
+{
+  "script": "cHdk",
+  "client_ids": ["qa-lin-windows1", "qa-lin-windows2"],
+  "timeout_sec": 60,
+  "abort_on_error": false,
+  "execute_concurrently": true,
+  "shell":"powershell"
+}
 </textarea>
 </p>
 <button id="send">Send</button>

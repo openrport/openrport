@@ -7,7 +7,6 @@ import (
 	"fmt"
 	"io"
 	"os"
-	"time"
 
 	"github.com/cloudradar-monitoring/rport/server/api"
 	"github.com/cloudradar-monitoring/rport/server/clients"
@@ -19,15 +18,6 @@ import (
 
 const DefaultScriptFileMode = os.FileMode(0744)
 
-type ExecutionInput struct {
-	Client       *clients.Client
-	ScriptBody   []byte
-	IsSudo       bool
-	IsPowershell bool
-	Cwd          string
-	Timeout      time.Duration
-}
-
 type Executor struct {
 	logger *chshare.Logger
 }
@@ -38,72 +28,45 @@ func NewExecutor(logger *chshare.Logger) *Executor {
 	}
 }
 
-func (e *Executor) ConvertScriptInputToCmdInput(ei *ExecutionInput, scriptPath string) *api.ExecuteCommandInput {
-	return &api.ExecuteCommandInput{
-		Command:    scriptPath,
-		Shell:      e.createShell(ei.Client, ei.IsPowershell),
-		Cwd:        ei.Cwd,
-		IsSudo:     ei.IsSudo,
-		TimeoutSec: int(ei.Timeout.Seconds()),
-		ClientID:   ei.Client.ID,
-		IsScript:   true,
-	}
-}
-
-func (e *Executor) CreateScriptOnClient(scriptInput *ExecutionInput) (scriptPath string, err error) {
+func (e *Executor) CreateScriptOnClient(scriptInput *api.ExecuteInput, cl *clients.Client) (scriptPath string, err error) {
+	fileName := e.createClientScriptPath(cl.OSKernel, scriptInput.Shell)
 	fileInput := &models.File{
-		Name:      e.createClientScriptPath(scriptInput.Client, scriptInput.IsPowershell),
-		Content:   scriptInput.ScriptBody,
+		Name:      fileName,
+		Content:   []byte(scriptInput.Script),
 		CreateDir: true,
 		Mode:      DefaultScriptFileMode,
 	}
 
 	sshResp := &comm.CreateFileResponse{}
-	err = comm.SendRequestAndGetResponse(scriptInput.Client.Connection, comm.RequestTypeCreateFile, fileInput, sshResp)
+	err = comm.SendRequestAndGetResponse(cl.Connection, comm.RequestTypeCreateFile, fileInput, sshResp)
 	if err != nil {
-		return "", err
+		return scriptPath, err
 	}
 
 	hasher := sha256.New()
-	_, err = io.Copy(hasher, bytes.NewBuffer(scriptInput.ScriptBody))
+	_, err = io.Copy(hasher, bytes.NewBufferString(scriptInput.Script))
 	if err != nil {
-		return "", err
+		return scriptPath, err
 	}
 
 	e.logger.Debugf("script successfully copied to the client: %+v", sshResp)
 
 	expectedHash := hex.EncodeToString(hasher.Sum(nil))
 	if expectedHash != sshResp.Sha256Hash {
-		return "", fmt.Errorf("mismatch of request %s and response %s script hashes", expectedHash, sshResp.Sha256Hash)
+		return scriptPath, fmt.Errorf("mismatch of request %s and response %s script hashes", expectedHash, sshResp.Sha256Hash)
 	}
 
 	return sshResp.FilePath, nil
 }
 
-func (e *Executor) createClientScriptPath(cl *clients.Client, isPowershell bool) string {
+func (e *Executor) createClientScriptPath(os, shell string) string {
 	scriptName := random.UUID4()
-	if e.isWindowsClient(cl) {
-		if isPowershell {
+	if os == "windows" {
+		if shell == "powershell" {
 			return scriptName + ".ps1"
 		}
 		return scriptName + ".bat"
 	}
 
 	return scriptName + ".sh"
-}
-
-func (e *Executor) isWindowsClient(cl *clients.Client) bool {
-	return cl.OSKernel == "windows"
-}
-
-func (e *Executor) createShell(cl *clients.Client, isPowershell bool) string {
-	if e.isWindowsClient(cl) {
-		if isPowershell {
-			return "powershell"
-		}
-
-		return "cmd"
-	}
-
-	return ""
 }
