@@ -259,8 +259,11 @@ func (c *Client) handleSSHRequests(ctx context.Context, reqs <-chan *ssh.Request
 			resp, err = c.HandleRunCmdRequest(ctx, r.Payload)
 		case comm.RequestTypeCreateFile:
 			resp, err = c.HandleCreateFileRequest(ctx, r.Payload)
+		case comm.RequestTypeRefreshUpdatesStatus:
+			c.updates.Refresh()
 		default:
 			c.Debugf("Unknown request: %q", r.Type)
+			comm.ReplyError(c.Logger, r, errors.New("unknown request"))
 			continue
 		}
 

@@ -3,6 +3,7 @@ package updates
 import (
 	"context"
 	"encoding/json"
+	"reflect"
 	"sync"
 	"time"
 
@@ -14,6 +15,7 @@ import (
 )
 
 var packageManagers = []PackageManager{
+	NewYumPackageManager(),
 	NewAptPackageManager(),
 }
 
@@ -28,7 +30,8 @@ type Updates struct {
 	conn   ssh.Conn
 	status *models.UpdatesStatus
 
-	interval time.Duration
+	interval    time.Duration
+	refreshChan chan struct{}
 
 	pkgMgr PackageManager
 	logger *chshare.Logger
@@ -36,8 +39,9 @@ type Updates struct {
 
 func New(logger *chshare.Logger, interval time.Duration) *Updates {
 	return &Updates{
-		interval: interval,
-		logger:   logger,
+		interval:    interval,
+		refreshChan: make(chan struct{}),
+		logger:      logger,
 	}
 }
 
@@ -62,6 +66,13 @@ func (u *Updates) getPackageManager(ctx context.Context) PackageManager {
 	return nil
 }
 
+func (u *Updates) Refresh() {
+	select {
+	case u.refreshChan <- struct{}{}:
+	default:
+	}
+}
+
 func (u *Updates) refreshLoop(ctx context.Context) {
 	for {
 		u.refreshStatus(ctx)
@@ -70,6 +81,7 @@ func (u *Updates) refreshLoop(ctx context.Context) {
 		case <-ctx.Done():
 			return
 		case <-time.After(u.interval):
+		case <-u.refreshChan:
 		}
 	}
 }
@@ -83,6 +95,8 @@ func (u *Updates) refreshStatus(ctx context.Context) {
 			Error: "no supported package manager found",
 		}
 	} else {
+		u.logger.Infof("Using %v for updates", reflect.TypeOf(pkgMgr).Elem().Name())
+
 		status, err := pkgMgr.GetUpdatesStatus(ctx, u.logger)
 		if err != nil {
 			newStatus = &models.UpdatesStatus{

@@ -180,6 +180,7 @@ func (al *APIListener) initRouter() {
 	sub.HandleFunc("/clients/{client_id}/commands", al.wrapClientAccessMiddleware(al.handleGetCommands)).Methods(http.MethodGet)
 	sub.HandleFunc("/clients/{client_id}/commands/{job_id}", al.wrapClientAccessMiddleware(al.handleGetCommand)).Methods(http.MethodGet)
 	sub.HandleFunc("/clients/{client_id}/scripts", al.wrapClientAccessMiddleware(al.handleExecuteScript)).Methods(http.MethodPost)
+	sub.HandleFunc("/clients/{client_id}/updates-status", al.wrapClientAccessMiddleware(al.handleRefreshUpdatesStatus)).Methods(http.MethodPost)
 	sub.HandleFunc("/client-groups", al.handleGetClientGroups).Methods(http.MethodGet)
 	sub.HandleFunc("/client-groups", al.wrapAdminAccessMiddleware(al.handlePostClientGroups)).Methods(http.MethodPost)
 	sub.HandleFunc("/client-groups/{group_id}", al.wrapAdminAccessMiddleware(al.handlePutClientGroup)).Methods(http.MethodPut)
@@ -852,8 +853,8 @@ const (
 
 func (al *APIListener) handlePutClientTunnel(w http.ResponseWriter, req *http.Request) {
 	vars := mux.Vars(req)
-	clientID, exists := vars[routeParamClientID]
-	if !exists || clientID == "" {
+	clientID := vars[routeParamClientID]
+	if clientID == "" {
 		al.jsonErrorResponseWithTitle(w, http.StatusBadRequest, "client id is missing")
 		return
 	}
@@ -1004,8 +1005,8 @@ func (al *APIListener) checkRemotePort(w http.ResponseWriter, remote chshare.Rem
 
 func (al *APIListener) handleDeleteClientTunnel(w http.ResponseWriter, req *http.Request) {
 	vars := mux.Vars(req)
-	clientID, exists := vars[routeParamClientID]
-	if !exists || clientID == "" {
+	clientID := vars[routeParamClientID]
+	if clientID == "" {
 		al.jsonErrorResponseWithTitle(w, http.StatusBadRequest, "client id is missing")
 		return
 	}
@@ -1031,8 +1032,8 @@ func (al *APIListener) handleDeleteClientTunnel(w http.ResponseWriter, req *http
 		return
 	}
 
-	tunnelID, exists := vars["tunnel_id"]
-	if !exists || tunnelID == "" {
+	tunnelID := vars["tunnel_id"]
+	if tunnelID == "" {
 		al.jsonErrorResponseWithTitle(w, http.StatusBadRequest, "tunnel id is missing")
 		return
 	}
@@ -2631,8 +2632,8 @@ func (al *APIListener) handleScriptUpdate(w http.ResponseWriter, req *http.Reque
 
 func (al *APIListener) handleReadScript(w http.ResponseWriter, req *http.Request) {
 	vars := mux.Vars(req)
-	idStr, ok := vars[routeParamScriptValueID]
-	if !ok || idStr == "" {
+	idStr := vars[routeParamScriptValueID]
+	if idStr == "" {
 		al.jsonError(w, errors2.APIError{
 			Err:  errors.New("empty script id provided"),
 			Code: http.StatusBadRequest,
@@ -2655,8 +2656,8 @@ func (al *APIListener) handleReadScript(w http.ResponseWriter, req *http.Request
 
 func (al *APIListener) handleDeleteScript(w http.ResponseWriter, req *http.Request) {
 	vars := mux.Vars(req)
-	idStr, ok := vars[routeParamScriptValueID]
-	if !ok || idStr == "" {
+	idStr := vars[routeParamScriptValueID]
+	if idStr == "" {
 		al.jsonError(w, errors2.APIError{
 			Err:  errors.New("empty script id provided"),
 			Code: http.StatusBadRequest,
@@ -2693,4 +2694,31 @@ func parseRequestBody(reqBody io.ReadCloser, dest interface{}) error {
 	}
 
 	return nil
+}
+
+func (al *APIListener) handleRefreshUpdatesStatus(w http.ResponseWriter, req *http.Request) {
+	vars := mux.Vars(req)
+	clientID := vars[routeParamClientID]
+	if clientID == "" {
+		al.jsonErrorResponseWithTitle(w, http.StatusBadRequest, "client id is missing")
+		return
+	}
+
+	client, err := al.clientService.GetActiveByID(clientID)
+	if err != nil {
+		al.jsonErrorResponse(w, http.StatusInternalServerError, err)
+		return
+	}
+	if client == nil {
+		al.jsonErrorResponseWithTitle(w, http.StatusNotFound, fmt.Sprintf("client with id %s not found", clientID))
+		return
+	}
+
+	err = comm.SendRequestAndGetResponse(client.Connection, comm.RequestTypeRefreshUpdatesStatus, nil, nil)
+	if err != nil {
+		al.jsonErrorResponse(w, http.StatusInternalServerError, err)
+		return
+	}
+
+	w.WriteHeader(http.StatusNoContent)
 }

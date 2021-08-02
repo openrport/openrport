@@ -539,6 +539,34 @@ paths:
           description: "Invalid Operation"
           schema:
             $ref: "#/definitions/ErrorPayload"
+  /clients/{client_id}/updates-status:
+    post:
+      tags:
+        - "Clients and Tunnels"
+      summary: "Trigger updates status refresh on the client"
+      produces:
+        - "application/json"
+      parameters:
+        - name: "client_id"
+          in: "path"
+          description: "unique client id retrieved previously"
+          required: true
+          type: "string"
+      responses:
+        "204":
+          description: "Successful Operation"
+        "400":
+          description: "Invalid request parameters"
+          schema:
+            $ref: "#/definitions/ErrorPayload"
+        "404":
+          description: "Client or specified user groups not found"
+          schema:
+            $ref: "#/definitions/ErrorPayload"
+        "500":
+          description: "Invalid Operation"
+          schema:
+            $ref: "#/definitions/ErrorPayload"
   /clients/{client_id}/commands:
     get:
       tags:

@@ -55,8 +55,10 @@ func SendRequestAndGetResponse(conn ssh.Conn, reqType string, req, successRespDe
 		return NewClientError(fmt.Errorf("client error: %s", respBytes))
 	}
 
-	if err := json.Unmarshal(respBytes, successRespDest); err != nil {
-		return NewClientError(fmt.Errorf("invalid client response format: failed to decode response into %T: %v", successRespDest, err))
+	if successRespDest != nil {
+		if err := json.Unmarshal(respBytes, successRespDest); err != nil {
+			return NewClientError(fmt.Errorf("invalid client response format: failed to decode response into %T: %v", successRespDest, err))
+		}
 	}
 
 	return nil

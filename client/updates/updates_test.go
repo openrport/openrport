@@ -64,6 +64,7 @@ func TestUpdates(t *testing.T) {
 		Status                   *models.UpdatesStatus
 		PackageManagerErr        error
 		NumRequests              int
+		CallRefresh              bool
 		ExpectedError            string
 		ExpectedUpdatesAvailable int
 	}{
@@ -98,6 +99,15 @@ func TestUpdates(t *testing.T) {
 				UpdatesAvailable: 13,
 			},
 			NumRequests:              3,
+			ExpectedUpdatesAvailable: 13,
+		},
+		{
+			Name: "Send update after refresh",
+			Status: &models.UpdatesStatus{
+				UpdatesAvailable: 13,
+			},
+			CallRefresh:              true,
+			NumRequests:              2,
 			ExpectedUpdatesAvailable: 13,
 		},
 	}
@@ -139,6 +149,10 @@ func TestUpdates(t *testing.T) {
 				assert.Equal(t, tc.ExpectedError, result.Error)
 				assert.Equal(t, tc.ExpectedUpdatesAvailable, result.UpdatesAvailable)
 				assert.WithinDuration(t, time.Now(), result.Refreshed, 100*time.Millisecond)
+
+				if tc.CallRefresh {
+					updates.Refresh()
+				}
 			}
 		})
 	}

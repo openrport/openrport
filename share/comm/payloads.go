@@ -8,9 +8,10 @@ import (
 
 const (
 	// request types sent by server to clients
-	RequestTypeCheckPort  = "check_port"
-	RequestTypeRunCmd     = "run_cmd"
-	RequestTypeCreateFile = "create_file"
+	RequestTypeCheckPort            = "check_port"
+	RequestTypeRunCmd               = "run_cmd"
+	RequestTypeCreateFile           = "create_file"
+	RequestTypeRefreshUpdatesStatus = "refresh_updates_status"
 
 	// request types sent by clients to server
 	RequestTypePing          = "ping"

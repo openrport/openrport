@@ -1479,3 +1479,70 @@ func TestValidateInputClientGroup(t *testing.T) {
 		})
 	}
 }
+
+func TestHandleRefreshUpdatesStatus(t *testing.T) {
+	c1 := clients.New(t).Build()
+	c2 := clients.New(t).DisconnectedDuration(5 * time.Minute).Build()
+
+	testCases := []struct {
+		Name                string
+		ClientID            string
+		SSHError            bool
+		ExpectedStatus      int
+		ExpectedRequestName string
+	}{
+		{
+			Name:                "Connected client",
+			ClientID:            c1.ID,
+			ExpectedStatus:      http.StatusNoContent,
+			ExpectedRequestName: comm.RequestTypeRefreshUpdatesStatus,
+		},
+		{
+			Name:           "Disconnected client",
+			ClientID:       c2.ID,
+			ExpectedStatus: http.StatusNotFound,
+		},
+		{
+			Name:           "Non-existing client",
+			ClientID:       "non-existing-client",
+			ExpectedStatus: http.StatusNotFound,
+		},
+		{
+			Name:                "SSH error",
+			ClientID:            c1.ID,
+			SSHError:            true,
+			ExpectedRequestName: comm.RequestTypeRefreshUpdatesStatus,
+			ExpectedStatus:      http.StatusInternalServerError,
+		},
+	}
+
+	for _, tc := range testCases {
+		t.Run(tc.Name, func(t *testing.T) {
+			connMock := test.NewConnMock()
+			// by default set to return success
+			connMock.ReturnOk = !tc.SSHError
+			c1.Connection = connMock
+
+			al := APIListener{
+				insecureForTests: true,
+				Server: &Server{
+					clientService: NewClientService(nil, clients.NewClientRepository([]*clients.Client{c1, c2}, &hour, testLog)),
+					config:        &Config{},
+				},
+				Logger: testLog,
+			}
+			al.initRouter()
+
+			req := httptest.NewRequest(http.MethodPost, fmt.Sprintf("/api/v1/clients/%s/updates-status", tc.ClientID), nil)
+
+			w := httptest.NewRecorder()
+			al.router.ServeHTTP(w, req)
+
+			assert.Equal(t, tc.ExpectedStatus, w.Code)
+			if tc.ExpectedRequestName != "" {
+				name, _, _ := connMock.InputSendRequest()
+				assert.Equal(t, tc.ExpectedRequestName, name)
+			}
+		})
+	}
+}
