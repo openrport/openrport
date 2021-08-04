@@ -15,6 +15,7 @@ import (
 )
 
 var packageManagers = []PackageManager{
+	NewZypperPackageManager(),
 	NewYumPackageManager(),
 	NewAptPackageManager(),
 }

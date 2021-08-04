@@ -4,7 +4,6 @@ import (
 	"context"
 	"errors"
 	"io/ioutil"
-	"strings"
 	"testing"
 
 	"github.com/stretchr/testify/assert"
@@ -13,30 +12,7 @@ import (
 	"github.com/cloudradar-monitoring/rport/share/models"
 )
 
-type mockRunner struct {
-	outputs map[string]string
-	errors  map[string]error
-}
-
-func newMockRunner() *mockRunner {
-	return &mockRunner{
-		outputs: make(map[string]string),
-		errors:  make(map[string]error),
-	}
-}
-
-func (r *mockRunner) Run(ctx context.Context, args ...string) (string, error) {
-	key := strings.Join(args, " ")
-	return r.outputs[key], r.errors[key]
-}
-
-func (r *mockRunner) Register(args []string, output string, err error) {
-	key := strings.Join(args, " ")
-	r.outputs[key] = output
-	r.errors[key] = err
-}
-
-func TestAptPackageMangerIsAvailable(t *testing.T) {
+func TestAptPackageMangerIsAvailable(t *testing.T) { //nolint:dupl
 	ctx := context.Background()
 	testCases := []struct {
 		Name           string

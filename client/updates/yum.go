@@ -108,6 +108,8 @@ func (p *YumPackageManager) listUpdates(ctx context.Context, additionalArgs ...s
 }
 
 func (p *YumPackageManager) checkRebootRequired(ctx context.Context) bool {
+	// The error is ignored here, since exit code is the same for reboot required and command does not exist.
+	// So we cannot use it to determine if reboot is required.
 	output, _ := p.run(ctx, "needs-restarting", "-r")
 	return strings.Contains(output, "Reboot is required")
 }
