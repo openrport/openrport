@@ -7,6 +7,8 @@ import (
 	mapset "github.com/deckarep/golang-set"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
+
+	"github.com/cloudradar-monitoring/rport/server/api/message"
 )
 
 var defaultValidMinServerConfig = ServerConfig{
@@ -327,6 +329,66 @@ func TestParseAndValidateAPI(t *testing.T) {
 				},
 			},
 			ExpectedError: errors.New("API: when 'key_file' is set, 'cert_file' must be set as well"),
+		},
+		{
+			Name: "api enabled, single user auth, 2fa enabled",
+			Config: Config{
+				API: APIConfig{
+					Address:            "0.0.0.0:3000",
+					Auth:               "abc:def",
+					TwoFATokenDelivery: "/bin/sh",
+				},
+			},
+			ExpectedError: errors.New("API: 2FA is not available if you use a single static user-password pair"),
+		},
+		{
+			Name: "api enabled, unknown 2fa method",
+			Config: Config{
+				API: APIConfig{
+					Address:            "0.0.0.0:3000",
+					AuthFile:           "test.json",
+					TwoFATokenDelivery: "unknown",
+				},
+			},
+			ExpectedError: errors.New("API: unknown 2fa token delivery method: unknown"),
+		},
+		{
+			Name: "api enabled, script 2fa method, invalid send to type",
+			Config: Config{
+				API: APIConfig{
+					Address:            "0.0.0.0:3000",
+					AuthFile:           "test.json",
+					TwoFATokenDelivery: "/bin/sh",
+					TwoFASendToType:    "invalid",
+				},
+			},
+			ExpectedError: errors.New(`API: invalid api.two_fa_send_to_type: "invalid"`),
+		},
+		{
+			Name: "api enabled, script 2fa method, invalid send to regex",
+			Config: Config{
+				API: APIConfig{
+					Address:            "0.0.0.0:3000",
+					AuthFile:           "test.json",
+					TwoFATokenDelivery: "/bin/sh",
+					TwoFASendToType:    message.ValidationRegex,
+					TwoFASendToRegex:   "[a-z",
+				},
+			},
+			ExpectedError: errors.New("API: invalid api.two_fa_send_to_regex: error parsing regexp: missing closing ]: `[a-z`"),
+		},
+		{
+			Name: "api enabled, script 2fa method, ok",
+			Config: Config{
+				API: APIConfig{
+					Address:            "0.0.0.0:3000",
+					AuthFile:           "test.json",
+					TwoFATokenDelivery: "/bin/sh",
+					TwoFASendToType:    message.ValidationRegex,
+					TwoFASendToRegex:   "[a-z]{10}",
+				},
+			},
+			ExpectedError: nil,
 		},
 	}
 

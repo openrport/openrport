@@ -24,9 +24,9 @@ func NewPushoverService(apiToken string) *PushoverService {
 
 const pushoverAPISuccessStatus = 1
 
-func (s *PushoverService) Send(ctx context.Context, title, msg, receiver string) error {
-	pMsg := pushover.NewMessageWithTitle(msg, title)
-	pReceiver := pushover.NewRecipient(receiver)
+func (s *PushoverService) Send(ctx context.Context, data Data) error {
+	pMsg := pushover.NewMessageWithTitle(data.Message, data.Title)
+	pReceiver := pushover.NewRecipient(data.SendTo)
 	// TODO: pass ctx when pushover lib will support it
 	resp, err := s.p.SendMessage(pMsg, pReceiver)
 	if err != nil {

@@ -1,9 +1,20 @@
 package message
 
-import "context"
+import (
+	"context"
+	"time"
+)
+
+type Data struct {
+	Title   string
+	Message string
+	SendTo  string
+	Token   string
+	TTL     time.Duration
+}
 
 type Service interface {
-	Send(ctx context.Context, title, msg, receiver string) error
+	Send(ctx context.Context, data Data) error
 	DeliveryMethod() string
 	ValidateReceiver(ctx context.Context, receiver string) error
 }
@@ -12,7 +23,7 @@ type ServiceMock struct {
 	ReturnError error
 }
 
-func (s *ServiceMock) Send(ctx context.Context, title, msg, receiver string) error {
+func (s *ServiceMock) Send(ctx context.Context, data Data) error {
 	return nil
 }
 

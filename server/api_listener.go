@@ -174,10 +174,19 @@ func NewAPIListener(
 				return nil, fmt.Errorf("failed to init smtp service: %v", err)
 			}
 		default:
-			return nil, fmt.Errorf("unknown 2fa delivery: %s", config.API.TwoFATokenDelivery)
+			msgSrv = message.NewScriptService(
+				config.API.TwoFATokenDelivery,
+				config.API.TwoFASendToType,
+				config.API.twoFASendToRegexCompiled,
+			)
 		}
 
-		a.twoFASrv = NewTwoFAService(config.API.TwoFATokenTTLSeconds, userService, msgSrv)
+		a.twoFASrv = NewTwoFAService(
+			config.API.TwoFATokenTTLSeconds,
+			config.API.TwoFASendTimeout,
+			userService,
+			msgSrv,
+		)
 		a.usersService.DeliverySrv = msgSrv
 		a.Logger.Infof("2FA is enabled via using %s", config.API.TwoFATokenDelivery)
 	}

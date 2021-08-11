@@ -41,12 +41,12 @@ func NewSMTPService(hostPort, username, password, fromEmail string, withTLS bool
 	return s, nil
 }
 
-func (s *SMTPService) Send(ctx context.Context, title, msg, receiver string) error {
+func (s *SMTPService) Send(ctx context.Context, data Data) error {
 	e := &email.Email{
 		From:    s.From,
-		To:      []string{receiver},
-		Subject: title,
-		Text:    []byte(msg),
+		To:      []string{data.SendTo},
+		Subject: data.Title,
+		Text:    []byte(data.Message),
 	}
 
 	if s.TLSConfig != nil {
