@@ -79,9 +79,9 @@ func TestDataToEnv(t *testing.T) {
 	env := ss.DataToEnv(data)
 
 	expected := []string{
-		"2FA_TOKEN=abcd12",
-		"2FA_SENDTO=whatever@example.com",
-		"2FA_TOKEN_TTL=300",
+		"RPORT_2FA_TOKEN=abcd12",
+		"RPORT_2FA_SENDTO=whatever@example.com",
+		"RPORT_2FA_TOKEN_TTL=300",
 	}
 	assert.ElementsMatch(t, expected, env)
 }

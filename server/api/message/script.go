@@ -55,9 +55,9 @@ func (s *ScriptService) Send(ctx context.Context, data Data) error {
 
 func (s *ScriptService) DataToEnv(data Data) []string {
 	return []string{
-		fmt.Sprintf("2FA_TOKEN=%v", data.Token),
-		fmt.Sprintf("2FA_SENDTO=%v", data.SendTo),
-		fmt.Sprintf("2FA_TOKEN_TTL=%v", data.TTL.Seconds()),
+		fmt.Sprintf("RPORT_2FA_TOKEN=%v", data.Token),
+		fmt.Sprintf("RPORT_2FA_SENDTO=%v", data.SendTo),
+		fmt.Sprintf("RPORT_2FA_TOKEN_TTL=%v", data.TTL.Seconds()),
 	}
 }
 
