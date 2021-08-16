@@ -57,7 +57,7 @@ RPORT_2FA_TOKEN_TTL=600
 RPORT_2FA_TOKEN=7SM7j2
 snip..snap
 ```
-The value of `2FA_SENDTO` may vary. It's the value specified in the 2fa_sendto column of the user table or the auth file. 
+The value of `RPORT_2FA_SENDTO` may vary. It's the value specified in the 2fa_sendto column of the user table or the auth file.
 
 Additionally, you can specify how the api should validate updates of the 2fa_sendto. This prevents users entering values that cannot be processed by your script.
 Use `two_fa_send_to_type = 'email'`  to accept only valid email address or specify a regular expression.
@@ -65,7 +65,7 @@ Use `two_fa_send_to_type = 'email'`  to accept only valid email address or speci
 If the script exits with an exit code other than `0` the API request returns HTTP Status code 500 along with the STDERR output of the script.
 
 ::: tip
-When handing over the token using curl, consider using the `-f` option of curl. On any other http status code than 200 curl will exit with a non-zero status code. 
+When handing over the token using curl, consider using the `-f` option of curl. On any other http status code than 200 curl will exit with a non-zero status code.
 This way the rport server knows about a failed request, and the API includes the error for further processing.
 :::
 
@@ -73,7 +73,7 @@ This way the rport server knows about a failed request, and the API includes the
 A script that sends the token via Telegram can work like this example. You must [create a bot](https://core.telegram.org/bots#6-botfather) first and grab the token of it.
 ```
 #!/bin/sh
-BOT_TOKEN="<YOUR_BOT_TOKEN>" 
+BOT_TOKEN="<YOUR_BOT_TOKEN>"
 URL="https://api.telegram.org/bot${BOT_TOKEN}/sendMessage"
 curl -fs -X POST $URL \
   -d chat_id=$RPORT_2FA_SENDTO \
