@@ -38,15 +38,16 @@ Rportd holds the tokens in memory. Restarting rportd deletes (expires) them all.
 Tokens are based on JWT. For your security, you should enter a unique `jwt_secret` into the `rportd.conf`. Do not use the provided sample secret in a production environment.
 
 ### Two-Factor Auth
-If you want an extra layer of security then you can enable 2FA. It allows you to confirm your login with a verification code sent by a chosen delivery method.
+If you want an extra layer of security, you can enable 2FA. It allows you to confirm your login with a verification code sent by a chosen delivery method.
 Supported delivery methods:
 1. email (requires [SMTP setup](no15-messaging.md#smtp))
 2. [pushover.net](https://pushover.net) (requires [Pushover setup](no15-messaging.md#pushover))
+3. Custom [script](no15-messaging.md#script)
 
 By default, 2FA is disabled.
 
 #### How to enable 2FA?
-1. Choose a desired delivery method. Enter the following lines to the `rportd.config` in the `[api]` section, for example:
+1. Choose the desired delivery method. Enter the following lines to the `rportd.config` in the `[api]` section, for example:
    ```
    two_fa_token_delivery = 'smtp'
    two_fa_token_ttl_seconds = 600
