@@ -359,6 +359,31 @@ paths:
           schema:
             $ref: "#/definitions/ErrorPayload"
   /clients/{client_id}:
+    get:
+      tags:
+        - "Clients and Tunnels"
+      summary: "Get client by id"
+      parameters:
+        - name: "client_id"
+          in: "path"
+          description: "unique client ID"
+          required: true
+          type: "string"
+      produces:
+        - "application/json"
+      responses:
+        "200":
+          description: "success response"
+          schema:
+            $ref: "#/definitions/Client"
+        "404":
+          description: "Client not found"
+          schema:
+            $ref: "#/definitions/ErrorPayload"
+        "500":
+          description: "Invalid operation"
+          schema:
+            $ref: "#/definitions/ErrorPayload"
     delete:
       tags:
         - "Clients and Tunnels"

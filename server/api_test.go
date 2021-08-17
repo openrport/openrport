@@ -1546,3 +1546,112 @@ func TestHandleRefreshUpdatesStatus(t *testing.T) {
 		})
 	}
 }
+
+func TestHandleGetClient(t *testing.T) {
+	c1 := clients.New(t).ID("client-1").ClientAuthID(cl1.ID).Build()
+	al := APIListener{
+		insecureForTests: true,
+		Server: &Server{
+			clientService: NewClientService(nil, clients.NewClientRepository([]*clients.Client{c1}, &hour, testLog)),
+			config: &Config{
+				Server: ServerConfig{MaxRequestBytes: 1024 * 1024},
+			},
+		},
+	}
+	al.initRouter()
+
+	testCases := []struct {
+		Name           string
+		URL            string
+		ExpectedStatus int
+	}{
+		{
+			Name:           "Ok",
+			URL:            "/api/v1/clients/client-1",
+			ExpectedStatus: http.StatusOK,
+		}, {
+			Name:           "Not found",
+			URL:            "/api/v1/clients/client-2",
+			ExpectedStatus: http.StatusNotFound,
+		},
+	}
+
+	for _, tc := range testCases {
+		tc := tc
+		t.Run(tc.Name, func(t *testing.T) {
+			t.Parallel()
+
+			w := httptest.NewRecorder()
+			req := httptest.NewRequest("GET", tc.URL, nil)
+			al.router.ServeHTTP(w, req)
+
+			expectedJSON := `{
+    "data":{
+        "id":"client-1",
+        "mem_total":100000,
+        "name":"Random Rport Client",
+        "num_cpus":2,
+        "os":"Linux alpine-3-10-tk-01 4.19.80-0-virt #1-Alpine SMP Fri Oct 18 11:51:24 UTC 2019 x86_64 Linux",
+        "os_arch":"amd64",
+        "os_family":"alpine",
+        "os_full_name":"Debian 18.0",
+        "os_kernel":"linux",
+        "os_version":"18.0",
+        "os_virtualization_role":"guest",
+        "os_virtualization_system":"LVM",
+        "hostname":"alpine-3-10-tk-01",
+        "ipv4":[
+            "192.168.122.111"
+        ],
+        "ipv6":[
+            "fe80::b84f:aff:fe59:a0b1"
+        ],
+        "tags":[
+            "Linux",
+            "Datacenter 1"
+        ],
+        "version":"0.1.12",
+        "address":"88.198.189.161:50078",
+        "timezone":"UTC-0",
+        "tunnels":[
+            {
+                "lhost":"0.0.0.0",
+                "lport":"2222",
+                "rhost":"0.0.0.0",
+                "rport":"22",
+                "lport_random":false,
+                "scheme":null,
+                "acl":null,
+		        "idle_timeout_minutes": 0,
+                "id":"1"
+            },
+            {
+                "lhost":"0.0.0.0",
+                "lport":"4000",
+                "rhost":"0.0.0.0",
+                "rport":"80",
+                "lport_random":false,
+                "scheme":null,
+                "acl":null,
+		        "idle_timeout_minutes": 0,
+                "id":"2"
+            }
+        ],
+        "connection_state":"connected",
+        "cpu_family":"Virtual CPU",
+        "cpu_model":"Virtual CPU",
+        "cpu_model_name":"",
+        "cpu_vendor":"GenuineIntel",
+        "disconnected_at":null,
+        "client_auth_id":"user1",
+        "allowed_user_groups":null,
+        "updates_status":null
+    }
+}`
+			assert.Equal(t, tc.ExpectedStatus, w.Code)
+			if tc.ExpectedStatus == http.StatusOK {
+				assert.JSONEq(t, expectedJSON, w.Body.String())
+			}
+		})
+	}
+}

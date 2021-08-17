@@ -167,6 +167,7 @@ func (al *APIListener) initRouter() {
 	sub.HandleFunc("/me", al.handleChangeMe).Methods(http.MethodPut)
 	sub.HandleFunc("/me/ip", al.handleGetIP).Methods(http.MethodGet)
 	sub.HandleFunc("/clients", al.handleGetClients).Methods(http.MethodGet)
+	sub.HandleFunc("/clients/{client_id}", al.wrapClientAccessMiddleware(al.handleGetClient)).Methods(http.MethodGet)
 	sub.HandleFunc("/clients/{client_id}", al.wrapClientAccessMiddleware(al.handleDeleteClient)).Methods(http.MethodDelete)
 	sub.HandleFunc("/clients/{client_id}/acl", al.wrapAdminAccessMiddleware(al.handlePostClientACL)).Methods(http.MethodPost)
 	sub.HandleFunc("/clients/{client_id}/tunnels", al.wrapClientAccessMiddleware(al.handlePutClientTunnel)).Methods(http.MethodPut)
@@ -614,6 +615,24 @@ func (al *APIListener) handleGetClients(w http.ResponseWriter, req *http.Request
 	al.writeJSONResponse(w, http.StatusOK, api.NewSuccessPayload(clientsPayload))
 }
 
+func (al *APIListener) handleGetClient(w http.ResponseWriter, req *http.Request) {
+	vars := mux.Vars(req)
+	clientID := vars[routeParamClientID]
+
+	client, err := al.clientService.GetByID(clientID)
+	if err != nil {
+		al.jsonError(w, err)
+		return
+	}
+	if client == nil {
+		al.jsonErrorResponseWithTitle(w, http.StatusNotFound, fmt.Sprintf("client with id %q not found", clientID))
+		return
+	}
+
+	clientPayload := convertToClientPayload(client)
+	al.writeJSONResponse(w, http.StatusOK, api.NewSuccessPayload(clientPayload))
+}
+
 type UserPayload struct {
 	Username    string   `json:"username"`
 	Groups      []string `json:"groups"`
@@ -721,39 +740,43 @@ type ClientPayload struct {
 func convertToClientsPayload(clients []*clients.Client) []ClientPayload {
 	r := make([]ClientPayload, 0, len(clients))
 	for _, cur := range clients {
-		r = append(r, ClientPayload{
-			ID:                     cur.ID,
-			Name:                   cur.Name,
-			OS:                     cur.OS,
-			OSArch:                 cur.OSArch,
-			OSFamily:               cur.OSFamily,
-			OSKernel:               cur.OSKernel,
-			Hostname:               cur.Hostname,
-			IPv4:                   cur.IPv4,
-			IPv6:                   cur.IPv6,
-			Tags:                   cur.Tags,
-			Version:                cur.Version,
-			Address:                cur.Address,
-			Tunnels:                cur.Tunnels,
-			DisconnectedAt:         cur.DisconnectedAt,
-			ConnectionState:        cur.ConnectionState(),
-			ClientAuthID:           cur.ClientAuthID,
-			OSFullName:             cur.OSFullName,
-			OSVersion:              cur.OSVersion,
-			OSVirtualizationSystem: cur.OSVirtualizationSystem,
-			OSVirtualizationRole:   cur.OSVirtualizationRole,
-			CPUFamily:              cur.CPUFamily,
-			CPUModel:               cur.CPUModel,
-			CPUModelName:           cur.CPUModelName,
-			CPUVendor:              cur.CPUVendor,
-			Timezone:               cur.Timezone,
-			NumCPUs:                cur.NumCPUs,
-			MemoryTotal:            cur.MemoryTotal,
-			AllowedUserGroups:      cur.AllowedUserGroups,
-			UpdatesStatus:          cur.UpdatesStatus,
-		})
+		r = append(r, convertToClientPayload(cur))
 	}
 	return r
+}
+
+func convertToClientPayload(client *clients.Client) ClientPayload {
+	return ClientPayload{
+		ID:                     client.ID,
+		Name:                   client.Name,
+		OS:                     client.OS,
+		OSArch:                 client.OSArch,
+		OSFamily:               client.OSFamily,
+		OSKernel:               client.OSKernel,
+		Hostname:               client.Hostname,
+		IPv4:                   client.IPv4,
+		IPv6:                   client.IPv6,
+		Tags:                   client.Tags,
+		Version:                client.Version,
+		Address:                client.Address,
+		Tunnels:                client.Tunnels,
+		DisconnectedAt:         client.DisconnectedAt,
+		ConnectionState:        client.ConnectionState(),
+		ClientAuthID:           client.ClientAuthID,
+		OSFullName:             client.OSFullName,
+		OSVersion:              client.OSVersion,
+		OSVirtualizationSystem: client.OSVirtualizationSystem,
+		OSVirtualizationRole:   client.OSVirtualizationRole,
+		CPUFamily:              client.CPUFamily,
+		CPUModel:               client.CPUModel,
+		CPUModelName:           client.CPUModelName,
+		CPUVendor:              client.CPUVendor,
+		Timezone:               client.Timezone,
+		NumCPUs:                client.NumCPUs,
+		MemoryTotal:            client.MemoryTotal,
+		AllowedUserGroups:      client.AllowedUserGroups,
+		UpdatesStatus:          client.UpdatesStatus,
+	}
 }
 
 func getCorrespondingSortFunc(sortStr string) (sortFunc func(a []*clients.Client, desc bool), desc bool, err error) {
