@@ -3,6 +3,7 @@ package chclient
 import (
 	"errors"
 	"fmt"
+	"log"
 	"net/http"
 	"net/url"
 	"regexp"
@@ -66,7 +67,8 @@ type CommandsConfig struct {
 }
 
 type ScriptsConfig struct {
-	Enabled bool `mapstructure:"enabled"`
+	Enabled bool   `mapstructure:"enabled"`
+	Dir     string `mapstructure:"script_dir"`
 }
 
 type Config struct {
@@ -99,11 +101,12 @@ func (c *Config) ParseAndValidate() error {
 		return fmt.Errorf("remote commands: %v", err)
 	}
 
+	c.Client.authUser, c.Client.authPass = chshare.ParseAuth(c.Client.Auth)
+
 	if err := c.parseRemoteScripts(); err != nil {
 		return err
 	}
 
-	c.Client.authUser, c.Client.authPass = chshare.ParseAuth(c.Client.Auth)
 	return nil
 }
 
@@ -210,6 +213,12 @@ func (c *Config) parseRemoteCommands() error {
 func (c *Config) parseRemoteScripts() error {
 	if c.RemoteScripts.Enabled && !c.RemoteCommands.Enabled {
 		return errors.New("remote scripts execution requires remote commands to be enabled")
+	}
+
+	err := ValidateScriptDir(c.RemoteScripts.Dir)
+	// we allow to start a client if the script dir is not good because clients might never run scripts
+	if err != nil {
+		log.Printf("ERROR: %v\n", err)
 	}
 
 	return nil

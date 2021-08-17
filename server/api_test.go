@@ -666,12 +666,12 @@ func TestHandlePostCommand(t *testing.T) {
 		runningJob      *models.Job
 		clients         []*clients.Client
 
-		wantStatusCode int
-		wantTimeout    int
-		wantErrCode    string
-		wantErrTitle   string
-		wantErrDetail  string
-		wantShell      string
+		wantStatusCode  int
+		wantTimeout     int
+		wantErrCode     string
+		wantErrTitle    string
+		wantErrDetail   string
+		wantInterpreter string
 	}{
 		{
 			name:           "valid cmd",
@@ -682,22 +682,22 @@ func TestHandlePostCommand(t *testing.T) {
 			wantTimeout:    gotCmdTimeoutSec,
 		},
 		{
-			name:           "valid cmd with shell",
-			requestBody:    `{"command": "` + gotCmd + `","shell": "powershell"}`,
-			cid:            c1.ID,
-			clients:        []*clients.Client{c1},
-			wantStatusCode: http.StatusOK,
-			wantTimeout:    defaultTimeout,
-			wantShell:      "powershell",
+			name:            "valid cmd with interpreter",
+			requestBody:     `{"command": "` + gotCmd + `","interpreter": "powershell"}`,
+			cid:             c1.ID,
+			clients:         []*clients.Client{c1},
+			wantStatusCode:  http.StatusOK,
+			wantTimeout:     defaultTimeout,
+			wantInterpreter: "powershell",
 		},
 		{
-			name:           "invalid shell",
-			requestBody:    `{"command": "` + gotCmd + `","shell": "unsupported"}`,
+			name:           "invalid interpreter",
+			requestBody:    `{"command": "` + gotCmd + `","interpreter": "unsupported"}`,
 			cid:            c1.ID,
 			clients:        []*clients.Client{c1},
 			wantStatusCode: http.StatusBadRequest,
-			wantErrTitle:   "Invalid shell.",
-			wantErrDetail:  "expected shell to be one of: [cmd powershell], actual: unsupported",
+			wantErrTitle:   "Invalid interpreter.",
+			wantErrDetail:  "expected interpreter to be one of: [cmd powershell], actual: unsupported",
 		},
 		{
 			name:           "valid cmd with no timeout",
@@ -862,7 +862,7 @@ func TestHandlePostCommand(t *testing.T) {
 				assert.Nil(t, gotRunningJob.FinishedAt)
 				assert.Equal(t, tc.cid, gotRunningJob.ClientID)
 				assert.Equal(t, gotCmd, gotRunningJob.Command)
-				assert.Equal(t, tc.wantShell, gotRunningJob.Shell)
+				assert.Equal(t, tc.wantInterpreter, gotRunningJob.Interpreter)
 				assert.Equal(t, &sshSuccessResp.Pid, gotRunningJob.PID)
 				assert.Equal(t, sshSuccessResp.StartedAt, gotRunningJob.StartedAt)
 				assert.Equal(t, testUser, gotRunningJob.CreatedBy)

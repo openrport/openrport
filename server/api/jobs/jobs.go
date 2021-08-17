@@ -110,16 +110,16 @@ type jobSummarySqlite struct {
 }
 
 type jobDetails struct {
-	Command    string            `json:"command"`
-	Cwd        string            `json:"cwd"`
-	IsSudo     bool              `json:"sudo"`
-	IsScript   bool              `json:"is_script"`
-	Shell      string            `json:"shell"`
-	PID        *int              `json:"pid"`
-	TimeoutSec int               `json:"timeout_sec"`
-	Error      string            `json:"error"`
-	Result     *models.JobResult `json:"result"`
-	ClientName string            `json:"client_name"`
+	Command     string            `json:"command"`
+	Cwd         string            `json:"cwd"`
+	IsSudo      bool              `json:"is_sudo"`
+	IsScript    bool              `json:"is_script"`
+	Interpreter string            `json:"interpreter"`
+	PID         *int              `json:"pid"`
+	TimeoutSec  int               `json:"timeout_sec"`
+	Error       string            `json:"error"`
+	Result      *models.JobResult `json:"result"`
+	ClientName  string            `json:"client_name"`
 }
 
 func (d *jobDetails) Scan(value interface{}) error {
@@ -170,20 +170,20 @@ func convertJSs(list []*jobSummarySqlite) []*models.JobSummary {
 func (j *jobSqlite) convert() *models.Job {
 	js := j.jobSummarySqlite.convert()
 	res := &models.Job{
-		JobSummary: *js,
-		ClientID:   j.ClientID,
-		ClientName: j.Details.ClientName,
-		StartedAt:  j.StartedAt,
-		CreatedBy:  j.CreatedBy,
-		Command:    j.Details.Command,
-		Shell:      j.Details.Shell,
-		PID:        j.Details.PID,
-		TimeoutSec: j.Details.TimeoutSec,
-		Result:     j.Details.Result,
-		Error:      j.Details.Error,
-		Cwd:        j.Details.Cwd,
-		IsSudo:     j.Details.IsSudo,
-		IsScript:   j.Details.IsScript,
+		JobSummary:  *js,
+		ClientID:    j.ClientID,
+		ClientName:  j.Details.ClientName,
+		StartedAt:   j.StartedAt,
+		CreatedBy:   j.CreatedBy,
+		Command:     j.Details.Command,
+		Interpreter: j.Details.Interpreter,
+		PID:         j.Details.PID,
+		TimeoutSec:  j.Details.TimeoutSec,
+		Result:      j.Details.Result,
+		Error:       j.Details.Error,
+		Cwd:         j.Details.Cwd,
+		IsSudo:      j.Details.IsSudo,
+		IsScript:    j.Details.IsScript,
 	}
 	if j.MultiJobID.Valid {
 		res.MultiJobID = &j.MultiJobID.String
@@ -209,16 +209,16 @@ func convertToSqlite(job *models.Job) *jobSqlite {
 		CreatedBy: job.CreatedBy,
 		ClientID:  job.ClientID,
 		Details: &jobDetails{
-			Command:    job.Command,
-			Shell:      job.Shell,
-			PID:        job.PID,
-			TimeoutSec: job.TimeoutSec,
-			Result:     job.Result,
-			Error:      job.Error,
-			ClientName: job.ClientName,
-			Cwd:        job.Cwd,
-			IsSudo:     job.IsSudo,
-			IsScript:   job.IsScript,
+			Command:     job.Command,
+			Interpreter: job.Interpreter,
+			PID:         job.PID,
+			TimeoutSec:  job.TimeoutSec,
+			Result:      job.Result,
+			Error:       job.Error,
+			ClientName:  job.ClientName,
+			Cwd:         job.Cwd,
+			IsSudo:      job.IsSudo,
+			IsScript:    job.IsScript,
 		},
 	}
 	if job.MultiJobID != nil {

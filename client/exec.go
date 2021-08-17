@@ -19,11 +19,11 @@ import (
 )
 
 type CmdExecutorContext struct {
-	Shell      string
-	Command    string
-	WorkingDir string
-	IsSudo     bool
-	IsScript   bool
+	Interpreter string
+	Command     string
+	WorkingDir  string
+	IsSudo      bool
+	IsScript    bool
 }
 
 type CmdExecutor interface {
@@ -87,7 +87,7 @@ func (c *Client) HandleRunCmdRequest(ctx context.Context, reqPayload []byte) (*c
 	// TODO: temporary solution, refactor with using worker pool
 	c.runCmdMutex.Lock()
 
-	job.Shell, err = getShell(job.Shell, runtime.GOOS)
+	job.Interpreter, err = getInterpreter(job.Interpreter, runtime.GOOS, job.HasShebang)
 	if err != nil {
 		c.runCmdMutex.Unlock()
 		return nil, err
@@ -99,11 +99,11 @@ func (c *Client) HandleRunCmdRequest(ctx context.Context, reqPayload []byte) (*c
 	}
 
 	execCtx := &CmdExecutorContext{
-		Shell:      job.Shell,
-		Command:    job.Command,
-		WorkingDir: job.Cwd,
-		IsSudo:     job.IsSudo,
-		IsScript:   job.IsScript,
+		Interpreter: job.Interpreter,
+		Command:     job.Command,
+		WorkingDir:  job.Cwd,
+		IsSudo:      job.IsSudo,
+		IsScript:    job.IsScript,
 	}
 	cmd := c.cmdExec.New(ctx, execCtx)
 	stdOut := CapacityBuffer{capacity: c.config.RemoteCommands.SendBackLimit}
@@ -117,6 +117,7 @@ func (c *Client) HandleRunCmdRequest(ctx context.Context, reqPayload []byte) (*c
 	err = c.cmdExec.Start(cmd)
 	if err != nil {
 		c.runCmdMutex.Unlock()
+		c.rmScriptIfNeeded(job.Command, job.IsScript)
 		return nil, fmt.Errorf("failed to start a command: %s", err)
 	}
 
@@ -130,16 +131,7 @@ func (c *Client) HandleRunCmdRequest(ctx context.Context, reqPayload []byte) (*c
 
 	// observe the cmd execution in background
 	go func() {
-		if job.IsScript {
-			defer func() {
-				err := os.Remove(job.Command)
-				if err != nil {
-					c.Errorf("failed to delete script %s: %v", job.Command, err)
-				} else {
-					c.Debugf("deleted script %s after execution", job.Command)
-				}
-			}()
-		}
+		defer c.rmScriptIfNeeded(job.Command, job.IsScript)
 
 		c.Debugf("started to observe cmd [jid=%q,pid=%d]", job.JID, res.Pid)
 
@@ -195,20 +187,37 @@ func (c *Client) HandleRunCmdRequest(ctx context.Context, reqPayload []byte) (*c
 	return res, nil
 }
 
+func (c *Client) rmScriptIfNeeded(scriptPath string, isScript bool) {
+	if !isScript {
+		return
+	}
+
+	err := os.Remove(scriptPath)
+	if err != nil {
+		c.Errorf("failed to delete script %s: %v", scriptPath, err)
+	} else {
+		c.Debugf("deleted script %s after execution", scriptPath)
+	}
+}
+
 // var is used to override in tests
-var getShell = func(inputShell, os string) (string, error) {
+var getInterpreter = func(inputInterpreter, os string, hasShebang bool) (string, error) {
 	if os == "windows" {
-		switch inputShell {
+		switch inputInterpreter {
 		case "":
 			return cmdShell, nil
 		case cmdShell, powerShell:
-			return inputShell, nil
+			return inputInterpreter, nil
 		}
-		return "", fmt.Errorf("invalid windows command shell: %q", inputShell)
+		return "", fmt.Errorf("invalid windows command interpreter: %q", inputInterpreter)
 	}
 
-	if inputShell != "" {
-		return "", fmt.Errorf("for unix clients a command shell should not be specified, got: %q", inputShell)
+	if hasShebang {
+		return "", nil
+	}
+
+	if inputInterpreter != "" {
+		return "", fmt.Errorf("for unix clients a command interpreter should not be specified, got: %q", inputInterpreter)
 	}
 	return unixShell, nil
 }

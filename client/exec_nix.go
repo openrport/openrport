@@ -9,15 +9,18 @@ import (
 
 func (e *CmdExecutorImpl) New(ctx context.Context, execCtx *CmdExecutorContext) *exec.Cmd {
 	var args []string
-	prefix := execCtx.Shell
 	if execCtx.IsSudo {
-		prefix = "sudo"
-		args = append(args, "-n", execCtx.Shell)
+		args = append(args, "sudo", "-n")
 	}
 
-	args = append(args, "-c", execCtx.Command)
+	interpreter := execCtx.Interpreter
+	if interpreter != "" {
+		args = append(args, interpreter, "-c")
+	}
 
-	cmd := exec.CommandContext(ctx, prefix, args...)
+	args = append(args, execCtx.Command)
+
+	cmd := exec.CommandContext(ctx, args[0], args[1:]...)
 	cmd.Dir = execCtx.WorkingDir
 
 	return cmd

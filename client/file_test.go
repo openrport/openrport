@@ -5,6 +5,7 @@ import (
 	"encoding/json"
 	"io/ioutil"
 	"os"
+	"path/filepath"
 	"strings"
 	"testing"
 
@@ -17,18 +18,23 @@ import (
 
 func TestHandleCreateFileRequest(t *testing.T) {
 	inputFile := &models.File{
-		Name:      "some.file.txt",
-		Content:   []byte("1234"),
-		CreateDir: false,
-		Mode:      os.FileMode(0755),
+		Name:    "some.file.txt",
+		Content: []byte("1234"),
+		Mode:    os.FileMode(0755),
 	}
 
 	inputFileBytes, err := json.Marshal(inputFile)
 	require.NoError(t, err)
 
+	scriptDirToCheck := filepath.Join(os.TempDir(), "TestHandleCreateFileRequest")
+	err = os.MkdirAll(scriptDirToCheck, DefaultDirMode)
+	require.NoError(t, err)
+	defer os.Remove(scriptDirToCheck)
+
 	config := &Config{
 		RemoteScripts: ScriptsConfig{
 			Enabled: true,
+			Dir:     scriptDirToCheck,
 		},
 	}
 

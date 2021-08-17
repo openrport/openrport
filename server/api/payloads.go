@@ -85,12 +85,13 @@ func newAPIErrorsPayload(errors errors2.APIErrors) ErrorPayload {
 }
 
 type ExecuteInput struct {
-	Command    string `json:"command"`
-	Script     string `json:"script"`
-	Shell      string `json:"shell"`
-	Cwd        string `json:"cwd"`
-	IsSudo     bool   `json:"bool"`
-	TimeoutSec int    `json:"timeout_sec"`
-	ClientID   string
-	IsScript   bool
+	Command     string `json:"command"`
+	Script      string `json:"script"`
+	Interpreter string `json:"interpreter"`
+	Cwd         string `json:"cwd"`
+	IsSudo      bool   `json:"is_sudo"`
+	TimeoutSec  int    `json:"timeout_sec"`
+	ClientID    string
+	IsScript    bool
+	HasShebang  bool
 }

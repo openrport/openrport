@@ -28,7 +28,7 @@ type JobBuilder struct {
 	startedAt  time.Time
 	finishedAt *time.Time
 	result     *models.JobResult
-	sudo       bool
+	isSudo     bool
 	cwd        string
 }
 
@@ -87,8 +87,8 @@ func (b JobBuilder) Result(result *models.JobResult) JobBuilder {
 	return b
 }
 
-func (b JobBuilder) Sudo() JobBuilder {
-	b.sudo = true
+func (b JobBuilder) IsSudo() JobBuilder {
+	b.isSudo = true
 	return b
 }
 

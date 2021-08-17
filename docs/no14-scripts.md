@@ -158,7 +158,13 @@ Please note that scripts execution requires commands execution to be enabled (ch
 
 Similar to command execution, you can run scripts both by calling a REST or websocket interface. 
 In all cases the scripts are executed by the following algorithm:
-- Rport server calls each client to create a temp script file. The script file will get a random unique name and will be placed in the OS default temp folder e.g. `/tmp` in Linux.
+- Rport server calls each client to create a script file. The script file will get a random unique name and will be placed in the folder specified as `script_dir` in the configuration:
+
+```
+[remote-scripts]
+script_dir = '/var/lib/rport/scripts'
+```
+
 - Rport calls the existing command API to execute the script on the target client, e.g.:
 ```
 sh /tmp/f68a779d-1d46-414a-b165-d8d2df5f348c.sh #Linux/macOS
@@ -184,7 +190,7 @@ curl -X POST 'http://localhost:3000/api/v1/clients/4943d682-7874-4f7a-999c-b4ff5
 --data-raw '{
   "script": "cHdkCg==",
   "timeout_sec": 60,
-  "shell":"powershell"
+  "interpreter":"powershell"
 }'
 ```
 
@@ -200,8 +206,8 @@ as a result you will get a unique job id for the executable script e.g.
 
 to customize script execution you can provide additional JSON fields in the request body:
 
-- `isPowershell:true` to execute script with powershell under Windows
-- `isSudo:true` to execute script as sudo under Linux or macOS
+- `interpreter:powershell` to execute script with powershell under Windows
+- `is_sudo:true` to execute script as sudo under Linux or macOS
 - `cwd:/tmp/script` to change the default folder for the script execution
 - `timeout:10s` to set the timeout for the corresponding script execution
 
@@ -212,12 +218,12 @@ curl -X POST 'http://localhost:3000/api/v1/clients/4943d682-7874-4f7a-999c-b4ff5
 -H 'Content-Type: application/x-www-form-urlencoded' \
 --data-raw '{
   "script": "cHdkCg==",
-  "shell": "cmd",
+  "interpreter": "cmd",
   "timeout_sec": 60,
   "execute_concurrently": false,
   "abort_on_error": true,
   "cwd": "string",
-  "sudo": true
+  "is_sudo": true
 }'
 ```
 
@@ -238,7 +244,7 @@ curl -X POST 'http://localhost:3000/api/scripts' \
   "timeout_sec": 60,
   "execute_concurrently": false,
   "abort_on_error": true,
-  "shell":"powershell"
+  "interpreter":"powershell"
 }'
 ```
 
@@ -253,7 +259,7 @@ To use this API, enable testing endpoints by setting `enable_ws_test_endpoints` 
 
 Restart Rport server and go to: `{YOUR_RPORT_ADDRESS}/api/v1/test/scripts/ui`
 
-Put an access token and a client ids in the corresponding fields. You can also provide `isPowershell`, `isSudo`, `cwd`, `timeout` parameters as described above.
+Put an access token and a client ids in the corresponding fields. You can also provide `interpreter`, `is_sudo`, `cwd`, `timeout` parameters as described above.
 
 Click Open to start websocket connection.
 

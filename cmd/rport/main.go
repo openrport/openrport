@@ -125,6 +125,9 @@ var clientHelp = `
     --remote-scripts-enabled, Enable or disable remote scripts.
     Defaults: false
 
+    --remote-scripts-dir, Temporary directory to store scripts sent by the server before execution.
+    Defaults: /var/lib/rport/scripts (unix) or C:\Program Files\rport\scripts (windows)
+
     --remote-commands-send-back-limit, Limit the maximum length of the command output that is sent back.
     Applies to the stdout and stderr separately. If exceeded the specified number of bytes are sent.
     Defaults: 2048
@@ -183,6 +186,7 @@ func init() {
 	pFlags.Bool("allow-root", false, "")
 	pFlags.Bool("remote-commands-enabled", false, "")
 	pFlags.Bool("remote-scripts-enabled", false, "")
+	pFlags.String("remote-scripts-dir", chclient.DefaultScriptDir, "")
 	pFlags.Int("remote-commands-send-back-limit", 0, "")
 	pFlags.Duration("updates-interval", 0, "")
 
@@ -209,6 +213,7 @@ func init() {
 	viperCfg.SetDefault("remote-commands.send_back_limit", 2048)
 	viperCfg.SetDefault("remote-commands.enabled", true)
 	viperCfg.SetDefault("remote-scripts.enabled", false)
+	viperCfg.SetDefault("remote-scripts.script_dir", chclient.DefaultScriptDir)
 	viperCfg.SetDefault("client.updates_interval", 4*time.Hour)
 }
 
@@ -235,6 +240,7 @@ func bindPFlags() {
 
 	_ = viperCfg.BindPFlag("remote-commands.enabled", pFlags.Lookup("remote-commands-enabled"))
 	_ = viperCfg.BindPFlag("remote-scripts.enabled", pFlags.Lookup("remote-scripts-enabled"))
+	_ = viperCfg.BindPFlag("remote-scripts.script_dir", pFlags.Lookup("remote-scripts-dir"))
 	_ = viperCfg.BindPFlag("remote-commands.send_back_limit", pFlags.Lookup("remote-commands-send-back-limit"))
 }
 

@@ -32,8 +32,8 @@ curl -s -u admin:foobaz http://localhost:3000/api/v1/clients/$CLIENTID/commands/
         "client_id": "my-client",
         "command": "date",
         "cwd": "/users/root",
-        "sudo": false,
-        "shell": "/bin/sh",
+        "is_sudo": false,
+        "interpreter": "/bin/sh",
         "pid": 908526,
         "started_at": "2020-10-15T15:30:12.934238782Z",
         "created_by": "admin",
@@ -68,7 +68,7 @@ curl -s -u admin:foobaz http://localhost:3000/api/v1/commands -H "Content-Type: 
   "client_ids": ["local-test-client-2", "local-test-client-3", "local-test-client-4"],
   "timeout_sec": 30,
   "cwd": "/users/root",
-  "sudo": false,
+  "is_sudo": false,
   "execute_concurrently": true
 }
 '|jq
@@ -91,8 +91,8 @@ curl -s -u admin:foobaz http://localhost:3000/api/v1/commands/$JOBID|jq
     "group_ids": null,
     "command": "/bin/date",
     "cwd": "",
-    "sudo": false,
-    "shell": "",
+    "is_sudo": false,
+    "interpreter": "",
     "timeout_sec": 30,
     "concurrent": true,
     "abort_on_err": false,
@@ -104,8 +104,8 @@ curl -s -u admin:foobaz http://localhost:3000/api/v1/commands/$JOBID|jq
         "client_id": "local-test-client-2",
         "command": "/bin/date",
         "cwd": "",
-        "sudo": false,
-        "shell": "/bin/sh",
+        "is_sudo": false,
+        "interpreter": "/bin/sh",
         "pid": 16242,
         "started_at": "2021-01-28T19:39:16.203396+02:00",
         "created_by": "admin",
@@ -123,8 +123,8 @@ curl -s -u admin:foobaz http://localhost:3000/api/v1/commands/$JOBID|jq
         "client_id": "local-test-client-3",
         "command": "/bin/date",
         "cwd": "",
-        "sudo": false,
-        "shell": "/bin/sh",
+        "is_sudo": false,
+        "interpreter": "/bin/sh",
         "pid": 16241,
         "started_at": "2021-01-28T19:39:16.203738+02:00",
         "created_by": "admin",
@@ -142,8 +142,8 @@ curl -s -u admin:foobaz http://localhost:3000/api/v1/commands/$JOBID|jq
         "client_id": "local-test-client-4",
         "command": "/bin/date",
         "cwd": "",
-        "sudo": false,
-        "shell": "/bin/sh",
+        "is_sudo": false,
+        "interpreter": "/bin/sh",
         "pid": 16243,
         "started_at": "2021-01-28T19:39:16.204308+02:00",
         "created_by": "admin",
@@ -171,7 +171,7 @@ curl -s -u admin:foobaz http://localhost:3000/api/v1/commands -H "Content-Type: 
   "execute_concurrently": false,
   "abort_on_error": true,
   "cwd": "/users/root",
-  "sudo": true
+  "is_sudo": true
 }
 '|jq
 ```

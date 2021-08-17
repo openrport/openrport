@@ -15,20 +15,21 @@ const (
 
 type Job struct {
 	JobSummary
-	ClientID   string     `json:"client_id"`
-	ClientName string     `json:"client_name"`
-	Command    string     `json:"command"`
-	Cwd        string     `json:"cwd"`
-	Shell      string     `json:"shell"`
-	PID        *int       `json:"pid"`
-	StartedAt  time.Time  `json:"started_at"`
-	CreatedBy  string     `json:"created_by"`
-	TimeoutSec int        `json:"timeout_sec"`
-	MultiJobID *string    `json:"multi_job_id"`
-	Error      string     `json:"error"`
-	Result     *JobResult `json:"result"`
-	IsSudo     bool       `json:"sudo"`
-	IsScript   bool       `json:"is_script"`
+	ClientID    string     `json:"client_id"`
+	ClientName  string     `json:"client_name"`
+	Command     string     `json:"command"`
+	Cwd         string     `json:"cwd"`
+	Interpreter string     `json:"interpreter"`
+	PID         *int       `json:"pid"`
+	StartedAt   time.Time  `json:"started_at"`
+	CreatedBy   string     `json:"created_by"`
+	TimeoutSec  int        `json:"timeout_sec"`
+	MultiJobID  *string    `json:"multi_job_id"`
+	Error       string     `json:"error"`
+	Result      *JobResult `json:"result"`
+	IsSudo      bool       `json:"is_sudo"`
+	IsScript    bool       `json:"is_script"`
+	HasShebang  bool       `json:"has_shebang"`
 }
 
 // JobSummary short info about a job.
@@ -45,17 +46,18 @@ type JobResult struct {
 
 type MultiJob struct {
 	MultiJobSummary
-	ClientIDs  []string `json:"client_ids"`
-	GroupIDs   []string `json:"group_ids"`
-	Command    string   `json:"command"`
-	Cwd        string   `json:"cwd"`
-	Shell      string   `json:"shell"`
-	TimeoutSec int      `json:"timeout_sec"`
-	Concurrent bool     `json:"concurrent"`
-	AbortOnErr bool     `json:"abort_on_err"`
-	Jobs       []*Job   `json:"jobs"`
-	IsSudo     bool     `json:"sudo"`
-	IsScript   bool     `json:"is_script"`
+	ClientIDs   []string `json:"client_ids"`
+	GroupIDs    []string `json:"group_ids"`
+	Command     string   `json:"command"`
+	Cwd         string   `json:"cwd"`
+	Interpreter string   `json:"interpreter"`
+	TimeoutSec  int      `json:"timeout_sec"`
+	Concurrent  bool     `json:"concurrent"`
+	AbortOnErr  bool     `json:"abort_on_err"`
+	Jobs        []*Job   `json:"jobs"`
+	IsSudo      bool     `json:"is_sudo"`
+	IsScript    bool     `json:"is_script"`
+	HasShebang  bool     `json:"has_shebang"`
 }
 
 type MultiJobSummary struct {
