@@ -25,10 +25,10 @@ curl -X POST 'http://localhost:3000/api/v1/users' \
     "username": "user1",
     "password": "123456"
     "groups":
-    {
+    [
         "Users",
         "Administrators"
-    }
+    ]
 }'
 ```
 ### Update
@@ -40,20 +40,20 @@ curl -X PUT 'http://localhost:3000/api/v1/users/user1' \
 --data-raw '{
     "password": "1234567"
     "groups":
-    {
+    [
         "Users"
-    }
+    ]
 }'
 ```
 This will change password and remove user from Administrators group. To add user to a new group, you should provide all current user groups + a new one e.g.
 ```
 {
     "groups":
-    {
+    [
         "Users",
         "Administrators",
         "New Group"
-    }
+    ]
 }
 ```
 
