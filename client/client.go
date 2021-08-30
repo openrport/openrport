@@ -91,12 +91,7 @@ func (c *Client) verifyServer(hostname string, remote net.Addr, key ssh.PublicKe
 
 //Start client and does not block
 func (c *Client) Start(ctx context.Context) error {
-	via := ""
-	if c.config.Client.proxyURL != nil {
-		via = " via " + c.config.Client.proxyURL.String()
-	}
 
-	c.Infof("Connecting to %s%s\n", c.config.Client.Server, via)
 	//optional keepalive loop
 	if c.config.Connection.KeepAlive > 0 {
 		go c.keepAliveLoop()
@@ -121,6 +116,7 @@ func (c *Client) keepAliveLoop() {
 func (c *Client) connectionLoop(ctx context.Context) {
 	//connection loop!
 	var connerr error
+	switchbackChan := make(chan *sshClientConn, 1)
 	b := &backoff.Backoff{Max: c.config.Connection.MaxRetryInterval}
 	for c.running {
 		if connerr != nil {
@@ -135,117 +131,203 @@ func (c *Client) connectionLoop(ctx context.Context) {
 			connerr = nil
 			chshare.SleepSignal(d)
 		}
-		d := websocket.Dialer{
-			ReadBufferSize:   1024,
-			WriteBufferSize:  1024,
-			HandshakeTimeout: 45 * time.Second,
-			Subprotocols:     []string{chshare.ProtocolVersion},
-		}
-		//optionally proxy
-		if c.config.Client.proxyURL != nil {
-			if strings.HasPrefix(c.config.Client.proxyURL.Scheme, "socks") {
-				// SOCKS5 proxy
-				if c.config.Client.proxyURL.Scheme != "socks" && c.config.Client.proxyURL.Scheme != "socks5h" {
-					c.Errorf(
-						"unsupported socks proxy type: %s:// (only socks5h:// or socks:// is supported)",
-						c.config.Client.proxyURL.Scheme)
-					break
-				}
-				var auth *proxy.Auth
-				if c.config.Client.proxyURL.User != nil {
-					pass, _ := c.config.Client.proxyURL.User.Password()
-					auth = &proxy.Auth{
-						User:     c.config.Client.proxyURL.User.Username(),
-						Password: pass,
-					}
-				}
-				socksDialer, err := proxy.SOCKS5("tcp", c.config.Client.proxyURL.Host, auth, proxy.Direct)
-				if err != nil {
+
+		var sshConn *sshClientConn
+		var isPrimary bool
+		select {
+		// When switchback to main server succeeds we get connection on the channel, otherwise try to connect
+		case sshConn = <-switchbackChan:
+			isPrimary = true
+		default:
+			var err error
+			sshConn, isPrimary, err = c.connectToMainOrFallback()
+			if err != nil {
+				if _, ok := err.(retryableError); ok {
 					connerr = err
 					continue
 				}
-				d.NetDial = socksDialer.Dial
-			} else {
-				// CONNECT proxy
-				d.Proxy = func(*http.Request) (*url.URL, error) {
-					return c.config.Client.proxyURL, nil
-				}
+				break
 			}
 		}
-		wsConn, _, err := d.Dial(c.config.Client.Server, c.config.Connection.Headers())
-		if err != nil {
-			connerr = err
-			continue
+
+		switchbackCtx, cancelSwitchback := context.WithCancel(ctx)
+		if !isPrimary {
+			go func() {
+				for {
+					select {
+					case <-switchbackCtx.Done():
+						return
+					case <-time.After(c.config.Client.ServerSwitchbackInterval):
+						switchbackConn, err := c.connect(c.config.Client.Server)
+						if err != nil {
+							c.Errorf("Switchback failed: %v", err.Error())
+							continue
+						}
+						c.Infof("Connected to main server, switching back.")
+						switchbackChan <- switchbackConn
+						sshConn.Connection.Close()
+						return
+					}
+				}
+			}()
 		}
-		conn := chshare.NewWebSocketConn(wsConn)
-		// perform SSH handshake on net.Conn
-		c.Debugf("Handshaking...")
-		sshConn, chans, reqs, err := ssh.NewClientConn(conn, "", c.sshConfig)
+
+		err := c.sendConnectionRequest(ctx, sshConn.Connection)
 		if err != nil {
-			if strings.Contains(err.Error(), "unable to authenticate") {
-				c.Errorf("Authentication failed")
-				c.Debugf(err.Error())
+			cancelSwitchback()
+			if _, ok := err.(retryableError); ok {
 				connerr = err
 				continue
 			}
-			c.Errorf(err.Error())
 			break
 		}
-		req, err := chshare.EncodeConnectionRequest(c.connectionRequest(ctx))
-		if err != nil {
-			c.Errorf("Could not encode connection request: %v", err)
-			break
-		}
-		c.Debugf("Sending connection request")
-		t0 := time.Now()
-		replyOk, respBytes, err := sshConn.SendRequest("new_connection", true, req)
-		if err != nil {
-			c.Errorf("connection request verification failed")
-			break
-		}
-		if !replyOk {
-			msg := string(respBytes)
-			c.Errorf(msg)
 
-			// if replied with client credentials already used - retry
-			if strings.Contains(msg, "client is already connected:") {
-				connerr = errors.New(msg)
-				if closeErr := sshConn.Close(); closeErr != nil {
-					c.Errorf(closeErr.Error())
-				}
-				continue
-			}
-
-			break
-		}
-		var remotes []*chshare.Remote
-		err = json.Unmarshal(respBytes, &remotes)
-		if err != nil {
-			err = fmt.Errorf("can't decode reply payload: %s", err)
-			c.Errorf(err.Error())
-			break
-		}
-		c.Infof("Connected (Latency %s)", time.Since(t0))
-		for _, r := range remotes {
-			c.Infof("new tunnel: %s", r.String())
-		}
-		//connected
 		b.Reset()
-		c.sshConn = sshConn
-		c.updates.SetConn(sshConn)
-		go c.handleSSHRequests(ctx, reqs)
-		go c.connectStreams(chans)
-		err = sshConn.Wait()
+
+		c.sshConn = sshConn.Connection
+		c.updates.SetConn(sshConn.Connection)
+		go c.handleSSHRequests(ctx, sshConn.Requests)
+		go c.connectStreams(sshConn.Channels)
+
+		err = sshConn.Connection.Wait()
 		//disconnected
 		c.sshConn = nil
 		c.updates.SetConn(nil)
-		if err != nil && err != io.EOF {
+		cancelSwitchback()
+
+		// use of closed network connection happens when switchback closes the connection, ignore the error
+		if err != nil && err != io.EOF && !strings.HasSuffix(err.Error(), "use of closed network connection") {
 			connerr = err
-			continue
 		}
+
 		c.Infof("Disconnected\n")
 	}
 	close(c.runningc)
+}
+
+type retryableError error
+type sshClientConn struct {
+	Connection ssh.Conn
+	Channels   <-chan ssh.NewChannel
+	Requests   <-chan *ssh.Request
+}
+
+func (c *Client) connectToMainOrFallback() (conn *sshClientConn, isPrimary bool, err error) {
+	servers := append([]string{c.config.Client.Server}, c.config.Client.FallbackServers...)
+	for i, server := range servers {
+		conn, err = c.connect(server)
+		if err != nil {
+			c.Errorf(err.Error())
+			if _, ok := err.(retryableError); ok {
+				continue
+			}
+			break
+		}
+		return conn, i == 0, nil
+	}
+	return nil, false, err
+}
+
+func (c *Client) connect(server string) (*sshClientConn, error) {
+	via := ""
+	if c.config.Client.proxyURL != nil {
+		via = " via " + c.config.Client.proxyURL.String()
+	}
+	c.Infof("Connecting to %s%s\n", server, via)
+
+	d := websocket.Dialer{
+		ReadBufferSize:   1024,
+		WriteBufferSize:  1024,
+		HandshakeTimeout: 45 * time.Second,
+		Subprotocols:     []string{chshare.ProtocolVersion},
+	}
+	//optionally proxy
+	if c.config.Client.proxyURL != nil {
+		if strings.HasPrefix(c.config.Client.proxyURL.Scheme, "socks") {
+			// SOCKS5 proxy
+			if c.config.Client.proxyURL.Scheme != "socks" && c.config.Client.proxyURL.Scheme != "socks5h" {
+				return nil, fmt.Errorf(
+					"unsupported socks proxy type: %s:// (only socks5h:// or socks:// is supported)",
+					c.config.Client.proxyURL.Scheme)
+			}
+			var auth *proxy.Auth
+			if c.config.Client.proxyURL.User != nil {
+				pass, _ := c.config.Client.proxyURL.User.Password()
+				auth = &proxy.Auth{
+					User:     c.config.Client.proxyURL.User.Username(),
+					Password: pass,
+				}
+			}
+			socksDialer, err := proxy.SOCKS5("tcp", c.config.Client.proxyURL.Host, auth, proxy.Direct)
+			if err != nil {
+				return nil, retryableError(err)
+			}
+			d.NetDial = socksDialer.Dial
+		} else {
+			// CONNECT proxy
+			d.Proxy = func(*http.Request) (*url.URL, error) {
+				return c.config.Client.proxyURL, nil
+			}
+		}
+	}
+	wsConn, _, err := d.Dial(server, c.config.Connection.Headers())
+	if err != nil {
+		return nil, retryableError(err)
+	}
+	conn := chshare.NewWebSocketConn(wsConn)
+	// perform SSH handshake on net.Conn
+	c.Debugf("Handshaking...")
+	sshConn, chans, reqs, err := ssh.NewClientConn(conn, "", c.sshConfig)
+	if err != nil {
+		if strings.Contains(err.Error(), "unable to authenticate") {
+			c.Errorf("Authentication failed")
+			return nil, retryableError(err)
+		}
+		return nil, err
+	}
+
+	return &sshClientConn{
+		Connection: sshConn,
+		Requests:   reqs,
+		Channels:   chans,
+	}, nil
+}
+
+func (c *Client) sendConnectionRequest(ctx context.Context, sshConn ssh.Conn) error {
+	req, err := chshare.EncodeConnectionRequest(c.connectionRequest(ctx))
+	if err != nil {
+		return fmt.Errorf("Could not encode connection request: %v", err)
+	}
+	c.Debugf("Sending connection request")
+	t0 := time.Now()
+	replyOk, respBytes, err := sshConn.SendRequest("new_connection", true, req)
+	if err != nil {
+		return fmt.Errorf("connection request verification failed: %v", err)
+	}
+	if !replyOk {
+		msg := string(respBytes)
+
+		// if replied with client credentials already used - retry
+		if strings.Contains(msg, "client is already connected:") {
+			if closeErr := sshConn.Close(); closeErr != nil {
+				c.Errorf(closeErr.Error())
+			}
+			return retryableError(errors.New(msg))
+		}
+
+		return errors.New(msg)
+	}
+	var remotes []*chshare.Remote
+	err = json.Unmarshal(respBytes, &remotes)
+	if err != nil {
+		return fmt.Errorf("can't decode reply payload: %s", err)
+	}
+	c.Infof("Connected (Latency %s)", time.Since(t0))
+	for _, r := range remotes {
+		c.Infof("new tunnel: %s", r.String())
+	}
+
+	return nil
 }
 
 func (c *Client) handleSSHRequests(ctx context.Context, reqs <-chan *ssh.Request) {

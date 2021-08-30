@@ -1,6 +1,7 @@
 package chclient
 
 import (
+	"errors"
 	"net/http"
 	"net/url"
 	"regexp"
@@ -495,6 +496,70 @@ func TestConfigParseAndValidateAllowDenyOrder(t *testing.T) {
 				assert.Contains(t, gotErr.Error(), tc.wantErrContains)
 			} else {
 				require.NoError(t, gotErr)
+			}
+		})
+	}
+}
+
+func TestConfigParseAndValidateFallbackServers(t *testing.T) {
+	testCases := []struct {
+		Name            string
+		FallbackServers []string
+		Expected        []string
+		ExpectedError   error
+	}{
+		{
+			Name:            "No fallback servers is ok",
+			FallbackServers: nil,
+			ExpectedError:   nil,
+		}, {
+			Name:            "No protocol",
+			FallbackServers: []string{"test.com"},
+			Expected:        []string{"ws://test.com:80"},
+		}, {
+			Name:            "http",
+			FallbackServers: []string{"http://test.com"},
+			Expected:        []string{"ws://test.com:80"},
+		}, {
+			Name:            "https",
+			FallbackServers: []string{"https://test.com"},
+			Expected:        []string{"wss://test.com:443"},
+		}, {
+			Name:            "ws",
+			FallbackServers: []string{"ws://test.com"},
+			Expected:        []string{"ws://test.com:80"},
+		}, {
+			Name:            "wss",
+			FallbackServers: []string{"wss://test.com"},
+			Expected:        []string{"wss://test.com:443"},
+		}, {
+			Name:            "Custom port",
+			FallbackServers: []string{"http://test.com:1234"},
+			Expected:        []string{"ws://test.com:1234"},
+		}, {
+			Name:            "Multiple",
+			FallbackServers: []string{"http://test.com:1234", "example.com"},
+			Expected:        []string{"ws://test.com:1234", "ws://example.com:80"},
+		}, {
+			Name:            "Invalid url",
+			FallbackServers: []string{"test\n.com"},
+			ExpectedError:   errors.New(`invalid fallback server address: parse "http://test\n.com": net/url: invalid control character in URL`),
+		},
+	}
+
+	for _, tc := range testCases {
+		tc := tc
+		t.Run(tc.Name, func(t *testing.T) {
+			t.Parallel()
+
+			config := defaultValidMinConfig
+			config.Client.FallbackServers = tc.FallbackServers
+
+			err := config.ParseAndValidate()
+
+			assert.Equal(t, tc.ExpectedError, err)
+			if tc.ExpectedError == nil {
+				assert.Equal(t, tc.Expected, config.Client.FallbackServers)
 			}
 		})
 	}

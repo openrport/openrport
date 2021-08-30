@@ -135,6 +135,11 @@ var clientHelp = `
     --updates-interval, How often after the rport client has started pending updates are summarized.
     Defaults: 4h
 
+    --fallback-server, Set fallback server(s) to which the client tries to connect if the main server is not reachable.
+
+    --server-switchback-interval, If connected to fallback server, try every interval to switch back to the main server.
+    Defaults: 2m
+
     --config, -c, An optional arg to define a path to a config file. If it is set then
     configuration will be loaded from the file. Note: command arguments and env variables will override them.
     Config file should be in TOML format. You can find an example "rport.example.conf" in the release archive.
@@ -189,6 +194,8 @@ func init() {
 	pFlags.String("remote-scripts-dir", chclient.DefaultScriptDir, "")
 	pFlags.Int("remote-commands-send-back-limit", 0, "")
 	pFlags.Duration("updates-interval", 0, "")
+	pFlags.StringArray("fallback-server", []string{}, "")
+	pFlags.Duration("server-switchback-interval", 0, "")
 
 	cfgPath = pFlags.StringP("config", "c", "", "")
 	svcCommand = pFlags.String("service", "", "")
@@ -205,6 +212,7 @@ func init() {
 	viperCfg = viper.New()
 	viperCfg.SetConfigType("toml")
 
+	viperCfg.SetDefault("client.server_switchback_interval", 2*time.Minute)
 	viperCfg.SetDefault("logging.log_level", "error")
 	viperCfg.SetDefault("connection.max_retry_count", -1)
 	viperCfg.SetDefault("remote-commands.allow", []string{"^/usr/bin/.*", "^/usr/local/bin/.*", `^C:\\Windows\\System32\\.*`})
@@ -228,6 +236,8 @@ func bindPFlags() {
 	_ = viperCfg.BindPFlag("client.tags", pFlags.Lookup("tag"))
 	_ = viperCfg.BindPFlag("client.allow_root", pFlags.Lookup("allow-root"))
 	_ = viperCfg.BindPFlag("client.updates_interval", pFlags.Lookup("updates-interval"))
+	_ = viperCfg.BindPFlag("client.fallback_servers", pFlags.Lookup("fallback-server"))
+	_ = viperCfg.BindPFlag("client.server_switchback_interval", pFlags.Lookup("server-switchback-interval"))
 
 	_ = viperCfg.BindPFlag("logging.log_file", pFlags.Lookup("log-file"))
 	_ = viperCfg.BindPFlag("logging.log_level", pFlags.Lookup("log-level"))

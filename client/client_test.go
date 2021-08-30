@@ -3,18 +3,23 @@ package chclient
 import (
 	"context"
 	"errors"
+	"fmt"
 	"log"
 	"net"
 	"net/http"
 	"net/http/httptest"
+	"sync"
 	"testing"
 	"time"
 
+	"github.com/gorilla/websocket"
 	"github.com/shirou/gopsutil/cpu"
 	"github.com/shirou/gopsutil/mem"
+	"golang.org/x/crypto/ssh"
 
 	"github.com/shirou/gopsutil/host"
 	"github.com/stretchr/testify/assert"
+	"github.com/stretchr/testify/require"
 
 	chshare "github.com/cloudradar-monitoring/rport/share"
 )
@@ -285,4 +290,178 @@ func TestConnectionRequest(t *testing.T) {
 			assert.Equal(t, tc.ExpectedConnectionRequest, connReq)
 		})
 	}
+}
+
+// mockServer receives client connections and keeps track whether the connection is astablished
+type mockServer struct {
+	upgrader  websocket.Upgrader
+	sshConfig *ssh.ServerConfig
+
+	mtx           sync.Mutex
+	isUnavailable bool
+	isConnected   bool
+	sshConn       ssh.Conn
+}
+
+func newMockServer() (*mockServer, error) {
+	key, err := chshare.GenerateKey("test")
+	if err != nil {
+		return nil, err
+	}
+	private, err := ssh.ParsePrivateKey(key)
+	if err != nil {
+		return nil, err
+	}
+	sshConfig := &ssh.ServerConfig{
+		NoClientAuth: true,
+	}
+	sshConfig.AddHostKey(private)
+
+	return &mockServer{
+		upgrader: websocket.Upgrader{
+			ReadBufferSize:  1024,
+			WriteBufferSize: 1024,
+		},
+		sshConfig: sshConfig,
+	}, nil
+}
+
+func (m *mockServer) ServeHTTP(w http.ResponseWriter, r *http.Request) {
+	m.mtx.Lock()
+	isUnavailable := m.isUnavailable
+	m.mtx.Unlock()
+	if isUnavailable {
+		http.Error(w, "not available", http.StatusServiceUnavailable)
+		return
+	}
+
+	wsConn, err := m.upgrader.Upgrade(w, r, nil)
+	if err != nil {
+		log.Println(err)
+		return
+	}
+	conn := chshare.NewWebSocketConn(wsConn)
+	sshConn, _, reqs, err := ssh.NewServerConn(conn, m.sshConfig)
+	if err != nil {
+		log.Println(err)
+		return
+	}
+	m.mtx.Lock()
+	m.sshConn = sshConn
+	m.mtx.Unlock()
+
+	req := <-reqs
+	err = req.Reply(true, []byte("[]"))
+	if err != nil {
+		log.Println(err)
+		return
+	}
+	m.mtx.Lock()
+	m.isConnected = true
+	m.mtx.Unlock()
+
+	defer func() {
+		m.mtx.Lock()
+		defer m.mtx.Unlock()
+		m.isConnected = false
+		m.sshConn = nil
+	}()
+
+	err = sshConn.Wait()
+	if err != nil {
+		log.Println(err)
+		return
+	}
+}
+
+func (m *mockServer) IsConnected() bool {
+	m.mtx.Lock()
+	defer m.mtx.Unlock()
+	return m.isConnected
+}
+
+func (m *mockServer) WaitForStatus(isConnected bool) error {
+	for i := 0; i < 500; i++ {
+		if m.IsConnected() == isConnected {
+			return nil
+		}
+		time.Sleep(time.Millisecond)
+	}
+	return fmt.Errorf("timeout waiting for isConnected=%v", isConnected)
+}
+
+func (m *mockServer) SetAvailable(isAvailable bool) {
+	m.mtx.Lock()
+	defer m.mtx.Unlock()
+	m.isUnavailable = !isAvailable
+}
+
+func (m *mockServer) CloseConnection() {
+	m.mtx.Lock()
+	defer m.mtx.Unlock()
+	if m.sshConn != nil {
+		m.sshConn.Close()
+	}
+}
+
+func TestConnectionLoop(t *testing.T) {
+	mainServer, err := newMockServer()
+	require.NoError(t, err)
+	tsMain := httptest.NewServer(mainServer)
+	defer tsMain.Close()
+
+	fallbackServer, err := newMockServer()
+	require.NoError(t, err)
+	tsFallback := httptest.NewServer(fallbackServer)
+	defer tsFallback.Close()
+
+	logOutput := chshare.NewLogOutput("")
+	err = logOutput.Start()
+	require.NoError(t, err)
+
+	config := Config{
+		Client: ClientConfig{
+			Server:                   tsMain.URL,
+			FallbackServers:          []string{tsFallback.URL},
+			ServerSwitchbackInterval: 100 * time.Millisecond,
+		},
+		RemoteCommands: CommandsConfig{
+			Order: allowDenyOrder,
+		},
+		Logging: LogConfig{
+			LogLevel:  chshare.LogLevelDebug,
+			LogOutput: logOutput,
+		},
+		Connection: ConnectionConfig{
+			MaxRetryCount: -1,
+		},
+	}
+	err = config.ParseAndValidate()
+	require.NoError(t, err)
+
+	c := NewClient(&config)
+	go c.connectionLoop(context.Background())
+
+	// connects to main server successfully
+	assert.NoError(t, mainServer.WaitForStatus(true))
+
+	// retries connection to main server if it drops
+	mainServer.CloseConnection()
+	assert.NoError(t, mainServer.WaitForStatus(false))
+	assert.NoError(t, mainServer.WaitForStatus(true))
+
+	// connects to fallback if main server is down
+	mainServer.SetAvailable(false)
+	mainServer.CloseConnection()
+	assert.NoError(t, mainServer.WaitForStatus(false))
+	assert.NoError(t, fallbackServer.WaitForStatus(true))
+
+	// stays connected to fallback while main server id down
+	assert.NoError(t, mainServer.WaitForStatus(false))
+	assert.NoError(t, fallbackServer.WaitForStatus(true))
+
+	// connects back to main server when it becomes available
+	mainServer.SetAvailable(true)
+	assert.NoError(t, mainServer.WaitForStatus(true))
+	assert.NoError(t, fallbackServer.WaitForStatus(false))
 }
