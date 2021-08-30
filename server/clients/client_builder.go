@@ -15,6 +15,8 @@ import (
 
 	"golang.org/x/crypto/ssh"
 
+	"github.com/stretchr/testify/require"
+
 	chshare "github.com/cloudradar-monitoring/rport/share"
 	"github.com/cloudradar-monitoring/rport/share/random"
 )
@@ -38,9 +40,11 @@ type ClientBuilder struct {
 
 // New returns a builder to generate a client that can be used in tests.
 func New(t *testing.T) ClientBuilder {
+	id, err := NewClientID()
+	require.NoError(t, err)
 	return ClientBuilder{
 		t:            t,
-		id:           NewClientID(),
+		id:           id,
 		clientAuthID: generateRandomClientAuthID(),
 	}
 }

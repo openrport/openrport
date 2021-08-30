@@ -251,6 +251,6 @@ func (c *Client) HasAccess(userGroups []string) bool {
 }
 
 // NewClientID generates a new client ID.
-func NewClientID() string {
+func NewClientID() (string, error) {
 	return random.UUID4()
 }

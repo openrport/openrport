@@ -633,9 +633,10 @@ func TestHandleDeleteClient(t *testing.T) {
 
 func TestHandlePostCommand(t *testing.T) {
 	var testJID string
-	generateNewJobID = func() string {
-		testJID = random.UUID4()
-		return testJID
+	generateNewJobID = func() (string, error) {
+		uuid, err := random.UUID4()
+		testJID = uuid
+		return uuid, err
 	}
 	testUser := "test-user"
 
@@ -1678,8 +1679,8 @@ func TestPostToken(t *testing.T) {
 
 	uuid := "cb5b6578-94f5-4a5b-af58-f7867a943b0c"
 	oldUUID := random.UUID4
-	random.UUID4 = func() string {
-		return uuid
+	random.UUID4 = func() (string, error) {
+		return uuid, nil
 	}
 	defer func() {
 		random.UUID4 = oldUUID

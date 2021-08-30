@@ -13,6 +13,8 @@ import (
 	"testing"
 	"time"
 
+	"github.com/stretchr/testify/require"
+
 	"github.com/cloudradar-monitoring/rport/share/models"
 	"github.com/cloudradar-monitoring/rport/share/random"
 )
@@ -99,7 +101,9 @@ func (b JobBuilder) Cwd(cwd string) JobBuilder {
 
 func (b JobBuilder) Build() *models.Job {
 	if b.jid == "" {
-		b.jid = generateRandomJID()
+		jid, err := generateRandomJID()
+		require.NoError(b.t, err)
+		b.jid = jid
 	}
 	pid := 1245
 	// hardcoded values are used because currently was no need of other data, extend with more available options if needed
@@ -129,6 +133,10 @@ func generateRandomClientName() string {
 	return "client-name-" + random.AlphaNum(12)
 }
 
-func generateRandomJID() string {
-	return "jid-" + random.UUID4()
+func generateRandomJID() (string, error) {
+	uuid, err := random.UUID4()
+	if err != nil {
+		return "", err
+	}
+	return "jid-" + uuid, nil
 }

@@ -24,7 +24,7 @@ type SqliteProvider struct {
 	logger *chshare.Logger
 }
 
-var generateNewScriptID = func() string {
+var generateNewScriptID = func() (string, error) {
 	return random.UUID4()
 }
 
@@ -78,9 +78,12 @@ func (p *SqliteProvider) List(ctx context.Context, lo *query.ListOptions) ([]Scr
 
 func (p *SqliteProvider) Save(ctx context.Context, s *Script, nowDate time.Time) (string, error) {
 	if s.ID == "" {
-		scriptID := generateNewScriptID()
+		scriptID, err := generateNewScriptID()
+		if err != nil {
+			return scriptID, err
+		}
 
-		_, err := p.db.ExecContext(
+		_, err = p.db.ExecContext(
 			ctx,
 			"INSERT INTO `scripts` (`id`, `name`, `created_at`, `created_by`, `interpreter`, `is_sudo`, `cwd`, `script`) VALUES (?, ?, ?, ?, ?, ?, ?, ?)",
 			scriptID,

@@ -11,6 +11,7 @@ require (
 	github.com/go-ole/go-ole v1.2.5
 	github.com/go-sql-driver/mysql v1.5.0
 	github.com/golang-migrate/migrate/v4 v4.14.1
+	github.com/google/uuid v1.1.2
 	github.com/gorilla/handlers v1.5.1
 	github.com/gorilla/mux v1.7.4
 	github.com/gorilla/websocket v1.4.2
@@ -24,7 +25,6 @@ require (
 	github.com/kardianos/service v1.1.0
 	github.com/mattn/go-sqlite3 v1.14.4
 	github.com/mitchellh/mapstructure v1.1.2
-	github.com/satori/go.uuid v1.2.0
 	github.com/scjalliance/comshim v0.0.0-20190308082608-cf06d2532c4e
 	github.com/shirou/gopsutil v3.21.5+incompatible
 	github.com/spf13/cobra v1.0.0
@@ -36,5 +36,4 @@ require (
 	golang.org/x/net v0.0.0-20210614182718-04defd469f4e
 	golang.org/x/sync v0.0.0-20200625203802-6e8e738ad208
 	golang.org/x/sys v0.0.0-20210423082822-04245dca01da
-	golang.org/x/text v0.3.6 // indirect
 )

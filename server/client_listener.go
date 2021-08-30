@@ -238,7 +238,11 @@ func (cl *ClientListener) handleWebsocket(w http.ResponseWriter, req *http.Reque
 	clientAuthID := sshConn.User()
 
 	// client id
-	cid := cl.getCID(connRequest.ID, cl.config, clientAuthID)
+	cid, err := cl.getCID(connRequest.ID, cl.config, clientAuthID)
+	if err != nil {
+		failed(fmt.Errorf("could not get cid: %s", err))
+		return
+	}
 
 	ctx, cancel := context.WithCancel(context.Background())
 	defer cancel()
@@ -278,14 +282,14 @@ func checkVersions(log *chshare.Logger, clientVersion string) {
 	log.Infof("Client version (%s) differs from server version (%s)", v, chshare.BuildVersion)
 }
 
-func (cl *ClientListener) getCID(reqID string, config *Config, clientAuthID string) string {
+func (cl *ClientListener) getCID(reqID string, config *Config, clientAuthID string) (string, error) {
 	if reqID != "" {
-		return reqID
+		return reqID, nil
 	}
 
 	// use client auth id as client id if proper configs are set
 	if !config.Server.AuthMultiuseCreds && config.Server.EquateClientauthidClientid {
-		return clientAuthID
+		return clientAuthID, nil
 	}
 
 	return clients.NewClientID()

@@ -62,7 +62,7 @@ const (
 
 var validInputInterpreter = []string{"cmd", "powershell"}
 
-var generateNewJobID = func() string {
+var generateNewJobID = func() (string, error) {
 	return random.UUID4()
 }
 
@@ -1384,9 +1384,14 @@ func (al *APIListener) handleExecuteCommand(ctx context.Context, w http.Response
 	// send the command to the client
 	// Send a job with all possible info in order to get the full-populated job back (in client-listener) when it's done.
 	// Needed when server restarts to get all job data from client. Because on server restart job running info is lost.
+	jid, err := generateNewJobID()
+	if err != nil {
+		al.jsonError(w, err)
+		return
+	}
 	curJob := models.Job{
 		JobSummary: models.JobSummary{
-			JID:        generateNewJobID(),
+			JID:        jid,
 			FinishedAt: nil,
 		},
 		ClientID:    executeInput.ClientID,
@@ -1642,9 +1647,14 @@ func (al *APIListener) handlePostMultiClientCommand(w http.ResponseWriter, req *
 		return
 	}
 
+	jid, err := generateNewJobID()
+	if err != nil {
+		al.jsonError(w, err)
+		return
+	}
 	multiJob := &models.MultiJob{
 		MultiJobSummary: models.MultiJobSummary{
-			JID:       generateNewJobID(),
+			JID:       jid,
 			StartedAt: time.Now(),
 			CreatedBy: curUser.Username,
 		},
@@ -1821,15 +1831,20 @@ func (al *APIListener) executeMultiClientJob(
 }
 
 func (al *APIListener) createAndRunJob(
-	jid, cmd, interpreter, createdBy, cwd string,
+	multiJobID, cmd, interpreter, createdBy, cwd string,
 	timeoutSec int,
 	isSudo, isScript, hasShebang bool,
 	client *clients.Client,
 ) bool {
+	jid, err := generateNewJobID()
+	if err != nil {
+		al.Errorf("multi_client_id=%q, client_id=%q, Could not generate job id: %v", multiJobID, client.ID, err)
+		return false
+	}
 	// send the command to the client
 	curJob := models.Job{
 		JobSummary: models.JobSummary{
-			JID: generateNewJobID(),
+			JID: jid,
 		},
 		StartedAt:   time.Now(),
 		ClientID:    client.ID,
@@ -1841,11 +1856,11 @@ func (al *APIListener) createAndRunJob(
 		Interpreter: interpreter,
 		CreatedBy:   createdBy,
 		TimeoutSec:  timeoutSec,
-		MultiJobID:  &jid,
+		MultiJobID:  &multiJobID,
 		HasShebang:  hasShebang,
 	}
 	sshResp := &comm.RunCmdResponse{}
-	err := comm.SendRequestAndGetResponse(client.Connection, comm.RequestTypeRunCmd, curJob, sshResp)
+	err = comm.SendRequestAndGetResponse(client.Connection, comm.RequestTypeRunCmd, curJob, sshResp)
 	// return an error after saving the job
 	if err != nil {
 		// failure, set fields to mark it as failed
@@ -2030,7 +2045,11 @@ func (al *APIListener) handleCommandsExecutionWS(
 		return
 	}
 
-	jid := generateNewJobID()
+	jid, err := generateNewJobID()
+	if err != nil {
+		uiConnTS.WriteError("Could not generate job id.", err)
+		return
+	}
 	al.Server.uiJobWebSockets.Set(jid, uiConnTS)
 	defer al.Server.uiJobWebSockets.Delete(jid)
 
@@ -2085,7 +2104,11 @@ func (al *APIListener) handleCommandsExecutionWS(
 				command = inboundMsg.Command
 			}
 
-			curJID := generateNewJobID()
+			curJID, err := generateNewJobID()
+			if err != nil {
+				uiConnTS.WriteError("Could not generate job id.", err)
+				return
+			}
 			if multiJob.Concurrent {
 				go al.createAndRunJobWS(
 					uiConnTS,
@@ -2844,9 +2867,15 @@ func (al *APIListener) handlePostMultiClientScript(w http.ResponseWriter, req *h
 		return
 	}
 
+	jid, err := generateNewJobID()
+	if err != nil {
+		al.jsonError(w, err)
+		return
+	}
+
 	multiJob := &models.MultiJob{
 		MultiJobSummary: models.MultiJobSummary{
-			JID:       generateNewJobID(),
+			JID:       jid,
 			StartedAt: time.Now(),
 			CreatedBy: curUser.Username,
 		},
@@ -2887,7 +2916,11 @@ func (al *APIListener) handlePostToken(w http.ResponseWriter, req *http.Request)
 		return
 	}
 
-	newToken := random.UUID4()
+	newToken, err := random.UUID4()
+	if err != nil {
+		al.jsonError(w, err)
+		return
+	}
 
 	if err := al.usersService.Change(&users.User{
 		Token: &newToken,

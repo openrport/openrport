@@ -30,7 +30,10 @@ func NewExecutor(logger *chshare.Logger) *Executor {
 }
 
 func (e *Executor) CreateScriptOnClient(scriptInput *api.ExecuteInput, cl *clients.Client) (scriptPath string, err error) {
-	fileName := e.createClientScriptPath(cl.OSKernel, scriptInput.Interpreter)
+	fileName, err := e.createClientScriptPath(cl.OSKernel, scriptInput.Interpreter)
+	if err != nil {
+		return scriptPath, err
+	}
 	fileInput := &models.File{
 		Name:    fileName,
 		Content: []byte(scriptInput.Script),
@@ -59,16 +62,19 @@ func (e *Executor) CreateScriptOnClient(scriptInput *api.ExecuteInput, cl *clien
 	return sshResp.FilePath, nil
 }
 
-func (e *Executor) createClientScriptPath(os, interpreter string) string {
-	scriptName := random.UUID4()
+func (e *Executor) createClientScriptPath(os, interpreter string) (string, error) {
+	scriptName, err := random.UUID4()
+	if err != nil {
+		return "", err
+	}
 	if os == "windows" {
 		if interpreter == "powershell" {
-			return scriptName + ".ps1"
+			return scriptName + ".ps1", nil
 		}
-		return scriptName + ".bat"
+		return scriptName + ".bat", nil
 	}
 
-	return scriptName + ".sh"
+	return scriptName + ".sh", nil
 }
 
 const shebangPrefix = "#!"
