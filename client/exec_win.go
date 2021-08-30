@@ -13,28 +13,28 @@ import (
 )
 
 func (e *CmdExecutorImpl) New(ctx context.Context, execCtx *CmdExecutorContext) *exec.Cmd {
-	shellPath := execCtx.Shell
-	absShellPath, err := getShellAbsolutePath(execCtx.Shell)
+	interpreterPath := execCtx.Interpreter
+	absInterpreterPath, err := getInterpreterAbsolutePath(execCtx.Interpreter)
 	if err != nil {
 		e.Errorf(err.Error())
 	} else {
-		shellPath = absShellPath
-		e.Debugf("resolved absolute shell path %s for shell %s", absShellPath, execCtx.Shell)
+		interpreterPath = absInterpreterPath
+		e.Debugf("resolved absolute interpreter path %s for interpreter %s", absInterpreterPath, execCtx.Interpreter)
 	}
 
-	switch execCtx.Shell {
+	switch execCtx.Interpreter {
 	case cmdShell:
-		return buildCmdShellCmd(ctx, execCtx, shellPath)
+		return buildCmdInterpreterCmd(ctx, execCtx, interpreterPath)
 	case powerShell:
-		return buildPowershellCmd(ctx, execCtx, shellPath)
+		return buildPowershellCmd(ctx, execCtx, interpreterPath)
 	default:
-		return buildDefaultCmd(ctx, execCtx, shellPath)
+		return buildDefaultCmd(ctx, execCtx, interpreterPath)
 	}
 }
 
-func buildCmdShellCmd(ctx context.Context, execCtx *CmdExecutorContext, shellPath string) *exec.Cmd {
-	// workaround for the issue with escaping args on windows for cmd shell https://github.com/golang/go/issues/1849
-	cmd := exec.CommandContext(ctx, shellPath)
+func buildCmdInterpreterCmd(ctx context.Context, execCtx *CmdExecutorContext, interpreterPath string) *exec.Cmd {
+	// workaround for the issue with escaping args on windows for cmd interpreter https://github.com/golang/go/issues/1849
+	cmd := exec.CommandContext(ctx, interpreterPath)
 	cmd.SysProcAttr = &syscall.SysProcAttr{}
 	cmd.SysProcAttr.CmdLine = fmt.Sprintf("/c %s", execCtx.Command)
 	cmd.Dir = execCtx.WorkingDir
@@ -42,7 +42,7 @@ func buildCmdShellCmd(ctx context.Context, execCtx *CmdExecutorContext, shellPat
 	return cmd
 }
 
-func buildPowershellCmd(ctx context.Context, execCtx *CmdExecutorContext, shellPath string) *exec.Cmd {
+func buildPowershellCmd(ctx context.Context, execCtx *CmdExecutorContext, interpreterPath string) *exec.Cmd {
 	args := []string{
 		"-Noninteractive", // Don't present an interactive prompt to the user.
 		"-executionpolicy",
@@ -57,34 +57,34 @@ func buildPowershellCmd(ctx context.Context, execCtx *CmdExecutorContext, shellP
 
 	args = append(args, execCtx.Command)
 
-	cmd := exec.CommandContext(ctx, shellPath, args...)
+	cmd := exec.CommandContext(ctx, interpreterPath, args...)
 	cmd.Dir = execCtx.WorkingDir
 
 	return cmd
 }
 
-func buildDefaultCmd(ctx context.Context, execCtx *CmdExecutorContext, shellPath string) *exec.Cmd {
-	cmd := exec.CommandContext(ctx, shellPath, execCtx.Command)
+func buildDefaultCmd(ctx context.Context, execCtx *CmdExecutorContext, interpreterPath string) *exec.Cmd {
+	cmd := exec.CommandContext(ctx, interpreterPath, execCtx.Command)
 	cmd.Dir = execCtx.WorkingDir
 
 	return cmd
 }
 
-func getShellAbsolutePath(shell string) (absShellPath string, err error) {
-	if !strings.HasSuffix(shell, ".exe") {
-		shell += ".exe"
+func getInterpreterAbsolutePath(interpreter string) (absInterpreterPath string, err error) {
+	if !strings.HasSuffix(interpreter, ".exe") {
+		interpreter += ".exe"
 	}
 
 	path := os.Getenv("path")
 	for _, dir := range filepath.SplitList(path) {
-		absShellPath := filepath.Join(dir, shell)
-		d, err := os.Stat(absShellPath)
+		absInterpreterPath := filepath.Join(dir, interpreter)
+		d, err := os.Stat(absInterpreterPath)
 		if err != nil || d.IsDir() {
 			continue
 		}
 
-		return absShellPath, nil
+		return absInterpreterPath, nil
 	}
 
-	return "", fmt.Errorf("failed to find %s at %%PATH%%: %s: %w", shell, path, os.ErrNotExist)
+	return "", fmt.Errorf("failed to find %s at %%PATH%%: %s: %w", interpreter, path, os.ErrNotExist)
 }

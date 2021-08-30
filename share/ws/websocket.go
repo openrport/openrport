@@ -40,7 +40,7 @@ func (ws *ConcurrentWebSocket) WriteError(title string, err error) {
 	if err != nil {
 		errMsg = err.Error()
 	}
-	_ = ws.WriteJSON(api.NewErrorPayloadWithCode("", title, errMsg))
+	_ = ws.WriteJSON(api.NewErrAPIPayloadFromMessage("", title, errMsg))
 }
 
 func (ws *ConcurrentWebSocket) WriteJSON(jsonOutboundMsg interface{}) error {

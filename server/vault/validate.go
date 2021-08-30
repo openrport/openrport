@@ -11,21 +11,21 @@ func Validate(iv *InputValue) error {
 
 	if iv.Key == "" {
 		errs = append(errs, errors2.APIError{
-			Message: "key is required",
-			Code:    http.StatusBadRequest,
+			Message:    "key is required",
+			HTTPStatus: http.StatusBadRequest,
 		})
 	}
 	if iv.Value == "" {
 		errs = append(errs, errors2.APIError{
-			Message: "value is required",
-			Code:    http.StatusBadRequest,
+			Message:    "value is required",
+			HTTPStatus: http.StatusBadRequest,
 		})
 	}
 
 	if iv.Type == "" {
 		errs = append(errs, errors2.APIError{
-			Message: "value type is required",
-			Code:    http.StatusBadRequest,
+			Message:    "value type is required",
+			HTTPStatus: http.StatusBadRequest,
 		})
 	} else {
 		knownTypes := map[ValueType]bool{
@@ -38,8 +38,8 @@ func Validate(iv *InputValue) error {
 		ok := knownTypes[iv.Type]
 		if !ok {
 			errs = append(errs, errors2.APIError{
-				Message: "unknown or invalid value value type " + string(iv.Type),
-				Code:    http.StatusBadRequest,
+				Message:    "unknown or invalid value value type " + string(iv.Type),
+				HTTPStatus: http.StatusBadRequest,
 			})
 		}
 	}

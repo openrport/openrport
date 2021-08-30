@@ -356,6 +356,7 @@ func TestUpdateUserInFile(t *testing.T) {
 		Username: "user_one",
 		Password: "pass_one",
 		Groups:   []string{"group_one", "group_two"},
+		Token:    Token("token_one"),
 	}
 
 	usersFileManager := &FileManagerMock{
@@ -384,6 +385,7 @@ func TestUpdateUserInFile(t *testing.T) {
 	assert.Equal(t, []string{"group1"}, usersFileManager.WrittenUsers[0].Groups)
 	assert.Equal(t, "user_one", usersFileManager.WrittenUsers[1].Username)
 	assert.True(t, strings.HasPrefix(usersFileManager.WrittenUsers[1].Password, htpasswdBcryptPrefix))
+	assert.True(t, strings.HasPrefix(*usersFileManager.WrittenUsers[1].Token, htpasswdBcryptPrefix))
 	assert.Equal(t, []string{"group_one", "group_two"}, usersFileManager.WrittenUsers[1].Groups)
 
 	userToUpdate2 := &User{
@@ -401,8 +403,8 @@ func TestUpdateUserInFile(t *testing.T) {
 	assert.Equal(
 		t,
 		errors2.APIError{
-			Message: "cannot find user by username 'unknown_user'",
-			Code:    http.StatusNotFound,
+			Message:    "cannot find user by username 'unknown_user'",
+			HTTPStatus: http.StatusNotFound,
 		},
 		err,
 	)
@@ -533,6 +535,7 @@ func TestUpdateUserInDB(t *testing.T) {
 		Username: "user_one",
 		Password: "pass_one",
 		Groups:   []string{"group_one", "group_two"},
+		Token:    Token("token_one"),
 	}
 
 	dbProvider := &DBProviderMock{
@@ -559,6 +562,7 @@ func TestUpdateUserInDB(t *testing.T) {
 	require.Len(t, dbProvider.UsersToUpdate, 1)
 	assert.Equal(t, "user_one", dbProvider.UsersToUpdate[0].Username)
 	assert.True(t, strings.HasPrefix(dbProvider.UsersToUpdate[0].Password, htpasswdBcryptPrefix))
+	assert.True(t, strings.HasPrefix(*dbProvider.UsersToUpdate[0].Token, htpasswdBcryptPrefix))
 	assert.Equal(t, []string{"group_one", "group_two"}, dbProvider.UsersToUpdate[0].Groups)
 
 	dbProvider.UsersToUpdate = []*User{}
@@ -571,8 +575,8 @@ func TestUpdateUserInDB(t *testing.T) {
 	assert.Equal(
 		t,
 		errors2.APIError{
-			Message: "cannot find user by username 'non-existing-user'",
-			Code:    http.StatusNotFound,
+			Message:    "cannot find user by username 'non-existing-user'",
+			HTTPStatus: http.StatusNotFound,
 		},
 		err,
 	)
@@ -619,8 +623,8 @@ func TestDeleteUserFromDB(t *testing.T) {
 	assert.Equal(
 		t,
 		errors2.APIError{
-			Message: "cannot find user by username 'unknown_user'",
-			Code:    http.StatusNotFound,
+			Message:    "cannot find user by username 'unknown_user'",
+			HTTPStatus: http.StatusNotFound,
 		},
 		err,
 	)
@@ -677,8 +681,8 @@ func TestDeleteUserFromFile(t *testing.T) {
 	assert.Equal(
 		t,
 		errors2.APIError{
-			Message: "cannot find user by username 'unknown_user'",
-			Code:    http.StatusNotFound,
+			Message:    "cannot find user by username 'unknown_user'",
+			HTTPStatus: http.StatusNotFound,
 		},
 		err,
 	)

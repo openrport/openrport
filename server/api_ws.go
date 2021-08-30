@@ -207,7 +207,7 @@ window.addEventListener("load", function(evt) {
   "timeout_sec": 60,
   "abort_on_error": false,
   "execute_concurrently": true,
-  "shell":"powershell"
+  "interpreter":"powershell"
 }
 </textarea>
 </p>

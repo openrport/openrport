@@ -52,13 +52,25 @@ By default, 2FA is disabled.
    two_fa_token_delivery = 'smtp'
    two_fa_token_ttl_seconds = 600
    ```
-   Use either `'smtp'` or `'pushover'`.
+   Use either `'smtp'`, `'pushover'` or provide a path to a binary or script executable.
+
    `two_fa_token_ttl_seconds` is an optional param for a lifetime of 2FA verification code. By default, 600 seconds.
+
+
 2. Set up a valid [SMTP](no15-messaging.md#smtp) or [Pushover](no15-messaging.md#pushover) config.
 3. 2FA is not available if you use [a single static user-password pair](no02-api-auth.md#hardcoded-single-user).
 4. Your user-password store ([json file](no02-api-auth.md#user-file) or [DB table](no02-api-auth.md#database)) needs an additional field `two_fa_send_to`.
    It should hold an email or pushover user key that is used to send 2FA verification code to a user.
 5. Your user's `two_fa_send_to` field needs to contain a valid email or pushover user key.
+
+   When using an executable for delivery, `two_fa_send_to_type` can be used to specify how the `two_fa_send_to` is validated on changes.
+   This setting is ignored when using SMTP or Pushover for token delivery.
+   Use `2fa_send_to_type = 'email'` to accept only valid email address.
+   Or use a regular expression, for example
+   ```
+   2fa_send_to_type = 'regex'
+   2fa_send_to_regex = '[a-z0-9]{10}'
+   ```
 6. Restart the server.
 
 #### How to use it?
@@ -263,7 +275,7 @@ Enter the following line to the `rportd.conf` file in the `[api]` and `[database
   db_name = "/var/lib/rport/database.sqlite3"
 ```
 
-Create the database and set the ownership. Restart rport afterwards. 
+Create the database and set the ownership. Restart rport afterwards.
 ```
 touch /var/lib/rport/database.sqlite3
 chown rport:rport /var/lib/rport/database.sqlite3
@@ -271,12 +283,12 @@ systemctl restart rportd
 ```
 
 Now connect to the database and create the tables.
-*Change column types and lengths to your needs.* 
+*Change column types and lengths to your needs.*
 ```
-sqlite3 /var/lib/rport/database.sqlite3 
+sqlite3 /var/lib/rport/database.sqlite3
 SQLite version 3.31.1 2020-01-27 19:55:54
 Enter ".help" for usage hints.
-sqlite> 
+sqlite>
 ```
 
 :::: code-group
@@ -365,7 +377,7 @@ curl -Ss http://localhost:3000/api/v1/users -u admin:password|jq
     }
   ]
 }
-``` 
+```
 
 Create a new user:
 ```

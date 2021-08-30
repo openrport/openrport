@@ -22,7 +22,7 @@ func TestJobsSqliteProvider(t *testing.T) {
 	defer p.Close()
 
 	// add jobs
-	job1 := jb.New(t).Status(models.JobStatusRunning).Result(nil).Sudo().Build()
+	job1 := jb.New(t).Status(models.JobStatusRunning).Result(nil).IsSudo().Build()
 	job2 := jb.New(t).ClientID(job1.ClientID).Cwd("/root").Build()
 	job3 := jb.New(t).Build() // different client ID
 	require.NoError(t, p.SaveJob(job1))

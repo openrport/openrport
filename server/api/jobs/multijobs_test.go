@@ -65,7 +65,7 @@ func TestMultiJobsSqliteProvider(t *testing.T) {
 	assert.EqualValues(t, []*models.MultiJobSummary{&job2.MultiJobSummary, &job3.MultiJobSummary, &job1.MultiJobSummary}, gotJSs)
 
 	// verify job update
-	job1.Shell = "cmd"
+	job1.Interpreter = "cmd"
 	job1.Concurrent = true
 	job1.StartedAt = t1.Add(time.Second)
 

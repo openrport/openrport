@@ -3,6 +3,7 @@ package chclient
 import (
 	"errors"
 	"fmt"
+	"log"
 	"net/http"
 	"net/url"
 	"regexp"
@@ -28,16 +29,18 @@ type LogConfig struct {
 }
 
 type ClientConfig struct {
-	Server          string        `mapstructure:"server"`
-	Fingerprint     string        `mapstructure:"fingerprint"`
-	Auth            string        `mapstructure:"auth"`
-	Proxy           string        `mapstructure:"proxy"`
-	ID              string        `mapstructure:"id"`
-	Name            string        `mapstructure:"name"`
-	Tags            []string      `mapstructure:"tags"`
-	Remotes         []string      `mapstructure:"remotes"`
-	AllowRoot       bool          `mapstructure:"allow_root"`
-	UpdatesInterval time.Duration `mapstructure:"updates_interval"`
+	Server                   string        `mapstructure:"server"`
+	FallbackServers          []string      `mapstructure:"fallback_servers"`
+	ServerSwitchbackInterval time.Duration `mapstructure:"server_switchback_interval"`
+	Fingerprint              string        `mapstructure:"fingerprint"`
+	Auth                     string        `mapstructure:"auth"`
+	Proxy                    string        `mapstructure:"proxy"`
+	ID                       string        `mapstructure:"id"`
+	Name                     string        `mapstructure:"name"`
+	Tags                     []string      `mapstructure:"tags"`
+	Remotes                  []string      `mapstructure:"remotes"`
+	AllowRoot                bool          `mapstructure:"allow_root"`
+	UpdatesInterval          time.Duration `mapstructure:"updates_interval"`
 
 	proxyURL *url.URL
 	remotes  []*chshare.Remote
@@ -66,7 +69,8 @@ type CommandsConfig struct {
 }
 
 type ScriptsConfig struct {
-	Enabled bool `mapstructure:"enabled"`
+	Enabled bool   `mapstructure:"enabled"`
+	Dir     string `mapstructure:"script_dir"`
 }
 
 type Config struct {
@@ -84,6 +88,9 @@ func (c *Config) ParseAndValidate() error {
 	if err := c.parseServerURL(); err != nil {
 		return err
 	}
+	if err := c.parseFallbackServers(); err != nil {
+		return err
+	}
 	if err := c.parseProxyURL(); err != nil {
 		return err
 	}
@@ -99,11 +106,12 @@ func (c *Config) ParseAndValidate() error {
 		return fmt.Errorf("remote commands: %v", err)
 	}
 
+	c.Client.authUser, c.Client.authPass = chshare.ParseAuth(c.Client.Auth)
+
 	if err := c.parseRemoteScripts(); err != nil {
 		return err
 	}
 
-	c.Client.authUser, c.Client.authPass = chshare.ParseAuth(c.Client.Auth)
 	return nil
 }
 
@@ -130,14 +138,35 @@ func (c *Config) parseServerURL() error {
 		return errors.New("server address is required")
 	}
 
-	//apply default scheme
-	if !strings.Contains(c.Client.Server, "://") {
-		c.Client.Server = "http://" + c.Client.Server
-	}
-
-	u, err := url.Parse(c.Client.Server)
+	url, err := c.parseURL(c.Client.Server)
 	if err != nil {
 		return fmt.Errorf("invalid server address: %v", err)
+	}
+
+	c.Client.Server = url
+	return nil
+}
+
+func (c *Config) parseFallbackServers() error {
+	for i := range c.Client.FallbackServers {
+		url, err := c.parseURL(c.Client.FallbackServers[i])
+		if err != nil {
+			return fmt.Errorf("invalid fallback server address: %v", err)
+		}
+		c.Client.FallbackServers[i] = url
+	}
+	return nil
+}
+
+func (Config) parseURL(urlStr string) (string, error) {
+	//apply default scheme
+	if !strings.Contains(urlStr, "://") {
+		urlStr = "http://" + urlStr
+	}
+
+	u, err := url.Parse(urlStr)
+	if err != nil {
+		return "", err
 	}
 	//apply default port
 	if !regexp.MustCompile(`:\d+$`).MatchString(u.Host) {
@@ -149,8 +178,7 @@ func (c *Config) parseServerURL() error {
 	}
 	//swap to websockets scheme
 	u.Scheme = strings.Replace(u.Scheme, "http", "ws", 1)
-	c.Client.Server = u.String()
-	return nil
+	return u.String(), nil
 }
 
 func (c *Config) parseProxyURL() error {
@@ -210,6 +238,12 @@ func (c *Config) parseRemoteCommands() error {
 func (c *Config) parseRemoteScripts() error {
 	if c.RemoteScripts.Enabled && !c.RemoteCommands.Enabled {
 		return errors.New("remote scripts execution requires remote commands to be enabled")
+	}
+
+	err := ValidateScriptDir(c.RemoteScripts.Dir)
+	// we allow to start a client if the script dir is not good because clients might never run scripts
+	if err != nil {
+		log.Printf("ERROR: %v\n", err)
 	}
 
 	return nil

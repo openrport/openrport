@@ -12,6 +12,7 @@ import (
 	"github.com/spf13/viper"
 
 	chserver "github.com/cloudradar-monitoring/rport/server"
+	"github.com/cloudradar-monitoring/rport/server/api/message"
 	chshare "github.com/cloudradar-monitoring/rport/share"
 	"github.com/cloudradar-monitoring/rport/share/files"
 )
@@ -296,6 +297,8 @@ func init() {
 	viperCfg.SetDefault("api.max_failed_login", 10)
 	viperCfg.SetDefault("api.ban_time", 600)
 	viperCfg.SetDefault("api.two_fa_token_ttl_seconds", 600)
+	viperCfg.SetDefault("api.two_fa_send_timeout", 10*time.Second)
+	viperCfg.SetDefault("api.two_fa_send_to_type", message.ValidationNone)
 }
 
 func bindPFlags() {

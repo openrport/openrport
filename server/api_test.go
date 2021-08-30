@@ -32,6 +32,7 @@ import (
 	"github.com/cloudradar-monitoring/rport/share/comm"
 	"github.com/cloudradar-monitoring/rport/share/models"
 	"github.com/cloudradar-monitoring/rport/share/random"
+	"github.com/cloudradar-monitoring/rport/share/security"
 	"github.com/cloudradar-monitoring/rport/share/test"
 )
 
@@ -231,7 +232,7 @@ func TestHandleGetClientsAuth(t *testing.T) {
 			wantResp = api.NewSuccessPayload(tc.wantClientsAuth)
 		} else {
 			// failure case
-			wantResp = api.NewErrorPayloadWithCode(tc.wantErrCode, tc.wantErrTitle, "")
+			wantResp = api.NewErrAPIPayloadFromMessage(tc.wantErrCode, tc.wantErrTitle, "")
 		}
 		wantRespBytes, err := json.Marshal(wantResp)
 		require.NoErrorf(err, msg)
@@ -431,7 +432,7 @@ func TestHandlePostClients(t *testing.T) {
 			assert.Emptyf(w.Body.String(), msg)
 		} else {
 			// failure case
-			wantResp := api.NewErrorPayloadWithCode(tc.wantErrCode, tc.wantErrTitle, tc.wantErrDetail)
+			wantResp := api.NewErrAPIPayloadFromMessage(tc.wantErrCode, tc.wantErrTitle, tc.wantErrDetail)
 			wantRespBytes, err := json.Marshal(wantResp)
 			require.NoErrorf(err, msg)
 			require.Equalf(string(wantRespBytes), w.Body.String(), msg)
@@ -613,7 +614,7 @@ func TestHandleDeleteClient(t *testing.T) {
 				// success case: empty body
 			} else {
 				// failure case
-				wantResp := api.NewErrorPayloadWithCode(tc.wantErrCode, tc.wantErrTitle, tc.wantErrDetail)
+				wantResp := api.NewErrAPIPayloadFromMessage(tc.wantErrCode, tc.wantErrTitle, tc.wantErrDetail)
 				wantRespBytes, err := json.Marshal(wantResp)
 				require.NoError(err)
 				wantRespStr = string(wantRespBytes)
@@ -632,9 +633,10 @@ func TestHandleDeleteClient(t *testing.T) {
 
 func TestHandlePostCommand(t *testing.T) {
 	var testJID string
-	generateNewJobID = func() string {
-		testJID = random.UUID4()
-		return testJID
+	generateNewJobID = func() (string, error) {
+		uuid, err := random.UUID4()
+		testJID = uuid
+		return uuid, err
 	}
 	testUser := "test-user"
 
@@ -666,12 +668,12 @@ func TestHandlePostCommand(t *testing.T) {
 		runningJob      *models.Job
 		clients         []*clients.Client
 
-		wantStatusCode int
-		wantTimeout    int
-		wantErrCode    string
-		wantErrTitle   string
-		wantErrDetail  string
-		wantShell      string
+		wantStatusCode  int
+		wantTimeout     int
+		wantErrCode     string
+		wantErrTitle    string
+		wantErrDetail   string
+		wantInterpreter string
 	}{
 		{
 			name:           "valid cmd",
@@ -682,22 +684,22 @@ func TestHandlePostCommand(t *testing.T) {
 			wantTimeout:    gotCmdTimeoutSec,
 		},
 		{
-			name:           "valid cmd with shell",
-			requestBody:    `{"command": "` + gotCmd + `","shell": "powershell"}`,
-			cid:            c1.ID,
-			clients:        []*clients.Client{c1},
-			wantStatusCode: http.StatusOK,
-			wantTimeout:    defaultTimeout,
-			wantShell:      "powershell",
+			name:            "valid cmd with interpreter",
+			requestBody:     `{"command": "` + gotCmd + `","interpreter": "powershell"}`,
+			cid:             c1.ID,
+			clients:         []*clients.Client{c1},
+			wantStatusCode:  http.StatusOK,
+			wantTimeout:     defaultTimeout,
+			wantInterpreter: "powershell",
 		},
 		{
-			name:           "invalid shell",
-			requestBody:    `{"command": "` + gotCmd + `","shell": "unsupported"}`,
+			name:           "invalid interpreter",
+			requestBody:    `{"command": "` + gotCmd + `","interpreter": "unsupported"}`,
 			cid:            c1.ID,
 			clients:        []*clients.Client{c1},
 			wantStatusCode: http.StatusBadRequest,
-			wantErrTitle:   "Invalid shell.",
-			wantErrDetail:  "expected shell to be one of: [cmd powershell], actual: unsupported",
+			wantErrTitle:   "Invalid interpreter.",
+			wantErrDetail:  "expected interpreter to be one of: [cmd powershell], actual: unsupported",
 		},
 		{
 			name:           "valid cmd with no timeout",
@@ -862,7 +864,7 @@ func TestHandlePostCommand(t *testing.T) {
 				assert.Nil(t, gotRunningJob.FinishedAt)
 				assert.Equal(t, tc.cid, gotRunningJob.ClientID)
 				assert.Equal(t, gotCmd, gotRunningJob.Command)
-				assert.Equal(t, tc.wantShell, gotRunningJob.Shell)
+				assert.Equal(t, tc.wantInterpreter, gotRunningJob.Interpreter)
 				assert.Equal(t, &sshSuccessResp.Pid, gotRunningJob.PID)
 				assert.Equal(t, sshSuccessResp.StartedAt, gotRunningJob.StartedAt)
 				assert.Equal(t, testUser, gotRunningJob.CreatedBy)
@@ -870,7 +872,7 @@ func TestHandlePostCommand(t *testing.T) {
 				assert.Nil(t, gotRunningJob.Result)
 			} else {
 				// failure case
-				wantResp := api.NewErrorPayloadWithCode(tc.wantErrCode, tc.wantErrTitle, tc.wantErrDetail)
+				wantResp := api.NewErrAPIPayloadFromMessage(tc.wantErrCode, tc.wantErrTitle, tc.wantErrDetail)
 				wantRespBytes, err := json.Marshal(wantResp)
 				require.NoError(t, err)
 				require.Equal(t, string(wantRespBytes), w.Body.String())
@@ -951,7 +953,7 @@ func TestHandleGetCommand(t *testing.T) {
 				assert.Equal(t, wantJob.JID, jp.InputJID)
 			} else {
 				// failure case
-				wantResp := api.NewErrorPayloadWithCode(tc.wantErrCode, tc.wantErrTitle, tc.wantErrDetail)
+				wantResp := api.NewErrAPIPayloadFromMessage(tc.wantErrCode, tc.wantErrTitle, tc.wantErrDetail)
 				wantRespBytes, err := json.Marshal(wantResp)
 				require.NoError(t, err)
 				require.Equal(t, string(wantRespBytes), w.Body.String())
@@ -1040,7 +1042,7 @@ func TestHandleGetCommands(t *testing.T) {
 				assert.Equal(t, testCID, jp.InputCID)
 			} else {
 				// failure case
-				wantResp := api.NewErrorPayloadWithCode(tc.wantErrCode, tc.wantErrTitle, tc.wantErrDetail)
+				wantResp := api.NewErrAPIPayloadFromMessage(tc.wantErrCode, tc.wantErrTitle, tc.wantErrDetail)
 				wantRespBytes, err := json.Marshal(wantResp)
 				require.NoError(t, err)
 				require.Equal(t, string(wantRespBytes), w.Body.String())
@@ -1398,7 +1400,7 @@ func TestHandlePostMultiClientCommand(t *testing.T) {
 				}
 			} else {
 				// failure case
-				wantResp := api.NewErrorPayloadWithCode(tc.wantErrCode, tc.wantErrTitle, tc.wantErrDetail)
+				wantResp := api.NewErrAPIPayloadFromMessage(tc.wantErrCode, tc.wantErrTitle, tc.wantErrDetail)
 				wantRespBytes, err := json.Marshal(wantResp)
 				require.NoError(t, err)
 				require.Equal(t, string(wantRespBytes), w.Body.String())
@@ -1543,6 +1545,321 @@ func TestHandleRefreshUpdatesStatus(t *testing.T) {
 				name, _, _ := connMock.InputSendRequest()
 				assert.Equal(t, tc.ExpectedRequestName, name)
 			}
+		})
+	}
+}
+
+func TestHandleGetClient(t *testing.T) {
+	c1 := clients.New(t).ID("client-1").ClientAuthID(cl1.ID).Build()
+	al := APIListener{
+		insecureForTests: true,
+		Server: &Server{
+			clientService: NewClientService(nil, clients.NewClientRepository([]*clients.Client{c1}, &hour, testLog)),
+			config: &Config{
+				Server: ServerConfig{MaxRequestBytes: 1024 * 1024},
+			},
+		},
+	}
+	al.initRouter()
+
+	testCases := []struct {
+		Name           string
+		URL            string
+		ExpectedStatus int
+	}{
+		{
+			Name:           "Ok",
+			URL:            "/api/v1/clients/client-1",
+			ExpectedStatus: http.StatusOK,
+		}, {
+			Name:           "Not found",
+			URL:            "/api/v1/clients/client-2",
+			ExpectedStatus: http.StatusNotFound,
+		},
+	}
+
+	for _, tc := range testCases {
+		tc := tc
+		t.Run(tc.Name, func(t *testing.T) {
+			t.Parallel()
+
+			w := httptest.NewRecorder()
+			req := httptest.NewRequest("GET", tc.URL, nil)
+			al.router.ServeHTTP(w, req)
+
+			expectedJSON := `{
+    "data":{
+        "id":"client-1",
+        "mem_total":100000,
+        "name":"Random Rport Client",
+        "num_cpus":2,
+        "os":"Linux alpine-3-10-tk-01 4.19.80-0-virt #1-Alpine SMP Fri Oct 18 11:51:24 UTC 2019 x86_64 Linux",
+        "os_arch":"amd64",
+        "os_family":"alpine",
+        "os_full_name":"Debian 18.0",
+        "os_kernel":"linux",
+        "os_version":"18.0",
+        "os_virtualization_role":"guest",
+        "os_virtualization_system":"LVM",
+        "hostname":"alpine-3-10-tk-01",
+        "ipv4":[
+            "192.168.122.111"
+        ],
+        "ipv6":[
+            "fe80::b84f:aff:fe59:a0b1"
+        ],
+        "tags":[
+            "Linux",
+            "Datacenter 1"
+        ],
+        "version":"0.1.12",
+        "address":"88.198.189.161:50078",
+        "timezone":"UTC-0",
+        "tunnels":[
+            {
+                "lhost":"0.0.0.0",
+                "lport":"2222",
+                "rhost":"0.0.0.0",
+                "rport":"22",
+                "lport_random":false,
+                "scheme":null,
+                "acl":null,
+		        "idle_timeout_minutes": 0,
+                "id":"1"
+            },
+            {
+                "lhost":"0.0.0.0",
+                "lport":"4000",
+                "rhost":"0.0.0.0",
+                "rport":"80",
+                "lport_random":false,
+                "scheme":null,
+                "acl":null,
+		        "idle_timeout_minutes": 0,
+                "id":"2"
+            }
+        ],
+        "connection_state":"connected",
+        "cpu_family":"Virtual CPU",
+        "cpu_model":"Virtual CPU",
+        "cpu_model_name":"",
+        "cpu_vendor":"GenuineIntel",
+        "disconnected_at":null,
+        "client_auth_id":"user1",
+        "allowed_user_groups":null,
+        "updates_status":null
+    }
+}`
+			assert.Equal(t, tc.ExpectedStatus, w.Code)
+			if tc.ExpectedStatus == http.StatusOK {
+				assert.JSONEq(t, expectedJSON, w.Body.String())
+			}
+		})
+	}
+}
+
+type MockUsersService struct {
+	UsersService
+
+	ChangeUser     *users.User
+	ChangeUsername string
+}
+
+func (s *MockUsersService) Change(user *users.User, username string) error {
+	s.ChangeUser = user
+	s.ChangeUsername = username
+	return nil
+}
+
+func TestPostToken(t *testing.T) {
+	user := &users.User{
+		Username: "test-user",
+	}
+	mockUsersService := &MockUsersService{}
+
+	uuid := "cb5b6578-94f5-4a5b-af58-f7867a943b0c"
+	oldUUID := random.UUID4
+	random.UUID4 = func() (string, error) {
+		return uuid, nil
+	}
+	defer func() {
+		random.UUID4 = oldUUID
+	}()
+
+	al := APIListener{
+		insecureForTests: true,
+		Server: &Server{
+			config: &Config{},
+		},
+		userSrv:      users.NewUserCache([]*users.User{user}),
+		usersService: mockUsersService,
+	}
+	al.initRouter()
+
+	w := httptest.NewRecorder()
+	req := httptest.NewRequest("POST", "/api/v1/me/token", nil)
+	ctx := api.WithUser(req.Context(), user.Username)
+	req = req.WithContext(ctx)
+	al.router.ServeHTTP(w, req)
+
+	expectedJSON := `{"data":{"token":"` + uuid + `"}}`
+	assert.Equal(t, http.StatusOK, w.Code)
+	assert.JSONEq(t, expectedJSON, w.Body.String())
+
+	expectedUser := &users.User{
+		Token: &uuid,
+	}
+	assert.Equal(t, user.Username, mockUsersService.ChangeUsername)
+	assert.Equal(t, expectedUser, mockUsersService.ChangeUser)
+}
+
+func TestDeleteToken(t *testing.T) {
+	user := &users.User{
+		Username: "test-user",
+	}
+	mockUsersService := &MockUsersService{}
+	noToken := ""
+	al := APIListener{
+		insecureForTests: true,
+		Server: &Server{
+			config: &Config{},
+		},
+		userSrv:      users.NewUserCache([]*users.User{user}),
+		usersService: mockUsersService,
+	}
+	al.initRouter()
+
+	w := httptest.NewRecorder()
+	req := httptest.NewRequest("DELETE", "/api/v1/me/token", nil)
+	ctx := api.WithUser(req.Context(), user.Username)
+	req = req.WithContext(ctx)
+	al.router.ServeHTTP(w, req)
+
+	assert.Equal(t, http.StatusNoContent, w.Code)
+
+	expectedUser := &users.User{
+		Token: &noToken,
+	}
+	assert.Equal(t, user.Username, mockUsersService.ChangeUsername)
+	assert.Equal(t, expectedUser, mockUsersService.ChangeUser)
+}
+
+func TestWrapWithAuthMiddleware(t *testing.T) {
+	user := &users.User{
+		Username: "user1",
+		Password: "$2y$05$ep2DdPDeLDDhwRrED9q/vuVEzRpZtB5WHCFT7YbcmH9r9oNmlsZOm",
+		Token:    users.Token("$2y$05$/D7g/d0sDkNSOh.e6Jzc9OWClcpZ1ieE8Dx.WUaWgayd3Ab0rRdxu"),
+	}
+	userWithoutToken := &users.User{
+		Username: "user2",
+		Password: "$2y$05$ep2DdPDeLDDhwRrED9q/vuVEzRpZtB5WHCFT7YbcmH9r9oNmlsZOm",
+		Token:    nil,
+	}
+	al := APIListener{
+		apiSessionRepo: NewAPISessionRepository(),
+		bannedUsers:    security.NewBanList(0),
+		userSrv:        users.NewUserCache([]*users.User{user, userWithoutToken}),
+		Server: &Server{
+			config: &Config{},
+		},
+	}
+	jwt, err := al.createAuthToken(time.Hour, user.Username)
+	require.NoError(t, err)
+
+	testCases := []struct {
+		Name           string
+		Username       string
+		Password       string
+		EnableTwoFA    bool
+		Bearer         string
+		ExpectedStatus int
+	}{
+		{
+			Name:           "no auth",
+			ExpectedStatus: http.StatusUnauthorized,
+		},
+		{
+			Name:           "basic auth with password",
+			Username:       user.Username,
+			Password:       "pwd",
+			ExpectedStatus: http.StatusOK,
+		},
+		{
+			Name:           "basic auth with password, no password",
+			Username:       user.Username,
+			Password:       "",
+			ExpectedStatus: http.StatusUnauthorized,
+		},
+		{
+			Name:           "basic auth with password, wrong password",
+			Username:       user.Username,
+			Password:       "wrong",
+			ExpectedStatus: http.StatusUnauthorized,
+		},
+		{
+			Name:           "basic auth with password, 2fa enabled",
+			Username:       user.Username,
+			Password:       "pwd",
+			EnableTwoFA:    true,
+			ExpectedStatus: http.StatusUnauthorized,
+		},
+		{
+			Name:           "basic auth with token",
+			Username:       user.Username,
+			Password:       "token",
+			ExpectedStatus: http.StatusOK,
+		},
+		{
+			Name:           "basic auth with token, 2fa enabled",
+			Username:       user.Username,
+			Password:       "token",
+			EnableTwoFA:    true,
+			ExpectedStatus: http.StatusOK,
+		},
+		{
+			Name:           "basic auth with token, wrong token",
+			Username:       user.Username,
+			Password:       "wrong-token",
+			ExpectedStatus: http.StatusUnauthorized,
+		},
+		{
+			Name:           "basic auth with token, user has no token",
+			Username:       userWithoutToken.Username,
+			Password:       "",
+			ExpectedStatus: http.StatusUnauthorized,
+		},
+		{
+			Name:           "bearer token",
+			ExpectedStatus: http.StatusOK,
+			Bearer:         jwt,
+		},
+	}
+
+	for _, tc := range testCases {
+		tc := tc
+		t.Run(tc.Name, func(t *testing.T) {
+			twoFATokenDelivery := ""
+			if tc.EnableTwoFA {
+				twoFATokenDelivery = "smtp"
+			}
+			al.config.API.TwoFATokenDelivery = twoFATokenDelivery
+
+			handler := al.wrapWithAuthMiddleware(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+				assert.Equal(t, user.Username, api.GetUser(r.Context(), nil))
+			}))
+
+			w := httptest.NewRecorder()
+			req := httptest.NewRequest("GET", "/some-endpoint", nil)
+			if tc.Username != "" {
+				req.SetBasicAuth(tc.Username, tc.Password)
+			}
+			if tc.Bearer != "" {
+				req.Header.Set("Authorization", "Bearer "+tc.Bearer)
+			}
+
+			handler(w, req)
+
+			assert.Equal(t, tc.ExpectedStatus, w.Code)
 		})
 	}
 }

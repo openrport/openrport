@@ -37,6 +37,10 @@ type APIService struct {
 	TwoFAOn      bool
 }
 
+func (as APIService) GetProviderType() enums.ProviderSource {
+	return as.ProviderType
+}
+
 func (as *APIService) GetAll() ([]*User, error) {
 	switch as.ProviderType {
 	case enums.ProviderSourceFile:
@@ -79,8 +83,8 @@ func (as *APIService) ExistGroups(groups []string) error {
 
 	if len(groupsNotFound) > 0 {
 		return errors2.APIError{
-			Message: fmt.Sprintf("user groups not found: %v", strings.Join(groupsNotFound, ", ")),
-			Code:    http.StatusNotFound,
+			Message:    fmt.Sprintf("user groups not found: %v", strings.Join(groupsNotFound, ", ")),
+			HTTPStatus: http.StatusNotFound,
 		}
 	}
 
@@ -94,6 +98,15 @@ func (as *APIService) Change(usr *User, username string) error {
 			return err
 		}
 		usr.Password = strings.Replace(string(passHash), htpasswdBcryptAltPrefix, htpasswdBcryptPrefix, 1)
+	}
+
+	if usr.Token != nil && *usr.Token != "" {
+		tokenHash, err := bcrypt.GenerateFromPassword([]byte(*usr.Token), bcrypt.DefaultCost)
+		if err != nil {
+			return err
+		}
+		tokenHashStr := strings.Replace(string(tokenHash), htpasswdBcryptAltPrefix, htpasswdBcryptPrefix, 1)
+		usr.Token = &tokenHashStr
 	}
 
 	err := as.validate(usr, username)
@@ -118,28 +131,28 @@ func (as *APIService) validate(dataToChange *User, usernameToFind string) error 
 	if usernameToFind == "" {
 		if dataToChange.Username == "" {
 			errs = append(errs, errors2.APIError{
-				Message: "username is required",
-				Code:    http.StatusBadRequest,
+				Message:    "username is required",
+				HTTPStatus: http.StatusBadRequest,
 			})
 		}
 		if dataToChange.Password == "" {
 			errs = append(errs, errors2.APIError{
-				Message: "password is required",
-				Code:    http.StatusBadRequest,
+				Message:    "password is required",
+				HTTPStatus: http.StatusBadRequest,
 			})
 		}
 		if as.TwoFAOn && dataToChange.TwoFASendTo == "" {
 			errs = append(errs, errors2.APIError{
-				Message: "two_fa_send_to is required",
-				Code:    http.StatusBadRequest,
+				Message:    "two_fa_send_to is required",
+				HTTPStatus: http.StatusBadRequest,
 			})
 		}
 	} else {
 		if (dataToChange.Username == "" || dataToChange.Username == usernameToFind) &&
-			dataToChange.Password == "" && dataToChange.Groups == nil && (!as.TwoFAOn || dataToChange.TwoFASendTo == "") {
+			dataToChange.Password == "" && dataToChange.Groups == nil && (!as.TwoFAOn || dataToChange.TwoFASendTo == "") && dataToChange.Token == nil {
 			errs = append(errs, errors2.APIError{
-				Message: "nothing to change",
-				Code:    http.StatusBadRequest,
+				Message:    "nothing to change",
+				HTTPStatus: http.StatusBadRequest,
 			})
 		}
 	}
@@ -149,8 +162,8 @@ func (as *APIService) validate(dataToChange *User, usernameToFind string) error 
 		err := as.DeliverySrv.ValidateReceiver(context.Background(), dataToChange.TwoFASendTo)
 		if err != nil {
 			errs = append(errs, errors2.APIError{
-				Err:  fmt.Errorf("invalid two_fa_send_to: %v", err),
-				Code: http.StatusBadRequest,
+				Err:        fmt.Errorf("invalid two_fa_send_to: %v", err),
+				HTTPStatus: http.StatusBadRequest,
 			})
 		}
 	}
@@ -169,8 +182,8 @@ func (as *APIService) addUserToDB(dataToChange *User) error {
 	}
 	if existingUser != nil {
 		return errors2.APIError{
-			Message: "Another user with this username already exists",
-			Code:    http.StatusBadRequest,
+			Message:    "Another user with this username already exists",
+			HTTPStatus: http.StatusBadRequest,
 		}
 	}
 
@@ -191,8 +204,8 @@ func (as *APIService) updateUserInDB(dataToChange *User, usernameToFind string) 
 
 	if existingUser == nil {
 		return errors2.APIError{
-			Message: fmt.Sprintf("cannot find user by username '%s'", usernameToFind),
-			Code:    http.StatusNotFound,
+			Message:    fmt.Sprintf("cannot find user by username '%s'", usernameToFind),
+			HTTPStatus: http.StatusNotFound,
 		}
 	}
 
@@ -203,8 +216,8 @@ func (as *APIService) updateUserInDB(dataToChange *User, usernameToFind string) 
 		}
 		if existingUser != nil {
 			return errors2.APIError{
-				Message: "Another user with this username already exists",
-				Code:    http.StatusBadRequest,
+				Message:    "Another user with this username already exists",
+				HTTPStatus: http.StatusBadRequest,
 			}
 		}
 	}
@@ -232,8 +245,8 @@ func (as *APIService) addUserToFile(dataToChange *User) error {
 	for i := range users {
 		if users[i].Username == dataToChange.Username {
 			return errors2.APIError{
-				Message: "Another user with this username already exists",
-				Code:    http.StatusBadRequest,
+				Message:    "Another user with this username already exists",
+				HTTPStatus: http.StatusBadRequest,
 			}
 		}
 	}
@@ -259,16 +272,16 @@ func (as *APIService) updateUserInFile(dataToChange *User, usernameToFind string
 		}
 		if dataToChange.Username != "" && users[i].Username == dataToChange.Username && dataToChange.Username != usernameToFind {
 			return errors2.APIError{
-				Message: "Another user with this username already exists",
-				Code:    http.StatusBadRequest,
+				Message:    "Another user with this username already exists",
+				HTTPStatus: http.StatusBadRequest,
 			}
 		}
 	}
 
 	if userFound < 0 {
 		return errors2.APIError{
-			Message: fmt.Sprintf("cannot find user by username '%s'", usernameToFind),
-			Code:    http.StatusNotFound,
+			Message:    fmt.Sprintf("cannot find user by username '%s'", usernameToFind),
+			HTTPStatus: http.StatusNotFound,
 		}
 	}
 
@@ -280,6 +293,9 @@ func (as *APIService) updateUserInFile(dataToChange *User, usernameToFind string
 	}
 	if dataToChange.Username != "" {
 		users[userFound].Username = dataToChange.Username
+	}
+	if dataToChange.Token != nil {
+		users[userFound].Token = dataToChange.Token
 	}
 
 	err = as.FileProvider.SaveUsersToFile(users)
@@ -318,8 +334,8 @@ func (as *APIService) deleteUserFromDB(usernameToDelete string) error {
 
 	if user == nil {
 		return errors2.APIError{
-			Message: fmt.Sprintf("cannot find user by username '%s'", usernameToDelete),
-			Code:    http.StatusNotFound,
+			Message:    fmt.Sprintf("cannot find user by username '%s'", usernameToDelete),
+			HTTPStatus: http.StatusNotFound,
 		}
 	}
 
@@ -341,8 +357,8 @@ func (as *APIService) deleteUserFromFile(usernameToDelete string) error {
 
 	if foundIndex < 0 {
 		return errors2.APIError{
-			Message: fmt.Sprintf("cannot find user by username '%s'", usernameToDelete),
-			Code:    http.StatusNotFound,
+			Message:    fmt.Sprintf("cannot find user by username '%s'", usernameToDelete),
+			HTTPStatus: http.StatusNotFound,
 		}
 	}
 

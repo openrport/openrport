@@ -14,6 +14,8 @@ import (
 	"strings"
 	"time"
 
+	"github.com/cloudradar-monitoring/rport/server/validation"
+
 	"github.com/cloudradar-monitoring/rport/share/query"
 
 	"github.com/gorilla/mux"
@@ -58,9 +60,9 @@ const (
 	minVersionScriptExecSupport = "0.1.35"
 )
 
-var validInputShell = []string{"cmd", "powershell"}
+var validInputInterpreter = []string{"cmd", "powershell"}
 
-var generateNewJobID = func() string {
+var generateNewJobID = func() (string, error) {
 	return random.UUID4()
 }
 
@@ -166,7 +168,10 @@ func (al *APIListener) initRouter() {
 	sub.HandleFunc("/me", al.handleGetMe).Methods(http.MethodGet)
 	sub.HandleFunc("/me", al.handleChangeMe).Methods(http.MethodPut)
 	sub.HandleFunc("/me/ip", al.handleGetIP).Methods(http.MethodGet)
+	sub.HandleFunc("/me/token", al.handlePostToken).Methods(http.MethodPost)
+	sub.HandleFunc("/me/token", al.handleDeleteToken).Methods(http.MethodDelete)
 	sub.HandleFunc("/clients", al.handleGetClients).Methods(http.MethodGet)
+	sub.HandleFunc("/clients/{client_id}", al.wrapClientAccessMiddleware(al.handleGetClient)).Methods(http.MethodGet)
 	sub.HandleFunc("/clients/{client_id}", al.wrapClientAccessMiddleware(al.handleDeleteClient)).Methods(http.MethodDelete)
 	sub.HandleFunc("/clients/{client_id}/acl", al.wrapAdminAccessMiddleware(al.handlePostClientACL)).Methods(http.MethodPost)
 	sub.HandleFunc("/clients/{client_id}/tunnels", al.wrapClientAccessMiddleware(al.handlePutClientTunnel)).Methods(http.MethodPut)
@@ -263,43 +268,46 @@ func (al *APIListener) writeJSONResponse(w http.ResponseWriter, statusCode int, 
 }
 
 func (al *APIListener) jsonErrorResponse(w http.ResponseWriter, statusCode int, err error) {
-	al.writeJSONResponse(w, statusCode, api.NewErrorPayload(err))
+	al.writeJSONResponse(w, statusCode, api.NewErrAPIPayloadFromError(err, "", ""))
 }
 
 func (al *APIListener) jsonError(w http.ResponseWriter, err error) {
 	statusCode := http.StatusInternalServerError
+	errCode := ""
 	var apiErr errors2.APIError
 	var apiErrs errors2.APIErrors
 	switch {
 	case errors.As(err, &apiErr):
-		statusCode = apiErr.Code
+		statusCode = apiErr.HTTPStatus
+		errCode = apiErr.ErrCode
 	case errors.As(err, &apiErrs):
 		if len(apiErrs) > 0 {
-			statusCode = apiErrs[0].Code
+			statusCode = apiErrs[0].HTTPStatus
+			errCode = apiErrs[0].ErrCode
 		}
 	}
 
-	al.writeJSONResponse(w, statusCode, api.NewErrorPayload(err))
+	al.writeJSONResponse(w, statusCode, api.NewErrAPIPayloadFromError(err, errCode, ""))
 }
 
 func (al *APIListener) jsonErrorResponseWithErrCode(w http.ResponseWriter, statusCode int, errCode, title string) {
-	al.writeJSONResponse(w, statusCode, api.NewErrorPayloadWithCode(errCode, title, ""))
+	al.writeJSONResponse(w, statusCode, api.NewErrAPIPayloadFromMessage(errCode, title, ""))
 }
 
 func (al *APIListener) jsonErrorResponseWithTitle(w http.ResponseWriter, statusCode int, title string) {
-	al.writeJSONResponse(w, statusCode, api.NewErrorPayloadWithCode("", title, ""))
+	al.writeJSONResponse(w, statusCode, api.NewErrAPIPayloadFromMessage("", title, ""))
 }
 
 func (al *APIListener) jsonErrorResponseWithDetail(w http.ResponseWriter, statusCode int, errCode, title, detail string) {
-	al.writeJSONResponse(w, statusCode, api.NewErrorPayloadWithCode(errCode, title, detail))
+	al.writeJSONResponse(w, statusCode, api.NewErrAPIPayloadFromMessage(errCode, title, detail))
 }
 
-func (al *APIListener) jsonErrorResponseWithError(w http.ResponseWriter, statusCode int, errCode, title string, err error) {
+func (al *APIListener) jsonErrorResponseWithError(w http.ResponseWriter, statusCode int, title string, err error) {
 	var detail string
 	if err != nil {
 		detail = err.Error()
 	}
-	al.writeJSONResponse(w, statusCode, api.NewErrorPayloadWithCode(errCode, title, detail))
+	al.writeJSONResponse(w, statusCode, api.NewErrAPIPayloadFromMessage("", title, detail))
 }
 
 type twoFAResponse struct {
@@ -412,8 +420,8 @@ func parseLoginPostRequestBody(req *http.Request) (string, string, error) {
 		err := req.ParseForm()
 		if err != nil {
 			return "", "", errors2.APIError{
-				Err:  fmt.Errorf("failed to parse form: %v", err),
-				Code: http.StatusBadRequest,
+				Err:        fmt.Errorf("failed to parse form: %v", err),
+				HTTPStatus: http.StatusBadRequest,
 			}
 		}
 		return req.PostForm.Get("username"), req.PostForm.Get("password"), nil
@@ -431,8 +439,8 @@ func parseLoginPostRequestBody(req *http.Request) (string, string, error) {
 		return params.Username, params.Password, nil
 	}
 	return "", "", errors2.APIError{
-		Message: fmt.Sprintf("unsupported content type: %s", reqContentType),
-		Code:    http.StatusBadRequest,
+		Message:    fmt.Sprintf("unsupported content type: %s", reqContentType),
+		HTTPStatus: http.StatusBadRequest,
 	}
 }
 
@@ -509,8 +517,8 @@ func (al *APIListener) handlePostVerify2FAToken(w http.ResponseWriter, req *http
 func (al *APIListener) parseAndValidate2FATokenRequest(req *http.Request) (username string, err error) {
 	if !al.config.API.IsTwoFAOn() {
 		return "", errors2.APIError{
-			Code:    http.StatusConflict,
-			Message: "2fa is disabled",
+			HTTPStatus: http.StatusConflict,
+			Message:    "2fa is disabled",
 		}
 	}
 
@@ -525,22 +533,22 @@ func (al *APIListener) parseAndValidate2FATokenRequest(req *http.Request) (usern
 
 	if al.bannedUsers.IsBanned(reqBody.Username) {
 		return reqBody.Username, errors2.APIError{
-			Code: http.StatusTooManyRequests,
-			Err:  ErrTooManyRequests,
+			HTTPStatus: http.StatusTooManyRequests,
+			Err:        ErrTooManyRequests,
 		}
 	}
 
 	if reqBody.Username == "" {
 		return "", errors2.APIError{
-			Code:    http.StatusUnauthorized,
-			Message: "username is required",
+			HTTPStatus: http.StatusUnauthorized,
+			Message:    "username is required",
 		}
 	}
 
 	if reqBody.Token == "" {
 		return reqBody.Username, errors2.APIError{
-			Code:    http.StatusUnauthorized,
-			Message: "token is required",
+			HTTPStatus: http.StatusUnauthorized,
+			Message:    "token is required",
 		}
 	}
 
@@ -573,7 +581,7 @@ func (al *APIListener) handleGetStatus(w http.ResponseWriter, req *http.Request)
 		"connect_url":            al.config.Server.URL,
 		"clients_auth_source":    al.clientAuthProvider.Source(),
 		"clients_auth_mode":      al.getClientsAuthMode(),
-		"users_auth_source":      al.usersService.ProviderType,
+		"users_auth_source":      al.usersService.GetProviderType(),
 		"two_fa_enabled":         al.config.API.IsTwoFAOn(),
 		"two_fa_delivery_method": twoFADelivery,
 	})
@@ -612,6 +620,24 @@ func (al *APIListener) handleGetClients(w http.ResponseWriter, req *http.Request
 
 	clientsPayload := convertToClientsPayload(cls)
 	al.writeJSONResponse(w, http.StatusOK, api.NewSuccessPayload(clientsPayload))
+}
+
+func (al *APIListener) handleGetClient(w http.ResponseWriter, req *http.Request) {
+	vars := mux.Vars(req)
+	clientID := vars[routeParamClientID]
+
+	client, err := al.clientService.GetByID(clientID)
+	if err != nil {
+		al.jsonError(w, err)
+		return
+	}
+	if client == nil {
+		al.jsonErrorResponseWithTitle(w, http.StatusNotFound, fmt.Sprintf("client with id %q not found", clientID))
+		return
+	}
+
+	clientPayload := convertToClientPayload(client)
+	al.writeJSONResponse(w, http.StatusOK, api.NewSuccessPayload(clientPayload))
 }
 
 type UserPayload struct {
@@ -721,39 +747,43 @@ type ClientPayload struct {
 func convertToClientsPayload(clients []*clients.Client) []ClientPayload {
 	r := make([]ClientPayload, 0, len(clients))
 	for _, cur := range clients {
-		r = append(r, ClientPayload{
-			ID:                     cur.ID,
-			Name:                   cur.Name,
-			OS:                     cur.OS,
-			OSArch:                 cur.OSArch,
-			OSFamily:               cur.OSFamily,
-			OSKernel:               cur.OSKernel,
-			Hostname:               cur.Hostname,
-			IPv4:                   cur.IPv4,
-			IPv6:                   cur.IPv6,
-			Tags:                   cur.Tags,
-			Version:                cur.Version,
-			Address:                cur.Address,
-			Tunnels:                cur.Tunnels,
-			DisconnectedAt:         cur.DisconnectedAt,
-			ConnectionState:        cur.ConnectionState(),
-			ClientAuthID:           cur.ClientAuthID,
-			OSFullName:             cur.OSFullName,
-			OSVersion:              cur.OSVersion,
-			OSVirtualizationSystem: cur.OSVirtualizationSystem,
-			OSVirtualizationRole:   cur.OSVirtualizationRole,
-			CPUFamily:              cur.CPUFamily,
-			CPUModel:               cur.CPUModel,
-			CPUModelName:           cur.CPUModelName,
-			CPUVendor:              cur.CPUVendor,
-			Timezone:               cur.Timezone,
-			NumCPUs:                cur.NumCPUs,
-			MemoryTotal:            cur.MemoryTotal,
-			AllowedUserGroups:      cur.AllowedUserGroups,
-			UpdatesStatus:          cur.UpdatesStatus,
-		})
+		r = append(r, convertToClientPayload(cur))
 	}
 	return r
+}
+
+func convertToClientPayload(client *clients.Client) ClientPayload {
+	return ClientPayload{
+		ID:                     client.ID,
+		Name:                   client.Name,
+		OS:                     client.OS,
+		OSArch:                 client.OSArch,
+		OSFamily:               client.OSFamily,
+		OSKernel:               client.OSKernel,
+		Hostname:               client.Hostname,
+		IPv4:                   client.IPv4,
+		IPv6:                   client.IPv6,
+		Tags:                   client.Tags,
+		Version:                client.Version,
+		Address:                client.Address,
+		Tunnels:                client.Tunnels,
+		DisconnectedAt:         client.DisconnectedAt,
+		ConnectionState:        client.ConnectionState(),
+		ClientAuthID:           client.ClientAuthID,
+		OSFullName:             client.OSFullName,
+		OSVersion:              client.OSVersion,
+		OSVirtualizationSystem: client.OSVirtualizationSystem,
+		OSVirtualizationRole:   client.OSVirtualizationRole,
+		CPUFamily:              client.CPUFamily,
+		CPUModel:               client.CPUModel,
+		CPUModelName:           client.CPUModelName,
+		CPUVendor:              client.CPUVendor,
+		Timezone:               client.Timezone,
+		NumCPUs:                client.NumCPUs,
+		MemoryTotal:            client.MemoryTotal,
+		AllowedUserGroups:      client.AllowedUserGroups,
+		UpdatesStatus:          client.UpdatesStatus,
+	}
 }
 
 func getCorrespondingSortFunc(sortStr string) (sortFunc func(a []*clients.Client, desc bool), desc bool, err error) {
@@ -835,8 +865,7 @@ const (
 	URISchemeMaxLength = 15
 
 	idleTimeoutMinutesQueryParam = "idle-timeout-minutes"
-	idleTimeoutMin               = 0
-	idleTimeoutMax               = 7 * 24 * 60 // week
+	skipIdleTimeoutQueryParam    = "skip-idle-timeout"
 
 	ErrCodeLocalPortInUse        = "ERR_CODE_LOCAL_PORT_IN_USE"
 	ErrCodeRemotePortNotOpen     = "ERR_CODE_REMOTE_PORT_NOT_OPEN"
@@ -844,7 +873,6 @@ const (
 	ErrCodeTunnelToPortExist     = "ERR_CODE_TUNNEL_TO_PORT_EXIST"
 	ErrCodeURISchemeLengthExceed = "ERR_CODE_URI_SCHEME_LENGTH_EXCEED"
 	ErrCodeInvalidACL            = "ERR_CODE_INVALID_ACL"
-	ErrCodeInvalidIdleTimeout    = "ERR_CODE_INVALID_IDLE_TIMEOUT"
 )
 
 func (al *APIListener) handlePutClientTunnel(w http.ResponseWriter, req *http.Request) {
@@ -878,20 +906,18 @@ func (al *APIListener) handlePutClientTunnel(w http.ResponseWriter, req *http.Re
 	}
 
 	idleTimeoutMinutesStr := req.URL.Query().Get(idleTimeoutMinutesQueryParam)
-	var idleTimeoutMinutes int
-	if idleTimeoutMinutesStr != "" {
-		idleTimeoutMinutes, err = strconv.Atoi(idleTimeoutMinutesStr)
-		if err != nil {
-			al.jsonErrorResponseWithError(w, http.StatusBadRequest, ErrCodeInvalidIdleTimeout, fmt.Sprintf("invalid %q param", idleTimeoutMinutesQueryParam), err)
-			return
-		}
-
-		if idleTimeoutMin > idleTimeoutMinutes || idleTimeoutMinutes > idleTimeoutMax {
-			al.jsonErrorResponseWithErrCode(w, http.StatusBadRequest, ErrCodeInvalidIdleTimeout, fmt.Sprintf("%q param should be in range [%d,%d]", idleTimeoutMinutesQueryParam, idleTimeoutMin, idleTimeoutMax))
-			return
-		}
+	skipIdleTimeout, err := strconv.ParseBool(req.URL.Query().Get(skipIdleTimeoutQueryParam))
+	if err != nil {
+		skipIdleTimeout = false
 	}
-	remote.IdleTimeoutMinutes = idleTimeoutMinutes
+
+	idleTimeout, err := validation.ResolveIdleTunnelTimeoutValue(idleTimeoutMinutesStr, skipIdleTimeout)
+	if err != nil {
+		al.jsonError(w, err)
+		return
+	}
+
+	remote.IdleTimeoutMinutes = int(idleTimeout.Minutes())
 
 	aclStr := req.URL.Query().Get("acl")
 	if _, err = clients.ParseTunnelACL(aclStr); err != nil {
@@ -951,7 +977,7 @@ func (al *APIListener) handlePutClientTunnel(w http.ResponseWriter, req *http.Re
 func (al *APIListener) checkLocalPort(w http.ResponseWriter, localPort string) bool {
 	lport, err := strconv.Atoi(localPort)
 	if err != nil {
-		al.jsonErrorResponseWithError(w, http.StatusBadRequest, "", fmt.Sprintf("Invalid port: %s.", localPort), err)
+		al.jsonErrorResponseWithError(w, http.StatusBadRequest, fmt.Sprintf("Invalid port: %s.", localPort), err)
 		return false
 	}
 
@@ -1102,7 +1128,7 @@ func (al *APIListener) handleChangeMe(w http.ResponseWriter, req *http.Request) 
 			return
 		}
 
-		if !verifyPassword(*curUser, r.OldPassword) {
+		if !verifyPassword(curUser.Password, r.OldPassword) {
 			al.jsonErrorResponseWithTitle(w, http.StatusForbidden, "Incorrect old password.")
 			return
 		}
@@ -1140,15 +1166,15 @@ func (al *APIListener) getUserModelForAuth(ctx context.Context) (*users.User, er
 	usr, err := al.getUserModel(ctx)
 	if err != nil {
 		return nil, errors2.APIError{
-			Err:  err,
-			Code: http.StatusInternalServerError,
+			Err:        err,
+			HTTPStatus: http.StatusInternalServerError,
 		}
 	}
 
 	if usr == nil {
 		return nil, errors2.APIError{
-			Message: "unauthorized access",
-			Code:    http.StatusUnauthorized,
+			Message:    "unauthorized access",
+			HTTPStatus: http.StatusUnauthorized,
 		}
 	}
 
@@ -1336,8 +1362,8 @@ func (al *APIListener) handleExecuteCommand(ctx context.Context, w http.Response
 		al.jsonErrorResponseWithTitle(w, http.StatusBadRequest, "Command cannot be empty.")
 		return
 	}
-	if err := validateShell(executeInput.Shell); err != nil {
-		al.jsonErrorResponseWithError(w, http.StatusBadRequest, "", "Invalid shell.", err)
+	if err := validateInterpreter(executeInput.Interpreter); err != nil {
+		al.jsonErrorResponseWithError(w, http.StatusBadRequest, "Invalid interpreter.", err)
 		return
 	}
 
@@ -1347,7 +1373,7 @@ func (al *APIListener) handleExecuteCommand(ctx context.Context, w http.Response
 
 	client, err := al.clientService.GetActiveByID(executeInput.ClientID)
 	if err != nil {
-		al.jsonErrorResponseWithError(w, http.StatusInternalServerError, "", fmt.Sprintf("Failed to find an active client with id=%q.", executeInput.ClientID), err)
+		al.jsonErrorResponseWithError(w, http.StatusInternalServerError, fmt.Sprintf("Failed to find an active client with id=%q.", executeInput.ClientID), err)
 		return
 	}
 	if client == nil {
@@ -1358,21 +1384,27 @@ func (al *APIListener) handleExecuteCommand(ctx context.Context, w http.Response
 	// send the command to the client
 	// Send a job with all possible info in order to get the full-populated job back (in client-listener) when it's done.
 	// Needed when server restarts to get all job data from client. Because on server restart job running info is lost.
+	jid, err := generateNewJobID()
+	if err != nil {
+		al.jsonError(w, err)
+		return
+	}
 	curJob := models.Job{
 		JobSummary: models.JobSummary{
-			JID:        generateNewJobID(),
+			JID:        jid,
 			FinishedAt: nil,
 		},
-		ClientID:   executeInput.ClientID,
-		ClientName: client.Name,
-		Command:    executeInput.Command,
-		Shell:      executeInput.Shell,
-		CreatedBy:  api.GetUser(ctx, al.Logger),
-		TimeoutSec: executeInput.TimeoutSec,
-		Result:     nil,
-		Cwd:        executeInput.Cwd,
-		IsSudo:     executeInput.IsSudo,
-		IsScript:   executeInput.IsScript,
+		ClientID:    executeInput.ClientID,
+		ClientName:  client.Name,
+		Command:     executeInput.Command,
+		Interpreter: executeInput.Interpreter,
+		CreatedBy:   api.GetUser(ctx, al.Logger),
+		TimeoutSec:  executeInput.TimeoutSec,
+		Result:      nil,
+		Cwd:         executeInput.Cwd,
+		IsSudo:      executeInput.IsSudo,
+		IsScript:    executeInput.IsScript,
+		HasShebang:  executeInput.HasShebang,
 	}
 	sshResp := &comm.RunCmdResponse{}
 	err = comm.SendRequestAndGetResponse(client.Connection, comm.RequestTypeRunCmd, curJob, sshResp)
@@ -1380,7 +1412,7 @@ func (al *APIListener) handleExecuteCommand(ctx context.Context, w http.Response
 		if _, ok := err.(*comm.ClientError); ok {
 			al.jsonErrorResponseWithTitle(w, http.StatusConflict, err.Error())
 		} else {
-			al.jsonErrorResponseWithError(w, http.StatusInternalServerError, "", "Failed to execute remote command.", err)
+			al.jsonErrorResponseWithError(w, http.StatusInternalServerError, "Failed to execute remote command.", err)
 		}
 		return
 	}
@@ -1391,7 +1423,7 @@ func (al *APIListener) handleExecuteCommand(ctx context.Context, w http.Response
 	curJob.Status = models.JobStatusRunning
 
 	if err := al.jobProvider.CreateJob(&curJob); err != nil {
-		al.jsonErrorResponseWithError(w, http.StatusInternalServerError, "", "Failed to persist a new job.", err)
+		al.jsonErrorResponseWithError(w, http.StatusInternalServerError, "Failed to persist a new job.", err)
 		return
 	}
 
@@ -1409,22 +1441,22 @@ func (al *APIListener) getClientForScriptExecution(clientID string) (*clients.Cl
 	client, err := al.clientService.GetActiveByID(clientID)
 	if err != nil {
 		return nil, errors2.APIError{
-			Message: fmt.Sprintf("Failed to find an active client with id=%q.", clientID),
-			Err:     err,
-			Code:    http.StatusInternalServerError,
+			Message:    fmt.Sprintf("Failed to find an active client with id=%q.", clientID),
+			Err:        err,
+			HTTPStatus: http.StatusInternalServerError,
 		}
 	}
 	if client == nil {
 		return nil, errors2.APIError{
-			Message: fmt.Sprintf("Active client with id=%q not found.", clientID),
-			Code:    http.StatusNotFound,
+			Message:    fmt.Sprintf("Active client with id=%q not found.", clientID),
+			HTTPStatus: http.StatusNotFound,
 		}
 	}
 
 	if client.Version != chshare.SourceVersion && client.Version < minVersionScriptExecSupport {
 		return nil, errors2.APIError{
-			Message: fmt.Sprintf("Script Execution is supported starting from %s version, current client version is %s.", minVersionScriptExecSupport, client.Version),
-			Code:    http.StatusBadRequest,
+			Message:    fmt.Sprintf("Script Execution is supported starting from %s version, current client version is %s.", minVersionScriptExecSupport, client.Version),
+			HTTPStatus: http.StatusBadRequest,
 		}
 	}
 
@@ -1476,20 +1508,21 @@ func (al *APIListener) handleExecuteScript(w http.ResponseWriter, req *http.Requ
 		return
 	}
 	execCmdInput.Command = scriptPath
+	execCmdInput.HasShebang = script.HasShebangLine(execCmdInput.Script)
 
 	al.handleExecuteCommand(req.Context(), w, execCmdInput)
 }
 
-func validateShell(shell string) error {
-	if shell == "" {
+func validateInterpreter(interpreter string) error {
+	if interpreter == "" {
 		return nil
 	}
-	for _, v := range validInputShell {
-		if shell == v {
+	for _, v := range validInputInterpreter {
+		if interpreter == v {
 			return nil
 		}
 	}
-	return fmt.Errorf("expected shell to be one of: %s, actual: %s", validInputShell, shell)
+	return fmt.Errorf("expected interpreter to be one of: %s, actual: %s", validInputInterpreter, interpreter)
 }
 
 func (al *APIListener) handleGetCommands(w http.ResponseWriter, req *http.Request) {
@@ -1502,7 +1535,7 @@ func (al *APIListener) handleGetCommands(w http.ResponseWriter, req *http.Reques
 
 	res, err := al.jobProvider.GetSummariesByClientID(cid)
 	if err != nil {
-		al.jsonErrorResponseWithError(w, http.StatusInternalServerError, "", fmt.Sprintf("Failed to get client jobs: client_id=%q.", cid), err)
+		al.jsonErrorResponseWithError(w, http.StatusInternalServerError, fmt.Sprintf("Failed to get client jobs: client_id=%q.", cid), err)
 		return
 	}
 
@@ -1525,7 +1558,7 @@ func (al *APIListener) handleGetCommand(w http.ResponseWriter, req *http.Request
 
 	job, err := al.jobProvider.GetByJID(cid, jid)
 	if err != nil {
-		al.jsonErrorResponseWithError(w, http.StatusInternalServerError, "", fmt.Sprintf("Failed to find a job[id=%q].", jid), err)
+		al.jsonErrorResponseWithError(w, http.StatusInternalServerError, fmt.Sprintf("Failed to find a job[id=%q].", jid), err)
 		return
 	}
 	if job == nil {
@@ -1548,12 +1581,13 @@ type multiClientCmdRequest struct {
 	Command             string   `json:"command"`
 	Script              string   `json:"script"`
 	Cwd                 string   `json:"cwd"`
-	IsSudo              bool     `json:"sudo"`
-	Shell               string   `json:"shell"`
+	IsSudo              bool     `json:"is_sudo"`
+	Interpreter         string   `json:"interpreter"`
 	TimeoutSec          int      `json:"timeout_sec"`
 	ExecuteConcurrently bool     `json:"execute_concurrently"`
 	AbortOnError        *bool    `json:"abort_on_error"` // pointer is used because it's default value is true. Otherwise it would be more difficult to check whether this field is missing or not
 	IsScript            bool
+	HasShebang          bool
 }
 
 // TODO: refactor to reuse similar code for REST API and WebSocket to execute cmds if both will be supported
@@ -1569,8 +1603,8 @@ func (al *APIListener) handlePostMultiClientCommand(w http.ResponseWriter, req *
 		al.jsonErrorResponseWithTitle(w, http.StatusBadRequest, "Command cannot be empty.")
 		return
 	}
-	if err := validateShell(reqBody.Shell); err != nil {
-		al.jsonErrorResponseWithError(w, http.StatusBadRequest, "", "Invalid shell.", err)
+	if err := validateInterpreter(reqBody.Interpreter); err != nil {
+		al.jsonErrorResponseWithError(w, http.StatusBadRequest, "Invalid interpreter.", err)
 		return
 	}
 
@@ -1613,24 +1647,29 @@ func (al *APIListener) handlePostMultiClientCommand(w http.ResponseWriter, req *
 		return
 	}
 
+	jid, err := generateNewJobID()
+	if err != nil {
+		al.jsonError(w, err)
+		return
+	}
 	multiJob := &models.MultiJob{
 		MultiJobSummary: models.MultiJobSummary{
-			JID:       generateNewJobID(),
+			JID:       jid,
 			StartedAt: time.Now(),
 			CreatedBy: curUser.Username,
 		},
-		ClientIDs:  reqBody.ClientIDs,
-		GroupIDs:   reqBody.GroupIDs,
-		Command:    reqBody.Command,
-		Shell:      reqBody.Shell,
-		Cwd:        reqBody.Cwd,
-		IsSudo:     reqBody.IsSudo,
-		TimeoutSec: reqBody.TimeoutSec,
-		Concurrent: reqBody.ExecuteConcurrently,
-		AbortOnErr: abortOnErr,
+		ClientIDs:   reqBody.ClientIDs,
+		GroupIDs:    reqBody.GroupIDs,
+		Command:     reqBody.Command,
+		Interpreter: reqBody.Interpreter,
+		Cwd:         reqBody.Cwd,
+		IsSudo:      reqBody.IsSudo,
+		TimeoutSec:  reqBody.TimeoutSec,
+		Concurrent:  reqBody.ExecuteConcurrently,
+		AbortOnErr:  abortOnErr,
 	}
 	if err := al.jobProvider.SaveMultiJob(multiJob); err != nil {
-		al.jsonErrorResponseWithError(w, http.StatusInternalServerError, "", "Failed to persist a new multi-client job.", err)
+		al.jsonErrorResponseWithError(w, http.StatusInternalServerError, "Failed to persist a new multi-client job.", err)
 		return
 	}
 
@@ -1656,17 +1695,17 @@ func (al *APIListener) getOrderedClients(
 		group, err := al.clientGroupProvider.Get(ctx, groupID)
 		if err != nil {
 			err = errors2.APIError{
-				Message: fmt.Sprintf("Failed to get a client group with id=%q.", groupID),
-				Err:     err,
-				Code:    http.StatusInternalServerError,
+				Message:    fmt.Sprintf("Failed to get a client group with id=%q.", groupID),
+				Err:        err,
+				HTTPStatus: http.StatusInternalServerError,
 			}
 			return orderedClients, groupClientsFoundCount, err
 		}
 		if group == nil {
 			err = errors2.APIError{
-				Message: fmt.Sprintf("Unknown group with id=%q.", groupID),
-				Err:     err,
-				Code:    http.StatusBadRequest,
+				Message:    fmt.Sprintf("Unknown group with id=%q.", groupID),
+				Err:        err,
+				HTTPStatus: http.StatusBadRequest,
 			}
 			return orderedClients, 0, err
 		}
@@ -1681,26 +1720,26 @@ func (al *APIListener) getOrderedClients(
 		client, err := al.clientService.GetByID(cid)
 		if err != nil {
 			err = errors2.APIError{
-				Message: fmt.Sprintf("Failed to find a client with id=%q.", cid),
-				Err:     err,
-				Code:    http.StatusInternalServerError,
+				Message:    fmt.Sprintf("Failed to find a client with id=%q.", cid),
+				Err:        err,
+				HTTPStatus: http.StatusInternalServerError,
 			}
 			return orderedClients, 0, err
 		}
 		if client == nil {
 			err = errors2.APIError{
-				Message: fmt.Sprintf("Client with id=%q not found.", cid),
-				Err:     err,
-				Code:    http.StatusNotFound,
+				Message:    fmt.Sprintf("Client with id=%q not found.", cid),
+				Err:        err,
+				HTTPStatus: http.StatusNotFound,
 			}
 			return orderedClients, 0, err
 		}
 
 		if client.DisconnectedAt != nil {
 			err = errors2.APIError{
-				Message: fmt.Sprintf("Client with id=%q is not active.", cid),
-				Err:     err,
-				Code:    http.StatusBadRequest,
+				Message:    fmt.Sprintf("Client with id=%q is not active.", cid),
+				Err:        err,
+				HTTPStatus: http.StatusBadRequest,
 			}
 
 			return orderedClients, 0, err
@@ -1721,7 +1760,11 @@ func (al *APIListener) getOrderedClients(
 	return orderedClients, groupClientsFoundCount, nil
 }
 
-func (al *APIListener) executeMultiClientJob(job *models.MultiJob, orderedClients []*clients.Client, clientIDCommandMap map[string]string) {
+func (al *APIListener) executeMultiClientJob(
+	job *models.MultiJob,
+	orderedClients []*clients.Client,
+	clientIDCommandMap map[string]string,
+) {
 	// for sequential execution - create a channel to get the job result
 	var curJobDoneChannel chan *models.Job
 	if !job.Concurrent {
@@ -1741,24 +1784,26 @@ func (al *APIListener) executeMultiClientJob(job *models.MultiJob, orderedClient
 			go al.createAndRunJob(
 				job.JID,
 				command,
-				job.Shell,
+				job.Interpreter,
 				job.CreatedBy,
 				job.Cwd,
 				job.TimeoutSec,
 				job.IsSudo,
 				job.IsScript,
+				job.HasShebang,
 				client,
 			)
 		} else {
 			success := al.createAndRunJob(
 				job.JID,
 				command,
-				job.Shell,
+				job.Interpreter,
 				job.CreatedBy,
 				job.Cwd,
 				job.TimeoutSec,
 				job.IsSudo,
 				job.IsScript,
+				job.HasShebang,
 				client,
 			)
 			if !success {
@@ -1786,30 +1831,36 @@ func (al *APIListener) executeMultiClientJob(job *models.MultiJob, orderedClient
 }
 
 func (al *APIListener) createAndRunJob(
-	jid, cmd, shell, createdBy, cwd string,
+	multiJobID, cmd, interpreter, createdBy, cwd string,
 	timeoutSec int,
-	isSudo, isScript bool,
+	isSudo, isScript, hasShebang bool,
 	client *clients.Client,
 ) bool {
+	jid, err := generateNewJobID()
+	if err != nil {
+		al.Errorf("multi_client_id=%q, client_id=%q, Could not generate job id: %v", multiJobID, client.ID, err)
+		return false
+	}
 	// send the command to the client
 	curJob := models.Job{
 		JobSummary: models.JobSummary{
-			JID: generateNewJobID(),
+			JID: jid,
 		},
-		StartedAt:  time.Now(),
-		ClientID:   client.ID,
-		ClientName: client.Name,
-		Command:    cmd,
-		Cwd:        cwd,
-		IsSudo:     isSudo,
-		IsScript:   isScript,
-		Shell:      shell,
-		CreatedBy:  createdBy,
-		TimeoutSec: timeoutSec,
-		MultiJobID: &jid,
+		StartedAt:   time.Now(),
+		ClientID:    client.ID,
+		ClientName:  client.Name,
+		Command:     cmd,
+		Cwd:         cwd,
+		IsSudo:      isSudo,
+		IsScript:    isScript,
+		Interpreter: interpreter,
+		CreatedBy:   createdBy,
+		TimeoutSec:  timeoutSec,
+		MultiJobID:  &multiJobID,
+		HasShebang:  hasShebang,
 	}
 	sshResp := &comm.RunCmdResponse{}
-	err := comm.SendRequestAndGetResponse(client.Connection, comm.RequestTypeRunCmd, curJob, sshResp)
+	err = comm.SendRequestAndGetResponse(client.Connection, comm.RequestTypeRunCmd, curJob, sshResp)
 	// return an error after saving the job
 	if err != nil {
 		// failure, set fields to mark it as failed
@@ -1867,8 +1918,8 @@ func (al *APIListener) createScriptOnMultipleClients(
 ) (clientsInGroupsCount int, clientIDCommandMap map[string]string, err error) {
 	if inboundMsg.Script == "" {
 		return 0, nil, errors2.APIError{
-			Message: "Missing script body",
-			Code:    http.StatusBadRequest,
+			Message:    "Missing script body",
+			HTTPStatus: http.StatusBadRequest,
 		}
 	}
 
@@ -1879,9 +1930,9 @@ func (al *APIListener) createScriptOnMultipleClients(
 	decodedScriptBytes, err := base64.StdEncoding.DecodeString(inboundMsg.Script)
 	if err != nil {
 		return 0, nil, errors2.APIError{
-			Err:     err,
-			Code:    http.StatusBadRequest,
-			Message: "failed to decode script payload from base64",
+			Err:        err,
+			HTTPStatus: http.StatusBadRequest,
+			Message:    "failed to decode script payload from base64",
 		}
 	}
 
@@ -1902,14 +1953,14 @@ func (al *APIListener) createScriptOnMultipleClients(
 	for _, cl := range orderedClients {
 		scriptPath, err := al.scriptManager.CreateScriptOnClient(
 			&api.ExecuteInput{
-				Command:    inboundMsg.Command,
-				Script:     inboundMsg.Script,
-				Shell:      inboundMsg.Shell,
-				Cwd:        inboundMsg.Cwd,
-				IsSudo:     inboundMsg.IsSudo,
-				TimeoutSec: inboundMsg.TimeoutSec,
-				ClientID:   cl.ID,
-				IsScript:   true,
+				Command:     inboundMsg.Command,
+				Script:      inboundMsg.Script,
+				Interpreter: inboundMsg.Interpreter,
+				Cwd:         inboundMsg.Cwd,
+				IsSudo:      inboundMsg.IsSudo,
+				TimeoutSec:  inboundMsg.TimeoutSec,
+				ClientID:    cl.ID,
+				IsScript:    true,
 			},
 			cl,
 		)
@@ -1944,9 +1995,10 @@ func (al *APIListener) handleScriptsWS(w http.ResponseWriter, req *http.Request)
 	}
 	clientsInGroupsCount, clientIDCommandMap, err := al.createScriptOnMultipleClients(ctx, inboundMsg)
 	if err != nil {
-		al.jsonError(w, err)
+		uiConnTS.WriteError("Failed to fetch clients", err)
 		return
 	}
+	inboundMsg.HasShebang = script.HasShebangLine(inboundMsg.Script)
 
 	al.handleCommandsExecutionWS(ctx, uiConnTS, inboundMsg, clientsInGroupsCount, clientIDCommandMap)
 }
@@ -1962,8 +2014,8 @@ func (al *APIListener) handleCommandsExecutionWS(
 		uiConnTS.WriteError("Command cannot be empty.", nil)
 		return
 	}
-	if err := validateShell(inboundMsg.Shell); err != nil {
-		uiConnTS.WriteError("Invalid shell.", err)
+	if err := validateInterpreter(inboundMsg.Interpreter); err != nil {
+		uiConnTS.WriteError("Invalid interpreter", err)
 		return
 	}
 
@@ -1993,7 +2045,11 @@ func (al *APIListener) handleCommandsExecutionWS(
 		return
 	}
 
-	jid := generateNewJobID()
+	jid, err := generateNewJobID()
+	if err != nil {
+		uiConnTS.WriteError("Could not generate job id.", err)
+		return
+	}
 	al.Server.uiJobWebSockets.Set(jid, uiConnTS)
 	defer al.Server.uiJobWebSockets.Delete(jid)
 
@@ -2011,16 +2067,17 @@ func (al *APIListener) handleCommandsExecutionWS(
 				StartedAt: time.Now(),
 				CreatedBy: createdBy,
 			},
-			ClientIDs:  inboundMsg.ClientIDs,
-			GroupIDs:   inboundMsg.GroupIDs,
-			Command:    inboundMsg.Command,
-			Cwd:        inboundMsg.Cwd,
-			Shell:      inboundMsg.Shell,
-			TimeoutSec: inboundMsg.TimeoutSec,
-			Concurrent: inboundMsg.ExecuteConcurrently,
-			AbortOnErr: abortOnErr,
-			IsSudo:     inboundMsg.IsSudo,
-			IsScript:   inboundMsg.IsScript,
+			ClientIDs:   inboundMsg.ClientIDs,
+			GroupIDs:    inboundMsg.GroupIDs,
+			Command:     inboundMsg.Command,
+			Cwd:         inboundMsg.Cwd,
+			Interpreter: inboundMsg.Interpreter,
+			TimeoutSec:  inboundMsg.TimeoutSec,
+			Concurrent:  inboundMsg.ExecuteConcurrently,
+			AbortOnErr:  abortOnErr,
+			IsSudo:      inboundMsg.IsSudo,
+			IsScript:    inboundMsg.IsScript,
+			HasShebang:  inboundMsg.HasShebang,
 		}
 		if err := al.jobProvider.SaveMultiJob(multiJob); err != nil {
 			uiConnTS.WriteError("Failed to persist a new multi-client job.", err)
@@ -2047,19 +2104,24 @@ func (al *APIListener) handleCommandsExecutionWS(
 				command = inboundMsg.Command
 			}
 
-			curJID := generateNewJobID()
+			curJID, err := generateNewJobID()
+			if err != nil {
+				uiConnTS.WriteError("Could not generate job id.", err)
+				return
+			}
 			if multiJob.Concurrent {
 				go al.createAndRunJobWS(
 					uiConnTS,
 					&jid,
 					curJID,
 					command,
-					multiJob.Shell,
+					multiJob.Interpreter,
 					createdBy,
 					multiJob.Cwd,
 					multiJob.TimeoutSec,
 					multiJob.IsSudo,
 					multiJob.IsScript,
+					multiJob.HasShebang,
 					client,
 				)
 			} else {
@@ -2068,12 +2130,13 @@ func (al *APIListener) handleCommandsExecutionWS(
 					&jid,
 					curJID,
 					command,
-					multiJob.Shell,
+					multiJob.Interpreter,
 					createdBy,
 					multiJob.Cwd,
 					multiJob.TimeoutSec,
 					multiJob.IsSudo,
 					multiJob.IsScript,
+					multiJob.HasShebang,
 					client,
 				)
 				if !success {
@@ -2103,12 +2166,13 @@ func (al *APIListener) handleCommandsExecutionWS(
 			nil,
 			jid,
 			command,
-			inboundMsg.Shell,
+			inboundMsg.Interpreter,
 			createdBy,
 			inboundMsg.Cwd,
 			inboundMsg.TimeoutSec,
 			inboundMsg.IsSudo,
 			inboundMsg.IsScript,
+			inboundMsg.HasShebang,
 			client,
 		)
 	}
@@ -2131,26 +2195,27 @@ func (al *APIListener) handleCommandsExecutionWS(
 func (al *APIListener) createAndRunJobWS(
 	uiConnTS *ws.ConcurrentWebSocket,
 	multiJobID *string,
-	jid, cmd, shell, createdBy, cwd string,
+	jid, cmd, interpreter, createdBy, cwd string,
 	timeoutSec int,
-	isSudo, isScript bool,
+	isSudo, isScript, hasShebang bool,
 	client *clients.Client,
 ) bool {
 	curJob := models.Job{
 		JobSummary: models.JobSummary{
 			JID: jid,
 		},
-		StartedAt:  time.Now(),
-		ClientID:   client.ID,
-		ClientName: client.Name,
-		Command:    cmd,
-		Shell:      shell,
-		CreatedBy:  createdBy,
-		TimeoutSec: timeoutSec,
-		MultiJobID: multiJobID,
-		Cwd:        cwd,
-		IsSudo:     isSudo,
-		IsScript:   isScript,
+		StartedAt:   time.Now(),
+		ClientID:    client.ID,
+		ClientName:  client.Name,
+		Command:     cmd,
+		Interpreter: interpreter,
+		CreatedBy:   createdBy,
+		TimeoutSec:  timeoutSec,
+		MultiJobID:  multiJobID,
+		Cwd:         cwd,
+		IsSudo:      isSudo,
+		IsScript:    isScript,
+		HasShebang:  hasShebang,
 	}
 	logPrefix := curJob.LogPrefix()
 
@@ -2199,7 +2264,7 @@ func (al *APIListener) handleGetMultiClientCommand(w http.ResponseWriter, req *h
 
 	job, err := al.jobProvider.GetMultiJob(jid)
 	if err != nil {
-		al.jsonErrorResponseWithError(w, http.StatusInternalServerError, "", fmt.Sprintf("Failed to find a multi-client job[id=%q].", jid), err)
+		al.jsonErrorResponseWithError(w, http.StatusInternalServerError, fmt.Sprintf("Failed to find a multi-client job[id=%q].", jid), err)
 		return
 	}
 	if job == nil {
@@ -2213,7 +2278,7 @@ func (al *APIListener) handleGetMultiClientCommand(w http.ResponseWriter, req *h
 func (al *APIListener) handleGetMultiClientCommands(w http.ResponseWriter, req *http.Request) {
 	res, err := al.jobProvider.GetAllMultiJobSummaries()
 	if err != nil {
-		al.jsonErrorResponseWithError(w, http.StatusInternalServerError, "", "Failed to get multi-client jobs.", err)
+		al.jsonErrorResponseWithError(w, http.StatusInternalServerError, "Failed to get multi-client jobs.", err)
 		return
 	}
 
@@ -2229,12 +2294,12 @@ func (al *APIListener) handlePostClientGroups(w http.ResponseWriter, req *http.R
 	}
 
 	if err := validateInputClientGroup(group); err != nil {
-		al.jsonErrorResponseWithError(w, http.StatusBadRequest, "", "Invalid client group.", err)
+		al.jsonErrorResponseWithError(w, http.StatusBadRequest, "Invalid client group.", err)
 		return
 	}
 
 	if err := al.clientGroupProvider.Create(req.Context(), &group); err != nil {
-		al.jsonErrorResponseWithError(w, http.StatusInternalServerError, "", "Failed to persist a new client group.", err)
+		al.jsonErrorResponseWithError(w, http.StatusInternalServerError, "Failed to persist a new client group.", err)
 		return
 	}
 
@@ -2263,12 +2328,12 @@ func (al *APIListener) handlePutClientGroup(w http.ResponseWriter, req *http.Req
 	}
 
 	if err := validateInputClientGroup(group); err != nil {
-		al.jsonErrorResponseWithError(w, http.StatusBadRequest, "", "Invalid client group.", err)
+		al.jsonErrorResponseWithError(w, http.StatusBadRequest, "Invalid client group.", err)
 		return
 	}
 
 	if err := al.clientGroupProvider.Update(req.Context(), &group); err != nil {
-		al.jsonErrorResponseWithError(w, http.StatusInternalServerError, "", "Failed to persist client group.", err)
+		al.jsonErrorResponseWithError(w, http.StatusInternalServerError, "Failed to persist client group.", err)
 		return
 	}
 
@@ -2304,7 +2369,7 @@ func (al *APIListener) handleGetClientGroup(w http.ResponseWriter, req *http.Req
 
 	group, err := al.clientGroupProvider.Get(req.Context(), id)
 	if err != nil {
-		al.jsonErrorResponseWithError(w, http.StatusInternalServerError, "", fmt.Sprintf("Failed to find client group[id=%q].", id), err)
+		al.jsonErrorResponseWithError(w, http.StatusInternalServerError, fmt.Sprintf("Failed to find client group[id=%q].", id), err)
 		return
 	}
 	if group == nil {
@@ -2325,7 +2390,7 @@ func (al *APIListener) handleGetClientGroup(w http.ResponseWriter, req *http.Req
 func (al *APIListener) handleGetClientGroups(w http.ResponseWriter, req *http.Request) {
 	res, err := al.clientGroupProvider.GetAll(req.Context())
 	if err != nil {
-		al.jsonErrorResponseWithError(w, http.StatusInternalServerError, "", "Failed to get client groups.", err)
+		al.jsonErrorResponseWithError(w, http.StatusInternalServerError, "Failed to get client groups.", err)
 		return
 	}
 
@@ -2365,7 +2430,7 @@ func (al *APIListener) handleDeleteClientGroup(w http.ResponseWriter, req *http.
 
 	err := al.clientGroupProvider.Delete(req.Context(), id)
 	if err != nil {
-		al.jsonErrorResponseWithError(w, http.StatusInternalServerError, "", fmt.Sprintf("Failed to delete client group[id=%q].", id), err)
+		al.jsonErrorResponseWithError(w, http.StatusInternalServerError, fmt.Sprintf("Failed to delete client group[id=%q].", id), err)
 		return
 	}
 
@@ -2375,10 +2440,10 @@ func (al *APIListener) handleDeleteClientGroup(w http.ResponseWriter, req *http.
 
 func (al *APIListener) wrapStaticPassModeMiddleware(next http.HandlerFunc) http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
-		if al.usersService.ProviderType == enums.ProviderSourceStatic {
+		if al.usersService.GetProviderType() == enums.ProviderSourceStatic {
 			al.jsonError(w, errors2.APIError{
-				Code:    http.StatusBadRequest,
-				Message: "server runs on a static user-password pair, please use JSON file or database for user data",
+				HTTPStatus: http.StatusBadRequest,
+				Message:    "server runs on a static user-password pair, please use JSON file or database for user data",
 			})
 			return
 		}
@@ -2409,7 +2474,7 @@ func (al *APIListener) wrapAdminAccessMiddleware(next http.HandlerFunc) http.Han
 				"current user should belong to %s group to access this resource",
 				users.Administrators,
 			),
-			Code: http.StatusForbidden,
+			HTTPStatus: http.StatusForbidden,
 		})
 	}
 }
@@ -2498,15 +2563,15 @@ func (al *APIListener) handleReadVaultValue(w http.ResponseWriter, req *http.Req
 	id, err := al.readIntParam(routeParamVaultValueID, req)
 	if err != nil {
 		al.jsonError(w, errors2.APIError{
-			Err:  err,
-			Code: http.StatusBadRequest,
+			Err:        err,
+			HTTPStatus: http.StatusBadRequest,
 		})
 		return
 	}
 	if id == 0 {
 		al.jsonError(w, errors2.APIError{
-			Err:  fmt.Errorf("missing %q route param", routeParamVaultValueID),
-			Code: http.StatusBadRequest,
+			Err:        fmt.Errorf("missing %q route param", routeParamVaultValueID),
+			HTTPStatus: http.StatusBadRequest,
 		})
 		return
 	}
@@ -2534,8 +2599,8 @@ func (al *APIListener) handleVaultStoreValue(w http.ResponseWriter, req *http.Re
 	id, err := al.readIntParam(routeParamVaultValueID, req)
 	if err != nil {
 		al.jsonError(w, errors2.APIError{
-			Err:  err,
-			Code: http.StatusBadRequest,
+			Err:        err,
+			HTTPStatus: http.StatusBadRequest,
 		})
 		return
 	}
@@ -2572,15 +2637,15 @@ func (al *APIListener) handleVaultDeleteValue(w http.ResponseWriter, req *http.R
 	id, err := al.readIntParam(routeParamVaultValueID, req)
 	if err != nil {
 		al.jsonError(w, errors2.APIError{
-			Err:  err,
-			Code: http.StatusBadRequest,
+			Err:        err,
+			HTTPStatus: http.StatusBadRequest,
 		})
 		return
 	}
 	if id == 0 {
 		al.jsonError(w, errors2.APIError{
-			Err:  fmt.Errorf("missing %q route param", routeParamVaultValueID),
-			Code: http.StatusBadRequest,
+			Err:        fmt.Errorf("missing %q route param", routeParamVaultValueID),
+			HTTPStatus: http.StatusBadRequest,
 		})
 		return
 	}
@@ -2670,8 +2735,8 @@ func (al *APIListener) handleReadScript(w http.ResponseWriter, req *http.Request
 	idStr := vars[routeParamScriptValueID]
 	if idStr == "" {
 		al.jsonError(w, errors2.APIError{
-			Err:  errors.New("empty script id provided"),
-			Code: http.StatusBadRequest,
+			Err:        errors.New("empty script id provided"),
+			HTTPStatus: http.StatusBadRequest,
 		})
 		return
 	}
@@ -2694,8 +2759,8 @@ func (al *APIListener) handleDeleteScript(w http.ResponseWriter, req *http.Reque
 	idStr := vars[routeParamScriptValueID]
 	if idStr == "" {
 		al.jsonError(w, errors2.APIError{
-			Err:  errors.New("empty script id provided"),
-			Code: http.StatusBadRequest,
+			Err:        errors.New("empty script id provided"),
+			HTTPStatus: http.StatusBadRequest,
 		})
 		return
 	}
@@ -2715,16 +2780,16 @@ func parseRequestBody(reqBody io.ReadCloser, dest interface{}) error {
 	err := dec.Decode(dest)
 	if err == io.EOF { // is handled separately to return an informative error message
 		return errors2.APIError{
-			Message: "Missing body with json data.",
-			Code:    http.StatusBadRequest,
+			Message:    "Missing body with json data.",
+			HTTPStatus: http.StatusBadRequest,
 		}
 	}
 
 	if err != nil {
 		return errors2.APIError{
-			Message: "Invalid JSON data.",
-			Err:     err,
-			Code:    http.StatusBadRequest,
+			Message:    "Invalid JSON data.",
+			Err:        err,
+			HTTPStatus: http.StatusBadRequest,
 		}
 	}
 
@@ -2802,24 +2867,31 @@ func (al *APIListener) handlePostMultiClientScript(w http.ResponseWriter, req *h
 		return
 	}
 
+	jid, err := generateNewJobID()
+	if err != nil {
+		al.jsonError(w, err)
+		return
+	}
+
 	multiJob := &models.MultiJob{
 		MultiJobSummary: models.MultiJobSummary{
-			JID:       generateNewJobID(),
+			JID:       jid,
 			StartedAt: time.Now(),
 			CreatedBy: curUser.Username,
 		},
-		ClientIDs:  inboundMsg.ClientIDs,
-		GroupIDs:   inboundMsg.GroupIDs,
-		Command:    inboundMsg.Command,
-		Shell:      inboundMsg.Shell,
-		Cwd:        inboundMsg.Cwd,
-		IsSudo:     inboundMsg.IsSudo,
-		TimeoutSec: inboundMsg.TimeoutSec,
-		Concurrent: inboundMsg.ExecuteConcurrently,
-		AbortOnErr: abortOnErr,
+		ClientIDs:   inboundMsg.ClientIDs,
+		GroupIDs:    inboundMsg.GroupIDs,
+		Command:     inboundMsg.Command,
+		Interpreter: inboundMsg.Interpreter,
+		Cwd:         inboundMsg.Cwd,
+		IsSudo:      inboundMsg.IsSudo,
+		TimeoutSec:  inboundMsg.TimeoutSec,
+		Concurrent:  inboundMsg.ExecuteConcurrently,
+		AbortOnErr:  abortOnErr,
+		HasShebang:  script.HasShebangLine(inboundMsg.Script),
 	}
 	if err := al.jobProvider.SaveMultiJob(multiJob); err != nil {
-		al.jsonErrorResponseWithError(w, http.StatusInternalServerError, "", "Failed to persist a new multi-client job.", err)
+		al.jsonErrorResponseWithError(w, http.StatusInternalServerError, "Failed to persist a new multi-client job.", err)
 		return
 	}
 
@@ -2831,4 +2903,52 @@ func (al *APIListener) handlePostMultiClientScript(w http.ResponseWriter, req *h
 	al.Debugf("Multi-client Job[id=%q] created to execute remote command on clients %s, groups %s: %q.", multiJob.JID, inboundMsg.ClientIDs, inboundMsg.GroupIDs, inboundMsg.Command)
 
 	go al.executeMultiClientJob(multiJob, inboundMsg.OrderedClients, clientIDCommandMap)
+}
+
+type postTokenResponse struct {
+	Token string `json:"token"`
+}
+
+func (al *APIListener) handlePostToken(w http.ResponseWriter, req *http.Request) {
+	curUser, err := al.getUserModelForAuth(req.Context())
+	if err != nil {
+		al.jsonError(w, err)
+		return
+	}
+
+	newToken, err := random.UUID4()
+	if err != nil {
+		al.jsonError(w, err)
+		return
+	}
+
+	if err := al.usersService.Change(&users.User{
+		Token: &newToken,
+	}, curUser.Username); err != nil {
+		al.jsonError(w, err)
+		return
+	}
+
+	resp := postTokenResponse{
+		Token: newToken,
+	}
+	al.writeJSONResponse(w, http.StatusOK, api.NewSuccessPayload(resp))
+}
+
+func (al *APIListener) handleDeleteToken(w http.ResponseWriter, req *http.Request) {
+	curUser, err := al.getUserModelForAuth(req.Context())
+	if err != nil {
+		al.jsonError(w, err)
+		return
+	}
+
+	noToken := ""
+	if err := al.usersService.Change(&users.User{
+		Token: &noToken,
+	}, curUser.Username); err != nil {
+		al.jsonError(w, err)
+		return
+	}
+
+	w.WriteHeader(http.StatusNoContent)
 }

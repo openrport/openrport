@@ -264,8 +264,8 @@ func (s *ClientService) startClientTunnels(client *clients.Client, remotes []*ch
 		t, err := client.StartTunnel(remote, acl)
 		if err != nil {
 			return nil, errors.APIError{
-				Code: http.StatusConflict,
-				Err:  fmt.Errorf("can't create tunnel: %s", err),
+				HTTPStatus: http.StatusConflict,
+				Err:        fmt.Errorf("can't create tunnel: %s", err),
 			}
 		}
 		tunnels = append(tunnels, t)
@@ -277,23 +277,23 @@ func (s *ClientService) checkLocalPort(port string) error {
 	localPort, err := strconv.Atoi(port)
 	if err != nil {
 		return errors.APIError{
-			Code:    http.StatusBadRequest,
-			Message: fmt.Sprintf("Invalid local port: %s.", port),
-			Err:     err,
+			HTTPStatus: http.StatusBadRequest,
+			Message:    fmt.Sprintf("Invalid local port: %s.", port),
+			Err:        err,
 		}
 	}
 
 	if !s.portDistributor.IsPortAllowed(localPort) {
 		return errors.APIError{
-			Code:    http.StatusBadRequest,
-			Message: fmt.Sprintf("Local port %d is not among allowed ports.", localPort),
+			HTTPStatus: http.StatusBadRequest,
+			Message:    fmt.Sprintf("Local port %d is not among allowed ports.", localPort),
 		}
 	}
 
 	if s.portDistributor.IsPortBusy(localPort) {
 		return errors.APIError{
-			Code:    http.StatusConflict,
-			Message: fmt.Sprintf("Local port %d already in use.", localPort),
+			HTTPStatus: http.StatusConflict,
+			Message:    fmt.Sprintf("Local port %d already in use.", localPort),
 		}
 	}
 
@@ -342,8 +342,8 @@ func (s *ClientService) DeleteOffline(clientID string) error {
 
 	if existing.DisconnectedAt == nil {
 		return errors.APIError{
-			Message: "Client is active, should be disconnected",
-			Code:    http.StatusBadRequest,
+			Message:    "Client is active, should be disconnected",
+			HTTPStatus: http.StatusBadRequest,
 		}
 	}
 
@@ -409,8 +409,8 @@ func (s *ClientService) CheckClientsAccess(clients []*clients.Client, user clien
 
 	if len(clientsWithNoAccess) > 0 {
 		return errors.APIError{
-			Message: fmt.Sprintf("Access denied to client(s) with ID(s): %v", strings.Join(clientsWithNoAccess, ", ")),
-			Code:    http.StatusForbidden,
+			Message:    fmt.Sprintf("Access denied to client(s) with ID(s): %v", strings.Join(clientsWithNoAccess, ", ")),
+			HTTPStatus: http.StatusForbidden,
 		}
 	}
 
@@ -421,8 +421,8 @@ func (s *ClientService) CheckClientsAccess(clients []*clients.Client, user clien
 func (s *ClientService) getExistingByID(clientID string) (*clients.Client, error) {
 	if clientID == "" {
 		return nil, errors.APIError{
-			Message: "Client id is empty",
-			Code:    http.StatusBadRequest,
+			Message:    "Client id is empty",
+			HTTPStatus: http.StatusBadRequest,
 		}
 	}
 
@@ -433,8 +433,8 @@ func (s *ClientService) getExistingByID(clientID string) (*clients.Client, error
 
 	if existing == nil {
 		return nil, errors.APIError{
-			Message: fmt.Sprintf("Client with id=%q not found.", clientID),
-			Code:    http.StatusNotFound,
+			Message:    fmt.Sprintf("Client with id=%q not found.", clientID),
+			HTTPStatus: http.StatusNotFound,
 		}
 	}
 

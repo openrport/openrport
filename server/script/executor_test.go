@@ -57,5 +57,13 @@ func TestCreateScriptOnClient(t *testing.T) {
 	assert.True(t, strings.HasSuffix(fileInput.Name, ".sh"))
 	assert.Equal(t, "pwd", string(fileInput.Content))
 	assert.EqualValues(t, 0744, fileInput.Mode)
-	assert.True(t, fileInput.CreateDir)
+}
+
+func TestParsingShebangLine(t *testing.T) {
+	withShebang := `#!/bin/cat
+Hello world!`
+	withoutShebang := "echo 123"
+
+	assert.True(t, HasShebangLine(withShebang))
+	assert.False(t, HasShebangLine(withoutShebang))
 }

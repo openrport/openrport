@@ -24,24 +24,24 @@ func NewPushoverService(apiToken string) *PushoverService {
 
 const pushoverAPISuccessStatus = 1
 
-func (s *PushoverService) Send(ctx context.Context, title, msg, receiver string) error {
-	pMsg := pushover.NewMessageWithTitle(msg, title)
-	pReceiver := pushover.NewRecipient(receiver)
+func (s *PushoverService) Send(ctx context.Context, data Data) error {
+	pMsg := pushover.NewMessageWithTitle(data.Message, data.Title)
+	pReceiver := pushover.NewRecipient(data.SendTo)
 	// TODO: pass ctx when pushover lib will support it
 	resp, err := s.p.SendMessage(pMsg, pReceiver)
 	if err != nil {
 		// ErrHTTPPushover means pushover API call returned 5xx
 		if errors.Is(err, pushover.ErrHTTPPushover) {
 			return errors2.APIError{
-				Message: "pushover service unavailable",
-				Code:    http.StatusServiceUnavailable,
+				Message:    "pushover service unavailable",
+				HTTPStatus: http.StatusServiceUnavailable,
 			}
 		}
 
 		if is400(err) {
 			return errors2.APIError{
-				Err:  err,
-				Code: http.StatusBadRequest,
+				Err:        err,
+				HTTPStatus: http.StatusBadRequest,
 			}
 		}
 

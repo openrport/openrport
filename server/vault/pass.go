@@ -29,7 +29,7 @@ func (apm *Aes256PassManager) ValidatePass(passToCheck string) error {
 				minPassLengthBytes,
 				len(passToCheck),
 			),
-			Code: http.StatusBadRequest,
+			HTTPStatus: http.StatusBadRequest,
 		}
 	}
 
@@ -40,7 +40,7 @@ func (apm *Aes256PassManager) ValidatePass(passToCheck string) error {
 				maxPassLengthBytes,
 				len(passToCheck),
 			),
-			Code: http.StatusBadRequest,
+			HTTPStatus: http.StatusBadRequest,
 		}
 	}
 

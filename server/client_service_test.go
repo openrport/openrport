@@ -118,24 +118,24 @@ func TestDeleteOfflineClient(t *testing.T) {
 			name:     "delete active client",
 			clientID: c1Active.ID,
 			wantError: errors2.APIError{
-				Message: "Client is active, should be disconnected",
-				Code:    http.StatusBadRequest,
+				Message:    "Client is active, should be disconnected",
+				HTTPStatus: http.StatusBadRequest,
 			},
 		},
 		{
 			name:     "delete unknown client",
 			clientID: "unknown-id",
 			wantError: errors2.APIError{
-				Message: fmt.Sprintf("Client with id=%q not found.", "unknown-id"),
-				Code:    http.StatusNotFound,
+				Message:    fmt.Sprintf("Client with id=%q not found.", "unknown-id"),
+				HTTPStatus: http.StatusNotFound,
 			},
 		},
 		{
 			name:     "empty client ID",
 			clientID: "",
 			wantError: errors2.APIError{
-				Message: "Client id is empty",
-				Code:    http.StatusBadRequest,
+				Message:    "Client id is empty",
+				HTTPStatus: http.StatusBadRequest,
 			},
 		},
 	}
@@ -191,25 +191,25 @@ func TestCheckLocalPort(t *testing.T) {
 			name: "invalid port",
 			port: invalidPort,
 			wantError: errors2.APIError{
-				Message: "Invalid local port: 24563a.",
-				Err:     invalidPortParseErr,
-				Code:    http.StatusBadRequest,
+				Message:    "Invalid local port: 24563a.",
+				Err:        invalidPortParseErr,
+				HTTPStatus: http.StatusBadRequest,
 			},
 		},
 		{
 			name: "not allowed port",
 			port: "6",
 			wantError: errors2.APIError{
-				Message: "Local port 6 is not among allowed ports.",
-				Code:    http.StatusBadRequest,
+				Message:    "Local port 6 is not among allowed ports.",
+				HTTPStatus: http.StatusBadRequest,
 			},
 		},
 		{
 			name: "busy port",
 			port: "5",
 			wantError: errors2.APIError{
-				Message: "Local port 5 already in use.",
-				Code:    http.StatusConflict,
+				Message:    "Local port 5 already in use.",
+				HTTPStatus: http.StatusConflict,
 			},
 		},
 	}
@@ -295,8 +295,8 @@ func TestCheckClientsAccess(t *testing.T) {
 			// then
 			if len(tc.wantClientIDsWithNoAccess) > 0 {
 				wantErr := errors2.APIError{
-					Message: fmt.Sprintf("Access denied to client(s) with ID(s): %v", strings.Join(tc.wantClientIDsWithNoAccess, ", ")),
-					Code:    http.StatusForbidden,
+					Message:    fmt.Sprintf("Access denied to client(s) with ID(s): %v", strings.Join(tc.wantClientIDsWithNoAccess, ", ")),
+					HTTPStatus: http.StatusForbidden,
 				}
 				assert.Equal(t, wantErr, gotErr)
 			} else {

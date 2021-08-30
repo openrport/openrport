@@ -14,12 +14,6 @@ import (
 	"github.com/cloudradar-monitoring/rport/share/models"
 )
 
-var packageManagers = []PackageManager{
-	NewZypperPackageManager(),
-	NewYumPackageManager(),
-	NewAptPackageManager(),
-}
-
 type PackageManager interface {
 	IsAvailable(context.Context) bool
 	GetUpdatesStatus(context.Context, *chshare.Logger) (*models.UpdatesStatus, error)

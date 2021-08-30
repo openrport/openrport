@@ -11,7 +11,9 @@ import (
 	"net/http"
 	"net/smtp"
 	"net/url"
+	"os/exec"
 	"path"
+	"regexp"
 	"strings"
 	"time"
 
@@ -25,25 +27,48 @@ import (
 )
 
 type APIConfig struct {
-	Address              string  `mapstructure:"address"`
-	Auth                 string  `mapstructure:"auth"`
-	AuthFile             string  `mapstructure:"auth_file"`
-	AuthUserTable        string  `mapstructure:"auth_user_table"`
-	AuthGroupTable       string  `mapstructure:"auth_group_table"`
-	JWTSecret            string  `mapstructure:"jwt_secret"`
-	DocRoot              string  `mapstructure:"doc_root"`
-	CertFile             string  `mapstructure:"cert_file"`
-	KeyFile              string  `mapstructure:"key_file"`
-	AccessLogFile        string  `mapstructure:"access_log_file"`
-	UserLoginWait        float32 `mapstructure:"user_login_wait"`
-	MaxFailedLogin       int     `mapstructure:"max_failed_login"`
-	BanTime              int     `mapstructure:"ban_time"`
-	TwoFATokenDelivery   string  `mapstructure:"two_fa_token_delivery"`
-	TwoFATokenTTLSeconds int     `mapstructure:"two_fa_token_ttl_seconds"`
+	Address        string  `mapstructure:"address"`
+	Auth           string  `mapstructure:"auth"`
+	AuthFile       string  `mapstructure:"auth_file"`
+	AuthUserTable  string  `mapstructure:"auth_user_table"`
+	AuthGroupTable string  `mapstructure:"auth_group_table"`
+	JWTSecret      string  `mapstructure:"jwt_secret"`
+	DocRoot        string  `mapstructure:"doc_root"`
+	CertFile       string  `mapstructure:"cert_file"`
+	KeyFile        string  `mapstructure:"key_file"`
+	AccessLogFile  string  `mapstructure:"access_log_file"`
+	UserLoginWait  float32 `mapstructure:"user_login_wait"`
+	MaxFailedLogin int     `mapstructure:"max_failed_login"`
+	BanTime        int     `mapstructure:"ban_time"`
+
+	TwoFATokenDelivery       string                 `mapstructure:"two_fa_token_delivery"`
+	TwoFATokenTTLSeconds     int                    `mapstructure:"two_fa_token_ttl_seconds"`
+	TwoFASendTimeout         time.Duration          `mapstructure:"two_fa_send_timeout"`
+	TwoFASendToType          message.ValidationType `mapstructure:"two_fa_send_to_type"`
+	TwoFASendToRegex         string                 `mapstructure:"two_fa_send_to_regex"`
+	twoFASendToRegexCompiled *regexp.Regexp
 }
 
 func (c *APIConfig) IsTwoFAOn() bool {
 	return c.TwoFATokenDelivery != ""
+}
+
+func (c *APIConfig) parseAndValidate2FASendToType() error {
+	if c.TwoFASendToType != message.ValidationNone &&
+		c.TwoFASendToType != message.ValidationEmail &&
+		c.TwoFASendToType != message.ValidationRegex {
+		return fmt.Errorf("invalid api.two_fa_send_to_type: %q", c.TwoFASendToType)
+	}
+
+	if c.TwoFASendToType == message.ValidationRegex {
+		regex, err := regexp.Compile(c.TwoFASendToRegex)
+		if err != nil {
+			return fmt.Errorf("invalid api.two_fa_send_to_regex: %v", err)
+		}
+		c.twoFASendToRegexCompiled = regex
+	}
+
+	return nil
 }
 
 const (
@@ -328,6 +353,11 @@ func (c *Config) parseAndValidate2FA() error {
 		return c.Pushover.Validate()
 	case "smtp":
 		return c.SMTP.Validate()
+	default:
+		// if the setting is a valid executable we set script delivery
+		if _, err := exec.LookPath(c.API.TwoFATokenDelivery); err == nil {
+			return c.API.parseAndValidate2FASendToType()
+		}
 	}
 
 	return fmt.Errorf("unknown 2fa token delivery method: %s", c.API.TwoFATokenDelivery)

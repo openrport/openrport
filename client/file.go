@@ -18,11 +18,16 @@ import (
 )
 
 const DefaultFileMode = os.FileMode(0540)
-const DefaultDirMode = os.FileMode(0740)
+const DefaultDirMode = os.FileMode(0700)
 
 func (c *Client) HandleCreateFileRequest(ctx context.Context, reqPayload []byte) (*comm.CreateFileResponse, error) {
 	if !c.config.RemoteScripts.Enabled {
 		return nil, errors.New("remote scripts are disabled")
+	}
+
+	err := ValidateScriptDir(c.config.RemoteScripts.Dir)
+	if err != nil {
+		return nil, err
 	}
 
 	fileInput := models.File{}
@@ -30,7 +35,7 @@ func (c *Client) HandleCreateFileRequest(ctx context.Context, reqPayload []byte)
 	fileContentBuf := bytes.NewBuffer(reqPayload)
 	dec := json.NewDecoder(fileContentBuf)
 	dec.DisallowUnknownFields()
-	err := dec.Decode(&fileInput)
+	err = dec.Decode(&fileInput)
 	if err != nil {
 		return nil, err
 	}
@@ -43,16 +48,10 @@ func (c *Client) HandleCreateFileRequest(ctx context.Context, reqPayload []byte)
 		fileInput.Mode = DefaultFileMode
 	}
 
-	baseDir := filepath.Dir(fileInput.Name)
-	if baseDir == "." || baseDir == string(os.PathSeparator) {
-		baseDir = os.TempDir()
-		fileInput.Name = filepath.Join(baseDir, filepath.Base(fileInput.Name))
-	} else if fileInput.CreateDir {
-		err = os.MkdirAll(baseDir, DefaultDirMode)
-		if err != nil {
-			return nil, err
-		}
-	}
+	scriptFileName := filepath.Base(fileInput.Name)
+	scriptDirName := c.config.RemoteScripts.Dir
+
+	fileInput.Name = filepath.Join(scriptDirName, scriptFileName)
 
 	err = ioutil.WriteFile(fileInput.Name, fileInput.Content, fileInput.Mode)
 	if err != nil {

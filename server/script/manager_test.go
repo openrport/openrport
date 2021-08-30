@@ -382,8 +382,8 @@ func TestDeleteScript(t *testing.T) {
 		require.Equal(
 			t,
 			errors2.APIError{
-				Message: "cannot find this entry by the provided id",
-				Code:    http.StatusNotFound,
+				Message:    "cannot find this entry by the provided id",
+				HTTPStatus: http.StatusNotFound,
 			},
 			err,
 		)
@@ -400,8 +400,8 @@ func TestDeleteScript(t *testing.T) {
 		require.Equal(
 			t,
 			errors2.APIError{
-				Err:  readErr,
-				Code: http.StatusInternalServerError,
+				Err:        readErr,
+				HTTPStatus: http.StatusInternalServerError,
 			},
 			err,
 		)

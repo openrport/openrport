@@ -30,7 +30,7 @@ type ErrorPayloadItem struct {
 	Detail string `json:"detail"`
 }
 
-func NewErrorPayloadWithCode(code, title, detail string) ErrorPayload {
+func NewErrAPIPayloadFromMessage(code, title, detail string) ErrorPayload {
 	return ErrorPayload{
 		Errors: []ErrorPayloadItem{
 			{
@@ -42,7 +42,7 @@ func NewErrorPayloadWithCode(code, title, detail string) ErrorPayload {
 	}
 }
 
-func NewErrorPayload(err error) ErrorPayload {
+func NewErrAPIPayloadFromError(err error, code, detail string) ErrorPayload {
 	var apiErr errors2.APIError
 	var apiErrs errors2.APIErrors
 	switch {
@@ -52,7 +52,7 @@ func NewErrorPayload(err error) ErrorPayload {
 		return newAPIErrorsPayload(apiErrs)
 	}
 
-	return NewErrorPayloadWithCode("", err.Error(), "")
+	return NewErrAPIPayloadFromMessage(code, err.Error(), detail)
 }
 
 func newAPIErrorPayload(err errors2.APIError) ErrorPayload {
@@ -85,12 +85,13 @@ func newAPIErrorsPayload(errors errors2.APIErrors) ErrorPayload {
 }
 
 type ExecuteInput struct {
-	Command    string `json:"command"`
-	Script     string `json:"script"`
-	Shell      string `json:"shell"`
-	Cwd        string `json:"cwd"`
-	IsSudo     bool   `json:"bool"`
-	TimeoutSec int    `json:"timeout_sec"`
-	ClientID   string
-	IsScript   bool
+	Command     string `json:"command"`
+	Script      string `json:"script"`
+	Interpreter string `json:"interpreter"`
+	Cwd         string `json:"cwd"`
+	IsSudo      bool   `json:"is_sudo"`
+	TimeoutSec  int    `json:"timeout_sec"`
+	ClientID    string
+	IsScript    bool
+	HasShebang  bool
 }

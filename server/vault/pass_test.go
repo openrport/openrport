@@ -45,7 +45,7 @@ func TestInvalidPasswords(t *testing.T) {
 		apiErr, ok := err.(errors.APIError)
 		require.True(t, ok)
 		assert.Equal(t, testCases[i].ExpectedError, apiErr.Message)
-		assert.Equal(t, testCases[i].ExpectedCode, apiErr.Code)
+		assert.Equal(t, testCases[i].ExpectedCode, apiErr.HTTPStatus)
 	}
 }
 

@@ -4,7 +4,7 @@ import (
 	"math/rand"
 	"time"
 
-	uuid "github.com/satori/go.uuid"
+	"github.com/google/uuid"
 )
 
 const (
@@ -43,6 +43,10 @@ func String(n int, chars string) string {
 }
 
 // UUID4 returns a random generated UUID4.
-func UUID4() string {
-	return uuid.NewV4().String()
+var UUID4 = func() (string, error) {
+	uuid, err := uuid.NewRandom()
+	if err != nil {
+		return "", err
+	}
+	return uuid.String(), nil
 }

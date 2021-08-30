@@ -42,7 +42,7 @@ func (e *CmdExecutorMock) New(ctx context.Context, execCtx *CmdExecutorContext) 
 	}
 
 	args = append(args, execCtx.Command)
-	cmd := exec.CommandContext(ctx, execCtx.Shell, args...)
+	cmd := exec.CommandContext(ctx, execCtx.Interpreter, args...)
 	cmd.Dir = execCtx.WorkingDir
 	return cmd
 }
@@ -116,7 +116,7 @@ const jobToRunJSON = `
 	"command": "/bin/date;foo;whoami",
 	"created_by": "admin",
 	"timeout_sec": 60,
-	"sudo": true,
+	"is_sudo": true,
 	"cwd": "/root"
 }
 `
@@ -129,71 +129,92 @@ const scriptToRunJSON = `
 }
 `
 
-func TestGetShell(t *testing.T) {
+func TestGetInterpreter(t *testing.T) {
 	win := "windows"
 	unix := "linux"
 	testCases := []struct {
 		name            string
-		shell           string
+		interpreter     string
 		os              string
-		wantShell       string
+		wantInterpreter string
 		wantErrContains string
+		boolHasShebang  bool
 	}{
 		{
 			name:            "windows, empty",
-			shell:           "",
+			interpreter:     "",
 			os:              win,
-			wantShell:       cmdShell,
+			wantInterpreter: cmdShell,
 			wantErrContains: "",
 		},
 		{
 			name:            "windows, cmd",
-			shell:           cmdShell,
+			interpreter:     cmdShell,
 			os:              win,
-			wantShell:       cmdShell,
+			wantInterpreter: cmdShell,
 			wantErrContains: "",
 		},
 		{
 			name:            "windows, powershell",
-			shell:           powerShell,
+			interpreter:     powerShell,
 			os:              win,
-			wantShell:       powerShell,
+			wantInterpreter: powerShell,
 			wantErrContains: "",
 		},
 		{
-			name:            "windows, invalid shell",
-			shell:           "unsupported",
+			name:            "windows, invalid interpreter",
+			interpreter:     "unsupported",
 			os:              win,
-			wantShell:       "",
-			wantErrContains: "invalid windows command shell",
+			wantInterpreter: "",
+			wantErrContains: "invalid windows command interpreter",
 		},
 		{
 			name:            "unix, empty",
-			shell:           "",
+			interpreter:     "",
 			os:              unix,
-			wantShell:       unixShell,
+			wantInterpreter: unixShell,
 			wantErrContains: "",
 		},
 		{
 			name:            "unix, non empty",
-			shell:           unixShell,
+			interpreter:     unixShell,
 			os:              unix,
-			wantShell:       "",
-			wantErrContains: "for unix clients a command shell should not be specified",
+			wantInterpreter: "",
+			wantErrContains: "for unix clients a command interpreter should not be specified",
 		},
 		{
-			name:            "empty os, empty shell",
-			shell:           "",
+			name:            "empty os, empty interpreter",
+			interpreter:     "",
 			os:              "",
-			wantShell:       unixShell,
+			wantInterpreter: unixShell,
 			wantErrContains: "",
+		},
+		{
+			name:            "unix, hasShebang, interpreter empty",
+			os:              unix,
+			wantInterpreter: "",
+			boolHasShebang:  true,
+		},
+		{
+			name:            "unix, hasShebang, interpreter not empty",
+			os:              unix,
+			interpreter:     unixShell,
+			wantInterpreter: "",
+			boolHasShebang:  true,
+		},
+		{
+			name:            "windows, hasShebang, interpreter not empty",
+			os:              win,
+			interpreter:     powerShell,
+			wantInterpreter: powerShell,
+			boolHasShebang:  true,
 		},
 	}
 
 	for _, tc := range testCases {
 		t.Run(tc.name, func(t *testing.T) {
 			// when
-			gotShell, gotErr := getShell(tc.shell, tc.os)
+			gotInterpreter, gotErr := getInterpreter(tc.interpreter, tc.os, tc.boolHasShebang)
 
 			// then
 			if len(tc.wantErrContains) > 0 {
@@ -201,7 +222,7 @@ func TestGetShell(t *testing.T) {
 				assert.Contains(t, gotErr.Error(), tc.wantErrContains)
 			} else {
 				require.NoError(t, gotErr)
-				assert.Equal(t, tc.wantShell, gotShell)
+				assert.Equal(t, tc.wantInterpreter, gotInterpreter)
 			}
 		})
 	}
@@ -209,11 +230,10 @@ func TestGetShell(t *testing.T) {
 
 func TestHandleRunCmdRequestPositiveCase(t *testing.T) {
 	now = nowMockF
-	assert := assert.New(t)
 
 	// given
-	getShell = func(inputShell, os string) (string, error) {
-		return "test-shell", nil
+	getInterpreter = func(inputInterpreter, os string, hashShebang bool) (string, error) {
+		return "test-interpreter", nil
 	}
 	wantPID := 123
 	execMock := NewCmdExecutorMock()
@@ -236,13 +256,14 @@ func TestHandleRunCmdRequestPositiveCase(t *testing.T) {
 {
 	"jid": "5f02b216-3f8a-42be-b66c-f4c1d0ea3809",
 	"status": "successful",
-	"sudo": true,
+	"is_sudo": true,
 	"is_script": false,
+	"has_shebang": false,
 	"finished_at": "2020-08-19T12:00:00+03:00",
 	"client_id": "d81e6b93e75aef59a7701b90555f43808458b34e30370c3b808c1816a32252b3",
 	"client_name": "",
 	"command": "/bin/date;foo;whoami",
-	"shell": "test-shell",
+	"interpreter": "test-interpreter",
 	"pid": 123,
 	"started_at": "2020-08-19T12:00:00+03:00",
 	"created_by": "admin",
@@ -328,27 +349,26 @@ func TestHandleRunCmdRequestPositiveCase(t *testing.T) {
 			// then
 			if tc.wantErrContains != "" {
 				require.Error(t, err)
-				assert.Contains(err.Error(), tc.wantErrContains)
+				assert.Contains(t, err.Error(), tc.wantErrContains)
 				return
 			}
 			<-done
 
 			// check returned result
 			require.NoError(t, err)
-			assert.Equal(&comm.RunCmdResponse{Pid: wantPID, StartedAt: nowMock}, res)
+			assert.Equal(t, &comm.RunCmdResponse{Pid: wantPID, StartedAt: nowMock}, res)
 
 			// check job result that was sent to server
 			inputRequestName, inputWantReply, inputPayload := connMock.InputSendRequest()
-			assert.Equal(comm.RequestTypeCmdResult, inputRequestName)
-			assert.Equal(false, inputWantReply)
-			assert.JSONEq(tc.wantJSON, string(inputPayload))
+			assert.Equal(t, comm.RequestTypeCmdResult, inputRequestName)
+			assert.Equal(t, false, inputWantReply)
+			assert.JSONEq(t, tc.wantJSON, string(inputPayload))
 		})
 	}
 }
 
 func TestHandleRunCmdRequestHasRunningCmd(t *testing.T) {
 	now = nowMockF
-	assert := assert.New(t)
 
 	// given
 	wantPID := 123
@@ -382,21 +402,21 @@ func TestHandleRunCmdRequestHasRunningCmd(t *testing.T) {
 	// check that running new commands is blocked
 	curPID := c.getCurCmdPID()
 	require.NotNil(t, curPID)
-	assert.Equal(wantPID, *curPID)
+	assert.Equal(t, wantPID, *curPID)
 	// finish the cmd execution
 	<-doneCmd
 	// finish to send the response to server
 	<-doneSendResp
 	// check that running new commands is not blocked anymore
 	curPID = c.getCurCmdPID()
-	assert.Nil(curPID)
+	assert.Nil(t, curPID)
 
 	// check the result
 	require.NoError(t, err1)
-	assert.Equal(&comm.RunCmdResponse{Pid: wantPID, StartedAt: nowMock}, res1)
-	assert.Error(err2)
-	assert.Equal(fmt.Errorf("a previous command execution with PID %d is still running", wantPID), err2)
-	assert.Nil(res2)
+	assert.Equal(t, &comm.RunCmdResponse{Pid: wantPID, StartedAt: nowMock}, res1)
+	assert.Error(t, err2)
+	assert.Equal(t, fmt.Errorf("a previous command execution with PID %d is still running", wantPID), err2)
+	assert.Nil(t, res2)
 }
 
 func TestRemoteCommandsDisabled(t *testing.T) {

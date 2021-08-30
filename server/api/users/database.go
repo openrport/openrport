@@ -16,6 +16,7 @@ type UserDatabase struct {
 	usersTableName  string
 	groupsTableName string
 	twoFAOn         bool
+	hasTokenColumn  bool
 	logger          *chshare.Logger
 }
 
@@ -38,12 +39,19 @@ func (d *UserDatabase) getSelectClause() string {
 	if d.twoFAOn {
 		s += ", two_fa_send_to"
 	}
+	if d.hasTokenColumn {
+		s += ", token"
+	}
 	return s
 }
 
 // todo use context for all db operations
 func (d *UserDatabase) checkDatabaseTables() error {
-	_, err := d.db.Exec(fmt.Sprintf("SELECT %s FROM `%s` LIMIT 0", d.getSelectClause(), d.usersTableName))
+	_, err := d.db.Exec(fmt.Sprintf("SELECT token FROM `%s` LIMIT 0", d.usersTableName))
+	if err == nil {
+		d.hasTokenColumn = true
+	}
+	_, err = d.db.Exec(fmt.Sprintf("SELECT %s FROM `%s` LIMIT 0", d.getSelectClause(), d.usersTableName))
 	if err != nil {
 		return err
 	}
@@ -191,6 +199,11 @@ func (d *UserDatabase) Update(usr *User, usernameToUpdate string) error {
 	if usr.Username != "" && usr.Username != usernameToUpdate {
 		statements = append(statements, "`username` = ?")
 		params = append(params, usr.Username)
+	}
+
+	if usr.Token != nil {
+		statements = append(statements, "`token` = ?")
+		params = append(params, usr.Token)
 	}
 
 	tx, err := d.db.Beginx()

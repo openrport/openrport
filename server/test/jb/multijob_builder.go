@@ -4,6 +4,8 @@ import (
 	"testing"
 	"time"
 
+	"github.com/stretchr/testify/require"
+
 	"github.com/cloudradar-monitoring/rport/share/models"
 )
 
@@ -70,7 +72,9 @@ func (b MultiJobBuilder) StartedAt(startedAt time.Time) MultiJobBuilder {
 
 func (b MultiJobBuilder) Build() *models.MultiJob {
 	if b.jid == "" {
-		b.jid = generateRandomJID()
+		jid, err := generateRandomJID()
+		require.NoError(b.t, err)
+		b.jid = jid
 	}
 	if len(b.clientIDs) == 0 {
 		b.clientIDs = []string{generateRandomCID(), generateRandomCID()}

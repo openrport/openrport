@@ -8,7 +8,7 @@ basePath: "/api/v1"
 securityDefinitions:
   basic_auth:
     type: basic
-    description: "HTTP-basic authentication works for all routes"
+    description: "HTTP-basic authentication works for all routes. You can use user's password only when 2FA is not enabled. For scripting you can use long-lived API token generated using /me/token endpoint instead of the password."
   bearer_auth:
     description: "Instead of HTTP basic authentication you can retrieve a bearer token using /login endpoint. Send the retrieved token in 'Authorization: Bearer <TOKEN>' header"
     type: apiKey # actually apiKey is not correct type but 'bearer' type is not supported in swagger v2.0
@@ -266,6 +266,49 @@ paths:
                 properties:
                   ip:
                     type: "string"
+  /me/token:
+    post:
+      tags:
+        - "Profile & Info"
+      summary: "Generate a new API token for user and return it"
+      produces:
+        - "application/json"
+      responses:
+        "200":
+          description: "API token"
+          schema:
+            type: "object"
+            properties:
+              data:
+                type: "object"
+                properties:
+                  token:
+                    type: "string"
+                    format: "uuid"
+        "401":
+          description: "Unauthorized"
+          schema:
+            $ref: "#/definitions/ErrorPayload"
+        "500":
+          description: "Invalid Operation"
+          schema:
+            $ref: "#/definitions/ErrorPayload"
+    delete:
+      tags:
+        - "Profile & Info"
+      summary: "Delete user's API token"
+
+      responses:
+        "204":
+          description: "Successful operation."
+        "401":
+          description: "Unauthorized"
+          schema:
+            $ref: "#/definitions/ErrorPayload"
+        "500":
+          description: "Invalid Operation"
+          schema:
+            $ref: "#/definitions/ErrorPayload"
   /status:
     get:
       tags:
@@ -359,6 +402,31 @@ paths:
           schema:
             $ref: "#/definitions/ErrorPayload"
   /clients/{client_id}:
+    get:
+      tags:
+        - "Clients and Tunnels"
+      summary: "Get client by id"
+      parameters:
+        - name: "client_id"
+          in: "path"
+          description: "unique client ID"
+          required: true
+          type: "string"
+      produces:
+        - "application/json"
+      responses:
+        "200":
+          description: "success response"
+          schema:
+            $ref: "#/definitions/Client"
+        "404":
+          description: "Client not found"
+          schema:
+            $ref: "#/definitions/ErrorPayload"
+        "500":
+          description: "Invalid operation"
+          schema:
+            $ref: "#/definitions/ErrorPayload"
     delete:
       tags:
         - "Clients and Tunnels"
@@ -421,11 +489,17 @@ paths:
         type: "string"
       - name: "idle-timeout-minutes"
         in: "query"
-        description: "Auto-close the tunnel after given period of inactivity in minutes. If 0 or not provided - auto-closing is disabled."
+        description: "Auto-close the tunnel after given period of inactivity in minutes. If not provided, default value is 5 minutes. This parameter should not be used with a non empty `skip-idle-timeout` parameter"
         required: false
         type: "integer"
         maximum: 10080
         minimum: 0
+        default: 5
+      - name: "skip-idle-timeout"
+        in: "query"
+        description: "Disables the auto-close time of the tunnel (see `idle-timeout-minutes` parameter). The parameter should not be used with a non empty `idle-timeout-minutes` parameter"
+        required: false
+        type: "integer"
     put:
       tags:
         - "Clients and Tunnels"
@@ -618,14 +692,14 @@ paths:
               command:
                 type: "string"
                 description: "remote command to execute by the rport client. NOTE: if command limitation is enabled by an rport client then a full path command can be required to use. See https://oss.rport.io/docs/no06-command-execution.html for more details"
-              shell:
+              interpreter:
                 type: "string"
                 enum: [cmd, powershell]
-                description: "command shell to use to execute the command. Is applicable only for windows clients. If not set 'cmd' is used by default"
+                description: "command interpreter to use to execute the command. Is applicable only for windows clients. If not set 'cmd' is used by default"
               cwd:
                 type: "string"
                 description: "current working directory for the executable command"
-              sudo:
+              is_sudo:
                 type: "boolean"
                 description: "execute a command as sudo user"
               timeout_sec:
@@ -686,14 +760,14 @@ paths:
               script:
                 type: "string"
                 description: "base64 encoded script which should be executed on a remote client"
-              shell:
+              interpreter:
                 type: "string"
                 enum: [ cmd, powershell ]
-                description: "command shell to use to execute the script. Is applicable only for windows clients. If not set 'cmd' is used by default"
+                description: "command interpreter to use to execute the script. Is applicable only for windows clients. If not set 'cmd' is used by default"
               cwd:
                 type: "string"
                 description: "current working directory for the executable script"
-              sudo:
+              is_sudo:
                 type: "boolean"
                 description: "execute a command as sudo user, applicable only for Linux systems"
               timeout_sec:
@@ -855,10 +929,10 @@ paths:
                 items:
                   type: string
                 description: "list of client group IDs. A command will be executed on all clients that belong to given group(s)"
-              shell:
+              interpreter:
                 type: "string"
                 enum: [cmd, powershell]
-                description: "command shell to use to execute the command. Is applicable only for windows clients. If not set 'cmd' is used by default"
+                description: "command interpreter to use to execute the command. Is applicable only for windows clients. If not set 'cmd' is used by default"
               timeout_sec:
                 type: "integer"
                 description: "timeout in seconds to observe the command execution on each client separately. If not set a default timeout (60 seconds) is used"
@@ -874,7 +948,7 @@ paths:
               cwd:
                 type: "string"
                 description: "current working directory for an executable command"
-              sudo:
+              is_sudo:
                 type: "boolean"
                 description: "execute the command as a sudo user"
       responses:
@@ -952,7 +1026,7 @@ paths:
         \"timeout_sec\": 30,\n
         \"cwd\": \"/users/root\",\n
         \"execute_concurrently\": true\n,
-        \"sudo\": true\n,
+        \"is_sudo\": true\n,
       }\n
       4. Validates the inbound msg. If it fails - server sends an outbound JSON message `ErrorPayload`(see in 'Models') and closes the connection.\n
       5. Server sends a given command to rport client(s) to execute.\n
@@ -998,7 +1072,7 @@ paths:
           \"timeout_sec\": 30,\n
           \"cwd\": \"/users/root\",\n
           \"execute_concurrently\": true\n,
-          \"sudo\": true\n,
+          \"is_sudo\": true\n,
         }\n
       5. Rport server will create the provided script as a shell script file in the target client(s) (e.g. `/tmp/f68a779d-1d46-414a-b165-d8d2df5f348c.sh` or `f68a779d-1d46-414a-b165-d8d2df5f348.ps1`).\n
       Then it will run this script as a regular command e.g. `sh /tmp/f68a779d-1d46-414a-b165-d8d2df5f348c.sh`\n
@@ -2175,12 +2249,12 @@ definitions:
       cwd:
         type: "string"
         description: "current working directory for an executable command"
-      sudo:
+      is_sudo:
         type: "boolean"
         description: "execute the command as a sudo user"
-      shell:
+      interpreter:
         type: "string"
-        description: "command shell that was used to execute the command"
+        description: "command interpreter that was used to execute the command"
       started_at:
         type: "string"
         format: "data-time"
@@ -2254,12 +2328,12 @@ definitions:
       cwd:
         type: "string"
         description: "current working directory for an executable command"
-      sudo:
+      is_sudo:
         type: "boolean"
         description: "execute the command as a sudo user"
-      shell:
+      interpreter:
         type: "string"
-        description: "command shell that was used to execute the command"
+        description: "command interpreter that was used to execute the command"
       timeout_sec:
         type: "integer"
         description: "timeout in seconds that was used to observe the command execution on each client"
@@ -2344,7 +2418,7 @@ definitions:
       cwd:
         type: "string"
         description: "current working directory where the command will be executed"
-      sudo:
+      is_sudo:
         type: "boolean"
         description: "execute the command as a sudo user"
       client_ids:
@@ -2353,10 +2427,10 @@ definitions:
           type: string
         minItems: 1
         description: "list of client IDs where to run the command"
-      shell:
+      interpreter:
         type: "string"
         enum: [cmd, powershell]
-        description: "command shell to use to execute the command. Is applicable only for windows clients. If not set 'cmd' is used by default"
+        description: "command interpreter to use to execute the command. Is applicable only for windows clients. If not set 'cmd' is used by default"
       timeout_sec:
         type: "integer"
         description: "timeout in seconds to observe the command execution on each client separately. If not set a default timeout (60 seconds) is used"
@@ -2376,7 +2450,7 @@ definitions:
       cwd:
         type: "string"
         description: "current working directory where the script will be executed"
-      sudo:
+      is_sudo:
         type: "boolean"
         description: "execute the command as a sudo user"
       client_ids:
@@ -2385,10 +2459,10 @@ definitions:
           type: string
         minItems: 1
         description: "list of client IDs where to run the script"
-      shell:
+      interpreter:
         type: "string"
         enum: [cmd, powershell]
-        description: "command shell to use to execute the script. Is applicable only for windows clients. If not set 'cmd' is used by default"
+        description: "command interpreter to use to execute the script. Is applicable only for windows clients. If not set 'cmd' is used by default"
       timeout_sec:
         type: "integer"
         description: "timeout in seconds to observe the script execution on each client separately. If not set a default timeout (60 seconds) is used"
