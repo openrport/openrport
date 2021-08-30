@@ -11,6 +11,12 @@ The API claims to be REST compliant. Submitting credentials on each request usin
 curl -s -u admin:foobaz http://localhost:3000/api/v1/clients|jq
 ```
 
+With the two-factor authentication enabled, HTTP basic authentication with a username and user's password stops working. But you can create a static API token per user to activate HTTP basic auth again. Users must submit the personal API token instead of the password, for example
+```
+curl -s -u admin:e83d40e4-e237-43d6-bb99-35972ded631b http://localhost:3000/api/v1/clients|jq
+```
+
+
 ### Bearer Token Auth
 Using HTTP Basic auth you can request a token at [`login` endpoint](https://petstore.swagger.io/?url=https://raw.githubusercontent.com/cloudradar-monitoring/rport/master/api-doc.yml#/default/get_login) to authenticate further requests with a token.
 Example:
@@ -251,6 +257,7 @@ CREATE TABLE `users` (
   `username` varchar(150) NOT NULL,
   `password` varchar(255) NOT NULL,
   `two_fa_send_to` varchar(150),
+  `token` char(36) default NULL,
   UNIQUE KEY `username` (`username`)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8;
 CREATE TABLE `groups` (
@@ -318,6 +325,7 @@ ON "groups" (
 CREATE TABLE "users" (
   "username" TEXT(150) NOT NULL,
   "password" TEXT(255) NOT NULL,
+  "token" TEXT(36) DEFAULT NULL,
   "two_fa_send_to" TEXT(150)
 );
 CREATE UNIQUE INDEX "main"."username"
