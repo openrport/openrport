@@ -283,7 +283,7 @@ func TestUnlockWhenAlreadyUnlocked(t *testing.T) {
 
 	appErr, ok := err.(errors2.APIError)
 	require.True(t, ok)
-	assert.Equal(t, http.StatusConflict, appErr.Code)
+	assert.Equal(t, http.StatusConflict, appErr.HTTPStatus)
 }
 
 func TestUnlockStatusReadError(t *testing.T) {
@@ -307,7 +307,7 @@ func TestUnlockWhenDbIsNotInit(t *testing.T) {
 
 	appErr, ok := err.(errors2.APIError)
 	require.True(t, ok)
-	assert.Equal(t, http.StatusConflict, appErr.Code)
+	assert.Equal(t, http.StatusConflict, appErr.HTTPStatus)
 }
 
 func TestUnlockPasswordCheckError(t *testing.T) {
@@ -341,7 +341,7 @@ func TestUnlockWithWrongPassword(t *testing.T) {
 
 	appErr, ok := err.(errors2.APIError)
 	require.True(t, ok)
-	assert.Equal(t, http.StatusUnauthorized, appErr.Code)
+	assert.Equal(t, http.StatusUnauthorized, appErr.HTTPStatus)
 }
 
 func TestLock(t *testing.T) {
@@ -374,7 +374,7 @@ func TestLockWhenNotUnlocked(t *testing.T) {
 
 	appErr, ok := err.(errors2.APIError)
 	require.True(t, ok)
-	assert.Equal(t, http.StatusConflict, appErr.Code)
+	assert.Equal(t, http.StatusConflict, appErr.HTTPStatus)
 }
 
 func TestLockWithReadStatusError(t *testing.T) {
@@ -728,8 +728,8 @@ func TestGetOneWithLimitedAccess(t *testing.T) {
 	assert.Equal(
 		t,
 		errors2.APIError{
-			Message: "your group doesn't allow access to this value",
-			Code:    http.StatusForbidden,
+			Message:    "your group doesn't allow access to this value",
+			HTTPStatus: http.StatusForbidden,
 		},
 		err,
 	)
@@ -872,8 +872,8 @@ func TestStoreWithLimitedGroupAccess(t *testing.T) {
 	require.Equal(
 		t,
 		errors2.APIError{
-			Message: "your group doesn't allow access to this value",
-			Code:    http.StatusForbidden,
+			Message:    "your group doesn't allow access to this value",
+			HTTPStatus: http.StatusForbidden,
 		},
 		err,
 	)
@@ -939,8 +939,8 @@ func TestDeleteKey(t *testing.T) {
 		require.Equal(
 			t,
 			errors2.APIError{
-				Message: "cannot find this entry by the provided id",
-				Code:    http.StatusNotFound,
+				Message:    "cannot find this entry by the provided id",
+				HTTPStatus: http.StatusNotFound,
 			},
 			err,
 		)
@@ -983,8 +983,8 @@ func TestDeleteKeyWithNoGroupAccess(t *testing.T) {
 		require.Equal(
 			t,
 			errors2.APIError{
-				Message: "your group doesn't allow access to this value",
-				Code:    http.StatusForbidden,
+				Message:    "your group doesn't allow access to this value",
+				HTTPStatus: http.StatusForbidden,
 			},
 			err,
 		)

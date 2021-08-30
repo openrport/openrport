@@ -11,14 +11,14 @@ func Validate(iv *InputScript) error {
 
 	if iv.Name == "" {
 		errs = append(errs, errors2.APIError{
-			Message: "name is required",
-			Code:    http.StatusBadRequest,
+			Message:    "name is required",
+			HTTPStatus: http.StatusBadRequest,
 		})
 	}
 	if iv.Script == "" {
 		errs = append(errs, errors2.APIError{
-			Message: "script is required",
-			Code:    http.StatusBadRequest,
+			Message:    "script is required",
+			HTTPStatus: http.StatusBadRequest,
 		})
 	}
 

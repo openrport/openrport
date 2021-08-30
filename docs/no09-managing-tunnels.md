@@ -166,6 +166,27 @@ This example forwards port 4001 of the rport server to port 80 of `192.168.178.1
     ]
 ```
 
+Idle tunnels are automatically closed after 5 minutes. You can change `idle-timeout-minutes` parameter to provide a custom value in minutes.
+
+For example,
+```
+CLIENTID=2ba9174e-640e-4694-ad35-34a2d6f3986b
+LOCAL_PORT=4000
+REMOTE_PORT=22
+curl -u admin:foobaz -X PUT "http://localhost:3000/api/v1/clients/$CLIENTID/tunnels?local=$LOCAL_PORT&remote=$REMOTE_PORT&idle-timeout-minutes=10
+```
+
+If no `idle-timeout-minutes` parameter is given, the default idle timeout will be 5 minutes.
+To disable auto-closing of tunnels, you should provide `skip-idle-timeout` parameter, e.g.:
+```
+CLIENTID=2ba9174e-640e-4694-ad35-34a2d6f3986b
+LOCAL_PORT=4000
+REMOTE_PORT=22
+curl -u admin:foobaz -X PUT "http://localhost:3000/api/v1/clients/$CLIENTID/tunnels?local=$LOCAL_PORT&remote=$REMOTE_PORT&skip-idle-timeout=1
+```
+
+Please note, that you should not use `skip-idle-timeout` and `idle-timeout-minutes` in the same request, what will cause a conflicting parameter error.
+
 #### Tunnel access control
 To increase the security of remote access, you can control how it is allowed to use a tunnel by limiting the tunnel usage to ip v4 addresses or network segments (ipv6 is not supported yet).
 

@@ -47,8 +47,8 @@ func (srv *TwoFAService) SendToken(ctx context.Context, username string) (sendTo
 
 	if username == "" {
 		return "", errors2.APIError{
-			Message: "username cannot be empty",
-			Code:    http.StatusBadRequest,
+			Message:    "username cannot be empty",
+			HTTPStatus: http.StatusBadRequest,
 		}
 	}
 
@@ -58,15 +58,15 @@ func (srv *TwoFAService) SendToken(ctx context.Context, username string) (sendTo
 	}
 	if user == nil {
 		return "", errors2.APIError{
-			Message: fmt.Sprintf("user with username %s not found", username),
-			Code:    http.StatusNotFound,
+			Message:    fmt.Sprintf("user with username %s not found", username),
+			HTTPStatus: http.StatusNotFound,
 		}
 	}
 
 	if user.TwoFASendTo == "" {
 		return "", errors2.APIError{
-			Message: "no two_fa_send_to set for this user",
-			Code:    http.StatusBadRequest,
+			Message:    "no two_fa_send_to set for this user",
+			HTTPStatus: http.StatusBadRequest,
 		}
 	}
 
@@ -107,22 +107,22 @@ func (srv *TwoFAService) ValidateToken(username, token string) error {
 
 	if t == nil {
 		return errors2.APIError{
-			Message: "2fa token not found for provided username",
-			Code:    http.StatusUnauthorized,
+			Message:    "2fa token not found for provided username",
+			HTTPStatus: http.StatusUnauthorized,
 		}
 	}
 
 	if time.Now().After(t.expiry) {
 		return errors2.APIError{
-			Message: "2fa token expired",
-			Code:    http.StatusUnauthorized,
+			Message:    "2fa token expired",
+			HTTPStatus: http.StatusUnauthorized,
 		}
 	}
 
 	if subtle.ConstantTimeCompare([]byte(t.token), []byte(token)) != 1 {
 		return errors2.APIError{
-			Message: "invalid token",
-			Code:    http.StatusUnauthorized,
+			Message:    "invalid token",
+			HTTPStatus: http.StatusUnauthorized,
 		}
 	}
 

@@ -86,8 +86,8 @@ func (m *Manager) Create(ctx context.Context, valueToStore *InputScript, usernam
 	}
 	if len(existingScript) > 0 {
 		return nil, errors2.APIError{
-			Message: fmt.Sprintf("another script with the same name '%s' exists", valueToStore.Name),
-			Code:    http.StatusConflict,
+			Message:    fmt.Sprintf("another script with the same name '%s' exists", valueToStore.Name),
+			HTTPStatus: http.StatusConflict,
 		}
 	}
 
@@ -122,8 +122,8 @@ func (m *Manager) Update(ctx context.Context, existingID string, valueToStore *I
 
 	if !foundByID {
 		return nil, errors2.APIError{
-			Message: "cannot find entry by the provided ID",
-			Code:    http.StatusNotFound,
+			Message:    "cannot find entry by the provided ID",
+			HTTPStatus: http.StatusNotFound,
 		}
 	}
 
@@ -141,8 +141,8 @@ func (m *Manager) Update(ctx context.Context, existingID string, valueToStore *I
 
 	if len(scriptsWithSameName) > 0 && scriptsWithSameName[0].ID != existingID {
 		return nil, errors2.APIError{
-			Message: fmt.Sprintf("another script with the same name '%s' exists", valueToStore.Name),
-			Code:    http.StatusConflict,
+			Message:    fmt.Sprintf("another script with the same name '%s' exists", valueToStore.Name),
+			HTTPStatus: http.StatusConflict,
 		}
 	}
 
@@ -169,23 +169,23 @@ func (m *Manager) Delete(ctx context.Context, id string) error {
 	_, found, err := m.db.GetByID(ctx, id)
 	if err != nil {
 		return errors2.APIError{
-			Err:  err,
-			Code: http.StatusInternalServerError,
+			Err:        err,
+			HTTPStatus: http.StatusInternalServerError,
 		}
 	}
 
 	if !found {
 		return errors2.APIError{
-			Message: "cannot find this entry by the provided id",
-			Code:    http.StatusNotFound,
+			Message:    "cannot find this entry by the provided id",
+			HTTPStatus: http.StatusNotFound,
 		}
 	}
 
 	err = m.db.Delete(ctx, id)
 	if err != nil {
 		return errors2.APIError{
-			Err:  err,
-			Code: http.StatusInternalServerError,
+			Err:        err,
+			HTTPStatus: http.StatusInternalServerError,
 		}
 	}
 

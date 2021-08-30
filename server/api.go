@@ -14,6 +14,8 @@ import (
 	"strings"
 	"time"
 
+	"github.com/cloudradar-monitoring/rport/server/validation"
+
 	"github.com/cloudradar-monitoring/rport/share/query"
 
 	"github.com/gorilla/mux"
@@ -266,43 +268,46 @@ func (al *APIListener) writeJSONResponse(w http.ResponseWriter, statusCode int, 
 }
 
 func (al *APIListener) jsonErrorResponse(w http.ResponseWriter, statusCode int, err error) {
-	al.writeJSONResponse(w, statusCode, api.NewErrorPayload(err))
+	al.writeJSONResponse(w, statusCode, api.NewErrAPIPayloadFromError(err, "", ""))
 }
 
 func (al *APIListener) jsonError(w http.ResponseWriter, err error) {
 	statusCode := http.StatusInternalServerError
+	errCode := ""
 	var apiErr errors2.APIError
 	var apiErrs errors2.APIErrors
 	switch {
 	case errors.As(err, &apiErr):
-		statusCode = apiErr.Code
+		statusCode = apiErr.HTTPStatus
+		errCode = apiErr.ErrCode
 	case errors.As(err, &apiErrs):
 		if len(apiErrs) > 0 {
-			statusCode = apiErrs[0].Code
+			statusCode = apiErrs[0].HTTPStatus
+			errCode = apiErrs[0].ErrCode
 		}
 	}
 
-	al.writeJSONResponse(w, statusCode, api.NewErrorPayload(err))
+	al.writeJSONResponse(w, statusCode, api.NewErrAPIPayloadFromError(err, errCode, ""))
 }
 
 func (al *APIListener) jsonErrorResponseWithErrCode(w http.ResponseWriter, statusCode int, errCode, title string) {
-	al.writeJSONResponse(w, statusCode, api.NewErrorPayloadWithCode(errCode, title, ""))
+	al.writeJSONResponse(w, statusCode, api.NewErrAPIPayloadFromMessage(errCode, title, ""))
 }
 
 func (al *APIListener) jsonErrorResponseWithTitle(w http.ResponseWriter, statusCode int, title string) {
-	al.writeJSONResponse(w, statusCode, api.NewErrorPayloadWithCode("", title, ""))
+	al.writeJSONResponse(w, statusCode, api.NewErrAPIPayloadFromMessage("", title, ""))
 }
 
 func (al *APIListener) jsonErrorResponseWithDetail(w http.ResponseWriter, statusCode int, errCode, title, detail string) {
-	al.writeJSONResponse(w, statusCode, api.NewErrorPayloadWithCode(errCode, title, detail))
+	al.writeJSONResponse(w, statusCode, api.NewErrAPIPayloadFromMessage(errCode, title, detail))
 }
 
-func (al *APIListener) jsonErrorResponseWithError(w http.ResponseWriter, statusCode int, errCode, title string, err error) {
+func (al *APIListener) jsonErrorResponseWithError(w http.ResponseWriter, statusCode int, title string, err error) {
 	var detail string
 	if err != nil {
 		detail = err.Error()
 	}
-	al.writeJSONResponse(w, statusCode, api.NewErrorPayloadWithCode(errCode, title, detail))
+	al.writeJSONResponse(w, statusCode, api.NewErrAPIPayloadFromMessage("", title, detail))
 }
 
 type twoFAResponse struct {
@@ -415,8 +420,8 @@ func parseLoginPostRequestBody(req *http.Request) (string, string, error) {
 		err := req.ParseForm()
 		if err != nil {
 			return "", "", errors2.APIError{
-				Err:  fmt.Errorf("failed to parse form: %v", err),
-				Code: http.StatusBadRequest,
+				Err:        fmt.Errorf("failed to parse form: %v", err),
+				HTTPStatus: http.StatusBadRequest,
 			}
 		}
 		return req.PostForm.Get("username"), req.PostForm.Get("password"), nil
@@ -434,8 +439,8 @@ func parseLoginPostRequestBody(req *http.Request) (string, string, error) {
 		return params.Username, params.Password, nil
 	}
 	return "", "", errors2.APIError{
-		Message: fmt.Sprintf("unsupported content type: %s", reqContentType),
-		Code:    http.StatusBadRequest,
+		Message:    fmt.Sprintf("unsupported content type: %s", reqContentType),
+		HTTPStatus: http.StatusBadRequest,
 	}
 }
 
@@ -512,8 +517,8 @@ func (al *APIListener) handlePostVerify2FAToken(w http.ResponseWriter, req *http
 func (al *APIListener) parseAndValidate2FATokenRequest(req *http.Request) (username string, err error) {
 	if !al.config.API.IsTwoFAOn() {
 		return "", errors2.APIError{
-			Code:    http.StatusConflict,
-			Message: "2fa is disabled",
+			HTTPStatus: http.StatusConflict,
+			Message:    "2fa is disabled",
 		}
 	}
 
@@ -528,22 +533,22 @@ func (al *APIListener) parseAndValidate2FATokenRequest(req *http.Request) (usern
 
 	if al.bannedUsers.IsBanned(reqBody.Username) {
 		return reqBody.Username, errors2.APIError{
-			Code: http.StatusTooManyRequests,
-			Err:  ErrTooManyRequests,
+			HTTPStatus: http.StatusTooManyRequests,
+			Err:        ErrTooManyRequests,
 		}
 	}
 
 	if reqBody.Username == "" {
 		return "", errors2.APIError{
-			Code:    http.StatusUnauthorized,
-			Message: "username is required",
+			HTTPStatus: http.StatusUnauthorized,
+			Message:    "username is required",
 		}
 	}
 
 	if reqBody.Token == "" {
 		return reqBody.Username, errors2.APIError{
-			Code:    http.StatusUnauthorized,
-			Message: "token is required",
+			HTTPStatus: http.StatusUnauthorized,
+			Message:    "token is required",
 		}
 	}
 
@@ -860,8 +865,7 @@ const (
 	URISchemeMaxLength = 15
 
 	idleTimeoutMinutesQueryParam = "idle-timeout-minutes"
-	idleTimeoutMin               = 0
-	idleTimeoutMax               = 7 * 24 * 60 // week
+	skipIdleTimeoutQueryParam    = "skip-idle-timeout"
 
 	ErrCodeLocalPortInUse        = "ERR_CODE_LOCAL_PORT_IN_USE"
 	ErrCodeRemotePortNotOpen     = "ERR_CODE_REMOTE_PORT_NOT_OPEN"
@@ -869,7 +873,6 @@ const (
 	ErrCodeTunnelToPortExist     = "ERR_CODE_TUNNEL_TO_PORT_EXIST"
 	ErrCodeURISchemeLengthExceed = "ERR_CODE_URI_SCHEME_LENGTH_EXCEED"
 	ErrCodeInvalidACL            = "ERR_CODE_INVALID_ACL"
-	ErrCodeInvalidIdleTimeout    = "ERR_CODE_INVALID_IDLE_TIMEOUT"
 )
 
 func (al *APIListener) handlePutClientTunnel(w http.ResponseWriter, req *http.Request) {
@@ -903,20 +906,18 @@ func (al *APIListener) handlePutClientTunnel(w http.ResponseWriter, req *http.Re
 	}
 
 	idleTimeoutMinutesStr := req.URL.Query().Get(idleTimeoutMinutesQueryParam)
-	var idleTimeoutMinutes int
-	if idleTimeoutMinutesStr != "" {
-		idleTimeoutMinutes, err = strconv.Atoi(idleTimeoutMinutesStr)
-		if err != nil {
-			al.jsonErrorResponseWithError(w, http.StatusBadRequest, ErrCodeInvalidIdleTimeout, fmt.Sprintf("invalid %q param", idleTimeoutMinutesQueryParam), err)
-			return
-		}
-
-		if idleTimeoutMin > idleTimeoutMinutes || idleTimeoutMinutes > idleTimeoutMax {
-			al.jsonErrorResponseWithErrCode(w, http.StatusBadRequest, ErrCodeInvalidIdleTimeout, fmt.Sprintf("%q param should be in range [%d,%d]", idleTimeoutMinutesQueryParam, idleTimeoutMin, idleTimeoutMax))
-			return
-		}
+	skipIdleTimeout, err := strconv.ParseBool(req.URL.Query().Get(skipIdleTimeoutQueryParam))
+	if err != nil {
+		skipIdleTimeout = false
 	}
-	remote.IdleTimeoutMinutes = idleTimeoutMinutes
+
+	idleTimeout, err := validation.ResolveIdleTunnelTimeoutValue(idleTimeoutMinutesStr, skipIdleTimeout)
+	if err != nil {
+		al.jsonError(w, err)
+		return
+	}
+
+	remote.IdleTimeoutMinutes = int(idleTimeout.Minutes())
 
 	aclStr := req.URL.Query().Get("acl")
 	if _, err = clients.ParseTunnelACL(aclStr); err != nil {
@@ -976,7 +977,7 @@ func (al *APIListener) handlePutClientTunnel(w http.ResponseWriter, req *http.Re
 func (al *APIListener) checkLocalPort(w http.ResponseWriter, localPort string) bool {
 	lport, err := strconv.Atoi(localPort)
 	if err != nil {
-		al.jsonErrorResponseWithError(w, http.StatusBadRequest, "", fmt.Sprintf("Invalid port: %s.", localPort), err)
+		al.jsonErrorResponseWithError(w, http.StatusBadRequest, fmt.Sprintf("Invalid port: %s.", localPort), err)
 		return false
 	}
 
@@ -1165,15 +1166,15 @@ func (al *APIListener) getUserModelForAuth(ctx context.Context) (*users.User, er
 	usr, err := al.getUserModel(ctx)
 	if err != nil {
 		return nil, errors2.APIError{
-			Err:  err,
-			Code: http.StatusInternalServerError,
+			Err:        err,
+			HTTPStatus: http.StatusInternalServerError,
 		}
 	}
 
 	if usr == nil {
 		return nil, errors2.APIError{
-			Message: "unauthorized access",
-			Code:    http.StatusUnauthorized,
+			Message:    "unauthorized access",
+			HTTPStatus: http.StatusUnauthorized,
 		}
 	}
 
@@ -1362,7 +1363,7 @@ func (al *APIListener) handleExecuteCommand(ctx context.Context, w http.Response
 		return
 	}
 	if err := validateInterpreter(executeInput.Interpreter); err != nil {
-		al.jsonErrorResponseWithError(w, http.StatusBadRequest, "", "Invalid interpreter.", err)
+		al.jsonErrorResponseWithError(w, http.StatusBadRequest, "Invalid interpreter.", err)
 		return
 	}
 
@@ -1372,7 +1373,7 @@ func (al *APIListener) handleExecuteCommand(ctx context.Context, w http.Response
 
 	client, err := al.clientService.GetActiveByID(executeInput.ClientID)
 	if err != nil {
-		al.jsonErrorResponseWithError(w, http.StatusInternalServerError, "", fmt.Sprintf("Failed to find an active client with id=%q.", executeInput.ClientID), err)
+		al.jsonErrorResponseWithError(w, http.StatusInternalServerError, fmt.Sprintf("Failed to find an active client with id=%q.", executeInput.ClientID), err)
 		return
 	}
 	if client == nil {
@@ -1406,7 +1407,7 @@ func (al *APIListener) handleExecuteCommand(ctx context.Context, w http.Response
 		if _, ok := err.(*comm.ClientError); ok {
 			al.jsonErrorResponseWithTitle(w, http.StatusConflict, err.Error())
 		} else {
-			al.jsonErrorResponseWithError(w, http.StatusInternalServerError, "", "Failed to execute remote command.", err)
+			al.jsonErrorResponseWithError(w, http.StatusInternalServerError, "Failed to execute remote command.", err)
 		}
 		return
 	}
@@ -1417,7 +1418,7 @@ func (al *APIListener) handleExecuteCommand(ctx context.Context, w http.Response
 	curJob.Status = models.JobStatusRunning
 
 	if err := al.jobProvider.CreateJob(&curJob); err != nil {
-		al.jsonErrorResponseWithError(w, http.StatusInternalServerError, "", "Failed to persist a new job.", err)
+		al.jsonErrorResponseWithError(w, http.StatusInternalServerError, "Failed to persist a new job.", err)
 		return
 	}
 
@@ -1435,22 +1436,22 @@ func (al *APIListener) getClientForScriptExecution(clientID string) (*clients.Cl
 	client, err := al.clientService.GetActiveByID(clientID)
 	if err != nil {
 		return nil, errors2.APIError{
-			Message: fmt.Sprintf("Failed to find an active client with id=%q.", clientID),
-			Err:     err,
-			Code:    http.StatusInternalServerError,
+			Message:    fmt.Sprintf("Failed to find an active client with id=%q.", clientID),
+			Err:        err,
+			HTTPStatus: http.StatusInternalServerError,
 		}
 	}
 	if client == nil {
 		return nil, errors2.APIError{
-			Message: fmt.Sprintf("Active client with id=%q not found.", clientID),
-			Code:    http.StatusNotFound,
+			Message:    fmt.Sprintf("Active client with id=%q not found.", clientID),
+			HTTPStatus: http.StatusNotFound,
 		}
 	}
 
 	if client.Version != chshare.SourceVersion && client.Version < minVersionScriptExecSupport {
 		return nil, errors2.APIError{
-			Message: fmt.Sprintf("Script Execution is supported starting from %s version, current client version is %s.", minVersionScriptExecSupport, client.Version),
-			Code:    http.StatusBadRequest,
+			Message:    fmt.Sprintf("Script Execution is supported starting from %s version, current client version is %s.", minVersionScriptExecSupport, client.Version),
+			HTTPStatus: http.StatusBadRequest,
 		}
 	}
 
@@ -1529,7 +1530,7 @@ func (al *APIListener) handleGetCommands(w http.ResponseWriter, req *http.Reques
 
 	res, err := al.jobProvider.GetSummariesByClientID(cid)
 	if err != nil {
-		al.jsonErrorResponseWithError(w, http.StatusInternalServerError, "", fmt.Sprintf("Failed to get client jobs: client_id=%q.", cid), err)
+		al.jsonErrorResponseWithError(w, http.StatusInternalServerError, fmt.Sprintf("Failed to get client jobs: client_id=%q.", cid), err)
 		return
 	}
 
@@ -1552,7 +1553,7 @@ func (al *APIListener) handleGetCommand(w http.ResponseWriter, req *http.Request
 
 	job, err := al.jobProvider.GetByJID(cid, jid)
 	if err != nil {
-		al.jsonErrorResponseWithError(w, http.StatusInternalServerError, "", fmt.Sprintf("Failed to find a job[id=%q].", jid), err)
+		al.jsonErrorResponseWithError(w, http.StatusInternalServerError, fmt.Sprintf("Failed to find a job[id=%q].", jid), err)
 		return
 	}
 	if job == nil {
@@ -1598,7 +1599,7 @@ func (al *APIListener) handlePostMultiClientCommand(w http.ResponseWriter, req *
 		return
 	}
 	if err := validateInterpreter(reqBody.Interpreter); err != nil {
-		al.jsonErrorResponseWithError(w, http.StatusBadRequest, "", "Invalid interpreter.", err)
+		al.jsonErrorResponseWithError(w, http.StatusBadRequest, "Invalid interpreter.", err)
 		return
 	}
 
@@ -1658,7 +1659,7 @@ func (al *APIListener) handlePostMultiClientCommand(w http.ResponseWriter, req *
 		AbortOnErr:  abortOnErr,
 	}
 	if err := al.jobProvider.SaveMultiJob(multiJob); err != nil {
-		al.jsonErrorResponseWithError(w, http.StatusInternalServerError, "", "Failed to persist a new multi-client job.", err)
+		al.jsonErrorResponseWithError(w, http.StatusInternalServerError, "Failed to persist a new multi-client job.", err)
 		return
 	}
 
@@ -1684,17 +1685,17 @@ func (al *APIListener) getOrderedClients(
 		group, err := al.clientGroupProvider.Get(ctx, groupID)
 		if err != nil {
 			err = errors2.APIError{
-				Message: fmt.Sprintf("Failed to get a client group with id=%q.", groupID),
-				Err:     err,
-				Code:    http.StatusInternalServerError,
+				Message:    fmt.Sprintf("Failed to get a client group with id=%q.", groupID),
+				Err:        err,
+				HTTPStatus: http.StatusInternalServerError,
 			}
 			return orderedClients, groupClientsFoundCount, err
 		}
 		if group == nil {
 			err = errors2.APIError{
-				Message: fmt.Sprintf("Unknown group with id=%q.", groupID),
-				Err:     err,
-				Code:    http.StatusBadRequest,
+				Message:    fmt.Sprintf("Unknown group with id=%q.", groupID),
+				Err:        err,
+				HTTPStatus: http.StatusBadRequest,
 			}
 			return orderedClients, 0, err
 		}
@@ -1709,26 +1710,26 @@ func (al *APIListener) getOrderedClients(
 		client, err := al.clientService.GetByID(cid)
 		if err != nil {
 			err = errors2.APIError{
-				Message: fmt.Sprintf("Failed to find a client with id=%q.", cid),
-				Err:     err,
-				Code:    http.StatusInternalServerError,
+				Message:    fmt.Sprintf("Failed to find a client with id=%q.", cid),
+				Err:        err,
+				HTTPStatus: http.StatusInternalServerError,
 			}
 			return orderedClients, 0, err
 		}
 		if client == nil {
 			err = errors2.APIError{
-				Message: fmt.Sprintf("Client with id=%q not found.", cid),
-				Err:     err,
-				Code:    http.StatusNotFound,
+				Message:    fmt.Sprintf("Client with id=%q not found.", cid),
+				Err:        err,
+				HTTPStatus: http.StatusNotFound,
 			}
 			return orderedClients, 0, err
 		}
 
 		if client.DisconnectedAt != nil {
 			err = errors2.APIError{
-				Message: fmt.Sprintf("Client with id=%q is not active.", cid),
-				Err:     err,
-				Code:    http.StatusBadRequest,
+				Message:    fmt.Sprintf("Client with id=%q is not active.", cid),
+				Err:        err,
+				HTTPStatus: http.StatusBadRequest,
 			}
 
 			return orderedClients, 0, err
@@ -1902,8 +1903,8 @@ func (al *APIListener) createScriptOnMultipleClients(
 ) (clientsInGroupsCount int, clientIDCommandMap map[string]string, err error) {
 	if inboundMsg.Script == "" {
 		return 0, nil, errors2.APIError{
-			Message: "Missing script body",
-			Code:    http.StatusBadRequest,
+			Message:    "Missing script body",
+			HTTPStatus: http.StatusBadRequest,
 		}
 	}
 
@@ -1914,9 +1915,9 @@ func (al *APIListener) createScriptOnMultipleClients(
 	decodedScriptBytes, err := base64.StdEncoding.DecodeString(inboundMsg.Script)
 	if err != nil {
 		return 0, nil, errors2.APIError{
-			Err:     err,
-			Code:    http.StatusBadRequest,
-			Message: "failed to decode script payload from base64",
+			Err:        err,
+			HTTPStatus: http.StatusBadRequest,
+			Message:    "failed to decode script payload from base64",
 		}
 	}
 
@@ -2240,7 +2241,7 @@ func (al *APIListener) handleGetMultiClientCommand(w http.ResponseWriter, req *h
 
 	job, err := al.jobProvider.GetMultiJob(jid)
 	if err != nil {
-		al.jsonErrorResponseWithError(w, http.StatusInternalServerError, "", fmt.Sprintf("Failed to find a multi-client job[id=%q].", jid), err)
+		al.jsonErrorResponseWithError(w, http.StatusInternalServerError, fmt.Sprintf("Failed to find a multi-client job[id=%q].", jid), err)
 		return
 	}
 	if job == nil {
@@ -2254,7 +2255,7 @@ func (al *APIListener) handleGetMultiClientCommand(w http.ResponseWriter, req *h
 func (al *APIListener) handleGetMultiClientCommands(w http.ResponseWriter, req *http.Request) {
 	res, err := al.jobProvider.GetAllMultiJobSummaries()
 	if err != nil {
-		al.jsonErrorResponseWithError(w, http.StatusInternalServerError, "", "Failed to get multi-client jobs.", err)
+		al.jsonErrorResponseWithError(w, http.StatusInternalServerError, "Failed to get multi-client jobs.", err)
 		return
 	}
 
@@ -2270,12 +2271,12 @@ func (al *APIListener) handlePostClientGroups(w http.ResponseWriter, req *http.R
 	}
 
 	if err := validateInputClientGroup(group); err != nil {
-		al.jsonErrorResponseWithError(w, http.StatusBadRequest, "", "Invalid client group.", err)
+		al.jsonErrorResponseWithError(w, http.StatusBadRequest, "Invalid client group.", err)
 		return
 	}
 
 	if err := al.clientGroupProvider.Create(req.Context(), &group); err != nil {
-		al.jsonErrorResponseWithError(w, http.StatusInternalServerError, "", "Failed to persist a new client group.", err)
+		al.jsonErrorResponseWithError(w, http.StatusInternalServerError, "Failed to persist a new client group.", err)
 		return
 	}
 
@@ -2304,12 +2305,12 @@ func (al *APIListener) handlePutClientGroup(w http.ResponseWriter, req *http.Req
 	}
 
 	if err := validateInputClientGroup(group); err != nil {
-		al.jsonErrorResponseWithError(w, http.StatusBadRequest, "", "Invalid client group.", err)
+		al.jsonErrorResponseWithError(w, http.StatusBadRequest, "Invalid client group.", err)
 		return
 	}
 
 	if err := al.clientGroupProvider.Update(req.Context(), &group); err != nil {
-		al.jsonErrorResponseWithError(w, http.StatusInternalServerError, "", "Failed to persist client group.", err)
+		al.jsonErrorResponseWithError(w, http.StatusInternalServerError, "Failed to persist client group.", err)
 		return
 	}
 
@@ -2345,7 +2346,7 @@ func (al *APIListener) handleGetClientGroup(w http.ResponseWriter, req *http.Req
 
 	group, err := al.clientGroupProvider.Get(req.Context(), id)
 	if err != nil {
-		al.jsonErrorResponseWithError(w, http.StatusInternalServerError, "", fmt.Sprintf("Failed to find client group[id=%q].", id), err)
+		al.jsonErrorResponseWithError(w, http.StatusInternalServerError, fmt.Sprintf("Failed to find client group[id=%q].", id), err)
 		return
 	}
 	if group == nil {
@@ -2366,7 +2367,7 @@ func (al *APIListener) handleGetClientGroup(w http.ResponseWriter, req *http.Req
 func (al *APIListener) handleGetClientGroups(w http.ResponseWriter, req *http.Request) {
 	res, err := al.clientGroupProvider.GetAll(req.Context())
 	if err != nil {
-		al.jsonErrorResponseWithError(w, http.StatusInternalServerError, "", "Failed to get client groups.", err)
+		al.jsonErrorResponseWithError(w, http.StatusInternalServerError, "Failed to get client groups.", err)
 		return
 	}
 
@@ -2406,7 +2407,7 @@ func (al *APIListener) handleDeleteClientGroup(w http.ResponseWriter, req *http.
 
 	err := al.clientGroupProvider.Delete(req.Context(), id)
 	if err != nil {
-		al.jsonErrorResponseWithError(w, http.StatusInternalServerError, "", fmt.Sprintf("Failed to delete client group[id=%q].", id), err)
+		al.jsonErrorResponseWithError(w, http.StatusInternalServerError, fmt.Sprintf("Failed to delete client group[id=%q].", id), err)
 		return
 	}
 
@@ -2418,8 +2419,8 @@ func (al *APIListener) wrapStaticPassModeMiddleware(next http.HandlerFunc) http.
 	return func(w http.ResponseWriter, r *http.Request) {
 		if al.usersService.GetProviderType() == enums.ProviderSourceStatic {
 			al.jsonError(w, errors2.APIError{
-				Code:    http.StatusBadRequest,
-				Message: "server runs on a static user-password pair, please use JSON file or database for user data",
+				HTTPStatus: http.StatusBadRequest,
+				Message:    "server runs on a static user-password pair, please use JSON file or database for user data",
 			})
 			return
 		}
@@ -2450,7 +2451,7 @@ func (al *APIListener) wrapAdminAccessMiddleware(next http.HandlerFunc) http.Han
 				"current user should belong to %s group to access this resource",
 				users.Administrators,
 			),
-			Code: http.StatusForbidden,
+			HTTPStatus: http.StatusForbidden,
 		})
 	}
 }
@@ -2539,15 +2540,15 @@ func (al *APIListener) handleReadVaultValue(w http.ResponseWriter, req *http.Req
 	id, err := al.readIntParam(routeParamVaultValueID, req)
 	if err != nil {
 		al.jsonError(w, errors2.APIError{
-			Err:  err,
-			Code: http.StatusBadRequest,
+			Err:        err,
+			HTTPStatus: http.StatusBadRequest,
 		})
 		return
 	}
 	if id == 0 {
 		al.jsonError(w, errors2.APIError{
-			Err:  fmt.Errorf("missing %q route param", routeParamVaultValueID),
-			Code: http.StatusBadRequest,
+			Err:        fmt.Errorf("missing %q route param", routeParamVaultValueID),
+			HTTPStatus: http.StatusBadRequest,
 		})
 		return
 	}
@@ -2575,8 +2576,8 @@ func (al *APIListener) handleVaultStoreValue(w http.ResponseWriter, req *http.Re
 	id, err := al.readIntParam(routeParamVaultValueID, req)
 	if err != nil {
 		al.jsonError(w, errors2.APIError{
-			Err:  err,
-			Code: http.StatusBadRequest,
+			Err:        err,
+			HTTPStatus: http.StatusBadRequest,
 		})
 		return
 	}
@@ -2613,15 +2614,15 @@ func (al *APIListener) handleVaultDeleteValue(w http.ResponseWriter, req *http.R
 	id, err := al.readIntParam(routeParamVaultValueID, req)
 	if err != nil {
 		al.jsonError(w, errors2.APIError{
-			Err:  err,
-			Code: http.StatusBadRequest,
+			Err:        err,
+			HTTPStatus: http.StatusBadRequest,
 		})
 		return
 	}
 	if id == 0 {
 		al.jsonError(w, errors2.APIError{
-			Err:  fmt.Errorf("missing %q route param", routeParamVaultValueID),
-			Code: http.StatusBadRequest,
+			Err:        fmt.Errorf("missing %q route param", routeParamVaultValueID),
+			HTTPStatus: http.StatusBadRequest,
 		})
 		return
 	}
@@ -2711,8 +2712,8 @@ func (al *APIListener) handleReadScript(w http.ResponseWriter, req *http.Request
 	idStr := vars[routeParamScriptValueID]
 	if idStr == "" {
 		al.jsonError(w, errors2.APIError{
-			Err:  errors.New("empty script id provided"),
-			Code: http.StatusBadRequest,
+			Err:        errors.New("empty script id provided"),
+			HTTPStatus: http.StatusBadRequest,
 		})
 		return
 	}
@@ -2735,8 +2736,8 @@ func (al *APIListener) handleDeleteScript(w http.ResponseWriter, req *http.Reque
 	idStr := vars[routeParamScriptValueID]
 	if idStr == "" {
 		al.jsonError(w, errors2.APIError{
-			Err:  errors.New("empty script id provided"),
-			Code: http.StatusBadRequest,
+			Err:        errors.New("empty script id provided"),
+			HTTPStatus: http.StatusBadRequest,
 		})
 		return
 	}
@@ -2756,16 +2757,16 @@ func parseRequestBody(reqBody io.ReadCloser, dest interface{}) error {
 	err := dec.Decode(dest)
 	if err == io.EOF { // is handled separately to return an informative error message
 		return errors2.APIError{
-			Message: "Missing body with json data.",
-			Code:    http.StatusBadRequest,
+			Message:    "Missing body with json data.",
+			HTTPStatus: http.StatusBadRequest,
 		}
 	}
 
 	if err != nil {
 		return errors2.APIError{
-			Message: "Invalid JSON data.",
-			Err:     err,
-			Code:    http.StatusBadRequest,
+			Message:    "Invalid JSON data.",
+			Err:        err,
+			HTTPStatus: http.StatusBadRequest,
 		}
 	}
 
@@ -2861,7 +2862,7 @@ func (al *APIListener) handlePostMultiClientScript(w http.ResponseWriter, req *h
 		HasShebang:  script.HasShebangLine(inboundMsg.Script),
 	}
 	if err := al.jobProvider.SaveMultiJob(multiJob); err != nil {
-		al.jsonErrorResponseWithError(w, http.StatusInternalServerError, "", "Failed to persist a new multi-client job.", err)
+		al.jsonErrorResponseWithError(w, http.StatusInternalServerError, "Failed to persist a new multi-client job.", err)
 		return
 	}
 

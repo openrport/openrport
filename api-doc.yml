@@ -489,11 +489,17 @@ paths:
         type: "string"
       - name: "idle-timeout-minutes"
         in: "query"
-        description: "Auto-close the tunnel after given period of inactivity in minutes. If 0 or not provided - auto-closing is disabled."
+        description: "Auto-close the tunnel after given period of inactivity in minutes. If not provided, default value is 5 minutes. This parameter should not be used with a non empty `skip-idle-timeout` parameter"
         required: false
         type: "integer"
         maximum: 10080
         minimum: 0
+        default: 5
+      - name: "skip-idle-timeout"
+        in: "query"
+        description: "Disables the auto-close time of the tunnel (see `idle-timeout-minutes` parameter). The parameter should not be used with a non empty `idle-timeout-minutes` parameter"
+        required: false
+        type: "integer"
     put:
       tags:
         - "Clients and Tunnels"

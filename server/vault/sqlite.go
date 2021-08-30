@@ -21,8 +21,8 @@ import (
 )
 
 var ErrDatabaseNotInitialised = errors2.APIError{
-	Err:  errors.New("vault is not initialized yet"),
-	Code: http.StatusConflict,
+	Err:        errors.New("vault is not initialized yet"),
+	HTTPStatus: http.StatusConflict,
 }
 
 type SqliteProvider struct {

@@ -1,4 +1,4 @@
-// Code generated for package clients by go-bindata DO NOT EDIT. (@generated)
+// HTTPStatus generated for package clients by go-bindata DO NOT EDIT. (@generated)
 // sources:
 // 001_init.down.sql
 // 001_init.up.sql

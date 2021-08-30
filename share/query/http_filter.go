@@ -67,8 +67,8 @@ func ValidateFilterOptions(fo []FilterOption, supportedFields map[string]bool) e
 		ok := supportedFields[fo[i].Column]
 		if !ok {
 			errs = append(errs, errors2.APIError{
-				Message: fmt.Sprintf("unsupported filter field '%s'", fo[i].Column),
-				Code:    http.StatusBadRequest,
+				Message:    fmt.Sprintf("unsupported filter field '%s'", fo[i].Column),
+				HTTPStatus: http.StatusBadRequest,
 			})
 		}
 	}
@@ -86,8 +86,8 @@ func ValidateSortOptions(so []SortOption, supportedFields map[string]bool) error
 		ok := supportedFields[so[i].Column]
 		if !ok {
 			errs = append(errs, errors2.APIError{
-				Message: fmt.Sprintf("unsupported sort field '%s'", so[i].Column),
-				Code:    http.StatusBadRequest,
+				Message:    fmt.Sprintf("unsupported sort field '%s'", so[i].Column),
+				HTTPStatus: http.StatusBadRequest,
 			})
 		}
 	}

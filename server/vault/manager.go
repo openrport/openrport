@@ -27,8 +27,8 @@ var supportedFields = map[string]bool{
 }
 
 var WrongPasswordError = errors2.APIError{
-	Message: "wrong password provided",
-	Code:    http.StatusUnauthorized,
+	Message:    "wrong password provided",
+	HTTPStatus: http.StatusUnauthorized,
 }
 
 type Config interface {
@@ -91,8 +91,8 @@ func (m *Manager) Init(ctx context.Context, pass string) error {
 
 	if isInit {
 		return errors2.APIError{
-			Message: "vault is already initialized",
-			Code:    http.StatusConflict,
+			Message:    "vault is already initialized",
+			HTTPStatus: http.StatusConflict,
 		}
 	}
 
@@ -146,8 +146,8 @@ func (m *Manager) isDatabaseInitialized(ctx context.Context) (bool, error) {
 func (m *Manager) UnLock(ctx context.Context, pass string) error {
 	if !m.IsLocked() {
 		return errors2.APIError{
-			Message: "vault is already unlocked",
-			Code:    http.StatusConflict,
+			Message:    "vault is already unlocked",
+			HTTPStatus: http.StatusConflict,
 		}
 	}
 
@@ -159,8 +159,8 @@ func (m *Manager) UnLock(ctx context.Context, pass string) error {
 	}
 	if dbStatus.StatusName == "" || dbStatus.StatusName == DbStatusNotInit {
 		return errors2.APIError{
-			Message: "vault is not yet initialized",
-			Code:    http.StatusConflict,
+			Message:    "vault is not yet initialized",
+			HTTPStatus: http.StatusConflict,
 		}
 	}
 
@@ -186,8 +186,8 @@ func (m *Manager) UnLock(ctx context.Context, pass string) error {
 func (m *Manager) Lock(ctx context.Context) error {
 	if m.IsLocked() {
 		return errors2.APIError{
-			Message: "vault is already locked",
-			Code:    http.StatusConflict,
+			Message:    "vault is already locked",
+			HTTPStatus: http.StatusConflict,
 		}
 	}
 
@@ -198,8 +198,8 @@ func (m *Manager) Lock(ctx context.Context) error {
 	}
 	if dbStatus.StatusName == "" || dbStatus.StatusName == DbStatusNotInit {
 		return errors2.APIError{
-			Message: "vault is not yet initialized",
-			Code:    http.StatusConflict,
+			Message:    "vault is not yet initialized",
+			HTTPStatus: http.StatusConflict,
 		}
 	}
 
@@ -279,8 +279,8 @@ func (m *Manager) checkGroupAccess(val *StoredValue, user UserDataProvider) erro
 	}
 	if !userGroupMatches {
 		return errors2.APIError{
-			Message: "your group doesn't allow access to this value",
-			Code:    http.StatusForbidden,
+			Message:    "your group doesn't allow access to this value",
+			HTTPStatus: http.StatusForbidden,
 		}
 	}
 
@@ -347,8 +347,8 @@ func (m *Manager) Store(ctx context.Context, existingID int64, valueToStore *Inp
 
 		if !found2 {
 			return StoredValueID{}, errors2.APIError{
-				Message: "cannot find entry by the provided existingID",
-				Code:    http.StatusNotFound,
+				Message:    "cannot find entry by the provided existingID",
+				HTTPStatus: http.StatusNotFound,
 			}
 		}
 
@@ -360,8 +360,8 @@ func (m *Manager) Store(ctx context.Context, existingID int64, valueToStore *Inp
 
 	if found && (existingID == 0 || storedValue.ID != int(existingID)) {
 		return StoredValueID{}, errors2.APIError{
-			Message: fmt.Sprintf("another key '%s' exists for this client '%s'", valueToStore.Key, valueToStore.ClientID),
-			Code:    http.StatusConflict,
+			Message:    fmt.Sprintf("another key '%s' exists for this client '%s'", valueToStore.Key, valueToStore.ClientID),
+			HTTPStatus: http.StatusConflict,
 		}
 	}
 
@@ -399,8 +399,8 @@ func (m *Manager) Delete(ctx context.Context, id int, user UserDataProvider) err
 
 	if !found {
 		return errors2.APIError{
-			Message: "cannot find this entry by the provided id",
-			Code:    http.StatusNotFound,
+			Message:    "cannot find this entry by the provided id",
+			HTTPStatus: http.StatusNotFound,
 		}
 	}
 
@@ -420,8 +420,8 @@ func (m *Manager) Delete(ctx context.Context, id int, user UserDataProvider) err
 func (m *Manager) checkUnlockedAndInitialized(ctx context.Context) error {
 	if m.IsLocked() {
 		return errors2.APIError{
-			Message: "vault is locked",
-			Code:    http.StatusConflict,
+			Message:    "vault is locked",
+			HTTPStatus: http.StatusConflict,
 		}
 	}
 
@@ -432,8 +432,8 @@ func (m *Manager) checkUnlockedAndInitialized(ctx context.Context) error {
 
 	if !isInit {
 		return errors2.APIError{
-			Message: "vault is not initialized",
-			Code:    http.StatusConflict,
+			Message:    "vault is not initialized",
+			HTTPStatus: http.StatusConflict,
 		}
 	}
 

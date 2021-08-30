@@ -232,7 +232,7 @@ func TestHandleGetClientsAuth(t *testing.T) {
 			wantResp = api.NewSuccessPayload(tc.wantClientsAuth)
 		} else {
 			// failure case
-			wantResp = api.NewErrorPayloadWithCode(tc.wantErrCode, tc.wantErrTitle, "")
+			wantResp = api.NewErrAPIPayloadFromMessage(tc.wantErrCode, tc.wantErrTitle, "")
 		}
 		wantRespBytes, err := json.Marshal(wantResp)
 		require.NoErrorf(err, msg)
@@ -432,7 +432,7 @@ func TestHandlePostClients(t *testing.T) {
 			assert.Emptyf(w.Body.String(), msg)
 		} else {
 			// failure case
-			wantResp := api.NewErrorPayloadWithCode(tc.wantErrCode, tc.wantErrTitle, tc.wantErrDetail)
+			wantResp := api.NewErrAPIPayloadFromMessage(tc.wantErrCode, tc.wantErrTitle, tc.wantErrDetail)
 			wantRespBytes, err := json.Marshal(wantResp)
 			require.NoErrorf(err, msg)
 			require.Equalf(string(wantRespBytes), w.Body.String(), msg)
@@ -614,7 +614,7 @@ func TestHandleDeleteClient(t *testing.T) {
 				// success case: empty body
 			} else {
 				// failure case
-				wantResp := api.NewErrorPayloadWithCode(tc.wantErrCode, tc.wantErrTitle, tc.wantErrDetail)
+				wantResp := api.NewErrAPIPayloadFromMessage(tc.wantErrCode, tc.wantErrTitle, tc.wantErrDetail)
 				wantRespBytes, err := json.Marshal(wantResp)
 				require.NoError(err)
 				wantRespStr = string(wantRespBytes)
@@ -871,7 +871,7 @@ func TestHandlePostCommand(t *testing.T) {
 				assert.Nil(t, gotRunningJob.Result)
 			} else {
 				// failure case
-				wantResp := api.NewErrorPayloadWithCode(tc.wantErrCode, tc.wantErrTitle, tc.wantErrDetail)
+				wantResp := api.NewErrAPIPayloadFromMessage(tc.wantErrCode, tc.wantErrTitle, tc.wantErrDetail)
 				wantRespBytes, err := json.Marshal(wantResp)
 				require.NoError(t, err)
 				require.Equal(t, string(wantRespBytes), w.Body.String())
@@ -952,7 +952,7 @@ func TestHandleGetCommand(t *testing.T) {
 				assert.Equal(t, wantJob.JID, jp.InputJID)
 			} else {
 				// failure case
-				wantResp := api.NewErrorPayloadWithCode(tc.wantErrCode, tc.wantErrTitle, tc.wantErrDetail)
+				wantResp := api.NewErrAPIPayloadFromMessage(tc.wantErrCode, tc.wantErrTitle, tc.wantErrDetail)
 				wantRespBytes, err := json.Marshal(wantResp)
 				require.NoError(t, err)
 				require.Equal(t, string(wantRespBytes), w.Body.String())
@@ -1041,7 +1041,7 @@ func TestHandleGetCommands(t *testing.T) {
 				assert.Equal(t, testCID, jp.InputCID)
 			} else {
 				// failure case
-				wantResp := api.NewErrorPayloadWithCode(tc.wantErrCode, tc.wantErrTitle, tc.wantErrDetail)
+				wantResp := api.NewErrAPIPayloadFromMessage(tc.wantErrCode, tc.wantErrTitle, tc.wantErrDetail)
 				wantRespBytes, err := json.Marshal(wantResp)
 				require.NoError(t, err)
 				require.Equal(t, string(wantRespBytes), w.Body.String())
@@ -1399,7 +1399,7 @@ func TestHandlePostMultiClientCommand(t *testing.T) {
 				}
 			} else {
 				// failure case
-				wantResp := api.NewErrorPayloadWithCode(tc.wantErrCode, tc.wantErrTitle, tc.wantErrDetail)
+				wantResp := api.NewErrAPIPayloadFromMessage(tc.wantErrCode, tc.wantErrTitle, tc.wantErrDetail)
 				wantRespBytes, err := json.Marshal(wantResp)
 				require.NoError(t, err)
 				require.Equal(t, string(wantRespBytes), w.Body.String())

@@ -4,9 +4,10 @@ import "strings"
 
 // APIError wraps error which is interpreted as in http error
 type APIError struct {
-	Message string
-	Err     error
-	Code    int
+	Message    string
+	Err        error
+	HTTPStatus int
+	ErrCode    string
 }
 
 // Error interface implementation
