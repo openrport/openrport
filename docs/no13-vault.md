@@ -270,3 +270,30 @@ curl -X DELETE 'http://localhost:3000/api/v1/vault/1' \
 ```
 
 If `required_group` value of the entry you want to delete is not empty, only users of this group can change this value, otherwise an error will be returned.
+
+## Create clear text backups of the vault
+If you lose the passphrase of the vault, accessing the data is not possible anymore. A lost password can only be recovered by so-called brute-force password probing. 
+
+Consider creating clear-text backups of the vault. Backups are performed via the API. You need a user of the Administrator group and an API token for that user. 
+
+Below you find a simple script that dumps all entries of the vault to json text files.
+
+```bash
+USER=admin
+TOKEN=e83d40e4-e237-43d6-bb99-35972ded631b
+URL=http://localhost:3000/api/v1/vault
+
+# Get all vault document ids
+FOLDER=./vault-backup
+mkdir ${FOLDER}
+IDS=$(curl -s -u ${USER}:${TOKEN} ${URL}|jq .data[].id)
+# Iterate over list of document ids
+for ID in $IDS; do 
+  curl -s -u ${USER}:${TOKEN} ${URL}/${ID} -o ${FOLDER}/${ID}.json
+done
+# Pack and compress
+tar czf vault-backup.tar.gz ${FOLDER}
+# Securely delete exported files
+find ${FOLDER} -type f -exec shred {} \;
+rm -rf ${FOLDER}
+```
