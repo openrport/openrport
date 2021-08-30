@@ -54,13 +54,21 @@ type APIListener struct {
 
 	testDone chan bool // is used only in tests to be able to wait until async task is done
 
-	usersService  *users.APIService // TODO: merge with userSrv
+	usersService  UsersService // TODO: merge with userSrv
 	vaultManager  *vault.Manager
 	scriptManager *script.Manager
 }
 
 type UserService interface {
 	GetByUsername(username string) (*users.User, error)
+}
+
+type UsersService interface {
+	GetAll() ([]*users.User, error)
+	Change(*users.User, string) error
+	Delete(string) error
+	ExistGroups([]string) error
+	GetProviderType() enums.ProviderSource
 }
 
 func NewAPIListener(
@@ -138,6 +146,13 @@ func NewAPIListener(
 	scriptExecutor := script.NewExecutor(scriptLogger)
 	scriptManager := script.NewManager(scriptDb, scriptExecutor, scriptLogger)
 
+	usersService := &users.APIService{
+		ProviderType: usersProviderType,
+		FileProvider: usersFromFileProvider,
+		DB:           userDB,
+		TwoFAOn:      config.API.IsTwoFAOn(),
+	}
+
 	a := &APIListener{
 		Server:            server,
 		Logger:            chshare.NewLogger("api-listener", config.Logging.LogOutput, config.Logging.LogLevel),
@@ -147,14 +162,9 @@ func NewAPIListener(
 		requestLogOptions: config.InitRequestLogOptions(),
 		userSrv:           userService,
 		bannedUsers:       security.NewBanList(time.Duration(config.API.UserLoginWait) * time.Second),
-		usersService: &users.APIService{
-			ProviderType: usersProviderType,
-			FileProvider: usersFromFileProvider,
-			DB:           userDB,
-			TwoFAOn:      config.API.IsTwoFAOn(),
-		},
-		vaultManager:  vault.NewManager(vaultDBProviderFactory, &vault.Aes256PassManager{}, vaultLogger),
-		scriptManager: scriptManager,
+		usersService:      usersService,
+		vaultManager:      vault.NewManager(vaultDBProviderFactory, &vault.Aes256PassManager{}, vaultLogger),
+		scriptManager:     scriptManager,
 	}
 
 	if config.API.IsTwoFAOn() {
@@ -187,7 +197,7 @@ func NewAPIListener(
 			userService,
 			msgSrv,
 		)
-		a.usersService.DeliverySrv = msgSrv
+		usersService.DeliverySrv = msgSrv
 		a.Logger.Infof("2FA is enabled via using %s", config.API.TwoFATokenDelivery)
 	}
 
@@ -291,22 +301,15 @@ func (al *APIListener) handleAPIRequest(w http.ResponseWriter, r *http.Request) 
 
 var ErrTooManyRequests = errors.New("too many requests, please try later")
 
+// lookupUser is used to get the user on every request in auth middleware
 func (al *APIListener) lookupUser(r *http.Request) (authorized bool, username string, err error) {
-	// skip basic auth when 2fa is enabled
-	if !al.config.API.IsTwoFAOn() {
-		if basicUser, basicPwd, basicAuthProvided := r.BasicAuth(); basicAuthProvided {
-			if al.bannedUsers.IsBanned(basicUser) {
-				return false, basicUser, ErrTooManyRequests
-			}
-			authorized, err = al.validateCredentials(basicUser, basicPwd)
-			username = basicUser
-			return
-		}
+	if basicUser, basicPwd, basicAuthProvided := r.BasicAuth(); basicAuthProvided {
+		return al.handleBasicAuth(basicUser, basicPwd)
+
 	}
 
 	if bearerToken, bearerAuthProvided := getBearerToken(r); bearerAuthProvided {
-		authorized, username, err = al.handleBearerToken(bearerToken)
-		return
+		return al.handleBearerToken(bearerToken)
 	}
 
 	// case when no auth method is provided
@@ -314,7 +317,43 @@ func (al *APIListener) lookupUser(r *http.Request) (authorized bool, username st
 		return false, "", ErrTooManyRequests
 	}
 
-	return
+	return false, "", nil
+}
+
+// handleBasicAuth checks username and password against either user's password or token
+func (al *APIListener) handleBasicAuth(username, password string) (authorized bool, name string, err error) {
+	if al.bannedUsers.IsBanned(username) {
+		return false, username, ErrTooManyRequests
+	}
+
+	if username == "" {
+		return false, "", nil
+	}
+	user, err := al.userSrv.GetByUsername(username)
+	if err != nil {
+		return false, username, fmt.Errorf("failed to get user: %v", err)
+	}
+	if user == nil {
+		return false, username, nil
+	}
+
+	// skip basic auth with password when 2fa is enabled
+	if !al.config.API.IsTwoFAOn() {
+		passwordOk := verifyPassword(user.Password, password)
+		if passwordOk {
+			return true, username, nil
+		}
+	}
+
+	// only check token if we have one saved
+	if user.Token != nil && *user.Token != "" {
+		tokenOk := verifyPassword(*user.Token, password)
+		if tokenOk {
+			return true, username, nil
+		}
+	}
+
+	return false, username, nil
 }
 
 func (al *APIListener) handleBearerToken(bearerToken string) (bool, string, error) {
@@ -347,17 +386,17 @@ func (al *APIListener) validateCredentials(username, password string) (bool, err
 		return false, nil
 	}
 
-	return verifyPassword(*user, password), nil
+	return verifyPassword(user.Password, password), nil
 }
 
-func verifyPassword(user users.User, password string) bool {
+func verifyPassword(saved, provided string) bool {
 	// bcrypt hashed password
-	if strings.HasPrefix(user.Password, htpasswdBcryptPrefix) {
-		return bcrypt.CompareHashAndPassword([]byte(user.Password), []byte(password)) == nil
+	if strings.HasPrefix(saved, htpasswdBcryptPrefix) {
+		return bcrypt.CompareHashAndPassword([]byte(saved), []byte(provided)) == nil
 	}
 
 	// plaintext password, constant time compare is used for security reasons
-	return subtle.ConstantTimeCompare([]byte(password), []byte(user.Password)) == 1
+	return subtle.ConstantTimeCompare([]byte(saved), []byte(provided)) == 1
 }
 
 // parseHTTPAuthStr parses <user>:<password> string, returns (user, nil) or (nil, error)

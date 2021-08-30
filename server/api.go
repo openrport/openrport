@@ -166,6 +166,8 @@ func (al *APIListener) initRouter() {
 	sub.HandleFunc("/me", al.handleGetMe).Methods(http.MethodGet)
 	sub.HandleFunc("/me", al.handleChangeMe).Methods(http.MethodPut)
 	sub.HandleFunc("/me/ip", al.handleGetIP).Methods(http.MethodGet)
+	sub.HandleFunc("/me/token", al.handlePostToken).Methods(http.MethodPost)
+	sub.HandleFunc("/me/token", al.handleDeleteToken).Methods(http.MethodDelete)
 	sub.HandleFunc("/clients", al.handleGetClients).Methods(http.MethodGet)
 	sub.HandleFunc("/clients/{client_id}", al.wrapClientAccessMiddleware(al.handleGetClient)).Methods(http.MethodGet)
 	sub.HandleFunc("/clients/{client_id}", al.wrapClientAccessMiddleware(al.handleDeleteClient)).Methods(http.MethodDelete)
@@ -574,7 +576,7 @@ func (al *APIListener) handleGetStatus(w http.ResponseWriter, req *http.Request)
 		"connect_url":            al.config.Server.URL,
 		"clients_auth_source":    al.clientAuthProvider.Source(),
 		"clients_auth_mode":      al.getClientsAuthMode(),
-		"users_auth_source":      al.usersService.ProviderType,
+		"users_auth_source":      al.usersService.GetProviderType(),
 		"two_fa_enabled":         al.config.API.IsTwoFAOn(),
 		"two_fa_delivery_method": twoFADelivery,
 	})
@@ -1125,7 +1127,7 @@ func (al *APIListener) handleChangeMe(w http.ResponseWriter, req *http.Request) 
 			return
 		}
 
-		if !verifyPassword(*curUser, r.OldPassword) {
+		if !verifyPassword(curUser.Password, r.OldPassword) {
 			al.jsonErrorResponseWithTitle(w, http.StatusForbidden, "Incorrect old password.")
 			return
 		}
@@ -2414,7 +2416,7 @@ func (al *APIListener) handleDeleteClientGroup(w http.ResponseWriter, req *http.
 
 func (al *APIListener) wrapStaticPassModeMiddleware(next http.HandlerFunc) http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
-		if al.usersService.ProviderType == enums.ProviderSourceStatic {
+		if al.usersService.GetProviderType() == enums.ProviderSourceStatic {
 			al.jsonError(w, errors2.APIError{
 				Code:    http.StatusBadRequest,
 				Message: "server runs on a static user-password pair, please use JSON file or database for user data",
@@ -2871,4 +2873,48 @@ func (al *APIListener) handlePostMultiClientScript(w http.ResponseWriter, req *h
 	al.Debugf("Multi-client Job[id=%q] created to execute remote command on clients %s, groups %s: %q.", multiJob.JID, inboundMsg.ClientIDs, inboundMsg.GroupIDs, inboundMsg.Command)
 
 	go al.executeMultiClientJob(multiJob, inboundMsg.OrderedClients, clientIDCommandMap)
+}
+
+type postTokenResponse struct {
+	Token string `json:"token"`
+}
+
+func (al *APIListener) handlePostToken(w http.ResponseWriter, req *http.Request) {
+	curUser, err := al.getUserModelForAuth(req.Context())
+	if err != nil {
+		al.jsonError(w, err)
+		return
+	}
+
+	newToken := random.UUID4()
+
+	if err := al.usersService.Change(&users.User{
+		Token: &newToken,
+	}, curUser.Username); err != nil {
+		al.jsonError(w, err)
+		return
+	}
+
+	resp := postTokenResponse{
+		Token: newToken,
+	}
+	al.writeJSONResponse(w, http.StatusOK, api.NewSuccessPayload(resp))
+}
+
+func (al *APIListener) handleDeleteToken(w http.ResponseWriter, req *http.Request) {
+	curUser, err := al.getUserModelForAuth(req.Context())
+	if err != nil {
+		al.jsonError(w, err)
+		return
+	}
+
+	noToken := ""
+	if err := al.usersService.Change(&users.User{
+		Token: &noToken,
+	}, curUser.Username); err != nil {
+		al.jsonError(w, err)
+		return
+	}
+
+	w.WriteHeader(http.StatusNoContent)
 }

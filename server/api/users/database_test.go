@@ -105,6 +105,7 @@ func TestGetByUsername(t *testing.T) {
 			ExpectedUser: &User{
 				Username: "user1",
 				Password: "pass1",
+				Token:    nil,
 			},
 		}, {
 			Name:     "user with one group",
@@ -113,14 +114,16 @@ func TestGetByUsername(t *testing.T) {
 				Username: "user2",
 				Password: "pass2",
 				Groups:   []string{"group1"},
+				Token:    nil,
 			},
 		}, {
-			Name:     "user with multiple groups",
+			Name:     "user with multiple groups and token",
 			Username: "user3",
 			ExpectedUser: &User{
 				Username: "user3",
 				Password: "pass3",
 				Groups:   []string{"group1", "group2"},
+				Token:    Token("token3"),
 			},
 		},
 	}
@@ -158,6 +161,7 @@ func TestGetAll(t *testing.T) {
 			Username: "user1",
 			Password: "pass1",
 			Groups:   nil,
+			Token:    nil,
 		},
 		{
 			Username: "user2",
@@ -165,6 +169,7 @@ func TestGetAll(t *testing.T) {
 			Groups: []string{
 				"group1",
 			},
+			Token: nil,
 		},
 		{
 			Username: "user3",
@@ -173,6 +178,7 @@ func TestGetAll(t *testing.T) {
 				"group1",
 				"group2",
 			},
+			Token: Token("token3"),
 		},
 	}
 	assert.Equal(t, expectedUsers, actualUsers)
@@ -223,6 +229,7 @@ func TestAdd(t *testing.T) {
 				{
 					"username": "login1",
 					"password": "pass1",
+					"token":    nil,
 				},
 			},
 			expectedGroupRows: []map[string]interface{}{
@@ -277,20 +284,24 @@ func TestUpdate(t *testing.T) {
 				Groups: []string{
 					"group1",
 				},
+				Token: Token("new-token"),
 			},
 			username: "user1",
 			expectedUserRows: []map[string]interface{}{
 				{
 					"username": "user2",
 					"password": "pass2",
+					"token":    nil,
 				},
 				{
 					"username": "user3",
 					"password": "pass3",
+					"token":    "token3",
 				},
 				{
 					"username": "user_one",
 					"password": "pass_one",
+					"token":    "new-token",
 				},
 			},
 			expectedGroupRows: []map[string]interface{}{
@@ -322,14 +333,17 @@ func TestUpdate(t *testing.T) {
 				{
 					"username": "user1",
 					"password": "pass1",
+					"token":    nil,
 				},
 				{
 					"username": "user2",
 					"password": "pass_two",
+					"token":    nil,
 				},
 				{
 					"username": "user3",
 					"password": "pass3",
+					"token":    "token3",
 				},
 			},
 			expectedGroupRows: []map[string]interface{}{
@@ -359,14 +373,17 @@ func TestUpdate(t *testing.T) {
 				{
 					"username": "user1",
 					"password": "pass1",
+					"token":    nil,
 				},
 				{
 					"username": "user2",
 					"password": "pass2",
+					"token":    nil,
 				},
 				{
 					"username": "user3",
 					"password": "pass3",
+					"token":    "token3",
 				},
 			},
 			expectedGroupRows: []map[string]interface{}{
@@ -390,14 +407,17 @@ func TestUpdate(t *testing.T) {
 				{
 					"username": "user1",
 					"password": "pass1",
+					"token":    nil,
 				},
 				{
 					"username": "user2",
 					"password": "pass2",
+					"token":    nil,
 				},
 				{
 					"username": "user3",
 					"password": "pass3",
+					"token":    "token3",
 				},
 			},
 			expectedGroupRows: []map[string]interface{}{
@@ -463,7 +483,7 @@ func TestDelete(t *testing.T) {
 }
 
 func prepareTables(db *sqlx.DB) error {
-	_, err := db.Exec("CREATE TABLE `users` (username TEXT PRIMARY KEY, password TEXT)")
+	_, err := db.Exec("CREATE TABLE `users` (username TEXT PRIMARY KEY, password TEXT, token TEXT)")
 	if err != nil {
 		return err
 	}
@@ -487,7 +507,7 @@ func prepareDummyData(db *sqlx.DB) error {
 		return err
 	}
 
-	_, err = db.Exec("INSERT INTO `users` (username, password) VALUES (\"user3\", \"pass3\")")
+	_, err = db.Exec("INSERT INTO `users` (username, password, token) VALUES (\"user3\", \"pass3\", \"token3\")")
 	if err != nil {
 		return err
 	}
@@ -511,7 +531,7 @@ func prepareDummyData(db *sqlx.DB) error {
 }
 
 func assertUserTableEquals(t *testing.T, db *sqlx.DB, usersTableName string, expectedRows []map[string]interface{}) {
-	query := fmt.Sprintf("SELECT `username`, `password` FROM `%s` order by `username`", usersTableName)
+	query := fmt.Sprintf("SELECT `username`, `password`, `token` FROM `%s` order by `username`", usersTableName)
 	test.AssertRowsEqual(t, db, expectedRows, query, []interface{}{})
 }
 

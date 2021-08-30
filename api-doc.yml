@@ -8,7 +8,7 @@ basePath: "/api/v1"
 securityDefinitions:
   basic_auth:
     type: basic
-    description: "HTTP-basic authentication works for all routes"
+    description: "HTTP-basic authentication works for all routes. You can use user's password only when 2FA is not enabled. For scripting you can use long-lived API token generated using /me/token endpoint instead of the password."
   bearer_auth:
     description: "Instead of HTTP basic authentication you can retrieve a bearer token using /login endpoint. Send the retrieved token in 'Authorization: Bearer <TOKEN>' header"
     type: apiKey # actually apiKey is not correct type but 'bearer' type is not supported in swagger v2.0
@@ -266,6 +266,49 @@ paths:
                 properties:
                   ip:
                     type: "string"
+  /me/token:
+    post:
+      tags:
+        - "Profile & Info"
+      summary: "Generate a new API token for user and return it"
+      produces:
+        - "application/json"
+      responses:
+        "200":
+          description: "API token"
+          schema:
+            type: "object"
+            properties:
+              data:
+                type: "object"
+                properties:
+                  token:
+                    type: "string"
+                    format: "uuid"
+        "401":
+          description: "Unauthorized"
+          schema:
+            $ref: "#/definitions/ErrorPayload"
+        "500":
+          description: "Invalid Operation"
+          schema:
+            $ref: "#/definitions/ErrorPayload"
+    delete:
+      tags:
+        - "Profile & Info"
+      summary: "Delete user's API token"
+
+      responses:
+        "204":
+          description: "Successful operation."
+        "401":
+          description: "Unauthorized"
+          schema:
+            $ref: "#/definitions/ErrorPayload"
+        "500":
+          description: "Invalid Operation"
+          schema:
+            $ref: "#/definitions/ErrorPayload"
   /status:
     get:
       tags:

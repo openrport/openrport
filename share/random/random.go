@@ -43,6 +43,6 @@ func String(n int, chars string) string {
 }
 
 // UUID4 returns a random generated UUID4.
-func UUID4() string {
+var UUID4 = func() string {
 	return uuid.NewV4().String()
 }

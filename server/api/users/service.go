@@ -37,6 +37,10 @@ type APIService struct {
 	TwoFAOn      bool
 }
 
+func (as APIService) GetProviderType() enums.ProviderSource {
+	return as.ProviderType
+}
+
 func (as *APIService) GetAll() ([]*User, error) {
 	switch as.ProviderType {
 	case enums.ProviderSourceFile:
@@ -96,6 +100,15 @@ func (as *APIService) Change(usr *User, username string) error {
 		usr.Password = strings.Replace(string(passHash), htpasswdBcryptAltPrefix, htpasswdBcryptPrefix, 1)
 	}
 
+	if usr.Token != nil && *usr.Token != "" {
+		tokenHash, err := bcrypt.GenerateFromPassword([]byte(*usr.Token), bcrypt.DefaultCost)
+		if err != nil {
+			return err
+		}
+		tokenHashStr := strings.Replace(string(tokenHash), htpasswdBcryptAltPrefix, htpasswdBcryptPrefix, 1)
+		usr.Token = &tokenHashStr
+	}
+
 	err := as.validate(usr, username)
 	if err != nil {
 		return err
@@ -136,7 +149,7 @@ func (as *APIService) validate(dataToChange *User, usernameToFind string) error 
 		}
 	} else {
 		if (dataToChange.Username == "" || dataToChange.Username == usernameToFind) &&
-			dataToChange.Password == "" && dataToChange.Groups == nil && (!as.TwoFAOn || dataToChange.TwoFASendTo == "") {
+			dataToChange.Password == "" && dataToChange.Groups == nil && (!as.TwoFAOn || dataToChange.TwoFASendTo == "") && dataToChange.Token == nil {
 			errs = append(errs, errors2.APIError{
 				Message: "nothing to change",
 				Code:    http.StatusBadRequest,
@@ -280,6 +293,9 @@ func (as *APIService) updateUserInFile(dataToChange *User, usernameToFind string
 	}
 	if dataToChange.Username != "" {
 		users[userFound].Username = dataToChange.Username
+	}
+	if dataToChange.Token != nil {
+		users[userFound].Token = dataToChange.Token
 	}
 
 	err = as.FileProvider.SaveUsersToFile(users)

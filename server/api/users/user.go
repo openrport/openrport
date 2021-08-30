@@ -10,6 +10,7 @@ type User struct {
 	Password    string   `json:"password" db:"password"`
 	Groups      []string `json:"groups" db:"-"`
 	TwoFASendTo string   `json:"two_fa_send_to" db:"two_fa_send_to"`
+	Token       *string  `json:"token,omitempty" db:"token"`
 }
 
 func (u User) GetGroups() []string {
@@ -27,4 +28,8 @@ func (u User) IsAdmin() bool {
 		}
 	}
 	return false
+}
+
+func Token(s string) *string {
+	return &s
 }
