@@ -1995,7 +1995,7 @@ func (al *APIListener) handleScriptsWS(w http.ResponseWriter, req *http.Request)
 	}
 	clientsInGroupsCount, clientIDCommandMap, err := al.createScriptOnMultipleClients(ctx, inboundMsg)
 	if err != nil {
-		uiConnTS.WriteError("Failed to fetch clients", err)
+		uiConnTS.WriteError("Failed to create script on multiple clients", err)
 		return
 	}
 	inboundMsg.HasShebang = script.HasShebangLine(inboundMsg.Script)
