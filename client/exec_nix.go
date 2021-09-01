@@ -15,7 +15,10 @@ func (e *CmdExecutorImpl) New(ctx context.Context, execCtx *CmdExecutorContext) 
 
 	interpreter := execCtx.Interpreter
 	if interpreter != "" {
-		args = append(args, interpreter, "-c")
+		args = append(args, interpreter)
+		if interpreter != taco {
+			args = append(args, "-c")
+		}
 	}
 
 	args = append(args, execCtx.Command)

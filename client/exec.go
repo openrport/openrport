@@ -54,6 +54,7 @@ const (
 	unixShell  = "/bin/sh"
 	cmdShell   = "cmd"
 	powerShell = "powershell"
+	taco       = "taco"
 )
 
 // now is used to stub time.Now in tests
@@ -214,6 +215,10 @@ var getInterpreter = func(inputInterpreter, os string, hasShebang bool) (string,
 
 	if hasShebang {
 		return "", nil
+	}
+
+	if inputInterpreter == taco {
+		return inputInterpreter, nil
 	}
 
 	if inputInterpreter != "" {

@@ -9,6 +9,8 @@ import (
 	"os"
 	"strings"
 
+	"github.com/cloudradar-monitoring/rport/server/validation"
+
 	"github.com/cloudradar-monitoring/rport/server/api"
 	"github.com/cloudradar-monitoring/rport/server/clients"
 	chshare "github.com/cloudradar-monitoring/rport/share"
@@ -74,7 +76,12 @@ func (e *Executor) createClientScriptPath(os, interpreter string) (string, error
 		return scriptName + ".bat", nil
 	}
 
-	return scriptName + ".sh", nil
+	extension := ".sh"
+	if interpreter == validation.Taco {
+		extension = ".yml"
+	}
+
+	return scriptName + extension, nil
 }
 
 const shebangPrefix = "#!"
