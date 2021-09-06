@@ -1,20 +1,20 @@
 package validation
 
-import "fmt"
+import (
+	"fmt"
 
-const Taco = "taco"
-const Powershell = "powershell"
-const Cmd = "cmd"
+	chshare "github.com/cloudradar-monitoring/rport/share"
+)
 
-var validInputInterpreter = []string{Cmd, Powershell, Taco}
+var validInputInterpreter = []string{chshare.CmdShell, chshare.PowerShell, chshare.Taco}
 
 func ValidateInterpreter(interpreter string, isScript bool) error {
 	if interpreter == "" {
 		return nil
 	}
 
-	if !isScript && interpreter == Taco {
-		return fmt.Errorf("%s interpreter can't be used for commands execution", Taco)
+	if !isScript && interpreter == chshare.Taco {
+		return fmt.Errorf("%s interpreter can't be used for commands execution", chshare.Taco)
 	}
 
 	for _, v := range validInputInterpreter {

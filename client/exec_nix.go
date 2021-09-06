@@ -5,6 +5,8 @@ package chclient
 import (
 	"context"
 	"os/exec"
+
+	chshare "github.com/cloudradar-monitoring/rport/share"
 )
 
 func (e *CmdExecutorImpl) New(ctx context.Context, execCtx *CmdExecutorContext) *exec.Cmd {
@@ -16,7 +18,7 @@ func (e *CmdExecutorImpl) New(ctx context.Context, execCtx *CmdExecutorContext) 
 	interpreter := execCtx.Interpreter
 	if interpreter != "" {
 		args = append(args, interpreter)
-		if interpreter != taco {
+		if interpreter != chshare.Taco {
 			args = append(args, "-c")
 		}
 	}

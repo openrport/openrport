@@ -9,8 +9,6 @@ import (
 	"os"
 	"strings"
 
-	"github.com/cloudradar-monitoring/rport/server/validation"
-
 	"github.com/cloudradar-monitoring/rport/server/api"
 	"github.com/cloudradar-monitoring/rport/server/clients"
 	chshare "github.com/cloudradar-monitoring/rport/share"
@@ -69,19 +67,25 @@ func (e *Executor) createClientScriptPath(os, interpreter string) (string, error
 	if err != nil {
 		return "", err
 	}
-	if os == "windows" {
-		if interpreter == "powershell" {
-			return scriptName + ".ps1", nil
-		}
-		return scriptName + ".bat", nil
-	}
 
-	extension := ".sh"
-	if interpreter == validation.Taco {
-		extension = ".yml"
-	}
+	extension := e.getExtension(os, interpreter)
 
 	return scriptName + extension, nil
+}
+
+func (e *Executor) getExtension(os, interpreter string) string {
+	if interpreter == chshare.Taco {
+		return ".yml"
+	}
+
+	if os == "windows" {
+		if interpreter == chshare.PowerShell {
+			return ".ps1"
+		}
+		return ".bat"
+	}
+
+	return ".sh"
 }
 
 const shebangPrefix = "#!"

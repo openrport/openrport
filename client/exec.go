@@ -50,13 +50,6 @@ func (e *CmdExecutorImpl) Wait(cmd *exec.Cmd) error {
 	return cmd.Wait()
 }
 
-const (
-	unixShell  = "/bin/sh"
-	cmdShell   = "cmd"
-	powerShell = "powershell"
-	taco       = "taco"
-)
-
 // now is used to stub time.Now in tests
 var now = time.Now
 
@@ -203,11 +196,15 @@ func (c *Client) rmScriptIfNeeded(scriptPath string, isScript bool) {
 
 // var is used to override in tests
 var getInterpreter = func(inputInterpreter, os string, hasShebang bool) (string, error) {
+	if inputInterpreter == chshare.Taco {
+		return inputInterpreter, nil
+	}
+
 	if os == "windows" {
 		switch inputInterpreter {
 		case "":
-			return cmdShell, nil
-		case cmdShell, powerShell:
+			return chshare.CmdShell, nil
+		case chshare.CmdShell, chshare.PowerShell:
 			return inputInterpreter, nil
 		}
 		return "", fmt.Errorf("invalid windows command interpreter: %q", inputInterpreter)
@@ -217,14 +214,10 @@ var getInterpreter = func(inputInterpreter, os string, hasShebang bool) (string,
 		return "", nil
 	}
 
-	if inputInterpreter == taco {
-		return inputInterpreter, nil
-	}
-
 	if inputInterpreter != "" {
 		return "", fmt.Errorf("for unix clients a command interpreter should not be specified, got: %q", inputInterpreter)
 	}
-	return unixShell, nil
+	return chshare.UnixShell, nil
 }
 
 // isAllowed returns true if a given command passes configured restrictions.
