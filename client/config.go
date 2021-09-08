@@ -6,6 +6,8 @@ import (
 	"log"
 	"net/http"
 	"net/url"
+	"os"
+	"path/filepath"
 	"regexp"
 	"strings"
 	"time"
@@ -41,6 +43,7 @@ type ClientConfig struct {
 	Remotes                  []string      `mapstructure:"remotes"`
 	AllowRoot                bool          `mapstructure:"allow_root"`
 	UpdatesInterval          time.Duration `mapstructure:"updates_interval"`
+	DataDir                  string        `mapstructure:"data_dir"`
 
 	proxyURL *url.URL
 	remotes  []*chshare.Remote
@@ -69,8 +72,7 @@ type CommandsConfig struct {
 }
 
 type ScriptsConfig struct {
-	Enabled bool   `mapstructure:"enabled"`
-	Dir     string `mapstructure:"script_dir"`
+	Enabled bool `mapstructure:"enabled"`
 }
 
 type Config struct {
@@ -81,7 +83,7 @@ type Config struct {
 	RemoteScripts  ScriptsConfig    `mapstructure:"remote-scripts"`
 }
 
-func (c *Config) ParseAndValidate() error {
+func (c *Config) ParseAndValidate(skipScriptsDirValidation bool) error {
 	if err := c.parseHeaders(); err != nil {
 		return err
 	}
@@ -102,13 +104,17 @@ func (c *Config) ParseAndValidate() error {
 		c.Connection.MaxRetryInterval = 5 * time.Minute
 	}
 
+	if c.Client.DataDir == "" {
+		return errors.New("'data directory path' cannot be empty")
+	}
+
 	if err := c.parseRemoteCommands(); err != nil {
 		return fmt.Errorf("remote commands: %v", err)
 	}
 
 	c.Client.authUser, c.Client.authPass = chshare.ParseAuth(c.Client.Auth)
 
-	if err := c.parseRemoteScripts(); err != nil {
+	if err := c.parseRemoteScripts(skipScriptsDirValidation); err != nil {
 		return err
 	}
 
@@ -235,12 +241,25 @@ func (c *Config) parseRemoteCommands() error {
 	return nil
 }
 
-func (c *Config) parseRemoteScripts() error {
+func (c *Config) GetScriptsDir() string {
+	return filepath.Join(c.Client.DataDir, "scripts")
+}
+
+func (c *Config) parseRemoteScripts(skipScriptsDirValidation bool) error {
+	if skipScriptsDirValidation {
+		return nil
+	}
+
 	if c.RemoteScripts.Enabled && !c.RemoteCommands.Enabled {
 		return errors.New("remote scripts execution requires remote commands to be enabled")
 	}
 
-	err := ValidateScriptDir(c.RemoteScripts.Dir)
+	if !c.RemoteScripts.Enabled {
+		return nil
+	}
+
+	err := ValidateScriptDir(c.GetScriptsDir())
+
 	// we allow to start a client if the script dir is not good because clients might never run scripts
 	if err != nil {
 		log.Printf("ERROR: %v\n", err)
@@ -259,4 +278,26 @@ func parseRegexpList(regexpList []string) ([]*regexp.Regexp, error) {
 		res = append(res, r)
 	}
 	return res, nil
+}
+
+func PrepareDirs(c *Config) error {
+	logger := chshare.NewLogger("client", c.Logging.LogOutput, c.Logging.LogLevel)
+
+	if err := os.MkdirAll(c.Client.DataDir, os.ModePerm); err != nil {
+		return fmt.Errorf("failed to create dir %q: %s", c.Client.DataDir, err)
+	}
+
+	logger.Infof("data directory path: %q", c.Client.DataDir)
+
+	if c.RemoteScripts.Enabled {
+		scriptDir := c.GetScriptsDir()
+		if _, err := os.Stat(scriptDir); os.IsNotExist(err) {
+			err := os.Mkdir(scriptDir, DefaultDirMode)
+			if err != nil {
+				return err
+			}
+		}
+	}
+
+	return nil
 }

@@ -158,16 +158,16 @@ Please note that scripts execution requires commands execution to be enabled (ch
 
 Similar to command execution, you can run scripts both by calling a REST or websocket interface. 
 In all cases the scripts are executed by the following algorithm:
-- Rport server calls each client to create a script file. The script file will get a random unique name and will be placed in the folder specified as `script_dir` in the configuration:
+- Rport server calls each client to create a script file. The script file will get a random unique name and will be placed in the folder specified as `data_dir` from configuration + `scripts`:
 
 ```
-[remote-scripts]
-script_dir = '/var/lib/rport/scripts'
+[client]
+data_dir = '/var/lib/rport/scripts'
 ```
 
 - Rport calls the existing command API to execute the script on the target client, e.g.:
 ```
-sh /tmp/f68a779d-1d46-414a-b165-d8d2df5f348c.sh #Linux/macOS
+sh /var/lib/rport/scripts/f68a779d-1d46-414a-b165-d8d2df5f348c.sh #Linux/macOS
 
 cmd C:\Users\me\AppData\Local\Temp\f68a779d-1d46-414a-b165-d8d2df5f348c.bat #Windows non-powershell execution
 

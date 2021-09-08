@@ -36,7 +36,10 @@ func buildCmdInterpreterCmd(ctx context.Context, execCtx *CmdExecutorContext, in
 	// workaround for the issue with escaping args on windows for cmd interpreter https://github.com/golang/go/issues/1849
 	cmd := exec.CommandContext(ctx, interpreterPath)
 	cmd.SysProcAttr = &syscall.SysProcAttr{}
-	cmd.SysProcAttr.CmdLine = fmt.Sprintf("/c %s", execCtx.Command)
+
+	cmdStr := `"` + strings.Trim(execCtx.Command, `"`) + `"`
+
+	cmd.SysProcAttr.CmdLine = fmt.Sprintf("/c %s", cmdStr)
 	cmd.Dir = execCtx.WorkingDir
 
 	return cmd
@@ -55,6 +58,7 @@ func buildPowershellCmd(ctx context.Context, execCtx *CmdExecutorContext, interp
 		args = append(args, "-Command")
 	}
 
+	//cmdStr := `"` + strings.Trim(execCtx.Command, `"`)  + `"`
 	args = append(args, execCtx.Command)
 
 	cmd := exec.CommandContext(ctx, interpreterPath, args...)
