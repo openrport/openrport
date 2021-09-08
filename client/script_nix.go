@@ -12,12 +12,10 @@ import (
 	"golang.org/x/sys/unix"
 )
 
-const DefaultScriptDir = "/var/lib/rport/scripts"
-
 func ValidateScriptDirOS(scriptDirSysInfo os.FileInfo, scriptDir string) error {
 	isWritable := unix.Access(scriptDir, unix.W_OK) == nil
 	if !isWritable {
-		return fmt.Errorf("script_dir %s is not writable", scriptDir)
+		return fmt.Errorf("scripts directory %s is not writable", scriptDir)
 	}
 
 	curUser, err := user.Current()
@@ -28,7 +26,7 @@ func ValidateScriptDirOS(scriptDirSysInfo os.FileInfo, scriptDir string) error {
 	dirMode := scriptDirSysInfo.Mode().Perm()
 	if dirMode != DefaultDirMode {
 		return fmt.Errorf(
-			"script_dir %s must be read-writable only by %s[%s]. Change directory mode from 0%o to 0%o. Your setup is insecure",
+			"scripts directory %s must be read-writable only by %s[%s]. Change directory mode from 0%o to 0%o. Your setup is insecure",
 			scriptDir,
 			curUser.Username,
 			curUser.Uid,
@@ -45,7 +43,7 @@ func ValidateScriptDirOS(scriptDirSysInfo os.FileInfo, scriptDir string) error {
 	scriptDirOwnerUID := strconv.FormatUint(uint64(unixScriptDirStat.Uid), 10)
 	if scriptDirOwnerUID != curUser.Uid {
 		return fmt.Errorf(
-			"script_dir %s must be owned by %s[%s] but it's owned by %s. Your setup is insecure",
+			"script directory %s must be owned by %s[%s] but it's owned by %s. Your setup is insecure",
 			scriptDir,
 			curUser.Username,
 			curUser.Uid,

@@ -27,18 +27,21 @@ func TestHandleCreateFileRequest(t *testing.T) {
 	require.NoError(t, err)
 
 	scriptDirToCheck := filepath.Join(os.TempDir(), "TestHandleCreateFileRequest")
-	err = os.MkdirAll(scriptDirToCheck, DefaultDirMode)
-	require.NoError(t, err)
-	defer os.Remove(scriptDirToCheck)
-
 	config := &Config{
+		Client: ClientConfig{
+			DataDir: scriptDirToCheck,
+		},
 		RemoteScripts: ScriptsConfig{
 			Enabled: true,
-			Dir:     scriptDirToCheck,
 		},
 	}
 
+	err = os.MkdirAll(config.GetScriptsDir(), DefaultDirMode)
+	require.NoError(t, err)
+	defer os.Remove(scriptDirToCheck)
+
 	client := NewClient(config)
+
 	resp, err := client.HandleCreateFileRequest(context.Background(), inputFileBytes)
 	require.NoError(t, err)
 
@@ -69,6 +72,7 @@ func TestCreateFileWhenScriptsDisabled(t *testing.T) {
 	}
 
 	client := NewClient(config)
+
 	_, err := client.HandleCreateFileRequest(context.Background(), []byte{})
 	require.EqualError(t, err, "remote scripts are disabled")
 }
