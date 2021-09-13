@@ -40,7 +40,7 @@ func ResolveIdleTunnelTimeoutValue(idleTimeoutMinutesStr string, skipIdleTimeout
 			HTTPStatus: http.StatusBadRequest,
 		}
 	}
-	idleTimeoutMinutes := time.Duration(idleTimeoutMinutesInt)
+	idleTimeoutMinutes := time.Duration(idleTimeoutMinutesInt) * time.Minute
 
 	if idleTimeoutMin > idleTimeoutMinutes || idleTimeoutMinutes > idleTimeoutMax {
 		return 0, errors2.APIError{
