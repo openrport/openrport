@@ -1,7 +1,6 @@
 package chclient
 
 import (
-	"bytes"
 	"context"
 	"encoding/json"
 	"errors"
@@ -10,6 +9,7 @@ import (
 	"os/exec"
 	"regexp"
 	"runtime"
+	"strings"
 	"time"
 
 	chshare "github.com/cloudradar-monitoring/rport/share"
@@ -106,10 +106,10 @@ func (c *Client) HandleRunCmdRequest(ctx context.Context, reqPayload []byte) (*c
 		IsScript:    job.IsScript,
 	}
 	cmd := c.cmdExec.New(ctx, execCtx)
-	stdOut := CapacityBuffer{capacity: c.config.RemoteCommands.SendBackLimit}
-	stdErr := CapacityBuffer{capacity: c.config.RemoteCommands.SendBackLimit}
-	cmd.Stdout = &stdOut
-	cmd.Stderr = &stdErr
+	stdOut := &CapacityBuffer{capacity: c.config.RemoteCommands.SendBackLimit}
+	stdErr := &CapacityBuffer{capacity: c.config.RemoteCommands.SendBackLimit}
+	cmd.Stdout = stdOut
+	cmd.Stderr = stdErr
 
 	c.Debugf("Generated command is %s, sysProcAttributes: %+v", cmd.String(), cmd.SysProcAttr)
 
@@ -140,11 +140,12 @@ func (c *Client) HandleRunCmdRequest(ctx context.Context, reqPayload []byte) (*c
 		go func() { done <- c.cmdExec.Wait(cmd) }()
 
 		var status string
+		var execErr error
 		select {
-		case err := <-done:
-			if err != nil {
+		case execErr = <-done:
+			if execErr != nil {
 				status = models.JobStatusFailed
-				c.Errorf("failed to run command[jid=%q,pid=%d]:\ncmd:\n%s\nerr: %s", job.JID, res.Pid, job.Command, err)
+				c.Errorf("failed to run command[jid=%q,pid=%d]:\ncmd:\n%s\nerr: %s", job.JID, res.Pid, job.Command, execErr)
 			} else {
 				status = models.JobStatusSuccessful
 			}
@@ -163,6 +164,8 @@ func (c *Client) HandleRunCmdRequest(ctx context.Context, reqPayload []byte) (*c
 		job.Status = status
 		job.PID = &res.Pid
 		job.StartedAt = startedAt
+
+		job.Error = c.buildErrText(execErr, stdOut, stdErr)
 
 		job.Result = &models.JobResult{
 			StdOut: stdOut.String(),
@@ -185,6 +188,22 @@ func (c *Client) HandleRunCmdRequest(ctx context.Context, reqPayload []byte) (*c
 	}()
 
 	return res, nil
+}
+
+func (c *Client) buildErrText(execErr error, stdOut, stdErr *CapacityBuffer) string {
+	errs := make([]string, 0, 3)
+
+	if execErr != nil {
+		errs = append(errs, execErr.Error())
+	}
+	if stdOut.HasOverflow() {
+		errs = append(errs, fmt.Sprintf("overflow of stdOut buffer: %s", stdOut.GetOverflowMessage()))
+	}
+	if stdErr.HasOverflow() {
+		errs = append(errs, fmt.Sprintf("overflow of stdErr buffer: %s", stdErr.GetOverflowMessage()))
+	}
+
+	return strings.Join(errs, ", ")
 }
 
 func (c *Client) rmScriptIfNeeded(scriptPath string, isScript bool) {
@@ -252,22 +271,33 @@ func matchRegexp(cmd string, regexpList []*regexp.Regexp) bool {
 }
 
 type CapacityBuffer struct {
-	bytes.Buffer
-	capacity int
+	data        []byte
+	capacity    int
+	hasOverflow bool
+}
+
+func (b *CapacityBuffer) HasOverflow() bool {
+	return b.hasOverflow
+}
+
+func (b *CapacityBuffer) GetOverflowMessage() string {
+	return fmt.Sprintf("maximum send_back_limit of %d bytes exceeded", b.capacity)
 }
 
 func (b *CapacityBuffer) Write(p []byte) (n int, err error) {
-	freeCapacity := b.capacity - b.Len()
+	freeCapacity := b.capacity - len(b.data)
 
 	// do not write to buffer if no space left
-	if freeCapacity <= 0 {
-		return len(p), nil // pretend a successful write
-	}
-
-	// write to buffer only a part if exceeds the capacity
 	if len(p) > freeCapacity {
-		return b.Buffer.Write(p[:freeCapacity])
+		b.hasOverflow = true
+		return 0, errors.New(b.GetOverflowMessage())
 	}
 
-	return b.Buffer.Write(p)
+	b.data = append(b.data, p...)
+
+	return len(p), nil
+}
+
+func (b *CapacityBuffer) String() string {
+	return string(b.data)
 }
