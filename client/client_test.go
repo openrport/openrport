@@ -26,9 +26,7 @@ import (
 
 func TestCustomHeaders(t *testing.T) {
 	server := httptest.NewServer(http.HandlerFunc(func(rw http.ResponseWriter, req *http.Request) {
-		if req.Header.Get("Foo") != "Bar" {
-			t.Fatal("expected header Foo to be 'Bar'")
-		}
+		assert.Equal(t, "Bar", req.Header.Get("Foo"))
 	}))
 	// Close the server when test finishes
 	defer server.Close()
@@ -39,6 +37,7 @@ func TestCustomHeaders(t *testing.T) {
 			Auth:        "",
 			Server:      server.URL,
 			Remotes:     []string{"192.168.0.5:3000:google.com:80"},
+			DataDir:     "somedir",
 		},
 		Connection: ConnectionConfig{
 			KeepAlive:        time.Second,
@@ -53,14 +52,14 @@ func TestCustomHeaders(t *testing.T) {
 			Enabled: false,
 		},
 	}
-	err := config.ParseAndValidate()
-	if err != nil {
-		log.Fatal(err)
-	}
+	err := config.ParseAndValidate(true)
+	require.NoError(t, err)
+
 	c := NewClient(&config)
-	if err = c.Run(); err != nil {
-		log.Fatal(err)
-	}
+	require.NoError(t, err)
+
+	err = c.Run()
+	require.NoError(t, err)
 }
 
 func TestConnectionRequest(t *testing.T) {
@@ -283,6 +282,7 @@ func TestConnectionRequest(t *testing.T) {
 	for _, tc := range testCases {
 		t.Run(tc.Name, func(t *testing.T) {
 			client := NewClient(config)
+
 			client.systemInfo = tc.SystemInfo
 
 			connReq := client.connectionRequest(context.Background())
@@ -424,6 +424,7 @@ func TestConnectionLoop(t *testing.T) {
 			Server:                   tsMain.URL,
 			FallbackServers:          []string{tsFallback.URL},
 			ServerSwitchbackInterval: 100 * time.Millisecond,
+			DataDir:                  "./",
 		},
 		RemoteCommands: CommandsConfig{
 			Order: allowDenyOrder,
@@ -436,10 +437,11 @@ func TestConnectionLoop(t *testing.T) {
 			MaxRetryCount: -1,
 		},
 	}
-	err = config.ParseAndValidate()
+	err = config.ParseAndValidate(true)
 	require.NoError(t, err)
 
 	c := NewClient(&config)
+
 	go c.connectionLoop(context.Background())
 
 	// connects to main server successfully

@@ -23,13 +23,13 @@ func TestValidateScriptDirNix(t *testing.T) {
 			name:          "wrong_dir_mode",
 			dirToGive:     "wrong_dir_mode",
 			dirModeToGive: os.FileMode(0755),
-			errToExpect:   "script_dir wrong_dir_mode must be read-writable only by",
+			errToExpect:   "scripts directory wrong_dir_mode must be read-writable only by",
 		},
 		{
 			name:          "not_writable_dir",
 			dirToGive:     "not_writable_dir",
 			dirModeToGive: os.FileMode(0444),
-			errToExpect:   "script_dir not_writable_dir is not writable",
+			errToExpect:   "scripts directory not_writable_dir is not writable",
 		},
 	}
 

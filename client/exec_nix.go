@@ -5,6 +5,7 @@ package chclient
 import (
 	"context"
 	"os/exec"
+	"strings"
 
 	chshare "github.com/cloudradar-monitoring/rport/share"
 )
@@ -23,7 +24,8 @@ func (e *CmdExecutorImpl) New(ctx context.Context, execCtx *CmdExecutorContext) 
 		}
 	}
 
-	args = append(args, execCtx.Command)
+	commandStr := strings.ReplaceAll(execCtx.Command, " ", "\\ ")
+	args = append(args, commandStr)
 
 	cmd := exec.CommandContext(ctx, args[0], args[1:]...)
 	cmd.Dir = execCtx.WorkingDir

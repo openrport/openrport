@@ -20,13 +20,13 @@ func TestCreateScriptOnClient(t *testing.T) {
 	const defaultHash = "a1159e9df3670d549d04524532629f5477ceb7deec9b45e47e8c009506ecb2c8" //sha256 of "pwd"
 	const defaultScript = "pwd"
 	testCases := []struct {
-		name               string
+		name                 string
 		filePathWant         string
 		Sha256HashToMocked   string
 		clientOSKernelMocked string
 		scriptMocked         string
-		fileExtensionWant string
-		interpreterMocked string
+		fileExtensionWant    string
+		interpreterMocked    string
 	}{
 		{
 			name:                 "sh script linux",

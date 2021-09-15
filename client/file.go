@@ -25,7 +25,8 @@ func (c *Client) HandleCreateFileRequest(ctx context.Context, reqPayload []byte)
 		return nil, errors.New("remote scripts are disabled")
 	}
 
-	err := ValidateScriptDir(c.config.RemoteScripts.Dir)
+	scriptDirName := c.config.GetScriptsDir()
+	err := ValidateScriptDir(scriptDirName)
 	if err != nil {
 		return nil, err
 	}
@@ -49,7 +50,6 @@ func (c *Client) HandleCreateFileRequest(ctx context.Context, reqPayload []byte)
 	}
 
 	scriptFileName := filepath.Base(fileInput.Name)
-	scriptDirName := c.config.RemoteScripts.Dir
 
 	fileInput.Name = filepath.Join(scriptDirName, scriptFileName)
 

@@ -22,18 +22,18 @@ func TestValidateScriptDir(t *testing.T) {
 			name:            "directory not exists",
 			dirToGive:       "non_existing_dir",
 			shouldCreateDir: false,
-			errToExpect:     "script_dir non_existing_dir does not exist",
+			errToExpect:     "script directory non_existing_dir does not exist",
 		},
 		{
 			name:            "empty dir",
 			shouldCreateDir: false,
-			errToExpect:     "script_dir cannot be empty",
+			errToExpect:     "script directory cannot be empty",
 		},
 		{
 			name:            "empty dir with spaces",
 			dirToGive:       "     ",
 			shouldCreateDir: false,
-			errToExpect:     "script_dir cannot be empty",
+			errToExpect:     "script directory cannot be empty",
 		},
 		{
 			name:            "working_dir",
@@ -51,7 +51,7 @@ func TestValidateScriptDir(t *testing.T) {
 			name:             "file as dir name",
 			dirToGive:        "some_file",
 			shouldCreateFile: true,
-			errToExpect:      "script_dir some_file is not a valid directory",
+			errToExpect:      "script directory some_file is not a valid directory",
 		},
 	}
 

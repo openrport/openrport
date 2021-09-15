@@ -16,7 +16,8 @@ import (
 
 var defaultValidMinConfig = Config{
 	Client: ClientConfig{
-		Server: "test.com",
+		Server:  "test.com",
+		DataDir: "./",
 	},
 	RemoteCommands: CommandsConfig{
 		Enabled:       true,
@@ -75,7 +76,7 @@ func TestConfigParseAndValidateHeaders(t *testing.T) {
 			config := defaultValidMinConfig
 			config.Connection = tc.ConnConfig
 
-			err := config.ParseAndValidate()
+			err := config.ParseAndValidate(true)
 			require.NoError(t, err)
 
 			assert.Equal(t, tc.ExpectedHeader, config.Connection.Headers())
@@ -124,7 +125,7 @@ func TestConfigParseAndValidateServerURL(t *testing.T) {
 			config := defaultValidMinConfig
 			config.Client.Server = tc.ServerURL
 
-			err := config.ParseAndValidate()
+			err := config.ParseAndValidate(true)
 
 			if tc.ExpectedError == "" {
 				require.NoError(t, err)
@@ -166,7 +167,7 @@ func TestConfigParseAndValidateMaxRetryInterval(t *testing.T) {
 		t.Run(tc.Name, func(t *testing.T) {
 			config := defaultValidMinConfig
 			config.Connection.MaxRetryInterval = tc.MaxRetryInterval
-			err := config.ParseAndValidate()
+			err := config.ParseAndValidate(true)
 
 			require.NoError(t, err)
 			assert.Equal(t, tc.ExpectedMaxRetryInterval, config.Connection.MaxRetryInterval)
@@ -203,7 +204,7 @@ func TestConfigParseAndValidateProxyURL(t *testing.T) {
 		t.Run(tc.Name, func(t *testing.T) {
 			config := defaultValidMinConfig
 			config.Client.Proxy = tc.Proxy
-			err := config.ParseAndValidate()
+			err := config.ParseAndValidate(true)
 
 			if tc.ExpectedError == "" {
 				require.NoError(t, err)
@@ -260,7 +261,7 @@ func TestConfigParseAndValidateRemotes(t *testing.T) {
 		t.Run(tc.Name, func(t *testing.T) {
 			config := defaultValidMinConfig
 			config.Client.Remotes = tc.Remotes
-			err := config.ParseAndValidate()
+			err := config.ParseAndValidate(true)
 
 			if tc.ExpectedError == "" {
 				require.NoError(t, err)
@@ -294,7 +295,7 @@ func TestConfigParseAndValidateAuth(t *testing.T) {
 		t.Run(tc.Auth, func(t *testing.T) {
 			config := defaultValidMinConfig
 			config.Client.Auth = tc.Auth
-			err := config.ParseAndValidate()
+			err := config.ParseAndValidate(true)
 
 			require.NoError(t, err)
 			assert.Equal(t, tc.ExpectedUser, config.Client.authUser)
@@ -307,9 +308,12 @@ func TestScriptsExecutionEnabledButCommandsDisabled(t *testing.T) {
 	config := defaultValidMinConfig
 	config.RemoteScripts.Enabled = true
 	config.RemoteCommands.Enabled = false
-	err := config.ParseAndValidate()
+	err := config.ParseAndValidate(false)
 
 	require.EqualError(t, err, "remote scripts execution requires remote commands to be enabled")
+
+	err1 := config.ParseAndValidate(true)
+	require.NoError(t, err1)
 }
 
 func TestConfigParseAndValidateSendBackLimit(t *testing.T) {
@@ -342,7 +346,7 @@ func TestConfigParseAndValidateSendBackLimit(t *testing.T) {
 			config.RemoteCommands.SendBackLimit = tc.sendBackLimit
 
 			// when
-			gotErr := config.ParseAndValidate()
+			gotErr := config.ParseAndValidate(true)
 
 			// then
 			if tc.wantErrContains != "" {
@@ -387,7 +391,7 @@ func TestConfigParseAndValidateAllowRegexp(t *testing.T) {
 			config.RemoteCommands.Allow = tc.allow
 
 			// when
-			gotErr := config.ParseAndValidate()
+			gotErr := config.ParseAndValidate(true)
 
 			// then
 			if tc.wantErrContains != "" {
@@ -433,7 +437,7 @@ func TestConfigParseAndValidateDenyRegexp(t *testing.T) {
 			config.RemoteCommands.Deny = tc.deny
 
 			// when
-			gotErr := config.ParseAndValidate()
+			gotErr := config.ParseAndValidate(true)
 
 			// then
 			if tc.wantErrContains != "" {
@@ -488,7 +492,7 @@ func TestConfigParseAndValidateAllowDenyOrder(t *testing.T) {
 			config.RemoteCommands.Order = tc.order
 
 			// when
-			gotErr := config.ParseAndValidate()
+			gotErr := config.ParseAndValidate(true)
 
 			// then
 			if tc.wantErrContains != "" {
@@ -555,7 +559,7 @@ func TestConfigParseAndValidateFallbackServers(t *testing.T) {
 			config := defaultValidMinConfig
 			config.Client.FallbackServers = tc.FallbackServers
 
-			err := config.ParseAndValidate()
+			err := config.ParseAndValidate(true)
 
 			assert.Equal(t, tc.ExpectedError, err)
 			if tc.ExpectedError == nil {
