@@ -10,7 +10,6 @@ import (
 	"path"
 	"runtime"
 	"strings"
-	"sync"
 	"time"
 
 	"github.com/cloudradar-monitoring/rport/server/script"
@@ -45,7 +44,6 @@ type APIListener struct {
 	router            *mux.Router
 	httpServer        *chshare.HTTPServer
 	requestLogOptions *requestlog.Options
-	userSrv           UserService
 	accessLogFile     io.WriteCloser
 	insecureForTests  bool
 	bannedUsers       *security.BanList
@@ -54,17 +52,14 @@ type APIListener struct {
 
 	testDone chan bool // is used only in tests to be able to wait until async task is done
 
-	usersService  UsersService // TODO: merge with userSrv
+	userService   UserService
 	vaultManager  *vault.Manager
 	scriptManager *script.Manager
 }
 
 type UserService interface {
-	GetByUsername(username string) (*users.User, error)
-}
-
-type UsersService interface {
 	GetAll() ([]*users.User, error)
+	GetByUsername(username string) (*users.User, error)
 	Change(*users.User, string) error
 	Delete(string) error
 	ExistGroups([]string) error
@@ -77,21 +72,14 @@ func NewAPIListener(
 ) (*APIListener, error) {
 	config := server.config
 
-	var userService UserService
-	var usersProviderType enums.ProviderSource
-	var userDB *users.UserDatabase
+	var usersProvider users.Provider
 	var err error
-	usersFromFileProvider := &users.FileManager{
-		FileAccessLock: sync.Mutex{},
-	}
 	if config.API.AuthFile != "" {
-		usersFromFileProvider.FileName = config.API.AuthFile
-		authUsers, e := usersFromFileProvider.ReadUsersFromFile()
-		if e != nil {
-			return nil, e
+		logger := chshare.NewLogger("auth-file", config.Logging.LogOutput, config.Logging.LogLevel)
+		usersProvider, err = users.NewFileAdapter(logger, users.NewFileManager(config.API.AuthFile))
+		if err != nil {
+			return nil, err
 		}
-		userService = users.NewUserCache(authUsers)
-		usersProviderType = enums.ProviderSourceFile
 	} else if config.API.Auth != "" {
 		authUser, e := parseHTTPAuthStr(config.API.Auth)
 		if e != nil {
@@ -99,16 +87,13 @@ func NewAPIListener(
 		}
 		// for static user set the admin group
 		authUser.Groups = []string{users.Administrators}
-		userService = users.NewUserCache([]*users.User{authUser})
-		usersProviderType = enums.ProviderSourceStatic
+		usersProvider = users.NewStaticProvider([]*users.User{authUser})
 	} else if config.API.AuthUserTable != "" {
 		logger := chshare.NewLogger("database", config.Logging.LogOutput, config.Logging.LogLevel)
-		userDB, err = users.NewUserDatabase(server.db, config.API.AuthUserTable, config.API.AuthGroupTable, config.API.IsTwoFAOn(), logger)
+		usersProvider, err = users.NewUserDatabase(server.db, config.API.AuthUserTable, config.API.AuthGroupTable, config.API.IsTwoFAOn(), logger)
 		if err != nil {
 			return nil, err
 		}
-		userService = userDB
-		usersProviderType = enums.ProviderSourceDB
 	}
 
 	if config.Server.CheckPortTimeout > DefaultMaxCheckPortTimeout {
@@ -146,12 +131,7 @@ func NewAPIListener(
 	scriptExecutor := script.NewExecutor(scriptLogger)
 	scriptManager := script.NewManager(scriptDb, scriptExecutor, scriptLogger)
 
-	usersService := &users.APIService{
-		ProviderType: usersProviderType,
-		FileProvider: usersFromFileProvider,
-		DB:           userDB,
-		TwoFAOn:      config.API.IsTwoFAOn(),
-	}
+	userService := users.NewAPIService(usersProvider, config.API.IsTwoFAOn())
 
 	a := &APIListener{
 		Server:            server,
@@ -160,9 +140,8 @@ func NewAPIListener(
 		apiSessionRepo:    NewAPISessionRepository(),
 		httpServer:        chshare.NewHTTPServer(int(config.Server.MaxRequestBytes), chshare.WithTLS(config.API.CertFile, config.API.KeyFile)),
 		requestLogOptions: config.InitRequestLogOptions(),
-		userSrv:           userService,
 		bannedUsers:       security.NewBanList(time.Duration(config.API.UserLoginWait) * time.Second),
-		usersService:      usersService,
+		userService:       userService,
 		vaultManager:      vault.NewManager(vaultDBProviderFactory, &vault.Aes256PassManager{}, vaultLogger),
 		scriptManager:     scriptManager,
 	}
@@ -197,7 +176,7 @@ func NewAPIListener(
 			userService,
 			msgSrv,
 		)
-		usersService.DeliverySrv = msgSrv
+		userService.DeliverySrv = msgSrv
 		a.Logger.Infof("2FA is enabled via using %s", config.API.TwoFATokenDelivery)
 	}
 
@@ -233,11 +212,6 @@ func (al *APIListener) Start(addr string) error {
 	err := al.httpServer.GoListenAndServe(addr, h)
 	if err != nil {
 		return err
-	}
-
-	// Only reload api users from file if file auth is set
-	if al.config.API.AuthFile != "" {
-		go al.ReloadAPIUsers()
 	}
 
 	return nil
@@ -329,7 +303,7 @@ func (al *APIListener) handleBasicAuth(username, password string) (authorized bo
 	if username == "" {
 		return false, "", nil
 	}
-	user, err := al.userSrv.GetByUsername(username)
+	user, err := al.userService.GetByUsername(username)
 	if err != nil {
 		return false, username, fmt.Errorf("failed to get user: %v", err)
 	}
@@ -378,7 +352,7 @@ func (al *APIListener) validateCredentials(username, password string) (bool, err
 		return false, nil
 	}
 
-	user, err := al.userSrv.GetByUsername(username)
+	user, err := al.userService.GetByUsername(username)
 	if err != nil {
 		return false, fmt.Errorf("failed to get user: %v", err)
 	}

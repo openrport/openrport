@@ -1066,7 +1066,7 @@ func TestHandleGetClients(t *testing.T) {
 				Server: ServerConfig{MaxRequestBytes: 1024 * 1024},
 			},
 		},
-		userSrv: users.NewUserCache([]*users.User{curUser}),
+		userService: users.NewAPIService(users.NewStaticProvider([]*users.User{curUser}), false),
 	}
 	al.initRouter()
 
@@ -1336,8 +1336,8 @@ func TestHandlePostMultiClientCommand(t *testing.T) {
 						m: make(map[string]chan *models.Job),
 					},
 				},
-				userSrv: users.NewUserCache([]*users.User{curUser}),
-				Logger:  testLog,
+				userService: users.NewAPIService(users.NewStaticProvider([]*users.User{curUser}), false),
+				Logger:      testLog,
 			}
 			var done chan bool
 			if tc.wantStatusCode == http.StatusOK {
@@ -1659,7 +1659,7 @@ func TestHandleGetClient(t *testing.T) {
 }
 
 type MockUsersService struct {
-	UsersService
+	UserService
 
 	ChangeUser     *users.User
 	ChangeUsername string
@@ -1675,7 +1675,9 @@ func TestPostToken(t *testing.T) {
 	user := &users.User{
 		Username: "test-user",
 	}
-	mockUsersService := &MockUsersService{}
+	mockUsersService := &MockUsersService{
+		UserService: users.NewAPIService(users.NewStaticProvider([]*users.User{user}), false),
+	}
 
 	uuid := "cb5b6578-94f5-4a5b-af58-f7867a943b0c"
 	oldUUID := random.UUID4
@@ -1691,8 +1693,7 @@ func TestPostToken(t *testing.T) {
 		Server: &Server{
 			config: &Config{},
 		},
-		userSrv:      users.NewUserCache([]*users.User{user}),
-		usersService: mockUsersService,
+		userService: mockUsersService,
 	}
 	al.initRouter()
 
@@ -1717,15 +1718,16 @@ func TestDeleteToken(t *testing.T) {
 	user := &users.User{
 		Username: "test-user",
 	}
-	mockUsersService := &MockUsersService{}
+	mockUsersService := &MockUsersService{
+		UserService: users.NewAPIService(users.NewStaticProvider([]*users.User{user}), false),
+	}
 	noToken := ""
 	al := APIListener{
 		insecureForTests: true,
 		Server: &Server{
 			config: &Config{},
 		},
-		userSrv:      users.NewUserCache([]*users.User{user}),
-		usersService: mockUsersService,
+		userService: mockUsersService,
 	}
 	al.initRouter()
 
@@ -1758,7 +1760,7 @@ func TestWrapWithAuthMiddleware(t *testing.T) {
 	al := APIListener{
 		apiSessionRepo: NewAPISessionRepository(),
 		bannedUsers:    security.NewBanList(0),
-		userSrv:        users.NewUserCache([]*users.User{user, userWithoutToken}),
+		userService:    users.NewAPIService(users.NewStaticProvider([]*users.User{user, userWithoutToken}), false),
 		Server: &Server{
 			config: &Config{},
 		},

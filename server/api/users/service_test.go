@@ -2,7 +2,6 @@ package users
 
 import (
 	"errors"
-	"fmt"
 	"net/http"
 	"strings"
 	"testing"
@@ -15,7 +14,7 @@ import (
 	"github.com/cloudradar-monitoring/rport/share/enums"
 )
 
-type DBProviderMock struct {
+type ProviderMock struct {
 	UsersToGive         []*User
 	UsersToAdd          []*User
 	UsersToUpdate       []*User
@@ -27,15 +26,15 @@ type DBProviderMock struct {
 	UsernameToDelete    string
 }
 
-func (dpm *DBProviderMock) GetAll() ([]*User, error) {
+func (dpm *ProviderMock) GetAll() ([]*User, error) {
 	return dpm.UsersToGive, dpm.ErrorToGiveOnRead
 }
 
-func (dpm *DBProviderMock) GetAllGroups() ([]string, error) {
+func (dpm *ProviderMock) GetAllGroups() ([]string, error) {
 	return dpm.GroupsToGive, dpm.ErrorToGiveOnRead
 }
 
-func (dpm *DBProviderMock) GetByUsername(username string) (*User, error) {
+func (dpm *ProviderMock) GetByUsername(username string) (*User, error) {
 	var usr *User
 	for i := range dpm.UsersToGive {
 		if dpm.UsersToGive[i].Username == username {
@@ -46,7 +45,7 @@ func (dpm *DBProviderMock) GetByUsername(username string) (*User, error) {
 	return usr, dpm.ErrorToGiveOnRead
 }
 
-func (dpm *DBProviderMock) Add(usr *User) error {
+func (dpm *ProviderMock) Add(usr *User) error {
 	if dpm.UsersToAdd == nil {
 		dpm.UsersToAdd = []*User{}
 	}
@@ -56,7 +55,7 @@ func (dpm *DBProviderMock) Add(usr *User) error {
 	return dpm.ErrorToGiveOnWrite
 }
 
-func (dpm *DBProviderMock) Update(usr *User, usernameToUpdate string) error {
+func (dpm *ProviderMock) Update(usr *User, usernameToUpdate string) error {
 	if dpm.UsersToUpdate == nil {
 		dpm.UsersToUpdate = []*User{}
 	}
@@ -67,28 +66,16 @@ func (dpm *DBProviderMock) Update(usr *User, usernameToUpdate string) error {
 	return dpm.ErrorToGiveOnWrite
 }
 
-func (dpm *DBProviderMock) Delete(usernameToDelete string) error {
+func (dpm *ProviderMock) Delete(usernameToDelete string) error {
 	dpm.UsernameToDelete = usernameToDelete
 	return dpm.ErrorToGiveOnDelete
 }
 
-type FileManagerMock struct {
-	UsersToRead        []*User
-	WrittenUsers       []*User
-	ErrorToGiveOnRead  error
-	ErrorToGiveOnWrite error
+func (dpm ProviderMock) Type() enums.ProviderSource {
+	return enums.ProviderSourceDB
 }
 
-func (fmm *FileManagerMock) ReadUsersFromFile() ([]*User, error) {
-	return fmm.UsersToRead, fmm.ErrorToGiveOnRead
-}
-
-func (fmm *FileManagerMock) SaveUsersToFile(users []*User) error {
-	fmm.WrittenUsers = users
-	return fmm.ErrorToGiveOnWrite
-}
-
-func TestGetUsersFromDB(t *testing.T) {
+func TestGetUsersFromProvider(t *testing.T) {
 	givenUsers := []*User{
 		{
 			Username: "one",
@@ -96,13 +83,12 @@ func TestGetUsersFromDB(t *testing.T) {
 			Groups:   []string{"group1"},
 		},
 	}
-	db := &DBProviderMock{
+	db := &ProviderMock{
 		UsersToGive: givenUsers,
 	}
 
 	service := APIService{
-		ProviderType: enums.ProviderSourceDB,
-		DB:           db,
+		Provider: db,
 	}
 
 	actualUsers, err := service.GetAll()
@@ -110,146 +96,21 @@ func TestGetUsersFromDB(t *testing.T) {
 	require.NoError(t, err)
 	assert.Equal(t, givenUsers, actualUsers)
 
-	db = &DBProviderMock{
+	db = &ProviderMock{
 		UsersToGive:       givenUsers,
 		ErrorToGiveOnRead: errors.New("some db error"),
 	}
 
 	service = APIService{
-		ProviderType: enums.ProviderSourceDB,
-		DB:           db,
+		Provider: db,
 	}
 
 	_, err = service.GetAll()
 	require.EqualError(t, err, "some db error")
 }
 
-func TestGetUsersFromFile(t *testing.T) {
-	givenUsers := []*User{
-		{
-			Username: "user1",
-			Password: "pass1",
-			Groups:   []string{"group1", "group2"},
-		},
-	}
-
-	service := APIService{
-		ProviderType: enums.ProviderSourceFile,
-		FileProvider: &FileManagerMock{
-			UsersToRead: givenUsers,
-		},
-	}
-
-	actualUsers, err := service.GetAll()
-
-	require.NoError(t, err)
-	assert.Equal(t, givenUsers, actualUsers)
-
-	service = APIService{
-		ProviderType: enums.ProviderSourceFile,
-		FileProvider: &FileManagerMock{
-			ErrorToGiveOnRead: errors.New("some file error"),
-		},
-	}
-
-	_, err = service.GetAll()
-	require.EqualError(t, err, "some file error")
-}
-
-func TestAddUserToFile(t *testing.T) {
-	givenUser := &User{
-		Username: "user1",
-		Password: "pass1",
-		Groups:   []string{"group1", "group2"},
-	}
-
-	usersFileManager := &FileManagerMock{}
-	service := APIService{
-		ProviderType: enums.ProviderSourceFile,
-		FileProvider: usersFileManager,
-	}
-
-	err := service.Change(givenUser, "")
-	require.NoError(t, err)
-
-	require.Len(t, usersFileManager.WrittenUsers, 1)
-	assert.Equal(t, givenUser, usersFileManager.WrittenUsers[0])
-
-	usersFileManager = &FileManagerMock{
-		ErrorToGiveOnRead: errors.New("some read error"),
-	}
-	service = APIService{
-		ProviderType: enums.ProviderSourceFile,
-		FileProvider: usersFileManager,
-	}
-	err = service.Change(givenUser, "")
-	require.EqualError(t, err, "some read error")
-
-	usersFileManager = &FileManagerMock{
-		ErrorToGiveOnWrite: errors.New("some write error"),
-	}
-	service = APIService{
-		ProviderType: enums.ProviderSourceFile,
-		FileProvider: usersFileManager,
-	}
-	err = service.Change(givenUser, "")
-	require.EqualError(t, err, "some write error")
-}
-
-func TestAddUserIfItExists(t *testing.T) {
-	givenUser := &User{
-		Username: "user1",
-		Password: "pass1",
-	}
-
-	usersFileManager := &FileManagerMock{
-		UsersToRead: []*User{
-			{
-				Username: "user1",
-				Password: "pass1",
-			},
-			{
-				Username: "user2",
-				Password: "pass2",
-			},
-		},
-	}
-	service := APIService{
-		ProviderType: enums.ProviderSourceFile,
-		FileProvider: usersFileManager,
-	}
-
-	err := service.Change(givenUser, "")
-	require.EqualError(t, err, "Another user with this username already exists")
-	require.Len(t, usersFileManager.WrittenUsers, 0)
-}
-
-func TestUnsupportedUserProvider(t *testing.T) {
-	service := APIService{
-		ProviderType: enums.ProviderSourceStatic,
-	}
-
-	_, err := service.GetAll()
-	require.EqualError(t, err, fmt.Sprintf("unsupported user data provider type: %s", enums.ProviderSourceStatic))
-
-	userToUpdate := &User{
-		Username: "user_one",
-		Password: "pass_one",
-	}
-	err = service.Change(userToUpdate, "")
-	require.EqualError(t, err, fmt.Sprintf("unsupported user data provider type: %s", enums.ProviderSourceStatic))
-
-	err = service.Delete("some")
-	require.EqualError(t, err, fmt.Sprintf("unsupported user data provider type: %s", enums.ProviderSourceStatic))
-}
-
 func TestValidate(t *testing.T) {
-	service := APIService{
-		ProviderType: enums.ProviderSourceFile,
-		FileProvider: &FileManagerMock{
-			UsersToRead: []*User{},
-		},
-	}
+	service := APIService{}
 
 	emailSrv, err := message.NewSMTPService("host:port", "", "", "", false)
 	require.NoError(t, err)
@@ -351,94 +212,15 @@ func TestValidate(t *testing.T) {
 	}
 }
 
-func TestUpdateUserInFile(t *testing.T) {
-	userToUpdate := &User{
-		Username: "user_one",
-		Password: "pass_one",
-		Groups:   []string{"group_one", "group_two"},
-		Token:    Token("token_one"),
-	}
-
-	usersFileManager := &FileManagerMock{
-		UsersToRead: []*User{
-			{
-				Username: "user2",
-				Groups:   []string{"group1"},
-			},
-			{
-				Username: "user1",
-				Password: "pass1",
-				Groups:   []string{"group1", "group2"},
-			},
-		},
-	}
-	service := APIService{
-		ProviderType: enums.ProviderSourceFile,
-		FileProvider: usersFileManager,
-	}
-
-	err := service.Change(userToUpdate, "user1")
-	require.NoError(t, err)
-
-	require.Len(t, usersFileManager.WrittenUsers, 2)
-	assert.Equal(t, "user2", usersFileManager.WrittenUsers[0].Username)
-	assert.Equal(t, []string{"group1"}, usersFileManager.WrittenUsers[0].Groups)
-	assert.Equal(t, "user_one", usersFileManager.WrittenUsers[1].Username)
-	assert.True(t, strings.HasPrefix(usersFileManager.WrittenUsers[1].Password, htpasswdBcryptPrefix))
-	assert.True(t, strings.HasPrefix(*usersFileManager.WrittenUsers[1].Token, htpasswdBcryptPrefix))
-	assert.Equal(t, []string{"group_one", "group_two"}, usersFileManager.WrittenUsers[1].Groups)
-
-	userToUpdate2 := &User{
-		Groups: []string{},
-	}
-	err = service.Change(userToUpdate2, "user2")
-	require.NoError(t, err)
-	assert.Equal(t, []string{}, usersFileManager.WrittenUsers[0].Groups)
-
-	userToUpdate = &User{
-		Username: "unknown_user",
-		Password: "222",
-	}
-	err = service.Change(userToUpdate, "unknown_user")
-	assert.Equal(
-		t,
-		errors2.APIError{
-			Message:    "cannot find user by username 'unknown_user'",
-			HTTPStatus: http.StatusNotFound,
-		},
-		err,
-	)
-
-	service = APIService{
-		ProviderType: enums.ProviderSourceFile,
-		FileProvider: &FileManagerMock{
-			ErrorToGiveOnWrite: errors.New("failed to write to file"),
-			UsersToRead: []*User{
-				{
-					Username: "user2",
-				},
-			},
-		},
-	}
-
-	userToUpdate = &User{
-		Username: "user2",
-		Password: "3342",
-	}
-	err = service.Change(userToUpdate, "user2")
-	require.EqualError(t, err, "failed to write to file")
-}
-
-func TestAddUserToDB(t *testing.T) {
+func TestAddUser(t *testing.T) {
 	givenUser := &User{
 		Username: "user13",
 		Password: "pass13",
 	}
 
-	dbProvider := &DBProviderMock{}
+	dbProvider := &ProviderMock{}
 	service := APIService{
-		ProviderType: enums.ProviderSourceDB,
-		DB:           dbProvider,
+		Provider: dbProvider,
 	}
 
 	err := service.Change(givenUser, "")
@@ -449,34 +231,32 @@ func TestAddUserToDB(t *testing.T) {
 	assert.True(t, strings.HasPrefix(dbProvider.UsersToAdd[0].Password, htpasswdBcryptPrefix))
 	require.Len(t, dbProvider.UsersToUpdate, 0)
 
-	dbProvider = &DBProviderMock{
+	dbProvider = &ProviderMock{
 		ErrorToGiveOnRead: errors.New("some read error"),
 	}
 	service = APIService{
-		ProviderType: enums.ProviderSourceDB,
-		DB:           dbProvider,
+		Provider: dbProvider,
 	}
 	err = service.Change(givenUser, "")
 	require.EqualError(t, err, "some read error")
 
-	dbProvider = &DBProviderMock{
+	dbProvider = &ProviderMock{
 		ErrorToGiveOnWrite: errors.New("some write error"),
 	}
 	service = APIService{
-		ProviderType: enums.ProviderSourceDB,
-		DB:           dbProvider,
+		Provider: dbProvider,
 	}
 	err = service.Change(givenUser, "")
 	require.EqualError(t, err, "some write error")
 }
 
-func TestAddUserToDBIfItExists(t *testing.T) {
+func TestAddUserIfItExists(t *testing.T) {
 	userToUpdate := &User{
 		Username: "user1",
 		Password: "pass1",
 	}
 
-	dbProvider := &DBProviderMock{
+	dbProvider := &ProviderMock{
 		UsersToGive: []*User{
 			{
 				Username: "user1",
@@ -490,8 +270,7 @@ func TestAddUserToDBIfItExists(t *testing.T) {
 	}
 
 	service := APIService{
-		ProviderType: enums.ProviderSourceDB,
-		DB:           dbProvider,
+		Provider: dbProvider,
 	}
 
 	err := service.Change(userToUpdate, "")
@@ -500,13 +279,13 @@ func TestAddUserToDBIfItExists(t *testing.T) {
 	require.Len(t, dbProvider.UsersToUpdate, 0)
 }
 
-func TestUpdateUserToDBIfItExists(t *testing.T) {
+func TestUpdateUserIfItExists(t *testing.T) {
 	givenUser := &User{
 		Username: "user1",
 		Password: "pass1",
 	}
 
-	dbProvider := &DBProviderMock{
+	dbProvider := &ProviderMock{
 		UsersToGive: []*User{
 			{
 				Username: "user1",
@@ -520,8 +299,7 @@ func TestUpdateUserToDBIfItExists(t *testing.T) {
 	}
 
 	service := APIService{
-		ProviderType: enums.ProviderSourceDB,
-		DB:           dbProvider,
+		Provider: dbProvider,
 	}
 
 	err := service.Change(givenUser, "user2")
@@ -530,7 +308,7 @@ func TestUpdateUserToDBIfItExists(t *testing.T) {
 	require.Len(t, dbProvider.UsersToUpdate, 0)
 }
 
-func TestUpdateUserInDB(t *testing.T) {
+func TestUpdateUserInProvider(t *testing.T) {
 	userToUpdate := &User{
 		Username: "user_one",
 		Password: "pass_one",
@@ -538,7 +316,7 @@ func TestUpdateUserInDB(t *testing.T) {
 		Token:    Token("token_one"),
 	}
 
-	dbProvider := &DBProviderMock{
+	dbProvider := &ProviderMock{
 		UsersToGive: []*User{
 			{
 				Username: "user2",
@@ -551,8 +329,7 @@ func TestUpdateUserInDB(t *testing.T) {
 		},
 	}
 	service := APIService{
-		ProviderType: enums.ProviderSourceDB,
-		DB:           dbProvider,
+		Provider: dbProvider,
 	}
 
 	err := service.Change(userToUpdate, "user1")
@@ -582,9 +359,8 @@ func TestUpdateUserInDB(t *testing.T) {
 	)
 
 	service = APIService{
-		ProviderType: enums.ProviderSourceDB,
-		DB: &DBProviderMock{
-			ErrorToGiveOnWrite: errors.New("failed to write to DB"),
+		Provider: &ProviderMock{
+			ErrorToGiveOnWrite: errors.New("failed to write"),
 			UsersToGive: []*User{
 				{
 					Username: "user2",
@@ -598,11 +374,11 @@ func TestUpdateUserInDB(t *testing.T) {
 		Password: "3342",
 	}
 	err = service.Change(userToUpdate, "user2")
-	require.EqualError(t, err, "failed to write to DB")
+	require.EqualError(t, err, "failed to write")
 }
 
-func TestDeleteUserFromDB(t *testing.T) {
-	dbProvider := &DBProviderMock{
+func TestDeleteUserFromProvider(t *testing.T) {
+	dbProvider := &ProviderMock{
 		UsersToGive: []*User{
 			{
 				Username: "user2",
@@ -611,8 +387,7 @@ func TestDeleteUserFromDB(t *testing.T) {
 	}
 
 	service := APIService{
-		ProviderType: enums.ProviderSourceDB,
-		DB:           dbProvider,
+		Provider: dbProvider,
 	}
 
 	err := service.Delete("user2")
@@ -629,99 +404,31 @@ func TestDeleteUserFromDB(t *testing.T) {
 		err,
 	)
 
-	dbProvider = &DBProviderMock{
+	dbProvider = &ProviderMock{
 		UsersToGive: []*User{
 			{
 				Username: "user2",
 			},
 		},
-		ErrorToGiveOnDelete: errors.New("failed to delete from db"),
+		ErrorToGiveOnDelete: errors.New("failed to delete"),
 	}
 
 	service = APIService{
-		ProviderType: enums.ProviderSourceDB,
-		DB:           dbProvider,
+		Provider: dbProvider,
 	}
 
 	err = service.Delete("user2")
-	require.EqualError(t, err, "failed to delete from db")
+	require.EqualError(t, err, "failed to delete")
 }
 
-func TestDeleteUserFromFile(t *testing.T) {
-	usersFileManager := &FileManagerMock{
-		UsersToRead: []*User{
-			{
-				Username: "user2",
-			},
-			{
-				Username: "user1",
-				Password: "pass1",
-				Groups:   []string{"group1", "group2"},
-			},
-		},
-	}
-
-	service := APIService{
-		ProviderType: enums.ProviderSourceFile,
-		FileProvider: usersFileManager,
-	}
-
-	err := service.Delete("user2")
-	require.NoError(t, err)
-	expectedUsers := []*User{
-		{
-			Username: "user1",
-			Password: "pass1",
-			Groups:   []string{"group1", "group2"},
-		},
-	}
-	assert.Equal(t, expectedUsers, usersFileManager.WrittenUsers)
-
-	err = service.Delete("unknown_user")
-	assert.Equal(
-		t,
-		errors2.APIError{
-			Message:    "cannot find user by username 'unknown_user'",
-			HTTPStatus: http.StatusNotFound,
-		},
-		err,
-	)
-
-	usersFileManager = &FileManagerMock{
-		ErrorToGiveOnRead: errors.New("failed to read users from file"),
-	}
-	service = APIService{
-		ProviderType: enums.ProviderSourceFile,
-		FileProvider: usersFileManager,
-	}
-	err = service.Delete("user2")
-	require.EqualError(t, err, "failed to read users from file")
-
-	usersFileManager = &FileManagerMock{
-		UsersToRead: []*User{
-			{
-				Username: "user3",
-			},
-		},
-		ErrorToGiveOnWrite: errors.New("failed to write users to file"),
-	}
-	service = APIService{
-		ProviderType: enums.ProviderSourceFile,
-		FileProvider: usersFileManager,
-	}
-	err = service.Delete("user3")
-	require.EqualError(t, err, "failed to write users to file")
-}
-
-func TestExistsUserGroupsInDB(t *testing.T) {
+func TestExistsUserGroups(t *testing.T) {
 	givenGroups := []string{"group1", "group2", "group3", "group4", Administrators}
-	db := &DBProviderMock{
+	db := &ProviderMock{
 		GroupsToGive: givenGroups,
 	}
 
 	service := APIService{
-		ProviderType: enums.ProviderSourceDB,
-		DB:           db,
+		Provider: db,
 	}
 
 	gotErr1 := service.ExistGroups([]string{"group4"})
@@ -736,16 +443,15 @@ func TestExistsUserGroupsInDB(t *testing.T) {
 	gotErr4 := service.ExistGroups([]string{"group1", "group2", "group3", "admin", Administrators, "group5"})
 	require.EqualError(t, gotErr4, "user groups not found: admin, group5")
 
-	db = &DBProviderMock{
+	db = &ProviderMock{
 		GroupsToGive:      givenGroups,
-		ErrorToGiveOnRead: errors.New("some db error"),
+		ErrorToGiveOnRead: errors.New("some error"),
 	}
 
 	service = APIService{
-		ProviderType: enums.ProviderSourceDB,
-		DB:           db,
+		Provider: db,
 	}
 
 	gotErr5 := service.ExistGroups([]string{"group1"})
-	require.EqualError(t, gotErr5, "some db error")
+	require.EqualError(t, gotErr5, "some error")
 }

@@ -581,7 +581,7 @@ func (al *APIListener) handleGetStatus(w http.ResponseWriter, req *http.Request)
 		"connect_url":            al.config.Server.URL,
 		"clients_auth_source":    al.clientAuthProvider.Source(),
 		"clients_auth_mode":      al.getClientsAuthMode(),
-		"users_auth_source":      al.usersService.GetProviderType(),
+		"users_auth_source":      al.userService.GetProviderType(),
 		"two_fa_enabled":         al.config.API.IsTwoFAOn(),
 		"two_fa_delivery_method": twoFADelivery,
 	})
@@ -647,7 +647,7 @@ type UserPayload struct {
 }
 
 func (al *APIListener) handleGetUsers(w http.ResponseWriter, req *http.Request) {
-	usrs, err := al.usersService.GetAll()
+	usrs, err := al.userService.GetAll()
 	if err != nil {
 		al.jsonError(w, err)
 		return
@@ -681,7 +681,7 @@ func (al *APIListener) handleChangeUser(w http.ResponseWriter, req *http.Request
 		return
 	}
 
-	if err := al.usersService.Change(&user, userID); err != nil {
+	if err := al.userService.Change(&user, userID); err != nil {
 		al.jsonError(w, err)
 		return
 	}
@@ -703,7 +703,7 @@ func (al *APIListener) handleDeleteUser(w http.ResponseWriter, req *http.Request
 		return
 	}
 
-	if err := al.usersService.Delete(userID); err != nil {
+	if err := al.userService.Delete(userID); err != nil {
 		al.jsonError(w, err)
 		return
 	}
@@ -846,7 +846,7 @@ func (al *APIListener) handlePostClientACL(w http.ResponseWriter, req *http.Requ
 		return
 	}
 
-	err = al.usersService.ExistGroups(reqBody.AllowedUserGroups)
+	err = al.userService.ExistGroups(reqBody.AllowedUserGroups)
 	if err != nil {
 		al.jsonError(w, err)
 		return
@@ -1134,7 +1134,7 @@ func (al *APIListener) handleChangeMe(w http.ResponseWriter, req *http.Request) 
 		}
 	}
 
-	if err := al.usersService.Change(&users.User{
+	if err := al.userService.Change(&users.User{
 		Username:    r.Username,
 		Password:    r.Password,
 		TwoFASendTo: r.TwoFASendTo,
@@ -1153,7 +1153,7 @@ func (al *APIListener) getUserModel(ctx context.Context) (*users.User, error) {
 		return nil, nil
 	}
 
-	user, err := al.userSrv.GetByUsername(curUsername)
+	user, err := al.userService.GetByUsername(curUsername)
 	if err != nil {
 		return nil, err
 	}
@@ -1161,7 +1161,7 @@ func (al *APIListener) getUserModel(ctx context.Context) (*users.User, error) {
 	return user, err
 }
 
-// TODO: move to userSrv
+// TODO: move to userService
 func (al *APIListener) getUserModelForAuth(ctx context.Context) (*users.User, error) {
 	usr, err := al.getUserModel(ctx)
 	if err != nil {
@@ -2440,7 +2440,7 @@ func (al *APIListener) handleDeleteClientGroup(w http.ResponseWriter, req *http.
 
 func (al *APIListener) wrapStaticPassModeMiddleware(next http.HandlerFunc) http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
-		if al.usersService.GetProviderType() == enums.ProviderSourceStatic {
+		if al.userService.GetProviderType() == enums.ProviderSourceStatic {
 			al.jsonError(w, errors2.APIError{
 				HTTPStatus: http.StatusBadRequest,
 				Message:    "server runs on a static user-password pair, please use JSON file or database for user data",
@@ -2922,7 +2922,7 @@ func (al *APIListener) handlePostToken(w http.ResponseWriter, req *http.Request)
 		return
 	}
 
-	if err := al.usersService.Change(&users.User{
+	if err := al.userService.Change(&users.User{
 		Token: &newToken,
 	}, curUser.Username); err != nil {
 		al.jsonError(w, err)
@@ -2943,7 +2943,7 @@ func (al *APIListener) handleDeleteToken(w http.ResponseWriter, req *http.Reques
 	}
 
 	noToken := ""
-	if err := al.usersService.Change(&users.User{
+	if err := al.userService.Change(&users.User{
 		Token: &noToken,
 	}, curUser.Username); err != nil {
 		al.jsonError(w, err)
