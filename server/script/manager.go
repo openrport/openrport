@@ -14,15 +14,28 @@ import (
 	errors2 "github.com/cloudradar-monitoring/rport/server/api/errors"
 )
 
-var supportedFields = map[string]bool{
+var supportedSortAndFilters = map[string]bool{
 	"id":         true,
 	"name":       true,
 	"created_by": true,
 	"created_at": true,
 }
 
+var supportedFields = map[string]map[string]bool{
+	"scripts": map[string]bool{
+		"id":          true,
+		"name":        true,
+		"created_by":  true,
+		"created_at":  true,
+		"interpreter": true,
+		"is_sudo":     true,
+		"cwd":         true,
+		"script":      true,
+	},
+}
+
 type DbProvider interface {
-	GetByID(ctx context.Context, id string) (val *Script, found bool, err error)
+	GetByID(ctx context.Context, id string, ro *query.RetrieveOptions) (val *Script, found bool, err error)
 	List(ctx context.Context, lo *query.ListOptions) ([]Script, error)
 	Save(ctx context.Context, s *Script, nowDate time.Time) (string, error)
 	Delete(ctx context.Context, id string) error
@@ -44,9 +57,9 @@ func NewManager(db DbProvider, ex *Executor, logger *chshare.Logger) *Manager {
 }
 
 func (m *Manager) List(ctx context.Context, re *http.Request) ([]Script, error) {
-	listOptions := query.GetSortAndFilterOptions(re)
+	listOptions := query.GetListOptions(re)
 
-	err := query.ValidateListOptions(listOptions, supportedFields)
+	err := query.ValidateListOptions(listOptions, supportedSortAndFilters, supportedFields)
 	if err != nil {
 		return nil, err
 	}
@@ -54,8 +67,15 @@ func (m *Manager) List(ctx context.Context, re *http.Request) ([]Script, error) 
 	return m.db.List(ctx, listOptions)
 }
 
-func (m *Manager) GetOne(ctx context.Context, id string) (*Script, bool, error) {
-	val, found, err := m.db.GetByID(ctx, id)
+func (m *Manager) GetOne(ctx context.Context, re *http.Request, id string) (*Script, bool, error) {
+	retrieveOptions := query.GetRetrieveOptions(re)
+
+	err := query.ValidateRetrieveOptions(retrieveOptions, supportedFields)
+	if err != nil {
+		return nil, false, err
+	}
+
+	val, found, err := m.db.GetByID(ctx, id, retrieveOptions)
 	if err != nil {
 		return nil, false, err
 	}
@@ -95,10 +115,10 @@ func (m *Manager) Create(ctx context.Context, valueToStore *InputScript, usernam
 	scriptToSave := &Script{
 		Name:        valueToStore.Name,
 		CreatedBy:   username,
-		CreatedAt:   now,
-		Interpreter: valueToStore.Interpreter,
-		IsSudo:      valueToStore.IsSudo,
-		Cwd:         valueToStore.Cwd,
+		CreatedAt:   &now,
+		Interpreter: &valueToStore.Interpreter,
+		IsSudo:      &valueToStore.IsSudo,
+		Cwd:         &valueToStore.Cwd,
 		Script:      valueToStore.Script,
 	}
 	scriptToSave.ID, err = m.db.Save(ctx, scriptToSave, now)
@@ -115,7 +135,7 @@ func (m *Manager) Update(ctx context.Context, existingID string, valueToStore *I
 		return nil, err
 	}
 
-	_, foundByID, err := m.db.GetByID(ctx, existingID)
+	_, foundByID, err := m.db.GetByID(ctx, existingID, &query.RetrieveOptions{})
 	if err != nil {
 		return nil, err
 	}
@@ -151,10 +171,10 @@ func (m *Manager) Update(ctx context.Context, existingID string, valueToStore *I
 		ID:          existingID,
 		Name:        valueToStore.Name,
 		CreatedBy:   username,
-		CreatedAt:   now,
-		Interpreter: valueToStore.Interpreter,
-		IsSudo:      valueToStore.IsSudo,
-		Cwd:         valueToStore.Cwd,
+		CreatedAt:   &now,
+		Interpreter: &valueToStore.Interpreter,
+		IsSudo:      &valueToStore.IsSudo,
+		Cwd:         &valueToStore.Cwd,
 		Script:      valueToStore.Script,
 	}
 	scriptToSave.ID, err = m.db.Save(ctx, scriptToSave, now)
@@ -166,7 +186,7 @@ func (m *Manager) Update(ctx context.Context, existingID string, valueToStore *I
 }
 
 func (m *Manager) Delete(ctx context.Context, id string) error {
-	_, found, err := m.db.GetByID(ctx, id)
+	_, found, err := m.db.GetByID(ctx, id, &query.RetrieveOptions{})
 	if err != nil {
 		return errors2.APIError{
 			Err:        err,

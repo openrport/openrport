@@ -47,9 +47,12 @@ func (p *SqliteProvider) Close() error {
 	return nil
 }
 
-func (p *SqliteProvider) GetByID(ctx context.Context, id string) (val *Script, found bool, err error) {
+func (p *SqliteProvider) GetByID(ctx context.Context, id string, ro *query.RetrieveOptions) (val *Script, found bool, err error) {
+	q := "SELECT * FROM `scripts` WHERE `id` = ? LIMIT 1"
+	q = query.ConvertRetrieveOptionsToQuery(ro, q)
+
 	val = new(Script)
-	err = p.db.GetContext(ctx, val, "SELECT * FROM `scripts` WHERE `id` = ? LIMIT 1", id)
+	err = p.db.GetContext(ctx, val, q, id)
 	if err != nil {
 		if err == sql.ErrNoRows {
 			return val, false, nil
@@ -64,7 +67,7 @@ func (p *SqliteProvider) GetByID(ctx context.Context, id string) (val *Script, f
 func (p *SqliteProvider) List(ctx context.Context, lo *query.ListOptions) ([]Script, error) {
 	values := []Script{}
 
-	q := "SELECT *  FROM `scripts`"
+	q := "SELECT * FROM `scripts`"
 
 	q, params := query.ConvertListOptionsToQuery(lo, q)
 

@@ -14,10 +14,6 @@ import (
 	"strings"
 	"time"
 
-	"github.com/cloudradar-monitoring/rport/server/validation"
-
-	"github.com/cloudradar-monitoring/rport/share/query"
-
 	"github.com/gorilla/mux"
 	"github.com/gorilla/websocket"
 	"github.com/tomasen/realip"
@@ -33,11 +29,13 @@ import (
 	"github.com/cloudradar-monitoring/rport/server/clientsauth"
 	"github.com/cloudradar-monitoring/rport/server/ports"
 	"github.com/cloudradar-monitoring/rport/server/script"
+	"github.com/cloudradar-monitoring/rport/server/validation"
 	"github.com/cloudradar-monitoring/rport/server/vault"
 	chshare "github.com/cloudradar-monitoring/rport/share"
 	"github.com/cloudradar-monitoring/rport/share/comm"
 	"github.com/cloudradar-monitoring/rport/share/enums"
 	"github.com/cloudradar-monitoring/rport/share/models"
+	"github.com/cloudradar-monitoring/rport/share/query"
 	"github.com/cloudradar-monitoring/rport/share/random"
 	"github.com/cloudradar-monitoring/rport/share/security"
 	"github.com/cloudradar-monitoring/rport/share/ws"
@@ -2741,7 +2739,7 @@ func (al *APIListener) handleReadScript(w http.ResponseWriter, req *http.Request
 		return
 	}
 
-	foundScript, found, err := al.scriptManager.GetOne(req.Context(), idStr)
+	foundScript, found, err := al.scriptManager.GetOne(req.Context(), req, idStr)
 	if err != nil {
 		al.jsonError(w, err)
 		return
