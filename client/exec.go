@@ -289,6 +289,7 @@ func (b *CapacityBuffer) Write(p []byte) (n int, err error) {
 
 	// do not write to buffer if no space left
 	if len(p) > freeCapacity {
+		b.data = append(b.data, p[:freeCapacity]...)
 		b.hasOverflow = true
 		return 0, errors.New(b.GetOverflowMessage())
 	}
