@@ -306,7 +306,7 @@ func TestHandleRunCmdRequestPositiveCase(t *testing.T) {
 			sendBackLimit: stdErrSize,
 			wantJSON: fmt.Sprintf(wantJSONPart1, "overflow of stdOut buffer: maximum send_back_limit of 12 bytes exceeded") + `
        "result": {
-       "stdout": "output1",
+       "stdout": "output1outpu",
        "stderr": "error1error2"
    }
 }`,
@@ -316,8 +316,8 @@ func TestHandleRunCmdRequestPositiveCase(t *testing.T) {
 			sendBackLimit: stdErrSize - 1,
 			wantJSON: fmt.Sprintf(wantJSONPart1, "overflow of stdOut buffer: maximum send_back_limit of 11 bytes exceeded, overflow of stdErr buffer: maximum send_back_limit of 11 bytes exceeded") + `
 		"result": {
-		"stdout": "output1",
-		"stderr": "error1"
+		"stdout": "output1outp",
+		"stderr": "error1error"
 	}
 }`,
 		},
