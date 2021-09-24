@@ -122,7 +122,7 @@ func TestValidateCredentials(t *testing.T) {
 
 		// given
 		al := &APIListener{}
-		al.userSrv = users.NewUserCache(tc.repoUsers)
+		al.userService = users.NewAPIService(users.NewStaticProvider(tc.repoUsers), false)
 
 		// when
 		gotRes, gotErr := al.validateCredentials(tc.username, tc.password)

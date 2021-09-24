@@ -31,6 +31,7 @@ import (
 	chshare "github.com/cloudradar-monitoring/rport/share"
 	"github.com/cloudradar-monitoring/rport/share/comm"
 	"github.com/cloudradar-monitoring/rport/share/models"
+	"github.com/cloudradar-monitoring/rport/share/ptr"
 	"github.com/cloudradar-monitoring/rport/share/random"
 	"github.com/cloudradar-monitoring/rport/share/security"
 	"github.com/cloudradar-monitoring/rport/share/test"
@@ -1066,7 +1067,7 @@ func TestHandleGetClients(t *testing.T) {
 				Server: ServerConfig{MaxRequestBytes: 1024 * 1024},
 			},
 		},
-		userSrv: users.NewUserCache([]*users.User{curUser}),
+		userService: users.NewAPIService(users.NewStaticProvider([]*users.User{curUser}), false),
 	}
 	al.initRouter()
 
@@ -1336,8 +1337,8 @@ func TestHandlePostMultiClientCommand(t *testing.T) {
 						m: make(map[string]chan *models.Job),
 					},
 				},
-				userSrv: users.NewUserCache([]*users.User{curUser}),
-				Logger:  testLog,
+				userService: users.NewAPIService(users.NewStaticProvider([]*users.User{curUser}), false),
+				Logger:      testLog,
 			}
 			var done chan bool
 			if tc.wantStatusCode == http.StatusOK {
@@ -1659,7 +1660,7 @@ func TestHandleGetClient(t *testing.T) {
 }
 
 type MockUsersService struct {
-	UsersService
+	UserService
 
 	ChangeUser     *users.User
 	ChangeUsername string
@@ -1675,7 +1676,9 @@ func TestPostToken(t *testing.T) {
 	user := &users.User{
 		Username: "test-user",
 	}
-	mockUsersService := &MockUsersService{}
+	mockUsersService := &MockUsersService{
+		UserService: users.NewAPIService(users.NewStaticProvider([]*users.User{user}), false),
+	}
 
 	uuid := "cb5b6578-94f5-4a5b-af58-f7867a943b0c"
 	oldUUID := random.UUID4
@@ -1691,8 +1694,7 @@ func TestPostToken(t *testing.T) {
 		Server: &Server{
 			config: &Config{},
 		},
-		userSrv:      users.NewUserCache([]*users.User{user}),
-		usersService: mockUsersService,
+		userService: mockUsersService,
 	}
 	al.initRouter()
 
@@ -1717,15 +1719,16 @@ func TestDeleteToken(t *testing.T) {
 	user := &users.User{
 		Username: "test-user",
 	}
-	mockUsersService := &MockUsersService{}
+	mockUsersService := &MockUsersService{
+		UserService: users.NewAPIService(users.NewStaticProvider([]*users.User{user}), false),
+	}
 	noToken := ""
 	al := APIListener{
 		insecureForTests: true,
 		Server: &Server{
 			config: &Config{},
 		},
-		userSrv:      users.NewUserCache([]*users.User{user}),
-		usersService: mockUsersService,
+		userService: mockUsersService,
 	}
 	al.initRouter()
 
@@ -1748,7 +1751,7 @@ func TestWrapWithAuthMiddleware(t *testing.T) {
 	user := &users.User{
 		Username: "user1",
 		Password: "$2y$05$ep2DdPDeLDDhwRrED9q/vuVEzRpZtB5WHCFT7YbcmH9r9oNmlsZOm",
-		Token:    users.Token("$2y$05$/D7g/d0sDkNSOh.e6Jzc9OWClcpZ1ieE8Dx.WUaWgayd3Ab0rRdxu"),
+		Token:    ptr.String("$2y$05$/D7g/d0sDkNSOh.e6Jzc9OWClcpZ1ieE8Dx.WUaWgayd3Ab0rRdxu"),
 	}
 	userWithoutToken := &users.User{
 		Username: "user2",
@@ -1758,7 +1761,7 @@ func TestWrapWithAuthMiddleware(t *testing.T) {
 	al := APIListener{
 		apiSessionRepo: NewAPISessionRepository(),
 		bannedUsers:    security.NewBanList(0),
-		userSrv:        users.NewUserCache([]*users.User{user, userWithoutToken}),
+		userService:    users.NewAPIService(users.NewStaticProvider([]*users.User{user, userWithoutToken}), false),
 		Server: &Server{
 			config: &Config{},
 		},

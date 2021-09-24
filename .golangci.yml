@@ -52,7 +52,7 @@ linters-settings:
     suggest-new: true
   dupl:
     # tokens count to trigger issue, 150 by default
-    threshold: 100
+    threshold: 150
   goconst:
     # minimal length of string constant, 3 by default
     min-len: 3

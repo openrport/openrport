@@ -24,7 +24,11 @@ func (e *CmdExecutorImpl) New(ctx context.Context, execCtx *CmdExecutorContext) 
 		}
 	}
 
-	commandStr := strings.ReplaceAll(execCtx.Command, " ", "\\ ")
+	commandStr := execCtx.Command
+	if execCtx.IsScript {
+		commandStr = strings.ReplaceAll(commandStr, " ", "\\ ")
+	}
+
 	args = append(args, commandStr)
 
 	cmd := exec.CommandContext(ctx, args[0], args[1:]...)

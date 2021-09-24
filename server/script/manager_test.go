@@ -40,7 +40,7 @@ type DbProviderMock struct {
 	isClosed bool
 }
 
-func (dpm *DbProviderMock) GetByID(ctx context.Context, id string) (val *Script, found bool, err error) {
+func (dpm *DbProviderMock) GetByID(ctx context.Context, id string, ro *query.RetrieveOptions) (val *Script, found bool, err error) {
 	dpm.getByIDGiven = id
 	return dpm.getByIDScriptToGive, dpm.getByIDFoundToGive, dpm.getByIDErrorToGive
 }
@@ -74,11 +74,12 @@ func (dpm *DbProviderMock) GetDbProvider() DbProvider {
 }
 
 func TestManagerList(t *testing.T) {
+	now := time.Now()
 	expectedScripts := []Script{
 		{
 			ID:        "123",
 			CreatedBy: "user1",
-			CreatedAt: time.Now(),
+			CreatedAt: &now,
 			Name:      "some nam",
 			Script:    "some script",
 		},
@@ -89,7 +90,7 @@ func TestManagerList(t *testing.T) {
 
 	mngr := NewManager(dbProv, nil, testLog)
 
-	inputURL, err := url.Parse("/someu?sort=name&sort=-created_at&filter[name]=some nam")
+	inputURL, err := url.Parse("/someu?sort=name&sort=-created_at&filter[name]=some nam&fields[scripts]=id,name")
 	require.NoError(t, err)
 
 	req := &http.Request{
@@ -118,6 +119,12 @@ func TestManagerList(t *testing.T) {
 					Values: []string{"some nam"},
 				},
 			},
+			Fields: []query.FieldsOption{
+				{
+					Resource: "scripts",
+					Fields:   []string{"id", "name"},
+				},
+			},
 		},
 		dbProv.listOptionInput,
 	)
@@ -133,14 +140,14 @@ func TestManagerList(t *testing.T) {
 	require.EqualError(t, err, "list error")
 }
 
-func TestListWithUnsupportedFilterAndSort(t *testing.T) {
+func TestListWithUnsupportedOptions(t *testing.T) {
 	dbProv := &DbProviderMock{
 		listValuesToGive: []Script{},
 	}
 
 	mngr := NewManager(dbProv, nil, testLog)
 
-	inputURL, err := url.Parse("/someu?sort=unsupportedSortField&filter[unsupportedFilter]=val1")
+	inputURL, err := url.Parse("/someu?sort=unsupportedSortField&filter[unsupportedFilter]=val1&fields[scripts]=nope")
 	require.NoError(t, err)
 
 	req := &http.Request{
@@ -148,7 +155,7 @@ func TestListWithUnsupportedFilterAndSort(t *testing.T) {
 	}
 
 	_, err = mngr.List(context.Background(), req)
-	require.EqualError(t, err, "unsupported sort field 'unsupportedSortField', unsupported filter field 'unsupportedFilter'")
+	require.EqualError(t, err, `unsupported sort field 'unsupportedSortField', unsupported filter field 'unsupportedFilter', unsupported field "nope" for resource "scripts"`)
 }
 
 func TestManagerClose(t *testing.T) {
@@ -177,9 +184,15 @@ func TestGetOne(t *testing.T) {
 		getByIDFoundToGive:  true,
 	}
 
+	inputURL, err := url.Parse("/scripts/id?fields[scripts]=id,name")
+	require.NoError(t, err)
+	req := &http.Request{
+		URL: inputURL,
+	}
+
 	mngr := NewManager(dbProv, nil, testLog)
 
-	val, found, err := mngr.GetOne(context.Background(), "1")
+	val, found, err := mngr.GetOne(context.Background(), req, "1")
 	require.NoError(t, err)
 	assert.True(t, found)
 	assert.Equal(t, expectedValue, val)
@@ -190,7 +203,7 @@ func TestGetOne(t *testing.T) {
 
 	mngr = NewManager(dbProv, nil, testLog)
 
-	_, found, err = mngr.GetOne(context.Background(), "1")
+	_, found, err = mngr.GetOne(context.Background(), req, "1")
 	require.NoError(t, err)
 	assert.False(t, found)
 
@@ -200,7 +213,7 @@ func TestGetOne(t *testing.T) {
 
 	mngr = NewManager(dbProv, nil, testLog)
 
-	_, _, err = mngr.GetOne(context.Background(), "1")
+	_, _, err = mngr.GetOne(context.Background(), req, "1")
 	require.EqualError(t, err, "some get id error")
 }
 
@@ -233,17 +246,17 @@ func TestStore(t *testing.T) {
 		assert.Equal(t, "pwd", dbProv.saveScriptGiven.Script)
 		assert.Equal(t, "pwd", storedScript.Script)
 
-		assert.Equal(t, "/user/local", dbProv.saveScriptGiven.Cwd)
-		assert.Equal(t, "/user/local", storedScript.Cwd)
+		assert.Equal(t, "/user/local", *dbProv.saveScriptGiven.Cwd)
+		assert.Equal(t, "/user/local", *storedScript.Cwd)
 
-		assert.Equal(t, "some inter", dbProv.saveScriptGiven.Interpreter)
-		assert.Equal(t, "some inter", storedScript.Interpreter)
+		assert.Equal(t, "some inter", *dbProv.saveScriptGiven.Interpreter)
+		assert.Equal(t, "some inter", *storedScript.Interpreter)
 
 		assert.Equal(t, "some nam", dbProv.saveScriptGiven.Name)
 		assert.Equal(t, "some nam", storedScript.Name)
 
-		assert.True(t, dbProv.saveScriptGiven.IsSudo)
-		assert.True(t, storedScript.IsSudo)
+		assert.True(t, *dbProv.saveScriptGiven.IsSudo)
+		assert.True(t, *storedScript.IsSudo)
 	})
 
 	t.Run("update_success", func(t *testing.T) {
@@ -265,17 +278,17 @@ func TestStore(t *testing.T) {
 		assert.Equal(t, "pwd", dbProv.saveScriptGiven.Script)
 		assert.Equal(t, "pwd", storedScript.Script)
 
-		assert.Equal(t, "/user/local", dbProv.saveScriptGiven.Cwd)
-		assert.Equal(t, "/user/local", storedScript.Cwd)
+		assert.Equal(t, "/user/local", *dbProv.saveScriptGiven.Cwd)
+		assert.Equal(t, "/user/local", *storedScript.Cwd)
 
-		assert.Equal(t, "some inter", dbProv.saveScriptGiven.Interpreter)
-		assert.Equal(t, "some inter", storedScript.Interpreter)
+		assert.Equal(t, "some inter", *dbProv.saveScriptGiven.Interpreter)
+		assert.Equal(t, "some inter", *storedScript.Interpreter)
 
 		assert.Equal(t, "some nam", dbProv.saveScriptGiven.Name)
 		assert.Equal(t, "some nam", storedScript.Name)
 
-		assert.True(t, dbProv.saveScriptGiven.IsSudo)
-		assert.True(t, storedScript.IsSudo)
+		assert.True(t, *dbProv.saveScriptGiven.IsSudo)
+		assert.True(t, *storedScript.IsSudo)
 	})
 
 	t.Run("store_failure_key_exists_update", func(t *testing.T) {

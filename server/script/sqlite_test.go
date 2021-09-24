@@ -6,6 +6,7 @@ import (
 	"testing"
 	"time"
 
+	"github.com/cloudradar-monitoring/rport/share/ptr"
 	"github.com/cloudradar-monitoring/rport/share/query"
 
 	"github.com/jmoiron/sqlx"
@@ -24,20 +25,20 @@ var demoData = []Script{
 		ID:          "1",
 		Name:        "some name",
 		CreatedBy:   "user1",
-		CreatedAt:   time.Date(2001, 1, 1, 1, 0, 0, 0, time.UTC),
-		Interpreter: "bash",
-		IsSudo:      false,
-		Cwd:         "/bin",
+		CreatedAt:   ptr.Time(time.Date(2001, 1, 1, 1, 0, 0, 0, time.UTC)),
+		Interpreter: ptr.String("bash"),
+		IsSudo:      ptr.Bool(false),
+		Cwd:         ptr.String("/bin"),
 		Script:      "ls -la",
 	},
 	{
 		ID:          "2",
 		Name:        "other name 2",
 		CreatedBy:   "user1",
-		CreatedAt:   time.Date(2002, 1, 1, 1, 0, 0, 0, time.UTC),
-		Interpreter: "sh",
-		IsSudo:      true,
-		Cwd:         "/bin",
+		CreatedAt:   ptr.Time(time.Date(2002, 1, 1, 1, 0, 0, 0, time.UTC)),
+		Interpreter: ptr.String("sh"),
+		IsSudo:      ptr.Bool(true),
+		Cwd:         ptr.String("/bin"),
 		Script:      "pwd",
 	},
 }
@@ -52,100 +53,159 @@ func TestGetByID(t *testing.T) {
 	err = addDemoData(dbProv.db)
 	require.NoError(t, err)
 
-	val, found, err := dbProv.GetByID(ctx, "1")
+	val, found, err := dbProv.GetByID(ctx, "1", &query.RetrieveOptions{})
 
 	require.NoError(t, err)
 	require.True(t, found)
 	require.NoError(t, err)
 	assert.Equal(t, demoData[0], *val)
 
-	_, found, err = dbProv.GetByID(ctx, "-2")
+	_, found, err = dbProv.GetByID(ctx, "-2", &query.RetrieveOptions{})
 	require.NoError(t, err)
 	require.False(t, found)
+
+	val, found, err = dbProv.GetByID(ctx, "1", &query.RetrieveOptions{Fields: []query.FieldsOption{
+		{
+			Resource: "scripts",
+			Fields:   []string{"created_by", "script"},
+		},
+	}})
+
+	require.NoError(t, err)
+	require.True(t, found)
+	require.NoError(t, err)
+	assert.Equal(t, Script{
+		CreatedBy: "user1",
+		Script:    "ls -la",
+	}, *val)
 }
 
 func TestList(t *testing.T) {
 	dbProv, err := NewSqliteProvider(":memory:", testLog)
 	require.NoError(t, err)
-	defer dbProv.Close()
+	t.Cleanup(func() { dbProv.Close() })
 
 	err = addDemoData(dbProv.db)
 	require.NoError(t, err)
 
-	vals, err := dbProv.List(context.Background(), &query.ListOptions{})
-	require.NoError(t, err)
-	assert.Equal(t, demoData, vals)
+	testCases := []struct {
+		Name           string
+		Options        *query.ListOptions
+		ExpectedResult []Script
+	}{
+		{
+			Name:           "no options",
+			Options:        &query.ListOptions{},
+			ExpectedResult: demoData,
+		},
+		{
+			Name: "sort only",
+			Options: &query.ListOptions{
+				Sorts: []query.SortOption{
+					{
+						Column: "created_at",
+						IsASC:  false,
+					},
+				},
+			},
+			ExpectedResult: []Script{demoData[1], demoData[0]},
+		},
+		{
+			Name: "filter and sort",
+			Options: &query.ListOptions{
+				Sorts: []query.SortOption{
+					{
+						Column: "name",
+						IsASC:  true,
+					},
+				},
+				Filters: []query.FilterOption{
+					{
+						Column: "created_by",
+						Values: []string{"user1"},
+					},
+				},
+			},
+			ExpectedResult: []Script{demoData[1], demoData[0]},
+		},
+		{
+			Name: "filter, no results",
+			Options: &query.ListOptions{
+				Filters: []query.FilterOption{
+					{
+						Column: "interpreter",
+						Values: []string{"not-existing-interpreter"},
+					},
+				},
+			},
+			ExpectedResult: []Script{},
+		},
+		{
+			Name: "filter, 1 result",
+			Options: &query.ListOptions{
+				Filters: []query.FilterOption{
+					{
+						Column: "is_sudo",
+						Values: []string{"0"},
+					},
+				},
+			},
+			ExpectedResult: []Script{demoData[0]},
+		},
+		{
+			Name: "multiple filters",
+			Options: &query.ListOptions{
+				Sorts: []query.SortOption{
+					{
+						Column: "interpreter",
+						IsASC:  true,
+					},
+				},
+				Filters: []query.FilterOption{
+					{
+						Column: "name",
+						Values: []string{"some name", "other name 2"},
+					},
+					{
+						Column: "created_by",
+						Values: []string{"user1"},
+					},
+				},
+			},
+			ExpectedResult: demoData,
+		},
+		{
+			Name: "fields",
+			Options: &query.ListOptions{
+				Fields: []query.FieldsOption{
+					{
+						Resource: "scripts",
+						Fields:   []string{"id", "name"},
+					},
+				},
+			},
+			ExpectedResult: []Script{
+				{
+					ID:   "1",
+					Name: "some name",
+				},
+				{
+					ID:   "2",
+					Name: "other name 2",
+				},
+			},
+		},
+	}
 
-	vals, err = dbProv.List(context.Background(), &query.ListOptions{
-		Sorts: []query.SortOption{
-			{
-				Column: "created_at",
-				IsASC:  false,
-			},
-		},
-	})
-	require.NoError(t, err)
-	assert.Equal(t, []Script{demoData[1], demoData[0]}, vals)
+	for _, tc := range testCases {
+		tc := tc
+		t.Run(tc.Name, func(t *testing.T) {
+			result, err := dbProv.List(context.Background(), tc.Options)
+			require.NoError(t, err)
 
-	vals, err = dbProv.List(context.Background(), &query.ListOptions{
-		Sorts: []query.SortOption{
-			{
-				Column: "name",
-				IsASC:  true,
-			},
-		},
-		Filters: []query.FilterOption{
-			{
-				Column: "created_by",
-				Values: []string{"user1"},
-			},
-		},
-	})
-	require.NoError(t, err)
-	assert.Equal(t, []Script{demoData[1], demoData[0]}, vals)
-
-	vals, err = dbProv.List(context.Background(), &query.ListOptions{
-		Filters: []query.FilterOption{
-			{
-				Column: "interpreter",
-				Values: []string{"not-existing-interpreter"},
-			},
-		},
-	})
-	require.NoError(t, err)
-	assert.Equal(t, []Script{}, vals)
-
-	vals, err = dbProv.List(context.Background(), &query.ListOptions{
-		Filters: []query.FilterOption{
-			{
-				Column: "is_sudo",
-				Values: []string{"0"},
-			},
-		},
-	})
-	require.NoError(t, err)
-	assert.Equal(t, []Script{demoData[0]}, vals)
-
-	vals, err = dbProv.List(context.Background(), &query.ListOptions{
-		Sorts: []query.SortOption{
-			{
-				Column: "interpreter",
-				IsASC:  true,
-			},
-		},
-		Filters: []query.FilterOption{
-			{
-				Column: "name",
-				Values: []string{"some name", "other name 2"},
-			},
-			{
-				Column: "created_by",
-				Values: []string{"user1"},
-			},
-		},
-	})
-	require.NoError(t, err)
-	assert.Equal(t, demoData, vals)
+			assert.Equal(t, tc.ExpectedResult, result)
+		})
+	}
 }
 
 func TestCreate(t *testing.T) {
@@ -166,11 +226,11 @@ func TestCreate(t *testing.T) {
 	expectedRows := []map[string]interface{}{
 		{
 			"name":        itemToSave.Name,
-			"created_at":  itemToSave.CreatedAt,
+			"created_at":  *itemToSave.CreatedAt,
 			"created_by":  itemToSave.CreatedBy,
-			"interpreter": itemToSave.Interpreter,
+			"interpreter": *itemToSave.Interpreter,
 			"is_sudo":     int64(0),
-			"cwd":         itemToSave.Cwd,
+			"cwd":         *itemToSave.Cwd,
 			"script":      itemToSave.Script,
 		},
 	}
@@ -203,11 +263,11 @@ func TestUpdate(t *testing.T) {
 		{
 			"id":          "1",
 			"name":        itemToSave.Name,
-			"created_at":  itemToSave.CreatedAt,
+			"created_at":  *itemToSave.CreatedAt,
 			"created_by":  itemToSave.CreatedBy,
-			"interpreter": itemToSave.Interpreter,
+			"interpreter": *itemToSave.Interpreter,
 			"is_sudo":     int64(0),
-			"cwd":         itemToSave.Cwd,
+			"cwd":         *itemToSave.Cwd,
 			"script":      itemToSave.Script,
 		},
 	}
@@ -235,11 +295,11 @@ func TestDelete(t *testing.T) {
 		{
 			"id":          "1",
 			"name":        demoData[0].Name,
-			"created_at":  demoData[0].CreatedAt,
+			"created_at":  *demoData[0].CreatedAt,
 			"created_by":  demoData[0].CreatedBy,
-			"interpreter": demoData[0].Interpreter,
+			"interpreter": *demoData[0].Interpreter,
 			"is_sudo":     int64(0),
-			"cwd":         demoData[0].Cwd,
+			"cwd":         *demoData[0].Cwd,
 			"script":      demoData[0].Script,
 		},
 	}

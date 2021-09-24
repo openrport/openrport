@@ -31,3 +31,13 @@ func (r *UserCache) GetByUsername(username string) (*User, error) {
 	defer r.mu.RUnlock()
 	return r.byUsername[username], nil
 }
+
+func (r *UserCache) GetAll() ([]*User, error) {
+	r.mu.RLock()
+	defer r.mu.RUnlock()
+	users := make([]*User, 0, len(r.byUsername))
+	for _, u := range r.byUsername {
+		users = append(users, u)
+	}
+	return users, nil
+}

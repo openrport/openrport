@@ -1820,6 +1820,13 @@ paths:
               `filter[name]=script1,script2`."
           required: false
           type: "string"
+        - in: "query"
+          name: "fields[<RESOURCE>]"
+          description: "Fields to be returned. It should be provided in the format as `fields[<RESOURCE>]=<FIELDS>`,
+              where `<RESOURCE>` is `scripts` and `<FIELDS>` is a comma separated list of fields. Example: `fields[scripts]=id,name`.
+              If no fields are specified, all will be returned."
+          required: false
+          type: "string"
       responses:
         "200":
           description: "Successful Operation"
@@ -1895,6 +1902,13 @@ paths:
           name: "id"
           required: true
           description: "Unique script ID"
+          type: "string"
+        - in: "query"
+          name: "fields[<RESOURCE>]"
+          description: "Fields to be returned. It should be provided in the format as `fields[<RESOURCE>]=<FIELDS>`,
+              where `<RESOURCE>` is `scripts` and `<FIELDS>` is a comma separated list of fields. Example: `fields[scripts]=id,name`.
+              If no fields are specified, all will be returned."
+          required: false
           type: "string"
       responses:
         "200":

@@ -20,6 +20,12 @@ type FileManager struct {
 	FileAccessLock sync.Mutex
 }
 
+func NewFileManager(fileName string) *FileManager {
+	return &FileManager{
+		FileName: fileName,
+	}
+}
+
 // GetUsersFromFile returns users from a given file.
 func (fm *FileManager) ReadUsersFromFile() ([]*User, error) {
 	fm.FileAccessLock.Lock()

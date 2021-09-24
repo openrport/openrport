@@ -2,7 +2,6 @@ package users
 
 import (
 	"context"
-	"errors"
 	"fmt"
 	"net/http"
 	"strings"
@@ -15,7 +14,8 @@ import (
 	"github.com/cloudradar-monitoring/rport/share/enums"
 )
 
-type DatabaseProvider interface {
+type Provider interface {
+	Type() enums.ProviderSource
 	GetAll() ([]*User, error)
 	GetAllGroups() ([]string, error)
 	GetByUsername(username string) (*User, error)
@@ -24,47 +24,33 @@ type DatabaseProvider interface {
 	Delete(usernameToDelete string) error
 }
 
-type FileProvider interface {
-	ReadUsersFromFile() ([]*User, error)
-	SaveUsersToFile(users []*User) error
+type APIService struct {
+	DeliverySrv message.Service
+	Provider    Provider
+	TwoFAOn     bool
 }
 
-type APIService struct {
-	ProviderType enums.ProviderSource
-	FileProvider FileProvider
-	DeliverySrv  message.Service
-	DB           DatabaseProvider
-	TwoFAOn      bool
+func NewAPIService(provider Provider, twoFAOn bool) *APIService {
+	return &APIService{
+		Provider: provider,
+		TwoFAOn:  twoFAOn,
+	}
 }
 
 func (as APIService) GetProviderType() enums.ProviderSource {
-	return as.ProviderType
+	return as.Provider.Type()
 }
 
 func (as *APIService) GetAll() ([]*User, error) {
-	switch as.ProviderType {
-	case enums.ProviderSourceFile:
-		authUsers, err := as.FileProvider.ReadUsersFromFile()
-		if err != nil {
-			return nil, err
-		}
-		return authUsers, nil
-	case enums.ProviderSourceDB:
-		usrs, err := as.DB.GetAll()
-		if err != nil {
-			return nil, err
-		}
-		return usrs, nil
-	}
+	return as.Provider.GetAll()
+}
 
-	return nil, fmt.Errorf("unsupported user data provider type: %s", as.ProviderType)
+func (as *APIService) GetByUsername(username string) (*User, error) {
+	return as.Provider.GetByUsername(username)
 }
 
 func (as *APIService) GetAllGroups() ([]string, error) {
-	if as.ProviderType == enums.ProviderSourceDB {
-		return as.DB.GetAllGroups()
-	}
-	return nil, errors.New("not implemented")
+	return as.Provider.GetAllGroups()
 }
 
 func (as *APIService) ExistGroups(groups []string) error {
@@ -114,15 +100,10 @@ func (as *APIService) Change(usr *User, username string) error {
 		return err
 	}
 
-	if as.ProviderType == enums.ProviderSourceFile {
-		return as.changeUserInFile(usr, username)
+	if username != "" {
+		return as.updateUser(usr, username)
 	}
-
-	if as.ProviderType == enums.ProviderSourceDB {
-		return as.changeUserInDB(usr, username)
-	}
-
-	return fmt.Errorf("unsupported user data provider type: %s", as.ProviderType)
+	return as.addUser(usr)
 }
 
 func (as *APIService) validate(dataToChange *User, usernameToFind string) error {
@@ -175,8 +156,8 @@ func (as *APIService) validate(dataToChange *User, usernameToFind string) error 
 	return errs
 }
 
-func (as *APIService) addUserToDB(dataToChange *User) error {
-	existingUser, err := as.DB.GetByUsername(dataToChange.Username)
+func (as *APIService) addUser(dataToChange *User) error {
+	existingUser, err := as.Provider.GetByUsername(dataToChange.Username)
 	if err != nil {
 		return err
 	}
@@ -187,7 +168,7 @@ func (as *APIService) addUserToDB(dataToChange *User) error {
 		}
 	}
 
-	err = as.DB.Add(dataToChange)
+	err = as.Provider.Add(dataToChange)
 	if err != nil {
 		return err
 	}
@@ -196,8 +177,8 @@ func (as *APIService) addUserToDB(dataToChange *User) error {
 }
 
 // todo make concurrent save
-func (as *APIService) updateUserInDB(dataToChange *User, usernameToFind string) error {
-	existingUser, err := as.DB.GetByUsername(usernameToFind)
+func (as *APIService) updateUser(dataToChange *User, usernameToFind string) error {
+	existingUser, err := as.Provider.GetByUsername(usernameToFind)
 	if err != nil {
 		return err
 	}
@@ -210,7 +191,7 @@ func (as *APIService) updateUserInDB(dataToChange *User, usernameToFind string) 
 	}
 
 	if dataToChange.Username != "" && dataToChange.Username != usernameToFind {
-		existingUser, err := as.DB.GetByUsername(dataToChange.Username)
+		existingUser, err := as.Provider.GetByUsername(dataToChange.Username)
 		if err != nil {
 			return err
 		}
@@ -222,112 +203,15 @@ func (as *APIService) updateUserInDB(dataToChange *User, usernameToFind string) 
 		}
 	}
 
-	err = as.DB.Update(dataToChange, usernameToFind)
+	err = as.Provider.Update(dataToChange, usernameToFind)
 	if err != nil {
 		return err
 	}
 	return nil
-}
-
-func (as *APIService) changeUserInDB(dataToChange *User, usernameToFind string) error {
-	if usernameToFind == "" {
-		return as.addUserToDB(dataToChange)
-	}
-	return as.updateUserInDB(dataToChange, usernameToFind)
-}
-
-func (as *APIService) addUserToFile(dataToChange *User) error {
-	users, err := as.FileProvider.ReadUsersFromFile()
-	if err != nil {
-		return err
-	}
-
-	for i := range users {
-		if users[i].Username == dataToChange.Username {
-			return errors2.APIError{
-				Message:    "Another user with this username already exists",
-				HTTPStatus: http.StatusBadRequest,
-			}
-		}
-	}
-
-	users = append(users, dataToChange)
-	err = as.FileProvider.SaveUsersToFile(users)
-	if err != nil {
-		return err
-	}
-	return nil
-}
-
-func (as *APIService) updateUserInFile(dataToChange *User, usernameToFind string) error {
-	users, err := as.FileProvider.ReadUsersFromFile()
-	if err != nil {
-		return err
-	}
-
-	userFound := -1
-	for i := range users {
-		if users[i].Username == usernameToFind {
-			userFound = i
-		}
-		if dataToChange.Username != "" && users[i].Username == dataToChange.Username && dataToChange.Username != usernameToFind {
-			return errors2.APIError{
-				Message:    "Another user with this username already exists",
-				HTTPStatus: http.StatusBadRequest,
-			}
-		}
-	}
-
-	if userFound < 0 {
-		return errors2.APIError{
-			Message:    fmt.Sprintf("cannot find user by username '%s'", usernameToFind),
-			HTTPStatus: http.StatusNotFound,
-		}
-	}
-
-	if dataToChange.Password != "" {
-		users[userFound].Password = dataToChange.Password
-	}
-	if dataToChange.Groups != nil {
-		users[userFound].Groups = dataToChange.Groups
-	}
-	if dataToChange.Username != "" {
-		users[userFound].Username = dataToChange.Username
-	}
-	if dataToChange.Token != nil {
-		users[userFound].Token = dataToChange.Token
-	}
-
-	err = as.FileProvider.SaveUsersToFile(users)
-	if err != nil {
-		return err
-	}
-
-	return nil
-}
-
-func (as *APIService) changeUserInFile(dataToChange *User, usernameToFind string) error {
-	if usernameToFind != "" {
-		return as.updateUserInFile(dataToChange, usernameToFind)
-	}
-
-	return as.addUserToFile(dataToChange)
 }
 
 func (as *APIService) Delete(usernameToDelete string) error {
-	if as.ProviderType == enums.ProviderSourceFile {
-		return as.deleteUserFromFile(usernameToDelete)
-	}
-
-	if as.ProviderType == enums.ProviderSourceDB {
-		return as.deleteUserFromDB(usernameToDelete)
-	}
-
-	return fmt.Errorf("unsupported user data provider type: %s", as.ProviderType)
-}
-
-func (as *APIService) deleteUserFromDB(usernameToDelete string) error {
-	user, err := as.DB.GetByUsername(usernameToDelete)
+	user, err := as.Provider.GetByUsername(usernameToDelete)
 	if err != nil {
 		return err
 	}
@@ -339,33 +223,5 @@ func (as *APIService) deleteUserFromDB(usernameToDelete string) error {
 		}
 	}
 
-	return as.DB.Delete(usernameToDelete)
-}
-
-func (as *APIService) deleteUserFromFile(usernameToDelete string) error {
-	usersFromFile, err := as.FileProvider.ReadUsersFromFile()
-	if err != nil {
-		return err
-	}
-	foundIndex := -1
-	for i := range usersFromFile {
-		if usersFromFile[i].Username == usernameToDelete {
-			foundIndex = i
-			break
-		}
-	}
-
-	if foundIndex < 0 {
-		return errors2.APIError{
-			Message:    fmt.Sprintf("cannot find user by username '%s'", usernameToDelete),
-			HTTPStatus: http.StatusNotFound,
-		}
-	}
-
-	usersToWriteToFile := append(usersFromFile[:foundIndex], usersFromFile[foundIndex+1:]...)
-	err = as.FileProvider.SaveUsersToFile(usersToWriteToFile)
-	if err != nil {
-		return err
-	}
-	return nil
+	return as.Provider.Delete(usernameToDelete)
 }

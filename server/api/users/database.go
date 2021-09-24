@@ -7,6 +7,7 @@ import (
 	"strings"
 
 	chshare "github.com/cloudradar-monitoring/rport/share"
+	"github.com/cloudradar-monitoring/rport/share/enums"
 
 	"github.com/jmoiron/sqlx"
 )
@@ -291,4 +292,8 @@ func (d *UserDatabase) Delete(usernameToDelete string) error {
 	}
 
 	return tx.Commit()
+}
+
+func (d UserDatabase) Type() enums.ProviderSource {
+	return enums.ProviderSourceDB
 }

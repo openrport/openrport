@@ -8,8 +8,15 @@ import (
 func ConvertListOptionsToQuery(lo *ListOptions, q string) (qOut string, params []interface{}) {
 	qOut, params = addWhere(lo, q)
 	qOut = addOrderBy(lo, qOut)
+	qOut = replaceStarSelect(lo.Fields, qOut)
 
 	return qOut, params
+}
+
+func ConvertRetrieveOptionsToQuery(ro *RetrieveOptions, q string) string {
+	qOut := replaceStarSelect(ro.Fields, q)
+
+	return qOut
 }
 
 func addWhere(lo *ListOptions, q string) (qOut string, params []interface{}) {
@@ -34,7 +41,7 @@ func addWhere(lo *ListOptions, q string) (qOut string, params []interface{}) {
 		}
 	}
 
-	q += " WHERE " + strings.Join(whereParts, " AND ")
+	q += " WHERE " + strings.Join(whereParts, " AND ") + " "
 
 	return q, params
 }
@@ -52,8 +59,26 @@ func addOrderBy(lo *ListOptions, q string) string {
 		orderByValues = append(orderByValues, fmt.Sprintf("%s %s", lo.Sorts[i].Column, direction))
 	}
 	if len(orderByValues) > 0 {
-		q += "ORDER BY " + strings.Join(orderByValues, ",")
+		q += "ORDER BY " + strings.Join(orderByValues, ", ")
 	}
 
 	return q
+}
+
+func replaceStarSelect(fieldOptions []FieldsOption, q string) string {
+	if !strings.HasPrefix(strings.ToUpper(q), "SELECT * ") {
+		return q
+	}
+	if len(fieldOptions) == 0 {
+		return q
+	}
+
+	fields := []string{}
+	for _, fo := range fieldOptions {
+		for _, field := range fo.Fields {
+			fields = append(fields, fmt.Sprintf("%s.%s", fo.Resource, field))
+		}
+	}
+
+	return strings.Replace(q, "*", strings.Join(fields, ", "), 1)
 }

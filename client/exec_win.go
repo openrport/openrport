@@ -39,7 +39,10 @@ func buildCmdInterpreterCmd(ctx context.Context, execCtx *CmdExecutorContext, in
 	cmd := exec.CommandContext(ctx, interpreterPath)
 	cmd.SysProcAttr = &syscall.SysProcAttr{}
 
-	cmdStr := `"` + strings.Trim(execCtx.Command, `"`) + `"`
+	cmdStr := execCtx.Command
+	if execCtx.IsScript && strings.Contains(cmdStr, " ") {
+		cmdStr = `"` + strings.Trim(cmdStr, `"`) + `"`
+	}
 
 	cmd.SysProcAttr.CmdLine = fmt.Sprintf("/c %s", cmdStr)
 	cmd.Dir = execCtx.WorkingDir
