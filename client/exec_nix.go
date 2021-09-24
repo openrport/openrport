@@ -24,12 +24,12 @@ func (e *CmdExecutorImpl) New(ctx context.Context, execCtx *CmdExecutorContext) 
 		}
 	}
 
-	commandStr := execCtx.Command
-	if execCtx.IsScript {
-		commandStr = strings.ReplaceAll(commandStr, " ", "\\ ")
+	cmdStr := execCtx.Command
+	if strings.Contains(cmdStr, " ") {
+		cmdStr = strings.ReplaceAll(cmdStr, " ", "\\ ")
 	}
 
-	args = append(args, commandStr)
+	args = append(args, cmdStr)
 
 	cmd := exec.CommandContext(ctx, args[0], args[1:]...)
 	cmd.Dir = execCtx.WorkingDir

@@ -4,6 +4,7 @@ import (
 	"errors"
 	"net/http"
 	"net/url"
+	"os"
 	"regexp"
 	"testing"
 	"time"
@@ -14,20 +15,22 @@ import (
 	chshare "github.com/cloudradar-monitoring/rport/share"
 )
 
-var defaultValidMinConfig = Config{
-	Client: ClientConfig{
-		Server:  "test.com",
-		DataDir: "./",
-	},
-	RemoteCommands: CommandsConfig{
-		Enabled:       true,
-		SendBackLimit: 2048,
-		Order:         allowDenyOrder,
-		allowRegexp:   []*regexp.Regexp{regexp.MustCompile(".*")},
-	},
-	RemoteScripts: ScriptsConfig{
-		Enabled: false,
-	},
+func getDefaultValidMinConfig() Config {
+	return Config{
+		Client: ClientConfig{
+			Server:  "test.com",
+			DataDir: os.TempDir(),
+		},
+		RemoteCommands: CommandsConfig{
+			Enabled:       true,
+			SendBackLimit: 2048,
+			Order:         allowDenyOrder,
+			allowRegexp:   []*regexp.Regexp{regexp.MustCompile(".*")},
+		},
+		RemoteScripts: ScriptsConfig{
+			Enabled: false,
+		},
+	}
 }
 
 func TestConfigParseAndValidateHeaders(t *testing.T) {
@@ -73,7 +76,7 @@ func TestConfigParseAndValidateHeaders(t *testing.T) {
 
 	for _, tc := range testCases {
 		t.Run(tc.Name, func(t *testing.T) {
-			config := defaultValidMinConfig
+			config := getDefaultValidMinConfig()
 			config.Connection = tc.ConnConfig
 
 			err := config.ParseAndValidate(true)
@@ -122,7 +125,7 @@ func TestConfigParseAndValidateServerURL(t *testing.T) {
 
 	for _, tc := range testCases {
 		t.Run(tc.ServerURL, func(t *testing.T) {
-			config := defaultValidMinConfig
+			config := getDefaultValidMinConfig()
 			config.Client.Server = tc.ServerURL
 
 			err := config.ParseAndValidate(true)
@@ -165,7 +168,7 @@ func TestConfigParseAndValidateMaxRetryInterval(t *testing.T) {
 
 	for _, tc := range testCases {
 		t.Run(tc.Name, func(t *testing.T) {
-			config := defaultValidMinConfig
+			config := getDefaultValidMinConfig()
 			config.Connection.MaxRetryInterval = tc.MaxRetryInterval
 			err := config.ParseAndValidate(true)
 
@@ -202,7 +205,7 @@ func TestConfigParseAndValidateProxyURL(t *testing.T) {
 
 	for _, tc := range testCases {
 		t.Run(tc.Name, func(t *testing.T) {
-			config := defaultValidMinConfig
+			config := getDefaultValidMinConfig()
 			config.Client.Proxy = tc.Proxy
 			err := config.ParseAndValidate(true)
 
@@ -259,7 +262,7 @@ func TestConfigParseAndValidateRemotes(t *testing.T) {
 
 	for _, tc := range testCases {
 		t.Run(tc.Name, func(t *testing.T) {
-			config := defaultValidMinConfig
+			config := getDefaultValidMinConfig()
 			config.Client.Remotes = tc.Remotes
 			err := config.ParseAndValidate(true)
 
@@ -293,7 +296,7 @@ func TestConfigParseAndValidateAuth(t *testing.T) {
 
 	for _, tc := range testCases {
 		t.Run(tc.Auth, func(t *testing.T) {
-			config := defaultValidMinConfig
+			config := getDefaultValidMinConfig()
 			config.Client.Auth = tc.Auth
 			err := config.ParseAndValidate(true)
 
@@ -305,7 +308,7 @@ func TestConfigParseAndValidateAuth(t *testing.T) {
 }
 
 func TestScriptsExecutionEnabledButCommandsDisabled(t *testing.T) {
-	config := defaultValidMinConfig
+	config := getDefaultValidMinConfig()
 	config.RemoteScripts.Enabled = true
 	config.RemoteCommands.Enabled = false
 	err := config.ParseAndValidate(false)
@@ -342,7 +345,7 @@ func TestConfigParseAndValidateSendBackLimit(t *testing.T) {
 	for _, tc := range testCases {
 		t.Run(tc.name, func(t *testing.T) {
 			// given
-			config := defaultValidMinConfig
+			config := getDefaultValidMinConfig()
 			config.RemoteCommands.SendBackLimit = tc.sendBackLimit
 
 			// when
@@ -387,7 +390,7 @@ func TestConfigParseAndValidateAllowRegexp(t *testing.T) {
 	for _, tc := range testCases {
 		t.Run(tc.name, func(t *testing.T) {
 			// given
-			config := defaultValidMinConfig
+			config := getDefaultValidMinConfig()
 			config.RemoteCommands.Allow = tc.allow
 
 			// when
@@ -433,7 +436,7 @@ func TestConfigParseAndValidateDenyRegexp(t *testing.T) {
 	for _, tc := range testCases {
 		t.Run(tc.name, func(t *testing.T) {
 			// given
-			config := defaultValidMinConfig
+			config := getDefaultValidMinConfig()
 			config.RemoteCommands.Deny = tc.deny
 
 			// when
@@ -488,7 +491,7 @@ func TestConfigParseAndValidateAllowDenyOrder(t *testing.T) {
 	for _, tc := range testCases {
 		t.Run(tc.name, func(t *testing.T) {
 			// given
-			config := defaultValidMinConfig
+			config := getDefaultValidMinConfig()
 			config.RemoteCommands.Order = tc.order
 
 			// when
@@ -556,7 +559,7 @@ func TestConfigParseAndValidateFallbackServers(t *testing.T) {
 		t.Run(tc.Name, func(t *testing.T) {
 			t.Parallel()
 
-			config := defaultValidMinConfig
+			config := getDefaultValidMinConfig()
 			config.Client.FallbackServers = tc.FallbackServers
 
 			err := config.ParseAndValidate(true)

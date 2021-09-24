@@ -1,81 +1,39 @@
 package chclient
 
 import (
-	"bytes"
-	"context"
-	"crypto/sha256"
-	"encoding/hex"
-	"encoding/json"
 	"errors"
 	"fmt"
-	"io"
 	"io/ioutil"
 	"os"
 	"path/filepath"
 	"strings"
-	"time"
 
 	chshare "github.com/cloudradar-monitoring/rport/share"
-	"github.com/cloudradar-monitoring/rport/share/comm"
-	"github.com/cloudradar-monitoring/rport/share/models"
 	"github.com/cloudradar-monitoring/rport/share/random"
 )
 
 const DefaultFileMode = os.FileMode(0540)
 const DefaultDirMode = os.FileMode(0700)
 
-func (c *Client) HandleCreateFileRequest(ctx context.Context, reqPayload []byte) (*comm.CreateFileResponse, error) {
-	if !c.config.RemoteScripts.Enabled {
-		return nil, errors.New("remote scripts are disabled")
-	}
-
-	fileInput := models.ScriptFile{}
-
-	fileContentBuf := bytes.NewBuffer(reqPayload)
-	dec := json.NewDecoder(fileContentBuf)
-	dec.DisallowUnknownFields()
-	err := dec.Decode(&fileInput)
-	if err != nil {
-		return nil, err
-	}
-
-	filePath, fileHash, err := CreateScriptFile(c.config.GetScriptsDir(), fileInput.Interpreter, fileInput.Content)
-	if err != nil {
-		return nil, err
-	}
-
-	return &comm.CreateFileResponse{
-		FilePath:   filePath,
-		Sha256Hash: fileHash,
-		CreatedAt:  time.Now(),
-	}, nil
-}
-
-func CreateScriptFile(scriptDir, interpreter string, scriptContent []byte) (filePath, hash string, err error) {
+func CreateScriptFile(scriptDir, interpreter, scriptContent string) (filePath string, err error) {
 	err = ValidateScriptDir(scriptDir)
 	if err != nil {
-		return "", "", err
+		return "", err
 	}
 
 	scriptFileName, err := createScriptFileName(interpreter)
 	if err != nil {
-		return "", "", err
+		return "", err
 	}
 
 	scriptFilePath := filepath.Join(scriptDir, scriptFileName)
 
-	err = ioutil.WriteFile(scriptFilePath, scriptContent, DefaultFileMode)
+	err = ioutil.WriteFile(scriptFilePath, []byte(scriptContent), DefaultFileMode)
 	if err != nil {
-		return "", "", err
+		return "", err
 	}
 
-	hasher := sha256.New()
-	_, err = io.Copy(hasher, bytes.NewBuffer(scriptContent))
-	if err != nil {
-		return "", "", err
-	}
-
-	return scriptFilePath, hex.EncodeToString(hasher.Sum(nil)), nil
+	return scriptFilePath, nil
 }
 
 func ValidateScriptDir(scriptDir string) error {
@@ -120,4 +78,11 @@ func getExtension(interpreter string) string {
 	}
 
 	return GetScriptExtensionOS(interpreter)
+}
+
+const shebangPrefix = "#!"
+
+// HasShebangLine is just for making code more readable
+func HasShebangLine(script string) bool {
+	return strings.HasPrefix(script, shebangPrefix)
 }

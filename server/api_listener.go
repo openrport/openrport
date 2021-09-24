@@ -128,8 +128,7 @@ func NewAPIListener(
 		return nil, err
 	}
 
-	scriptExecutor := script.NewExecutor(scriptLogger)
-	scriptManager := script.NewManager(scriptDb, scriptExecutor, scriptLogger)
+	scriptManager := script.NewManager(scriptDb, scriptLogger)
 
 	userService := users.NewAPIService(usersProvider, config.API.IsTwoFAOn())
 

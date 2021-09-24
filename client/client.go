@@ -339,8 +339,6 @@ func (c *Client) handleSSHRequests(ctx context.Context, reqs <-chan *ssh.Request
 			resp, err = checkPort(r.Payload)
 		case comm.RequestTypeRunCmd:
 			resp, err = c.HandleRunCmdRequest(ctx, r.Payload)
-		case comm.RequestTypeCreateFile:
-			resp, err = c.HandleCreateFileRequest(ctx, r.Payload)
 		case comm.RequestTypeRefreshUpdatesStatus:
 			c.updates.Refresh()
 		default:

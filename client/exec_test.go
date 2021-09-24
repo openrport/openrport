@@ -6,6 +6,7 @@ import (
 	"log"
 	"os"
 	"os/exec"
+	"path/filepath"
 	"regexp"
 	"strings"
 	"sync"
@@ -258,7 +259,7 @@ func TestHandleRunCmdRequestPositiveCase(t *testing.T) {
 	// mimic real behavior and wait until background task sends the request
 	done := make(chan bool)
 	connMock.DoneChannel = done
-	configCopy := defaultValidMinConfig
+	configCopy := getDefaultValidMinConfig()
 	c := Client{
 		cmdExec: execMock,
 		sshConn: connMock,
@@ -266,13 +267,19 @@ func TestHandleRunCmdRequestPositiveCase(t *testing.T) {
 		config:  &configCopy,
 	}
 
+	configCopy.Client.DataDir = filepath.Join(configCopy.Client.DataDir, "TestHandleRunCmdRequestPositiveCase")
+	defer func() {
+		os.RemoveAll(configCopy.Client.DataDir)
+	}()
+	err := PrepareDirs(&configCopy)
+	require.NoError(t, err)
+
 	wantJSONPart1 := `
 {
 	"jid": "5f02b216-3f8a-42be-b66c-f4c1d0ea3809",
 	"status": "successful",
 	"is_sudo": true,
 	"is_script": false,
-	"has_shebang": false,
 	"finished_at": "2020-08-19T12:00:00+03:00",
 	"client_id": "d81e6b93e75aef59a7701b90555f43808458b34e30370c3b808c1816a32252b3",
 	"client_name": "",
@@ -367,10 +374,10 @@ func TestHandleRunCmdRequestPositiveCase(t *testing.T) {
 				assert.Contains(t, err.Error(), tc.wantErrContains)
 				return
 			}
+			require.NoError(t, err)
 			<-done
 
 			// check returned result
-			require.NoError(t, err)
 			assert.Equal(t, &comm.RunCmdResponse{Pid: wantPID, StartedAt: nowMock}, res)
 
 			// check job result that was sent to server
@@ -400,7 +407,12 @@ func TestHandleRunCmdRequestHasRunningCmd(t *testing.T) {
 	doneCmd := make(chan bool)
 	execMock.DoneChannel = doneCmd
 
-	configCopy := defaultValidMinConfig
+	configCopy := getDefaultValidMinConfig()
+	configCopy.Client.DataDir = filepath.Join(configCopy.Client.DataDir, "TestHandleRunCmdRequestHasRunningCmd")
+	defer func() {
+		os.RemoveAll(configCopy.Client.DataDir)
+	}()
+
 	c := Client{
 		cmdExec: execMock,
 		sshConn: connMock,
@@ -408,9 +420,15 @@ func TestHandleRunCmdRequestHasRunningCmd(t *testing.T) {
 		config:  &configCopy,
 	}
 
+	err := PrepareDirs(&configCopy)
+	require.NoError(t, err)
+
 	// when
 	// run two cmds to get an error for the 2nd
 	res1, err1 := c.HandleRunCmdRequest(context.Background(), []byte(jobToRunJSON))
+	// check the result
+	require.NoError(t, err1)
+
 	res2, err2 := c.HandleRunCmdRequest(context.Background(), []byte(jobToRunJSON))
 
 	// then
@@ -426,10 +444,9 @@ func TestHandleRunCmdRequestHasRunningCmd(t *testing.T) {
 	curPID = c.getCurCmdPID()
 	assert.Nil(t, curPID)
 
-	// check the result
-	require.NoError(t, err1)
 	assert.Equal(t, &comm.RunCmdResponse{Pid: wantPID, StartedAt: nowMock}, res1)
-	assert.Error(t, err2)
+
+	require.Error(t, err2)
 	assert.Equal(t, fmt.Errorf("a previous command execution with PID %d is still running", wantPID), err2)
 	assert.Nil(t, res2)
 }
@@ -587,7 +604,7 @@ func TestIsCommandAllowed(t *testing.T) {
 	for _, tc := range testCases {
 		t.Run(tc.name, func(t *testing.T) {
 			// given
-			config := defaultValidMinConfig
+			config := getDefaultValidMinConfig()
 			config.RemoteCommands.Deny = tc.deny
 			c := Client{
 				Logger: testLog,
