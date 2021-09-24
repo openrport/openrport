@@ -6,7 +6,6 @@ import (
 	"encoding/hex"
 	"fmt"
 	"io"
-	"os"
 	"strings"
 
 	"github.com/cloudradar-monitoring/rport/server/api"
@@ -14,10 +13,7 @@ import (
 	chshare "github.com/cloudradar-monitoring/rport/share"
 	"github.com/cloudradar-monitoring/rport/share/comm"
 	"github.com/cloudradar-monitoring/rport/share/models"
-	"github.com/cloudradar-monitoring/rport/share/random"
 )
-
-const DefaultScriptFileMode = os.FileMode(0744)
 
 type Executor struct {
 	logger *chshare.Logger
@@ -30,14 +26,9 @@ func NewExecutor(logger *chshare.Logger) *Executor {
 }
 
 func (e *Executor) CreateScriptOnClient(scriptInput *api.ExecuteInput, cl *clients.Client) (scriptPath string, err error) {
-	fileName, err := e.createClientScriptPath(cl.OSKernel, scriptInput.Interpreter)
-	if err != nil {
-		return scriptPath, err
-	}
-	fileInput := &models.File{
-		Name:    fileName,
-		Content: []byte(scriptInput.Script),
-		Mode:    DefaultScriptFileMode,
+	fileInput := &models.ScriptFile{
+		Content:     []byte(scriptInput.Script),
+		Interpreter: scriptInput.Interpreter,
 	}
 
 	sshResp := &comm.CreateFileResponse{}
@@ -60,32 +51,6 @@ func (e *Executor) CreateScriptOnClient(scriptInput *api.ExecuteInput, cl *clien
 	}
 
 	return sshResp.FilePath, nil
-}
-
-func (e *Executor) createClientScriptPath(os, interpreter string) (string, error) {
-	scriptName, err := random.UUID4()
-	if err != nil {
-		return "", err
-	}
-
-	extension := e.getExtension(os, interpreter)
-
-	return scriptName + extension, nil
-}
-
-func (e *Executor) getExtension(os, interpreter string) string {
-	if interpreter == chshare.Taco {
-		return ".yml"
-	}
-
-	if os == "windows" {
-		if interpreter == chshare.PowerShell {
-			return ".ps1"
-		}
-		return ".bat"
-	}
-
-	return ".sh"
 }
 
 const shebangPrefix = "#!"

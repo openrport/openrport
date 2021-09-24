@@ -2,7 +2,6 @@ package models
 
 import (
 	"fmt"
-	"os"
 	"time"
 )
 
@@ -81,9 +80,7 @@ func (j Job) LogPrefix() string {
 	return r
 }
 
-type File struct {
-	Name      string      `json:"name"`
-	Content   []byte      `json:"content"`
-	CreateDir bool        `json:"create_dir"`
-	Mode      os.FileMode `json:"file_mode"`
+type ScriptFile struct {
+	Content     []byte `json:"content"`
+	Interpreter string `json:"interpreter"`
 }
