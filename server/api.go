@@ -2718,7 +2718,7 @@ func (al *APIListener) handlePostMultiClientScript(w http.ResponseWriter, req *h
 	ctx := req.Context()
 	inboundMsg := new(multiClientCmdRequest)
 	err := parseRequestBody(req.Body, inboundMsg)
-*	if err != nil {
+	if err != nil {
 		al.jsonError(w, err)
 		return
 	}
