@@ -1841,7 +1841,7 @@ func (al *APIListener) handleCommandsWS(w http.ResponseWriter, req *http.Request
 	al.handleCommandsExecutionWS(ctx, uiConnTS, inboundMsg, clientsInGroupsCount)
 }
 
-func (al *APIListener) enrichInboundMsg(
+func (al *APIListener) enrichScriptInput(
 	ctx context.Context,
 	inboundMsg *multiClientCmdRequest,
 ) (clientsInGroupsCount int, err error) {
@@ -1865,7 +1865,7 @@ func (al *APIListener) enrichInboundMsg(
 		}
 	}
 
-	inboundMsg.Script = string(decodedScriptBytes)
+	inboundMsg.Command = string(decodedScriptBytes)
 	inboundMsg.IsScript = true
 
 	orderedClients, clientsInGroupsCount, err := al.getOrderedClients(ctx, inboundMsg.ClientIDs, inboundMsg.GroupIDs)
@@ -1901,7 +1901,7 @@ func (al *APIListener) handleScriptsWS(w http.ResponseWriter, req *http.Request)
 		uiConnTS.WriteError("Invalid JSON data.", err)
 		return
 	}
-	clientsInGroupsCount, err := al.enrichInboundMsg(ctx, inboundMsg)
+	clientsInGroupsCount, err := al.enrichScriptInput(ctx, inboundMsg)
 	if err != nil {
 		uiConnTS.WriteError("Failed to create script on multiple clients", err)
 		return
@@ -2718,12 +2718,12 @@ func (al *APIListener) handlePostMultiClientScript(w http.ResponseWriter, req *h
 	ctx := req.Context()
 	inboundMsg := new(multiClientCmdRequest)
 	err := parseRequestBody(req.Body, inboundMsg)
-	if err != nil {
+*	if err != nil {
 		al.jsonError(w, err)
 		return
 	}
 
-	clientsInGroupsCount, err := al.enrichInboundMsg(ctx, inboundMsg)
+	clientsInGroupsCount, err := al.enrichScriptInput(ctx, inboundMsg)
 	if err != nil {
 		al.jsonError(w, err)
 		return
