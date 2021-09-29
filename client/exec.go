@@ -166,6 +166,9 @@ func (c *Client) HandleRunCmdRequest(ctx context.Context, reqPayload []byte) (*c
 		job.StartedAt = startedAt
 
 		job.Error = c.buildErrText(execErr, stdOut, stdErr)
+		if job.Error != "" {
+			c.Errorf(job.Error)
+		}
 
 		job.Result = &models.JobResult{
 			StdOut: stdOut.String(),
