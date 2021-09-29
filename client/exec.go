@@ -111,7 +111,7 @@ func (c *Client) HandleRunCmdRequest(ctx context.Context, reqPayload []byte) (*c
 	cmd.Stdout = stdOut
 	cmd.Stderr = stdErr
 
-	c.Debugf("Generated command is %s, sysProcAttributes: %+v", cmd.String(), cmd.SysProcAttr)
+	c.Debugf("Input command: %s, sysProcAttributes: %+v, executable command: %s", job.Command, cmd.SysProcAttr, cmd.String())
 
 	startedAt := now()
 	err = c.cmdExec.Start(cmd)
