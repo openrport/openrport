@@ -212,13 +212,18 @@ func (c *SMTPConfig) Validate() error {
 	return nil
 }
 
+type MonitoringConfig struct {
+	DataStorageDays int64 `mapstructure:"data_storage_days"`
+}
+
 type Config struct {
-	Server   ServerConfig   `mapstructure:"server"`
-	Logging  LogConfig      `mapstructure:"logging"`
-	API      APIConfig      `mapstructure:"api"`
-	Database DatabaseConfig `mapstructure:"database"`
-	Pushover PushoverConfig `mapstructure:"pushover"`
-	SMTP     SMTPConfig     `mapstructure:"smtp"`
+	Server     ServerConfig     `mapstructure:"server"`
+	Logging    LogConfig        `mapstructure:"logging"`
+	API        APIConfig        `mapstructure:"api"`
+	Database   DatabaseConfig   `mapstructure:"database"`
+	Pushover   PushoverConfig   `mapstructure:"pushover"`
+	SMTP       SMTPConfig       `mapstructure:"smtp"`
+	Monitoring MonitoringConfig `mapstructure:"monitoring"`
 }
 
 func (c *Config) GetVaultDBPath() string {

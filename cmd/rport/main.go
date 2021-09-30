@@ -140,6 +140,12 @@ var clientHelp = `
     --server-switchback-interval, If connected to fallback server, try every interval to switch back to the main server.
     Defaults: 2m
 
+    --monitoring-enabled, Enable or disable gathering of monitoring data.
+    Defaults: true
+
+	--monitoring-interval, the interval time in seconds, when monitoring data is gathered
+	Defaults: 60s
+
     --config, -c, An optional arg to define a path to a config file. If it is set then
     configuration will be loaded from the file. Note: command arguments and env variables will override them.
     Config file should be in TOML format. You can find an example "rport.example.conf" in the release archive.
@@ -196,6 +202,8 @@ func init() {
 	pFlags.Duration("updates-interval", 0, "")
 	pFlags.StringArray("fallback-server", []string{}, "")
 	pFlags.Duration("server-switchback-interval", 0, "")
+	pFlags.Bool("monitoring-enabled", false, "")
+	pFlags.Duration("monitoring-interval", 60, "")
 
 	cfgPath = pFlags.StringP("config", "c", "", "")
 	svcCommand = pFlags.String("service", "", "")
@@ -223,6 +231,8 @@ func init() {
 	viperCfg.SetDefault("remote-scripts.enabled", false)
 	viperCfg.SetDefault("client.updates_interval", 4*time.Hour)
 	viperCfg.SetDefault("client.data_dir", chclient.DefaultDataDir)
+	viperCfg.SetDefault("monitoring.enabled", true)
+	viperCfg.SetDefault("monitoring.interval", chclient.DefaultMonitoringInterval)
 }
 
 func bindPFlags() {
@@ -252,6 +262,9 @@ func bindPFlags() {
 	_ = viperCfg.BindPFlag("remote-commands.enabled", pFlags.Lookup("remote-commands-enabled"))
 	_ = viperCfg.BindPFlag("remote-scripts.enabled", pFlags.Lookup("remote-scripts-enabled"))
 	_ = viperCfg.BindPFlag("remote-commands.send_back_limit", pFlags.Lookup("remote-commands-send-back-limit"))
+
+	_ = viperCfg.BindPFlag("monitoring.enabled", pFlags.Lookup("monitoring-enabled"))
+	_ = viperCfg.BindPFlag("monitoring.interval", pFlags.Lookup("monitoring-interval"))
 }
 
 func main() {

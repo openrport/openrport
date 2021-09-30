@@ -18,15 +18,16 @@ import (
 )
 
 const (
-	DefaultKeepLostClients        = time.Hour
-	DefaultCleanClientsInterval   = 1 * time.Minute
-	DefaultMaxRequestBytes        = 10 * 1024 // 10 KB
-	DefaultCheckPortTimeout       = 2 * time.Second
-	DefaultUsedPorts              = "20000-30000"
-	DefaultExcludedPorts          = "1-1024"
-	DefaultServerAddress          = "0.0.0.0:8080"
-	DefaultLogLevel               = "info"
-	DefaultRunRemoteCmdTimeoutSec = 60
+	DefaultKeepLostClients           = time.Hour
+	DefaultCleanClientsInterval      = 1 * time.Minute
+	DefaultMaxRequestBytes           = 10 * 1024 // 10 KB
+	DefaultCheckPortTimeout          = 2 * time.Second
+	DefaultUsedPorts                 = "20000-30000"
+	DefaultExcludedPorts             = "1-1024"
+	DefaultServerAddress             = "0.0.0.0:8080"
+	DefaultLogLevel                  = "info"
+	DefaultRunRemoteCmdTimeoutSec    = 60
+	DefaultMonitoringDataStorageDays = 30
 )
 
 var serverHelp = `
@@ -196,6 +197,8 @@ var serverHelp = `
     configuration will be loaded from the file. Note: command arguments and env variables will override them.
     Config file should be in TOML format. You can find an example "rportd.example.conf" in the release archive.
 
+	--monitoring-data-storage-days, The number of days, client monitoring data is stored on server (defaults to 30)
+
     --help, -h, This help text
 
     --version, Print version info and exit
@@ -261,6 +264,7 @@ func init() {
 	pFlags.Bool("equate-clientauthid-clientid", false, "")
 	pFlags.Int("run-remote-cmd-timeout-sec", 0, "")
 	pFlags.Bool("allow-root", false, "")
+	pFlags.Int64("monitoring-data-storage-days", 0, "")
 
 	cfgPath = pFlags.StringP("config", "c", "", "")
 	svcCommand = pFlags.String("service", "", "")
@@ -299,6 +303,7 @@ func init() {
 	viperCfg.SetDefault("api.two_fa_token_ttl_seconds", 600)
 	viperCfg.SetDefault("api.two_fa_send_timeout", 10*time.Second)
 	viperCfg.SetDefault("api.two_fa_send_to_type", message.ValidationNone)
+	viperCfg.SetDefault("monitoring.data_storage_days", DefaultMonitoringDataStorageDays)
 }
 
 func bindPFlags() {
@@ -343,6 +348,8 @@ func bindPFlags() {
 	_ = viperCfg.BindPFlag("database.db_host", pFlags.Lookup("db-host"))
 	_ = viperCfg.BindPFlag("database.db_user", pFlags.Lookup("db-user"))
 	_ = viperCfg.BindPFlag("database.db_password", pFlags.Lookup("db-password"))
+
+	_ = viperCfg.BindPFlag("monitoring.data_storage_days", pFlags.Lookup("monitoring-data-storage-days"))
 }
 
 func main() {

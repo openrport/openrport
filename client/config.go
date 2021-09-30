@@ -15,6 +15,8 @@ import (
 	chshare "github.com/cloudradar-monitoring/rport/share"
 )
 
+const DefaultMonitoringInterval = 60
+
 type ConnectionConfig struct {
 	KeepAlive        time.Duration `mapstructure:"keep_alive"`
 	MaxRetryCount    int           `mapstructure:"max_retry_count"`
@@ -75,12 +77,18 @@ type ScriptsConfig struct {
 	Enabled bool `mapstructure:"enabled"`
 }
 
+type MonitoringConfig struct {
+	Enabled  bool          `mapstructure:"enabled"`
+	Interval time.Duration `mapstructure:"interval"`
+}
+
 type Config struct {
 	Client         ClientConfig     `mapstructure:"client"`
 	Connection     ConnectionConfig `mapstructure:"connection"`
 	Logging        LogConfig        `mapstructure:"logging"`
 	RemoteCommands CommandsConfig   `mapstructure:"remote-commands"`
 	RemoteScripts  ScriptsConfig    `mapstructure:"remote-scripts"`
+	Monitoring     MonitoringConfig `mapstructure:"monitoring"`
 }
 
 func (c *Config) ParseAndValidate(skipScriptsDirValidation bool) error {
@@ -116,6 +124,10 @@ func (c *Config) ParseAndValidate(skipScriptsDirValidation bool) error {
 
 	if err := c.parseRemoteScripts(skipScriptsDirValidation); err != nil {
 		return err
+	}
+
+	if c.Monitoring.Interval < DefaultMonitoringInterval*time.Second {
+		c.Monitoring.Interval = DefaultMonitoringInterval * time.Second
 	}
 
 	return nil
