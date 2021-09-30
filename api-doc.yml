@@ -2476,7 +2476,7 @@ definitions:
       interpreter:
         type: "string"
         enum: [cmd, powershell, taco]
-        description: "command interpreter to use to execute the script. If not set 'cmd' is used by default. For taco interpreter you should install taco binary from here: https://github.com/cloudradar-monitoring/tacoscript#installation. It should also be available in the system path."
+        description: "command interpreter to use to execute the script. If not set 'cmd' is used by default on Windows, and '/bin/sh' on Unix. For taco interpreter you should install taco binary from here: https://github.com/cloudradar-monitoring/tacoscript#installation. It should also be available in the system path."
       timeout_sec:
         type: "integer"
         description: "timeout in seconds to observe the script execution on each client separately. If not set a default timeout (60 seconds) is used"
