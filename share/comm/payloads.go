@@ -14,9 +14,10 @@ const (
 	RequestTypeRefreshUpdatesStatus = "refresh_updates_status"
 
 	// request types sent by clients to server
-	RequestTypePing          = "ping"
-	RequestTypeCmdResult     = "cmd_result"
-	RequestTypeUpdatesStatus = "updates_status"
+	RequestTypePing            = "ping"
+	RequestTypeCmdResult       = "cmd_result"
+	RequestTypeUpdatesStatus   = "updates_status"
+	RequestTypeSaveMeasurement = "save_measurement"
 )
 
 type CheckPortRequest struct {

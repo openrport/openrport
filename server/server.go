@@ -4,6 +4,7 @@ import (
 	"context"
 	"errors"
 	"fmt"
+	"github.com/cloudradar-monitoring/rport/server/monitoring"
 	"path"
 	"sync"
 	"time"
@@ -39,6 +40,7 @@ type Server struct {
 	clientAuthProvider  clientsauth.Provider
 	jobProvider         JobProvider
 	clientGroupProvider cgroups.ClientGroupProvider
+	monitoringService   monitoring.Service
 	db                  *sqlx.DB
 	uiJobWebSockets     ws.WebSocketCache // used to push job result to UI
 	jobsDoneChannel     jobResultChanMap  // used for sequential command execution to know when command is finished
@@ -89,6 +91,13 @@ func NewServer(config *Config, filesAPI files.FileAPI) (*Server, error) {
 	if err != nil {
 		return nil, err
 	}
+
+	// create monitoringProvider and monitoringService
+	monitoringProvider, err := monitoring.NewSqliteProvider(path.Join(config.Server.DataDir, "monitoring.db"), s.Logger)
+	if err != nil {
+		return nil, err
+	}
+	s.monitoringService = monitoring.NewService(monitoringProvider)
 
 	s.clientProvider, err = clients.NewSqliteProvider(
 		path.Join(config.Server.DataDir, "clients.db"),

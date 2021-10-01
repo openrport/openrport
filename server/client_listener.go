@@ -408,6 +408,19 @@ func (cl *ClientListener) handleSSHRequests(clientLog *chshare.Logger, clientID 
 				clientLog.Errorf("Failed to save updates status: %s", err)
 				continue
 			}
+		case comm.RequestTypeSaveMeasurement:
+			measurement := &models.Measurement{}
+			err := json.Unmarshal(r.Payload, measurement)
+			if err != nil {
+				clientLog.Errorf("Failed to unmarshal save_measurement: %s", err)
+				continue
+			}
+			measurement.ClientID = clientID
+			err = cl.monitoringService.SaveMeasurement(measurement)
+			if err != nil {
+				clientLog.Errorf("Failed to save measurement for client %s: %s", clientID, err)
+				continue
+			}
 		default:
 			clientLog.Debugf("Unknown request: %s", r.Type)
 		}
