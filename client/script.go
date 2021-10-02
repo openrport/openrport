@@ -73,7 +73,7 @@ func createScriptFileName(interpreter string) (string, error) {
 }
 
 func getExtension(interpreter string) string {
-	if interpreter == chshare.Taco {
+	if interpreter == chshare.Tacoscript {
 		return ".yml"
 	}
 
