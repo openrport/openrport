@@ -6,15 +6,15 @@ import (
 	chshare "github.com/cloudradar-monitoring/rport/share"
 )
 
-var validInputInterpreter = []string{chshare.CmdShell, chshare.PowerShell, chshare.Taco}
+var validInputInterpreter = []string{chshare.CmdShell, chshare.PowerShell, chshare.Tacoscript}
 
 func ValidateInterpreter(interpreter string, isScript bool) error {
 	if interpreter == "" {
 		return nil
 	}
 
-	if !isScript && interpreter == chshare.Taco {
-		return fmt.Errorf("%s interpreter can't be used for commands execution", chshare.Taco)
+	if !isScript && interpreter == chshare.Tacoscript {
+		return fmt.Errorf("%s interpreter can't be used for commands execution", chshare.Tacoscript)
 	}
 
 	for _, v := range validInputInterpreter {

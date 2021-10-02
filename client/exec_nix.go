@@ -19,7 +19,7 @@ func (e *CmdExecutorImpl) New(ctx context.Context, execCtx *CmdExecutorContext) 
 	interpreter := execCtx.Interpreter
 	if interpreter != "" {
 		args = append(args, interpreter)
-		if interpreter != chshare.Taco {
+		if interpreter != chshare.Tacoscript {
 			args = append(args, "-c")
 		}
 	}

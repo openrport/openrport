@@ -213,16 +213,16 @@ func TestGetInterpreter(t *testing.T) {
 			boolHasShebang:  true,
 		},
 		{
-			name:            "windows, taco interpreter",
+			name:            "windows, tacoscript interpreter",
 			os:              win,
-			interpreter:     chshare.Taco,
-			wantInterpreter: chshare.Taco,
+			interpreter:     chshare.Tacoscript,
+			wantInterpreter: chshare.Tacoscript,
 		},
 		{
-			name:            "linux, taco interpreter",
+			name:            "linux, tacoscript interpreter",
 			os:              unix,
-			interpreter:     chshare.Taco,
-			wantInterpreter: chshare.Taco,
+			interpreter:     chshare.Tacoscript,
+			wantInterpreter: chshare.Tacoscript,
 		},
 	}
 

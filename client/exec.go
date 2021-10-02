@@ -220,7 +220,7 @@ func (c *Client) rmScript(scriptPath string) {
 
 // var is used to override in tests
 var getInterpreter = func(inputInterpreter, os string, hasShebang bool) (string, error) {
-	if inputInterpreter == chshare.Taco {
+	if inputInterpreter == chshare.Tacoscript {
 		return inputInterpreter, nil
 	}
 
