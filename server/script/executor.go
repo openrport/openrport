@@ -74,7 +74,7 @@ func (e *Executor) createClientScriptPath(os, interpreter string) (string, error
 }
 
 func (e *Executor) getExtension(os, interpreter string) string {
-	if interpreter == chshare.Taco {
+	if interpreter == chshare.Tacoscript {
 		return ".yml"
 	}
 

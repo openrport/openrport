@@ -37,8 +37,8 @@ func TestCreateScriptOnClient(t *testing.T) {
 			fileExtensionWant:    ".sh",
 		},
 		{
-			name:                 "taco script linux",
-			interpreterMocked:    chshare.Taco,
+			name:                 "tacoscript script linux",
+			interpreterMocked:    chshare.Tacoscript,
 			filePathWant:         "/tmp/taco_script.yml",
 			Sha256HashToMocked:   defaultHash,
 			clientOSKernelMocked: "linux",
@@ -46,8 +46,8 @@ func TestCreateScriptOnClient(t *testing.T) {
 			fileExtensionWant:    ".yml",
 		},
 		{
-			name:                 "taco script windows",
-			interpreterMocked:    chshare.Taco,
+			name:                 "tacoscript windows",
+			interpreterMocked:    chshare.Tacoscript,
 			filePathWant:         "C:\\taco_script.yml",
 			Sha256HashToMocked:   defaultHash,
 			clientOSKernelMocked: "windows",

@@ -694,8 +694,8 @@ paths:
                 description: "remote command to execute by the rport client. NOTE: if command limitation is enabled by an rport client then a full path command can be required to use. See https://oss.rport.io/docs/no06-command-execution.html for more details"
               interpreter:
                 type: "string"
-                enum: [cmd, powershell, taco]
-                description: "command interpreter to use to execute the command. Is applicable only for windows clients. If not set 'cmd' is used by default"
+                enum: [cmd, powershell, tacoscript]
+                description: "command interpreter to use to execute the command. If not set 'cmd' is used by default on Windows and /bin/sh on Linux"
               cwd:
                 type: "string"
                 description: "current working directory for the executable command"
@@ -762,8 +762,8 @@ paths:
                 description: "base64 encoded script which should be executed on a remote client"
               interpreter:
                 type: "string"
-                enum: [ cmd, powershell, taco ]
-                description: "command interpreter to use to execute the script. If not set 'cmd' is used by default. For taco interpreter you should install taco binary from here: https://github.com/cloudradar-monitoring/tacoscript#installation. It should also be available in the system path."
+                enum: [ cmd, powershell, tacoscript ]
+                description: "command interpreter to use to execute the script. If not set 'cmd' is used by default on Windows and /bin/sh on Linux. For tacoscript interpreter you should install tacoscript binary from here: https://github.com/cloudradar-monitoring/tacoscript#installation. It should also be available in the system path."
               cwd:
                 type: "string"
                 description: "current working directory for the executable script"
@@ -2475,8 +2475,8 @@ definitions:
         description: "list of client IDs where to run the script"
       interpreter:
         type: "string"
-        enum: [cmd, powershell, taco]
-        description: "command interpreter to use to execute the script. If not set 'cmd' is used by default on Windows, and '/bin/sh' on Unix. For taco interpreter you should install taco binary from here: https://github.com/cloudradar-monitoring/tacoscript#installation. It should also be available in the system path."
+        enum: [cmd, powershell, tacoscript]
+        description: "command interpreter to use to execute the script. If not set 'cmd' is used by default on Windows, and '/bin/sh' on Unix. For tacoscript interpreter you should install tacoscript binary from here: https://github.com/cloudradar-monitoring/tacoscript#installation. It should also be available in the system path."
       timeout_sec:
         type: "integer"
         description: "timeout in seconds to observe the script execution on each client separately. If not set a default timeout (60 seconds) is used"
@@ -2600,7 +2600,7 @@ definitions:
         description: "User name who created this script"
       interpreter:
         type: "string"
-        description: "how will the script be executed on the client, e.g. /bin/sh, cmd.exe, powershell, taco"
+        description: "how will the script be executed on the client, e.g. /bin/sh, cmd.exe, powershell, tacoscript"
       cwd:
         type: "string"
         description: "current working directory, where the script should be executed"
@@ -2621,7 +2621,7 @@ definitions:
         description: "[required] text of the script"
       interpreter:
         type: "string"
-        description: "how will the script be executed on the client, e.g. /bin/sh, cmd.exe, powershell, taco"
+        description: "how will the script be executed on the client, e.g. /bin/sh, cmd.exe, powershell, tacoscript"
       cwd:
         type: "string"
         description: "current working directory, where the script should be executed"
