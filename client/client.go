@@ -5,6 +5,7 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
+	"github.com/cloudradar-monitoring/rport/client/monitoring"
 	"io"
 	"net"
 	"net/http"
@@ -42,6 +43,7 @@ type Client struct {
 	systemInfo     SystemInfo
 	runCmdMutex    sync.Mutex
 	updates        *updates.Updates
+	monitor        *monitoring.Monitor
 }
 
 //NewClient creates a new client instance
@@ -56,6 +58,7 @@ func NewClient(config *Config) *Client {
 		cmdExec:    cmdExec,
 		systemInfo: NewSystemInfo(cmdExec),
 		updates:    updates.New(logger, config.Client.UpdatesInterval),
+		monitor:    monitoring.NewMonitor(logger, config.Monitoring.Enabled, config.Monitoring.Interval),
 	}
 
 	client.sshConfig = &ssh.ClientConfig{
@@ -100,6 +103,7 @@ func (c *Client) Start(ctx context.Context) error {
 	go c.connectionLoop(ctx)
 
 	c.updates.Start(ctx)
+	c.monitor.Start(ctx)
 
 	return nil
 }
@@ -186,6 +190,8 @@ func (c *Client) connectionLoop(ctx context.Context) {
 
 		c.sshConn = sshConn.Connection
 		c.updates.SetConn(sshConn.Connection)
+		c.monitor.SetConn(sshConn.Connection)
+
 		go c.handleSSHRequests(ctx, sshConn.Requests)
 		go c.connectStreams(sshConn.Channels)
 
@@ -193,6 +199,7 @@ func (c *Client) connectionLoop(ctx context.Context) {
 		//disconnected
 		c.sshConn = nil
 		c.updates.SetConn(nil)
+		c.monitor.SetConn(nil)
 		cancelSwitchback()
 
 		// use of closed network connection happens when switchback closes the connection, ignore the error

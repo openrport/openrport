@@ -416,7 +416,7 @@ func (cl *ClientListener) handleSSHRequests(clientLog *chshare.Logger, clientID 
 				continue
 			}
 			measurement.ClientID = clientID
-			err = cl.monitoringService.SaveMeasurement(measurement)
+			err = cl.monitoringService.SaveMeasurement(context.Background(), measurement)
 			if err != nil {
 				clientLog.Errorf("Failed to save measurement for client %s: %s", clientID, err)
 				continue

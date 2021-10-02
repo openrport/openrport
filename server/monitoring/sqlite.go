@@ -5,7 +5,6 @@ import (
 	"fmt"
 	chshare "github.com/cloudradar-monitoring/rport/share"
 	"github.com/cloudradar-monitoring/rport/share/models"
-
 	"github.com/jmoiron/sqlx"
 
 	monitoring "github.com/cloudradar-monitoring/rport/db/migration/monitoring"
@@ -14,6 +13,7 @@ import (
 
 type DBProvider interface {
 	CreateMeasurement(ctx context.Context, measurement *models.Measurement) error
+	DeleteMeasurementsOlderThan(ctx context.Context, days int64) error
 	Close() error
 }
 
@@ -43,6 +43,10 @@ func (p *SqliteProvider) CreateMeasurement(ctx context.Context, measurement *mod
 	return err
 }
 
+func (p *SqliteProvider) DeleteMeasurementsOlderThan(ctx context.Context, compare int64) error {
+	_, err := p.db.ExecContext(ctx, "DELETE FROM measurements WHERE  timestamp < ?", compare)
+	return err
+}
 func (p *SqliteProvider) Close() error {
 	return p.db.Close()
 }

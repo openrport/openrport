@@ -1,27 +1,76 @@
 package monitoring
 
 import (
+	"context"
 	"encoding/json"
 	chshare "github.com/cloudradar-monitoring/rport/share"
 	"github.com/cloudradar-monitoring/rport/share/comm"
 	"github.com/cloudradar-monitoring/rport/share/models"
 	"golang.org/x/crypto/ssh"
 	"sync"
+	"time"
 )
 
 type Monitor struct {
-	mtx    sync.RWMutex
-	conn   ssh.Conn
-	logger *chshare.Logger
+	mtx         sync.RWMutex
+	conn        ssh.Conn
+	logger      *chshare.Logger
+	enabled     bool
+	interval    time.Duration
+	measurement *models.Measurement
 }
 
-// sendMeasurement sends measurement data in background
-func (m *Monitor) sendMeasurement(measurement *models.Measurement) {
+func NewMonitor(logger *chshare.Logger, enabled bool, interval time.Duration) *Monitor {
+	return &Monitor{logger: logger, enabled: enabled, interval: interval}
+}
+
+func (m *Monitor) Start(ctx context.Context) {
+	if !m.enabled {
+		return
+	}
+
+	go m.refreshLoop(ctx)
+}
+
+func (m *Monitor) refreshLoop(ctx context.Context) {
+	for {
+		m.refreshMeasurement(ctx)
+
+		select {
+		case <-ctx.Done():
+			return
+		case <-time.After(m.interval):
+		}
+	}
+}
+
+func (m *Monitor) refreshMeasurement(ctx context.Context) {
+	m.mtx.Lock()
+	m.measurement = createMeasurement(ctx)
+	m.mtx.Unlock()
+
+	go m.sendMeasurement()
+}
+
+func createMeasurement(ctx context.Context) *models.Measurement {
+	var newMeasurement = &models.Measurement{}
+
+	newMeasurement.Timestamp = time.Now().Unix()
+	newMeasurement.CPUUsagePercent = 10.0
+	newMeasurement.MemoryUsagePercent = 50.0
+	newMeasurement.IoUsagePercent = 30.0
+	newMeasurement.Processes = `{}`
+	newMeasurement.Mountpoints = `{}`
+	return newMeasurement
+}
+
+// sendMeasurement sends system measurement data to server
+func (m *Monitor) sendMeasurement() {
 	m.mtx.RLock()
 	defer m.mtx.RUnlock()
 
-	if m.conn != nil {
-		data, err := json.Marshal(measurement)
+	if m.conn != nil && m.measurement != nil {
+		data, err := json.Marshal(m.measurement)
 		if err != nil {
 			m.logger.Errorf("Could not marshal json for save_measurement: %v", err)
 			return
@@ -33,4 +82,11 @@ func (m *Monitor) sendMeasurement(measurement *models.Measurement) {
 			return
 		}
 	}
+}
+
+func (m *Monitor) SetConn(c ssh.Conn) {
+	m.mtx.Lock()
+	defer m.mtx.Unlock()
+
+	m.conn = c
 }
