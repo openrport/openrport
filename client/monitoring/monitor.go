@@ -3,12 +3,14 @@ package monitoring
 import (
 	"context"
 	"encoding/json"
+	"sync"
+	"time"
+
+	"golang.org/x/crypto/ssh"
+
 	chshare "github.com/cloudradar-monitoring/rport/share"
 	"github.com/cloudradar-monitoring/rport/share/comm"
 	"github.com/cloudradar-monitoring/rport/share/models"
-	"golang.org/x/crypto/ssh"
-	"sync"
-	"time"
 )
 
 type Monitor struct {
@@ -34,7 +36,7 @@ func (m *Monitor) Start(ctx context.Context) {
 
 func (m *Monitor) refreshLoop(ctx context.Context) {
 	for {
-		m.refreshMeasurement(ctx)
+		m.refreshMeasurement()
 
 		select {
 		case <-ctx.Done():
@@ -44,15 +46,15 @@ func (m *Monitor) refreshLoop(ctx context.Context) {
 	}
 }
 
-func (m *Monitor) refreshMeasurement(ctx context.Context) {
+func (m *Monitor) refreshMeasurement() {
 	m.mtx.Lock()
-	m.measurement = createMeasurement(ctx)
+	m.measurement = createMeasurement()
 	m.mtx.Unlock()
 
 	go m.sendMeasurement()
 }
 
-func createMeasurement(ctx context.Context) *models.Measurement {
+func createMeasurement() *models.Measurement {
 	var newMeasurement = &models.Measurement{}
 
 	newMeasurement.Timestamp = time.Now().Unix()

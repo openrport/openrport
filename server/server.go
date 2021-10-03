@@ -4,10 +4,11 @@ import (
 	"context"
 	"errors"
 	"fmt"
-	"github.com/cloudradar-monitoring/rport/server/monitoring"
 	"path"
 	"sync"
 	"time"
+
+	"github.com/cloudradar-monitoring/rport/server/monitoring"
 
 	"github.com/jmoiron/sqlx"
 	"golang.org/x/crypto/ssh"

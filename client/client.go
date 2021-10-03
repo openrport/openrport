@@ -5,7 +5,6 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
-	"github.com/cloudradar-monitoring/rport/client/monitoring"
 	"io"
 	"net"
 	"net/http"
@@ -20,6 +19,7 @@ import (
 	"golang.org/x/crypto/ssh"
 	"golang.org/x/net/proxy"
 
+	"github.com/cloudradar-monitoring/rport/client/monitoring"
 	"github.com/cloudradar-monitoring/rport/client/updates"
 	chshare "github.com/cloudradar-monitoring/rport/share"
 	"github.com/cloudradar-monitoring/rport/share/comm"

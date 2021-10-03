@@ -2,8 +2,9 @@ package monitoring
 
 import (
 	"context"
-	"github.com/cloudradar-monitoring/rport/share/models"
 	"time"
+
+	"github.com/cloudradar-monitoring/rport/share/models"
 )
 
 type Service interface {

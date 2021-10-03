@@ -3,12 +3,13 @@ package monitoring
 import (
 	"context"
 	"fmt"
-	chshare "github.com/cloudradar-monitoring/rport/share"
-	"github.com/cloudradar-monitoring/rport/share/models"
+
 	"github.com/jmoiron/sqlx"
 
 	monitoring "github.com/cloudradar-monitoring/rport/db/migration/monitoring"
 	"github.com/cloudradar-monitoring/rport/db/sqlite"
+	chshare "github.com/cloudradar-monitoring/rport/share"
+	"github.com/cloudradar-monitoring/rport/share/models"
 )
 
 type DBProvider interface {
@@ -30,7 +31,7 @@ func NewSqliteProvider(dbPath string, logger *chshare.Logger) (DBProvider, error
 
 	logger.Infof("initialized database at %s", dbPath)
 
-	return &SqliteProvider{db: db}, nil
+	return &SqliteProvider{db: db, logger: logger}, nil
 }
 
 func (p *SqliteProvider) CreateMeasurement(ctx context.Context, measurement *models.Measurement) error {
