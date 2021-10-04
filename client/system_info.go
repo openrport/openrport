@@ -25,6 +25,7 @@ type SystemInfo interface {
 	Hostname() (string, error)
 	HostInfo(context.Context) (*host.InfoStat, error)
 	CPUInfo(ctx context.Context) (CPUInfo, error)
+	CPUPercent(ctx context.Context) (float64, error)
 	MemoryStats(context.Context) (*mem.VirtualMemoryStat, error)
 	Uname(context.Context) (string, error)
 	InterfaceAddrs() ([]net.Addr, error)
@@ -91,6 +92,19 @@ func (s *realSystemInfo) CPUInfo(ctx context.Context) (CPUInfo, error) {
 
 func (s *realSystemInfo) MemoryStats(ctx context.Context) (*mem.VirtualMemoryStat, error) {
 	return mem.VirtualMemoryWithContext(ctx)
+}
+
+func (s *realSystemInfo) CPUPercent(ctx context.Context) (float64, error) {
+	percentCPU := 0.0
+	percents, err := cpu.PercentWithContext(ctx, 0, false)
+	if err != nil {
+		return percentCPU, err
+	}
+
+	if len(percents) > 3 {
+		percentCPU = 100.0 - percents[3]
+	}
+	return percentCPU, err
 }
 
 func (s *realSystemInfo) SystemTime() time.Time {

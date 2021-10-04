@@ -8,6 +8,7 @@ import (
 
 	"golang.org/x/crypto/ssh"
 
+	chclient "github.com/cloudradar-monitoring/rport/client"
 	chshare "github.com/cloudradar-monitoring/rport/share"
 	"github.com/cloudradar-monitoring/rport/share/comm"
 	"github.com/cloudradar-monitoring/rport/share/models"
@@ -20,10 +21,11 @@ type Monitor struct {
 	enabled     bool
 	interval    time.Duration
 	measurement *models.Measurement
+	systemInfo  chclient.SystemInfo
 }
 
-func NewMonitor(logger *chshare.Logger, enabled bool, interval time.Duration) *Monitor {
-	return &Monitor{logger: logger, enabled: enabled, interval: interval}
+func NewMonitor(logger *chshare.Logger, enabled bool, interval time.Duration, systemInfo chclient.SystemInfo) *Monitor {
+	return &Monitor{logger: logger, enabled: enabled, interval: interval, systemInfo: systemInfo}
 }
 
 func (m *Monitor) Start(ctx context.Context) {
@@ -36,7 +38,7 @@ func (m *Monitor) Start(ctx context.Context) {
 
 func (m *Monitor) refreshLoop(ctx context.Context) {
 	for {
-		m.refreshMeasurement()
+		m.refreshMeasurement(ctx)
 
 		select {
 		case <-ctx.Done():
@@ -46,20 +48,27 @@ func (m *Monitor) refreshLoop(ctx context.Context) {
 	}
 }
 
-func (m *Monitor) refreshMeasurement() {
+func (m *Monitor) refreshMeasurement(ctx context.Context) {
 	m.mtx.Lock()
-	m.measurement = createMeasurement()
+	m.measurement = m.createMeasurement(ctx)
 	m.mtx.Unlock()
 
 	go m.sendMeasurement()
 }
 
-func createMeasurement() *models.Measurement {
+func (m *Monitor) createMeasurement(ctx context.Context) *models.Measurement {
 	var newMeasurement = &models.Measurement{}
 
 	newMeasurement.Timestamp = time.Now().Unix()
-	newMeasurement.CPUUsagePercent = 10.0
-	newMeasurement.MemoryUsagePercent = 50.0
+
+	cpuPercent, err := m.systemInfo.CPUPercent(ctx)
+	if err == nil {
+		newMeasurement.CPUUsagePercent = cpuPercent
+	}
+	memStats, err := m.systemInfo.MemoryStats(ctx)
+	if err == nil {
+		newMeasurement.MemoryUsagePercent = memStats.UsedPercent
+	}
 	newMeasurement.IoUsagePercent = 30.0
 	newMeasurement.Processes = `{}`
 	newMeasurement.Mountpoints = `{}`
