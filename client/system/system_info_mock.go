@@ -1,22 +1,25 @@
-package chclient
+package system
 
 import (
 	"context"
 	"net"
 	"time"
 
-	"github.com/shirou/gopsutil/mem"
-
 	"github.com/shirou/gopsutil/host"
+	"github.com/shirou/gopsutil/mem"
 )
 
-type mockSystemInfo struct {
+type MockSystemInfo struct {
 	ReturnHostname                string
 	ReturnHostnameError           error
 	ReturnHostInfo                *host.InfoStat
 	ReturnHostInfoError           error
 	ReturnCPUInfo                 CPUInfo
 	ReturnCPUInfoError            error
+	ReturnCPUPercent              float64
+	ReturnCPUPercentError         error
+	ReturnCPUPercentIOWait        float64
+	ReturnCPUPercentIOWaitError   error
 	ReturnMemoryStat              *mem.VirtualMemoryStat
 	ReturnMemoryError             error
 	ReturnUname                   string
@@ -28,39 +31,47 @@ type mockSystemInfo struct {
 	ReturnVirtualizationInfoError error
 }
 
-func (s *mockSystemInfo) Hostname() (string, error) {
+func (s *MockSystemInfo) Hostname() (string, error) {
 	return s.ReturnHostname, s.ReturnHostnameError
 }
 
-func (s *mockSystemInfo) HostInfo(ctx context.Context) (*host.InfoStat, error) {
+func (s *MockSystemInfo) HostInfo(ctx context.Context) (*host.InfoStat, error) {
 	return s.ReturnHostInfo, s.ReturnHostInfoError
 }
 
-func (s *mockSystemInfo) Uname(ctx context.Context) (string, error) {
+func (s *MockSystemInfo) Uname(ctx context.Context) (string, error) {
 	return s.ReturnUname, s.ReturnUnameError
 }
 
-func (s *mockSystemInfo) InterfaceAddrs() ([]net.Addr, error) {
+func (s *MockSystemInfo) InterfaceAddrs() ([]net.Addr, error) {
 	return s.ReturnInterfaceAddrs, s.ReturnInterfaceAddrsError
 }
 
-func (s *mockSystemInfo) GoArch() string {
+func (s *MockSystemInfo) GoArch() string {
 	return s.ReturnGoArch
 }
 
-func (s *mockSystemInfo) CPUInfo(ctx context.Context) (CPUInfo, error) {
+func (s *MockSystemInfo) CPUInfo(ctx context.Context) (CPUInfo, error) {
 	return s.ReturnCPUInfo, s.ReturnCPUInfoError
 }
 
-func (s *mockSystemInfo) MemoryStats(ctx context.Context) (*mem.VirtualMemoryStat, error) {
+func (s *MockSystemInfo) CPUPercent(ctx context.Context) (float64, error) {
+	return s.ReturnCPUPercent, s.ReturnCPUPercentError
+}
+
+func (s *MockSystemInfo) CPUPercentIOWait(ctx context.Context) (float64, error) {
+	return s.ReturnCPUPercentIOWait, s.ReturnCPUPercentIOWaitError
+}
+
+func (s *MockSystemInfo) MemoryStats(ctx context.Context) (*mem.VirtualMemoryStat, error) {
 	return s.ReturnMemoryStat, s.ReturnMemoryError
 }
 
-func (s *mockSystemInfo) SystemTime() time.Time {
+func (s *MockSystemInfo) SystemTime() time.Time {
 	return s.ReturnSystemTime
 }
 
-func (s *mockSystemInfo) VirtualizationInfo(ctx context.Context, infoStat *host.InfoStat) (virtSystem, virtRole string, err error) {
+func (s *MockSystemInfo) VirtualizationInfo(ctx context.Context, infoStat *host.InfoStat) (virtSystem, virtRole string, err error) {
 	if infoStat == nil {
 		return "", "", s.ReturnVirtualizationInfoError
 	}

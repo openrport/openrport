@@ -15,6 +15,7 @@ import (
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 
+	"github.com/cloudradar-monitoring/rport/client/system"
 	chshare "github.com/cloudradar-monitoring/rport/share"
 	"github.com/cloudradar-monitoring/rport/share/comm"
 	"github.com/cloudradar-monitoring/rport/share/test"
@@ -35,7 +36,7 @@ func NewCmdExecutorMock() *CmdExecutorMock {
 	return &CmdExecutorMock{}
 }
 
-func (e *CmdExecutorMock) New(ctx context.Context, execCtx *CmdExecutorContext) *exec.Cmd {
+func (e *CmdExecutorMock) New(ctx context.Context, execCtx *system.CmdExecutorContext) *exec.Cmd {
 	var args []string
 	if execCtx.IsSudo {
 		args = append(args, "sudo -n")
@@ -144,21 +145,21 @@ func TestGetInterpreter(t *testing.T) {
 			name:            "windows, empty",
 			interpreter:     "",
 			os:              win,
-			wantInterpreter: cmdShell,
+			wantInterpreter: system.CmdShell,
 			wantErrContains: "",
 		},
 		{
 			name:            "windows, cmd",
-			interpreter:     cmdShell,
+			interpreter:     system.CmdShell,
 			os:              win,
-			wantInterpreter: cmdShell,
+			wantInterpreter: system.CmdShell,
 			wantErrContains: "",
 		},
 		{
 			name:            "windows, powershell",
-			interpreter:     powerShell,
+			interpreter:     system.PowerShell,
 			os:              win,
-			wantInterpreter: powerShell,
+			wantInterpreter: system.PowerShell,
 			wantErrContains: "",
 		},
 		{
@@ -172,12 +173,12 @@ func TestGetInterpreter(t *testing.T) {
 			name:            "unix, empty",
 			interpreter:     "",
 			os:              unix,
-			wantInterpreter: unixShell,
+			wantInterpreter: system.UnixShell,
 			wantErrContains: "",
 		},
 		{
 			name:            "unix, non empty",
-			interpreter:     unixShell,
+			interpreter:     system.UnixShell,
 			os:              unix,
 			wantInterpreter: "",
 			wantErrContains: "for unix clients a command interpreter should not be specified",
@@ -186,7 +187,7 @@ func TestGetInterpreter(t *testing.T) {
 			name:            "empty os, empty interpreter",
 			interpreter:     "",
 			os:              "",
-			wantInterpreter: unixShell,
+			wantInterpreter: system.UnixShell,
 			wantErrContains: "",
 		},
 		{
@@ -198,15 +199,15 @@ func TestGetInterpreter(t *testing.T) {
 		{
 			name:            "unix, hasShebang, interpreter not empty",
 			os:              unix,
-			interpreter:     unixShell,
+			interpreter:     system.UnixShell,
 			wantInterpreter: "",
 			boolHasShebang:  true,
 		},
 		{
 			name:            "windows, hasShebang, interpreter not empty",
 			os:              win,
-			interpreter:     powerShell,
-			wantInterpreter: powerShell,
+			interpreter:     system.PowerShell,
+			wantInterpreter: system.PowerShell,
 			boolHasShebang:  true,
 		},
 	}
@@ -214,7 +215,7 @@ func TestGetInterpreter(t *testing.T) {
 	for _, tc := range testCases {
 		t.Run(tc.name, func(t *testing.T) {
 			// when
-			gotInterpreter, gotErr := getInterpreter(tc.interpreter, tc.os, tc.boolHasShebang)
+			gotInterpreter, gotErr := system.GetInterpreter(tc.interpreter, tc.os, tc.boolHasShebang)
 
 			// then
 			if len(tc.wantErrContains) > 0 {
@@ -229,10 +230,10 @@ func TestGetInterpreter(t *testing.T) {
 }
 
 func TestHandleRunCmdRequestPositiveCase(t *testing.T) {
-	now = nowMockF
+	system.Now = nowMockF
 
 	// given
-	getInterpreter = func(inputInterpreter, os string, hashShebang bool) (string, error) {
+	system.GetInterpreter = func(inputInterpreter, os string, hashShebang bool) (string, error) {
 		return "test-interpreter", nil
 	}
 	wantPID := 123
@@ -368,7 +369,7 @@ func TestHandleRunCmdRequestPositiveCase(t *testing.T) {
 }
 
 func TestHandleRunCmdRequestHasRunningCmd(t *testing.T) {
-	now = nowMockF
+	system.Now = nowMockF
 
 	// given
 	wantPID := 123

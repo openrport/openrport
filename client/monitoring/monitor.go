@@ -8,7 +8,7 @@ import (
 
 	"golang.org/x/crypto/ssh"
 
-	chclient "github.com/cloudradar-monitoring/rport/client"
+	"github.com/cloudradar-monitoring/rport/client/system"
 	chshare "github.com/cloudradar-monitoring/rport/share"
 	"github.com/cloudradar-monitoring/rport/share/comm"
 	"github.com/cloudradar-monitoring/rport/share/models"
@@ -21,10 +21,10 @@ type Monitor struct {
 	enabled     bool
 	interval    time.Duration
 	measurement *models.Measurement
-	systemInfo  chclient.SystemInfo
+	systemInfo  system.SysInfo
 }
 
-func NewMonitor(logger *chshare.Logger, enabled bool, interval time.Duration, systemInfo chclient.SystemInfo) *Monitor {
+func NewMonitor(logger *chshare.Logger, enabled bool, interval time.Duration, systemInfo system.SysInfo) *Monitor {
 	return &Monitor{logger: logger, enabled: enabled, interval: interval, systemInfo: systemInfo}
 }
 
@@ -69,13 +69,16 @@ func (m *Monitor) createMeasurement(ctx context.Context) *models.Measurement {
 	if err == nil {
 		newMeasurement.MemoryUsagePercent = memStats.UsedPercent
 	}
-	newMeasurement.IoUsagePercent = 30.0
+	cpuPercentIOWait, err := m.systemInfo.CPUPercentIOWait(ctx)
+	if err == nil {
+		newMeasurement.IoUsagePercent = cpuPercentIOWait
+	}
 	newMeasurement.Processes = `{}`
 	newMeasurement.Mountpoints = `{}`
 	return newMeasurement
 }
 
-// sendMeasurement sends system measurement data to server
+// sends system measurement data to server using ssh-connection
 func (m *Monitor) sendMeasurement() {
 	m.mtx.RLock()
 	defer m.mtx.RUnlock()

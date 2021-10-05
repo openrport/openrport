@@ -1,4 +1,4 @@
-package chclient
+package system
 
 import (
 	"regexp"
@@ -13,6 +13,8 @@ const (
 	VirtualSystemRoleGuest = "guest"
 	VirtualSystemRoleHost  = "host"
 )
+
+const UnknownValue = "unknown"
 
 /**
 This method interprets result of powerShell Get-Service output as following:

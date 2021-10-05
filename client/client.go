@@ -20,12 +20,11 @@ import (
 	"golang.org/x/net/proxy"
 
 	"github.com/cloudradar-monitoring/rport/client/monitoring"
+	"github.com/cloudradar-monitoring/rport/client/system"
 	"github.com/cloudradar-monitoring/rport/client/updates"
 	chshare "github.com/cloudradar-monitoring/rport/share"
 	"github.com/cloudradar-monitoring/rport/share/comm"
 )
-
-const UnknownValue = "unknown"
 
 //Client represents a client instance
 type Client struct {
@@ -37,10 +36,10 @@ type Client struct {
 	running        bool
 	runningc       chan error
 	connStats      chshare.ConnStats
-	cmdExec        CmdExecutor
+	cmdExec        system.CmdExecutor
 	curCmdPID      *int
 	curCmdPIDMutex sync.Mutex
-	systemInfo     SystemInfo
+	systemInfo     system.SysInfo
 	runCmdMutex    sync.Mutex
 	updates        *updates.Updates
 	monitor        *monitoring.Monitor
@@ -48,17 +47,18 @@ type Client struct {
 
 //NewClient creates a new client instance
 func NewClient(config *Config) *Client {
-	cmdExec := NewCmdExecutor(chshare.NewLogger("cmd executor", config.Logging.LogOutput, config.Logging.LogLevel))
+	cmdExec := system.NewCmdExecutor(chshare.NewLogger("cmd executor", config.Logging.LogOutput, config.Logging.LogLevel))
 	logger := chshare.NewLogger("client", config.Logging.LogOutput, config.Logging.LogLevel)
+	systemInfo := system.NewSystemInfo(cmdExec)
 	client := &Client{
 		Logger:     logger,
 		config:     config,
 		running:    true,
 		runningc:   make(chan error, 1),
 		cmdExec:    cmdExec,
-		systemInfo: NewSystemInfo(cmdExec),
+		systemInfo: systemInfo,
 		updates:    updates.New(logger, config.Client.UpdatesInterval),
-		monitor:    monitoring.NewMonitor(logger, config.Monitoring.Enabled, config.Monitoring.Interval),
+		monitor:    monitoring.NewMonitor(logger, config.Monitoring.Enabled, config.Monitoring.Interval, systemInfo),
 	}
 
 	client.sshConfig = &ssh.ClientConfig{
@@ -372,7 +372,7 @@ func checkPort(payload []byte) (*comm.CheckPortResponse, error) {
 		return nil, err
 	}
 
-	open, checkErr := IsPortOpen(req.HostPort, req.Timeout)
+	open, checkErr := system.IsPortOpen(req.HostPort, req.Timeout)
 	var errMsg string
 	if checkErr != nil {
 		errMsg = checkErr.Error()
@@ -476,19 +476,19 @@ func (c *Client) connectionRequest(ctx context.Context) *chshare.ConnectionReque
 		Name:                   c.config.Client.Name,
 		Tags:                   c.config.Client.Tags,
 		Remotes:                c.config.Client.remotes,
-		OS:                     UnknownValue,
+		OS:                     system.UnknownValue,
 		OSArch:                 c.systemInfo.GoArch(),
-		OSKernel:               UnknownValue,
-		OSFamily:               UnknownValue,
-		OSVersion:              UnknownValue,
-		OSVirtualizationRole:   UnknownValue,
-		OSVirtualizationSystem: UnknownValue,
+		OSKernel:               system.UnknownValue,
+		OSFamily:               system.UnknownValue,
+		OSVersion:              system.UnknownValue,
+		OSVirtualizationRole:   system.UnknownValue,
+		OSVirtualizationSystem: system.UnknownValue,
 		Version:                chshare.BuildVersion,
-		Hostname:               UnknownValue,
-		CPUFamily:              UnknownValue,
-		CPUModel:               UnknownValue,
-		CPUModelName:           UnknownValue,
-		CPUVendor:              UnknownValue,
+		Hostname:               system.UnknownValue,
+		CPUFamily:              system.UnknownValue,
+		CPUModel:               system.UnknownValue,
+		CPUModelName:           system.UnknownValue,
+		CPUVendor:              system.UnknownValue,
 	}
 
 	info, err := c.systemInfo.HostInfo(ctx)
@@ -559,7 +559,7 @@ func (c *Client) connectionRequest(ctx context.Context) *chshare.ConnectionReque
 
 func (c *Client) getOS(ctx context.Context, info *host.InfoStat) (string, error) {
 	if info == nil {
-		return UnknownValue, nil
+		return system.UnknownValue, nil
 	} else if info.OS == "windows" {
 		return info.Platform + " " + info.PlatformVersion + " " + info.PlatformFamily, nil
 	}
@@ -568,7 +568,7 @@ func (c *Client) getOS(ctx context.Context, info *host.InfoStat) (string, error)
 
 func (c *Client) getOSFullName(infoStat *host.InfoStat) string {
 	if infoStat == nil {
-		return UnknownValue
+		return system.UnknownValue
 	}
 
 	return fmt.Sprintf("%s %s", strings.Title(strings.ToLower(infoStat.Platform)), infoStat.PlatformVersion)

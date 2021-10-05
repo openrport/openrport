@@ -12,6 +12,7 @@ import (
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 
+	"github.com/cloudradar-monitoring/rport/client/system"
 	chshare "github.com/cloudradar-monitoring/rport/share"
 	"github.com/cloudradar-monitoring/rport/share/models"
 )
@@ -36,7 +37,7 @@ func TestHandleCreateFileRequest(t *testing.T) {
 		},
 	}
 
-	err = os.MkdirAll(config.GetScriptsDir(), DefaultDirMode)
+	err = os.MkdirAll(config.GetScriptsDir(), system.DefaultDirMode)
 	require.NoError(t, err)
 	defer os.Remove(scriptDirToCheck)
 

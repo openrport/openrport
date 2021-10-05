@@ -1,4 +1,4 @@
-package chclient
+package system
 
 import (
 	"testing"

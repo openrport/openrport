@@ -9,16 +9,13 @@ import (
 	"errors"
 	"io"
 	"io/ioutil"
-	"os"
 	"path/filepath"
 	"time"
 
+	"github.com/cloudradar-monitoring/rport/client/system"
 	"github.com/cloudradar-monitoring/rport/share/comm"
 	"github.com/cloudradar-monitoring/rport/share/models"
 )
-
-const DefaultFileMode = os.FileMode(0540)
-const DefaultDirMode = os.FileMode(0700)
 
 func (c *Client) HandleCreateFileRequest(ctx context.Context, reqPayload []byte) (*comm.CreateFileResponse, error) {
 	if !c.config.RemoteScripts.Enabled {
@@ -26,7 +23,7 @@ func (c *Client) HandleCreateFileRequest(ctx context.Context, reqPayload []byte)
 	}
 
 	scriptDirName := c.config.GetScriptsDir()
-	err := ValidateScriptDir(scriptDirName)
+	err := system.ValidateScriptDir(scriptDirName)
 	if err != nil {
 		return nil, err
 	}
@@ -46,7 +43,7 @@ func (c *Client) HandleCreateFileRequest(ctx context.Context, reqPayload []byte)
 	}
 
 	if fileInput.Mode == 0 {
-		fileInput.Mode = DefaultFileMode
+		fileInput.Mode = system.DefaultFileMode
 	}
 
 	scriptFileName := filepath.Base(fileInput.Name)

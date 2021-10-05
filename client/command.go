@@ -7,57 +7,14 @@ import (
 	"errors"
 	"fmt"
 	"os"
-	"os/exec"
 	"regexp"
 	"runtime"
 	"time"
 
-	chshare "github.com/cloudradar-monitoring/rport/share"
-
+	"github.com/cloudradar-monitoring/rport/client/system"
 	"github.com/cloudradar-monitoring/rport/share/comm"
 	"github.com/cloudradar-monitoring/rport/share/models"
 )
-
-type CmdExecutorContext struct {
-	Interpreter string
-	Command     string
-	WorkingDir  string
-	IsSudo      bool
-	IsScript    bool
-}
-
-type CmdExecutor interface {
-	New(ctx context.Context, execCtx *CmdExecutorContext) *exec.Cmd
-	Start(cmd *exec.Cmd) error
-	Wait(cmd *exec.Cmd) error
-}
-
-type CmdExecutorImpl struct {
-	*chshare.Logger
-}
-
-func NewCmdExecutor(l *chshare.Logger) *CmdExecutorImpl {
-	return &CmdExecutorImpl{
-		Logger: l,
-	}
-}
-
-func (e *CmdExecutorImpl) Start(cmd *exec.Cmd) error {
-	return cmd.Start()
-}
-
-func (e *CmdExecutorImpl) Wait(cmd *exec.Cmd) error {
-	return cmd.Wait()
-}
-
-const (
-	unixShell  = "/bin/sh"
-	cmdShell   = "cmd"
-	powerShell = "powershell"
-)
-
-// now is used to stub time.Now in tests
-var now = time.Now
 
 func (c *Client) HandleRunCmdRequest(ctx context.Context, reqPayload []byte) (*comm.RunCmdResponse, error) {
 	if !c.config.RemoteCommands.Enabled {
@@ -87,7 +44,7 @@ func (c *Client) HandleRunCmdRequest(ctx context.Context, reqPayload []byte) (*c
 	// TODO: temporary solution, refactor with using worker pool
 	c.runCmdMutex.Lock()
 
-	job.Interpreter, err = getInterpreter(job.Interpreter, runtime.GOOS, job.HasShebang)
+	job.Interpreter, err = system.GetInterpreter(job.Interpreter, runtime.GOOS, job.HasShebang)
 	if err != nil {
 		c.runCmdMutex.Unlock()
 		return nil, err
@@ -98,7 +55,7 @@ func (c *Client) HandleRunCmdRequest(ctx context.Context, reqPayload []byte) (*c
 		return nil, fmt.Errorf("command is not allowed: %v", job.Command)
 	}
 
-	execCtx := &CmdExecutorContext{
+	execCtx := &system.CmdExecutorContext{
 		Interpreter: job.Interpreter,
 		Command:     job.Command,
 		WorkingDir:  job.Cwd,
@@ -113,7 +70,7 @@ func (c *Client) HandleRunCmdRequest(ctx context.Context, reqPayload []byte) (*c
 
 	c.Debugf("Generated command is %s, sysProcAttributes: %+v", cmd.String(), cmd.SysProcAttr)
 
-	startedAt := now()
+	startedAt := system.Now()
 	err = c.cmdExec.Start(cmd)
 	if err != nil {
 		c.runCmdMutex.Unlock()
@@ -158,7 +115,7 @@ func (c *Client) HandleRunCmdRequest(ctx context.Context, reqPayload []byte) (*c
 		c.runCmdMutex.Unlock()
 
 		// fill all unset fields
-		now := now()
+		now := system.Now()
 		job.FinishedAt = &now
 		job.Status = status
 		job.PID = &res.Pid
@@ -198,28 +155,6 @@ func (c *Client) rmScriptIfNeeded(scriptPath string, isScript bool) {
 	} else {
 		c.Debugf("deleted script %s after execution", scriptPath)
 	}
-}
-
-// var is used to override in tests
-var getInterpreter = func(inputInterpreter, os string, hasShebang bool) (string, error) {
-	if os == "windows" {
-		switch inputInterpreter {
-		case "":
-			return cmdShell, nil
-		case cmdShell, powerShell:
-			return inputInterpreter, nil
-		}
-		return "", fmt.Errorf("invalid windows command interpreter: %q", inputInterpreter)
-	}
-
-	if hasShebang {
-		return "", nil
-	}
-
-	if inputInterpreter != "" {
-		return "", fmt.Errorf("for unix clients a command interpreter should not be specified, got: %q", inputInterpreter)
-	}
-	return unixShell, nil
 }
 
 // isAllowed returns true if a given command passes configured restrictions.
