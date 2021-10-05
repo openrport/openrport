@@ -40,7 +40,7 @@ func buildCmdInterpreterCmd(ctx context.Context, execCtx *CmdExecutorContext, in
 	cmd.SysProcAttr = &syscall.SysProcAttr{}
 
 	cmdStr := execCtx.Command
-	if execCtx.IsScript && strings.Contains(cmdStr, " ") {
+	if strings.Contains(cmdStr, " ") {
 		cmdStr = `"` + strings.Trim(cmdStr, `"`) + `"`
 	}
 
@@ -57,13 +57,8 @@ func buildPowershellCmd(ctx context.Context, execCtx *CmdExecutorContext, interp
 		"bypass",
 	}
 
-	if execCtx.IsScript {
-		args = append(args, "-File")
-	} else {
-		args = append(args, "-Command")
-	}
+	args = append(args, "-File")
 
-	//cmdStr := `"` + strings.Trim(execCtx.Command, `"`)  + `"`
 	args = append(args, execCtx.Command)
 
 	cmd := exec.CommandContext(ctx, interpreterPath, args...)

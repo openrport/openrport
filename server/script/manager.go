@@ -45,14 +45,12 @@ type DbProvider interface {
 type Manager struct {
 	db     DbProvider
 	logger *chshare.Logger
-	*Executor
 }
 
-func NewManager(db DbProvider, ex *Executor, logger *chshare.Logger) *Manager {
+func NewManager(db DbProvider, logger *chshare.Logger) *Manager {
 	return &Manager{
-		db:       db,
-		logger:   logger,
-		Executor: ex,
+		db:     db,
+		logger: logger,
 	}
 }
 

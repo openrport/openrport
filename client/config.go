@@ -289,13 +289,11 @@ func PrepareDirs(c *Config) error {
 
 	logger.Infof("data directory path: %q", c.Client.DataDir)
 
-	if c.RemoteScripts.Enabled {
-		scriptDir := c.GetScriptsDir()
-		if _, err := os.Stat(scriptDir); os.IsNotExist(err) {
-			err := os.Mkdir(scriptDir, DefaultDirMode)
-			if err != nil {
-				return err
-			}
+	scriptDir := c.GetScriptsDir()
+	if _, err := os.Stat(scriptDir); os.IsNotExist(err) {
+		err := os.Mkdir(scriptDir, DefaultDirMode)
+		if err != nil {
+			return err
 		}
 	}
 

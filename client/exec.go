@@ -81,20 +81,26 @@ func (c *Client) HandleRunCmdRequest(ctx context.Context, reqPayload []byte) (*c
 	// TODO: temporary solution, refactor with using worker pool
 	c.runCmdMutex.Lock()
 
-	job.Interpreter, err = getInterpreter(job.Interpreter, runtime.GOOS, job.HasShebang)
+	job.Interpreter, err = getInterpreter(job.Interpreter, runtime.GOOS, HasShebangLine(job.Command))
 	if err != nil {
 		c.runCmdMutex.Unlock()
 		return nil, err
 	}
 
-	if !c.isAllowed(job.Command) {
+	if !job.IsScript && !c.isAllowed(job.Command) {
 		c.runCmdMutex.Unlock()
 		return nil, fmt.Errorf("command is not allowed: %v", job.Command)
 	}
 
+	scriptPath, err := CreateScriptFile(c.config.GetScriptsDir(), job.Interpreter, job.Command)
+	if err != nil {
+		c.runCmdMutex.Unlock()
+		return nil, err
+	}
+
 	execCtx := &CmdExecutorContext{
 		Interpreter: job.Interpreter,
-		Command:     job.Command,
+		Command:     scriptPath,
 		WorkingDir:  job.Cwd,
 		IsSudo:      job.IsSudo,
 		IsScript:    job.IsScript,
@@ -105,13 +111,13 @@ func (c *Client) HandleRunCmdRequest(ctx context.Context, reqPayload []byte) (*c
 	cmd.Stdout = stdOut
 	cmd.Stderr = stdErr
 
-	c.Debugf("Generated command is %s, sysProcAttributes: %+v", cmd.String(), cmd.SysProcAttr)
+	c.Debugf("Input command: %s, sysProcAttributes: %+v, executable command: %s", job.Command, cmd.SysProcAttr, cmd.String())
 
 	startedAt := now()
 	err = c.cmdExec.Start(cmd)
 	if err != nil {
 		c.runCmdMutex.Unlock()
-		c.rmScriptIfNeeded(job.Command, job.IsScript)
+		c.rmScript(scriptPath)
 		return nil, fmt.Errorf("failed to start a command: %s", err)
 	}
 
@@ -125,7 +131,7 @@ func (c *Client) HandleRunCmdRequest(ctx context.Context, reqPayload []byte) (*c
 
 	// observe the cmd execution in background
 	go func() {
-		defer c.rmScriptIfNeeded(job.Command, job.IsScript)
+		defer c.rmScript(scriptPath)
 
 		c.Debugf("started to observe cmd [jid=%q,pid=%d]", job.JID, res.Pid)
 
@@ -160,6 +166,9 @@ func (c *Client) HandleRunCmdRequest(ctx context.Context, reqPayload []byte) (*c
 		job.StartedAt = startedAt
 
 		job.Error = c.buildErrText(execErr, stdOut, stdErr)
+		if job.Error != "" {
+			c.Errorf(job.Error)
+		}
 
 		job.Result = &models.JobResult{
 			StdOut: stdOut.String(),
@@ -200,11 +209,7 @@ func (c *Client) buildErrText(execErr error, stdOut, stdErr *CapacityBuffer) str
 	return strings.Join(errs, ", ")
 }
 
-func (c *Client) rmScriptIfNeeded(scriptPath string, isScript bool) {
-	if !isScript {
-		return
-	}
-
+func (c *Client) rmScript(scriptPath string) {
 	err := os.Remove(scriptPath)
 	if err != nil {
 		c.Errorf("failed to delete script %s: %v", scriptPath, err)
