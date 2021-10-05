@@ -20,6 +20,7 @@ import (
 	"golang.org/x/crypto/ssh"
 
 	"github.com/cloudradar-monitoring/rport/server/api"
+	"github.com/cloudradar-monitoring/rport/server/api/command"
 	errors2 "github.com/cloudradar-monitoring/rport/server/api/errors"
 	"github.com/cloudradar-monitoring/rport/server/api/jobs"
 	"github.com/cloudradar-monitoring/rport/server/api/middleware"
@@ -44,12 +45,13 @@ import (
 const (
 	queryParamSort = "sort"
 
-	routeParamClientID      = "client_id"
-	routeParamUserID        = "user_id"
-	routeParamJobID         = "job_id"
-	routeParamGroupID       = "group_id"
-	routeParamVaultValueID  = "vault_value_id"
-	routeParamScriptValueID = "script_value_id"
+	routeParamClientID       = "client_id"
+	routeParamUserID         = "user_id"
+	routeParamJobID          = "job_id"
+	routeParamGroupID        = "group_id"
+	routeParamVaultValueID   = "vault_value_id"
+	routeParamScriptValueID  = "script_value_id"
+	routeParamCommandValueID = "command_value_id"
 
 	ErrCodeMissingRouteVar = "ERR_CODE_MISSING_ROUTE_VAR"
 	ErrCodeInvalidRequest  = "ERR_CODE_INVALID_REQUEST"
@@ -204,6 +206,11 @@ func (al *APIListener) initRouter() {
 	sub.HandleFunc("/library/scripts/{"+routeParamScriptValueID+"}", al.handleScriptUpdate).Methods(http.MethodPut)
 	sub.HandleFunc("/library/scripts/{"+routeParamScriptValueID+"}", al.handleReadScript).Methods(http.MethodGet)
 	sub.HandleFunc("/library/scripts/{"+routeParamScriptValueID+"}", al.handleDeleteScript).Methods(http.MethodDelete)
+	sub.HandleFunc("/library/commands", al.handleListCommands).Methods(http.MethodGet)
+	sub.HandleFunc("/library/commands", al.handleCommandCreate).Methods(http.MethodPost)
+	sub.HandleFunc("/library/commands/{"+routeParamCommandValueID+"}", al.handleCommandUpdate).Methods(http.MethodPut)
+	sub.HandleFunc("/library/commands/{"+routeParamCommandValueID+"}", al.handleReadCommand).Methods(http.MethodGet)
+	sub.HandleFunc("/library/commands/{"+routeParamCommandValueID+"}", al.handleDeleteCommand).Methods(http.MethodDelete)
 	sub.HandleFunc("/scripts", al.handlePostMultiClientScript).Methods(http.MethodPost)
 
 	// add authorization middleware
@@ -2657,6 +2664,113 @@ func (al *APIListener) handleDeleteScript(w http.ResponseWriter, req *http.Reque
 	}
 
 	err := al.scriptManager.Delete(req.Context(), idStr)
+	if err != nil {
+		al.jsonError(w, err)
+		return
+	}
+
+	w.WriteHeader(http.StatusNoContent)
+}
+
+func (al *APIListener) handleListCommands(w http.ResponseWriter, req *http.Request) {
+	items, err := al.commandManager.List(req.Context(), req)
+	if err != nil {
+		al.jsonError(w, err)
+		return
+	}
+
+	al.writeJSONResponse(w, http.StatusOK, api.NewSuccessPayload(items))
+}
+
+func (al *APIListener) handleCommandCreate(w http.ResponseWriter, req *http.Request) {
+	var commandInput command.InputCommand
+	err := parseRequestBody(req.Body, &commandInput)
+	if err != nil {
+		al.jsonError(w, err)
+		return
+	}
+
+	curUsername := api.GetUser(req.Context(), al.Logger)
+	if curUsername == "" {
+		al.jsonErrorResponseWithTitle(w, http.StatusUnauthorized, "unauthorized")
+		return
+	}
+
+	storedValue, err := al.commandManager.Create(req.Context(), &commandInput, curUsername)
+	if err != nil {
+		al.jsonError(w, err)
+		return
+	}
+
+	al.writeJSONResponse(w, http.StatusCreated, api.NewSuccessPayload(storedValue))
+}
+
+func (al *APIListener) handleCommandUpdate(w http.ResponseWriter, req *http.Request) {
+	vars := mux.Vars(req)
+	idStr, ok := vars[routeParamCommandValueID]
+	if !ok {
+		al.jsonErrorResponseWithTitle(w, http.StatusBadRequest, "Command ID is not provided")
+		return
+	}
+
+	curUsername := api.GetUser(req.Context(), al.Logger)
+	if curUsername == "" {
+		al.jsonErrorResponseWithTitle(w, http.StatusUnauthorized, "unauthorized")
+		return
+	}
+
+	var commandInput command.InputCommand
+	err := parseRequestBody(req.Body, &commandInput)
+	if err != nil {
+		al.jsonError(w, err)
+		return
+	}
+
+	storedValue, err := al.commandManager.Update(req.Context(), idStr, &commandInput, curUsername)
+	if err != nil {
+		al.jsonError(w, err)
+		return
+	}
+
+	al.writeJSONResponse(w, http.StatusOK, api.NewSuccessPayload(storedValue))
+}
+
+func (al *APIListener) handleReadCommand(w http.ResponseWriter, req *http.Request) {
+	vars := mux.Vars(req)
+	idStr := vars[routeParamCommandValueID]
+	if idStr == "" {
+		al.jsonError(w, errors2.APIError{
+			Err:        errors.New("empty command id provided"),
+			HTTPStatus: http.StatusBadRequest,
+		})
+		return
+	}
+
+	foundScript, found, err := al.commandManager.GetOne(req.Context(), req, idStr)
+	if err != nil {
+		al.jsonError(w, err)
+		return
+	}
+	if !found {
+		al.jsonErrorResponseWithTitle(w, http.StatusNotFound, fmt.Sprintf("Cannot find a command by the provided id: %s", idStr))
+		return
+	}
+
+	al.writeJSONResponse(w, http.StatusOK, api.NewSuccessPayload(foundScript))
+}
+
+func (al *APIListener) handleDeleteCommand(w http.ResponseWriter, req *http.Request) {
+	vars := mux.Vars(req)
+	idStr := vars[routeParamCommandValueID]
+	if idStr == "" {
+		al.jsonError(w, errors2.APIError{
+			Err:        errors.New("empty command id provided"),
+			HTTPStatus: http.StatusBadRequest,
+		})
+		return
+	}
+
+	err := al.commandManager.Delete(req.Context(), idStr)
 	if err != nil {
 		al.jsonError(w, err)
 		return

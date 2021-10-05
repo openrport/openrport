@@ -1,4 +1,4 @@
-package script
+package command
 
 import (
 	"context"
@@ -18,26 +18,24 @@ import (
 	"github.com/cloudradar-monitoring/rport/share/test"
 )
 
-var demoData = []Script{
+var demoData = []Command{
 	{
-		ID:          "1",
-		Name:        "some name",
-		CreatedBy:   "user1",
-		CreatedAt:   ptr.Time(time.Date(2001, 1, 1, 1, 0, 0, 0, time.UTC)),
-		Interpreter: ptr.String("bash"),
-		IsSudo:      ptr.Bool(false),
-		Cwd:         ptr.String("/bin"),
-		Script:      "ls -la",
+		ID:        "1",
+		Name:      "some name",
+		CreatedBy: "user1",
+		CreatedAt: ptr.Time(time.Date(2001, 1, 1, 1, 0, 0, 0, time.UTC)),
+		UpdatedBy: "user2",
+		UpdatedAt: ptr.Time(time.Date(2003, 1, 1, 1, 0, 0, 0, time.UTC)),
+		Cmd:       "ls -la",
 	},
 	{
-		ID:          "2",
-		Name:        "other name 2",
-		CreatedBy:   "user1",
-		CreatedAt:   ptr.Time(time.Date(2002, 1, 1, 1, 0, 0, 0, time.UTC)),
-		Interpreter: ptr.String("sh"),
-		IsSudo:      ptr.Bool(true),
-		Cwd:         ptr.String("/bin"),
-		Script:      "pwd",
+		ID:        "2",
+		Name:      "other name 2",
+		CreatedBy: "user1",
+		CreatedAt: ptr.Time(time.Date(2002, 1, 1, 1, 0, 0, 0, time.UTC)),
+		UpdatedBy: "user1",
+		UpdatedAt: ptr.Time(time.Date(2002, 1, 1, 2, 0, 0, 0, time.UTC)),
+		Cmd:       "pwd",
 	},
 }
 
@@ -46,17 +44,14 @@ func TestGetByID(t *testing.T) {
 	require.NoError(t, err)
 	dbProv := NewSqliteProvider(db)
 	defer dbProv.Close()
-
 	ctx := context.Background()
 
 	err = addDemoData(dbProv.db)
 	require.NoError(t, err)
 
 	val, found, err := dbProv.GetByID(ctx, "1", &query.RetrieveOptions{})
-
 	require.NoError(t, err)
 	require.True(t, found)
-	require.NoError(t, err)
 	assert.Equal(t, demoData[0], *val)
 
 	_, found, err = dbProv.GetByID(ctx, "-2", &query.RetrieveOptions{})
@@ -65,17 +60,15 @@ func TestGetByID(t *testing.T) {
 
 	val, found, err = dbProv.GetByID(ctx, "1", &query.RetrieveOptions{Fields: []query.FieldsOption{
 		{
-			Resource: "scripts",
-			Fields:   []string{"created_by", "script"},
+			Resource: "commands",
+			Fields:   []string{"created_by", "cmd"},
 		},
 	}})
-
 	require.NoError(t, err)
 	require.True(t, found)
-	require.NoError(t, err)
-	assert.Equal(t, Script{
+	assert.Equal(t, Command{
 		CreatedBy: "user1",
-		Script:    "ls -la",
+		Cmd:       "ls -la",
 	}, *val)
 }
 
@@ -91,7 +84,7 @@ func TestList(t *testing.T) {
 	testCases := []struct {
 		Name           string
 		Options        *query.ListOptions
-		ExpectedResult []Script
+		ExpectedResult []Command
 	}{
 		{
 			Name:           "no options",
@@ -108,7 +101,7 @@ func TestList(t *testing.T) {
 					},
 				},
 			},
-			ExpectedResult: []Script{demoData[1], demoData[0]},
+			ExpectedResult: []Command{demoData[1], demoData[0]},
 		},
 		{
 			Name: "filter and sort",
@@ -126,38 +119,38 @@ func TestList(t *testing.T) {
 					},
 				},
 			},
-			ExpectedResult: []Script{demoData[1], demoData[0]},
+			ExpectedResult: []Command{demoData[1], demoData[0]},
 		},
 		{
 			Name: "filter, no results",
 			Options: &query.ListOptions{
 				Filters: []query.FilterOption{
 					{
-						Column: "interpreter",
-						Values: []string{"not-existing-interpreter"},
+						Column: "name",
+						Values: []string{"not-existing-name"},
 					},
 				},
 			},
-			ExpectedResult: []Script{},
+			ExpectedResult: []Command{},
 		},
 		{
 			Name: "filter, 1 result",
 			Options: &query.ListOptions{
 				Filters: []query.FilterOption{
 					{
-						Column: "is_sudo",
-						Values: []string{"0"},
+						Column: "name",
+						Values: []string{"some name"},
 					},
 				},
 			},
-			ExpectedResult: []Script{demoData[0]},
+			ExpectedResult: []Command{demoData[0]},
 		},
 		{
 			Name: "multiple filters",
 			Options: &query.ListOptions{
 				Sorts: []query.SortOption{
 					{
-						Column: "interpreter",
+						Column: "created_at",
 						IsASC:  true,
 					},
 				},
@@ -179,12 +172,12 @@ func TestList(t *testing.T) {
 			Options: &query.ListOptions{
 				Fields: []query.FieldsOption{
 					{
-						Resource: "scripts",
+						Resource: "commands",
 						Fields:   []string{"id", "name"},
 					},
 				},
 			},
-			ExpectedResult: []Script{
+			ExpectedResult: []Command{
 				{
 					ID:   "1",
 					Name: "some name",
@@ -213,30 +206,26 @@ func TestCreate(t *testing.T) {
 	require.NoError(t, err)
 	dbProv := NewSqliteProvider(db)
 	defer dbProv.Close()
-
-	expectedCreatedAt, err := time.Parse("2006-01-02 15:04:05", "2001-01-01 01:00:00")
-	require.NoError(t, err)
-
 	ctx := context.Background()
+
 	itemToSave := demoData[0]
 	itemToSave.ID = ""
-	id, err := dbProv.Save(ctx, &itemToSave, expectedCreatedAt.UTC())
+	id, err := dbProv.Save(ctx, &itemToSave)
 	require.NoError(t, err)
-	assert.True(t, id != "")
+	assert.NotEmpty(t, id)
 
 	expectedRows := []map[string]interface{}{
 		{
-			"name":        itemToSave.Name,
-			"created_at":  *itemToSave.CreatedAt,
-			"created_by":  itemToSave.CreatedBy,
-			"interpreter": *itemToSave.Interpreter,
-			"is_sudo":     int64(0),
-			"cwd":         *itemToSave.Cwd,
-			"script":      itemToSave.Script,
+			"name":       itemToSave.Name,
+			"created_at": *itemToSave.CreatedAt,
+			"created_by": itemToSave.CreatedBy,
+			"updated_at": *itemToSave.UpdatedAt,
+			"updated_by": itemToSave.UpdatedBy,
+			"cmd":        itemToSave.Cmd,
 		},
 	}
-	q := "SELECT name, created_at, created_by, interpreter, is_sudo, cwd, script FROM `scripts`"
-	test.AssertRowsEqual(t, dbProv.db, expectedRows, q, []interface{}{})
+	q := "SELECT name, created_at, created_by, updated_at, updated_by, cmd FROM `commands` WHERE id = ?"
+	test.AssertRowsEqual(t, dbProv.db, expectedRows, q, []interface{}{id})
 }
 
 func TestUpdate(t *testing.T) {
@@ -244,37 +233,31 @@ func TestUpdate(t *testing.T) {
 	require.NoError(t, err)
 	dbProv := NewSqliteProvider(db)
 	defer dbProv.Close()
-
 	ctx := context.Background()
 
 	err = addDemoData(dbProv.db)
 	require.NoError(t, err)
 
 	itemToSave := demoData[0]
-	itemToSave.Script = "awk"
+	itemToSave.Cmd = "awk"
 
-	id, err := dbProv.Save(
-		ctx,
-		&itemToSave,
-		time.Date(2012, 1, 1, 1, 0, 0, 0, time.UTC),
-	)
+	id, err := dbProv.Save(ctx, &itemToSave)
 	require.NoError(t, err)
 	assert.Equal(t, itemToSave.ID, id)
 
 	expectedRows := []map[string]interface{}{
 		{
-			"id":          "1",
-			"name":        itemToSave.Name,
-			"created_at":  *itemToSave.CreatedAt,
-			"created_by":  itemToSave.CreatedBy,
-			"interpreter": *itemToSave.Interpreter,
-			"is_sudo":     int64(0),
-			"cwd":         *itemToSave.Cwd,
-			"script":      itemToSave.Script,
+			"id":         "1",
+			"name":       itemToSave.Name,
+			"created_at": *itemToSave.CreatedAt,
+			"created_by": itemToSave.CreatedBy,
+			"updated_at": *itemToSave.UpdatedAt,
+			"updated_by": itemToSave.UpdatedBy,
+			"cmd":        itemToSave.Cmd,
 		},
 	}
-	q := "SELECT * FROM `scripts` where id = 1"
-	test.AssertRowsEqual(t, dbProv.db, expectedRows, q, []interface{}{})
+	q := "SELECT * FROM `commands` where id = ?"
+	test.AssertRowsEqual(t, dbProv.db, expectedRows, q, []interface{}{id})
 }
 
 func TestDelete(t *testing.T) {
@@ -296,32 +279,30 @@ func TestDelete(t *testing.T) {
 
 	expectedRows := []map[string]interface{}{
 		{
-			"id":          "1",
-			"name":        demoData[0].Name,
-			"created_at":  *demoData[0].CreatedAt,
-			"created_by":  demoData[0].CreatedBy,
-			"interpreter": *demoData[0].Interpreter,
-			"is_sudo":     int64(0),
-			"cwd":         *demoData[0].Cwd,
-			"script":      demoData[0].Script,
+			"id":         "1",
+			"name":       demoData[0].Name,
+			"created_at": *demoData[0].CreatedAt,
+			"created_by": demoData[0].CreatedBy,
+			"updated_at": *demoData[0].UpdatedAt,
+			"updated_by": demoData[0].UpdatedBy,
+			"cmd":        demoData[0].Cmd,
 		},
 	}
-	q := "SELECT * FROM `scripts`"
+	q := "SELECT * FROM `commands`"
 	test.AssertRowsEqual(t, dbProv.db, expectedRows, q, []interface{}{})
 }
 
 func addDemoData(db *sqlx.DB) error {
 	for i := range demoData {
 		_, err := db.Exec(
-			"INSERT INTO `scripts` (`id`, `name`, `created_at`, `created_by`, `interpreter`, `is_sudo`, `cwd`, `script`) VALUES (?,?,?,?,?,?,?,?)",
+			"INSERT INTO `commands` (`id`, `name`, `created_at`, `created_by`, `updated_at`, `updated_by`, `cmd`) VALUES (?,?,?,?,?,?,?)",
 			demoData[i].ID,
 			demoData[i].Name,
 			demoData[i].CreatedAt.Format(time.RFC3339),
 			demoData[i].CreatedBy,
-			demoData[i].Interpreter,
-			demoData[i].IsSudo,
-			demoData[i].Cwd,
-			demoData[i].Script,
+			demoData[i].UpdatedAt.Format(time.RFC3339),
+			demoData[i].UpdatedBy,
+			demoData[i].Cmd,
 		)
 		if err != nil {
 			return err

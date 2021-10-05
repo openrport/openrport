@@ -12,6 +12,8 @@ import (
 	"strings"
 	"time"
 
+	"github.com/cloudradar-monitoring/rport/db/migration/library"
+	"github.com/cloudradar-monitoring/rport/db/sqlite"
 	"github.com/cloudradar-monitoring/rport/server/script"
 	"github.com/cloudradar-monitoring/rport/share/files"
 
@@ -22,6 +24,7 @@ import (
 	"golang.org/x/sync/errgroup"
 
 	"github.com/cloudradar-monitoring/rport/server/api"
+	"github.com/cloudradar-monitoring/rport/server/api/command"
 	"github.com/cloudradar-monitoring/rport/server/api/message"
 	"github.com/cloudradar-monitoring/rport/server/api/middleware"
 	"github.com/cloudradar-monitoring/rport/server/api/users"
@@ -52,9 +55,10 @@ type APIListener struct {
 
 	testDone chan bool // is used only in tests to be able to wait until async task is done
 
-	userService   UserService
-	vaultManager  *vault.Manager
-	scriptManager *script.Manager
+	userService    UserService
+	vaultManager   *vault.Manager
+	scriptManager  *script.Manager
+	commandManager *command.Manager
 }
 
 type UserService interface {
@@ -122,13 +126,17 @@ func NewAPIListener(
 		}
 	}
 
-	scriptLogger := chshare.NewLogger("scripts", config.Logging.LogOutput, config.Logging.LogLevel)
-	scriptDb, err := script.NewSqliteProvider(path.Join(config.Server.DataDir, "library.db"), scriptLogger)
+	libraryDb, err := sqlite.New(path.Join(config.Server.DataDir, "library.db"), library.AssetNames(), library.Asset)
 	if err != nil {
-		return nil, err
+		return nil, fmt.Errorf("failed init library DB instance: %w", err)
 	}
 
-	scriptManager := script.NewManager(scriptDb, scriptLogger)
+	scriptLogger := chshare.NewLogger("scripts", config.Logging.LogOutput, config.Logging.LogLevel)
+	scriptProvider := script.NewSqliteProvider(libraryDb)
+	scriptManager := script.NewManager(scriptProvider, scriptLogger)
+
+	commandProvider := command.NewSqliteProvider(libraryDb)
+	commandManager := command.NewManager(commandProvider)
 
 	userService := users.NewAPIService(usersProvider, config.API.IsTwoFAOn())
 
@@ -143,6 +151,7 @@ func NewAPIListener(
 		userService:       userService,
 		vaultManager:      vault.NewManager(vaultDBProviderFactory, &vault.Aes256PassManager{}, vaultLogger),
 		scriptManager:     scriptManager,
+		commandManager:    commandManager,
 	}
 
 	if config.API.IsTwoFAOn() {
@@ -235,9 +244,11 @@ func (al *APIListener) Close() error {
 	if al.vaultManager != nil {
 		g.Go(al.vaultManager.Close)
 	}
-
 	if al.scriptManager != nil {
 		g.Go(al.scriptManager.Close)
+	}
+	if al.commandManager != nil {
+		g.Go(al.commandManager.Close)
 	}
 
 	return g.Wait()

@@ -1798,7 +1798,7 @@ paths:
   /library/scripts:
     get:
       tags:
-        - "Scripts"
+        - "Library"
       summary: "Read or find scripts"
       description: "Reads all scripts or find some based on the input parameters"
       produces:
@@ -1851,7 +1851,7 @@ paths:
             $ref: "#/definitions/ErrorPayload"
     post:
       tags:
-        - "Scripts"
+        - "Library"
       summary: "Creates a new script"
       description: "Creates a new script.\n
         If another entry with the same name exists, an error will be returned."
@@ -1892,7 +1892,7 @@ paths:
   /library/scripts/{id}:
     get:
       tags:
-        - "Scripts"
+        - "Library"
       summary: "Read a script"
       description: "Reads a script by the provided ID"
       produces:
@@ -1933,7 +1933,7 @@ paths:
             $ref: "#/definitions/ErrorPayload"
     put:
       tags:
-        - "Scripts"
+        - "Library"
       summary: "Updates an existing script"
       description: "Updates an existing script by the provided `id` parameter.\n
       You need to provide all fields like those you used to create a script. Partial updates are not supported.
@@ -1977,7 +1977,7 @@ paths:
             $ref: "#/definitions/ErrorPayload"
     delete:
       tags:
-        - "Scripts"
+        - "Library"
       summary: "Deletes an existing script"
       description: "Delete a script by the provided `id` parameter."
       parameters:
@@ -1995,6 +1995,212 @@ paths:
             $ref: "#/definitions/ErrorPayload"
         "404":
           description: "cannot find script by the provided id"
+          schema:
+            $ref: "#/definitions/ErrorPayload"
+        "500":
+          description: "Invalid Operation"
+          schema:
+            $ref: "#/definitions/ErrorPayload"
+  /library/commands:
+    get:
+      tags:
+        - "Library"
+      summary: "List commands"
+      description: "Reads all commands or find some based on the input parameters"
+      produces:
+        - "application/json"
+      parameters:
+        - in: "query"
+          name: "sort"
+          description: "Sort field to be used for values, the sorting direction is by default ASC.\n
+            To change the direction add `-` to the sorting value e.g. `-id`. Allowed values are `id`, `name`, `created_by`, `created_at`, `updated_by`, `updated_at`.\n
+            You can use as many sort parameters as you want."
+          required: false
+          type: "string"
+        - in: "query"
+          name: "filter[<FIELD>]"
+          description: "Filter to find commands. It should be provided in the format as `filter[<FIELD>]=<VALUE>`,\n
+              where `<FIELD>` is one of the values `id`, `name`, `created_by`, `created_at`, `updated_by`, `updated_at` and `<VALUE>` is the search value,\n
+              e.g. `filter[created_by]=admin` will request only commands created by admin. You can use as many filter parameters as you want.\n
+              If you want to filter by multiple values e.g. find entries either for name = command1 or command2 you can use following filters\n
+              `filter[name]=command1,command2`."
+          required: false
+          type: "string"
+        - in: "query"
+          name: "fields[<RESOURCE>]"
+          description: "Fields to be returned. It should be provided in the format as `fields[<RESOURCE>]=<FIELDS>`,
+              where `<RESOURCE>` is `comamnds` and `<FIELDS>` is a comma separated list of fields. Example: `fields[commands]=id,name`.
+              If no fields are specified, all will be returned."
+          required: false
+          type: "string"
+      responses:
+        "200":
+          description: "Successful Operation"
+          schema:
+            type: "object"
+            properties:
+              data:
+                type: "array"
+                items:
+                  $ref: "#/definitions/Command"
+        "400":
+          description: "unsupported sort field 'xyz'"
+          schema:
+            $ref: "#/definitions/ErrorPayload"
+        "401":
+          description: "Unauthorized"
+          schema:
+            $ref: "#/definitions/ErrorPayload"
+        "500":
+          description: "Invalid Operation"
+          schema:
+            $ref: "#/definitions/ErrorPayload"
+    post:
+      tags:
+        - "Library"
+      summary: "Creates a new command"
+      description: "Creates a new command.\n
+        If another entry with the same name exists, an error will be returned."
+      produces:
+        - "application/json"
+      parameters:
+        - in: "body"
+          name: "body"
+          description: "value in the json format"
+          required: true
+          schema:
+            $ref: "#/definitions/CommandInput"
+      responses:
+        "201":
+          description: "Successful Create Operation"
+          schema:
+            type: "object"
+            properties:
+              data:
+                type: "object"
+                $ref: "#/definitions/Command"
+        "400":
+          description: "Invalid request parameters"
+          schema:
+            $ref: "#/definitions/ErrorPayload"
+        "401":
+          description: "Unauthorized"
+          schema:
+            $ref: "#/definitions/ErrorPayload"
+        "409":
+          description: "another script with the same name exists"
+          schema:
+            $ref: "#/definitions/ErrorPayload"
+        "500":
+          description: "Invalid Operation"
+          schema:
+            $ref: "#/definitions/ErrorPayload"
+  /library/commands/{id}:
+    get:
+      tags:
+        - "Library"
+      summary: "Read a command"
+      description: "Reads a command by the provided ID"
+      produces:
+        - "application/json"
+      parameters:
+        - in: "path"
+          name: "id"
+          required: true
+          description: "Unique command ID"
+          type: "string"
+        - in: "query"
+          name: "fields[<RESOURCE>]"
+          description: "Fields to be returned. It should be provided in the format as `fields[<RESOURCE>]=<FIELDS>`,
+              where `<RESOURCE>` is `commands` and `<FIELDS>` is a comma separated list of fields. Example: `fields[commands]=id,name`.
+              If no fields are specified, all will be returned."
+          required: false
+          type: "string"
+      responses:
+        "200":
+          description: "Successful Operation"
+          schema:
+            type: "object"
+            properties:
+              data:
+                type: "object"
+                $ref: "#/definitions/Command"
+        "401":
+          description: "Unauthorized"
+          schema:
+            $ref: "#/definitions/ErrorPayload"
+        "404":
+          description: "Cannot find a command by the provided id"
+          schema:
+            $ref: "#/definitions/ErrorPayload"
+        "500":
+          description: "Invalid Operation"
+          schema:
+            $ref: "#/definitions/ErrorPayload"
+    put:
+      tags:
+        - "Library"
+      summary: "Updates an existing command"
+      description: "Updates an existing command by the provided `id` parameter.\n
+      You need to provide all fields like those you used to create a command. Partial updates are not supported.
+      You can get `id` by using the listing API. You get the id also when you store a new value."
+      parameters:
+        - in: "path"
+          name: "id"
+          required: true
+          description: "Unique command ID"
+          type: "string"
+        - in: "body"
+          name: "body"
+          description: "value in the json format"
+          required: true
+          schema:
+            $ref: "#/definitions/CommandInput"
+      responses:
+        "200":
+          description: "Successful Operation"
+          schema:
+            type: "object"
+            properties:
+              data:
+                type: "object"
+                $ref: "#/definitions/Command"
+        "400":
+          description: "Invalid body parameters"
+          schema:
+            $ref: "#/definitions/ErrorPayload"
+        "401":
+          description: "Unauthorized"
+          schema:
+            $ref: "#/definitions/ErrorPayload"
+        "409":
+          description: "another command with the same name exists"
+          schema:
+            $ref: "#/definitions/ErrorPayload"
+        "500":
+          description: "Invalid Operation"
+          schema:
+            $ref: "#/definitions/ErrorPayload"
+    delete:
+      tags:
+        - "Library"
+      summary: "Deletes an existing command"
+      description: "Delete a command by the provided `id` parameter."
+      parameters:
+        - in: "path"
+          name: "id"
+          required: true
+          description: "Unique command ID"
+          type: "string"
+      responses:
+        "204":
+          description: "Successful Operation"
+        "401":
+          description: "Unauthorized"
+          schema:
+            $ref: "#/definitions/ErrorPayload"
+        "404":
+          description: "cannot find command by the provided id"
           schema:
             $ref: "#/definitions/ErrorPayload"
         "500":
@@ -2670,3 +2876,38 @@ definitions:
       is_security_update:
         type: "boolean"
         description: "Whether this is a security update"
+  Command:
+    type: "object"
+    properties:
+      name:
+        type: "string"
+        description: "User-friendly name of a command"
+      id:
+        type: "string"
+        description: "unique internal identifier of a command in uuid4 format"
+      created_at:
+        type: "string"
+        format: "data-time"
+        description: "Date and time of command creation"
+      created_by:
+        type: "string"
+        description: "User name who created this command"
+      updated_at:
+        type: "string"
+        format: "data-time"
+        description: "Date and time of last command update"
+      updated_by:
+        type: "string"
+        description: "User name who last updated this command"
+      cmd:
+        type: "string"
+        description: "text of the command"
+  CommandInput:
+    type: "object"
+    properties:
+      name:
+        type: "string"
+        description: "[required] User-friendly name of a commend"
+      script:
+        type: "string"
+        description: "[required] text of the command"

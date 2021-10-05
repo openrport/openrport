@@ -1,4 +1,4 @@
-package script
+package command
 
 import (
 	"context"
@@ -6,18 +6,17 @@ import (
 	"fmt"
 	"time"
 
-	"github.com/cloudradar-monitoring/rport/share/random"
+	"github.com/jmoiron/sqlx"
 
 	"github.com/cloudradar-monitoring/rport/share/query"
-
-	"github.com/jmoiron/sqlx"
+	"github.com/cloudradar-monitoring/rport/share/random"
 )
 
 type SqliteProvider struct {
 	db *sqlx.DB
 }
 
-var generateNewScriptID = func() (string, error) {
+var generateNewCommandID = func() (string, error) {
 	return random.UUID4()
 }
 
@@ -33,11 +32,11 @@ func (p *SqliteProvider) Close() error {
 	return nil
 }
 
-func (p *SqliteProvider) GetByID(ctx context.Context, id string, ro *query.RetrieveOptions) (val *Script, found bool, err error) {
-	q := "SELECT * FROM `scripts` WHERE `id` = ? LIMIT 1"
+func (p *SqliteProvider) GetByID(ctx context.Context, id string, ro *query.RetrieveOptions) (val *Command, found bool, err error) {
+	q := "SELECT * FROM `commands` WHERE `id` = ? LIMIT 1"
 	q = query.ConvertRetrieveOptionsToQuery(ro, q)
 
-	val = new(Script)
+	val = new(Command)
 	err = p.db.GetContext(ctx, val, q, id)
 	if err != nil {
 		if err == sql.ErrNoRows {
@@ -50,10 +49,10 @@ func (p *SqliteProvider) GetByID(ctx context.Context, id string, ro *query.Retri
 	return val, true, nil
 }
 
-func (p *SqliteProvider) List(ctx context.Context, lo *query.ListOptions) ([]Script, error) {
-	values := []Script{}
+func (p *SqliteProvider) List(ctx context.Context, lo *query.ListOptions) ([]Command, error) {
+	values := []Command{}
 
-	q := "SELECT * FROM `scripts`"
+	q := "SELECT * FROM `commands`"
 
 	q, params := query.ConvertListOptionsToQuery(lo, q)
 
@@ -65,36 +64,34 @@ func (p *SqliteProvider) List(ctx context.Context, lo *query.ListOptions) ([]Scr
 	return values, nil
 }
 
-func (p *SqliteProvider) Save(ctx context.Context, s *Script, nowDate time.Time) (string, error) {
+func (p *SqliteProvider) Save(ctx context.Context, s *Command) (string, error) {
 	if s.ID == "" {
-		scriptID, err := generateNewScriptID()
+		commandID, err := generateNewCommandID()
 		if err != nil {
-			return scriptID, err
+			return commandID, err
 		}
 
 		_, err = p.db.ExecContext(
 			ctx,
-			"INSERT INTO `scripts` (`id`, `name`, `created_at`, `created_by`, `interpreter`, `is_sudo`, `cwd`, `script`) VALUES (?, ?, ?, ?, ?, ?, ?, ?)",
-			scriptID,
+			"INSERT INTO `commands` (`id`, `name`, `created_at`, `created_by`, `updated_at`, `updated_by`, `cmd`) VALUES (?, ?, ?, ?, ?, ?, ?)",
+			commandID,
 			s.Name,
-			nowDate.Format(time.RFC3339),
+			s.CreatedAt.Format(time.RFC3339),
 			s.CreatedBy,
-			s.Interpreter,
-			s.IsSudo,
-			s.Cwd,
-			s.Script,
+			s.UpdatedAt.Format(time.RFC3339),
+			s.UpdatedBy,
+			s.Cmd,
 		)
 
-		return scriptID, err
+		return commandID, err
 	}
 
-	q := "UPDATE `scripts` SET `name` = ?, `interpreter` = ?, `is_sudo` = ?, `cwd` = ?, `script` = ? WHERE id = ?"
+	q := "UPDATE `commands` SET `name` = ?, `updated_at` = ?, `updated_by` = ?, `cmd` = ? WHERE id = ?"
 	params := []interface{}{
 		s.Name,
-		s.Interpreter,
-		s.IsSudo,
-		s.Cwd,
-		s.Script,
+		s.UpdatedAt.Format(time.RFC3339),
+		s.UpdatedBy,
+		s.Cmd,
 		s.ID,
 	}
 	_, err := p.db.ExecContext(ctx, q, params...)
@@ -103,7 +100,7 @@ func (p *SqliteProvider) Save(ctx context.Context, s *Script, nowDate time.Time)
 }
 
 func (p *SqliteProvider) Delete(ctx context.Context, id string) error {
-	res, err := p.db.ExecContext(ctx, "DELETE FROM `scripts` WHERE `id` = ?", id)
+	res, err := p.db.ExecContext(ctx, "DELETE FROM `commands` WHERE `id` = ?", id)
 
 	if err != nil {
 		return err
