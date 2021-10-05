@@ -71,7 +71,8 @@ func (e *CmdExecutorMock) writeToStdOut(cmd *exec.Cmd) {
 	for _, s := range e.ReturnStdOut {
 		_, err := cmd.Stdout.Write([]byte(s))
 		if err != nil {
-			log.Fatalf("Failed to write data into stdout: %s", err)
+			log.Printf("Failed to write data into stdout: %s", err)
+			return
 		}
 	}
 }
@@ -82,7 +83,8 @@ func (e *CmdExecutorMock) writeToStdErr(cmd *exec.Cmd) {
 	for _, s := range e.ReturnStdErr {
 		_, err := cmd.Stderr.Write([]byte(s))
 		if err != nil {
-			log.Fatalf("Failed to write data into stderr: %s", err)
+			log.Printf("Failed to write data into stderr: %s", err)
+			return
 		}
 	}
 }
@@ -144,21 +146,21 @@ func TestGetInterpreter(t *testing.T) {
 			name:            "windows, empty",
 			interpreter:     "",
 			os:              win,
-			wantInterpreter: cmdShell,
+			wantInterpreter: chshare.CmdShell,
 			wantErrContains: "",
 		},
 		{
 			name:            "windows, cmd",
-			interpreter:     cmdShell,
+			interpreter:     chshare.CmdShell,
 			os:              win,
-			wantInterpreter: cmdShell,
+			wantInterpreter: chshare.CmdShell,
 			wantErrContains: "",
 		},
 		{
 			name:            "windows, powershell",
-			interpreter:     powerShell,
+			interpreter:     chshare.PowerShell,
 			os:              win,
-			wantInterpreter: powerShell,
+			wantInterpreter: chshare.PowerShell,
 			wantErrContains: "",
 		},
 		{
@@ -172,12 +174,12 @@ func TestGetInterpreter(t *testing.T) {
 			name:            "unix, empty",
 			interpreter:     "",
 			os:              unix,
-			wantInterpreter: unixShell,
+			wantInterpreter: chshare.UnixShell,
 			wantErrContains: "",
 		},
 		{
 			name:            "unix, non empty",
-			interpreter:     unixShell,
+			interpreter:     chshare.UnixShell,
 			os:              unix,
 			wantInterpreter: "",
 			wantErrContains: "for unix clients a command interpreter should not be specified",
@@ -186,7 +188,7 @@ func TestGetInterpreter(t *testing.T) {
 			name:            "empty os, empty interpreter",
 			interpreter:     "",
 			os:              "",
-			wantInterpreter: unixShell,
+			wantInterpreter: chshare.UnixShell,
 			wantErrContains: "",
 		},
 		{
@@ -198,16 +200,28 @@ func TestGetInterpreter(t *testing.T) {
 		{
 			name:            "unix, hasShebang, interpreter not empty",
 			os:              unix,
-			interpreter:     unixShell,
+			interpreter:     chshare.UnixShell,
 			wantInterpreter: "",
 			boolHasShebang:  true,
 		},
 		{
 			name:            "windows, hasShebang, interpreter not empty",
 			os:              win,
-			interpreter:     powerShell,
-			wantInterpreter: powerShell,
+			interpreter:     chshare.PowerShell,
+			wantInterpreter: chshare.PowerShell,
 			boolHasShebang:  true,
+		},
+		{
+			name:            "windows, tacoscript interpreter",
+			os:              win,
+			interpreter:     chshare.Tacoscript,
+			wantInterpreter: chshare.Tacoscript,
+		},
+		{
+			name:            "linux, tacoscript interpreter",
+			os:              unix,
+			interpreter:     chshare.Tacoscript,
+			wantInterpreter: chshare.Tacoscript,
 		},
 	}
 
@@ -270,10 +284,10 @@ func TestHandleRunCmdRequestPositiveCase(t *testing.T) {
 	"cwd": "/root",
 	"timeout_sec": 60,
 	"multi_job_id":null,
-	"error":"",
+	"error":"%s",
 `
 	wantJSONPart2 := `
-	   "result": {
+	  "result": {
 			"stdout": "output1output2output3",
 			"stderr": "error1error2"
 		}
@@ -292,27 +306,27 @@ func TestHandleRunCmdRequestPositiveCase(t *testing.T) {
 		{
 			name:          "limit is larger than stdout and stderr",
 			sendBackLimit: stdOutSize + 1,
-			wantJSON:      wantJSONPart1 + wantJSONPart2,
+			wantJSON:      fmt.Sprintf(wantJSONPart1, "") + wantJSONPart2,
 		},
 		{
 			name:          "limit is equal to the larger output",
 			sendBackLimit: stdOutSize,
-			wantJSON:      wantJSONPart1 + wantJSONPart2,
+			wantJSON:      fmt.Sprintf(wantJSONPart1, "") + wantJSONPart2,
 		},
 		{
 			name:          "limit is equal to the smaller output",
 			sendBackLimit: stdErrSize,
-			wantJSON: wantJSONPart1 + `
-        "result": {
-        "stdout": "output1outpu",
-        "stderr": "error1error2"
-    }
+			wantJSON: fmt.Sprintf(wantJSONPart1, "overflow of stdOut buffer: maximum send_back_limit of 12 bytes exceeded") + `
+       "result": {
+       "stdout": "output1outpu",
+       "stderr": "error1error2"
+   }
 }`,
 		},
 		{
 			name:          "limit is less than smaller output",
 			sendBackLimit: stdErrSize - 1,
-			wantJSON: wantJSONPart1 + `
+			wantJSON: fmt.Sprintf(wantJSONPart1, "overflow of stdOut buffer: maximum send_back_limit of 11 bytes exceeded, overflow of stdErr buffer: maximum send_back_limit of 11 bytes exceeded") + `
 		"result": {
 		"stdout": "output1outp",
 		"stderr": "error1error"
@@ -322,12 +336,12 @@ func TestHandleRunCmdRequestPositiveCase(t *testing.T) {
 		{
 			name:          "limit is zero",
 			sendBackLimit: 0,
-			wantJSON: wantJSONPart1 + `
-		"result": {
-		"stdout": "",
-		"stderr": ""
-	}
-}`,
+			wantJSON: fmt.Sprintf(wantJSONPart1, "overflow of stdOut buffer: maximum send_back_limit of 0 bytes exceeded, overflow of stdErr buffer: maximum send_back_limit of 0 bytes exceeded") + `
+				"result": {
+				"stdout": "",
+				"stderr": ""
+			}
+		}`,
 		},
 		{
 			name:            "command is not allowed",
@@ -335,7 +349,8 @@ func TestHandleRunCmdRequestPositiveCase(t *testing.T) {
 			wantErrContains: "command is not allowed",
 		},
 	}
-	for _, tc := range testCases {
+	for i := range testCases {
+		tc := testCases[i]
 		t.Run(tc.name, func(t *testing.T) {
 			// given
 			c.config.RemoteCommands.SendBackLimit = tc.sendBackLimit

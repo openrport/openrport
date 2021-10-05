@@ -10,6 +10,8 @@ import (
 	"path/filepath"
 	"strings"
 	"syscall"
+
+	chshare "github.com/cloudradar-monitoring/rport/share"
 )
 
 func (e *CmdExecutorImpl) New(ctx context.Context, execCtx *CmdExecutorContext) *exec.Cmd {
@@ -23,9 +25,9 @@ func (e *CmdExecutorImpl) New(ctx context.Context, execCtx *CmdExecutorContext) 
 	}
 
 	switch execCtx.Interpreter {
-	case cmdShell:
+	case chshare.CmdShell:
 		return buildCmdInterpreterCmd(ctx, execCtx, interpreterPath)
-	case powerShell:
+	case chshare.PowerShell:
 		return buildPowershellCmd(ctx, execCtx, interpreterPath)
 	default:
 		return buildDefaultCmd(ctx, execCtx, interpreterPath)

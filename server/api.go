@@ -58,8 +58,6 @@ const (
 	minVersionScriptExecSupport = "0.1.35"
 )
 
-var validInputInterpreter = []string{"cmd", "powershell"}
-
 var generateNewJobID = func() (string, error) {
 	return random.UUID4()
 }
@@ -1360,7 +1358,7 @@ func (al *APIListener) handleExecuteCommand(ctx context.Context, w http.Response
 		al.jsonErrorResponseWithTitle(w, http.StatusBadRequest, "Command cannot be empty.")
 		return
 	}
-	if err := validateInterpreter(executeInput.Interpreter); err != nil {
+	if err := validation.ValidateInterpreter(executeInput.Interpreter, executeInput.IsScript); err != nil {
 		al.jsonErrorResponseWithError(w, http.StatusBadRequest, "Invalid interpreter.", err)
 		return
 	}
@@ -1511,18 +1509,6 @@ func (al *APIListener) handleExecuteScript(w http.ResponseWriter, req *http.Requ
 	al.handleExecuteCommand(req.Context(), w, execCmdInput)
 }
 
-func validateInterpreter(interpreter string) error {
-	if interpreter == "" {
-		return nil
-	}
-	for _, v := range validInputInterpreter {
-		if interpreter == v {
-			return nil
-		}
-	}
-	return fmt.Errorf("expected interpreter to be one of: %s, actual: %s", validInputInterpreter, interpreter)
-}
-
 func (al *APIListener) handleGetCommands(w http.ResponseWriter, req *http.Request) {
 	vars := mux.Vars(req)
 	cid := vars[routeParamClientID]
@@ -1601,7 +1587,7 @@ func (al *APIListener) handlePostMultiClientCommand(w http.ResponseWriter, req *
 		al.jsonErrorResponseWithTitle(w, http.StatusBadRequest, "Command cannot be empty.")
 		return
 	}
-	if err := validateInterpreter(reqBody.Interpreter); err != nil {
+	if err := validation.ValidateInterpreter(reqBody.Interpreter, reqBody.IsScript); err != nil {
 		al.jsonErrorResponseWithError(w, http.StatusBadRequest, "Invalid interpreter.", err)
 		return
 	}
@@ -2012,7 +1998,7 @@ func (al *APIListener) handleCommandsExecutionWS(
 		uiConnTS.WriteError("Command cannot be empty.", nil)
 		return
 	}
-	if err := validateInterpreter(inboundMsg.Interpreter); err != nil {
+	if err := validation.ValidateInterpreter(inboundMsg.Interpreter, inboundMsg.IsScript); err != nil {
 		uiConnTS.WriteError("Invalid interpreter", err)
 		return
 	}

@@ -67,14 +67,25 @@ func (e *Executor) createClientScriptPath(os, interpreter string) (string, error
 	if err != nil {
 		return "", err
 	}
-	if os == "windows" {
-		if interpreter == "powershell" {
-			return scriptName + ".ps1", nil
-		}
-		return scriptName + ".bat", nil
+
+	extension := e.getExtension(os, interpreter)
+
+	return scriptName + extension, nil
+}
+
+func (e *Executor) getExtension(os, interpreter string) string {
+	if interpreter == chshare.Tacoscript {
+		return ".yml"
 	}
 
-	return scriptName + ".sh", nil
+	if os == "windows" {
+		if interpreter == chshare.PowerShell {
+			return ".ps1"
+		}
+		return ".bat"
+	}
+
+	return ".sh"
 }
 
 const shebangPrefix = "#!"
