@@ -58,7 +58,7 @@ func NewClient(config *Config) *Client {
 		cmdExec:    cmdExec,
 		systemInfo: systemInfo,
 		updates:    updates.New(logger, config.Client.UpdatesInterval),
-		monitor:    monitoring.NewMonitor(logger, config.Monitoring.Enabled, config.Monitoring.Interval, systemInfo),
+		monitor:    monitoring.NewMonitor(logger, config.Monitoring, systemInfo),
 	}
 
 	client.sshConfig = &ssh.ClientConfig{

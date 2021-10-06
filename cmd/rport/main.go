@@ -203,7 +203,11 @@ func init() {
 	pFlags.StringArray("fallback-server", []string{}, "")
 	pFlags.Duration("server-switchback-interval", 0, "")
 	pFlags.Bool("monitoring-enabled", false, "")
-	pFlags.Duration("monitoring-interval", 60, "")
+	pFlags.Duration("monitoring-interval", 0, "")
+	pFlags.StringArray("monitoring-fs-type-include", []string{}, "")
+	pFlags.StringArray("monitoring-fs-path-exclude", []string{}, "")
+	pFlags.Bool("monitoring-fs-path-exclude-recurse", false, "")
+	pFlags.Bool("monitoring-fs-identify-mountpoints-by-device", false, "")
 
 	cfgPath = pFlags.StringP("config", "c", "", "")
 	svcCommand = pFlags.String("service", "", "")
@@ -233,6 +237,10 @@ func init() {
 	viperCfg.SetDefault("client.data_dir", chclient.DefaultDataDir)
 	viperCfg.SetDefault("monitoring.enabled", true)
 	viperCfg.SetDefault("monitoring.interval", chclient.DefaultMonitoringInterval)
+	viperCfg.SetDefault("monitoring.fs_type_include", []string{"ext3", "ext4", "xfs", "jfs", "ntfs", "btrfs", "hfs", "apfs", "exfat", "smbfs", "nfs"})
+	viperCfg.SetDefault("monitoring.fs_path_exclude", []string{})
+	viperCfg.SetDefault("monitoring.fs_path_exclude_recurse", false)
+	viperCfg.SetDefault("monitoring.fs_identify_mountpoints_by_device", true)
 }
 
 func bindPFlags() {
@@ -265,6 +273,10 @@ func bindPFlags() {
 
 	_ = viperCfg.BindPFlag("monitoring.enabled", pFlags.Lookup("monitoring-enabled"))
 	_ = viperCfg.BindPFlag("monitoring.interval", pFlags.Lookup("monitoring-interval"))
+	_ = viperCfg.BindPFlag("monitoring.fs_type_include", pFlags.Lookup("monitoring-fs-type-include"))
+	_ = viperCfg.BindPFlag("monitoring.fs_path_exclude", pFlags.Lookup("monitoring-fs-path-exclude"))
+	_ = viperCfg.BindPFlag("monitoring.fs_path_exclude_recurse", pFlags.Lookup("monitoring-fs-path-exclude-recurse"))
+	_ = viperCfg.BindPFlag("monitoring.fs_identify_mountpoints_by_device", pFlags.Lookup("monitoring-fs-identify-mountpoints-by-device"))
 }
 
 func main() {

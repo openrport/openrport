@@ -12,6 +12,7 @@ import (
 	"strings"
 	"time"
 
+	"github.com/cloudradar-monitoring/rport/client/monitoring"
 	"github.com/cloudradar-monitoring/rport/client/system"
 	chshare "github.com/cloudradar-monitoring/rport/share"
 )
@@ -78,18 +79,13 @@ type ScriptsConfig struct {
 	Enabled bool `mapstructure:"enabled"`
 }
 
-type MonitoringConfig struct {
-	Enabled  bool          `mapstructure:"enabled"`
-	Interval time.Duration `mapstructure:"interval"`
-}
-
 type Config struct {
-	Client         ClientConfig     `mapstructure:"client"`
-	Connection     ConnectionConfig `mapstructure:"connection"`
-	Logging        LogConfig        `mapstructure:"logging"`
-	RemoteCommands CommandsConfig   `mapstructure:"remote-commands"`
-	RemoteScripts  ScriptsConfig    `mapstructure:"remote-scripts"`
-	Monitoring     MonitoringConfig `mapstructure:"monitoring"`
+	Client         ClientConfig      `mapstructure:"client"`
+	Connection     ConnectionConfig  `mapstructure:"connection"`
+	Logging        LogConfig         `mapstructure:"logging"`
+	RemoteCommands CommandsConfig    `mapstructure:"remote-commands"`
+	RemoteScripts  ScriptsConfig     `mapstructure:"remote-scripts"`
+	Monitoring     monitoring.Config `mapstructure:"monitoring"`
 }
 
 func (c *Config) ParseAndValidate(skipScriptsDirValidation bool) error {

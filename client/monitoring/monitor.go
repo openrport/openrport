@@ -8,6 +8,7 @@ import (
 
 	"golang.org/x/crypto/ssh"
 
+	"github.com/cloudradar-monitoring/rport/client/monitoring/fs"
 	"github.com/cloudradar-monitoring/rport/client/system"
 	chshare "github.com/cloudradar-monitoring/rport/share"
 	"github.com/cloudradar-monitoring/rport/share/comm"
@@ -15,21 +16,28 @@ import (
 )
 
 type Monitor struct {
-	mtx         sync.RWMutex
-	conn        ssh.Conn
-	logger      *chshare.Logger
-	enabled     bool
-	interval    time.Duration
-	measurement *models.Measurement
-	systemInfo  system.SysInfo
+	mtx               sync.RWMutex
+	conn              ssh.Conn
+	logger            *chshare.Logger
+	config            Config
+	measurement       *models.Measurement
+	systemInfo        system.SysInfo
+	fileSystemWatcher *fs.FileSystemWatcher
 }
 
-func NewMonitor(logger *chshare.Logger, enabled bool, interval time.Duration, systemInfo system.SysInfo) *Monitor {
-	return &Monitor{logger: logger, enabled: enabled, interval: interval, systemInfo: systemInfo}
+func NewMonitor(logger *chshare.Logger, config Config, systemInfo system.SysInfo) *Monitor {
+	fsWatcher := fs.NewWatcher(fs.FileSystemWatcherConfig{
+		TypeInclude:                 config.FSTypeInclude,
+		PathExclude:                 config.FSPathExclude,
+		PathExcludeRecurse:          config.FSPathExcludeRecurse,
+		Metrics:                     fs.DefaultMetrics(),
+		IdentifyMountpointsByDevice: config.FSIdentifyMountpointsByDevice,
+	}, logger)
+	return &Monitor{logger: logger, config: config, systemInfo: systemInfo, fileSystemWatcher: fsWatcher}
 }
 
 func (m *Monitor) Start(ctx context.Context) {
-	if !m.enabled {
+	if !m.config.Enabled {
 		return
 	}
 
@@ -43,7 +51,7 @@ func (m *Monitor) refreshLoop(ctx context.Context) {
 		select {
 		case <-ctx.Done():
 			return
-		case <-time.After(m.interval):
+		case <-time.After(m.config.Interval):
 		}
 	}
 }
@@ -74,7 +82,10 @@ func (m *Monitor) createMeasurement(ctx context.Context) *models.Measurement {
 		newMeasurement.IoUsagePercent = cpuPercentIOWait
 	}
 	newMeasurement.Processes = `{}`
-	newMeasurement.Mountpoints = `{}`
+	measurementsMap, err := m.fileSystemWatcher.Results()
+	if err == nil {
+		newMeasurement.Mountpoints = measurementsMap.ToJSON()
+	}
 	return newMeasurement
 }
 
