@@ -12,8 +12,6 @@ import (
 	"github.com/sirupsen/logrus"
 	"golang.org/x/sys/windows"
 	"golang.org/x/sys/windows/registry"
-
-	"github.com/cloudradar-monitoring/cagent/pkg/winapi"
 )
 
 const (
@@ -122,27 +120,6 @@ func tryRetrieveRemoteDriveFSType(drivePath *uint16) (string, error) {
 	}
 
 	return "", nil
-}
-
-func getPartitionIOCounters(deviceName string) (*disk.IOCountersStat, error) {
-	if err := enablePerformanceCounters(); err != nil {
-		return nil, err
-	}
-
-	var uncPath = `\\.\` + deviceName
-	diskPerformance, err := winapi.GetDiskPerformance(uncPath)
-	if err != nil {
-		return nil, err
-	}
-	return &disk.IOCountersStat{
-		Name:       deviceName,
-		ReadCount:  uint64(diskPerformance.ReadCount),
-		WriteCount: uint64(diskPerformance.WriteCount),
-		ReadBytes:  uint64(diskPerformance.BytesRead),
-		WriteBytes: uint64(diskPerformance.BytesWritten),
-		ReadTime:   uint64(diskPerformance.ReadTime),
-		WriteTime:  uint64(diskPerformance.WriteTime),
-	}, nil
 }
 
 // enablePerformanceCounters will enable performance counters by adding the EnableCounterForIoctl registry key
