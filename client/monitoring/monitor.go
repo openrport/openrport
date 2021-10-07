@@ -8,7 +8,9 @@ import (
 
 	"golang.org/x/crypto/ssh"
 
+	"github.com/cloudradar-monitoring/rport/client/monitoring/docker"
 	"github.com/cloudradar-monitoring/rport/client/monitoring/fs"
+	"github.com/cloudradar-monitoring/rport/client/monitoring/processes"
 	"github.com/cloudradar-monitoring/rport/client/system"
 	chshare "github.com/cloudradar-monitoring/rport/share"
 	"github.com/cloudradar-monitoring/rport/share/comm"
@@ -23,6 +25,7 @@ type Monitor struct {
 	measurement       *models.Measurement
 	systemInfo        system.SysInfo
 	fileSystemWatcher *fs.FileSystemWatcher
+	processHandler    *processes.ProcessHandler
 }
 
 func NewMonitor(logger *chshare.Logger, config Config, systemInfo system.SysInfo) *Monitor {
@@ -33,7 +36,9 @@ func NewMonitor(logger *chshare.Logger, config Config, systemInfo system.SysInfo
 		Metrics:                     fs.DefaultMetrics(),
 		IdentifyMountpointsByDevice: config.FSIdentifyMountpointsByDevice,
 	}, logger)
-	return &Monitor{logger: logger, config: config, systemInfo: systemInfo, fileSystemWatcher: fsWatcher}
+	dockerHandler := docker.NewHandler(logger)
+	processHandler := processes.NewProcessHandler(processes.GetDefaultConfig(), logger, dockerHandler)
+	return &Monitor{logger: logger, config: config, systemInfo: systemInfo, fileSystemWatcher: fsWatcher, processHandler: processHandler}
 }
 
 func (m *Monitor) Start(ctx context.Context) {
@@ -81,10 +86,15 @@ func (m *Monitor) createMeasurement(ctx context.Context) *models.Measurement {
 	if err == nil {
 		newMeasurement.IoUsagePercent = cpuPercentIOWait
 	}
-	newMeasurement.Processes = `{}`
-	measurementsMap, err := m.fileSystemWatcher.Results()
+
+	procsMap, err := m.processHandler.GetMeasurements(memStats)
 	if err == nil {
-		newMeasurement.Mountpoints = measurementsMap.ToJSON()
+		newMeasurement.Processes = procsMap.ToJSON()
+	}
+
+	fsMap, err := m.fileSystemWatcher.Results()
+	if err == nil {
+		newMeasurement.Mountpoints = fsMap.ToJSON()
 	}
 	return newMeasurement
 }

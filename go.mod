@@ -23,10 +23,13 @@ require (
 	github.com/jpillora/requestlog v1.0.0
 	github.com/jpillora/sizestr v1.0.0
 	github.com/kardianos/service v1.1.0
+	github.com/lxn/win v0.0.0-20210218163916-a377121e959e
 	github.com/mattn/go-sqlite3 v1.14.4
 	github.com/mitchellh/mapstructure v1.1.2
+	github.com/pkg/errors v0.9.1
 	github.com/scjalliance/comshim v0.0.0-20190308082608-cf06d2532c4e
 	github.com/shirou/gopsutil v3.21.5+incompatible
+	github.com/sirupsen/logrus v1.7.0
 	github.com/spf13/cobra v1.0.0
 	github.com/spf13/viper v1.7.1
 	github.com/stretchr/testify v1.6.1
