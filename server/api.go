@@ -14,8 +14,10 @@ import (
 	"strings"
 	"time"
 
+	"github.com/gorilla/handlers"
 	"github.com/gorilla/mux"
 	"github.com/gorilla/websocket"
+	"github.com/jpillora/requestlog"
 	"github.com/tomasen/realip"
 	"golang.org/x/crypto/ssh"
 
@@ -159,97 +161,115 @@ func (al *APIListener) handleBannedIPs(w http.ResponseWriter, r *http.Request, a
 
 func (al *APIListener) initRouter() {
 	r := mux.NewRouter()
-	sub := r.PathPrefix("/api/v1").Subrouter()
-	sub.HandleFunc("/status", al.handleGetStatus).Methods(http.MethodGet)
-	sub.HandleFunc("/me", al.handleGetMe).Methods(http.MethodGet)
-	sub.HandleFunc("/me", al.handleChangeMe).Methods(http.MethodPut)
-	sub.HandleFunc("/me/ip", al.handleGetIP).Methods(http.MethodGet)
-	sub.HandleFunc("/me/token", al.handlePostToken).Methods(http.MethodPost)
-	sub.HandleFunc("/me/token", al.handleDeleteToken).Methods(http.MethodDelete)
-	sub.HandleFunc("/clients", al.handleGetClients).Methods(http.MethodGet)
-	sub.HandleFunc("/clients/{client_id}", al.wrapClientAccessMiddleware(al.handleGetClient)).Methods(http.MethodGet)
-	sub.HandleFunc("/clients/{client_id}", al.wrapClientAccessMiddleware(al.handleDeleteClient)).Methods(http.MethodDelete)
-	sub.HandleFunc("/clients/{client_id}/acl", al.wrapAdminAccessMiddleware(al.handlePostClientACL)).Methods(http.MethodPost)
-	sub.HandleFunc("/clients/{client_id}/tunnels", al.wrapClientAccessMiddleware(al.handlePutClientTunnel)).Methods(http.MethodPut)
-	sub.HandleFunc("/clients/{client_id}/tunnels/{tunnel_id}", al.wrapClientAccessMiddleware(al.handleDeleteClientTunnel)).Methods(http.MethodDelete)
-	sub.HandleFunc("/clients/{client_id}/commands", al.wrapClientAccessMiddleware(al.handlePostCommand)).Methods(http.MethodPost)
-	sub.HandleFunc("/clients/{client_id}/commands", al.wrapClientAccessMiddleware(al.handleGetCommands)).Methods(http.MethodGet)
-	sub.HandleFunc("/clients/{client_id}/commands/{job_id}", al.wrapClientAccessMiddleware(al.handleGetCommand)).Methods(http.MethodGet)
-	sub.HandleFunc("/clients/{client_id}/scripts", al.wrapClientAccessMiddleware(al.handleExecuteScript)).Methods(http.MethodPost)
-	sub.HandleFunc("/clients/{client_id}/updates-status", al.wrapClientAccessMiddleware(al.handleRefreshUpdatesStatus)).Methods(http.MethodPost)
-	sub.HandleFunc("/client-groups", al.handleGetClientGroups).Methods(http.MethodGet)
-	sub.HandleFunc("/client-groups", al.wrapAdminAccessMiddleware(al.handlePostClientGroups)).Methods(http.MethodPost)
-	sub.HandleFunc("/client-groups/{group_id}", al.wrapAdminAccessMiddleware(al.handlePutClientGroup)).Methods(http.MethodPut)
-	sub.HandleFunc("/client-groups/{group_id}", al.handleGetClientGroup).Methods(http.MethodGet)
-	sub.HandleFunc("/client-groups/{group_id}", al.wrapAdminAccessMiddleware(al.handleDeleteClientGroup)).Methods(http.MethodDelete)
-	sub.HandleFunc("/users", al.wrapStaticPassModeMiddleware(al.wrapAdminAccessMiddleware(al.handleGetUsers))).Methods(http.MethodGet)
-	sub.HandleFunc("/users", al.wrapStaticPassModeMiddleware(al.wrapAdminAccessMiddleware(al.handleChangeUser))).Methods(http.MethodPost)
-	sub.HandleFunc("/users/{user_id}", al.wrapStaticPassModeMiddleware(al.wrapAdminAccessMiddleware(al.handleChangeUser))).Methods(http.MethodPut)
-	sub.HandleFunc("/users/{user_id}", al.wrapStaticPassModeMiddleware(al.wrapAdminAccessMiddleware(al.handleDeleteUser))).Methods(http.MethodDelete)
-	sub.HandleFunc("/commands", al.handlePostMultiClientCommand).Methods(http.MethodPost)
-	sub.HandleFunc("/commands", al.handleGetMultiClientCommands).Methods(http.MethodGet)
-	sub.HandleFunc("/commands/{job_id}", al.handleGetMultiClientCommand).Methods(http.MethodGet)
-	sub.HandleFunc("/clients-auth", al.wrapAdminAccessMiddleware(al.handleGetClientsAuth)).Methods(http.MethodGet)
-	sub.HandleFunc("/clients-auth", al.wrapAdminAccessMiddleware(al.handlePostClientsAuth)).Methods(http.MethodPost)
-	sub.HandleFunc("/clients-auth/{client_auth_id}", al.wrapAdminAccessMiddleware(al.handleDeleteClientAuth)).Methods(http.MethodDelete)
-	sub.HandleFunc("/vault-admin", al.handleGetVaultStatus).Methods(http.MethodGet)
-	sub.HandleFunc("/vault-admin/sesame", al.wrapAdminAccessMiddleware(al.handleVaultUnlock)).Methods(http.MethodPost)
-	sub.HandleFunc("/vault-admin/init", al.wrapAdminAccessMiddleware(al.handleVaultInit)).Methods(http.MethodPost)
-	sub.HandleFunc("/vault-admin/sesame", al.wrapAdminAccessMiddleware(al.handleVaultLock)).Methods(http.MethodDelete)
-	sub.HandleFunc("/vault", al.handleListVaultValues).Methods(http.MethodGet)
-	sub.HandleFunc("/vault", al.handleVaultStoreValue).Methods(http.MethodPost)
-	sub.HandleFunc("/vault/{"+routeParamVaultValueID+"}", al.handleReadVaultValue).Methods(http.MethodGet)
-	sub.HandleFunc("/vault/{"+routeParamVaultValueID+"}", al.handleVaultStoreValue).Methods(http.MethodPut)
-	sub.HandleFunc("/vault/{"+routeParamVaultValueID+"}", al.handleVaultDeleteValue).Methods(http.MethodDelete)
-	sub.HandleFunc("/library/scripts", al.handleListScripts).Methods(http.MethodGet)
-	sub.HandleFunc("/library/scripts", al.handleScriptCreate).Methods(http.MethodPost)
-	sub.HandleFunc("/library/scripts/{"+routeParamScriptValueID+"}", al.handleScriptUpdate).Methods(http.MethodPut)
-	sub.HandleFunc("/library/scripts/{"+routeParamScriptValueID+"}", al.handleReadScript).Methods(http.MethodGet)
-	sub.HandleFunc("/library/scripts/{"+routeParamScriptValueID+"}", al.handleDeleteScript).Methods(http.MethodDelete)
-	sub.HandleFunc("/library/commands", al.handleListCommands).Methods(http.MethodGet)
-	sub.HandleFunc("/library/commands", al.handleCommandCreate).Methods(http.MethodPost)
-	sub.HandleFunc("/library/commands/{"+routeParamCommandValueID+"}", al.handleCommandUpdate).Methods(http.MethodPut)
-	sub.HandleFunc("/library/commands/{"+routeParamCommandValueID+"}", al.handleReadCommand).Methods(http.MethodGet)
-	sub.HandleFunc("/library/commands/{"+routeParamCommandValueID+"}", al.handleDeleteCommand).Methods(http.MethodDelete)
-	sub.HandleFunc("/scripts", al.handlePostMultiClientScript).Methods(http.MethodPost)
+	api := r.PathPrefix("/api/v1").Subrouter()
+	api.HandleFunc("/status", al.handleGetStatus).Methods(http.MethodGet)
+	api.HandleFunc("/me", al.handleGetMe).Methods(http.MethodGet)
+	api.HandleFunc("/me", al.handleChangeMe).Methods(http.MethodPut)
+	api.HandleFunc("/me/ip", al.handleGetIP).Methods(http.MethodGet)
+	api.HandleFunc("/me/token", al.handlePostToken).Methods(http.MethodPost)
+	api.HandleFunc("/me/token", al.handleDeleteToken).Methods(http.MethodDelete)
+	api.HandleFunc("/clients", al.handleGetClients).Methods(http.MethodGet)
+	api.HandleFunc("/clients/{client_id}", al.wrapClientAccessMiddleware(al.handleGetClient)).Methods(http.MethodGet)
+	api.HandleFunc("/clients/{client_id}", al.wrapClientAccessMiddleware(al.handleDeleteClient)).Methods(http.MethodDelete)
+	api.HandleFunc("/clients/{client_id}/acl", al.wrapAdminAccessMiddleware(al.handlePostClientACL)).Methods(http.MethodPost)
+	api.HandleFunc("/clients/{client_id}/tunnels", al.wrapClientAccessMiddleware(al.handlePutClientTunnel)).Methods(http.MethodPut)
+	api.HandleFunc("/clients/{client_id}/tunnels/{tunnel_id}", al.wrapClientAccessMiddleware(al.handleDeleteClientTunnel)).Methods(http.MethodDelete)
+	api.HandleFunc("/clients/{client_id}/commands", al.wrapClientAccessMiddleware(al.handlePostCommand)).Methods(http.MethodPost)
+	api.HandleFunc("/clients/{client_id}/commands", al.wrapClientAccessMiddleware(al.handleGetCommands)).Methods(http.MethodGet)
+	api.HandleFunc("/clients/{client_id}/commands/{job_id}", al.wrapClientAccessMiddleware(al.handleGetCommand)).Methods(http.MethodGet)
+	api.HandleFunc("/clients/{client_id}/scripts", al.wrapClientAccessMiddleware(al.handleExecuteScript)).Methods(http.MethodPost)
+	api.HandleFunc("/clients/{client_id}/updates-status", al.wrapClientAccessMiddleware(al.handleRefreshUpdatesStatus)).Methods(http.MethodPost)
+	api.HandleFunc("/client-groups", al.handleGetClientGroups).Methods(http.MethodGet)
+	api.HandleFunc("/client-groups", al.wrapAdminAccessMiddleware(al.handlePostClientGroups)).Methods(http.MethodPost)
+	api.HandleFunc("/client-groups/{group_id}", al.wrapAdminAccessMiddleware(al.handlePutClientGroup)).Methods(http.MethodPut)
+	api.HandleFunc("/client-groups/{group_id}", al.handleGetClientGroup).Methods(http.MethodGet)
+	api.HandleFunc("/client-groups/{group_id}", al.wrapAdminAccessMiddleware(al.handleDeleteClientGroup)).Methods(http.MethodDelete)
+	api.HandleFunc("/users", al.wrapStaticPassModeMiddleware(al.wrapAdminAccessMiddleware(al.handleGetUsers))).Methods(http.MethodGet)
+	api.HandleFunc("/users", al.wrapStaticPassModeMiddleware(al.wrapAdminAccessMiddleware(al.handleChangeUser))).Methods(http.MethodPost)
+	api.HandleFunc("/users/{user_id}", al.wrapStaticPassModeMiddleware(al.wrapAdminAccessMiddleware(al.handleChangeUser))).Methods(http.MethodPut)
+	api.HandleFunc("/users/{user_id}", al.wrapStaticPassModeMiddleware(al.wrapAdminAccessMiddleware(al.handleDeleteUser))).Methods(http.MethodDelete)
+	api.HandleFunc("/commands", al.handlePostMultiClientCommand).Methods(http.MethodPost)
+	api.HandleFunc("/commands", al.handleGetMultiClientCommands).Methods(http.MethodGet)
+	api.HandleFunc("/commands/{job_id}", al.handleGetMultiClientCommand).Methods(http.MethodGet)
+	api.HandleFunc("/clients-auth", al.wrapAdminAccessMiddleware(al.handleGetClientsAuth)).Methods(http.MethodGet)
+	api.HandleFunc("/clients-auth", al.wrapAdminAccessMiddleware(al.handlePostClientsAuth)).Methods(http.MethodPost)
+	api.HandleFunc("/clients-auth/{client_auth_id}", al.wrapAdminAccessMiddleware(al.handleDeleteClientAuth)).Methods(http.MethodDelete)
+	api.HandleFunc("/vault-admin", al.handleGetVaultStatus).Methods(http.MethodGet)
+	api.HandleFunc("/vault-admin/sesame", al.wrapAdminAccessMiddleware(al.handleVaultUnlock)).Methods(http.MethodPost)
+	api.HandleFunc("/vault-admin/init", al.wrapAdminAccessMiddleware(al.handleVaultInit)).Methods(http.MethodPost)
+	api.HandleFunc("/vault-admin/sesame", al.wrapAdminAccessMiddleware(al.handleVaultLock)).Methods(http.MethodDelete)
+	api.HandleFunc("/vault", al.handleListVaultValues).Methods(http.MethodGet)
+	api.HandleFunc("/vault", al.handleVaultStoreValue).Methods(http.MethodPost)
+	api.HandleFunc("/vault/{"+routeParamVaultValueID+"}", al.handleReadVaultValue).Methods(http.MethodGet)
+	api.HandleFunc("/vault/{"+routeParamVaultValueID+"}", al.handleVaultStoreValue).Methods(http.MethodPut)
+	api.HandleFunc("/vault/{"+routeParamVaultValueID+"}", al.handleVaultDeleteValue).Methods(http.MethodDelete)
+	api.HandleFunc("/library/scripts", al.handleListScripts).Methods(http.MethodGet)
+	api.HandleFunc("/library/scripts", al.handleScriptCreate).Methods(http.MethodPost)
+	api.HandleFunc("/library/scripts/{"+routeParamScriptValueID+"}", al.handleScriptUpdate).Methods(http.MethodPut)
+	api.HandleFunc("/library/scripts/{"+routeParamScriptValueID+"}", al.handleReadScript).Methods(http.MethodGet)
+	api.HandleFunc("/library/scripts/{"+routeParamScriptValueID+"}", al.handleDeleteScript).Methods(http.MethodDelete)
+	api.HandleFunc("/library/commands", al.handleListCommands).Methods(http.MethodGet)
+	api.HandleFunc("/library/commands", al.handleCommandCreate).Methods(http.MethodPost)
+	api.HandleFunc("/library/commands/{"+routeParamCommandValueID+"}", al.handleCommandUpdate).Methods(http.MethodPut)
+	api.HandleFunc("/library/commands/{"+routeParamCommandValueID+"}", al.handleReadCommand).Methods(http.MethodGet)
+	api.HandleFunc("/library/commands/{"+routeParamCommandValueID+"}", al.handleDeleteCommand).Methods(http.MethodDelete)
+	api.HandleFunc("/scripts", al.handlePostMultiClientScript).Methods(http.MethodPost)
 
 	// add authorization middleware
 	if !al.insecureForTests {
-		_ = sub.Walk(func(route *mux.Route, router *mux.Router, ancestors []*mux.Route) error {
+		_ = api.Walk(func(route *mux.Route, router *mux.Router, ancestors []*mux.Route) error {
 			route.HandlerFunc(al.wrapWithAuthMiddleware(route.GetHandler()))
 			return nil
 		})
 	}
 
 	// all routes defined below do not have authorization middleware, auth is done in each handlers separately
-	sub.HandleFunc("/login", al.handleGetLogin).Methods(http.MethodGet)
-	sub.HandleFunc("/login", al.handlePostLogin).Methods(http.MethodPost)
-	sub.HandleFunc("/logout", al.handleDeleteLogout).Methods(http.MethodDelete)
-	sub.HandleFunc("/verify-2fa", al.handlePostVerify2FAToken).Methods(http.MethodPost)
+	api.HandleFunc("/login", al.handleGetLogin).Methods(http.MethodGet)
+	api.HandleFunc("/login", al.handlePostLogin).Methods(http.MethodPost)
+	api.HandleFunc("/logout", al.handleDeleteLogout).Methods(http.MethodDelete)
+	api.HandleFunc("/verify-2fa", al.handlePostVerify2FAToken).Methods(http.MethodPost)
 
 	// web sockets
 	// common auth middleware is not used due to JS issue https://stackoverflow.com/questions/22383089/is-it-possible-to-use-bearer-authentication-for-websocket-upgrade-requests
-	sub.HandleFunc("/ws/commands", al.wsAuth(http.HandlerFunc(al.handleCommandsWS))).Methods(http.MethodGet)
-	sub.HandleFunc("/ws/scripts", al.wsAuth(http.HandlerFunc(al.handleScriptsWS))).Methods(http.MethodGet)
+	api.HandleFunc("/ws/commands", al.wsAuth(http.HandlerFunc(al.handleCommandsWS))).Methods(http.MethodGet)
+	api.HandleFunc("/ws/scripts", al.wsAuth(http.HandlerFunc(al.handleScriptsWS))).Methods(http.MethodGet)
 
 	if al.config.Server.EnableWsTestEndpoints {
-		sub.HandleFunc("/test/commands/ui", al.wsCommands)
-		sub.HandleFunc("/test/scripts/ui", al.wsScripts)
+		api.HandleFunc("/test/commands/ui", al.wsCommands)
+		api.HandleFunc("/test/scripts/ui", al.wsScripts)
 	}
 
 	if al.bannedIPs != nil {
 		// add middleware to reject banned IPs
-		_ = sub.Walk(func(route *mux.Route, router *mux.Router, ancestors []*mux.Route) error {
+		_ = api.Walk(func(route *mux.Route, router *mux.Router, ancestors []*mux.Route) error {
 			route.HandlerFunc(security.RejectBannedIPs(route.GetHandler(), al.bannedIPs))
 			return nil
 		})
 	}
 
 	// add max bytes middleware
-	_ = sub.Walk(func(route *mux.Route, router *mux.Router, ancestors []*mux.Route) error {
+	_ = api.Walk(func(route *mux.Route, router *mux.Router, ancestors []*mux.Route) error {
 		route.HandlerFunc(middleware.MaxBytes(route.GetHandler(), al.config.Server.MaxRequestBytes))
 		return nil
 	})
+
+	docRoot := al.config.API.DocRoot
+	if docRoot != "" {
+		r.PathPrefix("/").Handler(middleware.Rewrite404(http.FileServer(http.Dir(docRoot)), "/"))
+	}
+
+	if al.requestLogOptions != nil {
+		r.Use(func(next http.Handler) http.Handler { return requestlog.WrapWith(next, *al.requestLogOptions) })
+	}
+	if al.accessLogFile != nil {
+		r.Use(func(next http.Handler) http.Handler { return handlers.CombinedLoggingHandler(al.accessLogFile, next) })
+	}
+
+	r.Use(handlers.CompressHandler)
+	r.Use(handlers.RecoveryHandler(
+		handlers.PrintRecoveryStack(true),
+		handlers.RecoveryLogger(middleware.NewRecoveryLogger(al.Logger)),
+	))
 
 	al.router = r
 }
