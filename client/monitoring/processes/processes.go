@@ -1,38 +1,24 @@
 package processes
 
 import (
-	"runtime"
 	"sort"
 
 	"github.com/shirou/gopsutil/mem"
 
 	"github.com/cloudradar-monitoring/rport/client/common"
+	"github.com/cloudradar-monitoring/rport/client/monitoring/config"
 	"github.com/cloudradar-monitoring/rport/client/monitoring/docker"
 	chshare "github.com/cloudradar-monitoring/rport/share"
 )
 
-type Config struct {
-	Enabled                     bool
-	EnableKernelTaskMonitoring  bool
-	MaxNumberMonitoredProcesses uint
-}
-
 type ProcessHandler struct {
-	config        Config
+	config        config.MonitoringConfig
 	logger        *chshare.Logger
 	dockerHandler *docker.Handler
 }
 
-func NewProcessHandler(config Config, logger *chshare.Logger, dockerHandler *docker.Handler) *ProcessHandler {
+func NewProcessHandler(config config.MonitoringConfig, logger *chshare.Logger, dockerHandler *docker.Handler) *ProcessHandler {
 	return &ProcessHandler{config: config, logger: logger, dockerHandler: dockerHandler}
-}
-
-func GetDefaultConfig() Config {
-	return Config{
-		Enabled:                     true,
-		EnableKernelTaskMonitoring:  true,
-		MaxNumberMonitoredProcesses: 500,
-	}
 }
 
 type ProcStat struct {
@@ -49,32 +35,11 @@ type ProcStat struct {
 	MemoryUsagePercent     float32 `json:"memory_usage_percent"`
 }
 
-// Gets possible process states based on the OS
-func getPossibleProcStates() []string {
-	fields := []string{
-		"blocked",
-		"zombie",
-		"stopped",
-		"running",
-		"sleeping",
-	}
-
-	switch runtime.GOOS {
-	case "windows":
-		fields = []string{"running"}
-	case "freebsd":
-		fields = append(fields, "idle", "wait")
-	case "darwin":
-		fields = append(fields, "idle")
-	case "openbsd":
-		fields = append(fields, "idle")
-	case "linux":
-		fields = append(fields, "dead", "paging", "idle")
-	}
-	return fields
-}
-
 func (ph *ProcessHandler) GetMeasurements(memStat *mem.VirtualMemoryStat) (common.MeasurementsMap, error) {
+	results := common.MeasurementsMap{}
+	if !ph.config.Enabled {
+		return results, nil
+	}
 	var systemMemorySize uint64
 	if memStat == nil {
 		ph.logger.Debugf("System memory information is unavailable. Some process stats will not be calculated...")
@@ -87,28 +52,25 @@ func (ph *ProcessHandler) GetMeasurements(memStat *mem.VirtualMemoryStat) (commo
 		return nil, err
 	}
 
-	var m common.MeasurementsMap
-	if ph.config.Enabled {
-		m = common.MeasurementsMap{"processes": filterProcs(procs, &ph.config)}
-	}
+	results["processes"] = filterProcs(procs, &ph.config)
 
-	return m, nil
+	return results, nil
 }
 
-func filterProcs(procs []*ProcStat, cfg *Config) []*ProcStat {
+func filterProcs(procs []*ProcStat, cfg *config.MonitoringConfig) []*ProcStat {
 	// sort by PID descending:
 	sort.Slice(procs, func(i, j int) bool {
 		return procs[i].PID > procs[j].PID
 	})
 
-	result := make([]*ProcStat, 0, cfg.MaxNumberMonitoredProcesses)
+	result := make([]*ProcStat, 0, cfg.PMMaxNumberProcesses)
 	var count uint
 	for _, p := range procs {
-		if count == cfg.MaxNumberMonitoredProcesses {
+		if count == cfg.PMMaxNumberProcesses {
 			break
 		}
 
-		if !cfg.EnableKernelTaskMonitoring && isKernelTask(p) {
+		if !cfg.PMKerneltasksEnabled && isKernelTask(p) {
 			continue
 		}
 

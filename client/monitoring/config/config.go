@@ -1,12 +1,15 @@
-package monitoring
+package config
 
 import "time"
 
-type Config struct {
+type MonitoringConfig struct {
 	Enabled                       bool          `mapstructure:"enabled"`
 	Interval                      time.Duration `mapstructure:"interval"`
 	FSTypeInclude                 []string      `mapstructure:"fs_type_include"`
 	FSPathExclude                 []string      `mapstructure:"fs_path_exclude"`
 	FSPathExcludeRecurse          bool          `mapstructure:"fs_path_exclude_recurse"`
 	FSIdentifyMountpointsByDevice bool          `mapstructure:"fs_identify_mountpoints_by_device"`
+	PMEnabled                     bool          `mapstructure:"pm_enabled"`
+	PMKerneltasksEnabled          bool          `mapstructure:"pm_kerneltasks_enabled"`
+	PMMaxNumberProcesses          uint          `mapstructure:"pm_max_number_processes"`
 }

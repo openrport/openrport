@@ -99,6 +99,7 @@ type ServerConfig struct {
 	KeepLostClients            time.Duration `mapstructure:"keep_lost_clients"`
 	CleanupClients             time.Duration `mapstructure:"cleanup_clients_interval"`
 	MaxRequestBytes            int64         `mapstructure:"max_request_bytes"`
+	MaxRequestBytesClient      int64         `mapstructure:"max_request_bytes_client"`
 	CheckPortTimeout           time.Duration `mapstructure:"check_port_timeout"`
 	RunRemoteCmdTimeoutSec     int           `mapstructure:"run_remote_cmd_timeout_sec"`
 	AuthWrite                  bool          `mapstructure:"auth_write"`

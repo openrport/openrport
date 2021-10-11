@@ -143,7 +143,7 @@ func (cl *ClientListener) Start(listenAddr string) error {
 	}
 	cl.Infof("Listening on %s...", listenAddr)
 
-	h := http.Handler(middleware.MaxBytes(http.HandlerFunc(cl.handleClient), cl.config.Server.MaxRequestBytes))
+	h := http.Handler(middleware.MaxBytes(http.HandlerFunc(cl.handleClient), cl.config.Server.MaxRequestBytesClient))
 	if cl.bannedIPs != nil {
 		h = http.Handler(security.RejectBannedIPs(h, cl.bannedIPs))
 	}
@@ -222,8 +222,8 @@ func (cl *ClientListener) handleWebsocket(w http.ResponseWriter, req *http.Reque
 		failed(errors.New("expecting connection request"))
 		return
 	}
-	if len(r.Payload) > int(cl.config.Server.MaxRequestBytes) {
-		failed(fmt.Errorf("request data exceeds the limit of %d bytes, actual size: %d", cl.config.Server.MaxRequestBytes, len(r.Payload)))
+	if len(r.Payload) > int(cl.config.Server.MaxRequestBytesClient) {
+		failed(fmt.Errorf("request data exceeds the limit of %d bytes, actual size: %d", cl.config.Server.MaxRequestBytesClient, len(r.Payload)))
 		return
 	}
 	connRequest, err := chshare.DecodeConnectionRequest(r.Payload)
@@ -409,6 +409,10 @@ func (cl *ClientListener) handleSSHRequests(clientLog *chshare.Logger, clientID 
 				continue
 			}
 		case comm.RequestTypeSaveMeasurement:
+			if len(r.Payload) > int(cl.config.Server.MaxRequestBytesClient) {
+				clientLog.Errorf("%s:request data exceeds the limit of %d bytes, actual size: %d", comm.RequestTypeSaveMeasurement, cl.config.Server.MaxRequestBytesClient, len(r.Payload))
+				continue
+			}
 			measurement := &models.Measurement{}
 			err := json.Unmarshal(r.Payload, measurement)
 			if err != nil {

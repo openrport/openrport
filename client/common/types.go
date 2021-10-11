@@ -35,6 +35,7 @@ func (mm MeasurementsMap) ToJSON() string {
 	if err != nil {
 		return `{}`
 	}
+
 	return string(jsonData)
 }
 

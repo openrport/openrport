@@ -8,6 +8,7 @@ import (
 
 	"golang.org/x/crypto/ssh"
 
+	"github.com/cloudradar-monitoring/rport/client/monitoring/config"
 	"github.com/cloudradar-monitoring/rport/client/monitoring/docker"
 	"github.com/cloudradar-monitoring/rport/client/monitoring/fs"
 	"github.com/cloudradar-monitoring/rport/client/monitoring/processes"
@@ -21,14 +22,14 @@ type Monitor struct {
 	mtx               sync.RWMutex
 	conn              ssh.Conn
 	logger            *chshare.Logger
-	config            Config
+	config            config.MonitoringConfig
 	measurement       *models.Measurement
 	systemInfo        system.SysInfo
 	fileSystemWatcher *fs.FileSystemWatcher
 	processHandler    *processes.ProcessHandler
 }
 
-func NewMonitor(logger *chshare.Logger, config Config, systemInfo system.SysInfo) *Monitor {
+func NewMonitor(logger *chshare.Logger, config config.MonitoringConfig, systemInfo system.SysInfo) *Monitor {
 	fsWatcher := fs.NewWatcher(fs.FileSystemWatcherConfig{
 		TypeInclude:                 config.FSTypeInclude,
 		PathExclude:                 config.FSPathExclude,
@@ -37,7 +38,7 @@ func NewMonitor(logger *chshare.Logger, config Config, systemInfo system.SysInfo
 		IdentifyMountpointsByDevice: config.FSIdentifyMountpointsByDevice,
 	}, logger)
 	dockerHandler := docker.NewHandler(logger)
-	processHandler := processes.NewProcessHandler(processes.GetDefaultConfig(), logger, dockerHandler)
+	processHandler := processes.NewProcessHandler(config, logger, dockerHandler)
 	return &Monitor{logger: logger, config: config, systemInfo: systemInfo, fileSystemWatcher: fsWatcher, processHandler: processHandler}
 }
 
@@ -55,6 +56,7 @@ func (m *Monitor) refreshLoop(ctx context.Context) {
 
 		select {
 		case <-ctx.Done():
+			m.logger.Errorf("Monitoring ended by context.Done")
 			return
 		case <-time.After(m.config.Interval):
 		}
@@ -111,6 +113,7 @@ func (m *Monitor) sendMeasurement() {
 			return
 		}
 
+		m.logger.Debugf("sending %d bytes of monitoring data to server", len(data))
 		_, _, err = m.conn.SendRequest(comm.RequestTypeSaveMeasurement, false, data)
 		if err != nil {
 			m.logger.Errorf("Could not send save_measurement: %v", err)
