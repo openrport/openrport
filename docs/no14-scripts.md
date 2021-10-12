@@ -219,11 +219,9 @@ curl -X POST 'http://localhost:3000/api/v1/clients/4943d682-7874-4f7a-999c-b4ff5
 --data-raw '{
   "script": "cHdkCg==",
   "interpreter": "cmd",
-  "timeout_sec": 60,
-  "execute_concurrently": false,
-  "abort_on_error": true,
   "cwd": "string",
-  "is_sudo": true
+  "is_sudo": true,
+  "timeout_sec": 60
 }'
 ```
 
