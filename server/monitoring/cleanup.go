@@ -23,10 +23,10 @@ func NewCleanupTask(log *chshare.Logger, service Service, days int64) *CleanupTa
 }
 
 func (t *CleanupTask) Run(ctx context.Context) error {
-	err := t.service.Cleanup(ctx, 30)
+	deletedRecords, err := t.service.DeleteMeasurementsOlderThanDays(ctx, 30)
 	if err != nil {
 		return fmt.Errorf("failed to cleanup measurements: %v", err)
 	}
-
+	t.log.Debugf("monitoring.CleanupTask: %d measurement records deleted", deletedRecords)
 	return nil
 }

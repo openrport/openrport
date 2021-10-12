@@ -9,7 +9,8 @@ import (
 
 type Service interface {
 	SaveMeasurement(ctx context.Context, measurement *models.Measurement) error
-	Cleanup(ctx context.Context, days int64) error
+	DeleteMeasurementsOlderThanDays(ctx context.Context, days int64) (int64, error)
+	GetClientLatest(ctx context.Context, clientID string) (*models.Measurement, error)
 }
 
 type monitoringService struct {
@@ -23,7 +24,11 @@ func (s *monitoringService) SaveMeasurement(ctx context.Context, measurement *mo
 	return s.DBProvider.CreateMeasurement(ctx, measurement)
 }
 
-func (s *monitoringService) Cleanup(ctx context.Context, days int64) error {
+func (s *monitoringService) DeleteMeasurementsOlderThanDays(ctx context.Context, days int64) (int64, error) {
 	compare := time.Now().Unix() - (days * 3600)
 	return s.DBProvider.DeleteMeasurementsOlderThan(ctx, compare)
+}
+
+func (s *monitoringService) GetClientLatest(ctx context.Context, clientID string) (*models.Measurement, error) {
+	return s.DBProvider.GetClientLatest(ctx, clientID)
 }
