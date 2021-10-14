@@ -89,9 +89,9 @@ func (m *Monitor) createMeasurement(ctx context.Context) *models.Measurement {
 		newMeasurement.IoUsagePercent = cpuPercentIOWait
 	}
 
-	procsMap, err := m.processHandler.GetMeasurements(memStats)
+	processes, err := m.processHandler.GetProcessesJSON(memStats)
 	if err == nil {
-		newMeasurement.Processes = procsMap.ToJSON()
+		newMeasurement.Processes = processes
 	}
 
 	fsMap, err := m.fileSystemWatcher.Results()

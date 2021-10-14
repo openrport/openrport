@@ -36,8 +36,13 @@ func ValidateFilterOptions(fo []FilterOption, supportedFields map[string]bool) e
 }
 
 func ExtractFilterOptions(req *http.Request) []FilterOption {
+	return ParseFilterOptions(req.URL.Query())
+}
+
+func ParseFilterOptions(query map[string][]string) []FilterOption {
+
 	res := make([]FilterOption, 0)
-	for filterKey, filterValues := range req.URL.Query() {
+	for filterKey, filterValues := range query {
 		if !strings.HasPrefix(filterKey, "filter") || len(filterValues) == 0 {
 			continue
 		}

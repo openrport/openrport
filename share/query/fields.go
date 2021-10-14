@@ -46,8 +46,12 @@ func ValidateFieldsOptions(fieldOptions []FieldsOption, supportedFields map[stri
 }
 
 func ExtractFieldsOptions(req *http.Request) []FieldsOption {
+	return ParseFieldsOptions(req.URL.Query())
+}
+
+func ParseFieldsOptions(query map[string][]string) []FieldsOption {
 	res := make([]FieldsOption, 0)
-	for fieldsKey, fieldsValues := range req.URL.Query() {
+	for fieldsKey, fieldsValues := range query {
 		if !strings.HasPrefix(fieldsKey, "fields") || len(fieldsValues) == 0 {
 			continue
 		}

@@ -1,11 +1,11 @@
 package processes
 
 import (
+	"encoding/json"
 	"sort"
 
 	"github.com/shirou/gopsutil/mem"
 
-	"github.com/cloudradar-monitoring/rport/client/common"
 	"github.com/cloudradar-monitoring/rport/client/monitoring/config"
 	"github.com/cloudradar-monitoring/rport/client/monitoring/docker"
 	chshare "github.com/cloudradar-monitoring/rport/share"
@@ -35,10 +35,9 @@ type ProcStat struct {
 	MemoryUsagePercent     float32 `json:"memory_usage_percent"`
 }
 
-func (ph *ProcessHandler) GetMeasurements(memStat *mem.VirtualMemoryStat) (common.MeasurementsMap, error) {
-	results := common.MeasurementsMap{}
+func (ph *ProcessHandler) GetProcessesJSON(memStat *mem.VirtualMemoryStat) (string, error) {
 	if !ph.config.Enabled {
-		return results, nil
+		return "", nil
 	}
 	var systemMemorySize uint64
 	if memStat == nil {
@@ -49,12 +48,10 @@ func (ph *ProcessHandler) GetMeasurements(memStat *mem.VirtualMemoryStat) (commo
 	procs, err := ph.processes(systemMemorySize)
 	if err != nil {
 		ph.logger.Errorf(err.Error())
-		return nil, err
+		return "", err
 	}
 
-	results["processes"] = filterProcs(procs, &ph.config)
-
-	return results, nil
+	return toJSON(filterProcs(procs, &ph.config)), nil
 }
 
 func filterProcs(procs []*ProcStat, cfg *config.MonitoringConfig) []*ProcStat {
@@ -78,4 +75,13 @@ func filterProcs(procs []*ProcStat, cfg *config.MonitoringConfig) []*ProcStat {
 		count++
 	}
 	return result
+}
+
+func toJSON(procs []*ProcStat) string {
+	b, err := json.Marshal(procs)
+	if err != nil {
+		return "{}"
+	}
+
+	return string(b)
 }

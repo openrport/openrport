@@ -14,8 +14,11 @@ type SortOption struct {
 }
 
 func ExtractSortOptions(req *http.Request) []SortOption {
+	return ParseSortOptions(req.URL.Query())
+}
+
+func ParseSortOptions(query map[string][]string) []SortOption {
 	res := make([]SortOption, 0)
-	query := req.URL.Query()
 
 	sorts, ok := query["sort"]
 	if !ok || len(sorts) == 0 {

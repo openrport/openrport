@@ -94,7 +94,7 @@ func NewServer(config *Config, filesAPI files.FileAPI) (*Server, error) {
 	}
 
 	// create monitoringProvider and monitoringService
-	monitoringProvider, err := monitoring.NewSqliteProvider(path.Join(config.Server.DataDir, "monitoring.db"), s.Logger)
+	monitoringProvider, err := monitoring.NewSqliteProvider(path.Join(config.Server.DataDir, "monitoring.db?_journal_mode=WAL"), s.Logger)
 	if err != nil {
 		return nil, err
 	}

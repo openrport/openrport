@@ -2,6 +2,7 @@ package chserver
 
 import (
 	"context"
+	"database/sql"
 	"encoding/base64"
 	"encoding/json"
 	"errors"
@@ -23,6 +24,7 @@ import (
 	errors2 "github.com/cloudradar-monitoring/rport/server/api/errors"
 	"github.com/cloudradar-monitoring/rport/server/api/jobs"
 	"github.com/cloudradar-monitoring/rport/server/api/middleware"
+	"github.com/cloudradar-monitoring/rport/server/api/monitoring"
 	"github.com/cloudradar-monitoring/rport/server/api/users"
 	"github.com/cloudradar-monitoring/rport/server/cgroups"
 	"github.com/cloudradar-monitoring/rport/server/clients"
@@ -179,6 +181,7 @@ func (al *APIListener) initRouter() {
 	sub.HandleFunc("/clients/{client_id}/commands/{job_id}", al.wrapClientAccessMiddleware(al.handleGetCommand)).Methods(http.MethodGet)
 	sub.HandleFunc("/clients/{client_id}/scripts", al.wrapClientAccessMiddleware(al.handleExecuteScript)).Methods(http.MethodPost)
 	sub.HandleFunc("/clients/{client_id}/updates-status", al.wrapClientAccessMiddleware(al.handleRefreshUpdatesStatus)).Methods(http.MethodPost)
+	sub.HandleFunc("/clients/{client_id}/metrics", al.handleGetClientMetrics).Methods(http.MethodGet)
 	sub.HandleFunc("/client-groups", al.handleGetClientGroups).Methods(http.MethodGet)
 	sub.HandleFunc("/client-groups", al.wrapAdminAccessMiddleware(al.handlePostClientGroups)).Methods(http.MethodPost)
 	sub.HandleFunc("/client-groups/{group_id}", al.wrapAdminAccessMiddleware(al.handlePutClientGroup)).Methods(http.MethodPut)
@@ -2949,4 +2952,50 @@ func (al *APIListener) handleDeleteToken(w http.ResponseWriter, req *http.Reques
 	}
 
 	w.WriteHeader(http.StatusNoContent)
+}
+
+func (al *APIListener) handleGetClientMetrics(w http.ResponseWriter, req *http.Request) {
+	vars := mux.Vars(req)
+	clientID := vars[routeParamClientID]
+
+	queryOptions := query.NewOptions(req, monitoring.ClientMetricsSortDefault, monitoring.ClientMetricsFilterDefault, monitoring.ClientMetricsFieldsDefault)
+	err := query.ValidateOptions(queryOptions, monitoring.ClientMetricsSortFields, monitoring.ClientMetricsFilterFields, monitoring.ClientMetricsFields)
+	if err != nil {
+		al.jsonError(w, err)
+		return
+	}
+
+	if queryOptions.HasFilters() {
+		al.handleGetClientMetricsList(w, req, clientID, queryOptions)
+		return
+	}
+
+	al.handleGetClientMetricsOne(w, req, clientID, queryOptions)
+}
+
+func (al *APIListener) handleGetClientMetricsOne(w http.ResponseWriter, req *http.Request, clientID string, o *query.Options) {
+	clientMetrics, err := al.monitoringService.GetClientMetricsOne(req.Context(), clientID, o)
+	if err != nil {
+		if err == sql.ErrNoRows {
+			al.jsonErrorResponseWithTitle(w, http.StatusNotFound, fmt.Sprintf("metrics for client with id %q not found", clientID))
+			return
+		}
+		al.jsonError(w, err)
+		return
+	}
+	al.writeJSONResponse(w, http.StatusOK, api.NewSuccessPayload(clientMetrics))
+}
+
+func (al *APIListener) handleGetClientMetricsList(w http.ResponseWriter, req *http.Request, clientID string, o *query.Options) {
+	clientMetricsList, err := al.monitoringService.GetClientMetricsList(req.Context(), clientID, o)
+	if err != nil {
+		if err == sql.ErrNoRows {
+			al.jsonErrorResponseWithTitle(w, http.StatusNotFound, fmt.Sprintf("metrics for client with id %q not found", clientID))
+			return
+		}
+		al.jsonError(w, err)
+		return
+	}
+
+	al.writeJSONResponse(w, http.StatusOK, api.NewSuccessPayload(clientMetricsList))
 }

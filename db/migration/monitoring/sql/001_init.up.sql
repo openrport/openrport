@@ -11,4 +11,4 @@ CREATE TABLE IF NOT EXISTS "measurements"
     "processes"             TEXT,
     "mountpoints"           TEXT,
     PRIMARY KEY (client_id, timestamp)
-) WITHOUT ROWID ;
+);

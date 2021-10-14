@@ -8,14 +8,18 @@ import (
 
 	monitoring "github.com/cloudradar-monitoring/rport/db/migration/monitoring"
 	"github.com/cloudradar-monitoring/rport/db/sqlite"
+	monitoring2 "github.com/cloudradar-monitoring/rport/server/api/monitoring"
 	chshare "github.com/cloudradar-monitoring/rport/share"
 	"github.com/cloudradar-monitoring/rport/share/models"
+	"github.com/cloudradar-monitoring/rport/share/query"
 )
 
 type DBProvider interface {
 	CreateMeasurement(ctx context.Context, measurement *models.Measurement) error
 	DeleteMeasurementsOlderThan(ctx context.Context, days int64) (int64, error)
 	GetClientLatest(ctx context.Context, clientID string) (*models.Measurement, error)
+	GetByClientID(ctx context.Context, clientID string, o *query.Options) (val *monitoring2.ClientMetricsPayload, err error)
+	GetListByClientID(ctx context.Context, clientID string, o *query.Options) (val []monitoring2.ClientMetricsPayload, err error)
 	Close() error
 	DB() *sqlx.DB
 }
@@ -36,6 +40,24 @@ func NewSqliteProvider(dbPath string, logger *chshare.Logger) (DBProvider, error
 	return &SqliteProvider{db: db, logger: logger}, nil
 }
 
+func (p *SqliteProvider) GetByClientID(ctx context.Context, clientID string, o *query.Options) (val *monitoring2.ClientMetricsPayload, err error) {
+	q := "SELECT * FROM `measurements` as `metrics` WHERE `client_id` = ? "
+	q, _ = query.ConvertOptionsToQuery(o, q)
+	q = q + " LIMIT 1"
+
+	val = new(monitoring2.ClientMetricsPayload)
+	err = p.db.GetContext(ctx, val, q, clientID)
+	return val, err
+}
+
+func (p *SqliteProvider) GetListByClientID(ctx context.Context, clientID string, o *query.Options) (val []monitoring2.ClientMetricsPayload, err error) {
+	q := "SELECT * FROM `measurements` as `metrics` WHERE `client_id` = ? "
+	q, _ = query.ConvertOptionsToQuery(o, q)
+
+	val = []monitoring2.ClientMetricsPayload{}
+	err = p.db.GetContext(ctx, &val, q, clientID)
+	return val, err
+}
 func (p *SqliteProvider) GetClientLatest(ctx context.Context, clientID string) (*models.Measurement, error) {
 	var m models.Measurement
 	err := p.db.Get(&m, "SELECT * FROM measurements WHERE client_id = ? ORDER BY timestamp DESC LIMIT 1", clientID)
