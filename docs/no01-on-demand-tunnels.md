@@ -26,7 +26,7 @@ Do not run the API on public servers with the default credentials. Change the `a
 ::: tip
 If you expose your API to the public internet, it's highly recommended to enable HTTPS. Read the [quick HTTPS howto](no08-https-howto.md).
 :::
-By default the built-in web server can run the API only on ports below 1024. To circumvent this limit refer to [running the API on privileged ports.](#running-the-api-on-a-privileged-port)
+By default the built-in web server can run the API only on ports above 1024. To circumvent this limit refer to [running the API on privileged ports.](#running-the-api-on-a-privileged-port)
 
 Test if you set up the API properly by querying its status with `curl -s -u admin:foobaz http://localhost:3000/api/v1/status`.
 
