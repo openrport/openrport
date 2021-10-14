@@ -26,7 +26,7 @@ require (
 	github.com/mattn/go-sqlite3 v1.14.4
 	github.com/mitchellh/mapstructure v1.1.2
 	github.com/scjalliance/comshim v0.0.0-20190308082608-cf06d2532c4e
-	github.com/shirou/gopsutil v3.21.5+incompatible
+	github.com/shirou/gopsutil v3.21.9+incompatible
 	github.com/spf13/cobra v1.0.0
 	github.com/spf13/viper v1.7.1
 	github.com/stretchr/testify v1.6.1
