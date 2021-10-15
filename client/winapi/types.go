@@ -196,7 +196,7 @@ type DiskPerformance struct {
 
 type HInternet uintptr
 
-// Wrap it to provide useful String() method
+// Wrap it to provide useful Code() method
 // syscall sets the inline struct's field as it was same-level field
 type LPWSTR struct {
 	Value *uint16

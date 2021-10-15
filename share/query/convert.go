@@ -19,12 +19,13 @@ func ConvertRetrieveOptionsToQuery(ro *RetrieveOptions, q string) string {
 	return qOut
 }
 
-func ConvertOptionsToQuery(o *Options, q string) (qOut string, params []interface{}) {
-	qOut, params = addWhere(o.Filters, q)
+func ConvertOptionsToQuery(o *Options, q string, inParams []interface{}) (string, []interface{}) {
+	qOut, params := addWhere(o.Filters, q)
+	outParams := append(inParams, params...)
 	qOut = addOrderBy(o.Sorts, qOut)
 	qOut = replaceStarSelect(o.Fields, qOut)
 
-	return qOut, params
+	return qOut, outParams
 }
 
 func addWhere(filterOptions []FilterOption, q string) (qOut string, params []interface{}) {
@@ -36,12 +37,12 @@ func addWhere(filterOptions []FilterOption, q string) (qOut string, params []int
 	whereParts := make([]string, 0, len(filterOptions))
 	for i := range filterOptions {
 		if len(filterOptions[i].Values) == 1 {
-			whereParts = append(whereParts, fmt.Sprintf("%s = ?", filterOptions[i].Column))
+			whereParts = append(whereParts, fmt.Sprintf("%s %s ?", filterOptions[i].Column, filterOptions[i].Operator.Code()))
 			params = append(params, filterOptions[i].Values[0])
 		} else {
 			orParts := make([]string, 0, len(filterOptions[i].Values))
 			for y := range filterOptions[i].Values {
-				orParts = append(orParts, fmt.Sprintf("%s = ?", filterOptions[i].Column))
+				orParts = append(orParts, fmt.Sprintf("%s %s ?", filterOptions[i].Column, filterOptions[i].Operator.Code()))
 				params = append(params, filterOptions[i].Values[y])
 			}
 
@@ -49,7 +50,12 @@ func addWhere(filterOptions []FilterOption, q string) (qOut string, params []int
 		}
 	}
 
-	q += " WHERE " + strings.Join(whereParts, " AND ") + " "
+	concat := " WHERE "
+	qUpper := strings.ToUpper(q)
+	if strings.Contains(qUpper, " WHERE ") {
+		concat = " AND "
+	}
+	q += concat + strings.Join(whereParts, " AND ") + " "
 
 	return q, params
 }

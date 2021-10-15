@@ -42,7 +42,8 @@ func NewSqliteProvider(dbPath string, logger *chshare.Logger) (DBProvider, error
 
 func (p *SqliteProvider) GetByClientID(ctx context.Context, clientID string, o *query.Options) (val *monitoring2.ClientMetricsPayload, err error) {
 	q := "SELECT * FROM `measurements` as `metrics` WHERE `client_id` = ? "
-	q, _ = query.ConvertOptionsToQuery(o, q)
+	params := []interface{}{}
+	q, _ = query.ConvertOptionsToQuery(o, q, params)
 	q = q + " LIMIT 1"
 
 	val = new(monitoring2.ClientMetricsPayload)
@@ -50,12 +51,14 @@ func (p *SqliteProvider) GetByClientID(ctx context.Context, clientID string, o *
 	return val, err
 }
 
-func (p *SqliteProvider) GetListByClientID(ctx context.Context, clientID string, o *query.Options) (val []monitoring2.ClientMetricsPayload, err error) {
+func (p *SqliteProvider) GetListByClientID(ctx context.Context, clientID string, o *query.Options) ([]monitoring2.ClientMetricsPayload, error) {
 	q := "SELECT * FROM `measurements` as `metrics` WHERE `client_id` = ? "
-	q, _ = query.ConvertOptionsToQuery(o, q)
+	params := []interface{}{}
+	params = append(params, clientID)
+	q, params = query.ConvertOptionsToQuery(o, q, params)
 
-	val = []monitoring2.ClientMetricsPayload{}
-	err = p.db.GetContext(ctx, &val, q, clientID)
+	val := []monitoring2.ClientMetricsPayload{}
+	err := p.db.SelectContext(ctx, &val, q, params...)
 	return val, err
 }
 func (p *SqliteProvider) GetClientLatest(ctx context.Context, clientID string) (*models.Measurement, error) {

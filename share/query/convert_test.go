@@ -68,3 +68,74 @@ func TestConvertListOptionsToQuery(t *testing.T) {
 	}
 
 }
+
+func TestConvertOptionsToQuery(t *testing.T) {
+	testCases := []struct {
+		Name           string
+		Query          string
+		Options        *query.Options
+		Params         []interface{}
+		ExpectedQuery  string
+		ExpectedParams []interface{}
+	}{
+		{
+			Name:  "fields, no filters, no sorts",
+			Query: "SELECT * FROM measurements as metrics",
+			Options: &query.Options{
+				Fields: []query.FieldsOption{
+					{
+						Resource: "metrics",
+						Fields:   []string{"field1", "field2"},
+					},
+				},
+			},
+			Params:         []interface{}{},
+			ExpectedQuery:  "SELECT metrics.field1, metrics.field2 FROM measurements as metrics",
+			ExpectedParams: []interface{}{},
+		}, {
+			Name:  "fields, filters, sorts, params",
+			Query: "SELECT * FROM measurements as metrics WHERE client_id = ?",
+			Options: &query.Options{
+				Sorts: []query.SortOption{
+					{
+						Column: "timestamp",
+						IsASC:  false,
+					},
+				},
+				Filters: []query.FilterOption{
+					{
+						Column:   "timestamp",
+						Operator: query.FilterOperatorTypeGT,
+						Values:   []string{"val1"},
+					},
+					{
+						Column:   "timestamp",
+						Operator: query.FilterOperatorTypeLT,
+						Values:   []string{"value2"},
+					},
+				},
+				Fields: []query.FieldsOption{
+					{
+						Resource: "metrics",
+						Fields:   []string{"field1", "field2"},
+					},
+				},
+			},
+			ExpectedQuery:  "SELECT metrics.field1, metrics.field2 FROM measurements as metrics WHERE client_id = ? AND timestamp > ? AND timestamp < ? ORDER BY timestamp DESC",
+			ExpectedParams: []interface{}{"val1", "value2"},
+		},
+	}
+
+	for _, tc := range testCases {
+		tc := tc
+		t.Run(tc.Name, func(t *testing.T) {
+			t.Parallel()
+
+			query, params := query.ConvertOptionsToQuery(tc.Options, tc.Query, tc.Params)
+
+			assert.Equal(t, tc.ExpectedQuery, query)
+			assert.Equal(t, tc.ExpectedParams, params)
+		})
+	}
+
+}

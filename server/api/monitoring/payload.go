@@ -14,7 +14,10 @@ var ClientMetricsSortFields = map[string]bool{
 	"timestamp": true,
 }
 var ClientMetricsFilterFields = map[string]bool{
-	"timestamp": true,
+	"timestamp[gt]":    true,
+	"timestamp[lt]":    true,
+	"timestamp[since]": true,
+	"timestamp[until]": true,
 }
 var ClientMetricsFields = map[string]map[string]bool{
 	"metrics": map[string]bool{
