@@ -48,12 +48,14 @@ func TestGetListOptions(t *testing.T) {
 				},
 				Filters: []FilterOption{
 					{
-						Column: "field1",
-						Values: []string{"val1", "val2", "val3"},
+						Expression: "field1",
+						Column:     "field1",
+						Values:     []string{"val1", "val2", "val3"},
 					},
 					{
-						Column: "field2",
-						Values: []string{"value2", "value3"},
+						Expression: "field2",
+						Column:     "field2",
+						Values:     []string{"value2", "value3"},
 					},
 				},
 				Fields: []FieldsOption{
@@ -112,12 +114,14 @@ func TestValidateListOptionsWithErrors(t *testing.T) {
 		},
 		Filters: []FilterOption{
 			{
-				Column: "f3",
-				Values: []string{"v1", "v2"},
+				Expression: "f3",
+				Column:     "f3",
+				Values:     []string{"v1", "v2"},
 			},
 			{
-				Column: "f5",
-				Values: []string{"v1", "v2"},
+				Expression: "f5",
+				Column:     "f5",
+				Values:     []string{"v1", "v2"},
 			},
 		},
 		Fields: []FieldsOption{
@@ -160,12 +164,14 @@ func TestValidateListOptionsOk(t *testing.T) {
 		},
 		Filters: []FilterOption{
 			{
-				Column: "f3",
-				Values: []string{"v1", "v2"},
+				Expression: "f3",
+				Column:     "f3",
+				Values:     []string{"v1", "v2"},
 			},
 			{
-				Column: "f4",
-				Values: []string{"v1", "v2"},
+				Expression: "f4",
+				Column:     "f4",
+				Values:     []string{"v1", "v2"},
 			},
 		},
 		Fields: []FieldsOption{
@@ -198,12 +204,14 @@ func TestValidateListOptionsNoFields(t *testing.T) {
 		},
 		Filters: []FilterOption{
 			{
-				Column: "f3",
-				Values: []string{"v1", "v2"},
+				Expression: "f3",
+				Column:     "f3",
+				Values:     []string{"v1", "v2"},
 			},
 			{
-				Column: "f4",
-				Values: []string{"v1", "v2"},
+				Expression: "f4",
+				Column:     "f4",
+				Values:     []string{"v1", "v2"},
 			},
 		},
 		Fields: []FieldsOption{

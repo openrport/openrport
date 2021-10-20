@@ -3,6 +3,7 @@ package monitoring
 import (
 	"context"
 	"os"
+	"strconv"
 	"testing"
 	"time"
 
@@ -25,17 +26,26 @@ var testData = []models.Measurement{
 		CPUUsagePercent:    10,
 		MemoryUsagePercent: 30,
 		IoUsagePercent:     2,
-		Processes:          "{}",
-		Mountpoints:        "{}",
+		Processes:          `{[{"pid":30210, "parent_pid": 4711, "name": "chrome"}]}`,
+		Mountpoints:        `{"free_b./":34182758400,"free_b./home":128029413376,"total_b./":105555197952,"total_b./home":364015185920}`,
 	},
 	{
 		ClientID:           "test_client_1",
 		Timestamp:          measurementStart + measurementInterval,
 		CPUUsagePercent:    15,
-		MemoryUsagePercent: 30,
-		IoUsagePercent:     2,
-		Processes:          "{}",
-		Mountpoints:        "{}",
+		MemoryUsagePercent: 35,
+		IoUsagePercent:     3,
+		Processes:          `{[{"pid":30211, "parent_pid": 4711, "name": "idea"}]}`,
+		Mountpoints:        `{"free_b./":44182758400,"free_b./home":228029413376,"total_b./":105555197952,"total_b./home":364015185920}`,
+	},
+	{
+		ClientID:           "test_client_1",
+		Timestamp:          measurementStart + measurementInterval + measurementInterval,
+		CPUUsagePercent:    20,
+		MemoryUsagePercent: 40,
+		IoUsagePercent:     4,
+		Processes:          `{[{"pid":30212, "parent_pid": 4711, "name": "cinnamon"}]}`,
+		Mountpoints:        `{"free_b./":54182758400,"free_b./home":328029413376,"total_b./":105555197952,"total_b./home":364015185920}`,
 	},
 }
 
@@ -55,7 +65,7 @@ func TestDBProvider(t *testing.T) {
 		CPUUsagePercent:    0,
 		MemoryUsagePercent: 0,
 		IoUsagePercent:     0,
-		Processes:          "{}",
+		Processes:          `{[{"pid":30000, "parent_pid": 4712, "name": "firefox"}]}`,
 		Mountpoints:        "{}",
 	}
 	// create new measurement
@@ -66,7 +76,7 @@ func TestDBProvider(t *testing.T) {
 	mC1, err := dbProvider.GetClientLatest(ctx, "test_client_1")
 	require.NoError(t, err)
 	require.NotNil(t, mC1)
-	require.Equal(t, measurementStart+measurementInterval, mC1.Timestamp)
+	require.Equal(t, measurementStart+measurementInterval+measurementInterval, mC1.Timestamp)
 
 	// delete old measurements (older than 30 days)
 	compare := testStart - (30 * 3600)
@@ -79,6 +89,76 @@ func TestDBProvider(t *testing.T) {
 	deleted, err = dbProvider.DeleteMeasurementsOlderThan(ctx, compare)
 	require.NoError(t, err)
 	require.Equal(t, int64(1), deleted)
+}
+
+func TestSqliteProvider_GetProcessesLatestByClientID(t *testing.T) {
+	dbProvider, err := NewSqliteProvider(":memory:", testLog)
+	require.NoError(t, err)
+	defer dbProvider.Close()
+
+	ctx := context.Background()
+
+	err = createTestData(dbProvider.DB())
+	require.NoError(t, err)
+
+	// get the latest processes of client
+	pC1, err := dbProvider.GetProcessesLatestByClientID(ctx, "test_client_1")
+	require.NoError(t, err)
+	require.NotNil(t, pC1)
+	require.Equal(t, `{[{"pid":30212, "parent_pid": 4711, "name": "cinnamon"}]}`, pC1.Processes)
+}
+
+func TestSqliteProvider_GetProcessesNearestByClientID(t *testing.T) {
+	dbProvider, err := NewSqliteProvider(":memory:", testLog)
+	require.NoError(t, err)
+	defer dbProvider.Close()
+
+	ctx := context.Background()
+
+	err = createTestData(dbProvider.DB())
+	require.NoError(t, err)
+
+	// get processes of client with timestamp
+	m2 := measurementStart + measurementInterval
+	pC1, err := dbProvider.GetProcessesNearestByClientID(ctx, "test_client_1", strconv.FormatInt(m2, 10))
+	require.NoError(t, err)
+	require.NotNil(t, pC1)
+	require.Equal(t, `{[{"pid":30211, "parent_pid": 4711, "name": "idea"}]}`, pC1.Processes)
+}
+
+func TestSqliteProvider_GetMountpointsLatestByClientID(t *testing.T) {
+	dbProvider, err := NewSqliteProvider(":memory:", testLog)
+	require.NoError(t, err)
+	defer dbProvider.Close()
+
+	ctx := context.Background()
+
+	err = createTestData(dbProvider.DB())
+	require.NoError(t, err)
+
+	// get the latest mountpoints of client
+	mC1, err := dbProvider.GetMountpointsLatestByClientID(ctx, "test_client_1")
+	require.NoError(t, err)
+	require.NotNil(t, mC1)
+	require.Equal(t, `{"free_b./":54182758400,"free_b./home":328029413376,"total_b./":105555197952,"total_b./home":364015185920}`, mC1.Mountpoints)
+}
+
+func TestSqliteProvider_GetMountpointsNearestByClientID(t *testing.T) {
+	dbProvider, err := NewSqliteProvider(":memory:", testLog)
+	require.NoError(t, err)
+	defer dbProvider.Close()
+
+	ctx := context.Background()
+
+	err = createTestData(dbProvider.DB())
+	require.NoError(t, err)
+
+	// get mountpoints of client with timestamp
+	m2 := measurementStart + measurementInterval
+	mC1, err := dbProvider.GetMountpointsNearestByClientID(ctx, "test_client_1", strconv.FormatInt(m2, 10))
+	require.NoError(t, err)
+	require.NotNil(t, mC1)
+	require.Equal(t, `{"free_b./":44182758400,"free_b./home":228029413376,"total_b./":105555197952,"total_b./home":364015185920}`, mC1.Mountpoints)
 }
 
 func createTestData(db *sqlx.DB) error {

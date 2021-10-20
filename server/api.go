@@ -182,6 +182,7 @@ func (al *APIListener) initRouter() {
 	sub.HandleFunc("/clients/{client_id}/scripts", al.wrapClientAccessMiddleware(al.handleExecuteScript)).Methods(http.MethodPost)
 	sub.HandleFunc("/clients/{client_id}/updates-status", al.wrapClientAccessMiddleware(al.handleRefreshUpdatesStatus)).Methods(http.MethodPost)
 	sub.HandleFunc("/clients/{client_id}/metrics", al.handleGetClientMetrics).Methods(http.MethodGet)
+	sub.HandleFunc("/clients/{client_id}/processes", al.handleGetClientProcesses).Methods(http.MethodGet)
 	sub.HandleFunc("/client-groups", al.handleGetClientGroups).Methods(http.MethodGet)
 	sub.HandleFunc("/client-groups", al.wrapAdminAccessMiddleware(al.handlePostClientGroups)).Methods(http.MethodPost)
 	sub.HandleFunc("/client-groups/{group_id}", al.wrapAdminAccessMiddleware(al.handlePutClientGroup)).Methods(http.MethodPut)
@@ -2988,6 +2989,7 @@ func (al *APIListener) handleGetClientMetricsOne(w http.ResponseWriter, req *htt
 
 func (al *APIListener) handleGetClientMetricsList(w http.ResponseWriter, req *http.Request, clientID string, o *query.Options) {
 	clientMetricsList, err := al.monitoringService.GetClientMetricsList(req.Context(), clientID, o)
+
 	if err != nil {
 		if err == sql.ErrNoRows {
 			al.jsonErrorResponseWithTitle(w, http.StatusNotFound, fmt.Sprintf("metrics for client with id %q not found", clientID))
@@ -2998,4 +3000,34 @@ func (al *APIListener) handleGetClientMetricsList(w http.ResponseWriter, req *ht
 	}
 
 	al.writeJSONResponse(w, http.StatusOK, api.NewSuccessPayload(clientMetricsList))
+}
+
+func (al *APIListener) handleGetClientProcesses(w http.ResponseWriter, req *http.Request) {
+	vars := mux.Vars(req)
+	clientID := vars[routeParamClientID]
+
+	var clientProcesses *monitoring.ClientProcessesPayload
+	var serviceErr error
+	filters := query.ExtractFilterOptions(req)
+	if len(filters) > 0 {
+		err := query.ValidateFilterOptions(filters, monitoring.ClientProcessesFilterFields)
+		if err != nil {
+			al.jsonError(w, err)
+			return
+		}
+		clientProcesses, serviceErr = al.monitoringService.GetClientProcessesFiltered(req.Context(), clientID, filters)
+	} else {
+		clientProcesses, serviceErr = al.monitoringService.GetClientProcessesLatest(req.Context(), clientID)
+	}
+
+	if serviceErr != nil {
+		if serviceErr == sql.ErrNoRows {
+			al.jsonErrorResponseWithTitle(w, http.StatusNotFound, fmt.Sprintf("processes for client with id %q not found", clientID))
+			return
+		}
+		al.jsonError(w, serviceErr)
+		return
+	}
+
+	al.writeJSONResponse(w, http.StatusOK, api.NewSuccessPayload(clientProcesses))
 }

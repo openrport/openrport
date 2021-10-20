@@ -4,6 +4,7 @@ import (
 	"fmt"
 	"net/http"
 	"regexp"
+	"sort"
 	"strings"
 
 	errors2 "github.com/cloudradar-monitoring/rport/server/api/errors"
@@ -47,22 +48,19 @@ func ParseFilterOperatorType(filterOperator string) FilterOperatorType {
 }
 
 type FilterOption struct {
-	Column   string
-	Operator FilterOperatorType
-	Values   []string
+	Expression string
+	Column     string
+	Operator   FilterOperatorType
+	Values     []string
 }
 
 func ValidateFilterOptions(fo []FilterOption, supportedFields map[string]bool) errors2.APIErrors {
 	errs := errors2.APIErrors{}
 	for i := range fo {
-		filterExpr := fo[i].Column
-		if fo[i].Operator != FilterOperatorTypeEQ {
-			filterExpr = filterExpr + "[" + fo[i].Operator.String() + "]"
-		}
-		ok := supportedFields[filterExpr]
+		ok := supportedFields[fo[i].Expression]
 		if !ok {
 			errs = append(errs, errors2.APIError{
-				Message:    fmt.Sprintf("unsupported filter field '%s'", fo[i].Column),
+				Message:    fmt.Sprintf("unsupported filter field '%s'", fo[i].Expression),
 				HTTPStatus: http.StatusBadRequest,
 			})
 		}
@@ -94,7 +92,7 @@ func ParseFilterOptions(query map[string][]string) []FilterOption {
 		}
 
 		matches := filterRegex.FindStringSubmatch(filterKey)
-		if matches == nil || len(matches) < 2 {
+		if matches == nil || len(matches) < 4 {
 			continue
 		}
 
@@ -104,18 +102,31 @@ func ParseFilterOptions(query map[string][]string) []FilterOption {
 			continue
 		}
 
-		filterOperator := FilterOperatorTypeEQ.Code()
+		expressionOperator := matches[2]
+		expressionOperator = strings.TrimSpace(expressionOperator)
+
+		filterOperator := matches[3]
+		filterOperator = strings.TrimSpace(filterOperator)
+
+		filterExpression := filterColumn
 		if len(matches) == 4 {
-			filterOperator = matches[3]
+			filterExpression += expressionOperator
 		}
 		fo := FilterOption{
-			Column:   filterColumn,
-			Operator: ParseFilterOperatorType(filterOperator),
-			Values:   orValues,
+			Expression: filterExpression,
+			Column:     filterColumn,
+			Operator:   ParseFilterOperatorType(filterOperator),
+			Values:     orValues,
 		}
 
 		res = append(res, fo)
 	}
 
 	return res
+}
+
+func SortFiltersByOperator(a []FilterOption) {
+	sort.Slice(a, func(i, j int) bool {
+		return a[i].Operator < a[j].Operator
+	})
 }
