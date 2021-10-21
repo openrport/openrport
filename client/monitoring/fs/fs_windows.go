@@ -63,8 +63,8 @@ func getPartitions(onlyUniqueDevices bool) ([]disk.PartitionStat, error) {
 					uint32(len(lpFileSystemNameBuffer)),
 				)
 				if err != nil {
-					if typeret == driveTypeCDROM || typeret == driveTypeRemovable {
-						continue // device is not ready will happen if there is no disk in the drive
+					if typeret == driveTypeCDROM || typeret == driveTypeRemovable || typeret == driveTypeRemote {
+						continue // device is not ready will happen if there is no disk in the drive or not connected to network drive
 					}
 					return result, err
 				}
