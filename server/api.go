@@ -15,12 +15,15 @@ import (
 	"strings"
 	"time"
 
+	"github.com/gorilla/handlers"
 	"github.com/gorilla/mux"
 	"github.com/gorilla/websocket"
+	"github.com/jpillora/requestlog"
 	"github.com/tomasen/realip"
 	"golang.org/x/crypto/ssh"
 
 	"github.com/cloudradar-monitoring/rport/server/api"
+	"github.com/cloudradar-monitoring/rport/server/api/command"
 	errors2 "github.com/cloudradar-monitoring/rport/server/api/errors"
 	"github.com/cloudradar-monitoring/rport/server/api/jobs"
 	"github.com/cloudradar-monitoring/rport/server/api/middleware"
@@ -46,21 +49,18 @@ import (
 const (
 	queryParamSort = "sort"
 
-	routeParamClientID      = "client_id"
-	routeParamUserID        = "user_id"
-	routeParamJobID         = "job_id"
-	routeParamGroupID       = "group_id"
-	routeParamVaultValueID  = "vault_value_id"
-	routeParamScriptValueID = "script_value_id"
+	routeParamClientID       = "client_id"
+	routeParamUserID         = "user_id"
+	routeParamJobID          = "job_id"
+	routeParamGroupID        = "group_id"
+	routeParamVaultValueID   = "vault_value_id"
+	routeParamScriptValueID  = "script_value_id"
+	routeParamCommandValueID = "command_value_id"
 
 	ErrCodeMissingRouteVar = "ERR_CODE_MISSING_ROUTE_VAR"
 	ErrCodeInvalidRequest  = "ERR_CODE_INVALID_REQUEST"
 	ErrCodeAlreadyExist    = "ERR_CODE_ALREADY_EXIST"
-
-	minVersionScriptExecSupport = "0.1.35"
 )
-
-var validInputInterpreter = []string{"cmd", "powershell"}
 
 var generateNewJobID = func() (string, error) {
 	return random.UUID4()
@@ -163,94 +163,117 @@ func (al *APIListener) handleBannedIPs(w http.ResponseWriter, r *http.Request, a
 
 func (al *APIListener) initRouter() {
 	r := mux.NewRouter()
-	sub := r.PathPrefix("/api/v1").Subrouter()
-	sub.HandleFunc("/status", al.handleGetStatus).Methods(http.MethodGet)
-	sub.HandleFunc("/me", al.handleGetMe).Methods(http.MethodGet)
-	sub.HandleFunc("/me", al.handleChangeMe).Methods(http.MethodPut)
-	sub.HandleFunc("/me/ip", al.handleGetIP).Methods(http.MethodGet)
-	sub.HandleFunc("/me/token", al.handlePostToken).Methods(http.MethodPost)
-	sub.HandleFunc("/me/token", al.handleDeleteToken).Methods(http.MethodDelete)
-	sub.HandleFunc("/clients", al.handleGetClients).Methods(http.MethodGet)
-	sub.HandleFunc("/clients/{client_id}", al.wrapClientAccessMiddleware(al.handleGetClient)).Methods(http.MethodGet)
-	sub.HandleFunc("/clients/{client_id}", al.wrapClientAccessMiddleware(al.handleDeleteClient)).Methods(http.MethodDelete)
-	sub.HandleFunc("/clients/{client_id}/acl", al.wrapAdminAccessMiddleware(al.handlePostClientACL)).Methods(http.MethodPost)
-	sub.HandleFunc("/clients/{client_id}/tunnels", al.wrapClientAccessMiddleware(al.handlePutClientTunnel)).Methods(http.MethodPut)
-	sub.HandleFunc("/clients/{client_id}/tunnels/{tunnel_id}", al.wrapClientAccessMiddleware(al.handleDeleteClientTunnel)).Methods(http.MethodDelete)
-	sub.HandleFunc("/clients/{client_id}/commands", al.wrapClientAccessMiddleware(al.handlePostCommand)).Methods(http.MethodPost)
-	sub.HandleFunc("/clients/{client_id}/commands", al.wrapClientAccessMiddleware(al.handleGetCommands)).Methods(http.MethodGet)
-	sub.HandleFunc("/clients/{client_id}/commands/{job_id}", al.wrapClientAccessMiddleware(al.handleGetCommand)).Methods(http.MethodGet)
-	sub.HandleFunc("/clients/{client_id}/scripts", al.wrapClientAccessMiddleware(al.handleExecuteScript)).Methods(http.MethodPost)
-	sub.HandleFunc("/clients/{client_id}/updates-status", al.wrapClientAccessMiddleware(al.handleRefreshUpdatesStatus)).Methods(http.MethodPost)
-	sub.HandleFunc("/clients/{client_id}/metrics", al.handleGetClientMetrics).Methods(http.MethodGet)
-	sub.HandleFunc("/clients/{client_id}/processes", al.handleGetClientProcesses).Methods(http.MethodGet)
-	sub.HandleFunc("/client-groups", al.handleGetClientGroups).Methods(http.MethodGet)
-	sub.HandleFunc("/client-groups", al.wrapAdminAccessMiddleware(al.handlePostClientGroups)).Methods(http.MethodPost)
-	sub.HandleFunc("/client-groups/{group_id}", al.wrapAdminAccessMiddleware(al.handlePutClientGroup)).Methods(http.MethodPut)
-	sub.HandleFunc("/client-groups/{group_id}", al.handleGetClientGroup).Methods(http.MethodGet)
-	sub.HandleFunc("/client-groups/{group_id}", al.wrapAdminAccessMiddleware(al.handleDeleteClientGroup)).Methods(http.MethodDelete)
-	sub.HandleFunc("/users", al.wrapStaticPassModeMiddleware(al.wrapAdminAccessMiddleware(al.handleGetUsers))).Methods(http.MethodGet)
-	sub.HandleFunc("/users", al.wrapStaticPassModeMiddleware(al.wrapAdminAccessMiddleware(al.handleChangeUser))).Methods(http.MethodPost)
-	sub.HandleFunc("/users/{user_id}", al.wrapStaticPassModeMiddleware(al.wrapAdminAccessMiddleware(al.handleChangeUser))).Methods(http.MethodPut)
-	sub.HandleFunc("/users/{user_id}", al.wrapStaticPassModeMiddleware(al.wrapAdminAccessMiddleware(al.handleDeleteUser))).Methods(http.MethodDelete)
-	sub.HandleFunc("/commands", al.handlePostMultiClientCommand).Methods(http.MethodPost)
-	sub.HandleFunc("/commands", al.handleGetMultiClientCommands).Methods(http.MethodGet)
-	sub.HandleFunc("/commands/{job_id}", al.handleGetMultiClientCommand).Methods(http.MethodGet)
-	sub.HandleFunc("/clients-auth", al.wrapAdminAccessMiddleware(al.handleGetClientsAuth)).Methods(http.MethodGet)
-	sub.HandleFunc("/clients-auth", al.wrapAdminAccessMiddleware(al.handlePostClientsAuth)).Methods(http.MethodPost)
-	sub.HandleFunc("/clients-auth/{client_auth_id}", al.wrapAdminAccessMiddleware(al.handleDeleteClientAuth)).Methods(http.MethodDelete)
-	sub.HandleFunc("/vault-admin", al.handleGetVaultStatus).Methods(http.MethodGet)
-	sub.HandleFunc("/vault-admin/sesame", al.wrapAdminAccessMiddleware(al.handleVaultUnlock)).Methods(http.MethodPost)
-	sub.HandleFunc("/vault-admin/init", al.wrapAdminAccessMiddleware(al.handleVaultInit)).Methods(http.MethodPost)
-	sub.HandleFunc("/vault-admin/sesame", al.wrapAdminAccessMiddleware(al.handleVaultLock)).Methods(http.MethodDelete)
-	sub.HandleFunc("/vault", al.handleListVaultValues).Methods(http.MethodGet)
-	sub.HandleFunc("/vault", al.handleVaultStoreValue).Methods(http.MethodPost)
-	sub.HandleFunc("/vault/{"+routeParamVaultValueID+"}", al.handleReadVaultValue).Methods(http.MethodGet)
-	sub.HandleFunc("/vault/{"+routeParamVaultValueID+"}", al.handleVaultStoreValue).Methods(http.MethodPut)
-	sub.HandleFunc("/vault/{"+routeParamVaultValueID+"}", al.handleVaultDeleteValue).Methods(http.MethodDelete)
-	sub.HandleFunc("/library/scripts", al.handleListScripts).Methods(http.MethodGet)
-	sub.HandleFunc("/library/scripts", al.handleScriptCreate).Methods(http.MethodPost)
-	sub.HandleFunc("/library/scripts/{"+routeParamScriptValueID+"}", al.handleScriptUpdate).Methods(http.MethodPut)
-	sub.HandleFunc("/library/scripts/{"+routeParamScriptValueID+"}", al.handleReadScript).Methods(http.MethodGet)
-	sub.HandleFunc("/library/scripts/{"+routeParamScriptValueID+"}", al.handleDeleteScript).Methods(http.MethodDelete)
-	sub.HandleFunc("/scripts", al.handlePostMultiClientScript).Methods(http.MethodPost)
+	api := r.PathPrefix("/api/v1").Subrouter()
+	api.HandleFunc("/status", al.handleGetStatus).Methods(http.MethodGet)
+	api.HandleFunc("/me", al.handleGetMe).Methods(http.MethodGet)
+	api.HandleFunc("/me", al.handleChangeMe).Methods(http.MethodPut)
+	api.HandleFunc("/me/ip", al.handleGetIP).Methods(http.MethodGet)
+	api.HandleFunc("/me/token", al.handlePostToken).Methods(http.MethodPost)
+	api.HandleFunc("/me/token", al.handleDeleteToken).Methods(http.MethodDelete)
+	api.HandleFunc("/clients", al.handleGetClients).Methods(http.MethodGet)
+	api.HandleFunc("/clients/{client_id}", al.wrapClientAccessMiddleware(al.handleGetClient)).Methods(http.MethodGet)
+	api.HandleFunc("/clients/{client_id}", al.wrapClientAccessMiddleware(al.handleDeleteClient)).Methods(http.MethodDelete)
+	api.HandleFunc("/clients/{client_id}/acl", al.wrapAdminAccessMiddleware(al.handlePostClientACL)).Methods(http.MethodPost)
+	api.HandleFunc("/clients/{client_id}/tunnels", al.wrapClientAccessMiddleware(al.handlePutClientTunnel)).Methods(http.MethodPut)
+	api.HandleFunc("/clients/{client_id}/tunnels/{tunnel_id}", al.wrapClientAccessMiddleware(al.handleDeleteClientTunnel)).Methods(http.MethodDelete)
+	api.HandleFunc("/clients/{client_id}/commands", al.wrapClientAccessMiddleware(al.handlePostCommand)).Methods(http.MethodPost)
+	api.HandleFunc("/clients/{client_id}/commands", al.wrapClientAccessMiddleware(al.handleGetCommands)).Methods(http.MethodGet)
+	api.HandleFunc("/clients/{client_id}/commands/{job_id}", al.wrapClientAccessMiddleware(al.handleGetCommand)).Methods(http.MethodGet)
+	api.HandleFunc("/clients/{client_id}/scripts", al.wrapClientAccessMiddleware(al.handleExecuteScript)).Methods(http.MethodPost)
+	api.HandleFunc("/clients/{client_id}/updates-status", al.wrapClientAccessMiddleware(al.handleRefreshUpdatesStatus)).Methods(http.MethodPost)
+	api.HandleFunc("/clients/{client_id}/metrics", al.handleGetClientMetrics).Methods(http.MethodGet)
+	api.HandleFunc("/clients/{client_id}/processes", al.handleGetClientProcesses).Methods(http.MethodGet)
+	api.HandleFunc("/client-groups", al.handleGetClientGroups).Methods(http.MethodGet)
+	api.HandleFunc("/client-groups", al.wrapAdminAccessMiddleware(al.handlePostClientGroups)).Methods(http.MethodPost)
+	api.HandleFunc("/client-groups/{group_id}", al.wrapAdminAccessMiddleware(al.handlePutClientGroup)).Methods(http.MethodPut)
+	api.HandleFunc("/client-groups/{group_id}", al.handleGetClientGroup).Methods(http.MethodGet)
+	api.HandleFunc("/client-groups/{group_id}", al.wrapAdminAccessMiddleware(al.handleDeleteClientGroup)).Methods(http.MethodDelete)
+	api.HandleFunc("/users", al.wrapStaticPassModeMiddleware(al.wrapAdminAccessMiddleware(al.handleGetUsers))).Methods(http.MethodGet)
+	api.HandleFunc("/users", al.wrapStaticPassModeMiddleware(al.wrapAdminAccessMiddleware(al.handleChangeUser))).Methods(http.MethodPost)
+	api.HandleFunc("/users/{user_id}", al.wrapStaticPassModeMiddleware(al.wrapAdminAccessMiddleware(al.handleChangeUser))).Methods(http.MethodPut)
+	api.HandleFunc("/users/{user_id}", al.wrapStaticPassModeMiddleware(al.wrapAdminAccessMiddleware(al.handleDeleteUser))).Methods(http.MethodDelete)
+	api.HandleFunc("/commands", al.handlePostMultiClientCommand).Methods(http.MethodPost)
+	api.HandleFunc("/commands", al.handleGetMultiClientCommands).Methods(http.MethodGet)
+	api.HandleFunc("/commands/{job_id}", al.handleGetMultiClientCommand).Methods(http.MethodGet)
+	api.HandleFunc("/clients-auth", al.wrapAdminAccessMiddleware(al.handleGetClientsAuth)).Methods(http.MethodGet)
+	api.HandleFunc("/clients-auth", al.wrapAdminAccessMiddleware(al.handlePostClientsAuth)).Methods(http.MethodPost)
+	api.HandleFunc("/clients-auth/{client_auth_id}", al.wrapAdminAccessMiddleware(al.handleDeleteClientAuth)).Methods(http.MethodDelete)
+	api.HandleFunc("/vault-admin", al.handleGetVaultStatus).Methods(http.MethodGet)
+	api.HandleFunc("/vault-admin/sesame", al.wrapAdminAccessMiddleware(al.handleVaultUnlock)).Methods(http.MethodPost)
+	api.HandleFunc("/vault-admin/init", al.wrapAdminAccessMiddleware(al.handleVaultInit)).Methods(http.MethodPost)
+	api.HandleFunc("/vault-admin/sesame", al.wrapAdminAccessMiddleware(al.handleVaultLock)).Methods(http.MethodDelete)
+	api.HandleFunc("/vault", al.handleListVaultValues).Methods(http.MethodGet)
+	api.HandleFunc("/vault", al.handleVaultStoreValue).Methods(http.MethodPost)
+	api.HandleFunc("/vault/{"+routeParamVaultValueID+"}", al.handleReadVaultValue).Methods(http.MethodGet)
+	api.HandleFunc("/vault/{"+routeParamVaultValueID+"}", al.handleVaultStoreValue).Methods(http.MethodPut)
+	api.HandleFunc("/vault/{"+routeParamVaultValueID+"}", al.handleVaultDeleteValue).Methods(http.MethodDelete)
+	api.HandleFunc("/library/scripts", al.handleListScripts).Methods(http.MethodGet)
+	api.HandleFunc("/library/scripts", al.handleScriptCreate).Methods(http.MethodPost)
+	api.HandleFunc("/library/scripts/{"+routeParamScriptValueID+"}", al.handleScriptUpdate).Methods(http.MethodPut)
+	api.HandleFunc("/library/scripts/{"+routeParamScriptValueID+"}", al.handleReadScript).Methods(http.MethodGet)
+	api.HandleFunc("/library/scripts/{"+routeParamScriptValueID+"}", al.handleDeleteScript).Methods(http.MethodDelete)
+	api.HandleFunc("/library/commands", al.handleListCommands).Methods(http.MethodGet)
+	api.HandleFunc("/library/commands", al.handleCommandCreate).Methods(http.MethodPost)
+	api.HandleFunc("/library/commands/{"+routeParamCommandValueID+"}", al.handleCommandUpdate).Methods(http.MethodPut)
+	api.HandleFunc("/library/commands/{"+routeParamCommandValueID+"}", al.handleReadCommand).Methods(http.MethodGet)
+	api.HandleFunc("/library/commands/{"+routeParamCommandValueID+"}", al.handleDeleteCommand).Methods(http.MethodDelete)
+	api.HandleFunc("/scripts", al.handlePostMultiClientScript).Methods(http.MethodPost)
 
 	// add authorization middleware
 	if !al.insecureForTests {
-		_ = sub.Walk(func(route *mux.Route, router *mux.Router, ancestors []*mux.Route) error {
+		_ = api.Walk(func(route *mux.Route, router *mux.Router, ancestors []*mux.Route) error {
 			route.HandlerFunc(al.wrapWithAuthMiddleware(route.GetHandler()))
 			return nil
 		})
 	}
 
 	// all routes defined below do not have authorization middleware, auth is done in each handlers separately
-	sub.HandleFunc("/login", al.handleGetLogin).Methods(http.MethodGet)
-	sub.HandleFunc("/login", al.handlePostLogin).Methods(http.MethodPost)
-	sub.HandleFunc("/logout", al.handleDeleteLogout).Methods(http.MethodDelete)
-	sub.HandleFunc("/verify-2fa", al.handlePostVerify2FAToken).Methods(http.MethodPost)
+	api.HandleFunc("/login", al.handleGetLogin).Methods(http.MethodGet)
+	api.HandleFunc("/login", al.handlePostLogin).Methods(http.MethodPost)
+	api.HandleFunc("/logout", al.handleDeleteLogout).Methods(http.MethodDelete)
+	api.HandleFunc("/verify-2fa", al.handlePostVerify2FAToken).Methods(http.MethodPost)
 
 	// web sockets
 	// common auth middleware is not used due to JS issue https://stackoverflow.com/questions/22383089/is-it-possible-to-use-bearer-authentication-for-websocket-upgrade-requests
-	sub.HandleFunc("/ws/commands", al.wsAuth(http.HandlerFunc(al.handleCommandsWS))).Methods(http.MethodGet)
-	sub.HandleFunc("/ws/scripts", al.wsAuth(http.HandlerFunc(al.handleScriptsWS))).Methods(http.MethodGet)
+	api.HandleFunc("/ws/commands", al.wsAuth(http.HandlerFunc(al.handleCommandsWS))).Methods(http.MethodGet)
+	api.HandleFunc("/ws/scripts", al.wsAuth(http.HandlerFunc(al.handleScriptsWS))).Methods(http.MethodGet)
 
 	if al.config.Server.EnableWsTestEndpoints {
-		sub.HandleFunc("/test/commands/ui", al.wsCommands)
-		sub.HandleFunc("/test/scripts/ui", al.wsScripts)
+		api.HandleFunc("/test/commands/ui", al.wsCommands)
+		api.HandleFunc("/test/scripts/ui", al.wsScripts)
 	}
 
 	if al.bannedIPs != nil {
 		// add middleware to reject banned IPs
-		_ = sub.Walk(func(route *mux.Route, router *mux.Router, ancestors []*mux.Route) error {
+		_ = api.Walk(func(route *mux.Route, router *mux.Router, ancestors []*mux.Route) error {
 			route.HandlerFunc(security.RejectBannedIPs(route.GetHandler(), al.bannedIPs))
 			return nil
 		})
 	}
 
 	// add max bytes middleware
-	_ = sub.Walk(func(route *mux.Route, router *mux.Router, ancestors []*mux.Route) error {
+	_ = api.Walk(func(route *mux.Route, router *mux.Router, ancestors []*mux.Route) error {
 		route.HandlerFunc(middleware.MaxBytes(route.GetHandler(), al.config.Server.MaxRequestBytes))
 		return nil
 	})
+
+	docRoot := al.config.API.DocRoot
+	if docRoot != "" {
+		r.PathPrefix("/").Handler(middleware.Rewrite404(http.FileServer(http.Dir(docRoot)), "/"))
+	}
+
+	if al.requestLogOptions != nil {
+		r.Use(func(next http.Handler) http.Handler { return requestlog.WrapWith(next, *al.requestLogOptions) })
+	}
+	if al.accessLogFile != nil {
+		r.Use(func(next http.Handler) http.Handler { return handlers.CombinedLoggingHandler(al.accessLogFile, next) })
+	}
+
+	r.Use(handlers.CompressHandler)
+	r.Use(handlers.RecoveryHandler(
+		handlers.PrintRecoveryStack(true),
+		handlers.RecoveryLogger(middleware.NewRecoveryLogger(al.Logger)),
+	))
 
 	al.router = r
 }
@@ -1364,7 +1387,7 @@ func (al *APIListener) handleExecuteCommand(ctx context.Context, w http.Response
 		al.jsonErrorResponseWithTitle(w, http.StatusBadRequest, "Command cannot be empty.")
 		return
 	}
-	if err := validateInterpreter(executeInput.Interpreter); err != nil {
+	if err := validation.ValidateInterpreter(executeInput.Interpreter, executeInput.IsScript); err != nil {
 		al.jsonErrorResponseWithError(w, http.StatusBadRequest, "Invalid interpreter.", err)
 		return
 	}
@@ -1406,7 +1429,6 @@ func (al *APIListener) handleExecuteCommand(ctx context.Context, w http.Response
 		Cwd:         executeInput.Cwd,
 		IsSudo:      executeInput.IsSudo,
 		IsScript:    executeInput.IsScript,
-		HasShebang:  executeInput.HasShebang,
 	}
 	sshResp := &comm.RunCmdResponse{}
 	err = comm.SendRequestAndGetResponse(client.Connection, comm.RequestTypeRunCmd, curJob, sshResp)
@@ -1439,32 +1461,6 @@ func (al *APIListener) handleExecuteCommand(ctx context.Context, w http.Response
 	al.Debugf("Job[id=%q] created to execute remote command on client with id=%q: %q.", curJob.JID, executeInput.ClientID, executeInput.Command)
 }
 
-func (al *APIListener) getClientForScriptExecution(clientID string) (*clients.Client, error) {
-	client, err := al.clientService.GetActiveByID(clientID)
-	if err != nil {
-		return nil, errors2.APIError{
-			Message:    fmt.Sprintf("Failed to find an active client with id=%q.", clientID),
-			Err:        err,
-			HTTPStatus: http.StatusInternalServerError,
-		}
-	}
-	if client == nil {
-		return nil, errors2.APIError{
-			Message:    fmt.Sprintf("Active client with id=%q not found.", clientID),
-			HTTPStatus: http.StatusNotFound,
-		}
-	}
-
-	if client.Version != chshare.SourceVersion && client.Version < minVersionScriptExecSupport {
-		return nil, errors2.APIError{
-			Message:    fmt.Sprintf("Script Execution is supported starting from %s version, current client version is %s.", minVersionScriptExecSupport, client.Version),
-			HTTPStatus: http.StatusBadRequest,
-		}
-	}
-
-	return client, nil
-}
-
 func (al *APIListener) handleExecuteScript(w http.ResponseWriter, req *http.Request) {
 	vars := mux.Vars(req)
 	cid := vars[routeParamClientID]
@@ -1489,42 +1485,12 @@ func (al *APIListener) handleExecuteScript(w http.ResponseWriter, req *http.Requ
 		al.jsonErrorResponse(w, http.StatusBadRequest, err)
 		return
 	}
-	execCmdInput.Script = string(decodedScriptBytes)
+	execCmdInput.Command = string(decodedScriptBytes)
 
 	execCmdInput.ClientID = cid
 	execCmdInput.IsScript = true
 
-	cl, err := al.getClientForScriptExecution(cid)
-	if err != nil {
-		al.jsonError(w, err)
-		return
-	}
-
-	scriptPath, err := al.scriptManager.CreateScriptOnClient(execCmdInput, cl)
-	if err != nil {
-		if _, ok := err.(*comm.ClientError); ok {
-			al.jsonErrorResponseWithTitle(w, http.StatusConflict, err.Error())
-		} else {
-			al.jsonError(w, err)
-		}
-		return
-	}
-	execCmdInput.Command = scriptPath
-	execCmdInput.HasShebang = script.HasShebangLine(execCmdInput.Script)
-
 	al.handleExecuteCommand(req.Context(), w, execCmdInput)
-}
-
-func validateInterpreter(interpreter string) error {
-	if interpreter == "" {
-		return nil
-	}
-	for _, v := range validInputInterpreter {
-		if interpreter == v {
-			return nil
-		}
-	}
-	return fmt.Errorf("expected interpreter to be one of: %s, actual: %s", validInputInterpreter, interpreter)
 }
 
 func (al *APIListener) handleGetCommands(w http.ResponseWriter, req *http.Request) {
@@ -1589,7 +1555,6 @@ type multiClientCmdRequest struct {
 	ExecuteConcurrently bool     `json:"execute_concurrently"`
 	AbortOnError        *bool    `json:"abort_on_error"` // pointer is used because it's default value is true. Otherwise it would be more difficult to check whether this field is missing or not
 	IsScript            bool
-	HasShebang          bool
 }
 
 // TODO: refactor to reuse similar code for REST API and WebSocket to execute cmds if both will be supported
@@ -1605,7 +1570,7 @@ func (al *APIListener) handlePostMultiClientCommand(w http.ResponseWriter, req *
 		al.jsonErrorResponseWithTitle(w, http.StatusBadRequest, "Command cannot be empty.")
 		return
 	}
-	if err := validateInterpreter(reqBody.Interpreter); err != nil {
+	if err := validation.ValidateInterpreter(reqBody.Interpreter, reqBody.IsScript); err != nil {
 		al.jsonErrorResponseWithError(w, http.StatusBadRequest, "Invalid interpreter.", err)
 		return
 	}
@@ -1682,7 +1647,7 @@ func (al *APIListener) handlePostMultiClientCommand(w http.ResponseWriter, req *
 
 	al.Debugf("Multi-client Job[id=%q] created to execute remote command on clients %s, groups %s: %q.", multiJob.JID, reqBody.ClientIDs, reqBody.GroupIDs, reqBody.Command)
 
-	go al.executeMultiClientJob(multiJob, orderedClients, map[string]string{})
+	go al.executeMultiClientJob(multiJob, orderedClients)
 }
 
 func (al *APIListener) getOrderedClients(
@@ -1765,7 +1730,6 @@ func (al *APIListener) getOrderedClients(
 func (al *APIListener) executeMultiClientJob(
 	job *models.MultiJob,
 	orderedClients []*clients.Client,
-	clientIDCommandMap map[string]string,
 ) {
 	// for sequential execution - create a channel to get the job result
 	var curJobDoneChannel chan *models.Job
@@ -1778,34 +1742,28 @@ func (al *APIListener) executeMultiClientJob(
 		}()
 	}
 	for _, client := range orderedClients {
-		command, ok := clientIDCommandMap[client.ID]
-		if !ok {
-			command = job.Command
-		}
 		if job.Concurrent {
 			go al.createAndRunJob(
 				job.JID,
-				command,
+				job.Command,
 				job.Interpreter,
 				job.CreatedBy,
 				job.Cwd,
 				job.TimeoutSec,
 				job.IsSudo,
 				job.IsScript,
-				job.HasShebang,
 				client,
 			)
 		} else {
 			success := al.createAndRunJob(
 				job.JID,
-				command,
+				job.Command,
 				job.Interpreter,
 				job.CreatedBy,
 				job.Cwd,
 				job.TimeoutSec,
 				job.IsSudo,
 				job.IsScript,
-				job.HasShebang,
 				client,
 			)
 			if !success {
@@ -1835,7 +1793,7 @@ func (al *APIListener) executeMultiClientJob(
 func (al *APIListener) createAndRunJob(
 	multiJobID, cmd, interpreter, createdBy, cwd string,
 	timeoutSec int,
-	isSudo, isScript, hasShebang bool,
+	isSudo, isScript bool,
 	client *clients.Client,
 ) bool {
 	jid, err := generateNewJobID()
@@ -1859,7 +1817,6 @@ func (al *APIListener) createAndRunJob(
 		CreatedBy:   createdBy,
 		TimeoutSec:  timeoutSec,
 		MultiJobID:  &multiJobID,
-		HasShebang:  hasShebang,
 	}
 	sshResp := &comm.RunCmdResponse{}
 	err = comm.SendRequestAndGetResponse(client.Connection, comm.RequestTypeRunCmd, curJob, sshResp)
@@ -1910,16 +1867,17 @@ func (al *APIListener) handleCommandsWS(w http.ResponseWriter, req *http.Request
 		return
 	}
 	inboundMsg.OrderedClients = orderedClients
+	inboundMsg.IsScript = false
 
-	al.handleCommandsExecutionWS(ctx, uiConnTS, inboundMsg, clientsInGroupsCount, map[string]string{})
+	al.handleCommandsExecutionWS(ctx, uiConnTS, inboundMsg, clientsInGroupsCount)
 }
 
-func (al *APIListener) createScriptOnMultipleClients(
+func (al *APIListener) enrichScriptInput(
 	ctx context.Context,
 	inboundMsg *multiClientCmdRequest,
-) (clientsInGroupsCount int, clientIDCommandMap map[string]string, err error) {
+) (clientsInGroupsCount int, err error) {
 	if inboundMsg.Script == "" {
-		return 0, nil, errors2.APIError{
+		return 0, errors2.APIError{
 			Message:    "Missing script body",
 			HTTPStatus: http.StatusBadRequest,
 		}
@@ -1931,48 +1889,27 @@ func (al *APIListener) createScriptOnMultipleClients(
 
 	decodedScriptBytes, err := base64.StdEncoding.DecodeString(inboundMsg.Script)
 	if err != nil {
-		return 0, nil, errors2.APIError{
+		return 0, errors2.APIError{
 			Err:        err,
 			HTTPStatus: http.StatusBadRequest,
 			Message:    "failed to decode script payload from base64",
 		}
 	}
 
-	inboundMsg.Script = string(decodedScriptBytes)
+	inboundMsg.Command = string(decodedScriptBytes)
 	inboundMsg.IsScript = true
 
 	orderedClients, clientsInGroupsCount, err := al.getOrderedClients(ctx, inboundMsg.ClientIDs, inboundMsg.GroupIDs)
 	if err != nil {
-		return 0, nil, err
+		return 0, err
 	}
 	if len(orderedClients) == 0 {
-		return 0, nil, errors.New("no clients to execute the script for")
+		return 0, errors.New("no clients to execute the script for")
 	}
 
 	inboundMsg.OrderedClients = orderedClients
 
-	clientIDCommandMap = make(map[string]string, len(orderedClients))
-	for _, cl := range orderedClients {
-		scriptPath, err := al.scriptManager.CreateScriptOnClient(
-			&api.ExecuteInput{
-				Command:     inboundMsg.Command,
-				Script:      inboundMsg.Script,
-				Interpreter: inboundMsg.Interpreter,
-				Cwd:         inboundMsg.Cwd,
-				IsSudo:      inboundMsg.IsSudo,
-				TimeoutSec:  inboundMsg.TimeoutSec,
-				ClientID:    cl.ID,
-				IsScript:    true,
-			},
-			cl,
-		)
-		if err != nil {
-			return 0, nil, err
-		}
-		clientIDCommandMap[cl.ID] = scriptPath
-	}
-
-	return clientsInGroupsCount, clientIDCommandMap, nil
+	return clientsInGroupsCount, nil
 }
 
 func (al *APIListener) handleScriptsWS(w http.ResponseWriter, req *http.Request) {
@@ -1995,14 +1932,13 @@ func (al *APIListener) handleScriptsWS(w http.ResponseWriter, req *http.Request)
 		uiConnTS.WriteError("Invalid JSON data.", err)
 		return
 	}
-	clientsInGroupsCount, clientIDCommandMap, err := al.createScriptOnMultipleClients(ctx, inboundMsg)
+	clientsInGroupsCount, err := al.enrichScriptInput(ctx, inboundMsg)
 	if err != nil {
 		uiConnTS.WriteError("Failed to create script on multiple clients", err)
 		return
 	}
-	inboundMsg.HasShebang = script.HasShebangLine(inboundMsg.Script)
 
-	al.handleCommandsExecutionWS(ctx, uiConnTS, inboundMsg, clientsInGroupsCount, clientIDCommandMap)
+	al.handleCommandsExecutionWS(ctx, uiConnTS, inboundMsg, clientsInGroupsCount)
 }
 
 func (al *APIListener) handleCommandsExecutionWS(
@@ -2010,13 +1946,12 @@ func (al *APIListener) handleCommandsExecutionWS(
 	uiConnTS *ws.ConcurrentWebSocket,
 	inboundMsg *multiClientCmdRequest,
 	clientsInGroupsCount int,
-	clientIDCommandMap map[string]string,
 ) {
-	if inboundMsg.Command == "" && len(clientIDCommandMap) == 0 {
+	if inboundMsg.Command == "" {
 		uiConnTS.WriteError("Command cannot be empty.", nil)
 		return
 	}
-	if err := validateInterpreter(inboundMsg.Interpreter); err != nil {
+	if err := validation.ValidateInterpreter(inboundMsg.Interpreter, inboundMsg.IsScript); err != nil {
 		uiConnTS.WriteError("Invalid interpreter", err)
 		return
 	}
@@ -2079,7 +2014,6 @@ func (al *APIListener) handleCommandsExecutionWS(
 			AbortOnErr:  abortOnErr,
 			IsSudo:      inboundMsg.IsSudo,
 			IsScript:    inboundMsg.IsScript,
-			HasShebang:  inboundMsg.HasShebang,
 		}
 		if err := al.jobProvider.SaveMultiJob(multiJob); err != nil {
 			uiConnTS.WriteError("Failed to persist a new multi-client job.", err)
@@ -2101,11 +2035,6 @@ func (al *APIListener) handleCommandsExecutionWS(
 		}
 
 		for _, client := range inboundMsg.OrderedClients {
-			command, ok := clientIDCommandMap[client.ID]
-			if !ok {
-				command = inboundMsg.Command
-			}
-
 			curJID, err := generateNewJobID()
 			if err != nil {
 				uiConnTS.WriteError("Could not generate job id.", err)
@@ -2116,14 +2045,13 @@ func (al *APIListener) handleCommandsExecutionWS(
 					uiConnTS,
 					&jid,
 					curJID,
-					command,
+					inboundMsg.Command,
 					multiJob.Interpreter,
 					createdBy,
 					multiJob.Cwd,
 					multiJob.TimeoutSec,
 					multiJob.IsSudo,
 					multiJob.IsScript,
-					multiJob.HasShebang,
 					client,
 				)
 			} else {
@@ -2131,14 +2059,13 @@ func (al *APIListener) handleCommandsExecutionWS(
 					uiConnTS,
 					&jid,
 					curJID,
-					command,
+					inboundMsg.Command,
 					multiJob.Interpreter,
 					createdBy,
 					multiJob.Cwd,
 					multiJob.TimeoutSec,
 					multiJob.IsSudo,
 					multiJob.IsScript,
-					multiJob.HasShebang,
 					client,
 				)
 				if !success {
@@ -2158,23 +2085,17 @@ func (al *APIListener) handleCommandsExecutionWS(
 		}
 	} else {
 		client := inboundMsg.OrderedClients[0]
-		command, ok := clientIDCommandMap[client.ID]
-		if !ok {
-			command = inboundMsg.Command
-		}
-
 		al.createAndRunJobWS(
 			uiConnTS,
 			nil,
 			jid,
-			command,
+			inboundMsg.Command,
 			inboundMsg.Interpreter,
 			createdBy,
 			inboundMsg.Cwd,
 			inboundMsg.TimeoutSec,
 			inboundMsg.IsSudo,
 			inboundMsg.IsScript,
-			inboundMsg.HasShebang,
 			client,
 		)
 	}
@@ -2199,7 +2120,7 @@ func (al *APIListener) createAndRunJobWS(
 	multiJobID *string,
 	jid, cmd, interpreter, createdBy, cwd string,
 	timeoutSec int,
-	isSudo, isScript, hasShebang bool,
+	isSudo, isScript bool,
 	client *clients.Client,
 ) bool {
 	curJob := models.Job{
@@ -2217,7 +2138,6 @@ func (al *APIListener) createAndRunJobWS(
 		Cwd:         cwd,
 		IsSudo:      isSudo,
 		IsScript:    isScript,
-		HasShebang:  hasShebang,
 	}
 	logPrefix := curJob.LogPrefix()
 
@@ -2776,6 +2696,113 @@ func (al *APIListener) handleDeleteScript(w http.ResponseWriter, req *http.Reque
 	w.WriteHeader(http.StatusNoContent)
 }
 
+func (al *APIListener) handleListCommands(w http.ResponseWriter, req *http.Request) {
+	items, err := al.commandManager.List(req.Context(), req)
+	if err != nil {
+		al.jsonError(w, err)
+		return
+	}
+
+	al.writeJSONResponse(w, http.StatusOK, api.NewSuccessPayload(items))
+}
+
+func (al *APIListener) handleCommandCreate(w http.ResponseWriter, req *http.Request) {
+	var commandInput command.InputCommand
+	err := parseRequestBody(req.Body, &commandInput)
+	if err != nil {
+		al.jsonError(w, err)
+		return
+	}
+
+	curUsername := api.GetUser(req.Context(), al.Logger)
+	if curUsername == "" {
+		al.jsonErrorResponseWithTitle(w, http.StatusUnauthorized, "unauthorized")
+		return
+	}
+
+	storedValue, err := al.commandManager.Create(req.Context(), &commandInput, curUsername)
+	if err != nil {
+		al.jsonError(w, err)
+		return
+	}
+
+	al.writeJSONResponse(w, http.StatusCreated, api.NewSuccessPayload(storedValue))
+}
+
+func (al *APIListener) handleCommandUpdate(w http.ResponseWriter, req *http.Request) {
+	vars := mux.Vars(req)
+	idStr, ok := vars[routeParamCommandValueID]
+	if !ok {
+		al.jsonErrorResponseWithTitle(w, http.StatusBadRequest, "Command ID is not provided")
+		return
+	}
+
+	curUsername := api.GetUser(req.Context(), al.Logger)
+	if curUsername == "" {
+		al.jsonErrorResponseWithTitle(w, http.StatusUnauthorized, "unauthorized")
+		return
+	}
+
+	var commandInput command.InputCommand
+	err := parseRequestBody(req.Body, &commandInput)
+	if err != nil {
+		al.jsonError(w, err)
+		return
+	}
+
+	storedValue, err := al.commandManager.Update(req.Context(), idStr, &commandInput, curUsername)
+	if err != nil {
+		al.jsonError(w, err)
+		return
+	}
+
+	al.writeJSONResponse(w, http.StatusOK, api.NewSuccessPayload(storedValue))
+}
+
+func (al *APIListener) handleReadCommand(w http.ResponseWriter, req *http.Request) {
+	vars := mux.Vars(req)
+	idStr := vars[routeParamCommandValueID]
+	if idStr == "" {
+		al.jsonError(w, errors2.APIError{
+			Err:        errors.New("empty command id provided"),
+			HTTPStatus: http.StatusBadRequest,
+		})
+		return
+	}
+
+	foundScript, found, err := al.commandManager.GetOne(req.Context(), req, idStr)
+	if err != nil {
+		al.jsonError(w, err)
+		return
+	}
+	if !found {
+		al.jsonErrorResponseWithTitle(w, http.StatusNotFound, fmt.Sprintf("Cannot find a command by the provided id: %s", idStr))
+		return
+	}
+
+	al.writeJSONResponse(w, http.StatusOK, api.NewSuccessPayload(foundScript))
+}
+
+func (al *APIListener) handleDeleteCommand(w http.ResponseWriter, req *http.Request) {
+	vars := mux.Vars(req)
+	idStr := vars[routeParamCommandValueID]
+	if idStr == "" {
+		al.jsonError(w, errors2.APIError{
+			Err:        errors.New("empty command id provided"),
+			HTTPStatus: http.StatusBadRequest,
+		})
+		return
+	}
+
+	err := al.commandManager.Delete(req.Context(), idStr)
+	if err != nil {
+		al.jsonError(w, err)
+		return
+	}
+
+	w.WriteHeader(http.StatusNoContent)
+}
+
 func parseRequestBody(reqBody io.ReadCloser, dest interface{}) error {
 	dec := json.NewDecoder(reqBody)
 	dec.DisallowUnknownFields()
@@ -2834,19 +2861,19 @@ func (al *APIListener) handlePostMultiClientScript(w http.ResponseWriter, req *h
 		return
 	}
 
-	groupClientsCount, clientIDCommandMap, err := al.createScriptOnMultipleClients(ctx, inboundMsg)
+	clientsInGroupsCount, err := al.enrichScriptInput(ctx, inboundMsg)
 	if err != nil {
 		al.jsonError(w, err)
 		return
 	}
 
-	if len(inboundMsg.GroupIDs) > 0 && groupClientsCount == 0 && len(inboundMsg.ClientIDs) == 0 {
+	if len(inboundMsg.GroupIDs) > 0 && clientsInGroupsCount == 0 && len(inboundMsg.ClientIDs) == 0 {
 		al.jsonErrorResponseWithTitle(w, http.StatusBadRequest, "No active clients belong to the selected group(s).")
 		return
 	}
 
 	minClients := 2
-	if len(inboundMsg.ClientIDs) < minClients && groupClientsCount == 0 {
+	if len(inboundMsg.ClientIDs) < minClients && clientsInGroupsCount == 0 {
 		al.jsonErrorResponseWithTitle(w, http.StatusBadRequest, fmt.Sprintf("At least %d clients should be specified.", minClients))
 		return
 	}
@@ -2890,7 +2917,6 @@ func (al *APIListener) handlePostMultiClientScript(w http.ResponseWriter, req *h
 		TimeoutSec:  inboundMsg.TimeoutSec,
 		Concurrent:  inboundMsg.ExecuteConcurrently,
 		AbortOnErr:  abortOnErr,
-		HasShebang:  script.HasShebangLine(inboundMsg.Script),
 	}
 	if err := al.jobProvider.SaveMultiJob(multiJob); err != nil {
 		al.jsonErrorResponseWithError(w, http.StatusInternalServerError, "Failed to persist a new multi-client job.", err)
@@ -2904,7 +2930,7 @@ func (al *APIListener) handlePostMultiClientScript(w http.ResponseWriter, req *h
 
 	al.Debugf("Multi-client Job[id=%q] created to execute remote command on clients %s, groups %s: %q.", multiJob.JID, inboundMsg.ClientIDs, inboundMsg.GroupIDs, inboundMsg.Command)
 
-	go al.executeMultiClientJob(multiJob, inboundMsg.OrderedClients, clientIDCommandMap)
+	go al.executeMultiClientJob(multiJob, inboundMsg.OrderedClients)
 }
 
 type postTokenResponse struct {

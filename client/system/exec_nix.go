@@ -6,6 +6,8 @@ import (
 	"context"
 	"os/exec"
 	"strings"
+
+	chshare "github.com/cloudradar-monitoring/rport/share"
 )
 
 func (e *CmdExecutorImpl) New(ctx context.Context, execCtx *CmdExecutorContext) *exec.Cmd {
@@ -16,15 +18,18 @@ func (e *CmdExecutorImpl) New(ctx context.Context, execCtx *CmdExecutorContext) 
 
 	interpreter := execCtx.Interpreter
 	if interpreter != "" {
-		args = append(args, interpreter, "-c")
+		args = append(args, interpreter)
+		if interpreter != chshare.Tacoscript {
+			args = append(args, "-c")
+		}
 	}
 
-	commandStr := execCtx.Command
-	if execCtx.IsScript {
-		commandStr = strings.ReplaceAll(commandStr, " ", "\\ ")
+	cmdStr := execCtx.Command
+	if strings.Contains(cmdStr, " ") {
+		cmdStr = strings.ReplaceAll(cmdStr, " ", "\\ ")
 	}
 
-	args = append(args, commandStr)
+	args = append(args, cmdStr)
 
 	cmd := exec.CommandContext(ctx, args[0], args[1:]...)
 	cmd.Dir = execCtx.WorkingDir

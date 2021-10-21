@@ -226,11 +226,11 @@ On the client using the `rport.conf` you can configure and limit the execution o
 ##
 #order = ['allow','deny']
 
-## Limit the maximum length of the command output that is sent back.
+## Limit the maximum length of the command or script output that is sent back.
 ## Applies to the stdout and stderr separately.
 ## If exceeded {send_back_limit} bytes are sent.
-## Defaults: 2048
-#send_back_limit = 2048
+## Defaults: 4M
+#send_back_limit = 4194304
 ```
 
 **Examples:**

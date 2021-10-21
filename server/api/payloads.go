@@ -93,5 +93,4 @@ type ExecuteInput struct {
 	TimeoutSec  int    `json:"timeout_sec"`
 	ClientID    string
 	IsScript    bool
-	HasShebang  bool
 }

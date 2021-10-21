@@ -8,22 +8,22 @@ import (
 	"net/http"
 	"os"
 	"path"
-	"runtime"
 	"strings"
 	"time"
 
+	"github.com/cloudradar-monitoring/rport/db/migration/library"
+	"github.com/cloudradar-monitoring/rport/db/sqlite"
 	"github.com/cloudradar-monitoring/rport/server/script"
 	"github.com/cloudradar-monitoring/rport/share/files"
 
-	"github.com/gorilla/handlers"
 	"github.com/gorilla/mux"
 	"github.com/jpillora/requestlog"
 	"golang.org/x/crypto/bcrypt"
 	"golang.org/x/sync/errgroup"
 
 	"github.com/cloudradar-monitoring/rport/server/api"
+	"github.com/cloudradar-monitoring/rport/server/api/command"
 	"github.com/cloudradar-monitoring/rport/server/api/message"
-	"github.com/cloudradar-monitoring/rport/server/api/middleware"
 	"github.com/cloudradar-monitoring/rport/server/api/users"
 	"github.com/cloudradar-monitoring/rport/server/vault"
 	chshare "github.com/cloudradar-monitoring/rport/share"
@@ -52,9 +52,10 @@ type APIListener struct {
 
 	testDone chan bool // is used only in tests to be able to wait until async task is done
 
-	userService   UserService
-	vaultManager  *vault.Manager
-	scriptManager *script.Manager
+	userService    UserService
+	vaultManager   *vault.Manager
+	scriptManager  *script.Manager
+	commandManager *command.Manager
 }
 
 type UserService interface {
@@ -122,14 +123,17 @@ func NewAPIListener(
 		}
 	}
 
-	scriptLogger := chshare.NewLogger("scripts", config.Logging.LogOutput, config.Logging.LogLevel)
-	scriptDb, err := script.NewSqliteProvider(path.Join(config.Server.DataDir, "library.db"), scriptLogger)
+	libraryDb, err := sqlite.New(path.Join(config.Server.DataDir, "library.db"), library.AssetNames(), library.Asset)
 	if err != nil {
-		return nil, err
+		return nil, fmt.Errorf("failed init library DB instance: %w", err)
 	}
 
-	scriptExecutor := script.NewExecutor(scriptLogger)
-	scriptManager := script.NewManager(scriptDb, scriptExecutor, scriptLogger)
+	scriptLogger := chshare.NewLogger("scripts", config.Logging.LogOutput, config.Logging.LogLevel)
+	scriptProvider := script.NewSqliteProvider(libraryDb)
+	scriptManager := script.NewManager(scriptProvider, scriptLogger)
+
+	commandProvider := command.NewSqliteProvider(libraryDb)
+	commandManager := command.NewManager(commandProvider)
 
 	userService := users.NewAPIService(usersProvider, config.API.IsTwoFAOn())
 
@@ -144,6 +148,7 @@ func NewAPIListener(
 		userService:       userService,
 		vaultManager:      vault.NewManager(vaultDBProviderFactory, &vault.Aes256PassManager{}, vaultLogger),
 		scriptManager:     scriptManager,
+		commandManager:    commandManager,
 	}
 
 	if config.API.IsTwoFAOn() {
@@ -204,12 +209,7 @@ func NewAPIListener(
 func (al *APIListener) Start(addr string) error {
 	al.Infof("API Listening on %s...", addr)
 
-	h := http.Handler(http.HandlerFunc(al.handleAPIRequest))
-	h = requestlog.WrapWith(h, *al.requestLogOptions)
-	if al.accessLogFile != nil {
-		h = handlers.CombinedLoggingHandler(al.accessLogFile, h)
-	}
-	err := al.httpServer.GoListenAndServe(addr, h)
+	err := al.httpServer.GoListenAndServe(addr, al.router)
 	if err != nil {
 		return err
 	}
@@ -236,41 +236,14 @@ func (al *APIListener) Close() error {
 	if al.vaultManager != nil {
 		g.Go(al.vaultManager.Close)
 	}
-
 	if al.scriptManager != nil {
 		g.Go(al.scriptManager.Close)
 	}
+	if al.commandManager != nil {
+		g.Go(al.commandManager.Close)
+	}
 
 	return g.Wait()
-}
-
-func (al *APIListener) handleAPIRequest(w http.ResponseWriter, r *http.Request) {
-	defer func() {
-		if err := recover(); err != nil {
-			buf := make([]byte, 1<<20)
-			stackLen := runtime.Stack(buf, false)
-			al.Errorf("panic: %v", err)
-			al.Errorf("stack: %s", buf[:stackLen])
-			al.writeJSONResponse(w, http.StatusInternalServerError, map[string]interface{}{"error": err})
-		}
-	}()
-
-	var matchedRoute mux.RouteMatch
-	routeExists := al.router.Match(r, &matchedRoute)
-	if routeExists {
-		r = mux.SetURLVars(r, matchedRoute.Vars) // allows retrieving Vars later from request object
-		matchedRoute.Handler.ServeHTTP(w, r)
-		return
-	}
-
-	docRoot := al.config.API.DocRoot
-	if docRoot != "" {
-		middleware.Rewrite404(http.FileServer(http.Dir(docRoot)), "/").ServeHTTP(w, r)
-		return
-	}
-
-	w.WriteHeader(404)
-	_, _ = w.Write([]byte{})
 }
 
 var ErrTooManyRequests = errors.New("too many requests, please try later")

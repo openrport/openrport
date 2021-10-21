@@ -128,7 +128,7 @@ var clientHelp = `
     --data-dir, Temporary directory to store temp client data.
     Defaults: /var/lib/rport (unix) or C:\Program Files\rport (windows)
 
-    --remote-commands-send-back-limit, Limit the maximum length of the command output that is sent back.
+    --remote-commands-send-back-limit, Limit the maximum length of the command or script output that is sent back.
     Applies to the stdout and stderr separately. If exceeded the specified number of bytes are sent.
     Defaults: 2048
 
@@ -242,7 +242,7 @@ func init() {
 	viperCfg.SetDefault("remote-commands.allow", []string{"^/usr/bin/.*", "^/usr/local/bin/.*", `^C:\\Windows\\System32\\.*`})
 	viperCfg.SetDefault("remote-commands.deny", []string{`(\||<|>|;|,|\n|&)`})
 	viperCfg.SetDefault("remote-commands.order", []string{"allow", "deny"})
-	viperCfg.SetDefault("remote-commands.send_back_limit", 2048)
+	viperCfg.SetDefault("remote-commands.send_back_limit", 4194304)
 	viperCfg.SetDefault("remote-commands.enabled", true)
 	viperCfg.SetDefault("remote-scripts.enabled", false)
 	viperCfg.SetDefault("client.updates_interval", 4*time.Hour)

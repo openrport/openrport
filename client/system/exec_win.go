@@ -10,6 +10,8 @@ import (
 	"path/filepath"
 	"strings"
 	"syscall"
+
+	chshare "github.com/cloudradar-monitoring/rport/share"
 )
 
 func (e *CmdExecutorImpl) New(ctx context.Context, execCtx *CmdExecutorContext) *exec.Cmd {
@@ -23,9 +25,9 @@ func (e *CmdExecutorImpl) New(ctx context.Context, execCtx *CmdExecutorContext) 
 	}
 
 	switch execCtx.Interpreter {
-	case cmdShell:
+	case chshare.CmdShell:
 		return buildCmdInterpreterCmd(ctx, execCtx, interpreterPath)
-	case powerShell:
+	case chshare.PowerShell:
 		return buildPowershellCmd(ctx, execCtx, interpreterPath)
 	default:
 		return buildDefaultCmd(ctx, execCtx, interpreterPath)
@@ -38,7 +40,7 @@ func buildCmdInterpreterCmd(ctx context.Context, execCtx *CmdExecutorContext, in
 	cmd.SysProcAttr = &syscall.SysProcAttr{}
 
 	cmdStr := execCtx.Command
-	if execCtx.IsScript && strings.Contains(cmdStr, " ") {
+	if strings.Contains(cmdStr, " ") {
 		cmdStr = `"` + strings.Trim(cmdStr, `"`) + `"`
 	}
 
@@ -55,13 +57,8 @@ func buildPowershellCmd(ctx context.Context, execCtx *CmdExecutorContext, interp
 		"bypass",
 	}
 
-	if execCtx.IsScript {
-		args = append(args, "-File")
-	} else {
-		args = append(args, "-Command")
-	}
+	args = append(args, "-File")
 
-	//cmdStr := `"` + strings.Trim(execCtx.Command, `"`)  + `"`
 	args = append(args, execCtx.Command)
 
 	cmd := exec.CommandContext(ctx, interpreterPath, args...)

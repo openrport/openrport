@@ -14,6 +14,9 @@ var svcConfig = &service.Config{
 	Name:        "rportd",
 	DisplayName: "Rport Server",
 	Description: "Create reverse tunnels with ease.",
+	Option: service.KeyValue{
+		"LimitNOFILE": 1048576,
+	},
 }
 
 func handleSvcCommand(svcCommand string, configPath string, user *string) error {

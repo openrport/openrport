@@ -25,7 +25,7 @@ curl -X POST 'http://localhost:3000/api/v1/library/scripts' \
 ### Params:
 
 - _name_ any text to identify the script
-- _interpreter_  how will the script be executed on the client, e.g. /bin/sh, cmd.exe, powershell
+- _interpreter_  script syntax interpreter which is used for execution, possible values are sh, cmd.exe, powershell, tacoscript, default values: sh (under Linux) and cmd.exe (under Windows)
 - _sudo_ true or false if this script should be executed under a sudo user
 - _cwd_ an optional directory where the script will be executed
 - _script_ the text of the script to execute
@@ -219,11 +219,9 @@ curl -X POST 'http://localhost:3000/api/v1/clients/4943d682-7874-4f7a-999c-b4ff5
 --data-raw '{
   "script": "cHdkCg==",
   "interpreter": "cmd",
-  "timeout_sec": 60,
-  "execute_concurrently": false,
-  "abort_on_error": true,
   "cwd": "string",
-  "is_sudo": true
+  "is_sudo": true,
+  "timeout_sec": 60
 }'
 ```
 
@@ -264,3 +262,40 @@ Put an access token and a client ids in the corresponding fields. You can also p
 Click Open to start websocket connection.
 
 Put the input data in JSON format with the base64 encoded script to the input field and click Send. The payload will be transmitted via Websocket protocol. Once the clients finish the execution, they will send back the response which you'll see in the Output field.
+
+### Execution of taco scripts
+[tacoscript](https://github.com/cloudradar-monitoring/tacoscript) interpreter can be used to execute scripts in a Saltstack similar format for both Windows and Linux machines. Tacoscript interpreter doesn't require additional libraries or tools to be installed in the system and it has capabilities for:
+- conditional execution depending on command exit codes, present/missing files, host system information (e.g. os version)
+- installing/uninstalling/upgrading packages
+- creating files
+- dependant executions (e.g. script A depends on execution of script B etc)
+- reserved values from the information about the host system
+- reusable variables
+
+To execute a taco script, you need to specify `tacoscript` as an interpreter, e.g.
+
+```
+curl -X POST 'http://localhost:3000/api/v1/clients/4943d682-7874-4f7a-999c-b4ff5493fc3f/scripts' \
+-H 'Authorization: Bearer eyJhbGcidfasjflInR5cCI6IkpXVCJ9.eyJ1c2VybmFtZSI6ImdfasfdjoiMTEzMzkyNjMxNTA0MDYwOTU1MCJ9.JG4whDXeDKDuZqgVA \
+-H 'Content-Type: application/x-www-form-urlencoded' \
+--data-raw '{
+  "script": "IwojIEZpcnN0IGV4YW1wbGUgb2YgYSB0YWNvc2NyaXB0IGZvbGxvd2luZyB0aGUgc3ludGF4IG9mIFNhbHQKIyBidXQgbm90IGltcGxlbWVudGluZyBhbGwgb3B0aW9ucwojIGh0dHBzOi8vZG9jcy5zYWx0c3RhY2suY29tL2VuL2xhdGVzdC9yZWYvc3RhdGVzL2FsbC9zYWx0LnN0YXRlcy5jbWQuaHRtbAojCiMgdW5pcXVlIGlkIG9mIHRoZSB0YXNrLCBjYW4gYmUgYW55IHN0cmluZwpkYXRlIGNvbW1hbmQ6CiAgY21kLnJ1bjoKICAgIC0gbmFtZXM6CiAgICAgIC0gZGF0ZQo=",
+  "interpreter": "tacoscript"
+}'
+```
+Where the base64 encoded script looks like this:
+
+```
+#
+# First example of a tacoscript following the syntax of Salt
+# but not implementing all options
+# https://docs.saltstack.com/en/latest/ref/states/all/salt.states.cmd.html
+#
+# unique id of the task, can be any string
+date command:
+  cmd.run:
+    - names:
+      - date
+```
+As a result this script will output the current date. 
+In order to execute taco scripts, there should be `tacoscript` binary avalable in the system path (see here [the installation instructions](https://github.com/cloudradar-monitoring/tacoscript#installation))

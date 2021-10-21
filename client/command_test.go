@@ -6,6 +6,7 @@ import (
 	"log"
 	"os"
 	"os/exec"
+	"path/filepath"
 	"regexp"
 	"strings"
 	"sync"
@@ -15,7 +16,6 @@ import (
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 
-	"github.com/cloudradar-monitoring/rport/client/system"
 	chshare "github.com/cloudradar-monitoring/rport/share"
 	"github.com/cloudradar-monitoring/rport/share/comm"
 	"github.com/cloudradar-monitoring/rport/share/test"
@@ -36,7 +36,7 @@ func NewCmdExecutorMock() *CmdExecutorMock {
 	return &CmdExecutorMock{}
 }
 
-func (e *CmdExecutorMock) New(ctx context.Context, execCtx *system.CmdExecutorContext) *exec.Cmd {
+func (e *CmdExecutorMock) New(ctx context.Context, execCtx *CmdExecutorContext) *exec.Cmd {
 	var args []string
 	if execCtx.IsSudo {
 		args = append(args, "sudo -n")
@@ -72,7 +72,8 @@ func (e *CmdExecutorMock) writeToStdOut(cmd *exec.Cmd) {
 	for _, s := range e.ReturnStdOut {
 		_, err := cmd.Stdout.Write([]byte(s))
 		if err != nil {
-			log.Fatalf("Failed to write data into stdout: %s", err)
+			log.Printf("Failed to write data into stdout: %s", err)
+			return
 		}
 	}
 }
@@ -83,7 +84,8 @@ func (e *CmdExecutorMock) writeToStdErr(cmd *exec.Cmd) {
 	for _, s := range e.ReturnStdErr {
 		_, err := cmd.Stderr.Write([]byte(s))
 		if err != nil {
-			log.Fatalf("Failed to write data into stderr: %s", err)
+			log.Printf("Failed to write data into stderr: %s", err)
+			return
 		}
 	}
 }
@@ -145,21 +147,21 @@ func TestGetInterpreter(t *testing.T) {
 			name:            "windows, empty",
 			interpreter:     "",
 			os:              win,
-			wantInterpreter: system.CmdShell,
+			wantInterpreter: chshare.CmdShell,
 			wantErrContains: "",
 		},
 		{
 			name:            "windows, cmd",
-			interpreter:     system.CmdShell,
+			interpreter:     chshare.CmdShell,
 			os:              win,
-			wantInterpreter: system.CmdShell,
+			wantInterpreter: chshare.CmdShell,
 			wantErrContains: "",
 		},
 		{
 			name:            "windows, powershell",
-			interpreter:     system.PowerShell,
+			interpreter:     chshare.PowerShell,
 			os:              win,
-			wantInterpreter: system.PowerShell,
+			wantInterpreter: chshare.PowerShell,
 			wantErrContains: "",
 		},
 		{
@@ -173,12 +175,12 @@ func TestGetInterpreter(t *testing.T) {
 			name:            "unix, empty",
 			interpreter:     "",
 			os:              unix,
-			wantInterpreter: system.UnixShell,
+			wantInterpreter: chshare.UnixShell,
 			wantErrContains: "",
 		},
 		{
 			name:            "unix, non empty",
-			interpreter:     system.UnixShell,
+			interpreter:     chshare.UnixShell,
 			os:              unix,
 			wantInterpreter: "",
 			wantErrContains: "for unix clients a command interpreter should not be specified",
@@ -187,7 +189,7 @@ func TestGetInterpreter(t *testing.T) {
 			name:            "empty os, empty interpreter",
 			interpreter:     "",
 			os:              "",
-			wantInterpreter: system.UnixShell,
+			wantInterpreter: chshare.UnixShell,
 			wantErrContains: "",
 		},
 		{
@@ -199,23 +201,35 @@ func TestGetInterpreter(t *testing.T) {
 		{
 			name:            "unix, hasShebang, interpreter not empty",
 			os:              unix,
-			interpreter:     system.UnixShell,
+			interpreter:     chshare.UnixShell,
 			wantInterpreter: "",
 			boolHasShebang:  true,
 		},
 		{
 			name:            "windows, hasShebang, interpreter not empty",
 			os:              win,
-			interpreter:     system.PowerShell,
-			wantInterpreter: system.PowerShell,
+			interpreter:     chshare.PowerShell,
+			wantInterpreter: chshare.PowerShell,
 			boolHasShebang:  true,
+		},
+		{
+			name:            "windows, tacoscript interpreter",
+			os:              win,
+			interpreter:     chshare.Tacoscript,
+			wantInterpreter: chshare.Tacoscript,
+		},
+		{
+			name:            "linux, tacoscript interpreter",
+			os:              unix,
+			interpreter:     chshare.Tacoscript,
+			wantInterpreter: chshare.Tacoscript,
 		},
 	}
 
 	for _, tc := range testCases {
 		t.Run(tc.name, func(t *testing.T) {
 			// when
-			gotInterpreter, gotErr := system.GetInterpreter(tc.interpreter, tc.os, tc.boolHasShebang)
+			gotInterpreter, gotErr := getInterpreter(tc.interpreter, tc.os, tc.boolHasShebang)
 
 			// then
 			if len(tc.wantErrContains) > 0 {
@@ -230,10 +244,10 @@ func TestGetInterpreter(t *testing.T) {
 }
 
 func TestHandleRunCmdRequestPositiveCase(t *testing.T) {
-	system.Now = nowMockF
+	now = nowMockF
 
 	// given
-	system.GetInterpreter = func(inputInterpreter, os string, hashShebang bool) (string, error) {
+	getInterpreter = func(inputInterpreter, os string, hashShebang bool) (string, error) {
 		return "test-interpreter", nil
 	}
 	wantPID := 123
@@ -245,7 +259,7 @@ func TestHandleRunCmdRequestPositiveCase(t *testing.T) {
 	// mimic real behavior and wait until background task sends the request
 	done := make(chan bool)
 	connMock.DoneChannel = done
-	configCopy := defaultValidMinConfig
+	configCopy := getDefaultValidMinConfig()
 	c := Client{
 		cmdExec: execMock,
 		sshConn: connMock,
@@ -253,13 +267,19 @@ func TestHandleRunCmdRequestPositiveCase(t *testing.T) {
 		config:  &configCopy,
 	}
 
+	configCopy.Client.DataDir = filepath.Join(configCopy.Client.DataDir, "TestHandleRunCmdRequestPositiveCase")
+	defer func() {
+		os.RemoveAll(configCopy.Client.DataDir)
+	}()
+	err := PrepareDirs(&configCopy)
+	require.NoError(t, err)
+
 	wantJSONPart1 := `
 {
 	"jid": "5f02b216-3f8a-42be-b66c-f4c1d0ea3809",
 	"status": "successful",
 	"is_sudo": true,
 	"is_script": false,
-	"has_shebang": false,
 	"finished_at": "2020-08-19T12:00:00+03:00",
 	"client_id": "d81e6b93e75aef59a7701b90555f43808458b34e30370c3b808c1816a32252b3",
 	"client_name": "",
@@ -271,10 +291,10 @@ func TestHandleRunCmdRequestPositiveCase(t *testing.T) {
 	"cwd": "/root",
 	"timeout_sec": 60,
 	"multi_job_id":null,
-	"error":"",
+	"error":"%s",
 `
 	wantJSONPart2 := `
-	   "result": {
+	  "result": {
 			"stdout": "output1output2output3",
 			"stderr": "error1error2"
 		}
@@ -293,27 +313,27 @@ func TestHandleRunCmdRequestPositiveCase(t *testing.T) {
 		{
 			name:          "limit is larger than stdout and stderr",
 			sendBackLimit: stdOutSize + 1,
-			wantJSON:      wantJSONPart1 + wantJSONPart2,
+			wantJSON:      fmt.Sprintf(wantJSONPart1, "") + wantJSONPart2,
 		},
 		{
 			name:          "limit is equal to the larger output",
 			sendBackLimit: stdOutSize,
-			wantJSON:      wantJSONPart1 + wantJSONPart2,
+			wantJSON:      fmt.Sprintf(wantJSONPart1, "") + wantJSONPart2,
 		},
 		{
 			name:          "limit is equal to the smaller output",
 			sendBackLimit: stdErrSize,
-			wantJSON: wantJSONPart1 + `
-        "result": {
-        "stdout": "output1outpu",
-        "stderr": "error1error2"
-    }
+			wantJSON: fmt.Sprintf(wantJSONPart1, "overflow of stdOut buffer: maximum send_back_limit of 12 bytes exceeded") + `
+       "result": {
+       "stdout": "output1outpu",
+       "stderr": "error1error2"
+   }
 }`,
 		},
 		{
 			name:          "limit is less than smaller output",
 			sendBackLimit: stdErrSize - 1,
-			wantJSON: wantJSONPart1 + `
+			wantJSON: fmt.Sprintf(wantJSONPart1, "overflow of stdOut buffer: maximum send_back_limit of 11 bytes exceeded, overflow of stdErr buffer: maximum send_back_limit of 11 bytes exceeded") + `
 		"result": {
 		"stdout": "output1outp",
 		"stderr": "error1error"
@@ -323,12 +343,12 @@ func TestHandleRunCmdRequestPositiveCase(t *testing.T) {
 		{
 			name:          "limit is zero",
 			sendBackLimit: 0,
-			wantJSON: wantJSONPart1 + `
-		"result": {
-		"stdout": "",
-		"stderr": ""
-	}
-}`,
+			wantJSON: fmt.Sprintf(wantJSONPart1, "overflow of stdOut buffer: maximum send_back_limit of 0 bytes exceeded, overflow of stdErr buffer: maximum send_back_limit of 0 bytes exceeded") + `
+				"result": {
+				"stdout": "",
+				"stderr": ""
+			}
+		}`,
 		},
 		{
 			name:            "command is not allowed",
@@ -336,7 +356,8 @@ func TestHandleRunCmdRequestPositiveCase(t *testing.T) {
 			wantErrContains: "command is not allowed",
 		},
 	}
-	for _, tc := range testCases {
+	for i := range testCases {
+		tc := testCases[i]
 		t.Run(tc.name, func(t *testing.T) {
 			// given
 			c.config.RemoteCommands.SendBackLimit = tc.sendBackLimit
@@ -353,10 +374,10 @@ func TestHandleRunCmdRequestPositiveCase(t *testing.T) {
 				assert.Contains(t, err.Error(), tc.wantErrContains)
 				return
 			}
+			require.NoError(t, err)
 			<-done
 
 			// check returned result
-			require.NoError(t, err)
 			assert.Equal(t, &comm.RunCmdResponse{Pid: wantPID, StartedAt: nowMock}, res)
 
 			// check job result that was sent to server
@@ -369,7 +390,7 @@ func TestHandleRunCmdRequestPositiveCase(t *testing.T) {
 }
 
 func TestHandleRunCmdRequestHasRunningCmd(t *testing.T) {
-	system.Now = nowMockF
+	now = nowMockF
 
 	// given
 	wantPID := 123
@@ -386,7 +407,12 @@ func TestHandleRunCmdRequestHasRunningCmd(t *testing.T) {
 	doneCmd := make(chan bool)
 	execMock.DoneChannel = doneCmd
 
-	configCopy := defaultValidMinConfig
+	configCopy := getDefaultValidMinConfig()
+	configCopy.Client.DataDir = filepath.Join(configCopy.Client.DataDir, "TestHandleRunCmdRequestHasRunningCmd")
+	defer func() {
+		os.RemoveAll(configCopy.Client.DataDir)
+	}()
+
 	c := Client{
 		cmdExec: execMock,
 		sshConn: connMock,
@@ -394,9 +420,15 @@ func TestHandleRunCmdRequestHasRunningCmd(t *testing.T) {
 		config:  &configCopy,
 	}
 
+	err := PrepareDirs(&configCopy)
+	require.NoError(t, err)
+
 	// when
 	// run two cmds to get an error for the 2nd
 	res1, err1 := c.HandleRunCmdRequest(context.Background(), []byte(jobToRunJSON))
+	// check the result
+	require.NoError(t, err1)
+
 	res2, err2 := c.HandleRunCmdRequest(context.Background(), []byte(jobToRunJSON))
 
 	// then
@@ -412,10 +444,9 @@ func TestHandleRunCmdRequestHasRunningCmd(t *testing.T) {
 	curPID = c.getCurCmdPID()
 	assert.Nil(t, curPID)
 
-	// check the result
-	require.NoError(t, err1)
 	assert.Equal(t, &comm.RunCmdResponse{Pid: wantPID, StartedAt: nowMock}, res1)
-	assert.Error(t, err2)
+
+	require.Error(t, err2)
 	assert.Equal(t, fmt.Errorf("a previous command execution with PID %d is still running", wantPID), err2)
 	assert.Nil(t, res2)
 }
@@ -573,7 +604,7 @@ func TestIsCommandAllowed(t *testing.T) {
 	for _, tc := range testCases {
 		t.Run(tc.name, func(t *testing.T) {
 			// given
-			config := defaultValidMinConfig
+			config := getDefaultValidMinConfig()
 			config.RemoteCommands.Deny = tc.deny
 			c := Client{
 				Logger: testLog,

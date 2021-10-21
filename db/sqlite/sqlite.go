@@ -37,7 +37,7 @@ func New(dataSourceName string, assetNames []string, asset func(name string) ([]
 	}
 
 	if err := m.Up(); err != nil && err != migrate.ErrNoChange {
-		return nil, fmt.Errorf("failed to migarte DB to the latest version: %v", err)
+		return nil, fmt.Errorf("failed to migrate DB to the latest version: %v", err)
 	}
 
 	return db, nil

@@ -10,7 +10,6 @@ const (
 	// request types sent by server to clients
 	RequestTypeCheckPort            = "check_port"
 	RequestTypeRunCmd               = "run_cmd"
-	RequestTypeCreateFile           = "create_file"
 	RequestTypeRefreshUpdatesStatus = "refresh_updates_status"
 
 	// request types sent by clients to server
@@ -41,10 +40,4 @@ type CheckPortResponse struct {
 type RunCmdResponse struct {
 	Pid       int
 	StartedAt time.Time
-}
-
-type CreateFileResponse struct {
-	FilePath   string
-	Sha256Hash string
-	CreatedAt  time.Time
 }
