@@ -267,7 +267,7 @@ func (c *Config) parseRemoteScripts(skipScriptsDirValidation bool) error {
 		return nil
 	}
 
-	err := ValidateScriptDir(c.GetScriptsDir())
+	err := system.ValidateScriptDir(c.GetScriptsDir())
 
 	// we allow to start a client if the script dir is not good because clients might never run scripts
 	if err != nil {
@@ -300,7 +300,7 @@ func PrepareDirs(c *Config) error {
 
 	scriptDir := c.GetScriptsDir()
 	if _, err := os.Stat(scriptDir); os.IsNotExist(err) {
-		err := os.Mkdir(scriptDir, DefaultDirMode)
+		err := os.Mkdir(scriptDir, system.DefaultDirMode)
 		if err != nil {
 			return err
 		}

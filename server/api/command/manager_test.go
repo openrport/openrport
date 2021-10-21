@@ -111,8 +111,9 @@ func TestManagerList(t *testing.T) {
 			},
 			Filters: []query.FilterOption{
 				{
-					Column: "name",
-					Values: []string{"some nam"},
+					Expression: "name",
+					Column:     "name",
+					Values:     []string{"some nam"},
 				},
 			},
 			Fields: []query.FieldsOption{
