@@ -3,6 +3,7 @@ package query
 import (
 	"fmt"
 	"net/http"
+	"sort"
 	"testing"
 
 	"github.com/stretchr/testify/assert"
@@ -183,6 +184,13 @@ func TestParseFilterOptions(t *testing.T) {
 
 			filterOptions := ParseFilterOptions(tc.Query)
 
+			assert.Equal(t, len(tc.ExpectedFilterOptions), len(filterOptions))
+			sort.Slice(tc.ExpectedFilterOptions, func(i, j int) bool {
+				return tc.ExpectedFilterOptions[i].Expression < tc.ExpectedFilterOptions[j].Expression
+			})
+			sort.Slice(filterOptions, func(i, j int) bool {
+				return filterOptions[i].Expression < filterOptions[j].Expression
+			})
 			assert.Equal(t, tc.ExpectedFilterOptions, filterOptions)
 		})
 	}
