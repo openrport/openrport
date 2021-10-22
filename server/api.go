@@ -27,6 +27,7 @@ import (
 	"github.com/cloudradar-monitoring/rport/server/api/jobs"
 	"github.com/cloudradar-monitoring/rport/server/api/middleware"
 	"github.com/cloudradar-monitoring/rport/server/api/users"
+	"github.com/cloudradar-monitoring/rport/server/auditlog"
 	"github.com/cloudradar-monitoring/rport/server/cgroups"
 	"github.com/cloudradar-monitoring/rport/server/clients"
 	"github.com/cloudradar-monitoring/rport/server/clientsauth"
@@ -708,9 +709,18 @@ func (al *APIListener) handleChangeUser(w http.ResponseWriter, req *http.Request
 	}
 
 	if userIDExists {
+		al.auditLog.Entry(auditlog.ApplicationAuthUser, auditlog.ActionUpdate).
+			WithHTTPRequest(req).
+			WithID(userID).
+			Save()
+
 		al.Debugf("User [%s] updated.", userID)
 		w.WriteHeader(http.StatusNoContent)
 	} else {
+		al.auditLog.Entry(auditlog.ApplicationAuthUser, auditlog.ActionCreate).
+			WithHTTPRequest(req).
+			Save()
+
 		al.Debugf("User [%s] created.", user.Username)
 		w.WriteHeader(http.StatusCreated)
 	}
@@ -728,6 +738,11 @@ func (al *APIListener) handleDeleteUser(w http.ResponseWriter, req *http.Request
 		al.jsonError(w, err)
 		return
 	}
+
+	al.auditLog.Entry("user", auditlog.ActionDelete).
+		WithHTTPRequest(req).
+		WithID(userID).
+		Save()
 
 	w.WriteHeader(http.StatusNoContent)
 	al.Debugf("User [%s] deleted.", userID)
@@ -844,6 +859,11 @@ func (al *APIListener) handleDeleteClient(w http.ResponseWriter, req *http.Reque
 		return
 	}
 
+	al.auditLog.Entry(auditlog.ApplicationClient, auditlog.ActionDelete).
+		WithHTTPRequest(req).
+		WithID(clientID).
+		Save()
+
 	w.WriteHeader(http.StatusNoContent)
 	al.Debugf("Client %q deleted.", clientID)
 }
@@ -878,6 +898,12 @@ func (al *APIListener) handlePostClientACL(w http.ResponseWriter, req *http.Requ
 		al.jsonError(w, err)
 		return
 	}
+
+	al.auditLog.Entry(auditlog.ApplicationClientACL, auditlog.ActionUpdate).
+		WithHTTPRequest(req).
+		WithID(cid).
+		WithRequest(reqBody).
+		Save()
 
 	w.WriteHeader(http.StatusNoContent)
 }
@@ -990,6 +1016,15 @@ func (al *APIListener) handlePutClientTunnel(w http.ResponseWriter, req *http.Re
 		return
 	}
 	response := api.NewSuccessPayload(tunnels[0])
+
+	al.auditLog.Entry(auditlog.ApplicationClientTunnel, auditlog.ActionCreate).
+		WithHTTPRequest(req).
+		WithClient(client).
+		WithRequest(remote).
+		WithResponse(tunnels[0]).
+		WithID(tunnels[0].ID).
+		Save()
+
 	al.writeJSONResponse(w, http.StatusOK, response)
 }
 
@@ -1097,6 +1132,15 @@ func (al *APIListener) handleDeleteClientTunnel(w http.ResponseWriter, req *http
 		return
 	}
 
+	al.auditLog.Entry(auditlog.ApplicationClientTunnel, auditlog.ActionDelete).
+		WithHTTPRequest(req).
+		WithClient(client).
+		WithID(tunnelID).
+		WithRequest(map[string]interface{}{
+			"force": force,
+		}).
+		Save()
+
 	w.WriteHeader(http.StatusNoContent)
 }
 
@@ -1163,6 +1207,10 @@ func (al *APIListener) handleChangeMe(w http.ResponseWriter, req *http.Request) 
 		al.jsonError(w, err)
 		return
 	}
+
+	al.auditLog.Entry(auditlog.ApplicationAuthUserMe, auditlog.ActionUpdate).
+		WithHTTPRequest(req).
+		Save()
 
 	w.WriteHeader(http.StatusNoContent)
 }
@@ -1265,6 +1313,11 @@ func (al *APIListener) handlePostClientsAuth(w http.ResponseWriter, req *http.Re
 		return
 	}
 
+	al.auditLog.Entry(auditlog.ApplicationClientAuth, auditlog.ActionCreate).
+		WithHTTPRequest(req).
+		WithID(newClient.ID).
+		Save()
+
 	al.Infof("ClientAuth %q created.", newClient.ID)
 
 	w.WriteHeader(http.StatusCreated)
@@ -1323,6 +1376,14 @@ func (al *APIListener) handleDeleteClientAuth(w http.ResponseWriter, req *http.R
 	}
 	al.Infof("ClientAuth %q deleted.", clientAuthID)
 
+	al.auditLog.Entry(auditlog.ApplicationClientAuth, auditlog.ActionDelete).
+		WithHTTPRequest(req).
+		WithID(clientAuthID).
+		WithRequest(map[string]interface{}{
+			"force": force,
+		}).
+		Save()
+
 	w.WriteHeader(http.StatusNoContent)
 }
 
@@ -1375,17 +1436,27 @@ func (al *APIListener) handlePostCommand(w http.ResponseWriter, req *http.Reques
 	execCmdInput.ClientID = cid
 	execCmdInput.IsScript = false
 
-	al.handleExecuteCommand(req.Context(), w, execCmdInput)
+	resp := al.handleExecuteCommand(req.Context(), w, execCmdInput)
+
+	if resp != nil {
+		al.auditLog.Entry(auditlog.ApplicationClientCommand, auditlog.ActionExecuteStart).
+			WithHTTPRequest(req).
+			WithClientID(cid).
+			WithRequest(execCmdInput).
+			WithResponse(resp).
+			WithID(resp.JID).
+			Save()
+	}
 }
 
-func (al *APIListener) handleExecuteCommand(ctx context.Context, w http.ResponseWriter, executeInput *api.ExecuteInput) {
+func (al *APIListener) handleExecuteCommand(ctx context.Context, w http.ResponseWriter, executeInput *api.ExecuteInput) *newJobResponse {
 	if executeInput.Command == "" {
 		al.jsonErrorResponseWithTitle(w, http.StatusBadRequest, "Command cannot be empty.")
-		return
+		return nil
 	}
 	if err := validation.ValidateInterpreter(executeInput.Interpreter, executeInput.IsScript); err != nil {
 		al.jsonErrorResponseWithError(w, http.StatusBadRequest, "Invalid interpreter.", err)
-		return
+		return nil
 	}
 
 	if executeInput.TimeoutSec <= 0 {
@@ -1395,11 +1466,11 @@ func (al *APIListener) handleExecuteCommand(ctx context.Context, w http.Response
 	client, err := al.clientService.GetActiveByID(executeInput.ClientID)
 	if err != nil {
 		al.jsonErrorResponseWithError(w, http.StatusInternalServerError, fmt.Sprintf("Failed to find an active client with id=%q.", executeInput.ClientID), err)
-		return
+		return nil
 	}
 	if client == nil {
 		al.jsonErrorResponseWithTitle(w, http.StatusNotFound, fmt.Sprintf("Active client with id=%q not found.", executeInput.ClientID))
-		return
+		return nil
 	}
 
 	// send the command to the client
@@ -1408,7 +1479,7 @@ func (al *APIListener) handleExecuteCommand(ctx context.Context, w http.Response
 	jid, err := generateNewJobID()
 	if err != nil {
 		al.jsonError(w, err)
-		return
+		return nil
 	}
 	curJob := models.Job{
 		JobSummary: models.JobSummary{
@@ -1434,7 +1505,7 @@ func (al *APIListener) handleExecuteCommand(ctx context.Context, w http.Response
 		} else {
 			al.jsonErrorResponseWithError(w, http.StatusInternalServerError, "Failed to execute remote command.", err)
 		}
-		return
+		return nil
 	}
 
 	// set fields received in response
@@ -1444,17 +1515,18 @@ func (al *APIListener) handleExecuteCommand(ctx context.Context, w http.Response
 
 	if err := al.jobProvider.CreateJob(&curJob); err != nil {
 		al.jsonErrorResponseWithError(w, http.StatusInternalServerError, "Failed to persist a new job.", err)
-		return
+		return nil
 	}
 
-	resp := struct {
-		JID string `json:"jid"`
-	}{
+	resp := &newJobResponse{
 		JID: curJob.JID,
 	}
+
 	al.writeJSONResponse(w, http.StatusOK, api.NewSuccessPayload(resp))
 
 	al.Debugf("Job[id=%q] created to execute remote command on client with id=%q: %q.", curJob.JID, executeInput.ClientID, executeInput.Command)
+
+	return resp
 }
 
 func (al *APIListener) handleExecuteScript(w http.ResponseWriter, req *http.Request) {
@@ -1486,7 +1558,17 @@ func (al *APIListener) handleExecuteScript(w http.ResponseWriter, req *http.Requ
 	execCmdInput.ClientID = cid
 	execCmdInput.IsScript = true
 
-	al.handleExecuteCommand(req.Context(), w, execCmdInput)
+	resp := al.handleExecuteCommand(req.Context(), w, execCmdInput)
+
+	if resp != nil {
+		al.auditLog.Entry(auditlog.ApplicationClientScript, auditlog.ActionExecuteStart).
+			WithHTTPRequest(req).
+			WithClientID(cid).
+			WithRequest(execCmdInput).
+			WithResponse(resp).
+			WithID(resp.JID).
+			Save()
+	}
 }
 
 func (al *APIListener) handleGetCommands(w http.ResponseWriter, req *http.Request) {
@@ -1538,19 +1620,19 @@ type newJobResponse struct {
 }
 
 type multiClientCmdRequest struct {
-	ClientIDs           []string `json:"client_ids"`
-	ClientIDCommandMap  map[string]string
-	OrderedClients      []*clients.Client
-	GroupIDs            []string `json:"group_ids"`
-	Command             string   `json:"command"`
-	Script              string   `json:"script"`
-	Cwd                 string   `json:"cwd"`
-	IsSudo              bool     `json:"is_sudo"`
-	Interpreter         string   `json:"interpreter"`
-	TimeoutSec          int      `json:"timeout_sec"`
-	ExecuteConcurrently bool     `json:"execute_concurrently"`
-	AbortOnError        *bool    `json:"abort_on_error"` // pointer is used because it's default value is true. Otherwise it would be more difficult to check whether this field is missing or not
-	IsScript            bool
+	ClientIDs           []string          `json:"client_ids"`
+	ClientIDCommandMap  map[string]string `json:"-"`
+	OrderedClients      []*clients.Client `json:"-"`
+	GroupIDs            []string          `json:"group_ids"`
+	Command             string            `json:"command"`
+	Script              string            `json:"script"`
+	Cwd                 string            `json:"cwd"`
+	IsSudo              bool              `json:"is_sudo"`
+	Interpreter         string            `json:"interpreter"`
+	TimeoutSec          int               `json:"timeout_sec"`
+	ExecuteConcurrently bool              `json:"execute_concurrently"`
+	AbortOnError        *bool             `json:"abort_on_error"` // pointer is used because it's default value is true. Otherwise it would be more difficult to check whether this field is missing or not
+	IsScript            bool              `json:"-"`
 }
 
 // TODO: refactor to reuse similar code for REST API and WebSocket to execute cmds if both will be supported
@@ -1639,6 +1721,14 @@ func (al *APIListener) handlePostMultiClientCommand(w http.ResponseWriter, req *
 	resp := newJobResponse{
 		JID: multiJob.JID,
 	}
+
+	al.auditLog.Entry(auditlog.ApplicationClientCommand, auditlog.ActionExecuteStart).
+		WithHTTPRequest(req).
+		WithRequest(reqBody).
+		WithResponse(resp).
+		WithID(multiJob.JID).
+		SaveForMultipleClients(orderedClients)
+
 	al.writeJSONResponse(w, http.StatusOK, api.NewSuccessPayload(resp))
 
 	al.Debugf("Multi-client Job[id=%q] created to execute remote command on clients %s, groups %s: %q.", multiJob.JID, reqBody.ClientIDs, reqBody.GroupIDs, reqBody.Command)
@@ -1865,7 +1955,9 @@ func (al *APIListener) handleCommandsWS(w http.ResponseWriter, req *http.Request
 	inboundMsg.OrderedClients = orderedClients
 	inboundMsg.IsScript = false
 
-	al.handleCommandsExecutionWS(ctx, uiConnTS, inboundMsg, clientsInGroupsCount)
+	auditLogEntry := al.auditLog.Entry(auditlog.ApplicationClientCommand, auditlog.ActionExecuteStart).WithHTTPRequest(req)
+
+	al.handleCommandsExecutionWS(ctx, uiConnTS, inboundMsg, clientsInGroupsCount, auditLogEntry)
 }
 
 func (al *APIListener) enrichScriptInput(
@@ -1934,7 +2026,9 @@ func (al *APIListener) handleScriptsWS(w http.ResponseWriter, req *http.Request)
 		return
 	}
 
-	al.handleCommandsExecutionWS(ctx, uiConnTS, inboundMsg, clientsInGroupsCount)
+	auditLogEntry := al.auditLog.Entry(auditlog.ApplicationClientScript, auditlog.ActionExecuteStart).WithHTTPRequest(req)
+
+	al.handleCommandsExecutionWS(ctx, uiConnTS, inboundMsg, clientsInGroupsCount, auditLogEntry)
 }
 
 func (al *APIListener) handleCommandsExecutionWS(
@@ -1942,6 +2036,7 @@ func (al *APIListener) handleCommandsExecutionWS(
 	uiConnTS *ws.ConcurrentWebSocket,
 	inboundMsg *multiClientCmdRequest,
 	clientsInGroupsCount int,
+	auditLogEntry *auditlog.Entry,
 ) {
 	if inboundMsg.Command == "" {
 		uiConnTS.WriteError("Command cannot be empty.", nil)
@@ -1985,6 +2080,11 @@ func (al *APIListener) handleCommandsExecutionWS(
 	}
 	al.Server.uiJobWebSockets.Set(jid, uiConnTS)
 	defer al.Server.uiJobWebSockets.Delete(jid)
+
+	auditLogEntry.
+		WithRequest(inboundMsg).
+		WithID(jid).
+		SaveForMultipleClients(inboundMsg.OrderedClients)
 
 	createdBy := curUser.Username
 	if len(inboundMsg.ClientIDs) > 1 || clientsInGroupsCount > 0 {
@@ -2221,6 +2321,12 @@ func (al *APIListener) handlePostClientGroups(w http.ResponseWriter, req *http.R
 		return
 	}
 
+	al.auditLog.Entry(auditlog.ApplicationClientGroup, auditlog.ActionCreate).
+		WithHTTPRequest(req).
+		WithRequest(group).
+		WithID(group.ID).
+		Save()
+
 	w.WriteHeader(http.StatusCreated)
 	al.Debugf("Client Group [id=%q] created.", group.ID)
 }
@@ -2254,6 +2360,12 @@ func (al *APIListener) handlePutClientGroup(w http.ResponseWriter, req *http.Req
 		al.jsonErrorResponseWithError(w, http.StatusInternalServerError, "Failed to persist client group.", err)
 		return
 	}
+
+	al.auditLog.Entry(auditlog.ApplicationClientGroup, auditlog.ActionUpdate).
+		WithHTTPRequest(req).
+		WithRequest(group).
+		WithID(id).
+		Save()
 
 	w.WriteHeader(http.StatusNoContent)
 	al.Debugf("Client Group [id=%q] updated.", group.ID)
@@ -2352,6 +2464,11 @@ func (al *APIListener) handleDeleteClientGroup(w http.ResponseWriter, req *http.
 		return
 	}
 
+	al.auditLog.Entry(auditlog.ApplicationClientGroup, auditlog.ActionDelete).
+		WithHTTPRequest(req).
+		WithID(id).
+		Save()
+
 	w.WriteHeader(http.StatusNoContent)
 	al.Debugf("Client Group [id=%q] deleted.", id)
 }
@@ -2422,6 +2539,10 @@ func (al *APIListener) handleVaultUnlock(w http.ResponseWriter, req *http.Reques
 		return
 	}
 
+	al.auditLog.Entry(auditlog.ApplicationVault, "unlock").
+		WithHTTPRequest(req).
+		Save()
+
 	w.WriteHeader(http.StatusCreated)
 }
 
@@ -2431,6 +2552,10 @@ func (al *APIListener) handleVaultLock(w http.ResponseWriter, req *http.Request)
 		al.jsonError(w, err)
 		return
 	}
+
+	al.auditLog.Entry(auditlog.ApplicationVault, "lock").
+		WithHTTPRequest(req).
+		Save()
 
 	w.WriteHeader(http.StatusNoContent)
 }
@@ -2448,6 +2573,10 @@ func (al *APIListener) handleVaultInit(w http.ResponseWriter, req *http.Request)
 		al.jsonError(w, err)
 		return
 	}
+
+	al.auditLog.Entry(auditlog.ApplicationVault, "init").
+		WithHTTPRequest(req).
+		Save()
 
 	w.WriteHeader(http.StatusCreated)
 }
@@ -2545,7 +2674,17 @@ func (al *APIListener) handleVaultStoreValue(w http.ResponseWriter, req *http.Re
 	status := http.StatusOK
 
 	if id == 0 {
+		al.auditLog.Entry(auditlog.ApplicationVault, auditlog.ActionCreate).
+			WithHTTPRequest(req).
+			WithID(storedValue.ID).
+			Save()
+
 		w.WriteHeader(http.StatusCreated)
+	} else {
+		al.auditLog.Entry(auditlog.ApplicationVault, auditlog.ActionUpdate).
+			WithHTTPRequest(req).
+			WithID(id).
+			Save()
 	}
 
 	al.writeJSONResponse(w, status, api.NewSuccessPayload(storedValue))
@@ -2580,6 +2719,11 @@ func (al *APIListener) handleVaultDeleteValue(w http.ResponseWriter, req *http.R
 		return
 	}
 
+	al.auditLog.Entry(auditlog.ApplicationVault, auditlog.ActionDelete).
+		WithHTTPRequest(req).
+		WithID(id).
+		Save()
+
 	w.WriteHeader(http.StatusNoContent)
 }
 
@@ -2613,6 +2757,13 @@ func (al *APIListener) handleScriptCreate(w http.ResponseWriter, req *http.Reque
 		return
 	}
 
+	al.auditLog.Entry(auditlog.ApplicationLibraryScript, auditlog.ActionCreate).
+		WithHTTPRequest(req).
+		WithRequest(scriptInput).
+		WithResponse(storedValue).
+		WithID(storedValue.ID).
+		Save()
+
 	w.WriteHeader(http.StatusCreated)
 
 	al.writeJSONResponse(w, http.StatusCreated, api.NewSuccessPayload(storedValue))
@@ -2644,6 +2795,13 @@ func (al *APIListener) handleScriptUpdate(w http.ResponseWriter, req *http.Reque
 		al.jsonError(w, err)
 		return
 	}
+
+	al.auditLog.Entry(auditlog.ApplicationLibraryScript, auditlog.ActionUpdate).
+		WithHTTPRequest(req).
+		WithRequest(scriptInput).
+		WithResponse(storedValue).
+		WithID(idStr).
+		Save()
 
 	al.writeJSONResponse(w, http.StatusOK, api.NewSuccessPayload(storedValue))
 }
@@ -2689,6 +2847,11 @@ func (al *APIListener) handleDeleteScript(w http.ResponseWriter, req *http.Reque
 		return
 	}
 
+	al.auditLog.Entry(auditlog.ApplicationLibraryScript, auditlog.ActionDelete).
+		WithHTTPRequest(req).
+		WithID(idStr).
+		Save()
+
 	w.WriteHeader(http.StatusNoContent)
 }
 
@@ -2722,6 +2885,13 @@ func (al *APIListener) handleCommandCreate(w http.ResponseWriter, req *http.Requ
 		return
 	}
 
+	al.auditLog.Entry(auditlog.ApplicationLibraryCommand, auditlog.ActionCreate).
+		WithHTTPRequest(req).
+		WithRequest(commandInput).
+		WithResponse(storedValue).
+		WithID(storedValue.ID).
+		Save()
+
 	al.writeJSONResponse(w, http.StatusCreated, api.NewSuccessPayload(storedValue))
 }
 
@@ -2751,6 +2921,13 @@ func (al *APIListener) handleCommandUpdate(w http.ResponseWriter, req *http.Requ
 		al.jsonError(w, err)
 		return
 	}
+
+	al.auditLog.Entry(auditlog.ApplicationLibraryCommand, auditlog.ActionUpdate).
+		WithHTTPRequest(req).
+		WithRequest(commandInput).
+		WithResponse(storedValue).
+		WithID(idStr).
+		Save()
 
 	al.writeJSONResponse(w, http.StatusOK, api.NewSuccessPayload(storedValue))
 }
@@ -2795,6 +2972,11 @@ func (al *APIListener) handleDeleteCommand(w http.ResponseWriter, req *http.Requ
 		al.jsonError(w, err)
 		return
 	}
+
+	al.auditLog.Entry(auditlog.ApplicationLibraryCommand, auditlog.ActionDelete).
+		WithHTTPRequest(req).
+		WithID(idStr).
+		Save()
 
 	w.WriteHeader(http.StatusNoContent)
 }
@@ -2922,6 +3104,14 @@ func (al *APIListener) handlePostMultiClientScript(w http.ResponseWriter, req *h
 	resp := newJobResponse{
 		JID: multiJob.JID,
 	}
+
+	al.auditLog.Entry(auditlog.ApplicationClientScript, auditlog.ActionExecuteStart).
+		WithHTTPRequest(req).
+		WithRequest(inboundMsg).
+		WithResponse(resp).
+		WithID(multiJob.JID).
+		SaveForMultipleClients(inboundMsg.OrderedClients)
+
 	al.writeJSONResponse(w, http.StatusOK, api.NewSuccessPayload(resp))
 
 	al.Debugf("Multi-client Job[id=%q] created to execute remote command on clients %s, groups %s: %q.", multiJob.JID, inboundMsg.ClientIDs, inboundMsg.GroupIDs, inboundMsg.Command)
@@ -2953,6 +3143,10 @@ func (al *APIListener) handlePostToken(w http.ResponseWriter, req *http.Request)
 		return
 	}
 
+	al.auditLog.Entry(auditlog.ApplicationAuthUserMeToken, auditlog.ActionCreate).
+		WithHTTPRequest(req).
+		Save()
+
 	resp := postTokenResponse{
 		Token: newToken,
 	}
@@ -2973,6 +3167,9 @@ func (al *APIListener) handleDeleteToken(w http.ResponseWriter, req *http.Reques
 		al.jsonError(w, err)
 		return
 	}
+	al.auditLog.Entry(auditlog.ApplicationAuthUserMeToken, auditlog.ActionDelete).
+		WithHTTPRequest(req).
+		Save()
 
 	w.WriteHeader(http.StatusNoContent)
 }

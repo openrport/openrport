@@ -19,6 +19,7 @@ import (
 	"golang.org/x/crypto/ssh"
 
 	"github.com/cloudradar-monitoring/rport/server/api/middleware"
+	"github.com/cloudradar-monitoring/rport/server/auditlog"
 	"github.com/cloudradar-monitoring/rport/server/clients"
 	chshare "github.com/cloudradar-monitoring/rport/share"
 	"github.com/cloudradar-monitoring/rport/share/comm"
@@ -386,6 +387,22 @@ func (cl *ClientListener) handleSSHRequests(clientLog *chshare.Logger, clientID 
 				continue
 			}
 			clientLog.Debugf("%s, Command result saved successfully.", job.LogPrefix())
+
+			var auditLogEntry *auditlog.Entry
+			if job.IsScript {
+				auditLogEntry = cl.auditLog.Entry(auditlog.ApplicationClientScript, auditlog.ActionExecuteDone)
+			} else {
+				auditLogEntry = cl.auditLog.Entry(auditlog.ApplicationClientCommand, auditlog.ActionExecuteDone)
+			}
+			if job.MultiJobID != nil {
+				auditLogEntry.WithID(*job.MultiJobID)
+			} else {
+				auditLogEntry.WithID(job.JID)
+			}
+			auditLogEntry.
+				WithResponse(job).
+				WithClientID(clientID).
+				Save()
 
 			if job.MultiJobID != nil {
 				done := cl.jobsDoneChannel.Get(*job.MultiJobID)
