@@ -116,10 +116,15 @@ func NewServer(config *Config, filesAPI files.FileAPI) (*Server, error) {
 		return nil, err
 	}
 
-	s.auditLog = auditlog.New(
+	s.auditLog, err = auditlog.New(
 		chshare.NewLogger("auditlog", config.Logging.LogOutput, config.Logging.LogLevel),
 		s.clientService,
+		s.config.Server.DataDir,
+		s.config.API.AuditLog,
 	)
+	if err != nil {
+		return nil, err
+	}
 
 	if config.Database.driver != "" {
 		s.db, err = sqlx.Connect(config.Database.driver, config.Database.dsn)
@@ -235,6 +240,9 @@ func (s *Server) Close() error {
 	wg.Go(s.jobProvider.Close)
 	wg.Go(s.clientGroupProvider.Close)
 	wg.Go(s.uiJobWebSockets.CloseConnections)
+	if s.auditLog != nil {
+		wg.Go(s.auditLog.Close)
+	}
 	return wg.Wait()
 }
 

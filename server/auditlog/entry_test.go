@@ -13,26 +13,8 @@ import (
 	"github.com/cloudradar-monitoring/rport/server/clients"
 )
 
-func TestNotInitialized(t *testing.T) {
-	req := httptest.NewRequest("GET", "/", nil)
-
-	var auditLog *AuditLog
-
-	// Call with all methods to make sure it doesn't panic if not initialized
-	e := auditLog.Entry(ApplicationAuthUser, ActionCreate).
-		WithID(123).
-		WithHTTPRequest(req).
-		WithRequest(map[string]interface{}{}).
-		WithResponse(map[string]interface{}{}).
-		WithClient(&clients.Client{}).
-		WithClientID("123")
-
-	e.Save()
-	e.SaveForMultipleClients([]*clients.Client{&clients.Client{}})
-}
-
 func TestEntry(t *testing.T) {
-	auditLog := New(nil, nil)
+	auditLog := &AuditLog{}
 	e := auditLog.Entry(ApplicationClient, ActionCreate)
 
 	assert.WithinDuration(t, time.Now(), e.Timestamp, time.Millisecond)
@@ -111,7 +93,9 @@ func TestWithClient(t *testing.T) {
 }
 
 func TestWithClientID(t *testing.T) {
-	auditLog := New(nil, &mockClientGetter{})
+	auditLog := &AuditLog{
+		clientGetter: &mockClientGetter{},
+	}
 
 	t.Run("client exists", func(t *testing.T) {
 		e := auditLog.Entry("", "").WithClientID("11236310-6cad-408e-b372-a0f04d68d2df")
@@ -128,7 +112,7 @@ func TestWithClientID(t *testing.T) {
 
 func TestSave(t *testing.T) {
 	mockProvider := &mockProvider{}
-	auditLog := New(nil, nil)
+	auditLog := &AuditLog{}
 
 	t.Run("with provider", func(t *testing.T) {
 		auditLog.provider = mockProvider
@@ -140,8 +124,9 @@ func TestSave(t *testing.T) {
 	})
 
 	t.Run("with nil provider", func(t *testing.T) {
-		auditLog := New(nil, nil)
-		auditLog.provider = nil
+		auditLog := &AuditLog{
+			provider: nil,
+		}
 
 		auditLog.Entry("", "").Save()
 	})
@@ -149,8 +134,9 @@ func TestSave(t *testing.T) {
 
 func TestSaveForMultipleClients(t *testing.T) {
 	mockProvider := &mockProvider{}
-	auditLog := New(nil, nil)
-	auditLog.provider = mockProvider
+	auditLog := &AuditLog{
+		provider: mockProvider,
+	}
 
 	auditLog.Entry("", "").SaveForMultipleClients([]*clients.Client{
 		{
@@ -171,7 +157,7 @@ func TestSaveForMultipleClients(t *testing.T) {
 }
 
 func emptyEntry() *Entry {
-	auditLog := New(nil, nil)
+	auditLog := &AuditLog{}
 	return auditLog.Entry("", "")
 }
 
@@ -196,3 +182,5 @@ func (p *mockProvider) Save(e *Entry) error {
 	p.entries = append(p.entries, *e)
 	return nil
 }
+
+func (p mockProvider) Close() error { return nil }
