@@ -2,13 +2,14 @@ package chserver
 
 import (
 	"bytes"
-	"github.com/pquerna/otp/totp"
-	"github.com/stretchr/testify/assert"
-	"github.com/stretchr/testify/require"
 	"image"
 	"os"
 	"testing"
 	"time"
+
+	"github.com/pquerna/otp/totp"
+	"github.com/stretchr/testify/assert"
+	"github.com/stretchr/testify/require"
 )
 
 func TestCodeGenerationAndValidation(t *testing.T) {

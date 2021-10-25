@@ -3,19 +3,20 @@ package chserver
 import (
 	"bytes"
 	"fmt"
-	"github.com/pquerna/otp"
-	"github.com/pquerna/otp/totp"
 	"image/jpeg"
 	"image/png"
 	"io"
 	"io/ioutil"
 	"os"
 	"path/filepath"
+
+	"github.com/pquerna/otp"
+	"github.com/pquerna/otp/totp"
 )
 
 const (
-	DefaultTotPQrImageWidth = 200
-	DefaultTotPQrImageHeight = 200
+	DefaultTotPQrImageWidth    = 200
+	DefaultTotPQrImageHeight   = 200
 	DefaultTotPQrImageFileMode = os.FileMode(0644)
 )
 

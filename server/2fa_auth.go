@@ -99,7 +99,7 @@ func (srv *TwoFAService) SendToken(ctx context.Context, username string) (sendTo
 	return user.TwoFASendTo, nil
 }
 
-func (srv *TwoFAService) SetTotPLoginSession(username string, loginSessionTTL time.Duration){
+func (srv *TwoFAService) SetTotPLoginSession(username string, loginSessionTTL time.Duration) {
 	srv.mu.Lock()
 	srv.tokensByUser[username] = &expirableToken{
 		expiry: time.Now().Add(loginSessionTTL),

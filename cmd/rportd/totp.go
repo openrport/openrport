@@ -1,9 +1,11 @@
 package main
 
 import (
-	chserver "github.com/cloudradar-monitoring/rport/server"
-	"github.com/spf13/cobra"
 	"os"
+
+	"github.com/spf13/cobra"
+
+	chserver "github.com/cloudradar-monitoring/rport/server"
 )
 
 var totpCmd = &cobra.Command{

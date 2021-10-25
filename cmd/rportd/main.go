@@ -305,7 +305,7 @@ func init() {
 	viperCfg.SetDefault("api.enable_audit_log", true)
 	viperCfg.SetDefault("api.audit_log_rotation", auditlog.RotationMonthly)
 	viperCfg.SetDefault("api.totp_secret", "")
-	viperCfg.SetDefault("api.totp_login_session_ttl", time.Minute * 10)
+	viperCfg.SetDefault("api.totp_login_session_ttl", time.Minute*10)
 }
 
 func bindPFlags() {
