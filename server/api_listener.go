@@ -185,6 +185,10 @@ func NewAPIListener(
 		a.Logger.Infof("2FA is enabled via using %s", config.API.TwoFATokenDelivery)
 	}
 
+	if config.API.TotPSecret != "" {
+		a.Logger.Infof("2FA is enabled via Authenticator app")
+	}
+
 	if config.API.MaxFailedLogin > 0 && config.API.BanTime > 0 {
 		a.bannedIPs = security.NewMaxBadAttemptsBanList(
 			config.API.MaxFailedLogin,
