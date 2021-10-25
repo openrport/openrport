@@ -25,6 +25,7 @@ require (
 	github.com/kardianos/service v1.1.0
 	github.com/mattn/go-sqlite3 v1.14.4
 	github.com/mitchellh/mapstructure v1.1.2
+	github.com/pquerna/otp v1.3.0
 	github.com/scjalliance/comshim v0.0.0-20190308082608-cf06d2532c4e
 	github.com/shirou/gopsutil v3.21.9+incompatible
 	github.com/spf13/cobra v1.0.0

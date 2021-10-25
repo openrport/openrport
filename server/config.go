@@ -49,8 +49,9 @@ type APIConfig struct {
 	TwoFASendToRegex         string                 `mapstructure:"two_fa_send_to_regex"`
 	twoFASendToRegexCompiled *regexp.Regexp
 
-	AuditLog   auditlog.Config `mapstructure:",squash"`
-	TotPSecret string          `mapstructure:"totp_secret"`
+	AuditLog                auditlog.Config `mapstructure:",squash"`
+	TotPSecret              string          `mapstructure:"totp_secret"`
+	TotPLoginSessionTimeout time.Duration   `mapstructure:"totp_login_session_ttl"`
 }
 
 func (c *APIConfig) IsTwoFAOn() bool {
@@ -353,7 +354,7 @@ func (c *Config) parseAndValidateAPI() error {
 
 func (c *Config) parseAndValidateTotPSecret() error {
 	if c.API.TwoFATokenDelivery != "" && c.API.TotPSecret != "" {
-		return errors.New("conflicting 2FA configuration, two_fa_token_delivery and totp_secret options cannot be both non-empty")
+		return errors.New("conflicting 2FA configuration, two factor auth and totp_secret options cannot be both enabled")
 	}
 
 	return nil

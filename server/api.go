@@ -400,6 +400,17 @@ func (al *APIListener) handleLogin(username, pwd string, w http.ResponseWriter, 
 		return
 	}
 
+	if al.config.API.TotPSecret != "" {
+		al.twoFASrv.SetTotPLoginSession(username, al.config.API.TotPLoginSessionTimeout)
+
+		al.writeJSONResponse(w, http.StatusOK, api.NewSuccessPayload(loginResponse{
+			TwoFA: &twoFAResponse{
+				DeliveryMethod: "authenticator app",
+			},
+		}))
+		return
+	}
+
 	al.sendJWTToken(username, w, req)
 }
 
@@ -537,7 +548,7 @@ func (al *APIListener) handlePostVerify2FAToken(w http.ResponseWriter, req *http
 }
 
 func (al *APIListener) parseAndValidate2FATokenRequest(req *http.Request) (username string, err error) {
-	if !al.config.API.IsTwoFAOn() {
+	if !al.config.API.IsTwoFAOn() && al.config.API.TotPSecret == "" {
 		return "", errors2.APIError{
 			HTTPStatus: http.StatusConflict,
 			Message:    "2fa is disabled",
@@ -572,6 +583,10 @@ func (al *APIListener) parseAndValidate2FATokenRequest(req *http.Request) (usern
 			HTTPStatus: http.StatusUnauthorized,
 			Message:    "token is required",
 		}
+	}
+
+	if al.config.API.TotPSecret != "" {
+		return reqBody.Username, al.twoFASrv.ValidateTotPCode(reqBody.Username, reqBody.Token, al.config.API.TotPSecret)
 	}
 
 	return reqBody.Username, al.twoFASrv.ValidateToken(reqBody.Username, reqBody.Token)

@@ -186,7 +186,13 @@ func NewAPIListener(
 	}
 
 	if config.API.TotPSecret != "" {
-		a.Logger.Infof("2FA is enabled via Authenticator app")
+		a.twoFASrv = NewTwoFAService(
+			config.API.TwoFATokenTTLSeconds,
+			config.API.TwoFASendTimeout,
+			userService,
+			nil,
+		)
+		a.Logger.Infof("2FA is enabled via an Authenticator app")
 	}
 
 	if config.API.MaxFailedLogin > 0 && config.API.BanTime > 0 {

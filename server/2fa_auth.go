@@ -99,6 +99,43 @@ func (srv *TwoFAService) SendToken(ctx context.Context, username string) (sendTo
 	return user.TwoFASendTo, nil
 }
 
+func (srv *TwoFAService) SetTotPLoginSession(username string, loginSessionTTL time.Duration){
+	srv.mu.Lock()
+	srv.tokensByUser[username] = &expirableToken{
+		expiry: time.Now().Add(loginSessionTTL),
+	}
+	srv.mu.Unlock()
+}
+
+func (srv *TwoFAService) ValidateTotPCode(username, code, secretKey string) error {
+	srv.mu.RLock()
+	t := srv.tokensByUser[username]
+	defer srv.mu.RUnlock()
+
+	if t == nil {
+		return errors2.APIError{
+			Message:    "login request not found for provided username",
+			HTTPStatus: http.StatusUnauthorized,
+		}
+	}
+
+	if time.Now().After(t.expiry) {
+		return errors2.APIError{
+			Message:    "login request expired",
+			HTTPStatus: http.StatusUnauthorized,
+		}
+	}
+
+	if !CheckTotPCode(code, secretKey) {
+		return errors2.APIError{
+			Message:    "invalid token",
+			HTTPStatus: http.StatusUnauthorized,
+		}
+	}
+
+	return nil
+}
+
 // TODO: add tests
 func (srv *TwoFAService) ValidateToken(username, token string) error {
 	srv.mu.RLock()
