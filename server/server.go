@@ -30,6 +30,8 @@ import (
 	"github.com/cloudradar-monitoring/rport/share/ws"
 )
 
+const cleanupMeasurementsInterval = time.Minute * 2
+
 // Server represents a rport service
 type Server struct {
 	*chshare.Logger
@@ -203,9 +205,8 @@ func (s *Server) Run() error {
 	go scheduler.Run(ctx, s.Logger, clients.NewCleanupTask(s.Logger, s.clientListener.clientService.repo), s.config.Server.CleanupClients)
 	s.Infof("Task to cleanup obsolete clients will run with interval %v", s.config.Server.CleanupClients)
 
-	// TODO(gkahrer): do we need a config parameter here ?
-	cleanupMeasurementsInterval := time.Minute * 2
-	go scheduler.Run(ctx, s.Logger, monitoring.NewCleanupTask(s.Logger, s.monitoringService, s.config.Monitoring.DataStorageDays), cleanupMeasurementsInterval)
+	cleaningPeriod := time.Hour * 24 * time.Duration(s.config.Monitoring.DataStorageDays)
+	go scheduler.Run(ctx, s.Logger, monitoring.NewCleanupTask(s.Logger, s.monitoringService, cleaningPeriod), cleanupMeasurementsInterval)
 	s.Infof("Task to cleanup measurements will run with interval %v", cleanupMeasurementsInterval)
 
 	return s.Wait()

@@ -36,12 +36,14 @@ type SysInfo interface {
 }
 
 type realSystemInfo struct {
-	cmdExec CmdExecutor
+	cmdExec     CmdExecutor
+	lastCallCPU *LastCallCPU
 }
 
 func NewSystemInfo(cmdExec CmdExecutor) SysInfo {
 	return &realSystemInfo{
-		cmdExec: cmdExec,
+		cmdExec:     cmdExec,
+		lastCallCPU: &LastCallCPU{},
 	}
 }
 
@@ -110,7 +112,7 @@ func (s *realSystemInfo) CPUPercent(ctx context.Context) (float64, error) {
 
 func (s *realSystemInfo) CPUPercentIOWait(ctx context.Context) (float64, error) {
 	percentIOWait := 0.0
-	percents, err := PercentIOWait()
+	percents, err := PercentIOWait(s.lastCallCPU)
 	if err != nil {
 		return percentIOWait, err
 	}

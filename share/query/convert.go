@@ -8,22 +8,22 @@ import (
 func ConvertListOptionsToQuery(lo *ListOptions, q string) (qOut string, params []interface{}) {
 	qOut, params = addWhere(lo.Filters, q)
 	qOut = addOrderBy(lo.Sorts, qOut)
-	qOut = replaceStarSelect(lo.Fields, qOut)
+	qOut = ReplaceStarSelect(lo.Fields, qOut)
 
 	return qOut, params
 }
 
 func ConvertRetrieveOptionsToQuery(ro *RetrieveOptions, q string) string {
-	qOut := replaceStarSelect(ro.Fields, q)
+	qOut := ReplaceStarSelect(ro.Fields, q)
 
 	return qOut
 }
 
-func ConvertOptionsToQuery(o *Options, q string, inParams []interface{}) (string, []interface{}) {
+func AppendOptionsToQuery(o *ListOptions, q string, inParams []interface{}) (string, []interface{}) {
 	qOut, params := addWhere(o.Filters, q)
 	outParams := append(inParams, params...)
 	qOut = addOrderBy(o.Sorts, qOut)
-	qOut = replaceStarSelect(o.Fields, qOut)
+	qOut = ReplaceStarSelect(o.Fields, qOut)
 
 	return qOut, outParams
 }
@@ -79,7 +79,7 @@ func addOrderBy(sortOptions []SortOption, q string) string {
 	return q
 }
 
-func replaceStarSelect(fieldOptions []FieldsOption, q string) string {
+func ReplaceStarSelect(fieldOptions []FieldsOption, q string) string {
 	if !strings.HasPrefix(strings.ToUpper(q), "SELECT * ") {
 		return q
 	}

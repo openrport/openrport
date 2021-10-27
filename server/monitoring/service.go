@@ -15,16 +15,19 @@ import (
 
 type Service interface {
 	SaveMeasurement(ctx context.Context, measurement *models.Measurement) error
-	DeleteMeasurementsOlderThanDays(ctx context.Context, days int64) (int64, error)
+	DeleteMeasurementsOlderThan(ctx context.Context, period time.Duration) (int64, error)
 	GetClientLatest(ctx context.Context, clientID string) (*models.Measurement, error)
-	GetClientMetricsOne(ctx context.Context, clientID string, o *query.Options) (*monitoring.ClientMetricsPayload, error)
-	GetClientMetricsList(ctx context.Context, clientID string, o *query.Options) ([]monitoring.ClientMetricsPayload, error)
+	GetClientMetricsOne(ctx context.Context, clientID string, o *query.ListOptions) (*monitoring.ClientMetricsPayload, error)
+	GetClientMetricsList(ctx context.Context, clientID string, o *query.ListOptions) ([]monitoring.ClientMetricsPayload, error)
 	GetClientProcessesLatest(ctx context.Context, clientID string) (*monitoring.ClientProcessesPayload, error)
 	GetClientProcessesFiltered(ctx context.Context, clientID string, filters []query.FilterOption) (*monitoring.ClientProcessesPayload, error)
+	GetClientMountpointsLatest(ctx context.Context, clientID string) (*monitoring.ClientMountpointsPayload, error)
+	GetClientMountpointsFiltered(ctx context.Context, clientID string, filters []query.FilterOption) (*monitoring.ClientMountpointsPayload, error)
 }
 
 var layoutSinceUntil = "2006-01-02:15:04:05"
-var maxDataFetchPeriodHours = 48
+var maxDataFetchHours = 48
+var maxDataFetchDuration = time.Duration(maxDataFetchHours) * time.Hour
 
 //var limitDownSamplingHours = 2
 
@@ -39,9 +42,9 @@ func (s *monitoringService) SaveMeasurement(ctx context.Context, measurement *mo
 	return s.DBProvider.CreateMeasurement(ctx, measurement)
 }
 
-func (s *monitoringService) DeleteMeasurementsOlderThanDays(ctx context.Context, days int64) (int64, error) {
-	compare := time.Now().Unix() - (days * 24 * 3600)
-	return s.DBProvider.DeleteMeasurementsOlderThan(ctx, compare)
+func (s *monitoringService) DeleteMeasurementsOlderThan(ctx context.Context, period time.Duration) (int64, error) {
+	compare := time.Now().Add(-period)
+	return s.DBProvider.DeleteMeasurementsBefore(ctx, compare)
 }
 
 func (s *monitoringService) GetClientLatest(ctx context.Context, clientID string) (*models.Measurement, error) {
@@ -53,23 +56,30 @@ func (s *monitoringService) GetClientProcessesLatest(ctx context.Context, client
 }
 
 func (s *monitoringService) GetClientProcessesFiltered(ctx context.Context, clientID string, filters []query.FilterOption) (*monitoring.ClientProcessesPayload, error) {
-	at := filters[0].Values[0]
+	t, err := time.Parse(layoutSinceUntil, filters[0].Values[0])
+	if err != nil {
+		return nil, fmt.Errorf("illegal time format:%v", filters[0].Values[0])
+	}
+	return s.DBProvider.GetProcessesNearestByClientID(ctx, clientID, t)
+}
+
+func (s *monitoringService) GetClientMountpointsLatest(ctx context.Context, clientID string) (*monitoring.ClientMountpointsPayload, error) {
+	return s.DBProvider.GetMountpointsLatestByClientID(ctx, clientID)
+}
+
+func (s *monitoringService) GetClientMountpointsFiltered(ctx context.Context, clientID string, filters []query.FilterOption) (*monitoring.ClientMountpointsPayload, error) {
 	t, err := time.Parse(layoutSinceUntil, filters[0].Values[0])
 	if err == nil {
-		at = strconv.FormatInt(t.Unix(), 10)
+		return nil, fmt.Errorf("illegal time format:%v", filters[0].Values[0])
 	}
-	return s.DBProvider.GetProcessesNearestByClientID(ctx, clientID, at)
+	return s.DBProvider.GetMountpointsNearestByClientID(ctx, clientID, t)
 }
 
-func (s *monitoringService) GetClientProcessesOne(ctx context.Context, clientID string, o *query.Options) (*monitoring.ClientProcessesPayload, error) {
-	return s.DBProvider.GetProcessesLatestByClientID(ctx, clientID)
+func (s *monitoringService) GetClientMetricsOne(ctx context.Context, clientID string, o *query.ListOptions) (*monitoring.ClientMetricsPayload, error) {
+	return s.DBProvider.GetMetricsLatestByClientID(ctx, clientID, o.Fields)
 }
 
-func (s *monitoringService) GetClientMetricsOne(ctx context.Context, clientID string, o *query.Options) (*monitoring.ClientMetricsPayload, error) {
-	return s.DBProvider.GetMetricsByClientID(ctx, clientID, o)
-}
-
-func (s monitoringService) GetClientMetricsList(ctx context.Context, clientID string, o *query.Options) ([]monitoring.ClientMetricsPayload, error) {
+func (s monitoringService) GetClientMetricsList(ctx context.Context, clientID string, o *query.ListOptions) ([]monitoring.ClientMetricsPayload, error) {
 	query.SortFiltersByOperator(o.Filters)
 	if err := checkFilterOptions(o.Filters); err != nil {
 		return nil, err
@@ -104,17 +114,15 @@ func parseAndConvertFilterValues(filters []query.FilterOption) error {
 }
 
 func validateFilterValues(filters []query.FilterOption) error {
-	limit := 1 * 60 * 60 * maxDataFetchPeriodHours
-
 	lower, _ := strconv.Atoi(filters[0].Values[0])
 	upper, _ := strconv.Atoi(filters[1].Values[0])
 
 	if lower > upper {
 		return errors.APIError{Message: "Illegal time value (lower bound > upper bound)", HTTPStatus: http.StatusBadRequest}
 	}
-
-	if (upper - lower) > limit {
-		return errors.APIError{Message: fmt.Sprintf("Illegal period (max allowed: %d hours)", maxDataFetchPeriodHours), HTTPStatus: http.StatusBadRequest}
+	span := time.Duration(upper)*time.Second - time.Duration(lower)*time.Second
+	if span > maxDataFetchDuration {
+		return errors.APIError{Message: fmt.Sprintf("Illegal period (max allowed: %d hours)", maxDataFetchHours), HTTPStatus: http.StatusBadRequest}
 	}
 
 	return nil

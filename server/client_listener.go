@@ -376,6 +376,10 @@ func (cl *ClientListener) replyConnectionError(r *ssh.Request, err error) {
 
 func (cl *ClientListener) handleSSHRequests(clientLog *chshare.Logger, clientID string, reqs <-chan *ssh.Request) {
 	for r := range reqs {
+		if len(r.Payload) > int(cl.config.Server.MaxRequestBytesClient) {
+			clientLog.Errorf("%s:request data exceeds the limit of %d bytes, actual size: %d", comm.RequestTypeSaveMeasurement, cl.config.Server.MaxRequestBytesClient, len(r.Payload))
+			continue
+		}
 		switch r.Type {
 		case comm.RequestTypePing:
 			_ = r.Reply(true, nil)
@@ -409,10 +413,6 @@ func (cl *ClientListener) handleSSHRequests(clientLog *chshare.Logger, clientID 
 				continue
 			}
 		case comm.RequestTypeSaveMeasurement:
-			if len(r.Payload) > int(cl.config.Server.MaxRequestBytesClient) {
-				clientLog.Errorf("%s:request data exceeds the limit of %d bytes, actual size: %d", comm.RequestTypeSaveMeasurement, cl.config.Server.MaxRequestBytesClient, len(r.Payload))
-				continue
-			}
 			measurement := &models.Measurement{}
 			err := json.Unmarshal(r.Payload, measurement)
 			if err != nil {

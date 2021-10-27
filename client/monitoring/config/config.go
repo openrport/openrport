@@ -2,6 +2,8 @@ package config
 
 import "time"
 
+const DefaultMonitoringInterval = 60 * time.Second
+
 type MonitoringConfig struct {
 	Enabled                       bool          `mapstructure:"enabled"`
 	Interval                      time.Duration `mapstructure:"interval"`
@@ -12,4 +14,12 @@ type MonitoringConfig struct {
 	PMEnabled                     bool          `mapstructure:"pm_enabled"`
 	PMKerneltasksEnabled          bool          `mapstructure:"pm_kerneltasks_enabled"`
 	PMMaxNumberProcesses          uint          `mapstructure:"pm_max_number_processes"`
+}
+
+func (mc *MonitoringConfig) ParseAndValidate() error {
+	if mc.Interval < DefaultMonitoringInterval {
+		mc.Interval = DefaultMonitoringInterval
+	}
+
+	return nil
 }

@@ -10,41 +10,38 @@ import (
 	"strings"
 	"time"
 
-	"github.com/cloudradar-monitoring/rport/client/common"
+	"github.com/cloudradar-monitoring/rport/client/monitoring/helper"
 )
 
 const dockerAvailabilityCheckCacheExpiration = 1 * time.Minute
 const cmdExecTimeout = 10 * time.Second
 
-var dockerIsAvailable bool
-var dockerAvailabilityLastRequestedAt *time.Time
-
 // isDockerAvailable maintains a simple cache to prevent executing shell commands too often
 func (h *Handler) isDockerAvailable() bool {
 	now := time.Now()
-	if dockerAvailabilityLastRequestedAt != nil &&
-		now.Sub(*dockerAvailabilityLastRequestedAt) < dockerAvailabilityCheckCacheExpiration {
-		return dockerIsAvailable
+	if h.dockerAvailabilityLastRequestedAt != nil &&
+		now.Sub(*h.dockerAvailabilityLastRequestedAt) < dockerAvailabilityCheckCacheExpiration {
+		return h.dockerIsAvailable
 	}
 
 	_, err := exec.LookPath("docker")
-	dockerIsAvailable = err == nil
+	h.dockerIsAvailable = err == nil
 
-	if dockerIsAvailable {
+	if h.dockerIsAvailable {
 		dockerPrefix := ""
 		if runtime.GOOS == "linux" {
 			dockerPrefix = "sudo "
 		}
 
-		_, err := common.RunCommandWithTimeout(cmdExecTimeout, "/bin/sh", "-c", dockerPrefix+"docker info")
+		_, err := helper.RunCommandWithTimeout(cmdExecTimeout, "/bin/sh", "-c", dockerPrefix+"docker info")
 		if err != nil {
 			h.logger.Debugf("while executing 'docker info' to check if docker is available:%v", err)
 		}
-		dockerIsAvailable = dockerIsAvailable && (err == nil)
+		h.dockerIsAvailable = h.dockerIsAvailable && (err == nil)
 	}
 
-	dockerAvailabilityLastRequestedAt = &now
-	return dockerIsAvailable
+	h.dockerAvailabilityLastRequestedAt = &now
+	return h.dockerIsAvailable
 }
 
 // ContainerNameByID returns the name of a container identified by its id
@@ -53,7 +50,7 @@ func (h *Handler) ContainerNameByID(id string) (string, error) {
 		return "", ErrorDockerNotAvailable
 	}
 
-	out, err := common.RunCommandWithTimeout(cmdExecTimeout, "/bin/sh", "-c", fmt.Sprintf("sudo docker inspect --format \"{{ .Name }}\" %s", id))
+	out, err := helper.RunCommandWithTimeout(cmdExecTimeout, "/bin/sh", "-c", fmt.Sprintf("sudo docker inspect --format \"{{ .Name }}\" %s", id))
 	if err != nil {
 		if ee, ok := err.(*exec.ExitError); ok {
 			err = errors.New(ee.Error() + ": " + string(ee.Stderr))

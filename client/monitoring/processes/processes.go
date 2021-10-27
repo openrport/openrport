@@ -15,10 +15,11 @@ type ProcessHandler struct {
 	config        config.MonitoringConfig
 	logger        *chshare.Logger
 	dockerHandler *docker.Handler
+	processCache  *ProcessCache
 }
 
 func NewProcessHandler(config config.MonitoringConfig, logger *chshare.Logger, dockerHandler *docker.Handler) *ProcessHandler {
-	return &ProcessHandler{config: config, logger: logger, dockerHandler: dockerHandler}
+	return &ProcessHandler{config: config, logger: logger, dockerHandler: dockerHandler, processCache: NewProcessCache()}
 }
 
 type ProcStat struct {

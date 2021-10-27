@@ -1,8 +1,6 @@
-package common
+package helper
 
 import (
-	"bytes"
-	"compress/flate"
 	"context"
 	"errors"
 	"math"
@@ -13,20 +11,6 @@ import (
 )
 
 var ErrCommandExecutionTimeout = errors.New("command execution timeout exceeded")
-
-func Compress(input string) (string, error) {
-	buf := new(bytes.Buffer)
-	w, e := flate.NewWriter(buf, flate.DefaultCompression)
-	if e != nil {
-		return "", e
-	}
-	_, err := w.Write([]byte(input))
-	if err != nil {
-		return "", err
-	}
-	w.Close()
-	return buf.String(), nil
-}
 
 // RunCommandWithTimeout runs command and returns it's standard output. If timeout exceeded the returned error is ErrCommandExecutionTimeout
 func RunCommandWithTimeout(timeout time.Duration, name string, arg ...string) ([]byte, error) {

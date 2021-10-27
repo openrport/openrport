@@ -5,9 +5,9 @@ import (
 	"path/filepath"
 	"strings"
 
+	"github.com/hashicorp/go-multierror"
 	"github.com/shirou/gopsutil/disk"
 
-	"github.com/cloudradar-monitoring/rport/client/common"
 	chshare "github.com/cloudradar-monitoring/rport/share"
 )
 
@@ -51,15 +51,15 @@ func NewWatcher(config FileSystemWatcherConfig, logger *chshare.Logger) *FileSys
 	return fsWatcher
 }
 
-func (fw *FileSystemWatcher) Results() (common.MeasurementsMap, error) {
-	results := common.MeasurementsMap{}
-	var errs common.ErrorCollector
+func (fw *FileSystemWatcher) Results() (MeasurementsMap, error) {
+	results := MeasurementsMap{}
 
 	partitions, err := getPartitions(fw.config.IdentifyMountpointsByDevice)
 	if err != nil {
-		errs.Add(fmt.Errorf("[FS] Failed to read partitions:%v", err))
+		return results, fmt.Errorf("[FS] Failed to read partitions:%v", err)
 	}
 
+	var errs error
 	for _, partition := range partitions {
 		if _, typeAllowed := fw.AllowedTypes[strings.ToLower(partition.Fstype)]; !typeAllowed {
 			//fw.logger.Debugf("[FS] fstype excluded: %s", partition.Fstype)
@@ -108,17 +108,17 @@ func (fw *FileSystemWatcher) Results() (common.MeasurementsMap, error) {
 
 		usage, err := getFsPartitionUsageInfo(partition.Mountpoint)
 		if err != nil {
-			errs.Add(fmt.Errorf("[FS] Failed to get usage info for '%s'(%s):%v", partition.Mountpoint, partition.Device, err))
+			errs = multierror.Append(errs, fmt.Errorf("[FS] Failed to get usage info for '%s'(%s):%v", partition.Mountpoint, partition.Device, err))
 			continue
 		}
 
 		fw.fillUsageMetrics(results, partition.Mountpoint, usage)
 	}
 
-	return results, errs.Combine()
+	return results, errs
 }
 
-func (fw *FileSystemWatcher) fillUsageMetrics(results common.MeasurementsMap, mountName string, usage *disk.UsageStat) {
+func (fw *FileSystemWatcher) fillUsageMetrics(results MeasurementsMap, mountName string, usage *disk.UsageStat) {
 	for _, metric := range fw.config.Metrics {
 		resultField := metric + "." + mountName
 		switch strings.ToLower(metric) {

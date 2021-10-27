@@ -69,11 +69,11 @@ func TestConvertListOptionsToQuery(t *testing.T) {
 
 }
 
-func TestConvertOptionsToQuery(t *testing.T) {
+func TestAppendListOptionsToQuery(t *testing.T) {
 	testCases := []struct {
 		Name           string
 		Query          string
-		Options        *query.Options
+		Options        *query.ListOptions
 		Params         []interface{}
 		ExpectedQuery  string
 		ExpectedParams []interface{}
@@ -81,7 +81,7 @@ func TestConvertOptionsToQuery(t *testing.T) {
 		{
 			Name:  "fields, no filters, no sorts",
 			Query: "SELECT * FROM measurements as metrics",
-			Options: &query.Options{
+			Options: &query.ListOptions{
 				Fields: []query.FieldsOption{
 					{
 						Resource: "metrics",
@@ -95,7 +95,7 @@ func TestConvertOptionsToQuery(t *testing.T) {
 		}, {
 			Name:  "fields, filters, sorts, params",
 			Query: "SELECT * FROM measurements as metrics WHERE client_id = ?",
-			Options: &query.Options{
+			Options: &query.ListOptions{
 				Sorts: []query.SortOption{
 					{
 						Column: "timestamp",
@@ -131,7 +131,7 @@ func TestConvertOptionsToQuery(t *testing.T) {
 		t.Run(tc.Name, func(t *testing.T) {
 			t.Parallel()
 
-			query, params := query.ConvertOptionsToQuery(tc.Options, tc.Query, tc.Params)
+			query, params := query.AppendOptionsToQuery(tc.Options, tc.Query, tc.Params)
 
 			assert.Equal(t, tc.ExpectedQuery, query)
 			assert.Equal(t, tc.ExpectedParams, params)

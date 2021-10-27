@@ -12,6 +12,7 @@ import (
 	"github.com/spf13/viper"
 
 	chclient "github.com/cloudradar-monitoring/rport/client"
+	config2 "github.com/cloudradar-monitoring/rport/client/monitoring/config"
 	chshare "github.com/cloudradar-monitoring/rport/share"
 )
 
@@ -143,21 +144,21 @@ var clientHelp = `
     --monitoring-enabled, Enable or disable gathering of monitoring data.
     Defaults: true
 
-	--monitoring-interval, the interval time in seconds, when monitoring data is gathered
-	Defaults: 60s
+   --monitoring-interval, the interval time in seconds, when monitoring data is gathered
+   Defaults: 60s
 
-	--monitoring-fs-type-include, list of filesystem types to include in list of mountpoints
-	--monitoring-fs-path-exclude, list of filesystem path to exclude from list of mountpoints
-	--monitoring-fs-path-exclude-recurse, enable or disable recursive handling
-	--monitoring-fs-identify-mountpoints-by-device, enable or disable the identification of mountpoints by device
+   --monitoring-fs-type-include, list of filesystem types to include in list of mountpoints
+   --monitoring-fs-path-exclude, list of filesystem path to exclude from list of mountpoints
+   --monitoring-fs-path-exclude-recurse, enable or disable recursive handling
+   --monitoring-fs-identify-mountpoints-by-device, enable or disable the identification of mountpoints by device
 
-	--monitoring-pm-enabled, enable or disable process-monitoring
-	--monitoring-pm-kerneltasks-enabled, enable or disable monitoring of kerneltasks
-	--monitoring-pm-max-number-processes, maximum number of processes in process monitoring list
+   --monitoring-pm-enabled, enable or disable process-monitoring
+   --monitoring-pm-kerneltasks-enabled, enable or disable monitoring of kerneltasks
+   --monitoring-pm-max-number-processes, maximum number of processes in process monitoring list
 
     --config, -c, An optional arg to define a path to a config file. If it is set then
     configuration will be loaded from the file. Note: command arguments and env variables will override them.
-    Config file should be in TOML format. You can find an example "rport.example.conf" in the release archive.
+    MonitoringConfig file should be in TOML format. You can find an example "rport.example.conf" in the release archive.
 
     --help, This help text
 
@@ -248,10 +249,8 @@ func init() {
 	viperCfg.SetDefault("client.updates_interval", 4*time.Hour)
 	viperCfg.SetDefault("client.data_dir", chclient.DefaultDataDir)
 	viperCfg.SetDefault("monitoring.enabled", true)
-	viperCfg.SetDefault("monitoring.interval", chclient.DefaultMonitoringInterval)
+	viperCfg.SetDefault("monitoring.interval", config2.DefaultMonitoringInterval)
 	viperCfg.SetDefault("monitoring.fs_type_include", []string{"ext3", "ext4", "xfs", "jfs", "ntfs", "btrfs", "hfs", "apfs", "exfat", "smbfs", "nfs"})
-	viperCfg.SetDefault("monitoring.fs_path_exclude", []string{})
-	viperCfg.SetDefault("monitoring.fs_path_exclude_recurse", false)
 	viperCfg.SetDefault("monitoring.fs_identify_mountpoints_by_device", true)
 	viperCfg.SetDefault("monitoring.pm_enabled", true)
 	viperCfg.SetDefault("monitoring.pm_kerneltasks_enabled", true)

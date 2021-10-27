@@ -183,6 +183,7 @@ func (al *APIListener) initRouter() {
 	api.HandleFunc("/clients/{client_id}/updates-status", al.wrapClientAccessMiddleware(al.handleRefreshUpdatesStatus)).Methods(http.MethodPost)
 	api.HandleFunc("/clients/{client_id}/metrics", al.handleGetClientMetrics).Methods(http.MethodGet)
 	api.HandleFunc("/clients/{client_id}/processes", al.handleGetClientProcesses).Methods(http.MethodGet)
+	api.HandleFunc("/clients/{client_id}/mountpoints", al.handleGetClientMountpoints).Methods(http.MethodGet)
 	api.HandleFunc("/client-groups", al.handleGetClientGroups).Methods(http.MethodGet)
 	api.HandleFunc("/client-groups", al.wrapAdminAccessMiddleware(al.handlePostClientGroups)).Methods(http.MethodPost)
 	api.HandleFunc("/client-groups/{group_id}", al.wrapAdminAccessMiddleware(al.handlePutClientGroup)).Methods(http.MethodPut)
@@ -3000,7 +3001,7 @@ func (al *APIListener) handleGetClientMetrics(w http.ResponseWriter, req *http.R
 	al.handleGetClientMetricsOne(w, req, clientID, queryOptions)
 }
 
-func (al *APIListener) handleGetClientMetricsOne(w http.ResponseWriter, req *http.Request, clientID string, o *query.Options) {
+func (al *APIListener) handleGetClientMetricsOne(w http.ResponseWriter, req *http.Request, clientID string, o *query.ListOptions) {
 	clientMetrics, err := al.monitoringService.GetClientMetricsOne(req.Context(), clientID, o)
 	if err != nil {
 		if err == sql.ErrNoRows {
@@ -3013,7 +3014,7 @@ func (al *APIListener) handleGetClientMetricsOne(w http.ResponseWriter, req *htt
 	al.writeJSONResponse(w, http.StatusOK, api.NewSuccessPayload(clientMetrics))
 }
 
-func (al *APIListener) handleGetClientMetricsList(w http.ResponseWriter, req *http.Request, clientID string, o *query.Options) {
+func (al *APIListener) handleGetClientMetricsList(w http.ResponseWriter, req *http.Request, clientID string, o *query.ListOptions) {
 	clientMetricsList, err := al.monitoringService.GetClientMetricsList(req.Context(), clientID, o)
 
 	if err != nil {
@@ -3056,4 +3057,34 @@ func (al *APIListener) handleGetClientProcesses(w http.ResponseWriter, req *http
 	}
 
 	al.writeJSONResponse(w, http.StatusOK, api.NewSuccessPayload(clientProcesses))
+}
+
+func (al *APIListener) handleGetClientMountpoints(w http.ResponseWriter, req *http.Request) {
+	vars := mux.Vars(req)
+	clientID := vars[routeParamClientID]
+
+	var clientMountpoints *monitoring.ClientMountpointsPayload
+	var serviceErr error
+	filters := query.ExtractFilterOptions(req)
+	if len(filters) > 0 {
+		err := query.ValidateFilterOptions(filters, monitoring.ClientMountpointsFilterFields)
+		if err != nil {
+			al.jsonError(w, err)
+			return
+		}
+		clientMountpoints, serviceErr = al.monitoringService.GetClientMountpointsFiltered(req.Context(), clientID, filters)
+	} else {
+		clientMountpoints, serviceErr = al.monitoringService.GetClientMountpointsLatest(req.Context(), clientID)
+	}
+
+	if serviceErr != nil {
+		if serviceErr == sql.ErrNoRows {
+			al.jsonErrorResponseWithTitle(w, http.StatusNotFound, fmt.Sprintf("mountpoints for client with id %q not found", clientID))
+			return
+		}
+		al.jsonError(w, serviceErr)
+		return
+	}
+
+	al.writeJSONResponse(w, http.StatusOK, api.NewSuccessPayload(clientMountpoints))
 }

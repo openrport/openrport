@@ -3,11 +3,9 @@ package monitoring
 import (
 	"context"
 	"os"
-	"strconv"
 	"testing"
 	"time"
 
-	"github.com/jmoiron/sqlx"
 	"github.com/stretchr/testify/require"
 
 	chshare "github.com/cloudradar-monitoring/rport/share"
@@ -15,14 +13,16 @@ import (
 )
 
 var testLog = chshare.NewLogger("monitoring", chshare.LogOutput{File: os.Stdout}, chshare.LogLevelDebug)
-var measurementStart = time.Date(2021, time.September, 1, 0, 0, 0, 0, time.UTC).Unix()
-var testStart = time.Now().Unix()
-var measurementInterval int64 = 60
+var measurementInterval = time.Second * 60
+var measurement1 = time.Date(2021, time.September, 1, 0, 0, 0, 0, time.UTC)
+var measurement2 = measurement1.Add(measurementInterval)
+var measurement3 = measurement2.Add(measurementInterval)
+var testStart = time.Now()
 
 var testData = []models.Measurement{
 	{
 		ClientID:           "test_client_1",
-		Timestamp:          measurementStart,
+		Timestamp:          measurement1,
 		CPUUsagePercent:    10,
 		MemoryUsagePercent: 30,
 		IoUsagePercent:     2,
@@ -31,7 +31,7 @@ var testData = []models.Measurement{
 	},
 	{
 		ClientID:           "test_client_1",
-		Timestamp:          measurementStart + measurementInterval,
+		Timestamp:          measurement2,
 		CPUUsagePercent:    15,
 		MemoryUsagePercent: 35,
 		IoUsagePercent:     3,
@@ -40,7 +40,7 @@ var testData = []models.Measurement{
 	},
 	{
 		ClientID:           "test_client_1",
-		Timestamp:          measurementStart + measurementInterval + measurementInterval,
+		Timestamp:          measurement3,
 		CPUUsagePercent:    20,
 		MemoryUsagePercent: 40,
 		IoUsagePercent:     4,
@@ -49,14 +49,14 @@ var testData = []models.Measurement{
 	},
 }
 
-func TestDBProvider(t *testing.T) {
+func TestSqliteProvider_CreateMeasurement(t *testing.T) {
 	dbProvider, err := NewSqliteProvider(":memory:", testLog)
 	require.NoError(t, err)
 	defer dbProvider.Close()
 
 	ctx := context.Background()
 
-	err = createTestData(dbProvider.DB())
+	err = createTestData(ctx, dbProvider)
 	require.NoError(t, err)
 
 	m2 := &models.Measurement{
@@ -71,24 +71,21 @@ func TestDBProvider(t *testing.T) {
 	// create new measurement
 	err = dbProvider.CreateMeasurement(ctx, m2)
 	require.NoError(t, err)
+}
 
-	// get latest of client
-	mC1, err := dbProvider.GetClientLatest(ctx, "test_client_1")
+func TestSqliteProvider_DeleteMeasurementsBefore(t *testing.T) {
+	dbProvider, err := NewSqliteProvider(":memory:", testLog)
 	require.NoError(t, err)
-	require.NotNil(t, mC1)
-	require.Equal(t, measurementStart+measurementInterval+measurementInterval, mC1.Timestamp)
+	defer dbProvider.Close()
 
-	// delete old measurements (older than 30 days)
-	compare := testStart - (30 * 3600)
-	deleted, err := dbProvider.DeleteMeasurementsOlderThan(ctx, compare)
-	require.NoError(t, err)
-	require.Equal(t, int64(len(testData)), deleted)
+	ctx := context.Background()
 
-	// delete all remaining measurements
-	compare = testStart + 1
-	deleted, err = dbProvider.DeleteMeasurementsOlderThan(ctx, compare)
+	err = createTestData(ctx, dbProvider)
 	require.NoError(t, err)
-	require.Equal(t, int64(1), deleted)
+
+	deleted, err := dbProvider.DeleteMeasurementsBefore(ctx, measurement3)
+	require.NoError(t, err)
+	require.Equal(t, int64(2), deleted)
 }
 
 func TestSqliteProvider_GetProcessesLatestByClientID(t *testing.T) {
@@ -98,7 +95,7 @@ func TestSqliteProvider_GetProcessesLatestByClientID(t *testing.T) {
 
 	ctx := context.Background()
 
-	err = createTestData(dbProvider.DB())
+	err = createTestData(ctx, dbProvider)
 	require.NoError(t, err)
 
 	// get the latest processes of client
@@ -115,12 +112,12 @@ func TestSqliteProvider_GetProcessesNearestByClientID(t *testing.T) {
 
 	ctx := context.Background()
 
-	err = createTestData(dbProvider.DB())
+	err = createTestData(ctx, dbProvider)
 	require.NoError(t, err)
 
 	// get processes of client with timestamp
-	m2 := measurementStart + measurementInterval
-	pC1, err := dbProvider.GetProcessesNearestByClientID(ctx, "test_client_1", strconv.FormatInt(m2, 10))
+	m2 := measurement1.Add(measurementInterval)
+	pC1, err := dbProvider.GetProcessesNearestByClientID(ctx, "test_client_1", m2)
 	require.NoError(t, err)
 	require.NotNil(t, pC1)
 	require.Equal(t, `{[{"pid":30211, "parent_pid": 4711, "name": "idea"}]}`, pC1.Processes)
@@ -133,7 +130,7 @@ func TestSqliteProvider_GetMountpointsLatestByClientID(t *testing.T) {
 
 	ctx := context.Background()
 
-	err = createTestData(dbProvider.DB())
+	err = createTestData(ctx, dbProvider)
 	require.NoError(t, err)
 
 	// get the latest mountpoints of client
@@ -150,30 +147,29 @@ func TestSqliteProvider_GetMountpointsNearestByClientID(t *testing.T) {
 
 	ctx := context.Background()
 
-	err = createTestData(dbProvider.DB())
+	err = createTestData(ctx, dbProvider)
 	require.NoError(t, err)
 
 	// get mountpoints of client with timestamp
-	m2 := measurementStart + measurementInterval
-	mC1, err := dbProvider.GetMountpointsNearestByClientID(ctx, "test_client_1", strconv.FormatInt(m2, 10))
+	m2 := measurement1.Add(measurementInterval)
+	mC1, err := dbProvider.GetMountpointsNearestByClientID(ctx, "test_client_1", m2)
 	require.NoError(t, err)
 	require.NotNil(t, mC1)
 	require.Equal(t, `{"free_b./":44182758400,"free_b./home":228029413376,"total_b./":105555197952,"total_b./home":364015185920}`, mC1.Mountpoints)
 }
 
-func createTestData(db *sqlx.DB) error {
+func createTestData(ctx context.Context, dbProvider DBProvider) error {
 	for i := range testData {
-		_, err := db.Exec(
-			"INSERT INTO `measurements` (`client_id`, `timestamp`, `cpu_usage_percent`, `memory_usage_percent`, `io_usage_percent`, `processes`, `mountpoints`) VALUES (?,?,?,?,?,?,?)",
-			testData[i].ClientID,
-			testData[i].Timestamp,
-			testData[i].CPUUsagePercent,
-			testData[i].MemoryUsagePercent,
-			testData[i].IoUsagePercent,
-			testData[i].Processes,
-			testData[i].Mountpoints,
-		)
-		if err != nil {
+		m := &models.Measurement{
+			ClientID:           testData[i].ClientID,
+			Timestamp:          testData[i].Timestamp,
+			CPUUsagePercent:    testData[i].CPUUsagePercent,
+			MemoryUsagePercent: testData[i].MemoryUsagePercent,
+			IoUsagePercent:     testData[i].IoUsagePercent,
+			Processes:          testData[i].Processes,
+			Mountpoints:        testData[i].Mountpoints,
+		}
+		if err := dbProvider.CreateMeasurement(ctx, m); err != nil {
 			return err
 		}
 	}

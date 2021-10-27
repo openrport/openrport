@@ -7,7 +7,7 @@ import (
 
 	"github.com/shirou/gopsutil/disk"
 
-	"github.com/cloudradar-monitoring/rport/client/common"
+	"github.com/cloudradar-monitoring/rport/client/monitoring/helper"
 )
 
 func getPartitions(onlyUniqueDevices bool) ([]disk.PartitionStat, error) {
@@ -28,7 +28,7 @@ func getPartitions(onlyUniqueDevices bool) ([]disk.PartitionStat, error) {
 	// the list has the same order of partitions as /proc/self/mountpoints
 	// we just pick the first partition, skipping partitions with already-known device name
 	for _, p := range partitions {
-		if !common.StrInSlice(p.Device, knownDevices) {
+		if !helper.StrInSlice(p.Device, knownDevices) {
 			knownDevices = append(knownDevices, p.Device)
 			filteredPartitions = append(filteredPartitions, p)
 		}

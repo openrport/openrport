@@ -8,19 +8,16 @@ import (
 	"github.com/shirou/gopsutil/cpu"
 )
 
-type lastPercent struct {
+type LastCallCPU struct {
 	sync.Mutex
 	lastCPUTimes    []cpu.TimesStat
 	lastPerCPUTimes []cpu.TimesStat
 }
 
-var lastCPUPercent lastPercent
-
-// PercentIOWait calculates the percentage of io-wait used either per CPU or combined.
-// If an interval of 0 is given it will compare the current cpu times against the last call.
-// Returns one value per cpu, or a single value if percpu is set to false.
-func PercentIOWait() ([]float64, error) {
-	return percentIOWaitFromLastCall(false)
+// PercentIOWait calculates the percentage of io-wait combined for all CPU's.
+// The current cpu times are compared against cpu times from the last call.
+func PercentIOWait(lastCall *LastCallCPU) ([]float64, error) {
+	return percentIOWaitFromLastCall(lastCall, false)
 }
 
 func getAllIOWait(t cpu.TimesStat) (float64, float64) {
@@ -55,20 +52,20 @@ func calculateAllIOWait(t1, t2 []cpu.TimesStat) ([]float64, error) {
 	return ret, nil
 }
 
-func percentIOWaitFromLastCall(percpu bool) ([]float64, error) {
+func percentIOWaitFromLastCall(lastCall *LastCallCPU, percpu bool) ([]float64, error) {
 	cpuTimes, err := cpu.Times(percpu)
 	if err != nil {
 		return nil, err
 	}
-	lastCPUPercent.Lock()
-	defer lastCPUPercent.Unlock()
+	lastCall.Lock()
+	defer lastCall.Unlock()
 	var lastTimes []cpu.TimesStat
 	if percpu {
-		lastTimes = lastCPUPercent.lastPerCPUTimes
-		lastCPUPercent.lastPerCPUTimes = cpuTimes
+		lastTimes = lastCall.lastPerCPUTimes
+		lastCall.lastPerCPUTimes = cpuTimes
 	} else {
-		lastTimes = lastCPUPercent.lastCPUTimes
-		lastCPUPercent.lastCPUTimes = cpuTimes
+		lastTimes = lastCall.lastCPUTimes
+		lastCall.lastCPUTimes = cpuTimes
 	}
 
 	if lastTimes == nil {

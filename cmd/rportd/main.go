@@ -201,7 +201,7 @@ var serverHelp = `
     configuration will be loaded from the file. Note: command arguments and env variables will override them.
     Config file should be in TOML format. You can find an example "rportd.example.conf" in the release archive.
 
-	--monitoring-data-storage-days, The number of days, client monitoring data is stored on server (defaults to 30)
+   --monitoring-data-storage-days, The number of days, client monitoring data is stored on server (defaults to 30)
 
     --help, -h, This help text
 

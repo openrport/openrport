@@ -7,16 +7,18 @@ import (
 	"runtime"
 	"time"
 
-	"github.com/cloudradar-monitoring/rport/client/common"
-	"github.com/cloudradar-monitoring/rport/client/winapi"
+	"github.com/cloudradar-monitoring/cagent/pkg/winapi"
+	"github.com/cloudradar-monitoring/rport/client/monitoring/helper"
 )
 
-var monitoredProcessCache = make(map[uint32]*winapi.SystemProcessInformation)
-var lastProcessQueryTime time.Time
-var windowsEnumerator *winapi.WindowsEnumerator
+type ProcessCache struct {
+	monitoredProcessCache map[uint32]*winapi.SystemProcessInformation
+	windowsEnumerator     *winapi.WindowsEnumerator
+	lastProcessQueryTime  time.Time
+}
 
-func init() {
-	windowsEnumerator = winapi.NewWindowsEnumerator()
+func NewProcessCache() *ProcessCache {
+	return &ProcessCache{monitoredProcessCache: make(map[uint32]*winapi.SystemProcessInformation), windowsEnumerator: winapi.NewWindowsEnumerator()}
 }
 
 func (ph *ProcessHandler) processes(systemMemorySize uint64) ([]*ProcStat, error) {
@@ -27,15 +29,15 @@ func (ph *ProcessHandler) processes(systemMemorySize uint64) ([]*ProcStat, error
 
 	now := time.Now()
 	timeElapsedReal := 0.0
-	if !lastProcessQueryTime.IsZero() {
-		timeElapsedReal = now.Sub(lastProcessQueryTime).Seconds()
+	if !ph.processCache.lastProcessQueryTime.IsZero() {
+		timeElapsedReal = now.Sub(ph.processCache.lastProcessQueryTime).Seconds()
 	}
 
 	var result []*ProcStat
 	var updatedProcessCache = make(map[uint32]*winapi.SystemProcessInformation)
 	cmdLineRetrievalFailuresCount := 0
 	logicalCPUCount := uint8(runtime.NumCPU())
-	windowByProcessId, err := windowsEnumerator.Enumerate()
+	windowByProcessId, err := ph.processCache.windowsEnumerator.Enumerate()
 	if err != nil {
 		ph.logger.Errorf("failed to list all windows by processId")
 	}
@@ -52,7 +54,7 @@ func (ph *ProcessHandler) processes(systemMemorySize uint64) ([]*ProcStat, error
 			cmdLineRetrievalFailuresCount++
 		}
 
-		oldProcessInfo, oldProcessInfoExists := monitoredProcessCache[pid]
+		oldProcessInfo, oldProcessInfoExists := ph.processCache.monitoredProcessCache[pid]
 		cpuUsagePercent := 0.0
 		if oldProcessInfoExists && timeElapsedReal > 0 {
 			cpuUsagePercent = winapi.CalculateProcessCPUUsagePercent(oldProcessInfo, proc, timeElapsedReal, logicalCPUCount)
@@ -98,17 +100,17 @@ func (ph *ProcessHandler) processes(systemMemorySize uint64) ([]*ProcStat, error
 			State:                  state,
 			Name:                   proc.ImageName.String(),
 			Cmdline:                cmdLine,
-			CPUAverageUsagePercent: float32(common.RoundToTwoDecimalPlaces(cpuUsagePercent)),
+			CPUAverageUsagePercent: float32(helper.RoundToTwoDecimalPlaces(cpuUsagePercent)),
 			RSS:                    uint64(proc.WorkingSetPrivateSize),
 			VMS:                    uint64(proc.VirtualSize),
-			MemoryUsagePercent:     float32(common.RoundToTwoDecimalPlaces(memoryUsagePercent)),
+			MemoryUsagePercent:     float32(helper.RoundToTwoDecimalPlaces(memoryUsagePercent)),
 		}
 
 		updatedProcessCache[pid] = proc
 		result = append(result, ps)
 	}
-	lastProcessQueryTime = now
-	monitoredProcessCache = updatedProcessCache
+	ph.processCache.lastProcessQueryTime = now
+	ph.processCache.monitoredProcessCache = updatedProcessCache
 
 	if cmdLineRetrievalFailuresCount > 0 {
 		ph.logger.Debugf("could not get command line for %d processes", cmdLineRetrievalFailuresCount)

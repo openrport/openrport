@@ -3,6 +3,7 @@ package query
 import (
 	"fmt"
 	"net/http"
+	"net/url"
 	"regexp"
 	"sort"
 	"strings"
@@ -10,13 +11,10 @@ import (
 	errors2 "github.com/cloudradar-monitoring/rport/server/api/errors"
 )
 
-//var filterRegex = regexp.MustCompile(`^filter\[(\w+)]`)
-
 var filterRegex = regexp.MustCompile(`^filter\[(\w+)](\[(\w+)])?`)
 
 type FilterOperatorType int
 
-//
 const (
 	FilterOperatorTypeEQ FilterOperatorType = iota
 	FilterOperatorTypeGT
@@ -77,10 +75,10 @@ func ExtractFilterOptions(req *http.Request) []FilterOption {
 	return ParseFilterOptions(req.URL.Query())
 }
 
-func ParseFilterOptions(query map[string][]string) []FilterOption {
+func ParseFilterOptions(values url.Values) []FilterOption {
 
 	res := make([]FilterOption, 0)
-	for filterKey, filterValues := range query {
+	for filterKey, filterValues := range values {
 		if !strings.HasPrefix(filterKey, "filter") || len(filterValues) == 0 {
 			continue
 		}
@@ -108,10 +106,7 @@ func ParseFilterOptions(query map[string][]string) []FilterOption {
 		filterOperator := matches[3]
 		filterOperator = strings.TrimSpace(filterOperator)
 
-		filterExpression := filterColumn
-		if len(matches) == 4 {
-			filterExpression += expressionOperator
-		}
+		filterExpression := filterColumn + expressionOperator
 		fo := FilterOption{
 			Expression: filterExpression,
 			Column:     filterColumn,

@@ -19,19 +19,25 @@ import (
 
 	"github.com/shirou/gopsutil/process"
 
-	"github.com/cloudradar-monitoring/rport/client/common"
 	"github.com/cloudradar-monitoring/rport/client/monitoring/docker"
+	"github.com/cloudradar-monitoring/rport/client/monitoring/helper"
 )
 
 var errorProcessTerminated = fmt.Errorf("Process was terminated")
+var dockerContainerIDRE = regexp.MustCompile(`(?m)/docker/([a-f0-9]*)$`)
+
+type ProcessCache struct {
+	monitoredProcessCache map[int]*process.Process
+}
 
 type procStatus struct {
 	PPID  int
 	State string
 }
 
-var dockerContainerIDRE = regexp.MustCompile(`(?m)/docker/([a-f0-9]*)$`)
-var monitoredProcessCache = make(map[int]*process.Process)
+func NewProcessCache() *ProcessCache {
+	return &ProcessCache{monitoredProcessCache: map[int]*process.Process{}}
+}
 
 func (ph *ProcessHandler) processes(systemMemorySize uint64) ([]*ProcStat, error) {
 	if runtime.GOOS == "linux" {
@@ -65,7 +71,7 @@ func getProcLongState(shortState byte) string {
 
 // get process states from /proc/(pid)/stat
 func (ph *ProcessHandler) processesFromProc(systemMemorySize uint64) ([]*ProcStat, error) {
-	filepaths, err := filepath.Glob(common.HostProc() + "/[0-9]*/status")
+	filepaths, err := filepath.Glob(helper.HostProc() + "/[0-9]*/status")
 	if err != nil {
 		return nil, err
 	}
@@ -92,7 +98,7 @@ func (ph *ProcessHandler) processesFromProc(systemMemorySize uint64) ([]*ProcSta
 			ph.logger.Errorf("proc/status: failed to convert PID(%s) to int:%v", pidString, err)
 		}
 
-		commFilepath := common.HostProc() + "/" + pidString + "/comm"
+		commFilepath := helper.HostProc() + "/" + pidString + "/comm"
 		comm, err := readProcFile(commFilepath)
 		if err != nil && err != errorProcessTerminated {
 			ph.logger.Errorf("failed to read comm(%s):%v", commFilepath, err)
@@ -100,7 +106,7 @@ func (ph *ProcessHandler) processesFromProc(systemMemorySize uint64) ([]*ProcSta
 			stat.Name = string(bytes.TrimRight(comm, "\n"))
 		}
 
-		cmdLineFilepath := common.HostProc() + "/" + pidString + "/cmdline"
+		cmdLineFilepath := helper.HostProc() + "/" + pidString + "/cmdline"
 		cmdline, err := readProcFile(cmdLineFilepath)
 		if err != nil && err != errorProcessTerminated {
 			ph.logger.Errorf("failed to read cmdline(%s):%v", cmdLineFilepath, err)
@@ -108,7 +114,7 @@ func (ph *ProcessHandler) processesFromProc(systemMemorySize uint64) ([]*ProcSta
 			stat.Cmdline = strings.Replace(string(bytes.TrimRight(cmdline, "\x00")), "\x00", " ", -1)
 		}
 
-		cgroupFilepath := common.HostProc() + "/" + pidString + "/cgroup"
+		cgroupFilepath := helper.HostProc() + "/" + pidString + "/cgroup"
 		cgroup, err := readProcFile(cgroupFilepath)
 		if err != nil && err != errorProcessTerminated {
 			ph.logger.Errorf("failed to read cgroup(%s):%v", cgroupFilepath, err)
@@ -127,7 +133,7 @@ func (ph *ProcessHandler) processesFromProc(systemMemorySize uint64) ([]*ProcSta
 			}
 		}
 
-		statFilepath := common.HostProc() + "/" + pidString + "/stat"
+		statFilepath := helper.HostProc() + "/" + pidString + "/stat"
 		statFileContent, err := readProcFile(statFilepath)
 		if err != nil && err != errorProcessTerminated {
 			ph.logger.Errorf("failed to read stat (%s):%v", statFilepath, err)
@@ -136,7 +142,7 @@ func (ph *ProcessHandler) processesFromProc(systemMemorySize uint64) ([]*ProcSta
 		}
 
 		if stat.PID > 0 {
-			p := getProcessByPID(stat.PID)
+			p := ph.getProcessByPID(stat.PID)
 			stat.RSS, stat.VMS, stat.MemoryUsagePercent, stat.CPUAverageUsagePercent = ph.gatherProcessResourceUsage(p, systemMemorySize)
 			updatedProcessCache[stat.PID] = p
 		}
@@ -144,7 +150,7 @@ func (ph *ProcessHandler) processesFromProc(systemMemorySize uint64) ([]*ProcSta
 		procs = append(procs, stat)
 	}
 
-	monitoredProcessCache = updatedProcessCache
+	ph.processCache.monitoredProcessCache = updatedProcessCache
 
 	return procs, nil
 }
@@ -371,20 +377,20 @@ func (ph *ProcessHandler) processesFromPS(systemMemorySize uint64) ([]*ProcStat,
 		}
 
 		if stat.PID > 0 {
-			p := getProcessByPID(stat.PID)
+			p := ph.getProcessByPID(stat.PID)
 			stat.RSS, stat.VMS, stat.MemoryUsagePercent, stat.CPUAverageUsagePercent = ph.gatherProcessResourceUsage(p, systemMemorySize)
 			updatedProcessCache[stat.PID] = p
 		}
 
 		procs = append(procs, stat)
 	}
-	monitoredProcessCache = updatedProcessCache
+	ph.processCache.monitoredProcessCache = updatedProcessCache
 
 	return procs, nil
 }
 
-func getProcessByPID(pid int) *process.Process {
-	p, exists := monitoredProcessCache[pid]
+func (ph *ProcessHandler) getProcessByPID(pid int) *process.Process {
+	p, exists := ph.processCache.monitoredProcessCache[pid]
 	if !exists {
 		p = &process.Process{
 			Pid: int32(pid),
@@ -410,7 +416,7 @@ func (ph *ProcessHandler) gatherProcessResourceUsage(proc *process.Process, syst
 		ph.logger.Errorf("failed to get CPU usage:%v", err)
 	}
 
-	return memoryInfo.RSS, memoryInfo.VMS, float32(common.RoundToTwoDecimalPlaces(memUsagePercent)), float32(common.RoundToTwoDecimalPlaces(cpuUsagePercent))
+	return memoryInfo.RSS, memoryInfo.VMS, float32(helper.RoundToTwoDecimalPlaces(memUsagePercent)), float32(helper.RoundToTwoDecimalPlaces(cpuUsagePercent))
 }
 
 func isKernelTask(procStat *ProcStat) bool {
