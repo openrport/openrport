@@ -21,6 +21,7 @@ import (
 	"github.com/jpillora/requestlog"
 
 	"github.com/cloudradar-monitoring/rport/server/api/message"
+	"github.com/cloudradar-monitoring/rport/server/auditlog"
 	"github.com/cloudradar-monitoring/rport/server/ports"
 	chshare "github.com/cloudradar-monitoring/rport/share"
 	"github.com/cloudradar-monitoring/rport/share/email"
@@ -47,6 +48,8 @@ type APIConfig struct {
 	TwoFASendToType          message.ValidationType `mapstructure:"two_fa_send_to_type"`
 	TwoFASendToRegex         string                 `mapstructure:"two_fa_send_to_regex"`
 	twoFASendToRegexCompiled *regexp.Regexp
+
+	AuditLog auditlog.Config `mapstructure:",squash"`
 }
 
 func (c *APIConfig) IsTwoFAOn() bool {
@@ -340,6 +343,10 @@ func (c *Config) parseAndValidateAPI() error {
 			return errors.New("to use document root you need to specify API address")
 		}
 
+	}
+	err := c.API.AuditLog.Validate()
+	if err != nil {
+		return err
 	}
 	return nil
 }

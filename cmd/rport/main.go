@@ -348,7 +348,7 @@ func runMain(cmd *cobra.Command, args []string) {
 	// Bind command line arguments late, so they're not included in validation for service install
 	bindPFlags()
 
-	err := decodeConfig(nil)
+	err := decodeConfig(args)
 	if err != nil {
 		log.Fatalf("Invalid config: %v. Check your config file.", err)
 	}

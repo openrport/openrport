@@ -13,6 +13,7 @@ import (
 
 	chserver "github.com/cloudradar-monitoring/rport/server"
 	"github.com/cloudradar-monitoring/rport/server/api/message"
+	"github.com/cloudradar-monitoring/rport/server/auditlog"
 	chshare "github.com/cloudradar-monitoring/rport/share"
 	"github.com/cloudradar-monitoring/rport/share/files"
 )
@@ -309,6 +310,8 @@ func init() {
 	viperCfg.SetDefault("api.two_fa_token_ttl_seconds", 600)
 	viperCfg.SetDefault("api.two_fa_send_timeout", 10*time.Second)
 	viperCfg.SetDefault("api.two_fa_send_to_type", message.ValidationNone)
+	viperCfg.SetDefault("api.enable_audit_log", true)
+	viperCfg.SetDefault("api.audit_log_rotation", auditlog.RotationMonthly)
 	viperCfg.SetDefault("monitoring.data_storage_days", DefaultMonitoringDataStorageDays)
 }
 

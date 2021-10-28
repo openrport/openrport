@@ -19,6 +19,7 @@ import (
 	_ "github.com/mattn/go-sqlite3"
 
 	"github.com/cloudradar-monitoring/rport/server/api/jobs"
+	"github.com/cloudradar-monitoring/rport/server/auditlog"
 	"github.com/cloudradar-monitoring/rport/server/cgroups"
 	"github.com/cloudradar-monitoring/rport/server/clients"
 	"github.com/cloudradar-monitoring/rport/server/clientsauth"
@@ -47,6 +48,7 @@ type Server struct {
 	db                  *sqlx.DB
 	uiJobWebSockets     ws.WebSocketCache // used to push job result to UI
 	jobsDoneChannel     jobResultChanMap  // used for sequential command execution to know when command is finished
+	auditLog            *auditlog.AuditLog
 }
 
 // NewServer creates and returns a new rport server
@@ -121,6 +123,16 @@ func NewServer(config *Config, filesAPI files.FileAPI) (*Server, error) {
 		s.clientProvider,
 		keepLostClients,
 		s.Logger,
+	)
+	if err != nil {
+		return nil, err
+	}
+
+	s.auditLog, err = auditlog.New(
+		chshare.NewLogger("auditlog", config.Logging.LogOutput, config.Logging.LogLevel),
+		s.clientService,
+		s.config.Server.DataDir,
+		s.config.API.AuditLog,
 	)
 	if err != nil {
 		return nil, err
@@ -244,6 +256,9 @@ func (s *Server) Close() error {
 	wg.Go(s.jobProvider.Close)
 	wg.Go(s.clientGroupProvider.Close)
 	wg.Go(s.uiJobWebSockets.CloseConnections)
+	if s.auditLog != nil {
+		wg.Go(s.auditLog.Close)
+	}
 	return wg.Wait()
 }
 
