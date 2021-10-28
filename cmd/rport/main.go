@@ -12,7 +12,7 @@ import (
 	"github.com/spf13/viper"
 
 	chclient "github.com/cloudradar-monitoring/rport/client"
-	config2 "github.com/cloudradar-monitoring/rport/client/monitoring/config"
+	monitoringconfig "github.com/cloudradar-monitoring/rport/client/monitoring/config"
 	chshare "github.com/cloudradar-monitoring/rport/share"
 )
 
@@ -249,7 +249,7 @@ func init() {
 	viperCfg.SetDefault("client.updates_interval", 4*time.Hour)
 	viperCfg.SetDefault("client.data_dir", chclient.DefaultDataDir)
 	viperCfg.SetDefault("monitoring.enabled", true)
-	viperCfg.SetDefault("monitoring.interval", config2.DefaultMonitoringInterval)
+	viperCfg.SetDefault("monitoring.interval", monitoringconfig.DefaultMonitoringInterval)
 	viperCfg.SetDefault("monitoring.fs_type_include", []string{"ext3", "ext4", "xfs", "jfs", "ntfs", "btrfs", "hfs", "apfs", "exfat", "smbfs", "nfs"})
 	viperCfg.SetDefault("monitoring.fs_identify_mountpoints_by_device", true)
 	viperCfg.SetDefault("monitoring.pm_enabled", true)
