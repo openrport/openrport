@@ -12,6 +12,7 @@ import (
 	"github.com/spf13/viper"
 
 	chclient "github.com/cloudradar-monitoring/rport/client"
+	monitoringconfig "github.com/cloudradar-monitoring/rport/client/monitoring/config"
 	chshare "github.com/cloudradar-monitoring/rport/share"
 )
 
@@ -140,9 +141,24 @@ var clientHelp = `
     --server-switchback-interval, If connected to fallback server, try every interval to switch back to the main server.
     Defaults: 2m
 
+    --monitoring-enabled, Enable or disable gathering of monitoring data.
+    Defaults: true
+
+   --monitoring-interval, the interval time in seconds, when monitoring data is gathered
+   Defaults: 60s
+
+   --monitoring-fs-type-include, list of filesystem types to include in list of mountpoints
+   --monitoring-fs-path-exclude, list of filesystem path to exclude from list of mountpoints
+   --monitoring-fs-path-exclude-recurse, enable or disable recursive handling
+   --monitoring-fs-identify-mountpoints-by-device, enable or disable the identification of mountpoints by device
+
+   --monitoring-pm-enabled, enable or disable process-monitoring
+   --monitoring-pm-kerneltasks-enabled, enable or disable monitoring of kerneltasks
+   --monitoring-pm-max-number-processes, maximum number of processes in process monitoring list
+
     --config, -c, An optional arg to define a path to a config file. If it is set then
     configuration will be loaded from the file. Note: command arguments and env variables will override them.
-    Config file should be in TOML format. You can find an example "rport.example.conf" in the release archive.
+    MonitoringConfig file should be in TOML format. You can find an example "rport.example.conf" in the release archive.
 
     --help, This help text
 
@@ -196,6 +212,15 @@ func init() {
 	pFlags.Duration("updates-interval", 0, "")
 	pFlags.StringArray("fallback-server", []string{}, "")
 	pFlags.Duration("server-switchback-interval", 0, "")
+	pFlags.Bool("monitoring-enabled", false, "")
+	pFlags.Duration("monitoring-interval", 0, "")
+	pFlags.StringArray("monitoring-fs-type-include", []string{}, "")
+	pFlags.StringArray("monitoring-fs-path-exclude", []string{}, "")
+	pFlags.Bool("monitoring-fs-path-exclude-recurse", false, "")
+	pFlags.Bool("monitoring-fs-identify-mountpoints-by-device", false, "")
+	pFlags.Bool("monitoring-pm-enabled", false, "")
+	pFlags.Bool("monitoring-pm-kerneltasks-enabled", false, "")
+	pFlags.Int("monitoring-pm-max-number-processes", 0, "")
 
 	cfgPath = pFlags.StringP("config", "c", "", "")
 	svcCommand = pFlags.String("service", "", "")
@@ -223,6 +248,13 @@ func init() {
 	viperCfg.SetDefault("remote-scripts.enabled", false)
 	viperCfg.SetDefault("client.updates_interval", 4*time.Hour)
 	viperCfg.SetDefault("client.data_dir", chclient.DefaultDataDir)
+	viperCfg.SetDefault("monitoring.enabled", true)
+	viperCfg.SetDefault("monitoring.interval", monitoringconfig.DefaultMonitoringInterval)
+	viperCfg.SetDefault("monitoring.fs_type_include", []string{"ext3", "ext4", "xfs", "jfs", "ntfs", "btrfs", "hfs", "apfs", "exfat", "smbfs", "nfs"})
+	viperCfg.SetDefault("monitoring.fs_identify_mountpoints_by_device", true)
+	viperCfg.SetDefault("monitoring.pm_enabled", true)
+	viperCfg.SetDefault("monitoring.pm_kerneltasks_enabled", true)
+	viperCfg.SetDefault("monitoring.pm_max_number_processes", 500)
 }
 
 func bindPFlags() {
@@ -252,6 +284,16 @@ func bindPFlags() {
 	_ = viperCfg.BindPFlag("remote-commands.enabled", pFlags.Lookup("remote-commands-enabled"))
 	_ = viperCfg.BindPFlag("remote-scripts.enabled", pFlags.Lookup("remote-scripts-enabled"))
 	_ = viperCfg.BindPFlag("remote-commands.send_back_limit", pFlags.Lookup("remote-commands-send-back-limit"))
+
+	_ = viperCfg.BindPFlag("monitoring.enabled", pFlags.Lookup("monitoring-enabled"))
+	_ = viperCfg.BindPFlag("monitoring.interval", pFlags.Lookup("monitoring-interval"))
+	_ = viperCfg.BindPFlag("monitoring.fs_type_include", pFlags.Lookup("monitoring-fs-type-include"))
+	_ = viperCfg.BindPFlag("monitoring.fs_path_exclude", pFlags.Lookup("monitoring-fs-path-exclude"))
+	_ = viperCfg.BindPFlag("monitoring.fs_path_exclude_recurse", pFlags.Lookup("monitoring-fs-path-exclude-recurse"))
+	_ = viperCfg.BindPFlag("monitoring.fs_identify_mountpoints_by_device", pFlags.Lookup("monitoring-fs-identify-mountpoints-by-device"))
+	_ = viperCfg.BindPFlag("monitoring.pm_enabled", pFlags.Lookup("monitoring-pm-enabled"))
+	_ = viperCfg.BindPFlag("monitoring.pm_kerneltasks_enabled", pFlags.Lookup("monitoring-pm-kerneltasks-enabled"))
+	_ = viperCfg.BindPFlag("monitoring.pm_max_number_processes", pFlags.Lookup("monitoring-pm-max-number-processes"))
 }
 
 func main() {

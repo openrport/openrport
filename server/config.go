@@ -102,6 +102,7 @@ type ServerConfig struct {
 	KeepLostClients            time.Duration `mapstructure:"keep_lost_clients"`
 	CleanupClients             time.Duration `mapstructure:"cleanup_clients_interval"`
 	MaxRequestBytes            int64         `mapstructure:"max_request_bytes"`
+	MaxRequestBytesClient      int64         `mapstructure:"max_request_bytes_client"`
 	CheckPortTimeout           time.Duration `mapstructure:"check_port_timeout"`
 	RunRemoteCmdTimeoutSec     int           `mapstructure:"run_remote_cmd_timeout_sec"`
 	AuthWrite                  bool          `mapstructure:"auth_write"`
@@ -215,13 +216,18 @@ func (c *SMTPConfig) Validate() error {
 	return nil
 }
 
+type MonitoringConfig struct {
+	DataStorageDays int64 `mapstructure:"data_storage_days"`
+}
+
 type Config struct {
-	Server   ServerConfig   `mapstructure:"server"`
-	Logging  LogConfig      `mapstructure:"logging"`
-	API      APIConfig      `mapstructure:"api"`
-	Database DatabaseConfig `mapstructure:"database"`
-	Pushover PushoverConfig `mapstructure:"pushover"`
-	SMTP     SMTPConfig     `mapstructure:"smtp"`
+	Server     ServerConfig     `mapstructure:"server"`
+	Logging    LogConfig        `mapstructure:"logging"`
+	API        APIConfig        `mapstructure:"api"`
+	Database   DatabaseConfig   `mapstructure:"database"`
+	Pushover   PushoverConfig   `mapstructure:"pushover"`
+	SMTP       SMTPConfig       `mapstructure:"smtp"`
+	Monitoring MonitoringConfig `mapstructure:"monitoring"`
 }
 
 func (c *Config) GetVaultDBPath() string {

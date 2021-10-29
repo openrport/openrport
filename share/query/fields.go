@@ -3,6 +3,7 @@ package query
 import (
 	"fmt"
 	"net/http"
+	"net/url"
 	"regexp"
 	"strings"
 
@@ -46,8 +47,12 @@ func ValidateFieldsOptions(fieldOptions []FieldsOption, supportedFields map[stri
 }
 
 func ExtractFieldsOptions(req *http.Request) []FieldsOption {
+	return ParseFieldsOptions(req.URL.Query())
+}
+
+func ParseFieldsOptions(values url.Values) []FieldsOption {
 	res := make([]FieldsOption, 0)
-	for fieldsKey, fieldsValues := range req.URL.Query() {
+	for fieldsKey, fieldsValues := range values {
 		if !strings.HasPrefix(fieldsKey, "fields") || len(fieldsValues) == 0 {
 			continue
 		}

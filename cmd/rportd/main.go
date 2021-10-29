@@ -19,15 +19,17 @@ import (
 )
 
 const (
-	DefaultKeepLostClients        = time.Hour
-	DefaultCleanClientsInterval   = 1 * time.Minute
-	DefaultMaxRequestBytes        = 10 * 1024 // 10 KB
-	DefaultCheckPortTimeout       = 2 * time.Second
-	DefaultUsedPorts              = "20000-30000"
-	DefaultExcludedPorts          = "1-1024"
-	DefaultServerAddress          = "0.0.0.0:8080"
-	DefaultLogLevel               = "info"
-	DefaultRunRemoteCmdTimeoutSec = 60
+	DefaultKeepLostClients           = time.Hour
+	DefaultCleanClientsInterval      = 1 * time.Minute
+	DefaultMaxRequestBytes           = 10 * 1024  // 10 KB
+	DefaultMaxRequestBytesClient     = 512 * 1024 // 512KB
+	DefaultCheckPortTimeout          = 2 * time.Second
+	DefaultUsedPorts                 = "20000-30000"
+	DefaultExcludedPorts             = "1-1024"
+	DefaultServerAddress             = "0.0.0.0:8080"
+	DefaultLogLevel                  = "info"
+	DefaultRunRemoteCmdTimeoutSec    = 60
+	DefaultMonitoringDataStorageDays = 30
 )
 
 var serverHelp = `
@@ -178,8 +180,11 @@ var serverHelp = `
     --api-jwt-secret, Defines JWT secret used to generate new tokens.
     Defaults to auto-generated value.
 
-    --max-request-bytes, An optional arg to define a limit for data that can be sent by rport clients and API requests.
+    --max-request-bytes, An optional arg to define a limit for data that can be sent by API requests.
     By default is set to 10240(10Kb).
+
+    --max-request-bytes-client, An optional arg to define a limit for data that can be sent by rport clients.
+    By default is set to 524288(512Kb).
 
     --allow-root, An optional arg to allow running rportd as root. There is no technical requirement to run the rport
     server under the root user. Running it as root is an unnecessary security risk.
@@ -196,6 +201,8 @@ var serverHelp = `
     --config, -c, An optional arg to define a path to a config file. If it is set then
     configuration will be loaded from the file. Note: command arguments and env variables will override them.
     Config file should be in TOML format. You can find an example "rportd.example.conf" in the release archive.
+
+   --monitoring-data-storage-days, The number of days, client monitoring data is stored on server (defaults to 30)
 
     --help, -h, This help text
 
@@ -256,12 +263,14 @@ func init() {
 	pFlags.Duration("save-clients-interval", 0, "")
 	pFlags.Duration("cleanup-clients-interval", 0, "")
 	pFlags.Int64("max-request-bytes", 0, "")
+	pFlags.Int64("max-request-bytes-client", 0, "")
 	pFlags.Duration("check-port-timeout", 0, "")
 	pFlags.Bool("auth-write", false, "")
 	pFlags.Bool("auth-multiuse-creds", false, "")
 	pFlags.Bool("equate-clientauthid-clientid", false, "")
 	pFlags.Int("run-remote-cmd-timeout-sec", 0, "")
 	pFlags.Bool("allow-root", false, "")
+	pFlags.Int64("monitoring-data-storage-days", 0, "")
 
 	cfgPath = pFlags.StringP("config", "c", "", "")
 	svcCommand = pFlags.String("service", "", "")
@@ -286,6 +295,7 @@ func init() {
 	viperCfg.SetDefault("server.keep_lost_clients", DefaultKeepLostClients)
 	viperCfg.SetDefault("server.cleanup_clients_interval", DefaultCleanClientsInterval)
 	viperCfg.SetDefault("server.max_request_bytes", DefaultMaxRequestBytes)
+	viperCfg.SetDefault("server.max_request_bytes_client", DefaultMaxRequestBytesClient)
 	viperCfg.SetDefault("server.check_port_timeout", DefaultCheckPortTimeout)
 	viperCfg.SetDefault("server.auth_write", true)
 	viperCfg.SetDefault("server.auth_multiuse_creds", true)
@@ -302,6 +312,7 @@ func init() {
 	viperCfg.SetDefault("api.two_fa_send_to_type", message.ValidationNone)
 	viperCfg.SetDefault("api.enable_audit_log", true)
 	viperCfg.SetDefault("api.audit_log_rotation", auditlog.RotationMonthly)
+	viperCfg.SetDefault("monitoring.data_storage_days", DefaultMonitoringDataStorageDays)
 }
 
 func bindPFlags() {
@@ -324,6 +335,7 @@ func bindPFlags() {
 	_ = viperCfg.BindPFlag("server.keep_lost_clients", pFlags.Lookup("keep-lost-clients"))
 	_ = viperCfg.BindPFlag("server.cleanup_clients_interval", pFlags.Lookup("cleanup-clients-interval"))
 	_ = viperCfg.BindPFlag("server.max_request_bytes", pFlags.Lookup("max-request-bytes"))
+	_ = viperCfg.BindPFlag("server.max_request_bytes_client", pFlags.Lookup("max-request-bytes-client"))
 	_ = viperCfg.BindPFlag("server.check_port_timeout", pFlags.Lookup("check-port-timeout"))
 	_ = viperCfg.BindPFlag("server.run_remote_cmd_timeout_sec", pFlags.Lookup("run-remote-cmd-timeout-sec"))
 	_ = viperCfg.BindPFlag("server.allow_root", pFlags.Lookup("allow-root"))
@@ -346,6 +358,8 @@ func bindPFlags() {
 	_ = viperCfg.BindPFlag("database.db_host", pFlags.Lookup("db-host"))
 	_ = viperCfg.BindPFlag("database.db_user", pFlags.Lookup("db-user"))
 	_ = viperCfg.BindPFlag("database.db_password", pFlags.Lookup("db-password"))
+
+	_ = viperCfg.BindPFlag("monitoring.data_storage_days", pFlags.Lookup("monitoring-data-storage-days"))
 }
 
 func main() {

@@ -144,7 +144,7 @@ func (cl *ClientListener) Start(listenAddr string) error {
 	}
 	cl.Infof("Listening on %s...", listenAddr)
 
-	h := http.Handler(middleware.MaxBytes(http.HandlerFunc(cl.handleClient), cl.config.Server.MaxRequestBytes))
+	h := http.Handler(middleware.MaxBytes(http.HandlerFunc(cl.handleClient), cl.config.Server.MaxRequestBytesClient))
 	if cl.bannedIPs != nil {
 		h = http.Handler(security.RejectBannedIPs(h, cl.bannedIPs))
 	}
@@ -223,8 +223,8 @@ func (cl *ClientListener) handleWebsocket(w http.ResponseWriter, req *http.Reque
 		failed(errors.New("expecting connection request"))
 		return
 	}
-	if len(r.Payload) > int(cl.config.Server.MaxRequestBytes) {
-		failed(fmt.Errorf("request data exceeds the limit of %d bytes, actual size: %d", cl.config.Server.MaxRequestBytes, len(r.Payload)))
+	if len(r.Payload) > int(cl.config.Server.MaxRequestBytesClient) {
+		failed(fmt.Errorf("request data exceeds the limit of %d bytes, actual size: %d", cl.config.Server.MaxRequestBytesClient, len(r.Payload)))
 		return
 	}
 	connRequest, err := chshare.DecodeConnectionRequest(r.Payload)
@@ -377,6 +377,10 @@ func (cl *ClientListener) replyConnectionError(r *ssh.Request, err error) {
 
 func (cl *ClientListener) handleSSHRequests(clientLog *chshare.Logger, clientID string, reqs <-chan *ssh.Request) {
 	for r := range reqs {
+		if len(r.Payload) > int(cl.config.Server.MaxRequestBytesClient) {
+			clientLog.Errorf("%s:request data exceeds the limit of %d bytes, actual size: %d", comm.RequestTypeSaveMeasurement, cl.config.Server.MaxRequestBytesClient, len(r.Payload))
+			continue
+		}
 		switch r.Type {
 		case comm.RequestTypePing:
 			_ = r.Reply(true, nil)
@@ -423,6 +427,19 @@ func (cl *ClientListener) handleSSHRequests(clientLog *chshare.Logger, clientID 
 			err = cl.clientService.SetUpdatesStatus(clientID, updatesStatus)
 			if err != nil {
 				clientLog.Errorf("Failed to save updates status: %s", err)
+				continue
+			}
+		case comm.RequestTypeSaveMeasurement:
+			measurement := &models.Measurement{}
+			err := json.Unmarshal(r.Payload, measurement)
+			if err != nil {
+				clientLog.Errorf("Failed to unmarshal save_measurement: %s", err)
+				continue
+			}
+			measurement.ClientID = clientID
+			err = cl.monitoringService.SaveMeasurement(context.Background(), measurement)
+			if err != nil {
+				clientLog.Errorf("Failed to save measurement for client %s: %s", clientID, err)
 				continue
 			}
 		default:

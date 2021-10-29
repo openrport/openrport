@@ -2,6 +2,7 @@ package chserver
 
 import (
 	"context"
+	"database/sql"
 	"encoding/base64"
 	"encoding/json"
 	"errors"
@@ -26,6 +27,7 @@ import (
 	errors2 "github.com/cloudradar-monitoring/rport/server/api/errors"
 	"github.com/cloudradar-monitoring/rport/server/api/jobs"
 	"github.com/cloudradar-monitoring/rport/server/api/middleware"
+	"github.com/cloudradar-monitoring/rport/server/api/monitoring"
 	"github.com/cloudradar-monitoring/rport/server/api/users"
 	"github.com/cloudradar-monitoring/rport/server/auditlog"
 	"github.com/cloudradar-monitoring/rport/server/cgroups"
@@ -180,6 +182,9 @@ func (al *APIListener) initRouter() {
 	api.HandleFunc("/clients/{client_id}/commands/{job_id}", al.wrapClientAccessMiddleware(al.handleGetCommand)).Methods(http.MethodGet)
 	api.HandleFunc("/clients/{client_id}/scripts", al.wrapClientAccessMiddleware(al.handleExecuteScript)).Methods(http.MethodPost)
 	api.HandleFunc("/clients/{client_id}/updates-status", al.wrapClientAccessMiddleware(al.handleRefreshUpdatesStatus)).Methods(http.MethodPost)
+	api.HandleFunc("/clients/{client_id}/metrics", al.handleGetClientMetrics).Methods(http.MethodGet)
+	api.HandleFunc("/clients/{client_id}/processes", al.handleGetClientProcesses).Methods(http.MethodGet)
+	api.HandleFunc("/clients/{client_id}/mountpoints", al.handleGetClientMountpoints).Methods(http.MethodGet)
 	api.HandleFunc("/client-groups", al.handleGetClientGroups).Methods(http.MethodGet)
 	api.HandleFunc("/client-groups", al.wrapAdminAccessMiddleware(al.handlePostClientGroups)).Methods(http.MethodPost)
 	api.HandleFunc("/client-groups/{group_id}", al.wrapAdminAccessMiddleware(al.handlePutClientGroup)).Methods(http.MethodPut)
@@ -3172,4 +3177,111 @@ func (al *APIListener) handleDeleteToken(w http.ResponseWriter, req *http.Reques
 		Save()
 
 	w.WriteHeader(http.StatusNoContent)
+}
+
+func (al *APIListener) handleGetClientMetrics(w http.ResponseWriter, req *http.Request) {
+	vars := mux.Vars(req)
+	clientID := vars[routeParamClientID]
+
+	queryOptions := query.NewOptions(req, monitoring.ClientMetricsSortDefault, monitoring.ClientMetricsFilterDefault, monitoring.ClientMetricsFieldsDefault)
+	err := query.ValidateOptions(queryOptions, monitoring.ClientMetricsSortFields, monitoring.ClientMetricsFilterFields, monitoring.ClientMetricsFields)
+	if err != nil {
+		al.jsonError(w, err)
+		return
+	}
+
+	if queryOptions.HasFilters() {
+		al.handleGetClientMetricsList(w, req, clientID, queryOptions)
+		return
+	}
+
+	al.handleGetClientMetricsOne(w, req, clientID, queryOptions)
+}
+
+func (al *APIListener) handleGetClientMetricsOne(w http.ResponseWriter, req *http.Request, clientID string, o *query.ListOptions) {
+	clientMetrics, err := al.monitoringService.GetClientMetricsOne(req.Context(), clientID, o)
+	if err != nil {
+		if err == sql.ErrNoRows {
+			al.jsonErrorResponseWithTitle(w, http.StatusNotFound, fmt.Sprintf("metrics for client with id %q not found", clientID))
+			return
+		}
+		al.jsonError(w, err)
+		return
+	}
+	al.writeJSONResponse(w, http.StatusOK, api.NewSuccessPayload(clientMetrics))
+}
+
+func (al *APIListener) handleGetClientMetricsList(w http.ResponseWriter, req *http.Request, clientID string, o *query.ListOptions) {
+	clientMetricsList, err := al.monitoringService.GetClientMetricsList(req.Context(), clientID, o)
+
+	if err != nil {
+		if err == sql.ErrNoRows {
+			al.jsonErrorResponseWithTitle(w, http.StatusNotFound, fmt.Sprintf("metrics for client with id %q not found", clientID))
+			return
+		}
+		al.jsonError(w, err)
+		return
+	}
+
+	al.writeJSONResponse(w, http.StatusOK, api.NewSuccessPayload(clientMetricsList))
+}
+
+func (al *APIListener) handleGetClientProcesses(w http.ResponseWriter, req *http.Request) {
+	vars := mux.Vars(req)
+	clientID := vars[routeParamClientID]
+
+	var clientProcesses *monitoring.ClientProcessesPayload
+	var serviceErr error
+	filters := query.ExtractFilterOptions(req)
+	if len(filters) > 0 {
+		err := query.ValidateFilterOptions(filters, monitoring.ClientProcessesFilterFields)
+		if err != nil {
+			al.jsonError(w, err)
+			return
+		}
+		clientProcesses, serviceErr = al.monitoringService.GetClientProcessesFiltered(req.Context(), clientID, filters)
+	} else {
+		clientProcesses, serviceErr = al.monitoringService.GetClientProcessesLatest(req.Context(), clientID)
+	}
+
+	if serviceErr != nil {
+		if serviceErr == sql.ErrNoRows {
+			al.jsonErrorResponseWithTitle(w, http.StatusNotFound, fmt.Sprintf("processes for client with id %q not found", clientID))
+			return
+		}
+		al.jsonError(w, serviceErr)
+		return
+	}
+
+	al.writeJSONResponse(w, http.StatusOK, api.NewSuccessPayload(clientProcesses))
+}
+
+func (al *APIListener) handleGetClientMountpoints(w http.ResponseWriter, req *http.Request) {
+	vars := mux.Vars(req)
+	clientID := vars[routeParamClientID]
+
+	var clientMountpoints *monitoring.ClientMountpointsPayload
+	var serviceErr error
+	filters := query.ExtractFilterOptions(req)
+	if len(filters) > 0 {
+		err := query.ValidateFilterOptions(filters, monitoring.ClientMountpointsFilterFields)
+		if err != nil {
+			al.jsonError(w, err)
+			return
+		}
+		clientMountpoints, serviceErr = al.monitoringService.GetClientMountpointsFiltered(req.Context(), clientID, filters)
+	} else {
+		clientMountpoints, serviceErr = al.monitoringService.GetClientMountpointsLatest(req.Context(), clientID)
+	}
+
+	if serviceErr != nil {
+		if serviceErr == sql.ErrNoRows {
+			al.jsonErrorResponseWithTitle(w, http.StatusNotFound, fmt.Sprintf("mountpoints for client with id %q not found", clientID))
+			return
+		}
+		al.jsonError(w, serviceErr)
+		return
+	}
+
+	al.writeJSONResponse(w, http.StatusOK, api.NewSuccessPayload(clientMountpoints))
 }

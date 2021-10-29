@@ -1,6 +1,6 @@
 //+build !windows
 
-package chclient
+package system
 
 import (
 	"fmt"
