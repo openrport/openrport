@@ -220,6 +220,7 @@ func (al *APIListener) initRouter() {
 	api.HandleFunc("/library/commands/{"+routeParamCommandValueID+"}", al.handleReadCommand).Methods(http.MethodGet)
 	api.HandleFunc("/library/commands/{"+routeParamCommandValueID+"}", al.handleDeleteCommand).Methods(http.MethodDelete)
 	api.HandleFunc("/scripts", al.handlePostMultiClientScript).Methods(http.MethodPost)
+	api.HandleFunc("/auditlog", al.handleListAuditLog).Methods(http.MethodGet)
 
 	// add authorization middleware
 	if !al.insecureForTests {
@@ -611,6 +612,7 @@ func (al *APIListener) handleGetStatus(w http.ResponseWriter, req *http.Request)
 		"users_auth_source":      al.userService.GetProviderType(),
 		"two_fa_enabled":         al.config.API.IsTwoFAOn(),
 		"two_fa_delivery_method": twoFADelivery,
+		"auditlog":               al.auditLog.Status(),
 	})
 
 	al.writeJSONResponse(w, http.StatusOK, response)
@@ -3284,4 +3286,14 @@ func (al *APIListener) handleGetClientMountpoints(w http.ResponseWriter, req *ht
 	}
 
 	al.writeJSONResponse(w, http.StatusOK, api.NewSuccessPayload(clientMountpoints))
+}
+
+func (al *APIListener) handleListAuditLog(w http.ResponseWriter, req *http.Request) {
+	entries, err := al.auditLog.List(req)
+	if err != nil {
+		al.jsonError(w, err)
+		return
+	}
+
+	al.writeJSONResponse(w, http.StatusOK, api.NewSuccessPayload(entries))
 }

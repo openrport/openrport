@@ -1,12 +1,14 @@
 package auditlog
 
 import (
+	"context"
 	"path"
 
 	"github.com/jmoiron/sqlx"
 
 	"github.com/cloudradar-monitoring/rport/db/migration/auditlog"
 	"github.com/cloudradar-monitoring/rport/db/sqlite"
+	"github.com/cloudradar-monitoring/rport/share/query"
 )
 
 type SQLiteProvider struct {
@@ -52,6 +54,21 @@ func (p *SQLiteProvider) Save(e *Entry) error {
 	)
 
 	return err
+}
+
+func (p *SQLiteProvider) List(ctx context.Context, options *query.ListOptions) ([]*Entry, error) {
+	values := []*Entry{}
+
+	q := "SELECT * FROM `auditlog`"
+
+	q, params := query.ConvertListOptionsToQuery(options, q)
+
+	err := p.db.SelectContext(ctx, &values, q, params...)
+	if err != nil {
+		return values, err
+	}
+
+	return values, nil
 }
 
 func (p *SQLiteProvider) Close() error {
