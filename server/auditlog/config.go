@@ -1,6 +1,9 @@
 package auditlog
 
-import "fmt"
+import (
+	"fmt"
+	"time"
+)
 
 const (
 	RotationDaily   = "daily"
@@ -28,4 +31,17 @@ func (c *Config) Validate() error {
 	}
 
 	return nil
+}
+
+func (c Config) rotationPeriod() time.Duration {
+	switch c.Rotation {
+	case RotationDaily:
+		return 24 * time.Hour
+	case RotationWeekly:
+		return 7 * 24 * time.Hour
+	case RotationYearly:
+		return 365 * 24 * time.Hour
+	default:
+		return 30 * 24 * time.Hour
+	}
 }

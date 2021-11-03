@@ -3,6 +3,7 @@ package auditlog
 import (
 	"context"
 	"path"
+	"time"
 
 	"github.com/jmoiron/sqlx"
 
@@ -16,7 +17,7 @@ type SQLiteProvider struct {
 }
 
 func newSQLiteProvider(dataDir string) (*SQLiteProvider, error) {
-	db, err := sqlite.New(path.Join(dataDir, "auditlog.db"), auditlog.AssetNames(), auditlog.Asset)
+	db, err := sqlite.New(path.Join(dataDir, sqliteFilename), auditlog.AssetNames(), auditlog.Asset)
 	if err != nil {
 		return nil, err
 	}
@@ -69,6 +70,16 @@ func (p *SQLiteProvider) List(ctx context.Context, options *query.ListOptions) (
 	}
 
 	return values, nil
+}
+
+func (p *SQLiteProvider) OldestTimestamp(ctx context.Context) (time.Time, error) {
+	var ts time.Time
+	q := "SELECT timestamp FROM auditlog ORDER BY timestamp ASC LIMIT 1"
+	err := p.db.GetContext(ctx, &ts, q)
+	if err != nil {
+		return ts, err
+	}
+	return ts, nil
 }
 
 func (p *SQLiteProvider) Close() error {

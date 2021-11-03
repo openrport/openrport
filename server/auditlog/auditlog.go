@@ -63,11 +63,16 @@ func New(l *chshare.Logger, cg ClientGetter, dataDir string, cfg Config) (*Audit
 	}
 
 	if cfg.Enable {
-		sqlite, err := newSQLiteProvider(dataDir)
+		rotation, err := newRotationProvider(
+			l,
+			cfg.rotationPeriod(),
+			dataDir,
+		)
 		if err != nil {
 			return nil, err
 		}
-		a.provider = sqlite
+
+		a.provider = rotation
 	}
 
 	return a, nil
