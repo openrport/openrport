@@ -1,16 +1,30 @@
 package monitoring
 
+import "time"
+
+type CPUUsagePercent struct {
+	Value float64 `json:"value,omitempty" db:"cpu_usage_percent"`
+	Min   float64 `json:"min,omitempty" db:"cpu_usage_percent_min"`
+	Max   float64 `json:"max,omitempty" db:"cpu_usage_percent_max"`
+}
+
+type MemoryUsagePercent struct {
+	Value float64 `json:"value,omitempty" db:"memory_usage_percent"`
+	Min   float64 `json:"min,omitempty" db:"memory_usage_percent_min"`
+	Max   float64 `json:"max,omitempty" db:"memory_usage_percent_max"`
+}
+
+type IOUsagePercent struct {
+	Value float64 `json:"value,omitempty" db:"io_usage_percent"`
+	Min   float64 `json:"min,omitempty" db:"io_usage_percent_min"`
+	Max   float64 `json:"max,omitempty" db:"io_usage_percent_max"`
+}
+
 type ClientMetricsPayload struct {
-	Timestamp             string  `json:"timestamp" db:"timestamp"`
-	CPUUsagePercentAvg    float64 `json:"cpu_usage_percent_avg,omitempty" db:"cpu_usage_percent_avg"`
-	CPUUsagePercentMin    float64 `json:"cpu_usage_percent_min,omitempty" db:"cpu_usage_percent_min"`
-	CPUUsagePercentMax    float64 `json:"cpu_usage_percent_max,omitempty" db:"cpu_usage_percent_max"`
-	MemoryUsagePercentAvg float64 `json:"memory_usage_percent_avg,omitempty" db:"memory_usage_percent_avg"`
-	MemoryUsagePercentMin float64 `json:"memory_usage_percent_min,omitempty" db:"memory_usage_percent_min"`
-	MemoryUsagePercentMax float64 `json:"memory_usage_percent_max,omitempty" db:"memory_usage_percent_max"`
-	IoUsagePercentAvg     float64 `json:"io_usage_percent_avg,omitempty" db:"io_usage_percent_avg"`
-	IoUsagePercentMin     float64 `json:"io_usage_percent_min,omitempty" db:"io_usage_percent_min"`
-	IoUsagePercentMax     float64 `json:"io_usage_percent_max,omitempty" db:"io_usage_percent_max"`
+	Timestamp          time.Time `json:"timestamp,omitempty" db:"timestamp"`
+	CPUUsagePercent    `json:"cpu_usage_percent,omitempty"`
+	MemoryUsagePercent `json:"memory_usage_percent,omitempty"`
+	IOUsagePercent     `json:"io_usage_percent,omitempty"`
 }
 
 type ClientProcessesPayload struct {
@@ -53,16 +67,10 @@ var ClientMountpointsFilterFields = map[string]bool{
 
 var ClientMetricsFields = map[string]map[string]bool{
 	"metrics": map[string]bool{
-		"timestamp":                true,
-		"cpu_usage_percent_avg":    true,
-		"cpu_usage_percent_min":    true,
-		"cpu_usage_percent_max":    true,
-		"memory_usage_percent_avg": true,
-		"memory_usage_percent_min": true,
-		"memory_usage_percent_max": true,
-		"io_usage_percent_avg":     true,
-		"io_usage_percent_min":     true,
-		"io_usage_percent_max":     true,
+		"timestamp":            true,
+		"cpu_usage_percent":    true,
+		"memory_usage_percent": true,
+		"io_usage_percent":     true,
 	},
 }
 
@@ -82,7 +90,7 @@ var ClientMountpointsFields = map[string]map[string]bool{
 
 var ClientMetricsSortDefault = map[string][]string{"sort": {"-timestamp"}}
 var ClientMetricsFilterDefault = map[string][]string{}
-var ClientMetricsFieldsDefault = map[string][]string{"fields[metrics]": {"timestamp", "cpu_usage_percent_avg", "cpu_usage_percent_min", "cpu_usage_percent_max", "memory_usage_percent_avg", "memory_usage_percent_min", "memory_usage_percent_max"}}
+var ClientMetricsFieldsDefault = map[string][]string{"fields[metrics]": {"timestamp", "cpu_usage_percent", "memory_usage_percent"}}
 
 var ClientProcessesSortDefault = map[string][]string{"sort": {"-timestamp"}}
 var ClientProcessesFilterDefault = map[string][]string{}

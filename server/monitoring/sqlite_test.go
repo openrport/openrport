@@ -10,11 +10,12 @@ import (
 
 	chshare "github.com/cloudradar-monitoring/rport/share"
 	"github.com/cloudradar-monitoring/rport/share/models"
+	"github.com/cloudradar-monitoring/rport/share/query"
 )
 
 var testLog = chshare.NewLogger("monitoring", chshare.LogOutput{File: os.Stdout}, chshare.LogLevelDebug)
 var measurementInterval = time.Second * 60
-var measurement1 = time.Date(2021, time.September, 1, 0, 0, 0, 0, time.UTC)
+var measurement1 = time.Date(2021, time.September, 1, 0, 0, 0, 0, time.Local)
 var measurement2 = measurement1.Add(measurementInterval)
 var measurement3 = measurement2.Add(measurementInterval)
 var testStart = time.Now()
@@ -86,6 +87,29 @@ func TestSqliteProvider_DeleteMeasurementsBefore(t *testing.T) {
 	deleted, err := dbProvider.DeleteMeasurementsBefore(ctx, measurement3)
 	require.NoError(t, err)
 	require.Equal(t, int64(2), deleted)
+}
+
+func TestSqliteProvider_GetMetricsLatestByClientID(t *testing.T) {
+	dbProvider, err := NewSqliteProvider(":memory:", testLog)
+	require.NoError(t, err)
+	defer dbProvider.Close()
+
+	ctx := context.Background()
+
+	err = createTestData(ctx, dbProvider)
+	require.NoError(t, err)
+
+	// get the latest metrics measurement of client
+	fields := make([]query.FieldsOption, 1)
+	fields[0] = query.FieldsOption{
+		Resource: "metrics",
+		Fields:   []string{"timestamp", "cpu_usage_percent", "memory_usage_percent"},
+	}
+	mC1, err := dbProvider.GetMetricsLatestByClientID(ctx, "test_client_1", fields)
+	require.NoError(t, err)
+	require.NotNil(t, mC1)
+	compare := measurement3.Format(layoutDb)
+	require.Equal(t, compare, mC1.Timestamp)
 }
 
 func TestSqliteProvider_GetProcessesLatestByClientID(t *testing.T) {
