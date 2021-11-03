@@ -23,6 +23,7 @@ func AppendOptionsToQuery(o *ListOptions, q string, inParams []interface{}) (str
 	qOut, params := addWhere(o.Filters, q)
 	outParams := append(inParams, params...)
 	qOut = addOrderBy(o.Sorts, qOut)
+	qOut = addLimit(o.Filters, qOut)
 	qOut = ReplaceStarSelect(o.Fields, qOut)
 
 	return qOut, outParams
@@ -35,7 +36,10 @@ func addWhere(filterOptions []FilterOption, q string) (qOut string, params []int
 	}
 
 	whereParts := make([]string, 0, len(filterOptions))
-	for i := range filterOptions {
+	for i, fo := range filterOptions {
+		if IsLimitFilter(fo) {
+			continue
+		}
 		if len(filterOptions[i].Values) == 1 {
 			whereParts = append(whereParts, fmt.Sprintf("%s %s ?", filterOptions[i].Column, filterOptions[i].Operator.Code()))
 			params = append(params, filterOptions[i].Values[0])
@@ -58,6 +62,18 @@ func addWhere(filterOptions []FilterOption, q string) (qOut string, params []int
 	q += concat + strings.Join(whereParts, " AND ") + " "
 
 	return q, params
+}
+
+func addLimit(filterOptions []FilterOption, q string) string {
+	limit := ""
+	for _, fo := range filterOptions {
+		if !IsLimitFilter(fo) {
+			continue
+		}
+		limit = limit + fmt.Sprintf(" LIMIT %s", fo.Values[0])
+	}
+
+	return q + limit
 }
 
 func addOrderBy(sortOptions []SortOption, q string) string {

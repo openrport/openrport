@@ -3,6 +3,7 @@ package monitoring
 import (
 	"context"
 	"fmt"
+	"math"
 	"time"
 
 	"github.com/jmoiron/sqlx"
@@ -18,10 +19,9 @@ import (
 type DBProvider interface {
 	CreateMeasurement(ctx context.Context, measurement *models.Measurement) error
 	DeleteMeasurementsBefore(ctx context.Context, compare time.Time) (int64, error)
-	GetClientLatest(ctx context.Context, clientID string) (*models.Measurement, error)
 	GetMetricsLatestByClientID(ctx context.Context, clientID string, fields []query.FieldsOption) (*monitoring2.ClientMetricsPayload, error)
 	GetMetricsListByClientID(ctx context.Context, clientID string, o *query.ListOptions) ([]monitoring2.ClientMetricsPayload, error)
-	GetMetricsSinceLimitedByClientID(ctx context.Context, clientID string, filters []query.FilterOption) ([]monitoring2.ClientMetricsPayload, error)
+	GetMetricsListDownsampledByClientID(ctx context.Context, clientID string, hours float64, o *query.ListOptions) ([]monitoring2.ClientMetricsPayload, error)
 	GetProcessesLatestByClientID(ctx context.Context, clientID string) (*monitoring2.ClientProcessesPayload, error)
 	GetProcessesNearestByClientID(ctx context.Context, clientID string, at time.Time) (*monitoring2.ClientProcessesPayload, error)
 	GetMountpointsLatestByClientID(ctx context.Context, clientID string) (*monitoring2.ClientMountpointsPayload, error)
@@ -90,21 +90,33 @@ func (p *SqliteProvider) GetMetricsListByClientID(ctx context.Context, clientID 
 	return val, err
 }
 
-func (p *SqliteProvider) GetMetricsSinceLimitedByClientID(ctx context.Context, clientID string, filters []query.FilterOption) ([]monitoring2.ClientMetricsPayload, error) {
-	q := "SELECT * FROM `measurements` as `metrics` WHERE `client_id` = ? "
+func (p *SqliteProvider) GetMetricsListDownsampledByClientID(ctx context.Context, clientID string, hours float64, o *query.ListOptions) ([]monitoring2.ClientMetricsPayload, error) {
+	q := `SELECT
+		timestamp,
+		round(avg(cpu_usage_percent),2) as cpu_usage_percent,
+		min(cpu_usage_percent) as cpu_usage_percent_min,
+		max(cpu_usage_percent) as cpu_usage_percent_max,
+		round(avg(memory_usage_percent),2) as memory_usage_percent,
+		min(memory_usage_percent) as memory_usage_percent_min,
+		max(memory_usage_percent) as memory_usage_percent_max,
+		round(avg(io_usage_percent),2) as io_usage_percent,
+		min(io_usage_percent) as io_usage_percent_min,
+		max(io_usage_percent) as io_usage_percent_max
+	FROM measurements
+	WHERE client_id = ? and timestamp >= ? and timestamp <= ?
+	GROUP BY round((strftime('%s',timestamp)/(?)),0)
+	ORDER BY timestamp DESC`
+
 	params := []interface{}{}
 	params = append(params, clientID)
-	params = append(params, filters[0].Values[0])
+	params = append(params, o.Filters[0].Values[0])
+	params = append(params, o.Filters[1].Values[0])
+	divisor := math.Round(hours*100) / 100 * 29
+	params = append(params, divisor)
 
 	val := []monitoring2.ClientMetricsPayload{}
 	err := p.db.SelectContext(ctx, &val, q, params...)
 	return val, err
-}
-
-func (p *SqliteProvider) GetClientLatest(ctx context.Context, clientID string) (*models.Measurement, error) {
-	var m models.Measurement
-	err := p.db.Get(&m, "SELECT * FROM measurements WHERE client_id = ? ORDER BY timestamp DESC LIMIT 1", clientID)
-	return &m, err
 }
 
 func (p *SqliteProvider) CreateMeasurement(ctx context.Context, measurement *models.Measurement) error {

@@ -3191,15 +3191,15 @@ func (al *APIListener) handleGetClientMetrics(w http.ResponseWriter, req *http.R
 	}
 
 	if queryOptions.HasFilters() {
-		al.handleGetClientMetricsList(w, req, clientID, queryOptions)
+		al.handleGetClientMetricsFiltered(w, req, clientID, queryOptions)
 		return
 	}
 
-	al.handleGetClientMetricsOne(w, req, clientID, queryOptions)
+	al.handleGetClientMetricsLatest(w, req, clientID, queryOptions)
 }
 
-func (al *APIListener) handleGetClientMetricsOne(w http.ResponseWriter, req *http.Request, clientID string, o *query.ListOptions) {
-	clientMetrics, err := al.monitoringService.GetClientMetricsOne(req.Context(), clientID, o)
+func (al *APIListener) handleGetClientMetricsLatest(w http.ResponseWriter, req *http.Request, clientID string, o *query.ListOptions) {
+	clientMetrics, err := al.monitoringService.GetClientMetricsLatest(req.Context(), clientID, o)
 	if err != nil {
 		if err == sql.ErrNoRows {
 			al.jsonErrorResponseWithTitle(w, http.StatusNotFound, fmt.Sprintf("metrics for client with id %q not found", clientID))
@@ -3211,8 +3211,8 @@ func (al *APIListener) handleGetClientMetricsOne(w http.ResponseWriter, req *htt
 	al.writeJSONResponse(w, http.StatusOK, api.NewSuccessPayload(clientMetrics))
 }
 
-func (al *APIListener) handleGetClientMetricsList(w http.ResponseWriter, req *http.Request, clientID string, o *query.ListOptions) {
-	clientMetricsList, err := al.monitoringService.GetClientMetricsList(req.Context(), clientID, o)
+func (al *APIListener) handleGetClientMetricsFiltered(w http.ResponseWriter, req *http.Request, clientID string, o *query.ListOptions) {
+	clientMetricsList, err := al.monitoringService.GetClientMetricsFiltered(req.Context(), clientID, o)
 
 	if err != nil {
 		if err == sql.ErrNoRows {
