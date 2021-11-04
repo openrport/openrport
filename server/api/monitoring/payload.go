@@ -28,13 +28,13 @@ type ClientMetricsPayload struct {
 }
 
 type ClientProcessesPayload struct {
-	Timestamp string `json:"timestamp" db:"timestamp"`
-	Processes string `json:"processes" db:"processes"`
+	Timestamp time.Time `json:"timestamp" db:"timestamp"`
+	Processes string    `json:"processes" db:"processes"`
 }
 
 type ClientMountpointsPayload struct {
-	Timestamp   string `json:"timestamp" db:"timestamp"`
-	Mountpoints string `json:"mountpoints" db:"mountpoints"`
+	Timestamp   time.Time `json:"timestamp" db:"timestamp"`
+	Mountpoints string    `json:"mountpoints" db:"mountpoints"`
 }
 
 var ClientMetricsSortFields = map[string]bool{

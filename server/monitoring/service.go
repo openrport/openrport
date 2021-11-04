@@ -24,7 +24,7 @@ type Service interface {
 	GetClientMountpointsFiltered(ctx context.Context, clientID string, filters []query.FilterOption) (*monitoring.ClientMountpointsPayload, error)
 }
 
-var layoutSinceUntil = "2006-01-02:15:04:05"
+var layoutAPI = "2006-01-02:15:04:05"
 var layoutDb = "2006-01-02 15:04:05"
 var maxLimit = 120
 var maxDataFetchHours = 48
@@ -53,7 +53,7 @@ func (s *monitoringService) GetClientProcessesLatest(ctx context.Context, client
 }
 
 func (s *monitoringService) GetClientProcessesFiltered(ctx context.Context, clientID string, filters []query.FilterOption) (*monitoring.ClientProcessesPayload, error) {
-	t, err := time.Parse(layoutSinceUntil, filters[0].Values[0])
+	t, err := time.Parse(layoutAPI, filters[0].Values[0])
 	if err != nil {
 		return nil, fmt.Errorf("illegal time format:%v", filters[0].Values[0])
 	}
@@ -65,7 +65,7 @@ func (s *monitoringService) GetClientMountpointsLatest(ctx context.Context, clie
 }
 
 func (s *monitoringService) GetClientMountpointsFiltered(ctx context.Context, clientID string, filters []query.FilterOption) (*monitoring.ClientMountpointsPayload, error) {
-	t, err := time.Parse(layoutSinceUntil, filters[0].Values[0])
+	t, err := time.Parse(layoutAPI, filters[0].Values[0])
 	if err == nil {
 		return nil, fmt.Errorf("illegal time format:%v", filters[0].Values[0])
 	}
@@ -129,7 +129,7 @@ func parseAndConvertFilterValues(filters []query.FilterOption) error {
 		}
 
 		if (fo.Operator == query.FilterOperatorTypeSince) || (fo.Operator == query.FilterOperatorTypeUntil) {
-			t, err := time.Parse(layoutSinceUntil, fo.Values[0])
+			t, err := time.Parse(layoutAPI, fo.Values[0])
 			if err != nil {
 				return errors.APIError{Message: "Illegal time value", HTTPStatus: http.StatusBadRequest}
 			}

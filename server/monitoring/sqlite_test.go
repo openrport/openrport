@@ -15,7 +15,7 @@ import (
 
 var testLog = chshare.NewLogger("monitoring", chshare.LogOutput{File: os.Stdout}, chshare.LogLevelDebug)
 var measurementInterval = time.Second * 60
-var measurement1 = time.Date(2021, time.September, 1, 0, 0, 0, 0, time.Local)
+var measurement1 = time.Date(2021, time.September, 1, 0, 0, 0, 0, time.UTC)
 var measurement2 = measurement1.Add(measurementInterval)
 var measurement3 = measurement2.Add(measurementInterval)
 var testStart = time.Now()
@@ -108,8 +108,85 @@ func TestSqliteProvider_GetMetricsLatestByClientID(t *testing.T) {
 	mC1, err := dbProvider.GetMetricsLatestByClientID(ctx, "test_client_1", fields)
 	require.NoError(t, err)
 	require.NotNil(t, mC1)
-	compare := measurement3.Format(layoutDb)
-	require.Equal(t, compare, mC1.Timestamp)
+	require.Equal(t, measurement3, mC1.Timestamp)
+}
+
+func TestSqliteProvider_GetMetricsListByClientID(t *testing.T) {
+	dbProvider, err := NewSqliteProvider(":memory:", testLog)
+	require.NoError(t, err)
+	defer dbProvider.Close()
+
+	ctx := context.Background()
+
+	err = createTestData(ctx, dbProvider)
+	require.NoError(t, err)
+
+	sorts := []query.SortOption{query.SortOption{
+		Column: "timestamp",
+		IsASC:  false,
+	},
+	}
+	fields := make([]query.FieldsOption, 1)
+	fields[0] = query.FieldsOption{
+		Resource: "metrics",
+		Fields:   []string{"timestamp", "cpu_usage_percent", "memory_usage_percent"},
+	}
+	ts1 := measurement1.Format(layoutDb)
+	filters := []query.FilterOption{
+		{
+			Expression: "timestamp[gt]",
+			Column:     "timestamp",
+			Operator:   query.FilterOperatorTypeGT,
+			Values:     []string{ts1},
+		},
+		{
+			Expression: "limit",
+			Column:     "limit",
+			Operator:   query.FilterOperatorTypeEQ,
+			Values:     []string{"2"},
+		},
+	}
+	lo := &query.ListOptions{
+		Sorts:   sorts,
+		Filters: filters,
+		Fields:  fields,
+	}
+	mList, err := dbProvider.GetMetricsListByClientID(ctx, "test_client_1", lo)
+	require.NoError(t, err)
+	require.NotNil(t, mList)
+	require.Equal(t, 2, len(mList))
+}
+
+func TestSqliteProvider_GetMetricsListDownsampledByClientID(t *testing.T) {
+	dbProvider, err := NewSqliteProvider(":memory:", testLog)
+	require.NoError(t, err)
+	defer dbProvider.Close()
+
+	ctx := context.Background()
+
+	err = createDownsamplingData(ctx, dbProvider)
+	require.NoError(t, err)
+
+	sorts := []query.SortOption{query.SortOption{
+		Column: "timestamp",
+		IsASC:  false,
+	},
+	}
+	fields := make([]query.FieldsOption, 1)
+	fields[0] = query.FieldsOption{
+		Resource: "metrics",
+		Fields:   []string{"timestamp", "cpu_usage_percent", "memory_usage_percent"},
+	}
+	hours := 48.0
+	lo := &query.ListOptions{
+		Sorts:   sorts,
+		Filters: createSinceUntilFilter(measurement1, hours),
+		Fields:  fields,
+	}
+	mList, err := dbProvider.GetMetricsListDownsampledByClientID(ctx, "test_client", hours, lo)
+	require.NoError(t, err)
+	require.NotNil(t, mList)
+	require.Equal(t, 126, len(mList))
 }
 
 func TestSqliteProvider_GetProcessesLatestByClientID(t *testing.T) {
@@ -199,4 +276,50 @@ func createTestData(ctx context.Context, dbProvider DBProvider) error {
 	}
 
 	return nil
+}
+
+func createDownsamplingData(ctx context.Context, dbProvider DBProvider) error {
+	count := 60 * 48
+	start := measurement1
+	for i := 0; i < count; i++ {
+		stamp := start.Add(time.Duration(i) * measurementInterval)
+		r := float64(i % 2)
+		m := &models.Measurement{
+			ClientID:           "test_client",
+			Timestamp:          stamp,
+			CPUUsagePercent:    10.0 + r*10,
+			MemoryUsagePercent: 10.0 + r*10,
+			IoUsagePercent:     10.0 + r*10,
+			Processes:          "",
+			Mountpoints:        "",
+		}
+		if err := dbProvider.CreateMeasurement(ctx, m); err != nil {
+			return err
+		}
+	}
+
+	return nil
+}
+
+func createSinceUntilFilter(start time.Time, hours float64) []query.FilterOption {
+	mSince := start.Format(layoutDb)
+	tUntil := start.Add(time.Duration(hours) * time.Hour)
+	mUntil := tUntil.Format(layoutDb)
+
+	filters := []query.FilterOption{
+		{
+			Expression: "timestamp[since]",
+			Column:     "timestamp",
+			Operator:   query.FilterOperatorTypeGT,
+			Values:     []string{mSince},
+		},
+		{
+			Expression: "timestamp[until]",
+			Column:     "timestamp",
+			Operator:   query.FilterOperatorTypeLT,
+			Values:     []string{mUntil},
+		},
+	}
+
+	return filters
 }

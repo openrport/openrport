@@ -93,7 +93,7 @@ func (p *SqliteProvider) GetMetricsListByClientID(ctx context.Context, clientID 
 func (p *SqliteProvider) GetMetricsListDownsampledByClientID(ctx context.Context, clientID string, hours float64, o *query.ListOptions) ([]monitoring2.ClientMetricsPayload, error) {
 	q := `SELECT
 		timestamp,
-		round(avg(cpu_usage_percent),2) as cpu_usage_percent,
+		avg(cpu_usage_percent) as cpu_usage_percent,
 		min(cpu_usage_percent) as cpu_usage_percent_min,
 		max(cpu_usage_percent) as cpu_usage_percent_max,
 		round(avg(memory_usage_percent),2) as memory_usage_percent,
@@ -111,7 +111,7 @@ func (p *SqliteProvider) GetMetricsListDownsampledByClientID(ctx context.Context
 	params = append(params, clientID)
 	params = append(params, o.Filters[0].Values[0])
 	params = append(params, o.Filters[1].Values[0])
-	divisor := math.Round(hours*100) / 100 * 29
+	divisor := (math.Round(hours*100) / 100) * 29
 	params = append(params, divisor)
 
 	val := []monitoring2.ClientMetricsPayload{}
