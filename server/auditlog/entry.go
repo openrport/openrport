@@ -12,16 +12,16 @@ import (
 )
 
 type Entry struct {
-	Timestamp      time.Time `db:"timestamp"`
-	Username       string    `db:"username"`
-	RemoteIP       string    `db:"remote_ip"`
-	Application    string    `db:"application"`
-	Action         string    `db:"action"`
-	ID             string    `db:"affected_id"`
-	ClientID       string    `db:"client_id"`
-	ClientHostName string    `db:"client_hostname"`
-	Request        string    `db:"request"`
-	Response       string    `db:"response"`
+	Timestamp      time.Time `db:"timestamp" json:"timestamp"`
+	Username       string    `db:"username" json:"username"`
+	RemoteIP       string    `db:"remote_ip" json:"remote_ip"`
+	Application    string    `db:"application" json:"application"`
+	Action         string    `db:"action" json:"action"`
+	ID             string    `db:"affected_id" json:"affected_id"`
+	ClientID       string    `db:"client_id" json:"client_id"`
+	ClientHostName string    `db:"client_hostname" json:"client_hostname"`
+	Request        string    `db:"request" json:"request"`
+	Response       string    `db:"response" json:"response"`
 
 	al *AuditLog
 }

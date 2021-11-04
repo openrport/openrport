@@ -569,8 +569,9 @@ func TestManagerList(t *testing.T) {
 			},
 			Filters: []query.FilterOption{
 				{
-					Column: "client_id",
-					Values: []string{"val1"},
+					Expression: "client_id",
+					Column:     "client_id",
+					Values:     []string{"val1"},
 				},
 			},
 		},

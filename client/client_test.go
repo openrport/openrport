@@ -21,6 +21,7 @@ import (
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 
+	"github.com/cloudradar-monitoring/rport/client/system"
 	chshare "github.com/cloudradar-monitoring/rport/share"
 )
 
@@ -100,12 +101,12 @@ func TestConnectionRequest(t *testing.T) {
 
 	testCases := []struct {
 		Name                      string
-		SystemInfo                SystemInfo
+		SystemInfo                system.SysInfo
 		ExpectedConnectionRequest *chshare.ConnectionRequest
 	}{
 		{
 			Name: "no errors",
-			SystemInfo: &mockSystemInfo{
+			SystemInfo: &system.MockSystemInfo{
 				ReturnUname:         "test-uname",
 				ReturnHostname:      "test-hostname",
 				ReturnHostnameError: nil,
@@ -119,7 +120,7 @@ func TestConnectionRequest(t *testing.T) {
 				},
 				ReturnInterfaceAddrs: interfaceAddrs,
 				ReturnGoArch:         "test-arch",
-				ReturnCPUInfo: CPUInfo{
+				ReturnCPUInfo: system.CPUInfo{
 					CPUs: []cpu.InfoStat{
 						{
 							Family:    "fam1",
@@ -130,6 +131,7 @@ func TestConnectionRequest(t *testing.T) {
 					},
 					NumCores: 4,
 				},
+				ReturnCPUPercent: 0.0,
 				ReturnMemoryStat: &mem.VirtualMemoryStat{
 					Total: 100000,
 				},
@@ -162,7 +164,7 @@ func TestConnectionRequest(t *testing.T) {
 			},
 		}, {
 			Name: "windows, no errors",
-			SystemInfo: &mockSystemInfo{
+			SystemInfo: &system.MockSystemInfo{
 				ReturnHostname: "test-hostname",
 				ReturnUname:    "test-uname",
 				ReturnHostInfo: &host.InfoStat{
@@ -173,7 +175,7 @@ func TestConnectionRequest(t *testing.T) {
 				},
 				ReturnInterfaceAddrs: interfaceAddrs,
 				ReturnGoArch:         "test-arch",
-				ReturnCPUInfo: CPUInfo{
+				ReturnCPUInfo: system.CPUInfo{
 					CPUs: []cpu.InfoStat{
 						{
 							Family:    "cpufam1",
@@ -210,7 +212,7 @@ func TestConnectionRequest(t *testing.T) {
 			},
 		}, {
 			Name: "all errors",
-			SystemInfo: &mockSystemInfo{
+			SystemInfo: &system.MockSystemInfo{
 				ReturnHostnameError:       errors.New("test error"),
 				ReturnUnameError:          errors.New("test error"),
 				ReturnHostInfoError:       errors.New("test error"),
@@ -225,24 +227,24 @@ func TestConnectionRequest(t *testing.T) {
 				Name:         "test-name",
 				Tags:         []string{"tag1", "tag2"},
 				Remotes:      []*chshare.Remote{remote1, remote2},
-				OS:           UnknownValue,
+				OS:           system.UnknownValue,
 				OSArch:       "test-arch",
-				OSFamily:     UnknownValue,
-				OSKernel:     UnknownValue,
-				Hostname:     UnknownValue,
-				CPUFamily:    UnknownValue,
-				CPUModel:     UnknownValue,
-				CPUModelName: UnknownValue,
-				CPUVendor:    UnknownValue,
-				OSFullName:   UnknownValue,
-				OSVersion:    UnknownValue,
+				OSFamily:     system.UnknownValue,
+				OSKernel:     system.UnknownValue,
+				Hostname:     system.UnknownValue,
+				CPUFamily:    system.UnknownValue,
+				CPUModel:     system.UnknownValue,
+				CPUModelName: system.UnknownValue,
+				CPUVendor:    system.UnknownValue,
+				OSFullName:   system.UnknownValue,
+				OSVersion:    system.UnknownValue,
 				Timezone:     "UTC (UTC+00:00)",
 				IPv4:         nil,
 				IPv6:         nil,
 			},
 		}, {
 			Name: "uname error",
-			SystemInfo: &mockSystemInfo{
+			SystemInfo: &system.MockSystemInfo{
 				ReturnHostname:   "test-hostname",
 				ReturnUnameError: errors.New("test error"),
 				ReturnHostInfo: &host.InfoStat{
@@ -263,16 +265,16 @@ func TestConnectionRequest(t *testing.T) {
 				OSFullName:   "Test-Platform 123",
 				Tags:         []string{"tag1", "tag2"},
 				Remotes:      []*chshare.Remote{remote1, remote2},
-				OS:           UnknownValue,
+				OS:           system.UnknownValue,
 				OSArch:       "test-arch",
 				OSFamily:     "test-family",
 				OSKernel:     "test-os",
 				Hostname:     "test-hostname",
 				Timezone:     "UTC (UTC+00:00)",
-				CPUFamily:    UnknownValue,
-				CPUModel:     UnknownValue,
-				CPUModelName: UnknownValue,
-				CPUVendor:    UnknownValue,
+				CPUFamily:    system.UnknownValue,
+				CPUModel:     system.UnknownValue,
+				CPUModelName: system.UnknownValue,
+				CPUVendor:    system.UnknownValue,
 				IPv4:         []string{"192.0.2.1", "192.0.2.2"},
 				IPv6:         []string{"2001:db8::1", "2001:db8::2"},
 			},

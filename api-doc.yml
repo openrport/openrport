@@ -2207,6 +2207,46 @@ paths:
           description: "Invalid Operation"
           schema:
             $ref: "#/definitions/ErrorPayload"
+  /auditlog:
+    get:
+      tags:
+        - "Audit Log"
+      summary: "List auditlog entries"
+      description: "List auditlog entries using the provided filters"
+      produces:
+        - "application/json"
+      parameters:
+        - name: "sort"
+          in: "query"
+          description: Sort option `-<field>`(desc) or `<field>`(asc). `<field>` can be one of `'timestamp', 'username', 'remote_ip', 'application', 'action', 'affected_id', 'client_id', 'client_hostname'`. For example, `&sort=-timestamp`.
+          required: false
+          type: "string"
+        - name: "filter"
+          in: "query"
+          description: Filter option `filter[<field>]` or `filter[timestamp][<op>]`.
+            `<field>` can be one of `'username', 'remote_ip', 'application', 'action', 'affected_id', 'client_id', 'client_hostname'`.
+            For example, `&filter[username]=admin` or `filter[timestamp][gt]=2021-10-28`, etc.
+            Multiple filters are possible.
+          required: false
+          type: "string"
+      responses:
+        "200":
+          description: "Successful Operation"
+          schema:
+            type: "object"
+            properties:
+              data:
+                type: "array"
+                items:
+                  $ref: "#/definitions/AuditLog"
+        "401":
+          description: "Unauthorized"
+          schema:
+            $ref: "#/definitions/ErrorPayload"
+        "500":
+          description: "Invalid Operation"
+          schema:
+            $ref: "#/definitions/ErrorPayload"
 
 definitions:
   Tunnel:
@@ -2911,3 +2951,37 @@ definitions:
       script:
         type: "string"
         description: "[required] text of the command"
+  AuditLog:
+    type: "object"
+    properties:
+      timestamp:
+        type: "string"
+        format: "date-time"
+        description: "Timestamp of the action"
+      username:
+        type: "string"
+        description: "Username of the user that initiated the action"
+      remote_ip:
+        type: "string"
+        description: "IP of the user that initiated the action"
+      application:
+        type: "string"
+        description: "Part of the rport that the action belongs to"
+      action:
+        type: "string"
+        description: "Action performed"
+      affected_id:
+        type: "string"
+        description: "ID of the entity that action was executed on"
+      client_id:
+        type: "string"
+        description: "ID of the client that has been affected"
+      client_hostname:
+        type: "string"
+        description: "Hostname of the client that has been affected"
+      request:
+        type: "string"
+        description: "Json blob that was used to request the action"
+      response:
+        type: "string"
+        description: "Json blob that was the result of the action"

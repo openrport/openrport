@@ -7,16 +7,18 @@ import (
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 
+	"github.com/cloudradar-monitoring/rport/db/migration/auditlog"
+	"github.com/cloudradar-monitoring/rport/db/sqlite"
 	"github.com/cloudradar-monitoring/rport/server/clients"
 )
 
 func TestNotEnabled(t *testing.T) {
 	req := httptest.NewRequest("GET", "/", nil)
 
+	mockProvider := &mockProvider{}
 	auditLog, err := New(nil, nil, "", Config{Enable: false})
 	require.NoError(t, err)
-
-	assert.Nil(t, auditLog)
+	auditLog.provider = mockProvider
 
 	// Call with all methods to make sure it doesn't panic if not initialized
 	e := auditLog.Entry(ApplicationAuthUser, ActionCreate).
@@ -29,6 +31,8 @@ func TestNotEnabled(t *testing.T) {
 
 	e.Save()
 	e.SaveForMultipleClients([]*clients.Client{&clients.Client{}})
+
+	assert.Equal(t, 0, len(mockProvider.entries))
 }
 
 func TestIPObfuscation(t *testing.T) {
@@ -57,6 +61,7 @@ func TestIPObfuscation(t *testing.T) {
 				mockProvider := &mockProvider{}
 				auditLog := &AuditLog{
 					config: Config{
+						Enable:           true,
 						UseIPObfuscation: true,
 					},
 					provider: mockProvider,
@@ -73,6 +78,7 @@ func TestIPObfuscation(t *testing.T) {
 				mockProvider := &mockProvider{}
 				auditLog := &AuditLog{
 					config: Config{
+						Enable:           true,
 						UseIPObfuscation: false,
 					},
 					provider: mockProvider,
@@ -86,4 +92,33 @@ func TestIPObfuscation(t *testing.T) {
 			})
 		})
 	}
+}
+
+func TestList(t *testing.T) {
+	db, err := sqlite.New(":memory:", auditlog.AssetNames(), auditlog.Asset)
+	require.NoError(t, err)
+	dbProv := &SQLiteProvider{
+		db: db,
+	}
+	auditLog := &AuditLog{
+		config: Config{
+			Enable: true,
+		},
+		provider: dbProv,
+	}
+	defer auditLog.Close()
+
+	auditLog.Entry(ApplicationLibraryScript, ActionCreate).Save()
+	auditLog.Entry(ApplicationLibraryScript, ActionUpdate).Save()
+	auditLog.Entry(ApplicationLibraryCommand, ActionCreate).Save()
+
+	r := httptest.NewRequest("GET", "/auditlog?filter[application]=library.script&sort=-timestamp", nil)
+	entries, err := auditLog.List(r)
+	require.NoError(t, err)
+
+	assert.Equal(t, 2, len(entries))
+	assert.Equal(t, ApplicationLibraryScript, entries[0].Application)
+	assert.Equal(t, ActionUpdate, entries[0].Action)
+	assert.Equal(t, ApplicationLibraryScript, entries[1].Application)
+	assert.Equal(t, ActionCreate, entries[1].Action)
 }

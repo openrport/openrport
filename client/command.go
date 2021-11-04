@@ -6,49 +6,17 @@ import (
 	"errors"
 	"fmt"
 	"os"
-	"os/exec"
 	"regexp"
 	"runtime"
 	"strings"
 	"time"
 
+	"github.com/cloudradar-monitoring/rport/client/system"
 	chshare "github.com/cloudradar-monitoring/rport/share"
 
 	"github.com/cloudradar-monitoring/rport/share/comm"
 	"github.com/cloudradar-monitoring/rport/share/models"
 )
-
-type CmdExecutorContext struct {
-	Interpreter string
-	Command     string
-	WorkingDir  string
-	IsSudo      bool
-	IsScript    bool
-}
-
-type CmdExecutor interface {
-	New(ctx context.Context, execCtx *CmdExecutorContext) *exec.Cmd
-	Start(cmd *exec.Cmd) error
-	Wait(cmd *exec.Cmd) error
-}
-
-type CmdExecutorImpl struct {
-	*chshare.Logger
-}
-
-func NewCmdExecutor(l *chshare.Logger) *CmdExecutorImpl {
-	return &CmdExecutorImpl{
-		Logger: l,
-	}
-}
-
-func (e *CmdExecutorImpl) Start(cmd *exec.Cmd) error {
-	return cmd.Start()
-}
-
-func (e *CmdExecutorImpl) Wait(cmd *exec.Cmd) error {
-	return cmd.Wait()
-}
 
 // now is used to stub time.Now in tests
 var now = time.Now
@@ -81,7 +49,7 @@ func (c *Client) HandleRunCmdRequest(ctx context.Context, reqPayload []byte) (*c
 	// TODO: temporary solution, refactor with using worker pool
 	c.runCmdMutex.Lock()
 
-	job.Interpreter, err = getInterpreter(job.Interpreter, runtime.GOOS, HasShebangLine(job.Command))
+	job.Interpreter, err = getInterpreter(job.Interpreter, runtime.GOOS, system.HasShebangLine(job.Command))
 	if err != nil {
 		c.runCmdMutex.Unlock()
 		return nil, err
@@ -92,13 +60,13 @@ func (c *Client) HandleRunCmdRequest(ctx context.Context, reqPayload []byte) (*c
 		return nil, fmt.Errorf("command is not allowed: %v", job.Command)
 	}
 
-	scriptPath, err := CreateScriptFile(c.config.GetScriptsDir(), job.Interpreter, job.Command)
+	scriptPath, err := system.CreateScriptFile(c.config.GetScriptsDir(), job.Interpreter, job.Command)
 	if err != nil {
 		c.runCmdMutex.Unlock()
 		return nil, err
 	}
 
-	execCtx := &CmdExecutorContext{
+	execCtx := &system.CmdExecutorContext{
 		Interpreter: job.Interpreter,
 		Command:     scriptPath,
 		WorkingDir:  job.Cwd,

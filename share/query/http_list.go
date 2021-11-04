@@ -21,6 +21,32 @@ func GetListOptions(req *http.Request) *ListOptions {
 	}
 }
 
+func NewOptions(req *http.Request, sortsDefault map[string][]string, filtersDefault map[string][]string, fieldsDefault map[string][]string) *ListOptions {
+	qOptions := &ListOptions{}
+
+	sorts := ExtractSortOptions(req)
+	if len(sorts) > 0 {
+		qOptions.Sorts = sorts
+	} else {
+		qOptions.Sorts = ParseSortOptions(sortsDefault)
+	}
+	filters := ExtractFilterOptions(req)
+	if len(filters) > 0 {
+		qOptions.Filters = filters
+	} else {
+		qOptions.Filters = ParseFilterOptions(filtersDefault)
+	}
+
+	fields := ExtractFieldsOptions(req)
+	if len(fields) > 0 {
+		qOptions.Fields = fields
+	} else {
+		qOptions.Fields = ParseFieldsOptions(fieldsDefault)
+	}
+
+	return qOptions
+}
+
 // when supportedFields is nil, the fields options are disabled and will not be validated or used
 func ValidateListOptions(lo *ListOptions, supportedSortAndFilters map[string]bool, supportedFields map[string]map[string]bool) error {
 	errs := errors2.APIErrors{}
@@ -48,6 +74,24 @@ func ValidateListOptions(lo *ListOptions, supportedSortAndFilters map[string]boo
 	}
 
 	return nil
+}
+
+func ValidateOptions(options *ListOptions, supportedSortFields map[string]bool, supportedFilterFields map[string]bool, supportedFields map[string]map[string]bool) error {
+	if err := ValidateSortOptions(options.Sorts, supportedSortFields); err != nil {
+		return err
+	}
+	if err := ValidateFilterOptions(options.Filters, supportedFilterFields); err != nil {
+		return err
+	}
+	if err := ValidateFieldsOptions(options.Fields, supportedFields); err != nil {
+		return err
+	}
+
+	return nil
+}
+
+func (o *ListOptions) HasFilters() bool {
+	return o.Filters != nil && len(o.Filters) > 0
 }
 
 func getOrValues(values []string) []string {

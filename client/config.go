@@ -12,6 +12,8 @@ import (
 	"strings"
 	"time"
 
+	"github.com/cloudradar-monitoring/rport/client/monitoring/config"
+	"github.com/cloudradar-monitoring/rport/client/system"
 	chshare "github.com/cloudradar-monitoring/rport/share"
 )
 
@@ -76,11 +78,12 @@ type ScriptsConfig struct {
 }
 
 type Config struct {
-	Client         ClientConfig     `mapstructure:"client"`
-	Connection     ConnectionConfig `mapstructure:"connection"`
-	Logging        LogConfig        `mapstructure:"logging"`
-	RemoteCommands CommandsConfig   `mapstructure:"remote-commands"`
-	RemoteScripts  ScriptsConfig    `mapstructure:"remote-scripts"`
+	Client         ClientConfig            `mapstructure:"client"`
+	Connection     ConnectionConfig        `mapstructure:"connection"`
+	Logging        LogConfig               `mapstructure:"logging"`
+	RemoteCommands CommandsConfig          `mapstructure:"remote-commands"`
+	RemoteScripts  ScriptsConfig           `mapstructure:"remote-scripts"`
+	Monitoring     config.MonitoringConfig `mapstructure:"monitoring"`
 }
 
 func (c *Config) ParseAndValidate(skipScriptsDirValidation bool) error {
@@ -115,6 +118,10 @@ func (c *Config) ParseAndValidate(skipScriptsDirValidation bool) error {
 	c.Client.authUser, c.Client.authPass = chshare.ParseAuth(c.Client.Auth)
 
 	if err := c.parseRemoteScripts(skipScriptsDirValidation); err != nil {
+		return err
+	}
+
+	if err := c.Monitoring.ParseAndValidate(); err != nil {
 		return err
 	}
 
@@ -258,7 +265,7 @@ func (c *Config) parseRemoteScripts(skipScriptsDirValidation bool) error {
 		return nil
 	}
 
-	err := ValidateScriptDir(c.GetScriptsDir())
+	err := system.ValidateScriptDir(c.GetScriptsDir())
 
 	// we allow to start a client if the script dir is not good because clients might never run scripts
 	if err != nil {
@@ -291,7 +298,7 @@ func PrepareDirs(c *Config) error {
 
 	scriptDir := c.GetScriptsDir()
 	if _, err := os.Stat(scriptDir); os.IsNotExist(err) {
-		err := os.Mkdir(scriptDir, DefaultDirMode)
+		err := os.Mkdir(scriptDir, system.DefaultDirMode)
 		if err != nil {
 			return err
 		}

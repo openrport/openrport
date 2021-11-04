@@ -3,6 +3,7 @@ package query
 import (
 	"fmt"
 	"net/http"
+	"net/url"
 	"strings"
 
 	errors2 "github.com/cloudradar-monitoring/rport/server/api/errors"
@@ -14,10 +15,13 @@ type SortOption struct {
 }
 
 func ExtractSortOptions(req *http.Request) []SortOption {
-	res := make([]SortOption, 0)
-	query := req.URL.Query()
+	return ParseSortOptions(req.URL.Query())
+}
 
-	sorts, ok := query["sort"]
+func ParseSortOptions(values url.Values) []SortOption {
+	res := make([]SortOption, 0)
+
+	sorts, ok := values["sort"]
 	if !ok || len(sorts) == 0 {
 		return res
 	}

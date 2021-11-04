@@ -8,6 +8,8 @@ import (
 	"sync"
 	"time"
 
+	"github.com/cloudradar-monitoring/rport/server/monitoring"
+
 	"github.com/jmoiron/sqlx"
 	"golang.org/x/crypto/ssh"
 	"golang.org/x/sync/errgroup"
@@ -29,6 +31,8 @@ import (
 	"github.com/cloudradar-monitoring/rport/share/ws"
 )
 
+const cleanupMeasurementsInterval = time.Minute * 2
+
 // Server represents a rport service
 type Server struct {
 	*chshare.Logger
@@ -40,6 +44,7 @@ type Server struct {
 	clientAuthProvider  clientsauth.Provider
 	jobProvider         JobProvider
 	clientGroupProvider cgroups.ClientGroupProvider
+	monitoringService   monitoring.Service
 	db                  *sqlx.DB
 	uiJobWebSockets     ws.WebSocketCache // used to push job result to UI
 	jobsDoneChannel     jobResultChanMap  // used for sequential command execution to know when command is finished
@@ -91,6 +96,13 @@ func NewServer(config *Config, filesAPI files.FileAPI) (*Server, error) {
 	if err != nil {
 		return nil, err
 	}
+
+	// create monitoringProvider and monitoringService
+	monitoringProvider, err := monitoring.NewSqliteProvider(path.Join(config.Server.DataDir, "monitoring.db?_journal_mode=WAL"), s.Logger)
+	if err != nil {
+		return nil, err
+	}
+	s.monitoringService = monitoring.NewService(monitoringProvider)
 
 	s.clientProvider, err = clients.NewSqliteProvider(
 		path.Join(config.Server.DataDir, "clients.db"),
@@ -204,6 +216,10 @@ func (s *Server) Run() error {
 	// TODO(m-terel): add graceful shutdown of background task
 	go scheduler.Run(ctx, s.Logger, clients.NewCleanupTask(s.Logger, s.clientListener.clientService.repo), s.config.Server.CleanupClients)
 	s.Infof("Task to cleanup obsolete clients will run with interval %v", s.config.Server.CleanupClients)
+
+	cleaningPeriod := time.Hour * 24 * time.Duration(s.config.Monitoring.DataStorageDays)
+	go scheduler.Run(ctx, s.Logger, monitoring.NewCleanupTask(s.Logger, s.monitoringService, cleaningPeriod), cleanupMeasurementsInterval)
+	s.Infof("Task to cleanup measurements will run with interval %v", cleanupMeasurementsInterval)
 
 	return s.Wait()
 }

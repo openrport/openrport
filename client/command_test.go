@@ -16,6 +16,7 @@ import (
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 
+	"github.com/cloudradar-monitoring/rport/client/system"
 	chshare "github.com/cloudradar-monitoring/rport/share"
 	"github.com/cloudradar-monitoring/rport/share/comm"
 	"github.com/cloudradar-monitoring/rport/share/test"
@@ -36,7 +37,7 @@ func NewCmdExecutorMock() *CmdExecutorMock {
 	return &CmdExecutorMock{}
 }
 
-func (e *CmdExecutorMock) New(ctx context.Context, execCtx *CmdExecutorContext) *exec.Cmd {
+func (e *CmdExecutorMock) New(ctx context.Context, execCtx *system.CmdExecutorContext) *exec.Cmd {
 	var args []string
 	if execCtx.IsSudo {
 		args = append(args, "sudo -n")

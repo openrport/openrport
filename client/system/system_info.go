@@ -1,4 +1,4 @@
-package chclient
+package system
 
 import (
 	"context"
@@ -21,10 +21,12 @@ type CPUInfo struct {
 	NumCores int
 }
 
-type SystemInfo interface {
+type SysInfo interface {
 	Hostname() (string, error)
 	HostInfo(context.Context) (*host.InfoStat, error)
 	CPUInfo(ctx context.Context) (CPUInfo, error)
+	CPUPercent(ctx context.Context) (float64, error)
+	CPUPercentIOWait(ctx context.Context) (float64, error)
 	MemoryStats(context.Context) (*mem.VirtualMemoryStat, error)
 	Uname(context.Context) (string, error)
 	InterfaceAddrs() ([]net.Addr, error)
@@ -34,12 +36,14 @@ type SystemInfo interface {
 }
 
 type realSystemInfo struct {
-	cmdExec CmdExecutor
+	cmdExec     CmdExecutor
+	lastCallCPU *LastCallCPU
 }
 
-func NewSystemInfo(cmdExec CmdExecutor) SystemInfo {
+func NewSystemInfo(cmdExec CmdExecutor) SysInfo {
 	return &realSystemInfo{
-		cmdExec: cmdExec,
+		cmdExec:     cmdExec,
+		lastCallCPU: &LastCallCPU{},
 	}
 }
 
@@ -91,6 +95,32 @@ func (s *realSystemInfo) CPUInfo(ctx context.Context) (CPUInfo, error) {
 
 func (s *realSystemInfo) MemoryStats(ctx context.Context) (*mem.VirtualMemoryStat, error) {
 	return mem.VirtualMemoryWithContext(ctx)
+}
+
+func (s *realSystemInfo) CPUPercent(ctx context.Context) (float64, error) {
+	percentCPU := 0.0
+	percents, err := cpu.PercentWithContext(ctx, 0, false)
+	if err != nil {
+		return percentCPU, err
+	}
+
+	if len(percents) == 1 {
+		percentCPU = percents[0]
+	}
+	return percentCPU, err
+}
+
+func (s *realSystemInfo) CPUPercentIOWait(ctx context.Context) (float64, error) {
+	percentIOWait := 0.0
+	percents, err := PercentIOWait(s.lastCallCPU)
+	if err != nil {
+		return percentIOWait, err
+	}
+
+	if len(percents) == 1 {
+		percentIOWait = percents[0]
+	}
+	return percentIOWait, err
 }
 
 func (s *realSystemInfo) SystemTime() time.Time {
