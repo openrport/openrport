@@ -8,54 +8,53 @@ import (
 )
 
 type ListOptions struct {
-	Sorts   []SortOption
-	Filters []FilterOption
-	Fields  []FieldsOption
+	Sorts      []SortOption
+	Filters    []FilterOption
+	Fields     []FieldsOption
+	Pagination *Pagination
 }
 
 func GetListOptions(req *http.Request) *ListOptions {
-	return &ListOptions{
-		Sorts:   ExtractSortOptions(req),
-		Filters: ExtractFilterOptions(req),
-		Fields:  ExtractFieldsOptions(req),
-	}
+	return NewOptions(req, nil, nil, nil)
 }
 
 func NewOptions(req *http.Request, sortsDefault map[string][]string, filtersDefault map[string][]string, fieldsDefault map[string][]string) *ListOptions {
 	qOptions := &ListOptions{}
 
-	sorts := ExtractSortOptions(req)
+	sorts := ParseSortOptions(req.URL.Query())
 	if len(sorts) > 0 {
 		qOptions.Sorts = sorts
 	} else {
 		qOptions.Sorts = ParseSortOptions(sortsDefault)
 	}
-	filters := ExtractFilterOptions(req)
+	filters := ParseFilterOptions(req.URL.Query())
 	if len(filters) > 0 {
 		qOptions.Filters = filters
 	} else {
 		qOptions.Filters = ParseFilterOptions(filtersDefault)
 	}
 
-	fields := ExtractFieldsOptions(req)
+	fields := ParseFieldsOptions(req.URL.Query())
 	if len(fields) > 0 {
 		qOptions.Fields = fields
 	} else {
 		qOptions.Fields = ParseFieldsOptions(fieldsDefault)
 	}
 
+	qOptions.Pagination = ParsePagination(req.URL.Query())
+
 	return qOptions
 }
 
-// when supportedFields is nil, the fields options are disabled and will not be validated or used
-func ValidateListOptions(lo *ListOptions, supportedSortAndFilters map[string]bool, supportedFields map[string]map[string]bool) error {
+// when supportedFields is nil, the fields options are disabled and will not be validated or used, same for pagination
+func ValidateListOptions(lo *ListOptions, supportedSorts map[string]bool, supportedFilters map[string]bool, supportedFields map[string]map[string]bool, paginationConfig *PaginationConfig) error {
 	errs := errors2.APIErrors{}
-	sortErrs := ValidateSortOptions(lo.Sorts, supportedSortAndFilters)
+	sortErrs := ValidateSortOptions(lo.Sorts, supportedSorts)
 	if sortErrs != nil {
 		errs = append(errs, sortErrs...)
 	}
 
-	filterErrs := ValidateFilterOptions(lo.Filters, supportedSortAndFilters)
+	filterErrs := ValidateFilterOptions(lo.Filters, supportedFilters)
 	if filterErrs != nil {
 		errs = append(errs, filterErrs...)
 	}
@@ -69,22 +68,17 @@ func ValidateListOptions(lo *ListOptions, supportedSortAndFilters map[string]boo
 		lo.Fields = nil
 	}
 
+	if paginationConfig != nil {
+		paginationErrs := ValidatePagination(lo.Pagination, paginationConfig)
+		if paginationErrs != nil {
+			errs = append(errs, paginationErrs...)
+		}
+	} else {
+		lo.Pagination = nil
+	}
+
 	if len(errs) > 0 {
 		return errs
-	}
-
-	return nil
-}
-
-func ValidateOptions(options *ListOptions, supportedSortFields map[string]bool, supportedFilterFields map[string]bool, supportedFields map[string]map[string]bool) error {
-	if err := ValidateSortOptions(options.Sorts, supportedSortFields); err != nil {
-		return err
-	}
-	if err := ValidateFilterOptions(options.Filters, supportedFilterFields); err != nil {
-		return err
-	}
-	if err := ValidateFieldsOptions(options.Fields, supportedFields); err != nil {
-		return err
 	}
 
 	return nil

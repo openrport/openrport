@@ -72,6 +72,22 @@ func (p *SQLiteProvider) List(ctx context.Context, options *query.ListOptions) (
 	return values, nil
 }
 
+func (p *SQLiteProvider) Count(ctx context.Context, options *query.ListOptions) (int, error) {
+	var result int
+
+	q := "SELECT COUNT(*) FROM `auditlog`"
+	countOptions := *options
+	countOptions.Pagination = nil
+	q, params := query.ConvertListOptionsToQuery(&countOptions, q)
+
+	err := p.db.GetContext(ctx, &result, q, params...)
+	if err != nil {
+		return 0, err
+	}
+
+	return result, nil
+}
+
 func (p *SQLiteProvider) OldestTimestamp(ctx context.Context) (time.Time, error) {
 	var ts time.Time
 	q := "SELECT timestamp FROM auditlog ORDER BY timestamp ASC LIMIT 1"

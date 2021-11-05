@@ -109,6 +109,11 @@ func (r *RotationProvider) List(ctx context.Context, l *query.ListOptions) ([]*E
 	defer r.mtx.RUnlock()
 	return r.sqlite.List(ctx, l)
 }
+func (r *RotationProvider) Count(ctx context.Context, l *query.ListOptions) (int, error) {
+	r.mtx.RLock()
+	defer r.mtx.RUnlock()
+	return r.sqlite.Count(ctx, l)
+}
 func (r *RotationProvider) Close() error {
 	r.mtx.Lock()
 	defer r.mtx.Unlock()

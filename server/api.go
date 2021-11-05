@@ -626,7 +626,7 @@ func (al *APIListener) handleGetClients(w http.ResponseWriter, req *http.Request
 		return
 	}
 
-	filterOptions := query.ExtractFilterOptions(req)
+	filterOptions := query.ParseFilterOptions(req.URL.Query())
 	filterErr := query.ValidateFilterOptions(filterOptions, clientsSupportedFields)
 	if filterErr != nil {
 		al.jsonError(w, filterErr)
@@ -3186,7 +3186,7 @@ func (al *APIListener) handleGetClientMetrics(w http.ResponseWriter, req *http.R
 	clientID := vars[routeParamClientID]
 
 	queryOptions := query.NewOptions(req, monitoring.ClientMetricsSortDefault, monitoring.ClientMetricsFilterDefault, monitoring.ClientMetricsFieldsDefault)
-	err := query.ValidateOptions(queryOptions, monitoring.ClientMetricsSortFields, monitoring.ClientMetricsFilterFields, monitoring.ClientMetricsFields)
+	err := query.ValidateListOptions(queryOptions, monitoring.ClientMetricsSortFields, monitoring.ClientMetricsFilterFields, monitoring.ClientMetricsFields, nil)
 	if err != nil {
 		al.jsonError(w, err)
 		return
@@ -3234,7 +3234,7 @@ func (al *APIListener) handleGetClientProcesses(w http.ResponseWriter, req *http
 
 	var clientProcesses *monitoring.ClientProcessesPayload
 	var serviceErr error
-	filters := query.ExtractFilterOptions(req)
+	filters := query.ParseFilterOptions(req.URL.Query())
 	if len(filters) > 0 {
 		err := query.ValidateFilterOptions(filters, monitoring.ClientProcessesFilterFields)
 		if err != nil {
@@ -3264,7 +3264,7 @@ func (al *APIListener) handleGetClientMountpoints(w http.ResponseWriter, req *ht
 
 	var clientMountpoints *monitoring.ClientMountpointsPayload
 	var serviceErr error
-	filters := query.ExtractFilterOptions(req)
+	filters := query.ParseFilterOptions(req.URL.Query())
 	if len(filters) > 0 {
 		err := query.ValidateFilterOptions(filters, monitoring.ClientMountpointsFilterFields)
 		if err != nil {
@@ -3289,11 +3289,11 @@ func (al *APIListener) handleGetClientMountpoints(w http.ResponseWriter, req *ht
 }
 
 func (al *APIListener) handleListAuditLog(w http.ResponseWriter, req *http.Request) {
-	entries, err := al.auditLog.List(req)
+	result, err := al.auditLog.List(req)
 	if err != nil {
 		al.jsonError(w, err)
 		return
 	}
 
-	al.writeJSONResponse(w, http.StatusOK, api.NewSuccessPayload(entries))
+	al.writeJSONResponse(w, http.StatusOK, result)
 }

@@ -7,6 +7,7 @@ import (
 	"net/http"
 	"time"
 
+	"github.com/cloudradar-monitoring/rport/server/api"
 	"github.com/cloudradar-monitoring/rport/server/clients"
 	chshare "github.com/cloudradar-monitoring/rport/share"
 	"github.com/cloudradar-monitoring/rport/share/query"
@@ -46,6 +47,7 @@ type Provider interface {
 	io.Closer
 	Save(e *Entry) error
 	List(context.Context, *query.ListOptions) ([]*Entry, error)
+	Count(context.Context, *query.ListOptions) (int, error)
 }
 
 type AuditLog struct {
@@ -118,13 +120,29 @@ func (a *AuditLog) savePreparedEntry(e *Entry) error {
 	return a.provider.Save(e)
 }
 
-func (a *AuditLog) List(r *http.Request) ([]*Entry, error) {
+func (a *AuditLog) List(r *http.Request) (*api.SuccessPayload, error) {
 	options := query.GetListOptions(r)
 
-	err := query.ValidateOptions(options, supportedSorts, supportedFilters, nil)
+	err := query.ValidateListOptions(options, supportedSorts, supportedFilters, nil, &query.PaginationConfig{
+		DefaultLimit: 10,
+		MaxLimit:     100,
+	})
 	if err != nil {
 		return nil, err
 	}
 
-	return a.provider.List(r.Context(), options)
+	entries, err := a.provider.List(r.Context(), options)
+	if err != nil {
+		return nil, err
+	}
+
+	count, err := a.provider.Count(r.Context(), options)
+	if err != nil {
+		return nil, err
+	}
+
+	return &api.SuccessPayload{
+		Data: entries,
+		Meta: api.NewMeta(count),
+	}, nil
 }

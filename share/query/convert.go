@@ -6,11 +6,7 @@ import (
 )
 
 func ConvertListOptionsToQuery(lo *ListOptions, q string) (qOut string, params []interface{}) {
-	qOut, params = addWhere(lo.Filters, q)
-	qOut = addOrderBy(lo.Sorts, qOut)
-	qOut = ReplaceStarSelect(lo.Fields, qOut)
-
-	return qOut, params
+	return AppendOptionsToQuery(lo, q, nil)
 }
 
 func ConvertRetrieveOptionsToQuery(ro *RetrieveOptions, q string) string {
@@ -19,17 +15,16 @@ func ConvertRetrieveOptionsToQuery(ro *RetrieveOptions, q string) string {
 	return qOut
 }
 
-func AppendOptionsToQuery(o *ListOptions, q string, inParams []interface{}) (string, []interface{}) {
-	qOut, params := addWhere(o.Filters, q)
-	outParams := append(inParams, params...)
-	qOut = addOrderBy(o.Sorts, qOut)
-	qOut = ReplaceStarSelect(o.Fields, qOut)
+func AppendOptionsToQuery(o *ListOptions, q string, params []interface{}) (string, []interface{}) {
+	q, params = addWhere(o.Filters, q, params)
+	q = addOrderBy(o.Sorts, q)
+	q = ReplaceStarSelect(o.Fields, q)
+	q, params = addLimitOffset(o.Pagination, q, params)
 
-	return qOut, outParams
+	return q, params
 }
 
-func addWhere(filterOptions []FilterOption, q string) (qOut string, params []interface{}) {
-	params = []interface{}{}
+func addWhere(filterOptions []FilterOption, q string, params []interface{}) (string, []interface{}) {
 	if len(filterOptions) == 0 {
 		return q, params
 	}
@@ -55,7 +50,7 @@ func addWhere(filterOptions []FilterOption, q string) (qOut string, params []int
 	if strings.Contains(qUpper, " WHERE ") {
 		concat = " AND "
 	}
-	q += concat + strings.Join(whereParts, " AND ") + " "
+	q += concat + strings.Join(whereParts, " AND ")
 
 	return q, params
 }
@@ -73,7 +68,7 @@ func addOrderBy(sortOptions []SortOption, q string) string {
 		orderByValues = append(orderByValues, fmt.Sprintf("%s %s", sortOptions[i].Column, direction))
 	}
 	if len(orderByValues) > 0 {
-		q += "ORDER BY " + strings.Join(orderByValues, ", ")
+		q += " ORDER BY " + strings.Join(orderByValues, ", ")
 	}
 
 	return q
@@ -95,4 +90,15 @@ func ReplaceStarSelect(fieldOptions []FieldsOption, q string) string {
 	}
 
 	return strings.Replace(q, "*", strings.Join(fields, ", "), 1)
+}
+
+func addLimitOffset(pagination *Pagination, q string, params []interface{}) (string, []interface{}) {
+	if pagination == nil {
+		return q, params
+	}
+
+	q += " LIMIT ? OFFSET ?"
+	params = append(params, pagination.Limit, pagination.Offset)
+
+	return q, params
 }

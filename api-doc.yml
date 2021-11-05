@@ -2229,6 +2229,11 @@ paths:
             Multiple filters are possible.
           required: false
           type: "string"
+        - name: "page"
+          in: "query"
+          required: false
+          type: "integer"
+          description: Pagination options `page[limit]` and `page[offset]` can be used to get more than the first page of results. Default limit is 10 and maximum is 100. The `count` property in meta shows the total number of results.
       responses:
         "200":
           description: "Successful Operation"
@@ -2239,6 +2244,11 @@ paths:
                 type: "array"
                 items:
                   $ref: "#/definitions/AuditLog"
+              meta:
+                type: "object"
+                properties:
+                  count:
+                    type: "integer"
         "401":
           description: "Unauthorized"
           schema:

@@ -18,23 +18,25 @@ func TestGetListOptions(t *testing.T) {
 		{
 			name: "empty_query",
 			expectedListOptions: &ListOptions{
-				Sorts:   []SortOption{},
-				Filters: []FilterOption{},
-				Fields:  []FieldsOption{},
+				Sorts:      []SortOption{},
+				Filters:    []FilterOption{},
+				Fields:     []FieldsOption{},
+				Pagination: &Pagination{Offset: "0"},
 			},
 		},
 		{
 			name:       "not_matching_query",
-			inputQuery: "sord=date&filter=123&filter[]=345&sort=&sort=  &filter[k]=&filter[l]=    &fields=abc&fields[]=def&fields[d]=",
+			inputQuery: "sord=date&filter=123&filter[]=345&sort=&sort=  &filter[k]=&filter[l]=    &fields=abc&fields[]=def&fields[d]=&page[other]=3",
 			expectedListOptions: &ListOptions{
-				Sorts:   []SortOption{},
-				Filters: []FilterOption{},
-				Fields:  []FieldsOption{},
+				Sorts:      []SortOption{},
+				Filters:    []FilterOption{},
+				Fields:     []FieldsOption{},
+				Pagination: &Pagination{Offset: "0"},
 			},
 		},
 		{
 			name:       "all_possible_sorts_and_filters",
-			inputQuery: "sort=date&sort=-user&filter[field1]=val1&filter[field1]=val2,val3&filter[field2]=value2,value3&fields[res1]=f1,f2&fields[res2]=f1,f3",
+			inputQuery: "sort=date&sort=-user&filter[field1]=val1&filter[field1]=val2,val3&filter[field2]=value2,value3&fields[res1]=f1,f2&fields[res2]=f1,f3&page[offset]=3&page[limit]=10",
 			expectedListOptions: &ListOptions{
 				Sorts: []SortOption{
 					{
@@ -68,6 +70,10 @@ func TestGetListOptions(t *testing.T) {
 						Fields:   []string{"f1", "f3"},
 					},
 				},
+				Pagination: &Pagination{
+					Offset: "3",
+					Limit:  "10",
+				},
 			},
 		},
 	}
@@ -86,6 +92,7 @@ func TestGetListOptions(t *testing.T) {
 			assert.ElementsMatch(t, testCases[i].expectedListOptions.Sorts, actualListOptions.Sorts)
 			assert.ElementsMatch(t, testCases[i].expectedListOptions.Filters, actualListOptions.Filters)
 			assert.ElementsMatch(t, testCases[i].expectedListOptions.Fields, actualListOptions.Fields)
+			assert.Equal(t, testCases[i].expectedListOptions.Pagination, actualListOptions.Pagination)
 		})
 	}
 }
@@ -97,14 +104,21 @@ func TestValidateListOptionsWithErrors(t *testing.T) {
 			"f2": true,
 		},
 	}
-	supportedSortAndFilters := map[string]bool{
+	supportedSorts := map[string]bool{
 		"f3": true,
 		"f4": true,
+	}
+	supportedFilters := map[string]bool{
+		"f4": true,
+		"f5": true,
+	}
+	paginationConfig := &PaginationConfig{
+		MaxLimit: 10,
 	}
 	options := &ListOptions{
 		Sorts: []SortOption{
 			{
-				Column: "f3",
+				Column: "f4",
 				IsASC:  true,
 			},
 			{
@@ -119,8 +133,8 @@ func TestValidateListOptionsWithErrors(t *testing.T) {
 				Values:     []string{"v1", "v2"},
 			},
 			{
-				Expression: "f5",
-				Column:     "f5",
+				Expression: "f4",
+				Column:     "f4",
 				Values:     []string{"v1", "v2"},
 			},
 		},
@@ -134,10 +148,14 @@ func TestValidateListOptionsWithErrors(t *testing.T) {
 				Fields:   []string{"f1", "f3"},
 			},
 		},
+		Pagination: &Pagination{
+			Offset: "-1",
+			Limit:  "20",
+		},
 	}
 
-	err := ValidateListOptions(options, supportedSortAndFilters, supportedFields)
-	assert.Equal(t, err.Error(), `unsupported sort field 'f5', unsupported filter field 'f5', unsupported field "f3" for resource "res1", unsupported resource in fields: "res2"`)
+	err := ValidateListOptions(options, supportedSorts, supportedFilters, supportedFields, paginationConfig)
+	assert.Equal(t, err.Error(), `unsupported sort field 'f5', unsupported filter field 'f3', unsupported field "f3" for resource "res1", unsupported resource in fields: "res2", pagination limit too big (20) maximum is 10, pagination offset must not be negative`)
 }
 
 func TestValidateListOptionsOk(t *testing.T) {
@@ -147,9 +165,16 @@ func TestValidateListOptionsOk(t *testing.T) {
 			"f2": true,
 		},
 	}
-	supportedSortAndFilters := map[string]bool{
+	supportedSorts := map[string]bool{
 		"f3": true,
 		"f4": true,
+	}
+	supportedFilters := map[string]bool{
+		"f4": true,
+		"f5": true,
+	}
+	paginationConfig := &PaginationConfig{
+		MaxLimit: 10,
 	}
 	options := &ListOptions{
 		Sorts: []SortOption{
@@ -164,13 +189,13 @@ func TestValidateListOptionsOk(t *testing.T) {
 		},
 		Filters: []FilterOption{
 			{
-				Expression: "f3",
-				Column:     "f3",
+				Expression: "f4",
+				Column:     "f4",
 				Values:     []string{"v1", "v2"},
 			},
 			{
-				Expression: "f4",
-				Column:     "f4",
+				Expression: "f5",
+				Column:     "f5",
 				Values:     []string{"v1", "v2"},
 			},
 		},
@@ -180,13 +205,17 @@ func TestValidateListOptionsOk(t *testing.T) {
 				Fields:   []string{"f1", "f2"},
 			},
 		},
+		Pagination: &Pagination{
+			Offset: "3",
+			Limit:  "10",
+		},
 	}
 
-	err := ValidateListOptions(options, supportedSortAndFilters, supportedFields)
+	err := ValidateListOptions(options, supportedSorts, supportedFilters, supportedFields, paginationConfig)
 	assert.NoError(t, err)
 }
 
-func TestValidateListOptionsNoFields(t *testing.T) {
+func TestValidateListOptionsNoFieldsNoPagination(t *testing.T) {
 	supportedSortAndFilters := map[string]bool{
 		"f3": true,
 		"f4": true,
@@ -220,10 +249,15 @@ func TestValidateListOptionsNoFields(t *testing.T) {
 				Fields:   []string{"f1", "f2"},
 			},
 		},
+		Pagination: &Pagination{
+			Limit:  "10",
+			Offset: "3",
+		},
 	}
 
-	err := ValidateListOptions(options, supportedSortAndFilters, nil)
+	err := ValidateListOptions(options, supportedSortAndFilters, supportedSortAndFilters, nil, nil)
 	assert.NoError(t, err)
 
 	assert.Nil(t, options.Fields)
+	assert.Nil(t, options.Pagination)
 }

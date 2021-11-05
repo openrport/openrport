@@ -12,7 +12,7 @@ type RetrieveOptions struct {
 
 func GetRetrieveOptions(req *http.Request) *RetrieveOptions {
 	return &RetrieveOptions{
-		Fields: ExtractFieldsOptions(req),
+		Fields: ParseFieldsOptions(req.URL.Query()),
 	}
 }
 
