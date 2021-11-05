@@ -1,6 +1,10 @@
 package monitoring
 
-import "time"
+import (
+	"time"
+
+	"github.com/cloudradar-monitoring/rport/share/types"
+)
 
 type CPUUsagePercent struct {
 	Value float64 `json:"value,omitempty" db:"cpu_usage_percent"`
@@ -28,13 +32,13 @@ type ClientMetricsPayload struct {
 }
 
 type ClientProcessesPayload struct {
-	Timestamp time.Time `json:"timestamp" db:"timestamp"`
-	Processes string    `json:"processes" db:"processes"`
+	Timestamp time.Time        `json:"timestamp" db:"timestamp"`
+	Processes types.JSONString `json:"processes" db:"processes"`
 }
 
 type ClientMountpointsPayload struct {
-	Timestamp   time.Time `json:"timestamp" db:"timestamp"`
-	Mountpoints string    `json:"mountpoints" db:"mountpoints"`
+	Timestamp   time.Time        `json:"timestamp" db:"timestamp"`
+	Mountpoints types.JSONString `json:"mountpoints" db:"mountpoints"`
 }
 
 var ClientMetricsSortFields = map[string]bool{

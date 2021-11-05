@@ -23,10 +23,12 @@ import (
 
 	"github.com/cloudradar-monitoring/rport/server/api"
 	"github.com/cloudradar-monitoring/rport/server/api/jobs"
+	monitoring_api "github.com/cloudradar-monitoring/rport/server/api/monitoring"
 	"github.com/cloudradar-monitoring/rport/server/api/users"
 	"github.com/cloudradar-monitoring/rport/server/cgroups"
 	"github.com/cloudradar-monitoring/rport/server/clients"
 	"github.com/cloudradar-monitoring/rport/server/clientsauth"
+	"github.com/cloudradar-monitoring/rport/server/monitoring"
 	"github.com/cloudradar-monitoring/rport/server/test/jb"
 	chshare "github.com/cloudradar-monitoring/rport/share"
 	"github.com/cloudradar-monitoring/rport/share/comm"
@@ -1865,4 +1867,126 @@ func TestWrapWithAuthMiddleware(t *testing.T) {
 			assert.Equal(t, tc.ExpectedStatus, w.Code)
 		})
 	}
+}
+
+func TestGetClientMetrics(t *testing.T) {
+	m1 := time.Date(2021, time.September, 1, 0, 0, 0, 0, time.UTC)
+	m2 := time.Date(2021, time.September, 1, 0, 1, 0, 0, time.UTC)
+	pm1 := &monitoring_api.ClientMetricsPayload{
+		Timestamp: m1,
+		CPUUsagePercent: monitoring_api.CPUUsagePercent{
+			Value: 10.5,
+			Min:   0,
+			Max:   0,
+		},
+		MemoryUsagePercent: monitoring_api.MemoryUsagePercent{
+			Value: 2.5,
+			Min:   0,
+			Max:   0,
+		},
+	}
+	pm2 := &monitoring_api.ClientMetricsPayload{
+		Timestamp: m2,
+		CPUUsagePercent: monitoring_api.CPUUsagePercent{
+			Value: 20.5,
+			Min:   0,
+			Max:   0,
+		},
+		MemoryUsagePercent: monitoring_api.MemoryUsagePercent{
+			Value: 2.5,
+			Min:   0,
+			Max:   0,
+		},
+	}
+	mlp := []monitoring_api.ClientMetricsPayload{*pm1, *pm2}
+	pp := &monitoring_api.ClientProcessesPayload{
+		Timestamp: m1,
+		Processes: `[{"pid":30212,"parent_pid":4711,"name":"chrome"}]`,
+	}
+
+	dbProvider := &monitoring.DBProviderMock{
+		MetricsPayload: &monitoring_api.ClientMetricsPayload{
+			Timestamp: m1,
+			CPUUsagePercent: monitoring_api.CPUUsagePercent{
+				Value: 10.5,
+				Min:   0,
+				Max:   0,
+			},
+			MemoryUsagePercent: monitoring_api.MemoryUsagePercent{
+				Value: 2.5,
+				Min:   0,
+				Max:   0,
+			},
+		},
+		MetricsListPayload: mlp,
+		ProcessesPayload:   pp,
+		MountpointsPayload: nil,
+	}
+	monitoringService := monitoring.NewService(dbProvider)
+	al := APIListener{
+		insecureForTests: true,
+		Server: &Server{
+			config:            &Config{},
+			monitoringService: monitoringService,
+		},
+	}
+	al.initRouter()
+
+	testCases := []struct {
+		Name           string
+		URL            string
+		ExpectedStatus int
+		ExpectedJSON   string
+	}{
+		{
+			Name:           "metrics default, no filter, no fields",
+			URL:            "metrics",
+			ExpectedStatus: http.StatusOK,
+			ExpectedJSON:   `{"data":{"timestamp":"2021-09-01T00:00:00Z","cpu_usage_percent":{"value":10.5},"memory_usage_percent":{"value":2.5},"io_usage_percent":{}}}`,
+		},
+		{
+			Name:           "metrics with fields, no filter, unknown field",
+			URL:            "metrics?fields[metrics]=timestamp,cpu_usage_percent,unknown_field",
+			ExpectedStatus: http.StatusBadRequest,
+			ExpectedJSON:   `{"errors":[{"code":"","title":"unsupported field \"unknown_field\" for resource \"metrics\"","detail":""}]}`,
+		},
+		{
+			Name:           "metrics with timestamp filter, filter ok",
+			URL:            "metrics?filter[timestamp][gt]=1636009200&filter[timestamp][lt]=1636012800",
+			ExpectedStatus: http.StatusOK,
+			ExpectedJSON:   `{"data":[{"timestamp":"2021-09-01T00:00:00Z","cpu_usage_percent":{"value":10.5},"memory_usage_percent":{"value":2.5},"io_usage_percent":{}},{"timestamp":"2021-09-01T00:01:00Z","cpu_usage_percent":{"value":20.5},"memory_usage_percent":{"value":2.5},"io_usage_percent":{}}]}`,
+		},
+		{
+			Name:           "metrics with datetime filter, filter ok",
+			URL:            "metrics?filter[timestamp][since]=2021-09-01:00:00:00&filter[timestamp][until]=2021-09-01:00:01:00",
+			ExpectedStatus: http.StatusOK,
+			ExpectedJSON:   `{"data":[{"timestamp":"2021-09-01T00:00:00Z","cpu_usage_percent":{"value":10.5},"memory_usage_percent":{"value":2.5},"io_usage_percent":{}},{"timestamp":"2021-09-01T00:01:00Z","cpu_usage_percent":{"value":20.5},"memory_usage_percent":{"value":2.5},"io_usage_percent":{}}]}`,
+		},
+		{
+			Name:           "metrics with filter, illegal bounds",
+			URL:            "metrics?filter[timestamp][gt]=1636009200&filter[timestamp][lt]=1636009190",
+			ExpectedStatus: http.StatusBadRequest,
+			ExpectedJSON:   `{"errors":[{"code":"", "detail":"", "title":"Illegal time value (upper before lower)"}]}`,
+		},
+		{
+			Name:           "processes default, no filter, no fields",
+			URL:            "processes",
+			ExpectedStatus: http.StatusOK,
+			ExpectedJSON:   `{"data":{"timestamp":"2021-09-01T00:00:00Z","processes":[{"pid":30212,"parent_pid":4711,"name":"chrome"}]}}`,
+		},
+	}
+
+	for _, tc := range testCases {
+		t.Run(tc.Name, func(t *testing.T) {
+			w := httptest.NewRecorder()
+			req := httptest.NewRequest("GET", "/api/v1/clients/test_client/"+tc.URL, nil)
+			al.router.ServeHTTP(w, req)
+
+			assert.Equal(t, tc.ExpectedStatus, w.Code)
+
+			gotJSON := w.Body.String()
+			assert.JSONEq(t, tc.ExpectedJSON, gotJSON)
+		})
+	}
+
 }

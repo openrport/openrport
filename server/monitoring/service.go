@@ -53,9 +53,13 @@ func (s *monitoringService) GetClientProcessesLatest(ctx context.Context, client
 }
 
 func (s *monitoringService) GetClientProcessesFiltered(ctx context.Context, clientID string, filters []query.FilterOption) (*monitoring.ClientProcessesPayload, error) {
-	t, err := time.Parse(layoutAPI, filters[0].Values[0])
+	var t time.Time
+	_, err := strconv.Atoi(filters[0].Values[0])
 	if err != nil {
-		return nil, fmt.Errorf("illegal time format:%v", filters[0].Values[0])
+		t, err = time.Parse(layoutAPI, filters[0].Values[0])
+		if err != nil {
+			return nil, fmt.Errorf("illegal time format:%v", filters[0].Values[0])
+		}
 	}
 	return s.DBProvider.GetProcessesNearestByClientID(ctx, clientID, t)
 }
@@ -65,9 +69,13 @@ func (s *monitoringService) GetClientMountpointsLatest(ctx context.Context, clie
 }
 
 func (s *monitoringService) GetClientMountpointsFiltered(ctx context.Context, clientID string, filters []query.FilterOption) (*monitoring.ClientMountpointsPayload, error) {
-	t, err := time.Parse(layoutAPI, filters[0].Values[0])
-	if err == nil {
-		return nil, fmt.Errorf("illegal time format:%v", filters[0].Values[0])
+	var t time.Time
+	_, err := strconv.Atoi(filters[0].Values[0])
+	if err != nil {
+		t, err = time.Parse(layoutAPI, filters[0].Values[0])
+		if err != nil {
+			return nil, fmt.Errorf("illegal time format:%v", filters[0].Values[0])
+		}
 	}
 	return s.DBProvider.GetMountpointsNearestByClientID(ctx, clientID, t)
 }

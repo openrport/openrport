@@ -2208,6 +2208,155 @@ paths:
           schema:
             $ref: "#/definitions/ErrorPayload"
 
+  /clients/{client_id}/metrics:
+    get:
+      tags:
+        - "Monitoring"
+      summary: "Reads client metrics"
+      description: "Read monitoring data about client metrics for the provided clientID"
+      produces:
+        - "application/json"
+      parameters:
+        - in: "path"
+          name: "client_id"
+          required: true
+          description: "Unique client ID"
+          type: "string"
+        - in: "query"
+          name: "sort"
+          description: "There is only `timestamp` allowed as sort field. Default direction is DESC\n
+            To sort ascending use `&sort=-timestamp`."
+          required: false
+          type: "string"
+        - in: "query"
+          name: "filter"
+          description: "Filter to find measurement points. It must be a combination of lower- and upper-bound.\n
+              It should be provided in the format as `filter[<FIELD>][<OP-LOWER>]=<VALUE>&filter[<FIELD>][<OP-UPPER>]=<VALUE>`,\n
+              where `<FIELD>` is one of the values `timestamp` or `limit`, `OP-LOWER` is one of `gt` or `since`, `OP-UPPER` is one of `lt` or `until`, and `<VALUE>` is the search value,\n
+              e.g. `filter[timestamp][gt]=1636009200&filter[timestamp[lt]=1636009500` will request measurement points between the given timestamps(`unixepoch`).\n
+              e.g. `filter[timestamp][since]=2021-01-01:00:00:00&filter[timestamp[until]=2021-01-01:01:00:00` also will request measurement points between the given timestamps.\n\n
+              Fetching data for a period greater than `48 hours` is not allowed. If the period exceeds `2 hours`, than the returned measurement points get downsampled to reduce the amount of data.\n
+              When downsampling takes place you get `average, min and max` values for `cpu_usage_percent, memory_usage_percent and io_usage_percent`\n\n
+              You can fetch a distinct number of measurment points with filter[limit]
+              e.g. `filter[timestamp][since]=2021-01-01:00:00:00&filter[limit]=10` (max limit=120 is allowed)\n
+                or `filter[timestamp][gt]=1636009500&filter[limit]=10`will request 10 measurement points >= the given timestamp.\n
+              "
+          required: false
+          type: "string"
+        - in: "query"
+          name: "fields[<RESOURCE>]"
+          description: "Fields to be returned. It should be provided in the format as `fields[<RESOURCE>]=<FIELDS>`,
+              where `<RESOURCE>` is `metrics` and `<FIELDS>` is a comma separated list of fields. Example: `fields[metrics]=timestamp,cpu_usage_percent,memory_usage_percent,io_usage_percent`.
+              If no fields are specified, `timestamp, cpu_usage_percent and memory_usage_percent` are returned."
+          required: false
+          type: "string"
+      responses:
+        "200":
+          description: "Successful Operation"
+          schema:
+            type: "object"
+            properties:
+              data:
+                type: "object"
+                $ref: "#/definitions/Metrics"
+        "400":
+          description: "Bad Request"
+          schema:
+            $ref: "#/definitions/ErrorPayload"
+        "404":
+          description: "Cannot find measurements by the provided id"
+          schema:
+            $ref: "#/definitions/ErrorPayload"
+        "500":
+          description: "Invalid Operation"
+          schema:
+            $ref: "#/definitions/ErrorPayload"
+  /clients/{client_id}/mountpoints:
+    get:
+      tags:
+        - "Monitoring"
+      summary: "Reads client mountpoints"
+      description: "Read monitoring data about client mountpoints for the provided clientID"
+      produces:
+        - "application/json"
+      parameters:
+        - in: "path"
+          name: "client_id"
+          required: true
+          description: "Unique client ID"
+          type: "string"
+        - in: "query"
+          name: "filter"
+          description: "There is only one filter `timestamp` allowed, which will request the `first mountpoint measurement >= timestamp`.\n
+          e.g. `filter[timestamp]=636009200` or `filter[timestamp]=2021-01-01:00:00:00`\n\n
+          When no filter is given, then the youngest measurement is delivered.\n
+              "
+          required: false
+          type: "string"
+      responses:
+        "200":
+          description: "Successful Operation"
+          schema:
+            type: "object"
+            properties:
+              data:
+                type: "object"
+                $ref: "#/definitions/Mountpoints"
+        "400":
+          description: "Bad Request"
+          schema:
+            $ref: "#/definitions/ErrorPayload"
+        "404":
+          description: "Cannot find measurements by the provided id"
+          schema:
+            $ref: "#/definitions/ErrorPayload"
+        "500":
+          description: "Invalid Operation"
+          schema:
+            $ref: "#/definitions/ErrorPayload"
+  /clients/{client_id}/processes:
+    get:
+      tags:
+        - "Monitoring"
+      summary: "Reads client processes"
+      description: "Read monitoring data about client processes for the provided clientID"
+      produces:
+        - "application/json"
+      parameters:
+        - in: "path"
+          name: "client_id"
+          required: true
+          description: "Unique client ID"
+          type: "string"
+        - in: "query"
+          name: "filter"
+          description: "There is only one filter `timestamp` allowed, which will request the `first processes measurement >= timestamp`.\n
+          e.g. `filter[timestamp]=636009200` or `filter[timestamp]=2021-01-01:00:00:00`\n\n
+          When no filter is given, then the youngest measurement is delivered.\n
+              "
+          required: false
+          type: "string"
+      responses:
+        "200":
+          description: "Successful Operation"
+          schema:
+            type: "object"
+            properties:
+              data:
+                type: "object"
+                $ref: "#/definitions/Processes"
+        "400":
+          description: "Bad Request"
+          schema:
+            $ref: "#/definitions/ErrorPayload"
+        "404":
+          description: "Cannot find measurements by the provided id"
+          schema:
+            $ref: "#/definitions/ErrorPayload"
+        "500":
+          description: "Invalid Operation"
+          schema:
+            $ref: "#/definitions/ErrorPayload"
 definitions:
   Tunnel:
     type: "object"
@@ -2911,3 +3060,63 @@ definitions:
       script:
         type: "string"
         description: "[required] text of the command"
+  Metrics:
+    type: "object"
+    properties:
+      timestamp:
+        type: "string"
+        format: "date-time"
+        description: "Timestamp of measurement"
+      cpu_usage_percent:
+        properties:
+          value:
+            type: "number"
+            description: "cpu_usage_percent or average of cpu_usage_percent"
+          min:
+            type: "number"
+            description: "cpu_usage_percent minimum"
+          max:
+            type: "number"
+            description: "cpu_usage_percent maximum"
+      memory_usage_percent:
+        properties:
+          value:
+            type: "number"
+            description: "memory_usage_percent or average of memory_usage_percent"
+          min:
+            type: "number"
+            description: "memory_usage_percent minimum"
+          max:
+            type: "number"
+            description: "memory_usage_percent maximum"
+      io_usage_percent:
+        properties:
+          value:
+            type: "number"
+            description: "io_usage_percent or average of cpu_usage_percent"
+          min:
+            type: "number"
+            description: "io_usage_percent minimum"
+          max:
+            type: "number"
+            description: "io_usage_percent maximum"
+  Mountpoints:
+    type: "object"
+    properties:
+      timestamp:
+        type: "string"
+        format: "date-time"
+        description: "Timestamp of measurement"
+      mountpoints:
+        type: "string"
+        description: "JSON encoded information about mountpoints"
+  Processes:
+    type: "object"
+    properties:
+      timestamp:
+        type: "string"
+        format: "date-time"
+        description: "Timestamp of measurement"
+      mountpoints:
+        type: "string"
+        description: "JSON encoded information about processes"

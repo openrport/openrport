@@ -27,7 +27,6 @@ type DBProvider interface {
 	GetMountpointsLatestByClientID(ctx context.Context, clientID string) (*monitoring2.ClientMountpointsPayload, error)
 	GetMountpointsNearestByClientID(ctx context.Context, clientID string, at time.Time) (*monitoring2.ClientMountpointsPayload, error)
 	Close() error
-	DB() *sqlx.DB
 }
 
 type SqliteProvider struct {
@@ -139,8 +138,4 @@ func (p *SqliteProvider) DeleteMeasurementsBefore(ctx context.Context, compare t
 
 func (p *SqliteProvider) Close() error {
 	return p.db.Close()
-}
-
-func (p *SqliteProvider) DB() *sqlx.DB {
-	return p.db
 }

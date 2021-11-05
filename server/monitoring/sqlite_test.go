@@ -11,6 +11,7 @@ import (
 	chshare "github.com/cloudradar-monitoring/rport/share"
 	"github.com/cloudradar-monitoring/rport/share/models"
 	"github.com/cloudradar-monitoring/rport/share/query"
+	"github.com/cloudradar-monitoring/rport/share/types"
 )
 
 var testLog = chshare.NewLogger("monitoring", chshare.LogOutput{File: os.Stdout}, chshare.LogLevelDebug)
@@ -203,7 +204,8 @@ func TestSqliteProvider_GetProcessesLatestByClientID(t *testing.T) {
 	pC1, err := dbProvider.GetProcessesLatestByClientID(ctx, "test_client_1")
 	require.NoError(t, err)
 	require.NotNil(t, pC1)
-	require.Equal(t, `{[{"pid":30212, "parent_pid": 4711, "name": "cinnamon"}]}`, pC1.Processes)
+	var expectedJSON types.JSONString = `{[{"pid":30212, "parent_pid": 4711, "name": "cinnamon"}]}`
+	require.Equal(t, expectedJSON, pC1.Processes)
 }
 
 func TestSqliteProvider_GetProcessesNearestByClientID(t *testing.T) {
@@ -221,7 +223,8 @@ func TestSqliteProvider_GetProcessesNearestByClientID(t *testing.T) {
 	pC1, err := dbProvider.GetProcessesNearestByClientID(ctx, "test_client_1", m2)
 	require.NoError(t, err)
 	require.NotNil(t, pC1)
-	require.Equal(t, `{[{"pid":30211, "parent_pid": 4711, "name": "idea"}]}`, pC1.Processes)
+	var expectedJSON types.JSONString = `{[{"pid":30211, "parent_pid": 4711, "name": "idea"}]}`
+	require.Equal(t, expectedJSON, pC1.Processes)
 }
 
 func TestSqliteProvider_GetMountpointsLatestByClientID(t *testing.T) {
@@ -238,7 +241,8 @@ func TestSqliteProvider_GetMountpointsLatestByClientID(t *testing.T) {
 	mC1, err := dbProvider.GetMountpointsLatestByClientID(ctx, "test_client_1")
 	require.NoError(t, err)
 	require.NotNil(t, mC1)
-	require.Equal(t, `{"free_b./":54182758400,"free_b./home":328029413376,"total_b./":105555197952,"total_b./home":364015185920}`, mC1.Mountpoints)
+	var expectedJSON types.JSONString = `{"free_b./":54182758400,"free_b./home":328029413376,"total_b./":105555197952,"total_b./home":364015185920}`
+	require.Equal(t, expectedJSON, mC1.Mountpoints)
 }
 
 func TestSqliteProvider_GetMountpointsNearestByClientID(t *testing.T) {
@@ -256,7 +260,8 @@ func TestSqliteProvider_GetMountpointsNearestByClientID(t *testing.T) {
 	mC1, err := dbProvider.GetMountpointsNearestByClientID(ctx, "test_client_1", m2)
 	require.NoError(t, err)
 	require.NotNil(t, mC1)
-	require.Equal(t, `{"free_b./":44182758400,"free_b./home":228029413376,"total_b./":105555197952,"total_b./home":364015185920}`, mC1.Mountpoints)
+	var expectedJSON types.JSONString = `{"free_b./":44182758400,"free_b./home":228029413376,"total_b./":105555197952,"total_b./home":364015185920}`
+	require.Equal(t, expectedJSON, mC1.Mountpoints)
 }
 
 func createTestData(ctx context.Context, dbProvider DBProvider) error {
