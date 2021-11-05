@@ -4,6 +4,7 @@ import (
 	"context"
 	"crypto/subtle"
 	"fmt"
+	"github.com/cloudradar-monitoring/rport/server/api/users"
 	"net/http"
 	"sync"
 	"time"
@@ -107,9 +108,9 @@ func (srv *TwoFAService) SetTotPLoginSession(username string, loginSessionTTL ti
 	srv.mu.Unlock()
 }
 
-func (srv *TwoFAService) ValidateTotPCode(username, code, secretKey string) error {
+func (srv *TwoFAService) ValidateTotPCode(user *users.User, code string) error {
 	srv.mu.RLock()
-	t := srv.tokensByUser[username]
+	t := srv.tokensByUser[user.Username]
 	defer srv.mu.RUnlock()
 
 	if t == nil {
@@ -126,7 +127,21 @@ func (srv *TwoFAService) ValidateTotPCode(username, code, secretKey string) erro
 		}
 	}
 
-	if !CheckTotPCode(code, secretKey) {
+	totP, err := GetUsersTotPCode(user)
+	if err != nil {
+		return errors2.APIError{
+			Err:        err,
+			HTTPStatus: http.StatusInternalServerError,
+		}
+	}
+	if totP.Secret == "" {
+		return errors2.APIError{
+			Message:        "time based one time secret key should be generated for this user",
+			HTTPStatus: http.StatusConflict,
+		}
+	}
+
+	if !CheckTotPCode(code, totP.Secret) {
 		return errors2.APIError{
 			Message:    "invalid token",
 			HTTPStatus: http.StatusUnauthorized,

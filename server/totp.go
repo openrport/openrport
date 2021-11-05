@@ -2,78 +2,97 @@ package chserver
 
 import (
 	"bytes"
+	"encoding/base64"
+	"encoding/json"
 	"fmt"
-	"image/jpeg"
-	"image/png"
-	"io"
-	"io/ioutil"
-	"os"
-	"path/filepath"
-
+	"github.com/cloudradar-monitoring/rport/server/api/users"
 	"github.com/pquerna/otp"
 	"github.com/pquerna/otp/totp"
+	"image/png"
 )
 
 const (
-	DefaultTotPQrImageWidth    = 200
-	DefaultTotPQrImageHeight   = 200
-	DefaultTotPQrImageFileMode = os.FileMode(0644)
+	DefaultTotPQrImageWidth  = 200
+	DefaultTotPQrImageHeight = 200
 )
+
+type TotPInput struct {
+	Issuer      string
+	AccountName string
+}
+
+type TotP struct {
+	Secret        string `json:"secret"`
+	QRImageBase64 string `json:"qr"`
+}
+
+func GetUsersTotPCode(usr *users.User) (*TotP, error) {
+	totP := new(TotP)
+	if usr.TotP == "" {
+		return totP, nil
+	}
+
+	err := json.Unmarshal([]byte(usr.TotP), totP)
+
+	if err != nil {
+		return nil, fmt.Errorf("failed to convert '%s' to TotP secret data", usr.TotP)
+	}
+
+	return totP, nil
+}
+
+func StoreTotPCodeInUser(usr *users.User, totP *TotP) error {
+	totPBytes, err := json.Marshal(totP)
+
+	if err != nil {
+		return fmt.Errorf("failed to generate totP secret data: %v", err)
+	}
+
+	usr.TotP = string(totPBytes)
+
+	return nil
+}
 
 func CheckTotPCode(code, secretKey string) bool {
 	return totp.Validate(code, secretKey)
 }
 
-func GenerateTotPSecretKey(issuer, accountName, imagePath string, codeOutput io.Writer) error {
+func GenerateTotPSecretKey(inpt *TotPInput) (*TotP, error) {
 	key, err := totp.Generate(totp.GenerateOpts{
-		Issuer:      issuer,
-		AccountName: accountName,
+		Issuer:      inpt.Issuer,
+		AccountName: inpt.AccountName,
 	})
 
 	if err != nil {
-		return err
+		return nil, err
 	}
 
-	if imagePath != "" {
-		err = generateImage(imagePath, key)
-		if err != nil {
-			return err
-		}
+	imgBase64, err := generateImage(key)
+	if err != nil {
+		return nil, err
 	}
 
-	_, err = codeOutput.Write([]byte(key.Secret()))
+	totP := &TotP{
+		Secret:        key.Secret(),
+		QRImageBase64: imgBase64,
+	}
 
-	return err
+	return totP, err
 }
 
-func generateImage(imagePath string, key *otp.Key) error {
+func generateImage(key *otp.Key) (imgBase64 string, err error) {
 	var buf bytes.Buffer
 	img, err := key.Image(DefaultTotPQrImageWidth, DefaultTotPQrImageHeight)
 	if err != nil {
-		return err
+		return "", err
 	}
 
-	ext := filepath.Ext(imagePath)
-	switch ext {
-	case ".png":
-		err = png.Encode(&buf, img)
-		if err != nil {
-			return err
-		}
-	case ".jpg":
-		err = jpeg.Encode(&buf, img, nil)
-		if err != nil {
-			return err
-		}
-
-	default:
-		return fmt.Errorf("unsupported image format %s", ext)
-	}
-
-	err = ioutil.WriteFile(imagePath, buf.Bytes(), DefaultTotPQrImageFileMode)
+	err = png.Encode(&buf, img)
 	if err != nil {
-		return err
+		return "", err
 	}
 
-	return nil
+	imgBase64 = base64.StdEncoding.EncodeToString(buf.Bytes())
+
+	return imgBase64, nil
 }

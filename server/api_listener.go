@@ -91,7 +91,14 @@ func NewAPIListener(
 		usersProvider = users.NewStaticProvider([]*users.User{authUser})
 	} else if config.API.AuthUserTable != "" {
 		logger := chshare.NewLogger("database", config.Logging.LogOutput, config.Logging.LogLevel)
-		usersProvider, err = users.NewUserDatabase(server.db, config.API.AuthUserTable, config.API.AuthGroupTable, config.API.IsTwoFAOn(), logger)
+		usersProvider, err = users.NewUserDatabase(
+			server.db,
+			config.API.AuthUserTable,
+			config.API.AuthGroupTable,
+			config.API.IsTwoFAOn(),
+			config.API.TotPEnabled,
+			logger,
+		)
 		if err != nil {
 			return nil, err
 		}
@@ -185,7 +192,7 @@ func NewAPIListener(
 		a.Logger.Infof("2FA is enabled via using %s", config.API.TwoFATokenDelivery)
 	}
 
-	if config.API.TotPSecret != "" {
+	if config.API.TotPEnabled {
 		a.twoFASrv = NewTwoFAService(
 			config.API.TwoFATokenTTLSeconds,
 			config.API.TwoFASendTimeout,
@@ -266,7 +273,7 @@ func (al *APIListener) lookupUser(r *http.Request) (authorized bool, username st
 	}
 
 	if bearerToken, bearerAuthProvided := getBearerToken(r); bearerAuthProvided {
-		return al.handleBearerToken(bearerToken)
+		return al.handleBearerToken(bearerToken, al.subjectFromRequest(r))
 	}
 
 	// case when no auth method is provided
@@ -313,8 +320,8 @@ func (al *APIListener) handleBasicAuth(username, password string) (authorized bo
 	return false, username, nil
 }
 
-func (al *APIListener) handleBearerToken(bearerToken string) (bool, string, error) {
-	authorized, username, apiSession, err := al.validateBearerToken(bearerToken)
+func (al *APIListener) handleBearerToken(bearerToken, currentSubject string) (bool, string, error) {
+	authorized, username, apiSession, err := al.validateBearerToken(bearerToken, currentSubject)
 	if err != nil {
 		return false, username, err
 	}
@@ -388,7 +395,7 @@ func (al *APIListener) wsAuth(f http.Handler) http.HandlerFunc {
 			return
 		}
 
-		authorized, username, err := al.handleBearerToken(token)
+		authorized, username, err := al.handleBearerToken(token, al.subjectFromRequest(r))
 		if err != nil {
 			if errors.Is(err, ErrTooManyRequests) {
 				al.jsonErrorResponse(w, http.StatusTooManyRequests, err)

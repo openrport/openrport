@@ -21,7 +21,7 @@ type Token struct {
 	jwt.StandardClaims
 }
 
-func (al *APIListener) createAuthToken(lifetime time.Duration, username string) (string, error) {
+func (al *APIListener) createAuthToken(lifetime time.Duration, username, subject string) (string, error) {
 	if username == "" {
 		return "", errors.New("username cannot be empty")
 	}
@@ -30,6 +30,7 @@ func (al *APIListener) createAuthToken(lifetime time.Duration, username string) 
 		Username: username,
 		StandardClaims: jwt.StandardClaims{
 			Id: strconv.FormatUint(rand.Uint64(), 10),
+			Subject: subject,
 		},
 	}
 	token := jwt.NewWithClaims(jwt.SigningMethodHS256, claims)
@@ -56,7 +57,11 @@ func (al *APIListener) increaseSessionLifetime(s *APISession) error {
 	return al.apiSessionRepo.Save(s)
 }
 
-func (al *APIListener) validateBearerToken(tokenStr string) (bool, string, *APISession, error) {
+func (al *APIListener) subjectFromRequest(r *http.Request) string {
+	return "/" + strings.Trim(r.URL.Path, "/")
+}
+
+func (al *APIListener) validateBearerToken(tokenStr, curSubject string) (bool, string, *APISession, error) {
 	tk := &Token{}
 	token, err := jwt.ParseWithClaims(tokenStr, tk, func(token *jwt.Token) (i interface{}, err error) {
 		return []byte(al.config.API.JWTSecret), nil
@@ -67,11 +72,28 @@ func (al *APIListener) validateBearerToken(tokenStr string) (bool, string, *APIS
 		return false, "", nil, nil
 	}
 
+	if tk.StandardClaims.Subject != "*" &&  tk.StandardClaims.Subject != curSubject {
+		al.Errorf(
+			"Token subject %s doesn't match the current url %s, so this token is not intended to be used for this page",
+			tk.StandardClaims.Subject,
+			curSubject,
+		)
+		return false, tk.Username, nil, nil
+	}
+
 	if al.bannedUsers.IsBanned(tk.Username) {
+		al.Errorf(
+			"User %s is banned",
+			tk.Username,
+		)
 		return false, tk.Username, nil, ErrTooManyRequests
 	}
 
 	if !token.Valid || tk.Username == "" {
+		al.Errorf(
+			"Token is invalid or user name is empty",
+			tk.Username,
+		)
 		return false, "", nil, nil
 	}
 
@@ -80,7 +102,15 @@ func (al *APIListener) validateBearerToken(tokenStr string) (bool, string, *APIS
 		return false, "", nil, err
 	}
 
-	return apiSession.ExpiresAt.After(time.Now()), tk.Username, apiSession, nil
+	isValidByExpirationTime := apiSession.ExpiresAt.After(time.Now())
+	if !isValidByExpirationTime {
+		al.Errorf(
+			"api session time %v is expired",
+			apiSession.ExpiresAt,
+		)
+		return false, "", nil, err
+	}
+	return true, tk.Username, apiSession, nil
 }
 
 func getBearerToken(req *http.Request) (string, bool) {

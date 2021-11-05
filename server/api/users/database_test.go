@@ -65,7 +65,7 @@ func TestNewUserDatabase(t *testing.T) {
 
 	for _, tc := range testCases {
 		t.Run(tc.Name, func(t *testing.T) {
-			_, err := NewUserDatabase(db, tc.UsersTable, tc.GroupsTable, false, testLog)
+			_, err := NewUserDatabase(db, tc.UsersTable, tc.GroupsTable, false, false, testLog)
 			if tc.ExpectedError == "" {
 				require.NoError(t, err)
 			} else {
@@ -87,7 +87,7 @@ func TestGetByUsername(t *testing.T) {
 	err = prepareDummyData(db)
 	require.NoError(t, err)
 
-	d, err := NewUserDatabase(db, "users", "groups", false, testLog)
+	d, err := NewUserDatabase(db, "users", "groups", false, false, testLog)
 	require.NoError(t, err)
 
 	testCases := []struct {
@@ -150,7 +150,7 @@ func TestGetAll(t *testing.T) {
 	err = prepareDummyData(db)
 	require.NoError(t, err)
 
-	d, err := NewUserDatabase(db, "users", "groups", false, testLog)
+	d, err := NewUserDatabase(db, "users", "groups", false, false, testLog)
 	require.NoError(t, err)
 
 	actualUsers, err := d.GetAll()
@@ -195,7 +195,7 @@ func TestGetAllGroups(t *testing.T) {
 	err = prepareDummyData(db)
 	require.NoError(t, err)
 
-	d, err := NewUserDatabase(db, "users", "groups", false, testLog)
+	d, err := NewUserDatabase(db, "users", "groups", false, false, testLog)
 	require.NoError(t, err)
 
 	actualGroups, err := d.GetAllGroups()
@@ -256,7 +256,7 @@ func TestAdd(t *testing.T) {
 			err = prepareTables(db)
 			require.NoError(t, err)
 
-			d, err := NewUserDatabase(db, "users", "groups", false, testLog)
+			d, err := NewUserDatabase(db, "users", "groups", false, false, testLog)
 			require.NoError(t, err)
 
 			err = d.Add(testCase.userToChange)
@@ -441,7 +441,7 @@ func TestUpdate(t *testing.T) {
 			err = prepareDummyData(db)
 			require.NoError(t, err)
 
-			d, err := NewUserDatabase(db, "users", "groups", false, testLog)
+			d, err := NewUserDatabase(db, "users", "groups", false, false, testLog)
 			require.NoError(t, err)
 
 			testCase := testCases[i]
@@ -466,7 +466,7 @@ func TestDelete(t *testing.T) {
 	err = prepareDummyData(db)
 	require.NoError(t, err)
 
-	d, err := NewUserDatabase(db, "users", "groups", false, testLog)
+	d, err := NewUserDatabase(db, "users", "groups", false, false, testLog)
 	require.NoError(t, err)
 
 	err = d.Delete("user1")

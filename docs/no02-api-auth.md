@@ -43,6 +43,8 @@ Rportd holds the tokens in memory. Restarting rportd deletes (expires) them all.
 
 Tokens are based on JWT. For your security, you should enter a unique `jwt_secret` into the `rportd.conf`. Do not use the provided sample secret in a production environment.
 
+Tokens can be issued only for certain pages. If you have time based one time passwords enabled (see `totp_secret` configuration option and the description below), the tokens issued with the `login` API can only be used for `/me/totp-secret` URLs. To receive a fully functional JWT token, you need to pass a valid one time password to the `/verify-2fa` API.
+
 ### Two-Factor Auth
 If you want an extra layer of security, you can enable 2FA. It allows you to confirm your login with a verification code sent by a chosen delivery method.
 Supported delivery methods:
@@ -178,6 +180,30 @@ If you want to have more than one user, create a json file with the following st
 ]
 ```
 :::
+::: time based one time password (TotP) on
+```json
+[
+    {
+        "username": "Admin",
+        "password": "$2y$10$ezwCZekHE/qxMb4g9n6rU.XIIdCnHnOo.q2wqqA8LyYf3ihonenmu",
+        "groups": [
+            "Administrators",
+            "Bunnies"
+        ],
+        "totp_secret": ""
+    },
+    {
+        "username": "Bunny",
+        "password": "$2y$10$ezwCZekHE/qxMb4g9n6rU.XIIdCnHnOo.q2wqqA8LyYf3ihonenmu",
+        "groups": [
+            "Bunnies"
+        ],
+        "totp_secret": ""
+    }
+]
+```
+Please note, that the values for `totp_secret` field are added when you use `/me/totp-secret` api.
+:::
 ::::
 
 Using `/var/lib/rport/api-auth.json` or `C:\Program Files\rport\api-auth.json` is a good choice.
@@ -209,7 +235,7 @@ The tables must be created manually.
 
 Each time a http basic auth request is received, rport executes these two queries.
 :::: code-group
-::: code-group-item 2FA off
+::: code-group-item 2FA off, TotP off
 ```
 SELECT username,password FROM {user-table} WHERE username='{username}' LIMIT 1;
 SELECT DISTINCT(group) FROM {group-table} WHERE username='{username}';
@@ -218,6 +244,12 @@ SELECT DISTINCT(group) FROM {group-table} WHERE username='{username}';
 ::: code-group-item 2FA on
 ```
 SELECT username,password,two_fa_send_to FROM {user-table} WHERE username='{username}' LIMIT 1;
+SELECT DISTINCT(group) FROM {group-table} WHERE username='{username}';
+```
+:::
+::: totP on
+```
+SELECT username,password,totp_secret FROM {user-table} WHERE username='{username}' LIMIT 1;
 SELECT DISTINCT(group) FROM {group-table} WHERE username='{username}';
 ```
 :::
@@ -237,7 +269,7 @@ Reload rportd to apply all changes.
 #### MySQL Example
 Create table. Change column types and lengths to your needs.
 :::: code-group
-::: code-group-item 2FA off
+::: code-group-item 2FA off, time based one time password (TotP) off
 ```mysql
 CREATE TABLE `users` (
   `username` varchar(150) NOT NULL,
@@ -258,6 +290,21 @@ CREATE TABLE `users` (
   `password` varchar(255) NOT NULL,
   `two_fa_send_to` varchar(150),
   `token` char(36) default NULL,
+  UNIQUE KEY `username` (`username`)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8;
+CREATE TABLE `groups` (
+  `username` varchar(150) NOT NULL,
+  `group` varchar(150) NOT NULL,
+  UNIQUE KEY `username_group` (`username`,`group`)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8;
+```
+:::
+::: time based one time password (TotP) on
+```mysql
+CREATE TABLE `users` (
+  `username` varchar(150) NOT NULL,
+  `password` varchar(255) NOT NULL,
+  `totp_secret` longtext NOT NULL,
   UNIQUE KEY `username` (`username`)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8;
 CREATE TABLE `groups` (
@@ -299,7 +346,7 @@ sqlite>
 ```
 
 :::: code-group
-::: code-group-item 2FA off
+::: code-group-item 2FA off, time based one time password (TotP) off
 ```sqlite
 CREATE TABLE "users" (
   "username" TEXT(150) NOT NULL,
@@ -327,6 +374,27 @@ CREATE TABLE "users" (
   "password" TEXT(255) NOT NULL,
   "token" TEXT(36) DEFAULT NULL,
   "two_fa_send_to" TEXT(150)
+);
+CREATE UNIQUE INDEX "main"."username"
+ON "users" (
+  "username" ASC
+);
+CREATE TABLE "groups" (
+  "username" TEXT(150) NOT NULL,
+  "group" TEXT(150) NOT NULL
+);
+CREATE UNIQUE INDEX "main"."username_group"
+ON "groups" (
+  "username" ASC,
+  "group" ASC
+);
+```
+::: ::: time based one time password (TotP) on
+```sqlite
+CREATE TABLE "users" (
+  "username" TEXT(150) NOT NULL,
+  "password" TEXT(255) NOT NULL,
+  "totp_secret" TEXT NOT NULL
 );
 CREATE UNIQUE INDEX "main"."username"
 ON "users" (
@@ -413,52 +481,45 @@ curl -Ss -X PUT https://localhost/api/v1/users/Willy \
 You can enable 2FA with an authenticator app e.g. [Google Authenticator](https://play.google.com/store/apps/details?id=com.google.android.apps.authenticator2&hl=de&gl=US) 
 or [Microsoft Authenticator](https://www.microsoft.com/de-de/security/mobile-authenticator-app?rtc=1).
 
-To activate 2FA  based on [Time-based One Time Password](https://en.wikipedia.org/wiki/Time-based_One-time_Password_algorithm)
-you should provide a secret key in `totp_secret` option in `[api]` configuration section.
+To activate 2FA based on [Time-based One Time Password](https://en.wikipedia.org/wiki/Time-based_One-time_Password_algorithm)
+you should set `totp_enabled` option to true in `[api]` configuration section.
+Please note, that `totp_enabled` option cannot be combined with the email or sms based 2FA auth enabled (see `two_fa_token_delivery` option).
 
-You can generate secret key by executing following command with the rportd binary:
-```
-rportd totp
-```
+Another limitation is that you cannot use this auth method with static key/password pair authentication.
 
-You can copy the generated code to an Authenticator app of your choice or you can also generate a qr code for better usability:
+If you use a mysql/sqlite database for storing users data, you should also have `totp_secret` column there (see sql queries above).
 
-```
-rportd totp --totp-image bin/qr.jpg #to generate a qr code in jpeg format
-rportd totp --totp-image bin/qr.png #to generate a qr code in png format
-```
-
-Copy the generated secret code to the `totp_secret` option in the rport configuration and use the image to add a account in an authenticator app.
-
-Optionally you can change issuer and account name that will be encrypted in the gr code. Those values will be used to identify an account in an Authenticator app.
+After enabling the `totp_enabled` option and providing needed database columns, you should use `login` API to pass first factor authentication. There you will get a bearer token as well as `delivery_method` equal to `totp_authenticator_app`, that indicates totp auth method, e.g.:
 
 ```
-rportd totp --totp-image bin/qr.png --totp-account no@mail.me --totp-issuer mycomp
-```
-
-Time based one-time password 2FA auth method conflicts with a non-empty `two_fa_token_delivery` option, as rport won't know which method to use. In this case please make sure, that `two_fa_token_delivery` option is empty before providing a `totp_secret` option othewise an error will occur.
-
-Please note that the generated secret key is associated with the generated qr code.  
-It means that you cannot generate a qr code to an existing secret key or generate a secret key based on an existing qr image.
-
-To verify one time passwords generated by an Authenticator application, you can call `verify-2fa` API and use the generated code as 2fa token.
-Verify this code using [`/verify-2fa`](https://petstore.swagger.io/?url=https://raw.githubusercontent.com/cloudradar-monitoring/rport/master/api-doc.yml#/Login/post_verify_2fa) endpoint.
-   It returns an auth JWT token that can be further used for any requests as listed in [here](no02-api-auth.md#bearer-token-auth). For example,
-```
-curl -s http://localhost:3000/api/v1/verify-2fa -H "Content-Type: application/json" -X POST \
---data-raw '{
-"username": "admin",
-"token": "34976"
-}'|jq
 {
-  "data": {
-    "token": "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJ1c2VybmFtZSI6ImFkbWluIiwianRpIjoiMTcwMTc0MjY4MTkxNTQwMDA2NjQifQ.IhOK2leOdCXK5jvAO9aWEcpZ0kanpSkSbRpufha8soc",
-    "two_fa": null
-  }
+    "data": {
+        "token": "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJ1c2VybmFtZSI6InVzZXIiLCJqdGkiOiIxOTA2MTc2.LzSZDGo0vlsDi-Puy3w_vVZab50",
+        "two_fa": {
+            "send_to": "",
+            "delivery_method": "totp_authenticator_app"
+        }
+    }
+}
+```
+Note, that you cannot use this bearer token for all APIs rather than `/me/totp-secret`. The reason for this, that 2FA requires additional authentication step by providing one time password generated by an Authenticator app.
+
+You should use this bearer token to create a private key for an Authenticator app. This key will be stored in the users' database.
+
+After this you can read private key by calling `/me/totp-secret` API with a get method. In the response you will receive a private key as well as a base64 encoded png image with the qr code, which you can use to register a new account in an Authenticator app:
+
+```
+{
+    "secret": "TPOJSIYNF4QPV4DfaSFUNP3QFU6XHUDZ",
+    "qr": "VBORw0KGgoAAAANSUhEUgAAAMgAAADIEAAAAADYoy0BAAAGc0l"
 }
 ```
 
-Before using `verify-2fa` API, users should call `login` API, otherwise they could just provide a valid code from an Authenticator app and bypass login.
+After adding a new rport account to an Authenticator app, you will see autogenerated one time passwords, which are changing every 30 seconds.
+
+Use this code in the `/verify-2fa` API as `token` field. There you will get a proper bearer token, which can be used in all other APIs.
+
+Before using `verify-2fa` API, users have to get a bearer token in the `login` API, otherwise they could just provide a valid code from an Authenticator app and bypass login.
 This gives additional protection in cases if e.g. someone knows the one time password but doens't have login and password.
 
 A user has a limited time to provide an Authenticator's code after login. This time is set in `totp_login_session_ttl` option.

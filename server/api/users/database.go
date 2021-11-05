@@ -18,15 +18,22 @@ type UserDatabase struct {
 	groupsTableName string
 	twoFAOn         bool
 	hasTokenColumn  bool
+	totPOn          bool
 	logger          *chshare.Logger
 }
 
-func NewUserDatabase(DB *sqlx.DB, usersTableName, groupsTableName string, twoFAOn bool, logger *chshare.Logger) (*UserDatabase, error) {
+func NewUserDatabase(
+	DB *sqlx.DB,
+	usersTableName, groupsTableName string,
+	twoFAOn, totPOn bool,
+	logger *chshare.Logger,
+) (*UserDatabase, error) {
 	d := &UserDatabase{
 		db:              DB,
 		usersTableName:  usersTableName,
 		groupsTableName: groupsTableName,
 		twoFAOn:         twoFAOn,
+		totPOn:          totPOn,
 		logger:          logger,
 	}
 	if err := d.checkDatabaseTables(); err != nil {
@@ -43,6 +50,9 @@ func (d *UserDatabase) getSelectClause() string {
 	if d.hasTokenColumn {
 		s += ", token"
 	}
+	if d.totPOn {
+		s += ", totp_secret"
+	}
 	return s
 }
 
@@ -52,8 +62,10 @@ func (d *UserDatabase) checkDatabaseTables() error {
 	if err == nil {
 		d.hasTokenColumn = true
 	}
+
 	_, err = d.db.Exec(fmt.Sprintf("SELECT %s FROM `%s` LIMIT 0", d.getSelectClause(), d.usersTableName))
 	if err != nil {
+		err = fmt.Errorf("%v, if you have 2fa enabled please check additional column requirements at https://oss.rport.io/docs/no02-api-auth.html#database", err)
 		return err
 	}
 	_, err = d.db.Exec(fmt.Sprintf("SELECT username, `group` FROM `%s` LIMIT 0", d.groupsTableName))
@@ -140,20 +152,35 @@ func (d *UserDatabase) Add(usr *User) error {
 		return err
 	}
 
-	if d.twoFAOn {
-		_, err = tx.Exec(
-			fmt.Sprintf("INSERT INTO `%s` (`username`, `password`, `two_fa_send_to`) VALUES (?, ?, ?)", d.usersTableName),
-			usr.Username,
-			usr.Password,
-			usr.TwoFASendTo,
-		)
-	} else {
-		_, err = tx.Exec(
-			fmt.Sprintf("INSERT INTO `%s` (`username`, `password`) VALUES (?, ?)", d.usersTableName),
-			usr.Username,
-			usr.Password,
-		)
+	columns := []string{
+		"`username`",
+		"`password`",
 	}
+	params := []interface{}{
+		usr.Username,
+		usr.Password,
+	}
+
+	if d.twoFAOn {
+		columns = append(columns, "`two_fa_send_to`")
+		params = append(params, usr.TwoFASendTo)
+	}
+
+	if d.totPOn {
+		columns = append(columns, "`totp_secret`")
+		params = append(params, usr.TotP)
+	}
+
+	_, err = tx.Exec(
+		fmt.Sprintf(
+			"INSERT INTO `%s` (%s) VALUES (%s)",
+			d.usersTableName,
+			strings.Join(columns, ", "),
+			strings.TrimRight(strings.Repeat("?,", len(params)), ","),
+		),
+		params...,
+	)
+
 	if err != nil {
 		d.handleRollback(tx)
 		return err
@@ -195,6 +222,11 @@ func (d *UserDatabase) Update(usr *User, usernameToUpdate string) error {
 	if usr.TwoFASendTo != "" {
 		statements = append(statements, "`two_fa_send_to` = ?")
 		params = append(params, usr.TwoFASendTo)
+	}
+
+	if usr.TotP != "" {
+		statements = append(statements, "`totp_secret` = ?")
+		params = append(params, usr.TotP)
 	}
 
 	if usr.Username != "" && usr.Username != usernameToUpdate {

@@ -396,7 +396,7 @@ func TestParseAndValidateAPI(t *testing.T) {
 				API: APIConfig{
 					Address:    "0.0.0.0:3000",
 					AuthFile:   "test.json",
-					TotPSecret: "XEHFIFRFGZ56ZVASHONA6RTNKE6SZZXC",
+					TotPEnabled: true,
 				},
 			},
 			ExpectedError: nil,
@@ -407,12 +407,12 @@ func TestParseAndValidateAPI(t *testing.T) {
 				API: APIConfig{
 					Address:            "0.0.0.0:3000",
 					AuthFile:           "test.json",
-					TotPSecret:         "XEHFIFRFGZ56ZVASHONA6RTNKE6SZZXC",
+					TotPEnabled:         true,
 					TwoFATokenDelivery: "/bin/sh",
 					TwoFASendToType:    message.ValidationRegex,
 				},
 			},
-			ExpectedError: errors.New("API: conflicting 2FA configuration, two factor auth and totp_secret options cannot be both enabled"),
+			ExpectedError: errors.New("API: conflicting 2FA configuration, two factor auth and totp_enabled options cannot be both enabled"),
 		},
 	}
 
