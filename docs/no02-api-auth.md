@@ -526,3 +526,6 @@ A user has a limited time to provide an Authenticator's code after login. This t
 
 If a user provides valid login and password, waits more than `totp_login_session_ttl` time and provides a valid totp code, his login attempt will be rejected.
 You're flexible in selecting ms, seconds, minutes and hours for the `totp_login_session_ttl` option, so you can set it as e.g. "3600000ms", "3600s" or "60m" or "1h".
+
+If you want to completely remove private key for an Authenticator app (e.g. because qr code was exposed), you can a delete method on `/me/totp-secret` API, which will remove private key for the current user.
+If you have Administrators role, you can also delete TotP private keys for all other users by calling `/users/{user_name}/totp-secret` API.
