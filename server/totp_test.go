@@ -3,10 +3,11 @@ package chserver
 import (
 	"bytes"
 	"encoding/base64"
-	"github.com/cloudradar-monitoring/rport/server/api/users"
 	"image/png"
 	"testing"
 	"time"
+
+	"github.com/cloudradar-monitoring/rport/server/api/users"
 
 	"github.com/pquerna/otp/totp"
 	"github.com/stretchr/testify/assert"

@@ -4,10 +4,11 @@ import (
 	"context"
 	"crypto/subtle"
 	"fmt"
-	"github.com/cloudradar-monitoring/rport/server/api/users"
 	"net/http"
 	"sync"
 	"time"
+
+	"github.com/cloudradar-monitoring/rport/server/api/users"
 
 	errors2 "github.com/cloudradar-monitoring/rport/server/api/errors"
 	"github.com/cloudradar-monitoring/rport/server/api/message"
@@ -136,7 +137,7 @@ func (srv *TwoFAService) ValidateTotPCode(user *users.User, code string) error {
 	}
 	if totP.Secret == "" {
 		return errors2.APIError{
-			Message:        "time based one time secret key should be generated for this user",
+			Message:    "time based one time secret key should be generated for this user",
 			HTTPStatus: http.StatusConflict,
 		}
 	}

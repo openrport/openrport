@@ -1316,7 +1316,7 @@ func (al *APIListener) handleManageTotP(w http.ResponseWriter, user *users.User,
 	if action == "create" {
 		al.Debugf("Users time based one time secret is created for user [%s].", user.Username)
 		w.WriteHeader(http.StatusCreated)
-	}else if action == "delete" {
+	} else if action == "delete" {
 		al.Debugf("Users time based one time secret is deleted for user [%s].", user.Username)
 		w.WriteHeader(http.StatusNoContent)
 	}

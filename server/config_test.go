@@ -394,8 +394,8 @@ func TestParseAndValidateAPI(t *testing.T) {
 			Name: "totp enabled ok",
 			Config: Config{
 				API: APIConfig{
-					Address:    "0.0.0.0:3000",
-					AuthFile:   "test.json",
+					Address:     "0.0.0.0:3000",
+					AuthFile:    "test.json",
 					TotPEnabled: true,
 				},
 			},
@@ -407,7 +407,7 @@ func TestParseAndValidateAPI(t *testing.T) {
 				API: APIConfig{
 					Address:            "0.0.0.0:3000",
 					AuthFile:           "test.json",
-					TotPEnabled:         true,
+					TotPEnabled:        true,
 					TwoFATokenDelivery: "/bin/sh",
 					TwoFASendToType:    message.ValidationRegex,
 				},

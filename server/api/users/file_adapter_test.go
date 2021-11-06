@@ -14,6 +14,7 @@ var user1 = &User{
 	Username: "user1",
 	Password: "pass1",
 	Groups:   []string{"group1", "group2"},
+	TotP:     "totp123",
 }
 
 var user2 = &User{
@@ -113,6 +114,7 @@ func TestFileAdapterUpdate(t *testing.T) {
 		Password: "pass3",
 		Token:    Token("token3"),
 		Groups:   []string{"group1", "group4"},
+		TotP:     "totp123",
 	}
 
 	// update existing user

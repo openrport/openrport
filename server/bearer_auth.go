@@ -29,7 +29,7 @@ func (al *APIListener) createAuthToken(lifetime time.Duration, username, subject
 	claims := Token{
 		Username: username,
 		StandardClaims: jwt.StandardClaims{
-			Id: strconv.FormatUint(rand.Uint64(), 10),
+			Id:      strconv.FormatUint(rand.Uint64(), 10),
 			Subject: subject,
 		},
 	}
@@ -72,7 +72,7 @@ func (al *APIListener) validateBearerToken(tokenStr, curSubject string) (bool, s
 		return false, "", nil, nil
 	}
 
-	if tk.StandardClaims.Subject != "*" &&  tk.StandardClaims.Subject != curSubject {
+	if tk.StandardClaims.Subject != "*" && tk.StandardClaims.Subject != curSubject {
 		al.Errorf(
 			"Token subject %s doesn't match the current url %s, so this token is not intended to be used for this page",
 			tk.StandardClaims.Subject,

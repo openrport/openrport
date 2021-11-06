@@ -5,10 +5,12 @@ import (
 	"encoding/base64"
 	"encoding/json"
 	"fmt"
+	"image/png"
+
 	"github.com/cloudradar-monitoring/rport/server/api/users"
+
 	"github.com/pquerna/otp"
 	"github.com/pquerna/otp/totp"
-	"image/png"
 )
 
 const (
