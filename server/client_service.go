@@ -29,7 +29,7 @@ type ClientService struct {
 	mu sync.Mutex
 }
 
-var clientsSupportedFields = map[string]bool{
+var clientsSupportedFilters = map[string]bool{
 	"os_full_name":             true,
 	"os_virtualization_system": true,
 	"os_virtualization_role":   true,
@@ -39,6 +39,53 @@ var clientsSupportedFields = map[string]bool{
 	"cpu_family":               true,
 	"cpu_model":                true,
 	"num_cpus":                 true,
+}
+var clientsSupportedSorts = map[string]bool{
+	"id":       true,
+	"name":     true,
+	"os":       true,
+	"hostname": true,
+	"version":  true,
+}
+var clientsSupportedFields = map[string]map[string]bool{
+	"clients": map[string]bool{
+		"id":                       true,
+		"name":                     true,
+		"os":                       true,
+		"os_arch":                  true,
+		"os_family":                true,
+		"os_kernel":                true,
+		"hostname":                 true,
+		"ipv4":                     true,
+		"ipv6":                     true,
+		"tags":                     true,
+		"version":                  true,
+		"address":                  true,
+		"tunnels":                  true,
+		"disconnected_at":          true,
+		"connection_state":         true,
+		"client_auth_id":           true,
+		"os_full_name":             true,
+		"os_version":               true,
+		"os_virtualization_system": true,
+		"os_virtualization_role":   true,
+		"cpu_family":               true,
+		"cpu_model":                true,
+		"cpu_model_name":           true,
+		"cpu_vendor":               true,
+		"timezone":                 true,
+		"num_cpus":                 true,
+		"mem_total":                true,
+		"allowed_user_groups":      true,
+		"updates_status":           true,
+	},
+}
+var clientsListDefaultFields = map[string][]string{
+	"fields[clients]": []string{
+		"id",
+		"name",
+		"hostname",
+	},
 }
 
 // NewClientService returns a new instance of client service.

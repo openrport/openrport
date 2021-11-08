@@ -379,6 +379,13 @@ paths:
           Multiple filters are possible. You can also use wildcards for partial matches e.g. `filter[os_full_name]=Ubuntu*` will list all clients whose os_full_name starts with 'Ubuntu'."
           required: false
           type: "string"
+        - in: "query"
+          name: "fields[<RESOURCE>]"
+          description: "Fields to be returned. It should be provided in the format as `fields[<RESOURCE>]=<FIELDS>`,
+              where `<RESOURCE>` is `clients` and `<FIELDS>` is a comma separated list of fields. Example: `fields[clients]=id,name`.
+              If no fields are specified, only id, name and hostname will be returned."
+          required: false
+          type: "string"
       summary: "List all active and disconnected client connections. By default sorted by ID in asc order"
       description: ""
       produces:
@@ -411,6 +418,13 @@ paths:
           in: "path"
           description: "unique client ID"
           required: true
+          type: "string"
+        - in: "query"
+          name: "fields[<RESOURCE>]"
+          description: "Fields to be returned. It should be provided in the format as `fields[<RESOURCE>]=<FIELDS>`,
+              where `<RESOURCE>` is `clients` and `<FIELDS>` is a comma separated list of fields. Example: `fields[clients]=id,name`.
+              If no fields are specified, all will be returned."
+          required: false
           type: "string"
       produces:
         - "application/json"
