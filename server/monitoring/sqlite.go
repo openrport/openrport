@@ -23,9 +23,9 @@ type DBProvider interface {
 	GetMetricsListByClientID(ctx context.Context, clientID string, o *query.ListOptions) ([]monitoring2.ClientMetricsPayload, error)
 	GetMetricsListDownsampledByClientID(ctx context.Context, clientID string, hours float64, o *query.ListOptions) ([]monitoring2.ClientMetricsPayload, error)
 	GetProcessesLatestByClientID(ctx context.Context, clientID string) (*monitoring2.ClientProcessesPayload, error)
-	GetProcessesNearestByClientID(ctx context.Context, clientID string, at time.Time) (*monitoring2.ClientProcessesPayload, error)
+	GetProcessesNearestByClientID(ctx context.Context, clientID string, filters []query.FilterOption) (*monitoring2.ClientProcessesPayload, error)
 	GetMountpointsLatestByClientID(ctx context.Context, clientID string) (*monitoring2.ClientMountpointsPayload, error)
-	GetMountpointsNearestByClientID(ctx context.Context, clientID string, at time.Time) (*monitoring2.ClientMountpointsPayload, error)
+	GetMountpointsNearestByClientID(ctx context.Context, clientID string, filters []query.FilterOption) (*monitoring2.ClientMountpointsPayload, error)
 	Close() error
 }
 
@@ -51,9 +51,9 @@ func (p *SqliteProvider) GetProcessesLatestByClientID(ctx context.Context, clien
 	return &payload, err
 }
 
-func (p *SqliteProvider) GetProcessesNearestByClientID(ctx context.Context, clientID string, timestamp time.Time) (*monitoring2.ClientProcessesPayload, error) {
+func (p *SqliteProvider) GetProcessesNearestByClientID(ctx context.Context, clientID string, filters []query.FilterOption) (*monitoring2.ClientProcessesPayload, error) {
 	var payload monitoring2.ClientProcessesPayload
-	err := p.db.Get(&payload, "SELECT timestamp, processes FROM measurements WHERE client_id = ?  AND timestamp >= ? LIMIT 1", clientID, timestamp)
+	err := p.db.Get(&payload, "SELECT timestamp, processes FROM measurements WHERE client_id = ?  AND timestamp >= ? LIMIT 1", clientID, filters[0].Values[0])
 	return &payload, err
 }
 
@@ -63,9 +63,9 @@ func (p *SqliteProvider) GetMountpointsLatestByClientID(ctx context.Context, cli
 	return &payload, err
 }
 
-func (p *SqliteProvider) GetMountpointsNearestByClientID(ctx context.Context, clientID string, timestamp time.Time) (*monitoring2.ClientMountpointsPayload, error) {
+func (p *SqliteProvider) GetMountpointsNearestByClientID(ctx context.Context, clientID string, filters []query.FilterOption) (*monitoring2.ClientMountpointsPayload, error) {
 	var payload monitoring2.ClientMountpointsPayload
-	err := p.db.Get(&payload, "SELECT timestamp, mountpoints FROM measurements WHERE client_id = ?  AND timestamp >= ? LIMIT 1", clientID, timestamp)
+	err := p.db.Get(&payload, "SELECT timestamp, mountpoints FROM measurements WHERE client_id = ?  AND timestamp >= ? LIMIT 1", clientID, filters[0].Values[0])
 	return &payload, err
 }
 
@@ -92,7 +92,7 @@ func (p *SqliteProvider) GetMetricsListByClientID(ctx context.Context, clientID 
 func (p *SqliteProvider) GetMetricsListDownsampledByClientID(ctx context.Context, clientID string, hours float64, o *query.ListOptions) ([]monitoring2.ClientMetricsPayload, error) {
 	q := `SELECT
 		timestamp,
-		avg(cpu_usage_percent) as cpu_usage_percent,
+		round(avg(cpu_usage_percent),2) as cpu_usage_percent,
 		min(cpu_usage_percent) as cpu_usage_percent_min,
 		max(cpu_usage_percent) as cpu_usage_percent_max,
 		round(avg(memory_usage_percent),2) as memory_usage_percent,

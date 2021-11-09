@@ -220,7 +220,7 @@ func TestSqliteProvider_GetProcessesNearestByClientID(t *testing.T) {
 
 	// get processes of client with timestamp
 	m2 := measurement1.Add(measurementInterval)
-	pC1, err := dbProvider.GetProcessesNearestByClientID(ctx, "test_client_1", m2)
+	pC1, err := dbProvider.GetProcessesNearestByClientID(ctx, "test_client_1", createSinceFilter(m2))
 	require.NoError(t, err)
 	require.NotNil(t, pC1)
 	var expectedJSON types.JSONString = `{[{"pid":30211, "parent_pid": 4711, "name": "idea"}]}`
@@ -257,7 +257,7 @@ func TestSqliteProvider_GetMountpointsNearestByClientID(t *testing.T) {
 
 	// get mountpoints of client with timestamp
 	m2 := measurement1.Add(measurementInterval)
-	mC1, err := dbProvider.GetMountpointsNearestByClientID(ctx, "test_client_1", m2)
+	mC1, err := dbProvider.GetMountpointsNearestByClientID(ctx, "test_client_1", createSinceFilter(m2))
 	require.NoError(t, err)
 	require.NotNil(t, mC1)
 	var expectedJSON types.JSONString = `{"free_b./":44182758400,"free_b./home":228029413376,"total_b./":105555197952,"total_b./home":364015185920}`
@@ -323,6 +323,21 @@ func createSinceUntilFilter(start time.Time, hours float64) []query.FilterOption
 			Column:     "timestamp",
 			Operator:   query.FilterOperatorTypeLT,
 			Values:     []string{mUntil},
+		},
+	}
+
+	return filters
+}
+
+func createSinceFilter(since time.Time) []query.FilterOption {
+	mSince := since.Format(layoutDb)
+
+	filters := []query.FilterOption{
+		{
+			Expression: "timestamp[since]",
+			Column:     "timestamp",
+			Operator:   query.FilterOperatorTypeSince,
+			Values:     []string{mSince},
 		},
 	}
 

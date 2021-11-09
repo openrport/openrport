@@ -62,11 +62,13 @@ var ClientMetricsFilterFields = map[string]bool{
 }
 
 var ClientProcessesFilterFields = map[string]bool{
-	"timestamp": true,
+	"timestamp[gt]":    true,
+	"timestamp[since]": true,
 }
 
 var ClientMountpointsFilterFields = map[string]bool{
-	"timestamp": true,
+	"timestamp[gt]":    true,
+	"timestamp[since]": true,
 }
 
 var ClientMetricsFields = map[string]map[string]bool{

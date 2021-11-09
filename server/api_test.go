@@ -1958,7 +1958,7 @@ func TestGetClientMetrics(t *testing.T) {
 		},
 		{
 			Name:           "metrics with datetime filter, filter ok",
-			URL:            "metrics?filter[timestamp][since]=2021-09-01:00:00:00&filter[timestamp][until]=2021-09-01:00:01:00",
+			URL:            "metrics?filter[timestamp][since]=2021-09-01T00:00:00%2B00:00&filter[timestamp][until]=2021-09-01T00:01:00%2B00:00",
 			ExpectedStatus: http.StatusOK,
 			ExpectedJSON:   `{"data":[{"timestamp":"2021-09-01T00:00:00Z","cpu_usage_percent":{"value":10.5},"memory_usage_percent":{"value":2.5},"io_usage_percent":{}},{"timestamp":"2021-09-01T00:01:00Z","cpu_usage_percent":{"value":20.5},"memory_usage_percent":{"value":2.5},"io_usage_percent":{}}]}`,
 		},

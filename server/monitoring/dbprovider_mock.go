@@ -22,7 +22,7 @@ func (p *DBProviderMock) GetProcessesLatestByClientID(ctx context.Context, clien
 	return p.ProcessesPayload, nil
 }
 
-func (p *DBProviderMock) GetProcessesNearestByClientID(ctx context.Context, clientID string, timestamp time.Time) (*monitoring_api.ClientProcessesPayload, error) {
+func (p *DBProviderMock) GetProcessesNearestByClientID(ctx context.Context, clientID string, filters []query.FilterOption) (*monitoring_api.ClientProcessesPayload, error) {
 	return p.ProcessesPayload, nil
 }
 
@@ -30,7 +30,7 @@ func (p *DBProviderMock) GetMountpointsLatestByClientID(ctx context.Context, cli
 	return p.MountpointsPayload, nil
 }
 
-func (p *DBProviderMock) GetMountpointsNearestByClientID(ctx context.Context, clientID string, timestamp time.Time) (*monitoring_api.ClientMountpointsPayload, error) {
+func (p *DBProviderMock) GetMountpointsNearestByClientID(ctx context.Context, clientID string, filters []query.FilterOption) (*monitoring_api.ClientMountpointsPayload, error) {
 	return p.MountpointsPayload, nil
 }
 

@@ -24,13 +24,12 @@ type Service interface {
 	GetClientMountpointsFiltered(ctx context.Context, clientID string, filters []query.FilterOption) (*monitoring.ClientMountpointsPayload, error)
 }
 
-var layoutAPI = "2006-01-02:15:04:05"
-var layoutDb = "2006-01-02 15:04:05"
-var maxLimit = 120
-var maxDataFetchHours = 48
-var maxDataFetchDuration = time.Duration(maxDataFetchHours) * time.Hour
-var thresholdDownsamplingHours = 2
-var thresholdDownsamplingDuration = time.Duration(thresholdDownsamplingHours) * time.Hour
+const layoutAPI = time.RFC3339
+const layoutDb = "2006-01-02 15:04:05"
+const maxLimit = 120
+const maxDataFetchHours = 48
+const maxDataFetchDuration = time.Duration(maxDataFetchHours) * time.Hour
+const thresholdDownsamplingDuration = time.Duration(2) * time.Hour
 
 type monitoringService struct {
 	DBProvider DBProvider
@@ -53,15 +52,13 @@ func (s *monitoringService) GetClientProcessesLatest(ctx context.Context, client
 }
 
 func (s *monitoringService) GetClientProcessesFiltered(ctx context.Context, clientID string, filters []query.FilterOption) (*monitoring.ClientProcessesPayload, error) {
-	var t time.Time
-	_, err := strconv.Atoi(filters[0].Values[0])
-	if err != nil {
-		t, err = time.Parse(layoutAPI, filters[0].Values[0])
-		if err != nil {
-			return nil, fmt.Errorf("illegal time format:%v", filters[0].Values[0])
-		}
+	if err := checkAllowedFilterOptions(filters, 1); err != nil {
+		return nil, err
 	}
-	return s.DBProvider.GetProcessesNearestByClientID(ctx, clientID, t)
+	if err := parseAndConvertFilterValues(filters); err != nil {
+		return nil, err
+	}
+	return s.DBProvider.GetProcessesNearestByClientID(ctx, clientID, filters)
 }
 
 func (s *monitoringService) GetClientMountpointsLatest(ctx context.Context, clientID string) (*monitoring.ClientMountpointsPayload, error) {
@@ -69,15 +66,13 @@ func (s *monitoringService) GetClientMountpointsLatest(ctx context.Context, clie
 }
 
 func (s *monitoringService) GetClientMountpointsFiltered(ctx context.Context, clientID string, filters []query.FilterOption) (*monitoring.ClientMountpointsPayload, error) {
-	var t time.Time
-	_, err := strconv.Atoi(filters[0].Values[0])
-	if err != nil {
-		t, err = time.Parse(layoutAPI, filters[0].Values[0])
-		if err != nil {
-			return nil, fmt.Errorf("illegal time format:%v", filters[0].Values[0])
-		}
+	if err := checkAllowedFilterOptions(filters, 1); err != nil {
+		return nil, err
 	}
-	return s.DBProvider.GetMountpointsNearestByClientID(ctx, clientID, t)
+	if err := parseAndConvertFilterValues(filters); err != nil {
+		return nil, err
+	}
+	return s.DBProvider.GetMountpointsNearestByClientID(ctx, clientID, filters)
 }
 
 func (s *monitoringService) GetClientMetricsLatest(ctx context.Context, clientID string, o *query.ListOptions) (*monitoring.ClientMetricsPayload, error) {
@@ -86,7 +81,10 @@ func (s *monitoringService) GetClientMetricsLatest(ctx context.Context, clientID
 
 func (s monitoringService) GetClientMetricsFiltered(ctx context.Context, clientID string, o *query.ListOptions) ([]monitoring.ClientMetricsPayload, error) {
 	//query.SortFiltersByOperator(o.Filters)
-	if err := checkAllowedFilterOptions(o.Filters); err != nil {
+	if err := checkAllowedFilterOptions(o.Filters, 2); err != nil {
+		return nil, err
+	}
+	if err := checkAllowedFilterCombinations(o.Filters); err != nil {
 		return nil, err
 	}
 	if err := parseAndConvertFilterValues(o.Filters); err != nil {
@@ -155,14 +153,24 @@ func parseAndConvertFilterValues(filters []query.FilterOption) error {
 	return nil
 }
 
-func checkAllowedFilterOptions(filters []query.FilterOption) error {
-	if len(filters) != 2 {
+func checkAllowedFilterOptions(filters []query.FilterOption, filterCount int) error {
+	if len(filters) != filterCount {
 		return errors.APIError{
 			Message:    "Illegal number of filter options",
 			HTTPStatus: http.StatusBadRequest,
 		}
 	}
 
+	for _, filter := range filters {
+		if len(filter.Values) != 1 {
+			return errors.APIError{Message: "Too much filter option values", HTTPStatus: http.StatusBadRequest}
+		}
+	}
+
+	return nil
+}
+
+func checkAllowedFilterCombinations(filters []query.FilterOption) error {
 	if (filters[0].Operator == query.FilterOperatorTypeGT && filters[1].Operator == query.FilterOperatorTypeLT) ||
 		(filters[0].Operator == query.FilterOperatorTypeGT && filters[1].Operator == query.FilterOperatorTypeEQ) ||
 		(filters[0].Operator == query.FilterOperatorTypeSince && filters[1].Operator != query.FilterOperatorTypeUntil) ||
@@ -170,10 +178,6 @@ func checkAllowedFilterOptions(filters []query.FilterOption) error {
 		//these are the allowed filter combinations
 	} else {
 		return errors.APIError{Message: fmt.Sprintf("Illegal filter pair %s %s", filters[0].Expression, filters[1].Expression), HTTPStatus: http.StatusBadRequest}
-	}
-
-	if len(filters[0].Values) != 1 || len(filters[1].Values) != 1 {
-		return errors.APIError{Message: "Too much filter option values", HTTPStatus: http.StatusBadRequest}
 	}
 
 	return nil
