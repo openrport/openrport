@@ -11,10 +11,11 @@ import (
 
 	"github.com/cloudradar-monitoring/rport/server/api"
 	"github.com/cloudradar-monitoring/rport/server/clients"
+	"github.com/cloudradar-monitoring/rport/share/query"
 )
 
 func TestEntry(t *testing.T) {
-	auditLog := &AuditLog{}
+	auditLog := enabledAuditLog()
 	e := auditLog.Entry(ApplicationClient, ActionCreate)
 
 	assert.WithinDuration(t, time.Now(), e.Timestamp, time.Millisecond)
@@ -93,9 +94,8 @@ func TestWithClient(t *testing.T) {
 }
 
 func TestWithClientID(t *testing.T) {
-	auditLog := &AuditLog{
-		clientGetter: &mockClientGetter{},
-	}
+	auditLog := enabledAuditLog()
+	auditLog.clientGetter = &mockClientGetter{}
 
 	t.Run("client exists", func(t *testing.T) {
 		e := auditLog.Entry("", "").WithClientID("11236310-6cad-408e-b372-a0f04d68d2df")
@@ -112,7 +112,7 @@ func TestWithClientID(t *testing.T) {
 
 func TestSave(t *testing.T) {
 	mockProvider := &mockProvider{}
-	auditLog := &AuditLog{}
+	auditLog := enabledAuditLog()
 
 	t.Run("with provider", func(t *testing.T) {
 		auditLog.provider = mockProvider
@@ -124,9 +124,7 @@ func TestSave(t *testing.T) {
 	})
 
 	t.Run("with nil provider", func(t *testing.T) {
-		auditLog := &AuditLog{
-			provider: nil,
-		}
+		auditLog.provider = nil
 
 		auditLog.Entry("", "").Save()
 	})
@@ -134,9 +132,8 @@ func TestSave(t *testing.T) {
 
 func TestSaveForMultipleClients(t *testing.T) {
 	mockProvider := &mockProvider{}
-	auditLog := &AuditLog{
-		provider: mockProvider,
-	}
+	auditLog := enabledAuditLog()
+	auditLog.provider = mockProvider
 
 	auditLog.Entry("", "").SaveForMultipleClients([]*clients.Client{
 		{
@@ -156,9 +153,16 @@ func TestSaveForMultipleClients(t *testing.T) {
 	assert.Equal(t, "c2.com", mockProvider.entries[1].ClientHostName)
 }
 
+func enabledAuditLog() *AuditLog {
+	return &AuditLog{
+		config: Config{
+			Enable: true,
+		},
+	}
+}
+
 func emptyEntry() *Entry {
-	auditLog := &AuditLog{}
-	return auditLog.Entry("", "")
+	return enabledAuditLog().Entry("", "")
 }
 
 type mockClientGetter struct {
@@ -183,4 +187,10 @@ func (p *mockProvider) Save(e *Entry) error {
 	return nil
 }
 
+func (p *mockProvider) List(ctx context.Context, opts *query.ListOptions) ([]*Entry, error) {
+	return nil, nil
+}
+func (p *mockProvider) Count(ctx context.Context, opts *query.ListOptions) (int, error) {
+	return 0, nil
+}
 func (p mockProvider) Close() error { return nil }

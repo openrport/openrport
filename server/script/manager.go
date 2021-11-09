@@ -57,7 +57,7 @@ func NewManager(db DbProvider, logger *chshare.Logger) *Manager {
 func (m *Manager) List(ctx context.Context, re *http.Request) ([]Script, error) {
 	listOptions := query.GetListOptions(re)
 
-	err := query.ValidateListOptions(listOptions, supportedSortAndFilters, supportedFields)
+	err := query.ValidateListOptions(listOptions, supportedSortAndFilters, supportedSortAndFilters, supportedFields, nil)
 	if err != nil {
 		return nil, err
 	}

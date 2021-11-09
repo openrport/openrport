@@ -9,7 +9,7 @@ import (
 // SuccessPayload represents a uniform format for all successful API responses.
 type SuccessPayload struct {
 	Data interface{} `json:"data"`
-	Meta interface{} `json:"meta,omitempty"`
+	Meta *Meta       `json:"meta,omitempty"`
 }
 
 func NewSuccessPayload(data interface{}) SuccessPayload {
@@ -93,4 +93,14 @@ type ExecuteInput struct {
 	TimeoutSec  int    `json:"timeout_sec"`
 	ClientID    string
 	IsScript    bool
+}
+
+type Meta struct {
+	Count int `json:"count"`
+}
+
+func NewMeta(count int) *Meta {
+	return &Meta{
+		Count: count,
+	}
 }

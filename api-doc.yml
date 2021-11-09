@@ -379,6 +379,13 @@ paths:
           Multiple filters are possible. You can also use wildcards for partial matches e.g. `filter[os_full_name]=Ubuntu*` will list all clients whose os_full_name starts with 'Ubuntu'."
           required: false
           type: "string"
+        - in: "query"
+          name: "fields[<RESOURCE>]"
+          description: "Fields to be returned. It should be provided in the format as `fields[<RESOURCE>]=<FIELDS>`,
+              where `<RESOURCE>` is `clients` and `<FIELDS>` is a comma separated list of fields. Example: `fields[clients]=id,name`.
+              If no fields are specified, only id, name and hostname will be returned."
+          required: false
+          type: "string"
       summary: "List all active and disconnected client connections. By default sorted by ID in asc order"
       description: ""
       produces:
@@ -411,6 +418,13 @@ paths:
           in: "path"
           description: "unique client ID"
           required: true
+          type: "string"
+        - in: "query"
+          name: "fields[<RESOURCE>]"
+          description: "Fields to be returned. It should be provided in the format as `fields[<RESOURCE>]=<FIELDS>`,
+              where `<RESOURCE>` is `clients` and `<FIELDS>` is a comma separated list of fields. Example: `fields[clients]=id,name`.
+              If no fields are specified, all will be returned."
+          required: false
           type: "string"
       produces:
         - "application/json"
@@ -2207,6 +2221,56 @@ paths:
           description: "Invalid Operation"
           schema:
             $ref: "#/definitions/ErrorPayload"
+  /auditlog:
+    get:
+      tags:
+        - "Audit Log"
+      summary: "List auditlog entries"
+      description: "List auditlog entries using the provided filters"
+      produces:
+        - "application/json"
+      parameters:
+        - name: "sort"
+          in: "query"
+          description: Sort option `-<field>`(desc) or `<field>`(asc). `<field>` can be one of `'timestamp', 'username', 'remote_ip', 'application', 'action', 'affected_id', 'client_id', 'client_hostname'`. For example, `&sort=-timestamp`.
+          required: false
+          type: "string"
+        - name: "filter"
+          in: "query"
+          description: Filter option `filter[<field>]` or `filter[timestamp][<op>]`.
+            `<field>` can be one of `'username', 'remote_ip', 'application', 'action', 'affected_id', 'client_id', 'client_hostname'`.
+            For example, `&filter[username]=admin` or `filter[timestamp][gt]=2021-10-28`, etc.
+            Multiple filters are possible.
+          required: false
+          type: "string"
+        - name: "page"
+          in: "query"
+          required: false
+          type: "integer"
+          description: Pagination options `page[limit]` and `page[offset]` can be used to get more than the first page of results. Default limit is 10 and maximum is 100. The `count` property in meta shows the total number of results.
+      responses:
+        "200":
+          description: "Successful Operation"
+          schema:
+            type: "object"
+            properties:
+              data:
+                type: "array"
+                items:
+                  $ref: "#/definitions/AuditLog"
+              meta:
+                type: "object"
+                properties:
+                  count:
+                    type: "integer"
+        "401":
+          description: "Unauthorized"
+          schema:
+            $ref: "#/definitions/ErrorPayload"
+        "500":
+          description: "Invalid Operation"
+          schema:
+            $ref: "#/definitions/ErrorPayload"
 
   /clients/{client_id}/metrics:
     get:
@@ -3060,6 +3124,40 @@ definitions:
       script:
         type: "string"
         description: "[required] text of the command"
+  AuditLog:
+    type: "object"
+    properties:
+      timestamp:
+        type: "string"
+        format: "date-time"
+        description: "Timestamp of the action"
+      username:
+        type: "string"
+        description: "Username of the user that initiated the action"
+      remote_ip:
+        type: "string"
+        description: "IP of the user that initiated the action"
+      application:
+        type: "string"
+        description: "Part of the rport that the action belongs to"
+      action:
+        type: "string"
+        description: "Action performed"
+      affected_id:
+        type: "string"
+        description: "ID of the entity that action was executed on"
+      client_id:
+        type: "string"
+        description: "ID of the client that has been affected"
+      client_hostname:
+        type: "string"
+        description: "Hostname of the client that has been affected"
+      request:
+        type: "string"
+        description: "Json blob that was used to request the action"
+      response:
+        type: "string"
+        description: "Json blob that was the result of the action"
   Metrics:
     type: "object"
     properties:

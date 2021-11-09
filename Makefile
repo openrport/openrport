@@ -3,7 +3,7 @@
 # Go parameters
 BINARIES=rport rportd
 
-all: test build sca
+all: test build lint
 
 build:
 	CGO_ENABLED=0 $(foreach BINARY,$(BINARIES),go build -ldflags "-s -w" -o $(BINARY) -v ./cmd/$(BINARY)/...;)
@@ -52,5 +52,5 @@ fmt:
 	goimports -w .
 	gofmt -w .
 
-sca:
+lint:
 	golangci-lint run

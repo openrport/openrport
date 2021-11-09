@@ -1,7 +1,6 @@
 package users
 
 import (
-	"errors"
 	"fmt"
 	"net/http"
 	"sync"
@@ -49,7 +48,11 @@ func (fa *FileAdapter) load() error {
 }
 
 func (fa *FileAdapter) GetAllGroups() ([]string, error) {
-	return nil, errors.New("not implemented")
+	return nil, errors2.APIError{
+		Message:    "The json file authentication backend doesn't support this feature.",
+		HTTPStatus: http.StatusBadRequest,
+	}
+
 }
 
 func (fa *FileAdapter) Delete(usernameToDelete string) error {

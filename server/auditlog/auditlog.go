@@ -1,12 +1,42 @@
 package auditlog
 
 import (
+	"context"
 	"io"
 	"net"
+	"net/http"
 	"time"
 
+	"github.com/cloudradar-monitoring/rport/server/api"
 	"github.com/cloudradar-monitoring/rport/server/clients"
 	chshare "github.com/cloudradar-monitoring/rport/share"
+	"github.com/cloudradar-monitoring/rport/share/query"
+)
+
+var (
+	supportedFilters = map[string]bool{
+		"timestamp[gt]":    true,
+		"timestamp[lt]":    true,
+		"timestamp[since]": true,
+		"timestamp[until]": true,
+		"username":         true,
+		"remote_ip":        true,
+		"application":      true,
+		"action":           true,
+		"affected_id":      true,
+		"client_id":        true,
+		"client_hostname":  true,
+	}
+	supportedSorts = map[string]bool{
+		"timestamp":       true,
+		"username":        true,
+		"remote_ip":       true,
+		"application":     true,
+		"action":          true,
+		"affected_id":     true,
+		"client_id":       true,
+		"client_hostname": true,
+	}
 )
 
 type ClientGetter interface {
@@ -16,6 +46,8 @@ type ClientGetter interface {
 type Provider interface {
 	io.Closer
 	Save(e *Entry) error
+	List(context.Context, *query.ListOptions) ([]*Entry, error)
+	Count(context.Context, *query.ListOptions) (int, error)
 }
 
 type AuditLog struct {
@@ -26,25 +58,31 @@ type AuditLog struct {
 }
 
 func New(l *chshare.Logger, cg ClientGetter, dataDir string, cfg Config) (*AuditLog, error) {
-	if !cfg.Enable {
-		return nil, nil
-	}
-
-	sqlite, err := newSQLiteProvider(dataDir)
-	if err != nil {
-		return nil, err
-	}
-	return &AuditLog{
+	a := &AuditLog{
 		logger:       l,
 		clientGetter: cg,
-		provider:     sqlite,
 		config:       cfg,
-	}, nil
+	}
+
+	if cfg.Enable {
+		rotation, err := newRotationProvider(
+			l,
+			cfg.rotationPeriod(),
+			dataDir,
+		)
+		if err != nil {
+			return nil, err
+		}
+
+		a.provider = rotation
+	}
+
+	return a, nil
 }
 
 func (a *AuditLog) Entry(application, action string) *Entry {
 	// return nil if auditlog is not initialized, Entry handles nils so we don't panic unnecessarily
-	if a == nil {
+	if a == nil || !a.config.Enable {
 		return nil
 	}
 
@@ -80,4 +118,31 @@ func (a *AuditLog) savePreparedEntry(e *Entry) error {
 	}
 
 	return a.provider.Save(e)
+}
+
+func (a *AuditLog) List(r *http.Request) (*api.SuccessPayload, error) {
+	options := query.GetListOptions(r)
+
+	err := query.ValidateListOptions(options, supportedSorts, supportedFilters, nil, &query.PaginationConfig{
+		DefaultLimit: 10,
+		MaxLimit:     100,
+	})
+	if err != nil {
+		return nil, err
+	}
+
+	entries, err := a.provider.List(r.Context(), options)
+	if err != nil {
+		return nil, err
+	}
+
+	count, err := a.provider.Count(r.Context(), options)
+	if err != nil {
+		return nil, err
+	}
+
+	return &api.SuccessPayload{
+		Data: entries,
+		Meta: api.NewMeta(count),
+	}, nil
 }
