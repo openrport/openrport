@@ -27,12 +27,12 @@ import (
 	errors2 "github.com/cloudradar-monitoring/rport/server/api/errors"
 	"github.com/cloudradar-monitoring/rport/server/api/jobs"
 	"github.com/cloudradar-monitoring/rport/server/api/middleware"
-	"github.com/cloudradar-monitoring/rport/server/api/monitoring"
 	"github.com/cloudradar-monitoring/rport/server/api/users"
 	"github.com/cloudradar-monitoring/rport/server/auditlog"
 	"github.com/cloudradar-monitoring/rport/server/cgroups"
 	"github.com/cloudradar-monitoring/rport/server/clients"
 	"github.com/cloudradar-monitoring/rport/server/clientsauth"
+	"github.com/cloudradar-monitoring/rport/server/monitoring"
 	"github.com/cloudradar-monitoring/rport/server/ports"
 	"github.com/cloudradar-monitoring/rport/server/script"
 	"github.com/cloudradar-monitoring/rport/server/validation"
@@ -3246,7 +3246,7 @@ func (al *APIListener) handleGetClientMetrics(w http.ResponseWriter, req *http.R
 		al.jsonError(w, err)
 		return
 	}
-	al.writeJSONResponse(w, http.StatusOK, api.NewSuccessPayload(payload))
+	al.writeJSONResponse(w, http.StatusOK, payload)
 }
 
 func (al *APIListener) handleGetClientGraphMetrics(w http.ResponseWriter, req *http.Request) {
@@ -3281,7 +3281,7 @@ func (al *APIListener) handleGetClientProcesses(w http.ResponseWriter, req *http
 		al.jsonError(w, err)
 		return
 	}
-	al.writeJSONResponse(w, http.StatusOK, api.NewSuccessPayload(payload))
+	al.writeJSONResponse(w, http.StatusOK, payload)
 }
 
 func (al *APIListener) handleGetClientMountpoints(w http.ResponseWriter, req *http.Request) {
@@ -3299,7 +3299,7 @@ func (al *APIListener) handleGetClientMountpoints(w http.ResponseWriter, req *ht
 		al.jsonError(w, err)
 		return
 	}
-	al.writeJSONResponse(w, http.StatusOK, api.NewSuccessPayload(payload))
+	al.writeJSONResponse(w, http.StatusOK, payload)
 }
 
 func (al *APIListener) handleListAuditLog(w http.ResponseWriter, req *http.Request) {

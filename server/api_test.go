@@ -23,7 +23,6 @@ import (
 
 	"github.com/cloudradar-monitoring/rport/server/api"
 	"github.com/cloudradar-monitoring/rport/server/api/jobs"
-	monitoring_api "github.com/cloudradar-monitoring/rport/server/api/monitoring"
 	"github.com/cloudradar-monitoring/rport/server/api/users"
 	"github.com/cloudradar-monitoring/rport/server/cgroups"
 	"github.com/cloudradar-monitoring/rport/server/clients"
@@ -1763,25 +1762,25 @@ func TestWrapWithAuthMiddleware(t *testing.T) {
 func TestListClientMetrics(t *testing.T) {
 	m1 := time.Date(2021, time.September, 1, 0, 0, 0, 0, time.UTC)
 	m2 := time.Date(2021, time.September, 1, 0, 1, 0, 0, time.UTC)
-	cmp1 := &monitoring_api.ClientMetricsPayload{
+	cmp1 := &monitoring.ClientMetricsPayload{
 		Timestamp:          m1,
 		CPUUsagePercent:    10.5,
 		MemoryUsagePercent: 2.5,
 		IOUsagePercent:     20,
 	}
-	cmp2 := &monitoring_api.ClientMetricsPayload{
+	cmp2 := &monitoring.ClientMetricsPayload{
 		Timestamp:          m2,
 		CPUUsagePercent:    20.5,
 		MemoryUsagePercent: 2.5,
 		IOUsagePercent:     25,
 	}
-	lcmp := []*monitoring_api.ClientMetricsPayload{cmp1, cmp2}
+	lcmp := []*monitoring.ClientMetricsPayload{cmp1, cmp2}
 
-	cpp1 := &monitoring_api.ClientProcessesPayload{
+	cpp1 := &monitoring.ClientProcessesPayload{
 		Timestamp: m1,
 		Processes: `[{"pid":30212,"parent_pid":4711,"name":"chrome"}]`,
 	}
-	lcpp := []*monitoring_api.ClientProcessesPayload{cpp1}
+	lcpp := []*monitoring.ClientProcessesPayload{cpp1}
 	dbProvider := &monitoring.DBProviderMock{
 		MetricsListPayload:     lcmp,
 		ProcessesListPayload:   lcpp,
@@ -1807,7 +1806,7 @@ func TestListClientMetrics(t *testing.T) {
 			Name:           "metrics default, no filter, no fields",
 			URL:            "metrics",
 			ExpectedStatus: http.StatusOK,
-			ExpectedJSON:   `{"data":{"data":[{"timestamp":"2021-09-01T00:00:00Z","cpu_usage_percent":10.5,"memory_usage_percent":2.5,"io_usage_percent":20},{"timestamp":"2021-09-01T00:01:00Z","cpu_usage_percent":20.5,"memory_usage_percent":2.5,"io_usage_percent":25}],"meta":{"count":10}}}`,
+			ExpectedJSON:   `{"data":[{"timestamp":"2021-09-01T00:00:00Z","cpu_usage_percent":10.5,"memory_usage_percent":2.5,"io_usage_percent":20},{"timestamp":"2021-09-01T00:01:00Z","cpu_usage_percent":20.5,"memory_usage_percent":2.5,"io_usage_percent":25}],"meta":{"count":10}}`,
 		},
 		{
 			Name:           "metrics with fields, no filter, unknown field",
@@ -1819,19 +1818,19 @@ func TestListClientMetrics(t *testing.T) {
 			Name:           "metrics with timestamp filter, filter ok",
 			URL:            "metrics?filter[timestamp][gt]=1636009200&filter[timestamp][lt]=1636012800",
 			ExpectedStatus: http.StatusOK,
-			ExpectedJSON:   `{"data":{"data":[{"timestamp":"2021-09-01T00:00:00Z","cpu_usage_percent":10.5,"memory_usage_percent":2.5,"io_usage_percent":20},{"timestamp":"2021-09-01T00:01:00Z","cpu_usage_percent":20.5,"memory_usage_percent":2.5,"io_usage_percent":25}],"meta":{"count":10}}}`,
+			ExpectedJSON:   `{"data":[{"timestamp":"2021-09-01T00:00:00Z","cpu_usage_percent":10.5,"memory_usage_percent":2.5,"io_usage_percent":20},{"timestamp":"2021-09-01T00:01:00Z","cpu_usage_percent":20.5,"memory_usage_percent":2.5,"io_usage_percent":25}],"meta":{"count":10}}`,
 		},
 		{
 			Name:           "metrics with datetime filter, filter ok",
 			URL:            "metrics?filter[timestamp][since]=2021-09-01T00:00:00%2B00:00&filter[timestamp][until]=2021-09-01T00:01:00%2B00:00",
 			ExpectedStatus: http.StatusOK,
-			ExpectedJSON:   `{"data":{"data":[{"timestamp":"2021-09-01T00:00:00Z","cpu_usage_percent":10.5,"memory_usage_percent":2.5,"io_usage_percent":20},{"timestamp":"2021-09-01T00:01:00Z","cpu_usage_percent":20.5,"memory_usage_percent":2.5,"io_usage_percent":25}],"meta":{"count":10}}}`,
+			ExpectedJSON:   `{"data":[{"timestamp":"2021-09-01T00:00:00Z","cpu_usage_percent":10.5,"memory_usage_percent":2.5,"io_usage_percent":20},{"timestamp":"2021-09-01T00:01:00Z","cpu_usage_percent":20.5,"memory_usage_percent":2.5,"io_usage_percent":25}],"meta":{"count":10}}`,
 		},
 		{
 			Name:           "processes default, no filter, no fields",
 			URL:            "processes",
 			ExpectedStatus: http.StatusOK,
-			ExpectedJSON:   `{"data":{"data":[{"timestamp":"2021-09-01T00:00:00Z","processes":[{"pid":30212,"parent_pid":4711,"name":"chrome"}]}],"meta":{"count":10}}}`,
+			ExpectedJSON:   `{"data":[{"timestamp":"2021-09-01T00:00:00Z","processes":[{"pid":30212,"parent_pid":4711,"name":"chrome"}]}],"meta":{"count":10}}`,
 		},
 	}
 

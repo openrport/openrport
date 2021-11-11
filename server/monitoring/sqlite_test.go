@@ -8,7 +8,6 @@ import (
 
 	"github.com/stretchr/testify/require"
 
-	"github.com/cloudradar-monitoring/rport/server/api/monitoring"
 	chshare "github.com/cloudradar-monitoring/rport/share"
 	"github.com/cloudradar-monitoring/rport/share/models"
 	"github.com/cloudradar-monitoring/rport/share/query"
@@ -165,6 +164,13 @@ func TestSqliteProvider_ListGraphMetricsByClientID(t *testing.T) {
 	require.NoError(t, err)
 	require.NotNil(t, mList)
 	require.Equal(t, 126, len(mList))
+
+	options.Filters = createGTLTFilter(measurement1, hours)
+
+	mList, err = dbProvider.ListGraphMetricsByClientID(ctx, "test_client", hours, options)
+	require.NoError(t, err)
+	require.NotNil(t, mList)
+	require.Equal(t, 126, len(mList))
 }
 
 func TestSqliteProvider_ListProcessesLatestByClientID(t *testing.T) {
@@ -303,14 +309,37 @@ func createSinceUntilFilter(start time.Time, hours float64) []query.FilterOption
 		{
 			Expression: "timestamp[since]",
 			Column:     "timestamp",
-			Operator:   query.FilterOperatorTypeGT,
+			Operator:   query.FilterOperatorTypeSince,
 			Values:     []string{mSince},
 		},
 		{
 			Expression: "timestamp[until]",
 			Column:     "timestamp",
-			Operator:   query.FilterOperatorTypeLT,
+			Operator:   query.FilterOperatorTypeUntil,
 			Values:     []string{mUntil},
+		},
+	}
+
+	return filters
+}
+
+func createGTLTFilter(start time.Time, hours float64) []query.FilterOption {
+	mGT := start.Format(layoutDb)
+	tLT := start.Add(time.Duration(hours) * time.Hour)
+	mLT := tLT.Format(layoutDb)
+
+	filters := []query.FilterOption{
+		{
+			Expression: "timestamp[gt]",
+			Column:     "timestamp",
+			Operator:   query.FilterOperatorTypeGT,
+			Values:     []string{mGT},
+		},
+		{
+			Expression: "timestamp[lt]",
+			Column:     "timestamp",
+			Operator:   query.FilterOperatorTypeLT,
+			Values:     []string{mLT},
 		},
 	}
 
@@ -320,9 +349,9 @@ func createSinceUntilFilter(start time.Time, hours float64) []query.FilterOption
 func createGraphMetricsDefaultOptions() *query.ListOptions {
 	qOptions := &query.ListOptions{}
 
-	qOptions.Sorts = query.ParseSortOptions(monitoring.ClientGraphMetricsSortDefault)
-	qOptions.Filters = query.ParseFilterOptions(monitoring.ClientGraphMetricsFilterDefault)
-	qOptions.Fields = query.ParseFieldsOptions(monitoring.ClientGraphMetricsFieldsDefault)
+	qOptions.Sorts = query.ParseSortOptions(ClientGraphMetricsSortDefault)
+	qOptions.Filters = query.ParseFilterOptions(ClientGraphMetricsFilterDefault)
+	qOptions.Fields = query.ParseFieldsOptions(ClientGraphMetricsFieldsDefault)
 
 	return qOptions
 }
@@ -330,9 +359,9 @@ func createGraphMetricsDefaultOptions() *query.ListOptions {
 func createMetricsDefaultOptions() *query.ListOptions {
 	qOptions := &query.ListOptions{}
 
-	qOptions.Sorts = query.ParseSortOptions(monitoring.ClientMetricsSortDefault)
-	qOptions.Filters = query.ParseFilterOptions(monitoring.ClientMetricsFilterDefault)
-	qOptions.Fields = query.ParseFieldsOptions(monitoring.ClientMetricsFieldsDefault)
+	qOptions.Sorts = query.ParseSortOptions(ClientMetricsSortDefault)
+	qOptions.Filters = query.ParseFilterOptions(ClientMetricsFilterDefault)
+	qOptions.Fields = query.ParseFieldsOptions(ClientMetricsFieldsDefault)
 	qOptions.Pagination = &query.Pagination{
 		Limit:  "1",
 		Offset: "0",
@@ -344,9 +373,9 @@ func createMetricsDefaultOptions() *query.ListOptions {
 func createProcessesDefaultOptions() *query.ListOptions {
 	qOptions := &query.ListOptions{}
 
-	qOptions.Sorts = query.ParseSortOptions(monitoring.ClientProcessesSortDefault)
-	qOptions.Filters = query.ParseFilterOptions(monitoring.ClientProcessesFilterDefault)
-	qOptions.Fields = query.ParseFieldsOptions(monitoring.ClientProcessesFieldsDefault)
+	qOptions.Sorts = query.ParseSortOptions(ClientProcessesSortDefault)
+	qOptions.Filters = query.ParseFilterOptions(ClientProcessesFilterDefault)
+	qOptions.Fields = query.ParseFieldsOptions(ClientProcessesFieldsDefault)
 	qOptions.Pagination = &query.Pagination{
 		Limit:  "1",
 		Offset: "0",
@@ -358,9 +387,9 @@ func createProcessesDefaultOptions() *query.ListOptions {
 func createMountpointsDefaultOptions() *query.ListOptions {
 	qOptions := &query.ListOptions{}
 
-	qOptions.Sorts = query.ParseSortOptions(monitoring.ClientMountpointsSortDefault)
-	qOptions.Filters = query.ParseFilterOptions(monitoring.ClientMountpointsFilterDefault)
-	qOptions.Fields = query.ParseFieldsOptions(monitoring.ClientMountpointsFieldsDefault)
+	qOptions.Sorts = query.ParseSortOptions(ClientMountpointsSortDefault)
+	qOptions.Filters = query.ParseFilterOptions(ClientMountpointsFilterDefault)
+	qOptions.Fields = query.ParseFieldsOptions(ClientMountpointsFieldsDefault)
 	qOptions.Pagination = &query.Pagination{
 		Limit:  "1",
 		Offset: "0",

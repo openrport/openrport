@@ -10,7 +10,6 @@ import (
 
 	monitoring "github.com/cloudradar-monitoring/rport/db/migration/monitoring"
 	"github.com/cloudradar-monitoring/rport/db/sqlite"
-	monitoring2 "github.com/cloudradar-monitoring/rport/server/api/monitoring"
 	chshare "github.com/cloudradar-monitoring/rport/share"
 	"github.com/cloudradar-monitoring/rport/share/models"
 	"github.com/cloudradar-monitoring/rport/share/query"
@@ -19,10 +18,10 @@ import (
 type DBProvider interface {
 	CreateMeasurement(ctx context.Context, measurement *models.Measurement) error
 	DeleteMeasurementsBefore(ctx context.Context, compare time.Time) (int64, error)
-	ListGraphMetricsByClientID(context.Context, string, float64, *query.ListOptions) ([]*monitoring2.ClientGraphMetricsPayload, error)
-	ListMetricsByClientID(context.Context, string, *query.ListOptions) ([]*monitoring2.ClientMetricsPayload, error)
-	ListMountpointsByClientID(context.Context, string, *query.ListOptions) ([]*monitoring2.ClientMountpointsPayload, error)
-	ListProcessesByClientID(context.Context, string, *query.ListOptions) ([]*monitoring2.ClientProcessesPayload, error)
+	ListGraphMetricsByClientID(context.Context, string, float64, *query.ListOptions) ([]*ClientGraphMetricsPayload, error)
+	ListMetricsByClientID(context.Context, string, *query.ListOptions) ([]*ClientMetricsPayload, error)
+	ListMountpointsByClientID(context.Context, string, *query.ListOptions) ([]*ClientMountpointsPayload, error)
+	ListProcessesByClientID(context.Context, string, *query.ListOptions) ([]*ClientProcessesPayload, error)
 	CountByClientID(context.Context, string, *query.ListOptions) (int, error)
 	Close() error
 }
@@ -43,35 +42,35 @@ func NewSqliteProvider(dbPath string, logger *chshare.Logger) (DBProvider, error
 	return &SqliteProvider{db: db, logger: logger}, nil
 }
 
-func (p *SqliteProvider) ListMountpointsByClientID(ctx context.Context, clientID string, o *query.ListOptions) ([]*monitoring2.ClientMountpointsPayload, error) {
+func (p *SqliteProvider) ListMountpointsByClientID(ctx context.Context, clientID string, o *query.ListOptions) ([]*ClientMountpointsPayload, error) {
 	q := "SELECT * FROM `measurements` as `mountpoints` WHERE `client_id` = ? "
 	params := []interface{}{}
 	params = append(params, clientID)
 	q, params = query.AppendOptionsToQuery(o, q, params)
 
-	val := []*monitoring2.ClientMountpointsPayload{}
+	val := []*ClientMountpointsPayload{}
 	err := p.db.SelectContext(ctx, &val, q, params...)
 	return val, err
 }
 
-func (p *SqliteProvider) ListProcessesByClientID(ctx context.Context, clientID string, o *query.ListOptions) ([]*monitoring2.ClientProcessesPayload, error) {
+func (p *SqliteProvider) ListProcessesByClientID(ctx context.Context, clientID string, o *query.ListOptions) ([]*ClientProcessesPayload, error) {
 	q := "SELECT * FROM `measurements` as `processes` WHERE `client_id` = ? "
 	params := []interface{}{}
 	params = append(params, clientID)
 	q, params = query.AppendOptionsToQuery(o, q, params)
 
-	val := []*monitoring2.ClientProcessesPayload{}
+	val := []*ClientProcessesPayload{}
 	err := p.db.SelectContext(ctx, &val, q, params...)
 	return val, err
 }
 
-func (p *SqliteProvider) ListMetricsByClientID(ctx context.Context, clientID string, o *query.ListOptions) ([]*monitoring2.ClientMetricsPayload, error) {
+func (p *SqliteProvider) ListMetricsByClientID(ctx context.Context, clientID string, o *query.ListOptions) ([]*ClientMetricsPayload, error) {
 	q := "SELECT * FROM `measurements` as `metrics` WHERE `client_id` = ? "
 	params := []interface{}{}
 	params = append(params, clientID)
 	q, params = query.AppendOptionsToQuery(o, q, params)
 
-	val := []*monitoring2.ClientMetricsPayload{}
+	val := []*ClientMetricsPayload{}
 	err := p.db.SelectContext(ctx, &val, q, params...)
 	return val, err
 }
@@ -95,7 +94,10 @@ func (p *SqliteProvider) CountByClientID(ctx context.Context, clientID string, o
 	return result, nil
 }
 
-func (p *SqliteProvider) ListGraphMetricsByClientID(ctx context.Context, clientID string, hours float64, lo *query.ListOptions) ([]*monitoring2.ClientGraphMetricsPayload, error) {
+func (p *SqliteProvider) ListGraphMetricsByClientID(ctx context.Context, clientID string, hours float64, lo *query.ListOptions) ([]*ClientGraphMetricsPayload, error) {
+	params := []interface{}{}
+	params = append(params, clientID)
+
 	q := `SELECT
 		timestamp,
 		round(avg(cpu_usage_percent),2) as cpu_usage_percent_avg,
@@ -107,20 +109,17 @@ func (p *SqliteProvider) ListGraphMetricsByClientID(ctx context.Context, clientI
 		round(avg(io_usage_percent),2) as io_usage_percent_avg,
 		min(io_usage_percent) as io_usage_percent_min,
 		max(io_usage_percent) as io_usage_percent_max
-	FROM measurements
-	WHERE client_id = ? and timestamp >= ? and timestamp <= ?
-	GROUP BY round((strftime('%s',timestamp)/(?)),0)`
+	FROM measurements WHERE client_id = ?`
 
-	q = query.AddOrderBy(lo.Sorts, q)
+	q, params = query.AddWhere(lo.Filters, q, params)
 
-	params := []interface{}{}
-	params = append(params, clientID)
-	params = append(params, lo.Filters[0].Values[0])
-	params = append(params, lo.Filters[1].Values[0])
+	q = q + ` GROUP BY round((strftime('%s',timestamp)/(?)),0)`
 	divisor := (math.Round(hours*100) / 100) * 29
 	params = append(params, divisor)
 
-	val := []*monitoring2.ClientGraphMetricsPayload{}
+	q = query.AddOrderBy(lo.Sorts, q)
+
+	val := []*ClientGraphMetricsPayload{}
 	err := p.db.SelectContext(ctx, &val, q, params...)
 	return val, err
 }

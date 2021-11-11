@@ -16,7 +16,7 @@ func ConvertRetrieveOptionsToQuery(ro *RetrieveOptions, q string) string {
 }
 
 func AppendOptionsToQuery(o *ListOptions, q string, params []interface{}) (string, []interface{}) {
-	q, params = addWhere(o.Filters, q, params)
+	q, params = AddWhere(o.Filters, q, params)
 	q = AddOrderBy(o.Sorts, q)
 	q = ReplaceStarSelect(o.Fields, q)
 	q, params = addLimitOffset(o.Pagination, q, params)
@@ -24,7 +24,7 @@ func AppendOptionsToQuery(o *ListOptions, q string, params []interface{}) (strin
 	return q, params
 }
 
-func addWhere(filterOptions []FilterOption, q string, params []interface{}) (string, []interface{}) {
+func AddWhere(filterOptions []FilterOption, q string, params []interface{}) (string, []interface{}) {
 	if len(filterOptions) == 0 {
 		return q, params
 	}

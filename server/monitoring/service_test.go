@@ -7,7 +7,6 @@ import (
 
 	"github.com/stretchr/testify/require"
 
-	"github.com/cloudradar-monitoring/rport/server/api/monitoring"
 	"github.com/cloudradar-monitoring/rport/share/query"
 )
 
@@ -67,7 +66,7 @@ func TestMonitoringService_ListClientMetrics(t *testing.T) {
 			require.NotNil(t, payload.Meta)
 			require.Equal(t, tc.ExpectedMetaCount, payload.Meta.Count)
 
-			metricsList, ok := payload.Data.([]*monitoring.ClientMetricsPayload)
+			metricsList, ok := payload.Data.([]*ClientMetricsPayload)
 			require.True(t, ok)
 			require.Equal(t, tc.ExpectedDataListLen, len(metricsList))
 			require.Equal(t, tc.ExpectedTimestamp, metricsList[0].Timestamp)

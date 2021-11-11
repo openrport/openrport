@@ -9,7 +9,6 @@ import (
 
 	"github.com/cloudradar-monitoring/rport/server/api"
 	"github.com/cloudradar-monitoring/rport/server/api/errors"
-	"github.com/cloudradar-monitoring/rport/server/api/monitoring"
 	"github.com/cloudradar-monitoring/rport/share/models"
 	"github.com/cloudradar-monitoring/rport/share/query"
 )
@@ -18,7 +17,7 @@ type Service interface {
 	SaveMeasurement(ctx context.Context, measurement *models.Measurement) error
 	DeleteMeasurementsOlderThan(ctx context.Context, period time.Duration) (int64, error)
 	ListClientMetrics(context.Context, string, *query.ListOptions) (*api.SuccessPayload, error)
-	ListClientGraphMetrics(context.Context, string, *query.ListOptions) ([]*monitoring.ClientGraphMetricsPayload, error)
+	ListClientGraphMetrics(context.Context, string, *query.ListOptions) ([]*ClientGraphMetricsPayload, error)
 	ListClientMountpoints(context.Context, string, *query.ListOptions) (*api.SuccessPayload, error)
 	ListClientProcesses(context.Context, string, *query.ListOptions) (*api.SuccessPayload, error)
 }
@@ -52,8 +51,8 @@ func (s *monitoringService) DeleteMeasurementsOlderThan(ctx context.Context, per
 	return s.DBProvider.DeleteMeasurementsBefore(ctx, compare)
 }
 
-func (s *monitoringService) ListClientGraphMetrics(ctx context.Context, clientID string, lo *query.ListOptions) ([]*monitoring.ClientGraphMetricsPayload, error) {
-	err := query.ValidateListOptions(lo, monitoring.ClientGraphMetricsSortFields, monitoring.ClientGraphMetricsFilterFields, monitoring.ClientGraphMetricsFields, nil)
+func (s *monitoringService) ListClientGraphMetrics(ctx context.Context, clientID string, lo *query.ListOptions) ([]*ClientGraphMetricsPayload, error) {
+	err := query.ValidateListOptions(lo, ClientGraphMetricsSortFields, ClientGraphMetricsFilterFields, ClientGraphMetricsFields, nil)
 	if err != nil {
 		return nil, err
 	}
@@ -69,7 +68,7 @@ func (s *monitoringService) ListClientGraphMetrics(ctx context.Context, clientID
 	}
 
 	if (lo.Filters[0].Operator == query.FilterOperatorTypeGT && lo.Filters[1].Operator == query.FilterOperatorTypeLT) ||
-		(lo.Filters[0].Operator == query.FilterOperatorTypeSince && lo.Filters[1].Operator != query.FilterOperatorTypeUntil) {
+		(lo.Filters[0].Operator == query.FilterOperatorTypeSince && lo.Filters[1].Operator == query.FilterOperatorTypeUntil) {
 		//these are the allowed filter combinations
 	} else {
 		return nil, errors.APIError{Message: fmt.Sprintf("Illegal filter pair %s %s", lo.Filters[0].Expression, lo.Filters[1].Expression), HTTPStatus: http.StatusBadRequest}
@@ -90,7 +89,7 @@ func (s *monitoringService) ListClientGraphMetrics(ctx context.Context, clientID
 }
 
 func (s *monitoringService) ListClientMetrics(ctx context.Context, clientID string, options *query.ListOptions) (*api.SuccessPayload, error) {
-	err := query.ValidateListOptions(options, monitoring.ClientMetricsSortFields, monitoring.ClientMetricsFilterFields, monitoring.ClientMetricsFields, &query.PaginationConfig{
+	err := query.ValidateListOptions(options, ClientMetricsSortFields, ClientMetricsFilterFields, ClientMetricsFields, &query.PaginationConfig{
 		DefaultLimit: defaultLimitMetrics,
 		MaxLimit:     maxLimitMetrics,
 	})
@@ -117,7 +116,7 @@ func (s *monitoringService) ListClientMetrics(ctx context.Context, clientID stri
 }
 
 func (s *monitoringService) ListClientMountpoints(ctx context.Context, clientID string, options *query.ListOptions) (*api.SuccessPayload, error) {
-	err := query.ValidateListOptions(options, monitoring.ClientMountpointsSortFields, monitoring.ClientMountpointsFilterFields, monitoring.ClientMountpointsFields, &query.PaginationConfig{
+	err := query.ValidateListOptions(options, ClientMountpointsSortFields, ClientMountpointsFilterFields, ClientMountpointsFields, &query.PaginationConfig{
 		DefaultLimit: defaultLimitMountpoints,
 		MaxLimit:     maxLimitMountpoints,
 	})
@@ -144,7 +143,7 @@ func (s *monitoringService) ListClientMountpoints(ctx context.Context, clientID 
 }
 
 func (s *monitoringService) ListClientProcesses(ctx context.Context, clientID string, options *query.ListOptions) (*api.SuccessPayload, error) {
-	err := query.ValidateListOptions(options, monitoring.ClientProcessesSortFields, monitoring.ClientProcessesFilterFields, monitoring.ClientProcessesFields, &query.PaginationConfig{
+	err := query.ValidateListOptions(options, ClientProcessesSortFields, ClientProcessesFilterFields, ClientProcessesFields, &query.PaginationConfig{
 		DefaultLimit: defaultLimitProcesses,
 		MaxLimit:     maxLimitProcesses,
 	})
