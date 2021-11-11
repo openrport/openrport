@@ -84,10 +84,6 @@ func ValidateListOptions(lo *ListOptions, supportedSorts map[string]bool, suppor
 	return nil
 }
 
-func (o *ListOptions) HasFilters() bool {
-	return o.Filters != nil && len(o.Filters) > 0
-}
-
 func getOrValues(values []string) []string {
 	orValues := make([]string, 0)
 	for i := range values {

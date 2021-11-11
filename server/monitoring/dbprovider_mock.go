@@ -12,38 +12,30 @@ import (
 )
 
 type DBProviderMock struct {
-	MetricsPayload     *monitoring_api.ClientMetricsPayload
-	MetricsListPayload []monitoring_api.ClientMetricsPayload
-	ProcessesPayload   *monitoring_api.ClientProcessesPayload
-	MountpointsPayload *monitoring_api.ClientMountpointsPayload
+	GraphMetricsListPayload []*monitoring_api.ClientGraphMetricsPayload
+	MetricsListPayload      []*monitoring_api.ClientMetricsPayload
+	ProcessesListPayload    []*monitoring_api.ClientProcessesPayload
+	MountpointsListPayload  []*monitoring_api.ClientMountpointsPayload
 }
 
-func (p *DBProviderMock) GetProcessesLatestByClientID(ctx context.Context, clientID string) (*monitoring_api.ClientProcessesPayload, error) {
-	return p.ProcessesPayload, nil
+func (p *DBProviderMock) CountByClientID(ctx context.Context, clientID string, fo *query.ListOptions) (int, error) {
+	return 10, nil
 }
 
-func (p *DBProviderMock) GetProcessesNearestByClientID(ctx context.Context, clientID string, filters []query.FilterOption) (*monitoring_api.ClientProcessesPayload, error) {
-	return p.ProcessesPayload, nil
+func (p *DBProviderMock) ListProcessesByClientID(ctx context.Context, clientID string, fo *query.ListOptions) ([]*monitoring_api.ClientProcessesPayload, error) {
+	return p.ProcessesListPayload, nil
 }
 
-func (p *DBProviderMock) GetMountpointsLatestByClientID(ctx context.Context, clientID string) (*monitoring_api.ClientMountpointsPayload, error) {
-	return p.MountpointsPayload, nil
+func (p *DBProviderMock) ListMountpointsByClientID(ctx context.Context, clientID string, o *query.ListOptions) ([]*monitoring_api.ClientMountpointsPayload, error) {
+	return p.MountpointsListPayload, nil
 }
 
-func (p *DBProviderMock) GetMountpointsNearestByClientID(ctx context.Context, clientID string, filters []query.FilterOption) (*monitoring_api.ClientMountpointsPayload, error) {
-	return p.MountpointsPayload, nil
-}
-
-func (p *DBProviderMock) GetMetricsLatestByClientID(ctx context.Context, clientID string, fields []query.FieldsOption) (val *monitoring_api.ClientMetricsPayload, err error) {
-	return p.MetricsPayload, nil
-}
-
-func (p *DBProviderMock) GetMetricsListByClientID(ctx context.Context, clientID string, o *query.ListOptions) ([]monitoring_api.ClientMetricsPayload, error) {
+func (p *DBProviderMock) ListMetricsByClientID(ctx context.Context, clientID string, o *query.ListOptions) ([]*monitoring_api.ClientMetricsPayload, error) {
 	return p.MetricsListPayload, nil
 }
 
-func (p *DBProviderMock) GetMetricsListDownsampledByClientID(ctx context.Context, clientID string, hours float64, o *query.ListOptions) ([]monitoring_api.ClientMetricsPayload, error) {
-	return p.MetricsListPayload, nil
+func (p *DBProviderMock) ListGraphMetricsByClientID(ctx context.Context, clientID string, hours float64, o *query.ListOptions) ([]*monitoring_api.ClientGraphMetricsPayload, error) {
+	return p.GraphMetricsListPayload, nil
 }
 
 func (p *DBProviderMock) CreateMeasurement(ctx context.Context, measurement *models.Measurement) error {

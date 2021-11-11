@@ -1760,58 +1760,32 @@ func TestWrapWithAuthMiddleware(t *testing.T) {
 	}
 }
 
-func TestGetClientMetrics(t *testing.T) {
+func TestListClientMetrics(t *testing.T) {
 	m1 := time.Date(2021, time.September, 1, 0, 0, 0, 0, time.UTC)
 	m2 := time.Date(2021, time.September, 1, 0, 1, 0, 0, time.UTC)
-	pm1 := &monitoring_api.ClientMetricsPayload{
-		Timestamp: m1,
-		CPUUsagePercent: monitoring_api.CPUUsagePercent{
-			Value: 10.5,
-			Min:   0,
-			Max:   0,
-		},
-		MemoryUsagePercent: monitoring_api.MemoryUsagePercent{
-			Value: 2.5,
-			Min:   0,
-			Max:   0,
-		},
+	cmp1 := &monitoring_api.ClientMetricsPayload{
+		Timestamp:          m1,
+		CPUUsagePercent:    10.5,
+		MemoryUsagePercent: 2.5,
+		IOUsagePercent:     20,
 	}
-	pm2 := &monitoring_api.ClientMetricsPayload{
-		Timestamp: m2,
-		CPUUsagePercent: monitoring_api.CPUUsagePercent{
-			Value: 20.5,
-			Min:   0,
-			Max:   0,
-		},
-		MemoryUsagePercent: monitoring_api.MemoryUsagePercent{
-			Value: 2.5,
-			Min:   0,
-			Max:   0,
-		},
+	cmp2 := &monitoring_api.ClientMetricsPayload{
+		Timestamp:          m2,
+		CPUUsagePercent:    20.5,
+		MemoryUsagePercent: 2.5,
+		IOUsagePercent:     25,
 	}
-	mlp := []monitoring_api.ClientMetricsPayload{*pm1, *pm2}
-	pp := &monitoring_api.ClientProcessesPayload{
+	lcmp := []*monitoring_api.ClientMetricsPayload{cmp1, cmp2}
+
+	cpp1 := &monitoring_api.ClientProcessesPayload{
 		Timestamp: m1,
 		Processes: `[{"pid":30212,"parent_pid":4711,"name":"chrome"}]`,
 	}
-
+	lcpp := []*monitoring_api.ClientProcessesPayload{cpp1}
 	dbProvider := &monitoring.DBProviderMock{
-		MetricsPayload: &monitoring_api.ClientMetricsPayload{
-			Timestamp: m1,
-			CPUUsagePercent: monitoring_api.CPUUsagePercent{
-				Value: 10.5,
-				Min:   0,
-				Max:   0,
-			},
-			MemoryUsagePercent: monitoring_api.MemoryUsagePercent{
-				Value: 2.5,
-				Min:   0,
-				Max:   0,
-			},
-		},
-		MetricsListPayload: mlp,
-		ProcessesPayload:   pp,
-		MountpointsPayload: nil,
+		MetricsListPayload:     lcmp,
+		ProcessesListPayload:   lcpp,
+		MountpointsListPayload: nil,
 	}
 	monitoringService := monitoring.NewService(dbProvider)
 	al := APIListener{
@@ -1833,7 +1807,7 @@ func TestGetClientMetrics(t *testing.T) {
 			Name:           "metrics default, no filter, no fields",
 			URL:            "metrics",
 			ExpectedStatus: http.StatusOK,
-			ExpectedJSON:   `{"data":{"timestamp":"2021-09-01T00:00:00Z","cpu_usage_percent":{"value":10.5},"memory_usage_percent":{"value":2.5},"io_usage_percent":{}}}`,
+			ExpectedJSON:   `{"data":{"data":[{"timestamp":"2021-09-01T00:00:00Z","cpu_usage_percent":10.5,"memory_usage_percent":2.5,"io_usage_percent":20},{"timestamp":"2021-09-01T00:01:00Z","cpu_usage_percent":20.5,"memory_usage_percent":2.5,"io_usage_percent":25}],"meta":{"count":10}}}`,
 		},
 		{
 			Name:           "metrics with fields, no filter, unknown field",
@@ -1845,25 +1819,19 @@ func TestGetClientMetrics(t *testing.T) {
 			Name:           "metrics with timestamp filter, filter ok",
 			URL:            "metrics?filter[timestamp][gt]=1636009200&filter[timestamp][lt]=1636012800",
 			ExpectedStatus: http.StatusOK,
-			ExpectedJSON:   `{"data":[{"timestamp":"2021-09-01T00:00:00Z","cpu_usage_percent":{"value":10.5},"memory_usage_percent":{"value":2.5},"io_usage_percent":{}},{"timestamp":"2021-09-01T00:01:00Z","cpu_usage_percent":{"value":20.5},"memory_usage_percent":{"value":2.5},"io_usage_percent":{}}]}`,
+			ExpectedJSON:   `{"data":{"data":[{"timestamp":"2021-09-01T00:00:00Z","cpu_usage_percent":10.5,"memory_usage_percent":2.5,"io_usage_percent":20},{"timestamp":"2021-09-01T00:01:00Z","cpu_usage_percent":20.5,"memory_usage_percent":2.5,"io_usage_percent":25}],"meta":{"count":10}}}`,
 		},
 		{
 			Name:           "metrics with datetime filter, filter ok",
 			URL:            "metrics?filter[timestamp][since]=2021-09-01T00:00:00%2B00:00&filter[timestamp][until]=2021-09-01T00:01:00%2B00:00",
 			ExpectedStatus: http.StatusOK,
-			ExpectedJSON:   `{"data":[{"timestamp":"2021-09-01T00:00:00Z","cpu_usage_percent":{"value":10.5},"memory_usage_percent":{"value":2.5},"io_usage_percent":{}},{"timestamp":"2021-09-01T00:01:00Z","cpu_usage_percent":{"value":20.5},"memory_usage_percent":{"value":2.5},"io_usage_percent":{}}]}`,
-		},
-		{
-			Name:           "metrics with filter, illegal bounds",
-			URL:            "metrics?filter[timestamp][gt]=1636009200&filter[timestamp][lt]=1636009190",
-			ExpectedStatus: http.StatusBadRequest,
-			ExpectedJSON:   `{"errors":[{"code":"", "detail":"", "title":"Illegal time value (upper before lower)"}]}`,
+			ExpectedJSON:   `{"data":{"data":[{"timestamp":"2021-09-01T00:00:00Z","cpu_usage_percent":10.5,"memory_usage_percent":2.5,"io_usage_percent":20},{"timestamp":"2021-09-01T00:01:00Z","cpu_usage_percent":20.5,"memory_usage_percent":2.5,"io_usage_percent":25}],"meta":{"count":10}}}`,
 		},
 		{
 			Name:           "processes default, no filter, no fields",
 			URL:            "processes",
 			ExpectedStatus: http.StatusOK,
-			ExpectedJSON:   `{"data":{"timestamp":"2021-09-01T00:00:00Z","processes":[{"pid":30212,"parent_pid":4711,"name":"chrome"}]}}`,
+			ExpectedJSON:   `{"data":{"data":[{"timestamp":"2021-09-01T00:00:00Z","processes":[{"pid":30212,"parent_pid":4711,"name":"chrome"}]}],"meta":{"count":10}}}`,
 		},
 	}
 

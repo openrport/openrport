@@ -8,6 +8,7 @@ import (
 
 	"github.com/stretchr/testify/require"
 
+	"github.com/cloudradar-monitoring/rport/server/api/monitoring"
 	chshare "github.com/cloudradar-monitoring/rport/share"
 	"github.com/cloudradar-monitoring/rport/share/models"
 	"github.com/cloudradar-monitoring/rport/share/query"
@@ -90,7 +91,7 @@ func TestSqliteProvider_DeleteMeasurementsBefore(t *testing.T) {
 	require.Equal(t, int64(2), deleted)
 }
 
-func TestSqliteProvider_GetMetricsLatestByClientID(t *testing.T) {
+func TestSqliteProvider_CountByClientID(t *testing.T) {
 	dbProvider, err := NewSqliteProvider(":memory:", testLog)
 	require.NoError(t, err)
 	defer dbProvider.Close()
@@ -101,18 +102,13 @@ func TestSqliteProvider_GetMetricsLatestByClientID(t *testing.T) {
 	require.NoError(t, err)
 
 	// get the latest metrics measurement of client
-	fields := make([]query.FieldsOption, 1)
-	fields[0] = query.FieldsOption{
-		Resource: "metrics",
-		Fields:   []string{"timestamp", "cpu_usage_percent", "memory_usage_percent"},
-	}
-	mC1, err := dbProvider.GetMetricsLatestByClientID(ctx, "test_client_1", fields)
+	options := createMetricsDefaultOptions()
+	count, err := dbProvider.CountByClientID(ctx, "test_client_1", options)
 	require.NoError(t, err)
-	require.NotNil(t, mC1)
-	require.Equal(t, measurement3, mC1.Timestamp)
+	require.Equal(t, 3, count)
 }
 
-func TestSqliteProvider_GetMetricsListByClientID(t *testing.T) {
+func TestSqliteProvider_ListMetricsLatestByClientID(t *testing.T) {
 	dbProvider, err := NewSqliteProvider(":memory:", testLog)
 	require.NoError(t, err)
 	defer dbProvider.Close()
@@ -122,43 +118,36 @@ func TestSqliteProvider_GetMetricsListByClientID(t *testing.T) {
 	err = createTestData(ctx, dbProvider)
 	require.NoError(t, err)
 
-	sorts := []query.SortOption{query.SortOption{
-		Column: "timestamp",
-		IsASC:  false,
-	},
-	}
-	fields := make([]query.FieldsOption, 1)
-	fields[0] = query.FieldsOption{
-		Resource: "metrics",
-		Fields:   []string{"timestamp", "cpu_usage_percent", "memory_usage_percent"},
-	}
-	ts1 := measurement1.Format(layoutDb)
-	filters := []query.FilterOption{
-		{
-			Expression: "timestamp[gt]",
-			Column:     "timestamp",
-			Operator:   query.FilterOperatorTypeGT,
-			Values:     []string{ts1},
-		},
-		{
-			Expression: "limit",
-			Column:     "limit",
-			Operator:   query.FilterOperatorTypeEQ,
-			Values:     []string{"2"},
-		},
-	}
-	lo := &query.ListOptions{
-		Sorts:   sorts,
-		Filters: filters,
-		Fields:  fields,
-	}
-	mList, err := dbProvider.GetMetricsListByClientID(ctx, "test_client_1", lo)
+	// get the latest metrics measurement of client
+	options := createMetricsDefaultOptions()
+	lm, err := dbProvider.ListMetricsByClientID(ctx, "test_client_1", options)
 	require.NoError(t, err)
-	require.NotNil(t, mList)
-	require.Equal(t, 2, len(mList))
+	require.NotNil(t, lm)
+	require.Equal(t, 1, len(lm))
+	require.Equal(t, measurement3, lm[0].Timestamp)
 }
 
-func TestSqliteProvider_GetMetricsListDownsampledByClientID(t *testing.T) {
+func TestSqliteProvider_ListMetricsNextByClientID(t *testing.T) {
+	dbProvider, err := NewSqliteProvider(":memory:", testLog)
+	require.NoError(t, err)
+	defer dbProvider.Close()
+
+	ctx := context.Background()
+
+	err = createTestData(ctx, dbProvider)
+	require.NoError(t, err)
+
+	// get the second page, which is the second entry on page limit=1)
+	options := createMetricsDefaultOptions()
+	options.Pagination.Offset = "1"
+	lm, err := dbProvider.ListMetricsByClientID(ctx, "test_client_1", options)
+	require.NoError(t, err)
+	require.NotNil(t, lm)
+	require.Equal(t, 1, len(lm))
+	require.Equal(t, measurement2, lm[0].Timestamp)
+}
+
+func TestSqliteProvider_ListGraphMetricsByClientID(t *testing.T) {
 	dbProvider, err := NewSqliteProvider(":memory:", testLog)
 	require.NoError(t, err)
 	defer dbProvider.Close()
@@ -168,29 +157,17 @@ func TestSqliteProvider_GetMetricsListDownsampledByClientID(t *testing.T) {
 	err = createDownsamplingData(ctx, dbProvider)
 	require.NoError(t, err)
 
-	sorts := []query.SortOption{query.SortOption{
-		Column: "timestamp",
-		IsASC:  false,
-	},
-	}
-	fields := make([]query.FieldsOption, 1)
-	fields[0] = query.FieldsOption{
-		Resource: "metrics",
-		Fields:   []string{"timestamp", "cpu_usage_percent", "memory_usage_percent"},
-	}
+	options := createGraphMetricsDefaultOptions()
 	hours := 48.0
-	lo := &query.ListOptions{
-		Sorts:   sorts,
-		Filters: createSinceUntilFilter(measurement1, hours),
-		Fields:  fields,
-	}
-	mList, err := dbProvider.GetMetricsListDownsampledByClientID(ctx, "test_client", hours, lo)
+	options.Filters = createSinceUntilFilter(measurement1, hours)
+
+	mList, err := dbProvider.ListGraphMetricsByClientID(ctx, "test_client", hours, options)
 	require.NoError(t, err)
 	require.NotNil(t, mList)
 	require.Equal(t, 126, len(mList))
 }
 
-func TestSqliteProvider_GetProcessesLatestByClientID(t *testing.T) {
+func TestSqliteProvider_ListProcessesLatestByClientID(t *testing.T) {
 	dbProvider, err := NewSqliteProvider(":memory:", testLog)
 	require.NoError(t, err)
 	defer dbProvider.Close()
@@ -201,14 +178,16 @@ func TestSqliteProvider_GetProcessesLatestByClientID(t *testing.T) {
 	require.NoError(t, err)
 
 	// get the latest processes of client
-	pC1, err := dbProvider.GetProcessesLatestByClientID(ctx, "test_client_1")
+	options := createProcessesDefaultOptions()
+	pC1, err := dbProvider.ListProcessesByClientID(ctx, "test_client_1", options)
 	require.NoError(t, err)
 	require.NotNil(t, pC1)
+	require.Equal(t, 1, len(pC1))
 	var expectedJSON types.JSONString = `{[{"pid":30212, "parent_pid": 4711, "name": "cinnamon"}]}`
-	require.Equal(t, expectedJSON, pC1.Processes)
+	require.Equal(t, expectedJSON, pC1[0].Processes)
 }
 
-func TestSqliteProvider_GetProcessesNearestByClientID(t *testing.T) {
+func TestSqliteProvider_ListProcessesNextByClientID(t *testing.T) {
 	dbProvider, err := NewSqliteProvider(":memory:", testLog)
 	require.NoError(t, err)
 	defer dbProvider.Close()
@@ -218,16 +197,19 @@ func TestSqliteProvider_GetProcessesNearestByClientID(t *testing.T) {
 	err = createTestData(ctx, dbProvider)
 	require.NoError(t, err)
 
-	// get processes of client with timestamp
-	m2 := measurement1.Add(measurementInterval)
-	pC1, err := dbProvider.GetProcessesNearestByClientID(ctx, "test_client_1", createSinceFilter(m2))
+	// get the third page, which is the third entry on page limit=1)
+	options := createProcessesDefaultOptions()
+	options.Pagination.Offset = "2"
+
+	pC1, err := dbProvider.ListProcessesByClientID(ctx, "test_client_1", options)
 	require.NoError(t, err)
 	require.NotNil(t, pC1)
-	var expectedJSON types.JSONString = `{[{"pid":30211, "parent_pid": 4711, "name": "idea"}]}`
-	require.Equal(t, expectedJSON, pC1.Processes)
+	require.Equal(t, 1, len(pC1))
+	var expectedJSON types.JSONString = `{[{"pid":30210, "parent_pid": 4711, "name": "chrome"}]}`
+	require.Equal(t, expectedJSON, pC1[0].Processes)
 }
 
-func TestSqliteProvider_GetMountpointsLatestByClientID(t *testing.T) {
+func TestSqliteProvider_ListMountpointsLatestByClientID(t *testing.T) {
 	dbProvider, err := NewSqliteProvider(":memory:", testLog)
 	require.NoError(t, err)
 	defer dbProvider.Close()
@@ -238,14 +220,16 @@ func TestSqliteProvider_GetMountpointsLatestByClientID(t *testing.T) {
 	require.NoError(t, err)
 
 	// get the latest mountpoints of client
-	mC1, err := dbProvider.GetMountpointsLatestByClientID(ctx, "test_client_1")
+	options := createMountpointsDefaultOptions()
+	mC1, err := dbProvider.ListMountpointsByClientID(ctx, "test_client_1", options)
 	require.NoError(t, err)
 	require.NotNil(t, mC1)
+	require.Equal(t, 1, len(mC1))
 	var expectedJSON types.JSONString = `{"free_b./":54182758400,"free_b./home":328029413376,"total_b./":105555197952,"total_b./home":364015185920}`
-	require.Equal(t, expectedJSON, mC1.Mountpoints)
+	require.Equal(t, expectedJSON, mC1[0].Mountpoints)
 }
 
-func TestSqliteProvider_GetMountpointsNearestByClientID(t *testing.T) {
+func TestSqliteProvider_ListMountpointsPageByClientID(t *testing.T) {
 	dbProvider, err := NewSqliteProvider(":memory:", testLog)
 	require.NoError(t, err)
 	defer dbProvider.Close()
@@ -256,12 +240,16 @@ func TestSqliteProvider_GetMountpointsNearestByClientID(t *testing.T) {
 	require.NoError(t, err)
 
 	// get mountpoints of client with timestamp
-	m2 := measurement1.Add(measurementInterval)
-	mC1, err := dbProvider.GetMountpointsNearestByClientID(ctx, "test_client_1", createSinceFilter(m2))
+	options := createMountpointsDefaultOptions()
+	options.Pagination.Limit = "2"
+	mC1, err := dbProvider.ListMountpointsByClientID(ctx, "test_client_1", options)
 	require.NoError(t, err)
 	require.NotNil(t, mC1)
-	var expectedJSON types.JSONString = `{"free_b./":44182758400,"free_b./home":228029413376,"total_b./":105555197952,"total_b./home":364015185920}`
-	require.Equal(t, expectedJSON, mC1.Mountpoints)
+	require.Equal(t, 2, len(mC1))
+	var expectedJSON0 types.JSONString = `{"free_b./":54182758400,"free_b./home":328029413376,"total_b./":105555197952,"total_b./home":364015185920}`
+	var expectedJSON1 types.JSONString = `{"free_b./":44182758400,"free_b./home":228029413376,"total_b./":105555197952,"total_b./home":364015185920}`
+	require.Equal(t, expectedJSON0, mC1[0].Mountpoints)
+	require.Equal(t, expectedJSON1, mC1[1].Mountpoints)
 }
 
 func createTestData(ctx context.Context, dbProvider DBProvider) error {
@@ -329,17 +317,54 @@ func createSinceUntilFilter(start time.Time, hours float64) []query.FilterOption
 	return filters
 }
 
-func createSinceFilter(since time.Time) []query.FilterOption {
-	mSince := since.Format(layoutDb)
+func createGraphMetricsDefaultOptions() *query.ListOptions {
+	qOptions := &query.ListOptions{}
 
-	filters := []query.FilterOption{
-		{
-			Expression: "timestamp[since]",
-			Column:     "timestamp",
-			Operator:   query.FilterOperatorTypeSince,
-			Values:     []string{mSince},
-		},
+	qOptions.Sorts = query.ParseSortOptions(monitoring.ClientGraphMetricsSortDefault)
+	qOptions.Filters = query.ParseFilterOptions(monitoring.ClientGraphMetricsFilterDefault)
+	qOptions.Fields = query.ParseFieldsOptions(monitoring.ClientGraphMetricsFieldsDefault)
+
+	return qOptions
+}
+
+func createMetricsDefaultOptions() *query.ListOptions {
+	qOptions := &query.ListOptions{}
+
+	qOptions.Sorts = query.ParseSortOptions(monitoring.ClientMetricsSortDefault)
+	qOptions.Filters = query.ParseFilterOptions(monitoring.ClientMetricsFilterDefault)
+	qOptions.Fields = query.ParseFieldsOptions(monitoring.ClientMetricsFieldsDefault)
+	qOptions.Pagination = &query.Pagination{
+		Limit:  "1",
+		Offset: "0",
 	}
 
-	return filters
+	return qOptions
+}
+
+func createProcessesDefaultOptions() *query.ListOptions {
+	qOptions := &query.ListOptions{}
+
+	qOptions.Sorts = query.ParseSortOptions(monitoring.ClientProcessesSortDefault)
+	qOptions.Filters = query.ParseFilterOptions(monitoring.ClientProcessesFilterDefault)
+	qOptions.Fields = query.ParseFieldsOptions(monitoring.ClientProcessesFieldsDefault)
+	qOptions.Pagination = &query.Pagination{
+		Limit:  "1",
+		Offset: "0",
+	}
+
+	return qOptions
+}
+
+func createMountpointsDefaultOptions() *query.ListOptions {
+	qOptions := &query.ListOptions{}
+
+	qOptions.Sorts = query.ParseSortOptions(monitoring.ClientMountpointsSortDefault)
+	qOptions.Filters = query.ParseFilterOptions(monitoring.ClientMountpointsFilterDefault)
+	qOptions.Fields = query.ParseFieldsOptions(monitoring.ClientMountpointsFieldsDefault)
+	qOptions.Pagination = &query.Pagination{
+		Limit:  "1",
+		Offset: "0",
+	}
+
+	return qOptions
 }
