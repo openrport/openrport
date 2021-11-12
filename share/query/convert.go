@@ -16,21 +16,24 @@ func ConvertRetrieveOptionsToQuery(ro *RetrieveOptions, q string) string {
 }
 
 func AppendOptionsToQuery(o *ListOptions, q string, params []interface{}) (string, []interface{}) {
-	q, params = addWhere(o.Filters, q, params)
-	q = addOrderBy(o.Sorts, q)
+	q, params = AddWhere(o.Filters, q, params)
+	q = AddOrderBy(o.Sorts, q)
 	q = ReplaceStarSelect(o.Fields, q)
 	q, params = addLimitOffset(o.Pagination, q, params)
 
 	return q, params
 }
 
-func addWhere(filterOptions []FilterOption, q string, params []interface{}) (string, []interface{}) {
+func AddWhere(filterOptions []FilterOption, q string, params []interface{}) (string, []interface{}) {
 	if len(filterOptions) == 0 {
 		return q, params
 	}
 
 	whereParts := make([]string, 0, len(filterOptions))
-	for i := range filterOptions {
+	for i, fo := range filterOptions {
+		if IsLimitFilter(fo) {
+			continue
+		}
 		if len(filterOptions[i].Values) == 1 {
 			whereParts = append(whereParts, fmt.Sprintf("%s %s ?", filterOptions[i].Column, filterOptions[i].Operator.Code()))
 			params = append(params, filterOptions[i].Values[0])
@@ -55,7 +58,7 @@ func addWhere(filterOptions []FilterOption, q string, params []interface{}) (str
 	return q, params
 }
 
-func addOrderBy(sortOptions []SortOption, q string) string {
+func AddOrderBy(sortOptions []SortOption, q string) string {
 	if len(sortOptions) == 0 {
 		return q
 	}

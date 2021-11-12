@@ -72,7 +72,6 @@ func ValidateFilterOptions(fo []FilterOption, supportedFields map[string]bool) e
 }
 
 func ParseFilterOptions(values url.Values) []FilterOption {
-
 	res := make([]FilterOption, 0)
 	for filterKey, filterValues := range values {
 		if !strings.HasPrefix(filterKey, "filter") || len(filterValues) == 0 {
@@ -114,6 +113,10 @@ func ParseFilterOptions(values url.Values) []FilterOption {
 	}
 
 	return res
+}
+
+func IsLimitFilter(fo FilterOption) bool {
+	return fo.Column == "limit"
 }
 
 func SortFiltersByOperator(a []FilterOption) {

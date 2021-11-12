@@ -2272,6 +2272,254 @@ paths:
           schema:
             $ref: "#/definitions/ErrorPayload"
 
+  /clients/{client_id}/graph-metrics:
+    get:
+      tags:
+        - "Monitoring"
+      summary: "Lists client metrics for displaying as graphs"
+      description: "List downsampled monitoring data about client metrics for the provided clientID"
+      produces:
+        - "application/json"
+      parameters:
+        - in: "path"
+          name: "client_id"
+          required: true
+          description: "Unique client ID"
+          type: "string"
+        - in: "query"
+          name: "sort"
+          description: "There is only `timestamp` allowed as sort field. Default direction is DESC\n
+            To sort ascending use `&sort=timestamp`."
+          required: false
+          type: "string"
+        - in: "query"
+          name: "filter[timestamp][<OPERATOR>]"
+          description: "Filter entries by field `timestamp`. `<OPERATOR>` can be one of `gt`, `lt`, `since` or `until`.\n
+              `gt` and `lt` require a timestamp value as `unixepoch`. `since` and `until` require a timestamp value in format `RFC3339`.\n
+              e.g. `filter[timestamp][gt]=1636009200&filter[timestamp][lt]=1636009500` or\n
+              e.g. `filter[timestamp][since]=2021-01-01T00:00:00+01:00&filter[timestamp][until]=2021-01-01T01:00:00+01:00`.\n\n
+              Downsampling data is available for a period `>= 2 hours` and `<= 48 hours`.\n
+              When downsampling takes place you get `avg, min and max` values for `cpu_usage_percent, memory_usage_percent and io_usage_percent`\n\n
+              "
+          required: false
+          type: "string"
+      responses:
+        "200":
+          description: "Successful Operation"
+          schema:
+            type: "object"
+            properties:
+              data:
+                type: "object"
+                $ref: "#/definitions/GraphMetrics"
+        "400":
+          description: "Bad Request"
+          schema:
+            $ref: "#/definitions/ErrorPayload"
+        "404":
+          description: "Cannot find measurements by the provided id"
+          schema:
+            $ref: "#/definitions/ErrorPayload"
+        "500":
+          description: "Invalid Operation"
+          schema:
+            $ref: "#/definitions/ErrorPayload"
+
+  /clients/{client_id}/metrics:
+    get:
+      tags:
+        - "Monitoring"
+      summary: "Lists client metrics"
+      description: "List monitoring data about client metrics for the provided clientID"
+      produces:
+        - "application/json"
+      parameters:
+        - in: "path"
+          name: "client_id"
+          required: true
+          description: "Unique client ID"
+          type: "string"
+        - in: "query"
+          name: "sort"
+          description: "There is only `timestamp` allowed as sort field. Default direction is DESC\n
+            To sort ascending use `&sort=timestamp`."
+          required: false
+          type: "string"
+        - in: "query"
+          name: "filter[timestamp][<OPERATOR>]"
+          description: "Filter entries by field `timestamp`. `<OPERATOR>` can be one of `gt`, `lt`, `since` or `until`.\n
+              `gt` and `lt` require a timestamp value as `unixepoch`. `since` and `until` require a timestamp value in format `RFC3339`.\n
+              e.g. `filter[timestamp][gt]=1636009200&filter[timestamp][lt]=1636009500` or\n
+              e.g. `filter[timestamp][since]=2021-01-01T00:00:00+01:00&filter[timestamp][until]=2021-01-01T01:00:00+01:00`.\n\n
+              "
+          required: false
+          type: "string"
+        - in: "query"
+          name: "fields[<RESOURCE>]"
+          description: "Fields to be returned. It should be provided in the format as `fields[<RESOURCE>]=<FIELDS>`,
+              where `<RESOURCE>` is `metrics` and `<FIELDS>` is a comma separated list of fields. Example: `fields[metrics]=timestamp,cpu_usage_percent,memory_usage_percent,io_usage_percent`.
+              If no fields are specified, `timestamp, cpu_usage_percent, memory_usage_percent and io_usage_percent` are returned."
+          required: false
+          type: "string"
+        - name: "page"
+          in: "query"
+          required: false
+          type: "integer"
+          description: "Pagination options `page[limit]` and `page[offset]` can be used to get more than the first page of results. Default limit is 1 and maximum is 120.\n The `count` property in meta shows the total number of results."
+      responses:
+        "200":
+          description: "Successful Operation"
+          schema:
+            type: "object"
+            properties:
+              data:
+                type: "array"
+                items:
+                  $ref: "#/definitions/Metrics"
+              meta:
+                type: "object"
+                properties:
+                  count:
+                    type: "integer"
+        "400":
+          description: "Bad Request"
+          schema:
+            $ref: "#/definitions/ErrorPayload"
+        "404":
+          description: "Cannot find measurements by the provided id"
+          schema:
+            $ref: "#/definitions/ErrorPayload"
+        "500":
+          description: "Invalid Operation"
+          schema:
+            $ref: "#/definitions/ErrorPayload"
+
+  /clients/{client_id}/mountpoints:
+    get:
+      tags:
+        - "Monitoring"
+      summary: "Lists client mountpoints"
+      description: "List monitoring data about client mountpoints for the provided clientID"
+      produces:
+        - "application/json"
+      parameters:
+        - in: "path"
+          name: "client_id"
+          required: true
+          description: "Unique client ID"
+          type: "string"
+        - in: "query"
+          name: "sort"
+          description: "There is only `timestamp` allowed as sort field. Default direction is DESC\n
+            To sort ascending use `&sort=timestamp`."
+          required: false
+          type: "string"
+        - in: "query"
+          name: "filter[timestamp][<OPERATOR>]"
+          description: "Filter entries by field `timestamp`. `<OPERATOR>` can be one of `gt`, `lt`, `since` or `until`.\n
+              `gt` and `lt` require a timestamp value as `unixepoch`. `since` and `until` require a timestamp value in format `RFC3339`.\n
+              e.g. `filter[timestamp][gt]=1636009200&filter[timestamp][lt]=1636009500` or\n
+              e.g. `filter[timestamp][since]=2021-01-01T00:00:00+01:00&filter[timestamp][until]=2021-01-01T01:00:00+01:00`.\n\n
+              "
+          required: false
+          type: "string"
+        - name: "page"
+          in: "query"
+          required: false
+          type: "integer"
+          description: "Pagination options `page[limit]` and `page[offset]` can be used to get more than the first page of results. Default limit is 1 and maximum is 100.\n
+          The `count` property in meta shows the total number of results."
+      responses:
+        "200":
+          description: "Successful Operation"
+          schema:
+            type: "object"
+            properties:
+              data:
+                type: "array"
+                items:
+                  $ref: "#/definitions/Mountpoints"
+              meta:
+                type: "object"
+                properties:
+                  count:
+                    type: "integer"
+        "400":
+          description: "Bad Request"
+          schema:
+            $ref: "#/definitions/ErrorPayload"
+        "404":
+          description: "Cannot find measurements by the provided id"
+          schema:
+            $ref: "#/definitions/ErrorPayload"
+        "500":
+          description: "Invalid Operation"
+          schema:
+            $ref: "#/definitions/ErrorPayload"
+
+  /clients/{client_id}/processes:
+    get:
+      tags:
+        - "Monitoring"
+      summary: "Lists client processes"
+      description: "List monitoring data about client processes for the provided clientID"
+      produces:
+        - "application/json"
+      parameters:
+        - in: "path"
+          name: "client_id"
+          required: true
+          description: "Unique client ID"
+          type: "string"
+        - in: "query"
+          name: "sort"
+          description: "There is only `timestamp` allowed as sort field. Default direction is DESC\n
+            To sort ascending use `&sort=timestamp`."
+          required: false
+          type: "string"
+        - in: "query"
+          name: "filter[timestamp][<OPERATOR>]"
+          description: "Filter entries by field `timestamp`. `<OPERATOR>` can be one of `gt`, `lt`, `since` or `until`.\n
+              `gt` and `lt` require a timestamp value as `unixepoch`. `since` and `until` require a timestamp value in format `RFC3339`.\n
+              e.g. `filter[timestamp][gt]=1636009200&filter[timestamp][lt]=1636009500` or\n
+              e.g. `filter[timestamp][since]=2021-01-01T00:00:00+01:00&filter[timestamp][until]=2021-01-01T01:00:00+01:00`.\n\n
+              Fetching data for a period greater than `48 hours` is not allowed. If the period exceeds `2 hours`, than the returned measurement points get downsampled to reduce the amount of data.\n
+              When downsampling takes place you get `average, min and max` values for `cpu_usage_percent, memory_usage_percent and io_usage_percent`\n\n
+              "
+          required: false
+          type: "string"
+        - name: "page"
+          in: "query"
+          required: false
+          type: "integer"
+          description: "Pagination options `page[limit]` and `page[offset]` can be used to get more than the first page of results. Default limit is 1 and maximum is 10.\n The `count` property in meta shows the total number of results."
+      responses:
+        "200":
+          description: "Successful Operation"
+          schema:
+            type: "object"
+            properties:
+              data:
+                type: "array"
+                items:
+                  $ref: "#/definitions/Processes"
+              meta:
+                type: "object"
+                properties:
+                  count:
+                    type: "integer"
+        "400":
+          description: "Bad Request"
+          schema:
+            $ref: "#/definitions/ErrorPayload"
+        "404":
+          description: "Cannot find measurements by the provided id"
+          schema:
+            $ref: "#/definitions/ErrorPayload"
+        "500":
+          description: "Invalid Operation"
+          schema:
+            $ref: "#/definitions/ErrorPayload"
 definitions:
   Tunnel:
     type: "object"
@@ -3009,3 +3257,79 @@ definitions:
       response:
         type: "string"
         description: "Json blob that was the result of the action"
+  GraphMetrics:
+    type: "object"
+    properties:
+      timestamp:
+        type: "string"
+        format: "date-time"
+        description: "Timestamp of measurement"
+      cpu_usage_percent:
+        properties:
+          avg:
+            type: "number"
+            description: "cpu_usage_percent average"
+          min:
+            type: "number"
+            description: "cpu_usage_percent minimum"
+          max:
+            type: "number"
+            description: "cpu_usage_percent maximum"
+      memory_usage_percent:
+        properties:
+          avg:
+            type: "number"
+            description: "memory_usage_percent average"
+          min:
+            type: "number"
+            description: "memory_usage_percent minimum"
+          max:
+            type: "number"
+            description: "memory_usage_percent maximum"
+      io_usage_percent:
+        properties:
+          avg:
+            type: "number"
+            description: "io_usage_percent average"
+          min:
+            type: "number"
+            description: "io_usage_percent minimum"
+          max:
+            type: "number"
+            description: "io_usage_percent maximum"
+  Metrics:
+    type: "object"
+    properties:
+      timestamp:
+        type: "string"
+        format: "date-time"
+        description: "Timestamp of measurement"
+      cpu_usage_percent:
+        type: "number"
+        description: "cpu_usage_percent"
+      memory_usage_percent:
+        type: "number"
+        description: "memory_usage_percent"
+      io_usage_percent:
+        type: "number"
+        description: "io_usage_percent"
+  Mountpoints:
+    type: "object"
+    properties:
+      timestamp:
+        type: "string"
+        format: "date-time"
+        description: "Timestamp of measurement"
+      mountpoints:
+        type: "string"
+        description: "JSON encoded information about mountpoints"
+  Processes:
+    type: "object"
+    properties:
+      timestamp:
+        type: "string"
+        format: "date-time"
+        description: "Timestamp of measurement"
+      mountpoints:
+        type: "string"
+        description: "JSON encoded information about processes"
