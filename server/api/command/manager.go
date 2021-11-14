@@ -54,7 +54,7 @@ func NewManager(db DbProvider) *Manager {
 func (m *Manager) List(ctx context.Context, re *http.Request) ([]Command, error) {
 	listOptions := query.GetListOptions(re)
 
-	err := query.ValidateListOptions(listOptions, supportedSortAndFilters, supportedFields)
+	err := query.ValidateListOptions(listOptions, supportedSortAndFilters, supportedSortAndFilters, supportedFields, nil)
 	if err != nil {
 		return nil, err
 	}

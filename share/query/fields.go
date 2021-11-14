@@ -46,10 +46,6 @@ func ValidateFieldsOptions(fieldOptions []FieldsOption, supportedFields map[stri
 	return nil
 }
 
-func ExtractFieldsOptions(req *http.Request) []FieldsOption {
-	return ParseFieldsOptions(req.URL.Query())
-}
-
 func ParseFieldsOptions(values url.Values) []FieldsOption {
 	res := make([]FieldsOption, 0)
 	for fieldsKey, fieldsValues := range values {

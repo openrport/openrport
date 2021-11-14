@@ -14,10 +14,6 @@ type SortOption struct {
 	IsASC  bool
 }
 
-func ExtractSortOptions(req *http.Request) []SortOption {
-	return ParseSortOptions(req.URL.Query())
-}
-
 func ParseSortOptions(values url.Values) []SortOption {
 	res := make([]SortOption, 0)
 

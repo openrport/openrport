@@ -255,7 +255,7 @@ func (m *Manager) List(ctx context.Context, re *http.Request) ([]ValueKey, error
 
 	listOptions := query.GetListOptions(re)
 
-	err = query.ValidateListOptions(listOptions, supportedFields, nil)
+	err = query.ValidateListOptions(listOptions, supportedFields, supportedFields, nil, nil)
 	if err != nil {
 		return nil, err
 	}

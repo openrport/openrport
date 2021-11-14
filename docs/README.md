@@ -39,7 +39,7 @@ See `./rportd --help` and `./rport --help` for more options, like:
 If you quickly want to run the rport server without installation, run the following commands from any unprivileged user account.
 ```
 curl -LOJ https://downloads.rport.io/rport/stable/latest.php?arch=Linux_x86_64
-sudo tar vxzf rport_*_Linux_x86_64.tar.gz rportd
+tar vxzf rport_*_Linux_x86_64.tar.gz rportd
 KEY=$(openssl rand -hex 18)
 ./rportd --log-level info --data-dir /var/tmp/ --key $KEY --auth user1:1234
 ```
@@ -113,7 +113,7 @@ sudo tar vxzf rport_*_Linux_x86_64.tar.gz -C /usr/local/bin/ rport
 
 Create an ad hoc tunnel that will forward the port 2222 of `node1.example.com` to the to local port 22 of `client1.local.localdomain`.
 ```
-rport --auth user1:1234 --fingerprint <YOUR_FINGERPRINT> node1.example.com:8080 2222:0.0.0.0:22
+rport --auth user1:1234 --fingerprint <YOUR_FINGERPRINT> --data-dir=/tmp node1.example.com:8080 2222:0.0.0.0:22
 ```
 Observing the log of the server you get a confirmation about the newly created tunnel.
 

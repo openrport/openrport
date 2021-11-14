@@ -27,12 +27,12 @@ import (
 	errors2 "github.com/cloudradar-monitoring/rport/server/api/errors"
 	"github.com/cloudradar-monitoring/rport/server/api/jobs"
 	"github.com/cloudradar-monitoring/rport/server/api/middleware"
-	"github.com/cloudradar-monitoring/rport/server/api/monitoring"
 	"github.com/cloudradar-monitoring/rport/server/api/users"
 	"github.com/cloudradar-monitoring/rport/server/auditlog"
 	"github.com/cloudradar-monitoring/rport/server/cgroups"
 	"github.com/cloudradar-monitoring/rport/server/clients"
 	"github.com/cloudradar-monitoring/rport/server/clientsauth"
+	"github.com/cloudradar-monitoring/rport/server/monitoring"
 	"github.com/cloudradar-monitoring/rport/server/ports"
 	"github.com/cloudradar-monitoring/rport/server/script"
 	"github.com/cloudradar-monitoring/rport/server/validation"
@@ -48,8 +48,6 @@ import (
 )
 
 const (
-	queryParamSort = "sort"
-
 	routeParamClientID       = "client_id"
 	routeParamUserID         = "user_id"
 	routeParamJobID          = "job_id"
@@ -183,6 +181,7 @@ func (al *APIListener) initRouter() {
 	api.HandleFunc("/clients/{client_id}/commands/{job_id}", al.wrapClientAccessMiddleware(al.handleGetCommand)).Methods(http.MethodGet)
 	api.HandleFunc("/clients/{client_id}/scripts", al.wrapClientAccessMiddleware(al.handleExecuteScript)).Methods(http.MethodPost)
 	api.HandleFunc("/clients/{client_id}/updates-status", al.wrapClientAccessMiddleware(al.handleRefreshUpdatesStatus)).Methods(http.MethodPost)
+	api.HandleFunc("/clients/{client_id}/graph-metrics", al.handleGetClientGraphMetrics).Methods(http.MethodGet)
 	api.HandleFunc("/clients/{client_id}/metrics", al.handleGetClientMetrics).Methods(http.MethodGet)
 	api.HandleFunc("/clients/{client_id}/processes", al.handleGetClientProcesses).Methods(http.MethodGet)
 	api.HandleFunc("/clients/{client_id}/mountpoints", al.handleGetClientMountpoints).Methods(http.MethodGet)
@@ -656,17 +655,16 @@ func (al *APIListener) handleGetStatus(w http.ResponseWriter, req *http.Request)
 }
 
 func (al *APIListener) handleGetClients(w http.ResponseWriter, req *http.Request) {
-	var err error
-	sortFunc, desc, err := getCorrespondingSortFunc(req.URL.Query().Get(queryParamSort))
-	if err != nil {
-		al.jsonErrorResponse(w, http.StatusBadRequest, err)
+	options := query.NewOptions(req, nil, nil, clientsListDefaultFields)
+	errs := query.ValidateListOptions(options, clientsSupportedSorts, clientsSupportedFilters, clientsSupportedFields, nil /* no pagination */)
+	if errs != nil {
+		al.jsonError(w, errs)
 		return
 	}
 
-	filterOptions := query.ExtractFilterOptions(req)
-	filterErr := query.ValidateFilterOptions(filterOptions, clientsSupportedFields)
-	if filterErr != nil {
-		al.jsonError(w, filterErr)
+	sortFunc, desc, err := getCorrespondingSortFunc(options.Sorts)
+	if err != nil {
+		al.jsonError(w, err)
 		return
 	}
 
@@ -676,7 +674,7 @@ func (al *APIListener) handleGetClients(w http.ResponseWriter, req *http.Request
 		return
 	}
 
-	cls, err := al.clientService.GetUserClients(curUser, filterOptions)
+	cls, err := al.clientService.GetUserClients(curUser, options.Filters)
 	if err != nil {
 		al.jsonError(w, err)
 		return
@@ -684,11 +682,18 @@ func (al *APIListener) handleGetClients(w http.ResponseWriter, req *http.Request
 
 	sortFunc(cls, desc)
 
-	clientsPayload := convertToClientsPayload(cls)
+	clientsPayload := convertToClientsPayload(cls, options.Fields)
 	al.writeJSONResponse(w, http.StatusOK, api.NewSuccessPayload(clientsPayload))
 }
 
 func (al *APIListener) handleGetClient(w http.ResponseWriter, req *http.Request) {
+	options := query.GetRetrieveOptions(req)
+	errs := query.ValidateRetrieveOptions(options, clientsSupportedFields)
+	if errs != nil {
+		al.jsonError(w, errs)
+		return
+	}
+
 	vars := mux.Vars(req)
 	clientID := vars[routeParamClientID]
 
@@ -702,7 +707,7 @@ func (al *APIListener) handleGetClient(w http.ResponseWriter, req *http.Request)
 		return
 	}
 
-	clientPayload := convertToClientPayload(client)
+	clientPayload := convertToClientPayload(client, options.Fields)
 	al.writeJSONResponse(w, http.StatusOK, api.NewSuccessPayload(clientPayload))
 }
 
@@ -819,91 +824,137 @@ func (al *APIListener) handleDeleteUsersTotP(w http.ResponseWriter, req *http.Re
 }
 
 type ClientPayload struct {
-	ID                     string                  `json:"id"`
-	Name                   string                  `json:"name"`
-	Address                string                  `json:"address"`
-	Hostname               string                  `json:"hostname"`
-	OS                     string                  `json:"os"`
-	OSFullName             string                  `json:"os_full_name"`
-	OSVersion              string                  `json:"os_version"`
-	OSArch                 string                  `json:"os_arch"`
-	OSFamily               string                  `json:"os_family"`
-	OSKernel               string                  `json:"os_kernel"`
-	OSVirtualizationSystem string                  `json:"os_virtualization_system"`
-	OSVirtualizationRole   string                  `json:"os_virtualization_role"`
-	NumCPUs                int                     `json:"num_cpus"`
-	CPUFamily              string                  `json:"cpu_family"`
-	CPUModel               string                  `json:"cpu_model"`
-	CPUModelName           string                  `json:"cpu_model_name"`
-	CPUVendor              string                  `json:"cpu_vendor"`
-	MemoryTotal            uint64                  `json:"mem_total"`
-	Timezone               string                  `json:"timezone"`
-	ClientAuthID           string                  `json:"client_auth_id"`
-	Version                string                  `json:"version"`
-	DisconnectedAt         *time.Time              `json:"disconnected_at"`
-	ConnectionState        clients.ConnectionState `json:"connection_state"`
-	IPv4                   []string                `json:"ipv4"`
-	IPv6                   []string                `json:"ipv6"`
-	Tags                   []string                `json:"tags"`
-	AllowedUserGroups      []string                `json:"allowed_user_groups"`
-	Tunnels                []*clients.Tunnel       `json:"tunnels"`
-	UpdatesStatus          *models.UpdatesStatus   `json:"updates_status"`
+	ID                     *string                  `json:"id,omitempty"`
+	Name                   *string                  `json:"name,omitempty"`
+	Address                *string                  `json:"address,omitempty"`
+	Hostname               *string                  `json:"hostname,omitempty"`
+	OS                     *string                  `json:"os,omitempty"`
+	OSFullName             *string                  `json:"os_full_name,omitempty"`
+	OSVersion              *string                  `json:"os_version,omitempty"`
+	OSArch                 *string                  `json:"os_arch,omitempty"`
+	OSFamily               *string                  `json:"os_family,omitempty"`
+	OSKernel               *string                  `json:"os_kernel,omitempty"`
+	OSVirtualizationSystem *string                  `json:"os_virtualization_system,omitempty"`
+	OSVirtualizationRole   *string                  `json:"os_virtualization_role,omitempty"`
+	NumCPUs                *int                     `json:"num_cpus,omitempty"`
+	CPUFamily              *string                  `json:"cpu_family,omitempty"`
+	CPUModel               *string                  `json:"cpu_model,omitempty"`
+	CPUModelName           *string                  `json:"cpu_model_name,omitempty"`
+	CPUVendor              *string                  `json:"cpu_vendor,omitempty"`
+	MemoryTotal            *uint64                  `json:"mem_total,omitempty"`
+	Timezone               *string                  `json:"timezone,omitempty"`
+	ClientAuthID           *string                  `json:"client_auth_id,omitempty"`
+	Version                *string                  `json:"version,omitempty"`
+	DisconnectedAt         **time.Time              `json:"disconnected_at,omitempty"`
+	ConnectionState        *clients.ConnectionState `json:"connection_state,omitempty"`
+	IPv4                   *[]string                `json:"ipv4,omitempty"`
+	IPv6                   *[]string                `json:"ipv6,omitempty"`
+	Tags                   *[]string                `json:"tags,omitempty"`
+	AllowedUserGroups      *[]string                `json:"allowed_user_groups,omitempty"`
+	Tunnels                *[]*clients.Tunnel       `json:"tunnels,omitempty"`
+	UpdatesStatus          **models.UpdatesStatus   `json:"updates_status,omitempty"`
 }
 
-func convertToClientsPayload(clients []*clients.Client) []ClientPayload {
+func convertToClientsPayload(clients []*clients.Client, fields []query.FieldsOption) []ClientPayload {
 	r := make([]ClientPayload, 0, len(clients))
 	for _, cur := range clients {
-		r = append(r, convertToClientPayload(cur))
+		r = append(r, convertToClientPayload(cur, fields))
 	}
 	return r
 }
 
-func convertToClientPayload(client *clients.Client) ClientPayload {
-	return ClientPayload{
-		ID:                     client.ID,
-		Name:                   client.Name,
-		OS:                     client.OS,
-		OSArch:                 client.OSArch,
-		OSFamily:               client.OSFamily,
-		OSKernel:               client.OSKernel,
-		Hostname:               client.Hostname,
-		IPv4:                   client.IPv4,
-		IPv6:                   client.IPv6,
-		Tags:                   client.Tags,
-		Version:                client.Version,
-		Address:                client.Address,
-		Tunnels:                client.Tunnels,
-		DisconnectedAt:         client.DisconnectedAt,
-		ConnectionState:        client.ConnectionState(),
-		ClientAuthID:           client.ClientAuthID,
-		OSFullName:             client.OSFullName,
-		OSVersion:              client.OSVersion,
-		OSVirtualizationSystem: client.OSVirtualizationSystem,
-		OSVirtualizationRole:   client.OSVirtualizationRole,
-		CPUFamily:              client.CPUFamily,
-		CPUModel:               client.CPUModel,
-		CPUModelName:           client.CPUModelName,
-		CPUVendor:              client.CPUVendor,
-		Timezone:               client.Timezone,
-		NumCPUs:                client.NumCPUs,
-		MemoryTotal:            client.MemoryTotal,
-		AllowedUserGroups:      client.AllowedUserGroups,
-		UpdatesStatus:          client.UpdatesStatus,
+func convertToClientPayload(client *clients.Client, fields []query.FieldsOption) ClientPayload { //nolint:gocyclo
+	requestedFields := make(map[string]bool)
+	for _, res := range fields {
+		if res.Resource != "clients" {
+			continue
+		}
+		for _, field := range res.Fields {
+			requestedFields[field] = true
+		}
 	}
+	p := ClientPayload{}
+	for field := range clientsSupportedFields["clients"] {
+		if len(fields) > 0 && !requestedFields[field] {
+			continue
+		}
+		switch field {
+		case "id":
+			p.ID = &client.ID
+		case "name":
+			p.Name = &client.Name
+		case "os":
+			p.OS = &client.OS
+		case "os_arch":
+			p.OSArch = &client.OSArch
+		case "os_family":
+			p.OSFamily = &client.OSFamily
+		case "os_kernel":
+			p.OSKernel = &client.OSKernel
+		case "hostname":
+			p.Hostname = &client.Hostname
+		case "ipv4":
+			p.IPv4 = &client.IPv4
+		case "ipv6":
+			p.IPv6 = &client.IPv6
+		case "tags":
+			p.Tags = &client.Tags
+		case "version":
+			p.Version = &client.Version
+		case "address":
+			p.Address = &client.Address
+		case "tunnels":
+			p.Tunnels = &client.Tunnels
+		case "disconnected_at":
+			p.DisconnectedAt = &client.DisconnectedAt
+		case "connection_state":
+			connectionState := client.ConnectionState()
+			p.ConnectionState = &connectionState
+		case "client_auth_id":
+			p.ClientAuthID = &client.ClientAuthID
+		case "os_full_name":
+			p.OSFullName = &client.OSFullName
+		case "os_version":
+			p.OSVersion = &client.OSVersion
+		case "os_virtualization_system":
+			p.OSVirtualizationSystem = &client.OSVirtualizationSystem
+		case "os_virtualization_role":
+			p.OSVirtualizationRole = &client.OSVirtualizationRole
+		case "cpu_family":
+			p.CPUFamily = &client.CPUFamily
+		case "cpu_model":
+			p.CPUModel = &client.CPUModel
+		case "cpu_model_name":
+			p.CPUModelName = &client.CPUModelName
+		case "cpu_vendor":
+			p.CPUVendor = &client.CPUVendor
+		case "timezone":
+			p.Timezone = &client.Timezone
+		case "num_cpus":
+			p.NumCPUs = &client.NumCPUs
+		case "mem_total":
+			p.MemoryTotal = &client.MemoryTotal
+		case "allowed_user_groups":
+			p.AllowedUserGroups = &client.AllowedUserGroups
+		case "updates_status":
+			p.UpdatesStatus = &client.UpdatesStatus
+		}
+	}
+	return p
 }
 
-func getCorrespondingSortFunc(sortStr string) (sortFunc func(a []*clients.Client, desc bool), desc bool, err error) {
-	var sortField string
-	if strings.HasPrefix(sortStr, "-") {
-		desc = true
-		sortField = sortStr[1:]
-	} else {
-		sortField = sortStr
+func getCorrespondingSortFunc(sorts []query.SortOption) (sortFunc func(a []*clients.Client, desc bool), desc bool, err error) {
+	if len(sorts) < 1 {
+		return clients.SortByID, false, nil
+	}
+	if len(sorts) > 1 {
+		return nil, false, errors2.APIError{
+			Message:    "Only one sort field is supported for clients.",
+			HTTPStatus: http.StatusBadRequest,
+		}
 	}
 
-	switch sortField {
-	case "":
-		sortFunc = clients.SortByID
+	switch sorts[0].Column {
 	case "id":
 		sortFunc = clients.SortByID
 	case "name":
@@ -914,10 +965,9 @@ func getCorrespondingSortFunc(sortStr string) (sortFunc func(a []*clients.Client
 		sortFunc = clients.SortByHostname
 	case "version":
 		sortFunc = clients.SortByVersion
-	default:
-		err = fmt.Errorf("incorrect format of %q query param", queryParamSort)
 	}
-	return
+
+	return sortFunc, !sorts[0].IsASC, nil
 }
 
 func (al *APIListener) handleDeleteClient(w http.ResponseWriter, req *http.Request) {
@@ -3346,22 +3396,8 @@ func (al *APIListener) handleGetClientMetrics(w http.ResponseWriter, req *http.R
 	clientID := vars[routeParamClientID]
 
 	queryOptions := query.NewOptions(req, monitoring.ClientMetricsSortDefault, monitoring.ClientMetricsFilterDefault, monitoring.ClientMetricsFieldsDefault)
-	err := query.ValidateOptions(queryOptions, monitoring.ClientMetricsSortFields, monitoring.ClientMetricsFilterFields, monitoring.ClientMetricsFields)
-	if err != nil {
-		al.jsonError(w, err)
-		return
-	}
 
-	if queryOptions.HasFilters() {
-		al.handleGetClientMetricsList(w, req, clientID, queryOptions)
-		return
-	}
-
-	al.handleGetClientMetricsOne(w, req, clientID, queryOptions)
-}
-
-func (al *APIListener) handleGetClientMetricsOne(w http.ResponseWriter, req *http.Request, clientID string, o *query.ListOptions) {
-	clientMetrics, err := al.monitoringService.GetClientMetricsOne(req.Context(), clientID, o)
+	payload, err := al.monitoringService.ListClientMetrics(req.Context(), clientID, queryOptions)
 	if err != nil {
 		if err == sql.ErrNoRows {
 			al.jsonErrorResponseWithTitle(w, http.StatusNotFound, fmt.Sprintf("metrics for client with id %q not found", clientID))
@@ -3370,90 +3406,68 @@ func (al *APIListener) handleGetClientMetricsOne(w http.ResponseWriter, req *htt
 		al.jsonError(w, err)
 		return
 	}
-	al.writeJSONResponse(w, http.StatusOK, api.NewSuccessPayload(clientMetrics))
+	al.writeJSONResponse(w, http.StatusOK, payload)
 }
 
-func (al *APIListener) handleGetClientMetricsList(w http.ResponseWriter, req *http.Request, clientID string, o *query.ListOptions) {
-	clientMetricsList, err := al.monitoringService.GetClientMetricsList(req.Context(), clientID, o)
+func (al *APIListener) handleGetClientGraphMetrics(w http.ResponseWriter, req *http.Request) {
+	vars := mux.Vars(req)
+	clientID := vars[routeParamClientID]
 
+	queryOptions := query.NewOptions(req, monitoring.ClientGraphMetricsSortDefault, monitoring.ClientGraphMetricsFilterDefault, monitoring.ClientGraphMetricsFieldsDefault)
+
+	entries, err := al.monitoringService.ListClientGraphMetrics(req.Context(), clientID, queryOptions)
 	if err != nil {
 		if err == sql.ErrNoRows {
-			al.jsonErrorResponseWithTitle(w, http.StatusNotFound, fmt.Sprintf("metrics for client with id %q not found", clientID))
+			al.jsonErrorResponseWithTitle(w, http.StatusNotFound, fmt.Sprintf("graph-metrics for client with id %q not found", clientID))
 			return
 		}
 		al.jsonError(w, err)
 		return
 	}
-
-	al.writeJSONResponse(w, http.StatusOK, api.NewSuccessPayload(clientMetricsList))
+	al.writeJSONResponse(w, http.StatusOK, api.NewSuccessPayload(entries))
 }
-
 func (al *APIListener) handleGetClientProcesses(w http.ResponseWriter, req *http.Request) {
 	vars := mux.Vars(req)
 	clientID := vars[routeParamClientID]
 
-	var clientProcesses *monitoring.ClientProcessesPayload
-	var serviceErr error
-	filters := query.ExtractFilterOptions(req)
-	if len(filters) > 0 {
-		err := query.ValidateFilterOptions(filters, monitoring.ClientProcessesFilterFields)
-		if err != nil {
-			al.jsonError(w, err)
-			return
-		}
-		clientProcesses, serviceErr = al.monitoringService.GetClientProcessesFiltered(req.Context(), clientID, filters)
-	} else {
-		clientProcesses, serviceErr = al.monitoringService.GetClientProcessesLatest(req.Context(), clientID)
-	}
+	queryOptions := query.NewOptions(req, monitoring.ClientProcessesSortDefault, monitoring.ClientProcessesFilterDefault, monitoring.ClientProcessesFieldsDefault)
 
-	if serviceErr != nil {
-		if serviceErr == sql.ErrNoRows {
+	payload, err := al.monitoringService.ListClientProcesses(req.Context(), clientID, queryOptions)
+	if err != nil {
+		if err == sql.ErrNoRows {
 			al.jsonErrorResponseWithTitle(w, http.StatusNotFound, fmt.Sprintf("processes for client with id %q not found", clientID))
 			return
 		}
-		al.jsonError(w, serviceErr)
+		al.jsonError(w, err)
 		return
 	}
-
-	al.writeJSONResponse(w, http.StatusOK, api.NewSuccessPayload(clientProcesses))
+	al.writeJSONResponse(w, http.StatusOK, payload)
 }
 
 func (al *APIListener) handleGetClientMountpoints(w http.ResponseWriter, req *http.Request) {
 	vars := mux.Vars(req)
 	clientID := vars[routeParamClientID]
 
-	var clientMountpoints *monitoring.ClientMountpointsPayload
-	var serviceErr error
-	filters := query.ExtractFilterOptions(req)
-	if len(filters) > 0 {
-		err := query.ValidateFilterOptions(filters, monitoring.ClientMountpointsFilterFields)
-		if err != nil {
-			al.jsonError(w, err)
-			return
-		}
-		clientMountpoints, serviceErr = al.monitoringService.GetClientMountpointsFiltered(req.Context(), clientID, filters)
-	} else {
-		clientMountpoints, serviceErr = al.monitoringService.GetClientMountpointsLatest(req.Context(), clientID)
-	}
+	queryOptions := query.NewOptions(req, monitoring.ClientMountpointsSortDefault, monitoring.ClientMountpointsFilterDefault, monitoring.ClientMountpointsFieldsDefault)
 
-	if serviceErr != nil {
-		if serviceErr == sql.ErrNoRows {
+	payload, err := al.monitoringService.ListClientMountpoints(req.Context(), clientID, queryOptions)
+	if err != nil {
+		if err == sql.ErrNoRows {
 			al.jsonErrorResponseWithTitle(w, http.StatusNotFound, fmt.Sprintf("mountpoints for client with id %q not found", clientID))
 			return
 		}
-		al.jsonError(w, serviceErr)
+		al.jsonError(w, err)
 		return
 	}
-
-	al.writeJSONResponse(w, http.StatusOK, api.NewSuccessPayload(clientMountpoints))
+	al.writeJSONResponse(w, http.StatusOK, payload)
 }
 
 func (al *APIListener) handleListAuditLog(w http.ResponseWriter, req *http.Request) {
-	entries, err := al.auditLog.List(req)
+	result, err := al.auditLog.List(req)
 	if err != nil {
 		al.jsonError(w, err)
 		return
 	}
 
-	al.writeJSONResponse(w, http.StatusOK, api.NewSuccessPayload(entries))
+	al.writeJSONResponse(w, http.StatusOK, result)
 }

@@ -112,13 +112,13 @@ func TestList(t *testing.T) {
 	auditLog.Entry(ApplicationLibraryScript, ActionUpdate).Save()
 	auditLog.Entry(ApplicationLibraryCommand, ActionCreate).Save()
 
-	r := httptest.NewRequest("GET", "/auditlog?filter[application]=library.script&sort=-timestamp", nil)
-	entries, err := auditLog.List(r)
+	r := httptest.NewRequest("GET", "/auditlog?filter[application]=library.script&sort=-timestamp&page[limit]=1&page[offset]=1", nil)
+	result, err := auditLog.List(r)
 	require.NoError(t, err)
 
-	assert.Equal(t, 2, len(entries))
+	assert.Equal(t, 2, result.Meta.Count)
+	entries := result.Data.([]*Entry)
+	assert.Equal(t, 1, len(entries))
 	assert.Equal(t, ApplicationLibraryScript, entries[0].Application)
-	assert.Equal(t, ActionUpdate, entries[0].Action)
-	assert.Equal(t, ApplicationLibraryScript, entries[1].Application)
-	assert.Equal(t, ActionCreate, entries[1].Action)
+	assert.Equal(t, ActionCreate, entries[0].Action)
 }

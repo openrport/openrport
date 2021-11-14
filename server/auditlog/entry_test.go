@@ -190,5 +190,7 @@ func (p *mockProvider) Save(e *Entry) error {
 func (p *mockProvider) List(ctx context.Context, opts *query.ListOptions) ([]*Entry, error) {
 	return nil, nil
 }
-
+func (p *mockProvider) Count(ctx context.Context, opts *query.ListOptions) (int, error) {
+	return 0, nil
+}
 func (p mockProvider) Close() error { return nil }

@@ -27,11 +27,13 @@ import (
 	"github.com/cloudradar-monitoring/rport/server/cgroups"
 	"github.com/cloudradar-monitoring/rport/server/clients"
 	"github.com/cloudradar-monitoring/rport/server/clientsauth"
+	"github.com/cloudradar-monitoring/rport/server/monitoring"
 	"github.com/cloudradar-monitoring/rport/server/test/jb"
 	chshare "github.com/cloudradar-monitoring/rport/share"
 	"github.com/cloudradar-monitoring/rport/share/comm"
 	"github.com/cloudradar-monitoring/rport/share/models"
 	"github.com/cloudradar-monitoring/rport/share/ptr"
+	"github.com/cloudradar-monitoring/rport/share/query"
 	"github.com/cloudradar-monitoring/rport/share/random"
 	"github.com/cloudradar-monitoring/rport/share/security"
 	"github.com/cloudradar-monitoring/rport/share/test"
@@ -94,11 +96,6 @@ func TestGetCorrespondingSortFuncPositive(t *testing.T) {
 			wantDesc: false,
 		},
 		{
-			sortStr:  "-",
-			wantFunc: clients.SortByID,
-			wantDesc: true,
-		},
-		{
 			sortStr:  "id",
 			wantFunc: clients.SortByID,
 			wantDesc: false,
@@ -141,28 +138,35 @@ func TestGetCorrespondingSortFuncPositive(t *testing.T) {
 	}
 
 	for _, tc := range testCases {
-		// when
-		gotFunc, gotDesc, gotErr := getCorrespondingSortFunc(tc.sortStr)
+		tc := tc
+		t.Run(tc.sortStr, func(t *testing.T) {
+			t.Parallel()
 
-		// then
-		// workaround to compare func vars, see https://github.com/stretchr/testify/issues/182
-		wantFuncName := runtime.FuncForPC(reflect.ValueOf(tc.wantFunc).Pointer()).Name()
-		gotFuncName := runtime.FuncForPC(reflect.ValueOf(gotFunc).Pointer()).Name()
-		msg := fmt.Sprintf("getCorrespondingSortFunc(%q) = (%s, %v, %v), expected: (%s, %v, %v)", tc.sortStr, gotFuncName, gotDesc, gotErr, wantFuncName, tc.wantDesc, nil)
+			// when
+			sortOptions := query.ParseSortOptions(map[string][]string{"sort": []string{tc.sortStr}})
+			gotFunc, gotDesc, gotErr := getCorrespondingSortFunc(sortOptions)
 
-		assert.NoErrorf(t, gotErr, msg)
-		assert.Equalf(t, wantFuncName, gotFuncName, msg)
-		assert.Equalf(t, tc.wantDesc, gotDesc, msg)
+			// then
+			// workaround to compare func vars, see https://github.com/stretchr/testify/issues/182
+			wantFuncName := runtime.FuncForPC(reflect.ValueOf(tc.wantFunc).Pointer()).Name()
+			gotFuncName := runtime.FuncForPC(reflect.ValueOf(gotFunc).Pointer()).Name()
+			msg := fmt.Sprintf("getCorrespondingSortFunc(%q) = (%s, %v, %v), expected: (%s, %v, %v)", tc.sortStr, gotFuncName, gotDesc, gotErr, wantFuncName, tc.wantDesc, nil)
+
+			assert.NoErrorf(t, gotErr, msg)
+			assert.Equalf(t, wantFuncName, gotFuncName, msg)
+			assert.Equalf(t, tc.wantDesc, gotDesc, msg)
+		})
 	}
 }
 
-func TestGetCorrespondingSortFuncNegative(t *testing.T) {
+func TestGetCorrespondingSortFuncError(t *testing.T) {
 	// when
-	_, _, gotErr := getCorrespondingSortFunc("unknown")
+	sortOptions := query.ParseSortOptions(map[string][]string{"sort": []string{"id", "-name"}})
+	_, _, gotErr := getCorrespondingSortFunc(sortOptions)
 
 	// then
 	require.Error(t, gotErr)
-	assert.Contains(t, gotErr.Error(), "incorrect format")
+	assert.Equal(t, gotErr.Error(), "Only one sort field is supported for clients.")
 }
 
 var (
@@ -1081,125 +1085,13 @@ func TestHandleGetClients(t *testing.T) {
    "data":[
       {
          "id":"client-1",
-         "mem_total":100000,
          "name":"Random Rport Client",
-         "num_cpus":2,
-         "os":"Linux alpine-3-10-tk-01 4.19.80-0-virt #1-Alpine SMP Fri Oct 18 11:51:24 UTC 2019 x86_64 Linux",
-         "os_arch":"amd64",
-         "os_family":"alpine",
-         "os_full_name":"Debian 18.0",
-         "os_kernel":"linux",
-         "os_version":"18.0",
-         "os_virtualization_role":"guest",
-         "os_virtualization_system":"LVM",
-         "hostname":"alpine-3-10-tk-01",
-         "ipv4":[
-            "192.168.122.111"
-         ],
-         "ipv6":[
-            "fe80::b84f:aff:fe59:a0b1"
-         ],
-         "tags":[
-            "Linux",
-            "Datacenter 1"
-         ],
-         "version":"0.1.12",
-         "address":"88.198.189.161:50078",
-         "timezone":"UTC-0",
-         "tunnels":[
-            {
-               "lhost":"0.0.0.0",
-               "lport":"2222",
-               "rhost":"0.0.0.0",
-               "rport":"22",
-               "lport_random":false,
-               "scheme":null,
-               "acl":null,
-			   "idle_timeout_minutes": 0,
-               "id":"1"
-            },
-            {
-               "lhost":"0.0.0.0",
-               "lport":"4000",
-               "rhost":"0.0.0.0",
-               "rport":"80",
-               "lport_random":false,
-               "scheme":null,
-               "acl":null,
-			   "idle_timeout_minutes": 0,
-               "id":"2"
-            }
-         ],
-         "connection_state":"connected",
-         "cpu_family":"Virtual CPU",
-         "cpu_model":"Virtual CPU",
-         "cpu_model_name":"",
-         "cpu_vendor":"GenuineIntel",
-         "disconnected_at":null,
-         "client_auth_id":"user1",
-		 "allowed_user_groups":null,
-		 "updates_status":null
+         "hostname":"alpine-3-10-tk-01"
       },
       {
          "id":"client-2",
-         "mem_total":100000,
          "name":"Random Rport Client",
-         "num_cpus":2,
-         "os":"Linux alpine-3-10-tk-01 4.19.80-0-virt #1-Alpine SMP Fri Oct 18 11:51:24 UTC 2019 x86_64 Linux",
-         "os_arch":"amd64",
-         "os_family":"alpine",
-		 "os_full_name":"Debian 18.0",
-         "os_kernel":"linux",
-         "os_version": "18.0",
-		 "os_virtualization_role":"guest",
-		 "os_virtualization_system":"LVM",
-         "hostname":"alpine-3-10-tk-01",
-         "ipv4":[
-            "192.168.122.111"
-         ],
-         "ipv6":[
-            "fe80::b84f:aff:fe59:a0b1"
-         ],
-         "tags":[
-            "Linux",
-            "Datacenter 1"
-         ],
-         "version":"0.1.12",
-         "address":"88.198.189.161:50078",
-         "timezone":"UTC-0",
-         "tunnels":[
-            {
-               "lhost":"0.0.0.0",
-               "lport":"2222",
-               "rhost":"0.0.0.0",
-               "rport":"22",
-               "lport_random":false,
-               "scheme":null,
-               "acl":null,
-			   "idle_timeout_minutes": 0,
-               "id":"1"
-            },
-            {
-               "lhost":"0.0.0.0",
-               "lport":"4000",
-               "rhost":"0.0.0.0",
-               "rport":"80",
-               "lport_random":false,
-               "scheme":null,
-               "acl":null,
-			   "idle_timeout_minutes": 0,
-               "id":"2"
-            }
-         ],
-         "connection_state":"disconnected",
-         "cpu_family":"Virtual CPU",
-         "cpu_model":"Virtual CPU",
-         "cpu_model_name":"",
-		 "cpu_vendor":"GenuineIntel",
-         "disconnected_at":"2020-08-19T13:04:23+03:00",
-         "client_auth_id":"user1",
-		 "allowed_user_groups":null,
-		 "updates_status":null
+         "hostname":"alpine-3-10-tk-01"
       }
    ]
 }`
@@ -1865,4 +1757,94 @@ func TestWrapWithAuthMiddleware(t *testing.T) {
 			assert.Equal(t, tc.ExpectedStatus, w.Code)
 		})
 	}
+}
+
+func TestListClientMetrics(t *testing.T) {
+	m1 := time.Date(2021, time.September, 1, 0, 0, 0, 0, time.UTC)
+	m2 := time.Date(2021, time.September, 1, 0, 1, 0, 0, time.UTC)
+	cmp1 := &monitoring.ClientMetricsPayload{
+		Timestamp:          m1,
+		CPUUsagePercent:    10.5,
+		MemoryUsagePercent: 2.5,
+		IOUsagePercent:     20,
+	}
+	cmp2 := &monitoring.ClientMetricsPayload{
+		Timestamp:          m2,
+		CPUUsagePercent:    20.5,
+		MemoryUsagePercent: 2.5,
+		IOUsagePercent:     25,
+	}
+	lcmp := []*monitoring.ClientMetricsPayload{cmp1, cmp2}
+
+	cpp1 := &monitoring.ClientProcessesPayload{
+		Timestamp: m1,
+		Processes: `[{"pid":30212,"parent_pid":4711,"name":"chrome"}]`,
+	}
+	lcpp := []*monitoring.ClientProcessesPayload{cpp1}
+	dbProvider := &monitoring.DBProviderMock{
+		MetricsListPayload:     lcmp,
+		ProcessesListPayload:   lcpp,
+		MountpointsListPayload: nil,
+	}
+	monitoringService := monitoring.NewService(dbProvider)
+	al := APIListener{
+		insecureForTests: true,
+		Server: &Server{
+			config:            &Config{},
+			monitoringService: monitoringService,
+		},
+	}
+	al.initRouter()
+
+	testCases := []struct {
+		Name           string
+		URL            string
+		ExpectedStatus int
+		ExpectedJSON   string
+	}{
+		{
+			Name:           "metrics default, no filter, no fields",
+			URL:            "metrics",
+			ExpectedStatus: http.StatusOK,
+			ExpectedJSON:   `{"data":[{"timestamp":"2021-09-01T00:00:00Z","cpu_usage_percent":10.5,"memory_usage_percent":2.5,"io_usage_percent":20},{"timestamp":"2021-09-01T00:01:00Z","cpu_usage_percent":20.5,"memory_usage_percent":2.5,"io_usage_percent":25}],"meta":{"count":10}}`,
+		},
+		{
+			Name:           "metrics with fields, no filter, unknown field",
+			URL:            "metrics?fields[metrics]=timestamp,cpu_usage_percent,unknown_field",
+			ExpectedStatus: http.StatusBadRequest,
+			ExpectedJSON:   `{"errors":[{"code":"","title":"unsupported field \"unknown_field\" for resource \"metrics\"","detail":""}]}`,
+		},
+		{
+			Name:           "metrics with timestamp filter, filter ok",
+			URL:            "metrics?filter[timestamp][gt]=1636009200&filter[timestamp][lt]=1636012800",
+			ExpectedStatus: http.StatusOK,
+			ExpectedJSON:   `{"data":[{"timestamp":"2021-09-01T00:00:00Z","cpu_usage_percent":10.5,"memory_usage_percent":2.5,"io_usage_percent":20},{"timestamp":"2021-09-01T00:01:00Z","cpu_usage_percent":20.5,"memory_usage_percent":2.5,"io_usage_percent":25}],"meta":{"count":10}}`,
+		},
+		{
+			Name:           "metrics with datetime filter, filter ok",
+			URL:            "metrics?filter[timestamp][since]=2021-09-01T00:00:00%2B00:00&filter[timestamp][until]=2021-09-01T00:01:00%2B00:00",
+			ExpectedStatus: http.StatusOK,
+			ExpectedJSON:   `{"data":[{"timestamp":"2021-09-01T00:00:00Z","cpu_usage_percent":10.5,"memory_usage_percent":2.5,"io_usage_percent":20},{"timestamp":"2021-09-01T00:01:00Z","cpu_usage_percent":20.5,"memory_usage_percent":2.5,"io_usage_percent":25}],"meta":{"count":10}}`,
+		},
+		{
+			Name:           "processes default, no filter, no fields",
+			URL:            "processes",
+			ExpectedStatus: http.StatusOK,
+			ExpectedJSON:   `{"data":[{"timestamp":"2021-09-01T00:00:00Z","processes":[{"pid":30212,"parent_pid":4711,"name":"chrome"}]}],"meta":{"count":10}}`,
+		},
+	}
+
+	for _, tc := range testCases {
+		t.Run(tc.Name, func(t *testing.T) {
+			w := httptest.NewRecorder()
+			req := httptest.NewRequest("GET", "/api/v1/clients/test_client/"+tc.URL, nil)
+			al.router.ServeHTTP(w, req)
+
+			assert.Equal(t, tc.ExpectedStatus, w.Code)
+
+			gotJSON := w.Body.String()
+			assert.JSONEq(t, tc.ExpectedJSON, gotJSON)
+		})
+	}
+
 }

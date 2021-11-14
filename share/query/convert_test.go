@@ -19,7 +19,7 @@ func TestConvertListOptionsToQuery(t *testing.T) {
 			Name:           "no options",
 			Options:        &query.ListOptions{},
 			ExpectedQuery:  "SELECT * FROM res1",
-			ExpectedParams: []interface{}{},
+			ExpectedParams: nil,
 		}, {
 			Name: "mixed options",
 			Options: &query.ListOptions{
@@ -49,9 +49,13 @@ func TestConvertListOptionsToQuery(t *testing.T) {
 						Fields:   []string{"field1", "field2"},
 					},
 				},
+				Pagination: &query.Pagination{
+					Offset: "10",
+					Limit:  "5",
+				},
 			},
-			ExpectedQuery:  "SELECT res1.field1, res1.field2 FROM res1 WHERE (field1 = ? OR field1 = ? OR field1 = ?) AND field2 = ? ORDER BY field1 ASC, field2 DESC",
-			ExpectedParams: []interface{}{"val1", "val2", "val3", "value2"},
+			ExpectedQuery:  "SELECT res1.field1, res1.field2 FROM res1 WHERE (field1 = ? OR field1 = ? OR field1 = ?) AND field2 = ? ORDER BY field1 ASC, field2 DESC LIMIT ? OFFSET ?",
+			ExpectedParams: []interface{}{"val1", "val2", "val3", "value2", "5", "10"},
 		},
 	}
 
@@ -79,8 +83,9 @@ func TestAppendListOptionsToQuery(t *testing.T) {
 		ExpectedParams []interface{}
 	}{
 		{
-			Name:  "fields, no filters, no sorts",
-			Query: "SELECT * FROM measurements as metrics",
+			Name:   "fields, no filters, no sorts",
+			Query:  "SELECT * FROM measurements as metrics WHERE client_id = ?",
+			Params: []interface{}{123},
 			Options: &query.ListOptions{
 				Fields: []query.FieldsOption{
 					{
@@ -89,12 +94,12 @@ func TestAppendListOptionsToQuery(t *testing.T) {
 					},
 				},
 			},
-			Params:         []interface{}{},
-			ExpectedQuery:  "SELECT metrics.field1, metrics.field2 FROM measurements as metrics",
-			ExpectedParams: []interface{}{},
+			ExpectedQuery:  "SELECT metrics.field1, metrics.field2 FROM measurements as metrics WHERE client_id = ?",
+			ExpectedParams: []interface{}{123},
 		}, {
-			Name:  "fields, filters, sorts, params",
-			Query: "SELECT * FROM measurements as metrics WHERE client_id = ?",
+			Name:   "fields, filters, sorts, params",
+			Query:  "SELECT * FROM measurements as metrics WHERE client_id = ?",
+			Params: []interface{}{123},
 			Options: &query.ListOptions{
 				Sorts: []query.SortOption{
 					{
@@ -122,7 +127,7 @@ func TestAppendListOptionsToQuery(t *testing.T) {
 				},
 			},
 			ExpectedQuery:  "SELECT metrics.field1, metrics.field2 FROM measurements as metrics WHERE client_id = ? AND timestamp > ? AND timestamp < ? ORDER BY timestamp DESC",
-			ExpectedParams: []interface{}{"val1", "value2"},
+			ExpectedParams: []interface{}{123, "val1", "value2"},
 		},
 	}
 
