@@ -810,12 +810,12 @@ func (al *APIListener) handleDeleteUsersTotP(w http.ResponseWriter, req *http.Re
 		return
 	}
 
-	al.auditLog.Entry("users-totp-secret", auditlog.ActionDelete).
+	al.auditLog.Entry(auditlog.ApplicationAuthUserTotP, auditlog.ActionDelete).
 		WithHTTPRequest(req).
 		WithID(userID).
 		Save()
 
-	al.handleManageTotP(w, user, "delete", "")
+	al.handleManageTotP(w, req, user, "delete", "")
 }
 
 type ClientPayload struct {
@@ -1254,6 +1254,12 @@ func (al *APIListener) handleGetTotP(w http.ResponseWriter, req *http.Request) {
 		al.jsonErrorResponse(w, http.StatusInternalServerError, err)
 		return
 	}
+
+	if totP == nil || totP.Secret == "" {
+		al.jsonErrorResponseWithTitle(w, http.StatusNotFound, "time based one time secret key should be generated for this user")
+		return
+	}
+
 	al.writeJSONResponse(w, http.StatusOK, totP)
 }
 
@@ -1281,10 +1287,10 @@ func (al *APIListener) handleManageCurUserTotP(w http.ResponseWriter, req *http.
 		al.jsonErrorResponseWithTitle(w, http.StatusNotFound, "user not found")
 		return
 	}
-	al.handleManageTotP(w, user, action, iss)
+	al.handleManageTotP(w, req, user, action, iss)
 }
 
-func (al *APIListener) handleManageTotP(w http.ResponseWriter, user *users.User, action, iss string) {
+func (al *APIListener) handleManageTotP(w http.ResponseWriter, req *http.Request, user *users.User, action, iss string) {
 	var err error
 	totP := &TotP{}
 	if action == "create" {
@@ -1301,12 +1307,7 @@ func (al *APIListener) handleManageTotP(w http.ResponseWriter, user *users.User,
 
 	userDataToChange := &users.User{}
 
-	err = StoreTotPCodeInUser(userDataToChange, totP)
-	if err != nil {
-		al.Logf(chshare.LogLevelError, "failed to set TotP secret for user %s: %v", user.Username, err)
-		al.jsonErrorResponse(w, http.StatusInternalServerError, err)
-		return
-	}
+	StoreTotPCodeInUser(userDataToChange, totP)
 
 	if err := al.userService.Change(userDataToChange, user.Username); err != nil {
 		al.jsonError(w, err)
@@ -1314,9 +1315,19 @@ func (al *APIListener) handleManageTotP(w http.ResponseWriter, user *users.User,
 	}
 
 	if action == "create" {
+		al.auditLog.Entry(auditlog.ApplicationAuthUserTotP, auditlog.ActionCreate).
+			WithHTTPRequest(req).
+			WithID(userDataToChange.Username).
+			Save()
+
 		al.Debugf("Users time based one time secret is created for user [%s].", user.Username)
-		w.WriteHeader(http.StatusCreated)
+		al.writeJSONResponse(w, http.StatusOK, totP)
 	} else if action == "delete" {
+		al.auditLog.Entry(auditlog.ApplicationAuthUserTotP, auditlog.ActionDelete).
+			WithHTTPRequest(req).
+			WithID(userDataToChange.Username).
+			Save()
+
 		al.Debugf("Users time based one time secret is deleted for user [%s].", user.Username)
 		w.WriteHeader(http.StatusNoContent)
 	}

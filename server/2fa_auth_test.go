@@ -4,6 +4,8 @@ import (
 	"testing"
 	"time"
 
+	"github.com/stretchr/testify/assert"
+
 	"github.com/pquerna/otp/totp"
 	"github.com/stretchr/testify/require"
 
@@ -28,14 +30,34 @@ func TestValidateTotPCode(t *testing.T) {
 	totP, err := GenerateTotPSecretKey(inpt)
 	require.NoError(t, err)
 
-	err = StoreTotPCodeInUser(usr, totP)
-	require.NoError(t, err)
+	StoreTotPCodeInUser(usr, totP)
 
 	code, err := totp.GenerateCode(totP.Secret, time.Now())
 	require.NoError(t, err)
 
 	err = tfaService.ValidateTotPCode(usr, code)
 	require.NoError(t, err)
+
+	err = tfaService.ValidateTotPCode(usr, "dfasdf")
+	require.EqualError(t, err, "login request not found for provided username")
+}
+
+func TestInvalidTotPCode(t *testing.T) {
+	usr := &users.User{
+		Username: "no1@mail.me",
+	}
+
+	tfaService := NewTwoFAService(100, time.Second, &MockUsersService{}, &message.ServiceMock{})
+	tfaService.SetTotPLoginSession(usr.Username, time.Minute)
+
+	inpt := &TotPInput{
+		Issuer:      "iss2",
+		AccountName: "acc2",
+	}
+	totP, err := GenerateTotPSecretKey(inpt)
+	require.NoError(t, err)
+
+	StoreTotPCodeInUser(usr, totP)
 
 	err = tfaService.ValidateTotPCode(usr, "dfasdf")
 	require.EqualError(t, err, "invalid token")
@@ -67,7 +89,7 @@ func TestValidateTotPCodeInvalidTotPData(t *testing.T) {
 	tfaService.SetTotPLoginSession(usr.Username, time.Minute)
 
 	err := tfaService.ValidateTotPCode(usr, "123")
-	require.EqualError(t, err, "failed to convert 'w43dfa' to TotP secret data")
+	assert.Contains(t, err.Error(), "failed to convert 'w43dfa' to TotP secret data")
 
 	usr2 := &users.User{
 		Username: "no@mail.me",

@@ -135,19 +135,23 @@ func (srv *TwoFAService) ValidateTotPCode(user *users.User, code string) error {
 			HTTPStatus: http.StatusInternalServerError,
 		}
 	}
-	if totP.Secret == "" {
+	if totP == nil || totP.Secret == "" {
 		return errors2.APIError{
 			Message:    "time based one time secret key should be generated for this user",
 			HTTPStatus: http.StatusConflict,
 		}
 	}
 
-	if !CheckTotPCode(code, totP.Secret) {
+	if !CheckTotPCode(code, totP) {
 		return errors2.APIError{
 			Message:    "invalid token",
 			HTTPStatus: http.StatusUnauthorized,
 		}
 	}
+
+	srv.mu.RLock()
+	delete(srv.tokensByUser, user.Username)
+	defer srv.mu.RUnlock()
 
 	return nil
 }

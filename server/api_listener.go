@@ -302,7 +302,7 @@ func (al *APIListener) handleBasicAuth(username, password string) (authorized bo
 	}
 
 	// skip basic auth with password when 2fa is enabled
-	if !al.config.API.IsTwoFAOn() {
+	if !al.config.API.IsTwoFAOn() && !al.config.API.TotPEnabled {
 		passwordOk := verifyPassword(user.Password, password)
 		if passwordOk {
 			return true, username, nil

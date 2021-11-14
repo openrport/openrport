@@ -82,10 +82,6 @@ func (al *APIListener) validateBearerToken(tokenStr, curSubject string) (bool, s
 	}
 
 	if al.bannedUsers.IsBanned(tk.Username) {
-		al.Errorf(
-			"User %s is banned",
-			tk.Username,
-		)
 		return false, tk.Username, nil, ErrTooManyRequests
 	}
 
