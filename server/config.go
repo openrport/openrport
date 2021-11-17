@@ -28,19 +28,23 @@ import (
 )
 
 type APIConfig struct {
-	Address        string  `mapstructure:"address"`
-	Auth           string  `mapstructure:"auth"`
-	AuthFile       string  `mapstructure:"auth_file"`
-	AuthUserTable  string  `mapstructure:"auth_user_table"`
-	AuthGroupTable string  `mapstructure:"auth_group_table"`
-	JWTSecret      string  `mapstructure:"jwt_secret"`
-	DocRoot        string  `mapstructure:"doc_root"`
-	CertFile       string  `mapstructure:"cert_file"`
-	KeyFile        string  `mapstructure:"key_file"`
-	AccessLogFile  string  `mapstructure:"access_log_file"`
-	UserLoginWait  float32 `mapstructure:"user_login_wait"`
-	MaxFailedLogin int     `mapstructure:"max_failed_login"`
-	BanTime        int     `mapstructure:"ban_time"`
+	Address            string  `mapstructure:"address"`
+	Auth               string  `mapstructure:"auth"`
+	AuthFile           string  `mapstructure:"auth_file"`
+	AuthUserTable      string  `mapstructure:"auth_user_table"`
+	AuthGroupTable     string  `mapstructure:"auth_group_table"`
+	AuthHeader         string  `mapstructure:"auth_header"`
+	UserHeader         string  `mapstructure:"user_header"`
+	CreateMissingUsers bool    `mapstructure:"create_missing_users"`
+	DefaultUserGroup   string  `mapstructure:"default_user_group"`
+	JWTSecret          string  `mapstructure:"jwt_secret"`
+	DocRoot            string  `mapstructure:"doc_root"`
+	CertFile           string  `mapstructure:"cert_file"`
+	KeyFile            string  `mapstructure:"key_file"`
+	AccessLogFile      string  `mapstructure:"access_log_file"`
+	UserLoginWait      float32 `mapstructure:"user_login_wait"`
+	MaxFailedLogin     int     `mapstructure:"max_failed_login"`
+	BanTime            int     `mapstructure:"ban_time"`
 
 	TwoFATokenDelivery       string                 `mapstructure:"two_fa_token_delivery"`
 	TwoFATokenTTLSeconds     int                    `mapstructure:"two_fa_token_ttl_seconds"`
@@ -399,6 +403,15 @@ func (c *Config) parseAndValidateAPIAuth() error {
 
 	if c.API.AuthUserTable != "" && c.Database.Type == "" {
 		return errors.New("'db_type' must be set when 'auth_user_table' is set")
+	}
+
+	if c.API.AuthHeader != "" {
+		if c.API.Auth != "" {
+			return errors.New("'auth_header' cannot be used with single user 'auth'")
+		}
+		if c.API.UserHeader == "" {
+			return errors.New("'user_header' must be set when 'auth_header' is set")
+		}
 	}
 
 	return nil

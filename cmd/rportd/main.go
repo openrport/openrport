@@ -304,6 +304,8 @@ func init() {
 	viperCfg.SetDefault("server.max_failed_login", 5)
 	viperCfg.SetDefault("server.ban_time", 3600)
 	viperCfg.SetDefault("server.enable_ws_test_endpoints", false)
+	viperCfg.SetDefault("api.user_header", "Authentication-User")
+	viperCfg.SetDefault("api.default_user_group", "Administrators")
 	viperCfg.SetDefault("api.user_login_wait", 2)
 	viperCfg.SetDefault("api.max_failed_login", 10)
 	viperCfg.SetDefault("api.ban_time", 600)

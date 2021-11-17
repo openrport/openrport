@@ -125,7 +125,7 @@ func TestValidateCredentials(t *testing.T) {
 		al.userService = users.NewAPIService(users.NewStaticProvider(tc.repoUsers), false)
 
 		// when
-		gotRes, gotErr := al.validateCredentials(tc.username, tc.password)
+		gotRes, gotErr := al.validateCredentials(tc.username, tc.password, false)
 
 		// then
 		assert.NoErrorf(t, gotErr, msg)

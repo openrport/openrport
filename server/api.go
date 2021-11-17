@@ -349,20 +349,25 @@ type loginResponse struct {
 
 func (al *APIListener) handleGetLogin(w http.ResponseWriter, req *http.Request) {
 	basicUser, basicPwd, basicAuthProvided := req.BasicAuth()
-	if !basicAuthProvided {
-		// TODO: consider to move this check from all API endpoints to middleware similar to https://github.com/cloudradar-monitoring/rport/pull/199/commits/4ca1ca9f56c557762d79a60ffc96d2de47f3133c
-		// ban IP if it sends a lot of bad requests
-		if !al.handleBannedIPs(w, req, false) {
-			return
-		}
-		al.jsonErrorResponseWithTitle(w, http.StatusUnauthorized, "basic auth is required")
+	if basicAuthProvided {
+		al.handleLogin(basicUser, basicPwd, false, w, req)
 		return
 	}
 
-	al.handleLogin(basicUser, basicPwd, w, req)
+	if al.config.API.AuthHeader != "" && req.Header.Get(al.config.API.AuthHeader) != "" {
+		al.handleLogin(req.Header.Get(al.config.API.UserHeader), "", true /* skipPasswordValidation */, w, req)
+		return
+	}
+
+	// TODO: consider to move this check from all API endpoints to middleware similar to https://github.com/cloudradar-monitoring/rport/pull/199/commits/4ca1ca9f56c557762d79a60ffc96d2de47f3133c
+	// ban IP if it sends a lot of bad requests
+	if !al.handleBannedIPs(w, req, false) {
+		return
+	}
+	al.jsonErrorResponseWithTitle(w, http.StatusUnauthorized, "auth is required")
 }
 
-func (al *APIListener) handleLogin(username, pwd string, w http.ResponseWriter, req *http.Request) {
+func (al *APIListener) handleLogin(username, pwd string, skipPasswordValidation bool, w http.ResponseWriter, req *http.Request) {
 	if al.bannedUsers.IsBanned(username) {
 		al.jsonErrorResponseWithTitle(w, http.StatusTooManyRequests, ErrTooManyRequests.Error())
 		return
@@ -373,7 +378,7 @@ func (al *APIListener) handleLogin(username, pwd string, w http.ResponseWriter, 
 		return
 	}
 
-	authorized, err := al.validateCredentials(username, pwd)
+	authorized, err := al.validateCredentials(username, pwd, skipPasswordValidation)
 	if err != nil {
 		al.jsonError(w, err)
 		return
@@ -438,7 +443,7 @@ func (al *APIListener) handlePostLogin(w http.ResponseWriter, req *http.Request)
 		return
 	}
 
-	al.handleLogin(username, pwd, w, req)
+	al.handleLogin(username, pwd, false, w, req)
 }
 
 func parseLoginPostRequestBody(req *http.Request) (string, string, error) {
@@ -612,6 +617,7 @@ func (al *APIListener) handleGetStatus(w http.ResponseWriter, req *http.Request)
 		"two_fa_enabled":         al.config.API.IsTwoFAOn(),
 		"two_fa_delivery_method": twoFADelivery,
 		"auditlog":               al.auditLog.Status(),
+		"auth_header":            al.config.API.AuthHeader != "",
 	})
 
 	al.writeJSONResponse(w, http.StatusOK, response)
