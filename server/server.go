@@ -123,6 +123,7 @@ func NewServer(config *Config, filesAPI files.FileAPI) (*Server, error) {
 		s.clientProvider,
 		keepLostClients,
 		s.Logger,
+		&s.config.Server,
 	)
 	if err != nil {
 		return nil, err

@@ -143,7 +143,7 @@ func TestDeleteOfflineClient(t *testing.T) {
 	for _, tc := range testCases {
 		t.Run(tc.name, func(t *testing.T) {
 			// given
-			clientService := NewClientService(nil, clients.NewClientRepository([]*clients.Client{c1Active, c2Active, c3Offline, c4Offline}, &hour, testLog))
+			clientService := NewClientService(nil, nil, clients.NewClientRepository([]*clients.Client{c1Active, c2Active, c3Offline, c4Offline}, &hour, testLog))
 			before, err := clientService.Count()
 			require.NoError(t, err)
 			require.Equal(t, 4, before)
@@ -287,7 +287,7 @@ func TestCheckClientsAccess(t *testing.T) {
 	for _, tc := range testCases {
 		t.Run(tc.name, func(t *testing.T) {
 			// given
-			clientService := NewClientService(nil, clients.NewClientRepository(allClients, nil, testLog))
+			clientService := NewClientService(nil, nil, clients.NewClientRepository(allClients, nil, testLog))
 
 			// when
 			gotErr := clientService.CheckClientsAccess(tc.clients, tc.user)

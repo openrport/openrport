@@ -1059,6 +1059,17 @@ func (al *APIListener) handlePutClientTunnel(w http.ResponseWriter, req *http.Re
 		}
 	}
 
+	httpProxy := req.URL.Query().Get("http_proxy")
+	if httpProxy == "1" && !al.config.Server.tunnelProxyAllowed {
+		al.jsonErrorResponseWithTitle(w, http.StatusBadRequest, "creation of tunnel proxy not enabled")
+		return
+	}
+	if httpProxy == "1" && schemeStr != "http" && schemeStr != "https" {
+		al.jsonErrorResponseWithTitle(w, http.StatusBadRequest, fmt.Sprintf("tunnel proxy not allowed with scheme %s", schemeStr))
+		return
+	}
+	remote.HTTPProxy = httpProxy == "1"
+
 	// make next steps thread-safe
 	client.Lock()
 	defer client.Unlock()

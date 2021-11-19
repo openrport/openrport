@@ -202,7 +202,13 @@ var serverHelp = `
     configuration will be loaded from the file. Note: command arguments and env variables will override them.
     Config file should be in TOML format. You can find an example "rportd.example.conf" in the release archive.
 
-   --monitoring-data-storage-days, The number of days, client monitoring data is stored on server (defaults to 30)
+    --monitoring-data-storage-days, The number of days, client monitoring data is stored on server (defaults to 30)
+
+    --tunnel-proxy-cert-file, An optional arg to specify certificate file for http tunnel proxy.
+    Https tunnel proxy can be activated if both cert and key file are set.
+
+    --tunnel-proxy-key-file, An optional arg to specify key file for http tunnel proxy.
+    Https tunnel proxy can be activated if both cert and key file are set.
 
     --help, -h, This help text
 
@@ -271,6 +277,8 @@ func init() {
 	pFlags.Int("run-remote-cmd-timeout-sec", 0, "")
 	pFlags.Bool("allow-root", false, "")
 	pFlags.Int64("monitoring-data-storage-days", 0, "")
+	pFlags.String("tunnel-proxy-cert-file", "", "")
+	pFlags.String("tunnel-proxy-key-file", "", "")
 
 	cfgPath = pFlags.StringP("config", "c", "", "")
 	svcCommand = pFlags.String("service", "", "")
@@ -339,6 +347,8 @@ func bindPFlags() {
 	_ = viperCfg.BindPFlag("server.check_port_timeout", pFlags.Lookup("check-port-timeout"))
 	_ = viperCfg.BindPFlag("server.run_remote_cmd_timeout_sec", pFlags.Lookup("run-remote-cmd-timeout-sec"))
 	_ = viperCfg.BindPFlag("server.allow_root", pFlags.Lookup("allow-root"))
+	_ = viperCfg.BindPFlag("server.tunnel_proxy_cert_file", pFlags.Lookup("tunnel-proxy-cert-file"))
+	_ = viperCfg.BindPFlag("server.tunnel_proxy_key_file", pFlags.Lookup("tunnel-proxy-key-file"))
 
 	_ = viperCfg.BindPFlag("logging.log_file", pFlags.Lookup("log-file"))
 	_ = viperCfg.BindPFlag("logging.log_level", pFlags.Lookup("log-level"))

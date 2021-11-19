@@ -113,10 +113,17 @@ type ServerConfig struct {
 	MaxFailedLogin             int           `mapstructure:"max_failed_login"`
 	BanTime                    int           `mapstructure:"ban_time"`
 	EnableWsTestEndpoints      bool          `mapstructure:"enable_ws_test_endpoints"`
+	TunnelProxyCertFile        string        `mapstructure:"tunnel_proxy_cert_file"`
+	TunnelProxyKeyFile         string        `mapstructure:"tunnel_proxy_key_file"`
 
-	allowedPorts mapset.Set
-	authID       string
-	authPassword string
+	allowedPorts       mapset.Set
+	authID             string
+	authPassword       string
+	tunnelProxyAllowed bool
+}
+
+func (s *ServerConfig) IsTunnelProxyAllowed() bool {
+	return s.tunnelProxyAllowed
 }
 
 type DatabaseConfig struct {
@@ -260,6 +267,10 @@ func (c *Config) ParseAndValidate() error {
 	}
 
 	if err := c.Server.parseAndValidatePorts(); err != nil {
+		return err
+	}
+
+	if err := c.Server.parseAndValidateTunnelHTTPSOptions(); err != nil {
 		return err
 	}
 
@@ -421,23 +432,42 @@ func (c *Config) parseAndValidateAPIHTTPSOptions() error {
 	return nil
 }
 
-func (c *ServerConfig) parseAndValidatePorts() error {
-	usedPorts, err := ports.TryParsePortRanges(c.UsedPortsRaw)
+func (s *ServerConfig) parseAndValidatePorts() error {
+	usedPorts, err := ports.TryParsePortRanges(s.UsedPortsRaw)
 	if err != nil {
 		return fmt.Errorf("can't parse 'used_ports': %s", err)
 	}
 
-	excludedPorts, err := ports.TryParsePortRanges(c.ExcludedPortsRaw)
+	excludedPorts, err := ports.TryParsePortRanges(s.ExcludedPortsRaw)
 	if err != nil {
 		return fmt.Errorf("can't parse 'excluded_ports': %s", err)
 	}
 
-	c.allowedPorts = usedPorts.Difference(excludedPorts)
+	s.allowedPorts = usedPorts.Difference(excludedPorts)
 
-	if c.allowedPorts.Cardinality() == 0 {
+	if s.allowedPorts.Cardinality() == 0 {
 		return errors.New("invalid 'used_ports', 'excluded_ports': at least one port should be available for port assignment")
 	}
 
+	return nil
+}
+
+func (s *ServerConfig) parseAndValidateTunnelHTTPSOptions() error {
+	if s.TunnelProxyCertFile == "" && s.TunnelProxyKeyFile == "" {
+		s.tunnelProxyAllowed = false
+		return nil
+	}
+	if s.TunnelProxyCertFile != "" && s.TunnelProxyKeyFile == "" {
+		return errors.New("when 'tunnel_proxy_cert_file' is set, 'tunnel_proxy_key_file' must be set as well")
+	}
+	if s.TunnelProxyKeyFile != "" && s.TunnelProxyCertFile == "" {
+		return errors.New("when 'tunnel_proxy_key_file' is set, 'tunnel_proxy_cert_file' must be set as well")
+	}
+	_, err := tls.LoadX509KeyPair(s.TunnelProxyCertFile, s.TunnelProxyKeyFile)
+	if err != nil {
+		return fmt.Errorf("invalid 'tunnel_proxy_cert_file', 'tunnel_proxy_key_file': %v", err)
+	}
+	s.tunnelProxyAllowed = true
 	return nil
 }
 

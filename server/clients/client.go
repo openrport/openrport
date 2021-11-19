@@ -2,6 +2,7 @@ package clients
 
 import (
 	"context"
+	"fmt"
 	"strconv"
 	"sync"
 	"sync/atomic"
@@ -91,10 +92,19 @@ func (c *Client) FindTunnelByRemote(r *chshare.Remote) *Tunnel {
 	return nil
 }
 
-func (c *Client) StartTunnel(r *chshare.Remote, acl *TunnelACL) (*Tunnel, error) {
+func (c *Client) StartTunnel(r *chshare.Remote, acl *TunnelACL, tunnelProxyConfig *TunnelProxyConfig) (*Tunnel, error) {
 	t := c.FindTunnelByRemote(r)
 	if t != nil {
 		return t, nil
+	}
+
+	// add localhost to tunnel acl to allow access from tunnel proxy
+	if tunnelProxyConfig.ProxyRequired {
+		if acl == nil {
+			acl, _ = ParseTunnelACL(LocalHost)
+		} else {
+			acl.AddACL(LocalHost)
+		}
 	}
 
 	tunnelID := strconv.FormatInt(c.generateNewTunnelID(), 10)
@@ -102,6 +112,21 @@ func (c *Client) StartTunnel(r *chshare.Remote, acl *TunnelACL) (*Tunnel, error)
 	autoCloseChan, err := t.Start(c.Context)
 	if err != nil {
 		return nil, err
+	}
+
+	// start tunnel proxy
+	if tunnelProxyConfig.ProxyRequired {
+		tProxy := NewTunnelProxy(t, c.Logger, tunnelProxyConfig)
+		if err := tProxy.Start(c.Context); err != nil {
+			c.Logger.Debugf("tunnel proxy could not be started, tunnel must be terminated: %v", err)
+			if tErr := t.Terminate(true); tErr != nil {
+				return nil, tErr
+			}
+			return nil, fmt.Errorf("tunnel started and terminated because of tunnel proxy start error")
+		}
+
+		t.Proxy = tProxy
+		t.Remote.ProxyPort = tunnelProxyConfig.Port
 	}
 
 	// in case tunnel auto-closed due to inactivity - run background task to remove the tunnel from the list
@@ -129,6 +154,11 @@ func (c *Client) TerminateTunnel(t *Tunnel, force bool) error {
 	err := t.Terminate(force)
 	if err != nil {
 		return err
+	}
+	if t.Proxy != nil {
+		if err := t.Proxy.Stop(c.Context); err != nil {
+			return err
+		}
 	}
 	c.removeTunnelByID(t.ID)
 	return nil

@@ -30,6 +30,7 @@ type Tunnel struct {
 	stopFn                    func()
 	wg                        sync.WaitGroup // TODO: verify whether wait group is needed here
 	acl                       *TunnelACL     // parsed Remote.ACL field
+	Proxy                     *TunnelProxy   `json:"-"`
 }
 
 func NewTunnel(logger *chshare.Logger, ssh ssh.Conn, id string, remote *chshare.Remote, acl *TunnelACL) *Tunnel {
