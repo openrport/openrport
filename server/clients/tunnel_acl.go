@@ -70,15 +70,15 @@ func parseIPNet(strVal string) (*net.IPNet, error) {
 		return nil, fmt.Errorf("%s is not IPv4 address", strVal)
 	}
 
-		if ip.Equal(net.IPv4zero) {
-			return nil, fmt.Errorf("0.0.0.0 would allow access to everyone. If that's what you want, do not set the ACL")
-		}
+	if ip.Equal(net.IPv4zero) {
+		return nil, fmt.Errorf("0.0.0.0 would allow access to everyone. If that's what you want, do not set the ACL")
+	}
 
-		if ipNet == nil {
-			// if range is not specified, specify mask for one addr (/32)
-			ipMask := net.IPv4Mask(255, 255, 255, 255)
-			ipNet = &net.IPNet{IP: ip, Mask: ipMask}
-		}
+	if ipNet == nil {
+		// if range is not specified, specify mask for one addr (/32)
+		ipMask := net.IPv4Mask(255, 255, 255, 255)
+		ipNet = &net.IPNet{IP: ip, Mask: ipMask}
+	}
 
 	return ipNet, nil
 }
