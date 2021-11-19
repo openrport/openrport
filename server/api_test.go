@@ -1848,5 +1848,109 @@ func TestListClientMetrics(t *testing.T) {
 			assert.JSONEq(t, tc.ExpectedJSON, gotJSON)
 		})
 	}
+}
 
+func TestHandleGetLogin(t *testing.T) {
+	authHeader := "Authentication-IsAuthenticated"
+	userHeader := "Authentication-User"
+	userGroup := "Administrators"
+	user := &users.User{
+		Username: "user1",
+		Password: "$2y$05$ep2DdPDeLDDhwRrED9q/vuVEzRpZtB5WHCFT7YbcmH9r9oNmlsZOm",
+		Token:    ptr.String("$2y$05$/D7g/d0sDkNSOh.e6Jzc9OWClcpZ1ieE8Dx.WUaWgayd3Ab0rRdxu"),
+	}
+	mockUsersService := &MockUsersService{
+		UserService: users.NewAPIService(users.NewStaticProvider([]*users.User{user}), false),
+	}
+	al := APIListener{
+		Server: &Server{
+			config: &Config{
+				API: APIConfig{
+					DefaultUserGroup: userGroup,
+				},
+			},
+		},
+		bannedUsers:    security.NewBanList(0),
+		userService:    mockUsersService,
+		apiSessionRepo: NewAPISessionRepository(),
+	}
+	al.initRouter()
+
+	testCases := []struct {
+		Name              string
+		BasicAuth         bool
+		HeaderAuthUser    string
+		HeaderAuthEnabled bool
+		CreateMissingUser bool
+		ExpectedStatus    int
+	}{
+		{
+			Name:           "no auth",
+			ExpectedStatus: http.StatusUnauthorized,
+		},
+		{
+			Name:           "basic auth",
+			BasicAuth:      true,
+			ExpectedStatus: http.StatusOK,
+		},
+		{
+			Name:           "header auth - disabled",
+			HeaderAuthUser: user.Username,
+			ExpectedStatus: http.StatusUnauthorized,
+		},
+		{
+			Name:              "header auth - enabled",
+			HeaderAuthUser:    user.Username,
+			HeaderAuthEnabled: true,
+			ExpectedStatus:    http.StatusOK,
+		},
+		{
+			Name:              "header auth - unknown user",
+			HeaderAuthUser:    "unknown",
+			HeaderAuthEnabled: true,
+			CreateMissingUser: true,
+			ExpectedStatus:    http.StatusOK,
+		}, {
+			Name:              "header auth - create missing user",
+			HeaderAuthUser:    "new-user",
+			HeaderAuthEnabled: true,
+			CreateMissingUser: true,
+			ExpectedStatus:    http.StatusOK,
+		},
+	}
+
+	for _, tc := range testCases {
+		tc := tc
+		t.Run(tc.Name, func(t *testing.T) {
+			if tc.HeaderAuthEnabled {
+				al.config.API.AuthHeader = authHeader
+				al.config.API.UserHeader = userHeader
+			} else {
+				al.config.API.AuthHeader = ""
+			}
+			al.config.API.CreateMissingUsers = tc.CreateMissingUser
+
+			w := httptest.NewRecorder()
+			req := httptest.NewRequest("GET", "/api/v1/login", nil)
+			if tc.BasicAuth {
+				req.SetBasicAuth(user.Username, "pwd")
+			}
+			if tc.HeaderAuthUser != "" {
+				req.Header.Set(authHeader, "1")
+				req.Header.Set(userHeader, tc.HeaderAuthUser)
+			}
+
+			al.router.ServeHTTP(w, req)
+
+			assert.Equal(t, tc.ExpectedStatus, w.Code)
+			if tc.ExpectedStatus == http.StatusOK {
+				assert.Contains(t, w.Body.String(), `{"data":{"token":"`)
+			}
+			if tc.CreateMissingUser {
+				assert.Equal(t, tc.HeaderAuthUser, mockUsersService.ChangeUser.Username)
+				assert.Equal(t, userGroup, mockUsersService.ChangeUser.Groups[0])
+				assert.NotEmpty(t, mockUsersService.ChangeUser.Password)
+			}
+		})
+	}
 }

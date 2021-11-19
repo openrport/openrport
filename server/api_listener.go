@@ -15,6 +15,7 @@ import (
 	"github.com/cloudradar-monitoring/rport/db/sqlite"
 	"github.com/cloudradar-monitoring/rport/server/script"
 	"github.com/cloudradar-monitoring/rport/share/files"
+	"github.com/cloudradar-monitoring/rport/share/random"
 
 	"github.com/gorilla/mux"
 	"github.com/jpillora/requestlog"
@@ -320,7 +321,7 @@ func (al *APIListener) handleBearerToken(bearerToken string) (bool, string, erro
 const htpasswdBcryptPrefix = "$2y$"
 
 // validateCredentials returns true if given credentials belong to a user with an access to API.
-func (al *APIListener) validateCredentials(username, password string) (bool, error) {
+func (al *APIListener) validateCredentials(username, password string, skipPasswordValidation bool) (bool, error) {
 	if username == "" {
 		return false, nil
 	}
@@ -329,8 +330,27 @@ func (al *APIListener) validateCredentials(username, password string) (bool, err
 	if err != nil {
 		return false, fmt.Errorf("failed to get user: %v", err)
 	}
+	if user == nil && skipPasswordValidation && al.config.API.CreateMissingUsers {
+		pswd, err := random.UUID4()
+		if err != nil {
+			return false, err
+		}
+		user = &users.User{
+			Username: username,
+			Password: pswd,
+			Groups:   []string{al.config.API.DefaultUserGroup},
+		}
+		err = al.userService.Change(user, "")
+		if err != nil {
+			return false, fmt.Errorf("failed to create missing user: %v", err)
+		}
+	}
 	if user == nil {
 		return false, nil
+	}
+
+	if skipPasswordValidation {
+		return true, nil
 	}
 
 	return verifyPassword(user.Password, password), nil

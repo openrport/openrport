@@ -390,6 +390,41 @@ func TestParseAndValidateAPI(t *testing.T) {
 			},
 			ExpectedError: nil,
 		},
+		{
+			Name: "api enabled, auth_header no user_header",
+			Config: Config{
+				API: APIConfig{
+					Address:    "0.0.0.0:3000",
+					AuthHeader: "Authentication-IsAuthenticated",
+					AuthFile:   "test.json",
+				},
+			},
+			ExpectedError: errors.New("API: 'user_header' must be set when 'auth_header' is set"),
+		},
+		{
+			Name: "api enabled, auth_header with auth",
+			Config: Config{
+				API: APIConfig{
+					Address:    "0.0.0.0:3000",
+					AuthHeader: "Authentication-IsAuthenticated",
+					UserHeader: "Authentication-User",
+					Auth:       "abc:def",
+				},
+			},
+			ExpectedError: errors.New("API: 'auth_header' cannot be used with single user 'auth'"),
+		},
+		{
+			Name: "api enabled, auth_header ok",
+			Config: Config{
+				API: APIConfig{
+					Address:    "0.0.0.0:3000",
+					AuthHeader: "Authentication-IsAuthenticated",
+					UserHeader: "Authentication-User",
+					AuthFile:   "test.json",
+				},
+			},
+			ExpectedError: nil,
+		},
 	}
 
 	for _, tc := range testCases {
