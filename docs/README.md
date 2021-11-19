@@ -39,7 +39,7 @@ See `./rportd --help` and `./rport --help` for more options, like:
 If you quickly want to run the rport server without installation, run the following commands from any unprivileged user account.
 ```
 curl -LOJ https://downloads.rport.io/rport/stable/latest.php?arch=Linux_x86_64
-tar vxzf rportd_*_Linux_x86_64.tar.gz rportd
+tar vxzf rport_*_Linux_x86_64.tar.gz rportd
 KEY=$(openssl rand -hex 18)
 ./rportd --log-level info --data-dir /var/tmp/ --key $KEY --auth user1:1234
 ```
@@ -67,7 +67,7 @@ You might wonder why the rport server does not provide encryption on the transpo
 For a proper installation execute the following steps.
 ```
 curl -LOJ https://downloads.rport.io/rport/stable/latest.php?arch=Linux_x86_64
-sudo tar vxzf rportd_*_Linux_x86_64.tar.gz -C /usr/local/bin/ rportd
+sudo tar vxzf rport_*_Linux_x86_64.tar.gz -C /usr/local/bin/ rportd
 sudo useradd -d /var/lib/rport -m -U -r -s /bin/false rport
 sudo mkdir /etc/rport/
 sudo mkdir /var/log/rport/
