@@ -23,9 +23,9 @@ import (
 )
 
 type ClientService struct {
-	repo            *clients.ClientRepository
-	portDistributor *ports.PortDistributor
-	serverConfig    *ServerConfig
+	repo              *clients.ClientRepository
+	portDistributor   *ports.PortDistributor
+	tunnelProxyConfig *clients.TunnelProxyConfig
 
 	mu sync.Mutex
 }
@@ -91,24 +91,24 @@ var clientsListDefaultFields = map[string][]string{
 
 // NewClientService returns a new instance of client service.
 func NewClientService(
-	serverConfig *ServerConfig,
+	tunnelProxyConfig *clients.TunnelProxyConfig,
 	portDistributor *ports.PortDistributor,
 	repo *clients.ClientRepository,
 ) *ClientService {
 	return &ClientService{
-		serverConfig:    serverConfig,
-		portDistributor: portDistributor,
-		repo:            repo,
+		tunnelProxyConfig: tunnelProxyConfig,
+		portDistributor:   portDistributor,
+		repo:              repo,
 	}
 }
 
 func InitClientService(
 	ctx context.Context,
+	tunnelProxyConfig *clients.TunnelProxyConfig,
 	portDistributor *ports.PortDistributor,
 	provider clients.ClientProvider,
 	keepLostClients *time.Duration,
 	logger *chshare.Logger,
-	serverConfig *ServerConfig,
 ) (*ClientService, error) {
 	repo, err := clients.InitClientRepository(ctx, provider, keepLostClients, logger)
 	if err != nil {
@@ -116,9 +116,9 @@ func InitClientService(
 	}
 
 	return &ClientService{
-		serverConfig:    serverConfig,
-		portDistributor: portDistributor,
-		repo:            repo,
+		tunnelProxyConfig: tunnelProxyConfig,
+		portDistributor:   portDistributor,
+		repo:              repo,
 	}, nil
 }
 
@@ -313,11 +313,7 @@ func (s *ClientService) startClientTunnels(client *clients.Client, remotes []*ch
 			}
 		}
 
-		tpc, err := s.getNewTunnelProxyConfig(remote, acl)
-		if err != nil {
-			return nil, err
-		}
-		t, err := client.StartTunnel(remote, acl, tpc)
+		t, err := client.StartTunnel(remote, acl, s.tunnelProxyConfig, s.portDistributor)
 		if err != nil {
 			return nil, errors.APIError{
 				HTTPStatus: http.StatusConflict,
@@ -327,27 +323,6 @@ func (s *ClientService) startClientTunnels(client *clients.Client, remotes []*ch
 		tunnels = append(tunnels, t)
 	}
 	return tunnels, nil
-}
-
-func (s *ClientService) getNewTunnelProxyConfig(remote *chshare.Remote, tunnelACL *clients.TunnelACL) (*clients.TunnelProxyConfig, error) {
-	if !s.serverConfig.IsTunnelProxyAllowed() || !remote.HTTPProxy {
-		return clients.NewTunnelProxyNotRequiredConfig(), nil
-	}
-
-	// tunnel proxy required
-	config := clients.NewTunnelProxyRequiredConfig(s.serverConfig.TunnelProxyCertFile, s.serverConfig.TunnelProxyKeyFile)
-	if tunnelACL != nil {
-		proxyACL := *tunnelACL
-		config.ProxyACL = &proxyACL
-	}
-	port, err := s.portDistributor.GetRandomPort()
-	if err != nil {
-		return nil, err
-	}
-	config.Port = strconv.Itoa(port)
-	config.Host = chshare.ZeroHost
-
-	return config, nil
 }
 
 func (s *ClientService) checkLocalPort(port string) error {

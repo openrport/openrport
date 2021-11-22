@@ -119,11 +119,11 @@ func NewServer(config *Config, filesAPI files.FileAPI) (*Server, error) {
 
 	s.clientService, err = InitClientService(
 		ctx,
+		&s.config.Server.TunnelProxyConfig,
 		ports.NewPortDistributor(config.AllowedPorts()),
 		s.clientProvider,
 		keepLostClients,
 		s.Logger,
-		&s.config.Server,
 	)
 	if err != nil {
 		return nil, err
