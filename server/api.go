@@ -420,7 +420,7 @@ func (al *APIListener) sendJWTToken(username string, w http.ResponseWriter, req 
 		return
 	}
 
-	tokenStr, err := al.createAuthToken(lifetime, username)
+	tokenStr, err := al.createAuthToken(req.Context(), lifetime, username)
 	if err != nil {
 		al.jsonErrorResponse(w, http.StatusInternalServerError, err)
 		return
@@ -506,7 +506,7 @@ func (al *APIListener) handleDeleteLogout(w http.ResponseWriter, req *http.Reque
 		return
 	}
 
-	valid, user, apiSession, err := al.validateBearerToken(token)
+	valid, user, apiSession, err := al.validateBearerToken(req.Context(), token)
 	if err != nil {
 		if errors.Is(err, ErrTooManyRequests) {
 			al.jsonErrorResponse(w, http.StatusTooManyRequests, err)
@@ -524,7 +524,7 @@ func (al *APIListener) handleDeleteLogout(w http.ResponseWriter, req *http.Reque
 		return
 	}
 
-	err = al.apiSessionRepo.Delete(apiSession)
+	err = al.apiSessions.Delete(req.Context(), apiSession.Token)
 	if err != nil {
 		al.jsonErrorResponse(w, http.StatusInternalServerError, err)
 		return

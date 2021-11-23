@@ -23,6 +23,7 @@ import (
 
 	"github.com/cloudradar-monitoring/rport/server/api"
 	"github.com/cloudradar-monitoring/rport/server/api/jobs"
+	"github.com/cloudradar-monitoring/rport/server/api/session"
 	"github.com/cloudradar-monitoring/rport/server/api/users"
 	"github.com/cloudradar-monitoring/rport/server/cgroups"
 	"github.com/cloudradar-monitoring/rport/server/clients"
@@ -1640,6 +1641,8 @@ func TestDeleteToken(t *testing.T) {
 }
 
 func TestWrapWithAuthMiddleware(t *testing.T) {
+	ctx := context.Background()
+
 	user := &users.User{
 		Username: "user1",
 		Password: "$2y$05$ep2DdPDeLDDhwRrED9q/vuVEzRpZtB5WHCFT7YbcmH9r9oNmlsZOm",
@@ -1651,14 +1654,14 @@ func TestWrapWithAuthMiddleware(t *testing.T) {
 		Token:    nil,
 	}
 	al := APIListener{
-		apiSessionRepo: NewAPISessionRepository(),
-		bannedUsers:    security.NewBanList(0),
-		userService:    users.NewAPIService(users.NewStaticProvider([]*users.User{user, userWithoutToken}), false),
+		apiSessions: newEmptyAPISessionCache(t),
+		bannedUsers: security.NewBanList(0),
+		userService: users.NewAPIService(users.NewStaticProvider([]*users.User{user, userWithoutToken}), false),
 		Server: &Server{
 			config: &Config{},
 		},
 	}
-	jwt, err := al.createAuthToken(time.Hour, user.Username)
+	jwt, err := al.createAuthToken(ctx, time.Hour, user.Username)
 	require.NoError(t, err)
 
 	testCases := []struct {
@@ -1868,9 +1871,9 @@ func TestHandleGetLogin(t *testing.T) {
 				},
 			},
 		},
-		bannedUsers:    security.NewBanList(0),
-		userService:    mockUsersService,
-		apiSessionRepo: NewAPISessionRepository(),
+		bannedUsers: security.NewBanList(0),
+		userService: mockUsersService,
+		apiSessions: newEmptyAPISessionCache(t),
 	}
 	al.initRouter()
 
@@ -1951,4 +1954,12 @@ func TestHandleGetLogin(t *testing.T) {
 			}
 		})
 	}
+}
+
+func newEmptyAPISessionCache(t *testing.T) *session.Cache {
+	p, err := session.NewSqliteProvider(":memory:")
+	require.NoError(t, err)
+	c, err := session.NewCache(context.Background(), p, defaultTokenLifetime, cleanupAPISessionsInterval)
+	require.NoError(t, err)
+	return c
 }

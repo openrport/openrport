@@ -1,6 +1,7 @@
 package chserver
 
 import (
+	"context"
 	"errors"
 	"math/rand"
 	"net/http"
@@ -9,6 +10,8 @@ import (
 	"time"
 
 	"github.com/dgrijalva/jwt-go"
+
+	"github.com/cloudradar-monitoring/rport/server/api/session"
 )
 
 const (
@@ -21,7 +24,7 @@ type Token struct {
 	jwt.StandardClaims
 }
 
-func (al *APIListener) createAuthToken(lifetime time.Duration, username string) (string, error) {
+func (al *APIListener) createAuthToken(ctx context.Context, lifetime time.Duration, username string) (string, error) {
 	if username == "" {
 		return "", errors.New("username cannot be empty")
 	}
@@ -39,7 +42,7 @@ func (al *APIListener) createAuthToken(lifetime time.Duration, username string) 
 	}
 
 	expiresAt := time.Now().Add(lifetime)
-	err = al.apiSessionRepo.Save(&APISession{tokenStr, expiresAt})
+	err = al.apiSessions.Save(ctx, &session.APISession{Token: tokenStr, ExpiresAt: expiresAt})
 	if err != nil {
 		return "", err
 	}
@@ -47,16 +50,16 @@ func (al *APIListener) createAuthToken(lifetime time.Duration, username string) 
 	return tokenStr, nil
 }
 
-func (al *APIListener) increaseSessionLifetime(s *APISession) error {
+func (al *APIListener) increaseSessionLifetime(ctx context.Context, s *session.APISession) error {
 	newExpirationDate := s.ExpiresAt.Add(defaultTokenLifetime)
 	if time.Now().After(s.ExpiresAt) {
 		newExpirationDate = time.Now().Add(defaultTokenLifetime)
 	}
 	s.ExpiresAt = newExpirationDate
-	return al.apiSessionRepo.Save(s)
+	return al.apiSessions.Save(ctx, s)
 }
 
-func (al *APIListener) validateBearerToken(tokenStr string) (bool, string, *APISession, error) {
+func (al *APIListener) validateBearerToken(ctx context.Context, tokenStr string) (bool, string, *session.APISession, error) {
 	tk := &Token{}
 	token, err := jwt.ParseWithClaims(tokenStr, tk, func(token *jwt.Token) (i interface{}, err error) {
 		return []byte(al.config.API.JWTSecret), nil
@@ -75,7 +78,7 @@ func (al *APIListener) validateBearerToken(tokenStr string) (bool, string, *APIS
 		return false, "", nil, nil
 	}
 
-	apiSession, err := al.apiSessionRepo.FindOne(tokenStr)
+	apiSession, err := al.apiSessions.Get(ctx, tokenStr)
 	if err != nil || apiSession == nil {
 		return false, "", nil, err
 	}
