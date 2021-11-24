@@ -1066,6 +1066,9 @@ func (al *APIListener) handlePutClientTunnel(w http.ResponseWriter, req *http.Re
 	}
 
 	httpProxy := req.URL.Query().Get("http_proxy")
+	if httpProxy == "" {
+		httpProxy = "false"
+	}
 	isHTTPProxy, err := strconv.ParseBool(httpProxy)
 	if err != nil {
 		al.jsonError(w, err)
@@ -1080,6 +1083,16 @@ func (al *APIListener) handlePutClientTunnel(w http.ResponseWriter, req *http.Re
 		return
 	}
 	remote.HTTPProxy = isHTTPProxy
+
+	hostHeader := req.URL.Query().Get("host_header")
+	if hostHeader != "" {
+		if isHTTPProxy {
+			remote.HostHeader = hostHeader
+		} else {
+			al.jsonErrorResponseWithTitle(w, http.StatusBadRequest, "host_header not allowed when http_proxy is false")
+			return
+		}
+	}
 
 	// make next steps thread-safe
 	client.Lock()
