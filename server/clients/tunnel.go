@@ -30,6 +30,7 @@ type Tunnel struct {
 	stopFn                    func()
 	wg                        sync.WaitGroup // TODO: verify whether wait group is needed here
 	acl                       *TunnelACL     // parsed Remote.ACL field
+	Proxy                     *TunnelProxy   `json:"-"`
 }
 
 func NewTunnel(logger *chshare.Logger, ssh ssh.Conn, id string, remote *chshare.Remote, acl *TunnelACL) *Tunnel {
@@ -108,6 +109,7 @@ func (t *Tunnel) listen(ctx context.Context, l net.Listener) {
 
 		if t.acl != nil {
 			tcpAddr, ok := conn.RemoteAddr().(*net.TCPAddr)
+			t.Debugf("Tunnel request with remote addr: %s", tcpAddr)
 			if !ok {
 				t.Errorf("Unsupported remote address type. Expected net.TCPAddr. %v", conn.RemoteAddr())
 				conn.Close()

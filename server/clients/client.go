@@ -2,6 +2,7 @@ package clients
 
 import (
 	"context"
+	"fmt"
 	"strconv"
 	"sync"
 	"sync/atomic"
@@ -11,6 +12,7 @@ import (
 
 	"github.com/cloudradar-monitoring/rport/server/api/users"
 	"github.com/cloudradar-monitoring/rport/server/cgroups"
+	"github.com/cloudradar-monitoring/rport/server/ports"
 	chshare "github.com/cloudradar-monitoring/rport/share"
 	"github.com/cloudradar-monitoring/rport/share/collections"
 	"github.com/cloudradar-monitoring/rport/share/models"
@@ -91,10 +93,27 @@ func (c *Client) FindTunnelByRemote(r *chshare.Remote) *Tunnel {
 	return nil
 }
 
-func (c *Client) StartTunnel(r *chshare.Remote, acl *TunnelACL) (*Tunnel, error) {
+func (c *Client) StartTunnel(r *chshare.Remote, acl *TunnelACL, tunnelProxyConfig *TunnelProxyConfig, portDistributor *ports.PortDistributor) (*Tunnel, error) {
 	t := c.FindTunnelByRemote(r)
 	if t != nil {
 		return t, nil
+	}
+
+	startTunnelProxy := tunnelProxyConfig.Enabled && r.HTTPProxy
+	proxyHost := ""
+	proxyPort := ""
+	var proxyACL *TunnelACL
+	if startTunnelProxy {
+		proxyHost = r.LocalHost
+		proxyPort = r.LocalPort
+		proxyACL = acl
+		r.LocalHost = LocalHost
+		port, err := portDistributor.GetRandomPort()
+		if err != nil {
+			return nil, err
+		}
+		r.LocalPort = strconv.Itoa(port)
+		acl, _ = ParseTunnelACL(LocalHost) // access to tunnel is only allowed from tunnel proxy
 	}
 
 	tunnelID := strconv.FormatInt(c.generateNewTunnelID(), 10)
@@ -102,6 +121,22 @@ func (c *Client) StartTunnel(r *chshare.Remote, acl *TunnelACL) (*Tunnel, error)
 	autoCloseChan, err := t.Start(c.Context)
 	if err != nil {
 		return nil, err
+	}
+
+	// start tunnel proxy
+	if startTunnelProxy {
+		tProxy := NewTunnelProxy(t, c.Logger, tunnelProxyConfig, proxyHost, proxyPort, proxyACL)
+		if err := tProxy.Start(c.Context); err != nil {
+			c.Logger.Debugf("tunnel proxy could not be started, tunnel must be terminated: %v", err)
+			if tErr := t.Terminate(true); tErr != nil {
+				return nil, tErr
+			}
+			return nil, fmt.Errorf("tunnel started and terminated because of tunnel proxy start error")
+		}
+
+		t.Proxy = tProxy
+		t.Remote.LocalHost = t.Proxy.Host
+		t.Remote.LocalPort = t.Proxy.Port
 	}
 
 	// in case tunnel auto-closed due to inactivity - run background task to remove the tunnel from the list
@@ -129,6 +164,11 @@ func (c *Client) TerminateTunnel(t *Tunnel, force bool) error {
 	err := t.Terminate(force)
 	if err != nil {
 		return err
+	}
+	if t.Proxy != nil {
+		if err := t.Proxy.Stop(c.Context); err != nil {
+			return err
+		}
 	}
 	c.removeTunnelByID(t.ID)
 	return nil

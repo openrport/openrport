@@ -514,6 +514,11 @@ paths:
         description: "Disables the auto-close time of the tunnel (see `idle-timeout-minutes` parameter). The parameter should not be used with a non empty `idle-timeout-minutes` parameter"
         required: false
         type: "integer"
+      - name: "http_proxy"
+        in: "query"
+        description: "A flag, which requires to start a reverse proxy in front of the tunnel to handle ssl offloading. `http_proxy=1` is only allowed in combination with scheme 'http' or 'https'"
+        required: false
+        type: "string"
     put:
       tags:
         - "Clients and Tunnels"
@@ -2547,6 +2552,12 @@ definitions:
       acl:
         type: "string"
         description: "IP v4 addresses who is allowed to use the tunnel (ipv6 is not supported yet). For example, '142.78.90.8,201.98.123.0/24,'."
+      http_proxy:
+        type: "boolean"
+        description: "True if tunnel proxy was created."
+      pport:
+        type: "string"
+        description: "tunnel proxy listens to this port"
   Client:
     type: "object"
     properties:

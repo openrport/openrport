@@ -23,8 +23,9 @@ import (
 )
 
 type ClientService struct {
-	repo            *clients.ClientRepository
-	portDistributor *ports.PortDistributor
+	repo              *clients.ClientRepository
+	portDistributor   *ports.PortDistributor
+	tunnelProxyConfig *clients.TunnelProxyConfig
 
 	mu sync.Mutex
 }
@@ -90,17 +91,20 @@ var clientsListDefaultFields = map[string][]string{
 
 // NewClientService returns a new instance of client service.
 func NewClientService(
+	tunnelProxyConfig *clients.TunnelProxyConfig,
 	portDistributor *ports.PortDistributor,
 	repo *clients.ClientRepository,
 ) *ClientService {
 	return &ClientService{
-		portDistributor: portDistributor,
-		repo:            repo,
+		tunnelProxyConfig: tunnelProxyConfig,
+		portDistributor:   portDistributor,
+		repo:              repo,
 	}
 }
 
 func InitClientService(
 	ctx context.Context,
+	tunnelProxyConfig *clients.TunnelProxyConfig,
 	portDistributor *ports.PortDistributor,
 	provider clients.ClientProvider,
 	keepLostClients *time.Duration,
@@ -112,8 +116,9 @@ func InitClientService(
 	}
 
 	return &ClientService{
-		portDistributor: portDistributor,
-		repo:            repo,
+		tunnelProxyConfig: tunnelProxyConfig,
+		portDistributor:   portDistributor,
+		repo:              repo,
 	}, nil
 }
 
@@ -291,7 +296,7 @@ func (s *ClientService) startClientTunnels(client *clients.Client, remotes []*ch
 				return nil, err
 			}
 			remote.LocalPort = strconv.Itoa(port)
-			remote.LocalHost = "0.0.0.0"
+			remote.LocalHost = chshare.ZeroHost
 			remote.LocalPortRandom = true
 		} else {
 			if err := s.checkLocalPort(remote.LocalPort); err != nil {
@@ -308,7 +313,7 @@ func (s *ClientService) startClientTunnels(client *clients.Client, remotes []*ch
 			}
 		}
 
-		t, err := client.StartTunnel(remote, acl)
+		t, err := client.StartTunnel(remote, acl, s.tunnelProxyConfig, s.portDistributor)
 		if err != nil {
 			return nil, errors.APIError{
 				HTTPStatus: http.StatusConflict,

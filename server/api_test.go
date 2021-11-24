@@ -590,7 +590,7 @@ func TestHandleDeleteClient(t *testing.T) {
 			al := APIListener{
 				insecureForTests: true,
 				Server: &Server{
-					clientService: NewClientService(nil, clients.NewClientRepository(tc.clients, &hour, testLog)),
+					clientService: NewClientService(nil, nil, clients.NewClientRepository(tc.clients, &hour, testLog)),
 					config: &Config{
 						Server: ServerConfig{
 							AuthWrite:       tc.clientAuthWrite,
@@ -827,7 +827,7 @@ func TestHandlePostCommand(t *testing.T) {
 			al := APIListener{
 				insecureForTests: true,
 				Server: &Server{
-					clientService: NewClientService(nil, clients.NewClientRepository(tc.clients, &hour, testLog)),
+					clientService: NewClientService(nil, nil, clients.NewClientRepository(tc.clients, &hour, testLog)),
 					config: &Config{
 						Server: ServerConfig{
 							RunRemoteCmdTimeoutSec: defaultTimeout,
@@ -1066,7 +1066,7 @@ func TestHandleGetClients(t *testing.T) {
 	al := APIListener{
 		insecureForTests: true,
 		Server: &Server{
-			clientService: NewClientService(nil, clients.NewClientRepository([]*clients.Client{c1, c2}, &hour, testLog)),
+			clientService: NewClientService(nil, nil, clients.NewClientRepository([]*clients.Client{c1, c2}, &hour, testLog)),
 			config: &Config{
 				Server: ServerConfig{MaxRequestBytes: 1024 * 1024},
 			},
@@ -1218,7 +1218,7 @@ func TestHandlePostMultiClientCommand(t *testing.T) {
 			al := APIListener{
 				insecureForTests: true,
 				Server: &Server{
-					clientService: NewClientService(nil, clients.NewClientRepository([]*clients.Client{c1, c2, c3}, &hour, testLog)),
+					clientService: NewClientService(nil, nil, clients.NewClientRepository([]*clients.Client{c1, c2, c3}, &hour, testLog)),
 					config: &Config{
 						Server: ServerConfig{
 							RunRemoteCmdTimeoutSec: defaultTimeout,
@@ -1421,7 +1421,7 @@ func TestHandleRefreshUpdatesStatus(t *testing.T) {
 			al := APIListener{
 				insecureForTests: true,
 				Server: &Server{
-					clientService: NewClientService(nil, clients.NewClientRepository([]*clients.Client{c1, c2}, &hour, testLog)),
+					clientService: NewClientService(nil, nil, clients.NewClientRepository([]*clients.Client{c1, c2}, &hour, testLog)),
 					config:        &Config{},
 				},
 				Logger: testLog,
@@ -1447,7 +1447,7 @@ func TestHandleGetClient(t *testing.T) {
 	al := APIListener{
 		insecureForTests: true,
 		Server: &Server{
-			clientService: NewClientService(nil, clients.NewClientRepository([]*clients.Client{c1}, &hour, testLog)),
+			clientService: NewClientService(nil, nil, clients.NewClientRepository([]*clients.Client{c1}, &hour, testLog)),
 			config: &Config{
 				Server: ServerConfig{MaxRequestBytes: 1024 * 1024},
 			},
@@ -1517,6 +1517,7 @@ func TestHandleGetClient(t *testing.T) {
                 "lport_random":false,
                 "scheme":null,
                 "acl":null,
+                "http_proxy":false,
 		        "idle_timeout_minutes": 0,
                 "id":"1"
             },
@@ -1528,6 +1529,7 @@ func TestHandleGetClient(t *testing.T) {
                 "lport_random":false,
                 "scheme":null,
                 "acl":null,
+                "http_proxy":false,
 		        "idle_timeout_minutes": 0,
                 "id":"2"
             }
