@@ -67,7 +67,10 @@ func (tp *TunnelProxy) Addr() string {
 }
 
 func (tp *TunnelProxy) forwardRequest(p *httputil.ReverseProxy, w http.ResponseWriter, r *http.Request) {
-	w.Header().Set("X-RPort-Tunnel-Proxy", tp.Addr())
+	if tp.Tunnel.Remote.HostHeader != "" {
+		r.Header.Set("Host", tp.Tunnel.Remote.HostHeader)
+		r.Host = tp.Tunnel.Remote.HostHeader
+	}
 	p.ServeHTTP(w, r)
 }
 
@@ -90,9 +93,20 @@ func (tp *TunnelProxy) tunnelProxyHandlerFunc(p *httputil.ReverseProxy) func(htt
 		}
 
 		tp.Logger.Debugf("Proxy Access rejected. Remote addr: %s", clientIP)
-		w.Header().Set("Content-Type", "text/html; charset=UTF-8")
-		w.WriteHeader(http.StatusForbidden)
+		tp.sendHTML(w, http.StatusForbidden, "Access rejected by ACL")
 	}
+}
+
+func (tp *TunnelProxy) tunnelProxyErrorFunc(w http.ResponseWriter, r *http.Request, err error) {
+	tp.Logger.Errorf("Error during proxy request %v", err)
+	tp.sendHTML(w, http.StatusInternalServerError, err.Error())
+}
+
+func (tp *TunnelProxy) sendHTML(w http.ResponseWriter, statusCode int, msg string) {
+	w.Header().Set("Content-Type", "text/html; charset=UTF-8")
+	w.WriteHeader(statusCode)
+	m := fmt.Sprintf("[%d] Rport tunnel proxy: %s", statusCode, msg)
+	_, _ = w.Write([]byte(m))
 }
 
 func (tp *TunnelProxy) Start(ctx context.Context) error {
@@ -109,9 +123,7 @@ func (tp *TunnelProxy) Start(ctx context.Context) error {
 		},
 	}
 	proxy.Transport = sslOffloadingTransport
-	proxy.ErrorHandler = func(writer http.ResponseWriter, request *http.Request, err error) {
-		tp.Logger.Errorf("Error during proxy request %v", err)
-	}
+	proxy.ErrorHandler = tp.tunnelProxyErrorFunc
 	mux := http.NewServeMux()
 	mux.HandleFunc("/", tp.tunnelProxyHandlerFunc(proxy))
 

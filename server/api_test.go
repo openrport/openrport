@@ -1518,6 +1518,7 @@ func TestHandleGetClient(t *testing.T) {
                 "lport_random":false,
                 "scheme":null,
                 "acl":null,
+                "host_header":"",
                 "http_proxy":false,
 		        "idle_timeout_minutes": 0,
                 "id":"1"
@@ -1530,6 +1531,7 @@ func TestHandleGetClient(t *testing.T) {
                 "lport_random":false,
                 "scheme":null,
                 "acl":null,
+                "host_header":"",
                 "http_proxy":false,
 		        "idle_timeout_minutes": 0,
                 "id":"2"

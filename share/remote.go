@@ -34,6 +34,7 @@ type Remote struct {
 	ACL                *string `json:"acl"` // string representation of Tunnel.TunnelACL field
 	IdleTimeoutMinutes int     `json:"idle_timeout_minutes"`
 	HTTPProxy          bool    `json:"http_proxy"`
+	HostHeader         string  `json:"host_header"`
 }
 
 func DecodeRemote(s string) (*Remote, error) {
