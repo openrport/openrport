@@ -49,7 +49,7 @@ type Server struct {
 	uiJobWebSockets     ws.WebSocketCache // used to push job result to UI
 	jobsDoneChannel     jobResultChanMap  // used for sequential command execution to know when command is finished
 	auditLog            *auditlog.AuditLog
-	capabilities        *chshare.Capabilities
+	capabilities        *models.Capabilities
 }
 
 // NewServer creates and returns a new rport server
@@ -161,7 +161,7 @@ func NewServer(config *Config, filesAPI files.FileAPI) (*Server, error) {
 		return nil, err
 	}
 
-	s.capabilities = chshare.NewCapabilities()
+	s.capabilities = models.NewCapabilities()
 
 	return s, nil
 }
