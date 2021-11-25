@@ -255,6 +255,7 @@ func (cl *ClientListener) handleWebsocket(w http.ResponseWriter, req *http.Reque
 	}
 
 	cl.replyConnectionSuccess(r, connRequest.Remotes)
+	cl.sendCapabilities(sshConn)
 
 	clientBanner := client.Banner()
 	clog.Debugf("Open %s", clientBanner)
@@ -493,5 +494,17 @@ func (cl *ClientListener) handleSSHChannels(clientLog *chshare.Logger, chans <-c
 		//handle stream type
 		connID := cl.connStats.New()
 		go chshare.HandleTCPStream(clientLog.Fork("conn#%d", connID), &cl.connStats, stream, remote)
+	}
+}
+
+func (cl *ClientListener) sendCapabilities(conn *ssh.ServerConn) {
+	payload, err := json.Marshal(cl.Server.capabilities)
+	if err != nil {
+		cl.Errorf("can't encode capabilities payload")
+		return
+	}
+
+	if _, _, err = conn.SendRequest(comm.RequestTypePutCapabilities, false, payload); err != nil {
+		cl.Errorf("can't send capabilities: %v", err)
 	}
 }

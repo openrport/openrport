@@ -11,6 +11,7 @@ const (
 	RequestTypeCheckPort            = "check_port"
 	RequestTypeRunCmd               = "run_cmd"
 	RequestTypeRefreshUpdatesStatus = "refresh_updates_status"
+	RequestTypePutCapabilities      = "put_capabilities"
 
 	// request types sent by clients to server
 	RequestTypePing            = "ping"
