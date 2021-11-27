@@ -2661,6 +2661,11 @@ definitions:
         description: "list of user groups that are allowed to access this client. Administrators have always full-access to all clients. Empty list prevents access for everyone except admins"
       updates_status:
         $ref: '#/definitions/UpdatesStatus'
+      client_configuration:
+        $ref: '#/definitions/ClientConfiguration'
+  ClientConfiguration:
+    type: "object"
+    description: "JSON encoded information about client configuration"
   ClientGroup:
     type: "object"
     properties:
@@ -3346,6 +3351,6 @@ definitions:
         type: "string"
         format: "date-time"
         description: "Timestamp of measurement"
-      mountpoints:
+      processes:
         type: "string"
         description: "JSON encoded information about processes"
