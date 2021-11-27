@@ -511,7 +511,7 @@ func (c *Client) connectionRequest(ctx context.Context) *chshare.ConnectionReque
 		CPUModel:               system.UnknownValue,
 		CPUModelName:           system.UnknownValue,
 		CPUVendor:              system.UnknownValue,
-		Config:                 c.configHolder.Config,
+		ClientConfiguration:    c.configHolder.Config,
 	}
 
 	info, err := c.systemInfo.HostInfo(ctx)

@@ -124,7 +124,7 @@ func convertToSqlite(v *Client) *clientSqlite {
 			Tunnels:                v.Tunnels,
 			AllowedUserGroups:      v.AllowedUserGroups,
 			UpdatesStatus:          v.UpdatesStatus,
-			ClientConfig:           v.ClientConfig,
+			ClientConfig:           v.ClientConfiguration,
 		},
 	}
 	if v.DisconnectedAt != nil {
@@ -225,7 +225,7 @@ func (s *clientSqlite) convert() *Client {
 		Timezone:               d.Timezone,
 		AllowedUserGroups:      d.AllowedUserGroups,
 		UpdatesStatus:          d.UpdatesStatus,
-		ClientConfig:           d.ClientConfig,
+		ClientConfiguration:    d.ClientConfig,
 	}
 	if s.DisconnectedAt.Valid {
 		res.DisconnectedAt = &s.DisconnectedAt.Time

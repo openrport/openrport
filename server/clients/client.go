@@ -56,11 +56,11 @@ type Client struct {
 	Address                string    `json:"address"`
 	Tunnels                []*Tunnel `json:"tunnels"`
 	// DisconnectedAt is a time when a client was disconnected. If nil - it's connected.
-	DisconnectedAt    *time.Time            `json:"disconnected_at"`
-	ClientAuthID      string                `json:"client_auth_id"`
-	AllowedUserGroups []string              `json:"allowed_user_groups"`
-	UpdatesStatus     *models.UpdatesStatus `json:"updates_status"`
-	ClientConfig      *chshare.Config       `json:"client_config"`
+	DisconnectedAt      *time.Time            `json:"disconnected_at"`
+	ClientAuthID        string                `json:"client_auth_id"`
+	AllowedUserGroups   []string              `json:"allowed_user_groups"`
+	UpdatesStatus       *models.UpdatesStatus `json:"updates_status"`
+	ClientConfiguration *chshare.Config       `json:"client_configuration"`
 
 	Connection ssh.Conn        `json:"-"`
 	Context    context.Context `json:"-"`

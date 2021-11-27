@@ -79,6 +79,7 @@ var clientsSupportedFields = map[string]map[string]bool{
 		"mem_total":                true,
 		"allowed_user_groups":      true,
 		"updates_status":           true,
+		"client_configuration":     true,
 	},
 }
 var clientsListDefaultFields = map[string][]string{
@@ -241,7 +242,7 @@ func (s *ClientService) StartClient(
 		IPv6:                   req.IPv6,
 		Tags:                   req.Tags,
 		Version:                req.Version,
-		ClientConfig:           req.Config,
+		ClientConfiguration:    req.ClientConfiguration,
 		Address:                clientHost,
 		Tunnels:                make([]*clients.Tunnel, 0),
 		DisconnectedAt:         nil,

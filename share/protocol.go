@@ -30,7 +30,7 @@ type ConnectionRequest struct {
 	IPv6                   []string
 	Tags                   []string
 	Remotes                []*Remote
-	Config                 *Config
+	ClientConfiguration    *Config
 }
 
 func DecodeConnectionRequest(b []byte) (*ConnectionRequest, error) {
