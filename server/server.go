@@ -26,6 +26,7 @@ import (
 	"github.com/cloudradar-monitoring/rport/server/ports"
 	"github.com/cloudradar-monitoring/rport/server/scheduler"
 	chshare "github.com/cloudradar-monitoring/rport/share"
+	"github.com/cloudradar-monitoring/rport/share/capabilities"
 	"github.com/cloudradar-monitoring/rport/share/files"
 	"github.com/cloudradar-monitoring/rport/share/models"
 	"github.com/cloudradar-monitoring/rport/share/ws"
@@ -165,7 +166,7 @@ func NewServer(config *Config, filesAPI files.FileAPI) (*Server, error) {
 		return nil, err
 	}
 
-	s.capabilities = models.NewCapabilities()
+	s.capabilities = capabilities.NewServerCapabilities()
 
 	return s, nil
 }

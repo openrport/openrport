@@ -32,25 +32,27 @@ func TestCustomHeaders(t *testing.T) {
 	// Close the server when test finishes
 	defer server.Close()
 
-	config := Config{
-		Client: ClientConfig{
-			Fingerprint: "",
-			Auth:        "",
-			Server:      server.URL,
-			Remotes:     []string{"192.168.0.5:3000:google.com:80"},
-			DataDir:     "somedir",
-		},
-		Connection: ConnectionConfig{
-			KeepAlive:        time.Second,
-			MaxRetryCount:    0,
-			MaxRetryInterval: time.Second,
-			HeadersRaw:       []string{"Foo: Bar"},
-		},
-		RemoteCommands: CommandsConfig{
-			Order: allowDenyOrder,
-		},
-		RemoteScripts: ScriptsConfig{
-			Enabled: false,
+	config := ClientConfigHolder{
+		Config: &chshare.Config{
+			Client: chshare.ClientConfig{
+				Fingerprint: "",
+				Auth:        "",
+				Server:      server.URL,
+				Remotes:     []string{"192.168.0.5:3000:google.com:80"},
+				DataDir:     "somedir",
+			},
+			Connection: chshare.ConnectionConfig{
+				KeepAlive:        time.Second,
+				MaxRetryCount:    0,
+				MaxRetryInterval: time.Second,
+				HeadersRaw:       []string{"Foo: Bar"},
+			},
+			RemoteCommands: chshare.CommandsConfig{
+				Order: allowDenyOrder,
+			},
+			RemoteScripts: chshare.ScriptsConfig{
+				Enabled: false,
+			},
 		},
 	}
 	err := config.ParseAndValidate(true)
@@ -76,12 +78,14 @@ func TestConnectionRequest(t *testing.T) {
 		RemoteHost: "test-remote-2",
 		RemotePort: "3345",
 	}
-	config := &Config{
-		Client: ClientConfig{
-			ID:      "test-client-id",
-			Name:    "test-name",
-			Tags:    []string{"tag1", "tag2"},
-			remotes: []*chshare.Remote{remote1, remote2},
+	config := &ClientConfigHolder{
+		Config: &chshare.Config{
+			Client: chshare.ClientConfig{
+				ID:      "test-client-id",
+				Name:    "test-name",
+				Tags:    []string{"tag1", "tag2"},
+				Tunnels: []*chshare.Remote{remote1, remote2},
+			},
 		},
 	}
 	interfaceAddrs := []net.Addr{
@@ -161,6 +165,7 @@ func TestConnectionRequest(t *testing.T) {
 				IPv6:                   []string{"2001:db8::1", "2001:db8::2"},
 				Tags:                   []string{"tag1", "tag2"},
 				Remotes:                []*chshare.Remote{remote1, remote2},
+				Config:                 config.Config,
 			},
 		}, {
 			Name: "windows, no errors",
@@ -209,6 +214,7 @@ func TestConnectionRequest(t *testing.T) {
 				NumCPUs:      2,
 				IPv4:         []string{"192.0.2.1", "192.0.2.2"},
 				IPv6:         []string{"2001:db8::1", "2001:db8::2"},
+				Config:       config.Config,
 			},
 		}, {
 			Name: "all errors",
@@ -241,6 +247,7 @@ func TestConnectionRequest(t *testing.T) {
 				Timezone:     "UTC (UTC+00:00)",
 				IPv4:         nil,
 				IPv6:         nil,
+				Config:       config.Config,
 			},
 		}, {
 			Name: "uname error",
@@ -277,6 +284,7 @@ func TestConnectionRequest(t *testing.T) {
 				CPUVendor:    system.UnknownValue,
 				IPv4:         []string{"192.0.2.1", "192.0.2.2"},
 				IPv6:         []string{"2001:db8::1", "2001:db8::2"},
+				Config:       config.Config,
 			},
 		},
 	}
@@ -421,22 +429,24 @@ func TestConnectionLoop(t *testing.T) {
 	err = logOutput.Start()
 	require.NoError(t, err)
 
-	config := Config{
-		Client: ClientConfig{
-			Server:                   tsMain.URL,
-			FallbackServers:          []string{tsFallback.URL},
-			ServerSwitchbackInterval: 100 * time.Millisecond,
-			DataDir:                  "./",
-		},
-		RemoteCommands: CommandsConfig{
-			Order: allowDenyOrder,
-		},
-		Logging: LogConfig{
-			LogLevel:  chshare.LogLevelDebug,
-			LogOutput: logOutput,
-		},
-		Connection: ConnectionConfig{
-			MaxRetryCount: -1,
+	config := ClientConfigHolder{
+		Config: &chshare.Config{
+			Client: chshare.ClientConfig{
+				Server:                   tsMain.URL,
+				FallbackServers:          []string{tsFallback.URL},
+				ServerSwitchbackInterval: 100 * time.Millisecond,
+				DataDir:                  "./",
+			},
+			RemoteCommands: chshare.CommandsConfig{
+				Order: allowDenyOrder,
+			},
+			Logging: chshare.LogConfig{
+				LogLevel:  chshare.LogLevelDebug,
+				LogOutput: logOutput,
+			},
+			Connection: chshare.ConnectionConfig{
+				MaxRetryCount: -1,
+			},
 		},
 	}
 	err = config.ParseAndValidate(true)

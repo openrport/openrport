@@ -241,6 +241,7 @@ func (s *ClientService) StartClient(
 		IPv6:                   req.IPv6,
 		Tags:                   req.Tags,
 		Version:                req.Version,
+		ClientConfig:           req.Config,
 		Address:                clientHost,
 		Tunnels:                make([]*clients.Tunnel, 0),
 		DisconnectedAt:         nil,

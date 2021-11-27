@@ -15,20 +15,22 @@ import (
 	chshare "github.com/cloudradar-monitoring/rport/share"
 )
 
-func getDefaultValidMinConfig() Config {
-	return Config{
-		Client: ClientConfig{
-			Server:  "test.com",
-			DataDir: os.TempDir(),
-		},
-		RemoteCommands: CommandsConfig{
-			Enabled:       true,
-			SendBackLimit: 2048,
-			Order:         allowDenyOrder,
-			allowRegexp:   []*regexp.Regexp{regexp.MustCompile(".*")},
-		},
-		RemoteScripts: ScriptsConfig{
-			Enabled: false,
+func getDefaultValidMinConfig() ClientConfigHolder {
+	return ClientConfigHolder{
+		Config: &chshare.Config{
+			Client: chshare.ClientConfig{
+				Server:  "test.com",
+				DataDir: os.TempDir(),
+			},
+			RemoteCommands: chshare.CommandsConfig{
+				Enabled:       true,
+				SendBackLimit: 2048,
+				Order:         allowDenyOrder,
+				AllowRegexp:   []*regexp.Regexp{regexp.MustCompile(".*")},
+			},
+			RemoteScripts: chshare.ScriptsConfig{
+				Enabled: false,
+			},
 		},
 	}
 }
@@ -36,7 +38,7 @@ func getDefaultValidMinConfig() Config {
 func TestConfigParseAndValidateHeaders(t *testing.T) {
 	testCases := []struct {
 		Name           string
-		ConnConfig     ConnectionConfig
+		ConnConfig     chshare.ConnectionConfig
 		ExpectedHeader http.Header
 	}{
 		{
@@ -46,7 +48,7 @@ func TestConfigParseAndValidateHeaders(t *testing.T) {
 			},
 		}, {
 			Name: "host set",
-			ConnConfig: ConnectionConfig{
+			ConnConfig: chshare.ConnectionConfig{
 				Hostname: "test.com",
 			},
 			ExpectedHeader: http.Header{
@@ -55,7 +57,7 @@ func TestConfigParseAndValidateHeaders(t *testing.T) {
 			},
 		}, {
 			Name: "user agent set in config",
-			ConnConfig: ConnectionConfig{
+			ConnConfig: chshare.ConnectionConfig{
 				HeadersRaw: []string{"User-Agent: test-agent"},
 			},
 			ExpectedHeader: http.Header{
@@ -63,7 +65,7 @@ func TestConfigParseAndValidateHeaders(t *testing.T) {
 			},
 		}, {
 			Name: "multiple headers set",
-			ConnConfig: ConnectionConfig{
+			ConnConfig: chshare.ConnectionConfig{
 				HeadersRaw: []string{"Test1: v1", "Test2: v2"},
 			},
 			ExpectedHeader: http.Header{
@@ -82,7 +84,7 @@ func TestConfigParseAndValidateHeaders(t *testing.T) {
 			err := config.ParseAndValidate(true)
 			require.NoError(t, err)
 
-			assert.Equal(t, tc.ExpectedHeader, config.Connection.Headers())
+			assert.Equal(t, tc.ExpectedHeader, config.Connection.HTTPHeaders)
 		})
 	}
 }
@@ -211,7 +213,7 @@ func TestConfigParseAndValidateProxyURL(t *testing.T) {
 
 			if tc.ExpectedError == "" {
 				require.NoError(t, err)
-				assert.Equal(t, tc.ExpectedProxyURL, config.Client.proxyURL)
+				assert.Equal(t, tc.ExpectedProxyURL, config.Client.ProxyURL)
 			} else {
 				require.Error(t, err)
 				assert.Equal(t, tc.ExpectedError, err.Error())
@@ -268,7 +270,7 @@ func TestConfigParseAndValidateRemotes(t *testing.T) {
 
 			if tc.ExpectedError == "" {
 				require.NoError(t, err)
-				assert.ElementsMatch(t, tc.ExpectedRemotes, config.Client.remotes)
+				assert.ElementsMatch(t, tc.ExpectedRemotes, config.Client.Tunnels)
 			} else {
 				require.Error(t, err)
 				assert.Equal(t, tc.ExpectedError, err.Error())
@@ -301,8 +303,8 @@ func TestConfigParseAndValidateAuth(t *testing.T) {
 			err := config.ParseAndValidate(true)
 
 			require.NoError(t, err)
-			assert.Equal(t, tc.ExpectedUser, config.Client.authUser)
-			assert.Equal(t, tc.ExpectedPass, config.Client.authPass)
+			assert.Equal(t, tc.ExpectedUser, config.Client.AuthUser)
+			assert.Equal(t, tc.ExpectedPass, config.Client.AuthPass)
 		})
 	}
 }
@@ -402,7 +404,7 @@ func TestConfigParseAndValidateAllowRegexp(t *testing.T) {
 				assert.Contains(t, gotErr.Error(), tc.wantErrContains)
 			} else {
 				require.NoError(t, gotErr)
-				assert.ElementsMatch(t, tc.allow, convertToRegexpStrList(config.RemoteCommands.allowRegexp))
+				assert.ElementsMatch(t, tc.allow, convertToRegexpStrList(config.RemoteCommands.AllowRegexp))
 			}
 		})
 	}
@@ -448,7 +450,7 @@ func TestConfigParseAndValidateDenyRegexp(t *testing.T) {
 				assert.Contains(t, gotErr.Error(), tc.wantErrContains)
 			} else {
 				require.NoError(t, gotErr)
-				assert.ElementsMatch(t, tc.deny, convertToRegexpStrList(config.RemoteCommands.denyRegexp))
+				assert.ElementsMatch(t, tc.deny, convertToRegexpStrList(config.RemoteCommands.DenyRegexp))
 			}
 		})
 	}

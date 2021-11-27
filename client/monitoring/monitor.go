@@ -8,7 +8,6 @@ import (
 
 	"golang.org/x/crypto/ssh"
 
-	"github.com/cloudradar-monitoring/rport/client/monitoring/config"
 	"github.com/cloudradar-monitoring/rport/client/monitoring/docker"
 	"github.com/cloudradar-monitoring/rport/client/monitoring/fs"
 	"github.com/cloudradar-monitoring/rport/client/monitoring/processes"
@@ -23,14 +22,14 @@ type Monitor struct {
 	conn              ssh.Conn
 	stopFn            func()
 	logger            *chshare.Logger
-	config            config.MonitoringConfig
+	config            chshare.MonitoringConfig
 	measurement       *models.Measurement
 	systemInfo        system.SysInfo
 	fileSystemWatcher *fs.FileSystemWatcher
 	processHandler    *processes.ProcessHandler
 }
 
-func NewMonitor(logger *chshare.Logger, config config.MonitoringConfig, systemInfo system.SysInfo) *Monitor {
+func NewMonitor(logger *chshare.Logger, config chshare.MonitoringConfig, systemInfo system.SysInfo) *Monitor {
 	fsWatcher := fs.NewWatcher(fs.FileSystemWatcherConfig{
 		TypeInclude:                 config.FSTypeInclude,
 		PathExclude:                 config.FSPathExclude,

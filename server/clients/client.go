@@ -60,6 +60,7 @@ type Client struct {
 	ClientAuthID      string                `json:"client_auth_id"`
 	AllowedUserGroups []string              `json:"allowed_user_groups"`
 	UpdatesStatus     *models.UpdatesStatus `json:"updates_status"`
+	ClientConfig      *chshare.Config       `json:"client_config"`
 
 	Connection ssh.Conn        `json:"-"`
 	Context    context.Context `json:"-"`
