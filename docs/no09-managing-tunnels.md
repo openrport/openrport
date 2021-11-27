@@ -208,3 +208,81 @@ CLIENTID=2ba9174e-640e-4694-ad35-34a2d6f3986b
 TUNNELID=1
 curl -u admin:foobaz -X DELETE "http://localhost:3000/api/v1/clients/$CLIENTID/tunnels/$TUNNELID"
 ```
+## Reverse proxy for http(s) based tunnels
+Starting with RPort version 0.5 the server comes with a built-in http reverse proxy. The reverse proxy runs on top of tunnels pointing to remote http or https backend.
+
+```
+       Browser (you)
+           ᐁ
+Reverse proxy on RPort server
+           ᐁ
+     Tunnel endpoint
+           ᐁ
+         Tunnel
+           ᐁ
+      Rport client
+           ᐁ
+         Target
+```
+
+Using the reverse tunnel allows you to access remote web servers (web-based configuration of switches, routers, NAS) through a secure https communication with valid ssl certificates on the public side.
+
+To enable this feature the rport server needs a key and a certificate in the `[server]` section of the `rportd.conf` file. If you run the server and API on the same DNS hostname, you can use the same key and certificate for the server and the API.
+
+Running the built-in http proxy without encryption is not supported. 
+
+If you have upgraded your RPort server from an older version, insert the following lines into the `[server]` section of `rportd.conf` manually.
+```
+  ## Enable the creation of tunnel proxies with giving certificate- and key-file
+  ## Defaults: not enabled
+  #tunnel_proxy_cert_file = "/var/lib/rport/server.crt"
+  #tunnel_proxy_key_file = "/var/lib/rport/server.key" 
+```
+
+By using `http_proxy=1` on [tunnel creation](https://petstore.swagger.io/?url=https://raw.githubusercontent.com/cloudradar-monitoring/rport/master/api-doc.yml#/Clients%20and%20Tunnels/put_clients__client_id__tunnels), the proxy will come up together with the tunnel. The rport server will then use two tcp ports. One for the raw tcp tunnel and one for the http proxy. 
+ACLs are applied to proxy also. The raw tcp tunnel is bound to localhost only, and therefore it's not accessible from the outside.
+
+::: warning
+If you want to use the built-in tunnel proxy, accessing your rport server via an FQDN – and not via IP address – is mandatory. Otherwise, you will always get warnings about invalid SSL certificates.
+:::
+
+### Manipulating the host header
+The http header `host` is taken from the client request and passed without modification to the backend (remote target). If you use your browser for accessing the tunnel proxy, the host is usually set to the FQDN of your rport server. If the remote side requires a specific header `host` to jump into the right virtual host, you can specify a host header that the will be used for the proxy connection. For example `http_proxy=1&host_header=www.example.com`. 
+
+
+### Example
+```bash
+curl -s -X PUT -G "${RPORT-SERVER}/api/v1/clients/${CLIENT_ID}/tunnels"  \
+ -d remote=192.168.249.1:443 \
+ -d scheme=https \
+ -d acl=87.79.148.181 \
+ -d idle-timeout-minutes=5 \
+ -d check_port=1 \
+ -d http_proxy=1 \
+ -d host_header=fritz.box \
+ -H "Authorization: Bearer $TOKEN" \
+ -H 'accept: application/json' \
+ -H 'Content-Type: application/json'|jq
+ ```
+
+ *The `-G` switch of curl takes all `-d` key-value-pairs and appends them to the URL concatenaited by an ampersand.*
+
+ In the example, the client creates a bridge to the https web-interface of a router and a reverse proxy will be started automatically. 
+ You will get a response like this:
+ ```json
+ {
+  "data": {
+    "lhost": "0.0.0.0",
+    "lport": "21504",
+    "rhost": "192.168.249.1",
+    "rport": "443",
+    "lport_random": true,
+    "scheme": "https",
+    "acl": "87.79.148.181",
+    "idle_timeout_minutes": 5,
+    "http_proxy": true,
+    "id": "2"
+  }
+}
+```
+Now you can point you browser to `https://{RPORT-SERVER}:21504` to access the web server on the remote side. 

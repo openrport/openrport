@@ -1,6 +1,7 @@
 package chserver
 
 import (
+	"context"
 	"crypto/subtle"
 	"errors"
 	"fmt"
@@ -13,8 +14,10 @@ import (
 
 	"github.com/cloudradar-monitoring/rport/db/migration/library"
 	"github.com/cloudradar-monitoring/rport/db/sqlite"
+	"github.com/cloudradar-monitoring/rport/server/api/session"
 	"github.com/cloudradar-monitoring/rport/server/script"
 	"github.com/cloudradar-monitoring/rport/share/files"
+	"github.com/cloudradar-monitoring/rport/share/random"
 
 	"github.com/gorilla/mux"
 	"github.com/jpillora/requestlog"
@@ -40,7 +43,7 @@ type APIListener struct {
 	*Server
 
 	fingerprint       string
-	apiSessionRepo    *APISessionRepository
+	apiSessions       *session.Cache
 	router            *mux.Router
 	httpServer        *chshare.HTTPServer
 	requestLogOptions *requestlog.Options
@@ -71,6 +74,8 @@ func NewAPIListener(
 	server *Server,
 	fingerprint string,
 ) (*APIListener, error) {
+	ctx := context.Background()
+
 	config := server.config
 
 	var usersProvider users.Provider
@@ -148,7 +153,6 @@ func NewAPIListener(
 		Server:            server,
 		Logger:            chshare.NewLogger("api-listener", config.Logging.LogOutput, config.Logging.LogLevel),
 		fingerprint:       fingerprint,
-		apiSessionRepo:    NewAPISessionRepository(),
 		httpServer:        chshare.NewHTTPServer(int(config.Server.MaxRequestBytes), chshare.WithTLS(config.API.CertFile, config.API.KeyFile)),
 		requestLogOptions: config.InitRequestLogOptions(),
 		bannedUsers:       security.NewBanList(time.Duration(config.API.UserLoginWait) * time.Second),
@@ -218,6 +222,16 @@ func NewAPIListener(
 		a.accessLogFile = accessLogFile
 	}
 
+	sessionDB, err := session.NewSqliteProvider(path.Join(config.Server.DataDir, "api_sessions.db"))
+	if err != nil {
+		return nil, err
+	}
+
+	a.apiSessions, err = session.NewCache(ctx, sessionDB, defaultTokenLifetime, cleanupAPISessionsInterval)
+	if err != nil {
+		return nil, err
+	}
+
 	a.initRouter()
 
 	return a, nil
@@ -260,6 +274,10 @@ func (al *APIListener) Close() error {
 		g.Go(al.commandManager.Close)
 	}
 
+	if al.apiSessions != nil {
+		g.Go(al.apiSessions.Close)
+	}
+
 	return g.Wait()
 }
 
@@ -273,7 +291,7 @@ func (al *APIListener) lookupUser(r *http.Request) (authorized bool, username st
 	}
 
 	if bearerToken, bearerAuthProvided := getBearerToken(r); bearerAuthProvided {
-		return al.handleBearerToken(bearerToken, al.subjectFromRequest(r))
+		return al.handleBearerToken(r.Context(), bearerToken, al.subjectFromRequest(r))
 	}
 
 	// case when no auth method is provided
@@ -320,13 +338,13 @@ func (al *APIListener) handleBasicAuth(username, password string) (authorized bo
 	return false, username, nil
 }
 
-func (al *APIListener) handleBearerToken(bearerToken, currentSubject string) (bool, string, error) {
-	authorized, username, apiSession, err := al.validateBearerToken(bearerToken, currentSubject)
+func (al *APIListener) handleBearerToken(ctx context.Context, bearerToken, currentSubject string) (bool, string, error) {
+	authorized, username, apiSession, err := al.validateBearerToken(ctx, bearerToken, currentSubject)
 	if err != nil {
 		return false, username, err
 	}
 	if authorized {
-		if err := al.increaseSessionLifetime(apiSession); err != nil {
+		if err := al.increaseSessionLifetime(ctx, apiSession); err != nil {
 			// do not return error since it should respond with 401 instead of 500, just log it
 			al.Errorf("Failed to increase jwt token lifetime: %v", err)
 		}
@@ -337,7 +355,7 @@ func (al *APIListener) handleBearerToken(bearerToken, currentSubject string) (bo
 const htpasswdBcryptPrefix = "$2y$"
 
 // validateCredentials returns true if given credentials belong to a user with an access to API.
-func (al *APIListener) validateCredentials(username, password string) (bool, error) {
+func (al *APIListener) validateCredentials(username, password string, skipPasswordValidation bool) (bool, error) {
 	if username == "" {
 		return false, nil
 	}
@@ -346,8 +364,27 @@ func (al *APIListener) validateCredentials(username, password string) (bool, err
 	if err != nil {
 		return false, fmt.Errorf("failed to get user: %v", err)
 	}
+	if user == nil && skipPasswordValidation && al.config.API.CreateMissingUsers {
+		pswd, err := random.UUID4()
+		if err != nil {
+			return false, err
+		}
+		user = &users.User{
+			Username: username,
+			Password: pswd,
+			Groups:   []string{al.config.API.DefaultUserGroup},
+		}
+		err = al.userService.Change(user, "")
+		if err != nil {
+			return false, fmt.Errorf("failed to create missing user: %v", err)
+		}
+	}
 	if user == nil {
 		return false, nil
+	}
+
+	if skipPasswordValidation {
+		return true, nil
 	}
 
 	return verifyPassword(user.Password, password), nil
@@ -395,7 +432,7 @@ func (al *APIListener) wsAuth(f http.Handler) http.HandlerFunc {
 			return
 		}
 
-		authorized, username, err := al.handleBearerToken(token, al.subjectFromRequest(r))
+		authorized, username, err := al.handleBearerToken(r.Context(), token, al.subjectFromRequest(r))
 		if err != nil {
 			if errors.Is(err, ErrTooManyRequests) {
 				al.jsonErrorResponse(w, http.StatusTooManyRequests, err)

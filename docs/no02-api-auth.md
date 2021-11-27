@@ -39,8 +39,6 @@ curl -s -u admin:foobaz http://localhost:3000/api/v1/login?token-lifetime=3600|j
 curl -s -H "Authorization: Bearer $(cat .token)" http://localhost:3000/api/v1/clients|jq
 ```
 
-Rportd holds the tokens in memory. Restarting rportd deletes (expires) them all.
-
 Tokens are based on JWT. For your security, you should enter a unique `jwt_secret` into the `rportd.conf`. Do not use the provided sample secret in a production environment.
 
 Tokens can be issued only for certain pages. If you have time based one time passwords enabled (see `totp_secret` configuration option and the description below), the tokens issued with the `login` API can only be used for `/me/totp-secret` URLs. To receive a fully functional JWT token, you need to pass a valid one time password to the `/verify-2fa` API.

@@ -24,25 +24,27 @@ import (
 	"github.com/cloudradar-monitoring/rport/client/updates"
 	chshare "github.com/cloudradar-monitoring/rport/share"
 	"github.com/cloudradar-monitoring/rport/share/comm"
+	"github.com/cloudradar-monitoring/rport/share/models"
 )
 
 //Client represents a client instance
 type Client struct {
 	*chshare.Logger
 
-	config         *Config
-	sshConfig      *ssh.ClientConfig
-	sshConn        ssh.Conn
-	running        bool
-	runningc       chan error
-	connStats      chshare.ConnStats
-	cmdExec        system.CmdExecutor
-	curCmdPID      *int
-	curCmdPIDMutex sync.Mutex
-	systemInfo     system.SysInfo
-	runCmdMutex    sync.Mutex
-	updates        *updates.Updates
-	monitor        *monitoring.Monitor
+	config             *Config
+	sshConfig          *ssh.ClientConfig
+	sshConn            ssh.Conn
+	running            bool
+	runningc           chan error
+	connStats          chshare.ConnStats
+	cmdExec            system.CmdExecutor
+	curCmdPID          *int
+	curCmdPIDMutex     sync.Mutex
+	systemInfo         system.SysInfo
+	runCmdMutex        sync.Mutex
+	updates            *updates.Updates
+	monitor            *monitoring.Monitor
+	serverCapabilities *models.Capabilities
 }
 
 //NewClient creates a new client instance
@@ -103,7 +105,6 @@ func (c *Client) Start(ctx context.Context) error {
 	go c.connectionLoop(ctx)
 
 	c.updates.Start(ctx)
-	c.monitor.Start(ctx)
 
 	return nil
 }
@@ -200,6 +201,7 @@ func (c *Client) connectionLoop(ctx context.Context) {
 		c.sshConn = nil
 		c.updates.SetConn(nil)
 		c.monitor.SetConn(nil)
+		c.monitor.Stop()
 		cancelSwitchback()
 
 		// use of closed network connection happens when switchback closes the connection, ignore the error
@@ -337,6 +339,26 @@ func (c *Client) sendConnectionRequest(ctx context.Context, sshConn ssh.Conn) er
 	return nil
 }
 
+//afterPutCapabilities is the place to do things dependent on server capabilities
+func (c *Client) afterPutCapabilities(ctx context.Context) {
+	if c.serverCapabilities.MonitoringVersion > 0 {
+		c.monitor.Start(ctx)
+	} else {
+		c.Debugf("Server has no monitoring capability, measurement not started")
+	}
+}
+
+func (c *Client) handlePutCapabilitiesRequest(ctx context.Context, payload []byte) {
+	caps := &models.Capabilities{}
+	if err := json.Unmarshal(payload, caps); err != nil {
+		c.Errorf("failed to decode %T: %v", caps, err)
+		return
+	}
+	c.Debugf("Server has capabilities: %s", string(payload))
+	c.serverCapabilities = caps
+	c.afterPutCapabilities(ctx)
+}
+
 func (c *Client) handleSSHRequests(ctx context.Context, reqs <-chan *ssh.Request) {
 	for r := range reqs {
 		var err error
@@ -348,6 +370,8 @@ func (c *Client) handleSSHRequests(ctx context.Context, reqs <-chan *ssh.Request
 			resp, err = c.HandleRunCmdRequest(ctx, r.Payload)
 		case comm.RequestTypeRefreshUpdatesStatus:
 			c.updates.Refresh()
+		case comm.RequestTypePutCapabilities:
+			c.handlePutCapabilitiesRequest(ctx, r.Payload)
 		default:
 			c.Debugf("Unknown request: %q", r.Type)
 			comm.ReplyError(c.Logger, r, errors.New("unknown request"))

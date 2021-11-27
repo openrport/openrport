@@ -30,22 +30,11 @@ builds:
     ignore:
       - goos: darwin
         goarch: 386
-      - goos: linux
-        goarch: amd64
       # TODO: remove when https://github.com/go-ole/go-ole/issues/202 will be fixed
       - goos: windows
         goarch: arm
       - goos: windows
         goarch: 386
-  - id: rport-linux-amd64
-    main: ./cmd/rport
-    binary: rport
-    ldflags:
-      - "-s -w -X {{.Env.PROJECT}}/share.BuildVersion={{.Version}}"
-    goos:
-      - linux
-    goarch:
-      - amd64
   - id: rportd
     main: ./cmd/rportd
     binary: rportd
@@ -60,6 +49,7 @@ builds:
       - amd64
 archives:
   - id: rport-only
+    name_template: "rport_{{ .Version }}_{{ .Os }}_{{ .Arch }}{{ if .Arm }}v{{ .Arm }}{{ end }}{{ if .Mips }}_{{ .Mips }}{{ end }}"
     builds:
       - rport
     format_overrides:
@@ -73,15 +63,14 @@ archives:
       amd64: x86_64
     files:
       - rport.example.conf
-  - id: all
+  - id: rportd-only
+    name_template: "rportd_{{ .Version }}_{{ .Os }}_{{ .Arch }}{{ if .Arm }}v{{ .Arm }}{{ end }}{{ if .Mips }}_{{ .Mips }}{{ end }}"
     builds:
-      - rport-linux-amd64
       - rportd
     replacements:
       linux: Linux
       amd64: x86_64
     files:
-      - rport.example.conf
       - rportd.example.conf
 checksum:
   name_template: 'checksums.txt'

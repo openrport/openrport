@@ -8,8 +8,6 @@ import (
 	"sync"
 	"time"
 
-	"github.com/cloudradar-monitoring/rport/server/monitoring"
-
 	"github.com/jmoiron/sqlx"
 	"golang.org/x/crypto/ssh"
 	"golang.org/x/sync/errgroup"
@@ -19,10 +17,12 @@ import (
 	_ "github.com/mattn/go-sqlite3"
 
 	"github.com/cloudradar-monitoring/rport/server/api/jobs"
+	"github.com/cloudradar-monitoring/rport/server/api/session"
 	"github.com/cloudradar-monitoring/rport/server/auditlog"
 	"github.com/cloudradar-monitoring/rport/server/cgroups"
 	"github.com/cloudradar-monitoring/rport/server/clients"
 	"github.com/cloudradar-monitoring/rport/server/clientsauth"
+	"github.com/cloudradar-monitoring/rport/server/monitoring"
 	"github.com/cloudradar-monitoring/rport/server/ports"
 	"github.com/cloudradar-monitoring/rport/server/scheduler"
 	chshare "github.com/cloudradar-monitoring/rport/share"
@@ -31,7 +31,10 @@ import (
 	"github.com/cloudradar-monitoring/rport/share/ws"
 )
 
-const cleanupMeasurementsInterval = time.Minute * 2
+const (
+	cleanupMeasurementsInterval = time.Minute * 2
+	cleanupAPISessionsInterval  = time.Hour
+)
 
 // Server represents a rport service
 type Server struct {
@@ -49,6 +52,7 @@ type Server struct {
 	uiJobWebSockets     ws.WebSocketCache // used to push job result to UI
 	jobsDoneChannel     jobResultChanMap  // used for sequential command execution to know when command is finished
 	auditLog            *auditlog.AuditLog
+	capabilities        *models.Capabilities
 }
 
 // NewServer creates and returns a new rport server
@@ -119,6 +123,7 @@ func NewServer(config *Config, filesAPI files.FileAPI) (*Server, error) {
 
 	s.clientService, err = InitClientService(
 		ctx,
+		&s.config.Server.TunnelProxyConfig,
 		ports.NewPortDistributor(config.AllowedPorts()),
 		s.clientProvider,
 		keepLostClients,
@@ -159,6 +164,8 @@ func NewServer(config *Config, filesAPI files.FileAPI) (*Server, error) {
 	if err != nil {
 		return nil, err
 	}
+
+	s.capabilities = models.NewCapabilities()
 
 	return s, nil
 }
@@ -220,6 +227,9 @@ func (s *Server) Run() error {
 	cleaningPeriod := time.Hour * 24 * time.Duration(s.config.Monitoring.DataStorageDays)
 	go scheduler.Run(ctx, s.Logger, monitoring.NewCleanupTask(s.Logger, s.monitoringService, cleaningPeriod), cleanupMeasurementsInterval)
 	s.Infof("Task to cleanup measurements will run with interval %v", cleanupMeasurementsInterval)
+
+	go scheduler.Run(ctx, s.Logger, session.NewCleanupTask(s.apiListener.apiSessions), cleanupAPISessionsInterval)
+	s.Infof("Task to cleanup expired api sessions will run with interval %v", cleanupAPISessionsInterval)
 
 	return s.Wait()
 }

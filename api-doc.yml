@@ -516,6 +516,16 @@ paths:
         description: "Disables the auto-close time of the tunnel (see `idle-timeout-minutes` parameter). The parameter should not be used with a non empty `idle-timeout-minutes` parameter"
         required: false
         type: "integer"
+      - name: "http_proxy"
+        in: "query"
+        description: "If true, triggers the start of a reverse proxy in front of the tunnel to handle ssl offloading. Default is false. `http_proxy=true` is only allowed in combination with scheme 'http' or 'https'"
+        required: false
+        type: "boolean"
+      - name: "host_header"
+        in: "query"
+        description: "If http_proxy is true, you can specify a host name which will be added as header field `Host` to each outgouing proxy request. (virtual hosting on remote side)"
+        required: false
+        type: "string"
     put:
       tags:
         - "Clients and Tunnels"
@@ -2643,6 +2653,12 @@ definitions:
       acl:
         type: "string"
         description: "IP v4 addresses who is allowed to use the tunnel (ipv6 is not supported yet). For example, '142.78.90.8,201.98.123.0/24,'."
+      http_proxy:
+        type: "boolean"
+        description: "True if tunnel proxy was created."
+      host_header:
+        type: "string"
+        description: "host name to set as http header field 'Host'"
   Client:
     type: "object"
     properties:

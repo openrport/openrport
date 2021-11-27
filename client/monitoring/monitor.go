@@ -21,6 +21,7 @@ import (
 type Monitor struct {
 	mtx               sync.RWMutex
 	conn              ssh.Conn
+	stopFn            func()
 	logger            *chshare.Logger
 	config            config.MonitoringConfig
 	measurement       *models.Measurement
@@ -47,7 +48,19 @@ func (m *Monitor) Start(ctx context.Context) {
 		return
 	}
 
+	ctx, m.stopFn = context.WithCancel(ctx)
+
 	go m.refreshLoop(ctx)
+	m.logger.Debugf("Monitor started")
+}
+
+func (m *Monitor) Stop() {
+	if m.stopFn == nil {
+		return
+	}
+
+	m.stopFn()
+	m.logger.Debugf("Monitor stopped")
 }
 
 func (m *Monitor) refreshLoop(ctx context.Context) {
