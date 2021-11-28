@@ -291,7 +291,12 @@ func (al *APIListener) lookupUser(r *http.Request) (authorized bool, username st
 	}
 
 	if bearerToken, bearerAuthProvided := getBearerToken(r); bearerAuthProvided {
-		return al.handleBearerToken(r.Context(), bearerToken, al.subjectFromRequest(r))
+		isAuthorized, token, err := al.handleBearerToken(r.Context(), bearerToken, r.RequestURI)
+		if err != nil {
+			return isAuthorized, "", err
+		}
+
+		return isAuthorized, token.AppToken.Username, nil
 	}
 
 	// case when no auth method is provided
@@ -338,10 +343,15 @@ func (al *APIListener) handleBasicAuth(username, password string) (authorized bo
 	return false, username, nil
 }
 
-func (al *APIListener) handleBearerToken(ctx context.Context, bearerToken, currentSubject string) (bool, string, error) {
-	authorized, username, apiSession, err := al.validateBearerToken(ctx, bearerToken, currentSubject)
+func (al *APIListener) handleBearerToken(ctx context.Context, bearerToken, uri string) (bool, *TokenContext, error) {
+	token, err := al.parseToken(bearerToken)
 	if err != nil {
-		return false, username, err
+		return false, nil, err
+	}
+
+	authorized, apiSession, err := al.validateBearerToken(ctx, token, uri)
+	if err != nil {
+		return false, token, err
 	}
 	if authorized {
 		if err := al.increaseSessionLifetime(ctx, apiSession); err != nil {
@@ -349,7 +359,7 @@ func (al *APIListener) handleBearerToken(ctx context.Context, bearerToken, curre
 			al.Errorf("Failed to increase jwt token lifetime: %v", err)
 		}
 	}
-	return authorized, username, nil
+	return authorized, token, nil
 }
 
 const htpasswdBcryptPrefix = "$2y$"
@@ -423,8 +433,8 @@ var (
 
 func (al *APIListener) wsAuth(f http.Handler) http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
-		token := r.URL.Query().Get(WebSocketAccessTokenQueryParam)
-		if token == "" {
+		tokenStr := r.URL.Query().Get(WebSocketAccessTokenQueryParam)
+		if tokenStr == "" {
 			if !al.handleBannedIPs(w, r, false) {
 				return
 			}
@@ -432,7 +442,7 @@ func (al *APIListener) wsAuth(f http.Handler) http.HandlerFunc {
 			return
 		}
 
-		authorized, username, err := al.handleBearerToken(r.Context(), token, al.subjectFromRequest(r))
+		authorized, token, err := al.handleBearerToken(r.Context(), tokenStr, r.RequestURI)
 		if err != nil {
 			if errors.Is(err, ErrTooManyRequests) {
 				al.jsonErrorResponse(w, http.StatusTooManyRequests, err)
@@ -446,13 +456,13 @@ func (al *APIListener) wsAuth(f http.Handler) http.HandlerFunc {
 			return
 		}
 
-		if !authorized || username == "" {
-			al.bannedUsers.Add(username)
+		if !authorized || token.AppToken.Username == "" {
+			al.bannedUsers.Add(token.AppToken.Username)
 			al.jsonErrorResponse(w, http.StatusUnauthorized, errUnauthorized)
 			return
 		}
 
-		newCtx := api.WithUser(r.Context(), username)
+		newCtx := api.WithUser(r.Context(), token.AppToken.Username)
 		f.ServeHTTP(w, r.WithContext(newCtx))
 	}
 }

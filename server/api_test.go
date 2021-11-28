@@ -1665,7 +1665,7 @@ func TestWrapWithAuthMiddleware(t *testing.T) {
 			config: &Config{},
 		},
 	}
-	jwt, err := al.createAuthToken(ctx, time.Hour, user.Username, "*")
+	jwt, err := al.createAuthToken(ctx, time.Hour, user.Username, "*", "")
 	require.NoError(t, err)
 
 	testCases := []struct {
