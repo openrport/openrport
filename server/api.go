@@ -15,8 +15,6 @@ import (
 	"strings"
 	"time"
 
-	errors3 "github.com/pkg/errors"
-
 	"github.com/gorilla/handlers"
 	"github.com/gorilla/mux"
 	"github.com/gorilla/websocket"
@@ -61,6 +59,10 @@ const (
 	ErrCodeMissingRouteVar = "ERR_CODE_MISSING_ROUTE_VAR"
 	ErrCodeInvalidRequest  = "ERR_CODE_INVALID_REQUEST"
 	ErrCodeAlreadyExist    = "ERR_CODE_ALREADY_EXIST"
+
+	allRoutesPrefix = "/api/v1"
+	totPRoutes      = "/me/totp-secret"
+	verify2FaRoute  = "/verify-2fa"
 )
 
 var generateNewJobID = func() (string, error) {
@@ -87,9 +89,9 @@ type JobProvider interface {
 	Close() error
 }
 
-func (al *APIListener) wrapWithAuthMiddleware(f http.Handler) http.HandlerFunc {
+func (al *APIListener) wrapWithAuthMiddleware(f http.Handler, isBearerOnly bool) http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
-		authorized, username, err := al.lookupUser(r)
+		authorized, username, err := al.lookupUser(r, isBearerOnly)
 		if err != nil {
 			al.Logf(chshare.LogLevelError, err.Error())
 			if errors.Is(err, ErrTooManyRequests) {
@@ -165,7 +167,7 @@ func (al *APIListener) handleBannedIPs(w http.ResponseWriter, r *http.Request, a
 
 func (al *APIListener) initRouter() {
 	r := mux.NewRouter()
-	api := r.PathPrefix("/api/v1").Subrouter()
+	api := r.PathPrefix(allRoutesPrefix).Subrouter()
 	api.HandleFunc("/status", al.handleGetStatus).Methods(http.MethodGet)
 	api.HandleFunc("/me", al.handleGetMe).Methods(http.MethodGet)
 	api.HandleFunc("/me", al.handleChangeMe).Methods(http.MethodPut)
@@ -224,14 +226,14 @@ func (al *APIListener) initRouter() {
 	api.HandleFunc("/library/commands/{"+routeParamCommandValueID+"}", al.handleDeleteCommand).Methods(http.MethodDelete)
 	api.HandleFunc("/scripts", al.handlePostMultiClientScript).Methods(http.MethodPost)
 	api.HandleFunc("/auditlog", al.handleListAuditLog).Methods(http.MethodGet)
-	api.HandleFunc("/me/totp-secret", al.wrapTotPManagementAccessMiddleware(al.handleGetTotP)).Methods(http.MethodGet)
-	api.HandleFunc("/me/totp-secret", al.wrapTotPManagementAccessMiddleware(al.handlePostTotP)).Methods(http.MethodPost)
-	api.HandleFunc("/me/totp-secret", al.wrapTotPManagementAccessMiddleware(al.handleDeleteTotP)).Methods(http.MethodDelete)
+	api.HandleFunc(totPRoutes, al.handleGetTotP).Methods(http.MethodGet)
+	api.HandleFunc(totPRoutes, al.handlePostTotP).Methods(http.MethodPost)
+	api.HandleFunc(totPRoutes, al.handleDeleteTotP).Methods(http.MethodDelete)
 
 	// add authorization middleware
 	if !al.insecureForTests {
 		_ = api.Walk(func(route *mux.Route, router *mux.Router, ancestors []*mux.Route) error {
-			route.HandlerFunc(al.wrapWithAuthMiddleware(route.GetHandler()))
+			route.HandlerFunc(al.wrapWithAuthMiddleware(route.GetHandler(), false))
 			return nil
 		})
 	}
@@ -240,7 +242,7 @@ func (al *APIListener) initRouter() {
 	api.HandleFunc("/login", al.handleGetLogin).Methods(http.MethodGet)
 	api.HandleFunc("/login", al.handlePostLogin).Methods(http.MethodPost)
 	api.HandleFunc("/logout", al.handleDeleteLogout).Methods(http.MethodDelete)
-	api.HandleFunc("/verify-2fa", al.handlePostVerify2FAToken).Methods(http.MethodPost)
+	api.HandleFunc(verify2FaRoute, al.wrapWithAuthMiddleware(al.handlePostVerify2FAToken(), true)).Methods(http.MethodPost)
 
 	// web sockets
 	// common auth middleware is not used due to JS issue https://stackoverflow.com/questions/22383089/is-it-possible-to-use-bearer-authentication-for-websocket-upgrade-requests
@@ -385,7 +387,7 @@ func (al *APIListener) handleLogin(username, pwd string, skipPasswordValidation 
 		return
 	}
 
-	authorized, err := al.validateCredentials(username, pwd, skipPasswordValidation)
+	authorized, user, err := al.validateCredentials(username, pwd, skipPasswordValidation)
 	if err != nil {
 		al.jsonError(w, err)
 		return
@@ -401,6 +403,12 @@ func (al *APIListener) handleLogin(username, pwd string, skipPasswordValidation 
 		return
 	}
 
+	lifetime, err := parseTokenLifetime(req)
+	if err != nil {
+		al.jsonErrorResponse(w, http.StatusBadRequest, err)
+		return
+	}
+
 	if al.config.API.IsTwoFAOn() {
 		sendTo, err := al.twoFASrv.SendToken(req.Context(), username)
 		if err != nil {
@@ -408,7 +416,19 @@ func (al *APIListener) handleLogin(username, pwd string, skipPasswordValidation 
 			return
 		}
 
+		tokenStr, err := al.createAuthToken(
+			req.Context(),
+			lifetime,
+			username,
+			Scopes2FaCheckOnly,
+		)
+		if err != nil {
+			al.jsonErrorResponse(w, http.StatusInternalServerError, err)
+			return
+		}
+
 		al.writeJSONResponse(w, http.StatusOK, api.NewSuccessPayload(loginResponse{
+			Token: &tokenStr,
 			TwoFA: &twoFAResponse{
 				SendTo:         sendTo,
 				DeliveryMethod: al.twoFASrv.MsgSrv.DeliveryMethod(),
@@ -417,21 +437,27 @@ func (al *APIListener) handleLogin(username, pwd string, skipPasswordValidation 
 		return
 	}
 
-	lifetime, err := parseTokenLifetime(req)
-	if err != nil {
-		al.jsonErrorResponse(w, http.StatusBadRequest, err)
-		return
-	}
-
 	if al.config.API.TotPEnabled {
 		al.twoFASrv.SetTotPLoginSession(username, al.config.API.TotPLoginSessionTimeout)
+
+		totP, err := GetUsersTotPCode(user)
+		if err != nil {
+			al.Logf(chshare.LogLevelError, "failed to get TotP secret: %v", err)
+			al.jsonErrorResponse(w, http.StatusInternalServerError, err)
+			return
+		}
+
+		scopes := Scopes2FaCheckOnly
+		if totP == nil {
+			// we allow access to totp-secret creation only if no totp secret was created before
+			scopes = append(scopes, ScopesTotPCreateOnly...)
+		}
 
 		tokenStr, err := al.createAuthToken(
 			req.Context(),
 			lifetime,
 			username,
-			"/api/v1/me/totp-secret,/api/v1/verify-2fa",
-			TotPScope,
+			scopes,
 		)
 		if err != nil {
 			al.jsonErrorResponse(w, http.StatusInternalServerError, err)
@@ -447,7 +473,7 @@ func (al *APIListener) handleLogin(username, pwd string, skipPasswordValidation 
 		return
 	}
 
-	tokenStr, err := al.createAuthToken(req.Context(), lifetime, username, "*", "")
+	tokenStr, err := al.createAuthToken(req.Context(), lifetime, username, ScopesExcluding2FaCheck)
 	if err != nil {
 		al.jsonErrorResponse(w, http.StatusInternalServerError, err)
 		return
@@ -466,7 +492,7 @@ func (al *APIListener) sendJWTToken(username string, w http.ResponseWriter, req 
 		return
 	}
 
-	tokenStr, err := al.createAuthToken(req.Context(), lifetime, username, "*", "")
+	tokenStr, err := al.createAuthToken(req.Context(), lifetime, username, ScopesExcluding2FaCheck)
 	if err != nil {
 		al.jsonErrorResponse(w, http.StatusInternalServerError, err)
 		return
@@ -558,7 +584,7 @@ func (al *APIListener) handleDeleteLogout(w http.ResponseWriter, req *http.Reque
 		return
 	}
 
-	valid, apiSession, err := al.validateBearerToken(req.Context(), token, req.RequestURI)
+	valid, apiSession, err := al.validateBearerToken(req.Context(), token, req.URL.Path, req.Method)
 	if err != nil {
 		if errors.Is(err, ErrTooManyRequests) {
 			al.jsonErrorResponse(w, http.StatusTooManyRequests, err)
@@ -585,17 +611,19 @@ func (al *APIListener) handleDeleteLogout(w http.ResponseWriter, req *http.Reque
 	w.WriteHeader(http.StatusNoContent)
 }
 
-func (al *APIListener) handlePostVerify2FAToken(w http.ResponseWriter, req *http.Request) {
-	username, err := al.parseAndValidate2FATokenRequest(req)
-	if err != nil {
-		if !al.handleBannedIPs(w, req, false) {
+func (al *APIListener) handlePostVerify2FAToken() http.Handler {
+	return http.HandlerFunc(func(w http.ResponseWriter, req *http.Request) {
+		username, err := al.parseAndValidate2FATokenRequest(req)
+		if err != nil {
+			if !al.handleBannedIPs(w, req, false) {
+				return
+			}
+			al.jsonError(w, err)
 			return
 		}
-		al.jsonError(w, err)
-		return
-	}
 
-	al.sendJWTToken(username, w, req)
+		al.sendJWTToken(username, w, req)
+	})
 }
 
 func (al *APIListener) parseAndValidate2FATokenRequest(req *http.Request) (username string, err error) {
@@ -646,7 +674,7 @@ func (al *APIListener) parseAndValidate2FATokenRequest(req *http.Request) (usern
 			}
 		}
 
-		isAuthorized, token, err := al.handleBearerToken(req.Context(), bearerToken, req.RequestURI)
+		isAuthorized, token, err := al.handleBearerToken(req.Context(), bearerToken, req.URL.Path, req.Method)
 		if err != nil {
 			return reqBody.Username, err
 		}
@@ -655,15 +683,6 @@ func (al *APIListener) parseAndValidate2FATokenRequest(req *http.Request) (usern
 			return reqBody.Username, errors2.APIError{
 				HTTPStatus: http.StatusForbidden,
 				Message:    "access denied",
-			}
-		}
-
-		// tokens with totp scope are given from login api if totp is enabled, having this token means that user
-		// has passed login and got a limited time token which can be only used to provide totp code, any other tokens are rejected here
-		if token.AppToken.Scope != TotPScope {
-			return reqBody.Username, errors2.APIError{
-				HTTPStatus: http.StatusBadRequest,
-				Message:    "a valid token with totp scope is required",
 			}
 		}
 
@@ -1429,9 +1448,22 @@ func (al *APIListener) handleManageCurUserTotP(w http.ResponseWriter, req *http.
 }
 
 func (al *APIListener) handleManageTotP(w http.ResponseWriter, req *http.Request, user *users.User, action, iss string) {
-	var err error
 	totP := &TotP{}
 	if action == "create" {
+		existingTotP, err := GetUsersTotPCode(user)
+		if err != nil {
+			al.Logf(chshare.LogLevelError, "failed to read TotP secret for user %s: %v", user.Username, err)
+			al.jsonErrorResponse(w, http.StatusInternalServerError, err)
+			return
+		}
+
+		if existingTotP != nil {
+			err := errors.New("cannot create new totP secret when another one already exists")
+			al.Logf(chshare.LogLevelError, err.Error())
+			al.jsonErrorResponse(w, http.StatusConflict, err)
+			return
+		}
+
 		totP, err = GenerateTotPSecretKey(&TotPInput{
 			Issuer:      iss,
 			AccountName: user.Username,
@@ -3558,72 +3590,4 @@ func (al *APIListener) handleListAuditLog(w http.ResponseWriter, req *http.Reque
 	}
 
 	al.writeJSONResponse(w, http.StatusOK, result)
-}
-
-// this middleware is intended to protect totp private key management API, it allows
-// tokens with an empty scope (meaning user has passed 2fa and is allowed to crud private keys)
-// and tokens with totp scope only if they are used to create a private key for the first time
-func (al *APIListener) wrapTotPManagementAccessMiddleware(next http.HandlerFunc) http.HandlerFunc {
-	return func(w http.ResponseWriter, r *http.Request) {
-		tokenStr, tokenProvided := getBearerToken(r)
-		if tokenStr == "" || !tokenProvided {
-			al.jsonErrorResponse(w, http.StatusBadRequest, errors.New("totp management API requires a valid bearer token"))
-			return
-		}
-
-		token, err := al.parseToken(tokenStr)
-		if err != nil {
-			al.jsonErrorResponse(w, http.StatusBadRequest, errors3.Wrap(err, "totp management API requires a valid bearer token"))
-			return
-		}
-
-		// for tokens with scopes other than totp we allow unlimited access to the totp private key API assuming that
-		// user has passed 2fa with totp already
-		if token.AppToken.Scope != TotPScope {
-			next(w, r)
-			return
-		}
-
-		// if we're here, user has a token with the totp scope which allows only totp private key creation for the first time if
-		// none was created before
-
-		if r.Method != http.MethodPost {
-			al.Logf(chshare.LogLevelError, "invalid method %s used for token %s", r.Method, tokenStr)
-			al.jsonErrorResponse(
-				w,
-				http.StatusMethodNotAllowed,
-				errors.New("tokens with totp scope are allowed to be used only for private key creation"),
-			)
-			return
-		}
-
-		user, err := al.getUserModel(r.Context())
-		if err != nil {
-			al.jsonErrorResponse(w, http.StatusInternalServerError, err)
-			return
-		}
-
-		if user == nil {
-			al.jsonErrorResponseWithTitle(w, http.StatusNotFound, "user not found")
-			return
-		}
-
-		totP, err := GetUsersTotPCode(user)
-		if err != nil {
-			al.Logf(chshare.LogLevelError, "failed to get TotP secret: %v", err)
-			al.jsonErrorResponse(w, http.StatusInternalServerError, err)
-			return
-		}
-
-		if totP != nil {
-			al.jsonErrorResponse(
-				w,
-				http.StatusMethodNotAllowed,
-				errors3.Wrap(err, "tokens with totp scope are allowed to be used to create private key only for the first time"),
-			)
-			return
-		}
-
-		next(w, r)
-	}
 }

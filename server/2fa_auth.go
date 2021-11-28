@@ -144,7 +144,7 @@ func (srv *TwoFAService) ValidateTotPCode(user *users.User, code string) error {
 
 	if !CheckTotPCode(code, totP) {
 		return errors2.APIError{
-			Message:    "invalid token",
+			Message:    "invalid code",
 			HTTPStatus: http.StatusUnauthorized,
 		}
 	}

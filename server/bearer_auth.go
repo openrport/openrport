@@ -17,14 +17,38 @@ import (
 const (
 	maxTokenLifetime     = 90 * 24 * time.Hour
 	defaultTokenLifetime = 10 * time.Minute
-	TotPScope            = "totp" // tokens with this scope might be used to pass 2fa or create totp private key for the first time
 )
 
 type Token struct {
-	Username string `json:"username,omitempty"`
-	Targets  string `json:"targets,omitempty"` // comma-sep list of URIs of pages where this token allowed, * means allowed on all pages
-	Scope    string `json:"scope,omitempty"`   // validity scope of the token
+	Username string  `json:"username,omitempty"`
+	Scopes   []Scope `json:"scopes,omitempty"`
 	jwt.StandardClaims
+}
+
+type Scope struct {
+	URI    string `json:"uri,omitempty"`
+	Method string `json:"method,omitempty"`
+}
+
+var ScopesExcluding2FaCheck = []Scope{
+	{
+		URI:    "*",
+		Method: "*",
+	},
+}
+
+var ScopesTotPCreateOnly = []Scope{
+	{
+		URI:    allRoutesPrefix + totPRoutes,
+		Method: http.MethodPost,
+	},
+}
+
+var Scopes2FaCheckOnly = []Scope{
+	{
+		URI:    allRoutesPrefix + verify2FaRoute,
+		Method: http.MethodPost,
+	},
 }
 
 type TokenContext struct {
@@ -33,7 +57,12 @@ type TokenContext struct {
 	JwtToken *jwt.Token
 }
 
-func (al *APIListener) createAuthToken(ctx context.Context, lifetime time.Duration, username, targets, scope string) (string, error) {
+func (al *APIListener) createAuthToken(
+	ctx context.Context,
+	lifetime time.Duration,
+	username string,
+	scopes []Scope,
+) (string, error) {
 	if username == "" {
 		return "", errors.New("username cannot be empty")
 	}
@@ -43,8 +72,7 @@ func (al *APIListener) createAuthToken(ctx context.Context, lifetime time.Durati
 		StandardClaims: jwt.StandardClaims{
 			Id: strconv.FormatUint(rand.Uint64(), 10),
 		},
-		Targets: targets,
-		Scope:   scope,
+		Scopes: scopes,
 	}
 	token := jwt.NewWithClaims(jwt.SigningMethodHS256, claims)
 	tokenStr, err := token.SignedString([]byte(al.config.API.JWTSecret))
@@ -66,15 +94,17 @@ func (al *APIListener) increaseSessionLifetime(ctx context.Context, s *session.A
 	return al.apiSessions.Save(ctx, s)
 }
 
-func (al *APIListener) currentURIMatchesTokenTargets(currentURI, tokenTargetsRaw string) bool {
-	currentURI = "/" + strings.Trim(currentURI, "/")
-	if tokenTargetsRaw == "" {
+func (al *APIListener) currentURIMatchesTokenScopes(currentURI, currentMethod string, tokenScopes []Scope) bool {
+	// make it compatible with the old tokens which don't have scopes field in jwt
+	if len(tokenScopes) == 0 {
 		return true
 	}
+	currentURI = "/" + strings.Trim(currentURI, "/")
 
-	tokenTargets := strings.Split(tokenTargetsRaw, ",")
-	for _, tokenTarget := range tokenTargets {
-		if tokenTarget == "*" || currentURI == tokenTarget {
+	for _, tokenScope := range tokenScopes {
+		uriMatched := tokenScope.URI == "*" || currentURI == tokenScope.URI
+		methodMatched := tokenScope.Method == "*" || currentMethod == tokenScope.Method
+		if uriMatched && methodMatched {
 			return true
 		}
 	}
@@ -100,11 +130,12 @@ func (al *APIListener) parseToken(tokenStr string) (tokCtx *TokenContext, err er
 	}, nil
 }
 
-func (al *APIListener) validateBearerToken(ctx context.Context, tokCtx *TokenContext, uri string) (bool, *session.APISession, error) {
-	if !al.currentURIMatchesTokenTargets(uri, tokCtx.AppToken.Targets) {
+func (al *APIListener) validateBearerToken(ctx context.Context, tokCtx *TokenContext, uri, method string) (bool, *session.APISession, error) {
+	if !al.currentURIMatchesTokenScopes(uri, method, tokCtx.AppToken.Scopes) {
 		al.Errorf(
-			"Token target %s doesn't match the current url %s, so this token is not intended to be used for this page",
-			tokCtx.AppToken.Targets,
+			"Token scopes %+v don't match with the current url %s[%s], so this token is not intended to be used for this page",
+			tokCtx.AppToken.Scopes,
+			method,
 			uri,
 		)
 		return false, nil, nil

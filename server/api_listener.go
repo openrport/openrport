@@ -284,14 +284,15 @@ func (al *APIListener) Close() error {
 var ErrTooManyRequests = errors.New("too many requests, please try later")
 
 // lookupUser is used to get the user on every request in auth middleware
-func (al *APIListener) lookupUser(r *http.Request) (authorized bool, username string, err error) {
-	if basicUser, basicPwd, basicAuthProvided := r.BasicAuth(); basicAuthProvided {
-		return al.handleBasicAuth(basicUser, basicPwd)
-
+func (al *APIListener) lookupUser(r *http.Request, isBearerOnly bool) (authorized bool, username string, err error) {
+	if !isBearerOnly {
+		if basicUser, basicPwd, basicAuthProvided := r.BasicAuth(); basicAuthProvided {
+			return al.handleBasicAuth(basicUser, basicPwd)
+		}
 	}
 
 	if bearerToken, bearerAuthProvided := getBearerToken(r); bearerAuthProvided {
-		isAuthorized, token, err := al.handleBearerToken(r.Context(), bearerToken, r.RequestURI)
+		isAuthorized, token, err := al.handleBearerToken(r.Context(), bearerToken, r.URL.Path, r.Method)
 		if err != nil {
 			return isAuthorized, "", err
 		}
@@ -343,13 +344,13 @@ func (al *APIListener) handleBasicAuth(username, password string) (authorized bo
 	return false, username, nil
 }
 
-func (al *APIListener) handleBearerToken(ctx context.Context, bearerToken, uri string) (bool, *TokenContext, error) {
+func (al *APIListener) handleBearerToken(ctx context.Context, bearerToken, uri, method string) (bool, *TokenContext, error) {
 	token, err := al.parseToken(bearerToken)
 	if err != nil {
 		return false, nil, err
 	}
 
-	authorized, apiSession, err := al.validateBearerToken(ctx, token, uri)
+	authorized, apiSession, err := al.validateBearerToken(ctx, token, uri, method)
 	if err != nil {
 		return false, token, err
 	}
@@ -365,19 +366,19 @@ func (al *APIListener) handleBearerToken(ctx context.Context, bearerToken, uri s
 const htpasswdBcryptPrefix = "$2y$"
 
 // validateCredentials returns true if given credentials belong to a user with an access to API.
-func (al *APIListener) validateCredentials(username, password string, skipPasswordValidation bool) (bool, error) {
+func (al *APIListener) validateCredentials(username, password string, skipPasswordValidation bool) (bool, *users.User, error) {
 	if username == "" {
-		return false, nil
+		return false, nil, nil
 	}
 
 	user, err := al.userService.GetByUsername(username)
 	if err != nil {
-		return false, fmt.Errorf("failed to get user: %v", err)
+		return false, nil, fmt.Errorf("failed to get user: %v", err)
 	}
 	if user == nil && skipPasswordValidation && al.config.API.CreateMissingUsers {
 		pswd, err := random.UUID4()
 		if err != nil {
-			return false, err
+			return false, nil, err
 		}
 		user = &users.User{
 			Username: username,
@@ -386,18 +387,18 @@ func (al *APIListener) validateCredentials(username, password string, skipPasswo
 		}
 		err = al.userService.Change(user, "")
 		if err != nil {
-			return false, fmt.Errorf("failed to create missing user: %v", err)
+			return false, user, fmt.Errorf("failed to create missing user: %v", err)
 		}
 	}
 	if user == nil {
-		return false, nil
+		return false, user, nil
 	}
 
 	if skipPasswordValidation {
-		return true, nil
+		return true, user, nil
 	}
 
-	return verifyPassword(user.Password, password), nil
+	return verifyPassword(user.Password, password), user, nil
 }
 
 func verifyPassword(saved, provided string) bool {
@@ -442,7 +443,7 @@ func (al *APIListener) wsAuth(f http.Handler) http.HandlerFunc {
 			return
 		}
 
-		authorized, token, err := al.handleBearerToken(r.Context(), tokenStr, r.RequestURI)
+		authorized, token, err := al.handleBearerToken(r.Context(), tokenStr, r.URL.Path, r.Method)
 		if err != nil {
 			if errors.Is(err, ErrTooManyRequests) {
 				al.jsonErrorResponse(w, http.StatusTooManyRequests, err)
