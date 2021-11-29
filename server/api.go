@@ -198,7 +198,11 @@ func (al *APIListener) initRouter() {
 	api.HandleFunc("/users", al.wrapStaticPassModeMiddleware(al.wrapAdminAccessMiddleware(al.handleChangeUser))).Methods(http.MethodPost)
 	api.HandleFunc("/users/{user_id}", al.wrapStaticPassModeMiddleware(al.wrapAdminAccessMiddleware(al.handleChangeUser))).Methods(http.MethodPut)
 	api.HandleFunc("/users/{user_id}", al.wrapStaticPassModeMiddleware(al.wrapAdminAccessMiddleware(al.handleDeleteUser))).Methods(http.MethodDelete)
-	api.HandleFunc("/users/{user_id}/totp-secret", al.wrapStaticPassModeMiddleware(al.wrapAdminAccessMiddleware(al.handleDeleteUsersTotP))).Methods(http.MethodDelete)
+	api.HandleFunc("/users/{user_id}/totp-secret", al.wrapStaticPassModeMiddleware(
+		al.wrapAdminAccessMiddleware(
+			al.wrapTotPEnabledMiddleware(al.handleDeleteUsersTotP),
+		),
+	)).Methods(http.MethodDelete)
 	api.HandleFunc("/commands", al.handlePostMultiClientCommand).Methods(http.MethodPost)
 	api.HandleFunc("/commands", al.handleGetMultiClientCommands).Methods(http.MethodGet)
 	api.HandleFunc("/commands/{job_id}", al.handleGetMultiClientCommand).Methods(http.MethodGet)
@@ -226,9 +230,9 @@ func (al *APIListener) initRouter() {
 	api.HandleFunc("/library/commands/{"+routeParamCommandValueID+"}", al.handleDeleteCommand).Methods(http.MethodDelete)
 	api.HandleFunc("/scripts", al.handlePostMultiClientScript).Methods(http.MethodPost)
 	api.HandleFunc("/auditlog", al.handleListAuditLog).Methods(http.MethodGet)
-	api.HandleFunc(totPRoutes, al.handleGetTotP).Methods(http.MethodGet)
-	api.HandleFunc(totPRoutes, al.handlePostTotP).Methods(http.MethodPost)
-	api.HandleFunc(totPRoutes, al.handleDeleteTotP).Methods(http.MethodDelete)
+	api.HandleFunc(totPRoutes, al.wrapTotPEnabledMiddleware(al.handleGetTotP)).Methods(http.MethodGet)
+	api.HandleFunc(totPRoutes, al.wrapTotPEnabledMiddleware(al.handlePostTotP)).Methods(http.MethodPost)
+	api.HandleFunc(totPRoutes, al.wrapTotPEnabledMiddleware(al.handleDeleteTotP)).Methods(http.MethodDelete)
 
 	// add authorization middleware
 	if !al.insecureForTests {
@@ -473,7 +477,7 @@ func (al *APIListener) handleLogin(username, pwd string, skipPasswordValidation 
 		return
 	}
 
-	tokenStr, err := al.createAuthToken(req.Context(), lifetime, username, ScopesExcluding2FaCheck)
+	tokenStr, err := al.createAuthToken(req.Context(), lifetime, username, ScopesAllExcluding2FaCheck)
 	if err != nil {
 		al.jsonErrorResponse(w, http.StatusInternalServerError, err)
 		return
@@ -492,7 +496,7 @@ func (al *APIListener) sendJWTToken(username string, w http.ResponseWriter, req 
 		return
 	}
 
-	tokenStr, err := al.createAuthToken(req.Context(), lifetime, username, ScopesExcluding2FaCheck)
+	tokenStr, err := al.createAuthToken(req.Context(), lifetime, username, ScopesAllExcluding2FaCheck)
 	if err != nil {
 		al.jsonErrorResponse(w, http.StatusInternalServerError, err)
 		return
@@ -618,6 +622,7 @@ func (al *APIListener) handlePostVerify2FAToken() http.Handler {
 			if !al.handleBannedIPs(w, req, false) {
 				return
 			}
+			al.Errorf(err.Error())
 			al.jsonError(w, err)
 			return
 		}
@@ -2848,6 +2853,17 @@ func (al *APIListener) wrapAdminAccessMiddleware(next http.HandlerFunc) http.Han
 			),
 			HTTPStatus: http.StatusForbidden,
 		})
+	}
+}
+
+func (al *APIListener) wrapTotPEnabledMiddleware(next http.HandlerFunc) http.HandlerFunc {
+	return func(w http.ResponseWriter, r *http.Request) {
+		if !al.config.API.TotPEnabled {
+			al.jsonErrorResponseWithTitle(w, http.StatusBadRequest, "TotP is disabled")
+			return
+		}
+
+		next.ServeHTTP(w, r)
 	}
 }
 

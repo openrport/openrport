@@ -60,7 +60,7 @@ func TestInvalidTotPCode(t *testing.T) {
 	StoreTotPCodeInUser(usr, totP)
 
 	err = tfaService.ValidateTotPCode(usr, "dfasdf")
-	require.EqualError(t, err, "invalid codem")
+	require.EqualError(t, err, "invalid code")
 }
 
 func TestValidateTotPCodeLoginExpired(t *testing.T) {

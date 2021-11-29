@@ -26,14 +26,20 @@ type Token struct {
 }
 
 type Scope struct {
-	URI    string `json:"uri,omitempty"`
-	Method string `json:"method,omitempty"`
+	URI     string `json:"uri,omitempty"`
+	Method  string `json:"method,omitempty"`
+	Exclude bool   `json:"exclude,omitempty"`
 }
 
-var ScopesExcluding2FaCheck = []Scope{
+var ScopesAllExcluding2FaCheck = []Scope{
 	{
 		URI:    "*",
 		Method: "*",
+	},
+	{
+		URI:     allRoutesPrefix + verify2FaRoute,
+		Method:  "*",
+		Exclude: true,
 	},
 }
 
@@ -101,15 +107,22 @@ func (al *APIListener) currentURIMatchesTokenScopes(currentURI, currentMethod st
 	}
 	currentURI = "/" + strings.Trim(currentURI, "/")
 
+	hasAtLeastOneMatch := false
+	hasExcludeMatch := false
 	for _, tokenScope := range tokenScopes {
 		uriMatched := tokenScope.URI == "*" || currentURI == tokenScope.URI
 		methodMatched := tokenScope.Method == "*" || currentMethod == tokenScope.Method
+
 		if uriMatched && methodMatched {
-			return true
+			if tokenScope.Exclude {
+				hasExcludeMatch = true
+			} else {
+				hasAtLeastOneMatch = true
+			}
 		}
 	}
 
-	return false
+	return hasAtLeastOneMatch && !hasExcludeMatch
 }
 
 func (al *APIListener) parseToken(tokenStr string) (tokCtx *TokenContext, err error) {
@@ -142,6 +155,10 @@ func (al *APIListener) validateBearerToken(ctx context.Context, tokCtx *TokenCon
 	}
 
 	if al.bannedUsers.IsBanned(tokCtx.AppToken.Username) {
+		al.Errorf(
+			"User %s is banned",
+			tokCtx.AppToken.Username,
+		)
 		return false, nil, ErrTooManyRequests
 	}
 
@@ -155,6 +172,10 @@ func (al *APIListener) validateBearerToken(ctx context.Context, tokCtx *TokenCon
 
 	apiSession, err := al.apiSessions.Get(ctx, tokCtx.RawToken)
 	if err != nil || apiSession == nil {
+		al.Errorf(
+			"Login session not found for %s",
+			tokCtx.AppToken.Username,
+		)
 		return false, nil, err
 	}
 
