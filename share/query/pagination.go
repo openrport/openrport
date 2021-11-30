@@ -21,6 +21,10 @@ type PaginationConfig struct {
 }
 
 func ValidatePagination(pagination *Pagination, config *PaginationConfig) errors2.APIErrors {
+	if pagination == nil {
+		return nil
+	}
+
 	errs := errors2.APIErrors{}
 
 	if pagination.Limit == "" {

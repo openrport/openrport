@@ -15,6 +15,7 @@ import (
 	"github.com/cloudradar-monitoring/rport/db/migration/library"
 	"github.com/cloudradar-monitoring/rport/db/sqlite"
 	"github.com/cloudradar-monitoring/rport/server/api/session"
+	"github.com/cloudradar-monitoring/rport/server/clients/storedtunnels"
 	"github.com/cloudradar-monitoring/rport/server/script"
 	"github.com/cloudradar-monitoring/rport/share/files"
 	"github.com/cloudradar-monitoring/rport/share/random"
@@ -59,6 +60,7 @@ type APIListener struct {
 	vaultManager   *vault.Manager
 	scriptManager  *script.Manager
 	commandManager *command.Manager
+	storedTunnels  *storedtunnels.Manager
 }
 
 type UserService interface {
@@ -96,7 +98,7 @@ func NewAPIListener(
 		usersProvider = users.NewStaticProvider([]*users.User{authUser})
 	} else if config.API.AuthUserTable != "" {
 		logger := chshare.NewLogger("database", config.Logging.LogOutput, config.Logging.LogLevel)
-		usersProvider, err = users.NewUserDatabase(server.db, config.API.AuthUserTable, config.API.AuthGroupTable, config.API.IsTwoFAOn(), logger)
+		usersProvider, err = users.NewUserDatabase(server.authDB, config.API.AuthUserTable, config.API.AuthGroupTable, config.API.IsTwoFAOn(), logger)
 		if err != nil {
 			return nil, err
 		}
@@ -153,6 +155,7 @@ func NewAPIListener(
 		vaultManager:      vault.NewManager(vaultDBProviderFactory, &vault.Aes256PassManager{}, vaultLogger),
 		scriptManager:     scriptManager,
 		commandManager:    commandManager,
+		storedTunnels:     storedtunnels.New(server.clientDB),
 	}
 
 	if config.API.IsTwoFAOn() {

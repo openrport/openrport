@@ -13,6 +13,8 @@ import (
 
 	"golang.org/x/crypto/ssh"
 
+	"github.com/jmoiron/sqlx"
+
 	"github.com/cloudradar-monitoring/rport/server/api/errors"
 	"github.com/cloudradar-monitoring/rport/server/cgroups"
 	"github.com/cloudradar-monitoring/rport/server/clients"
@@ -106,11 +108,11 @@ func InitClientService(
 	ctx context.Context,
 	tunnelProxyConfig *clients.TunnelProxyConfig,
 	portDistributor *ports.PortDistributor,
-	provider clients.ClientProvider,
+	db *sqlx.DB,
 	keepLostClients *time.Duration,
 	logger *chshare.Logger,
 ) (*ClientService, error) {
-	repo, err := clients.InitClientRepository(ctx, provider, keepLostClients, logger)
+	repo, err := clients.InitClientRepository(ctx, db, keepLostClients, logger)
 	if err != nil {
 		return nil, fmt.Errorf("failed to init Client Repository: %v", err)
 	}

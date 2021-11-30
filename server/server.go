@@ -16,6 +16,8 @@ import (
 	_ "github.com/go-sql-driver/mysql"
 	_ "github.com/mattn/go-sqlite3"
 
+	clientsmigration "github.com/cloudradar-monitoring/rport/db/migration/clients"
+	"github.com/cloudradar-monitoring/rport/db/sqlite"
 	"github.com/cloudradar-monitoring/rport/server/api/jobs"
 	"github.com/cloudradar-monitoring/rport/server/api/session"
 	"github.com/cloudradar-monitoring/rport/server/auditlog"
@@ -43,12 +45,12 @@ type Server struct {
 	apiListener         *APIListener
 	config              *Config
 	clientService       *ClientService
-	clientProvider      clients.ClientProvider
+	clientDB            *sqlx.DB
 	clientAuthProvider  clientsauth.Provider
 	jobProvider         JobProvider
 	clientGroupProvider cgroups.ClientGroupProvider
 	monitoringService   monitoring.Service
-	db                  *sqlx.DB
+	authDB              *sqlx.DB
 	uiJobWebSockets     ws.WebSocketCache // used to push job result to UI
 	jobsDoneChannel     jobResultChanMap  // used for sequential command execution to know when command is finished
 	auditLog            *auditlog.AuditLog
@@ -108,12 +110,9 @@ func NewServer(config *Config, filesAPI files.FileAPI) (*Server, error) {
 	}
 	s.monitoringService = monitoring.NewService(monitoringProvider)
 
-	s.clientProvider, err = clients.NewSqliteProvider(
-		path.Join(config.Server.DataDir, "clients.db"),
-		config.Server.KeepLostClients,
-	)
+	s.clientDB, err = sqlite.New(path.Join(config.Server.DataDir, "clients.db"), clientsmigration.AssetNames(), clientsmigration.Asset)
 	if err != nil {
-		return nil, err
+		return nil, fmt.Errorf("failed to create clients DB instance: %v", err)
 	}
 
 	var keepLostClients *time.Duration
@@ -125,7 +124,7 @@ func NewServer(config *Config, filesAPI files.FileAPI) (*Server, error) {
 		ctx,
 		&s.config.Server.TunnelProxyConfig,
 		ports.NewPortDistributor(config.AllowedPorts()),
-		s.clientProvider,
+		s.clientDB,
 		keepLostClients,
 		s.Logger,
 	)
@@ -144,14 +143,14 @@ func NewServer(config *Config, filesAPI files.FileAPI) (*Server, error) {
 	}
 
 	if config.Database.driver != "" {
-		s.db, err = sqlx.Connect(config.Database.driver, config.Database.dsn)
+		s.authDB, err = sqlx.Connect(config.Database.driver, config.Database.dsn)
 		if err != nil {
 			return nil, err
 		}
 		s.Infof("DB: successfully connected to %s", config.Database.dsnForLogs())
 	}
 
-	s.clientAuthProvider, err = getClientProvider(config, s.db)
+	s.clientAuthProvider, err = getClientProvider(config, s.authDB)
 	if err != nil {
 		return nil, err
 	}
@@ -259,10 +258,10 @@ func (s *Server) Close() error {
 	wg := &errgroup.Group{}
 	wg.Go(s.clientListener.Close)
 	wg.Go(s.apiListener.Close)
-	if s.db != nil {
-		wg.Go(s.db.Close)
+	if s.authDB != nil {
+		wg.Go(s.authDB.Close)
 	}
-	wg.Go(s.clientProvider.Close)
+	wg.Go(s.clientDB.Close)
 	wg.Go(s.jobProvider.Close)
 	wg.Go(s.clientGroupProvider.Close)
 	wg.Go(s.uiJobWebSockets.CloseConnections)
