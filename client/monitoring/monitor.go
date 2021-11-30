@@ -86,7 +86,7 @@ func (m *Monitor) refreshMeasurement(ctx context.Context) {
 func (m *Monitor) createMeasurement(ctx context.Context) *models.Measurement {
 	var newMeasurement = &models.Measurement{}
 
-	newMeasurement.Timestamp = time.Now()
+	newMeasurement.Timestamp = time.Now().UTC()
 
 	cpuPercent, err := m.systemInfo.CPUPercent(ctx)
 	if err == nil {

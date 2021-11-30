@@ -796,7 +796,7 @@ type ClientPayload struct {
 	AllowedUserGroups      *[]string                `json:"allowed_user_groups,omitempty"`
 	Tunnels                *[]*clients.Tunnel       `json:"tunnels,omitempty"`
 	UpdatesStatus          **models.UpdatesStatus   `json:"updates_status,omitempty"`
-	ClientConfiguration    *chshare.Config          `json:"client_configuration,omitempty"`
+	ClientConfiguration    **chshare.Config         `json:"client_configuration,omitempty"`
 }
 
 func convertToClientsPayload(clients []*clients.Client, fields []query.FieldsOption) []ClientPayload {
@@ -883,7 +883,7 @@ func convertToClientPayload(client *clients.Client, fields []query.FieldsOption)
 		case "updates_status":
 			p.UpdatesStatus = &client.UpdatesStatus
 		case "client_configuration":
-			p.ClientConfiguration = client.ClientConfiguration
+			p.ClientConfiguration = &client.ClientConfiguration
 		}
 	}
 	return p
