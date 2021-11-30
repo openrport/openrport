@@ -307,7 +307,7 @@ CREATE TABLE `groups` (
 CREATE TABLE `users` (
   `username` varchar(150) NOT NULL,
   `password` varchar(255) NOT NULL,
-  `totp_secret` longtext NOT NULL,
+  `totp_secret` longtext,
   UNIQUE KEY `username` (`username`)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8;
 CREATE TABLE `groups` (
@@ -397,7 +397,7 @@ ON "groups" (
 CREATE TABLE "users" (
   "username" TEXT(150) NOT NULL,
   "password" TEXT(255) NOT NULL,
-  "totp_secret" TEXT NOT NULL
+  "totp_secret" TEXT
 );
 CREATE UNIQUE INDEX "main"."username"
 ON "users" (
