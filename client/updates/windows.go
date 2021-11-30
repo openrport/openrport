@@ -10,7 +10,7 @@ import (
 	"github.com/go-ole/go-ole/oleutil"
 	"github.com/scjalliance/comshim"
 
-	chshare "github.com/cloudradar-monitoring/rport/share"
+	chshare "github.com/cloudradar-monitoring/rport/share/logger"
 	"github.com/cloudradar-monitoring/rport/share/models"
 )
 

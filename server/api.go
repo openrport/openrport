@@ -38,6 +38,7 @@ import (
 	"github.com/cloudradar-monitoring/rport/server/validation"
 	"github.com/cloudradar-monitoring/rport/server/vault"
 	chshare "github.com/cloudradar-monitoring/rport/share"
+	"github.com/cloudradar-monitoring/rport/share/clientconfig"
 	"github.com/cloudradar-monitoring/rport/share/comm"
 	"github.com/cloudradar-monitoring/rport/share/enums"
 	"github.com/cloudradar-monitoring/rport/share/models"
@@ -796,7 +797,7 @@ type ClientPayload struct {
 	AllowedUserGroups      *[]string                `json:"allowed_user_groups,omitempty"`
 	Tunnels                *[]*clients.Tunnel       `json:"tunnels,omitempty"`
 	UpdatesStatus          **models.UpdatesStatus   `json:"updates_status,omitempty"`
-	ClientConfiguration    **chshare.Config         `json:"client_configuration,omitempty"`
+	ClientConfiguration    **clientconfig.Config    `json:"client_configuration,omitempty"`
 }
 
 func convertToClientsPayload(clients []*clients.Client, fields []query.FieldsOption) []ClientPayload {
@@ -1012,7 +1013,7 @@ func (al *APIListener) handlePutClientTunnel(w http.ResponseWriter, req *http.Re
 	if localAddr == "" {
 		remoteStr = remoteAddr
 	}
-	remote, err := chshare.DecodeRemote(remoteStr)
+	remote, err := models.DecodeRemote(remoteStr)
 	if err != nil {
 		al.jsonErrorResponseWithTitle(w, http.StatusBadRequest, fmt.Sprintf("failed to decode %q: %v", remoteStr, err))
 		return
@@ -1105,7 +1106,7 @@ func (al *APIListener) handlePutClientTunnel(w http.ResponseWriter, req *http.Re
 		return
 	}
 
-	tunnels, err := al.clientService.StartClientTunnels(client, []*chshare.Remote{remote})
+	tunnels, err := al.clientService.StartClientTunnels(client, []*models.Remote{remote})
 	if err != nil {
 		al.jsonError(w, err)
 		return
@@ -1146,7 +1147,7 @@ func (al *APIListener) checkLocalPort(w http.ResponseWriter, localPort string) b
 	return true
 }
 
-func (al *APIListener) checkRemotePort(w http.ResponseWriter, remote chshare.Remote, conn ssh.Conn) bool {
+func (al *APIListener) checkRemotePort(w http.ResponseWriter, remote models.Remote, conn ssh.Conn) bool {
 	req := &comm.CheckPortRequest{
 		HostPort: remote.Remote(),
 		Timeout:  al.config.Server.CheckPortTimeout,

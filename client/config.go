@@ -14,6 +14,9 @@ import (
 
 	"github.com/cloudradar-monitoring/rport/client/system"
 	chshare "github.com/cloudradar-monitoring/rport/share"
+	"github.com/cloudradar-monitoring/rport/share/clientconfig"
+	logger2 "github.com/cloudradar-monitoring/rport/share/logger"
+	"github.com/cloudradar-monitoring/rport/share/models"
 )
 
 const DefaultMonitoringInterval = 60 * time.Second
@@ -24,7 +27,7 @@ var (
 )
 
 type ClientConfigHolder struct {
-	*chshare.Config
+	*clientconfig.Config
 }
 
 func (c *ClientConfigHolder) ParseAndValidate(skipScriptsDirValidation bool) error {
@@ -156,7 +159,7 @@ func (c *ClientConfigHolder) parseProxyURL() error {
 
 func (c *ClientConfigHolder) parseRemotes() error {
 	for _, s := range c.Client.Remotes {
-		r, err := chshare.DecodeRemote(s)
+		r, err := models.DecodeRemote(s)
 		if err != nil {
 			return fmt.Errorf("failed to decode remote %q: %v", s, err)
 		}
@@ -237,7 +240,7 @@ func parseRegexpList(regexpList []string) ([]*regexp.Regexp, error) {
 }
 
 func PrepareDirs(c *ClientConfigHolder) error {
-	logger := chshare.NewLogger("client", c.Logging.LogOutput, c.Logging.LogLevel)
+	logger := logger2.NewLogger("client", c.Logging.LogOutput, c.Logging.LogLevel)
 
 	if err := os.MkdirAll(c.Client.DataDir, os.ModePerm); err != nil {
 		return fmt.Errorf("failed to create dir %q: %s", c.Client.DataDir, err)

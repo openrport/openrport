@@ -4,7 +4,7 @@ import (
 	"context"
 	"time"
 
-	chshare "github.com/cloudradar-monitoring/rport/share"
+	chshare "github.com/cloudradar-monitoring/rport/share/logger"
 )
 
 type Task interface {

@@ -8,7 +8,8 @@ import (
 
 	"github.com/stretchr/testify/require"
 
-	chshare "github.com/cloudradar-monitoring/rport/share"
+	"github.com/cloudradar-monitoring/rport/share/logger"
+	chshare "github.com/cloudradar-monitoring/rport/share/models"
 )
 
 var (
@@ -18,7 +19,7 @@ var (
 	c2DisconnectedTime, _ = time.Parse(time.RFC3339, "2020-08-19T13:04:23+03:00")
 	c3DisconnectedTime    = c2DisconnectedTime.Add(-time.Hour)
 	c4DisconnectedTime    = c2DisconnectedTime.Add(-2 * time.Hour)
-	testLog               = chshare.NewLogger("server", chshare.LogOutput{File: os.Stdout}, chshare.LogLevelDebug)
+	testLog               = logger.NewLogger("server", logger.LogOutput{File: os.Stdout}, logger.LogLevelDebug)
 )
 
 var c1 = &Client{

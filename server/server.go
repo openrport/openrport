@@ -28,6 +28,7 @@ import (
 	chshare "github.com/cloudradar-monitoring/rport/share"
 	"github.com/cloudradar-monitoring/rport/share/capabilities"
 	"github.com/cloudradar-monitoring/rport/share/files"
+	"github.com/cloudradar-monitoring/rport/share/logger"
 	"github.com/cloudradar-monitoring/rport/share/models"
 	"github.com/cloudradar-monitoring/rport/share/ws"
 )
@@ -39,7 +40,7 @@ const (
 
 // Server represents a rport service
 type Server struct {
-	*chshare.Logger
+	*logger.Logger
 	clientListener      *ClientListener
 	apiListener         *APIListener
 	config              *Config
@@ -60,7 +61,7 @@ type Server struct {
 func NewServer(config *Config, filesAPI files.FileAPI) (*Server, error) {
 	ctx := context.Background()
 	s := &Server{
-		Logger:          chshare.NewLogger("server", config.Logging.LogOutput, config.Logging.LogLevel),
+		Logger:          logger.NewLogger("server", config.Logging.LogOutput, config.Logging.LogLevel),
 		config:          config,
 		uiJobWebSockets: ws.NewWebSocketCache(),
 		jobsDoneChannel: jobResultChanMap{
@@ -135,7 +136,7 @@ func NewServer(config *Config, filesAPI files.FileAPI) (*Server, error) {
 	}
 
 	s.auditLog, err = auditlog.New(
-		chshare.NewLogger("auditlog", config.Logging.LogOutput, config.Logging.LogLevel),
+		logger.NewLogger("auditlog", config.Logging.LogOutput, config.Logging.LogLevel),
 		s.clientService,
 		s.config.Server.DataDir,
 		s.config.API.AuditLog,

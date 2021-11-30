@@ -23,12 +23,13 @@ import (
 	"github.com/cloudradar-monitoring/rport/server/clients"
 	chshare "github.com/cloudradar-monitoring/rport/share"
 	"github.com/cloudradar-monitoring/rport/share/comm"
+	"github.com/cloudradar-monitoring/rport/share/logger"
 	"github.com/cloudradar-monitoring/rport/share/models"
 	"github.com/cloudradar-monitoring/rport/share/security"
 )
 
 type ClientListener struct {
-	*chshare.Logger
+	*logger.Logger
 	*Server
 
 	connStats         chshare.ConnStats
@@ -53,7 +54,7 @@ func NewClientListener(server *Server, privateKey ssh.Signer) (*ClientListener, 
 	cl := &ClientListener{
 		Server:            server,
 		httpServer:        chshare.NewHTTPServer(int(config.Server.MaxRequestBytes)),
-		Logger:            chshare.NewLogger("client-listener", config.Logging.LogOutput, config.Logging.LogLevel),
+		Logger:            logger.NewLogger("client-listener", config.Logging.LogOutput, config.Logging.LogLevel),
 		requestLogOptions: config.InitRequestLogOptions(),
 		bannedClientAuths: security.NewBanList(time.Duration(config.Server.ClientLoginWait) * time.Second),
 	}
@@ -271,7 +272,7 @@ func (cl *ClientListener) handleWebsocket(w http.ResponseWriter, req *http.Reque
 }
 
 // checkVersions print if client and server versions dont match.
-func checkVersions(log *chshare.Logger, clientVersion string) {
+func checkVersions(log *logger.Logger, clientVersion string) {
 	if clientVersion == chshare.BuildVersion {
 		return
 	}
@@ -297,8 +298,8 @@ func (cl *ClientListener) getCID(reqID string, config *Config, clientAuthID stri
 	return clients.NewClientID()
 }
 
-func getRemotes(tunnels []*clients.Tunnel) []*chshare.Remote {
-	r := make([]*chshare.Remote, 0, len(tunnels))
+func getRemotes(tunnels []*clients.Tunnel) []*models.Remote {
+	r := make([]*models.Remote, 0, len(tunnels))
 	for _, t := range tunnels {
 		r = append(r, &t.Remote)
 	}
@@ -306,7 +307,7 @@ func getRemotes(tunnels []*clients.Tunnel) []*chshare.Remote {
 }
 
 // GetTunnelsToReestablish returns old tunnels that should be re-establish taking into account new tunnels.
-func GetTunnelsToReestablish(old, new []*chshare.Remote) []*chshare.Remote {
+func GetTunnelsToReestablish(old, new []*models.Remote) []*models.Remote {
 	if len(new) > len(old) {
 		return nil
 	}
@@ -345,7 +346,7 @@ loop2:
 	}
 
 	// add tunnels that left among old
-	var res []*chshare.Remote
+	var res []*models.Remote
 	for i, marked := range oldMarked {
 		if !marked {
 			r := *old[i]
@@ -361,7 +362,7 @@ loop2:
 	return res
 }
 
-func (cl *ClientListener) replyConnectionSuccess(r *ssh.Request, remotes []*chshare.Remote) {
+func (cl *ClientListener) replyConnectionSuccess(r *ssh.Request, remotes []*models.Remote) {
 	replyPayload, err := json.Marshal(remotes)
 	if err != nil {
 		cl.Errorf("can't encode success reply payload")
@@ -376,7 +377,7 @@ func (cl *ClientListener) replyConnectionError(r *ssh.Request, err error) {
 	_ = r.Reply(false, []byte(err.Error()))
 }
 
-func (cl *ClientListener) handleSSHRequests(clientLog *chshare.Logger, clientID string, reqs <-chan *ssh.Request) {
+func (cl *ClientListener) handleSSHRequests(clientLog *logger.Logger, clientID string, reqs <-chan *ssh.Request) {
 	for r := range reqs {
 		if len(r.Payload) > int(cl.config.Server.MaxRequestBytesClient) {
 			clientLog.Errorf("%s:request data exceeds the limit of %d bytes, actual size: %d", comm.RequestTypeSaveMeasurement, cl.config.Server.MaxRequestBytesClient, len(r.Payload))
@@ -481,7 +482,7 @@ func (cl *ClientListener) saveCmdResult(respBytes []byte) (*models.Job, error) {
 	return &resp, nil
 }
 
-func (cl *ClientListener) handleSSHChannels(clientLog *chshare.Logger, chans <-chan ssh.NewChannel) {
+func (cl *ClientListener) handleSSHChannels(clientLog *logger.Logger, chans <-chan ssh.NewChannel) {
 	for ch := range chans {
 		remote := string(ch.ExtraData())
 		//accept rest

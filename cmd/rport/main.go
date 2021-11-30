@@ -13,6 +13,7 @@ import (
 
 	chclient "github.com/cloudradar-monitoring/rport/client"
 	chshare "github.com/cloudradar-monitoring/rport/share"
+	"github.com/cloudradar-monitoring/rport/share/clientconfig"
 )
 
 var clientHelp = `
@@ -175,7 +176,7 @@ var (
 
 	cfgPath  *string
 	viperCfg *viper.Viper
-	config   = &chclient.ClientConfigHolder{Config: &chshare.Config{}}
+	config   = &chclient.ClientConfigHolder{Config: &clientconfig.Config{}}
 
 	svcCommand *string
 	svcUser    *string

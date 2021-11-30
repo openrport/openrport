@@ -5,7 +5,7 @@ import (
 	"runtime"
 	"time"
 
-	chshare "github.com/cloudradar-monitoring/rport/share"
+	chshare "github.com/cloudradar-monitoring/rport/share/logger"
 )
 
 var ErrorNotImplementedForOS = errors.New("docker support not implemented for " + runtime.GOOS)

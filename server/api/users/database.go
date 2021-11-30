@@ -6,8 +6,8 @@ import (
 	"fmt"
 	"strings"
 
-	chshare "github.com/cloudradar-monitoring/rport/share"
 	"github.com/cloudradar-monitoring/rport/share/enums"
+	chshare "github.com/cloudradar-monitoring/rport/share/logger"
 
 	"github.com/jmoiron/sqlx"
 )

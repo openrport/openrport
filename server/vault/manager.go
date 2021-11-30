@@ -9,11 +9,10 @@ import (
 	"sync"
 	"time"
 
+	chshare "github.com/cloudradar-monitoring/rport/share/logger"
 	"github.com/cloudradar-monitoring/rport/share/query"
 
 	"github.com/cloudradar-monitoring/rport/share/enc"
-
-	chshare "github.com/cloudradar-monitoring/rport/share"
 
 	errors2 "github.com/cloudradar-monitoring/rport/server/api/errors"
 )

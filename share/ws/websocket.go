@@ -7,7 +7,7 @@ import (
 	"github.com/gorilla/websocket"
 
 	"github.com/cloudradar-monitoring/rport/server/api"
-	chshare "github.com/cloudradar-monitoring/rport/share"
+	chshare "github.com/cloudradar-monitoring/rport/share/logger"
 )
 
 type ConcurrentWebSocket struct {

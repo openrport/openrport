@@ -24,12 +24,13 @@ import (
 	"github.com/cloudradar-monitoring/rport/client/updates"
 	chshare "github.com/cloudradar-monitoring/rport/share"
 	"github.com/cloudradar-monitoring/rport/share/comm"
+	"github.com/cloudradar-monitoring/rport/share/logger"
 	"github.com/cloudradar-monitoring/rport/share/models"
 )
 
 //Client represents a client instance
 type Client struct {
-	*chshare.Logger
+	*logger.Logger
 
 	configHolder       *ClientConfigHolder
 	sshConfig          *ssh.ClientConfig
@@ -49,8 +50,8 @@ type Client struct {
 
 //NewClient creates a new client instance
 func NewClient(config *ClientConfigHolder) *Client {
-	cmdExec := system.NewCmdExecutor(chshare.NewLogger("cmd executor", config.Logging.LogOutput, config.Logging.LogLevel))
-	logger := chshare.NewLogger("client", config.Logging.LogOutput, config.Logging.LogLevel)
+	cmdExec := system.NewCmdExecutor(logger.NewLogger("cmd executor", config.Logging.LogOutput, config.Logging.LogLevel))
+	logger := logger.NewLogger("client", config.Logging.LogOutput, config.Logging.LogLevel)
 	systemInfo := system.NewSystemInfo(cmdExec)
 	client := &Client{
 		Logger:       logger,
@@ -326,7 +327,7 @@ func (c *Client) sendConnectionRequest(ctx context.Context, sshConn ssh.Conn) er
 
 		return errors.New(msg)
 	}
-	var remotes []*chshare.Remote
+	var remotes []*models.Remote
 	err = json.Unmarshal(respBytes, &remotes)
 	if err != nil {
 		return fmt.Errorf("can't decode reply payload: %s", err)

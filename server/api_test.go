@@ -30,8 +30,8 @@ import (
 	"github.com/cloudradar-monitoring/rport/server/clientsauth"
 	"github.com/cloudradar-monitoring/rport/server/monitoring"
 	"github.com/cloudradar-monitoring/rport/server/test/jb"
-	chshare "github.com/cloudradar-monitoring/rport/share"
 	"github.com/cloudradar-monitoring/rport/share/comm"
+	chshare "github.com/cloudradar-monitoring/rport/share/logger"
 	"github.com/cloudradar-monitoring/rport/share/models"
 	"github.com/cloudradar-monitoring/rport/share/ptr"
 	"github.com/cloudradar-monitoring/rport/share/query"
@@ -1545,7 +1545,8 @@ func TestHandleGetClient(t *testing.T) {
         "disconnected_at":null,
         "client_auth_id":"user1",
         "allowed_user_groups":null,
-        "updates_status":null
+        "updates_status":null,
+        "client_configuration":null
     }
 }`
 			assert.Equal(t, tc.ExpectedStatus, w.Code)

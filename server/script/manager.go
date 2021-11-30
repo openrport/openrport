@@ -7,9 +7,8 @@ import (
 	"net/http"
 	"time"
 
+	chshare "github.com/cloudradar-monitoring/rport/share/logger"
 	"github.com/cloudradar-monitoring/rport/share/query"
-
-	chshare "github.com/cloudradar-monitoring/rport/share"
 
 	errors2 "github.com/cloudradar-monitoring/rport/server/api/errors"
 )

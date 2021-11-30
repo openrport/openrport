@@ -8,14 +8,14 @@ import (
 	"net/http"
 	"time"
 
+	chshare "github.com/cloudradar-monitoring/rport/share/logger"
 	"github.com/cloudradar-monitoring/rport/share/query"
 
 	errors2 "github.com/cloudradar-monitoring/rport/server/api/errors"
 
-	"github.com/cloudradar-monitoring/rport/db/migration/vaults"
-	chshare "github.com/cloudradar-monitoring/rport/share"
-
 	"github.com/jmoiron/sqlx"
+
+	"github.com/cloudradar-monitoring/rport/db/migration/vaults"
 
 	"github.com/cloudradar-monitoring/rport/db/sqlite"
 )

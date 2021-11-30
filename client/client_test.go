@@ -23,6 +23,9 @@ import (
 
 	"github.com/cloudradar-monitoring/rport/client/system"
 	chshare "github.com/cloudradar-monitoring/rport/share"
+	"github.com/cloudradar-monitoring/rport/share/clientconfig"
+	"github.com/cloudradar-monitoring/rport/share/logger"
+	"github.com/cloudradar-monitoring/rport/share/models"
 )
 
 func TestCustomHeaders(t *testing.T) {
@@ -33,24 +36,24 @@ func TestCustomHeaders(t *testing.T) {
 	defer server.Close()
 
 	config := ClientConfigHolder{
-		Config: &chshare.Config{
-			Client: chshare.ClientConfig{
+		Config: &clientconfig.Config{
+			Client: clientconfig.ClientConfig{
 				Fingerprint: "",
 				Auth:        "",
 				Server:      server.URL,
 				Remotes:     []string{"192.168.0.5:3000:google.com:80"},
 				DataDir:     "somedir",
 			},
-			Connection: chshare.ConnectionConfig{
+			Connection: clientconfig.ConnectionConfig{
 				KeepAlive:        time.Second,
 				MaxRetryCount:    0,
 				MaxRetryInterval: time.Second,
 				HeadersRaw:       []string{"Foo: Bar"},
 			},
-			RemoteCommands: chshare.CommandsConfig{
+			RemoteCommands: clientconfig.CommandsConfig{
 				Order: allowDenyOrder,
 			},
-			RemoteScripts: chshare.ScriptsConfig{
+			RemoteScripts: clientconfig.ScriptsConfig{
 				Enabled: false,
 			},
 		},
@@ -66,25 +69,25 @@ func TestCustomHeaders(t *testing.T) {
 }
 
 func TestConnectionRequest(t *testing.T) {
-	remote1 := &chshare.Remote{
+	remote1 := &models.Remote{
 		LocalHost:  "test-local",
 		LocalPort:  "1234",
 		RemoteHost: "test-remote",
 		RemotePort: "2345",
 	}
-	remote2 := &chshare.Remote{
+	remote2 := &models.Remote{
 		LocalHost:  "test-local-2",
 		LocalPort:  "2234",
 		RemoteHost: "test-remote-2",
 		RemotePort: "3345",
 	}
 	config := &ClientConfigHolder{
-		Config: &chshare.Config{
-			Client: chshare.ClientConfig{
+		Config: &clientconfig.Config{
+			Client: clientconfig.ClientConfig{
 				ID:      "test-client-id",
 				Name:    "test-name",
 				Tags:    []string{"tag1", "tag2"},
-				Tunnels: []*chshare.Remote{remote1, remote2},
+				Tunnels: []*models.Remote{remote1, remote2},
 			},
 		},
 	}
@@ -164,7 +167,7 @@ func TestConnectionRequest(t *testing.T) {
 				IPv4:                   []string{"192.0.2.1", "192.0.2.2"},
 				IPv6:                   []string{"2001:db8::1", "2001:db8::2"},
 				Tags:                   []string{"tag1", "tag2"},
-				Remotes:                []*chshare.Remote{remote1, remote2},
+				Remotes:                []*models.Remote{remote1, remote2},
 				ClientConfiguration:    config.Config,
 			},
 		}, {
@@ -198,7 +201,7 @@ func TestConnectionRequest(t *testing.T) {
 				ID:                  "test-client-id",
 				Name:                "test-name",
 				Tags:                []string{"tag1", "tag2"},
-				Remotes:             []*chshare.Remote{remote1, remote2},
+				Remotes:             []*models.Remote{remote1, remote2},
 				OS:                  "test-platform 123 test-family",
 				OSArch:              "test-arch",
 				OSFamily:            "test-family",
@@ -232,7 +235,7 @@ func TestConnectionRequest(t *testing.T) {
 				ID:                  "test-client-id",
 				Name:                "test-name",
 				Tags:                []string{"tag1", "tag2"},
-				Remotes:             []*chshare.Remote{remote1, remote2},
+				Remotes:             []*models.Remote{remote1, remote2},
 				OS:                  system.UnknownValue,
 				OSArch:              "test-arch",
 				OSFamily:            system.UnknownValue,
@@ -271,7 +274,7 @@ func TestConnectionRequest(t *testing.T) {
 				OSVersion:           "123",
 				OSFullName:          "Test-Platform 123",
 				Tags:                []string{"tag1", "tag2"},
-				Remotes:             []*chshare.Remote{remote1, remote2},
+				Remotes:             []*models.Remote{remote1, remote2},
 				OS:                  system.UnknownValue,
 				OSArch:              "test-arch",
 				OSFamily:            "test-family",
@@ -425,26 +428,26 @@ func TestConnectionLoop(t *testing.T) {
 	tsFallback := httptest.NewServer(fallbackServer)
 	defer tsFallback.Close()
 
-	logOutput := chshare.NewLogOutput("")
+	logOutput := logger.NewLogOutput("")
 	err = logOutput.Start()
 	require.NoError(t, err)
 
 	config := ClientConfigHolder{
-		Config: &chshare.Config{
-			Client: chshare.ClientConfig{
+		Config: &clientconfig.Config{
+			Client: clientconfig.ClientConfig{
 				Server:                   tsMain.URL,
 				FallbackServers:          []string{tsFallback.URL},
 				ServerSwitchbackInterval: 100 * time.Millisecond,
 				DataDir:                  "./",
 			},
-			RemoteCommands: chshare.CommandsConfig{
+			RemoteCommands: clientconfig.CommandsConfig{
 				Order: allowDenyOrder,
 			},
-			Logging: chshare.LogConfig{
-				LogLevel:  chshare.LogLevelDebug,
+			Logging: clientconfig.LogConfig{
+				LogLevel:  logger.LogLevelDebug,
 				LogOutput: logOutput,
 			},
-			Connection: chshare.ConnectionConfig{
+			Connection: clientconfig.ConnectionConfig{
 				MaxRetryCount: -1,
 			},
 		},

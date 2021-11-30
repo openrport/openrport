@@ -17,7 +17,7 @@ import (
 
 	"github.com/stretchr/testify/require"
 
-	chshare "github.com/cloudradar-monitoring/rport/share"
+	chshare "github.com/cloudradar-monitoring/rport/share/models"
 	"github.com/cloudradar-monitoring/rport/share/random"
 )
 

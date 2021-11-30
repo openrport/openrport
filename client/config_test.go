@@ -12,23 +12,24 @@ import (
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 
-	chshare "github.com/cloudradar-monitoring/rport/share"
+	"github.com/cloudradar-monitoring/rport/share/clientconfig"
+	chshare "github.com/cloudradar-monitoring/rport/share/models"
 )
 
 func getDefaultValidMinConfig() ClientConfigHolder {
 	return ClientConfigHolder{
-		Config: &chshare.Config{
-			Client: chshare.ClientConfig{
+		Config: &clientconfig.Config{
+			Client: clientconfig.ClientConfig{
 				Server:  "test.com",
 				DataDir: os.TempDir(),
 			},
-			RemoteCommands: chshare.CommandsConfig{
+			RemoteCommands: clientconfig.CommandsConfig{
 				Enabled:       true,
 				SendBackLimit: 2048,
 				Order:         allowDenyOrder,
 				AllowRegexp:   []*regexp.Regexp{regexp.MustCompile(".*")},
 			},
-			RemoteScripts: chshare.ScriptsConfig{
+			RemoteScripts: clientconfig.ScriptsConfig{
 				Enabled: false,
 			},
 		},
@@ -38,7 +39,7 @@ func getDefaultValidMinConfig() ClientConfigHolder {
 func TestConfigParseAndValidateHeaders(t *testing.T) {
 	testCases := []struct {
 		Name           string
-		ConnConfig     chshare.ConnectionConfig
+		ConnConfig     clientconfig.ConnectionConfig
 		ExpectedHeader http.Header
 	}{
 		{
@@ -48,7 +49,7 @@ func TestConfigParseAndValidateHeaders(t *testing.T) {
 			},
 		}, {
 			Name: "host set",
-			ConnConfig: chshare.ConnectionConfig{
+			ConnConfig: clientconfig.ConnectionConfig{
 				Hostname: "test.com",
 			},
 			ExpectedHeader: http.Header{
@@ -57,7 +58,7 @@ func TestConfigParseAndValidateHeaders(t *testing.T) {
 			},
 		}, {
 			Name: "user agent set in config",
-			ConnConfig: chshare.ConnectionConfig{
+			ConnConfig: clientconfig.ConnectionConfig{
 				HeadersRaw: []string{"User-Agent: test-agent"},
 			},
 			ExpectedHeader: http.Header{
@@ -65,7 +66,7 @@ func TestConfigParseAndValidateHeaders(t *testing.T) {
 			},
 		}, {
 			Name: "multiple headers set",
-			ConnConfig: chshare.ConnectionConfig{
+			ConnConfig: clientconfig.ConnectionConfig{
 				HeadersRaw: []string{"Test1: v1", "Test2: v2"},
 			},
 			ExpectedHeader: http.Header{

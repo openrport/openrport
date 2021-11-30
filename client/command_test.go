@@ -18,7 +18,9 @@ import (
 
 	"github.com/cloudradar-monitoring/rport/client/system"
 	chshare "github.com/cloudradar-monitoring/rport/share"
+	"github.com/cloudradar-monitoring/rport/share/clientconfig"
 	"github.com/cloudradar-monitoring/rport/share/comm"
+	"github.com/cloudradar-monitoring/rport/share/logger"
 	"github.com/cloudradar-monitoring/rport/share/test"
 )
 
@@ -111,7 +113,7 @@ var nowMockF = func() time.Time {
 
 var nowMock = nowMockF()
 
-var testLog = chshare.NewLogger("client", chshare.LogOutput{File: os.Stdout}, chshare.LogLevelDebug)
+var testLog = logger.NewLogger("client", logger.LogOutput{File: os.Stdout}, logger.LogLevelDebug)
 
 const jobToRunJSON = `
 {
@@ -457,11 +459,11 @@ func TestRemoteCommandsDisabled(t *testing.T) {
 	c := Client{
 		Logger: testLog,
 		configHolder: &ClientConfigHolder{
-			Config: &chshare.Config{
-				RemoteCommands: chshare.CommandsConfig{
+			Config: &clientconfig.Config{
+				RemoteCommands: clientconfig.CommandsConfig{
 					Enabled: false,
 				},
-				RemoteScripts: chshare.ScriptsConfig{
+				RemoteScripts: clientconfig.ScriptsConfig{
 					Enabled: true,
 				},
 			},
@@ -481,11 +483,11 @@ func TestRemoteScriptsDisabled(t *testing.T) {
 	c := Client{
 		Logger: testLog,
 		configHolder: &ClientConfigHolder{
-			Config: &chshare.Config{
-				RemoteCommands: chshare.CommandsConfig{
+			Config: &clientconfig.Config{
+				RemoteCommands: clientconfig.CommandsConfig{
 					Enabled: true,
 				},
-				RemoteScripts: chshare.ScriptsConfig{
+				RemoteScripts: clientconfig.ScriptsConfig{
 					Enabled: false,
 				},
 			},

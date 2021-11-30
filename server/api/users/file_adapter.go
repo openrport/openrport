@@ -6,8 +6,8 @@ import (
 	"sync"
 
 	errors2 "github.com/cloudradar-monitoring/rport/server/api/errors"
-	chshare "github.com/cloudradar-monitoring/rport/share"
 	"github.com/cloudradar-monitoring/rport/share/enums"
+	chshare "github.com/cloudradar-monitoring/rport/share/logger"
 )
 
 type FileProvider interface {

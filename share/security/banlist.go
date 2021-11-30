@@ -4,7 +4,7 @@ import (
 	"sync"
 	"time"
 
-	chshare "github.com/cloudradar-monitoring/rport/share"
+	chshare "github.com/cloudradar-monitoring/rport/share/logger"
 )
 
 type BanList struct {

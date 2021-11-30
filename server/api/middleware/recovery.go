@@ -3,7 +3,7 @@ package middleware
 import (
 	"fmt"
 
-	chshare "github.com/cloudradar-monitoring/rport/share"
+	chshare "github.com/cloudradar-monitoring/rport/share/logger"
 )
 
 type RecoveryLogger struct {

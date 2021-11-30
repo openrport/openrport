@@ -13,8 +13,9 @@ import (
 	"github.com/cloudradar-monitoring/rport/server/api/users"
 	"github.com/cloudradar-monitoring/rport/server/cgroups"
 	"github.com/cloudradar-monitoring/rport/server/ports"
-	chshare "github.com/cloudradar-monitoring/rport/share"
+	"github.com/cloudradar-monitoring/rport/share/clientconfig"
 	"github.com/cloudradar-monitoring/rport/share/collections"
+	"github.com/cloudradar-monitoring/rport/share/logger"
 	"github.com/cloudradar-monitoring/rport/share/models"
 	"github.com/cloudradar-monitoring/rport/share/random"
 )
@@ -60,11 +61,11 @@ type Client struct {
 	ClientAuthID        string                `json:"client_auth_id"`
 	AllowedUserGroups   []string              `json:"allowed_user_groups"`
 	UpdatesStatus       *models.UpdatesStatus `json:"updates_status"`
-	ClientConfiguration *chshare.Config       `json:"client_configuration"`
+	ClientConfiguration *clientconfig.Config  `json:"client_configuration"`
 
 	Connection ssh.Conn        `json:"-"`
 	Context    context.Context `json:"-"`
-	Logger     *chshare.Logger `json:"-"`
+	Logger     *logger.Logger  `json:"-"`
 
 	tunnelIDAutoIncrement int64
 	lock                  sync.Mutex
@@ -85,7 +86,7 @@ func (c *Client) Unlock() {
 	c.lock.Unlock()
 }
 
-func (c *Client) FindTunnelByRemote(r *chshare.Remote) *Tunnel {
+func (c *Client) FindTunnelByRemote(r *models.Remote) *Tunnel {
 	for _, curr := range c.Tunnels {
 		if curr.Equals(r) {
 			return curr
@@ -94,7 +95,7 @@ func (c *Client) FindTunnelByRemote(r *chshare.Remote) *Tunnel {
 	return nil
 }
 
-func (c *Client) StartTunnel(r *chshare.Remote, acl *TunnelACL, tunnelProxyConfig *TunnelProxyConfig, portDistributor *ports.PortDistributor) (*Tunnel, error) {
+func (c *Client) StartTunnel(r *models.Remote, acl *TunnelACL, tunnelProxyConfig *TunnelProxyConfig, portDistributor *ports.PortDistributor) (*Tunnel, error) {
 	t := c.FindTunnelByRemote(r)
 	if t != nil {
 		return t, nil

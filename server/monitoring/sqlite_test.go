@@ -8,7 +8,7 @@ import (
 
 	"github.com/stretchr/testify/require"
 
-	chshare "github.com/cloudradar-monitoring/rport/share"
+	chshare "github.com/cloudradar-monitoring/rport/share/logger"
 	"github.com/cloudradar-monitoring/rport/share/models"
 	"github.com/cloudradar-monitoring/rport/share/query"
 	"github.com/cloudradar-monitoring/rport/share/types"

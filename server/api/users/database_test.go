@@ -5,9 +5,8 @@ import (
 	"os"
 	"testing"
 
+	chshare "github.com/cloudradar-monitoring/rport/share/logger"
 	"github.com/cloudradar-monitoring/rport/share/test"
-
-	chshare "github.com/cloudradar-monitoring/rport/share"
 
 	"github.com/jmoiron/sqlx"
 	_ "github.com/mattn/go-sqlite3"

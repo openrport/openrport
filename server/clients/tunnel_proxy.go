@@ -11,7 +11,7 @@ import (
 	"net/url"
 	"time"
 
-	chshare "github.com/cloudradar-monitoring/rport/share"
+	chshare "github.com/cloudradar-monitoring/rport/share/logger"
 )
 
 type TunnelProxyConfig struct {

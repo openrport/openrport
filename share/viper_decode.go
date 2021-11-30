@@ -8,26 +8,28 @@ import (
 
 	"github.com/mitchellh/mapstructure"
 	"github.com/spf13/viper"
+
+	"github.com/cloudradar-monitoring/rport/share/logger"
 )
 
 func decodeLogOutput(src reflect.Type, dst reflect.Type, srcVal interface{}) (interface{}, error) {
 	if src.Kind() != reflect.String {
 		return srcVal, nil
 	}
-	if dst != reflect.TypeOf(LogOutput{}) {
+	if dst != reflect.TypeOf(logger.LogOutput{}) {
 		return srcVal, nil
 	}
-	return NewLogOutput(srcVal.(string)), nil
+	return logger.NewLogOutput(srcVal.(string)), nil
 }
 
 func decodeLogLevel(src reflect.Type, dst reflect.Type, srcVal interface{}) (interface{}, error) {
 	if src.Kind() != reflect.String {
 		return srcVal, nil
 	}
-	if dst != reflect.TypeOf(LogLevel(0)) {
+	if dst != reflect.TypeOf(logger.LogLevel(0)) {
 		return srcVal, nil
 	}
-	return ParseLogLevel(srcVal.(string))
+	return logger.ParseLogLevel(srcVal.(string))
 }
 
 func decodeStringArray(src reflect.Type, dst reflect.Type, srcVal interface{}) (interface{}, error) {

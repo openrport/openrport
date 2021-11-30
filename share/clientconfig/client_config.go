@@ -1,18 +1,21 @@
-package chshare
+package clientconfig
 
 import (
 	"net/http"
 	"net/url"
 	"regexp"
 	"time"
+
+	"github.com/cloudradar-monitoring/rport/share/logger"
+	"github.com/cloudradar-monitoring/rport/share/models"
 )
 
 type Config struct {
 	Client         ClientConfig     `json:"client" mapstructure:"client"`
 	Connection     ConnectionConfig `json:"connection" mapstructure:"connection"`
 	Logging        LogConfig        `json:"logging" mapstructure:"logging"`
-	RemoteCommands CommandsConfig   `json:"remote-commands" mapstructure:"remote-commands"`
-	RemoteScripts  ScriptsConfig    `json:"remote-scripts" mapstructure:"remote-scripts"`
+	RemoteCommands CommandsConfig   `json:"remote_commands" mapstructure:"remote-commands"`
+	RemoteScripts  ScriptsConfig    `json:"remote_scripts" mapstructure:"remote-scripts"`
 	Monitoring     MonitoringConfig `json:"monitoring" mapstructure:"monitoring"`
 }
 
@@ -31,10 +34,10 @@ type ClientConfig struct {
 	UpdatesInterval          time.Duration `json:"updates_interval" mapstructure:"updates_interval"`
 	DataDir                  string        `json:"data_dir" mapstructure:"data_dir"`
 
-	ProxyURL *url.URL  `json:"proxy_url"`
-	Tunnels  []*Remote `json:"tunnels"`
-	AuthUser string    `json:"auth_user"`
-	AuthPass string    `json:"auth_pass"`
+	ProxyURL *url.URL         `json:"proxy_url"`
+	Tunnels  []*models.Remote `json:"tunnels"`
+	AuthUser string           `json:"auth_user"`
+	AuthPass string           `json:"auth_pass"`
 }
 
 type ConnectionConfig struct {
@@ -48,8 +51,8 @@ type ConnectionConfig struct {
 }
 
 type LogConfig struct {
-	LogOutput LogOutput `json:"log_file" mapstructure:"log_file"`
-	LogLevel  LogLevel  `json:"log_level" mapstructure:"log_level"`
+	LogOutput logger.LogOutput `json:"log_file" mapstructure:"log_file"`
+	LogLevel  logger.LogLevel  `json:"log_level" mapstructure:"log_level"`
 }
 
 type CommandsConfig struct {
