@@ -2324,13 +2324,6 @@ paths:
       description: "Shows secret key and qr image in base64 format for an Authenticator app. Requires a token received from `/verify-2fa` endpoint."
       produces:
         - "application/json"
-      parameters:
-        - name: "application-name"
-          in: "query"
-          description: "custom name for rport account in an Authenticator app"
-          required: false
-          default: "rport"
-          type: "string"
       responses:
         "200":
           description: "Successful Operation"
@@ -2359,6 +2352,13 @@ paths:
       description: "Creates a new secret key for an Authenticator app only for the first time! If another totP secret already exists for this user, an error will appear. Requires a valid JWT token received from the `/login` endpoint."
       produces:
         - "application/json"
+      parameters:
+        - name: "application-name"
+          in: "query"
+          description: "custom name for rport account in an Authenticator app"
+          required: false
+          default: "rport"
+          type: "string"
       responses:
         "200":
           description: "Successful Operation"
