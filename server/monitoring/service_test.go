@@ -17,17 +17,16 @@ func TestMonitoringService_SaveMeasurement(t *testing.T) {
 	defer dbProvider.Close()
 
 	service := NewService(dbProvider)
-	mClient := time.Now().UTC()
+	minGap := time.Second
+	mClient := time.Now().UTC().Add(-minGap)
 	m := &models.Measurement{
 		ClientID:  "test1",
 		Timestamp: mClient,
 	}
-	sleep := time.Duration(1) * time.Second
-	time.Sleep(sleep)
 	err = service.SaveMeasurement(context.Background(), m)
 	require.NoError(t, err)
 	gap := m.Timestamp.Sub(mClient)
-	require.True(t, gap >= sleep, "monitoring.service must set timestamp")
+	require.True(t, gap >= minGap, "monitoring.service must set timestamp")
 }
 
 func TestMonitoringService_ListClientMetrics(t *testing.T) {
