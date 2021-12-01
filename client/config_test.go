@@ -13,7 +13,7 @@ import (
 	"github.com/stretchr/testify/require"
 
 	"github.com/cloudradar-monitoring/rport/share/clientconfig"
-	chshare "github.com/cloudradar-monitoring/rport/share/models"
+	"github.com/cloudradar-monitoring/rport/share/models"
 )
 
 func getDefaultValidMinConfig() ClientConfigHolder {
@@ -227,18 +227,18 @@ func TestConfigParseAndValidateRemotes(t *testing.T) {
 	testCases := []struct {
 		Name            string
 		Remotes         []string
-		ExpectedRemotes []*chshare.Remote
+		ExpectedRemotes []*models.Remote
 		ExpectedError   string
 	}{
 		{
 			Name:            "not set",
 			Remotes:         []string{},
-			ExpectedRemotes: []*chshare.Remote{},
+			ExpectedRemotes: []*models.Remote{},
 		}, {
 			Name:    "one",
 			Remotes: []string{"8000"},
-			ExpectedRemotes: []*chshare.Remote{
-				&chshare.Remote{
+			ExpectedRemotes: []*models.Remote{
+				&models.Remote{
 					RemoteHost: "0.0.0.0",
 					RemotePort: "8000",
 				},
@@ -246,12 +246,12 @@ func TestConfigParseAndValidateRemotes(t *testing.T) {
 		}, {
 			Name:    "multiple",
 			Remotes: []string{"8000", "3000"},
-			ExpectedRemotes: []*chshare.Remote{
-				&chshare.Remote{
+			ExpectedRemotes: []*models.Remote{
+				&models.Remote{
 					RemoteHost: "0.0.0.0",
 					RemotePort: "8000",
 				},
-				&chshare.Remote{
+				&models.Remote{
 					RemoteHost: "0.0.0.0",
 					RemotePort: "3000",
 				},

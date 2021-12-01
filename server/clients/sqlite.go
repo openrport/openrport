@@ -11,8 +11,6 @@ import (
 
 	"github.com/jmoiron/sqlx"
 
-	"github.com/cloudradar-monitoring/rport/db/migration/clients"
-	"github.com/cloudradar-monitoring/rport/db/sqlite"
 	chshare "github.com/cloudradar-monitoring/rport/share/clientconfig"
 	"github.com/cloudradar-monitoring/rport/share/models"
 )

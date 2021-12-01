@@ -10,7 +10,6 @@ import (
 
 	"github.com/cloudradar-monitoring/rport/db/migration/clients"
 	"github.com/cloudradar-monitoring/rport/db/sqlite"
-	chshare "github.com/cloudradar-monitoring/rport/share"
 	"github.com/cloudradar-monitoring/rport/share/logger"
 	"github.com/cloudradar-monitoring/rport/share/models"
 )
@@ -52,7 +51,7 @@ var c1 = &Client{
 	Tunnels: []*Tunnel{
 		{
 			ID: "1",
-			Remote: chshare.Remote{
+			Remote: models.Remote{
 				LocalHost:  "0.0.0.0",
 				LocalPort:  "2222",
 				RemoteHost: "0.0.0.0",
@@ -61,7 +60,7 @@ var c1 = &Client{
 		},
 		{
 			ID: "2",
-			Remote: chshare.Remote{
+			Remote: models.Remote{
 				LocalHost:  "0.0.0.0",
 				LocalPort:  "4000",
 				RemoteHost: "0.0.0.0",
@@ -100,7 +99,7 @@ var c2 = &Client{
 	Tunnels: []*Tunnel{
 		{
 			ID: "1",
-			Remote: chshare.Remote{
+			Remote: models.Remote{
 				LocalHost:  "0.0.0.0",
 				LocalPort:  "2222",
 				RemoteHost: "0.0.0.0",

@@ -15,7 +15,7 @@ import (
 	"github.com/cloudradar-monitoring/rport/client/system"
 	chshare "github.com/cloudradar-monitoring/rport/share"
 	"github.com/cloudradar-monitoring/rport/share/clientconfig"
-	logger2 "github.com/cloudradar-monitoring/rport/share/logger"
+	"github.com/cloudradar-monitoring/rport/share/logger"
 	"github.com/cloudradar-monitoring/rport/share/models"
 )
 
@@ -240,7 +240,7 @@ func parseRegexpList(regexpList []string) ([]*regexp.Regexp, error) {
 }
 
 func PrepareDirs(c *ClientConfigHolder) error {
-	logger := logger2.NewLogger("client", c.Logging.LogOutput, c.Logging.LogLevel)
+	logger := logger.NewLogger("client", c.Logging.LogOutput, c.Logging.LogLevel)
 
 	if err := os.MkdirAll(c.Client.DataDir, os.ModePerm); err != nil {
 		return fmt.Errorf("failed to create dir %q: %s", c.Client.DataDir, err)
