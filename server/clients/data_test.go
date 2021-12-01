@@ -8,8 +8,11 @@ import (
 
 	"github.com/stretchr/testify/require"
 
+	"github.com/cloudradar-monitoring/rport/db/migration/clients"
+	"github.com/cloudradar-monitoring/rport/db/sqlite"
+	chshare "github.com/cloudradar-monitoring/rport/share"
 	"github.com/cloudradar-monitoring/rport/share/logger"
-	chshare "github.com/cloudradar-monitoring/rport/share/models"
+	"github.com/cloudradar-monitoring/rport/share/models"
 )
 
 var (
@@ -210,10 +213,11 @@ func shallowCopy(c *Client) *Client {
 	}
 }
 
-func newFakeClientProvider(t *testing.T, exp time.Duration, clients ...*Client) *SqliteProvider {
-	p, err := NewSqliteProvider(":memory:", exp)
+func newFakeClientProvider(t *testing.T, exp time.Duration, cs ...*Client) *SqliteProvider {
+	db, err := sqlite.New(":memory:", clients.AssetNames(), clients.Asset)
 	require.NoError(t, err)
-	for _, cur := range clients {
+	p := newSqliteProvider(db, &exp)
+	for _, cur := range cs {
 		require.NoError(t, p.Save(context.Background(), cur))
 	}
 	return p

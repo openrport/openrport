@@ -2530,6 +2530,186 @@ paths:
           description: "Invalid Operation"
           schema:
             $ref: "#/definitions/ErrorPayload"
+  /clients/{client_id}/stored-tunnels:
+    get:
+      tags:
+        - "Clients and Tunnels"
+      summary: "List stored tunnels"
+      produces:
+        - "application/json"
+      parameters:
+        - in: "path"
+          name: "client_id"
+          required: true
+          description: "Unique client ID"
+          type: "string"
+        - in: "query"
+          name: "sort"
+          description: "Sort field to be used for sorting, the sorting direction is by default ASC.\n
+            To change the direction add `-` to the sorting value e.g. `-id`. Allowed values are `created_at`, `name`, `scheme`, `remote_ip`, `remote_port`.\n
+            You can use as many sort parameters as you want."
+          required: false
+          type: "string"
+        - in: "query"
+          name: "filter[<FIELD>]"
+          description: "Filter to find stored tunnels. It should be provided in the format as `filter[<FIELD>]=<VALUE>`,\n
+              where `<FIELD>` is one of the values `name`, `scheme`, `remote_ip`, `remote_port` and `<VALUE>` is the search value,\n
+              e.g. `filter[scheme]=https` will request only stored tunnels with scheme https. You can use as many filter parameters as you want.\n
+              If you want to filter by multiple values e.g. find entries either for scheme = http or https you can use following filters\n
+              `filter[scheme]=http,https`."
+          required: false
+          type: "string"
+        - name: "page"
+          in: "query"
+          required: false
+          type: "integer"
+          description: "Pagination options `page[limit]` and `page[offset]` can be used to get more than the first page of results. Default limit is 10 and maximum is 100.\n The `count` property in meta shows the total number of results."
+      responses:
+        "200":
+          description: "Successful Operation"
+          schema:
+            type: "object"
+            properties:
+              data:
+                type: "array"
+                items:
+                  $ref: "#/definitions/StoredTunnel"
+              meta:
+                type: "object"
+                properties:
+                  count:
+                    type: "integer"
+        "400":
+          description: "unsupported sort field 'xyz'"
+          schema:
+            $ref: "#/definitions/ErrorPayload"
+        "401":
+          description: "Unauthorized"
+          schema:
+            $ref: "#/definitions/ErrorPayload"
+        "500":
+          description: "Invalid Operation"
+          schema:
+            $ref: "#/definitions/ErrorPayload"
+    post:
+      tags:
+        - "Clients and Tunnels"
+      summary: "Creates a new stored tunnel"
+      produces:
+        - "application/json"
+      parameters:
+        - in: "path"
+          name: "client_id"
+          required: true
+          description: "Unique client ID"
+          type: "string"
+        - in: "body"
+          name: "body"
+          description: "value in the json format"
+          required: true
+          schema:
+            $ref: "#/definitions/StoredTunnel"
+      responses:
+        "201":
+          description: "Successful Create Operation"
+          schema:
+            type: "object"
+            properties:
+              data:
+                type: "object"
+                $ref: "#/definitions/StoredTunnel"
+        "400":
+          description: "Invalid request parameters"
+          schema:
+            $ref: "#/definitions/ErrorPayload"
+        "401":
+          description: "Unauthorized"
+          schema:
+            $ref: "#/definitions/ErrorPayload"
+        "409":
+          description: "another script with the same name exists"
+          schema:
+            $ref: "#/definitions/ErrorPayload"
+        "500":
+          description: "Invalid Operation"
+          schema:
+            $ref: "#/definitions/ErrorPayload"
+  /clients/{client_id}/stored-tunnels/{id}:
+    put:
+      tags:
+        - "Clients and Tunnels"
+      summary: "Updates an existing stored tunnel"
+      description: "Updates an existing stored tunnel by the provided `id` parameter.\n
+      You need to provide all fields like those you used to create the stored tunnel. Partial updates are not supported.
+      You can get `id` by using the listing API. You get the id also when you store a new value."
+      parameters:
+        - in: "path"
+          name: "client_id"
+          required: true
+          description: "Unique client ID"
+          type: "string"
+        - in: "path"
+          name: "id"
+          required: true
+          description: "Unique script ID"
+          type: "string"
+        - in: "body"
+          name: "body"
+          description: "value in the json format"
+          required: true
+          schema:
+            $ref: "#/definitions/StoredTunnel"
+      responses:
+        "200":
+          description: "Successful Operation"
+          schema:
+            type: "object"
+            properties:
+              data:
+                type: "object"
+                $ref: "#/definitions/StoredTunnel"
+        "400":
+          description: "Invalid body parameters"
+          schema:
+            $ref: "#/definitions/ErrorPayload"
+        "401":
+          description: "Unauthorized"
+          schema:
+            $ref: "#/definitions/ErrorPayload"
+        "500":
+          description: "Invalid Operation"
+          schema:
+            $ref: "#/definitions/ErrorPayload"
+    delete:
+      tags:
+        - "Clients and Tunnels"
+      summary: "Deletes an existing stored tunnel"
+      parameters:
+        - in: "path"
+          name: "client_id"
+          required: true
+          description: "Unique client ID"
+          type: "string"
+        - in: "path"
+          name: "id"
+          required: true
+          description: "Unique stored tunnel ID"
+          type: "string"
+      responses:
+        "204":
+          description: "Successful Operation"
+        "401":
+          description: "Unauthorized"
+          schema:
+            $ref: "#/definitions/ErrorPayload"
+        "404":
+          description: "cannot find stored tunnel by the provided id"
+          schema:
+            $ref: "#/definitions/ErrorPayload"
+        "500":
+          description: "Invalid Operation"
+          schema:
+            $ref: "#/definitions/ErrorPayload"
 definitions:
   Tunnel:
     type: "object"
@@ -3354,3 +3534,31 @@ definitions:
       processes:
         type: "string"
         description: "JSON encoded information about processes"
+  StoredTunnel:
+    type: "object"
+    properties:
+      id:
+        type: "string"
+        description: "unique internal identifier of a stored tunnel in uuid4 format"
+        readOnly: true
+      created_at:
+        type: "string"
+        format: "data-time"
+        description: "Date and time of stored tunnel creation"
+        readOnly: true
+
+      name:
+        type: "string"
+        description: "Name of the stored tunnel"
+      remote_host:
+        type: "string"
+        description: "Remote host for the stored tunnel"
+      remote_port:
+        type: "string"
+        description: "Remote port for the stored tunnel"
+      scheme:
+        type: "string"
+        description: "URI scheme for the stored tunnel"
+      acl:
+        type: "string"
+        description: "ACL for the stored tunnel"

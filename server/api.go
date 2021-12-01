@@ -31,6 +31,7 @@ import (
 	"github.com/cloudradar-monitoring/rport/server/auditlog"
 	"github.com/cloudradar-monitoring/rport/server/cgroups"
 	"github.com/cloudradar-monitoring/rport/server/clients"
+	"github.com/cloudradar-monitoring/rport/server/clients/storedtunnels"
 	"github.com/cloudradar-monitoring/rport/server/clientsauth"
 	"github.com/cloudradar-monitoring/rport/server/monitoring"
 	"github.com/cloudradar-monitoring/rport/server/ports"
@@ -185,6 +186,10 @@ func (al *APIListener) initRouter() {
 	api.HandleFunc("/clients/{client_id}/metrics", al.handleGetClientMetrics).Methods(http.MethodGet)
 	api.HandleFunc("/clients/{client_id}/processes", al.handleGetClientProcesses).Methods(http.MethodGet)
 	api.HandleFunc("/clients/{client_id}/mountpoints", al.handleGetClientMountpoints).Methods(http.MethodGet)
+	api.HandleFunc("/clients/{client_id}/stored-tunnels", al.wrapClientAccessMiddleware(al.handleGetStoredTunnels)).Methods(http.MethodGet)
+	api.HandleFunc("/clients/{client_id}/stored-tunnels", al.wrapClientAccessMiddleware(al.handlePostStoredTunnels)).Methods(http.MethodPost)
+	api.HandleFunc("/clients/{client_id}/stored-tunnels/{tunnel_id}", al.wrapClientAccessMiddleware(al.handleDeleteStoredTunnel)).Methods(http.MethodDelete)
+	api.HandleFunc("/clients/{client_id}/stored-tunnels/{tunnel_id}", al.wrapClientAccessMiddleware(al.handlePutStoredTunnel)).Methods(http.MethodPut)
 	api.HandleFunc("/client-groups", al.handleGetClientGroups).Methods(http.MethodGet)
 	api.HandleFunc("/client-groups", al.wrapAdminAccessMiddleware(al.handlePostClientGroups)).Methods(http.MethodPost)
 	api.HandleFunc("/client-groups/{group_id}", al.wrapAdminAccessMiddleware(al.handlePutClientGroup)).Methods(http.MethodPut)
@@ -3349,4 +3354,118 @@ func (al *APIListener) handleListAuditLog(w http.ResponseWriter, req *http.Reque
 	}
 
 	al.writeJSONResponse(w, http.StatusOK, result)
+}
+
+func (al *APIListener) handleGetStoredTunnels(w http.ResponseWriter, req *http.Request) {
+	ctx := req.Context()
+	vars := mux.Vars(req)
+	clientID := vars[routeParamClientID]
+
+	client, err := al.clientService.GetByID(clientID)
+	if err != nil {
+		al.jsonError(w, err)
+		return
+	}
+	if client == nil {
+		al.jsonErrorResponseWithTitle(w, http.StatusNotFound, fmt.Sprintf("client with id %q not found", clientID))
+		return
+	}
+
+	options := query.GetListOptions(req)
+	result, err := al.storedTunnels.List(ctx, options, client.ID)
+	if err != nil {
+		al.jsonError(w, err)
+		return
+	}
+
+	al.writeJSONResponse(w, http.StatusOK, result)
+}
+
+func (al *APIListener) handlePostStoredTunnels(w http.ResponseWriter, req *http.Request) {
+	ctx := req.Context()
+	vars := mux.Vars(req)
+	clientID := vars[routeParamClientID]
+
+	client, err := al.clientService.GetByID(clientID)
+	if err != nil {
+		al.jsonError(w, err)
+		return
+	}
+	if client == nil {
+		al.jsonErrorResponseWithTitle(w, http.StatusNotFound, fmt.Sprintf("client with id %q not found", clientID))
+		return
+	}
+
+	storedTunnel := &storedtunnels.StoredTunnel{}
+	err = parseRequestBody(req.Body, storedTunnel)
+	if err != nil {
+		al.jsonError(w, err)
+		return
+	}
+
+	result, err := al.storedTunnels.Create(ctx, client.ID, storedTunnel)
+	if err != nil {
+		al.jsonError(w, err)
+		return
+	}
+
+	al.writeJSONResponse(w, http.StatusOK, api.NewSuccessPayload(result))
+}
+
+func (al *APIListener) handleDeleteStoredTunnel(w http.ResponseWriter, req *http.Request) {
+	ctx := req.Context()
+	vars := mux.Vars(req)
+	clientID := vars[routeParamClientID]
+	tunnelID := vars["tunnel_id"]
+
+	client, err := al.clientService.GetByID(clientID)
+	if err != nil {
+		al.jsonError(w, err)
+		return
+	}
+	if client == nil {
+		al.jsonErrorResponseWithTitle(w, http.StatusNotFound, fmt.Sprintf("client with id %q not found", clientID))
+		return
+	}
+
+	err = al.storedTunnels.Delete(ctx, client.ID, tunnelID)
+	if err != nil {
+		al.jsonError(w, err)
+		return
+	}
+
+	w.WriteHeader(http.StatusNoContent)
+}
+
+func (al *APIListener) handlePutStoredTunnel(w http.ResponseWriter, req *http.Request) {
+	ctx := req.Context()
+	vars := mux.Vars(req)
+	clientID := vars[routeParamClientID]
+	tunnelID := vars["tunnel_id"]
+
+	client, err := al.clientService.GetByID(clientID)
+	if err != nil {
+		al.jsonError(w, err)
+		return
+	}
+	if client == nil {
+		al.jsonErrorResponseWithTitle(w, http.StatusNotFound, fmt.Sprintf("client with id %q not found", clientID))
+		return
+	}
+
+	storedTunnel := &storedtunnels.StoredTunnel{}
+	err = parseRequestBody(req.Body, storedTunnel)
+	if err != nil {
+		al.jsonError(w, err)
+		return
+	}
+	storedTunnel.ID = tunnelID
+
+	result, err := al.storedTunnels.Update(ctx, client.ID, storedTunnel)
+	if err != nil {
+		al.jsonError(w, err)
+		return
+	}
+
+	al.writeJSONResponse(w, http.StatusOK, api.NewSuccessPayload(result))
 }
