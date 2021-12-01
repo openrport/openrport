@@ -11,9 +11,9 @@ import (
 	"strings"
 	"time"
 
+	"github.com/cloudradar-monitoring/rport/client/encoding"
 	"github.com/cloudradar-monitoring/rport/client/system"
 	chshare "github.com/cloudradar-monitoring/rport/share"
-
 	"github.com/cloudradar-monitoring/rport/share/comm"
 	"github.com/cloudradar-monitoring/rport/share/models"
 )
@@ -139,8 +139,8 @@ func (c *Client) HandleRunCmdRequest(ctx context.Context, reqPayload []byte) (*c
 		}
 
 		job.Result = &models.JobResult{
-			StdOut: stdOut.String(),
-			StdErr: stdErr.String(),
+			StdOut: toUTF8(c.Logger, stdOut.Bytes()),
+			StdErr: toUTF8(c.Logger, stdErr.Bytes()),
 		}
 
 		// send the filled job to the server
@@ -231,6 +231,17 @@ func (c *Client) isAllowed(cmd string) bool {
 	return false
 }
 
+func toUTF8(log *chshare.Logger, b []byte) string {
+	s, err := encoding.ToUTF8(log, b)
+	if err != nil {
+		// just log and return original
+		log.Infof("could not convert to UTF-8: %v", err)
+		return string(b)
+	}
+
+	return s
+}
+
 // matchRegexp returns true if a given command matches at least one of given regular expressions.
 func matchRegexp(cmd string, regexpList []*regexp.Regexp) bool {
 	for _, regx := range regexpList {
@@ -272,4 +283,8 @@ func (b *CapacityBuffer) Write(p []byte) (n int, err error) {
 
 func (b *CapacityBuffer) String() string {
 	return string(b.data)
+}
+
+func (b *CapacityBuffer) Bytes() []byte {
+	return b.data
 }
