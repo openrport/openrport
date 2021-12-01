@@ -57,6 +57,7 @@ type APIConfig struct {
 	AuditLog                auditlog.Config `mapstructure:",squash"`
 	TotPEnabled             bool            `mapstructure:"totp_enabled"`
 	TotPLoginSessionTimeout time.Duration   `mapstructure:"totp_login_session_ttl"`
+	TotPAccountName         string          `mapstructure:"totp_account_name"`
 }
 
 func (c *APIConfig) IsTwoFAOn() bool {

@@ -325,6 +325,7 @@ func init() {
 	viperCfg.SetDefault("api.audit_log_rotation", auditlog.RotationMonthly)
 	viperCfg.SetDefault("monitoring.data_storage_days", DefaultMonitoringDataStorageDays)
 	viperCfg.SetDefault("api.totp_login_session_ttl", time.Minute*10)
+	viperCfg.SetDefault("api.totp_account_name", "RPort")
 }
 
 func bindPFlags() {

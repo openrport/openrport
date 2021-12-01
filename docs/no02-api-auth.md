@@ -525,7 +525,7 @@ As a result you will get a secret key in text format and a qr code as a base64 e
 }
 ```
 The secret key will be stored in the users' database for the current user and can only be used with the combination with his login.
-Please note that you can generate a secret key only once when no other key was generated before. If you loose it, you have following options:
+Please note that you can generate a secret key only once when no other key was generated before. If you loose it, you have the following options:
 
 - if you have a working Administrator account, you can delete totP secret of any user including yourself
 - if you have database access, you can erase value of `totp_secret` column in the `users` table of the corresponding user e.g.:
@@ -545,7 +545,8 @@ If you want to find out, if a user has already a stored totp secret key, you can
 - open https://jwt.io/ and click on Debugger link (alternatively you may install a jwt command line tool)
 - paste your login token and look at the `scopes` field. If it has a uri value like `/api/v1/me/totp-secret`, that means that with this login token it is possible to generate a new totp secret key. If this value is missing, this user has already a totp secret generated.
 
-4. You can open `gr.png` image and scan it with your authenticator app. If everything works well, you will see one time passwords generated every 30 seconds.
+4. You can open `gr.png` image and scan it with your authenticator app. If everything works well, you will see one time passwords generated every 30 seconds. After activation you will see Rport account in your Authenticator app. You can change this name by chaning configuration key `totp_account_name` to a name of your choice.
+
 5. Now you can call `/verify-2fa` endpoint to pass second factor auth. For that you would need login token from the above as well as code from the previous paragraph.
 
 ```

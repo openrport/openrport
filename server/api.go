@@ -903,7 +903,7 @@ func (al *APIListener) handleDeleteUsersTotP(w http.ResponseWriter, req *http.Re
 		WithID(userID).
 		Save()
 
-	al.handleManageTotP(w, req, user, "delete", "")
+	al.handleManageTotP(w, req, user, "delete")
 }
 
 type ClientPayload struct {
@@ -1426,19 +1426,14 @@ func (al *APIListener) handleGetTotP(w http.ResponseWriter, req *http.Request) {
 }
 
 func (al *APIListener) handlePostTotP(w http.ResponseWriter, req *http.Request) {
-	issuer := req.URL.Query().Get("application-name")
-	if issuer == "" {
-		issuer = "rport"
-	}
-
-	al.handleManageCurUserTotP(w, req, "create", issuer)
+	al.handleManageCurUserTotP(w, req, "create")
 }
 
 func (al *APIListener) handleDeleteTotP(w http.ResponseWriter, req *http.Request) {
-	al.handleManageCurUserTotP(w, req, "delete", "")
+	al.handleManageCurUserTotP(w, req, "delete")
 }
 
-func (al *APIListener) handleManageCurUserTotP(w http.ResponseWriter, req *http.Request, action, iss string) {
+func (al *APIListener) handleManageCurUserTotP(w http.ResponseWriter, req *http.Request, action string) {
 	user, err := al.getUserModel(req.Context())
 	if err != nil {
 		al.jsonErrorResponse(w, http.StatusInternalServerError, err)
@@ -1449,10 +1444,10 @@ func (al *APIListener) handleManageCurUserTotP(w http.ResponseWriter, req *http.
 		al.jsonErrorResponseWithTitle(w, http.StatusNotFound, "user not found")
 		return
 	}
-	al.handleManageTotP(w, req, user, action, iss)
+	al.handleManageTotP(w, req, user, action)
 }
 
-func (al *APIListener) handleManageTotP(w http.ResponseWriter, req *http.Request, user *users.User, action, iss string) {
+func (al *APIListener) handleManageTotP(w http.ResponseWriter, req *http.Request, user *users.User, action string) {
 	totP := &TotP{}
 	if action == "create" {
 		existingTotP, err := GetUsersTotPCode(user)
@@ -1470,8 +1465,8 @@ func (al *APIListener) handleManageTotP(w http.ResponseWriter, req *http.Request
 		}
 
 		totP, err = GenerateTotPSecretKey(&TotPInput{
-			Issuer:      iss,
-			AccountName: user.Username,
+			Issuer:      user.Username,
+			AccountName: al.config.API.TotPAccountName,
 		})
 		if err != nil {
 			al.Logf(chshare.LogLevelError, "failed to generate TotP secret for user %s: %v", user.Username, err)
