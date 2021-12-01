@@ -13,6 +13,8 @@ import (
 
 	"golang.org/x/crypto/ssh"
 
+	"github.com/jmoiron/sqlx"
+
 	"github.com/cloudradar-monitoring/rport/server/api/errors"
 	"github.com/cloudradar-monitoring/rport/server/cgroups"
 	"github.com/cloudradar-monitoring/rport/server/clients"
@@ -106,11 +108,11 @@ func InitClientService(
 	ctx context.Context,
 	tunnelProxyConfig *clients.TunnelProxyConfig,
 	portDistributor *ports.PortDistributor,
-	provider clients.ClientProvider,
+	db *sqlx.DB,
 	keepLostClients *time.Duration,
 	logger *chshare.Logger,
 ) (*ClientService, error) {
-	repo, err := clients.InitClientRepository(ctx, provider, keepLostClients, logger)
+	repo, err := clients.InitClientRepository(ctx, db, keepLostClients, logger)
 	if err != nil {
 		return nil, fmt.Errorf("failed to init Client Repository: %v", err)
 	}
@@ -190,16 +192,16 @@ func (s *ClientService) StartClient(
 	defer s.mu.Unlock()
 
 	// if client id is in use, deny connection
-	oldClient, err := s.repo.GetByID(clientID)
+	client, err := s.repo.GetByID(clientID)
 	if err != nil {
 		return nil, fmt.Errorf("failed to get client by id %q", clientID)
 	}
-	if oldClient != nil {
-		if oldClient.DisconnectedAt == nil {
+	if client != nil {
+		if client.DisconnectedAt == nil {
 			return nil, fmt.Errorf("client id %q is already in use", clientID)
 		}
 
-		oldTunnels := GetTunnelsToReestablish(getRemotes(oldClient.Tunnels), req.Remotes)
+		oldTunnels := GetTunnelsToReestablish(getRemotes(client.Tunnels), req.Remotes)
 		clog.Infof("Tunnels to create %d: %v", len(req.Remotes), req.Remotes)
 		if len(oldTunnels) > 0 {
 			clog.Infof("Old tunnels to re-establish %d: %v", len(oldTunnels), oldTunnels)
@@ -218,40 +220,39 @@ func (s *ClientService) StartClient(
 		return nil, fmt.Errorf("failed to get host for address %q: %v", clientAddr, err)
 	}
 
-	client := &clients.Client{
-		ID:                     clientID,
-		Name:                   req.Name,
-		OS:                     req.OS,
-		OSArch:                 req.OSArch,
-		OSFamily:               req.OSFamily,
-		OSKernel:               req.OSKernel,
-		OSFullName:             req.OSFullName,
-		OSVersion:              req.OSVersion,
-		OSVirtualizationSystem: req.OSVirtualizationSystem,
-		OSVirtualizationRole:   req.OSVirtualizationRole,
-		Hostname:               req.Hostname,
-		CPUFamily:              req.CPUFamily,
-		CPUModel:               req.CPUModel,
-		CPUModelName:           req.CPUModelName,
-		CPUVendor:              req.CPUVendor,
-		NumCPUs:                req.NumCPUs,
-		MemoryTotal:            req.MemoryTotal,
-		Timezone:               req.Timezone,
-		IPv4:                   req.IPv4,
-		IPv6:                   req.IPv6,
-		Tags:                   req.Tags,
-		Version:                req.Version,
-		Address:                clientHost,
-		Tunnels:                make([]*clients.Tunnel, 0),
-		DisconnectedAt:         nil,
-		ClientAuthID:           clientAuthID,
-		Connection:             sshConn,
-		Context:                ctx,
-		Logger:                 clog,
+	if client == nil {
+		client = &clients.Client{
+			ID: clientID,
+		}
 	}
-	if oldClient != nil {
-		client.UpdatesStatus = oldClient.UpdatesStatus
-	}
+	client.Name = req.Name
+	client.OS = req.OS
+	client.OSArch = req.OSArch
+	client.OSFamily = req.OSFamily
+	client.OSKernel = req.OSKernel
+	client.OSFullName = req.OSFullName
+	client.OSVersion = req.OSVersion
+	client.OSVirtualizationSystem = req.OSVirtualizationSystem
+	client.OSVirtualizationRole = req.OSVirtualizationRole
+	client.Hostname = req.Hostname
+	client.CPUFamily = req.CPUFamily
+	client.CPUModel = req.CPUModel
+	client.CPUModelName = req.CPUModelName
+	client.CPUVendor = req.CPUVendor
+	client.NumCPUs = req.NumCPUs
+	client.MemoryTotal = req.MemoryTotal
+	client.Timezone = req.Timezone
+	client.IPv4 = req.IPv4
+	client.IPv6 = req.IPv6
+	client.Tags = req.Tags
+	client.Version = req.Version
+	client.Address = clientHost
+	client.Tunnels = make([]*clients.Tunnel, 0)
+	client.DisconnectedAt = nil
+	client.ClientAuthID = clientAuthID
+	client.Connection = sshConn
+	client.Context = ctx
+	client.Logger = clog
 
 	_, err = s.startClientTunnels(client, req.Remotes)
 	if err != nil {

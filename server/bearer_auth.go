@@ -96,7 +96,10 @@ func (al *APIListener) createAuthToken(
 }
 
 func (al *APIListener) increaseSessionLifetime(ctx context.Context, s *session.APISession) error {
-	s.ExpiresAt = time.Now().Add(defaultTokenLifetime)
+	newExpirationDate := time.Now().Add(defaultTokenLifetime)
+	if s.ExpiresAt.Before(newExpirationDate) {
+		s.ExpiresAt = newExpirationDate
+	}
 	return al.apiSessions.Save(ctx, s)
 }
 

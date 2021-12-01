@@ -11,8 +11,6 @@ import (
 
 	"github.com/jmoiron/sqlx"
 
-	"github.com/cloudradar-monitoring/rport/db/migration/clients"
-	"github.com/cloudradar-monitoring/rport/db/sqlite"
 	"github.com/cloudradar-monitoring/rport/share/models"
 )
 
@@ -26,15 +24,11 @@ type ClientProvider interface {
 
 type SqliteProvider struct {
 	db              *sqlx.DB
-	keepLostClients time.Duration
+	keepLostClients *time.Duration
 }
 
-func NewSqliteProvider(dbPath string, keepLostClients time.Duration) (*SqliteProvider, error) {
-	db, err := sqlite.New(dbPath, clients.AssetNames(), clients.Asset)
-	if err != nil {
-		return nil, fmt.Errorf("failed to create clients DB instance: %v", err)
-	}
-	return &SqliteProvider{db: db, keepLostClients: keepLostClients}, nil
+func newSqliteProvider(db *sqlx.DB, keepLostClients *time.Duration) *SqliteProvider {
+	return &SqliteProvider{db: db, keepLostClients: keepLostClients}
 }
 
 func (p *SqliteProvider) GetAll(ctx context.Context) ([]*Client, error) {
@@ -87,7 +81,11 @@ func (p *SqliteProvider) Delete(ctx context.Context, id string) error {
 }
 
 func (p *SqliteProvider) keepLostClientsStart() time.Time {
-	return now().Add(-p.keepLostClients)
+	t := now()
+	if p.keepLostClients != nil {
+		t = t.Add(-*p.keepLostClients)
+	}
+	return t
 }
 
 func convertToSqlite(v *Client) *clientSqlite {

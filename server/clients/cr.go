@@ -9,6 +9,8 @@ import (
 	"sync"
 	"time"
 
+	"github.com/jmoiron/sqlx"
+
 	chshare "github.com/cloudradar-monitoring/rport/share"
 	"github.com/cloudradar-monitoring/rport/share/query"
 )
@@ -50,10 +52,11 @@ func newClientRepositoryWithDB(initClients []*Client, keepLostClients *time.Dura
 
 func InitClientRepository(
 	ctx context.Context,
-	provider ClientProvider,
+	db *sqlx.DB,
 	keepLostClients *time.Duration,
 	logger *chshare.Logger,
 ) (*ClientRepository, error) {
+	provider := newSqliteProvider(db, keepLostClients)
 	initClients, err := GetInitState(ctx, provider)
 	if err != nil {
 		return nil, err

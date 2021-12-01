@@ -20,6 +20,7 @@ import (
 	"github.com/cloudradar-monitoring/rport/server/clients"
 	"github.com/cloudradar-monitoring/rport/server/ports"
 	chshare "github.com/cloudradar-monitoring/rport/share"
+	"github.com/cloudradar-monitoring/rport/share/models"
 	"github.com/cloudradar-monitoring/rport/share/test"
 )
 
@@ -96,6 +97,32 @@ func TestStartClient(t *testing.T) {
 			assert.Equal(t, tc.ExpectedError, err)
 		})
 	}
+}
+
+func TestStartClientDisconnected(t *testing.T) {
+	connMock := test.NewConnMock()
+	connMock.ReturnRemoteAddr = &net.TCPAddr{IP: net.IPv4(192, 0, 2, 1), Port: 2345}
+	now := time.Now()
+	cs := &ClientService{
+		repo: clients.NewClientRepository([]*clients.Client{{
+			ID:                "disconnected-client",
+			ClientAuthID:      "test-client-auth",
+			DisconnectedAt:    &now,
+			AllowedUserGroups: []string{"test-group"},
+			UpdatesStatus:     &models.UpdatesStatus{UpdatesAvailable: 13},
+		}}, nil, testLog),
+		portDistributor: ports.NewPortDistributor(mapset.NewThreadUnsafeSet()),
+	}
+	client, err := cs.StartClient(
+		context.Background(), "test-client-auth", "disconnected-client", connMock, false,
+		&chshare.ConnectionRequest{Name: "new-connection"}, testLog)
+	assert.NoError(t, err)
+
+	assert.Nil(t, client.DisconnectedAt)
+	assert.Equal(t, "disconnected-client", client.ID)
+	assert.Equal(t, "new-connection", client.Name)
+	assert.Equal(t, []string{"test-group"}, client.AllowedUserGroups)
+	assert.Equal(t, 13, client.UpdatesStatus.UpdatesAvailable)
 }
 
 func TestDeleteOfflineClient(t *testing.T) {
