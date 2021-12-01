@@ -9,7 +9,7 @@ import (
 	"sync"
 	"time"
 
-	chshare "github.com/cloudradar-monitoring/rport/share/logger"
+	"github.com/cloudradar-monitoring/rport/share/logger"
 	"github.com/cloudradar-monitoring/rport/share/query"
 
 	"github.com/cloudradar-monitoring/rport/share/enc"
@@ -66,10 +66,10 @@ type Manager struct {
 	pass      string
 	dbFactory DbProviderFactory
 	pm        PassManager
-	logger    *chshare.Logger
+	logger    *logger.Logger
 }
 
-func NewManager(dbFactory DbProviderFactory, pm PassManager, logger *chshare.Logger) *Manager {
+func NewManager(dbFactory DbProviderFactory, pm PassManager, logger *logger.Logger) *Manager {
 	return &Manager{
 		passLock:  sync.RWMutex{},
 		dbFactory: dbFactory,

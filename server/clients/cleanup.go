@@ -5,16 +5,16 @@ import (
 	"context"
 	"fmt"
 
-	chshare "github.com/cloudradar-monitoring/rport/share/logger"
+	"github.com/cloudradar-monitoring/rport/share/logger"
 )
 
 type CleanupTask struct {
-	log *chshare.Logger
+	log *logger.Logger
 	cr  *ClientRepository
 }
 
 // NewCleanupTask returns a task to cleanup Client Repository from obsolete clients.
-func NewCleanupTask(log *chshare.Logger, cr *ClientRepository) *CleanupTask {
+func NewCleanupTask(log *logger.Logger, cr *ClientRepository) *CleanupTask {
 	return &CleanupTask{
 		log: log,
 		cr:  cr,

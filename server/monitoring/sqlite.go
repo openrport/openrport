@@ -10,7 +10,7 @@ import (
 
 	monitoring "github.com/cloudradar-monitoring/rport/db/migration/monitoring"
 	"github.com/cloudradar-monitoring/rport/db/sqlite"
-	chshare "github.com/cloudradar-monitoring/rport/share/logger"
+	"github.com/cloudradar-monitoring/rport/share/logger"
 	"github.com/cloudradar-monitoring/rport/share/models"
 	"github.com/cloudradar-monitoring/rport/share/query"
 )
@@ -28,10 +28,10 @@ type DBProvider interface {
 
 type SqliteProvider struct {
 	db     *sqlx.DB
-	logger *chshare.Logger
+	logger *logger.Logger
 }
 
-func NewSqliteProvider(dbPath string, logger *chshare.Logger) (DBProvider, error) {
+func NewSqliteProvider(dbPath string, logger *logger.Logger) (DBProvider, error) {
 	db, err := sqlite.New(dbPath, monitoring.AssetNames(), monitoring.Asset)
 	if err != nil {
 		return nil, fmt.Errorf("failed to create monitoring DB instance: %v", err)

@@ -7,17 +7,17 @@ import (
 	"github.com/gorilla/websocket"
 
 	"github.com/cloudradar-monitoring/rport/server/api"
-	chshare "github.com/cloudradar-monitoring/rport/share/logger"
+	"github.com/cloudradar-monitoring/rport/share/logger"
 )
 
 type ConcurrentWebSocket struct {
 	*websocket.Conn
 	mu                sync.Mutex
-	log               *chshare.Logger
+	log               *logger.Logger
 	writesBeforeClose int
 }
 
-func NewConcurrentWebSocket(conn *websocket.Conn, log *chshare.Logger) *ConcurrentWebSocket {
+func NewConcurrentWebSocket(conn *websocket.Conn, log *logger.Logger) *ConcurrentWebSocket {
 	return &ConcurrentWebSocket{
 		Conn:              conn,
 		log:               log,

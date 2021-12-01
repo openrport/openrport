@@ -8,7 +8,7 @@ import (
 	"sync"
 	"time"
 
-	chshare "github.com/cloudradar-monitoring/rport/share/logger"
+	"github.com/cloudradar-monitoring/rport/share/logger"
 	"github.com/cloudradar-monitoring/rport/share/query"
 )
 
@@ -18,7 +18,7 @@ const (
 )
 
 type RotationProvider struct {
-	logger  *chshare.Logger
+	logger  *logger.Logger
 	period  time.Duration
 	ticker  *time.Ticker
 	dataDir string
@@ -27,7 +27,7 @@ type RotationProvider struct {
 	sqlite *SQLiteProvider
 }
 
-func newRotationProvider(l *chshare.Logger, period time.Duration, dataDir string) (*RotationProvider, error) {
+func newRotationProvider(l *logger.Logger, period time.Duration, dataDir string) (*RotationProvider, error) {
 	sqlite, err := newSQLiteProvider(dataDir)
 	if err != nil {
 		return nil, err

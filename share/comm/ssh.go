@@ -7,11 +7,11 @@ import (
 
 	"golang.org/x/crypto/ssh"
 
-	chshare "github.com/cloudradar-monitoring/rport/share/logger"
+	"github.com/cloudradar-monitoring/rport/share/logger"
 )
 
 // ReplyError sends a failure response with a given error message if not nil to a given request.
-func ReplyError(log *chshare.Logger, req *ssh.Request, err error) {
+func ReplyError(log *logger.Logger, req *ssh.Request, err error) {
 	var errMsg string
 	if err != nil {
 		errMsg = err.Error()
@@ -24,7 +24,7 @@ func ReplyError(log *chshare.Logger, req *ssh.Request, err error) {
 
 // ReplySuccessJSON sends a success response with a given value as JSON to a given request.
 // Response expected to be a value that can be encoded into JSON, otherwise - a failure will be replied.
-func ReplySuccessJSON(log *chshare.Logger, req *ssh.Request, resp interface{}) {
+func ReplySuccessJSON(log *logger.Logger, req *ssh.Request, resp interface{}) {
 	respBytes, err := json.Marshal(resp)
 	if err != nil {
 		log.Errorf("Failed to encode success response %T: %v", resp, err)

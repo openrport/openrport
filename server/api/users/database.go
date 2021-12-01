@@ -7,7 +7,7 @@ import (
 	"strings"
 
 	"github.com/cloudradar-monitoring/rport/share/enums"
-	chshare "github.com/cloudradar-monitoring/rport/share/logger"
+	"github.com/cloudradar-monitoring/rport/share/logger"
 
 	"github.com/jmoiron/sqlx"
 )
@@ -18,10 +18,10 @@ type UserDatabase struct {
 	groupsTableName string
 	twoFAOn         bool
 	hasTokenColumn  bool
-	logger          *chshare.Logger
+	logger          *logger.Logger
 }
 
-func NewUserDatabase(DB *sqlx.DB, usersTableName, groupsTableName string, twoFAOn bool, logger *chshare.Logger) (*UserDatabase, error) {
+func NewUserDatabase(DB *sqlx.DB, usersTableName, groupsTableName string, twoFAOn bool, logger *logger.Logger) (*UserDatabase, error) {
 	d := &UserDatabase{
 		db:              DB,
 		usersTableName:  usersTableName,

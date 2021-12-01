@@ -4,7 +4,7 @@ import (
 	"context"
 	"time"
 
-	chshare "github.com/cloudradar-monitoring/rport/share/logger"
+	"github.com/cloudradar-monitoring/rport/share/logger"
 )
 
 type Task interface {
@@ -12,7 +12,7 @@ type Task interface {
 }
 
 // Run runs the given task periodically with a given interval between executions.
-func Run(ctx context.Context, log *chshare.Logger, task Task, interval time.Duration) {
+func Run(ctx context.Context, log *logger.Logger, task Task, interval time.Duration) {
 	tick := time.NewTicker(interval)
 	defer tick.Stop()
 	for {

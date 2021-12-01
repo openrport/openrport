@@ -14,7 +14,7 @@ import (
 	"github.com/cloudradar-monitoring/rport/client/system"
 	"github.com/cloudradar-monitoring/rport/share/clientconfig"
 	"github.com/cloudradar-monitoring/rport/share/comm"
-	chshare "github.com/cloudradar-monitoring/rport/share/logger"
+	"github.com/cloudradar-monitoring/rport/share/logger"
 	"github.com/cloudradar-monitoring/rport/share/models"
 )
 
@@ -22,7 +22,7 @@ type Monitor struct {
 	mtx               sync.RWMutex
 	conn              ssh.Conn
 	stopFn            func()
-	logger            *chshare.Logger
+	logger            *logger.Logger
 	config            clientconfig.MonitoringConfig
 	measurement       *models.Measurement
 	systemInfo        system.SysInfo
@@ -30,7 +30,7 @@ type Monitor struct {
 	processHandler    *processes.ProcessHandler
 }
 
-func NewMonitor(logger *chshare.Logger, config clientconfig.MonitoringConfig, systemInfo system.SysInfo) *Monitor {
+func NewMonitor(logger *logger.Logger, config clientconfig.MonitoringConfig, systemInfo system.SysInfo) *Monitor {
 	fsWatcher := fs.NewWatcher(fs.FileSystemWatcherConfig{
 		TypeInclude:                 config.FSTypeInclude,
 		PathExclude:                 config.FSPathExclude,

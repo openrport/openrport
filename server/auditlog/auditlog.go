@@ -9,7 +9,7 @@ import (
 
 	"github.com/cloudradar-monitoring/rport/server/api"
 	"github.com/cloudradar-monitoring/rport/server/clients"
-	chshare "github.com/cloudradar-monitoring/rport/share/logger"
+	"github.com/cloudradar-monitoring/rport/share/logger"
 	"github.com/cloudradar-monitoring/rport/share/query"
 )
 
@@ -51,13 +51,13 @@ type Provider interface {
 }
 
 type AuditLog struct {
-	logger       *chshare.Logger
+	logger       *logger.Logger
 	clientGetter ClientGetter
 	provider     Provider
 	config       Config
 }
 
-func New(l *chshare.Logger, cg ClientGetter, dataDir string, cfg Config) (*AuditLog, error) {
+func New(l *logger.Logger, cg ClientGetter, dataDir string, cfg Config) (*AuditLog, error) {
 	a := &AuditLog{
 		logger:       l,
 		clientGetter: cg,

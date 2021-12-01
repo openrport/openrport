@@ -9,7 +9,7 @@ import (
 	"sync"
 	"time"
 
-	chshare "github.com/cloudradar-monitoring/rport/share/logger"
+	"github.com/cloudradar-monitoring/rport/share/logger"
 	"github.com/cloudradar-monitoring/rport/share/query"
 )
 
@@ -20,7 +20,7 @@ type ClientRepository struct {
 	KeepLostClients *time.Duration
 	// storage
 	provider ClientProvider
-	logger   *chshare.Logger
+	logger   *logger.Logger
 }
 
 type User interface {
@@ -31,11 +31,11 @@ type User interface {
 // NewClientRepository returns a new thread-safe in-memory cache to store client connections populated with given clients if any.
 // keepLostClients is a duration to keep disconnected clients. If a client was disconnected longer than a given
 // duration it will be treated as obsolete.
-func NewClientRepository(initClients []*Client, keepLostClients *time.Duration, logger *chshare.Logger) *ClientRepository {
+func NewClientRepository(initClients []*Client, keepLostClients *time.Duration, logger *logger.Logger) *ClientRepository {
 	return newClientRepositoryWithDB(initClients, keepLostClients, nil, logger)
 }
 
-func newClientRepositoryWithDB(initClients []*Client, keepLostClients *time.Duration, provider ClientProvider, logger *chshare.Logger) *ClientRepository {
+func newClientRepositoryWithDB(initClients []*Client, keepLostClients *time.Duration, provider ClientProvider, logger *logger.Logger) *ClientRepository {
 	clients := make(map[string]*Client)
 	for i := range initClients {
 		clients[initClients[i].ID] = initClients[i]
@@ -52,7 +52,7 @@ func InitClientRepository(
 	ctx context.Context,
 	provider ClientProvider,
 	keepLostClients *time.Duration,
-	logger *chshare.Logger,
+	logger *logger.Logger,
 ) (*ClientRepository, error) {
 	initClients, err := GetInitState(ctx, provider)
 	if err != nil {

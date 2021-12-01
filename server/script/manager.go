@@ -7,7 +7,7 @@ import (
 	"net/http"
 	"time"
 
-	chshare "github.com/cloudradar-monitoring/rport/share/logger"
+	"github.com/cloudradar-monitoring/rport/share/logger"
 	"github.com/cloudradar-monitoring/rport/share/query"
 
 	errors2 "github.com/cloudradar-monitoring/rport/server/api/errors"
@@ -43,10 +43,10 @@ type DbProvider interface {
 
 type Manager struct {
 	db     DbProvider
-	logger *chshare.Logger
+	logger *logger.Logger
 }
 
-func NewManager(db DbProvider, logger *chshare.Logger) *Manager {
+func NewManager(db DbProvider, logger *logger.Logger) *Manager {
 	return &Manager{
 		db:     db,
 		logger: logger,

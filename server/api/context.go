@@ -3,7 +3,7 @@ package api
 import (
 	"context"
 
-	chshare "github.com/cloudradar-monitoring/rport/share/logger"
+	"github.com/cloudradar-monitoring/rport/share/logger"
 )
 
 type userCtxKeyType string
@@ -16,7 +16,7 @@ func WithUser(ctx context.Context, username string) context.Context {
 }
 
 // GetUser returns a username from a given context.
-func GetUser(ctx context.Context, log *chshare.Logger) string {
+func GetUser(ctx context.Context, log *logger.Logger) string {
 	userValue := ctx.Value(userCtxKey)
 	user, ok := userValue.(string)
 	if !ok {
