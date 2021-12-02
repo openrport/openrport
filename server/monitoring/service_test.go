@@ -7,8 +7,27 @@ import (
 
 	"github.com/stretchr/testify/require"
 
+	"github.com/cloudradar-monitoring/rport/share/models"
 	"github.com/cloudradar-monitoring/rport/share/query"
 )
+
+func TestMonitoringService_SaveMeasurement(t *testing.T) {
+	dbProvider, err := NewSqliteProvider(":memory:", testLog)
+	require.NoError(t, err)
+	defer dbProvider.Close()
+
+	service := NewService(dbProvider)
+	minGap := time.Second
+	mClient := time.Now().UTC().Add(-minGap)
+	m := &models.Measurement{
+		ClientID:  "test1",
+		Timestamp: mClient,
+	}
+	err = service.SaveMeasurement(context.Background(), m)
+	require.NoError(t, err)
+	gap := m.Timestamp.Sub(mClient)
+	require.True(t, gap >= minGap, "monitoring.service must set timestamp")
+}
 
 func TestMonitoringService_ListClientMetrics(t *testing.T) {
 	dbProvider, err := NewSqliteProvider(":memory:", testLog)
