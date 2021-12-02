@@ -11,7 +11,7 @@ import (
 	"net/url"
 	"time"
 
-	chshare "github.com/cloudradar-monitoring/rport/share"
+	"github.com/cloudradar-monitoring/rport/share/logger"
 )
 
 type TunnelProxyConfig struct {
@@ -41,7 +41,7 @@ func (c *TunnelProxyConfig) ParseAndValidate() error {
 
 type TunnelProxy struct {
 	Tunnel      *Tunnel
-	Logger      *chshare.Logger
+	Logger      *logger.Logger
 	Config      *TunnelProxyConfig
 	Host        string
 	Port        string
@@ -49,7 +49,7 @@ type TunnelProxy struct {
 	proxyServer *http.Server
 }
 
-func NewTunnelProxy(tunnel *Tunnel, logger *chshare.Logger, config *TunnelProxyConfig, host string, port string, acl *TunnelACL) *TunnelProxy {
+func NewTunnelProxy(tunnel *Tunnel, logger *logger.Logger, config *TunnelProxyConfig, host string, port string, acl *TunnelACL) *TunnelProxy {
 	tp := &TunnelProxy{
 		Tunnel: tunnel,
 		Config: config,

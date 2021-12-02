@@ -14,6 +14,8 @@ import (
 
 	"github.com/jpillora/sizestr"
 	"golang.org/x/crypto/ssh"
+
+	"github.com/cloudradar-monitoring/rport/share/logger"
 )
 
 func GenerateKey(seed string) ([]byte, error) {
@@ -43,7 +45,7 @@ func FingerprintKey(k ssh.PublicKey) string {
 	return strings.Join(strbytes, ":")
 }
 
-func HandleTCPStream(l *Logger, connStats *ConnStats, src io.ReadWriteCloser, remote string) {
+func HandleTCPStream(l *logger.Logger, connStats *ConnStats, src io.ReadWriteCloser, remote string) {
 	dst, err := net.Dial("tcp", remote)
 	if err != nil {
 		l.Debugf("Remote failed (%s)", err)

@@ -5,7 +5,7 @@ import (
 	"fmt"
 	"strings"
 
-	chshare "github.com/cloudradar-monitoring/rport/share"
+	"github.com/cloudradar-monitoring/rport/share/logger"
 	"github.com/cloudradar-monitoring/rport/share/models"
 )
 
@@ -33,7 +33,7 @@ func (p *YumPackageManager) IsAvailable(ctx context.Context) bool {
 	return false
 }
 
-func (p *YumPackageManager) GetUpdatesStatus(ctx context.Context, logger *chshare.Logger) (*models.UpdatesStatus, error) {
+func (p *YumPackageManager) GetUpdatesStatus(ctx context.Context, logger *logger.Logger) (*models.UpdatesStatus, error) {
 	allUpdates, err := p.listUpdates(ctx, "--refresh")
 	if err != nil {
 		return nil, err

@@ -11,6 +11,7 @@ import (
 
 	"github.com/jmoiron/sqlx"
 
+	chshare "github.com/cloudradar-monitoring/rport/share/clientconfig"
 	"github.com/cloudradar-monitoring/rport/share/models"
 )
 
@@ -121,6 +122,7 @@ func convertToSqlite(v *Client) *clientSqlite {
 			Tunnels:                v.Tunnels,
 			AllowedUserGroups:      v.AllowedUserGroups,
 			UpdatesStatus:          v.UpdatesStatus,
+			ClientConfig:           v.ClientConfiguration,
 		},
 	}
 	if v.DisconnectedAt != nil {
@@ -162,6 +164,7 @@ type clientDetails struct {
 	Tunnels                []*Tunnel             `json:"tunnels"`
 	AllowedUserGroups      []string              `json:"allowed_user_groups"`
 	UpdatesStatus          *models.UpdatesStatus `json:"updates_status"`
+	ClientConfig           *chshare.Config       `json:"client_configuration"`
 }
 
 func (d *clientDetails) Scan(value interface{}) error {
@@ -220,6 +223,7 @@ func (s *clientSqlite) convert() *Client {
 		Timezone:               d.Timezone,
 		AllowedUserGroups:      d.AllowedUserGroups,
 		UpdatesStatus:          d.UpdatesStatus,
+		ClientConfiguration:    d.ClientConfig,
 	}
 	if s.DisconnectedAt.Valid {
 		res.DisconnectedAt = &s.DisconnectedAt.Time

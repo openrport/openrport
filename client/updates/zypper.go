@@ -5,7 +5,7 @@ import (
 	"fmt"
 	"strings"
 
-	chshare "github.com/cloudradar-monitoring/rport/share"
+	"github.com/cloudradar-monitoring/rport/share/logger"
 	"github.com/cloudradar-monitoring/rport/share/models"
 )
 
@@ -38,7 +38,7 @@ func (p *ZypperPackageManager) IsAvailable(ctx context.Context) bool {
 	return err == nil
 }
 
-func (p *ZypperPackageManager) GetUpdatesStatus(ctx context.Context, logger *chshare.Logger) (*models.UpdatesStatus, error) {
+func (p *ZypperPackageManager) GetUpdatesStatus(ctx context.Context, logger *logger.Logger) (*models.UpdatesStatus, error) {
 	err := p.updatePackageCache(ctx)
 	if err != nil {
 		return nil, err

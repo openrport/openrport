@@ -8,14 +8,14 @@ import (
 	"net/http"
 	"time"
 
+	"github.com/cloudradar-monitoring/rport/share/logger"
 	"github.com/cloudradar-monitoring/rport/share/query"
 
 	errors2 "github.com/cloudradar-monitoring/rport/server/api/errors"
 
-	"github.com/cloudradar-monitoring/rport/db/migration/vaults"
-	chshare "github.com/cloudradar-monitoring/rport/share"
-
 	"github.com/jmoiron/sqlx"
+
+	"github.com/cloudradar-monitoring/rport/db/migration/vaults"
 
 	"github.com/cloudradar-monitoring/rport/db/sqlite"
 )
@@ -27,10 +27,10 @@ var ErrDatabaseNotInitialised = errors2.APIError{
 
 type SqliteProvider struct {
 	db     *sqlx.DB
-	logger *chshare.Logger
+	logger *logger.Logger
 }
 
-func NewSqliteProvider(c Config, logger *chshare.Logger) (*SqliteProvider, error) {
+func NewSqliteProvider(c Config, logger *logger.Logger) (*SqliteProvider, error) {
 	dbPath := c.GetVaultDBPath()
 
 	db, err := sqlite.New(dbPath, vaults.AssetNames(), vaults.Asset)

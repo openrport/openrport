@@ -6,8 +6,8 @@ import (
 	"sync"
 
 	errors2 "github.com/cloudradar-monitoring/rport/server/api/errors"
-	chshare "github.com/cloudradar-monitoring/rport/share"
 	"github.com/cloudradar-monitoring/rport/share/enums"
+	"github.com/cloudradar-monitoring/rport/share/logger"
 )
 
 type FileProvider interface {
@@ -17,13 +17,13 @@ type FileProvider interface {
 
 type FileAdapter struct {
 	*UserCache
-	*chshare.Logger
+	*logger.Logger
 
 	mtx          sync.Mutex
 	FileProvider FileProvider
 }
 
-func NewFileAdapter(logger *chshare.Logger, fileProvider FileProvider) (*FileAdapter, error) {
+func NewFileAdapter(logger *logger.Logger, fileProvider FileProvider) (*FileAdapter, error) {
 	fa := &FileAdapter{
 		UserCache:    NewUserCache(nil),
 		Logger:       logger,

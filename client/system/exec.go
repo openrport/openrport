@@ -4,7 +4,7 @@ import (
 	"context"
 	"os/exec"
 
-	chshare "github.com/cloudradar-monitoring/rport/share"
+	"github.com/cloudradar-monitoring/rport/share/logger"
 )
 
 type CmdExecutorContext struct {
@@ -22,10 +22,10 @@ type CmdExecutor interface {
 }
 
 type CmdExecutorImpl struct {
-	*chshare.Logger
+	*logger.Logger
 }
 
-func NewCmdExecutor(l *chshare.Logger) *CmdExecutorImpl {
+func NewCmdExecutor(l *logger.Logger) *CmdExecutorImpl {
 	return &CmdExecutorImpl{
 		Logger: l,
 	}

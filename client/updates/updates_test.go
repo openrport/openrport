@@ -11,8 +11,9 @@ import (
 	"github.com/stretchr/testify/require"
 	"golang.org/x/crypto/ssh"
 
-	chshare "github.com/cloudradar-monitoring/rport/share"
 	"github.com/cloudradar-monitoring/rport/share/comm"
+	"github.com/cloudradar-monitoring/rport/share/logger"
+	chshare "github.com/cloudradar-monitoring/rport/share/logger"
 	"github.com/cloudradar-monitoring/rport/share/models"
 )
 
@@ -26,7 +27,7 @@ func (pm *mockPackageManager) IsAvailable(context.Context) bool {
 	return pm.isAvailable
 }
 
-func (pm *mockPackageManager) GetUpdatesStatus(context.Context, *chshare.Logger) (*models.UpdatesStatus, error) {
+func (pm *mockPackageManager) GetUpdatesStatus(context.Context, *logger.Logger) (*models.UpdatesStatus, error) {
 	newStatus := &models.UpdatesStatus{}
 	if pm.status != nil {
 		*newStatus = *pm.status

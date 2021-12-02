@@ -13,13 +13,15 @@ import (
 	"golang.org/x/crypto/ssh"
 
 	chshare "github.com/cloudradar-monitoring/rport/share"
+	"github.com/cloudradar-monitoring/rport/share/logger"
+	"github.com/cloudradar-monitoring/rport/share/models"
 )
 
 // TODO(m-terel): Refactor to use separate models for representation and business logic.
 // Tunnel represents active remote proxy connection
 type Tunnel struct {
-	chshare.Remote
-	*chshare.Logger `json:"-"`
+	models.Remote
+	*logger.Logger `json:"-"`
 
 	ID string `json:"id"`
 
@@ -33,7 +35,7 @@ type Tunnel struct {
 	Proxy                     *TunnelProxy   `json:"-"`
 }
 
-func NewTunnel(logger *chshare.Logger, ssh ssh.Conn, id string, remote *chshare.Remote, acl *TunnelACL) *Tunnel {
+func NewTunnel(logger *logger.Logger, ssh ssh.Conn, id string, remote *models.Remote, acl *TunnelACL) *Tunnel {
 	return &Tunnel{
 		Logger:  logger.Fork("tunnel#%s:%s", id, remote),
 		Remote:  *remote,

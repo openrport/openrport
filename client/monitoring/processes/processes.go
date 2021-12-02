@@ -6,19 +6,19 @@ import (
 
 	"github.com/shirou/gopsutil/mem"
 
-	"github.com/cloudradar-monitoring/rport/client/monitoring/config"
 	"github.com/cloudradar-monitoring/rport/client/monitoring/docker"
-	chshare "github.com/cloudradar-monitoring/rport/share"
+	"github.com/cloudradar-monitoring/rport/share/clientconfig"
+	"github.com/cloudradar-monitoring/rport/share/logger"
 )
 
 type ProcessHandler struct {
-	config        config.MonitoringConfig
-	logger        *chshare.Logger
+	config        clientconfig.MonitoringConfig
+	logger        *logger.Logger
 	dockerHandler *docker.Handler
 	processCache  *ProcessCache
 }
 
-func NewProcessHandler(config config.MonitoringConfig, logger *chshare.Logger, dockerHandler *docker.Handler) *ProcessHandler {
+func NewProcessHandler(config clientconfig.MonitoringConfig, logger *logger.Logger, dockerHandler *docker.Handler) *ProcessHandler {
 	return &ProcessHandler{config: config, logger: logger, dockerHandler: dockerHandler, processCache: NewProcessCache()}
 }
 
@@ -55,7 +55,7 @@ func (ph *ProcessHandler) GetProcessesJSON(memStat *mem.VirtualMemoryStat) (stri
 	return toJSON(filterProcs(procs, &ph.config)), nil
 }
 
-func filterProcs(procs []*ProcStat, cfg *config.MonitoringConfig) []*ProcStat {
+func filterProcs(procs []*ProcStat, cfg *clientconfig.MonitoringConfig) []*ProcStat {
 	// sort by PID descending:
 	sort.Slice(procs, func(i, j int) bool {
 		return procs[i].PID > procs[j].PID

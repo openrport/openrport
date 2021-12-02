@@ -26,6 +26,7 @@ import (
 	"github.com/cloudradar-monitoring/rport/server/ports"
 	chshare "github.com/cloudradar-monitoring/rport/share"
 	"github.com/cloudradar-monitoring/rport/share/email"
+	"github.com/cloudradar-monitoring/rport/share/logger"
 )
 
 type APIConfig struct {
@@ -89,8 +90,8 @@ const (
 )
 
 type LogConfig struct {
-	LogOutput chshare.LogOutput `mapstructure:"log_file"`
-	LogLevel  chshare.LogLevel  `mapstructure:"log_level"`
+	LogOutput logger.LogOutput `mapstructure:"log_file"`
+	LogLevel  logger.LogLevel  `mapstructure:"log_level"`
 }
 
 type ServerConfig struct {
@@ -244,7 +245,7 @@ func (c *Config) InitRequestLogOptions() *requestlog.Options {
 	o := requestlog.DefaultOptions
 	o.Writer = c.Logging.LogOutput.File
 	o.Filter = func(r *http.Request, code int, duration time.Duration, size int64) bool {
-		return c.Logging.LogLevel == chshare.LogLevelInfo || c.Logging.LogLevel == chshare.LogLevelDebug
+		return c.Logging.LogLevel == logger.LogLevelInfo || c.Logging.LogLevel == logger.LogLevelDebug
 	}
 	return &o
 }

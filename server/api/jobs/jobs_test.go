@@ -10,7 +10,7 @@ import (
 	"github.com/stretchr/testify/require"
 
 	"github.com/cloudradar-monitoring/rport/server/test/jb"
-	chshare "github.com/cloudradar-monitoring/rport/share"
+	chshare "github.com/cloudradar-monitoring/rport/share/logger"
 	"github.com/cloudradar-monitoring/rport/share/models"
 )
 

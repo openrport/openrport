@@ -12,8 +12,8 @@ import (
 	"github.com/spf13/viper"
 
 	chclient "github.com/cloudradar-monitoring/rport/client"
-	monitoringconfig "github.com/cloudradar-monitoring/rport/client/monitoring/config"
 	chshare "github.com/cloudradar-monitoring/rport/share"
+	"github.com/cloudradar-monitoring/rport/share/clientconfig"
 )
 
 var clientHelp = `
@@ -176,7 +176,7 @@ var (
 
 	cfgPath  *string
 	viperCfg *viper.Viper
-	config   = &chclient.Config{}
+	config   = &chclient.ClientConfigHolder{Config: &clientconfig.Config{}}
 
 	svcCommand *string
 	svcUser    *string
@@ -249,7 +249,7 @@ func init() {
 	viperCfg.SetDefault("client.updates_interval", 4*time.Hour)
 	viperCfg.SetDefault("client.data_dir", chclient.DefaultDataDir)
 	viperCfg.SetDefault("monitoring.enabled", true)
-	viperCfg.SetDefault("monitoring.interval", monitoringconfig.DefaultMonitoringInterval)
+	viperCfg.SetDefault("monitoring.interval", chclient.DefaultMonitoringInterval)
 	viperCfg.SetDefault("monitoring.fs_type_include", []string{"ext3", "ext4", "xfs", "jfs", "ntfs", "btrfs", "hfs", "apfs", "exfat", "smbfs", "nfs"})
 	viperCfg.SetDefault("monitoring.fs_identify_mountpoints_by_device", true)
 	viperCfg.SetDefault("monitoring.pm_enabled", true)
@@ -311,7 +311,7 @@ func decodeConfig(args []string) error {
 		viperCfg.SetConfigName("rport.conf")
 	}
 
-	if err := chshare.DecodeViperConfig(viperCfg, config); err != nil {
+	if err := chshare.DecodeViperConfig(viperCfg, config.Config); err != nil {
 		return err
 	}
 

@@ -24,14 +24,15 @@ import (
 	"github.com/cloudradar-monitoring/rport/client/updates"
 	chshare "github.com/cloudradar-monitoring/rport/share"
 	"github.com/cloudradar-monitoring/rport/share/comm"
+	"github.com/cloudradar-monitoring/rport/share/logger"
 	"github.com/cloudradar-monitoring/rport/share/models"
 )
 
 //Client represents a client instance
 type Client struct {
-	*chshare.Logger
+	*logger.Logger
 
-	config             *Config
+	configHolder       *ClientConfigHolder
 	sshConfig          *ssh.ClientConfig
 	sshConn            ssh.Conn
 	running            bool
@@ -48,24 +49,24 @@ type Client struct {
 }
 
 //NewClient creates a new client instance
-func NewClient(config *Config) *Client {
-	cmdExec := system.NewCmdExecutor(chshare.NewLogger("cmd executor", config.Logging.LogOutput, config.Logging.LogLevel))
-	logger := chshare.NewLogger("client", config.Logging.LogOutput, config.Logging.LogLevel)
+func NewClient(config *ClientConfigHolder) *Client {
+	cmdExec := system.NewCmdExecutor(logger.NewLogger("cmd executor", config.Logging.LogOutput, config.Logging.LogLevel))
+	logger := logger.NewLogger("client", config.Logging.LogOutput, config.Logging.LogLevel)
 	systemInfo := system.NewSystemInfo(cmdExec)
 	client := &Client{
-		Logger:     logger,
-		config:     config,
-		running:    true,
-		runningc:   make(chan error, 1),
-		cmdExec:    cmdExec,
-		systemInfo: systemInfo,
-		updates:    updates.New(logger, config.Client.UpdatesInterval),
-		monitor:    monitoring.NewMonitor(logger, config.Monitoring, systemInfo),
+		Logger:       logger,
+		configHolder: config,
+		running:      true,
+		runningc:     make(chan error, 1),
+		cmdExec:      cmdExec,
+		systemInfo:   systemInfo,
+		updates:      updates.New(logger, config.Client.UpdatesInterval),
+		monitor:      monitoring.NewMonitor(logger, config.Monitoring, systemInfo),
 	}
 
 	client.sshConfig = &ssh.ClientConfig{
-		User:            config.Client.authUser,
-		Auth:            []ssh.AuthMethod{ssh.Password(config.Client.authPass)},
+		User:            config.Client.AuthUser,
+		Auth:            []ssh.AuthMethod{ssh.Password(config.Client.AuthPass)},
 		ClientVersion:   "SSH-" + chshare.ProtocolVersion + "-client",
 		HostKeyCallback: client.verifyServer,
 		Timeout:         30 * time.Second,
@@ -86,7 +87,7 @@ func (c *Client) Run() error {
 
 func (c *Client) verifyServer(hostname string, remote net.Addr, key ssh.PublicKey) error {
 	got := chshare.FingerprintKey(key)
-	if c.config.Client.Fingerprint != "" && !strings.HasPrefix(got, c.config.Client.Fingerprint) {
+	if c.configHolder.Client.Fingerprint != "" && !strings.HasPrefix(got, c.configHolder.Client.Fingerprint) {
 		return fmt.Errorf("Invalid fingerprint (%s)", got)
 	}
 	//overwrite with complete fingerprint
@@ -98,7 +99,7 @@ func (c *Client) verifyServer(hostname string, remote net.Addr, key ssh.PublicKe
 func (c *Client) Start(ctx context.Context) error {
 
 	//optional keepalive loop
-	if c.config.Connection.KeepAlive > 0 {
+	if c.configHolder.Connection.KeepAlive > 0 {
 		go c.keepAliveLoop()
 	}
 	//connection loop
@@ -111,7 +112,7 @@ func (c *Client) Start(ctx context.Context) error {
 
 func (c *Client) keepAliveLoop() {
 	for c.running {
-		time.Sleep(c.config.Connection.KeepAlive)
+		time.Sleep(c.configHolder.Connection.KeepAlive)
 		if c.sshConn != nil {
 			_, _, _ = c.sshConn.SendRequest(comm.RequestTypePing, true, nil)
 		}
@@ -122,14 +123,14 @@ func (c *Client) connectionLoop(ctx context.Context) {
 	//connection loop!
 	var connerr error
 	switchbackChan := make(chan *sshClientConn, 1)
-	b := &backoff.Backoff{Max: c.config.Connection.MaxRetryInterval}
+	b := &backoff.Backoff{Max: c.configHolder.Connection.MaxRetryInterval}
 	for c.running {
 		if connerr != nil {
 			attempt := int(b.Attempt())
 			d := b.Duration()
 			c.showConnectionError(connerr, attempt)
 			//give up?
-			if c.config.Connection.MaxRetryCount >= 0 && attempt >= c.config.Connection.MaxRetryCount {
+			if c.configHolder.Connection.MaxRetryCount >= 0 && attempt >= c.configHolder.Connection.MaxRetryCount {
 				break
 			}
 			c.Errorf("Retrying in %s...", d)
@@ -162,8 +163,8 @@ func (c *Client) connectionLoop(ctx context.Context) {
 					select {
 					case <-switchbackCtx.Done():
 						return
-					case <-time.After(c.config.Client.ServerSwitchbackInterval):
-						switchbackConn, err := c.connect(c.config.Client.Server)
+					case <-time.After(c.configHolder.Client.ServerSwitchbackInterval):
+						switchbackConn, err := c.connect(c.configHolder.Client.Server)
 						if err != nil {
 							c.Errorf("Switchback failed: %v", err.Error())
 							continue
@@ -222,7 +223,7 @@ type sshClientConn struct {
 }
 
 func (c *Client) connectToMainOrFallback() (conn *sshClientConn, isPrimary bool, err error) {
-	servers := append([]string{c.config.Client.Server}, c.config.Client.FallbackServers...)
+	servers := append([]string{c.configHolder.Client.Server}, c.configHolder.Client.FallbackServers...)
 	for i, server := range servers {
 		conn, err = c.connect(server)
 		if err != nil {
@@ -239,8 +240,8 @@ func (c *Client) connectToMainOrFallback() (conn *sshClientConn, isPrimary bool,
 
 func (c *Client) connect(server string) (*sshClientConn, error) {
 	via := ""
-	if c.config.Client.proxyURL != nil {
-		via = " via " + c.config.Client.proxyURL.String()
+	if c.configHolder.Client.ProxyURL != nil {
+		via = " via " + c.configHolder.Client.ProxyURL.String()
 	}
 	c.Infof("Connecting to %s%s\n", server, via)
 
@@ -251,23 +252,23 @@ func (c *Client) connect(server string) (*sshClientConn, error) {
 		Subprotocols:     []string{chshare.ProtocolVersion},
 	}
 	//optionally proxy
-	if c.config.Client.proxyURL != nil {
-		if strings.HasPrefix(c.config.Client.proxyURL.Scheme, "socks") {
+	if c.configHolder.Client.ProxyURL != nil {
+		if strings.HasPrefix(c.configHolder.Client.ProxyURL.Scheme, "socks") {
 			// SOCKS5 proxy
-			if c.config.Client.proxyURL.Scheme != "socks" && c.config.Client.proxyURL.Scheme != "socks5h" {
+			if c.configHolder.Client.ProxyURL.Scheme != "socks" && c.configHolder.Client.ProxyURL.Scheme != "socks5h" {
 				return nil, fmt.Errorf(
 					"unsupported socks proxy type: %s:// (only socks5h:// or socks:// is supported)",
-					c.config.Client.proxyURL.Scheme)
+					c.configHolder.Client.ProxyURL.Scheme)
 			}
 			var auth *proxy.Auth
-			if c.config.Client.proxyURL.User != nil {
-				pass, _ := c.config.Client.proxyURL.User.Password()
+			if c.configHolder.Client.ProxyURL.User != nil {
+				pass, _ := c.configHolder.Client.ProxyURL.User.Password()
 				auth = &proxy.Auth{
-					User:     c.config.Client.proxyURL.User.Username(),
+					User:     c.configHolder.Client.ProxyURL.User.Username(),
 					Password: pass,
 				}
 			}
-			socksDialer, err := proxy.SOCKS5("tcp", c.config.Client.proxyURL.Host, auth, proxy.Direct)
+			socksDialer, err := proxy.SOCKS5("tcp", c.configHolder.Client.ProxyURL.Host, auth, proxy.Direct)
 			if err != nil {
 				return nil, retryableError(err)
 			}
@@ -275,11 +276,11 @@ func (c *Client) connect(server string) (*sshClientConn, error) {
 		} else {
 			// CONNECT proxy
 			d.Proxy = func(*http.Request) (*url.URL, error) {
-				return c.config.Client.proxyURL, nil
+				return c.configHolder.Client.ProxyURL, nil
 			}
 		}
 	}
-	wsConn, _, err := d.Dial(server, c.config.Connection.Headers())
+	wsConn, _, err := d.Dial(server, c.configHolder.Connection.HTTPHeaders)
 	if err != nil {
 		return nil, retryableError(err)
 	}
@@ -326,7 +327,7 @@ func (c *Client) sendConnectionRequest(ctx context.Context, sshConn ssh.Conn) er
 
 		return errors.New(msg)
 	}
-	var remotes []*chshare.Remote
+	var remotes []*models.Remote
 	err = json.Unmarshal(respBytes, &remotes)
 	if err != nil {
 		return fmt.Errorf("can't decode reply payload: %s", err)
@@ -406,7 +407,7 @@ func checkPort(payload []byte) (*comm.CheckPortResponse, error) {
 }
 
 func (c *Client) showConnectionError(connerr error, attempt int) {
-	maxAttempt := c.config.Connection.MaxRetryCount
+	maxAttempt := c.configHolder.Connection.MaxRetryCount
 	//show error and attempt counts
 	msg := fmt.Sprintf("Connection error: %s", connerr)
 	if attempt > 0 {
@@ -494,10 +495,10 @@ func (c *Client) connectionRequest(ctx context.Context) *chshare.ConnectionReque
 	defer cancel()
 
 	connReq := &chshare.ConnectionRequest{
-		ID:                     c.config.Client.ID,
-		Name:                   c.config.Client.Name,
-		Tags:                   c.config.Client.Tags,
-		Remotes:                c.config.Client.remotes,
+		ID:                     c.configHolder.Client.ID,
+		Name:                   c.configHolder.Client.Name,
+		Tags:                   c.configHolder.Client.Tags,
+		Remotes:                c.configHolder.Client.Tunnels,
 		OS:                     system.UnknownValue,
 		OSArch:                 c.systemInfo.GoArch(),
 		OSKernel:               system.UnknownValue,
@@ -511,6 +512,7 @@ func (c *Client) connectionRequest(ctx context.Context) *chshare.ConnectionReque
 		CPUModel:               system.UnknownValue,
 		CPUModelName:           system.UnknownValue,
 		CPUVendor:              system.UnknownValue,
+		ClientConfiguration:    c.configHolder.Config,
 	}
 
 	info, err := c.systemInfo.HostInfo(ctx)

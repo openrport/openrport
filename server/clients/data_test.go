@@ -10,7 +10,8 @@ import (
 
 	"github.com/cloudradar-monitoring/rport/db/migration/clients"
 	"github.com/cloudradar-monitoring/rport/db/sqlite"
-	chshare "github.com/cloudradar-monitoring/rport/share"
+	"github.com/cloudradar-monitoring/rport/share/logger"
+	"github.com/cloudradar-monitoring/rport/share/models"
 )
 
 var (
@@ -20,7 +21,7 @@ var (
 	c2DisconnectedTime, _ = time.Parse(time.RFC3339, "2020-08-19T13:04:23+03:00")
 	c3DisconnectedTime    = c2DisconnectedTime.Add(-time.Hour)
 	c4DisconnectedTime    = c2DisconnectedTime.Add(-2 * time.Hour)
-	testLog               = chshare.NewLogger("server", chshare.LogOutput{File: os.Stdout}, chshare.LogLevelDebug)
+	testLog               = logger.NewLogger("server", logger.LogOutput{File: os.Stdout}, logger.LogLevelDebug)
 )
 
 var c1 = &Client{
@@ -50,7 +51,7 @@ var c1 = &Client{
 	Tunnels: []*Tunnel{
 		{
 			ID: "1",
-			Remote: chshare.Remote{
+			Remote: models.Remote{
 				LocalHost:  "0.0.0.0",
 				LocalPort:  "2222",
 				RemoteHost: "0.0.0.0",
@@ -59,7 +60,7 @@ var c1 = &Client{
 		},
 		{
 			ID: "2",
-			Remote: chshare.Remote{
+			Remote: models.Remote{
 				LocalHost:  "0.0.0.0",
 				LocalPort:  "4000",
 				RemoteHost: "0.0.0.0",
@@ -98,7 +99,7 @@ var c2 = &Client{
 	Tunnels: []*Tunnel{
 		{
 			ID: "1",
-			Remote: chshare.Remote{
+			Remote: models.Remote{
 				LocalHost:  "0.0.0.0",
 				LocalPort:  "2222",
 				RemoteHost: "0.0.0.0",

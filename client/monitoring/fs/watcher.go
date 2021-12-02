@@ -8,7 +8,7 @@ import (
 	"github.com/hashicorp/go-multierror"
 	"github.com/shirou/gopsutil/disk"
 
-	chshare "github.com/cloudradar-monitoring/rport/share"
+	"github.com/cloudradar-monitoring/rport/share/logger"
 )
 
 func DefaultMetrics() []string {
@@ -28,10 +28,10 @@ type FileSystemWatcher struct {
 	ExcludePath       map[string]struct{}
 	ExcludedPathCache map[string]bool
 	config            *FileSystemWatcherConfig
-	logger            *chshare.Logger
+	logger            *logger.Logger
 }
 
-func NewWatcher(config FileSystemWatcherConfig, logger *chshare.Logger) *FileSystemWatcher {
+func NewWatcher(config FileSystemWatcherConfig, logger *logger.Logger) *FileSystemWatcher {
 	fsWatcher := &FileSystemWatcher{
 		AllowedTypes:      map[string]struct{}{},
 		ExcludePath:       make(map[string]struct{}),

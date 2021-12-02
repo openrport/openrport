@@ -3,6 +3,9 @@ package chshare
 import (
 	"encoding/json"
 	"fmt"
+
+	"github.com/cloudradar-monitoring/rport/share/clientconfig"
+	"github.com/cloudradar-monitoring/rport/share/models"
 )
 
 // ConnectionRequest represents configuration options when initiating client-server connection
@@ -29,7 +32,8 @@ type ConnectionRequest struct {
 	IPv4                   []string
 	IPv6                   []string
 	Tags                   []string
-	Remotes                []*Remote
+	Remotes                []*models.Remote
+	ClientConfiguration    *clientconfig.Config
 }
 
 func DecodeConnectionRequest(b []byte) (*ConnectionRequest, error) {

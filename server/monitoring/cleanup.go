@@ -5,17 +5,17 @@ import (
 	"fmt"
 	"time"
 
-	chshare "github.com/cloudradar-monitoring/rport/share"
+	"github.com/cloudradar-monitoring/rport/share/logger"
 )
 
 type CleanupTask struct {
-	log     *chshare.Logger
+	log     *logger.Logger
 	service Service
 	days    time.Duration
 }
 
 // NewCleanupTask returns a task to cleanup monitoring data after configured period
-func NewCleanupTask(log *chshare.Logger, service Service, days time.Duration) *CleanupTask {
+func NewCleanupTask(log *logger.Logger, service Service, days time.Duration) *CleanupTask {
 	return &CleanupTask{
 		log:     log,
 		service: service,

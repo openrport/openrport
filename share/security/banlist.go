@@ -4,7 +4,7 @@ import (
 	"sync"
 	"time"
 
-	chshare "github.com/cloudradar-monitoring/rport/share"
+	"github.com/cloudradar-monitoring/rport/share/logger"
 )
 
 type BanList struct {
@@ -39,7 +39,7 @@ type MaxBadAttemptsBanList struct {
 	maxBadAttempts int
 	mu             sync.RWMutex
 	visitors       map[string]*visitor
-	logger         *chshare.Logger
+	logger         *logger.Logger
 }
 
 type visitor struct {
@@ -47,7 +47,7 @@ type visitor struct {
 	banTime     *time.Time
 }
 
-func NewMaxBadAttemptsBanList(maxBadAttempts int, banDuration time.Duration, logger *chshare.Logger) *MaxBadAttemptsBanList {
+func NewMaxBadAttemptsBanList(maxBadAttempts int, banDuration time.Duration, logger *logger.Logger) *MaxBadAttemptsBanList {
 	return &MaxBadAttemptsBanList{
 		banDuration:    banDuration,
 		maxBadAttempts: maxBadAttempts,

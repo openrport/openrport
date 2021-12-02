@@ -7,7 +7,7 @@ import (
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 
-	chshare "github.com/cloudradar-monitoring/rport/share"
+	chshare "github.com/cloudradar-monitoring/rport/share/logger"
 )
 
 var user1 = &User{

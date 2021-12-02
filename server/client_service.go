@@ -20,6 +20,7 @@ import (
 	"github.com/cloudradar-monitoring/rport/server/clients"
 	"github.com/cloudradar-monitoring/rport/server/ports"
 	chshare "github.com/cloudradar-monitoring/rport/share"
+	"github.com/cloudradar-monitoring/rport/share/logger"
 	"github.com/cloudradar-monitoring/rport/share/models"
 	"github.com/cloudradar-monitoring/rport/share/query"
 )
@@ -81,6 +82,7 @@ var clientsSupportedFields = map[string]map[string]bool{
 		"mem_total":                true,
 		"allowed_user_groups":      true,
 		"updates_status":           true,
+		"client_configuration":     true,
 	},
 }
 var clientsListDefaultFields = map[string][]string{
@@ -110,7 +112,7 @@ func InitClientService(
 	portDistributor *ports.PortDistributor,
 	db *sqlx.DB,
 	keepLostClients *time.Duration,
-	logger *chshare.Logger,
+	logger *logger.Logger,
 ) (*ClientService, error) {
 	repo, err := clients.InitClientRepository(ctx, db, keepLostClients, logger)
 	if err != nil {
@@ -186,7 +188,7 @@ func (s *ClientService) GetUserClients(user clients.User, filterOptions []query.
 
 func (s *ClientService) StartClient(
 	ctx context.Context, clientAuthID, clientID string, sshConn ssh.Conn, authMultiuseCreds bool,
-	req *chshare.ConnectionRequest, clog *chshare.Logger,
+	req *chshare.ConnectionRequest, clog *logger.Logger,
 ) (*clients.Client, error) {
 	s.mu.Lock()
 	defer s.mu.Unlock()
@@ -267,7 +269,7 @@ func (s *ClientService) StartClient(
 }
 
 // StartClientTunnels returns a new tunnel for each requested remote or nil if error occurred
-func (s *ClientService) StartClientTunnels(client *clients.Client, remotes []*chshare.Remote) ([]*clients.Tunnel, error) {
+func (s *ClientService) StartClientTunnels(client *clients.Client, remotes []*models.Remote) ([]*clients.Tunnel, error) {
 	s.mu.Lock()
 	defer s.mu.Unlock()
 	newTunnels, err := s.startClientTunnels(client, remotes)
@@ -283,7 +285,7 @@ func (s *ClientService) StartClientTunnels(client *clients.Client, remotes []*ch
 	return newTunnels, err
 }
 
-func (s *ClientService) startClientTunnels(client *clients.Client, remotes []*chshare.Remote) ([]*clients.Tunnel, error) {
+func (s *ClientService) startClientTunnels(client *clients.Client, remotes []*models.Remote) ([]*clients.Tunnel, error) {
 	err := s.portDistributor.Refresh()
 	if err != nil {
 		return nil, err
@@ -297,7 +299,7 @@ func (s *ClientService) startClientTunnels(client *clients.Client, remotes []*ch
 				return nil, err
 			}
 			remote.LocalPort = strconv.Itoa(port)
-			remote.LocalHost = chshare.ZeroHost
+			remote.LocalHost = models.ZeroHost
 			remote.LocalPortRandom = true
 		} else {
 			if err := s.checkLocalPort(remote.LocalPort); err != nil {

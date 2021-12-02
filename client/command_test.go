@@ -18,7 +18,9 @@ import (
 
 	"github.com/cloudradar-monitoring/rport/client/system"
 	chshare "github.com/cloudradar-monitoring/rport/share"
+	"github.com/cloudradar-monitoring/rport/share/clientconfig"
 	"github.com/cloudradar-monitoring/rport/share/comm"
+	"github.com/cloudradar-monitoring/rport/share/logger"
 	"github.com/cloudradar-monitoring/rport/share/test"
 )
 
@@ -111,7 +113,7 @@ var nowMockF = func() time.Time {
 
 var nowMock = nowMockF()
 
-var testLog = chshare.NewLogger("client", chshare.LogOutput{File: os.Stdout}, chshare.LogLevelDebug)
+var testLog = logger.NewLogger("client", logger.LogOutput{File: os.Stdout}, logger.LogLevelDebug)
 
 const jobToRunJSON = `
 {
@@ -262,10 +264,10 @@ func TestHandleRunCmdRequestPositiveCase(t *testing.T) {
 	connMock.DoneChannel = done
 	configCopy := getDefaultValidMinConfig()
 	c := Client{
-		cmdExec: execMock,
-		sshConn: connMock,
-		Logger:  testLog,
-		config:  &configCopy,
+		cmdExec:      execMock,
+		sshConn:      connMock,
+		Logger:       testLog,
+		configHolder: &configCopy,
 	}
 
 	configCopy.Client.DataDir = filepath.Join(configCopy.Client.DataDir, "TestHandleRunCmdRequestPositiveCase")
@@ -361,9 +363,9 @@ func TestHandleRunCmdRequestPositiveCase(t *testing.T) {
 		tc := testCases[i]
 		t.Run(tc.name, func(t *testing.T) {
 			// given
-			c.config.RemoteCommands.SendBackLimit = tc.sendBackLimit
+			c.configHolder.RemoteCommands.SendBackLimit = tc.sendBackLimit
 			if tc.denyRegexp != nil {
-				c.config.RemoteCommands.denyRegexp = []*regexp.Regexp{tc.denyRegexp}
+				c.configHolder.RemoteCommands.DenyRegexp = []*regexp.Regexp{tc.denyRegexp}
 			}
 
 			// when
@@ -415,10 +417,10 @@ func TestHandleRunCmdRequestHasRunningCmd(t *testing.T) {
 	}()
 
 	c := Client{
-		cmdExec: execMock,
-		sshConn: connMock,
-		Logger:  testLog,
-		config:  &configCopy,
+		cmdExec:      execMock,
+		sshConn:      connMock,
+		Logger:       testLog,
+		configHolder: &configCopy,
 	}
 
 	err := PrepareDirs(&configCopy)
@@ -456,12 +458,14 @@ func TestRemoteCommandsDisabled(t *testing.T) {
 	// given
 	c := Client{
 		Logger: testLog,
-		config: &Config{
-			RemoteCommands: CommandsConfig{
-				Enabled: false,
-			},
-			RemoteScripts: ScriptsConfig{
-				Enabled: true,
+		configHolder: &ClientConfigHolder{
+			Config: &clientconfig.Config{
+				RemoteCommands: clientconfig.CommandsConfig{
+					Enabled: false,
+				},
+				RemoteScripts: clientconfig.ScriptsConfig{
+					Enabled: true,
+				},
 			},
 		},
 	}
@@ -478,12 +482,14 @@ func TestRemoteCommandsDisabled(t *testing.T) {
 func TestRemoteScriptsDisabled(t *testing.T) {
 	c := Client{
 		Logger: testLog,
-		config: &Config{
-			RemoteCommands: CommandsConfig{
-				Enabled: true,
-			},
-			RemoteScripts: ScriptsConfig{
-				Enabled: false,
+		configHolder: &ClientConfigHolder{
+			Config: &clientconfig.Config{
+				RemoteCommands: clientconfig.CommandsConfig{
+					Enabled: true,
+				},
+				RemoteScripts: clientconfig.ScriptsConfig{
+					Enabled: false,
+				},
 			},
 		},
 	}
@@ -608,12 +614,12 @@ func TestIsCommandAllowed(t *testing.T) {
 			config := getDefaultValidMinConfig()
 			config.RemoteCommands.Deny = tc.deny
 			c := Client{
-				Logger: testLog,
-				config: &config,
+				Logger:       testLog,
+				configHolder: &config,
 			}
-			c.config.RemoteCommands.Order = tc.order
-			c.config.RemoteCommands.allowRegexp = getRegexpList(tc.allow)
-			c.config.RemoteCommands.denyRegexp = getRegexpList(tc.deny)
+			c.configHolder.RemoteCommands.Order = tc.order
+			c.configHolder.RemoteCommands.AllowRegexp = getRegexpList(tc.allow)
+			c.configHolder.RemoteCommands.DenyRegexp = getRegexpList(tc.deny)
 
 			// when
 			gotRes := c.isAllowed(tc.cmd)

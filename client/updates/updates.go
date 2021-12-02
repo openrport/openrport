@@ -9,14 +9,14 @@ import (
 
 	"golang.org/x/crypto/ssh"
 
-	chshare "github.com/cloudradar-monitoring/rport/share"
 	"github.com/cloudradar-monitoring/rport/share/comm"
+	"github.com/cloudradar-monitoring/rport/share/logger"
 	"github.com/cloudradar-monitoring/rport/share/models"
 )
 
 type PackageManager interface {
 	IsAvailable(context.Context) bool
-	GetUpdatesStatus(context.Context, *chshare.Logger) (*models.UpdatesStatus, error)
+	GetUpdatesStatus(context.Context, *logger.Logger) (*models.UpdatesStatus, error)
 }
 
 type Updates struct {
@@ -29,10 +29,10 @@ type Updates struct {
 	refreshChan chan struct{}
 
 	pkgMgr PackageManager
-	logger *chshare.Logger
+	logger *logger.Logger
 }
 
-func New(logger *chshare.Logger, interval time.Duration) *Updates {
+func New(logger *logger.Logger, interval time.Duration) *Updates {
 	return &Updates{
 		interval:    interval,
 		refreshChan: make(chan struct{}),

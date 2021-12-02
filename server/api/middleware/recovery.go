@@ -3,14 +3,14 @@ package middleware
 import (
 	"fmt"
 
-	chshare "github.com/cloudradar-monitoring/rport/share"
+	"github.com/cloudradar-monitoring/rport/share/logger"
 )
 
 type RecoveryLogger struct {
-	*chshare.Logger
+	*logger.Logger
 }
 
-func NewRecoveryLogger(l *chshare.Logger) *RecoveryLogger {
+func NewRecoveryLogger(l *logger.Logger) *RecoveryLogger {
 	return &RecoveryLogger{
 		Logger: l,
 	}

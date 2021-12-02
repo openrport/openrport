@@ -18,6 +18,7 @@ import (
 	"github.com/cloudradar-monitoring/rport/server/clients/storedtunnels"
 	"github.com/cloudradar-monitoring/rport/server/script"
 	"github.com/cloudradar-monitoring/rport/share/files"
+	"github.com/cloudradar-monitoring/rport/share/logger"
 	"github.com/cloudradar-monitoring/rport/share/random"
 
 	"github.com/gorilla/mux"
@@ -40,7 +41,7 @@ const (
 )
 
 type APIListener struct {
-	*chshare.Logger
+	*logger.Logger
 	*Server
 
 	fingerprint       string
@@ -83,7 +84,7 @@ func NewAPIListener(
 	var usersProvider users.Provider
 	var err error
 	if config.API.AuthFile != "" {
-		logger := chshare.NewLogger("auth-file", config.Logging.LogOutput, config.Logging.LogLevel)
+		logger := logger.NewLogger("auth-file", config.Logging.LogOutput, config.Logging.LogLevel)
 		usersProvider, err = users.NewFileAdapter(logger, users.NewFileManager(config.API.AuthFile))
 		if err != nil {
 			return nil, err
@@ -97,7 +98,7 @@ func NewAPIListener(
 		authUser.Groups = []string{users.Administrators}
 		usersProvider = users.NewStaticProvider([]*users.User{authUser})
 	} else if config.API.AuthUserTable != "" {
-		logger := chshare.NewLogger("database", config.Logging.LogOutput, config.Logging.LogLevel)
+		logger := logger.NewLogger("database", config.Logging.LogOutput, config.Logging.LogLevel)
 		usersProvider, err = users.NewUserDatabase(server.authDB, config.API.AuthUserTable, config.API.AuthGroupTable, config.API.IsTwoFAOn(), logger)
 		if err != nil {
 			return nil, err
@@ -108,7 +109,7 @@ func NewAPIListener(
 		return nil, fmt.Errorf("'check_port_timeout' can not be more than %s", DefaultMaxCheckPortTimeout)
 	}
 
-	vaultLogger := chshare.NewLogger("vault", config.Logging.LogOutput, config.Logging.LogLevel)
+	vaultLogger := logger.NewLogger("vault", config.Logging.LogOutput, config.Logging.LogLevel)
 
 	vaultDBProviderFactory := vault.NewStatefulDbProviderFactory(
 		func() (vault.DbProvider, error) {
@@ -135,7 +136,7 @@ func NewAPIListener(
 		return nil, fmt.Errorf("failed init library DB instance: %w", err)
 	}
 
-	scriptLogger := chshare.NewLogger("scripts", config.Logging.LogOutput, config.Logging.LogLevel)
+	scriptLogger := logger.NewLogger("scripts", config.Logging.LogOutput, config.Logging.LogLevel)
 	scriptProvider := script.NewSqliteProvider(libraryDb)
 	scriptManager := script.NewManager(scriptProvider, scriptLogger)
 
@@ -146,7 +147,7 @@ func NewAPIListener(
 
 	a := &APIListener{
 		Server:            server,
-		Logger:            chshare.NewLogger("api-listener", config.Logging.LogOutput, config.Logging.LogLevel),
+		Logger:            logger.NewLogger("api-listener", config.Logging.LogOutput, config.Logging.LogLevel),
 		fingerprint:       fingerprint,
 		httpServer:        chshare.NewHTTPServer(int(config.Server.MaxRequestBytes), chshare.WithTLS(config.API.CertFile, config.API.KeyFile)),
 		requestLogOptions: config.InitRequestLogOptions(),

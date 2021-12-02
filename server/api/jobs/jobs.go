@@ -13,16 +13,16 @@ import (
 
 	"github.com/cloudradar-monitoring/rport/db/migration/jobs"
 	"github.com/cloudradar-monitoring/rport/db/sqlite"
-	chshare "github.com/cloudradar-monitoring/rport/share"
+	"github.com/cloudradar-monitoring/rport/share/logger"
 	"github.com/cloudradar-monitoring/rport/share/models"
 )
 
 type SqliteProvider struct {
-	log *chshare.Logger
+	log *logger.Logger
 	db  *sqlx.DB
 }
 
-func NewSqliteProvider(dbPath string, log *chshare.Logger) (*SqliteProvider, error) {
+func NewSqliteProvider(dbPath string, log *logger.Logger) (*SqliteProvider, error) {
 	db, err := sqlite.New(dbPath, jobs.AssetNames(), jobs.Asset)
 	if err != nil {
 		return nil, fmt.Errorf("failed to create jobs DB instance: %v", err)

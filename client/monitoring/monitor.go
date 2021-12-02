@@ -8,13 +8,13 @@ import (
 
 	"golang.org/x/crypto/ssh"
 
-	"github.com/cloudradar-monitoring/rport/client/monitoring/config"
 	"github.com/cloudradar-monitoring/rport/client/monitoring/docker"
 	"github.com/cloudradar-monitoring/rport/client/monitoring/fs"
 	"github.com/cloudradar-monitoring/rport/client/monitoring/processes"
 	"github.com/cloudradar-monitoring/rport/client/system"
-	chshare "github.com/cloudradar-monitoring/rport/share"
+	"github.com/cloudradar-monitoring/rport/share/clientconfig"
 	"github.com/cloudradar-monitoring/rport/share/comm"
+	"github.com/cloudradar-monitoring/rport/share/logger"
 	"github.com/cloudradar-monitoring/rport/share/models"
 )
 
@@ -22,15 +22,15 @@ type Monitor struct {
 	mtx               sync.RWMutex
 	conn              ssh.Conn
 	stopFn            func()
-	logger            *chshare.Logger
-	config            config.MonitoringConfig
+	logger            *logger.Logger
+	config            clientconfig.MonitoringConfig
 	measurement       *models.Measurement
 	systemInfo        system.SysInfo
 	fileSystemWatcher *fs.FileSystemWatcher
 	processHandler    *processes.ProcessHandler
 }
 
-func NewMonitor(logger *chshare.Logger, config config.MonitoringConfig, systemInfo system.SysInfo) *Monitor {
+func NewMonitor(logger *logger.Logger, config clientconfig.MonitoringConfig, systemInfo system.SysInfo) *Monitor {
 	fsWatcher := fs.NewWatcher(fs.FileSystemWatcherConfig{
 		TypeInclude:                 config.FSTypeInclude,
 		PathExclude:                 config.FSPathExclude,
@@ -87,7 +87,7 @@ func (m *Monitor) refreshMeasurement(ctx context.Context) {
 func (m *Monitor) createMeasurement(ctx context.Context) *models.Measurement {
 	var newMeasurement = &models.Measurement{}
 
-	newMeasurement.Timestamp = time.Now()
+	newMeasurement.Timestamp = time.Now().UTC()
 
 	cpuPercent, err := m.systemInfo.CPUPercent(ctx)
 	if err == nil {

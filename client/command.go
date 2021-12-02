@@ -22,7 +22,7 @@ import (
 var now = time.Now
 
 func (c *Client) HandleRunCmdRequest(ctx context.Context, reqPayload []byte) (*comm.RunCmdResponse, error) {
-	if !c.config.RemoteCommands.Enabled {
+	if !c.configHolder.RemoteCommands.Enabled {
 		return nil, errors.New("remote commands execution is disabled")
 	}
 
@@ -42,7 +42,7 @@ func (c *Client) HandleRunCmdRequest(ctx context.Context, reqPayload []byte) (*c
 		c.Debugf("Waiting for a previous command with PID %d to finish", *curPID)
 	}
 
-	if job.IsScript && !c.config.RemoteScripts.Enabled {
+	if job.IsScript && !c.configHolder.RemoteScripts.Enabled {
 		return nil, errors.New("remote scripts are disabled")
 	}
 
@@ -60,7 +60,7 @@ func (c *Client) HandleRunCmdRequest(ctx context.Context, reqPayload []byte) (*c
 		return nil, fmt.Errorf("command is not allowed: %v", job.Command)
 	}
 
-	scriptPath, err := system.CreateScriptFile(c.config.GetScriptsDir(), job.Interpreter, job.Command)
+	scriptPath, err := system.CreateScriptFile(c.configHolder.GetScriptsDir(), job.Interpreter, job.Command)
 	if err != nil {
 		c.runCmdMutex.Unlock()
 		return nil, err
@@ -74,8 +74,8 @@ func (c *Client) HandleRunCmdRequest(ctx context.Context, reqPayload []byte) (*c
 		IsScript:    job.IsScript,
 	}
 	cmd := c.cmdExec.New(ctx, execCtx)
-	stdOut := &CapacityBuffer{capacity: c.config.RemoteCommands.SendBackLimit}
-	stdErr := &CapacityBuffer{capacity: c.config.RemoteCommands.SendBackLimit}
+	stdOut := &CapacityBuffer{capacity: c.configHolder.RemoteCommands.SendBackLimit}
+	stdErr := &CapacityBuffer{capacity: c.configHolder.RemoteCommands.SendBackLimit}
 	cmd.Stdout = stdOut
 	cmd.Stderr = stdErr
 
@@ -214,9 +214,9 @@ var getInterpreter = func(inputInterpreter, os string, hasShebang bool) (string,
 
 // isAllowed returns true if a given command passes configured restrictions.
 func (c *Client) isAllowed(cmd string) bool {
-	allowMatch := matchRegexp(cmd, c.config.RemoteCommands.allowRegexp)
-	denyMatch := matchRegexp(cmd, c.config.RemoteCommands.denyRegexp)
-	switch c.config.RemoteCommands.Order {
+	allowMatch := matchRegexp(cmd, c.configHolder.RemoteCommands.AllowRegexp)
+	denyMatch := matchRegexp(cmd, c.configHolder.RemoteCommands.DenyRegexp)
+	switch c.configHolder.RemoteCommands.Order {
 	case allowDenyOrder:
 		if !allowMatch {
 			return false

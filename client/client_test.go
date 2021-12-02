@@ -23,6 +23,9 @@ import (
 
 	"github.com/cloudradar-monitoring/rport/client/system"
 	chshare "github.com/cloudradar-monitoring/rport/share"
+	"github.com/cloudradar-monitoring/rport/share/clientconfig"
+	"github.com/cloudradar-monitoring/rport/share/logger"
+	"github.com/cloudradar-monitoring/rport/share/models"
 )
 
 func TestCustomHeaders(t *testing.T) {
@@ -32,25 +35,27 @@ func TestCustomHeaders(t *testing.T) {
 	// Close the server when test finishes
 	defer server.Close()
 
-	config := Config{
-		Client: ClientConfig{
-			Fingerprint: "",
-			Auth:        "",
-			Server:      server.URL,
-			Remotes:     []string{"192.168.0.5:3000:google.com:80"},
-			DataDir:     "somedir",
-		},
-		Connection: ConnectionConfig{
-			KeepAlive:        time.Second,
-			MaxRetryCount:    0,
-			MaxRetryInterval: time.Second,
-			HeadersRaw:       []string{"Foo: Bar"},
-		},
-		RemoteCommands: CommandsConfig{
-			Order: allowDenyOrder,
-		},
-		RemoteScripts: ScriptsConfig{
-			Enabled: false,
+	config := ClientConfigHolder{
+		Config: &clientconfig.Config{
+			Client: clientconfig.ClientConfig{
+				Fingerprint: "",
+				Auth:        "",
+				Server:      server.URL,
+				Remotes:     []string{"192.168.0.5:3000:google.com:80"},
+				DataDir:     "somedir",
+			},
+			Connection: clientconfig.ConnectionConfig{
+				KeepAlive:        time.Second,
+				MaxRetryCount:    0,
+				MaxRetryInterval: time.Second,
+				HeadersRaw:       []string{"Foo: Bar"},
+			},
+			RemoteCommands: clientconfig.CommandsConfig{
+				Order: allowDenyOrder,
+			},
+			RemoteScripts: clientconfig.ScriptsConfig{
+				Enabled: false,
+			},
 		},
 	}
 	err := config.ParseAndValidate(true)
@@ -64,24 +69,26 @@ func TestCustomHeaders(t *testing.T) {
 }
 
 func TestConnectionRequest(t *testing.T) {
-	remote1 := &chshare.Remote{
+	remote1 := &models.Remote{
 		LocalHost:  "test-local",
 		LocalPort:  "1234",
 		RemoteHost: "test-remote",
 		RemotePort: "2345",
 	}
-	remote2 := &chshare.Remote{
+	remote2 := &models.Remote{
 		LocalHost:  "test-local-2",
 		LocalPort:  "2234",
 		RemoteHost: "test-remote-2",
 		RemotePort: "3345",
 	}
-	config := &Config{
-		Client: ClientConfig{
-			ID:      "test-client-id",
-			Name:    "test-name",
-			Tags:    []string{"tag1", "tag2"},
-			remotes: []*chshare.Remote{remote1, remote2},
+	config := &ClientConfigHolder{
+		Config: &clientconfig.Config{
+			Client: clientconfig.ClientConfig{
+				ID:      "test-client-id",
+				Name:    "test-name",
+				Tags:    []string{"tag1", "tag2"},
+				Tunnels: []*models.Remote{remote1, remote2},
+			},
 		},
 	}
 	interfaceAddrs := []net.Addr{
@@ -160,7 +167,8 @@ func TestConnectionRequest(t *testing.T) {
 				IPv4:                   []string{"192.0.2.1", "192.0.2.2"},
 				IPv6:                   []string{"2001:db8::1", "2001:db8::2"},
 				Tags:                   []string{"tag1", "tag2"},
-				Remotes:                []*chshare.Remote{remote1, remote2},
+				Remotes:                []*models.Remote{remote1, remote2},
+				ClientConfiguration:    config.Config,
 			},
 		}, {
 			Name: "windows, no errors",
@@ -189,26 +197,27 @@ func TestConnectionRequest(t *testing.T) {
 				ReturnSystemTime: time.Date(2001, 1, 1, 1, 0, 0, 0, time.UTC),
 			},
 			ExpectedConnectionRequest: &chshare.ConnectionRequest{
-				Version:      "0.0.0-src",
-				ID:           "test-client-id",
-				Name:         "test-name",
-				Tags:         []string{"tag1", "tag2"},
-				Remotes:      []*chshare.Remote{remote1, remote2},
-				OS:           "test-platform 123 test-family",
-				OSArch:       "test-arch",
-				OSFamily:     "test-family",
-				OSKernel:     "windows",
-				Hostname:     "test-hostname",
-				OSFullName:   "Test-Platform 123",
-				OSVersion:    "123",
-				CPUFamily:    "cpufam1",
-				CPUModel:     "cpumod1",
-				CPUModelName: "cpumod_name1",
-				CPUVendor:    "GenuineIntel",
-				Timezone:     "UTC (UTC+00:00)",
-				NumCPUs:      2,
-				IPv4:         []string{"192.0.2.1", "192.0.2.2"},
-				IPv6:         []string{"2001:db8::1", "2001:db8::2"},
+				Version:             "0.0.0-src",
+				ID:                  "test-client-id",
+				Name:                "test-name",
+				Tags:                []string{"tag1", "tag2"},
+				Remotes:             []*models.Remote{remote1, remote2},
+				OS:                  "test-platform 123 test-family",
+				OSArch:              "test-arch",
+				OSFamily:            "test-family",
+				OSKernel:            "windows",
+				Hostname:            "test-hostname",
+				OSFullName:          "Test-Platform 123",
+				OSVersion:           "123",
+				CPUFamily:           "cpufam1",
+				CPUModel:            "cpumod1",
+				CPUModelName:        "cpumod_name1",
+				CPUVendor:           "GenuineIntel",
+				Timezone:            "UTC (UTC+00:00)",
+				NumCPUs:             2,
+				IPv4:                []string{"192.0.2.1", "192.0.2.2"},
+				IPv6:                []string{"2001:db8::1", "2001:db8::2"},
+				ClientConfiguration: config.Config,
 			},
 		}, {
 			Name: "all errors",
@@ -222,25 +231,26 @@ func TestConnectionRequest(t *testing.T) {
 				ReturnMemoryError:         errors.New("test error"),
 			},
 			ExpectedConnectionRequest: &chshare.ConnectionRequest{
-				Version:      "0.0.0-src",
-				ID:           "test-client-id",
-				Name:         "test-name",
-				Tags:         []string{"tag1", "tag2"},
-				Remotes:      []*chshare.Remote{remote1, remote2},
-				OS:           system.UnknownValue,
-				OSArch:       "test-arch",
-				OSFamily:     system.UnknownValue,
-				OSKernel:     system.UnknownValue,
-				Hostname:     system.UnknownValue,
-				CPUFamily:    system.UnknownValue,
-				CPUModel:     system.UnknownValue,
-				CPUModelName: system.UnknownValue,
-				CPUVendor:    system.UnknownValue,
-				OSFullName:   system.UnknownValue,
-				OSVersion:    system.UnknownValue,
-				Timezone:     "UTC (UTC+00:00)",
-				IPv4:         nil,
-				IPv6:         nil,
+				Version:             "0.0.0-src",
+				ID:                  "test-client-id",
+				Name:                "test-name",
+				Tags:                []string{"tag1", "tag2"},
+				Remotes:             []*models.Remote{remote1, remote2},
+				OS:                  system.UnknownValue,
+				OSArch:              "test-arch",
+				OSFamily:            system.UnknownValue,
+				OSKernel:            system.UnknownValue,
+				Hostname:            system.UnknownValue,
+				CPUFamily:           system.UnknownValue,
+				CPUModel:            system.UnknownValue,
+				CPUModelName:        system.UnknownValue,
+				CPUVendor:           system.UnknownValue,
+				OSFullName:          system.UnknownValue,
+				OSVersion:           system.UnknownValue,
+				Timezone:            "UTC (UTC+00:00)",
+				IPv4:                nil,
+				IPv6:                nil,
+				ClientConfiguration: config.Config,
 			},
 		}, {
 			Name: "uname error",
@@ -258,25 +268,26 @@ func TestConnectionRequest(t *testing.T) {
 				ReturnSystemTime:     time.Date(2001, 1, 1, 1, 0, 0, 0, time.UTC),
 			},
 			ExpectedConnectionRequest: &chshare.ConnectionRequest{
-				Version:      "0.0.0-src",
-				ID:           "test-client-id",
-				Name:         "test-name",
-				OSVersion:    "123",
-				OSFullName:   "Test-Platform 123",
-				Tags:         []string{"tag1", "tag2"},
-				Remotes:      []*chshare.Remote{remote1, remote2},
-				OS:           system.UnknownValue,
-				OSArch:       "test-arch",
-				OSFamily:     "test-family",
-				OSKernel:     "test-os",
-				Hostname:     "test-hostname",
-				Timezone:     "UTC (UTC+00:00)",
-				CPUFamily:    system.UnknownValue,
-				CPUModel:     system.UnknownValue,
-				CPUModelName: system.UnknownValue,
-				CPUVendor:    system.UnknownValue,
-				IPv4:         []string{"192.0.2.1", "192.0.2.2"},
-				IPv6:         []string{"2001:db8::1", "2001:db8::2"},
+				Version:             "0.0.0-src",
+				ID:                  "test-client-id",
+				Name:                "test-name",
+				OSVersion:           "123",
+				OSFullName:          "Test-Platform 123",
+				Tags:                []string{"tag1", "tag2"},
+				Remotes:             []*models.Remote{remote1, remote2},
+				OS:                  system.UnknownValue,
+				OSArch:              "test-arch",
+				OSFamily:            "test-family",
+				OSKernel:            "test-os",
+				Hostname:            "test-hostname",
+				Timezone:            "UTC (UTC+00:00)",
+				CPUFamily:           system.UnknownValue,
+				CPUModel:            system.UnknownValue,
+				CPUModelName:        system.UnknownValue,
+				CPUVendor:           system.UnknownValue,
+				IPv4:                []string{"192.0.2.1", "192.0.2.2"},
+				IPv6:                []string{"2001:db8::1", "2001:db8::2"},
+				ClientConfiguration: config.Config,
 			},
 		},
 	}
@@ -417,26 +428,28 @@ func TestConnectionLoop(t *testing.T) {
 	tsFallback := httptest.NewServer(fallbackServer)
 	defer tsFallback.Close()
 
-	logOutput := chshare.NewLogOutput("")
+	logOutput := logger.NewLogOutput("")
 	err = logOutput.Start()
 	require.NoError(t, err)
 
-	config := Config{
-		Client: ClientConfig{
-			Server:                   tsMain.URL,
-			FallbackServers:          []string{tsFallback.URL},
-			ServerSwitchbackInterval: 100 * time.Millisecond,
-			DataDir:                  "./",
-		},
-		RemoteCommands: CommandsConfig{
-			Order: allowDenyOrder,
-		},
-		Logging: LogConfig{
-			LogLevel:  chshare.LogLevelDebug,
-			LogOutput: logOutput,
-		},
-		Connection: ConnectionConfig{
-			MaxRetryCount: -1,
+	config := ClientConfigHolder{
+		Config: &clientconfig.Config{
+			Client: clientconfig.ClientConfig{
+				Server:                   tsMain.URL,
+				FallbackServers:          []string{tsFallback.URL},
+				ServerSwitchbackInterval: 100 * time.Millisecond,
+				DataDir:                  "./",
+			},
+			RemoteCommands: clientconfig.CommandsConfig{
+				Order: allowDenyOrder,
+			},
+			Logging: clientconfig.LogConfig{
+				LogLevel:  logger.LogLevelDebug,
+				LogOutput: logOutput,
+			},
+			Connection: clientconfig.ConnectionConfig{
+				MaxRetryCount: -1,
+			},
 		},
 	}
 	err = config.ParseAndValidate(true)
