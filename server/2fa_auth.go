@@ -8,6 +8,8 @@ import (
 	"sync"
 	"time"
 
+	"github.com/cloudradar-monitoring/rport/server/api/users"
+
 	errors2 "github.com/cloudradar-monitoring/rport/server/api/errors"
 	"github.com/cloudradar-monitoring/rport/server/api/message"
 	"github.com/cloudradar-monitoring/rport/share/security"
@@ -97,6 +99,61 @@ func (srv *TwoFAService) SendToken(ctx context.Context, username string) (sendTo
 	srv.mu.Unlock()
 
 	return user.TwoFASendTo, nil
+}
+
+func (srv *TwoFAService) SetTotPLoginSession(username string, loginSessionTTL time.Duration) {
+	srv.mu.Lock()
+	srv.tokensByUser[username] = &expirableToken{
+		expiry: time.Now().Add(loginSessionTTL),
+	}
+	srv.mu.Unlock()
+}
+
+func (srv *TwoFAService) ValidateTotPCode(user *users.User, code string) error {
+	srv.mu.RLock()
+	t := srv.tokensByUser[user.Username]
+	defer srv.mu.RUnlock()
+
+	if t == nil {
+		return errors2.APIError{
+			Message:    "login request not found for provided username",
+			HTTPStatus: http.StatusUnauthorized,
+		}
+	}
+
+	if time.Now().After(t.expiry) {
+		return errors2.APIError{
+			Message:    "login request expired",
+			HTTPStatus: http.StatusUnauthorized,
+		}
+	}
+
+	totP, err := GetUsersTotPCode(user)
+	if err != nil {
+		return errors2.APIError{
+			Err:        err,
+			HTTPStatus: http.StatusInternalServerError,
+		}
+	}
+	if totP == nil || totP.Secret == "" {
+		return errors2.APIError{
+			Message:    "time based one time secret key should be generated for this user",
+			HTTPStatus: http.StatusConflict,
+		}
+	}
+
+	if !CheckTotPCode(code, totP) {
+		return errors2.APIError{
+			Message:    "invalid code",
+			HTTPStatus: http.StatusUnauthorized,
+		}
+	}
+
+	srv.mu.RLock()
+	delete(srv.tokensByUser, user.Username)
+	defer srv.mu.RUnlock()
+
+	return nil
 }
 
 // TODO: add tests
