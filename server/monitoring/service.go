@@ -68,6 +68,7 @@ func (s *monitoringService) ListClientGraphMetrics(ctx context.Context, clientID
 		}
 	}
 
+	query.SortFiltersByOperator(lo.Filters) //important for next check
 	if (lo.Filters[0].Operator == query.FilterOperatorTypeGT && lo.Filters[1].Operator == query.FilterOperatorTypeLT) ||
 		(lo.Filters[0].Operator == query.FilterOperatorTypeSince && lo.Filters[1].Operator == query.FilterOperatorTypeUntil) {
 		//these are the allowed filter combinations
