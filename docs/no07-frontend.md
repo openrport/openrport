@@ -28,10 +28,19 @@ Make sure you have the below options enabled in `[api]` section of the `rportd.c
 Usually you run rportd and the web frontend on a public server directly exposed to the internet. Running the API and serving the frontend on unencrypted HTTP is dangerous. Always use HTTPs. The built-in web server supports HTTPs. To quickly generate certificates, follow [this guide](no08-https-howto.md).
 :::
 
-* Create the doc root folder, `mkdir /var/lib/rport/docroot`
+* Create the doc root folder. Usualy `/var/lib/rport/docroot` is used.
 * Download the latest release of the frontend from [https://downloads.rport.io/frontend/stable](https://downloads.rport.io/frontend/stable/?sort=time&order=desc).
 * Unpack to the doc root folder.
-* Open the API-URL in a browser.
-* Log in with a username and password specified for the [API authentication](no02-api-auth.md).
+
+```bash
+mkdir /var/lib/rport/docroot
+cd /var/lib/rport/docroot
+wget -q https://downloads.rport.io/frontend/stable/latest.php -O rport-frontend.zip
+unzip -qq rport-frontend.zip && rm -f rport-frontend.zip
+cd ~
+chown -R rport:rport /var/lib/rport/docroot
+```
+
+Now open the API-URL in a browser. Log in with a username and password specified for the [API authentication](no02-api-auth.md).
 
 You are done.
