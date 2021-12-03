@@ -37,10 +37,10 @@ var serverHelp = `
 
   Examples:
 
-    ./rportd --addr=0.0.0.0:9999
+    ./rportd --addr=0.0.0.0:9999 --auth=clientAuth1:1234
     starts server, listening to client connections on port 9999
 
-    ./rportd --addr="[2a01:4f9:c010:b278::1]:9999" --api-addr=0.0.0.0:9000 --api-auth=admin:1234
+    ./rportd --addr="[2a01:4f9:c010:b278::1]:9999" --api-addr=0.0.0.0:9000 --api-auth=admin:1234 --auth=clientAuth1:1234
     starts server, listening to client connections on IPv6 interface,
     also enabling HTTP API, available at http://0.0.0.0:9000/
 
