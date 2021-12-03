@@ -37,8 +37,8 @@ type ProcStat struct {
 }
 
 func (ph *ProcessHandler) GetProcessesJSON(memStat *mem.VirtualMemoryStat) (string, error) {
-	if !ph.config.Enabled {
-		return "", nil
+	if !ph.config.PMEnabled {
+		return "[]", nil
 	}
 	var systemMemorySize uint64
 	if memStat == nil {
@@ -81,7 +81,7 @@ func filterProcs(procs []*ProcStat, cfg *clientconfig.MonitoringConfig) []*ProcS
 func toJSON(procs []*ProcStat) string {
 	b, err := json.Marshal(procs)
 	if err != nil {
-		return "{}"
+		return "[]"
 	}
 
 	return string(b)

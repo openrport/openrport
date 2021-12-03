@@ -4,6 +4,11 @@ import (
 	"time"
 )
 
+type NetBytes struct {
+	In  int `json:"in"`
+	Out int `json:"out"`
+}
+
 type Measurement struct {
 	ClientID           string    `json:"client_id" db:"client_id"`
 	Timestamp          time.Time `json:"timestamp" db:"timestamp"`
@@ -12,4 +17,6 @@ type Measurement struct {
 	IoUsagePercent     float64   `json:"io_usage_percent" db:"io_usage_percent"`
 	Processes          string    `json:"processes" db:"processes"`
 	Mountpoints        string    `json:"mountpoints" db:"mountpoints"`
+	NetLan             *NetBytes `json:"net_lan"`
+	NetWan             *NetBytes `json:"net_wan"`
 }

@@ -30,6 +30,10 @@ func RoundToTwoDecimalPlaces(v float64) float64 {
 	return math.Round(v*100) / 100
 }
 
+func FloatToIntRoundUP(f float64) int {
+	return int(f + 0.5)
+}
+
 // StrInSlice returns true if search string found in slice
 func StrInSlice(search string, slice []string) bool {
 	for _, str := range slice {
