@@ -18,6 +18,7 @@ import (
 	"github.com/shirou/gopsutil/host"
 	"golang.org/x/crypto/ssh"
 	"golang.org/x/net/proxy"
+	"golang.org/x/text/encoding"
 
 	"github.com/cloudradar-monitoring/rport/client/monitoring"
 	"github.com/cloudradar-monitoring/rport/client/system"
@@ -46,10 +47,13 @@ type Client struct {
 	updates            *updates.Updates
 	monitor            *monitoring.Monitor
 	serverCapabilities *models.Capabilities
+	consoleDecoder     *encoding.Decoder
 }
 
 //NewClient creates a new client instance
 func NewClient(config *ClientConfigHolder) *Client {
+	ctx := context.Background()
+
 	cmdExec := system.NewCmdExecutor(logger.NewLogger("cmd executor", config.Logging.LogOutput, config.Logging.LogLevel))
 	logger := logger.NewLogger("client", config.Logging.LogOutput, config.Logging.LogLevel)
 	systemInfo := system.NewSystemInfo(cmdExec)
@@ -70,6 +74,16 @@ func NewClient(config *ClientConfigHolder) *Client {
 		ClientVersion:   "SSH-" + chshare.ProtocolVersion + "-client",
 		HostKeyCallback: client.verifyServer,
 		Timeout:         30 * time.Second,
+	}
+
+	enc, err := system.DetectConsoleEncoding(ctx)
+	if err != nil {
+		logger.Errorf("could not detect console encoding, using UTF-8...: %v", err)
+	}
+
+	if enc != nil {
+		logger.Infof("Console encoding detected as: %s", enc)
+		client.consoleDecoder = enc.NewDecoder()
 	}
 
 	return client
