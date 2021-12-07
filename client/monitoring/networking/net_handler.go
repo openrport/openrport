@@ -1,7 +1,6 @@
 package networking
 
 import (
-	"github.com/cloudradar-monitoring/rport/client/monitoring/helper"
 	"github.com/cloudradar-monitoring/rport/share/clientconfig"
 	"github.com/cloudradar-monitoring/rport/share/models"
 )
@@ -24,6 +23,7 @@ func (nh *NetHandler) GetNets() (*models.NetBytes, *models.NetBytes, error) {
 		return nil, nil, nil //no net data required
 	}
 
+	var mm map[string]interface{}
 	mm, err := nh.netWatcher.Results()
 	if err != nil {
 		return nil, nil, err
@@ -42,7 +42,7 @@ func (nh *NetHandler) GetNets() (*models.NetBytes, *models.NetBytes, error) {
 	return netLan, netWan, err
 }
 
-func getNetBytesFromMap(mm helper.MeasurementsMap, keyIn string, keyOut string) *models.NetBytes {
+func getNetBytesFromMap(mm map[string]interface{}, keyIn string, keyOut string) *models.NetBytes {
 	netBytes := &models.NetBytes{}
 
 	bytesIn := mm[keyIn]

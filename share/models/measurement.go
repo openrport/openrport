@@ -17,6 +17,6 @@ type Measurement struct {
 	IoUsagePercent     float64   `json:"io_usage_percent" db:"io_usage_percent"`
 	Processes          string    `json:"processes" db:"processes"`
 	Mountpoints        string    `json:"mountpoints" db:"mountpoints"`
-	NetLan             *NetBytes `json:"net_lan"`
-	NetWan             *NetBytes `json:"net_wan"`
+	NetLan             *NetBytes `json:"net_lan" db:"net_lan"`
+	NetWan             *NetBytes `json:"net_wan" db:"net_wan"`
 }

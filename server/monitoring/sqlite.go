@@ -125,12 +125,20 @@ func (p *SqliteProvider) ListGraphMetricsByClientID(ctx context.Context, clientI
 }
 
 func (p *SqliteProvider) CreateMeasurement(ctx context.Context, measurement *models.Measurement) error {
-	_, err := p.db.NamedExecContext(
-		ctx,
-		"INSERT INTO measurements (client_id, timestamp, cpu_usage_percent, memory_usage_percent, io_usage_percent, processes, mountpoints) "+
-			"VALUES (:client_id, :timestamp, :cpu_usage_percent, :memory_usage_percent, :io_usage_percent, :processes, :mountpoints)",
-		measurement,
-	)
+	q := `INSERT INTO measurements (client_id, timestamp, cpu_usage_percent, memory_usage_percent, io_usage_percent, processes, mountpoints, net_lan_in, net_lan_out, net_wan_in, net_wan_out) 
+		VALUES (:client_id, :timestamp, :cpu_usage_percent, :memory_usage_percent, :io_usage_percent, :processes, :mountpoints, `
+	if measurement.NetLan == nil {
+		q = q + `null, null, `
+	} else {
+		q = q + `:net_lan.in, :net_lan.out, `
+	}
+	if measurement.NetWan == nil {
+		q = q + `null, null`
+	} else {
+		q = q + `:net_wan.in, :net_wan.out`
+	}
+	query := q + ")"
+	_, err := p.db.NamedExecContext(ctx, query, measurement)
 	return err
 }
 

@@ -1,13 +1,12 @@
 package networking_test
 
 import (
-	"fmt"
 	"testing"
 	"time"
 
 	"github.com/stretchr/testify/assert"
 
-	"github.com/cloudradar-monitoring/rport/client/monitoring/networking"
+	"github.com/cloudradar-monitoring/cagent/pkg/monitoring/networking"
 )
 
 func TestNetWatcher_Results(t *testing.T) {
@@ -28,5 +27,5 @@ func TestNetWatcher_Results(t *testing.T) {
 	m, err = watcher.Results()
 	assert.Nil(t, err)
 	assert.NotNil(t, m)
-	fmt.Println(m.ToJSON())
+	//fmt.Println(m.ToJSON())
 }

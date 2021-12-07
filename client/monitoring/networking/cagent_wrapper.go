@@ -1,14 +1,16 @@
 package networking
 
+import "github.com/cloudradar-monitoring/cagent/pkg/monitoring/networking"
+
 type CAgentNetWatcher struct {
-	*NetWatcher
+	*networking.NetWatcher
 }
 
 const inBytesName = "in_B_per_s"
 const outBytesName = "out_B_per_s"
 
 func NewCAgentNetWatcher() *CAgentNetWatcher {
-	nwConfig := NetWatcherConfig{
+	nwConfig := networking.NetWatcherConfig{
 		NetInterfaceExclude:             nil,
 		NetInterfaceExcludeRegex:        []string{"^vnet(.*)$", "^virbr(.*)$", "^vmnet(.*)$", "^vEthernet(.*)$", "^docker(.*)$"},
 		NetInterfaceExcludeDisconnected: true,
@@ -16,7 +18,7 @@ func NewCAgentNetWatcher() *CAgentNetWatcher {
 		NetMetrics:                      []string{inBytesName, outBytesName},
 		NetInterfaceMaxSpeed:            1000 * 1000 * 1,
 	}
-	netWatcher := NewWatcher(nwConfig)
+	netWatcher := networking.NewWatcher(nwConfig)
 
 	return &CAgentNetWatcher{netWatcher}
 }
