@@ -24,6 +24,10 @@ bind-data:
 	cd db/migration/monitoring/sql/ && go-bindata -o ../bindata.go -pkg migration ./...
 	cd db/migration/api_sessions/sql/ && go-bindata -o ../bindata.go -pkg api_sessions ./...
 
+# usage: make bindata-db DB=monitoring, if you want to generate embedded file for monitoring.db migration
+bindata-db:
+	cd db/migration/$(DB)/sql/ && go-bindata -o ../bindata.go -pkg $(DB) ./...
+
 clean:
 	go clean
 	rm -f $(BINARIES)
