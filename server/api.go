@@ -740,6 +740,7 @@ func (al *APIListener) handleGetStatus(w http.ResponseWriter, req *http.Request)
 		"two_fa_delivery_method": twoFADelivery,
 		"auditlog":               al.auditLog.Status(),
 		"auth_header":            al.config.API.AuthHeader != "",
+		"tunnel_proxy_enabled":   al.config.Server.TunnelProxyConfig.Enabled,
 	})
 
 	al.writeJSONResponse(w, http.StatusOK, response)

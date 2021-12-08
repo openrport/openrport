@@ -360,6 +360,9 @@ paths:
                     description: "Delivery method that is used to send auth tokens when 2FA is enabled"
                     type: "string"
                     enum: ["email", "pushover"]
+                  tunnel_proxy_enabled:
+                    description: "True if tunnel reverse proxy is enabled"
+                    type: "boolean"
               meta:
                 type: "object"
         "500":
