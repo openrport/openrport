@@ -58,7 +58,7 @@ func (p *Cache) Save(ctx context.Context, session *APISession) error {
 		}
 	}
 
-	p.cache.SetDefault(session.Token, session)
+	p.cache.Set(session.Token, session, time.Until(session.ExpiresAt))
 
 	return nil
 }

@@ -2,8 +2,8 @@
 // sources:
 // 001_init.down.sql
 // 001_init.up.sql
-// 002_add_net.down.sql
-// 002_add_net.up.sql
+// 002_indexes.down.sql
+// 002_indexes.up.sql
 // DO NOT EDIT!
 
 package monitoring
@@ -111,42 +111,42 @@ func _001_initUpSql() (*asset, error) {
 	return a, nil
 }
 
-var __002_add_netDownSql = []byte("\x1f\x8b\x08\x00\x00\x00\x00\x00\x00\xff\xd2\xd5\x55\xd0\xc5\x03\xb8\x74\x75\x15\x52\x8a\xf2\x0b\x14\xf2\x52\x4b\x14\x92\xf3\x73\x4a\x73\xf3\x8a\xb9\x08\xe9\x71\xf4\x09\x71\x0d\x52\x08\x71\x74\xf2\x71\x55\x50\xca\x4d\x4d\x2c\x2e\x2d\x4a\xcd\x4d\xcd\x2b\x29\x56\x52\x70\x09\xf2\x0f\x50\x70\xf6\xf7\x09\xf5\xf5\x53\x50\xca\x4b\x2d\x89\xcf\x49\xcc\x8b\xcf\xcc\x53\xb2\x26\x59\x53\x7e\x69\x09\x89\xba\xca\xc9\xb1\xaa\x1c\x6e\x15\x20\x00\x00\xff\xff\x2a\x0e\x2f\x32\x2a\x01\x00\x00")
+var __002_indexesDownSql = []byte("\x1f\x8b\x08\x00\x00\x00\x00\x00\x00\xff\x72\x09\xf2\x0f\x50\xf0\xf4\x73\x71\x8d\x50\xc8\x4d\x4d\x2c\x2e\x2d\x4a\xcd\x4d\xcd\x2b\x29\x8e\x2f\xc9\xcc\x4d\x2d\x2e\x49\xcc\x2d\xb0\xe6\xc2\xa5\x24\x39\x27\x33\x35\xaf\x24\x3e\x33\xc5\x9a\x0b\x10\x00\x00\xff\xff\x74\x7a\xdb\x2d\x46\x00\x00\x00")
 
-func _002_add_netDownSqlBytes() ([]byte, error) {
+func _002_indexesDownSqlBytes() ([]byte, error) {
 	return bindataRead(
-		__002_add_netDownSql,
-		"002_add_net.down.sql",
+		__002_indexesDownSql,
+		"002_indexes.down.sql",
 	)
 }
 
-func _002_add_netDownSql() (*asset, error) {
-	bytes, err := _002_add_netDownSqlBytes()
+func _002_indexesDownSql() (*asset, error) {
+	bytes, err := _002_indexesDownSqlBytes()
 	if err != nil {
 		return nil, err
 	}
 
-	info := bindataFileInfo{name: "002_add_net.down.sql", size: 298, mode: os.FileMode(436), modTime: time.Unix(1638869775, 0)}
+	info := bindataFileInfo{name: "002_indexes.down.sql", size: 70, mode: os.FileMode(436), modTime: time.Unix(1638904198, 0)}
 	a := &asset{bytes: bytes, info: info}
 	return a, nil
 }
 
-var __002_add_netUpSql = []byte("\x1f\x8b\x08\x00\x00\x00\x00\x00\x00\xff\xd2\xd5\x55\xd0\xc5\x03\xb8\x74\x75\x15\x12\x53\x52\x14\xf2\x52\x4b\x14\x92\xf3\x73\x4a\x73\xf3\x8a\xb9\x08\x69\x71\xf4\x09\x71\x0d\x52\x08\x71\x74\xf2\x71\x55\x50\xca\x4d\x4d\x2c\x2e\x2d\x4a\xcd\x4d\xcd\x2b\x29\x56\x52\x70\x74\x71\x51\x70\xf6\xf7\x09\xf5\xf5\x53\x50\xca\x4b\x2d\x89\xcf\x49\xcc\x8b\xcf\xcc\x53\x52\xf0\xf4\x0b\x71\x75\x77\x0d\xb2\x26\x55\x6f\x7e\x69\x09\x79\x9a\xcb\x29\xb0\xb8\x1c\xc3\x62\x40\x00\x00\x00\xff\xff\x74\x55\x1b\x06\x45\x01\x00\x00")
+var __002_indexesUpSql = []byte("\x1f\x8b\x08\x00\x00\x00\x00\x00\x00\xff\xd2\xd5\x55\xd0\xc5\x03\xb8\x74\x75\x15\x3c\xf3\x52\x52\x2b\x52\x8b\x15\xd2\xf2\x8b\x14\x4a\x12\x93\x72\x52\x15\x72\x53\x13\x8b\x4b\x8b\x52\x73\x53\xf3\x4a\x8a\xb9\x08\x99\xe0\x1c\xe4\xea\x18\xe2\xaa\xe0\xe9\xe7\xe2\x1a\xa1\xa0\x84\xac\x35\xbe\x24\x33\x37\xb5\xb8\x24\x31\xb7\x40\x49\xc1\xdf\x4f\x21\x01\x59\x2e\x41\x41\x83\x4b\x41\x41\x41\x41\x09\x49\x8d\x63\xb0\x33\x97\xa6\x35\x17\x3e\x13\x93\x73\x32\x53\xf3\x4a\xe2\x33\x53\xf0\x98\x88\xa4\x06\x6a\x22\x20\x00\x00\xff\xff\x1f\x9c\x57\xf4\x05\x01\x00\x00")
 
-func _002_add_netUpSqlBytes() ([]byte, error) {
+func _002_indexesUpSqlBytes() ([]byte, error) {
 	return bindataRead(
-		__002_add_netUpSql,
-		"002_add_net.up.sql",
+		__002_indexesUpSql,
+		"002_indexes.up.sql",
 	)
 }
 
-func _002_add_netUpSql() (*asset, error) {
-	bytes, err := _002_add_netUpSqlBytes()
+func _002_indexesUpSql() (*asset, error) {
+	bytes, err := _002_indexesUpSqlBytes()
 	if err != nil {
 		return nil, err
 	}
 
-	info := bindataFileInfo{name: "002_add_net.up.sql", size: 325, mode: os.FileMode(436), modTime: time.Unix(1638866832, 0)}
+	info := bindataFileInfo{name: "002_indexes.up.sql", size: 261, mode: os.FileMode(436), modTime: time.Unix(1638904198, 0)}
 	a := &asset{bytes: bytes, info: info}
 	return a, nil
 }
@@ -205,8 +205,8 @@ func AssetNames() []string {
 var _bindata = map[string]func() (*asset, error){
 	"001_init.down.sql":    _001_initDownSql,
 	"001_init.up.sql":      _001_initUpSql,
-	"002_add_net.down.sql": _002_add_netDownSql,
-	"002_add_net.up.sql":   _002_add_netUpSql,
+	"002_indexes.down.sql": _002_indexesDownSql,
+	"002_indexes.up.sql":   _002_indexesUpSql,
 }
 
 // AssetDir returns the file names below a certain
@@ -252,8 +252,8 @@ type bintree struct {
 var _bintree = &bintree{nil, map[string]*bintree{
 	"001_init.down.sql":    &bintree{_001_initDownSql, map[string]*bintree{}},
 	"001_init.up.sql":      &bintree{_001_initUpSql, map[string]*bintree{}},
-	"002_add_net.down.sql": &bintree{_002_add_netDownSql, map[string]*bintree{}},
-	"002_add_net.up.sql":   &bintree{_002_add_netUpSql, map[string]*bintree{}},
+	"002_indexes.down.sql": &bintree{_002_indexesDownSql, map[string]*bintree{}},
+	"002_indexes.up.sql":   &bintree{_002_indexesUpSql, map[string]*bintree{}},
 }}
 
 // RestoreAsset restores an asset under the given directory

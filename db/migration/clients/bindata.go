@@ -4,6 +4,8 @@
 // 001_init.up.sql
 // 002_stored_tunnels.down.sql
 // 002_stored_tunnels.up.sql
+// 003_add_tunnel_fields.down.sql
+// 003_add_tunnel_fields.up.sql
 package clients
 
 import (
@@ -135,7 +137,7 @@ func _002_stored_tunnelsDownSql() (*asset, error) {
 		return nil, err
 	}
 
-	info := bindataFileInfo{name: "002_stored_tunnels.down.sql", size: 27, mode: os.FileMode(436), modTime: time.Unix(1637936838, 0)}
+	info := bindataFileInfo{name: "002_stored_tunnels.down.sql", size: 27, mode: os.FileMode(436), modTime: time.Unix(1638793461, 0)}
 	a := &asset{bytes: bytes, info: info}
 	return a, nil
 }
@@ -155,7 +157,47 @@ func _002_stored_tunnelsUpSql() (*asset, error) {
 		return nil, err
 	}
 
-	info := bindataFileInfo{name: "002_stored_tunnels.up.sql", size: 251, mode: os.FileMode(436), modTime: time.Unix(1637938636, 0)}
+	info := bindataFileInfo{name: "002_stored_tunnels.up.sql", size: 251, mode: os.FileMode(436), modTime: time.Unix(1638886734, 0)}
+	a := &asset{bytes: bytes, info: info}
+	return a, nil
+}
+
+var __003_add_tunnel_fieldsDownSql = []byte("\x1f\x8b\x08\x00\x00\x00\x00\x00\x00\xff\x01\x00\x00\xff\xff\x00\x00\x00\x00\x00\x00\x00\x00")
+
+func _003_add_tunnel_fieldsDownSqlBytes() ([]byte, error) {
+	return bindataRead(
+		__003_add_tunnel_fieldsDownSql,
+		"003_add_tunnel_fields.down.sql",
+	)
+}
+
+func _003_add_tunnel_fieldsDownSql() (*asset, error) {
+	bytes, err := _003_add_tunnel_fieldsDownSqlBytes()
+	if err != nil {
+		return nil, err
+	}
+
+	info := bindataFileInfo{name: "003_add_tunnel_fields.down.sql", size: 0, mode: os.FileMode(436), modTime: time.Unix(1638887470, 0)}
+	a := &asset{bytes: bytes, info: info}
+	return a, nil
+}
+
+var __003_add_tunnel_fieldsUpSql = []byte("\x1f\x8b\x08\x00\x00\x00\x00\x00\x00\xff\x72\xf4\x09\x71\x0d\x52\x08\x71\x74\xf2\x71\x55\x28\x2e\xc9\x2f\x4a\x4d\x89\x2f\x29\xcd\xcb\x4b\xcd\x29\x56\x70\x74\x71\x51\x28\x28\x4d\xca\xc9\x4c\x8e\x2f\xc8\x2f\x2a\x51\xf0\x0b\xf5\x75\x72\x0d\xb2\xe6\x22\xa0\x25\xad\xb4\xa8\x24\x23\xb5\x28\x3e\xbf\xa0\x24\x33\x3f\xaf\x58\x21\xc4\x35\x22\xc4\x9a\x0b\x10\x00\x00\xff\xff\x0a\x14\xe8\x34\x68\x00\x00\x00")
+
+func _003_add_tunnel_fieldsUpSqlBytes() ([]byte, error) {
+	return bindataRead(
+		__003_add_tunnel_fieldsUpSql,
+		"003_add_tunnel_fields.up.sql",
+	)
+}
+
+func _003_add_tunnel_fieldsUpSql() (*asset, error) {
+	bytes, err := _003_add_tunnel_fieldsUpSqlBytes()
+	if err != nil {
+		return nil, err
+	}
+
+	info := bindataFileInfo{name: "003_add_tunnel_fields.up.sql", size: 104, mode: os.FileMode(436), modTime: time.Unix(1638887402, 0)}
 	a := &asset{bytes: bytes, info: info}
 	return a, nil
 }
@@ -212,10 +254,12 @@ func AssetNames() []string {
 
 // _bindata is a table, holding each asset generator, mapped to its name.
 var _bindata = map[string]func() (*asset, error){
-	"001_init.down.sql":           _001_initDownSql,
-	"001_init.up.sql":             _001_initUpSql,
-	"002_stored_tunnels.down.sql": _002_stored_tunnelsDownSql,
-	"002_stored_tunnels.up.sql":   _002_stored_tunnelsUpSql,
+	"001_init.down.sql":              _001_initDownSql,
+	"001_init.up.sql":                _001_initUpSql,
+	"002_stored_tunnels.down.sql":    _002_stored_tunnelsDownSql,
+	"002_stored_tunnels.up.sql":      _002_stored_tunnelsUpSql,
+	"003_add_tunnel_fields.down.sql": _003_add_tunnel_fieldsDownSql,
+	"003_add_tunnel_fields.up.sql":   _003_add_tunnel_fieldsUpSql,
 }
 
 // AssetDir returns the file names below a certain
@@ -259,10 +303,12 @@ type bintree struct {
 }
 
 var _bintree = &bintree{nil, map[string]*bintree{
-	"001_init.down.sql":           &bintree{_001_initDownSql, map[string]*bintree{}},
-	"001_init.up.sql":             &bintree{_001_initUpSql, map[string]*bintree{}},
-	"002_stored_tunnels.down.sql": &bintree{_002_stored_tunnelsDownSql, map[string]*bintree{}},
-	"002_stored_tunnels.up.sql":   &bintree{_002_stored_tunnelsUpSql, map[string]*bintree{}},
+	"001_init.down.sql":              &bintree{_001_initDownSql, map[string]*bintree{}},
+	"001_init.up.sql":                &bintree{_001_initUpSql, map[string]*bintree{}},
+	"002_stored_tunnels.down.sql":    &bintree{_002_stored_tunnelsDownSql, map[string]*bintree{}},
+	"002_stored_tunnels.up.sql":      &bintree{_002_stored_tunnelsUpSql, map[string]*bintree{}},
+	"003_add_tunnel_fields.down.sql": &bintree{_003_add_tunnel_fieldsDownSql, map[string]*bintree{}},
+	"003_add_tunnel_fields.up.sql":   &bintree{_003_add_tunnel_fieldsUpSql, map[string]*bintree{}},
 }}
 
 // RestoreAsset restores an asset under the given directory

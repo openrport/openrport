@@ -28,7 +28,9 @@ func (p *SQLiteProvider) Insert(ctx context.Context, t *StoredTunnel) error {
 			scheme,
 			remote_ip,
 			remote_port,
-			acl
+			public_port,
+			acl,
+			further_options
 		) VALUES (
 			:id,
 			:client_id,
@@ -37,7 +39,9 @@ func (p *SQLiteProvider) Insert(ctx context.Context, t *StoredTunnel) error {
 			:scheme,
 			:remote_ip,
 			:remote_port,
-			:acl
+			:public_port,
+			:acl,
+			:further_options
 		)`,
 		t,
 	)
@@ -52,7 +56,9 @@ func (p *SQLiteProvider) Update(ctx context.Context, t *StoredTunnel) error {
 			scheme = :scheme,
 			remote_ip = :remote_ip,
 			remote_port = :remote_port,
-			acl = :acl
+			public_port = :public_port,
+			acl = :acl,
+			further_options = :further_options
 		WHERE client_id = :client_id AND id = :id`,
 		t,
 	)

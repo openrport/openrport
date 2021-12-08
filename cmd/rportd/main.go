@@ -37,10 +37,10 @@ var serverHelp = `
 
   Examples:
 
-    ./rportd --addr=0.0.0.0:9999
+    ./rportd --addr=0.0.0.0:9999 --auth=clientAuth1:1234
     starts server, listening to client connections on port 9999
 
-    ./rportd --addr="[2a01:4f9:c010:b278::1]:9999" --api-addr=0.0.0.0:9000 --api-auth=admin:1234
+    ./rportd --addr="[2a01:4f9:c010:b278::1]:9999" --api-addr=0.0.0.0:9000 --api-auth=admin:1234 --auth=clientAuth1:1234
     starts server, listening to client connections on IPv6 interface,
     also enabling HTTP API, available at http://0.0.0.0:9000/
 
@@ -321,8 +321,11 @@ func init() {
 	viperCfg.SetDefault("api.two_fa_send_timeout", 10*time.Second)
 	viperCfg.SetDefault("api.two_fa_send_to_type", message.ValidationNone)
 	viperCfg.SetDefault("api.enable_audit_log", true)
+	viperCfg.SetDefault("api.totp_enabled", false)
 	viperCfg.SetDefault("api.audit_log_rotation", auditlog.RotationMonthly)
 	viperCfg.SetDefault("monitoring.data_storage_days", DefaultMonitoringDataStorageDays)
+	viperCfg.SetDefault("api.totp_login_session_ttl", time.Minute*10)
+	viperCfg.SetDefault("api.totp_account_name", "RPort")
 }
 
 func bindPFlags() {

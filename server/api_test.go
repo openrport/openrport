@@ -1666,7 +1666,7 @@ func TestWrapWithAuthMiddleware(t *testing.T) {
 			config: &Config{},
 		},
 	}
-	jwt, err := al.createAuthToken(ctx, time.Hour, user.Username)
+	jwt, err := al.createAuthToken(ctx, time.Hour, user.Username, []Scope{})
 	require.NoError(t, err)
 
 	testCases := []struct {
@@ -1749,7 +1749,7 @@ func TestWrapWithAuthMiddleware(t *testing.T) {
 
 			handler := al.wrapWithAuthMiddleware(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 				assert.Equal(t, user.Username, api.GetUser(r.Context(), nil))
-			}))
+			}), false)
 
 			w := httptest.NewRecorder()
 			req := httptest.NewRequest("GET", "/some-endpoint", nil)

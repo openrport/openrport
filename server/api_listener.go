@@ -99,7 +99,14 @@ func NewAPIListener(
 		usersProvider = users.NewStaticProvider([]*users.User{authUser})
 	} else if config.API.AuthUserTable != "" {
 		logger := logger.NewLogger("database", config.Logging.LogOutput, config.Logging.LogLevel)
-		usersProvider, err = users.NewUserDatabase(server.authDB, config.API.AuthUserTable, config.API.AuthGroupTable, config.API.IsTwoFAOn(), logger)
+		usersProvider, err = users.NewUserDatabase(
+			server.authDB,
+			config.API.AuthUserTable,
+			config.API.AuthGroupTable,
+			config.API.IsTwoFAOn(),
+			config.API.TotPEnabled,
+			logger,
+		)
 		if err != nil {
 			return nil, err
 		}
@@ -193,6 +200,16 @@ func NewAPIListener(
 		a.Logger.Infof("2FA is enabled via using %s", config.API.TwoFATokenDelivery)
 	}
 
+	if config.API.TotPEnabled {
+		a.twoFASrv = NewTwoFAService(
+			config.API.TwoFATokenTTLSeconds,
+			config.API.TwoFASendTimeout,
+			userService,
+			nil,
+		)
+		a.Logger.Infof("2FA is enabled via an Authenticator app")
+	}
+
 	if config.API.MaxFailedLogin > 0 && config.API.BanTime > 0 {
 		a.bannedIPs = security.NewMaxBadAttemptsBanList(
 			config.API.MaxFailedLogin,
@@ -271,14 +288,20 @@ func (al *APIListener) Close() error {
 var ErrTooManyRequests = errors.New("too many requests, please try later")
 
 // lookupUser is used to get the user on every request in auth middleware
-func (al *APIListener) lookupUser(r *http.Request) (authorized bool, username string, err error) {
-	if basicUser, basicPwd, basicAuthProvided := r.BasicAuth(); basicAuthProvided {
-		return al.handleBasicAuth(basicUser, basicPwd)
-
+func (al *APIListener) lookupUser(r *http.Request, isBearerOnly bool) (authorized bool, username string, err error) {
+	if !isBearerOnly {
+		if basicUser, basicPwd, basicAuthProvided := r.BasicAuth(); basicAuthProvided {
+			return al.handleBasicAuth(basicUser, basicPwd)
+		}
 	}
 
 	if bearerToken, bearerAuthProvided := getBearerToken(r); bearerAuthProvided {
-		return al.handleBearerToken(r.Context(), bearerToken)
+		isAuthorized, token, err := al.handleBearerToken(r.Context(), bearerToken, r.URL.Path, r.Method)
+		if err != nil {
+			return isAuthorized, "", err
+		}
+
+		return isAuthorized, token.AppToken.Username, nil
 	}
 
 	// case when no auth method is provided
@@ -307,7 +330,7 @@ func (al *APIListener) handleBasicAuth(username, password string) (authorized bo
 	}
 
 	// skip basic auth with password when 2fa is enabled
-	if !al.config.API.IsTwoFAOn() {
+	if !al.config.API.IsTwoFAOn() && !al.config.API.TotPEnabled {
 		passwordOk := verifyPassword(user.Password, password)
 		if passwordOk {
 			return true, username, nil
@@ -325,10 +348,15 @@ func (al *APIListener) handleBasicAuth(username, password string) (authorized bo
 	return false, username, nil
 }
 
-func (al *APIListener) handleBearerToken(ctx context.Context, bearerToken string) (bool, string, error) {
-	authorized, username, apiSession, err := al.validateBearerToken(ctx, bearerToken)
+func (al *APIListener) handleBearerToken(ctx context.Context, bearerToken, uri, method string) (bool, *TokenContext, error) {
+	token, err := al.parseToken(bearerToken)
 	if err != nil {
-		return false, username, err
+		return false, nil, err
+	}
+
+	authorized, apiSession, err := al.validateBearerToken(ctx, token, uri, method)
+	if err != nil {
+		return false, token, err
 	}
 	if authorized {
 		if err := al.increaseSessionLifetime(ctx, apiSession); err != nil {
@@ -336,25 +364,25 @@ func (al *APIListener) handleBearerToken(ctx context.Context, bearerToken string
 			al.Errorf("Failed to increase jwt token lifetime: %v", err)
 		}
 	}
-	return authorized, username, nil
+	return authorized, token, nil
 }
 
 const htpasswdBcryptPrefix = "$2y$"
 
 // validateCredentials returns true if given credentials belong to a user with an access to API.
-func (al *APIListener) validateCredentials(username, password string, skipPasswordValidation bool) (bool, error) {
+func (al *APIListener) validateCredentials(username, password string, skipPasswordValidation bool) (bool, *users.User, error) {
 	if username == "" {
-		return false, nil
+		return false, nil, nil
 	}
 
 	user, err := al.userService.GetByUsername(username)
 	if err != nil {
-		return false, fmt.Errorf("failed to get user: %v", err)
+		return false, nil, fmt.Errorf("failed to get user: %v", err)
 	}
 	if user == nil && skipPasswordValidation && al.config.API.CreateMissingUsers {
 		pswd, err := random.UUID4()
 		if err != nil {
-			return false, err
+			return false, nil, err
 		}
 		user = &users.User{
 			Username: username,
@@ -363,18 +391,18 @@ func (al *APIListener) validateCredentials(username, password string, skipPasswo
 		}
 		err = al.userService.Change(user, "")
 		if err != nil {
-			return false, fmt.Errorf("failed to create missing user: %v", err)
+			return false, user, fmt.Errorf("failed to create missing user: %v", err)
 		}
 	}
 	if user == nil {
-		return false, nil
+		return false, user, nil
 	}
 
 	if skipPasswordValidation {
-		return true, nil
+		return true, user, nil
 	}
 
-	return verifyPassword(user.Password, password), nil
+	return verifyPassword(user.Password, password), user, nil
 }
 
 func verifyPassword(saved, provided string) bool {
@@ -410,8 +438,8 @@ var (
 
 func (al *APIListener) wsAuth(f http.Handler) http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
-		token := r.URL.Query().Get(WebSocketAccessTokenQueryParam)
-		if token == "" {
+		tokenStr := r.URL.Query().Get(WebSocketAccessTokenQueryParam)
+		if tokenStr == "" {
 			if !al.handleBannedIPs(w, r, false) {
 				return
 			}
@@ -419,7 +447,7 @@ func (al *APIListener) wsAuth(f http.Handler) http.HandlerFunc {
 			return
 		}
 
-		authorized, username, err := al.handleBearerToken(r.Context(), token)
+		authorized, token, err := al.handleBearerToken(r.Context(), tokenStr, r.URL.Path, r.Method)
 		if err != nil {
 			if errors.Is(err, ErrTooManyRequests) {
 				al.jsonErrorResponse(w, http.StatusTooManyRequests, err)
@@ -433,13 +461,13 @@ func (al *APIListener) wsAuth(f http.Handler) http.HandlerFunc {
 			return
 		}
 
-		if !authorized || username == "" {
-			al.bannedUsers.Add(username)
+		if !authorized || token.AppToken.Username == "" {
+			al.bannedUsers.Add(token.AppToken.Username)
 			al.jsonErrorResponse(w, http.StatusUnauthorized, errUnauthorized)
 			return
 		}
 
-		newCtx := api.WithUser(r.Context(), username)
+		newCtx := api.WithUser(r.Context(), token.AppToken.Username)
 		f.ServeHTTP(w, r.WithContext(newCtx))
 	}
 }

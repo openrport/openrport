@@ -17,23 +17,13 @@ import (
 var testLog = chshare.NewLogger("client", chshare.LogOutput{File: os.Stdout}, chshare.LogLevelDebug)
 
 func TestNewUserDatabase(t *testing.T) {
-	db, err := sqlx.Connect("sqlite3", ":memory:")
-	require.NoError(t, err)
-	defer db.Close()
-
-	err = prepareTables(db)
-	require.NoError(t, err)
-
-	_, err = db.Exec("CREATE TABLE `invalid_users` (username TEXT PRIMARY KEY, pass TEXT)")
-	require.NoError(t, err)
-	_, err = db.Exec("CREATE TABLE `invalid_groups` (username TEXT, other TEXT)")
-	require.NoError(t, err)
-
 	testCases := []struct {
 		Name          string
 		UsersTable    string
 		GroupsTable   string
 		ExpectedError string
+		twoFAOn       bool
+		totPOn        bool
 	}{
 		{
 			Name:          "invalid users tables",
@@ -60,11 +50,42 @@ func TestNewUserDatabase(t *testing.T) {
 			UsersTable:  "users",
 			GroupsTable: "groups",
 		},
+		{
+			Name:        "totP on",
+			UsersTable:  "users",
+			GroupsTable: "groups",
+			totPOn:      true,
+		},
+		{
+			Name:        "2fa and totP on",
+			UsersTable:  "users",
+			GroupsTable: "groups",
+			twoFAOn:     true,
+		},
+		{
+			Name:        "2fa on",
+			UsersTable:  "users",
+			GroupsTable: "groups",
+			twoFAOn:     true,
+			totPOn:      true,
+		},
 	}
 
 	for _, tc := range testCases {
 		t.Run(tc.Name, func(t *testing.T) {
-			_, err := NewUserDatabase(db, tc.UsersTable, tc.GroupsTable, false, testLog)
+			db, err := sqlx.Connect("sqlite3", ":memory:")
+			require.NoError(t, err)
+			defer db.Close()
+
+			err = prepareTables(db, tc.twoFAOn, tc.totPOn)
+			require.NoError(t, err)
+
+			_, err = db.Exec("CREATE TABLE `invalid_users` (username TEXT PRIMARY KEY, pass TEXT)")
+			require.NoError(t, err)
+			_, err = db.Exec("CREATE TABLE `invalid_groups` (username TEXT, other TEXT)")
+			require.NoError(t, err)
+
+			_, err = NewUserDatabase(db, tc.UsersTable, tc.GroupsTable, tc.twoFAOn, tc.totPOn, testLog)
 			if tc.ExpectedError == "" {
 				require.NoError(t, err)
 			} else {
@@ -80,13 +101,13 @@ func TestGetByUsername(t *testing.T) {
 	require.NoError(t, err)
 	defer db.Close()
 
-	err = prepareTables(db)
+	err = prepareTables(db, true, false)
 	require.NoError(t, err)
 
-	err = prepareDummyData(db)
+	err = prepareDummyData(db, true, false)
 	require.NoError(t, err)
 
-	d, err := NewUserDatabase(db, "users", "groups", false, testLog)
+	d, err := NewUserDatabase(db, "users", "groups", false, false, testLog)
 	require.NoError(t, err)
 
 	testCases := []struct {
@@ -143,13 +164,13 @@ func TestGetAll(t *testing.T) {
 	require.NoError(t, err)
 	defer db.Close()
 
-	err = prepareTables(db)
+	err = prepareTables(db, false, true)
 	require.NoError(t, err)
 
-	err = prepareDummyData(db)
+	err = prepareDummyData(db, false, true)
 	require.NoError(t, err)
 
-	d, err := NewUserDatabase(db, "users", "groups", false, testLog)
+	d, err := NewUserDatabase(db, "users", "groups", false, true, testLog)
 	require.NoError(t, err)
 
 	actualUsers, err := d.GetAll()
@@ -161,6 +182,7 @@ func TestGetAll(t *testing.T) {
 			Password: "pass1",
 			Groups:   nil,
 			Token:    nil,
+			TotP:     "totP123",
 		},
 		{
 			Username: "user2",
@@ -188,13 +210,13 @@ func TestGetAllGroups(t *testing.T) {
 	require.NoError(t, err)
 	defer db.Close()
 
-	err = prepareTables(db)
+	err = prepareTables(db, false, false)
 	require.NoError(t, err)
 
-	err = prepareDummyData(db)
+	err = prepareDummyData(db, false, false)
 	require.NoError(t, err)
 
-	d, err := NewUserDatabase(db, "users", "groups", false, testLog)
+	d, err := NewUserDatabase(db, "users", "groups", false, false, testLog)
 	require.NoError(t, err)
 
 	actualGroups, err := d.GetAllGroups()
@@ -252,10 +274,10 @@ func TestAdd(t *testing.T) {
 			require.NoError(t, err)
 			defer db.Close()
 
-			err = prepareTables(db)
+			err = prepareTables(db, false, false)
 			require.NoError(t, err)
 
-			d, err := NewUserDatabase(db, "users", "groups", false, testLog)
+			d, err := NewUserDatabase(db, "users", "groups", false, false, testLog)
 			require.NoError(t, err)
 
 			err = d.Add(testCase.userToChange)
@@ -434,13 +456,13 @@ func TestUpdate(t *testing.T) {
 			require.NoError(t, err)
 			defer db.Close()
 
-			err = prepareTables(db)
+			err = prepareTables(db, false, false)
 			require.NoError(t, err)
 
-			err = prepareDummyData(db)
+			err = prepareDummyData(db, false, false)
 			require.NoError(t, err)
 
-			d, err := NewUserDatabase(db, "users", "groups", false, testLog)
+			d, err := NewUserDatabase(db, "users", "groups", false, false, testLog)
 			require.NoError(t, err)
 
 			testCase := testCases[i]
@@ -459,13 +481,13 @@ func TestDelete(t *testing.T) {
 	require.NoError(t, err)
 	defer db.Close()
 
-	err = prepareTables(db)
+	err = prepareTables(db, false, false)
 	require.NoError(t, err)
 
-	err = prepareDummyData(db)
+	err = prepareDummyData(db, false, false)
 	require.NoError(t, err)
 
-	d, err := NewUserDatabase(db, "users", "groups", false, testLog)
+	d, err := NewUserDatabase(db, "users", "groups", false, false, testLog)
 	require.NoError(t, err)
 
 	err = d.Delete("user1")
@@ -481,8 +503,18 @@ func TestDelete(t *testing.T) {
 	assertGroupTableEquals(t, db, d.groupsTableName, []map[string]interface{}{})
 }
 
-func prepareTables(db *sqlx.DB) error {
-	_, err := db.Exec("CREATE TABLE `users` (username TEXT PRIMARY KEY, password TEXT, token TEXT)")
+func prepareTables(db *sqlx.DB, twoFAOn, totPON bool) error {
+	q := "CREATE TABLE `users` (username TEXT PRIMARY KEY, password TEXT, token TEXT%s)"
+	dynamicFieldsQ := ""
+	if twoFAOn {
+		dynamicFieldsQ += ", two_fa_send_to TEXT NOT NULL DEFAULT ''"
+	}
+	if totPON {
+		dynamicFieldsQ += ", totp_secret TEXT NOT NULL DEFAULT ''"
+	}
+	q = fmt.Sprintf(q, dynamicFieldsQ)
+
+	_, err := db.Exec(q)
 	if err != nil {
 		return err
 	}
@@ -495,15 +527,30 @@ func prepareTables(db *sqlx.DB) error {
 	return nil
 }
 
-func prepareDummyData(db *sqlx.DB) error {
-	_, err := db.Exec("INSERT INTO `users` (username, password) VALUES (\"user1\", \"pass1\")")
-	if err != nil {
-		return err
+func prepareDummyData(db *sqlx.DB, withTwoFA, withTotP bool) error {
+	var err error
+	if !withTotP {
+		_, err = db.Exec("INSERT INTO `users` (username, password) VALUES (\"user1\", \"pass1\")")
+		if err != nil {
+			return err
+		}
+	} else {
+		_, err = db.Exec("INSERT INTO `users` (username, password, totp_secret) VALUES (\"user1\", \"pass1\", \"totP123\")")
+		if err != nil {
+			return err
+		}
 	}
 
-	_, err = db.Exec("INSERT INTO `users` (username, password) VALUES (\"user2\", \"pass2\")")
-	if err != nil {
-		return err
+	if !withTwoFA {
+		_, err = db.Exec("INSERT INTO `users` (username, password) VALUES (\"user2\", \"pass2\")")
+		if err != nil {
+			return err
+		}
+	} else {
+		_, err = db.Exec("INSERT INTO `users` (username, password, two_fa_send_to) VALUES (\"user2\", \"pass2\", \"no@mail.me\")")
+		if err != nil {
+			return err
+		}
 	}
 
 	_, err = db.Exec("INSERT INTO `users` (username, password, token) VALUES (\"user3\", \"pass3\", \"token3\")")
