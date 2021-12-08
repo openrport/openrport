@@ -1884,7 +1884,7 @@ func TestHandleGetLogin(t *testing.T) {
 
 	testCases := []struct {
 		Name              string
-		BasicAuth         bool
+		BasicAuthPassword string
 		HeaderAuthUser    string
 		HeaderAuthEnabled bool
 		CreateMissingUser bool
@@ -1895,9 +1895,9 @@ func TestHandleGetLogin(t *testing.T) {
 			ExpectedStatus: http.StatusUnauthorized,
 		},
 		{
-			Name:           "basic auth",
-			BasicAuth:      true,
-			ExpectedStatus: http.StatusOK,
+			Name:              "basic auth",
+			BasicAuthPassword: "pwd",
+			ExpectedStatus:    http.StatusOK,
 		},
 		{
 			Name:           "header auth - disabled",
@@ -1908,6 +1908,13 @@ func TestHandleGetLogin(t *testing.T) {
 			Name:              "header auth - enabled",
 			HeaderAuthUser:    user.Username,
 			HeaderAuthEnabled: true,
+			ExpectedStatus:    http.StatusOK,
+		},
+		{
+			Name:              "header auth + invalid basic auth",
+			HeaderAuthUser:    user.Username,
+			HeaderAuthEnabled: true,
+			BasicAuthPassword: "invalid",
 			ExpectedStatus:    http.StatusOK,
 		},
 		{
@@ -1938,8 +1945,8 @@ func TestHandleGetLogin(t *testing.T) {
 
 			w := httptest.NewRecorder()
 			req := httptest.NewRequest("GET", "/api/v1/login", nil)
-			if tc.BasicAuth {
-				req.SetBasicAuth(user.Username, "pwd")
+			if tc.BasicAuthPassword != "" {
+				req.SetBasicAuth(user.Username, tc.BasicAuthPassword)
 			}
 			if tc.HeaderAuthUser != "" {
 				req.Header.Set(authHeader, "1")

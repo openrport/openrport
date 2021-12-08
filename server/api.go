@@ -369,14 +369,14 @@ type loginResponse struct {
 }
 
 func (al *APIListener) handleGetLogin(w http.ResponseWriter, req *http.Request) {
-	basicUser, basicPwd, basicAuthProvided := req.BasicAuth()
-	if basicAuthProvided {
-		al.handleLogin(basicUser, basicPwd, false, w, req)
+	if al.config.API.AuthHeader != "" && req.Header.Get(al.config.API.AuthHeader) != "" {
+		al.handleLogin(req.Header.Get(al.config.API.UserHeader), "", true /* skipPasswordValidation */, w, req)
 		return
 	}
 
-	if al.config.API.AuthHeader != "" && req.Header.Get(al.config.API.AuthHeader) != "" {
-		al.handleLogin(req.Header.Get(al.config.API.UserHeader), "", true /* skipPasswordValidation */, w, req)
+	basicUser, basicPwd, basicAuthProvided := req.BasicAuth()
+	if basicAuthProvided {
+		al.handleLogin(basicUser, basicPwd, false, w, req)
 		return
 	}
 
