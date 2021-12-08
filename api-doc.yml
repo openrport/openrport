@@ -3664,7 +3664,6 @@ definitions:
         format: "data-time"
         description: "Date and time of stored tunnel creation"
         readOnly: true
-
       name:
         type: "string"
         description: "Name of the stored tunnel"
@@ -3672,11 +3671,17 @@ definitions:
         type: "string"
         description: "Remote host for the stored tunnel"
       remote_port:
-        type: "string"
+        type: "integer"
         description: "Remote port for the stored tunnel"
+      public_port:
+        type: "integer"
+        description: "Public port for the stored tunnel"
       scheme:
         type: "string"
         description: "URI scheme for the stored tunnel"
       acl:
         type: "string"
         description: "ACL for the stored tunnel"
+      further_options:
+        type: "object"
+        description: "Further options for the stored tunnel"
