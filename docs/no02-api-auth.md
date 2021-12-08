@@ -602,3 +602,102 @@ If you have administrator role, you can also delete totP secret of all users inc
 curl -s http://localhost:3000/api/v1/users/no@mail.com/totp-secret -H "Content-Type: application/json" -X DELETE \
 -H "Authorization: Bearer eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJ1c2VybmFtZSI6InVzZXIiLCJqdGkiOiIxOTA2MTc2.LzSZDGo0vlsDi-Puy3w_vVZab50"
 ```
+
+## Delegated authentication
+
+Staring with rportd 0.5.0 you can delegate the authentication to a reverse proxy. This allows you to use a variety of authentication backends for example such supported by Netscaler, Keycloak, the [Apache Auth Plugins](https://httpd.apache.org/docs/2.4/howto/auth.html) or by the [Caddy Auth Portal](https://github.com/greenpau/caddy-auth-portal). 
+
+If the reverse proxy sends a specific header and a header that includes a username in the value, rport considers the user as authenticated. 
+Using the delegated authentication does not liberate you from performing a `/api/v1/login` request to retrieve the JWT and sending this JWT on all requests.
+
+To enable the delegated authentication, activate the following settings in your `rportd.conf`.
+
+```
+  ## The rport server can treat all requests as pre-authenticated by a reverse proxy based on a http header.
+  ## This option is enabled if auth_header is set.
+  ## If the header exists, the request is considered valid and a session is created.
+  ## Inside the same or a different header, the username must be submitted.
+  auth_header = "My-User"
+  user_header = "My-User"
+  ## If the user doesn't exist yet, it can be created on-the-fly.
+  ## Disabled by default
+  create_missing_users = true
+  ## If users are created on-the-fly to which user group do they belong?
+  default_user_group = "Administrators"
+```
+
+### Simple example with Caddy basic authentication
+Below you have a simple configuration file for the Caddy web server. It assumes your rportd API is listening on localhost:3000.
+```
+http://rport.example.com:8080 {
+	# Forward all requests to Rport
+	reverse_proxy * 127.0.0.1:3000 {
+		header_up My-User jopapa
+	}
+	log {
+		output file /tmp/proxy.log
+	}
+	basicauth /api/v1/login {
+		# require password foobaz
+		jomama JDJhJDE0JEkycVRhTlkwTHZxekZsZTViVTRsMy5zLjE5ZVdWQTYyWnRJeC9tYm5pOVRmOVliNUVFazUu
+	}
+}
+```
+
+If you request the JWT you must specify the username and password expected by the reverse proxy (`jomama` + `foobaz`). The rportd user backend is not asked.
+
+`curl -u jomama:foobaz "http://rport.example.com:8080/api/v1/login?token-lifetime=9999" -v -o auth.json`
+
+If you do the request via the web user interface you also need to enter the username and password specified by the proxy.
+
+In this example, you must log in as user "jomama" but rport treats you as "jopapa" because the reverse proxy sends a static hard coded username in the `My-User` header.
+
+::: warning
+Note that the reverse proxy must only require authentication on the `/api/v1/login` URI. If you require basic authentication for all resources, the frontend will break because ajax requests are performed in the background with the default authentication bearer header that will overwrite potential authentication basic headers.
+:::
+
+### Real-world use case
+The above example is just a demonstration. In a real-world example, the user would visit an authentication portal first that will place a cookie. Based on that cookie, the reverse proxy will deny or forward requests to the rportd backend.
+
+The following Nginx example simulates an authentication portal.
+```
+# Reverse proxy
+#
+server {
+	listen 8888 default_server;
+	listen [::]:8888 default_server;
+	server_name _;
+        # Reject all request if cookie is missing
+        if ($http_cookie !~ 'secretvalue') {
+           return 401; 
+        }
+
+	location / {
+                # Proxy forward to rportd
+                proxy_pass http://127.0.0.1:3000/;
+                proxy_set_header My-User gagaman;
+	}
+}
+
+# Auth portal
+#
+server {
+        listen 8889 default_server;
+        listen [::]:8889 default_server;
+
+        root /var/www/html;
+
+        # Add index.php to the list if you are using PHP
+        index index.html index.htm index.nginx-debian.html;
+
+        server_name _;
+
+        location / {
+		            add_header Set-Cookie "letmein=secretvalue;max-age=3153600000;path=/;domain=.example.com";
+        }
+}
+
+```
+::: danger
+Do not use any of the examples in production as they all are not using encryption and all your authentication data would be transferred plain text, that means easily sniffable. 
+:::
