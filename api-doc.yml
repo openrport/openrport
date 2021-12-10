@@ -79,8 +79,10 @@ paths:
       description: "If 2FA is disabled: returns authorization JWT token.\n
       If 2FA is enabled: triggers sending 2FA token to the user. 2fa token can be further verified using `/verify-2fa` endpoint. Requires the user to have a valid `two_fa_send_to` delivery option.\n
       `username` and `password` should be provided in request body either in JSON either in x-www-formurlencoded format.\n
-      If time based one time passwords (TotP) are enabled (Google/Microsoft authenticator app), it returns a login token, which should be used to call `/verify-2fa` endpoint and also to create and read a totp secret for the first time (see `/me/totp-secret`)\n
-      To understand if TotP is enabled, `delivery_method` field will contain `totp_authenticator_app` value, that indicates the limited scope of the JWT token validity."
+      If time based one time passwords (TotP) are enabled (Google/Microsoft authenticator app), it returns a login token, which should be used to call `/verify-2fa` endpoint and also to create and totp secret key for the first time (see `/me/totp-secret`)\n
+      To understand if TotP is enabled, `delivery_method` field will contain `totp_authenticator_app` value, that indicates the limited scope of the JWT token validity.\n
+      If user has already a TotP secret key, the value of totp_key_status field will be 'pending' or 'exists' otherwise.
+      "
       # swagger 2.0 does not allow describing a method that accepts multiple content-types
       parameters:
         - name: "token-lifetime"
@@ -133,8 +135,8 @@ paths:
       tags:
         - "Login"
       summary: "Verify 2FA token of the user. Requires enabled 2FA or time based one time code generation (totp_enabled=true)."
-      description: "Returns authorization JWT token if a provided username and his 2fa token are valid. If totp_enabled is true, you should provide one time password as 2fa token.\n
-      If 2FA or TotP are disabled, this api will return 4"
+      description: "Returns authorization JWT token if athe provided username and his 2fa token are valid. If totp_enabled is true, you should provide one time password as 2fa token.\n
+      If both 2FA and TotP are disabled, this api will return 400."
       produces:
         - "application/json"
       parameters:
@@ -3335,6 +3337,10 @@ definitions:
             enum: ["email", "pushover", "totp_authenticator_app"]
             description: "Delivery method that is used to send 2fa token to the user. \n
             `totp_authenticator_app` value indicates that user has enabled time based one time passwords."
+          totp_key_status:
+            type: "string"
+            enum: ["pending", "exists"]
+            description: "If current user has generated a TotP secret key already, the result will be `existing` and `pending` otherwise"
   VaultEntryInput:
     type: "object"
     properties:
