@@ -21,6 +21,24 @@ const (
 	DefaultTotPQrImageHeight = 200
 )
 
+type TotPKeyStatus uint
+
+func (tks TotPKeyStatus) String() string {
+	switch tks {
+	case TotPKeyPending:
+		return "pending"
+	case TotPKeyExists:
+		return "exists"
+	default:
+		return ""
+	}
+}
+
+const (
+	TotPKeyPending TotPKeyStatus = iota + 1
+	TotPKeyExists
+)
+
 var defaultTotPGenerateOptions = totp.GenerateOpts{
 	Period:     30,
 	SecretSize: 20,

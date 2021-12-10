@@ -361,6 +361,7 @@ func (al *APIListener) jsonErrorResponseWithError(w http.ResponseWriter, statusC
 type twoFAResponse struct {
 	SendTo         string `json:"send_to"`
 	DeliveryMethod string `json:"delivery_method"`
+	TotPKeyStatus  string `json:"totp_key_status"`
 }
 
 type loginResponse struct {
@@ -452,6 +453,12 @@ func (al *APIListener) handleLogin(username, pwd string, skipPasswordValidation 
 	if al.config.API.TotPEnabled {
 		al.twoFASrv.SetTotPLoginSession(username, al.config.API.TotPLoginSessionTimeout)
 
+		loginResp := loginResponse{
+			TwoFA: &twoFAResponse{
+				DeliveryMethod: "totp_authenticator_app",
+			},
+		}
+
 		totP, err := GetUsersTotPCode(user)
 		if err != nil {
 			al.Logf(logger.LogLevelError, "failed to get TotP secret: %v", err)
@@ -463,6 +470,9 @@ func (al *APIListener) handleLogin(username, pwd string, skipPasswordValidation 
 		if totP == nil {
 			// we allow access to totp-secret creation only if no totp secret was created before
 			scopes = append(scopes, ScopesTotPCreateOnly...)
+			loginResp.TwoFA.TotPKeyStatus = TotPKeyPending.String()
+		} else {
+			loginResp.TwoFA.TotPKeyStatus = TotPKeyExists.String()
 		}
 
 		tokenStr, err := al.createAuthToken(
@@ -476,12 +486,8 @@ func (al *APIListener) handleLogin(username, pwd string, skipPasswordValidation 
 			return
 		}
 
-		al.writeJSONResponse(w, http.StatusOK, api.NewSuccessPayload(loginResponse{
-			Token: &tokenStr,
-			TwoFA: &twoFAResponse{
-				DeliveryMethod: "totp_authenticator_app",
-			},
-		}))
+		loginResp.Token = &tokenStr
+		al.writeJSONResponse(w, http.StatusOK, api.NewSuccessPayload(loginResp))
 		return
 	}
 
