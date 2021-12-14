@@ -59,6 +59,7 @@ const (
 	routeParamVaultValueID   = "vault_value_id"
 	routeParamScriptValueID  = "script_value_id"
 	routeParamCommandValueID = "command_value_id"
+	routeParamGraphName      = "graph_name"
 
 	ErrCodeMissingRouteVar = "ERR_CODE_MISSING_ROUTE_VAR"
 	ErrCodeInvalidRequest  = "ERR_CODE_INVALID_REQUEST"
@@ -189,10 +190,11 @@ func (al *APIListener) initRouter() {
 	api.HandleFunc("/clients/{client_id}/commands/{job_id}", al.wrapClientAccessMiddleware(al.handleGetCommand)).Methods(http.MethodGet)
 	api.HandleFunc("/clients/{client_id}/scripts", al.wrapClientAccessMiddleware(al.handleExecuteScript)).Methods(http.MethodPost)
 	api.HandleFunc("/clients/{client_id}/updates-status", al.wrapClientAccessMiddleware(al.handleRefreshUpdatesStatus)).Methods(http.MethodPost)
-	api.HandleFunc("/clients/{client_id}/graph-metrics", al.handleGetClientGraphMetrics).Methods(http.MethodGet)
-	api.HandleFunc("/clients/{client_id}/metrics", al.handleGetClientMetrics).Methods(http.MethodGet)
-	api.HandleFunc("/clients/{client_id}/processes", al.handleGetClientProcesses).Methods(http.MethodGet)
-	api.HandleFunc("/clients/{client_id}/mountpoints", al.handleGetClientMountpoints).Methods(http.MethodGet)
+	api.HandleFunc("/clients/{client_id}/graph-metrics", al.wrapClientAccessMiddleware(al.handleGetClientGraphMetrics)).Methods(http.MethodGet)
+	api.HandleFunc("/clients/{client_id}/graph-metrics/{"+routeParamGraphName+"}", al.wrapClientAccessMiddleware(al.handleGetClientGraphMetricsGraph)).Methods(http.MethodGet)
+	api.HandleFunc("/clients/{client_id}/metrics", al.wrapClientAccessMiddleware(al.handleGetClientMetrics)).Methods(http.MethodGet)
+	api.HandleFunc("/clients/{client_id}/processes", al.wrapClientAccessMiddleware(al.handleGetClientProcesses)).Methods(http.MethodGet)
+	api.HandleFunc("/clients/{client_id}/mountpoints", al.wrapClientAccessMiddleware(al.handleGetClientMountpoints)).Methods(http.MethodGet)
 	api.HandleFunc("/clients/{client_id}/stored-tunnels", al.wrapClientAccessMiddleware(al.handleGetStoredTunnels)).Methods(http.MethodGet)
 	api.HandleFunc("/clients/{client_id}/stored-tunnels", al.wrapClientAccessMiddleware(al.handlePostStoredTunnels)).Methods(http.MethodPost)
 	api.HandleFunc("/clients/{client_id}/stored-tunnels/{tunnel_id}", al.wrapClientAccessMiddleware(al.handleDeleteStoredTunnel)).Methods(http.MethodDelete)
@@ -3568,6 +3570,26 @@ func (al *APIListener) handleGetClientGraphMetrics(w http.ResponseWriter, req *h
 	}
 	al.writeJSONResponse(w, http.StatusOK, api.NewSuccessPayload(entries))
 }
+
+func (al *APIListener) handleGetClientGraphMetricsGraph(w http.ResponseWriter, req *http.Request) {
+	vars := mux.Vars(req)
+	clientID := vars[routeParamClientID]
+	//graphName := vars[routeParamGraphName]
+
+	queryOptions := query.NewOptions(req, monitoring.ClientGraphMetricsSortDefault, monitoring.ClientGraphMetricsFilterDefault, monitoring.ClientGraphMetricsFieldsDefault)
+
+	entries, err := al.monitoringService.ListClientGraphMetrics(req.Context(), clientID, queryOptions)
+	if err != nil {
+		if err == sql.ErrNoRows {
+			al.jsonErrorResponseWithTitle(w, http.StatusNotFound, fmt.Sprintf("graph-metrics for client with id %q not found", clientID))
+			return
+		}
+		al.jsonError(w, err)
+		return
+	}
+	al.writeJSONResponse(w, http.StatusOK, api.NewSuccessPayload(entries))
+}
+
 func (al *APIListener) handleGetClientProcesses(w http.ResponseWriter, req *http.Request) {
 	vars := mux.Vars(req)
 	clientID := vars[routeParamClientID]
