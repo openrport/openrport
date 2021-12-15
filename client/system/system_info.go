@@ -90,7 +90,11 @@ func (s *realSystemInfo) CPUInfo(ctx context.Context) (CPUInfo, error) {
 		errs = append(errs, err2.Error())
 	}
 
-	return cpuInfo, errors.New(strings.Join(errs, ", "))
+	if len(errs) > 0 {
+		return cpuInfo, errors.New(strings.Join(errs, ", "))
+	}
+
+	return cpuInfo, nil
 }
 
 func (s *realSystemInfo) MemoryStats(ctx context.Context) (*mem.VirtualMemoryStat, error) {
