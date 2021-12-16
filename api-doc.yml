@@ -356,12 +356,12 @@ paths:
                     type: "string"
                     enum: ["Static Credentials", "File", "DB"]
                   two_fa_enabled:
-                    description: "True if two-factor authentication is enabled"
+                    description: "True if two-factor authentication or totp auth is enabled"
                     type: "boolean"
                   two_fa_delivery_method:
-                    description: "Delivery method that is used to send auth tokens when 2FA is enabled"
+                    description: "Delivery method that is used to send auth tokens when 2FA is enabled, if totp is enabled, 'totp_authenticator_app' is returned"
                     type: "string"
-                    enum: ["email", "pushover"]
+                    enum: ["email", "pushover", "totp_authenticator_app"]
                   tunnel_proxy_enabled:
                     description: "True if tunnel reverse proxy is enabled"
                     type: "boolean"

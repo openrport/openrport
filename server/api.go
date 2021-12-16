@@ -731,6 +731,8 @@ func (al *APIListener) handleGetStatus(w http.ResponseWriter, req *http.Request)
 	var twoFADelivery string
 	if al.twoFASrv.MsgSrv != nil {
 		twoFADelivery = al.twoFASrv.MsgSrv.DeliveryMethod()
+	} else if al.config.API.TotPEnabled {
+		twoFADelivery = "totp_authenticator_app"
 	}
 
 	response := api.NewSuccessPayload(map[string]interface{}{
@@ -742,7 +744,7 @@ func (al *APIListener) handleGetStatus(w http.ResponseWriter, req *http.Request)
 		"clients_auth_source":    al.clientAuthProvider.Source(),
 		"clients_auth_mode":      al.getClientsAuthMode(),
 		"users_auth_source":      al.userService.GetProviderType(),
-		"two_fa_enabled":         al.config.API.IsTwoFAOn(),
+		"two_fa_enabled":         al.config.API.IsTwoFAOn() || al.config.API.TotPEnabled,
 		"two_fa_delivery_method": twoFADelivery,
 		"auditlog":               al.auditLog.Status(),
 		"auth_header":            al.config.API.AuthHeader != "",
