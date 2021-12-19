@@ -8,6 +8,7 @@ import (
 	"image/png"
 	"net/url"
 	"strconv"
+	"strings"
 	"time"
 
 	"github.com/cloudradar-monitoring/rport/server/api/users"
@@ -185,7 +186,7 @@ func unSerializeTotP(rawKeyData string) (*TotP, error) {
 }
 
 func GetUsersTotPCode(usr *users.User) (*TotP, error) {
-	if usr.TotP == "" {
+	if strings.TrimSpace(usr.TotP) == "" {
 		return nil, nil
 	}
 

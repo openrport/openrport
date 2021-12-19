@@ -1499,6 +1499,10 @@ func (al *APIListener) handleManageTotP(w http.ResponseWriter, req *http.Request
 
 	StoreTotPCodeInUser(userDataToChange, totP)
 
+	if userDataToChange.TotP == "" {
+		userDataToChange.TotP = " "
+	}
+
 	if err := al.userService.Change(userDataToChange, user.Username); err != nil {
 		al.jsonError(w, err)
 		return
