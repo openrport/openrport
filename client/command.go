@@ -7,7 +7,6 @@ import (
 	"fmt"
 	"os"
 	"regexp"
-	"runtime"
 	"strings"
 	"time"
 
@@ -50,7 +49,6 @@ func (c *Client) HandleRunCmdRequest(ctx context.Context, reqPayload []byte) (*c
 	job.Interpreter, err = c.interpreterProv(
 		interpreterProviderInput{
 			name:       job.Interpreter,
-			os:         runtime.GOOS,
 			hasShebang: system.HasShebangLine(job.Command),
 			aliasesMap: c.configHolder.InterpreterAliases,
 		},
