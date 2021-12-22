@@ -3676,9 +3676,9 @@ definitions:
       name:
         type: "string"
         description: "Name of the stored tunnel"
-      remote_host:
+      remote_ip:
         type: "string"
-        description: "Remote host for the stored tunnel"
+        description: "Remote for the stored tunnel"
       remote_port:
         type: "integer"
         description: "Remote port for the stored tunnel"
