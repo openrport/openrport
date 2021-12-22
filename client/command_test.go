@@ -137,10 +137,6 @@ const scriptToRunJSON = `
 func TestHandleRunCmdRequestPositiveCase(t *testing.T) {
 	now = nowMockF
 
-	// given
-	getInterpreterMock := func(inpt interpreterProviderInput) (string, error) {
-		return "test-interpreter", nil
-	}
 	wantPID := 123
 	execMock := NewCmdExecutorMock()
 	execMock.ReturnPID = wantPID
@@ -152,11 +148,10 @@ func TestHandleRunCmdRequestPositiveCase(t *testing.T) {
 	connMock.DoneChannel = done
 	configCopy := getDefaultValidMinConfig()
 	c := Client{
-		cmdExec:         execMock,
-		sshConn:         connMock,
-		Logger:          testLog,
-		configHolder:    &configCopy,
-		interpreterProv: getInterpreterMock,
+		cmdExec:      execMock,
+		sshConn:      connMock,
+		Logger:       testLog,
+		configHolder: &configCopy,
 	}
 
 	configCopy.Client.DataDir = filepath.Join(configCopy.Client.DataDir, "TestHandleRunCmdRequestPositiveCase")
@@ -176,7 +171,7 @@ func TestHandleRunCmdRequestPositiveCase(t *testing.T) {
 	"client_id": "d81e6b93e75aef59a7701b90555f43808458b34e30370c3b808c1816a32252b3",
 	"client_name": "",
 	"command": "/bin/date;foo;whoami",
-	"interpreter": "test-interpreter",
+	"interpreter": "",
 	"pid": 123,
 	"started_at": "2020-08-19T12:00:00+03:00",
 	"created_by": "admin",
@@ -306,11 +301,10 @@ func TestHandleRunCmdRequestHasRunningCmd(t *testing.T) {
 	}()
 
 	c := Client{
-		cmdExec:         execMock,
-		sshConn:         connMock,
-		Logger:          testLog,
-		configHolder:    &configCopy,
-		interpreterProv: getInterpreter,
+		cmdExec:      execMock,
+		sshConn:      connMock,
+		Logger:       testLog,
+		configHolder: &configCopy,
 	}
 
 	err := PrepareDirs(&configCopy)
@@ -358,7 +352,6 @@ func TestRemoteCommandsDisabled(t *testing.T) {
 				},
 			},
 		},
-		interpreterProv: getInterpreter,
 	}
 
 	// when
@@ -383,7 +376,6 @@ func TestRemoteScriptsDisabled(t *testing.T) {
 				},
 			},
 		},
-		interpreterProv: getInterpreter,
 	}
 
 	_, gotErr := c.HandleRunCmdRequest(context.Background(), []byte(scriptToRunJSON))
@@ -506,9 +498,8 @@ func TestIsCommandAllowed(t *testing.T) {
 			config := getDefaultValidMinConfig()
 			config.RemoteCommands.Deny = tc.deny
 			c := Client{
-				Logger:          testLog,
-				configHolder:    &config,
-				interpreterProv: getInterpreter,
+				Logger:       testLog,
+				configHolder: &config,
 			}
 			c.configHolder.RemoteCommands.Order = tc.order
 			c.configHolder.RemoteCommands.AllowRegexp = getRegexpList(tc.allow)

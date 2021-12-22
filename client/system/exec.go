@@ -8,10 +8,12 @@ import (
 )
 
 type CmdExecutorContext struct {
-	Interpreter string
-	Command     string
-	WorkingDir  string
-	IsSudo      bool
+	Interpreter        string
+	Command            string
+	WorkingDir         string
+	IsSudo             bool
+	HasShebang         bool
+	InterpreterAliases map[string]string
 }
 
 type CmdExecutor interface {

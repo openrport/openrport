@@ -16,10 +16,14 @@ func (e *CmdExecutorImpl) New(ctx context.Context, execCtx *CmdExecutorContext) 
 		args = append(args, "sudo", "-n")
 	}
 
-	interpreter := execCtx.Interpreter
+	interpreter, err := e.getInterpreter(execCtx)
+	if err != nil {
+		e.Errorf(err.Error())
+	}
+
 	if interpreter != "" {
 		args = append(args, interpreter)
-		if interpreter != chshare.Tacoscript {
+		if execCtx.Interpreter != chshare.Tacoscript {
 			args = append(args, "-c")
 		}
 	}
@@ -35,4 +39,21 @@ func (e *CmdExecutorImpl) New(ctx context.Context, execCtx *CmdExecutorContext) 
 	cmd.Dir = execCtx.WorkingDir
 
 	return cmd
+}
+
+func (e *CmdExecutorImpl) getInterpreter(execCtx *CmdExecutorContext) (string, error) {
+	if execCtx.InterpreterAliases != nil && execCtx.Interpreter != "" {
+		if mappedInterpreter, ok := execCtx.InterpreterAliases[execCtx.Interpreter]; ok {
+			return mappedInterpreter, nil
+		}
+	}
+	if execCtx.HasShebang {
+		return "", nil
+	}
+
+	if execCtx.Interpreter == "" {
+		return chshare.UnixShell, nil
+	}
+
+	return execCtx.Interpreter, nil
 }

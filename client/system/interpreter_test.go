@@ -1,11 +1,16 @@
-package chclient
+package system
 
 import (
+	"os"
 	"testing"
+
+	"github.com/cloudradar-monitoring/rport/share/logger"
 
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 )
+
+var testLog = logger.NewLogger("client-system", logger.LogOutput{File: os.Stdout}, logger.LogLevelDebug)
 
 type interpreterTestCase struct {
 	name               string
@@ -17,15 +22,16 @@ type interpreterTestCase struct {
 }
 
 func TestGetInterpreter(t *testing.T) {
+	cmdExecutor := NewCmdExecutor(testLog)
 	for _, tc := range getInterpreterTestCases() {
 		t.Run(tc.name, func(t *testing.T) {
-			// when
-			interpreterInput := interpreterProviderInput{
-				name:       tc.interpreter,
-				hasShebang: tc.boolHasShebang,
-				aliasesMap: tc.interpreterAliases,
+			execCtx := &CmdExecutorContext{
+				Interpreter:        tc.interpreter,
+				HasShebang:         tc.boolHasShebang,
+				InterpreterAliases: tc.interpreterAliases,
 			}
-			gotInterpreter, gotErr := getInterpreter(interpreterInput)
+			// when
+			gotInterpreter, gotErr := cmdExecutor.getInterpreter(execCtx)
 
 			// then
 			if len(tc.wantErrContains) > 0 {

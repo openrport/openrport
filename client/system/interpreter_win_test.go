@@ -1,6 +1,6 @@
 //+build windows
 
-package chclient
+package system
 
 import (
 	chshare "github.com/cloudradar-monitoring/rport/share"
@@ -53,6 +53,11 @@ func getInterpreterTestCases() []interpreterTestCase {
 			name:            "interpreter full path",
 			interpreter:     `C:\Program Files\Git\bin\bash.exe`,
 			wantInterpreter: `C:\Program Files\Git\bin\bash.exe`,
+		},
+		{
+			name:            "interpreter with params",
+			interpreter:     `C:\Program Files\PowerShell\7\pwsh.exe -Noninteractive -executionpolicy bypass -File`,
+			wantInterpreter: `C:\Program Files\PowerShell\7\pwsh.exe -Noninteractive -executionpolicy bypass -File`,
 		},
 	}
 }

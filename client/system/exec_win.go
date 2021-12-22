@@ -15,13 +15,11 @@ import (
 )
 
 func (e *CmdExecutorImpl) New(ctx context.Context, execCtx *CmdExecutorContext) *exec.Cmd {
-	interpreterPath := execCtx.Interpreter
-	absInterpreterPath, err := getInterpreterAbsolutePath(execCtx.Interpreter)
+	interpreterPath, err := e.getInterpreter(execCtx)
 	if err != nil {
 		e.Errorf(err.Error())
 	} else {
-		interpreterPath = absInterpreterPath
-		e.Debugf("resolved absolute interpreter path %s for interpreter %s", absInterpreterPath, execCtx.Interpreter)
+		e.Debugf("resolved absolute interpreter path %s for interpreter %s", interpreterPath, execCtx.Interpreter)
 	}
 
 	switch execCtx.Interpreter {
@@ -32,6 +30,31 @@ func (e *CmdExecutorImpl) New(ctx context.Context, execCtx *CmdExecutorContext) 
 	default:
 		return buildDefaultCmd(ctx, execCtx, interpreterPath)
 	}
+}
+
+func (e *CmdExecutorImpl) getInterpreter(execCtx *CmdExecutorContext) (string, error) {
+	if execCtx.InterpreterAliases != nil && execCtx.Interpreter != "" {
+		if mappedInterpreter, ok := execCtx.InterpreterAliases[execCtx.Interpreter]; ok {
+			return mappedInterpreter, nil
+		}
+	}
+
+	if execCtx.Interpreter == "" {
+		execCtx.Interpreter = chshare.CmdShell
+	}
+
+	if execCtx.Interpreter == chshare.CmdShell ||
+		execCtx.Interpreter == chshare.Tacoscript ||
+		execCtx.Interpreter == chshare.PowerShell {
+		interpreterWithAbsPath, err := getInterpreterAbsolutePath(execCtx.Interpreter)
+		if err != nil {
+			return "", err
+		}
+
+		return interpreterWithAbsPath, nil
+	}
+
+	return execCtx.Interpreter, nil
 }
 
 func buildCmdInterpreterCmd(ctx context.Context, execCtx *CmdExecutorContext, interpreterPath string) *exec.Cmd {

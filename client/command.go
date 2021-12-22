@@ -46,18 +46,6 @@ func (c *Client) HandleRunCmdRequest(ctx context.Context, reqPayload []byte) (*c
 	// TODO: temporary solution, refactor with using worker pool
 	c.runCmdMutex.Lock()
 
-	job.Interpreter, err = c.interpreterProv(
-		interpreterProviderInput{
-			name:       job.Interpreter,
-			hasShebang: system.HasShebangLine(job.Command),
-			aliasesMap: c.configHolder.InterpreterAliases,
-		},
-	)
-	if err != nil {
-		c.runCmdMutex.Unlock()
-		return nil, err
-	}
-
 	if !job.IsScript && !c.isAllowed(job.Command) {
 		c.runCmdMutex.Unlock()
 		return nil, fmt.Errorf("command is not allowed: %v", job.Command)
@@ -70,10 +58,12 @@ func (c *Client) HandleRunCmdRequest(ctx context.Context, reqPayload []byte) (*c
 	}
 
 	execCtx := &system.CmdExecutorContext{
-		Interpreter: job.Interpreter,
-		Command:     scriptPath,
-		WorkingDir:  job.Cwd,
-		IsSudo:      job.IsSudo,
+		Interpreter:        job.Interpreter,
+		Command:            scriptPath,
+		WorkingDir:         job.Cwd,
+		IsSudo:             job.IsSudo,
+		HasShebang:         system.HasShebangLine(job.Command),
+		InterpreterAliases: c.configHolder.InterpreterAliases,
 	}
 	cmd := c.cmdExec.New(ctx, execCtx)
 	stdOut := &CapacityBuffer{capacity: c.configHolder.RemoteCommands.SendBackLimit}
