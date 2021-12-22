@@ -1,13 +1,13 @@
 package system
 
 import (
+	"context"
 	"os"
 	"testing"
 
 	"github.com/cloudradar-monitoring/rport/share/logger"
 
 	"github.com/stretchr/testify/assert"
-	"github.com/stretchr/testify/require"
 )
 
 var testLog = logger.NewLogger("client-system", logger.LogOutput{File: os.Stdout}, logger.LogLevelDebug)
@@ -15,13 +15,13 @@ var testLog = logger.NewLogger("client-system", logger.LogOutput{File: os.Stdout
 type interpreterTestCase struct {
 	name               string
 	interpreter        string
-	wantInterpreter    string
-	wantErrContains    string
+	wantCmdStr         string
+	partialMatch       bool
 	boolHasShebang     bool
 	interpreterAliases map[string]string
 }
 
-func TestGetInterpreter(t *testing.T) {
+func TestBuildCmd(t *testing.T) {
 	cmdExecutor := NewCmdExecutor(testLog)
 	for _, tc := range getInterpreterTestCases() {
 		t.Run(tc.name, func(t *testing.T) {
@@ -29,17 +29,14 @@ func TestGetInterpreter(t *testing.T) {
 				Interpreter:        tc.interpreter,
 				HasShebang:         tc.boolHasShebang,
 				InterpreterAliases: tc.interpreterAliases,
+				Command:            "/script.sh",
 			}
 			// when
-			gotInterpreter, gotErr := cmdExecutor.getInterpreter(execCtx)
-
-			// then
-			if len(tc.wantErrContains) > 0 {
-				require.Error(t, gotErr)
-				assert.Contains(t, gotErr.Error(), tc.wantErrContains)
+			cmd := cmdExecutor.New(context.Background(), execCtx)
+			if tc.partialMatch {
+				assert.Contains(t, cmd.String(), tc.wantCmdStr)
 			} else {
-				require.NoError(t, gotErr)
-				assert.Equal(t, tc.wantInterpreter, gotInterpreter)
+				assert.Equal(t, tc.wantCmdStr, cmd.String())
 			}
 		})
 	}

@@ -9,55 +9,56 @@ import (
 func getInterpreterTestCases() []interpreterTestCase {
 	return []interpreterTestCase{
 		{
-			name:            "empty",
-			interpreter:     "",
-			wantInterpreter: chshare.CmdShell,
-			wantErrContains: "",
+			name:         "empty",
+			interpreter:  "",
+			partialMatch: false,
+			wantCmdStr:   chshare.CmdShell,
 		},
 		{
 			name:            "cmd",
 			interpreter:     chshare.CmdShell,
-			wantInterpreter: chshare.CmdShell,
-			wantErrContains: "",
+			partialMatch: false,
+			wantCmdStr: "",
 		},
 		{
 			name:            "powershell",
 			interpreter:     chshare.PowerShell,
-			wantInterpreter: chshare.PowerShell,
-			wantErrContains: "",
+			partialMatch: false,
+			wantCmdStr: "",
 		},
 		{
 			name:            "invalid interpreter",
 			interpreter:     "unsupported",
-			wantInterpreter: "",
-			wantErrContains: "invalid windows interpreter",
+			partialMatch: false,
+			wantCmdStr: "invalid windows interpreter",
 		},
 		{
 			name:            "hasShebang, interpreter not empty",
 			interpreter:     chshare.PowerShell,
-			wantInterpreter: chshare.PowerShell,
+			partialMatch: false,
 			boolHasShebang:  true,
+			wantCmdStr: "",
 		},
 		{
 			name:            "tacoscript interpreter",
 			interpreter:     chshare.Tacoscript,
-			wantInterpreter: chshare.Tacoscript,
+			wantCmdStr: chshare.Tacoscript,
 		},
 		{
 			name:               "interpreter aliases",
 			interpreter:        "pwsh7",
-			wantInterpreter:    `C:\Program Files\PowerShell\7\pwsh.exe`,
+			wantCmdStr:    `C:\Program Files\PowerShell\7\pwsh.exe`,
 			interpreterAliases: map[string]string{"pwsh7": `C:\Program Files\PowerShell\7\pwsh.exe`},
 		},
 		{
 			name:            "interpreter full path",
 			interpreter:     `C:\Program Files\Git\bin\bash.exe`,
-			wantInterpreter: `C:\Program Files\Git\bin\bash.exe`,
+			wantCmdStr: `C:\Program Files\Git\bin\bash.exe`,
 		},
 		{
 			name:            "interpreter with params",
 			interpreter:     `C:\Program Files\PowerShell\7\pwsh.exe -Noninteractive -executionpolicy bypass -File`,
-			wantInterpreter: `C:\Program Files\PowerShell\7\pwsh.exe -Noninteractive -executionpolicy bypass -File`,
+			wantCmdStr: `C:\Program Files\PowerShell\7\pwsh.exe -Noninteractive -executionpolicy bypass -File`,
 		},
 	}
 }
