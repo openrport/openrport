@@ -12,7 +12,6 @@ import (
 	"time"
 
 	"github.com/cloudradar-monitoring/rport/client/system"
-	chshare "github.com/cloudradar-monitoring/rport/share"
 	"github.com/cloudradar-monitoring/rport/share/comm"
 	"github.com/cloudradar-monitoring/rport/share/models"
 )
@@ -48,7 +47,14 @@ func (c *Client) HandleRunCmdRequest(ctx context.Context, reqPayload []byte) (*c
 	// TODO: temporary solution, refactor with using worker pool
 	c.runCmdMutex.Lock()
 
-	job.Interpreter, err = getInterpreter(job.Interpreter, runtime.GOOS, system.HasShebangLine(job.Command))
+	job.Interpreter, err = c.interpreterProv(
+		interpreterProviderInput{
+			name:       job.Interpreter,
+			os:         runtime.GOOS,
+			hasShebang: system.HasShebangLine(job.Command),
+			aliasesMap: c.configHolder.InterpreterAliases,
+		},
+	)
 	if err != nil {
 		c.runCmdMutex.Unlock()
 		return nil, err
@@ -70,7 +76,6 @@ func (c *Client) HandleRunCmdRequest(ctx context.Context, reqPayload []byte) (*c
 		Command:     scriptPath,
 		WorkingDir:  job.Cwd,
 		IsSudo:      job.IsSudo,
-		IsScript:    job.IsScript,
 	}
 	cmd := c.cmdExec.New(ctx, execCtx)
 	stdOut := &CapacityBuffer{capacity: c.configHolder.RemoteCommands.SendBackLimit}
@@ -183,32 +188,6 @@ func (c *Client) rmScript(scriptPath string) {
 	} else {
 		c.Debugf("deleted script %s after execution", scriptPath)
 	}
-}
-
-// var is used to override in tests
-var getInterpreter = func(inputInterpreter, os string, hasShebang bool) (string, error) {
-	if inputInterpreter == chshare.Tacoscript {
-		return inputInterpreter, nil
-	}
-
-	if os == "windows" {
-		switch inputInterpreter {
-		case "":
-			return chshare.CmdShell, nil
-		case chshare.CmdShell, chshare.PowerShell:
-			return inputInterpreter, nil
-		}
-		return "", fmt.Errorf("invalid windows command interpreter: %q", inputInterpreter)
-	}
-
-	if hasShebang {
-		return "", nil
-	}
-
-	if inputInterpreter != "" {
-		return "", fmt.Errorf("for unix clients a command interpreter should not be specified, got: %q", inputInterpreter)
-	}
-	return chshare.UnixShell, nil
 }
 
 // isAllowed returns true if a given command passes configured restrictions.

@@ -48,6 +48,7 @@ type Client struct {
 	monitor            *monitoring.Monitor
 	serverCapabilities *models.Capabilities
 	consoleDecoder     *encoding.Decoder
+	interpreterProv    interpreterProvider
 }
 
 //NewClient creates a new client instance
@@ -58,14 +59,15 @@ func NewClient(config *ClientConfigHolder) *Client {
 	logger := logger.NewLogger("client", config.Logging.LogOutput, config.Logging.LogLevel)
 	systemInfo := system.NewSystemInfo(cmdExec)
 	client := &Client{
-		Logger:       logger,
-		configHolder: config,
-		running:      true,
-		runningc:     make(chan error, 1),
-		cmdExec:      cmdExec,
-		systemInfo:   systemInfo,
-		updates:      updates.New(logger, config.Client.UpdatesInterval),
-		monitor:      monitoring.NewMonitor(logger, config.Monitoring, systemInfo),
+		Logger:          logger,
+		configHolder:    config,
+		running:         true,
+		runningc:        make(chan error, 1),
+		cmdExec:         cmdExec,
+		systemInfo:      systemInfo,
+		updates:         updates.New(logger, config.Client.UpdatesInterval),
+		monitor:         monitoring.NewMonitor(logger, config.Monitoring, systemInfo),
+		interpreterProv: getInterpreter,
 	}
 
 	client.sshConfig = &ssh.ClientConfig{

@@ -12,7 +12,6 @@ type CmdExecutorContext struct {
 	Command     string
 	WorkingDir  string
 	IsSudo      bool
-	IsScript    bool
 }
 
 type CmdExecutor interface {

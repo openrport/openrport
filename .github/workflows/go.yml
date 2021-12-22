@@ -23,3 +23,12 @@ jobs:
 
       - name: Test
         run: go test -race -v ./...
+
+  test-win:
+    name: TestWin
+    runs-on: windows-2019
+    steps:
+      - uses: actions/checkout@v2
+      - name: Test
+        run: go test -race -v ./...
+

@@ -17,7 +17,6 @@ import (
 	"github.com/stretchr/testify/require"
 
 	"github.com/cloudradar-monitoring/rport/client/system"
-	chshare "github.com/cloudradar-monitoring/rport/share"
 	"github.com/cloudradar-monitoring/rport/share/clientconfig"
 	"github.com/cloudradar-monitoring/rport/share/comm"
 	"github.com/cloudradar-monitoring/rport/share/logger"
@@ -135,122 +134,11 @@ const scriptToRunJSON = `
 }
 `
 
-func TestGetInterpreter(t *testing.T) {
-	win := "windows"
-	unix := "linux"
-	testCases := []struct {
-		name            string
-		interpreter     string
-		os              string
-		wantInterpreter string
-		wantErrContains string
-		boolHasShebang  bool
-	}{
-		{
-			name:            "windows, empty",
-			interpreter:     "",
-			os:              win,
-			wantInterpreter: chshare.CmdShell,
-			wantErrContains: "",
-		},
-		{
-			name:            "windows, cmd",
-			interpreter:     chshare.CmdShell,
-			os:              win,
-			wantInterpreter: chshare.CmdShell,
-			wantErrContains: "",
-		},
-		{
-			name:            "windows, powershell",
-			interpreter:     chshare.PowerShell,
-			os:              win,
-			wantInterpreter: chshare.PowerShell,
-			wantErrContains: "",
-		},
-		{
-			name:            "windows, invalid interpreter",
-			interpreter:     "unsupported",
-			os:              win,
-			wantInterpreter: "",
-			wantErrContains: "invalid windows command interpreter",
-		},
-		{
-			name:            "unix, empty",
-			interpreter:     "",
-			os:              unix,
-			wantInterpreter: chshare.UnixShell,
-			wantErrContains: "",
-		},
-		{
-			name:            "unix, non empty",
-			interpreter:     chshare.UnixShell,
-			os:              unix,
-			wantInterpreter: "",
-			wantErrContains: "for unix clients a command interpreter should not be specified",
-		},
-		{
-			name:            "empty os, empty interpreter",
-			interpreter:     "",
-			os:              "",
-			wantInterpreter: chshare.UnixShell,
-			wantErrContains: "",
-		},
-		{
-			name:            "unix, hasShebang, interpreter empty",
-			os:              unix,
-			wantInterpreter: "",
-			boolHasShebang:  true,
-		},
-		{
-			name:            "unix, hasShebang, interpreter not empty",
-			os:              unix,
-			interpreter:     chshare.UnixShell,
-			wantInterpreter: "",
-			boolHasShebang:  true,
-		},
-		{
-			name:            "windows, hasShebang, interpreter not empty",
-			os:              win,
-			interpreter:     chshare.PowerShell,
-			wantInterpreter: chshare.PowerShell,
-			boolHasShebang:  true,
-		},
-		{
-			name:            "windows, tacoscript interpreter",
-			os:              win,
-			interpreter:     chshare.Tacoscript,
-			wantInterpreter: chshare.Tacoscript,
-		},
-		{
-			name:            "linux, tacoscript interpreter",
-			os:              unix,
-			interpreter:     chshare.Tacoscript,
-			wantInterpreter: chshare.Tacoscript,
-		},
-	}
-
-	for _, tc := range testCases {
-		t.Run(tc.name, func(t *testing.T) {
-			// when
-			gotInterpreter, gotErr := getInterpreter(tc.interpreter, tc.os, tc.boolHasShebang)
-
-			// then
-			if len(tc.wantErrContains) > 0 {
-				require.Error(t, gotErr)
-				assert.Contains(t, gotErr.Error(), tc.wantErrContains)
-			} else {
-				require.NoError(t, gotErr)
-				assert.Equal(t, tc.wantInterpreter, gotInterpreter)
-			}
-		})
-	}
-}
-
 func TestHandleRunCmdRequestPositiveCase(t *testing.T) {
 	now = nowMockF
 
 	// given
-	getInterpreter = func(inputInterpreter, os string, hashShebang bool) (string, error) {
+	getInterpreterMock := func(inpt interpreterProviderInput) (string, error) {
 		return "test-interpreter", nil
 	}
 	wantPID := 123
@@ -264,10 +152,11 @@ func TestHandleRunCmdRequestPositiveCase(t *testing.T) {
 	connMock.DoneChannel = done
 	configCopy := getDefaultValidMinConfig()
 	c := Client{
-		cmdExec:      execMock,
-		sshConn:      connMock,
-		Logger:       testLog,
-		configHolder: &configCopy,
+		cmdExec:         execMock,
+		sshConn:         connMock,
+		Logger:          testLog,
+		configHolder:    &configCopy,
+		interpreterProv: getInterpreterMock,
 	}
 
 	configCopy.Client.DataDir = filepath.Join(configCopy.Client.DataDir, "TestHandleRunCmdRequestPositiveCase")
@@ -417,10 +306,11 @@ func TestHandleRunCmdRequestHasRunningCmd(t *testing.T) {
 	}()
 
 	c := Client{
-		cmdExec:      execMock,
-		sshConn:      connMock,
-		Logger:       testLog,
-		configHolder: &configCopy,
+		cmdExec:         execMock,
+		sshConn:         connMock,
+		Logger:          testLog,
+		configHolder:    &configCopy,
+		interpreterProv: getInterpreter,
 	}
 
 	err := PrepareDirs(&configCopy)
@@ -468,6 +358,7 @@ func TestRemoteCommandsDisabled(t *testing.T) {
 				},
 			},
 		},
+		interpreterProv: getInterpreter,
 	}
 
 	// when
@@ -492,6 +383,7 @@ func TestRemoteScriptsDisabled(t *testing.T) {
 				},
 			},
 		},
+		interpreterProv: getInterpreter,
 	}
 
 	_, gotErr := c.HandleRunCmdRequest(context.Background(), []byte(scriptToRunJSON))
@@ -614,8 +506,9 @@ func TestIsCommandAllowed(t *testing.T) {
 			config := getDefaultValidMinConfig()
 			config.RemoteCommands.Deny = tc.deny
 			c := Client{
-				Logger:       testLog,
-				configHolder: &config,
+				Logger:          testLog,
+				configHolder:    &config,
+				interpreterProv: getInterpreter,
 			}
 			c.configHolder.RemoteCommands.Order = tc.order
 			c.configHolder.RemoteCommands.AllowRegexp = getRegexpList(tc.allow)
