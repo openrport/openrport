@@ -169,6 +169,9 @@ func (c *Client) connectionLoop(ctx context.Context) {
 				break
 			}
 		}
+		// Start handling requests and channels immediately, otherwise ssh connection might hang
+		go c.handleSSHRequests(ctx, sshConn.Requests)
+		go c.connectStreams(sshConn.Channels)
 
 		switchbackCtx, cancelSwitchback := context.WithCancel(ctx)
 		if !isPrimary {
@@ -207,9 +210,6 @@ func (c *Client) connectionLoop(ctx context.Context) {
 		c.sshConn = sshConn.Connection
 		c.updates.SetConn(sshConn.Connection)
 		c.monitor.SetConn(sshConn.Connection)
-
-		go c.handleSSHRequests(ctx, sshConn.Requests)
-		go c.connectStreams(sshConn.Channels)
 
 		err = sshConn.Connection.Wait()
 		//disconnected
@@ -452,14 +452,35 @@ func (c *Client) Close() error {
 func (c *Client) connectStreams(chans <-chan ssh.NewChannel) {
 	for ch := range chans {
 		remote := string(ch.ExtraData())
+		protocol := models.ProtocolTCP
+		parts := strings.SplitN(remote, "/", 2)
+		if len(parts) == 2 {
+			remote = parts[0]
+			protocol = parts[1]
+		}
+
 		stream, reqs, err := ch.Accept()
 		if err != nil {
 			c.Debugf("Failed to accept stream: %s", err)
 			continue
 		}
 		go ssh.DiscardRequests(reqs)
-		l := c.Logger.Fork("conn#%d", c.connStats.New())
-		go chshare.HandleTCPStream(l, &c.connStats, stream, remote)
+
+		switch protocol {
+		case models.ProtocolTCP:
+			l := c.Logger.Fork("conn#%d", c.connStats.New())
+			go chshare.HandleTCPStream(l, &c.connStats, stream, remote)
+		case models.ProtocolUDP:
+			go func() {
+				err := newUDPHandler(c.Logger.Fork("udp#%s", remote), remote).Handle(stream)
+				if err != nil {
+					c.Errorf("Error with UDP: %v", err)
+				}
+			}()
+		default:
+			c.Errorf("Unsupported protocol %v for tunnel %v", protocol, remote)
+			stream.Close()
+		}
 	}
 }
 
