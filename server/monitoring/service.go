@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"net/http"
 	"strconv"
+	"strings"
 	"time"
 
 	"github.com/cloudradar-monitoring/rport/server/api"
@@ -17,7 +18,8 @@ type Service interface {
 	SaveMeasurement(ctx context.Context, measurement *models.Measurement) error
 	DeleteMeasurementsOlderThan(ctx context.Context, period time.Duration) (int64, error)
 	ListClientMetrics(context.Context, string, *query.ListOptions) (*api.SuccessPayload, error)
-	ListClientGraphMetrics(context.Context, string, *query.ListOptions) ([]*ClientGraphMetricsPayload, error)
+	ListClientGraph(context.Context, string, *query.ListOptions, string, float64, float64) (*api.SuccessPayload, error)
+	ListClientGraphMetrics(context.Context, string, *query.ListOptions, *query.RequestInfo, bool, bool) (*api.SuccessPayload, error)
 	ListClientMountpoints(context.Context, string, *query.ListOptions) (*api.SuccessPayload, error)
 	ListClientProcesses(context.Context, string, *query.ListOptions) (*api.SuccessPayload, error)
 }
@@ -52,7 +54,136 @@ func (s *monitoringService) DeleteMeasurementsOlderThan(ctx context.Context, per
 	return s.DBProvider.DeleteMeasurementsBefore(ctx, compare)
 }
 
-func (s *monitoringService) ListClientGraphMetrics(ctx context.Context, clientID string, lo *query.ListOptions) ([]*ClientGraphMetricsPayload, error) {
+func (s *monitoringService) ListClientGraphMetrics(ctx context.Context, clientID string, lo *query.ListOptions, ri *query.RequestInfo, netLan bool, netWan bool) (*api.SuccessPayload, error) {
+	span, err := s.validateAndParseGraphOptions(lo)
+	if err != nil {
+		return nil, err
+	}
+
+	entries, err := s.DBProvider.ListGraphMetricsByClientID(ctx, clientID, span.Hours(), lo)
+	if err != nil {
+		return nil, err
+	}
+
+	links := &GraphMetricsLinksPayload{
+		CPUUsagePercent: NewGraphMetricsLink(ri, LinkCPUPercent),
+		MemUsagePercent: NewGraphMetricsLink(ri, LinkMemPercent),
+		IOUsagePercent:  NewGraphMetricsLink(ri, LinkIOPercent),
+	}
+	if netLan {
+		links.NetLanUsagePercent = NewGraphMetricsLink(ri, LinkNetPercentLan)
+		links.NetLanUsageBPS = NewGraphMetricsLink(ri, LinkNetBPSLan)
+	}
+	if netWan {
+		links.NetWanUsagePercent = NewGraphMetricsLink(ri, LinkNetPercentWan)
+		links.NetWanUsageBPS = NewGraphMetricsLink(ri, LinkNetBPSWan)
+	}
+
+	return &api.SuccessPayload{
+		Data:  entries,
+		Links: links,
+	}, nil
+}
+
+func (s *monitoringService) ListClientGraph(ctx context.Context, clientID string, lo *query.ListOptions, graph string, bytesMaxLan float64, bytesMaxWan float64) (*api.SuccessPayload, error) {
+	span, err := s.validateAndParseGraphOptions(lo)
+	if err != nil {
+		return nil, err
+	}
+
+	entries, err := s.DBProvider.ListGraphByClientID(ctx, clientID, span.Hours(), lo, graph)
+	if err != nil {
+		return nil, err
+	}
+	if strings.HasPrefix(graph, "net_usage_percent_") {
+		calculatePercentValues(&entries, bytesMaxLan, bytesMaxWan)
+	}
+
+	return &api.SuccessPayload{
+		Data: entries,
+	}, nil
+}
+
+func calculatePercentValues(entries *[]*ClientGraphMetricsGraphPayload, bytesMaxLan float64, bytesMaxWan float64) {
+	if entries == nil {
+		return
+	}
+
+	var bytes float64
+	var percent float64
+	for _, entry := range *entries {
+		if entry.NetUsagePercentLan != nil {
+			if entry.NetUsagePercentLan.InAvg != nil {
+				bytes = *entry.NetUsagePercentLan.InAvg
+				percent = calculateBytesPercent(bytes, bytesMaxLan)
+				*entry.NetUsagePercentLan.InAvg = percent
+			}
+			if entry.NetUsagePercentLan.InMin != nil {
+				bytes = *entry.NetUsagePercentLan.InMin
+				percent = calculateBytesPercent(bytes, bytesMaxLan)
+				*entry.NetUsagePercentLan.InMin = percent
+			}
+			if entry.NetUsagePercentLan.InMax != nil {
+				bytes = *entry.NetUsagePercentLan.InMax
+				percent = calculateBytesPercent(bytes, bytesMaxLan)
+				*entry.NetUsagePercentLan.InMax = percent
+			}
+			if entry.NetUsagePercentLan.OutAvg != nil {
+				bytes = *entry.NetUsagePercentLan.OutAvg
+				percent = calculateBytesPercent(bytes, bytesMaxLan)
+				*entry.NetUsagePercentLan.OutAvg = percent
+			}
+			if entry.NetUsagePercentLan.OutMin != nil {
+				bytes = *entry.NetUsagePercentLan.OutMin
+				percent = calculateBytesPercent(bytes, bytesMaxLan)
+				*entry.NetUsagePercentLan.OutMin = percent
+			}
+			if entry.NetUsagePercentLan.OutMax != nil {
+				bytes = *entry.NetUsagePercentLan.OutMax
+				percent = calculateBytesPercent(bytes, bytesMaxLan)
+				*entry.NetUsagePercentLan.OutMax = percent
+			}
+		}
+		if entry.NetUsagePercentWan != nil {
+			if entry.NetUsagePercentWan.InAvg != nil {
+				bytes = *entry.NetUsagePercentWan.InAvg
+				percent = calculateBytesPercent(bytes, bytesMaxWan)
+				*entry.NetUsagePercentWan.InAvg = percent
+			}
+			if entry.NetUsagePercentWan.InMin != nil {
+				bytes = *entry.NetUsagePercentWan.InMin
+				percent = calculateBytesPercent(bytes, bytesMaxWan)
+				*entry.NetUsagePercentWan.InMin = percent
+			}
+			if entry.NetUsagePercentWan.InMax != nil {
+				bytes = *entry.NetUsagePercentWan.InMax
+				percent = calculateBytesPercent(bytes, bytesMaxWan)
+				*entry.NetUsagePercentWan.InMax = percent
+			}
+			if entry.NetUsagePercentWan.OutAvg != nil {
+				bytes = *entry.NetUsagePercentWan.OutAvg
+				percent = calculateBytesPercent(bytes, bytesMaxWan)
+				*entry.NetUsagePercentWan.OutAvg = percent
+			}
+			if entry.NetUsagePercentWan.OutMin != nil {
+				bytes = *entry.NetUsagePercentWan.OutMin
+				percent = calculateBytesPercent(bytes, bytesMaxWan)
+				*entry.NetUsagePercentWan.OutMin = percent
+			}
+			if entry.NetUsagePercentWan.OutMax != nil {
+				bytes = *entry.NetUsagePercentWan.OutMax
+				percent = calculateBytesPercent(bytes, bytesMaxWan)
+				*entry.NetUsagePercentWan.OutMax = percent
+			}
+		}
+	}
+}
+
+func calculateBytesPercent(bytes float64, bytesMax float64) float64 {
+	return bytes / bytesMax * 100
+}
+
+func (s *monitoringService) validateAndParseGraphOptions(lo *query.ListOptions) (*time.Duration, error) {
 	err := query.ValidateListOptions(lo, ClientGraphMetricsSortFields, ClientGraphMetricsFilterFields, ClientGraphMetricsFields, nil)
 	if err != nil {
 		return nil, err
@@ -87,7 +218,7 @@ func (s *monitoringService) ListClientGraphMetrics(ctx context.Context, clientID
 		return nil, errors.APIError{Message: fmt.Sprintf("Illegal period (min,max allowed: %d,%d hours)", minDownsamplingHours, maxDownsamplingHours), HTTPStatus: http.StatusBadRequest}
 	}
 
-	return s.DBProvider.ListGraphMetricsByClientID(ctx, clientID, span.Hours(), lo)
+	return &span, nil
 }
 
 func (s *monitoringService) ListClientMetrics(ctx context.Context, clientID string, options *query.ListOptions) (*api.SuccessPayload, error) {

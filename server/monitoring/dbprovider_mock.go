@@ -11,10 +11,11 @@ import (
 )
 
 type DBProviderMock struct {
-	GraphMetricsListPayload []*ClientGraphMetricsPayload
-	MetricsListPayload      []*ClientMetricsPayload
-	ProcessesListPayload    []*ClientProcessesPayload
-	MountpointsListPayload  []*ClientMountpointsPayload
+	GraphMetricsListPayload      []*ClientGraphMetricsPayload
+	GraphMetricsGraphListPayload []*ClientGraphMetricsGraphPayload
+	MetricsListPayload           []*ClientMetricsPayload
+	ProcessesListPayload         []*ClientProcessesPayload
+	MountpointsListPayload       []*ClientMountpointsPayload
 }
 
 func (p *DBProviderMock) CountByClientID(ctx context.Context, clientID string, fo *query.ListOptions) (int, error) {
@@ -27,6 +28,10 @@ func (p *DBProviderMock) ListProcessesByClientID(ctx context.Context, clientID s
 
 func (p *DBProviderMock) ListMountpointsByClientID(ctx context.Context, clientID string, o *query.ListOptions) ([]*ClientMountpointsPayload, error) {
 	return p.MountpointsListPayload, nil
+}
+
+func (p *DBProviderMock) ListGraphByClientID(context.Context, string, float64, *query.ListOptions, string) ([]*ClientGraphMetricsGraphPayload, error) {
+	return p.GraphMetricsGraphListPayload, nil
 }
 
 func (p *DBProviderMock) ListMetricsByClientID(ctx context.Context, clientID string, o *query.ListOptions) ([]*ClientMetricsPayload, error) {
