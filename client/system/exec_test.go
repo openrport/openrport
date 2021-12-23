@@ -16,6 +16,7 @@ type interpreterTestCase struct {
 	name               string
 	interpreter        string
 	wantCmdStr         string
+	command            string
 	partialMatch       bool
 	boolHasShebang     bool
 	interpreterAliases map[string]string
@@ -29,7 +30,7 @@ func TestBuildCmd(t *testing.T) {
 				Interpreter:        tc.interpreter,
 				HasShebang:         tc.boolHasShebang,
 				InterpreterAliases: tc.interpreterAliases,
-				Command:            "/script.sh",
+				Command:            tc.command,
 			}
 			// when
 			cmd := cmdExecutor.New(context.Background(), execCtx)
