@@ -29,7 +29,7 @@ func (e *CmdExecutorImpl) New(ctx context.Context, execCtx *CmdExecutorContext) 
 	}
 
 	cmdStr := execCtx.Command
-	if strings.Contains(cmdStr, " ") {
+	if strings.Contains(cmdStr, " ") && execCtx.Interpreter != chshare.Tacoscript {
 		cmdStr = strings.ReplaceAll(cmdStr, " ", "\\ ")
 	}
 
