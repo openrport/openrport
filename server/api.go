@@ -197,6 +197,7 @@ func (al *APIListener) initRouter() {
 	api.HandleFunc("/clients/{client_id}/stored-tunnels", al.wrapClientAccessMiddleware(al.handlePostStoredTunnels)).Methods(http.MethodPost)
 	api.HandleFunc("/clients/{client_id}/stored-tunnels/{tunnel_id}", al.wrapClientAccessMiddleware(al.handleDeleteStoredTunnel)).Methods(http.MethodDelete)
 	api.HandleFunc("/clients/{client_id}/stored-tunnels/{tunnel_id}", al.wrapClientAccessMiddleware(al.handlePutStoredTunnel)).Methods(http.MethodPut)
+	api.HandleFunc("/tunnels", al.handleGetTunnels).Methods(http.MethodGet)
 	api.HandleFunc("/client-groups", al.handleGetClientGroups).Methods(http.MethodGet)
 	api.HandleFunc("/client-groups", al.wrapAdminAccessMiddleware(al.handlePostClientGroups)).Methods(http.MethodPost)
 	api.HandleFunc("/client-groups/{group_id}", al.wrapAdminAccessMiddleware(al.handlePutClientGroup)).Methods(http.MethodPut)
@@ -811,6 +812,33 @@ func (al *APIListener) handleGetClient(w http.ResponseWriter, req *http.Request)
 	al.writeJSONResponse(w, http.StatusOK, api.NewSuccessPayload(clientPayload))
 }
 
+func (al *APIListener) handleGetTunnels(w http.ResponseWriter, req *http.Request) {
+	curUser, err := al.getUserModelForAuth(req.Context())
+	if err != nil {
+		al.jsonError(w, err)
+		return
+	}
+
+	clients, err := al.clientService.GetUserClients(curUser, nil)
+	if err != nil {
+		al.jsonError(w, err)
+		return
+	}
+
+	tunnels := make([]TunnelPayload, 0)
+	for _, c := range clients {
+		if c.DisconnectedAt != nil {
+			continue
+		}
+
+		for _, t := range c.Tunnels {
+			tunnels = append(tunnels, convertToTunnelPayload(t, c.ID))
+		}
+	}
+
+	al.writeJSONResponse(w, http.StatusOK, api.NewSuccessPayload(tunnels))
+}
+
 type UserPayload struct {
 	Username    string   `json:"username"`
 	Groups      []string `json:"groups"`
@@ -954,6 +982,20 @@ type ClientPayload struct {
 	Tunnels                *[]*clients.Tunnel       `json:"tunnels,omitempty"`
 	UpdatesStatus          **models.UpdatesStatus   `json:"updates_status,omitempty"`
 	ClientConfiguration    **clientconfig.Config    `json:"client_configuration,omitempty"`
+}
+
+type TunnelPayload struct {
+	models.Remote
+	ID       string `json:"id"`
+	ClientID string `json:"client_id"`
+}
+
+func convertToTunnelPayload(t *clients.Tunnel, clientID string) TunnelPayload {
+	return TunnelPayload{
+		Remote:   t.Remote,
+		ID:       t.ID,
+		ClientID: clientID,
+	}
 }
 
 func convertToClientsPayload(clients []*clients.Client, fields []query.FieldsOption) []ClientPayload {

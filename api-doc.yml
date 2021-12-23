@@ -418,6 +418,28 @@ paths:
           description: "invalid operation"
           schema:
             $ref: "#/definitions/ErrorPayload"
+  /tunnels:
+    get:
+      tags:
+        - "Clients and Tunnels"
+      summary: "Returns all active tunnels of rport clients that current user has access to"
+      description: ""
+      produces:
+        - "application/json"
+      responses:
+        "200":
+          description: "success response"
+          schema:
+            type: "object"
+            properties:
+              data:
+                type: "array"
+                items:
+                  $ref: "#/definitions/Tunnel"
+        "500":
+          description: "invalid operation"
+          schema:
+            $ref: "#/definitions/ErrorPayload"
   /clients/{client_id}:
     get:
       tags:
@@ -2827,6 +2849,8 @@ definitions:
     type: "object"
     properties:
       id:
+        type: "string"
+      client_id:
         type: "string"
       lhost:
         type: "string"
