@@ -59,7 +59,10 @@ paths:
         "200":
           description: "Successful Operation"
           schema:
-            $ref: "#/definitions/LoginResponse"
+            type: "object"
+            properties:
+              data:
+                $ref: "#/definitions/LoginResponse"
         "400":
           description: "Invalid parameters"
           schema:
@@ -98,7 +101,10 @@ paths:
         "200":
           description: "Successful Operation"
           schema:
-            $ref: "#/definitions/LoginResponse"
+            type: "object"
+            properties:
+              data:
+                $ref: "#/definitions/LoginResponse"
         "400":
           description: "Invalid parameters"
           schema:
@@ -200,7 +206,10 @@ paths:
         "200":
           description: "Successful Operation"
           schema:
-            $ref: "#/definitions/UserGet"
+            type: "object"
+            properties:
+              data:
+                $ref: "#/definitions/UserGet"
         "404":
           description: "User not found"
           schema:
@@ -464,7 +473,10 @@ paths:
         "200":
           description: "success response"
           schema:
-            $ref: "#/definitions/Client"
+            type: "object"
+            properties:
+              data:
+                $ref: "#/definitions/Client"
         "404":
           description: "Client not found"
           schema:
