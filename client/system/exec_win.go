@@ -19,7 +19,7 @@ func (e *CmdExecutorImpl) New(ctx context.Context, execCtx *CmdExecutorContext) 
 	if err != nil {
 		e.Errorf(err.Error())
 	} else {
-		e.Debugf("resolved absolute interpreter path %s for interpreter %s", interpreterPath, execCtx.Interpreter)
+		e.Debugf("resolved interpreter %s for input %s", interpreterPath, execCtx.Interpreter)
 	}
 
 	switch execCtx.Interpreter {
@@ -48,7 +48,7 @@ func (e *CmdExecutorImpl) getInterpreter(execCtx *CmdExecutorContext) (string, e
 		execCtx.Interpreter == chshare.PowerShell {
 		interpreterWithAbsPath, err := getInterpreterAbsolutePath(execCtx.Interpreter)
 		if err != nil {
-			return "", err
+			return interpreterWithAbsPath, err
 		}
 
 		return interpreterWithAbsPath, nil
@@ -128,5 +128,5 @@ func getInterpreterAbsolutePath(interpreter string) (absInterpreterPath string, 
 		return absInterpreterPath, nil
 	}
 
-	return interpreter, fmt.Errorf("failed to find %s at %%PATH%%: %s: %w", interpreter, path, os.ErrNotExist)
+	return interpreter, fmt.Errorf("failed to find %s at PATH: %s: %w", interpreter, path, os.ErrNotExist)
 }
