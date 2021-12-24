@@ -1213,6 +1213,10 @@ func (al *APIListener) handlePutClientTunnel(w http.ResponseWriter, req *http.Re
 	if localAddr == "" {
 		remoteStr = remoteAddr
 	}
+	protocol := req.URL.Query().Get("protocol")
+	if protocol != "" {
+		remoteStr += "/" + protocol
+	}
 	remote, err := models.DecodeRemote(remoteStr)
 	if err != nil {
 		al.jsonErrorResponseWithTitle(w, http.StatusBadRequest, fmt.Sprintf("failed to decode %q: %v", remoteStr, err))
@@ -1263,7 +1267,7 @@ func (al *APIListener) handlePutClientTunnel(w http.ResponseWriter, req *http.Re
 		}
 	}
 
-	if checkPortStr := req.URL.Query().Get("check_port"); checkPortStr != "0" {
+	if checkPortStr := req.URL.Query().Get("check_port"); checkPortStr != "0" && remote.Protocol == models.ProtocolTCP {
 		if !al.checkRemotePort(w, *remote, client.Connection) {
 			return
 		}
@@ -1284,6 +1288,10 @@ func (al *APIListener) handlePutClientTunnel(w http.ResponseWriter, req *http.Re
 	}
 	if isHTTPProxy && schemeStr != "http" && schemeStr != "https" {
 		al.jsonErrorResponseWithTitle(w, http.StatusBadRequest, fmt.Sprintf("tunnel proxy not allowed with scheme %s", schemeStr))
+		return
+	}
+	if isHTTPProxy && remote.Protocol != models.ProtocolTCP {
+		al.jsonErrorResponseWithTitle(w, http.StatusBadRequest, fmt.Sprintf("tunnel proxy not allowed with protcol %s", remote.Protocol))
 		return
 	}
 	remote.HTTPProxy = isHTTPProxy

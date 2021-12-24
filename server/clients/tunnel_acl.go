@@ -18,12 +18,12 @@ func (a *TunnelACL) AddACL(aclStr string) {
 }
 
 // CheckAccess returns true if connection from specified address is allowed
-func (a TunnelACL) CheckAccess(addr *net.TCPAddr) bool {
+func (a TunnelACL) CheckAccess(ip net.IP) bool {
 	if len(a.AllowedIPs) == 0 {
 		return true
 	}
 	for _, allowed := range a.AllowedIPs {
-		if allowed.Contains(addr.IP) {
+		if allowed.Contains(ip) {
 			return true
 		}
 	}

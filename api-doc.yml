@@ -553,6 +553,11 @@ paths:
         maximum: 10080
         minimum: 0
         default: 5
+      - name: "protocol"
+        in: "query"
+        description: "Protocol for the tunnel. Can be `tcp` or `udp`. Default is `tcp`."
+        required: false
+        type: "string"
       - name: "skip-idle-timeout"
         in: "query"
         description: "Disables the auto-close time of the tunnel (see `idle-timeout-minutes` parameter). The parameter should not be used with a non empty `idle-timeout-minutes` parameter"
@@ -2962,6 +2967,9 @@ definitions:
       scheme:
         type: "string"
         description: "URI scheme."
+      protocol:
+        type: "string"
+        description: "tcp or udp"
       acl:
         type: "string"
         description: "IP v4 addresses who is allowed to use the tunnel (ipv6 is not supported yet). For example, '142.78.90.8,201.98.123.0/24,'."

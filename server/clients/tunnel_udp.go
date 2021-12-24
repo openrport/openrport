@@ -4,6 +4,7 @@ import (
 	"context"
 	"io"
 	"net"
+	"sync"
 	"time"
 
 	"golang.org/x/crypto/ssh"
@@ -13,25 +14,33 @@ import (
 	"github.com/cloudradar-monitoring/rport/share/models"
 )
 
+var udpReadTimeout = time.Second
+
 type tunnelUDP struct {
 	*logger.Logger
 	models.Remote
-	sshConn ssh.Conn
-	acl     *TunnelACL // parsed Remote.ACL field
+	sshConn     ssh.Conn
+	acl         *TunnelACL // parsed Remote.ACL field
+	idleTimeout time.Duration
 
 	conn    *net.UDPConn
 	channel *comm.UDPChannel
 	done    chan struct{}
 	cancel  func()
+
+	mtx        sync.Mutex
+	lastActive time.Time
 }
 
 func newTunnelUDP(logger *logger.Logger, ssh ssh.Conn, remote models.Remote, acl *TunnelACL) *tunnelUDP {
 	return &tunnelUDP{
-		Logger:  logger,
-		Remote:  remote,
-		sshConn: ssh,
-		acl:     acl,
-		done:    make(chan struct{}),
+		Logger:      logger,
+		Remote:      remote,
+		sshConn:     ssh,
+		acl:         acl,
+		done:        make(chan struct{}),
+		lastActive:  time.Now(),
+		idleTimeout: time.Duration(remote.IdleTimeoutMinutes) * time.Minute,
 	}
 }
 
@@ -74,7 +83,12 @@ func (t *tunnelUDP) start(ctx context.Context, sshChan io.ReadWriter) (chan bool
 		}
 	}()
 
-	return nil, nil
+	var autoCloseChan chan bool
+	if t.idleTimeout > 0 {
+		autoCloseChan = t.getAutoCloseChan(ctx)
+	}
+
+	return autoCloseChan, nil
 }
 
 func (t *tunnelUDP) runInbound(ctx context.Context) error {
@@ -90,7 +104,7 @@ func (t *tunnelUDP) runInbound(ctx context.Context) error {
 		default:
 		}
 
-		err := t.conn.SetReadDeadline(time.Now().Add(time.Second))
+		err := t.conn.SetReadDeadline(time.Now().Add(udpReadTimeout))
 		if err != nil {
 			return err
 		}
@@ -104,6 +118,15 @@ func (t *tunnelUDP) runInbound(ctx context.Context) error {
 		}
 		if err != nil {
 			return err
+		}
+
+		t.setLastActive()
+
+		if t.acl != nil {
+			if !t.acl.CheckAccess(sourceAddr.IP) {
+				t.Debugf("Access rejected. Remote addr: %s", sourceAddr)
+				continue
+			}
 		}
 
 		err = t.channel.Encode(sourceAddr, buff[:n])
@@ -129,6 +152,8 @@ func (t *tunnelUDP) runOutbound(ctx context.Context) error {
 			return err
 		}
 
+		t.setLastActive()
+
 		_, err = t.conn.WriteToUDP(data, addr)
 		if err != nil {
 			return err
@@ -141,4 +166,41 @@ func (t *tunnelUDP) Terminate(force bool) error {
 	<-t.done
 
 	return nil
+}
+
+func (t *tunnelUDP) getLastActive() time.Time {
+	t.mtx.Lock()
+	defer t.mtx.Unlock()
+
+	return t.lastActive
+}
+
+func (t *tunnelUDP) setLastActive() {
+	t.mtx.Lock()
+	defer t.mtx.Unlock()
+
+	t.lastActive = time.Now()
+}
+
+func (t *tunnelUDP) getAutoCloseChan(ctx context.Context) chan bool {
+	autoCloseChan := make(chan bool)
+	go func() {
+		for {
+			select {
+			case <-ctx.Done():
+				// close if the ctx was canceled
+				return
+			default:
+			}
+			untilTimeout := time.Until(t.getLastActive().Add(t.idleTimeout))
+			if untilTimeout < 0 {
+				t.Infof("Terminating... inactivity period is reached: %d minute(s)", t.IdleTimeoutMinutes)
+				_ = t.Terminate(true)
+				close(autoCloseChan)
+				return
+			}
+			time.Sleep(untilTimeout)
+		}
+	}()
+	return autoCloseChan
 }

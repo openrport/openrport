@@ -111,7 +111,7 @@ func (t *tunnelTCP) listen(ctx context.Context, l net.Listener) {
 				continue
 			}
 
-			if !t.acl.CheckAccess(tcpAddr) {
+			if !t.acl.CheckAccess(tcpAddr.IP) {
 				t.Debugf("Access rejected. Remote addr: %s", tcpAddr)
 				conn.Close()
 				continue
