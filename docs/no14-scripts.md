@@ -254,8 +254,8 @@ You can use an absolute path to a non-standard interpreters of your choice, e.g.
 
 For Linux or Mac OS make sure, that your non-standard interpreter supports `-c` flag which is used to provide a command to execute.
 
-For Windows you can provide a list of parameters, e.g. `C:\Program Files\PowerShell\7\pwsh.exe -Noninteractive -executionpolicy bypass -File`, in this case
-the interpreter will be used as it is.
+If you use a custom powershell path under Windows, e.g. `C:\Program Files\PowerShell\7\pwsh.exe`, the parameters for script execution 
+`-Noninteractive -executionpolicy bypass -File` will be added automatically only if the path to the executable contains "powershell" word (case insensitive).
 
 For fast and unified script execution with different interpreters and shells, you can specify aliases. Instead of providing the full path to the shell, sending the alias is sufficient.
 You can specify aliases in `rport.conf` (see `rport.example.conf`), see `[interpreter-aliases]` section. Having aliases list  
