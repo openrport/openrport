@@ -32,5 +32,5 @@ jobs:
       - name: Test
         run: go test -race -v ./client/...
       - name: CheckPowershell
-        run:  C:\Program Files\PowerShell\7\pwsh.exe --version
+        run:  'C:\Program Files\PowerShell\7\pwsh.exe' --version
 
