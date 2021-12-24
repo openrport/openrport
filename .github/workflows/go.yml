@@ -32,5 +32,25 @@ jobs:
       - name: Test
         run: go test -race -v ./client/...
       - name: CheckPowershell
-        run:  'C:\Program Files\PowerShell\7\pwsh.exe' --version
-
+        run: |
+          "C:\Program Files\PowerShell\7\pwsh.exe" --version
+      - name: InstallTaco
+        run: |
+          iwr https://github.com/cloudradar-monitoring/tacoscript/releases/download/latest/tacoscript-latest-windows-amd64.zip `
+          -OutFile tacoscript-latest-windows-amd64.zip
+          $dest = "C:\Program Files\tacoscript"
+          mkdir $dest
+          mkdir "$($dest)\bin"
+          Expand-Archive -Path $file -DestinationPath $dest -force
+          mv "$($dest)\tacoscript.exe" "$($dest)\bin"
+          
+          $ENV:PATH="$ENV:PATH;$($dest)\bin"
+          
+          [Environment]::SetEnvironmentVariable(
+          "Path",
+          [Environment]::GetEnvironmentVariable(
+          "Path", [EnvironmentVariableTarget]::Machine
+          ) + ";$($dest)\bin",
+          [EnvironmentVariableTarget]::Machine
+          )
+          & tacoscript --version
