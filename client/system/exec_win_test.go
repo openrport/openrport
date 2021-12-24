@@ -6,8 +6,8 @@ import (
 	chshare "github.com/cloudradar-monitoring/rport/share"
 )
 
-func getInterpreterTestCases() []interpreterTestCase {
-	return []interpreterTestCase{
+func getCmdBuildTestcases() []cmdBuildTestCase {
+	return []cmdBuildTestCase{
 		{
 			name:         "empty",
 			interpreter:  "",

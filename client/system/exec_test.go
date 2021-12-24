@@ -12,7 +12,7 @@ import (
 
 var testLog = logger.NewLogger("client-system", logger.LogOutput{File: os.Stdout}, logger.LogLevelDebug)
 
-type interpreterTestCase struct {
+type cmdBuildTestCase struct {
 	name               string
 	interpreter        string
 	wantCmdStr         string
@@ -24,7 +24,7 @@ type interpreterTestCase struct {
 
 func TestBuildCmd(t *testing.T) {
 	cmdExecutor := NewCmdExecutor(testLog)
-	for _, tc := range getInterpreterTestCases() {
+	for _, tc := range getCmdBuildTestcases() {
 		t.Run(tc.name, func(t *testing.T) {
 			interpreter := Interpreter{
 				InterpreterNameFromInput: tc.interpreter,
