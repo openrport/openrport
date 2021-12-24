@@ -106,6 +106,7 @@ func (b ClientBuilder) Build() *Client {
 			{
 				ID: "1",
 				Remote: chshare.Remote{
+					Protocol:   chshare.ProtocolTCP,
 					LocalHost:  "0.0.0.0",
 					LocalPort:  "2222",
 					RemoteHost: "0.0.0.0",
@@ -115,6 +116,7 @@ func (b ClientBuilder) Build() *Client {
 			{
 				ID: "2",
 				Remote: chshare.Remote{
+					Protocol:   chshare.ProtocolTCP,
 					LocalHost:  "0.0.0.0",
 					LocalPort:  "4000",
 					RemoteHost: "0.0.0.0",

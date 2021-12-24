@@ -2,6 +2,7 @@ package monitoring
 
 import (
 	"context"
+	"fmt"
 	"os"
 	"testing"
 	"time"
@@ -30,6 +31,11 @@ var testData = []models.Measurement{
 		IoUsagePercent:     2,
 		Processes:          `{[{"pid":30210, "parent_pid": 4711, "name": "chrome"}]}`,
 		Mountpoints:        `{"free_b./":34182758400,"free_b./home":128029413376,"total_b./":105555197952,"total_b./home":364015185920}`,
+		NetLan: &models.NetBytes{
+			In:  3000,
+			Out: 2000,
+		},
+		NetWan: nil,
 	},
 	{
 		ClientID:           "test_client_1",
@@ -39,6 +45,11 @@ var testData = []models.Measurement{
 		IoUsagePercent:     3,
 		Processes:          `{[{"pid":30211, "parent_pid": 4711, "name": "idea"}]}`,
 		Mountpoints:        `{"free_b./":44182758400,"free_b./home":228029413376,"total_b./":105555197952,"total_b./home":364015185920}`,
+		NetLan: &models.NetBytes{
+			In:  3300,
+			Out: 2200,
+		},
+		NetWan: nil,
 	},
 	{
 		ClientID:           "test_client_1",
@@ -48,6 +59,11 @@ var testData = []models.Measurement{
 		IoUsagePercent:     4,
 		Processes:          `{[{"pid":30212, "parent_pid": 4711, "name": "cinnamon"}]}`,
 		Mountpoints:        `{"free_b./":54182758400,"free_b./home":328029413376,"total_b./":105555197952,"total_b./home":364015185920}`,
+		NetLan: &models.NetBytes{
+			In:  3330,
+			Out: 2220,
+		},
+		NetWan: nil,
 	},
 }
 
@@ -69,6 +85,11 @@ func TestSqliteProvider_CreateMeasurement(t *testing.T) {
 		IoUsagePercent:     0,
 		Processes:          `{[{"pid":30000, "parent_pid": 4712, "name": "firefox"}]}`,
 		Mountpoints:        "{}",
+		NetLan: &models.NetBytes{
+			In:  10000,
+			Out: 80000,
+		},
+		NetWan: nil,
 	}
 	// create new measurement
 	err = dbProvider.CreateMeasurement(ctx, m2)
@@ -156,9 +177,8 @@ func TestSqliteProvider_ListGraphMetricsByClientID(t *testing.T) {
 	err = createDownsamplingData(ctx, dbProvider)
 	require.NoError(t, err)
 
-	options := createGraphMetricsDefaultOptions()
 	hours := 48.0
-	options.Filters = createSinceUntilFilter(measurement1, hours)
+	options := createGraphMetricsDefaultOptions(measurement1, hours, layoutDb)
 
 	mList, err := dbProvider.ListGraphMetricsByClientID(ctx, "test_client", hours, options)
 	require.NoError(t, err)
@@ -171,6 +191,54 @@ func TestSqliteProvider_ListGraphMetricsByClientID(t *testing.T) {
 	require.NoError(t, err)
 	require.NotNil(t, mList)
 	require.Equal(t, 126, len(mList))
+}
+
+func TestSqliteProvider_ListGraphMetricsGraphByClientID(t *testing.T) {
+	dbProvider, err := NewSqliteProvider(":memory:", testLog)
+	require.NoError(t, err)
+	defer dbProvider.Close()
+
+	ctx := context.Background()
+
+	err = createDownsamplingData(ctx, dbProvider)
+	require.NoError(t, err)
+
+	type testCase struct {
+		Name        string
+		GraphName   string
+		ExpectError bool
+	}
+	var testCases []*testCase
+
+	for graphName := range ClientGraphNameToField {
+		testCases = append(testCases, &testCase{
+			Name:        fmt.Sprintf("Testcase %s", graphName),
+			GraphName:   graphName,
+			ExpectError: false,
+		})
+	}
+
+	testCases = append(testCases, &testCase{
+		Name:        "Testcase illegal graph name",
+		GraphName:   "illegal_graph_name",
+		ExpectError: true,
+	})
+
+	for _, tc := range testCases {
+		t.Run(tc.Name, func(t *testing.T) {
+			hours := 48.0
+			options := createGraphMetricsDefaultOptions(measurement1, hours, layoutDb)
+
+			mList, err := dbProvider.ListGraphByClientID(ctx, "test_client", hours, options, tc.GraphName)
+			if tc.ExpectError {
+				require.Error(t, err)
+			} else {
+				require.NoError(t, err)
+				require.NotNil(t, mList)
+				require.Equal(t, 126, len(mList))
+			}
+		})
+	}
 }
 
 func TestSqliteProvider_ListProcessesLatestByClientID(t *testing.T) {
@@ -291,6 +359,11 @@ func createDownsamplingData(ctx context.Context, dbProvider DBProvider) error {
 			IoUsagePercent:     10.0 + r*10,
 			Processes:          "",
 			Mountpoints:        "",
+			NetLan: &models.NetBytes{
+				In:  10000 + i*10,
+				Out: 50000 + i*10,
+			},
+			NetWan: nil,
 		}
 		if err := dbProvider.CreateMeasurement(ctx, m); err != nil {
 			return err
@@ -300,10 +373,10 @@ func createDownsamplingData(ctx context.Context, dbProvider DBProvider) error {
 	return nil
 }
 
-func createSinceUntilFilter(start time.Time, hours float64) []query.FilterOption {
-	mSince := start.Format(layoutDb)
+func createSinceUntilFilter(start time.Time, hours float64, layout string) []query.FilterOption {
+	mSince := start.Format(layout)
 	tUntil := start.Add(time.Duration(hours) * time.Hour)
-	mUntil := tUntil.Format(layoutDb)
+	mUntil := tUntil.Format(layout)
 
 	filters := []query.FilterOption{
 		{
@@ -346,11 +419,12 @@ func createGTLTFilter(start time.Time, hours float64) []query.FilterOption {
 	return filters
 }
 
-func createGraphMetricsDefaultOptions() *query.ListOptions {
+//nolint:unparam
+func createGraphMetricsDefaultOptions(start time.Time, hours float64, layout string) *query.ListOptions {
 	qOptions := &query.ListOptions{}
 
 	qOptions.Sorts = query.ParseSortOptions(ClientGraphMetricsSortDefault)
-	qOptions.Filters = query.ParseFilterOptions(ClientGraphMetricsFilterDefault)
+	qOptions.Filters = createSinceUntilFilter(start, hours, layout)
 	qOptions.Fields = query.ParseFieldsOptions(ClientGraphMetricsFieldsDefault)
 
 	return qOptions

@@ -239,6 +239,7 @@ func TestConfigParseAndValidateRemotes(t *testing.T) {
 			Remotes: []string{"8000"},
 			ExpectedRemotes: []*models.Remote{
 				&models.Remote{
+					Protocol:   models.ProtocolTCP,
 					RemoteHost: "0.0.0.0",
 					RemotePort: "8000",
 				},
@@ -248,10 +249,12 @@ func TestConfigParseAndValidateRemotes(t *testing.T) {
 			Remotes: []string{"8000", "3000"},
 			ExpectedRemotes: []*models.Remote{
 				&models.Remote{
+					Protocol:   models.ProtocolTCP,
 					RemoteHost: "0.0.0.0",
 					RemotePort: "8000",
 				},
 				&models.Remote{
+					Protocol:   models.ProtocolTCP,
 					RemoteHost: "0.0.0.0",
 					RemotePort: "3000",
 				},

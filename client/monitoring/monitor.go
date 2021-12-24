@@ -10,6 +10,7 @@ import (
 
 	"github.com/cloudradar-monitoring/rport/client/monitoring/docker"
 	"github.com/cloudradar-monitoring/rport/client/monitoring/fs"
+	"github.com/cloudradar-monitoring/rport/client/monitoring/networking"
 	"github.com/cloudradar-monitoring/rport/client/monitoring/processes"
 	"github.com/cloudradar-monitoring/rport/client/system"
 	"github.com/cloudradar-monitoring/rport/share/clientconfig"
@@ -28,6 +29,7 @@ type Monitor struct {
 	systemInfo        system.SysInfo
 	fileSystemWatcher *fs.FileSystemWatcher
 	processHandler    *processes.ProcessHandler
+	netHandler        *networking.NetHandler
 }
 
 func NewMonitor(logger *logger.Logger, config clientconfig.MonitoringConfig, systemInfo system.SysInfo) *Monitor {
@@ -40,7 +42,8 @@ func NewMonitor(logger *logger.Logger, config clientconfig.MonitoringConfig, sys
 	}, logger)
 	dockerHandler := docker.NewHandler(logger)
 	processHandler := processes.NewProcessHandler(config, logger, dockerHandler)
-	return &Monitor{logger: logger, config: config, systemInfo: systemInfo, fileSystemWatcher: fsWatcher, processHandler: processHandler}
+	netHandler := networking.NewNetHandler(&config)
+	return &Monitor{logger: logger, config: config, systemInfo: systemInfo, fileSystemWatcher: fsWatcher, processHandler: processHandler, netHandler: netHandler}
 }
 
 func (m *Monitor) Start(ctx context.Context) {
@@ -122,6 +125,13 @@ func (m *Monitor) createMeasurement(ctx context.Context) *models.Measurement {
 		m.logger.Debugf("Cannot measure mountpoints:" + err.Error())
 	}
 
+	netLan, netWan, err := m.netHandler.GetNets()
+	if err == nil {
+		newMeasurement.NetLan = netLan
+		newMeasurement.NetWan = netWan
+	} else {
+		m.logger.Debugf("Cannot measure network bandwidth:" + err.Error())
+	}
 	return newMeasurement
 }
 

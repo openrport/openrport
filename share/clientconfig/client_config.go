@@ -81,4 +81,9 @@ type MonitoringConfig struct {
 	PMEnabled                     bool          `json:"pm_enabled" mapstructure:"pm_enabled"`
 	PMKerneltasksEnabled          bool          `json:"pm_kerneltasks_enabled" mapstructure:"pm_kerneltasks_enabled"`
 	PMMaxNumberProcesses          uint          `json:"pm_max_number_processes" mapstructure:"pm_max_number_processes"`
+	NetLan                        []string      `json:"net_lan" mapstructure:"net_lan"`
+	NetWan                        []string      `json:"net_wan" mapstructure:"net_wan"`
+
+	LanCard *models.NetworkCard `json:"lan_card"`
+	WanCard *models.NetworkCard `json:"wan_card"`
 }

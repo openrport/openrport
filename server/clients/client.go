@@ -119,7 +119,7 @@ func (c *Client) StartTunnel(r *models.Remote, acl *TunnelACL, tunnelProxyConfig
 	}
 
 	tunnelID := strconv.FormatInt(c.generateNewTunnelID(), 10)
-	t = NewTunnel(c.Logger, c.Connection, tunnelID, r, acl)
+	t = NewTunnel(c.Logger, c.Connection, tunnelID, *r, acl)
 	autoCloseChan, err := t.Start(c.Context)
 	if err != nil {
 		return nil, err

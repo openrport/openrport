@@ -77,6 +77,21 @@ func (c *ClientConfigHolder) ParseAndValidateMonitoring() error {
 		c.Monitoring.Interval = DefaultMonitoringInterval
 	}
 
+	if len(c.Monitoring.NetLan) > 0 {
+		lanCard, err := models.DecodeCard(c.Monitoring.NetLan)
+		if err != nil {
+			return err
+		}
+		c.Monitoring.LanCard = lanCard
+	}
+
+	if len(c.Monitoring.NetWan) > 0 {
+		wanCard, err := models.DecodeCard(c.Monitoring.NetWan)
+		if err != nil {
+			return err
+		}
+		c.Monitoring.WanCard = wanCard
+	}
 	return nil
 }
 

@@ -85,7 +85,7 @@ func (tp *TunnelProxy) tunnelProxyHandlerFunc(p *httputil.ReverseProxy) func(htt
 			ipv4 := net.ParseIP(clientIP)
 			if ipv4 != nil {
 				tcpIP := &net.TCPAddr{IP: ipv4}
-				if tp.ACL.CheckAccess(tcpIP) {
+				if tp.ACL.CheckAccess(tcpIP.IP) {
 					tp.forwardRequest(p, w, r)
 					return
 				}

@@ -8,8 +8,9 @@ import (
 
 // SuccessPayload represents a uniform format for all successful API responses.
 type SuccessPayload struct {
-	Data interface{} `json:"data"`
-	Meta *Meta       `json:"meta,omitempty"`
+	Data  interface{} `json:"data"`
+	Meta  *Meta       `json:"meta,omitempty"`
+	Links Links       `json:"links,omitempty"`
 }
 
 func NewSuccessPayload(data interface{}) SuccessPayload {
@@ -104,3 +105,5 @@ func NewMeta(count int) *Meta {
 		Count: count,
 	}
 }
+
+type Links interface{}

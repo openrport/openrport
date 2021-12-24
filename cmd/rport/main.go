@@ -156,6 +156,9 @@ var clientHelp = `
    --monitoring-pm-kerneltasks-enabled, enable or disable monitoring of kerneltasks
    --monitoring-pm-max-number-processes, maximum number of processes in process monitoring list
 
+   --monitoring-net-lan, enable monitoring of lan network card
+   --monitoring-net-wan, enable monitoring of wan network card
+
     --config, -c, An optional arg to define a path to a config file. If it is set then
     configuration will be loaded from the file. Note: command arguments and env variables will override them.
     MonitoringConfig file should be in TOML format. You can find an example "rport.example.conf" in the release archive.
@@ -221,6 +224,8 @@ func init() {
 	pFlags.Bool("monitoring-pm-enabled", false, "")
 	pFlags.Bool("monitoring-pm-kerneltasks-enabled", false, "")
 	pFlags.Int("monitoring-pm-max-number-processes", 0, "")
+	pFlags.StringArray("monitoring-net-lan", []string{}, "")
+	pFlags.StringArray("monitoring-net-wan", []string{}, "")
 
 	cfgPath = pFlags.StringP("config", "c", "", "")
 	svcCommand = pFlags.String("service", "", "")
@@ -294,6 +299,8 @@ func bindPFlags() {
 	_ = viperCfg.BindPFlag("monitoring.pm_enabled", pFlags.Lookup("monitoring-pm-enabled"))
 	_ = viperCfg.BindPFlag("monitoring.pm_kerneltasks_enabled", pFlags.Lookup("monitoring-pm-kerneltasks-enabled"))
 	_ = viperCfg.BindPFlag("monitoring.pm_max_number_processes", pFlags.Lookup("monitoring-pm-max-number-processes"))
+	_ = viperCfg.BindPFlag("monitoring.net_lan", pFlags.Lookup("monitoring-net-lan"))
+	_ = viperCfg.BindPFlag("monitoring.net_wan", pFlags.Lookup("monitoring-net-wan"))
 }
 
 func main() {

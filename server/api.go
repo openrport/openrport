@@ -59,6 +59,7 @@ const (
 	routeParamVaultValueID   = "vault_value_id"
 	routeParamScriptValueID  = "script_value_id"
 	routeParamCommandValueID = "command_value_id"
+	routeParamGraphName      = "graph_name"
 
 	ErrCodeMissingRouteVar = "ERR_CODE_MISSING_ROUTE_VAR"
 	ErrCodeInvalidRequest  = "ERR_CODE_INVALID_REQUEST"
@@ -189,14 +190,16 @@ func (al *APIListener) initRouter() {
 	api.HandleFunc("/clients/{client_id}/commands/{job_id}", al.wrapClientAccessMiddleware(al.handleGetCommand)).Methods(http.MethodGet)
 	api.HandleFunc("/clients/{client_id}/scripts", al.wrapClientAccessMiddleware(al.handleExecuteScript)).Methods(http.MethodPost)
 	api.HandleFunc("/clients/{client_id}/updates-status", al.wrapClientAccessMiddleware(al.handleRefreshUpdatesStatus)).Methods(http.MethodPost)
-	api.HandleFunc("/clients/{client_id}/graph-metrics", al.handleGetClientGraphMetrics).Methods(http.MethodGet)
-	api.HandleFunc("/clients/{client_id}/metrics", al.handleGetClientMetrics).Methods(http.MethodGet)
-	api.HandleFunc("/clients/{client_id}/processes", al.handleGetClientProcesses).Methods(http.MethodGet)
-	api.HandleFunc("/clients/{client_id}/mountpoints", al.handleGetClientMountpoints).Methods(http.MethodGet)
+	api.HandleFunc("/clients/{client_id}/graph-metrics", al.wrapClientAccessMiddleware(al.handleGetClientGraphMetrics)).Methods(http.MethodGet)
+	api.HandleFunc("/clients/{client_id}/graph-metrics/{"+routeParamGraphName+"}", al.wrapClientAccessMiddleware(al.handleGetClientGraphMetricsGraph)).Methods(http.MethodGet)
+	api.HandleFunc("/clients/{client_id}/metrics", al.wrapClientAccessMiddleware(al.handleGetClientMetrics)).Methods(http.MethodGet)
+	api.HandleFunc("/clients/{client_id}/processes", al.wrapClientAccessMiddleware(al.handleGetClientProcesses)).Methods(http.MethodGet)
+	api.HandleFunc("/clients/{client_id}/mountpoints", al.wrapClientAccessMiddleware(al.handleGetClientMountpoints)).Methods(http.MethodGet)
 	api.HandleFunc("/clients/{client_id}/stored-tunnels", al.wrapClientAccessMiddleware(al.handleGetStoredTunnels)).Methods(http.MethodGet)
 	api.HandleFunc("/clients/{client_id}/stored-tunnels", al.wrapClientAccessMiddleware(al.handlePostStoredTunnels)).Methods(http.MethodPost)
 	api.HandleFunc("/clients/{client_id}/stored-tunnels/{tunnel_id}", al.wrapClientAccessMiddleware(al.handleDeleteStoredTunnel)).Methods(http.MethodDelete)
 	api.HandleFunc("/clients/{client_id}/stored-tunnels/{tunnel_id}", al.wrapClientAccessMiddleware(al.handlePutStoredTunnel)).Methods(http.MethodPut)
+	api.HandleFunc("/tunnels", al.handleGetTunnels).Methods(http.MethodGet)
 	api.HandleFunc("/client-groups", al.handleGetClientGroups).Methods(http.MethodGet)
 	api.HandleFunc("/client-groups", al.wrapAdminAccessMiddleware(al.handlePostClientGroups)).Methods(http.MethodPost)
 	api.HandleFunc("/client-groups/{group_id}", al.wrapAdminAccessMiddleware(al.handlePutClientGroup)).Methods(http.MethodPut)
@@ -811,6 +814,33 @@ func (al *APIListener) handleGetClient(w http.ResponseWriter, req *http.Request)
 	al.writeJSONResponse(w, http.StatusOK, api.NewSuccessPayload(clientPayload))
 }
 
+func (al *APIListener) handleGetTunnels(w http.ResponseWriter, req *http.Request) {
+	curUser, err := al.getUserModelForAuth(req.Context())
+	if err != nil {
+		al.jsonError(w, err)
+		return
+	}
+
+	clients, err := al.clientService.GetUserClients(curUser, nil)
+	if err != nil {
+		al.jsonError(w, err)
+		return
+	}
+
+	tunnels := make([]TunnelPayload, 0)
+	for _, c := range clients {
+		if c.DisconnectedAt != nil {
+			continue
+		}
+
+		for _, t := range c.Tunnels {
+			tunnels = append(tunnels, convertToTunnelPayload(t, c.ID))
+		}
+	}
+
+	al.writeJSONResponse(w, http.StatusOK, api.NewSuccessPayload(tunnels))
+}
+
 type UserPayload struct {
 	Username    string   `json:"username"`
 	Groups      []string `json:"groups"`
@@ -954,6 +984,20 @@ type ClientPayload struct {
 	Tunnels                *[]*clients.Tunnel       `json:"tunnels,omitempty"`
 	UpdatesStatus          **models.UpdatesStatus   `json:"updates_status,omitempty"`
 	ClientConfiguration    **clientconfig.Config    `json:"client_configuration,omitempty"`
+}
+
+type TunnelPayload struct {
+	models.Remote
+	ID       string `json:"id"`
+	ClientID string `json:"client_id"`
+}
+
+func convertToTunnelPayload(t *clients.Tunnel, clientID string) TunnelPayload {
+	return TunnelPayload{
+		Remote:   t.Remote,
+		ID:       t.ID,
+		ClientID: clientID,
+	}
 }
 
 func convertToClientsPayload(clients []*clients.Client, fields []query.FieldsOption) []ClientPayload {
@@ -1169,6 +1213,10 @@ func (al *APIListener) handlePutClientTunnel(w http.ResponseWriter, req *http.Re
 	if localAddr == "" {
 		remoteStr = remoteAddr
 	}
+	protocol := req.URL.Query().Get("protocol")
+	if protocol != "" {
+		remoteStr += "/" + protocol
+	}
 	remote, err := models.DecodeRemote(remoteStr)
 	if err != nil {
 		al.jsonErrorResponseWithTitle(w, http.StatusBadRequest, fmt.Sprintf("failed to decode %q: %v", remoteStr, err))
@@ -1219,7 +1267,7 @@ func (al *APIListener) handlePutClientTunnel(w http.ResponseWriter, req *http.Re
 		}
 	}
 
-	if checkPortStr := req.URL.Query().Get("check_port"); checkPortStr != "0" {
+	if checkPortStr := req.URL.Query().Get("check_port"); checkPortStr != "0" && remote.Protocol == models.ProtocolTCP {
 		if !al.checkRemotePort(w, *remote, client.Connection) {
 			return
 		}
@@ -1240,6 +1288,10 @@ func (al *APIListener) handlePutClientTunnel(w http.ResponseWriter, req *http.Re
 	}
 	if isHTTPProxy && schemeStr != "http" && schemeStr != "https" {
 		al.jsonErrorResponseWithTitle(w, http.StatusBadRequest, fmt.Sprintf("tunnel proxy not allowed with scheme %s", schemeStr))
+		return
+	}
+	if isHTTPProxy && remote.Protocol != models.ProtocolTCP {
+		al.jsonErrorResponseWithTitle(w, http.StatusBadRequest, fmt.Sprintf("tunnel proxy not allowed with protcol %s", remote.Protocol))
 		return
 	}
 	remote.HTTPProxy = isHTTPProxy
@@ -3568,9 +3620,22 @@ func (al *APIListener) handleGetClientGraphMetrics(w http.ResponseWriter, req *h
 	vars := mux.Vars(req)
 	clientID := vars[routeParamClientID]
 
-	queryOptions := query.NewOptions(req, monitoring.ClientGraphMetricsSortDefault, monitoring.ClientGraphMetricsFilterDefault, monitoring.ClientGraphMetricsFieldsDefault)
+	client, err := al.clientService.GetActiveByID(clientID)
+	if err != nil {
+		al.jsonErrorResponse(w, http.StatusInternalServerError, err)
+		return
+	}
+	if client == nil {
+		al.jsonErrorResponseWithTitle(w, http.StatusNotFound, fmt.Sprintf("client with id %s not found", clientID))
+		return
+	}
 
-	entries, err := al.monitoringService.ListClientGraphMetrics(req.Context(), clientID, queryOptions)
+	queryOptions := query.NewOptions(req, monitoring.ClientGraphMetricsSortDefault, monitoring.ClientGraphMetricsFilterDefault, monitoring.ClientGraphMetricsFieldsDefault)
+	requestInfo := query.ParseRequestInfo(req)
+	netLan := client.ClientConfiguration.Monitoring.LanCard != nil
+	netWan := client.ClientConfiguration.Monitoring.WanCard != nil
+
+	payload, err := al.monitoringService.ListClientGraphMetrics(req.Context(), clientID, queryOptions, requestInfo, netLan, netWan)
 	if err != nil {
 		if err == sql.ErrNoRows {
 			al.jsonErrorResponseWithTitle(w, http.StatusNotFound, fmt.Sprintf("graph-metrics for client with id %q not found", clientID))
@@ -3579,8 +3644,38 @@ func (al *APIListener) handleGetClientGraphMetrics(w http.ResponseWriter, req *h
 		al.jsonError(w, err)
 		return
 	}
-	al.writeJSONResponse(w, http.StatusOK, api.NewSuccessPayload(entries))
+	al.writeJSONResponse(w, http.StatusOK, payload)
 }
+
+func (al *APIListener) handleGetClientGraphMetricsGraph(w http.ResponseWriter, req *http.Request) {
+	vars := mux.Vars(req)
+	clientID := vars[routeParamClientID]
+	graph := vars[routeParamGraphName]
+
+	queryOptions := query.NewOptions(req, monitoring.ClientGraphMetricsSortDefault, monitoring.ClientGraphMetricsFilterDefault, monitoring.ClientGraphMetricsFieldsDefault)
+
+	client, err := al.clientService.GetActiveByID(clientID)
+	if err != nil {
+		al.jsonErrorResponse(w, http.StatusInternalServerError, err)
+		return
+	}
+	if client == nil {
+		al.jsonErrorResponseWithTitle(w, http.StatusNotFound, fmt.Sprintf("client with id %s not found", clientID))
+		return
+	}
+
+	payload, err := al.monitoringService.ListClientGraph(req.Context(), clientID, queryOptions, graph, client.ClientConfiguration.Monitoring.LanCard, client.ClientConfiguration.Monitoring.WanCard)
+	if err != nil {
+		if err == sql.ErrNoRows {
+			al.jsonErrorResponseWithTitle(w, http.StatusNotFound, fmt.Sprintf("graph-metrics for client with id %q not found", clientID))
+			return
+		}
+		al.jsonError(w, err)
+		return
+	}
+	al.writeJSONResponse(w, http.StatusOK, payload)
+}
+
 func (al *APIListener) handleGetClientProcesses(w http.ResponseWriter, req *http.Request) {
 	vars := mux.Vars(req)
 	clientID := vars[routeParamClientID]

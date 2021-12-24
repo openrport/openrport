@@ -8,6 +8,7 @@ import (
 	"github.com/hashicorp/go-multierror"
 	"github.com/shirou/gopsutil/disk"
 
+	"github.com/cloudradar-monitoring/rport/client/monitoring/helper"
 	"github.com/cloudradar-monitoring/rport/share/logger"
 )
 
@@ -51,8 +52,8 @@ func NewWatcher(config FileSystemWatcherConfig, logger *logger.Logger) *FileSyst
 	return fsWatcher
 }
 
-func (fw *FileSystemWatcher) Results() (MeasurementsMap, error) {
-	results := MeasurementsMap{}
+func (fw *FileSystemWatcher) Results() (helper.MeasurementsMap, error) {
+	results := helper.MeasurementsMap{}
 
 	partitions, err := getPartitions(fw.config.IdentifyMountpointsByDevice)
 	if err != nil {
@@ -118,7 +119,7 @@ func (fw *FileSystemWatcher) Results() (MeasurementsMap, error) {
 	return results, errs
 }
 
-func (fw *FileSystemWatcher) fillUsageMetrics(results MeasurementsMap, mountName string, usage *disk.UsageStat) {
+func (fw *FileSystemWatcher) fillUsageMetrics(results helper.MeasurementsMap, mountName string, usage *disk.UsageStat) {
 	for _, metric := range fw.config.Metrics {
 		resultField := metric + "." + mountName
 		switch strings.ToLower(metric) {

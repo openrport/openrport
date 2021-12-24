@@ -2,6 +2,7 @@ package models
 
 import (
 	"errors"
+	"net"
 	"net/url"
 	"regexp"
 	"strings"
@@ -20,11 +21,19 @@ import (
 //   192.168.0.1:3000:google.com:80 ->
 //     local  192.168.0.1:3000
 //     remote google.com:80
+//   .../udp ->  udp protocol
 
-const ZeroHost = "0.0.0.0"
+const (
+	ZeroHost    = "0.0.0.0"
+	ProtocolTCP = "tcp"
+	ProtocolUDP = "udp"
+)
+
+var protocolRe = regexp.MustCompile(`(.*)\/(tcp|udp)$`)
 
 // TODO(m-terel): Remote should be only used for parsing command args and URL query params. Current Remote is kind of a Tunnel model. Refactor to use separate models for representation and business logic.
 type Remote struct {
+	Protocol           string  `json:"protocol"`
 	LocalHost          string  `json:"lhost"`
 	LocalPort          string  `json:"lport"`
 	RemoteHost         string  `json:"rhost"`
@@ -38,12 +47,21 @@ type Remote struct {
 }
 
 func DecodeRemote(s string) (*Remote, error) {
+	protocol := ProtocolTCP
+	matches := protocolRe.FindStringSubmatch(s)
+	if len(matches) >= 3 {
+		s = matches[1]
+		protocol = matches[2]
+	}
+
 	parts := strings.Split(s, ":")
 	if len(parts) <= 0 || len(parts) >= 5 {
 		return nil, errors.New("Invalid remote")
 	}
 
-	r := &Remote{}
+	r := &Remote{
+		Protocol: protocol,
+	}
 	for i := len(parts) - 1; i >= 0; i-- {
 		p := parts[i]
 		if isPort(p) {
@@ -87,16 +105,23 @@ func isHost(s string) bool {
 }
 
 //implement Stringer
-func (r *Remote) String() string {
+func (r Remote) String() string {
 	s := r.LocalHost + ":" + r.LocalPort + ":" + r.Remote()
-	if r.ACL == nil {
-		return s
+	if r.Protocol != ProtocolTCP {
+		s += "/" + r.Protocol
 	}
-	return s + "(acl:" + *r.ACL + ")"
+	if r.ACL != nil {
+		s += "(acl:" + *r.ACL + ")"
+	}
+	return s
 }
 
 func (r *Remote) Remote() string {
-	return r.RemoteHost + ":" + r.RemotePort
+	return net.JoinHostPort(r.RemoteHost, r.RemotePort)
+}
+
+func (r *Remote) Local() string {
+	return net.JoinHostPort(r.LocalHost, r.LocalPort)
 }
 
 func (r *Remote) Equals(other *Remote) bool {

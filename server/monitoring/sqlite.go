@@ -4,6 +4,7 @@ import (
 	"context"
 	"fmt"
 	"math"
+	"strings"
 	"time"
 
 	"github.com/jmoiron/sqlx"
@@ -18,6 +19,7 @@ import (
 type DBProvider interface {
 	CreateMeasurement(ctx context.Context, measurement *models.Measurement) error
 	DeleteMeasurementsBefore(ctx context.Context, compare time.Time) (int64, error)
+	ListGraphByClientID(context.Context, string, float64, *query.ListOptions, string) ([]*ClientGraphMetricsGraphPayload, error)
 	ListGraphMetricsByClientID(context.Context, string, float64, *query.ListOptions) ([]*ClientGraphMetricsPayload, error)
 	ListMetricsByClientID(context.Context, string, *query.ListOptions) ([]*ClientMetricsPayload, error)
 	ListMountpointsByClientID(context.Context, string, *query.ListOptions) ([]*ClientMountpointsPayload, error)
@@ -113,6 +115,9 @@ func (p *SqliteProvider) ListGraphMetricsByClientID(ctx context.Context, clientI
 
 	q, params = query.AddWhere(lo.Filters, q, params)
 
+	/*This is the part of "downsampling graph data" (group together graph points, so that you don't get too much points in one request).
+	The value of "29" comes from Thorsten. He did some research and found out that "29" would be the best fit.
+	*/
 	q = q + ` GROUP BY round((strftime('%s',timestamp)/(?)),0)`
 	divisor := (math.Round(hours*100) / 100) * 29
 	params = append(params, divisor)
@@ -124,13 +129,60 @@ func (p *SqliteProvider) ListGraphMetricsByClientID(ctx context.Context, clientI
 	return val, err
 }
 
+func (p *SqliteProvider) ListGraphByClientID(ctx context.Context, clientID string, hours float64, lo *query.ListOptions, graph string) ([]*ClientGraphMetricsGraphPayload, error) {
+	params := []interface{}{}
+	params = append(params, clientID)
+	field, okField := ClientGraphNameToField[graph]
+	alias, okAlias := ClientGraphNameToAlias[graph]
+	if !okField || !okAlias {
+		return nil, fmt.Errorf("unknown graph: %s", graph)
+	}
+
+	q := `SELECT timestamp, `
+	q = q + ` 
+		round(avg(` + field + `),2) as ` + alias + `_avg,
+		min(` + field + `) as ` + alias + `_min,
+		max(` + field + `) as ` + alias + `_max`
+
+	if strings.HasPrefix(graph, "net_") {
+		field = strings.ReplaceAll(field, "_in", "_out")
+		alias = strings.ReplaceAll(alias, "_in", "_out")
+		q = q + `, 
+		round(avg(` + field + `),2) as ` + alias + `_avg,
+		min(` + field + `) as ` + alias + `_min,
+		max(` + field + `) as ` + alias + `_max`
+	}
+	q = q + ` 
+	FROM measurements WHERE client_id = ?`
+
+	q, params = query.AddWhere(lo.Filters, q, params)
+
+	q = q + ` GROUP BY round((strftime('%s',timestamp)/(?)),0)`
+	divisor := (math.Round(hours*100) / 100) * 29
+	params = append(params, divisor)
+
+	query := query.AddOrderBy(lo.Sorts, q)
+
+	val := []*ClientGraphMetricsGraphPayload{}
+	err := p.db.SelectContext(ctx, &val, query, params...)
+	return val, err
+}
+
 func (p *SqliteProvider) CreateMeasurement(ctx context.Context, measurement *models.Measurement) error {
-	_, err := p.db.NamedExecContext(
-		ctx,
-		"INSERT INTO measurements (client_id, timestamp, cpu_usage_percent, memory_usage_percent, io_usage_percent, processes, mountpoints) "+
-			"VALUES (:client_id, :timestamp, :cpu_usage_percent, :memory_usage_percent, :io_usage_percent, :processes, :mountpoints)",
-		measurement,
-	)
+	q := `INSERT INTO measurements (client_id, timestamp, cpu_usage_percent, memory_usage_percent, io_usage_percent, processes, mountpoints, net_lan_in, net_lan_out, net_wan_in, net_wan_out) 
+		VALUES (:client_id, :timestamp, :cpu_usage_percent, :memory_usage_percent, :io_usage_percent, :processes, :mountpoints, `
+	if measurement.NetLan == nil {
+		q = q + `null, null, `
+	} else {
+		q = q + `:net_lan.in, :net_lan.out, `
+	}
+	if measurement.NetWan == nil {
+		q = q + `null, null`
+	} else {
+		q = q + `:net_wan.in, :net_wan.out`
+	}
+	query := q + ")"
+	_, err := p.db.NamedExecContext(ctx, query, measurement)
 	return err
 }
 
