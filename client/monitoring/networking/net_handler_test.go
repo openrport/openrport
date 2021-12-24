@@ -50,8 +50,4 @@ func TestNewNetHandlerNoNetworkMonitoring(t *testing.T) {
 	})
 
 	assert.Nil(t, netHandler.netWatcher)
-	bytesLan, bytesWan, err := netHandler.GetNets()
-	assert.Nil(t, err)
-	assert.Nil(t, bytesLan)
-	assert.Nil(t, bytesWan)
 }

@@ -3600,23 +3600,8 @@ func (al *APIListener) handleGetClientGraphMetricsGraph(w http.ResponseWriter, r
 		al.jsonErrorResponseWithTitle(w, http.StatusNotFound, fmt.Sprintf("client with id %s not found", clientID))
 		return
 	}
-	netLan := client.ClientConfiguration.Monitoring.LanCard != nil
-	netWan := client.ClientConfiguration.Monitoring.WanCard != nil
-	if strings.HasSuffix(graph, "_lan") && !netLan ||
-		strings.HasSuffix(graph, "_wan") && !netWan {
-		al.jsonErrorResponseWithTitle(w, http.StatusNotFound, fmt.Sprintf("graph data %s not available for client with id %s", graph, clientID))
-		return
-	}
 
-	bytesMaxLan := 125000.0
-	if netLan {
-		bytesMaxLan = bytesMaxLan * float64(client.ClientConfiguration.Monitoring.LanCard.MaxSpeed)
-	}
-	bytesMaxWan := 125000.0
-	if netWan {
-		bytesMaxWan = bytesMaxWan * float64(client.ClientConfiguration.Monitoring.WanCard.MaxSpeed)
-	}
-	payload, err := al.monitoringService.ListClientGraph(req.Context(), clientID, queryOptions, graph, bytesMaxLan, bytesMaxWan)
+	payload, err := al.monitoringService.ListClientGraph(req.Context(), clientID, queryOptions, graph, client.ClientConfiguration.Monitoring.LanCard, client.ClientConfiguration.Monitoring.WanCard)
 	if err != nil {
 		if err == sql.ErrNoRows {
 			al.jsonErrorResponseWithTitle(w, http.StatusNotFound, fmt.Sprintf("graph-metrics for client with id %q not found", clientID))

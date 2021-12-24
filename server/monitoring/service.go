@@ -18,7 +18,7 @@ type Service interface {
 	SaveMeasurement(ctx context.Context, measurement *models.Measurement) error
 	DeleteMeasurementsOlderThan(ctx context.Context, period time.Duration) (int64, error)
 	ListClientMetrics(context.Context, string, *query.ListOptions) (*api.SuccessPayload, error)
-	ListClientGraph(context.Context, string, *query.ListOptions, string, float64, float64) (*api.SuccessPayload, error)
+	ListClientGraph(context.Context, string, *query.ListOptions, string, *models.NetworkCard, *models.NetworkCard) (*api.SuccessPayload, error)
 	ListClientGraphMetrics(context.Context, string, *query.ListOptions, *query.RequestInfo, bool, bool) (*api.SuccessPayload, error)
 	ListClientMountpoints(context.Context, string, *query.ListOptions) (*api.SuccessPayload, error)
 	ListClientProcesses(context.Context, string, *query.ListOptions) (*api.SuccessPayload, error)
@@ -36,6 +36,7 @@ const minDownsamplingHours = 2
 const minDownsamplingDuration = time.Duration(minDownsamplingHours) * time.Hour
 const maxDownsamplingHours = 48
 const maxDownsamplingDuration = time.Duration(maxDownsamplingHours) * time.Hour
+const oneMBitBytes = 125000.0 // for converting MBits to Bytes
 
 type monitoringService struct {
 	DBProvider DBProvider
@@ -85,7 +86,15 @@ func (s *monitoringService) ListClientGraphMetrics(ctx context.Context, clientID
 	}, nil
 }
 
-func (s *monitoringService) ListClientGraph(ctx context.Context, clientID string, lo *query.ListOptions, graph string, bytesMaxLan float64, bytesMaxWan float64) (*api.SuccessPayload, error) {
+func (s *monitoringService) ListClientGraph(ctx context.Context, clientID string, lo *query.ListOptions, graph string, lanCard *models.NetworkCard, wanCard *models.NetworkCard) (*api.SuccessPayload, error) {
+	if strings.HasSuffix(graph, "_lan") && lanCard == nil ||
+		strings.HasSuffix(graph, "_wan") && wanCard == nil {
+		return nil, errors.APIError{
+			Message:    fmt.Sprintf("graph data %s not available for client with id %s", graph, clientID),
+			HTTPStatus: http.StatusNotFound,
+		}
+	}
+
 	span, err := s.validateAndParseGraphOptions(lo)
 	if err != nil {
 		return nil, err
@@ -96,7 +105,7 @@ func (s *monitoringService) ListClientGraph(ctx context.Context, clientID string
 		return nil, err
 	}
 	if strings.HasPrefix(graph, "net_usage_percent_") {
-		calculatePercentValues(&entries, bytesMaxLan, bytesMaxWan)
+		calculatePercentValues(&entries, lanCard, wanCard)
 	}
 
 	return &api.SuccessPayload{
@@ -104,9 +113,18 @@ func (s *monitoringService) ListClientGraph(ctx context.Context, clientID string
 	}, nil
 }
 
-func calculatePercentValues(entries *[]*ClientGraphMetricsGraphPayload, bytesMaxLan float64, bytesMaxWan float64) {
+func calculatePercentValues(entries *[]*ClientGraphMetricsGraphPayload, lanCard *models.NetworkCard, wanCard *models.NetworkCard) {
 	if entries == nil {
 		return
+	}
+
+	bytesMaxLan := oneMBitBytes
+	if lanCard != nil {
+		bytesMaxLan = bytesMaxLan * float64(lanCard.MaxSpeed)
+	}
+	bytesMaxWan := oneMBitBytes
+	if wanCard != nil {
+		bytesMaxWan = bytesMaxWan * float64(wanCard.MaxSpeed)
 	}
 
 	var bytes float64

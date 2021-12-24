@@ -168,7 +168,7 @@ func _003_add_netDownSql() (*asset, error) {
 		return nil, err
 	}
 
-	info := bindataFileInfo{name: "003_add_net.down.sql", size: 298, mode: os.FileMode(436), modTime: time.Unix(1638970459, 0)}
+	info := bindataFileInfo{name: "003_add_net.down.sql", size: 298, mode: os.FileMode(436), modTime: time.Unix(1639483687, 0)}
 	a := &asset{bytes: bytes, info: info}
 	return a, nil
 }
@@ -188,7 +188,7 @@ func _003_add_netUpSql() (*asset, error) {
 		return nil, err
 	}
 
-	info := bindataFileInfo{name: "003_add_net.up.sql", size: 325, mode: os.FileMode(436), modTime: time.Unix(1638970459, 0)}
+	info := bindataFileInfo{name: "003_add_net.up.sql", size: 325, mode: os.FileMode(436), modTime: time.Unix(1639483687, 0)}
 	a := &asset{bytes: bytes, info: info}
 	return a, nil
 }

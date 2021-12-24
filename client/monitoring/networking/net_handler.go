@@ -31,26 +31,26 @@ func (nh *NetHandler) GetNets() (*models.NetBytes, *models.NetBytes, error) {
 
 	var netLan *models.NetBytes
 	if nh.config.LanCard != nil {
-		netLan = getNetBytesFromMap(mm, inBytesName+"."+nh.config.LanCard.Name, outBytesName+"."+nh.config.LanCard.Name)
+		netLan = getNetBytesFromMap(mm, nh.config.LanCard.Name)
 	}
 
 	var netWan *models.NetBytes
 	if nh.config.WanCard != nil {
-		netWan = getNetBytesFromMap(mm, inBytesName+"."+nh.config.WanCard.Name, outBytesName+"."+nh.config.WanCard.Name)
+		netWan = getNetBytesFromMap(mm, nh.config.WanCard.Name)
 	}
 
 	return netLan, netWan, err
 }
 
-func getNetBytesFromMap(mm map[string]interface{}, keyIn string, keyOut string) *models.NetBytes {
+func getNetBytesFromMap(mm map[string]interface{}, interfaceName string) *models.NetBytes {
 	netBytes := &models.NetBytes{}
 
-	bytesIn := mm[keyIn]
+	bytesIn := mm[inBytesName+"."+interfaceName]
 	if bIn, ok := bytesIn.(int); ok {
 		netBytes.In = bIn
 	}
 
-	bytesOut := mm[keyOut]
+	bytesOut := mm[outBytesName+"."+interfaceName]
 	if bOut, ok := bytesOut.(int); ok {
 		netBytes.Out = bOut
 	}

@@ -115,6 +115,9 @@ func (p *SqliteProvider) ListGraphMetricsByClientID(ctx context.Context, clientI
 
 	q, params = query.AddWhere(lo.Filters, q, params)
 
+	/*This is the part of "downsampling graph data" (group together graph points, so that you don't get too much points in one request).
+	The value of "29" comes from Thorsten. He did some research and found out that "29" would be the best fit.
+	*/
 	q = q + ` GROUP BY round((strftime('%s',timestamp)/(?)),0)`
 	divisor := (math.Round(hours*100) / 100) * 29
 	params = append(params, divisor)
