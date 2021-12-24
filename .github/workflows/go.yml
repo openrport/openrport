@@ -29,8 +29,5 @@ jobs:
     runs-on: windows-2019
     steps:
       - uses: actions/checkout@v2
-      - name: InstallTaco
-        shell: pwsh
-        run: .github/scripts/install-taco.ps1
       - name: Test
         run: go test -race -v ./client/...
