@@ -33,7 +33,7 @@ jobs:
         run: go test -race -v ./client/...
       - name: CheckPowershell
         run: |
-          "C:\Program Files\PowerShell\7\pwsh.exe" --version
+          ls "C:\Program Files\PowerShell\7\pwsh.exe"
       - name: InstallTaco
         run: |
           iwr https://github.com/cloudradar-monitoring/tacoscript/releases/download/latest/tacoscript-latest-windows-amd64.zip `
