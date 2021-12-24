@@ -4,13 +4,16 @@ package system
 
 import (
 	"context"
+	chshare "github.com/cloudradar-monitoring/rport/share"
 	"strings"
 )
 
 func (s *realSystemInfo) virtualizationInfo(ctx context.Context) (virtSystem, virtRole string, err error) {
 	execCtx := &CmdExecutorContext{
-		Interpreter: "powerShell",
-		Command:     "Get-Service",
+		Interpreter: Interpreter{
+			InterpreterNameFromInput: chshare.PowerShell,
+		},
+		Command: "Get-Service",
 	}
 	cmd := s.cmdExec.New(ctx, execCtx)
 	execRes, err := cmd.CombinedOutput()

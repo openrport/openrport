@@ -26,11 +26,14 @@ func TestBuildCmd(t *testing.T) {
 	cmdExecutor := NewCmdExecutor(testLog)
 	for _, tc := range getInterpreterTestCases() {
 		t.Run(tc.name, func(t *testing.T) {
+			interpreter := Interpreter{
+				InterpreterNameFromInput: tc.interpreter,
+				InterpreterAliases:       tc.interpreterAliases,
+			}
 			execCtx := &CmdExecutorContext{
-				Interpreter:        tc.interpreter,
-				HasShebang:         tc.boolHasShebang,
-				InterpreterAliases: tc.interpreterAliases,
-				Command:            tc.command,
+				Interpreter: interpreter,
+				HasShebang:  tc.boolHasShebang,
+				Command:     tc.command,
 			}
 			// when
 			cmd := cmdExecutor.New(context.Background(), execCtx)

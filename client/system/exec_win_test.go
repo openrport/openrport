@@ -46,7 +46,7 @@ func getInterpreterTestCases() []interpreterTestCase {
 			interpreter:        "pwsh7",
 			command:            `C:\\script.ps1`,
 			interpreterAliases: map[string]string{"pwsh7": `C:\Program Files\PowerShell\7\pwsh.exe`},
-			wantCmdStr:         `C:\Program Files\PowerShell\7\pwsh.exe C:\\script.ps1`,
+			wantCmdStr:         `C:\Program Files\PowerShell\7\pwsh.exe -Noninteractive -executionpolicy bypass -File C:\\script.ps1`,
 		},
 		{
 			name:        "interpreter full path",
@@ -55,8 +55,8 @@ func getInterpreterTestCases() []interpreterTestCase {
 			wantCmdStr:  `C:\Program Files\Git\bin\bash.exe C:\\script.ps1`,
 		},
 		{
-			name:        "interpreter with params",
-			interpreter: `C:\Program Files\PowerShell\7\pwsh.exe -Noninteractive -executionpolicy bypass -File`,
+			name:        "interpreter full path powershell",
+			interpreter: `C:\Program Files\PowerShell\7\pwsh.exe`,
 			command:     `C:\\script.ps1`,
 			wantCmdStr:  `C:\Program Files\PowerShell\7\pwsh.exe -Noninteractive -executionpolicy bypass -File C:\\script.ps1`,
 		},

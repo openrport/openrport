@@ -51,19 +51,23 @@ func (c *Client) HandleRunCmdRequest(ctx context.Context, reqPayload []byte) (*c
 		return nil, fmt.Errorf("command is not allowed: %v", job.Command)
 	}
 
-	scriptPath, err := system.CreateScriptFile(c.configHolder.GetScriptsDir(), job.Interpreter, job.Command)
+	interpreter := system.Interpreter{
+		InterpreterNameFromInput: job.Interpreter,
+		InterpreterAliases:       c.configHolder.InterpreterAliases,
+	}
+
+	scriptPath, err := system.CreateScriptFile(c.configHolder.GetScriptsDir(), job.Command, interpreter)
 	if err != nil {
 		c.runCmdMutex.Unlock()
 		return nil, err
 	}
 
 	execCtx := &system.CmdExecutorContext{
-		Interpreter:        job.Interpreter,
-		Command:            scriptPath,
-		WorkingDir:         job.Cwd,
-		IsSudo:             job.IsSudo,
-		HasShebang:         system.HasShebangLine(job.Command),
-		InterpreterAliases: c.configHolder.InterpreterAliases,
+		Interpreter: interpreter,
+		Command:     scriptPath,
+		WorkingDir:  job.Cwd,
+		IsSudo:      job.IsSudo,
+		HasShebang:  system.HasShebangLine(job.Command),
 	}
 	cmd := c.cmdExec.New(ctx, execCtx)
 	stdOut := &CapacityBuffer{capacity: c.configHolder.RemoteCommands.SendBackLimit}

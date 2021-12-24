@@ -3,17 +3,18 @@
 package system
 
 import (
-	"os"
-
 	chshare "github.com/cloudradar-monitoring/rport/share"
+	"os"
 )
 
 func ValidateScriptDirOS(fileInfo os.FileInfo, scriptDir string) error {
 	return nil
 }
 
-func GetScriptExtensionOS(interpreter string) string {
-	if interpreter == chshare.PowerShell {
+func GetScriptExtensionOS(interpreter Interpreter) string {
+	isPowershell := interpreter.Matches(chshare.PowerShell, false)
+
+	if isPowershell {
 		return ".ps1"
 	}
 

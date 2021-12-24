@@ -45,7 +45,8 @@ func (e *CmdExecutorMock) New(ctx context.Context, execCtx *system.CmdExecutorCo
 	}
 
 	args = append(args, execCtx.Command)
-	cmd := exec.CommandContext(ctx, execCtx.Interpreter, args...)
+
+	cmd := exec.CommandContext(ctx, execCtx.Interpreter.InterpreterNameFromInput, args...)
 	cmd.Dir = execCtx.WorkingDir
 	return cmd
 }
