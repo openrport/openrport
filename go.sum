@@ -72,6 +72,7 @@ github.com/client9/misspell v0.3.4/go.mod h1:qj6jICC3Q7zFZvVWo7KLAzC3yx5G7kyvSDk
 github.com/cloudflare/golz4 v0.0.0-20150217214814-ef862a3cdc58/go.mod h1:EOBUe0h4xcZ5GoxqC5SDxFQ8gwyZPKQoEzownBlhI80=
 github.com/cloudradar-monitoring/cagent v0.0.0-20200615130556-4797f9fb8b50 h1:+0jez2PQyjjrviwswmyQFjEC2pIXedd6q7jfLvcChmk=
 github.com/cloudradar-monitoring/cagent v0.0.0-20200615130556-4797f9fb8b50/go.mod h1:D8rqQPBRWnzOKlCj7vnyj4oeNuryZuG7LH1vzAe2beg=
+github.com/cloudradar-monitoring/cagent v0.0.0-20210622104403-14ec555a61e7 h1:v0UrIglp68WjF8QHST7F441PAb7mCKrYVXskztZzXvE=
 github.com/cncf/udpa/go v0.0.0-20191209042840-269d4d468f6f/go.mod h1:M8M6+tZqaGXZJjfX53e64911xZQV5JYwmTeXPW+k8Sc=
 github.com/cockroachdb/apd v1.1.0/go.mod h1:8Sl8LxpKi29FqWXR16WEFZRNSz3SoPzUzeMeY4+DwBQ=
 github.com/cockroachdb/cockroach-go v0.0.0-20190925194419-606b3d062051/go.mod h1:XGLbWH/ujMcbPbhZq52Nv6UrCghb1yGn//133kEsvDk=

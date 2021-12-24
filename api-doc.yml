@@ -2466,8 +2466,88 @@ paths:
             type: "object"
             properties:
               data:
+                type: "array"
+                items:
+                  $ref: "#/definitions/GraphMetrics"
+              links:
                 type: "object"
-                $ref: "#/definitions/GraphMetrics"
+                properties:
+                  cpu_usage_percent:
+                    type: "string"
+                  mem_usage_percent:
+                    type: "string"
+                  io_usage_percent:
+                    type: "string"
+                  net_usage_percent_lan:
+                    type: "string"
+                  net_usage_bps_lan:
+                    type: "string"
+                  net_usage_percent_wan:
+                    type: "string"
+                  net_usage_bps_wan:
+                    type: "string"
+        "400":
+          description: "Bad Request"
+          schema:
+            $ref: "#/definitions/ErrorPayload"
+        "404":
+          description: "Cannot find measurements by the provided id"
+          schema:
+            $ref: "#/definitions/ErrorPayload"
+        "500":
+          description: "Invalid Operation"
+          schema:
+            $ref: "#/definitions/ErrorPayload"
+
+  /clients/{client_id}/graph-metrics/{graph_name}:
+    get:
+      tags:
+        - "Monitoring"
+      summary: "Lists client metrics for given graph name"
+      description: "List downsampled monitoring data about client metrics for the provided clientID and graph name"
+      produces:
+        - "application/json"
+      parameters:
+        - in: "path"
+          name: "client_id"
+          required: true
+          description: "Unique client ID"
+          type: "string"
+        - in: "path"
+          name: "graph_name"
+          required: true
+          description: "Unique graph name \n
+          Possible values are `cpu_usage_percent`, `mem_usage_percent`, `io_usage_percent`, `net_usage_percent_lan`, `net_usage_bps_lan`,\n
+          `net_usage_percent_wan`, `net_usage_bps_wan`"
+          type: "string"
+        - in: "query"
+          name: "sort"
+          description: "There is only `timestamp` allowed as sort field. Default direction is DESC\n
+            To sort ascending use `&sort=timestamp`."
+          required: false
+          type: "string"
+        - in: "query"
+          name: "filter[timestamp][<OPERATOR>]"
+          description: "Filter entries by field `timestamp`. `<OPERATOR>` can be one of `gt`, `lt`, `since` or `until`.\n
+              `gt` and `lt` require a timestamp value as `unixepoch`. `since` and `until` require a timestamp value in format `RFC3339`.\n
+              e.g. `filter[timestamp][gt]=1636009200&filter[timestamp][lt]=1636009500` or\n
+              e.g. `filter[timestamp][since]=2021-01-01T00:00:00+01:00&filter[timestamp][until]=2021-01-01T01:00:00+01:00`.\n\n
+              Downsampling data is available for a period `>= 2 hours` and `<= 48 hours`.\n
+              When downsampling takes place you get `avg, min and max` values for one of `cpu_usage_percent, memory_usage_percent, io_usage_percent`,
+              `net_usage_percent_lan`, `net_usage_bps_lan`, `net_usage_percent_wan` or `net_usage_bps_wan`\n\n
+              "
+          required: false
+          type: "string"
+      responses:
+        "200":
+          description: "Successful Operation"
+          schema:
+            type: "object"
+            properties:
+              data:
+                type: "array"
+                items:
+                  $ref: "#/definitions/GraphMetricsGraph"
         "400":
           description: "Bad Request"
           schema:
@@ -3661,6 +3741,126 @@ definitions:
           max:
             type: "number"
             description: "io_usage_percent maximum"
+  GraphMetricsGraph:
+    type: "object"
+    properties:
+      timestamp:
+        type: "string"
+        format: "date-time"
+        description: "Timestamp of measurement"
+      cpu_usage_percent:
+        properties:
+          avg:
+            type: "number"
+            description: "cpu_usage_percent average"
+          min:
+            type: "number"
+            description: "cpu_usage_percent minimum"
+          max:
+            type: "number"
+            description: "cpu_usage_percent maximum"
+      memory_usage_percent:
+        properties:
+          avg:
+            type: "number"
+            description: "memory_usage_percent average"
+          min:
+            type: "number"
+            description: "memory_usage_percent minimum"
+          max:
+            type: "number"
+            description: "memory_usage_percent maximum"
+      io_usage_percent:
+        properties:
+          avg:
+            type: "number"
+            description: "io_usage_percent average"
+          min:
+            type: "number"
+            description: "io_usage_percent minimum"
+          max:
+            type: "number"
+            description: "io_usage_percent maximum"
+      net_usage_percent_lan:
+        properties:
+          in_avg:
+            type: "number"
+            description: "net_usage_percent_lan average input"
+          in_min:
+            type: "number"
+            description: "net_usage_percent_lan minimum input"
+          in_max:
+            type: "number"
+            description: "net_usage_percent_lan maximum input"
+          out_avg:
+            type: "number"
+            description: "net_usage_percent_lan average output"
+          out_min:
+            type: "number"
+            description: "net_usage_percent_lan minimum output"
+          out_max:
+            type: "number"
+            description: "net_usage_percent_lan maximum output"
+      net_usage_bps_lan:
+        properties:
+          in_avg:
+            type: "number"
+            description: "net_usage_bps_lan average input"
+          in_min:
+            type: "number"
+            description: "net_usage_bps_lan minimum input"
+          in_max:
+            type: "number"
+            description: "net_usage_bps_lan maximum input"
+          out_avg:
+            type: "number"
+            description: "net_usage_bps_lan average output"
+          out_min:
+            type: "number"
+            description: "net_usage_bps_lan minimum output"
+          out_max:
+            type: "number"
+            description: "net_usage_bps_lan maximum output"
+      net_usage_percent_wan:
+        properties:
+          in_avg:
+            type: "number"
+            description: "net_usage_percent_wan average input"
+          in_min:
+            type: "number"
+            description: "net_usage_percent_wan minimum input"
+          in_max:
+            type: "number"
+            description: "net_usage_percent_wan maximum input"
+          out_avg:
+            type: "number"
+            description: "net_usage_percent_wan average output"
+          out_min:
+            type: "number"
+            description: "net_usage_percent_wan minimum output"
+          out_max:
+            type: "number"
+            description: "net_usage_percent_wan maximum output"
+      net_usage_bps_wan:
+        properties:
+          in_avg:
+            type: "number"
+            description: "net_usage_bps_wan average input"
+          in_min:
+            type: "number"
+            description: "net_usage_bps_wan minimum input"
+          in_max:
+            type: "number"
+            description: "net_usage_bps_wan maximum input"
+          out_avg:
+            type: "number"
+            description: "net_usage_bps_wan average output"
+          out_min:
+            type: "number"
+            description: "net_usage_bps_wan minimum output"
+          out_max:
+            type: "number"
+            description: "net_usage_bps_wan maximum output"
   Metrics:
     type: "object"
     properties:

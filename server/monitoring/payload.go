@@ -3,7 +3,18 @@ package monitoring
 import (
 	"time"
 
+	"github.com/cloudradar-monitoring/rport/share/query"
 	"github.com/cloudradar-monitoring/rport/share/types"
+)
+
+const (
+	LinkCPUPercent    = "cpu_usage_percent"
+	LinkMemPercent    = "mem_usage_percent"
+	LinkIOPercent     = "io_usage_percent"
+	LinkNetPercentLan = "net_usage_percent_lan"
+	LinkNetBPSLan     = "net_usage_bps_lan"
+	LinkNetPercentWan = "net_usage_percent_wan"
+	LinkNetBPSWan     = "net_usage_bps_wan"
 )
 
 type CPUUsagePercent struct {
@@ -24,11 +35,78 @@ type IOUsagePercent struct {
 	Max float64 `json:"max,omitempty" db:"io_usage_percent_max"`
 }
 
+type NetUsagePercentLan struct {
+	InAvg  *float64 `json:"in_avg,omitempty" db:"net_usage_percent_lan_in_avg"`
+	InMin  *float64 `json:"in_min,omitempty" db:"net_usage_percent_lan_in_min"`
+	InMax  *float64 `json:"in_max,omitempty" db:"net_usage_percent_lan_in_max"`
+	OutAvg *float64 `json:"out_avg,omitempty" db:"net_usage_percent_lan_out_avg"`
+	OutMin *float64 `json:"out_min,omitempty" db:"net_usage_percent_lan_out_min"`
+	OutMax *float64 `json:"out_max,omitempty" db:"net_usage_percent_lan_out_max"`
+}
+
+type NetUsagePercentWan struct {
+	InAvg  *float64 `json:"in_avg,omitempty" db:"net_usage_percent_wan_in_avg"`
+	InMin  *float64 `json:"in_min,omitempty" db:"net_usage_percent_wan_in_min"`
+	InMax  *float64 `json:"in_max,omitempty" db:"net_usage_percent_wan_in_max"`
+	OutAvg *float64 `json:"out_avg,omitempty" db:"net_usage_percent_wan_out_avg"`
+	OutMin *float64 `json:"out_min,omitempty" db:"net_usage_percent_wan_out_min"`
+	OutMax *float64 `json:"out_max,omitempty" db:"net_usage_percent_wan_out_max"`
+}
+
+type NetUsageBPSLan struct {
+	InAvg  *float64 `json:"in_avg,omitempty" db:"net_usage_bps_lan_in_avg"`
+	InMin  *float64 `json:"in_min,omitempty" db:"net_usage_bps_lan_in_min"`
+	InMax  *float64 `json:"in_max,omitempty" db:"net_usage_bps_lan_in_max"`
+	OutAvg *float64 `json:"out_avg,omitempty" db:"net_usage_bps_lan_out_avg"`
+	OutMin *float64 `json:"out_min,omitempty" db:"net_usage_bps_lan_out_min"`
+	OutMax *float64 `json:"out_max,omitempty" db:"net_usage_bps_lan_out_max"`
+}
+
+type NetUsageBPSWan struct {
+	InAvg  *float64 `json:"in_avg,omitempty" db:"net_usage_bps_wan_in_avg"`
+	InMin  *float64 `json:"in_min,omitempty" db:"net_usage_bps_wan_in_min"`
+	InMax  *float64 `json:"in_max,omitempty" db:"net_usage_bps_wan_in_max"`
+	OutAvg *float64 `json:"out_avg,omitempty" db:"net_usage_bps_wan_out_avg"`
+	OutMin *float64 `json:"out_min,omitempty" db:"net_usage_bps_wan_out_min"`
+	OutMax *float64 `json:"out_max,omitempty" db:"net_usage_bps_wan_out_max"`
+}
+
 type ClientGraphMetricsPayload struct {
 	Timestamp          time.Time `json:"timestamp,omitempty" db:"timestamp"`
 	CPUUsagePercent    `json:"cpu_usage_percent,omitempty"`
 	MemoryUsagePercent `json:"memory_usage_percent,omitempty"`
 	IOUsagePercent     `json:"io_usage_percent,omitempty"`
+}
+
+type ClientGraphMetricsGraphPayload struct {
+	Timestamp           time.Time `json:"timestamp,omitempty" db:"timestamp"`
+	*CPUUsagePercent    `json:"cpu_usage_percent,omitempty"`
+	*MemoryUsagePercent `json:"memory_usage_percent,omitempty"`
+	*IOUsagePercent     `json:"io_usage_percent,omitempty"`
+	*NetUsagePercentLan `json:"net_usage_percent_lan,omitempty"`
+	*NetUsagePercentWan `json:"net_usage_percent_wan,omitempty"`
+	*NetUsageBPSLan     `json:"net_usage_bps_lan,omitempty"`
+	*NetUsageBPSWan     `json:"net_usage_bps_wan,omitempty"`
+}
+
+var ClientGraphNameToField = map[string]string{
+	"cpu_usage_percent":     "cpu_usage_percent",
+	"mem_usage_percent":     "memory_usage_percent",
+	"io_usage_percent":      "io_usage_percent",
+	"net_usage_percent_lan": "net_lan_in",
+	"net_usage_percent_wan": "net_wan_in",
+	"net_usage_bps_lan":     "net_lan_in",
+	"net_usage_bps_wan":     "net_wan_in",
+}
+
+var ClientGraphNameToAlias = map[string]string{
+	"cpu_usage_percent":     "cpu_usage_percent",
+	"mem_usage_percent":     "memory_usage_percent",
+	"io_usage_percent":      "io_usage_percent",
+	"net_usage_percent_lan": "net_usage_percent_lan_in",
+	"net_usage_percent_wan": "net_usage_percent_wan_in",
+	"net_usage_bps_lan":     "net_usage_bps_lan_in",
+	"net_usage_bps_wan":     "net_usage_bps_wan_in",
 }
 
 type ClientMetricsPayload struct {
@@ -46,6 +124,21 @@ type ClientProcessesPayload struct {
 type ClientMountpointsPayload struct {
 	Timestamp   time.Time        `json:"timestamp" db:"timestamp"`
 	Mountpoints types.JSONString `json:"mountpoints" db:"mountpoints"`
+}
+
+type GraphMetricsLinksPayload struct {
+	CPUUsagePercent    *string `json:"cpu_usage_percent,omitempty"`
+	MemUsagePercent    *string `json:"mem_usage_percent,omitempty"`
+	IOUsagePercent     *string `json:"io_usage_percent,omitempty"`
+	NetLanUsagePercent *string `json:"net_usage_percent_lan,omitempty"`
+	NetWanUsagePercent *string `json:"net_usage_percent_wan,omitempty"`
+	NetLanUsageBPS     *string `json:"net_usage_bps_lan,omitempty"`
+	NetWanUsageBPS     *string `json:"net_usage_bps_wan,omitempty"`
+}
+
+func NewGraphMetricsLink(requestInfo *query.RequestInfo, target string) *string {
+	link := requestInfo.URL + "/" + target
+	return &link
 }
 
 var ClientGraphMetricsSortFields = map[string]bool{
