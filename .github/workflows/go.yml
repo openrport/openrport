@@ -32,7 +32,5 @@ jobs:
       - name: InstallTaco
         shell: pwsh
         run: .github/scripts/install-taco.ps1
-      - name: CheckTaco
-        run: tacoscript --version
       - name: Test
         run: go test -race -v ./client/...
