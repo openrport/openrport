@@ -21,9 +21,9 @@ import (
 const (
 	DefaultKeepLostClients           = time.Hour
 	DefaultCleanClientsInterval      = 1 * time.Minute
-	DefaultMaxRequestBytes           = 10 * 1024    // 10 KB
-	DefaultMaxRequestBytesClient     = 512 * 1024   // 512KB
-	DefaultMaxFilePushBytes          = int64(10<<20) // 10M
+	DefaultMaxRequestBytes           = 10 * 1024       // 10 KB
+	DefaultMaxRequestBytesClient     = 512 * 1024      // 512KB
+	DefaultMaxFilePushBytes          = int64(10 << 20) // 10M
 	DefaultCheckPortTimeout          = 2 * time.Second
 	DefaultUsedPorts                 = "20000-30000"
 	DefaultExcludedPorts             = "1-1024"

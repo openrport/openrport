@@ -65,9 +65,9 @@ const (
 	ErrCodeInvalidRequest  = "ERR_CODE_INVALID_REQUEST"
 	ErrCodeAlreadyExist    = "ERR_CODE_ALREADY_EXIST"
 
-	allRoutesPrefix = "/api/v1"
-	totPRoutes      = "/me/totp-secret"
-	verify2FaRoute  = "/verify-2fa"
+	allRoutesPrefix      = "/api/v1"
+	totPRoutes           = "/me/totp-secret"
+	verify2FaRoute       = "/verify-2fa"
 	filesUploadRouteName = "files"
 )
 

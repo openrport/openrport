@@ -1,14 +1,17 @@
 package chserver
 
 import (
-	"github.com/cloudradar-monitoring/rport/server/auditlog"
-	"github.com/cloudradar-monitoring/rport/server/clients"
-	"github.com/pkg/errors"
 	"io"
-	"mime/multipart"
-	"net/http"
 	"os"
 	"path"
+
+	"mime/multipart"
+	"net/http"
+
+	"github.com/pkg/errors"
+
+	"github.com/cloudradar-monitoring/rport/server/auditlog"
+	"github.com/cloudradar-monitoring/rport/server/clients"
 )
 
 const uploadBufSize = 1000000 // 1Mb
@@ -107,11 +110,11 @@ func (al *APIListener) uploadRequestFromRequest(req *http.Request) (*UploadReque
 
 func validateUploadRequest(ur *UploadRequest) error {
 	if len(ur.ClientIDs) == 0 && ur.clientsInGroupsCount == 0 {
-		return errors.New("At least 1 client should be specified.")
+		return errors.New("at least 1 client should be specified")
 	}
 
 	if len(ur.GroupIDs) > 0 && ur.clientsInGroupsCount == 0 && len(ur.ClientIDs) == 0 {
-		return errors.New("No active clients belong to the selected group(s).")
+		return errors.New("No active clients belong to the selected group(s)")
 	}
 
 	if len(ur.Clients) == 0 {
