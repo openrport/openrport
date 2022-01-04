@@ -34,15 +34,30 @@ type ClientService struct {
 }
 
 var clientsSupportedFilters = map[string]bool{
+	"id":                       true,
+	"name":                     true,
+	"os":                       true,
+	"os_arch":                  true,
+	"os_family":                true,
+	"os_kernel":                true,
 	"os_full_name":             true,
+	"os_version":               true,
 	"os_virtualization_system": true,
 	"os_virtualization_role":   true,
-	"cpu_model_name":           true,
-	"timezone":                 true,
-	"os_version":               true,
 	"cpu_family":               true,
 	"cpu_model":                true,
+	"cpu_model_name":           true,
+	"cpu_vendor":               true,
 	"num_cpus":                 true,
+	"timezone":                 true,
+	"hostname":                 true,
+	"ipv4":                     true,
+	"ipv6":                     true,
+	"tags":                     true,
+	"version":                  true,
+	"address":                  true,
+	"client_auth_id":           true,
+	"allowed_user_groups":      true,
 }
 var clientsSupportedSorts = map[string]bool{
 	"id":       true,

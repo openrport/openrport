@@ -30,21 +30,19 @@ func AddWhere(filterOptions []FilterOption, q string, params []interface{}) (str
 	}
 
 	whereParts := make([]string, 0, len(filterOptions))
-	for i, fo := range filterOptions {
-		if IsLimitFilter(fo) {
-			continue
-		}
-		if len(filterOptions[i].Values) == 1 {
-			whereParts = append(whereParts, fmt.Sprintf("%s %s ?", filterOptions[i].Column, filterOptions[i].Operator.Code()))
-			params = append(params, filterOptions[i].Values[0])
-		} else {
-			orParts := make([]string, 0, len(filterOptions[i].Values))
+	for i := range filterOptions {
+		orParts := make([]string, 0, len(filterOptions[i].Values))
+		for _, col := range filterOptions[i].Column {
 			for y := range filterOptions[i].Values {
-				orParts = append(orParts, fmt.Sprintf("%s %s ?", filterOptions[i].Column, filterOptions[i].Operator.Code()))
+				orParts = append(orParts, fmt.Sprintf("%s %s ?", col, filterOptions[i].Operator.Code()))
 				params = append(params, filterOptions[i].Values[y])
 			}
+		}
 
+		if len(orParts) > 1 {
 			whereParts = append(whereParts, fmt.Sprintf("(%s)", strings.Join(orParts, " OR ")))
+		} else {
+			whereParts = append(whereParts, orParts[0])
 		}
 	}
 

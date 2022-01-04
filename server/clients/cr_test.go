@@ -126,13 +126,15 @@ func TestCRWithNoExpiration(t *testing.T) {
 
 func TestCRWithFilter(t *testing.T) {
 	testCases := []struct {
+		name              string
 		filters           []query.FilterOption
 		expectedClientIDs []string
 	}{
 		{
+			name: "single value",
 			filters: []query.FilterOption{
 				{
-					Column: "os_full_name",
+					Column: []string{"os_full_name"},
 					Values: []string{
 						"Alpine Linux",
 					},
@@ -143,9 +145,10 @@ func TestCRWithFilter(t *testing.T) {
 			},
 		},
 		{
+			name: "wildcard",
 			filters: []query.FilterOption{
 				{
-					Column: "os_full_name",
+					Column: []string{"os_full_name"},
 					Values: []string{
 						"Alpine*",
 					},
@@ -157,9 +160,24 @@ func TestCRWithFilter(t *testing.T) {
 			},
 		},
 		{
+			name: "array value",
 			filters: []query.FilterOption{
 				{
-					Column: "os_full_name",
+					Column: []string{"ipv4"},
+					Values: []string{
+						"192.168.122.111",
+					},
+				},
+			},
+			expectedClientIDs: []string{
+				"aa1210c7-1899-491e-8e71-564cacaf1df8",
+			},
+		},
+		{
+			name: "multiple values",
+			filters: []query.FilterOption{
+				{
+					Column: []string{"os_full_name"},
 					Values: []string{
 						"Alpine*",
 						"Microsoft Windows Server 2016 Standard",
@@ -173,16 +191,17 @@ func TestCRWithFilter(t *testing.T) {
 			},
 		},
 		{
+			name: "multiple filters",
 			filters: []query.FilterOption{
 				{
-					Column: "os_virtualization_system",
+					Column: []string{"os_virtualization_system"},
 					Values: []string{
 						"KVM",
 						"Microsoft Windows Server 2016 Standard",
 					},
 				},
 				{
-					Column: "os_virtualization_role",
+					Column: []string{"os_virtualization_role"},
 					Values: []string{
 						"guest",
 					},
@@ -193,9 +212,26 @@ func TestCRWithFilter(t *testing.T) {
 			},
 		},
 		{
+			name: "or columns",
 			filters: []query.FilterOption{
 				{
-					Column: "os_full_name",
+					Column: []string{"os_full_name", "ipv4"},
+					Values: []string{
+						"Microsoft Windows Server 2016 Standard",
+						"192.168.*.111",
+					},
+				},
+			},
+			expectedClientIDs: []string{
+				"daflkdfjqlkerlkejrqlwedalfdfadfa",
+				"aa1210c7-1899-491e-8e71-564cacaf1df8",
+			},
+		},
+		{
+			name: "no results",
+			filters: []query.FilterOption{
+				{
+					Column: []string{"os_full_name"},
 					Values: []string{
 						"Oracle",
 					},
@@ -204,69 +240,177 @@ func TestCRWithFilter(t *testing.T) {
 			expectedClientIDs: []string{},
 		},
 		{
+			name: "all filters",
 			filters: []query.FilterOption{
 				{
-					Column: "os_full_name",
+					Column: []string{"id"},
 					Values: []string{
-						"Microsoft Windows Server 2016 Standard",
+						"a*",
 					},
 				},
 				{
-					Column: "os_version",
+					Column: []string{"name"},
 					Values: []string{
-						"10.0.14393 Build 14393",
+						"*Client*",
 					},
 				},
 				{
-					Column: "cpu_family",
+					Column: []string{"os"},
 					Values: []string{
-						"1",
+						"Linux*",
 					},
 				},
 				{
-					Column: "cpu_model",
+					Column: []string{"os_arch"},
 					Values: []string{
-						"4",
+						"amd64",
 					},
 				},
 				{
-					Column: "cpu_model_name",
+					Column: []string{"os_family"},
 					Values: []string{
-						"Intel*",
+						"alpine",
 					},
 				},
 				{
-					Column: "num_cpus",
+					Column: []string{"os_kernel"},
+					Values: []string{
+						"linux",
+					},
+				},
+				{
+					Column: []string{"os_full_name"},
+					Values: []string{
+						"Alpine",
+					},
+				},
+				{
+					Column: []string{"os_version"},
+					Values: []string{
+						"3.14.*",
+					},
+				},
+				{
+					Column: []string{"os_virtualization_role"},
+					Values: []string{
+						"guest",
+					},
+				},
+				{
+					Column: []string{"os_virtualization_system"},
+					Values: []string{
+						"KVM",
+					},
+				},
+				{
+					Column: []string{"cpu_family"},
+					Values: []string{
+						"6",
+					},
+				},
+				{
+					Column: []string{"cpu_model"},
+					Values: []string{
+						"79",
+					},
+				},
+				{
+					Column: []string{"cpu_model_name"},
+					Values: []string{
+						"*KVM*",
+					},
+				},
+				{
+					Column: []string{"cpu_vendor"},
+					Values: []string{
+						"GenuineIntel",
+					},
+				},
+				{
+					Column: []string{"num_cpus"},
 					Values: []string{
 						"2",
 					},
 				},
 				{
-					Column: "timezone",
+					Column: []string{"timezone"},
 					Values: []string{
-						"UTC*",
+						"CEST*",
+					},
+				},
+				{
+					Column: []string{"hostname"},
+					Values: []string{
+						"alpine-*",
+					},
+				},
+				{
+					Column: []string{"ipv4"},
+					Values: []string{
+						"192.168.*.*",
+					},
+				},
+				{
+					Column: []string{"ipv6"},
+					Values: []string{
+						"fe80::b84f:aff:fe59:a0b1",
+					},
+				},
+				{
+					Column: []string{"tags"},
+					Values: []string{
+						"Datacenter 1",
+					},
+				},
+				{
+					Column: []string{"version"},
+					Values: []string{
+						"0.1.12",
+					},
+				},
+				{
+					Column: []string{"address"},
+					Values: []string{
+						"88.198.189.161:50078",
+					},
+				},
+				{
+					Column: []string{"client_auth_id"},
+					Values: []string{
+						"client-1",
+					},
+				},
+				{
+					Column: []string{"allowed_user_groups"},
+					Values: []string{
+						"Administrators",
 					},
 				},
 			},
 			expectedClientIDs: []string{
-				"daflkdfjqlkerlkejrqlwedalfdfadfa",
+				"aa1210c7-1899-491e-8e71-564cacaf1df8",
 			},
 		},
 	}
 
-	for _, testcase := range testCases {
-		repo := NewClientRepository([]*Client{c1, c2, c5}, nil, testLog)
+	for _, tc := range testCases {
+		tc := tc
+		t.Run(tc.name, func(t *testing.T) {
+			t.Parallel()
 
-		actualClients, err := repo.GetUserClients(admin, testcase.filters)
-		require.NoError(t, err)
+			repo := NewClientRepository([]*Client{c1, c2, c5}, nil, testLog)
 
-		actualClientIDs := make([]string, 0, len(actualClients))
+			actualClients, err := repo.GetUserClients(admin, tc.filters)
+			require.NoError(t, err)
 
-		for _, actualClient := range actualClients {
-			actualClientIDs = append(actualClientIDs, actualClient.ID)
-		}
+			actualClientIDs := make([]string, 0, len(actualClients))
 
-		assert.ElementsMatch(t, testcase.expectedClientIDs, actualClientIDs)
+			for _, actualClient := range actualClients {
+				actualClientIDs = append(actualClientIDs, actualClient.ID)
+			}
+
+			assert.ElementsMatch(t, tc.expectedClientIDs, actualClientIDs)
+		})
 	}
 }
 
@@ -274,7 +418,7 @@ func TestCRWithUnsupportedFilter(t *testing.T) {
 	repo := NewClientRepository([]*Client{c1}, nil, testLog)
 	_, err := repo.GetUserClients(admin, []query.FilterOption{
 		{
-			Column: "unknown_field",
+			Column: []string{"unknown_field"},
 			Values: []string{
 				"1",
 			},

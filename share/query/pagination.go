@@ -13,6 +13,9 @@ import (
 type Pagination struct {
 	Limit  string
 	Offset string
+
+	ValidatedLimit  int
+	ValidatedOffset int
 }
 
 type PaginationConfig struct {
@@ -52,6 +55,7 @@ func ValidatePagination(pagination *Pagination, config *PaginationConfig) errors
 			})
 		}
 	}
+	pagination.ValidatedLimit = limit
 
 	offset, err := strconv.Atoi(pagination.Offset)
 	if err != nil {
@@ -68,6 +72,7 @@ func ValidatePagination(pagination *Pagination, config *PaginationConfig) errors
 			})
 		}
 	}
+	pagination.ValidatedOffset = offset
 
 	if len(errs) > 0 {
 		return errs

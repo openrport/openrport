@@ -11,54 +11,66 @@ import (
 	errors2 "github.com/cloudradar-monitoring/rport/server/api/errors"
 )
 
-var filterRegex = regexp.MustCompile(`^filter\[(\w+)](\[(\w+)])?`)
+var filterRegex = regexp.MustCompile(`^filter\[([\w|]+)](\[(\w+)])?`)
 
-type FilterOperatorType int
+type FilterOperatorType string
 
 const (
-	FilterOperatorTypeEQ FilterOperatorType = iota
-	FilterOperatorTypeGT
-	FilterOperatorTypeLT
-	FilterOperatorTypeSince
-	FilterOperatorTypeUntil
+	FilterOperatorTypeEQ    FilterOperatorType = "eq"
+	FilterOperatorTypeGT    FilterOperatorType = "gt"
+	FilterOperatorTypeLT    FilterOperatorType = "lt"
+	FilterOperatorTypeSince FilterOperatorType = "since"
+	FilterOperatorTypeUntil FilterOperatorType = "until"
 )
 
 func (fot FilterOperatorType) Code() string {
-	return [...]string{"=", ">", "<", ">=", "<="}[fot]
-}
-
-func (fot FilterOperatorType) String() string {
-	return [...]string{"eq", "gt", "lt", "since", "until"}[fot]
-}
-func ParseFilterOperatorType(filterOperator string) FilterOperatorType {
-	switch strings.ToLower(filterOperator) {
-	case FilterOperatorTypeGT.String():
-		return FilterOperatorTypeGT
-	case FilterOperatorTypeLT.String():
-		return FilterOperatorTypeLT
-	case FilterOperatorTypeSince.String():
-		return FilterOperatorTypeSince
-	case FilterOperatorTypeUntil.String():
-		return FilterOperatorTypeUntil
+	code, ok := map[FilterOperatorType]string{
+		"eq":    "=",
+		"gt":    ">",
+		"lt":    "<",
+		"since": ">=",
+		"until": "<=",
+	}[fot]
+	if !ok {
+		return "="
 	}
-
-	return FilterOperatorTypeEQ
+	return code
 }
 
 type FilterOption struct {
-	Expression string
-	Column     string
-	Operator   FilterOperatorType
-	Values     []string
+	Column   []string // Columns filters are ORed together
+	Operator FilterOperatorType
+	Values   []string
+}
+
+func (fo FilterOption) String() string {
+	s := fmt.Sprintf("filter[%s]", strings.Join(fo.Column, "|"))
+	if fo.Operator != "" {
+		s += fmt.Sprintf("[%s]", fo.Operator)
+	}
+	return s
+}
+
+func (fo FilterOption) isSupported(supportedFields map[string]bool) bool {
+	for _, col := range fo.Column {
+		if fo.Operator == "" && supportedFields[col] {
+			continue
+		}
+		if supportedFields[fmt.Sprintf("%s[%s]", col, fo.Operator)] {
+			continue
+		}
+		return false
+	}
+	return true
 }
 
 func ValidateFilterOptions(fo []FilterOption, supportedFields map[string]bool) errors2.APIErrors {
 	errs := errors2.APIErrors{}
 	for i := range fo {
-		ok := supportedFields[fo[i].Expression]
+		ok := fo[i].isSupported(supportedFields)
 		if !ok {
 			errs = append(errs, errors2.APIError{
-				Message:    fmt.Sprintf("unsupported filter field '%s'", fo[i].Expression),
+				Message:    fmt.Sprintf("unsupported filter field '%s'", fo[i]),
 				HTTPStatus: http.StatusBadRequest,
 			})
 		}
@@ -94,29 +106,21 @@ func ParseFilterOptions(values url.Values) []FilterOption {
 		if filterColumn == "" {
 			continue
 		}
-
-		expressionOperator := matches[2]
-		expressionOperator = strings.TrimSpace(expressionOperator)
+		filterColumns := strings.Split(filterColumn, "|")
 
 		filterOperator := matches[3]
 		filterOperator = strings.TrimSpace(filterOperator)
 
-		filterExpression := filterColumn + expressionOperator
 		fo := FilterOption{
-			Expression: filterExpression,
-			Column:     filterColumn,
-			Operator:   ParseFilterOperatorType(filterOperator),
-			Values:     orValues,
+			Column:   filterColumns,
+			Operator: FilterOperatorType(filterOperator),
+			Values:   orValues,
 		}
 
 		res = append(res, fo)
 	}
 
 	return res
-}
-
-func IsLimitFilter(fo FilterOption) bool {
-	return fo.Column == "limit"
 }
 
 func SortFiltersByOperator(a []FilterOption) {

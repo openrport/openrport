@@ -121,7 +121,7 @@ func TestList(t *testing.T) {
 				},
 				Filters: []query.FilterOption{
 					{
-						Column: "created_by",
+						Column: []string{"created_by"},
 						Values: []string{"user1"},
 					},
 				},
@@ -133,7 +133,7 @@ func TestList(t *testing.T) {
 			Options: &query.ListOptions{
 				Filters: []query.FilterOption{
 					{
-						Column: "interpreter",
+						Column: []string{"interpreter"},
 						Values: []string{"not-existing-interpreter"},
 					},
 				},
@@ -145,7 +145,7 @@ func TestList(t *testing.T) {
 			Options: &query.ListOptions{
 				Filters: []query.FilterOption{
 					{
-						Column: "is_sudo",
+						Column: []string{"is_sudo"},
 						Values: []string{"0"},
 					},
 				},
@@ -163,11 +163,11 @@ func TestList(t *testing.T) {
 				},
 				Filters: []query.FilterOption{
 					{
-						Column: "name",
+						Column: []string{"name"},
 						Values: []string{"some name", "other name 2"},
 					},
 					{
-						Column: "created_by",
+						Column: []string{"created_by"},
 						Values: []string{"user1"},
 					},
 				},

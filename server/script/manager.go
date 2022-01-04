@@ -93,7 +93,7 @@ func (m *Manager) Create(ctx context.Context, valueToStore *InputScript, usernam
 	existingScript, err := m.db.List(ctx, &query.ListOptions{
 		Filters: []query.FilterOption{
 			{
-				Column: "name",
+				Column: []string{"name"},
 				Values: []string{valueToStore.Name},
 			},
 		},
@@ -147,7 +147,7 @@ func (m *Manager) Update(ctx context.Context, existingID string, valueToStore *I
 	scriptsWithSameName, err := m.db.List(ctx, &query.ListOptions{
 		Filters: []query.FilterOption{
 			{
-				Column: "name",
+				Column: []string{"name"},
 				Values: []string{valueToStore.Name},
 			},
 		},

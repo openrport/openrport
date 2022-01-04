@@ -767,7 +767,10 @@ func (al *APIListener) handleGetStatus(w http.ResponseWriter, req *http.Request)
 
 func (al *APIListener) handleGetClients(w http.ResponseWriter, req *http.Request) {
 	options := query.NewOptions(req, nil, nil, clientsListDefaultFields)
-	errs := query.ValidateListOptions(options, clientsSupportedSorts, clientsSupportedFilters, clientsSupportedFields, nil /* no pagination */)
+	errs := query.ValidateListOptions(options, clientsSupportedSorts, clientsSupportedFilters, clientsSupportedFields, &query.PaginationConfig{
+		MaxLimit:     500,
+		DefaultLimit: 50,
+	})
 	if errs != nil {
 		al.jsonError(w, errs)
 		return
@@ -793,8 +796,22 @@ func (al *APIListener) handleGetClients(w http.ResponseWriter, req *http.Request
 
 	sortFunc(cls, desc)
 
+	totalCount := len(cls)
+	start := options.Pagination.ValidatedOffset
+	if start > totalCount {
+		start = totalCount
+	}
+	end := options.Pagination.ValidatedOffset + options.Pagination.ValidatedLimit
+	if end > totalCount {
+		end = totalCount
+	}
+	cls = cls[start:end]
+
 	clientsPayload := convertToClientsPayload(cls, options.Fields)
-	al.writeJSONResponse(w, http.StatusOK, api.NewSuccessPayload(clientsPayload))
+	al.writeJSONResponse(w, http.StatusOK, &api.SuccessPayload{
+		Data: clientsPayload,
+		Meta: api.NewMeta(totalCount),
+	})
 }
 
 func (al *APIListener) handleGetClient(w http.ResponseWriter, req *http.Request) {

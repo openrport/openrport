@@ -380,16 +380,14 @@ func createSinceUntilFilter(start time.Time, hours float64, layout string) []que
 
 	filters := []query.FilterOption{
 		{
-			Expression: "timestamp[since]",
-			Column:     "timestamp",
-			Operator:   query.FilterOperatorTypeSince,
-			Values:     []string{mSince},
+			Column:   []string{"timestamp"},
+			Operator: query.FilterOperatorTypeSince,
+			Values:   []string{mSince},
 		},
 		{
-			Expression: "timestamp[until]",
-			Column:     "timestamp",
-			Operator:   query.FilterOperatorTypeUntil,
-			Values:     []string{mUntil},
+			Column:   []string{"timestamp"},
+			Operator: query.FilterOperatorTypeUntil,
+			Values:   []string{mUntil},
 		},
 	}
 
@@ -403,16 +401,14 @@ func createGTLTFilter(start time.Time, hours float64) []query.FilterOption {
 
 	filters := []query.FilterOption{
 		{
-			Expression: "timestamp[gt]",
-			Column:     "timestamp",
-			Operator:   query.FilterOperatorTypeGT,
-			Values:     []string{mGT},
+			Column:   []string{"timestamp"},
+			Operator: query.FilterOperatorTypeGT,
+			Values:   []string{mGT},
 		},
 		{
-			Expression: "timestamp[lt]",
-			Column:     "timestamp",
-			Operator:   query.FilterOperatorTypeLT,
-			Values:     []string{mLT},
+			Column:   []string{"timestamp"},
+			Operator: query.FilterOperatorTypeLT,
+			Values:   []string{mLT},
 		},
 	}
 
