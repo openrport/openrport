@@ -21,8 +21,9 @@ import (
 const (
 	DefaultKeepLostClients           = time.Hour
 	DefaultCleanClientsInterval      = 1 * time.Minute
-	DefaultMaxRequestBytes           = 10 * 1024  // 10 KB
-	DefaultMaxRequestBytesClient     = 512 * 1024 // 512KB
+	DefaultMaxRequestBytes           = 10 * 1024    // 10 KB
+	DefaultMaxRequestBytesClient     = 512 * 1024   // 512KB
+	DefaultMaxFilePushBytes          = int64(10<<20) // 10M
 	DefaultCheckPortTimeout          = 2 * time.Second
 	DefaultUsedPorts                 = "20000-30000"
 	DefaultExcludedPorts             = "1-1024"
@@ -183,6 +184,9 @@ var serverHelp = `
     --max-request-bytes, An optional arg to define a limit for data that can be sent by API requests.
     By default is set to 10240(10Kb).
 
+    --max-filepush-bytes, An optional arg to define a limit for the file size that can be uploaded to server.
+    By default is set to 10000000(10M).
+
     --max-request-bytes-client, An optional arg to define a limit for data that can be sent by rport clients.
     By default is set to 524288(512Kb).
 
@@ -269,6 +273,7 @@ func init() {
 	pFlags.Duration("save-clients-interval", 0, "")
 	pFlags.Duration("cleanup-clients-interval", 0, "")
 	pFlags.Int64("max-request-bytes", 0, "")
+	pFlags.Int64("max-filepush-bytes", 0, "")
 	pFlags.Int64("max-request-bytes-client", 0, "")
 	pFlags.Duration("check-port-timeout", 0, "")
 	pFlags.Bool("auth-write", false, "")
@@ -303,6 +308,7 @@ func init() {
 	viperCfg.SetDefault("server.keep_lost_clients", DefaultKeepLostClients)
 	viperCfg.SetDefault("server.cleanup_clients_interval", DefaultCleanClientsInterval)
 	viperCfg.SetDefault("server.max_request_bytes", DefaultMaxRequestBytes)
+	viperCfg.SetDefault("server.max_filepush_size", DefaultMaxFilePushBytes)
 	viperCfg.SetDefault("server.max_request_bytes_client", DefaultMaxRequestBytesClient)
 	viperCfg.SetDefault("server.check_port_timeout", DefaultCheckPortTimeout)
 	viperCfg.SetDefault("server.auth_write", true)
@@ -348,6 +354,7 @@ func bindPFlags() {
 	_ = viperCfg.BindPFlag("server.keep_lost_clients", pFlags.Lookup("keep-lost-clients"))
 	_ = viperCfg.BindPFlag("server.cleanup_clients_interval", pFlags.Lookup("cleanup-clients-interval"))
 	_ = viperCfg.BindPFlag("server.max_request_bytes", pFlags.Lookup("max-request-bytes"))
+	_ = viperCfg.BindPFlag("server.max_filepush_size", pFlags.Lookup("max-filepush-bytes"))
 	_ = viperCfg.BindPFlag("server.max_request_bytes_client", pFlags.Lookup("max-request-bytes-client"))
 	_ = viperCfg.BindPFlag("server.check_port_timeout", pFlags.Lookup("check-port-timeout"))
 	_ = viperCfg.BindPFlag("server.run_remote_cmd_timeout_sec", pFlags.Lookup("run-remote-cmd-timeout-sec"))

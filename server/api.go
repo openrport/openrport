@@ -68,6 +68,7 @@ const (
 	allRoutesPrefix = "/api/v1"
 	totPRoutes      = "/me/totp-secret"
 	verify2FaRoute  = "/verify-2fa"
+	filesUploadRouteName = "files"
 )
 
 var generateNewJobID = func() (string, error) {
@@ -241,6 +242,7 @@ func (al *APIListener) initRouter() {
 	api.HandleFunc("/library/commands/{"+routeParamCommandValueID+"}", al.handleDeleteCommand).Methods(http.MethodDelete)
 	api.HandleFunc("/scripts", al.handlePostMultiClientScript).Methods(http.MethodPost)
 	api.HandleFunc("/auditlog", al.handleListAuditLog).Methods(http.MethodGet)
+	api.HandleFunc("/files", al.handleFileUploads).Methods(http.MethodPost).Name(filesUploadRouteName)
 	api.HandleFunc(totPRoutes, al.wrapTotPEnabledMiddleware(al.handleGetTotP)).Methods(http.MethodGet)
 	api.HandleFunc(totPRoutes, al.wrapTotPEnabledMiddleware(al.handlePostTotP)).Methods(http.MethodPost)
 	api.HandleFunc(totPRoutes, al.wrapTotPEnabledMiddleware(al.handleDeleteTotP)).Methods(http.MethodDelete)
@@ -279,7 +281,13 @@ func (al *APIListener) initRouter() {
 
 	// add max bytes middleware
 	_ = api.Walk(func(route *mux.Route, router *mux.Router, ancestors []*mux.Route) error {
-		route.HandlerFunc(middleware.MaxBytes(route.GetHandler(), al.config.Server.MaxRequestBytes))
+		name := route.GetName()
+		fmt.Println(name)
+		if route.GetName() == filesUploadRouteName {
+			route.HandlerFunc(middleware.MaxBytes(route.GetHandler(), al.config.Server.MaxFilePushSize))
+		} else {
+			route.HandlerFunc(middleware.MaxBytes(route.GetHandler(), al.config.Server.MaxRequestBytes))
+		}
 		return nil
 	})
 
