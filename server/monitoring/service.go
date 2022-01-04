@@ -222,7 +222,7 @@ func (s *monitoringService) validateAndParseGraphOptions(lo *query.ListOptions) 
 		(lo.Filters[0].Operator == query.FilterOperatorTypeSince && lo.Filters[1].Operator == query.FilterOperatorTypeUntil) {
 		//these are the allowed filter combinations
 	} else {
-		return nil, errors.APIError{Message: fmt.Sprintf("Illegal filter pair %s %s", lo.Filters[0].Expression, lo.Filters[1].Expression), HTTPStatus: http.StatusBadRequest}
+		return nil, errors.APIError{Message: fmt.Sprintf("Illegal filter pair %s %s", lo.Filters[0], lo.Filters[1]), HTTPStatus: http.StatusBadRequest}
 	}
 
 	lower, _ := time.Parse(layoutDb, lo.Filters[0].Values[0])

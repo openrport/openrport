@@ -215,7 +215,7 @@ func TestList(t *testing.T) {
 		},
 		Filters: []query.FilterOption{
 			{
-				Column: "created_by",
+				Column: []string{"created_by"},
 				Values: []string{"user1"},
 			},
 		},
@@ -245,7 +245,7 @@ func TestList(t *testing.T) {
 	vals, err = dbProv.List(context.Background(), &query.ListOptions{
 		Filters: []query.FilterOption{
 			{
-				Column: "client_id",
+				Column: []string{"client_id"},
 				Values: []string{"notExistingClient"},
 			},
 		},
@@ -256,7 +256,7 @@ func TestList(t *testing.T) {
 	vals, err = dbProv.List(context.Background(), &query.ListOptions{
 		Filters: []query.FilterOption{
 			{
-				Column: "key",
+				Column: []string{"key"},
 				Values: []string{"key1"},
 			},
 		},
@@ -285,11 +285,11 @@ func TestList(t *testing.T) {
 		},
 		Filters: []query.FilterOption{
 			{
-				Column: "key",
+				Column: []string{"key"},
 				Values: []string{"key1", "key2"},
 			},
 			{
-				Column: "created_by",
+				Column: []string{"created_by"},
 				Values: []string{"user1"},
 			},
 		},

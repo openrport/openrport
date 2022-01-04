@@ -569,9 +569,8 @@ func TestManagerList(t *testing.T) {
 			},
 			Filters: []query.FilterOption{
 				{
-					Expression: "client_id",
-					Column:     "client_id",
-					Values:     []string{"val1"},
+					Column: []string{"client_id"},
+					Values: []string{"val1"},
 				},
 			},
 		},
@@ -612,7 +611,7 @@ func TestListWithUnsupportedFilterAndSort(t *testing.T) {
 	}
 
 	_, err = mngr.List(context.Background(), req)
-	require.EqualError(t, err, "unsupported sort field 'unsupportedSortField', unsupported filter field 'unsupportedFilter'")
+	require.EqualError(t, err, "unsupported sort field 'unsupportedSortField', unsupported filter field 'filter[unsupportedFilter]'")
 }
 
 func TestGetOne(t *testing.T) {

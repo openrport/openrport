@@ -111,9 +111,8 @@ func TestManagerList(t *testing.T) {
 			},
 			Filters: []query.FilterOption{
 				{
-					Expression: "name",
-					Column:     "name",
-					Values:     []string{"some nam"},
+					Column: []string{"name"},
+					Values: []string{"some nam"},
 				},
 			},
 			Fields: []query.FieldsOption{
@@ -151,7 +150,7 @@ func TestListWithUnsupportedOptions(t *testing.T) {
 	}
 
 	_, err = mngr.List(context.Background(), req)
-	require.EqualError(t, err, `unsupported sort field 'unsupportedSortField', unsupported filter field 'unsupportedFilter', unsupported field "nope" for resource "commands"`)
+	require.EqualError(t, err, `unsupported sort field 'unsupportedSortField', unsupported filter field 'filter[unsupportedFilter]', unsupported field "nope" for resource "commands"`)
 }
 
 func TestManagerClose(t *testing.T) {

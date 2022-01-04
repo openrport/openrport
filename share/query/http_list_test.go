@@ -50,14 +50,12 @@ func TestGetListOptions(t *testing.T) {
 				},
 				Filters: []FilterOption{
 					{
-						Expression: "field1",
-						Column:     "field1",
-						Values:     []string{"val1", "val2", "val3"},
+						Column: []string{"field1"},
+						Values: []string{"val1", "val2", "val3"},
 					},
 					{
-						Expression: "field2",
-						Column:     "field2",
-						Values:     []string{"value2", "value3"},
+						Column: []string{"field2"},
+						Values: []string{"value2", "value3"},
 					},
 				},
 				Fields: []FieldsOption{
@@ -128,14 +126,12 @@ func TestValidateListOptionsWithErrors(t *testing.T) {
 		},
 		Filters: []FilterOption{
 			{
-				Expression: "f3",
-				Column:     "f3",
-				Values:     []string{"v1", "v2"},
+				Column: []string{"f3"},
+				Values: []string{"v1", "v2"},
 			},
 			{
-				Expression: "f4",
-				Column:     "f4",
-				Values:     []string{"v1", "v2"},
+				Column: []string{"f4"},
+				Values: []string{"v1", "v2"},
 			},
 		},
 		Fields: []FieldsOption{
@@ -155,7 +151,7 @@ func TestValidateListOptionsWithErrors(t *testing.T) {
 	}
 
 	err := ValidateListOptions(options, supportedSorts, supportedFilters, supportedFields, paginationConfig)
-	assert.Equal(t, err.Error(), `unsupported sort field 'f5', unsupported filter field 'f3', unsupported field "f3" for resource "res1", unsupported resource in fields: "res2", pagination limit too big (20) maximum is 10, pagination offset must not be negative`)
+	assert.Equal(t, err.Error(), `unsupported sort field 'f5', unsupported filter field 'filter[f3]', unsupported field "f3" for resource "res1", unsupported resource in fields: "res2", pagination limit too big (20) maximum is 10, pagination offset must not be negative`)
 }
 
 func TestValidateListOptionsOk(t *testing.T) {
@@ -189,14 +185,12 @@ func TestValidateListOptionsOk(t *testing.T) {
 		},
 		Filters: []FilterOption{
 			{
-				Expression: "f4",
-				Column:     "f4",
-				Values:     []string{"v1", "v2"},
+				Column: []string{"f4"},
+				Values: []string{"v1", "v2"},
 			},
 			{
-				Expression: "f5",
-				Column:     "f5",
-				Values:     []string{"v1", "v2"},
+				Column: []string{"f5"},
+				Values: []string{"v1", "v2"},
 			},
 		},
 		Fields: []FieldsOption{
@@ -233,14 +227,12 @@ func TestValidateListOptionsNoFieldsNoPagination(t *testing.T) {
 		},
 		Filters: []FilterOption{
 			{
-				Expression: "f3",
-				Column:     "f3",
-				Values:     []string{"v1", "v2"},
+				Column: []string{"f3"},
+				Values: []string{"v1", "v2"},
 			},
 			{
-				Expression: "f4",
-				Column:     "f4",
-				Values:     []string{"v1", "v2"},
+				Column: []string{"f4"},
+				Values: []string{"v1", "v2"},
 			},
 		},
 		Fields: []FieldsOption{

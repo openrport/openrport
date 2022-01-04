@@ -3,7 +3,6 @@ package query
 import (
 	"fmt"
 	"net/http"
-	"sort"
 	"testing"
 
 	"github.com/stretchr/testify/assert"
@@ -22,9 +21,8 @@ func TestValidateFilterOptions(t *testing.T) {
 			Name: "filter fields without sub filter, ok",
 			FilterOptions: []FilterOption{
 				{
-					Expression: "name",
-					Column:     "name",
-					Values:     []string{"val1"},
+					Column: []string{"name"},
+					Values: []string{"val1"},
 				},
 			},
 			SupportedFilterFields: map[string]bool{"name": true},
@@ -34,20 +32,20 @@ func TestValidateFilterOptions(t *testing.T) {
 			Name: "filter fields with sub filter, ok",
 			FilterOptions: []FilterOption{
 				{
-					Expression: "timestamp[gt]",
-					Operator:   FilterOperatorTypeGT,
+					Column:   []string{"timestamp"},
+					Operator: FilterOperatorTypeGT,
 				},
 				{
-					Expression: "timestamp[lt]",
-					Operator:   FilterOperatorTypeLT,
+					Column:   []string{"timestamp"},
+					Operator: FilterOperatorTypeLT,
 				},
 				{
-					Expression: "timestamp[since]",
-					Operator:   FilterOperatorTypeSince,
+					Column:   []string{"timestamp"},
+					Operator: FilterOperatorTypeSince,
 				},
 				{
-					Expression: "timestamp[until]",
-					Operator:   FilterOperatorTypeUntil,
+					Column:   []string{"timestamp"},
+					Operator: FilterOperatorTypeUntil,
 				},
 			},
 			SupportedFilterFields: map[string]bool{"timestamp[gt]": true, "timestamp[lt]": true, "timestamp[since]": true, "timestamp[until]": true},
@@ -57,14 +55,14 @@ func TestValidateFilterOptions(t *testing.T) {
 			Name: "filter fields without sub filter, not ok",
 			FilterOptions: []FilterOption{
 				{
-					Expression: "name",
-					Values:     []string{"val1"},
+					Column: []string{"name"},
+					Values: []string{"val1"},
 				},
 			},
 			SupportedFilterFields: map[string]bool{"field1": true},
 			ExpectedAPIErrors: errors2.APIErrors{
 				errors2.APIError{
-					Message:    fmt.Sprintf("unsupported filter field '%s'", "name"),
+					Message:    fmt.Sprintf("unsupported filter field '%s'", "filter[name]"),
 					HTTPStatus: http.StatusBadRequest,
 				},
 			},
@@ -73,20 +71,20 @@ func TestValidateFilterOptions(t *testing.T) {
 			Name: "filter fields with sub filter, not ok",
 			FilterOptions: []FilterOption{
 				{
-					Expression: "timestamp[gt]",
-					Operator:   FilterOperatorTypeGT,
-					Values:     []string{"val1"},
+					Column:   []string{"timestamp"},
+					Operator: "gt",
+					Values:   []string{"val1"},
 				},
 				{
-					Expression: "timestamp[to]",
-					Operator:   FilterOperatorTypeEQ,
-					Values:     []string{"value2"},
+					Column:   []string{"timestamp"},
+					Operator: "eq",
+					Values:   []string{"value2"},
 				},
 			},
 			SupportedFilterFields: map[string]bool{"timestamp[gt]": true, "timestamp[lt]": true},
 			ExpectedAPIErrors: errors2.APIErrors{
 				errors2.APIError{
-					Message:    fmt.Sprintf("unsupported filter field '%s'", "timestamp[to]"),
+					Message:    fmt.Sprintf("unsupported filter field '%s'", "filter[timestamp][eq]"),
 					HTTPStatus: http.StatusBadRequest,
 				},
 			},
@@ -120,16 +118,14 @@ func TestParseFilterOptions(t *testing.T) {
 			},
 			ExpectedFilterOptions: []FilterOption{
 				{
-					Expression: "timestamp[gt]",
-					Column:     "timestamp",
-					Operator:   FilterOperatorTypeGT,
-					Values:     []string{"1634303188"},
+					Column:   []string{"timestamp"},
+					Operator: FilterOperatorTypeGT,
+					Values:   []string{"1634303188"},
 				},
 				{
-					Expression: "timestamp[lt]",
-					Column:     "timestamp",
-					Operator:   FilterOperatorTypeLT,
-					Values:     []string{"1634303609"},
+					Column:   []string{"timestamp"},
+					Operator: FilterOperatorTypeLT,
+					Values:   []string{"1634303609"},
 				},
 			},
 		},
@@ -141,16 +137,14 @@ func TestParseFilterOptions(t *testing.T) {
 			},
 			ExpectedFilterOptions: []FilterOption{
 				{
-					Expression: "timestamp[xx]",
-					Column:     "timestamp",
-					Operator:   FilterOperatorTypeEQ,
-					Values:     []string{"1634303188"},
+					Column:   []string{"timestamp"},
+					Operator: "xx",
+					Values:   []string{"1634303188"},
 				},
 				{
-					Expression: "timestamp[yy]",
-					Column:     "timestamp",
-					Operator:   FilterOperatorTypeEQ,
-					Values:     []string{"1634303609"},
+					Column:   []string{"timestamp"},
+					Operator: "yy",
+					Values:   []string{"1634303609"},
 				},
 			},
 		},
@@ -161,10 +155,32 @@ func TestParseFilterOptions(t *testing.T) {
 			},
 			ExpectedFilterOptions: []FilterOption{
 				{
-					Expression: "name",
-					Column:     "name",
-					Operator:   FilterOperatorTypeEQ,
-					Values:     []string{"val1"},
+					Column: []string{"name"},
+					Values: []string{"val1"},
+				},
+			},
+		},
+		{
+			Name: "multiple columns, ok",
+			Query: map[string][]string{
+				"filter[name|other]": {"val1"},
+			},
+			ExpectedFilterOptions: []FilterOption{
+				{
+					Column: []string{"name", "other"},
+					Values: []string{"val1"},
+				},
+			},
+		},
+		{
+			Name: "column with underscored",
+			Query: map[string][]string{
+				"filter[some_column_123]": {"val1"},
+			},
+			ExpectedFilterOptions: []FilterOption{
+				{
+					Column: []string{"some_column_123"},
+					Values: []string{"val1"},
 				},
 			},
 		},
@@ -184,17 +200,9 @@ func TestParseFilterOptions(t *testing.T) {
 
 			filterOptions := ParseFilterOptions(tc.Query)
 
-			assert.Equal(t, len(tc.ExpectedFilterOptions), len(filterOptions))
-			sort.Slice(tc.ExpectedFilterOptions, func(i, j int) bool {
-				return tc.ExpectedFilterOptions[i].Expression < tc.ExpectedFilterOptions[j].Expression
-			})
-			sort.Slice(filterOptions, func(i, j int) bool {
-				return filterOptions[i].Expression < filterOptions[j].Expression
-			})
-			assert.Equal(t, tc.ExpectedFilterOptions, filterOptions)
+			assert.ElementsMatch(t, tc.ExpectedFilterOptions, filterOptions)
 		})
 	}
-
 }
 
 func TestSortFiltersByOperator(t *testing.T) {
@@ -207,54 +215,46 @@ func TestSortFiltersByOperator(t *testing.T) {
 			Name: "filter fields with sub filter",
 			FilterOptions: []FilterOption{
 				{
-					Expression: "timestamp[until]",
-					Column:     "timestamp",
-					Operator:   FilterOperatorTypeUntil,
-					Values:     []string{"2021-09-29:11:00:00"},
+					Column:   []string{"timestamp"},
+					Operator: "until",
+					Values:   []string{"2021-09-29:11:00:00"},
 				},
 				{
-					Expression: "timestamp[lt]",
-					Column:     "timestamp",
-					Operator:   FilterOperatorTypeLT,
-					Values:     []string{"1634303609"},
+					Column:   []string{"timestamp"},
+					Operator: "lt",
+					Values:   []string{"1634303609"},
 				},
 				{
-					Expression: "timestamp[since]",
-					Column:     "timestamp",
-					Operator:   FilterOperatorTypeSince,
-					Values:     []string{"2021-09-29:10:00:00"},
+					Column:   []string{"timestamp"},
+					Operator: "since",
+					Values:   []string{"2021-09-29:10:00:00"},
 				},
 				{
-					Expression: "timestamp[gt]",
-					Column:     "timestamp",
-					Operator:   FilterOperatorTypeGT,
-					Values:     []string{"1634303188"},
+					Column:   []string{"timestamp"},
+					Operator: "gt",
+					Values:   []string{"1634303188"},
 				},
 			},
 			ExpectedFilterOptions: []FilterOption{
 				{
-					Expression: "timestamp[gt]",
-					Column:     "timestamp",
-					Operator:   FilterOperatorTypeGT,
-					Values:     []string{"1634303188"},
+					Column:   []string{"timestamp"},
+					Operator: "gt",
+					Values:   []string{"1634303188"},
 				},
 				{
-					Expression: "timestamp[lt]",
-					Column:     "timestamp",
-					Operator:   FilterOperatorTypeLT,
-					Values:     []string{"1634303609"},
+					Column:   []string{"timestamp"},
+					Operator: "lt",
+					Values:   []string{"1634303609"},
 				},
 				{
-					Expression: "timestamp[since]",
-					Column:     "timestamp",
-					Operator:   FilterOperatorTypeSince,
-					Values:     []string{"2021-09-29:10:00:00"},
+					Column:   []string{"timestamp"},
+					Operator: "since",
+					Values:   []string{"2021-09-29:10:00:00"},
 				},
 				{
-					Expression: "timestamp[until]",
-					Column:     "timestamp",
-					Operator:   FilterOperatorTypeUntil,
-					Values:     []string{"2021-09-29:11:00:00"},
+					Column:   []string{"timestamp"},
+					Operator: "until",
+					Values:   []string{"2021-09-29:11:00:00"},
 				},
 			},
 		},
@@ -271,5 +271,4 @@ func TestSortFiltersByOperator(t *testing.T) {
 			assert.Equal(t, tc.ExpectedFilterOptions, filterOptions)
 		})
 	}
-
 }

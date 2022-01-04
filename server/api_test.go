@@ -9,6 +9,7 @@ import (
 	"io"
 	"net/http"
 	"net/http/httptest"
+	"net/url"
 	"os"
 	"reflect"
 	"runtime"
@@ -1076,13 +1077,15 @@ func TestHandleGetClients(t *testing.T) {
 	}
 	al.initRouter()
 
-	w := httptest.NewRecorder()
-	req := httptest.NewRequest("GET", "/api/v1/clients", nil)
-	ctx := api.WithUser(context.Background(), curUser.Username)
-	req = req.WithContext(ctx)
-	al.router.ServeHTTP(w, req)
-
-	expectedJSON := `{
+	testCases := []struct {
+		Name         string
+		Offset       int
+		Limit        int
+		ExpectedJSON string
+	}{
+		{
+			Name: "regular",
+			ExpectedJSON: `{
    "data":[
       {
          "id":"client-1",
@@ -1094,10 +1097,71 @@ func TestHandleGetClients(t *testing.T) {
          "name":"Random Rport Client",
          "hostname":"alpine-3-10-tk-01"
       }
-   ]
-}`
-	assert.Equal(t, 200, w.Code)
-	assert.JSONEq(t, expectedJSON, w.Body.String())
+   ],
+   "meta": {"count": 2}
+}`,
+		},
+		{
+			Name:  "limit",
+			Limit: 1,
+			ExpectedJSON: `{
+   "data":[
+      {
+         "id":"client-1",
+         "name":"Random Rport Client",
+         "hostname":"alpine-3-10-tk-01"
+      }
+   ],
+   "meta": {"count": 2}
+}`,
+		},
+		{
+			Name:   "limit+offset",
+			Limit:  1,
+			Offset: 1,
+			ExpectedJSON: `{
+   "data":[
+      {
+         "id":"client-2",
+         "name":"Random Rport Client",
+         "hostname":"alpine-3-10-tk-01"
+      }
+   ],
+   "meta": {"count": 2}
+}`,
+		},
+		{
+			Name:   "large offset and limit",
+			Offset: 100,
+			Limit:  100,
+			ExpectedJSON: `{
+   "data":[],
+   "meta": {"count": 2}
+}`,
+		},
+	}
+
+	for _, tc := range testCases {
+		t.Run(tc.Name, func(t *testing.T) {
+			t.Parallel()
+
+			w := httptest.NewRecorder()
+			v := url.Values{}
+			if tc.Limit > 0 {
+				v.Set("page[limit]", strconv.Itoa(tc.Limit))
+			}
+			if tc.Offset > 0 {
+				v.Set("page[offset]", strconv.Itoa(tc.Offset))
+			}
+			req := httptest.NewRequest("GET", "/api/v1/clients?"+v.Encode(), nil)
+			ctx := api.WithUser(context.Background(), curUser.Username)
+			req = req.WithContext(ctx)
+			al.router.ServeHTTP(w, req)
+
+			assert.Equal(t, 200, w.Code)
+			assert.JSONEq(t, tc.ExpectedJSON, w.Body.String())
+		})
+	}
 }
 
 func TestHandlePostMultiClientCommand(t *testing.T) {

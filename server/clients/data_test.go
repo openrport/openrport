@@ -68,8 +68,9 @@ var c1 = &Client{
 			},
 		},
 	},
-	ClientAuthID:   "client-1",
-	DisconnectedAt: nil,
+	ClientAuthID:      "client-1",
+	AllowedUserGroups: []string{"Administrators"},
+	DisconnectedAt:    nil,
 }
 
 var c2 = &Client{

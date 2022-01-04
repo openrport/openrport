@@ -35,12 +35,16 @@ func TestConvertListOptionsToQuery(t *testing.T) {
 				},
 				Filters: []query.FilterOption{
 					{
-						Column: "field1",
+						Column: []string{"field1"},
 						Values: []string{"val1", "val2", "val3"},
 					},
 					{
-						Column: "field2",
+						Column: []string{"field2"},
 						Values: []string{"value2"},
+					},
+					{
+						Column: []string{"field3", "field4"},
+						Values: []string{"value1", "value3"},
 					},
 				},
 				Fields: []query.FieldsOption{
@@ -54,8 +58,8 @@ func TestConvertListOptionsToQuery(t *testing.T) {
 					Limit:  "5",
 				},
 			},
-			ExpectedQuery:  "SELECT res1.field1, res1.field2 FROM res1 WHERE (field1 = ? OR field1 = ? OR field1 = ?) AND field2 = ? ORDER BY field1 ASC, field2 DESC LIMIT ? OFFSET ?",
-			ExpectedParams: []interface{}{"val1", "val2", "val3", "value2", "5", "10"},
+			ExpectedQuery:  "SELECT res1.field1, res1.field2 FROM res1 WHERE (field1 = ? OR field1 = ? OR field1 = ?) AND field2 = ? AND (field3 = ? OR field3 = ? OR field4 = ? OR field4 = ?) ORDER BY field1 ASC, field2 DESC LIMIT ? OFFSET ?",
+			ExpectedParams: []interface{}{"val1", "val2", "val3", "value2", "value1", "value3", "value1", "value3", "5", "10"},
 		},
 	}
 
@@ -109,13 +113,13 @@ func TestAppendListOptionsToQuery(t *testing.T) {
 				},
 				Filters: []query.FilterOption{
 					{
-						Column:   "timestamp",
-						Operator: query.FilterOperatorTypeGT,
+						Column:   []string{"timestamp"},
+						Operator: "gt",
 						Values:   []string{"val1"},
 					},
 					{
-						Column:   "timestamp",
-						Operator: query.FilterOperatorTypeLT,
+						Column:   []string{"timestamp"},
+						Operator: "lt",
 						Values:   []string{"value2"},
 					},
 				},

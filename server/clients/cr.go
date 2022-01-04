@@ -241,7 +241,6 @@ func (s *ClientRepository) getNonObsoleteFiltered(user User, filterOptions []que
 	}
 	return result, nil
 }
-
 func (s *ClientRepository) clientMatchesFilters(cl *Client, filterOptions []query.FilterOption) (bool, error) {
 	for _, f := range filterOptions {
 		matches, err := s.clientMatchesFilter(cl, f)
@@ -262,34 +261,45 @@ func (s *ClientRepository) clientMatchesFilter(cl *Client, filter query.FilterOp
 		return false, err
 	}
 
-	clientFieldValueToMatch, ok := clientMap[filter.Column]
-	if !ok {
-		return false, fmt.Errorf("unsupported filter column: %s", filter.Column)
-	}
-	clientFieldValueToMatchStr := fmt.Sprint(clientFieldValueToMatch)
-
-	regx := regexp.MustCompile(`[^\\]\*+`)
-	for _, filterValue := range filter.Values {
-		hasUnescapedWildCard := regx.MatchString(filterValue)
-		if !hasUnescapedWildCard {
-			if filterValue == clientFieldValueToMatchStr {
-				return true, nil
-			}
-
-			continue
+	for _, col := range filter.Column {
+		clientFieldValueToMatch, ok := clientMap[col]
+		if !ok {
+			return false, fmt.Errorf("unsupported filter column: %s", col)
 		}
 
-		filterValueRegex, err := regexp.Compile(strings.ReplaceAll(filterValue, "*", ".*"))
-		if err != nil {
-			s.logger.Errorf("failed to generate regex for '%s': %v", filterValue, err)
-			if filterValue == clientFieldValueToMatchStr {
-				return true, nil
-			}
-			continue
+		// Cast into slice if it's array field, otherwise set single value slice
+		clientFieldSliceToMatch, ok := clientFieldValueToMatch.([]interface{})
+		if !ok {
+			clientFieldSliceToMatch = []interface{}{clientFieldValueToMatch}
 		}
 
-		if filterValueRegex.MatchString(clientFieldValueToMatchStr) {
-			return true, nil
+		for _, clientFieldValueToMatch := range clientFieldSliceToMatch {
+			clientFieldValueToMatchStr := fmt.Sprint(clientFieldValueToMatch)
+
+			regx := regexp.MustCompile(`[^\\]\*+`)
+			for _, filterValue := range filter.Values {
+				hasUnescapedWildCard := regx.MatchString(filterValue)
+				if !hasUnescapedWildCard {
+					if filterValue == clientFieldValueToMatchStr {
+						return true, nil
+					}
+
+					continue
+				}
+
+				filterValueRegex, err := regexp.Compile(strings.ReplaceAll(filterValue, "*", ".*"))
+				if err != nil {
+					s.logger.Errorf("failed to generate regex for '%s': %v", filterValue, err)
+					if filterValue == clientFieldValueToMatchStr {
+						return true, nil
+					}
+					continue
+				}
+
+				if filterValueRegex.MatchString(clientFieldValueToMatchStr) {
+					return true, nil
+				}
+			}
 		}
 	}
 
