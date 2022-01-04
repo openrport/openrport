@@ -610,6 +610,8 @@ Staring with rportd 0.5.0 you can delegate the authentication to a reverse proxy
 If the reverse proxy sends a specific header and a header that includes a username in the value, rport considers the user as authenticated. 
 Using the delegated authentication does not liberate you from performing a `/api/v1/login` request to retrieve the JWT and sending this JWT on all requests.
 
+If you are using the RPort frontend, you can send authenticated useser directly to `https://<SERVER-FQDN>/auth/?auto-login=1&remember-me=24h`. This caused the login form to be auto-submitted. 
+
 To enable the delegated authentication, activate the following settings in your `rportd.conf`.
 
 ```
