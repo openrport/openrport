@@ -387,6 +387,8 @@ func (c *Client) handleSSHRequests(ctx context.Context, reqs <-chan *ssh.Request
 			c.updates.Refresh()
 		case comm.RequestTypePutCapabilities:
 			c.handlePutCapabilitiesRequest(ctx, r.Payload)
+		case comm.RequestTypeUpload:
+			err = c.HandleUploadRequest(ctx, r.Payload)
 		default:
 			c.Debugf("Unknown request: %q", r.Type)
 			comm.ReplyError(c.Logger, r, errors.New("unknown request"))

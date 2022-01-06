@@ -12,6 +12,8 @@ import (
 	"strings"
 	"time"
 
+	"github.com/cloudradar-monitoring/rport/share/files"
+
 	"github.com/cloudradar-monitoring/rport/client/system"
 	chshare "github.com/cloudradar-monitoring/rport/share"
 	"github.com/cloudradar-monitoring/rport/share/clientconfig"
@@ -217,6 +219,10 @@ func (c *ClientConfigHolder) parseRemoteCommands() error {
 
 func (c *ClientConfigHolder) GetScriptsDir() string {
 	return filepath.Join(c.Client.DataDir, "scripts")
+}
+
+func (c *ClientConfigHolder) GetUploadDir() string {
+	return filepath.Join(c.Client.DataDir, files.DefaultUploadTempFolder)
 }
 
 func (c *ClientConfigHolder) parseRemoteScripts(skipScriptsDirValidation bool) error {

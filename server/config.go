@@ -13,9 +13,12 @@ import (
 	"net/url"
 	"os/exec"
 	"path"
+	"path/filepath"
 	"regexp"
 	"strings"
 	"time"
+
+	"github.com/cloudradar-monitoring/rport/share/files"
 
 	mapset "github.com/deckarep/golang-set"
 	"github.com/jpillora/requestlog"
@@ -243,6 +246,10 @@ type Config struct {
 
 func (c *Config) GetVaultDBPath() string {
 	return path.Join(c.Server.DataDir, DefaultVaultDBName)
+}
+
+func (c *Config) GetUploadDir() string {
+	return filepath.Join(c.Server.DataDir, files.DefaultUploadTempFolder)
 }
 
 func (c *Config) InitRequestLogOptions() *requestlog.Options {

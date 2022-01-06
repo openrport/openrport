@@ -1,12 +1,13 @@
 package chserver
 
 import (
-	"io"
-	"os"
+	"fmt"
+	"net/http"
 	"path"
 
-	"mime/multipart"
-	"net/http"
+	"github.com/cloudradar-monitoring/rport/share/comm"
+	"github.com/cloudradar-monitoring/rport/share/files"
+	"github.com/cloudradar-monitoring/rport/share/models"
 
 	"github.com/pkg/errors"
 
@@ -15,6 +16,7 @@ import (
 )
 
 const uploadBufSize = 1000000 // 1Mb
+const defaultDirMode = 0764
 
 type UploadResponse struct {
 	Filepath  string `json:"filepath"`
@@ -26,8 +28,7 @@ type UploadRequest struct {
 	GroupIDs             []string
 	clientsInGroupsCount int
 	Clients              []*clients.Client
-	File                 multipart.File
-	FileHeader           *multipart.FileHeader
+	models.UploadedFile
 }
 
 func (al *APIListener) handleFileUploads(w http.ResponseWriter, req *http.Request) {
@@ -35,16 +36,18 @@ func (al *APIListener) handleFileUploads(w http.ResponseWriter, req *http.Reques
 		WithHTTPRequest(req).
 		Save()
 
-	uploadFolder, err := prepareUploadFolder(al.config.Server.DataDir)
+	wasCreated, err := files.CreateDirIfNotExists(al.config.GetUploadDir(), defaultDirMode)
 	if err != nil {
 		al.jsonError(w, err)
 		return
 	}
-	al.Infof("will upload file to %s", uploadFolder)
+	if wasCreated {
+		al.Infof("created directory %s", al.config.GetUploadDir())
+	}
 
 	uploadRequest, err := al.uploadRequestFromRequest(req)
 	if err != nil {
-		al.jsonError(w, err)
+		al.jsonErrorResponseWithTitle(w, http.StatusBadRequest, err.Error())
 		return
 	}
 	defer uploadRequest.File.Close()
@@ -56,33 +59,59 @@ func (al *APIListener) handleFileUploads(w http.ResponseWriter, req *http.Reques
 	}
 
 	al.Infof(
-		"file to upload %s, size %d, Content-Type %s",
+		"will upload file %s, size %d, Content-Type %s",
 		uploadRequest.FileHeader.Filename,
 		uploadRequest.FileHeader.Size,
 		uploadRequest.FileHeader.Header.Get("Content-Type"),
 	)
 
-	targetFilePath := path.Join(uploadFolder, uploadRequest.FileHeader.Filename)
+	targetFilePath := path.Join(al.config.GetUploadDir(), uploadRequest.FileHeader.Filename)
 
-	al.Infof("target file path: %s", targetFilePath)
-	targetFile, err := os.OpenFile(targetFilePath, os.O_WRONLY|os.O_CREATE, 0777)
+	copiedBytes, err := files.CopyFileToDestination(targetFilePath, uploadRequest.File, al.Logger)
 	if err != nil {
 		al.jsonError(w, err)
 		return
 	}
-	defer targetFile.Close()
 
-	copiedBytes, err := io.Copy(targetFile, uploadRequest.File)
-	if err != nil {
-		al.jsonError(w, err)
-		return
-	}
-	al.Infof("copied %d bytes to: %s", copiedBytes, targetFilePath)
+	uploadRequest.TempFilePath = targetFilePath
+
+	al.sendFileToClientsAsync(uploadRequest)
 
 	al.writeJSONResponse(w, http.StatusOK, &UploadResponse{
-		Filepath:  targetFilePath,
+		Filepath:  uploadRequest.DestinationPath,
 		SizeBytes: copiedBytes,
 	})
+}
+
+func (al *APIListener) sendFileToClientsAsync(uploadRequest *UploadRequest) {
+	uploadRequestChan := make(chan *UploadRequest, 1)
+	uploadRequestChan <- uploadRequest
+
+	go func() {
+		ur := <-uploadRequestChan
+		err := sendFileToClients(ur)
+		if err != nil {
+			//todo properly handle errors
+			al.Errorf("failed to upload file to clients: %v", err)
+			return
+		}
+	}()
+}
+
+func sendFileToClients(uploadRequest *UploadRequest) error {
+	requestBytes, err := uploadRequest.ToMultipartData()
+	if err != nil {
+		return err
+	}
+
+	for _, cl := range uploadRequest.Clients {
+		_, _, err := cl.Connection.SendRequest(comm.RequestTypeUpload, true, requestBytes)
+		if err != nil {
+			return fmt.Errorf("failed to upload file %s: %v", uploadRequest.FileHeader.Filename, err)
+		}
+	}
+
+	return nil
 }
 
 func (al *APIListener) uploadRequestFromRequest(req *http.Request) (*UploadRequest, error) {
@@ -95,12 +124,12 @@ func (al *APIListener) uploadRequestFromRequest(req *http.Request) (*UploadReque
 	ur.ClientIDs = req.MultipartForm.Value["client"]
 	ur.GroupIDs = req.MultipartForm.Value["group_id"]
 
-	ur.File, ur.FileHeader, err = req.FormFile("upload")
+	ur.Clients, ur.clientsInGroupsCount, err = al.getOrderedClients(req.Context(), ur.ClientIDs, ur.GroupIDs)
 	if err != nil {
 		return nil, err
 	}
 
-	ur.Clients, ur.clientsInGroupsCount, err = al.getOrderedClients(req.Context(), ur.ClientIDs, ur.GroupIDs)
+	err = ur.FromMultipartRequest(req)
 	if err != nil {
 		return nil, err
 	}
@@ -121,23 +150,5 @@ func validateUploadRequest(ur *UploadRequest) error {
 		return errors.New("no active clients found for the provided criteria")
 	}
 
-	return nil
-}
-
-func prepareUploadFolder(rootDir string) (string, error) {
-	fileUploadFolder := path.Join(rootDir, "filepush")
-
-	_, err := os.Stat(fileUploadFolder)
-	if err != nil {
-		if !os.IsNotExist(err) {
-			return "", errors.Wrapf(err, "failed to read folder info %s", fileUploadFolder)
-		}
-
-		err := os.MkdirAll(fileUploadFolder, 0764)
-		if err != nil {
-			return "", errors.Wrapf(err, "failed to create folder %s", fileUploadFolder)
-		}
-	}
-
-	return fileUploadFolder, nil
+	return ur.Validate()
 }
