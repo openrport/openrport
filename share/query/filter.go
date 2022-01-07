@@ -11,7 +11,7 @@ import (
 	errors2 "github.com/cloudradar-monitoring/rport/server/api/errors"
 )
 
-var filterRegex = regexp.MustCompile(`^filter\[([\w|]+)](\[(\w+)])?`)
+var filterRegex = regexp.MustCompile(`^filter\[([\w|*]+)](\[(\w+)])?`)
 
 type FilterOperatorType string
 
@@ -64,9 +64,19 @@ func (fo FilterOption) isSupported(supportedFields map[string]bool) bool {
 	return true
 }
 
+func (fo *FilterOption) setWildcardColumns(supportedFields map[string]bool) {
+	fo.Column = make([]string, 0, len(supportedFields))
+	for field := range supportedFields {
+		fo.Column = append(fo.Column, field)
+	}
+}
+
 func ValidateFilterOptions(fo []FilterOption, supportedFields map[string]bool) errors2.APIErrors {
 	errs := errors2.APIErrors{}
 	for i := range fo {
+		if len(fo[i].Column) == 1 && fo[i].Column[0] == "*" {
+			fo[i].setWildcardColumns(supportedFields)
+		}
 		ok := fo[i].isSupported(supportedFields)
 		if !ok {
 			errs = append(errs, errors2.APIError{

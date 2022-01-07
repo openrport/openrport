@@ -71,6 +71,25 @@ type Client struct {
 	lock                  sync.Mutex
 }
 
+// CalculatedClient contains additional fields and is calculated on each request
+type CalculatedClient struct {
+	*Client
+	Groups []string `json:"groups"`
+}
+
+func (c *Client) ToCalculated(allGroups []*cgroups.ClientGroup) *CalculatedClient {
+	clientGroups := []string{}
+	for _, group := range allGroups {
+		if c.BelongsTo(group) {
+			clientGroups = append(clientGroups, group.ID)
+		}
+	}
+	return &CalculatedClient{
+		Client: c,
+		Groups: clientGroups,
+	}
+}
+
 // Obsolete returns true if a given client was disconnected longer than a given duration.
 // If a given duration is nil - returns false.
 func (c *Client) Obsolete(duration *time.Duration) bool {

@@ -89,7 +89,7 @@ func TestGetCorrespondingSortFuncPositive(t *testing.T) {
 	testCases := []struct {
 		sortStr string
 
-		wantFunc func(a []*clients.Client, desc bool)
+		wantFunc func(a []*clients.CalculatedClient, desc bool)
 		wantDesc bool
 	}{
 		{
@@ -1058,6 +1058,14 @@ func TestHandleGetCommands(t *testing.T) {
 	}
 }
 
+type mockClientGroupProvider struct {
+	cgroups.ClientGroupProvider
+}
+
+func (mockClientGroupProvider) GetAll(ctx context.Context) ([]*cgroups.ClientGroup, error) {
+	return nil, nil
+}
+
 func TestHandleGetClients(t *testing.T) {
 	curUser := &users.User{
 		Username: "admin",
@@ -1072,6 +1080,7 @@ func TestHandleGetClients(t *testing.T) {
 			config: &Config{
 				Server: ServerConfig{MaxRequestBytes: 1024 * 1024},
 			},
+			clientGroupProvider: mockClientGroupProvider{},
 		},
 		userService: users.NewAPIService(users.NewStaticProvider([]*users.User{curUser}), false),
 	}
@@ -1516,6 +1525,7 @@ func TestHandleGetClient(t *testing.T) {
 			config: &Config{
 				Server: ServerConfig{MaxRequestBytes: 1024 * 1024},
 			},
+			clientGroupProvider: mockClientGroupProvider{},
 		},
 	}
 	al.initRouter()
@@ -1612,7 +1622,8 @@ func TestHandleGetClient(t *testing.T) {
         "client_auth_id":"user1",
         "allowed_user_groups":null,
         "updates_status":null,
-        "client_configuration":null
+        "client_configuration":null,
+        "groups": []
     }
 }`
 			assert.Equal(t, tc.ExpectedStatus, w.Code)

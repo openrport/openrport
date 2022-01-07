@@ -12,10 +12,11 @@ import (
 
 func TestValidateFilterOptions(t *testing.T) {
 	testCases := []struct {
-		Name                  string
-		FilterOptions         []FilterOption
-		SupportedFilterFields map[string]bool
-		ExpectedAPIErrors     errors2.APIErrors
+		Name                        string
+		FilterOptions               []FilterOption
+		SupportedFilterFields       map[string]bool
+		ExpectedAPIErrors           errors2.APIErrors
+		ExpectedFilterOptionColumns []string
 	}{
 		{
 			Name: "filter fields without sub filter, ok",
@@ -89,6 +90,18 @@ func TestValidateFilterOptions(t *testing.T) {
 				},
 			},
 		},
+		{
+			Name: "wildcard filter",
+			FilterOptions: []FilterOption{
+				{
+					Column: []string{"*"},
+					Values: []string{"val1"},
+				},
+			},
+			SupportedFilterFields:       map[string]bool{"field1": true, "field2": true},
+			ExpectedAPIErrors:           nil,
+			ExpectedFilterOptionColumns: []string{"field1", "field2"},
+		},
 	}
 
 	for _, tc := range testCases {
@@ -99,6 +112,9 @@ func TestValidateFilterOptions(t *testing.T) {
 			errs := ValidateFilterOptions(tc.FilterOptions, tc.SupportedFilterFields)
 
 			assert.Equal(t, tc.ExpectedAPIErrors, errs)
+			if tc.ExpectedFilterOptionColumns != nil {
+				assert.ElementsMatch(t, tc.ExpectedFilterOptionColumns, tc.FilterOptions[0].Column)
+			}
 		})
 	}
 

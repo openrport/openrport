@@ -323,3 +323,34 @@ func TestHasAccess(t *testing.T) {
 		})
 	}
 }
+
+func TestToCalculated(t *testing.T) {
+	client := &Client{
+		Name: "abc",
+		Tags: []string{"ABC"},
+	}
+	groups := []*cgroups.ClientGroup{
+		{
+			ID: "group1",
+			Params: &cgroups.ClientParams{
+				Name: &cgroups.ParamValues{"abc"},
+			},
+		},
+		{
+			ID: "group2",
+			Params: &cgroups.ClientParams{
+				Tag: &cgroups.ParamValues{"AB*"},
+			},
+		},
+		{
+			ID: "group3",
+			Params: &cgroups.ClientParams{
+				Tag: &cgroups.ParamValues{"Other"},
+			},
+		},
+	}
+
+	calculated := client.ToCalculated(groups)
+	assert.Equal(t, client, calculated.Client)
+	assert.Equal(t, []string{"group1", "group2"}, calculated.Groups)
+}

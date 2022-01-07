@@ -780,7 +780,13 @@ func (al *APIListener) handleGetClients(w http.ResponseWriter, req *http.Request
 		return
 	}
 
-	cls, err := al.clientService.GetUserClients(curUser, options.Filters)
+	groups, err := al.clientGroupProvider.GetAll(req.Context())
+	if err != nil {
+		al.jsonErrorResponseWithError(w, http.StatusInternalServerError, "Failed to get client groups.", err)
+		return
+	}
+
+	cls, err := al.clientService.GetFilteredUserClients(curUser, options.Filters, groups)
 	if err != nil {
 		al.jsonError(w, err)
 		return
@@ -827,7 +833,13 @@ func (al *APIListener) handleGetClient(w http.ResponseWriter, req *http.Request)
 		return
 	}
 
-	clientPayload := convertToClientPayload(client, options.Fields)
+	groups, err := al.clientGroupProvider.GetAll(req.Context())
+	if err != nil {
+		al.jsonErrorResponseWithError(w, http.StatusInternalServerError, "Failed to get client groups.", err)
+		return
+	}
+
+	clientPayload := convertToClientPayload(client.ToCalculated(groups), options.Fields)
 	al.writeJSONResponse(w, http.StatusOK, api.NewSuccessPayload(clientPayload))
 }
 
@@ -838,7 +850,7 @@ func (al *APIListener) handleGetTunnels(w http.ResponseWriter, req *http.Request
 		return
 	}
 
-	clients, err := al.clientService.GetUserClients(curUser, nil)
+	clients, err := al.clientService.GetUserClients(curUser)
 	if err != nil {
 		al.jsonError(w, err)
 		return
@@ -1001,6 +1013,7 @@ type ClientPayload struct {
 	Tunnels                *[]*clients.Tunnel       `json:"tunnels,omitempty"`
 	UpdatesStatus          **models.UpdatesStatus   `json:"updates_status,omitempty"`
 	ClientConfiguration    **clientconfig.Config    `json:"client_configuration,omitempty"`
+	Groups                 *[]string                `json:"groups,omitempty"`
 }
 
 type TunnelPayload struct {
@@ -1017,7 +1030,7 @@ func convertToTunnelPayload(t *clients.Tunnel, clientID string) TunnelPayload {
 	}
 }
 
-func convertToClientsPayload(clients []*clients.Client, fields []query.FieldsOption) []ClientPayload {
+func convertToClientsPayload(clients []*clients.CalculatedClient, fields []query.FieldsOption) []ClientPayload {
 	r := make([]ClientPayload, 0, len(clients))
 	for _, cur := range clients {
 		r = append(r, convertToClientPayload(cur, fields))
@@ -1025,7 +1038,7 @@ func convertToClientsPayload(clients []*clients.Client, fields []query.FieldsOpt
 	return r
 }
 
-func convertToClientPayload(client *clients.Client, fields []query.FieldsOption) ClientPayload { //nolint:gocyclo
+func convertToClientPayload(client *clients.CalculatedClient, fields []query.FieldsOption) ClientPayload { //nolint:gocyclo
 	requestedFields := make(map[string]bool)
 	for _, res := range fields {
 		if res.Resource != "clients" {
@@ -1102,12 +1115,14 @@ func convertToClientPayload(client *clients.Client, fields []query.FieldsOption)
 			p.UpdatesStatus = &client.UpdatesStatus
 		case "client_configuration":
 			p.ClientConfiguration = &client.ClientConfiguration
+		case "groups":
+			p.Groups = &client.Groups
 		}
 	}
 	return p
 }
 
-func getCorrespondingSortFunc(sorts []query.SortOption) (sortFunc func(a []*clients.Client, desc bool), desc bool, err error) {
+func getCorrespondingSortFunc(sorts []query.SortOption) (sortFunc func(a []*clients.CalculatedClient, desc bool), desc bool, err error) {
 	if len(sorts) < 1 {
 		return clients.SortByID, false, nil
 	}

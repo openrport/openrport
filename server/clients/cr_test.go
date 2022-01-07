@@ -400,7 +400,7 @@ func TestCRWithFilter(t *testing.T) {
 
 			repo := NewClientRepository([]*Client{c1, c2, c5}, nil, testLog)
 
-			actualClients, err := repo.GetUserClients(admin, tc.filters)
+			actualClients, err := repo.GetFilteredUserClients(admin, tc.filters, nil)
 			require.NoError(t, err)
 
 			actualClientIDs := make([]string, 0, len(actualClients))
@@ -416,14 +416,14 @@ func TestCRWithFilter(t *testing.T) {
 
 func TestCRWithUnsupportedFilter(t *testing.T) {
 	repo := NewClientRepository([]*Client{c1}, nil, testLog)
-	_, err := repo.GetUserClients(admin, []query.FilterOption{
+	_, err := repo.GetFilteredUserClients(admin, []query.FilterOption{
 		{
 			Column: []string{"unknown_field"},
 			Values: []string{
 				"1",
 			},
 		},
-	})
+	}, nil)
 	require.EqualError(t, err, "unsupported filter column: unknown_field")
 }
 
@@ -469,7 +469,7 @@ func TestGetUserClients(t *testing.T) {
 	for _, tc := range testCases {
 		t.Run(tc.name, func(t *testing.T) {
 			// when
-			gotClients, gotErr := repo.GetUserClients(tc.user, nil)
+			gotClients, gotErr := repo.GetUserClients(tc.user)
 
 			// then
 			require.NoError(t, gotErr)
