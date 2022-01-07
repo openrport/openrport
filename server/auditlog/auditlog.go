@@ -5,6 +5,7 @@ import (
 	"io"
 	"net"
 	"net/http"
+	"strings"
 	"time"
 
 	"github.com/cloudradar-monitoring/rport/server/api"
@@ -113,7 +114,7 @@ func (a *AuditLog) savePreparedEntry(e *Entry) error {
 	if a.config.UseIPObfuscation && e.RemoteIP != "" {
 		ip := net.ParseIP(e.RemoteIP)
 		if ip.To4() != nil {
-			e.RemoteIP = ip.Mask(net.CIDRMask(24, 32)).String()
+			e.RemoteIP = strings.TrimSuffix(ip.Mask(net.CIDRMask(24, 32)).String(), "0") + "x"
 		}
 	}
 
