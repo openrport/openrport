@@ -8,7 +8,6 @@ import (
 	"errors"
 	"fmt"
 	"io"
-	"net"
 	"net/http"
 	"regexp"
 	"strconv"
@@ -21,7 +20,6 @@ import (
 	"github.com/gorilla/mux"
 	"github.com/gorilla/websocket"
 	"github.com/jpillora/requestlog"
-	"github.com/tomasen/realip"
 	"golang.org/x/crypto/ssh"
 
 	"github.com/cloudradar-monitoring/rport/server/api"
@@ -107,7 +105,7 @@ func (al *APIListener) wrapWithAuthMiddleware(f http.Handler, isBearerOnly bool)
 			return
 		}
 
-		if !al.handleBannedIPs(w, r, authorized) {
+		if !al.handleBannedIPs(r, authorized) {
 			return
 		}
 
@@ -152,13 +150,9 @@ func (al *APIListener) wrapClientAccessMiddleware(next http.HandlerFunc) http.Ha
 	}
 }
 
-func (al *APIListener) handleBannedIPs(w http.ResponseWriter, r *http.Request, authorized bool) (ok bool) {
+func (al *APIListener) handleBannedIPs(r *http.Request, authorized bool) (ok bool) {
 	if al.bannedIPs != nil {
-		ip, _, err := net.SplitHostPort(r.RemoteAddr)
-		if err != nil {
-			al.jsonErrorResponse(w, http.StatusInternalServerError, fmt.Errorf("failed to split host port for %q: %v", r.RemoteAddr, err))
-			return false
-		}
+		ip := chshare.RemoteIP(r)
 
 		if authorized {
 			al.bannedIPs.AddSuccessAttempt(ip)
@@ -386,7 +380,7 @@ func (al *APIListener) handleGetLogin(w http.ResponseWriter, req *http.Request) 
 
 	// TODO: consider to move this check from all API endpoints to middleware similar to https://github.com/cloudradar-monitoring/rport/pull/199/commits/4ca1ca9f56c557762d79a60ffc96d2de47f3133c
 	// ban IP if it sends a lot of bad requests
-	if !al.handleBannedIPs(w, req, false) {
+	if !al.handleBannedIPs(req, false) {
 		return
 	}
 	al.jsonErrorResponseWithTitle(w, http.StatusUnauthorized, "auth is required")
@@ -409,7 +403,7 @@ func (al *APIListener) handleLogin(username, pwd string, skipPasswordValidation 
 		return
 	}
 
-	if !al.handleBannedIPs(w, req, authorized) {
+	if !al.handleBannedIPs(req, authorized) {
 		return
 	}
 
@@ -529,7 +523,7 @@ func (al *APIListener) handlePostLogin(w http.ResponseWriter, req *http.Request)
 	username, pwd, err := parseLoginPostRequestBody(req)
 	if err != nil {
 		// ban IP if it sends a lot of bad requests
-		if !al.handleBannedIPs(w, req, false) {
+		if !al.handleBannedIPs(req, false) {
 			return
 		}
 		al.jsonError(w, err)
@@ -592,7 +586,7 @@ func (al *APIListener) handleDeleteLogout(w http.ResponseWriter, req *http.Reque
 	tokenStr, tokenProvided := getBearerToken(req)
 	if tokenStr == "" || !tokenProvided {
 		// ban IP if it sends a lot of bad requests
-		if !al.handleBannedIPs(w, req, false) {
+		if !al.handleBannedIPs(req, false) {
 			return
 		}
 		al.jsonErrorResponse(w, http.StatusBadRequest, fmt.Errorf("authorization Bearer token required"))
@@ -614,7 +608,7 @@ func (al *APIListener) handleDeleteLogout(w http.ResponseWriter, req *http.Reque
 		al.jsonErrorResponse(w, http.StatusInternalServerError, err)
 		return
 	}
-	if !al.handleBannedIPs(w, req, valid) {
+	if !al.handleBannedIPs(req, valid) {
 		return
 	}
 	if !valid {
@@ -636,7 +630,7 @@ func (al *APIListener) handlePostVerify2FAToken() http.Handler {
 	return http.HandlerFunc(func(w http.ResponseWriter, req *http.Request) {
 		username, err := al.parseAndValidate2FATokenRequest(req)
 		if err != nil {
-			if !al.handleBannedIPs(w, req, false) {
+			if !al.handleBannedIPs(req, false) {
 				return
 			}
 			al.Errorf(err.Error())
@@ -1699,7 +1693,7 @@ func (al *APIListener) handleGetIP(w http.ResponseWriter, req *http.Request) {
 	ipResp := struct {
 		IP string `json:"ip"`
 	}{
-		IP: realip.FromRequest(req),
+		IP: chshare.RemoteIP(req),
 	}
 	al.writeJSONResponse(w, http.StatusOK, api.NewSuccessPayload(ipResp))
 }

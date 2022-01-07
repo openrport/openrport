@@ -3,12 +3,12 @@ package auditlog
 import (
 	"encoding/json"
 	"fmt"
-	"net"
 	"net/http"
 	"time"
 
 	"github.com/cloudradar-monitoring/rport/server/api"
 	"github.com/cloudradar-monitoring/rport/server/clients"
+	chshare "github.com/cloudradar-monitoring/rport/share"
 )
 
 type Entry struct {
@@ -41,13 +41,7 @@ func (e *Entry) WithHTTPRequest(req *http.Request) *Entry {
 	}
 
 	e.Username = api.GetUser(req.Context(), e.al.logger)
-
-	ip, _, err := net.SplitHostPort(req.RemoteAddr)
-	if err != nil {
-		e.al.logger.Errorf("Could not split remote address for auditlog: %v", err)
-		return e
-	}
-	e.RemoteIP = ip
+	e.RemoteIP = chshare.RemoteIP(req)
 
 	return e
 }

@@ -11,6 +11,7 @@ import (
 	"net/url"
 	"time"
 
+	chshare "github.com/cloudradar-monitoring/rport/share"
 	"github.com/cloudradar-monitoring/rport/share/logger"
 )
 
@@ -80,15 +81,13 @@ func (tp *TunnelProxy) tunnelProxyHandlerFunc(p *httputil.ReverseProxy) func(htt
 			tp.forwardRequest(p, w, r)
 			return
 		}
-		clientIP, _, err := net.SplitHostPort(r.RemoteAddr)
-		if err == nil {
-			ipv4 := net.ParseIP(clientIP)
-			if ipv4 != nil {
-				tcpIP := &net.TCPAddr{IP: ipv4}
-				if tp.ACL.CheckAccess(tcpIP.IP) {
-					tp.forwardRequest(p, w, r)
-					return
-				}
+		clientIP := chshare.RemoteIP(r)
+		ipv4 := net.ParseIP(clientIP)
+		if ipv4 != nil {
+			tcpIP := &net.TCPAddr{IP: ipv4}
+			if tp.ACL.CheckAccess(tcpIP.IP) {
+				tp.forwardRequest(p, w, r)
+				return
 			}
 		}
 
