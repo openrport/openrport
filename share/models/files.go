@@ -1,11 +1,8 @@
 package models
 
 import (
-	"bytes"
+	"encoding/json"
 	"errors"
-	"fmt"
-	"io"
-	"mime/multipart"
 	"net/http"
 	"os"
 	"strconv"
@@ -14,18 +11,14 @@ import (
 )
 
 const (
-	uploadedFileKey                = "upload"
 	uploadedFileDestinationPathKey = "dest"
 	uploadedFileOwnerKey           = "user"
 	uploadedFileOwnerGroupKey      = "group"
 	uploadedFileModeKey            = "mode"
-	boundary                       = "313uidj" //some random predictable boundary for marking multipart items
 )
 
 type UploadedFile struct {
-	File                 multipart.File
-	FileHeader           *multipart.FileHeader
-	TempFilePath         string
+	SourceFilePath       string
 	DestinationPath      string
 	DestinationFileMode  os.FileMode
 	DestinationFileOwner string
@@ -34,7 +27,7 @@ type UploadedFile struct {
 }
 
 func (uf UploadedFile) Validate() error {
-	if uf.FileHeader.Filename == "" {
+	if uf.SourceFilePath == "" {
 		return errors.New("empty source file name")
 	}
 
@@ -46,12 +39,6 @@ func (uf UploadedFile) Validate() error {
 }
 
 func (uf *UploadedFile) FromMultipartRequest(req *http.Request) error {
-	var err error
-	uf.File, uf.FileHeader, err = req.FormFile(uploadedFileKey)
-	if err != nil {
-		return err
-	}
-
 	if len(req.MultipartForm.Value[uploadedFileDestinationPathKey]) > 0 {
 		uf.DestinationPath = req.MultipartForm.Value[uploadedFileDestinationPathKey][0]
 	}
@@ -75,73 +62,10 @@ func (uf *UploadedFile) FromMultipartRequest(req *http.Request) error {
 	return nil
 }
 
-func (uf *UploadedFile) FromMultipartData(rawData []byte) error {
-	req, err := http.NewRequest("POST", "http://localhost/", bytes.NewReader(rawData))
-	if err != nil {
-		return err
-	}
-	req.Header.Add("Content-Type", "multipart/form-data; boundary="+boundary)
-
-	return uf.FromMultipartRequest(req)
+func (uf *UploadedFile) FromBytes(rawData []byte) error {
+	return json.Unmarshal(rawData, uf)
 }
 
-func (uf *UploadedFile) ToMultipartData() (data []byte, err error) {
-	body := &bytes.Buffer{}
-	writer := multipart.NewWriter(body)
-	err = writer.SetBoundary(boundary)
-	if err != nil {
-		return nil, err
-	}
-
-	err = writer.WriteField(uploadedFileDestinationPathKey, uf.DestinationPath)
-	if err != nil {
-		return nil, err
-	}
-
-	if uf.DestinationFileOwner != "" {
-		err = writer.WriteField(uploadedFileOwnerKey, uf.DestinationFileOwner)
-		if err != nil {
-			return nil, err
-		}
-	}
-
-	if uf.DestinationFileGroup != "" {
-		err = writer.WriteField(uploadedFileOwnerGroupKey, uf.DestinationFileGroup)
-		if err != nil {
-			return nil, err
-		}
-	}
-
-	if uf.DestinationFileMode > 0 {
-		err = writer.WriteField(uploadedFileModeKey, fmt.Sprintf("%04o", uf.DestinationFileMode))
-		if err != nil {
-			return nil, err
-		}
-	}
-
-	fw, err := writer.CreateFormFile(uploadedFileKey, uf.FileHeader.Filename)
-	if err != nil {
-		return nil, err
-	}
-
-	if uf.File == nil && uf.TempFilePath != "" {
-		uf.File, err = os.Open(uf.TempFilePath)
-		if err != nil {
-			return nil, err
-		}
-	}
-
-	if uf.File != nil {
-		_, err = io.Copy(fw, uf.File)
-		if err != nil {
-			return nil, err
-		}
-	}
-
-	err = writer.Close()
-	if err != nil {
-		return nil, err
-	}
-
-	return body.Bytes(), nil
+func (uf *UploadedFile) ToBytes() (data []byte, err error) {
+	return json.Marshal(uf)
 }

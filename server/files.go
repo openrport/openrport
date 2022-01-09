@@ -2,6 +2,7 @@ package chserver
 
 import (
 	"fmt"
+	"mime/multipart"
 	"net/http"
 	"path"
 
@@ -24,6 +25,8 @@ type UploadResponse struct {
 }
 
 type UploadRequest struct {
+	File                 multipart.File
+	FileHeader           *multipart.FileHeader
 	ClientIDs            []string
 	GroupIDs             []string
 	clientsInGroupsCount int
@@ -52,6 +55,8 @@ func (al *APIListener) handleFileUploads(w http.ResponseWriter, req *http.Reques
 	}
 	defer uploadRequest.File.Close()
 
+	uploadRequest.SourceFilePath = path.Join(al.config.GetUploadDir(), uploadRequest.FileHeader.Filename)
+
 	err = validateUploadRequest(uploadRequest)
 	if err != nil {
 		al.jsonErrorResponseWithTitle(w, http.StatusBadRequest, err.Error())
@@ -65,15 +70,11 @@ func (al *APIListener) handleFileUploads(w http.ResponseWriter, req *http.Reques
 		uploadRequest.FileHeader.Header.Get("Content-Type"),
 	)
 
-	targetFilePath := path.Join(al.config.GetUploadDir(), uploadRequest.FileHeader.Filename)
-
-	copiedBytes, err := files.CopyFileToDestination(targetFilePath, uploadRequest.File, al.Logger)
+	copiedBytes, err := files.CopyFileToDestination(uploadRequest.SourceFilePath, uploadRequest.File, al.Logger)
 	if err != nil {
 		al.jsonError(w, err)
 		return
 	}
-
-	uploadRequest.TempFilePath = targetFilePath
 
 	al.sendFileToClientsAsync(uploadRequest)
 
@@ -84,31 +85,27 @@ func (al *APIListener) handleFileUploads(w http.ResponseWriter, req *http.Reques
 }
 
 func (al *APIListener) sendFileToClientsAsync(uploadRequest *UploadRequest) {
-	uploadRequestChan := make(chan *UploadRequest, 1)
-	uploadRequestChan <- uploadRequest
-
-	go func() {
-		ur := <-uploadRequestChan
-		err := sendFileToClients(ur)
+	go func(ur *UploadRequest) {
+		err := al.sendFileToClients(ur)
 		if err != nil {
 			//todo properly handle errors
 			al.Errorf("failed to upload file to clients: %v", err)
 			return
 		}
-	}()
+	}(uploadRequest)
 }
 
-func sendFileToClients(uploadRequest *UploadRequest) error {
-	requestBytes, err := uploadRequest.ToMultipartData()
+func (al *APIListener) sendFileToClients(uploadRequest *UploadRequest) error {
+	requestBytes, err := uploadRequest.ToBytes()
 	if err != nil {
 		return err
 	}
-
 	for _, cl := range uploadRequest.Clients {
-		_, _, err := cl.Connection.SendRequest(comm.RequestTypeUpload, true, requestBytes)
+		isSuccess, resp, err := cl.Connection.SendRequest(comm.RequestTypeUpload, true, requestBytes)
 		if err != nil {
 			return fmt.Errorf("failed to upload file %s: %v", uploadRequest.FileHeader.Filename, err)
 		}
+		al.Infof("send upload request to client %s, resp: %v, %s", cl.ID, isSuccess, string(resp))
 	}
 
 	return nil
@@ -130,6 +127,11 @@ func (al *APIListener) uploadRequestFromRequest(req *http.Request) (*UploadReque
 	}
 
 	err = ur.FromMultipartRequest(req)
+	if err != nil {
+		return nil, err
+	}
+
+	ur.File, ur.FileHeader, err = req.FormFile("upload")
 	if err != nil {
 		return nil, err
 	}

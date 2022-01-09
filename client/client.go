@@ -170,7 +170,7 @@ func (c *Client) connectionLoop(ctx context.Context) {
 			}
 		}
 		// Start handling requests and channels immediately, otherwise ssh connection might hang
-		go c.handleSSHRequests(ctx, sshConn.Requests)
+		go c.handleSSHRequests(ctx, sshConn)
 		go c.connectStreams(sshConn.Channels)
 
 		switchbackCtx, cancelSwitchback := context.WithCancel(ctx)
@@ -374,8 +374,8 @@ func (c *Client) handlePutCapabilitiesRequest(ctx context.Context, payload []byt
 	c.afterPutCapabilities(ctx)
 }
 
-func (c *Client) handleSSHRequests(ctx context.Context, reqs <-chan *ssh.Request) {
-	for r := range reqs {
+func (c *Client) handleSSHRequests(ctx context.Context, sshConn *sshClientConn) {
+	for r := range sshConn.Requests {
 		var err error
 		var resp interface{}
 		switch r.Type {
@@ -388,7 +388,7 @@ func (c *Client) handleSSHRequests(ctx context.Context, reqs <-chan *ssh.Request
 		case comm.RequestTypePutCapabilities:
 			c.handlePutCapabilitiesRequest(ctx, r.Payload)
 		case comm.RequestTypeUpload:
-			err = c.HandleUploadRequest(ctx, r.Payload)
+			err = c.HandleUploadRequest(ctx, r.Payload, sshConn)
 		default:
 			c.Debugf("Unknown request: %q", r.Type)
 			comm.ReplyError(c.Logger, r, errors.New("unknown request"))

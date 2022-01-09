@@ -281,8 +281,6 @@ func (al *APIListener) initRouter() {
 
 	// add max bytes middleware
 	_ = api.Walk(func(route *mux.Route, router *mux.Router, ancestors []*mux.Route) error {
-		name := route.GetName()
-		fmt.Println(name)
 		if route.GetName() == filesUploadRouteName {
 			route.HandlerFunc(middleware.MaxBytes(route.GetHandler(), al.config.Server.MaxFilePushSize))
 		} else {

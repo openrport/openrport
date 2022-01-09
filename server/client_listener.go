@@ -6,6 +6,7 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
+	"io"
 	"net"
 	"net/http"
 	"net/http/httputil"
@@ -13,6 +14,8 @@ import (
 	"strings"
 	"sync/atomic"
 	"time"
+
+	"github.com/pkg/sftp"
 
 	"github.com/gorilla/websocket"
 	"github.com/jpillora/requestlog"
@@ -491,7 +494,48 @@ func (cl *ClientListener) handleSSHChannels(clientLog *logger.Logger, chans <-ch
 			clientLog.Debugf("Failed to accept stream: %s", err)
 			continue
 		}
-		go ssh.DiscardRequests(reqs)
+
+		go func() {
+			for req := range reqs {
+				ok := false
+				switch req.Type {
+				case "subsystem":
+					if string(req.Payload[4:]) == "sftp" {
+						ok = true
+					}
+				}
+				if req.WantReply {
+					err = req.Reply(ok, nil)
+					if err != nil {
+						clientLog.Errorf("Failed to reply to the sftp server: %v", err)
+					}
+				}
+			}
+		}()
+		if ch.ChannelType() == "session" {
+			serverOptions := []sftp.ServerOption{sftp.ReadOnly()}
+			server, err := sftp.NewServer(
+				stream,
+				serverOptions...,
+			)
+			if err != nil {
+				clientLog.Debugf("Failed to create sftp server: %s", err)
+				continue
+			}
+
+			if err := server.Serve(); err == io.EOF {
+				e := server.Close()
+				if e != nil {
+					clientLog.Errorf("failed to close sftp server: %v", e)
+				}
+				clientLog.Debugf("sftp client exited session.")
+			} else if err != nil {
+				clientLog.Errorf("sftp server completed with error: %v", err)
+			}
+
+			continue
+		}
+
 		//handle stream type
 		connID := cl.connStats.New()
 		go chshare.HandleTCPStream(clientLog.Fork("conn#%d", connID), &cl.connStats, stream, remote)

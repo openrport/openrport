@@ -8,7 +8,6 @@ import (
 	"io/ioutil"
 	"os"
 	"os/user"
-	"path/filepath"
 	"strconv"
 	"strings"
 
@@ -152,86 +151,6 @@ func FileOrDirExists(path string) (bool, error) {
 	}
 
 	return false, err
-}
-
-func CreateFile(tempDir string, reqPayload *models.UploadedFile, log *logger.Logger) error {
-	wasCreated, err := CreateDirIfNotExists(tempDir, DefaultMode)
-	if err != nil {
-		return err
-	}
-	if wasCreated {
-		log.Infof("created temp upload directory %s", tempDir)
-	}
-
-	defer reqPayload.File.Close()
-
-	targetFilePath := filepath.Join(tempDir, reqPayload.FileHeader.Filename)
-
-	fileMode := reqPayload.DestinationFileMode
-	if fileMode == 0 {
-		fileMode = DefaultMode
-	}
-
-	targetFile, err := os.OpenFile(targetFilePath, os.O_WRONLY|os.O_CREATE, fileMode)
-	if err != nil {
-		return err
-	}
-	defer targetFile.Close()
-
-	_, err = io.Copy(targetFile, reqPayload.File)
-	if err != nil {
-		return err
-	}
-
-	reqPayload.TempFilePath = targetFilePath
-
-	log.Infof("created file %s", targetFilePath)
-
-	return nil
-}
-
-func MoveFileToDestination(reqPayload *models.UploadedFile, log *logger.Logger) error {
-	destinationDir := filepath.Dir(reqPayload.DestinationPath)
-
-	dirMode := reqPayload.DestinationFileMode
-	if dirMode == 0 {
-		dirMode = DefaultMode
-	}
-
-	wasCreated, err := CreateDirIfNotExists(destinationDir, dirMode)
-	if err != nil {
-		return err
-	}
-	if wasCreated {
-		log.Infof("created directory %s", destinationDir)
-	}
-
-	fileExists, err := FileOrDirExists(reqPayload.DestinationPath)
-	if err != nil {
-		return err
-	}
-
-	if fileExists {
-		if !reqPayload.ForceWrite {
-			log.Infof("destination file %s already exists and is not forced to be overwritten", reqPayload.DestinationPath)
-			return nil
-		}
-
-		// sometimes rename fails if destination path exists, so we make sure that nothing is there
-		err = os.Remove(reqPayload.DestinationPath)
-		if err != nil {
-			return err
-		}
-	}
-
-	err = os.Rename(reqPayload.TempFilePath, reqPayload.DestinationPath)
-	if err != nil {
-		return err
-	}
-
-	log.Infof("moved file %s to %s", reqPayload.TempFilePath, reqPayload.DestinationPath)
-
-	return nil
 }
 
 func ChangeOwner(reqPayload *models.UploadedFile, log *logger.Logger) error {
