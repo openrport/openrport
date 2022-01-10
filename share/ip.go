@@ -1,7 +1,6 @@
 package chshare
 
 import (
-	"log"
 	"net"
 	"net/http"
 	"strings"
@@ -16,7 +15,6 @@ func RemoteIP(r *http.Request) string {
 	} else {
 		ips = append(ips, ip)
 	}
-	log.Println(ips)
 
 	publicIP, ok := firstValidIP(ips, false)
 	if ok {

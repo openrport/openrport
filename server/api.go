@@ -3123,10 +3123,13 @@ func (al *APIListener) handleVaultStoreValue(w http.ResponseWriter, req *http.Re
 
 	status := http.StatusOK
 
+	vaultKeyValue.Value = ""
 	if id == 0 {
 		al.auditLog.Entry(auditlog.ApplicationVault, auditlog.ActionCreate).
 			WithHTTPRequest(req).
 			WithID(storedValue.ID).
+			WithClientID(vaultKeyValue.ClientID).
+			WithRequest(vaultKeyValue).
 			Save()
 
 		w.WriteHeader(http.StatusCreated)
@@ -3134,6 +3137,8 @@ func (al *APIListener) handleVaultStoreValue(w http.ResponseWriter, req *http.Re
 		al.auditLog.Entry(auditlog.ApplicationVault, auditlog.ActionUpdate).
 			WithHTTPRequest(req).
 			WithID(id).
+			WithClientID(vaultKeyValue.ClientID).
+			WithRequest(vaultKeyValue).
 			Save()
 	}
 
@@ -3163,6 +3168,16 @@ func (al *APIListener) handleVaultDeleteValue(w http.ResponseWriter, req *http.R
 		return
 	}
 
+	storedValue, found, err := al.vaultManager.GetOne(req.Context(), id, curUser)
+	if err != nil {
+		al.jsonError(w, err)
+		return
+	}
+	if !found {
+		al.jsonErrorResponseWithTitle(w, http.StatusNotFound, fmt.Sprintf("Cannot find a vault value by the provided id: %d", id))
+		return
+	}
+
 	err = al.vaultManager.Delete(req.Context(), id, curUser)
 	if err != nil {
 		al.jsonError(w, err)
@@ -3172,6 +3187,7 @@ func (al *APIListener) handleVaultDeleteValue(w http.ResponseWriter, req *http.R
 	al.auditLog.Entry(auditlog.ApplicationVault, auditlog.ActionDelete).
 		WithHTTPRequest(req).
 		WithID(id).
+		WithClientID(storedValue.ClientID).
 		Save()
 
 	w.WriteHeader(http.StatusNoContent)
