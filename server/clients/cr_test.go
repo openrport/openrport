@@ -145,12 +145,41 @@ func TestCRWithFilter(t *testing.T) {
 			},
 		},
 		{
+			name: "case insensitive",
+			filters: []query.FilterOption{
+				{
+					Column: []string{"os_full_name"},
+					Values: []string{
+						"aLpInE lInUx",
+					},
+				},
+			},
+			expectedClientIDs: []string{
+				"2fb5eca74d7bdf5f5b879ebadb446af7c113b076354d74e1882d8101e9f4b918",
+			},
+		},
+		{
 			name: "wildcard",
 			filters: []query.FilterOption{
 				{
 					Column: []string{"os_full_name"},
 					Values: []string{
 						"Alpine*",
+					},
+				},
+			},
+			expectedClientIDs: []string{
+				"aa1210c7-1899-491e-8e71-564cacaf1df8",
+				"2fb5eca74d7bdf5f5b879ebadb446af7c113b076354d74e1882d8101e9f4b918",
+			},
+		},
+		{
+			name: "wildcard case insensitive",
+			filters: []query.FilterOption{
+				{
+					Column: []string{"os_full_name"},
+					Values: []string{
+						"aLpInE*",
 					},
 				},
 			},

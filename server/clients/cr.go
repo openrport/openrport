@@ -301,17 +301,17 @@ func (s *ClientRepository) clientMatchesFilter(cl *CalculatedClient, filter quer
 			for _, filterValue := range filter.Values {
 				hasUnescapedWildCard := regx.MatchString(filterValue)
 				if !hasUnescapedWildCard {
-					if filterValue == clientFieldValueToMatchStr {
+					if strings.EqualFold(filterValue, clientFieldValueToMatchStr) {
 						return true, nil
 					}
 
 					continue
 				}
 
-				filterValueRegex, err := regexp.Compile(strings.ReplaceAll(filterValue, "*", ".*"))
+				filterValueRegex, err := regexp.Compile("(?i)" + strings.ReplaceAll(filterValue, "*", ".*"))
 				if err != nil {
 					s.logger.Errorf("failed to generate regex for '%s': %v", filterValue, err)
-					if filterValue == clientFieldValueToMatchStr {
+					if strings.EqualFold(filterValue, clientFieldValueToMatchStr) {
 						return true, nil
 					}
 					continue
