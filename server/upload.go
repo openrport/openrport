@@ -2,11 +2,12 @@ package chserver
 
 import (
 	"fmt"
-	"github.com/cloudradar-monitoring/rport/share/comm"
-	"github.com/cloudradar-monitoring/rport/share/models"
 	"mime/multipart"
 	"net/http"
 	"path"
+
+	"github.com/cloudradar-monitoring/rport/share/comm"
+	"github.com/cloudradar-monitoring/rport/share/models"
 
 	"github.com/pkg/errors"
 

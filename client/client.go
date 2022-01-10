@@ -5,7 +5,6 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
-	"github.com/cloudradar-monitoring/rport/share/files"
 	"io"
 	"net"
 	"net/http"
@@ -13,6 +12,8 @@ import (
 	"strings"
 	"sync"
 	"time"
+
+	"github.com/cloudradar-monitoring/rport/share/files"
 
 	"github.com/gorilla/websocket"
 	"github.com/jpillora/backoff"

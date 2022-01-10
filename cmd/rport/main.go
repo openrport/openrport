@@ -2,11 +2,12 @@ package main
 
 import (
 	"fmt"
-	"github.com/cloudradar-monitoring/rport/share/files"
 	"log"
 	"os"
 	"runtime"
 	"time"
+
+	"github.com/cloudradar-monitoring/rport/share/files"
 
 	"github.com/kardianos/service"
 	"github.com/spf13/cobra"

@@ -1,10 +1,11 @@
 package test
 
 import (
-	"github.com/stretchr/testify/mock"
 	"io"
 	"os"
 	"time"
+
+	"github.com/stretchr/testify/mock"
 )
 
 type FileAPIMock struct {
