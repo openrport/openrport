@@ -57,6 +57,7 @@ type Server struct {
 	jobsDoneChannel     jobResultChanMap  // used for sequential command execution to know when command is finished
 	auditLog            *auditlog.AuditLog
 	capabilities        *models.Capabilities
+	filesAPI            files.FileAPI
 }
 
 // NewServer creates and returns a new rport server
@@ -160,6 +161,8 @@ func NewServer(config *Config, filesAPI files.FileAPI) (*Server, error) {
 	if err != nil {
 		return nil, err
 	}
+
+	s.filesAPI = filesAPI
 
 	s.apiListener, err = NewAPIListener(s, fingerprint)
 	if err != nil {

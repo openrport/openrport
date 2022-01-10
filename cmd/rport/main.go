@@ -2,6 +2,7 @@ package main
 
 import (
 	"fmt"
+	"github.com/cloudradar-monitoring/rport/share/files"
 	"log"
 	"os"
 	"runtime"
@@ -381,7 +382,8 @@ func runMain(cmd *cobra.Command, args []string) {
 		log.Fatal("By default running as root is not allowed.")
 	}
 
-	c := chclient.NewClient(config)
+	fileAPI := files.NewFileSystem()
+	c := chclient.NewClient(config, fileAPI)
 	if err != nil {
 		log.Fatal(err)
 	}

@@ -5,6 +5,7 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
+	"github.com/cloudradar-monitoring/rport/share/files"
 	"io"
 	"net"
 	"net/http"
@@ -48,10 +49,11 @@ type Client struct {
 	monitor            *monitoring.Monitor
 	serverCapabilities *models.Capabilities
 	consoleDecoder     *encoding.Decoder
+	filesAPI           files.FileAPI
 }
 
 //NewClient creates a new client instance
-func NewClient(config *ClientConfigHolder) *Client {
+func NewClient(config *ClientConfigHolder, filesAPI files.FileAPI) *Client {
 	ctx := context.Background()
 
 	cmdExec := system.NewCmdExecutor(logger.NewLogger("cmd executor", config.Logging.LogOutput, config.Logging.LogLevel))
@@ -66,6 +68,7 @@ func NewClient(config *ClientConfigHolder) *Client {
 		systemInfo:   systemInfo,
 		updates:      updates.New(logger, config.Client.UpdatesInterval),
 		monitor:      monitoring.NewMonitor(logger, config.Monitoring, systemInfo),
+		filesAPI:     filesAPI,
 	}
 
 	client.sshConfig = &ssh.ClientConfig{

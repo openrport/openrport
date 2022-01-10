@@ -12,9 +12,6 @@ import (
 	"strings"
 
 	errors2 "github.com/pkg/errors"
-
-	"github.com/cloudradar-monitoring/rport/share/logger"
-	"github.com/cloudradar-monitoring/rport/share/models"
 )
 
 const DefaultUploadTempFolder = "filepush"
@@ -28,6 +25,11 @@ type FileAPI interface {
 	Write(file string, content string) error
 	ReadJSON(file string, dest interface{}) error
 	Exist(path string) (bool, error)
+	CreateFile(path string, sourceReader io.Reader) (writtenBytes int64, err error)
+	ChangeOwner(path, owner, group string) error
+	CreateDirIfNotExists(path string, mode os.FileMode) (wasCreated bool, err error)
+	Remove(name string) error
+	Rename(oldPath, newPath string) error
 }
 
 type FileSystem struct {
@@ -118,21 +120,21 @@ func (f *FileSystem) Exist(path string) (bool, error) {
 	return true, nil
 }
 
-func CreateDirIfNotExists(uploadDir string, mode os.FileMode) (wasCreated bool, err error) {
-	uploadDir = strings.TrimSpace(uploadDir)
-	if uploadDir == "" {
+func (f *FileSystem) CreateDirIfNotExists(path string, mode os.FileMode) (wasCreated bool, err error) {
+	path = strings.TrimSpace(path)
+	if path == "" {
 		return false, errors.New("data directory cannot be empty")
 	}
 
-	dirExists, err := FileOrDirExists(uploadDir)
+	dirExists, err := f.Exist(path)
 	if err != nil {
-		return false, errors2.Wrapf(err, "failed to read folder info %s", uploadDir)
+		return false, errors2.Wrapf(err, "failed to read folder info %s", path)
 	}
 
 	if !dirExists {
-		err := os.MkdirAll(uploadDir, mode)
+		err := os.MkdirAll(path, mode)
 		if err != nil {
-			return false, errors2.Wrapf(err, "failed to create folder %s", uploadDir)
+			return false, errors2.Wrapf(err, "failed to create folder %s", path)
 		}
 		wasCreated = true
 	}
@@ -140,27 +142,14 @@ func CreateDirIfNotExists(uploadDir string, mode os.FileMode) (wasCreated bool, 
 	return wasCreated, nil
 }
 
-func FileOrDirExists(path string) (bool, error) {
-	_, err := os.Stat(path)
-	if err == nil {
-		return true, nil
-	}
-
-	if os.IsNotExist(err) {
-		return false, nil
-	}
-
-	return false, err
-}
-
-func ChangeOwner(reqPayload *models.UploadedFile, log *logger.Logger) error {
-	if reqPayload.DestinationFileOwner == "" && reqPayload.DestinationFileGroup == "" {
+func (f *FileSystem) ChangeOwner(path, owner, group string) error {
+	if owner == "" && group == "" {
 		return nil
 	}
 
 	targetUserUID := os.Getuid()
-	if reqPayload.DestinationFileOwner != "" {
-		usr, err := user.Lookup(reqPayload.DestinationFileOwner)
+	if owner != "" {
+		usr, err := user.Lookup(owner)
 		if err != nil {
 			return err
 		}
@@ -171,8 +160,8 @@ func ChangeOwner(reqPayload *models.UploadedFile, log *logger.Logger) error {
 	}
 
 	targetGroupGUID := os.Getgid()
-	if reqPayload.DestinationFileGroup != "" {
-		gr, err := user.LookupGroup(reqPayload.DestinationFileGroup)
+	if group != "" {
+		gr, err := user.LookupGroup(group)
 		if err != nil {
 			return err
 		}
@@ -182,15 +171,7 @@ func ChangeOwner(reqPayload *models.UploadedFile, log *logger.Logger) error {
 		}
 	}
 
-	log.Infof(
-		"will chown file %s, %s:%s[%d:%d]",
-		reqPayload.DestinationPath,
-		reqPayload.DestinationFileOwner,
-		reqPayload.DestinationFileGroup,
-		targetUserUID,
-		targetGroupGUID,
-	)
-	err := os.Chown(reqPayload.DestinationPath, targetUserUID, targetGroupGUID)
+	err := os.Chown(path, targetUserUID, targetGroupGUID)
 	if err != nil {
 		return err
 	}
@@ -198,8 +179,8 @@ func ChangeOwner(reqPayload *models.UploadedFile, log *logger.Logger) error {
 	return nil
 }
 
-func CopyFileToDestination(targetFilePath string, sourceReader io.Reader, log *logger.Logger) (int64, error) {
-	targetFile, err := os.OpenFile(targetFilePath, os.O_WRONLY|os.O_CREATE, DefaultMode)
+func (f *FileSystem) CreateFile(path string, sourceReader io.Reader) (writtenBytes int64, err error) {
+	targetFile, err := os.OpenFile(path, os.O_WRONLY|os.O_CREATE, DefaultMode)
 	if err != nil {
 		return 0, err
 	}
@@ -210,7 +191,14 @@ func CopyFileToDestination(targetFilePath string, sourceReader io.Reader, log *l
 	if err != nil {
 		return 0, err
 	}
-	log.Infof("copied %d bytes to: %s", copiedBytes, targetFilePath)
 
 	return copiedBytes, nil
+}
+
+func (f *FileSystem) Remove(name string) error {
+	return os.Remove(name)
+}
+
+func (f *FileSystem) Rename(oldPath, newPath string) error {
+	return os.Rename(oldPath, newPath)
 }

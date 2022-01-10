@@ -488,7 +488,6 @@ func (cl *ClientListener) saveCmdResult(respBytes []byte) (*models.Job, error) {
 func (cl *ClientListener) handleSSHChannels(clientLog *logger.Logger, chans <-chan ssh.NewChannel) {
 	for ch := range chans {
 		remote := string(ch.ExtraData())
-		//accept rest
 		stream, reqs, err := ch.Accept()
 		if err != nil {
 			clientLog.Debugf("Failed to accept stream: %s", err)
@@ -507,7 +506,7 @@ func (cl *ClientListener) handleSSHChannels(clientLog *logger.Logger, chans <-ch
 				if req.WantReply {
 					err = req.Reply(ok, nil)
 					if err != nil {
-						clientLog.Errorf("Failed to reply to the sftp server: %v", err)
+						clientLog.Errorf("Failed to send ssh reply: %v", err)
 					}
 				}
 			}

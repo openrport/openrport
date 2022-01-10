@@ -3,7 +3,6 @@ package chserver
 import (
 	"fmt"
 	"github.com/cloudradar-monitoring/rport/share/comm"
-	"github.com/cloudradar-monitoring/rport/share/files"
 	"github.com/cloudradar-monitoring/rport/share/models"
 	"mime/multipart"
 	"net/http"
@@ -38,7 +37,7 @@ func (al *APIListener) handleFileUploads(w http.ResponseWriter, req *http.Reques
 		WithHTTPRequest(req).
 		Save()
 
-	wasCreated, err := files.CreateDirIfNotExists(al.config.GetUploadDir(), defaultDirMode)
+	wasCreated, err := al.filesAPI.CreateDirIfNotExists(al.config.GetUploadDir(), defaultDirMode)
 	if err != nil {
 		al.jsonError(w, err)
 		return
@@ -69,7 +68,7 @@ func (al *APIListener) handleFileUploads(w http.ResponseWriter, req *http.Reques
 		uploadRequest.FileHeader.Header.Get("Content-Type"),
 	)
 
-	copiedBytes, err := files.CopyFileToDestination(uploadRequest.SourceFilePath, uploadRequest.File, al.Logger)
+	copiedBytes, err := al.filesAPI.CreateFile(uploadRequest.SourceFilePath, uploadRequest.File)
 	if err != nil {
 		al.jsonError(w, err)
 		return
