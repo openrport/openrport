@@ -298,7 +298,8 @@ func TestConnectionRequest(t *testing.T) {
 
 			client.systemInfo = tc.SystemInfo
 
-			connReq := client.connectionRequest(context.Background())
+			connReq, err := client.connectionRequest(context.Background())
+			require.NoError(t, err)
 
 			assert.Equal(t, tc.ExpectedConnectionRequest, connReq)
 		})

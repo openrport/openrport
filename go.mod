@@ -7,6 +7,7 @@ require (
 	github.com/andrew-d/go-termutil v0.0.0-20150726205930-009166a695a2 // indirect
 	github.com/cloudradar-monitoring/cagent v0.0.0-20200615130556-4797f9fb8b50
 	github.com/deckarep/golang-set v1.7.1
+	github.com/denisbrodbeck/machineid v1.0.1
 	github.com/dgrijalva/jwt-go v3.2.0+incompatible
 	github.com/fsnotify/fsnotify v1.4.9 // indirect
 	github.com/go-ole/go-ole v1.2.5

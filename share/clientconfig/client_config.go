@@ -27,7 +27,9 @@ type ClientConfig struct {
 	Auth                     string        `json:"auth" mapstructure:"auth"`
 	Proxy                    string        `json:"proxy" mapstructure:"proxy"`
 	ID                       string        `json:"id" mapstructure:"id"`
+	UseSystemID              bool          `json:"use_system_id" mapstructure:"use_system_id"`
 	Name                     string        `json:"name" mapstructure:"name"`
+	UseHostname              bool          `json:"use_hostname" mapstructure:"use_hostname"`
 	Tags                     []string      `json:"tags" mapstructure:"tags"`
 	Remotes                  []string      `json:"remotes" mapstructure:"remotes"`
 	AllowRoot                bool          `json:"allow_root" mapstructure:"allow_root"`

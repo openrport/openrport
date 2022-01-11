@@ -95,14 +95,19 @@ var clientHelp = `
     --hostname, Optionally set the 'Host' header (defaults to the host
     found in the server url).
 
-    --id, An optional client ID to better identify the client.
+    --use-system-id, By default rport reads /etc/machine-id (Linux) or the ComputerSystemProduct UUID (Windows)
+    to get a unique id for the client identification.
+    NOTE: all history for a client is stored based on this id.
+    --id, An optional hard-coded client ID to better identify the client.
     If not set, a random id will be created that changes on every client start.
+    That's why it's highly recommended to set it with a value that was generated on the first
+    start or just set it on the very beginning. So on client restart all his history will be preserved.
     The server rejects connections on duplicated ids.
 
+    --use-hostname, By default rport reads the local hostname to identify the system in a human-readable way.
     --name, An optional client name to better identify the client.
     Useful if you use numeric ids to make client identification easier.
     For example, --name "my_win_vm_1"
-    Defaults to unset.
 
     --tag, -t, Optional values to give your clients attributes.
     Used for filtering clients on the server.
@@ -201,7 +206,9 @@ func init() {
 	pFlags.Duration("max-retry-interval", 0, "")
 	pFlags.String("proxy", "", "")
 	pFlags.StringArray("header", []string{}, "")
+	pFlags.Bool("use-system-id", true, "")
 	pFlags.String("id", "", "")
+	pFlags.Bool("use-hostname", true, "")
 	pFlags.String("name", "", "")
 	pFlags.StringArrayP("tag", "t", []string{}, "")
 	pFlags.String("hostname", "", "")
@@ -268,7 +275,9 @@ func bindPFlags() {
 	_ = viperCfg.BindPFlag("client.fingerprint", pFlags.Lookup("fingerprint"))
 	_ = viperCfg.BindPFlag("client.auth", pFlags.Lookup("auth"))
 	_ = viperCfg.BindPFlag("client.proxy", pFlags.Lookup("proxy"))
+	_ = viperCfg.BindPFlag("client.use_system_id", pFlags.Lookup("use-system-id"))
 	_ = viperCfg.BindPFlag("client.id", pFlags.Lookup("id"))
+	_ = viperCfg.BindPFlag("client.use_hostname", pFlags.Lookup("use-hostname"))
 	_ = viperCfg.BindPFlag("client.name", pFlags.Lookup("name"))
 	_ = viperCfg.BindPFlag("client.tags", pFlags.Lookup("tag"))
 	_ = viperCfg.BindPFlag("client.allow_root", pFlags.Lookup("allow-root"))
