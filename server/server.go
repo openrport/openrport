@@ -54,7 +54,8 @@ type Server struct {
 	monitoringService   monitoring.Service
 	authDB              *sqlx.DB
 	uiJobWebSockets     ws.WebSocketCache // used to push job result to UI
-	jobsDoneChannel     jobResultChanMap  // used for sequential command execution to know when command is finished
+	uploadWebSockets    sync.Map
+	jobsDoneChannel     jobResultChanMap // used for sequential command execution to know when command is finished
 	auditLog            *auditlog.AuditLog
 	capabilities        *models.Capabilities
 	filesAPI            files.FileAPI
@@ -64,9 +65,10 @@ type Server struct {
 func NewServer(config *Config, filesAPI files.FileAPI) (*Server, error) {
 	ctx := context.Background()
 	s := &Server{
-		Logger:          logger.NewLogger("server", config.Logging.LogOutput, config.Logging.LogLevel),
-		config:          config,
-		uiJobWebSockets: ws.NewWebSocketCache(),
+		Logger:           logger.NewLogger("server", config.Logging.LogOutput, config.Logging.LogLevel),
+		config:           config,
+		uiJobWebSockets:  ws.NewWebSocketCache(),
+		uploadWebSockets: sync.Map{},
 		jobsDoneChannel: jobResultChanMap{
 			m: make(map[string]chan *models.Job),
 		},
@@ -273,6 +275,14 @@ func (s *Server) Close() error {
 	if s.auditLog != nil {
 		wg.Go(s.auditLog.Close)
 	}
+
+	s.uploadWebSockets.Range(func(key, value interface{}) bool {
+		if wsConn, ok := value.(*ws.ConcurrentWebSocket); ok {
+			wg.Go(wsConn.Close)
+		}
+		return true
+	})
+
 	return wg.Wait()
 }
 

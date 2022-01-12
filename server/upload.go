@@ -1,27 +1,28 @@
 package chserver
 
 import (
+	"encoding/json"
 	"fmt"
 	"mime/multipart"
 	"net/http"
 	"path"
-
-	"github.com/cloudradar-monitoring/rport/share/comm"
-	"github.com/cloudradar-monitoring/rport/share/models"
-
-	"github.com/pkg/errors"
+	"sync"
+	"time"
 
 	"github.com/cloudradar-monitoring/rport/server/auditlog"
 	"github.com/cloudradar-monitoring/rport/server/clients"
+	chshare "github.com/cloudradar-monitoring/rport/share"
+	"github.com/cloudradar-monitoring/rport/share/comm"
+	"github.com/cloudradar-monitoring/rport/share/files"
+	"github.com/cloudradar-monitoring/rport/share/models"
+	"github.com/cloudradar-monitoring/rport/share/random"
+
+	"github.com/google/uuid"
+	"github.com/gorilla/websocket"
+	"github.com/pkg/errors"
 )
 
 const uploadBufSize = 1000000 // 1Mb
-const defaultDirMode = 0764
-
-type UploadResponse struct {
-	Filepath  string `json:"filepath"`
-	SizeBytes int64  `json:"size"`
-}
 
 type UploadRequest struct {
 	File                 multipart.File
@@ -30,15 +31,15 @@ type UploadRequest struct {
 	GroupIDs             []string
 	clientsInGroupsCount int
 	Clients              []*clients.Client
-	models.UploadedFile
+	*models.UploadedFile
 }
 
 func (al *APIListener) handleFileUploads(w http.ResponseWriter, req *http.Request) {
-	al.auditLog.Entry(auditlog.ApplicationFiles, auditlog.ActionCreate).
+	al.auditLog.Entry(auditlog.ApplicationUploads, auditlog.ActionCreate).
 		WithHTTPRequest(req).
 		Save()
 
-	wasCreated, err := al.filesAPI.CreateDirIfNotExists(al.config.GetUploadDir(), defaultDirMode)
+	wasCreated, err := al.filesAPI.CreateDirIfNotExists(al.config.GetUploadDir(), files.DefaultMode)
 	if err != nil {
 		al.jsonError(w, err)
 		return
@@ -54,7 +55,7 @@ func (al *APIListener) handleFileUploads(w http.ResponseWriter, req *http.Reques
 	}
 	defer uploadRequest.File.Close()
 
-	uploadRequest.SourceFilePath = path.Join(al.config.GetUploadDir(), uploadRequest.FileHeader.Filename)
+	uploadRequest.SourceFilePath = al.genFilePath(uploadRequest.ID)
 
 	err = validateUploadRequest(uploadRequest)
 	if err != nil {
@@ -62,56 +63,212 @@ func (al *APIListener) handleFileUploads(w http.ResponseWriter, req *http.Reques
 		return
 	}
 
-	al.Infof(
-		"will upload file %s, size %d, Content-Type %s",
-		uploadRequest.FileHeader.Filename,
-		uploadRequest.FileHeader.Size,
-		uploadRequest.FileHeader.Header.Get("Content-Type"),
-	)
-
-	copiedBytes, err := al.filesAPI.CreateFile(uploadRequest.SourceFilePath, uploadRequest.File)
+	copiedBytes, md5Checksum, err := al.filesAPI.CreateFile(uploadRequest.SourceFilePath, uploadRequest.File)
 	if err != nil {
 		al.jsonError(w, err)
 		return
 	}
+	uploadRequest.Md5Checksum = md5Checksum
 
-	al.sendFileToClientsAsync(uploadRequest)
+	al.Debugf(
+		"stored file %s on server, size %d, Content-Type %s, temp location: %s, md5 checksum: %x",
+		uploadRequest.FileHeader.Filename,
+		uploadRequest.FileHeader.Size,
+		uploadRequest.FileHeader.Header.Get("Content-Type"),
+		uploadRequest.SourceFilePath,
+		md5Checksum,
+	)
 
-	al.writeJSONResponse(w, http.StatusOK, &UploadResponse{
+	go al.sendFileToClients(uploadRequest)
+
+	al.writeJSONResponse(w, http.StatusOK, &models.UploadResponseShort{
+		ID:        uploadRequest.ID,
 		Filepath:  uploadRequest.DestinationPath,
 		SizeBytes: copiedBytes,
 	})
 }
 
-func (al *APIListener) sendFileToClientsAsync(uploadRequest *UploadRequest) {
-	go func(ur *UploadRequest) {
-		err := al.sendFileToClients(ur)
+func (al *APIListener) handleUploadsWS(w http.ResponseWriter, req *http.Request) {
+	uiConn, err := apiUpgrader.Upgrade(w, req, nil)
+	if err != nil {
+		al.Errorf("Failed to establish WS connection: %v", err)
+		return
+	}
+
+	connID, err := uuid.NewUUID()
+	if err != nil {
+		http.Error(w, err.Error(), http.StatusInternalServerError)
+		return
+	}
+
+	al.Server.uploadWebSockets.Store(connID, uiConn)
+
+	defer al.Server.uploadWebSockets.Delete(connID)
+	defer uiConn.Close()
+
+	for {
+		_, _, err := uiConn.ReadMessage()
 		if err != nil {
-			//todo properly handle errors
-			al.Errorf("failed to upload file to clients: %v", err)
-			return
+			if websocket.IsUnexpectedCloseError(err, websocket.CloseGoingAway, websocket.CloseAbnormalClosure) {
+				al.Infof("closed ws connection: %v", err)
+			}
+			break
 		}
-	}(uploadRequest)
+	}
 }
 
-func (al *APIListener) sendFileToClients(uploadRequest *UploadRequest) error {
-	requestBytes, err := uploadRequest.ToBytes()
+func (al *APIListener) genFilePath(uuid string) string {
+	uniqueFilename := fmt.Sprintf("%s_rport_filepush", uuid)
+
+	return path.Join(al.config.GetUploadDir(), uniqueFilename)
+}
+
+type uploadResult struct {
+	resp      *models.UploadResponse
+	err       error
+	isSuccess bool
+	client    *clients.Client
+}
+
+type UploadOutput struct {
+	ClientID string `json:"client_id"`
+	*models.UploadResponse
+}
+
+func (al *APIListener) sendFileToClients(uploadRequest *UploadRequest) {
+	requestBytes, err := uploadRequest.UploadedFile.ToBytes()
 	if err != nil {
-		return err
-	}
-	for _, cl := range uploadRequest.Clients {
-		isSuccess, resp, err := cl.Connection.SendRequest(comm.RequestTypeUpload, true, requestBytes)
-		if err != nil {
-			return fmt.Errorf("failed to upload file %s: %v", uploadRequest.FileHeader.Filename, err)
+		wrappedErr := errors.Wrapf(err, "failed to convert upload request to bytes")
+		output := &UploadOutput{
+			UploadResponse: &models.UploadResponse{
+				Message: wrappedErr.Error(),
+				Status:  "error",
+			},
 		}
-		al.Infof("send upload request to client %s, resp: %v, %s", cl.ID, isSuccess, string(resp))
+
+		al.notifyUploadEventListeners(output)
+		al.Errorf(wrappedErr.Error())
+		return
 	}
 
-	return nil
+	wg := &sync.WaitGroup{}
+	wg.Add(len(uploadRequest.Clients))
+
+	resChan := make(chan *uploadResult, len(uploadRequest.Clients))
+
+	for _, cl := range uploadRequest.Clients {
+		go al.sendFileToClient(wg, requestBytes, cl, resChan)
+	}
+
+	go func() {
+		wg.Wait()
+		close(resChan)
+	}()
+
+	al.consumeUploadResults(resChan, uploadRequest)
+
+	err = al.filesAPI.Remove(uploadRequest.SourceFilePath)
+	if err != nil {
+		al.Errorf("failed to delete temp file path %s: %v", uploadRequest.SourceFilePath, err)
+	}
+}
+
+func (al *APIListener) consumeUploadResults(resChan chan *uploadResult, uploadRequest *UploadRequest) {
+	for res := range resChan {
+		output := &UploadOutput{
+			ClientID:       res.client.ID,
+			UploadResponse: res.resp,
+		}
+		if res.err != nil {
+			output.UploadResponse = &models.UploadResponse{
+				Message: res.err.Error(),
+				Status:  "error",
+				UploadResponseShort: models.UploadResponseShort{
+					ID: uploadRequest.ID,
+				},
+			}
+			al.Errorf(
+				"upload failure: %v, file id: %s, file path: %s, client %s",
+				res.err,
+				uploadRequest.ID,
+				uploadRequest.DestinationPath,
+				res.client.ID,
+			)
+		} else {
+			al.Infof(
+				"upload success, file id: %s, file path: %s, client %s",
+				uploadRequest.ID,
+				uploadRequest.DestinationPath,
+				res.client.ID,
+			)
+		}
+
+		al.notifyUploadEventListeners(output)
+	}
+}
+
+func (al *APIListener) sendFileToClient(wg *sync.WaitGroup, requestBytes []byte, cl *clients.Client, resChan chan *uploadResult) {
+	defer wg.Done()
+	isSuccess, respBytes, err := cl.Connection.SendRequest(comm.RequestTypeUpload, true, requestBytes)
+	if err != nil {
+		resChan <- &uploadResult{
+			err:       err,
+			isSuccess: isSuccess,
+			client:    cl,
+		}
+		return
+	}
+	if !isSuccess {
+		resChan <- &uploadResult{
+			err:       errors.New(string(respBytes)),
+			isSuccess: false,
+			client:    cl,
+		}
+		return
+	}
+
+	resp := &models.UploadResponse{}
+	err = json.Unmarshal(respBytes, resp)
+	if err != nil {
+		resChan <- &uploadResult{
+			err:       errors.Wrapf(err, "failed to parse %s", string(respBytes)),
+			isSuccess: isSuccess,
+			client:    cl,
+		}
+		return
+	}
+
+	resChan <- &uploadResult{
+		isSuccess: isSuccess,
+		client:    cl,
+		resp:      resp,
+	}
+}
+
+func (al *APIListener) notifyUploadEventListeners(msg interface{}) {
+	al.uploadWebSockets.Range(func(key, value interface{}) bool {
+		if wsConn, ok := value.(*websocket.Conn); ok {
+			err := wsConn.WriteJSON(msg)
+			if err != nil {
+				al.Errorf("failed to send notification to websocket client %s: %v", key, err)
+			}
+		}
+		return true
+	})
 }
 
 func (al *APIListener) uploadRequestFromRequest(req *http.Request) (*UploadRequest, error) {
-	ur := &UploadRequest{}
+	ur := &UploadRequest{
+		UploadedFile: &models.UploadedFile{},
+	}
+
+	id, e := random.UUID4()
+	if e != nil {
+		al.Errorf("failed to generate uuid, will fallback to timestamp uuid, error: %v", e)
+		id = fmt.Sprintf("%d", time.Now().UnixNano())
+	}
+	ur.UploadedFile.ID = id
+
 	err := req.ParseMultipartForm(uploadBufSize)
 	if err != nil {
 		return nil, err
@@ -133,6 +290,13 @@ func (al *APIListener) uploadRequestFromRequest(req *http.Request) (*UploadReque
 	ur.File, ur.FileHeader, err = req.FormFile("upload")
 	if err != nil {
 		return nil, err
+	}
+
+	if len(req.MultipartForm.Value["force"]) > 0 {
+		ur.ForceWrite = chshare.StrToBool(req.MultipartForm.Value["force"][0])
+	}
+	if len(req.MultipartForm.Value["sync"]) > 0 {
+		ur.Sync = chshare.StrToBool(req.MultipartForm.Value["sync"][0])
 	}
 
 	return ur, nil

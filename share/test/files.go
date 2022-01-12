@@ -50,20 +50,31 @@ func (f *FileAPIMock) Exist(path string) (bool, error) {
 	return args.Bool(0), args.Error(1)
 }
 
+func (f *FileAPIMock) Open(file string) (*os.File, error) {
+	args := f.Called(file)
+	return args.Get(0).(*os.File), args.Error(1)
+}
+
 func (f *FileAPIMock) Write(fileName string, content string) error {
 	args := f.Called(fileName, content)
 
 	return args.Error(0)
 }
 
-func (f *FileAPIMock) CreateFile(path string, sourceReader io.Reader) (writtenBytes int64, err error) {
+func (f *FileAPIMock) CreateFile(path string, sourceReader io.Reader) (writtenBytes int64, md5CheckSum []byte, err error) {
 	args := f.Called(path, sourceReader)
 
-	return args.Get(0).(int64), args.Error(1)
+	return args.Get(0).(int64), args.Get(1).([]byte), args.Error(2)
 }
 
 func (f *FileAPIMock) ChangeOwner(path, owner, group string) error {
 	args := f.Called(path, owner, group)
+
+	return args.Error(0)
+}
+
+func (f *FileAPIMock) ChangeMode(path string, targetMode os.FileMode) error {
+	args := f.Called(path, targetMode)
 
 	return args.Error(0)
 }

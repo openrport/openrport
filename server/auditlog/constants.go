@@ -2,6 +2,7 @@ package auditlog
 
 const (
 	ActionCreate       = "create"
+	ActionGet          = "get"
 	ActionDelete       = "delete"
 	ActionUpdate       = "update"
 	ActionExecuteStart = "execute.start"
@@ -23,5 +24,5 @@ const (
 	ApplicationLibraryCommand  = "library.command"
 	ApplicationLibraryScript   = "library.script"
 	ApplicationVault           = "vault"
-	ApplicationFiles           = "files"
+	ApplicationUploads         = "uploads"
 )

@@ -1,6 +1,7 @@
 package files
 
 import (
+	"crypto/md5"
 	"encoding/json"
 	"errors"
 	"fmt"
@@ -24,9 +25,11 @@ type FileAPI interface {
 	WriteJSON(file string, content interface{}) error
 	Write(file string, content string) error
 	ReadJSON(file string, dest interface{}) error
+	Open(file string) (*os.File, error)
 	Exist(path string) (bool, error)
-	CreateFile(path string, sourceReader io.Reader) (writtenBytes int64, err error)
+	CreateFile(path string, sourceReader io.Reader) (writtenBytes int64, md5CheckSum []byte, err error)
 	ChangeOwner(path, owner, group string) error
+	ChangeMode(path string, targetMode os.FileMode) error
 	CreateDirIfNotExists(path string, mode os.FileMode) (wasCreated bool, err error)
 	Remove(name string) error
 	Rename(oldPath, newPath string) error
@@ -108,6 +111,10 @@ func (f *FileSystem) ReadJSON(file string, dest interface{}) error {
 	return nil
 }
 
+func (f *FileSystem) Open(file string) (*os.File, error) {
+	return os.Open(file)
+}
+
 // Exist returns a boolean indicating whether a file or directory with a given path exists.
 func (f *FileSystem) Exist(path string) (bool, error) {
 	_, err := os.Stat(path)
@@ -179,20 +186,39 @@ func (f *FileSystem) ChangeOwner(path, owner, group string) error {
 	return nil
 }
 
-func (f *FileSystem) CreateFile(path string, sourceReader io.Reader) (writtenBytes int64, err error) {
+func (f *FileSystem) ChangeMode(path string, targetMode os.FileMode) error {
+	if targetMode == 0 {
+		return nil
+	}
+
+	fileStat, err := os.Stat(path)
+	if err != nil {
+		return err
+	}
+
+	if targetMode != fileStat.Mode() {
+		return os.Chmod(path, targetMode)
+	}
+
+	return nil
+}
+
+func (f *FileSystem) CreateFile(path string, sourceReader io.Reader) (writtenBytes int64, md5CheckSum []byte, err error) {
 	targetFile, err := os.OpenFile(path, os.O_WRONLY|os.O_CREATE, DefaultMode)
 	if err != nil {
-		return 0, err
+		return 0, nil, err
 	}
 	defer targetFile.Close()
 
-	// todo delete file after all operations have completed
-	copiedBytes, err := io.Copy(targetFile, sourceReader)
+	hash := md5.New()
+	tr := io.TeeReader(sourceReader, hash)
+
+	copiedBytes, err := io.Copy(targetFile, tr)
 	if err != nil {
-		return 0, err
+		return 0, nil, err
 	}
 
-	return copiedBytes, nil
+	return copiedBytes, hash.Sum(nil), nil
 }
 
 func (f *FileSystem) Remove(name string) error {

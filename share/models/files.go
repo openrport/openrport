@@ -18,12 +18,15 @@ const (
 )
 
 type UploadedFile struct {
+	ID                   string
 	SourceFilePath       string
 	DestinationPath      string
 	DestinationFileMode  os.FileMode
 	DestinationFileOwner string
 	DestinationFileGroup string
 	ForceWrite           bool
+	Sync                 bool
+	Md5Checksum          []byte
 }
 
 func (uf UploadedFile) Validate() error {
@@ -68,4 +71,16 @@ func (uf *UploadedFile) FromBytes(rawData []byte) error {
 
 func (uf *UploadedFile) ToBytes() (data []byte, err error) {
 	return json.Marshal(uf)
+}
+
+type UploadResponse struct {
+	UploadResponseShort
+	Message string `json:"message"`
+	Status  string `json:"status"`
+}
+
+type UploadResponseShort struct {
+	ID        string `json:"uuid"`
+	Filepath  string `json:"filepath"`
+	SizeBytes int64  `json:"size"`
 }
