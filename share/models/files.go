@@ -3,9 +3,13 @@ package models
 import (
 	"encoding/json"
 	"errors"
+	"fmt"
 	"net/http"
 	"os"
+	"path"
 	"strconv"
+
+	"github.com/cloudradar-monitoring/rport/share/logger"
 
 	errors2 "github.com/pkg/errors"
 )
@@ -38,6 +42,23 @@ func (uf UploadedFile) Validate() error {
 
 	if uf.DestinationPath == "" {
 		return errors.New("empty destination file path")
+	}
+
+	return nil
+}
+
+func (uf UploadedFile) ValidateDestinationPath(globPatters []string, log *logger.Logger) error {
+	destinationDir := path.Dir(uf.DestinationPath)
+	for _, p := range globPatters {
+		matched, err := path.Match(p, destinationDir)
+		if err != nil {
+			log.Errorf("failed to match glob pattern %s against file name %s: %v", p, uf.DestinationPath, err)
+			continue
+		}
+
+		if matched {
+			return fmt.Errorf("target path %s matches file_push_deny pattern %s, therefore the file push request is rejected", uf.DestinationPath, p)
+		}
 	}
 
 	return nil

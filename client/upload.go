@@ -322,5 +322,10 @@ func (c *Client) getUploadedFile(reqPayload []byte) (*models.UploadedFile, error
 		return nil, err
 	}
 
+	err = uploadedFile.ValidateDestinationPath(FilePushDenyGlobs, c.Logger)
+	if err != nil {
+		return nil, err
+	}
+
 	return uploadedFile, nil
 }

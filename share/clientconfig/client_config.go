@@ -18,6 +18,7 @@ type Config struct {
 	RemoteScripts  ScriptsConfig    `json:"remote_scripts" mapstructure:"remote-scripts"`
 	Monitoring     MonitoringConfig `json:"monitoring" mapstructure:"monitoring"`
 	Tunnels        TunnelsConfig    `json:"-"`
+	FilePushConfig FilePushConfig   `json:"file_push" mapstructure:"file-push"`
 }
 
 type ClientConfig struct {
@@ -94,4 +95,8 @@ type MonitoringConfig struct {
 
 	LanCard *models.NetworkCard `json:"lan_card"`
 	WanCard *models.NetworkCard `json:"wan_card"`
+}
+
+type FilePushConfig struct {
+	FilePushDeny []string `json:"file_push_deny" mapstructure:"file_push_deny"`
 }
