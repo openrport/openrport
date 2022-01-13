@@ -173,14 +173,40 @@ func (c *ClientConfigHolder) parseProxyURL() error {
 }
 
 func (c *ClientConfigHolder) parseRemotes() error {
+	if err := c.parseTunnelsConfig(); err != nil {
+		return fmt.Errorf("invalid tunnels config: %w", err)
+	}
+
 	for _, s := range c.Client.Remotes {
 		r, err := models.DecodeRemote(s)
 		if err != nil {
 			return fmt.Errorf("failed to decode remote %q: %v", s, err)
 		}
+
+		r = c.applyTunnelsConfig(r)
+
 		c.Client.Tunnels = append(c.Client.Tunnels, r)
 	}
 	return nil
+}
+
+func (c *ClientConfigHolder) parseTunnelsConfig() error {
+	if c.Tunnels.HostHeader != "" && !c.Tunnels.ReverseProxy {
+		return errors.New("host-header requires enabled reverse-proxy")
+	}
+
+	return nil
+}
+
+func (c *ClientConfigHolder) applyTunnelsConfig(r *models.Remote) *models.Remote {
+	if c.Tunnels.Scheme != "" {
+		r.Scheme = &c.Tunnels.Scheme
+	}
+
+	r.HTTPProxy = c.Tunnels.ReverseProxy
+	r.HostHeader = c.Tunnels.HostHeader
+
+	return r
 }
 
 func parseHeader(h string) (string, string, error) {

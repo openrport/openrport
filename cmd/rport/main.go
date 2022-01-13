@@ -59,10 +59,15 @@ var clientHelp = `
     using IPv6 server address. Forwards randomly-assigned free port of the server
     to port 3389 of the client
 
+    ./rport --scheme http --enable-reverse-proxy <SERVER>:<PORT> 8080
+    Makes the local port 8080 available via HTTPS on a random port of the server.
+
     ./rport -c /etc/rport/rport.conf
     starts client with configuration loaded from the file
 
   Options:
+    NOTE: The order of options is important. <SERVER>:<PORT> and <REMOTES> aka the tunnels 
+    must be the last options on the command line.
 
     --fingerprint, A *strongly recommended* fingerprint string
     to perform host-key validation against the server's public key.
@@ -164,6 +169,15 @@ var clientHelp = `
    --monitoring-net-lan, enable monitoring of lan network card
    --monitoring-net-wan, enable monitoring of wan network card
 
+    --scheme, Flag all <REMOTES> aka tunnels to be used by a URI scheme, for example http, rdp or vnc.
+
+    --enable-reverse-proxy, Start one or more reverse proxies on top of the tunnel(s) to make them
+    available via HTTPs with the server-side certificates. Requires '--scheme' to be http or https.
+    Note: --scheme refers to the local protocol. The rport server will always use https for the proxy.
+
+    --host-header, Inject a static header "host: " with the specified value when using --enable-reverse-proxy.
+    By default the FQDN of the rport server is sent.
+
     --config, -c, An optional arg to define a path to a config file. If it is set then
     configuration will be loaded from the file. Note: command arguments and env variables will override them.
     MonitoringConfig file should be in TOML format. You can find an example "rport.example.conf" in the release archive.
@@ -188,6 +202,10 @@ var (
 
 	svcCommand *string
 	svcUser    *string
+
+	tunnelsScheme       *string
+	tunnelsReverseProxy *bool
+	tunnelsHostHeader   *string
 )
 
 func init() {
@@ -233,6 +251,9 @@ func init() {
 	pFlags.Int("monitoring-pm-max-number-processes", 0, "")
 	pFlags.StringArray("monitoring-net-lan", []string{}, "")
 	pFlags.StringArray("monitoring-net-wan", []string{}, "")
+	tunnelsScheme = pFlags.String("scheme", "", "")
+	tunnelsReverseProxy = pFlags.Bool("enable-reverse-proxy", false, "")
+	tunnelsHostHeader = pFlags.String("host-header", "", "")
 
 	cfgPath = pFlags.StringP("config", "c", "", "")
 	svcCommand = pFlags.String("service", "", "")
@@ -335,6 +356,10 @@ func decodeConfig(args []string) error {
 		config.Client.Server = args[0]
 		config.Client.Remotes = args[1:]
 	}
+
+	config.Tunnels.Scheme = *tunnelsScheme
+	config.Tunnels.ReverseProxy = *tunnelsReverseProxy
+	config.Tunnels.HostHeader = *tunnelsHostHeader
 
 	return nil
 }

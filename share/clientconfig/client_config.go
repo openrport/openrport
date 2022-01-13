@@ -17,6 +17,7 @@ type Config struct {
 	RemoteCommands CommandsConfig   `json:"remote_commands" mapstructure:"remote-commands"`
 	RemoteScripts  ScriptsConfig    `json:"remote_scripts" mapstructure:"remote-scripts"`
 	Monitoring     MonitoringConfig `json:"monitoring" mapstructure:"monitoring"`
+	Tunnels        TunnelsConfig    `json:"-"`
 }
 
 type ClientConfig struct {
@@ -40,6 +41,12 @@ type ClientConfig struct {
 	Tunnels  []*models.Remote `json:"tunnels"`
 	AuthUser string           `json:"auth_user"`
 	AuthPass string           `json:"auth_pass"`
+}
+
+type TunnelsConfig struct {
+	Scheme       string `json:"scheme"`
+	ReverseProxy bool   `json:"reverse_proxy"`
+	HostHeader   string `json:"host_header"`
 }
 
 type ConnectionConfig struct {
