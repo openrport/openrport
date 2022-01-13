@@ -7,6 +7,8 @@ const (
 	ActionUpdate       = "update"
 	ActionExecuteStart = "execute.start"
 	ActionExecuteDone  = "execute.done"
+	ActionSuccess      = "action.success"
+	ActionFailed       = "action.failed"
 )
 
 const (

@@ -10,6 +10,7 @@ import (
 	"time"
 
 	"github.com/cloudradar-monitoring/rport/server/auditlog"
+
 	"github.com/cloudradar-monitoring/rport/server/clients"
 	"github.com/cloudradar-monitoring/rport/share/comm"
 	"github.com/cloudradar-monitoring/rport/share/files"
@@ -34,10 +35,6 @@ type UploadRequest struct {
 }
 
 func (al *APIListener) handleFileUploads(w http.ResponseWriter, req *http.Request) {
-	al.auditLog.Entry(auditlog.ApplicationUploads, auditlog.ActionCreate).
-		WithHTTPRequest(req).
-		Save()
-
 	wasCreated, err := al.filesAPI.CreateDirIfNotExists(al.config.GetUploadDir(), files.DefaultMode)
 	if err != nil {
 		al.jsonError(w, err)
@@ -78,13 +75,21 @@ func (al *APIListener) handleFileUploads(w http.ResponseWriter, req *http.Reques
 		md5Checksum,
 	)
 
-	go al.sendFileToClients(uploadRequest)
-
-	al.writeJSONResponse(w, http.StatusOK, &models.UploadResponseShort{
+	resp := &models.UploadResponseShort{
 		ID:        uploadRequest.ID,
 		Filepath:  uploadRequest.DestinationPath,
 		SizeBytes: copiedBytes,
-	})
+	}
+	al.auditLog.Entry(auditlog.ApplicationUploads, auditlog.ActionCreate).
+		WithHTTPRequest(req).
+		WithRequest(uploadRequest.UploadedFile).
+		WithResponse(resp).
+		WithID(uploadRequest.UploadedFile.ID).
+		SaveForMultipleClients(uploadRequest.Clients)
+
+	go al.sendFileToClients(uploadRequest)
+
+	al.writeJSONResponse(w, http.StatusOK, resp)
 }
 
 func (al *APIListener) handleUploadsWS(w http.ResponseWriter, req *http.Request) {
@@ -193,6 +198,12 @@ func (al *APIListener) consumeUploadResults(resChan chan *uploadResult, uploadRe
 				uploadRequest.DestinationPath,
 				res.client.ID,
 			)
+			al.auditLog.Entry(auditlog.ApplicationUploads, auditlog.ActionFailed).
+				WithRequest(uploadRequest.UploadedFile).
+				WithResponse(output).
+				WithID(uploadRequest.UploadedFile.ID).
+				WithClient(res.client).
+				Save()
 		} else {
 			al.Infof(
 				"upload success, file id: %s, file path: %s, client %s",
@@ -200,6 +211,12 @@ func (al *APIListener) consumeUploadResults(resChan chan *uploadResult, uploadRe
 				uploadRequest.DestinationPath,
 				res.client.ID,
 			)
+			al.auditLog.Entry(auditlog.ApplicationUploads, auditlog.ActionSuccess).
+				WithRequest(uploadRequest.UploadedFile).
+				WithResponse(output).
+				WithID(uploadRequest.UploadedFile.ID).
+				WithClient(res.client).
+				Save()
 		}
 
 		al.notifyUploadEventListeners(output)
