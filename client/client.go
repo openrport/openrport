@@ -13,8 +13,8 @@ import (
 	"sync"
 	"time"
 
-	"github.com/denisbrodbeck/machineid"
 	"github.com/cloudradar-monitoring/rport/share/files"
+	"github.com/denisbrodbeck/machineid"
 
 	"github.com/gorilla/websocket"
 	"github.com/jpillora/backoff"
