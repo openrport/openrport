@@ -7,8 +7,6 @@ import (
 	"fmt"
 	"net"
 	"net/http"
-	"net/http/httputil"
-	"net/url"
 	"time"
 
 	chshare "github.com/cloudradar-monitoring/rport/share"
@@ -41,13 +39,14 @@ func (c *TunnelProxyConfig) ParseAndValidate() error {
 }
 
 type TunnelProxy struct {
-	Tunnel      *Tunnel
-	Logger      *logger.Logger
-	Config      *TunnelProxyConfig
-	Host        string
-	Port        string
-	ACL         *TunnelACL
-	proxyServer *http.Server
+	Tunnel          *Tunnel
+	Logger          *logger.Logger
+	Config          *TunnelProxyConfig
+	Host            string
+	Port            string
+	ACL             *TunnelACL
+	proxyServer     *http.Server
+	tunnelConnector TunnelConnector
 }
 
 func NewTunnelProxy(tunnel *Tunnel, logger *logger.Logger, config *TunnelProxyConfig, host string, port string, acl *TunnelACL) *TunnelProxy {
@@ -60,6 +59,7 @@ func NewTunnelProxy(tunnel *Tunnel, logger *logger.Logger, config *TunnelProxyCo
 	}
 	tp.Logger = logger.Fork("tunnel-proxy:%s", tp.Addr())
 
+	tp.tunnelConnector = NewTunnelConnector(tp)
 	return tp
 }
 
@@ -67,28 +67,18 @@ func (tp *TunnelProxy) Addr() string {
 	return net.JoinHostPort(tp.Host, tp.Port)
 }
 
-func (tp *TunnelProxy) forwardRequest(p *httputil.ReverseProxy, w http.ResponseWriter, r *http.Request) {
-	if tp.Tunnel.Remote.HostHeader != "" {
-		r.Header.Set("Host", tp.Tunnel.Remote.HostHeader)
-		r.Host = tp.Tunnel.Remote.HostHeader
+func (tp *TunnelProxy) handleProxyRequest(w http.ResponseWriter, r *http.Request) {
+	if tp.ACL == nil {
+		tp.tunnelConnector.ServeHTTP(w, r)
+		return
 	}
-	p.ServeHTTP(w, r)
-}
-
-func (tp *TunnelProxy) tunnelProxyHandlerFunc(p *httputil.ReverseProxy) func(http.ResponseWriter, *http.Request) {
-	return func(w http.ResponseWriter, r *http.Request) {
-		if tp.ACL == nil {
-			tp.forwardRequest(p, w, r)
+	clientIP := chshare.RemoteIP(r)
+	ipv4 := net.ParseIP(clientIP)
+	if ipv4 != nil {
+		tcpIP := &net.TCPAddr{IP: ipv4}
+		if tp.ACL.CheckAccess(tcpIP.IP) {
+			tp.tunnelConnector.ServeHTTP(w, r)
 			return
-		}
-		clientIP := chshare.RemoteIP(r)
-		ipv4 := net.ParseIP(clientIP)
-		if ipv4 != nil {
-			tcpIP := &net.TCPAddr{IP: ipv4}
-			if tp.ACL.CheckAccess(tcpIP.IP) {
-				tp.forwardRequest(p, w, r)
-				return
-			}
 		}
 
 		tp.Logger.Debugf("Proxy Access rejected. Remote addr: %s", clientIP)
@@ -96,7 +86,7 @@ func (tp *TunnelProxy) tunnelProxyHandlerFunc(p *httputil.ReverseProxy) func(htt
 	}
 }
 
-func (tp *TunnelProxy) tunnelProxyErrorFunc(w http.ResponseWriter, r *http.Request, err error) {
+func (tp *TunnelProxy) handleProxyError(w http.ResponseWriter, r *http.Request, err error) {
 	tp.Logger.Errorf("Error during proxy request %v", err)
 	tp.sendHTML(w, http.StatusInternalServerError, err.Error())
 }
@@ -109,22 +99,10 @@ func (tp *TunnelProxy) sendHTML(w http.ResponseWriter, statusCode int, msg strin
 }
 
 func (tp *TunnelProxy) Start(ctx context.Context) error {
-	forwardURL := url.URL{
-		Scheme: *tp.Tunnel.Remote.Scheme,
-		Host:   net.JoinHostPort(tp.Tunnel.Remote.LocalHost, tp.Tunnel.Remote.LocalPort),
-	}
+	tp.tunnelConnector.Start()
 
-	tp.Logger.Debugf("create https reverse proxy with ssl offloading forwarding to %s", forwardURL.String())
-	proxy := httputil.NewSingleHostReverseProxy(&forwardURL)
-	sslOffloadingTransport := &http.Transport{
-		TLSClientConfig: &tls.Config{
-			InsecureSkipVerify: true, //nolint:gosec
-		},
-	}
-	proxy.Transport = sslOffloadingTransport
-	proxy.ErrorHandler = tp.tunnelProxyErrorFunc
 	mux := http.NewServeMux()
-	mux.HandleFunc("/", tp.tunnelProxyHandlerFunc(proxy))
+	mux.HandleFunc("/", tp.handleProxyRequest)
 
 	tp.proxyServer = &http.Server{
 		Addr:    tp.Addr(),

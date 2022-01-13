@@ -33,6 +33,8 @@ func NewTunnel(logger *logger.Logger, ssh ssh.Conn, id string, remote models.Rem
 		tunnelProtocol = newTunnelTCP(logger, ssh, remote, acl)
 	case models.ProtocolUDP:
 		tunnelProtocol = newTunnelUDP(logger, ssh, remote, acl)
+	default:
+		tunnelProtocol = newTunnelTCP(logger, ssh, remote, acl)
 	}
 
 	return &Tunnel{
