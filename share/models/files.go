@@ -15,6 +15,8 @@ const (
 	uploadedFileOwnerKey           = "user"
 	uploadedFileOwnerGroupKey      = "group"
 	uploadedFileModeKey            = "mode"
+	fileWriteForcedKey             = "force"
+	fileSyncdKey                   = "sync"
 )
 
 type UploadedFile struct {
@@ -60,6 +62,13 @@ func (uf *UploadedFile) FromMultipartRequest(req *http.Request) error {
 			return errors2.Wrapf(err, "failed to parse file mode value %s", req.MultipartForm.Value[uploadedFileModeKey][0])
 		}
 		uf.DestinationFileMode = os.FileMode(fileModeInt)
+	}
+
+	if len(req.MultipartForm.Value[fileWriteForcedKey]) > 0 {
+		uf.ForceWrite = StrToBool(req.MultipartForm.Value[fileWriteForcedKey][0])
+	}
+	if len(req.MultipartForm.Value[fileSyncdKey]) > 0 {
+		uf.Sync = StrToBool(req.MultipartForm.Value[fileSyncdKey][0])
 	}
 
 	return nil

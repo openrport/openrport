@@ -94,12 +94,18 @@ func (c *Client) handleFileSync(uploadedFile *models.UploadedFile, sshConn *sshC
 
 	err = c.chownFileInDestination(uploadedFile)
 	if err != nil {
+		c.Logger.Errorf(err.Error())
 		msgParts = append(msgParts, fmt.Sprintf("chown failed: %v", err))
 	}
 
 	err = c.chmodFileInDestination(uploadedFile)
 	if err != nil {
+		c.Logger.Errorf(err.Error())
 		msgParts = append(msgParts, fmt.Sprintf("chmod failed: %v", err))
+	}
+
+	if len(msgParts) == 0 {
+		msgParts = append(msgParts, "File sync success")
 	}
 
 	uploadResponse.Status = "success"
@@ -144,7 +150,7 @@ func (c *Client) handleWritingFile(uploadedFile *models.UploadedFile, sshConn *s
 }
 
 func (c *Client) chownFileInDestination(uploadedFile *models.UploadedFile) (err error) {
-	if uploadedFile.DestinationFileOwner == "" && uploadedFile.DestinationFileGroup != "" {
+	if uploadedFile.DestinationFileOwner == "" && uploadedFile.DestinationFileGroup == "" {
 		return nil
 	}
 
@@ -184,7 +190,13 @@ func (c *Client) chmodFileInDestination(uploadedFile *models.UploadedFile) (err 
 
 func (c *Client) copyFileToDestination(uploadedFile *models.UploadedFile, sshConn *sshClientConn) (copiedBytes int64, err error) {
 	tempFileName := path.Base(uploadedFile.SourceFilePath)
-	copiedBytes, tempFilePath, err := c.copyFileToTempLocation(tempFileName, uploadedFile.SourceFilePath, uploadedFile.Md5Checksum, sshConn)
+	copiedBytes, tempFilePath, err := c.copyFileToTempLocation(
+		tempFileName,
+		uploadedFile.SourceFilePath,
+		uploadedFile.DestinationFileMode,
+		uploadedFile.Md5Checksum,
+		sshConn,
+	)
 	if err != nil {
 		return 0, err
 	}
@@ -229,12 +241,16 @@ func (c *Client) prepareDestinationDir(destinationPath string, mode os.FileMode)
 	return nil
 }
 
-func (c *Client) copyFileToTempLocation(fileName, remoteFilePath string, expectedMd5Checksum []byte, sshConn *sshClientConn) (
+func (c *Client) copyFileToTempLocation(fileName, remoteFilePath string, targetFileMode os.FileMode, expectedMd5Checksum []byte, sshConn *sshClientConn) (
 	bytesCopied int64,
 	tempFilePath string,
 	err error,
 ) {
-	tempDirWasCreated, err := c.filesAPI.CreateDirIfNotExists(c.configHolder.GetUploadDir(), files.DefaultMode)
+	if targetFileMode == 0 {
+		targetFileMode = files.DefaultMode
+	}
+
+	tempDirWasCreated, err := c.filesAPI.CreateDirIfNotExists(c.configHolder.GetUploadDir(), targetFileMode)
 	if err != nil {
 		return 0, "", err
 	}

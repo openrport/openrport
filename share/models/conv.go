@@ -1,4 +1,4 @@
-package chshare
+package models
 
 func StrToBool(input string) bool {
 	switch input {

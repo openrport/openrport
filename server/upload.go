@@ -11,7 +11,6 @@ import (
 
 	"github.com/cloudradar-monitoring/rport/server/auditlog"
 	"github.com/cloudradar-monitoring/rport/server/clients"
-	chshare "github.com/cloudradar-monitoring/rport/share"
 	"github.com/cloudradar-monitoring/rport/share/comm"
 	"github.com/cloudradar-monitoring/rport/share/files"
 	"github.com/cloudradar-monitoring/rport/share/models"
@@ -290,13 +289,6 @@ func (al *APIListener) uploadRequestFromRequest(req *http.Request) (*UploadReque
 	ur.File, ur.FileHeader, err = req.FormFile("upload")
 	if err != nil {
 		return nil, err
-	}
-
-	if len(req.MultipartForm.Value["force"]) > 0 {
-		ur.ForceWrite = chshare.StrToBool(req.MultipartForm.Value["force"][0])
-	}
-	if len(req.MultipartForm.Value["sync"]) > 0 {
-		ur.Sync = chshare.StrToBool(req.MultipartForm.Value["sync"][0])
 	}
 
 	return ur, nil
