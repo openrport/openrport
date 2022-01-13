@@ -440,7 +440,7 @@ func (al *APIListener) wsAuth(f http.Handler) http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
 		tokenStr := r.URL.Query().Get(WebSocketAccessTokenQueryParam)
 		if tokenStr == "" {
-			if !al.handleBannedIPs(w, r, false) {
+			if !al.handleBannedIPs(r, false) {
 				return
 			}
 			al.jsonErrorResponse(w, http.StatusUnauthorized, errAccessTokenRequired)
@@ -457,7 +457,7 @@ func (al *APIListener) wsAuth(f http.Handler) http.HandlerFunc {
 			return
 		}
 
-		if !al.handleBannedIPs(w, r, authorized) {
+		if !al.handleBannedIPs(r, authorized) {
 			return
 		}
 

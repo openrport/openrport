@@ -58,6 +58,7 @@ var clientsSupportedFilters = map[string]bool{
 	"address":                  true,
 	"client_auth_id":           true,
 	"allowed_user_groups":      true,
+	"groups":                   true,
 }
 var clientsSupportedSorts = map[string]bool{
 	"id":       true,
@@ -98,6 +99,7 @@ var clientsSupportedFields = map[string]map[string]bool{
 		"allowed_user_groups":      true,
 		"updates_status":           true,
 		"client_configuration":     true,
+		"groups":                   true,
 	},
 }
 var clientsListDefaultFields = map[string][]string{
@@ -176,7 +178,7 @@ func (s *ClientService) GetActiveByGroups(groups []*cgroups.ClientGroup) []*clie
 }
 
 func (s *ClientService) PopulateGroupsWithUserClients(groups []*cgroups.ClientGroup, user clients.User) {
-	all, _ := s.repo.GetUserClients(user, nil)
+	all, _ := s.repo.GetUserClients(user)
 	for _, curClient := range all {
 		for _, curGroup := range groups {
 			if curClient.BelongsTo(curGroup) {
@@ -197,8 +199,12 @@ func (s *ClientService) GetAll() ([]*clients.Client, error) {
 	return s.repo.GetAll()
 }
 
-func (s *ClientService) GetUserClients(user clients.User, filterOptions []query.FilterOption) ([]*clients.Client, error) {
-	return s.repo.GetUserClients(user, filterOptions)
+func (s *ClientService) GetUserClients(user clients.User) ([]*clients.Client, error) {
+	return s.repo.GetUserClients(user)
+}
+
+func (s *ClientService) GetFilteredUserClients(user clients.User, filterOptions []query.FilterOption, groups []*cgroups.ClientGroup) ([]*clients.CalculatedClient, error) {
+	return s.repo.GetFilteredUserClients(user, filterOptions, groups)
 }
 
 func (s *ClientService) StartClient(

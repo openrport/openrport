@@ -8,7 +8,6 @@ import (
 	"errors"
 	"fmt"
 	"io"
-	"net"
 	"net/http"
 	"regexp"
 	"strconv"
@@ -21,7 +20,6 @@ import (
 	"github.com/gorilla/mux"
 	"github.com/gorilla/websocket"
 	"github.com/jpillora/requestlog"
-	"github.com/tomasen/realip"
 	"golang.org/x/crypto/ssh"
 
 	"github.com/cloudradar-monitoring/rport/server/api"
@@ -108,7 +106,7 @@ func (al *APIListener) wrapWithAuthMiddleware(f http.Handler, isBearerOnly bool)
 			return
 		}
 
-		if !al.handleBannedIPs(w, r, authorized) {
+		if !al.handleBannedIPs(r, authorized) {
 			return
 		}
 
@@ -153,13 +151,9 @@ func (al *APIListener) wrapClientAccessMiddleware(next http.HandlerFunc) http.Ha
 	}
 }
 
-func (al *APIListener) handleBannedIPs(w http.ResponseWriter, r *http.Request, authorized bool) (ok bool) {
+func (al *APIListener) handleBannedIPs(r *http.Request, authorized bool) (ok bool) {
 	if al.bannedIPs != nil {
-		ip, _, err := net.SplitHostPort(r.RemoteAddr)
-		if err != nil {
-			al.jsonErrorResponse(w, http.StatusInternalServerError, fmt.Errorf("failed to split host port for %q: %v", r.RemoteAddr, err))
-			return false
-		}
+		ip := chshare.RemoteIP(r)
 
 		if authorized {
 			al.bannedIPs.AddSuccessAttempt(ip)
@@ -394,7 +388,7 @@ func (al *APIListener) handleGetLogin(w http.ResponseWriter, req *http.Request) 
 
 	// TODO: consider to move this check from all API endpoints to middleware similar to https://github.com/cloudradar-monitoring/rport/pull/199/commits/4ca1ca9f56c557762d79a60ffc96d2de47f3133c
 	// ban IP if it sends a lot of bad requests
-	if !al.handleBannedIPs(w, req, false) {
+	if !al.handleBannedIPs(req, false) {
 		return
 	}
 	al.jsonErrorResponseWithTitle(w, http.StatusUnauthorized, "auth is required")
@@ -417,7 +411,7 @@ func (al *APIListener) handleLogin(username, pwd string, skipPasswordValidation 
 		return
 	}
 
-	if !al.handleBannedIPs(w, req, authorized) {
+	if !al.handleBannedIPs(req, authorized) {
 		return
 	}
 
@@ -537,7 +531,7 @@ func (al *APIListener) handlePostLogin(w http.ResponseWriter, req *http.Request)
 	username, pwd, err := parseLoginPostRequestBody(req)
 	if err != nil {
 		// ban IP if it sends a lot of bad requests
-		if !al.handleBannedIPs(w, req, false) {
+		if !al.handleBannedIPs(req, false) {
 			return
 		}
 		al.jsonError(w, err)
@@ -600,7 +594,7 @@ func (al *APIListener) handleDeleteLogout(w http.ResponseWriter, req *http.Reque
 	tokenStr, tokenProvided := getBearerToken(req)
 	if tokenStr == "" || !tokenProvided {
 		// ban IP if it sends a lot of bad requests
-		if !al.handleBannedIPs(w, req, false) {
+		if !al.handleBannedIPs(req, false) {
 			return
 		}
 		al.jsonErrorResponse(w, http.StatusBadRequest, fmt.Errorf("authorization Bearer token required"))
@@ -622,7 +616,7 @@ func (al *APIListener) handleDeleteLogout(w http.ResponseWriter, req *http.Reque
 		al.jsonErrorResponse(w, http.StatusInternalServerError, err)
 		return
 	}
-	if !al.handleBannedIPs(w, req, valid) {
+	if !al.handleBannedIPs(req, valid) {
 		return
 	}
 	if !valid {
@@ -644,7 +638,7 @@ func (al *APIListener) handlePostVerify2FAToken() http.Handler {
 	return http.HandlerFunc(func(w http.ResponseWriter, req *http.Request) {
 		username, err := al.parseAndValidate2FATokenRequest(req)
 		if err != nil {
-			if !al.handleBannedIPs(w, req, false) {
+			if !al.handleBannedIPs(req, false) {
 				return
 			}
 			al.Errorf(err.Error())
@@ -788,7 +782,13 @@ func (al *APIListener) handleGetClients(w http.ResponseWriter, req *http.Request
 		return
 	}
 
-	cls, err := al.clientService.GetUserClients(curUser, options.Filters)
+	groups, err := al.clientGroupProvider.GetAll(req.Context())
+	if err != nil {
+		al.jsonErrorResponseWithError(w, http.StatusInternalServerError, "Failed to get client groups.", err)
+		return
+	}
+
+	cls, err := al.clientService.GetFilteredUserClients(curUser, options.Filters, groups)
 	if err != nil {
 		al.jsonError(w, err)
 		return
@@ -835,7 +835,13 @@ func (al *APIListener) handleGetClient(w http.ResponseWriter, req *http.Request)
 		return
 	}
 
-	clientPayload := convertToClientPayload(client, options.Fields)
+	groups, err := al.clientGroupProvider.GetAll(req.Context())
+	if err != nil {
+		al.jsonErrorResponseWithError(w, http.StatusInternalServerError, "Failed to get client groups.", err)
+		return
+	}
+
+	clientPayload := convertToClientPayload(client.ToCalculated(groups), options.Fields)
 	al.writeJSONResponse(w, http.StatusOK, api.NewSuccessPayload(clientPayload))
 }
 
@@ -846,7 +852,7 @@ func (al *APIListener) handleGetTunnels(w http.ResponseWriter, req *http.Request
 		return
 	}
 
-	clients, err := al.clientService.GetUserClients(curUser, nil)
+	clients, err := al.clientService.GetUserClients(curUser)
 	if err != nil {
 		al.jsonError(w, err)
 		return
@@ -1009,6 +1015,7 @@ type ClientPayload struct {
 	Tunnels                *[]*clients.Tunnel       `json:"tunnels,omitempty"`
 	UpdatesStatus          **models.UpdatesStatus   `json:"updates_status,omitempty"`
 	ClientConfiguration    **clientconfig.Config    `json:"client_configuration,omitempty"`
+	Groups                 *[]string                `json:"groups,omitempty"`
 }
 
 type TunnelPayload struct {
@@ -1025,7 +1032,7 @@ func convertToTunnelPayload(t *clients.Tunnel, clientID string) TunnelPayload {
 	}
 }
 
-func convertToClientsPayload(clients []*clients.Client, fields []query.FieldsOption) []ClientPayload {
+func convertToClientsPayload(clients []*clients.CalculatedClient, fields []query.FieldsOption) []ClientPayload {
 	r := make([]ClientPayload, 0, len(clients))
 	for _, cur := range clients {
 		r = append(r, convertToClientPayload(cur, fields))
@@ -1033,7 +1040,7 @@ func convertToClientsPayload(clients []*clients.Client, fields []query.FieldsOpt
 	return r
 }
 
-func convertToClientPayload(client *clients.Client, fields []query.FieldsOption) ClientPayload { //nolint:gocyclo
+func convertToClientPayload(client *clients.CalculatedClient, fields []query.FieldsOption) ClientPayload { //nolint:gocyclo
 	requestedFields := make(map[string]bool)
 	for _, res := range fields {
 		if res.Resource != "clients" {
@@ -1110,12 +1117,14 @@ func convertToClientPayload(client *clients.Client, fields []query.FieldsOption)
 			p.UpdatesStatus = &client.UpdatesStatus
 		case "client_configuration":
 			p.ClientConfiguration = &client.ClientConfiguration
+		case "groups":
+			p.Groups = &client.Groups
 		}
 	}
 	return p
 }
 
-func getCorrespondingSortFunc(sorts []query.SortOption) (sortFunc func(a []*clients.Client, desc bool), desc bool, err error) {
+func getCorrespondingSortFunc(sorts []query.SortOption) (sortFunc func(a []*clients.CalculatedClient, desc bool), desc bool, err error) {
 	if len(sorts) < 1 {
 		return clients.SortByID, false, nil
 	}
@@ -1692,7 +1701,7 @@ func (al *APIListener) handleGetIP(w http.ResponseWriter, req *http.Request) {
 	ipResp := struct {
 		IP string `json:"ip"`
 	}{
-		IP: realip.FromRequest(req),
+		IP: chshare.RemoteIP(req),
 	}
 	al.writeJSONResponse(w, http.StatusOK, api.NewSuccessPayload(ipResp))
 }
@@ -3122,10 +3131,13 @@ func (al *APIListener) handleVaultStoreValue(w http.ResponseWriter, req *http.Re
 
 	status := http.StatusOK
 
+	vaultKeyValue.Value = ""
 	if id == 0 {
 		al.auditLog.Entry(auditlog.ApplicationVault, auditlog.ActionCreate).
 			WithHTTPRequest(req).
 			WithID(storedValue.ID).
+			WithClientID(vaultKeyValue.ClientID).
+			WithRequest(vaultKeyValue).
 			Save()
 
 		w.WriteHeader(http.StatusCreated)
@@ -3133,6 +3145,8 @@ func (al *APIListener) handleVaultStoreValue(w http.ResponseWriter, req *http.Re
 		al.auditLog.Entry(auditlog.ApplicationVault, auditlog.ActionUpdate).
 			WithHTTPRequest(req).
 			WithID(id).
+			WithClientID(vaultKeyValue.ClientID).
+			WithRequest(vaultKeyValue).
 			Save()
 	}
 
@@ -3162,6 +3176,16 @@ func (al *APIListener) handleVaultDeleteValue(w http.ResponseWriter, req *http.R
 		return
 	}
 
+	storedValue, found, err := al.vaultManager.GetOne(req.Context(), id, curUser)
+	if err != nil {
+		al.jsonError(w, err)
+		return
+	}
+	if !found {
+		al.jsonErrorResponseWithTitle(w, http.StatusNotFound, fmt.Sprintf("Cannot find a vault value by the provided id: %d", id))
+		return
+	}
+
 	err = al.vaultManager.Delete(req.Context(), id, curUser)
 	if err != nil {
 		al.jsonError(w, err)
@@ -3171,6 +3195,7 @@ func (al *APIListener) handleVaultDeleteValue(w http.ResponseWriter, req *http.R
 	al.auditLog.Entry(auditlog.ApplicationVault, auditlog.ActionDelete).
 		WithHTTPRequest(req).
 		WithID(id).
+		WithClientID(storedValue.ClientID).
 		Save()
 
 	w.WriteHeader(http.StatusNoContent)

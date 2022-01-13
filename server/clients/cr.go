@@ -11,6 +11,7 @@ import (
 
 	"github.com/jmoiron/sqlx"
 
+	"github.com/cloudradar-monitoring/rport/server/cgroups"
 	"github.com/cloudradar-monitoring/rport/share/logger"
 	"github.com/cloudradar-monitoring/rport/share/query"
 )
@@ -189,11 +190,38 @@ func (s *ClientRepository) GetAll() ([]*Client, error) {
 	return s.getNonObsolete()
 }
 
-// GetUserClients returns all non-obsolete active and disconnected clients that current user has access to, filtered by parameters
-func (s *ClientRepository) GetUserClients(user User, filterOptions []query.FilterOption) ([]*Client, error) {
+// GetUserClients returns all non-obsolete active and disconnected clients that current user has access to
+func (s *ClientRepository) GetUserClients(user User) ([]*Client, error) {
 	s.mu.RLock()
 	defer s.mu.RUnlock()
-	return s.getNonObsoleteFiltered(user, filterOptions)
+	return s.getNonObsoleteByUser(user)
+}
+
+// GetFilteredUserClients returns all non-obsolete active and disconnected clients that current user has access to, filtered by parameters
+func (s *ClientRepository) GetFilteredUserClients(user User, filterOptions []query.FilterOption, groups []*cgroups.ClientGroup) ([]*CalculatedClient, error) {
+	s.mu.RLock()
+	defer s.mu.RUnlock()
+
+	clients, err := s.getNonObsoleteByUser(user)
+	if err != nil {
+		return nil, err
+	}
+
+	result := make([]*CalculatedClient, 0, len(clients))
+	for _, client := range clients {
+		calculatedClient := client.ToCalculated(groups)
+
+		matches, err := s.clientMatchesFilters(calculatedClient, filterOptions)
+		if err != nil {
+			return result, err
+		}
+
+		if matches {
+			result = append(result, calculatedClient)
+		}
+	}
+
+	return result, nil
 }
 
 func (s *ClientRepository) GetAllActive() []*Client {
@@ -218,7 +246,7 @@ func (s *ClientRepository) getNonObsolete() ([]*Client, error) {
 	return result, nil
 }
 
-func (s *ClientRepository) getNonObsoleteFiltered(user User, filterOptions []query.FilterOption) ([]*Client, error) {
+func (s *ClientRepository) getNonObsoleteByUser(user User) ([]*Client, error) {
 	isAdmin := user.IsAdmin()
 	result := make([]*Client, 0, len(s.clients))
 	for _, client := range s.clients {
@@ -230,18 +258,11 @@ func (s *ClientRepository) getNonObsoleteFiltered(user User, filterOptions []que
 			continue
 		}
 
-		matches, err := s.clientMatchesFilters(client, filterOptions)
-		if err != nil {
-			return result, err
-		}
-
-		if matches {
-			result = append(result, client)
-		}
+		result = append(result, client)
 	}
 	return result, nil
 }
-func (s *ClientRepository) clientMatchesFilters(cl *Client, filterOptions []query.FilterOption) (bool, error) {
+func (s *ClientRepository) clientMatchesFilters(cl *CalculatedClient, filterOptions []query.FilterOption) (bool, error) {
 	for _, f := range filterOptions {
 		matches, err := s.clientMatchesFilter(cl, f)
 		if err != nil {
@@ -255,7 +276,7 @@ func (s *ClientRepository) clientMatchesFilters(cl *Client, filterOptions []quer
 	return true, nil
 }
 
-func (s *ClientRepository) clientMatchesFilter(cl *Client, filter query.FilterOption) (bool, error) {
+func (s *ClientRepository) clientMatchesFilter(cl *CalculatedClient, filter query.FilterOption) (bool, error) {
 	clientMap, err := s.clientToMap(cl)
 	if err != nil {
 		return false, err
@@ -280,17 +301,17 @@ func (s *ClientRepository) clientMatchesFilter(cl *Client, filter query.FilterOp
 			for _, filterValue := range filter.Values {
 				hasUnescapedWildCard := regx.MatchString(filterValue)
 				if !hasUnescapedWildCard {
-					if filterValue == clientFieldValueToMatchStr {
+					if strings.EqualFold(filterValue, clientFieldValueToMatchStr) {
 						return true, nil
 					}
 
 					continue
 				}
 
-				filterValueRegex, err := regexp.Compile(strings.ReplaceAll(filterValue, "*", ".*"))
+				filterValueRegex, err := regexp.Compile("(?i)" + strings.ReplaceAll(filterValue, "*", ".*"))
 				if err != nil {
 					s.logger.Errorf("failed to generate regex for '%s': %v", filterValue, err)
-					if filterValue == clientFieldValueToMatchStr {
+					if strings.EqualFold(filterValue, clientFieldValueToMatchStr) {
 						return true, nil
 					}
 					continue
@@ -306,7 +327,7 @@ func (s *ClientRepository) clientMatchesFilter(cl *Client, filter query.FilterOp
 	return false, nil
 }
 
-func (s *ClientRepository) clientToMap(cl *Client) (map[string]interface{}, error) {
+func (s *ClientRepository) clientToMap(cl *CalculatedClient) (map[string]interface{}, error) {
 	clientBytes, err := json.Marshal(cl)
 	if err != nil {
 		return nil, err

@@ -224,9 +224,12 @@ func TestConfigParseAndValidateProxyURL(t *testing.T) {
 }
 
 func TestConfigParseAndValidateRemotes(t *testing.T) {
+	schemeHTTP := "http"
+
 	testCases := []struct {
 		Name            string
 		Remotes         []string
+		TunnelsConfig   clientconfig.TunnelsConfig
 		ExpectedRemotes []*models.Remote
 		ExpectedError   string
 	}{
@@ -264,12 +267,65 @@ func TestConfigParseAndValidateRemotes(t *testing.T) {
 			Remotes:       []string{"abc"},
 			ExpectedError: `failed to decode remote "abc": Missing ports`,
 		},
+		{
+			Name:    "has tunnels config",
+			Remotes: []string{"8000", "8443:0.0.0.0:8080"},
+			TunnelsConfig: clientconfig.TunnelsConfig{
+				Scheme: schemeHTTP,
+			},
+			ExpectedRemotes: []*models.Remote{
+				{
+					Protocol:   models.ProtocolTCP,
+					RemoteHost: "0.0.0.0",
+					RemotePort: "8000",
+					Scheme:     &schemeHTTP,
+				},
+				{
+					Protocol:   models.ProtocolTCP,
+					LocalHost:  "0.0.0.0",
+					LocalPort:  "8443",
+					RemoteHost: "0.0.0.0",
+					RemotePort: "8080",
+					Scheme:     &schemeHTTP,
+				},
+			},
+		},
+		{
+			Name:    "has tunnels full config",
+			Remotes: []string{"8000"},
+			TunnelsConfig: clientconfig.TunnelsConfig{
+				Scheme:       schemeHTTP,
+				ReverseProxy: true,
+				HostHeader:   "my-host.dev",
+			},
+			ExpectedRemotes: []*models.Remote{
+				{
+					Protocol:   models.ProtocolTCP,
+					RemoteHost: "0.0.0.0",
+					RemotePort: "8000",
+					Scheme:     &schemeHTTP,
+					HTTPProxy:  true,
+					HostHeader: "my-host.dev",
+				},
+			},
+		},
+		{
+			Name:    "invalid tunnels config: host-header requires reverse-proxy",
+			Remotes: []string{"8000"},
+			TunnelsConfig: clientconfig.TunnelsConfig{
+				ReverseProxy: false,
+				HostHeader:   "my-host.dev",
+			},
+			ExpectedError: `invalid tunnels config: host-header requires enabled reverse-proxy`,
+		},
 	}
 
 	for _, tc := range testCases {
 		t.Run(tc.Name, func(t *testing.T) {
 			config := getDefaultValidMinConfig()
 			config.Client.Remotes = tc.Remotes
+			config.Tunnels = tc.TunnelsConfig
+
 			err := config.ParseAndValidate(true)
 
 			if tc.ExpectedError == "" {

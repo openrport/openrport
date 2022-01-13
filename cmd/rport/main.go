@@ -61,10 +61,15 @@ var clientHelp = `
     using IPv6 server address. Forwards randomly-assigned free port of the server
     to port 3389 of the client
 
+    ./rport --scheme http --enable-reverse-proxy <SERVER>:<PORT> 8080
+    Makes the local port 8080 available via HTTPS on a random port of the server.
+
     ./rport -c /etc/rport/rport.conf
     starts client with configuration loaded from the file
 
   Options:
+    NOTE: The order of options is important. <SERVER>:<PORT> and <REMOTES> aka the tunnels 
+    must be the last options on the command line.
 
     --fingerprint, A *strongly recommended* fingerprint string
     to perform host-key validation against the server's public key.
@@ -97,14 +102,19 @@ var clientHelp = `
     --hostname, Optionally set the 'Host' header (defaults to the host
     found in the server url).
 
-    --id, An optional client ID to better identify the client.
+    --use-system-id, By default rport reads /etc/machine-id (Linux) or the ComputerSystemProduct UUID (Windows)
+    to get a unique id for the client identification.
+    NOTE: all history for a client is stored based on this id.
+    --id, An optional hard-coded client ID to better identify the client.
     If not set, a random id will be created that changes on every client start.
+    That's why it's highly recommended to set it with a value that was generated on the first
+    start or just set it on the very beginning. So on client restart all his history will be preserved.
     The server rejects connections on duplicated ids.
 
+    --use-hostname, By default rport reads the local hostname to identify the system in a human-readable way.
     --name, An optional client name to better identify the client.
     Useful if you use numeric ids to make client identification easier.
     For example, --name "my_win_vm_1"
-    Defaults to unset.
 
     --tag, -t, Optional values to give your clients attributes.
     Used for filtering clients on the server.
@@ -161,6 +171,15 @@ var clientHelp = `
    --monitoring-net-lan, enable monitoring of lan network card
    --monitoring-net-wan, enable monitoring of wan network card
 
+    --scheme, Flag all <REMOTES> aka tunnels to be used by a URI scheme, for example http, rdp or vnc.
+
+    --enable-reverse-proxy, Start one or more reverse proxies on top of the tunnel(s) to make them
+    available via HTTPs with the server-side certificates. Requires '--scheme' to be http or https.
+    Note: --scheme refers to the local protocol. The rport server will always use https for the proxy.
+
+    --host-header, Inject a static header "host: " with the specified value when using --enable-reverse-proxy.
+    By default the FQDN of the rport server is sent.
+
     --config, -c, An optional arg to define a path to a config file. If it is set then
     configuration will be loaded from the file. Note: command arguments and env variables will override them.
     MonitoringConfig file should be in TOML format. You can find an example "rport.example.conf" in the release archive.
@@ -185,6 +204,10 @@ var (
 
 	svcCommand *string
 	svcUser    *string
+
+	tunnelsScheme       *string
+	tunnelsReverseProxy *bool
+	tunnelsHostHeader   *string
 )
 
 func init() {
@@ -203,7 +226,9 @@ func init() {
 	pFlags.Duration("max-retry-interval", 0, "")
 	pFlags.String("proxy", "", "")
 	pFlags.StringArray("header", []string{}, "")
+	pFlags.Bool("use-system-id", true, "")
 	pFlags.String("id", "", "")
+	pFlags.Bool("use-hostname", true, "")
 	pFlags.String("name", "", "")
 	pFlags.StringArrayP("tag", "t", []string{}, "")
 	pFlags.String("hostname", "", "")
@@ -228,6 +253,9 @@ func init() {
 	pFlags.Int("monitoring-pm-max-number-processes", 0, "")
 	pFlags.StringArray("monitoring-net-lan", []string{}, "")
 	pFlags.StringArray("monitoring-net-wan", []string{}, "")
+	tunnelsScheme = pFlags.String("scheme", "", "")
+	tunnelsReverseProxy = pFlags.Bool("enable-reverse-proxy", false, "")
+	tunnelsHostHeader = pFlags.String("host-header", "", "")
 
 	cfgPath = pFlags.StringP("config", "c", "", "")
 	svcCommand = pFlags.String("service", "", "")
@@ -270,7 +298,9 @@ func bindPFlags() {
 	_ = viperCfg.BindPFlag("client.fingerprint", pFlags.Lookup("fingerprint"))
 	_ = viperCfg.BindPFlag("client.auth", pFlags.Lookup("auth"))
 	_ = viperCfg.BindPFlag("client.proxy", pFlags.Lookup("proxy"))
+	_ = viperCfg.BindPFlag("client.use_system_id", pFlags.Lookup("use-system-id"))
 	_ = viperCfg.BindPFlag("client.id", pFlags.Lookup("id"))
+	_ = viperCfg.BindPFlag("client.use_hostname", pFlags.Lookup("use-hostname"))
 	_ = viperCfg.BindPFlag("client.name", pFlags.Lookup("name"))
 	_ = viperCfg.BindPFlag("client.tags", pFlags.Lookup("tag"))
 	_ = viperCfg.BindPFlag("client.allow_root", pFlags.Lookup("allow-root"))
@@ -328,6 +358,10 @@ func decodeConfig(args []string) error {
 		config.Client.Server = args[0]
 		config.Client.Remotes = args[1:]
 	}
+
+	config.Tunnels.Scheme = *tunnelsScheme
+	config.Tunnels.ReverseProxy = *tunnelsReverseProxy
+	config.Tunnels.HostHeader = *tunnelsHostHeader
 
 	return nil
 }

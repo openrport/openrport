@@ -17,6 +17,7 @@ type Config struct {
 	RemoteCommands CommandsConfig   `json:"remote_commands" mapstructure:"remote-commands"`
 	RemoteScripts  ScriptsConfig    `json:"remote_scripts" mapstructure:"remote-scripts"`
 	Monitoring     MonitoringConfig `json:"monitoring" mapstructure:"monitoring"`
+	Tunnels        TunnelsConfig    `json:"-"`
 }
 
 type ClientConfig struct {
@@ -27,7 +28,9 @@ type ClientConfig struct {
 	Auth                     string        `json:"auth" mapstructure:"auth"`
 	Proxy                    string        `json:"proxy" mapstructure:"proxy"`
 	ID                       string        `json:"id" mapstructure:"id"`
+	UseSystemID              bool          `json:"use_system_id" mapstructure:"use_system_id"`
 	Name                     string        `json:"name" mapstructure:"name"`
+	UseHostname              bool          `json:"use_hostname" mapstructure:"use_hostname"`
 	Tags                     []string      `json:"tags" mapstructure:"tags"`
 	Remotes                  []string      `json:"remotes" mapstructure:"remotes"`
 	AllowRoot                bool          `json:"allow_root" mapstructure:"allow_root"`
@@ -38,6 +41,12 @@ type ClientConfig struct {
 	Tunnels  []*models.Remote `json:"tunnels"`
 	AuthUser string           `json:"auth_user"`
 	AuthPass string           `json:"auth_pass"`
+}
+
+type TunnelsConfig struct {
+	Scheme       string `json:"scheme"`
+	ReverseProxy bool   `json:"reverse_proxy"`
+	HostHeader   string `json:"host_header"`
 }
 
 type ConnectionConfig struct {

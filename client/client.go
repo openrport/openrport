@@ -13,6 +13,7 @@ import (
 	"sync"
 	"time"
 
+	"github.com/denisbrodbeck/machineid"
 	"github.com/cloudradar-monitoring/rport/share/files"
 
 	"github.com/gorilla/websocket"
@@ -322,7 +323,12 @@ func (c *Client) connect(server string) (*sshClientConn, error) {
 }
 
 func (c *Client) sendConnectionRequest(ctx context.Context, sshConn ssh.Conn) error {
-	req, err := chshare.EncodeConnectionRequest(c.connectionRequest(ctx))
+	connReq, err := c.connectionRequest(ctx)
+	if err != nil {
+		return err
+	}
+
+	req, err := chshare.EncodeConnectionRequest(connReq)
 	if err != nil {
 		return fmt.Errorf("Could not encode connection request: %v", err)
 	}
@@ -531,7 +537,7 @@ func (c *Client) setCurCmdPID(pid *int) {
 	c.curCmdPID = pid
 }
 
-func (c *Client) connectionRequest(ctx context.Context) *chshare.ConnectionRequest {
+func (c *Client) connectionRequest(ctx context.Context) (*chshare.ConnectionRequest, error) {
 	ctx, cancel := context.WithTimeout(ctx, time.Second*5)
 	defer cancel()
 
@@ -554,6 +560,21 @@ func (c *Client) connectionRequest(ctx context.Context) *chshare.ConnectionReque
 		CPUModelName:           system.UnknownValue,
 		CPUVendor:              system.UnknownValue,
 		ClientConfiguration:    c.configHolder.Config,
+	}
+
+	var err error
+	if connReq.ID == "" && c.configHolder.Client.UseSystemID {
+		connReq.ID, err = machineid.ID()
+		if err != nil {
+			return nil, fmt.Errorf("could not use system id as client id: try to set client.id manually or disable client.use_system_id. Error: %w", err)
+		}
+	}
+
+	if connReq.Name == "" && c.configHolder.Client.UseHostname {
+		connReq.Name, err = c.systemInfo.Hostname()
+		if err != nil {
+			return nil, fmt.Errorf("could not use system hostname as client name: try to set client.name manually or disable client.use_hostname. Error: %w", err)
+		}
 	}
 
 	info, err := c.systemInfo.HostInfo(ctx)
@@ -619,7 +640,7 @@ func (c *Client) connectionRequest(ctx context.Context) *chshare.ConnectionReque
 
 	connReq.Timezone = c.getTimezone()
 
-	return connReq
+	return connReq, nil
 }
 
 func (c *Client) getOS(ctx context.Context, info *host.InfoStat) (string, error) {

@@ -5,7 +5,7 @@ import (
 	"strings"
 )
 
-func SortByID(a []*Client, desc bool) {
+func SortByID(a []*CalculatedClient, desc bool) {
 	sort.Slice(a, func(i, j int) bool {
 		less := strings.ToLower(a[i].ID) < strings.ToLower(a[j].ID)
 		if desc {
@@ -15,7 +15,7 @@ func SortByID(a []*Client, desc bool) {
 	})
 }
 
-func SortByName(a []*Client, desc bool) {
+func SortByName(a []*CalculatedClient, desc bool) {
 	sort.Slice(a, func(i, j int) bool {
 		aiName := strings.ToLower(a[i].Name)
 		ajName := strings.ToLower(a[j].Name)
@@ -27,7 +27,7 @@ func SortByName(a []*Client, desc bool) {
 	})
 }
 
-func SortByOS(a []*Client, desc bool) {
+func SortByOS(a []*CalculatedClient, desc bool) {
 	sort.Slice(a, func(i, j int) bool {
 		aiOS := strings.ToLower(a[i].OS)
 		ajOS := strings.ToLower(a[j].OS)
@@ -39,7 +39,7 @@ func SortByOS(a []*Client, desc bool) {
 	})
 }
 
-func SortByHostname(a []*Client, desc bool) {
+func SortByHostname(a []*CalculatedClient, desc bool) {
 	sort.Slice(a, func(i, j int) bool {
 		aiHostname := strings.ToLower(a[i].Hostname)
 		ajHostname := strings.ToLower(a[j].Hostname)
@@ -51,7 +51,7 @@ func SortByHostname(a []*Client, desc bool) {
 	})
 }
 
-func SortByVersion(a []*Client, desc bool) {
+func SortByVersion(a []*CalculatedClient, desc bool) {
 	sort.Slice(a, func(i, j int) bool {
 		aiVersion := strings.ToLower(a[i].Version)
 		ajVersion := strings.ToLower(a[j].Version)

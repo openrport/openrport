@@ -145,12 +145,41 @@ func TestCRWithFilter(t *testing.T) {
 			},
 		},
 		{
+			name: "case insensitive",
+			filters: []query.FilterOption{
+				{
+					Column: []string{"os_full_name"},
+					Values: []string{
+						"aLpInE lInUx",
+					},
+				},
+			},
+			expectedClientIDs: []string{
+				"2fb5eca74d7bdf5f5b879ebadb446af7c113b076354d74e1882d8101e9f4b918",
+			},
+		},
+		{
 			name: "wildcard",
 			filters: []query.FilterOption{
 				{
 					Column: []string{"os_full_name"},
 					Values: []string{
 						"Alpine*",
+					},
+				},
+			},
+			expectedClientIDs: []string{
+				"aa1210c7-1899-491e-8e71-564cacaf1df8",
+				"2fb5eca74d7bdf5f5b879ebadb446af7c113b076354d74e1882d8101e9f4b918",
+			},
+		},
+		{
+			name: "wildcard case insensitive",
+			filters: []query.FilterOption{
+				{
+					Column: []string{"os_full_name"},
+					Values: []string{
+						"aLpInE*",
 					},
 				},
 			},
@@ -400,7 +429,7 @@ func TestCRWithFilter(t *testing.T) {
 
 			repo := NewClientRepository([]*Client{c1, c2, c5}, nil, testLog)
 
-			actualClients, err := repo.GetUserClients(admin, tc.filters)
+			actualClients, err := repo.GetFilteredUserClients(admin, tc.filters, nil)
 			require.NoError(t, err)
 
 			actualClientIDs := make([]string, 0, len(actualClients))
@@ -416,14 +445,14 @@ func TestCRWithFilter(t *testing.T) {
 
 func TestCRWithUnsupportedFilter(t *testing.T) {
 	repo := NewClientRepository([]*Client{c1}, nil, testLog)
-	_, err := repo.GetUserClients(admin, []query.FilterOption{
+	_, err := repo.GetFilteredUserClients(admin, []query.FilterOption{
 		{
 			Column: []string{"unknown_field"},
 			Values: []string{
 				"1",
 			},
 		},
-	})
+	}, nil)
 	require.EqualError(t, err, "unsupported filter column: unknown_field")
 }
 
@@ -469,7 +498,7 @@ func TestGetUserClients(t *testing.T) {
 	for _, tc := range testCases {
 		t.Run(tc.name, func(t *testing.T) {
 			// when
-			gotClients, gotErr := repo.GetUserClients(tc.user, nil)
+			gotClients, gotErr := repo.GetUserClients(tc.user)
 
 			// then
 			require.NoError(t, gotErr)
