@@ -13,7 +13,6 @@ import (
 	"sync"
 	"time"
 
-	"github.com/cloudradar-monitoring/rport/share/files"
 	"github.com/denisbrodbeck/machineid"
 
 	"github.com/gorilla/websocket"
@@ -28,6 +27,7 @@ import (
 	"github.com/cloudradar-monitoring/rport/client/updates"
 	chshare "github.com/cloudradar-monitoring/rport/share"
 	"github.com/cloudradar-monitoring/rport/share/comm"
+	"github.com/cloudradar-monitoring/rport/share/files"
 	"github.com/cloudradar-monitoring/rport/share/logger"
 	"github.com/cloudradar-monitoring/rport/share/models"
 )
