@@ -9,6 +9,8 @@ import (
 	"net/http"
 	"time"
 
+	"github.com/gorilla/mux"
+
 	chshare "github.com/cloudradar-monitoring/rport/share"
 	"github.com/cloudradar-monitoring/rport/share/logger"
 )
@@ -39,74 +41,45 @@ func (c *TunnelProxyConfig) ParseAndValidate() error {
 }
 
 type TunnelProxy struct {
-	Tunnel          *Tunnel
-	Logger          *logger.Logger
-	Config          *TunnelProxyConfig
-	Host            string
-	Port            string
-	ACL             *TunnelACL
-	proxyServer     *http.Server
-	tunnelConnector TunnelConnector
+	Tunnel               *Tunnel
+	Logger               *logger.Logger
+	Config               *TunnelProxyConfig
+	Host                 string
+	Port                 string
+	TunnelHost           string
+	TunnelPort           string
+	ACL                  *TunnelACL
+	proxyServer          *http.Server
+	tunnelProxyConnector TunnelProxyConnector
 }
 
 func NewTunnelProxy(tunnel *Tunnel, logger *logger.Logger, config *TunnelProxyConfig, host string, port string, acl *TunnelACL) *TunnelProxy {
 	tp := &TunnelProxy{
-		Tunnel: tunnel,
-		Config: config,
-		Host:   host,
-		Port:   port,
-		ACL:    acl,
+		Tunnel:     tunnel,
+		Config:     config,
+		Host:       host,
+		Port:       port,
+		TunnelHost: tunnel.Remote.LocalHost,
+		TunnelPort: tunnel.Remote.LocalPort,
+		ACL:        acl,
 	}
 	tp.Logger = logger.Fork("tunnel-proxy:%s", tp.Addr())
 
-	tp.tunnelConnector = NewTunnelConnector(tp)
+	tp.tunnelProxyConnector = NewTunnelProxyConnector(tp)
 	return tp
 }
-
-func (tp *TunnelProxy) Addr() string {
-	return net.JoinHostPort(tp.Host, tp.Port)
-}
-
-func (tp *TunnelProxy) handleProxyRequest(w http.ResponseWriter, r *http.Request) {
-	if tp.ACL == nil {
-		tp.tunnelConnector.ServeHTTP(w, r)
-		return
-	}
-	clientIP := chshare.RemoteIP(r)
-	ipv4 := net.ParseIP(clientIP)
-	if ipv4 != nil {
-		tcpIP := &net.TCPAddr{IP: ipv4}
-		if tp.ACL.CheckAccess(tcpIP.IP) {
-			tp.tunnelConnector.ServeHTTP(w, r)
-			return
-		}
-
-		tp.Logger.Debugf("Proxy Access rejected. Remote addr: %s", clientIP)
-		tp.sendHTML(w, http.StatusForbidden, "Access rejected by ACL")
-	}
-}
-
-func (tp *TunnelProxy) handleProxyError(w http.ResponseWriter, r *http.Request, err error) {
-	tp.Logger.Errorf("Error during proxy request %v", err)
-	tp.sendHTML(w, http.StatusInternalServerError, err.Error())
-}
-
-func (tp *TunnelProxy) sendHTML(w http.ResponseWriter, statusCode int, msg string) {
-	w.Header().Set("Content-Type", "text/html; charset=UTF-8")
-	w.WriteHeader(statusCode)
-	m := fmt.Sprintf("[%d] Rport tunnel proxy: %s", statusCode, msg)
-	_, _ = w.Write([]byte(m))
-}
-
 func (tp *TunnelProxy) Start(ctx context.Context) error {
-	tp.tunnelConnector.Start()
+	router := mux.NewRouter()
+	router.Use(tp.handleACL)
 
-	mux := http.NewServeMux()
-	mux.HandleFunc("/", tp.handleProxyRequest)
+	router = tp.tunnelProxyConnector.InitRouter(router)
 
 	tp.proxyServer = &http.Server{
 		Addr:    tp.Addr(),
-		Handler: mux,
+		Handler: router,
+	}
+	if tp.tunnelProxyConnector.DisableHTTP2() {
+		tp.proxyServer.TLSNextProto = map[string]func(*http.Server, *tls.Conn, http.Handler){}
 	}
 
 	go func() {
@@ -133,4 +106,46 @@ func (tp *TunnelProxy) Stop(ctx context.Context) error {
 	}
 
 	return nil
+}
+
+func (tp *TunnelProxy) Addr() string {
+	return net.JoinHostPort(tp.Host, tp.Port)
+}
+
+func (tp *TunnelProxy) TunnelAddr() string {
+	return net.JoinHostPort(tp.TunnelHost, tp.TunnelPort)
+}
+
+//handleACL middleware to handle ACL
+func (tp *TunnelProxy) handleACL(next http.Handler) http.Handler {
+	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		if tp.ACL == nil {
+			next.ServeHTTP(w, r)
+			return
+		}
+		clientIP := chshare.RemoteIP(r)
+		ipv4 := net.ParseIP(clientIP)
+		if ipv4 != nil {
+			tcpIP := &net.TCPAddr{IP: ipv4}
+			if tp.ACL.CheckAccess(tcpIP.IP) {
+				next.ServeHTTP(w, r)
+				return
+			}
+
+			tp.Logger.Debugf("Proxy Access rejected. Remote addr: %s", clientIP)
+			tp.sendHTML(w, http.StatusForbidden, "Access rejected by ACL")
+		}
+	})
+}
+
+func (tp *TunnelProxy) handleProxyError(w http.ResponseWriter, r *http.Request, err error) {
+	tp.Logger.Errorf("Error during proxy request %v", err)
+	tp.sendHTML(w, http.StatusInternalServerError, err.Error())
+}
+
+func (tp *TunnelProxy) sendHTML(w http.ResponseWriter, statusCode int, msg string) {
+	w.Header().Set("Content-Type", "text/html; charset=UTF-8")
+	w.WriteHeader(statusCode)
+	m := fmt.Sprintf("[%d] Rport tunnel proxy: %s", statusCode, msg)
+	_, _ = w.Write([]byte(m))
 }

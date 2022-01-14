@@ -1,0 +1,66 @@
+package clients
+
+import (
+	"crypto/tls"
+	"net/http"
+	"net/http/httputil"
+	"net/url"
+
+	"github.com/gorilla/mux"
+)
+
+//TunnelProxyConnectorHTTP uses the standard ReverseProxy from package httputil to connect to HTTP/HTTPS server on tunnel endpoint
+type TunnelProxyConnectorHTTP struct {
+	tunnelProxy  *TunnelProxy
+	reverseProxy *httputil.ReverseProxy
+}
+
+func NewTunnelConnectorHTTP(tp *TunnelProxy) *TunnelProxyConnectorHTTP {
+	return &TunnelProxyConnectorHTTP{tunnelProxy: tp}
+}
+
+func (tc *TunnelProxyConnectorHTTP) InitRouter(router *mux.Router) *mux.Router {
+	router.PathPrefix("/").HandlerFunc(tc.serveHTTP)
+
+	if tc.tunnelProxy.Tunnel.Remote.HostHeader != "" {
+		router.Use(tc.addHostHeader)
+	}
+
+	tc.createReverseProxy()
+
+	return router
+}
+
+func (tc *TunnelProxyConnectorHTTP) DisableHTTP2() bool {
+	return false
+}
+
+func (tc *TunnelProxyConnectorHTTP) createReverseProxy() {
+	tunnelURL := url.URL{
+		Scheme: *tc.tunnelProxy.Tunnel.Remote.Scheme,
+		Host:   tc.tunnelProxy.TunnelAddr(),
+	}
+
+	tc.tunnelProxy.Logger.Debugf("create https reverse proxy with ssl offloading forwarding to %s", tunnelURL.String())
+	tc.reverseProxy = httputil.NewSingleHostReverseProxy(&tunnelURL)
+	sslOffloadingTransport := &http.Transport{
+		TLSClientConfig: &tls.Config{
+			InsecureSkipVerify: true, //nolint:gosec
+		},
+	}
+	tc.reverseProxy.Transport = sslOffloadingTransport
+	tc.reverseProxy.ErrorHandler = tc.tunnelProxy.handleProxyError
+}
+
+func (tc *TunnelProxyConnectorHTTP) serveHTTP(w http.ResponseWriter, r *http.Request) {
+	tc.reverseProxy.ServeHTTP(w, r)
+}
+
+func (tc *TunnelProxyConnectorHTTP) addHostHeader(next http.Handler) http.Handler {
+	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		r.Header.Set("Host", tc.tunnelProxy.Tunnel.Remote.HostHeader)
+		r.Host = tc.tunnelProxy.Tunnel.Remote.HostHeader
+
+		next.ServeHTTP(w, r)
+	})
+}
