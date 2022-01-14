@@ -7,7 +7,7 @@ import (
 	"fmt"
 	"io"
 	"os"
-	"path"
+	"path/filepath"
 	"strings"
 
 	"github.com/pkg/errors"
@@ -189,7 +189,7 @@ func (c *Client) chmodFileInDestination(uploadedFile *models.UploadedFile) (err 
 }
 
 func (c *Client) copyFileToDestination(uploadedFile *models.UploadedFile, sshConn *sshClientConn) (copiedBytes int64, err error) {
-	tempFileName := path.Base(uploadedFile.SourceFilePath)
+	tempFileName := filepath.Base(uploadedFile.SourceFilePath)
 	copiedBytes, tempFilePath, err := c.copyFileToTempLocation(
 		tempFileName,
 		uploadedFile.SourceFilePath,
@@ -228,7 +228,7 @@ func (c *Client) copyFileToDestination(uploadedFile *models.UploadedFile, sshCon
 }
 
 func (c *Client) prepareDestinationDir(destinationPath string, mode os.FileMode) error {
-	destinationDir := path.Dir(destinationPath)
+	destinationDir := filepath.Dir(destinationPath)
 
 	destinationDirWasCreated, err := c.filesAPI.CreateDirIfNotExists(destinationDir, mode)
 	if err != nil {
@@ -258,7 +258,7 @@ func (c *Client) copyFileToTempLocation(fileName, remoteFilePath string, targetF
 		c.Logger.Debugf("created temp dir %s for uploaded files", c.configHolder.GetUploadDir())
 	}
 
-	tempFilePath = path.Join(c.configHolder.GetUploadDir(), fileName)
+	tempFilePath = filepath.Join(c.configHolder.GetUploadDir(), fileName)
 
 	tempFileExists, err := c.filesAPI.Exist(tempFilePath)
 	if err != nil {
@@ -322,7 +322,7 @@ func (c *Client) getUploadedFile(reqPayload []byte) (*models.UploadedFile, error
 		return nil, err
 	}
 
-	err = uploadedFile.ValidateDestinationPath(FilePushDenyGlobs, c.Logger)
+	err = uploadedFile.ValidateDestinationPath(c.configHolder.FilePushConfig.FilePushDeny, c.Logger)
 	if err != nil {
 		return nil, err
 	}

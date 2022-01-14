@@ -6,7 +6,7 @@ import (
 	"fmt"
 	"net/http"
 	"os"
-	"path"
+	"path/filepath"
 	"strconv"
 
 	"github.com/cloudradar-monitoring/rport/share/logger"
@@ -48,9 +48,9 @@ func (uf UploadedFile) Validate() error {
 }
 
 func (uf UploadedFile) ValidateDestinationPath(globPatters []string, log *logger.Logger) error {
-	destinationDir := path.Dir(uf.DestinationPath)
+	destinationDir := filepath.Dir(uf.DestinationPath)
 	for _, p := range globPatters {
-		matched, err := path.Match(p, destinationDir)
+		matched, err := filepath.Match(p, destinationDir)
 		if err != nil {
 			log.Errorf("failed to match glob pattern %s against file name %s: %v", p, uf.DestinationPath, err)
 			continue

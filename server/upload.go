@@ -5,7 +5,7 @@ import (
 	"fmt"
 	"mime/multipart"
 	"net/http"
-	"path"
+	"path/filepath"
 	"sync"
 	"time"
 
@@ -124,7 +124,7 @@ func (al *APIListener) handleUploadsWS(w http.ResponseWriter, req *http.Request)
 func (al *APIListener) genFilePath(uuid string) string {
 	uniqueFilename := fmt.Sprintf("%s_rport_filepush", uuid)
 
-	return path.Join(al.config.GetUploadDir(), uniqueFilename)
+	return filepath.Join(al.config.GetUploadDir(), uniqueFilename)
 }
 
 type uploadResult struct {
