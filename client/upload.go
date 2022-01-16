@@ -40,6 +40,35 @@ type SSHFileProvider struct {
 	sshConn ssh.Conn
 }
 
+type SftpSession struct {
+	RemoveFileData io.ReadCloser
+	SftpCl *sftp.Client
+}
+
+func (ss *SftpSession) Read(p []byte) (n int, err error) {
+	return ss.RemoveFileData.Read(p)
+}
+
+func (ss *SftpSession) Close() error {
+	errs := make([]string, 0, 2)
+
+	err := ss.RemoveFileData.Close()
+	if err != nil {
+		errs = append(errs, err.Error())
+	}
+
+	err = ss.SftpCl.Close()
+	if err != nil {
+		errs = append(errs, err.Error())
+	}
+
+	if len(errs) == 0 {
+		return nil
+	}
+
+	return errors.New(strings.Join(errs, ", "))
+}
+
 func (sfp SSHFileProvider) Open(path string) (io.ReadCloser, error) {
 	conn := ssh.NewClient(sfp.sshConn, nil, nil)
 	sftpCl, err := sftp.NewClient(conn)
@@ -47,9 +76,16 @@ func (sfp SSHFileProvider) Open(path string) (io.ReadCloser, error) {
 		return nil, errors.Wrapf(err, "failed to establish sftp connection to the server")
 	}
 
-	defer sftpCl.Close()
+	sftpFile, err := sftpCl.Open(path)
 
-	return sftpCl.Open(path)
+	if err != nil {
+		return nil, err
+	}
+
+	return &SftpSession{
+		RemoveFileData: sftpFile,
+		SftpCl:         sftpCl,
+	}, nil
 }
 
 func NewSSHUploadManager(
