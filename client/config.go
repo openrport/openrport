@@ -71,6 +71,10 @@ func (c *ClientConfigHolder) ParseAndValidate(skipScriptsDirValidation bool) err
 		return err
 	}
 
+	if err := c.ParseAndValidateFilePushConfig(); err != nil {
+		return err
+	}
+
 	return nil
 }
 
@@ -94,6 +98,17 @@ func (c *ClientConfigHolder) ParseAndValidateMonitoring() error {
 		}
 		c.Monitoring.WanCard = wanCard
 	}
+	return nil
+}
+
+func (c *ClientConfigHolder) ParseAndValidateFilePushConfig() error {
+	for _, globPattern := range c.FilePushConfig.FilePushDeny {
+		_, err := filepath.Match(globPattern, "/test")
+		if err != nil {
+			return fmt.Errorf("invalid glob pattern %s: %v", globPattern, err)
+		}
+	}
+
 	return nil
 }
 
@@ -249,6 +264,10 @@ func (c *ClientConfigHolder) GetScriptsDir() string {
 
 func (c *ClientConfigHolder) GetUploadDir() string {
 	return filepath.Join(c.Client.DataDir, files.DefaultUploadTempFolder)
+}
+
+func (c *ClientConfigHolder) GetFilePushDeny() []string {
+	return c.FilePushConfig.FilePushDeny
 }
 
 func (c *ClientConfigHolder) parseRemoteScripts(skipScriptsDirValidation bool) error {

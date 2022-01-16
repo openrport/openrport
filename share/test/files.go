@@ -50,9 +50,9 @@ func (f *FileAPIMock) Exist(path string) (bool, error) {
 	return args.Bool(0), args.Error(1)
 }
 
-func (f *FileAPIMock) Open(file string) (*os.File, error) {
+func (f *FileAPIMock) Open(file string) (io.ReadWriteCloser, error) {
 	args := f.Called(file)
-	return args.Get(0).(*os.File), args.Error(1)
+	return args.Get(0).(io.ReadWriteCloser), args.Error(1)
 }
 
 func (f *FileAPIMock) Write(fileName string, content string) error {

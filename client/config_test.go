@@ -32,6 +32,9 @@ func getDefaultValidMinConfig() ClientConfigHolder {
 			RemoteScripts: clientconfig.ScriptsConfig{
 				Enabled: false,
 			},
+			FilePushConfig: clientconfig.FilePushConfig{
+				FilePushDeny: []string{},
+			},
 		},
 	}
 }
@@ -629,6 +632,53 @@ func TestConfigParseAndValidateFallbackServers(t *testing.T) {
 			assert.Equal(t, tc.ExpectedError, err)
 			if tc.ExpectedError == nil {
 				assert.Equal(t, tc.Expected, config.Client.FallbackServers)
+			}
+		})
+	}
+}
+
+func TestConfigParseAndValidateFilePushConfig(t *testing.T) {
+	testCases := []struct {
+		Name          string
+		FilePushDeny  []string
+		ExpectedError string
+	}{
+		{
+			Name:         "nil deny globs",
+			FilePushDeny: nil,
+		},
+		{
+			Name:         "empty deny globs",
+			FilePushDeny: []string{},
+		},
+		{
+			Name:          "invalid pattern",
+			FilePushDeny:  []string{"/lib", "["},
+			ExpectedError: "invalid glob pattern [: syntax error in pattern",
+		},
+		{
+			Name:          "invalid pattern",
+			FilePushDeny:  []string{"[a"},
+			ExpectedError: "invalid glob pattern [a: syntax error in pattern",
+		},
+	}
+
+	for _, tc := range testCases {
+		tc := tc
+		t.Run(tc.Name, func(t *testing.T) {
+			t.Parallel()
+
+			config := getDefaultValidMinConfig()
+			config.FilePushConfig = clientconfig.FilePushConfig{
+				FilePushDeny: tc.FilePushDeny,
+			}
+
+			err := config.ParseAndValidate(true)
+
+			if tc.ExpectedError == "" {
+				require.NoError(t, err)
+			} else {
+				require.EqualError(t, err, tc.ExpectedError)
 			}
 		})
 	}

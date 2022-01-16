@@ -2,7 +2,6 @@ package chclient
 
 import (
 	"bytes"
-	"context"
 	"crypto/md5"
 	"fmt"
 	"io"
@@ -10,16 +9,67 @@ import (
 	"path/filepath"
 	"strings"
 
+	"github.com/pkg/sftp"
+
 	"github.com/pkg/errors"
 
-	"github.com/pkg/sftp"
 	"golang.org/x/crypto/ssh"
 
 	"github.com/cloudradar-monitoring/rport/share/files"
+	"github.com/cloudradar-monitoring/rport/share/logger"
 	"github.com/cloudradar-monitoring/rport/share/models"
 )
 
-func (c *Client) HandleUploadRequest(ctx context.Context, reqPayload []byte, sshConn *sshClientConn) (*models.UploadResponse, error) {
+type SourceFileProvider interface {
+	Open(path string) (io.ReadCloser, error)
+}
+
+type OptionsProvider interface {
+	GetUploadDir() string
+	GetFilePushDeny() []string
+}
+
+type UploadManager struct {
+	*logger.Logger
+	FilesAPI           files.FileAPI
+	OptionsProvider    OptionsProvider
+	SourceFileProvider SourceFileProvider
+}
+
+type SSHFileProvider struct {
+	sshConn ssh.Conn
+}
+
+func (sfp SSHFileProvider) Open(path string) (io.ReadCloser, error) {
+	conn := ssh.NewClient(sfp.sshConn, nil, nil)
+	sftpCl, err := sftp.NewClient(conn)
+	if err != nil {
+		return nil, errors.Wrapf(err, "failed to establish sftp connection to the server")
+	}
+
+	defer sftpCl.Close()
+
+	return sftpCl.Open(path)
+}
+
+func NewSSHUploadManager(
+	l *logger.Logger,
+	filesAPI files.FileAPI,
+	optionsProvider OptionsProvider,
+	sshConn ssh.Conn,
+) *UploadManager {
+	sshFileProvider := &SSHFileProvider{
+		sshConn: sshConn,
+	}
+	return &UploadManager{
+		Logger:             l,
+		FilesAPI:           filesAPI,
+		OptionsProvider:    optionsProvider,
+		SourceFileProvider: sshFileProvider,
+	}
+}
+
+func (c *UploadManager) HandleUploadRequest(reqPayload []byte) (*models.UploadResponse, error) {
 	c.Debugf("got request %s", string(reqPayload))
 
 	uploadedFile, err := c.getUploadedFile(reqPayload)
@@ -27,21 +77,21 @@ func (c *Client) HandleUploadRequest(ctx context.Context, reqPayload []byte, ssh
 		return nil, err
 	}
 
-	destinationFileExists, err := c.filesAPI.Exist(uploadedFile.DestinationPath)
+	destinationFileExists, err := c.FilesAPI.Exist(uploadedFile.DestinationPath)
 	if err != nil {
 		return nil, err
 	}
 
 	if !destinationFileExists {
-		return c.handleWritingFile(uploadedFile, sshConn)
+		return c.handleWritingFile(uploadedFile)
 	}
 
 	if uploadedFile.Sync {
-		return c.handleFileSync(uploadedFile, sshConn)
+		return c.handleFileSync(uploadedFile)
 	}
 
 	if uploadedFile.ForceWrite {
-		return c.handleWritingFile(uploadedFile, sshConn)
+		return c.handleWritingFile(uploadedFile)
 	}
 
 	msg := fmt.Sprintf("file %s already exists and sync and force options were not enabled, will skip the request", uploadedFile.DestinationPath)
@@ -56,8 +106,8 @@ func (c *Client) HandleUploadRequest(ctx context.Context, reqPayload []byte, ssh
 	}, nil
 }
 
-func (c *Client) handleFileSync(uploadedFile *models.UploadedFile, sshConn *sshClientConn) (resp *models.UploadResponse, err error) {
-	file, err := c.filesAPI.Open(uploadedFile.DestinationPath)
+func (c *UploadManager) handleFileSync(uploadedFile *models.UploadedFile) (resp *models.UploadResponse, err error) {
+	file, err := c.FilesAPI.Open(uploadedFile.DestinationPath)
 	if err != nil {
 		return nil, err
 	}
@@ -85,7 +135,7 @@ func (c *Client) handleFileSync(uploadedFile *models.UploadedFile, sshConn *sshC
 			uploadedFile.DestinationPath,
 		)
 
-		uploadResponse.UploadResponseShort.SizeBytes, err = c.copyFileToDestination(uploadedFile, sshConn)
+		uploadResponse.UploadResponseShort.SizeBytes, err = c.copyFileToDestination(uploadedFile)
 		if err != nil {
 			return nil, err
 		}
@@ -115,8 +165,8 @@ func (c *Client) handleFileSync(uploadedFile *models.UploadedFile, sshConn *sshC
 	return uploadResponse, nil
 }
 
-func (c *Client) handleWritingFile(uploadedFile *models.UploadedFile, sshConn *sshClientConn) (resp *models.UploadResponse, err error) {
-	copiedBytes, err := c.copyFileToDestination(uploadedFile, sshConn)
+func (c *UploadManager) handleWritingFile(uploadedFile *models.UploadedFile) (resp *models.UploadResponse, err error) {
+	copiedBytes, err := c.copyFileToDestination(uploadedFile)
 	if err != nil {
 		return nil, err
 	}
@@ -149,12 +199,12 @@ func (c *Client) handleWritingFile(uploadedFile *models.UploadedFile, sshConn *s
 	}, nil
 }
 
-func (c *Client) chownFileInDestination(uploadedFile *models.UploadedFile) (err error) {
+func (c *UploadManager) chownFileInDestination(uploadedFile *models.UploadedFile) (err error) {
 	if uploadedFile.DestinationFileOwner == "" && uploadedFile.DestinationFileGroup == "" {
 		return nil
 	}
 
-	err = c.filesAPI.ChangeOwner(uploadedFile.DestinationPath, uploadedFile.DestinationFileOwner, uploadedFile.DestinationFileGroup)
+	err = c.FilesAPI.ChangeOwner(uploadedFile.DestinationPath, uploadedFile.DestinationFileOwner, uploadedFile.DestinationFileGroup)
 	if err != nil {
 		return err
 	}
@@ -169,12 +219,12 @@ func (c *Client) chownFileInDestination(uploadedFile *models.UploadedFile) (err 
 	return nil
 }
 
-func (c *Client) chmodFileInDestination(uploadedFile *models.UploadedFile) (err error) {
+func (c *UploadManager) chmodFileInDestination(uploadedFile *models.UploadedFile) (err error) {
 	if uploadedFile.DestinationFileMode == 0 {
 		return nil
 	}
 
-	err = c.filesAPI.ChangeMode(uploadedFile.DestinationPath, uploadedFile.DestinationFileMode)
+	err = c.FilesAPI.ChangeMode(uploadedFile.DestinationPath, uploadedFile.DestinationFileMode)
 	if err != nil {
 		return err
 	}
@@ -188,14 +238,11 @@ func (c *Client) chmodFileInDestination(uploadedFile *models.UploadedFile) (err 
 	return nil
 }
 
-func (c *Client) copyFileToDestination(uploadedFile *models.UploadedFile, sshConn *sshClientConn) (copiedBytes int64, err error) {
-	tempFileName := filepath.Base(uploadedFile.SourceFilePath)
+func (c *UploadManager) copyFileToDestination(uploadedFile *models.UploadedFile) (copiedBytes int64, err error) {
 	copiedBytes, tempFilePath, err := c.copyFileToTempLocation(
-		tempFileName,
 		uploadedFile.SourceFilePath,
 		uploadedFile.DestinationFileMode,
 		uploadedFile.Md5Checksum,
-		sshConn,
 	)
 	if err != nil {
 		return 0, err
@@ -207,19 +254,19 @@ func (c *Client) copyFileToDestination(uploadedFile *models.UploadedFile, sshCon
 		return 0, err
 	}
 
-	destinationFileExists, err := c.filesAPI.Exist(uploadedFile.DestinationPath)
+	destinationFileExists, err := c.FilesAPI.Exist(uploadedFile.DestinationPath)
 	if err != nil {
 		return 0, err
 	}
 	if destinationFileExists {
 		c.Logger.Debugf("destination file %s already exists, will delete it", uploadedFile.DestinationPath)
-		err = c.filesAPI.Remove(uploadedFile.DestinationPath)
+		err = c.FilesAPI.Remove(uploadedFile.DestinationPath)
 		if err != nil {
 			return 0, err
 		}
 	}
 
-	err = c.filesAPI.Rename(tempFilePath, uploadedFile.DestinationPath)
+	err = c.FilesAPI.Rename(tempFilePath, uploadedFile.DestinationPath)
 	if err != nil {
 		return 0, err
 	}
@@ -227,10 +274,14 @@ func (c *Client) copyFileToDestination(uploadedFile *models.UploadedFile, sshCon
 	return copiedBytes, nil
 }
 
-func (c *Client) prepareDestinationDir(destinationPath string, mode os.FileMode) error {
+func (c *UploadManager) prepareDestinationDir(destinationPath string, mode os.FileMode) error {
 	destinationDir := filepath.Dir(destinationPath)
 
-	destinationDirWasCreated, err := c.filesAPI.CreateDirIfNotExists(destinationDir, mode)
+	if mode == 0 {
+		mode = files.DefaultMode
+	}
+
+	destinationDirWasCreated, err := c.FilesAPI.CreateDirIfNotExists(destinationDir, mode)
 	if err != nil {
 		return err
 	}
@@ -241,52 +292,47 @@ func (c *Client) prepareDestinationDir(destinationPath string, mode os.FileMode)
 	return nil
 }
 
-func (c *Client) copyFileToTempLocation(fileName, remoteFilePath string, targetFileMode os.FileMode, expectedMd5Checksum []byte, sshConn *sshClientConn) (
+func (c *UploadManager) copyFileToTempLocation(remoteFilePath string, targetFileMode os.FileMode, expectedMd5Checksum []byte) (
 	bytesCopied int64,
 	tempFilePath string,
 	err error,
 ) {
+	tempFileName := filepath.Base(remoteFilePath)
+
 	if targetFileMode == 0 {
 		targetFileMode = files.DefaultMode
 	}
 
-	tempDirWasCreated, err := c.filesAPI.CreateDirIfNotExists(c.configHolder.GetUploadDir(), targetFileMode)
+	tempDirWasCreated, err := c.FilesAPI.CreateDirIfNotExists(c.OptionsProvider.GetUploadDir(), targetFileMode)
 	if err != nil {
 		return 0, "", err
 	}
 	if tempDirWasCreated {
-		c.Logger.Debugf("created temp dir %s for uploaded files", c.configHolder.GetUploadDir())
+		c.Logger.Debugf("created temp dir %s for uploaded files", c.OptionsProvider.GetUploadDir())
 	}
 
-	tempFilePath = filepath.Join(c.configHolder.GetUploadDir(), fileName)
+	tempFilePath = filepath.Join(c.OptionsProvider.GetUploadDir(), tempFileName)
 
-	tempFileExists, err := c.filesAPI.Exist(tempFilePath)
+	tempFileExists, err := c.FilesAPI.Exist(tempFilePath)
 	if err != nil {
 		return 0, tempFilePath, err
 	}
 
 	if tempFileExists {
 		c.Logger.Debugf("temp file %s already exists, will delete it", tempFilePath)
-		err = c.filesAPI.Remove(tempFilePath)
+		err = c.FilesAPI.Remove(tempFilePath)
 		if err != nil {
 			return 0, tempFilePath, err
 		}
 	}
 
-	conn := ssh.NewClient(sshConn.Connection, nil, nil)
-	sftpCl, err := sftp.NewClient(conn)
-	if err != nil {
-		return 0, tempFilePath, err
-	}
-	defer sftpCl.Close()
-
-	remoteFile, err := sftpCl.Open(remoteFilePath)
+	remoteFile, err := c.SourceFileProvider.Open(remoteFilePath)
 	if err != nil {
 		return 0, tempFilePath, err
 	}
 	defer remoteFile.Close()
 
-	copiedBytes, md5Checksum, err := c.filesAPI.CreateFile(tempFilePath, remoteFile)
+	copiedBytes, md5Checksum, err := c.FilesAPI.CreateFile(tempFilePath, remoteFile)
 	if err != nil {
 		return 0, tempFilePath, err
 	}
@@ -294,7 +340,7 @@ func (c *Client) copyFileToTempLocation(fileName, remoteFilePath string, targetF
 
 	compareRes := bytes.Compare(md5Checksum, expectedMd5Checksum)
 	if compareRes != 0 {
-		err := c.filesAPI.Remove(tempFilePath)
+		err := c.FilesAPI.Remove(tempFilePath)
 		if err != nil {
 			c.Logger.Errorf("failed to remove %s: %v", tempFilePath, err)
 		}
@@ -311,7 +357,7 @@ func (c *Client) copyFileToTempLocation(fileName, remoteFilePath string, targetF
 	return copiedBytes, tempFilePath, nil
 }
 
-func (c *Client) getUploadedFile(reqPayload []byte) (*models.UploadedFile, error) {
+func (c *UploadManager) getUploadedFile(reqPayload []byte) (*models.UploadedFile, error) {
 	uploadedFile := new(models.UploadedFile)
 	err := uploadedFile.FromBytes(reqPayload)
 	if err != nil {
@@ -322,7 +368,7 @@ func (c *Client) getUploadedFile(reqPayload []byte) (*models.UploadedFile, error
 		return nil, err
 	}
 
-	err = uploadedFile.ValidateDestinationPath(c.configHolder.FilePushConfig.FilePushDeny, c.Logger)
+	err = uploadedFile.ValidateDestinationPath(c.OptionsProvider.GetFilePushDeny(), c.Logger)
 	if err != nil {
 		return nil, err
 	}

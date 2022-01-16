@@ -17,7 +17,7 @@ import (
 
 const DefaultUploadTempFolder = "filepush"
 
-const DefaultMode = 0764
+const DefaultMode = os.FileMode(0764)
 
 type FileAPI interface {
 	ReadDir(dir string) ([]os.FileInfo, error)
@@ -25,7 +25,7 @@ type FileAPI interface {
 	WriteJSON(file string, content interface{}) error
 	Write(file string, content string) error
 	ReadJSON(file string, dest interface{}) error
-	Open(file string) (*os.File, error)
+	Open(file string) (io.ReadWriteCloser, error)
 	Exist(path string) (bool, error)
 	CreateFile(path string, sourceReader io.Reader) (writtenBytes int64, md5CheckSum []byte, err error)
 	ChangeOwner(path, owner, group string) error
@@ -111,7 +111,7 @@ func (f *FileSystem) ReadJSON(file string, dest interface{}) error {
 	return nil
 }
 
-func (f *FileSystem) Open(file string) (*os.File, error) {
+func (f *FileSystem) Open(file string) (io.ReadWriteCloser, error) {
 	return os.Open(file)
 }
 

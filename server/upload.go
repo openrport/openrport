@@ -35,6 +35,13 @@ type UploadRequest struct {
 }
 
 func (al *APIListener) handleFileUploads(w http.ResponseWriter, req *http.Request) {
+	uploadRequest, err := al.uploadRequestFromRequest(req)
+	if err != nil {
+		al.jsonErrorResponseWithTitle(w, http.StatusBadRequest, err.Error())
+		return
+	}
+	defer uploadRequest.File.Close()
+
 	wasCreated, err := al.filesAPI.CreateDirIfNotExists(al.config.GetUploadDir(), files.DefaultMode)
 	if err != nil {
 		al.jsonError(w, err)
@@ -43,13 +50,6 @@ func (al *APIListener) handleFileUploads(w http.ResponseWriter, req *http.Reques
 	if wasCreated {
 		al.Infof("created directory %s", al.config.GetUploadDir())
 	}
-
-	uploadRequest, err := al.uploadRequestFromRequest(req)
-	if err != nil {
-		al.jsonErrorResponseWithTitle(w, http.StatusBadRequest, err.Error())
-		return
-	}
-	defer uploadRequest.File.Close()
 
 	uploadRequest.SourceFilePath = al.genFilePath(uploadRequest.ID)
 
