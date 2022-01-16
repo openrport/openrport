@@ -31,9 +31,9 @@ func TestHandleFileUploads(t *testing.T) {
 		fsCallback          func(fs *test.FileAPIMock)
 		wantResp            *models.UploadResponseShort
 		wantClientInputFile *models.UploadedFile
-		wantFileName        string
-		wantFileContent     string
-		wantMultipartForm   map[string][]string
+		fileName            string
+		fileContent         string
+		formParts           map[string][]string
 	}{
 		{
 			name:       "send file success",
@@ -56,9 +56,9 @@ func TestHandleFileUploads(t *testing.T) {
 				fs.On("CreateFile", "/data/filepush/id-123_rport_filepush", mock.MatchedBy(fileExpectation)).Return(int64(10), []byte("md5-123"), nil)
 				fs.On("Remove", "/data/filepush/id-123_rport_filepush").Return(nil)
 			},
-			wantFileName:    "file.txt",
-			wantFileContent: "some content",
-			wantMultipartForm: map[string][]string{
+			fileName:    "file.txt",
+			fileContent: "some content",
+			formParts: map[string][]string{
 				"client": {
 					cl.ID,
 				},
@@ -137,13 +137,13 @@ func TestHandleFileUploads(t *testing.T) {
 			body := &bytes.Buffer{}
 			writer := multipart.NewWriter(body)
 
-			part, err := writer.CreateFormFile("upload", tc.wantFileName)
+			part, err := writer.CreateFormFile("upload", tc.fileName)
 			require.NoError(t, err)
 
-			_, err = io.Copy(part, strings.NewReader(tc.wantFileContent))
+			_, err = io.Copy(part, strings.NewReader(tc.fileContent))
 			require.NoError(t, err)
 
-			for key, vals := range tc.wantMultipartForm {
+			for key, vals := range tc.formParts {
 				for _, val := range vals {
 					err = writer.WriteField(key, val)
 					require.NoError(t, err)

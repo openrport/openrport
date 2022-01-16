@@ -66,6 +66,10 @@ func (uf UploadedFile) ValidateDestinationPath(globPatters []string, log *logger
 }
 
 func (uf *UploadedFile) FromMultipartRequest(req *http.Request) error {
+	if req.MultipartForm == nil {
+		return nil
+	}
+
 	if len(req.MultipartForm.Value[uploadedFileDestinationPathKey]) > 0 {
 		uf.DestinationPath = req.MultipartForm.Value[uploadedFileDestinationPathKey][0]
 	}
