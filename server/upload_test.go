@@ -2,36 +2,97 @@ package chserver
 
 import (
 	"bytes"
+	"encoding/json"
 	"io"
+	"io/ioutil"
 	"mime/multipart"
 	"net/http"
 	"net/http/httptest"
 	"strings"
 	"testing"
-
-	"github.com/stretchr/testify/assert"
-	"github.com/stretchr/testify/mock"
-	"github.com/stretchr/testify/require"
+	"time"
 
 	"github.com/cloudradar-monitoring/rport/server/clients"
 	"github.com/cloudradar-monitoring/rport/share/files"
+	"github.com/cloudradar-monitoring/rport/share/models"
 	"github.com/cloudradar-monitoring/rport/share/test"
+	"github.com/stretchr/testify/assert"
+	"github.com/stretchr/testify/mock"
+	"github.com/stretchr/testify/require"
 )
 
 func TestHandleFileUploads(t *testing.T) {
 	cl := clients.New(t).Build()
 
 	testCases := []struct {
-		name           string
-		expectedStatus int
-		fsCallback     func(fs *test.FileAPIMock)
+		name                string
+		wantStatus          int
+		fsCallback          func(fs *test.FileAPIMock)
+		wantResp            *models.UploadResponseShort
+		wantClientInputFile *models.UploadedFile
+		wantFileName        string
+		wantFileContent     string
+		wantMultipartForm   map[string][]string
 	}{
 		{
-			name:           "send file success",
-			expectedStatus: http.StatusOK,
+			name:       "send file success",
+			wantStatus: http.StatusOK,
+			wantResp: &models.UploadResponseShort{
+				ID:        "id-123",
+				Filepath:  "/destination/myfile.txt",
+				SizeBytes: 10,
+			},
 			fsCallback: func(fs *test.FileAPIMock) {
 				fs.On("CreateDirIfNotExists", "/data/"+files.DefaultUploadTempFolder, files.DefaultMode).Return(true, nil)
-				fs.On("CreateFile", mock.Anything, mock.Anything).Return(int64(10), []byte("md5-123"), nil)
+
+				fileExpectation := func(f io.Reader) bool {
+					actualFileContent, err := ioutil.ReadAll(f)
+
+					require.NoError(t, err)
+
+					return string(actualFileContent) == "some content"
+				}
+				fs.On("CreateFile", "/data/filepush/id-123_rport_filepush", mock.MatchedBy(fileExpectation)).Return(int64(10), []byte("md5-123"), nil)
+				fs.On("Remove", "/data/filepush/id-123_rport_filepush").Return(nil)
+			},
+			wantFileName:    "file.txt",
+			wantFileContent: "some content",
+			wantMultipartForm: map[string][]string{
+				"client": {
+					cl.ID,
+				},
+				"dest": {
+					"/destination/myfile.txt",
+				},
+				"id": {
+					"id-123",
+				},
+				"user": {
+					"admin",
+				},
+				"group": {
+					"group",
+				},
+				"mode": {
+					"0744",
+				},
+				"force": {
+					"1",
+				},
+				"sync": {
+					"1",
+				},
+			},
+			wantClientInputFile: &models.UploadedFile{
+				ID:                   "id-123",
+				SourceFilePath:       "/data/filepush/id-123_rport_filepush",
+				DestinationPath:      "/destination/myfile.txt",
+				DestinationFileMode:  0744,
+				DestinationFileOwner: "admin",
+				DestinationFileGroup: "group",
+				ForceWrite:           true,
+				Sync:                 true,
+				Md5Checksum:          []byte("md5-123"),
 			},
 		},
 	}
@@ -39,7 +100,12 @@ func TestHandleFileUploads(t *testing.T) {
 	for _, tc := range testCases {
 		t.Run(tc.name, func(t *testing.T) {
 			connMock := test.NewConnMock()
+
 			connMock.ReturnOk = true
+
+			done := make(chan bool)
+			connMock.DoneChannel = done
+
 			cl.Connection = connMock
 
 			fileAPIMock := test.NewFileAPIMock()
@@ -70,17 +136,18 @@ func TestHandleFileUploads(t *testing.T) {
 			body := &bytes.Buffer{}
 			writer := multipart.NewWriter(body)
 
-			part, err := writer.CreateFormFile("upload", "file.txt")
+			part, err := writer.CreateFormFile("upload", tc.wantFileName)
 			require.NoError(t, err)
 
-			_, err = io.Copy(part, strings.NewReader("some file"))
+			_, err = io.Copy(part, strings.NewReader(tc.wantFileContent))
 			require.NoError(t, err)
 
-			err = writer.WriteField("client", cl.ID)
-			require.NoError(t, err)
-
-			err = writer.WriteField("dest", "/destination/myfile.txt")
-			require.NoError(t, err)
+			for key, vals := range tc.wantMultipartForm {
+				for _, val := range vals {
+					err = writer.WriteField(key, val)
+					require.NoError(t, err)
+				}
+			}
 
 			err = writer.Close()
 			require.NoError(t, err)
@@ -91,11 +158,32 @@ func TestHandleFileUploads(t *testing.T) {
 			rec := httptest.NewRecorder()
 			al.router.ServeHTTP(rec, req)
 
-			fileAPIMock.AssertExpectations(t)
+			assert.Equal(t, tc.wantStatus, rec.Code)
 
-			assert.Equal(t, tc.expectedStatus, rec.Code)
-			name, _, _ := connMock.InputSendRequest()
-			assert.Equal(t, "", name)
+			actualResponse := &models.UploadResponseShort{}
+			err = json.Unmarshal(rec.Body.Bytes(), actualResponse)
+			require.NoError(t, err)
+
+			assert.Equal(t, tc.wantResp, actualResponse)
+
+			select {
+			case <-done:
+				assertClientPayload(t, connMock, tc.wantClientInputFile)
+			case <-time.After(time.Second * 2):
+				assertClientPayload(t, connMock, tc.wantClientInputFile)
+			}
 		})
 	}
+}
+
+func assertClientPayload(t *testing.T, connMock *test.ConnMock, wantClientInputFile *models.UploadedFile) {
+	name, wantReply, payload := connMock.InputSendRequest()
+
+	actualInputFile := &models.UploadedFile{}
+	err := actualInputFile.FromBytes(payload)
+	require.NoError(t, err)
+
+	assert.Equal(t, "upload", name)
+	assert.Equal(t, wantClientInputFile, actualInputFile)
+	assert.True(t, wantReply)
 }

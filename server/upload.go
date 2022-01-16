@@ -10,13 +10,11 @@ import (
 	"time"
 
 	"github.com/cloudradar-monitoring/rport/server/auditlog"
-
 	"github.com/cloudradar-monitoring/rport/server/clients"
 	"github.com/cloudradar-monitoring/rport/share/comm"
 	"github.com/cloudradar-monitoring/rport/share/files"
 	"github.com/cloudradar-monitoring/rport/share/models"
 	"github.com/cloudradar-monitoring/rport/share/random"
-
 	"github.com/google/uuid"
 	"github.com/gorilla/websocket"
 	"github.com/pkg/errors"
@@ -278,13 +276,6 @@ func (al *APIListener) uploadRequestFromRequest(req *http.Request) (*UploadReque
 		UploadedFile: &models.UploadedFile{},
 	}
 
-	id, e := random.UUID4()
-	if e != nil {
-		al.Errorf("failed to generate uuid, will fallback to timestamp uuid, error: %v", e)
-		id = fmt.Sprintf("%d", time.Now().UnixNano())
-	}
-	ur.UploadedFile.ID = id
-
 	err := req.ParseMultipartForm(uploadBufSize)
 	if err != nil {
 		return nil, err
@@ -306,6 +297,15 @@ func (al *APIListener) uploadRequestFromRequest(req *http.Request) (*UploadReque
 	ur.File, ur.FileHeader, err = req.FormFile("upload")
 	if err != nil {
 		return nil, err
+	}
+
+	if ur.UploadedFile.ID == "" {
+		id, e := random.UUID4()
+		if e != nil {
+			al.Errorf("failed to generate uuid, will fallback to timestamp uuid, error: %v", e)
+			id = fmt.Sprintf("%d", time.Now().UnixNano())
+		}
+		ur.UploadedFile.ID = id
 	}
 
 	return ur, nil

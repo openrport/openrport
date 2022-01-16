@@ -21,6 +21,7 @@ const (
 	uploadedFileModeKey            = "mode"
 	fileWriteForcedKey             = "force"
 	fileSyncdKey                   = "sync"
+	IDKey                          = "id"
 )
 
 type UploadedFile struct {
@@ -90,6 +91,9 @@ func (uf *UploadedFile) FromMultipartRequest(req *http.Request) error {
 	}
 	if len(req.MultipartForm.Value[fileSyncdKey]) > 0 {
 		uf.Sync = StrToBool(req.MultipartForm.Value[fileSyncdKey][0])
+	}
+	if len(req.MultipartForm.Value[IDKey]) > 0 {
+		uf.ID = req.MultipartForm.Value[IDKey][0]
 	}
 
 	return nil
