@@ -171,9 +171,9 @@ func TestHandleUploadRequest(t *testing.T) {
 				Md5Checksum:     []byte("md5_125"),
 			},
 			optionsCallback: func(opts *UploadOptionsProviderMock) {
-				opts.On("GetFilePushDeny").Return([]string{"/destination"})
+				opts.On("GetFilePushDeny").Return([]string{"/destination/*"})
 			},
-			wantError: "target path /destination/file4.txt matches file_push_deny pattern /destination, therefore the file push request is rejected",
+			wantError: "target path /destination/file4.txt matches file_push_deny pattern /destination/*, therefore the file push request is rejected",
 		},
 		{
 			name:             "md5 checksum not matching",

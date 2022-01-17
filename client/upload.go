@@ -42,7 +42,7 @@ type SSHFileProvider struct {
 
 type SftpSession struct {
 	RemoveFileData io.ReadCloser
-	SftpCl *sftp.Client
+	SftpCl         *sftp.Client
 }
 
 func (ss *SftpSession) Read(p []byte) (n int, err error) {

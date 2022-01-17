@@ -38,9 +38,14 @@ The file itself is marked with the required `upload` key.
 Except for the file itself the Rport server needs following information sent as text parts of a multipart request:
 
 ### client 
-_(string required)_
+_(string optional)_
 
-ID of a client who should receive the file. You can use multiple `client` parts if needed to tranfer file to multiple clients.
+ID of a client who should receive the file. You can use multiple `client` parts if needed to transfer file to multiple clients.
+
+### group_id
+_(string optional)_
+
+Client group ID where server should place the uploaded file. You can provided multiple group IDs by repeating `group_id` parameter.
 
 ### dest 
 _(string required)_
@@ -172,4 +177,10 @@ You can additionally specify the list of folders/patterns where the rport client
 You can define them as a list of [glob patterns](https://en.wikipedia.org/wiki/Glob_(programming)) in the `[file-push] file_push_deny` configuration section of an rport client.
 Default list is `['/bin', '/sbin', '/boot', '/usr/bin', '/usr/sbin', '/dev', '/lib*', '/run']` for Unix and `['C:\Windows\', 'C:\ProgramData']` for Windows.
 
-The restriction is applied to the target folder rather than target file
+The restriction is applied for both target directory or target file path. Here is the list of examples to demonstrate this:
+- `/bin` rejects the target paths like `/bin/yourfile.txt`, `/bin/somefile.csv` but not `/etc/bin/yourfile.txt`
+- `C:\Windows\*.exe` rejects the target paths like `C:\Windows\myfancy_program.exe`, `C:\Windows\notepad.exe` but not `C:\Windows\myfancy_program.txt` or `C:\Windows\notepad.md`
+
+## File size limit
+you can limit the size of uploaded files in bytes by setting `max_filepush_size` parameter in `[server]` section of rport server configuration.
+By default, this limit is 10Mb.

@@ -51,13 +51,22 @@ func (uf UploadedFile) Validate() error {
 func (uf UploadedFile) ValidateDestinationPath(globPatters []string, log *logger.Logger) error {
 	destinationDir := filepath.Dir(uf.DestinationPath)
 	for _, p := range globPatters {
-		matched, err := filepath.Match(p, destinationDir)
+		matchedDir, err := filepath.Match(p, destinationDir)
+		if err != nil {
+			log.Errorf("failed to match glob pattern %s against destination directory %s: %v", p, uf.DestinationPath, err)
+			continue
+		}
+		if matchedDir {
+			return fmt.Errorf("target path %s matches file_push_deny pattern %s, therefore the file push request is rejected", destinationDir, p)
+		}
+
+		matchedFile, err := filepath.Match(p, uf.DestinationPath)
 		if err != nil {
 			log.Errorf("failed to match glob pattern %s against file name %s: %v", p, uf.DestinationPath, err)
 			continue
 		}
 
-		if matched {
+		if matchedFile {
 			return fmt.Errorf("target path %s matches file_push_deny pattern %s, therefore the file push request is rejected", uf.DestinationPath, p)
 		}
 	}

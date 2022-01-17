@@ -79,79 +79,147 @@ func TestValidateDestinationPathUploadedFile(t *testing.T) {
 		globPatterns []string
 	}{
 		{
-			name: "glob_exact_match",
+			name: "dir_exact_match",
 			fileInput: UploadedFile{
 				DestinationPath: "/test/mama.txt",
 			},
-			wantErr:      "target path /test/mama.txt matches file_push_deny pattern /test, therefore the file push request is rejected",
+			wantErr:      "target path /test matches file_push_deny pattern /test, therefore the file push request is rejected",
 			globPatterns: []string{"/lele", "/test"},
 		},
 		{
-			name: "glob_exact_no_match",
+			name: "dir_exact_no_match",
 			fileInput: UploadedFile{
 				DestinationPath: "/mele",
 			},
 			globPatterns: []string{"/lele", "/pele"},
 		},
 		{
-			name: "glob_wildcard_match",
+			name: "dir_wildcard_match",
 			fileInput: UploadedFile{
 				DestinationPath: "/test/lala/mama.txt",
 			},
-			wantErr:      "target path /test/lala/mama.txt matches file_push_deny pattern /test/*, therefore the file push request is rejected",
+			wantErr:      "target path /test/lala matches file_push_deny pattern /test/*, therefore the file push request is rejected",
 			globPatterns: []string{"/test/*"},
 		},
 		{
-			name: "glob_wildcard_no_match",
+			name: "dir_wildcard_no_match",
 			fileInput: UploadedFile{
 				DestinationPath: "/test/lala/mama.txt",
 			},
-			globPatterns: []string{"/test/*/*"},
+			globPatterns: []string{"/test/*/*.csv"},
 		},
 		{
-			name: "glob_any_symbol_match",
+			name: "dir_any_symbol_match",
 			fileInput: UploadedFile{
 				DestinationPath: "/test/lala/mama.txt",
 			},
-			wantErr:      "target path /test/lala/mama.txt matches file_push_deny pattern /test/?ala, therefore the file push request is rejected",
+			wantErr:      "target path /test/lala matches file_push_deny pattern /test/?ala, therefore the file push request is rejected",
 			globPatterns: []string{"/test/?ala"},
 		},
 		{
-			name: "glob_any_symbol_no_match",
+			name: "dir_any_symbol_no_match",
 			fileInput: UploadedFile{
 				DestinationPath: "/test/lala/mama.txt",
 			},
 			globPatterns: []string{"/test/?"},
 		},
 		{
-			name: "glob_symbol_set_match",
+			name: "dir_symbol_set_match",
 			fileInput: UploadedFile{
 				DestinationPath: "/test/mama.txt",
 			},
-			wantErr:      "target path /test/mama.txt matches file_push_deny pattern /[tabc][lae][ts]t, therefore the file push request is rejected",
+			wantErr:      "target path /test matches file_push_deny pattern /[tabc][lae][ts]t, therefore the file push request is rejected",
 			globPatterns: []string{"/[tabc][lae][ts]t"},
 		},
 		{
-			name: "glob_symbol_set_no_match",
+			name: "dir_symbol_set_no_match",
 			fileInput: UploadedFile{
 				DestinationPath: "/test/mama.txt",
 			},
 			globPatterns: []string{"/[abc]est"},
 		},
 		{
-			name: "glob_symbol_range_match",
+			name: "dir_symbol_range_match",
 			fileInput: UploadedFile{
 				DestinationPath: "/test/mama.txt",
 			},
-			wantErr:      "target path /test/mama.txt matches file_push_deny pattern /[a-z]est, therefore the file push request is rejected",
+			wantErr:      "target path /test matches file_push_deny pattern /[a-z]est, therefore the file push request is rejected",
 			globPatterns: []string{"/[a-z]est"},
 		},
 		{
-			name: "glob_symbol_range_no_match",
+			name: "dir_symbol_range_no_match",
 			fileInput: UploadedFile{
 				DestinationPath: "/1test/mama.txt",
 			},
 			globPatterns: []string{"/[a-z]est"},
+		},
+		{
+			name: "file_full_match",
+			fileInput: UploadedFile{
+				DestinationPath: "/etc/mama.txt",
+			},
+			wantErr:      "target path /etc/mama.txt matches file_push_deny pattern /etc/mama.txt, therefore the file push request is rejected",
+			globPatterns: []string{"/etc/*.csv", "/etc/mama.txt"},
+		},
+		{
+			name: "file_wildcard_match",
+			fileInput: UploadedFile{
+				DestinationPath: "/etc/mama.txt",
+			},
+			wantErr:      "target path /etc/mama.txt matches file_push_deny pattern /etc/*.txt, therefore the file push request is rejected",
+			globPatterns: []string{"/etc/*.txt"},
+		},
+		{
+			name: "file_wildcard_not_match",
+			fileInput: UploadedFile{
+				DestinationPath: "/etc/mama.txt",
+			},
+			globPatterns: []string{"/etc/*.csv"},
+		},
+		{
+			name: "file_any_symbol_match",
+			fileInput: UploadedFile{
+				DestinationPath: "/etc/mama.txt",
+			},
+			wantErr:      "target path /etc/mama.txt matches file_push_deny pattern /etc/?ama.txt, therefore the file push request is rejected",
+			globPatterns: []string{"/etc/?ama.txt"},
+		},
+		{
+			name: "file_any_symbol_not_match",
+			fileInput: UploadedFile{
+				DestinationPath: "/etc/ma.txt",
+			},
+			globPatterns: []string{"/etc/?.txt"},
+		},
+		{
+			name: "file_symbol_set_match",
+			fileInput: UploadedFile{
+				DestinationPath: "/etc/abc.txt",
+			},
+			wantErr:      "target path /etc/abc.txt matches file_push_deny pattern /etc/[abc][b][bac].txt, therefore the file push request is rejected",
+			globPatterns: []string{"/etc/[abc][b][bac].txt"},
+		},
+		{
+			name: "file_symbol_set_not_match",
+			fileInput: UploadedFile{
+				DestinationPath: "/etc/abd.txt",
+			},
+			globPatterns: []string{"/etc/[abc][b][bac].txt"},
+		},
+		{
+			name: "file_symbol_range_match",
+			fileInput: UploadedFile{
+				DestinationPath: "/etc/z1c.txt",
+			},
+			wantErr:      "target path /etc/z1c.txt matches file_push_deny pattern /etc/[a-z][0-9][a-c].txt, therefore the file push request is rejected",
+			globPatterns: []string{"/etc/[a-z][0-9][a-c].txt"},
+		},
+		{
+			name: "file_symbol_range_not_match",
+			fileInput: UploadedFile{
+				DestinationPath: "/etc/z1c.txt",
+			},
+			globPatterns: []string{"/etc/[a-y][0-9][a-c].txt"},
 		},
 	}
 
