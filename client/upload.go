@@ -171,23 +171,35 @@ func (c *UploadManager) handleFileSync(uploadedFile *models.UploadedFile) (resp 
 			uploadedFile.DestinationPath,
 		)
 
-		uploadResponse.UploadResponseShort.SizeBytes, err = c.copyFileToDestination(uploadedFile)
+		copiedBytes, tempFilePath, err := c.copyFileToTempLocation(
+			uploadedFile.SourceFilePath,
+			uploadedFile.DestinationFileMode,
+			uploadedFile.Md5Checksum,
+		)
+		if err != nil {
+			return nil, err
+		}
+		c.Logger.Debugf("copied remote file %s to the temp path %s", uploadedFile.SourceFilePath, tempFilePath)
+
+		uploadResponse.UploadResponseShort.SizeBytes = copiedBytes
+
+		err = c.copyFileToDestination(tempFilePath, uploadedFile)
 		if err != nil {
 			return nil, err
 		}
 		msgParts = append(msgParts, "file successfully copied to destination")
 	}
 
-	err = c.chownFileInDestination(uploadedFile)
-	if err != nil {
-		c.Logger.Errorf(err.Error())
-		msgParts = append(msgParts, fmt.Sprintf("chown failed: %v", err))
-	}
-
-	err = c.chmodFileInDestination(uploadedFile)
+	err = c.chmodFile(uploadedFile.DestinationPath, uploadedFile.DestinationFileMode)
 	if err != nil {
 		c.Logger.Errorf(err.Error())
 		msgParts = append(msgParts, fmt.Sprintf("chmod failed: %v", err))
+	}
+
+	err = c.chownFile(uploadedFile.DestinationPath, uploadedFile.DestinationFileOwner, uploadedFile.DestinationFileGroup)
+	if err != nil {
+		c.Logger.Errorf(err.Error())
+		msgParts = append(msgParts, fmt.Sprintf("chown failed: %v", err))
 	}
 
 	if len(msgParts) == 0 {
@@ -202,24 +214,33 @@ func (c *UploadManager) handleFileSync(uploadedFile *models.UploadedFile) (resp 
 }
 
 func (c *UploadManager) handleWritingFile(uploadedFile *models.UploadedFile) (resp *models.UploadResponse, err error) {
-	copiedBytes, err := c.copyFileToDestination(uploadedFile)
+	copiedBytes, tempFilePath, err := c.copyFileToTempLocation(
+		uploadedFile.SourceFilePath,
+		uploadedFile.DestinationFileMode,
+		uploadedFile.Md5Checksum,
+	)
 	if err != nil {
 		return nil, err
 	}
 
-	msgParts := []string{
-		"file successfully copied to destination",
-	}
+	msgParts := []string{}
 
-	err = c.chownFileInDestination(uploadedFile)
-	if err != nil {
-		msgParts = append(msgParts, fmt.Sprintf("chown failed: %v", err))
-	}
-
-	err = c.chmodFileInDestination(uploadedFile)
+	err = c.chmodFile(tempFilePath, uploadedFile.DestinationFileMode)
 	if err != nil {
 		msgParts = append(msgParts, fmt.Sprintf("chmod failed: %v", err))
 	}
+
+	err = c.chownFile(tempFilePath, uploadedFile.DestinationFileOwner, uploadedFile.DestinationFileGroup)
+	if err != nil {
+		msgParts = append(msgParts, fmt.Sprintf("chown of %s failed: %v", tempFilePath, err))
+	}
+
+	err = c.copyFileToDestination(tempFilePath, uploadedFile)
+	if err != nil {
+		return nil, err
+	}
+	c.Logger.Debugf("copied remote file %s to the temp path %s", uploadedFile.SourceFilePath, tempFilePath)
+	msgParts = append(msgParts, "file successfully copied to destination")
 
 	message := strings.Join(msgParts, ".")
 	c.Logger.Debugf(message)
@@ -235,79 +256,69 @@ func (c *UploadManager) handleWritingFile(uploadedFile *models.UploadedFile) (re
 	}, nil
 }
 
-func (c *UploadManager) chownFileInDestination(uploadedFile *models.UploadedFile) (err error) {
-	if uploadedFile.DestinationFileOwner == "" && uploadedFile.DestinationFileGroup == "" {
+func (c *UploadManager) chownFile(filePath, owner, group string) (err error) {
+	if owner == "" && group == "" {
 		return nil
 	}
 
-	err = c.FilesAPI.ChangeOwner(uploadedFile.DestinationPath, uploadedFile.DestinationFileOwner, uploadedFile.DestinationFileGroup)
+	err = c.FilesAPI.ChangeOwner(filePath, owner, group)
 	if err != nil {
 		return err
 	}
 
 	c.Logger.Debugf(
 		"chowned file %s, %s:%s",
-		uploadedFile.DestinationPath,
-		uploadedFile.DestinationFileOwner,
-		uploadedFile.DestinationFileGroup,
+		filePath,
+		owner,
+		group,
 	)
 
 	return nil
 }
 
-func (c *UploadManager) chmodFileInDestination(uploadedFile *models.UploadedFile) (err error) {
-	if uploadedFile.DestinationFileMode == 0 {
+func (c *UploadManager) chmodFile(path string, mode os.FileMode) (err error) {
+	if mode == 0 {
 		return nil
 	}
 
-	err = c.FilesAPI.ChangeMode(uploadedFile.DestinationPath, uploadedFile.DestinationFileMode)
+	err = c.FilesAPI.ChangeMode(path, mode)
 	if err != nil {
 		return err
 	}
 
 	c.Logger.Debugf(
 		"chmoded file %s: %v",
-		uploadedFile.DestinationPath,
-		uploadedFile.DestinationFileMode,
+		path,
+		mode,
 	)
 
 	return nil
 }
 
-func (c *UploadManager) copyFileToDestination(uploadedFile *models.UploadedFile) (copiedBytes int64, err error) {
-	copiedBytes, tempFilePath, err := c.copyFileToTempLocation(
-		uploadedFile.SourceFilePath,
-		uploadedFile.DestinationFileMode,
-		uploadedFile.Md5Checksum,
-	)
-	if err != nil {
-		return 0, err
-	}
-	c.Logger.Debugf("moved temp file %s to the target path %s", tempFilePath, uploadedFile.DestinationPath)
-
+func (c *UploadManager) copyFileToDestination(tempFilePath string, uploadedFile *models.UploadedFile) (err error) {
 	err = c.prepareDestinationDir(uploadedFile.DestinationPath, uploadedFile.DestinationFileMode)
 	if err != nil {
-		return 0, err
+		return err
 	}
 
 	destinationFileExists, err := c.FilesAPI.Exist(uploadedFile.DestinationPath)
 	if err != nil {
-		return 0, err
+		return err
 	}
 	if destinationFileExists {
 		c.Logger.Debugf("destination file %s already exists, will delete it", uploadedFile.DestinationPath)
 		err = c.FilesAPI.Remove(uploadedFile.DestinationPath)
 		if err != nil {
-			return 0, err
+			return err
 		}
 	}
 
 	err = c.FilesAPI.Rename(tempFilePath, uploadedFile.DestinationPath)
 	if err != nil {
-		return 0, err
+		return err
 	}
 
-	return copiedBytes, nil
+	return nil
 }
 
 func (c *UploadManager) prepareDestinationDir(destinationPath string, mode os.FileMode) error {

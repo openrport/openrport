@@ -8,8 +8,6 @@ import (
 	"io"
 	"io/ioutil"
 	"os"
-	"os/user"
-	"strconv"
 	"strings"
 
 	errors2 "github.com/pkg/errors"
@@ -150,40 +148,7 @@ func (f *FileSystem) CreateDirIfNotExists(path string, mode os.FileMode) (wasCre
 }
 
 func (f *FileSystem) ChangeOwner(path, owner, group string) error {
-	if owner == "" && group == "" {
-		return nil
-	}
-
-	targetUserUID := os.Getuid()
-	if owner != "" {
-		usr, err := user.Lookup(owner)
-		if err != nil {
-			return err
-		}
-		targetUserUID, err = strconv.Atoi(usr.Uid)
-		if err != nil {
-			return err
-		}
-	}
-
-	targetGroupGUID := os.Getgid()
-	if group != "" {
-		gr, err := user.LookupGroup(group)
-		if err != nil {
-			return err
-		}
-		targetGroupGUID, err = strconv.Atoi(gr.Gid)
-		if err != nil {
-			return err
-		}
-	}
-
-	err := os.Chown(path, targetUserUID, targetGroupGUID)
-	if err != nil {
-		return err
-	}
-
-	return nil
+	return ChangeOwner(path, owner, group)
 }
 
 func (f *FileSystem) ChangeMode(path string, targetMode os.FileMode) error {
@@ -226,5 +191,5 @@ func (f *FileSystem) Remove(name string) error {
 }
 
 func (f *FileSystem) Rename(oldPath, newPath string) error {
-	return os.Rename(oldPath, newPath)
+	return Rename(oldPath, newPath)
 }
