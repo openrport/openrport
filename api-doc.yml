@@ -3036,18 +3036,18 @@ paths:
           type: "string"
           required: false
           default: ""
-          description: "For Unix only, indicates the user name for the owner of the target file on the client. \n
-          The uploaded file will be created with the default owner in a temp folder. \n
-          Then it will be moved to the target path and finally rport client will execute chown operation with the provided user name. Please make sure that the provided user exists on the client.\n
+          description: "For Unix only, indicates the desired owner name the target file on the client. \n
+          The uploaded file will be created with the default owner in a temp folder. If `user` is not empty, rport client will perform chown operation on the temp file. \n
+          Then it will be moved to the target path Please make sure that the provided user exists on the client.\n
           Since changing owner of a file requires sudo rights, the rport client user should have the necessary permissions to chown and move file to the target location."
         - in: "formData"
           name: "group"
           type: "string"
           required: false
           default: ""
-          description: "For Unix only, indicates the group name for the owner group of the target file on the client. \n
-          The uploaded file will be created with the default group in a temp folder. \n
-          Then it will be moved to the target path and finally rport client will execute chown operation with the provided group name. Please make sure that the provided group exists on the client.\n
+          description: "For Unix only, indicates the group name the target file on the client. \n
+          The uploaded file will be created with the default group in a temp folder. Then rport client will chown the temp file with the provided group name. \n
+          Then it will be moved to the target path. Please make sure that the provided group exists on the client.\n
           Since changing group of a file requires sudo rights, the rport client user should have the necessary permissions to chown and move file to the target location."
       produces:
         - "application/json"
