@@ -79,8 +79,31 @@ func ChangeOwnerExecWithSudo(path, owner, group string) error {
 
 func Rename(oldPath, newPath string) error {
 	err := os.Rename(oldPath, newPath)
+	if os.IsPermission(err) {
+		return MoveExecWithSudo(oldPath, newPath)
+	}
 	if err != nil {
 		return err
+	}
+
+	return nil
+}
+
+func MoveExecWithSudo(sourcePath, targetPath string) error {
+	args := []string{
+		"sudo",
+		"-n",
+		"mv",
+		sourcePath,
+		targetPath,
+	}
+
+	cmd := exec.Command(args[0], args[1:]...)
+
+	err := cmd.Run()
+
+	if err != nil {
+		return errors.Wrapf(err, "failed to execute %s", cmd.String())
 	}
 
 	return nil
