@@ -1,4 +1,5 @@
-//+build !windows
+//go:build !windows
+// +build !windows
 
 package files
 
@@ -122,10 +123,15 @@ func ChangeOwnerExecWithSudo(path, owner, group string) error {
 		return nil
 	}
 
+	chownFullPath, err := exec.LookPath("chown")
+	if err != nil {
+		return err
+	}
+
 	args := []string{
 		"sudo",
 		"-n",
-		"chown",
+		chownFullPath,
 		fmt.Sprintf("%s:%s", owner, group),
 		path,
 	}
@@ -154,10 +160,15 @@ func Rename(oldPath, newPath string) error {
 }
 
 func MoveExecWithSudo(sourcePath, targetPath string) error {
+	mvFullPath, err := exec.LookPath("mv")
+	if err != nil {
+		return err
+	}
+
 	args := []string{
 		"sudo",
 		"-n",
-		"mv",
+		mvFullPath,
 		sourcePath,
 		targetPath,
 	}
