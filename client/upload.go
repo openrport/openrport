@@ -118,19 +118,20 @@ func (c *UploadManager) HandleUploadRequest(reqPayload []byte) (*models.UploadRe
 		return nil, err
 	}
 
-	if !destinationFileExists {
+	if !destinationFileExists || uploadedFile.ForceWrite {
 		return c.handleWritingFile(uploadedFile)
 	}
 
-	if uploadedFile.Sync {
-		return c.handleFileSync(uploadedFile)
+	fileShouldBeSynched, err := c.fileShouldBeSynched(uploadedFile)
+	if err != nil {
+		return nil, err
 	}
-
-	if uploadedFile.ForceWrite {
+	if fileShouldBeSynched {
+		c.Logger.Debugf("file %s should be synched", uploadedFile.DestinationPath)
 		return c.handleWritingFile(uploadedFile)
 	}
 
-	msg := fmt.Sprintf("file %s already exists and sync and force options were not enabled, will skip the request", uploadedFile.DestinationPath)
+	msg := fmt.Sprintf("file %s already exists, should not be synched or overwritten with force", uploadedFile.DestinationPath)
 	c.Logger.Infof(msg)
 	return &models.UploadResponse{
 		UploadResponseShort: models.UploadResponseShort{
@@ -142,77 +143,87 @@ func (c *UploadManager) HandleUploadRequest(reqPayload []byte) (*models.UploadRe
 	}, nil
 }
 
-func (c *UploadManager) handleFileSync(uploadedFile *models.UploadedFile) (resp *models.UploadResponse, err error) {
-	file, err := c.FilesAPI.Open(uploadedFile.DestinationPath)
+func (c *UploadManager) fileShouldBeSynched(uploadedFile *models.UploadedFile) (bool, error) {
+	if !uploadedFile.Sync {
+		return false, nil
+	}
+
+	hashSumMatch, err := c.hashSumMatch(uploadedFile.DestinationPath, uploadedFile.Md5Checksum)
+
 	if err != nil {
-		return nil, err
+		return false, err
+	}
+	if !hashSumMatch {
+		c.Debugf(
+			"destination file %s has a different hash sum than the provided %x, the file should be synched",
+			uploadedFile.DestinationPath,
+			uploadedFile.Md5Checksum,
+		)
+
+		return true, nil
+	}
+
+	if uploadedFile.DestinationFileMode > 0 {
+		fileModeMatch, err := c.FilesAPI.FileModeMatch(uploadedFile.DestinationPath, uploadedFile.DestinationFileMode)
+		if err != nil {
+			return false, err
+		}
+
+		if !fileModeMatch {
+			c.Debugf(
+				"destination file %s has a different file mode than the provided %v, the file should be synched",
+				uploadedFile.DestinationPath,
+				uploadedFile.DestinationFileMode,
+			)
+
+			return true, nil
+		}
+	}
+
+	if uploadedFile.DestinationFileOwner != "" || uploadedFile.DestinationFileGroup != "" {
+		fileOwnerMatch, err := c.FilesAPI.FileOwnerOrGroupMatch(
+			uploadedFile.DestinationPath,
+			uploadedFile.DestinationFileOwner,
+			uploadedFile.DestinationFileGroup,
+		)
+		if err != nil {
+			return false, err
+		}
+
+		if !fileOwnerMatch {
+			c.Debugf(
+				"destination file %s has a different file owner or group than the provided ones %s:%s, ",
+				uploadedFile.DestinationPath,
+				uploadedFile.DestinationFileOwner,
+				uploadedFile.DestinationFileGroup,
+			)
+
+			return true, nil
+		}
+	}
+
+	return false, nil
+}
+
+func (c *UploadManager) hashSumMatch(path string, expectedHashSum []byte) (bool, error) {
+	file, err := c.FilesAPI.Open(path)
+	if err != nil {
+		return false, err
 	}
 
 	md5Hash := md5.New()
 	_, err = io.Copy(md5Hash, file)
 	if err != nil {
-		return nil, errors.Wrapf(err, "failed to calculate md5 checksum for %s", uploadedFile.DestinationPath)
-	}
-
-	msgParts := []string{}
-	uploadResponse := &models.UploadResponse{
-		UploadResponseShort: models.UploadResponseShort{
-			ID:       uploadedFile.ID,
-			Filepath: uploadedFile.DestinationPath,
-		},
+		return false, errors.Wrapf(err, "failed to calculate md5 checksum for %s", path)
 	}
 
 	destinationMd5Hash := md5Hash.Sum(nil)
-	if !bytes.Equal(uploadedFile.Md5Checksum, destinationMd5Hash) {
-		c.Logger.Debugf(
-			"uploaded file has non matching md5 hash %x with destination file %x, as sync is true, will overwrite the file %s",
-			uploadedFile.Md5Checksum,
-			destinationMd5Hash,
-			uploadedFile.DestinationPath,
-		)
 
-		copiedBytes, tempFilePath, err := c.copyFileToTempLocation(
-			uploadedFile.SourceFilePath,
-			uploadedFile.DestinationFileMode,
-			uploadedFile.Md5Checksum,
-		)
-		if err != nil {
-			return nil, err
-		}
-		c.Logger.Debugf("copied remote file %s to the temp path %s", uploadedFile.SourceFilePath, tempFilePath)
-
-		uploadResponse.UploadResponseShort.SizeBytes = copiedBytes
-
-		err = c.copyFileToDestination(tempFilePath, uploadedFile)
-		if err != nil {
-			return nil, err
-		}
-		msgParts = append(msgParts, "file successfully copied to destination")
-	} else {
-		msgParts = append(msgParts, "file already exists and has same hash sum, will skip file copy operation")
+	if bytes.Equal(expectedHashSum, destinationMd5Hash) {
+		return true, nil
 	}
 
-	err = c.chmodFile(uploadedFile.DestinationPath, uploadedFile.DestinationFileMode)
-	if err != nil {
-		c.Logger.Errorf(err.Error())
-		msgParts = append(msgParts, fmt.Sprintf("chmod failed: %v", err))
-	}
-
-	err = c.chownFile(uploadedFile.DestinationPath, uploadedFile.DestinationFileOwner, uploadedFile.DestinationFileGroup)
-	if err != nil {
-		c.Logger.Errorf(err.Error())
-		msgParts = append(msgParts, fmt.Sprintf("chown failed: %v", err))
-	}
-
-	if len(msgParts) == 0 {
-		msgParts = append(msgParts, "File sync success")
-	}
-
-	uploadResponse.Status = "success"
-	uploadResponse.Message = strings.Join(msgParts, "\n")
-	c.Logger.Debugf(uploadResponse.Message)
-
-	return uploadResponse, nil
+	return false, nil
 }
 
 func (c *UploadManager) handleWritingFile(uploadedFile *models.UploadedFile) (resp *models.UploadResponse, err error) {
@@ -242,7 +253,7 @@ func (c *UploadManager) handleWritingFile(uploadedFile *models.UploadedFile) (re
 		return nil, err
 	}
 	c.Logger.Debugf("copied remote file %s to the temp path %s", uploadedFile.SourceFilePath, tempFilePath)
-	msgParts = append(msgParts, "file successfully copied to destination")
+	msgParts = append(msgParts, "file successfully copied to destination "+uploadedFile.DestinationPath)
 
 	message := strings.Join(msgParts, ".")
 	c.Logger.Debugf(message)

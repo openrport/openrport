@@ -97,6 +97,18 @@ func (f *FileAPIMock) CreateDirIfNotExists(path string, mode os.FileMode) (wasCr
 	return args.Bool(0), args.Error(1)
 }
 
+func (f *FileAPIMock) FileModeMatch(file string, mode os.FileMode) (bool, error) {
+	args := f.Called(file, mode)
+
+	return args.Bool(0), args.Error(1)
+}
+
+func (f *FileAPIMock) FileOwnerOrGroupMatch(file, owner, group string) (bool, error) {
+	args := f.Called(file, owner, group)
+
+	return args.Bool(0), args.Error(1)
+}
+
 type FileMock struct {
 	os.FileInfo
 	ReturnName    string

@@ -31,6 +31,8 @@ type FileAPI interface {
 	CreateDirIfNotExists(path string, mode os.FileMode) (wasCreated bool, err error)
 	Remove(name string) error
 	Rename(oldPath, newPath string) error
+	FileModeMatch(file string, mode os.FileMode) (bool, error)
+	FileOwnerOrGroupMatch(file, owner, group string) (bool, error)
 }
 
 type FileSystem struct {
@@ -111,6 +113,19 @@ func (f *FileSystem) ReadJSON(file string, dest interface{}) error {
 
 func (f *FileSystem) Open(file string) (io.ReadWriteCloser, error) {
 	return os.Open(file)
+}
+
+func (f *FileSystem) FileModeMatch(file string, mode os.FileMode) (bool, error) {
+	fileInfo, err := os.Stat(file)
+	if err != nil {
+		return false, err
+	}
+
+	return fileInfo.Mode() == mode, nil
+}
+
+func (f *FileSystem) FileOwnerOrGroupMatch(file, owner, group string) (bool, error) {
+	return FileOwnerOrGroupMatch(file, owner, group)
 }
 
 // Exist returns a boolean indicating whether a file or directory with a given path exists.

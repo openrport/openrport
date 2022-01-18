@@ -10,3 +10,7 @@ func ChangeOwner(path, owner, group string) error {
 func Rename(oldPath, newPath string) error {
 	return os.Rename(oldPath, newPath)
 }
+
+func FileOwnerOrGroupMatch(file, owner, group string) (bool, error) {
+	return true, nil
+}

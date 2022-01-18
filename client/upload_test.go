@@ -95,7 +95,7 @@ func TestHandleUploadRequest(t *testing.T) {
 					Filepath:  "/destination/file.txt",
 					SizeBytes: 10,
 				},
-				Message: "file successfully copied to destination",
+				Message: "file successfully copied to destination /destination/file.txt",
 				Status:  "success",
 			},
 		},
@@ -135,7 +135,7 @@ func TestHandleUploadRequest(t *testing.T) {
 					Filepath:  "/destination/file2.txt",
 					SizeBytes: 12,
 				},
-				Message: "file successfully copied to destination",
+				Message: "file successfully copied to destination /destination/file2.txt",
 				Status:  "success",
 			},
 		},
@@ -158,7 +158,7 @@ func TestHandleUploadRequest(t *testing.T) {
 					ID:       "97e97cdd-135a-4620-ab50-d44025b8fe33",
 					Filepath: "/destination/file3.txt",
 				},
-				Message: "file /destination/file3.txt already exists and sync and force options were not enabled, will skip the request",
+				Message: "file /destination/file3.txt already exists, should not be synched or overwritten with force",
 				Status:  "ignored",
 			},
 		},
@@ -223,8 +223,8 @@ func TestHandleUploadRequest(t *testing.T) {
 
 				fs.On("Remove", "/destination/file7.txt").Return(nil)
 				fs.On("Rename", expectedTempFilePath, "/destination/file7.txt").Return(nil)
-				fs.On("ChangeOwner", "/destination/file7.txt", "admin", "group").Return(nil)
-				fs.On("ChangeMode", "/destination/file7.txt", os.FileMode(0744)).Return(nil)
+				fs.On("ChangeOwner", "/data/filepush/file_temp7.txt", "admin", "group").Return(nil)
+				fs.On("ChangeMode", "/data/filepush/file_temp7.txt", os.FileMode(0744)).Return(nil)
 			},
 			fileProviderCallback: buildDefaultFileProviderMock("/source/file_temp7.txt", "some"),
 			optionsCallback:      defaultOptionsCallback,
@@ -234,7 +234,7 @@ func TestHandleUploadRequest(t *testing.T) {
 					Filepath:  "/destination/file7.txt",
 					SizeBytes: 12,
 				},
-				Message: "file successfully copied to destination",
+				Message: "file successfully copied to destination /destination/file7.txt",
 				Status:  "success",
 			},
 		},
