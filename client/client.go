@@ -359,6 +359,13 @@ func (c *Client) sendConnectionRequest(ctx context.Context, sshConn ssh.Conn) er
 	c.Infof("Connected (Latency %s)", time.Since(t0))
 	for _, r := range remotes {
 		c.Infof("new tunnel: %s", r.String())
+
+		serverStr := r.Local()
+		if r.HTTPProxy {
+			serverStr = "https://" + serverStr
+		}
+
+		c.Infof("Local port %s has become available on %s", r.Remote(), serverStr)
 	}
 
 	return nil

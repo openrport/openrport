@@ -20,12 +20,18 @@ auth = "rport:a-strong-password12345"
 ```
 Make sure no other auth option is enabled.
 Reload rportd to activate the changes.
-Quite simple. Now you can run a client using the client-auth-id `rport` and the password `a-strong-password12345`. It can be done in two ways:
+Quite simple. Now you can run a client using the client-auth-id `rport` and the password `a-strong-password12345`. It can be done in three ways:
 1. Use a command arg: `--auth rport:a-strong-password12345`
 2. Enter the following line to the client config(`rport.config`) in the `[client]` section.
 ```
 auth = "rport:a-strong-password12345"
 ```
+3. Alternatively, export credentials to the environment variable `RPORT_AUTH`.
+
+NOTE: if multiple options are enabled the following precedence order is used. Each item takes precedence over the item below it:
+1. a command arg;
+2. config value;
+3. env var.
 
 ## Using a file
 If you want to have more than one credential, create a json file with the following structure.
