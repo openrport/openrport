@@ -124,8 +124,8 @@ func TestHandleUploadRequest(t *testing.T) {
 				fs.On("CreateFile", expectedTempFilePath, mock.Anything).Return(int64(12), []byte("md5_124"), nil)
 				fs.On("Remove", "/destination/file2.txt").Return(nil)
 				fs.On("Rename", expectedTempFilePath, "/destination/file2.txt").Return(nil)
-				fs.On("ChangeOwner", "/destination/file2.txt", "admin", "group").Return(nil)
-				fs.On("ChangeMode", "/destination/file2.txt", os.FileMode(0700)).Return(nil)
+				fs.On("ChangeOwner", "/data/filepush/file_temp2.txt", "admin", "group").Return(nil)
+				fs.On("ChangeMode", "/data/filepush/file_temp2.txt", os.FileMode(0700)).Return(nil)
 			},
 			fileProviderCallback: buildDefaultFileProviderMock("/source/file_temp2.txt", "some content2"),
 			optionsCallback:      defaultOptionsCallback,
