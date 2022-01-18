@@ -68,10 +68,10 @@ func ChangeOwnerExecWithSudo(path, owner, group string) error {
 
 	cmd := exec.Command(args[0], args[1:]...)
 
-	err := cmd.Run()
+	output, err := cmd.CombinedOutput()
 
 	if err != nil {
-		return errors.Wrapf(err, "failed to execute %s", cmd.String())
+		return errors.Wrapf(err, "failed to execute %s: %s", cmd.String(), string(output))
 	}
 
 	return nil
@@ -100,10 +100,10 @@ func MoveExecWithSudo(sourcePath, targetPath string) error {
 
 	cmd := exec.Command(args[0], args[1:]...)
 
-	err := cmd.Run()
+	output, err := cmd.CombinedOutput()
 
 	if err != nil {
-		return errors.Wrapf(err, "failed to execute %s", cmd.String())
+		return errors.Wrapf(err, "failed to execute %s: %s", cmd.String(), string(output))
 	}
 
 	return nil

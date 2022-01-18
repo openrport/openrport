@@ -188,6 +188,8 @@ func (c *UploadManager) handleFileSync(uploadedFile *models.UploadedFile) (resp 
 			return nil, err
 		}
 		msgParts = append(msgParts, "file successfully copied to destination")
+	} else {
+		msgParts = append(msgParts, "file already exists and has same hash sum, will skip file copy operation")
 	}
 
 	err = c.chmodFile(uploadedFile.DestinationPath, uploadedFile.DestinationFileMode)
@@ -207,7 +209,7 @@ func (c *UploadManager) handleFileSync(uploadedFile *models.UploadedFile) (resp 
 	}
 
 	uploadResponse.Status = "success"
-	uploadResponse.Message = strings.Join(msgParts, ". ")
+	uploadResponse.Message = strings.Join(msgParts, "\n")
 	c.Logger.Debugf(uploadResponse.Message)
 
 	return uploadResponse, nil
