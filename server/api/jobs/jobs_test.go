@@ -9,6 +9,8 @@ import (
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 
+	"github.com/cloudradar-monitoring/rport/db/migration/jobs"
+	"github.com/cloudradar-monitoring/rport/db/sqlite"
 	"github.com/cloudradar-monitoring/rport/server/test/jb"
 	chshare "github.com/cloudradar-monitoring/rport/share/logger"
 	"github.com/cloudradar-monitoring/rport/share/models"
@@ -17,8 +19,9 @@ import (
 var testLog = chshare.NewLogger("api-listener-test", chshare.LogOutput{File: os.Stdout}, chshare.LogLevelDebug)
 
 func TestJobsSqliteProvider(t *testing.T) {
-	p, err := NewSqliteProvider(":memory:", testLog)
+	jobsDB, err := sqlite.New(":memory:", jobs.AssetNames(), jobs.Asset)
 	require.NoError(t, err)
+	p := NewSqliteProvider(jobsDB, testLog)
 	defer p.Close()
 
 	// add jobs
@@ -86,8 +89,9 @@ func TestJobsSqliteProvider(t *testing.T) {
 
 func TestGetByMultiJobID(t *testing.T) {
 	// given
-	p, err := NewSqliteProvider(":memory:", testLog)
+	jobsDB, err := sqlite.New(":memory:", jobs.AssetNames(), jobs.Asset)
 	require.NoError(t, err)
+	p := NewSqliteProvider(jobsDB, testLog)
 	defer p.Close()
 	multiJobID := "1234"
 	t1, _ := time.ParseInLocation(time.RFC3339, "2020-08-19T13:09:23+03:00", nil)
@@ -111,8 +115,9 @@ func TestGetByMultiJobID(t *testing.T) {
 }
 
 func TestCreateJob(t *testing.T) {
-	p, err := NewSqliteProvider(":memory:", testLog)
+	jobsDB, err := sqlite.New(":memory:", jobs.AssetNames(), jobs.Asset)
 	require.NoError(t, err)
+	p := NewSqliteProvider(jobsDB, testLog)
 	defer p.Close()
 
 	// create job

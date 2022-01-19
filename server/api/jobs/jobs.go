@@ -11,8 +11,6 @@ import (
 	"github.com/jmoiron/sqlx"
 	"github.com/mattn/go-sqlite3"
 
-	"github.com/cloudradar-monitoring/rport/db/migration/jobs"
-	"github.com/cloudradar-monitoring/rport/db/sqlite"
 	"github.com/cloudradar-monitoring/rport/share/logger"
 	"github.com/cloudradar-monitoring/rport/share/models"
 )
@@ -22,12 +20,8 @@ type SqliteProvider struct {
 	db  *sqlx.DB
 }
 
-func NewSqliteProvider(dbPath string, log *logger.Logger) (*SqliteProvider, error) {
-	db, err := sqlite.New(dbPath, jobs.AssetNames(), jobs.Asset)
-	if err != nil {
-		return nil, fmt.Errorf("failed to create jobs DB instance: %v", err)
-	}
-	return &SqliteProvider{db: db, log: log}, nil
+func NewSqliteProvider(db *sqlx.DB, log *logger.Logger) *SqliteProvider {
+	return &SqliteProvider{db: db, log: log}
 }
 
 func (p *SqliteProvider) GetByJID(clientID, jid string) (*models.Job, error) {

@@ -21,6 +21,11 @@ func TestConvertListOptionsToQuery(t *testing.T) {
 			ExpectedQuery:  "SELECT * FROM res1",
 			ExpectedParams: nil,
 		}, {
+			Name:           "nil options",
+			Options:        nil,
+			ExpectedQuery:  "SELECT * FROM res1",
+			ExpectedParams: nil,
+		}, {
 			Name: "mixed options",
 			Options: &query.ListOptions{
 				Sorts: []query.SortOption{
