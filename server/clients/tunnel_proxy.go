@@ -85,7 +85,7 @@ func (tp *TunnelProxy) Start(ctx context.Context) error {
 	go func() {
 		err := tp.proxyServer.ListenAndServeTLS(tp.Config.CertFile, tp.Config.KeyFile)
 		if err != nil && err == http.ErrServerClosed {
-			tp.Logger.Debugf("tunnel proxy closed")
+			tp.Logger.Infof("tunnel proxy closed")
 			return
 		}
 		if err != nil {
@@ -93,7 +93,7 @@ func (tp *TunnelProxy) Start(ctx context.Context) error {
 		}
 	}()
 
-	tp.Logger.Debugf("tunnel proxy started")
+	tp.Logger.Infof("tunnel proxy started")
 	return nil
 }
 
@@ -102,7 +102,7 @@ func (tp *TunnelProxy) Stop(ctx context.Context) error {
 	defer cancel()
 
 	if err := tp.proxyServer.Shutdown(ctxShutDown); err != nil {
-		tp.Logger.Debugf("tunnel proxy shutdown failed:%+s", err)
+		tp.Logger.Infof("tunnel proxy shutdown failed:%+s", err)
 	}
 
 	return nil
@@ -132,7 +132,7 @@ func (tp *TunnelProxy) handleACL(next http.Handler) http.Handler {
 				return
 			}
 
-			tp.Logger.Debugf("Proxy Access rejected. Remote addr: %s", clientIP)
+			tp.Logger.Infof("Proxy Access rejected. Remote addr: %s", clientIP)
 			tp.sendHTML(w, http.StatusForbidden, "Access rejected by ACL")
 		}
 	})

@@ -41,7 +41,7 @@ func (tc *TunnelProxyConnectorHTTP) createReverseProxy() {
 		Host:   tc.tunnelProxy.TunnelAddr(),
 	}
 
-	tc.tunnelProxy.Logger.Debugf("create https reverse proxy with ssl offloading forwarding to %s", tunnelURL.String())
+	tc.tunnelProxy.Logger.Infof("create https reverse proxy with ssl offloading forwarding to %s", tunnelURL.String())
 	tc.reverseProxy = httputil.NewSingleHostReverseProxy(&tunnelURL)
 	sslOffloadingTransport := &http.Transport{
 		TLSClientConfig: &tls.Config{

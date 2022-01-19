@@ -1,0 +1,170 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta http-equiv="X-UA-Compatible" content="ie=edge">
+    <meta name="robots" content="noindex">
+    <title>noVNC</title>
+    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/fomantic-ui@2.8.4/dist/semantic.min.css">
+    <!-- easy-novnc (https://github.com/pgaskin/easy-novnc) -->
+    <style>
+        body {
+            background: #f4f4f4;
+        }
+
+        * {
+            box-sizing: border-box;
+        }
+
+        .wrapper {
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            height: 100vh;
+        }
+
+        .connect {
+            display: block;
+            flex: 0 0 auto;
+            margin: 24px auto;
+            width: 100%;
+            max-width: 400px;
+            overflow-y: auto;
+            max-height: 90vh;
+            background: #fff;
+            border: 1px solid #d3d3d3;
+            border-radius: 5px;
+            padding: 24px;
+            box-shadow: 0 2px 6px 0 rgba(0, 0, 0, 0.1);
+        }
+
+        @media only screen and (max-width: 520px) {
+            .connect {
+                flex: 1;
+                margin: 0;
+                height: 100%;
+                min-height: 100%;
+                max-height: 100%;
+                width: 100%;
+                min-width: 100%;
+                max-width: 100%;
+                border: none;
+            }
+        }
+    </style>
+</head>
+
+<body>
+    <div class="wrapper">
+        <div class="connect">
+            <h3 class="ui dividing header">noVNC [rport integrated]</h3>
+            <form action="/vnc.html" method="GET" class="ui form">
+                {{if .arbitraryHosts}}
+                {{if .arbitraryPorts}}
+                <div class="two fields">
+                    <div class="field">
+                        <label for="host">Host</label>
+                        <input type="text" id="host" placeholder="{{.host}}" autocomplete="off">
+                    </div>
+                    <div class="field">
+                        <label for="port">Port</label>
+                        <input type="number" id="port" min="1" max="65535" placeholder="{{.port}}" autocomplete="off">
+                    </div>
+                </div>
+                {{else}}
+                <div class="field">
+                    <label for="host">Host</label>
+                    <input type="text" id="host" placeholder="{{.host}}">
+                </div>
+                {{end}}
+                {{end}}
+
+                {{if not .noURLPassword}}
+                <div class="field">
+                    <label for="password">Password</label>
+                    <input type="password" name="password" id="password" placeholder="Password" autofocus>
+                </div>
+                {{end}}
+
+                <input type="hidden" name="path" id="path" value="vnc">
+                <input type="hidden" name="autoconnect" id="autoconnect" value="true">
+
+                {{range $key, $value := .params}}
+                <input type="hidden" name="{{$key}}" id="{{$key}}" value="{{$value}}">
+                {{end}}
+
+                <input class="ui button" type="submit" value="Connect">
+
+                {{if not .basicUI}}
+                <h3 class="ui dividing header">Connection Options</h3>
+
+                <div class="two fields">
+                    <div class="inline field">
+                        <div class="ui checkbox">
+                            <input type="checkbox" name="reconnect" id="reconnect" value="true" checked>
+                            <label for="reconnect">Reconnect automatically</label>
+                        </div>
+                    </div>
+                    <div class="inline field">
+                        <div class="ui checkbox">
+                            <input type="checkbox" name="show_dot" id="show_dot" value="true" checked>
+                            <label for="show_dot">Show dot when no cursor</label>
+                        </div>
+                    </div>
+                </div>
+                <div class="two fields">
+                    <div class="inline field">
+                        <div class="ui checkbox">
+                            <input type="checkbox" name="bell" id="bell" value="true">
+                            <label for="bell">Enable bell</label>
+                        </div>
+                    </div>
+                    <div class="inline field">
+                        <div class="ui checkbox">
+                            <input type="checkbox" name="view_only" id="view_only" value="true" {{if .defaultViewOnly}}checked{{end}}>
+                            <label for="view_only">View only</label>
+                        </div>
+                    </div>
+                </div>
+                {{else}}
+                <input type="hidden" name="reconnect" id="reconnect" value="true">
+                <input type="hidden" name="show_dot" id="show_dot" value="true">
+                <input type="hidden" name="bell" id="bell" value="false">
+                <input type="hidden" name="view_only" id="view_only" value="{{if .defaultViewOnly}}true{{else}}false{{end}}">
+                {{end}}
+            </form>
+        </div>
+    </div>
+    <script>
+        var path = document.getElementById("path");
+        var host = document.getElementById("host");
+        var port = document.getElementById("port");
+
+        function updatePath() {
+            var addr = "vnc";
+            if (host && host.value.trim() != "") {
+                addr = addr + "/" + encodeURIComponent(host.value.trim());
+                if (port && port.value.toString().trim() != "") {
+                    addr = addr + "/" + port.value.toString().trim();
+                }
+            }
+            path.value = addr;
+        }
+
+        if (host) {
+            host.addEventListener("input", updatePath);
+            host.addEventListener("keyup", updatePath);
+            host.addEventListener("blur", updatePath);
+        }
+
+        if (port) {
+            port.addEventListener("input", updatePath);
+            port.addEventListener("keyup", updatePath);
+            port.addEventListener("blur", updatePath);
+        }
+    </script>
+</body>
+
+</html>

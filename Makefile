@@ -28,6 +28,10 @@ bind-data:
 bindata-db:
 	cd db/migration/$(DB)/sql/ && go-bindata -o ../bindata.go -pkg $(DB) ./...
 
+# usage: make novnc, to generate novnc index template (necessary, when ../novnc/index.html has changed)
+novnc:
+	cd server/clients/tunnel/novnc && go run ./index_generate.go
+
 clean:
 	go clean
 	rm -f $(BINARIES)

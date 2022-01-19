@@ -3,6 +3,7 @@ package clients
 import (
 	"crypto/tls"
 	"io"
+	"log"
 	"net"
 	"net/http"
 	"net/url"
@@ -14,9 +15,6 @@ import (
 	"github.com/cloudradar-monitoring/rport/server/clients/tunnel/novnc"
 	"github.com/cloudradar-monitoring/rport/share/logger"
 )
-
-// https://stackoverflow.com/a/17871737
-const ipv6Regexp = `(?:(?:[0-9a-fA-F]{1,4}:){7,7}[0-9a-fA-F]{1,4}|(?:[0-9a-fA-F]{1,4}:){1,7}:|(?:[0-9a-fA-F]{1,4}:){1,6}:[0-9a-fA-F]{1,4}|(?:[0-9a-fA-F]{1,4}:){1,5}(?::[0-9a-fA-F]{1,4}){1,2}|(?:[0-9a-fA-F]{1,4}:){1,4}(?::[0-9a-fA-F]{1,4}){1,3}|(?:[0-9a-fA-F]{1,4}:){1,3}(?::[0-9a-fA-F]{1,4}){1,4}|(?:[0-9a-fA-F]{1,4}:){1,2}(?::[0-9a-fA-F]{1,4}){1,5}|[0-9a-fA-F]{1,4}:(?:(?::[0-9a-fA-F]{1,4}){1,6})|:(?:(?::[0-9a-fA-F]{1,4}){1,7}|:)|fe80:(?::[0-9a-fA-F]{0,4}){0,4}%[0-9a-zA-Z]{1,}|::(?:ffff(?::0{1,4}){0,1}:){0,1}(?:(?:25[0-5]|(?:2[0-4]|1{0,1}[0-9]){0,1}[0-9])\.){3,3}(?:25[0-5]|(?:2[0-4]|1{0,1}[0-9]){0,1}[0-9])|(?:[0-9a-fA-F]{1,4}:){1,4}:(?:(?:25[0-5]|(?:2[0-4]|1{0,1}[0-9]){0,1}[0-9])\.){3,3}(?:25[0-5]|(?:2[0-4]|1{0,1}[0-9]){0,1}[0-9]))`
 
 //TunnelProxyConnectorVNC is a kind of 'websockify' vnc to tcp proxy to be used by a novnc instance to connect to a vnc tunnel
 type TunnelProxyConnectorVNC struct {
@@ -31,15 +29,13 @@ func NewTunnelConnectorVNC(tp *TunnelProxy) *TunnelProxyConnectorVNC {
 func (tc *TunnelProxyConnectorVNC) InitRouter(router *mux.Router) *mux.Router {
 	router.Use(noCache)
 
+	router.HandleFunc("/vnc", tc.serveVNC)
+
 	router.HandleFunc("/", tc.serveIndex)
 
-	router.HandleFunc("/vnc", tc.serveVNC)
-	router.HandleFunc("/vnc/{host:[a-zA-Z0-9_.-]+}", tc.serveVNC)
-	router.HandleFunc("/vnc/{host:[a-zA-Z0-9_.-]+}/{port:[0-9]+}", tc.serveVNC)
-	router.HandleFunc("/vnc/{host:"+ipv6Regexp+"}", tc.serveVNC)
-	router.HandleFunc("/vnc/{host:"+ipv6Regexp+"}/{port:[0-9]+}", tc.serveVNC)
-
-	router.NotFoundHandler = fs("noVNC-master", novnc.NoVNC)
+	//router.NotFoundHandler = fs("noVNC-master", novnc.NoVNC)
+	novncRoot := "/home/moo/devdata/rport/gek-server-1/novnc-root/"
+	router.NotFoundHandler = fs("/", http.Dir(novncRoot))
 
 	return router
 }
@@ -56,23 +52,24 @@ func (tc *TunnelProxyConnectorVNC) serveIndex(w http.ResponseWriter, r *http.Req
 		"resize": "scale",
 	}
 
-	novnc.IndexTMPL.Execute(w, map[string]interface{}{
+	_ = novnc.IndexTMPL.Execute(w, map[string]interface{}{
 		"arbitraryHosts":  false,
 		"arbitraryPorts":  false,
 		"host":            tc.tunnelProxy.Host,
 		"port":            tc.tunnelProxy.Port,
 		"addr":            tc.tunnelProxy.Addr(),
 		"basicUI":         false,
-		"noURLPassword":   false,
+		"noURLPassword":   true,
 		"defaultViewOnly": false,
 		"params":          novncParamsMap,
 	})
 }
 
 func (tc *TunnelProxyConnectorVNC) serveVNC(w http.ResponseWriter, r *http.Request) {
-	w.Header().Set("X-Target-Addr", tc.tunnelProxy.TunnelAddr())
+	//w.Header().Set("X-Target-Addr", tc.tunnelProxy.TunnelAddr())
 
-	tc.tunnelProxy.Logger.Debugf("TunnelProxyConnectorVNC to tunnel: %s", tc.tunnelProxy.TunnelAddr())
+	tc.tunnelProxy.Logger.Infof("TunnelProxyConnectorVNC to tunnel: %s", tc.tunnelProxy.TunnelAddr())
+	log.Println("websockify with ", r.RequestURI)
 	tc.websockify(tc.tunnelProxy.TunnelAddr(), []byte("RFB"), tc.tunnelProxy.Config.CertFile, tc.tunnelProxy.Config.KeyFile).ServeHTTP(w, r)
 }
 
