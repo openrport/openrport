@@ -15,7 +15,7 @@ import (
 const DefaultFileMode = os.FileMode(0540)
 const DefaultDirMode = os.FileMode(0700)
 
-func CreateScriptFile(scriptDir, interpreter, scriptContent string) (filePath string, err error) {
+func CreateScriptFile(scriptDir, scriptContent string, interpreter Interpreter) (filePath string, err error) {
 	err = ValidateScriptDir(scriptDir)
 	if err != nil {
 		return "", err
@@ -61,7 +61,7 @@ func ValidateScriptDir(scriptDir string) error {
 	return nil
 }
 
-func createScriptFileName(interpreter string) (string, error) {
+func createScriptFileName(interpreter Interpreter) (string, error) {
 	scriptName, err := random.UUID4()
 	if err != nil {
 		return "", err
@@ -72,8 +72,8 @@ func createScriptFileName(interpreter string) (string, error) {
 	return scriptName + extension, nil
 }
 
-func getExtension(interpreter string) string {
-	if interpreter == chshare.Tacoscript {
+func getExtension(interpreter Interpreter) string {
+	if interpreter.InterpreterNameFromInput == chshare.Tacoscript {
 		return ".yml"
 	}
 
