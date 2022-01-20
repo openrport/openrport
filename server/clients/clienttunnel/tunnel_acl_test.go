@@ -1,4 +1,4 @@
-package clients_test
+package clienttunnel_test
 
 import (
 	"errors"
@@ -7,7 +7,7 @@ import (
 
 	"github.com/stretchr/testify/assert"
 
-	"github.com/cloudradar-monitoring/rport/server/clients"
+	"github.com/cloudradar-monitoring/rport/server/clients/clienttunnel"
 )
 
 func TestParseTunnelACL(t *testing.T) {
@@ -61,7 +61,7 @@ func TestParseTunnelACL(t *testing.T) {
 		t.Run(tc.Name, func(t *testing.T) {
 			t.Parallel()
 
-			result, err := clients.ParseTunnelACL(tc.Input)
+			result, err := clienttunnel.ParseTunnelACL(tc.Input)
 
 			assert.Equal(t, tc.ExpectedError, err)
 			if tc.Expected == nil {

@@ -1,4 +1,4 @@
-package clients
+package clienttunnel
 
 import (
 	"crypto/tls"
@@ -29,10 +29,6 @@ func (tc *TunnelProxyConnectorHTTP) InitRouter(router *mux.Router) *mux.Router {
 	tc.createReverseProxy()
 
 	return router
-}
-
-func (tc *TunnelProxyConnectorHTTP) DisableHTTP2() bool {
-	return false
 }
 
 func (tc *TunnelProxyConnectorHTTP) createReverseProxy() {

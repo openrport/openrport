@@ -17,6 +17,7 @@ import (
 
 	"github.com/stretchr/testify/require"
 
+	"github.com/cloudradar-monitoring/rport/server/clients/clienttunnel"
 	chshare "github.com/cloudradar-monitoring/rport/share/models"
 	"github.com/cloudradar-monitoring/rport/share/random"
 )
@@ -102,7 +103,7 @@ func (b ClientBuilder) Build() *Client {
 		Tags:                   []string{"Linux", "Datacenter 1"},
 		Version:                "0.1.12",
 		Address:                "88.198.189.161:50078",
-		Tunnels: []*Tunnel{
+		Tunnels: []*clienttunnel.Tunnel{
 			{
 				ID: "1",
 				Remote: chshare.Remote{

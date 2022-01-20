@@ -1,4 +1,4 @@
-package clients
+package clienttunnel
 
 import (
 	"crypto/tls"
@@ -12,7 +12,7 @@ import (
 	"golang.org/x/net/websocket"
 
 	"github.com/cloudradar-monitoring/rport/server/api/middleware"
-	"github.com/cloudradar-monitoring/rport/server/clients/tunnel/novnc"
+	"github.com/cloudradar-monitoring/rport/server/clients/clienttunnel/novnc"
 	"github.com/cloudradar-monitoring/rport/share/logger"
 )
 
@@ -41,10 +41,6 @@ func (tc *TunnelProxyConnectorVNC) InitRouter(router *mux.Router) *mux.Router {
 	return router
 }
 
-func (tc *TunnelProxyConnectorVNC) DisableHTTP2() bool {
-	return false
-}
-
 func (tc *TunnelProxyConnectorVNC) serveIndex(w http.ResponseWriter, r *http.Request) {
 	w.Header().Set("Content-Type", "text/html; charset=utf-8")
 	w.WriteHeader(http.StatusOK)
@@ -54,8 +50,6 @@ func (tc *TunnelProxyConnectorVNC) serveIndex(w http.ResponseWriter, r *http.Req
 	}
 
 	_ = novnc.IndexTMPL.Execute(w, map[string]interface{}{
-		"arbitraryHosts":  false,
-		"arbitraryPorts":  false,
 		"host":            tc.tunnelProxy.Host,
 		"port":            tc.tunnelProxy.Port,
 		"addr":            tc.tunnelProxy.Addr(),

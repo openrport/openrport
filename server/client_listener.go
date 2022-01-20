@@ -21,6 +21,7 @@ import (
 	"github.com/cloudradar-monitoring/rport/server/api/middleware"
 	"github.com/cloudradar-monitoring/rport/server/auditlog"
 	"github.com/cloudradar-monitoring/rport/server/clients"
+	"github.com/cloudradar-monitoring/rport/server/clients/clienttunnel"
 	chshare "github.com/cloudradar-monitoring/rport/share"
 	"github.com/cloudradar-monitoring/rport/share/comm"
 	"github.com/cloudradar-monitoring/rport/share/logger"
@@ -298,7 +299,7 @@ func (cl *ClientListener) getCID(reqID string, config *Config, clientAuthID stri
 	return clients.NewClientID()
 }
 
-func getRemotes(tunnels []*clients.Tunnel) []*models.Remote {
+func getRemotes(tunnels []*clienttunnel.Tunnel) []*models.Remote {
 	r := make([]*models.Remote, 0, len(tunnels))
 	for _, t := range tunnels {
 		r = append(r, &t.Remote)

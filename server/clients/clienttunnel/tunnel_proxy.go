@@ -1,4 +1,4 @@
-package clients
+package clienttunnel
 
 import (
 	"context"
@@ -78,9 +78,6 @@ func (tp *TunnelProxy) Start(ctx context.Context) error {
 	tp.proxyServer = &http.Server{
 		Addr:    tp.Addr(),
 		Handler: router,
-	}
-	if tp.tunnelProxyConnector.DisableHTTP2() {
-		tp.proxyServer.TLSNextProto = map[string]func(*http.Server, *tls.Conn, http.Handler){}
 	}
 
 	go func() {

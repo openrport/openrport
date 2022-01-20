@@ -1,4 +1,4 @@
-package clients
+package clienttunnel
 
 import (
 	"github.com/gorilla/mux"
@@ -7,7 +7,6 @@ import (
 //TunnelProxyConnector connects the tunnel proxy http server with the tunnel behind
 type TunnelProxyConnector interface {
 	InitRouter(router *mux.Router) *mux.Router
-	DisableHTTP2() bool
 }
 
 func NewTunnelProxyConnector(tp *TunnelProxy) TunnelProxyConnector {

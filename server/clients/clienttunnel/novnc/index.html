@@ -8,7 +8,6 @@
     <meta name="robots" content="noindex">
     <title>noVNC</title>
     <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/fomantic-ui@2.8.4/dist/semantic.min.css">
-    <!-- easy-novnc (https://github.com/pgaskin/easy-novnc) -->
     <style>
         body {
             background: #f4f4f4;
@@ -59,7 +58,7 @@
 <body>
     <div class="wrapper">
         <div class="connect">
-            <h3 class="ui dividing header">noVNC [Rport integrated]</h3>
+            <h3 class="ui dividing header">noVNC [Rport proxy connection]</h3>
             <form action="/vnc.html" method="GET" class="ui form">
                 {{if not .noURLPassword}}
                 <div class="field">
@@ -117,34 +116,6 @@
             </form>
         </div>
     </div>
-    <script>
-        var path = document.getElementById("path");
-        var host = document.getElementById("host");
-        var port = document.getElementById("port");
-
-        function updatePath() {
-            var addr = "vnc";
-            if (host && host.value.trim() != "") {
-                addr = addr + "/" + encodeURIComponent(host.value.trim());
-                if (port && port.value.toString().trim() != "") {
-                    addr = addr + "/" + port.value.toString().trim();
-                }
-            }
-            path.value = addr;
-        }
-
-        if (host) {
-            host.addEventListener("input", updatePath);
-            host.addEventListener("keyup", updatePath);
-            host.addEventListener("blur", updatePath);
-        }
-
-        if (port) {
-            port.addEventListener("input", updatePath);
-            port.addEventListener("keyup", updatePath);
-            port.addEventListener("blur", updatePath);
-        }
-    </script>
 </body>
 
 </html>

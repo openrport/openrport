@@ -30,7 +30,7 @@ bindata-db:
 
 # usage: make novnc, to generate novnc index and error404 template (necessary, when ../novnc/index.html or ../novnc/error404.html has changed)
 novnc:
-	cd server/clients/tunnel/novnc && go run ./index_generate.go && go run ./error404_generate.go
+	cd server/clients/clienttunnel/novnc && go run ./index_generate.go && go run ./error404_generate.go
 
 clean:
 	go clean
