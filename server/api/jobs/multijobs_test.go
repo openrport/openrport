@@ -7,13 +7,16 @@ import (
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 
+	"github.com/cloudradar-monitoring/rport/db/migration/jobs"
+	"github.com/cloudradar-monitoring/rport/db/sqlite"
 	"github.com/cloudradar-monitoring/rport/server/test/jb"
 	"github.com/cloudradar-monitoring/rport/share/models"
 )
 
 func TestMultiJobsSqliteProvider(t *testing.T) {
-	p, err := NewSqliteProvider(":memory:", testLog)
+	jobsDB, err := sqlite.New(":memory:", jobs.AssetNames(), jobs.Asset)
 	require.NoError(t, err)
+	p := NewSqliteProvider(jobsDB, testLog)
 	defer p.Close()
 
 	// verify job summaries not found

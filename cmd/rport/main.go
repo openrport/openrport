@@ -372,6 +372,10 @@ func decodeConfig(args []string) error {
 	config.Tunnels.ReverseProxy = *tunnelsReverseProxy
 	config.Tunnels.HostHeader = *tunnelsHostHeader
 
+	if config.InterpreterAliases == nil {
+		config.InterpreterAliases = map[string]string{}
+	}
+
 	return nil
 }
 

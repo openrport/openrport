@@ -16,10 +16,18 @@ jobs:
           version: v1.32
           args: -c .golangci.yml
   test:
-    name: Test
+    name: Test Server/Client Nix
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v2
 
       - name: Test
         run: go test -race -v ./...
+
+  test-win:
+    name: Test Client Windows
+    runs-on: windows-2019
+    steps:
+      - uses: actions/checkout@v2
+      - name: Test
+        run: go test -race -v ./client/...

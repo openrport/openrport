@@ -26,5 +26,6 @@ const (
 	ApplicationLibraryCommand  = "library.command"
 	ApplicationLibraryScript   = "library.script"
 	ApplicationVault           = "vault"
+	ApplicationSchedule        = "schedule"
 	ApplicationUploads         = "uploads"
 )

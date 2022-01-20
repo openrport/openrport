@@ -836,7 +836,9 @@ paths:
               interpreter:
                 type: "string"
                 enum: [ cmd, powershell, tacoscript ]
-                description: "command interpreter to use to execute the script. If not set 'cmd' is used by default on Windows and /bin/sh on Linux. For tacoscript interpreter you should install tacoscript binary from here: https://github.com/cloudradar-monitoring/tacoscript#installation. It should also be available in the system path."
+                description: "command interpreter to use to execute the script. If not set 'cmd' is used by default on Windows and /bin/sh on Linux.\n
+                For tacoscript interpreter you should install tacoscript binary from here: https://github.com/cloudradar-monitoring/tacoscript#installation. It should also be available in the system path.\n
+                Additionally, you can use interpreter aliases or full absolute paths to an interpreter of your choice (see https://oss.rport.io/docs/no14-scripts.html#scripts-execution for details)."
               cwd:
                 type: "string"
                 description: "current working directory for the executable script"
@@ -3563,7 +3565,10 @@ definitions:
       interpreter:
         type: "string"
         enum: [cmd, powershell, tacoscript]
-        description: "command interpreter to use to execute the script. If not set 'cmd' is used by default on Windows, and '/bin/sh' on Unix. For tacoscript interpreter you should install tacoscript binary from here: https://github.com/cloudradar-monitoring/tacoscript#installation. It should also be available in the system path."
+        description: "command interpreter to use to execute the script. If not set 'cmd' is used by default on Windows, and '/bin/sh' on Unix. \n
+        For tacoscript interpreter you should install tacoscript binary from here: https://github.com/cloudradar-monitoring/tacoscript#installation. \n
+        It should also be available in the system path.\n
+        Additionally, you can use interpreter aliases or full absolute paths to an interpreter of your choice (see https://oss.rport.io/docs/no14-scripts.html#scripts-execution for details)."
       timeout_sec:
         type: "integer"
         description: "timeout in seconds to observe the script execution on each client separately. If not set a default timeout (60 seconds) is used"

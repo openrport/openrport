@@ -16,7 +16,13 @@ func (e *CmdExecutorImpl) New(ctx context.Context, execCtx *CmdExecutorContext) 
 		args = append(args, "sudo", "-n")
 	}
 
-	interpreter := execCtx.Interpreter
+	var interpreter string
+	if execCtx.HasShebang {
+		interpreter = ""
+	} else {
+		interpreter = execCtx.Interpreter.Get()
+	}
+
 	if interpreter != "" {
 		args = append(args, interpreter)
 		if interpreter != chshare.Tacoscript {
@@ -25,7 +31,7 @@ func (e *CmdExecutorImpl) New(ctx context.Context, execCtx *CmdExecutorContext) 
 	}
 
 	cmdStr := execCtx.Command
-	if strings.Contains(cmdStr, " ") {
+	if strings.Contains(cmdStr, " ") && interpreter != chshare.Tacoscript {
 		cmdStr = strings.ReplaceAll(cmdStr, " ", "\\ ")
 	}
 

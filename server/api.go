@@ -26,6 +26,7 @@ import (
 	"github.com/cloudradar-monitoring/rport/server/api/command"
 	errors2 "github.com/cloudradar-monitoring/rport/server/api/errors"
 	"github.com/cloudradar-monitoring/rport/server/api/jobs"
+	"github.com/cloudradar-monitoring/rport/server/api/jobs/schedule"
 	"github.com/cloudradar-monitoring/rport/server/api/middleware"
 	"github.com/cloudradar-monitoring/rport/server/api/users"
 	"github.com/cloudradar-monitoring/rport/server/auditlog"
@@ -236,6 +237,11 @@ func (al *APIListener) initRouter() {
 	api.HandleFunc("/library/commands/{"+routeParamCommandValueID+"}", al.handleDeleteCommand).Methods(http.MethodDelete)
 	api.HandleFunc("/scripts", al.handlePostMultiClientScript).Methods(http.MethodPost)
 	api.HandleFunc("/auditlog", al.handleListAuditLog).Methods(http.MethodGet)
+	api.HandleFunc("/schedules", al.handleListSchedules).Methods(http.MethodGet)
+	api.HandleFunc("/schedules", al.handlePostSchedules).Methods(http.MethodPost)
+	api.HandleFunc("/schedules/{schedule_id}", al.handleGetSchedule).Methods(http.MethodGet)
+	api.HandleFunc("/schedules/{schedule_id}", al.handleUpdateSchedule).Methods(http.MethodPut)
+	api.HandleFunc("/schedules/{schedule_id}", al.handleDeleteSchedule).Methods(http.MethodDelete)
 	api.HandleFunc("/files", al.handleFileUploads).Methods(http.MethodPost).Name(filesUploadRouteName)
 	api.HandleFunc(totPRoutes, al.wrapTotPEnabledMiddleware(al.handleGetTotP)).Methods(http.MethodGet)
 	api.HandleFunc(totPRoutes, al.wrapTotPEnabledMiddleware(al.handlePostTotP)).Methods(http.MethodPost)
@@ -3884,4 +3890,124 @@ func (al *APIListener) handlePutStoredTunnel(w http.ResponseWriter, req *http.Re
 	}
 
 	al.writeJSONResponse(w, http.StatusOK, api.NewSuccessPayload(result))
+}
+
+func (al *APIListener) handleListSchedules(w http.ResponseWriter, req *http.Request) {
+	items, err := al.scheduleManager.List(req.Context(), req)
+	if err != nil {
+		al.jsonError(w, err)
+		return
+	}
+
+	al.writeJSONResponse(w, http.StatusOK, api.NewSuccessPayload(items))
+}
+
+func (al *APIListener) handlePostSchedules(w http.ResponseWriter, req *http.Request) {
+	var scheduleInput schedule.Schedule
+	err := parseRequestBody(req.Body, &scheduleInput)
+	if err != nil {
+		al.jsonError(w, err)
+		return
+	}
+
+	curUsername := api.GetUser(req.Context(), al.Logger)
+	if curUsername == "" {
+		al.jsonErrorResponseWithTitle(w, http.StatusUnauthorized, "unauthorized")
+		return
+	}
+
+	storedValue, err := al.scheduleManager.Create(req.Context(), &scheduleInput, curUsername)
+	if err != nil {
+		al.jsonError(w, err)
+		return
+	}
+
+	al.auditLog.Entry(auditlog.ApplicationSchedule, auditlog.ActionCreate).
+		WithHTTPRequest(req).
+		WithRequest(scheduleInput).
+		WithResponse(storedValue).
+		WithID(storedValue.ID).
+		Save()
+
+	al.writeJSONResponse(w, http.StatusCreated, api.NewSuccessPayload(storedValue))
+}
+
+func (al *APIListener) handleUpdateSchedule(w http.ResponseWriter, req *http.Request) {
+	vars := mux.Vars(req)
+	idStr, ok := vars["schedule_id"]
+	if !ok {
+		al.jsonErrorResponseWithTitle(w, http.StatusBadRequest, "Schedule ID is not provided")
+		return
+	}
+
+	var scheduleInput schedule.Schedule
+	err := parseRequestBody(req.Body, &scheduleInput)
+	if err != nil {
+		al.jsonError(w, err)
+		return
+	}
+
+	storedValue, err := al.scheduleManager.Update(req.Context(), idStr, &scheduleInput)
+	if err != nil {
+		al.jsonError(w, err)
+		return
+	}
+
+	al.auditLog.Entry(auditlog.ApplicationSchedule, auditlog.ActionUpdate).
+		WithHTTPRequest(req).
+		WithRequest(scheduleInput).
+		WithResponse(storedValue).
+		WithID(idStr).
+		Save()
+
+	al.writeJSONResponse(w, http.StatusOK, api.NewSuccessPayload(storedValue))
+}
+
+func (al *APIListener) handleGetSchedule(w http.ResponseWriter, req *http.Request) {
+	vars := mux.Vars(req)
+	idStr := vars["schedule_id"]
+	if idStr == "" {
+		al.jsonError(w, errors2.APIError{
+			Err:        errors.New("empty schedule id provided"),
+			HTTPStatus: http.StatusBadRequest,
+		})
+		return
+	}
+
+	foundSchedule, err := al.scheduleManager.Get(req.Context(), idStr)
+	if err != nil {
+		al.jsonError(w, err)
+		return
+	}
+	if foundSchedule == nil {
+		al.jsonErrorResponseWithTitle(w, http.StatusNotFound, fmt.Sprintf("Cannot find a schedule by the provided id: %s", idStr))
+		return
+	}
+
+	al.writeJSONResponse(w, http.StatusOK, api.NewSuccessPayload(foundSchedule))
+}
+
+func (al *APIListener) handleDeleteSchedule(w http.ResponseWriter, req *http.Request) {
+	vars := mux.Vars(req)
+	idStr := vars["schedule_id"]
+	if idStr == "" {
+		al.jsonError(w, errors2.APIError{
+			Err:        errors.New("empty schedule id provided"),
+			HTTPStatus: http.StatusBadRequest,
+		})
+		return
+	}
+
+	err := al.scheduleManager.Delete(req.Context(), idStr)
+	if err != nil {
+		al.jsonError(w, err)
+		return
+	}
+
+	al.auditLog.Entry(auditlog.ApplicationSchedule, auditlog.ActionDelete).
+		WithHTTPRequest(req).
+		WithID(idStr).
+		Save()
+
+	w.WriteHeader(http.StatusNoContent)
 }
