@@ -3,7 +3,6 @@ package clients
 import (
 	"crypto/tls"
 	"io"
-	"log"
 	"net"
 	"net/http"
 	"net/url"
@@ -12,6 +11,7 @@ import (
 	"github.com/gorilla/mux"
 	"golang.org/x/net/websocket"
 
+	"github.com/cloudradar-monitoring/rport/server/api/middleware"
 	"github.com/cloudradar-monitoring/rport/server/clients/tunnel/novnc"
 	"github.com/cloudradar-monitoring/rport/share/logger"
 )
@@ -32,16 +32,17 @@ func (tc *TunnelProxyConnectorVNC) InitRouter(router *mux.Router) *mux.Router {
 	router.HandleFunc("/vnc", tc.serveVNC)
 
 	router.HandleFunc("/", tc.serveIndex)
+	router.HandleFunc("/error404", tc.serveError404)
 
-	//router.NotFoundHandler = fs("noVNC-master", novnc.NoVNC)
-	novncRoot := "/home/moo/devdata/rport/gek-server-1/novnc-root/"
-	router.NotFoundHandler = fs("/", http.Dir(novncRoot))
+	//handle novnc javascript app from local filesystem
+	tc.tunnelProxy.Logger.Infof("serving novnc javascript app from: %s", tc.tunnelProxy.Config.NovncRoot)
+	router.NotFoundHandler = middleware.Handle404(fs("/", http.Dir(tc.tunnelProxy.Config.NovncRoot)), http.HandlerFunc(tc.serveError404))
 
 	return router
 }
 
 func (tc *TunnelProxyConnectorVNC) DisableHTTP2() bool {
-	return true
+	return false
 }
 
 func (tc *TunnelProxyConnectorVNC) serveIndex(w http.ResponseWriter, r *http.Request) {
@@ -65,11 +66,15 @@ func (tc *TunnelProxyConnectorVNC) serveIndex(w http.ResponseWriter, r *http.Req
 	})
 }
 
-func (tc *TunnelProxyConnectorVNC) serveVNC(w http.ResponseWriter, r *http.Request) {
-	//w.Header().Set("X-Target-Addr", tc.tunnelProxy.TunnelAddr())
+func (tc *TunnelProxyConnectorVNC) serveError404(w http.ResponseWriter, r *http.Request) {
+	w.Header().Set("Content-Type", "text/html; charset=utf-8")
+	w.WriteHeader(http.StatusOK)
 
+	_ = novnc.Error404TMPL.Execute(w, map[string]interface{}{})
+}
+
+func (tc *TunnelProxyConnectorVNC) serveVNC(w http.ResponseWriter, r *http.Request) {
 	tc.tunnelProxy.Logger.Infof("TunnelProxyConnectorVNC to tunnel: %s", tc.tunnelProxy.TunnelAddr())
-	log.Println("websockify with ", r.RequestURI)
 	tc.websockify(tc.tunnelProxy.TunnelAddr(), []byte("RFB"), tc.tunnelProxy.Config.CertFile, tc.tunnelProxy.Config.KeyFile).ServeHTTP(w, r)
 }
 

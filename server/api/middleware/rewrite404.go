@@ -51,3 +51,13 @@ func Rewrite404(h http.Handler, rewritePath string) http.HandlerFunc {
 		}
 	}
 }
+
+func Handle404(next http.Handler, error404Handler http.Handler) http.HandlerFunc {
+	return func(w http.ResponseWriter, r *http.Request) {
+		newW := &NotFoundRewriteResponseWriter{ResponseWriter: w}
+		next.ServeHTTP(newW, r)
+		if newW.status == http.StatusNotFound {
+			error404Handler.ServeHTTP(w, r)
+		}
+	}
+}

@@ -210,6 +210,9 @@ var serverHelp = `
     --tunnel-proxy-key-file, An optional arg to specify key file for http tunnel proxy.
     Https tunnel proxy can be activated if both cert and key file are set.
 
+    --novnc-root, Specifies local directory path. If specified, rportd will serve
+    novnc javascript app from this directory.
+
     --help, -h, This help text
 
     --version, Print version info and exit
@@ -279,6 +282,7 @@ func init() {
 	pFlags.Int64("monitoring-data-storage-days", 0, "")
 	pFlags.String("tunnel-proxy-cert-file", "", "")
 	pFlags.String("tunnel-proxy-key-file", "", "")
+	pFlags.String("novnc-root", "", "")
 
 	cfgPath = pFlags.StringP("config", "c", "", "")
 	svcCommand = pFlags.String("service", "", "")
@@ -354,6 +358,7 @@ func bindPFlags() {
 	_ = viperCfg.BindPFlag("server.allow_root", pFlags.Lookup("allow-root"))
 	_ = viperCfg.BindPFlag("server.tunnel_proxy_cert_file", pFlags.Lookup("tunnel-proxy-cert-file"))
 	_ = viperCfg.BindPFlag("server.tunnel_proxy_key_file", pFlags.Lookup("tunnel-proxy-key-file"))
+	_ = viperCfg.BindPFlag("server.novnc_root", pFlags.Lookup("novnc-root"))
 
 	_ = viperCfg.BindPFlag("logging.log_file", pFlags.Lookup("log-file"))
 	_ = viperCfg.BindPFlag("logging.log_level", pFlags.Lookup("log-level"))

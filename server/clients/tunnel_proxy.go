@@ -16,9 +16,10 @@ import (
 )
 
 type TunnelProxyConfig struct {
-	CertFile string `mapstructure:"tunnel_proxy_cert_file"`
-	KeyFile  string `mapstructure:"tunnel_proxy_key_file"`
-	Enabled  bool
+	CertFile  string `mapstructure:"tunnel_proxy_cert_file"`
+	KeyFile   string `mapstructure:"tunnel_proxy_key_file"`
+	NovncRoot string `mapstructure:"novnc_root"`
+	Enabled   bool
 }
 
 func (c *TunnelProxyConfig) ParseAndValidate() error {

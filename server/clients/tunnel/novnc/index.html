@@ -59,28 +59,8 @@
 <body>
     <div class="wrapper">
         <div class="connect">
-            <h3 class="ui dividing header">noVNC [rport integrated]</h3>
+            <h3 class="ui dividing header">noVNC [Rport integrated]</h3>
             <form action="/vnc.html" method="GET" class="ui form">
-                {{if .arbitraryHosts}}
-                {{if .arbitraryPorts}}
-                <div class="two fields">
-                    <div class="field">
-                        <label for="host">Host</label>
-                        <input type="text" id="host" placeholder="{{.host}}" autocomplete="off">
-                    </div>
-                    <div class="field">
-                        <label for="port">Port</label>
-                        <input type="number" id="port" min="1" max="65535" placeholder="{{.port}}" autocomplete="off">
-                    </div>
-                </div>
-                {{else}}
-                <div class="field">
-                    <label for="host">Host</label>
-                    <input type="text" id="host" placeholder="{{.host}}">
-                </div>
-                {{end}}
-                {{end}}
-
                 {{if not .noURLPassword}}
                 <div class="field">
                     <label for="password">Password</label>
