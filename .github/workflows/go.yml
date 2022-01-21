@@ -11,11 +11,10 @@ jobs:
         run: go mod vendor
 
       - name: golangci-lint
-        uses: reviewdog/action-golangci-lint@v2
+        uses: golangci/golangci-lint-action@v2
         with:
-          go_version: '1.15'
-          golangci_lint_version: 'v1.32.0'
-          fail_on_error: true
+          version: v1.32
+          args: -c .golangci.yml
   test:
     name: Test Server/Client Nix
     runs-on: ubuntu-latest

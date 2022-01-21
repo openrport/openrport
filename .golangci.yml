@@ -33,6 +33,9 @@ linters-settings:
   govet:
     # report about shadowed variables
     check-shadowing: true
+  golint:
+    # minimal confidence for issues, default is 0.8
+    min-confidence: 0.8
   gofmt:
     # simplify code: gofmt with `-s` option, true by default
     simplify: true
@@ -103,7 +106,7 @@ linters:
   enable:
     - goimports
     - govet
-    - revive
+    - golint
     - gosimple
     - structcheck
     - deadcode
