@@ -8,6 +8,7 @@ import (
 	"time"
 
 	"github.com/cloudradar-monitoring/cagent/pkg/winapi"
+
 	"github.com/cloudradar-monitoring/rport/client/monitoring/helper"
 )
 

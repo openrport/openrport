@@ -7,11 +7,11 @@ jobs:
     steps:
       - uses: actions/checkout@v2
 
-      #- name: go mod vendor
-      #  run: go mod vendor
+      - name: go mod vendor
+        run: go mod vendor
 
       - name: golangci-lint
-        uses: golangci/golangci-lint-action@v2
+        uses: golangci/golangci-lint-action@v2.5.2
         with:
           version: v1.43.0
           args: -c .golangci.yml
