@@ -13,8 +13,8 @@ jobs:
       - name: golangci-lint
         uses: reviewdog/action-golangci-lint@v2
         with:
-          go_version: '1.17'
-          golangci_lint_version: 'v1.40.0'
+          go_version: '1.15'
+          golangci_lint_version: 'v1.32.0'
           fail_on_error: true
   test:
     name: Test Server/Client Nix
