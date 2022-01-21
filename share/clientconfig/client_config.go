@@ -19,7 +19,7 @@ type Config struct {
 	Monitoring         MonitoringConfig  `json:"monitoring" mapstructure:"monitoring"`
 	Tunnels            TunnelsConfig     `json:"-"`
 	InterpreterAliases map[string]string `json:"interpreter_aliases" mapstructure:"interpreter-aliases"`
-	FilePushConfig FilePushConfig   `json:"file_push" mapstructure:"file-push"`
+	FilePushConfig     FilePushConfig    `json:"file_push" mapstructure:"file-push"`
 }
 
 type ClientConfig struct {
