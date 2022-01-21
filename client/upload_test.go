@@ -115,7 +115,7 @@ func TestHandleUploadRequest(t *testing.T) {
 			fsCallback: func(fs *test.FileAPIMock) {
 				fs.On("Exist", filepath.Join("destination", "file2.txt")).Return(true, nil)
 
-				expectedTempFilePath := fmt.Sprintf(filepath.Join("data", files.DefaultUploadTempFolder, "file_temp2.txt"))
+				expectedTempFilePath := filepath.Join("data", files.DefaultUploadTempFolder, "file_temp2.txt")
 				fs.On("Exist", expectedTempFilePath).Return(false, nil)
 
 				fs.On("CreateDirIfNotExists", filepath.Join("data", files.DefaultUploadTempFolder), os.FileMode(0700)).Return(true, nil)
@@ -185,7 +185,7 @@ func TestHandleUploadRequest(t *testing.T) {
 			fsCallback: func(fs *test.FileAPIMock) {
 				fs.On("Exist", filepath.Join("destination", "file.txt")).Return(false, nil)
 
-				expectedTempFilePath := fmt.Sprintf(filepath.Join("data", files.DefaultUploadTempFolder, "file_temp.txt"))
+				expectedTempFilePath := filepath.Join("data", files.DefaultUploadTempFolder, "file_temp.txt")
 				fs.On("Exist", expectedTempFilePath).Return(false, nil)
 
 				fs.On("CreateDirIfNotExists", filepath.Join("data", files.DefaultUploadTempFolder), files.DefaultMode).Return(true, nil)
@@ -212,7 +212,7 @@ func TestHandleUploadRequest(t *testing.T) {
 			fsCallback: func(fs *test.FileAPIMock) {
 				fs.On("Exist", filepath.Join("destination", "file7.txt")).Return(true, nil)
 
-				expectedTempFilePath := fmt.Sprintf(filepath.Join("data", files.DefaultUploadTempFolder, "file_temp7.txt"))
+				expectedTempFilePath := filepath.Join("data", files.DefaultUploadTempFolder, "file_temp7.txt")
 				fs.On("Exist", expectedTempFilePath).Return(false, nil)
 
 				fs.On("CreateDirIfNotExists", filepath.Join("data", files.DefaultUploadTempFolder), os.FileMode(0744)).Return(true, nil)
