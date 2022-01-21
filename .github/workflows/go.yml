@@ -14,7 +14,7 @@ jobs:
         uses: reviewdog/action-golangci-lint@v2
         with:
           go_version: '1.17'
-          golangci_lint_flags: '--config=.golangci.yml .'
+          golangci_lint_version: '1.43.0'
   test:
     name: Test Server/Client Nix
     runs-on: ubuntu-latest
