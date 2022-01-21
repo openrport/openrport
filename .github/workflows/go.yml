@@ -13,7 +13,7 @@ jobs:
       - name: golangci-lint
         uses: golangci/golangci-lint-action@v2
         with:
-          version: v1.32
+          version: v1.43.0
           args: -c .golangci.yml
   test:
     name: Test Server/Client Nix
