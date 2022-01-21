@@ -123,6 +123,9 @@ func (tp *TunnelProxy) handleACL(next http.Handler) http.Handler {
 		}
 		clientIP := chshare.RemoteIP(r)
 		ipv4 := net.ParseIP(clientIP)
+		if ipv4 == nil {
+			tp.Logger.Infof("Proxy Access rejected. Cannot parse ip: %s", clientIP)
+		}
 		if ipv4 != nil {
 			tcpIP := &net.TCPAddr{IP: ipv4}
 			if tp.ACL.CheckAccess(tcpIP.IP) {
@@ -131,8 +134,8 @@ func (tp *TunnelProxy) handleACL(next http.Handler) http.Handler {
 			}
 
 			tp.Logger.Infof("Proxy Access rejected. Remote addr: %s", clientIP)
-			tp.sendHTML(w, http.StatusForbidden, "Access rejected by ACL")
 		}
+		tp.sendHTML(w, http.StatusForbidden, "Access rejected by ACL")
 	})
 }
 

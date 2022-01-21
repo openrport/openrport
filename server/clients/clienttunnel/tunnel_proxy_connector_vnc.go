@@ -5,8 +5,6 @@ import (
 	"io"
 	"net"
 	"net/http"
-	"net/url"
-	"strings"
 
 	"github.com/gorilla/mux"
 	"golang.org/x/net/websocket"
@@ -15,6 +13,8 @@ import (
 	"github.com/cloudradar-monitoring/rport/server/clients/clienttunnel/novnc"
 	"github.com/cloudradar-monitoring/rport/share/logger"
 )
+
+const rfbMagic = "RFB"
 
 //TunnelProxyConnectorVNC is a kind of 'websockify' vnc to tcp proxy to be used by a novnc instance to connect to a vnc tunnel
 type TunnelProxyConnectorVNC struct {
@@ -36,7 +36,7 @@ func (tc *TunnelProxyConnectorVNC) InitRouter(router *mux.Router) *mux.Router {
 
 	//handle novnc javascript app from local filesystem
 	tc.tunnelProxy.Logger.Infof("serving novnc javascript app from: %s", tc.tunnelProxy.Config.NovncRoot)
-	router.NotFoundHandler = middleware.Handle404(fs("/", http.Dir(tc.tunnelProxy.Config.NovncRoot)), http.HandlerFunc(tc.serveError404))
+	router.PathPrefix("/").Handler(middleware.Handle404(http.FileServer(http.Dir(tc.tunnelProxy.Config.NovncRoot)), http.HandlerFunc(tc.serveError404)))
 
 	return router
 }
@@ -49,7 +49,7 @@ func (tc *TunnelProxyConnectorVNC) serveIndex(w http.ResponseWriter, r *http.Req
 		"resize": "scale",
 	}
 
-	_ = novnc.IndexTMPL.Execute(w, map[string]interface{}{
+	err := novnc.IndexTMPL.Execute(w, map[string]interface{}{
 		"host":            tc.tunnelProxy.Host,
 		"port":            tc.tunnelProxy.Port,
 		"addr":            tc.tunnelProxy.Addr(),
@@ -58,18 +58,24 @@ func (tc *TunnelProxyConnectorVNC) serveIndex(w http.ResponseWriter, r *http.Req
 		"defaultViewOnly": false,
 		"params":          novncParamsMap,
 	})
+	if err != nil {
+		tc.tunnelProxy.Logger.Errorf("Error while executing novnc index template: %v", err)
+	}
 }
 
 func (tc *TunnelProxyConnectorVNC) serveError404(w http.ResponseWriter, r *http.Request) {
 	w.Header().Set("Content-Type", "text/html; charset=utf-8")
 	w.WriteHeader(http.StatusOK)
 
-	_ = novnc.Error404TMPL.Execute(w, map[string]interface{}{})
+	err := novnc.Error404TMPL.Execute(w, map[string]interface{}{})
+	if err != nil {
+		tc.tunnelProxy.Logger.Errorf("Error while executing novnc error404 template: %v", err)
+	}
 }
 
 func (tc *TunnelProxyConnectorVNC) serveVNC(w http.ResponseWriter, r *http.Request) {
 	tc.tunnelProxy.Logger.Infof("TunnelProxyConnectorVNC to tunnel: %s", tc.tunnelProxy.TunnelAddr())
-	tc.websockify(tc.tunnelProxy.TunnelAddr(), []byte("RFB"), tc.tunnelProxy.Config.CertFile, tc.tunnelProxy.Config.KeyFile).ServeHTTP(w, r)
+	tc.websockify(tc.tunnelProxy.TunnelAddr(), []byte(rfbMagic), tc.tunnelProxy.Config.CertFile, tc.tunnelProxy.Config.KeyFile).ServeHTTP(w, r)
 }
 
 //noCache middleware to disable caching
@@ -77,23 +83,6 @@ func noCache(next http.Handler) http.Handler {
 	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		w.Header().Set("Cache-Control", "no-cache")
 		next.ServeHTTP(w, r)
-	})
-}
-
-// fs returns a http.Handler which serves a directory from a http.FileSystem.
-func fs(dir string, fs http.FileSystem) http.Handler {
-	return addPrefix("/"+strings.Trim(dir, "/"), http.FileServer(fs))
-}
-
-// addPrefix is similar to http.StripPrefix, except it adds a prefix.
-func addPrefix(prefix string, h http.Handler) http.Handler {
-	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		r2 := new(http.Request)
-		*r2 = *r
-		r2.URL = new(url.URL)
-		*r2.URL = *r.URL
-		r2.URL.Path = prefix + r.URL.Path
-		h.ServeHTTP(w, r2)
 	})
 }
 
@@ -164,39 +153,39 @@ func copyCh(dst io.Writer, src io.Reader, done chan error) {
 // for magic bytes at the beginning, and will return a sticky io.EOF and stop
 // reading from the original reader as soon as a mismatch starts.
 type magicCheck struct {
-	rdr io.Reader
-	exp []byte
-	len int
-	rem int
-	act []byte
-	fld bool
+	reader    io.Reader
+	expected  []byte
+	length    int
+	remaining int
+	actual    []byte
+	failed    bool
 }
 
 func newMagicCheck(r io.Reader, magic []byte) *magicCheck {
-	return &magicCheck{r, magic, len(magic), len(magic), make([]byte, len(magic)), false}
+	return &magicCheck{reader: r, expected: magic, length: len(magic), remaining: len(magic), actual: make([]byte, len(magic)), failed: false}
 }
 
 // Failed returns true if the magic check has failed (note that it returns false
 // if the source io.Reader reached io.EOF before the check was complete).
 func (m *magicCheck) Failed() bool {
-	return m.fld
+	return m.failed
 }
 
 // Magic returns the magic which was read so far.
 func (m *magicCheck) Magic() []byte {
-	return m.act
+	return m.actual
 }
 
 func (m *magicCheck) Read(buf []byte) (n int, err error) {
-	if m.fld {
+	if m.failed {
 		return 0, io.EOF
 	}
-	n, err = m.rdr.Read(buf)
-	if err == nil && n > 0 && m.rem > 0 {
-		m.rem -= copy(m.act[m.len-m.rem:], buf[:n])
-		for i := 0; i < m.len-m.rem; i++ {
-			if m.act[i] != m.exp[i] {
-				m.fld = true
+	n, err = m.reader.Read(buf)
+	if err == nil && n > 0 && m.remaining > 0 {
+		m.remaining -= copy(m.actual[m.length-m.remaining:], buf[:n])
+		for i := 0; i < m.length-m.remaining; i++ {
+			if m.actual[i] != m.expected[i] {
+				m.failed = true
 				return 0, io.EOF
 			}
 		}
