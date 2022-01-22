@@ -59,7 +59,7 @@ func TestHandleFileUploads(t *testing.T) {
 			fileName:    "file.txt",
 			fileContent: "some content",
 			formParts: map[string][]string{
-				"client": {
+				"client_id": {
 					cl.ID,
 				},
 				"dest": {

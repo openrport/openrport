@@ -644,12 +644,19 @@ func TestConfigParseAndValidateFilePushConfig(t *testing.T) {
 		ExpectedError string
 	}{
 		{
-			Name:         "nil deny globs",
-			FilePushDeny: nil,
+			Name:          "nil deny globs",
+			FilePushDeny:  nil,
+			ExpectedError: "",
 		},
 		{
-			Name:         "empty deny globs",
-			FilePushDeny: []string{},
+			Name:          "empty deny globs",
+			FilePushDeny:  []string{},
+			ExpectedError: "",
+		},
+		{
+			Name:          "valid globs",
+			FilePushDeny:  append(FilePushDenyGlobs, "[a-z][cde][!zhw][!0-1]?*.txt"),
+			ExpectedError: "",
 		},
 		{
 			Name:          "invalid pattern",

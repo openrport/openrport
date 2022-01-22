@@ -40,7 +40,7 @@ The file itself is marked with the required `upload` key.
 
 Additionally, user should provide following information as additional key/value parts of the multipart request:
 
-### client 
+### client_id 
 _(string optional)_
 
 ID of a client who should receive the file. You can repeat `client` part to send file to multiple clients.
@@ -103,8 +103,8 @@ rport ALL=NOPASSWD: /usr/bin/mv /var/lib/rport/filepush/*_rport_filepush *
 curl -XPOST \
 -H 'Authorization: Bearer eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJ1c2VybmFtZSI6ImFwIiwic2NvcGVzIjpbeyJ1cmkiOiIqIiwibWV0aG9kIjoiKiJ9LHsidXJpIjoiL2FwaS92MS92ZXJpZnktMmZhIiwibWV0aG9kIjoiKiIsImV4Y2x1ZGUiOnRydWV9XSwianRpIjoiMTMxNDEzNTcxNTgxNjk5Njk3MDAifQ.az3I9cod3CAuUOi1UF7c9iECIH__RLELYTPO7_V04wk' \ 
 -F 'upload=@/home/myuser/some-file.txt' \
--F 'client=89C4AB76-D90A-555C-85BF-9F8770A3036F' \
--F 'client=b4f795ef-718f-4f69-8f6f-b304b38a904f' \
+-F 'client_id=89C4AB76-D90A-555C-85BF-9F8770A3036F' \
+-F 'client_id=b4f795ef-718f-4f69-8f6f-b304b38a904f' \
 -F 'dest=/Users/breathbath/Projects/rport/dist/data/client/Doriana Schauer3.vcf' \
 -F 'force=true' \
 -F 'sync=true' \

@@ -41,18 +41,18 @@ type SSHFileProvider struct {
 }
 
 type SftpSession struct {
-	RemoveFileData io.ReadCloser
-	SftpCl         *sftp.Client
+	RemoteFile io.ReadCloser
+	SftpCl     *sftp.Client
 }
 
 func (ss *SftpSession) Read(p []byte) (n int, err error) {
-	return ss.RemoveFileData.Read(p)
+	return ss.RemoteFile.Read(p)
 }
 
 func (ss *SftpSession) Close() error {
 	errs := make([]string, 0, 2)
 
-	err := ss.RemoveFileData.Close()
+	err := ss.RemoteFile.Close()
 	if err != nil {
 		errs = append(errs, err.Error())
 	}
@@ -83,8 +83,8 @@ func (sfp SSHFileProvider) Open(path string) (io.ReadCloser, error) {
 	}
 
 	return &SftpSession{
-		RemoveFileData: sftpFile,
-		SftpCl:         sftpCl,
+		RemoteFile: sftpFile,
+		SftpCl:     sftpCl,
 	}, nil
 }
 
@@ -248,7 +248,7 @@ func (c *UploadManager) handleWritingFile(uploadedFile *models.UploadedFile) (re
 		msgParts = append(msgParts, fmt.Sprintf("chown of %s failed: %v", tempFilePath, err))
 	}
 
-	err = c.copyFileToDestination(tempFilePath, uploadedFile)
+	err = c.moveFileToDestination(tempFilePath, uploadedFile)
 	if err != nil {
 		return nil, err
 	}
@@ -308,7 +308,7 @@ func (c *UploadManager) chmodFile(path string, mode os.FileMode) (err error) {
 	return nil
 }
 
-func (c *UploadManager) copyFileToDestination(tempFilePath string, uploadedFile *models.UploadedFile) (err error) {
+func (c *UploadManager) moveFileToDestination(tempFilePath string, uploadedFile *models.UploadedFile) (err error) {
 	err = c.prepareDestinationDir(uploadedFile.DestinationPath, uploadedFile.DestinationFileMode)
 	if err != nil {
 		return err

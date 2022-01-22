@@ -185,7 +185,7 @@ var serverHelp = `
     By default is set to 10240(10Kb).
 
     --max-filepush-bytes, An optional arg to define a limit for the file size that can be uploaded to server.
-    By default is set to 10000000(10M).
+    By default is set to 10000000(10Mb).
 
     --max-request-bytes-client, An optional arg to define a limit for data that can be sent by rport clients.
     By default is set to 524288(512Kb).

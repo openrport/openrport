@@ -2996,7 +2996,7 @@ paths:
           required: true
           description: "The file to upload"
         - in: "formData"
-          name: "client"
+          name: "client_id"
           type: "string"
           required: true
           description: "Client ID where the file should be placed. You can repeat 'client' parameter to indicate multiple clients"

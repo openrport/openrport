@@ -282,7 +282,7 @@ func (al *APIListener) uploadRequestFromRequest(req *http.Request) (*UploadReque
 		return nil, err
 	}
 
-	ur.ClientIDs = req.MultipartForm.Value["client"]
+	ur.ClientIDs = req.MultipartForm.Value["client_id"]
 	ur.GroupIDs = req.MultipartForm.Value["group_id"]
 
 	ur.Clients, ur.clientsInGroupsCount, err = al.getOrderedClients(req.Context(), ur.ClientIDs, ur.GroupIDs)
