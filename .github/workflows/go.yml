@@ -28,6 +28,4 @@ jobs:
           go-version: 1.17
 
       - name: Test
-        with:
-          go-version: 1.17
         run: go test -race -v ./...
