@@ -52,7 +52,7 @@ func (p *WebsocketTCPProxy) Dial() error {
 
 	p.tcpConn = tcpConn
 
-	p.logger.Infof("WebSocket %s connected to TCP %+v:%d", p.wsConn.RemoteAddr(), p.tcpAddr.IP, p.tcpAddr.Port)
+	p.logger.Infof("WebsocketTCPProxy: WebSocket %s connected to TCP %+v:%d", p.wsConn.RemoteAddr(), p.tcpAddr.IP, p.tcpAddr.Port)
 
 	return nil
 }

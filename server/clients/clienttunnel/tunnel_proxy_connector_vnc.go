@@ -1,6 +1,8 @@
 package clienttunnel
 
 import (
+	_ "embed" //to embed novnc wrapper templates
+	"html/template"
 	"net"
 	"net/http"
 
@@ -8,8 +10,13 @@ import (
 	"github.com/gorilla/websocket"
 
 	"github.com/cloudradar-monitoring/rport/server/api/middleware"
-	"github.com/cloudradar-monitoring/rport/server/clients/clienttunnel/novnc"
 )
+
+//go:embed novnc/index.html
+var indexHTML string
+
+//go:embed novnc/error404.html
+var error404HTML string
 
 //TunnelProxyConnectorVNC is a kind of 'websockify' vnc to tcp proxy to be used by a novnc instance to connect to a vnc tunnel
 type TunnelProxyConnectorVNC struct {
@@ -37,14 +44,11 @@ func (tc *TunnelProxyConnectorVNC) InitRouter(router *mux.Router) *mux.Router {
 }
 
 func (tc *TunnelProxyConnectorVNC) serveIndex(w http.ResponseWriter, r *http.Request) {
-	w.Header().Set("Content-Type", "text/html; charset=utf-8")
-	w.WriteHeader(http.StatusOK)
-
 	novncParamsMap := map[string]string{
 		"resize": "scale",
 	}
 
-	err := novnc.IndexTMPL.Execute(w, map[string]interface{}{
+	templateData := map[string]interface{}{
 		"host":            tc.tunnelProxy.Host,
 		"port":            tc.tunnelProxy.Port,
 		"addr":            tc.tunnelProxy.Addr(),
@@ -52,24 +56,30 @@ func (tc *TunnelProxyConnectorVNC) serveIndex(w http.ResponseWriter, r *http.Req
 		"noURLPassword":   true,
 		"defaultViewOnly": false,
 		"params":          novncParamsMap,
-	})
-	if err != nil {
-		tc.tunnelProxy.Logger.Errorf("Error while executing novnc index template: %v", err)
 	}
+
+	tc.serveTemplate(w, r, indexHTML, templateData)
 }
 
 func (tc *TunnelProxyConnectorVNC) serveError404(w http.ResponseWriter, r *http.Request) {
+	tc.serveTemplate(w, r, error404HTML, map[string]interface{}{})
+}
+
+func (tc *TunnelProxyConnectorVNC) serveTemplate(w http.ResponseWriter, r *http.Request, templateContent string, templateData map[string]interface{}) {
 	w.Header().Set("Content-Type", "text/html; charset=utf-8")
 	w.WriteHeader(http.StatusOK)
 
-	err := novnc.Error404TMPL.Execute(w, map[string]interface{}{})
+	tmpl, err := template.New("").Parse(templateContent)
+	if err == nil {
+		err = tmpl.Execute(w, templateData)
+	}
 	if err != nil {
-		tc.tunnelProxy.Logger.Errorf("Error while executing novnc error404 template: %v", err)
+		tc.tunnelProxy.Logger.Errorf("Error while serving template for request %s: %v", r.RequestURI, err)
 	}
 }
 
 func (tc *TunnelProxyConnectorVNC) serveVNC(w http.ResponseWriter, r *http.Request) {
-	tc.tunnelProxy.Logger.Infof("TunnelProxyConnectorVNC to tunnel: %s", tc.tunnelProxy.TunnelAddr())
+	tc.tunnelProxy.Logger.Infof("TunnelProxyConnectorVNC: connect to tunnel: %s", tc.tunnelProxy.TunnelAddr())
 
 	wsConn, err := Upgrader.Upgrade(w, r, nil)
 	if err != nil {
