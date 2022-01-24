@@ -30,10 +30,10 @@ type Details struct {
 	Script              string   `json:"script,omitempty"`
 	Interpreter         string   `json:"interpreter"`
 	Cwd                 string   `json:"cwd"`
-	IsSudo              string   `json:"is_sudo"`
+	IsSudo              bool     `json:"is_sudo"`
 	TimeoutSec          int      `json:"timeout_sec"`
 	ExecuteConcurrently bool     `json:"execute_concurrently"`
-	AbortOnError        bool     `json:"abort_on_error"`
+	AbortOnError        *bool    `json:"abort_on_error"`
 	Overlaps            bool     `json:"overlaps"`
 }
 
