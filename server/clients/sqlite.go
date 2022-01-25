@@ -11,6 +11,7 @@ import (
 
 	"github.com/jmoiron/sqlx"
 
+	"github.com/cloudradar-monitoring/rport/server/clients/clienttunnel"
 	chshare "github.com/cloudradar-monitoring/rport/share/clientconfig"
 	"github.com/cloudradar-monitoring/rport/share/models"
 )
@@ -139,32 +140,32 @@ type clientSqlite struct {
 }
 
 type clientDetails struct {
-	NumCPUs                int                   `json:"num_cpus"`
-	MemoryTotal            uint64                `json:"mem_total"`
-	Name                   string                `json:"name"`
-	OS                     string                `json:"os"`
-	OSArch                 string                `json:"os_arch"`
-	OSFamily               string                `json:"os_family"`
-	OSKernel               string                `json:"os_kernel"`
-	OSFullName             string                `json:"os_full_name"`
-	OSVersion              string                `json:"os_version"`
-	OSVirtualizationSystem string                `json:"os_virtualization_system"`
-	OSVirtualizationRole   string                `json:"os_virtualization_role"`
-	CPUFamily              string                `json:"cpu_family"`
-	CPUModel               string                `json:"cpu_model"`
-	CPUModelName           string                `json:"cpu_model_name"`
-	CPUVendor              string                `json:"cpu_vendor"`
-	Timezone               string                `json:"timezone"`
-	Hostname               string                `json:"hostname"`
-	Version                string                `json:"version"`
-	Address                string                `json:"address"`
-	IPv4                   []string              `json:"ipv4"`
-	IPv6                   []string              `json:"ipv6"`
-	Tags                   []string              `json:"tags"`
-	Tunnels                []*Tunnel             `json:"tunnels"`
-	AllowedUserGroups      []string              `json:"allowed_user_groups"`
-	UpdatesStatus          *models.UpdatesStatus `json:"updates_status"`
-	ClientConfig           *chshare.Config       `json:"client_configuration"`
+	NumCPUs                int                    `json:"num_cpus"`
+	MemoryTotal            uint64                 `json:"mem_total"`
+	Name                   string                 `json:"name"`
+	OS                     string                 `json:"os"`
+	OSArch                 string                 `json:"os_arch"`
+	OSFamily               string                 `json:"os_family"`
+	OSKernel               string                 `json:"os_kernel"`
+	OSFullName             string                 `json:"os_full_name"`
+	OSVersion              string                 `json:"os_version"`
+	OSVirtualizationSystem string                 `json:"os_virtualization_system"`
+	OSVirtualizationRole   string                 `json:"os_virtualization_role"`
+	CPUFamily              string                 `json:"cpu_family"`
+	CPUModel               string                 `json:"cpu_model"`
+	CPUModelName           string                 `json:"cpu_model_name"`
+	CPUVendor              string                 `json:"cpu_vendor"`
+	Timezone               string                 `json:"timezone"`
+	Hostname               string                 `json:"hostname"`
+	Version                string                 `json:"version"`
+	Address                string                 `json:"address"`
+	IPv4                   []string               `json:"ipv4"`
+	IPv6                   []string               `json:"ipv6"`
+	Tags                   []string               `json:"tags"`
+	Tunnels                []*clienttunnel.Tunnel `json:"tunnels"`
+	AllowedUserGroups      []string               `json:"allowed_user_groups"`
+	UpdatesStatus          *models.UpdatesStatus  `json:"updates_status"`
+	ClientConfig           *chshare.Config        `json:"client_configuration"`
 }
 
 func (d *clientDetails) Scan(value interface{}) error {

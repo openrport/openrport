@@ -14,6 +14,7 @@ import (
 	"strings"
 	"time"
 
+	"github.com/cloudradar-monitoring/rport/server/clients/clienttunnel"
 	"github.com/cloudradar-monitoring/rport/share/logger"
 
 	"github.com/gorilla/handlers"
@@ -1010,7 +1011,7 @@ type ClientPayload struct {
 	IPv6                   *[]string                `json:"ipv6,omitempty"`
 	Tags                   *[]string                `json:"tags,omitempty"`
 	AllowedUserGroups      *[]string                `json:"allowed_user_groups,omitempty"`
-	Tunnels                *[]*clients.Tunnel       `json:"tunnels,omitempty"`
+	Tunnels                *[]*clienttunnel.Tunnel  `json:"tunnels,omitempty"`
 	UpdatesStatus          **models.UpdatesStatus   `json:"updates_status,omitempty"`
 	ClientConfiguration    **clientconfig.Config    `json:"client_configuration,omitempty"`
 	Groups                 *[]string                `json:"groups,omitempty"`
@@ -1022,7 +1023,7 @@ type TunnelPayload struct {
 	ClientID string `json:"client_id"`
 }
 
-func convertToTunnelPayload(t *clients.Tunnel, clientID string) TunnelPayload {
+func convertToTunnelPayload(t *clienttunnel.Tunnel, clientID string) TunnelPayload {
 	return TunnelPayload{
 		Remote:   t.Remote,
 		ID:       t.ID,
@@ -1270,7 +1271,7 @@ func (al *APIListener) handlePutClientTunnel(w http.ResponseWriter, req *http.Re
 	remote.IdleTimeoutMinutes = int(idleTimeout.Minutes())
 
 	aclStr := req.URL.Query().Get("acl")
-	if _, err = clients.ParseTunnelACL(aclStr); err != nil {
+	if _, err = clienttunnel.ParseTunnelACL(aclStr); err != nil {
 		al.jsonErrorResponseWithErrCode(w, http.StatusBadRequest, ErrCodeInvalidACL, fmt.Sprintf("Invalid ACL: %s", err))
 		return
 	}
@@ -1318,7 +1319,7 @@ func (al *APIListener) handlePutClientTunnel(w http.ResponseWriter, req *http.Re
 		al.jsonErrorResponseWithTitle(w, http.StatusBadRequest, "creation of tunnel proxy not enabled")
 		return
 	}
-	if isHTTPProxy && schemeStr != "http" && schemeStr != "https" {
+	if isHTTPProxy && schemeStr != "http" && schemeStr != "https" && schemeStr != "vnc" {
 		al.jsonErrorResponseWithTitle(w, http.StatusBadRequest, fmt.Sprintf("tunnel proxy not allowed with scheme %s", schemeStr))
 		return
 	}

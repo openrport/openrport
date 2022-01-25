@@ -12,6 +12,7 @@ import (
 
 	"github.com/cloudradar-monitoring/rport/server/api/users"
 	"github.com/cloudradar-monitoring/rport/server/cgroups"
+	"github.com/cloudradar-monitoring/rport/server/clients/clienttunnel"
 	"github.com/cloudradar-monitoring/rport/server/ports"
 	"github.com/cloudradar-monitoring/rport/share/clientconfig"
 	"github.com/cloudradar-monitoring/rport/share/collections"
@@ -32,30 +33,30 @@ const (
 
 // Client represents client connection
 type Client struct {
-	ID                     string    `json:"id"`
-	Name                   string    `json:"name"`
-	OS                     string    `json:"os"`
-	OSArch                 string    `json:"os_arch"`
-	OSFamily               string    `json:"os_family"`
-	OSKernel               string    `json:"os_kernel"`
-	OSFullName             string    `json:"os_full_name"`
-	OSVersion              string    `json:"os_version"`
-	OSVirtualizationSystem string    `json:"os_virtualization_system"`
-	OSVirtualizationRole   string    `json:"os_virtualization_role"`
-	CPUFamily              string    `json:"cpu_family"`
-	CPUModel               string    `json:"cpu_model"`
-	CPUModelName           string    `json:"cpu_model_name"`
-	CPUVendor              string    `json:"cpu_vendor"`
-	NumCPUs                int       `json:"num_cpus"`
-	MemoryTotal            uint64    `json:"mem_total"`
-	Timezone               string    `json:"timezone"`
-	Hostname               string    `json:"hostname"`
-	IPv4                   []string  `json:"ipv4"`
-	IPv6                   []string  `json:"ipv6"`
-	Tags                   []string  `json:"tags"`
-	Version                string    `json:"version"`
-	Address                string    `json:"address"`
-	Tunnels                []*Tunnel `json:"tunnels"`
+	ID                     string                 `json:"id"`
+	Name                   string                 `json:"name"`
+	OS                     string                 `json:"os"`
+	OSArch                 string                 `json:"os_arch"`
+	OSFamily               string                 `json:"os_family"`
+	OSKernel               string                 `json:"os_kernel"`
+	OSFullName             string                 `json:"os_full_name"`
+	OSVersion              string                 `json:"os_version"`
+	OSVirtualizationSystem string                 `json:"os_virtualization_system"`
+	OSVirtualizationRole   string                 `json:"os_virtualization_role"`
+	CPUFamily              string                 `json:"cpu_family"`
+	CPUModel               string                 `json:"cpu_model"`
+	CPUModelName           string                 `json:"cpu_model_name"`
+	CPUVendor              string                 `json:"cpu_vendor"`
+	NumCPUs                int                    `json:"num_cpus"`
+	MemoryTotal            uint64                 `json:"mem_total"`
+	Timezone               string                 `json:"timezone"`
+	Hostname               string                 `json:"hostname"`
+	IPv4                   []string               `json:"ipv4"`
+	IPv6                   []string               `json:"ipv6"`
+	Tags                   []string               `json:"tags"`
+	Version                string                 `json:"version"`
+	Address                string                 `json:"address"`
+	Tunnels                []*clienttunnel.Tunnel `json:"tunnels"`
 	// DisconnectedAt is a time when a client was disconnected. If nil - it's connected.
 	DisconnectedAt      *time.Time            `json:"disconnected_at"`
 	ClientAuthID        string                `json:"client_auth_id"`
@@ -105,7 +106,7 @@ func (c *Client) Unlock() {
 	c.lock.Unlock()
 }
 
-func (c *Client) FindTunnelByRemote(r *models.Remote) *Tunnel {
+func (c *Client) FindTunnelByRemote(r *models.Remote) *clienttunnel.Tunnel {
 	for _, curr := range c.Tunnels {
 		if curr.Equals(r) {
 			return curr
@@ -114,7 +115,7 @@ func (c *Client) FindTunnelByRemote(r *models.Remote) *Tunnel {
 	return nil
 }
 
-func (c *Client) StartTunnel(r *models.Remote, acl *TunnelACL, tunnelProxyConfig *TunnelProxyConfig, portDistributor *ports.PortDistributor) (*Tunnel, error) {
+func (c *Client) StartTunnel(r *models.Remote, acl *clienttunnel.TunnelACL, tunnelProxyConfig *clienttunnel.TunnelProxyConfig, portDistributor *ports.PortDistributor) (*clienttunnel.Tunnel, error) {
 	t := c.FindTunnelByRemote(r)
 	if t != nil {
 		return t, nil
@@ -123,22 +124,22 @@ func (c *Client) StartTunnel(r *models.Remote, acl *TunnelACL, tunnelProxyConfig
 	startTunnelProxy := tunnelProxyConfig.Enabled && r.HTTPProxy
 	proxyHost := ""
 	proxyPort := ""
-	var proxyACL *TunnelACL
+	var proxyACL *clienttunnel.TunnelACL
 	if startTunnelProxy {
 		proxyHost = r.LocalHost
 		proxyPort = r.LocalPort
 		proxyACL = acl
-		r.LocalHost = LocalHost
+		r.LocalHost = clienttunnel.LocalHost
 		port, err := portDistributor.GetRandomPort()
 		if err != nil {
 			return nil, err
 		}
 		r.LocalPort = strconv.Itoa(port)
-		acl, _ = ParseTunnelACL(LocalHost) // access to tunnel is only allowed from tunnel proxy
+		acl, _ = clienttunnel.ParseTunnelACL(clienttunnel.LocalHost) // access to tunnel is only allowed from tunnel proxy
 	}
 
 	tunnelID := strconv.FormatInt(c.generateNewTunnelID(), 10)
-	t = NewTunnel(c.Logger, c.Connection, tunnelID, *r, acl)
+	t = clienttunnel.NewTunnel(c.Logger, c.Connection, tunnelID, *r, acl)
 	autoCloseChan, err := t.Start(c.Context)
 	if err != nil {
 		return nil, err
@@ -146,7 +147,7 @@ func (c *Client) StartTunnel(r *models.Remote, acl *TunnelACL, tunnelProxyConfig
 
 	// start tunnel proxy
 	if startTunnelProxy {
-		tProxy := NewTunnelProxy(t, c.Logger, tunnelProxyConfig, proxyHost, proxyPort, proxyACL)
+		tProxy := clienttunnel.NewTunnelProxy(t, c.Logger, tunnelProxyConfig, proxyHost, proxyPort, proxyACL)
 		if err := tProxy.Start(c.Context); err != nil {
 			c.Logger.Debugf("tunnel proxy could not be started, tunnel must be terminated: %v", err)
 			if tErr := t.Terminate(true); tErr != nil {
@@ -180,7 +181,7 @@ func (c *Client) StartTunnel(r *models.Remote, acl *TunnelACL, tunnelProxyConfig
 	return t, nil
 }
 
-func (c *Client) TerminateTunnel(t *Tunnel, force bool) error {
+func (c *Client) TerminateTunnel(t *clienttunnel.Tunnel, force bool) error {
 	c.Logger.Infof("Terminating tunnel %s (force: %v) ...", t.ID, force)
 	err := t.Terminate(force)
 	if err != nil {
@@ -195,7 +196,7 @@ func (c *Client) TerminateTunnel(t *Tunnel, force bool) error {
 	return nil
 }
 
-func (c *Client) FindTunnel(id string) *Tunnel {
+func (c *Client) FindTunnel(id string) *clienttunnel.Tunnel {
 	for _, curr := range c.Tunnels {
 		if curr.ID == id {
 			return curr
@@ -209,7 +210,7 @@ func (c *Client) generateNewTunnelID() int64 {
 }
 
 func (c *Client) removeTunnelByID(tunnelID string) {
-	result := make([]*Tunnel, 0)
+	result := make([]*clienttunnel.Tunnel, 0)
 	for _, curr := range c.Tunnels {
 		if curr.ID != tunnelID {
 			result = append(result, curr)
