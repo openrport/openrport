@@ -14,6 +14,11 @@ jobs:
       - name: Checkout
         uses: actions/checkout@v2
 
+      - name: Set up Go
+        uses: actions/setup-go@v2
+        with:
+          go-version: 1.17
+
       - name: Build
         # set rport version to {date-time}-sha:{github-master-head-sha}
         run: go build -v -ldflags="-X 'github.com/cloudradar-monitoring/rport/share.BuildVersion=`date -u +%d-%m-%Y.%H:%M:%S`-sha:`git rev-parse HEAD`'"  -o ./ ./cmd/...
