@@ -15,6 +15,21 @@ Rport is tested with noVNC v1.3.0.zip, so this version is recommended.
 * Download noVNC from github https://github.com/novnc/noVNC/archive/refs/tags/v1.3.0.zip
 * Extract the content of the zip file to a local directory e.g. "/home/{user}/rportd/noVNC-1.3.0"
 
+If your rport server runs with the suggested default settings, the NoVNC can be downloaded as follows.
+```
+cd /tmp
+curl -LO https://github.com/novnc/noVNC/archive/refs/tags/v1.3.0.zip
+unzip -d /var/lib/rport v1.3.0.zip
+rm -f v1.3.0.zip
+```
+You will then have all needed files in `/var/lib/rport/noVNC-1.3.0`.
+
 ## Server configuration
-Provide a value for `novnc_root` in the `[server]` section of the `rportd.conf`. It has to be the directory where the noVNC javascript app is located e.g. "/home/{user}/rportd/noVNC-1.3.0".
+Provide a value for `novnc_root` in the `[server]` section of the `rportd.conf`. It has to be the directory where the noVNC javascript app is located e.g. 
+```
+[server]
+ ...snip ...snap
+ ## If specified, rportd will serve novnc javascript app from this directory.
+ novnc_root = "/var/lib/rport/noVNC-1.3.0"
+ ```
 
