@@ -28,6 +28,10 @@ builds:
       - hardfloat
       - softfloat
     ignore:
+      - goos: windows
+        goarch: arm64
+      - goos: darwin
+        goarch: arm64
       - goos: darwin
         goarch: 386
       # TODO: remove when https://github.com/go-ole/go-ole/issues/202 will be fixed
