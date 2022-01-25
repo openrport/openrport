@@ -16,6 +16,9 @@ func ConvertRetrieveOptionsToQuery(ro *RetrieveOptions, q string) string {
 }
 
 func AppendOptionsToQuery(o *ListOptions, q string, params []interface{}) (string, []interface{}) {
+	if o == nil {
+		return q, params
+	}
 	q, params = AddWhere(o.Filters, q, params)
 	q = AddOrderBy(o.Sorts, q)
 	q = ReplaceStarSelect(o.Fields, q)

@@ -22,6 +22,8 @@ import (
 	"github.com/stretchr/testify/require"
 	"golang.org/x/crypto/ssh"
 
+	jobsmigration "github.com/cloudradar-monitoring/rport/db/migration/jobs"
+	"github.com/cloudradar-monitoring/rport/db/sqlite"
 	"github.com/cloudradar-monitoring/rport/server/api"
 	"github.com/cloudradar-monitoring/rport/server/api/jobs"
 	"github.com/cloudradar-monitoring/rport/server/api/session"
@@ -1314,8 +1316,9 @@ func TestHandlePostMultiClientCommand(t *testing.T) {
 
 			al.initRouter()
 
-			jp, err := jobs.NewSqliteProvider("file::memory:?cache=shared", testLog)
+			jobsDB, err := sqlite.New(":memory:", jobsmigration.AssetNames(), jobsmigration.Asset)
 			require.NoError(t, err)
+			jp := jobs.NewSqliteProvider(jobsDB, testLog)
 			defer jp.Close()
 			al.jobProvider = jp
 

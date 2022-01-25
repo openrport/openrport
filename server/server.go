@@ -17,8 +17,10 @@ import (
 	_ "github.com/mattn/go-sqlite3"
 
 	clientsmigration "github.com/cloudradar-monitoring/rport/db/migration/clients"
+	jobsmigration "github.com/cloudradar-monitoring/rport/db/migration/jobs"
 	"github.com/cloudradar-monitoring/rport/db/sqlite"
 	"github.com/cloudradar-monitoring/rport/server/api/jobs"
+	"github.com/cloudradar-monitoring/rport/server/api/jobs/schedule"
 	"github.com/cloudradar-monitoring/rport/server/api/session"
 	"github.com/cloudradar-monitoring/rport/server/auditlog"
 	"github.com/cloudradar-monitoring/rport/server/cgroups"
@@ -57,6 +59,7 @@ type Server struct {
 	jobsDoneChannel     jobResultChanMap  // used for sequential command execution to know when command is finished
 	auditLog            *auditlog.AuditLog
 	capabilities        *models.Capabilities
+	scheduleManager     *schedule.Manager
 }
 
 // NewServer creates and returns a new rport server
@@ -95,10 +98,12 @@ func NewServer(config *Config, filesAPI files.FileAPI) (*Server, error) {
 		s.Errorf("Failed to store fingerprint %q in file %q: %v", fingerprint, fingerprintFile, err)
 	}
 
-	s.jobProvider, err = jobs.NewSqliteProvider(path.Join(config.Server.DataDir, "jobs.db"), s.Logger)
+	jobsDB, err := sqlite.New(path.Join(config.Server.DataDir, "jobs.db"), jobsmigration.AssetNames(), jobsmigration.Asset)
 	if err != nil {
-		return nil, err
+		return nil, fmt.Errorf("failed to create jobs DB instance: %v", err)
 	}
+
+	s.jobProvider = jobs.NewSqliteProvider(jobsDB, s.Logger)
 
 	s.clientGroupProvider, err = cgroups.NewSqliteProvider(path.Join(config.Server.DataDir, "client_groups.db"))
 	if err != nil {
@@ -167,6 +172,11 @@ func NewServer(config *Config, filesAPI files.FileAPI) (*Server, error) {
 	}
 
 	s.capabilities = capabilities.NewServerCapabilities()
+
+	s.scheduleManager, err = schedule.New(ctx, s.Logger, jobsDB, s.apiListener)
+	if err != nil {
+		return nil, err
+	}
 
 	return s, nil
 }

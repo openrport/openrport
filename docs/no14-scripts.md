@@ -25,7 +25,7 @@ curl -X POST 'http://localhost:3000/api/v1/library/scripts' \
 ### Params:
 
 - _name_ any text to identify the script
-- _interpreter_  script syntax interpreter which is used for execution, possible values are sh, cmd.exe, powershell, tacoscript, default values: sh (under Linux) and cmd.exe (under Windows)
+- _interpreter_  script syntax interpreter which is used for execution, e.g. `sh`, `cmd.exe`, `powershell`, `tacoscript`, default values: `sh` (under Linux) and `cmd.exe` (under Windows). See more about interpreter option below.
 - _sudo_ true or false if this script should be executed under a sudo user
 - _cwd_ an optional directory where the script will be executed
 - _script_ the text of the script to execute
@@ -245,6 +245,26 @@ curl -X POST 'http://localhost:3000/api/scripts' \
   "interpreter":"powershell"
 }'
 ```
+
+### Customizing an interpreter
+You can specify an interpreter for the script execution. Default values are `/bin/sh` for Linux/Mac OS and `cmd` for Windows.
+Alternative values as `powershell` for Windows or `tacoscript` for Linux and Windows are also possible.
+
+You can use an absolute path to a non-standard interpreters of your choice, e.g. `/usr/local/bin/zsh` or `C:\Program Files\PowerShell\7\pwsh.exe`. 
+
+For Linux or Mac OS make sure, that your non-standard interpreter supports `-c` flag which is used to provide a command to execute.
+
+If you use a custom powershell path under Windows, e.g. `C:\Program Files\PowerShell\7\pwsh.exe`, the parameters for script execution 
+`-Noninteractive -executionpolicy bypass -File` will be added automatically only if the path to the executable contains "powershell" word (case insensitive).
+
+For fast and unified script execution with different interpreters and shells, you can specify aliases. Instead of providing the full path to the shell, sending the alias is sufficient.
+You can specify aliases in `rport.conf` (see `rport.example.conf`), see `[interpreter-aliases]` section. Having aliases list  
+```
+## Examples:
+ # pwsh7 = 'C:\Program Files\PowerShell\7\pwsh.exe'
+ # latestbash = 'C:\Program Files\Git\bin\bash.exe'
+ ```
+allows you to use `pwsh7` or `latestbash` as interpreter in the script execution APIs.
 
 ### Script execution via websocket interface
 You can use [our testing API for Websockets](https://petstore.swagger.io/?url=https://raw.githubusercontent.com/cloudradar-monitoring/rport/master/api-doc.yml#/Scripts/get_ws_scripts). 

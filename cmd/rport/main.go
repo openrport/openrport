@@ -72,9 +72,11 @@ var clientHelp = `
     --fingerprint, A *strongly recommended* fingerprint string
     to perform host-key validation against the server's public key.
     You may provide just a prefix of the key or the entire string.
-    Fingerprint mismatches will close the connection.
+    Fingerprint mismatches will close the connection. Alternatively,
+    export the fingerprint to the environment variable RPORT_FINGERPRINT.
 
     --auth, Required client authentication credentials in the form: "<client-auth-id>:<password>".
+    Alternatively, export credentials to the environment variable RPORT_AUTH.
 
     --keepalive, An optional keepalive interval. Since the underlying
     transport is HTTP, in many instances we'll be traversing through
@@ -186,6 +188,10 @@ var clientHelp = `
 
     --version, Print version info and exit
 
+   Environment Variables:
+    RPORT_AUTH
+    RPORT_FINGERPRINT
+
   Signals:
     The rport process is listening for:
       a SIGUSR2 to print process stats, and
@@ -217,8 +223,8 @@ func init() {
 
 	pFlags := RootCmd.PersistentFlags()
 
-	pFlags.String("fingerprint", "", "")
-	pFlags.String("auth", "", "")
+	pFlags.String("fingerprint", os.Getenv("RPORT_FINGERPRINT"), "")
+	pFlags.String("auth", os.Getenv("RPORT_AUTH"), "")
 	pFlags.Duration("keepalive", 0, "")
 	pFlags.Int("max-retry-count", 0, "")
 	pFlags.Duration("max-retry-interval", 0, "")
@@ -360,6 +366,10 @@ func decodeConfig(args []string) error {
 	config.Tunnels.Scheme = *tunnelsScheme
 	config.Tunnels.ReverseProxy = *tunnelsReverseProxy
 	config.Tunnels.HostHeader = *tunnelsHostHeader
+
+	if config.InterpreterAliases == nil {
+		config.InterpreterAliases = map[string]string{}
+	}
 
 	return nil
 }
