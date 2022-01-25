@@ -7,6 +7,7 @@ import (
 
 	"github.com/cloudradar-monitoring/rport/db/migration/jobs"
 	"github.com/cloudradar-monitoring/rport/db/sqlite"
+	"github.com/cloudradar-monitoring/rport/share/ptr"
 
 	"github.com/jmoiron/sqlx"
 
@@ -45,7 +46,7 @@ var testData = []*Schedule{
 			Cwd:                 "/home/rport",
 			TimeoutSec:          3,
 			ExecuteConcurrently: true,
-			AbortOnError:        true,
+			AbortOnError:        ptr.Bool(true),
 			Overlaps:            true,
 		},
 	},

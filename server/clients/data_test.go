@@ -10,6 +10,7 @@ import (
 
 	"github.com/cloudradar-monitoring/rport/db/migration/clients"
 	"github.com/cloudradar-monitoring/rport/db/sqlite"
+	"github.com/cloudradar-monitoring/rport/server/clients/clienttunnel"
 	"github.com/cloudradar-monitoring/rport/share/logger"
 	"github.com/cloudradar-monitoring/rport/share/models"
 )
@@ -48,7 +49,7 @@ var c1 = &Client{
 	Tags:                   []string{"Linux", "Datacenter 1"},
 	Version:                "0.1.12",
 	Address:                "88.198.189.161:50078",
-	Tunnels: []*Tunnel{
+	Tunnels: []*clienttunnel.Tunnel{
 		{
 			ID: "1",
 			Remote: models.Remote{
@@ -97,7 +98,7 @@ var c2 = &Client{
 	Tags:                   []string{"Linux", "Datacenter 2"},
 	Version:                "0.1.12",
 	Address:                "88.198.189.162:50078",
-	Tunnels: []*Tunnel{
+	Tunnels: []*clienttunnel.Tunnel{
 		{
 			ID: "1",
 			Remote: models.Remote{
@@ -125,7 +126,7 @@ var c3 = &Client{
 	Tags:           []string{"Linux", "Datacenter 3"},
 	Version:        "0.1.12",
 	Address:        "88.198.189.163:50078",
-	Tunnels:        make([]*Tunnel, 0),
+	Tunnels:        make([]*clienttunnel.Tunnel, 0),
 	ClientAuthID:   "client-3",
 	DisconnectedAt: &c3DisconnectedTime,
 }
@@ -143,7 +144,7 @@ var c4 = &Client{
 	Tags:           []string{"Linux", "Datacenter 4"},
 	Version:        "0.1.12",
 	Address:        "88.198.189.164:50078",
-	Tunnels:        make([]*Tunnel, 0),
+	Tunnels:        make([]*clienttunnel.Tunnel, 0),
 	ClientAuthID:   "client-4",
 	DisconnectedAt: &c4DisconnectedTime,
 }
@@ -172,7 +173,7 @@ var c5 = &Client{
 	Tags:                   []string{"Linux", "Datacenter 4"},
 	Version:                "0.1.12",
 	Address:                "88.198.189.124:50078",
-	Tunnels:                make([]*Tunnel, 0),
+	Tunnels:                make([]*clienttunnel.Tunnel, 0),
 	ClientAuthID:           "client-5",
 	DisconnectedAt:         &c4DisconnectedTime,
 }
@@ -207,7 +208,7 @@ func shallowCopy(c *Client) *Client {
 		Tags:                   append([]string{}, c.Tags...),
 		Version:                c.Version,
 		Address:                c.Address,
-		Tunnels:                append([]*Tunnel{}, c.Tunnels...),
+		Tunnels:                append([]*clienttunnel.Tunnel{}, c.Tunnels...),
 		DisconnectedAt:         c.DisconnectedAt,
 		ClientAuthID:           c.ClientAuthID,
 	}

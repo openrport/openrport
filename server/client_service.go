@@ -18,6 +18,7 @@ import (
 	"github.com/cloudradar-monitoring/rport/server/api/errors"
 	"github.com/cloudradar-monitoring/rport/server/cgroups"
 	"github.com/cloudradar-monitoring/rport/server/clients"
+	"github.com/cloudradar-monitoring/rport/server/clients/clienttunnel"
 	"github.com/cloudradar-monitoring/rport/server/ports"
 	chshare "github.com/cloudradar-monitoring/rport/share"
 	"github.com/cloudradar-monitoring/rport/share/logger"
@@ -28,7 +29,7 @@ import (
 type ClientService struct {
 	repo              *clients.ClientRepository
 	portDistributor   *ports.PortDistributor
-	tunnelProxyConfig *clients.TunnelProxyConfig
+	tunnelProxyConfig *clienttunnel.TunnelProxyConfig
 
 	mu sync.Mutex
 }
@@ -112,7 +113,7 @@ var clientsListDefaultFields = map[string][]string{
 
 // NewClientService returns a new instance of client service.
 func NewClientService(
-	tunnelProxyConfig *clients.TunnelProxyConfig,
+	tunnelProxyConfig *clienttunnel.TunnelProxyConfig,
 	portDistributor *ports.PortDistributor,
 	repo *clients.ClientRepository,
 ) *ClientService {
@@ -125,7 +126,7 @@ func NewClientService(
 
 func InitClientService(
 	ctx context.Context,
-	tunnelProxyConfig *clients.TunnelProxyConfig,
+	tunnelProxyConfig *clienttunnel.TunnelProxyConfig,
 	portDistributor *ports.PortDistributor,
 	db *sqlx.DB,
 	keepLostClients *time.Duration,
@@ -271,7 +272,7 @@ func (s *ClientService) StartClient(
 	client.Version = req.Version
 	client.ClientConfiguration = req.ClientConfiguration
 	client.Address = clientHost
-	client.Tunnels = make([]*clients.Tunnel, 0)
+	client.Tunnels = make([]*clienttunnel.Tunnel, 0)
 	client.DisconnectedAt = nil
 	client.ClientAuthID = clientAuthID
 	client.Connection = sshConn
@@ -291,7 +292,7 @@ func (s *ClientService) StartClient(
 }
 
 // StartClientTunnels returns a new tunnel for each requested remote or nil if error occurred
-func (s *ClientService) StartClientTunnels(client *clients.Client, remotes []*models.Remote) ([]*clients.Tunnel, error) {
+func (s *ClientService) StartClientTunnels(client *clients.Client, remotes []*models.Remote) ([]*clienttunnel.Tunnel, error) {
 	s.mu.Lock()
 	defer s.mu.Unlock()
 	newTunnels, err := s.startClientTunnels(client, remotes)
@@ -307,13 +308,13 @@ func (s *ClientService) StartClientTunnels(client *clients.Client, remotes []*mo
 	return newTunnels, err
 }
 
-func (s *ClientService) startClientTunnels(client *clients.Client, remotes []*models.Remote) ([]*clients.Tunnel, error) {
+func (s *ClientService) startClientTunnels(client *clients.Client, remotes []*models.Remote) ([]*clienttunnel.Tunnel, error) {
 	err := s.portDistributor.Refresh()
 	if err != nil {
 		return nil, err
 	}
 
-	tunnels := make([]*clients.Tunnel, 0, len(remotes))
+	tunnels := make([]*clienttunnel.Tunnel, 0, len(remotes))
 	for _, remote := range remotes {
 		if !remote.IsLocalSpecified() {
 			port, err := s.portDistributor.GetRandomPort()
@@ -329,10 +330,10 @@ func (s *ClientService) startClientTunnels(client *clients.Client, remotes []*mo
 			}
 		}
 
-		var acl *clients.TunnelACL
+		var acl *clienttunnel.TunnelACL
 		if remote.ACL != nil {
 			var err error
-			acl, err = clients.ParseTunnelACL(*remote.ACL)
+			acl, err = clienttunnel.ParseTunnelACL(*remote.ACL)
 			if err != nil {
 				return nil, err
 			}

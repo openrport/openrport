@@ -107,10 +107,6 @@ func NewServer(config *Config, filesAPI files.FileAPI) (*Server, error) {
 	}
 
 	s.jobProvider = jobs.NewSqliteProvider(jobsDB, s.Logger)
-	s.scheduleManager, err = schedule.New(ctx, s.Logger, jobsDB)
-	if err != nil {
-		return nil, err
-	}
 
 	s.clientGroupProvider, err = cgroups.NewSqliteProvider(path.Join(config.Server.DataDir, "client_groups.db"))
 	if err != nil {
@@ -181,6 +177,11 @@ func NewServer(config *Config, filesAPI files.FileAPI) (*Server, error) {
 	}
 
 	s.capabilities = capabilities.NewServerCapabilities()
+
+	s.scheduleManager, err = schedule.New(ctx, s.Logger, jobsDB, s.apiListener)
+	if err != nil {
+		return nil, err
+	}
 
 	return s, nil
 }

@@ -2,6 +2,7 @@ package schedule
 
 import (
 	"context"
+	"encoding/base64"
 	"fmt"
 	"net/http"
 	"time"
@@ -10,8 +11,10 @@ import (
 
 	"github.com/cloudradar-monitoring/rport/server/api"
 	"github.com/cloudradar-monitoring/rport/server/api/errors"
+	"github.com/cloudradar-monitoring/rport/server/api/jobs"
 	"github.com/cloudradar-monitoring/rport/server/validation"
 	"github.com/cloudradar-monitoring/rport/share/logger"
+	"github.com/cloudradar-monitoring/rport/share/models"
 	"github.com/cloudradar-monitoring/rport/share/query"
 	"github.com/cloudradar-monitoring/rport/share/random"
 )
@@ -37,21 +40,27 @@ type Provider interface {
 
 type Cron interface {
 	Validate(string) error
-	Add(string, string, func(string)) error
+	Add(string, string, func(context.Context, string)) error
 	Remove(string)
+}
+
+type JobRunner interface {
+	StartMultiClientJob(ctx context.Context, multiJobRequest *jobs.MultiJobRequest) (*models.MultiJob, error)
 }
 
 type Manager struct {
 	*logger.Logger
-	provider Provider
-	cron     Cron
+	jobRunner JobRunner
+	provider  Provider
+	cron      Cron
 }
 
-func New(ctx context.Context, logger *logger.Logger, db *sqlx.DB) (*Manager, error) {
+func New(ctx context.Context, logger *logger.Logger, db *sqlx.DB, jobRunner JobRunner) (*Manager, error) {
 	m := &Manager{
-		Logger:   logger,
-		provider: newSQLiteProvider(db),
-		cron:     newCron(),
+		Logger:    logger,
+		jobRunner: jobRunner,
+		provider:  newSQLiteProvider(db),
+		cron:      newCron(),
 	}
 
 	existing, err := m.provider.List(ctx, nil)
@@ -168,7 +177,7 @@ func (m *Manager) validate(s *Schedule) error {
 	if s.Type != TypeCommand && s.Type != TypeScript {
 		return &errors.APIError{
 			Message:    "Invalid type.",
-			Err:        fmt.Errorf("Type must be 'command' or 'script'"),
+			Err:        fmt.Errorf("type must be 'command' or 'script'"),
 			HTTPStatus: http.StatusBadRequest,
 		}
 	}
@@ -191,6 +200,41 @@ func (m *Manager) validate(s *Schedule) error {
 		}
 	}
 
+	if len(s.Details.ClientIDs) == 0 && len(s.Details.GroupIDs) == 0 {
+		return &errors.APIError{
+			Message:    "Empty client_ids and group_ids.",
+			Err:        fmt.Errorf("at least 1 client_id or group_id must be specified"),
+			HTTPStatus: http.StatusBadRequest,
+		}
+	}
+
+	switch s.Type {
+	case TypeCommand:
+		if s.Details.Command == "" {
+			return &errors.APIError{
+				Message:    "Empty command.",
+				Err:        fmt.Errorf("command cannot be empty"),
+				HTTPStatus: http.StatusBadRequest,
+			}
+		}
+	case TypeScript:
+		if s.Details.Script == "" {
+			return &errors.APIError{
+				Message:    "Empty script.",
+				Err:        fmt.Errorf("script cannot be empty"),
+				HTTPStatus: http.StatusBadRequest,
+			}
+		}
+		_, err := base64.StdEncoding.DecodeString(s.Details.Script)
+		if err != nil {
+			return &errors.APIError{
+				Message:    "Invalid script.",
+				Err:        err,
+				HTTPStatus: http.StatusBadRequest,
+			}
+		}
+	}
+
 	return nil
 }
 
@@ -198,6 +242,35 @@ func (m *Manager) addCron(s *Schedule) error {
 	return m.cron.Add(s.ID, s.Schedule, m.run)
 }
 
-func (m *Manager) run(id string) {
-	m.Infof("Running cron: %s", id)
+func (m *Manager) run(ctx context.Context, id string) {
+	m.Infof("Running schedule: %s", id)
+
+	schedule, err := m.provider.Get(ctx, id)
+	if err != nil {
+		m.Errorf("Could not get schedule %s: %v", id, err)
+		return
+	}
+	if schedule == nil {
+		// schedule not found in db, probably deleted by user
+		return
+	}
+
+	_, err = m.jobRunner.StartMultiClientJob(ctx, &jobs.MultiJobRequest{
+		Username:            schedule.CreatedBy,
+		ClientIDs:           schedule.Details.ClientIDs,
+		GroupIDs:            schedule.Details.GroupIDs,
+		Command:             schedule.Details.Command,
+		Script:              schedule.Details.Script,
+		Cwd:                 schedule.Details.Cwd,
+		IsSudo:              schedule.Details.IsSudo,
+		Interpreter:         schedule.Details.Interpreter,
+		TimeoutSec:          schedule.Details.TimeoutSec,
+		ExecuteConcurrently: schedule.Details.ExecuteConcurrently,
+		AbortOnError:        schedule.Details.AbortOnError,
+		IsScript:            schedule.Type == TypeScript,
+	})
+	if err != nil {
+		m.Errorf("Error running schedule %s: %v", id, err)
+		return
+	}
 }

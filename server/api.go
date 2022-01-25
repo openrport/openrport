@@ -14,6 +14,7 @@ import (
 	"strings"
 	"time"
 
+	"github.com/cloudradar-monitoring/rport/server/clients/clienttunnel"
 	"github.com/cloudradar-monitoring/rport/share/logger"
 
 	"github.com/gorilla/handlers"
@@ -1018,7 +1019,7 @@ type ClientPayload struct {
 	IPv6                   *[]string                `json:"ipv6,omitempty"`
 	Tags                   *[]string                `json:"tags,omitempty"`
 	AllowedUserGroups      *[]string                `json:"allowed_user_groups,omitempty"`
-	Tunnels                *[]*clients.Tunnel       `json:"tunnels,omitempty"`
+	Tunnels                *[]*clienttunnel.Tunnel  `json:"tunnels,omitempty"`
 	UpdatesStatus          **models.UpdatesStatus   `json:"updates_status,omitempty"`
 	ClientConfiguration    **clientconfig.Config    `json:"client_configuration,omitempty"`
 	Groups                 *[]string                `json:"groups,omitempty"`
@@ -1030,7 +1031,7 @@ type TunnelPayload struct {
 	ClientID string `json:"client_id"`
 }
 
-func convertToTunnelPayload(t *clients.Tunnel, clientID string) TunnelPayload {
+func convertToTunnelPayload(t *clienttunnel.Tunnel, clientID string) TunnelPayload {
 	return TunnelPayload{
 		Remote:   t.Remote,
 		ID:       t.ID,
@@ -1278,7 +1279,7 @@ func (al *APIListener) handlePutClientTunnel(w http.ResponseWriter, req *http.Re
 	remote.IdleTimeoutMinutes = int(idleTimeout.Minutes())
 
 	aclStr := req.URL.Query().Get("acl")
-	if _, err = clients.ParseTunnelACL(aclStr); err != nil {
+	if _, err = clienttunnel.ParseTunnelACL(aclStr); err != nil {
 		al.jsonErrorResponseWithErrCode(w, http.StatusBadRequest, ErrCodeInvalidACL, fmt.Sprintf("Invalid ACL: %s", err))
 		return
 	}
@@ -1326,7 +1327,7 @@ func (al *APIListener) handlePutClientTunnel(w http.ResponseWriter, req *http.Re
 		al.jsonErrorResponseWithTitle(w, http.StatusBadRequest, "creation of tunnel proxy not enabled")
 		return
 	}
-	if isHTTPProxy && schemeStr != "http" && schemeStr != "https" {
+	if isHTTPProxy && schemeStr != "http" && schemeStr != "https" && schemeStr != "vnc" {
 		al.jsonErrorResponseWithTitle(w, http.StatusBadRequest, fmt.Sprintf("tunnel proxy not allowed with scheme %s", schemeStr))
 		return
 	}
@@ -2072,26 +2073,10 @@ type newJobResponse struct {
 	JID string `json:"jid"`
 }
 
-type multiClientCmdRequest struct {
-	ClientIDs           []string          `json:"client_ids"`
-	ClientIDCommandMap  map[string]string `json:"-"`
-	OrderedClients      []*clients.Client `json:"-"`
-	GroupIDs            []string          `json:"group_ids"`
-	Command             string            `json:"command"`
-	Script              string            `json:"script"`
-	Cwd                 string            `json:"cwd"`
-	IsSudo              bool              `json:"is_sudo"`
-	Interpreter         string            `json:"interpreter"`
-	TimeoutSec          int               `json:"timeout_sec"`
-	ExecuteConcurrently bool              `json:"execute_concurrently"`
-	AbortOnError        *bool             `json:"abort_on_error"` // pointer is used because it's default value is true. Otherwise it would be more difficult to check whether this field is missing or not
-	IsScript            bool              `json:"-"`
-}
-
 // TODO: refactor to reuse similar code for REST API and WebSocket to execute cmds if both will be supported
 func (al *APIListener) handlePostMultiClientCommand(w http.ResponseWriter, req *http.Request) {
 	ctx := req.Context()
-	var reqBody multiClientCmdRequest
+	var reqBody jobs.MultiJobRequest
 	err := parseRequestBody(req.Body, &reqBody)
 	if err != nil {
 		al.jsonError(w, err)
@@ -2106,15 +2091,12 @@ func (al *APIListener) handlePostMultiClientCommand(w http.ResponseWriter, req *
 		return
 	}
 
-	if reqBody.TimeoutSec <= 0 {
-		reqBody.TimeoutSec = al.config.Server.RunRemoteCmdTimeoutSec
-	}
-
 	orderedClients, groupClientsCount, err := al.getOrderedClients(ctx, reqBody.ClientIDs, reqBody.GroupIDs)
 	if err != nil {
 		al.jsonError(w, err)
 		return
 	}
+	reqBody.OrderedClients = orderedClients
 
 	if len(reqBody.GroupIDs) > 0 && groupClientsCount == 0 && len(reqBody.ClientIDs) == 0 {
 		al.jsonErrorResponseWithTitle(w, http.StatusBadRequest, "No active clients belong to the selected group(s).")
@@ -2127,47 +2109,23 @@ func (al *APIListener) handlePostMultiClientCommand(w http.ResponseWriter, req *
 		return
 	}
 
-	// by default abortOnErr is true
-	abortOnErr := true
-	if reqBody.AbortOnError != nil {
-		abortOnErr = *reqBody.AbortOnError
-	}
-
 	curUser, err := al.getUserModelForAuth(req.Context())
 	if err != nil {
 		al.jsonError(w, err)
 		return
 	}
 
-	err = al.clientService.CheckClientsAccess(orderedClients, curUser)
+	err = al.clientService.CheckClientsAccess(reqBody.OrderedClients, curUser)
 	if err != nil {
 		al.jsonError(w, err)
 		return
 	}
 
-	jid, err := generateNewJobID()
+	reqBody.Username = curUser.Username
+
+	multiJob, err := al.StartMultiClientJob(ctx, &reqBody)
 	if err != nil {
 		al.jsonError(w, err)
-		return
-	}
-	multiJob := &models.MultiJob{
-		MultiJobSummary: models.MultiJobSummary{
-			JID:       jid,
-			StartedAt: time.Now(),
-			CreatedBy: curUser.Username,
-		},
-		ClientIDs:   reqBody.ClientIDs,
-		GroupIDs:    reqBody.GroupIDs,
-		Command:     reqBody.Command,
-		Interpreter: reqBody.Interpreter,
-		Cwd:         reqBody.Cwd,
-		IsSudo:      reqBody.IsSudo,
-		TimeoutSec:  reqBody.TimeoutSec,
-		Concurrent:  reqBody.ExecuteConcurrently,
-		AbortOnErr:  abortOnErr,
-	}
-	if err := al.jobProvider.SaveMultiJob(multiJob); err != nil {
-		al.jsonErrorResponseWithError(w, http.StatusInternalServerError, "Failed to persist a new multi-client job.", err)
 		return
 	}
 
@@ -2180,13 +2138,11 @@ func (al *APIListener) handlePostMultiClientCommand(w http.ResponseWriter, req *
 		WithRequest(reqBody).
 		WithResponse(resp).
 		WithID(multiJob.JID).
-		SaveForMultipleClients(orderedClients)
+		SaveForMultipleClients(reqBody.OrderedClients)
 
 	al.writeJSONResponse(w, http.StatusOK, api.NewSuccessPayload(resp))
 
 	al.Debugf("Multi-client Job[id=%q] created to execute remote command on clients %s, groups %s: %q.", multiJob.JID, reqBody.ClientIDs, reqBody.GroupIDs, reqBody.Command)
-
-	go al.executeMultiClientJob(multiJob, orderedClients)
 }
 
 func (al *APIListener) getOrderedClients(
@@ -2264,6 +2220,67 @@ func (al *APIListener) getOrderedClients(
 	}
 
 	return orderedClients, groupClientsFoundCount, nil
+}
+
+func (al *APIListener) StartMultiClientJob(ctx context.Context, multiJobRequest *jobs.MultiJobRequest) (*models.MultiJob, error) {
+	jid, err := generateNewJobID()
+	if err != nil {
+		return nil, err
+	}
+
+	// by default abortOnErr is true
+	abortOnErr := true
+	if multiJobRequest.AbortOnError != nil {
+		abortOnErr = *multiJobRequest.AbortOnError
+	}
+	if multiJobRequest.TimeoutSec <= 0 {
+		multiJobRequest.TimeoutSec = al.config.Server.RunRemoteCmdTimeoutSec
+	}
+
+	if multiJobRequest.OrderedClients == nil {
+		multiJobRequest.OrderedClients, _, err = al.getOrderedClients(ctx, multiJobRequest.ClientIDs, multiJobRequest.GroupIDs)
+		if err != nil {
+			return nil, err
+		}
+	}
+
+	if len(multiJobRequest.OrderedClients) == 0 {
+		return nil, fmt.Errorf("no clients for execution")
+	}
+
+	command := multiJobRequest.Command
+	if multiJobRequest.IsScript {
+		decodedScriptBytes, err := base64.StdEncoding.DecodeString(multiJobRequest.Script)
+		if err != nil {
+			return nil, err
+		}
+		command = string(decodedScriptBytes)
+	}
+
+	multiJob := &models.MultiJob{
+		MultiJobSummary: models.MultiJobSummary{
+			JID:       jid,
+			StartedAt: time.Now(),
+			CreatedBy: multiJobRequest.Username,
+		},
+		ClientIDs:   multiJobRequest.ClientIDs,
+		GroupIDs:    multiJobRequest.GroupIDs,
+		Command:     command,
+		Interpreter: multiJobRequest.Interpreter,
+		Cwd:         multiJobRequest.Cwd,
+		IsScript:    multiJobRequest.IsScript,
+		IsSudo:      multiJobRequest.IsSudo,
+		TimeoutSec:  multiJobRequest.TimeoutSec,
+		Concurrent:  multiJobRequest.ExecuteConcurrently,
+		AbortOnErr:  abortOnErr,
+	}
+	if err := al.jobProvider.SaveMultiJob(multiJob); err != nil {
+		return nil, err
+	}
+
+	go al.executeMultiClientJob(multiJob, multiJobRequest.OrderedClients)
+
+	return multiJob, nil
 }
 
 func (al *APIListener) executeMultiClientJob(
@@ -2390,7 +2407,7 @@ func (al *APIListener) handleCommandsWS(w http.ResponseWriter, req *http.Request
 		return
 	}
 	uiConnTS := ws.NewConcurrentWebSocket(uiConn, al.Logger)
-	inboundMsg := &multiClientCmdRequest{}
+	inboundMsg := &jobs.MultiJobRequest{}
 	err = uiConnTS.ReadJSON(inboundMsg)
 	if err == io.EOF { // is handled separately to return an informative error message
 		uiConnTS.WriteError("Inbound message should contain non empty json object with command data.", nil)
@@ -2415,7 +2432,7 @@ func (al *APIListener) handleCommandsWS(w http.ResponseWriter, req *http.Request
 
 func (al *APIListener) enrichScriptInput(
 	ctx context.Context,
-	inboundMsg *multiClientCmdRequest,
+	inboundMsg *jobs.MultiJobRequest,
 ) (clientsInGroupsCount int, err error) {
 	if inboundMsg.Script == "" {
 		return 0, errors2.APIError{
@@ -2463,7 +2480,7 @@ func (al *APIListener) handleScriptsWS(w http.ResponseWriter, req *http.Request)
 
 	uiConnTS := ws.NewConcurrentWebSocket(uiConn, al.Logger)
 
-	inboundMsg := &multiClientCmdRequest{}
+	inboundMsg := &jobs.MultiJobRequest{}
 	err = uiConnTS.ReadJSON(inboundMsg)
 	if err == io.EOF { // is handled separately to return an informative error message
 		uiConnTS.WriteError("Inbound message should contain non empty json object with command data.", nil)
@@ -2487,7 +2504,7 @@ func (al *APIListener) handleScriptsWS(w http.ResponseWriter, req *http.Request)
 func (al *APIListener) handleCommandsExecutionWS(
 	ctx context.Context,
 	uiConnTS *ws.ConcurrentWebSocket,
-	inboundMsg *multiClientCmdRequest,
+	inboundMsg *jobs.MultiJobRequest,
 	clientsInGroupsCount int,
 	auditLogEntry *auditlog.Entry,
 ) {
@@ -3512,7 +3529,7 @@ func (al *APIListener) handleRefreshUpdatesStatus(w http.ResponseWriter, req *ht
 
 func (al *APIListener) handlePostMultiClientScript(w http.ResponseWriter, req *http.Request) {
 	ctx := req.Context()
-	inboundMsg := new(multiClientCmdRequest)
+	inboundMsg := new(jobs.MultiJobRequest)
 	err := parseRequestBody(req.Body, inboundMsg)
 	if err != nil {
 		al.jsonError(w, err)
@@ -3536,12 +3553,6 @@ func (al *APIListener) handlePostMultiClientScript(w http.ResponseWriter, req *h
 		return
 	}
 
-	// by default abortOnErr is true
-	abortOnErr := true
-	if inboundMsg.AbortOnError != nil {
-		abortOnErr = *inboundMsg.AbortOnError
-	}
-
 	curUser, err := al.getUserModelForAuth(req.Context())
 	if err != nil {
 		al.jsonError(w, err)
@@ -3554,30 +3565,11 @@ func (al *APIListener) handlePostMultiClientScript(w http.ResponseWriter, req *h
 		return
 	}
 
-	jid, err := generateNewJobID()
+	inboundMsg.Username = curUser.Username
+
+	multiJob, err := al.StartMultiClientJob(ctx, inboundMsg)
 	if err != nil {
 		al.jsonError(w, err)
-		return
-	}
-
-	multiJob := &models.MultiJob{
-		MultiJobSummary: models.MultiJobSummary{
-			JID:       jid,
-			StartedAt: time.Now(),
-			CreatedBy: curUser.Username,
-		},
-		ClientIDs:   inboundMsg.ClientIDs,
-		GroupIDs:    inboundMsg.GroupIDs,
-		Command:     inboundMsg.Command,
-		Interpreter: inboundMsg.Interpreter,
-		Cwd:         inboundMsg.Cwd,
-		IsSudo:      inboundMsg.IsSudo,
-		TimeoutSec:  inboundMsg.TimeoutSec,
-		Concurrent:  inboundMsg.ExecuteConcurrently,
-		AbortOnErr:  abortOnErr,
-	}
-	if err := al.jobProvider.SaveMultiJob(multiJob); err != nil {
-		al.jsonErrorResponseWithError(w, http.StatusInternalServerError, "Failed to persist a new multi-client job.", err)
 		return
 	}
 
@@ -3595,8 +3587,6 @@ func (al *APIListener) handlePostMultiClientScript(w http.ResponseWriter, req *h
 	al.writeJSONResponse(w, http.StatusOK, api.NewSuccessPayload(resp))
 
 	al.Debugf("Multi-client Job[id=%q] created to execute remote command on clients %s, groups %s: %q.", multiJob.JID, inboundMsg.ClientIDs, inboundMsg.GroupIDs, inboundMsg.Command)
-
-	go al.executeMultiClientJob(multiJob, inboundMsg.OrderedClients)
 }
 
 type postTokenResponse struct {
@@ -3903,6 +3893,7 @@ func (al *APIListener) handleListSchedules(w http.ResponseWriter, req *http.Requ
 }
 
 func (al *APIListener) handlePostSchedules(w http.ResponseWriter, req *http.Request) {
+	ctx := req.Context()
 	var scheduleInput schedule.Schedule
 	err := parseRequestBody(req.Body, &scheduleInput)
 	if err != nil {
@@ -3910,13 +3901,23 @@ func (al *APIListener) handlePostSchedules(w http.ResponseWriter, req *http.Requ
 		return
 	}
 
-	curUsername := api.GetUser(req.Context(), al.Logger)
-	if curUsername == "" {
-		al.jsonErrorResponseWithTitle(w, http.StatusUnauthorized, "unauthorized")
+	curUser, err := al.getUserModelForAuth(req.Context())
+	if err != nil {
+		al.jsonError(w, err)
+		return
+	}
+	orderedClients, _, err := al.getOrderedClients(ctx, scheduleInput.Details.ClientIDs, scheduleInput.Details.GroupIDs)
+	if err != nil {
+		al.jsonError(w, err)
+		return
+	}
+	err = al.clientService.CheckClientsAccess(orderedClients, curUser)
+	if err != nil {
+		al.jsonError(w, err)
 		return
 	}
 
-	storedValue, err := al.scheduleManager.Create(req.Context(), &scheduleInput, curUsername)
+	storedValue, err := al.scheduleManager.Create(ctx, &scheduleInput, curUser.GetUsername())
 	if err != nil {
 		al.jsonError(w, err)
 		return
@@ -3927,12 +3928,13 @@ func (al *APIListener) handlePostSchedules(w http.ResponseWriter, req *http.Requ
 		WithRequest(scheduleInput).
 		WithResponse(storedValue).
 		WithID(storedValue.ID).
-		Save()
+		SaveForMultipleClients(orderedClients)
 
 	al.writeJSONResponse(w, http.StatusCreated, api.NewSuccessPayload(storedValue))
 }
 
 func (al *APIListener) handleUpdateSchedule(w http.ResponseWriter, req *http.Request) {
+	ctx := req.Context()
 	vars := mux.Vars(req)
 	idStr, ok := vars["schedule_id"]
 	if !ok {
@@ -3947,7 +3949,23 @@ func (al *APIListener) handleUpdateSchedule(w http.ResponseWriter, req *http.Req
 		return
 	}
 
-	storedValue, err := al.scheduleManager.Update(req.Context(), idStr, &scheduleInput)
+	curUser, err := al.getUserModelForAuth(req.Context())
+	if err != nil {
+		al.jsonError(w, err)
+		return
+	}
+	orderedClients, _, err := al.getOrderedClients(ctx, scheduleInput.Details.ClientIDs, scheduleInput.Details.GroupIDs)
+	if err != nil {
+		al.jsonError(w, err)
+		return
+	}
+	err = al.clientService.CheckClientsAccess(orderedClients, curUser)
+	if err != nil {
+		al.jsonError(w, err)
+		return
+	}
+
+	storedValue, err := al.scheduleManager.Update(ctx, idStr, &scheduleInput)
 	if err != nil {
 		al.jsonError(w, err)
 		return
@@ -3958,7 +3976,7 @@ func (al *APIListener) handleUpdateSchedule(w http.ResponseWriter, req *http.Req
 		WithRequest(scheduleInput).
 		WithResponse(storedValue).
 		WithID(idStr).
-		Save()
+		SaveForMultipleClients(orderedClients)
 
 	al.writeJSONResponse(w, http.StatusOK, api.NewSuccessPayload(storedValue))
 }

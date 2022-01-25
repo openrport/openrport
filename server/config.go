@@ -25,7 +25,7 @@ import (
 
 	"github.com/cloudradar-monitoring/rport/server/api/message"
 	"github.com/cloudradar-monitoring/rport/server/auditlog"
-	"github.com/cloudradar-monitoring/rport/server/clients"
+	"github.com/cloudradar-monitoring/rport/server/clients/clienttunnel"
 	"github.com/cloudradar-monitoring/rport/server/ports"
 	chshare "github.com/cloudradar-monitoring/rport/share"
 	"github.com/cloudradar-monitoring/rport/share/email"
@@ -101,32 +101,32 @@ type LogConfig struct {
 }
 
 type ServerConfig struct {
-	ListenAddress              string                    `mapstructure:"address"`
-	URL                        string                    `mapstructure:"url"`
-	KeySeed                    string                    `mapstructure:"key_seed"`
-	Auth                       string                    `mapstructure:"auth"`
-	AuthFile                   string                    `mapstructure:"auth_file"`
-	AuthTable                  string                    `mapstructure:"auth_table"`
-	Proxy                      string                    `mapstructure:"proxy"`
-	UsedPortsRaw               []string                  `mapstructure:"used_ports"`
-	ExcludedPortsRaw           []string                  `mapstructure:"excluded_ports"`
-	DataDir                    string                    `mapstructure:"data_dir"`
-	KeepLostClients            time.Duration             `mapstructure:"keep_lost_clients"`
-	CleanupClients             time.Duration             `mapstructure:"cleanup_clients_interval"`
-	MaxRequestBytes            int64                     `mapstructure:"max_request_bytes"`
-	MaxRequestBytesClient      int64                     `mapstructure:"max_request_bytes_client"`
-	MaxFilePushSize            int64                     `mapstructure:"max_filepush_size"`
-	CheckPortTimeout           time.Duration             `mapstructure:"check_port_timeout"`
-	RunRemoteCmdTimeoutSec     int                       `mapstructure:"run_remote_cmd_timeout_sec"`
-	AuthWrite                  bool                      `mapstructure:"auth_write"`
-	AuthMultiuseCreds          bool                      `mapstructure:"auth_multiuse_creds"`
-	EquateClientauthidClientid bool                      `mapstructure:"equate_clientauthid_clientid"`
-	AllowRoot                  bool                      `mapstructure:"allow_root"`
-	ClientLoginWait            float32                   `mapstructure:"client_login_wait"`
-	MaxFailedLogin             int                       `mapstructure:"max_failed_login"`
-	BanTime                    int                       `mapstructure:"ban_time"`
-	EnableWsTestEndpoints      bool                      `mapstructure:"enable_ws_test_endpoints"`
-	TunnelProxyConfig          clients.TunnelProxyConfig `mapstructure:",squash"`
+	ListenAddress              string                         `mapstructure:"address"`
+	URL                        string                         `mapstructure:"url"`
+	KeySeed                    string                         `mapstructure:"key_seed"`
+	Auth                       string                         `mapstructure:"auth"`
+	AuthFile                   string                         `mapstructure:"auth_file"`
+	AuthTable                  string                         `mapstructure:"auth_table"`
+	Proxy                      string                         `mapstructure:"proxy"`
+	UsedPortsRaw               []string                       `mapstructure:"used_ports"`
+	ExcludedPortsRaw           []string                       `mapstructure:"excluded_ports"`
+	DataDir                    string                         `mapstructure:"data_dir"`
+	KeepLostClients            time.Duration                  `mapstructure:"keep_lost_clients"`
+	CleanupClients             time.Duration                  `mapstructure:"cleanup_clients_interval"`
+	MaxRequestBytes            int64                          `mapstructure:"max_request_bytes"`
+	MaxRequestBytesClient      int64                          `mapstructure:"max_request_bytes_client"`
+	MaxFilePushSize            int64                          `mapstructure:"max_filepush_size"`
+	CheckPortTimeout           time.Duration                  `mapstructure:"check_port_timeout"`
+	RunRemoteCmdTimeoutSec     int                            `mapstructure:"run_remote_cmd_timeout_sec"`
+	AuthWrite                  bool                           `mapstructure:"auth_write"`
+	AuthMultiuseCreds          bool                           `mapstructure:"auth_multiuse_creds"`
+	EquateClientauthidClientid bool                           `mapstructure:"equate_clientauthid_clientid"`
+	AllowRoot                  bool                           `mapstructure:"allow_root"`
+	ClientLoginWait            float32                        `mapstructure:"client_login_wait"`
+	MaxFailedLogin             int                            `mapstructure:"max_failed_login"`
+	BanTime                    int                            `mapstructure:"ban_time"`
+	EnableWsTestEndpoints      bool                           `mapstructure:"enable_ws_test_endpoints"`
+	TunnelProxyConfig          clienttunnel.TunnelProxyConfig `mapstructure:",squash"`
 
 	allowedPorts mapset.Set
 	authID       string
