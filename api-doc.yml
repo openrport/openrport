@@ -359,7 +359,10 @@ paths:
                   fingerprint:
                     type: "string"
                   connect_url:
-                    type: "string"
+                    description: "Full client connect URL(s)"
+                    type: "array"
+                    items:
+                      type: "string"
                   users_auth_source:
                     description: "The source of API users authentication credentials"
                     type: "string"

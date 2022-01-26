@@ -53,10 +53,6 @@ var serverHelp = `
     This is where the rport clients connect to.
     Defaults: "0.0.0.0:8080"
 
-    --url, Defines full client connect URL. Defaults to "http://{addr}"
-    This setting is only used to return via an API call where rportd is listening for connections.
-    Useful, if you run the rportd behind a reverse proxy and the external URL differs from the internal address and port.
-
     --use-ports, Defines port numbers or ranges of server ports,
     separated with comma that would be used for automatic and manual port assignment.
     Creating reverse tunnels will fail if the requested server port is not listed here.

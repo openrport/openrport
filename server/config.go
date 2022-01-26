@@ -99,7 +99,7 @@ type LogConfig struct {
 
 type ServerConfig struct {
 	ListenAddress              string                         `mapstructure:"address"`
-	URL                        string                         `mapstructure:"url"`
+	URL                        []string                       `mapstructure:"url"`
 	KeySeed                    string                         `mapstructure:"key_seed"`
 	Auth                       string                         `mapstructure:"auth"`
 	AuthFile                   string                         `mapstructure:"auth_file"`
@@ -258,15 +258,8 @@ func (c *Config) AllowedPorts() mapset.Set {
 }
 
 func (c *Config) ParseAndValidate() error {
-	if c.Server.URL == "" {
-		c.Server.URL = "http://" + c.Server.ListenAddress
-	}
-	u, err := url.Parse(c.Server.URL)
-	if err != nil {
-		return fmt.Errorf("invalid connection url %s. %s", u, err)
-	}
-	if u.Host == "" {
-		return fmt.Errorf("invalid connection url %s. must be absolute url", u)
+	if err := c.Server.parseAndValidateURLs(); err != nil {
+		return err
 	}
 
 	if err := c.Server.parseAndValidatePorts(); err != nil {
@@ -472,6 +465,25 @@ func (s *ServerConfig) parseAndValidatePorts() error {
 
 	if s.allowedPorts.Cardinality() == 0 {
 		return errors.New("invalid 'used_ports', 'excluded_ports': at least one port should be available for port assignment")
+	}
+
+	return nil
+}
+
+func (s *ServerConfig) parseAndValidateURLs() error {
+	if len(s.URL) == 0 {
+		s.URL = []string{"http://" + s.ListenAddress}
+	}
+
+	for _, v := range s.URL {
+		u, err := url.Parse(v)
+		if err != nil {
+			return fmt.Errorf("invalid connection url %s: %w", v, err)
+		}
+
+		if u.Host == "" {
+			return fmt.Errorf("invalid connection url %s: must be absolute url", v)
+		}
 	}
 
 	return nil
