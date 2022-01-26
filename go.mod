@@ -26,7 +26,6 @@ require (
 	github.com/mitchellh/mapstructure v1.1.2
 	github.com/patrickmn/go-cache v2.1.0+incompatible
 	github.com/pkg/errors v0.9.1
-	github.com/pkg/sftp v1.13.4
 	github.com/pquerna/otp v1.3.0
 	github.com/robfig/cron/v3 v3.0.1
 	github.com/scjalliance/comshim v0.0.0-20190308082608-cf06d2532c4e
@@ -38,7 +37,7 @@ require (
 	golang.org/x/crypto v0.0.0-20210421170649-83a5a9bb288b
 	golang.org/x/net v0.0.0-20210614182718-04defd469f4e
 	golang.org/x/sync v0.0.0-20200625203802-6e8e738ad208
-	golang.org/x/sys v0.0.0-20211216021012-1d35b9e2eb4e
+	golang.org/x/sys v0.0.0-20210423185535-09eb48e85fd7
 	golang.org/x/text v0.3.6
 )
 
@@ -48,6 +47,7 @@ require (
 	github.com/fsnotify/fsnotify v1.4.9 // indirect
 	github.com/jpillora/ansi v1.0.2 // indirect
 	github.com/lxn/win v0.0.0-20210218163916-a377121e959e // indirect
+	github.com/pkg/sftp v1.13.4
 	github.com/tklauser/go-sysconf v0.3.6 // indirect
 	github.com/tomasen/realip v0.0.0-20180522021738-f0c99a92ddce // indirect
 )
