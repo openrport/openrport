@@ -71,7 +71,7 @@ func TestHandleUploadRequest(t *testing.T) {
 	}{
 		{
 			name:             "non existing file upload success",
-			wantUploadedFile: getValidUploadFile(),
+			wantUploadedFile: getValidUploadFile("some content"),
 			fsCallback: func(fs *test.FileAPIMock) {
 				fs.On("Exist", filepath.Join("destination", "file.txt")).Return(false, nil)
 
@@ -89,6 +89,13 @@ func TestHandleUploadRequest(t *testing.T) {
 					return string(actualFileContent) == "some content"
 				}
 				fs.On("CreateFile", expectedTempFilePath, mock.MatchedBy(fileExpectation)).Return(int64(10), nil)
+
+				fileMock := &test.ReadWriteCloserMock{}
+				fileMock.Reader = strings.NewReader("some content")
+				fileMock.On("Close").Return(nil)
+
+				fs.On("Open", expectedTempFilePath).Return(fileMock, nil)
+
 				fs.On("Rename", expectedTempFilePath, filepath.Join("destination", "file.txt")).Return(nil)
 			},
 			fileProviderCallback: buildDefaultFileProviderMock(filepath.Join("source", "file_temp.txt"), "some content"),
@@ -114,7 +121,7 @@ func TestHandleUploadRequest(t *testing.T) {
 				DestinationFileGroup: "group",
 				ForceWrite:           true,
 				Sync:                 false,
-				Md5Checksum:          []byte("md5_124"),
+				Md5Checksum:          test.Md5Hash("some content"),
 			},
 			fsCallback: func(fs *test.FileAPIMock) {
 				fs.On("Exist", filepath.Join("destination", "file2.txt")).Return(true, nil)
@@ -124,6 +131,12 @@ func TestHandleUploadRequest(t *testing.T) {
 
 				fs.On("CreateDirIfNotExists", filepath.Join("data", files.DefaultUploadTempFolder), os.FileMode(0700)).Return(true, nil)
 				fs.On("CreateDirIfNotExists", "destination", os.FileMode(0700)).Return(true, nil)
+
+				fileMock := &test.ReadWriteCloserMock{}
+				fileMock.Reader = strings.NewReader("some content")
+				fileMock.On("Close").Return(nil)
+
+				fs.On("Open", expectedTempFilePath).Return(fileMock, nil)
 
 				fs.On("CreateFile", expectedTempFilePath, mock.Anything).Return(int64(12), nil)
 				fs.On("Remove", filepath.Join("destination", "file2.txt")).Return(nil)
@@ -185,7 +198,7 @@ func TestHandleUploadRequest(t *testing.T) {
 		},
 		{
 			name:             "md5 checksum not matching",
-			wantUploadedFile: getValidUploadFile(),
+			wantUploadedFile: getValidUploadFile("some content non matching"),
 			fsCallback: func(fs *test.FileAPIMock) {
 				fs.On("Exist", filepath.Join("destination", "file.txt")).Return(false, nil)
 
@@ -194,12 +207,18 @@ func TestHandleUploadRequest(t *testing.T) {
 
 				fs.On("CreateDirIfNotExists", filepath.Join("data", files.DefaultUploadTempFolder), files.DefaultMode).Return(true, nil)
 
+				fileMock := &test.ReadWriteCloserMock{}
+				fileMock.Reader = strings.NewReader("some content")
+				fileMock.On("Close").Return(nil)
+
+				fs.On("Open", expectedTempFilePath).Return(fileMock, nil)
+
 				fs.On("CreateFile", expectedTempFilePath, mock.Anything).Return(int64(12), nil)
 				fs.On("Remove", expectedTempFilePath).Return(nil)
 			},
 			fileProviderCallback: buildDefaultFileProviderMock(filepath.Join("source", "file_temp.txt"), "some content"),
 			optionsCallback:      defaultOptionsCallback,
-			wantError:            "md5 check failed: checksum from server 6d64355f313233 doesn't equal the calculated checksum 6d6435",
+			wantError:            "md5 check failed: checksum from server 260c194bdd86828158fda34d0fbd5fcd doesn't equal the calculated checksum",
 		},
 		{
 			name: "file exists, sync on",
@@ -227,7 +246,11 @@ func TestHandleUploadRequest(t *testing.T) {
 				existingFileMock := &test.ReadWriteCloserMock{}
 				existingFileMock.Reader = strings.NewReader("some content")
 
-				fs.On("Open", filepath.Join("destination", "file7.txt")).Return(existingFileMock, nil)
+				fs.On("Open", expectedTempFilePath).Return(existingFileMock, nil)
+
+				existingFileMock2 := &test.ReadWriteCloserMock{}
+				existingFileMock2.Reader = strings.NewReader("some content")
+				fs.On("Open", filepath.Join("destination", "file7.txt")).Return(existingFileMock2, nil)
 
 				fs.On("GetFileMode", filepath.Join("destination", "file7.txt")).Return(os.FileMode(0744), nil)
 
@@ -319,7 +342,7 @@ func buildDefaultFileProviderMock(sourceFilePath, content string) func(f *Source
 	}
 }
 
-func getValidUploadFile() *models.UploadedFile {
+func getValidUploadFile(content string) *models.UploadedFile {
 	return &models.UploadedFile{
 		ID:                   "97e97cdd-135a-4620-ab50-d44025b8fe31",
 		SourceFilePath:       filepath.Join("source", "file_temp.txt"),
@@ -329,7 +352,7 @@ func getValidUploadFile() *models.UploadedFile {
 		DestinationFileGroup: "",
 		ForceWrite:           false,
 		Sync:                 false,
-		Md5Checksum:          []byte("md5_123"),
+		Md5Checksum:          test.Md5Hash(content),
 	}
 }
 
