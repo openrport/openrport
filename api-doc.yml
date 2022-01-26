@@ -359,7 +359,10 @@ paths:
                   fingerprint:
                     type: "string"
                   connect_url:
-                    type: "string"
+                    description: "Full client connect URL(s)"
+                    type: "array"
+                    items:
+                      type: "string"
                   users_auth_source:
                     description: "The source of API users authentication credentials"
                     type: "string"
@@ -374,6 +377,16 @@ paths:
                   tunnel_proxy_enabled:
                     description: "True if tunnel reverse proxy is enabled"
                     type: "boolean"
+                  used_ports:
+                    type: "array"
+                    description: "Shows a list of port numbers or ranges of server ports, that are used for automatic and manual port assignment"
+                    items:
+                      type: "string"
+                  excluded_ports:
+                    type: "array"
+                    description: "Shows a list of port numbers or ranges of server ports, that are not used for automatic and manual port assignment"
+                    items:
+                      type: "string"
               meta:
                 type: "object"
         "500":

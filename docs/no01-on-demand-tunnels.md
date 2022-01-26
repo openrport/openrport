@@ -39,7 +39,7 @@ Example of a human-readable API status
 ~# curl -s -u admin:foobaz http://localhost:3000/api/v1/status |jq
 {
   "data": {
-    "connect_url": "http://0.0.0.0:8080",
+    "connect_url": ["http://0.0.0.0:8080"],
     "fingerprint": "2a:c8:79:09:80:ba:7c:60:05:e5:2c:99:6d:75:56:24",
     "clients_connected": 3,
     "clients_disconnected": 1,

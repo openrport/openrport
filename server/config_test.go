@@ -12,7 +12,7 @@ import (
 )
 
 var defaultValidMinServerConfig = ServerConfig{
-	URL:          "http://localhost/",
+	URL:          []string{"http://localhost/"},
 	DataDir:      "./",
 	Auth:         "abc:def",
 	UsedPortsRaw: []string{"10-20"},
