@@ -753,6 +753,8 @@ func (al *APIListener) handleGetStatus(w http.ResponseWriter, req *http.Request)
 		"auditlog":               al.auditLog.Status(),
 		"auth_header":            al.config.API.AuthHeader != "",
 		"tunnel_proxy_enabled":   al.config.Server.TunnelProxyConfig.Enabled,
+		"excluded_ports":         al.config.Server.ExcludedPortsRaw,
+		"used_ports":             al.config.Server.UsedPortsRaw,
 	})
 
 	al.writeJSONResponse(w, http.StatusOK, response)
