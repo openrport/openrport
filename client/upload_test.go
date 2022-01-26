@@ -18,6 +18,9 @@ import (
 	"github.com/stretchr/testify/require"
 )
 
+const defaultUID = uint32(123)
+const defaultGID = uint32(456)
+
 type SourceFileProviderMock struct {
 	mock.Mock
 }
@@ -57,13 +60,14 @@ func (uopm *UploadOptionsProviderMock) GetFilePushDeny() []string {
 
 func TestHandleUploadRequest(t *testing.T) {
 	testCases := []struct {
-		name                 string
-		wantUploadedFile     *models.UploadedFile
-		fsCallback           func(fs *test.FileAPIMock)
-		optionsCallback      func(opts *UploadOptionsProviderMock)
-		fileProviderCallback func(sfpm *SourceFileProviderMock)
-		wantError            string
-		wantResp             *models.UploadResponse
+		name                  string
+		wantUploadedFile      *models.UploadedFile
+		fsCallback            func(fs *test.FileAPIMock)
+		optionsCallback       func(opts *UploadOptionsProviderMock)
+		fileProviderCallback  func(sfpm *SourceFileProviderMock)
+		sysUserLookupCallback func(sysUsrLookup *test.SysUserProviderMock)
+		wantError             string
+		wantResp              *models.UploadResponse
 	}{
 		{
 			name:             "non existing file upload success",
@@ -207,7 +211,7 @@ func TestHandleUploadRequest(t *testing.T) {
 				DestinationFileOwner: "admin",
 				DestinationFileGroup: "group",
 				Sync:                 true,
-				Md5Checksum:          []byte("md5_1277"),
+				Md5Checksum:          test.Md5Hash("some content"),
 			},
 			fsCallback: func(fs *test.FileAPIMock) {
 				fs.On("Exist", filepath.Join("destination", "file7.txt")).Return(true, nil)
@@ -218,17 +222,25 @@ func TestHandleUploadRequest(t *testing.T) {
 				fs.On("CreateDirIfNotExists", filepath.Join("data", files.DefaultUploadTempFolder), os.FileMode(0744)).Return(true, nil)
 				fs.On("CreateDirIfNotExists", "destination", os.FileMode(0744)).Return(true, nil)
 
-				fs.On("CreateFile", expectedTempFilePath, mock.Anything).Return(int64(12), []byte("md5_1277"), nil)
+				fs.On("CreateFile", expectedTempFilePath, mock.Anything).Return(int64(12), test.Md5Hash("some content"), nil)
 
 				existingFileMock := &test.ReadWriteCloserMock{}
 				existingFileMock.Reader = strings.NewReader("some content")
 
 				fs.On("Open", filepath.Join("destination", "file7.txt")).Return(existingFileMock, nil)
 
+				fs.On("GetFileMode", filepath.Join("destination", "file7.txt")).Return(os.FileMode(0744), nil)
+
+				fs.On("GetFileOwnerAndGroup", filepath.Join("destination", "file7.txt")).Return(defaultUID, defaultGID, nil)
+
 				fs.On("Remove", filepath.Join("destination", "file7.txt")).Return(nil)
 				fs.On("Rename", expectedTempFilePath, filepath.Join("destination", "file7.txt")).Return(nil)
 				fs.On("ChangeOwner", filepath.Join("data", "filepush", "file_temp7.txt"), "admin", "group").Return(nil)
 				fs.On("ChangeMode", filepath.Join("data", "filepush", "file_temp7.txt"), os.FileMode(0744)).Return(nil)
+			},
+			sysUserLookupCallback: func(sysUsrLookup *test.SysUserProviderMock) {
+				sysUsrLookup.On("GetUIDByName", "admin").Return(defaultUID, nil)
+				sysUsrLookup.On("GetGidByName", "group").Return(defaultGID+1, nil)
 			},
 			fileProviderCallback: buildDefaultFileProviderMock(filepath.Join("source", "file_temp7.txt"), "some"),
 			optionsCallback:      defaultOptionsCallback,
@@ -265,12 +277,18 @@ func TestHandleUploadRequest(t *testing.T) {
 				tc.fileProviderCallback(sourceFileProvider)
 			}
 
+			sysUsrLookup := &test.SysUserProviderMock{}
+			if tc.sysUserLookupCallback != nil {
+				tc.sysUserLookupCallback(sysUsrLookup)
+			}
+
 			log := logger.NewLogger("client-upload-test", logger.LogOutput{File: os.Stdout}, logger.LogLevelDebug)
 			um := &UploadManager{
 				FilesAPI:           fileAPIMock,
 				OptionsProvider:    optionsProvMock,
 				Logger:             log,
 				SourceFileProvider: sourceFileProvider,
+				SysUserLookup:      sysUsrLookup,
 			}
 
 			actualResp, err := um.HandleUploadRequest(uploadedFileBytes)

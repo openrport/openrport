@@ -1,4 +1,5 @@
-//+build windows
+//go:build windows
+// +build windows
 
 package files
 
@@ -12,6 +13,6 @@ func Rename(oldPath, newPath string) error {
 	return os.Rename(oldPath, newPath)
 }
 
-func FileOwnerOrGroupMatch(file, owner, group string) (bool, error) {
-	return true, nil
+func GetFileUIDAndGID(file string) (uid, gid uint32, err error) {
+	return 0, 0, nil
 }

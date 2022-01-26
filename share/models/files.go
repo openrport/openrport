@@ -75,6 +75,7 @@ func (uf UploadedFile) ValidateDestinationPath(globPatters []string, log *logger
 }
 
 func (uf *UploadedFile) FromMultipartRequest(req *http.Request) error {
+	var err error
 	if req.MultipartForm == nil {
 		return nil
 	}
@@ -100,10 +101,17 @@ func (uf *UploadedFile) FromMultipartRequest(req *http.Request) error {
 	}
 
 	if len(req.MultipartForm.Value[fileWriteForcedKey]) > 0 {
-		uf.ForceWrite = StrToBool(req.MultipartForm.Value[fileWriteForcedKey][0])
+		uf.ForceWrite, err = strconv.ParseBool(req.MultipartForm.Value[fileWriteForcedKey][0])
+		if err != nil {
+			return err
+		}
 	}
+
 	if len(req.MultipartForm.Value[fileSyncdKey]) > 0 {
-		uf.Sync = StrToBool(req.MultipartForm.Value[fileSyncdKey][0])
+		uf.Sync, err = strconv.ParseBool(req.MultipartForm.Value[fileSyncdKey][0])
+		if err != nil {
+			return err
+		}
 	}
 	if len(req.MultipartForm.Value[IDKey]) > 0 {
 		uf.ID = req.MultipartForm.Value[IDKey][0]

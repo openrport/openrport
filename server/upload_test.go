@@ -53,7 +53,13 @@ func TestHandleFileUploads(t *testing.T) {
 
 					return string(actualFileContent) == "some content"
 				}
-				fs.On("CreateFile", "/data/filepush/id-123_rport_filepush", mock.MatchedBy(fileExpectation)).Return(int64(10), []byte("md5-123"), nil)
+				fs.On("CreateFile", "/data/filepush/id-123_rport_filepush", mock.MatchedBy(fileExpectation)).Return(int64(10), nil)
+
+				fileMock := &test.ReadWriteCloserMock{}
+				fileMock.Reader = strings.NewReader("some content")
+				fileMock.On("Close").Return(nil)
+
+				fs.On("Open", "/data/filepush/id-123_rport_filepush").Return(fileMock, nil)
 				fs.On("Remove", "/data/filepush/id-123_rport_filepush").Return(nil)
 			},
 			fileName:    "file.txt",
@@ -93,7 +99,7 @@ func TestHandleFileUploads(t *testing.T) {
 				DestinationFileGroup: "group",
 				ForceWrite:           true,
 				Sync:                 true,
-				Md5Checksum:          []byte("md5-123"),
+				Md5Checksum:          test.Md5Hash("some content"),
 			},
 		},
 	}

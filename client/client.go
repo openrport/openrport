@@ -405,7 +405,13 @@ func (c *Client) handleSSHRequests(ctx context.Context, sshConn *sshClientConn) 
 		case comm.RequestTypePutCapabilities:
 			c.handlePutCapabilitiesRequest(ctx, r.Payload)
 		case comm.RequestTypeUpload:
-			uploadManager := NewSSHUploadManager(c.Logger, c.filesAPI, c.configHolder, sshConn.Connection)
+			uploadManager := NewSSHUploadManager(
+				c.Logger,
+				c.filesAPI,
+				c.configHolder,
+				sshConn.Connection,
+				system.SysUserProvider{},
+			)
 
 			resp, err = uploadManager.HandleUploadRequest(r.Payload)
 		default:

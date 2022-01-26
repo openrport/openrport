@@ -178,7 +178,7 @@ That means, that running rport as sudo user, will give write access to the whole
 
 However, by default rport won't allow uploading files to the following folders `['/bin', '/sbin', '/boot', '/usr/bin', '/usr/sbin', '/dev', '/lib*', '/run']` for Unix and `['C:\Windows\', 'C:\ProgramData']` for Windows
 
-The denied folders list are defined as as list of [glob patterns](https://en.wikipedia.org/wiki/Glob_(programming)) in the `[file-push] file_push_deny` configuration section of an rport client.
+The denied folders list are defined as a list of [glob patterns](https://en.wikipedia.org/wiki/Glob_(programming)) in the `[file-push] file_push_deny` configuration section of an rport client.
 
 The restriction is applied for both target directory or target file path. Here is the list of examples to demonstrate this:
 - `/bin` rejects the target paths like `/bin/yourfile.txt`, `/bin/somefile.csv` but not `/etc/bin/yourfile.txt`
@@ -186,4 +186,4 @@ The restriction is applied for both target directory or target file path. Here i
 
 ## File size limit
 you can limit the size of uploaded files in bytes by setting `max_filepush_size` parameter in `[server]` section of rport server configuration.
-By default, this limit is 10Mb.
+By default, this limit is 10485760 bytes (ca 10,5 MB).

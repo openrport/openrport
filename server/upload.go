@@ -1,7 +1,6 @@
 package chserver
 
 import (
-	"encoding/json"
 	"fmt"
 	"mime/multipart"
 	"net/http"
@@ -58,11 +57,24 @@ func (al *APIListener) handleFileUploads(w http.ResponseWriter, req *http.Reques
 		return
 	}
 
-	copiedBytes, md5Checksum, err := al.filesAPI.CreateFile(uploadRequest.SourceFilePath, uploadRequest.File)
+	copiedBytes, err := al.filesAPI.CreateFile(uploadRequest.SourceFilePath, uploadRequest.File)
 	if err != nil {
 		al.jsonError(w, err)
 		return
 	}
+
+	file, err := al.filesAPI.Open(uploadRequest.SourceFilePath)
+	if err != nil {
+		al.jsonError(w, err)
+		return
+	}
+
+	md5Checksum, err := files.Md5HashFromReader(file)
+	if err != nil {
+		al.jsonError(w, err)
+		return
+	}
+
 	uploadRequest.Md5Checksum = md5Checksum
 
 	al.Debugf(
@@ -127,10 +139,9 @@ func (al *APIListener) genFilePath(uuid string) string {
 }
 
 type uploadResult struct {
-	resp      *models.UploadResponse
-	err       error
-	isSuccess bool
-	client    *clients.Client
+	resp   *models.UploadResponse
+	err    error
+	client *clients.Client
 }
 
 type UploadOutput struct {
@@ -139,28 +150,13 @@ type UploadOutput struct {
 }
 
 func (al *APIListener) sendFileToClients(uploadRequest *UploadRequest) {
-	requestBytes, err := uploadRequest.UploadedFile.ToBytes()
-	if err != nil {
-		wrappedErr := errors.Wrapf(err, "failed to convert upload request to bytes")
-		output := &UploadOutput{
-			UploadResponse: &models.UploadResponse{
-				Message: wrappedErr.Error(),
-				Status:  "error",
-			},
-		}
-
-		al.notifyUploadEventListeners(output)
-		al.Errorf(wrappedErr.Error())
-		return
-	}
-
 	wg := &sync.WaitGroup{}
 	wg.Add(len(uploadRequest.Clients))
 
 	resChan := make(chan *uploadResult, len(uploadRequest.Clients))
 
 	for _, cl := range uploadRequest.Clients {
-		go al.sendFileToClient(wg, requestBytes, cl, resChan)
+		go al.sendFileToClient(wg, uploadRequest.UploadedFile, cl, resChan)
 	}
 
 	go func() {
@@ -170,7 +166,7 @@ func (al *APIListener) sendFileToClients(uploadRequest *UploadRequest) {
 
 	al.consumeUploadResults(resChan, uploadRequest)
 
-	err = al.filesAPI.Remove(uploadRequest.SourceFilePath)
+	err := al.filesAPI.Remove(uploadRequest.SourceFilePath)
 	if err != nil {
 		al.Errorf("failed to delete temp file path %s: %v", uploadRequest.SourceFilePath, err)
 	}
@@ -222,41 +218,16 @@ func (al *APIListener) consumeUploadResults(resChan chan *uploadResult, uploadRe
 	}
 }
 
-func (al *APIListener) sendFileToClient(wg *sync.WaitGroup, requestBytes []byte, cl *clients.Client, resChan chan *uploadResult) {
+func (al *APIListener) sendFileToClient(wg *sync.WaitGroup, file *models.UploadedFile, cl *clients.Client, resChan chan *uploadResult) {
 	defer wg.Done()
-	isSuccess, respBytes, err := cl.Connection.SendRequest(comm.RequestTypeUpload, true, requestBytes)
-	if err != nil {
-		resChan <- &uploadResult{
-			err:       err,
-			isSuccess: isSuccess,
-			client:    cl,
-		}
-		return
-	}
-	if !isSuccess {
-		resChan <- &uploadResult{
-			err:       errors.New(string(respBytes)),
-			isSuccess: false,
-			client:    cl,
-		}
-		return
-	}
 
 	resp := &models.UploadResponse{}
-	err = json.Unmarshal(respBytes, resp)
-	if err != nil {
-		resChan <- &uploadResult{
-			err:       errors.Wrapf(err, "failed to parse %s", string(respBytes)),
-			isSuccess: isSuccess,
-			client:    cl,
-		}
-		return
-	}
+	err := comm.SendRequestAndGetResponse(cl.Connection, comm.RequestTypeUpload, file, resp)
 
 	resChan <- &uploadResult{
-		isSuccess: isSuccess,
-		client:    cl,
-		resp:      resp,
+		err:    err,
+		client: cl,
+		resp:   resp,
 	}
 }
 

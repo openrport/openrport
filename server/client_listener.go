@@ -499,6 +499,7 @@ func (cl *ClientListener) handleSSHChannels(clientLog *logger.Logger, chans <-ch
 			for req := range reqs {
 				ok := false
 				switch req.Type {
+				// https://datatracker.ietf.org/doc/html/draft-ietf-secsh-filexfer-02#section-2
 				case "subsystem":
 					if string(req.Payload[4:]) == "sftp" {
 						ok = true
@@ -513,10 +514,9 @@ func (cl *ClientListener) handleSSHChannels(clientLog *logger.Logger, chans <-ch
 			}
 		}()
 		if ch.ChannelType() == "session" {
-			serverOptions := []sftp.ServerOption{sftp.ReadOnly()}
 			server, err := sftp.NewServer(
 				stream,
-				serverOptions...,
+				sftp.ReadOnly(),
 			)
 			if err != nil {
 				clientLog.Debugf("Failed to create sftp server: %s", err)

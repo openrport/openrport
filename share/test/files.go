@@ -1,6 +1,7 @@
 package test
 
 import (
+	"crypto/md5"
 	"io"
 	"os"
 	"time"
@@ -61,10 +62,10 @@ func (f *FileAPIMock) Write(fileName string, content string) error {
 	return args.Error(0)
 }
 
-func (f *FileAPIMock) CreateFile(path string, sourceReader io.Reader) (writtenBytes int64, md5CheckSum []byte, err error) {
+func (f *FileAPIMock) CreateFile(path string, sourceReader io.Reader) (writtenBytes int64, err error) {
 	args := f.Called(path, sourceReader)
 
-	return args.Get(0).(int64), args.Get(1).([]byte), args.Error(2)
+	return args.Get(0).(int64), args.Error(1)
 }
 
 func (f *FileAPIMock) ChangeOwner(path, owner, group string) error {
@@ -97,16 +98,16 @@ func (f *FileAPIMock) CreateDirIfNotExists(path string, mode os.FileMode) (wasCr
 	return args.Bool(0), args.Error(1)
 }
 
-func (f *FileAPIMock) FileModeMatch(file string, mode os.FileMode) (bool, error) {
-	args := f.Called(file, mode)
+func (f *FileAPIMock) GetFileMode(file string) (os.FileMode, error) {
+	args := f.Called(file)
 
-	return args.Bool(0), args.Error(1)
+	return args.Get(0).(os.FileMode), args.Error(1)
 }
 
-func (f *FileAPIMock) FileOwnerOrGroupMatch(file, owner, group string) (bool, error) {
-	args := f.Called(file, owner, group)
+func (f *FileAPIMock) GetFileOwnerAndGroup(file string) (uid, gid uint32, err error) {
+	args := f.Called(file)
 
-	return args.Bool(0), args.Error(1)
+	return args.Get(0).(uint32), args.Get(1).(uint32), args.Error(2)
 }
 
 type FileMock struct {
@@ -121,4 +122,10 @@ func (f *FileMock) Name() string {
 
 func (f *FileMock) ModTime() time.Time {
 	return f.ReturnModTime
+}
+
+func Md5Hash(input string) []byte {
+	hashSum := md5.Sum([]byte(input))
+
+	return hashSum[:]
 }

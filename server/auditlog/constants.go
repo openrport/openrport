@@ -2,13 +2,12 @@ package auditlog
 
 const (
 	ActionCreate       = "create"
-	ActionGet          = "get"
 	ActionDelete       = "delete"
 	ActionUpdate       = "update"
 	ActionExecuteStart = "execute.start"
 	ActionExecuteDone  = "execute.done"
-	ActionSuccess      = "action.success"
-	ActionFailed       = "action.failed"
+	ActionSuccess      = "success"
+	ActionFailed       = "failed"
 )
 
 const (

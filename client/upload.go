@@ -2,12 +2,13 @@ package chclient
 
 import (
 	"bytes"
-	"crypto/md5"
 	"fmt"
 	"io"
 	"os"
 	"path/filepath"
 	"strings"
+
+	"github.com/cloudradar-monitoring/rport/client/system"
 
 	"github.com/pkg/sftp"
 
@@ -34,6 +35,7 @@ type UploadManager struct {
 	FilesAPI           files.FileAPI
 	OptionsProvider    OptionsProvider
 	SourceFileProvider SourceFileProvider
+	SysUserLookup      system.SysUserLookup
 }
 
 type SSHFileProvider struct {
@@ -93,6 +95,7 @@ func NewSSHUploadManager(
 	filesAPI files.FileAPI,
 	optionsProvider OptionsProvider,
 	sshConn ssh.Conn,
+	sysUserLookup system.SysUserLookup,
 ) *UploadManager {
 	sshFileProvider := &SSHFileProvider{
 		sshConn: sshConn,
@@ -102,6 +105,7 @@ func NewSSHUploadManager(
 		FilesAPI:           filesAPI,
 		OptionsProvider:    optionsProvider,
 		SourceFileProvider: sshFileProvider,
+		SysUserLookup:      sysUserLookup,
 	}
 }
 
@@ -148,7 +152,7 @@ func (c *UploadManager) fileShouldBeSynched(uploadedFile *models.UploadedFile) (
 		return false, nil
 	}
 
-	hashSumMatch, err := c.hashSumMatch(uploadedFile.DestinationPath, uploadedFile.Md5Checksum)
+	hashSumMatch, err := files.Md5HashMatch(uploadedFile.Md5Checksum, uploadedFile.DestinationPath, c.FilesAPI)
 
 	if err != nil {
 		return false, err
@@ -164,12 +168,12 @@ func (c *UploadManager) fileShouldBeSynched(uploadedFile *models.UploadedFile) (
 	}
 
 	if uploadedFile.DestinationFileMode > 0 {
-		fileModeMatch, err := c.FilesAPI.FileModeMatch(uploadedFile.DestinationPath, uploadedFile.DestinationFileMode)
+		destinationFileMode, err := c.FilesAPI.GetFileMode(uploadedFile.DestinationPath)
 		if err != nil {
 			return false, err
 		}
 
-		if !fileModeMatch {
+		if destinationFileMode != uploadedFile.DestinationFileMode {
 			c.Debugf(
 				"destination file %s has a different file mode than the provided %v, the file should be synched",
 				uploadedFile.DestinationPath,
@@ -181,7 +185,7 @@ func (c *UploadManager) fileShouldBeSynched(uploadedFile *models.UploadedFile) (
 	}
 
 	if uploadedFile.DestinationFileOwner != "" || uploadedFile.DestinationFileGroup != "" {
-		fileOwnerMatch, err := c.FilesAPI.FileOwnerOrGroupMatch(
+		fileOwnerMatch, err := c.fileOwnerOrGroupMatch(
 			uploadedFile.DestinationPath,
 			uploadedFile.DestinationFileOwner,
 			uploadedFile.DestinationFileGroup,
@@ -211,13 +215,10 @@ func (c *UploadManager) hashSumMatch(path string, expectedHashSum []byte) (bool,
 		return false, err
 	}
 
-	md5Hash := md5.New()
-	_, err = io.Copy(md5Hash, file)
+	destinationMd5Hash, err := files.Md5HashFromReader(file)
 	if err != nil {
-		return false, errors.Wrapf(err, "failed to calculate md5 checksum for %s", path)
+		return false, err
 	}
-
-	destinationMd5Hash := md5Hash.Sum(nil)
 
 	if bytes.Equal(expectedHashSum, destinationMd5Hash) {
 		return true, nil
@@ -392,14 +393,18 @@ func (c *UploadManager) copyFileToTempLocation(remoteFilePath string, targetFile
 	}
 	defer remoteFile.Close()
 
-	copiedBytes, md5Checksum, err := c.FilesAPI.CreateFile(tempFilePath, remoteFile)
+	copiedBytes, err := c.FilesAPI.CreateFile(tempFilePath, remoteFile)
 	if err != nil {
 		return 0, tempFilePath, err
 	}
-	c.Logger.Debugf("copied %d bytes from server path %s to temp path %s, md5: %x", copiedBytes, remoteFilePath, tempFilePath, md5Checksum)
+	c.Logger.Debugf("copied %d bytes from server path %s to temp path %s", copiedBytes, remoteFilePath, tempFilePath)
 
-	compareRes := bytes.Compare(md5Checksum, expectedMd5Checksum)
-	if compareRes != 0 {
+	hashSumMatch, err := files.Md5HashMatch(expectedMd5Checksum, tempFilePath, c.FilesAPI)
+	if err != nil {
+		return 0, tempFilePath, err
+	}
+
+	if !hashSumMatch {
 		err := c.FilesAPI.Remove(tempFilePath)
 		if err != nil {
 			c.Logger.Errorf("failed to remove %s: %v", tempFilePath, err)
@@ -408,9 +413,8 @@ func (c *UploadManager) copyFileToTempLocation(remoteFilePath string, targetFile
 		return 0,
 			tempFilePath,
 			fmt.Errorf(
-				"md5 check failed: checksum from server %x doesn't equal the calculated checksum %x",
+				"md5 check failed: checksum from server %x doesn't equal the calculated checksum",
 				expectedMd5Checksum,
-				md5Checksum,
 			)
 	}
 
@@ -434,4 +438,35 @@ func (c *UploadManager) getUploadedFile(reqPayload []byte) (*models.UploadedFile
 	}
 
 	return uploadedFile, nil
+}
+
+func (c *UploadManager) fileOwnerOrGroupMatch(file, owner, group string) (bool, error) {
+	fileUID, fileGid, err := c.FilesAPI.GetFileOwnerAndGroup(file)
+	if err != nil {
+		return false, errors.Wrapf(err, "failed to read uid and gid of file %s", file)
+	}
+
+	if owner != "" {
+		ownerUID, err := c.SysUserLookup.GetUIDByName(owner)
+		if err != nil {
+			return false, err
+		}
+
+		if fileUID != ownerUID {
+			return false, nil
+		}
+	}
+
+	if group != "" {
+		ownerGid, err := c.SysUserLookup.GetGidByName(group)
+		if err != nil {
+			return false, err
+		}
+
+		if fileGid != ownerGid {
+			return false, nil
+		}
+	}
+
+	return true, nil
 }
