@@ -1,7 +1,6 @@
 package chclient
 
 import (
-	"bytes"
 	"fmt"
 	"io"
 	"os"
@@ -204,24 +203,6 @@ func (c *UploadManager) fileShouldBeSynched(uploadedFile *models.UploadedFile) (
 
 			return true, nil
 		}
-	}
-
-	return false, nil
-}
-
-func (c *UploadManager) hashSumMatch(path string, expectedHashSum []byte) (bool, error) {
-	file, err := c.FilesAPI.Open(path)
-	if err != nil {
-		return false, err
-	}
-
-	destinationMd5Hash, err := files.Md5HashFromReader(file)
-	if err != nil {
-		return false, err
-	}
-
-	if bytes.Equal(expectedHashSum, destinationMd5Hash) {
-		return true, nil
 	}
 
 	return false, nil

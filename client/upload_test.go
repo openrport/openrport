@@ -88,7 +88,7 @@ func TestHandleUploadRequest(t *testing.T) {
 
 					return string(actualFileContent) == "some content"
 				}
-				fs.On("CreateFile", expectedTempFilePath, mock.MatchedBy(fileExpectation)).Return(int64(10), []byte("md5_123"), nil)
+				fs.On("CreateFile", expectedTempFilePath, mock.MatchedBy(fileExpectation)).Return(int64(10), nil)
 				fs.On("Rename", expectedTempFilePath, filepath.Join("destination", "file.txt")).Return(nil)
 			},
 			fileProviderCallback: buildDefaultFileProviderMock(filepath.Join("source", "file_temp.txt"), "some content"),
@@ -125,7 +125,7 @@ func TestHandleUploadRequest(t *testing.T) {
 				fs.On("CreateDirIfNotExists", filepath.Join("data", files.DefaultUploadTempFolder), os.FileMode(0700)).Return(true, nil)
 				fs.On("CreateDirIfNotExists", "destination", os.FileMode(0700)).Return(true, nil)
 
-				fs.On("CreateFile", expectedTempFilePath, mock.Anything).Return(int64(12), []byte("md5_124"), nil)
+				fs.On("CreateFile", expectedTempFilePath, mock.Anything).Return(int64(12), nil)
 				fs.On("Remove", filepath.Join("destination", "file2.txt")).Return(nil)
 				fs.On("Rename", expectedTempFilePath, filepath.Join("destination", "file2.txt")).Return(nil)
 				fs.On("ChangeOwner", filepath.Join("data", "filepush", "file_temp2.txt"), "admin", "group").Return(nil)
@@ -194,7 +194,7 @@ func TestHandleUploadRequest(t *testing.T) {
 
 				fs.On("CreateDirIfNotExists", filepath.Join("data", files.DefaultUploadTempFolder), files.DefaultMode).Return(true, nil)
 
-				fs.On("CreateFile", expectedTempFilePath, mock.Anything).Return(int64(12), []byte("md5"), nil)
+				fs.On("CreateFile", expectedTempFilePath, mock.Anything).Return(int64(12), nil)
 				fs.On("Remove", expectedTempFilePath).Return(nil)
 			},
 			fileProviderCallback: buildDefaultFileProviderMock(filepath.Join("source", "file_temp.txt"), "some content"),
@@ -222,7 +222,7 @@ func TestHandleUploadRequest(t *testing.T) {
 				fs.On("CreateDirIfNotExists", filepath.Join("data", files.DefaultUploadTempFolder), os.FileMode(0744)).Return(true, nil)
 				fs.On("CreateDirIfNotExists", "destination", os.FileMode(0744)).Return(true, nil)
 
-				fs.On("CreateFile", expectedTempFilePath, mock.Anything).Return(int64(12), test.Md5Hash("some content"), nil)
+				fs.On("CreateFile", expectedTempFilePath, mock.Anything).Return(int64(12), nil)
 
 				existingFileMock := &test.ReadWriteCloserMock{}
 				existingFileMock.Reader = strings.NewReader("some content")
