@@ -138,3 +138,21 @@ func SortFiltersByOperator(a []FilterOption) {
 		return a[i].Operator < a[j].Operator
 	})
 }
+
+func SplitFilters(options []FilterOption, keys map[string]bool) ([]FilterOption, []FilterOption) {
+	var these, other []FilterOption
+	for _, o := range options {
+		isThese := false
+		for _, c := range o.Column {
+			if _, ok := keys[c]; ok {
+				isThese = true
+			}
+		}
+		if isThese {
+			these = append(these, o)
+		} else {
+			other = append(other, o)
+		}
+	}
+	return these, other
+}

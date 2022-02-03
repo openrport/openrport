@@ -14,27 +14,51 @@ const (
 )
 
 type Schedule struct {
+	Base
+	Details
+}
+
+func (s Schedule) ToDB() DBSchedule {
+	return DBSchedule{
+		Base:    s.Base,
+		Details: s.Details,
+	}
+}
+
+// DBSchedule is used for saving to database and has details in one json db column
+type DBSchedule struct {
+	Base
+	Details Details `db:"details"`
+}
+
+func (dbs DBSchedule) ToSchedule() *Schedule {
+	return &Schedule{
+		Base:    dbs.Base,
+		Details: dbs.Details,
+	}
+}
+
+type Base struct {
 	ID        string    `json:"id" db:"id"`
 	CreatedAt time.Time `json:"created_at" db:"created_at"`
 	CreatedBy string    `json:"created_by" db:"created_by"`
 	Name      string    `json:"name" db:"name"`
 	Schedule  string    `json:"schedule" db:"schedule"`
 	Type      string    `json:"type" db:"type"`
-	Details   Details   `json:"details" db:"details"`
 }
 
 type Details struct {
-	ClientIDs           []string `json:"client_ids"`
-	GroupIDs            []string `json:"group_ids"`
-	Command             string   `json:"command,omitempty"`
-	Script              string   `json:"script,omitempty"`
-	Interpreter         string   `json:"interpreter"`
-	Cwd                 string   `json:"cwd"`
-	IsSudo              bool     `json:"is_sudo"`
-	TimeoutSec          int      `json:"timeout_sec"`
-	ExecuteConcurrently bool     `json:"execute_concurrently"`
-	AbortOnError        *bool    `json:"abort_on_error"`
-	Overlaps            bool     `json:"overlaps"`
+	ClientIDs           []string `json:"client_ids" db:"-"`
+	GroupIDs            []string `json:"group_ids" db:"-"`
+	Command             string   `json:"command,omitempty" db:"-"`
+	Script              string   `json:"script,omitempty" db:"-"`
+	Interpreter         string   `json:"interpreter" db:"-"`
+	Cwd                 string   `json:"cwd" db:"-"`
+	IsSudo              bool     `json:"is_sudo" db:"-"`
+	TimeoutSec          int      `json:"timeout_sec" db:"-"`
+	ExecuteConcurrently bool     `json:"execute_concurrently" db:"-"`
+	AbortOnError        *bool    `json:"abort_on_error" db:"-"`
+	Overlaps            bool     `json:"overlaps" db:"-"`
 }
 
 func (d *Details) Scan(value interface{}) error {

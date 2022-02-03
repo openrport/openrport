@@ -798,14 +798,7 @@ func (al *APIListener) handleGetClients(w http.ResponseWriter, req *http.Request
 	sortFunc(cls, desc)
 
 	totalCount := len(cls)
-	start := options.Pagination.ValidatedOffset
-	if start > totalCount {
-		start = totalCount
-	}
-	end := options.Pagination.ValidatedOffset + options.Pagination.ValidatedLimit
-	if end > totalCount {
-		end = totalCount
-	}
+	start, end := options.Pagination.GetStartEnd(totalCount)
 	cls = cls[start:end]
 
 	clientsPayload := convertToClientsPayload(cls, options.Fields)
