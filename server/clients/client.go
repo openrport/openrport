@@ -135,7 +135,7 @@ func (c *Client) StartTunnel(r *models.Remote, acl *clienttunnel.TunnelACL, tunn
 			return nil, err
 		}
 		r.LocalPort = strconv.Itoa(port)
-		acl, _ = clienttunnel.ParseTunnelACL(clienttunnel.LocalHost) // access to tunnel is only allowed from tunnel proxy
+		acl = nil
 	}
 
 	tunnelID := strconv.FormatInt(c.generateNewTunnelID(), 10)
