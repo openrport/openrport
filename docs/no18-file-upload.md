@@ -105,11 +105,11 @@ curl -XPOST \
 -F 'upload=@/home/myuser/some-file.txt' \
 -F 'client_id=89C4AB76-D90A-555C-85BF-9F8770A3036F' \
 -F 'client_id=b4f795ef-718f-4f69-8f6f-b304b38a904f' \
--F 'dest=/Users/breathbath/Projects/rport/dist/data/client/Doriana Schauer3.vcf' \
+-F 'dest=/Users/hero/Projects/rport/dist/data/client/some-file.txt' \
 -F 'force=true' \
 -F 'sync=true' \
 -F 'mode=0744' \
--F 'user=breathbath' \ 
+-F 'user=hero' \ 
 -F 'group=staff' \ 
 http://localhost:3000/api/v1/files
 ```
