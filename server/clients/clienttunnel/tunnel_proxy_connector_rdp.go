@@ -2,12 +2,18 @@ package clienttunnel
 
 import (
 	_ "embed" //to embed novnc wrapper templates
-	"html/template"
 	"net"
 	"net/http"
+	"strconv"
 
 	"github.com/gorilla/mux"
 	"github.com/wwt/guac"
+)
+
+const (
+	queryParUsername = "username"
+	queryParWidth    = "width"
+	queryParHeight   = "height"
 )
 
 //go:embed guac/index.html
@@ -28,7 +34,7 @@ func NewTunnelConnectorRDP(tp *TunnelProxy) *TunnelProxyConnectorRDP {
 
 //InitRouter called when tunnel proxy is started
 func (tc *TunnelProxyConnectorRDP) InitRouter(router *mux.Router) *mux.Router {
-	router.Use(noCache)
+	router.Use(tc.tunnelProxy.noCache)
 
 	router.Handle("/websocket-tunnel", tc.guacWebsocketServer)
 
@@ -38,20 +44,22 @@ func (tc *TunnelProxyConnectorRDP) InitRouter(router *mux.Router) *mux.Router {
 }
 
 func (tc *TunnelProxyConnectorRDP) serveIndex(w http.ResponseWriter, r *http.Request) {
-	tc.serveTemplate(w, r, guacIndexHTML, map[string]interface{}{})
-}
+	if tc.tunnelProxy.Config.GuacdAddress == "" {
+		tc.tunnelProxy.sendHTML(w, http.StatusBadRequest, "No guacd configured.")
+		return
+	}
 
-func (tc *TunnelProxyConnectorRDP) serveTemplate(w http.ResponseWriter, r *http.Request, templateContent string, templateData map[string]interface{}) {
-	w.Header().Set("Content-Type", "text/html; charset=utf-8")
+	w.Header().Set("Content-Type", "text/html; charset=UTF-8")
 	w.WriteHeader(http.StatusOK)
 
-	tmpl, err := template.New("").Parse(templateContent)
-	if err == nil {
-		err = tmpl.Execute(w, templateData)
+	query := r.URL.Query()
+	templateData := map[string]interface{}{
+		queryParUsername: query.Get(queryParUsername),
+		queryParWidth:    query.Get(queryParWidth),
+		queryParHeight:   query.Get(queryParHeight),
 	}
-	if err != nil {
-		tc.tunnelProxy.Logger.Errorf("Error while serving template for request %s: %v", r.RequestURI, err)
-	}
+
+	tc.tunnelProxy.serveTemplate(w, r, guacIndexHTML, templateData)
 }
 
 // connectToGuacamole creates the tunnel to the remote machine (via guacd)
@@ -60,16 +68,42 @@ func (tc *TunnelProxyConnectorRDP) connectToGuacamole(request *http.Request) (gu
 	config := guac.NewGuacamoleConfiguration()
 
 	config.Protocol = "rdp"
-	config.Parameters["hostname"] = "127.0.0.1"
+	config.Parameters["hostname"] = tc.tunnelProxy.TunnelHost
 	config.Parameters["port"] = tc.tunnelProxy.TunnelPort
 	config.Parameters["ignore-cert"] = "true"
+
+	var err error
+	query := request.URL.Query()
+	username := query.Get(queryParUsername)
+	if username != "" {
+		config.Parameters["username"] = username
+	}
+
+	width := query.Get(queryParWidth)
+	if width != "" {
+		config.OptimalScreenWidth, err = strconv.Atoi(width)
+		if err != nil || config.OptimalScreenWidth == 0 {
+			tc.tunnelProxy.Logger.Errorf("invalid screen width %s", width)
+			config.OptimalScreenWidth = 1024
+		}
+	}
+
+	height := query.Get(queryParHeight)
+	if height != "" {
+		config.OptimalScreenHeight, err = strconv.Atoi(height)
+		if err != nil || config.OptimalScreenHeight == 0 {
+			tc.tunnelProxy.Logger.Errorf("invalid screen height %s", height)
+			config.OptimalScreenHeight = 768
+		}
+	}
 
 	config.AudioMimetypes = []string{"audio/L16", "rate=44100", "channels=2"}
 
 	tc.tunnelProxy.Logger.Debugf("Connecting to guacd")
-	addr, err := net.ResolveTCPAddr("tcp", "127.0.0.1:4822")
+	addr, err := net.ResolveTCPAddr("tcp", tc.tunnelProxy.Config.GuacdAddress)
 	if err != nil {
 		tc.tunnelProxy.Logger.Errorf("error while resolving guacd address:%v", err)
+		return nil, err
 	}
 
 	conn, err := net.DialTCP("tcp", nil, addr)
@@ -81,9 +115,6 @@ func (tc *TunnelProxyConnectorRDP) connectToGuacamole(request *http.Request) (gu
 	stream := guac.NewStream(conn, guac.SocketTimeout)
 
 	tc.tunnelProxy.Logger.Debugf("Connected to guacd")
-	if request.URL.Query().Get("uuid") != "" {
-		config.ConnectionID = request.URL.Query().Get("uuid")
-	}
 	tc.tunnelProxy.Logger.Debugf("Starting handshake with %#v", config)
 	err = stream.Handshake(config)
 	if err != nil {

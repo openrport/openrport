@@ -1224,7 +1224,6 @@ const (
 	ErrCodeInvalidACL            = "ERR_CODE_INVALID_ACL"
 )
 
-//nolint:gocyclo
 func (al *APIListener) handlePutClientTunnel(w http.ResponseWriter, req *http.Request) {
 	vars := mux.Vars(req)
 	clientID := vars[routeParamClientID]
@@ -1322,7 +1321,7 @@ func (al *APIListener) handlePutClientTunnel(w http.ResponseWriter, req *http.Re
 		al.jsonErrorResponseWithTitle(w, http.StatusBadRequest, "creation of tunnel proxy not enabled")
 		return
 	}
-	if isHTTPProxy && schemeStr != "http" && schemeStr != "https" && schemeStr != "vnc" && schemeStr != "rdp" {
+	if isHTTPProxy && !validation.SchemeSupportsHTTPProxy(schemeStr) {
 		al.jsonErrorResponseWithTitle(w, http.StatusBadRequest, fmt.Sprintf("tunnel proxy not allowed with scheme %s", schemeStr))
 		return
 	}

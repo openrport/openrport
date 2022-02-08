@@ -2,7 +2,6 @@ package clienttunnel
 
 import (
 	_ "embed" //to embed novnc wrapper templates
-	"html/template"
 	"net"
 	"net/http"
 
@@ -29,7 +28,7 @@ func NewTunnelConnectorVNC(tp *TunnelProxy) *TunnelProxyConnectorVNC {
 
 //InitRouter called when tunnel proxy is started
 func (tc *TunnelProxyConnectorVNC) InitRouter(router *mux.Router) *mux.Router {
-	router.Use(noCache)
+	router.Use(tc.tunnelProxy.noCache)
 
 	router.HandleFunc("/vnc", tc.serveVNC)
 
@@ -58,24 +57,11 @@ func (tc *TunnelProxyConnectorVNC) serveIndex(w http.ResponseWriter, r *http.Req
 		"params":          novncParamsMap,
 	}
 
-	tc.serveTemplate(w, r, indexHTML, templateData)
+	tc.tunnelProxy.serveTemplate(w, r, indexHTML, templateData)
 }
 
 func (tc *TunnelProxyConnectorVNC) serveError404(w http.ResponseWriter, r *http.Request) {
-	tc.serveTemplate(w, r, error404HTML, map[string]interface{}{})
-}
-
-func (tc *TunnelProxyConnectorVNC) serveTemplate(w http.ResponseWriter, r *http.Request, templateContent string, templateData map[string]interface{}) {
-	w.Header().Set("Content-Type", "text/html; charset=utf-8")
-	w.WriteHeader(http.StatusOK)
-
-	tmpl, err := template.New("").Parse(templateContent)
-	if err == nil {
-		err = tmpl.Execute(w, templateData)
-	}
-	if err != nil {
-		tc.tunnelProxy.Logger.Errorf("Error while serving template for request %s: %v", r.RequestURI, err)
-	}
+	tc.tunnelProxy.serveTemplate(w, r, error404HTML, map[string]interface{}{})
 }
 
 func (tc *TunnelProxyConnectorVNC) serveVNC(w http.ResponseWriter, r *http.Request) {
@@ -107,12 +93,4 @@ func (tc *TunnelProxyConnectorVNC) serveVNC(w http.ResponseWriter, r *http.Reque
 		}
 	}
 	_ = wsConn.WriteMessage(websocket.CloseMessage, []byte("could not start websocket tcp proxy"))
-}
-
-//noCache middleware to disable caching
-func noCache(next http.Handler) http.Handler {
-	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		w.Header().Set("Cache-Control", "no-cache")
-		next.ServeHTTP(w, r)
-	})
 }
