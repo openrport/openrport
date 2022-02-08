@@ -405,10 +405,14 @@ paths:
           type: "string"
         - name: "filter"
           in: "query"
-          description: "Filter option `filter[<field>]` or `filter[<field>,<field>] for or conditions`.\n
-          `<field>` can be one of `'os_full_name', 'os_version', 'os_virtualization_system', 'os_virtualization_role',\n
-          'cpu_family', 'cpu_model', 'cpu_model_name', 'num_cpus', 'timezone'`. For example, `&filter[os_full_name]=Ubuntu 20.04` or `filter[os_full_name]=Ubuntu 20.04,Ubuntu 18.04`, etc.\n
-          Multiple filters are possible. You can also use wildcards for partial matches e.g. `filter[os_full_name]=Ubuntu*` will list all clients whose os_full_name starts with 'Ubuntu'."
+          description: "Filter option `filter[<FIELD>]=<VALUE>` or `filter[<FIELD>|<FIELD>]=<VALUE>,<VALUE>` for OR conditions.\n
+          `<FIELD>` can be one of `'id', 'name', 'os', 'os_arch', 'os_family', 'os_kernel', 'os_full_name', 'os_version', 'os_virtualization_system', 'os_virtualization_role', 'cpu_family', 'cpu_model', 'cpu_model_name', 'cpu_vendor', 'num_cpus', 'timezone', 'hostname', 'ipv4', 'ipv6', 'tags', 'version', 'address' 'client_auth_id', 'allowed_user_groups' and 'groups'`. You can use `*` to filter on any field.\n
+          Multiple filters are possible. You can use `*` wildcards for partial matches. Text matching is case insensitive.\n
+          Examples:\n
+          `filter[os_full_name]=Ubuntu 20.04`\n
+          `filter[os_full_name]=Ubuntu 20.04,Ubuntu 18.04`\n
+          `filter[os_full_name|os]=Ubuntu*`\n
+          `filter[*]=*Ubuntu*,*10.10.*,*Redhat*`"
           required: false
           type: "string"
         - in: "query"
@@ -418,6 +422,11 @@ paths:
               If no fields are specified, only id, name and hostname will be returned."
           required: false
           type: "string"
+        - name: "page"
+          in: "query"
+          required: false
+          type: "integer"
+          description: Pagination options `page[limit]` and `page[offset]` can be used to get more than the first page of results. Default limit is 50 and maximum is 500. The `count` property in meta shows the total number of results.
       summary: "List all active and disconnected client connections. By default sorted by ID in asc order"
       description: ""
       produces:
@@ -432,6 +441,11 @@ paths:
                 type: "array"
                 items:
                   $ref: "#/definitions/Client"
+              meta:
+                type: "object"
+                properties:
+                  count:
+                    type: "integer"
         "400":
           description: "invalid request parameters"
           schema:
