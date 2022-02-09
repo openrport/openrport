@@ -5,6 +5,7 @@ import (
 	"crypto/tls"
 	"errors"
 	"fmt"
+	"html/template"
 	"net"
 	"net/http"
 	"time"
@@ -16,10 +17,11 @@ import (
 )
 
 type TunnelProxyConfig struct {
-	CertFile  string `mapstructure:"tunnel_proxy_cert_file"`
-	KeyFile   string `mapstructure:"tunnel_proxy_key_file"`
-	NovncRoot string `mapstructure:"novnc_root"`
-	Enabled   bool
+	CertFile     string `mapstructure:"tunnel_proxy_cert_file"`
+	KeyFile      string `mapstructure:"tunnel_proxy_key_file"`
+	NovncRoot    string `mapstructure:"novnc_root"`
+	GuacdAddress string `mapstructure:"guacd_address"`
+	Enabled      bool
 }
 
 func (c *TunnelProxyConfig) ParseAndValidate() error {
@@ -37,7 +39,30 @@ func (c *TunnelProxyConfig) ParseAndValidate() error {
 	if err != nil {
 		return fmt.Errorf("invalid 'tunnel_proxy_cert_file', 'tunnel_proxy_key_file': %v", err)
 	}
+	if err := c.validateGuacd(c.GuacdAddress); err != nil {
+		return fmt.Errorf("try guacd connection: %v", err)
+	}
+
 	c.Enabled = true
+	return nil
+}
+
+func (c *TunnelProxyConfig) validateGuacd(addr string) error {
+	if addr == "" {
+		return nil
+	}
+
+	tcpAddr, err := net.ResolveTCPAddr("tcp", addr)
+	if err != nil {
+		return err
+	}
+
+	conn, err := net.DialTCP("tcp", nil, tcpAddr)
+	if err != nil {
+		return err
+	}
+	conn.Close()
+
 	return nil
 }
 
@@ -138,6 +163,18 @@ func (tp *TunnelProxy) handleACL(next http.Handler) http.Handler {
 		tp.sendHTML(w, http.StatusForbidden, "Access rejected by ACL")
 	})
 }
+func (tp *TunnelProxy) serveTemplate(w http.ResponseWriter, r *http.Request, templateContent string, templateData map[string]interface{}) {
+	w.Header().Set("Content-Type", "text/html; charset=utf-8")
+	w.WriteHeader(http.StatusOK)
+
+	tmpl, err := template.New("").Parse(templateContent)
+	if err == nil {
+		err = tmpl.Execute(w, templateData)
+	}
+	if err != nil {
+		tp.Logger.Errorf("Error while serving template for request %s: %v", r.RequestURI, err)
+	}
+}
 
 func (tp *TunnelProxy) handleProxyError(w http.ResponseWriter, r *http.Request, err error) {
 	tp.Logger.Errorf("Error during proxy request %v", err)
@@ -149,4 +186,12 @@ func (tp *TunnelProxy) sendHTML(w http.ResponseWriter, statusCode int, msg strin
 	w.WriteHeader(statusCode)
 	m := fmt.Sprintf("[%d] Rport tunnel proxy: %s", statusCode, msg)
 	_, _ = w.Write([]byte(m))
+}
+
+//noCache middleware to disable caching
+func (tp *TunnelProxy) noCache(next http.Handler) http.Handler {
+	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		w.Header().Set("Cache-Control", "no-cache")
+		next.ServeHTTP(w, r)
+	})
 }

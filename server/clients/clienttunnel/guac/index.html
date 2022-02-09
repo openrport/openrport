@@ -1,0 +1,85 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta http-equiv="X-UA-Compatible" content="ie=edge">
+    <meta name="robots" content="noindex">
+    <title>RPort RDP</title>
+    <link rel="icon" href="data:,">
+    <script  src="https://cdn.jsdelivr.net/npm/guacamole-common-js@1.3.1/dist/guacamole-common.min.js"></script>
+    </script>
+    <style>
+        .modal {
+            position: fixed;
+            top: 20%;
+            left: 90%;
+            transform: translate(-50%, -50%);
+
+            border-radius: 5px;
+            padding: 1rem;
+            background: #b4b4b4;
+        }
+    </style>
+
+</head>
+
+<body>
+    <input type="hidden" name="username" id="username" value="{{.username}}">
+    <input type="hidden" name="width" id="width" value="{{.width}}"/>
+    <input type="hidden" name="height" id="height" value="{{.height}}"/>
+
+    <div id="display">
+    </div>
+</body>
+<script>
+        const tunnel = new Guacamole.WebSocketTunnel('websocket-tunnel');
+
+        const client = new Guacamole.Client(tunnel);
+
+        client.onerror = (error) => {
+            console.error(error);
+        };
+
+        window.onunload = () => {
+            client.disconnect();
+        };
+
+        document.getElementById("display").append(
+            client.getDisplay().getElement());
+
+        try {
+            client.connect(queryString());
+        } catch (error) {
+            console.error(error);
+        }
+
+        let mouse = new Guacamole.Mouse(client.getDisplay().getElement());
+
+        mouse.onmousedown = mouse.onmouseup = mouse.onmousemove = (mouseState) => {
+            client.sendMouseState(mouseState);
+        };
+
+        let keyboard = new Guacamole.Keyboard(document);
+
+        keyboard.onkeydown = (keysym) => {
+            client.sendKeyEvent(1, keysym);
+            return false;
+        };
+
+        keyboard.onkeyup = (keysym) => {
+            client.sendKeyEvent(0, keysym);
+            return false;
+        };
+
+        function queryString() {
+            let username = document.getElementById("username").value
+            let width = document.getElementById("width").value
+            let height = document.getElementById("height").value
+
+            return "username=" + username + "&width=" + width + "&height=" + height
+        }
+
+</script>
+</html>

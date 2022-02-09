@@ -1317,7 +1317,7 @@ func (al *APIListener) handlePutClientTunnel(w http.ResponseWriter, req *http.Re
 		al.jsonErrorResponseWithTitle(w, http.StatusBadRequest, "creation of tunnel proxy not enabled")
 		return
 	}
-	if isHTTPProxy && schemeStr != "http" && schemeStr != "https" && schemeStr != "vnc" {
+	if isHTTPProxy && !validation.SchemeSupportsHTTPProxy(schemeStr) {
 		al.jsonErrorResponseWithTitle(w, http.StatusBadRequest, fmt.Sprintf("tunnel proxy not allowed with scheme %s", schemeStr))
 		return
 	}

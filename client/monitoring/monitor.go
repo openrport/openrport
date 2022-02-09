@@ -147,7 +147,6 @@ func (m *Monitor) sendMeasurement() {
 			return
 		}
 
-		m.logger.Debugf("sending %d bytes of monitoring data to server", len(data))
 		_, _, err = m.conn.SendRequest(comm.RequestTypeSaveMeasurement, false, data)
 		if err != nil {
 			m.logger.Errorf("Could not send save_measurement: %v", err)

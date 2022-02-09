@@ -52,3 +52,7 @@ func ResolveIdleTunnelTimeoutValue(idleTimeoutMinutesStr string, skipIdleTimeout
 
 	return idleTimeoutMinutes, nil
 }
+
+func SchemeSupportsHTTPProxy(schemeStr string) bool {
+	return schemeStr == "http" || schemeStr == "https" || schemeStr == "vnc" || schemeStr == "rdp"
+}

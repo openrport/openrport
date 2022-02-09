@@ -135,7 +135,7 @@ func (c *Client) StartTunnel(r *models.Remote, acl *clienttunnel.TunnelACL, tunn
 			return nil, err
 		}
 		r.LocalPort = strconv.Itoa(port)
-		acl, _ = clienttunnel.ParseTunnelACL(clienttunnel.LocalHost) // access to tunnel is only allowed from tunnel proxy
+		acl, _ = clienttunnel.ParseTunnelACL(clienttunnel.LocalHost) // access to tunnel is only allowed from localhost
 	}
 
 	tunnelID := strconv.FormatInt(c.generateNewTunnelID(), 10)
@@ -171,6 +171,12 @@ func (c *Client) StartTunnel(r *models.Remote, acl *clienttunnel.TunnelACL, tunn
 			case <-autoCloseChan:
 				c.Lock()
 				defer c.Unlock()
+				//stop tunnel proxy
+				if t.Proxy != nil {
+					if err := t.Proxy.Stop(c.Context); err != nil {
+						c.Logger.Errorf("error while stopping tunnel proxy: %v", err)
+					}
+				}
 				c.removeTunnelByID(t.ID)
 				c.Logger.Debugf("tunnel with id=%s removed", t.ID)
 			}
