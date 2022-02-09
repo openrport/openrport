@@ -49,9 +49,6 @@ func (tc *TunnelProxyConnectorRDP) serveIndex(w http.ResponseWriter, r *http.Req
 		return
 	}
 
-	w.Header().Set("Content-Type", "text/html; charset=UTF-8")
-	w.WriteHeader(http.StatusOK)
-
 	query := r.URL.Query()
 	templateData := map[string]interface{}{
 		queryParUsername: query.Get(queryParUsername),
