@@ -39,7 +39,7 @@ func (p *SQLiteProvider) Insert(ctx context.Context, s *Schedule) error {
 			:type,
 			:details
 		)`,
-		s,
+		s.ToDB(),
 	)
 
 	return err
@@ -53,14 +53,14 @@ func (p *SQLiteProvider) Update(ctx context.Context, s *Schedule) error {
 			type = :type,
 			details = :details
 		WHERE id = :id`,
-		s,
+		s.ToDB(),
 	)
 
 	return err
 }
 
 func (p *SQLiteProvider) List(ctx context.Context, options *query.ListOptions) ([]*Schedule, error) {
-	values := []*Schedule{}
+	values := []*DBSchedule{}
 
 	q := "SELECT * FROM `schedules`"
 
@@ -68,26 +68,12 @@ func (p *SQLiteProvider) List(ctx context.Context, options *query.ListOptions) (
 
 	err := p.db.SelectContext(ctx, &values, q, params...)
 	if err != nil {
-		return values, err
+		return nil, err
 	}
 
-	return values, nil
-}
-
-func (p *SQLiteProvider) Count(ctx context.Context, options *query.ListOptions) (int, error) {
-	var result int
-
-	q := "SELECT COUNT(*) FROM `schedules`"
-	params := []interface{}{}
-	if options != nil {
-		countOptions := *options
-		countOptions.Pagination = nil
-		q, params = query.AppendOptionsToQuery(&countOptions, q, params)
-	}
-
-	err := p.db.GetContext(ctx, &result, q, params...)
-	if err != nil {
-		return 0, err
+	result := make([]*Schedule, len(values))
+	for i, v := range values {
+		result[i] = v.ToSchedule()
 	}
 
 	return result, nil
@@ -100,7 +86,7 @@ func (p *SQLiteProvider) Close() error {
 func (p *SQLiteProvider) Get(ctx context.Context, id string) (*Schedule, error) {
 	q := "SELECT * FROM `schedules` WHERE `id` = ? LIMIT 1"
 
-	s := &Schedule{}
+	s := &DBSchedule{}
 	err := p.db.GetContext(ctx, s, q, id)
 	if err != nil {
 		if err == sql.ErrNoRows {
@@ -109,7 +95,7 @@ func (p *SQLiteProvider) Get(ctx context.Context, id string) (*Schedule, error) 
 		return nil, err
 	}
 
-	return s, nil
+	return s.ToSchedule(), nil
 }
 
 func (p *SQLiteProvider) Delete(ctx context.Context, id string) error {

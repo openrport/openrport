@@ -405,10 +405,14 @@ paths:
           type: "string"
         - name: "filter"
           in: "query"
-          description: "Filter option `filter[<field>]` or `filter[<field>,<field>] for or conditions`.\n
-          `<field>` can be one of `'os_full_name', 'os_version', 'os_virtualization_system', 'os_virtualization_role',\n
-          'cpu_family', 'cpu_model', 'cpu_model_name', 'num_cpus', 'timezone'`. For example, `&filter[os_full_name]=Ubuntu 20.04` or `filter[os_full_name]=Ubuntu 20.04,Ubuntu 18.04`, etc.\n
-          Multiple filters are possible. You can also use wildcards for partial matches e.g. `filter[os_full_name]=Ubuntu*` will list all clients whose os_full_name starts with 'Ubuntu'."
+          description: "Filter option `filter[<FIELD>]=<VALUE>` or `filter[<FIELD>|<FIELD>]=<VALUE>,<VALUE>` for OR conditions.\n
+          `<FIELD>` can be one of `'id', 'name', 'os', 'os_arch', 'os_family', 'os_kernel', 'os_full_name', 'os_version', 'os_virtualization_system', 'os_virtualization_role', 'cpu_family', 'cpu_model', 'cpu_model_name', 'cpu_vendor', 'num_cpus', 'timezone', 'hostname', 'ipv4', 'ipv6', 'tags', 'version', 'address' 'client_auth_id', 'allowed_user_groups' and 'groups'`. You can use `*` to filter on any field.\n
+          Multiple filters are possible. You can use `*` wildcards for partial matches. Text matching is case insensitive.\n
+          Examples:\n
+          `filter[os_full_name]=Ubuntu 20.04`\n
+          `filter[os_full_name]=Ubuntu 20.04,Ubuntu 18.04`\n
+          `filter[os_full_name|os]=Ubuntu*`\n
+          `filter[*]=*Ubuntu*,*10.10.*,*Redhat*`"
           required: false
           type: "string"
         - in: "query"
@@ -418,6 +422,11 @@ paths:
               If no fields are specified, only id, name and hostname will be returned."
           required: false
           type: "string"
+        - name: "page"
+          in: "query"
+          required: false
+          type: "integer"
+          description: Pagination options `page[limit]` and `page[offset]` can be used to get more than the first page of results. Default limit is 50 and maximum is 500. The `count` property in meta shows the total number of results.
       summary: "List all active and disconnected client connections. By default sorted by ID in asc order"
       description: ""
       produces:
@@ -432,6 +441,11 @@ paths:
                 type: "array"
                 items:
                   $ref: "#/definitions/Client"
+              meta:
+                type: "object"
+                properties:
+                  count:
+                    type: "integer"
         "400":
           description: "invalid request parameters"
           schema:
@@ -2992,6 +3006,199 @@ paths:
           description: "Invalid Operation"
           schema:
             $ref: "#/definitions/ErrorPayload"
+  /schedules:
+    get:
+      tags:
+        - "Jobs"
+      summary: "List schedules"
+      description: "Reads all schedules or find some based on the input parameters"
+      produces:
+        - "application/json"
+      parameters:
+        - in: "query"
+          name: "sort"
+          description: "Sort field to be used for sorting, the sorting direction is by default ASC.\n
+            To change the direction add `-` to the sorting value e.g. `-id`. Allowed values are `id`, `created_at`, `created_by`, `name`, `type`.\n
+            You can use as many sort parameters as you want."
+          required: false
+          type: "string"
+        - in: "query"
+          name: "filter[<FIELD>]"
+          description: "Filter the results. It should be provided in the format as `filter[<FIELD>]=<VALUE>`,\n
+              where `<FIELD>` is one of the values `id`, `created_at`, `created_by`, `name`, `type`, `client_ids`, `group_ids` and `<VALUE>` is the search value,\n
+              e.g. `filter[name]=Schedule` will request only schedule with name Schedule. You can use as many filter parameters as you want.\n
+              If you want to filter by multiple values e.g. find entries either for name = Schedule or Other you can use following filters\n
+              `filter[name]=Schedule,Other`."
+          required: false
+          type: "string"
+        - name: "page"
+          in: "query"
+          required: false
+          type: "integer"
+          description: Pagination options `page[limit]` and `page[offset]` can be used to get more than the first page of results. Default limit is 20 and maximum is 100. The `count` property in meta shows the total number of results.
+      responses:
+        "200":
+          description: "Successful Operation"
+          schema:
+            type: "object"
+            properties:
+              data:
+                type: "array"
+                items:
+                  $ref: "#/definitions/Schedule"
+              meta:
+                type: "object"
+                properties:
+                  count:
+                    type: "integer"
+        "400":
+          description: "unsupported sort field 'xyz'"
+          schema:
+            $ref: "#/definitions/ErrorPayload"
+        "401":
+          description: "Unauthorized"
+          schema:
+            $ref: "#/definitions/ErrorPayload"
+        "500":
+          description: "Invalid Operation"
+          schema:
+            $ref: "#/definitions/ErrorPayload"
+    post:
+      tags:
+        - "Jobs"
+      summary: "Creates a new schedule"
+      description: "Creates a new schedule."
+      produces:
+        - "application/json"
+      parameters:
+        - in: "body"
+          name: "body"
+          description: "value in the json format"
+          required: true
+          schema:
+            $ref: "#/definitions/Schedule"
+      responses:
+        "201":
+          description: "Successful Create Operation"
+          schema:
+            type: "object"
+            properties:
+              data:
+                type: "object"
+                $ref: "#/definitions/Schedule"
+        "400":
+          description: "Invalid request parameters"
+          schema:
+            $ref: "#/definitions/ErrorPayload"
+        "401":
+          description: "Unauthorized"
+          schema:
+            $ref: "#/definitions/ErrorPayload"
+        "500":
+          description: "Invalid Operation"
+          schema:
+            $ref: "#/definitions/ErrorPayload"
+  /schedules/{id}:
+    get:
+      tags:
+        - "Jobs"
+      summary: "Get a schedule"
+      description: "Get a schedule by the provided ID"
+      produces:
+        - "application/json"
+      parameters:
+        - in: "path"
+          name: "id"
+          required: true
+          description: "Unique schedule ID"
+          type: "string"
+      responses:
+        "200":
+          description: "Successful Operation"
+          schema:
+            type: "object"
+            properties:
+              data:
+                type: "object"
+                $ref: "#/definitions/Schedule"
+        "401":
+          description: "Unauthorized"
+          schema:
+            $ref: "#/definitions/ErrorPayload"
+        "404":
+          description: "Cannot find a schedule by the provided id"
+          schema:
+            $ref: "#/definitions/ErrorPayload"
+        "500":
+          description: "Invalid Operation"
+          schema:
+            $ref: "#/definitions/ErrorPayload"
+    put:
+      tags:
+        - "Jobs"
+      summary: "Updates an existing schedule"
+      description: "Updates an existing schedule by the provided `id` parameter.\n
+      You need to provide all fields like those you used to create a schedule. Partial updates are not supported.
+      You can get `id` by using the listing API. You get the id also when you store a new value."
+      parameters:
+        - in: "path"
+          name: "id"
+          required: true
+          description: "Unique schedule ID"
+          type: "string"
+        - in: "body"
+          name: "body"
+          description: "value in the json format"
+          required: true
+          schema:
+            $ref: "#/definitions/Schedule"
+      responses:
+        "200":
+          description: "Successful Operation"
+          schema:
+            type: "object"
+            properties:
+              data:
+                type: "object"
+                $ref: "#/definitions/Schedule"
+        "400":
+          description: "Invalid body parameters"
+          schema:
+            $ref: "#/definitions/ErrorPayload"
+        "401":
+          description: "Unauthorized"
+          schema:
+            $ref: "#/definitions/ErrorPayload"
+        "500":
+          description: "Invalid Operation"
+          schema:
+            $ref: "#/definitions/ErrorPayload"
+    delete:
+      tags:
+        - "Jobs"
+      summary: "Deletes an existing schedule"
+      description: "Delete a schedule by the provided `id` parameter."
+      parameters:
+        - in: "path"
+          name: "id"
+          required: true
+          description: "Unique schedule ID"
+          type: "string"
+      responses:
+        "204":
+          description: "Successful Operation"
+        "401":
+          description: "Unauthorized"
+          schema:
+            $ref: "#/definitions/ErrorPayload"
+        "404":
+          description: "cannot find command by the provided id"
+          schema:
+            $ref: "#/definitions/ErrorPayload"
+        "500":
+          description: "Invalid Operation"
+          schema:
+            $ref: "#/definitions/ErrorPayload"
   /files:
     post:
       tags:
@@ -4088,6 +4295,71 @@ definitions:
       further_options:
         type: "object"
         description: "Further options for the stored tunnel"
+  Schedule:
+    type: "object"
+    properties:
+      id:
+        type: "string"
+        format: "uuid"
+        description: "unique internal identifier of the schedule in uuid4 format"
+        readOnly: true
+      created_at:
+        type: "string"
+        format: "data-time"
+        description: "Date and time of schedule creation"
+        readOnly: true
+      created_by:
+        type: "string"
+        description: "Username of the user who created the schedule"
+        readOnly: true
+      name:
+        type: "string"
+        description: "Name of the schedule"
+      schedule:
+        type: "string"
+        example: "* * * * *"
+        description: "Schedule in the cron format"
+      type:
+        type: "string"
+        example: "command"
+        description: "'command' or 'script'"
+      client_ids:
+        type: "array"
+        items:
+          type: "string"
+        description: "Client IDs that schedule will be executed on"
+      group_ids:
+        type: "array"
+        items:
+          type: "string"
+        description: "Group IDs that schedule will be executed on"
+      command:
+        type: "string"
+        description: "Command to be executed, only for type 'command'"
+      script:
+        type: "string"
+        description: "Base64 encoded script to be executed, only for type 'script'"
+      interpreter:
+        type: "string"
+        description: "Interpreter for schedule execution, for details on this and other params see commands or scripts"
+      cwd:
+        type: "string"
+        description: "Cwd for schedule execution"
+      is_sudo:
+        type: "boolean"
+        description: "Is sudo for schedule execution"
+      timeout_sec:
+        type: "number"
+        description: "Timeout for schedule execution"
+      execute_concurrently:
+        type: "boolean"
+        description: "Whether to execute concurrently on all clients"
+      abort_on_error:
+        type: "boolean"
+        description: "Abort on error for schedule execution"
+      overlaps:
+        type: "boolean"
+        description: "Whether to start another schedule execution when previous is still in progress"
   ServerUploadResponse:
     type: "object"
     properties:

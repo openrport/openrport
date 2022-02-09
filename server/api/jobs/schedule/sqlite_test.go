@@ -17,12 +17,14 @@ import (
 
 var testData = []*Schedule{
 	{
-		ID:        "1",
-		Name:      "schedule 1",
-		CreatedBy: "user1",
-		CreatedAt: time.Date(2022, 1, 1, 1, 0, 0, 0, time.UTC),
-		Schedule:  "* * * * *",
-		Type:      "command",
+		Base: Base{
+			ID:        "1",
+			Name:      "schedule 1",
+			CreatedBy: "user1",
+			CreatedAt: time.Date(2022, 1, 1, 1, 0, 0, 0, time.UTC),
+			Schedule:  "* * * * *",
+			Type:      "command",
+		},
 		Details: Details{
 			ClientIDs: []string{"c1"},
 			GroupIDs:  []string{"g1"},
@@ -32,12 +34,14 @@ var testData = []*Schedule{
 		},
 	},
 	{
-		ID:        "2",
-		Name:      "schedule 2",
-		CreatedBy: "user1",
-		CreatedAt: time.Date(2022, 1, 1, 2, 0, 0, 0, time.UTC),
-		Schedule:  "*/5 * * * *",
-		Type:      "script",
+		Base: Base{
+			ID:        "2",
+			Name:      "schedule 2",
+			CreatedBy: "user1",
+			CreatedAt: time.Date(2022, 1, 1, 2, 0, 0, 0, time.UTC),
+			Schedule:  "*/5 * * * *",
+			Type:      "script",
+		},
 		Details: Details{
 			ClientIDs:           []string{"c2"},
 			GroupIDs:            []string{"g2"},
@@ -84,21 +88,6 @@ func TestList(t *testing.T) {
 	require.NoError(t, err)
 
 	assert.Equal(t, testData, result)
-}
-
-func TestCount(t *testing.T) {
-	db, err := sqlite.New(":memory:", jobs.AssetNames(), jobs.Asset)
-	require.NoError(t, err)
-	dbProv := newSQLiteProvider(db)
-	defer dbProv.Close()
-
-	err = addTestData(dbProv.db)
-	require.NoError(t, err)
-
-	result, err := dbProv.Count(context.Background(), nil)
-	require.NoError(t, err)
-
-	assert.Equal(t, 2, result)
 }
 
 func TestCreate(t *testing.T) {

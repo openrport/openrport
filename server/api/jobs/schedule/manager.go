@@ -19,21 +19,33 @@ import (
 	"github.com/cloudradar-monitoring/rport/share/random"
 )
 
-var supportedSortAndFilters = map[string]bool{
-	"id":         true,
-	"created_at": true,
-	"created_by": true,
-	"name":       true,
-	"type":       true,
-	"client_id":  true,
-	"group_id":   true,
-}
+var (
+	supportedSorts = map[string]bool{
+		"id":         true,
+		"created_at": true,
+		"created_by": true,
+		"name":       true,
+		"type":       true,
+	}
+	supportedFilters = map[string]bool{
+		"id":         true,
+		"created_at": true,
+		"created_by": true,
+		"name":       true,
+		"type":       true,
+		"client_ids": true,
+		"group_ids":  true,
+	}
+	manualFiltersConfig = map[string]bool{
+		"client_ids": true,
+		"group_ids":  true,
+	}
+)
 
 type Provider interface {
 	Insert(context.Context, *Schedule) error
 	Update(context.Context, *Schedule) error
 	List(context.Context, *query.ListOptions) ([]*Schedule, error)
-	Count(context.Context, *query.ListOptions) (int, error)
 	Get(context.Context, string) (*Schedule, error)
 	Delete(context.Context, string) error
 }
@@ -81,7 +93,7 @@ func New(ctx context.Context, logger *logger.Logger, db *sqlx.DB, jobRunner JobR
 func (m *Manager) List(ctx context.Context, r *http.Request) (*api.SuccessPayload, error) {
 	listOptions := query.GetListOptions(r)
 
-	err := query.ValidateListOptions(listOptions, supportedSortAndFilters, supportedSortAndFilters, nil /*fields*/, &query.PaginationConfig{
+	err := query.ValidateListOptions(listOptions, supportedSorts, supportedFilters, nil /*fields*/, &query.PaginationConfig{
 		MaxLimit:     100,
 		DefaultLimit: 20,
 	})
@@ -89,19 +101,35 @@ func (m *Manager) List(ctx context.Context, r *http.Request) (*api.SuccessPayloa
 		return nil, err
 	}
 
+	manualFilters, dbFilters := query.SplitFilters(listOptions.Filters, manualFiltersConfig)
+	pagination := listOptions.Pagination
+
+	listOptions.Filters = dbFilters
+	listOptions.Pagination = nil
+
 	entries, err := m.provider.List(ctx, listOptions)
 	if err != nil {
 		return nil, err
 	}
 
-	count, err := m.provider.Count(ctx, listOptions)
-	if err != nil {
-		return nil, err
+	filtered := make([]*Schedule, 0, len(entries))
+	for _, entry := range entries {
+		matches, err := query.MatchesFilters(entry, manualFilters)
+		if err != nil {
+			return nil, err
+		}
+		if matches {
+			filtered = append(filtered, entry)
+		}
 	}
 
+	totalCount := len(filtered)
+	start, end := pagination.GetStartEnd(totalCount)
+	limited := filtered[start:end]
+
 	return &api.SuccessPayload{
-		Data: entries,
-		Meta: api.NewMeta(count),
+		Data: limited,
+		Meta: api.NewMeta(totalCount),
 	}, nil
 }
 
