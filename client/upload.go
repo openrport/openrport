@@ -4,6 +4,7 @@ import (
 	"fmt"
 	"io"
 	"os"
+	"os/user"
 	"path/filepath"
 	"strings"
 
@@ -108,34 +109,34 @@ func NewSSHUploadManager(
 	}
 }
 
-func (c *UploadManager) HandleUploadRequest(reqPayload []byte) (*models.UploadResponse, error) {
-	c.Debugf("got request %s", string(reqPayload))
+func (um *UploadManager) HandleUploadRequest(reqPayload []byte) (*models.UploadResponse, error) {
+	um.Debugf("got request %s", string(reqPayload))
 
-	uploadedFile, err := c.getUploadedFile(reqPayload)
+	uploadedFile, err := um.getUploadedFile(reqPayload)
 	if err != nil {
 		return nil, err
 	}
 
-	destinationFileExists, err := c.FilesAPI.Exist(uploadedFile.DestinationPath)
+	destinationFileExists, err := um.FilesAPI.Exist(uploadedFile.DestinationPath)
 	if err != nil {
 		return nil, err
 	}
 
 	if !destinationFileExists || uploadedFile.ForceWrite {
-		return c.handleWritingFile(uploadedFile)
+		return um.handleWritingFile(uploadedFile)
 	}
 
-	fileShouldBeSynched, err := c.fileShouldBeSynched(uploadedFile)
+	fileShouldBeSynched, err := um.fileShouldBeSynched(uploadedFile)
 	if err != nil {
 		return nil, err
 	}
 	if fileShouldBeSynched {
-		c.Logger.Debugf("file %s should be synched", uploadedFile.DestinationPath)
-		return c.handleWritingFile(uploadedFile)
+		um.Logger.Debugf("file %s should be synched", uploadedFile.DestinationPath)
+		return um.handleWritingFile(uploadedFile)
 	}
 
 	msg := fmt.Sprintf("file %s already exists, should not be synched or overwritten with force", uploadedFile.DestinationPath)
-	c.Logger.Infof(msg)
+	um.Logger.Infof(msg)
 	return &models.UploadResponse{
 		UploadResponseShort: models.UploadResponseShort{
 			ID:       uploadedFile.ID,
@@ -146,18 +147,18 @@ func (c *UploadManager) HandleUploadRequest(reqPayload []byte) (*models.UploadRe
 	}, nil
 }
 
-func (c *UploadManager) fileShouldBeSynched(uploadedFile *models.UploadedFile) (bool, error) {
+func (um *UploadManager) fileShouldBeSynched(uploadedFile *models.UploadedFile) (bool, error) {
 	if !uploadedFile.Sync {
 		return false, nil
 	}
 
-	hashSumMatch, err := files.Md5HashMatch(uploadedFile.Md5Checksum, uploadedFile.DestinationPath, c.FilesAPI)
+	hashSumMatch, err := files.Md5HashMatch(uploadedFile.Md5Checksum, uploadedFile.DestinationPath, um.FilesAPI)
 
 	if err != nil {
 		return false, err
 	}
 	if !hashSumMatch {
-		c.Debugf(
+		um.Debugf(
 			"destination file %s has a different hash sum than the provided %x, the file should be synched",
 			uploadedFile.DestinationPath,
 			uploadedFile.Md5Checksum,
@@ -167,13 +168,13 @@ func (c *UploadManager) fileShouldBeSynched(uploadedFile *models.UploadedFile) (
 	}
 
 	if uploadedFile.DestinationFileMode > 0 {
-		destinationFileMode, err := c.FilesAPI.GetFileMode(uploadedFile.DestinationPath)
+		destinationFileMode, err := um.FilesAPI.GetFileMode(uploadedFile.DestinationPath)
 		if err != nil {
 			return false, err
 		}
 
 		if destinationFileMode != uploadedFile.DestinationFileMode {
-			c.Debugf(
+			um.Debugf(
 				"destination file %s has a different file mode than the provided %v, the file should be synched",
 				uploadedFile.DestinationPath,
 				uploadedFile.DestinationFileMode,
@@ -184,7 +185,7 @@ func (c *UploadManager) fileShouldBeSynched(uploadedFile *models.UploadedFile) (
 	}
 
 	if uploadedFile.DestinationFileOwner != "" || uploadedFile.DestinationFileGroup != "" {
-		fileOwnerMatch, err := c.fileOwnerOrGroupMatch(
+		fileOwnerMatch, err := um.fileOwnerOrGroupMatch(
 			uploadedFile.DestinationPath,
 			uploadedFile.DestinationFileOwner,
 			uploadedFile.DestinationFileGroup,
@@ -194,7 +195,7 @@ func (c *UploadManager) fileShouldBeSynched(uploadedFile *models.UploadedFile) (
 		}
 
 		if !fileOwnerMatch {
-			c.Debugf(
+			um.Debugf(
 				"destination file %s has a different file owner or group than the provided ones %s:%s, ",
 				uploadedFile.DestinationPath,
 				uploadedFile.DestinationFileOwner,
@@ -208,8 +209,8 @@ func (c *UploadManager) fileShouldBeSynched(uploadedFile *models.UploadedFile) (
 	return false, nil
 }
 
-func (c *UploadManager) handleWritingFile(uploadedFile *models.UploadedFile) (resp *models.UploadResponse, err error) {
-	copiedBytes, tempFilePath, err := c.copyFileToTempLocation(
+func (um *UploadManager) handleWritingFile(uploadedFile *models.UploadedFile) (resp *models.UploadResponse, err error) {
+	copiedBytes, tempFilePath, err := um.copyFileToTempLocation(
 		uploadedFile.SourceFilePath,
 		uploadedFile.DestinationFileMode,
 		uploadedFile.Md5Checksum,
@@ -220,25 +221,25 @@ func (c *UploadManager) handleWritingFile(uploadedFile *models.UploadedFile) (re
 
 	msgParts := []string{}
 
-	err = c.chmodFile(tempFilePath, uploadedFile.DestinationFileMode)
+	err = um.chmodFile(tempFilePath, uploadedFile.DestinationFileMode)
 	if err != nil {
 		msgParts = append(msgParts, fmt.Sprintf("chmod failed: %v", err))
 	}
 
-	err = c.chownFile(tempFilePath, uploadedFile.DestinationFileOwner, uploadedFile.DestinationFileGroup)
+	err = um.chownFile(tempFilePath, uploadedFile.DestinationFileOwner, uploadedFile.DestinationFileGroup)
 	if err != nil {
 		msgParts = append(msgParts, fmt.Sprintf("chown of %s failed: %v", tempFilePath, err))
 	}
 
-	err = c.moveFileToDestination(tempFilePath, uploadedFile)
+	err = um.moveFileToDestination(tempFilePath, uploadedFile)
 	if err != nil {
 		return nil, err
 	}
-	c.Logger.Debugf("copied remote file %s to the temp path %s", uploadedFile.SourceFilePath, tempFilePath)
+	um.Logger.Debugf("copied remote file %s to the temp path %s", uploadedFile.SourceFilePath, tempFilePath)
 	msgParts = append(msgParts, "file successfully copied to destination "+uploadedFile.DestinationPath)
 
 	message := strings.Join(msgParts, ".")
-	c.Logger.Debugf(message)
+	um.Logger.Debugf(message)
 
 	return &models.UploadResponse{
 		UploadResponseShort: models.UploadResponseShort{
@@ -251,17 +252,32 @@ func (c *UploadManager) handleWritingFile(uploadedFile *models.UploadedFile) (re
 	}, nil
 }
 
-func (c *UploadManager) chownFile(filePath, owner, group string) (err error) {
+func (um *UploadManager) chownFile(filePath, owner, group string) (err error) {
 	if owner == "" && group == "" {
 		return nil
 	}
-
-	err = c.FilesAPI.ChangeOwner(filePath, owner, group)
+	curUser, curGroup, err := um.SysUserLookup.GetCurrentUserAndGroup()
 	if err != nil {
 		return err
 	}
 
-	c.Logger.Debugf(
+	if um.ownerOrGroupMatchesCurrentUser(owner, group, curUser, curGroup) {
+		um.Logger.Debugf(
+			"given user %s and/or group %s match current user %s and/or group %s therefore no chown is needed",
+			owner,
+			group,
+			curUser.Username,
+			curGroup.Name,
+		)
+		return nil
+	}
+
+	err = um.FilesAPI.ChangeOwner(filePath, owner, group)
+	if err != nil {
+		return err
+	}
+
+	um.Logger.Debugf(
 		"chowned file %s, %s:%s",
 		filePath,
 		owner,
@@ -271,17 +287,29 @@ func (c *UploadManager) chownFile(filePath, owner, group string) (err error) {
 	return nil
 }
 
-func (c *UploadManager) chmodFile(path string, mode os.FileMode) (err error) {
+func (um *UploadManager) ownerOrGroupMatchesCurrentUser(targetOwner, targetGroup string, currentUser *user.User, currentGroup *user.Group) bool {
+	if targetOwner != "" && currentUser.Username == targetOwner && targetGroup == "" {
+		return true
+	}
+
+	if targetOwner == "" && targetGroup != "" && currentGroup.Name == targetGroup {
+		return true
+	}
+
+	return currentUser.Username == targetOwner && currentGroup.Name == targetGroup
+}
+
+func (um *UploadManager) chmodFile(path string, mode os.FileMode) (err error) {
 	if mode == 0 {
 		return nil
 	}
 
-	err = c.FilesAPI.ChangeMode(path, mode)
+	err = um.FilesAPI.ChangeMode(path, mode)
 	if err != nil {
 		return err
 	}
 
-	c.Logger.Debugf(
+	um.Logger.Debugf(
 		"chmoded file %s: %v",
 		path,
 		mode,
@@ -290,25 +318,25 @@ func (c *UploadManager) chmodFile(path string, mode os.FileMode) (err error) {
 	return nil
 }
 
-func (c *UploadManager) moveFileToDestination(tempFilePath string, uploadedFile *models.UploadedFile) (err error) {
-	err = c.prepareDestinationDir(uploadedFile.DestinationPath, uploadedFile.DestinationFileMode)
+func (um *UploadManager) moveFileToDestination(tempFilePath string, uploadedFile *models.UploadedFile) (err error) {
+	err = um.prepareDestinationDir(uploadedFile.DestinationPath, uploadedFile.DestinationFileMode)
 	if err != nil {
 		return err
 	}
 
-	destinationFileExists, err := c.FilesAPI.Exist(uploadedFile.DestinationPath)
+	destinationFileExists, err := um.FilesAPI.Exist(uploadedFile.DestinationPath)
 	if err != nil {
 		return err
 	}
 	if destinationFileExists {
-		c.Logger.Debugf("destination file %s already exists, will delete it", uploadedFile.DestinationPath)
-		err = c.FilesAPI.Remove(uploadedFile.DestinationPath)
+		um.Logger.Debugf("destination file %s already exists, will delete it", uploadedFile.DestinationPath)
+		err = um.FilesAPI.Remove(uploadedFile.DestinationPath)
 		if err != nil {
 			return err
 		}
 	}
 
-	err = c.FilesAPI.Rename(tempFilePath, uploadedFile.DestinationPath)
+	err = um.FilesAPI.Rename(tempFilePath, uploadedFile.DestinationPath)
 	if err != nil {
 		return err
 	}
@@ -316,25 +344,25 @@ func (c *UploadManager) moveFileToDestination(tempFilePath string, uploadedFile 
 	return nil
 }
 
-func (c *UploadManager) prepareDestinationDir(destinationPath string, mode os.FileMode) error {
+func (um *UploadManager) prepareDestinationDir(destinationPath string, mode os.FileMode) error {
 	destinationDir := filepath.Dir(destinationPath)
 
 	if mode == 0 {
 		mode = files.DefaultMode
 	}
 
-	destinationDirWasCreated, err := c.FilesAPI.CreateDirIfNotExists(destinationDir, mode)
+	destinationDirWasCreated, err := um.FilesAPI.CreateDirIfNotExists(destinationDir, mode)
 	if err != nil {
 		return err
 	}
 	if destinationDirWasCreated {
-		c.Logger.Debugf("created destination file dir %s for the uploaded file", destinationDir)
+		um.Logger.Debugf("created destination file dir %s for the uploaded file", destinationDir)
 	}
 
 	return nil
 }
 
-func (c *UploadManager) copyFileToTempLocation(remoteFilePath string, targetFileMode os.FileMode, expectedMd5Checksum []byte) (
+func (um *UploadManager) copyFileToTempLocation(remoteFilePath string, targetFileMode os.FileMode, expectedMd5Checksum []byte) (
 	bytesCopied int64,
 	tempFilePath string,
 	err error,
@@ -345,50 +373,50 @@ func (c *UploadManager) copyFileToTempLocation(remoteFilePath string, targetFile
 		targetFileMode = files.DefaultMode
 	}
 
-	tempDirWasCreated, err := c.FilesAPI.CreateDirIfNotExists(c.OptionsProvider.GetUploadDir(), targetFileMode)
+	tempDirWasCreated, err := um.FilesAPI.CreateDirIfNotExists(um.OptionsProvider.GetUploadDir(), targetFileMode)
 	if err != nil {
 		return 0, "", err
 	}
 	if tempDirWasCreated {
-		c.Logger.Debugf("created temp dir %s for uploaded files", c.OptionsProvider.GetUploadDir())
+		um.Logger.Debugf("created temp dir %s for uploaded files", um.OptionsProvider.GetUploadDir())
 	}
 
-	tempFilePath = filepath.Join(c.OptionsProvider.GetUploadDir(), tempFileName)
+	tempFilePath = filepath.Join(um.OptionsProvider.GetUploadDir(), tempFileName)
 
-	tempFileExists, err := c.FilesAPI.Exist(tempFilePath)
+	tempFileExists, err := um.FilesAPI.Exist(tempFilePath)
 	if err != nil {
 		return 0, tempFilePath, err
 	}
 
 	if tempFileExists {
-		c.Logger.Debugf("temp file %s already exists, will delete it", tempFilePath)
-		err = c.FilesAPI.Remove(tempFilePath)
+		um.Logger.Debugf("temp file %s already exists, will delete it", tempFilePath)
+		err = um.FilesAPI.Remove(tempFilePath)
 		if err != nil {
 			return 0, tempFilePath, err
 		}
 	}
 
-	remoteFile, err := c.SourceFileProvider.Open(remoteFilePath)
+	remoteFile, err := um.SourceFileProvider.Open(remoteFilePath)
 	if err != nil {
 		return 0, tempFilePath, err
 	}
 	defer remoteFile.Close()
 
-	copiedBytes, err := c.FilesAPI.CreateFile(tempFilePath, remoteFile)
+	copiedBytes, err := um.FilesAPI.CreateFile(tempFilePath, remoteFile)
 	if err != nil {
 		return 0, tempFilePath, err
 	}
-	c.Logger.Debugf("copied %d bytes from server path %s to temp path %s", copiedBytes, remoteFilePath, tempFilePath)
+	um.Logger.Debugf("copied %d bytes from server path %s to temp path %s", copiedBytes, remoteFilePath, tempFilePath)
 
-	hashSumMatch, err := files.Md5HashMatch(expectedMd5Checksum, tempFilePath, c.FilesAPI)
+	hashSumMatch, err := files.Md5HashMatch(expectedMd5Checksum, tempFilePath, um.FilesAPI)
 	if err != nil {
 		return 0, tempFilePath, err
 	}
 
 	if !hashSumMatch {
-		err := c.FilesAPI.Remove(tempFilePath)
+		err := um.FilesAPI.Remove(tempFilePath)
 		if err != nil {
-			c.Logger.Errorf("failed to remove %s: %v", tempFilePath, err)
+			um.Logger.Errorf("failed to remove %s: %v", tempFilePath, err)
 		}
 
 		return 0,
@@ -402,7 +430,7 @@ func (c *UploadManager) copyFileToTempLocation(remoteFilePath string, targetFile
 	return copiedBytes, tempFilePath, nil
 }
 
-func (c *UploadManager) getUploadedFile(reqPayload []byte) (*models.UploadedFile, error) {
+func (um *UploadManager) getUploadedFile(reqPayload []byte) (*models.UploadedFile, error) {
 	uploadedFile := new(models.UploadedFile)
 	err := uploadedFile.FromBytes(reqPayload)
 	if err != nil {
@@ -413,7 +441,7 @@ func (c *UploadManager) getUploadedFile(reqPayload []byte) (*models.UploadedFile
 		return nil, err
 	}
 
-	err = uploadedFile.ValidateDestinationPath(c.OptionsProvider.GetFilePushDeny(), c.Logger)
+	err = uploadedFile.ValidateDestinationPath(um.OptionsProvider.GetFilePushDeny(), um.Logger)
 	if err != nil {
 		return nil, err
 	}
@@ -421,14 +449,14 @@ func (c *UploadManager) getUploadedFile(reqPayload []byte) (*models.UploadedFile
 	return uploadedFile, nil
 }
 
-func (c *UploadManager) fileOwnerOrGroupMatch(file, owner, group string) (bool, error) {
-	fileUID, fileGid, err := c.FilesAPI.GetFileOwnerAndGroup(file)
+func (um *UploadManager) fileOwnerOrGroupMatch(file, owner, group string) (bool, error) {
+	fileUID, fileGid, err := um.FilesAPI.GetFileOwnerAndGroup(file)
 	if err != nil {
 		return false, errors.Wrapf(err, "failed to read uid and gid of file %s", file)
 	}
 
 	if owner != "" {
-		ownerUID, err := c.SysUserLookup.GetUIDByName(owner)
+		ownerUID, err := um.SysUserLookup.GetUIDByName(owner)
 		if err != nil {
 			return false, err
 		}
@@ -439,7 +467,7 @@ func (c *UploadManager) fileOwnerOrGroupMatch(file, owner, group string) (bool, 
 	}
 
 	if group != "" {
-		ownerGid, err := c.SysUserLookup.GetGidByName(group)
+		ownerGid, err := um.SysUserLookup.GetGidByName(group)
 		if err != nil {
 			return false, err
 		}

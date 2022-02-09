@@ -167,11 +167,16 @@ func TestHandleFileUploads(t *testing.T) {
 
 			assert.Equal(t, tc.wantStatus, rec.Code)
 
-			actualResponse := &models.UploadResponseShort{}
-			err = json.Unmarshal(rec.Body.Bytes(), actualResponse)
+			var successResp struct {
+				Data *models.UploadResponseShort `json:"data"`
+			}
+
+			dec := json.NewDecoder(rec.Body)
+			dec.DisallowUnknownFields()
+			err = dec.Decode(&successResp)
 			require.NoError(t, err)
 
-			assert.Equal(t, tc.wantResp, actualResponse)
+			assert.Equal(t, tc.wantResp, successResp.Data)
 
 			select {
 			case <-done:

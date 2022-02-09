@@ -4,11 +4,14 @@ import (
 	"fmt"
 	"os/user"
 	"strconv"
+
+	chshare "github.com/cloudradar-monitoring/rport/share"
 )
 
 type SysUserLookup interface {
 	GetUIDByName(user string) (uid uint32, err error)
 	GetGidByName(group string) (gid uint32, err error)
+	GetCurrentUserAndGroup() (*user.User, *user.Group, error)
 }
 
 type SysUserProvider struct{}
@@ -19,6 +22,10 @@ func (sup SysUserProvider) GetUIDByName(user string) (uid uint32, err error) {
 
 func (sup SysUserProvider) GetGidByName(group string) (gid uint32, err error) {
 	return GetGidByName(group)
+}
+
+func (sup SysUserProvider) GetCurrentUserAndGroup() (*user.User, *user.Group, error) {
+	return chshare.GetCurrentUserAndGroup()
 }
 
 func GetUIDByName(name string) (uid uint32, err error) {

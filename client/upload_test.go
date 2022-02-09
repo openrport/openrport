@@ -5,6 +5,7 @@ import (
 	"io"
 	"io/ioutil"
 	"os"
+	"os/user"
 	"path/filepath"
 	"strings"
 	"testing"
@@ -122,6 +123,15 @@ func TestHandleUploadRequest(t *testing.T) {
 				ForceWrite:           true,
 				Sync:                 false,
 				Md5Checksum:          test.Md5Hash("some content"),
+			},
+			sysUserLookupCallback: func(sysUsrLookup *test.SysUserProviderMock) {
+				usr := &user.User{
+					Username: "some",
+				}
+				gr := &user.Group{
+					Name: "gr",
+				}
+				sysUsrLookup.On("GetCurrentUserAndGroup").Return(usr, gr, nil)
 			},
 			fsCallback: func(fs *test.FileAPIMock) {
 				fs.On("Exist", filepath.Join("destination", "file2.txt")).Return(true, nil)
@@ -264,6 +274,14 @@ func TestHandleUploadRequest(t *testing.T) {
 			sysUserLookupCallback: func(sysUsrLookup *test.SysUserProviderMock) {
 				sysUsrLookup.On("GetUIDByName", "admin").Return(defaultUID, nil)
 				sysUsrLookup.On("GetGidByName", "group").Return(defaultGID+1, nil)
+
+				usr := &user.User{
+					Username: "some",
+				}
+				gr := &user.Group{
+					Name: "gr",
+				}
+				sysUsrLookup.On("GetCurrentUserAndGroup").Return(usr, gr, nil)
 			},
 			fileProviderCallback: buildDefaultFileProviderMock(filepath.Join("source", "file_temp7.txt"), "some"),
 			optionsCallback:      defaultOptionsCallback,
@@ -274,6 +292,62 @@ func TestHandleUploadRequest(t *testing.T) {
 					SizeBytes: 12,
 				},
 				Message: "file successfully copied to destination " + filepath.Join("destination", "file7.txt"),
+				Status:  "success",
+			},
+		},
+		{
+			name: "file not exists, chown ignored",
+			wantUploadedFile: &models.UploadedFile{
+				ID:                   "97e97cdd-135a-4620-ab50-d44025b8fe78",
+				SourceFilePath:       filepath.Join("source", "file_temp8.txt"),
+				DestinationPath:      filepath.Join("destination", "file8.txt"),
+				DestinationFileMode:  os.FileMode(0744),
+				DestinationFileOwner: "admin",
+				DestinationFileGroup: "group",
+				Md5Checksum:          test.Md5Hash("some content"),
+			},
+			fsCallback: func(fs *test.FileAPIMock) {
+				fs.On("Exist", filepath.Join("destination", "file8.txt")).Return(false, nil)
+
+				expectedTempFilePath := filepath.Join("data", files.DefaultUploadTempFolder, "file_temp8.txt")
+				fs.On("Exist", expectedTempFilePath).Return(false, nil)
+
+				fs.On("CreateDirIfNotExists", filepath.Join("data", files.DefaultUploadTempFolder), os.FileMode(0744)).Return(true, nil)
+				fs.On("CreateDirIfNotExists", "destination", os.FileMode(0744)).Return(true, nil)
+
+				fs.On("CreateFile", expectedTempFilePath, mock.Anything).Return(int64(12), nil)
+				fs.On("ChangeMode", expectedTempFilePath, os.FileMode(0744)).Return(nil)
+
+				existingFileMock := &test.ReadWriteCloserMock{}
+				existingFileMock.Reader = strings.NewReader("some content")
+
+				fs.On("Open", expectedTempFilePath).Return(existingFileMock, nil)
+
+				existingFileMock2 := &test.ReadWriteCloserMock{}
+				existingFileMock2.Reader = strings.NewReader("some content")
+				fs.On("Rename", expectedTempFilePath, filepath.Join("destination", "file8.txt")).Return(nil)
+			},
+			sysUserLookupCallback: func(sysUsrLookup *test.SysUserProviderMock) {
+				sysUsrLookup.On("GetUIDByName", "admin").Return(defaultUID, nil)
+				sysUsrLookup.On("GetGidByName", "group").Return(defaultGID+1, nil)
+
+				usr := &user.User{
+					Username: "admin",
+				}
+				gr := &user.Group{
+					Name: "group",
+				}
+				sysUsrLookup.On("GetCurrentUserAndGroup").Return(usr, gr, nil)
+			},
+			fileProviderCallback: buildDefaultFileProviderMock(filepath.Join("source", "file_temp8.txt"), "some"),
+			optionsCallback:      defaultOptionsCallback,
+			wantResp: &models.UploadResponse{
+				UploadResponseShort: models.UploadResponseShort{
+					ID:        "97e97cdd-135a-4620-ab50-d44025b8fe78",
+					Filepath:  filepath.Join("destination", "file8.txt"),
+					SizeBytes: 12,
+				},
+				Message: "file successfully copied to destination " + filepath.Join("destination", "file8.txt"),
 				Status:  "success",
 			},
 		},
