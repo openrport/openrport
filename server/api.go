@@ -93,6 +93,7 @@ type JobProvider interface {
 	GetMultiJobSummaries(ctx context.Context, options *query.ListOptions) ([]*models.MultiJobSummary, error)
 	CountMultiJobs(ctx context.Context, options *query.ListOptions) (int, error)
 	SaveMultiJob(multiJob *models.MultiJob) error
+	CleanupJobsMultiJobs(context.Context, int) error
 	Close() error
 }
 

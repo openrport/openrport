@@ -25,7 +25,7 @@ type JobBuilder struct {
 	jid        string
 	clientID   string
 	clientName string
-	multiJobID string
+	multiJobID *string
 	status     string
 	startedAt  time.Time
 	finishedAt *time.Time
@@ -65,7 +65,7 @@ func (b JobBuilder) ClientName(clientName string) JobBuilder {
 }
 
 func (b JobBuilder) MultiJobID(multiJobID string) JobBuilder {
-	b.multiJobID = multiJobID
+	b.multiJobID = &multiJobID
 	return b
 }
 
@@ -121,7 +121,7 @@ func (b JobBuilder) Build() *models.Job {
 		CreatedBy:  "test-user",
 		TimeoutSec: 60,
 		Result:     b.result,
-		MultiJobID: &b.multiJobID,
+		MultiJobID: b.multiJobID,
 	}
 }
 

@@ -114,6 +114,18 @@ func (p *SQLiteProvider) Delete(ctx context.Context, id string) error {
 		return fmt.Errorf("cannot find entry by id %s", id)
 	}
 
+	// Delete associated jobs
+	_, err = p.db.ExecContext(ctx, "DELETE FROM jobs WHERE multi_job_id IN (SELECT jid FROM multi_jobs WHERE schedule_id = ?)", id)
+	if err != nil {
+		return err
+	}
+
+	// Delete associated multi jobs
+	_, err = p.db.ExecContext(ctx, "DELETE FROM multi_jobs WHERE schedule_id = ?", id)
+	if err != nil {
+		return err
+	}
+
 	return nil
 }
 

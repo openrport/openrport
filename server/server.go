@@ -40,6 +40,7 @@ import (
 const (
 	cleanupMeasurementsInterval = time.Minute * 2
 	cleanupAPISessionsInterval  = time.Hour
+	cleanupJobsInterval         = time.Hour
 )
 
 // Server represents a rport service
@@ -241,6 +242,9 @@ func (s *Server) Run() error {
 
 	go scheduler.Run(ctx, s.Logger, session.NewCleanupTask(s.apiListener.apiSessions), cleanupAPISessionsInterval)
 	s.Infof("Task to cleanup expired api sessions will run with interval %v", cleanupAPISessionsInterval)
+
+	go scheduler.Run(ctx, s.Logger, jobs.NewCleanupTask(s.jobProvider, s.config.Server.JobsMaxResults), cleanupJobsInterval)
+	s.Infof("Task to cleanup jobs will run with interval %v", cleanupJobsInterval)
 
 	return s.Wait()
 }
