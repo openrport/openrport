@@ -183,16 +183,20 @@ func (al *APIListener) consumeUploadResults(resChan chan *uploadResult, uploadRe
 			UploadResponse: res.resp,
 		}
 		if res.err != nil {
+			errTxt := res.err.Error()
+			if errTxt == "client error: unknown request" {
+				errTxt = "client doens't support uploads, please upgrade client to the latest version to make it work"
+			}
 			output.UploadResponse = &models.UploadResponse{
-				Message: res.err.Error(),
+				Message: errTxt,
 				Status:  "error",
 				UploadResponseShort: models.UploadResponseShort{
 					ID: uploadRequest.ID,
 				},
 			}
 			al.Errorf(
-				"upload failure: %v, file id: %s, file path: %s, client %s",
-				res.err,
+				"upload failure: %s, file id: %s, file path: %s, client %s",
+				errTxt,
 				uploadRequest.ID,
 				uploadRequest.DestinationPath,
 				res.client.ID,
