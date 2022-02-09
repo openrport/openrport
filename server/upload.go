@@ -2,6 +2,7 @@ package chserver
 
 import (
 	"fmt"
+	"github.com/cloudradar-monitoring/rport/server/api"
 	"mime/multipart"
 	"net/http"
 	"path/filepath"
@@ -86,7 +87,7 @@ func (al *APIListener) handleFileUploads(w http.ResponseWriter, req *http.Reques
 		md5Checksum,
 	)
 
-	resp := &models.UploadResponseShort{
+	uploadRep := &models.UploadResponseShort{
 		ID:        uploadRequest.ID,
 		Filepath:  uploadRequest.DestinationPath,
 		SizeBytes: copiedBytes,
@@ -94,13 +95,15 @@ func (al *APIListener) handleFileUploads(w http.ResponseWriter, req *http.Reques
 	al.auditLog.Entry(auditlog.ApplicationUploads, auditlog.ActionCreate).
 		WithHTTPRequest(req).
 		WithRequest(uploadRequest.UploadedFile).
-		WithResponse(resp).
+		WithResponse(uploadRep).
 		WithID(uploadRequest.UploadedFile.ID).
 		SaveForMultipleClients(uploadRequest.Clients)
 
 	go al.sendFileToClients(uploadRequest)
 
-	al.writeJSONResponse(w, http.StatusOK, resp)
+	response := api.NewSuccessPayload(uploadRep)
+
+	al.writeJSONResponse(w, http.StatusOK, response)
 }
 
 func (al *APIListener) handleUploadsWS(w http.ResponseWriter, req *http.Request) {
