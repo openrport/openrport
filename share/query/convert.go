@@ -36,9 +36,13 @@ func AddWhere(filterOptions []FilterOption, q string, params []interface{}) (str
 	for i := range filterOptions {
 		orParts := make([]string, 0, len(filterOptions[i].Values))
 		for _, col := range filterOptions[i].Column {
-			for y := range filterOptions[i].Values {
-				orParts = append(orParts, fmt.Sprintf("%s %s ?", col, filterOptions[i].Operator.Code()))
-				params = append(params, filterOptions[i].Values[y])
+			for _, val := range filterOptions[i].Values {
+				part := fmt.Sprintf("%s %s ?", col, filterOptions[i].Operator.Code())
+				if val == "" {
+					part = fmt.Sprintf("(%s OR %s IS NULL)", part, col)
+				}
+				orParts = append(orParts, part)
+				params = append(params, val)
 			}
 		}
 

@@ -23,7 +23,7 @@ func TestGetRetrieveOptions(t *testing.T) {
 		},
 		{
 			name:       "not_matching_query",
-			inputQuery: "fields=abc&fields[]=def&fields[d]=",
+			inputQuery: "fields=abc&fields[]=def",
 			expectedRetrieveOptions: &RetrieveOptions{
 				Fields: []FieldsOption{},
 			},

@@ -755,6 +755,28 @@ paths:
           description: "unique client id retrieved previously"
           required: true
           type: "string"
+        - in: "query"
+          name: "sort"
+          description: "Sort field to be used for sorting, the default sorting is by finished time in desc order.\n
+            To change the direction add `-` to the sorting value e.g. `-started_at`. Allowed values are `jid`, `started_at`, `finished_at`, `status`, `multi_job_id`, `created_by`, `schedule_id`.\n
+            You can use as many sort parameters as you want."
+          required: false
+          type: "string"
+        - in: "query"
+          name: "filter[<FIELD>]"
+          description: "Filter option `filter[<field>]` or `filter[started_at][<op>]`.
+            `<field>` can be one of `jid`, `created_by`, `started_at`, `finished_at`, `status`, `multi_job_id`, `schedule_id`  and `<value>` is the search value,\n
+              e.g. `filter[created_by]=admin` will request only commands created by admin. You can use as many filter parameters as you want.\n
+              For `started_at` and `finished_at` filters you need to specify operation: `gt`, `lt`, `since` or `until`.\n
+              If you want to filter by multiple values e.g. find entries either for created_by = admin or other you can use following filters\n
+              `filter[created_by]=admin,other`."
+          required: false
+          type: "string"
+        - name: "page"
+          in: "query"
+          required: false
+          type: "integer"
+          description: Pagination options `page[limit]` and `page[offset]` can be used to get more than the first page of results. Default limit is 100 and maximum is 1000. The `count` property in meta shows the total number of results.
       responses:
         "200":
           description: "Successful Operation"
@@ -765,6 +787,11 @@ paths:
                 type: "array"
                 items:
                   $ref: "#/definitions/JobSummary"
+              meta:
+                type: "object"
+                properties:
+                  count:
+                    type: "integer"
         "500":
           description: "Invalid Operation"
           schema:
@@ -989,6 +1016,29 @@ paths:
       description: "Return a list of all running and finished commands sorted by started time in desc order"
       produces:
         - "application/json"
+      parameters:
+        - in: "query"
+          name: "sort"
+          description: "Sort field to be used for sorting, the default sorting is by started time in desc order.\n
+            To change the direction add `-` to the sorting value e.g. `-started_at`. Allowed values are `jid`, `started_at`, `created_by`, `schedule_id`.\n
+            You can use as many sort parameters as you want."
+          required: false
+          type: "string"
+        - in: "query"
+          name: "filter[<FIELD>]"
+          description: "Filter option `filter[<field>]` or `filter[started_at][<op>]`.
+            `<field>` can be one of `jid`, `created_by`, `started_at`, `schedule_id`  and `<value>` is the search value,\n
+              e.g. `filter[created_by]=admin` will request only commands created by admin. You can use as many filter parameters as you want.\n
+              For `started_at` filter you need to specify operation: `gt`, `lt`, `since` or `until`.\n
+              If you want to filter by multiple values e.g. find entries either for created_by = admin or other you can use following filters\n
+              `filter[created_by]=admin,other`."
+          required: false
+          type: "string"
+        - name: "page"
+          in: "query"
+          required: false
+          type: "integer"
+          description: Pagination options `page[limit]` and `page[offset]` can be used to get more than the first page of results. Default limit is 100 and maximum is 1000. The `count` property in meta shows the total number of results.
       responses:
         "200":
           description: "Successful Operation"
@@ -999,6 +1049,11 @@ paths:
                 type: "array"
                 items:
                   $ref: "#/definitions/MultiJobSummary"
+              meta:
+                type: "object"
+                properties:
+                  count:
+                    type: "integer"
         "500":
           description: "Invalid Operation"
           schema:
@@ -3503,6 +3558,10 @@ definitions:
       created_by:
         type: "string"
         description: "API username who run the command"
+      schedule_id:
+        type: "string"
+        format: "uuid"
+        description: "Optional ID of the schedule the job was started by"
       client_ids:
         type: "array"
         items:
@@ -3552,6 +3611,10 @@ definitions:
       created_by:
         type: "string"
         description: "API username who run the command"
+      schedule_id:
+        type: "string"
+        format: "uuid"
+        description: "Optional ID of the schedule the job was started by"
   UserGet:
     type: "object"
     properties:

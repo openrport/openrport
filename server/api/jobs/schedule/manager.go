@@ -284,6 +284,7 @@ func (m *Manager) run(ctx context.Context, id string) {
 	}
 
 	_, err = m.jobRunner.StartMultiClientJob(ctx, &jobs.MultiJobRequest{
+		ScheduleID:          &schedule.ID,
 		Username:            schedule.CreatedBy,
 		ClientIDs:           schedule.Details.ClientIDs,
 		GroupIDs:            schedule.Details.GroupIDs,

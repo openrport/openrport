@@ -179,6 +179,7 @@ func TestHandleRunCmdRequestPositiveCase(t *testing.T) {
 	"cwd": "/root",
 	"timeout_sec": 60,
 	"multi_job_id":null,
+	"schedule_id":null,
 	"error":"%s",
 `
 	wantJSONPart2 := `

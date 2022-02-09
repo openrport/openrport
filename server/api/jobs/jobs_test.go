@@ -1,6 +1,7 @@
 package jobs
 
 import (
+	"context"
 	"os"
 	"testing"
 	"time"
@@ -14,11 +15,13 @@ import (
 	"github.com/cloudradar-monitoring/rport/server/test/jb"
 	chshare "github.com/cloudradar-monitoring/rport/share/logger"
 	"github.com/cloudradar-monitoring/rport/share/models"
+	"github.com/cloudradar-monitoring/rport/share/query"
 )
 
 var testLog = chshare.NewLogger("api-listener-test", chshare.LogOutput{File: os.Stdout}, chshare.LogLevelDebug)
 
 func TestJobsSqliteProvider(t *testing.T) {
+	ctx := context.Background()
 	jobsDB, err := sqlite.New(":memory:", jobs.AssetNames(), jobs.Asset)
 	require.NoError(t, err)
 	p := NewSqliteProvider(jobsDB, testLog)
@@ -54,16 +57,16 @@ func TestJobsSqliteProvider(t *testing.T) {
 	require.Nil(t, gotJob4)
 
 	// verify job summaries
-	gotJSc1, err := p.GetSummariesByClientID(job1.ClientID)
+	gotJSc1, err := p.GetSummariesByClientID(ctx, job1.ClientID, &query.ListOptions{})
 	require.NoError(t, err)
 	assert.ElementsMatch(t, []*models.JobSummary{&job1.JobSummary, &job2.JobSummary}, gotJSc1)
 
-	gotJSc2, err := p.GetSummariesByClientID(job3.ClientID)
+	gotJSc2, err := p.GetSummariesByClientID(ctx, job3.ClientID, &query.ListOptions{})
 	require.NoError(t, err)
 	assert.ElementsMatch(t, []*models.JobSummary{&job3.JobSummary}, gotJSc2)
 
 	// verify job summaries not found
-	gotJSc3, err := p.GetSummariesByClientID("unknown-cid")
+	gotJSc3, err := p.GetSummariesByClientID(ctx, "unknown-cid", &query.ListOptions{})
 	require.NoError(t, err)
 	require.Empty(t, gotJSc3)
 
@@ -82,7 +85,7 @@ func TestJobsSqliteProvider(t *testing.T) {
 	require.NotNil(t, gotJob1)
 	assert.Equal(t, job1, gotJob1)
 
-	gotJSc1, err = p.GetSummariesByClientID(job1.ClientID)
+	gotJSc1, err = p.GetSummariesByClientID(ctx, job1.ClientID, &query.ListOptions{})
 	require.NoError(t, err)
 	assert.ElementsMatch(t, []*models.JobSummary{&job1.JobSummary, &job2.JobSummary}, gotJSc1)
 }
