@@ -278,68 +278,6 @@ func TestHandleRunCmdRequestPositiveCase(t *testing.T) {
 	}
 }
 
-func TestHandleRunCmdRequestHasRunningCmd(t *testing.T) {
-	now = nowMockF
-
-	// given
-	wantPID := 123
-	execMock := NewCmdExecutorMock()
-	execMock.ReturnPID = wantPID
-	execMock.ReturnStdOut = []string{"1", "2", "3"}
-	execMock.ReturnStdErr = []string{"error1", "error2"}
-
-	connMock := test.NewConnMock()
-
-	// mimic real behavior to have the 1st command still running when the 2nd request comes
-	doneSendResp := make(chan bool)
-	connMock.DoneChannel = doneSendResp
-	doneCmd := make(chan bool)
-	execMock.DoneChannel = doneCmd
-
-	configCopy := getDefaultValidMinConfig()
-	configCopy.Client.DataDir = filepath.Join(configCopy.Client.DataDir, "TestHandleRunCmdRequestHasRunningCmd")
-	defer func() {
-		os.RemoveAll(configCopy.Client.DataDir)
-	}()
-
-	c := Client{
-		cmdExec:      execMock,
-		sshConn:      connMock,
-		Logger:       testLog,
-		configHolder: &configCopy,
-	}
-
-	err := PrepareDirs(&configCopy)
-	require.NoError(t, err)
-
-	// when
-	// run two cmds to get an error for the 2nd
-	res1, err1 := c.HandleRunCmdRequest(context.Background(), []byte(jobToRunJSON))
-	// check the result
-	require.NoError(t, err1)
-
-	res2, err2 := c.HandleRunCmdRequest(context.Background(), []byte(jobToRunJSON))
-
-	// then
-	// check that running new commands is blocked
-	curPID := c.getCurCmdPID()
-	require.NotNil(t, curPID)
-	assert.Equal(t, wantPID, *curPID)
-	// finish the cmd execution
-	<-doneCmd
-	// finish to send the response to server
-	<-doneSendResp
-	// check that running new commands is not blocked anymore
-	curPID = c.getCurCmdPID()
-	assert.Nil(t, curPID)
-
-	assert.Equal(t, &comm.RunCmdResponse{Pid: wantPID, StartedAt: nowMock}, res1)
-
-	require.Error(t, err2)
-	assert.Equal(t, fmt.Errorf("a previous command execution with PID %d is still running", wantPID), err2)
-	assert.Nil(t, res2)
-}
-
 func TestRemoteCommandsDisabled(t *testing.T) {
 	// given
 	c := Client{

@@ -13,12 +13,12 @@ import (
 	"github.com/cloudradar-monitoring/rport/db/migration/jobs"
 	"github.com/cloudradar-monitoring/rport/db/sqlite"
 	"github.com/cloudradar-monitoring/rport/server/test/jb"
-	chshare "github.com/cloudradar-monitoring/rport/share/logger"
+	"github.com/cloudradar-monitoring/rport/share/logger"
 	"github.com/cloudradar-monitoring/rport/share/models"
 	"github.com/cloudradar-monitoring/rport/share/query"
 )
 
-var testLog = chshare.NewLogger("api-listener-test", chshare.LogOutput{File: os.Stdout}, chshare.LogLevelDebug)
+var testLog = logger.NewLogger("api-listener-test", logger.LogOutput{File: os.Stdout}, logger.LogLevelDebug)
 
 func TestJobsSqliteProvider(t *testing.T) {
 	ctx := context.Background()

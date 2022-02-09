@@ -29,25 +29,11 @@ func (c *Client) HandleRunCmdRequest(ctx context.Context, reqPayload []byte) (*c
 		return nil, fmt.Errorf("failed to decode requested job: %s", err)
 	}
 
-	// do not accept a new request when the previous is not finished yet, except multi-client job. In this case wait
-	// NOTE: HandleRunCmdRequest is run sequentially, that's why no need to lock a block with read/write curPID
-	curPID := c.getCurCmdPID()
-	if curPID != nil {
-		if job.MultiJobID == nil {
-			return nil, fmt.Errorf("a previous command execution with PID %d is still running", *curPID)
-		}
-		c.Debugf("Waiting for a previous command with PID %d to finish", *curPID)
-	}
-
 	if job.IsScript && !c.configHolder.RemoteScripts.Enabled {
 		return nil, errors.New("remote scripts are disabled")
 	}
 
-	// TODO: temporary solution, refactor with using worker pool
-	c.runCmdMutex.Lock()
-
 	if !job.IsScript && !c.isAllowed(job.Command) {
-		c.runCmdMutex.Unlock()
 		return nil, fmt.Errorf("command is not allowed: %v", job.Command)
 	}
 
@@ -58,7 +44,6 @@ func (c *Client) HandleRunCmdRequest(ctx context.Context, reqPayload []byte) (*c
 
 	scriptPath, err := system.CreateScriptFile(c.configHolder.GetScriptsDir(), job.Command, interpreter)
 	if err != nil {
-		c.runCmdMutex.Unlock()
 		return nil, err
 	}
 
@@ -80,13 +65,9 @@ func (c *Client) HandleRunCmdRequest(ctx context.Context, reqPayload []byte) (*c
 	startedAt := now()
 	err = c.cmdExec.Start(cmd)
 	if err != nil {
-		c.runCmdMutex.Unlock()
 		c.rmScript(scriptPath)
 		return nil, fmt.Errorf("failed to start a command: %s", err)
 	}
-
-	// set running PID
-	c.setCurCmdPID(&cmd.Process.Pid)
 
 	res := &comm.RunCmdResponse{
 		Pid:       cmd.Process.Pid,
@@ -117,10 +98,6 @@ func (c *Client) HandleRunCmdRequest(ctx context.Context, reqPayload []byte) (*c
 			status = models.JobStatusUnknown
 			c.Debugf("timeout (%d seconds) reached, stop observing command[jid=%q,pid=%d]:\n%s", job.TimeoutSec, job.JID, res.Pid, job.Command)
 		}
-
-		// observing stopped - unset PID
-		c.setCurCmdPID(nil)
-		c.runCmdMutex.Unlock()
 
 		// fill all unset fields
 		now := now()

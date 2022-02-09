@@ -173,7 +173,7 @@ func NewServer(config *Config, filesAPI files.FileAPI) (*Server, error) {
 
 	s.capabilities = capabilities.NewServerCapabilities()
 
-	s.scheduleManager, err = schedule.New(ctx, s.Logger, jobsDB, s.apiListener)
+	s.scheduleManager, err = schedule.New(ctx, s.Logger, jobsDB, s.apiListener, config.Server.RunRemoteCmdTimeoutSec)
 	if err != nil {
 		return nil, err
 	}

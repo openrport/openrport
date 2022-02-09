@@ -116,3 +116,25 @@ func (p *SQLiteProvider) Delete(ctx context.Context, id string) error {
 
 	return nil
 }
+
+// CountJobsInProgress counts jobs for scheduleID that have not finished and are not timed out
+func (p *SQLiteProvider) CountJobsInProgress(ctx context.Context, scheduleID string, timeoutSec int) (int, error) {
+	var result int
+
+	err := p.db.GetContext(ctx, &result, `
+SELECT count(*)
+FROM jobs
+JOIN multi_jobs ON jobs.multi_job_id = multi_jobs.jid
+WHERE
+	schedule_id = ?
+AND
+	finished_at IS NULL
+AND
+	strftime('%s', 'now') - strftime('%s', jobs.started_at) <= ?
+`, scheduleID, timeoutSec)
+	if err != nil {
+		return 0, err
+	}
+
+	return result, nil
+}
