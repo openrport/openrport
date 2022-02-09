@@ -10,7 +10,6 @@ import (
 	"net/http"
 	"net/url"
 	"strings"
-	"sync"
 	"time"
 
 	"github.com/denisbrodbeck/machineid"
@@ -41,10 +40,7 @@ type Client struct {
 	runningc           chan error
 	connStats          chshare.ConnStats
 	cmdExec            system.CmdExecutor
-	curCmdPID          *int
-	curCmdPIDMutex     sync.Mutex
 	systemInfo         system.SysInfo
-	runCmdMutex        sync.Mutex
 	updates            *updates.Updates
 	monitor            *monitoring.Monitor
 	serverCapabilities *models.Capabilities
@@ -524,18 +520,6 @@ func (c *Client) localIPAddresses() ([]string, []string, error) {
 		}
 	}
 	return ipv4, ipv6, nil
-}
-
-func (c *Client) getCurCmdPID() *int {
-	c.curCmdPIDMutex.Lock()
-	defer c.curCmdPIDMutex.Unlock()
-	return c.curCmdPID
-}
-
-func (c *Client) setCurCmdPID(pid *int) {
-	c.curCmdPIDMutex.Lock()
-	defer c.curCmdPIDMutex.Unlock()
-	c.curCmdPID = pid
 }
 
 func (c *Client) connectionRequest(ctx context.Context) (*chshare.ConnectionRequest, error) {

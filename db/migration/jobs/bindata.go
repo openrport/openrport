@@ -4,6 +4,8 @@
 // 001_init.up.sql
 // 002_schedules.down.sql
 // 002_schedules.up.sql
+// 003_multi_job_schedule_id.down.sql
+// 003_multi_job_schedule_id.up.sql
 package jobs
 
 import (
@@ -135,7 +137,7 @@ func _002_schedulesDownSql() (*asset, error) {
 		return nil, err
 	}
 
-	info := bindataFileInfo{name: "002_schedules.down.sql", size: 22, mode: os.FileMode(436), modTime: time.Unix(1641833929, 0)}
+	info := bindataFileInfo{name: "002_schedules.down.sql", size: 22, mode: os.FileMode(436), modTime: time.Unix(1642767099, 0)}
 	a := &asset{bytes: bytes, info: info}
 	return a, nil
 }
@@ -155,7 +157,47 @@ func _002_schedulesUpSql() (*asset, error) {
 		return nil, err
 	}
 
-	info := bindataFileInfo{name: "002_schedules.up.sql", size: 228, mode: os.FileMode(436), modTime: time.Unix(1641833966, 0)}
+	info := bindataFileInfo{name: "002_schedules.up.sql", size: 228, mode: os.FileMode(436), modTime: time.Unix(1642767099, 0)}
+	a := &asset{bytes: bytes, info: info}
+	return a, nil
+}
+
+var __003_multi_job_schedule_idDownSql = []byte("\x1f\x8b\x08\x00\x00\x00\x00\x00\x00\xff\x01\x00\x00\xff\xff\x00\x00\x00\x00\x00\x00\x00\x00")
+
+func _003_multi_job_schedule_idDownSqlBytes() ([]byte, error) {
+	return bindataRead(
+		__003_multi_job_schedule_idDownSql,
+		"003_multi_job_schedule_id.down.sql",
+	)
+}
+
+func _003_multi_job_schedule_idDownSql() (*asset, error) {
+	bytes, err := _003_multi_job_schedule_idDownSqlBytes()
+	if err != nil {
+		return nil, err
+	}
+
+	info := bindataFileInfo{name: "003_multi_job_schedule_id.down.sql", size: 0, mode: os.FileMode(436), modTime: time.Unix(1643357590, 0)}
+	a := &asset{bytes: bytes, info: info}
+	return a, nil
+}
+
+var __003_multi_job_schedule_idUpSql = []byte("\x1f\x8b\x08\x00\x00\x00\x00\x00\x00\xff\x72\xf4\x09\x71\x0d\x52\x08\x71\x74\xf2\x71\x55\xc8\x2d\xcd\x29\xc9\x8c\xcf\xca\x4f\x2a\x56\x70\x74\x71\x51\x28\x4e\xce\x48\x4d\x29\xcd\x49\x8d\xcf\x4c\x51\x08\x71\x8d\x08\x51\xf0\x0b\xf5\xf1\xb1\xe6\x02\x04\x00\x00\xff\xff\x79\xff\xa0\x5d\x32\x00\x00\x00")
+
+func _003_multi_job_schedule_idUpSqlBytes() ([]byte, error) {
+	return bindataRead(
+		__003_multi_job_schedule_idUpSql,
+		"003_multi_job_schedule_id.up.sql",
+	)
+}
+
+func _003_multi_job_schedule_idUpSql() (*asset, error) {
+	bytes, err := _003_multi_job_schedule_idUpSqlBytes()
+	if err != nil {
+		return nil, err
+	}
+
+	info := bindataFileInfo{name: "003_multi_job_schedule_id.up.sql", size: 50, mode: os.FileMode(436), modTime: time.Unix(1643357635, 0)}
 	a := &asset{bytes: bytes, info: info}
 	return a, nil
 }
@@ -212,10 +254,12 @@ func AssetNames() []string {
 
 // _bindata is a table, holding each asset generator, mapped to its name.
 var _bindata = map[string]func() (*asset, error){
-	"001_init.down.sql":      _001_initDownSql,
-	"001_init.up.sql":        _001_initUpSql,
-	"002_schedules.down.sql": _002_schedulesDownSql,
-	"002_schedules.up.sql":   _002_schedulesUpSql,
+	"001_init.down.sql":                  _001_initDownSql,
+	"001_init.up.sql":                    _001_initUpSql,
+	"002_schedules.down.sql":             _002_schedulesDownSql,
+	"002_schedules.up.sql":               _002_schedulesUpSql,
+	"003_multi_job_schedule_id.down.sql": _003_multi_job_schedule_idDownSql,
+	"003_multi_job_schedule_id.up.sql":   _003_multi_job_schedule_idUpSql,
 }
 
 // AssetDir returns the file names below a certain
@@ -259,10 +303,12 @@ type bintree struct {
 }
 
 var _bintree = &bintree{nil, map[string]*bintree{
-	"001_init.down.sql":      &bintree{_001_initDownSql, map[string]*bintree{}},
-	"001_init.up.sql":        &bintree{_001_initUpSql, map[string]*bintree{}},
-	"002_schedules.down.sql": &bintree{_002_schedulesDownSql, map[string]*bintree{}},
-	"002_schedules.up.sql":   &bintree{_002_schedulesUpSql, map[string]*bintree{}},
+	"001_init.down.sql":                  &bintree{_001_initDownSql, map[string]*bintree{}},
+	"001_init.up.sql":                    &bintree{_001_initUpSql, map[string]*bintree{}},
+	"002_schedules.down.sql":             &bintree{_002_schedulesDownSql, map[string]*bintree{}},
+	"002_schedules.up.sql":               &bintree{_002_schedulesUpSql, map[string]*bintree{}},
+	"003_multi_job_schedule_id.down.sql": &bintree{_003_multi_job_schedule_idDownSql, map[string]*bintree{}},
+	"003_multi_job_schedule_id.up.sql":   &bintree{_003_multi_job_schedule_idUpSql, map[string]*bintree{}},
 }}
 
 // RestoreAsset restores an asset under the given directory

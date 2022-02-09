@@ -17,4 +17,5 @@ type MultiJobRequest struct {
 	Username       string            `json:"-"`
 	IsScript       bool              `json:"-"`
 	OrderedClients []*clients.Client `json:"-"`
+	ScheduleID     *string           `json:"-"`
 }

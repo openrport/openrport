@@ -1,6 +1,7 @@
 package jobs
 
 import (
+	"context"
 	"database/sql"
 	"database/sql/driver"
 	"encoding/json"
@@ -9,7 +10,24 @@ import (
 	"time"
 
 	"github.com/cloudradar-monitoring/rport/share/models"
+	"github.com/cloudradar-monitoring/rport/share/query"
 )
+
+var MultiJobSupportedFilters = map[string]bool{
+	"jid":               true,
+	"started_at[gt]":    true,
+	"started_at[lt]":    true,
+	"started_at[since]": true,
+	"started_at[until]": true,
+	"created_by":        true,
+	"schedule_id":       true,
+}
+var MultiJobSupportedSorts = map[string]bool{
+	"jid":         true,
+	"started_at":  true,
+	"created_by":  true,
+	"schedule_id": true,
+}
 
 // GetMultiJob returns a multi-client job with fetched all clients' jobs.
 func (p *SqliteProvider) GetMultiJob(jid string) (*models.MultiJob, error) {
@@ -33,20 +51,56 @@ func (p *SqliteProvider) GetMultiJob(jid string) (*models.MultiJob, error) {
 	return multiJob, nil
 }
 
-// GetAllMultiJobSummaries returns a list of summaries of all multi-clients jobs sorted by started_at(desc), jid order.
-func (p *SqliteProvider) GetAllMultiJobSummaries() ([]*models.MultiJobSummary, error) {
+// GetMultiJobSummaries returns a list of summaries of multi-clients jobs filtered by options and sorted by started_at(desc), jid order.
+func (p *SqliteProvider) GetMultiJobSummaries(ctx context.Context, options *query.ListOptions) ([]*models.MultiJobSummary, error) {
 	var res []*multiJobSummarySqlite
-	err := p.db.Select(&res, "SELECT jid, started_at, created_by FROM multi_jobs ORDER BY DATETIME(started_at) DESC, jid")
+
+	if len(options.Sorts) == 0 {
+		options.Sorts = []query.SortOption{
+			{
+				Column: "DATETIME(started_at)",
+				IsASC:  false,
+			},
+			{
+				Column: "jid",
+				IsASC:  true,
+			},
+		}
+	}
+	q := "SELECT jid, started_at, created_by, schedule_id FROM multi_jobs"
+	q, params := query.ConvertListOptionsToQuery(options, q)
+
+	err := p.db.SelectContext(ctx, &res, q, params...)
 	if err != nil {
 		return nil, err
 	}
 	return convertMultiJSs(res), nil
 }
 
+// CountMultiJobs counts multi-clients jobs filtered by options
+func (p *SqliteProvider) CountMultiJobs(ctx context.Context, options *query.ListOptions) (int, error) {
+	var result int
+
+	countOptions := *options
+	countOptions.Pagination = nil
+	q := "SELECT count(*) FROM multi_jobs"
+	q, params := query.ConvertListOptionsToQuery(&countOptions, q)
+
+	err := p.db.GetContext(ctx, &result, q, params...)
+	if err != nil {
+		return 0, err
+	}
+	return result, nil
+}
+
 // SaveMultiJob creates a new or updates an existing multi-client job (without child jobs).
 func (p *SqliteProvider) SaveMultiJob(job *models.MultiJob) error {
-	_, err := p.db.NamedExec(`INSERT OR REPLACE INTO multi_jobs (jid, started_at, created_by, details)
-															  VALUES (:jid, :started_at, :created_by, :details)`,
+	_, err := p.db.NamedExec(`
+INSERT OR REPLACE INTO multi_jobs (
+	jid, started_at, created_by, schedule_id, details
+) VALUES (
+	:jid, :started_at, :created_by, :schedule_id, :details
+)`,
 		convertMultiJobToSqlite(job))
 	if err == nil {
 		p.log.Debugf("Multi-client Job saved successfully: %v", *job)
@@ -60,9 +114,10 @@ type multiJobSqlite struct {
 }
 
 type multiJobSummarySqlite struct {
-	JID       string    `db:"jid"`
-	StartedAt time.Time `db:"started_at"`
-	CreatedBy string    `db:"created_by"`
+	JID        string    `db:"jid"`
+	StartedAt  time.Time `db:"started_at"`
+	CreatedBy  string    `db:"created_by"`
+	ScheduleID *string   `db:"schedule_id"`
 }
 
 type multiJobDetailSqlite struct {
@@ -105,9 +160,10 @@ func (d *multiJobDetailSqlite) Value() (driver.Value, error) {
 
 func (js *multiJobSummarySqlite) convert() *models.MultiJobSummary {
 	return &models.MultiJobSummary{
-		JID:       js.JID,
-		StartedAt: js.StartedAt,
-		CreatedBy: js.CreatedBy,
+		JID:        js.JID,
+		StartedAt:  js.StartedAt,
+		CreatedBy:  js.CreatedBy,
+		ScheduleID: js.ScheduleID,
 	}
 }
 
@@ -139,9 +195,10 @@ func (j *multiJobSqlite) convert() *models.MultiJob {
 func convertMultiJobToSqlite(job *models.MultiJob) *multiJobSqlite {
 	return &multiJobSqlite{
 		multiJobSummarySqlite: multiJobSummarySqlite{
-			JID:       job.JID,
-			StartedAt: job.StartedAt,
-			CreatedBy: job.CreatedBy,
+			JID:        job.JID,
+			StartedAt:  job.StartedAt,
+			CreatedBy:  job.CreatedBy,
+			ScheduleID: job.ScheduleID,
 		},
 		Details: &multiJobDetailSqlite{
 			ClientIDs:   job.ClientIDs,

@@ -19,31 +19,39 @@ func TestValidate(t *testing.T) {
 		{
 			Name: "invalid type",
 			Schedule: &Schedule{
-				Type: "invalid",
+				Base: Base{
+					Type: "invalid",
+				},
 			},
 			ExpectedError: "type must be 'command' or 'script'",
 		},
 		{
 			Name: "invalid schedule",
 			Schedule: &Schedule{
-				Type:     TypeCommand,
-				Schedule: "* * *",
+				Base: Base{
+					Type:     TypeCommand,
+					Schedule: "* * *",
+				},
 			},
 			ExpectedError: "expected exactly 5 fields, found 3: [* * *]",
 		},
 		{
 			Name: "no clients",
 			Schedule: &Schedule{
-				Type:     TypeCommand,
-				Schedule: "* * * * *",
+				Base: Base{
+					Type:     TypeCommand,
+					Schedule: "* * * * *",
+				},
 			},
 			ExpectedError: "at least 1 client_id or group_id must be specified",
 		},
 		{
 			Name: "empty command",
 			Schedule: &Schedule{
-				Type:     TypeCommand,
-				Schedule: "* * * * *",
+				Base: Base{
+					Type:     TypeCommand,
+					Schedule: "* * * * *",
+				},
 				Details: Details{
 					ClientIDs: []string{"id-1"},
 				},
@@ -53,8 +61,10 @@ func TestValidate(t *testing.T) {
 		{
 			Name: "ok command",
 			Schedule: &Schedule{
-				Type:     TypeCommand,
-				Schedule: "* * * * *",
+				Base: Base{
+					Type:     TypeCommand,
+					Schedule: "* * * * *",
+				},
 				Details: Details{
 					ClientIDs: []string{"id-1"},
 					Command:   "/bin/true",
@@ -65,8 +75,10 @@ func TestValidate(t *testing.T) {
 		{
 			Name: "empty script",
 			Schedule: &Schedule{
-				Type:     TypeScript,
-				Schedule: "* * * * *",
+				Base: Base{
+					Type:     TypeScript,
+					Schedule: "* * * * *",
+				},
 				Details: Details{
 					ClientIDs: []string{"id-1"},
 				},
@@ -76,8 +88,10 @@ func TestValidate(t *testing.T) {
 		{
 			Name: "invalid script",
 			Schedule: &Schedule{
-				Type:     TypeScript,
-				Schedule: "* * * * *",
+				Base: Base{
+					Type:     TypeScript,
+					Schedule: "* * * * *",
+				},
 				Details: Details{
 					ClientIDs: []string{"id-1"},
 					Script:    "invalid",
@@ -88,8 +102,10 @@ func TestValidate(t *testing.T) {
 		{
 			Name: "ok script",
 			Schedule: &Schedule{
-				Type:     TypeScript,
-				Schedule: "* * * * *",
+				Base: Base{
+					Type:     TypeScript,
+					Schedule: "* * * * *",
+				},
 				Details: Details{
 					GroupIDs: []string{"id-1"},
 					Script:   "ZWNobyAndGVzdCc=",

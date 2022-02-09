@@ -2,10 +2,7 @@ package clients
 
 import (
 	"context"
-	"encoding/json"
 	"fmt"
-	"regexp"
-	"strings"
 	"sync"
 	"time"
 
@@ -211,7 +208,7 @@ func (s *ClientRepository) GetFilteredUserClients(user User, filterOptions []que
 	for _, client := range clients {
 		calculatedClient := client.ToCalculated(groups)
 
-		matches, err := s.clientMatchesFilters(calculatedClient, filterOptions)
+		matches, err := query.MatchesFilters(calculatedClient, filterOptions)
 		if err != nil {
 			return result, err
 		}
@@ -261,81 +258,4 @@ func (s *ClientRepository) getNonObsoleteByUser(user User) ([]*Client, error) {
 		result = append(result, client)
 	}
 	return result, nil
-}
-func (s *ClientRepository) clientMatchesFilters(cl *CalculatedClient, filterOptions []query.FilterOption) (bool, error) {
-	for _, f := range filterOptions {
-		matches, err := s.clientMatchesFilter(cl, f)
-		if err != nil {
-			return false, err
-		}
-		if !matches {
-			return false, nil
-		}
-	}
-
-	return true, nil
-}
-
-func (s *ClientRepository) clientMatchesFilter(cl *CalculatedClient, filter query.FilterOption) (bool, error) {
-	clientMap, err := s.clientToMap(cl)
-	if err != nil {
-		return false, err
-	}
-
-	for _, col := range filter.Column {
-		clientFieldValueToMatch, ok := clientMap[col]
-		if !ok {
-			return false, fmt.Errorf("unsupported filter column: %s", col)
-		}
-
-		// Cast into slice if it's array field, otherwise set single value slice
-		clientFieldSliceToMatch, ok := clientFieldValueToMatch.([]interface{})
-		if !ok {
-			clientFieldSliceToMatch = []interface{}{clientFieldValueToMatch}
-		}
-
-		for _, clientFieldValueToMatch := range clientFieldSliceToMatch {
-			clientFieldValueToMatchStr := fmt.Sprint(clientFieldValueToMatch)
-
-			regx := regexp.MustCompile(`[^\\]\*+`)
-			for _, filterValue := range filter.Values {
-				hasUnescapedWildCard := regx.MatchString(filterValue)
-				if !hasUnescapedWildCard {
-					if strings.EqualFold(filterValue, clientFieldValueToMatchStr) {
-						return true, nil
-					}
-
-					continue
-				}
-
-				filterValueRegex, err := regexp.Compile("(?i)" + strings.ReplaceAll(filterValue, "*", ".*"))
-				if err != nil {
-					s.logger.Errorf("failed to generate regex for '%s': %v", filterValue, err)
-					if strings.EqualFold(filterValue, clientFieldValueToMatchStr) {
-						return true, nil
-					}
-					continue
-				}
-
-				if filterValueRegex.MatchString(clientFieldValueToMatchStr) {
-					return true, nil
-				}
-			}
-		}
-	}
-
-	return false, nil
-}
-
-func (s *ClientRepository) clientToMap(cl *CalculatedClient) (map[string]interface{}, error) {
-	clientBytes, err := json.Marshal(cl)
-	if err != nil {
-		return nil, err
-	}
-
-	res := make(map[string]interface{})
-
-	err = json.Unmarshal(clientBytes, &res)
-
-	return res, err
 }

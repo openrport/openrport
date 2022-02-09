@@ -13,6 +13,7 @@ type MultiJobBuilder struct {
 	t *testing.T
 
 	jid        string
+	scheduleID *string
 	clientIDs  []string
 	startedAt  time.Time
 	concurrent bool
@@ -32,6 +33,11 @@ func NewMulti(t *testing.T) MultiJobBuilder {
 
 func (b MultiJobBuilder) JID(jid string) MultiJobBuilder {
 	b.jid = jid
+	return b
+}
+
+func (b MultiJobBuilder) ScheduleID(scheduleID string) MultiJobBuilder {
+	b.scheduleID = &scheduleID
 	return b
 }
 
@@ -90,9 +96,10 @@ func (b MultiJobBuilder) Build() *models.MultiJob {
 	}
 	return &models.MultiJob{
 		MultiJobSummary: models.MultiJobSummary{
-			JID:       b.jid,
-			StartedAt: b.startedAt,
-			CreatedBy: "test-user",
+			JID:        b.jid,
+			StartedAt:  b.startedAt,
+			CreatedBy:  "test-user",
+			ScheduleID: b.scheduleID,
 		},
 		ClientIDs:  b.clientIDs,
 		Command:    "/bin/date;foo;whoami",

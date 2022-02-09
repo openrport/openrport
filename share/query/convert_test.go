@@ -51,6 +51,10 @@ func TestConvertListOptionsToQuery(t *testing.T) {
 						Column: []string{"field3", "field4"},
 						Values: []string{"value1", "value3"},
 					},
+					{
+						Column: []string{"field5"},
+						Values: []string{""},
+					},
 				},
 				Fields: []query.FieldsOption{
 					{
@@ -63,8 +67,8 @@ func TestConvertListOptionsToQuery(t *testing.T) {
 					Limit:  "5",
 				},
 			},
-			ExpectedQuery:  "SELECT res1.field1, res1.field2 FROM res1 WHERE (field1 = ? OR field1 = ? OR field1 = ?) AND field2 = ? AND (field3 = ? OR field3 = ? OR field4 = ? OR field4 = ?) ORDER BY field1 ASC, field2 DESC LIMIT ? OFFSET ?",
-			ExpectedParams: []interface{}{"val1", "val2", "val3", "value2", "value1", "value3", "value1", "value3", "5", "10"},
+			ExpectedQuery:  "SELECT res1.field1, res1.field2 FROM res1 WHERE (field1 = ? OR field1 = ? OR field1 = ?) AND field2 = ? AND (field3 = ? OR field3 = ? OR field4 = ? OR field4 = ?) AND (field5 = ? OR field5 IS NULL) ORDER BY field1 ASC, field2 DESC LIMIT ? OFFSET ?",
+			ExpectedParams: []interface{}{"val1", "val2", "val3", "value2", "value1", "value3", "value1", "value3", "", "5", "10"},
 		},
 	}
 

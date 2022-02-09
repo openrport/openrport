@@ -81,3 +81,47 @@ func TestValidatePagination(t *testing.T) {
 		})
 	}
 }
+
+func TestGetStartEnd(t *testing.T) {
+	testCases := []struct {
+		Name          string
+		TotalCount    int
+		ExpectedStart int
+		ExpectedEnd   int
+	}{
+		{
+			Name:          "total greater",
+			TotalCount:    30,
+			ExpectedStart: 10,
+			ExpectedEnd:   20,
+		},
+		{
+			Name:          "total less than end",
+			TotalCount:    15,
+			ExpectedStart: 10,
+			ExpectedEnd:   15,
+		},
+		{
+			Name:          "total less than start",
+			TotalCount:    5,
+			ExpectedStart: 5,
+			ExpectedEnd:   5,
+		},
+	}
+
+	for _, tc := range testCases {
+		tc := tc
+		t.Run(tc.Name, func(t *testing.T) {
+			t.Parallel()
+
+			pagination := &query.Pagination{
+				ValidatedOffset: 10,
+				ValidatedLimit:  10,
+			}
+			start, end := pagination.GetStartEnd(tc.TotalCount)
+
+			assert.Equal(t, tc.ExpectedStart, start)
+			assert.Equal(t, tc.ExpectedEnd, end)
+		})
+	}
+}

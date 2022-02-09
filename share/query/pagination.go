@@ -98,3 +98,15 @@ func ParsePagination(values url.Values) *Pagination {
 
 	return p
 }
+
+func (p Pagination) GetStartEnd(totalCount int) (int, int) {
+	start := p.ValidatedOffset
+	if start > totalCount {
+		start = totalCount
+	}
+	end := p.ValidatedOffset + p.ValidatedLimit
+	if end > totalCount {
+		end = totalCount
+	}
+	return start, end
+}

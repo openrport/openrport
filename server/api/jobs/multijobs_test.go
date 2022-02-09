@@ -1,6 +1,7 @@
 package jobs
 
 import (
+	"context"
 	"testing"
 	"time"
 
@@ -11,16 +12,18 @@ import (
 	"github.com/cloudradar-monitoring/rport/db/sqlite"
 	"github.com/cloudradar-monitoring/rport/server/test/jb"
 	"github.com/cloudradar-monitoring/rport/share/models"
+	"github.com/cloudradar-monitoring/rport/share/query"
 )
 
 func TestMultiJobsSqliteProvider(t *testing.T) {
+	ctx := context.Background()
 	jobsDB, err := sqlite.New(":memory:", jobs.AssetNames(), jobs.Asset)
 	require.NoError(t, err)
 	p := NewSqliteProvider(jobsDB, testLog)
 	defer p.Close()
 
 	// verify job summaries not found
-	gotJSs, err := p.GetAllMultiJobSummaries()
+	gotJSs, err := p.GetMultiJobSummaries(ctx, &query.ListOptions{})
 	require.NoError(t, err)
 	require.Empty(t, gotJSs)
 
@@ -63,9 +66,14 @@ func TestMultiJobsSqliteProvider(t *testing.T) {
 	require.Nil(t, gotJob4)
 
 	// verify job summaries
-	gotJSs, err = p.GetAllMultiJobSummaries()
+	gotJSs, err = p.GetMultiJobSummaries(ctx, &query.ListOptions{})
 	require.NoError(t, err)
 	assert.EqualValues(t, []*models.MultiJobSummary{&job2.MultiJobSummary, &job3.MultiJobSummary, &job1.MultiJobSummary}, gotJSs)
+
+	// verify jobs count
+	count, err := p.CountMultiJobs(ctx, &query.ListOptions{})
+	require.NoError(t, err)
+	assert.Equal(t, 3, count)
 
 	// verify job update
 	job1.Interpreter = "cmd"
@@ -78,7 +86,7 @@ func TestMultiJobsSqliteProvider(t *testing.T) {
 	require.NotNil(t, gotJob1)
 	assert.Equal(t, job1, gotJob1)
 
-	gotJSs, err = p.GetAllMultiJobSummaries()
+	gotJSs, err = p.GetMultiJobSummaries(ctx, &query.ListOptions{})
 	require.NoError(t, err)
 	assert.EqualValues(t, []*models.MultiJobSummary{&job1.MultiJobSummary, &job2.MultiJobSummary, &job3.MultiJobSummary}, gotJSs)
 }

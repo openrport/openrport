@@ -2,12 +2,17 @@ package schedule
 
 import (
 	"context"
+	"os"
 	"testing"
 	"time"
 
-	"github.com/cloudradar-monitoring/rport/db/migration/jobs"
+	jobsmigration "github.com/cloudradar-monitoring/rport/db/migration/jobs"
 	"github.com/cloudradar-monitoring/rport/db/sqlite"
+	"github.com/cloudradar-monitoring/rport/server/api/jobs"
+	"github.com/cloudradar-monitoring/rport/server/test/jb"
+	"github.com/cloudradar-monitoring/rport/share/logger"
 	"github.com/cloudradar-monitoring/rport/share/ptr"
+	"github.com/cloudradar-monitoring/rport/share/random"
 
 	"github.com/jmoiron/sqlx"
 
@@ -17,12 +22,14 @@ import (
 
 var testData = []*Schedule{
 	{
-		ID:        "1",
-		Name:      "schedule 1",
-		CreatedBy: "user1",
-		CreatedAt: time.Date(2022, 1, 1, 1, 0, 0, 0, time.UTC),
-		Schedule:  "* * * * *",
-		Type:      "command",
+		Base: Base{
+			ID:        "1",
+			Name:      "schedule 1",
+			CreatedBy: "user1",
+			CreatedAt: time.Date(2022, 1, 1, 1, 0, 0, 0, time.UTC),
+			Schedule:  "* * * * *",
+			Type:      "command",
+		},
 		Details: Details{
 			ClientIDs: []string{"c1"},
 			GroupIDs:  []string{"g1"},
@@ -32,12 +39,14 @@ var testData = []*Schedule{
 		},
 	},
 	{
-		ID:        "2",
-		Name:      "schedule 2",
-		CreatedBy: "user1",
-		CreatedAt: time.Date(2022, 1, 1, 2, 0, 0, 0, time.UTC),
-		Schedule:  "*/5 * * * *",
-		Type:      "script",
+		Base: Base{
+			ID:        "2",
+			Name:      "schedule 2",
+			CreatedBy: "user1",
+			CreatedAt: time.Date(2022, 1, 1, 2, 0, 0, 0, time.UTC),
+			Schedule:  "*/5 * * * *",
+			Type:      "script",
+		},
 		Details: Details{
 			ClientIDs:           []string{"c2"},
 			GroupIDs:            []string{"g2"},
@@ -53,7 +62,7 @@ var testData = []*Schedule{
 }
 
 func TestGet(t *testing.T) {
-	db, err := sqlite.New(":memory:", jobs.AssetNames(), jobs.Asset)
+	db, err := sqlite.New(":memory:", jobsmigration.AssetNames(), jobsmigration.Asset)
 	require.NoError(t, err)
 	dbProv := newSQLiteProvider(db)
 	defer dbProv.Close()
@@ -72,7 +81,7 @@ func TestGet(t *testing.T) {
 }
 
 func TestList(t *testing.T) {
-	db, err := sqlite.New(":memory:", jobs.AssetNames(), jobs.Asset)
+	db, err := sqlite.New(":memory:", jobsmigration.AssetNames(), jobsmigration.Asset)
 	require.NoError(t, err)
 	dbProv := newSQLiteProvider(db)
 	defer dbProv.Close()
@@ -86,23 +95,8 @@ func TestList(t *testing.T) {
 	assert.Equal(t, testData, result)
 }
 
-func TestCount(t *testing.T) {
-	db, err := sqlite.New(":memory:", jobs.AssetNames(), jobs.Asset)
-	require.NoError(t, err)
-	dbProv := newSQLiteProvider(db)
-	defer dbProv.Close()
-
-	err = addTestData(dbProv.db)
-	require.NoError(t, err)
-
-	result, err := dbProv.Count(context.Background(), nil)
-	require.NoError(t, err)
-
-	assert.Equal(t, 2, result)
-}
-
 func TestCreate(t *testing.T) {
-	db, err := sqlite.New(":memory:", jobs.AssetNames(), jobs.Asset)
+	db, err := sqlite.New(":memory:", jobsmigration.AssetNames(), jobsmigration.Asset)
 	require.NoError(t, err)
 	dbProv := newSQLiteProvider(db)
 	defer dbProv.Close()
@@ -118,7 +112,7 @@ func TestCreate(t *testing.T) {
 }
 
 func TestUpdate(t *testing.T) {
-	db, err := sqlite.New(":memory:", jobs.AssetNames(), jobs.Asset)
+	db, err := sqlite.New(":memory:", jobsmigration.AssetNames(), jobsmigration.Asset)
 	require.NoError(t, err)
 	dbProv := newSQLiteProvider(db)
 	defer dbProv.Close()
@@ -140,7 +134,7 @@ func TestUpdate(t *testing.T) {
 }
 
 func TestDelete(t *testing.T) {
-	db, err := sqlite.New(":memory:", jobs.AssetNames(), jobs.Asset)
+	db, err := sqlite.New(":memory:", jobsmigration.AssetNames(), jobsmigration.Asset)
 	require.NoError(t, err)
 	dbProv := newSQLiteProvider(db)
 	defer dbProv.Close()
@@ -148,6 +142,7 @@ func TestDelete(t *testing.T) {
 
 	err = addTestData(dbProv.db)
 	require.NoError(t, err)
+	addJobs(t, db)
 
 	err = dbProv.Delete(ctx, "-2")
 	assert.EqualError(t, err, "cannot find entry by id -2")
@@ -158,6 +153,63 @@ func TestDelete(t *testing.T) {
 	val, err := dbProv.Get(ctx, "2")
 	require.NoError(t, err)
 	assert.Nil(t, val)
+
+	assertCount(t, db, 3, "SELECT count(*) FROM jobs")
+	assertCount(t, db, 1, "SELECT count(*) FROM multi_jobs WHERE schedule_id = '1'")
+	assertCount(t, db, 0, "SELECT count(*) FROM multi_jobs WHERE schedule_id = '2'")
+}
+
+func TestCountJobsInProgress(t *testing.T) {
+	db, err := sqlite.New(":memory:", jobsmigration.AssetNames(), jobsmigration.Asset)
+	require.NoError(t, err)
+	dbProv := newSQLiteProvider(db)
+	defer dbProv.Close()
+	ctx := context.Background()
+
+	addJobs(t, db)
+
+	count, err := dbProv.CountJobsInProgress(ctx, testData[0].ID, 60)
+	require.NoError(t, err)
+
+	// Counted only the non finished job
+	assert.Equal(t, 1, count)
+}
+
+func TestCountJobsInProgress(t *testing.T) {
+	db, err := sqlite.New(":memory:", jobsmigration.AssetNames(), jobsmigration.Asset)
+	require.NoError(t, err)
+	dbProv := newSQLiteProvider(db)
+	defer dbProv.Close()
+	testLog := logger.NewLogger("test", logger.LogOutput{File: os.Stdout}, logger.LogLevelDebug)
+	jobsProvider := jobs.NewSqliteProvider(db, testLog)
+	ctx := context.Background()
+
+	scheduleID, err := random.UUID4()
+	require.NoError(t, err)
+
+	multiJob := jb.NewMulti(t).ScheduleID(scheduleID).Build()
+	otherMultiJob := jb.NewMulti(t).ScheduleID("other").Build()
+	require.NoError(t, jobsProvider.SaveMultiJob(multiJob))
+	require.NoError(t, jobsProvider.SaveMultiJob(otherMultiJob))
+
+	// finished job
+	job1 := jb.New(t).MultiJobID(multiJob.JID).FinishedAt(time.Now()).Build()
+	// non finished job
+	job2 := jb.New(t).MultiJobID(multiJob.JID).StartedAt(time.Now()).Build()
+	// non finished expired job
+	job3 := jb.New(t).MultiJobID(multiJob.JID).StartedAt(time.Now().Add(-2 * time.Minute)).Build()
+	// from other schedule
+	job4 := jb.New(t).MultiJobID(otherMultiJob.JID).Build()
+	require.NoError(t, jobsProvider.SaveJob(job1))
+	require.NoError(t, jobsProvider.SaveJob(job2))
+	require.NoError(t, jobsProvider.SaveJob(job3))
+	require.NoError(t, jobsProvider.SaveJob(job4))
+
+	count, err := dbProv.CountJobsInProgress(ctx, scheduleID, 60)
+	require.NoError(t, err)
+
+	// Counted only the non finished job
+	assert.Equal(t, 1, count)
 }
 
 func addTestData(db *sqlx.DB) error {
@@ -178,4 +230,37 @@ func addTestData(db *sqlx.DB) error {
 	}
 
 	return nil
+}
+
+func addJobs(t *testing.T, db *sqlx.DB) {
+	testLog := logger.NewLogger("test", logger.LogOutput{File: os.Stdout}, logger.LogLevelDebug)
+	jobsProvider := jobs.NewSqliteProvider(db, testLog)
+
+	multiJob := jb.NewMulti(t).ScheduleID(testData[0].ID).Build()
+	otherMultiJob := jb.NewMulti(t).ScheduleID(testData[1].ID).Build()
+	require.NoError(t, jobsProvider.SaveMultiJob(multiJob))
+	require.NoError(t, jobsProvider.SaveMultiJob(otherMultiJob))
+
+	// finished job
+	job1 := jb.New(t).MultiJobID(multiJob.JID).FinishedAt(time.Now()).Build()
+	// non finished job
+	job2 := jb.New(t).MultiJobID(multiJob.JID).StartedAt(time.Now()).Build()
+	// non finished expired job
+	job3 := jb.New(t).MultiJobID(multiJob.JID).StartedAt(time.Now().Add(-2 * time.Minute)).Build()
+	// from other schedule
+	job4 := jb.New(t).MultiJobID(otherMultiJob.JID).Build()
+	require.NoError(t, jobsProvider.SaveJob(job1))
+	require.NoError(t, jobsProvider.SaveJob(job2))
+	require.NoError(t, jobsProvider.SaveJob(job3))
+	require.NoError(t, jobsProvider.SaveJob(job4))
+}
+
+func assertCount(t *testing.T, db *sqlx.DB, expected int, query string) {
+	t.Helper()
+
+	var result int
+	err := db.Get(&result, query)
+	require.NoError(t, err)
+
+	assert.Equal(t, expected, result)
 }

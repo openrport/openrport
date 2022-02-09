@@ -288,3 +288,21 @@ func TestSortFiltersByOperator(t *testing.T) {
 		})
 	}
 }
+
+func TestSplitFilters(t *testing.T) {
+	options := []FilterOption{
+		{
+			Column: []string{"c1"},
+			Values: []string{"v1"},
+		},
+		{
+			Column: []string{"c2"},
+			Values: []string{"v1"},
+		},
+	}
+
+	opt1, opt2 := SplitFilters(options, map[string]bool{"c1": true})
+
+	assert.Equal(t, options[0:1], opt1)
+	assert.Equal(t, options[1:2], opt2)
+}
