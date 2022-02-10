@@ -7,16 +7,23 @@ If a rdp tunnel with https proxy is created, RPort first creates the tunnel to t
 Pointing the browser to this URL creates a websocket tunnel to connect the browser with the guacamole server and starts the connection to the remote RDP server.
 
 ## Prerequisites
-* Apache Guacamole Server has to be running on 127.0.0.1:4822
+* Apache Guacamole Server 1.4.X has to be running on 127.0.0.1
+
+::: tip
+👉 **You don't need a fully featured Guacamole installation.** Only the `guacd` is needed, which is a lightweight and easy to install daemon. It does not require any configuration or special maintenance.
+:::
 
 ## Install Apache Guacamole Server
 
-* Either build Guacamole Server from source and run it, which is described [here](http://guacamole.incubator.apache.org/doc/gug/installing-guacamole.html).
-* Or use one of the provided Docker images for guacd, e.g. from [linuxserver.io](https://docs.linuxserver.io/images/docker-guacd)
-```
-docker pull lscr.io/linuxserver/guacd
-docker run -d --name=guacd -p 4822:4822 --net=host --restart unless-stopped lscr.io/linuxserver/guacd
-```
-Important: docker run with `--net=host` to connect to RPort tunnel on 127.0.0.1
+To run the guacamole server `guacd` you have the following options:
+
+* Use the pre-compiled packges for Ubuntu or Debian we have perpared to run the `guacd` just for RPort. [downloads and instructions](https://bitbucket.org/cloudradar/rport-guacamole/src/main/)
+* Build the Guacamole Server from source and run it, which is described [here](http://guacamole.incubator.apache.org/doc/gug/installing-guacamole.html).
+* Use one of the provided Docker images for guacd, e.g. from [linuxserver.io](https://docs.linuxserver.io/images/docker-guacd)
+  ```
+  docker pull lscr.io/linuxserver/guacd
+  docker run -d --name=guacd -p 4822:4822 --net=host --restart unless-stopped lscr.io/linuxserver/guacd
+  ```
+  Important: docker run with `--net=host` to connect to RPort tunnel on 127.0.0.1
 
 
