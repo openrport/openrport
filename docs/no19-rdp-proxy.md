@@ -26,4 +26,10 @@ To run the guacamole server `guacd` you have the following options:
   ```
   Important: docker run with `--net=host` to connect to RPort tunnel on 127.0.0.1
 
+## Frontend Options
+If the browser links to the exposed proxy port with "/", query parameters can be set to control the rdp connection. 
 
+E.g. `/?username=Administrator&width=800&height=600`
+
+* `username` is the pre-filled login user on the remote machine
+* `width` for the required screen width and `height` for the required screen height. If `width` and `height` are omitted, 1024 x 768 are the default values.
