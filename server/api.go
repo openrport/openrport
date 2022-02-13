@@ -83,15 +83,18 @@ var apiUpgrader = websocket.Upgrader{
 
 type JobProvider interface {
 	GetByJID(clientID, jid string) (*models.Job, error)
-	GetSummariesByClientID(clientID string) ([]*models.JobSummary, error)
+	GetSummariesByClientID(ctx context.Context, clientID string, options *query.ListOptions) ([]*models.JobSummary, error)
+	CountByClientID(ctx context.Context, clientID string, options *query.ListOptions) (int, error)
 	GetByMultiJobID(jid string) ([]*models.Job, error)
 	// SaveJob creates or updates a job
 	SaveJob(job *models.Job) error
 	// CreateJob creates a new job. If already exist with a given JID - do nothing and return nil
 	CreateJob(job *models.Job) error
 	GetMultiJob(jid string) (*models.MultiJob, error)
-	GetAllMultiJobSummaries() ([]*models.MultiJobSummary, error)
+	GetMultiJobSummaries(ctx context.Context, options *query.ListOptions) ([]*models.MultiJobSummary, error)
+	CountMultiJobs(ctx context.Context, options *query.ListOptions) (int, error)
 	SaveMultiJob(multiJob *models.MultiJob) error
+	CleanupJobsMultiJobs(context.Context, int) error
 	Close() error
 }
 
@@ -1322,7 +1325,7 @@ func (al *APIListener) handlePutClientTunnel(w http.ResponseWriter, req *http.Re
 		al.jsonErrorResponseWithTitle(w, http.StatusBadRequest, "creation of tunnel proxy not enabled")
 		return
 	}
-	if isHTTPProxy && schemeStr != "http" && schemeStr != "https" && schemeStr != "vnc" {
+	if isHTTPProxy && !validation.SchemeSupportsHTTPProxy(schemeStr) {
 		al.jsonErrorResponseWithTitle(w, http.StatusBadRequest, fmt.Sprintf("tunnel proxy not allowed with scheme %s", schemeStr))
 		return
 	}
@@ -2028,14 +2031,34 @@ func (al *APIListener) handleGetCommands(w http.ResponseWriter, req *http.Reques
 		return
 	}
 
-	res, err := al.jobProvider.GetSummariesByClientID(cid)
+	listOptions := query.GetListOptions(req)
+
+	err := query.ValidateListOptions(listOptions, jobs.JobSupportedSorts, jobs.JobSupportedFilters, nil /*fields*/, &query.PaginationConfig{
+		MaxLimit:     1000,
+		DefaultLimit: 100,
+	})
+	if err != nil {
+		al.jsonError(w, err)
+		return
+	}
+
+	result, err := al.jobProvider.GetSummariesByClientID(req.Context(), cid, listOptions)
 	if err != nil {
 		al.jsonErrorResponseWithError(w, http.StatusInternalServerError, fmt.Sprintf("Failed to get client jobs: client_id=%q.", cid), err)
 		return
 	}
 
-	jobs.SortByFinishedAt(res, true)
-	al.writeJSONResponse(w, http.StatusOK, api.NewSuccessPayload(res))
+	totalCount, err := al.jobProvider.CountByClientID(req.Context(), cid, listOptions)
+	if err != nil {
+		al.jsonErrorResponseWithError(w, http.StatusInternalServerError, fmt.Sprintf("Failed to get client jobs: client_id=%q.", cid), err)
+		return
+	}
+
+	payload := &api.SuccessPayload{
+		Data: result,
+		Meta: api.NewMeta(totalCount),
+	}
+	al.writeJSONResponse(w, http.StatusOK, payload)
 }
 
 func (al *APIListener) handleGetCommand(w http.ResponseWriter, req *http.Request) {
@@ -2254,9 +2277,10 @@ func (al *APIListener) StartMultiClientJob(ctx context.Context, multiJobRequest 
 
 	multiJob := &models.MultiJob{
 		MultiJobSummary: models.MultiJobSummary{
-			JID:       jid,
-			StartedAt: time.Now(),
-			CreatedBy: multiJobRequest.Username,
+			JID:        jid,
+			StartedAt:  time.Now(),
+			CreatedBy:  multiJobRequest.Username,
+			ScheduleID: multiJobRequest.ScheduleID,
 		},
 		ClientIDs:   multiJobRequest.ClientIDs,
 		GroupIDs:    multiJobRequest.GroupIDs,
@@ -2759,13 +2783,34 @@ func (al *APIListener) handleGetMultiClientCommand(w http.ResponseWriter, req *h
 }
 
 func (al *APIListener) handleGetMultiClientCommands(w http.ResponseWriter, req *http.Request) {
-	res, err := al.jobProvider.GetAllMultiJobSummaries()
+	listOptions := query.GetListOptions(req)
+
+	err := query.ValidateListOptions(listOptions, jobs.MultiJobSupportedSorts, jobs.MultiJobSupportedFilters, nil /*fields*/, &query.PaginationConfig{
+		MaxLimit:     1000,
+		DefaultLimit: 100,
+	})
+	if err != nil {
+		al.jsonError(w, err)
+		return
+	}
+
+	result, err := al.jobProvider.GetMultiJobSummaries(req.Context(), listOptions)
 	if err != nil {
 		al.jsonErrorResponseWithError(w, http.StatusInternalServerError, "Failed to get multi-client jobs.", err)
 		return
 	}
 
-	al.writeJSONResponse(w, http.StatusOK, api.NewSuccessPayload(res))
+	totalCount, err := al.jobProvider.CountMultiJobs(req.Context(), listOptions)
+	if err != nil {
+		al.jsonErrorResponseWithError(w, http.StatusInternalServerError, "Failed to count multi-client jobs.", err)
+		return
+	}
+
+	payload := &api.SuccessPayload{
+		Data: result,
+		Meta: api.NewMeta(totalCount),
+	}
+	al.writeJSONResponse(w, http.StatusOK, payload)
 }
 
 func (al *APIListener) handlePostClientGroups(w http.ResponseWriter, req *http.Request) {

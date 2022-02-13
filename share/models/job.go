@@ -24,6 +24,7 @@ type Job struct {
 	CreatedBy   string     `json:"created_by"`
 	TimeoutSec  int        `json:"timeout_sec"`
 	MultiJobID  *string    `json:"multi_job_id"`
+	ScheduleID  *string    `json:"schedule_id"`
 	Error       string     `json:"error"`
 	Result      *JobResult `json:"result"`
 	IsSudo      bool       `json:"is_sudo"`
@@ -58,9 +59,10 @@ type MultiJob struct {
 }
 
 type MultiJobSummary struct {
-	JID       string    `json:"jid"`
-	StartedAt time.Time `json:"started_at"`
-	CreatedBy string    `json:"created_by"`
+	JID        string    `json:"jid"`
+	StartedAt  time.Time `json:"started_at"`
+	CreatedBy  string    `json:"created_by"`
+	ScheduleID *string   `json:"schedule_id"`
 }
 
 type MultiJobResult struct {

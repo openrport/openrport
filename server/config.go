@@ -127,6 +127,7 @@ type ServerConfig struct {
 	BanTime                    int                            `mapstructure:"ban_time"`
 	EnableWsTestEndpoints      bool                           `mapstructure:"enable_ws_test_endpoints"`
 	TunnelProxyConfig          clienttunnel.TunnelProxyConfig `mapstructure:",squash"`
+	JobsMaxResults             int                            `mapstructure:"jobs_max_results"`
 
 	allowedPorts mapset.Set
 	authID       string

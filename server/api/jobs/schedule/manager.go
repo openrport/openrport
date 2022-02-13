@@ -48,6 +48,7 @@ type Provider interface {
 	List(context.Context, *query.ListOptions) ([]*Schedule, error)
 	Get(context.Context, string) (*Schedule, error)
 	Delete(context.Context, string) error
+	CountJobsInProgress(ctx context.Context, scheduleID string, timeoutSec int) (int, error)
 }
 
 type Cron interface {
@@ -65,14 +66,18 @@ type Manager struct {
 	jobRunner JobRunner
 	provider  Provider
 	cron      Cron
+
+	runRemoteCmdTimeoutSec int
 }
 
-func New(ctx context.Context, logger *logger.Logger, db *sqlx.DB, jobRunner JobRunner) (*Manager, error) {
+func New(ctx context.Context, logger *logger.Logger, db *sqlx.DB, jobRunner JobRunner, runRemoteCmdTimeoutSec int) (*Manager, error) {
 	m := &Manager{
 		Logger:    logger,
 		jobRunner: jobRunner,
 		provider:  newSQLiteProvider(db),
 		cron:      newCron(),
+
+		runRemoteCmdTimeoutSec: runRemoteCmdTimeoutSec,
 	}
 
 	existing, err := m.provider.List(ctx, nil)
@@ -271,8 +276,6 @@ func (m *Manager) addCron(s *Schedule) error {
 }
 
 func (m *Manager) run(ctx context.Context, id string) {
-	m.Infof("Running schedule: %s", id)
-
 	schedule, err := m.provider.Get(ctx, id)
 	if err != nil {
 		m.Errorf("Could not get schedule %s: %v", id, err)
@@ -283,7 +286,26 @@ func (m *Manager) run(ctx context.Context, id string) {
 		return
 	}
 
+	if !schedule.Details.Overlaps {
+		timeoutSec := schedule.Details.TimeoutSec
+		if timeoutSec <= 0 {
+			timeoutSec = m.runRemoteCmdTimeoutSec
+		}
+		cnt, err := m.provider.CountJobsInProgress(ctx, id, timeoutSec)
+		if err != nil {
+			m.Errorf("Could not count jobs in progress for schedule %s: %v", id, err)
+			return
+		}
+		if cnt > 0 {
+			m.Infof("Skipping non-overlapping schedule %s, because it has jobs in progress.", id)
+			return
+		}
+	}
+
+	m.Infof("Running schedule: %s", id)
+
 	_, err = m.jobRunner.StartMultiClientJob(ctx, &jobs.MultiJobRequest{
+		ScheduleID:          &schedule.ID,
 		Username:            schedule.CreatedBy,
 		ClientIDs:           schedule.Details.ClientIDs,
 		GroupIDs:            schedule.Details.GroupIDs,

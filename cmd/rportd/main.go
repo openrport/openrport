@@ -213,6 +213,9 @@ var serverHelp = `
     --novnc-root, Specifies local directory path. If specified, rportd will serve
     novnc javascript app from this directory.
 
+    --guacd-address, Specifies network address (host:port) of guacd daemon. If specified, rportd will serve
+    remote desktop connections in browser using Guacamole protocol.
+
     --help, -h, This help text
 
     --version, Print version info and exit
@@ -284,6 +287,7 @@ func init() {
 	pFlags.String("tunnel-proxy-cert-file", "", "")
 	pFlags.String("tunnel-proxy-key-file", "", "")
 	pFlags.String("novnc-root", "", "")
+	pFlags.String("guacd-address", "", "")
 
 	cfgPath = pFlags.StringP("config", "c", "", "")
 	svcCommand = pFlags.String("service", "", "")
@@ -318,6 +322,7 @@ func init() {
 	viperCfg.SetDefault("server.max_failed_login", 5)
 	viperCfg.SetDefault("server.ban_time", 3600)
 	viperCfg.SetDefault("server.enable_ws_test_endpoints", false)
+	viperCfg.SetDefault("server.jobs_max_results", 10000)
 	viperCfg.SetDefault("api.user_header", "Authentication-User")
 	viperCfg.SetDefault("api.default_user_group", "Administrators")
 	viperCfg.SetDefault("api.user_login_wait", 2)
@@ -362,6 +367,7 @@ func bindPFlags() {
 	_ = viperCfg.BindPFlag("server.tunnel_proxy_cert_file", pFlags.Lookup("tunnel-proxy-cert-file"))
 	_ = viperCfg.BindPFlag("server.tunnel_proxy_key_file", pFlags.Lookup("tunnel-proxy-key-file"))
 	_ = viperCfg.BindPFlag("server.novnc_root", pFlags.Lookup("novnc-root"))
+	_ = viperCfg.BindPFlag("server.guacd_address", pFlags.Lookup("guacd-address"))
 
 	_ = viperCfg.BindPFlag("logging.log_file", pFlags.Lookup("log-file"))
 	_ = viperCfg.BindPFlag("logging.log_level", pFlags.Lookup("log-level"))

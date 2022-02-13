@@ -26,7 +26,7 @@ func TestGetListOptions(t *testing.T) {
 		},
 		{
 			name:       "not_matching_query",
-			inputQuery: "sord=date&filter=123&filter[]=345&sort=&sort=  &filter[k]=&filter[l]=    &fields=abc&fields[]=def&fields[d]=&page[other]=3",
+			inputQuery: "sord=date&filter=123&filter[]=345&fields=abc&fields[]=def&page[other]=3",
 			expectedListOptions: &ListOptions{
 				Sorts:      []SortOption{},
 				Filters:    []FilterOption{},
@@ -36,7 +36,7 @@ func TestGetListOptions(t *testing.T) {
 		},
 		{
 			name:       "all_possible_sorts_and_filters",
-			inputQuery: "sort=date&sort=-user&filter[field1]=val1&filter[field1]=val2,val3&filter[field2]=value2,value3&fields[res1]=f1,f2&fields[res2]=f1,f3&page[offset]=3&page[limit]=10",
+			inputQuery: "sort=date&sort=-user&filter[field1]=val1&filter[field1]=val2,val3&filter[field2]=value2,value3&filter[field3]=&fields[res1]=f1,f2&fields[res2]=f1,f3&page[offset]=3&page[limit]=10",
 			expectedListOptions: &ListOptions{
 				Sorts: []SortOption{
 					{
@@ -56,6 +56,10 @@ func TestGetListOptions(t *testing.T) {
 					{
 						Column: []string{"field2"},
 						Values: []string{"value2", "value3"},
+					},
+					{
+						Column: []string{"field3"},
+						Values: []string{""},
 					},
 				},
 				Fields: []FieldsOption{

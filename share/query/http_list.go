@@ -88,9 +88,6 @@ func getOrValues(values []string) []string {
 	orValues := make([]string, 0)
 	for i := range values {
 		orValue := strings.TrimSpace(values[i])
-		if orValue == "" {
-			continue
-		}
 
 		orValues = append(orValues, strings.Split(orValue, ",")...)
 	}

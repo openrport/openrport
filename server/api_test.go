@@ -68,9 +68,13 @@ func (p *JobProviderMock) GetByJID(cid, jid string) (*models.Job, error) {
 	return p.ReturnJob, p.ReturnErr
 }
 
-func (p *JobProviderMock) GetSummariesByClientID(cid string) ([]*models.JobSummary, error) {
+func (p *JobProviderMock) GetSummariesByClientID(ctx context.Context, cid string, opts *query.ListOptions) ([]*models.JobSummary, error) {
 	p.InputCID = cid
 	return p.ReturnJobSummaries, p.ReturnErr
+}
+
+func (p *JobProviderMock) CountByClientID(ctx context.Context, cid string, opts *query.ListOptions) (int, error) {
+	return len(p.ReturnJobSummaries), p.ReturnErr
 }
 
 func (p *JobProviderMock) SaveJob(job *models.Job) error {
@@ -980,7 +984,7 @@ func TestHandleGetCommands(t *testing.T) {
 	job3 := jb.Status(models.JobStatusFailed).FinishedAt(ft.Add(time.Minute)).Build().JobSummary
 	job4 := jb.Status(models.JobStatusRunning).Build().JobSummary
 	jpSuccessReturnJobSummaries := []*models.JobSummary{&job1, &job2, &job3, &job4}
-	wantSuccessResp := api.NewSuccessPayload([]*models.JobSummary{&job4, &job3, &job1, &job2}) // sorted in desc
+	wantSuccessResp := &api.SuccessPayload{Data: []*models.JobSummary{&job1, &job2, &job3, &job4}, Meta: api.NewMeta(4)}
 	b, err := json.Marshal(wantSuccessResp)
 	require.NoError(t, err)
 	wantSuccessRespJobsJSON := string(b)
@@ -1006,7 +1010,7 @@ func TestHandleGetCommands(t *testing.T) {
 		{
 			name:                 "not found",
 			jpReturnJobSummaries: []*models.JobSummary{},
-			wantSuccessResp:      `{"data":[]}`,
+			wantSuccessResp:      `{"data":[], "meta": {"count": 0}}`,
 			wantStatusCode:       http.StatusOK,
 		},
 		{
@@ -1047,7 +1051,7 @@ func TestHandleGetCommands(t *testing.T) {
 			assert.Equal(t, tc.wantStatusCode, w.Code)
 			if tc.wantErrTitle == "" {
 				// success case
-				assert.Equal(t, tc.wantSuccessResp, w.Body.String())
+				assert.JSONEq(t, tc.wantSuccessResp, w.Body.String())
 				assert.Equal(t, testCID, jp.InputCID)
 			} else {
 				// failure case

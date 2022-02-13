@@ -15,6 +15,8 @@ func NewTunnelProxyConnector(tp *TunnelProxy) TunnelProxyConnector {
 		return NewTunnelConnectorHTTP(tp)
 	case "vnc":
 		return NewTunnelConnectorVNC(tp)
+	case "rdp":
+		return NewTunnelConnectorRDP(tp)
 	}
 
 	return nil
