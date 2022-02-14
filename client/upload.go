@@ -8,6 +8,8 @@ import (
 	"path/filepath"
 	"strings"
 
+	errors2 "github.com/cloudradar-monitoring/rport/share/errors"
+
 	"github.com/cloudradar-monitoring/rport/client/system"
 
 	"github.com/pkg/sftp"
@@ -27,7 +29,8 @@ type SourceFileProvider interface {
 
 type OptionsProvider interface {
 	GetUploadDir() string
-	GetFilePushDeny() []string
+	GetProtectedUploadDirs() []string
+	IsFileReceptionEnabled() bool
 }
 
 type UploadManager struct {
@@ -110,6 +113,12 @@ func NewSSHUploadManager(
 }
 
 func (um *UploadManager) HandleUploadRequest(reqPayload []byte) (*models.UploadResponse, error) {
+	if !um.OptionsProvider.IsFileReceptionEnabled() {
+		err := errors2.ErrUploadsDisabled
+		um.Debugf(err.Error())
+		return nil, err
+	}
+
 	um.Debugf("got request %s", string(reqPayload))
 
 	uploadedFile, err := um.getUploadedFile(reqPayload)
@@ -441,7 +450,7 @@ func (um *UploadManager) getUploadedFile(reqPayload []byte) (*models.UploadedFil
 		return nil, err
 	}
 
-	err = uploadedFile.ValidateDestinationPath(um.OptionsProvider.GetFilePushDeny(), um.Logger)
+	err = uploadedFile.ValidateDestinationPath(um.OptionsProvider.GetProtectedUploadDirs(), um.Logger)
 	if err != nil {
 		return nil, err
 	}

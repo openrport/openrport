@@ -3,6 +3,6 @@
 
 package chclient
 
-var FilePushDenyGlobs = []string{
+var FileReceptionGlobs = []string{
 	"/bin", "/sbin", "/boot", "/usr/bin", "/usr/sbin", "/dev", "/lib*", "/run",
 }

@@ -51,7 +51,7 @@ func ChangeOwnerExecWithSudo(path, owner, group string) error {
 		path,
 	}
 
-	cmd := exec.Command(args[0], args[1:]...)
+	cmd := exec.Command(args[0], args[1:]...) //nolint:gosec
 
 	output, err := cmd.CombinedOutput()
 
@@ -88,7 +88,7 @@ func MoveExecWithSudo(sourcePath, targetPath string) error {
 		targetPath,
 	}
 
-	cmd := exec.Command(args[0], args[1:]...)
+	cmd := exec.Command(args[0], args[1:]...) //nolint:gosec
 
 	output, err := cmd.CombinedOutput()
 

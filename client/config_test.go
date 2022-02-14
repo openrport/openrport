@@ -32,8 +32,8 @@ func getDefaultValidMinConfig() ClientConfigHolder {
 			RemoteScripts: clientconfig.ScriptsConfig{
 				Enabled: false,
 			},
-			FilePushConfig: clientconfig.FilePushConfig{
-				FilePushDeny: []string{},
+			FileReceptionConfig: clientconfig.FileReceptionConfig{
+				Protected: []string{},
 			},
 		},
 	}
@@ -655,7 +655,7 @@ func TestConfigParseAndValidateFilePushConfig(t *testing.T) {
 		},
 		{
 			Name:          "valid globs",
-			FilePushDeny:  append(FilePushDenyGlobs, "[a-z][cde][!zhw][!0-1]?*.txt"),
+			FilePushDeny:  append(FileReceptionGlobs, "[a-z][cde][!zhw][!0-1]?*.txt"),
 			ExpectedError: "",
 		},
 		{
@@ -676,8 +676,8 @@ func TestConfigParseAndValidateFilePushConfig(t *testing.T) {
 			t.Parallel()
 
 			config := getDefaultValidMinConfig()
-			config.FilePushConfig = clientconfig.FilePushConfig{
-				FilePushDeny: tc.FilePushDeny,
+			config.FileReceptionConfig = clientconfig.FileReceptionConfig{
+				Protected: tc.FilePushDeny,
 			}
 
 			err := config.ParseAndValidate(true)

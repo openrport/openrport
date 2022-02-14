@@ -10,11 +10,13 @@ import (
 	"strings"
 	"testing"
 
+	"github.com/cloudradar-monitoring/rport/share/errors"
 	"github.com/cloudradar-monitoring/rport/share/files"
 	"github.com/cloudradar-monitoring/rport/share/logger"
 	"github.com/cloudradar-monitoring/rport/share/models"
 	"github.com/cloudradar-monitoring/rport/share/test"
 
+	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/mock"
 	"github.com/stretchr/testify/require"
 )
@@ -48,7 +50,7 @@ func (uopm *UploadOptionsProviderMock) GetUploadDir() string {
 	return args.String(0)
 }
 
-func (uopm *UploadOptionsProviderMock) GetFilePushDeny() []string {
+func (uopm *UploadOptionsProviderMock) GetProtectedUploadDirs() []string {
 	args := uopm.Called()
 
 	denyGlobs := args.Get(0)
@@ -57,6 +59,12 @@ func (uopm *UploadOptionsProviderMock) GetFilePushDeny() []string {
 	}
 
 	return denyGlobs.([]string)
+}
+
+func (uopm *UploadOptionsProviderMock) IsFileReceptionEnabled() bool {
+	args := uopm.Called()
+
+	return args.Bool(0)
 }
 
 func TestHandleUploadRequest(t *testing.T) {
@@ -178,7 +186,8 @@ func TestHandleUploadRequest(t *testing.T) {
 				fs.On("Exist", filepath.Join("destination", "file3.txt")).Return(true, nil)
 			},
 			optionsCallback: func(opts *UploadOptionsProviderMock) {
-				opts.On("GetFilePushDeny").Return([]string{})
+				opts.On("GetProtectedUploadDirs").Return([]string{})
+				opts.On("IsFileReceptionEnabled").Return(true)
 			},
 			wantResp: &models.UploadResponse{
 				UploadResponseShort: models.UploadResponseShort{
@@ -198,10 +207,11 @@ func TestHandleUploadRequest(t *testing.T) {
 				Md5Checksum:     []byte("md5_125"),
 			},
 			optionsCallback: func(opts *UploadOptionsProviderMock) {
-				opts.On("GetFilePushDeny").Return([]string{filepath.Join("destination", "*")})
+				opts.On("GetProtectedUploadDirs").Return([]string{filepath.Join("destination", "*")})
+				opts.On("IsFileReceptionEnabled").Return(true)
 			},
 			wantError: fmt.Sprintf(
-				"target path %s matches file_push_deny pattern %s, therefore the file push request is rejected",
+				"target path %s matches protected pattern %s, therefore the file push request is rejected",
 				filepath.Join("destination", "file4.txt"),
 				filepath.Join("destination", "*"),
 			),
@@ -351,6 +361,14 @@ func TestHandleUploadRequest(t *testing.T) {
 				Status:  "success",
 			},
 		},
+		{
+			name:             "uploads disabled",
+			wantUploadedFile: getValidUploadFile(""),
+			optionsCallback: func(opts *UploadOptionsProviderMock) {
+				opts.On("IsFileReceptionEnabled").Return(false)
+			},
+			wantError: errors.ErrUploadsDisabled.Error(),
+		},
 	}
 
 	for _, tc := range testCases {
@@ -399,7 +417,7 @@ func TestHandleUploadRequest(t *testing.T) {
 			}
 
 			require.NoError(t, err)
-			require.Equal(t, tc.wantResp, actualResp)
+			assert.Equal(t, tc.wantResp, actualResp)
 		})
 	}
 }
@@ -432,5 +450,6 @@ func getValidUploadFile(content string) *models.UploadedFile {
 
 func defaultOptionsCallback(opts *UploadOptionsProviderMock) {
 	opts.On("GetUploadDir").Return(filepath.Join("data", files.DefaultUploadTempFolder))
-	opts.On("GetFilePushDeny").Return([]string{})
+	opts.On("GetProtectedUploadDirs").Return([]string{})
+	opts.On("IsFileReceptionEnabled").Return(true)
 }

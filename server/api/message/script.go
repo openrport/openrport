@@ -38,7 +38,7 @@ func NewScriptService(script string, validation ValidationType, regex *regexp.Re
 func (s *ScriptService) Send(ctx context.Context, data Data) error {
 	stderr := &bytes.Buffer{}
 
-	cmd := exec.CommandContext(ctx, s.Script)
+	cmd := exec.CommandContext(ctx, s.Script) //nolint:gosec
 	cmd.Env = append(os.Environ(), s.DataToEnv(data)...)
 	cmd.Stdout = os.Stdout
 	cmd.Stderr = stderr

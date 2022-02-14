@@ -17,7 +17,7 @@ func (r *RunnerImpl) Run(ctx context.Context, args ...string) (string, error) {
 	stderr := &bytes.Buffer{}
 	stdout := &bytes.Buffer{}
 
-	cmd := exec.CommandContext(ctx, args[0], args[1:]...)
+	cmd := exec.CommandContext(ctx, args[0], args[1:]...) //nolint:gosec
 
 	cmd.Stderr = stderr
 	cmd.Stdout = stdout

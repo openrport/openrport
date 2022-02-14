@@ -57,7 +57,7 @@ func (uf UploadedFile) ValidateDestinationPath(globPatters []string, log *logger
 			continue
 		}
 		if matchedDir {
-			return fmt.Errorf("target path %s matches file_push_deny pattern %s, therefore the file push request is rejected", destinationDir, p)
+			return fmt.Errorf("target path %s matches protected pattern %s, therefore the file push request is rejected", destinationDir, p)
 		}
 
 		matchedFile, err := filepath.Match(p, uf.DestinationPath)
@@ -67,7 +67,7 @@ func (uf UploadedFile) ValidateDestinationPath(globPatters []string, log *logger
 		}
 
 		if matchedFile {
-			return fmt.Errorf("target path %s matches file_push_deny pattern %s, therefore the file push request is rejected", uf.DestinationPath, p)
+			return fmt.Errorf("target path %s matches protected pattern %s, therefore the file push request is rejected", uf.DestinationPath, p)
 		}
 	}
 

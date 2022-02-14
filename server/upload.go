@@ -8,6 +8,8 @@ import (
 	"sync"
 	"time"
 
+	errors2 "github.com/cloudradar-monitoring/rport/share/errors"
+
 	"github.com/cloudradar-monitoring/rport/server/api"
 
 	"github.com/cloudradar-monitoring/rport/server/auditlog"
@@ -229,6 +231,14 @@ func (al *APIListener) consumeUploadResults(resChan chan *uploadResult, uploadRe
 func (al *APIListener) sendFileToClient(wg *sync.WaitGroup, file *models.UploadedFile, cl *clients.Client, resChan chan *uploadResult) {
 	defer wg.Done()
 
+	if !cl.ClientConfiguration.FileReceptionConfig.Enabled {
+		resChan <- &uploadResult{
+			err:    errors2.ErrUploadsDisabled,
+			client: cl,
+			resp:   nil,
+		}
+		return
+	}
 	resp := &models.UploadResponse{}
 	err := comm.SendRequestAndGetResponse(cl.Connection, comm.RequestTypeUpload, file, resp)
 

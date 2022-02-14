@@ -102,7 +102,7 @@ func (c *ClientConfigHolder) ParseAndValidateMonitoring() error {
 }
 
 func (c *ClientConfigHolder) ParseAndValidateFilePushConfig() error {
-	for _, globPattern := range c.FilePushConfig.FilePushDeny {
+	for _, globPattern := range c.FileReceptionConfig.Protected {
 		_, err := filepath.Match(globPattern, "/test")
 		if err != nil {
 			return fmt.Errorf("invalid glob pattern %s: %v", globPattern, err)
@@ -266,8 +266,12 @@ func (c *ClientConfigHolder) GetUploadDir() string {
 	return filepath.Join(c.Client.DataDir, files.DefaultUploadTempFolder)
 }
 
-func (c *ClientConfigHolder) GetFilePushDeny() []string {
-	return c.FilePushConfig.FilePushDeny
+func (c *ClientConfigHolder) GetProtectedUploadDirs() []string {
+	return c.FileReceptionConfig.Protected
+}
+
+func (c *ClientConfigHolder) IsFileReceptionEnabled() bool {
+	return c.FileReceptionConfig.Enabled
 }
 
 func (c *ClientConfigHolder) parseRemoteScripts(skipScriptsDirValidation bool) error {

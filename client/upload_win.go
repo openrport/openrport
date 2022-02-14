@@ -3,6 +3,6 @@
 
 package chclient
 
-var FilePushDenyGlobs = []string{
+var FileReceptionGlobs = []string{
 	`C:\Windows\`, `C:\ProgramData`,
 }

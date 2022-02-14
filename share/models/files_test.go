@@ -83,7 +83,7 @@ func TestValidateDestinationPathUploadedFile(t *testing.T) {
 			fileInput: UploadedFile{
 				DestinationPath: "/test/mama.txt",
 			},
-			wantErr:      "target path /test matches file_push_deny pattern /test, therefore the file push request is rejected",
+			wantErr:      "target path /test matches protected pattern /test, therefore the file push request is rejected",
 			globPatterns: []string{"/lele", "/test"},
 		},
 		{
@@ -98,7 +98,7 @@ func TestValidateDestinationPathUploadedFile(t *testing.T) {
 			fileInput: UploadedFile{
 				DestinationPath: "/test/lala/mama.txt",
 			},
-			wantErr:      "target path /test/lala matches file_push_deny pattern /test/*, therefore the file push request is rejected",
+			wantErr:      "target path /test/lala matches protected pattern /test/*, therefore the file push request is rejected",
 			globPatterns: []string{"/test/*"},
 		},
 		{
@@ -113,7 +113,7 @@ func TestValidateDestinationPathUploadedFile(t *testing.T) {
 			fileInput: UploadedFile{
 				DestinationPath: "/test/lala/mama.txt",
 			},
-			wantErr:      "target path /test/lala matches file_push_deny pattern /test/?ala, therefore the file push request is rejected",
+			wantErr:      "target path /test/lala matches protected pattern /test/?ala, therefore the file push request is rejected",
 			globPatterns: []string{"/test/?ala"},
 		},
 		{
@@ -128,7 +128,7 @@ func TestValidateDestinationPathUploadedFile(t *testing.T) {
 			fileInput: UploadedFile{
 				DestinationPath: "/test/mama.txt",
 			},
-			wantErr:      "target path /test matches file_push_deny pattern /[tabc][lae][ts]t, therefore the file push request is rejected",
+			wantErr:      "target path /test matches protected pattern /[tabc][lae][ts]t, therefore the file push request is rejected",
 			globPatterns: []string{"/[tabc][lae][ts]t"},
 		},
 		{
@@ -143,7 +143,7 @@ func TestValidateDestinationPathUploadedFile(t *testing.T) {
 			fileInput: UploadedFile{
 				DestinationPath: "/test/mama.txt",
 			},
-			wantErr:      "target path /test matches file_push_deny pattern /[a-z]est, therefore the file push request is rejected",
+			wantErr:      "target path /test matches protected pattern /[a-z]est, therefore the file push request is rejected",
 			globPatterns: []string{"/[a-z]est"},
 		},
 		{
@@ -158,7 +158,7 @@ func TestValidateDestinationPathUploadedFile(t *testing.T) {
 			fileInput: UploadedFile{
 				DestinationPath: "/etc/mama.txt",
 			},
-			wantErr:      "target path /etc/mama.txt matches file_push_deny pattern /etc/mama.txt, therefore the file push request is rejected",
+			wantErr:      "target path /etc/mama.txt matches protected pattern /etc/mama.txt, therefore the file push request is rejected",
 			globPatterns: []string{"/etc/*.csv", "/etc/mama.txt"},
 		},
 		{
@@ -166,7 +166,7 @@ func TestValidateDestinationPathUploadedFile(t *testing.T) {
 			fileInput: UploadedFile{
 				DestinationPath: "/etc/mama.txt",
 			},
-			wantErr:      "target path /etc/mama.txt matches file_push_deny pattern /etc/*.txt, therefore the file push request is rejected",
+			wantErr:      "target path /etc/mama.txt matches protected pattern /etc/*.txt, therefore the file push request is rejected",
 			globPatterns: []string{"/etc/*.txt"},
 		},
 		{
@@ -181,7 +181,7 @@ func TestValidateDestinationPathUploadedFile(t *testing.T) {
 			fileInput: UploadedFile{
 				DestinationPath: "/etc/mama.txt",
 			},
-			wantErr:      "target path /etc/mama.txt matches file_push_deny pattern /etc/?ama.txt, therefore the file push request is rejected",
+			wantErr:      "target path /etc/mama.txt matches protected pattern /etc/?ama.txt, therefore the file push request is rejected",
 			globPatterns: []string{"/etc/?ama.txt"},
 		},
 		{
@@ -196,7 +196,7 @@ func TestValidateDestinationPathUploadedFile(t *testing.T) {
 			fileInput: UploadedFile{
 				DestinationPath: "/etc/abc.txt",
 			},
-			wantErr:      "target path /etc/abc.txt matches file_push_deny pattern /etc/[abc][b][bac].txt, therefore the file push request is rejected",
+			wantErr:      "target path /etc/abc.txt matches protected pattern /etc/[abc][b][bac].txt, therefore the file push request is rejected",
 			globPatterns: []string{"/etc/[abc][b][bac].txt"},
 		},
 		{
@@ -211,7 +211,7 @@ func TestValidateDestinationPathUploadedFile(t *testing.T) {
 			fileInput: UploadedFile{
 				DestinationPath: "/etc/z1c.txt",
 			},
-			wantErr:      "target path /etc/z1c.txt matches file_push_deny pattern /etc/[a-z][0-9][a-c].txt, therefore the file push request is rejected",
+			wantErr:      "target path /etc/z1c.txt matches protected pattern /etc/[a-z][0-9][a-c].txt, therefore the file push request is rejected",
 			globPatterns: []string{"/etc/[a-z][0-9][a-c].txt"},
 		},
 		{

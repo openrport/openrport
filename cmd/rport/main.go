@@ -259,7 +259,8 @@ func init() {
 	pFlags.Int("monitoring-pm-max-number-processes", 0, "")
 	pFlags.StringArray("monitoring-net-lan", []string{}, "")
 	pFlags.StringArray("monitoring-net-wan", []string{}, "")
-	pFlags.StringArray("file-push-deny", []string{}, "")
+	pFlags.StringArray("file-reception-protected", []string{}, "")
+	pFlags.Bool("file-reception-enabled", true, "")
 	tunnelsScheme = pFlags.String("scheme", "", "")
 	tunnelsReverseProxy = pFlags.Bool("enable-reverse-proxy", false, "")
 	tunnelsHostHeader = pFlags.String("host-header", "", "")
@@ -297,7 +298,8 @@ func init() {
 	viperCfg.SetDefault("monitoring.pm_enabled", true)
 	viperCfg.SetDefault("monitoring.pm_kerneltasks_enabled", true)
 	viperCfg.SetDefault("monitoring.pm_max_number_processes", 500)
-	viperCfg.SetDefault("file-push.file_push_deny", chclient.FilePushDenyGlobs)
+	viperCfg.SetDefault("file-reception.protected", chclient.FileReceptionGlobs)
+	viperCfg.SetDefault("file-reception.enabled", true)
 }
 
 func bindPFlags() {
@@ -341,7 +343,8 @@ func bindPFlags() {
 	_ = viperCfg.BindPFlag("monitoring.pm_max_number_processes", pFlags.Lookup("monitoring-pm-max-number-processes"))
 	_ = viperCfg.BindPFlag("monitoring.net_lan", pFlags.Lookup("monitoring-net-lan"))
 	_ = viperCfg.BindPFlag("monitoring.net_wan", pFlags.Lookup("monitoring-net-wan"))
-	_ = viperCfg.BindPFlag("file-push.file_push_deny", pFlags.Lookup("file-push-deny"))
+	_ = viperCfg.BindPFlag("file-reception.protected", pFlags.Lookup("file-reception-protected"))
+	_ = viperCfg.BindPFlag("file-reception.enabled", pFlags.Lookup("file-reception-enabled"))
 }
 
 func main() {
