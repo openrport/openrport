@@ -231,7 +231,7 @@ func (al *APIListener) consumeUploadResults(resChan chan *uploadResult, uploadRe
 func (al *APIListener) sendFileToClient(wg *sync.WaitGroup, file *models.UploadedFile, cl *clients.Client, resChan chan *uploadResult) {
 	defer wg.Done()
 
-	if !cl.ClientConfiguration.FileReceptionConfig.Enabled {
+	if cl.ClientConfiguration != nil && !cl.ClientConfiguration.FileReceptionConfig.Enabled {
 		resChan <- &uploadResult{
 			err:    errors2.ErrUploadsDisabled,
 			client: cl,

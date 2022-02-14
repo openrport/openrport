@@ -23,8 +23,6 @@ import (
 )
 
 func TestHandleFileUploads(t *testing.T) {
-	cl := clients.New(t).Build()
-
 	testCases := []struct {
 		name                string
 		wantStatus          int
@@ -34,6 +32,7 @@ func TestHandleFileUploads(t *testing.T) {
 		fileName            string
 		fileContent         string
 		formParts           map[string][]string
+		cl                  *clients.Client
 	}{
 		{
 			name:       "send file success",
@@ -64,9 +63,10 @@ func TestHandleFileUploads(t *testing.T) {
 			},
 			fileName:    "file.txt",
 			fileContent: "some content",
+			cl:          clients.New(t).ID("22114341234").Build(),
 			formParts: map[string][]string{
 				"client_id": {
-					cl.ID,
+					"22114341234",
 				},
 				"dest": {
 					"/destination/myfile.txt",
@@ -105,7 +105,10 @@ func TestHandleFileUploads(t *testing.T) {
 	}
 
 	for _, tc := range testCases {
+		tc := tc
 		t.Run(tc.name, func(t *testing.T) {
+			cl := tc.cl
+
 			connMock := test.NewConnMock()
 
 			connMock.ReturnOk = true
