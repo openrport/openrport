@@ -1,33 +1,45 @@
 package clienttunnel
 
 import (
-	_ "embed" //to embed novnc wrapper templates
+	_ "embed" //to embed html templates
+	"io/ioutil"
 	"net"
 	"net/http"
+	"net/url"
 	"strconv"
 
+	"github.com/google/uuid"
 	"github.com/gorilla/mux"
 	"github.com/wwt/guac"
 )
 
 const (
-	queryParUsername = "username"
-	queryParWidth    = "width"
-	queryParHeight   = "height"
+	queryParToken        = "token"
+	queryParSecurity     = "security"
+	queryParUsername     = "username"
+	queryParPassword     = "password"
+	queryParWidth        = "width"
+	queryParHeight       = "height"
+	queryParServerLayout = "server-layout"
 )
 
 //go:embed guac/index.html
 var guacIndexHTML string
 
+//go:embed guac/start-tunnel.html
+var guacStartTunnelHTML string
+
 //TunnelProxyConnectorRDP connects to a rdp tunnel via guacd (Guacamole server)
 type TunnelProxyConnectorRDP struct {
 	tunnelProxy         *TunnelProxy
 	guacWebsocketServer *guac.WebsocketServer
+	guacTokenStore      *GuacTokenStore
 }
 
 func NewTunnelConnectorRDP(tp *TunnelProxy) *TunnelProxyConnectorRDP {
 	tpc := &TunnelProxyConnectorRDP{tunnelProxy: tp}
 	tpc.guacWebsocketServer = guac.NewWebsocketServer(tpc.connectToGuacamole)
+	tpc.guacTokenStore = NewGuacTokenStore()
 
 	return tpc
 }
@@ -39,6 +51,7 @@ func (tc *TunnelProxyConnectorRDP) InitRouter(router *mux.Router) *mux.Router {
 	router.Handle("/websocket-tunnel", tc.guacWebsocketServer)
 
 	router.HandleFunc("/", tc.serveIndex)
+	router.HandleFunc("/createToken", tc.serveTunnelStarter)
 
 	return router
 }
@@ -59,6 +72,47 @@ func (tc *TunnelProxyConnectorRDP) serveIndex(w http.ResponseWriter, r *http.Req
 	tc.tunnelProxy.serveTemplate(w, r, guacIndexHTML, templateData)
 }
 
+func (tc *TunnelProxyConnectorRDP) serveTunnelStarter(w http.ResponseWriter, r *http.Request) {
+	guacToken, err := parseGuacToken(r)
+	if err != nil {
+		tc.tunnelProxy.Logger.Errorf("Error parsing guac token: %v", err)
+		tc.tunnelProxy.sendHTML(w, http.StatusInternalServerError, "Cannot create guac token from request")
+		return
+	}
+	token := uuid.New().String()
+	tc.guacTokenStore.Add(token, guacToken)
+
+	templateData := map[string]interface{}{
+		"token": token,
+	}
+
+	tc.tunnelProxy.serveTemplate(w, r, guacStartTunnelHTML, templateData)
+}
+
+func parseGuacToken(r *http.Request) (*GuacToken, error) {
+	var query url.Values
+	data, err := ioutil.ReadAll(r.Body)
+	if err != nil {
+		return nil, err
+	}
+	_ = r.Body.Close()
+	queryString := string(data)
+	query, err = url.ParseQuery(queryString)
+	if err != nil {
+		return nil, err
+	}
+
+	token := &GuacToken{}
+	token.security = query.Get(queryParSecurity)
+	token.username = query.Get(queryParUsername)
+	token.password = query.Get(queryParPassword)
+	token.width = query.Get(queryParWidth)
+	token.height = query.Get(queryParHeight)
+	token.serverLayout = query.Get(queryParServerLayout)
+
+	return token, nil
+}
+
 // connectToGuacamole creates the tunnel to the remote machine (via guacd)
 func (tc *TunnelProxyConnectorRDP) connectToGuacamole(request *http.Request) (guac.Tunnel, error) {
 	tc.tunnelProxy.Logger.Infof("TunnelProxyConnectorRDP: connect to tunnel: %s", tc.tunnelProxy.TunnelAddr())
@@ -71,12 +125,21 @@ func (tc *TunnelProxyConnectorRDP) connectToGuacamole(request *http.Request) (gu
 
 	var err error
 	query := request.URL.Query()
-	username := query.Get(queryParUsername)
-	if username != "" {
-		config.Parameters["username"] = username
-	}
 
-	width := query.Get(queryParWidth)
+	token := query.Get(queryParToken)
+	guacToken := tc.guacTokenStore.Get(token)
+	if guacToken == nil {
+		tc.tunnelProxy.Logger.Errorf("Cannot find guac token %s", token)
+		return nil, err
+	}
+	defer tc.guacTokenStore.Delete(token)
+
+	config.Parameters[queryParSecurity] = guacToken.security
+	config.Parameters[queryParUsername] = guacToken.username
+	config.Parameters[queryParPassword] = guacToken.password
+	config.Parameters[queryParServerLayout] = guacToken.serverLayout
+
+	width := guacToken.width
 	if width != "" {
 		config.OptimalScreenWidth, err = strconv.Atoi(width)
 		if err != nil || config.OptimalScreenWidth == 0 {
@@ -85,7 +148,7 @@ func (tc *TunnelProxyConnectorRDP) connectToGuacamole(request *http.Request) (gu
 		}
 	}
 
-	height := query.Get(queryParHeight)
+	height := guacToken.height
 	if height != "" {
 		config.OptimalScreenHeight, err = strconv.Atoi(height)
 		if err != nil || config.OptimalScreenHeight == 0 {
