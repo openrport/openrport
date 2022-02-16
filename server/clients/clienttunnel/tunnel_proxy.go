@@ -3,6 +3,8 @@ package clienttunnel
 import (
 	"context"
 	"crypto/tls"
+	"embed"
+	_ "embed" //to embed CSS
 	"errors"
 	"fmt"
 	"html/template"
@@ -15,6 +17,9 @@ import (
 	chshare "github.com/cloudradar-monitoring/rport/share"
 	"github.com/cloudradar-monitoring/rport/share/logger"
 )
+
+//go:embed css/tunnel-proxy.css
+var tunnelProxyCSS embed.FS
 
 type TunnelProxyConfig struct {
 	CertFile     string `mapstructure:"tunnel_proxy_cert_file"`
@@ -98,6 +103,8 @@ func (tp *TunnelProxy) Start(ctx context.Context) error {
 	router := mux.NewRouter()
 	router.Use(tp.handleACL)
 
+	router.Handle("/css/tunnel-proxy.css", http.FileServer(http.FS(tunnelProxyCSS)))
+
 	router = tp.tunnelProxyConnector.InitRouter(router)
 
 	tp.proxyServer = &http.Server{
@@ -163,6 +170,7 @@ func (tp *TunnelProxy) handleACL(next http.Handler) http.Handler {
 		tp.sendHTML(w, http.StatusForbidden, "Access rejected by ACL")
 	})
 }
+
 func (tp *TunnelProxy) serveTemplate(w http.ResponseWriter, r *http.Request, templateContent string, templateData map[string]interface{}) {
 	w.Header().Set("Content-Type", "text/html; charset=utf-8")
 	w.WriteHeader(http.StatusOK)
