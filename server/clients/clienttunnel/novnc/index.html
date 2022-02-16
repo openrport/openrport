@@ -8,57 +8,13 @@
     <meta name="robots" content="noindex">
     <title>noVNC</title>
     <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/fomantic-ui@2.8.4/dist/semantic.min.css">
-    <style>
-        body {
-            background: #f4f4f4;
-        }
-
-        * {
-            box-sizing: border-box;
-        }
-
-        .wrapper {
-            display: flex;
-            align-items: center;
-            justify-content: center;
-            height: 100vh;
-        }
-
-        .connect {
-            display: block;
-            flex: 0 0 auto;
-            margin: 24px auto;
-            width: 100%;
-            max-width: 400px;
-            overflow-y: auto;
-            max-height: 90vh;
-            background: #fff;
-            border: 1px solid #d3d3d3;
-            border-radius: 5px;
-            padding: 24px;
-            box-shadow: 0 2px 6px 0 rgba(0, 0, 0, 0.1);
-        }
-
-        @media only screen and (max-width: 520px) {
-            .connect {
-                flex: 1;
-                margin: 0;
-                height: 100%;
-                min-height: 100%;
-                max-height: 100%;
-                width: 100%;
-                min-width: 100%;
-                max-width: 100%;
-                border: none;
-            }
-        }
-    </style>
+    <link rel="stylesheet" href="/css/tunnel-proxy.css">
 </head>
 
 <body>
     <div class="wrapper">
         <div class="connect">
-            <h3 class="ui dividing header">noVNC [Rport proxy connection]</h3>
+            <h3 class="ui dividing header">noVNC [RPort proxy connection]</h3>
             <form action="/vnc.html" method="GET" class="ui form">
                 {{if not .noURLPassword}}
                 <div class="field">
