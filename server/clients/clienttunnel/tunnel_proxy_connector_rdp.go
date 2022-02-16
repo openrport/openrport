@@ -132,7 +132,7 @@ func (tc *TunnelProxyConnectorRDP) connectToGuacamole(request *http.Request) (gu
 		tc.tunnelProxy.Logger.Errorf("Cannot find guac token %s", token)
 		return nil, err
 	}
-	defer tc.guacTokenStore.Delete(token)
+	tc.guacTokenStore.Delete(token)
 
 	config.Parameters[queryParSecurity] = guacToken.security
 	config.Parameters[queryParUsername] = guacToken.username
