@@ -45,7 +45,6 @@ func ResolveIdleTunnelTimeoutValue(idleTimeoutMinutesStr string, skipIdleTimeout
 	if idleTimeoutMin > idleTimeoutMinutes || idleTimeoutMinutes > idleTimeoutMax {
 		return 0, errors2.APIError{
 			Message:    fmt.Sprintf("idle timeoout param should be in range [%d,%d]", idleTimeoutMin, idleTimeoutMax),
-			Err:        err,
 			HTTPStatus: http.StatusBadRequest,
 		}
 	}
@@ -55,4 +54,39 @@ func ResolveIdleTunnelTimeoutValue(idleTimeoutMinutesStr string, skipIdleTimeout
 
 func SchemeSupportsHTTPProxy(schemeStr string) bool {
 	return schemeStr == "http" || schemeStr == "https" || schemeStr == "vnc" || schemeStr == "rdp"
+}
+
+const (
+	tunnelAutoCloseMax = 31 * 24 * time.Hour // 31 days
+)
+
+func ResolveTunnelAutoCloseValue(durationStr string) (time.Duration, error) {
+	if durationStr == "" {
+		return 0, nil
+	}
+
+	dur, err := time.ParseDuration(durationStr)
+	if err != nil {
+		return 0, errors2.APIError{
+			Message:    "invalid tunnel auto-close format",
+			Err:        err,
+			HTTPStatus: http.StatusBadRequest,
+		}
+	}
+
+	if dur < 0 {
+		return 0, errors2.APIError{
+			Message:    "tunnel auto-close value should be more than 0",
+			HTTPStatus: http.StatusBadRequest,
+		}
+	}
+
+	if dur > tunnelAutoCloseMax {
+		return 0, errors2.APIError{
+			Message:    fmt.Sprintf("tunnel auto-close value should not be more than %s", tunnelAutoCloseMax),
+			HTTPStatus: http.StatusBadRequest,
+		}
+	}
+
+	return dur, nil
 }

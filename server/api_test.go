@@ -1603,6 +1603,7 @@ func TestHandleGetClient(t *testing.T) {
                 "host_header":"",
                 "http_proxy":false,
 		        "idle_timeout_minutes": 0,
+		        "auto_close": 0,
                 "id":"1"
             },
             {
@@ -1617,6 +1618,7 @@ func TestHandleGetClient(t *testing.T) {
                 "host_header":"",
                 "http_proxy":false,
 		        "idle_timeout_minutes": 0,
+		        "auto_close": 0,
                 "id":"2"
             }
         ],

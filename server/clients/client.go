@@ -140,7 +140,14 @@ func (c *Client) StartTunnel(r *models.Remote, acl *clienttunnel.TunnelACL, tunn
 
 	tunnelID := strconv.FormatInt(c.generateNewTunnelID(), 10)
 	t = clienttunnel.NewTunnel(c.Logger, c.Connection, tunnelID, *r, acl)
-	autoCloseChan, err := t.Start(c.Context)
+
+	ctx := c.Context
+	if r.AutoClose > 0 {
+		// no need to cancel the ctx since it will be canceled by parent ctx or after given timeout
+		ctx, _ = context.WithTimeout(ctx, r.AutoClose) // nolint: govet
+	}
+
+	idleAutoCloseChan, err := t.Start(ctx)
 	if err != nil {
 		return nil, err
 	}
@@ -148,7 +155,7 @@ func (c *Client) StartTunnel(r *models.Remote, acl *clienttunnel.TunnelACL, tunn
 	// start tunnel proxy
 	if startTunnelProxy {
 		tProxy := clienttunnel.NewTunnelProxy(t, c.Logger, tunnelProxyConfig, proxyHost, proxyPort, proxyACL)
-		if err := tProxy.Start(c.Context); err != nil {
+		if err := tProxy.Start(ctx); err != nil {
 			c.Logger.Debugf("tunnel proxy could not be started, tunnel must be terminated: %v", err)
 			if tErr := t.Terminate(true); tErr != nil {
 				return nil, tErr
@@ -163,28 +170,39 @@ func (c *Client) StartTunnel(r *models.Remote, acl *clienttunnel.TunnelACL, tunn
 
 	// in case tunnel auto-closed due to inactivity - run background task to remove the tunnel from the list
 	// TODO: in case tunnel would be extended to have active/inactive status this wouldn't be needed
-	if autoCloseChan != nil {
+	if idleAutoCloseChan != nil || t.AutoClose > 0 {
 		go func() {
 			select {
-			case <-c.Context.Done():
-				return
-			case <-autoCloseChan:
-				c.Lock()
-				defer c.Unlock()
-				//stop tunnel proxy
-				if t.Proxy != nil {
-					if err := t.Proxy.Stop(c.Context); err != nil {
-						c.Logger.Errorf("error while stopping tunnel proxy: %v", err)
-					}
+			case <-ctx.Done():
+				// DeadlineExceeded err is expected when tunnel AutoClose period is reached, otherwise skip cleanup
+				if ctx.Err() == context.DeadlineExceeded {
+					c.cleanupAfterAutoClose(t)
 				}
-				c.removeTunnelByID(t.ID)
-				c.Logger.Debugf("tunnel with id=%s removed", t.ID)
+				return
+			case <-idleAutoCloseChan:
+				c.cleanupAfterAutoClose(t)
+				return
 			}
 		}()
 	}
 
 	c.Tunnels = append(c.Tunnels, t)
 	return t, nil
+}
+
+func (c *Client) cleanupAfterAutoClose(t *clienttunnel.Tunnel) {
+	c.Lock()
+	defer c.Unlock()
+
+	//stop tunnel proxy
+	if t.Proxy != nil {
+		if err := t.Proxy.Stop(c.Context); err != nil {
+			c.Logger.Errorf("error while stopping tunnel proxy: %v", err)
+		}
+	}
+
+	c.removeTunnelByID(t.ID)
+	c.Logger.Debugf("tunnel with id=%s removed", t.ID)
 }
 
 func (c *Client) TerminateTunnel(t *clienttunnel.Tunnel, force bool) error {

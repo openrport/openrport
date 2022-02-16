@@ -580,6 +580,11 @@ paths:
         maximum: 10080
         minimum: 0
         default: 5
+      - name: "auto-close"
+        in: "query"
+        description: "if > 0 then auto-close the tunnel after given duration. Valid time units are 's'(seconds), 'm'(minutes), 'h'(hours). For example, '20m', '1m30s', '1h', etc"
+        required: false
+        type: "string"
       - name: "protocol"
         in: "query"
         description: "Protocol for the tunnel. Can be `tcp` or `udp`. Default is `tcp`."

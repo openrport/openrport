@@ -6,6 +6,7 @@ import (
 	"net/url"
 	"regexp"
 	"strings"
+	"time"
 )
 
 // short-hand conversions
@@ -33,17 +34,18 @@ var protocolRe = regexp.MustCompile(`(.*)\/(tcp|udp)$`)
 
 // TODO(m-terel): Remote should be only used for parsing command args and URL query params. Current Remote is kind of a Tunnel model. Refactor to use separate models for representation and business logic.
 type Remote struct {
-	Protocol           string  `json:"protocol"`
-	LocalHost          string  `json:"lhost"`
-	LocalPort          string  `json:"lport"`
-	RemoteHost         string  `json:"rhost"`
-	RemotePort         string  `json:"rport"`
-	LocalPortRandom    bool    `json:"lport_random"`
-	Scheme             *string `json:"scheme"`
-	ACL                *string `json:"acl"` // string representation of Tunnel.TunnelACL field
-	IdleTimeoutMinutes int     `json:"idle_timeout_minutes"`
-	HTTPProxy          bool    `json:"http_proxy"`
-	HostHeader         string  `json:"host_header"`
+	Protocol           string        `json:"protocol"`
+	LocalHost          string        `json:"lhost"`
+	LocalPort          string        `json:"lport"`
+	RemoteHost         string        `json:"rhost"`
+	RemotePort         string        `json:"rport"`
+	LocalPortRandom    bool          `json:"lport_random"`
+	Scheme             *string       `json:"scheme"`
+	ACL                *string       `json:"acl"` // string representation of Tunnel.TunnelACL field
+	IdleTimeoutMinutes int           `json:"idle_timeout_minutes"`
+	AutoClose          time.Duration `json:"auto_close"`
+	HTTPProxy          bool          `json:"http_proxy"`
+	HostHeader         string        `json:"host_header"`
 }
 
 func DecodeRemote(s string) (*Remote, error) {

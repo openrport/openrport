@@ -1209,6 +1209,7 @@ func (al *APIListener) handlePostClientACL(w http.ResponseWriter, req *http.Requ
 const (
 	URISchemeMaxLength = 15
 
+	autoCloseQueryParam          = "auto-close"
 	idleTimeoutMinutesQueryParam = "idle-timeout-minutes"
 	skipIdleTimeoutQueryParam    = "skip-idle-timeout"
 
@@ -1267,6 +1268,12 @@ func (al *APIListener) handlePutClientTunnel(w http.ResponseWriter, req *http.Re
 	}
 
 	remote.IdleTimeoutMinutes = int(idleTimeout.Minutes())
+
+	remote.AutoClose, err = validation.ResolveTunnelAutoCloseValue(req.URL.Query().Get(autoCloseQueryParam))
+	if err != nil {
+		al.jsonError(w, err)
+		return
+	}
 
 	aclStr := req.URL.Query().Get("acl")
 	if _, err = clienttunnel.ParseTunnelACL(aclStr); err != nil {
