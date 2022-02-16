@@ -2,10 +2,8 @@ package clienttunnel
 
 import (
 	_ "embed" //to embed html templates
-	"io/ioutil"
 	"net"
 	"net/http"
-	"net/url"
 	"strconv"
 
 	"github.com/google/uuid"
@@ -90,25 +88,18 @@ func (tc *TunnelProxyConnectorRDP) serveTunnelStarter(w http.ResponseWriter, r *
 }
 
 func parseGuacToken(r *http.Request) (*GuacToken, error) {
-	var query url.Values
-	data, err := ioutil.ReadAll(r.Body)
-	if err != nil {
-		return nil, err
-	}
-	_ = r.Body.Close()
-	queryString := string(data)
-	query, err = url.ParseQuery(queryString)
+	err := r.ParseForm()
 	if err != nil {
 		return nil, err
 	}
 
 	token := &GuacToken{}
-	token.security = query.Get(queryParSecurity)
-	token.username = query.Get(queryParUsername)
-	token.password = query.Get(queryParPassword)
-	token.width = query.Get(queryParWidth)
-	token.height = query.Get(queryParHeight)
-	token.serverLayout = query.Get(queryParServerLayout)
+	token.security = r.Form.Get(queryParSecurity)
+	token.username = r.Form.Get(queryParUsername)
+	token.password = r.Form.Get(queryParPassword)
+	token.width = r.Form.Get(queryParWidth)
+	token.height = r.Form.Get(queryParHeight)
+	token.serverLayout = r.Form.Get(queryParServerLayout)
 
 	return token, nil
 }
