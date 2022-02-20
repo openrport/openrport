@@ -15,6 +15,7 @@ Sending the connection parameters with this GET-Request(which would be possible)
 type GuacToken struct {
 	username     string
 	password     string
+	domain       string
 	security     string
 	width        string
 	height       string

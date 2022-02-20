@@ -16,10 +16,18 @@ const (
 	queryParSecurity     = "security"
 	queryParUsername     = "username"
 	queryParPassword     = "password"
+	queryParDomain       = "domain"
 	queryParWidth        = "width"
 	queryParHeight       = "height"
 	queryParServerLayout = "server-layout"
+	queryParKeyboard     = "keyboard"
 )
+
+var keysSecurity = []string{"", "any", "nla", "nla-ext", "tls", "vmconnect", "rdp"}
+var keysKeyboard = []string{"", "pt-br-qwerty", "en-gb-qwerty", "en-us-qwerty", "fr-fr-azerty", "fr-be-azerty", "fr-ch-qwertz", "de-de-qwertz", "de-ch-qwertz", "hu-hu-qwertz",
+	"it-it-qwerty", "ja-jp-qwerty", "no-no-qwerty", "es-es-qwerty", "es-latam-qwerty", "sv-se-qwerty", "tr-tr-qwerty"}
+var valuesKeyboard = []string{"", "Brazilian (Portuguese)", "English (UK)", "English (US)", "French", "French (Belgian)", "French (Swiss)", "German", "German (Swiss)", "Hungarian",
+	"Italian", "Japanese", "Norwegian", "Spanish", "Spanish (Latin American)", "Swedish", "Turkish-Q"}
 
 //go:embed guac/index.html
 var guacIndexHTML string
@@ -61,10 +69,17 @@ func (tc *TunnelProxyConnectorRDP) serveIndex(w http.ResponseWriter, r *http.Req
 	}
 
 	query := r.URL.Query()
+	selSecurity := query.Get(queryParSecurity)
+	selKeyboard := query.Get(queryParKeyboard)
 	templateData := map[string]interface{}{
-		queryParUsername: query.Get(queryParUsername),
-		queryParWidth:    query.Get(queryParWidth),
-		queryParHeight:   query.Get(queryParHeight),
+		queryParUsername:  query.Get(queryParUsername),
+		queryParDomain:    query.Get(queryParDomain),
+		queryParSecurity:  query.Get(queryParSecurity),
+		queryParKeyboard:  query.Get(queryParKeyboard),
+		queryParWidth:     query.Get(queryParWidth),
+		queryParHeight:    query.Get(queryParHeight),
+		"securityOptions": CreateOptions(keysSecurity, keysSecurity, selSecurity),
+		"keyboardOptions": CreateOptions(keysKeyboard, valuesKeyboard, selKeyboard),
 	}
 
 	tc.tunnelProxy.serveTemplate(w, r, guacIndexHTML, templateData)
@@ -97,6 +112,7 @@ func parseGuacToken(r *http.Request) (*GuacToken, error) {
 	token.security = r.Form.Get(queryParSecurity)
 	token.username = r.Form.Get(queryParUsername)
 	token.password = r.Form.Get(queryParPassword)
+	token.domain = r.Form.Get(queryParDomain)
 	token.width = r.Form.Get(queryParWidth)
 	token.height = r.Form.Get(queryParHeight)
 	token.serverLayout = r.Form.Get(queryParServerLayout)
@@ -128,6 +144,7 @@ func (tc *TunnelProxyConnectorRDP) connectToGuacamole(request *http.Request) (gu
 	config.Parameters[queryParSecurity] = guacToken.security
 	config.Parameters[queryParUsername] = guacToken.username
 	config.Parameters[queryParPassword] = guacToken.password
+	config.Parameters[queryParDomain] = guacToken.domain
 	config.Parameters[queryParServerLayout] = guacToken.serverLayout
 
 	width := guacToken.width

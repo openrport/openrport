@@ -28,6 +28,10 @@ body {
     box-shadow: 0 2px 6px 0 rgba(0, 0, 0, 0.1);
 }
 
+.ui.selection.dropdown {
+    padding: 0;
+}
+
 @media only screen and (max-width: 520px) {
     .connect {
         flex: 1;

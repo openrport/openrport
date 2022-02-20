@@ -14,32 +14,58 @@
 <body>
     <div class="wrapper">
         <div class="connect">
-            <h3 class="ui dividing header">RPort RDP [RDP via Guacamole]</h3>
+            <h3 class="ui dividing header">Remote Desktop Client</h3>
 
             <form action="/createToken" method="POST" class="ui form">
                 <div class="field">
                     <label for="username">Username</label>
-                    <input name="username" id="username" placeholder="Username" value="{{.username}}" autofocus>
+                    <input name="username" id="username" placeholder="Username" value="{{.username}}">
                 </div>
                 <div class="field">
                     <label for="password">Password</label>
-                    <input type="password" name="password" id="password" placeholder="Password">
+                    <input type="password" name="password" id="password" placeholder="Password" autofocus>
                 </div>
                 <div class="field">
-                    <label for="security">Security</label>
-                    <input name="security" id="security" placeholder="type nla for Windows Network Level Authentication">
+                    <label for="domain">Domain</label>
+                    <input name="domain" id="domain" placeholder="Domain" value="{{.domain}}">
                 </div>
                 <div class="field">
-                    <label for="security">Keyboard Layout</label>
-                    <input name="server-layout" id="server-layout" placeholder="e.g. de-de-qwertz or en-us-qwerty">
+                    <div class="ui labeled input">
+                        <div class="ui label">Security</div>
+                        <select class="ui selection dropdown" id="security" name="security">
+                            {{ range .securityOptions }}
+                                {{ if .Selected}}
+                                    <option value="{{ .Value }}" selected="selected">{{ .Description }}</option>
+                                {{ else}}
+                                    <option value="{{ .Value }}">{{ .Description }}</option>
+                                {{ end }}
+                            {{ end }}
+                        </select>
+                    </div>
+                </div>
+                <div class="field">
+                    <div class="ui labeled input">
+                        <div class="ui label">Keyboard</div>
+                        <select class="ui selection dropdown" id="server-layout" name="server-layout">
+                            {{ range .keyboardOptions }}
+                            {{ if .Selected}}
+                            <option value="{{ .Value }}" selected="selected">{{ .Description }}</option>
+                            {{ else}}
+                            <option value="{{ .Value }}">{{ .Description }}</option>
+                            {{ end }}
+                            {{ end }}
+                        </select>
+                    </div>
                 </div>
 
                 <input type="hidden" name="width" id="width" value="{{.width}}"/>
                 <input type="hidden" name="height" id="height" value="{{.height}}"/>
 
-                <input class="ui button" type="submit" value="Connect">
+                <input class="ui button primary" type="submit" value="Connect">
 
             </form>
+            <div class="ui divider"></div>
+            <div class="ui message">Credentials are passed through and not stored.</div>
         </div>
     </div>
 </body>
