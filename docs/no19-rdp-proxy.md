@@ -29,7 +29,27 @@ To run the guacamole server `guacd` you have the following options:
 ## Frontend Options
 If the browser links to the exposed proxy port with "/", query parameters can be set to control the rdp connection. 
 
-E.g. `/?username=Administrator&width=800&height=600`
+E.g. `/?username=Administrator&width=800&height=600&security=nla&keyboard=de-de-qwertz`
 
-* `username` is the pre-filled login user on the remote machine
+* `username` is the pre-filled login user on the remote machine. For security reasons, the password cannot be injected.
 * `width` for the required screen width and `height` for the required screen height. If `width` and `height` are omitted, 1024 x 768 are the default values.
+* `security` with one of the following values: `any`, `nla`, `nla-ext`, `tls`, `vmconnect`, `rdp`. `nla` is the most commonly used security option on MS Windows. Read more on the [Guacamole documentation](https://guacamole.apache.org/doc/gug/configuring-guacamole.html#authentication-and-security).
+* `keyboard` to identify the local keyboard of the user, not the desired remote keyboard, with one of the following options. 
+   * Brazilian (Portuguese), `pt-br-qwerty`
+   * English (UK) `en-gb-qwerty`
+   * English (US) `en-us-qwerty`
+   * French `fr-fr-azerty`
+   * French (Belgian) `fr-be-azerty`
+   * French (Swiss) `fr-ch-qwertz`
+   * German `de-de-qwertz`
+   * German (Swiss) `de-ch-qwertz`
+   * Hungarian `hu-hu-qwertz`
+   * Italian `it-it-qwerty`
+   * Japanese `ja-jp-qwerty`
+   * Norwegian `no-no-qwerty`
+   * Spanish `es-es-qwerty`
+   * Spanish (Latin American) `es-latam-qwerty`
+   * Swedish `sv-se-qwerty`
+   * Turkish-Q `tr-tr-qwerty`
+   
+   Read more on the [Guacamole documentation](https://guacamole.apache.org/doc/gug/configuring-guacamole.html#session-settings)
