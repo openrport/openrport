@@ -12,8 +12,14 @@
 </head>
 
 <body>
-    <input type="hidden" name="token" id="token" value="{{.token}}"/>
-
+    <form method="POST" action="/" id="guacForm">
+        <input type="hidden" name="token" id="token" value="{{.token}}"/>
+        <input type="hidden" name="username" id="username" value="{{.username}}"/>
+        <input type="hidden" name="domain" id="domain" value="{{.domain}}"/>
+        <input type="hidden" name="security" id="security" value="{{.security}}"/>
+        <input type="hidden" name="keyboard" id="keyboard" value="{{.keyboard}}"/>
+        <input type="hidden" name="guac-error" id="guac-error" value=""/>
+    </form>
     <div id="display">
     </div>
 </body>
@@ -24,6 +30,8 @@
 
         client.onerror = (error) => {
             console.error(error);
+            document.getElementById("guac-error").value = "Connection error: " + error.message;
+            document.getElementById("guacForm").submit();
         };
 
         window.onunload = () => {
