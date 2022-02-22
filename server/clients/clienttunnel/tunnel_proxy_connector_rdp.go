@@ -12,15 +12,15 @@ import (
 )
 
 const (
-	queryParToken        = "token"
-	queryParSecurity     = "security"
-	queryParUsername     = "username"
-	queryParPassword     = "password"
-	queryParDomain       = "domain"
-	queryParWidth        = "width"
-	queryParHeight       = "height"
-	queryParServerLayout = "server-layout"
-	queryParKeyboard     = "keyboard"
+	queryParToken     = "token"
+	queryParSecurity  = "security"
+	queryParUsername  = "username"
+	queryParPassword  = "password"
+	queryParDomain    = "domain"
+	queryParWidth     = "width"
+	queryParHeight    = "height"
+	queryParKeyboard  = "keyboard"
+	queryParGuacError = "guac-error"
 )
 
 var keysSecurity = []string{"", "any", "nla", "nla-ext", "tls", "vmconnect", "rdp"}
@@ -53,6 +53,7 @@ func NewTunnelConnectorRDP(tp *TunnelProxy) *TunnelProxyConnectorRDP {
 //InitRouter called when tunnel proxy is started
 func (tc *TunnelProxyConnectorRDP) InitRouter(router *mux.Router) *mux.Router {
 	router.Use(tc.tunnelProxy.noCache)
+	router.Use(tc.handleFormValues)
 
 	router.Handle("/websocket-tunnel", tc.guacWebsocketServer)
 
@@ -68,16 +69,18 @@ func (tc *TunnelProxyConnectorRDP) serveIndex(w http.ResponseWriter, r *http.Req
 		return
 	}
 
-	query := r.URL.Query()
-	selSecurity := query.Get(queryParSecurity)
-	selKeyboard := query.Get(queryParKeyboard)
+	selSecurity := r.Form.Get(queryParSecurity)
+	selKeyboard := r.Form.Get(queryParKeyboard)
+	guacError := r.Form.Get(queryParGuacError)
 	templateData := map[string]interface{}{
-		queryParUsername:  query.Get(queryParUsername),
-		queryParDomain:    query.Get(queryParDomain),
-		queryParSecurity:  query.Get(queryParSecurity),
-		queryParKeyboard:  query.Get(queryParKeyboard),
-		queryParWidth:     query.Get(queryParWidth),
-		queryParHeight:    query.Get(queryParHeight),
+		queryParUsername:  r.Form.Get(queryParUsername),
+		queryParDomain:    r.Form.Get(queryParDomain),
+		queryParSecurity:  r.Form.Get(queryParSecurity),
+		queryParKeyboard:  r.Form.Get(queryParKeyboard),
+		queryParWidth:     r.Form.Get(queryParWidth),
+		queryParHeight:    r.Form.Get(queryParHeight),
+		"errorMessage":    guacError,
+		"isError":         guacError != "",
 		"securityOptions": CreateOptions(keysSecurity, keysSecurity, selSecurity),
 		"keyboardOptions": CreateOptions(keysKeyboard, valuesKeyboard, selKeyboard),
 	}
@@ -86,28 +89,22 @@ func (tc *TunnelProxyConnectorRDP) serveIndex(w http.ResponseWriter, r *http.Req
 }
 
 func (tc *TunnelProxyConnectorRDP) serveTunnelStarter(w http.ResponseWriter, r *http.Request) {
-	guacToken, err := parseGuacToken(r)
-	if err != nil {
-		tc.tunnelProxy.Logger.Errorf("Error parsing guac token: %v", err)
-		tc.tunnelProxy.sendHTML(w, http.StatusInternalServerError, "Cannot create guac token from request")
-		return
-	}
+	guacToken := parseGuacToken(r)
 	token := uuid.New().String()
 	tc.guacTokenStore.Add(token, guacToken)
 
 	templateData := map[string]interface{}{
-		"token": token,
+		"token":          token,
+		queryParUsername: guacToken.username,
+		queryParDomain:   guacToken.domain,
+		queryParSecurity: guacToken.security,
+		queryParKeyboard: guacToken.keyboard,
 	}
 
 	tc.tunnelProxy.serveTemplate(w, r, guacStartTunnelHTML, templateData)
 }
 
-func parseGuacToken(r *http.Request) (*GuacToken, error) {
-	err := r.ParseForm()
-	if err != nil {
-		return nil, err
-	}
-
+func parseGuacToken(r *http.Request) *GuacToken {
 	token := &GuacToken{}
 	token.security = r.Form.Get(queryParSecurity)
 	token.username = r.Form.Get(queryParUsername)
@@ -115,13 +112,13 @@ func parseGuacToken(r *http.Request) (*GuacToken, error) {
 	token.domain = r.Form.Get(queryParDomain)
 	token.width = r.Form.Get(queryParWidth)
 	token.height = r.Form.Get(queryParHeight)
-	token.serverLayout = r.Form.Get(queryParServerLayout)
+	token.keyboard = r.Form.Get(queryParKeyboard)
 
-	return token, nil
+	return token
 }
 
 // connectToGuacamole creates the tunnel to the remote machine (via guacd)
-func (tc *TunnelProxyConnectorRDP) connectToGuacamole(request *http.Request) (guac.Tunnel, error) {
+func (tc *TunnelProxyConnectorRDP) connectToGuacamole(r *http.Request) (guac.Tunnel, error) {
 	tc.tunnelProxy.Logger.Infof("TunnelProxyConnectorRDP: connect to tunnel: %s", tc.tunnelProxy.TunnelAddr())
 	config := guac.NewGuacamoleConfiguration()
 
@@ -131,9 +128,8 @@ func (tc *TunnelProxyConnectorRDP) connectToGuacamole(request *http.Request) (gu
 	config.Parameters["ignore-cert"] = "true"
 
 	var err error
-	query := request.URL.Query()
 
-	token := query.Get(queryParToken)
+	token := r.Form.Get(queryParToken)
 	guacToken := tc.guacTokenStore.Get(token)
 	if guacToken == nil {
 		tc.tunnelProxy.Logger.Errorf("Cannot find guac token %s", token)
@@ -145,7 +141,7 @@ func (tc *TunnelProxyConnectorRDP) connectToGuacamole(request *http.Request) (gu
 	config.Parameters[queryParUsername] = guacToken.username
 	config.Parameters[queryParPassword] = guacToken.password
 	config.Parameters[queryParDomain] = guacToken.domain
-	config.Parameters[queryParServerLayout] = guacToken.serverLayout
+	config.Parameters["server-layout"] = guacToken.keyboard
 
 	width := guacToken.width
 	if width != "" {
@@ -191,4 +187,17 @@ func (tc *TunnelProxyConnectorRDP) connectToGuacamole(request *http.Request) (gu
 	}
 	tc.tunnelProxy.Logger.Debugf("Socket configured")
 	return guac.NewSimpleTunnel(stream), nil
+}
+
+//handleFormValues middleware to handle parsing form values
+func (tc *TunnelProxyConnectorRDP) handleFormValues(next http.Handler) http.Handler {
+	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		err := r.ParseForm()
+		if err != nil {
+			tc.tunnelProxy.Logger.Errorf("Error parsing form values: %v", err)
+			tc.tunnelProxy.sendHTML(w, http.StatusInternalServerError, "Cannot parse form values")
+			return
+		}
+		next.ServeHTTP(w, r)
+	})
 }

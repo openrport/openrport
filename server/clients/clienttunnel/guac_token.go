@@ -13,13 +13,13 @@ This "extra" POST-Request is necessary because the javascript-library "guacamole
 Sending the connection parameters with this GET-Request(which would be possible) would show sensitive data like password as part of the querystring.
 */
 type GuacToken struct {
-	username     string
-	password     string
-	domain       string
-	security     string
-	width        string
-	height       string
-	serverLayout string
+	username string
+	password string
+	domain   string
+	security string
+	width    string
+	height   string
+	keyboard string
 }
 
 type GuacTokenStore struct {
