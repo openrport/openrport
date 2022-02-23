@@ -39,8 +39,9 @@ type JobSummary struct {
 }
 
 type JobResult struct {
-	StdOut string `json:"stdout"`
-	StdErr string `json:"stderr"`
+	StdOut  string `json:"stdout"`
+	StdErr  string `json:"stderr"`
+	Summary string `json:"summary"`
 }
 
 type MultiJob struct {
