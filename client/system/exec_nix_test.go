@@ -10,13 +10,13 @@ func getCmdBuildTestcases() []cmdBuildTestCase {
 	return []cmdBuildTestCase{
 		{
 			name:       "empty",
-			wantCmdStr: "/bin/sh -c /script.sh",
+			wantCmdStr: "/bin/sh /script.sh",
 			command:    "/script.sh",
 		},
 		{
 			name:        "non empty sh",
 			interpreter: chshare.UnixShell,
-			wantCmdStr:  "/bin/sh -c /script.sh",
+			wantCmdStr:  "/bin/sh /script.sh",
 			command:     "/script.sh",
 		},
 		{
@@ -43,14 +43,14 @@ func getCmdBuildTestcases() []cmdBuildTestCase {
 		{
 			name:               "interpreter aliases",
 			interpreter:        "taco",
-			wantCmdStr:         "/non-standard-interpreter -c /script.sh",
+			wantCmdStr:         "/non-standard-interpreter /script.sh",
 			interpreterAliases: map[string]string{"taco": "/non-standard-interpreter"},
 			command:            "/script.sh",
 		},
 		{
 			name:        "interpreter full path",
 			interpreter: `/non-standard-interpreter`,
-			wantCmdStr:  "/non-standard-interpreter -c /script.sh",
+			wantCmdStr:  "/non-standard-interpreter /script.sh",
 			command:     "/script.sh",
 		},
 	}
