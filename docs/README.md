@@ -67,12 +67,12 @@ You might wonder why the rport server does not provide encryption on the transpo
 For a proper installation execute the following steps.
 ```
 curl -LOJ https://downloads.rport.io/rportd/stable/latest.php?arch=Linux_x86_64
-sudo tar vxzf rport_*_Linux_x86_64.tar.gz -C /usr/local/bin/ rportd
+sudo tar vxzf rportd_*_Linux_x86_64.tar.gz -C /usr/local/bin/ rportd
 sudo useradd -d /var/lib/rport -m -U -r -s /bin/false rport
 sudo mkdir /etc/rport/
 sudo mkdir /var/log/rport/
 sudo chown rport /var/log/rport/
-sudo tar vxzf rport_*_Linux_x86_64.tar.gz -C /etc/rport/ rportd.example.conf
+sudo tar vxzf rportd_*_Linux_x86_64.tar.gz -C /etc/rport/ rportd.example.conf
 sudo cp /etc/rport/rportd.example.conf /etc/rport/rportd.conf
 ```
 
