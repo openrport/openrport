@@ -141,7 +141,7 @@ func TestHandleRunCmdRequestPositiveCase(t *testing.T) {
 	wantPID := 123
 	execMock := NewCmdExecutorMock()
 	execMock.ReturnPID = wantPID
-	execMock.ReturnStdOut = []string{"output1", "output2", "output3"}
+	execMock.ReturnStdOut = []string{"output1", "output2", "output3", "<summary>test</summary>"}
 	execMock.ReturnStdErr = []string{"error1", "error2"}
 	connMock := test.NewConnMock()
 	// mimic real behavior and wait until background task sends the request
@@ -184,8 +184,9 @@ func TestHandleRunCmdRequestPositiveCase(t *testing.T) {
 `
 	wantJSONPart2 := `
 	  "result": {
-			"stdout": "output1output2output3",
-			"stderr": "error1error2"
+			"stdout": "output1output2output3<summary>test</summary>",
+			"stderr": "error1error2",
+			"summary": "test"
 		}
 	}
 	`
@@ -215,7 +216,8 @@ func TestHandleRunCmdRequestPositiveCase(t *testing.T) {
 			wantJSON: fmt.Sprintf(wantJSONPart1, "overflow of stdOut buffer: maximum send_back_limit of 12 bytes exceeded") + `
        "result": {
        "stdout": "output1outpu",
-       "stderr": "error1error2"
+       "stderr": "error1error2",
+	   "summary": "test"
    }
 }`,
 		},
@@ -225,7 +227,8 @@ func TestHandleRunCmdRequestPositiveCase(t *testing.T) {
 			wantJSON: fmt.Sprintf(wantJSONPart1, "overflow of stdOut buffer: maximum send_back_limit of 11 bytes exceeded, overflow of stdErr buffer: maximum send_back_limit of 11 bytes exceeded") + `
 		"result": {
 		"stdout": "output1outp",
-		"stderr": "error1error"
+		"stderr": "error1error",
+		"summary": "test"
 	}
 }`,
 		},
@@ -235,7 +238,8 @@ func TestHandleRunCmdRequestPositiveCase(t *testing.T) {
 			wantJSON: fmt.Sprintf(wantJSONPart1, "overflow of stdOut buffer: maximum send_back_limit of 0 bytes exceeded, overflow of stdErr buffer: maximum send_back_limit of 0 bytes exceeded") + `
 				"result": {
 				"stdout": "",
-				"stderr": ""
+				"stderr": "",
+				"summary": "test"
 			}
 		}`,
 		},
@@ -460,4 +464,70 @@ func getRegexpList(list []string) []*regexp.Regexp {
 		res = append(res, regexp.MustCompile(v))
 	}
 	return res
+}
+
+func TestSummaryBuffer(t *testing.T) {
+	testCases := []struct {
+		Name     string
+		Inputs   []string
+		Expected string
+	}{
+		{
+			Name:     "no input",
+			Inputs:   []string{},
+			Expected: "",
+		},
+		{
+			Name:     "no summary",
+			Inputs:   []string{"abc", "def\ngh"},
+			Expected: "",
+		},
+		{
+			Name:     "summary only",
+			Inputs:   []string{"<summary>abc</summary>"},
+			Expected: "abc",
+		},
+		{
+			Name:     "case insensitive",
+			Inputs:   []string{"<SUMMARY>abc</SuMMaRy>"},
+			Expected: "abc",
+		},
+		{
+			Name:     "inline",
+			Inputs:   []string{"start<summary>abc</summary>end"},
+			Expected: "abc",
+		},
+		{
+			Name:     "multiple per-line",
+			Inputs:   []string{"start<summary>abc</summary>middle<summary>def</summary>end"},
+			Expected: "abcdef",
+		},
+		{
+			Name:     "multi-line",
+			Inputs:   []string{"start<summary>abc\ndef</summary>end"},
+			Expected: "abc\ndef",
+		},
+		{
+			Name:     "split input",
+			Inputs:   []string{"start<su", "mma", "ry>", "\n", "abc", "de</su", "mmary>\n"},
+			Expected: "\nabcde",
+		},
+	}
+
+	for _, tc := range testCases {
+		tc := tc
+		t.Run(tc.Name, func(t *testing.T) {
+			t.Parallel()
+
+			b := NewSummaryBuffer()
+			for _, i := range tc.Inputs {
+				_, err := b.Write([]byte(i))
+				require.NoError(t, err)
+			}
+
+			b.Stop()
+
+			assert.Equal(t, tc.Expected, string(b.GetSummary()))
+		})
+	}
 }

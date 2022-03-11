@@ -1,18 +1,27 @@
 package chclient
 
 import (
+	"bufio"
+	"bytes"
 	"context"
 	"encoding/json"
 	"errors"
 	"fmt"
+	"io"
 	"os"
 	"regexp"
 	"strings"
+	"sync"
 	"time"
 
 	"github.com/cloudradar-monitoring/rport/client/system"
 	"github.com/cloudradar-monitoring/rport/share/comm"
 	"github.com/cloudradar-monitoring/rport/share/models"
+)
+
+var (
+	summaryStart = []byte("<summary>")
+	summaryEnd   = []byte("</summary>")
 )
 
 // now is used to stub time.Now in tests
@@ -55,9 +64,10 @@ func (c *Client) HandleRunCmdRequest(ctx context.Context, reqPayload []byte) (*c
 		HasShebang:  system.HasShebangLine(job.Command),
 	}
 	cmd := c.cmdExec.New(ctx, execCtx)
+	summary := NewSummaryBuffer()
 	stdOut := &CapacityBuffer{capacity: c.configHolder.RemoteCommands.SendBackLimit}
 	stdErr := &CapacityBuffer{capacity: c.configHolder.RemoteCommands.SendBackLimit}
-	cmd.Stdout = stdOut
+	cmd.Stdout = io.MultiWriter(summary, stdOut)
 	cmd.Stderr = stdErr
 
 	c.Debugf("Input command: %s, sysProcAttributes: %+v, executable command: %s", job.Command, cmd.SysProcAttr, cmd.String())
@@ -111,9 +121,12 @@ func (c *Client) HandleRunCmdRequest(ctx context.Context, reqPayload []byte) (*c
 			c.Errorf(job.Error)
 		}
 
+		summary.Stop()
+
 		job.Result = &models.JobResult{
-			StdOut: c.ToUTF8(stdOut.Bytes()),
-			StdErr: c.ToUTF8(stdErr.Bytes()),
+			StdOut:  c.ToUTF8(stdOut.Bytes()),
+			StdErr:  c.ToUTF8(stdErr.Bytes()),
+			Summary: c.ToUTF8(summary.GetSummary()),
 		}
 
 		// send the filled job to the server
@@ -224,7 +237,7 @@ func (b *CapacityBuffer) Write(p []byte) (n int, err error) {
 	if len(p) > freeCapacity {
 		b.data = append(b.data, p[:freeCapacity]...)
 		b.hasOverflow = true
-		return 0, errors.New(b.GetOverflowMessage())
+		return len(p), nil
 	}
 
 	b.data = append(b.data, p...)
@@ -238,4 +251,85 @@ func (b *CapacityBuffer) String() string {
 
 func (b *CapacityBuffer) Bytes() []byte {
 	return b.data
+}
+
+// SummaryBuffer extracts everything between <summary> and </summary> from io.Writer stream
+type SummaryBuffer struct {
+	io.Writer
+
+	closer io.Closer
+	done   chan struct{}
+
+	mtx     sync.Mutex
+	summary bytes.Buffer
+}
+
+func NewSummaryBuffer() *SummaryBuffer {
+	r, w := io.Pipe()
+
+	s := &SummaryBuffer{
+		Writer: w,
+
+		done:   make(chan struct{}),
+		closer: w,
+	}
+
+	go s.process(r)
+
+	return s
+}
+
+func (s *SummaryBuffer) GetSummary() []byte {
+	s.mtx.Lock()
+	defer s.mtx.Unlock()
+
+	return s.summary.Bytes()
+}
+
+func (s *SummaryBuffer) process(r io.Reader) {
+	defer close(s.done)
+
+	scanner := bufio.NewScanner(r)
+	insideSummary := false
+	for scanner.Scan() {
+		line := scanner.Bytes()
+		for len(line) > 0 {
+			if insideSummary {
+				idx := bytes.Index(bytes.ToLower(line), summaryEnd)
+				if idx != -1 {
+					s.write(line[:idx])
+					line = line[idx+len(summaryEnd):]
+					insideSummary = false
+				} else {
+					s.write(line)
+					break
+				}
+			} else {
+				idx := bytes.Index(bytes.ToLower(line), summaryStart)
+				if idx != -1 {
+					line = line[idx+len(summaryStart):]
+					insideSummary = true
+				} else {
+					break
+				}
+			}
+		}
+		if insideSummary {
+			s.write([]byte("\n"))
+		}
+	}
+}
+
+// Stop closes and waits for writing to finish
+func (s *SummaryBuffer) Stop() {
+	s.closer.Close()
+
+	<-s.done
+}
+
+func (s *SummaryBuffer) write(data []byte) {
+	s.mtx.Lock()
+	defer s.mtx.Unlock()
+
+	s.summary.Write(data)
 }
