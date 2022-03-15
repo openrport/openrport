@@ -12,6 +12,8 @@ import (
 	"strings"
 	"time"
 
+	"github.com/cloudradar-monitoring/rport/share/files"
+
 	"github.com/cloudradar-monitoring/rport/client/system"
 	chshare "github.com/cloudradar-monitoring/rport/share"
 	"github.com/cloudradar-monitoring/rport/share/clientconfig"
@@ -69,6 +71,10 @@ func (c *ClientConfigHolder) ParseAndValidate(skipScriptsDirValidation bool) err
 		return err
 	}
 
+	if err := c.ParseAndValidateFilePushConfig(); err != nil {
+		return err
+	}
+
 	return nil
 }
 
@@ -92,6 +98,17 @@ func (c *ClientConfigHolder) ParseAndValidateMonitoring() error {
 		}
 		c.Monitoring.WanCard = wanCard
 	}
+	return nil
+}
+
+func (c *ClientConfigHolder) ParseAndValidateFilePushConfig() error {
+	for _, globPattern := range c.FileReceptionConfig.Protected {
+		_, err := filepath.Match(globPattern, "/test")
+		if err != nil {
+			return fmt.Errorf("invalid glob pattern %s: %v", globPattern, err)
+		}
+	}
+
 	return nil
 }
 
@@ -243,6 +260,18 @@ func (c *ClientConfigHolder) parseRemoteCommands() error {
 
 func (c *ClientConfigHolder) GetScriptsDir() string {
 	return filepath.Join(c.Client.DataDir, "scripts")
+}
+
+func (c *ClientConfigHolder) GetUploadDir() string {
+	return filepath.Join(c.Client.DataDir, files.DefaultUploadTempFolder)
+}
+
+func (c *ClientConfigHolder) GetProtectedUploadDirs() []string {
+	return c.FileReceptionConfig.Protected
+}
+
+func (c *ClientConfigHolder) IsFileReceptionEnabled() bool {
+	return c.FileReceptionConfig.Enabled
 }
 
 func (c *ClientConfigHolder) parseRemoteScripts(skipScriptsDirValidation bool) error {

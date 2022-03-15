@@ -1,11 +1,22 @@
 package files
 
 import (
+	"bytes"
+	"crypto/md5"
 	"encoding/json"
+	"errors"
 	"fmt"
+	"io"
 	"io/ioutil"
 	"os"
+	"strings"
+
+	errors2 "github.com/pkg/errors"
 )
+
+const DefaultUploadTempFolder = "filepush"
+
+const DefaultMode = os.FileMode(0764)
 
 type FileAPI interface {
 	ReadDir(dir string) ([]os.FileInfo, error)
@@ -13,7 +24,16 @@ type FileAPI interface {
 	WriteJSON(file string, content interface{}) error
 	Write(file string, content string) error
 	ReadJSON(file string, dest interface{}) error
+	Open(file string) (io.ReadWriteCloser, error)
 	Exist(path string) (bool, error)
+	CreateFile(path string, sourceReader io.Reader) (writtenBytes int64, err error)
+	ChangeOwner(path, owner, group string) error
+	ChangeMode(path string, targetMode os.FileMode) error
+	CreateDirIfNotExists(path string, mode os.FileMode) (wasCreated bool, err error)
+	Remove(name string) error
+	Rename(oldPath, newPath string) error
+	GetFileMode(file string) (os.FileMode, error)
+	GetFileOwnerAndGroup(file string) (uid, gid uint32, err error)
 }
 
 type FileSystem struct {
@@ -92,6 +112,23 @@ func (f *FileSystem) ReadJSON(file string, dest interface{}) error {
 	return nil
 }
 
+func (f *FileSystem) Open(file string) (io.ReadWriteCloser, error) {
+	return os.Open(file)
+}
+
+func (f *FileSystem) GetFileMode(file string) (os.FileMode, error) {
+	fileInfo, err := os.Stat(file)
+	if err != nil {
+		return 0, err
+	}
+
+	return fileInfo.Mode(), nil
+}
+
+func (f *FileSystem) GetFileOwnerAndGroup(file string) (uid, gid uint32, err error) {
+	return GetFileUIDAndGID(file)
+}
+
 // Exist returns a boolean indicating whether a file or directory with a given path exists.
 func (f *FileSystem) Exist(path string) (bool, error) {
 	_, err := os.Stat(path)
@@ -102,4 +139,98 @@ func (f *FileSystem) Exist(path string) (bool, error) {
 		return false, err
 	}
 	return true, nil
+}
+
+func (f *FileSystem) CreateDirIfNotExists(path string, mode os.FileMode) (wasCreated bool, err error) {
+	path = strings.TrimSpace(path)
+	if path == "" {
+		return false, errors.New("data directory cannot be empty")
+	}
+
+	dirExists, err := f.Exist(path)
+	if err != nil {
+		return false, errors2.Wrapf(err, "failed to read folder info %s", path)
+	}
+
+	if !dirExists {
+		err := os.MkdirAll(path, mode)
+		if err != nil {
+			return false, errors2.Wrapf(err, "failed to create folder %s", path)
+		}
+		wasCreated = true
+	}
+
+	return wasCreated, nil
+}
+
+func (f *FileSystem) ChangeOwner(path, owner, group string) error {
+	return ChangeOwner(path, owner, group)
+}
+
+func (f *FileSystem) ChangeMode(path string, targetMode os.FileMode) error {
+	if targetMode == 0 {
+		return nil
+	}
+
+	fileStat, err := os.Stat(path)
+	if err != nil {
+		return err
+	}
+
+	if targetMode != fileStat.Mode() {
+		return os.Chmod(path, targetMode)
+	}
+
+	return nil
+}
+
+func (f *FileSystem) CreateFile(path string, sourceReader io.Reader) (writtenBytes int64, err error) {
+	targetFile, err := os.OpenFile(path, os.O_WRONLY|os.O_CREATE, DefaultMode)
+	if err != nil {
+		return 0, err
+	}
+	defer targetFile.Close()
+
+	copiedBytes, err := io.Copy(targetFile, sourceReader)
+	if err != nil {
+		return 0, err
+	}
+
+	return copiedBytes, nil
+}
+
+func (f *FileSystem) Remove(name string) error {
+	return os.Remove(name)
+}
+
+func (f *FileSystem) Rename(oldPath, newPath string) error {
+	return Rename(oldPath, newPath)
+}
+
+func Md5HashFromReader(source io.Reader) (hashSum []byte, err error) {
+	md5Hash := md5.New()
+	_, err = io.Copy(md5Hash, source)
+	if err != nil {
+		return nil, errors2.Wrapf(err, "failed to calculate md5 checksum")
+	}
+
+	return md5Hash.Sum(nil), nil
+}
+
+func Md5HashMatch(expectedHashSum []byte, path string, fileAPI FileAPI) (match bool, err error) {
+	file, err := fileAPI.Open(path)
+	if err != nil {
+		return false, err
+	}
+
+	destinationMd5Hash, err := Md5HashFromReader(file)
+	if err != nil {
+		return false, err
+	}
+
+	if bytes.Equal(expectedHashSum, destinationMd5Hash) {
+		return true, nil
+	}
+
+	return false, nil
 }

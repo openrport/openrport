@@ -12,6 +12,8 @@ import (
 	"testing"
 	"time"
 
+	"github.com/cloudradar-monitoring/rport/share/test"
+
 	"github.com/gorilla/websocket"
 	"github.com/shirou/gopsutil/cpu"
 	"github.com/shirou/gopsutil/mem"
@@ -61,7 +63,8 @@ func TestCustomHeaders(t *testing.T) {
 	err := config.ParseAndValidate(true)
 	require.NoError(t, err)
 
-	c := NewClient(&config)
+	fileAPI := test.NewFileAPIMock()
+	c := NewClient(&config, fileAPI)
 	require.NoError(t, err)
 
 	err = c.Run()
@@ -294,7 +297,7 @@ func TestConnectionRequest(t *testing.T) {
 
 	for _, tc := range testCases {
 		t.Run(tc.Name, func(t *testing.T) {
-			client := NewClient(config)
+			client := NewClient(config, test.NewFileAPIMock())
 
 			client.systemInfo = tc.SystemInfo
 
@@ -456,7 +459,7 @@ func TestConnectionLoop(t *testing.T) {
 	err = config.ParseAndValidate(true)
 	require.NoError(t, err)
 
-	c := NewClient(&config)
+	c := NewClient(&config, test.NewFileAPIMock())
 
 	go c.connectionLoop(context.Background())
 

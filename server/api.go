@@ -65,9 +65,10 @@ const (
 	ErrCodeInvalidRequest  = "ERR_CODE_INVALID_REQUEST"
 	ErrCodeAlreadyExist    = "ERR_CODE_ALREADY_EXIST"
 
-	allRoutesPrefix = "/api/v1"
-	totPRoutes      = "/me/totp-secret"
-	verify2FaRoute  = "/verify-2fa"
+	allRoutesPrefix      = "/api/v1"
+	totPRoutes           = "/me/totp-secret"
+	verify2FaRoute       = "/verify-2fa"
+	filesUploadRouteName = "files"
 )
 
 var generateNewJobID = func() (string, error) {
@@ -245,6 +246,7 @@ func (al *APIListener) initRouter() {
 	api.HandleFunc("/schedules/{schedule_id}", al.handleGetSchedule).Methods(http.MethodGet)
 	api.HandleFunc("/schedules/{schedule_id}", al.handleUpdateSchedule).Methods(http.MethodPut)
 	api.HandleFunc("/schedules/{schedule_id}", al.handleDeleteSchedule).Methods(http.MethodDelete)
+	api.HandleFunc("/files", al.handleFileUploads).Methods(http.MethodPost).Name(filesUploadRouteName)
 	api.HandleFunc(totPRoutes, al.wrapTotPEnabledMiddleware(al.handleGetTotP)).Methods(http.MethodGet)
 	api.HandleFunc(totPRoutes, al.wrapTotPEnabledMiddleware(al.handlePostTotP)).Methods(http.MethodPost)
 	api.HandleFunc(totPRoutes, al.wrapTotPEnabledMiddleware(al.handleDeleteTotP)).Methods(http.MethodDelete)
@@ -267,10 +269,12 @@ func (al *APIListener) initRouter() {
 	// common auth middleware is not used due to JS issue https://stackoverflow.com/questions/22383089/is-it-possible-to-use-bearer-authentication-for-websocket-upgrade-requests
 	api.HandleFunc("/ws/commands", al.wsAuth(http.HandlerFunc(al.handleCommandsWS))).Methods(http.MethodGet)
 	api.HandleFunc("/ws/scripts", al.wsAuth(http.HandlerFunc(al.handleScriptsWS))).Methods(http.MethodGet)
+	api.HandleFunc("/ws/uploads", al.wsAuth(http.HandlerFunc(al.handleUploadsWS))).Methods(http.MethodGet)
 
 	if al.config.Server.EnableWsTestEndpoints {
 		api.HandleFunc("/test/commands/ui", al.wsCommands)
 		api.HandleFunc("/test/scripts/ui", al.wsScripts)
+		api.HandleFunc("/test/uploads/ui", al.wsUploads)
 	}
 
 	if al.bannedIPs != nil {
@@ -283,7 +287,11 @@ func (al *APIListener) initRouter() {
 
 	// add max bytes middleware
 	_ = api.Walk(func(route *mux.Route, router *mux.Router, ancestors []*mux.Route) error {
-		route.HandlerFunc(middleware.MaxBytes(route.GetHandler(), al.config.Server.MaxRequestBytes))
+		if route.GetName() == filesUploadRouteName {
+			route.HandlerFunc(middleware.MaxBytes(route.GetHandler(), al.config.Server.MaxFilePushSize))
+		} else {
+			route.HandlerFunc(middleware.MaxBytes(route.GetHandler(), al.config.Server.MaxRequestBytes))
+		}
 		return nil
 	})
 

@@ -1257,6 +1257,42 @@ paths:
           description: "On success upgrades current connection to websocket"
           schema:
             type: "object"
+  /ws/uploads:
+    get:
+      tags:
+        - "Upload"
+      summary: "Web Socket Connection to track upload process on clients"
+      description: "
+      NOTE: swagger is not designed to document WebSocket API. This is a temporary solution.\n
+
+      The web socket API tracks uploads for all clients and all requests.\n
+      Steps:\n
+      1. To pass authentication - include \"access_token\" param into the url. The value is a jwt token that is created by 'login' API endpoint.\n
+      2. Upgrades the current connection to Web Socket.\n
+      3. Once the conneciton is open, all uploads to the clients can be tracked through it
+      4. Server receives an upload request, stores a file in a temp location and sends this information to all provided clients.
+      5. Clients will establish an sftp connection on top of the existing ssh connection and will download file from the servers temp folder and store it in its own temp folder
+      6. After download success, client will move the uploaded file from the temp to the desired path and perform chmod/chown operations if needed
+      7. The result (success/failure/partial failure/ignore) will be reported to the server through the SSH connection
+      8. The Rport server will send the client upload results to all open websocket connections
+      9. The websocket connection will stay open till client closes it
+      There is a simple UI for testing. Try it out http://127.0.0.1:3000/api/v1/test/uploads/ui. You can enable this api by setting `enable_ws_test_endpoints=true` in the configuration file \n"
+      produces:
+        - "application/json"
+      parameters:
+        - name: "access_token"
+          in: "query"
+          description: "JWT token that is created by 'login' API endpoint. Required to pass the authentication."
+          required: true
+          type: "string"
+      responses:
+        "200":
+          description: "On success upgrades current connection to websocket"
+          schema:
+            type: "object"
+            properties:
+              data:
+                $ref: "#/definitions/ClientUploadResponse"
   /clients-auth:
     get:
       tags:
@@ -3223,6 +3259,102 @@ paths:
           description: "Invalid Operation"
           schema:
             $ref: "#/definitions/ErrorPayload"
+  /files:
+    post:
+      tags:
+        - "Upload"
+      summary: "Upload file"
+      description: "Handles file uploads as a multipart/form-data. Files are stored on the rport server in a temp location.\n
+      Then all specified clients download them by sftp protocol to a temp location as well. \n
+      If download was successful, clients move the temp file to the destination path"
+      consumes:
+        - "multipart/form-data"
+      parameters:
+        - in: "formData"
+          name: "upload"
+          type: "file"
+          required: true
+          description: "The file to upload"
+        - in: "formData"
+          name: "client_id"
+          type: "string"
+          required: true
+          description: "Client ID where the file should be placed. You can repeat 'client' parameter to indicate multiple clients"
+        - in: "formData"
+          name: "group_id"
+          type: "string"
+          required: false
+          description: "ID of a client group where the file should be placed. You can repeat 'group_id' parameter to indicate multiple groups"
+        - in: "formData"
+          name: "dest"
+          type: "string"
+          required: true
+          description: "Absolute path with the file name on the client where the file should be placed"
+        - in: "formData"
+          name: "force"
+          type: "string"
+          required: false
+          default: ""
+          description: "If true, rport client will overwrite destination file if it exists or fail otherwise.\n
+          You can provide values like true or 1 or on to enable this flag"
+        - in: "formData"
+          name: "sync"
+          type: "string"
+          required: false
+          default: ""
+          description: "If true and the destination file exists, rport client will compare md5 checksum of the provided file \n
+          with the destination file and will overwrite it if it's not matching. On Unix it will also compare file mode, owner and group \n
+          of the existing file with the provided values and if they don't match, rport client will execute chmod/chown operations on the destination path. \n
+          if false or file doesn't exists, the provided file will be copied to the destination."
+        - in: "formData"
+          name: "mode"
+          type: "string"
+          required: false
+          default: ""
+          description: "For Unix only, indicates the desired file mode of the target file on the client. If the file doesn't exist, it will be created with the provided mode. \n
+          If file exists (and sync is true), rport client will run chmod operation with the provided file mode."
+        - in: "formData"
+          name: "user"
+          type: "string"
+          required: false
+          default: ""
+          description: "For Unix only, indicates the desired owner name the target file on the client. \n
+          The uploaded file will be created with the default owner in a temp folder. If `user` is not empty, rport client will perform chown operation on the temp file. \n
+          Then it will be moved to the target path Please make sure that the provided user exists on the client.\n
+          Since changing owner of a file requires sudo rights, the rport client user should have the necessary permissions to chown and move file to the target location."
+        - in: "formData"
+          name: "group"
+          type: "string"
+          required: false
+          default: ""
+          description: "For Unix only, indicates the group name the target file on the client. \n
+          The uploaded file will be created with the default group in a temp folder. Then rport client will chown the temp file with the provided group name. \n
+          Then it will be moved to the target path. Please make sure that the provided group exists on the client.\n
+          Since changing group of a file requires sudo rights, the rport client user should have the necessary permissions to chown and move file to the target location."
+      produces:
+        - "application/json"
+      responses:
+        "200":
+          description: "Successful Operation. In this case it indicates that the file was successfully sent to the server rather than to the clients.\n
+          Sending to clients is an async operation, which can be tracked with the websocket API.\n
+          To see if clients have received the file as well, use `/ws/uploads` endpoint."
+          schema:
+            type: "object"
+            properties:
+              data:
+                $ref: "#/definitions/ServerUploadResponse"
+        "400":
+          description: "Invalid parameters"
+          schema:
+            $ref: "#/definitions/ErrorPayload"
+        "401":
+          description: "Unauthorized"
+          schema:
+            $ref: "#/definitions/ErrorPayload"
+        "500":
+          description: "Invalid Operation"
+          schema:
+            $ref: "#/definitions/ErrorPayload"
 definitions:
   Tunnel:
     type: "object"
@@ -4296,3 +4428,41 @@ definitions:
       overlaps:
         type: "boolean"
         description: "Whether to start another schedule execution when previous is still in progress"
+  ServerUploadResponse:
+    type: "object"
+    properties:
+      uuid:
+        type: "string"
+        description: "unique upload request identifier"
+        readOnly: true
+      filepath:
+        type: "string"
+        description: "Target path from input"
+        readOnly: true
+      size:
+        type: "number"
+        description: "File size in bytes"
+  ClientUploadResponse:
+    type: "object"
+    properties:
+      uuid:
+        type: "string"
+        description: "unique upload request identifier"
+      client_id:
+        type: "string"
+        description: "client id"
+      filepath:
+        type: "string"
+        description: "Target path where the file was copied to"
+      size:
+        type: "number"
+        description: "File size in bytes"
+      message:
+        type: "string"
+        description: "Custom message as an additional explanation to the status"
+      status:
+        type: "string"
+        enum: ["success", "error", "ignored"]
+        description: "`success` indicates successful file downloads on the client, however failures for chown and chmod operations are just reported as warnings.\n
+        `error` status indicates upload failures, where message field will contain failure details. \n
+        `ignored` is returned when the target file already exists and is not forced or no sync is needed"

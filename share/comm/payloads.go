@@ -18,6 +18,7 @@ const (
 	RequestTypeCmdResult       = "cmd_result"
 	RequestTypeUpdatesStatus   = "updates_status"
 	RequestTypeSaveMeasurement = "save_measurement"
+	RequestTypeUpload          = "upload"
 )
 
 type CheckPortRequest struct {

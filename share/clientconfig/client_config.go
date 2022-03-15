@@ -11,14 +11,15 @@ import (
 )
 
 type Config struct {
-	Client             ClientConfig      `json:"client" mapstructure:"client"`
-	Connection         ConnectionConfig  `json:"connection" mapstructure:"connection"`
-	Logging            LogConfig         `json:"logging" mapstructure:"logging"`
-	RemoteCommands     CommandsConfig    `json:"remote_commands" mapstructure:"remote-commands"`
-	RemoteScripts      ScriptsConfig     `json:"remote_scripts" mapstructure:"remote-scripts"`
-	Monitoring         MonitoringConfig  `json:"monitoring" mapstructure:"monitoring"`
-	Tunnels            TunnelsConfig     `json:"-"`
-	InterpreterAliases map[string]string `json:"interpreter_aliases" mapstructure:"interpreter-aliases"`
+	Client              ClientConfig        `json:"client" mapstructure:"client"`
+	Connection          ConnectionConfig    `json:"connection" mapstructure:"connection"`
+	Logging             LogConfig           `json:"logging" mapstructure:"logging"`
+	RemoteCommands      CommandsConfig      `json:"remote_commands" mapstructure:"remote-commands"`
+	RemoteScripts       ScriptsConfig       `json:"remote_scripts" mapstructure:"remote-scripts"`
+	Monitoring          MonitoringConfig    `json:"monitoring" mapstructure:"monitoring"`
+	Tunnels             TunnelsConfig       `json:"-"`
+	InterpreterAliases  map[string]string   `json:"interpreter_aliases" mapstructure:"interpreter-aliases"`
+	FileReceptionConfig FileReceptionConfig `json:"file_reception" mapstructure:"file-reception"`
 }
 
 type ClientConfig struct {
@@ -95,4 +96,9 @@ type MonitoringConfig struct {
 
 	LanCard *models.NetworkCard `json:"lan_card"`
 	WanCard *models.NetworkCard `json:"wan_card"`
+}
+
+type FileReceptionConfig struct {
+	Protected []string `json:"protected" mapstructure:"protected"`
+	Enabled   bool     `json:"enabled" mapstructure:"enabled"`
 }

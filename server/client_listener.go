@@ -6,6 +6,7 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
+	"io"
 	"net"
 	"net/http"
 	"net/http/httputil"
@@ -13,6 +14,8 @@ import (
 	"strings"
 	"sync/atomic"
 	"time"
+
+	"github.com/pkg/sftp"
 
 	"github.com/gorilla/websocket"
 	"github.com/jpillora/requestlog"
@@ -486,16 +489,64 @@ func (cl *ClientListener) saveCmdResult(respBytes []byte) (*models.Job, error) {
 func (cl *ClientListener) handleSSHChannels(clientLog *logger.Logger, chans <-chan ssh.NewChannel) {
 	for ch := range chans {
 		remote := string(ch.ExtraData())
-		//accept rest
 		stream, reqs, err := ch.Accept()
 		if err != nil {
 			clientLog.Debugf("Failed to accept stream: %s", err)
 			continue
 		}
-		go ssh.DiscardRequests(reqs)
+
+		go func() {
+			for req := range reqs {
+				cl.handleReq(req, clientLog)
+			}
+		}()
+
+		if ch.ChannelType() == "session" {
+			cl.handleSessionChannel(stream, clientLog)
+			continue
+		}
+
 		//handle stream type
 		connID := cl.connStats.New()
 		go chshare.HandleTCPStream(clientLog.Fork("conn#%d", connID), &cl.connStats, stream, remote)
+	}
+}
+
+func (cl *ClientListener) handleReq(req *ssh.Request, clientLog *logger.Logger) {
+	ok := false
+	switch req.Type {
+	// https://datatracker.ietf.org/doc/html/draft-ietf-secsh-filexfer-02#section-2
+	case "subsystem":
+		if string(req.Payload[4:]) == "sftp" {
+			ok = true
+		}
+	}
+	if req.WantReply {
+		err := req.Reply(ok, nil)
+		if err != nil {
+			clientLog.Errorf("Failed to send ssh reply: %v", err)
+		}
+	}
+}
+
+func (cl *ClientListener) handleSessionChannel(stream ssh.Channel, clientLog *logger.Logger) {
+	server, err := sftp.NewServer(
+		stream,
+		sftp.ReadOnly(),
+	)
+	if err != nil {
+		clientLog.Debugf("Failed to create sftp server: %s", err)
+		return
+	}
+
+	if err := server.Serve(); err == io.EOF {
+		e := server.Close()
+		if e != nil {
+			clientLog.Errorf("failed to close sftp server: %v", e)
+		}
+		clientLog.Debugf("sftp client exited session.")
+	} else if err != nil {
+		clientLog.Errorf("sftp server completed with error: %v", err)
 	}
 }
 

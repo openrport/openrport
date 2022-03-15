@@ -1,34 +1,17 @@
 package test
 
 import (
+	"crypto/md5"
+	"io"
 	"os"
 	"time"
+
+	"github.com/stretchr/testify/mock"
 )
 
 type FileAPIMock struct {
-	ReadDirInvoked     bool
-	InputReadDir       string
-	ReturnReadDirFiles []os.FileInfo
-	ReturnReadDirErr   error
-
-	MakeDirInvoked   bool
-	InputMakeDir     string
-	ReturnMakeDirErr error
-
-	CreateFileInvoked      bool
-	InputCreateFile        string
-	InputCreateFileContent interface{}
-	ReturnCreateFileErr    error
-
-	ReadFileInvoked     bool
-	InputReadFile       string
-	ReturnReadFileErr   error
+	mock.Mock
 	SetReadFileDestFunc func(dest interface{})
-
-	ExistPathInvoked bool
-	InputExistPath   string
-	ReturnExist      bool
-	ReturnExistErr   error
 }
 
 func NewFileAPIMock() *FileAPIMock {
@@ -36,41 +19,95 @@ func NewFileAPIMock() *FileAPIMock {
 }
 
 func (f *FileAPIMock) ReadDir(dir string) ([]os.FileInfo, error) {
-	f.ReadDirInvoked = true
-	f.InputReadDir = dir
-	return f.ReturnReadDirFiles, f.ReturnReadDirErr
+	args := f.Called(dir)
+
+	return args.Get(0).([]os.FileInfo), args.Error(1)
 }
 
 func (f *FileAPIMock) MakeDirAll(dir string) error {
-	f.MakeDirInvoked = true
-	f.InputMakeDir = dir
-	return f.ReturnMakeDirErr
+	args := f.Called(dir)
+
+	return args.Error(0)
 }
 
 func (f *FileAPIMock) WriteJSON(file string, content interface{}) error {
-	f.CreateFileInvoked = true
-	f.InputCreateFile = file
-	f.InputCreateFileContent = content
-	return f.ReturnCreateFileErr
+	args := f.Called(file, content)
+
+	return args.Error(0)
 }
 
 func (f *FileAPIMock) ReadJSON(file string, dest interface{}) error {
-	f.ReadFileInvoked = true
-	f.InputReadFile = file
+	args := f.Called(file, dest)
+
 	if f.SetReadFileDestFunc != nil {
 		f.SetReadFileDestFunc(dest)
 	}
-	return f.ReturnReadFileErr
+
+	return args.Error(0)
 }
 
 func (f *FileAPIMock) Exist(path string) (bool, error) {
-	f.ExistPathInvoked = true
-	f.InputExistPath = path
-	return f.ReturnExist, f.ReturnExistErr
+	args := f.Called(path)
+	return args.Bool(0), args.Error(1)
+}
+
+func (f *FileAPIMock) Open(file string) (io.ReadWriteCloser, error) {
+	args := f.Called(file)
+	return args.Get(0).(io.ReadWriteCloser), args.Error(1)
 }
 
 func (f *FileAPIMock) Write(fileName string, content string) error {
-	return nil
+	args := f.Called(fileName, content)
+
+	return args.Error(0)
+}
+
+func (f *FileAPIMock) CreateFile(path string, sourceReader io.Reader) (writtenBytes int64, err error) {
+	args := f.Called(path, sourceReader)
+
+	return args.Get(0).(int64), args.Error(1)
+}
+
+func (f *FileAPIMock) ChangeOwner(path, owner, group string) error {
+	args := f.Called(path, owner, group)
+
+	return args.Error(0)
+}
+
+func (f *FileAPIMock) ChangeMode(path string, targetMode os.FileMode) error {
+	args := f.Called(path, targetMode)
+
+	return args.Error(0)
+}
+
+func (f *FileAPIMock) Remove(name string) error {
+	args := f.Called(name)
+
+	return args.Error(0)
+}
+
+func (f *FileAPIMock) Rename(oldPath, newPath string) error {
+	args := f.Called(oldPath, newPath)
+
+	return args.Error(0)
+}
+
+func (f *FileAPIMock) CreateDirIfNotExists(path string, mode os.FileMode) (wasCreated bool, err error) {
+	args := f.Called(path, mode)
+
+	return args.Bool(0), args.Error(1)
+}
+
+func (f *FileAPIMock) GetFileMode(file string) (os.FileMode, error) {
+	args := f.Called(file)
+
+	return args.Get(0).(os.FileMode), args.Error(1)
+}
+
+func (f *FileAPIMock) GetFileOwnerAndGroup(file string) (uid, gid uint32, err error) {
+	args := f.Called(file)
+
+	return args.Get(0).(uint32), args.Get(1).(uint32), args.Error(2)
 }
 
 type FileMock struct {
@@ -85,4 +122,10 @@ func (f *FileMock) Name() string {
 
 func (f *FileMock) ModTime() time.Time {
 	return f.ReturnModTime
+}
+
+func Md5Hash(input string) []byte {
+	hashSum := md5.Sum([]byte(input))
+
+	return hashSum[:]
 }

@@ -13,9 +13,12 @@ import (
 	"net/url"
 	"os/exec"
 	"path"
+	"path/filepath"
 	"regexp"
 	"strings"
 	"time"
+
+	"github.com/cloudradar-monitoring/rport/share/files"
 
 	mapset "github.com/deckarep/golang-set"
 	"github.com/jpillora/requestlog"
@@ -112,6 +115,7 @@ type ServerConfig struct {
 	CleanupClients             time.Duration                  `mapstructure:"cleanup_clients_interval"`
 	MaxRequestBytes            int64                          `mapstructure:"max_request_bytes"`
 	MaxRequestBytesClient      int64                          `mapstructure:"max_request_bytes_client"`
+	MaxFilePushSize            int64                          `mapstructure:"max_filepush_size"`
 	CheckPortTimeout           time.Duration                  `mapstructure:"check_port_timeout"`
 	RunRemoteCmdTimeoutSec     int                            `mapstructure:"run_remote_cmd_timeout_sec"`
 	AuthWrite                  bool                           `mapstructure:"auth_write"`
@@ -243,6 +247,10 @@ type Config struct {
 
 func (c *Config) GetVaultDBPath() string {
 	return path.Join(c.Server.DataDir, DefaultVaultDBName)
+}
+
+func (c *Config) GetUploadDir() string {
+	return filepath.Join(c.Server.DataDir, files.DefaultUploadTempFolder)
 }
 
 func (c *Config) InitRequestLogOptions() *requestlog.Options {

@@ -13,6 +13,8 @@ import (
 	"testing"
 	"time"
 
+	"github.com/cloudradar-monitoring/rport/share/clientconfig"
+
 	"golang.org/x/crypto/ssh"
 
 	"github.com/stretchr/testify/require"
@@ -37,6 +39,7 @@ type ClientBuilder struct {
 	disconnectedAt    *time.Time
 	allowedUserGroups []string
 	conn              ssh.Conn
+	cfg               *clientconfig.Config
 }
 
 // New returns a builder to generate a client that can be used in tests.
@@ -78,8 +81,13 @@ func (b ClientBuilder) Connection(conn ssh.Conn) ClientBuilder {
 	return b
 }
 
+func (b ClientBuilder) Config(cfg *clientconfig.Config) ClientBuilder {
+	b.cfg = cfg
+	return b
+}
+
 func (b ClientBuilder) Build() *Client {
-	return &Client{
+	cl := &Client{
 		NumCPUs:                2,
 		MemoryTotal:            100000,
 		ID:                     b.id,
@@ -129,8 +137,11 @@ func (b ClientBuilder) Build() *Client {
 		ClientAuthID:      b.clientAuthID,
 		AllowedUserGroups: b.allowedUserGroups,
 
-		Connection: b.conn,
+		Connection:          b.conn,
+		ClientConfiguration: b.cfg,
 	}
+
+	return cl
 }
 
 func generateRandomClientAuthID() string {

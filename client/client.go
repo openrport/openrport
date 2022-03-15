@@ -13,6 +13,7 @@ import (
 	"time"
 
 	"github.com/denisbrodbeck/machineid"
+
 	"github.com/gorilla/websocket"
 	"github.com/jpillora/backoff"
 	"github.com/shirou/gopsutil/host"
@@ -25,6 +26,7 @@ import (
 	"github.com/cloudradar-monitoring/rport/client/updates"
 	chshare "github.com/cloudradar-monitoring/rport/share"
 	"github.com/cloudradar-monitoring/rport/share/comm"
+	"github.com/cloudradar-monitoring/rport/share/files"
 	"github.com/cloudradar-monitoring/rport/share/logger"
 	"github.com/cloudradar-monitoring/rport/share/models"
 )
@@ -45,10 +47,11 @@ type Client struct {
 	monitor            *monitoring.Monitor
 	serverCapabilities *models.Capabilities
 	consoleDecoder     *encoding.Decoder
+	filesAPI           files.FileAPI
 }
 
 //NewClient creates a new client instance
-func NewClient(config *ClientConfigHolder) *Client {
+func NewClient(config *ClientConfigHolder, filesAPI files.FileAPI) *Client {
 	ctx := context.Background()
 
 	cmdExec := system.NewCmdExecutor(logger.NewLogger("cmd executor", config.Logging.LogOutput, config.Logging.LogLevel))
@@ -63,6 +66,7 @@ func NewClient(config *ClientConfigHolder) *Client {
 		systemInfo:   systemInfo,
 		updates:      updates.New(logger, config.Client.UpdatesInterval),
 		monitor:      monitoring.NewMonitor(logger, config.Monitoring, systemInfo),
+		filesAPI:     filesAPI,
 	}
 
 	client.sshConfig = &ssh.ClientConfig{
@@ -167,7 +171,7 @@ func (c *Client) connectionLoop(ctx context.Context) {
 			}
 		}
 		// Start handling requests and channels immediately, otherwise ssh connection might hang
-		go c.handleSSHRequests(ctx, sshConn.Requests)
+		go c.handleSSHRequests(ctx, sshConn)
 		go c.connectStreams(sshConn.Channels)
 
 		switchbackCtx, cancelSwitchback := context.WithCancel(ctx)
@@ -383,8 +387,8 @@ func (c *Client) handlePutCapabilitiesRequest(ctx context.Context, payload []byt
 	c.afterPutCapabilities(ctx)
 }
 
-func (c *Client) handleSSHRequests(ctx context.Context, reqs <-chan *ssh.Request) {
-	for r := range reqs {
+func (c *Client) handleSSHRequests(ctx context.Context, sshConn *sshClientConn) {
+	for r := range sshConn.Requests {
 		var err error
 		var resp interface{}
 		switch r.Type {
@@ -396,6 +400,16 @@ func (c *Client) handleSSHRequests(ctx context.Context, reqs <-chan *ssh.Request
 			c.updates.Refresh()
 		case comm.RequestTypePutCapabilities:
 			c.handlePutCapabilitiesRequest(ctx, r.Payload)
+		case comm.RequestTypeUpload:
+			uploadManager := NewSSHUploadManager(
+				c.Logger,
+				c.filesAPI,
+				c.configHolder,
+				sshConn.Connection,
+				system.SysUserProvider{},
+			)
+
+			resp, err = uploadManager.HandleUploadRequest(r.Payload)
 		default:
 			c.Debugf("Unknown request: %q", r.Type)
 			comm.ReplyError(c.Logger, r, errors.New("unknown request"))

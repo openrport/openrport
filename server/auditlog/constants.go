@@ -6,6 +6,8 @@ const (
 	ActionUpdate       = "update"
 	ActionExecuteStart = "execute.start"
 	ActionExecuteDone  = "execute.done"
+	ActionSuccess      = "success"
+	ActionFailed       = "failed"
 )
 
 const (
@@ -24,4 +26,5 @@ const (
 	ApplicationLibraryScript   = "library.script"
 	ApplicationVault           = "vault"
 	ApplicationSchedule        = "schedule"
+	ApplicationUploads         = "uploads"
 )
