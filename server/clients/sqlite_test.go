@@ -12,8 +12,9 @@ import (
 func TestClientsSqliteProvider(t *testing.T) {
 	ctx := context.Background()
 	keepLost := hour
-	p := newFakeClientProvider(t, keepLost)
+	p := newFakeClientProvider(t, &keepLost)
 	defer p.Close()
+	noObsoleteProvider := newSqliteProvider(p.db, nil)
 
 	// verify add clients
 	c1 := New(t).Build()                                                   // active
@@ -31,6 +32,11 @@ func TestClientsSqliteProvider(t *testing.T) {
 	gotAll, err := p.GetAll(ctx)
 	require.NoError(t, err)
 	assert.ElementsMatch(t, []*Client{c1, c2, c3, c4}, gotAll)
+
+	// verify no obsolete get clients
+	gotAll, err = noObsoleteProvider.GetAll(ctx)
+	require.NoError(t, err)
+	assert.ElementsMatch(t, []*Client{c1, c2, c3, c4, c5}, gotAll)
 
 	// verify delete obsolete clients
 	gotObsolete, err := p.get(ctx, c5.ID)

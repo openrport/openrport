@@ -111,6 +111,7 @@ type ServerConfig struct {
 	UsedPortsRaw               []string                       `mapstructure:"used_ports"`
 	ExcludedPortsRaw           []string                       `mapstructure:"excluded_ports"`
 	DataDir                    string                         `mapstructure:"data_dir"`
+	CleanupClients             bool                           `mapstructure:"cleanup_clients"`
 	KeepLostClients            time.Duration                  `mapstructure:"keep_lost_clients"`
 	CleanupClientsInterval     time.Duration                  `mapstructure:"cleanup_clients_interval"`
 	MaxRequestBytes            int64                          `mapstructure:"max_request_bytes"`
@@ -283,7 +284,7 @@ func (c *Config) ParseAndValidate() error {
 		return errors.New("'data directory path' cannot be empty")
 	}
 
-	if c.Server.KeepLostClients != 0 && (c.Server.KeepLostClients.Nanoseconds() < MinKeepLostClients.Nanoseconds() ||
+	if c.Server.CleanupClients && c.Server.KeepLostClients != 0 && (c.Server.KeepLostClients.Nanoseconds() < MinKeepLostClients.Nanoseconds() ||
 		c.Server.KeepLostClients.Nanoseconds() > MaxKeepLostClients.Nanoseconds()) {
 		return fmt.Errorf("expected 'Keep Lost Clients' can be in range [%v, %v], actual: %v", MinKeepLostClients, MaxKeepLostClients, c.Server.KeepLostClients)
 	}

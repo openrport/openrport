@@ -92,7 +92,7 @@ func (c *Client) ToCalculated(allGroups []*cgroups.ClientGroup) *CalculatedClien
 }
 
 // Obsolete returns true if a given client was disconnected longer than a given duration.
-// If a given duration is nil - returns false.
+// If a given duration is nil - returns false (never obsolete).
 func (c *Client) Obsolete(duration *time.Duration) bool {
 	return duration != nil && c.DisconnectedAt != nil &&
 		c.DisconnectedAt.Add(*duration).Before(now())
