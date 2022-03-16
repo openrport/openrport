@@ -238,8 +238,8 @@ func (s *Server) Run() error {
 	s.Infof("Variable to keep lost clients is set to %v", s.config.Server.KeepLostClients)
 
 	// TODO(m-terel): add graceful shutdown of background task
-	go scheduler.Run(ctx, s.Logger, clients.NewCleanupTask(s.Logger, s.clientListener.clientService.repo), s.config.Server.CleanupClients)
-	s.Infof("Task to cleanup obsolete clients will run with interval %v", s.config.Server.CleanupClients)
+	go scheduler.Run(ctx, s.Logger, clients.NewCleanupTask(s.Logger, s.clientListener.clientService.repo), s.config.Server.CleanupClientsInterval)
+	s.Infof("Task to cleanup obsolete clients will run with interval %v", s.config.Server.CleanupClientsInterval)
 
 	cleaningPeriod := time.Hour * 24 * time.Duration(s.config.Monitoring.DataStorageDays)
 	go scheduler.Run(ctx, s.Logger, monitoring.NewCleanupTask(s.Logger, s.monitoringService, cleaningPeriod), cleanupMeasurementsInterval)

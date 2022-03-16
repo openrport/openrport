@@ -112,7 +112,7 @@ type ServerConfig struct {
 	ExcludedPortsRaw           []string                       `mapstructure:"excluded_ports"`
 	DataDir                    string                         `mapstructure:"data_dir"`
 	KeepLostClients            time.Duration                  `mapstructure:"keep_lost_clients"`
-	CleanupClients             time.Duration                  `mapstructure:"cleanup_clients_interval"`
+	CleanupClientsInterval     time.Duration                  `mapstructure:"cleanup_clients_interval"`
 	MaxRequestBytes            int64                          `mapstructure:"max_request_bytes"`
 	MaxRequestBytesClient      int64                          `mapstructure:"max_request_bytes_client"`
 	MaxFilePushSize            int64                          `mapstructure:"max_filepush_size"`
