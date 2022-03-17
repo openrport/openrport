@@ -38,8 +38,9 @@ func (p *SqliteProvider) GetAll(ctx context.Context) ([]*Client, error) {
 	err := p.db.SelectContext(
 		ctx,
 		&res,
-		"SELECT * FROM clients WHERE disconnected_at IS NULL OR DATETIME(disconnected_at) >= DATETIME(?)",
+		"SELECT * FROM clients WHERE disconnected_at IS NULL OR DATETIME(disconnected_at) >= DATETIME(?) OR ?",
 		p.keepLostClientsStart(),
+		p.keepLostClients == nil,
 	)
 	if err != nil {
 		return nil, err
@@ -71,8 +72,9 @@ func (p *SqliteProvider) Save(ctx context.Context, client *Client) error {
 func (p *SqliteProvider) DeleteObsolete(ctx context.Context) error {
 	_, err := p.db.ExecContext(
 		ctx,
-		"DELETE FROM clients WHERE disconnected_at IS NOT NULL AND DATETIME(disconnected_at) < DATETIME(?)",
+		"DELETE FROM clients WHERE disconnected_at IS NOT NULL AND DATETIME(disconnected_at) < DATETIME(?) AND ?",
 		p.keepLostClientsStart(),
+		p.keepLostClients != nil,
 	)
 	return err
 }

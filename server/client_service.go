@@ -381,7 +381,7 @@ func (s *ClientService) checkLocalPort(port string) error {
 func (s *ClientService) Terminate(client *clients.Client) error {
 	s.mu.Lock()
 	defer s.mu.Unlock()
-	if s.repo.KeepLostClients == nil {
+	if s.repo.KeepLostClients != nil && *s.repo.KeepLostClients == 0 {
 		return s.repo.Delete(client)
 	}
 

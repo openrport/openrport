@@ -309,6 +309,7 @@ func init() {
 	viperCfg.SetDefault("server.used_ports", []string{DefaultUsedPorts})
 	viperCfg.SetDefault("server.excluded_ports", []string{DefaultExcludedPorts})
 	viperCfg.SetDefault("server.data_dir", chserver.DefaultDataDirectory)
+	viperCfg.SetDefault("server.cleanup_clients", true)
 	viperCfg.SetDefault("server.keep_lost_clients", DefaultKeepLostClients)
 	viperCfg.SetDefault("server.cleanup_clients_interval", DefaultCleanClientsInterval)
 	viperCfg.SetDefault("server.max_request_bytes", DefaultMaxRequestBytes)

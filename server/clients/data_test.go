@@ -214,10 +214,10 @@ func shallowCopy(c *Client) *Client {
 	}
 }
 
-func newFakeClientProvider(t *testing.T, exp time.Duration, cs ...*Client) *SqliteProvider {
+func newFakeClientProvider(t *testing.T, exp *time.Duration, cs ...*Client) *SqliteProvider {
 	db, err := sqlite.New(":memory:", clients.AssetNames(), clients.Asset)
 	require.NoError(t, err)
-	p := newSqliteProvider(db, &exp)
+	p := newSqliteProvider(db, exp)
 	for _, cur := range cs {
 		require.NoError(t, p.Save(context.Background(), cur))
 	}

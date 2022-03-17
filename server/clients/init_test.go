@@ -45,7 +45,7 @@ func TestGetInitState(t *testing.T) {
 	for _, tc := range testCases {
 		t.Run(tc.name, func(t *testing.T) {
 			// given
-			p := newFakeClientProvider(t, tc.expiration, tc.dbClients...)
+			p := newFakeClientProvider(t, &tc.expiration, tc.dbClients...)
 			defer p.Close()
 
 			// when
