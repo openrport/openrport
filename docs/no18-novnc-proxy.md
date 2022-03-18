@@ -8,6 +8,7 @@ Pointing the browser to this URL loads the novnc javascript app and the session 
 ## Prerequisites
 * noVNC javascript app has to be available on local filesystem
 * RPort server configuration `novnc_root` must point to the noVNC javascript app directory
+* RPort server configuration `tunnel_proxy_cert_file` and `tunnel_proxy_key_file` must be set up. NoVNC depends on the generic built-in TLS reverse proxy, which is enabled by providing a key and a certificate. 
 
 ## Install noVNC javascript app
 Rport is tested with noVNC v1.3.0.zip, so this version is recommended.
