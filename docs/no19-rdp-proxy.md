@@ -8,6 +8,7 @@ Pointing the browser to this URL creates a websocket tunnel to connect the brows
 
 ## Prerequisites
 * Apache Guacamole Server 1.4.X has to be running on 127.0.0.1
+* RPort server configuration `tunnel_proxy_cert_file` and `tunnel_proxy_key_file` must be set up. The guacd proxy depends on the generic built-in TLS reverse proxy, which is enabled by providing a key and a certificate. 
 
 ::: tip
 👉 **You don't need a fully featured Guacamole installation.** Only the `guacd` is needed, which is a lightweight and easy to install daemon. It does not require any configuration or special maintenance.
