@@ -156,7 +156,7 @@ func NewAPIListener(
 		Server:            server,
 		Logger:            logger.NewLogger("api-listener", config.Logging.LogOutput, config.Logging.LogLevel),
 		fingerprint:       fingerprint,
-		httpServer:        chshare.NewHTTPServer(int(config.Server.MaxRequestBytes), chshare.WithTLS(config.API.CertFile, config.API.KeyFile)),
+		httpServer:        chshare.NewHTTPServer(int(config.Server.MaxRequestBytes), chshare.WithTLS(config.API.CertFile, config.API.KeyFile, security.TlsConfig)),
 		requestLogOptions: config.InitRequestLogOptions(),
 		bannedUsers:       security.NewBanList(time.Duration(config.API.UserLoginWait) * time.Second),
 		userService:       userService,
