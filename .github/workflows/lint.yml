@@ -8,11 +8,11 @@ jobs:
       - uses: actions/setup-go@v2
       - uses: actions/checkout@v2
 
-      #- name: go mod vendor
-      #  run: go mod vendor
+      - name: go mod vendor
+        run: go mod vendor
 
       - name: golangci-lint
         uses: golangci/golangci-lint-action@v2
         with:
-          version: latest
+          version: v1.32
           args: -c .golangci.yml
