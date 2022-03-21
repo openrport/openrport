@@ -261,6 +261,7 @@ func init() {
 	pFlags.StringArray("monitoring-net-wan", []string{}, "")
 	pFlags.StringArray("file-reception-protected", []string{}, "")
 	pFlags.Bool("file-reception-enabled", true, "")
+	pFlags.String("bind-interface", "", "")
 	tunnelsScheme = pFlags.String("scheme", "", "")
 	tunnelsReverseProxy = pFlags.Bool("enable-reverse-proxy", false, "")
 	tunnelsHostHeader = pFlags.String("host-header", "", "")
@@ -318,6 +319,7 @@ func bindPFlags() {
 	_ = viperCfg.BindPFlag("client.fallback_servers", pFlags.Lookup("fallback-server"))
 	_ = viperCfg.BindPFlag("client.server_switchback_interval", pFlags.Lookup("server-switchback-interval"))
 	_ = viperCfg.BindPFlag("client.data_dir", pFlags.Lookup("data-dir"))
+	_ = viperCfg.BindPFlag("client.bind_interface", pFlags.Lookup("bind-interface"))
 
 	_ = viperCfg.BindPFlag("logging.log_file", pFlags.Lookup("log-file"))
 	_ = viperCfg.BindPFlag("logging.log_level", pFlags.Lookup("log-level"))

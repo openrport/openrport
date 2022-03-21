@@ -38,6 +38,7 @@ type ClientConfig struct {
 	AllowRoot                bool          `json:"allow_root" mapstructure:"allow_root"`
 	UpdatesInterval          time.Duration `json:"updates_interval" mapstructure:"updates_interval"`
 	DataDir                  string        `json:"data_dir" mapstructure:"data_dir"`
+	BindInterface            string        `json:"bind_interface" mapstructure:"bind_interface"`
 
 	ProxyURL *url.URL         `json:"proxy_url"`
 	Tunnels  []*models.Remote `json:"tunnels"`

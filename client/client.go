@@ -3,7 +3,6 @@ package chclient
 import (
 	"context"
 	"encoding/json"
-	"errors"
 	"fmt"
 	"io"
 	"net"
@@ -13,6 +12,7 @@ import (
 	"time"
 
 	"github.com/denisbrodbeck/machineid"
+	"github.com/pkg/errors"
 
 	"github.com/gorilla/websocket"
 	"github.com/jpillora/backoff"
@@ -139,6 +139,7 @@ func (c *Client) connectionLoop(ctx context.Context) {
 	var connerr error
 	switchbackChan := make(chan *sshClientConn, 1)
 	b := &backoff.Backoff{Max: c.configHolder.Connection.MaxRetryInterval}
+loop:
 	for c.running {
 		if connerr != nil {
 			attempt := int(b.Attempt())
@@ -167,7 +168,7 @@ func (c *Client) connectionLoop(ctx context.Context) {
 					connerr = err
 					continue
 				}
-				break
+				break loop
 			}
 		}
 		// Start handling requests and channels immediately, otherwise ssh connection might hang
@@ -230,7 +231,9 @@ func (c *Client) connectionLoop(ctx context.Context) {
 	close(c.runningc)
 }
 
-type retryableError error
+type retryableError struct {
+	error
+}
 type sshClientConn struct {
 	Connection ssh.Conn
 	Channels   <-chan ssh.NewChannel
@@ -260,11 +263,20 @@ func (c *Client) connect(server string) (*sshClientConn, error) {
 	}
 	c.Infof("Connecting to %s%s\n", server, via)
 
+	netDialer := &net.Dialer{}
 	d := websocket.Dialer{
 		ReadBufferSize:   1024,
 		WriteBufferSize:  1024,
 		HandshakeTimeout: 45 * time.Second,
 		Subprotocols:     []string{chshare.ProtocolVersion},
+		NetDialContext:   netDialer.DialContext,
+	}
+	if c.configHolder.Client.BindInterface != "" {
+		laddr, err := c.localAddrForInterface(c.configHolder.Client.BindInterface)
+		if err != nil {
+			return nil, err
+		}
+		netDialer.LocalAddr = laddr
 	}
 	//optionally proxy
 	if c.configHolder.Client.ProxyURL != nil {
@@ -283,11 +295,11 @@ func (c *Client) connect(server string) (*sshClientConn, error) {
 					Password: pass,
 				}
 			}
-			socksDialer, err := proxy.SOCKS5("tcp", c.configHolder.Client.ProxyURL.Host, auth, proxy.Direct)
+			socksDialer, err := proxy.SOCKS5("tcp", c.configHolder.Client.ProxyURL.Host, auth, netDialer)
 			if err != nil {
-				return nil, retryableError(err)
+				return nil, retryableError{err}
 			}
-			d.NetDial = socksDialer.Dial
+			d.NetDialContext = socksDialer.(proxy.ContextDialer).DialContext
 		} else {
 			// CONNECT proxy
 			d.Proxy = func(*http.Request) (*url.URL, error) {
@@ -297,7 +309,7 @@ func (c *Client) connect(server string) (*sshClientConn, error) {
 	}
 	wsConn, _, err := d.Dial(server, c.configHolder.Connection.HTTPHeaders)
 	if err != nil {
-		return nil, retryableError(err)
+		return nil, retryableError{err}
 	}
 	conn := chshare.NewWebSocketConn(wsConn)
 	// perform SSH handshake on net.Conn
@@ -306,7 +318,7 @@ func (c *Client) connect(server string) (*sshClientConn, error) {
 	if err != nil {
 		if strings.Contains(err.Error(), "unable to authenticate") {
 			c.Errorf("Authentication failed")
-			return nil, retryableError(err)
+			return nil, retryableError{err}
 		}
 		return nil, err
 	}
@@ -342,7 +354,7 @@ func (c *Client) sendConnectionRequest(ctx context.Context, sshConn ssh.Conn) er
 			if closeErr := sshConn.Close(); closeErr != nil {
 				c.Errorf(closeErr.Error())
 			}
-			return retryableError(errors.New(msg))
+			return retryableError{errors.New(msg)}
 		}
 
 		return errors.New(msg)
@@ -661,4 +673,38 @@ func (c *Client) getOSFullName(infoStat *host.InfoStat) string {
 
 func (c *Client) getTimezone() string {
 	return c.systemInfo.SystemTime().Format("MST (UTC-07:00)")
+}
+
+func (c *Client) localAddrForInterface(ifaceName string) (net.Addr, error) {
+	iface, err := net.InterfaceByName(ifaceName)
+	if err != nil {
+		return nil, errors.Wrapf(err, "unable to find %s", ifaceName)
+	}
+	addrs, err := iface.Addrs()
+	if err != nil {
+		return nil, errors.Wrapf(err, "unable to get address for %s", ifaceName)
+	}
+	var selected net.IP
+	for _, a := range addrs {
+		ip, _, err := net.ParseCIDR(a.String())
+		if err != nil {
+			return nil, err
+		}
+		if ip.IsUnspecified() {
+			continue
+		}
+		selected = ip
+		break
+	}
+	if selected == nil {
+		return nil, errors.Errorf("no address found for %s", ifaceName)
+	}
+	laddr, err := net.ResolveTCPAddr("tcp", fmt.Sprintf("%v:0", selected))
+	if err != nil {
+		return nil, errors.Wrapf(err, "could not resolve tcp address for %s", ifaceName)
+	}
+
+	c.Infof("Connecting using %s (%s)", iface.Name, selected)
+
+	return laddr, nil
 }
