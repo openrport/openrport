@@ -114,7 +114,7 @@ func (tp *TunnelProxy) Start(ctx context.Context) error {
 	}
 
 	go func() {
-		tp.proxyServer.TLSConfig = security.TlsConfig
+		tp.proxyServer.TLSConfig = security.TLSConfig
 		err := tp.proxyServer.ListenAndServeTLS(tp.Config.CertFile, tp.Config.KeyFile)
 		if err != nil && err == http.ErrServerClosed {
 			tp.Logger.Infof("tunnel proxy closed")
