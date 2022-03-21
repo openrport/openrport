@@ -12,7 +12,7 @@ jobs:
         run: go mod vendor
 
       - name: golangci-lint
-        uses: golangci/golangci-lint-action@v2go.yml
+        uses: golangci/golangci-lint-action@v2
         with:
-          version: v1.32
+          version: latest
           args: -c .golangci.yml
