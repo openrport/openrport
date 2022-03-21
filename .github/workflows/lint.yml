@@ -1,0 +1,17 @@
+name: Lint
+on: [push]
+jobs:
+  lint:
+    name: Lint
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v2
+
+      - name: go mod vendor
+        run: go mod vendor
+
+      - name: golangci-lint
+        uses: golangci/golangci-lint-action@v2go.yml
+        with:
+          version: v1.32
+          args: -c .golangci.yml

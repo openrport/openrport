@@ -1,20 +1,6 @@
-name: Go
+name: Test
 on: [push]
 jobs:
-  golangci:
-    name: Lint
-    runs-on: ubuntu-latest
-    steps:
-      - uses: actions/checkout@v2
-
-      - name: go mod vendor
-        run: go mod vendor
-
-      - name: golangci-lint
-        uses: golangci/golangci-lint-action@v2
-        with:
-          version: v1.32
-          args: -c .golangci.yml
   test:
     name: Test Server/Client Nix
     runs-on: ubuntu-latest
