@@ -81,6 +81,19 @@ var apiUpgrader = websocket.Upgrader{
 	CheckOrigin:     func(r *http.Request) bool { return true },
 }
 
+// define which URL paths vue aka the frontend is using. Listed paths are rewritten to / aka returning index.html
+// to make the vue.js history working.
+var vueHistoryPaths = []string{
+	"dashboard",
+	"auth",
+	"tunnels",
+	"inventory",
+	"documentation",
+	"commands",
+	"scripts",
+	"settings",
+}
+
 type JobProvider interface {
 	GetByJID(clientID, jid string) (*models.Job, error)
 	GetSummariesByClientID(ctx context.Context, clientID string, options *query.ListOptions) ([]*models.JobSummary, error)
@@ -297,7 +310,8 @@ func (al *APIListener) initRouter() {
 
 	docRoot := al.config.API.DocRoot
 	if docRoot != "" {
-		r.PathPrefix("/").Handler(middleware.Rewrite404(http.FileServer(http.Dir(docRoot)), "/"))
+		// Start a http file server with proper Vue.js HTML5 history mode (aka rewrite to /) for the following paths
+		r.PathPrefix("/").Handler(middleware.Rewrite404ForVueJs(http.FileServer(http.Dir(docRoot)), vueHistoryPaths))
 	}
 
 	if al.requestLogOptions != nil {

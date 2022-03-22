@@ -2,6 +2,7 @@ package middleware
 
 import (
 	"net/http"
+	"strings"
 )
 
 type NotFoundRewriteResponseWriter struct {
@@ -47,6 +48,22 @@ func Rewrite404(h http.Handler, rewritePath string) http.HandlerFunc {
 		h.ServeHTTP(newW, r)
 		if newW.status == http.StatusNotFound {
 			r.URL.Path = rewritePath
+			h.ServeHTTP(w, r)
+		}
+	}
+}
+
+// Rewrite404ForVueJs Implement VueJS HTML5 history mode by rewriting specific URLs to /
+func Rewrite404ForVueJs(h http.Handler, vueHistoryPaths []string) http.HandlerFunc {
+	return func(w http.ResponseWriter, r *http.Request) {
+		newW := &NotFoundRewriteResponseWriter{ResponseWriter: w}
+		h.ServeHTTP(newW, r)
+		if newW.status == http.StatusNotFound {
+			for _, v := range vueHistoryPaths {
+				if strings.HasPrefix(r.URL.Path, "/"+v) {
+					r.URL.Path = "/"
+				}
+			}
 			h.ServeHTTP(w, r)
 		}
 	}
