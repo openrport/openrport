@@ -10,6 +10,8 @@ import (
 	"github.com/cloudradar-monitoring/rport/share/query"
 )
 
+const lastStartedAtFieldQuery = `(SELECT started_at FROM multi_jobs WHERE schedule_id = s.id ORDER BY started_at DESC LIMIT 1) AS last_started_at`
+
 type SQLiteProvider struct {
 	db *sqlx.DB
 }
@@ -62,7 +64,7 @@ func (p *SQLiteProvider) Update(ctx context.Context, s *Schedule) error {
 func (p *SQLiteProvider) List(ctx context.Context, options *query.ListOptions) ([]*Schedule, error) {
 	values := []*DBSchedule{}
 
-	q := "SELECT * FROM `schedules`"
+	q := fmt.Sprintf("SELECT *, %s FROM `schedules` s", lastStartedAtFieldQuery)
 
 	q, params := query.ConvertListOptionsToQuery(options, q)
 
@@ -84,7 +86,10 @@ func (p *SQLiteProvider) Close() error {
 }
 
 func (p *SQLiteProvider) Get(ctx context.Context, id string) (*Schedule, error) {
-	q := "SELECT * FROM `schedules` WHERE `id` = ? LIMIT 1"
+	q := fmt.Sprintf(
+		"SELECT *, %s FROM `schedules` s WHERE `id` = ? LIMIT 1",
+		lastStartedAtFieldQuery,
+	)
 
 	s := &DBSchedule{}
 	err := p.db.GetContext(ctx, s, q, id)

@@ -3078,7 +3078,7 @@ paths:
         - in: "query"
           name: "sort"
           description: "Sort field to be used for sorting, the sorting direction is by default ASC.\n
-            To change the direction add `-` to the sorting value e.g. `-id`. Allowed values are `id`, `created_at`, `created_by`, `name`, `type`.\n
+            To change the direction add `-` to the sorting value e.g. `-id`. Allowed values are `id`, `created_at`, `created_by`, `name`, `type`, `last_started_at`.\n
             You can use as many sort parameters as you want."
           required: false
           type: "string"
@@ -4428,6 +4428,11 @@ definitions:
       overlaps:
         type: "boolean"
         description: "Whether to start another schedule execution when previous is still in progress"
+      last_started_at:
+        type: "string"
+        format: "data-time"
+        description: "Date and time of last schedule exeuction"
+        readOnly: true
   ServerUploadResponse:
     type: "object"
     properties:

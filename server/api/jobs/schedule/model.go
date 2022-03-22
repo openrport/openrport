@@ -45,6 +45,9 @@ type Base struct {
 	Name      string    `json:"name" db:"name"`
 	Schedule  string    `json:"schedule" db:"schedule"`
 	Type      string    `json:"type" db:"type"`
+
+	// This comes from the associated MultiJob
+	LastStartedAt *time.Time `json:"last_started_at" db:"last_started_at"`
 }
 
 type Details struct {
