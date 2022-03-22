@@ -16,6 +16,7 @@ import (
 
 	chshare "github.com/cloudradar-monitoring/rport/share"
 	"github.com/cloudradar-monitoring/rport/share/logger"
+	"github.com/cloudradar-monitoring/rport/share/security"
 )
 
 //go:embed css/tunnel-proxy.css
@@ -113,6 +114,7 @@ func (tp *TunnelProxy) Start(ctx context.Context) error {
 	}
 
 	go func() {
+		tp.proxyServer.TLSConfig = security.TLSConfig
 		err := tp.proxyServer.ListenAndServeTLS(tp.Config.CertFile, tp.Config.KeyFile)
 		if err != nil && err == http.ErrServerClosed {
 			tp.Logger.Infof("tunnel proxy closed")

@@ -1,6 +1,7 @@
 package chshare
 
 import (
+	"crypto/tls"
 	"errors"
 	"net"
 	"net/http"
@@ -8,10 +9,11 @@ import (
 
 type ServerOption func(*HTTPServer)
 
-func WithTLS(certFile, keyFile string) ServerOption {
+func WithTLS(certFile string, keyFile string, tlsConfig *tls.Config) ServerOption {
 	return func(s *HTTPServer) {
 		s.certFile = certFile
 		s.keyFile = keyFile
+		s.TLSConfig = tlsConfig
 	}
 }
 
