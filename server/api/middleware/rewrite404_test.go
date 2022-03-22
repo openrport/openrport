@@ -52,3 +52,40 @@ func TestRewrite404(t *testing.T) {
 		})
 	}
 }
+
+func TestRewrite404ForVueJs(t *testing.T) {
+	testCases := []struct {
+		Path           string
+		ExpectedStatus int
+	}{
+		{
+			Path:           "/not_found_path",
+			ExpectedStatus: 404,
+		}, {
+			Path:           "/dashboard",
+			ExpectedStatus: 200,
+		},
+	}
+
+	for _, tc := range testCases {
+		t.Run(tc.Path, func(t *testing.T) {
+			mockHandler := func(w http.ResponseWriter, r *http.Request) {
+				if r.URL.Path != "/" {
+					http.NotFound(w, r)
+					return
+				}
+				_, err := w.Write([]byte("hello world"))
+				require.NoError(t, err)
+			}
+			vueHistoryPaths := []string{"dashboard"}
+			h := Rewrite404ForVueJs(http.HandlerFunc(mockHandler), vueHistoryPaths)
+
+			req, err := http.NewRequest("GET", tc.Path, nil)
+			require.NoError(t, err)
+			rw := httptest.NewRecorder()
+			h.ServeHTTP(rw, req)
+			result := rw.Result()
+			assert.Equal(t, tc.ExpectedStatus, result.StatusCode)
+		})
+	}
+}

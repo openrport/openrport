@@ -297,7 +297,18 @@ func (al *APIListener) initRouter() {
 
 	docRoot := al.config.API.DocRoot
 	if docRoot != "" {
-		r.PathPrefix("/").Handler(middleware.Rewrite404(http.FileServer(http.Dir(docRoot)), "/"))
+		// Start a http file server with proper Vue.js HTML5 history mode (aka rewrite to /) for the following paths
+		vueHistoryPaths := []string{
+			"dashboard",
+			"auth",
+			"tunnels",
+			"inventory",
+			"documentation",
+			"commands",
+			"scripts",
+			"settings",
+		}
+		r.PathPrefix("/").Handler(middleware.Rewrite404ForVueJs(http.FileServer(http.Dir(docRoot)), vueHistoryPaths))
 	}
 
 	if al.requestLogOptions != nil {
