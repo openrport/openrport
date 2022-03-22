@@ -77,7 +77,7 @@ func TestRewrite404ForVueJs(t *testing.T) {
 				_, err := w.Write([]byte("hello world"))
 				require.NoError(t, err)
 			}
-			vueHistoryPaths := []string{"dashboard"}
+			vueHistoryPaths := []string{"auth", "dashboard"}
 			h := Rewrite404ForVueJs(http.HandlerFunc(mockHandler), vueHistoryPaths)
 
 			req, err := http.NewRequest("GET", tc.Path, nil)
