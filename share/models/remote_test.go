@@ -19,7 +19,7 @@ func TestDecodeRemote(t *testing.T) {
 		{
 			Input:          "3000",
 			WantProtocol:   ProtocolTCP,
-			WantRemoteHost: ZeroHost,
+			WantRemoteHost: LocalHost,
 			WantRemotePort: "3000",
 		},
 		{
@@ -41,7 +41,7 @@ func TestDecodeRemote(t *testing.T) {
 			WantProtocol:   ProtocolTCP,
 			WantLocalHost:  ZeroHost,
 			WantLocalPort:  "3000",
-			WantRemoteHost: ZeroHost,
+			WantRemoteHost: LocalHost,
 			WantRemotePort: "80",
 		},
 		{
@@ -55,7 +55,7 @@ func TestDecodeRemote(t *testing.T) {
 		{
 			Input:          "3000/udp",
 			WantProtocol:   ProtocolUDP,
-			WantRemoteHost: ZeroHost,
+			WantRemoteHost: LocalHost,
 			WantRemotePort: "3000",
 		},
 		{
@@ -77,7 +77,7 @@ func TestDecodeRemote(t *testing.T) {
 			WantProtocol:   ProtocolUDP,
 			WantLocalHost:  ZeroHost,
 			WantLocalPort:  "3000",
-			WantRemoteHost: ZeroHost,
+			WantRemoteHost: LocalHost,
 			WantRemotePort: "80",
 		},
 		{

@@ -26,6 +26,7 @@ import (
 
 const (
 	ZeroHost    = "0.0.0.0"
+	LocalHost   = "127.0.0.1"
 	ProtocolTCP = "tcp"
 	ProtocolUDP = "udp"
 )
@@ -90,7 +91,7 @@ func DecodeRemote(s string) (*Remote, error) {
 		r.LocalHost = ZeroHost
 	}
 	if r.RemoteHost == "" {
-		r.RemoteHost = ZeroHost
+		r.RemoteHost = LocalHost
 	}
 	return r, nil
 }

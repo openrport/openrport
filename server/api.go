@@ -1277,6 +1277,16 @@ func (al *APIListener) handlePutClientTunnel(w http.ResponseWriter, req *http.Re
 		return
 	}
 
+	allowed, err := clienttunnel.IsAllowed(remote.Remote(), client.Connection)
+	if err != nil {
+		al.jsonError(w, err)
+		return
+	}
+	if !allowed {
+		al.jsonErrorResponseWithTitle(w, http.StatusBadRequest, "Tunnel destination is not allowed by client configuration.")
+		return
+	}
+
 	idleTimeoutMinutesStr := req.URL.Query().Get(idleTimeoutMinutesQueryParam)
 	skipIdleTimeout, err := strconv.ParseBool(req.URL.Query().Get(skipIdleTimeoutQueryParam))
 	if err != nil {

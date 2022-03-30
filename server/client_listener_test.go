@@ -41,7 +41,7 @@ func TestGetTunnelsToReestablish(t *testing.T) {
 				"192.168.0.1:3000:google.com:80",
 				"0.0.0.0:3000:site.com:80",
 				"::foobar.com:3000",
-				"::0.0.0.0:3000",
+				"::127.0.0.1:3000",
 			},
 		},
 		{
@@ -93,7 +93,7 @@ func TestGetTunnelsToReestablish(t *testing.T) {
 				"192.168.0.1:3001:google.com:80",
 				"0.0.0.0:3001:site.com:80",
 				"::foobar.com:3001",
-				"::0.0.0.0:3001",
+				"::127.0.0.1:3001",
 			},
 		},
 		{
@@ -107,9 +107,9 @@ func TestGetTunnelsToReestablish(t *testing.T) {
 			},
 			newStr: []string{
 				"0.0.0.0:" + randomPorts[1] + ":foobar.com:22",
-				"0.0.0.0:" + randomPorts[2] + ":0.0.0.0:3000",
+				"0.0.0.0:" + randomPorts[2] + ":127.0.0.1:3000",
 				"0.0.0.0:" + randomPorts[3] + ":foobar.com:22",
-				"0.0.0.0:" + randomPorts[4] + ":0.0.0.0:3000",
+				"0.0.0.0:" + randomPorts[4] + ":127.0.0.1:3000",
 			},
 			wantResStr: []string{
 				"192.168.0.1:3000:google.com:80",
@@ -126,7 +126,7 @@ func TestGetTunnelsToReestablish(t *testing.T) {
 			},
 			newStr: []string{
 				"0.0.0.0:" + randomPorts[1] + ":foobar.com:22",
-				"0.0.0.0:" + randomPorts[2] + ":0.0.0.0:3000",
+				"0.0.0.0:" + randomPorts[2] + ":127.0.0.1:3000",
 				"foobar.com:22",
 				"3000",
 			},
@@ -199,7 +199,7 @@ func TestGetTunnelsToReestablish(t *testing.T) {
 				"foobar.com:3000",
 				"3000",
 				"3000",
-				"0.0.0.0:" + randomPorts[7] + ":0.0.0.0:3000",
+				"0.0.0.0:" + randomPorts[7] + ":127.0.0.1:3000",
 			},
 			wantResStr: []string{
 				"192.168.0.1:3000:google.com:8080",
@@ -275,8 +275,8 @@ func TestGetTunnelsToReestablish(t *testing.T) {
 			descr: "new tunnel specified in form '<remote-port>' is not among old",
 			oldStr: []string{
 				"192.168.0.1:3000:foobar.com:3000",
-				"0.0.0.0:3000:0.0.0.0:3000",
-				"3000:0.0.0.0:3000",
+				"0.0.0.0:3000:127.0.0.1:3000",
+				"3000:127.0.0.1:3000",
 				"3000:foobar.com:3000",
 				"foobar.com:3000",
 				"3001",
@@ -289,13 +289,13 @@ func TestGetTunnelsToReestablish(t *testing.T) {
 		{
 			descr: "same old and new tunnel but different ACLs",
 			oldStr: []string{
-				"5432:0.0.0.0:22",
+				"5432:127.0.0.1:22",
 			},
 			oldACL: []string{
 				"95.67.52.213",
 			},
 			newStr: []string{
-				"5432:0.0.0.0:22",
+				"5432:127.0.0.1:22",
 			},
 			newACL: []string{
 				"95.67.52.214",
@@ -321,21 +321,21 @@ func TestGetTunnelsToReestablish(t *testing.T) {
 		{
 			descr: "old tunnels have 2 similar tunnels but different ACLs, new tunnels contains one of them",
 			oldStr: []string{
-				"2222:0.0.0.0:22",
-				"3333:0.0.0.0:22",
+				"2222:127.0.0.1:22",
+				"3333:127.0.0.1:22",
 			},
 			oldACL: []string{
 				"95.67.52.213",
 				"95.67.52.214",
 			},
 			newStr: []string{
-				"2222:0.0.0.0:22",
+				"2222:127.0.0.1:22",
 			},
 			newACL: []string{
 				"95.67.52.213",
 			},
 			wantResStr: []string{
-				"0.0.0.0:3333:0.0.0.0:22(acl:95.67.52.214)",
+				"0.0.0.0:3333:127.0.0.1:22(acl:95.67.52.214)",
 			},
 		},
 		{
@@ -379,7 +379,7 @@ func TestGetTunnelsToReestablish(t *testing.T) {
 				"95.67.52.214",
 			},
 			wantResStr: []string{
-				"::0.0.0.0:22(acl:95.67.52.215)",
+				"::127.0.0.1:22(acl:95.67.52.215)",
 			},
 		},
 	}

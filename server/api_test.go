@@ -151,7 +151,7 @@ func TestGetCorrespondingSortFuncPositive(t *testing.T) {
 			t.Parallel()
 
 			// when
-			sortOptions := query.ParseSortOptions(map[string][]string{"sort": []string{tc.sortStr}})
+			sortOptions := query.ParseSortOptions(map[string][]string{"sort": {tc.sortStr}})
 			gotFunc, gotDesc, gotErr := getCorrespondingSortFunc(sortOptions)
 
 			// then
@@ -169,7 +169,7 @@ func TestGetCorrespondingSortFuncPositive(t *testing.T) {
 
 func TestGetCorrespondingSortFuncError(t *testing.T) {
 	// when
-	sortOptions := query.ParseSortOptions(map[string][]string{"sort": []string{"id", "-name"}})
+	sortOptions := query.ParseSortOptions(map[string][]string{"sort": {"id", "-name"}})
 	_, _, gotErr := getCorrespondingSortFunc(sortOptions)
 
 	// then

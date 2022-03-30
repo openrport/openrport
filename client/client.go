@@ -422,6 +422,8 @@ func (c *Client) handleSSHRequests(ctx context.Context, sshConn *sshClientConn) 
 			)
 
 			resp, err = uploadManager.HandleUploadRequest(r.Payload)
+		case comm.RequestTypeCheckTunnelAllowed:
+			resp, err = c.checkTunnelAllowed(r.Payload)
 		default:
 			c.Debugf("Unknown request: %q", r.Type)
 			comm.ReplyError(c.Logger, r, errors.New("unknown request"))
@@ -452,6 +454,23 @@ func checkPort(payload []byte) (*comm.CheckPortResponse, error) {
 	return &comm.CheckPortResponse{
 		Open:   open,
 		ErrMsg: errMsg,
+	}, nil
+}
+
+func (c *Client) checkTunnelAllowed(payload []byte) (*comm.CheckTunnelAllowedResponse, error) {
+	var req comm.CheckTunnelAllowedRequest
+	err := json.Unmarshal(payload, &req)
+	if err != nil {
+		return nil, err
+	}
+
+	allowed, err := TunnelIsAllowed(c.configHolder.Client.TunnelAllowed, req.Remote)
+	if err != nil {
+		return nil, err
+	}
+
+	return &comm.CheckTunnelAllowedResponse{
+		IsAllowed: allowed,
 	}, nil
 }
 
@@ -492,6 +511,19 @@ func (c *Client) connectStreams(chans <-chan ssh.NewChannel) {
 		if len(parts) == 2 {
 			remote = parts[0]
 			protocol = parts[1]
+		}
+
+		allowed, err := TunnelIsAllowed(c.configHolder.Client.TunnelAllowed, remote)
+		if err != nil {
+			c.Errorf("Could not check if remote is allowed: %v", err)
+		}
+		if !allowed {
+			c.Infof(`Rejecting stream to %s based on "tunnel_allowed" config.`, remote)
+			err := ch.Reject(ssh.Prohibited, `not allowed with "tunnel_allowed" config`)
+			if err != nil {
+				c.Errorf("Failed to reject stream: %v", err)
+			}
+			continue
 		}
 
 		stream, reqs, err := ch.Accept()

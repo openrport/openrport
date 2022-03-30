@@ -69,7 +69,7 @@ var clientsSupportedSorts = map[string]bool{
 	"version":  true,
 }
 var clientsSupportedFields = map[string]map[string]bool{
-	"clients": map[string]bool{
+	"clients": {
 		"id":                       true,
 		"name":                     true,
 		"os":                       true,
@@ -104,7 +104,7 @@ var clientsSupportedFields = map[string]map[string]bool{
 	},
 }
 var clientsListDefaultFields = map[string][]string{
-	"fields[clients]": []string{
+	"fields[clients]": {
 		"id",
 		"name",
 		"hostname",
@@ -226,6 +226,10 @@ func (s *ClientService) StartClient(
 		}
 
 		oldTunnels := GetTunnelsToReestablish(getRemotes(client.Tunnels), req.Remotes)
+		oldTunnels, err = ExcludeNotAllowedTunnels(clog, oldTunnels, sshConn)
+		if err != nil {
+			return nil, fmt.Errorf("failed to filter tunnels: %v", err)
+		}
 		clog.Infof("Tunnels to create %d: %v", len(req.Remotes), req.Remotes)
 		if len(oldTunnels) > 0 {
 			clog.Infof("Old tunnels to re-establish %d: %v", len(oldTunnels), oldTunnels)
@@ -517,4 +521,20 @@ func (s *ClientService) getExistingByID(clientID string) (*clients.Client, error
 	}
 
 	return existing, nil
+}
+
+func ExcludeNotAllowedTunnels(clog *logger.Logger, tunnels []*models.Remote, conn ssh.Conn) ([]*models.Remote, error) {
+	filtered := make([]*models.Remote, 0, len(tunnels))
+	for _, t := range tunnels {
+		allowed, err := clienttunnel.IsAllowed(t.Remote(), conn)
+		if err != nil {
+			return nil, err
+		}
+		if !allowed {
+			clog.Infof("Tunnel %q is no longer allowed by client config, removing.", t)
+			continue
+		}
+		filtered = append(filtered, t)
+	}
+	return filtered, nil
 }

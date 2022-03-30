@@ -194,10 +194,25 @@ func (c *ClientConfigHolder) parseRemotes() error {
 		return fmt.Errorf("invalid tunnels config: %w", err)
 	}
 
+	for _, ta := range c.Client.TunnelAllowed {
+		_, _, err := ParseTunnelAllowed(ta)
+		if err != nil {
+			return fmt.Errorf(`invalid "tunnel_allowed" config: %v`, err)
+		}
+	}
+
 	for _, s := range c.Client.Remotes {
 		r, err := models.DecodeRemote(s)
 		if err != nil {
 			return fmt.Errorf("failed to decode remote %q: %v", s, err)
+		}
+
+		allowed, err := TunnelIsAllowed(c.Client.TunnelAllowed, r.Remote())
+		if err != nil {
+			return fmt.Errorf("failed to check if remote %q is allowed: %v", s, err)
+		}
+		if !allowed {
+			return fmt.Errorf(`remote %q is not allowed by "tunnel_allowed" config`, s)
 		}
 
 		r = c.applyTunnelsConfig(r)

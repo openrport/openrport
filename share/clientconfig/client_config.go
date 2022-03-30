@@ -35,6 +35,7 @@ type ClientConfig struct {
 	UseHostname              bool          `json:"use_hostname" mapstructure:"use_hostname"`
 	Tags                     []string      `json:"tags" mapstructure:"tags"`
 	Remotes                  []string      `json:"remotes" mapstructure:"remotes"`
+	TunnelAllowed            []string      `json:"tunnel_allowed" mapstructure:"tunnel_allowed"`
 	AllowRoot                bool          `json:"allow_root" mapstructure:"allow_root"`
 	UpdatesInterval          time.Duration `json:"updates_interval" mapstructure:"updates_interval"`
 	DataDir                  string        `json:"data_dir" mapstructure:"data_dir"`

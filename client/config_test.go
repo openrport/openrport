@@ -233,6 +233,7 @@ func TestConfigParseAndValidateRemotes(t *testing.T) {
 		Name            string
 		Remotes         []string
 		TunnelsConfig   clientconfig.TunnelsConfig
+		TunnelAllowed   []string
 		ExpectedRemotes []*models.Remote
 		ExpectedError   string
 	}{
@@ -244,9 +245,9 @@ func TestConfigParseAndValidateRemotes(t *testing.T) {
 			Name:    "one",
 			Remotes: []string{"8000"},
 			ExpectedRemotes: []*models.Remote{
-				&models.Remote{
+				{
 					Protocol:   models.ProtocolTCP,
-					RemoteHost: "0.0.0.0",
+					RemoteHost: "127.0.0.1",
 					RemotePort: "8000",
 				},
 			},
@@ -254,14 +255,14 @@ func TestConfigParseAndValidateRemotes(t *testing.T) {
 			Name:    "multiple",
 			Remotes: []string{"8000", "3000"},
 			ExpectedRemotes: []*models.Remote{
-				&models.Remote{
+				{
 					Protocol:   models.ProtocolTCP,
-					RemoteHost: "0.0.0.0",
+					RemoteHost: "127.0.0.1",
 					RemotePort: "8000",
 				},
-				&models.Remote{
+				{
 					Protocol:   models.ProtocolTCP,
-					RemoteHost: "0.0.0.0",
+					RemoteHost: "127.0.0.1",
 					RemotePort: "3000",
 				},
 			},
@@ -272,14 +273,14 @@ func TestConfigParseAndValidateRemotes(t *testing.T) {
 		},
 		{
 			Name:    "has tunnels config",
-			Remotes: []string{"8000", "8443:0.0.0.0:8080"},
+			Remotes: []string{"8000", "8443:127.0.0.1:8080"},
 			TunnelsConfig: clientconfig.TunnelsConfig{
 				Scheme: schemeHTTP,
 			},
 			ExpectedRemotes: []*models.Remote{
 				{
 					Protocol:   models.ProtocolTCP,
-					RemoteHost: "0.0.0.0",
+					RemoteHost: "127.0.0.1",
 					RemotePort: "8000",
 					Scheme:     &schemeHTTP,
 				},
@@ -287,7 +288,7 @@ func TestConfigParseAndValidateRemotes(t *testing.T) {
 					Protocol:   models.ProtocolTCP,
 					LocalHost:  "0.0.0.0",
 					LocalPort:  "8443",
-					RemoteHost: "0.0.0.0",
+					RemoteHost: "127.0.0.1",
 					RemotePort: "8080",
 					Scheme:     &schemeHTTP,
 				},
@@ -304,7 +305,7 @@ func TestConfigParseAndValidateRemotes(t *testing.T) {
 			ExpectedRemotes: []*models.Remote{
 				{
 					Protocol:   models.ProtocolTCP,
-					RemoteHost: "0.0.0.0",
+					RemoteHost: "127.0.0.1",
 					RemotePort: "8000",
 					Scheme:     &schemeHTTP,
 					HTTPProxy:  true,
@@ -321,11 +322,36 @@ func TestConfigParseAndValidateRemotes(t *testing.T) {
 			},
 			ExpectedError: `invalid tunnels config: host-header requires enabled reverse-proxy`,
 		},
+		{
+			Name:          "has tunnel allowed",
+			Remotes:       []string{"8000"},
+			TunnelAllowed: []string{"8000"},
+			ExpectedRemotes: []*models.Remote{
+				{
+					Protocol:   models.ProtocolTCP,
+					RemoteHost: "127.0.0.1",
+					RemotePort: "8000",
+				},
+			},
+		},
+		{
+			Name:          "invalid tunnel allowed",
+			Remotes:       []string{"8000"},
+			TunnelAllowed: []string{"abc"},
+			ExpectedError: `invalid "tunnel_allowed" config: invalid port: "abc"`,
+		},
+		{
+			Name:          "tunnel allowed: not allowed remote",
+			Remotes:       []string{"8000"},
+			TunnelAllowed: []string{"8001"},
+			ExpectedError: `remote "8000" is not allowed by "tunnel_allowed" config`,
+		},
 	}
 
 	for _, tc := range testCases {
 		t.Run(tc.Name, func(t *testing.T) {
 			config := getDefaultValidMinConfig()
+			config.Client.TunnelAllowed = tc.TunnelAllowed
 			config.Client.Remotes = tc.Remotes
 			config.Tunnels = tc.TunnelsConfig
 

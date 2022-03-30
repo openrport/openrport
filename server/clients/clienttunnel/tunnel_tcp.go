@@ -189,7 +189,7 @@ func (t *tunnelTCP) accept(ctx context.Context, src io.ReadWriteCloser) {
 	//ssh request for tcp connection for this proxy's remote
 	dst, reqs, err := t.sshConn.OpenChannel("rport", []byte(t.Remote.Remote()))
 	if err != nil {
-		l.Errorf("Stream error: %s", err)
+		l.Errorf("Could not establish TCP tunnel: %v", err)
 		return
 	}
 	go ssh.DiscardRequests(reqs)

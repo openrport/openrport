@@ -12,6 +12,7 @@ const (
 	RequestTypeRunCmd               = "run_cmd"
 	RequestTypeRefreshUpdatesStatus = "refresh_updates_status"
 	RequestTypePutCapabilities      = "put_capabilities"
+	RequestTypeCheckTunnelAllowed   = "check_tunnel_allowed"
 
 	// request types sent by clients to server
 	RequestTypePing            = "ping"
@@ -42,4 +43,12 @@ type CheckPortResponse struct {
 type RunCmdResponse struct {
 	Pid       int
 	StartedAt time.Time
+}
+
+type CheckTunnelAllowedRequest struct {
+	Remote string
+}
+
+type CheckTunnelAllowedResponse struct {
+	IsAllowed bool
 }
