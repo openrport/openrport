@@ -528,6 +528,9 @@ func ExcludeNotAllowedTunnels(clog *logger.Logger, tunnels []*models.Remote, con
 	for _, t := range tunnels {
 		allowed, err := clienttunnel.IsAllowed(t.Remote(), conn)
 		if err != nil {
+			if strings.Contains(err.Error(), "unknown request") {
+				return tunnels, nil
+			}
 			return nil, err
 		}
 		if !allowed {
