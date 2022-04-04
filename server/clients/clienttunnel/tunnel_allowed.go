@@ -11,7 +11,7 @@ func IsAllowed(remote string, conn ssh.Conn) (bool, error) {
 		Remote: remote,
 	}
 	resp := &comm.CheckTunnelAllowedResponse{}
-	err := comm.SendRequestAndGetResponse(conn, comm.RequestTypeCheckPort, req, resp)
+	err := comm.SendRequestAndGetResponse(conn, comm.RequestTypeCheckTunnelAllowed, req, resp)
 	if err != nil {
 		return false, err
 	}
