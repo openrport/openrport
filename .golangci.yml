@@ -139,5 +139,7 @@ issues:
     # govet
     - "shadow: declaration of .err. shadows declaration"
     - 'shadow: declaration of "c." shadows declaration'
+    # staticcheck
+    - "SA1019" # x is deprecated
 
 new: true

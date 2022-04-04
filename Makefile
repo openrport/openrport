@@ -51,7 +51,7 @@ docker-golangci-lint:
 	docker run -it --rm \
 		-v ${PWD}:${PWD} \
 		-w ${PWD} \
-		golangci/golangci-lint:v1.32 golangci-lint -c .golangci.yml run
+		golangci/golangci-lint:v1.45 golangci-lint -c .golangci.yml run
 
 fmt:
 	goimports -w .
