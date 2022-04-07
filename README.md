@@ -29,8 +29,17 @@ Also, the server can run on any operation system supported by the golang compile
 
 ![Rport Principle](./docs/rport-principle.svg "Rport Principle")
 
-## Documentation
-Please follow the [link](https://oss.rport.io/docs/) to see the full documentation.
+## 📖 Documentation
+🚀 If you are curious and want to try RPort, install your server now in no time. Use our [server installation script](https://kb.rport.io/install-the-rport-server).
+
+[![Button Launch RPort  Now](https://img.shields.io/badge/RPort_Server-Launch_Now-brightgreen?style=for-the-badge&logo=Windows%20Terminal)](https://kb.rport.io/install-the-rport-server)
+
+To read more, you have two places to go:
+
+End-User documentaton|Technical documentation
+---------|----------
+our end-user documentation with articles on user-friendly installation, settings and secure operation of RPort.|our technical documentation with all background information and underlying concepts.
+[![end-user-documentation](https://img.shields.io/badge/End--User_Documentation-Read_Now-green?style=for-the-badge&logo=Gitbook)](https://kb.rport.io)|[![technical-documentation](https://img.shields.io/badge/Technical_Documentation-Read_Now-orange?style=for-the-badge&logo=Github)](https://oss.rport.io/docs/)
 
 ## Feedback and Help
 **We need your feedback**.
