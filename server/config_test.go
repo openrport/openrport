@@ -18,28 +18,38 @@ var defaultValidMinServerConfig = ServerConfig{
 	UsedPortsRaw: []string{"10-20"},
 }
 
-func TestValidateServerDefaults(t *testing.T) {
+func TestParseAndValidateServerConfig(t *testing.T) {
 	testCases := []struct {
 		Name          string
-		Key           string
-		ExpectedValue string
+		Config        Config
+		ExpectedError error
 	}{
 		{
-			Name:          "pairing url",
-			Key:           "PairingURL",
-			ExpectedValue: "https://pairing.rport.io",
+			Name: "Bad pairing URL",
+			Config: Config{
+				Server: ServerConfig{
+					PairingURL: "ftp:example.com",
+					URL:        []string{"http://www.example.com"},
+				},
+			},
+			ExpectedError: errors.New("invalid pairing url ftp:example.com: schema must be http or https"),
+		},
+		{
+			Name: "Bad server connection URL",
+			Config: Config{
+				Server: ServerConfig{
+					PairingURL: "https://pairing.example.com",
+					URL:        []string{"https:go.lang"},
+				},
+			},
+			ExpectedError: errors.New("invalid server url https:go.lang: must be absolute url"),
 		},
 	}
 
-	config := Config{}
-	err := config.ParseAndValidate()
-	require.NoError(t, err)
-	t.Logf("pairing url = %s\n", config.Server.PairingURL)
-	//assert.Equal(t, 1, 2, "this must fail")
-
 	for _, tc := range testCases {
 		t.Run(tc.Name, func(t *testing.T) {
-			t.Logf("Looking for %s with value %s\n", tc.Key, tc.ExpectedValue)
+			err := tc.Config.ParseAndValidate()
+			assert.Equal(t, tc.ExpectedError, err)
 		})
 	}
 }
