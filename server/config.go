@@ -487,25 +487,35 @@ func (s *ServerConfig) parseAndValidateURLs() error {
 	}
 
 	for _, v := range s.URL {
-		u, err := url.Parse(v)
-		if err != nil {
-			return fmt.Errorf("invalid connection url %s: %w", v, err)
-		}
-
-		if u.Host == "" {
-			return fmt.Errorf("invalid connection url %s: must be absolute url", v)
+		if err := validateHTTPorHTTPSURL(v, "server"); err != nil {
+			return err
 		}
 	}
 
 	if len(s.PairingURL) == 0 {
 		s.PairingURL = DefaultPairingService
 	} else {
-		_, err := url.ParseRequestURI(s.PairingURL)
-		if err != nil || !strings.HasPrefix(s.PairingURL, "http") {
-			return fmt.Errorf("invalid pairing_url %s", s.PairingURL)
+		if err := validateHTTPorHTTPSURL(s.PairingURL, "pairing"); err != nil {
+			return err
 		}
 	}
 
+	return nil
+}
+
+func validateHTTPorHTTPSURL(testURL string, name string) error {
+	u, err := url.ParseRequestURI(testURL)
+	if err != nil {
+		return fmt.Errorf("invalid %s url %s: %w", name, testURL, err)
+	}
+
+	if u.Scheme != "http" && u.Scheme != "https" {
+		return fmt.Errorf("invalid %s url %s: schema must be http or https", name, testURL)
+	}
+
+	if u.Host == "" {
+		return fmt.Errorf("invalid %s url %s: must be absolute url", name, testURL)
+	}
 	return nil
 }
 
