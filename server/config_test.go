@@ -18,6 +18,32 @@ var defaultValidMinServerConfig = ServerConfig{
 	UsedPortsRaw: []string{"10-20"},
 }
 
+func TestValidateServerDefaults(t *testing.T) {
+	testCases := []struct {
+		Name          string
+		Key           string
+		ExpectedValue string
+	}{
+		{
+			Name:          "pairing url",
+			Key:           "PairingURL",
+			ExpectedValue: "https://pairing.rport.io",
+		},
+	}
+
+	config := Config{}
+	err := config.ParseAndValidate()
+	require.NoError(t, err)
+	t.Logf("pairing url = %s\n", config.Server.PairingURL)
+	//assert.Equal(t, 1, 2, "this must fail")
+
+	for _, tc := range testCases {
+		t.Run(tc.Name, func(t *testing.T) {
+			t.Logf("Looking for %s with value %s\n", tc.Key, tc.ExpectedValue)
+		})
+	}
+}
+
 func TestDatabaseParseAndValidate(t *testing.T) {
 	testCases := []struct {
 		Name           string
