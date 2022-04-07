@@ -770,6 +770,7 @@ func (al *APIListener) handleGetStatus(w http.ResponseWriter, req *http.Request)
 		"clients_disconnected":   countDisconnected,
 		"fingerprint":            al.fingerprint,
 		"connect_url":            al.config.Server.URL,
+		"pairing_url":            al.config.Server.PairingURL,
 		"clients_auth_source":    al.clientAuthProvider.Source(),
 		"clients_auth_mode":      al.getClientsAuthMode(),
 		"users_auth_source":      al.userService.GetProviderType(),

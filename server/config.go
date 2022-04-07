@@ -87,10 +87,10 @@ func (c *APIConfig) parseAndValidate2FASendToType() error {
 }
 
 const (
-	MinKeepLostClients = time.Second
-	MaxKeepLostClients = 7 * 24 * time.Hour
-
-	DefaultVaultDBName = "vault.sqlite.db"
+	MinKeepLostClients    = time.Second
+	MaxKeepLostClients    = 7 * 24 * time.Hour
+	DefaultPairingService = "https://pairing.rport.io"
+	DefaultVaultDBName    = "vault.sqlite.db"
 
 	socketPrefix = "socket:"
 )
@@ -103,6 +103,7 @@ type LogConfig struct {
 type ServerConfig struct {
 	ListenAddress              string                         `mapstructure:"address"`
 	URL                        []string                       `mapstructure:"url"`
+	PairingURL                 string                         `mapstructure:"pairing_url"`
 	KeySeed                    string                         `mapstructure:"key_seed"`
 	Auth                       string                         `mapstructure:"auth"`
 	AuthFile                   string                         `mapstructure:"auth_file"`
@@ -493,6 +494,15 @@ func (s *ServerConfig) parseAndValidateURLs() error {
 
 		if u.Host == "" {
 			return fmt.Errorf("invalid connection url %s: must be absolute url", v)
+		}
+	}
+
+	if len(s.PairingURL) == 0 {
+		s.PairingURL = DefaultPairingService
+	} else {
+		_, err := url.ParseRequestURI(s.PairingURL)
+		if err != nil || !strings.HasPrefix(s.PairingURL, "http") {
+			return fmt.Errorf("invalid pairing_url %s", s.PairingURL)
 		}
 	}
 
