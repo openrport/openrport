@@ -19,6 +19,7 @@ const (
 	queryParDomain    = "domain"
 	queryParWidth     = "width"
 	queryParHeight    = "height"
+	queryParTitle     = "title"
 	queryParKeyboard  = "keyboard"
 	queryParGuacError = "guac-error"
 )
@@ -79,6 +80,7 @@ func (tc *TunnelProxyConnectorRDP) serveIndex(w http.ResponseWriter, r *http.Req
 		queryParKeyboard:  r.Form.Get(queryParKeyboard),
 		queryParWidth:     r.Form.Get(queryParWidth),
 		queryParHeight:    r.Form.Get(queryParHeight),
+		queryParTitle:     r.Form.Get(queryParTitle),
 		"errorMessage":    guacError,
 		"isError":         guacError != "",
 		"securityOptions": CreateOptions(keysSecurity, keysSecurity, selSecurity),
