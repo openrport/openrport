@@ -218,8 +218,10 @@ func TestParseAndValidateClientAuth(t *testing.T) {
 	for _, tc := range testCases {
 		t.Run(tc.Name, func(t *testing.T) {
 			err := tc.Config.parseAndValidateClientAuth()
-			if err != nil {
+			if tc.ExpectedError != "" {
 				assert.EqualError(t, err, tc.ExpectedError, "Error not as expected")
+			} else {
+				assert.NoError(t, err)
 			}
 			assert.Equal(t, tc.ExpectedAuthID, tc.Config.Server.authID)
 			assert.Equal(t, tc.ExpectedAuthPassword, tc.Config.Server.authPassword)
@@ -490,8 +492,10 @@ func TestParseAndValidateAPI(t *testing.T) {
 		t.Run(tc.Name, func(t *testing.T) {
 			tc.Config.Server = defaultValidMinServerConfig
 			err := tc.Config.ParseAndValidate()
-			if len(tc.ExpectedError) != 0 {
+			if tc.ExpectedError != "" {
 				assert.EqualError(t, err, tc.ExpectedError)
+			} else {
+				assert.NoError(t, err)
 			}
 			if tc.ExpectedJwtSecret {
 				assert.NotEmpty(t, tc.Config.API.JWTSecret)
