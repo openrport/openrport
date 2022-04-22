@@ -1,3 +1,4 @@
+[![Github All Releases](https://img.shields.io/github/downloads/cloudradar-monitoring/rport/total.svg?style=for-the-badge)]()
 ## At a glance
 Rport helps you to manage your remote servers without the hassle of VPNs, chained SSH connections, jump-hosts, or the use of commercial tools like TeamViewer and its clones.
 
