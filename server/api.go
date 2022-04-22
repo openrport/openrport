@@ -229,6 +229,7 @@ func (al *APIListener) initRouter() {
 	api.HandleFunc("/commands", al.handlePostMultiClientCommand).Methods(http.MethodPost)
 	api.HandleFunc("/commands", al.handleGetMultiClientCommands).Methods(http.MethodGet)
 	api.HandleFunc("/commands/{job_id}", al.handleGetMultiClientCommand).Methods(http.MethodGet)
+	api.HandleFunc("/commands/{job_id}/jobs", al.handleGetMultiClientCommandJobs).Methods(http.MethodGet)
 	api.HandleFunc("/clients-auth", al.wrapAdminAccessMiddleware(al.handleGetClientsAuth)).Methods(http.MethodGet)
 	api.HandleFunc("/clients-auth", al.wrapAdminAccessMiddleware(al.handlePostClientsAuth)).Methods(http.MethodPost)
 	api.HandleFunc("/clients-auth/{client_auth_id}", al.wrapAdminAccessMiddleware(al.handleDeleteClientAuth)).Methods(http.MethodDelete)
@@ -2054,7 +2055,7 @@ func (al *APIListener) handleGetCommands(w http.ResponseWriter, req *http.Reques
 	options := query.NewOptions(req, nil, nil, jobs.JobListDefaultFields)
 
 	err := query.ValidateListOptions(options, jobs.JobSupportedSorts, jobs.JobSupportedFilters, jobs.JobSupportedFields, &query.PaginationConfig{
-		MaxLimit:     1000,
+		MaxLimit:     jobs.MaxLimit,
 		DefaultLimit: jobs.DefaultLimit,
 	})
 	if err != nil {
@@ -2072,6 +2073,45 @@ func (al *APIListener) handleGetCommands(w http.ResponseWriter, req *http.Reques
 	totalCount, err := al.jobProvider.Count(req.Context(), options)
 	if err != nil {
 		al.jsonErrorResponseWithError(w, http.StatusInternalServerError, fmt.Sprintf("Failed to get client jobs: client_id=%q.", cid), err)
+		return
+	}
+
+	payload := &api.SuccessPayload{
+		Data: convertToJobsPayload(result, options.Fields),
+		Meta: api.NewMeta(totalCount),
+	}
+	al.writeJSONResponse(w, http.StatusOK, payload)
+}
+
+func (al *APIListener) handleGetMultiClientCommandJobs(w http.ResponseWriter, req *http.Request) {
+	vars := mux.Vars(req)
+	multiJobID := vars[routeParamJobID]
+	if multiJobID == "" {
+		al.jsonErrorResponseWithTitle(w, http.StatusBadRequest, fmt.Sprintf("Missing %q route param.", routeParamJobID))
+		return
+	}
+
+	options := query.NewOptions(req, nil, nil, jobs.JobListDefaultFields)
+
+	err := query.ValidateListOptions(options, jobs.JobSupportedSorts, jobs.JobSupportedFilters, jobs.JobSupportedFields, &query.PaginationConfig{
+		MaxLimit:     jobs.MaxLimit,
+		DefaultLimit: jobs.DefaultLimit,
+	})
+	if err != nil {
+		al.jsonError(w, err)
+		return
+	}
+
+	options.Filters = append(options.Filters, query.FilterOption{Column: []string{"multi_job_id"}, Values: []string{multiJobID}})
+	result, err := al.jobProvider.List(req.Context(), options)
+	if err != nil {
+		al.jsonErrorResponseWithError(w, http.StatusInternalServerError, fmt.Sprintf("Failed to get jobs: multi_job_id=%q.", multiJobID), err)
+		return
+	}
+
+	totalCount, err := al.jobProvider.Count(req.Context(), options)
+	if err != nil {
+		al.jsonErrorResponseWithError(w, http.StatusInternalServerError, fmt.Sprintf("Failed to get jobs: multi_job_id=%q.", multiJobID), err)
 		return
 	}
 

@@ -17,7 +17,10 @@ import (
 	"github.com/cloudradar-monitoring/rport/share/query"
 )
 
-const DefaultLimit = 100
+const (
+	DefaultLimit = 100
+	MaxLimit     = 1000
+)
 
 var JobSupportedFilters = map[string]bool{
 	"jid":                true,
