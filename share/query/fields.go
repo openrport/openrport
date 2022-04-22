@@ -79,3 +79,16 @@ func ParseFieldsOptions(values url.Values) []FieldsOption {
 
 	return res
 }
+
+func RequestedFields(fields []FieldsOption, resource string) map[string]bool {
+	result := make(map[string]bool)
+	for _, res := range fields {
+		if res.Resource != resource {
+			continue
+		}
+		for _, field := range res.Fields {
+			result[field] = true
+		}
+	}
+	return result
+}

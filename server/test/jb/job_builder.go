@@ -108,11 +108,9 @@ func (b JobBuilder) Build() *models.Job {
 	pid := 1245
 	// hardcoded values are used because currently was no need of other data, extend with more available options if needed
 	return &models.Job{
-		JobSummary: models.JobSummary{
-			JID:        b.jid,
-			Status:     b.status,
-			FinishedAt: b.finishedAt,
-		},
+		JID:        b.jid,
+		Status:     b.status,
+		FinishedAt: b.finishedAt,
 		ClientID:   b.clientID,
 		ClientName: b.clientName,
 		Command:    "/bin/date;foo;whoami",

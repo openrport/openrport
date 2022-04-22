@@ -23,6 +23,15 @@ type PaginationConfig struct {
 	DefaultLimit int
 }
 
+func NewPagination(limit, offset int) *Pagination {
+	return &Pagination{
+		Limit:           strconv.Itoa(limit),
+		Offset:          strconv.Itoa(offset),
+		ValidatedLimit:  limit,
+		ValidatedOffset: offset,
+	}
+}
+
 func ValidatePagination(pagination *Pagination, config *PaginationConfig) errors2.APIErrors {
 	if pagination == nil {
 		return nil

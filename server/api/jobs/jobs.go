@@ -17,6 +17,8 @@ import (
 	"github.com/cloudradar-monitoring/rport/share/query"
 )
 
+const DefaultLimit = 100
+
 var JobSupportedFilters = map[string]bool{
 	"jid":                true,
 	"started_at[gt]":     true,
@@ -31,6 +33,7 @@ var JobSupportedFilters = map[string]bool{
 	"created_by":         true,
 	"multi_job_id":       true,
 	"schedule_id":        true,
+	"client_id":          true,
 }
 var JobSupportedSorts = map[string]bool{
 	"jid":          true,
@@ -40,6 +43,45 @@ var JobSupportedSorts = map[string]bool{
 	"multi_job_id": true,
 	"schedule_id":  true,
 	"created_by":   true,
+}
+var jobFields = map[string]bool{
+	"jid":          true,
+	"status":       true,
+	"finished_at":  true,
+	"client_id":    true,
+	"client_name":  true,
+	"command":      true,
+	"cwd":          true,
+	"interpreter":  true,
+	"pid":          true,
+	"started_at":   true,
+	"created_by":   true,
+	"timeout_sec":  true,
+	"multi_job_id": true,
+	"schedule_id":  true,
+	"error":        true,
+	"is_sudo":      true,
+	"is_script":    true,
+}
+var JobSupportedFields = map[string]map[string]bool{
+	"jobs":     jobFields,
+	"commands": jobFields,
+	"scripts":  jobFields,
+	"result": {
+		"stdout":  true,
+		"stderr":  true,
+		"summary": true,
+	},
+}
+var JobListDefaultFields = map[string][]string{
+	"fields[jobs]": {
+		"jid",
+		"status",
+		"finished_at",
+	},
+	"fields[result]": {
+		"summary",
+	},
 }
 
 type SqliteProvider struct {
@@ -63,17 +105,7 @@ func (p *SqliteProvider) GetByJID(clientID, jid string) (*models.Job, error) {
 	return res.convert(), nil
 }
 
-// GetByMultiJobID returns a list of all jobs that belongs to a multi-client job with a given ID sorted by started_at(desc), jid order.
-func (p *SqliteProvider) GetByMultiJobID(jid string) ([]*models.Job, error) {
-	var res []*jobSqlite
-	err := p.db.Select(&res, "SELECT jobs.*, schedule_id FROM jobs LEFT JOIN multi_jobs ON jobs.multi_job_id = multi_jobs.jid WHERE multi_job_id=? ORDER BY DATETIME(jobs.started_at) DESC, jobs.jid", jid)
-	if err != nil {
-		return nil, err
-	}
-	return convertJobs(res), nil
-}
-
-func (p *SqliteProvider) GetSummariesByClientID(ctx context.Context, clientID string, options *query.ListOptions) ([]*models.JobSummary, error) {
+func (p *SqliteProvider) List(ctx context.Context, options *query.ListOptions) ([]*models.Job, error) {
 	if len(options.Sorts) == 0 {
 		options.Sorts = []query.SortOption{
 			{
@@ -87,25 +119,23 @@ func (p *SqliteProvider) GetSummariesByClientID(ctx context.Context, clientID st
 		}
 	}
 
-	q := "SELECT jid, finished_at, status FROM (SELECT jobs.*, schedule_id FROM jobs LEFT JOIN multi_jobs ON jobs.multi_job_id = multi_jobs.jid) WHERE client_id=?"
-	params := []interface{}{clientID}
-	q, params = query.AppendOptionsToQuery(options, q, params)
+	q := "SELECT jobs.*, schedule_id FROM jobs LEFT JOIN multi_jobs ON jobs.multi_job_id = multi_jobs.jid"
+	q, params := query.AppendOptionsToQuery(options, q, nil)
 
-	var res []*jobSummarySqlite
+	var res []*jobSqlite
 	err := p.db.SelectContext(ctx, &res, q, params...)
 	if err != nil {
 		return nil, err
 	}
-	return convertJSs(res), nil
+	return convertJobs(res), nil
 }
 
-func (p *SqliteProvider) CountByClientID(ctx context.Context, clientID string, options *query.ListOptions) (int, error) {
+func (p *SqliteProvider) Count(ctx context.Context, options *query.ListOptions) (int, error) {
 	countOptions := *options
 	countOptions.Pagination = nil
 
-	q := "SELECT count(*) FROM (SELECT jobs.*, schedule_id FROM jobs LEFT JOIN multi_jobs ON jobs.multi_job_id = multi_jobs.jid) WHERE client_id=?"
-	params := []interface{}{clientID}
-	q, params = query.AppendOptionsToQuery(&countOptions, q, params)
+	q := "SELECT count(*) FROM (SELECT jobs.*, schedule_id FROM jobs LEFT JOIN multi_jobs ON jobs.multi_job_id = multi_jobs.jid)"
+	q, params := query.AppendOptionsToQuery(&countOptions, q, nil)
 
 	var result int
 	err := p.db.GetContext(ctx, &result, q, params...)
@@ -149,19 +179,15 @@ func (p *SqliteProvider) Close() error {
 }
 
 type jobSqlite struct {
-	jobSummarySqlite
+	JID        string         `db:"jid"`
+	Status     string         `db:"status"`
+	FinishedAt sql.NullTime   `db:"finished_at"`
 	StartedAt  time.Time      `db:"started_at"`
 	CreatedBy  string         `db:"created_by"`
 	ClientID   string         `db:"client_id"`
 	MultiJobID sql.NullString `db:"multi_job_id"`
 	ScheduleID *string        `db:"schedule_id"`
 	Details    *jobDetails    `db:"details"`
-}
-
-type jobSummarySqlite struct {
-	JID        string       `db:"jid"`
-	Status     string       `db:"status"`
-	FinishedAt sql.NullTime `db:"finished_at"`
 }
 
 type jobDetails struct {
@@ -203,50 +229,6 @@ func (d *jobDetails) Value() (driver.Value, error) {
 	return string(b), nil
 }
 
-func (js *jobSummarySqlite) convert() *models.JobSummary {
-	res := &models.JobSummary{
-		JID:    js.JID,
-		Status: js.Status,
-	}
-	if js.FinishedAt.Valid {
-		res.FinishedAt = &js.FinishedAt.Time
-	}
-	return res
-}
-
-func convertJSs(list []*jobSummarySqlite) []*models.JobSummary {
-	res := make([]*models.JobSummary, 0, len(list))
-	for _, cur := range list {
-		res = append(res, cur.convert())
-	}
-	return res
-}
-
-func (j *jobSqlite) convert() *models.Job {
-	js := j.jobSummarySqlite.convert()
-	res := &models.Job{
-		JobSummary:  *js,
-		ClientID:    j.ClientID,
-		ClientName:  j.Details.ClientName,
-		StartedAt:   j.StartedAt,
-		CreatedBy:   j.CreatedBy,
-		ScheduleID:  j.ScheduleID,
-		Command:     j.Details.Command,
-		Interpreter: j.Details.Interpreter,
-		PID:         j.Details.PID,
-		TimeoutSec:  j.Details.TimeoutSec,
-		Result:      j.Details.Result,
-		Error:       j.Details.Error,
-		Cwd:         j.Details.Cwd,
-		IsSudo:      j.Details.IsSudo,
-		IsScript:    j.Details.IsScript,
-	}
-	if j.MultiJobID.Valid {
-		res.MultiJobID = &j.MultiJobID.String
-	}
-	return res
-}
-
 func convertJobs(list []*jobSqlite) []*models.Job {
 	res := make([]*models.Job, 0, len(list))
 	for _, cur := range list {
@@ -255,12 +237,40 @@ func convertJobs(list []*jobSqlite) []*models.Job {
 	return res
 }
 
+func (j *jobSqlite) convert() *models.Job {
+	res := &models.Job{
+		JID:        j.JID,
+		Status:     j.Status,
+		ClientID:   j.ClientID,
+		StartedAt:  j.StartedAt,
+		CreatedBy:  j.CreatedBy,
+		ScheduleID: j.ScheduleID,
+	}
+	if j.Details != nil {
+		res.ClientName = j.Details.ClientName
+		res.Command = j.Details.Command
+		res.Interpreter = j.Details.Interpreter
+		res.PID = j.Details.PID
+		res.TimeoutSec = j.Details.TimeoutSec
+		res.Result = j.Details.Result
+		res.Error = j.Details.Error
+		res.Cwd = j.Details.Cwd
+		res.IsSudo = j.Details.IsSudo
+		res.IsScript = j.Details.IsScript
+	}
+	if j.FinishedAt.Valid {
+		res.FinishedAt = &j.FinishedAt.Time
+	}
+	if j.MultiJobID.Valid {
+		res.MultiJobID = &j.MultiJobID.String
+	}
+	return res
+}
+
 func convertToSqlite(job *models.Job) *jobSqlite {
 	res := &jobSqlite{
-		jobSummarySqlite: jobSummarySqlite{
-			JID:    job.JID,
-			Status: job.Status,
-		},
+		JID:       job.JID,
+		Status:    job.Status,
 		StartedAt: job.StartedAt,
 		CreatedBy: job.CreatedBy,
 		ClientID:  job.ClientID,
@@ -281,7 +291,7 @@ func convertToSqlite(job *models.Job) *jobSqlite {
 		res.MultiJobID = sql.NullString{String: *job.MultiJobID, Valid: true}
 	}
 	if job.FinishedAt != nil {
-		res.jobSummarySqlite.FinishedAt = sql.NullTime{Time: *job.FinishedAt, Valid: true}
+		res.FinishedAt = sql.NullTime{Time: *job.FinishedAt, Valid: true}
 	}
 	return res
 }

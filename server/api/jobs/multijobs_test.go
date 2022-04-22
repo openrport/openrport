@@ -40,28 +40,28 @@ func TestMultiJobsSqliteProvider(t *testing.T) {
 	require.NoError(t, p.SaveMultiJob(job3))
 
 	// verify added jobs
-	gotJob1, err := p.GetMultiJob(job1.JID)
+	gotJob1, err := p.GetMultiJob(ctx, job1.JID)
 	require.NoError(t, err)
 	require.NotNil(t, gotJob1)
 	assert.EqualValues(t, job1, gotJob1)
 
-	gotJob2, err := p.GetMultiJob(job2.JID)
+	gotJob2, err := p.GetMultiJob(ctx, job2.JID)
 	require.NoError(t, err)
 	require.NotNil(t, gotJob2)
 	assert.Equal(t, job2, gotJob2)
 
-	gotJob3, err := p.GetMultiJob(job3.JID)
+	gotJob3, err := p.GetMultiJob(ctx, job3.JID)
 	require.NoError(t, err)
 	require.NotNil(t, gotJob3)
 	assert.Equal(t, job3, gotJob3)
 
 	// verify child jobs
-	childJobs, err := p.GetByMultiJobID(job1.JID)
+	childJobs, err := p.List(ctx, &query.ListOptions{Filters: []query.FilterOption{{Column: []string{"multi_job_id"}, Values: []string{job1.JID}}}})
 	require.NoError(t, err)
 	assert.ElementsMatch(t, job1.Jobs, childJobs)
 
 	// verify not found job
-	gotJob4, err := p.GetMultiJob("unknown-jid")
+	gotJob4, err := p.GetMultiJob(ctx, "unknown-jid")
 	require.NoError(t, err)
 	require.Nil(t, gotJob4)
 
@@ -81,7 +81,7 @@ func TestMultiJobsSqliteProvider(t *testing.T) {
 	job1.StartedAt = t1.Add(time.Second)
 
 	require.NoError(t, p.SaveMultiJob(job1))
-	gotJob1, err = p.GetMultiJob(job1.JID)
+	gotJob1, err = p.GetMultiJob(ctx, job1.JID)
 	require.NoError(t, err)
 	require.NotNil(t, gotJob1)
 	assert.Equal(t, job1, gotJob1)
