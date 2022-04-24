@@ -31,6 +31,7 @@ const (
 	DefaultLogLevel                  = "info"
 	DefaultRunRemoteCmdTimeoutSec    = 60
 	DefaultMonitoringDataStorageDays = 30
+	DefaultPairingURL                = "https://pairing.rport.io"
 )
 
 var serverHelp = `
@@ -321,6 +322,7 @@ func init() {
 	viperCfg.SetDefault("server.run_remote_cmd_timeout_sec", DefaultRunRemoteCmdTimeoutSec)
 	viperCfg.SetDefault("server.client_login_wait", 2)
 	viperCfg.SetDefault("server.max_failed_login", 5)
+	viperCfg.SetDefault("server.pairing_url", DefaultPairingURL)
 	viperCfg.SetDefault("server.ban_time", 3600)
 	viperCfg.SetDefault("server.enable_ws_test_endpoints", false)
 	viperCfg.SetDefault("server.jobs_max_results", 10000)

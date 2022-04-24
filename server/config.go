@@ -5,7 +5,6 @@ import (
 	"crypto/rand"
 	"crypto/sha256"
 	"crypto/tls"
-	"errors"
 	"fmt"
 	"net"
 	"net/http"
@@ -22,6 +21,7 @@ import (
 
 	mapset "github.com/deckarep/golang-set"
 	"github.com/jpillora/requestlog"
+	"github.com/pkg/errors"
 
 	"github.com/cloudradar-monitoring/rport/server/api/message"
 	"github.com/cloudradar-monitoring/rport/server/auditlog"
@@ -89,7 +89,6 @@ func (c *APIConfig) parseAndValidate2FASendToType() error {
 const (
 	MinKeepLostClients = time.Second
 	MaxKeepLostClients = 7 * 24 * time.Hour
-
 	DefaultVaultDBName = "vault.sqlite.db"
 
 	socketPrefix = "socket:"
@@ -103,6 +102,7 @@ type LogConfig struct {
 type ServerConfig struct {
 	ListenAddress              string                         `mapstructure:"address"`
 	URL                        []string                       `mapstructure:"url"`
+	PairingURL                 string                         `mapstructure:"pairing_url"`
 	KeySeed                    string                         `mapstructure:"key_seed"`
 	Auth                       string                         `mapstructure:"auth"`
 	AuthFile                   string                         `mapstructure:"auth_file"`
@@ -486,16 +486,32 @@ func (s *ServerConfig) parseAndValidateURLs() error {
 	}
 
 	for _, v := range s.URL {
-		u, err := url.Parse(v)
-		if err != nil {
-			return fmt.Errorf("invalid connection url %s: %w", v, err)
+		if err := validateHTTPorHTTPSURL(v); err != nil {
+			return errors.Wrap(err, "server.URL")
 		}
-
-		if u.Host == "" {
-			return fmt.Errorf("invalid connection url %s: must be absolute url", v)
+	}
+	if len(s.PairingURL) != 0 {
+		if err := validateHTTPorHTTPSURL(s.PairingURL); err != nil {
+			return errors.Wrap(err, "server.pairingURL")
 		}
 	}
 
+	return nil
+}
+
+func validateHTTPorHTTPSURL(testURL string) error {
+	u, err := url.ParseRequestURI(testURL)
+	if err != nil {
+		return fmt.Errorf("invalid url %s: %w", testURL, err)
+	}
+
+	if u.Scheme != "http" && u.Scheme != "https" {
+		return fmt.Errorf("invalid url %s: schema must be http or https", testURL)
+	}
+
+	if u.Host == "" {
+		return fmt.Errorf("invalid url %s, must be absolute url", testURL)
+	}
 	return nil
 }
 

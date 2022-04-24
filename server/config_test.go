@@ -1,7 +1,6 @@
 package chserver
 
 import (
-	"errors"
 	"testing"
 
 	mapset "github.com/deckarep/golang-set"
@@ -18,13 +17,49 @@ var defaultValidMinServerConfig = ServerConfig{
 	UsedPortsRaw: []string{"10-20"},
 }
 
+func TestParseAndValidateServerConfig(t *testing.T) {
+	testCases := []struct {
+		Name          string
+		Config        Config
+		ExpectedError string
+	}{
+		{
+			Name: "Bad pairing URL",
+			Config: Config{
+				Server: ServerConfig{
+					PairingURL: "ftp:example.com",
+					URL:        []string{"http://www.example.com"},
+				},
+			},
+			ExpectedError: "server.pairingURL: invalid url ftp:example.com: schema must be http or https",
+		},
+		{
+			Name: "Bad server connection URL",
+			Config: Config{
+				Server: ServerConfig{
+					PairingURL: "https://pairing.example.com",
+					URL:        []string{"https:go.lang"},
+				},
+			},
+			ExpectedError: "server.URL: invalid url https:go.lang, must be absolute url",
+		},
+	}
+
+	for _, tc := range testCases {
+		t.Run(tc.Name, func(t *testing.T) {
+			err := tc.Config.ParseAndValidate()
+			assert.EqualError(t, err, tc.ExpectedError)
+		})
+	}
+}
+
 func TestDatabaseParseAndValidate(t *testing.T) {
 	testCases := []struct {
 		Name           string
 		Database       DatabaseConfig
 		ExpectedDriver string
 		ExpectedDSN    string
-		ExpectedError  error
+		ExpectedError  string
 	}{
 		{
 			Name: "no db configured",
@@ -36,7 +71,7 @@ func TestDatabaseParseAndValidate(t *testing.T) {
 			Database: DatabaseConfig{
 				Type: "mongodb",
 			},
-			ExpectedError: errors.New("invalid 'db_type', expected 'mysql' or 'sqlite', got \"mongodb\""),
+			ExpectedError: "invalid 'db_type', expected 'mysql' or 'sqlite', got \"mongodb\"",
 		}, {
 			Name: "sqlite",
 			Database: DatabaseConfig{
@@ -87,7 +122,9 @@ func TestDatabaseParseAndValidate(t *testing.T) {
 	for _, tc := range testCases {
 		t.Run(tc.Name, func(t *testing.T) {
 			err := tc.Database.ParseAndValidate()
-			assert.Equal(t, tc.ExpectedError, err)
+			if err != nil {
+				assert.EqualError(t, err, tc.ExpectedError)
+			}
 			assert.Equal(t, tc.ExpectedDriver, tc.Database.driver)
 			assert.Equal(t, tc.ExpectedDSN, tc.Database.dsn)
 		})
@@ -100,12 +137,12 @@ func TestParseAndValidateClientAuth(t *testing.T) {
 		Config               Config
 		ExpectedAuthID       string
 		ExpectedAuthPassword string
-		ExpectedError        error
+		ExpectedError        string
 	}{
 		{
 			Name:          "no auth",
 			Config:        Config{},
-			ExpectedError: errors.New("client authentication must be enabled: set either 'auth', 'auth_file' or 'auth_table'"),
+			ExpectedError: "client authentication must be enabled: set either 'auth', 'auth_file' or 'auth_table'",
 		}, {
 			Name: "auth and auth_file",
 			Config: Config{
@@ -114,7 +151,7 @@ func TestParseAndValidateClientAuth(t *testing.T) {
 					AuthFile: "test.json",
 				},
 			},
-			ExpectedError: errors.New("'auth_file' and 'auth' are both set: expected only one of them"),
+			ExpectedError: "'auth_file' and 'auth' are both set: expected only one of them",
 		}, {
 			Name: "auth and auth_table",
 			Config: Config{
@@ -123,7 +160,7 @@ func TestParseAndValidateClientAuth(t *testing.T) {
 					AuthTable: "clients",
 				},
 			},
-			ExpectedError: errors.New("'auth' and 'auth_table' are both set: expected only one of them"),
+			ExpectedError: "'auth' and 'auth_table' are both set: expected only one of them",
 		}, {
 			Name: "auth_table and auth_file",
 			Config: Config{
@@ -132,7 +169,7 @@ func TestParseAndValidateClientAuth(t *testing.T) {
 					AuthFile:  "test.json",
 				},
 			},
-			ExpectedError: errors.New("'auth_file' and 'auth_table' are both set: expected only one of them"),
+			ExpectedError: "'auth_file' and 'auth_table' are both set: expected only one of them",
 		}, {
 			Name: "auth_table without db",
 			Config: Config{
@@ -140,7 +177,7 @@ func TestParseAndValidateClientAuth(t *testing.T) {
 					AuthTable: "clients",
 				},
 			},
-			ExpectedError: errors.New("'db_type' must be set when 'auth_table' is set"),
+			ExpectedError: "'db_type' must be set when 'auth_table' is set",
 		}, {
 			Name: "invalid auth",
 			Config: Config{
@@ -148,7 +185,7 @@ func TestParseAndValidateClientAuth(t *testing.T) {
 					Auth: "abc",
 				},
 			},
-			ExpectedError: errors.New("invalid client auth credentials, expected '<client-id>:<password>', got \"abc\""),
+			ExpectedError: "invalid client auth credentials, expected '<client-id>:<password>', got \"abc\"",
 		}, {
 			Name: "valid auth",
 			Config: Config{
@@ -181,7 +218,11 @@ func TestParseAndValidateClientAuth(t *testing.T) {
 	for _, tc := range testCases {
 		t.Run(tc.Name, func(t *testing.T) {
 			err := tc.Config.parseAndValidateClientAuth()
-			assert.Equal(t, tc.ExpectedError, err)
+			if tc.ExpectedError != "" {
+				assert.EqualError(t, err, tc.ExpectedError, "Error not as expected")
+			} else {
+				assert.NoError(t, err)
+			}
 			assert.Equal(t, tc.ExpectedAuthID, tc.Config.Server.authID)
 			assert.Equal(t, tc.ExpectedAuthPassword, tc.Config.Server.authPassword)
 		})
@@ -195,12 +236,11 @@ func TestParseAndValidateAPI(t *testing.T) {
 		ExpectedAuthID       string
 		ExpectedAuthPassword string
 		ExpectedJwtSecret    bool
-		ExpectedError        error
+		ExpectedError        string
 	}{
 		{
-			Name:          "api disabled, no auth",
-			Config:        Config{},
-			ExpectedError: nil,
+			Name:   "api disabled, no auth",
+			Config: Config{},
 		}, {
 			Name: "api disabled, doc_root specified",
 			Config: Config{
@@ -208,7 +248,7 @@ func TestParseAndValidateAPI(t *testing.T) {
 					DocRoot: "/var/lib/rport/",
 				},
 			},
-			ExpectedError: errors.New("API: to use document root you need to specify API address"),
+			ExpectedError: "API: to use document root you need to specify API address",
 		}, {
 			Name: "api enabled, no auth",
 			Config: Config{
@@ -216,7 +256,7 @@ func TestParseAndValidateAPI(t *testing.T) {
 					Address: "0.0.0.0:3000",
 				},
 			},
-			ExpectedError: errors.New("API: authentication must be enabled: set either 'auth', 'auth_file' or 'auth_user_table'"),
+			ExpectedError: "API: authentication must be enabled: set either 'auth', 'auth_file' or 'auth_user_table'",
 		}, {
 			Name: "api enabled, auth and auth_file",
 			Config: Config{
@@ -226,7 +266,7 @@ func TestParseAndValidateAPI(t *testing.T) {
 					AuthFile: "test.json",
 				},
 			},
-			ExpectedError: errors.New("API: 'auth_file' and 'auth' are both set: expected only one of them"),
+			ExpectedError: "API: 'auth_file' and 'auth' are both set: expected only one of them",
 		}, {
 			Name: "api enabled, auth and auth_user_table",
 			Config: Config{
@@ -237,7 +277,7 @@ func TestParseAndValidateAPI(t *testing.T) {
 					AuthGroupTable: "groups",
 				},
 			},
-			ExpectedError: errors.New("API: 'auth_user_table' and 'auth' are both set: expected only one of them"),
+			ExpectedError: "API: 'auth_user_table' and 'auth' are both set: expected only one of them",
 		}, {
 			Name: "api enabled, auth_user_table and auth_file",
 			Config: Config{
@@ -248,7 +288,7 @@ func TestParseAndValidateAPI(t *testing.T) {
 					AuthGroupTable: "groups",
 				},
 			},
-			ExpectedError: errors.New("API: 'auth_user_table' and 'auth_file' are both set: expected only one of them"),
+			ExpectedError: "API: 'auth_user_table' and 'auth_file' are both set: expected only one of them",
 		}, {
 			Name: "api enabled, auth_user_table without auth_group_table",
 			Config: Config{
@@ -257,7 +297,7 @@ func TestParseAndValidateAPI(t *testing.T) {
 					AuthUserTable: "users",
 				},
 			},
-			ExpectedError: errors.New("API: when 'auth_user_table' is set, 'auth_group_table' must be set as well"),
+			ExpectedError: "API: when 'auth_user_table' is set, 'auth_group_table' must be set as well",
 		}, {
 			Name: "api enabled, auth_user_table without db",
 			Config: Config{
@@ -267,7 +307,7 @@ func TestParseAndValidateAPI(t *testing.T) {
 					AuthGroupTable: "groups",
 				},
 			},
-			ExpectedError: errors.New("API: 'db_type' must be set when 'auth_user_table' is set"),
+			ExpectedError: "API: 'db_type' must be set when 'auth_user_table' is set",
 		}, {
 			Name: "api enabled, valid database auth",
 			Config: Config{
@@ -316,7 +356,7 @@ func TestParseAndValidateAPI(t *testing.T) {
 					KeyFile:  "",
 				},
 			},
-			ExpectedError: errors.New("API: when 'cert_file' is set, 'key_file' must be set as well"),
+			ExpectedError: "API: when 'cert_file' is set, 'key_file' must be set as well",
 		},
 		{
 			Name: "api enabled, no cert file",
@@ -328,7 +368,7 @@ func TestParseAndValidateAPI(t *testing.T) {
 					KeyFile:  "/var/lib/rport/server.key",
 				},
 			},
-			ExpectedError: errors.New("API: when 'key_file' is set, 'cert_file' must be set as well"),
+			ExpectedError: "API: when 'key_file' is set, 'cert_file' must be set as well",
 		},
 		{
 			Name: "api enabled, single user auth, 2fa enabled",
@@ -339,7 +379,7 @@ func TestParseAndValidateAPI(t *testing.T) {
 					TwoFATokenDelivery: "/bin/sh",
 				},
 			},
-			ExpectedError: errors.New("API: 2FA is not available if you use a single static user-password pair"),
+			ExpectedError: "API: 2FA is not available if you use a single static user-password pair",
 		},
 		{
 			Name: "api enabled, unknown 2fa method",
@@ -350,7 +390,7 @@ func TestParseAndValidateAPI(t *testing.T) {
 					TwoFATokenDelivery: "unknown",
 				},
 			},
-			ExpectedError: errors.New("API: unknown 2fa token delivery method: unknown"),
+			ExpectedError: "API: unknown 2fa token delivery method: unknown",
 		},
 		{
 			Name: "api enabled, script 2fa method, invalid send to type",
@@ -362,7 +402,7 @@ func TestParseAndValidateAPI(t *testing.T) {
 					TwoFASendToType:    "invalid",
 				},
 			},
-			ExpectedError: errors.New(`API: invalid api.two_fa_send_to_type: "invalid"`),
+			ExpectedError: `API: invalid api.two_fa_send_to_type: "invalid"`,
 		},
 		{
 			Name: "api enabled, script 2fa method, invalid send to regex",
@@ -375,7 +415,7 @@ func TestParseAndValidateAPI(t *testing.T) {
 					TwoFASendToRegex:   "[a-z",
 				},
 			},
-			ExpectedError: errors.New("API: invalid api.two_fa_send_to_regex: error parsing regexp: missing closing ]: `[a-z`"),
+			ExpectedError: "API: invalid api.two_fa_send_to_regex: error parsing regexp: missing closing ]: `[a-z`",
 		},
 		{
 			Name: "api enabled, script 2fa method, ok",
@@ -388,7 +428,6 @@ func TestParseAndValidateAPI(t *testing.T) {
 					TwoFASendToRegex:   "[a-z]{10}",
 				},
 			},
-			ExpectedError: nil,
 		},
 		{
 			Name: "api enabled, auth_header no user_header",
@@ -399,7 +438,7 @@ func TestParseAndValidateAPI(t *testing.T) {
 					AuthFile:   "test.json",
 				},
 			},
-			ExpectedError: errors.New("API: 'user_header' must be set when 'auth_header' is set"),
+			ExpectedError: "API: 'user_header' must be set when 'auth_header' is set",
 		},
 		{
 			Name: "api enabled, auth_header with auth",
@@ -411,7 +450,7 @@ func TestParseAndValidateAPI(t *testing.T) {
 					Auth:       "abc:def",
 				},
 			},
-			ExpectedError: errors.New("API: 'auth_header' cannot be used with single user 'auth'"),
+			ExpectedError: "API: 'auth_header' cannot be used with single user 'auth'",
 		},
 		{
 			Name: "api enabled, auth_header ok",
@@ -423,7 +462,6 @@ func TestParseAndValidateAPI(t *testing.T) {
 					AuthFile:   "test.json",
 				},
 			},
-			ExpectedError: nil,
 		},
 		{
 			Name: "totp enabled ok",
@@ -434,7 +472,6 @@ func TestParseAndValidateAPI(t *testing.T) {
 					TotPEnabled: true,
 				},
 			},
-			ExpectedError: nil,
 		},
 		{
 			Name: "totp enabled, 2fa enabled, conflict",
@@ -447,7 +484,7 @@ func TestParseAndValidateAPI(t *testing.T) {
 					TwoFASendToType:    message.ValidationRegex,
 				},
 			},
-			ExpectedError: errors.New("API: conflicting 2FA configuration, two factor auth and totp_enabled options cannot be both enabled"),
+			ExpectedError: "API: conflicting 2FA configuration, two factor auth and totp_enabled options cannot be both enabled",
 		},
 	}
 
@@ -455,7 +492,11 @@ func TestParseAndValidateAPI(t *testing.T) {
 		t.Run(tc.Name, func(t *testing.T) {
 			tc.Config.Server = defaultValidMinServerConfig
 			err := tc.Config.ParseAndValidate()
-			assert.Equal(t, tc.ExpectedError, err)
+			if tc.ExpectedError != "" {
+				assert.EqualError(t, err, tc.ExpectedError)
+			} else {
+				assert.NoError(t, err)
+			}
 			if tc.ExpectedJwtSecret {
 				assert.NotEmpty(t, tc.Config.API.JWTSecret)
 			}
