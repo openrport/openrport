@@ -13,7 +13,9 @@ const (
 )
 
 type Job struct {
-	JobSummary
+	JID         string     `json:"jid"`
+	Status      string     `json:"status"`
+	FinishedAt  *time.Time `json:"finished_at"`
 	ClientID    string     `json:"client_id"`
 	ClientName  string     `json:"client_name"`
 	Command     string     `json:"command"`
@@ -29,13 +31,6 @@ type Job struct {
 	Result      *JobResult `json:"result"`
 	IsSudo      bool       `json:"is_sudo"`
 	IsScript    bool       `json:"is_script"`
-}
-
-// JobSummary short info about a job.
-type JobSummary struct {
-	JID        string     `json:"jid"`
-	Status     string     `json:"status"`
-	FinishedAt *time.Time `json:"finished_at"`
 }
 
 type JobResult struct {

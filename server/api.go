@@ -96,14 +96,13 @@ var vueHistoryPaths = []string{
 
 type JobProvider interface {
 	GetByJID(clientID, jid string) (*models.Job, error)
-	GetSummariesByClientID(ctx context.Context, clientID string, options *query.ListOptions) ([]*models.JobSummary, error)
-	CountByClientID(ctx context.Context, clientID string, options *query.ListOptions) (int, error)
-	GetByMultiJobID(jid string) ([]*models.Job, error)
+	List(ctx context.Context, options *query.ListOptions) ([]*models.Job, error)
+	Count(ctx context.Context, options *query.ListOptions) (int, error)
 	// SaveJob creates or updates a job
 	SaveJob(job *models.Job) error
 	// CreateJob creates a new job. If already exist with a given JID - do nothing and return nil
 	CreateJob(job *models.Job) error
-	GetMultiJob(jid string) (*models.MultiJob, error)
+	GetMultiJob(ctx context.Context, jid string) (*models.MultiJob, error)
 	GetMultiJobSummaries(ctx context.Context, options *query.ListOptions) ([]*models.MultiJobSummary, error)
 	CountMultiJobs(ctx context.Context, options *query.ListOptions) (int, error)
 	SaveMultiJob(multiJob *models.MultiJob) error
@@ -230,6 +229,7 @@ func (al *APIListener) initRouter() {
 	api.HandleFunc("/commands", al.handlePostMultiClientCommand).Methods(http.MethodPost)
 	api.HandleFunc("/commands", al.handleGetMultiClientCommands).Methods(http.MethodGet)
 	api.HandleFunc("/commands/{job_id}", al.handleGetMultiClientCommand).Methods(http.MethodGet)
+	api.HandleFunc("/commands/{job_id}/jobs", al.handleGetMultiClientCommandJobs).Methods(http.MethodGet)
 	api.HandleFunc("/clients-auth", al.wrapAdminAccessMiddleware(al.handleGetClientsAuth)).Methods(http.MethodGet)
 	api.HandleFunc("/clients-auth", al.wrapAdminAccessMiddleware(al.handlePostClientsAuth)).Methods(http.MethodPost)
 	api.HandleFunc("/clients-auth/{client_auth_id}", al.wrapAdminAccessMiddleware(al.handleDeleteClientAuth)).Methods(http.MethodDelete)
@@ -1060,15 +1060,7 @@ func convertToClientsPayload(clients []*clients.CalculatedClient, fields []query
 }
 
 func convertToClientPayload(client *clients.CalculatedClient, fields []query.FieldsOption) ClientPayload { //nolint:gocyclo
-	requestedFields := make(map[string]bool)
-	for _, res := range fields {
-		if res.Resource != "clients" {
-			continue
-		}
-		for _, field := range res.Fields {
-			requestedFields[field] = true
-		}
-	}
+	requestedFields := query.RequestedFields(fields, "clients")
 	p := ClientPayload{}
 	for field := range clientsSupportedFields["clients"] {
 		if len(fields) > 0 && !requestedFields[field] {
@@ -1965,10 +1957,8 @@ func (al *APIListener) handleExecuteCommand(ctx context.Context, w http.Response
 		return nil
 	}
 	curJob := models.Job{
-		JobSummary: models.JobSummary{
-			JID:        jid,
-			FinishedAt: nil,
-		},
+		JID:         jid,
+		FinishedAt:  nil,
 		ClientID:    executeInput.ClientID,
 		ClientName:  client.Name,
 		Command:     executeInput.Command,
@@ -2062,34 +2052,181 @@ func (al *APIListener) handleGetCommands(w http.ResponseWriter, req *http.Reques
 		return
 	}
 
-	listOptions := query.GetListOptions(req)
+	options := query.NewOptions(req, nil, nil, jobs.JobListDefaultFields)
 
-	err := query.ValidateListOptions(listOptions, jobs.JobSupportedSorts, jobs.JobSupportedFilters, nil /*fields*/, &query.PaginationConfig{
-		MaxLimit:     1000,
-		DefaultLimit: 100,
+	err := query.ValidateListOptions(options, jobs.JobSupportedSorts, jobs.JobSupportedFilters, jobs.JobSupportedFields, &query.PaginationConfig{
+		MaxLimit:     jobs.MaxLimit,
+		DefaultLimit: jobs.DefaultLimit,
 	})
 	if err != nil {
 		al.jsonError(w, err)
 		return
 	}
 
-	result, err := al.jobProvider.GetSummariesByClientID(req.Context(), cid, listOptions)
+	options.Filters = append(options.Filters, query.FilterOption{Column: []string{"client_id"}, Values: []string{cid}})
+	result, err := al.jobProvider.List(req.Context(), options)
 	if err != nil {
 		al.jsonErrorResponseWithError(w, http.StatusInternalServerError, fmt.Sprintf("Failed to get client jobs: client_id=%q.", cid), err)
 		return
 	}
 
-	totalCount, err := al.jobProvider.CountByClientID(req.Context(), cid, listOptions)
+	totalCount, err := al.jobProvider.Count(req.Context(), options)
 	if err != nil {
 		al.jsonErrorResponseWithError(w, http.StatusInternalServerError, fmt.Sprintf("Failed to get client jobs: client_id=%q.", cid), err)
 		return
 	}
 
 	payload := &api.SuccessPayload{
-		Data: result,
+		Data: convertToJobsPayload(result, options.Fields),
 		Meta: api.NewMeta(totalCount),
 	}
 	al.writeJSONResponse(w, http.StatusOK, payload)
+}
+
+func (al *APIListener) handleGetMultiClientCommandJobs(w http.ResponseWriter, req *http.Request) {
+	vars := mux.Vars(req)
+	multiJobID := vars[routeParamJobID]
+	if multiJobID == "" {
+		al.jsonErrorResponseWithTitle(w, http.StatusBadRequest, fmt.Sprintf("Missing %q route param.", routeParamJobID))
+		return
+	}
+
+	options := query.NewOptions(req, nil, nil, jobs.JobListDefaultFields)
+
+	err := query.ValidateListOptions(options, jobs.JobSupportedSorts, jobs.JobSupportedFilters, jobs.JobSupportedFields, &query.PaginationConfig{
+		MaxLimit:     jobs.MaxLimit,
+		DefaultLimit: jobs.DefaultLimit,
+	})
+	if err != nil {
+		al.jsonError(w, err)
+		return
+	}
+
+	options.Filters = append(options.Filters, query.FilterOption{Column: []string{"multi_job_id"}, Values: []string{multiJobID}})
+	result, err := al.jobProvider.List(req.Context(), options)
+	if err != nil {
+		al.jsonErrorResponseWithError(w, http.StatusInternalServerError, fmt.Sprintf("Failed to get jobs: multi_job_id=%q.", multiJobID), err)
+		return
+	}
+
+	totalCount, err := al.jobProvider.Count(req.Context(), options)
+	if err != nil {
+		al.jsonErrorResponseWithError(w, http.StatusInternalServerError, fmt.Sprintf("Failed to get jobs: multi_job_id=%q.", multiJobID), err)
+		return
+	}
+
+	payload := &api.SuccessPayload{
+		Data: convertToJobsPayload(result, options.Fields),
+		Meta: api.NewMeta(totalCount),
+	}
+	al.writeJSONResponse(w, http.StatusOK, payload)
+}
+
+type jobPayload struct {
+	JID         *string     `json:"jid,omitempty"`
+	Status      *string     `json:"status,omitempty"`
+	FinishedAt  **time.Time `json:"finished_at,omitempty"`
+	ClientID    *string     `json:"client_id,omitempty"`
+	ClientName  *string     `json:"client_name,omitempty"`
+	Command     *string     `json:"command,omitempty"`
+	Cwd         *string     `json:"cwd,omitempty"`
+	Interpreter *string     `json:"interpreter,omitempty"`
+	PID         **int       `json:"pid,omitempty"`
+	StartedAt   *time.Time  `json:"started_at,omitempty"`
+	CreatedBy   *string     `json:"created_by,omitempty"`
+	TimeoutSec  *int        `json:"timeout_sec,omitempty"`
+	MultiJobID  **string    `json:"multi_job_id,omitempty"`
+	ScheduleID  **string    `json:"schedule_id,omitempty"`
+	Error       *string     `json:"error,omitempty"`
+	Result      *jobResult  `json:"result,omitempty"`
+	IsSudo      *bool       `json:"is_sudo,omitempty"`
+	IsScript    *bool       `json:"is_script,omitempty"`
+}
+
+type jobResult struct {
+	StdOut  *string `json:"stdout,omitempty"`
+	StdErr  *string `json:"stderr,omitempty"`
+	Summary *string `json:"summary,omitempty"`
+}
+
+func convertToJobsPayload(jobs []*models.Job, fields []query.FieldsOption) []jobPayload {
+	requestedFields := query.RequestedFields(fields, "jobs")
+	if len(requestedFields) == 0 {
+		requestedFields = query.RequestedFields(fields, "commands")
+		if len(requestedFields) == 0 {
+			requestedFields = query.RequestedFields(fields, "scripts")
+		}
+	}
+	requestedResultFields := query.RequestedFields(fields, "result")
+
+	result := make([]jobPayload, len(jobs))
+	for i, job := range jobs {
+		if requestedFields["jid"] {
+			result[i].JID = &job.JID
+		}
+		if requestedFields["status"] {
+			result[i].Status = &job.Status
+		}
+		if requestedFields["finished_at"] {
+			result[i].FinishedAt = &job.FinishedAt
+		}
+		if requestedFields["client_id"] {
+			result[i].ClientID = &job.ClientID
+		}
+		if requestedFields["client_name"] {
+			result[i].ClientName = &job.ClientName
+		}
+		if requestedFields["command"] {
+			result[i].Command = &job.Command
+		}
+		if requestedFields["cwd"] {
+			result[i].Cwd = &job.Cwd
+		}
+		if requestedFields["interpreter"] {
+			result[i].Interpreter = &job.Interpreter
+		}
+		if requestedFields["pid"] {
+			result[i].PID = &job.PID
+		}
+		if requestedFields["started_at"] {
+			result[i].StartedAt = &job.StartedAt
+		}
+		if requestedFields["created_by"] {
+			result[i].CreatedBy = &job.CreatedBy
+		}
+		if requestedFields["timeout_sec"] {
+			result[i].TimeoutSec = &job.TimeoutSec
+		}
+		if requestedFields["multi_job_id"] {
+			result[i].MultiJobID = &job.MultiJobID
+		}
+		if requestedFields["schedule_id"] {
+			result[i].ScheduleID = &job.ScheduleID
+		}
+		if requestedFields["error"] {
+			result[i].Error = &job.Error
+		}
+		if requestedFields["is_sudo"] {
+			result[i].IsSudo = &job.IsSudo
+		}
+		if requestedFields["is_script"] {
+			result[i].IsScript = &job.IsScript
+		}
+		if len(requestedResultFields) > 0 {
+			result[i].Result = &jobResult{}
+			if requestedResultFields["stdout"] {
+				result[i].Result.StdOut = &job.Result.StdOut
+			}
+			if requestedResultFields["stderr"] {
+				result[i].Result.StdErr = &job.Result.StdErr
+			}
+			if requestedResultFields["summary"] {
+				result[i].Result.Summary = &job.Result.Summary
+			}
+		}
+	}
+
+	return result
 }
 
 func (al *APIListener) handleGetCommand(w http.ResponseWriter, req *http.Request) {
@@ -2409,9 +2546,7 @@ func (al *APIListener) createAndRunJob(
 	}
 	// send the command to the client
 	curJob := models.Job{
-		JobSummary: models.JobSummary{
-			JID: jid,
-		},
+		JID:         jid,
 		StartedAt:   time.Now(),
 		ClientID:    client.ID,
 		ClientName:  client.Name,
@@ -2740,9 +2875,7 @@ func (al *APIListener) createAndRunJobWS(
 	client *clients.Client,
 ) bool {
 	curJob := models.Job{
-		JobSummary: models.JobSummary{
-			JID: jid,
-		},
+		JID:         jid,
 		StartedAt:   time.Now(),
 		ClientID:    client.ID,
 		ClientName:  client.Name,
@@ -2800,7 +2933,7 @@ func (al *APIListener) handleGetMultiClientCommand(w http.ResponseWriter, req *h
 		return
 	}
 
-	job, err := al.jobProvider.GetMultiJob(jid)
+	job, err := al.jobProvider.GetMultiJob(req.Context(), jid)
 	if err != nil {
 		al.jsonErrorResponseWithError(w, http.StatusInternalServerError, fmt.Sprintf("Failed to find a multi-client job[id=%q].", jid), err)
 		return

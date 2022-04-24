@@ -30,7 +30,7 @@ var MultiJobSupportedSorts = map[string]bool{
 }
 
 // GetMultiJob returns a multi-client job with fetched all clients' jobs.
-func (p *SqliteProvider) GetMultiJob(jid string) (*models.MultiJob, error) {
+func (p *SqliteProvider) GetMultiJob(ctx context.Context, jid string) (*models.MultiJob, error) {
 	res := &multiJobSqlite{}
 	err := p.db.Get(res, "SELECT * FROM multi_jobs WHERE jid=?", jid)
 	if err != nil {
@@ -41,8 +41,17 @@ func (p *SqliteProvider) GetMultiJob(jid string) (*models.MultiJob, error) {
 	}
 	multiJob := res.convert()
 
-	// fetch clients' jobs
-	jobs, err := p.GetByMultiJobID(jid)
+	options := &query.ListOptions{
+		Filters: []query.FilterOption{
+			{Column: []string{"multi_job_id"}, Values: []string{jid}},
+		},
+		Sorts: []query.SortOption{
+			{Column: "started_at", IsASC: false},
+			{Column: "jid", IsASC: true},
+		},
+		Pagination: query.NewPagination(DefaultLimit, 0),
+	}
+	jobs, err := p.List(ctx, options)
 	if err != nil {
 		return nil, err
 	}

@@ -48,13 +48,13 @@ func TestCleanupJobsMultiJobs(t *testing.T) {
 	require.NoError(t, err)
 
 	// mj1 and mj2 should be deleted
-	mj, err := p.GetMultiJob(mj1.JID)
+	mj, err := p.GetMultiJob(ctx, mj1.JID)
 	require.NoError(t, err)
 	assert.Nil(t, mj)
-	mj, err = p.GetMultiJob(mj2.JID)
+	mj, err = p.GetMultiJob(ctx, mj2.JID)
 	require.NoError(t, err)
 	assert.Nil(t, mj)
-	mj, err = p.GetMultiJob(mj3.JID)
+	mj, err = p.GetMultiJob(ctx, mj3.JID)
 	require.NoError(t, err)
 	assert.NotNil(t, mj)
 

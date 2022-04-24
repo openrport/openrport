@@ -125,3 +125,12 @@ func TestGetStartEnd(t *testing.T) {
 		})
 	}
 }
+
+func TestNewPagination(t *testing.T) {
+	pagination := query.NewPagination(10, 20)
+
+	assert.Equal(t, pagination.Limit, "10")
+	assert.Equal(t, pagination.Offset, "20")
+	assert.Equal(t, pagination.ValidatedLimit, 10)
+	assert.Equal(t, pagination.ValidatedOffset, 20)
+}

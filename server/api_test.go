@@ -48,9 +48,9 @@ var hour = time.Hour
 
 type JobProviderMock struct {
 	JobProvider
-	ReturnJob          *models.Job
-	ReturnJobSummaries []*models.JobSummary
-	ReturnErr          error
+	ReturnJob     *models.Job
+	ReturnJobList []*models.Job
+	ReturnErr     error
 
 	InputCID       string
 	InputJID       string
@@ -68,13 +68,13 @@ func (p *JobProviderMock) GetByJID(cid, jid string) (*models.Job, error) {
 	return p.ReturnJob, p.ReturnErr
 }
 
-func (p *JobProviderMock) GetSummariesByClientID(ctx context.Context, cid string, opts *query.ListOptions) ([]*models.JobSummary, error) {
-	p.InputCID = cid
-	return p.ReturnJobSummaries, p.ReturnErr
+func (p *JobProviderMock) List(ctx context.Context, opts *query.ListOptions) ([]*models.Job, error) {
+	p.InputCID = opts.Filters[0].Values[0]
+	return p.ReturnJobList, p.ReturnErr
 }
 
-func (p *JobProviderMock) CountByClientID(ctx context.Context, cid string, opts *query.ListOptions) (int, error) {
-	return len(p.ReturnJobSummaries), p.ReturnErr
+func (p *JobProviderMock) Count(ctx context.Context, opts *query.ListOptions) (int, error) {
+	return len(p.ReturnJobList), p.ReturnErr
 }
 
 func (p *JobProviderMock) SaveJob(job *models.Job) error {
@@ -979,21 +979,31 @@ func TestHandleGetCommands(t *testing.T) {
 	ft := time.Date(2020, 10, 10, 10, 10, 10, 0, time.UTC)
 	testCID := "cid-1234"
 	jb := jb.New(t).ClientID(testCID)
-	job1 := jb.Status(models.JobStatusSuccessful).FinishedAt(ft).Build().JobSummary
-	job2 := jb.Status(models.JobStatusUnknown).FinishedAt(ft.Add(-time.Hour)).Build().JobSummary
-	job3 := jb.Status(models.JobStatusFailed).FinishedAt(ft.Add(time.Minute)).Build().JobSummary
-	job4 := jb.Status(models.JobStatusRunning).Build().JobSummary
-	jpSuccessReturnJobSummaries := []*models.JobSummary{&job1, &job2, &job3, &job4}
-	wantSuccessResp := &api.SuccessPayload{Data: []*models.JobSummary{&job1, &job2, &job3, &job4}, Meta: api.NewMeta(4)}
-	b, err := json.Marshal(wantSuccessResp)
-	require.NoError(t, err)
-	wantSuccessRespJobsJSON := string(b)
+	job1 := jb.Status(models.JobStatusSuccessful).FinishedAt(ft).Build()
+	job2 := jb.Status(models.JobStatusUnknown).FinishedAt(ft.Add(-time.Hour)).Build()
+	job3 := jb.Status(models.JobStatusFailed).FinishedAt(ft.Add(time.Minute)).Build()
+	job4 := jb.Status(models.JobStatusRunning).Build()
+	wantResp1 := fmt.Sprintf(
+		`{"data":[{"jid":"%s"},{"jid":"%s"},{"jid":"%s"},{"jid":"%s"}], "meta": {"count": 4}}`,
+		job1.JID,
+		job2.JID,
+		job3.JID,
+		job4.JID,
+	)
+	wantResp2 := fmt.Sprintf(
+		`{"data":[{"jid":"%s", "finished_at": "%s", "status": "%s", "result":{"summary":"%s"}}], "meta": {"count": 1}}`,
+		job1.JID,
+		job1.FinishedAt.Format(time.RFC3339),
+		job1.Status,
+		job1.Result.Summary,
+	)
 
 	testCases := []struct {
-		name string
+		name   string
+		params string
 
-		jpReturnErr          error
-		jpReturnJobSummaries []*models.JobSummary
+		jpReturnErr  error
+		jpReturnJobs []*models.Job
 
 		wantStatusCode  int
 		wantSuccessResp string
@@ -1002,23 +1012,30 @@ func TestHandleGetCommands(t *testing.T) {
 		wantErrDetail   string
 	}{
 		{
-			name:                 "found few jobs",
-			jpReturnJobSummaries: jpSuccessReturnJobSummaries,
-			wantSuccessResp:      wantSuccessRespJobsJSON,
-			wantStatusCode:       http.StatusOK,
+			name:            "found few jobs, jid only",
+			params:          "fields[commands]=jid",
+			jpReturnJobs:    []*models.Job{job1, job2, job3, job4},
+			wantSuccessResp: wantResp1,
+			wantStatusCode:  http.StatusOK,
 		},
 		{
-			name:                 "not found",
-			jpReturnJobSummaries: []*models.JobSummary{},
-			wantSuccessResp:      `{"data":[], "meta": {"count": 0}}`,
-			wantStatusCode:       http.StatusOK,
+			name:            "found one job, default fields",
+			jpReturnJobs:    []*models.Job{job1},
+			wantSuccessResp: wantResp2,
+			wantStatusCode:  http.StatusOK,
 		},
 		{
-			name:           "error on get job summaries",
-			jpReturnErr:    errors.New("get job summaries fake error"),
+			name:            "not found",
+			jpReturnJobs:    []*models.Job{},
+			wantSuccessResp: `{"data":[], "meta": {"count": 0}}`,
+			wantStatusCode:  http.StatusOK,
+		},
+		{
+			name:           "error on get job list",
+			jpReturnErr:    errors.New("get job list fake error"),
 			wantStatusCode: http.StatusInternalServerError,
 			wantErrTitle:   fmt.Sprintf("Failed to get client jobs: client_id=%q.", testCID),
-			wantErrDetail:  "get job summaries fake error",
+			wantErrDetail:  "get job list fake error",
 		},
 	}
 
@@ -1038,10 +1055,10 @@ func TestHandleGetCommands(t *testing.T) {
 
 			jp := NewJobProviderMock()
 			jp.ReturnErr = tc.jpReturnErr
-			jp.ReturnJobSummaries = tc.jpReturnJobSummaries
+			jp.ReturnJobList = tc.jpReturnJobs
 			al.jobProvider = jp
 
-			req := httptest.NewRequest(http.MethodGet, fmt.Sprintf("/api/v1/clients/%s/commands", testCID), nil)
+			req := httptest.NewRequest(http.MethodGet, fmt.Sprintf("/api/v1/clients/%s/commands?%s", testCID, tc.params), nil)
 
 			// when
 			w := httptest.NewRecorder()
@@ -1355,7 +1372,7 @@ func TestHandlePostMultiClientCommand(t *testing.T) {
 				require.True(t, ok)
 				require.NotEmpty(t, gotJID)
 
-				gotMultiJob, err := jp.GetMultiJob(gotJID)
+				gotMultiJob, err := jp.GetMultiJob(ctx, gotJID)
 				require.NoError(t, err)
 				require.NotNil(t, gotMultiJob)
 				if tc.abortOnErr {
