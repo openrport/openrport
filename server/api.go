@@ -2139,7 +2139,7 @@ type jobPayload struct {
 	MultiJobID  **string    `json:"multi_job_id,omitempty"`
 	ScheduleID  **string    `json:"schedule_id,omitempty"`
 	Error       *string     `json:"error,omitempty"`
-	Result      *jobResult  `json:"result,omitempty"`
+	Result      **jobResult `json:"result,omitempty"`
 	IsSudo      *bool       `json:"is_sudo,omitempty"`
 	IsScript    *bool       `json:"is_script,omitempty"`
 }
@@ -2214,15 +2214,18 @@ func convertToJobsPayload(jobs []*models.Job, fields []query.FieldsOption) []job
 			result[i].IsScript = &job.IsScript
 		}
 		if len(requestedResultFields) > 0 {
-			result[i].Result = &jobResult{}
-			if requestedResultFields["stdout"] {
-				result[i].Result.StdOut = &job.Result.StdOut
-			}
-			if requestedResultFields["stderr"] {
-				result[i].Result.StdErr = &job.Result.StdErr
-			}
-			if requestedResultFields["summary"] {
-				result[i].Result.Summary = &job.Result.Summary
+			result[i].Result = new(*jobResult)
+			if job.Result != nil {
+				(*result[i].Result) = &jobResult{}
+				if requestedResultFields["stdout"] {
+					(*result[i].Result).StdOut = &job.Result.StdOut
+				}
+				if requestedResultFields["stderr"] {
+					(*result[i].Result).StdErr = &job.Result.StdErr
+				}
+				if requestedResultFields["summary"] {
+					(*result[i].Result).Summary = &job.Result.Summary
+				}
 			}
 		}
 	}
