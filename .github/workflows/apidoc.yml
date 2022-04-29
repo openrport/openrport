@@ -1,0 +1,14 @@
+name: Apidoc
+on: [push]
+jobs:
+  golangci:
+    name: Apidoc
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v2
+
+      - name: Validate Apidoc
+        run: |
+          sudo pip3 install openapi-spec-validator
+          openapi-spec-validator --schema 2.0 api-doc.yml

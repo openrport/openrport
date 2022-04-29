@@ -1173,7 +1173,7 @@ paths:
           description: "Invalid Operation"
           schema:
             $ref: "#/definitions/ErrorPayload"
-  /commands/{job_id}/jobs
+  /commands/{job_id}/jobs:
     get:
       tags:
         - "Commands"
