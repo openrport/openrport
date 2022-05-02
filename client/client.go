@@ -640,7 +640,7 @@ func (c *Client) connectionRequest(ctx context.Context) (*chshare.ConnectionRequ
 		connReq.OSVersion = info.PlatformVersion
 	}
 
-	oSVirtualizationSystem, oSVirtualizationRole, err := c.systemInfo.VirtualizationInfo(ctx, info)
+	oSVirtualizationSystem, oSVirtualizationRole, err := c.systemInfo.VirtualizationInfo(ctx)
 	if err != nil {
 		c.Logger.Errorf("Could not get OS Virtualization Info: %v", err)
 	} else {

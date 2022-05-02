@@ -32,7 +32,7 @@ type SysInfo interface {
 	InterfaceAddrs() ([]net.Addr, error)
 	GoArch() string
 	SystemTime() time.Time
-	VirtualizationInfo(ctx context.Context, infoStat *host.InfoStat) (virtSystem, virtRole string, err error)
+	VirtualizationInfo(ctx context.Context) (virtSystem, virtRole string, err error)
 }
 
 type realSystemInfo struct {
@@ -131,11 +131,7 @@ func (s *realSystemInfo) SystemTime() time.Time {
 	return time.Now()
 }
 
-func (s *realSystemInfo) VirtualizationInfo(ctx context.Context, infoStat *host.InfoStat) (virtSystem, virtRole string, err error) {
-	if infoStat != nil && infoStat.VirtualizationSystem != "" {
-		return strings.ToUpper(infoStat.VirtualizationSystem), strings.ToLower(infoStat.VirtualizationRole), nil
-	}
-
+func (s *realSystemInfo) VirtualizationInfo(ctx context.Context) (virtSystem, virtRole string, err error) {
 	virtSystem, virtRole, err = s.virtualizationInfo(ctx)
 	if err != nil {
 		return "", "", err
