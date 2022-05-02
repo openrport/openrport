@@ -3,6 +3,13 @@
 
 package system
 
+import (
+	"bytes"
+	"context"
+	"fmt"
+	"os/exec"
+)
+
 func (s *realSystemInfo) virtualizationInfo(ctx context.Context) (virtSystem, virtRole string, err error) {
 	ps, err := exec.LookPath("powershell.exe")
 	if err != nil {
