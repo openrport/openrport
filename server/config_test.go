@@ -43,6 +43,19 @@ func TestParseAndValidateServerConfig(t *testing.T) {
 			},
 			ExpectedError: "server.URL: invalid url https:go.lang, must be absolute url",
 		},
+		{
+			Name: "Bad tunnel host",
+			Config: Config{
+				Server: ServerConfig{
+					URL:          []string{"http://localhost/"},
+					DataDir:      "./",
+					Auth:         "abc:def",
+					UsedPortsRaw: []string{"10-20"},
+					TunnelHost:   "bad tunnel host",
+				},
+			},
+			ExpectedError: "invalid tunnel_host 'bad tunnel host': use IP address or FQDN",
+		},
 	}
 
 	for _, tc := range testCases {
