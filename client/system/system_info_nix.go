@@ -6,7 +6,6 @@ package system
 import (
 	"context"
 	"io/ioutil"
-	"log"
 	"os"
 )
 
@@ -24,7 +23,6 @@ func (s *realSystemInfo) virtualizationInfo(ctx context.Context) (virtSystem, vi
 		}
 	}
 	_, err = os.Stat(devicesInfoPath)
-	log.Println("Looking for existence ", devicesInfoPath)
 	if err != nil {
 		if os.IsNotExist(err) {
 			return "", "", nil
@@ -37,8 +35,6 @@ func (s *realSystemInfo) virtualizationInfo(ctx context.Context) (virtSystem, vi
 	if err != nil {
 		return "", "", err
 	}
-
-	log.Println("Looking at ", devicesInfoPath, string(fileContent))
 	virtSystem, virtRole = getVirtInfoFromNixDevicesList(string(fileContent))
 
 	return virtSystem, virtRole, nil
