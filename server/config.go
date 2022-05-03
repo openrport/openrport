@@ -506,7 +506,7 @@ func (s *ServerConfig) parseAndValidateURLs() error {
 }
 
 func (s *ServerConfig) parseAndValidateHosts() error {
-	if len(s.TunnelHost) != 0 && !govalidator.IsDNSName(s.TunnelHost) && !govalidator.IsIP(s.TunnelHost) {
+	if s.TunnelHost != "" && !govalidator.IsDNSName(s.TunnelHost) && !govalidator.IsIP(s.TunnelHost) {
 		return fmt.Errorf("invalid tunnel_host '%s': use IP address or FQDN", s.TunnelHost)
 	}
 	return nil
