@@ -15,7 +15,8 @@ var svcConfig = &service.Config{
 	DisplayName: "Rport Server",
 	Description: "Create reverse tunnels with ease.",
 	Option: service.KeyValue{
-		"LimitNOFILE": 1048576,
+		"LimitNOFILE":         1048576,
+		"AmbientCapabilities": "CAP_NET_BIND_SERVICE",
 	},
 }
 
