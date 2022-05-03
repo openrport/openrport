@@ -56,12 +56,28 @@ func TestParseAndValidateServerConfig(t *testing.T) {
 			},
 			ExpectedError: "invalid tunnel_host 'bad tunnel host': use IP address or FQDN",
 		},
+		{
+			Name: "Correct tunnel host",
+			Config: Config{
+				Server: ServerConfig{
+					URL:          []string{"http://localhost/"},
+					DataDir:      "./",
+					Auth:         "abc:def",
+					UsedPortsRaw: []string{"10-20"},
+					TunnelHost:   "tunnel.rport.example.com",
+				},
+			},
+		},
 	}
 
 	for _, tc := range testCases {
 		t.Run(tc.Name, func(t *testing.T) {
 			err := tc.Config.ParseAndValidate()
-			assert.EqualError(t, err, tc.ExpectedError)
+			if tc.ExpectedError != "" {
+				assert.EqualError(t, err, tc.ExpectedError)
+			} else {
+				require.NoError(t, err)
+			}
 		})
 	}
 }
