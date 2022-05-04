@@ -45,7 +45,7 @@ var tfaScript = struct {
 }{
 	name:    "./tfa.sh",
 	log:     "tfa.log",
-	content: []byte("#!/bin/sh\nset>tfa.log"),
+	content: []byte("#!/bin/sh\nset|grep RPORT_>tfa.log"),
 	mode:    0700,
 }
 
@@ -104,11 +104,11 @@ func TestScriptMessage(t *testing.T) {
 	buf, err := os.ReadFile(tfaScript.log)
 	scriptLog := string(buf)
 	require.NoError(t, err)
-	assert.Contains(t, scriptLog, "RPORT_2FA_REMOTE_ADDRESS=127.0.0.1")
-	assert.Contains(t, scriptLog, "RPORT_2FA_SENDTO="+user.TwoFASendTo)
-	assert.Contains(t, scriptLog, "RPORT_2FA_USER_AGENT=Go")
-	assert.Contains(t, scriptLog, fmt.Sprintf("RPORT_2FA_TOKEN_TTL=%d", tokenTTL))
-	assert.Regexp(t, "RPORT_2FA_TOKEN=[a-z A-Z 0-9]{6}", scriptLog)
+	assert.Regexp(t, regexp.MustCompile(fmt.Sprintf("RPORT_2FA_SENDTO='*%s'*", user.TwoFASendTo)), scriptLog)
+	assert.Regexp(t, regexp.MustCompile("RPORT_2FA_REMOTE_ADDRESS='*127.0.0.1'*"), scriptLog)
+	assert.Regexp(t, regexp.MustCompile("RPORT_2FA_USER_AGENT='*Go'*"), scriptLog)
+	assert.Regexp(t, regexp.MustCompile("RPORT_2FA_TOKEN='*[a-z A-Z 0-9]{6}'*"), scriptLog)
+	assert.Regexp(t, regexp.MustCompile(fmt.Sprintf("RPORT_2FA_TOKEN_TTL='*%d'*", tokenTTL)), scriptLog)
 
 	// Delete script and its output
 	err = os.Remove(tfaScript.name)
