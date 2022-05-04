@@ -19,6 +19,7 @@ import (
 
 	"github.com/cloudradar-monitoring/rport/share/files"
 
+	"github.com/asaskevich/govalidator"
 	mapset "github.com/deckarep/golang-set"
 	"github.com/jpillora/requestlog"
 	"github.com/pkg/errors"
@@ -103,6 +104,7 @@ type ServerConfig struct {
 	ListenAddress              string                         `mapstructure:"address"`
 	URL                        []string                       `mapstructure:"url"`
 	PairingURL                 string                         `mapstructure:"pairing_url"`
+	TunnelHost                 string                         `mapstructure:"tunnel_host"`
 	KeySeed                    string                         `mapstructure:"key_seed"`
 	Auth                       string                         `mapstructure:"auth"`
 	AuthFile                   string                         `mapstructure:"auth_file"`
@@ -301,6 +303,10 @@ func (c *Config) ParseAndValidate() error {
 		return err
 	}
 
+	if err := c.Server.parseAndValidateHosts(); err != nil {
+		return err
+	}
+
 	return nil
 }
 
@@ -496,6 +502,13 @@ func (s *ServerConfig) parseAndValidateURLs() error {
 		}
 	}
 
+	return nil
+}
+
+func (s *ServerConfig) parseAndValidateHosts() error {
+	if s.TunnelHost != "" && !govalidator.IsDNSName(s.TunnelHost) && !govalidator.IsIP(s.TunnelHost) {
+		return fmt.Errorf("invalid tunnel_host '%s': use IP address or FQDN", s.TunnelHost)
+	}
 	return nil
 }
 

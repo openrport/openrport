@@ -3,6 +3,7 @@ module github.com/cloudradar-monitoring/rport
 go 1.17
 
 require (
+	github.com/asaskevich/govalidator v0.0.0-20210307081110-f21760c49a8d
 	github.com/cloudradar-monitoring/cagent v0.0.0-20200615130556-4797f9fb8b50
 	github.com/deckarep/golang-set v1.7.1
 	github.com/denisbrodbeck/machineid v1.0.1
