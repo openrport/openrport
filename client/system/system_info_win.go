@@ -4,29 +4,31 @@
 package system
 
 import (
+	"bytes"
 	"context"
-	"strings"
-
-	chshare "github.com/cloudradar-monitoring/rport/share"
+	"fmt"
+	"os/exec"
 )
 
 func (s *realSystemInfo) virtualizationInfo(ctx context.Context) (virtSystem, virtRole string, err error) {
-	execCtx := &CmdExecutorContext{
-		Interpreter: Interpreter{
-			InterpreterNameFromInput: chshare.PowerShell,
-		},
-		Command: "Get-Service",
-	}
-	cmd := s.cmdExec.New(ctx, execCtx)
-	execRes, err := cmd.CombinedOutput()
-
+	ps, err := exec.LookPath("powershell.exe")
 	if err != nil {
 		return "", "", err
 	}
+	pscmd := "Get-Service"
+	args := []string{"-NoProfile", "-NonInteractive", pscmd}
+	cmd := exec.Command(ps, args...)
+	var stdout bytes.Buffer
+	var stderr bytes.Buffer
+	cmd.Stdout = &stdout
+	cmd.Stderr = &stderr
 
-	sysInfo := strings.TrimSpace(string(execRes))
+	err = cmd.Run()
+	if err != nil {
+		return "", "", fmt.Errorf("error on %s %s: %s", ps, pscmd, stderr.String())
+	}
 
-	virtSystem, virtRole = getVirtInfoFromPowershellServicesList(sysInfo)
+	virtSystem, virtRole = getVirtInfoFromPowershellServicesList(stdout.String())
 
 	return virtSystem, virtRole, nil
 }

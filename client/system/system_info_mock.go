@@ -71,10 +71,6 @@ func (s *MockSystemInfo) SystemTime() time.Time {
 	return s.ReturnSystemTime
 }
 
-func (s *MockSystemInfo) VirtualizationInfo(ctx context.Context, infoStat *host.InfoStat) (virtSystem, virtRole string, err error) {
-	if infoStat == nil {
-		return "", "", s.ReturnVirtualizationInfoError
-	}
-
-	return infoStat.VirtualizationSystem, infoStat.VirtualizationRole, s.ReturnVirtualizationInfoError
+func (s *MockSystemInfo) VirtualizationInfo(ctx context.Context) (virtSystem, virtRole string, err error) {
+	return "dummy", "guest", s.ReturnVirtualizationInfoError
 }

@@ -62,49 +62,41 @@ func getVirtInfoFromPowershellServicesList(rawServicesList string) (virtSystem, 
 
 /**
 Parses the output of /proc/bus/pci/devices on nix systems as following:
-If grep -c hyperv_fb /proc/bus/pci/devices = 1 the Linux system is a HyperV guest.
-If grep -c vmwgfx /proc/bus/pci/devices = 1 the Linux system is a Vmware guest.
+If grep -c hyperv_fb /proc/bus/pci/devices > 0 the Linux system is a HyperV guest.
+If grep -c vmwgfx /proc/bus/pci/devices > 0 the Linux system is a Vmware guest.
 If grep -c virtio-pci /proc/bus/pci/devices > 0 the Linux system is a KVM guest.
 If grep -c xen-platform-pci /proc/bus/pci/devices > 0 the Linux system is a Xen guest.
 */
 func getVirtInfoFromNixDevicesList(rawDevicesList string) (virtSystem, virtRole string) {
 	devicesInfoExpectations := []struct {
 		expectedSubstr string
-		expectedCount  int
 		virtSystem     string
 		virtRole       string
 	}{
 		{
 			expectedSubstr: "hyperv_fb",
-			expectedCount:  1,
 			virtSystem:     VirtualSystemHyperV,
 			virtRole:       VirtualSystemRoleGuest,
 		},
 		{
 			expectedSubstr: "vmwgfx",
-			expectedCount:  1,
 			virtSystem:     VirtualSystemVMWare,
 			virtRole:       VirtualSystemRoleGuest,
 		},
 		{
 			expectedSubstr: "virtio-pci",
-			expectedCount:  0,
 			virtSystem:     VirtualSystemKVM,
 			virtRole:       VirtualSystemRoleGuest,
 		},
 		{
 			expectedSubstr: "xen-platform-pci",
-			expectedCount:  0,
 			virtSystem:     VirtualSystemXen,
 			virtRole:       VirtualSystemRoleGuest,
 		},
 	}
 
 	for _, exp := range devicesInfoExpectations {
-		if exp.expectedCount > 0 && strings.Count(rawDevicesList, exp.expectedSubstr) == exp.expectedCount {
-			return exp.virtSystem, exp.virtRole
-		}
-		if exp.expectedCount == 0 && strings.Count(rawDevicesList, exp.expectedSubstr) > 0 {
+		if strings.Count(rawDevicesList, exp.expectedSubstr) > 0 {
 			return exp.virtSystem, exp.virtRole
 		}
 	}
