@@ -82,6 +82,8 @@ func TestDataToEnv(t *testing.T) {
 		"RPORT_2FA_TOKEN=abcd12",
 		"RPORT_2FA_SENDTO=whatever@example.com",
 		"RPORT_2FA_TOKEN_TTL=300",
+		"RPORT_2FA_USER_AGENT=",
+		"RPORT_2FA_REMOTE_ADDRESS=",
 	}
 	assert.ElementsMatch(t, expected, env)
 }

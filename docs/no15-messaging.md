@@ -55,6 +55,8 @@ Fri Aug 13 13:36:25 UTC 2021
 RPORT_2FA_SENDTO=email@example.com
 RPORT_2FA_TOKEN_TTL=600
 RPORT_2FA_TOKEN=7SM7j2
+RPORT_2FA_USER_AGENT='Mozilla/5.0 (Macintosh; Intel Mac OS X 10.15; rv:99.0) Gecko/20100101 Firefox/99.0'
+RPORT_2FA_REMOTE_ADDRESS=::1
 snip..snap
 ```
 The value of `RPORT_2FA_SENDTO` may vary. It's the value specified in the 2fa_sendto column of the user table or the auth file.

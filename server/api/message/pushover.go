@@ -5,6 +5,7 @@ import (
 	"errors"
 	"fmt"
 	"net/http"
+	"time"
 
 	"github.com/gregdel/pushover"
 
@@ -25,7 +26,17 @@ func NewPushoverService(apiToken string) *PushoverService {
 const pushoverAPISuccessStatus = 1
 
 func (s *PushoverService) Send(ctx context.Context, data Data) error {
-	pMsg := pushover.NewMessageWithTitle(data.Message, data.Title)
+	body := fmt.Sprintf(`Your RPort 2fa token:<b>%s</b>
+requested from %s
+<i>with %s</i>
+<i>valid for %.0f seconds</i>.`, data.Token, data.RemoteAddress, data.UserAgent, data.TTL.Seconds())
+	pMsg := &pushover.Message{
+		Title:     data.Title,
+		Message:   body,
+		HTML:      true,
+		Timestamp: time.Now().Unix(),
+		Retry:     5 * time.Second,
+	}
 	pReceiver := pushover.NewRecipient(data.SendTo)
 	// TODO: pass ctx when pushover lib will support it
 	resp, err := s.p.SendMessage(pMsg, pReceiver)

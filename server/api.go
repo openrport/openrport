@@ -452,7 +452,7 @@ func (al *APIListener) handleLogin(username, pwd string, skipPasswordValidation 
 	}
 
 	if al.config.API.IsTwoFAOn() {
-		sendTo, err := al.twoFASrv.SendToken(req.Context(), username)
+		sendTo, err := al.twoFASrv.SendToken(req.Context(), username, req.UserAgent(), chshare.RemoteIP(req))
 		if err != nil {
 			al.jsonError(w, err)
 			return

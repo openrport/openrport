@@ -42,8 +42,7 @@ type expirableToken struct {
 
 const twoFATokenLength = 6
 
-// TODO: add tests
-func (srv *TwoFAService) SendToken(ctx context.Context, username string) (sendTo string, err error) {
+func (srv *TwoFAService) SendToken(ctx context.Context, username string, userAgent string, remoteAddress string) (sendTo string, err error) {
 	ctx, cancel := context.WithTimeout(ctx, srv.SendTimeout)
 	defer cancel()
 
@@ -78,11 +77,12 @@ func (srv *TwoFAService) SendToken(ctx context.Context, username string) (sendTo
 	}
 
 	data := message.Data{
-		SendTo:  user.TwoFASendTo,
-		Token:   token,
-		TTL:     srv.TokenTTL,
-		Title:   "Rport 2FA",
-		Message: fmt.Sprintf("Verification code: %s (valid %s)", token, srv.TokenTTL),
+		SendTo:        user.TwoFASendTo,
+		Token:         token,
+		TTL:           srv.TokenTTL,
+		Title:         "🔐 RRort Two-Factor Token",
+		RemoteAddress: remoteAddress,
+		UserAgent:     userAgent,
 	}
 	if err := srv.MsgSrv.Send(ctx, data); err != nil {
 		if ctx.Err() != nil {
@@ -156,7 +156,6 @@ func (srv *TwoFAService) ValidateTotPCode(user *users.User, code string) error {
 	return nil
 }
 
-// TODO: add tests
 func (srv *TwoFAService) ValidateToken(username, token string) error {
 	srv.mu.RLock()
 	t := srv.tokensByUser[username]
