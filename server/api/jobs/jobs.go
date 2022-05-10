@@ -190,10 +190,10 @@ type jobSqlite struct {
 	ClientID   string         `db:"client_id"`
 	MultiJobID sql.NullString `db:"multi_job_id"`
 	ScheduleID *string        `db:"schedule_id"`
-	Details    *jobDetails    `db:"details"`
+	Details    *JobDetails    `db:"details"`
 }
 
-type jobDetails struct {
+type JobDetails struct {
 	Command     string            `json:"command"`
 	Cwd         string            `json:"cwd"`
 	IsSudo      bool              `json:"is_sudo"`
@@ -206,7 +206,7 @@ type jobDetails struct {
 	ClientName  string            `json:"client_name"`
 }
 
-func (d *jobDetails) Scan(value interface{}) error {
+func (d *JobDetails) Scan(value interface{}) error {
 	if d == nil {
 		return errors.New("'details' cannot be nil")
 	}
@@ -221,7 +221,7 @@ func (d *jobDetails) Scan(value interface{}) error {
 	return nil
 }
 
-func (d *jobDetails) Value() (driver.Value, error) {
+func (d *JobDetails) Value() (driver.Value, error) {
 	if d == nil {
 		return nil, errors.New("'details' cannot be nil")
 	}
@@ -277,7 +277,7 @@ func convertToSqlite(job *models.Job) *jobSqlite {
 		StartedAt: job.StartedAt,
 		CreatedBy: job.CreatedBy,
 		ClientID:  job.ClientID,
-		Details: &jobDetails{
+		Details: &JobDetails{
 			Command:     job.Command,
 			Interpreter: job.Interpreter,
 			PID:         job.PID,
