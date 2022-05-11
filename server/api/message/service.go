@@ -6,11 +6,12 @@ import (
 )
 
 type Data struct {
-	Title   string
-	Message string
-	SendTo  string
-	Token   string
-	TTL     time.Duration
+	Title         string
+	SendTo        string
+	Token         string
+	UserAgent     string
+	RemoteAddress string
+	TTL           time.Duration
 }
 
 type Service interface {

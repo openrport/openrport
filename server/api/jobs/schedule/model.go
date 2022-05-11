@@ -6,6 +6,8 @@ import (
 	"errors"
 	"fmt"
 	"time"
+
+	"github.com/cloudradar-monitoring/rport/server/api/jobs"
 )
 
 const (
@@ -16,6 +18,7 @@ const (
 type Schedule struct {
 	Base
 	Details
+	LastExecution *Execution `json:"last_execution"`
 }
 
 func (s Schedule) ToDB() DBSchedule {
@@ -29,12 +32,14 @@ func (s Schedule) ToDB() DBSchedule {
 type DBSchedule struct {
 	Base
 	Details Details `db:"details"`
+	Execution
 }
 
 func (dbs DBSchedule) ToSchedule() *Schedule {
 	return &Schedule{
-		Base:    dbs.Base,
-		Details: dbs.Details,
+		Base:          dbs.Base,
+		Details:       dbs.Details,
+		LastExecution: dbs.Execution.ToLastExecution(),
 	}
 }
 
@@ -45,9 +50,6 @@ type Base struct {
 	Name      string    `json:"name" db:"name"`
 	Schedule  string    `json:"schedule" db:"schedule"`
 	Type      string    `json:"type" db:"type"`
-
-	// This comes from the associated MultiJob
-	LastStartedAt *time.Time `json:"last_started_at" db:"last_started_at"`
 }
 
 type Details struct {
@@ -87,9 +89,31 @@ func (d Details) Value() (driver.Value, error) {
 	return string(b), nil
 }
 
+// All fields must be pointers, because when there's no execution yet the values will be nil
 type Execution struct {
-	ScheduleID string
-	CreatedAt  time.Time
-	Error      string
-	MultiJobID string
+	StartedAt    *time.Time `db:"last_started_at" json:"started_at"`
+	ClientCount  *int       `db:"last_client_count" json:"client_count"`
+	SuccessCount *int       `db:"last_success_count" json:"success_count"`
+	Status       *string    `db:"last_status" json:"status"`
+
+	Details *jobs.JobDetails `db:"last_details" json:"-"`
+	Summary *string          `json:"summary"`
+}
+
+func (e *Execution) ToLastExecution() *Execution {
+	if e.StartedAt == nil {
+		return nil
+	}
+
+	if e.ClientCount != nil {
+		if *e.ClientCount == 1 {
+			if e.Details != nil && e.Details.Result != nil {
+				e.Summary = &e.Details.Result.Summary
+			}
+		} else {
+			e.Status = nil
+
+		}
+	}
+	return e
 }

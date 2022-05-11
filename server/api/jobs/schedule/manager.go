@@ -21,12 +21,11 @@ import (
 
 var (
 	supportedSorts = map[string]bool{
-		"id":              true,
-		"created_at":      true,
-		"created_by":      true,
-		"name":            true,
-		"type":            true,
-		"last_started_at": true,
+		"id":         true,
+		"created_at": true,
+		"created_by": true,
+		"name":       true,
+		"type":       true,
 	}
 	supportedFilters = map[string]bool{
 		"id":         true,
