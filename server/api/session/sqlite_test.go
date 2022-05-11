@@ -9,10 +9,14 @@ import (
 	"testing"
 	"time"
 
+	"github.com/cloudradar-monitoring/rport/db/sqlite"
+
 	"github.com/golang-jwt/jwt/v4"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 )
+
+var DataSourceOptions = sqlite.DataSourceOptions{WALEnabled: false}
 
 func TestAPISessionSqlite(t *testing.T) {
 	ctx := context.Background()
@@ -86,7 +90,7 @@ func TestAPISessionSqlite(t *testing.T) {
 }
 
 func newInmemoryDB(t *testing.T, sessions ...*APISession) *SqliteProvider {
-	p, err := NewSqliteProvider(":memory:")
+	p, err := NewSqliteProvider(":memory:", DataSourceOptions)
 	require.NoError(t, err)
 
 	for _, cur := range sessions {

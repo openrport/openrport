@@ -9,9 +9,18 @@ import (
 	"github.com/jmoiron/sqlx"
 )
 
+const WALEnabled = "_journal_mode=WAL"
+
+type DataSourceOptions struct {
+	WALEnabled bool
+}
+
 // New returns a new sqlite DB instance with migrated DB scheme to the latest version.
 // assetNames and asset are used to migrate DB scheme.
-func New(dataSourceName string, assetNames []string, asset func(name string) ([]byte, error)) (*sqlx.DB, error) {
+func New(dataSourceName string, assetNames []string, asset func(name string) ([]byte, error), dataSourceOptions DataSourceOptions) (*sqlx.DB, error) {
+	if dataSourceOptions.WALEnabled {
+		dataSourceName += "?" + WALEnabled
+	}
 	db, err := sqlx.Connect("sqlite3", dataSourceName)
 	if err != nil {
 		return nil, fmt.Errorf("failed to connect to DB: %v", err)

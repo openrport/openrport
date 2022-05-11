@@ -14,13 +14,15 @@ import (
 	"github.com/cloudradar-monitoring/rport/share/query"
 )
 
+var dso = sqlite.DataSourceOptions{WALEnabled: true}
+
 func TestRotation(t *testing.T) {
 	ctx := context.Background()
 	dir := t.TempDir()
 	period := 300 * time.Millisecond
 
 	// Prepare sqlite with 1 entry
-	sqlite, err := newSQLiteProvider(dir)
+	sqlite, err := newSQLiteProvider(dir, dso)
 	require.NoError(t, err)
 	err = sqlite.Save(&Entry{Timestamp: time.Now(), Username: "test1"})
 	require.NoError(t, err)
@@ -28,7 +30,7 @@ func TestRotation(t *testing.T) {
 	require.NoError(t, err)
 
 	// No rotation on init if entry is not older than period
-	rotation, err := newRotationProvider(nil, period, dir)
+	rotation, err := newRotationProvider(nil, period, dir, dso)
 	require.NoError(t, err)
 	entries, err := rotation.List(ctx, &query.ListOptions{})
 	require.NoError(t, err)
@@ -40,7 +42,7 @@ func TestRotation(t *testing.T) {
 	time.Sleep(period)
 
 	// Should rotate on init
-	rotation, err = newRotationProvider(nil, period, dir)
+	rotation, err = newRotationProvider(nil, period, dir, dso)
 	require.NoError(t, err)
 	entries, err = rotation.List(ctx, &query.ListOptions{})
 	require.NoError(t, err)
@@ -69,7 +71,7 @@ func TestRotation(t *testing.T) {
 }
 
 func assertRotatedSqlite(t *testing.T, dir, expectedUsername string) {
-	db, err := sqlite.New(path.Join(dir, time.Now().Format(rotatedFilename)), auditlog.AssetNames(), auditlog.Asset)
+	db, err := sqlite.New(path.Join(dir, time.Now().Format(rotatedFilename)), auditlog.AssetNames(), auditlog.Asset, dso)
 	require.NoError(t, err)
 	sqlite := &SQLiteProvider{
 		db: db,

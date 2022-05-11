@@ -138,7 +138,12 @@ func NewAPIListener(
 		}
 	}
 
-	libraryDb, err := sqlite.New(path.Join(config.Server.DataDir, "library.db"), library.AssetNames(), library.Asset)
+	libraryDb, err := sqlite.New(
+		path.Join(config.Server.DataDir, "library.db"),
+		library.AssetNames(),
+		library.Asset,
+		config.Server.GetSQLiteDataSourceOptions(),
+	)
 	if err != nil {
 		return nil, fmt.Errorf("failed init library DB instance: %w", err)
 	}
@@ -226,7 +231,7 @@ func NewAPIListener(
 		a.accessLogFile = accessLogFile
 	}
 
-	sessionDB, err := session.NewSqliteProvider(path.Join(config.Server.DataDir, "api_sessions.db"))
+	sessionDB, err := session.NewSqliteProvider(path.Join(config.Server.DataDir, "api_sessions.db"), config.Server.GetSQLiteDataSourceOptions())
 	if err != nil {
 		return nil, err
 	}

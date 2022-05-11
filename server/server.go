@@ -102,26 +102,40 @@ func NewServer(config *Config, filesAPI files.FileAPI) (*Server, error) {
 		s.Errorf("Failed to store fingerprint %q in file %q: %v", fingerprint, fingerprintFile, err)
 	}
 
-	jobsDB, err := sqlite.New(path.Join(config.Server.DataDir, "jobs.db"), jobsmigration.AssetNames(), jobsmigration.Asset)
+	jobsDB, err := sqlite.New(
+		path.Join(config.Server.DataDir, "jobs.db"),
+		jobsmigration.AssetNames(),
+		jobsmigration.Asset,
+		config.Server.GetSQLiteDataSourceOptions(),
+	)
 	if err != nil {
 		return nil, fmt.Errorf("failed to create jobs DB instance: %v", err)
 	}
 
 	s.jobProvider = jobs.NewSqliteProvider(jobsDB, s.Logger)
 
-	s.clientGroupProvider, err = cgroups.NewSqliteProvider(path.Join(config.Server.DataDir, "client_groups.db"))
+	s.clientGroupProvider, err = cgroups.NewSqliteProvider(path.Join(config.Server.DataDir, "client_groups.db"), config.Server.GetSQLiteDataSourceOptions())
 	if err != nil {
 		return nil, err
 	}
 
 	// create monitoringProvider and monitoringService
-	monitoringProvider, err := monitoring.NewSqliteProvider(path.Join(config.Server.DataDir, "monitoring.db?_journal_mode=WAL"), s.Logger)
+	monitoringProvider, err := monitoring.NewSqliteProvider(
+		path.Join(config.Server.DataDir, "monitoring.db"),
+		config.Server.GetSQLiteDataSourceOptions(),
+		s.Logger,
+	)
 	if err != nil {
 		return nil, err
 	}
 	s.monitoringService = monitoring.NewService(monitoringProvider)
 
-	s.clientDB, err = sqlite.New(path.Join(config.Server.DataDir, "clients.db"), clientsmigration.AssetNames(), clientsmigration.Asset)
+	s.clientDB, err = sqlite.New(
+		path.Join(config.Server.DataDir, "clients.db"),
+		clientsmigration.AssetNames(),
+		clientsmigration.Asset,
+		config.Server.GetSQLiteDataSourceOptions(),
+	)
 	if err != nil {
 		return nil, fmt.Errorf("failed to create clients DB instance: %v", err)
 	}
@@ -149,6 +163,7 @@ func NewServer(config *Config, filesAPI files.FileAPI) (*Server, error) {
 		s.clientService,
 		s.config.Server.DataDir,
 		s.config.API.AuditLog,
+		s.config.Server.GetSQLiteDataSourceOptions(),
 	)
 	if err != nil {
 		return nil, err

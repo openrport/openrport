@@ -24,8 +24,8 @@ type SqliteProvider struct {
 	db *sqlx.DB
 }
 
-func NewSqliteProvider(dbPath string) (*SqliteProvider, error) {
-	db, err := sqlite.New(dbPath, client_groups.AssetNames(), client_groups.Asset)
+func NewSqliteProvider(dbPath string, dataSourceOptions sqlite.DataSourceOptions) (*SqliteProvider, error) {
+	db, err := sqlite.New(dbPath, client_groups.AssetNames(), client_groups.Asset, dataSourceOptions)
 	if err != nil {
 		return nil, fmt.Errorf("failed to create client_groups DB instance: %v", err)
 	}

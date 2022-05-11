@@ -8,6 +8,8 @@ import (
 	"sync"
 	"time"
 
+	"github.com/cloudradar-monitoring/rport/db/sqlite"
+
 	"github.com/cloudradar-monitoring/rport/share/logger"
 	"github.com/cloudradar-monitoring/rport/share/query"
 )
@@ -18,17 +20,18 @@ const (
 )
 
 type RotationProvider struct {
-	logger  *logger.Logger
-	period  time.Duration
-	ticker  *time.Ticker
-	dataDir string
+	logger            *logger.Logger
+	period            time.Duration
+	ticker            *time.Ticker
+	dataDir           string
+	dataSourceOptions sqlite.DataSourceOptions
 
 	mtx    sync.RWMutex
 	sqlite *SQLiteProvider
 }
 
-func newRotationProvider(l *logger.Logger, period time.Duration, dataDir string) (*RotationProvider, error) {
-	sqlite, err := newSQLiteProvider(dataDir)
+func newRotationProvider(l *logger.Logger, period time.Duration, dataDir string, dataSourceOptions sqlite.DataSourceOptions) (*RotationProvider, error) {
+	sqlite, err := newSQLiteProvider(dataDir, dataSourceOptions)
 	if err != nil {
 		return nil, err
 	}
@@ -75,7 +78,7 @@ func (r *RotationProvider) rotate() error {
 		return err
 	}
 
-	r.sqlite, err = newSQLiteProvider(r.dataDir)
+	r.sqlite, err = newSQLiteProvider(r.dataDir, r.dataSourceOptions)
 	if err != nil {
 		return err
 	}
