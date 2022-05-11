@@ -7,10 +7,34 @@ import (
 
 	"github.com/jmoiron/sqlx"
 
+	"github.com/cloudradar-monitoring/rport/share/models"
 	"github.com/cloudradar-monitoring/rport/share/query"
 )
 
-const lastStartedAtFieldQuery = `(SELECT started_at FROM multi_jobs WHERE schedule_id = s.id ORDER BY started_at DESC LIMIT 1) AS last_started_at`
+const schedulesQuery = `
+SELECT
+	s.*,
+	mj.last_started_at,
+	mj.last_client_count,
+	mj.last_success_count,
+	mj.last_status,
+	mj.last_details
+FROM schedules s
+LEFT JOIN (
+	SELECT
+		mj.schedule_id,
+		mj.started_at AS last_started_at,
+		COUNT(j.jid) AS last_client_count,
+		COUNT(j.jid) FILTER (WHERE j.status = '` + models.JobStatusSuccessful + `') AS last_success_count,
+		MIN(j.status) AS last_status,
+		MIN(j.details) AS last_details,
+		ROW_NUMBER() OVER (PARTITION BY mj.schedule_id ORDER BY mj.started_at DESC) AS rn
+	FROM multi_jobs mj
+	JOIN jobs j ON j.multi_job_id = mj.jid
+	GROUP BY mj.jid
+
+) mj ON s.id = mj.schedule_id AND mj.rn = 1
+`
 
 type SQLiteProvider struct {
 	db *sqlx.DB
@@ -64,9 +88,7 @@ func (p *SQLiteProvider) Update(ctx context.Context, s *Schedule) error {
 func (p *SQLiteProvider) List(ctx context.Context, options *query.ListOptions) ([]*Schedule, error) {
 	values := []*DBSchedule{}
 
-	q := fmt.Sprintf("SELECT *, %s FROM `schedules` s", lastStartedAtFieldQuery)
-
-	q, params := query.ConvertListOptionsToQuery(options, q)
+	q, params := query.ConvertListOptionsToQuery(options, schedulesQuery)
 
 	err := p.db.SelectContext(ctx, &values, q, params...)
 	if err != nil {
@@ -86,10 +108,7 @@ func (p *SQLiteProvider) Close() error {
 }
 
 func (p *SQLiteProvider) Get(ctx context.Context, id string) (*Schedule, error) {
-	q := fmt.Sprintf(
-		"SELECT *, %s FROM `schedules` s WHERE `id` = ? LIMIT 1",
-		lastStartedAtFieldQuery,
-	)
+	q := schedulesQuery + " WHERE `id` = ? LIMIT 1"
 
 	s := &DBSchedule{}
 	err := p.db.GetContext(ctx, s, q, id)
