@@ -42,11 +42,17 @@ func NewSMTPService(hostPort, username, password, fromEmail string, withTLS bool
 }
 
 func (s *SMTPService) Send(ctx context.Context, data Data) error {
+	message := fmt.Sprintf(`You have requested a token for the login to your RPort server.
+The token is: %s
+
+The token has been requested from %s
+with user agent %s.
+Token is valid for %.0f seconds.`, data.Token, data.RemoteAddress, data.UserAgent, data.TTL.Seconds())
 	e := &email.Email{
 		From:    s.From,
 		To:      []string{data.SendTo},
 		Subject: data.Title,
-		Text:    []byte(data.Message),
+		Text:    []byte(message),
 	}
 
 	if s.TLSConfig != nil {

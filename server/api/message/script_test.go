@@ -72,9 +72,11 @@ func TestDataToEnv(t *testing.T) {
 	ss := message.NewScriptService("", message.ValidationNone, nil)
 
 	data := message.Data{
-		SendTo: "whatever@example.com",
-		Token:  "abcd12",
-		TTL:    5 * time.Minute,
+		SendTo:        "whatever@example.com",
+		Token:         "abcd12",
+		TTL:           5 * time.Minute,
+		UserAgent:     "Go",
+		RemoteAddress: "::1",
 	}
 	env := ss.DataToEnv(data)
 
@@ -82,6 +84,8 @@ func TestDataToEnv(t *testing.T) {
 		"RPORT_2FA_TOKEN=abcd12",
 		"RPORT_2FA_SENDTO=whatever@example.com",
 		"RPORT_2FA_TOKEN_TTL=300",
+		"RPORT_2FA_USER_AGENT=Go",
+		"RPORT_2FA_REMOTE_ADDRESS=::1",
 	}
 	assert.ElementsMatch(t, expected, env)
 }

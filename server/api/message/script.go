@@ -45,7 +45,7 @@ func (s *ScriptService) Send(ctx context.Context, data Data) error {
 
 	if err := cmd.Run(); err != nil {
 		if stderr.Len() > 0 {
-			return fmt.Errorf("%s", stderr.Next(stderrLimit))
+			return fmt.Errorf("%s %s", err, stderr.Next(stderrLimit))
 		}
 		return err
 	}
@@ -58,6 +58,8 @@ func (s *ScriptService) DataToEnv(data Data) []string {
 		fmt.Sprintf("RPORT_2FA_TOKEN=%v", data.Token),
 		fmt.Sprintf("RPORT_2FA_SENDTO=%v", data.SendTo),
 		fmt.Sprintf("RPORT_2FA_TOKEN_TTL=%v", data.TTL.Seconds()),
+		fmt.Sprintf("RPORT_2FA_USER_AGENT=%v", data.UserAgent),
+		fmt.Sprintf("RPORT_2FA_REMOTE_ADDRESS=%v", data.RemoteAddress),
 	}
 }
 
