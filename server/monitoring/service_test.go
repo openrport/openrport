@@ -5,14 +5,18 @@ import (
 	"testing"
 	"time"
 
+	"github.com/cloudradar-monitoring/rport/db/sqlite"
+
 	"github.com/stretchr/testify/require"
 
 	"github.com/cloudradar-monitoring/rport/share/models"
 	"github.com/cloudradar-monitoring/rport/share/query"
 )
 
+var DataSourceOptions = sqlite.DataSourceOptions{WALEnabled: false}
+
 func TestMonitoringService_SaveMeasurement(t *testing.T) {
-	dbProvider, err := NewSqliteProvider(":memory:", testLog)
+	dbProvider, err := NewSqliteProvider(":memory:", DataSourceOptions, testLog)
 	require.NoError(t, err)
 	defer dbProvider.Close()
 
@@ -30,7 +34,7 @@ func TestMonitoringService_SaveMeasurement(t *testing.T) {
 }
 
 func TestMonitoringService_ListClientMetrics(t *testing.T) {
-	dbProvider, err := NewSqliteProvider(":memory:", testLog)
+	dbProvider, err := NewSqliteProvider(":memory:", DataSourceOptions, testLog)
 	require.NoError(t, err)
 	defer dbProvider.Close()
 
@@ -94,7 +98,7 @@ func TestMonitoringService_ListClientMetrics(t *testing.T) {
 	}
 }
 func TestMonitoringService_ListClientGraphMetrics(t *testing.T) {
-	dbProvider, err := NewSqliteProvider(":memory:", testLog)
+	dbProvider, err := NewSqliteProvider(":memory:", DataSourceOptions, testLog)
 	require.NoError(t, err)
 	defer dbProvider.Close()
 

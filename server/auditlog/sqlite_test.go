@@ -12,7 +12,7 @@ import (
 )
 
 func TestSqliteSave(t *testing.T) {
-	db, err := sqlite.New(":memory:", auditlog.AssetNames(), auditlog.Asset)
+	db, err := sqlite.New(":memory:", auditlog.AssetNames(), auditlog.Asset, DataSourceOptions)
 	require.NoError(t, err)
 	dbProv := SQLiteProvider{
 		db: db,

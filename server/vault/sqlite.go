@@ -24,6 +24,7 @@ var ErrDatabaseNotInitialised = errors2.APIError{
 	Err:        errors.New("vault is not initialized yet"),
 	HTTPStatus: http.StatusConflict,
 }
+var DataSourceOptions = sqlite.DataSourceOptions{WALEnabled: false}
 
 type SqliteProvider struct {
 	db     *sqlx.DB
@@ -33,7 +34,7 @@ type SqliteProvider struct {
 func NewSqliteProvider(c Config, logger *logger.Logger) (*SqliteProvider, error) {
 	dbPath := c.GetVaultDBPath()
 
-	db, err := sqlite.New(dbPath, vaults.AssetNames(), vaults.Asset)
+	db, err := sqlite.New(dbPath, vaults.AssetNames(), vaults.Asset, DataSourceOptions)
 	if err != nil {
 		return nil, fmt.Errorf("failed init vault DB instance: %w", err)
 	}

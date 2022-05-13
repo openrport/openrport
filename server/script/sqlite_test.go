@@ -18,6 +18,8 @@ import (
 	"github.com/cloudradar-monitoring/rport/share/test"
 )
 
+var DataSourceOptions = sqlite.DataSourceOptions{WALEnabled: false}
+
 var demoData = []Script{
 	{
 		ID:          "1",
@@ -42,7 +44,7 @@ var demoData = []Script{
 }
 
 func TestGetByID(t *testing.T) {
-	db, err := sqlite.New(":memory:", library.AssetNames(), library.Asset)
+	db, err := sqlite.New(":memory:", library.AssetNames(), library.Asset, DataSourceOptions)
 	require.NoError(t, err)
 	dbProv := NewSqliteProvider(db)
 	defer dbProv.Close()
@@ -80,7 +82,7 @@ func TestGetByID(t *testing.T) {
 }
 
 func TestList(t *testing.T) {
-	db, err := sqlite.New(":memory:", library.AssetNames(), library.Asset)
+	db, err := sqlite.New(":memory:", library.AssetNames(), library.Asset, DataSourceOptions)
 	require.NoError(t, err)
 	dbProv := NewSqliteProvider(db)
 	t.Cleanup(func() { dbProv.Close() })
@@ -209,7 +211,7 @@ func TestList(t *testing.T) {
 }
 
 func TestCreate(t *testing.T) {
-	db, err := sqlite.New(":memory:", library.AssetNames(), library.Asset)
+	db, err := sqlite.New(":memory:", library.AssetNames(), library.Asset, DataSourceOptions)
 	require.NoError(t, err)
 	dbProv := NewSqliteProvider(db)
 	defer dbProv.Close()
@@ -240,7 +242,7 @@ func TestCreate(t *testing.T) {
 }
 
 func TestUpdate(t *testing.T) {
-	db, err := sqlite.New(":memory:", library.AssetNames(), library.Asset)
+	db, err := sqlite.New(":memory:", library.AssetNames(), library.Asset, DataSourceOptions)
 	require.NoError(t, err)
 	dbProv := NewSqliteProvider(db)
 	defer dbProv.Close()
@@ -278,7 +280,7 @@ func TestUpdate(t *testing.T) {
 }
 
 func TestDelete(t *testing.T) {
-	db, err := sqlite.New(":memory:", library.AssetNames(), library.Asset)
+	db, err := sqlite.New(":memory:", library.AssetNames(), library.Asset, DataSourceOptions)
 	require.NoError(t, err)
 	dbProv := NewSqliteProvider(db)
 	defer dbProv.Close()

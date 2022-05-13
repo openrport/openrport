@@ -13,13 +13,15 @@ import (
 	"github.com/cloudradar-monitoring/rport/share/random"
 )
 
+var DataSourceOptions = sqlite.DataSourceOptions{WALEnabled: false}
+
 func TestStoredTunnels(t *testing.T) {
 	ctx := context.Background()
 	client1, err := random.UUID4()
 	require.NoError(t, err)
 	client2, err := random.UUID4()
 	require.NoError(t, err)
-	db, err := sqlite.New(":memory:", clients.AssetNames(), clients.Asset)
+	db, err := sqlite.New(":memory:", clients.AssetNames(), clients.Asset, DataSourceOptions)
 	require.NoError(t, err)
 	tunnel := &StoredTunnel{}
 	options := &query.ListOptions{}

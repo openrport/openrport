@@ -15,6 +15,7 @@ import (
 	"github.com/cloudradar-monitoring/rport/share/models"
 )
 
+var DataSourceOptions = sqlite.DataSourceOptions{WALEnabled: false}
 var (
 	hour    = time.Hour
 	nowMock = nowMockF()
@@ -215,7 +216,7 @@ func shallowCopy(c *Client) *Client {
 }
 
 func newFakeClientProvider(t *testing.T, exp *time.Duration, cs ...*Client) *SqliteProvider {
-	db, err := sqlite.New(":memory:", clients.AssetNames(), clients.Asset)
+	db, err := sqlite.New(":memory:", clients.AssetNames(), clients.Asset, DataSourceOptions)
 	require.NoError(t, err)
 	p := newSqliteProvider(db, exp)
 	for _, cur := range cs {

@@ -12,11 +12,13 @@ import (
 	"github.com/cloudradar-monitoring/rport/server/clients"
 )
 
+var DataSourceOptions = sqlite.DataSourceOptions{WALEnabled: false}
+
 func TestNotEnabled(t *testing.T) {
 	req := httptest.NewRequest("GET", "/", nil)
 
 	mockProvider := &mockProvider{}
-	auditLog, err := New(nil, nil, "", Config{Enable: false})
+	auditLog, err := New(nil, nil, "", Config{Enable: false}, DataSourceOptions)
 	require.NoError(t, err)
 	auditLog.provider = mockProvider
 
@@ -95,7 +97,7 @@ func TestIPObfuscation(t *testing.T) {
 }
 
 func TestList(t *testing.T) {
-	db, err := sqlite.New(":memory:", auditlog.AssetNames(), auditlog.Asset)
+	db, err := sqlite.New(":memory:", auditlog.AssetNames(), auditlog.Asset, DataSourceOptions)
 	require.NoError(t, err)
 	dbProv := &SQLiteProvider{
 		db: db,

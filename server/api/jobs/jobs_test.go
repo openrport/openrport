@@ -18,11 +18,12 @@ import (
 	"github.com/cloudradar-monitoring/rport/share/query"
 )
 
+var DataSourceOptions = sqlite.DataSourceOptions{WALEnabled: false}
 var testLog = logger.NewLogger("api-listener-test", logger.LogOutput{File: os.Stdout}, logger.LogLevelDebug)
 
 func TestJobsSqliteProvider(t *testing.T) {
 	ctx := context.Background()
-	jobsDB, err := sqlite.New(":memory:", jobs.AssetNames(), jobs.Asset)
+	jobsDB, err := sqlite.New(":memory:", jobs.AssetNames(), jobs.Asset, DataSourceOptions)
 	require.NoError(t, err)
 	p := NewSqliteProvider(jobsDB, testLog)
 	defer p.Close()
@@ -91,7 +92,7 @@ func TestJobsSqliteProvider(t *testing.T) {
 }
 
 func TestCreateJob(t *testing.T) {
-	jobsDB, err := sqlite.New(":memory:", jobs.AssetNames(), jobs.Asset)
+	jobsDB, err := sqlite.New(":memory:", jobs.AssetNames(), jobs.Asset, DataSourceOptions)
 	require.NoError(t, err)
 	p := NewSqliteProvider(jobsDB, testLog)
 	defer p.Close()

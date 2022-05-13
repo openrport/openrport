@@ -16,8 +16,8 @@ type SqliteProvider struct {
 	db *sqlx.DB
 }
 
-func NewSqliteProvider(dbPath string) (*SqliteProvider, error) {
-	db, err := sqlite.New(dbPath, api_sessions.AssetNames(), api_sessions.Asset)
+func NewSqliteProvider(dbPath string, dataSourceOptions sqlite.DataSourceOptions) (*SqliteProvider, error) {
+	db, err := sqlite.New(dbPath, api_sessions.AssetNames(), api_sessions.Asset, dataSourceOptions)
 	if err != nil {
 		return nil, fmt.Errorf("unable to create api session DB instance: %w", err)
 	}

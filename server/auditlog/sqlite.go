@@ -16,8 +16,13 @@ type SQLiteProvider struct {
 	db *sqlx.DB
 }
 
-func newSQLiteProvider(dataDir string) (*SQLiteProvider, error) {
-	db, err := sqlite.New(path.Join(dataDir, sqliteFilename), auditlog.AssetNames(), auditlog.Asset)
+func newSQLiteProvider(dataDir string, dataSourceOptions sqlite.DataSourceOptions) (*SQLiteProvider, error) {
+	db, err := sqlite.New(
+		path.Join(dataDir, sqliteFilename),
+		auditlog.AssetNames(),
+		auditlog.Asset,
+		dataSourceOptions,
+	)
 	if err != nil {
 		return nil, err
 	}

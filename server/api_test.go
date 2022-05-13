@@ -46,6 +46,8 @@ import (
 var testLog = chshare.NewLogger("api-listener-test", chshare.LogOutput{File: os.Stdout}, chshare.LogLevelDebug)
 var hour = time.Hour
 
+var DataSourceOptions = sqlite.DataSourceOptions{WALEnabled: false}
+
 type JobProviderMock struct {
 	JobProvider
 	ReturnJob     *models.Job
@@ -1337,7 +1339,12 @@ func TestHandlePostMultiClientCommand(t *testing.T) {
 
 			al.initRouter()
 
-			jobsDB, err := sqlite.New(":memory:", jobsmigration.AssetNames(), jobsmigration.Asset)
+			jobsDB, err := sqlite.New(
+				":memory:",
+				jobsmigration.AssetNames(),
+				jobsmigration.Asset,
+				DataSourceOptions,
+			)
 			require.NoError(t, err)
 			jp := jobs.NewSqliteProvider(jobsDB, testLog)
 			defer jp.Close()
@@ -2072,7 +2079,7 @@ func TestHandleGetLogin(t *testing.T) {
 }
 
 func newEmptyAPISessionCache(t *testing.T) *session.Cache {
-	p, err := session.NewSqliteProvider(":memory:")
+	p, err := session.NewSqliteProvider(":memory:", DataSourceOptions)
 	require.NoError(t, err)
 	c, err := session.NewCache(context.Background(), p, defaultTokenLifetime, cleanupAPISessionsInterval)
 	require.NoError(t, err)

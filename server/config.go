@@ -17,6 +17,8 @@ import (
 	"strings"
 	"time"
 
+	"github.com/cloudradar-monitoring/rport/db/sqlite"
+
 	"github.com/cloudradar-monitoring/rport/share/files"
 
 	"github.com/asaskevich/govalidator"
@@ -113,6 +115,7 @@ type ServerConfig struct {
 	UsedPortsRaw               []string                       `mapstructure:"used_ports"`
 	ExcludedPortsRaw           []string                       `mapstructure:"excluded_ports"`
 	DataDir                    string                         `mapstructure:"data_dir"`
+	SqliteWAL                  bool                           `mapstructure:"sqlite_wal"`
 	CleanupClients             bool                           `mapstructure:"cleanup_clients"`
 	KeepLostClients            time.Duration                  `mapstructure:"keep_lost_clients"`
 	CleanupClientsInterval     time.Duration                  `mapstructure:"cleanup_clients_interval"`
@@ -254,6 +257,10 @@ func (c *Config) GetVaultDBPath() string {
 
 func (c *Config) GetUploadDir() string {
 	return filepath.Join(c.Server.DataDir, files.DefaultUploadTempFolder)
+}
+
+func (s *ServerConfig) GetSQLiteDataSourceOptions() sqlite.DataSourceOptions {
+	return sqlite.DataSourceOptions{WALEnabled: s.SqliteWAL}
 }
 
 func (c *Config) InitRequestLogOptions() *requestlog.Options {
