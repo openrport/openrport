@@ -274,7 +274,7 @@ func (al *APIListener) uploadRequestFromRequest(req *http.Request) (*UploadReque
 	ur.ClientIDs = req.MultipartForm.Value["client_id"]
 	ur.GroupIDs = req.MultipartForm.Value["group_id"]
 
-	ur.Clients, ur.clientsInGroupsCount, err = al.getOrderedClients(req.Context(), ur.ClientIDs, ur.GroupIDs)
+	ur.Clients, ur.clientsInGroupsCount, err = al.getOrderedClients(req.Context(), ur.ClientIDs, ur.GroupIDs, false /* allowDisconnected */)
 	if err != nil {
 		return nil, err
 	}
