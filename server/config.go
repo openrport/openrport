@@ -260,10 +260,7 @@ func (c *Config) GetUploadDir() string {
 }
 
 func (s *ServerConfig) GetSQLiteDataSourceOptions() sqlite.DataSourceOptions {
-	if s.SqliteWAL {
-		return sqlite.DataSourceOptions{WALEnabled: true}
-	}
-	return sqlite.DataSourceOptions{}
+	return sqlite.DataSourceOptions{WALEnabled: s.SqliteWAL}
 }
 
 func (c *Config) InitRequestLogOptions() *requestlog.Options {
