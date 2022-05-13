@@ -2282,7 +2282,7 @@ func (al *APIListener) handlePostMultiClientCommand(w http.ResponseWriter, req *
 		return
 	}
 
-	orderedClients, groupClientsCount, err := al.getOrderedClients(ctx, reqBody.ClientIDs, reqBody.GroupIDs)
+	orderedClients, groupClientsCount, err := al.getOrderedClients(ctx, reqBody.ClientIDs, reqBody.GroupIDs, false /* allowDisconnected */)
 	if err != nil {
 		al.jsonError(w, err)
 		return
@@ -2338,7 +2338,9 @@ func (al *APIListener) handlePostMultiClientCommand(w http.ResponseWriter, req *
 
 func (al *APIListener) getOrderedClients(
 	ctx context.Context,
-	clientIDs, groupIDs []string) (
+	clientIDs, groupIDs []string,
+	allowDisconnected bool,
+) (
 	orderedClients []*clients.Client,
 	groupClientsFoundCount int,
 	err error,
@@ -2388,7 +2390,7 @@ func (al *APIListener) getOrderedClients(
 			return orderedClients, 0, err
 		}
 
-		if client.DisconnectedAt != nil {
+		if client.DisconnectedAt != nil && !allowDisconnected {
 			err = errors2.APIError{
 				Message:    fmt.Sprintf("Client with id=%q is not active.", cid),
 				Err:        err,
@@ -2429,7 +2431,7 @@ func (al *APIListener) StartMultiClientJob(ctx context.Context, multiJobRequest 
 	}
 
 	if multiJobRequest.OrderedClients == nil {
-		multiJobRequest.OrderedClients, _, err = al.getOrderedClients(ctx, multiJobRequest.ClientIDs, multiJobRequest.GroupIDs)
+		multiJobRequest.OrderedClients, _, err = al.getOrderedClients(ctx, multiJobRequest.ClientIDs, multiJobRequest.GroupIDs, true /* allowDisconnected */)
 		if err != nil {
 			return nil, err
 		}
@@ -2565,7 +2567,11 @@ func (al *APIListener) createAndRunJob(
 		MultiJobID:  &multiJobID,
 	}
 	sshResp := &comm.RunCmdResponse{}
-	err = comm.SendRequestAndGetResponse(client.Connection, comm.RequestTypeRunCmd, curJob, sshResp)
+	if client.Connection != nil {
+		err = comm.SendRequestAndGetResponse(client.Connection, comm.RequestTypeRunCmd, curJob, sshResp)
+	} else {
+		err = errors.New("client is not connected")
+	}
 	// return an error after saving the job
 	if err != nil {
 		// failure, set fields to mark it as failed
@@ -2607,7 +2613,7 @@ func (al *APIListener) handleCommandsWS(w http.ResponseWriter, req *http.Request
 		return
 	}
 
-	orderedClients, clientsInGroupsCount, err := al.getOrderedClients(ctx, inboundMsg.ClientIDs, inboundMsg.GroupIDs)
+	orderedClients, clientsInGroupsCount, err := al.getOrderedClients(ctx, inboundMsg.ClientIDs, inboundMsg.GroupIDs, false /* allowDisconnected */)
 	if err != nil {
 		uiConnTS.WriteError("", err)
 		return
@@ -2647,7 +2653,7 @@ func (al *APIListener) enrichScriptInput(
 	inboundMsg.Command = string(decodedScriptBytes)
 	inboundMsg.IsScript = true
 
-	orderedClients, clientsInGroupsCount, err := al.getOrderedClients(ctx, inboundMsg.ClientIDs, inboundMsg.GroupIDs)
+	orderedClients, clientsInGroupsCount, err := al.getOrderedClients(ctx, inboundMsg.ClientIDs, inboundMsg.GroupIDs, false /* allowDisconnected */)
 	if err != nil {
 		return 0, err
 	}
@@ -4115,7 +4121,7 @@ func (al *APIListener) handlePostSchedules(w http.ResponseWriter, req *http.Requ
 		al.jsonError(w, err)
 		return
 	}
-	orderedClients, _, err := al.getOrderedClients(ctx, scheduleInput.Details.ClientIDs, scheduleInput.Details.GroupIDs)
+	orderedClients, _, err := al.getOrderedClients(ctx, scheduleInput.Details.ClientIDs, scheduleInput.Details.GroupIDs, true /* allowDisconnected */)
 	if err != nil {
 		al.jsonError(w, err)
 		return
@@ -4163,7 +4169,7 @@ func (al *APIListener) handleUpdateSchedule(w http.ResponseWriter, req *http.Req
 		al.jsonError(w, err)
 		return
 	}
-	orderedClients, _, err := al.getOrderedClients(ctx, scheduleInput.Details.ClientIDs, scheduleInput.Details.GroupIDs)
+	orderedClients, _, err := al.getOrderedClients(ctx, scheduleInput.Details.ClientIDs, scheduleInput.Details.GroupIDs, true /* allowDisconnected */)
 	if err != nil {
 		al.jsonError(w, err)
 		return
