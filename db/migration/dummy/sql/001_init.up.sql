@@ -1,4 +1,4 @@
-CREATE TABLE clients
+CREATE TABLE dummy
 (
     id              TEXT PRIMARY KEY NOT NULL,
     client_auth_id  TEXT             NOT NULL,
