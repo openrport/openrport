@@ -1,4 +1,4 @@
-# File upload 
+# File Reception 
 
 ## Preface
 Rport allows users to copy files from their local machines to one or many remote clients through the rport server. The most common use case is the distribution of software or configuration files.
@@ -89,8 +89,8 @@ Please note, that on Unix the rport client runs with unprivileged rights. Changi
 The user must create sudo rules for that. This allows a fine-grained control over which folders are accessible for the rport client. Example:
 
 ```
-# /etc/sudoers.d/rport-filepush
-# The following rule allows the rport cliebr to change the ownership of any file retrieved from the rport server
+# /etc/sudoers.d/rport-filereception
+# The following rule allows the rport client to change the ownership of any file retrieved from the rport server
 rport ALL=NOPASSWD: /usr/bin/chown * /var/lib/rport/filepush/*_rport_filepush
 
 # The following rules allows the rport client to move copied files to any folder
@@ -171,7 +171,7 @@ The websocket API will deliver upload results at real time but only those which 
 
 Uploads for all clients and all requests will be delivered to the same websocket. Server won't close the ws connection like it happens with the commands websockets.
 
-## Upload restrictions
+## File reception restrictions
 By default, Rport client can place files anywhere in the file system where the rport OS user is allowed to write files.
 
 That means, that running rport as sudo user, will give write access to the whole filesystem on the client (for Unix only).
@@ -188,5 +188,5 @@ The restriction is applied for both target directory or target file path. Here i
 you can limit the size of uploaded files in bytes by setting `max_filepush_size` parameter in `[server]` section of rport server configuration.
 By default, this limit is 10485760 bytes (ca 10,5 MB).
 
-## Disabling uploads on the client
-file uploads are enabled on the client by default. If you want to disable it, set `[file-reception] enabled` flag to false in the client config.
+## Disabling file reception on the client
+The file reception is enabled on the client by default. If you want to disable it, set `[file-reception] enabled` flag to false in the client config.
