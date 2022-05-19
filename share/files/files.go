@@ -222,7 +222,7 @@ func Md5HashMatch(expectedHashSum []byte, path string, fileAPI FileAPI) (match b
 	if err != nil {
 		return false, err
 	}
-
+        defer file.Close()
 	destinationMd5Hash, err := Md5HashFromReader(file)
 	if err != nil {
 		return false, err
