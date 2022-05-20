@@ -8,6 +8,7 @@ import (
 	"time"
 
 	"github.com/cloudradar-monitoring/rport/share/query"
+	"github.com/cloudradar-monitoring/rport/share/types"
 
 	errors2 "github.com/cloudradar-monitoring/rport/server/api/errors"
 )
@@ -22,7 +23,7 @@ var supportedSortAndFilters = map[string]bool{
 }
 
 var supportedFields = map[string]map[string]bool{
-	"commands": map[string]bool{
+	"commands": {
 		"id":         true,
 		"name":       true,
 		"created_by": true,
@@ -114,6 +115,7 @@ func (m *Manager) Create(ctx context.Context, valueToStore *InputCommand, userna
 		UpdatedBy: username,
 		UpdatedAt: &now,
 		Cmd:       valueToStore.Cmd,
+		Tags:      (*types.StringSlice)(&valueToStore.Tags),
 	}
 	commandToSave.ID, err = m.db.Save(ctx, commandToSave)
 	if err != nil {
@@ -169,6 +171,7 @@ func (m *Manager) Update(ctx context.Context, existingID string, valueToStore *I
 		UpdatedBy: username,
 		UpdatedAt: &now,
 		Cmd:       valueToStore.Cmd,
+		Tags:      (*types.StringSlice)(&valueToStore.Tags),
 	}
 	_, err = m.db.Save(ctx, commandToSave)
 	if err != nil {
