@@ -4,6 +4,8 @@
 // 001_init.up.sql
 // 002_commands.down.sql
 // 002_commands.up.sql
+// 003_add_fields.down.sql
+// 003_add_fields.up.sql
 package library
 
 import (
@@ -95,7 +97,7 @@ func _001_initDownSql() (*asset, error) {
 		return nil, err
 	}
 
-	info := bindataFileInfo{name: "001_init.down.sql", size: 20, mode: os.FileMode(436), modTime: time.Unix(1625562284, 0)}
+	info := bindataFileInfo{name: "001_init.down.sql", size: 20, mode: os.FileMode(436), modTime: time.Unix(1634137343, 0)}
 	a := &asset{bytes: bytes, info: info}
 	return a, nil
 }
@@ -115,7 +117,7 @@ func _001_initUpSql() (*asset, error) {
 		return nil, err
 	}
 
-	info := bindataFileInfo{name: "001_init.up.sql", size: 477, mode: os.FileMode(436), modTime: time.Unix(1625562284, 0)}
+	info := bindataFileInfo{name: "001_init.up.sql", size: 477, mode: os.FileMode(436), modTime: time.Unix(1634137343, 0)}
 	a := &asset{bytes: bytes, info: info}
 	return a, nil
 }
@@ -135,7 +137,7 @@ func _002_commandsDownSql() (*asset, error) {
 		return nil, err
 	}
 
-	info := bindataFileInfo{name: "002_commands.down.sql", size: 21, mode: os.FileMode(436), modTime: time.Unix(1632139533, 0)}
+	info := bindataFileInfo{name: "002_commands.down.sql", size: 21, mode: os.FileMode(436), modTime: time.Unix(1634137343, 0)}
 	a := &asset{bytes: bytes, info: info}
 	return a, nil
 }
@@ -155,7 +157,47 @@ func _002_commandsUpSql() (*asset, error) {
 		return nil, err
 	}
 
-	info := bindataFileInfo{name: "002_commands.up.sql", size: 479, mode: os.FileMode(436), modTime: time.Unix(1632141081, 0)}
+	info := bindataFileInfo{name: "002_commands.up.sql", size: 479, mode: os.FileMode(436), modTime: time.Unix(1634137343, 0)}
+	a := &asset{bytes: bytes, info: info}
+	return a, nil
+}
+
+var __003_add_fieldsDownSql = []byte("\x1f\x8b\x08\x00\x00\x00\x00\x00\x00\xff\x01\x00\x00\xff\xff\x00\x00\x00\x00\x00\x00\x00\x00")
+
+func _003_add_fieldsDownSqlBytes() ([]byte, error) {
+	return bindataRead(
+		__003_add_fieldsDownSql,
+		"003_add_fields.down.sql",
+	)
+}
+
+func _003_add_fieldsDownSql() (*asset, error) {
+	bytes, err := _003_add_fieldsDownSqlBytes()
+	if err != nil {
+		return nil, err
+	}
+
+	info := bindataFileInfo{name: "003_add_fields.down.sql", size: 0, mode: os.FileMode(436), modTime: time.Unix(1653037945, 0)}
+	a := &asset{bytes: bytes, info: info}
+	return a, nil
+}
+
+var __003_add_fieldsUpSql = []byte("\x1f\x8b\x08\x00\x00\x00\x00\x00\x00\xff\x72\xf4\x09\x71\x0d\x52\x08\x71\x74\xf2\x71\x55\x50\x2a\x4e\x2e\xca\x2c\x28\x29\x56\x52\x70\x74\x71\x51\x70\xf6\xf7\x09\xf5\xf5\x53\x50\x2a\x2d\x48\x49\x2c\x49\x4d\x89\x4f\xaa\x54\x52\x08\x71\x8d\x08\x51\xf0\xf3\x0f\x51\xf0\x0b\xf5\xf1\x51\x70\x71\x75\x73\x0c\xf5\x09\x51\x50\x57\xb7\xe6\x22\xde\x9c\xc4\x12\x25\x05\x17\xc7\x10\x57\x4c\x73\xf2\xf2\xcb\xad\xb9\x42\x03\xc0\x92\x50\x23\x14\x82\x5d\x43\x14\x10\x3a\x15\x6c\x15\x92\x8b\x52\xa1\x1c\x1d\x05\x84\xd3\x90\x24\x92\x2a\xad\xb9\x50\x9d\x93\x9c\x9f\x9b\x9b\x98\x97\x82\xe6\x9e\x92\xc4\xf4\x62\x9c\x3e\x8a\x8e\x25\xca\x4f\x84\xcd\x00\x04\x00\x00\xff\xff\x1f\x29\xfb\x34\x60\x01\x00\x00")
+
+func _003_add_fieldsUpSqlBytes() ([]byte, error) {
+	return bindataRead(
+		__003_add_fieldsUpSql,
+		"003_add_fields.up.sql",
+	)
+}
+
+func _003_add_fieldsUpSql() (*asset, error) {
+	bytes, err := _003_add_fieldsUpSqlBytes()
+	if err != nil {
+		return nil, err
+	}
+
+	info := bindataFileInfo{name: "003_add_fields.up.sql", size: 352, mode: os.FileMode(436), modTime: time.Unix(1653040302, 0)}
 	a := &asset{bytes: bytes, info: info}
 	return a, nil
 }
@@ -212,10 +254,12 @@ func AssetNames() []string {
 
 // _bindata is a table, holding each asset generator, mapped to its name.
 var _bindata = map[string]func() (*asset, error){
-	"001_init.down.sql":     _001_initDownSql,
-	"001_init.up.sql":       _001_initUpSql,
-	"002_commands.down.sql": _002_commandsDownSql,
-	"002_commands.up.sql":   _002_commandsUpSql,
+	"001_init.down.sql":       _001_initDownSql,
+	"001_init.up.sql":         _001_initUpSql,
+	"002_commands.down.sql":   _002_commandsDownSql,
+	"002_commands.up.sql":     _002_commandsUpSql,
+	"003_add_fields.down.sql": _003_add_fieldsDownSql,
+	"003_add_fields.up.sql":   _003_add_fieldsUpSql,
 }
 
 // AssetDir returns the file names below a certain
@@ -259,10 +303,12 @@ type bintree struct {
 }
 
 var _bintree = &bintree{nil, map[string]*bintree{
-	"001_init.down.sql":     &bintree{_001_initDownSql, map[string]*bintree{}},
-	"001_init.up.sql":       &bintree{_001_initUpSql, map[string]*bintree{}},
-	"002_commands.down.sql": &bintree{_002_commandsDownSql, map[string]*bintree{}},
-	"002_commands.up.sql":   &bintree{_002_commandsUpSql, map[string]*bintree{}},
+	"001_init.down.sql":       &bintree{_001_initDownSql, map[string]*bintree{}},
+	"001_init.up.sql":         &bintree{_001_initUpSql, map[string]*bintree{}},
+	"002_commands.down.sql":   &bintree{_002_commandsDownSql, map[string]*bintree{}},
+	"002_commands.up.sql":     &bintree{_002_commandsUpSql, map[string]*bintree{}},
+	"003_add_fields.down.sql": &bintree{_003_add_fieldsDownSql, map[string]*bintree{}},
+	"003_add_fields.up.sql":   &bintree{_003_add_fieldsUpSql, map[string]*bintree{}},
 }}
 
 // RestoreAsset restores an asset under the given directory
