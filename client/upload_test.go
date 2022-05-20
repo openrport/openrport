@@ -374,6 +374,11 @@ func TestHandleUploadRequest(t *testing.T) {
 	for _, tc := range testCases {
 		tc := tc
 		t.Run(tc.name, func(t *testing.T) {
+			defer func() {
+				if r := recover(); r != nil {
+					return
+				}
+			}()
 			uploadedFileBytes, err := tc.wantUploadedFile.ToBytes()
 			require.NoError(t, err)
 
