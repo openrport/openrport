@@ -265,11 +265,13 @@ func TestHandleUploadRequest(t *testing.T) {
 
 				existingFileMock := &test.ReadWriteCloserMock{}
 				existingFileMock.Reader = strings.NewReader("some content")
+				existingFileMock.On("Close").Return(nil)
 
 				fs.On("Open", expectedTempFilePath).Return(existingFileMock, nil)
 
 				existingFileMock2 := &test.ReadWriteCloserMock{}
 				existingFileMock2.Reader = strings.NewReader("some content")
+				existingFileMock2.On("Close").Return(nil)
 				fs.On("Open", filepath.Join("destination", "file7.txt")).Return(existingFileMock2, nil)
 
 				fs.On("GetFileMode", filepath.Join("destination", "file7.txt")).Return(os.FileMode(0744), nil)
@@ -330,6 +332,7 @@ func TestHandleUploadRequest(t *testing.T) {
 
 				existingFileMock := &test.ReadWriteCloserMock{}
 				existingFileMock.Reader = strings.NewReader("some content")
+				existingFileMock.On("Close").Return(nil)
 
 				fs.On("Open", expectedTempFilePath).Return(existingFileMock, nil)
 

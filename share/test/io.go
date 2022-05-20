@@ -30,7 +30,6 @@ func (rcm *ReadCloserMock) Close() error {
 type ReadWriteCloserMock struct {
 	ReadCloserMock
 	Writer io.Writer
-	mock.Mock
 }
 
 func (rcm *ReadWriteCloserMock) Write(p []byte) (n int, err error) {
