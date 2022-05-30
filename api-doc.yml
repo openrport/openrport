@@ -1366,6 +1366,23 @@ paths:
         - "Rport Client Auth Credentials"
       summary: "Return all rport clients authentication credentials. Sorted by ID in asc order. Require admin access"
       description: ""
+      parameters:
+        - name: "filter"
+          in: "query"
+          description: "Filter option `filter[id]=<VALUE>`.\n
+                You can use `*` wildcards for partial matches. Text matching is case insensitive.\n
+                Examples:\n
+                `filter[id]=auth1234`\n
+                `filter[id]=auth*`\n"
+          required: false
+          type: "string"
+        - name: "page"
+          in: "query"
+          required: false
+          type: "integer"
+          description: | 
+            Pagination options `page[limit]` and `page[offset]` can be used to get more than the first page of results. 
+            Default limit is 50 and maximum is 500. The `count` property in meta shows the total number of results.
       produces:
         - "application/json"
       responses:
@@ -1378,6 +1395,11 @@ paths:
                 type: "array"
                 items:
                   $ref: "#/definitions/ClientAuth"
+              meta:
+                type: "object"
+                properties:
+                  count:
+                    type: "integer"
         "500":
           description: "Invalid Operation"
           schema:
@@ -1418,12 +1440,32 @@ paths:
         description: "client auth ID"
         required: true
         type: "string"
-      - name: "force"
-        in: "query"
-        description: "If true, delete a client auth even when it has active/disconnected clients."
-        required: false
-        type: "boolean"
+    get:
+      tags:
+        - "Rport Client Auth Credentials"
+      description: ""
+      responses:
+        "200":
+          description: "Successful Operation"
+          schema:
+            type: "object"
+            properties:
+              data:
+                type: "object"
+                $ref: "#/definitions/ClientAuth"
+        "500":
+          description: "Invalid Operation"
+          schema:
+            $ref: "#/definitions/ErrorPayload"
+        "404":
+          description: "Client auth credentials not found"
     delete:
+      parameters:
+        - name: "force"
+          in: "query"
+          description: "If true, delete a client auth even when it has active/disconnected clients."
+          required: false
+          type: "boolean"
       tags:
         - "Rport Client Auth Credentials"
       summary:  "Delete rport client authentication credentials. Require admin access"
