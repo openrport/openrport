@@ -9,8 +9,8 @@ rportd
 !cmd/rportd
 rportd.exe
 deploy.sh
-rport*.conf
-rportd*.conf
+rport.conf
+rportd.conf
 
 # Vuepress
 .vuepress/.cache
