@@ -205,21 +205,11 @@ func NewServer(config *Config, filesAPI files.FileAPI) (*Server, error) {
 
 func getClientProvider(config *Config, db *sqlx.DB) (clientsauth.Provider, error) {
 	if config.Server.AuthTable != "" {
-		dbProvider := clientsauth.NewDatabaseProvider(db, config.Server.AuthTable)
-		cachedProvider, err := clientsauth.NewCachedProvider(dbProvider)
-		if err != nil {
-			return nil, err
-		}
-		return cachedProvider, nil
+		return clientsauth.NewDatabaseProvider(db, config.Server.AuthTable), nil
 	}
 
 	if config.Server.AuthFile != "" {
-		fileProvider := clientsauth.NewFileProvider(config.Server.AuthFile)
-		cachedProvider, err := clientsauth.NewCachedProvider(fileProvider)
-		if err != nil {
-			return nil, err
-		}
-		return cachedProvider, nil
+		return clientsauth.NewFileProvider(config.Server.AuthFile), nil
 	}
 
 	if config.Server.Auth != "" {

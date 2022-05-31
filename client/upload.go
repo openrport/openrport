@@ -416,6 +416,7 @@ func (um *UploadManager) copyFileToTempLocation(remoteFilePath string, targetFil
 		return 0, tempFilePath, err
 	}
 	um.Logger.Debugf("copied %d bytes from server path %s to temp path %s", copiedBytes, remoteFilePath, tempFilePath)
+	remoteFile.Close()
 
 	hashSumMatch, err := files.Md5HashMatch(expectedMd5Checksum, tempFilePath, um.FilesAPI)
 	if err != nil {

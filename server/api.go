@@ -53,6 +53,7 @@ import (
 
 const (
 	routeParamClientID       = "client_id"
+	routeParamClientAuthID   = "client_auth_id"
 	routeParamUserID         = "user_id"
 	routeParamJobID          = "job_id"
 	routeParamGroupID        = "group_id"
@@ -231,6 +232,7 @@ func (al *APIListener) initRouter() {
 	api.HandleFunc("/commands/{job_id}", al.handleGetMultiClientCommand).Methods(http.MethodGet)
 	api.HandleFunc("/commands/{job_id}/jobs", al.handleGetMultiClientCommandJobs).Methods(http.MethodGet)
 	api.HandleFunc("/clients-auth", al.wrapAdminAccessMiddleware(al.handleGetClientsAuth)).Methods(http.MethodGet)
+	api.HandleFunc("/clients-auth/{client_auth_id}", al.wrapAdminAccessMiddleware(al.handleGetClientAuth)).Methods(http.MethodGet)
 	api.HandleFunc("/clients-auth", al.wrapAdminAccessMiddleware(al.handlePostClientsAuth)).Methods(http.MethodPost)
 	api.HandleFunc("/clients-auth/{client_auth_id}", al.wrapAdminAccessMiddleware(al.handleDeleteClientAuth)).Methods(http.MethodDelete)
 	api.HandleFunc("/vault-admin", al.handleGetVaultStatus).Methods(http.MethodGet)
@@ -1746,16 +1748,40 @@ const (
 	ErrCodeClientAuthNotFound  = "ERR_CODE_CLIENT_AUTH_NOT_FOUND"
 )
 
+func (al *APIListener) handleGetClientAuth(w http.ResponseWriter, req *http.Request) {
+	vars := mux.Vars(req)
+	clientAuthID := vars[routeParamClientAuthID]
+	clientAuth, err := al.clientAuthProvider.Get(clientAuthID)
+	if err != nil {
+		al.jsonError(w, err)
+		return
+	}
+	if clientAuth == nil {
+		al.jsonErrorResponseWithTitle(w, http.StatusNotFound, fmt.Sprintf("Client Auth with ID %q not found", clientAuthID))
+		return
+	}
+	al.writeJSONResponse(w, http.StatusOK, api.NewSuccessPayload(clientAuth))
+}
 func (al *APIListener) handleGetClientsAuth(w http.ResponseWriter, req *http.Request) {
-	rClients, err := al.clientAuthProvider.GetAll()
+	options := query.NewOptions(req, nil, nil, clientsauth.ListDefaultFields)
+	errs := query.ValidateListOptions(options, clientsauth.SupportedSorts, clientsauth.SupportedFilters, clientsauth.SupportedFields, &query.PaginationConfig{
+		MaxLimit:     500,
+		DefaultLimit: 50,
+	})
+	if errs != nil {
+		al.jsonError(w, errs)
+		return
+	}
+	rClients, count, err := al.clientAuthProvider.GetFiltered(options)
 	if err != nil {
 		al.jsonErrorResponse(w, http.StatusInternalServerError, err)
 		return
 	}
 
-	clientsauth.SortByID(rClients, false)
-
-	al.writeJSONResponse(w, http.StatusOK, api.NewSuccessPayload(rClients))
+	al.writeJSONResponse(w, http.StatusOK, &api.SuccessPayload{
+		Data: rClients,
+		Meta: api.NewMeta(count),
+	})
 }
 
 func (al *APIListener) handlePostClientsAuth(w http.ResponseWriter, req *http.Request) {
