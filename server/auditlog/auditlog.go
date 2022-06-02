@@ -8,6 +8,10 @@ import (
 	"strings"
 	"time"
 
+	"golang.org/x/exp/slices"
+
+	"github.com/cloudradar-monitoring/rport/server/api/users"
+
 	"github.com/cloudradar-monitoring/rport/db/sqlite"
 
 	"github.com/cloudradar-monitoring/rport/server/api"
@@ -58,6 +62,14 @@ type AuditLog struct {
 	clientGetter ClientGetter
 	provider     Provider
 	config       Config
+}
+
+type NotAllowedError struct {
+	Msg string
+}
+
+func (e *NotAllowedError) Error() string {
+	return e.Msg
 }
 
 func New(l *logger.Logger, cg ClientGetter, dataDir string, cfg Config, dataSourceOptions sqlite.DataSourceOptions) (*AuditLog, error) {
@@ -124,9 +136,21 @@ func (a *AuditLog) savePreparedEntry(e *Entry) error {
 	return a.provider.Save(e)
 }
 
-func (a *AuditLog) List(r *http.Request) (*api.SuccessPayload, error) {
+func (a *AuditLog) List(r *http.Request, user *users.User) (*api.SuccessPayload, error) {
 	options := query.GetListOptions(r)
-
+	if !slices.Contains(user.Groups, "Administrators") {
+		// Deny none-admins looking for foreign audit logs
+		for _, v := range options.Filters {
+			if slices.Contains(v.Column, "username") {
+				return nil, &NotAllowedError{"only members of group Administrators can filter by usernames"}
+			}
+		}
+		// Add a forced filter so none-admins cannot inspect what others have done
+		options.Filters = append(options.Filters, query.FilterOption{
+			Column: []string{"username"},
+			Values: []string{user.Username},
+		})
+	}
 	err := query.ValidateListOptions(options, supportedSorts, supportedFilters, nil, &query.PaginationConfig{
 		DefaultLimit: 10,
 		MaxLimit:     100,

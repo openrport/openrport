@@ -22,6 +22,7 @@ import (
 	"github.com/gorilla/websocket"
 	"github.com/jpillora/requestlog"
 	"golang.org/x/crypto/ssh"
+	"golang.org/x/exp/slices"
 
 	"github.com/cloudradar-monitoring/rport/server/api"
 	"github.com/cloudradar-monitoring/rport/server/api/command"
@@ -2954,7 +2955,16 @@ func (al *APIListener) handleGetMultiClientCommand(w http.ResponseWriter, req *h
 		return
 	}
 
-	al.writeJSONResponse(w, http.StatusOK, api.NewSuccessPayload(job))
+	curUser, err := al.getUserModelForAuth(req.Context())
+	if err != nil {
+		al.jsonError(w, err)
+		return
+	}
+	if slices.Contains(curUser.Groups, "Administrators") || job.CreatedBy == curUser.Username {
+		al.writeJSONResponse(w, http.StatusOK, api.NewSuccessPayload(job))
+		return
+	}
+	al.jsonErrorResponseWithError(w, http.StatusForbidden, "forbidden", fmt.Errorf("you are not allowed to access items created by another user"))
 }
 
 func (al *APIListener) handleGetMultiClientCommands(w http.ResponseWriter, req *http.Request) {
@@ -3974,12 +3984,21 @@ func (al *APIListener) handleGetClientMountpoints(w http.ResponseWriter, req *ht
 }
 
 func (al *APIListener) handleListAuditLog(w http.ResponseWriter, req *http.Request) {
-	result, err := al.auditLog.List(req)
+	curUser, err := al.getUserModelForAuth(req.Context())
 	if err != nil {
 		al.jsonError(w, err)
 		return
 	}
-
+	result, err := al.auditLog.List(req, curUser)
+	if err != nil {
+		var nae *auditlog.NotAllowedError
+		if errors.As(err, &nae) {
+			al.jsonErrorResponseWithError(w, http.StatusForbidden, "filter forbidden", err)
+			return
+		}
+		al.jsonError(w, err)
+		return
+	}
 	al.writeJSONResponse(w, http.StatusOK, result)
 }
 

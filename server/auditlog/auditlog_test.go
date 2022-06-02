@@ -4,6 +4,8 @@ import (
 	"net/http/httptest"
 	"testing"
 
+	"github.com/cloudradar-monitoring/rport/server/api/users"
+
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 
@@ -97,6 +99,35 @@ func TestIPObfuscation(t *testing.T) {
 }
 
 func TestList(t *testing.T) {
+	var tests = []struct {
+		desc              string
+		user              users.User
+		filter            string
+		expectedError     string
+		expectedResultLen int
+	}{
+		{
+			"Admin success",
+			users.User{Username: "Admin", Groups: []string{"Administrators"}},
+			"filter[application]=library.script&sort=-timestamp&page[limit]=1&page[offset]=1",
+			"",
+			1,
+		},
+		{
+			"No Admin denied",
+			users.User{Username: "Loser", Groups: []string{"Losers"}},
+			"filter[username]=Admin",
+			"only members of group Administrators can filter by usernames",
+			0,
+		},
+		{
+			"No Admin No results",
+			users.User{Username: "Loser", Groups: []string{"Losers"}},
+			"",
+			"",
+			0,
+		},
+	}
 	db, err := sqlite.New(":memory:", auditlog.AssetNames(), auditlog.Asset, DataSourceOptions)
 	require.NoError(t, err)
 	dbProv := &SQLiteProvider{
@@ -114,13 +145,23 @@ func TestList(t *testing.T) {
 	auditLog.Entry(ApplicationLibraryScript, ActionUpdate).Save()
 	auditLog.Entry(ApplicationLibraryCommand, ActionCreate).Save()
 
-	r := httptest.NewRequest("GET", "/auditlog?filter[application]=library.script&sort=-timestamp&page[limit]=1&page[offset]=1", nil)
-	result, err := auditLog.List(r)
-	require.NoError(t, err)
+	for _, tc := range tests {
+		t.Run(tc.desc, func(t *testing.T) {
+			r := httptest.NewRequest("GET", "/auditlog?"+tc.filter, nil)
+			result, err := auditLog.List(r, &tc.user)
+			if tc.expectedError != "" {
+				assert.Error(t, err, tc.expectedError)
+			} else {
+				require.NoError(t, err)
+				entries := result.Data.([]*Entry)
+				assert.Equal(t, tc.expectedResultLen, len(entries))
+				if tc.expectedResultLen > 0 {
+					assert.Equal(t, 2, result.Meta.Count)
+					assert.Equal(t, ApplicationLibraryScript, entries[0].Application)
+					assert.Equal(t, ActionCreate, entries[0].Action)
+				}
+			}
+		})
+	}
 
-	assert.Equal(t, 2, result.Meta.Count)
-	entries := result.Data.([]*Entry)
-	assert.Equal(t, 1, len(entries))
-	assert.Equal(t, ApplicationLibraryScript, entries[0].Application)
-	assert.Equal(t, ActionCreate, entries[0].Action)
 }
