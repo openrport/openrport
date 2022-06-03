@@ -168,6 +168,7 @@ func TestHandleFileUploads(t *testing.T) {
 			rec := httptest.NewRecorder()
 			al.router.ServeHTTP(rec, req)
 
+			t.Logf("Got response %s", rec.Body)
 			assert.Equal(t, tc.wantStatus, rec.Code)
 
 			var successResp struct {

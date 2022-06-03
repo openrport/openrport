@@ -5,8 +5,13 @@ import (
 	"mime/multipart"
 	"net/http"
 	"path/filepath"
+	"strings"
 	"sync"
 	"time"
+
+	"golang.org/x/exp/slices"
+
+	"github.com/cloudradar-monitoring/rport/server/api/users"
 
 	errors2 "github.com/cloudradar-monitoring/rport/share/errors"
 
@@ -42,6 +47,11 @@ func (al *APIListener) handleFileUploads(w http.ResponseWriter, req *http.Reques
 		al.jsonErrorResponseWithTitle(w, http.StatusBadRequest, err.Error())
 		return
 	}
+	curUser, err := al.getUserModelForAuth(req.Context())
+	if err != nil {
+		al.jsonErrorResponseWithTitle(w, http.StatusBadRequest, err.Error())
+		return
+	}
 	defer uploadRequest.File.Close()
 
 	wasCreated, err := al.filesAPI.CreateDirIfNotExists(al.config.GetUploadDir(), files.DefaultMode)
@@ -58,6 +68,12 @@ func (al *APIListener) handleFileUploads(w http.ResponseWriter, req *http.Reques
 	err = validateUploadRequest(uploadRequest)
 	if err != nil {
 		al.jsonErrorResponseWithTitle(w, http.StatusBadRequest, err.Error())
+		return
+	}
+
+	err = validateUserRights(uploadRequest, curUser)
+	if err != nil {
+		al.jsonErrorResponseWithDetail(w, http.StatusForbidden, "ACCESS_CONTROL_VIOLATION", "upload forbidden", err.Error())
 		return
 	}
 
@@ -315,4 +331,30 @@ func validateUploadRequest(ur *UploadRequest) error {
 	}
 
 	return ur.Validate()
+}
+
+func validateUserRights(ur *UploadRequest, user *users.User) error {
+	if slices.Contains(user.Groups, "Administrators") {
+		// Admins can do anything
+		return nil
+	}
+	var denied []string
+	for _, c := range ur.Clients {
+		if len(c.AllowedUserGroups) == 0 {
+			// No allowed groups defined = only admins allowed
+			denied = append(denied, c.ID)
+			break
+		}
+		for _, g := range c.AllowedUserGroups {
+			if slices.Contains(user.Groups, g) {
+				// User is member of a group required by the client
+				break
+			}
+			denied = append(denied, c.ID)
+		}
+	}
+	if len(denied) > 0 {
+		return fmt.Errorf("your are not allowed to upload files to client ids %s", strings.Join(denied[:], ","))
+	}
+	return nil
 }
