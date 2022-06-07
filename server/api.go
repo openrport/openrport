@@ -1763,8 +1763,8 @@ func (al *APIListener) handleGetClientAuth(w http.ResponseWriter, req *http.Requ
 	al.writeJSONResponse(w, http.StatusOK, api.NewSuccessPayload(clientAuth))
 }
 func (al *APIListener) handleGetClientsAuth(w http.ResponseWriter, req *http.Request) {
-	options := query.NewOptions(req, nil, nil, clientsauth.ListDefaultFields)
-	errs := query.ValidateListOptions(options, clientsauth.SupportedSorts, clientsauth.SupportedFilters, clientsauth.SupportedFields, &query.PaginationConfig{
+	options := query.NewOptions(req, nil, nil, nil)
+	errs := query.ValidateListOptions(options, clientsauth.SupportedSorts, clientsauth.SupportedFilters, nil, &query.PaginationConfig{
 		MaxLimit:     500,
 		DefaultLimit: 50,
 	})
