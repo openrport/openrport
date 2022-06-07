@@ -4,7 +4,6 @@ import (
 	"context"
 	"database/sql"
 	"fmt"
-	"time"
 
 	"github.com/jmoiron/sqlx"
 
@@ -70,31 +69,19 @@ func (p *SqliteProvider) Save(ctx context.Context, s *Command) (string, error) {
 		if err != nil {
 			return commandID, err
 		}
+		s.ID = commandID
 
-		_, err = p.db.ExecContext(
+		_, err = p.db.NamedExecContext(
 			ctx,
-			"INSERT INTO `commands` (`id`, `name`, `created_at`, `created_by`, `updated_at`, `updated_by`, `cmd`) VALUES (?, ?, ?, ?, ?, ?, ?)",
-			commandID,
-			s.Name,
-			s.CreatedAt.Format(time.RFC3339),
-			s.CreatedBy,
-			s.UpdatedAt.Format(time.RFC3339),
-			s.UpdatedBy,
-			s.Cmd,
+			"INSERT INTO `commands` (`id`, `name`, `created_at`, `created_by`, `updated_at`, `updated_by`, `cmd`, `tags`) VALUES (:id, :name, :created_at, :created_by, :updated_at, :updated_by, :cmd, :tags)",
+			s,
 		)
 
 		return commandID, err
 	}
 
-	q := "UPDATE `commands` SET `name` = ?, `updated_at` = ?, `updated_by` = ?, `cmd` = ? WHERE id = ?"
-	params := []interface{}{
-		s.Name,
-		s.UpdatedAt.Format(time.RFC3339),
-		s.UpdatedBy,
-		s.Cmd,
-		s.ID,
-	}
-	_, err := p.db.ExecContext(ctx, q, params...)
+	q := "UPDATE `commands` SET `name` = :name, `updated_at` = :updated_at, `updated_by` =  :updated_by, `cmd` = :cmd, `tags` = :tags WHERE id = :id"
+	_, err := p.db.NamedExecContext(ctx, q, s)
 
 	return s.ID, err
 }

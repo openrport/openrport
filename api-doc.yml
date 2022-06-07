@@ -2102,15 +2102,15 @@ paths:
         - in: "query"
           name: "sort"
           description: "Sort field to be used for values, the sorting direction is by default ASC.\n
-            To change the direction add `-` to the sorting value e.g. `-id`. Allowed values are `id`, `name`, `created_by`, `created_at`.\n
+            To change the direction add `-` to the sorting value e.g. `-id`. All fields are allowed.\n
             You can use as many sort parameters as you want."
           required: false
           type: "string"
         - in: "query"
           name: "filter[<FIELD>]"
           description: "Filter to find scripts. It should be provided in the format as `filter[<FIELD>]=<VALUE>`,\n
-              where `<FIELD>` is one of the values `id`, `name`, `created_by`, `created_at` and `<VALUE>` is the search value,\n
-              e.g. `filter[created_by]=admin` will request only scripts created by admin. You can use as many filter parameters as you want.\n
+              where `<FIELD>` is one of the fields and `<VALUE>` is the search value,\n
+              e.g. `filter[created_by]=admin` will request only scripts created by admin. You can use as many filter parameters as you want. You can use wildcards `*`.\n
               If you want to filter by multiple values e.g. find entries either for name = script1 or script2 you can use following filters\n
               `filter[name]=script1,script2`."
           required: false
@@ -2122,6 +2122,11 @@ paths:
               If no fields are specified, all will be returned."
           required: false
           type: "string"
+        - name: "page"
+          in: "query"
+          required: false
+          type: "integer"
+          description: Pagination options `page[limit]` and `page[offset]` can be used to get more than the first page of results. Default limit is 20 and maximum is 100. The `count` property in meta shows the total number of results.
       responses:
         "200":
           description: "Successful Operation"
@@ -2132,6 +2137,11 @@ paths:
                 type: "array"
                 items:
                   $ref: "#/definitions/Script"
+              meta:
+                type: "object"
+                properties:
+                  count:
+                    type: "integer"
         "400":
           description: "unsupported sort field 'xyz'"
           schema:
@@ -2308,15 +2318,15 @@ paths:
         - in: "query"
           name: "sort"
           description: "Sort field to be used for values, the sorting direction is by default ASC.\n
-            To change the direction add `-` to the sorting value e.g. `-id`. Allowed values are `id`, `name`, `created_by`, `created_at`, `updated_by`, `updated_at`.\n
+            To change the direction add `-` to the sorting value e.g. `-id`. All fields are allowed.\n
             You can use as many sort parameters as you want."
           required: false
           type: "string"
         - in: "query"
           name: "filter[<FIELD>]"
           description: "Filter to find commands. It should be provided in the format as `filter[<FIELD>]=<VALUE>`,\n
-              where `<FIELD>` is one of the values `id`, `name`, `created_by`, `created_at`, `updated_by`, `updated_at` and `<VALUE>` is the search value,\n
-              e.g. `filter[created_by]=admin` will request only commands created by admin. You can use as many filter parameters as you want.\n
+              where `<FIELD>` is one of the fields and `<VALUE>` is the search value,\n
+              e.g. `filter[created_by]=admin` will request only commands created by admin. You can use as many filter parameters as you want. You can use wildcard `*`.\n
               If you want to filter by multiple values e.g. find entries either for name = command1 or command2 you can use following filters\n
               `filter[name]=command1,command2`."
           required: false
@@ -2328,6 +2338,11 @@ paths:
               If no fields are specified, all will be returned."
           required: false
           type: "string"
+        - name: "page"
+          in: "query"
+          required: false
+          type: "integer"
+          description: Pagination options `page[limit]` and `page[offset]` can be used to get more than the first page of results. Default limit is 20 and maximum is 100. The `count` property in meta shows the total number of results.
       responses:
         "200":
           description: "Successful Operation"
@@ -2338,6 +2353,11 @@ paths:
                 type: "array"
                 items:
                   $ref: "#/definitions/Command"
+              meta:
+                type: "object"
+                properties:
+                  count:
+                    type: "integer"
         "400":
           description: "unsupported sort field 'xyz'"
           schema:
@@ -4062,6 +4082,13 @@ definitions:
       created_by:
         type: "string"
         description: "User name who created this script"
+      updated_at:
+        type: "string"
+        format: "data-time"
+        description: "Date and time of script update"
+      updated_by:
+        type: "string"
+        description: "User name who updated this script"
       interpreter:
         type: "string"
         description: "how will the script be executed on the client, e.g. /bin/sh, cmd.exe, powershell, tacoscript"
@@ -4074,6 +4101,11 @@ definitions:
       is_sudo:
         type: "boolean"
         description: "if true, this script will be executed as a sudo user"
+      tags:
+        type: array
+        description: "List of tags for the script"
+        items:
+          type: "string"
   ScriptInput:
     type: "object"
     properties:
@@ -4092,6 +4124,11 @@ definitions:
       is_sudo:
         type: "boolean"
         description: "if true, this script will be executed as a sudo user"
+      tags:
+        type: array
+        description: "List of tags for the script"
+        items:
+          type: "string"
   UpdatesStatus:
     type: "object"
     properties:
@@ -4160,6 +4197,11 @@ definitions:
       cmd:
         type: "string"
         description: "text of the command"
+      tags:
+        type: array
+        description: "List of tags for the script"
+        items:
+          type: "string"
   CommandInput:
     type: "object"
     properties:
@@ -4169,6 +4211,11 @@ definitions:
       script:
         type: "string"
         description: "[required] text of the command"
+      tags:
+        type: array
+        description: "List of tags for the script"
+        items:
+          type: "string"
   TotP:
     type: "object"
     properties:

@@ -1,6 +1,10 @@
 package ptr
 
-import "time"
+import (
+	"time"
+
+	"github.com/cloudradar-monitoring/rport/share/types"
+)
 
 func Time(t time.Time) *time.Time {
 	return &t
@@ -16,4 +20,9 @@ func String(s string) *string {
 
 func Int(i int) *int {
 	return &i
+}
+
+func StringSlice(s ...string) *types.StringSlice {
+	val := types.StringSlice(s)
+	return &val
 }
