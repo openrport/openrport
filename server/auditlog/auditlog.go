@@ -138,7 +138,7 @@ func (a *AuditLog) savePreparedEntry(e *Entry) error {
 
 func (a *AuditLog) List(r *http.Request, user *users.User) (*api.SuccessPayload, error) {
 	options := query.GetListOptions(r)
-	if !slices.Contains(user.Groups, "Administrators") {
+	if !user.IsAdmin() {
 		// Deny none-admins looking for foreign audit logs
 		for _, v := range options.Filters {
 			if slices.Contains(v.Column, "username") {

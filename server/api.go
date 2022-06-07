@@ -22,7 +22,6 @@ import (
 	"github.com/gorilla/websocket"
 	"github.com/jpillora/requestlog"
 	"golang.org/x/crypto/ssh"
-	"golang.org/x/exp/slices"
 
 	"github.com/cloudradar-monitoring/rport/server/api"
 	"github.com/cloudradar-monitoring/rport/server/api/command"
@@ -2960,7 +2959,7 @@ func (al *APIListener) handleGetMultiClientCommand(w http.ResponseWriter, req *h
 		al.jsonError(w, err)
 		return
 	}
-	if slices.Contains(curUser.Groups, "Administrators") || job.CreatedBy == curUser.Username {
+	if curUser.IsAdmin() || job.CreatedBy == curUser.Username {
 		al.writeJSONResponse(w, http.StatusOK, api.NewSuccessPayload(job))
 		return
 	}
