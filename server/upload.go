@@ -9,10 +9,6 @@ import (
 	"sync"
 	"time"
 
-	"golang.org/x/exp/slices"
-
-	"github.com/cloudradar-monitoring/rport/server/api/users"
-
 	errors2 "github.com/cloudradar-monitoring/rport/share/errors"
 
 	"github.com/cloudradar-monitoring/rport/server/api"
@@ -71,8 +67,13 @@ func (al *APIListener) handleFileUploads(w http.ResponseWriter, req *http.Reques
 		return
 	}
 
-	err = validateUserRights(uploadRequest, curUser)
-	if err != nil {
+	if err = validateRemoteDestination(uploadRequest); err != nil {
+		al.jsonErrorResponseWithDetail(w, http.StatusBadRequest, "BAD_DESTINATION", "upload denied", err.Error())
+		return
+	}
+
+	cr := ClientService{}
+	if err := cr.CheckClientsAccess(uploadRequest.Clients, curUser); err != nil {
 		al.jsonErrorResponseWithDetail(w, http.StatusForbidden, "ACCESS_CONTROL_VIOLATION", "upload forbidden", err.Error())
 		return
 	}
@@ -333,28 +334,13 @@ func validateUploadRequest(ur *UploadRequest) error {
 	return ur.Validate()
 }
 
-func validateUserRights(ur *UploadRequest, user *users.User) error {
-	if slices.Contains(user.Groups, "Administrators") {
-		// Admins can do anything
-		return nil
-	}
-	var denied []string
-	for _, c := range ur.Clients {
-		if len(c.AllowedUserGroups) == 0 {
-			// No allowed groups defined = only admins allowed
-			denied = append(denied, c.ID)
-			break
+func validateRemoteDestination(ur *UploadRequest) error {
+	// deny uploads to the below unix folders because there is no reason why a user should do that.
+	denied := []string{"/proc/", "/sys/", "/dev/", "/run/"}
+	for _, v := range denied {
+		if strings.HasPrefix(ur.DestinationPath, v) {
+			return fmt.Errorf("uploads to %s are forbidden", v)
 		}
-		for _, g := range c.AllowedUserGroups {
-			if slices.Contains(user.Groups, g) {
-				// User is member of a group required by the client
-				break
-			}
-			denied = append(denied, c.ID)
-		}
-	}
-	if len(denied) > 0 {
-		return fmt.Errorf("your are not allowed to upload files to client ids %s", strings.Join(denied[:], ","))
 	}
 	return nil
 }
