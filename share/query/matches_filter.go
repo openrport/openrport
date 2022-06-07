@@ -31,7 +31,6 @@ func matchesFilter(valueMap map[string]interface{}, filter FilterOption) (bool, 
 		if !ok {
 			return false, fmt.Errorf("unsupported filter column: %s", col)
 		}
-
 		// Cast into slice if it's array field, otherwise set single value slice
 		clientFieldSliceToMatch, ok := clientFieldValueToMatch.([]interface{})
 		if !ok {
@@ -41,9 +40,8 @@ func matchesFilter(valueMap map[string]interface{}, filter FilterOption) (bool, 
 		for _, clientFieldValueToMatch := range clientFieldSliceToMatch {
 			clientFieldValueToMatchStr := fmt.Sprint(clientFieldValueToMatch)
 
-			regx := regexp.MustCompile(`[^\\]\*+`)
 			for _, filterValue := range filter.Values {
-				hasUnescapedWildCard := regx.MatchString(filterValue)
+				hasUnescapedWildCard := strings.Contains(filterValue, "*")
 				if !hasUnescapedWildCard {
 					if strings.EqualFold(filterValue, clientFieldValueToMatchStr) {
 						return true, nil
@@ -51,8 +49,8 @@ func matchesFilter(valueMap map[string]interface{}, filter FilterOption) (bool, 
 
 					continue
 				}
-
-				filterValueRegex, err := regexp.Compile("(?i)" + strings.ReplaceAll(filterValue, "*", ".*"))
+				re := "(?i)^" + strings.ReplaceAll(filterValue, "*", ".*?") + "$"
+				filterValueRegex, err := regexp.Compile(re)
 				if err != nil {
 					if strings.EqualFold(filterValue, clientFieldValueToMatchStr) {
 						return true, nil

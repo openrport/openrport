@@ -70,6 +70,29 @@ func TestConvertListOptionsToQuery(t *testing.T) {
 			ExpectedQuery:  "SELECT res1.field1, res1.field2 FROM res1 WHERE (field1 = ? OR field1 = ? OR field1 = ?) AND field2 = ? AND (field3 = ? OR field3 = ? OR field4 = ? OR field4 = ?) AND (field5 = ? OR field5 IS NULL) ORDER BY field1 ASC, field2 DESC LIMIT ? OFFSET ?",
 			ExpectedParams: []interface{}{"val1", "val2", "val3", "value2", "value1", "value3", "value1", "value3", "", "5", "10"},
 		},
+		{
+			Name: "wildcard option",
+			Options: &query.ListOptions{
+				Sorts: []query.SortOption{
+					{
+						Column: "field1",
+						IsASC:  true,
+					},
+				},
+				Filters: []query.FilterOption{
+					{
+						Column: []string{"field1"},
+						Values: []string{"val*"},
+					},
+					{
+						Column: []string{"field2"},
+						Values: []string{"val*"},
+					},
+				},
+			},
+			ExpectedQuery:  `SELECT * FROM res1 WHERE field1 LIKE ? ESCAPE '\' AND field2 LIKE ? ESCAPE '\' ORDER BY field1 ASC`,
+			ExpectedParams: []interface{}{"val%", "val%"},
+		},
 	}
 
 	for _, tc := range testCases {

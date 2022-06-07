@@ -37,7 +37,18 @@ func AddWhere(filterOptions []FilterOption, q string, params []interface{}) (str
 		orParts := make([]string, 0, len(filterOptions[i].Values))
 		for _, col := range filterOptions[i].Column {
 			for _, val := range filterOptions[i].Values {
-				part := fmt.Sprintf("%s %s ?", col, filterOptions[i].Operator.Code())
+				var operatorCode = filterOptions[i].Operator.Code()
+				var operatorOption = ""
+				if operatorCode == "=" && strings.Contains(val, "*") {
+					// Implement a SQL LIKE search triggered by a wildcard
+					operatorCode = "LIKE"
+					operatorOption = " ESCAPE '\\'"
+					// Escape the % sign to treat it literally, on the API side % must not become a wildcard
+					val = strings.Replace(val, "%", "\\%", -1)
+					// Replace wildcard % by sql wildcard %
+					val = strings.Replace(val, "*", "%", -1)
+				}
+				part := fmt.Sprintf("%s %s ?%s", col, operatorCode, operatorOption)
 				if val == "" {
 					part = fmt.Sprintf("(%s OR %s IS NULL)", part, col)
 				}

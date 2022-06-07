@@ -5,52 +5,34 @@ import (
 	"errors"
 	"fmt"
 	"io/ioutil"
-	"log"
 	"os"
-	"regexp"
 	"sort"
-	"strconv"
-	"strings"
+	"time"
 
-	"github.com/cloudradar-monitoring/rport/share/query"
+	"github.com/patrickmn/go-cache"
 
 	"github.com/cloudradar-monitoring/rport/share/enums"
+	"github.com/cloudradar-monitoring/rport/share/query"
 )
 
 // FileProvider is file based client provider.
 // It is not thread save so should be surrounded by CachedProvider.
 type FileProvider struct {
 	fileName string
+	cache    *cache.Cache
 }
 
 var _ Provider = &FileProvider{}
 
-func NewFileProvider(fileName string) *FileProvider {
+func NewFileProvider(fileName string, cache *cache.Cache) *FileProvider {
 	return &FileProvider{
 		fileName: fileName,
-	}
-}
-
-// NewMockFileProvider creates a clients auth file for testing and returns the FileProvider
-func NewMockFileProvider(clients []*ClientAuth, tempDir string) *FileProvider {
-	var authFile = tempDir + "/client-auth.json"
-	f, _ := os.Create(authFile)
-	defer f.Close()
-	clientAuth := make(map[string]string)
-	for _, v := range clients {
-		clientAuth[v.ID] = v.Password
-	}
-	cj, _ := json.Marshal(clientAuth)
-	if _, err := f.Write(cj); err != nil {
-		log.Fatalln("error writing client-auth.json for mock provider", err)
-	}
-	return &FileProvider{
-		fileName: authFile,
+		cache:    cache,
 	}
 }
 
 // GetAll returns rport clients auth credentials from a given file.
-func (c *FileProvider) GetAll() ([]*ClientAuth, error) {
+func (c *FileProvider) getAll() ([]*ClientAuth, error) {
 	idPswdPairs, err := c.load()
 	if err != nil {
 		return nil, fmt.Errorf("failed to decode rport clients auth file: %v", err)
@@ -69,31 +51,27 @@ func (c *FileProvider) GetAll() ([]*ClientAuth, error) {
 
 func (c *FileProvider) GetFiltered(filter *query.ListOptions) ([]*ClientAuth, int, error) {
 	var ca []*ClientAuth
-	ca, err := c.GetAll()
+	ca, err := c.getAll()
 	if err != nil {
 		return nil, 0, err
 	}
 	if len(filter.Filters) > 0 {
-		re := regexp.MustCompile("(?i)^" + strings.Replace(filter.Filters[0].Values[0], "*", ".*?", -1) + "$")
 		var filtered = []*ClientAuth{}
 		for _, v := range ca {
-			if re.MatchString(v.ID) {
+			match, err := query.MatchesFilters(v, filter.Filters)
+			if err != nil {
+				return nil, 0, err
+			}
+			if match {
 				filtered = append(filtered, &ClientAuth{v.ID, v.Password})
 			}
 		}
 		ca = filtered
 	}
-	iLimit, _ := strconv.Atoi(filter.Pagination.Limit)
-	iOffset, _ := strconv.Atoi(filter.Pagination.Offset)
 	c.SortByID(ca, false)
 	l := len(ca)
-	if iLimit > l {
-		iLimit = l
-	}
-	if iOffset > l {
-		iOffset = l
-	}
-	return ca[iOffset:iLimit], l, nil
+	start, end := filter.Pagination.GetStartEnd(l)
+	return ca[start:end], l, nil
 }
 
 func (c *FileProvider) Get(id string) (*ClientAuth, error) {
@@ -102,7 +80,14 @@ func (c *FileProvider) Get(id string) (*ClientAuth, error) {
 		return nil, fmt.Errorf("failed to decode rport clients auth file: %v", err)
 	}
 	if _, ok := idPswdPairs[id]; ok {
-		return &ClientAuth{ID: id, Password: idPswdPairs[id]}, nil
+		if val, _ := c.cache.Get(c.CacheKey(id)); val != nil {
+			return val.(*ClientAuth), nil
+		}
+		ca := &ClientAuth{ID: id, Password: idPswdPairs[id]}
+		if err := c.cache.Add(c.CacheKey(id), ca, 60*time.Minute); err != nil {
+			return nil, err
+		}
+		return ca, nil
 	}
 	return nil, nil
 }
@@ -133,6 +118,7 @@ func (c *FileProvider) Delete(id string) error {
 	}
 
 	delete(idPswdPairs, id)
+	c.cache.Delete(c.CacheKey(id))
 
 	if err := c.save(idPswdPairs); err != nil {
 		return fmt.Errorf("failed to encode rport clients auth file: %v", err)
@@ -187,4 +173,8 @@ func (c *FileProvider) SortByID(a []*ClientAuth, desc bool) {
 		}
 		return less
 	})
+}
+
+func (c *FileProvider) CacheKey(id string) string {
+	return "client-auth-" + id
 }

@@ -7,10 +7,11 @@ import (
 	"io"
 	"net/http"
 	"net/http/httptest"
-	"os"
 	"strings"
 	"testing"
 	"time"
+
+	"github.com/cloudradar-monitoring/rport/share/query"
 
 	"github.com/stretchr/testify/assert"
 
@@ -45,15 +46,23 @@ func TestHandleGetClientsAuth(t *testing.T) {
 	}{
 		{
 			descr:           "auth file, 3 clients",
-			provider:        clientsauth.NewMockFileProvider([]*clientsauth.ClientAuth{cl1, cl2, cl3}, t.TempDir()),
+			provider:        clientsauth.NewMockFileProvider([]*clientsauth.ClientAuth{cl1, cl2, cl3}, t),
 			wantStatusCode:  http.StatusOK,
 			wantClientsAuth: []*clientsauth.ClientAuth{cl1, cl2, cl3},
 			wantCount:       3,
 			idFilter:        "*",
 		},
 		{
+			descr:           "auth file, 1 client, empty id",
+			provider:        clientsauth.NewMockFileProvider([]*clientsauth.ClientAuth{cl1, cl2, cl3}, t),
+			wantStatusCode:  http.StatusOK,
+			wantClientsAuth: []*clientsauth.ClientAuth{cl1, cl2, cl3},
+			wantCount:       0,
+			idFilter:        "",
+		},
+		{
 			descr:           "auth file, 3 clients, no results",
-			provider:        clientsauth.NewMockFileProvider([]*clientsauth.ClientAuth{cl1, cl2, cl3}, t.TempDir()),
+			provider:        clientsauth.NewMockFileProvider([]*clientsauth.ClientAuth{cl1, cl2, cl3}, t),
 			wantStatusCode:  http.StatusOK,
 			wantClientsAuth: []*clientsauth.ClientAuth{cl1, cl2, cl3},
 			wantCount:       0,
@@ -76,16 +85,24 @@ func TestHandleGetClientsAuth(t *testing.T) {
 			idFilter:        "rie2IZ1aiPhe",
 		},
 		{
-			descr:           "auth db",
-			provider:        clientsauth.NewDatabaseMockProvider([]*clientsauth.ClientAuth{cl1, cl2, cl3}),
+			descr:           "auth db, 3 clients",
+			provider:        clientsauth.NewDatabaseMockProvider([]*clientsauth.ClientAuth{cl1, cl2, cl3}, t),
 			wantStatusCode:  http.StatusOK,
 			wantClientsAuth: []*clientsauth.ClientAuth{cl1, cl2, cl3},
 			wantCount:       3,
 			idFilter:        "*",
 		},
 		{
+			descr:           "auth db, 1 client, empty id",
+			provider:        clientsauth.NewDatabaseMockProvider([]*clientsauth.ClientAuth{cl1, cl2, cl3}, t),
+			wantStatusCode:  http.StatusOK,
+			wantClientsAuth: []*clientsauth.ClientAuth{cl1},
+			wantCount:       0,
+			idFilter:        "",
+		},
+		{
 			descr:           "auth db, no reults",
-			provider:        clientsauth.NewDatabaseMockProvider([]*clientsauth.ClientAuth{cl1, cl2, cl3}),
+			provider:        clientsauth.NewDatabaseMockProvider([]*clientsauth.ClientAuth{cl1, cl2, cl3}, t),
 			wantStatusCode:  http.StatusOK,
 			wantClientsAuth: []*clientsauth.ClientAuth{},
 			wantCount:       0,
@@ -94,54 +111,55 @@ func TestHandleGetClientsAuth(t *testing.T) {
 	}
 
 	for _, tc := range testCases {
-		msg := fmt.Sprintf("test case: %q", tc.descr)
-
-		// given
-		al := APIListener{
-			Logger: testLog,
-			Server: &Server{
-				config: &Config{
-					Server: ServerConfig{MaxRequestBytes: 1024 * 1024},
+		t.Run(tc.descr, func(t *testing.T) {
+			// given
+			al := APIListener{
+				Logger: testLog,
+				Server: &Server{
+					config: &Config{
+						Server: ServerConfig{MaxRequestBytes: 1024 * 1024},
+					},
+					clientAuthProvider: tc.provider,
 				},
-				clientAuthProvider: tc.provider,
-			},
-		}
-
-		// when
-		req := httptest.NewRequest(http.MethodGet, "/api/v1/clients-auth", nil)
-		q := req.URL.Query()
-		q.Add("page[limit]", "3")
-		q.Add("filter[id]", tc.idFilter)
-		req.URL.RawQuery = q.Encode()
-		t.Logf("%s: URL tested: %s", tc.descr, req.URL.String())
-		handler := http.HandlerFunc(al.handleGetClientsAuth)
-		w := httptest.NewRecorder()
-		handler.ServeHTTP(w, req)
-
-		// then
-		require.Equalf(tc.wantStatusCode, w.Code, msg)
-		var wantResp interface{}
-		if tc.wantErrTitle == "" {
-			// success case
-			if tc.wantCount > 0 {
-				wantResp = &api.SuccessPayload{
-					Data: tc.wantClientsAuth,
-					Meta: api.NewMeta(tc.wantCount),
-				}
-			} else {
-				wantResp = &api.SuccessPayload{
-					Data: make([]int, 0),
-					Meta: api.NewMeta(0),
-				}
 			}
 
-		} else {
-			// failure case
-			wantResp = api.NewErrAPIPayloadFromMessage(tc.wantErrCode, tc.wantErrTitle, "")
-		}
-		wantRespBytes, err := json.Marshal(wantResp)
-		require.NoErrorf(err, msg)
-		require.Equalf(string(wantRespBytes), w.Body.String(), msg)
+			// when
+			req := httptest.NewRequest(http.MethodGet, "/api/v1/clients-auth", nil)
+			q := req.URL.Query()
+			q.Add("page[limit]", "3")
+			q.Add("filter[id]", tc.idFilter)
+			req.URL.RawQuery = q.Encode()
+			t.Logf("%s: URL tested: %s", tc.descr, req.URL.String())
+			handler := http.HandlerFunc(al.handleGetClientsAuth)
+			w := httptest.NewRecorder()
+			handler.ServeHTTP(w, req)
+
+			// then
+			msg := fmt.Sprintf("test case: %q", tc.descr)
+			require.Equalf(tc.wantStatusCode, w.Code, msg)
+			var wantResp interface{}
+			if tc.wantErrTitle == "" {
+				// success case
+				if tc.wantCount > 0 {
+					wantResp = &api.SuccessPayload{
+						Data: tc.wantClientsAuth,
+						Meta: api.NewMeta(tc.wantCount),
+					}
+				} else {
+					wantResp = &api.SuccessPayload{
+						Data: make([]int, 0),
+						Meta: api.NewMeta(0),
+					}
+				}
+
+			} else {
+				// failure case
+				wantResp = api.NewErrAPIPayloadFromMessage(tc.wantErrCode, tc.wantErrTitle, "")
+			}
+			wantRespBytes, err := json.Marshal(wantResp)
+			require.NoErrorf(err, msg)
+			require.Equalf(string(wantRespBytes), w.Body.String(), msg)
+		})
 	}
 }
 
@@ -172,7 +190,7 @@ func TestHandlePostClientsAuth(t *testing.T) {
 	}{
 		{
 			descr:           "auth file, new valid client",
-			provider:        clientsauth.NewMockFileProvider([]*clientsauth.ClientAuth{cl1, cl2, cl3}, t.TempDir()),
+			provider:        clientsauth.NewMockFileProvider([]*clientsauth.ClientAuth{cl1, cl2, cl3}, t),
 			clientAuthWrite: true,
 			requestBody:     composeRequestBody(cl4.ID, cl4.Password),
 			wantStatusCode:  http.StatusCreated,
@@ -180,7 +198,7 @@ func TestHandlePostClientsAuth(t *testing.T) {
 		},
 		{
 			descr:           "auth db, new valid client",
-			provider:        clientsauth.NewDatabaseMockProvider([]*clientsauth.ClientAuth{cl1, cl2, cl3}),
+			provider:        clientsauth.NewDatabaseMockProvider([]*clientsauth.ClientAuth{cl1, cl2, cl3}, t),
 			clientAuthWrite: true,
 			requestBody:     composeRequestBody(cl4.ID, cl4.Password),
 			wantStatusCode:  http.StatusCreated,
@@ -188,7 +206,7 @@ func TestHandlePostClientsAuth(t *testing.T) {
 		},
 		{
 			descr:           "auth file, empty request body",
-			provider:        clientsauth.NewMockFileProvider([]*clientsauth.ClientAuth{cl1, cl2, cl3, cl4}, t.TempDir()),
+			provider:        clientsauth.NewMockFileProvider([]*clientsauth.ClientAuth{cl1, cl2, cl3, cl4}, t),
 			clientAuthWrite: true,
 			requestBody:     strings.NewReader(""),
 			wantStatusCode:  http.StatusBadRequest,
@@ -198,7 +216,7 @@ func TestHandlePostClientsAuth(t *testing.T) {
 		},
 		{
 			descr:           "auth file, invalid request body",
-			provider:        clientsauth.NewMockFileProvider([]*clientsauth.ClientAuth{cl1, cl2, cl3, cl4}, t.TempDir()),
+			provider:        clientsauth.NewMockFileProvider([]*clientsauth.ClientAuth{cl1, cl2, cl3, cl4}, t),
 			clientAuthWrite: true,
 			requestBody:     strings.NewReader("invalid json"),
 			wantStatusCode:  http.StatusBadRequest,
@@ -209,7 +227,7 @@ func TestHandlePostClientsAuth(t *testing.T) {
 		},
 		{
 			descr:           "auth file, invalid request, empty id",
-			provider:        clientsauth.NewMockFileProvider([]*clientsauth.ClientAuth{cl1, cl2, cl3, cl4}, t.TempDir()),
+			provider:        clientsauth.NewMockFileProvider([]*clientsauth.ClientAuth{cl1, cl2, cl3, cl4}, t),
 			clientAuthWrite: true,
 			requestBody:     composeRequestBody("", cl4.Password),
 			wantStatusCode:  http.StatusBadRequest,
@@ -220,7 +238,7 @@ func TestHandlePostClientsAuth(t *testing.T) {
 		},
 		{
 			descr:           "auth file, invalid request, 'id' is missing",
-			provider:        clientsauth.NewMockFileProvider([]*clientsauth.ClientAuth{cl1, cl2, cl3, cl4}, t.TempDir()),
+			provider:        clientsauth.NewMockFileProvider([]*clientsauth.ClientAuth{cl1, cl2, cl3, cl4}, t),
 			clientAuthWrite: true,
 			requestBody:     strings.NewReader(`{"password":"pswd"}`),
 			wantStatusCode:  http.StatusBadRequest,
@@ -231,7 +249,7 @@ func TestHandlePostClientsAuth(t *testing.T) {
 		},
 		{
 			descr:           "auth file, invalid request, empty password",
-			provider:        clientsauth.NewMockFileProvider([]*clientsauth.ClientAuth{cl1, cl2, cl3, cl4}, t.TempDir()),
+			provider:        clientsauth.NewMockFileProvider([]*clientsauth.ClientAuth{cl1, cl2, cl3, cl4}, t),
 			clientAuthWrite: true,
 			requestBody:     composeRequestBody(cl4.ID, ""),
 			wantStatusCode:  http.StatusBadRequest,
@@ -242,7 +260,7 @@ func TestHandlePostClientsAuth(t *testing.T) {
 		},
 		{
 			descr:           "auth file, invalid request, 'password' is missing",
-			provider:        clientsauth.NewMockFileProvider([]*clientsauth.ClientAuth{cl1, cl2, cl3, cl4}, t.TempDir()),
+			provider:        clientsauth.NewMockFileProvider([]*clientsauth.ClientAuth{cl1, cl2, cl3, cl4}, t),
 			clientAuthWrite: true,
 			requestBody:     strings.NewReader(`{"id":"user"}`),
 			wantStatusCode:  http.StatusBadRequest,
@@ -253,7 +271,7 @@ func TestHandlePostClientsAuth(t *testing.T) {
 		},
 		{
 			descr:           "auth file, invalid request, id too short",
-			provider:        clientsauth.NewMockFileProvider([]*clientsauth.ClientAuth{cl1, cl2, cl3, cl4}, t.TempDir()),
+			provider:        clientsauth.NewMockFileProvider([]*clientsauth.ClientAuth{cl1, cl2, cl3, cl4}, t),
 			clientAuthWrite: true,
 			requestBody:     composeRequestBody("12", cl4.Password),
 			wantStatusCode:  http.StatusBadRequest,
@@ -264,7 +282,7 @@ func TestHandlePostClientsAuth(t *testing.T) {
 		},
 		{
 			descr:           "auth file, invalid request, password too short",
-			provider:        clientsauth.NewMockFileProvider([]*clientsauth.ClientAuth{cl1, cl2, cl3, cl4}, t.TempDir()),
+			provider:        clientsauth.NewMockFileProvider([]*clientsauth.ClientAuth{cl1, cl2, cl3, cl4}, t),
 			clientAuthWrite: true,
 			requestBody:     composeRequestBody(cl4.ID, "12"),
 			wantStatusCode:  http.StatusBadRequest,
@@ -275,7 +293,7 @@ func TestHandlePostClientsAuth(t *testing.T) {
 		},
 		{
 			descr:           "auth file, client already exist",
-			provider:        clientsauth.NewMockFileProvider([]*clientsauth.ClientAuth{cl1, cl2, cl3, cl4}, t.TempDir()),
+			provider:        clientsauth.NewMockFileProvider([]*clientsauth.ClientAuth{cl1, cl2, cl3, cl4}, t),
 			clientAuthWrite: true,
 			requestBody:     composeRequestBody(cl1.ID, cl4.Password),
 			wantStatusCode:  http.StatusConflict,
@@ -285,7 +303,7 @@ func TestHandlePostClientsAuth(t *testing.T) {
 		},
 		{
 			descr:           "auth file, auth in Read-Only mode",
-			provider:        clientsauth.NewMockFileProvider([]*clientsauth.ClientAuth{cl1, cl2, cl3, cl4}, t.TempDir()),
+			provider:        clientsauth.NewMockFileProvider([]*clientsauth.ClientAuth{cl1, cl2, cl3, cl4}, t),
 			clientAuthWrite: false,
 			requestBody:     composeRequestBody(cl1.ID, cl4.Password),
 			wantStatusCode:  http.StatusMethodNotAllowed,
@@ -306,59 +324,55 @@ func TestHandlePostClientsAuth(t *testing.T) {
 	}
 
 	for _, tc := range testCases {
-		msg := fmt.Sprintf("test case: %q", tc.descr)
-
-		// given
-		al := APIListener{
-			Server: &Server{
-				config: &Config{
-					Server: ServerConfig{
-						AuthWrite:       tc.clientAuthWrite,
-						MaxRequestBytes: 1024 * 1024,
+		t.Run(tc.descr, func(t *testing.T) {
+			// given
+			al := APIListener{
+				Server: &Server{
+					config: &Config{
+						Server: ServerConfig{
+							AuthWrite:       tc.clientAuthWrite,
+							MaxRequestBytes: 1024 * 1024,
+						},
 					},
+					clientAuthProvider: tc.provider,
 				},
-				clientAuthProvider: tc.provider,
-			},
-			Logger: testLog,
-		}
+				Logger: testLog,
+			}
 
-		req := httptest.NewRequest(http.MethodPost, "/api/v1/clients-auth", tc.requestBody)
+			req := httptest.NewRequest(http.MethodPost, "/api/v1/clients-auth", tc.requestBody)
 
-		// when
-		handler := http.HandlerFunc(al.handlePostClientsAuth)
-		w := httptest.NewRecorder()
-		handler.ServeHTTP(w, req)
-		t.Logf("Got response %s", w.Body)
+			// when
+			handler := http.HandlerFunc(al.handlePostClientsAuth)
+			w := httptest.NewRecorder()
+			handler.ServeHTTP(w, req)
+			t.Logf("Got response %s", w.Body)
 
-		// then
-		require.Equalf(tc.wantStatusCode, w.Code, msg)
-		if tc.wantErrTitle == "" {
-			// success case
-			assert.Emptyf(w.Body.String(), msg)
-		} else {
-			// failure case
-			wantResp := api.NewErrAPIPayloadFromMessage(tc.wantErrCode, tc.wantErrTitle, tc.wantErrDetail)
-			wantRespBytes, err := json.Marshal(wantResp)
-			require.NoErrorf(err, msg)
-			require.Equalf(string(wantRespBytes), w.Body.String(), msg)
-		}
-		clients, err := al.clientAuthProvider.GetAll()
-		require.NoError(err)
-		assert.ElementsMatchf(tc.wantClientsAuth, clients, msg)
+			// then
+			msg := fmt.Sprintf("test case: %q", tc.descr)
+			require.Equalf(tc.wantStatusCode, w.Code, msg)
+			if tc.wantErrTitle == "" {
+				// success case
+				assert.Emptyf(w.Body.String(), msg)
+			} else {
+				// failure case
+				wantResp := api.NewErrAPIPayloadFromMessage(tc.wantErrCode, tc.wantErrTitle, tc.wantErrDetail)
+				wantRespBytes, err := json.Marshal(wantResp)
+				require.NoErrorf(err, msg)
+				require.Equalf(string(wantRespBytes), w.Body.String(), msg)
+			}
+			filter := &query.ListOptions{
+				Pagination: query.NewPagination(5, 0),
+			}
+			clients, _, err := al.clientAuthProvider.GetFiltered(filter)
+			require.NoError(err)
+			assert.ElementsMatchf(tc.wantClientsAuth, clients, msg)
+		})
 	}
 }
 
 func TestHandleDeleteClientAuth(t *testing.T) {
-	var authFile = t.TempDir() + "/client-auth.json"
-	f, err := os.Create(authFile)
-	require.NoError(t, err)
-	defer f.Close()
-	_, err = f.WriteString(`{"user1":"pswd1","user2":"pswd2","user3":"pswd3"}`)
-	require.NoError(t, err)
-
 	mockConn := &mockConnection{}
-
-	initCacheState := []*clientsauth.ClientAuth{cl1, cl2, cl3}
+	initState := []*clientsauth.ClientAuth{cl1, cl2, cl3}
 
 	c1 := clients.New(t).ClientAuthID(cl1.ID).Connection(mockConn).Build()
 	c2 := clients.New(t).ClientAuthID(cl1.ID).DisconnectedDuration(5 * time.Minute).Build()
@@ -382,7 +396,7 @@ func TestHandleDeleteClientAuth(t *testing.T) {
 	}{
 		{
 			descr:           "auth file, success delete",
-			provider:        clientsauth.NewMockFileProvider([]*clientsauth.ClientAuth{cl1, cl2, cl3}, t.TempDir()),
+			provider:        clientsauth.NewMockFileProvider([]*clientsauth.ClientAuth{cl1, cl2, cl3}, t),
 			clientAuthWrite: true,
 			clientAuthID:    cl1.ID,
 			wantStatusCode:  http.StatusNoContent,
@@ -390,7 +404,7 @@ func TestHandleDeleteClientAuth(t *testing.T) {
 		},
 		{
 			descr:           "auth db, success delete",
-			provider:        clientsauth.NewDatabaseMockProvider([]*clientsauth.ClientAuth{cl1, cl2, cl3}),
+			provider:        clientsauth.NewDatabaseMockProvider([]*clientsauth.ClientAuth{cl1, cl2, cl3}, t),
 			clientAuthWrite: true,
 			clientAuthID:    cl1.ID,
 			wantStatusCode:  http.StatusNoContent,
@@ -398,51 +412,51 @@ func TestHandleDeleteClientAuth(t *testing.T) {
 		},
 		{
 			descr:           "auth file, missing client ID",
-			provider:        clientsauth.NewMockFileProvider([]*clientsauth.ClientAuth{cl1, cl2, cl3}, t.TempDir()),
+			provider:        clientsauth.NewMockFileProvider([]*clientsauth.ClientAuth{cl1, cl2, cl3}, t),
 			clientAuthWrite: true,
 			clientAuthID:    "unknown-client-id",
 			wantStatusCode:  http.StatusNotFound,
 			wantErrCode:     ErrCodeClientAuthNotFound,
 			wantErrTitle:    fmt.Sprintf("Client Auth with ID=%q not found.", "unknown-client-id"),
-			wantClientsAuth: initCacheState,
+			wantClientsAuth: initState,
 		},
 		{
 			descr:           "auth file, client has active client",
-			provider:        clientsauth.NewMockFileProvider([]*clientsauth.ClientAuth{cl1, cl2, cl3}, t.TempDir()),
+			provider:        clientsauth.NewMockFileProvider([]*clientsauth.ClientAuth{cl1, cl2, cl3}, t),
 			clients:         []*clients.Client{c1},
 			clientAuthWrite: true,
 			clientAuthID:    cl1.ID,
 			wantStatusCode:  http.StatusConflict,
 			wantErrCode:     ErrCodeClientAuthHasClient,
 			wantErrTitle:    fmt.Sprintf("Client Auth expected to have no active or disconnected bound client(s), got %d.", 1),
-			wantClientsAuth: initCacheState,
+			wantClientsAuth: initState,
 			wantClients:     []*clients.Client{c1},
 		},
 		{
 			descr:           "auth file, client auth has disconnected client",
-			provider:        clientsauth.NewMockFileProvider([]*clientsauth.ClientAuth{cl1, cl2, cl3}, t.TempDir()),
+			provider:        clientsauth.NewMockFileProvider([]*clientsauth.ClientAuth{cl1, cl2, cl3}, t),
 			clients:         []*clients.Client{c2},
 			clientAuthWrite: true,
 			clientAuthID:    cl1.ID,
 			wantStatusCode:  http.StatusConflict,
 			wantErrCode:     ErrCodeClientAuthHasClient,
 			wantErrTitle:    fmt.Sprintf("Client Auth expected to have no active or disconnected bound client(s), got %d.", 1),
-			wantClientsAuth: initCacheState,
+			wantClientsAuth: initState,
 			wantClients:     []*clients.Client{c2},
 		},
 		{
 			descr:           "auth file, auth in Read-Only mode",
-			provider:        clientsauth.NewMockFileProvider([]*clientsauth.ClientAuth{cl1, cl2, cl3}, t.TempDir()),
+			provider:        clientsauth.NewMockFileProvider([]*clientsauth.ClientAuth{cl1, cl2, cl3}, t),
 			clientAuthWrite: false,
 			clientAuthID:    cl1.ID,
 			wantStatusCode:  http.StatusMethodNotAllowed,
 			wantErrCode:     ErrCodeClientAuthRO,
 			wantErrTitle:    "Client authentication has been attached in read-only mode.",
-			wantClientsAuth: initCacheState,
+			wantClientsAuth: initState,
 		},
 		{
 			descr:           "auth file, client auth has active client, force",
-			provider:        clientsauth.NewMockFileProvider([]*clientsauth.ClientAuth{cl1, cl2, cl3}, t.TempDir()),
+			provider:        clientsauth.NewMockFileProvider([]*clientsauth.ClientAuth{cl1, cl2, cl3}, t),
 			clients:         []*clients.Client{c1},
 			clientAuthWrite: true,
 			clientAuthID:    cl1.ID,
@@ -453,7 +467,7 @@ func TestHandleDeleteClientAuth(t *testing.T) {
 		},
 		{
 			descr:           "auth file, client auth has disconnected bound client, force",
-			provider:        clientsauth.NewMockFileProvider([]*clientsauth.ClientAuth{cl1, cl2, cl3}, t.TempDir()),
+			provider:        clientsauth.NewMockFileProvider([]*clientsauth.ClientAuth{cl1, cl2, cl3}, t),
 			clients:         []*clients.Client{c2},
 			clientAuthWrite: true,
 			clientAuthID:    cl1.ID,
@@ -463,7 +477,7 @@ func TestHandleDeleteClientAuth(t *testing.T) {
 		},
 		{
 			descr:           "invalid force param",
-			provider:        clientsauth.NewMockFileProvider([]*clientsauth.ClientAuth{cl1, cl2, cl3}, t.TempDir()),
+			provider:        clientsauth.NewMockFileProvider([]*clientsauth.ClientAuth{cl1, cl2, cl3}, t),
 			clients:         []*clients.Client{c1, c2},
 			clientAuthWrite: true,
 			clientAuthID:    cl1.ID,
@@ -471,7 +485,7 @@ func TestHandleDeleteClientAuth(t *testing.T) {
 			wantStatusCode:  http.StatusBadRequest,
 			wantErrCode:     ErrCodeInvalidRequest,
 			wantErrTitle:    "Invalid force param test.",
-			wantClientsAuth: initCacheState,
+			wantClientsAuth: initState,
 			wantClients:     []*clients.Client{c1, c2},
 		},
 		{
@@ -531,7 +545,10 @@ func TestHandleDeleteClientAuth(t *testing.T) {
 				wantRespStr = string(wantRespBytes)
 			}
 			assert.Equal(wantRespStr, w.Body.String())
-			clients, err := al.clientAuthProvider.GetAll()
+			filter := &query.ListOptions{
+				Pagination: query.NewPagination(5, 0),
+			}
+			clients, _, err := al.clientAuthProvider.GetFiltered(filter)
 			require.NoError(err)
 			assert.ElementsMatch(tc.wantClientsAuth, clients, "clients auth not as expected")
 			assert.Equal(tc.wantClosedConn, mockConn.closed)
