@@ -26,20 +26,26 @@ var demoData = []Script{
 		Name:        "some name",
 		CreatedBy:   "user1",
 		CreatedAt:   ptr.Time(time.Date(2001, 1, 1, 1, 0, 0, 0, time.UTC)),
+		UpdatedBy:   "user2",
+		UpdatedAt:   ptr.Time(time.Date(2001, 1, 1, 2, 0, 0, 0, time.UTC)),
 		Interpreter: ptr.String("bash"),
 		IsSudo:      ptr.Bool(false),
 		Cwd:         ptr.String("/bin"),
 		Script:      "ls -la",
+		Tags:        ptr.StringSlice("tag1", "tag2"),
 	},
 	{
 		ID:          "2",
 		Name:        "other name 2",
 		CreatedBy:   "user1",
 		CreatedAt:   ptr.Time(time.Date(2002, 1, 1, 1, 0, 0, 0, time.UTC)),
+		UpdatedBy:   "user1",
+		UpdatedAt:   ptr.Time(time.Date(2002, 1, 1, 1, 0, 0, 0, time.UTC)),
 		Interpreter: ptr.String("sh"),
 		IsSudo:      ptr.Bool(true),
 		Cwd:         ptr.String("/bin"),
 		Script:      "pwd",
+		Tags:        ptr.StringSlice(),
 	},
 }
 
@@ -231,13 +237,16 @@ func TestCreate(t *testing.T) {
 			"name":        itemToSave.Name,
 			"created_at":  *itemToSave.CreatedAt,
 			"created_by":  itemToSave.CreatedBy,
+			"updated_at":  *itemToSave.UpdatedAt,
+			"updated_by":  itemToSave.UpdatedBy,
 			"interpreter": *itemToSave.Interpreter,
 			"is_sudo":     int64(0),
 			"cwd":         *itemToSave.Cwd,
 			"script":      itemToSave.Script,
+			"tags":        `["tag1","tag2"]`,
 		},
 	}
-	q := "SELECT name, created_at, created_by, interpreter, is_sudo, cwd, script FROM `scripts`"
+	q := "SELECT name, created_at, created_by, updated_at, updated_by, interpreter, is_sudo, cwd, script, tags FROM `scripts`"
 	test.AssertRowsEqual(t, dbProv.db, expectedRows, q, []interface{}{})
 }
 
@@ -269,10 +278,13 @@ func TestUpdate(t *testing.T) {
 			"name":        itemToSave.Name,
 			"created_at":  *itemToSave.CreatedAt,
 			"created_by":  itemToSave.CreatedBy,
+			"updated_at":  *itemToSave.UpdatedAt,
+			"updated_by":  itemToSave.UpdatedBy,
 			"interpreter": *itemToSave.Interpreter,
 			"is_sudo":     int64(0),
 			"cwd":         *itemToSave.Cwd,
 			"script":      itemToSave.Script,
+			"tags":        `["tag1","tag2"]`,
 		},
 	}
 	q := "SELECT * FROM `scripts` where id = 1"
@@ -302,10 +314,13 @@ func TestDelete(t *testing.T) {
 			"name":        demoData[0].Name,
 			"created_at":  *demoData[0].CreatedAt,
 			"created_by":  demoData[0].CreatedBy,
+			"updated_at":  *demoData[0].UpdatedAt,
+			"updated_by":  demoData[0].UpdatedBy,
 			"interpreter": *demoData[0].Interpreter,
 			"is_sudo":     int64(0),
 			"cwd":         *demoData[0].Cwd,
 			"script":      demoData[0].Script,
+			"tags":        `["tag1","tag2"]`,
 		},
 	}
 	q := "SELECT * FROM `scripts`"
@@ -315,15 +330,18 @@ func TestDelete(t *testing.T) {
 func addDemoData(db *sqlx.DB) error {
 	for i := range demoData {
 		_, err := db.Exec(
-			"INSERT INTO `scripts` (`id`, `name`, `created_at`, `created_by`, `interpreter`, `is_sudo`, `cwd`, `script`) VALUES (?,?,?,?,?,?,?,?)",
+			"INSERT INTO `scripts` (`id`, `name`, `created_at`, `created_by`, `updated_at`, `updated_by`, `interpreter`, `is_sudo`, `cwd`, `script`, `tags`) VALUES (?,?,?,?,?,?,?,?,?,?,?)",
 			demoData[i].ID,
 			demoData[i].Name,
 			demoData[i].CreatedAt.Format(time.RFC3339),
 			demoData[i].CreatedBy,
+			demoData[i].UpdatedAt.Format(time.RFC3339),
+			demoData[i].UpdatedBy,
 			demoData[i].Interpreter,
 			demoData[i].IsSudo,
 			demoData[i].Cwd,
 			demoData[i].Script,
+			demoData[i].Tags,
 		)
 		if err != nil {
 			return err

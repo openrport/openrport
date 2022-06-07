@@ -71,33 +71,19 @@ func (p *SqliteProvider) Save(ctx context.Context, s *Script, nowDate time.Time)
 		if err != nil {
 			return scriptID, err
 		}
+		s.ID = scriptID
 
-		_, err = p.db.ExecContext(
+		_, err = p.db.NamedExecContext(
 			ctx,
-			"INSERT INTO `scripts` (`id`, `name`, `created_at`, `created_by`, `interpreter`, `is_sudo`, `cwd`, `script`) VALUES (?, ?, ?, ?, ?, ?, ?, ?)",
-			scriptID,
-			s.Name,
-			nowDate.Format(time.RFC3339),
-			s.CreatedBy,
-			s.Interpreter,
-			s.IsSudo,
-			s.Cwd,
-			s.Script,
+			"INSERT INTO `scripts` (`id`, `name`, `created_at`, `created_by`, `interpreter`, `is_sudo`, `cwd`, `script`, `updated_at`, `updated_by`, `tags`) VALUES (:id, :name, :created_at, :created_by, :interpreter, :is_sudo, :cwd, :script, :updated_at, :updated_by, :tags)",
+			s,
 		)
 
 		return scriptID, err
 	}
 
-	q := "UPDATE `scripts` SET `name` = ?, `interpreter` = ?, `is_sudo` = ?, `cwd` = ?, `script` = ? WHERE id = ?"
-	params := []interface{}{
-		s.Name,
-		s.Interpreter,
-		s.IsSudo,
-		s.Cwd,
-		s.Script,
-		s.ID,
-	}
-	_, err := p.db.ExecContext(ctx, q, params...)
+	q := "UPDATE `scripts` SET `name` = :name, `interpreter` = :interpreter, `is_sudo` = :is_sudo, `cwd` = :cwd, `script` = :script, `updated_at` = :updated_at, `updated_by` = :updated_by, `tags` = :tags WHERE id = :id"
+	_, err := p.db.NamedExecContext(ctx, q, s)
 
 	return s.ID, err
 }

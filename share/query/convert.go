@@ -51,6 +51,10 @@ func AddWhere(filterOptions []FilterOption, q string, params []interface{}) (str
 				part := fmt.Sprintf("%s %s ?%s", col, operatorCode, operatorOption)
 				if val == "" {
 					part = fmt.Sprintf("(%s OR %s IS NULL)", part, col)
+				} else if strings.Contains(val, "*") && filterOptions[i].Operator.Code() == "=" {
+					part = fmt.Sprintf("LOWER(%s) LIKE ?", col)
+					val = strings.ToLower(val)
+					val = strings.ReplaceAll(val, "*", "%")
 				}
 				orParts = append(orParts, part)
 				params = append(params, val)
