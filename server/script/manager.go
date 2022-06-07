@@ -9,29 +9,44 @@ import (
 
 	"github.com/cloudradar-monitoring/rport/share/logger"
 	"github.com/cloudradar-monitoring/rport/share/query"
+	"github.com/cloudradar-monitoring/rport/share/types"
 
 	errors2 "github.com/cloudradar-monitoring/rport/server/api/errors"
 )
 
-var supportedSortAndFilters = map[string]bool{
-	"id":         true,
-	"name":       true,
-	"created_by": true,
-	"created_at": true,
-}
-
-var supportedFields = map[string]map[string]bool{
-	"scripts": map[string]bool{
+var (
+	supportedSortAndFilters = map[string]bool{
 		"id":          true,
 		"name":        true,
 		"created_by":  true,
 		"created_at":  true,
+		"updated_by":  true,
+		"updated_at":  true,
 		"interpreter": true,
 		"is_sudo":     true,
 		"cwd":         true,
 		"script":      true,
-	},
-}
+		"tags":        true,
+	}
+	supportedFields = map[string]map[string]bool{
+		"scripts": {
+			"id":          true,
+			"name":        true,
+			"created_by":  true,
+			"created_at":  true,
+			"updated_by":  true,
+			"updated_at":  true,
+			"interpreter": true,
+			"is_sudo":     true,
+			"cwd":         true,
+			"script":      true,
+			"tags":        true,
+		},
+	}
+	manualFiltersConfig = map[string]bool{
+		"tags": true,
+	}
+)
 
 type DbProvider interface {
 	GetByID(ctx context.Context, id string, ro *query.RetrieveOptions) (val *Script, found bool, err error)
@@ -53,15 +68,44 @@ func NewManager(db DbProvider, logger *logger.Logger) *Manager {
 	}
 }
 
-func (m *Manager) List(ctx context.Context, re *http.Request) ([]Script, error) {
+func (m *Manager) List(ctx context.Context, re *http.Request) ([]Script, int, error) {
 	listOptions := query.GetListOptions(re)
 
-	err := query.ValidateListOptions(listOptions, supportedSortAndFilters, supportedSortAndFilters, supportedFields, nil)
+	err := query.ValidateListOptions(listOptions, supportedSortAndFilters, supportedSortAndFilters, supportedFields, &query.PaginationConfig{
+		MaxLimit:     100,
+		DefaultLimit: 20,
+	})
 	if err != nil {
-		return nil, err
+		return nil, 0, err
 	}
 
-	return m.db.List(ctx, listOptions)
+	manualFilters, dbFilters := query.SplitFilters(listOptions.Filters, manualFiltersConfig)
+	pagination := listOptions.Pagination
+
+	listOptions.Filters = dbFilters
+	listOptions.Pagination = nil
+
+	entries, err := m.db.List(ctx, listOptions)
+	if err != nil {
+		return nil, 0, err
+	}
+
+	filtered := make([]Script, 0, len(entries))
+	for _, entry := range entries {
+		matches, err := query.MatchesFilters(entry, manualFilters)
+		if err != nil {
+			return nil, 0, err
+		}
+		if matches {
+			filtered = append(filtered, entry)
+		}
+	}
+
+	totalCount := len(filtered)
+	start, end := pagination.GetStartEnd(totalCount)
+	limited := filtered[start:end]
+
+	return limited, totalCount, nil
 }
 
 func (m *Manager) GetOne(ctx context.Context, re *http.Request, id string) (*Script, bool, error) {
@@ -113,10 +157,13 @@ func (m *Manager) Create(ctx context.Context, valueToStore *InputScript, usernam
 		Name:        valueToStore.Name,
 		CreatedBy:   username,
 		CreatedAt:   &now,
+		UpdatedBy:   username,
+		UpdatedAt:   &now,
 		Interpreter: &valueToStore.Interpreter,
 		IsSudo:      &valueToStore.IsSudo,
 		Cwd:         &valueToStore.Cwd,
 		Script:      valueToStore.Script,
+		Tags:        (*types.StringSlice)(&valueToStore.Tags),
 	}
 	scriptToSave.ID, err = m.db.Save(ctx, scriptToSave, now)
 	if err != nil {
@@ -132,12 +179,12 @@ func (m *Manager) Update(ctx context.Context, existingID string, valueToStore *I
 		return nil, err
 	}
 
-	_, foundByID, err := m.db.GetByID(ctx, existingID, &query.RetrieveOptions{})
+	existing, foundByID, err := m.db.GetByID(ctx, existingID, &query.RetrieveOptions{})
 	if err != nil {
 		return nil, err
 	}
 
-	if !foundByID {
+	if !foundByID || existing == nil {
 		return nil, errors2.APIError{
 			Message:    "cannot find entry by the provided ID",
 			HTTPStatus: http.StatusNotFound,
@@ -167,12 +214,15 @@ func (m *Manager) Update(ctx context.Context, existingID string, valueToStore *I
 	scriptToSave := &Script{
 		ID:          existingID,
 		Name:        valueToStore.Name,
-		CreatedBy:   username,
-		CreatedAt:   &now,
+		CreatedBy:   existing.CreatedBy,
+		CreatedAt:   existing.CreatedAt,
+		UpdatedBy:   username,
+		UpdatedAt:   &now,
 		Interpreter: &valueToStore.Interpreter,
 		IsSudo:      &valueToStore.IsSudo,
 		Cwd:         &valueToStore.Cwd,
 		Script:      valueToStore.Script,
+		Tags:        (*types.StringSlice)(&valueToStore.Tags),
 	}
 	scriptToSave.ID, err = m.db.Save(ctx, scriptToSave, now)
 	if err != nil {
