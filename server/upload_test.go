@@ -2,6 +2,7 @@ package chserver
 
 import (
 	"bytes"
+	"context"
 	"encoding/json"
 	"io"
 	"io/ioutil"
@@ -12,6 +13,8 @@ import (
 	"testing"
 	"time"
 
+	"github.com/cloudradar-monitoring/rport/server/api"
+	"github.com/cloudradar-monitoring/rport/server/api/users"
 	"github.com/cloudradar-monitoring/rport/server/clients"
 	"github.com/cloudradar-monitoring/rport/share/files"
 	"github.com/cloudradar-monitoring/rport/share/models"
@@ -23,6 +26,10 @@ import (
 )
 
 func TestHandleFileUploads(t *testing.T) {
+	curUser := &users.User{
+		Username: "admin",
+		Groups:   []string{users.Administrators},
+	}
 	testCases := []struct {
 		name                string
 		wantStatus          int
@@ -139,7 +146,8 @@ func TestHandleFileUploads(t *testing.T) {
 					},
 					filesAPI: fileAPIMock,
 				},
-				Logger: testLog,
+				Logger:      testLog,
+				userService: users.NewAPIService(users.NewStaticProvider([]*users.User{curUser}), false),
 			}
 			al.initRouter()
 
@@ -164,6 +172,8 @@ func TestHandleFileUploads(t *testing.T) {
 
 			req := httptest.NewRequest(http.MethodPost, "/api/v1/files", body)
 			req.Header.Add("Content-Type", writer.FormDataContentType())
+			ctx := api.WithUser(context.Background(), curUser.Username)
+			req = req.WithContext(ctx)
 
 			rec := httptest.NewRecorder()
 			al.router.ServeHTTP(rec, req)
