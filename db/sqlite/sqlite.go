@@ -2,6 +2,7 @@ package sqlite
 
 import (
 	"fmt"
+	"os"
 
 	"github.com/golang-migrate/migrate/v4"
 	"github.com/golang-migrate/migrate/v4/database/sqlite3"
@@ -18,12 +19,18 @@ type DataSourceOptions struct {
 // New returns a new sqlite DB instance with migrated DB scheme to the latest version.
 // assetNames and asset are used to migrate DB scheme.
 func New(dataSourceName string, assetNames []string, asset func(name string) ([]byte, error), dataSourceOptions DataSourceOptions) (*sqlx.DB, error) {
+	dbPath := dataSourceName
 	if dataSourceOptions.WALEnabled {
 		dataSourceName += "?" + WALEnabled
 	}
 	db, err := sqlx.Connect("sqlite3", dataSourceName)
 	if err != nil {
 		return nil, fmt.Errorf("failed to connect to DB: %v", err)
+	}
+	if dbPath != ":memory:" {
+		if err = os.Chmod(dbPath, 0600); err != nil {
+			return nil, fmt.Errorf("failed to chmod %s: %s", dbPath, err)
+		}
 	}
 
 	s := bindata.Resource(assetNames,
