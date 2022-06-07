@@ -3440,13 +3440,16 @@ func (al *APIListener) handleVaultDeleteValue(w http.ResponseWriter, req *http.R
 }
 
 func (al *APIListener) handleListScripts(w http.ResponseWriter, req *http.Request) {
-	items, err := al.scriptManager.List(req.Context(), req)
+	items, count, err := al.scriptManager.List(req.Context(), req)
 	if err != nil {
 		al.jsonError(w, err)
 		return
 	}
 
-	al.writeJSONResponse(w, http.StatusOK, api.NewSuccessPayload(items))
+	al.writeJSONResponse(w, http.StatusOK, &api.SuccessPayload{
+		Data: items,
+		Meta: api.NewMeta(count),
+	})
 }
 
 func (al *APIListener) handleScriptCreate(w http.ResponseWriter, req *http.Request) {
@@ -3568,13 +3571,16 @@ func (al *APIListener) handleDeleteScript(w http.ResponseWriter, req *http.Reque
 }
 
 func (al *APIListener) handleListCommands(w http.ResponseWriter, req *http.Request) {
-	items, err := al.commandManager.List(req.Context(), req)
+	items, count, err := al.commandManager.List(req.Context(), req)
 	if err != nil {
 		al.jsonError(w, err)
 		return
 	}
 
-	al.writeJSONResponse(w, http.StatusOK, api.NewSuccessPayload(items))
+	al.writeJSONResponse(w, http.StatusOK, api.SuccessPayload{
+		Data: items,
+		Meta: api.NewMeta(count),
+	})
 }
 
 func (al *APIListener) handleCommandCreate(w http.ResponseWriter, req *http.Request) {

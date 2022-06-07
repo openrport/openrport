@@ -93,7 +93,7 @@ func TestManagerList(t *testing.T) {
 		URL: inputURL,
 	}
 
-	actualValues, err := mngr.List(context.Background(), req)
+	actualValues, count, err := mngr.List(context.Background(), req)
 	require.NoError(t, err)
 
 	assert.Equal(
@@ -125,13 +125,14 @@ func TestManagerList(t *testing.T) {
 		dbProv.listOptionInput,
 	)
 	assert.Equal(t, expectedCommands, actualValues)
+	assert.Equal(t, len(expectedCommands), count)
 
 	dbProv = &DbProviderMock{
 		listErrorToGive: errors.New("list error"),
 	}
 	mngr = NewManager(dbProv)
 
-	_, err = mngr.List(context.Background(), req)
+	_, _, err = mngr.List(context.Background(), req)
 	require.EqualError(t, err, "list error")
 }
 
@@ -149,7 +150,7 @@ func TestListWithUnsupportedOptions(t *testing.T) {
 		URL: inputURL,
 	}
 
-	_, err = mngr.List(context.Background(), req)
+	_, _, err = mngr.List(context.Background(), req)
 	require.EqualError(t, err, `unsupported sort field 'unsupportedSortField', unsupported filter field 'filter[unsupportedFilter]', unsupported field "nope" for resource "commands"`)
 }
 

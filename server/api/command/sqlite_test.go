@@ -27,6 +27,7 @@ var demoData = []Command{
 		UpdatedBy: "user2",
 		UpdatedAt: ptr.Time(time.Date(2003, 1, 1, 1, 0, 0, 0, time.UTC)),
 		Cmd:       "ls -la",
+		Tags:      ptr.StringSlice("tag1", "tag2"),
 	},
 	{
 		ID:        "2",
@@ -36,6 +37,7 @@ var demoData = []Command{
 		UpdatedBy: "user1",
 		UpdatedAt: ptr.Time(time.Date(2002, 1, 1, 2, 0, 0, 0, time.UTC)),
 		Cmd:       "pwd",
+		Tags:      ptr.StringSlice(),
 	},
 }
 var DataSourceOptions = sqlite.DataSourceOptions{WALEnabled: false}
@@ -223,9 +225,10 @@ func TestCreate(t *testing.T) {
 			"updated_at": *itemToSave.UpdatedAt,
 			"updated_by": itemToSave.UpdatedBy,
 			"cmd":        itemToSave.Cmd,
+			"tags":       `["tag1","tag2"]`,
 		},
 	}
-	q := "SELECT name, created_at, created_by, updated_at, updated_by, cmd FROM `commands` WHERE id = ?"
+	q := "SELECT name, created_at, created_by, updated_at, updated_by, cmd, tags FROM `commands` WHERE id = ?"
 	test.AssertRowsEqual(t, dbProv.db, expectedRows, q, []interface{}{id})
 }
 
@@ -255,6 +258,7 @@ func TestUpdate(t *testing.T) {
 			"updated_at": *itemToSave.UpdatedAt,
 			"updated_by": itemToSave.UpdatedBy,
 			"cmd":        itemToSave.Cmd,
+			"tags":       `["tag1","tag2"]`,
 		},
 	}
 	q := "SELECT * FROM `commands` where id = ?"
@@ -287,6 +291,7 @@ func TestDelete(t *testing.T) {
 			"updated_at": *demoData[0].UpdatedAt,
 			"updated_by": demoData[0].UpdatedBy,
 			"cmd":        demoData[0].Cmd,
+			"tags":       `["tag1","tag2"]`,
 		},
 	}
 	q := "SELECT * FROM `commands`"
@@ -296,7 +301,7 @@ func TestDelete(t *testing.T) {
 func addDemoData(db *sqlx.DB) error {
 	for i := range demoData {
 		_, err := db.Exec(
-			"INSERT INTO `commands` (`id`, `name`, `created_at`, `created_by`, `updated_at`, `updated_by`, `cmd`) VALUES (?,?,?,?,?,?,?)",
+			"INSERT INTO `commands` (`id`, `name`, `created_at`, `created_by`, `updated_at`, `updated_by`, `cmd`, `tags`) VALUES (?,?,?,?,?,?,?,?)",
 			demoData[i].ID,
 			demoData[i].Name,
 			demoData[i].CreatedAt.Format(time.RFC3339),
@@ -304,6 +309,7 @@ func addDemoData(db *sqlx.DB) error {
 			demoData[i].UpdatedAt.Format(time.RFC3339),
 			demoData[i].UpdatedBy,
 			demoData[i].Cmd,
+			demoData[i].Tags,
 		)
 		if err != nil {
 			return err

@@ -100,7 +100,7 @@ func TestManagerList(t *testing.T) {
 		URL: inputURL,
 	}
 
-	actualValues, err := mngr.List(context.Background(), req)
+	actualValues, count, err := mngr.List(context.Background(), req)
 	require.NoError(t, err)
 
 	assert.Equal(
@@ -132,6 +132,7 @@ func TestManagerList(t *testing.T) {
 		dbProv.listOptionInput,
 	)
 	assert.Equal(t, expectedScripts, actualValues)
+	assert.Equal(t, len(expectedScripts), count)
 
 	dbProv = &DbProviderMock{
 		listErrorToGive: errors.New("list error"),
@@ -139,7 +140,7 @@ func TestManagerList(t *testing.T) {
 
 	mngr = NewManager(dbProv, testLog)
 
-	_, err = mngr.List(context.Background(), req)
+	_, _, err = mngr.List(context.Background(), req)
 	require.EqualError(t, err, "list error")
 }
 
@@ -157,7 +158,7 @@ func TestListWithUnsupportedOptions(t *testing.T) {
 		URL: inputURL,
 	}
 
-	_, err = mngr.List(context.Background(), req)
+	_, _, err = mngr.List(context.Background(), req)
 	require.EqualError(t, err, `unsupported sort field 'unsupportedSortField', unsupported filter field 'filter[unsupportedFilter]', unsupported field "nope" for resource "scripts"`)
 }
 
@@ -265,8 +266,9 @@ func TestStore(t *testing.T) {
 	t.Run("update_success", func(t *testing.T) {
 		const idToUpdate = "123"
 		dbProv := &DbProviderMock{
-			getByIDFoundToGive: true,
-			saveIDToGive:       idToUpdate,
+			getByIDFoundToGive:  true,
+			getByIDScriptToGive: &Script{},
+			saveIDToGive:        idToUpdate,
 		}
 		mngr := NewManager(dbProv, testLog)
 
@@ -275,8 +277,8 @@ func TestStore(t *testing.T) {
 
 		assert.Equal(t, idToUpdate, storedScript.ID)
 
-		assert.Equal(t, "someuser", dbProv.saveScriptGiven.CreatedBy)
-		assert.Equal(t, "someuser", storedScript.CreatedBy)
+		assert.Equal(t, "someuser", dbProv.saveScriptGiven.UpdatedBy)
+		assert.Equal(t, "someuser", storedScript.UpdatedBy)
 
 		assert.Equal(t, "pwd", dbProv.saveScriptGiven.Script)
 		assert.Equal(t, "pwd", storedScript.Script)
@@ -301,7 +303,8 @@ func TestStore(t *testing.T) {
 					ID: "2",
 				},
 			},
-			getByIDFoundToGive: true,
+			getByIDFoundToGive:  true,
+			getByIDScriptToGive: &Script{},
 		}
 		mngr := NewManager(dbProv, testLog)
 
@@ -335,8 +338,9 @@ func TestStore(t *testing.T) {
 
 	t.Run("update_list_error", func(t *testing.T) {
 		dbProv := &DbProviderMock{
-			listErrorToGive:    errors.New("failed to find anything"),
-			getByIDFoundToGive: true,
+			listErrorToGive:     errors.New("failed to find anything"),
+			getByIDFoundToGive:  true,
+			getByIDScriptToGive: &Script{},
 		}
 		mngr := NewManager(dbProv, testLog)
 
@@ -354,8 +358,9 @@ func TestStore(t *testing.T) {
 
 	t.Run("db_store_error", func(t *testing.T) {
 		dbProv := &DbProviderMock{
-			saveErrorToGive:    errors.New("failed to save"),
-			getByIDFoundToGive: true,
+			saveErrorToGive:     errors.New("failed to save"),
+			getByIDFoundToGive:  true,
+			getByIDScriptToGive: &Script{},
 		}
 		mngr := NewManager(dbProv, testLog)
 

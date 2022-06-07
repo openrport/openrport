@@ -13,17 +13,8 @@ import (
 	errors2 "github.com/cloudradar-monitoring/rport/server/api/errors"
 )
 
-var supportedSortAndFilters = map[string]bool{
-	"id":         true,
-	"name":       true,
-	"created_by": true,
-	"created_at": true,
-	"updated_by": true,
-	"updated_at": true,
-}
-
-var supportedFields = map[string]map[string]bool{
-	"commands": {
+var (
+	supportedSortAndFilters = map[string]bool{
 		"id":         true,
 		"name":       true,
 		"created_by": true,
@@ -31,8 +22,24 @@ var supportedFields = map[string]map[string]bool{
 		"updated_by": true,
 		"updated_at": true,
 		"cmd":        true,
-	},
-}
+		"tags":       true,
+	}
+	supportedFields = map[string]map[string]bool{
+		"commands": {
+			"id":         true,
+			"name":       true,
+			"created_by": true,
+			"created_at": true,
+			"updated_by": true,
+			"updated_at": true,
+			"cmd":        true,
+			"tags":       true,
+		},
+	}
+	manualFiltersConfig = map[string]bool{
+		"tags": true,
+	}
+)
 
 type DbProvider interface {
 	GetByID(ctx context.Context, id string, ro *query.RetrieveOptions) (val *Command, found bool, err error)
@@ -52,15 +59,44 @@ func NewManager(db DbProvider) *Manager {
 	}
 }
 
-func (m *Manager) List(ctx context.Context, re *http.Request) ([]Command, error) {
+func (m *Manager) List(ctx context.Context, re *http.Request) ([]Command, int, error) {
 	listOptions := query.GetListOptions(re)
 
-	err := query.ValidateListOptions(listOptions, supportedSortAndFilters, supportedSortAndFilters, supportedFields, nil)
+	err := query.ValidateListOptions(listOptions, supportedSortAndFilters, supportedSortAndFilters, supportedFields, &query.PaginationConfig{
+		MaxLimit:     100,
+		DefaultLimit: 20,
+	})
 	if err != nil {
-		return nil, err
+		return nil, 0, err
 	}
 
-	return m.db.List(ctx, listOptions)
+	manualFilters, dbFilters := query.SplitFilters(listOptions.Filters, manualFiltersConfig)
+	pagination := listOptions.Pagination
+
+	listOptions.Filters = dbFilters
+	listOptions.Pagination = nil
+
+	entries, err := m.db.List(ctx, listOptions)
+	if err != nil {
+		return nil, 0, err
+	}
+
+	filtered := make([]Command, 0, len(entries))
+	for _, entry := range entries {
+		matches, err := query.MatchesFilters(entry, manualFilters)
+		if err != nil {
+			return nil, 0, err
+		}
+		if matches {
+			filtered = append(filtered, entry)
+		}
+	}
+
+	totalCount := len(filtered)
+	start, end := pagination.GetStartEnd(totalCount)
+	limited := filtered[start:end]
+
+	return limited, totalCount, nil
 }
 
 func (m *Manager) GetOne(ctx context.Context, re *http.Request, id string) (*Command, bool, error) {
