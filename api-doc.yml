@@ -1023,7 +1023,7 @@ paths:
     get:
       tags:
         - "Commands"
-      summary: "Return a short info about all multi-client commands executed by the scheduler"
+      summary: "Return a short info about all multi-client commands"
       description: "Return a list of all running and finished commands sorted by started time in desc order"
       produces:
         - "application/json"
