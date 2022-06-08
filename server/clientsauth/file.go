@@ -5,6 +5,7 @@ import (
 	"errors"
 	"fmt"
 	"io/ioutil"
+	"log"
 	"os"
 	"sort"
 	"time"
@@ -75,14 +76,14 @@ func (c *FileProvider) GetFiltered(filter *query.ListOptions) ([]*ClientAuth, in
 }
 
 func (c *FileProvider) Get(id string) (*ClientAuth, error) {
+	if val, _ := c.cache.Get(c.CacheKey(id)); val != nil {
+		return val.(*ClientAuth), nil
+	}
 	idPswdPairs, err := c.load()
 	if err != nil {
 		return nil, fmt.Errorf("failed to decode rport clients auth file: %v", err)
 	}
 	if _, ok := idPswdPairs[id]; ok {
-		if val, _ := c.cache.Get(c.CacheKey(id)); val != nil {
-			return val.(*ClientAuth), nil
-		}
 		ca := &ClientAuth{ID: id, Password: idPswdPairs[id]}
 		if err := c.cache.Add(c.CacheKey(id), ca, 60*time.Minute); err != nil {
 			return nil, err
@@ -132,6 +133,7 @@ func (c *FileProvider) IsWriteable() bool {
 }
 
 func (c *FileProvider) load() (map[string]string, error) {
+	log.Println("Loading from file")
 	b, err := ioutil.ReadFile(c.fileName)
 	if err != nil {
 		return nil, fmt.Errorf("failed to read rport clients auth file %q: %s", c.fileName, err)
