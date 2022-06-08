@@ -135,8 +135,7 @@ func TestHandleGetClientsAuth(t *testing.T) {
 			handler.ServeHTTP(w, req)
 
 			// then
-			msg := fmt.Sprintf("test case: %q", tc.descr)
-			require.Equalf(tc.wantStatusCode, w.Code, msg)
+			require.Equal(tc.wantStatusCode, w.Code)
 			var wantResp interface{}
 			if tc.wantErrTitle == "" {
 				// success case
@@ -151,14 +150,13 @@ func TestHandleGetClientsAuth(t *testing.T) {
 						Meta: api.NewMeta(0),
 					}
 				}
-
 			} else {
 				// failure case
 				wantResp = api.NewErrAPIPayloadFromMessage(tc.wantErrCode, tc.wantErrTitle, "")
 			}
 			wantRespBytes, err := json.Marshal(wantResp)
-			require.NoErrorf(err, msg)
-			require.Equalf(string(wantRespBytes), w.Body.String(), msg)
+			require.NoError(err)
+			require.Equal(string(wantRespBytes), w.Body.String())
 		})
 	}
 }
@@ -348,24 +346,23 @@ func TestHandlePostClientsAuth(t *testing.T) {
 			t.Logf("Got response %s", w.Body)
 
 			// then
-			msg := fmt.Sprintf("test case: %q", tc.descr)
-			require.Equalf(tc.wantStatusCode, w.Code, msg)
+			require.Equal(tc.wantStatusCode, w.Code)
 			if tc.wantErrTitle == "" {
 				// success case
-				assert.Emptyf(w.Body.String(), msg)
+				assert.Empty(w.Body.String())
 			} else {
 				// failure case
 				wantResp := api.NewErrAPIPayloadFromMessage(tc.wantErrCode, tc.wantErrTitle, tc.wantErrDetail)
 				wantRespBytes, err := json.Marshal(wantResp)
-				require.NoErrorf(err, msg)
-				require.Equalf(string(wantRespBytes), w.Body.String(), msg)
+				require.NoError(err)
+				require.Equal(string(wantRespBytes), w.Body.String())
 			}
 			filter := &query.ListOptions{
 				Pagination: query.NewPagination(5, 0),
 			}
 			clients, _, err := al.clientAuthProvider.GetFiltered(filter)
 			require.NoError(err)
-			assert.ElementsMatchf(tc.wantClientsAuth, clients, msg)
+			assert.ElementsMatch(tc.wantClientsAuth, clients)
 		})
 	}
 }
