@@ -135,6 +135,7 @@ func TestHandleGetClientsAuth(t *testing.T) {
 			handler.ServeHTTP(w, req)
 
 			// then
+			t.Logf("Got response: %s", w.Body)
 			require.Equal(tc.wantStatusCode, w.Code)
 			var wantResp interface{}
 			if tc.wantErrTitle == "" {

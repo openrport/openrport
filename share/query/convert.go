@@ -37,23 +37,17 @@ func AddWhere(filterOptions []FilterOption, q string, params []interface{}) (str
 		orParts := make([]string, 0, len(filterOptions[i].Values))
 		for _, col := range filterOptions[i].Column {
 			for _, val := range filterOptions[i].Values {
-				var operatorCode = filterOptions[i].Operator.Code()
-				var operatorOption = ""
-				if operatorCode == "=" && strings.Contains(val, "*") {
-					// Implement a SQL LIKE search triggered by a wildcard
-					operatorCode = "LIKE"
-					operatorOption = " ESCAPE '\\'"
-					// Escape the % sign to treat it literally, on the API side % must not become a wildcard
-					val = strings.Replace(val, "%", "\\%", -1)
-					// Replace wildcard % by sql wildcard %
-					val = strings.Replace(val, "*", "%", -1)
-				}
-				part := fmt.Sprintf("%s %s ?%s", col, operatorCode, operatorOption)
+				part := fmt.Sprintf("%s %s ?", col, filterOptions[i].Operator.Code())
 				if val == "" {
 					part = fmt.Sprintf("(%s OR %s IS NULL)", part, col)
 				} else if strings.Contains(val, "*") && filterOptions[i].Operator.Code() == "=" {
-					part = fmt.Sprintf("LOWER(%s) LIKE ?", col)
+					// Implement a SQL LIKE search triggered by a wildcard
+					part = fmt.Sprintf("LOWER(%s) LIKE ? ESCAPE '\\'", col)
+					// Escape the % sign to treat it literally, on the API side % must not become a wildcard
+					val = strings.Replace(val, "%", "\\%", -1)
+					// Make search case-insensitive
 					val = strings.ToLower(val)
+					// Replace wildcard % by sql wildcard %
 					val = strings.ReplaceAll(val, "*", "%")
 				}
 				orParts = append(orParts, part)
@@ -74,7 +68,6 @@ func AddWhere(filterOptions []FilterOption, q string, params []interface{}) (str
 		concat = " AND "
 	}
 	q += concat + strings.Join(whereParts, " AND ")
-
 	return q, params
 }
 

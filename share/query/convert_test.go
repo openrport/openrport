@@ -71,7 +71,7 @@ func TestConvertListOptionsToQuery(t *testing.T) {
 					Limit:  "5",
 				},
 			},
-			ExpectedQuery:  "SELECT res1.field1, res1.field2 FROM res1 WHERE (field1 = ? OR field1 = ? OR field1 = ?) AND field2 = ? AND (field3 = ? OR field3 = ? OR field4 = ? OR field4 = ?) AND (field5 = ? OR field5 IS NULL) AND (LOWER(field6) LIKE ? OR LOWER(field6) LIKE ?) ORDER BY field1 ASC, field2 DESC LIMIT ? OFFSET ?",
+			ExpectedQuery:  "SELECT res1.field1, res1.field2 FROM res1 WHERE (field1 = ? OR field1 = ? OR field1 = ?) AND field2 = ? AND (field3 = ? OR field3 = ? OR field4 = ? OR field4 = ?) AND (field5 = ? OR field5 IS NULL) AND (LOWER(field6) LIKE ? ESCAPE '\\' OR LOWER(field6) LIKE ? ESCAPE '\\') ORDER BY field1 ASC, field2 DESC LIMIT ? OFFSET ?",
 			ExpectedParams: []interface{}{"val1", "val2", "val3", "value2", "value1", "value3", "value1", "value3", "", "abc%", "%def%", "5", "10"},
 		},
 		{
@@ -94,7 +94,7 @@ func TestConvertListOptionsToQuery(t *testing.T) {
 					},
 				},
 			},
-			ExpectedQuery:  `SELECT * FROM res1 WHERE field1 LIKE ? ESCAPE '\' AND field2 LIKE ? ESCAPE '\' ORDER BY field1 ASC`,
+			ExpectedQuery:  `SELECT * FROM res1 WHERE LOWER(field1) LIKE ? ESCAPE '\' AND LOWER(field2) LIKE ? ESCAPE '\' ORDER BY field1 ASC`,
 			ExpectedParams: []interface{}{"val%", "val%"},
 		},
 	}
