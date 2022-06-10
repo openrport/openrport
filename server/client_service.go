@@ -222,7 +222,7 @@ func (s *ClientService) StartClient(
 	}
 	if client != nil {
 		if client.DisconnectedAt == nil {
-			return nil, fmt.Errorf("client id is already in use: %s", clientID)
+			return nil, fmt.Errorf("client is already connected: %s", clientID)
 		}
 
 		oldTunnels := GetTunnelsToReestablish(getRemotes(client.Tunnels), req.Remotes)

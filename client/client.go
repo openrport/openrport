@@ -349,8 +349,8 @@ func (c *Client) sendConnectionRequest(ctx context.Context, sshConn ssh.Conn) er
 	if !replyOk {
 		msg := string(respBytes)
 
-		// if replied with "client id is already in use" - retry
-		if strings.Contains(msg, "client id is already in use:") {
+		// if replied with client credentials already used - retry
+		if strings.Contains(msg, "client is already connected:") {
 			if closeErr := sshConn.Close(); closeErr != nil {
 				c.Errorf(closeErr.Error())
 			}
