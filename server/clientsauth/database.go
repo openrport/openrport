@@ -1,11 +1,14 @@
 package clientsauth
 
 import (
+	"database/sql"
 	"fmt"
 
 	"github.com/go-sql-driver/mysql"
 	"github.com/jmoiron/sqlx"
 	"github.com/mattn/go-sqlite3"
+
+	"github.com/cloudradar-monitoring/rport/share/query"
 
 	"github.com/cloudradar-monitoring/rport/share/enums"
 )
@@ -26,15 +29,27 @@ func NewDatabaseProvider(DB *sqlx.DB, tableName string) *DatabaseProvider {
 	}
 }
 
-func (c *DatabaseProvider) GetAll() ([]*ClientAuth, error) {
-	var result []*ClientAuth
-	err := c.db.Select(&result, fmt.Sprintf("SELECT id, password FROM %s", c.tableName))
-	return result, err
+func (c *DatabaseProvider) GetFiltered(filter *query.ListOptions) ([]*ClientAuth, int, error) {
+	filter.Sorts = append(filter.Sorts, query.SortOption{Column: "id", IsASC: true})
+	rQuery, rParams := query.ConvertListOptionsToQuery(filter, fmt.Sprintf("SELECT id,password FROM %s", c.tableName))
+	filter.Pagination = nil
+	filter.Sorts = nil
+	cQuery, cParams := query.ConvertListOptionsToQuery(filter, fmt.Sprintf("SELECT COUNT(id) FROM %s", c.tableName))
+	var count = 0
+	if err := c.db.Get(&count, cQuery, cParams...); err != nil {
+		return nil, 0, err
+	}
+	var result = []*ClientAuth{}
+	err := c.db.Select(&result, rQuery, rParams...)
+	return result, count, err
 }
 
 func (c *DatabaseProvider) Get(id string) (*ClientAuth, error) {
 	result := &ClientAuth{}
 	err := c.db.Get(result, fmt.Sprintf("SELECT id, password FROM %s WHERE id = ?", c.tableName), id)
+	if err == sql.ErrNoRows {
+		return nil, nil
+	}
 	return result, err
 }
 

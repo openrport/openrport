@@ -772,6 +772,7 @@ paths:
           description: "Filter option `filter[<field>]` or `filter[started_at][<op>]`.
             `<field>` can be one of `jid`, `created_by`, `started_at`, `finished_at`, `status`, `multi_job_id`, `schedule_id`  and `<value>` is the search value,\n
               e.g. `filter[created_by]=admin` will request only commands created by admin. You can use as many filter parameters as you want.\n
+              Wildcards `*` are supported in the filter `<value>`.\n
               For `started_at` and `finished_at` filters you need to specify operation: `gt`, `lt`, `since` or `until`.\n
               If you want to filter by multiple values e.g. find entries either for created_by = admin or other you can use following filters\n
               `filter[created_by]=admin,other`."
@@ -1199,6 +1200,7 @@ paths:
           description: "Filter option `filter[<field>]` or `filter[started_at][<op>]`.
             `<field>` can be one of `jid`, `created_by`, `started_at`, `finished_at`, `status`, `client_id`, `schedule_id`  and `<value>` is the search value,\n
               e.g. `filter[created_by]=admin` will request only commands created by admin. You can use as many filter parameters as you want.\n
+              Wildcards `*` are supported in the filter `<value>`.\n
               For `started_at` and `finished_at` filters you need to specify operation: `gt`, `lt`, `since` or `until`.\n
               If you want to filter by multiple values e.g. find entries either for created_by = admin or other you can use following filters\n
               `filter[created_by]=admin,other`."
@@ -1366,6 +1368,23 @@ paths:
         - "Rport Client Auth Credentials"
       summary: "Return all rport clients authentication credentials. Sorted by ID in asc order. Require admin access"
       description: ""
+      parameters:
+        - name: "filter"
+          in: "query"
+          description: "Filter option `filter[id]=<VALUE>`.\n
+                You can use `*` wildcards for partial matches. Text matching is case insensitive.\n
+                Examples:\n
+                `filter[id]=auth1234`\n
+                `filter[id]=auth*`\n"
+          required: false
+          type: "string"
+        - name: "page"
+          in: "query"
+          required: false
+          type: "integer"
+          description: | 
+            Pagination options `page[limit]` and `page[offset]` can be used to get more than the first page of results. 
+            Default limit is 50 and maximum is 500. The `count` property in meta shows the total number of results.
       produces:
         - "application/json"
       responses:
@@ -1378,6 +1397,11 @@ paths:
                 type: "array"
                 items:
                   $ref: "#/definitions/ClientAuth"
+              meta:
+                type: "object"
+                properties:
+                  count:
+                    type: "integer"
         "500":
           description: "Invalid Operation"
           schema:
@@ -1418,12 +1442,32 @@ paths:
         description: "client auth ID"
         required: true
         type: "string"
-      - name: "force"
-        in: "query"
-        description: "If true, delete a client auth even when it has active/disconnected clients."
-        required: false
-        type: "boolean"
+    get:
+      tags:
+        - "Rport Client Auth Credentials"
+      description: ""
+      responses:
+        "200":
+          description: "Successful Operation"
+          schema:
+            type: "object"
+            properties:
+              data:
+                type: "object"
+                $ref: "#/definitions/ClientAuth"
+        "500":
+          description: "Invalid Operation"
+          schema:
+            $ref: "#/definitions/ErrorPayload"
+        "404":
+          description: "Client auth credentials not found"
     delete:
+      parameters:
+        - name: "force"
+          in: "query"
+          description: "If true, delete a client auth even when it has active/disconnected clients."
+          required: false
+          type: "boolean"
       tags:
         - "Rport Client Auth Credentials"
       summary:  "Delete rport client authentication credentials. Require admin access"
@@ -1789,8 +1833,8 @@ paths:
             where `<FIELD>` is one of the values `id`, `client_id`, `created_by`, `created_at`, `key` and `<VALUE>` is the search value,\n
             e.g. `filter[created_by]=admin` will request only vault entries created by admin. You can use as many filter parameters as you want.\n
             If you want to filter by multiple values e.g. find entries either for client_id = client1 or client2 you can use following filters\n
-            `filter[client_id]=client1,client2`.
-            "
+            `filter[client_id]=client1,client2`\n
+            Wildcards `*` are supported in the filter `<value>`."
           required: false
           type: "string"
       responses:
@@ -2112,7 +2156,8 @@ paths:
               where `<FIELD>` is one of the fields and `<VALUE>` is the search value,\n
               e.g. `filter[created_by]=admin` will request only scripts created by admin. You can use as many filter parameters as you want. You can use wildcards `*`.\n
               If you want to filter by multiple values e.g. find entries either for name = script1 or script2 you can use following filters\n
-              `filter[name]=script1,script2`."
+              `filter[name]=script1,script2`.\n
+              Wildcards `*` are supported in the filter `<value>`."
           required: false
           type: "string"
         - in: "query"
@@ -2542,7 +2587,8 @@ paths:
             Filter option `filter[<field>]` or `filter[timestamp][<op>]`.
             `<field>` can be one of `'username', 'remote_ip', 'application', 'action', 'affected_id', 'client_id', 'client_hostname'`.
             For example, `&filter[username]=admin` or `filter[timestamp][gt]=2021-10-28`, etc.
-            Multiple filters are possible. 
+            Multiple filters are possible.
+            Wildcards `*` are supported in the filter `<value>`.
             *Note: Only members of the Administrators user group are allowed to filter by `username`. Returns 403 Forbidden if an unallowed filter is used.*
           required: false
           type: "string"
@@ -3177,7 +3223,8 @@ paths:
               where `<FIELD>` is one of the values `id`, `created_at`, `created_by`, `name`, `type`, `client_ids`, `group_ids` and `<VALUE>` is the search value,\n
               e.g. `filter[name]=Schedule` will request only schedule with name Schedule. You can use as many filter parameters as you want.\n
               If you want to filter by multiple values e.g. find entries either for name = Schedule or Other you can use following filters\n
-              `filter[name]=Schedule,Other`."
+              `filter[name]=Schedule,Other`.\n
+              Wildcards `*` are supported in the filter `<value>`."
           required: false
           type: "string"
         - name: "page"

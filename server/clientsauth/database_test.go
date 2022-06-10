@@ -3,6 +3,8 @@ package clientsauth
 import (
 	"testing"
 
+	"github.com/cloudradar-monitoring/rport/share/query"
+
 	"github.com/jmoiron/sqlx"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
@@ -22,7 +24,10 @@ func TestDatabaseProvider(t *testing.T) {
 	assert.Equal(t, enums.ProviderSourceDB, p.Source())
 
 	// initial empty
-	clients, err := p.GetAll()
+	filter := &query.ListOptions{
+		Pagination: query.NewPagination(5, 0),
+	}
+	clients, _, err := p.GetFiltered(filter)
 	require.NoError(t, err)
 	assert.ElementsMatch(t, []*ClientAuth{}, clients)
 
@@ -32,7 +37,7 @@ func TestDatabaseProvider(t *testing.T) {
 	assert.True(t, added)
 
 	// should contain client
-	clients, err = p.GetAll()
+	clients, _, err = p.GetFiltered(filter)
 	require.NoError(t, err)
 	assert.ElementsMatch(t, []*ClientAuth{c}, clients)
 
@@ -50,7 +55,7 @@ func TestDatabaseProvider(t *testing.T) {
 	require.NoError(t, err)
 
 	// final empty
-	clients, err = p.GetAll()
+	clients, _, err = p.GetFiltered(filter)
 	require.NoError(t, err)
 	assert.ElementsMatch(t, []*ClientAuth{}, clients)
 }

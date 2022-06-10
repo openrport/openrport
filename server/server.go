@@ -16,6 +16,8 @@ import (
 	_ "github.com/go-sql-driver/mysql"
 	_ "github.com/mattn/go-sqlite3"
 
+	"github.com/patrickmn/go-cache"
+
 	clientsmigration "github.com/cloudradar-monitoring/rport/db/migration/clients"
 	jobsmigration "github.com/cloudradar-monitoring/rport/db/migration/jobs"
 	"github.com/cloudradar-monitoring/rport/db/sqlite"
@@ -205,21 +207,11 @@ func NewServer(config *Config, filesAPI files.FileAPI) (*Server, error) {
 
 func getClientProvider(config *Config, db *sqlx.DB) (clientsauth.Provider, error) {
 	if config.Server.AuthTable != "" {
-		dbProvider := clientsauth.NewDatabaseProvider(db, config.Server.AuthTable)
-		cachedProvider, err := clientsauth.NewCachedProvider(dbProvider)
-		if err != nil {
-			return nil, err
-		}
-		return cachedProvider, nil
+		return clientsauth.NewDatabaseProvider(db, config.Server.AuthTable), nil
 	}
 
 	if config.Server.AuthFile != "" {
-		fileProvider := clientsauth.NewFileProvider(config.Server.AuthFile)
-		cachedProvider, err := clientsauth.NewCachedProvider(fileProvider)
-		if err != nil {
-			return nil, err
-		}
-		return cachedProvider, nil
+		return clientsauth.NewFileProvider(config.Server.AuthFile, cache.New(60*time.Minute, 15*time.Minute)), nil
 	}
 
 	if config.Server.Auth != "" {
