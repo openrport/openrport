@@ -211,13 +211,17 @@ func (cl *ClientListener) handleWebsocket(w http.ResponseWriter, req *http.Reque
 		return
 	}
 	//verify configuration
-	clog.Debugf("Verifying configuration")
+	clog.Debugf("Verifying configuration...")
 	//wait for request, with timeout
 	var r *ssh.Request
 	select {
 	case r = <-reqs:
-	case <-time.After(10 * time.Second):
-		_ = sshConn.Close()
+	case <-time.After(3 * time.Minute):
+		clog.Errorf("SSH connection timeout exceeded")
+		err = sshConn.Close()
+		if err != nil {
+			clog.Debugf("Error on SSH connection close: %s", err)
+		}
 		return
 	}
 	failed := func(err error) {

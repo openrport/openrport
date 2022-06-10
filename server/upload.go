@@ -5,6 +5,7 @@ import (
 	"mime/multipart"
 	"net/http"
 	"path/filepath"
+	"strings"
 	"sync"
 	"time"
 
@@ -42,6 +43,11 @@ func (al *APIListener) handleFileUploads(w http.ResponseWriter, req *http.Reques
 		al.jsonErrorResponseWithTitle(w, http.StatusBadRequest, err.Error())
 		return
 	}
+	curUser, err := al.getUserModelForAuth(req.Context())
+	if err != nil {
+		al.jsonErrorResponseWithTitle(w, http.StatusBadRequest, err.Error())
+		return
+	}
 	defer uploadRequest.File.Close()
 
 	wasCreated, err := al.filesAPI.CreateDirIfNotExists(al.config.GetUploadDir(), files.DefaultMode)
@@ -58,6 +64,17 @@ func (al *APIListener) handleFileUploads(w http.ResponseWriter, req *http.Reques
 	err = validateUploadRequest(uploadRequest)
 	if err != nil {
 		al.jsonErrorResponseWithTitle(w, http.StatusBadRequest, err.Error())
+		return
+	}
+
+	if err = validateRemoteDestination(uploadRequest); err != nil {
+		al.jsonErrorResponseWithDetail(w, http.StatusBadRequest, "BAD_DESTINATION", "upload denied", err.Error())
+		return
+	}
+
+	cr := ClientService{}
+	if err := cr.CheckClientsAccess(uploadRequest.Clients, curUser); err != nil {
+		al.jsonErrorResponseWithDetail(w, http.StatusForbidden, "ACCESS_CONTROL_VIOLATION", "upload forbidden", err.Error())
 		return
 	}
 
@@ -315,4 +332,15 @@ func validateUploadRequest(ur *UploadRequest) error {
 	}
 
 	return ur.Validate()
+}
+
+func validateRemoteDestination(ur *UploadRequest) error {
+	// deny uploads to the below unix folders because there is no reason why a user should do that.
+	denied := []string{"/proc/", "/sys/", "/dev/", "/run/"}
+	for _, v := range denied {
+		if strings.HasPrefix(ur.DestinationPath, v) {
+			return fmt.Errorf("uploads to %s are forbidden", v)
+		}
+	}
+	return nil
 }

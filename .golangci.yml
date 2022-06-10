@@ -106,7 +106,8 @@ linters:
   enable:
     - goimports
     - govet
-    - golint
+    #- golint
+    - revive
     - gosimple
     - structcheck
     - deadcode

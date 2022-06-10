@@ -2,6 +2,7 @@ package chserver
 
 import (
 	"bytes"
+	"context"
 	"encoding/json"
 	"io"
 	"io/ioutil"
@@ -12,6 +13,8 @@ import (
 	"testing"
 	"time"
 
+	"github.com/cloudradar-monitoring/rport/server/api"
+	"github.com/cloudradar-monitoring/rport/server/api/users"
 	"github.com/cloudradar-monitoring/rport/server/clients"
 	"github.com/cloudradar-monitoring/rport/share/files"
 	"github.com/cloudradar-monitoring/rport/share/models"
@@ -22,48 +25,62 @@ import (
 	"github.com/stretchr/testify/require"
 )
 
+func MockUserService(user string, group string) *users.APIService {
+	curUser := &users.User{
+		Username: user,
+		Groups:   []string{group},
+	}
+	return users.NewAPIService(users.NewStaticProvider([]*users.User{curUser}), false)
+}
+
+func FsCallback(fs *test.FileAPIMock, t *testing.T) {
+	fs.On("CreateDirIfNotExists", "/data/"+files.DefaultUploadTempFolder, files.DefaultMode).Return(true, nil)
+
+	fileExpectation := func(f io.Reader) bool {
+		actualFileContent, err := ioutil.ReadAll(f)
+
+		require.NoError(t, err)
+
+		return string(actualFileContent) == "some content"
+	}
+	fs.On("CreateFile", "/data/filepush/id-123_rport_filepush", mock.MatchedBy(fileExpectation)).Return(int64(10), nil)
+
+	fileMock := &test.ReadWriteCloserMock{}
+	fileMock.Reader = strings.NewReader("some content")
+	fileMock.On("Close").Return(nil)
+
+	fs.On("Open", "/data/filepush/id-123_rport_filepush").Return(fileMock, nil)
+	fs.On("Remove", "/data/filepush/id-123_rport_filepush").Return(nil)
+}
+
 func TestHandleFileUploads(t *testing.T) {
 	testCases := []struct {
 		name                string
 		wantStatus          int
-		fsCallback          func(fs *test.FileAPIMock)
+		useFsCallback       bool
 		wantResp            *models.UploadResponseShort
 		wantClientInputFile *models.UploadedFile
 		fileName            string
 		fileContent         string
 		formParts           map[string][]string
 		cl                  *clients.Client
+		user                string
+		group               string
 	}{
 		{
 			name:       "send file success",
 			wantStatus: http.StatusOK,
+			user:       "admin",
+			group:      users.Administrators,
 			wantResp: &models.UploadResponseShort{
 				ID:        "id-123",
 				Filepath:  "/destination/myfile.txt",
 				SizeBytes: 10,
 			},
-			fsCallback: func(fs *test.FileAPIMock) {
-				fs.On("CreateDirIfNotExists", "/data/"+files.DefaultUploadTempFolder, files.DefaultMode).Return(true, nil)
-
-				fileExpectation := func(f io.Reader) bool {
-					actualFileContent, err := ioutil.ReadAll(f)
-
-					require.NoError(t, err)
-
-					return string(actualFileContent) == "some content"
-				}
-				fs.On("CreateFile", "/data/filepush/id-123_rport_filepush", mock.MatchedBy(fileExpectation)).Return(int64(10), nil)
-
-				fileMock := &test.ReadWriteCloserMock{}
-				fileMock.Reader = strings.NewReader("some content")
-				fileMock.On("Close").Return(nil)
-
-				fs.On("Open", "/data/filepush/id-123_rport_filepush").Return(fileMock, nil)
-				fs.On("Remove", "/data/filepush/id-123_rport_filepush").Return(nil)
-			},
-			fileName:    "file.txt",
-			fileContent: "some content",
-			cl:          clients.New(t).ID("22114341234").Build(),
+			useFsCallback: true,
+			fileName:      "file.txt",
+			fileContent:   "some content",
+			cl:            clients.New(t).ID("22114341234").Build(),
 			formParts: map[string][]string{
 				"client_id": {
 					"22114341234",
@@ -102,6 +119,52 @@ func TestHandleFileUploads(t *testing.T) {
 				Md5Checksum:          test.Md5Hash("some content"),
 			},
 		},
+		{
+			name:          "send file denied, bad user rights",
+			wantStatus:    http.StatusForbidden,
+			user:          "loser",
+			group:         "",
+			wantResp:      &models.UploadResponseShort{},
+			useFsCallback: true,
+			fileName:      "file.txt",
+			fileContent:   "some content",
+			cl:            clients.New(t).ID("22114341234").Build(),
+			formParts: map[string][]string{
+				"client_id": {
+					"22114341234",
+				},
+				"dest": {
+					"/destination/myfile.txt",
+				},
+				"id": {
+					"id-123",
+				},
+			},
+			wantClientInputFile: &models.UploadedFile{},
+		},
+		{
+			name:          "send file denied, bad destination",
+			wantStatus:    http.StatusBadRequest,
+			user:          "loser",
+			group:         "",
+			wantResp:      &models.UploadResponseShort{},
+			useFsCallback: true,
+			fileName:      "file.txt",
+			fileContent:   "some content",
+			cl:            clients.New(t).ID("22114341234").Build(),
+			formParts: map[string][]string{
+				"client_id": {
+					"22114341234",
+				},
+				"dest": {
+					"/proc/myfile.txt",
+				},
+				"id": {
+					"id-123",
+				},
+			},
+			wantClientInputFile: &models.UploadedFile{},
+		},
 	}
 
 	for _, tc := range testCases {
@@ -119,8 +182,8 @@ func TestHandleFileUploads(t *testing.T) {
 			cl.Connection = connMock
 
 			fileAPIMock := test.NewFileAPIMock()
-			if tc.fsCallback != nil {
-				tc.fsCallback(fileAPIMock)
+			if tc.useFsCallback {
+				FsCallback(fileAPIMock, t)
 			}
 
 			al := APIListener{
@@ -139,7 +202,8 @@ func TestHandleFileUploads(t *testing.T) {
 					},
 					filesAPI: fileAPIMock,
 				},
-				Logger: testLog,
+				Logger:      testLog,
+				userService: MockUserService(tc.user, tc.group),
 			}
 			al.initRouter()
 
@@ -164,11 +228,17 @@ func TestHandleFileUploads(t *testing.T) {
 
 			req := httptest.NewRequest(http.MethodPost, "/api/v1/files", body)
 			req.Header.Add("Content-Type", writer.FormDataContentType())
+			ctx := api.WithUser(context.Background(), tc.user)
+			req = req.WithContext(ctx)
 
 			rec := httptest.NewRecorder()
 			al.router.ServeHTTP(rec, req)
 
+			t.Logf("Got response %s", rec.Body)
 			assert.Equal(t, tc.wantStatus, rec.Code)
+			if tc.wantStatus != http.StatusOK {
+				return
+			}
 
 			var successResp struct {
 				Data *models.UploadResponseShort `json:"data"`

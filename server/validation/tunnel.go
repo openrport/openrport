@@ -11,7 +11,7 @@ import (
 
 const idleTimeoutDefault = time.Minute * 5
 const idleTimeoutMax = time.Hour * 24 * 7 //a week
-const idleTimeoutMin = time.Duration(0)
+const idleTimeoutMin = time.Duration(0)   //revive:disable:time-naming
 
 func ResolveIdleTunnelTimeoutValue(idleTimeoutMinutesStr string, skipIdleTimeout bool) (time.Duration, error) {
 	if idleTimeoutMinutesStr != "" && skipIdleTimeout {

@@ -149,7 +149,7 @@ func TestUpdates(t *testing.T) {
 				assert.Equal(t, comm.RequestTypeUpdatesStatus, request.Name)
 				assert.Equal(t, tc.ExpectedError, result.Error)
 				assert.Equal(t, tc.ExpectedUpdatesAvailable, result.UpdatesAvailable)
-				assert.WithinDuration(t, time.Now(), result.Refreshed, 100*time.Millisecond)
+				assert.WithinDuration(t, time.Now(), result.Refreshed, 180*time.Millisecond)
 
 				if tc.CallRefresh {
 					updates.Refresh()
