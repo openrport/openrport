@@ -39,12 +39,12 @@ func TestStartClient(t *testing.T) {
 			Name:          "existing client id same client auth",
 			ClientAuthID:  "test-client-auth",
 			ClientID:      "test-client",
-			ExpectedError: errors.New("client id \"test-client\" is already in use"),
+			ExpectedError: errors.New("client is already connected: test-client"),
 		}, {
 			Name:          "existing client id different client",
 			ClientAuthID:  "test-client-auth-2",
 			ClientID:      "test-client",
-			ExpectedError: errors.New("client id \"test-client\" is already in use"),
+			ExpectedError: errors.New("client is already connected: test-client"),
 		}, {
 			Name:          "existing client with different id for client auth",
 			ClientAuthID:  "test-client-auth",
@@ -60,13 +60,13 @@ func TestStartClient(t *testing.T) {
 			ClientAuthID:      "test-client-auth",
 			ClientID:          "test-client",
 			AuthMultiuseCreds: true,
-			ExpectedError:     errors.New("client id \"test-client\" is already in use"),
+			ExpectedError:     errors.New("client is already connected: test-client"),
 		}, {
 			Name:              "existing client id different client auth, auth multiuse",
 			ClientAuthID:      "test-client-auth-2",
 			ClientID:          "test-client",
 			AuthMultiuseCreds: true,
-			ExpectedError:     errors.New("client id \"test-client\" is already in use"),
+			ExpectedError:     errors.New("client is already connected: test-client"),
 		}, {
 			Name:              "existing client with different id for client auth, auth multiuse",
 			ClientAuthID:      "test-client-auth",
