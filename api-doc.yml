@@ -2538,10 +2538,12 @@ paths:
           type: "string"
         - name: "filter"
           in: "query"
-          description: Filter option `filter[<field>]` or `filter[timestamp][<op>]`.
+          description: | 
+            Filter option `filter[<field>]` or `filter[timestamp][<op>]`.
             `<field>` can be one of `'username', 'remote_ip', 'application', 'action', 'affected_id', 'client_id', 'client_hostname'`.
             For example, `&filter[username]=admin` or `filter[timestamp][gt]=2021-10-28`, etc.
-            Multiple filters are possible.
+            Multiple filters are possible. 
+            *Note: Only members of the Administrators user group are allowed to filter by `username`. Returns 403 Forbidden if an unallowed filter is used.*
           required: false
           type: "string"
         - name: "page"
