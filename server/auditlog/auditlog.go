@@ -8,8 +8,6 @@ import (
 	"strings"
 	"time"
 
-	"golang.org/x/exp/slices"
-
 	"github.com/cloudradar-monitoring/rport/server/api/users"
 
 	"github.com/cloudradar-monitoring/rport/db/sqlite"
@@ -141,8 +139,10 @@ func (a *AuditLog) List(r *http.Request, user *users.User) (*api.SuccessPayload,
 	if !user.IsAdmin() {
 		// Deny none-admins looking for foreign audit logs
 		for _, v := range options.Filters {
-			if slices.Contains(v.Column, "username") {
-				return nil, &NotAllowedError{"only members of group Administrators can filter by usernames"}
+			for _, col := range v.Column {
+				if col == "username" {
+					return nil, &NotAllowedError{"only members of group Administrators can filter by usernames"}
+				}
 			}
 		}
 		// Add a forced filter so none-admins cannot inspect what others have done

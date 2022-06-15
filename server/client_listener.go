@@ -47,6 +47,8 @@ type ClientListener struct {
 	clientIndexAutoIncrement int32
 }
 
+const SSHTimeOut = 90 * time.Second
+
 var upgrader = websocket.Upgrader{
 	ReadBufferSize:  1024,
 	WriteBufferSize: 1024,
@@ -216,11 +218,11 @@ func (cl *ClientListener) handleWebsocket(w http.ResponseWriter, req *http.Reque
 	var r *ssh.Request
 	select {
 	case r = <-reqs:
-	case <-time.After(3 * time.Minute):
-		clog.Errorf("SSH connection timeout exceeded")
+	case <-time.After(SSHTimeOut):
+		clog.Debugf("SSH connection timeout exceeded %s sec", SSHTimeOut.Seconds())
 		err = sshConn.Close()
 		if err != nil {
-			clog.Debugf("Error on SSH connection close: %s", err)
+			clog.Debugf("error on SSH connection close: %s", err)
 		}
 		return
 	}
@@ -262,16 +264,19 @@ func (cl *ClientListener) handleWebsocket(w http.ResponseWriter, req *http.Reque
 		failed(err)
 		return
 	}
+	clog.Debugf("client service started for %s", client.Name)
 
 	cl.replyConnectionSuccess(r, connRequest.Remotes)
 	cl.sendCapabilities(sshConn)
 
 	clientBanner := client.Banner()
-	clog.Debugf("Open %s", clientBanner)
+	clog.Debugf("open %s", clientBanner)
 	go cl.handleSSHRequests(clog, cid, reqs)
 	go cl.handleSSHChannels(clog, chans)
-	_ = sshConn.Wait()
-	clog.Debugf("Close %s", clientBanner)
+	if err = sshConn.Wait(); err != nil {
+		clog.Debugf("sshConn.Wait() error: %s", err)
+	}
+	clog.Debugf("close %s", clientBanner)
 
 	err = cl.clientService.Terminate(client)
 	if err != nil {

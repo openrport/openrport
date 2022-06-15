@@ -13,6 +13,7 @@ import (
 
 	"golang.org/x/crypto/ssh"
 
+	"github.com/hashicorp/go-version"
 	"github.com/jmoiron/sqlx"
 
 	"github.com/cloudradar-monitoring/rport/server/api/errors"
@@ -226,13 +227,23 @@ func (s *ClientService) StartClient(
 		}
 
 		oldTunnels := GetTunnelsToReestablish(getRemotes(client.Tunnels), req.Remotes)
-		oldTunnels, err = ExcludeNotAllowedTunnels(clog, oldTunnels, sshConn)
+		clientVersion, err := version.NewVersion(client.Version)
 		if err != nil {
-			return nil, fmt.Errorf("failed to filter tunnels: %v", err)
+			return nil, fmt.Errorf("failed to determine client version: %v", err)
 		}
-		clog.Infof("Tunnels to create %d: %v", len(req.Remotes), req.Remotes)
+		requiredVersion, _ := version.NewVersion("0.6.4")
+		if clientVersion.GreaterThanOrEqual(requiredVersion) {
+			oldTunnels, err = ExcludeNotAllowedTunnels(clog, oldTunnels, sshConn)
+			if err != nil {
+				return nil, fmt.Errorf("failed to filter tunnels: %v", err)
+			}
+		} else {
+			clog.Infof("client %s (%s) version %s does not support 'tunnel_allowed' policies. Consider upgrading.", client.ID, client.Name, client.Version)
+		}
+
+		clog.Infof("tunnels to create %d: %v", len(req.Remotes), req.Remotes)
 		if len(oldTunnels) > 0 {
-			clog.Infof("Old tunnels to re-establish %d: %v", len(oldTunnels), oldTunnels)
+			clog.Infof("old tunnels to re-establish %d: %v", len(oldTunnels), oldTunnels)
 			req.Remotes = append(req.Remotes, oldTunnels...)
 		}
 	}
