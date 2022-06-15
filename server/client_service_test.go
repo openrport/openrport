@@ -110,6 +110,7 @@ func TestStartClientDisconnected(t *testing.T) {
 			DisconnectedAt:    &now,
 			AllowedUserGroups: []string{"test-group"},
 			UpdatesStatus:     &models.UpdatesStatus{UpdatesAvailable: 13},
+			Version:           "0.7.0",
 		}}, nil, testLog),
 		portDistributor: ports.NewPortDistributor(mapset.NewThreadUnsafeSet()),
 	}
