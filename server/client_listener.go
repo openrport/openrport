@@ -47,6 +47,8 @@ type ClientListener struct {
 	clientIndexAutoIncrement int32
 }
 
+const SSHTimeOut = 90 * time.Second
+
 var upgrader = websocket.Upgrader{
 	ReadBufferSize:  1024,
 	WriteBufferSize: 1024,
@@ -216,8 +218,8 @@ func (cl *ClientListener) handleWebsocket(w http.ResponseWriter, req *http.Reque
 	var r *ssh.Request
 	select {
 	case r = <-reqs:
-	case <-time.After(90 * time.Second):
-		clog.Debugf("SSH connection timeout exceeded 90 sec")
+	case <-time.After(SSHTimeOut):
+		clog.Debugf("SSH connection timeout exceeded %s sec", SSHTimeOut.Seconds())
 		err = sshConn.Close()
 		if err != nil {
 			clog.Debugf("error on SSH connection close: %s", err)
