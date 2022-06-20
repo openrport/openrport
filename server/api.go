@@ -1043,15 +1043,17 @@ type ClientPayload struct {
 
 type TunnelPayload struct {
 	models.Remote
-	ID       string `json:"id"`
-	ClientID string `json:"client_id"`
+	ID        string    `json:"id"`
+	ClientID  string    `json:"client_id"`
+	CreatedAt time.Time `json:"created_at"`
 }
 
 func convertToTunnelPayload(t *clienttunnel.Tunnel, clientID string) TunnelPayload {
 	return TunnelPayload{
-		Remote:   t.Remote,
-		ID:       t.ID,
-		ClientID: clientID,
+		Remote:    t.Remote,
+		ID:        t.ID,
+		ClientID:  clientID,
+		CreatedAt: t.CreatedAt,
 	}
 }
 
