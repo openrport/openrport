@@ -2,6 +2,7 @@ package clienttunnel
 
 import (
 	"context"
+	"time"
 
 	"golang.org/x/crypto/ssh"
 
@@ -22,6 +23,7 @@ type Tunnel struct {
 
 	TunnelProtocol `json:"-"`
 	Proxy          *TunnelProxy `json:"-"`
+	CreatedAt      time.Time    `json:"created_at"`
 }
 
 func NewTunnel(logger *logger.Logger, ssh ssh.Conn, id string, remote models.Remote, acl *TunnelACL) *Tunnel {
@@ -39,5 +41,6 @@ func NewTunnel(logger *logger.Logger, ssh ssh.Conn, id string, remote models.Rem
 		Remote:         remote,
 		ID:             id,
 		TunnelProtocol: tunnelProtocol,
+		CreatedAt:      time.Now(),
 	}
 }
