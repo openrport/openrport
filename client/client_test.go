@@ -408,7 +408,7 @@ func (m *mockServer) WaitForStatus(isConnected bool) error {
 		if m.IsConnected() == isConnected {
 			return nil
 		}
-		time.Sleep(time.Millisecond)
+		time.Sleep(10 * time.Millisecond)
 	}
 	return fmt.Errorf("timeout waiting for isConnected=%v", isConnected)
 }
