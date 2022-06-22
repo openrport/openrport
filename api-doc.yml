@@ -3529,6 +3529,10 @@ definitions:
       host_header:
         type: "string"
         description: "host name to set as http header field 'Host'"
+      created_at:
+        type: "string"
+        format: "data-time"
+        description: "Date and time of tunnel creation"
   Client:
     type: "object"
     properties:
