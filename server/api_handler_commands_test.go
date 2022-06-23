@@ -5,6 +5,16 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
+	"net/http"
+	"net/http/httptest"
+	"strconv"
+	"strings"
+	"testing"
+	"time"
+
+	"github.com/stretchr/testify/assert"
+	"github.com/stretchr/testify/require"
+
 	jobsmigration "github.com/cloudradar-monitoring/rport/db/migration/jobs"
 	"github.com/cloudradar-monitoring/rport/db/sqlite"
 	"github.com/cloudradar-monitoring/rport/server/api"
@@ -17,14 +27,6 @@ import (
 	"github.com/cloudradar-monitoring/rport/share/query"
 	"github.com/cloudradar-monitoring/rport/share/random"
 	"github.com/cloudradar-monitoring/rport/share/test"
-	"github.com/stretchr/testify/assert"
-	"github.com/stretchr/testify/require"
-	"net/http"
-	"net/http/httptest"
-	"strconv"
-	"strings"
-	"testing"
-	"time"
 )
 
 type JobProviderMock struct {

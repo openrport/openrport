@@ -2,9 +2,11 @@ package chserver
 
 import (
 	"errors"
-	"github.com/cloudradar-monitoring/rport/server/cgroups"
-	"github.com/stretchr/testify/assert"
 	"testing"
+
+	"github.com/stretchr/testify/assert"
+
+	"github.com/cloudradar-monitoring/rport/server/cgroups"
 )
 
 func TestValidateInputClientGroup(t *testing.T) {
