@@ -1,6 +1,6 @@
 # Multi tenancy 
-Multi tenancy can be achived by running multiple isolated instances of the RPort server on a single host.
-By invoking `rportd` multiple time with different configurtion files, you get completely isolated server instances.
+Multi tenancy can be achieved by running multiple isolated instances of the RPort server on a single host.
+By invoking `rportd` multiple time with different configuration files, you get completely isolated server instances.
 
 ## Run it with systemd
 Below you find an example of systemd service file, that manages multiple instances.
@@ -24,6 +24,6 @@ EnvironmentFile=-/etc/sysconfig/rportd
 WantedBy=multi-user.target
 ```
 
-Now create a foler `/etc/rport/instances/` and put a configuration file per instance in this folder.
+Now create a folder `/etc/rport/instances/` and put a configuration file per instance in this folder.
 Start and stop the instances with `systemctl start rportd@<INSTANCE-NAME>`. 
 
