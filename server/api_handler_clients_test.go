@@ -111,6 +111,7 @@ func TestHandleGetClient(t *testing.T) {
                 "http_proxy":false,
 		        "idle_timeout_minutes": 0,
 		        "auto_close": 0,
+				"created_at":"0001-01-01T00:00:00Z",
                 "id":"1"
             },
             {
@@ -126,6 +127,7 @@ func TestHandleGetClient(t *testing.T) {
                 "http_proxy":false,
 		        "idle_timeout_minutes": 0,
 		        "auto_close": 0,
+				"created_at":"0001-01-01T00:00:00Z",
                 "id":"2"
             }
         ],
