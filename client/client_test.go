@@ -404,7 +404,7 @@ func (m *mockServer) IsConnected() bool {
 }
 
 func (m *mockServer) WaitForStatus(isConnected bool) error {
-	for i := 0; i < 500; i++ {
+	for i := 0; i < 750; i++ {
 		if m.IsConnected() == isConnected {
 			return nil
 		}
