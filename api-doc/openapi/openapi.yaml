@@ -23,7 +23,7 @@ tags:
     description: For more details https://oss.rport.io/docs/no09-managing-tunnels.html
   - name: Client Groups
     description: For more details https://oss.rport.io/docs/no04-client-groups.html
-  - name: Rport Client Auth Credentials
+  - name: Client Auth Credentials
     description: For more details https://oss.rport.io/docs/no03-client-auth.html
   - name: Commands
     description: For more details https://oss.rport.io/docs/no06-command-execution.html

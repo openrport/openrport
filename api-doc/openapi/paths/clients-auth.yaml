@@ -1,6 +1,6 @@
 get:
   tags:
-    - Rport Client Auth Credentials
+    - Client Auth Credentials
   summary: >-
     Return all rport clients authentication credentials. 
     Sorted by ID in asc order. Require admin access
@@ -57,7 +57,7 @@ get:
             $ref: ../components/schemas/ErrorPayload.yaml
 post:
   tags:
-    - Rport Client Auth Credentials
+    - Client Auth Credentials
   summary: Add new rport client authentication credentials. Require admin access
   operationId: ClientsauthsPost
   requestBody:

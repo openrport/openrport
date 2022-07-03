@@ -1,6 +1,6 @@
 get:
   tags:
-    - Rport Client Auth Credentials
+    - Client Auth Credentials
   summary: Get rport client authentication credentials. Require admin access
   operationId: ClientsauthGet
   parameters:
@@ -31,7 +31,7 @@ get:
             $ref: ../components/schemas/ErrorPayload.yaml
 delete:
   tags:
-    - Rport Client Auth Credentials
+    - Client Auth Credentials
   summary: Delete rport client authentication credentials. Require admin access
   operationId: ClientsauthDelete
   parameters:

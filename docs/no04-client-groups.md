@@ -3,7 +3,7 @@ Rport client group can be created by:
 1. adding single clients to it;
 2. dynamic criteria using wildcards.
 
-Managing client groups is done via the [API](https://petstore.swagger.io/?url=https://raw.githubusercontent.com/cloudradar-monitoring/rport/master/api-doc.yml#/Client%20Groups).
+Managing client groups is done via the [API](https://apidoc.rport.io/master/#tag/Client-Groups).
 The `/client-groups` endpoints allow you to create, update, delete and list them.
 
 As listed in the API docs Client Group is defined by:

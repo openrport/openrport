@@ -2,7 +2,8 @@
 
 This folder contains the sources of rportd API documentation following the openapi 3.0.1 standard.
 
-If you came by here to read the API documentation use [this link](#) to switch to the rendered HTML version.
+If you came by here to read the API documentation go to [apidoc.rport.io](https://apidoc.rport.io/master/) to switch to the rendered HTML version.
+For those preferring swagger-style rendering, use [this link](https://petstore.swagger.io/?url=https://raw.githubusercontent.com/cloudradar-monitoring/rport/master/api-doc/openapi/openapi.yaml#/)
 
 ## Build the documentation from the sources
 There a many tools out there to convert the yaml sources into different formats.  For example [Swagger Codegen](https://swagger.io/docs/open-source-tools/swagger-codegen/) or the [Open API Codegenerator](https://repo1.maven.org/maven2/org/openapitools/openapi-generator-cli/5.0.0/). 

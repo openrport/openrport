@@ -208,16 +208,16 @@ rport --auth user1:1234 --fingerprint <YOUR_FINGERPRINT> node1.example.com:8080 
 *Note that in this early version the order of the command line options is still important. This might change later.*
 
 ## All API Capabilities
-* [Swagger API docs](https://petstore.swagger.io/?url=https://raw.githubusercontent.com/cloudradar-monitoring/rport/master/api-doc.yml).
+* [API docs](https://petstore.swagger.io/?url=https://raw.githubusercontent.com/cloudradar-monitoring/rport/master/api-doc.yml).
 * [API authentication options](no02-api-auth.md)
-* [Management of clients and tunnels via the API](no09-managing-tunnels.md) or the [Swagger API docs](https://petstore.swagger.io/?url=https://raw.githubusercontent.com/cloudradar-monitoring/rport/master/api-doc.yml#/Client%20Sessions%20and%20Tunnels)
-* [Command execution via the API](no06-command-execution.md) or the [Swagger API docs](https://petstore.swagger.io/?url=https://raw.githubusercontent.com/cloudradar-monitoring/rport/master/api-doc.yml#/Commands)
-* [Management of client authentication credentials via the API](no03-client-auth.md) or the [Swagger API docs](https://petstore.swagger.io/?url=https://raw.githubusercontent.com/cloudradar-monitoring/rport/master/api-doc.yml#/Rport%20Client%20Auth%20Credentials)
-* [Management of client groups via the API](no04-client-groups.md) or the [Swagger API docs](https://petstore.swagger.io/?url=https://raw.githubusercontent.com/cloudradar-monitoring/rport/master/api-doc.yml#/Client%20Groups)
-* [Management of users via the API](no12-user.md) or the [Swagger API docs](https://petstore.swagger.io/?url=https://raw.githubusercontent.com/cloudradar-monitoring/rport/master/api-doc.yml#/Users)
-* [Vault management via the API](no13-vault.md) or the [Swagger API docs](https://petstore.swagger.io/?url=https://raw.githubusercontent.com/cloudradar-monitoring/rport/master/api-doc.yml#/Vault)
-* [Scripts management via the API](no14-scripts.md) or the [Swagger API docs](https://petstore.swagger.io/?url=https://raw.githubusercontent.com/cloudradar-monitoring/rport/master/api-doc.yml#/Scripts)
-* [File uplaods](no18-file-upload.md) or the [Swagger API docs](https://petstore.swagger.io/?url=https://raw.githubusercontent.com/cloudradar-monitoring/rport/master/api-doc.yml#/Upload)
+* [Management of clients and tunnels via the API](no09-managing-tunnels.md) or the [API docs](https://apidoc.rport.io/master/#tag/Clients-and-Tunnels)
+* [Command execution via the API](no06-command-execution.md) or the [API docs](https://apidoc.rport.io/master/#tag/Commands)
+* [Management of client authentication credentials via the API](no03-client-auth.md) or the [API docs](https://apidoc.rport.io/master/#tag/Client-Auth-Credentials)
+* [Management of client groups via the API](no04-client-groups.md) or the [API docs](https://apidoc.rport.io/master/#tag/Client-Groups)
+* [Management of users via the API](no12-user.md) or the [API docs](https://apidoc.rport.io/master/#tag/Users)
+* [Vault management via the API](no13-vault.md) or the [API docs](https://apidoc.rport.io/master/#tag/Vault)
+* [Scripts management via the API](no14-scripts.md) or the [API docs](https://apidoc.rport.io/master/#tag/Scripts)
+* [File uplaods](no18-file-upload.md) or the [API docs](https://apidoc.rport.io/master/#tag/Upload)
 
 ## Install a web-based frontend
 Rport comes with a user-friendly web-based frontend. The frontend has it's own none-open-source repository. The installation is quick and easy. [Learn more](no07-frontend.md)

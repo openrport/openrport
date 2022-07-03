@@ -20,7 +20,7 @@ tags:
     description: For more details https://oss.rport.io/docs/no09-managing-tunnels.html
   - name: Client Groups
     description: For more details https://oss.rport.io/docs/no04-client-groups.html
-  - name: Rport Client Auth Credentials
+  - name: Client Auth Credentials
     description: For more details https://oss.rport.io/docs/no03-client-auth.html
   - name: Commands
     description: For more details https://oss.rport.io/docs/no06-command-execution.html
@@ -1713,7 +1713,7 @@ paths:
   /clients-auth:
     get:
       tags:
-        - Rport Client Auth Credentials
+        - Client Auth Credentials
       summary: >-
         Return all rport clients authentication credentials. Sorted by ID in asc
         order. Require admin access
@@ -1763,7 +1763,7 @@ paths:
                 $ref: '#/components/schemas/ErrorPayload'
     post:
       tags:
-        - Rport Client Auth Credentials
+        - Client Auth Credentials
       summary: Add new rport client authentication credentials. Require admin access
       requestBody:
         description: Client auth credentials to add
@@ -1800,7 +1800,7 @@ paths:
   /clients-auth/{client_auth_id}:
     get:
       tags:
-        - Rport Client Auth Credentials
+        - Client Auth Credentials
       summary: Get rport client authentication credentials. Require admin access
       parameters:
         - name: client_auth_id
@@ -1830,7 +1830,7 @@ paths:
                 $ref: '#/components/schemas/ErrorPayload'
     delete:
       tags:
-        - Rport Client Auth Credentials
+        - Client Auth Credentials
       summary: Delete rport client authentication credentials. Require admin access
       parameters:
         - name: client_auth_id

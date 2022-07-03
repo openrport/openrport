@@ -2,7 +2,7 @@
 Rport allows to store your scripts for later reuse, so you can share them with your teammates and to have access to them from anywhere.
 
 ## Scripts management
-You can manage script with the [REST API](https://petstore.swagger.io/?url=https://raw.githubusercontent.com/cloudradar-monitoring/rport/master/api-doc.yml#/Scripts).
+You can manage script with the [REST API](https://apidoc.rport.io/master/#tag/Scripts).
 
 The `/library/scripts` endpoints allow you to create, update, delete and list scripts.
 
@@ -225,7 +225,7 @@ curl -X POST 'http://localhost:3000/api/v1/clients/4943d682-7874-4f7a-999c-b4ff5
 }'
 ```
 
-you can check the status of the command execution by calling [client commands API](https://petstore.swagger.io/?url=https://raw.githubusercontent.com/cloudradar-monitoring/rport/master/api-doc.yml#/Commands/get_clients__client_id__commands__job_id_).
+you can check the status of the command execution by calling [client commands API](https://apidoc.rport.io/master/#operation/ClientCommandsJobGet).
 
 You can execute a script on multiple clients by calling `scripts` API, in this case you should provide client ids in the input body:
 
@@ -267,7 +267,7 @@ You can specify aliases in `rport.conf` (see `rport.example.conf`), see `[interp
 allows you to use `pwsh7` or `latestbash` as interpreter in the script execution APIs.
 
 ### Script execution via websocket interface
-You can use [our testing API for Websockets](https://petstore.swagger.io/?url=https://raw.githubusercontent.com/cloudradar-monitoring/rport/master/api-doc.yml#/Scripts/get_ws_scripts). 
+You can use [our testing API for Websockets](https://apidoc.rport.io/master/#operation/WsCommandsGet). 
 To use this API, enable testing endpoints by setting `enable_ws_test_endpoints` flag to true in the `[server]` section of configuration file:
 ```
 [server]
