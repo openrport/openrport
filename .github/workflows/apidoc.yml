@@ -3,12 +3,17 @@ on: [push]
 jobs:
   golangci:
     name: Apidoc
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-22.04
     steps:
       - name: Checkout
         uses: actions/checkout@v2
 
       - name: Validate Apidoc
         run: |
-          sudo pip3 install openapi-spec-validator
-          openapi-spec-validator --schema 2.0 api-doc.yml
+          cd api-doc/openapi
+          if npx @redocly/cli lint --lint-config off --format json openapi.yaml > ~/apidoclint.json; then
+            true
+          else
+            jq < ~/apidoclint.json
+            if [ $(jq -r .totals.warnings < ~/apidoclint.json) -gt 0 ];then false;fi
+          fi

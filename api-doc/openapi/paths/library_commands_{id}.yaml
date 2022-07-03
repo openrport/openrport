@@ -1,0 +1,143 @@
+get:
+  tags:
+    - Library
+  summary: Read a command
+  description: Reads a command by the provided ID
+  operationId: LibraryCommandGet
+  parameters:
+    - name: id
+      in: path
+      description: Unique command ID
+      required: true
+      schema:
+        type: string
+    - name: fields[<RESOURCE>]
+      in: query
+      description: >-
+        Fields to be returned. It should be provided in the format as
+        `fields[<RESOURCE>]=<FIELDS>`, where `<RESOURCE>` is `commands` and
+        `<FIELDS>` is a comma separated list of fields. Example:
+        `fields[commands]=id,name`. If no fields are specified, all will be
+        returned.
+      schema:
+        type: string
+  responses:
+    '200':
+      description: Successful Operation
+      content:
+        application/json:
+          schema:
+            type: object
+            properties:
+              data:
+                $ref: ../components/schemas/Command.yaml
+    '401':
+      description: Unauthorized
+      content:
+        application/json:
+          schema:
+            $ref: ../components/schemas/ErrorPayload.yaml
+    '404':
+      description: Cannot find a command by the provided id
+      content:
+        application/json:
+          schema:
+            $ref: ../components/schemas/ErrorPayload.yaml
+    '500':
+      description: Invalid Operation
+      content:
+        application/json:
+          schema:
+            $ref: ../components/schemas/ErrorPayload.yaml
+put:
+  tags:
+    - Library
+  summary: Updates an existing command
+  operationId: LibraryCommandPut
+  description: |-
+    Updates an existing command by the provided `id` parameter.
+     You need to provide all fields like those you used to create a command. Partial updates are not supported. You can get `id` by using the listing API. You get the id also when you store a new value.
+  parameters:
+    - name: id
+      in: path
+      description: Unique command ID
+      required: true
+      schema:
+        type: string
+  requestBody:
+    description: value in the json format
+    content:
+      '*/*':
+        schema:
+          $ref: ../components/schemas/CommandInput.yaml
+    required: true
+  responses:
+    '200':
+      description: Successful Operation
+      content:
+        '*/*':
+          schema:
+            type: object
+            properties:
+              data:
+                $ref: ../components/schemas/Command.yaml
+    '400':
+      description: Invalid body parameters
+      content:
+        '*/*':
+          schema:
+            $ref: ../components/schemas/ErrorPayload.yaml
+    '401':
+      description: Unauthorized
+      content:
+        '*/*':
+          schema:
+            $ref: ../components/schemas/ErrorPayload.yaml
+    '409':
+      description: another command with the same name exists
+      content:
+        '*/*':
+          schema:
+            $ref: ../components/schemas/ErrorPayload.yaml
+    '500':
+      description: Invalid Operation
+      content:
+        '*/*':
+          schema:
+            $ref: ../components/schemas/ErrorPayload.yaml
+  x-codegen-request-body-name: body
+delete:
+  tags:
+    - Library
+  summary: Deletes an existing command
+  operationId: LibraryCommandDelete
+  description: Delete a command by the provided `id` parameter.
+  parameters:
+    - name: id
+      in: path
+      description: Unique command ID
+      required: true
+      schema:
+        type: string
+  responses:
+    '204':
+      description: Successful Operation
+      content: {}
+    '401':
+      description: Unauthorized
+      content:
+        '*/*':
+          schema:
+            $ref: ../components/schemas/ErrorPayload.yaml
+    '404':
+      description: cannot find command by the provided id
+      content:
+        '*/*':
+          schema:
+            $ref: ../components/schemas/ErrorPayload.yaml
+    '500':
+      description: Invalid Operation
+      content:
+        '*/*':
+          schema:
+            $ref: ../components/schemas/ErrorPayload.yaml

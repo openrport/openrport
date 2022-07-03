@@ -1,0 +1,88 @@
+get:
+  tags:
+    - Rport Client Auth Credentials
+  summary: Get rport client authentication credentials. Require admin access
+  operationId: ClientsauthGet
+  parameters:
+    - name: client_auth_id
+      in: path
+      description: client auth ID
+      required: true
+      schema:
+        type: string
+  responses:
+    '200':
+      description: Successful Operation
+      content:
+        '*/*':
+          schema:
+            type: object
+            properties:
+              data:
+                $ref: ../components/schemas/ClientAuth.yaml
+    '404':
+      description: Client auth credentials not found
+      content: {}
+    '500':
+      description: Invalid Operation
+      content:
+        '*/*':
+          schema:
+            $ref: ../components/schemas/ErrorPayload.yaml
+delete:
+  tags:
+    - Rport Client Auth Credentials
+  summary: Delete rport client authentication credentials. Require admin access
+  operationId: ClientsauthDelete
+  parameters:
+    - name: client_auth_id
+      in: path
+      description: client auth ID
+      required: true
+      schema:
+        type: string
+    - name: force
+      in: query
+      description: >-
+        If true, delete a client auth even when it has active/disconnected
+        clients.
+      schema:
+        type: boolean
+  responses:
+    '204':
+      description: Client auth credentials deleted.
+      content: {}
+    '400':
+      description: Invalid parameters
+      content:
+        '*/*':
+          schema:
+            $ref: ../components/schemas/ErrorPayload.yaml
+    '404':
+      description: Client auth credentials not found
+      content:
+        '*/*':
+          schema:
+            $ref: ../components/schemas/ErrorPayload.yaml
+    '405':
+      description: >-
+        Operation not allowed. Error codes: ERR_CODE_CLIENT_AUTH_SINGLE,
+        ERR_CODE_CLIENT_AUTH_RO
+      content:
+        '*/*':
+          schema:
+            $ref: ../components/schemas/ErrorPayload.yaml
+    '409':
+      description: >-
+        Could not delete. Client Auth has active or disconnected bound
+        client(s). Err code: ERR_CODE_CLIENT_AUTH_HAS_CLIENT
+      content:
+        '*/*':
+          schema:
+            $ref: ../components/schemas/ErrorPayload.yaml
+    '500':
+      description: Invalid Operation
+      content:
+        '*/*':
+          schema:
+            $ref: ../components/schemas/ErrorPayload.yaml

@@ -1,0 +1,118 @@
+get:
+  tags:
+    - Vault
+  summary: Read or find vault entries
+  description: Reads all vault entries or find some based on the input parameters
+  operationId: VaultGet
+  parameters:
+    - name: sort
+      in: query
+      description: >-
+        Sort field to be used for values, the sorting direction is by default
+        ASC.
+         To change the direction add `-` to the sorting value e.g. `-id`. Allowed values are `id`, `client_id`, `created_by`, `created_at`, `key`.
+         You can use as many sort parameters as you want.
+      schema:
+        type: string
+    - name: filter[<FIELD>]
+      in: query
+      description: >-
+        Filter to find vault entries. It should be provided in the format as
+        `filter[<FIELD>]=<VALUE>`,
+         where `<FIELD>` is one of the values `id`, `client_id`, `created_by`, `created_at`, `key` and `<VALUE>` is the search value,
+         e.g. `filter[created_by]=admin` will request only vault entries created by admin. You can use as many filter parameters as you want.
+         If you want to filter by multiple values e.g. find entries either for client_id = client1 or client2 you can use following filters
+         `filter[client_id]=client1,client2`
+         Wildcards `*` are supported in the filter `<value>`.
+      schema:
+        type: string
+  responses:
+    '200':
+      description: Successful Operation
+      content:
+        application/json:
+          schema:
+            type: object
+            properties:
+              data:
+                type: array
+                items:
+                  $ref: ../components/schemas/VaultEntryOutputShort.yaml
+    '400':
+      description: unsupported sort field 'xyz'
+      content:
+        application/json:
+          schema:
+            $ref: ../components/schemas/ErrorPayload.yaml
+    '401':
+      description: Unauthorized
+      content:
+        application/json:
+          schema:
+            $ref: ../components/schemas/ErrorPayload.yaml
+    '409':
+      description: vault is locked or not initialized
+      content:
+        application/json:
+          schema:
+            $ref: ../components/schemas/ErrorPayload.yaml
+    '500':
+      description: Invalid Operation
+      content:
+        application/json:
+          schema:
+            $ref: ../components/schemas/ErrorPayload.yaml
+post:
+  tags:
+    - Vault
+  summary: Creates a new vault entry
+  operationId: VaultPost
+  description: |-
+    Creates a new entry in vault with the encrypted value field.
+     If another entry with the same key and client id combination exists, an error will be returned.
+  requestBody:
+    description: value in the json format
+    content:
+      '*/*':
+        schema:
+          $ref: ../components/schemas/VaultEntryInput.yaml
+    required: true
+  responses:
+    '201':
+      description: Successful Operation
+      content:
+        application/json:
+          schema:
+            type: object
+            properties:
+              data:
+                type: object
+                properties:
+                  id:
+                    type: integer
+                    description: unique internal id of the created vault entry
+    '400':
+      description: Invalid request parameters
+      content:
+        application/json:
+          schema:
+            $ref: ../components/schemas/ErrorPayload.yaml
+    '401':
+      description: Unauthorized
+      content:
+        application/json:
+          schema:
+            $ref: ../components/schemas/ErrorPayload.yaml
+    '409':
+      description: vault is locked or not initialized or another key exists for this client
+      content:
+        application/json:
+          schema:
+            $ref: ../components/schemas/ErrorPayload.yaml
+    '500':
+      description: Invalid Operation
+      content:
+        application/json:
+          schema:
+            $ref: ../components/schemas/ErrorPayload.yaml
+  x-codegen-request-body-name: body

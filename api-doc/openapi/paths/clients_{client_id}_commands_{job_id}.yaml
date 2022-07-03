@@ -1,0 +1,41 @@
+get:
+  tags:
+    - Commands
+  summary: Return a detailed info about a specific client command
+  description: Return a detailed info about a command by given job id
+  operationId: ClientCommandsJobGet
+  parameters:
+    - name: client_id
+      in: path
+      description: unique client id retrieved previously
+      required: true
+      schema:
+        type: string
+    - name: job_id
+      in: path
+      description: unique job id retrieved previously
+      required: true
+      schema:
+        type: string
+  responses:
+    '200':
+      description: Successful Operation
+      content:
+        application/json:
+          schema:
+            type: object
+            properties:
+              data:
+                $ref: ../components/schemas/Job.yaml
+    '404':
+      description: Command not found with given client id and job id
+      content:
+        application/json:
+          schema:
+            $ref: ../components/schemas/ErrorPayload.yaml
+    '500':
+      description: Invalid Operation
+      content:
+        application/json:
+          schema:
+            $ref: ../components/schemas/ErrorPayload.yaml

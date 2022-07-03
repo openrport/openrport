@@ -1,0 +1,36 @@
+type: object
+properties:
+  token:
+    type: string
+    description: >-
+      Authorization JWT token. If 2fa or TotP is enabled, this token can only be
+      used to verify delivered or generated code with the `/verify-2fa`
+      endpoint. 
+       In the case with TotP, this token can be used to create the first secret with the /me/totp-secret endpoint.
+  two_fa:
+    type: object
+    properties:
+      send_to:
+        type: string
+        description: >-
+          Recipient (email or pushover user key) that is used to send 2fa token
+          to the user
+      delivery_method:
+        type: string
+        description: |-
+          Delivery method that is used to send 2fa token to the user. 
+           `totp_authenticator_app` value indicates that user has enabled time based one time passwords.
+        enum:
+          - email
+          - pushover
+          - totp_authenticator_app
+      totp_key_status:
+        type: string
+        description: >-
+          If current user has generated a TotP secret key already, the result
+          will be `existing` and `pending` otherwise
+        enum:
+          - pending
+          - exists
+    description: 2FA information. It's null when 2fa is disabled
+description: Response returned by `/login` endpoints

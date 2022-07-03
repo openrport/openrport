@@ -1,0 +1,97 @@
+get:
+  tags:
+    - Profile & Info
+  summary: Get information about rport server
+  operationId: StatusGet
+  description: Show health status, server version, etc
+  responses:
+    '200':
+      description: Successful Operation
+      content:
+        application/json:
+          schema:
+            type: object
+            properties:
+              data:
+                type: object
+                properties:
+                  version:
+                    type: string
+                  clients_connected:
+                    type: integer
+                  clients_disconnected:
+                    type: integer
+                  clients_auth_source:
+                    type: string
+                    description: The source of clients authentication credentials
+                    enum:
+                      - Static Credentials
+                      - File
+                      - DB
+                  clients_auth_mode:
+                    type: string
+                    description: >-
+                      Shows whether it's allowed or not to create/update/delete
+                      clients authentication credentials
+                    enum:
+                      - Read Only
+                      - Read Write
+                  fingerprint:
+                    type: string
+                  connect_url:
+                    type: array
+                    description: Full client connect URL(s)
+                    items:
+                      type: string
+                  users_auth_source:
+                    type: string
+                    description: The source of API users authentication credentials
+                    enum:
+                      - Static Credentials
+                      - File
+                      - DB
+                  two_fa_enabled:
+                    type: boolean
+                    description: True if two-factor authentication or totp auth is enabled
+                  two_fa_delivery_method:
+                    type: string
+                    description: >-
+                      Delivery method that is used to send auth tokens when 2FA
+                      is enabled, if totp is enabled, 'totp_authenticator_app'
+                      is returned
+                    enum:
+                      - email
+                      - pushover
+                      - totp_authenticator_app
+                  tunnel_proxy_enabled:
+                    type: boolean
+                    description: True if tunnel reverse proxy is enabled
+                  used_ports:
+                    type: array
+                    description: >-
+                      Shows a list of port numbers or ranges of server ports,
+                      that are used for automatic and manual port assignment
+                    items:
+                      type: string
+                  excluded_ports:
+                    type: array
+                    description: >-
+                      Shows a list of port numbers or ranges of server ports,
+                      that are not used for automatic and manual port assignment
+                    items:
+                      type: string
+              meta:
+                type: object
+                properties: {}
+    '400':
+      description: Invalid request parameters
+      content:
+        application/json:
+          schema:
+            $ref: ../components/schemas/ErrorPayload.yaml
+    '500':
+      description: Invalid Operation
+      content:
+        application/json:
+          schema:
+            $ref: ../components/schemas/ErrorPayload.yaml

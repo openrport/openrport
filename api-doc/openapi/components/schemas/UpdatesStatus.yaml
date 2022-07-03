@@ -1,0 +1,26 @@
+type: object
+properties:
+  refreshed:
+    type: string
+    description: When was the status refreshed
+    format: date-time
+  updates_available:
+    type: integer
+    description: Number of updates available
+  security_updates_available:
+    type: integer
+    description: Number of security updates available
+  updates_summaries:
+    type: array
+    description: List of available updates
+    items:
+      $ref: ./UpdateSummary.yaml
+  reboot_pending:
+    type: boolean
+    description: Is reboot required at the moment
+  error:
+    type: string
+    description: Error that happened when refreshing status if any
+  hint:
+    type: string
+    description: Suggested solution to the error if any

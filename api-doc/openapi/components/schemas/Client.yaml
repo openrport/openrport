@@ -1,0 +1,110 @@
+type: object
+properties:
+  id:
+    type: string
+  name:
+    type: string
+    description: client name
+  os:
+    type: string
+    description: long description of client OS
+  os_full_name:
+    type: string
+    description: >-
+      short description of client OS (e.g. Microsoft Windows Server 2016
+      Standard)
+  os_version:
+    type: string
+    description: version info about client's OS e.g. 10.0.14393 Build 14393
+  os_arch:
+    type: string
+    description: 'client cpu architecture (ex: 386, amd64)'
+  os_family:
+    type: string
+    description: 'client OS family (ex: debian, alpine, Standalone Workstation)'
+  os_kernel:
+    type: string
+    description: 'client OS kernel (ex: linux, windows)'
+  os_virtualization_system:
+    type: string
+    description: >-
+      info about the VM where client is running e.g. KVM, LXC, HyperV, VMWare,
+      Xen
+  os_virtualization_role:
+    type: string
+    description: role of the client in the running VM e.g. host or guest
+  hostname:
+    type: string
+    description: client hostname
+  cpu_family:
+    type: string
+    description: client's processor family info
+  cpu_model:
+    type: string
+    description: client's processor model info, e.g. 85
+  cpu_vendor:
+    type: string
+    description: processor's vendor name , e.g. Intel
+  cpu_model_name:
+    type: string
+    description: >-
+      human readable name of the client's processor model, e.g. Intel(R) Xeon(R)
+      Silver 4110 CPU @ 2.10GHz
+  num_cpus:
+    type: integer
+    description: Number of cpu cores in the client's machine
+  mem_total:
+    type: number
+    description: Total memory in bytes
+  timezone:
+    type: string
+    description: Client's timezone e.g. PDT (UTC-07:00)
+  ipv4:
+    type: array
+    description: list of IPv4 addresses of the client
+    items:
+      type: string
+  ipv6:
+    type: array
+    description: list of IPv6 addresses of the client
+    items:
+      type: string
+  tags:
+    type: array
+    items:
+      type: string
+  version:
+    type: string
+    description: client version
+  address:
+    type: string
+    description: client address
+  tunnels:
+    type: array
+    items:
+      $ref: ./Tunnel.yaml
+  connection_state:
+    type: string
+    description: indicates whether a client is connected or disconnected
+    enum:
+      - connected
+      - disconnected
+  disconnected_at:
+    type: string
+    description: time when a client was disconnected. If null - it's connected
+    format: data-time
+  client_auth_id:
+    type: string
+    description: rport client authentication ID that was used to connect to server
+  allowed_user_groups:
+    type: array
+    description: >-
+      list of user groups that are allowed to access this client. Administrators
+      have always full-access to all clients. Empty list prevents access for
+      everyone except admins
+    items:
+      type: string
+  updates_status:
+    $ref: ./UpdatesStatus.yaml
+  client_configuration:
+    $ref: ./ClientConfiguration.yaml

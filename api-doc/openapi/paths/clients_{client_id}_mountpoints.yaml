@@ -1,0 +1,77 @@
+get:
+  tags:
+    - Monitoring
+  summary: Lists client mountpoints
+  description: List monitoring data about client mountpoints for the provided clientID
+  operationId: ClientMountpointsGet
+  parameters:
+    - name: client_id
+      in: path
+      description: Unique client ID
+      required: true
+      schema:
+        type: string
+    - name: sort
+      in: query
+      description: >-
+        There is only `timestamp` allowed as sort field. Default direction is
+        DESC
+         To sort ascending use `&sort=timestamp`.
+      schema:
+        type: string
+    - name: filter[timestamp][<OPERATOR>]
+      in: query
+      description: >-
+        Filter entries by field `timestamp`. `<OPERATOR>` can be one of `gt`,
+        `lt`, `since` or `until`.
+         `gt` and `lt` require a timestamp value as `unixepoch`. `since` and `until` require a timestamp value in format `RFC3339`.
+         e.g. `filter[timestamp][gt]=1636009200&filter[timestamp][lt]=1636009500` or
+         e.g. `filter[timestamp][since]=2021-01-01T00:00:00+01:00&filter[timestamp][until]=2021-01-01T01:00:00+01:00`.
+
+         
+      schema:
+        type: string
+    - name: page
+      in: query
+      description: >-
+        Pagination options `page[limit]` and `page[offset]` can be used to get
+        more than the first page of results. Default limit is 1 and maximum is
+        100.
+         The `count` property in meta shows the total number of results.
+      schema:
+        type: integer
+  responses:
+    '200':
+      description: Successful Operation
+      content:
+        application/json:
+          schema:
+            type: object
+            properties:
+              data:
+                type: array
+                items:
+                  $ref: ../components/schemas/Mountpoints.yaml
+              meta:
+                type: object
+                properties:
+                  count:
+                    type: integer
+    '400':
+      description: Bad Request
+      content:
+        application/json:
+          schema:
+            $ref: ../components/schemas/ErrorPayload.yaml
+    '404':
+      description: Cannot find measurements by the provided id
+      content:
+        application/json:
+          schema:
+            $ref: ../components/schemas/ErrorPayload.yaml
+    '500':
+      description: Invalid Operation
+      content:
+        application/json:
+          schema:
+            $ref: ../components/schemas/ErrorPayload.yaml

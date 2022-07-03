@@ -1,0 +1,37 @@
+get:
+  tags:
+    - Commands
+  summary: Return a detailed info about a specific multi-client command
+  operationId: CommandGet
+  description: >-
+    Return a detailed info about a multi-client command by given id with child
+    jobs as well
+  parameters:
+    - name: job_id
+      in: path
+      description: unique multi job id retrieved previously
+      required: true
+      schema:
+        type: string
+  responses:
+    '200':
+      description: Successful Operation
+      content:
+        application/json:
+          schema:
+            type: object
+            properties:
+              data:
+                $ref: ../components/schemas/MultiJob.yaml
+    '400':
+      description: Command not found with a given multi job id
+      content:
+        application/json:
+          schema:
+            $ref: ../components/schemas/ErrorPayload.yaml
+    '500':
+      description: Invalid Operation
+      content:
+        application/json:
+          schema:
+            $ref: ../components/schemas/ErrorPayload.yaml

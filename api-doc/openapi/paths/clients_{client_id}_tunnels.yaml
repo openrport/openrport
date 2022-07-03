@@ -1,0 +1,133 @@
+put:
+  tags:
+    - Clients and Tunnels
+  summary: Request a new tunnel for an active client connection
+  operationId: ClientTunnelsPut
+  parameters:
+    - name: client_id
+      in: path
+      description: unique client id retrieved previously
+      required: true
+      schema:
+        type: string
+    - name: local
+      in: query
+      description: >-
+        local refers to the local port of the rport server to use for a new
+        tunnel, e.g. '3390' or '0.0.0.0:3390'. If local is not specified, a
+        random free server port will be selected automatically
+      schema:
+        type: string
+    - name: remote
+      in: query
+      description: >-
+        remote address endpoint, e.g. '3389', '0.0.0.0:22' or
+        '192.168.178.1:80', etc
+      required: true
+      schema:
+        type: string
+    - name: scheme
+      in: query
+      description: URI scheme to be used. For example, 'ssh', 'rdp', etc.
+      schema:
+        type: string
+    - name: acl
+      in: query
+      description: >-
+        ACL, IP v4 addresses or ranges who is allowed to use the tunnel (ipv6 is
+        not supported yet). For example, '142.78.90.8,201.98.123.0/24'
+      schema:
+        type: string
+    - name: check_port
+      in: query
+      description: >-
+        A flag whether to check availability of a public port (remote). By
+        default check is enabled. To disable it specify 'check_port=0'.
+      schema:
+        type: string
+    - name: idle-timeout-minutes
+      in: query
+      description: >-
+        Auto-close the tunnel after given period of inactivity in minutes. If
+        not provided, default value is 5 minutes. This parameter should not be
+        used with a non empty `skip-idle-timeout` parameter
+      schema:
+        maximum: 10080
+        minimum: 0
+        type: integer
+        default: 5
+    - name: auto-close
+      in: query
+      description: >-
+        if > 0 then auto-close the tunnel after given duration. Valid time units
+        are 's'(seconds), 'm'(minutes), 'h'(hours). For example, '20m', '1m30s',
+        '1h', etc
+      schema:
+        type: string
+    - name: protocol
+      in: query
+      description: Protocol for the tunnel. Can be `tcp` or `udp`. Default is `tcp`.
+      schema:
+        type: string
+    - name: skip-idle-timeout
+      in: query
+      description: >-
+        Disables the auto-close time of the tunnel (see `idle-timeout-minutes`
+        parameter). The parameter should not be used with a non empty
+        `idle-timeout-minutes` parameter
+      schema:
+        type: integer
+    - name: http_proxy
+      in: query
+      description: >-
+        If true, triggers the start of a reverse proxy in front of the tunnel to
+        handle ssl offloading. Default is false. `http_proxy=true` is only
+        allowed in combination with scheme 'http' or 'https'
+      schema:
+        type: boolean
+    - name: host_header
+      in: query
+      description: >-
+        If http_proxy is true, you can specify a host name which will be added
+        as header field `Host` to each outgouing proxy request. (virtual hosting
+        on remote side)
+      schema:
+        type: string
+  responses:
+    '200':
+      description: success response
+      content:
+        application/json:
+          schema:
+            type: object
+            properties:
+              data:
+                $ref: ../components/schemas/Tunnel.yaml
+    '400':
+      description: >-
+        invalid parameters. Error codes: ERR_CODE_LOCAL_PORT_IN_USE,
+        ERR_CODE_REMOTE_PORT_NOT_OPEN, ERR_CODE_INVALID_ACL,
+        ERR_CODE_TUNNEL_EXIST, ERR_CODE_TUNNEL_TO_PORT_EXIST,
+        ERR_CODE_URI_SCHEME_LENGTH_EXCEED, ERR_CODE_INVALID_IDLE_TIMEOUT.
+      content:
+        application/json:
+          schema:
+            $ref: ../components/schemas/ErrorPayload.yaml
+    '404':
+      description: specified client does not exist, already terminated ot disconnected
+      content:
+        application/json:
+          schema:
+            $ref: ../components/schemas/ErrorPayload.yaml
+    '409':
+      description: can't create requested tunnel. Probably port already busy
+      content:
+        application/json:
+          schema:
+            $ref: ../components/schemas/ErrorPayload.yaml
+    '500':
+      description: invalid operation
+      content:
+        application/json:
+          schema:
+            $ref: ../components/schemas/ErrorPayload.yaml

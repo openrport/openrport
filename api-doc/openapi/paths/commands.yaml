@@ -1,0 +1,173 @@
+get:
+  tags:
+    - Commands
+  summary: Return a short info about all multi-client commands
+  operationId: CommandsGet
+  description: >-
+    Return a list of all running and finished commands sorted by started time in
+    desc order
+  parameters:
+    - name: sort
+      in: query
+      description: >-
+        Sort field to be used for sorting, the default sorting is by started
+        time in desc order.
+         To change the direction add `-` to the sorting value e.g. `-started_at`. Allowed values are `jid`, `started_at`, `created_by`, `schedule_id`.
+         You can use as many sort parameters as you want.
+      schema:
+        type: string
+    - name: filter[<FIELD>]
+      in: query
+      description: >-
+        Filter option `filter[<field>]` or `filter[started_at][<op>]`. `<field>`
+        can be one of `jid`, `created_by`, `started_at`, `schedule_id`  and
+        `<value>` is the search value,
+         e.g. `filter[created_by]=admin` will request only commands created by admin. You can use as many filter parameters as you want.
+         For `started_at` filter you need to specify operation: `gt`, `lt`, `since` or `until`.
+         If you want to filter by multiple values e.g. find entries either for created_by = admin or other you can use following filters
+         `filter[created_by]=admin,other`.
+      schema:
+        type: string
+    - name: page
+      in: query
+      description: >-
+        Pagination options `page[limit]` and `page[offset]` can be used to get
+        more than the first page of results. Default limit is 100 and maximum is
+        1000. The `count` property in meta shows the total number of results.
+      schema:
+        type: integer
+  responses:
+    '200':
+      description: Successful Operation
+      content:
+        application/json:
+          schema:
+            type: object
+            properties:
+              data:
+                type: array
+                items:
+                  $ref: ../components/schemas/MultiJobSummary.yaml
+              meta:
+                type: object
+                properties:
+                  count:
+                    type: integer
+    '400':
+      description: Invalid request parameters
+      content:
+        application/json:
+          schema:
+            $ref: ../components/schemas/ErrorPayload.yaml
+    '500':
+      description: Invalid Operation
+      content:
+        application/json:
+          schema:
+            $ref: ../components/schemas/ErrorPayload.yaml
+post:
+  tags:
+    - Commands
+  summary: Execute a command on multiple rport clients
+  operationId: CommandsPost
+  description: >-
+    NOTE: if command limitation is enabled by an rport client then a full path
+    command can be required to use. See
+    https://oss.rport.io/docs/no06-command-execution.html for more details
+  requestBody:
+    description: properties and remote command to execute by rport clients
+    content:
+      '*/*':
+        schema:
+          type: object
+          properties:
+            command:
+              type: string
+              description: >-
+                remote command to execute by rport clients. NOTE: if command
+                limitation is enabled by an rport client then a full path
+                command can be required to use. See
+                https://oss.rport.io/docs/no06-command-execution.html for more
+                details
+            client_ids:
+              type: array
+              description: >-
+                list of client IDs where to run the command. Min items is 2 if
+                group_ids is not specified
+              items:
+                type: string
+            group_ids:
+              type: array
+              description: >-
+                list of client group IDs. A command will be executed on all
+                clients that belong to given group(s)
+              items:
+                type: string
+            interpreter:
+              type: string
+              description: >-
+                command interpreter to use to execute the command. Is applicable
+                only for windows clients. If not set 'cmd' is used by default
+              enum:
+                - cmd
+                - powershell
+            timeout_sec:
+              type: integer
+              description: >-
+                timeout in seconds to observe the command execution on each
+                client separately. If not set a default timeout (60 seconds) is
+                used
+            execute_concurrently:
+              type: boolean
+              description: >-
+                if true - execute the command concurrently on clients. If false
+                - sequentially in order that is in 'client_ids'. By default is
+                false
+              default: false
+            abort_on_error:
+              type: boolean
+              description: >-
+                applicable only if 'execute_concurrently' is false. If true -
+                abort the entire cycle if the execution fails on some client. By
+                default is true
+              default: true
+            cwd:
+              type: string
+              description: current working directory for an executable command
+            is_sudo:
+              type: boolean
+              description: execute the command as a sudo user
+    required: true
+  responses:
+    '200':
+      description: Successful Operation
+      content:
+        application/json:
+          schema:
+            type: object
+            properties:
+              data:
+                type: object
+                properties:
+                  jid:
+                    type: string
+                    description: multi job id of the corresponding command
+    '400':
+      description: Invalid request parameters
+      content:
+        application/json:
+          schema:
+            $ref: ../components/schemas/ErrorPayload.yaml
+    '404':
+      description: Client not found
+      content:
+        application/json:
+          schema:
+            $ref: ../components/schemas/ErrorPayload.yaml
+    '500':
+      description: Invalid Operation
+      content:
+        application/json:
+          schema:
+            $ref: ../components/schemas/ErrorPayload.yaml
+  x-codegen-request-body-name: body

@@ -1,0 +1,33 @@
+type: object
+properties:
+  id:
+    type: string
+    description: unique internal identifier of a stored tunnel in uuid4 format
+    readOnly: true
+  created_at:
+    type: string
+    description: Date and time of stored tunnel creation
+    format: data-time
+    readOnly: true
+  name:
+    type: string
+    description: Name of the stored tunnel
+  remote_ip:
+    type: string
+    description: Remote for the stored tunnel
+  remote_port:
+    type: integer
+    description: Remote port for the stored tunnel
+  public_port:
+    type: integer
+    description: Public port for the stored tunnel
+  scheme:
+    type: string
+    description: URI scheme for the stored tunnel
+  acl:
+    type: string
+    description: ACL for the stored tunnel
+  further_options:
+    type: object
+    properties: {}
+    description: Further options for the stored tunnel

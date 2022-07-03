@@ -1,0 +1,56 @@
+get:
+  tags:
+    - Scripts
+  summary: Web Socket Connection to execute scripts on rport client(s)
+  operationId: WsScriptsGet
+  description: >2
+    NOTE: swagger is not designed to document WebSocket API. This is a temporary solution.
+
+    A new web socket is created for each new request to execute a script on
+    rport client(s).
+     Steps:
+     1. To pass authentication - include "access_token" param into the url. The value is a jwt token that is created by 'login' API endpoint.
+     2. Upgrades the current connection to Web Socket.
+     3. Then server waits for an inbound script message from UI client. It should be a JSON object `ExecuteScriptRequest`(see in 'Models'):
+     For example,
+         ```json
+         {
+           "script": "Y2QgL1VzZXJzL2JyZWF0aGJhdGgvc3NsCmxzIC1sYQpjZCBnb2tleQpjYXQgTElDRU5TRQ==",
+           "client_ids": [ "qa-lin-debian9", "qa-lin-debian10", "qa-lin-centos8", "qa-lin-ubuntu18", "qa-lin-ubuntu16" ],
+           "group_ids": [ "group-1"],
+           "timeout_sec": 30,
+           "cwd": "/users/root",
+           "execute_concurrently": true,
+           "is_sudo": true
+         }
+        ```
+     5. Rport server will create the provided script as a shell script file in the target client(s) (e.g. `/tmp/f68a779d-1d46-414a-b165-d8d2df5f348c.sh` or `f68a779d-1d46-414a-b165-d8d2df5f348.ps1`).
+     Then it will run this script as a regular command e.g. `sh /tmp/f68a779d-1d46-414a-b165-d8d2df5f348c.sh`
+     If it fails, the server sends an outbound JSON message `ErrorPayload`(see in 'Models') and closes the connection. The temp script will be deleted anyway.
+     6. As soon as Rport server gets a result from client(s) - it sends an outbound JSON message `Job`(see in 'Models').
+     It can contain a non-empty 'error' field if server wasn't able to send the command to the rport client.
+     7. As soon as a rport client sends back the result - connection is closed by server.
+     8. Also, a current connection can be closed by UI client.
+     There is a simple UI for testing. Try it out on http://127.0.0.1:3000/api/v1/test/scripts/ui. You can enable this api by setting `enable_ws_test_endpoints=true` in the configuration file.
+  parameters:
+    - name: access_token
+      in: query
+      description: >-
+        JWT token that is created by 'login' API endpoint. Required to pass the
+        authentication.
+      required: true
+      schema:
+        type: string
+  responses:
+    '200':
+      description: On success upgrades current connection to websocket
+      content:
+        application/json:
+          schema:
+            type: object
+    '400':
+      description: Invalid request parameters
+      content:
+        application/json:
+          schema:
+            $ref: ../components/schemas/ErrorPayload.yaml

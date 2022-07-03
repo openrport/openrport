@@ -1,0 +1,28 @@
+type: object
+properties:
+  uuid:
+    type: string
+    description: unique upload request identifier
+  client_id:
+    type: string
+    description: client id
+  filepath:
+    type: string
+    description: Target path where the file was copied to
+  size:
+    type: number
+    description: File size in bytes
+  message:
+    type: string
+    description: Custom message as an additional explanation to the status
+  status:
+    type: string
+    description: >-
+      `success` indicates successful file downloads on the client, however
+      failures for chown and chmod operations are just reported as warnings.
+       `error` status indicates upload failures, where message field will contain failure details. 
+       `ignored` is returned when the target file already exists and is not forced or no sync is needed
+    enum:
+      - success
+      - error
+      - ignored

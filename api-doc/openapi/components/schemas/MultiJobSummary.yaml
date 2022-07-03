@@ -1,0 +1,16 @@
+type: object
+properties:
+  jid:
+    type: string
+    description: multi-client job ID
+  started_at:
+    type: string
+    description: command finish time
+    format: data-time
+  created_by:
+    type: string
+    description: API username who run the command
+  schedule_id:
+    type: string
+    description: Optional ID of the schedule the job was started by
+    format: uuid

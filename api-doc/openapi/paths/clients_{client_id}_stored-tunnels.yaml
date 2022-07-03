@@ -1,0 +1,130 @@
+get:
+  tags:
+    - Clients and Tunnels
+  summary: List stored tunnels
+  operationId: ClientStoredtunnelsGet
+  parameters:
+    - name: client_id
+      in: path
+      description: Unique client ID
+      required: true
+      schema:
+        type: string
+    - name: sort
+      in: query
+      description: >-
+        Sort field to be used for sorting, the sorting direction is by default
+        ASC.
+         To change the direction add `-` to the sorting value e.g. `-id`. Allowed values are `created_at`, `name`, `scheme`, `remote_ip`, `remote_port`.
+         You can use as many sort parameters as you want.
+      schema:
+        type: string
+    - name: filter[<FIELD>]
+      in: query
+      description: >-
+        Filter to find stored tunnels. It should be provided in the format as
+        `filter[<FIELD>]=<VALUE>`,
+         where `<FIELD>` is one of the values `name`, `scheme`, `remote_ip`, `remote_port` and `<VALUE>` is the search value,
+         e.g. `filter[scheme]=https` will request only stored tunnels with scheme https. You can use as many filter parameters as you want.
+         If you want to filter by multiple values e.g. find entries either for scheme = http or https you can use following filters
+         `filter[scheme]=http,https`.
+      schema:
+        type: string
+    - name: page
+      in: query
+      description: >-
+        Pagination options `page[limit]` and `page[offset]` can be used to get
+        more than the first page of results. Default limit is 10 and maximum is
+        100.
+         The `count` property in meta shows the total number of results.
+      schema:
+        type: integer
+  responses:
+    '200':
+      description: Successful Operation
+      content:
+        application/json:
+          schema:
+            type: object
+            properties:
+              data:
+                type: array
+                items:
+                  $ref: ../components/schemas/StoredTunnel.yaml
+              meta:
+                type: object
+                properties:
+                  count:
+                    type: integer
+    '400':
+      description: unsupported sort field 'xyz'
+      content:
+        application/json:
+          schema:
+            $ref: ../components/schemas/ErrorPayload.yaml
+    '401':
+      description: Unauthorized
+      content:
+        application/json:
+          schema:
+            $ref: ../components/schemas/ErrorPayload.yaml
+    '500':
+      description: Invalid Operation
+      content:
+        application/json:
+          schema:
+            $ref: ../components/schemas/ErrorPayload.yaml
+post:
+  tags:
+    - Clients and Tunnels
+  summary: Creates a new stored tunnel
+  operationId: ClientStoredtunnelsPost
+  parameters:
+    - name: client_id
+      in: path
+      description: Unique client ID
+      required: true
+      schema:
+        type: string
+  requestBody:
+    description: value in the json format
+    content:
+      '*/*':
+        schema:
+          $ref: ../components/schemas/StoredTunnel.yaml
+    required: true
+  responses:
+    '201':
+      description: Successful Create Operation
+      content:
+        application/json:
+          schema:
+            type: object
+            properties:
+              data:
+                $ref: ../components/schemas/StoredTunnel.yaml
+    '400':
+      description: Invalid request parameters
+      content:
+        application/json:
+          schema:
+            $ref: ../components/schemas/ErrorPayload.yaml
+    '401':
+      description: Unauthorized
+      content:
+        application/json:
+          schema:
+            $ref: ../components/schemas/ErrorPayload.yaml
+    '409':
+      description: another script with the same name exists
+      content:
+        application/json:
+          schema:
+            $ref: ../components/schemas/ErrorPayload.yaml
+    '500':
+      description: Invalid Operation
+      content:
+        application/json:
+          schema:
+            $ref: ../components/schemas/ErrorPayload.yaml
+  x-codegen-request-body-name: body

@@ -1,0 +1,13 @@
+type: object
+properties:
+  uuid:
+    type: string
+    description: unique upload request identifier
+    readOnly: true
+  filepath:
+    type: string
+    description: Target path from input
+    readOnly: true
+  size:
+    type: number
+    description: File size in bytes

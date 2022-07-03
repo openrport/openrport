@@ -1,0 +1,20 @@
+type: object
+properties:
+  client_id:
+    type: string
+    description: >-
+      Used to tie a document to a specific client where 0 means the document can
+      be accessed from any client.
+  key:
+    type: string
+    description: some string to identify the document
+  id:
+    type: integer
+    description: Unique internal id of a vault entry
+  created_at:
+    type: string
+    description: Date and time of vault entry creation
+    format: data-time
+  created_by:
+    type: string
+    description: User name who created this vault entry

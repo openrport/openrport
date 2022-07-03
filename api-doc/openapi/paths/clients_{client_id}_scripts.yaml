@@ -1,0 +1,100 @@
+post:
+  tags:
+    - Scripts
+  summary: Execute a script by a rport client.
+  operationId: ClientScriptsPost
+  description: >-
+    Rport server will copy script contents to a temp folder on an rport client.
+    Then it will implicitly execute shell script as a command e.g. sh
+    /tmp/script.sh.
+     NOTE: if command limitation is enabled by an rport client then it should allow execution commands like sh script.sh or cmd script.bat or powershell -executionpolicy bypass -file script.ps1.
+     See https://oss.rport.io/docs/no06-command-execution.html#securing-your-environment for more details
+  parameters:
+    - name: client_id
+      in: path
+      description: unique client id retrieved previously
+      required: true
+      schema:
+        type: string
+  requestBody:
+    description: >-
+      script to execute by the rport client, the format depends on the client's
+      OS
+    content:
+      application/json:
+        schema:
+          type: object
+          properties:
+            script:
+              type: string
+              description: >-
+                base64 encoded script which should be executed on a remote
+                client
+            interpreter:
+              type: string
+              description: >-
+                command interpreter to use to execute the script. If not set
+                'cmd' is used by default on Windows and /bin/sh on Linux.
+                 For tacoscript interpreter you should install tacoscript binary from here: https://github.com/cloudradar-monitoring/tacoscript#installation. It should also be available in the system path.
+                 Additionally, you can use interpreter aliases or full absolute paths to an interpreter of your choice (see https://oss.rport.io/docs/no14-scripts.html#scripts-execution for details).
+              enum:
+                - cmd
+                - powershell
+                - tacoscript
+            cwd:
+              type: string
+              description: current working directory for the executable script
+            is_sudo:
+              type: boolean
+              description: >-
+                execute a command as sudo user, applicable only for Linux
+                systems
+            timeout_sec:
+              type: integer
+              description: >-
+                timeout in seconds to observe the script execution. If not set a
+                default timeout (60 seconds) is used
+    required: true
+  responses:
+    '200':
+      description: Successful Operation
+      content:
+        '*/*':
+          schema:
+            type: object
+            properties:
+              data:
+                type: object
+                properties:
+                  jid:
+                    type: string
+                    description: >-
+                      job id of the underlying command which will execute the
+                      provided script
+    '400':
+      description: Invalid request parameters
+      content:
+        '*/*':
+          schema:
+            $ref: ../components/schemas/ErrorPayload.yaml
+    '404':
+      description: Active client not found
+      content:
+        '*/*':
+          schema:
+            $ref: ../components/schemas/ErrorPayload.yaml
+    '409':
+      description: >-
+        Could not execute the command. Probably a previous command is still
+        running
+      content:
+        '*/*':
+          schema:
+            $ref: ../components/schemas/ErrorPayload.yaml
+    '500':
+      description: Invalid Operation
+      content:
+        '*/*':
+          schema:
+            $ref: ../components/schemas/ErrorPayload.yaml
+  x-codegen-request-body-name: body

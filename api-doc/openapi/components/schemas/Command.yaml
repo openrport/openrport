@@ -1,0 +1,30 @@
+type: object
+properties:
+  name:
+    type: string
+    description: User-friendly name of a command
+  id:
+    type: string
+    description: unique internal identifier of a command in uuid4 format
+  created_at:
+    type: string
+    description: Date and time of command creation
+    format: data-time
+  created_by:
+    type: string
+    description: User name who created this command
+  updated_at:
+    type: string
+    description: Date and time of last command update
+    format: data-time
+  updated_by:
+    type: string
+    description: User name who last updated this command
+  cmd:
+    type: string
+    description: text of the command
+  tags:
+    type: array
+    description: List of tags for the script
+    items:
+      type: string

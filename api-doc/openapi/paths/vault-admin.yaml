@@ -1,0 +1,43 @@
+get:
+  tags:
+    - Vault
+  summary: Get status of RPort vault
+  operationId: VaultAdminGet
+  description: Returns status information about the Rport vault.
+  responses:
+    '200':
+      description: Successful Operation
+      content:
+        application/json:
+          schema:
+            type: object
+            properties:
+              data:
+                type: object
+                properties:
+                  init:
+                    type: string
+                    description: >-
+                      vault initialization status: if setup-completed vault is
+                      initialized or uninitialized otherwise
+                    enum:
+                      - setup-completed
+                      - uninitialized
+                  status:
+                    type: string
+                    description: vault lock status
+                    enum:
+                      - locked
+                      - unlocked
+    '401':
+      description: Unauthorized
+      content:
+        application/json:
+          schema:
+            $ref: ../components/schemas/ErrorPayload.yaml
+    '500':
+      description: Invalid Operation
+      content:
+        application/json:
+          schema:
+            $ref: ../components/schemas/ErrorPayload.yaml

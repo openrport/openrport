@@ -1,0 +1,58 @@
+get:
+  tags:
+    - Commands
+  summary: Web Socket Connection to execute a remote command on rport client(s)
+  operationId: WsCommandsGet
+  description: >2-
+    NOTE: swagger is not designed to document WebSocket API. This is a temporary solution.
+
+    A new web socket is created for each new request to execute a remote command
+    on rport client(s).
+     Steps:
+     1. To pass authentication - include "access_token" param into the url. The value is a jwt token that is created by 'login' API endpoint.
+     2. Upgrades the current connection to Web Socket.
+     3. Then server waits for an inbound message from UI client. It should be a JSON object `ExecuteCmdRequest`(see in 'Models')
+     For example,
+       ```json
+       {
+         "command": "/usr/bin/whoami",
+         "client_ids": [ "qa-lin-debian9", "qa-lin-debian10", "qa-lin-centos8", "qa-lin-ubuntu18", "qa-lin-ubuntu16" ],
+         "group_ids": [ "group-1"],
+         "timeout_sec": 30,
+         "cwd": "/root",
+         "execute_concurrently": true,
+         "is_sudo": true
+       }
+       ```
+     4. Validates the inbound msg. If it fails - server sends an outbound JSON message `ErrorPayload`(see in 'Models') and closes the connection.
+     5. Server sends a given command to rport client(s) to execute.
+     6. As soon as it gets a result from each rport client - it sends an outbound JSON message `Job`(see in 'Models').
+     It can contain a non-empty 'error' field if server wasn't able to send the command to the rport client.
+     Number of outbound messages is expected to be as many as rport clients. Or less if it's not a concurrent mode and 'abort_on_error' is turned on.
+     7. As soon as all rport clients send back the result - the connection is closed by server.
+     8. Also, a current connection can be closed by UI client.
+
+    There is a simple UI for testing. Try it out on http://127.0.0.1:3000/api/v1/test/commands/ui.
+     
+  parameters:
+    - name: access_token
+      in: query
+      description: >-
+        JWT token that is created by 'login' API endpoint. Required to pass the
+        authentication.
+      required: true
+      schema:
+        type: string
+  responses:
+    '200':
+      description: On success upgrades current connection to websocket
+      content:
+        application/json:
+          schema:
+            type: object
+    '400':
+      description: Invalid request parameters
+      content:
+        application/json:
+          schema:
+            $ref: ../components/schemas/ErrorPayload.yaml

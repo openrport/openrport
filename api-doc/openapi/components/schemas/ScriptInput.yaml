@@ -1,0 +1,24 @@
+type: object
+properties:
+  name:
+    type: string
+    description: '[required] User-friendly name of a script'
+  script:
+    type: string
+    description: '[required] text of the script'
+  interpreter:
+    type: string
+    description: >-
+      how will the script be executed on the client, e.g. /bin/sh, cmd.exe,
+      powershell, tacoscript
+  cwd:
+    type: string
+    description: current working directory, where the script should be executed
+  is_sudo:
+    type: boolean
+    description: if true, this script will be executed as a sudo user
+  tags:
+    type: array
+    description: List of tags for the script
+    items:
+      type: string

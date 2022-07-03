@@ -1,0 +1,127 @@
+get:
+  tags:
+    - Jobs
+  summary: Get a schedule
+  operationId: ScheduleGet
+  description: Get a schedule by the provided ID
+  parameters:
+    - name: id
+      in: path
+      description: Unique schedule ID
+      required: true
+      schema:
+        type: string
+  responses:
+    '200':
+      description: Successful Operation
+      content:
+        application/json:
+          schema:
+            type: object
+            properties:
+              data:
+                $ref: ../components/schemas/Schedule.yaml
+    '401':
+      description: Unauthorized
+      content:
+        application/json:
+          schema:
+            $ref: ../components/schemas/ErrorPayload.yaml
+    '404':
+      description: Cannot find a schedule by the provided id
+      content:
+        application/json:
+          schema:
+            $ref: ../components/schemas/ErrorPayload.yaml
+    '500':
+      description: Invalid Operation
+      content:
+        application/json:
+          schema:
+            $ref: ../components/schemas/ErrorPayload.yaml
+put:
+  tags:
+    - Jobs
+  summary: Updates an existing schedule
+  operationId: SchedulePut
+  description: |-
+    Updates an existing schedule by the provided `id` parameter.
+     You need to provide all fields like those you used to create a schedule. Partial updates are not supported. You can get `id` by using the listing API. You get the id also when you store a new value.
+  parameters:
+    - name: id
+      in: path
+      description: Unique schedule ID
+      required: true
+      schema:
+        type: string
+  requestBody:
+    description: value in the json format
+    content:
+      '*/*':
+        schema:
+          $ref: ../components/schemas/Schedule.yaml
+    required: true
+  responses:
+    '200':
+      description: Successful Operation
+      content:
+        '*/*':
+          schema:
+            type: object
+            properties:
+              data:
+                $ref: ../components/schemas/Schedule.yaml
+    '400':
+      description: Invalid body parameters
+      content:
+        '*/*':
+          schema:
+            $ref: ../components/schemas/ErrorPayload.yaml
+    '401':
+      description: Unauthorized
+      content:
+        '*/*':
+          schema:
+            $ref: ../components/schemas/ErrorPayload.yaml
+    '500':
+      description: Invalid Operation
+      content:
+        '*/*':
+          schema:
+            $ref: ../components/schemas/ErrorPayload.yaml
+  x-codegen-request-body-name: body
+delete:
+  tags:
+    - Jobs
+  summary: Deletes an existing schedule
+  operationId: ScheduleDelete
+  description: Delete a schedule by the provided `id` parameter.
+  parameters:
+    - name: id
+      in: path
+      description: Unique schedule ID
+      required: true
+      schema:
+        type: string
+  responses:
+    '204':
+      description: Successful Operation
+      content: {}
+    '401':
+      description: Unauthorized
+      content:
+        '*/*':
+          schema:
+            $ref: ../components/schemas/ErrorPayload.yaml
+    '404':
+      description: cannot find command by the provided id
+      content:
+        '*/*':
+          schema:
+            $ref: ../components/schemas/ErrorPayload.yaml
+    '500':
+      description: Invalid Operation
+      content:
+        '*/*':
+          schema:
+            $ref: ../components/schemas/ErrorPayload.yaml

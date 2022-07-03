@@ -1,0 +1,9 @@
+type: object
+properties:
+  timestamp:
+    type: string
+    description: Timestamp of measurement
+    format: date-time
+  mountpoints:
+    type: string
+    description: JSON encoded information about mountpoints

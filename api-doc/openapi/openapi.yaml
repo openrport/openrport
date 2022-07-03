@@ -1,0 +1,156 @@
+openapi: 3.0.1
+info:
+  title: rportd HTTP(S) API
+  description: >-
+    To run API, use `--api-addr=yourserver:3000` CLI argument or enable it in
+    config file
+  version: 1.0.0
+  license:
+    name: MIT
+    url: https://raw.githubusercontent.com/cloudradar-monitoring/rport/master/LICENSE
+servers:
+  - url: http://yourserver:3000/api/v1
+  - url: https://yourserver:3000/api/v1
+security:
+  - bearer_auth: []
+  - basic_auth: []
+tags:
+  - name: Login
+    description: For more details https://oss.rport.io/docs/no02-api-auth.html
+  - name: Profile & Info
+    description: Profile and System Information
+  - name: Clients and Tunnels
+    description: For more details https://oss.rport.io/docs/no09-managing-tunnels.html
+  - name: Client Groups
+    description: For more details https://oss.rport.io/docs/no04-client-groups.html
+  - name: Rport Client Auth Credentials
+    description: For more details https://oss.rport.io/docs/no03-client-auth.html
+  - name: Commands
+    description: For more details https://oss.rport.io/docs/no06-command-execution.html
+  - name: Users
+    description: For more details https://oss.rport.io/docs/no12-user.html
+paths:
+  /login:
+    $ref: paths/login.yaml
+  /logout:
+    $ref: paths/logout.yaml
+  /verify-2fa:
+    $ref: paths/verify-2fa.yaml
+  /me:
+    $ref: paths/me.yaml
+  /me/ip:
+    $ref: paths/me_ip.yaml
+  /me/token:
+    $ref: paths/me_token.yaml
+  /status:
+    $ref: paths/status.yaml
+  /clients:
+    $ref: paths/clients.yaml
+  /tunnels:
+    $ref: paths/tunnels.yaml
+  /clients/{client_id}:
+    $ref: paths/clients_{client_id}.yaml
+  /clients/{client_id}/tunnels:
+    $ref: paths/clients_{client_id}_tunnels.yaml
+  /clients/{client_id}/tunnels/{tunnel_id}:
+    $ref: paths/clients_{client_id}_tunnels_{tunnel_id}.yaml
+  /clients/{client_id}/acl:
+    $ref: paths/clients_{client_id}_acl.yaml
+  /clients/{client_id}/updates-status:
+    $ref: paths/clients_{client_id}_updates-status.yaml
+  /clients/{client_id}/commands:
+    $ref: paths/clients_{client_id}_commands.yaml
+  /clients/{client_id}/scripts:
+    $ref: paths/clients_{client_id}_scripts.yaml
+  /scripts:
+    $ref: paths/scripts.yaml
+  /clients/{client_id}/commands/{job_id}:
+    $ref: paths/clients_{client_id}_commands_{job_id}.yaml
+  /commands:
+    $ref: paths/commands.yaml
+  /commands/{job_id}:
+    $ref: paths/commands_{job_id}.yaml
+  /commands/{job_id}/jobs:
+    $ref: paths/commands_{job_id}_jobs.yaml
+  /ws/commands:
+    $ref: paths/ws_commands.yaml
+  /ws/scripts:
+    $ref: paths/ws_scripts.yaml
+  /ws/uploads:
+    $ref: paths/ws_uploads.yaml
+  /clients-auth:
+    $ref: paths/clients-auth.yaml
+  /clients-auth/{client_auth_id}:
+    $ref: paths/clients-auth_{client_auth_id}.yaml
+  /client-groups:
+    $ref: paths/client-groups.yaml
+  /client-groups/{group_id}:
+    $ref: paths/client-groups_{group_id}.yaml
+  /users:
+    $ref: paths/users.yaml
+  /users/{user_id}:
+    $ref: paths/users_{user_id}.yaml
+  /users/{user_id}/totp-secret:
+    $ref: paths/users_{user_id}_totp-secret.yaml
+  /vault-admin:
+    $ref: paths/vault-admin.yaml
+  /vault:
+    $ref: paths/vault.yaml
+  /vault/{id}:
+    $ref: paths/vault_{id}.yaml
+  /vault-admin/init:
+    $ref: paths/vault-admin_init.yaml
+  /vault-admin/sesame:
+    $ref: paths/vault-admin_sesame.yaml
+  /library/scripts:
+    $ref: paths/library_scripts.yaml
+  /library/scripts/{id}:
+    $ref: paths/library_scripts_{id}.yaml
+  /library/commands:
+    $ref: paths/library_commands.yaml
+  /library/commands/{id}:
+    $ref: paths/library_commands_{id}.yaml
+  /auditlog:
+    $ref: paths/auditlog.yaml
+  /me/totp-secret:
+    $ref: paths/me_totp-secret.yaml
+  /clients/{client_id}/graph-metrics:
+    $ref: paths/clients_{client_id}_graph-metrics.yaml
+  /clients/{client_id}/graph-metrics/{graph_name}:
+    $ref: paths/clients_{client_id}_graph-metrics_{graph_name}.yaml
+  /clients/{client_id}/metrics:
+    $ref: paths/clients_{client_id}_metrics.yaml
+  /clients/{client_id}/mountpoints:
+    $ref: paths/clients_{client_id}_mountpoints.yaml
+  /clients/{client_id}/processes:
+    $ref: paths/clients_{client_id}_processes.yaml
+  /clients/{client_id}/stored-tunnels:
+    $ref: paths/clients_{client_id}_stored-tunnels.yaml
+  /clients/{client_id}/stored-tunnels/{id}:
+    $ref: paths/clients_{client_id}_stored-tunnels_{id}.yaml
+  /schedules:
+    $ref: paths/schedules.yaml
+  /schedules/{id}:
+    $ref: paths/schedules_{id}.yaml
+  /files:
+    $ref: paths/files.yaml
+components:
+  securitySchemes:
+    basic_auth:
+      type: http
+      description: >-
+        HTTP-basic authentication works for all routes. You can use user's
+        password only when 2FA is not enabled. For scripting you can use
+        long-lived API token generated using /me/token endpoint instead of the
+        password.
+      scheme: basic
+    bearer_auth:
+      type: apiKey
+      description: >-
+        Instead of HTTP basic authentication you can retrieve a bearer token
+        using /login endpoint. Send the retrieved token in 'Authorization:
+        Bearer <TOKEN>' header. If 2FA is enabled, the bearer token from /login
+        endpoint can only be used in /verify-2fa or /me/totp-secret endpoints
+        (see below).
+      name: Authorization
+      in: header

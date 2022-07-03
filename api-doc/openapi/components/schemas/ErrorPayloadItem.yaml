@@ -1,0 +1,8 @@
+type: object
+properties:
+  code:
+    type: string
+  title:
+    type: string
+  detail:
+    type: string
