@@ -1,0 +1,24 @@
+get:
+  tags:
+    - Profile & Info
+  summary: Return a public ip address of a client who makes the request
+  operationId: MetIpGet
+  responses:
+    '200':
+      description: Client's ip address
+      content:
+        application/json:
+          schema:
+            type: object
+            properties:
+              data:
+                type: object
+                properties:
+                  ip:
+                    type: string
+    '400':
+      description: Invalid request parameters
+      content:
+        application/json:
+          schema:
+            $ref: ../components/schemas/ErrorPayload.yaml

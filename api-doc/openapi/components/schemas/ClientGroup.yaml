@@ -1,0 +1,93 @@
+type: object
+properties:
+  id:
+    type: string
+    description: Client Group ID
+  description:
+    type: string
+    description: Client Group description
+  client_ids:
+    type: array
+    description: >-
+      Read Only field. Shows active and disconnected clients that belong to this
+      group.
+    items:
+      type: string
+  params:
+    type: object
+    properties:
+      client_id:
+        type: array
+        description: client ID(s)
+        items:
+          type: string
+      name:
+        type: array
+        description: client name(s)
+        items:
+          type: string
+      os:
+        type: array
+        description: client OS description(s)
+        items:
+          type: string
+      os_arch:
+        type: array
+        description: 'client cpu architecture(s) (ex: 386, amd64)'
+        items:
+          type: string
+      os_family:
+        type: array
+        description: 'client OS family (ex: debian, alpine, Standalone Workstation)'
+        items:
+          type: string
+      os_kernel:
+        type: array
+        description: 'client OS kernel(s) (ex: linux, windows)'
+        items:
+          type: string
+      hostname:
+        type: array
+        description: client hostname(s)
+        items:
+          type: string
+      ipv4:
+        type: array
+        description: client IPv4 address(es)
+        items:
+          type: string
+      ipv6:
+        type: array
+        description: client IPv6 address(es)
+        items:
+          type: string
+      tag:
+        type: array
+        description: client tag(s)
+        items:
+          type: string
+      version:
+        type: array
+        description: client version(s)
+        items:
+          type: string
+      address:
+        type: array
+        description: client address(es)
+        items:
+          type: string
+      client_auth_id:
+        type: array
+        description: client auth ID(s)
+        items:
+          type: string
+    description: >
+      Parameters that define what clients belong to a given client group.
+
+
+      Each parameter can be specified by:
+       1. exact match of the property (ignoring case). For example, "client_id": ["test-win2019-tk01", "qa-lin-ubuntu16"]
+       2. dynamic criteria using wildcards (ignoring case). For example, "os_family": ["linux*"]
+
+      For more details please see
+      https://oss.rport.io/docs/no04-client-groups.html

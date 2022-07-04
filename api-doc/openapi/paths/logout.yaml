@@ -1,0 +1,21 @@
+delete:
+  tags:
+    - Login
+  summary: Revoke token. Requires Bearer authorization provided
+  operationId: LogoutDelete
+  responses:
+    '204':
+      description: Token revoked
+      content: {}
+    '400':
+      description: Invalid parameters
+      content:
+        application/json:
+          schema:
+            $ref: ../components/schemas/ErrorPayload.yaml
+    '500':
+      description: Invalid Operation
+      content:
+        application/json:
+          schema:
+            $ref: ../components/schemas/ErrorPayload.yaml

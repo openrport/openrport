@@ -18,7 +18,7 @@ curl -s -u admin:e83d40e4-e237-43d6-bb99-35972ded631b http://localhost:3000/api/
 
 
 ### Bearer Token Auth
-Using HTTP Basic auth you can request a token at [`login` endpoint](https://petstore.swagger.io/?url=https://raw.githubusercontent.com/cloudradar-monitoring/rport/master/api-doc.yml#/default/get_login) to authenticate further requests with a token.
+Using HTTP Basic auth you can request a token at [`login` endpoint](https://apidoc.rport.io/master/#tag/Login) to authenticate further requests with a token.
 Example:
 ```
 curl -s -u admin:foobaz http://localhost:3000/api/v1/login|jq
@@ -80,7 +80,7 @@ By default, 2FA is disabled.
 6. Restart the server.
 
 #### How to use it?
-1. Using 2FA will disable HTTP basic auth on all API endpoints except [`/login`](https://petstore.swagger.io/?url=https://raw.githubusercontent.com/cloudradar-monitoring/rport/master/api-doc.yml#/Login/get_login).
+1. Using 2FA will disable HTTP basic auth on all API endpoints except [`/login`](https://apidoc.rport.io/master/#tag/Login).
 Login endpoints trigger sending 2FA verification code to a user. For example,
 ```
 curl -s -u admin:foobaz http://localhost:3000/api/v1/login|jq
@@ -101,7 +101,7 @@ The login token has a limited time validity, which is defined in the `[api]` sec
 ```
 Verification code: 05Nfqm (valid 10m0s)
 ```
-3. Verify this code using [`/verify-2fa`](https://petstore.swagger.io/?url=https://raw.githubusercontent.com/cloudradar-monitoring/rport/master/api-doc.yml#/Login/post_verify_2fa) endpoint and provide token that you received after login as Bearer Auth header (e.g. `Authorization: Bearer eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJ1c2VybmFtZSI6ImFwIiwiSz.2dbLWzej7XqwAAWiQajBDPPO15Vz2VHDA`). If login token is valid and the provided code is correct,
+3. Verify this code using [`/verify-2fa`](https://apidoc.rport.io/master/#operation/Verify2faPost) endpoint and provide token that you received after login as Bearer Auth header (e.g. `Authorization: Bearer eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJ1c2VybmFtZSI6ImFwIiwiSz.2dbLWzej7XqwAAWiQajBDPPO15Vz2VHDA`). If login token is valid and the provided code is correct,
 this API returns an auth JWT token that can be further used for any requests as listed in [here](no02-api-auth.md#bearer-token-auth). For example,
 ```
 curl -s http://localhost:3000/api/v1/verify-2fa -H "Content-Type: application/json" -X POST \

@@ -1,0 +1,103 @@
+get:
+  tags:
+    - Login
+  summary: Generate auth token. Requires HTTP-basic authorization..
+  operationId: LoginGet
+  description: >
+    * If 2FA is disabled: returns authorization JWT token.
+
+    * If 2FA is enabled: triggers sending 2FA token to the user. 2fa token can
+    be further verified using `/verify-2fa` endpoint. Requires the user to have
+    a valid `two_fa_send_to` delivery option
+
+    * If TotP is enabled, it returns a login token, which should be used to call
+    `/verify-2fa` endpoint and also to create and read a totp secret for the
+    first time (see `/me/totp-secret`)
+  parameters:
+    - name: token-lifetime
+      in: query
+      description: >-
+        initial lifetime of JWT token in seconds. Max value is 90 days. Default:
+        10 min
+      schema:
+        maximum: 7776000
+        type: integer
+        default: 600
+  responses:
+    '200':
+      description: Successful Login Operation
+      content:
+        application/json:
+          schema:
+            type: object
+            properties:
+              data:
+                $ref: ../components/schemas/LoginResponse.yaml
+    '400':
+      description: Invalid parameters
+      content:
+        application/json:
+          schema:
+            $ref: ../components/schemas/ErrorPayload.yaml
+    '401':
+      description: Unauthorized
+      content:
+        application/json:
+          schema:
+            $ref: ../components/schemas/ErrorPayload.yaml
+    '500':
+      description: Invalid Operation
+      content:
+        application/json:
+          schema:
+            $ref: ../components/schemas/ErrorPayload.yaml
+post:
+  tags:
+    - Login
+  summary: Generate auth token. Requires username and password in request body
+  operationId: LoginPost
+  description: |-
+    If 2FA is disabled: returns authorization JWT token.
+     If 2FA is enabled: triggers sending 2FA token to the user. 2fa token can be further verified using `/verify-2fa` endpoint. Requires the user to have a valid `two_fa_send_to` delivery option.
+     `username` and `password` should be provided in request body either in JSON either in x-www-formurlencoded format.
+     If time based one time passwords (TotP) are enabled (Google/Microsoft authenticator app), it returns a login token, which should be used to call `/verify-2fa` endpoint and also to create and totp secret key for the first time (see `/me/totp-secret`)
+     To understand if TotP is enabled, `delivery_method` field will contain `totp_authenticator_app` value, that indicates the limited scope of the JWT token validity.
+     If user has already a TotP secret key, the value of totp_key_status field will be 'pending' or 'exists' otherwise.
+  parameters:
+    - name: token-lifetime
+      in: query
+      description: |
+        initial lifetime of JWT token in seconds. Max value is 90 days.
+        Default: 10 min
+      schema:
+        maximum: 7776000
+        type: integer
+        default: 600
+  responses:
+    '200':
+      description: Successful Operation
+      content:
+        application/json:
+          schema:
+            type: object
+            properties:
+              data:
+                $ref: ../components/schemas/LoginResponse.yaml
+    '400':
+      description: Invalid parameters
+      content:
+        application/json:
+          schema:
+            $ref: ../components/schemas/ErrorPayload.yaml
+    '401':
+      description: Unauthorized
+      content:
+        application/json:
+          schema:
+            $ref: ../components/schemas/ErrorPayload.yaml
+    '500':
+      description: Invalid Operation
+      content:
+        application/json:
+          schema:
+            $ref: ../components/schemas/ErrorPayload.yaml

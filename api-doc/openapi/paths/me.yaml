@@ -1,0 +1,83 @@
+get:
+  tags:
+    - Profile & Info
+  summary: Return currently logged in user and groups the user belongs to
+  operationId: MetGet
+  responses:
+    '200':
+      description: Successful Operation
+      content:
+        application/json:
+          schema:
+            type: object
+            properties:
+              data:
+                $ref: ../components/schemas/UserGet.yaml
+    '404':
+      description: User not found
+      content:
+        application/json:
+          schema:
+            $ref: ../components/schemas/ErrorPayload.yaml
+    '500':
+      description: Invalid Operation
+      content:
+        application/json:
+          schema:
+            $ref: ../components/schemas/ErrorPayload.yaml
+put:
+  tags:
+    - Profile & Info
+  summary: Update your own username, password or two_fa_send_to
+  operationId: MetPut
+  requestBody:
+    description: your own parameters that you would like to update
+    content:
+      '*/*':
+        schema:
+          type: object
+          properties:
+            username:
+              type: string
+              description: new username, empty if keep the same
+            password:
+              type: string
+              description: new password, empty if keep the same
+            old_password:
+              type: string
+              description: old password, required only on password change
+            two_fa_send_to:
+              type: string
+              description: >-
+                applicable only when 2FA is enabled, ignored otherwise. New
+                two_fa_send_to, empty if keep the same
+    required: true
+  responses:
+    '204':
+      description: Successful Operation
+      content: {}
+    '400':
+      description: Invalid request parameters
+      content:
+        application/json:
+          schema:
+            $ref: ../components/schemas/ErrorPayload.yaml
+    '401':
+      description: Unauthorized
+      content:
+        application/json:
+          schema:
+            $ref: ../components/schemas/ErrorPayload.yaml
+    '403':
+      description: Missing or incorrect old password
+      content:
+        application/json:
+          schema:
+            $ref: ../components/schemas/ErrorPayload.yaml
+    '500':
+      description: Invalid Operation
+      content:
+        application/json:
+          schema:
+            $ref: ../components/schemas/ErrorPayload.yaml
+  x-codegen-request-body-name: updated params

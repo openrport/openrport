@@ -1,0 +1,84 @@
+post:
+  tags:
+    - Vault
+  summary: Unlock vault
+  operationId: VaultAdminSesamPost
+  description: >-
+    Unlocks vault to make it functional. If vault is locked, it won't accept any
+    API requests. This API requires the current user to be member of group
+    `Administrators`. Returns 403 otherwise. The `Administrators` group name is
+    hardcoded and cannot be changed at the moment
+  requestBody:
+    description: >-
+      Password to unlock the vault. It should be the same password, which was
+      provided when the vault was initialized.
+    content:
+      '*/*':
+        schema:
+          $ref: ../components/schemas/SinglePassword.yaml
+    required: true
+  responses:
+    '201':
+      description: Successful Operation
+      content: {}
+    '401':
+      description: wrong password provided
+      content:
+        application/json:
+          schema:
+            $ref: ../components/schemas/ErrorPayload.yaml
+    '403':
+      description: >-
+        current user should belong to Administrators group to access this
+        resource
+      content:
+        application/json:
+          schema:
+            $ref: ../components/schemas/ErrorPayload.yaml
+    '409':
+      description: vault is already unlocked
+      content:
+        application/json:
+          schema:
+            $ref: ../components/schemas/ErrorPayload.yaml
+    '500':
+      description: Invalid Operation
+      content:
+        application/json:
+          schema:
+            $ref: ../components/schemas/ErrorPayload.yaml
+  x-codegen-request-body-name: password
+delete:
+  tags:
+    - Vault
+  summary: Locks vault
+  operationId: VaultAdminSesamDelete
+  description: >-
+    Locks vault and delets it's password from server's memory. This API requires
+    the current user to be member of group `Administrators`. Returns 403
+    otherwise. The `Administrators` group name is hardcoded and cannot be
+    changed at the moment
+  responses:
+    '204':
+      description: Successful Operation
+      content: {}
+    '403':
+      description: >-
+        current user should belong to Administrators group to access this
+        resource
+      content:
+        application/json:
+          schema:
+            $ref: ../components/schemas/ErrorPayload.yaml
+    '409':
+      description: vault is already locked
+      content:
+        application/json:
+          schema:
+            $ref: ../components/schemas/ErrorPayload.yaml
+    '500':
+      description: Invalid Operation
+      content:
+        application/json:
+          schema:
+            $ref: ../components/schemas/ErrorPayload.yaml

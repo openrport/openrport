@@ -1,0 +1,92 @@
+get:
+  tags:
+    - Client Auth Credentials
+  summary: >-
+    Return all rport clients authentication credentials. 
+    Sorted by ID in asc order. Require admin access
+  operationId: ClientsauthsGet
+  parameters:
+    - name: filter
+      in: query
+      description: |
+        Filter option `filter[id]=<VALUE>`.
+         You can use `*` wildcards for partial matches. Text matching is case insensitive.
+         Examples:
+         `filter[id]=auth1234`
+         `filter[id]=auth*`
+      schema:
+        type: string
+    - name: page
+      in: query
+      description: >
+        Pagination options `page[limit]` and `page[offset]` can be used to get
+        more than the first page of results. 
+
+        Default limit is 50 and maximum is 500. The `count` property in meta
+        shows the total number of results.
+      schema:
+        type: integer
+  responses:
+    '200':
+      description: Successful Operation
+      content:
+        application/json:
+          schema:
+            type: object
+            properties:
+              data:
+                type: array
+                items:
+                  $ref: ../components/schemas/ClientAuth.yaml
+              meta:
+                type: object
+                properties:
+                  count:
+                    type: integer
+    '400':
+      description: Invalid request parameters
+      content:
+        application/json:
+          schema:
+            $ref: ../components/schemas/ErrorPayload.yaml
+    '500':
+      description: Invalid Operation
+      content:
+        application/json:
+          schema:
+            $ref: ../components/schemas/ErrorPayload.yaml
+post:
+  tags:
+    - Client Auth Credentials
+  summary: Add new rport client authentication credentials. Require admin access
+  operationId: ClientsauthsPost
+  requestBody:
+    description: Client auth credentials to add
+    content:
+      '*/*':
+        schema:
+          $ref: ../components/schemas/ClientAuth.yaml
+    required: true
+  responses:
+    '204':
+      description: New client auth credentials added
+      content: {}
+    '400':
+      description: Invalid parameters
+      content:
+        application/json:
+          schema:
+            $ref: ../components/schemas/ErrorPayload.yaml
+    '409':
+      description: 'Client auth credentials already exist. Err code: ERR_CODE_ALREADY_EXIST'
+      content:
+        application/json:
+          schema:
+            $ref: ../components/schemas/ErrorPayload.yaml
+    '500':
+      description: Invalid Operation
+      content:
+        application/json:
+          schema:
+            $ref: ../components/schemas/ErrorPayload.yaml
+  x-codegen-request-body-name: body

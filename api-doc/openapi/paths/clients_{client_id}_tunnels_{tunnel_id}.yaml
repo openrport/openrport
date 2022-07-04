@@ -1,0 +1,51 @@
+delete:
+  tags:
+    - Clients and Tunnels
+  summary: Terminate a specified tunnel
+  operationId: ClientTunnelDelete
+  parameters:
+    - name: client_id
+      in: path
+      description: unique client id retrieved previously
+      required: true
+      schema:
+        type: string
+    - name: tunnel_id
+      in: path
+      description: unique tunnel id retrieved previously
+      required: true
+      schema:
+        type: string
+    - name: force
+      in: query
+      description: If true, terminate a tunnel even when it is still active.
+      schema:
+        type: boolean
+  responses:
+    '204':
+      description: tunnel terminated
+      content: {}
+    '400':
+      description: invalid parameters
+      content:
+        '*/*':
+          schema:
+            $ref: ../components/schemas/ErrorPayload.yaml
+    '404':
+      description: specified client or tunnel does not exist or already terminated
+      content:
+        '*/*':
+          schema:
+            $ref: ../components/schemas/ErrorPayload.yaml
+    '409':
+      description: 'specified tunnel is still active: it has active connections'
+      content:
+        '*/*':
+          schema:
+            $ref: ../components/schemas/ErrorPayload.yaml
+    '500':
+      description: invalid operation
+      content:
+        '*/*':
+          schema:
+            $ref: ../components/schemas/ErrorPayload.yaml

@@ -1,0 +1,173 @@
+get:
+  tags:
+    - Vault
+  summary: Read a decrypted vault value
+  operationId: VaultItemGet
+  description: >-
+    Reads a vault entry with a decrypted value field. If `required_group` value
+    of the stored vault entry is not emtpy,
+     only users of this group can read this value.
+  parameters:
+    - name: id
+      in: path
+      description: Unique vault entry ID
+      required: true
+      schema:
+        type: integer
+  responses:
+    '200':
+      description: Successful Operation
+      content:
+        application/json:
+          schema:
+            type: object
+            properties:
+              data:
+                $ref: ../components/schemas/VaultEntryOutputFull.yaml
+    '401':
+      description: Unauthorized
+      content:
+        application/json:
+          schema:
+            $ref: ../components/schemas/ErrorPayload.yaml
+    '403':
+      description: your group doesn't allow access to this value
+      content:
+        application/json:
+          schema:
+            $ref: ../components/schemas/ErrorPayload.yaml
+    '404':
+      description: Cannot find a vault entry by the provided id
+      content:
+        application/json:
+          schema:
+            $ref: ../components/schemas/ErrorPayload.yaml
+    '409':
+      description: vault is locked or not initialized
+      content:
+        application/json:
+          schema:
+            $ref: ../components/schemas/ErrorPayload.yaml
+    '500':
+      description: Invalid Operation
+      content:
+        application/json:
+          schema:
+            $ref: ../components/schemas/ErrorPayload.yaml
+put:
+  tags:
+    - Vault
+  summary: Updates an existing vault entry
+  operationId: VaultItemPut
+  description: |-
+    Updates an existing vault entry by the provided `id` parameter.
+     If `required_group` value of the stored vault entry is not empty, only users of this group can change this value.
+     You need to provide all fields like those you used to create a vault entry. Partial updates are not supported. You can get `id` it by using the listing API. You get the id also when you store a new value.
+  parameters:
+    - name: id
+      in: path
+      description: Unique vault entry ID
+      required: true
+      schema:
+        type: integer
+  requestBody:
+    description: value in the json format
+    content:
+      '*/*':
+        schema:
+          $ref: ../components/schemas/VaultEntryInput.yaml
+    required: true
+  responses:
+    '200':
+      description: Successful Operation
+      content:
+        '*/*':
+          schema:
+            type: object
+            properties:
+              data:
+                type: object
+                properties:
+                  id:
+                    type: integer
+                    description: unique internal id of the updated vault entry
+    '400':
+      description: Invalid body parameters
+      content:
+        '*/*':
+          schema:
+            $ref: ../components/schemas/ErrorPayload.yaml
+    '401':
+      description: Unauthorized
+      content:
+        '*/*':
+          schema:
+            $ref: ../components/schemas/ErrorPayload.yaml
+    '403':
+      description: your group doesn't allow access to this value
+      content:
+        '*/*':
+          schema:
+            $ref: ../components/schemas/ErrorPayload.yaml
+    '409':
+      description: vault is locked or not initialized
+      content:
+        '*/*':
+          schema:
+            $ref: ../components/schemas/ErrorPayload.yaml
+    '500':
+      description: Invalid Operation
+      content:
+        '*/*':
+          schema:
+            $ref: ../components/schemas/ErrorPayload.yaml
+  x-codegen-request-body-name: body
+delete:
+  tags:
+    - Vault
+  summary: Deletes an existing vault entry
+  operationId: VaultItemDelete
+  description: |-
+    Delete a vault entry by the provided `id` parameter.
+     If `required_group` value of the stored vault entry is not empty, only users of this group can delete this value.
+  parameters:
+    - name: id
+      in: path
+      description: Unique vault entry ID
+      required: true
+      schema:
+        type: integer
+  responses:
+    '204':
+      description: Successful Operation
+      content: {}
+    '401':
+      description: Unauthorized
+      content:
+        '*/*':
+          schema:
+            $ref: ../components/schemas/ErrorPayload.yaml
+    '403':
+      description: your group doesn't allow access to this value
+      content:
+        '*/*':
+          schema:
+            $ref: ../components/schemas/ErrorPayload.yaml
+    '404':
+      description: cannot find this entry by the provided id
+      content:
+        '*/*':
+          schema:
+            $ref: ../components/schemas/ErrorPayload.yaml
+    '409':
+      description: vault is locked or not initialized
+      content:
+        '*/*':
+          schema:
+            $ref: ../components/schemas/ErrorPayload.yaml
+    '500':
+      description: Invalid Operation
+      content:
+        '*/*':
+          schema:
+            $ref: ../components/schemas/ErrorPayload.yaml

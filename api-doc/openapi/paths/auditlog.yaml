@@ -1,0 +1,73 @@
+get:
+  tags:
+    - Audit Log
+  summary: List auditlog entries
+  operationId: AuditlogGet
+  description: List auditlog entries using the provided filters
+  parameters:
+    - name: sort
+      in: query
+      description: >-
+        Sort option `-<field>`(desc) or `<field>`(asc). `<field>` can be one of
+        `'timestamp', 'username', 'remote_ip', 'application', 'action',
+        'affected_id', 'client_id', 'client_hostname'`. For example,
+        `&sort=-timestamp`.
+      schema:
+        type: string
+    - name: filter
+      in: query
+      description: >
+        Filter option `filter[<field>]` or `filter[timestamp][<op>]`.
+
+        `<field>` can be one of `'username', 'remote_ip', 'application',
+        'action', 'affected_id', 'client_id', 'client_hostname'`.
+
+        For example, `&filter[username]=admin` or
+        `filter[timestamp][gt]=2021-10-28`, etc.
+
+        Multiple filters are possible.
+
+        Wildcards `*` are supported in the filter `<value>`.
+
+        *Note: Only members of the Administrators user group are allowed to
+        filter by `username`. Returns 403 Forbidden if an unallowed filter is
+        used.*
+      schema:
+        type: string
+    - name: page
+      in: query
+      description: >-
+        Pagination options `page[limit]` and `page[offset]` can be used to get
+        more than the first page of results. Default limit is 10 and maximum is
+        100. The `count` property in meta shows the total number of results.
+      schema:
+        type: integer
+  responses:
+    '200':
+      description: Successful Operation
+      content:
+        application/json:
+          schema:
+            type: object
+            properties:
+              data:
+                type: array
+                items:
+                  $ref: ../components/schemas/AuditLog.yaml
+              meta:
+                type: object
+                properties:
+                  count:
+                    type: integer
+    '401':
+      description: Unauthorized
+      content:
+        application/json:
+          schema:
+            $ref: ../components/schemas/ErrorPayload.yaml
+    '500':
+      description: Invalid Operation
+      content:
+        application/json:
+          schema:
+            $ref: ../components/schemas/ErrorPayload.yaml

@@ -1,0 +1,49 @@
+type: object
+properties:
+  command:
+    type: string
+    description: >-
+      remote command to execute by rport client(s). NOTE: if command limitation
+      is enabled by an rport client then a full path command can be required to
+      use. See https://oss.rport.io/docs/no06-command-execution.html for more
+      details
+  cwd:
+    type: string
+    description: current working directory where the command will be executed
+  is_sudo:
+    type: boolean
+    description: execute the command as a sudo user
+  client_ids:
+    minItems: 1
+    type: array
+    description: list of client IDs where to run the command
+    items:
+      type: string
+  interpreter:
+    type: string
+    description: >-
+      command interpreter to use to execute the command. Is applicable only for
+      windows clients. If not set 'cmd' is used by default
+    enum:
+      - cmd
+      - powershell
+  timeout_sec:
+    type: integer
+    description: >-
+      timeout in seconds to observe the command execution on each client
+      separately. If not set a default timeout (60 seconds) is used
+  execute_concurrently:
+    type: boolean
+    description: >-
+      applicable only when multiple clients are specified. If true - execute the
+      command concurrently on clients. If false - sequentially in order that is
+      in 'client_ids'. By default is false
+  abort_on_error:
+    type: boolean
+    description: >-
+      applicable only when multiple clients are specified. Applicable only if
+      'execute_concurrently' is false. If true - abort the entire cycle if the
+      execution fails on some client. By default is true
+description: >-
+  Request that contains a remote command to execute by rport client(s) and other
+  related properties

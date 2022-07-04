@@ -1,0 +1,85 @@
+get:
+  tags:
+    - Monitoring
+  summary: Lists client metrics for displaying as graphs
+  operationId: ClientGraphMetricsGet
+  description: >-
+    List downsampled monitoring data about client metrics for the provided
+    clientID
+  parameters:
+    - name: client_id
+      in: path
+      description: Unique client ID
+      required: true
+      schema:
+        type: string
+    - name: sort
+      in: query
+      description: >-
+        There is only `timestamp` allowed as sort field. Default direction is
+        DESC
+         To sort ascending use `&sort=timestamp`.
+      schema:
+        type: string
+    - name: filter[timestamp][<OPERATOR>]
+      in: query
+      description: >-
+        Filter entries by field `timestamp`. `<OPERATOR>` can be one of `gt`,
+        `lt`, `since` or `until`.
+         `gt` and `lt` require a timestamp value as `unixepoch`. `since` and `until` require a timestamp value in format `RFC3339`.
+         e.g. `filter[timestamp][gt]=1636009200&filter[timestamp][lt]=1636009500` or
+         e.g. `filter[timestamp][since]=2021-01-01T00:00:00+01:00&filter[timestamp][until]=2021-01-01T01:00:00+01:00`.
+
+         Downsampling data is available for a period `>= 2 hours` and `<= 48 hours`.
+         When downsampling takes place you get `avg, min and max` values for `cpu_usage_percent, memory_usage_percent and io_usage_percent`
+
+         
+      schema:
+        type: string
+  responses:
+    '200':
+      description: Successful Operation
+      content:
+        application/json:
+          schema:
+            type: object
+            properties:
+              data:
+                type: array
+                items:
+                  $ref: ../components/schemas/GraphMetrics.yaml
+              links:
+                type: object
+                properties:
+                  cpu_usage_percent:
+                    type: string
+                  mem_usage_percent:
+                    type: string
+                  io_usage_percent:
+                    type: string
+                  net_usage_percent_lan:
+                    type: string
+                  net_usage_bps_lan:
+                    type: string
+                  net_usage_percent_wan:
+                    type: string
+                  net_usage_bps_wan:
+                    type: string
+    '400':
+      description: Bad Request
+      content:
+        application/json:
+          schema:
+            $ref: ../components/schemas/ErrorPayload.yaml
+    '404':
+      description: Cannot find measurements by the provided id
+      content:
+        application/json:
+          schema:
+            $ref: ../components/schemas/ErrorPayload.yaml
+    '500':
+      description: Invalid Operation
+      content:
+        application/json:
+          schema:
+            $ref: ../components/schemas/ErrorPayload.yaml

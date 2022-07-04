@@ -1,0 +1,14 @@
+type: object
+properties:
+  title:
+    type: string
+    description: Title of the update
+  description:
+    type: string
+    description: Description of the update
+  reboot_required:
+    type: boolean
+    description: Whether the update requires reboot
+  is_security_update:
+    type: boolean
+    description: Whether this is a security update

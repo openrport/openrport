@@ -1,0 +1,56 @@
+type: object
+properties:
+  jid:
+    type: string
+    description: multi-client job ID
+  started_at:
+    type: string
+    description: command finish time
+    format: data-time
+  created_by:
+    type: string
+    description: API username who run the command
+  schedule_id:
+    type: string
+    description: Optional ID of the schedule the job was started by
+    format: uuid
+  client_ids:
+    type: array
+    description: list of client IDs where the command was requested to run
+    items:
+      type: string
+  group_ids:
+    type: array
+    description: list of client group IDs where the command was requested to run
+    items:
+      type: string
+  command:
+    type: string
+    description: executed command
+  cwd:
+    type: string
+    description: current working directory for an executable command
+  is_sudo:
+    type: boolean
+    description: execute the command as a sudo user
+  interpreter:
+    type: string
+    description: command interpreter that was used to execute the command
+  timeout_sec:
+    type: integer
+    description: >-
+      timeout in seconds that was used to observe the command execution on each
+      client
+  concurrent:
+    type: boolean
+    description: whether command was executed sequentially or concurrently on clients
+  abort_on_err:
+    type: boolean
+    description: >-
+      whether command was specified to abort or not the whole cycle, if the
+      execution fails on some client. Not applicable if 'concurrent' is true
+  jobs:
+    type: array
+    description: clients' jobs, limited to 100
+    items:
+      $ref: ./Job.yaml

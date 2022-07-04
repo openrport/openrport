@@ -92,7 +92,7 @@ Reload rportd to apply all changes.
 
 ## Manage client credentials via the API
 
-The [`/clients-auth` endpoint](https://petstore.swagger.io/?url=https://raw.githubusercontent.com/cloudradar-monitoring/rport/master/api-doc.yml#/Rport%20Client%20Auth%20Credentials) allows you to manage clients and credentials through the API.
+The [`/clients-auth` endpoint](https://apidoc.rport.io/master/#tag/Rport-Client-Auth-Credentials) allows you to manage clients and credentials through the API.
 This option is disabled if you use a single static clientauthid-password pair.
 If you want to delegate the management of client auth credentials to a third-party app writing directly to the auth-file or the database, consider turning the endpoint off by activating the following lines in the `rportd.conf`.
 ```

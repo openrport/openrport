@@ -1,0 +1,52 @@
+post:
+  tags:
+    - Profile & Info
+  summary: Generate a new API token for user and return it
+  operationId: MetTokenGet
+  responses:
+    '200':
+      description: API token
+      content:
+        application/json:
+          schema:
+            type: object
+            properties:
+              data:
+                type: object
+                properties:
+                  token:
+                    type: string
+                    format: uuid
+    '401':
+      description: Unauthorized
+      content:
+        application/json:
+          schema:
+            $ref: ../components/schemas/ErrorPayload.yaml
+    '500':
+      description: Invalid Operation
+      content:
+        application/json:
+          schema:
+            $ref: ../components/schemas/ErrorPayload.yaml
+delete:
+  tags:
+    - Profile & Info
+  summary: Delete user's API token
+  operationId: MetTokenDelete
+  responses:
+    '204':
+      description: Successful operation.
+      content: {}
+    '401':
+      description: Unauthorized
+      content:
+        '*/*':
+          schema:
+            $ref: ../components/schemas/ErrorPayload.yaml
+    '500':
+      description: Invalid Operation
+      content:
+        '*/*':
+          schema:
+            $ref: ../components/schemas/ErrorPayload.yaml

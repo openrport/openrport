@@ -3,20 +3,20 @@ Rport provides a secure storage which allows to persist arbitrary data related t
 All data is stored encrypted so user can safely store passwords used for log in to remote systems there.
 Typical vault workflow looks as following:
 
-- Administrator initialises vault by calling [vault init api](https://petstore.swagger.io/?url=https://raw.githubusercontent.com/cloudradar-monitoring/rport/master/api-doc.yml#/Vault)
+- Administrator initialises vault by calling [vault init api](https://apidoc.rport.io/master/#tag/Vault)
 and giving a password in input. RPort stores password in a secure place. From this moment Rport vault will remain unlocked and can accept requests for reading or changing data.
 
-- Administrator can lock vault by using [vault lock api](https://petstore.swagger.io/?url=https://raw.githubusercontent.com/cloudradar-monitoring/rport/master/api-doc.yml#/Vault).
+- Administrator can lock vault by using [vault lock api](https://apidoc.rport.io/master/#operation/VaultAdminSesamDelete).
 RPort removes password and rejects all access requests to the vault. The same happens when server restarts. The vault database is persisted to hdd, so it will remain after server restarts. However, we would also recommend to back up the vault database additionally to survive also possible disk failures.
 
-- Administrator can unlock vault by using [vault unlock api](https://petstore.swagger.io/?url=https://raw.githubusercontent.com/cloudradar-monitoring/rport/master/api-doc.yml#/Vault).
+- Administrator can unlock vault by using [vault unlock api](https://apidoc.rport.io/master/#operation/VaultAdminSesamPost).
 He should provide password which he used on init stage. If a wrong password is provided, RPort will reject the vault access. In case of a correct password vault will be unlocked and can be used for reading or changing secure data.
   
-- Any authorized user can store new key value pairs by calling [vault store api](https://petstore.swagger.io/?url=https://raw.githubusercontent.com/cloudradar-monitoring/rport/master/api-doc.yml#/Vault)
+- Any authorized user can store new key value pairs by calling [vault store api](https://apidoc.rport.io/master/#operation/VaultPost)
 
-- Any authorized user can list or search for stored vault entries by calling [vault list api](https://petstore.swagger.io/?url=https://raw.githubusercontent.com/cloudradar-monitoring/rport/master/api-doc.yml#/Vault)
+- Any authorized user can list or search for stored vault entries by calling [vault list api](https://apidoc.rport.io/master/#operation/VaultGet)
 
-- Any authorized user can get the stored secure value by provided id [vault get api](https://petstore.swagger.io/?url=https://raw.githubusercontent.com/cloudradar-monitoring/rport/master/api-doc.yml#/Vault)
+- Any authorized user can get the stored secure value by provided id [vault get api](https://apidoc.rport.io/master/#operation/VaultItemGet)
 
 Any user belonging to the Administrators group can init, lock and unlock Vault. Any authorized user can read, store, delete values in an unlocked and initialized Vault. The only exception from this rule is if a value is stored with a non-empty `required_group` field, in this case the access will be allowed only to the users belonging to the specified `required_group` value.
 

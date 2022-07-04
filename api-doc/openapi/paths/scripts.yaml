@@ -1,0 +1,51 @@
+post:
+  tags:
+    - Scripts
+  summary: Execute a script on multiple rport clients
+  operationId: ScriptsPost
+  description: >-
+    This API executes the provided script on multiple clients similar to the
+    command execution
+  requestBody:
+    description: properties and remote command to execute by rport clients
+    content:
+      '*/*':
+        schema:
+          type: object
+          properties:
+            data:
+              $ref: ../components/schemas/ExecuteScriptRequest.yaml
+    required: true
+  responses:
+    '200':
+      description: Successful Operation
+      content:
+        application/json:
+          schema:
+            type: object
+            properties:
+              data:
+                type: object
+                properties:
+                  jid:
+                    type: string
+                    description: multi job id of the corresponding command
+    '400':
+      description: Invalid request parameters
+      content:
+        application/json:
+          schema:
+            $ref: ../components/schemas/ErrorPayload.yaml
+    '404':
+      description: Client not found
+      content:
+        application/json:
+          schema:
+            $ref: ../components/schemas/ErrorPayload.yaml
+    '500':
+      description: Invalid Operation
+      content:
+        application/json:
+          schema:
+            $ref: ../components/schemas/ErrorPayload.yaml
+  x-codegen-request-body-name: body

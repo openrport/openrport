@@ -3,8 +3,8 @@ Via the API you can execute a command on connected clients.
 The command and the response are transferred through the web socket connection. A tunnel is not needed.
 
 Command can be executed via:
-* [REST API](https://petstore.swagger.io/?url=https://raw.githubusercontent.com/cloudradar-monitoring/rport/master/api-doc.yml#/Commands)
-* [WebSocket API](https://petstore.swagger.io/?url=https://raw.githubusercontent.com/cloudradar-monitoring/rport/master/api-doc.yml#/Commands/get_ws_commands)
+* [REST API](https://apidoc.rport.io/master/#tag/Commands)
+* [WebSocket API](https://apidoc.rport.io/master/#operation/WsCommandsGet)
 
 Here we would show examples how to do it via REST API.
 

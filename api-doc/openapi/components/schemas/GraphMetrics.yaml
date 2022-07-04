@@ -1,0 +1,42 @@
+type: object
+properties:
+  timestamp:
+    type: string
+    description: Timestamp of measurement
+    format: date-time
+  cpu_usage_percent:
+    type: object
+    properties:
+      avg:
+        type: number
+        description: cpu_usage_percent average
+      min:
+        type: number
+        description: cpu_usage_percent minimum
+      max:
+        type: number
+        description: cpu_usage_percent maximum
+  memory_usage_percent:
+    type: object
+    properties:
+      avg:
+        type: number
+        description: memory_usage_percent average
+      min:
+        type: number
+        description: memory_usage_percent minimum
+      max:
+        type: number
+        description: memory_usage_percent maximum
+  io_usage_percent:
+    type: object
+    properties:
+      avg:
+        type: number
+        description: io_usage_percent average
+      min:
+        type: number
+        description: io_usage_percent minimum
+      max:
+        type: number
+        description: io_usage_percent maximum

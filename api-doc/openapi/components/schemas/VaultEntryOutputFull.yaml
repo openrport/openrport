@@ -1,0 +1,43 @@
+type: object
+properties:
+  client_id:
+    type: string
+    description: >-
+      Used to tie a document to a specific client where 0 means the document can
+      be accessed from any client.
+  required_group:
+    type: string
+    description: >-
+      if filled, users not belonging to this group are not allowed to store or
+      read the decrypted value
+  key:
+    type: string
+    description: some string to identify the document
+  type:
+    type: string
+    description: Type of the secret value
+    enum:
+      - text
+      - secret
+      - markdown
+      - string
+  value:
+    type: string
+    description: decrypted value of the vault entry
+  id:
+    type: integer
+    description: Unique internal id of a vault entry
+  created_at:
+    type: string
+    description: Date and time of vault entry creation
+    format: data-time
+  updated_at:
+    type: string
+    description: Date and time of vault entry last update
+    format: data-time
+  created_by:
+    type: string
+    description: User name who created this vault entry
+  updated_by:
+    type: string
+    description: User name who last updated this vault entry

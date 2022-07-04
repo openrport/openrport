@@ -1,0 +1,10 @@
+type: object
+properties:
+  secret:
+    type: string
+    description: Secret key for time based one time password Authenticator
+  qr:
+    type: string
+    description: >-
+      base64 encoded png image (200x200px) with the QR code, needed to add a
+      rport account in an Authenticator app

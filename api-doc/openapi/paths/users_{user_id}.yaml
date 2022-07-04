@@ -1,0 +1,85 @@
+put:
+  tags:
+    - Users
+  summary: Update a user identified by the provided id
+  operationId: UserPut
+  description: >-
+    Update an existing user. This API requires the current user to be member of
+    group `Administrators`. Returns 403 otherwise. The `Administrators` group
+    name is hardcoded and cannot be changed at the moment.
+  parameters:
+    - name: user_id
+      in: path
+      description: unique user ID
+      required: true
+      schema:
+        type: string
+  requestBody:
+    description: >-
+      User to update. Please note, that if you provide some key/values like
+      `username: login1`, the not mentioned keys won't be changed, e.g.
+      `password`
+    content:
+      '*/*':
+        schema:
+          $ref: ../components/schemas/UserPost.yaml
+    required: true
+  responses:
+    '204':
+      description: Successful Operation
+      content: {}
+    '400':
+      description: Invalid request parameters
+      content:
+        application/json:
+          schema:
+            $ref: ../components/schemas/ErrorPayload.yaml
+    '403':
+      description: >-
+        current user should belong to Administrators group to access this
+        resource
+      content:
+        application/json:
+          schema:
+            $ref: ../components/schemas/ErrorPayload.yaml
+    '500':
+      description: Invalid Operation
+      content:
+        application/json:
+          schema:
+            $ref: ../components/schemas/ErrorPayload.yaml
+  x-codegen-request-body-name: user
+delete:
+  tags:
+    - Users
+  summary: Delete a user
+  operationId: UserDelete
+  description: >-
+    Deletes a user by a given id. This API requires the current user to be
+    member of group `Administrators`. Returns 403 otherwise. The
+    `Administrators` group name is hardcoded and cannot be changed at the moment
+  parameters:
+    - name: user_id
+      in: path
+      description: unique user ID
+      required: true
+      schema:
+        type: string
+  responses:
+    '204':
+      description: Successful Operation
+      content: {}
+    '403':
+      description: >-
+        current user should belong to Administrators group to access this
+        resource
+      content:
+        application/json:
+          schema:
+            $ref: ../components/schemas/ErrorPayload.yaml
+    '500':
+      description: Invalid Operation
+      content:
+        application/json:
+          schema:
+            $ref: ../components/schemas/ErrorPayload.yaml

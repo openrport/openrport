@@ -1,0 +1,97 @@
+put:
+  tags:
+    - Clients and Tunnels
+  summary: Updates an existing stored tunnel
+  operationId: ClientStoredtunnelPut
+  description: |-
+    Updates an existing stored tunnel by the provided `id` parameter.
+     You need to provide all fields like those you used to create the stored tunnel. Partial updates are not supported. You can get `id` by using the listing API. You get the id also when you store a new value.
+  parameters:
+    - name: client_id
+      in: path
+      description: Unique client ID
+      required: true
+      schema:
+        type: string
+    - name: id
+      in: path
+      description: Unique script ID
+      required: true
+      schema:
+        type: string
+  requestBody:
+    description: value in the json format
+    content:
+      '*/*':
+        schema:
+          $ref: ../components/schemas/StoredTunnel.yaml
+    required: true
+  responses:
+    '200':
+      description: Successful Operation
+      content:
+        '*/*':
+          schema:
+            type: object
+            properties:
+              data:
+                $ref: ../components/schemas/StoredTunnel.yaml
+    '400':
+      description: Invalid body parameters
+      content:
+        '*/*':
+          schema:
+            $ref: ../components/schemas/ErrorPayload.yaml
+    '401':
+      description: Unauthorized
+      content:
+        '*/*':
+          schema:
+            $ref: ../components/schemas/ErrorPayload.yaml
+    '500':
+      description: Invalid Operation
+      content:
+        '*/*':
+          schema:
+            $ref: ../components/schemas/ErrorPayload.yaml
+  x-codegen-request-body-name: body
+delete:
+  tags:
+    - Clients and Tunnels
+  summary: Deletes an existing stored tunnel
+  operationId: ClientStoredtunnelDelete
+  parameters:
+    - name: client_id
+      in: path
+      description: Unique client ID
+      required: true
+      schema:
+        type: string
+    - name: id
+      in: path
+      description: Unique stored tunnel ID
+      required: true
+      schema:
+        type: string
+  responses:
+    '204':
+      description: Successful Operation
+      content: {}
+    '401':
+      description: Unauthorized
+      content:
+        '*/*':
+          schema:
+            $ref: ../components/schemas/ErrorPayload.yaml
+    '404':
+      description: cannot find stored tunnel by the provided id
+      content:
+        '*/*':
+          schema:
+            $ref: ../components/schemas/ErrorPayload.yaml
+    '500':
+      description: Invalid Operation
+      content:
+        '*/*':
+          schema:
+            $ref: ../components/schemas/ErrorPayload.yaml

@@ -1,0 +1,23 @@
+type: object
+properties:
+  jid:
+    type: string
+    description: job ID
+  status:
+    type: string
+    description: command status
+    enum:
+      - running
+      - successful
+      - unknown
+      - failed
+  finished_at:
+    type: string
+    description: command finish time
+    format: data-time
+  result:
+    type: object
+    properties:
+      summary:
+        type: string
+        description: summary output extracted from stdout using summary tag

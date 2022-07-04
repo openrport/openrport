@@ -23,7 +23,7 @@ To save bandwidth and disk space on the server, you can disable the monitoring f
 Please refer to the documentation inside the configuration example to explore all options of the monitoring. 
 
 ## Fetching monitoring data
-All collected monitoring data can be fetched using the API. Please refer to our [API docs](https://petstore.swagger.io/?url=https://raw.githubusercontent.com/cloudradar-monitoring/rport/master/api-doc.yml#/Monitoring).
+All collected monitoring data can be fetched using the API. Please refer to our [API docs](https://apidoc.rport.io/master/#tag/Monitoring).
 
 ## Processing monitoring data
 At the moment, either the client nor the server processes the monitoring data in any way. Sending alerts based on thresholds is on our roadmap. Be patient and [stay tuned](https://subscribe.rport.io).

@@ -1,0 +1,41 @@
+type: object
+properties:
+  name:
+    type: string
+    description: User-friendly name of a script
+  id:
+    type: string
+    description: unique internal identifier of a script in uuid4 format
+  created_at:
+    type: string
+    description: Date and time of script creation
+    format: data-time
+  created_by:
+    type: string
+    description: User name who created this script
+  updated_at:
+    type: string
+    description: Date and time of script update
+    format: data-time
+  updated_by:
+    type: string
+    description: User name who updated this script
+  interpreter:
+    type: string
+    description: >-
+      how will the script be executed on the client, e.g. /bin/sh, cmd.exe,
+      powershell, tacoscript
+  cwd:
+    type: string
+    description: current working directory, where the script should be executed
+  script:
+    type: string
+    description: text of the script
+  is_sudo:
+    type: boolean
+    description: if true, this script will be executed as a sudo user
+  tags:
+    type: array
+    description: List of tags for the script
+    items:
+      type: string

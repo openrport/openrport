@@ -1,0 +1,38 @@
+get:
+  tags:
+    - Upload
+  summary: Web Socket Connection to track upload process on clients
+  operationId: WsUploadsGet
+  description: |2
+    NOTE: swagger is not designed to document WebSocket API. This is a temporary solution.
+
+    The web socket API tracks uploads for all clients and all requests.
+     Steps:
+     1. To pass authentication - include "access_token" param into the url. The value is a jwt token that is created by 'login' API endpoint.
+     2. Upgrades the current connection to Web Socket.
+     3. Once the conneciton is open, all uploads to the clients can be tracked through it 4. Server receives an upload request, stores a file in a temp location and sends this information to all provided clients. 5. Clients will establish an sftp connection on top of the existing ssh connection and will download file from the servers temp folder and store it in its own temp folder 6. After download success, client will move the uploaded file from the temp to the desired path and perform chmod/chown operations if needed 7. The result (success/failure/partial failure/ignore) will be reported to the server through the SSH connection 8. The Rport server will send the client upload results to all open websocket connections 9. The websocket connection will stay open till client closes it There is a simple UI for testing. Try it out http://127.0.0.1:3000/api/v1/test/uploads/ui. You can enable this api by setting `enable_ws_test_endpoints=true` in the configuration file 
+  parameters:
+    - name: access_token
+      in: query
+      description: >-
+        JWT token that is created by 'login' API endpoint. Required to pass the
+        authentication.
+      required: true
+      schema:
+        type: string
+  responses:
+    '200':
+      description: On success upgrades current connection to websocket
+      content:
+        application/json:
+          schema:
+            type: object
+            properties:
+              data:
+                $ref: ../components/schemas/ClientUploadResponse.yaml
+    '400':
+      description: Invalid request parameters
+      content:
+        application/json:
+          schema:
+            $ref: ../components/schemas/ErrorPayload.yaml

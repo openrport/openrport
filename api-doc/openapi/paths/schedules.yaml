@@ -1,0 +1,113 @@
+get:
+  tags:
+    - Jobs
+  summary: List schedules
+  description: Reads all schedules or find some based on the input parameters
+  operationId: SchedulesGet
+  parameters:
+    - name: sort
+      in: query
+      description: >-
+        Sort field to be used for sorting, the sorting direction is by default
+        ASC.
+         To change the direction add `-` to the sorting value e.g. `-id`. Allowed values are `id`, `created_at`, `created_by`, `name`, `type`.
+         You can use as many sort parameters as you want.
+      schema:
+        type: string
+    - name: filter[<FIELD>]
+      in: query
+      description: >-
+        Filter the results. It should be provided in the format as
+        `filter[<FIELD>]=<VALUE>`,
+         where `<FIELD>` is one of the values `id`, `created_at`, `created_by`, `name`, `type`, `client_ids`, `group_ids` and `<VALUE>` is the search value,
+         e.g. `filter[name]=Schedule` will request only schedule with name Schedule. You can use as many filter parameters as you want.
+         If you want to filter by multiple values e.g. find entries either for name = Schedule or Other you can use following filters
+         `filter[name]=Schedule,Other`.
+         Wildcards `*` are supported in the filter `<value>`.
+      schema:
+        type: string
+    - name: page
+      in: query
+      description: >-
+        Pagination options `page[limit]` and `page[offset]` can be used to get
+        more than the first page of results. Default limit is 20 and maximum is
+        100. The `count` property in meta shows the total number of results.
+      schema:
+        type: integer
+  responses:
+    '200':
+      description: Successful Operation
+      content:
+        application/json:
+          schema:
+            type: object
+            properties:
+              data:
+                type: array
+                items:
+                  $ref: ../components/schemas/Schedule.yaml
+              meta:
+                type: object
+                properties:
+                  count:
+                    type: integer
+    '400':
+      description: unsupported sort field 'xyz'
+      content:
+        application/json:
+          schema:
+            $ref: ../components/schemas/ErrorPayload.yaml
+    '401':
+      description: Unauthorized
+      content:
+        application/json:
+          schema:
+            $ref: ../components/schemas/ErrorPayload.yaml
+    '500':
+      description: Invalid Operation
+      content:
+        application/json:
+          schema:
+            $ref: ../components/schemas/ErrorPayload.yaml
+post:
+  tags:
+    - Jobs
+  summary: Creates a new schedule
+  operationId: SchedulesPost
+  description: Creates a new schedule.
+  requestBody:
+    description: value in the json format
+    content:
+      '*/*':
+        schema:
+          $ref: ../components/schemas/Schedule.yaml
+    required: true
+  responses:
+    '201':
+      description: Successful Create Operation
+      content:
+        application/json:
+          schema:
+            type: object
+            properties:
+              data:
+                $ref: ../components/schemas/Schedule.yaml
+    '400':
+      description: Invalid request parameters
+      content:
+        application/json:
+          schema:
+            $ref: ../components/schemas/ErrorPayload.yaml
+    '401':
+      description: Unauthorized
+      content:
+        application/json:
+          schema:
+            $ref: ../components/schemas/ErrorPayload.yaml
+    '500':
+      description: Invalid Operation
+      content:
+        application/json:
+          schema:
+            $ref: ../components/schemas/ErrorPayload.yaml
+  x-codegen-request-body-name: body

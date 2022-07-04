@@ -1,0 +1,34 @@
+post:
+  tags:
+    - Clients and Tunnels
+  summary: Trigger updates status refresh on the client
+  operationId: ClientUpdatestatusPost
+  parameters:
+    - name: client_id
+      in: path
+      description: unique client id retrieved previously
+      required: true
+      schema:
+        type: string
+  responses:
+    '204':
+      description: Successful Operation
+      content: {}
+    '400':
+      description: Invalid request parameters
+      content:
+        application/json:
+          schema:
+            $ref: ../components/schemas/ErrorPayload.yaml
+    '404':
+      description: Client or specified user groups not found
+      content:
+        application/json:
+          schema:
+            $ref: ../components/schemas/ErrorPayload.yaml
+    '500':
+      description: Invalid Operation
+      content:
+        application/json:
+          schema:
+            $ref: ../components/schemas/ErrorPayload.yaml

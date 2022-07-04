@@ -1,0 +1,108 @@
+post:
+  tags:
+    - Upload
+  summary: Upload file
+  operationId: FilesPost
+  description: |
+    Handles file uploads as a multipart/form-data. 
+    * Files are stored on the rport server in a temporary location.
+    * Then all specified clients download them by sftp protocol to a temp location as well. 
+    * If download was successful, clients move the temp file to the destination path.
+  requestBody:
+    content:
+      multipart/form-data:
+        schema:
+          required:
+            - client_id
+            - dest
+            - upload
+          properties:
+            upload:
+              type: string
+              description: The file to upload
+              format: binary
+            client_id:
+              type: string
+              description: >-
+                Client ID where the file should be placed. You can repeat
+                'client' parameter to indicate multiple clients
+            group_id:
+              type: string
+              description: >-
+                ID of a client group where the file should be placed. You can
+                repeat 'group_id' parameter to indicate multiple groups
+            dest:
+              type: string
+              description: >-
+                Absolute path with the file name on the client where the file
+                should be placed
+            force:
+              type: string
+              description: >-
+                If true, rport client will overwrite destination file if it
+                exists or fail otherwise.
+                 You can provide values like true or 1 or on to enable this flag
+            sync:
+              type: string
+              description: >-
+                If true and the destination file exists, rport client will
+                compare md5 checksum of the provided file 
+                 with the destination file and will overwrite it if it's not matching. On Unix it will also compare file mode, owner and group 
+                 of the existing file with the provided values and if they don't match, rport client will execute chmod/chown operations on the destination path. 
+                 if false or file doesn't exists, the provided file will be copied to the destination.
+            mode:
+              type: string
+              description: >-
+                For Unix only, indicates the desired file mode of the target
+                file on the client. If the file doesn't exist, it will be
+                created with the provided mode. 
+                 If file exists (and sync is true), rport client will run chmod operation with the provided file mode.
+            user:
+              type: string
+              description: >-
+                For Unix only, indicates the desired owner name the target file
+                on the client. 
+                 The uploaded file will be created with the default owner in a temp folder. If `user` is not empty, rport client will perform chown operation on the temp file. 
+                 Then it will be moved to the target path Please make sure that the provided user exists on the client.
+                 Since changing owner of a file requires sudo rights, the rport client user should have the necessary permissions to chown and move file to the target location.
+            group:
+              type: string
+              description: >-
+                For Unix only, indicates the group name the target file on the
+                client. 
+                 The uploaded file will be created with the default group in a temp folder. Then rport client will chown the temp file with the provided group name. 
+                 Then it will be moved to the target path. Please make sure that the provided group exists on the client.
+                 Since changing group of a file requires sudo rights, the rport client user should have the necessary permissions to chown and move file to the target location.
+    required: true
+  responses:
+    '200':
+      description: >-
+        Successful Operation. In this case it indicates that the file was
+        successfully sent to the server rather than to the clients.
+         Sending to clients is an async operation, which can be tracked with the websocket API.
+         To see if clients have received the file as well, use `/ws/uploads` endpoint.
+      content:
+        application/json:
+          schema:
+            type: object
+            properties:
+              data:
+                $ref: ../components/schemas/ServerUploadResponse.yaml
+    '400':
+      description: Invalid parameters
+      content:
+        application/json:
+          schema:
+            $ref: ../components/schemas/ErrorPayload.yaml
+    '401':
+      description: Unauthorized
+      content:
+        application/json:
+          schema:
+            $ref: ../components/schemas/ErrorPayload.yaml
+    '500':
+      description: Invalid Operation
+      content:
+        application/json:
+          schema:
+            $ref: ../components/schemas/ErrorPayload.yaml

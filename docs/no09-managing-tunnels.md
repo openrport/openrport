@@ -7,7 +7,7 @@ rport --auth rport:password123 <SERVER_IP>:9999 2222:22
 
 Alternatively add tunnels to the configuration file `rport.conf`.
 ## Manage tunnel server-side
-On the server, you can supervise and manage the attached clients through the [API](https://petstore.swagger.io/?url=https://raw.githubusercontent.com/cloudradar-monitoring/rport/master/api-doc.yml#/Clients%20and%20Tunnels).
+On the server, you can supervise and manage the attached clients through the [API](https://apidoc.rport.io/master/#tag/Clients-and-Tunnels).
 ### List
 
 `curl -s -u admin:foobaz http://localhost:3000/api/v1/clients`. *Use `jq` for pretty-printing json.*
@@ -239,7 +239,7 @@ If you have upgraded your RPort server from an older version, insert the followi
   #tunnel_proxy_key_file = "/var/lib/rport/server.key" 
 ```
 
-By using `http_proxy=1` on [tunnel creation](https://petstore.swagger.io/?url=https://raw.githubusercontent.com/cloudradar-monitoring/rport/master/api-doc.yml#/Clients%20and%20Tunnels/put_clients__client_id__tunnels), the proxy will come up together with the tunnel. The rport server will then use two tcp ports. One for the raw tcp tunnel and one for the http proxy. 
+By using `http_proxy=1` on [tunnel creation](https://apidoc.rport.io/master/#operation/ClientTunnelsPut), the proxy will come up together with the tunnel. The rport server will then use two tcp ports. One for the raw tcp tunnel and one for the http proxy. 
 ACLs are applied to proxy also. The raw tcp tunnel is bound to localhost only, and therefore it's not accessible from the outside.
 
 ::: warning

@@ -1,0 +1,130 @@
+get:
+  tags:
+    - Library
+  summary: List commands
+  description: Reads all commands or find some based on the input parameters
+  operationId: LibraryCommandsGet
+  parameters:
+    - name: sort
+      in: query
+      description: >-
+        Sort field to be used for values, the sorting direction is by default
+        ASC.
+         To change the direction add `-` to the sorting value e.g. `-id`. All fields are allowed.
+         You can use as many sort parameters as you want.
+      schema:
+        type: string
+    - name: filter[<FIELD>]
+      in: query
+      description: >-
+        Filter to find commands. It should be provided in the format as
+        `filter[<FIELD>]=<VALUE>`,
+         where `<FIELD>` is one of the fields and `<VALUE>` is the search value,
+         e.g. `filter[created_by]=admin` will request only commands created by admin. You can use as many filter parameters as you want. You can use wildcard `*`.
+         If you want to filter by multiple values e.g. find entries either for name = command1 or command2 you can use following filters
+         `filter[name]=command1,command2`.
+      schema:
+        type: string
+    - name: fields[<RESOURCE>]
+      in: query
+      description: >-
+        Fields to be returned. It should be provided in the format as
+        `fields[<RESOURCE>]=<FIELDS>`, where `<RESOURCE>` is `comamnds` and
+        `<FIELDS>` is a comma separated list of fields. Example:
+        `fields[commands]=id,name`. If no fields are specified, all will be
+        returned.
+      schema:
+        type: string
+    - name: page
+      in: query
+      description: >-
+        Pagination options `page[limit]` and `page[offset]` can be used to get
+        more than the first page of results. Default limit is 20 and maximum is
+        100. The `count` property in meta shows the total number of results.
+      schema:
+        type: integer
+  responses:
+    '200':
+      description: Successful Operation
+      content:
+        application/json:
+          schema:
+            type: object
+            properties:
+              data:
+                type: array
+                items:
+                  $ref: ../components/schemas/Command.yaml
+              meta:
+                type: object
+                properties:
+                  count:
+                    type: integer
+    '400':
+      description: unsupported sort field 'xyz'
+      content:
+        application/json:
+          schema:
+            $ref: ../components/schemas/ErrorPayload.yaml
+    '401':
+      description: Unauthorized
+      content:
+        application/json:
+          schema:
+            $ref: ../components/schemas/ErrorPayload.yaml
+    '500':
+      description: Invalid Operation
+      content:
+        application/json:
+          schema:
+            $ref: ../components/schemas/ErrorPayload.yaml
+post:
+  tags:
+    - Library
+  summary: Creates a new command
+  operationId: LibraryCommandsPost
+  description: |-
+    Creates a new command.
+     If another entry with the same name exists, an error will be returned.
+  requestBody:
+    description: value in the json format
+    content:
+      '*/*':
+        schema:
+          $ref: ../components/schemas/CommandInput.yaml
+    required: true
+  responses:
+    '201':
+      description: Successful Create Operation
+      content:
+        application/json:
+          schema:
+            type: object
+            properties:
+              data:
+                $ref: ../components/schemas/Command.yaml
+    '400':
+      description: Invalid request parameters
+      content:
+        application/json:
+          schema:
+            $ref: ../components/schemas/ErrorPayload.yaml
+    '401':
+      description: Unauthorized
+      content:
+        application/json:
+          schema:
+            $ref: ../components/schemas/ErrorPayload.yaml
+    '409':
+      description: another script with the same name exists
+      content:
+        application/json:
+          schema:
+            $ref: ../components/schemas/ErrorPayload.yaml
+    '500':
+      description: Invalid Operation
+      content:
+        application/json:
+          schema:
+            $ref: ../components/schemas/ErrorPayload.yaml
+  x-codegen-request-body-name: body

@@ -1,0 +1,29 @@
+get:
+  tags:
+    - Clients and Tunnels
+  summary: Returns all active tunnels of rport clients that current user has access to
+  operationId: TunnelsGet
+  responses:
+    '200':
+      description: success response
+      content:
+        application/json:
+          schema:
+            type: object
+            properties:
+              data:
+                type: array
+                items:
+                  $ref: ../components/schemas/Tunnel.yaml
+    '400':
+      description: Invalid request parameters
+      content:
+        application/json:
+          schema:
+            $ref: ../components/schemas/ErrorPayload.yaml
+    '500':
+      description: invalid operation
+      content:
+        application/json:
+          schema:
+            $ref: ../components/schemas/ErrorPayload.yaml

@@ -1,0 +1,15 @@
+type: object
+properties:
+  username:
+    type: string
+    description: Username
+  groups:
+    type: array
+    description: List of groups to which the current user belongs
+    items:
+      type: string
+  two_fa_send_to:
+    type: string
+    description: >-
+      Holds either the email or the pushover token of the user. It's used to
+      deliver 2FA token to user when 2FA is enabled

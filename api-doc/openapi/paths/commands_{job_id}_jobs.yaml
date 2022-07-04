@@ -1,0 +1,83 @@
+get:
+  tags:
+    - Commands
+  summary: Return a short info about all multi-client command jobs
+  description: >-
+    Return a list of all running and finished jobs sorted by finished time in
+    desc order with running commands at the beginning
+  operationId: CommandGetJobs
+  parameters:
+    - name: job_id
+      in: path
+      description: unique multi-client command id
+      required: true
+      schema:
+        type: string
+    - name: sort
+      in: query
+      description: >-
+        Sort field to be used for sorting, the default sorting is by finished
+        time in desc order.
+         To change the direction add `-` to the sorting value e.g. `-started_at`. Allowed values are `jid`, `started_at`, `finished_at`, `status`, `client_id`, `created_by`, `schedule_id`.
+         You can use as many sort parameters as you want.
+      schema:
+        type: string
+    - name: filter[<FIELD>]
+      in: query
+      description: >-
+        Filter option `filter[<field>]` or `filter[started_at][<op>]`. `<field>`
+        can be one of `jid`, `created_by`, `started_at`, `finished_at`,
+        `status`, `client_id`, `schedule_id`  and `<value>` is the search value,
+         e.g. `filter[created_by]=admin` will request only commands created by admin. You can use as many filter parameters as you want.
+         Wildcards `*` are supported in the filter `<value>`.
+         For `started_at` and `finished_at` filters you need to specify operation: `gt`, `lt`, `since` or `until`.
+         If you want to filter by multiple values e.g. find entries either for created_by = admin or other you can use following filters
+         `filter[created_by]=admin,other`.
+      schema:
+        type: string
+    - name: page
+      in: query
+      description: >-
+        Pagination options `page[limit]` and `page[offset]` can be used to get
+        more than the first page of results. Default limit is 100 and maximum is
+        1000. The `count` property in meta shows the total number of results.
+      schema:
+        type: integer
+    - name: fields[<RESOURCE>]
+      in: query
+      description: >-
+        Fields to be returned. It should be provided in the format as
+        `fields[<RESOURCE>]=<FIELDS>`, where `<RESOURCE>` is `commands` or
+        `result` and `<FIELDS>` is a comma separated list of fields. Default is:
+        `fields[commands]=jid,status,finished_at&fields[result]=summary`.
+      schema:
+        type: string
+  responses:
+    '200':
+      description: Successful Operation
+      content:
+        application/json:
+          schema:
+            type: object
+            properties:
+              data:
+                type: array
+                items:
+                  $ref: ../components/schemas/JobSummary.yaml
+              meta:
+                type: object
+                properties:
+                  count:
+                    type: integer
+    '400':
+      description: Invalid request parameters
+      content:
+        application/json:
+          schema:
+            $ref: ../components/schemas/ErrorPayload.yaml
+    '500':
+      description: Invalid Operation
+      content:
+        application/json:
+          schema:
+            $ref: ../components/schemas/ErrorPayload.yaml

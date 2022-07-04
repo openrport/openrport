@@ -1,0 +1,38 @@
+type: object
+properties:
+  id:
+    type: string
+  client_id:
+    type: string
+  lhost:
+    type: string
+    description: server listens to this host
+  lport:
+    type: string
+    description: server listens to this port
+  rhost:
+    type: string
+    description: client proxies connection to this host
+  rport:
+    type: string
+    description: client proxies connection to this port
+  lport_random:
+    type: boolean
+    description: True if lport was chosen automatically with a random available port.
+  scheme:
+    type: string
+    description: URI scheme.
+  protocol:
+    type: string
+    description: tcp or udp
+  acl:
+    type: string
+    description: >-
+      IP v4 addresses who is allowed to use the tunnel (ipv6 is not supported
+      yet). For example, '142.78.90.8,201.98.123.0/24,'.
+  http_proxy:
+    type: boolean
+    description: True if tunnel proxy was created.
+  host_header:
+    type: string
+    description: host name to set as http header field 'Host'

@@ -1,0 +1,51 @@
+post:
+  tags:
+    - Clients and Tunnels
+  summary: Limit access to a current client to user groups. Require admin access
+  operationId: ClientAclPost
+  parameters:
+    - name: client_id
+      in: path
+      description: unique client id retrieved previously
+      required: true
+      schema:
+        type: string
+  requestBody:
+    content:
+      '*/*':
+        schema:
+          type: object
+          properties:
+            allowed_user_groups:
+              type: array
+              description: >-
+                list of user groups that are allowed to access this client.
+                Empty means only Administrators can access it. You must always
+                specify the entire list of allowed groups, partial updates are
+                not supported
+              items:
+                type: string
+    required: true
+  responses:
+    '204':
+      description: Successful Operation
+      content: {}
+    '400':
+      description: Invalid request parameters
+      content:
+        application/json:
+          schema:
+            $ref: ../components/schemas/ErrorPayload.yaml
+    '404':
+      description: Client or specified user groups not found
+      content:
+        application/json:
+          schema:
+            $ref: ../components/schemas/ErrorPayload.yaml
+    '500':
+      description: Invalid Operation
+      content:
+        application/json:
+          schema:
+            $ref: ../components/schemas/ErrorPayload.yaml
+  x-codegen-request-body-name: body

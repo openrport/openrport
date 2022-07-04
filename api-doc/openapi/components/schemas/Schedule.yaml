@@ -1,0 +1,92 @@
+type: object
+properties:
+  id:
+    type: string
+    description: unique internal identifier of the schedule in uuid4 format
+    format: uuid
+    readOnly: true
+  created_at:
+    type: string
+    description: Date and time of schedule creation
+    format: data-time
+    readOnly: true
+  created_by:
+    type: string
+    description: Username of the user who created the schedule
+    readOnly: true
+  name:
+    type: string
+    description: Name of the schedule
+  schedule:
+    type: string
+    description: Schedule in the cron format
+    example: '* * * * *'
+  type:
+    type: string
+    description: '''command'' or ''script'''
+    example: command
+  client_ids:
+    type: array
+    description: Client IDs that schedule will be executed on
+    items:
+      type: string
+  group_ids:
+    type: array
+    description: Group IDs that schedule will be executed on
+    items:
+      type: string
+  command:
+    type: string
+    description: Command to be executed, only for type 'command'
+  script:
+    type: string
+    description: Base64 encoded script to be executed, only for type 'script'
+  interpreter:
+    type: string
+    description: >-
+      Interpreter for schedule execution, for details on this and other params
+      see commands or scripts
+  cwd:
+    type: string
+    description: Cwd for schedule execution
+  is_sudo:
+    type: boolean
+    description: Is sudo for schedule execution
+  timeout_sec:
+    type: number
+    description: Timeout for schedule execution
+  execute_concurrently:
+    type: boolean
+    description: Whether to execute concurrently on all clients
+  abort_on_error:
+    type: boolean
+    description: Abort on error for schedule execution
+  overlaps:
+    type: boolean
+    description: >-
+      Whether to start another schedule execution when previous is still in
+      progress
+  last_execution:
+    type: object
+    properties:
+      started_at:
+        type: string
+        description: Date and time of last schedule exeuction
+        format: data-time
+      client_count:
+        type: number
+        description: Count of clients that schedule was last executed on
+      success_count:
+        type: number
+        description: Count of clients that schedule was last successfully executed on
+      status:
+        type: string
+        description: >-
+          Status of last schedule execution (only available when
+          `client_count=1`)
+      summary:
+        type: string
+        description: >-
+          Summary of last schedule execution (only available when
+          `client_count=1`)
+    readOnly: true

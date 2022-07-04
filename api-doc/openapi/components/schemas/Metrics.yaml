@@ -1,0 +1,15 @@
+type: object
+properties:
+  timestamp:
+    type: string
+    description: Timestamp of measurement
+    format: date-time
+  cpu_usage_percent:
+    type: number
+    description: cpu_usage_percent
+  memory_usage_percent:
+    type: number
+    description: memory_usage_percent
+  io_usage_percent:
+    type: number
+    description: io_usage_percent

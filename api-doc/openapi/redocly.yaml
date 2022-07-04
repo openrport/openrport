@@ -1,0 +1,17 @@
+#https://redocly.com/docs/cli/configuration/
+organization: RPort
+apis:
+  external@v1:
+    root: ./openapi.yaml
+    labels:
+      - external
+
+lint:
+  extends:
+    - recommended
+
+features.openapi:
+  schemaExpansionLevel: 2
+  generateCodeSamples:
+    languages:
+      - lang: curl
