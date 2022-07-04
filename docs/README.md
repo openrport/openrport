@@ -208,7 +208,7 @@ rport --auth user1:1234 --fingerprint <YOUR_FINGERPRINT> node1.example.com:8080 
 *Note that in this early version the order of the command line options is still important. This might change later.*
 
 ## All API Capabilities
-* [API docs](https://petstore.swagger.io/?url=https://raw.githubusercontent.com/cloudradar-monitoring/rport/master/api-doc.yml).
+* [API docs](https://apidoc.rport.io/master/).
 * [API authentication options](no02-api-auth.md)
 * [Management of clients and tunnels via the API](no09-managing-tunnels.md) or the [API docs](https://apidoc.rport.io/master/#tag/Clients-and-Tunnels)
 * [Command execution via the API](no06-command-execution.md) or the [API docs](https://apidoc.rport.io/master/#tag/Commands)
