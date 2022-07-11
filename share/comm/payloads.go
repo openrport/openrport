@@ -15,11 +15,13 @@ const (
 	RequestTypeCheckTunnelAllowed   = "check_tunnel_allowed"
 
 	// request types sent by clients to server
-	RequestTypePing            = "ping"
 	RequestTypeCmdResult       = "cmd_result"
 	RequestTypeUpdatesStatus   = "updates_status"
 	RequestTypeSaveMeasurement = "save_measurement"
 	RequestTypeUpload          = "upload"
+
+	// request types understood on both sides, client and server
+	RequestTypePing = "ping"
 )
 
 type CheckPortRequest struct {

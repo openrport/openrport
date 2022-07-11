@@ -8,6 +8,7 @@ import (
 	"net"
 	"net/http"
 	"net/url"
+	"strconv"
 	"strings"
 	"time"
 
@@ -129,7 +130,11 @@ func (c *Client) keepAliveLoop() {
 	for c.running {
 		time.Sleep(c.configHolder.Connection.KeepAlive)
 		if c.sshConn != nil {
-			_, _, _ = c.sshConn.SendRequest(comm.RequestTypePing, true, nil)
+			ok, response, err := c.sshConn.SendRequest(comm.RequestTypePing, true, nil)
+			if err != nil {
+				c.Errorf("Failed to send keepalive: %s", err)
+			}
+			c.Debugf("Sent keepalive, got status=%s: %s", strconv.FormatBool(ok), response)
 		}
 	}
 }
@@ -424,6 +429,8 @@ func (c *Client) handleSSHRequests(ctx context.Context, sshConn *sshClientConn) 
 			resp, err = uploadManager.HandleUploadRequest(r.Payload)
 		case comm.RequestTypeCheckTunnelAllowed:
 			resp, err = c.checkTunnelAllowed(r.Payload)
+		case comm.RequestTypePing:
+			_ = r.Reply(true, nil)
 		default:
 			c.Debugf("Unknown request: %q", r.Type)
 			comm.ReplyError(c.Logger, r, errors.New("unknown request"))

@@ -248,7 +248,13 @@ func (s *Server) Run() error {
 		s.Infof("Variable to keep lost clients is set to %v", s.config.Server.KeepLostClients)
 		go scheduler.Run(ctx, s.Logger, clients.NewCleanupTask(s.Logger, s.clientListener.clientService.repo), s.config.Server.CleanupClientsInterval)
 		s.Infof("Task to cleanup obsolete clients will run with interval %v", s.config.Server.CleanupClientsInterval)
+	} else {
+		s.Debugf("Task to cleanup obsolete clients disabled.")
 	}
+
+	//clean up disconnected hosts
+	go scheduler.Run(ctx, s.Logger, NewDisconnectedHostsCleanupTask(s.Logger, s.clientService), 2*time.Minute)
+	s.Infof("Task to cleanup disconnected clients will run with interval %v", "2m")
 
 	cleaningPeriod := time.Hour * 24 * time.Duration(s.config.Monitoring.DataStorageDays)
 	go scheduler.Run(ctx, s.Logger, monitoring.NewCleanupTask(s.Logger, s.monitoringService, cleaningPeriod), cleanupMeasurementsInterval)

@@ -399,6 +399,7 @@ func (cl *ClientListener) handleSSHRequests(clientLog *logger.Logger, clientID s
 		switch r.Type {
 		case comm.RequestTypePing:
 			_ = r.Reply(true, nil)
+			clientLog.Debugf("Received keepalive request from %s", clientID)
 		case comm.RequestTypeCmdResult:
 			job, err := cl.saveCmdResult(r.Payload)
 			if err != nil {
