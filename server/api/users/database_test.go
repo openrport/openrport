@@ -21,7 +21,7 @@ func TestNewUserDatabase(t *testing.T) {
 		Name              string
 		UsersTable        string
 		GroupsTable       string
-		GroupDetailsTable string //TODO
+		GroupDetailsTable string
 		ExpectedError     string
 		twoFAOn           bool
 		totPOn            bool
@@ -37,6 +37,12 @@ func TestNewUserDatabase(t *testing.T) {
 			GroupsTable:   "non_existent_groups",
 			ExpectedError: "no such table: non_existent_groups",
 		}, {
+			Name:              "invalid groups tables",
+			UsersTable:        "users",
+			GroupsTable:       "groups",
+			GroupDetailsTable: "non_existent_group_details",
+			ExpectedError:     "no such table: non_existent_group_details",
+		}, {
 			Name:          "invalid users columns",
 			UsersTable:    "invalid_users",
 			GroupsTable:   "groups",
@@ -47,7 +53,18 @@ func TestNewUserDatabase(t *testing.T) {
 			GroupsTable:   "invalid_groups",
 			ExpectedError: "no such column: group",
 		}, {
-			Name:        "valid tables",
+			Name:              "invalid groups columns",
+			UsersTable:        "users",
+			GroupsTable:       "groups",
+			GroupDetailsTable: "invalid_group_details",
+			ExpectedError:     "no such column: permissions",
+		}, {
+			Name:              "valid tables",
+			UsersTable:        "users",
+			GroupsTable:       "groups",
+			GroupDetailsTable: "group_details",
+		}, {
+			Name:        "valid tables - no details",
 			UsersTable:  "users",
 			GroupsTable: "groups",
 		},
@@ -84,6 +101,8 @@ func TestNewUserDatabase(t *testing.T) {
 			_, err = db.Exec("CREATE TABLE `invalid_users` (username TEXT PRIMARY KEY, pass TEXT)")
 			require.NoError(t, err)
 			_, err = db.Exec("CREATE TABLE `invalid_groups` (username TEXT, other TEXT)")
+			require.NoError(t, err)
+			_, err = db.Exec("CREATE TABLE `invalid_group_details` (name TEXT, other TEXT)")
 			require.NoError(t, err)
 
 			_, err = NewUserDatabase(db, tc.UsersTable, tc.GroupsTable, tc.GroupDetailsTable, tc.twoFAOn, tc.totPOn, testLog)
@@ -207,6 +226,30 @@ func TestGetAll(t *testing.T) {
 }
 
 func TestListGroups(t *testing.T) {
+	testCases := []struct {
+		Name         string
+		DetailsTable string
+		Expected     []Group
+	}{
+		{
+			Name:         "no details",
+			DetailsTable: "",
+			Expected: []Group{
+				NewGroup("group1"),
+				NewGroup("group2"),
+			},
+		},
+		{
+			Name:         "with details",
+			DetailsTable: "group_details",
+			Expected: []Group{
+				NewGroup("group1", PermissionCommands),
+				NewGroup("group2"),
+				NewGroup("group3", PermissionScripts),
+			},
+		},
+	}
+
 	db, err := sqlx.Connect("sqlite3", ":memory:")
 	require.NoError(t, err)
 	defer db.Close()
@@ -217,17 +260,135 @@ func TestListGroups(t *testing.T) {
 	err = prepareDummyData(db, false, false)
 	require.NoError(t, err)
 
-	d, err := NewUserDatabase(db, "users", "groups", "", false, false, testLog) // TODO: case with actual table
-	require.NoError(t, err)
+	for _, tc := range testCases {
+		t.Run(tc.Name, func(t *testing.T) {
+			d, err := NewUserDatabase(db, "users", "groups", tc.DetailsTable, false, false, testLog)
+			require.NoError(t, err)
 
-	actualGroups, err := d.ListGroups()
-	require.NoError(t, err)
+			actualGroups, err := d.ListGroups()
+			require.NoError(t, err)
 
-	expectedGroups := []Group{
-		NewGroup("group1"),
-		NewGroup("group2"),
+			assert.ElementsMatch(t, tc.Expected, actualGroups)
+		})
 	}
-	assert.Equal(t, expectedGroups, actualGroups)
+}
+
+func TestGetGroup(t *testing.T) {
+	testCases := []struct {
+		Name         string
+		DetailsTable string
+		Group        string
+		Expected     Group
+	}{
+		{
+			Name:         "no details",
+			DetailsTable: "",
+			Group:        "group1",
+			Expected:     NewGroup("group1"),
+		},
+		{
+			Name:         "with details existing",
+			DetailsTable: "group_details",
+			Group:        "group1",
+			Expected:     NewGroup("group1", PermissionCommands),
+		},
+		{
+			Name:         "with details not existing",
+			DetailsTable: "group_details",
+			Group:        "group2",
+			Expected:     NewGroup("group2"),
+		},
+	}
+
+	db, err := sqlx.Connect("sqlite3", ":memory:")
+	require.NoError(t, err)
+	defer db.Close()
+
+	err = prepareTables(db, false, false)
+	require.NoError(t, err)
+
+	err = prepareDummyData(db, false, false)
+	require.NoError(t, err)
+
+	for _, tc := range testCases {
+		t.Run(tc.Name, func(t *testing.T) {
+			d, err := NewUserDatabase(db, "users", "groups", tc.DetailsTable, false, false, testLog)
+			require.NoError(t, err)
+
+			actual, err := d.GetGroup(tc.Group)
+			require.NoError(t, err)
+
+			assert.Equal(t, tc.Expected, actual)
+		})
+	}
+}
+
+func TestUpdateGroup(t *testing.T) {
+	testCases := []struct {
+		Name string
+		Group
+	}{
+		{
+			Name:  "existing",
+			Group: NewGroup("group1", PermissionScripts),
+		},
+		{
+			Name:  "with details not existing",
+			Group: NewGroup("group2", PermissionCommands),
+		},
+	}
+
+	db, err := sqlx.Connect("sqlite3", ":memory:")
+	require.NoError(t, err)
+	defer db.Close()
+
+	err = prepareTables(db, false, false)
+	require.NoError(t, err)
+
+	err = prepareDummyData(db, false, false)
+	require.NoError(t, err)
+
+	for _, tc := range testCases {
+		t.Run(tc.Name, func(t *testing.T) {
+			d, err := NewUserDatabase(db, "users", "groups", "group_details", false, false, testLog)
+			require.NoError(t, err)
+
+			err = d.UpdateGroup(tc.Group.Name, tc.Group)
+			require.NoError(t, err)
+
+			actual, err := d.GetGroup(tc.Group.Name)
+			require.NoError(t, err)
+
+			assert.Equal(t, tc.Group, actual)
+		})
+	}
+}
+
+func TestDeleteGroup(t *testing.T) {
+	db, err := sqlx.Connect("sqlite3", ":memory:")
+	require.NoError(t, err)
+	defer db.Close()
+
+	err = prepareTables(db, false, false)
+	require.NoError(t, err)
+
+	err = prepareDummyData(db, false, false)
+	require.NoError(t, err)
+
+	d, err := NewUserDatabase(db, "users", "groups", "group_details", false, false, testLog)
+	require.NoError(t, err)
+
+	err = d.DeleteGroup("group1")
+	require.NoError(t, err)
+
+	actual, err := d.ListGroups()
+	require.NoError(t, err)
+
+	expected := []Group{
+		NewGroup("group2"),
+		NewGroup("group3", PermissionScripts),
+	}
+	assert.ElementsMatch(t, expected, actual)
 }
 
 func TestAdd(t *testing.T) {
@@ -525,6 +686,11 @@ func prepareTables(db *sqlx.DB, twoFAOn, totPON bool) error {
 		return err
 	}
 
+	_, err = db.Exec("CREATE TABLE `group_details` (name TEXT, permissions TEXT)")
+	if err != nil {
+		return err
+	}
+
 	return nil
 }
 
@@ -552,6 +718,15 @@ func prepareDummyData(db *sqlx.DB, withTwoFA, withTotP bool) error {
 		if err != nil {
 			return err
 		}
+	}
+
+	_, err = db.Exec(`INSERT INTO group_details (name, permissions) VALUES ("group1", '{"commands":true}')`)
+	if err != nil {
+		return err
+	}
+	_, err = db.Exec(`INSERT INTO group_details (name, permissions) VALUES ("group3", '{"scripts":true}')`)
+	if err != nil {
+		return err
 	}
 
 	_, err = db.Exec("INSERT INTO `users` (username, password, token) VALUES (\"user3\", \"pass3\", \"token3\")")

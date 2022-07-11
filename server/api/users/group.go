@@ -14,12 +14,12 @@ type Group struct {
 	Permissions Permissions `json:"permissions" db:"permissions"`
 }
 
-func NewGroup(name string) Group {
+func NewGroup(name string, perms ...string) Group {
 	if name == Administrators {
 		return AdministratorsGroup
 	}
 	return Group{
 		Name:        name,
-		Permissions: NewPermissions(),
+		Permissions: NewPermissions(perms...),
 	}
 }
