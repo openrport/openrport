@@ -4,8 +4,10 @@ import (
 	"database/sql"
 	"errors"
 	"fmt"
+	"net/http"
 	"strings"
 
+	errors2 "github.com/cloudradar-monitoring/rport/server/api/errors"
 	"github.com/cloudradar-monitoring/rport/share/enums"
 	"github.com/cloudradar-monitoring/rport/share/logger"
 
@@ -13,28 +15,34 @@ import (
 )
 
 type UserDatabase struct {
-	db              *sqlx.DB
-	usersTableName  string
-	groupsTableName string
-	twoFAOn         bool
-	hasTokenColumn  bool
-	totPOn          bool
-	logger          *logger.Logger
+	db *sqlx.DB
+
+	usersTableName        string
+	groupsTableName       string
+	groupDetailsTableName string
+
+	twoFAOn        bool
+	hasTokenColumn bool
+	totPOn         bool
+	logger         *logger.Logger
 }
 
 func NewUserDatabase(
 	DB *sqlx.DB,
-	usersTableName, groupsTableName string,
+	usersTableName, groupsTableName, groupDetailsTableName string,
 	twoFAOn, totPOn bool,
 	logger *logger.Logger,
 ) (*UserDatabase, error) {
 	d := &UserDatabase{
-		db:              DB,
-		usersTableName:  usersTableName,
-		groupsTableName: groupsTableName,
-		twoFAOn:         twoFAOn,
-		totPOn:          totPOn,
-		logger:          logger,
+		db: DB,
+
+		usersTableName:        usersTableName,
+		groupsTableName:       groupsTableName,
+		groupDetailsTableName: groupDetailsTableName,
+
+		twoFAOn: twoFAOn,
+		totPOn:  totPOn,
+		logger:  logger,
 	}
 	if err := d.checkDatabaseTables(); err != nil {
 		return nil, err
@@ -72,6 +80,13 @@ func (d *UserDatabase) checkDatabaseTables() error {
 	if err != nil {
 		return err
 	}
+	if d.groupDetailsTableName != "" {
+		_, err = d.db.Exec(fmt.Sprintf("SELECT name, permissions FROM `%s` LIMIT 0", d.groupDetailsTableName))
+		if err != nil {
+			return err
+		}
+	}
+
 	return nil
 }
 
@@ -129,35 +144,92 @@ func (d *UserDatabase) GetAll() ([]*User, error) {
 func (d *UserDatabase) ListGroups() ([]Group, error) {
 	var groups []Group
 
-	// TODO: List groups from actual group db
+	if d.groupDetailsTableName != "" {
+		err := d.db.Select(&groups, fmt.Sprintf("SELECT name, permissions FROM `%s` ORDER BY `name`", d.groupDetailsTableName))
+		if err != nil && err != sql.ErrNoRows {
+			return nil, err
+		}
+	}
 
 	var userGroups []string
 	err := d.db.Select(&userGroups, fmt.Sprintf("SELECT DISTINCT `group` FROM `%s` ORDER BY `group`", d.groupsTableName))
-	if err != nil {
-		if err == sql.ErrNoRows {
-			return nil, nil
-		}
+	if err != nil && err != sql.ErrNoRows {
 		return nil, err
 	}
 
 	for _, ug := range userGroups {
-		groups = append(groups, NewGroup(ug))
+		found := false
+		for _, g := range groups {
+			if ug == g.Name {
+				found = true
+				break
+			}
+		}
+		if !found {
+			groups = append(groups, NewGroup(ug))
+		}
 	}
 
 	return groups, nil
 }
 
 func (d *UserDatabase) GetGroup(name string) (Group, error) {
-	// TODO: try to get actual group
-	return NewGroup(name), nil
+	if d.groupDetailsTableName == "" {
+		return NewGroup(name), nil
+	}
+
+	group := Group{}
+	err := d.db.Get(&group, fmt.Sprintf("SELECT name, permissions FROM `%s` WHERE name = ? LIMIT 1", d.groupDetailsTableName), name)
+	if err == sql.ErrNoRows {
+		return NewGroup(name), nil
+	} else if err != nil {
+		return Group{}, err
+	}
+
+	return group, nil
 }
 
 func (d *UserDatabase) UpdateGroup(name string, group Group) error {
-	// TODO: insert or update the group
+	if d.groupDetailsTableName == "" {
+		return errors2.APIError{
+			Message:    "User group details table must be configured for this operation.",
+			HTTPStatus: http.StatusBadRequest,
+		}
+	}
+	group.Name = name
+
+	result, err := d.db.NamedExec(
+		fmt.Sprintf("UPDATE `%s` SET permissions = :permissions WHERE name = :name", d.groupDetailsTableName),
+		group,
+	)
+	if err != nil {
+		return err
+	}
+	rows, err := result.RowsAffected()
+	if err != nil {
+		return err
+	}
+	if rows == 0 {
+		_, err := d.db.NamedExec(
+			fmt.Sprintf("INSERT INTO `%s` (name, permissions) VALUES (:name, :permissions)", d.groupDetailsTableName),
+			group,
+		)
+		if err != nil {
+			return err
+		}
+	}
+
 	return nil
 }
 
 func (d *UserDatabase) DeleteGroup(name string) error {
+	if d.groupDetailsTableName == "" {
+		return errors2.APIError{
+			Message:    "User group details table must be configured for this operation.",
+			HTTPStatus: http.StatusBadRequest,
+		}
+	}
+
 	tx, err := d.db.Beginx()
 	if err != nil {
 		return err
@@ -169,7 +241,11 @@ func (d *UserDatabase) DeleteGroup(name string) error {
 		return err
 	}
 
-	// TODO: try to delete actual group
+	_, err = tx.Exec(fmt.Sprintf("DELETE FROM `%s` WHERE `name` = ?", d.groupDetailsTableName), name)
+	if err != nil {
+		d.handleRollback(tx)
+		return err
+	}
 
 	return tx.Commit()
 }

@@ -107,6 +107,7 @@ func NewAPIListener(
 			server.authDB,
 			config.API.AuthUserTable,
 			config.API.AuthGroupTable,
+			config.API.AuthGroupDetailsTable,
 			config.API.IsTwoFAOn(),
 			config.API.TotPEnabled,
 			logger,

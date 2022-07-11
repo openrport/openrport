@@ -50,6 +50,13 @@ func (al *APIListener) handleUpdateUserGroup(w http.ResponseWriter, req *http.Re
 		return
 	}
 
+	al.auditLog.Entry(auditlog.ApplicationAuthUserGroup, auditlog.ActionUpdate).
+		WithHTTPRequest(req).
+		WithRequest(input).
+		WithResponse(group).
+		WithID(name).
+		Save()
+
 	al.writeJSONResponse(w, http.StatusOK, api.NewSuccessPayload(group))
 }
 

@@ -18,12 +18,13 @@ var testLog = chshare.NewLogger("client", chshare.LogOutput{File: os.Stdout}, ch
 
 func TestNewUserDatabase(t *testing.T) {
 	testCases := []struct {
-		Name          string
-		UsersTable    string
-		GroupsTable   string
-		ExpectedError string
-		twoFAOn       bool
-		totPOn        bool
+		Name              string
+		UsersTable        string
+		GroupsTable       string
+		GroupDetailsTable string //TODO
+		ExpectedError     string
+		twoFAOn           bool
+		totPOn            bool
 	}{
 		{
 			Name:          "invalid users tables",
@@ -85,7 +86,7 @@ func TestNewUserDatabase(t *testing.T) {
 			_, err = db.Exec("CREATE TABLE `invalid_groups` (username TEXT, other TEXT)")
 			require.NoError(t, err)
 
-			_, err = NewUserDatabase(db, tc.UsersTable, tc.GroupsTable, tc.twoFAOn, tc.totPOn, testLog)
+			_, err = NewUserDatabase(db, tc.UsersTable, tc.GroupsTable, tc.GroupDetailsTable, tc.twoFAOn, tc.totPOn, testLog)
 			if tc.ExpectedError == "" {
 				require.NoError(t, err)
 			} else {
@@ -107,7 +108,7 @@ func TestGetByUsername(t *testing.T) {
 	err = prepareDummyData(db, true, false)
 	require.NoError(t, err)
 
-	d, err := NewUserDatabase(db, "users", "groups", false, false, testLog)
+	d, err := NewUserDatabase(db, "users", "groups", "", false, false, testLog)
 	require.NoError(t, err)
 
 	testCases := []struct {
@@ -170,7 +171,7 @@ func TestGetAll(t *testing.T) {
 	err = prepareDummyData(db, false, true)
 	require.NoError(t, err)
 
-	d, err := NewUserDatabase(db, "users", "groups", false, true, testLog)
+	d, err := NewUserDatabase(db, "users", "groups", "", false, true, testLog)
 	require.NoError(t, err)
 
 	actualUsers, err := d.GetAll()
@@ -216,7 +217,7 @@ func TestListGroups(t *testing.T) {
 	err = prepareDummyData(db, false, false)
 	require.NoError(t, err)
 
-	d, err := NewUserDatabase(db, "users", "groups", false, false, testLog)
+	d, err := NewUserDatabase(db, "users", "groups", "", false, false, testLog) // TODO: case with actual table
 	require.NoError(t, err)
 
 	actualGroups, err := d.ListGroups()
@@ -277,7 +278,7 @@ func TestAdd(t *testing.T) {
 			err = prepareTables(db, false, false)
 			require.NoError(t, err)
 
-			d, err := NewUserDatabase(db, "users", "groups", false, false, testLog)
+			d, err := NewUserDatabase(db, "users", "groups", "", false, false, testLog)
 			require.NoError(t, err)
 
 			err = d.Add(testCase.userToChange)
@@ -462,7 +463,7 @@ func TestUpdate(t *testing.T) {
 			err = prepareDummyData(db, false, false)
 			require.NoError(t, err)
 
-			d, err := NewUserDatabase(db, "users", "groups", false, false, testLog)
+			d, err := NewUserDatabase(db, "users", "groups", "", false, false, testLog)
 			require.NoError(t, err)
 
 			testCase := testCases[i]
@@ -487,7 +488,7 @@ func TestDelete(t *testing.T) {
 	err = prepareDummyData(db, false, false)
 	require.NoError(t, err)
 
-	d, err := NewUserDatabase(db, "users", "groups", false, false, testLog)
+	d, err := NewUserDatabase(db, "users", "groups", "", false, false, testLog)
 	require.NoError(t, err)
 
 	err = d.Delete("user1")
