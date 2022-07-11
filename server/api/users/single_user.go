@@ -28,6 +28,27 @@ func (p *StaticProvider) ListGroups() ([]Group, error) {
 	}
 }
 
+func (p *StaticProvider) GetGroup(string) (Group, error) {
+	return Group{}, errors2.APIError{
+		Message:    "The single user authentication doesn't support this feature.",
+		HTTPStatus: http.StatusBadRequest,
+	}
+}
+
+func (p *StaticProvider) UpdateGroup(string, Group) error {
+	return errors2.APIError{
+		Message:    "The single user authentication doesn't support this feature.",
+		HTTPStatus: http.StatusBadRequest,
+	}
+}
+
+func (p *StaticProvider) DeleteGroup(string) error {
+	return errors2.APIError{
+		Message:    "The single user authentication doesn't support this feature.",
+		HTTPStatus: http.StatusBadRequest,
+	}
+}
+
 func (p *StaticProvider) Add(usr *User) error {
 	return errors2.APIError{
 		Message:    "The single user authentication doesn't support this operation.",

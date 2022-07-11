@@ -147,6 +147,33 @@ func (d *UserDatabase) ListGroups() ([]Group, error) {
 	return groups, nil
 }
 
+func (d *UserDatabase) GetGroup(name string) (Group, error) {
+	// TODO: try to get actual group
+	return NewGroup(name), nil
+}
+
+func (d *UserDatabase) UpdateGroup(name string, group Group) error {
+	// TODO: insert or update the group
+	return nil
+}
+
+func (d *UserDatabase) DeleteGroup(name string) error {
+	tx, err := d.db.Beginx()
+	if err != nil {
+		return err
+	}
+
+	_, err = tx.Exec(fmt.Sprintf("DELETE FROM `%s` WHERE `group` = ?", d.groupsTableName), name)
+	if err != nil {
+		d.handleRollback(tx)
+		return err
+	}
+
+	// TODO: try to delete actual group
+
+	return tx.Commit()
+}
+
 func (d *UserDatabase) handleRollback(tx *sqlx.Tx) {
 	err := tx.Rollback()
 	if err != nil {

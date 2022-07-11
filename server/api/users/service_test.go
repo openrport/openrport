@@ -34,6 +34,18 @@ func (dpm *ProviderMock) ListGroups() ([]Group, error) {
 	return dpm.GroupsToGive, dpm.ErrorToGiveOnRead
 }
 
+func (dpm *ProviderMock) GetGroup(string) (Group, error) {
+	return dpm.GroupsToGive[0], dpm.ErrorToGiveOnRead
+}
+
+func (dpm *ProviderMock) UpdateGroup(string, Group) error {
+	return dpm.ErrorToGiveOnWrite
+}
+
+func (dpm *ProviderMock) DeleteGroup(string) error {
+	return dpm.ErrorToGiveOnDelete
+}
+
 func (dpm *ProviderMock) GetByUsername(username string) (*User, error) {
 	var usr *User
 	for i := range dpm.UsersToGive {

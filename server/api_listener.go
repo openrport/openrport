@@ -72,6 +72,9 @@ type UserService interface {
 	ExistGroups([]string) error
 	GetProviderType() enums.ProviderSource
 	ListGroups() ([]users.Group, error)
+	GetGroup(string) (users.Group, error)
+	UpdateGroup(string, users.Group) (users.Group, error)
+	DeleteGroup(string) error
 }
 
 func NewAPIListener(

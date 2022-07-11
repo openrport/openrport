@@ -17,6 +17,9 @@ type Provider interface {
 	Type() enums.ProviderSource
 	GetAll() ([]*User, error)
 	ListGroups() ([]Group, error)
+	GetGroup(string) (Group, error)
+	UpdateGroup(string, Group) error
+	DeleteGroup(string) error
 	GetByUsername(username string) (*User, error)
 	Add(usr *User) error
 	Update(usr *User, usernameToUpdate string) error
@@ -51,6 +54,22 @@ func (as *APIService) GetByUsername(username string) (*User, error) {
 
 func (as *APIService) ListGroups() ([]Group, error) {
 	return as.Provider.ListGroups()
+}
+
+func (as *APIService) GetGroup(name string) (Group, error) {
+	return as.Provider.GetGroup(name)
+}
+
+func (as *APIService) UpdateGroup(name string, g Group) (Group, error) {
+	err := as.Provider.UpdateGroup(name, g)
+	if err != nil {
+		return Group{}, err
+	}
+	return as.Provider.GetGroup(name)
+}
+
+func (as *APIService) DeleteGroup(name string) error {
+	return as.Provider.DeleteGroup(name)
 }
 
 func (as *APIService) ExistGroups(groups []string) error {

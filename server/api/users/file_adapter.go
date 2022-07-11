@@ -52,7 +52,27 @@ func (fa *FileAdapter) ListGroups() ([]Group, error) {
 		Message:    "The json file authentication backend doesn't support this feature.",
 		HTTPStatus: http.StatusBadRequest,
 	}
+}
 
+func (fa *FileAdapter) GetGroup(string) (Group, error) {
+	return Group{}, errors2.APIError{
+		Message:    "The json file authentication backend doesn't support this feature.",
+		HTTPStatus: http.StatusBadRequest,
+	}
+}
+
+func (fa *FileAdapter) UpdateGroup(string, Group) error {
+	return errors2.APIError{
+		Message:    "The json file authentication backend doesn't support this feature.",
+		HTTPStatus: http.StatusBadRequest,
+	}
+}
+
+func (fa *FileAdapter) DeleteGroup(string) error {
+	return errors2.APIError{
+		Message:    "The json file authentication backend doesn't support this feature.",
+		HTTPStatus: http.StatusBadRequest,
+	}
 }
 
 func (fa *FileAdapter) Delete(usernameToDelete string) error {
