@@ -54,8 +54,8 @@ func (permissions Permissions) Has(p string) bool {
 	return permissions.data[p]
 }
 
-func (p *Permissions) Scan(value interface{}) error {
-	if p == nil {
+func (permissions *Permissions) Scan(value interface{}) error {
+	if permissions == nil {
 		return errors.New("'permissions' cannot be nil")
 	}
 	valueStr, ok := value.(string)
@@ -65,26 +65,26 @@ func (p *Permissions) Scan(value interface{}) error {
 	if valueStr == "" {
 		return nil
 	}
-	err := json.Unmarshal([]byte(valueStr), &p.data)
+	err := json.Unmarshal([]byte(valueStr), &permissions.data)
 	if err != nil {
 		return fmt.Errorf("failed to decode 'permissions' field: %v", err)
 	}
 	return nil
 }
 
-func (p Permissions) Value() (driver.Value, error) {
-	b, err := json.Marshal(p.data)
+func (permissions Permissions) Value() (driver.Value, error) {
+	b, err := json.Marshal(permissions.data)
 	if err != nil {
 		return nil, fmt.Errorf("failed to encode 'permissions' field: %v", err)
 	}
 	return string(b), nil
 }
 
-func (p Permissions) MarshalJSON() ([]byte, error) {
-	return json.Marshal(p.All())
+func (permissions Permissions) MarshalJSON() ([]byte, error) {
+	return json.Marshal(permissions.All())
 }
 
-func (p *Permissions) UnmarshalJSON(data []byte) error {
+func (permissions *Permissions) UnmarshalJSON(data []byte) error {
 	result := make(map[string]bool)
 	err := json.Unmarshal(data, &result)
 	if err != nil {
@@ -104,6 +104,6 @@ func (p *Permissions) UnmarshalJSON(data []byte) error {
 		}
 	}
 
-	p.data = result
+	permissions.data = result
 	return nil
 }
