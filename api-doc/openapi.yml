@@ -1612,7 +1612,7 @@ paths:
 
         There is a simple UI for testing. Try it out
         http://127.0.0.1:3000/api/v1/test/commands/ui
-         
+
       parameters:
         - name: access_token
           in: query
@@ -1661,7 +1661,7 @@ paths:
          It can contain a non-empty 'error' field if server wasn't able to send the command to the rport client.
          7. As soon as a rport client sends back the result - connection is closed by server.
          8. Also, a current connection can be closed by UI client.
-         There is a simple UI for testing. Try it out http://127.0.0.1:3000/api/v1/test/scripts/ui. You can enable this api by setting `enable_ws_test_endpoints=true` in the configuration file 
+         There is a simple UI for testing. Try it out http://127.0.0.1:3000/api/v1/test/scripts/ui. You can enable this api by setting `enable_ws_test_endpoints=true` in the configuration file
       parameters:
         - name: access_token
           in: query
@@ -1690,7 +1690,7 @@ paths:
          Steps:
          1. To pass authentication - include "access_token" param into the url. The value is a jwt token that is created by 'login' API endpoint.
          2. Upgrades the current connection to Web Socket.
-         3. Once the conneciton is open, all uploads to the clients can be tracked through it 4. Server receives an upload request, stores a file in a temp location and sends this information to all provided clients. 5. Clients will establish an sftp connection on top of the existing ssh connection and will download file from the servers temp folder and store it in its own temp folder 6. After download success, client will move the uploaded file from the temp to the desired path and perform chmod/chown operations if needed 7. The result (success/failure/partial failure/ignore) will be reported to the server through the SSH connection 8. The Rport server will send the client upload results to all open websocket connections 9. The websocket connection will stay open till client closes it There is a simple UI for testing. Try it out http://127.0.0.1:3000/api/v1/test/uploads/ui. You can enable this api by setting `enable_ws_test_endpoints=true` in the configuration file 
+         3. Once the conneciton is open, all uploads to the clients can be tracked through it 4. Server receives an upload request, stores a file in a temp location and sends this information to all provided clients. 5. Clients will establish an sftp connection on top of the existing ssh connection and will download file from the servers temp folder and store it in its own temp folder 6. After download success, client will move the uploaded file from the temp to the desired path and perform chmod/chown operations if needed 7. The result (success/failure/partial failure/ignore) will be reported to the server through the SSH connection 8. The Rport server will send the client upload results to all open websocket connections 9. The websocket connection will stay open till client closes it There is a simple UI for testing. Try it out http://127.0.0.1:3000/api/v1/test/uploads/ui. You can enable this api by setting `enable_ws_test_endpoints=true` in the configuration file
       parameters:
         - name: access_token
           in: query
@@ -1732,7 +1732,7 @@ paths:
           in: query
           description: >
             Pagination options `page[limit]` and `page[offset]` can be used to
-            get more than the first page of results. 
+            get more than the first page of results.
 
             Default limit is 50 and maximum is 500. The `count` property in meta
             shows the total number of results.
@@ -2246,6 +2246,87 @@ paths:
             application/json:
               schema:
                 $ref: '#/components/schemas/ErrorPayload'
+  /user-groups:
+    get:
+      tags:
+        - Users
+      summary: List user groups
+      responses:
+        200:
+          description: Successful Operation
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  data:
+                    type: array
+                    items:
+                      $ref: '#/components/schemas/UserGroup'
+  /user-groups/{name}:
+    get:
+      tags:
+        - Users
+      summary: Get user group
+      parameters:
+        - name: name
+          in: path
+          description: group name
+          required: true
+          schema:
+            type: string
+      responses:
+        200:
+          description: Successful Operation
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  data:
+                    $ref: '#/components/schemas/UserGroup'
+    put:
+      tags:
+        - Users
+      summary: Update user group
+      parameters:
+        - name: name
+          in: path
+          description: group name
+          required: true
+          schema:
+            type: string
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/UserGroup'
+        required: true
+      responses:
+        200:
+          description: Successful Operation
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  data:
+                    $ref: '#/components/schemas/UserGroup'
+    delete:
+      tags:
+        - Users
+      summary: Delete user group
+      description: Delete user gruop, any member users will be removed from the group.
+      parameters:
+        - name: name
+          in: path
+          description: group name
+          required: true
+          schema:
+            type: string
+      responses:
+        204:
+          description: Successful Operation
   /vault-admin:
     get:
       tags:
@@ -3466,7 +3547,7 @@ paths:
              Downsampling data is available for a period `>= 2 hours` and `<= 48 hours`.
              When downsampling takes place you get `avg, min and max` values for `cpu_usage_percent, memory_usage_percent and io_usage_percent`
 
-             
+
           schema:
             type: string
       responses:
@@ -3534,7 +3615,7 @@ paths:
         - name: graph_name
           in: path
           description: |-
-            Unique graph name 
+            Unique graph name
              Possible values are `cpu_usage_percent`, `mem_usage_percent`, `io_usage_percent`, `net_usage_percent_lan`, `net_usage_bps_lan`,
              `net_usage_percent_wan`, `net_usage_bps_wan`
           required: true
@@ -3560,7 +3641,7 @@ paths:
              Downsampling data is available for a period `>= 2 hours` and `<= 48 hours`.
              When downsampling takes place you get `avg, min and max` values for one of `cpu_usage_percent, memory_usage_percent, io_usage_percent`, `net_usage_percent_lan`, `net_usage_bps_lan`, `net_usage_percent_wan` or `net_usage_bps_wan`
 
-             
+
           schema:
             type: string
       responses:
@@ -3623,7 +3704,7 @@ paths:
              e.g. `filter[timestamp][gt]=1636009200&filter[timestamp][lt]=1636009500` or
              e.g. `filter[timestamp][since]=2021-01-01T00:00:00+01:00&filter[timestamp][until]=2021-01-01T01:00:00+01:00`.
 
-             
+
           schema:
             type: string
         - name: fields[<RESOURCE>]
@@ -3711,7 +3792,7 @@ paths:
              e.g. `filter[timestamp][gt]=1636009200&filter[timestamp][lt]=1636009500` or
              e.g. `filter[timestamp][since]=2021-01-01T00:00:00+01:00&filter[timestamp][until]=2021-01-01T01:00:00+01:00`.
 
-             
+
           schema:
             type: string
         - name: page
@@ -3791,7 +3872,7 @@ paths:
              Fetching data for a period greater than `48 hours` is not allowed. If the period exceeds `2 hours`, than the returned measurement points get downsampled to reduce the amount of data.
              When downsampling takes place you get `average, min and max` values for `cpu_usage_percent, memory_usage_percent and io_usage_percent`
 
-             
+
           schema:
             type: string
         - name: page
@@ -4309,7 +4390,7 @@ paths:
       description: >-
         Handles file uploads as a multipart/form-data. Files are stored on the
         rport server in a temp location.
-         Then all specified clients download them by sftp protocol to a temp location as well. 
+         Then all specified clients download them by sftp protocol to a temp location as well.
          If download was successful, clients move the temp file to the destination path
       requestBody:
         content:
@@ -4349,31 +4430,31 @@ paths:
                   type: string
                   description: >-
                     If true and the destination file exists, rport client will
-                    compare md5 checksum of the provided file 
-                     with the destination file and will overwrite it if it's not matching. On Unix it will also compare file mode, owner and group 
-                     of the existing file with the provided values and if they don't match, rport client will execute chmod/chown operations on the destination path. 
+                    compare md5 checksum of the provided file
+                     with the destination file and will overwrite it if it's not matching. On Unix it will also compare file mode, owner and group
+                     of the existing file with the provided values and if they don't match, rport client will execute chmod/chown operations on the destination path.
                      if false or file doesn't exists, the provided file will be copied to the destination.
                 mode:
                   type: string
                   description: >-
                     For Unix only, indicates the desired file mode of the target
                     file on the client. If the file doesn't exist, it will be
-                    created with the provided mode. 
+                    created with the provided mode.
                      If file exists (and sync is true), rport client will run chmod operation with the provided file mode.
                 user:
                   type: string
                   description: >-
                     For Unix only, indicates the desired owner name the target
-                    file on the client. 
-                     The uploaded file will be created with the default owner in a temp folder. If `user` is not empty, rport client will perform chown operation on the temp file. 
+                    file on the client.
+                     The uploaded file will be created with the default owner in a temp folder. If `user` is not empty, rport client will perform chown operation on the temp file.
                      Then it will be moved to the target path Please make sure that the provided user exists on the client.
                      Since changing owner of a file requires sudo rights, the rport client user should have the necessary permissions to chown and move file to the target location.
                 group:
                   type: string
                   description: >-
                     For Unix only, indicates the group name the target file on
-                    the client. 
-                     The uploaded file will be created with the default group in a temp folder. Then rport client will chown the temp file with the provided group name. 
+                    the client.
+                     The uploaded file will be created with the default group in a temp folder. Then rport client will chown the temp file with the provided group name.
                      Then it will be moved to the target path. Please make sure that the provided group exists on the client.
                      Since changing group of a file requires sudo rights, the rport client user should have the necessary permissions to chown and move file to the target location.
         required: true
@@ -4975,8 +5056,8 @@ components:
           type: string
           description: >-
             command interpreter to use to execute the script. If not set 'cmd'
-            is used by default on Windows, and '/bin/sh' on Unix. 
-             For tacoscript interpreter you should install tacoscript binary from here: https://github.com/cloudradar-monitoring/tacoscript#installation. 
+            is used by default on Windows, and '/bin/sh' on Unix.
+             For tacoscript interpreter you should install tacoscript binary from here: https://github.com/cloudradar-monitoring/tacoscript#installation.
              It should also be available in the system path.
              Additionally, you can use interpreter aliases or full absolute paths to an interpreter of your choice (see https://oss.rport.io/docs/no14-scripts.html#scripts-execution for details).
           enum:
@@ -5011,7 +5092,7 @@ components:
           description: >-
             Authorization JWT token. If 2fa or TotP is enabled, this token can
             only be used to verify delivered or generated code with the
-            `/verify-2fa` endpoint. 
+            `/verify-2fa` endpoint.
              In the case with TotP, this token can be used to create the first secret with the /me/totp-secret endpoint.
         two_fa:
           type: object
@@ -5024,7 +5105,7 @@ components:
             delivery_method:
               type: string
               description: |-
-                Delivery method that is used to send 2fa token to the user. 
+                Delivery method that is used to send 2fa token to the user.
                  `totp_authenticator_app` value indicates that user has enabled time based one time passwords.
               enum:
                 - email
@@ -5704,12 +5785,24 @@ components:
             `success` indicates successful file downloads on the client, however
             failures for chown and chmod operations are just reported as
             warnings.
-             `error` status indicates upload failures, where message field will contain failure details. 
+             `error` status indicates upload failures, where message field will contain failure details.
              `ignored` is returned when the target file already exists and is not forced or no sync is needed
           enum:
             - success
             - error
             - ignored
+    UserGroup:
+      type: object
+      properties:
+        name:
+          type: string
+          description: unique group identifier
+          readOnly: true
+        permissions:
+          type: object
+          description: permissions with boolean values
+          additionalProperties:
+            type: boolean
   securitySchemes:
     basic_auth:
       type: http
