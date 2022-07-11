@@ -15,7 +15,6 @@ import (
 	"github.com/cloudradar-monitoring/rport/server/clients/clienttunnel"
 	"github.com/cloudradar-monitoring/rport/server/ports"
 	"github.com/cloudradar-monitoring/rport/share/clientconfig"
-	"github.com/cloudradar-monitoring/rport/share/collections"
 	"github.com/cloudradar-monitoring/rport/share/logger"
 	"github.com/cloudradar-monitoring/rport/share/models"
 	"github.com/cloudradar-monitoring/rport/share/random"
@@ -326,10 +325,14 @@ func (c *Client) ConnectionState() ConnectionState {
 
 // HasAccess returns true if at least one of given user groups has access to a current client.
 func (c *Client) HasAccess(userGroups []string) bool {
-	allowedGroups := collections.ConvertToStringBoolMap(c.AllowedUserGroups)
 	for _, curUserGroup := range userGroups {
-		if curUserGroup == users.Administrators || allowedGroups.Has(curUserGroup) {
+		if curUserGroup == users.Administrators {
 			return true
+		}
+		for _, allowedGroup := range c.AllowedUserGroups {
+			if allowedGroup == curUserGroup {
+				return true
+			}
 		}
 	}
 

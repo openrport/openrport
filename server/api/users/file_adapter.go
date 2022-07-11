@@ -47,7 +47,7 @@ func (fa *FileAdapter) load() error {
 	return nil
 }
 
-func (fa *FileAdapter) GetAllGroups() ([]string, error) {
+func (fa *FileAdapter) ListGroups() ([]Group, error) {
 	return nil, errors2.APIError{
 		Message:    "The json file authentication backend doesn't support this feature.",
 		HTTPStatus: http.StatusBadRequest,

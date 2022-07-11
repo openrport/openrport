@@ -126,15 +126,24 @@ func (d *UserDatabase) GetAll() ([]*User, error) {
 	return usrs, nil
 }
 
-func (d *UserDatabase) GetAllGroups() ([]string, error) {
-	var groups []string
-	err := d.db.Select(&groups, fmt.Sprintf("SELECT DISTINCT `group` FROM `%s` ORDER BY `group`", d.groupsTableName))
+func (d *UserDatabase) ListGroups() ([]Group, error) {
+	var groups []Group
+
+	// TODO: List groups from actual group db
+
+	var userGroups []string
+	err := d.db.Select(&userGroups, fmt.Sprintf("SELECT DISTINCT `group` FROM `%s` ORDER BY `group`", d.groupsTableName))
 	if err != nil {
 		if err == sql.ErrNoRows {
 			return nil, nil
 		}
 		return nil, err
 	}
+
+	for _, ug := range userGroups {
+		groups = append(groups, NewGroup(ug))
+	}
+
 	return groups, nil
 }
 

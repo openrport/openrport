@@ -205,7 +205,7 @@ func TestGetAll(t *testing.T) {
 	assert.Equal(t, expectedUsers, actualUsers)
 }
 
-func TestGetAllGroups(t *testing.T) {
+func TestListGroups(t *testing.T) {
 	db, err := sqlx.Connect("sqlite3", ":memory:")
 	require.NoError(t, err)
 	defer db.Close()
@@ -219,12 +219,12 @@ func TestGetAllGroups(t *testing.T) {
 	d, err := NewUserDatabase(db, "users", "groups", false, false, testLog)
 	require.NoError(t, err)
 
-	actualGroups, err := d.GetAllGroups()
+	actualGroups, err := d.ListGroups()
 	require.NoError(t, err)
 
-	expectedGroups := []string{
-		"group1",
-		"group2",
+	expectedGroups := []Group{
+		NewGroup("group1"),
+		NewGroup("group2"),
 	}
 	assert.Equal(t, expectedGroups, actualGroups)
 }
