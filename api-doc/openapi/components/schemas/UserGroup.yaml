@@ -1,0 +1,11 @@
+type: object
+properties:
+  name:
+    type: string
+    description: unique group identifier
+    readOnly: true
+  permissions:
+    type: object
+    description: permissions with boolean values
+    additionalProperties:
+      type: boolean

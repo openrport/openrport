@@ -92,6 +92,10 @@ paths:
     $ref: paths/users_{user_id}.yaml
   /users/{user_id}/totp-secret:
     $ref: paths/users_{user_id}_totp-secret.yaml
+  /user-groups:
+    $ref: paths/user-groups.yaml
+  /user-groups/{name}:
+    $ref: paths/user-groups_{name}.yaml
   /vault-admin:
     $ref: paths/vault-admin.yaml
   /vault:

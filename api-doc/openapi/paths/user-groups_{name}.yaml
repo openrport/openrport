@@ -1,0 +1,63 @@
+get:
+  tags:
+    - User Groups
+  summary: Get user group
+  parameters:
+    - name: name
+      in: path
+      description: group name
+      required: true
+      schema:
+        type: string
+  responses:
+    200:
+      description: Successful Operation
+      content:
+        application/json:
+          schema:
+            type: object
+            properties:
+              data:
+                $ref: ../components/schemas/UserGroup.yaml
+put:
+  tags:
+    - User Groups
+  summary: Update user group
+  parameters:
+    - name: name
+      in: path
+      description: group name
+      required: true
+      schema:
+        type: string
+  requestBody:
+    content:
+      application/json:
+        schema:
+          $ref: ../components/schemas/UserGroup.yaml
+    required: true
+  responses:
+    200:
+      description: Successful Operation
+      content:
+        application/json:
+          schema:
+            type: object
+            properties:
+              data:
+                $ref: ../components/schemas/UserGroup.yaml
+delete:
+  tags:
+    - User Groups
+  summary: Delete user group
+  description: Delete user gruop, any member users will be removed from the group.
+  parameters:
+    - name: name
+      in: path
+      description: group name
+      required: true
+      schema:
+        type: string
+  responses:
+    204:
+      description: Successful Operation
