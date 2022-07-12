@@ -19,6 +19,8 @@ var generateNewCommandID = func() (string, error) {
 	return random.UUID4()
 }
 
+var Converter = query.NewSQLConverter()
+
 func NewSqliteProvider(db *sqlx.DB) *SqliteProvider {
 	return &SqliteProvider{db: db}
 }
@@ -33,7 +35,7 @@ func (p *SqliteProvider) Close() error {
 
 func (p *SqliteProvider) GetByID(ctx context.Context, id string, ro *query.RetrieveOptions) (val *Command, found bool, err error) {
 	q := "SELECT * FROM `commands` WHERE `id` = ? LIMIT 1"
-	q = query.ConvertRetrieveOptionsToQuery(ro, q)
+	q = Converter.ConvertRetrieveOptionsToQuery(ro, q)
 
 	val = new(Command)
 	err = p.db.GetContext(ctx, val, q, id)
@@ -53,7 +55,7 @@ func (p *SqliteProvider) List(ctx context.Context, lo *query.ListOptions) ([]Com
 
 	q := "SELECT * FROM `commands`"
 
-	q, params := query.ConvertListOptionsToQuery(lo, q)
+	q, params := Converter.ConvertListOptionsToQuery(lo, q)
 
 	err := p.db.SelectContext(ctx, &values, q, params...)
 	if err != nil {

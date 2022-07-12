@@ -68,13 +68,14 @@ require (
 	gopkg.in/yaml.v3 v3.0.0-20210107192922-496545a6307b // indirect
 )
 
-require github.com/pkg/sftp v1.13.4
+require (
+	github.com/hashicorp/go-version v1.5.0
+	github.com/pkg/sftp v1.13.4
+)
 
 require (
-	github.com/StackExchange/wmi v0.0.0-20190523213315-cbe66965904d // indirect
 	github.com/andrew-d/go-termutil v0.0.0-20150726205930-009166a695a2 // indirect
 	github.com/fsnotify/fsnotify v1.5.1 // indirect
-	github.com/hashicorp/go-version v1.5.0 // indirect
 	github.com/jpillora/ansi v1.0.2 // indirect
 	github.com/lxn/win v0.0.0-20210218163916-a377121e959e // indirect
 	github.com/tklauser/go-sysconf v0.3.6 // indirect

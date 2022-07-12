@@ -100,12 +100,13 @@ func TestConvertListOptionsToQuery(t *testing.T) {
 	}
 
 	for _, tc := range testCases {
+		converter := query.NewSQLConverter()
 		tc := tc
 		t.Run(tc.Name, func(t *testing.T) {
 			t.Run("convert", func(t *testing.T) {
 				t.Parallel()
 
-				query, params := query.ConvertListOptionsToQuery(tc.Options, "SELECT * FROM res1")
+				query, params := converter.ConvertListOptionsToQuery(tc.Options, "SELECT * FROM res1")
 
 				assert.Equal(t, tc.ExpectedQuery, query)
 				assert.Equal(t, tc.ExpectedParams, params)
@@ -113,7 +114,7 @@ func TestConvertListOptionsToQuery(t *testing.T) {
 			t.Run("append", func(t *testing.T) {
 				t.Parallel()
 
-				query, params := query.AppendOptionsToQuery(tc.Options, "SELECT * FROM res1", []interface{}{123, "abc"})
+				query, params := converter.AppendOptionsToQuery(tc.Options, "SELECT * FROM res1", []interface{}{123, "abc"})
 
 				assert.Equal(t, tc.ExpectedQuery, query)
 				assert.Equal(t, append([]interface{}{123, "abc"}, tc.ExpectedParams...), params)

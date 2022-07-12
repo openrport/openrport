@@ -5,29 +5,43 @@ import (
 	"strings"
 )
 
-func ConvertListOptionsToQuery(lo *ListOptions, q string) (qOut string, params []interface{}) {
-	return AppendOptionsToQuery(lo, q, nil)
+type SQLConverter struct {
+	dbDriverName string
 }
 
-func ConvertRetrieveOptionsToQuery(ro *RetrieveOptions, q string) string {
-	qOut := ReplaceStarSelect(ro.Fields, q)
+// NewSQLConverter converts query parameters into SQL language
+func NewSQLConverter() *SQLConverter {
+	return &SQLConverter{
+		dbDriverName: "=sqlite",
+	}
+}
+func (c *SQLConverter) SetDbDriverName(dbDriverName string) {
+	c.dbDriverName = dbDriverName
+}
+
+func (c *SQLConverter) ConvertListOptionsToQuery(lo *ListOptions, q string) (qOut string, params []interface{}) {
+	return c.AppendOptionsToQuery(lo, q, nil)
+}
+
+func (c *SQLConverter) ConvertRetrieveOptionsToQuery(ro *RetrieveOptions, q string) string {
+	qOut := c.ReplaceStarSelect(ro.Fields, q)
 
 	return qOut
 }
 
-func AppendOptionsToQuery(o *ListOptions, q string, params []interface{}) (string, []interface{}) {
+func (c *SQLConverter) AppendOptionsToQuery(o *ListOptions, q string, params []interface{}) (string, []interface{}) {
 	if o == nil {
 		return q, params
 	}
-	q, params = AddWhere(o.Filters, q, params)
-	q = AddOrderBy(o.Sorts, q)
-	q = ReplaceStarSelect(o.Fields, q)
-	q, params = addLimitOffset(o.Pagination, q, params)
+	q, params = c.AddWhere(o.Filters, q, params)
+	q = c.AddOrderBy(o.Sorts, q)
+	q = c.ReplaceStarSelect(o.Fields, q)
+	q, params = c.addLimitOffset(o.Pagination, q, params)
 
 	return q, params
 }
 
-func AddWhere(filterOptions []FilterOption, q string, params []interface{}) (string, []interface{}) {
+func (c *SQLConverter) AddWhere(filterOptions []FilterOption, q string, params []interface{}) (string, []interface{}) {
 	if len(filterOptions) == 0 {
 		return q, params
 	}
@@ -42,12 +56,18 @@ func AddWhere(filterOptions []FilterOption, q string, params []interface{}) (str
 					part = fmt.Sprintf("(%s OR %s IS NULL)", part, col)
 				} else if strings.Contains(val, "*") && filterOptions[i].Operator.Code() == "=" {
 					// Implement a SQL LIKE search triggered by a wildcard
-					part = fmt.Sprintf("LOWER(%s) LIKE ? ESCAPE '\\'", col)
+					if c.dbDriverName == "mysql" {
+						//MySQL needs the backslash escaped, that means double-backslash;  WHERE LOWER(id) LIKE 'op\%' escape "\\";
+						part = fmt.Sprintf("LOWER(%s) LIKE ? ESCAPE '\\\\'", col)
+					} else {
+						//SQLite needs a single backslash
+						part = fmt.Sprintf("LOWER(%s) LIKE ? ESCAPE '\\'", col)
+					}
 					// Escape the % sign to treat it literally, on the API side % must not become a wildcard
 					val = strings.Replace(val, "%", "\\%", -1)
 					// Make search case-insensitive
 					val = strings.ToLower(val)
-					// Replace wildcard % by sql wildcard %
+					// Replace wildcard * by sql wildcard %
 					val = strings.ReplaceAll(val, "*", "%")
 				}
 				orParts = append(orParts, part)
@@ -71,7 +91,7 @@ func AddWhere(filterOptions []FilterOption, q string, params []interface{}) (str
 	return q, params
 }
 
-func AddOrderBy(sortOptions []SortOption, q string) string {
+func (c *SQLConverter) AddOrderBy(sortOptions []SortOption, q string) string {
 	if len(sortOptions) == 0 {
 		return q
 	}
@@ -90,7 +110,7 @@ func AddOrderBy(sortOptions []SortOption, q string) string {
 	return q
 }
 
-func ReplaceStarSelect(fieldOptions []FieldsOption, q string) string {
+func (c *SQLConverter) ReplaceStarSelect(fieldOptions []FieldsOption, q string) string {
 	if !strings.HasPrefix(strings.ToUpper(q), "SELECT * ") {
 		return q
 	}
@@ -108,7 +128,7 @@ func ReplaceStarSelect(fieldOptions []FieldsOption, q string) string {
 	return strings.Replace(q, "*", strings.Join(fields, ", "), 1)
 }
 
-func addLimitOffset(pagination *Pagination, q string, params []interface{}) (string, []interface{}) {
+func (c *SQLConverter) addLimitOffset(pagination *Pagination, q string, params []interface{}) (string, []interface{}) {
 	if pagination == nil {
 		return q, params
 	}

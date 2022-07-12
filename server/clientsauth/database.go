@@ -31,10 +31,12 @@ func NewDatabaseProvider(DB *sqlx.DB, tableName string) *DatabaseProvider {
 
 func (c *DatabaseProvider) GetFiltered(filter *query.ListOptions) ([]*ClientAuth, int, error) {
 	filter.Sorts = append(filter.Sorts, query.SortOption{Column: "id", IsASC: true})
-	rQuery, rParams := query.ConvertListOptionsToQuery(filter, fmt.Sprintf("SELECT id,password FROM %s", c.tableName))
+	converter := query.NewSQLConverter()
+	converter.SetDbDriverName(c.db.DriverName())
+	rQuery, rParams := converter.ConvertListOptionsToQuery(filter, fmt.Sprintf("SELECT id,password FROM %s", c.tableName))
 	filter.Pagination = nil
 	filter.Sorts = nil
-	cQuery, cParams := query.ConvertListOptionsToQuery(filter, fmt.Sprintf("SELECT COUNT(id) FROM %s", c.tableName))
+	cQuery, cParams := converter.ConvertListOptionsToQuery(filter, fmt.Sprintf("SELECT COUNT(id) FROM %s", c.tableName))
 	var count = 0
 	if err := c.db.Get(&count, cQuery, cParams...); err != nil {
 		return nil, 0, err

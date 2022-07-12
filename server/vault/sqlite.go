@@ -132,11 +132,12 @@ func (p *SqliteProvider) GetByID(ctx context.Context, id int) (val StoredValue, 
 }
 
 func (p *SqliteProvider) List(ctx context.Context, lo *query.ListOptions) ([]ValueKey, error) {
+	converter := query.NewSQLConverter()
 	values := []ValueKey{}
 
 	q := "SELECT `id`, `client_id`, `created_by`, `created_at`, `key` FROM `values`"
 
-	q, params := query.ConvertListOptionsToQuery(lo, q)
+	q, params := converter.ConvertListOptionsToQuery(lo, q)
 
 	err := p.db.SelectContext(ctx, &values, q, params...)
 	if err != nil {

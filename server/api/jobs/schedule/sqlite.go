@@ -86,9 +86,10 @@ func (p *SQLiteProvider) Update(ctx context.Context, s *Schedule) error {
 }
 
 func (p *SQLiteProvider) List(ctx context.Context, options *query.ListOptions) ([]*Schedule, error) {
+	converter := query.NewSQLConverter()
 	values := []*DBSchedule{}
 
-	q, params := query.ConvertListOptionsToQuery(options, schedulesQuery)
+	q, params := converter.ConvertListOptionsToQuery(options, schedulesQuery)
 
 	err := p.db.SelectContext(ctx, &values, q, params...)
 	if err != nil {
