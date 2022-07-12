@@ -1,0 +1,16 @@
+get:
+  tags:
+    - User Groups
+  summary: List user groups
+  responses:
+    200:
+      description: Successful Operation
+      content:
+        application/json:
+          schema:
+            type: object
+            properties:
+              data:
+                type: array
+                items:
+                  $ref: ../components/schemas/UserGroup.yaml

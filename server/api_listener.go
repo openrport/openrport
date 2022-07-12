@@ -71,6 +71,10 @@ type UserService interface {
 	Delete(string) error
 	ExistGroups([]string) error
 	GetProviderType() enums.ProviderSource
+	ListGroups() ([]users.Group, error)
+	GetGroup(string) (users.Group, error)
+	UpdateGroup(string, users.Group) (users.Group, error)
+	DeleteGroup(string) error
 }
 
 func NewAPIListener(
@@ -103,6 +107,7 @@ func NewAPIListener(
 			server.authDB,
 			config.API.AuthUserTable,
 			config.API.AuthGroupTable,
+			config.API.AuthGroupDetailsTable,
 			config.API.IsTwoFAOn(),
 			config.API.TotPEnabled,
 			logger,
