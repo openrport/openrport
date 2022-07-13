@@ -14,17 +14,19 @@ import (
 )
 
 type SqliteProvider struct {
-	db *sqlx.DB
+	db        *sqlx.DB
+	converter *query.SQLConverter
 }
 
 var generateNewScriptID = func() (string, error) {
 	return random.UUID4()
 }
 
-var Converter = query.NewSQLConverter()
-
 func NewSqliteProvider(db *sqlx.DB) *SqliteProvider {
-	return &SqliteProvider{db: db}
+	return &SqliteProvider{
+		db:        db,
+		converter: query.NewSQLConverter(db.DriverName()),
+	}
 }
 
 func (p *SqliteProvider) Close() error {
@@ -37,7 +39,7 @@ func (p *SqliteProvider) Close() error {
 
 func (p *SqliteProvider) GetByID(ctx context.Context, id string, ro *query.RetrieveOptions) (val *Script, found bool, err error) {
 	q := "SELECT * FROM `scripts` WHERE `id` = ? LIMIT 1"
-	q = Converter.ConvertRetrieveOptionsToQuery(ro, q)
+	q = p.converter.ConvertRetrieveOptionsToQuery(ro, q)
 
 	val = new(Script)
 	err = p.db.GetContext(ctx, val, q, id)
@@ -57,7 +59,7 @@ func (p *SqliteProvider) List(ctx context.Context, lo *query.ListOptions) ([]Scr
 
 	q := "SELECT * FROM `scripts`"
 
-	q, params := Converter.ConvertListOptionsToQuery(lo, q)
+	q, params := p.converter.ConvertListOptionsToQuery(lo, q)
 
 	err := p.db.SelectContext(ctx, &values, q, params...)
 	if err != nil {

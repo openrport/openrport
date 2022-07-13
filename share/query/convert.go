@@ -10,13 +10,10 @@ type SQLConverter struct {
 }
 
 // NewSQLConverter converts query parameters into SQL language
-func NewSQLConverter() *SQLConverter {
+func NewSQLConverter(dbDriverName string) *SQLConverter {
 	return &SQLConverter{
-		dbDriverName: "=sqlite",
+		dbDriverName: dbDriverName,
 	}
-}
-func (c *SQLConverter) SetDbDriverName(dbDriverName string) {
-	c.dbDriverName = dbDriverName
 }
 
 func (c *SQLConverter) ConvertListOptionsToQuery(lo *ListOptions, q string) (qOut string, params []interface{}) {

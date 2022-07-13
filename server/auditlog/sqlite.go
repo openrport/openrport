@@ -13,10 +13,9 @@ import (
 )
 
 type SQLiteProvider struct {
-	db *sqlx.DB
+	db        *sqlx.DB
+	converter *query.SQLConverter
 }
-
-var Converter = query.NewSQLConverter()
 
 func newSQLiteProvider(dataDir string, dataSourceOptions sqlite.DataSourceOptions) (*SQLiteProvider, error) {
 	db, err := sqlite.New(
@@ -29,7 +28,8 @@ func newSQLiteProvider(dataDir string, dataSourceOptions sqlite.DataSourceOption
 		return nil, err
 	}
 	return &SQLiteProvider{
-		db: db,
+		db:        db,
+		converter: query.NewSQLConverter(db.DriverName()),
 	}, nil
 }
 
@@ -69,7 +69,7 @@ func (p *SQLiteProvider) List(ctx context.Context, options *query.ListOptions) (
 
 	q := "SELECT * FROM `auditlog`"
 
-	q, params := Converter.ConvertListOptionsToQuery(options, q)
+	q, params := p.converter.ConvertListOptionsToQuery(options, q)
 
 	err := p.db.SelectContext(ctx, &values, q, params...)
 	if err != nil {
@@ -85,7 +85,7 @@ func (p *SQLiteProvider) Count(ctx context.Context, options *query.ListOptions) 
 	q := "SELECT COUNT(*) FROM `auditlog`"
 	countOptions := *options
 	countOptions.Pagination = nil
-	q, params := Converter.ConvertListOptionsToQuery(&countOptions, q)
+	q, params := p.converter.ConvertListOptionsToQuery(&countOptions, q)
 
 	err := p.db.GetContext(ctx, &result, q, params...)
 	if err != nil {

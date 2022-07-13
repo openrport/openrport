@@ -9,14 +9,14 @@ import (
 )
 
 type SQLiteProvider struct {
-	db *sqlx.DB
+	db        *sqlx.DB
+	converter *query.SQLConverter
 }
-
-var Converter = query.NewSQLConverter()
 
 func newSQLiteProvider(db *sqlx.DB) *SQLiteProvider {
 	return &SQLiteProvider{
-		db: db,
+		db:        db,
+		converter: query.NewSQLConverter(db.DriverName()),
 	}
 }
 
@@ -74,7 +74,7 @@ func (p *SQLiteProvider) List(ctx context.Context, clientID string, options *que
 	q := "SELECT * FROM stored_tunnels WHERE client_id = ?"
 	params := []interface{}{clientID}
 
-	q, params = Converter.AppendOptionsToQuery(options, q, params)
+	q, params = p.converter.AppendOptionsToQuery(options, q, params)
 
 	err := p.db.SelectContext(ctx, &values, q, params...)
 	if err != nil {
@@ -92,7 +92,7 @@ func (p *SQLiteProvider) Count(ctx context.Context, clientID string, options *qu
 
 	countOptions := *options
 	countOptions.Pagination = nil
-	q, params = Converter.AppendOptionsToQuery(&countOptions, q, params)
+	q, params = p.converter.AppendOptionsToQuery(&countOptions, q, params)
 
 	err := p.db.GetContext(ctx, &result, q, params...)
 	if err != nil {

@@ -29,11 +29,10 @@ type DBProvider interface {
 }
 
 type SqliteProvider struct {
-	db     *sqlx.DB
-	logger *logger.Logger
+	db        *sqlx.DB
+	logger    *logger.Logger
+	converter *query.SQLConverter
 }
-
-var Converter = query.NewSQLConverter()
 
 func NewSqliteProvider(dbPath string, dataSourceOptions sqlite.DataSourceOptions, logger *logger.Logger) (DBProvider, error) {
 	db, err := sqlite.New(dbPath, monitoring.AssetNames(), monitoring.Asset, dataSourceOptions)
@@ -43,14 +42,18 @@ func NewSqliteProvider(dbPath string, dataSourceOptions sqlite.DataSourceOptions
 
 	logger.Infof("initialized database at %s", dbPath)
 
-	return &SqliteProvider{db: db, logger: logger}, nil
+	return &SqliteProvider{
+		db:        db,
+		logger:    logger,
+		converter: query.NewSQLConverter(db.DriverName()),
+	}, nil
 }
 
 func (p *SqliteProvider) ListMountpointsByClientID(ctx context.Context, clientID string, o *query.ListOptions) ([]*ClientMountpointsPayload, error) {
 	q := "SELECT * FROM `measurements` as `mountpoints` WHERE `client_id` = ? "
 	params := []interface{}{}
 	params = append(params, clientID)
-	q, params = Converter.AppendOptionsToQuery(o, q, params)
+	q, params = p.converter.AppendOptionsToQuery(o, q, params)
 
 	val := []*ClientMountpointsPayload{}
 	err := p.db.SelectContext(ctx, &val, q, params...)
@@ -61,7 +64,7 @@ func (p *SqliteProvider) ListProcessesByClientID(ctx context.Context, clientID s
 	q := "SELECT * FROM `measurements` as `processes` WHERE `client_id` = ? "
 	params := []interface{}{}
 	params = append(params, clientID)
-	q, params = Converter.AppendOptionsToQuery(o, q, params)
+	q, params = p.converter.AppendOptionsToQuery(o, q, params)
 
 	val := []*ClientProcessesPayload{}
 	err := p.db.SelectContext(ctx, &val, q, params...)
@@ -72,7 +75,7 @@ func (p *SqliteProvider) ListMetricsByClientID(ctx context.Context, clientID str
 	q := "SELECT * FROM `measurements` as `metrics` WHERE `client_id` = ? "
 	params := []interface{}{}
 	params = append(params, clientID)
-	q, params = Converter.AppendOptionsToQuery(o, q, params)
+	q, params = p.converter.AppendOptionsToQuery(o, q, params)
 
 	val := []*ClientMetricsPayload{}
 	err := p.db.SelectContext(ctx, &val, q, params...)
@@ -88,7 +91,7 @@ func (p *SqliteProvider) CountByClientID(ctx context.Context, clientID string, o
 
 	params := []interface{}{}
 	params = append(params, clientID)
-	q, params = Converter.AppendOptionsToQuery(&countOptions, q, params)
+	q, params = p.converter.AppendOptionsToQuery(&countOptions, q, params)
 
 	err := p.db.GetContext(ctx, &result, q, params...)
 	if err != nil {
@@ -115,7 +118,7 @@ func (p *SqliteProvider) ListGraphMetricsByClientID(ctx context.Context, clientI
 		max(io_usage_percent) as io_usage_percent_max
 	FROM measurements WHERE client_id = ?`
 
-	q, params = Converter.AddWhere(lo.Filters, q, params)
+	q, params = p.converter.AddWhere(lo.Filters, q, params)
 
 	/*This is the part of "downsampling graph data" (group together graph points, so that you don't get too much points in one request).
 	The value of "29" comes from Thorsten. He did some research and found out that "29" would be the best fit.
@@ -124,7 +127,7 @@ func (p *SqliteProvider) ListGraphMetricsByClientID(ctx context.Context, clientI
 	divisor := (math.Round(hours*100) / 100) * 29
 	params = append(params, divisor)
 
-	q = Converter.AddOrderBy(lo.Sorts, q)
+	q = p.converter.AddOrderBy(lo.Sorts, q)
 
 	val := []*ClientGraphMetricsPayload{}
 	err := p.db.SelectContext(ctx, &val, q, params...)
@@ -157,13 +160,13 @@ func (p *SqliteProvider) ListGraphByClientID(ctx context.Context, clientID strin
 	q = q + ` 
 	FROM measurements WHERE client_id = ?`
 
-	q, params = Converter.AddWhere(lo.Filters, q, params)
+	q, params = p.converter.AddWhere(lo.Filters, q, params)
 
 	q = q + ` GROUP BY round((strftime('%s',timestamp)/(?)),0)`
 	divisor := (math.Round(hours*100) / 100) * 29
 	params = append(params, divisor)
 
-	query := Converter.AddOrderBy(lo.Sorts, q)
+	query := p.converter.AddOrderBy(lo.Sorts, q)
 
 	val := []*ClientGraphMetricsGraphPayload{}
 	err := p.db.SelectContext(ctx, &val, query, params...)

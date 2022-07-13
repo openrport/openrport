@@ -27,8 +27,9 @@ var ErrDatabaseNotInitialised = errors2.APIError{
 var DataSourceOptions = sqlite.DataSourceOptions{WALEnabled: false}
 
 type SqliteProvider struct {
-	db     *sqlx.DB
-	logger *logger.Logger
+	db        *sqlx.DB
+	logger    *logger.Logger
+	converter *query.SQLConverter
 }
 
 func NewSqliteProvider(c Config, logger *logger.Logger) (*SqliteProvider, error) {
@@ -41,7 +42,11 @@ func NewSqliteProvider(c Config, logger *logger.Logger) (*SqliteProvider, error)
 
 	logger.Infof("initialized database at %s", dbPath)
 
-	return &SqliteProvider{logger: logger, db: db}, nil
+	return &SqliteProvider{
+		logger:    logger,
+		db:        db,
+		converter: query.NewSQLConverter(db.DriverName()),
+	}, nil
 }
 
 func (p *SqliteProvider) Close() error {
@@ -132,12 +137,11 @@ func (p *SqliteProvider) GetByID(ctx context.Context, id int) (val StoredValue, 
 }
 
 func (p *SqliteProvider) List(ctx context.Context, lo *query.ListOptions) ([]ValueKey, error) {
-	converter := query.NewSQLConverter()
 	values := []ValueKey{}
 
 	q := "SELECT `id`, `client_id`, `created_by`, `created_at`, `key` FROM `values`"
 
-	q, params := converter.ConvertListOptionsToQuery(lo, q)
+	q, params := p.converter.ConvertListOptionsToQuery(lo, q)
 
 	err := p.db.SelectContext(ctx, &values, q, params...)
 	if err != nil {

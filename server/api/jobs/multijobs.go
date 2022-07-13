@@ -77,7 +77,7 @@ func (p *SqliteProvider) GetMultiJobSummaries(ctx context.Context, options *quer
 		}
 	}
 	q := "SELECT jid, started_at, created_by, schedule_id FROM multi_jobs"
-	q, params := Converter.ConvertListOptionsToQuery(options, q)
+	q, params := p.converter.ConvertListOptionsToQuery(options, q)
 
 	err := p.db.SelectContext(ctx, &res, q, params...)
 	if err != nil {
@@ -93,7 +93,7 @@ func (p *SqliteProvider) CountMultiJobs(ctx context.Context, options *query.List
 	countOptions := *options
 	countOptions.Pagination = nil
 	q := "SELECT count(*) FROM multi_jobs"
-	q, params := Converter.ConvertListOptionsToQuery(&countOptions, q)
+	q, params := p.converter.ConvertListOptionsToQuery(&countOptions, q)
 
 	err := p.db.GetContext(ctx, &result, q, params...)
 	if err != nil {
