@@ -12,6 +12,7 @@ func TestConvertListOptionsToQuery(t *testing.T) {
 	testCases := []struct {
 		Name           string
 		Options        *query.ListOptions
+		DbDriverName   string `default:"sqlite"`
 		ExpectedQuery  string
 		ExpectedParams []interface{}
 	}{
@@ -97,10 +98,34 @@ func TestConvertListOptionsToQuery(t *testing.T) {
 			ExpectedQuery:  `SELECT * FROM res1 WHERE LOWER(field1) LIKE ? ESCAPE '\' AND LOWER(field2) LIKE ? ESCAPE '\' ORDER BY field1 ASC`,
 			ExpectedParams: []interface{}{"val%", "val%"},
 		},
+		{
+			Name:         "wildcard option MySQL variant",
+			DbDriverName: "mysql",
+			Options: &query.ListOptions{
+				Sorts: []query.SortOption{
+					{
+						Column: "field1",
+						IsASC:  true,
+					},
+				},
+				Filters: []query.FilterOption{
+					{
+						Column: []string{"field1"},
+						Values: []string{"val*"},
+					},
+					{
+						Column: []string{"field2"},
+						Values: []string{"val*"},
+					},
+				},
+			},
+			ExpectedQuery:  `SELECT * FROM res1 WHERE LOWER(field1) LIKE ? ESCAPE '\\' AND LOWER(field2) LIKE ? ESCAPE '\\' ORDER BY field1 ASC`,
+			ExpectedParams: []interface{}{"val%", "val%"},
+		},
 	}
 
 	for _, tc := range testCases {
-		converter := query.NewSQLConverter()
+		converter := query.NewSQLConverter(tc.DbDriverName)
 		tc := tc
 		t.Run(tc.Name, func(t *testing.T) {
 			t.Run("convert", func(t *testing.T) {
