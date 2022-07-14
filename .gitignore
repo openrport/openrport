@@ -9,8 +9,6 @@ rportd
 !cmd/rportd
 rportd.exe
 deploy.sh
-rport.conf
-
 # Vuepress
 .vuepress/.cache
 .vuepress/.temp
@@ -25,3 +23,5 @@ yarn-error.log*
 # Ignore local configs
 rport-*.conf
 rportd-*.conf
+rport.conf
+rportd.conf
