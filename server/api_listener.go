@@ -71,6 +71,10 @@ type UserService interface {
 	Delete(string) error
 	ExistGroups([]string) error
 	GetProviderType() enums.ProviderSource
+	ListGroups() ([]users.Group, error)
+	GetGroup(string) (users.Group, error)
+	UpdateGroup(string, users.Group) (users.Group, error)
+	DeleteGroup(string) error
 }
 
 func NewAPIListener(
@@ -103,6 +107,7 @@ func NewAPIListener(
 			server.authDB,
 			config.API.AuthUserTable,
 			config.API.AuthGroupTable,
+			config.API.AuthGroupDetailsTable,
 			config.API.IsTwoFAOn(),
 			config.API.TotPEnabled,
 			logger,
@@ -326,6 +331,7 @@ func (al *APIListener) handleBasicAuth(username, password string) (authorized bo
 	if username == "" {
 		return false, "", nil
 	}
+
 	user, err := al.userService.GetByUsername(username)
 	if err != nil {
 		return false, username, fmt.Errorf("failed to get user: %v", err)
@@ -438,21 +444,36 @@ const WebSocketAccessTokenQueryParam = "access_token"
 
 var (
 	errUnauthorized        = errors.New("unauthorized")
-	errAccessTokenRequired = errors.New("access token required")
+	errAccessTokenRequired = errors.New("token required")
 )
 
 func (al *APIListener) wsAuth(f http.Handler) http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
+		var authorized bool
+		var username string
+		var err error
+
 		tokenStr := r.URL.Query().Get(WebSocketAccessTokenQueryParam)
 		if tokenStr == "" {
-			if !al.handleBannedIPs(r, false) {
+			basicUser, basicPwd, basicAuthProvided := r.BasicAuth()
+
+			if basicAuthProvided {
+				authorized, username, err = al.handleBasicAuth(basicUser, basicPwd)
+			} else {
+				if !al.handleBannedIPs(r, false) {
+					return
+				}
+				al.jsonErrorResponse(w, http.StatusUnauthorized, errAccessTokenRequired)
 				return
 			}
-			al.jsonErrorResponse(w, http.StatusUnauthorized, errAccessTokenRequired)
-			return
+		} else {
+			var token *TokenContext
+			authorized, token, err = al.handleBearerToken(r.Context(), tokenStr, r.URL.Path, r.Method)
+			if authorized && err == nil {
+				username = token.AppToken.Username
+			}
 		}
 
-		authorized, token, err := al.handleBearerToken(r.Context(), tokenStr, r.URL.Path, r.Method)
 		if err != nil {
 			if errors.Is(err, ErrTooManyRequests) {
 				al.jsonErrorResponse(w, http.StatusTooManyRequests, err)
@@ -466,13 +487,13 @@ func (al *APIListener) wsAuth(f http.Handler) http.HandlerFunc {
 			return
 		}
 
-		if !authorized || token.AppToken.Username == "" {
-			al.bannedUsers.Add(token.AppToken.Username)
+		if !authorized || username == "" {
+			al.bannedUsers.Add(username)
 			al.jsonErrorResponse(w, http.StatusUnauthorized, errUnauthorized)
 			return
 		}
 
-		newCtx := api.WithUser(r.Context(), token.AppToken.Username)
+		newCtx := api.WithUser(r.Context(), username)
 		f.ServeHTTP(w, r.WithContext(newCtx))
 	}
 }

@@ -18,7 +18,7 @@ type ProviderMock struct {
 	UsersToGive         []*User
 	UsersToAdd          []*User
 	UsersToUpdate       []*User
-	GroupsToGive        []string
+	GroupsToGive        []Group
 	ErrorToGiveOnRead   error
 	ErrorToGiveOnWrite  error
 	ErrorToGiveOnDelete error
@@ -30,8 +30,20 @@ func (dpm *ProviderMock) GetAll() ([]*User, error) {
 	return dpm.UsersToGive, dpm.ErrorToGiveOnRead
 }
 
-func (dpm *ProviderMock) GetAllGroups() ([]string, error) {
+func (dpm *ProviderMock) ListGroups() ([]Group, error) {
 	return dpm.GroupsToGive, dpm.ErrorToGiveOnRead
+}
+
+func (dpm *ProviderMock) GetGroup(string) (Group, error) {
+	return dpm.GroupsToGive[0], dpm.ErrorToGiveOnRead
+}
+
+func (dpm *ProviderMock) UpdateGroup(string, Group) error {
+	return dpm.ErrorToGiveOnWrite
+}
+
+func (dpm *ProviderMock) DeleteGroup(string) error {
+	return dpm.ErrorToGiveOnDelete
 }
 
 func (dpm *ProviderMock) GetByUsername(username string) (*User, error) {
@@ -422,7 +434,7 @@ func TestDeleteUserFromProvider(t *testing.T) {
 }
 
 func TestExistsUserGroups(t *testing.T) {
-	givenGroups := []string{"group1", "group2", "group3", "group4", Administrators}
+	givenGroups := []Group{NewGroup("group1"), NewGroup("group2"), NewGroup("group3"), NewGroup("group4"), AdministratorsGroup}
 	db := &ProviderMock{
 		GroupsToGive: givenGroups,
 	}

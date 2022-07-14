@@ -12,7 +12,8 @@ import (
 )
 
 type SqliteProvider struct {
-	db *sqlx.DB
+	db        *sqlx.DB
+	converter *query.SQLConverter
 }
 
 var generateNewCommandID = func() (string, error) {
@@ -20,7 +21,10 @@ var generateNewCommandID = func() (string, error) {
 }
 
 func NewSqliteProvider(db *sqlx.DB) *SqliteProvider {
-	return &SqliteProvider{db: db}
+	return &SqliteProvider{
+		db:        db,
+		converter: query.NewSQLConverter(db.DriverName()),
+	}
 }
 
 func (p *SqliteProvider) Close() error {
@@ -33,7 +37,7 @@ func (p *SqliteProvider) Close() error {
 
 func (p *SqliteProvider) GetByID(ctx context.Context, id string, ro *query.RetrieveOptions) (val *Command, found bool, err error) {
 	q := "SELECT * FROM `commands` WHERE `id` = ? LIMIT 1"
-	q = query.ConvertRetrieveOptionsToQuery(ro, q)
+	q = p.converter.ConvertRetrieveOptionsToQuery(ro, q)
 
 	val = new(Command)
 	err = p.db.GetContext(ctx, val, q, id)
@@ -53,7 +57,7 @@ func (p *SqliteProvider) List(ctx context.Context, lo *query.ListOptions) ([]Com
 
 	q := "SELECT * FROM `commands`"
 
-	q, params := query.ConvertListOptionsToQuery(lo, q)
+	q, params := p.converter.ConvertListOptionsToQuery(lo, q)
 
 	err := p.db.SelectContext(ctx, &values, q, params...)
 	if err != nil {

@@ -10,14 +10,16 @@ import (
 
 	errors2 "github.com/cloudradar-monitoring/rport/server/api/errors"
 	"github.com/cloudradar-monitoring/rport/server/api/message"
-	"github.com/cloudradar-monitoring/rport/share/collections"
 	"github.com/cloudradar-monitoring/rport/share/enums"
 )
 
 type Provider interface {
 	Type() enums.ProviderSource
 	GetAll() ([]*User, error)
-	GetAllGroups() ([]string, error)
+	ListGroups() ([]Group, error)
+	GetGroup(string) (Group, error)
+	UpdateGroup(string, Group) error
+	DeleteGroup(string) error
 	GetByUsername(username string) (*User, error)
 	Add(usr *User) error
 	Update(usr *User, usernameToUpdate string) error
@@ -50,21 +52,43 @@ func (as *APIService) GetByUsername(username string) (*User, error) {
 	return as.Provider.GetByUsername(username)
 }
 
-func (as *APIService) GetAllGroups() ([]string, error) {
-	return as.Provider.GetAllGroups()
+func (as *APIService) ListGroups() ([]Group, error) {
+	return as.Provider.ListGroups()
+}
+
+func (as *APIService) GetGroup(name string) (Group, error) {
+	return as.Provider.GetGroup(name)
+}
+
+func (as *APIService) UpdateGroup(name string, g Group) (Group, error) {
+	err := as.Provider.UpdateGroup(name, g)
+	if err != nil {
+		return Group{}, err
+	}
+	return as.Provider.GetGroup(name)
+}
+
+func (as *APIService) DeleteGroup(name string) error {
+	return as.Provider.DeleteGroup(name)
 }
 
 func (as *APIService) ExistGroups(groups []string) error {
-	existingGroups, err := as.GetAllGroups()
+	existingGroups, err := as.ListGroups()
 	if err != nil {
 		return err
 	}
 
-	groupMap := collections.ConvertToStringBoolMap(existingGroups)
 	var groupsNotFound []string
-	for _, cur := range groups {
-		if !groupMap.Has(cur) {
-			groupsNotFound = append(groupsNotFound, cur)
+	for _, group := range groups {
+		found := false
+		for _, existing := range existingGroups {
+			if existing.Name == group {
+				found = true
+				break
+			}
+		}
+		if !found {
+			groupsNotFound = append(groupsNotFound, group)
 		}
 	}
 

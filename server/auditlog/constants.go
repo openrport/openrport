@@ -15,6 +15,7 @@ const (
 	ApplicationAuthUserMe      = "auth.user.me"
 	ApplicationAuthUserMeToken = "auth.user.me.token" //nolint:gosec
 	ApplicationAuthUserTotP    = "auth.user.totp"
+	ApplicationAuthUserGroup   = "auth.user.group"
 	ApplicationClient          = "client"
 	ApplicationClientACL       = "client.acl"
 	ApplicationClientAuth      = "client.auth"

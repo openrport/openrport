@@ -68,6 +68,10 @@ func (al *APIListener) initRouter() {
 			al.wrapTotPEnabledMiddleware(al.handleDeleteUsersTotP),
 		),
 	)).Methods(http.MethodDelete)
+	api.HandleFunc("/user-groups", al.wrapAdminAccessMiddleware(al.handleListUserGroups)).Methods(http.MethodGet)
+	api.HandleFunc("/user-groups/{group_name}", al.wrapStaticPassModeMiddleware(al.wrapAdminAccessMiddleware(al.handleGetUserGroup))).Methods(http.MethodGet)
+	api.HandleFunc("/user-groups/{group_name}", al.wrapStaticPassModeMiddleware(al.wrapAdminAccessMiddleware(al.handleUpdateUserGroup))).Methods(http.MethodPut)
+	api.HandleFunc("/user-groups/{group_name}", al.wrapStaticPassModeMiddleware(al.wrapAdminAccessMiddleware(al.handleDeleteUserGroup))).Methods(http.MethodDelete)
 	api.HandleFunc("/commands", al.handlePostMultiClientCommand).Methods(http.MethodPost)
 	api.HandleFunc("/commands", al.handleGetMultiClientCommands).Methods(http.MethodGet)
 	api.HandleFunc("/commands/{job_id}", al.handleGetMultiClientCommand).Methods(http.MethodGet)

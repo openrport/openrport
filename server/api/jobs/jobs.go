@@ -88,12 +88,17 @@ var JobListDefaultFields = map[string][]string{
 }
 
 type SqliteProvider struct {
-	log *logger.Logger
-	db  *sqlx.DB
+	log       *logger.Logger
+	db        *sqlx.DB
+	converter *query.SQLConverter
 }
 
 func NewSqliteProvider(db *sqlx.DB, log *logger.Logger) *SqliteProvider {
-	return &SqliteProvider{db: db, log: log}
+	return &SqliteProvider{
+		db:        db,
+		log:       log,
+		converter: query.NewSQLConverter(db.DriverName()),
+	}
 }
 
 func (p *SqliteProvider) GetByJID(clientID, jid string) (*models.Job, error) {
@@ -123,7 +128,7 @@ func (p *SqliteProvider) List(ctx context.Context, options *query.ListOptions) (
 	}
 
 	q := "SELECT jobs.*, schedule_id FROM jobs LEFT JOIN multi_jobs ON jobs.multi_job_id = multi_jobs.jid"
-	q, params := query.AppendOptionsToQuery(options, q, nil)
+	q, params := p.converter.AppendOptionsToQuery(options, q, nil)
 
 	var res []*jobSqlite
 	err := p.db.SelectContext(ctx, &res, q, params...)
@@ -138,7 +143,7 @@ func (p *SqliteProvider) Count(ctx context.Context, options *query.ListOptions) 
 	countOptions.Pagination = nil
 
 	q := "SELECT count(*) FROM (SELECT jobs.*, schedule_id FROM jobs LEFT JOIN multi_jobs ON jobs.multi_job_id = multi_jobs.jid)"
-	q, params := query.AppendOptionsToQuery(&countOptions, q, nil)
+	q, params := p.converter.AppendOptionsToQuery(&countOptions, q, nil)
 
 	var result int
 	err := p.db.GetContext(ctx, &result, q, params...)

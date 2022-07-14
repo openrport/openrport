@@ -7,6 +7,8 @@ import (
 	"testing"
 	"time"
 
+	"github.com/cloudradar-monitoring/rport/share/query"
+
 	"github.com/jmoiron/sqlx"
 
 	"github.com/patrickmn/go-cache"
@@ -31,6 +33,7 @@ func NewDatabaseMockProvider(clients []*ClientAuth, t *testing.T) *DatabaseProvi
 	return &DatabaseProvider{
 		db:        authDb,
 		tableName: "clients_auth",
+		converter: query.NewSQLConverter(authDb.DriverName()),
 	}
 }
 

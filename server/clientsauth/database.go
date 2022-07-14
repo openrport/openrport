@@ -18,6 +18,7 @@ const mysqlDuplicateEntryErrorCode = 1062
 type DatabaseProvider struct {
 	db        *sqlx.DB
 	tableName string
+	converter *query.SQLConverter
 }
 
 var _ Provider = &DatabaseProvider{}
@@ -26,15 +27,17 @@ func NewDatabaseProvider(DB *sqlx.DB, tableName string) *DatabaseProvider {
 	return &DatabaseProvider{
 		db:        DB,
 		tableName: tableName,
+		converter: query.NewSQLConverter(DB.DriverName()),
 	}
 }
 
 func (c *DatabaseProvider) GetFiltered(filter *query.ListOptions) ([]*ClientAuth, int, error) {
+
 	filter.Sorts = append(filter.Sorts, query.SortOption{Column: "id", IsASC: true})
-	rQuery, rParams := query.ConvertListOptionsToQuery(filter, fmt.Sprintf("SELECT id,password FROM %s", c.tableName))
+	rQuery, rParams := c.converter.ConvertListOptionsToQuery(filter, fmt.Sprintf("SELECT id,password FROM %s", c.tableName))
 	filter.Pagination = nil
 	filter.Sorts = nil
-	cQuery, cParams := query.ConvertListOptionsToQuery(filter, fmt.Sprintf("SELECT COUNT(id) FROM %s", c.tableName))
+	cQuery, cParams := c.converter.ConvertListOptionsToQuery(filter, fmt.Sprintf("SELECT COUNT(id) FROM %s", c.tableName))
 	var count = 0
 	if err := c.db.Get(&count, cQuery, cParams...); err != nil {
 		return nil, 0, err

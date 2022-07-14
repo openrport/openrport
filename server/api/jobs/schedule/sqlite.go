@@ -37,12 +37,14 @@ LEFT JOIN (
 `
 
 type SQLiteProvider struct {
-	db *sqlx.DB
+	db        *sqlx.DB
+	converter *query.SQLConverter
 }
 
 func newSQLiteProvider(db *sqlx.DB) *SQLiteProvider {
 	return &SQLiteProvider{
-		db: db,
+		db:        db,
+		converter: query.NewSQLConverter(db.DriverName()),
 	}
 }
 
@@ -88,7 +90,7 @@ func (p *SQLiteProvider) Update(ctx context.Context, s *Schedule) error {
 func (p *SQLiteProvider) List(ctx context.Context, options *query.ListOptions) ([]*Schedule, error) {
 	values := []*DBSchedule{}
 
-	q, params := query.ConvertListOptionsToQuery(options, schedulesQuery)
+	q, params := p.converter.ConvertListOptionsToQuery(options, schedulesQuery)
 
 	err := p.db.SelectContext(ctx, &values, q, params...)
 	if err != nil {
