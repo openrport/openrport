@@ -12,7 +12,7 @@ func TestConvertListOptionsToQuery(t *testing.T) {
 	testCases := []struct {
 		Name           string
 		Options        *query.ListOptions
-		DbDriverName   string `default:"sqlite"`
+		DbDriverName   string
 		ExpectedQuery  string
 		ExpectedParams []interface{}
 	}{
