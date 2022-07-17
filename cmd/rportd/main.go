@@ -19,19 +19,21 @@ import (
 )
 
 const (
-	DefaultKeepLostClients           = time.Hour
-	DefaultCleanClientsInterval      = 1 * time.Minute
-	DefaultMaxRequestBytes           = 10 * 1024       // 10 KB
-	DefaultMaxRequestBytesClient     = 512 * 1024      // 512KB
-	DefaultMaxFilePushBytes          = int64(10 << 20) // 10M
-	DefaultCheckPortTimeout          = 2 * time.Second
-	DefaultUsedPorts                 = "20000-30000"
-	DefaultExcludedPorts             = "1-1024"
-	DefaultServerAddress             = "0.0.0.0:8080"
-	DefaultLogLevel                  = "info"
-	DefaultRunRemoteCmdTimeoutSec    = 60
-	DefaultMonitoringDataStorageDays = 30
-	DefaultPairingURL                = "https://pairing.rport.io"
+	DefaultKeepLostClients                = time.Hour
+	DefaultCleanClientsInterval           = 1 * time.Minute
+	DefaultCheckClientsConnectionInterval = 5 * time.Minute
+	DefaultCheckClientsConnectionTimeout  = 30 * time.Second
+	DefaultMaxRequestBytes                = 10 * 1024       // 10 KB
+	DefaultMaxRequestBytesClient          = 512 * 1024      // 512KB
+	DefaultMaxFilePushBytes               = int64(10 << 20) // 10M
+	DefaultCheckPortTimeout               = 2 * time.Second
+	DefaultUsedPorts                      = "20000-30000"
+	DefaultExcludedPorts                  = "1-1024"
+	DefaultServerAddress                  = "0.0.0.0:8080"
+	DefaultLogLevel                       = "info"
+	DefaultRunRemoteCmdTimeoutSec         = 60
+	DefaultMonitoringDataStorageDays      = 30
+	DefaultPairingURL                     = "https://pairing.rport.io"
 )
 
 var serverHelp = `
@@ -314,6 +316,8 @@ func init() {
 	viperCfg.SetDefault("server.cleanup_clients", true)
 	viperCfg.SetDefault("server.keep_lost_clients", DefaultKeepLostClients)
 	viperCfg.SetDefault("server.cleanup_clients_interval", DefaultCleanClientsInterval)
+	viperCfg.SetDefault("server.check_clients_connection_interval", DefaultCheckClientsConnectionInterval)
+	viperCfg.SetDefault("server.check_clients_connection_timeout", DefaultCheckClientsConnectionTimeout)
 	viperCfg.SetDefault("server.max_request_bytes", DefaultMaxRequestBytes)
 	viperCfg.SetDefault("server.max_filepush_size", DefaultMaxFilePushBytes)
 	viperCfg.SetDefault("server.max_request_bytes_client", DefaultMaxRequestBytesClient)

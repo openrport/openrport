@@ -45,6 +45,7 @@ type ClientPayload struct {
 	ClientAuthID           *string                  `json:"client_auth_id,omitempty"`
 	Version                *string                  `json:"version,omitempty"`
 	DisconnectedAt         **time.Time              `json:"disconnected_at,omitempty"`
+	LastHeartbeatAt        **time.Time              `json:"last_heartbeat_at,omitempty"`
 	ConnectionState        *clients.ConnectionState `json:"connection_state,omitempty"`
 	IPv4                   *[]string                `json:"ipv4,omitempty"`
 	IPv6                   *[]string                `json:"ipv6,omitempty"`
@@ -100,6 +101,8 @@ func convertToClientPayload(client *clients.CalculatedClient, fields []query.Fie
 			p.Tunnels = &client.Tunnels
 		case "disconnected_at":
 			p.DisconnectedAt = &client.DisconnectedAt
+		case "last_heartbeat_at":
+			p.LastHeartbeatAt = &client.LastHeartbeatAt
 		case "connection_state":
 			connectionState := client.ConnectionState()
 			p.ConnectionState = &connectionState

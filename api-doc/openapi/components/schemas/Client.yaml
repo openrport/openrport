@@ -93,6 +93,10 @@ properties:
     type: string
     description: time when a client was disconnected. If null - it's connected
     format: data-time
+  last_heartbeat_at:
+    type: string
+    description: time of last heartbeat. Either sent client to server or server to client.
+    format: data-time
   client_auth_id:
     type: string
     description: rport client authentication ID that was used to connect to server

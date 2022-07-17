@@ -85,6 +85,7 @@ var clientsSupportedFields = map[string]map[string]bool{
 		"address":                  true,
 		"tunnels":                  true,
 		"disconnected_at":          true,
+		"last_heartbeat_at":        true,
 		"connection_state":         true,
 		"client_auth_id":           true,
 		"os_full_name":             true,
@@ -471,6 +472,17 @@ func (s *ClientService) SetUpdatesStatus(clientID string, updatesStatus *models.
 	}
 
 	existing.UpdatesStatus = updatesStatus
+
+	return s.repo.Save(existing)
+}
+
+func (s *ClientService) SetLastHeartbeat(clientID string, heartbeat *time.Time) error {
+	existing, err := s.getExistingByID(clientID)
+	if err != nil {
+		return err
+	}
+
+	existing.LastHeartbeatAt = heartbeat
 
 	return s.repo.Save(existing)
 }

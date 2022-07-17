@@ -5,6 +5,7 @@ import (
 	"errors"
 	"fmt"
 	"path"
+	"runtime"
 	"sync"
 	"time"
 
@@ -40,9 +41,11 @@ import (
 )
 
 const (
-	cleanupMeasurementsInterval = time.Minute * 2
-	cleanupAPISessionsInterval  = time.Hour
-	cleanupJobsInterval         = time.Hour
+	cleanupMeasurementsInterval           = time.Minute * 2
+	cleanupAPISessionsInterval            = time.Hour
+	cleanupJobsInterval                   = time.Hour
+	CheckClientsConnectionIntervalMinimum = time.Minute * 2
+	LogNumGoRoutinesInterval              = time.Minute * 2
 )
 
 // Server represents a rport service
@@ -252,9 +255,19 @@ func (s *Server) Run() error {
 		s.Debugf("Task to cleanup obsolete clients disabled.")
 	}
 
-	//clean up disconnected hosts
-	go scheduler.Run(ctx, s.Logger, NewDisconnectedHostsCleanupTask(s.Logger, s.clientService), 2*time.Minute)
-	s.Infof("Task to cleanup disconnected clients will run with interval %v", "2m")
+	// We must validate here because the early config validation does not allow logging and continue with overwrites.
+	if s.config.Server.CheckClientsConnectionInterval < CheckClientsConnectionIntervalMinimum {
+		s.config.Server.CheckClientsConnectionInterval = CheckClientsConnectionIntervalMinimum
+		s.Errorf("'check_clients_status_interval' too fast. Using the minimum possible of %s", CheckClientsConnectionIntervalMinimum)
+	}
+	//Run a task to Check the client connections status by sending and receiving pings
+	go scheduler.Run(ctx, s.Logger, NewClientsStatusCheckTask(
+		s.Logger,
+		s.clientListener.clientService.repo,
+		s.config.Server.CheckClientsConnectionInterval,
+		s.config.Server.CheckClientsConnectionTimeout,
+	), s.config.Server.CheckClientsConnectionInterval)
+	s.Infof("Task to check the clients connection status will run with interval %v", s.config.Server.CheckClientsConnectionInterval)
 
 	cleaningPeriod := time.Hour * 24 * time.Duration(s.config.Monitoring.DataStorageDays)
 	go scheduler.Run(ctx, s.Logger, monitoring.NewCleanupTask(s.Logger, s.monitoringService, cleaningPeriod), cleanupMeasurementsInterval)
@@ -265,6 +278,16 @@ func (s *Server) Run() error {
 
 	go scheduler.Run(ctx, s.Logger, jobs.NewCleanupTask(s.jobProvider, s.config.Server.JobsMaxResults), cleanupJobsInterval)
 	s.Infof("Task to cleanup jobs will run with interval %v", cleanupJobsInterval)
+
+	// Only on debug mode, log the number of running go routines
+	if s.config.Logging.LogLevel == logger.LogLevelDebug {
+		go func() {
+			for {
+				s.Logger.Debugf("Number of running go routines: %d", runtime.NumGoroutine())
+				time.Sleep(LogNumGoRoutinesInterval)
+			}
+		}()
+	}
 
 	return s.Wait()
 }
