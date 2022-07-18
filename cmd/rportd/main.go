@@ -19,21 +19,21 @@ import (
 )
 
 const (
-	DefaultKeepLostClients                = time.Hour
-	DefaultCleanClientsInterval           = 1 * time.Minute
-	DefaultCheckClientsConnectionInterval = 5 * time.Minute
-	DefaultCheckClientsConnectionTimeout  = 30 * time.Second
-	DefaultMaxRequestBytes                = 10 * 1024       // 10 KB
-	DefaultMaxRequestBytesClient          = 512 * 1024      // 512KB
-	DefaultMaxFilePushBytes               = int64(10 << 20) // 10M
-	DefaultCheckPortTimeout               = 2 * time.Second
-	DefaultUsedPorts                      = "20000-30000"
-	DefaultExcludedPorts                  = "1-1024"
-	DefaultServerAddress                  = "0.0.0.0:8080"
-	DefaultLogLevel                       = "info"
-	DefaultRunRemoteCmdTimeoutSec         = 60
-	DefaultMonitoringDataStorageDays      = 30
-	DefaultPairingURL                     = "https://pairing.rport.io"
+	DefaultKeepDisconnectedClients          = time.Hour
+	DefaultPurgeDisconnectedClientsInterval = 1 * time.Minute
+	DefaultCheckClientsConnectionInterval   = 5 * time.Minute
+	DefaultCheckClientsConnectionTimeout    = 30 * time.Second
+	DefaultMaxRequestBytes                  = 10 * 1024       // 10 KB
+	DefaultMaxRequestBytesClient            = 512 * 1024      // 512KB
+	DefaultMaxFilePushBytes                 = int64(10 << 20) // 10M
+	DefaultCheckPortTimeout                 = 2 * time.Second
+	DefaultUsedPorts                        = "20000-30000"
+	DefaultExcludedPorts                    = "1-1024"
+	DefaultServerAddress                    = "0.0.0.0:8080"
+	DefaultLogLevel                         = "info"
+	DefaultRunRemoteCmdTimeoutSec           = 60
+	DefaultMonitoringDataStorageDays        = 30
+	DefaultPairingURL                       = "https://pairing.rport.io"
 )
 
 var serverHelp = `
@@ -98,7 +98,7 @@ var serverHelp = `
     --auth-multiuse-creds, When using --authfile creating separate credentials for each client is recommended.
     It increases security because you can lock out clients individually.
     If auth-multiuse-creds is false a client is rejected if another client with the same id is connected
-    or has been connected within the --keep-lost-clients interval.
+    or has been connected within the purge_disconnected_clients_interval interval.
     Defaults: true
 
     --equate-clientauthid-clientid, Having set "--auth-multiuse-creds=false", you can omit specifying a client-id.
@@ -161,11 +161,6 @@ var serverHelp = `
     because an unprivileged user don't have the right to create a directory in /var/lib.
     Ideally this directory is the homedir of the rport user and has been created along with the user.
     Example: useradd -r -d /var/lib/rportd -m -s /bin/false -U -c "System user for rport client and server" rport
-
-    --keep-lost-clients, An optional arg to define a duration to keep info(clients, tunnels, etc)
-    about active and disconnected clients.
-    By default is "1h". To disable it set it to "0".
-    It can contain "h"(hours), "m"(minutes), "s"(seconds).
 
     --cleanup-clients-interval, An optional
     arg to define an interval to clean up internal storage from obsolete disconnected clients.
@@ -274,9 +269,7 @@ func init() {
 	pFlags.StringSlice("use-ports", nil, "")
 	pFlags.StringSliceP("exclude-ports", "e", nil, "")
 	pFlags.String("data-dir", "", "")
-	pFlags.Duration("keep-lost-clients", 0, "")
 	pFlags.Duration("save-clients-interval", 0, "")
-	pFlags.Duration("cleanup-clients-interval", 0, "")
 	pFlags.Int64("max-request-bytes", 0, "")
 	pFlags.Int64("max-filepush-bytes", 0, "")
 	pFlags.Int64("max-request-bytes-client", 0, "")
@@ -313,9 +306,8 @@ func init() {
 	viperCfg.SetDefault("server.excluded_ports", []string{DefaultExcludedPorts})
 	viperCfg.SetDefault("server.data_dir", chserver.DefaultDataDirectory)
 	viperCfg.SetDefault("server.sqlite_wal", true)
-	viperCfg.SetDefault("server.cleanup_clients", true)
-	viperCfg.SetDefault("server.keep_lost_clients", DefaultKeepLostClients)
-	viperCfg.SetDefault("server.cleanup_clients_interval", DefaultCleanClientsInterval)
+	viperCfg.SetDefault("server.keep_disconnected_clients", DefaultKeepDisconnectedClients)
+	viperCfg.SetDefault("server.purge_disconnected_clients_interval", DefaultPurgeDisconnectedClientsInterval)
 	viperCfg.SetDefault("server.check_clients_connection_interval", DefaultCheckClientsConnectionInterval)
 	viperCfg.SetDefault("server.check_clients_connection_timeout", DefaultCheckClientsConnectionTimeout)
 	viperCfg.SetDefault("server.max_request_bytes", DefaultMaxRequestBytes)
@@ -364,8 +356,6 @@ func bindPFlags() {
 	_ = viperCfg.BindPFlag("server.used_ports", pFlags.Lookup("use-ports"))
 	_ = viperCfg.BindPFlag("server.excluded_ports", pFlags.Lookup("exclude-ports"))
 	_ = viperCfg.BindPFlag("server.data_dir", pFlags.Lookup("data-dir"))
-	_ = viperCfg.BindPFlag("server.keep_lost_clients", pFlags.Lookup("keep-lost-clients"))
-	_ = viperCfg.BindPFlag("server.cleanup_clients_interval", pFlags.Lookup("cleanup-clients-interval"))
 	_ = viperCfg.BindPFlag("server.max_request_bytes", pFlags.Lookup("max-request-bytes"))
 	_ = viperCfg.BindPFlag("server.max_filepush_size", pFlags.Lookup("max-filepush-bytes"))
 	_ = viperCfg.BindPFlag("server.max_request_bytes_client", pFlags.Lookup("max-request-bytes-client"))

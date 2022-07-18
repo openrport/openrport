@@ -145,10 +145,10 @@ func NewServer(config *Config, filesAPI files.FileAPI) (*Server, error) {
 		return nil, fmt.Errorf("failed to create clients DB instance: %v", err)
 	}
 
-	// keepLostClients is nil when cleanup of clients is disabled (keep clients forever)
-	var keepLostClients *time.Duration
-	if config.Server.CleanupClients {
-		keepLostClients = &config.Server.KeepLostClients
+	// keepDisconnectedClients is nil when cleanup of clients is disabled (keep clients forever)
+	var keepDisconnectedClients *time.Duration
+	if config.Server.PurgeDisconnectedClients {
+		keepDisconnectedClients = &config.Server.KeepDisconnectedClients
 	}
 
 	s.clientService, err = InitClientService(
@@ -156,7 +156,7 @@ func NewServer(config *Config, filesAPI files.FileAPI) (*Server, error) {
 		&s.config.Server.TunnelProxyConfig,
 		ports.NewPortDistributor(config.AllowedPorts()),
 		s.clientDB,
-		keepLostClients,
+		keepDisconnectedClients,
 		s.Logger,
 	)
 	if err != nil {
@@ -246,13 +246,24 @@ func (s *Server) Run() error {
 		return err
 	}
 
+	// Look for deprecated server config settings
+	var repl map[string]string
+	var err error
+	s.config.Server, repl, err = ServerConfigReplaceDeprecated(s.config.Server)
+	if err != nil {
+		s.Logger.Errorf("Error replacing deprecated config settings: %s", err)
+	}
+	for k, v := range repl {
+		s.Logger.Errorf("Server config setting '%s' is deprecated and will be removed soon. Use '%s' instead.", k, v)
+	}
+
 	// TODO(m-terel): add graceful shutdown of background task
-	if s.config.Server.CleanupClients {
-		s.Infof("Variable to keep lost clients is set to %v", s.config.Server.KeepLostClients)
-		go scheduler.Run(ctx, s.Logger, clients.NewCleanupTask(s.Logger, s.clientListener.clientService.repo), s.config.Server.CleanupClientsInterval)
-		s.Infof("Task to cleanup obsolete clients will run with interval %v", s.config.Server.CleanupClientsInterval)
+	if s.config.Server.PurgeDisconnectedClients {
+		s.Infof("Period to keep disconnected clients is set to %v", s.config.Server.KeepDisconnectedClients)
+		go scheduler.Run(ctx, s.Logger, clients.NewCleanupTask(s.Logger, s.clientListener.clientService.repo), s.config.Server.PurgeDisconnectedClientsInterval)
+		s.Infof("Task to purge disconnected clients will run with interval %v", s.config.Server.PurgeDisconnectedClientsInterval)
 	} else {
-		s.Debugf("Task to cleanup obsolete clients disabled.")
+		s.Debugf("Task to purge disconnected clients disabled")
 	}
 
 	// We must validate here because the early config validation does not allow logging and continue with overwrites.

@@ -131,10 +131,10 @@ func InitClientService(
 	tunnelProxyConfig *clienttunnel.TunnelProxyConfig,
 	portDistributor *ports.PortDistributor,
 	db *sqlx.DB,
-	keepLostClients *time.Duration,
+	keepDisconnectedClients *time.Duration,
 	logger *logger.Logger,
 ) (*ClientService, error) {
-	repo, err := clients.InitClientRepository(ctx, db, keepLostClients, logger)
+	repo, err := clients.InitClientRepository(ctx, db, keepDisconnectedClients, logger)
 	if err != nil {
 		return nil, fmt.Errorf("failed to init Client Repository: %v", err)
 	}
@@ -397,7 +397,7 @@ func (s *ClientService) checkLocalPort(port string) error {
 func (s *ClientService) Terminate(client *clients.Client) error {
 	s.mu.Lock()
 	defer s.mu.Unlock()
-	if s.repo.KeepLostClients != nil && *s.repo.KeepLostClients == 0 {
+	if s.repo.KeepDisconnectedClients != nil && *s.repo.KeepDisconnectedClients == 0 {
 		return s.repo.Delete(client)
 	}
 
@@ -415,7 +415,7 @@ func (s *ClientService) Terminate(client *clients.Client) error {
 	return s.repo.Save(client)
 }
 
-// ForceDelete deletes client from repo regardless off KeepLostClients setting,
+// ForceDelete deletes client from repo regardless off KeepDisconnectedClients setting,
 // if client is active it will be closed
 func (s *ClientService) ForceDelete(client *clients.Client) error {
 	s.mu.Lock()

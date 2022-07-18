@@ -76,8 +76,10 @@ require (
 require (
 	github.com/andrew-d/go-termutil v0.0.0-20150726205930-009166a695a2 // indirect
 	github.com/fsnotify/fsnotify v1.5.1 // indirect
+	github.com/gobeam/stringy v0.0.5 // indirect
 	github.com/jpillora/ansi v1.0.2 // indirect
 	github.com/lxn/win v0.0.0-20210218163916-a377121e959e // indirect
+	github.com/oleiade/reflections v1.0.1 // indirect
 	github.com/tklauser/go-sysconf v0.3.6 // indirect
 	github.com/tomasen/realip v0.0.0-20180522021738-f0c99a92ddce // indirect
 )
