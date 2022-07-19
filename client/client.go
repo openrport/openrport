@@ -4,14 +4,14 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
+	"github.com/cloudradar-monitoring/rport/share/random"
 	"io"
+	"log"
 	"net"
 	"net/http"
 	"net/url"
 	"strings"
 	"time"
-
-	"github.com/google/uuid"
 
 	"github.com/denisbrodbeck/machineid"
 	"github.com/pkg/errors"
@@ -58,7 +58,10 @@ func NewClient(config *ClientConfigHolder, filesAPI files.FileAPI) *Client {
 	ctx := context.Background()
 	// Generate a session id that will not change while the client is running
 	// This allows the server to resume sessions.
-	sessionID := uuid.New().String()
+	sessionID, err := random.UUID4()
+	if err != nil {
+		log.Fatalf("Failed to create initial session id: %s", err)
+	}
 	cmdExec := system.NewCmdExecutor(logger.NewLogger("cmd executor", config.Logging.LogOutput, config.Logging.LogLevel))
 	logger := logger.NewLogger("client", config.Logging.LogOutput, config.Logging.LogLevel)
 	logger.Infof("Client started with sessionID %s", sessionID)
