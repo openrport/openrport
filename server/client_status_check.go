@@ -2,7 +2,6 @@ package chserver
 
 import (
 	"context"
-	"fmt"
 	"time"
 
 	"github.com/cloudradar-monitoring/rport/server/clients"
@@ -75,7 +74,7 @@ func (t *ClientsStatusCheckTask) Run(ctx context.Context) error {
 
 func (t *ClientsStatusCheckTask) PingClients(jobs <-chan *clients.Client, results chan<- bool) {
 	for j := range jobs {
-		ok, response, rtt, err := t.PingClientWithTimeout(j)
+		ok, response, rtt, err := comm.PingClientWithTimeout(j.Connection, t.pingTimeout)
 		//t.log.Debugf("ok=%s, error=%s, response=%s", ok, err, response)
 		var now = time.Now()
 		//Old clients cannot respond properly to a ping request yet
@@ -97,32 +96,5 @@ func (t *ClientsStatusCheckTask) PingClients(jobs <-chan *clients.Client, result
 		j.DisconnectedAt = &now
 		j.Close()
 		results <- false
-	}
-}
-
-func (t *ClientsStatusCheckTask) PingClientWithTimeout(client *clients.Client) (bool, []byte, time.Duration, error) {
-	var (
-		ok         bool
-		response   []byte
-		err        error
-		timerStart = time.Now()
-	)
-	ctx, cancel := context.WithCancel(context.Background())
-	defer cancel()
-	ch := make(chan bool, 1)
-	go func() {
-		ok, response, err = client.Connection.SendRequest(comm.RequestTypePing, true, nil)
-		select {
-		default:
-			ch <- true
-		case <-ctx.Done():
-			return
-		}
-	}()
-	select {
-	case <-ch:
-		return ok, response, time.Since(timerStart), err
-	case <-time.After(t.pingTimeout):
-		return false, nil, 0, fmt.Errorf("timeout %s exceeded", t.pingTimeout)
 	}
 }

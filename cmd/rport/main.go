@@ -284,6 +284,8 @@ func init() {
 	viperCfg.SetDefault("client.server_switchback_interval", 2*time.Minute)
 	viperCfg.SetDefault("logging.log_level", "error")
 	viperCfg.SetDefault("connection.max_retry_count", -1)
+	viperCfg.SetDefault("connection.keep_alive", "3m")
+	viperCfg.SetDefault("connection.keep_alive_timeout", "30s")
 	viperCfg.SetDefault("remote-commands.allow", []string{"^/usr/bin/.*", "^/usr/local/bin/.*", `^C:\\Windows\\System32\\.*`})
 	viperCfg.SetDefault("remote-commands.deny", []string{`(\||<|>|;|,|\n|&)`})
 	viperCfg.SetDefault("remote-commands.order", []string{"allow", "deny"})

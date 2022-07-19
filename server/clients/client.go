@@ -33,6 +33,7 @@ const (
 // Client represents client connection
 type Client struct {
 	ID                     string                 `json:"id"`
+	SessionID              string                 `json:"session_id"`
 	Name                   string                 `json:"name"`
 	OS                     string                 `json:"os"`
 	OSArch                 string                 `json:"os_arch"`

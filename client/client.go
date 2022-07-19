@@ -8,9 +8,10 @@ import (
 	"net"
 	"net/http"
 	"net/url"
-	"strconv"
 	"strings"
 	"time"
+
+	"github.com/google/uuid"
 
 	"github.com/denisbrodbeck/machineid"
 	"github.com/pkg/errors"
@@ -36,6 +37,7 @@ import (
 type Client struct {
 	*logger.Logger
 
+	SessionID          string
 	configHolder       *ClientConfigHolder
 	sshConfig          *ssh.ClientConfig
 	sshConn            ssh.Conn
@@ -54,11 +56,15 @@ type Client struct {
 //NewClient creates a new client instance
 func NewClient(config *ClientConfigHolder, filesAPI files.FileAPI) *Client {
 	ctx := context.Background()
-
+	// Generate a session id that will not change while the client is running
+	// This allows the server to resume sessions.
+	sessionID := uuid.New().String()
 	cmdExec := system.NewCmdExecutor(logger.NewLogger("cmd executor", config.Logging.LogOutput, config.Logging.LogLevel))
 	logger := logger.NewLogger("client", config.Logging.LogOutput, config.Logging.LogLevel)
+	logger.Infof("Client started with sessionID %s", sessionID)
 	systemInfo := system.NewSystemInfo(cmdExec)
 	client := &Client{
+		SessionID:    sessionID,
 		Logger:       logger,
 		configHolder: config,
 		running:      true,
@@ -116,6 +122,7 @@ func (c *Client) Start(ctx context.Context) error {
 
 	//optional keepalive loop
 	if c.configHolder.Connection.KeepAlive > 0 {
+		c.Infof("Keepalive job started with interval %s", c.configHolder.Connection.KeepAlive)
 		go c.keepAliveLoop()
 	}
 	//connection loop
@@ -130,11 +137,14 @@ func (c *Client) keepAliveLoop() {
 	for c.running {
 		time.Sleep(c.configHolder.Connection.KeepAlive)
 		if c.sshConn != nil {
-			ok, response, err := c.sshConn.SendRequest(comm.RequestTypePing, true, nil)
-			if err != nil {
-				c.Errorf("Failed to send keepalive: %s", err)
+			//ok, response, err := c.sshConn.SendRequest(comm.RequestTypePing, true, nil)
+			ok, _, rtt, err := comm.PingClientWithTimeout(c.sshConn, c.configHolder.Connection.KeepAliveTimeout)
+			if err != nil || !ok {
+				c.Errorf("failed to send ping: %s", err)
+				c.sshConn.Close()
+			} else {
+				c.Debugf("ping to rport server %s succeeded within %s", c.sshConn.RemoteAddr(), rtt)
 			}
-			c.Debugf("Sent keepalive, got status=%s: %s", strconv.FormatBool(ok), response)
 		}
 	}
 }
@@ -369,7 +379,7 @@ func (c *Client) sendConnectionRequest(ctx context.Context, sshConn ssh.Conn) er
 	if err != nil {
 		return fmt.Errorf("can't decode reply payload: %s", err)
 	}
-	c.Infof("Connected (Latency %s)", time.Since(t0))
+	c.Infof("Connected within %s", time.Since(t0))
 	for _, r := range remotes {
 		c.Infof("new tunnel: %s", r.String())
 
@@ -594,6 +604,7 @@ func (c *Client) connectionRequest(ctx context.Context) (*chshare.ConnectionRequ
 	connReq := &chshare.ConnectionRequest{
 		ID:                     c.configHolder.Client.ID,
 		Name:                   c.configHolder.Client.Name,
+		SessionID:              c.SessionID,
 		Tags:                   c.configHolder.Client.Tags,
 		Remotes:                c.configHolder.Client.Tunnels,
 		OS:                     system.UnknownValue,
