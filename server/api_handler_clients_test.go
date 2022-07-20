@@ -103,6 +103,7 @@ func TestHandleGetClient(t *testing.T) {
         "timezone":"UTC-0",
         "tunnels":[
             {
+                "name": "",
                 "protocol": "tcp",
                 "lhost":"0.0.0.0",
                 "lport":"2222",
@@ -119,6 +120,7 @@ func TestHandleGetClient(t *testing.T) {
                 "id":"1"
             },
             {
+                "name": "",
                 "protocol": "tcp",
                 "lhost":"0.0.0.0",
                 "lport":"4000",
