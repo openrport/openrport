@@ -51,7 +51,7 @@ type Server struct {
 	clientListener      *ClientListener
 	apiListener         *APIListener
 	config              *Config
-	clientService       *ClientService
+	clientService       ClientService
 	clientDB            *sqlx.DB
 	clientAuthProvider  clientsauth.Provider
 	jobProvider         JobProvider
@@ -246,7 +246,7 @@ func (s *Server) Run() error {
 	// TODO(m-terel): add graceful shutdown of background task
 	if s.config.Server.CleanupClients {
 		s.Infof("Variable to keep lost clients is set to %v", s.config.Server.KeepLostClients)
-		go scheduler.Run(ctx, s.Logger, clients.NewCleanupTask(s.Logger, s.clientListener.clientService.repo), s.config.Server.CleanupClientsInterval)
+		go scheduler.Run(ctx, s.Logger, clients.NewCleanupTask(s.Logger, s.clientListener.clientService.GetRepo()), s.config.Server.CleanupClientsInterval)
 		s.Infof("Task to cleanup obsolete clients will run with interval %v", s.config.Server.CleanupClientsInterval)
 	}
 
@@ -307,6 +307,10 @@ func (s *Server) Close() error {
 	})
 
 	return wg.Wait()
+}
+
+func (s *Server) GetClientService() ClientService {
+	return s.clientService
 }
 
 // jobResultChanMap is thread safe map with [jobID, chan *models.Job] pairs.

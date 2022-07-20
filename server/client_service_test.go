@@ -84,7 +84,7 @@ func TestStartClient(t *testing.T) {
 
 	for _, tc := range testCases {
 		t.Run(tc.Name, func(t *testing.T) {
-			cs := &ClientService{
+			cs := &ClientServiceProvider{
 				repo: clients.NewClientRepository([]*clients.Client{{
 					ID:           "test-client",
 					ClientAuthID: "test-client-auth",
@@ -103,7 +103,7 @@ func TestStartClientDisconnected(t *testing.T) {
 	connMock := test.NewConnMock()
 	connMock.ReturnRemoteAddr = &net.TCPAddr{IP: net.IPv4(192, 0, 2, 1), Port: 2345}
 	now := time.Now()
-	cs := &ClientService{
+	cs := &ClientServiceProvider{
 		repo: clients.NewClientRepository([]*clients.Client{{
 			ID:                "disconnected-client",
 			ClientAuthID:      "test-client-auth",
@@ -195,7 +195,7 @@ func TestDeleteOfflineClient(t *testing.T) {
 }
 
 func TestCheckLocalPort(t *testing.T) {
-	srv := ClientService{
+	srv := ClientServiceProvider{
 		portDistributor: ports.NewPortDistributorForTests(
 			mapset.NewThreadUnsafeSetFromSlice([]interface{}{1, 2, 3, 4, 5}),
 			mapset.NewThreadUnsafeSetFromSlice([]interface{}{2, 3, 4}),
