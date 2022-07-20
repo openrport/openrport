@@ -399,8 +399,7 @@ func (cl *ClientListener) handleSSHRequests(clientLog *logger.Logger, clientID s
 		switch r.Type {
 		case comm.RequestTypePing:
 			_ = r.Reply(true, nil)
-			now := time.Now()
-			err := cl.clientService.SetLastHeartbeat(clientID, &now)
+			err := cl.clientService.SetLastHeartbeat(clientID, time.Now())
 			if err != nil {
 				clientLog.Errorf("Failed to save heartbeat: %s", err)
 				continue

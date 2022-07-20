@@ -484,15 +484,13 @@ func (s *ClientService) SetUpdatesStatus(clientID string, updatesStatus *models.
 	return s.repo.Save(existing)
 }
 
-func (s *ClientService) SetLastHeartbeat(clientID string, heartbeat *time.Time) error {
+func (s *ClientService) SetLastHeartbeat(clientID string, heartbeat time.Time) error {
 	existing, err := s.getExistingByID(clientID)
 	if err != nil {
 		return err
 	}
-
-	existing.LastHeartbeatAt = heartbeat
-
-	return s.repo.Save(existing)
+	existing.LastHeartbeatAt = &heartbeat
+	return nil
 }
 
 // CheckClientAccess returns nil if a given user has an access to a given client.
