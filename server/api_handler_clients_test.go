@@ -19,7 +19,10 @@ import (
 	"github.com/cloudradar-monitoring/rport/server/api/users"
 	"github.com/cloudradar-monitoring/rport/server/cgroups"
 	"github.com/cloudradar-monitoring/rport/server/clients"
+	"github.com/cloudradar-monitoring/rport/server/clients/clienttunnel"
+	"github.com/cloudradar-monitoring/rport/share/models"
 	"github.com/cloudradar-monitoring/rport/share/query"
+	"github.com/cloudradar-monitoring/rport/share/test"
 )
 
 type mockClientGroupProvider struct {
@@ -42,6 +45,7 @@ func TestHandleGetClient(t *testing.T) {
 			clientGroupProvider: mockClientGroupProvider{},
 		},
 	}
+
 	al.initRouter()
 
 	testCases := []struct {
@@ -151,6 +155,7 @@ func TestHandleGetClient(t *testing.T) {
 		})
 	}
 }
+
 func TestHandleGetClients(t *testing.T) {
 	curUser := &users.User{
 		Username: "admin",
@@ -342,4 +347,101 @@ func TestGetCorrespondingSortFuncError(t *testing.T) {
 	// then
 	require.Error(t, gotErr)
 	assert.Equal(t, gotErr.Error(), "Only one sort field is supported for clients.")
+}
+
+type SimpleMockClientService struct {
+	ExpectedIDs   []string
+	ActiveClients []*clients.Client
+
+	*ClientServiceProvider
+}
+
+func (mcs *SimpleMockClientService) GetActiveByID(id string) (*clients.Client, error) {
+	// for this test, just return the first client
+	return mcs.ActiveClients[0], nil
+}
+
+func (mcs *SimpleMockClientService) StartClientTunnels(client *clients.Client, remotes []*models.Remote) ([]*clienttunnel.Tunnel, error) {
+	tunnels := make([]*clienttunnel.Tunnel, 0, 32)
+	for i, remote := range remotes {
+		tunnels = append(tunnels, makeTunnelResponse(mcs.ExpectedIDs[i], remote))
+	}
+	return tunnels, nil
+}
+
+func makeTunnelResponse(id string, remote *models.Remote) (response *clienttunnel.Tunnel) {
+	response = &clienttunnel.Tunnel{
+		ID:     id,
+		Remote: *remote,
+	}
+	return response
+}
+
+func TestHandlePutTunnelWithName(t *testing.T) {
+	connMock := test.NewConnMock()
+	connMock.ReturnOk = true
+	connMock.ReturnResponsePayload = []byte("{ \"IsAllowed\": true }")
+
+	testCases := []struct {
+		Name           string
+		URL            string
+		TunnelName     string
+		ExpectedStatus int
+		ExpectedJSON   string
+	}{
+		{
+			Name:           "With Name",
+			URL:            "/api/v1/clients/client-1/tunnels?scheme=ssh&acl=127.0.0.1&local=0.0.0.0%3A3390&remote=0.0.0.0%3A22&name=TUNNELNAME&check_port=0",
+			ExpectedStatus: http.StatusOK,
+			TunnelName:     "TUNNELNAME",
+			ExpectedJSON:   `{"data":{"id":"10","name":"TUNNELNAME","protocol":"tcp","lhost":"0.0.0.0","lport":"3390","rhost":"0.0.0.0","rport":"22","lport_random":false,"scheme":"ssh","acl":"127.0.0.1","idle_timeout_minutes":5,"auto_close":0,"http_proxy":false,"host_header":"","created_at":"0001-01-01T00:00:00Z"}}`,
+		},
+		{
+			Name:           "Without Name",
+			URL:            "/api/v1/clients/client-1/tunnels?scheme=ssh&acl=127.0.0.1&local=0.0.0.0%3A3390&remote=0.0.0.0%3A22&check_port=0",
+			TunnelName:     "",
+			ExpectedStatus: http.StatusOK,
+			ExpectedJSON:   `{"data":{"id":"10","name":"","protocol":"tcp","lhost":"0.0.0.0","lport":"3390","rhost":"0.0.0.0","rport":"22","lport_random":false,"scheme":"ssh","acl":"127.0.0.1","idle_timeout_minutes":5,"auto_close":0,"http_proxy":false,"host_header":"","created_at":"0001-01-01T00:00:00Z"}}`,
+		},
+	}
+
+	for _, tc := range testCases {
+		tc := tc
+		t.Run(tc.Name, func(t *testing.T) {
+			t.Parallel()
+
+			c1 := clients.New(t).ID("client-1").ClientAuthID(cl1.ID).Build()
+			c1.Connection = connMock
+
+			mockClientService := &SimpleMockClientService{
+				ExpectedIDs: []string{"10"},
+				ActiveClients: []*clients.Client{
+					c1,
+				},
+			}
+
+			al := APIListener{
+				insecureForTests: true,
+				Server: &Server{
+					clientService: mockClientService,
+					config: &Config{
+						Server: ServerConfig{MaxRequestBytes: 1024 * 1024},
+					},
+					clientGroupProvider: mockClientGroupProvider{},
+				},
+			}
+
+			al.initRouter()
+
+			w := httptest.NewRecorder()
+			req := httptest.NewRequest("PUT", tc.URL, nil)
+
+			al.router.ServeHTTP(w, req)
+			assert.Equal(t, tc.ExpectedStatus, w.Code)
+
+			if tc.ExpectedStatus == http.StatusOK {
+				assert.JSONEq(t, tc.ExpectedJSON, w.Body.String())
+			}
+		})
+	}
 }
