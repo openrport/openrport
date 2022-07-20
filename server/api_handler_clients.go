@@ -346,6 +346,7 @@ func (al *APIListener) handlePutClientTunnel(w http.ResponseWriter, req *http.Re
 	if protocol != "" {
 		remoteStr += "/" + protocol
 	}
+
 	remote, err := models.DecodeRemote(remoteStr)
 	if err != nil {
 		al.jsonErrorResponseWithTitle(w, http.StatusBadRequest, fmt.Sprintf("failed to decode %q: %v", remoteStr, err))
@@ -389,6 +390,11 @@ func (al *APIListener) handlePutClientTunnel(w http.ResponseWriter, req *http.Re
 	}
 	if aclStr != "" {
 		remote.ACL = &aclStr
+	}
+
+	name := req.URL.Query().Get("name")
+	if name != "" {
+		remote.Name = name
 	}
 
 	schemeStr := req.URL.Query().Get("scheme")
