@@ -7,6 +7,8 @@ import (
 	"runtime"
 	"time"
 
+	"github.com/cloudradar-monitoring/rport/share/logger"
+
 	"github.com/kardianos/service"
 	"github.com/spf13/cobra"
 	"github.com/spf13/viper"
@@ -396,7 +398,7 @@ func main() {
 	}
 }
 
-func decodeAndValidateConfig() error {
+func decodeAndValidateConfig(mLog *logger.MemLogger) error {
 	if *cfgPath != "" {
 		viperCfg.SetConfigFile(*cfgPath)
 	} else {
@@ -408,7 +410,7 @@ func decodeAndValidateConfig() error {
 		return err
 	}
 
-	err := cfg.ParseAndValidate()
+	err := cfg.ParseAndValidate(mLog)
 	if err != nil {
 		return err
 	}
@@ -417,11 +419,13 @@ func decodeAndValidateConfig() error {
 }
 
 func runMain(*cobra.Command, []string) {
+	// Create an in-memory logger while the real logger is not loaded yet
+	mLog := logger.NewMemLogger()
 	if svcCommand != nil && *svcCommand != "" {
 		// validate config file without command line args before installing it for the service
 		// other service commands do not change config file specified at install
 		if *svcCommand == "install" {
-			err := decodeAndValidateConfig()
+			err := decodeAndValidateConfig(&mLog)
 			if err != nil {
 				log.Fatalf("Invalid config: %v. Check your config file.", err)
 			}
@@ -437,7 +441,7 @@ func runMain(*cobra.Command, []string) {
 	// Bind command line arguments late, so they're not included in validation for service install
 	bindPFlags()
 
-	err := decodeAndValidateConfig()
+	err := decodeAndValidateConfig(&mLog)
 	if err != nil {
 		log.Fatalf("Invalid config: %v. See --help", err)
 	}
@@ -453,6 +457,8 @@ func runMain(*cobra.Command, []string) {
 	defer func() {
 		cfg.Logging.LogOutput.Shutdown()
 	}()
+	// Flush the in-memory logger
+	mLog.Flush(logger.NewLogger("server-startup", cfg.Logging.LogOutput, cfg.Logging.LogLevel))
 
 	s, err := chserver.NewServer(cfg, files.NewFileSystem())
 	if err != nil {

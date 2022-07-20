@@ -246,17 +246,6 @@ func (s *Server) Run() error {
 		return err
 	}
 
-	// Look for deprecated server config settings
-	var repl map[string]string
-	var err error
-	s.config.Server, repl, err = ServerConfigReplaceDeprecated(s.config.Server)
-	if err != nil {
-		s.Logger.Errorf("Error replacing deprecated config settings: %s", err)
-	}
-	for k, v := range repl {
-		s.Logger.Errorf("Server config setting '%s' is deprecated and will be removed soon. Use '%s' instead.", k, v)
-	}
-
 	// TODO(m-terel): add graceful shutdown of background task
 	if s.config.Server.PurgeDisconnectedClients {
 		s.Infof("Period to keep disconnected clients is set to %v", s.config.Server.KeepDisconnectedClients)
@@ -266,11 +255,6 @@ func (s *Server) Run() error {
 		s.Debugf("Task to purge disconnected clients disabled")
 	}
 
-	// We must validate here because the early config validation does not allow logging and continue with overwrites.
-	if s.config.Server.CheckClientsConnectionInterval < CheckClientsConnectionIntervalMinimum {
-		s.config.Server.CheckClientsConnectionInterval = CheckClientsConnectionIntervalMinimum
-		s.Errorf("'check_clients_status_interval' too fast. Using the minimum possible of %s", CheckClientsConnectionIntervalMinimum)
-	}
 	//Run a task to Check the client connections status by sending and receiving pings
 	go scheduler.Run(ctx, s.Logger, NewClientsStatusCheckTask(
 		s.Logger,

@@ -1,7 +1,7 @@
 package chserver
 
 import (
-	"time"
+	"reflect"
 
 	"github.com/gobeam/stringy"
 	"github.com/oleiade/reflections"
@@ -25,23 +25,8 @@ func ServerConfigReplaceDeprecated(s ServerConfig) (ServerConfig, map[string]str
 			return s, replaced, err
 		}
 		// If value is the default value, the deprecated setting isn't used. So skip it.
-		switch value.(type) {
-		case string:
-			if value == "" {
-				continue
-			}
-		case time.Duration:
-			if value == 0*time.Second {
-				continue
-			}
-		case bool:
-			if value == false {
-				continue
-			}
-		default:
-			if value == 0 {
-				continue
-			}
+		if reflect.ValueOf(value).IsZero() {
+			continue
 		}
 		// map the value of the deprecated setting to the new one
 		err = reflections.SetField(&s, tag, value)

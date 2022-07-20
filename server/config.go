@@ -282,7 +282,17 @@ func (c *Config) AllowedPorts() mapset.Set {
 	return c.Server.allowedPorts
 }
 
-func (c *Config) ParseAndValidate() error {
+func (c *Config) ParseAndValidate(mLog *logger.MemLogger) error {
+	var err error
+	var rpl map[string]string
+	c.Server, rpl, err = ServerConfigReplaceDeprecated(c.Server)
+	for old, new := range rpl {
+		mLog.Infof("server setting '%s' is deprecated and will be removed soon. Use '%s' instead.", old, new)
+	}
+
+	if err != nil {
+		return err
+	}
 	if err := c.Server.parseAndValidateURLs(); err != nil {
 		return err
 	}
@@ -318,6 +328,10 @@ func (c *Config) ParseAndValidate() error {
 
 	if err := c.Server.parseAndValidateHosts(); err != nil {
 		return err
+	}
+	if c.Server.CheckClientsConnectionInterval < CheckClientsConnectionIntervalMinimum {
+		c.Server.CheckClientsConnectionInterval = CheckClientsConnectionIntervalMinimum
+		mLog.Errorf("'check_clients_status_interval' too fast. Using the minimum possible of %s", CheckClientsConnectionIntervalMinimum)
 	}
 
 	return nil
