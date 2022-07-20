@@ -31,11 +31,10 @@ func (t *ClientsStatusCheckTask) Run(ctx context.Context) error {
 	var dueClients []*clients.Client
 	var confirmedClients = 0
 	var now = time.Now()
-	// Shorten the threshold aka make heartbeat older than it is because the ping response is stored after this check.
-	// Clients would get checked only every second time otherwise.
-	t.th = t.th - 10*time.Second
 	for _, c := range t.cr.GetAllActive() {
-		if c.LastHeartbeatAt != nil && now.Sub(*c.LastHeartbeatAt) < t.th {
+		// Shorten the threshold aka make heartbeat older than it is because the ping response is stored after this check.
+		// Clients would get checked only every second time otherwise.
+		if c.LastHeartbeatAt != nil && now.Sub(*c.LastHeartbeatAt) < t.th-10*time.Second {
 			// Skip all clients having sent a heartbeat from client to server recently
 			confirmedClients++
 			continue
@@ -59,9 +58,10 @@ func (t *ClientsStatusCheckTask) Run(ctx context.Context) error {
 	for _, dueClient := range dueClients {
 		jobs <- dueClient
 	}
+	close(jobs)
 	var dead = 0
 	var alive = 0
-	for a := 1; a <= len(dueClients); a++ {
+	for a := 0; a < len(dueClients); a++ {
 		if <-results {
 			alive++
 		} else {
