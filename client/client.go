@@ -4,7 +4,6 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
-	"github.com/cloudradar-monitoring/rport/share/random"
 	"io"
 	"log"
 	"net"
@@ -12,6 +11,8 @@ import (
 	"net/url"
 	"strings"
 	"time"
+
+	"github.com/cloudradar-monitoring/rport/share/random"
 
 	"github.com/denisbrodbeck/machineid"
 	"github.com/pkg/errors"

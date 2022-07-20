@@ -4,7 +4,6 @@ import (
 	"context"
 	"errors"
 	"fmt"
-	"github.com/cloudradar-monitoring/rport/share/random"
 	"log"
 	"net"
 	"net/http"
@@ -12,6 +11,8 @@ import (
 	"sync"
 	"testing"
 	"time"
+
+	"github.com/cloudradar-monitoring/rport/share/random"
 
 	"github.com/cloudradar-monitoring/rport/share/test"
 
