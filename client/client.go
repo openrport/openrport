@@ -140,8 +140,7 @@ func (c *Client) keepAliveLoop() {
 	for c.running {
 		time.Sleep(c.configHolder.Connection.KeepAlive)
 		if c.sshConn != nil {
-			//ok, response, err := c.sshConn.SendRequest(comm.RequestTypePing, true, nil)
-			ok, _, rtt, err := comm.PingClientWithTimeout(c.sshConn, c.configHolder.Connection.KeepAliveTimeout)
+			ok, _, rtt, err := comm.PingConnectionWithTimeout(c.sshConn, c.configHolder.Connection.KeepAliveTimeout)
 			if err != nil || !ok {
 				c.Errorf("failed to send ping: %s", err)
 				c.sshConn.Close()

@@ -8,7 +8,7 @@ import (
 	"golang.org/x/crypto/ssh"
 )
 
-func PingClientWithTimeout(conn ssh.Conn, timeout time.Duration) (bool, []byte, time.Duration, error) {
+func PingConnectionWithTimeout(conn ssh.Conn, timeout time.Duration) (bool, []byte, time.Duration, error) {
 	var (
 		ok         bool
 		response   []byte
