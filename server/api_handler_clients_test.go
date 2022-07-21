@@ -385,25 +385,19 @@ func TestHandlePutTunnelWithName(t *testing.T) {
 	connMock.ReturnResponsePayload = []byte("{ \"IsAllowed\": true }")
 
 	testCases := []struct {
-		Name           string
-		URL            string
-		TunnelName     string
-		ExpectedStatus int
-		ExpectedJSON   string
+		Name         string
+		URL          string
+		ExpectedJSON string
 	}{
 		{
-			Name:           "With Name",
-			URL:            "/api/v1/clients/client-1/tunnels?scheme=ssh&acl=127.0.0.1&local=0.0.0.0%3A3390&remote=0.0.0.0%3A22&name=TUNNELNAME&check_port=0",
-			ExpectedStatus: http.StatusOK,
-			TunnelName:     "TUNNELNAME",
-			ExpectedJSON:   `{"data":{"id":"10","name":"TUNNELNAME","protocol":"tcp","lhost":"0.0.0.0","lport":"3390","rhost":"0.0.0.0","rport":"22","lport_random":false,"scheme":"ssh","acl":"127.0.0.1","idle_timeout_minutes":5,"auto_close":0,"http_proxy":false,"host_header":"","created_at":"0001-01-01T00:00:00Z"}}`,
+			Name:         "With Name",
+			URL:          "/api/v1/clients/client-1/tunnels?scheme=ssh&acl=127.0.0.1&local=0.0.0.0%3A3390&remote=0.0.0.0%3A22&name=TUNNELNAME&check_port=0",
+			ExpectedJSON: `{"data":{"id":"10","name":"TUNNELNAME","protocol":"tcp","lhost":"0.0.0.0","lport":"3390","rhost":"0.0.0.0","rport":"22","lport_random":false,"scheme":"ssh","acl":"127.0.0.1","idle_timeout_minutes":5,"auto_close":0,"http_proxy":false,"host_header":"","created_at":"0001-01-01T00:00:00Z"}}`,
 		},
 		{
-			Name:           "Without Name",
-			URL:            "/api/v1/clients/client-1/tunnels?scheme=ssh&acl=127.0.0.1&local=0.0.0.0%3A3390&remote=0.0.0.0%3A22&check_port=0",
-			TunnelName:     "",
-			ExpectedStatus: http.StatusOK,
-			ExpectedJSON:   `{"data":{"id":"10","name":"","protocol":"tcp","lhost":"0.0.0.0","lport":"3390","rhost":"0.0.0.0","rport":"22","lport_random":false,"scheme":"ssh","acl":"127.0.0.1","idle_timeout_minutes":5,"auto_close":0,"http_proxy":false,"host_header":"","created_at":"0001-01-01T00:00:00Z"}}`,
+			Name:         "Without Name",
+			URL:          "/api/v1/clients/client-1/tunnels?scheme=ssh&acl=127.0.0.1&local=0.0.0.0%3A3390&remote=0.0.0.0%3A22&check_port=0",
+			ExpectedJSON: `{"data":{"id":"10","name":"","protocol":"tcp","lhost":"0.0.0.0","lport":"3390","rhost":"0.0.0.0","rport":"22","lport_random":false,"scheme":"ssh","acl":"127.0.0.1","idle_timeout_minutes":5,"auto_close":0,"http_proxy":false,"host_header":"","created_at":"0001-01-01T00:00:00Z"}}`,
 		},
 	}
 
@@ -439,9 +433,9 @@ func TestHandlePutTunnelWithName(t *testing.T) {
 			req := httptest.NewRequest("PUT", tc.URL, nil)
 
 			al.router.ServeHTTP(w, req)
-			assert.Equal(t, tc.ExpectedStatus, w.Code)
+			assert.Equal(t, http.StatusOK, w.Code)
 
-			if tc.ExpectedStatus == http.StatusOK {
+			if w.Code == http.StatusOK {
 				assert.JSONEq(t, tc.ExpectedJSON, w.Body.String())
 			}
 		})
