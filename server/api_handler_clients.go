@@ -23,37 +23,37 @@ import (
 )
 
 type ClientPayload struct {
-	ID                     *string                  `json:"id,omitempty"`
-	Name                   *string                  `json:"name,omitempty"`
-	Address                *string                  `json:"address,omitempty"`
-	Hostname               *string                  `json:"hostname,omitempty"`
-	OS                     *string                  `json:"os,omitempty"`
-	OSFullName             *string                  `json:"os_full_name,omitempty"`
-	OSVersion              *string                  `json:"os_version,omitempty"`
-	OSArch                 *string                  `json:"os_arch,omitempty"`
-	OSFamily               *string                  `json:"os_family,omitempty"`
-	OSKernel               *string                  `json:"os_kernel,omitempty"`
-	OSVirtualizationSystem *string                  `json:"os_virtualization_system,omitempty"`
-	OSVirtualizationRole   *string                  `json:"os_virtualization_role,omitempty"`
-	NumCPUs                *int                     `json:"num_cpus,omitempty"`
-	CPUFamily              *string                  `json:"cpu_family,omitempty"`
-	CPUModel               *string                  `json:"cpu_model,omitempty"`
-	CPUModelName           *string                  `json:"cpu_model_name,omitempty"`
-	CPUVendor              *string                  `json:"cpu_vendor,omitempty"`
-	MemoryTotal            *uint64                  `json:"mem_total,omitempty"`
-	Timezone               *string                  `json:"timezone,omitempty"`
-	ClientAuthID           *string                  `json:"client_auth_id,omitempty"`
-	Version                *string                  `json:"version,omitempty"`
-	DisconnectedAt         **time.Time              `json:"disconnected_at,omitempty"`
-	ConnectionState        *clients.ConnectionState `json:"connection_state,omitempty"`
-	IPv4                   *[]string                `json:"ipv4,omitempty"`
-	IPv6                   *[]string                `json:"ipv6,omitempty"`
-	Tags                   *[]string                `json:"tags,omitempty"`
-	AllowedUserGroups      *[]string                `json:"allowed_user_groups,omitempty"`
-	Tunnels                *[]*clienttunnel.Tunnel  `json:"tunnels,omitempty"`
-	UpdatesStatus          **models.UpdatesStatus   `json:"updates_status,omitempty"`
-	ClientConfiguration    **clientconfig.Config    `json:"client_configuration,omitempty"`
-	Groups                 *[]string                `json:"groups,omitempty"`
+	ID                     *string                 `json:"id,omitempty"`
+	Name                   *string                 `json:"name,omitempty"`
+	Address                *string                 `json:"address,omitempty"`
+	Hostname               *string                 `json:"hostname,omitempty"`
+	OS                     *string                 `json:"os,omitempty"`
+	OSFullName             *string                 `json:"os_full_name,omitempty"`
+	OSVersion              *string                 `json:"os_version,omitempty"`
+	OSArch                 *string                 `json:"os_arch,omitempty"`
+	OSFamily               *string                 `json:"os_family,omitempty"`
+	OSKernel               *string                 `json:"os_kernel,omitempty"`
+	OSVirtualizationSystem *string                 `json:"os_virtualization_system,omitempty"`
+	OSVirtualizationRole   *string                 `json:"os_virtualization_role,omitempty"`
+	NumCPUs                *int                    `json:"num_cpus,omitempty"`
+	CPUFamily              *string                 `json:"cpu_family,omitempty"`
+	CPUModel               *string                 `json:"cpu_model,omitempty"`
+	CPUModelName           *string                 `json:"cpu_model_name,omitempty"`
+	CPUVendor              *string                 `json:"cpu_vendor,omitempty"`
+	MemoryTotal            *uint64                 `json:"mem_total,omitempty"`
+	Timezone               *string                 `json:"timezone,omitempty"`
+	ClientAuthID           *string                 `json:"client_auth_id,omitempty"`
+	Version                *string                 `json:"version,omitempty"`
+	DisconnectedAt         **time.Time             `json:"disconnected_at,omitempty"`
+	ConnectionState        *string                 `json:"connection_state,omitempty"`
+	IPv4                   *[]string               `json:"ipv4,omitempty"`
+	IPv6                   *[]string               `json:"ipv6,omitempty"`
+	Tags                   *[]string               `json:"tags,omitempty"`
+	AllowedUserGroups      *[]string               `json:"allowed_user_groups,omitempty"`
+	Tunnels                *[]*clienttunnel.Tunnel `json:"tunnels,omitempty"`
+	UpdatesStatus          **models.UpdatesStatus  `json:"updates_status,omitempty"`
+	ClientConfiguration    **clientconfig.Config   `json:"client_configuration,omitempty"`
+	Groups                 *[]string               `json:"groups,omitempty"`
 }
 
 func convertToClientsPayload(clients []*clients.CalculatedClient, fields []query.FieldsOption) []ClientPayload {
@@ -101,7 +101,7 @@ func convertToClientPayload(client *clients.CalculatedClient, fields []query.Fie
 		case "disconnected_at":
 			p.DisconnectedAt = &client.DisconnectedAt
 		case "connection_state":
-			connectionState := client.ConnectionState()
+			connectionState := string(client.ConnectionState)
 			p.ConnectionState = &connectionState
 		case "client_auth_id":
 			p.ClientAuthID = &client.ClientAuthID
@@ -139,6 +139,7 @@ func convertToClientPayload(client *clients.CalculatedClient, fields []query.Fie
 	}
 	return p
 }
+
 func getCorrespondingSortFunc(sorts []query.SortOption) (sortFunc func(a []*clients.CalculatedClient, desc bool), desc bool, err error) {
 	if len(sorts) < 1 {
 		return clients.SortByID, false, nil
