@@ -4,6 +4,8 @@ import (
 	"os"
 	"testing"
 
+	"github.com/stretchr/testify/require"
+
 	"github.com/stretchr/testify/assert"
 )
 
@@ -14,7 +16,7 @@ func TestMemLogger(t *testing.T) {
 	mLog.Errorf("Error %s", "Error")
 	logfile := t.TempDir() + "/test.log"
 	l, err := os.OpenFile(logfile, os.O_RDWR|os.O_CREATE|os.O_APPEND, 0444)
-	assert.NoError(t, err, "error creating log file")
+	require.NoError(t, err, "error creating log file")
 	defer l.Close()
 	mLog.Flush(NewLogger("test", LogOutput{File: l}, LogLevelDebug))
 	log, err := os.ReadFile(logfile)

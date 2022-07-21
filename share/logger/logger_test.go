@@ -4,6 +4,8 @@ import (
 	"os"
 	"testing"
 
+	"github.com/stretchr/testify/require"
+
 	"github.com/stretchr/testify/assert"
 )
 
@@ -17,7 +19,7 @@ func TestLogger(t *testing.T) {
 	logger.Infof("Info %s", "Info")
 	logger.Errorf("Error %s", "Error")
 	log, err := os.ReadFile(logfile)
-	assert.NoError(t, err, "error reading log file")
+	require.NoError(t, err, "error reading log file")
 	assert.Contains(t, string(log), "test: Debug Debug")
 	assert.Contains(t, string(log), "test: Info Info")
 	assert.Contains(t, string(log), "test: Error Error")
