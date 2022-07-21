@@ -438,7 +438,7 @@ func runMain(cmd *cobra.Command, args []string) {
 	}
 
 	fileAPI := files.NewFileSystem()
-	c := chclient.NewClient(config, fileAPI)
+	c, err := chclient.NewClient(config, fileAPI)
 	if err != nil {
 		log.Fatal(err)
 	}

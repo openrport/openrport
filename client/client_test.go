@@ -66,7 +66,7 @@ func TestCustomHeaders(t *testing.T) {
 	require.NoError(t, err)
 
 	fileAPI := test.NewFileAPIMock()
-	c := NewClient(&config, fileAPI)
+	c, err := NewClient(&config, fileAPI)
 	require.NoError(t, err)
 
 	err = c.Run()
@@ -317,7 +317,8 @@ func TestConnectionRequest(t *testing.T) {
 
 	for _, tc := range testCases {
 		t.Run(tc.Name, func(t *testing.T) {
-			client := NewClient(config, test.NewFileAPIMock())
+			client, err := NewClient(config, test.NewFileAPIMock())
+			require.NoError(t, err)
 
 			client.systemInfo = tc.SystemInfo
 
@@ -478,7 +479,8 @@ func TestConnectionLoop(t *testing.T) {
 	err = config.ParseAndValidate(true)
 	require.NoError(t, err)
 
-	c := NewClient(&config, test.NewFileAPIMock())
+	c, err := NewClient(&config, test.NewFileAPIMock())
+	require.NoError(t, err)
 
 	go c.connectionLoop(context.Background())
 

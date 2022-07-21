@@ -5,7 +5,6 @@ import (
 	"encoding/json"
 	"fmt"
 	"io"
-	"log"
 	"net"
 	"net/http"
 	"net/url"
@@ -55,13 +54,13 @@ type Client struct {
 }
 
 //NewClient creates a new client instance
-func NewClient(config *ClientConfigHolder, filesAPI files.FileAPI) *Client {
+func NewClient(config *ClientConfigHolder, filesAPI files.FileAPI) (*Client, error) {
 	ctx := context.Background()
 	// Generate a session id that will not change while the client is running
 	// This allows the server to resume sessions.
 	sessionID, err := random.UUID4()
 	if err != nil {
-		log.Fatalf("Failed to create initial session id: %s", err)
+		return nil, fmt.Errorf("failed to create initial session id: %s", err)
 	}
 	cmdExec := system.NewCmdExecutor(logger.NewLogger("cmd executor", config.Logging.LogOutput, config.Logging.LogLevel))
 	logger := logger.NewLogger("client", config.Logging.LogOutput, config.Logging.LogLevel)
@@ -98,7 +97,7 @@ func NewClient(config *ClientConfigHolder, filesAPI files.FileAPI) *Client {
 		client.consoleDecoder = enc.NewDecoder()
 	}
 
-	return client
+	return client, nil
 }
 
 //Run starts client and blocks while connected
