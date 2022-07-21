@@ -285,7 +285,7 @@ func (c *Config) AllowedPorts() mapset.Set {
 func (c *Config) ParseAndValidate(mLog *logger.MemLogger) error {
 	var err error
 	var rpl map[string]string
-	c.Server, rpl, err = ServerConfigReplaceDeprecated(c.Server)
+	rpl, err = ConfigReplaceDeprecated(&c.Server)
 	for old, new := range rpl {
 		mLog.Infof("server setting '%s' is deprecated and will be removed soon. Use '%s' instead.", old, new)
 	}

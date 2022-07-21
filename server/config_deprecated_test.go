@@ -1,18 +1,24 @@
 package chserver
 
 import (
+	"github.com/stretchr/testify/require"
 	"testing"
 
 	"github.com/stretchr/testify/assert"
 )
 
+type SampleConfig struct {
+	Current    string
+	Deprecated string `replaced_by:"Current"`
+}
+
 func TestServerConfigReplaceDeprecated(t *testing.T) {
-	cfg := ServerConfig{
-		CleanupLostClients: true,
+	cfg := SampleConfig{
+		Deprecated: "foo",
 	}
-	new, repl, err := ServerConfigReplaceDeprecated(cfg)
-	assert.NoError(t, err)
-	assert.Equal(t, true, new.PurgeDisconnectedClients)
-	expected := map[string]string{"cleanup_lost_clients": "purge_disconnected_clients"}
+	repl, err := ConfigReplaceDeprecated(&cfg)
+	require.NoError(t, err)
+	assert.Equal(t, "foo", cfg.Current)
+	expected := map[string]string{"deprecated": "current"}
 	assert.Equal(t, repl, expected)
 }
