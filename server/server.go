@@ -309,10 +309,6 @@ func (s *Server) Close() error {
 	return wg.Wait()
 }
 
-func (s *Server) GetClientService() ClientService {
-	return s.clientService
-}
-
 // jobResultChanMap is thread safe map with [jobID, chan *models.Job] pairs.
 type jobResultChanMap struct {
 	m  map[string]chan *models.Job
