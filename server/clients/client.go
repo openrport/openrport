@@ -88,7 +88,7 @@ func (c *Client) ToCalculated(allGroups []*cgroups.ClientGroup) *CalculatedClien
 	return &CalculatedClient{
 		Client:          c,
 		Groups:          clientGroups,
-		ConnectionState: c.ConnectionState(),
+		ConnectionState: c.CalculateConnectionState(),
 	}
 }
 
@@ -318,7 +318,7 @@ func (c *Client) BelongsTo(group *cgroups.ClientGroup) bool {
 	return true
 }
 
-func (c *Client) ConnectionState() ConnectionState {
+func (c *Client) CalculateConnectionState() ConnectionState {
 	if c.DisconnectedAt == nil {
 		return Connected
 	}
