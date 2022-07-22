@@ -72,6 +72,22 @@ func (as *APIService) DeleteGroup(name string) error {
 	return as.Provider.DeleteGroup(name)
 }
 
+func (as *APIService) CheckPermission(user *User, permission string) error {
+	for _, groupName := range user.Groups {
+		group, err := as.Provider.GetGroup(groupName)
+		if err != nil {
+			return err
+		}
+		if group.Permissions.Has(permission) {
+			return nil
+		}
+	}
+	return errors2.APIError{
+		Message:    fmt.Sprintf("user does not have %q permission", permission),
+		HTTPStatus: http.StatusForbidden,
+	}
+}
+
 func (as *APIService) ExistGroups(groups []string) error {
 	existingGroups, err := as.ListGroups()
 	if err != nil {

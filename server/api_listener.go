@@ -75,6 +75,7 @@ type UserService interface {
 	GetGroup(string) (users.Group, error)
 	UpdateGroup(string, users.Group) (users.Group, error)
 	DeleteGroup(string) error
+	CheckPermission(*users.User, string) error
 }
 
 func NewAPIListener(
