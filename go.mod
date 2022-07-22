@@ -14,7 +14,7 @@ require (
 	github.com/go-sql-driver/mysql v1.5.0
 	github.com/golang-jwt/jwt/v4 v4.4.1
 	github.com/golang-migrate/migrate/v4 v4.14.1
-	github.com/google/uuid v1.1.2
+	github.com/google/uuid v1.3.0
 	github.com/gorilla/handlers v1.5.1
 	github.com/gorilla/mux v1.7.4
 	github.com/gorilla/websocket v1.4.2
@@ -69,7 +69,9 @@ require (
 )
 
 require (
+	github.com/gobeam/stringy v0.0.5
 	github.com/hashicorp/go-version v1.5.0
+	github.com/oleiade/reflections v1.0.1
 	github.com/pkg/sftp v1.13.4
 )
 

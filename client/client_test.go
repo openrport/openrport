@@ -12,6 +12,8 @@ import (
 	"testing"
 	"time"
 
+	"github.com/cloudradar-monitoring/rport/share/random"
+
 	"github.com/cloudradar-monitoring/rport/share/test"
 
 	"github.com/gorilla/websocket"
@@ -64,7 +66,7 @@ func TestCustomHeaders(t *testing.T) {
 	require.NoError(t, err)
 
 	fileAPI := test.NewFileAPIMock()
-	c := NewClient(&config, fileAPI)
+	c, err := NewClient(&config, fileAPI)
 	require.NoError(t, err)
 
 	err = c.Run()
@@ -72,6 +74,14 @@ func TestCustomHeaders(t *testing.T) {
 }
 
 func TestConnectionRequest(t *testing.T) {
+	uuid := "cb5b6578-94f5-4a5b-af58-f7867a943b0c"
+	oldUUID := random.UUID4
+	random.UUID4 = func() (string, error) {
+		return uuid, nil
+	}
+	defer func() {
+		random.UUID4 = oldUUID
+	}()
 	remote1 := &models.Remote{
 		LocalHost:  "test-local",
 		LocalPort:  "1234",
@@ -152,6 +162,7 @@ func TestConnectionRequest(t *testing.T) {
 				MemoryTotal:            100000,
 				Version:                "0.0.0-src",
 				ID:                     "test-client-id",
+				SessionID:              uuid,
 				Name:                   "test-name",
 				OS:                     "test-uname",
 				OSFullName:             "Ubuntu 18.04",
@@ -202,6 +213,7 @@ func TestConnectionRequest(t *testing.T) {
 			ExpectedConnectionRequest: &chshare.ConnectionRequest{
 				Version:                "0.0.0-src",
 				ID:                     "test-client-id",
+				SessionID:              uuid,
 				Name:                   "test-name",
 				Tags:                   []string{"tag1", "tag2"},
 				Remotes:                []*models.Remote{remote1, remote2},
@@ -238,6 +250,7 @@ func TestConnectionRequest(t *testing.T) {
 			ExpectedConnectionRequest: &chshare.ConnectionRequest{
 				Version:                "0.0.0-src",
 				ID:                     "test-client-id",
+				SessionID:              uuid,
 				Name:                   "test-name",
 				Tags:                   []string{"tag1", "tag2"},
 				Remotes:                []*models.Remote{remote1, remote2},
@@ -277,6 +290,7 @@ func TestConnectionRequest(t *testing.T) {
 			ExpectedConnectionRequest: &chshare.ConnectionRequest{
 				Version:                "0.0.0-src",
 				ID:                     "test-client-id",
+				SessionID:              uuid,
 				Name:                   "test-name",
 				OSVersion:              "123",
 				OSFullName:             "Test-Platform 123",
@@ -303,13 +317,13 @@ func TestConnectionRequest(t *testing.T) {
 
 	for _, tc := range testCases {
 		t.Run(tc.Name, func(t *testing.T) {
-			client := NewClient(config, test.NewFileAPIMock())
+			client, err := NewClient(config, test.NewFileAPIMock())
+			require.NoError(t, err)
 
 			client.systemInfo = tc.SystemInfo
 
 			connReq, err := client.connectionRequest(context.Background())
 			require.NoError(t, err)
-
 			assert.Equal(t, tc.ExpectedConnectionRequest, connReq)
 		})
 	}
@@ -465,7 +479,8 @@ func TestConnectionLoop(t *testing.T) {
 	err = config.ParseAndValidate(true)
 	require.NoError(t, err)
 
-	c := NewClient(&config, test.NewFileAPIMock())
+	c, err := NewClient(&config, test.NewFileAPIMock())
+	require.NoError(t, err)
 
 	go c.connectionLoop(context.Background())
 

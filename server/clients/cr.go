@@ -15,9 +15,9 @@ import (
 
 type ClientRepository struct {
 	// in-memory cache
-	clients         map[string]*Client
-	mu              sync.RWMutex
-	KeepLostClients *time.Duration
+	clients                 map[string]*Client
+	mu                      sync.RWMutex
+	KeepDisconnectedClients *time.Duration
 	// storage
 	provider ClientProvider
 	logger   *logger.Logger
@@ -29,38 +29,38 @@ type User interface {
 }
 
 // NewClientRepository returns a new thread-safe in-memory cache to store client connections populated with given clients if any.
-// keepLostClients is a duration to keep disconnected clients. If a client was disconnected longer than a given
+// keepDisconnectedClients is a duration to keep disconnected clients. If a client was disconnected longer than a given
 // duration it will be treated as obsolete.
-func NewClientRepository(initClients []*Client, keepLostClients *time.Duration, logger *logger.Logger) *ClientRepository {
-	return newClientRepositoryWithDB(initClients, keepLostClients, nil, logger)
+func NewClientRepository(initClients []*Client, keepDisconnectedClients *time.Duration, logger *logger.Logger) *ClientRepository {
+	return newClientRepositoryWithDB(initClients, keepDisconnectedClients, nil, logger)
 }
 
-func newClientRepositoryWithDB(initClients []*Client, keepLostClients *time.Duration, provider ClientProvider, logger *logger.Logger) *ClientRepository {
+func newClientRepositoryWithDB(initClients []*Client, keepDisconnectedClients *time.Duration, provider ClientProvider, logger *logger.Logger) *ClientRepository {
 	clients := make(map[string]*Client)
 	for i := range initClients {
 		clients[initClients[i].ID] = initClients[i]
 	}
 	return &ClientRepository{
-		clients:         clients,
-		KeepLostClients: keepLostClients,
-		provider:        provider,
-		logger:          logger,
+		clients:                 clients,
+		KeepDisconnectedClients: keepDisconnectedClients,
+		provider:                provider,
+		logger:                  logger,
 	}
 }
 
 func InitClientRepository(
 	ctx context.Context,
 	db *sqlx.DB,
-	keepLostClients *time.Duration,
+	keepDisconnectedClients *time.Duration,
 	logger *logger.Logger,
 ) (*ClientRepository, error) {
-	provider := newSqliteProvider(db, keepLostClients)
+	provider := newSqliteProvider(db, keepDisconnectedClients)
 	initClients, err := GetInitState(ctx, provider)
 	if err != nil {
 		return nil, err
 	}
 
-	return newClientRepositoryWithDB(initClients, keepLostClients, provider, logger), nil
+	return newClientRepositoryWithDB(initClients, keepDisconnectedClients, provider, logger), nil
 }
 
 func (s *ClientRepository) Save(client *Client) error {
@@ -104,7 +104,7 @@ func (s *ClientRepository) DeleteObsolete() ([]*Client, error) {
 	defer s.mu.Unlock()
 	var deleted []*Client
 	for _, client := range s.clients {
-		if client.Obsolete(s.KeepLostClients) {
+		if client.Obsolete(s.KeepDisconnectedClients) {
 			delete(s.clients, client.ID)
 			deleted = append(deleted, client)
 		}
@@ -151,7 +151,7 @@ func (s *ClientRepository) GetByID(id string) (*Client, error) {
 	s.mu.RLock()
 	defer s.mu.RUnlock()
 	client := s.clients[id]
-	if client != nil && client.Obsolete(s.KeepLostClients) {
+	if client != nil && client.Obsolete(s.KeepDisconnectedClients) {
 		return nil, nil
 	}
 	return client, nil
@@ -236,7 +236,7 @@ func (s *ClientRepository) GetAllActive() []*Client {
 func (s *ClientRepository) getNonObsolete() ([]*Client, error) {
 	result := make([]*Client, 0, len(s.clients))
 	for _, client := range s.clients {
-		if !client.Obsolete(s.KeepLostClients) {
+		if !client.Obsolete(s.KeepDisconnectedClients) {
 			result = append(result, client)
 		}
 	}
@@ -247,7 +247,7 @@ func (s *ClientRepository) getNonObsoleteByUser(user User) ([]*Client, error) {
 	isAdmin := user.IsAdmin()
 	result := make([]*Client, 0, len(s.clients))
 	for _, client := range s.clients {
-		if client.Obsolete(s.KeepLostClients) {
+		if client.Obsolete(s.KeepDisconnectedClients) {
 			continue
 		}
 

@@ -12,6 +12,7 @@ import (
 type ConnectionRequest struct {
 	ID                     string
 	Name                   string
+	SessionID              string
 	OS                     string
 	OSFullName             string
 	OSVersion              string

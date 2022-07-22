@@ -25,12 +25,12 @@ type ClientProvider interface {
 }
 
 type SqliteProvider struct {
-	db              *sqlx.DB
-	keepLostClients *time.Duration
+	db                      *sqlx.DB
+	keepDisconnectedClients *time.Duration
 }
 
-func newSqliteProvider(db *sqlx.DB, keepLostClients *time.Duration) *SqliteProvider {
-	return &SqliteProvider{db: db, keepLostClients: keepLostClients}
+func newSqliteProvider(db *sqlx.DB, keepDisconnectedClients *time.Duration) *SqliteProvider {
+	return &SqliteProvider{db: db, keepDisconnectedClients: keepDisconnectedClients}
 }
 
 func (p *SqliteProvider) GetAll(ctx context.Context) ([]*Client, error) {
@@ -39,8 +39,8 @@ func (p *SqliteProvider) GetAll(ctx context.Context) ([]*Client, error) {
 		ctx,
 		&res,
 		"SELECT * FROM clients WHERE disconnected_at IS NULL OR DATETIME(disconnected_at) >= DATETIME(?) OR ?",
-		p.keepLostClientsStart(),
-		p.keepLostClients == nil,
+		p.keepDisconnectedClientsStart(),
+		p.keepDisconnectedClients == nil,
 	)
 	if err != nil {
 		return nil, err
@@ -73,8 +73,8 @@ func (p *SqliteProvider) DeleteObsolete(ctx context.Context) error {
 	_, err := p.db.ExecContext(
 		ctx,
 		"DELETE FROM clients WHERE disconnected_at IS NOT NULL AND DATETIME(disconnected_at) < DATETIME(?) AND ?",
-		p.keepLostClientsStart(),
-		p.keepLostClients != nil,
+		p.keepDisconnectedClientsStart(),
+		p.keepDisconnectedClients != nil,
 	)
 	return err
 }
@@ -84,10 +84,10 @@ func (p *SqliteProvider) Delete(ctx context.Context, id string) error {
 	return err
 }
 
-func (p *SqliteProvider) keepLostClientsStart() time.Time {
+func (p *SqliteProvider) keepDisconnectedClientsStart() time.Time {
 	t := now()
-	if p.keepLostClients != nil {
-		t = t.Add(-*p.keepLostClients)
+	if p.keepDisconnectedClients != nil {
+		t = t.Add(-*p.keepDisconnectedClients)
 	}
 	return t
 }
