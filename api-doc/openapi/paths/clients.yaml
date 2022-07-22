@@ -19,7 +19,7 @@ get:
       description: >-
         Filter option `filter[<FIELD>]=<VALUE>` or
         `filter[<FIELD>|<FIELD>]=<VALUE>,<VALUE>` for OR conditions.
-         `<FIELD>` can be one of `'id', 'name', 'os', 'os_arch', 'os_family', 'os_kernel', 'os_full_name', 'os_version', 'os_virtualization_system', 'os_virtualization_role', 'cpu_family', 'cpu_model', 'cpu_model_name', 'cpu_vendor', 'num_cpus', 'timezone', 'hostname', 'ipv4', 'ipv6', 'tags', 'version', 'address' 'client_auth_id', 'allowed_user_groups' and 'groups'`. You can use `*` to filter on any field.
+         `<FIELD>` can be one of `'id', 'name', 'os', 'os_arch', 'os_family', 'os_kernel', 'os_full_name', 'os_version', 'os_virtualization_system', 'os_virtualization_role', 'cpu_family', 'cpu_model', 'cpu_model_name', 'cpu_vendor', 'num_cpus', 'timezone', 'hostname', 'ipv4', 'ipv6', 'tags', 'version', 'address' 'client_auth_id', 'connection_state', 'allowed_user_groups' and 'groups'`. You can use `*` to filter on any field.
          Multiple filters are possible. You can use `*` wildcards for partial matches. Text matching is case insensitive.
          Examples:
          `filter[os_full_name]=Ubuntu 20.04`

@@ -108,14 +108,14 @@ func TestClientsStatusDeterminationTask(t *testing.T) {
 	c3, err := cr.GetByID("3")
 	assert.NoError(t, err)
 	assert.NotNil(t, c3.DisconnectedAt)
-	assert.Equal(t, "disconnected", string(c3.ConnectionState()))
+	assert.Equal(t, "disconnected", string(c3.CalculateConnectionState()))
 	t.Logf("c3: DisconnectedAt: %s", c3.DisconnectedAt)
 
 	// Check the status of c4 changed to disconnected caused by a timeout
 	c4, err := cr.GetByID("4")
 	assert.NoError(t, err)
 	assert.NotNil(t, c4.DisconnectedAt)
-	assert.Equal(t, "disconnected", string(c4.ConnectionState()))
+	assert.Equal(t, "disconnected", string(c4.CalculateConnectionState()))
 	t.Logf("c4: DisconnectedAt: %s", c4.DisconnectedAt)
 	log, err := os.ReadFile(logfile)
 	assert.NoError(t, err, "error reading log file")

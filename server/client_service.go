@@ -61,7 +61,9 @@ var clientsSupportedFilters = map[string]bool{
 	"client_auth_id":           true,
 	"allowed_user_groups":      true,
 	"groups":                   true,
+	"connection_state":         true,
 }
+
 var clientsSupportedSorts = map[string]bool{
 	"id":       true,
 	"name":     true,
@@ -69,6 +71,7 @@ var clientsSupportedSorts = map[string]bool{
 	"hostname": true,
 	"version":  true,
 }
+
 var clientsSupportedFields = map[string]map[string]bool{
 	"clients": {
 		"id":                       true,
@@ -105,6 +108,7 @@ var clientsSupportedFields = map[string]map[string]bool{
 		"groups":                   true,
 	},
 }
+
 var clientsListDefaultFields = map[string][]string{
 	"fields[clients]": {
 		"id",

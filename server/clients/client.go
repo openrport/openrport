@@ -76,7 +76,8 @@ type Client struct {
 // CalculatedClient contains additional fields and is calculated on each request
 type CalculatedClient struct {
 	*Client
-	Groups []string `json:"groups"`
+	Groups          []string        `json:"groups"`
+	ConnectionState ConnectionState `json:"connection_state"`
 }
 
 func (c *Client) ToCalculated(allGroups []*cgroups.ClientGroup) *CalculatedClient {
@@ -87,8 +88,9 @@ func (c *Client) ToCalculated(allGroups []*cgroups.ClientGroup) *CalculatedClien
 		}
 	}
 	return &CalculatedClient{
-		Client: c,
-		Groups: clientGroups,
+		Client:          c,
+		Groups:          clientGroups,
+		ConnectionState: c.CalculateConnectionState(),
 	}
 }
 
@@ -318,7 +320,7 @@ func (c *Client) BelongsTo(group *cgroups.ClientGroup) bool {
 	return true
 }
 
-func (c *Client) ConnectionState() ConnectionState {
+func (c *Client) CalculateConnectionState() ConnectionState {
 	if c.DisconnectedAt == nil {
 		return Connected
 	}

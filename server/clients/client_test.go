@@ -2,6 +2,7 @@ package clients
 
 import (
 	"testing"
+	"time"
 
 	"github.com/stretchr/testify/assert"
 
@@ -324,7 +325,7 @@ func TestHasAccess(t *testing.T) {
 	}
 }
 
-func TestToCalculated(t *testing.T) {
+func TestToCalculatedForGroups(t *testing.T) {
 	client := &Client{
 		Name: "abc",
 		Tags: []string{"ABC"},
@@ -353,4 +354,29 @@ func TestToCalculated(t *testing.T) {
 	calculated := client.ToCalculated(groups)
 	assert.Equal(t, client, calculated.Client)
 	assert.Equal(t, []string{"group1", "group2"}, calculated.Groups)
+}
+
+func TestToCalculatedWhenConnected(t *testing.T) {
+	client := &Client{
+		Name:           "abc",
+		DisconnectedAt: nil,
+	}
+	groups := []*cgroups.ClientGroup{}
+
+	calculated := client.ToCalculated(groups)
+	assert.Equal(t, client, calculated.Client)
+	assert.Equal(t, "connected", string(calculated.ConnectionState))
+}
+
+func TestToCalculatedWhenDisconnected(t *testing.T) {
+	now := time.Now()
+	client := &Client{
+		Name:           "abc",
+		DisconnectedAt: &now,
+	}
+	groups := []*cgroups.ClientGroup{}
+
+	calculated := client.ToCalculated(groups)
+	assert.Equal(t, client, calculated.Client)
+	assert.Equal(t, "disconnected", string(calculated.ConnectionState))
 }
