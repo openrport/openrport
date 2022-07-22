@@ -54,7 +54,7 @@ type Server struct {
 	clientListener      *ClientListener
 	apiListener         *APIListener
 	config              *Config
-	clientService       *ClientService
+	clientService       ClientService
 	clientDB            *sqlx.DB
 	clientAuthProvider  clientsauth.Provider
 	jobProvider         JobProvider
@@ -249,7 +249,7 @@ func (s *Server) Run() error {
 	// TODO(m-terel): add graceful shutdown of background task
 	if s.config.Server.PurgeDisconnectedClients {
 		s.Infof("Period to keep disconnected clients is set to %v", s.config.Server.KeepDisconnectedClients)
-		go scheduler.Run(ctx, s.Logger, clients.NewCleanupTask(s.Logger, s.clientListener.clientService.repo), s.config.Server.PurgeDisconnectedClientsInterval)
+		go scheduler.Run(ctx, s.Logger, clients.NewCleanupTask(s.Logger, s.clientListener.clientService.GetRepo()), s.config.Server.PurgeDisconnectedClientsInterval)
 		s.Infof("Task to purge disconnected clients will run with interval %v", s.config.Server.PurgeDisconnectedClientsInterval)
 	} else {
 		s.Debugf("Task to purge disconnected clients disabled")
@@ -258,7 +258,7 @@ func (s *Server) Run() error {
 	//Run a task to Check the client connections status by sending and receiving pings
 	go scheduler.Run(ctx, s.Logger, NewClientsStatusCheckTask(
 		s.Logger,
-		s.clientListener.clientService.repo,
+		s.clientListener.clientService.GetRepo(),
 		s.config.Server.CheckClientsConnectionInterval,
 		s.config.Server.CheckClientsConnectionTimeout,
 	), s.config.Server.CheckClientsConnectionInterval)

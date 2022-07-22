@@ -35,6 +35,7 @@ var protocolRe = regexp.MustCompile(`(.*)\/(tcp|udp)$`)
 
 // TODO(m-terel): Remote should be only used for parsing command args and URL query params. Current Remote is kind of a Tunnel model. Refactor to use separate models for representation and business logic.
 type Remote struct {
+	Name               string        `json:"name"`
 	Protocol           string        `json:"protocol"`
 	LocalHost          string        `json:"lhost"`
 	LocalPort          string        `json:"lport"`

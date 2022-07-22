@@ -72,7 +72,7 @@ func (al *APIListener) handleFileUploads(w http.ResponseWriter, req *http.Reques
 		return
 	}
 
-	cr := ClientService{}
+	cr := ClientServiceProvider{}
 	if err := cr.CheckClientsAccess(uploadRequest.Clients, curUser); err != nil {
 		al.jsonErrorResponseWithDetail(w, http.StatusForbidden, "ACCESS_CONTROL_VIOLATION", "upload forbidden", err.Error())
 		return
