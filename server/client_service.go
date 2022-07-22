@@ -85,6 +85,7 @@ var clientsSupportedFields = map[string]map[string]bool{
 		"address":                  true,
 		"tunnels":                  true,
 		"disconnected_at":          true,
+		"last_heartbeat_at":        true,
 		"connection_state":         true,
 		"client_auth_id":           true,
 		"os_full_name":             true,
@@ -130,10 +131,10 @@ func InitClientService(
 	tunnelProxyConfig *clienttunnel.TunnelProxyConfig,
 	portDistributor *ports.PortDistributor,
 	db *sqlx.DB,
-	keepLostClients *time.Duration,
+	keepDisconnectedClients *time.Duration,
 	logger *logger.Logger,
 ) (*ClientService, error) {
-	repo, err := clients.InitClientRepository(ctx, db, keepLostClients, logger)
+	repo, err := clients.InitClientRepository(ctx, db, keepDisconnectedClients, logger)
 	if err != nil {
 		return nil, fmt.Errorf("failed to init Client Repository: %v", err)
 	}
@@ -221,9 +222,16 @@ func (s *ClientService) StartClient(
 	if err != nil {
 		return nil, fmt.Errorf("failed to get client by id %q", clientID)
 	}
+	// If the client got disconnected but not restarted, the sessionID will not change
+	var sessionReUsed = false
+	if req.SessionID != "" && req.SessionID == client.SessionID {
+		// Stored previous session id and the session id of the connection attempt are equal
+		sessionReUsed = true
+		clog.Debugf("resuming existing session %s for client %s [%s]", req.SessionID, client.Name, clientID)
+	}
 	if client != nil {
-		if client.DisconnectedAt == nil {
-			return nil, fmt.Errorf("client is already connected: %s", clientID)
+		if client.DisconnectedAt == nil && !sessionReUsed {
+			return nil, fmt.Errorf("client is already connected: %s [%s]", client.Name, clientID)
 		}
 
 		oldTunnels := GetTunnelsToReestablish(getRemotes(client.Tunnels), req.Remotes)
@@ -265,6 +273,7 @@ func (s *ClientService) StartClient(
 		}
 	}
 	client.Name = req.Name
+	client.SessionID = req.SessionID
 	client.OS = req.OS
 	client.OSArch = req.OSArch
 	client.OSFamily = req.OSFamily
@@ -396,7 +405,7 @@ func (s *ClientService) checkLocalPort(port string) error {
 func (s *ClientService) Terminate(client *clients.Client) error {
 	s.mu.Lock()
 	defer s.mu.Unlock()
-	if s.repo.KeepLostClients != nil && *s.repo.KeepLostClients == 0 {
+	if s.repo.KeepDisconnectedClients != nil && *s.repo.KeepDisconnectedClients == 0 {
 		return s.repo.Delete(client)
 	}
 
@@ -414,7 +423,7 @@ func (s *ClientService) Terminate(client *clients.Client) error {
 	return s.repo.Save(client)
 }
 
-// ForceDelete deletes client from repo regardless off KeepLostClients setting,
+// ForceDelete deletes client from repo regardless off KeepDisconnectedClients setting,
 // if client is active it will be closed
 func (s *ClientService) ForceDelete(client *clients.Client) error {
 	s.mu.Lock()
@@ -473,6 +482,15 @@ func (s *ClientService) SetUpdatesStatus(clientID string, updatesStatus *models.
 	existing.UpdatesStatus = updatesStatus
 
 	return s.repo.Save(existing)
+}
+
+func (s *ClientService) SetLastHeartbeat(clientID string, heartbeat time.Time) error {
+	existing, err := s.getExistingByID(clientID)
+	if err != nil {
+		return err
+	}
+	existing.LastHeartbeatAt = &heartbeat
+	return nil
 }
 
 // CheckClientAccess returns nil if a given user has an access to a given client.

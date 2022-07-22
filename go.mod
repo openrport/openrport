@@ -14,7 +14,7 @@ require (
 	github.com/go-sql-driver/mysql v1.5.0
 	github.com/golang-jwt/jwt/v4 v4.4.1
 	github.com/golang-migrate/migrate/v4 v4.14.1
-	github.com/google/uuid v1.1.2
+	github.com/google/uuid v1.3.0
 	github.com/gorilla/handlers v1.5.1
 	github.com/gorilla/mux v1.7.4
 	github.com/gorilla/websocket v1.4.2
@@ -76,8 +76,10 @@ require (
 require (
 	github.com/andrew-d/go-termutil v0.0.0-20150726205930-009166a695a2 // indirect
 	github.com/fsnotify/fsnotify v1.5.1 // indirect
+	github.com/gobeam/stringy v0.0.5 // indirect
 	github.com/jpillora/ansi v1.0.2 // indirect
 	github.com/lxn/win v0.0.0-20210218163916-a377121e959e // indirect
+	github.com/oleiade/reflections v1.0.1 // indirect
 	github.com/tklauser/go-sysconf v0.3.6 // indirect
 	github.com/tomasen/realip v0.0.0-20180522021738-f0c99a92ddce // indirect
 )

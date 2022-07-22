@@ -5,6 +5,7 @@ import (
 	"errors"
 	"fmt"
 	"path"
+	"runtime"
 	"sync"
 	"time"
 
@@ -40,9 +41,11 @@ import (
 )
 
 const (
-	cleanupMeasurementsInterval = time.Minute * 2
-	cleanupAPISessionsInterval  = time.Hour
-	cleanupJobsInterval         = time.Hour
+	cleanupMeasurementsInterval           = time.Minute * 2
+	cleanupAPISessionsInterval            = time.Hour
+	cleanupJobsInterval                   = time.Hour
+	CheckClientsConnectionIntervalMinimum = time.Minute * 2
+	LogNumGoRoutinesInterval              = time.Minute * 2
 )
 
 // Server represents a rport service
@@ -142,10 +145,10 @@ func NewServer(config *Config, filesAPI files.FileAPI) (*Server, error) {
 		return nil, fmt.Errorf("failed to create clients DB instance: %v", err)
 	}
 
-	// keepLostClients is nil when cleanup of clients is disabled (keep clients forever)
-	var keepLostClients *time.Duration
-	if config.Server.CleanupClients {
-		keepLostClients = &config.Server.KeepLostClients
+	// keepDisconnectedClients is nil when cleanup of clients is disabled (keep clients forever)
+	var keepDisconnectedClients *time.Duration
+	if config.Server.PurgeDisconnectedClients {
+		keepDisconnectedClients = &config.Server.KeepDisconnectedClients
 	}
 
 	s.clientService, err = InitClientService(
@@ -153,7 +156,7 @@ func NewServer(config *Config, filesAPI files.FileAPI) (*Server, error) {
 		&s.config.Server.TunnelProxyConfig,
 		ports.NewPortDistributor(config.AllowedPorts()),
 		s.clientDB,
-		keepLostClients,
+		keepDisconnectedClients,
 		s.Logger,
 	)
 	if err != nil {
@@ -244,11 +247,22 @@ func (s *Server) Run() error {
 	}
 
 	// TODO(m-terel): add graceful shutdown of background task
-	if s.config.Server.CleanupClients {
-		s.Infof("Variable to keep lost clients is set to %v", s.config.Server.KeepLostClients)
-		go scheduler.Run(ctx, s.Logger, clients.NewCleanupTask(s.Logger, s.clientListener.clientService.repo), s.config.Server.CleanupClientsInterval)
-		s.Infof("Task to cleanup obsolete clients will run with interval %v", s.config.Server.CleanupClientsInterval)
+	if s.config.Server.PurgeDisconnectedClients {
+		s.Infof("Period to keep disconnected clients is set to %v", s.config.Server.KeepDisconnectedClients)
+		go scheduler.Run(ctx, s.Logger, clients.NewCleanupTask(s.Logger, s.clientListener.clientService.repo), s.config.Server.PurgeDisconnectedClientsInterval)
+		s.Infof("Task to purge disconnected clients will run with interval %v", s.config.Server.PurgeDisconnectedClientsInterval)
+	} else {
+		s.Debugf("Task to purge disconnected clients disabled")
 	}
+
+	//Run a task to Check the client connections status by sending and receiving pings
+	go scheduler.Run(ctx, s.Logger, NewClientsStatusCheckTask(
+		s.Logger,
+		s.clientListener.clientService.repo,
+		s.config.Server.CheckClientsConnectionInterval,
+		s.config.Server.CheckClientsConnectionTimeout,
+	), s.config.Server.CheckClientsConnectionInterval)
+	s.Infof("Task to check the clients connection status will run with interval %v", s.config.Server.CheckClientsConnectionInterval)
 
 	cleaningPeriod := time.Hour * 24 * time.Duration(s.config.Monitoring.DataStorageDays)
 	go scheduler.Run(ctx, s.Logger, monitoring.NewCleanupTask(s.Logger, s.monitoringService, cleaningPeriod), cleanupMeasurementsInterval)
@@ -259,6 +273,16 @@ func (s *Server) Run() error {
 
 	go scheduler.Run(ctx, s.Logger, jobs.NewCleanupTask(s.jobProvider, s.config.Server.JobsMaxResults), cleanupJobsInterval)
 	s.Infof("Task to cleanup jobs will run with interval %v", cleanupJobsInterval)
+
+	// Only on debug mode, log the number of running go routines
+	if s.config.Logging.LogLevel == logger.LogLevelDebug {
+		go func() {
+			for {
+				s.Logger.Debugf("Number of running go routines: %d", runtime.NumGoroutine())
+				time.Sleep(LogNumGoRoutinesInterval)
+			}
+		}()
+	}
 
 	return s.Wait()
 }

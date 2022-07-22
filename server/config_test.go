@@ -3,6 +3,8 @@ package chserver
 import (
 	"testing"
 
+	"github.com/cloudradar-monitoring/rport/share/logger"
+
 	mapset "github.com/deckarep/golang-set"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
@@ -16,6 +18,7 @@ var defaultValidMinServerConfig = ServerConfig{
 	Auth:         "abc:def",
 	UsedPortsRaw: []string{"10-20"},
 }
+var Mlog = logger.NewMemLogger()
 
 func TestParseAndValidateServerConfig(t *testing.T) {
 	testCases := []struct {
@@ -72,7 +75,7 @@ func TestParseAndValidateServerConfig(t *testing.T) {
 
 	for _, tc := range testCases {
 		t.Run(tc.Name, func(t *testing.T) {
-			err := tc.Config.ParseAndValidate()
+			err := tc.Config.ParseAndValidate(&Mlog)
 			if tc.ExpectedError != "" {
 				assert.EqualError(t, err, tc.ExpectedError)
 			} else {
@@ -520,7 +523,7 @@ func TestParseAndValidateAPI(t *testing.T) {
 	for _, tc := range testCases {
 		t.Run(tc.Name, func(t *testing.T) {
 			tc.Config.Server = defaultValidMinServerConfig
-			err := tc.Config.ParseAndValidate()
+			err := tc.Config.ParseAndValidate(&Mlog)
 			if tc.ExpectedError != "" {
 				assert.EqualError(t, err, tc.ExpectedError)
 			} else {
