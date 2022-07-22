@@ -74,7 +74,6 @@ func (s *realSystemInfo) CPUInfo(ctx context.Context) (CPUInfo, error) {
 	cpuInfo := CPUInfo{
 		CPUs: []cpu.InfoStat{},
 	}
-
 	errs := make([]string, 0, 2)
 	cpuInfos, err1 := cpu.InfoWithContext(ctx)
 	if err1 == nil {

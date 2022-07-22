@@ -33,6 +33,7 @@ const (
 // Client represents client connection
 type Client struct {
 	ID                     string                 `json:"id"`
+	SessionID              string                 `json:"session_id"`
 	Name                   string                 `json:"name"`
 	OS                     string                 `json:"os"`
 	OSArch                 string                 `json:"os_arch"`
@@ -58,6 +59,7 @@ type Client struct {
 	Tunnels                []*clienttunnel.Tunnel `json:"tunnels"`
 	// DisconnectedAt is a time when a client was disconnected. If nil - it's connected.
 	DisconnectedAt      *time.Time            `json:"disconnected_at"`
+	LastHeartbeatAt     *time.Time            `json:"last_heartbeat_at"`
 	ClientAuthID        string                `json:"client_auth_id"`
 	AllowedUserGroups   []string              `json:"allowed_user_groups"`
 	UpdatesStatus       *models.UpdatesStatus `json:"updates_status"`

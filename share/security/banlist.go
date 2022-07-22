@@ -79,7 +79,7 @@ func (l *MaxBadAttemptsBanList) AddBadAttempt(visitorKey string) {
 	}
 }
 
-// AddBadAttempt registers a successful attempt of a visitor.
+// AddSuccessAttempt registers a successful attempt of a visitor.
 func (l *MaxBadAttemptsBanList) AddSuccessAttempt(visitorKey string) {
 	l.mu.Lock()
 	defer l.mu.Unlock()
