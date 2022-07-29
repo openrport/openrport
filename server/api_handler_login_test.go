@@ -207,9 +207,9 @@ func TestWrapWithAuthMiddleware(t *testing.T) {
 			}
 			al.config.API.TwoFATokenDelivery = twoFATokenDelivery
 
-			handler := al.wrapWithAuthMiddleware(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+			handler := al.wrapWithAuthMiddleware(false)(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 				assert.Equal(t, user.Username, api.GetUser(r.Context(), nil))
-			}), false)
+			}))
 
 			w := httptest.NewRecorder()
 			req := httptest.NewRequest("GET", "/some-endpoint", nil)
@@ -220,7 +220,7 @@ func TestWrapWithAuthMiddleware(t *testing.T) {
 				req.Header.Set("Authorization", "Bearer "+tc.Bearer)
 			}
 
-			handler(w, req)
+			handler.ServeHTTP(w, req)
 
 			assert.Equal(t, tc.ExpectedStatus, w.Code)
 		})
