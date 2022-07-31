@@ -37,11 +37,21 @@ func (al *APIListener) handlePostSchedules(w http.ResponseWriter, req *http.Requ
 		al.jsonError(w, err)
 		return
 	}
+
+	if scheduleInput.Details.ClientTags != nil {
+		al.jsonError(w, errors2.APIError{
+			Err:        errors.New("client tags not supported (yet) for scheduled jobs"),
+			HTTPStatus: http.StatusBadRequest,
+		})
+		return
+	}
+
 	orderedClients, _, err := al.getOrderedClients(ctx, scheduleInput.Details.ClientIDs, scheduleInput.Details.GroupIDs, true /* allowDisconnected */)
 	if err != nil {
 		al.jsonError(w, err)
 		return
 	}
+
 	err = al.clientService.CheckClientsAccess(orderedClients, curUser)
 	if err != nil {
 		al.jsonError(w, err)
@@ -85,11 +95,21 @@ func (al *APIListener) handleUpdateSchedule(w http.ResponseWriter, req *http.Req
 		al.jsonError(w, err)
 		return
 	}
+
+	if scheduleInput.Details.ClientTags != nil {
+		al.jsonError(w, errors2.APIError{
+			Err:        errors.New("client tags not supported (yet) for scheduled jobs"),
+			HTTPStatus: http.StatusBadRequest,
+		})
+		return
+	}
+
 	orderedClients, _, err := al.getOrderedClients(ctx, scheduleInput.Details.ClientIDs, scheduleInput.Details.GroupIDs, true /* allowDisconnected */)
 	if err != nil {
 		al.jsonError(w, err)
 		return
 	}
+
 	err = al.clientService.CheckClientsAccess(orderedClients, curUser)
 	if err != nil {
 		al.jsonError(w, err)

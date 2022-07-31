@@ -1,21 +1,14 @@
 package clients
 
 import (
-	"context"
 	"os"
-	"testing"
 	"time"
 
-	"github.com/stretchr/testify/require"
-
-	"github.com/cloudradar-monitoring/rport/db/migration/clients"
-	"github.com/cloudradar-monitoring/rport/db/sqlite"
 	"github.com/cloudradar-monitoring/rport/server/clients/clienttunnel"
 	"github.com/cloudradar-monitoring/rport/share/logger"
 	"github.com/cloudradar-monitoring/rport/share/models"
 )
 
-var DataSourceOptions = sqlite.DataSourceOptions{WALEnabled: false}
 var (
 	hour    = time.Hour
 	nowMock = nowMockF()
@@ -213,14 +206,4 @@ func shallowCopy(c *Client) *Client {
 		DisconnectedAt:         c.DisconnectedAt,
 		ClientAuthID:           c.ClientAuthID,
 	}
-}
-
-func newFakeClientProvider(t *testing.T, exp *time.Duration, cs ...*Client) *SqliteProvider {
-	db, err := sqlite.New(":memory:", clients.AssetNames(), clients.Asset, DataSourceOptions)
-	require.NoError(t, err)
-	p := newSqliteProvider(db, exp)
-	for _, cur := range cs {
-		require.NoError(t, p.Save(context.Background(), cur))
-	}
-	return p
 }

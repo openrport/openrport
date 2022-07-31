@@ -39,19 +39,26 @@ type JobResult struct {
 	Summary string `json:"summary"`
 }
 
+type JobClientTags struct {
+	Tags     []string `json:"tags"`
+	Operator string   `json:"operator"`
+}
+
+// TODO: check that ClientTags is populated where required
 type MultiJob struct {
 	MultiJobSummary
-	ClientIDs   []string `json:"client_ids"`
-	GroupIDs    []string `json:"group_ids"`
-	Command     string   `json:"command"`
-	Cwd         string   `json:"cwd"`
-	Interpreter string   `json:"interpreter"`
-	TimeoutSec  int      `json:"timeout_sec"`
-	Concurrent  bool     `json:"concurrent"`
-	AbortOnErr  bool     `json:"abort_on_err"`
-	Jobs        []*Job   `json:"jobs"`
-	IsSudo      bool     `json:"is_sudo"`
-	IsScript    bool     `json:"is_script"`
+	ClientIDs   []string       `json:"client_ids"`
+	GroupIDs    []string       `json:"group_ids"`
+	ClientTags  *JobClientTags `json:"tags"`
+	Command     string         `json:"command"`
+	Cwd         string         `json:"cwd"`
+	Interpreter string         `json:"interpreter"`
+	TimeoutSec  int            `json:"timeout_sec"`
+	Concurrent  bool           `json:"concurrent"`
+	AbortOnErr  bool           `json:"abort_on_err"`
+	Jobs        []*Job         `json:"jobs"`
+	IsSudo      bool           `json:"is_sudo"`
+	IsScript    bool           `json:"is_script"`
 }
 
 type MultiJobSummary struct {

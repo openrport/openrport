@@ -19,6 +19,7 @@ import (
 
 	"github.com/patrickmn/go-cache"
 
+	"github.com/cloudradar-monitoring/rport/db/migration/client_groups"
 	clientsmigration "github.com/cloudradar-monitoring/rport/db/migration/clients"
 	jobsmigration "github.com/cloudradar-monitoring/rport/db/migration/jobs"
 	"github.com/cloudradar-monitoring/rport/db/sqlite"
@@ -119,7 +120,17 @@ func NewServer(config *Config, filesAPI files.FileAPI) (*Server, error) {
 
 	s.jobProvider = jobs.NewSqliteProvider(jobsDB, s.Logger)
 
-	s.clientGroupProvider, err = cgroups.NewSqliteProvider(path.Join(config.Server.DataDir, "client_groups.db"), config.Server.GetSQLiteDataSourceOptions())
+	groupsDB, err := sqlite.New(
+		path.Join(config.Server.DataDir, "client_groups.db"),
+		client_groups.AssetNames(),
+		client_groups.Asset,
+		config.Server.GetSQLiteDataSourceOptions(),
+	)
+	if err != nil {
+		return nil, fmt.Errorf("failed to create client_groups DB instance: %v", err)
+	}
+
+	s.clientGroupProvider, err = cgroups.NewSqliteProvider(groupsDB)
 	if err != nil {
 		return nil, err
 	}
@@ -355,4 +366,12 @@ func (m *jobResultChanMap) Get(jobID string) chan *models.Job {
 	m.mu.RLock()
 	defer m.mu.RUnlock()
 	return m.m[jobID]
+}
+
+func (m *jobResultChanMap) GetAllKeys() (jobIDs []string) {
+	jobIDs = make([]string, 0, len(m.m))
+	for k := range m.m {
+		jobIDs = append(jobIDs, k)
+	}
+	return jobIDs
 }

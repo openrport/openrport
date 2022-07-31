@@ -3,6 +3,7 @@ package clients
 import (
 	"context"
 	"fmt"
+	"strings"
 	"sync"
 	"time"
 
@@ -32,10 +33,10 @@ type User interface {
 // keepDisconnectedClients is a duration to keep disconnected clients. If a client was disconnected longer than a given
 // duration it will be treated as obsolete.
 func NewClientRepository(initClients []*Client, keepDisconnectedClients *time.Duration, logger *logger.Logger) *ClientRepository {
-	return newClientRepositoryWithDB(initClients, keepDisconnectedClients, nil, logger)
+	return NewClientRepositoryWithDB(initClients, keepDisconnectedClients, nil, logger)
 }
 
-func newClientRepositoryWithDB(initClients []*Client, keepDisconnectedClients *time.Duration, provider ClientProvider, logger *logger.Logger) *ClientRepository {
+func NewClientRepositoryWithDB(initClients []*Client, keepDisconnectedClients *time.Duration, provider ClientProvider, logger *logger.Logger) *ClientRepository {
 	clients := make(map[string]*Client)
 	for i := range initClients {
 		clients[initClients[i].ID] = initClients[i]
@@ -60,7 +61,7 @@ func InitClientRepository(
 		return nil, err
 	}
 
-	return newClientRepositoryWithDB(initClients, keepDisconnectedClients, provider, logger), nil
+	return NewClientRepositoryWithDB(initClients, keepDisconnectedClients, provider, logger), nil
 }
 
 func (s *ClientRepository) Save(client *Client) error {
@@ -89,6 +90,54 @@ func (s *ClientRepository) Delete(client *Client) error {
 	defer s.mu.Unlock()
 	delete(s.clients, client.ID)
 	return nil
+}
+
+func (s *ClientRepository) GetActiveByTags(tags []string, operator string) (matchingClients []*Client, err error) {
+	activeClients := s.GetAllActive()
+	if strings.ToUpper(operator) == "AND" {
+		matchingClients = findMatchingANDClients(activeClients, tags)
+	} else {
+		matchingClients = findMatchingORClients(activeClients, tags)
+	}
+
+	return matchingClients, nil
+}
+
+func findMatchingANDClients(activeClients []*Client, tags []string) (matchingClients []*Client) {
+	matchingClients = make([]*Client, 0, 64)
+	for _, cl := range activeClients {
+		clientTags := cl.Tags
+		foundCount := 0
+		for _, tag := range tags {
+			for _, clTag := range clientTags {
+				if tag == clTag {
+					foundCount++
+					continue
+				}
+			}
+		}
+		if foundCount == len(tags) {
+			matchingClients = append(matchingClients, cl)
+		}
+	}
+	return matchingClients
+}
+
+func findMatchingORClients(activeClients []*Client, tags []string) (matchingClients []*Client) {
+	matchingClients = make([]*Client, 0, 64)
+	for _, cl := range activeClients {
+		clientTags := cl.Tags
+	nextClientForOR:
+		for _, clTag := range clientTags {
+			for _, tag := range tags {
+				if tag == clTag {
+					matchingClients = append(matchingClients, cl)
+					break nextClientForOR
+				}
+			}
+		}
+	}
+	return matchingClients
 }
 
 // DeleteObsolete deletes obsolete disconnected clients and returns them.
