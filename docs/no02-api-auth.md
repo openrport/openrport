@@ -284,6 +284,11 @@ CREATE TABLE `groups` (
   `group` varchar(150) NOT NULL,
   UNIQUE KEY `username_group` (`username`,`group`)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8;
+CREATE TABLE `group_details` (
+     `name` varchar(150) NOT NULL,
+     `permissions` longtext DEFAULT '{}',
+     UNIQUE KEY `name` (`name`)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8;
 ```
 :::
 ::: code-group-item 2FA on
@@ -300,6 +305,11 @@ CREATE TABLE `groups` (
   `group` varchar(150) NOT NULL,
   UNIQUE KEY `username_group` (`username`,`group`)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8;
+CREATE TABLE `group_details` (
+     `name` varchar(150) NOT NULL,
+     `permissions` longtext DEFAULT '{}',
+     UNIQUE KEY `name` (`name`)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8;
 ```
 :::
 ::: time based one time password (TotP) on
@@ -314,6 +324,11 @@ CREATE TABLE `groups` (
   `username` varchar(150) NOT NULL,
   `group` varchar(150) NOT NULL,
   UNIQUE KEY `username_group` (`username`,`group`)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8;
+CREATE TABLE `group_details` (
+    `name` varchar(150) NOT NULL,
+    `permissions` json DEFAULT '{}',
+    UNIQUE KEY `name` (`name`)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8;
 ```
 :::
@@ -368,6 +383,8 @@ ON "groups" (
   "username" ASC,
   "group" ASC
 );
+CREATE TABLE "group_details" (name TEXT, permissions TEXT);
+CREATE UNIQUE INDEX "main"."group_details_name" ON "group_details" ("name" ASC);
 ```
 :::
 ::: code-group-item 2FA on
@@ -391,6 +408,8 @@ ON "groups" (
   "username" ASC,
   "group" ASC
 );
+CREATE TABLE "group_details" (name TEXT, permissions TEXT);
+CREATE UNIQUE INDEX "main"."group_details_name" ON "group_details" ("name" ASC);
 ```
 ::: ::: time based one time password (TotP) on
 ```sqlite
@@ -412,6 +431,8 @@ ON "groups" (
   "username" ASC,
   "group" ASC
 );
+CREATE TABLE "group_details" (name TEXT, permissions TEXT);
+CREATE UNIQUE INDEX "main"."username_group" ON "group_details" ("name" ASC);
 ```
 :::
 ::::
