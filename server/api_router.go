@@ -152,9 +152,9 @@ func (al *APIListener) initRouter() {
 
 	// web sockets
 	// common auth middleware is not used due to JS issue https://stackoverflow.com/questions/22383089/is-it-possible-to-use-bearer-authentication-for-websocket-upgrade-requests
-	api.HandleFunc("/ws/commands", al.wsAuth(http.HandlerFunc(al.handleCommandsWS))).Methods(http.MethodGet)
-	api.HandleFunc("/ws/scripts", al.wsAuth(http.HandlerFunc(al.handleScriptsWS))).Methods(http.MethodGet)
-	api.HandleFunc("/ws/uploads", al.wsAuth(http.HandlerFunc(al.handleUploadsWS))).Methods(http.MethodGet)
+	api.HandleFunc("/ws/commands", al.wsAuth(http.HandlerFunc(al.handleCommandsWS), users.PermissionCommands)).Methods(http.MethodGet)
+	api.HandleFunc("/ws/scripts", al.wsAuth(http.HandlerFunc(al.handleScriptsWS), users.PermissionScripts)).Methods(http.MethodGet)
+	api.HandleFunc("/ws/uploads", al.wsAuth(http.HandlerFunc(al.handleUploadsWS), users.PermissionUploads)).Methods(http.MethodGet)
 
 	if al.config.Server.EnableWsTestEndpoints {
 		api.HandleFunc("/test/commands/ui", al.wsCommands)
