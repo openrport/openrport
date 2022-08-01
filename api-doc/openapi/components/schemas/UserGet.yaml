@@ -13,3 +13,37 @@ properties:
     description: >-
       Holds either the email or the pushover token of the user. It's used to
       deliver 2FA token to user when 2FA is enabled
+  effective_user_permissions:
+    type: object
+    description: The effective user right inhereted from the group permissions
+    properties:
+      note:
+        type: string
+        description: |
+          Hint about wether group permissions are enabled and supported or not.
+          If group permissions are not supported, all permissions are set `true`.
+      permissions:
+        type: object
+        description: List of permissions
+        properties:
+          commands:
+            type: boolean
+            description: Is user allowed to execute commands
+          monitoring:
+            type: boolean
+            description: Is user allowed to read monitoring data
+          scheduler:
+            type: boolean
+            description: Is user allowed to create scheduled tasks
+          scripts:
+            type: boolean
+            description: Is user allowed to execute scipts
+          tunnels:
+            type: boolean
+            description: Is user allowed to create tunnels
+          uploads:
+            type: boolean
+            description: Is user allowed to upload files
+          vault:
+            type: boolean
+            description: Is user allowed to access the vault
