@@ -76,6 +76,7 @@ type UserService interface {
 	UpdateGroup(string, users.Group) (users.Group, error)
 	DeleteGroup(string) error
 	CheckPermission(*users.User, string) error
+	SupportsGroupPermissions() bool
 }
 
 func NewAPIListener(
@@ -448,7 +449,7 @@ var (
 	errAccessTokenRequired = errors.New("token required")
 )
 
-func (al *APIListener) wsAuth(f http.Handler) http.HandlerFunc {
+func (al *APIListener) wsAuth(f http.Handler, reqPermission string) http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
 		var authorized bool
 		var username string
@@ -492,6 +493,17 @@ func (al *APIListener) wsAuth(f http.Handler) http.HandlerFunc {
 			al.bannedUsers.Add(username)
 			al.jsonErrorResponse(w, http.StatusUnauthorized, errUnauthorized)
 			return
+		}
+
+		if reqPermission != "" && al.userService.GetProviderType() == enums.ProviderSourceDB {
+			user, err := al.userService.GetByUsername(username)
+			if err != nil {
+				al.jsonErrorResponse(w, http.StatusBadRequest, err)
+			}
+			if err = al.userService.CheckPermission(user, reqPermission); err != nil {
+				al.jsonErrorResponse(w, http.StatusUnauthorized, err)
+				return
+			}
 		}
 
 		newCtx := api.WithUser(r.Context(), username)
