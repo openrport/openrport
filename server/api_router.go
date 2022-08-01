@@ -73,8 +73,9 @@ func (al *APIListener) initRouter() {
 	clientMonitoring.HandleFunc("/mountpoints", al.handleGetClientMountpoints).Methods(http.MethodGet)
 
 	secureAPI.Handle("/tunnels", al.permissionsMiddleware(users.PermissionTunnels)(http.HandlerFunc(al.handleGetTunnels))).Methods(http.MethodGet)
-	secureAPI.HandleFunc("/auditlog", al.handleListAuditLog).Methods(http.MethodGet)
-	secureAPI.HandleFunc("/files", al.handleFileUploads).Methods(http.MethodPost).Name(filesUploadRouteName)
+	secureAPI.Handle("/auditlog", al.permissionsMiddleware(users.PermissionsAuditLog)(http.HandlerFunc(al.handleListAuditLog))).Methods(http.MethodGet)
+	secureAPI.Handle("/files", al.permissionsMiddleware(users.PermissionUploads)(http.HandlerFunc(al.handleFileUploads))).Methods(http.MethodPost).Name(filesUploadRouteName)
+
 	secureAPI.HandleFunc("/client-groups", al.handleGetClientGroups).Methods(http.MethodGet)
 	secureAPI.HandleFunc("/client-groups/{group_id}", al.handleGetClientGroup).Methods(http.MethodGet)
 
