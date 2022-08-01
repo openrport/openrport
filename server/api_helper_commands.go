@@ -10,6 +10,7 @@ import (
 
 	"github.com/cloudradar-monitoring/rport/server/api/jobs"
 	"github.com/cloudradar-monitoring/rport/server/auditlog"
+	"github.com/cloudradar-monitoring/rport/server/clients"
 	"github.com/cloudradar-monitoring/rport/server/validation"
 	"github.com/cloudradar-monitoring/rport/share/models"
 	"github.com/cloudradar-monitoring/rport/share/ws"
@@ -20,6 +21,12 @@ var (
 	ErrRequestMissingTargetingParams          = errors.New("please specify targeting options, such as client ids, groups ids or tags")
 	ErrMissingTagsInMultiJobRequest           = errors.New("please specify tags in the tags list")
 )
+
+type TargetingParams interface {
+	GetClientIDs() (ids []string)
+	GetGroupIDs() (ids []string)
+	GetTags() (tags []string)
+}
 
 func (al *APIListener) handleCommandsExecutionWS(
 	ctx context.Context,
@@ -48,7 +55,7 @@ func (al *APIListener) handleCommandsExecutionWS(
 			return
 		}
 	} else {
-		errTitle := validateClientTagsTargeting(inboundMsg)
+		errTitle := validateClientTagsTargeting(inboundMsg.OrderedClients)
 		if errTitle != "" {
 			uiConnTS.WriteError(errTitle, nil)
 			return
@@ -111,7 +118,7 @@ func (al *APIListener) handleCommandsExecutionWS(
 			return
 		}
 
-		al.Debugf("Multi-client Job[id=%q] created to execute remote command on clients %s, groups %s tags %s: %q.", multiJob.JID, inboundMsg.ClientIDs, inboundMsg.GroupIDs, getClientTags(inboundMsg), inboundMsg.Command)
+		al.Debugf("Multi-client Job[id=%q] created to execute remote command on clients %s, groups %s tags %s: %q.", multiJob.JID, inboundMsg.ClientIDs, inboundMsg.GroupIDs, inboundMsg.GetTags(), inboundMsg.Command)
 
 		uiConnTS.SetWritesBeforeClose(len(inboundMsg.OrderedClients))
 
@@ -218,51 +225,44 @@ func (al *APIListener) handleCommandsExecutionWS(
 	uiConnTS.Close()
 }
 
-func checkTargetingParams(request *jobs.MultiJobRequest) (errTitle string, err error) {
-	if request.ClientIDs == nil && request.GroupIDs == nil && request.ClientTags == nil {
+func checkTargetingParams(params TargetingParams) (errTitle string, err error) {
+	if params.GetClientIDs() == nil && params.GetGroupIDs() == nil && params.GetTags() == nil {
 		return "Missing targeting parameters.", ErrRequestMissingTargetingParams
 	}
-	if request.ClientIDs != nil && request.ClientTags != nil ||
-		request.GroupIDs != nil && request.ClientTags != nil {
+	if params.GetClientIDs() != nil && params.GetTags() != nil ||
+		params.GetGroupIDs() != nil && params.GetTags() != nil {
 		return "Multiple targeting parameters.", ErrRequestIncludesMultipleTargetingParams
 	}
-	if request.ClientTags != nil {
-		if request.ClientTags.Tags == nil || (request.ClientTags.Tags != nil && len(request.ClientTags.Tags) == 0) {
+	tags := params.GetTags()
+	if tags != nil {
+		if len(tags) == 0 {
 			return "No tags specified.", ErrMissingTagsInMultiJobRequest
 		}
 	}
 	return "", nil
 }
 
-func validateNonClientsTagTargeting(request *jobs.MultiJobRequest, groupClientsCount int) (errTitle string) {
-	if len(request.GroupIDs) > 0 && groupClientsCount == 0 && len(request.ClientIDs) == 0 {
+func validateNonClientsTagTargeting(params TargetingParams, groupClientsCount int) (errTitle string) {
+	if len(params.GetGroupIDs()) > 0 && groupClientsCount == 0 && len(params.GetClientIDs()) == 0 {
 		return "No active clients belong to the selected group(s)."
 	}
 
 	minClients := 2
-	if len(request.ClientIDs) < minClients && groupClientsCount == 0 {
+	if len(params.GetClientIDs()) < minClients && groupClientsCount == 0 {
 		return fmt.Sprintf("At least %d clients should be specified.", minClients)
 	}
 
 	return ""
 }
 
-func validateClientTagsTargeting(request *jobs.MultiJobRequest) (errTitle string) {
+func validateClientTagsTargeting(orderedClients []*clients.Client) (errTitle string) {
 	minClients := 1
-	if request.OrderedClients == nil || len(request.OrderedClients) < minClients {
+	if orderedClients == nil || len(orderedClients) < minClients {
 		return fmt.Sprintf("At least %d client should be specified.", minClients)
 	}
 	return ""
 }
 
-func getClientTags(request *jobs.MultiJobRequest) (tags []string) {
-	tags = []string{}
-	if request.ClientTags != nil {
-		tags = request.ClientTags.Tags
-	}
-	return tags
-}
-
-func hasClientTags(request *jobs.MultiJobRequest) (has bool) {
-	return request.ClientTags != nil
+func hasClientTags(params TargetingParams) (has bool) {
+	return params.GetTags() != nil
 }

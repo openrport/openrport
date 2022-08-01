@@ -23,3 +23,18 @@ type MultiJobRequest struct {
 	OrderedClients []*clients.Client `json:"-"`
 	ScheduleID     *string           `json:"-"`
 }
+
+func (req *MultiJobRequest) GetClientIDs() (ids []string) {
+	return req.ClientIDs
+}
+
+func (req *MultiJobRequest) GetGroupIDs() (ids []string) {
+	return req.GroupIDs
+}
+
+func (req *MultiJobRequest) GetTags() (ids []string) {
+	if req.ClientTags == nil {
+		return nil
+	}
+	return req.ClientTags.Tags
+}

@@ -23,6 +23,7 @@ import (
 	"github.com/cloudradar-monitoring/rport/db/sqlite"
 	"github.com/cloudradar-monitoring/rport/server/api"
 	"github.com/cloudradar-monitoring/rport/server/api/jobs"
+	"github.com/cloudradar-monitoring/rport/server/api/jobs/schedule"
 	"github.com/cloudradar-monitoring/rport/server/api/users"
 	"github.com/cloudradar-monitoring/rport/server/cgroups"
 	"github.com/cloudradar-monitoring/rport/server/clients"
@@ -1974,4 +1975,10 @@ func makeGroupsProvider(t *testing.T, dataSourceOptions sqlite.DataSourceOptions
 	gp, err = cgroups.NewSqliteProvider(groupsDB)
 	assert.NoError(t, err)
 	return gp
+}
+
+func makeScheduleManager(t *testing.T, jp *jobs.SqliteProvider, jobRunner schedule.JobRunner, dataSourceOptions sqlite.DataSourceOptions, testLog *logger.Logger) (scheduleManager *schedule.Manager) {
+	scheduleManager = schedule.NewManager(jobRunner, jp.GetDB(), testLog, 30)
+
+	return scheduleManager
 }

@@ -29,6 +29,21 @@ func (s Schedule) ToDB() DBSchedule {
 	}
 }
 
+func (s Schedule) GetClientIDs() (ids []string) {
+	return s.Details.ClientIDs
+}
+
+func (s Schedule) GetGroupIDs() (ids []string) {
+	return s.Details.GroupIDs
+}
+
+func (s Schedule) GetTags() (tags []string) {
+	if s.Details.ClientTags == nil {
+		return nil
+	}
+	return s.Details.ClientTags.Tags
+}
+
 // DBSchedule is used for saving to database and has details in one json db column
 type DBSchedule struct {
 	Base

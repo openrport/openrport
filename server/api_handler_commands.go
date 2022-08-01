@@ -324,7 +324,7 @@ func (al *APIListener) handlePostMultiClientCommand(w http.ResponseWriter, req *
 		}
 		reqBody.OrderedClients = orderedClients
 
-		errTitle := validateClientTagsTargeting(&reqBody)
+		errTitle := validateClientTagsTargeting(orderedClients)
 		if errTitle != "" {
 			al.jsonErrorResponseWithTitle(w, http.StatusBadRequest, errTitle)
 			return
@@ -364,7 +364,7 @@ func (al *APIListener) handlePostMultiClientCommand(w http.ResponseWriter, req *
 
 	al.writeJSONResponse(w, http.StatusOK, api.NewSuccessPayload(resp))
 
-	al.Debugf("Multi-client Job[id=%q] created to execute remote command on clients %s, groups %s, tags %s: %q.", multiJob.JID, reqBody.ClientIDs, reqBody.GroupIDs, getClientTags(&reqBody), reqBody.Command)
+	al.Debugf("Multi-client Job[id=%q] created to execute remote command on clients %s, groups %s, tags %s: %q.", multiJob.JID, reqBody.ClientIDs, reqBody.GroupIDs, reqBody.GetTags(), reqBody.Command)
 }
 
 func (al *APIListener) handleExecuteCommand(ctx context.Context, w http.ResponseWriter, executeInput *api.ExecuteInput) *newJobResponse {

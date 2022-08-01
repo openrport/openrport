@@ -11,6 +11,7 @@ import (
 	errors2 "github.com/cloudradar-monitoring/rport/server/api/errors"
 	"github.com/cloudradar-monitoring/rport/server/api/jobs/schedule"
 	"github.com/cloudradar-monitoring/rport/server/auditlog"
+	"github.com/cloudradar-monitoring/rport/server/clients"
 )
 
 func (al *APIListener) handleListSchedules(w http.ResponseWriter, req *http.Request) {
@@ -38,18 +39,43 @@ func (al *APIListener) handlePostSchedules(w http.ResponseWriter, req *http.Requ
 		return
 	}
 
-	if scheduleInput.Details.ClientTags != nil {
-		al.jsonError(w, errors2.APIError{
-			Err:        errors.New("client tags not supported (yet) for scheduled jobs"),
-			HTTPStatus: http.StatusBadRequest,
-		})
+	errTitle, err := checkTargetingParams(&scheduleInput)
+	if err != nil {
+		al.jsonErrorResponseWithError(w, http.StatusBadRequest, errTitle, err)
 		return
 	}
 
-	orderedClients, _, err := al.getOrderedClients(ctx, scheduleInput.Details.ClientIDs, scheduleInput.Details.GroupIDs, true /* allowDisconnected */)
-	if err != nil {
-		al.jsonError(w, err)
-		return
+	var orderedClients []*clients.Client
+	var groupClientsCount int
+
+	fmt.Printf("scheduleInput.ClientTags = %+v\n", scheduleInput.ClientTags)
+
+	if !hasClientTags(scheduleInput) {
+		// do the original client ids flow
+		orderedClients, groupClientsCount, err = al.getOrderedClients(ctx, scheduleInput.ClientIDs, scheduleInput.GroupIDs, false /* allowDisconnected */)
+		if err != nil {
+			al.jsonError(w, err)
+			return
+		}
+
+		errTitle := validateNonClientsTagTargeting(&scheduleInput, groupClientsCount)
+		if errTitle != "" {
+			al.jsonErrorResponseWithTitle(w, http.StatusBadRequest, errTitle)
+			return
+		}
+	} else {
+		// do tags
+		orderedClients, err = al.getOrderedClientsByTag(ctx, scheduleInput.ClientIDs, scheduleInput.GroupIDs, scheduleInput.ClientTags, false /* allowDisconnected */)
+		if err != nil {
+			al.jsonError(w, err)
+			return
+		}
+
+		errTitle := validateClientTagsTargeting(orderedClients)
+		if errTitle != "" {
+			al.jsonErrorResponseWithTitle(w, http.StatusBadRequest, errTitle)
+			return
+		}
 	}
 
 	err = al.clientService.CheckClientsAccess(orderedClients, curUser)
@@ -96,18 +122,41 @@ func (al *APIListener) handleUpdateSchedule(w http.ResponseWriter, req *http.Req
 		return
 	}
 
-	if scheduleInput.Details.ClientTags != nil {
-		al.jsonError(w, errors2.APIError{
-			Err:        errors.New("client tags not supported (yet) for scheduled jobs"),
-			HTTPStatus: http.StatusBadRequest,
-		})
+	errTitle, err := checkTargetingParams(&scheduleInput)
+	if err != nil {
+		al.jsonErrorResponseWithError(w, http.StatusBadRequest, errTitle, err)
 		return
 	}
 
-	orderedClients, _, err := al.getOrderedClients(ctx, scheduleInput.Details.ClientIDs, scheduleInput.Details.GroupIDs, true /* allowDisconnected */)
-	if err != nil {
-		al.jsonError(w, err)
-		return
+	var orderedClients []*clients.Client
+	var groupClientsCount int
+
+	if !hasClientTags(scheduleInput) {
+		// do the original client ids flow
+		orderedClients, groupClientsCount, err = al.getOrderedClients(ctx, scheduleInput.ClientIDs, scheduleInput.GroupIDs, false /* allowDisconnected */)
+		if err != nil {
+			al.jsonError(w, err)
+			return
+		}
+
+		errTitle := validateNonClientsTagTargeting(&scheduleInput, groupClientsCount)
+		if errTitle != "" {
+			al.jsonErrorResponseWithTitle(w, http.StatusBadRequest, errTitle)
+			return
+		}
+	} else {
+		// do tags
+		orderedClients, err = al.getOrderedClientsByTag(ctx, scheduleInput.ClientIDs, scheduleInput.GroupIDs, scheduleInput.ClientTags, false /* allowDisconnected */)
+		if err != nil {
+			al.jsonError(w, err)
+			return
+		}
+
+		errTitle := validateClientTagsTargeting(orderedClients)
+		if errTitle != "" {
+			al.jsonErrorResponseWithTitle(w, http.StatusBadRequest, errTitle)
+			return
+		}
 	}
 
 	err = al.clientService.CheckClientsAccess(orderedClients, curUser)
