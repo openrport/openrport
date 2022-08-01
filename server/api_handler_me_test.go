@@ -1,0 +1,148 @@
+package chserver
+
+import (
+	"net/http"
+	"net/http/httptest"
+	"os"
+	"testing"
+
+	"github.com/jmoiron/sqlx"
+	"github.com/stretchr/testify/assert"
+	"github.com/stretchr/testify/require"
+
+	"github.com/cloudradar-monitoring/rport/server/api"
+	"github.com/cloudradar-monitoring/rport/server/api/users"
+	"github.com/cloudradar-monitoring/rport/share/logger"
+)
+
+// TestHandleMeStaticAuth verifies group permissions are not supported
+func TestHandleMeStaticAuth(t *testing.T) {
+	user := &users.User{
+		Username: "test-user",
+		Groups:   []string{"group1"},
+	}
+	userProvider := users.NewStaticProvider([]*users.User{user})
+	mockUsersService := &MockUsersService{
+		UserService: users.NewAPIService(userProvider, false),
+	}
+	al := APIListener{
+		insecureForTests: true,
+		Server: &Server{
+			config: &Config{},
+		},
+		userService: mockUsersService,
+	}
+	al.initRouter()
+
+	w := httptest.NewRecorder()
+	req := httptest.NewRequest("GET", "/api/v1/me", nil)
+	ctx := api.WithUser(req.Context(), user.Username)
+	req = req.WithContext(ctx)
+	al.router.ServeHTTP(w, req)
+
+	assert.Equal(t, http.StatusOK, w.Code)
+	expectedJSON := `{
+		"data": {
+			"username": "test-user",
+			"groups": [
+				"group1"
+			],
+			"two_fa_send_to": "",
+			"effective_user_permissions": {
+				"note": "effective_user_permissions: not supported by api auth provider",
+				"permissions": {
+					"commands": true,
+					"monitoring": true,
+					"scheduler": true,
+					"scripts": true,
+					"tunnels": true,
+					"uploads": true,
+					"vault": true
+				}
+			}
+		}
+	}`
+	assert.JSONEq(t, expectedJSON, w.Body.String())
+	t.Logf("response %d %s", w.Code, w.Body.String())
+}
+
+// TestHandleMeDBAuth verifies group permissions are supported and the user has exemplary access to the vault only.
+func TestHandleMeDBAuth(t *testing.T) {
+	db, err := sqlx.Connect("sqlite3", ":memory:")
+	require.NoError(t, err)
+	defer db.Close()
+
+	require.NoError(t, err)
+	sqlExecs := []string{
+		`CREATE TABLE "users" ("username" TEXT PRIMARY KEY, "password" TEXT)`,
+		`INSERT INTO "users" VALUES("test-user","1")`,
+		`CREATE TABLE "groups" ("username" TEXT, "group" TEXT)`,
+		`INSERT INTO "groups" VALUES("test-user","group1")`,
+		`CREATE TABLE "group_details" ("name" TEXT, "permissions" TEXT)`,
+		`CREATE UNIQUE INDEX "main"."username_group_name" ON "group_details" ("name" ASC)`,
+		`INSERT INTO "group_details" VALUES('group1','{"vault":true}')`,
+	}
+	for _, sqlExec := range sqlExecs {
+		_, err = db.Exec(sqlExec)
+		require.NoError(t, err)
+	}
+
+	logfile := t.TempDir() + "/test.log"
+	l, err := os.OpenFile(logfile, os.O_RDWR|os.O_CREATE|os.O_APPEND, 0444)
+	require.NoError(t, err, "error creating log file")
+	defer l.Close()
+	logger := logger.NewLogger("test", logger.LogOutput{File: l}, logger.LogLevelDebug)
+
+	userProvider, err := users.NewUserDatabase(
+		db,
+		"users",
+		"groups",
+		"group_details",
+		false,
+		false,
+		logger)
+	require.NoError(t, err)
+
+	mockUsersService := &MockUsersService{
+		UserService: users.NewAPIService(userProvider, false),
+	}
+	al := APIListener{
+		insecureForTests: true,
+		Server: &Server{
+			config: &Config{},
+		},
+		userService: mockUsersService,
+	}
+	al.initRouter()
+
+	w := httptest.NewRecorder()
+	req := httptest.NewRequest("GET", "/api/v1/me", nil)
+	ctx := api.WithUser(req.Context(), "test-user")
+	req = req.WithContext(ctx)
+	al.router.ServeHTTP(w, req)
+
+	assert.Equal(t, http.StatusOK, w.Code)
+	expectedJSON := `{
+		"data": {
+			"username": "test-user",
+			"groups": [
+				"group1"
+			],
+			"two_fa_send_to": "",
+			"effective_user_permissions": {
+				"note": "",
+				"permissions": {
+					"commands": false,
+					"monitoring": false,
+					"scheduler": false,
+					"scripts": false,
+					"tunnels": false,
+					"uploads": false,
+					"vault": true
+				}
+			}
+		}
+	}`
+	assert.JSONEq(t, expectedJSON, w.Body.String())
+	t.Logf("response %d %s", w.Code, w.Body.String())
+}

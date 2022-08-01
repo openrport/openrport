@@ -12,7 +12,7 @@ import (
 	"github.com/cloudradar-monitoring/rport/share/random"
 )
 
-// handleGetMe returns the currently logged in user and the groups the user belongs to.
+// handleGetMe returns the currently logged-in user and the groups the user belongs to.
 func (al *APIListener) handleGetMe(w http.ResponseWriter, req *http.Request) {
 	user, err := al.getUserModel(req.Context())
 	if err != nil {
@@ -24,12 +24,37 @@ func (al *APIListener) handleGetMe(w http.ResponseWriter, req *http.Request) {
 		al.jsonErrorResponseWithTitle(w, http.StatusNotFound, "user not found")
 		return
 	}
-
-	me := UserPayload{
+	var me = UserPayload{
 		Username:    user.Username,
 		Groups:      user.Groups,
 		TwoFASendTo: user.TwoFASendTo,
 	}
+	var eup = EffectiveUserPermissions{}
+	eup.Permissions = map[string]bool{}
+	for _, perm := range users.AllPermissions {
+		eup.Permissions[perm] = false
+	}
+	if !al.userService.SupportsGroupPermissions() {
+		eup.Note = "effective_user_permissions: not supported by api auth provider"
+		for _, perm := range users.AllPermissions {
+			eup.Permissions[perm] = true
+		}
+	} else {
+		for _, groupName := range user.Groups {
+			group, err := al.userService.GetGroup(groupName)
+			if err != nil {
+				al.Logger.Errorf("checking group permissions: %s", err)
+			} else {
+				for perm, val := range eup.Permissions {
+					if !val {
+						eup.Permissions[perm] = group.Permissions.Has(perm)
+					}
+				}
+			}
+
+		}
+	}
+	me.EffectiveUserPermissions = eup
 	response := api.NewSuccessPayload(me)
 	al.writeJSONResponse(w, http.StatusOK, response)
 }

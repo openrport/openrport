@@ -686,7 +686,7 @@ func prepareTables(db *sqlx.DB, twoFAOn, totPON bool) error {
 		return err
 	}
 
-	_, err = db.Exec("CREATE TABLE `group_details` (name TEXT, permissions TEXT)")
+	_, err = db.Exec(`CREATE TABLE "group_details" (name TEXT, permissions TEXT);CREATE UNIQUE INDEX "main"."group_details_name" ON "group_details" ("name" ASC);`)
 	if err != nil {
 		return err
 	}

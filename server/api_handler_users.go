@@ -10,10 +10,16 @@ import (
 	"github.com/cloudradar-monitoring/rport/server/auditlog"
 )
 
+type EffectiveUserPermissions struct {
+	Note        string          `json:"note"`
+	Permissions map[string]bool `json:"permissions"`
+}
+
 type UserPayload struct {
-	Username    string   `json:"username"`
-	Groups      []string `json:"groups"`
-	TwoFASendTo string   `json:"two_fa_send_to"`
+	Username                 string                   `json:"username"`
+	Groups                   []string                 `json:"groups"`
+	TwoFASendTo              string                   `json:"two_fa_send_to"`
+	EffectiveUserPermissions EffectiveUserPermissions `json:"effective_user_permissions"`
 }
 
 func (al *APIListener) handleGetUsers(w http.ResponseWriter, req *http.Request) {

@@ -88,6 +88,10 @@ func (dpm *ProviderMock) Delete(usernameToDelete string) error {
 	return dpm.ErrorToGiveOnDelete
 }
 
+func (dpm *ProviderMock) SupportsGroupPermissions() bool {
+	return false
+}
+
 func (dpm ProviderMock) Type() enums.ProviderSource {
 	return enums.ProviderSourceDB
 }

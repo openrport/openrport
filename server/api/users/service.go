@@ -15,6 +15,7 @@ import (
 
 type Provider interface {
 	Type() enums.ProviderSource
+	SupportsGroupPermissions() bool
 	GetAll() ([]*User, error)
 	ListGroups() ([]Group, error)
 	GetGroup(string) (Group, error)
@@ -38,6 +39,10 @@ func NewAPIService(provider Provider, twoFAOn bool) *APIService {
 		Provider: provider,
 		TwoFAOn:  twoFAOn,
 	}
+}
+
+func (as APIService) SupportsGroupPermissions() bool {
+	return as.Provider.SupportsGroupPermissions()
 }
 
 func (as APIService) GetProviderType() enums.ProviderSource {

@@ -21,6 +21,10 @@ func (p StaticProvider) Type() enums.ProviderSource {
 	return enums.ProviderSourceStatic
 }
 
+func (p StaticProvider) SupportsGroupPermissions() bool {
+	return false
+}
+
 func (p *StaticProvider) ListGroups() ([]Group, error) {
 	return nil, errors2.APIError{
 		Message:    "The single user authentication doesn't support this feature.",
