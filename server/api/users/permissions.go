@@ -15,6 +15,7 @@ const (
 	PermissionScheduler  = "scheduler"
 	PermissionMonitoring = "monitoring"
 	PermissionUploads    = "uploads"
+	PermissionsAuditLog  = "auditlog"
 )
 
 var AllPermissions = []string{
@@ -25,6 +26,7 @@ var AllPermissions = []string{
 	PermissionScheduler,
 	PermissionMonitoring,
 	PermissionUploads,
+	PermissionsAuditLog,
 }
 
 type Permissions struct {
@@ -45,6 +47,14 @@ func (permissions Permissions) All() map[string]bool {
 	result := make(map[string]bool)
 	for _, p := range AllPermissions {
 		result[p] = permissions.Has(p)
+	}
+	return result
+}
+
+func CreateDefaultPermissions(set bool) map[string]bool {
+	result := make(map[string]bool)
+	for _, p := range AllPermissions {
+		result[p] = set
 	}
 	return result
 }

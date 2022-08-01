@@ -77,6 +77,7 @@ type UserService interface {
 	DeleteGroup(string) error
 	CheckPermission(*users.User, string) error
 	SupportsGroupPermissions() bool
+	GetEffectiveUserPermissions(*users.User) (map[string]bool, error)
 }
 
 func NewAPIListener(
@@ -382,7 +383,7 @@ func (al *APIListener) handleBearerToken(ctx context.Context, bearerToken, uri, 
 
 const htpasswdBcryptPrefix = "$2y$"
 
-// validateCredentials returns true if given credentials belong to a user with an access to API.
+// validateCredentials returns true if given credentials belong to a user with access to the API.
 func (al *APIListener) validateCredentials(username, password string, skipPasswordValidation bool) (bool, *users.User, error) {
 	if username == "" {
 		return false, nil, nil
@@ -495,7 +496,7 @@ func (al *APIListener) wsAuth(f http.Handler, reqPermission string) http.Handler
 			return
 		}
 
-		if reqPermission != "" && al.userService.GetProviderType() == enums.ProviderSourceDB {
+		if reqPermission != "" && al.userService.SupportsGroupPermissions() {
 			user, err := al.userService.GetByUsername(username)
 			if err != nil {
 				al.jsonErrorResponse(w, http.StatusBadRequest, err)

@@ -49,17 +49,16 @@ func TestHandleMeStaticAuth(t *testing.T) {
 			],
 			"two_fa_send_to": "",
 			"effective_user_permissions": {
-				"note": "effective_user_permissions: not supported by api auth provider",
-				"permissions": {
-					"commands": true,
-					"monitoring": true,
-					"scheduler": true,
-					"scripts": true,
-					"tunnels": true,
-					"uploads": true,
-					"vault": true
-				}
-			}
+				"auditlog": true,
+				"commands": true,
+				"monitoring": true,
+				"scheduler": true,
+				"scripts": true,
+				"tunnels": true,
+				"uploads": true,
+				"vault": true
+			},
+			"group_permissions_enabled": false
 		}
 	}`
 	assert.JSONEq(t, expectedJSON, w.Body.String())
@@ -80,7 +79,7 @@ func TestHandleMeDBAuth(t *testing.T) {
 		`INSERT INTO "groups" VALUES("test-user","group1")`,
 		`CREATE TABLE "group_details" ("name" TEXT, "permissions" TEXT)`,
 		`CREATE UNIQUE INDEX "main"."username_group_name" ON "group_details" ("name" ASC)`,
-		`INSERT INTO "group_details" VALUES('group1','{"vault":true}')`,
+		`INSERT INTO "group_details" VALUES('group1','{"vault":true, "monitoring": true}')`,
 	}
 	for _, sqlExec := range sqlExecs {
 		_, err = db.Exec(sqlExec)
@@ -130,17 +129,16 @@ func TestHandleMeDBAuth(t *testing.T) {
 			],
 			"two_fa_send_to": "",
 			"effective_user_permissions": {
-				"note": "",
-				"permissions": {
-					"commands": false,
-					"monitoring": false,
-					"scheduler": false,
-					"scripts": false,
-					"tunnels": false,
-					"uploads": false,
-					"vault": true
-				}
-			}
+				"auditlog": false,
+				"commands": false,
+				"monitoring": true,
+				"scheduler": false,
+				"scripts": false,
+				"tunnels": false,
+				"uploads": false,
+				"vault": true
+			},
+			"group_permissions_enabled": true
 		}
 	}`
 	assert.JSONEq(t, expectedJSON, w.Body.String())

@@ -93,6 +93,26 @@ func (as *APIService) CheckPermission(user *User, permission string) error {
 	}
 }
 
+func (as *APIService) GetEffectiveUserPermissions(user *User) (map[string]bool, error) {
+	if !as.SupportsGroupPermissions() {
+		return CreateDefaultPermissions(true), nil
+	}
+	permissions := CreateDefaultPermissions(false)
+
+	for _, groupName := range user.Groups {
+		group, err := as.Provider.GetGroup(groupName)
+		if err != nil {
+			return permissions, err
+		}
+		for _, permission := range AllPermissions {
+			if group.Permissions.Has(permission) && !permissions[permission] {
+				permissions[permission] = true
+			}
+		}
+	}
+	return permissions, nil
+}
+
 func (as *APIService) ExistGroups(groups []string) error {
 	existingGroups, err := as.ListGroups()
 	if err != nil {
