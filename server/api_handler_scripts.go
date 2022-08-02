@@ -96,7 +96,7 @@ func (al *APIListener) handlePostMultiClientScript(w http.ResponseWriter, req *h
 	inboundMsg.OrderedClients = orderedClients
 
 	if !hasClientTags(inboundMsg) {
-		errTitle := validateNonClientsTagTargeting(inboundMsg, clientsInGroupsCount)
+		errTitle := validateNonClientsTagTargeting(inboundMsg, clientsInGroupsCount, orderedClients, 2)
 		if errTitle != "" {
 			al.jsonErrorResponseWithTitle(w, http.StatusBadRequest, errTitle)
 			return

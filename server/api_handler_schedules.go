@@ -58,7 +58,7 @@ func (al *APIListener) handlePostSchedules(w http.ResponseWriter, req *http.Requ
 			return
 		}
 
-		errTitle := validateNonClientsTagTargeting(&scheduleInput, groupClientsCount)
+		errTitle := validateNonClientsTagTargeting(&scheduleInput, groupClientsCount, orderedClients, 2)
 		if errTitle != "" {
 			al.jsonErrorResponseWithTitle(w, http.StatusBadRequest, errTitle)
 			return
@@ -139,7 +139,7 @@ func (al *APIListener) handleUpdateSchedule(w http.ResponseWriter, req *http.Req
 			return
 		}
 
-		errTitle := validateNonClientsTagTargeting(&scheduleInput, groupClientsCount)
+		errTitle := validateNonClientsTagTargeting(&scheduleInput, groupClientsCount, orderedClients, 2)
 		if errTitle != "" {
 			al.jsonErrorResponseWithTitle(w, http.StatusBadRequest, errTitle)
 			return

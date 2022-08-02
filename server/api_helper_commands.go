@@ -49,7 +49,7 @@ func (al *APIListener) handleCommandsExecutionWS(
 	}
 
 	if !hasClientTags(inboundMsg) {
-		errTitle := validateNonClientsTagTargeting(inboundMsg, clientsInGroupsCount)
+		errTitle := validateNonClientsTagTargeting(inboundMsg, clientsInGroupsCount, inboundMsg.OrderedClients, 2)
 		if errTitle != "" {
 			uiConnTS.WriteError(errTitle, nil)
 			return
@@ -242,16 +242,18 @@ func checkTargetingParams(params TargetingParams) (errTitle string, err error) {
 	return "", nil
 }
 
-func validateNonClientsTagTargeting(params TargetingParams, groupClientsCount int) (errTitle string) {
+func validateNonClientsTagTargeting(params TargetingParams, groupClientsCount int, orderedClients []*clients.Client, minClients int) (errTitle string) {
 	if len(params.GetGroupIDs()) > 0 && groupClientsCount == 0 && len(params.GetClientIDs()) == 0 {
 		return "No active clients belong to the selected group(s)."
 	}
 
-	minClients := 2
 	if len(params.GetClientIDs()) < minClients && groupClientsCount == 0 {
 		return fmt.Sprintf("At least %d clients should be specified.", minClients)
 	}
 
+	if orderedClients != nil && len(orderedClients) == 0 {
+		return fmt.Sprintf("At least %d clients should be specified.", minClients)
+	}
 	return ""
 }
 

@@ -1,6 +1,7 @@
 package chserver
 
 import (
+	"encoding/json"
 	"fmt"
 	"mime/multipart"
 	"net/http"
@@ -32,9 +33,25 @@ type UploadRequest struct {
 	FileHeader           *multipart.FileHeader
 	ClientIDs            []string
 	GroupIDs             []string
+	ClientTags           *models.JobClientTags
 	clientsInGroupsCount int
 	Clients              []*clients.Client
 	*models.UploadedFile
+}
+
+func (ur UploadRequest) GetClientIDs() (ids []string) {
+	return ur.ClientIDs
+}
+
+func (ur UploadRequest) GetGroupIDs() (ids []string) {
+	return ur.GroupIDs
+}
+
+func (ur UploadRequest) GetTags() (tags []string) {
+	if ur.ClientTags == nil {
+		return nil
+	}
+	return ur.ClientTags.Tags
 }
 
 func (al *APIListener) handleFileUploads(w http.ResponseWriter, req *http.Request) {
@@ -43,6 +60,7 @@ func (al *APIListener) handleFileUploads(w http.ResponseWriter, req *http.Reques
 		al.jsonErrorResponseWithTitle(w, http.StatusBadRequest, err.Error())
 		return
 	}
+
 	curUser, err := al.getUserModelForAuth(req.Context())
 	if err != nil {
 		al.jsonErrorResponseWithTitle(w, http.StatusBadRequest, err.Error())
@@ -291,9 +309,38 @@ func (al *APIListener) uploadRequestFromRequest(req *http.Request) (*UploadReque
 	ur.ClientIDs = req.MultipartForm.Value["client_id"]
 	ur.GroupIDs = req.MultipartForm.Value["group_id"]
 
-	ur.Clients, ur.clientsInGroupsCount, err = al.getOrderedClients(req.Context(), ur.ClientIDs, ur.GroupIDs, false /* allowDisconnected */)
+	clientTags, err := getClientTagsFromReqForm(req)
 	if err != nil {
 		return nil, err
+	}
+
+	ur.ClientTags = clientTags
+
+	_, err = checkTargetingParams(ur)
+	if err != nil {
+		return nil, err
+	}
+
+	if !hasClientTags(ur) {
+		ur.Clients, ur.clientsInGroupsCount, err = al.getOrderedClients(req.Context(), ur.ClientIDs, ur.GroupIDs, false /* allowDisconnected */)
+		if err != nil {
+			return nil, err
+		}
+
+		errTitle := validateNonClientsTagTargeting(ur, ur.clientsInGroupsCount, ur.Clients, 1)
+		if errTitle != "" {
+			return nil, errors.New(errTitle)
+		}
+	} else {
+		ur.Clients, err = al.getOrderedClientsByTag(req.Context(), ur.ClientIDs, ur.GroupIDs, ur.ClientTags, false /* allowDisconnectedClients */)
+		if err != nil {
+			return nil, err
+		}
+
+		errTitle := validateClientTagsTargeting(ur.Clients)
+		if errTitle != "" {
+			return nil, errors.New(errTitle)
+		}
 	}
 
 	err = ur.FromMultipartRequest(req)
@@ -318,19 +365,27 @@ func (al *APIListener) uploadRequestFromRequest(req *http.Request) (*UploadReque
 	return ur, nil
 }
 
+func getClientTagsFromReqForm(req *http.Request) (clientTags *models.JobClientTags, err error) {
+	jsonTags := req.MultipartForm.Value["tags"]
+
+	if len(jsonTags) == 0 {
+		return nil, nil
+	}
+
+	if len(jsonTags) > 1 {
+		return nil, errors.New("tags form value must only contain a single element")
+	}
+
+	clientTags = &models.JobClientTags{}
+	err = json.Unmarshal([]byte(jsonTags[0]), clientTags)
+	if err != nil {
+		return nil, err
+	}
+
+	return clientTags, nil
+}
+
 func validateUploadRequest(ur *UploadRequest) error {
-	if len(ur.ClientIDs) == 0 && ur.clientsInGroupsCount == 0 {
-		return errors.New("at least 1 client should be specified")
-	}
-
-	if len(ur.GroupIDs) > 0 && ur.clientsInGroupsCount == 0 && len(ur.ClientIDs) == 0 {
-		return errors.New("No active clients belong to the selected group(s)")
-	}
-
-	if len(ur.Clients) == 0 {
-		return errors.New("no active clients found for the provided criteria")
-	}
-
 	return ur.Validate()
 }
 

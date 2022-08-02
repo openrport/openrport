@@ -310,7 +310,7 @@ func (al *APIListener) handlePostMultiClientCommand(w http.ResponseWriter, req *
 		}
 		reqBody.OrderedClients = orderedClients
 
-		errTitle := validateNonClientsTagTargeting(&reqBody, groupClientsCount)
+		errTitle := validateNonClientsTagTargeting(&reqBody, groupClientsCount, orderedClients, 2)
 		if errTitle != "" {
 			al.jsonErrorResponseWithTitle(w, http.StatusBadRequest, errTitle)
 			return
