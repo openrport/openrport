@@ -596,7 +596,7 @@ func TestHandlePostMultiClientCommand(t *testing.T) {
 			"client_ids": ["client-1"]
 		}`,
 			wantStatusCode: http.StatusBadRequest,
-			wantErrTitle:   "At least 2 clients should be specified.",
+			wantErrTitle:   "at least 2 clients should be specified",
 		},
 		{
 			name: "disconnected client",
@@ -777,7 +777,7 @@ func TestHandlePostMultiClientCommandWithGroupIDs(t *testing.T) {
 				"execute_concurrently": false
 			}`,
 			wantStatusCode: http.StatusBadRequest,
-			wantErrTitle:   "At least 2 clients should be specified.",
+			wantErrTitle:   "at least 2 clients should be specified",
 		},
 		{
 			name: "valid when group id with 1 client",
@@ -810,9 +810,9 @@ func TestHandlePostMultiClientCommandWithGroupIDs(t *testing.T) {
 		t.Run(tc.name, func(t *testing.T) {
 			curUser := makeTestUser(testUser)
 
-			connMock1 := makeConnMock(t, true, 1, time.Date(2020, 10, 10, 10, 10, 1, 0, time.UTC))
-			connMock2 := makeConnMock(t, true, 2, time.Date(2020, 10, 10, 10, 10, 2, 0, time.UTC))
-			connMock4 := makeConnMock(t, true, 4, time.Date(2020, 10, 10, 10, 10, 4, 0, time.UTC))
+			connMock1 := makeConnMock(t, 1, time.Date(2020, 10, 10, 10, 10, 1, 0, time.UTC))
+			connMock2 := makeConnMock(t, 2, time.Date(2020, 10, 10, 10, 10, 2, 0, time.UTC))
+			connMock4 := makeConnMock(t, 4, time.Date(2020, 10, 10, 10, 10, 4, 0, time.UTC))
 
 			c1 := clients.New(t).ID("client-1").Connection(connMock1).Build()
 			c2 := clients.New(t).ID("client-2").Connection(connMock2).Build()
@@ -835,8 +835,7 @@ func TestHandlePostMultiClientCommandWithGroupIDs(t *testing.T) {
 			c2.AllowedUserGroups = []string{"group-1"}
 			c4.AllowedUserGroups = []string{"group-2"}
 
-			al := makeAPIListener(nil,
-				curUser,
+			al := makeAPIListener(curUser,
 				clients.NewClientRepository([]*clients.Client{c1, c2, c3, c4}, &hour, testLog),
 				defaultTimeout,
 				testLog)
@@ -850,7 +849,7 @@ func TestHandlePostMultiClientCommandWithGroupIDs(t *testing.T) {
 			jp := makeJobsProvider(t, DataSourceOptions, testLog)
 			defer jp.Close()
 
-			gp := makeGroupsProvider(t, DataSourceOptions, testLog)
+			gp := makeGroupsProvider(t, DataSourceOptions)
 			defer gp.Close()
 
 			al.initRouter()
@@ -1027,9 +1026,9 @@ func TestHandlePostMultiClientCommandWithTags(t *testing.T) {
 		t.Run(tc.name, func(t *testing.T) {
 			curUser := makeTestUser(testUser)
 
-			connMock1 := makeConnMock(t, true, 1, time.Date(2020, 10, 10, 10, 10, 1, 0, time.UTC))
-			connMock2 := makeConnMock(t, true, 2, time.Date(2020, 10, 10, 10, 10, 2, 0, time.UTC))
-			connMock4 := makeConnMock(t, true, 4, time.Date(2020, 10, 10, 10, 10, 4, 0, time.UTC))
+			connMock1 := makeConnMock(t, 1, time.Date(2020, 10, 10, 10, 10, 1, 0, time.UTC))
+			connMock2 := makeConnMock(t, 2, time.Date(2020, 10, 10, 10, 10, 2, 0, time.UTC))
+			connMock4 := makeConnMock(t, 4, time.Date(2020, 10, 10, 10, 10, 4, 0, time.UTC))
 
 			c1 := clients.New(t).ID("client-1").Connection(connMock1).Build()
 			c2 := clients.New(t).ID("client-2").Connection(connMock2).Build()
@@ -1061,8 +1060,7 @@ func TestHandlePostMultiClientCommandWithTags(t *testing.T) {
 
 			p := clients.NewFakeClientProvider(t, nil, nil)
 
-			al := makeAPIListener(p,
-				curUser,
+			al := makeAPIListener(curUser,
 				clients.NewClientRepositoryWithDB(nil, &hour, p, testLog),
 				defaultTimeout,
 				testLog)
@@ -1082,7 +1080,7 @@ func TestHandlePostMultiClientCommandWithTags(t *testing.T) {
 			jp := makeJobsProvider(t, DataSourceOptions, testLog)
 			defer jp.Close()
 
-			gp := makeGroupsProvider(t, DataSourceOptions, testLog)
+			gp := makeGroupsProvider(t, DataSourceOptions)
 			defer gp.Close()
 
 			al.initRouter()
@@ -1222,7 +1220,7 @@ func TestHandlePostMultiClientWSCommandWithTags(t *testing.T) {
 			}
 		}`,
 			shouldSucceed: false,
-			wantErrTitle:  "At least 1 client should be specified.",
+			wantErrDetail: "At least 1 client should be specified.",
 		},
 		{
 			name: "error when client ids and tags included",
@@ -1268,9 +1266,9 @@ func TestHandlePostMultiClientWSCommandWithTags(t *testing.T) {
 		t.Run(tc.name, func(t *testing.T) {
 			curUser := makeTestUserWithToken(testUser, testToken)
 
-			connMock1 := makeConnMock(t, true, 1, time.Date(2020, 10, 10, 10, 10, 1, 0, time.UTC))
-			connMock2 := makeConnMock(t, true, 2, time.Date(2020, 10, 10, 10, 10, 2, 0, time.UTC))
-			connMock4 := makeConnMock(t, true, 4, time.Date(2020, 10, 10, 10, 10, 4, 0, time.UTC))
+			connMock1 := makeConnMock(t, 1, time.Date(2020, 10, 10, 10, 10, 1, 0, time.UTC))
+			connMock2 := makeConnMock(t, 2, time.Date(2020, 10, 10, 10, 10, 2, 0, time.UTC))
+			connMock4 := makeConnMock(t, 4, time.Date(2020, 10, 10, 10, 10, 4, 0, time.UTC))
 
 			c1 := clients.New(t).ID("client-1").Connection(connMock1).Build()
 			c2 := clients.New(t).ID("client-2").Connection(connMock2).Build()
@@ -1302,8 +1300,7 @@ func TestHandlePostMultiClientWSCommandWithTags(t *testing.T) {
 
 			p := clients.NewFakeClientProvider(t, nil, nil)
 
-			al := makeAPIListener(p,
-				curUser,
+			al := makeAPIListener(curUser,
 				clients.NewClientRepositoryWithDB(nil, &hour, p, testLog),
 				defaultTimeout,
 				testLog)
@@ -1323,7 +1320,7 @@ func TestHandlePostMultiClientWSCommandWithTags(t *testing.T) {
 			jp := makeJobsProvider(t, DataSourceOptions, testLog)
 			defer jp.Close()
 
-			gp := makeGroupsProvider(t, DataSourceOptions, testLog)
+			gp := makeGroupsProvider(t, DataSourceOptions)
 			defer gp.Close()
 
 			al.initRouter()
@@ -1452,7 +1449,7 @@ func TestHandlePostMultiClientScriptWithTags(t *testing.T) {
 			}
 		}`,
 			wantStatusCode: http.StatusBadRequest,
-			wantErrTitle:   "no clients to execute the script for",
+			wantErrTitle:   "At least 1 client should be specified.",
 		},
 		{
 			name: "error when client ids and tags included",
@@ -1501,9 +1498,9 @@ func TestHandlePostMultiClientScriptWithTags(t *testing.T) {
 			testUser := "test-user"
 			curUser := makeTestUser(testUser)
 
-			connMock1 := makeConnMock(t, true, 1, time.Date(2020, 10, 10, 10, 10, 1, 0, time.UTC))
-			connMock2 := makeConnMock(t, true, 2, time.Date(2020, 10, 10, 10, 10, 2, 0, time.UTC))
-			connMock4 := makeConnMock(t, true, 4, time.Date(2020, 10, 10, 10, 10, 4, 0, time.UTC))
+			connMock1 := makeConnMock(t, 1, time.Date(2020, 10, 10, 10, 10, 1, 0, time.UTC))
+			connMock2 := makeConnMock(t, 2, time.Date(2020, 10, 10, 10, 10, 2, 0, time.UTC))
+			connMock4 := makeConnMock(t, 4, time.Date(2020, 10, 10, 10, 10, 4, 0, time.UTC))
 
 			c1 := clients.New(t).ID("client-1").Connection(connMock1).Build()
 			c2 := clients.New(t).ID("client-2").Connection(connMock2).Build()
@@ -1535,8 +1532,7 @@ func TestHandlePostMultiClientScriptWithTags(t *testing.T) {
 
 			p := clients.NewFakeClientProvider(t, nil, nil)
 
-			al := makeAPIListener(p,
-				curUser,
+			al := makeAPIListener(curUser,
 				clients.NewClientRepositoryWithDB(nil, &hour, p, testLog),
 				defaultTimeout,
 				testLog)
@@ -1556,7 +1552,7 @@ func TestHandlePostMultiClientScriptWithTags(t *testing.T) {
 			jp := makeJobsProvider(t, DataSourceOptions, testLog)
 			defer jp.Close()
 
-			gp := makeGroupsProvider(t, DataSourceOptions, testLog)
+			gp := makeGroupsProvider(t, DataSourceOptions)
 			defer gp.Close()
 
 			al.initRouter()
@@ -1647,7 +1643,6 @@ func TestHandlePostMultiClientWSScriptWithTags(t *testing.T) {
 			"timeout_sec": 30
 		}`,
 			shouldSucceed: false,
-			wantErrTitle:  "Missing targeting parameters.",
 			wantErrDetail: ErrRequestMissingTargetingParams.Error(),
 		},
 		{
@@ -1680,7 +1675,6 @@ func TestHandlePostMultiClientWSScriptWithTags(t *testing.T) {
 			}
 		}`,
 			shouldSucceed: false,
-			wantErrTitle:  "No tags specified.",
 			wantErrDetail: ErrMissingTagsInMultiJobRequest.Error(),
 		},
 		{
@@ -1695,7 +1689,7 @@ func TestHandlePostMultiClientWSScriptWithTags(t *testing.T) {
 			}
 		}`,
 			shouldSucceed: false,
-			wantErrTitle:  "no clients to execute the script for",
+			wantErrDetail: "At least 1 client should be specified.",
 		},
 		{
 			name: "error when client ids and tags included",
@@ -1713,7 +1707,6 @@ func TestHandlePostMultiClientWSScriptWithTags(t *testing.T) {
 			}
 		}`,
 			shouldSucceed: false,
-			wantErrTitle:  "Multiple targeting parameters.",
 			wantErrDetail: ErrRequestIncludesMultipleTargetingParams.Error(),
 		},
 		{
@@ -1732,7 +1725,6 @@ func TestHandlePostMultiClientWSScriptWithTags(t *testing.T) {
 			}
 		}`,
 			shouldSucceed: false,
-			wantErrTitle:  "Multiple targeting parameters.",
 			wantErrDetail: ErrRequestIncludesMultipleTargetingParams.Error(),
 		},
 	}
@@ -1745,9 +1737,9 @@ func TestHandlePostMultiClientWSScriptWithTags(t *testing.T) {
 			testToken := "12345678"
 			curUser := makeTestUserWithToken(testUser, testToken)
 
-			connMock1 := makeConnMock(t, true, 1, time.Date(2020, 10, 10, 10, 10, 1, 0, time.UTC))
-			connMock2 := makeConnMock(t, true, 2, time.Date(2020, 10, 10, 10, 10, 2, 0, time.UTC))
-			connMock4 := makeConnMock(t, true, 4, time.Date(2020, 10, 10, 10, 10, 4, 0, time.UTC))
+			connMock1 := makeConnMock(t, 1, time.Date(2020, 10, 10, 10, 10, 1, 0, time.UTC))
+			connMock2 := makeConnMock(t, 2, time.Date(2020, 10, 10, 10, 10, 2, 0, time.UTC))
+			connMock4 := makeConnMock(t, 4, time.Date(2020, 10, 10, 10, 10, 4, 0, time.UTC))
 
 			c1 := clients.New(t).ID("client-1").Connection(connMock1).Build()
 			c2 := clients.New(t).ID("client-2").Connection(connMock2).Build()
@@ -1779,8 +1771,7 @@ func TestHandlePostMultiClientWSScriptWithTags(t *testing.T) {
 
 			p := clients.NewFakeClientProvider(t, nil, nil)
 
-			al := makeAPIListener(p,
-				curUser,
+			al := makeAPIListener(curUser,
 				clients.NewClientRepositoryWithDB(nil, &hour, p, testLog),
 				defaultTimeout,
 				testLog)
@@ -1800,7 +1791,7 @@ func TestHandlePostMultiClientWSScriptWithTags(t *testing.T) {
 			jp := makeJobsProvider(t, DataSourceOptions, testLog)
 			defer jp.Close()
 
-			gp := makeGroupsProvider(t, DataSourceOptions, testLog)
+			gp := makeGroupsProvider(t, DataSourceOptions)
 			defer gp.Close()
 
 			al.initRouter()
@@ -1910,10 +1901,10 @@ func httpToWS(t *testing.T, u string) string {
 	return wsURL.String()
 }
 
-func makeConnMock(t *testing.T, returnOk bool, pid int, startedAt time.Time) (connMock *test.ConnMock) {
+func makeConnMock(t *testing.T, pid int, startedAt time.Time) (connMock *test.ConnMock) {
 	t.Helper()
 	connMock = test.NewConnMock()
-	connMock.ReturnOk = returnOk
+	connMock.ReturnOk = true
 	sshSuccessResp := comm.RunCmdResponse{Pid: pid, StartedAt: startedAt}
 	sshRespBytes, err := json.Marshal(sshSuccessResp)
 	require.NoError(t, err)
@@ -1922,7 +1913,6 @@ func makeConnMock(t *testing.T, returnOk bool, pid int, startedAt time.Time) (co
 }
 
 func makeAPIListener(
-	p *clients.SqliteProvider,
 	curUser *users.User,
 	clientRepo *clients.ClientRepository,
 	defaultTimeout int,
@@ -1956,19 +1946,20 @@ func makeJobsProvider(t *testing.T, dataSourceOptions sqlite.DataSourceOptions, 
 		":memory:",
 		jobsmigration.AssetNames(),
 		jobsmigration.Asset,
-		DataSourceOptions,
+		dataSourceOptions,
 	)
 	require.NoError(t, err)
 	jp = jobs.NewSqliteProvider(jobsDB, testLog)
 	return jp
 }
 
-func makeGroupsProvider(t *testing.T, dataSourceOptions sqlite.DataSourceOptions, testLog *logger.Logger) (gp *cgroups.SqliteProvider) {
+func makeGroupsProvider(t *testing.T, dataSourceOptions sqlite.DataSourceOptions) (gp *cgroups.SqliteProvider) {
+	t.Helper()
 	groupsDB, err := sqlite.New(
 		":memory:",
 		client_groups.AssetNames(),
 		client_groups.Asset,
-		DataSourceOptions,
+		dataSourceOptions,
 	)
 	require.NoError(t, err)
 
@@ -1977,7 +1968,8 @@ func makeGroupsProvider(t *testing.T, dataSourceOptions sqlite.DataSourceOptions
 	return gp
 }
 
-func makeScheduleManager(t *testing.T, jp *jobs.SqliteProvider, jobRunner schedule.JobRunner, dataSourceOptions sqlite.DataSourceOptions, testLog *logger.Logger) (scheduleManager *schedule.Manager) {
+func makeScheduleManager(t *testing.T, jp *jobs.SqliteProvider, jobRunner schedule.JobRunner, testLog *logger.Logger) (scheduleManager *schedule.Manager) {
+	t.Helper()
 	scheduleManager = schedule.NewManager(jobRunner, jp.GetDB(), testLog, 30)
 
 	return scheduleManager

@@ -39,43 +39,12 @@ func (al *APIListener) handlePostSchedules(w http.ResponseWriter, req *http.Requ
 		return
 	}
 
-	errTitle, err := checkTargetingParams(&scheduleInput)
-	if err != nil {
-		al.jsonErrorResponseWithError(w, http.StatusBadRequest, errTitle, err)
-		return
-	}
-
 	var orderedClients []*clients.Client
-	var groupClientsCount int
 
-	fmt.Printf("scheduleInput.ClientTags = %+v\n", scheduleInput.ClientTags)
-
-	if !hasClientTags(scheduleInput) {
-		// do the original client ids flow
-		orderedClients, groupClientsCount, err = al.getOrderedClients(ctx, scheduleInput.ClientIDs, scheduleInput.GroupIDs, false /* allowDisconnected */)
-		if err != nil {
-			al.jsonError(w, err)
-			return
-		}
-
-		errTitle := validateNonClientsTagTargeting(&scheduleInput, groupClientsCount, orderedClients, 2)
-		if errTitle != "" {
-			al.jsonErrorResponseWithTitle(w, http.StatusBadRequest, errTitle)
-			return
-		}
-	} else {
-		// do tags
-		orderedClients, err = al.getOrderedClientsByTag(ctx, scheduleInput.ClientIDs, scheduleInput.GroupIDs, scheduleInput.ClientTags, false /* allowDisconnected */)
-		if err != nil {
-			al.jsonError(w, err)
-			return
-		}
-
-		errTitle := validateClientTagsTargeting(orderedClients)
-		if errTitle != "" {
-			al.jsonErrorResponseWithTitle(w, http.StatusBadRequest, errTitle)
-			return
-		}
+	orderedClients, _, isBadRequest, errTitle, err := al.getOrderedClientsWithValidation(ctx, &scheduleInput, 2)
+	if err != nil {
+		al.makeJSONErr(w, err, errTitle, isBadRequest)
+		return
 	}
 
 	err = al.clientService.CheckClientsAccess(orderedClients, curUser)
@@ -122,41 +91,12 @@ func (al *APIListener) handleUpdateSchedule(w http.ResponseWriter, req *http.Req
 		return
 	}
 
-	errTitle, err := checkTargetingParams(&scheduleInput)
-	if err != nil {
-		al.jsonErrorResponseWithError(w, http.StatusBadRequest, errTitle, err)
-		return
-	}
-
 	var orderedClients []*clients.Client
-	var groupClientsCount int
 
-	if !hasClientTags(scheduleInput) {
-		// do the original client ids flow
-		orderedClients, groupClientsCount, err = al.getOrderedClients(ctx, scheduleInput.ClientIDs, scheduleInput.GroupIDs, false /* allowDisconnected */)
-		if err != nil {
-			al.jsonError(w, err)
-			return
-		}
-
-		errTitle := validateNonClientsTagTargeting(&scheduleInput, groupClientsCount, orderedClients, 2)
-		if errTitle != "" {
-			al.jsonErrorResponseWithTitle(w, http.StatusBadRequest, errTitle)
-			return
-		}
-	} else {
-		// do tags
-		orderedClients, err = al.getOrderedClientsByTag(ctx, scheduleInput.ClientIDs, scheduleInput.GroupIDs, scheduleInput.ClientTags, false /* allowDisconnected */)
-		if err != nil {
-			al.jsonError(w, err)
-			return
-		}
-
-		errTitle := validateClientTagsTargeting(orderedClients)
-		if errTitle != "" {
-			al.jsonErrorResponseWithTitle(w, http.StatusBadRequest, errTitle)
-			return
-		}
+	orderedClients, _, isBadRequest, errTitle, err := al.getOrderedClientsWithValidation(ctx, &scheduleInput, 2)
+	if err != nil {
+		al.makeJSONErr(w, err, errTitle, isBadRequest)
+		return
 	}
 
 	err = al.clientService.CheckClientsAccess(orderedClients, curUser)

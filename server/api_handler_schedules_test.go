@@ -149,9 +149,9 @@ func TestHandlePostScheduleMultiClientJobWithTags(t *testing.T) {
 		t.Run(tc.name, func(t *testing.T) {
 			curUser := makeTestUser(testUser)
 
-			connMock1 := makeConnMock(t, true, 1, time.Date(2020, 10, 10, 10, 10, 1, 0, time.UTC))
-			connMock2 := makeConnMock(t, true, 2, time.Date(2020, 10, 10, 10, 10, 2, 0, time.UTC))
-			connMock4 := makeConnMock(t, true, 4, time.Date(2020, 10, 10, 10, 10, 4, 0, time.UTC))
+			connMock1 := makeConnMock(t, 1, time.Date(2020, 10, 10, 10, 10, 1, 0, time.UTC))
+			connMock2 := makeConnMock(t, 2, time.Date(2020, 10, 10, 10, 10, 2, 0, time.UTC))
+			connMock4 := makeConnMock(t, 4, time.Date(2020, 10, 10, 10, 10, 4, 0, time.UTC))
 
 			c1 := clients.New(t).ID("client-1").Connection(connMock1).Build()
 			c2 := clients.New(t).ID("client-2").Connection(connMock2).Build()
@@ -183,8 +183,7 @@ func TestHandlePostScheduleMultiClientJobWithTags(t *testing.T) {
 
 			p := clients.NewFakeClientProvider(t, nil, nil)
 
-			al := makeAPIListener(p,
-				curUser,
+			al := makeAPIListener(curUser,
 				clients.NewClientRepositoryWithDB(nil, &hour, p, testLog),
 				defaultTimeout,
 				testLog)
@@ -198,10 +197,10 @@ func TestHandlePostScheduleMultiClientJobWithTags(t *testing.T) {
 			jp := makeJobsProvider(t, DataSourceOptions, testLog)
 			defer jp.Close()
 
-			gp := makeGroupsProvider(t, DataSourceOptions, testLog)
+			gp := makeGroupsProvider(t, DataSourceOptions)
 			defer gp.Close()
 
-			scheduleManager := makeScheduleManager(t, jp, al, DataSourceOptions, testLog)
+			scheduleManager := makeScheduleManager(t, jp, al, testLog)
 
 			al.initRouter()
 
@@ -378,9 +377,9 @@ func TestHandlePostUpdateScheduleMultiClientJobWithTags(t *testing.T) {
 		t.Run(tc.name, func(t *testing.T) {
 			curUser := makeTestUser(testUser)
 
-			connMock1 := makeConnMock(t, true, 1, time.Date(2020, 10, 10, 10, 10, 1, 0, time.UTC))
-			connMock2 := makeConnMock(t, true, 2, time.Date(2020, 10, 10, 10, 10, 2, 0, time.UTC))
-			connMock4 := makeConnMock(t, true, 4, time.Date(2020, 10, 10, 10, 10, 4, 0, time.UTC))
+			connMock1 := makeConnMock(t, 1, time.Date(2020, 10, 10, 10, 10, 1, 0, time.UTC))
+			connMock2 := makeConnMock(t, 2, time.Date(2020, 10, 10, 10, 10, 2, 0, time.UTC))
+			connMock4 := makeConnMock(t, 4, time.Date(2020, 10, 10, 10, 10, 4, 0, time.UTC))
 
 			c1 := clients.New(t).ID("client-1").Connection(connMock1).Build()
 			c2 := clients.New(t).ID("client-2").Connection(connMock2).Build()
@@ -412,8 +411,7 @@ func TestHandlePostUpdateScheduleMultiClientJobWithTags(t *testing.T) {
 
 			p := clients.NewFakeClientProvider(t, nil, nil)
 
-			al := makeAPIListener(p,
-				curUser,
+			al := makeAPIListener(curUser,
 				clients.NewClientRepositoryWithDB(nil, &hour, p, testLog),
 				defaultTimeout,
 				testLog)
@@ -427,10 +425,10 @@ func TestHandlePostUpdateScheduleMultiClientJobWithTags(t *testing.T) {
 			jp := makeJobsProvider(t, DataSourceOptions, testLog)
 			defer jp.Close()
 
-			gp := makeGroupsProvider(t, DataSourceOptions, testLog)
+			gp := makeGroupsProvider(t, DataSourceOptions)
 			defer gp.Close()
 
-			scheduleManager := makeScheduleManager(t, jp, al, DataSourceOptions, testLog)
+			scheduleManager := makeScheduleManager(t, jp, al, testLog)
 
 			al.initRouter()
 

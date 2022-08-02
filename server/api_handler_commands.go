@@ -12,7 +12,6 @@ import (
 	"github.com/cloudradar-monitoring/rport/server/api"
 	"github.com/cloudradar-monitoring/rport/server/api/jobs"
 	"github.com/cloudradar-monitoring/rport/server/auditlog"
-	"github.com/cloudradar-monitoring/rport/server/clients"
 	"github.com/cloudradar-monitoring/rport/server/validation"
 	"github.com/cloudradar-monitoring/rport/share/comm"
 	"github.com/cloudradar-monitoring/rport/share/models"
@@ -283,12 +282,6 @@ func (al *APIListener) handlePostMultiClientCommand(w http.ResponseWriter, req *
 		return
 	}
 
-	errTitle, err := checkTargetingParams(&reqBody)
-	if err != nil {
-		al.jsonErrorResponseWithError(w, http.StatusBadRequest, errTitle, err)
-		return
-	}
-
 	if reqBody.Command == "" {
 		al.jsonErrorResponseWithTitle(w, http.StatusBadRequest, "Command cannot be empty.")
 		return
@@ -298,38 +291,13 @@ func (al *APIListener) handlePostMultiClientCommand(w http.ResponseWriter, req *
 		return
 	}
 
-	var orderedClients []*clients.Client
-	var groupClientsCount int
-
-	if !hasClientTags(&reqBody) {
-		// do the original client ids flow
-		orderedClients, groupClientsCount, err = al.getOrderedClients(ctx, reqBody.ClientIDs, reqBody.GroupIDs, false /* allowDisconnected */)
-		if err != nil {
-			al.jsonError(w, err)
-			return
-		}
-		reqBody.OrderedClients = orderedClients
-
-		errTitle := validateNonClientsTagTargeting(&reqBody, groupClientsCount, orderedClients, 2)
-		if errTitle != "" {
-			al.jsonErrorResponseWithTitle(w, http.StatusBadRequest, errTitle)
-			return
-		}
-	} else {
-		// do tags
-		orderedClients, err = al.getOrderedClientsByTag(ctx, reqBody.ClientIDs, reqBody.GroupIDs, reqBody.ClientTags, false /* allowDisconnected */)
-		if err != nil {
-			al.jsonError(w, err)
-			return
-		}
-		reqBody.OrderedClients = orderedClients
-
-		errTitle := validateClientTagsTargeting(orderedClients)
-		if errTitle != "" {
-			al.jsonErrorResponseWithTitle(w, http.StatusBadRequest, errTitle)
-			return
-		}
+	orderedClients, _, isBadRequest, errTitle, err := al.getOrderedClientsWithValidation(ctx, &reqBody, 2)
+	if err != nil {
+		al.makeJSONErr(w, err, errTitle, isBadRequest)
+		return
 	}
+
+	reqBody.OrderedClients = orderedClients
 
 	curUser, err := al.getUserModelForAuth(req.Context())
 	if err != nil {
@@ -464,37 +432,18 @@ func (al *APIListener) handleCommandsWS(w http.ResponseWriter, req *http.Request
 		return
 	}
 
-	errTitle, err := checkTargetingParams(inboundMsg)
+	orderedClients, _, _, errTitle, err := al.getOrderedClientsWithValidation(ctx, inboundMsg, 2)
 	if err != nil {
 		uiConnTS.WriteError(errTitle, err)
 		return
 	}
 
-	var orderedClients []*clients.Client
-	var clientsInGroupsCount int
-
-	if !hasClientTags(inboundMsg) {
-		// do the original client ids flow
-		orderedClients, clientsInGroupsCount, err = al.getOrderedClients(ctx, inboundMsg.ClientIDs, inboundMsg.GroupIDs, false /* allowDisconnected */)
-		if err != nil {
-			uiConnTS.WriteError("", err)
-			return
-		}
-	} else {
-		// do tags
-		orderedClients, err = al.getOrderedClientsByTag(ctx, inboundMsg.ClientIDs, inboundMsg.GroupIDs, inboundMsg.ClientTags, false /* allowDisconnected */)
-		if err != nil {
-			uiConnTS.WriteError("", err)
-			return
-		}
-
-	}
 	inboundMsg.OrderedClients = orderedClients
 	inboundMsg.IsScript = false
 
 	auditLogEntry := al.auditLog.Entry(auditlog.ApplicationClientCommand, auditlog.ActionExecuteStart).WithHTTPRequest(req)
 
-	al.handleCommandsExecutionWS(ctx, uiConnTS, inboundMsg, clientsInGroupsCount, auditLogEntry)
+	al.handleCommandsExecutionWS(ctx, uiConnTS, inboundMsg, auditLogEntry)
 }
 
 // handleGetMultiClientCommand handles GET /commands/{job_id}

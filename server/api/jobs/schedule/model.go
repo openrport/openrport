@@ -29,15 +29,19 @@ func (s Schedule) ToDB() DBSchedule {
 	}
 }
 
-func (s Schedule) GetClientIDs() (ids []string) {
+func (s *Schedule) GetClientIDs() (ids []string) {
 	return s.Details.ClientIDs
 }
 
-func (s Schedule) GetGroupIDs() (ids []string) {
+func (s *Schedule) GetGroupIDs() (ids []string) {
 	return s.Details.GroupIDs
 }
 
-func (s Schedule) GetTags() (tags []string) {
+func (s *Schedule) GetClientTags() (clientTags *models.JobClientTags) {
+	return s.ClientTags
+}
+
+func (s *Schedule) GetTags() (tags []string) {
 	if s.Details.ClientTags == nil {
 		return nil
 	}

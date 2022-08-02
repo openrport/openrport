@@ -1,7 +1,6 @@
 package chserver
 
 import (
-	"context"
 	"encoding/base64"
 	"fmt"
 	"io"
@@ -13,7 +12,6 @@ import (
 	errors2 "github.com/cloudradar-monitoring/rport/server/api/errors"
 	"github.com/cloudradar-monitoring/rport/server/api/jobs"
 	"github.com/cloudradar-monitoring/rport/server/auditlog"
-	"github.com/cloudradar-monitoring/rport/server/clients"
 	"github.com/cloudradar-monitoring/rport/share/ws"
 )
 
@@ -70,43 +68,18 @@ func (al *APIListener) handlePostMultiClientScript(w http.ResponseWriter, req *h
 		return
 	}
 
-	errTitle, err := checkTargetingParams(inboundMsg)
+	orderedClients, _, isBadRequest, errTitle, err := al.getOrderedClientsWithValidation(ctx, inboundMsg, 2)
 	if err != nil {
-		al.jsonErrorResponseWithError(w, http.StatusBadRequest, errTitle, err)
-		return
-	}
-
-	err = al.enrichScriptInput(ctx, inboundMsg)
-	if err != nil {
-		al.jsonError(w, err)
-		return
-	}
-
-	orderedClients, clientsInGroupsCount, err := al.makeOrderedClientsForScript(ctx, inboundMsg)
-	if err != nil {
-		al.jsonError(w, err)
-		return
-	}
-
-	if len(orderedClients) == 0 {
-		al.jsonErrorResponseWithTitle(w, http.StatusBadRequest, "no clients to execute the script for")
+		al.makeJSONErr(w, err, errTitle, isBadRequest)
 		return
 	}
 
 	inboundMsg.OrderedClients = orderedClients
 
-	if !hasClientTags(inboundMsg) {
-		errTitle := validateNonClientsTagTargeting(inboundMsg, clientsInGroupsCount, orderedClients, 2)
-		if errTitle != "" {
-			al.jsonErrorResponseWithTitle(w, http.StatusBadRequest, errTitle)
-			return
-		}
-	} else {
-		errTitle := validateClientTagsTargeting(orderedClients)
-		if errTitle != "" {
-			al.jsonErrorResponseWithTitle(w, http.StatusBadRequest, errTitle)
-			return
-		}
+	err = al.enrichScriptInput(inboundMsg)
+	if err != nil {
+		al.jsonError(w, err)
+		return
 	}
 
 	curUser, err := al.getUserModelForAuth(req.Context())
@@ -167,38 +140,26 @@ func (al *APIListener) handleScriptsWS(w http.ResponseWriter, req *http.Request)
 		return
 	}
 
-	errTitle, err := checkTargetingParams(inboundMsg)
+	orderedClients, _, _, _, err := al.getOrderedClientsWithValidation(ctx, inboundMsg, 2)
 	if err != nil {
-		uiConnTS.WriteError(errTitle, err)
-		return
-	}
-
-	err = al.enrichScriptInput(ctx, inboundMsg)
-	if err != nil {
-		uiConnTS.WriteError("Failed to create script on multiple clients", err)
-		return
-	}
-
-	orderedClients, clientsInGroupsCount, err := al.makeOrderedClientsForScript(ctx, inboundMsg)
-	if err != nil {
-		uiConnTS.WriteError("Failed to get client list", err)
-		return
-	}
-
-	if len(orderedClients) == 0 {
-		uiConnTS.WriteError("no clients to execute the script for", nil)
+		uiConnTS.WriteError("", err)
 		return
 	}
 
 	inboundMsg.OrderedClients = orderedClients
 
+	err = al.enrichScriptInput(inboundMsg)
+	if err != nil {
+		uiConnTS.WriteError("Failed to create script on multiple clients", err)
+		return
+	}
+
 	auditLogEntry := al.auditLog.Entry(auditlog.ApplicationClientScript, auditlog.ActionExecuteStart).WithHTTPRequest(req)
 
-	al.handleCommandsExecutionWS(ctx, uiConnTS, inboundMsg, clientsInGroupsCount, auditLogEntry)
+	al.handleCommandsExecutionWS(ctx, uiConnTS, inboundMsg, auditLogEntry)
 }
 
 func (al *APIListener) enrichScriptInput(
-	ctx context.Context,
 	inboundMsg *jobs.MultiJobRequest,
 ) (err error) {
 	if inboundMsg.Script == "" {
@@ -225,20 +186,4 @@ func (al *APIListener) enrichScriptInput(
 	inboundMsg.IsScript = true
 
 	return nil
-}
-
-func (al *APIListener) makeOrderedClientsForScript(ctx context.Context, inboundMsg *jobs.MultiJobRequest) (orderedClients []*clients.Client, clientsInGroupsCount int, err error) {
-	if !hasClientTags(inboundMsg) {
-		orderedClients, clientsInGroupsCount, err = al.getOrderedClients(ctx, inboundMsg.ClientIDs, inboundMsg.GroupIDs, false /* allowDisconnected */)
-		if err != nil {
-			return nil, 0, err
-		}
-	} else {
-		orderedClients, err = al.getOrderedClientsByTag(ctx, inboundMsg.ClientIDs, inboundMsg.GroupIDs, inboundMsg.ClientTags, false /* allowDisconnected */)
-		if err != nil {
-			return nil, 0, err
-		}
-	}
-
-	return orderedClients, clientsInGroupsCount, nil
 }

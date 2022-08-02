@@ -47,6 +47,10 @@ func (ur UploadRequest) GetGroupIDs() (ids []string) {
 	return ur.GroupIDs
 }
 
+func (ur UploadRequest) GetClientTags() (clientTags *models.JobClientTags) {
+	return ur.ClientTags
+}
+
 func (ur UploadRequest) GetTags() (tags []string) {
 	if ur.ClientTags == nil {
 		return nil
@@ -55,9 +59,9 @@ func (ur UploadRequest) GetTags() (tags []string) {
 }
 
 func (al *APIListener) handleFileUploads(w http.ResponseWriter, req *http.Request) {
-	uploadRequest, err := al.uploadRequestFromRequest(req)
+	uploadRequest, isBadRequest, errTitle, err := al.uploadRequestFromRequest(req)
 	if err != nil {
-		al.jsonErrorResponseWithTitle(w, http.StatusBadRequest, err.Error())
+		al.makeJSONErr(w, err, errTitle, isBadRequest)
 		return
 	}
 
@@ -296,14 +300,14 @@ func (al *APIListener) notifyUploadEventListeners(msg interface{}) {
 	})
 }
 
-func (al *APIListener) uploadRequestFromRequest(req *http.Request) (*UploadRequest, error) {
-	ur := &UploadRequest{
+func (al *APIListener) uploadRequestFromRequest(req *http.Request) (ur *UploadRequest, isBadRequest bool, errTitle string, err error) {
+	ur = &UploadRequest{
 		UploadedFile: &models.UploadedFile{},
 	}
 
-	err := req.ParseMultipartForm(uploadBufSize)
+	err = req.ParseMultipartForm(uploadBufSize)
 	if err != nil {
-		return nil, err
+		return nil, false, "", err
 	}
 
 	ur.ClientIDs = req.MultipartForm.Value["client_id"]
@@ -311,46 +315,27 @@ func (al *APIListener) uploadRequestFromRequest(req *http.Request) (*UploadReque
 
 	clientTags, err := getClientTagsFromReqForm(req)
 	if err != nil {
-		return nil, err
+		return nil, false, "", err
 	}
 
 	ur.ClientTags = clientTags
 
-	_, err = checkTargetingParams(ur)
+	orderedClients, clientsInGroupsCount, isBadRequest, errTitle, err := al.getOrderedClientsWithValidation(req.Context(), ur, 1)
 	if err != nil {
-		return nil, err
+		return nil, isBadRequest, errTitle, err
 	}
 
-	if !hasClientTags(ur) {
-		ur.Clients, ur.clientsInGroupsCount, err = al.getOrderedClients(req.Context(), ur.ClientIDs, ur.GroupIDs, false /* allowDisconnected */)
-		if err != nil {
-			return nil, err
-		}
-
-		errTitle := validateNonClientsTagTargeting(ur, ur.clientsInGroupsCount, ur.Clients, 1)
-		if errTitle != "" {
-			return nil, errors.New(errTitle)
-		}
-	} else {
-		ur.Clients, err = al.getOrderedClientsByTag(req.Context(), ur.ClientIDs, ur.GroupIDs, ur.ClientTags, false /* allowDisconnectedClients */)
-		if err != nil {
-			return nil, err
-		}
-
-		errTitle := validateClientTagsTargeting(ur.Clients)
-		if errTitle != "" {
-			return nil, errors.New(errTitle)
-		}
-	}
+	ur.Clients = orderedClients
+	ur.clientsInGroupsCount = clientsInGroupsCount
 
 	err = ur.FromMultipartRequest(req)
 	if err != nil {
-		return nil, err
+		return nil, false, "", err
 	}
 
 	ur.File, ur.FileHeader, err = req.FormFile("upload")
 	if err != nil {
-		return nil, err
+		return nil, false, "", err
 	}
 
 	if ur.UploadedFile.ID == "" {
@@ -362,7 +347,7 @@ func (al *APIListener) uploadRequestFromRequest(req *http.Request) (*UploadReque
 		ur.UploadedFile.ID = id
 	}
 
-	return ur, nil
+	return ur, false, "", nil
 }
 
 func getClientTagsFromReqForm(req *http.Request) (clientTags *models.JobClientTags, err error) {

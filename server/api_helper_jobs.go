@@ -118,7 +118,7 @@ func (al *APIListener) StartMultiClientJob(ctx context.Context, multiJobRequest 
 				return nil, err
 			}
 		} else {
-			multiJobRequest.OrderedClients, err = al.getOrderedClientsByTag(ctx, multiJobRequest.ClientIDs, multiJobRequest.GroupIDs, multiJobRequest.ClientTags, true /* allowDisconnected */)
+			multiJobRequest.OrderedClients, err = al.getOrderedClientsByTag(multiJobRequest.ClientTags, true /* allowDisconnected */)
 			if err != nil {
 				return nil, err
 			}

@@ -2,6 +2,7 @@ package chserver
 
 import (
 	"context"
+	"errors"
 	"fmt"
 	"net/http"
 
@@ -10,6 +11,55 @@ import (
 	"github.com/cloudradar-monitoring/rport/server/clients"
 	"github.com/cloudradar-monitoring/rport/share/models"
 )
+
+var (
+	ErrRequestIncludesMultipleTargetingParams = errors.New("multiple targeting options are not supported. Please specify only one")
+	ErrRequestMissingTargetingParams          = errors.New("please specify targeting options, such as client ids, groups ids or tags")
+	ErrMissingTagsInMultiJobRequest           = errors.New("please specify tags in the tags list")
+)
+
+type TargetingParams interface {
+	GetClientIDs() (ids []string)
+	GetGroupIDs() (ids []string)
+	GetClientTags() (clientTags *models.JobClientTags)
+	GetTags() (tags []string)
+}
+
+func (al *APIListener) getOrderedClientsWithValidation(
+	ctx context.Context,
+	params TargetingParams,
+	minClients int,
+) (targetedClients []*clients.Client, groupClientsCount int, isBadRequest bool, errTitle string, err error) {
+	errTitle, err = checkTargetingParams(params)
+	if err != nil {
+		return nil, 0, true, errTitle, err
+	}
+
+	if !hasClientTags(params) {
+		// do the original client ids flow
+		targetedClients, groupClientsCount, err = al.getOrderedClients(ctx, params.GetClientIDs(), params.GetGroupIDs(), false /* allowDisconnected */)
+		if err != nil {
+			return nil, 0, false, "", err
+		}
+
+		err := validateNonClientsTagTargeting(params, groupClientsCount, targetedClients, minClients)
+		if err != nil {
+			return nil, 0, true, "", err
+		}
+	} else {
+		// do tags
+		targetedClients, err = al.getOrderedClientsByTag(params.GetClientTags(), false /* allowDisconnected */)
+		if err != nil {
+			return nil, 0, false, "", err
+		}
+
+		err := validateClientTagsTargeting(targetedClients)
+		if err != nil {
+			return nil, 0, true, "", err
+		}
+	}
+	return targetedClients, groupClientsCount, false, "", nil
+}
 
 func (al *APIListener) getOrderedClients(
 	ctx context.Context,
@@ -109,8 +159,6 @@ func (al *APIListener) makeClientsList(clientIDs []string, allowDisconnected boo
 }
 
 func (al *APIListener) getOrderedClientsByTag(
-	ctx context.Context,
-	clientIDs, groupIDs []string,
 	clientTags *models.JobClientTags,
 	allowDisconnected bool,
 ) (
@@ -118,7 +166,7 @@ func (al *APIListener) getOrderedClientsByTag(
 	err error,
 ) {
 	// find the clientIDs that have matching tags
-	orderedClients, err = al.clientService.GetActiveByTags(clientTags.Tags, clientTags.Operator)
+	orderedClients, err = al.clientService.GetClientsByTag(clientTags.Tags, clientTags.Operator, allowDisconnected)
 	if err != nil {
 		err = errors2.APIError{
 			Message:    "Unable to get active clients by tags",
@@ -128,4 +176,60 @@ func (al *APIListener) getOrderedClientsByTag(
 		return orderedClients, err
 	}
 	return orderedClients, err
+}
+
+func checkTargetingParams(params TargetingParams) (errTitle string, err error) {
+	if params.GetClientIDs() == nil && params.GetGroupIDs() == nil && params.GetTags() == nil {
+		return "Missing targeting parameters.", ErrRequestMissingTargetingParams
+	}
+	if params.GetClientIDs() != nil && params.GetTags() != nil ||
+		params.GetGroupIDs() != nil && params.GetTags() != nil {
+		return "Multiple targeting parameters.", ErrRequestIncludesMultipleTargetingParams
+	}
+	tags := params.GetTags()
+	if tags != nil {
+		if len(tags) == 0 {
+			return "No tags specified.", ErrMissingTagsInMultiJobRequest
+		}
+	}
+	return "", nil
+}
+
+func validateNonClientsTagTargeting(params TargetingParams, groupClientsCount int, orderedClients []*clients.Client, minClients int) (err error) {
+	if len(params.GetGroupIDs()) > 0 && groupClientsCount == 0 && len(params.GetClientIDs()) == 0 {
+		return errors.New("no active clients belong to the selected group(s)")
+	}
+
+	if len(params.GetClientIDs()) < minClients && groupClientsCount == 0 {
+		return fmt.Errorf("at least %d clients should be specified", minClients)
+	}
+
+	if orderedClients != nil && len(orderedClients) == 0 {
+		return fmt.Errorf("at least %d clients should be specified", minClients)
+	}
+	return nil
+}
+
+func validateClientTagsTargeting(orderedClients []*clients.Client) (err error) {
+	minClients := 1
+	if orderedClients == nil || len(orderedClients) < minClients {
+		return fmt.Errorf(fmt.Sprintf("At least %d client should be specified.", minClients))
+	}
+	return nil
+}
+
+func hasClientTags(params TargetingParams) (has bool) {
+	return params.GetTags() != nil
+}
+
+func (al *APIListener) makeJSONErr(w http.ResponseWriter, err error, errTitle string, isBadRequest bool) {
+	if isBadRequest {
+		if errTitle != "" {
+			al.jsonErrorResponseWithDetail(w, http.StatusBadRequest, "", errTitle, err.Error())
+		} else {
+			al.jsonErrorResponseWithTitle(w, http.StatusBadRequest, err.Error())
+		}
+	} else {
+		al.jsonError(w, err)
+	}
 }

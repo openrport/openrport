@@ -2,37 +2,21 @@ package chserver
 
 import (
 	"context"
-	"errors"
-	"fmt"
 	"time"
 
 	"github.com/gorilla/websocket"
 
 	"github.com/cloudradar-monitoring/rport/server/api/jobs"
 	"github.com/cloudradar-monitoring/rport/server/auditlog"
-	"github.com/cloudradar-monitoring/rport/server/clients"
 	"github.com/cloudradar-monitoring/rport/server/validation"
 	"github.com/cloudradar-monitoring/rport/share/models"
 	"github.com/cloudradar-monitoring/rport/share/ws"
 )
 
-var (
-	ErrRequestIncludesMultipleTargetingParams = errors.New("multiple targeting options are not supported. Please specify only one")
-	ErrRequestMissingTargetingParams          = errors.New("please specify targeting options, such as client ids, groups ids or tags")
-	ErrMissingTagsInMultiJobRequest           = errors.New("please specify tags in the tags list")
-)
-
-type TargetingParams interface {
-	GetClientIDs() (ids []string)
-	GetGroupIDs() (ids []string)
-	GetTags() (tags []string)
-}
-
 func (al *APIListener) handleCommandsExecutionWS(
 	ctx context.Context,
 	uiConnTS *ws.ConcurrentWebSocket,
 	inboundMsg *jobs.MultiJobRequest,
-	clientsInGroupsCount int,
 	auditLogEntry *auditlog.Entry,
 ) {
 	if inboundMsg.Command == "" {
@@ -46,20 +30,6 @@ func (al *APIListener) handleCommandsExecutionWS(
 
 	if inboundMsg.TimeoutSec <= 0 {
 		inboundMsg.TimeoutSec = al.config.Server.RunRemoteCmdTimeoutSec
-	}
-
-	if !hasClientTags(inboundMsg) {
-		errTitle := validateNonClientsTagTargeting(inboundMsg, clientsInGroupsCount, inboundMsg.OrderedClients, 2)
-		if errTitle != "" {
-			uiConnTS.WriteError(errTitle, nil)
-			return
-		}
-	} else {
-		errTitle := validateClientTagsTargeting(inboundMsg.OrderedClients)
-		if errTitle != "" {
-			uiConnTS.WriteError(errTitle, nil)
-			return
-		}
 	}
 
 	curUser, err := al.getUserModelForAuth(ctx)
@@ -223,48 +193,4 @@ func (al *APIListener) handleCommandsExecutionWS(
 
 	al.Debugf("Message received: type %v, msg %s", mt, message)
 	uiConnTS.Close()
-}
-
-func checkTargetingParams(params TargetingParams) (errTitle string, err error) {
-	if params.GetClientIDs() == nil && params.GetGroupIDs() == nil && params.GetTags() == nil {
-		return "Missing targeting parameters.", ErrRequestMissingTargetingParams
-	}
-	if params.GetClientIDs() != nil && params.GetTags() != nil ||
-		params.GetGroupIDs() != nil && params.GetTags() != nil {
-		return "Multiple targeting parameters.", ErrRequestIncludesMultipleTargetingParams
-	}
-	tags := params.GetTags()
-	if tags != nil {
-		if len(tags) == 0 {
-			return "No tags specified.", ErrMissingTagsInMultiJobRequest
-		}
-	}
-	return "", nil
-}
-
-func validateNonClientsTagTargeting(params TargetingParams, groupClientsCount int, orderedClients []*clients.Client, minClients int) (errTitle string) {
-	if len(params.GetGroupIDs()) > 0 && groupClientsCount == 0 && len(params.GetClientIDs()) == 0 {
-		return "No active clients belong to the selected group(s)."
-	}
-
-	if len(params.GetClientIDs()) < minClients && groupClientsCount == 0 {
-		return fmt.Sprintf("At least %d clients should be specified.", minClients)
-	}
-
-	if orderedClients != nil && len(orderedClients) == 0 {
-		return fmt.Sprintf("At least %d clients should be specified.", minClients)
-	}
-	return ""
-}
-
-func validateClientTagsTargeting(orderedClients []*clients.Client) (errTitle string) {
-	minClients := 1
-	if orderedClients == nil || len(orderedClients) < minClients {
-		return fmt.Sprintf("At least %d client should be specified.", minClients)
-	}
-	return ""
-}
-
-func hasClientTags(params TargetingParams) (has bool) {
-	return params.GetTags() != nil
 }

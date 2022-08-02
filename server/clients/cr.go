@@ -92,20 +92,25 @@ func (s *ClientRepository) Delete(client *Client) error {
 	return nil
 }
 
-func (s *ClientRepository) GetActiveByTags(tags []string, operator string) (matchingClients []*Client, err error) {
-	activeClients := s.GetAllActive()
-	if strings.ToUpper(operator) == "AND" {
-		matchingClients = findMatchingANDClients(activeClients, tags)
+func (s *ClientRepository) GetClientsByTag(tags []string, operator string, allowDisconnected bool) (matchingClients []*Client, err error) {
+	var availableClients []*Client
+	if allowDisconnected {
+		availableClients, err = s.GetAll()
 	} else {
-		matchingClients = findMatchingORClients(activeClients, tags)
+		availableClients = s.GetAllActive()
+	}
+	if err == nil && strings.ToUpper(operator) == "AND" {
+		matchingClients = findMatchingANDClients(availableClients, tags)
+	} else {
+		matchingClients = findMatchingORClients(availableClients, tags)
 	}
 
-	return matchingClients, nil
+	return matchingClients, err
 }
 
-func findMatchingANDClients(activeClients []*Client, tags []string) (matchingClients []*Client) {
+func findMatchingANDClients(availableClients []*Client, tags []string) (matchingClients []*Client) {
 	matchingClients = make([]*Client, 0, 64)
-	for _, cl := range activeClients {
+	for _, cl := range availableClients {
 		clientTags := cl.Tags
 		foundCount := 0
 		for _, tag := range tags {
@@ -123,9 +128,9 @@ func findMatchingANDClients(activeClients []*Client, tags []string) (matchingCli
 	return matchingClients
 }
 
-func findMatchingORClients(activeClients []*Client, tags []string) (matchingClients []*Client) {
+func findMatchingORClients(availableClients []*Client, tags []string) (matchingClients []*Client) {
 	matchingClients = make([]*Client, 0, 64)
-	for _, cl := range activeClients {
+	for _, cl := range availableClients {
 		clientTags := cl.Tags
 	nextClientForOR:
 		for _, clTag := range clientTags {

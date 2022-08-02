@@ -32,6 +32,10 @@ func (req *MultiJobRequest) GetGroupIDs() (ids []string) {
 	return req.GroupIDs
 }
 
+func (req *MultiJobRequest) GetClientTags() (clientTags *models.JobClientTags) {
+	return req.ClientTags
+}
+
 func (req *MultiJobRequest) GetTags() (ids []string) {
 	if req.ClientTags == nil {
 		return nil

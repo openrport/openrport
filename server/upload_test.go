@@ -207,7 +207,8 @@ func TestHandleFileUploads(t *testing.T) {
 				},
 			},
 			wantClientInputFile: &models.UploadedFile{},
-			wantErrTitle:        "multiple targeting options are not supported. Please specify only one",
+			wantErrTitle:        "Multiple targeting parameters.",
+			wantErrDetail:       "multiple targeting options are not supported. Please specify only one",
 		},
 		{
 			name:          "send file failed, missing tags element",
@@ -233,7 +234,8 @@ func TestHandleFileUploads(t *testing.T) {
 				},
 			},
 			wantClientInputFile: &models.UploadedFile{},
-			wantErrTitle:        "please specify targeting options, such as client ids, groups ids or tags",
+			wantErrTitle:        "Missing targeting parameters.",
+			wantErrDetail:       "please specify targeting options, such as client ids, groups ids or tags",
 		},
 		{
 			name:          "send file failed, empty tags",
@@ -260,7 +262,8 @@ func TestHandleFileUploads(t *testing.T) {
 				},
 			},
 			wantClientInputFile: &models.UploadedFile{},
-			wantErrTitle:        "please specify tags in the tags list",
+			wantErrTitle:        "No tags specified.",
+			wantErrDetail:       "please specify tags in the tags list",
 		},
 		{
 			name:          "send file denied, bad user rights",
