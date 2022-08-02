@@ -95,9 +95,9 @@ func (as *APIService) CheckPermission(user *User, permission string) error {
 
 func (as *APIService) GetEffectiveUserPermissions(user *User) (map[string]bool, error) {
 	if !as.SupportsGroupPermissions() {
-		return CreateDefaultPermissions(true), nil
+		return NewPermissions(AllPermissions...).All(), nil
 	}
-	permissions := CreateDefaultPermissions(false)
+	permissions := NewPermissions().All()
 
 	for _, groupName := range user.Groups {
 		group, err := as.Provider.GetGroup(groupName)

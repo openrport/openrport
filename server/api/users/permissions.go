@@ -51,14 +51,6 @@ func (permissions Permissions) All() map[string]bool {
 	return result
 }
 
-func CreateDefaultPermissions(set bool) map[string]bool {
-	result := make(map[string]bool)
-	for _, p := range AllPermissions {
-		result[p] = set
-	}
-	return result
-}
-
 func (permissions Permissions) Has(p string) bool {
 	if permissions.data == nil {
 		return false
