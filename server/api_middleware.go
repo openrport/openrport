@@ -27,8 +27,8 @@ func (al *APIListener) wrapStaticPassModeMiddleware(next http.HandlerFunc) http.
 	}
 }
 
-func (al *APIListener) wrapAdminAccessMiddleware(next http.HandlerFunc) http.HandlerFunc {
-	return func(w http.ResponseWriter, r *http.Request) {
+func (al *APIListener) wrapAdminAccessMiddleware(next http.Handler) http.Handler {
+	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		if al.insecureForTests {
 			next.ServeHTTP(w, r)
 			return
@@ -52,7 +52,7 @@ func (al *APIListener) wrapAdminAccessMiddleware(next http.HandlerFunc) http.Han
 			),
 			HTTPStatus: http.StatusForbidden,
 		})
-	}
+	})
 }
 
 func (al *APIListener) wrapTotPEnabledMiddleware(next http.HandlerFunc) http.HandlerFunc {
@@ -66,36 +66,38 @@ func (al *APIListener) wrapTotPEnabledMiddleware(next http.HandlerFunc) http.Han
 	}
 }
 
-func (al *APIListener) wrapWithAuthMiddleware(f http.Handler, isBearerOnly bool) http.HandlerFunc {
-	return func(w http.ResponseWriter, r *http.Request) {
-		authorized, username, err := al.lookupUser(r, isBearerOnly)
-		if err != nil {
-			al.Logf(logger.LogLevelError, err.Error())
-			if errors.Is(err, ErrTooManyRequests) {
-				al.jsonErrorResponse(w, http.StatusTooManyRequests, err)
+func (al *APIListener) wrapWithAuthMiddleware(isBearerOnly bool) mux.MiddlewareFunc {
+	return func(f http.Handler) http.Handler {
+		return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+			authorized, username, err := al.lookupUser(r, isBearerOnly)
+			if err != nil {
+				al.Logf(logger.LogLevelError, err.Error())
+				if errors.Is(err, ErrTooManyRequests) {
+					al.jsonErrorResponse(w, http.StatusTooManyRequests, err)
+					return
+				}
+				al.jsonErrorResponse(w, http.StatusInternalServerError, err)
 				return
 			}
-			al.jsonErrorResponse(w, http.StatusInternalServerError, err)
-			return
-		}
 
-		if !al.handleBannedIPs(r, authorized) {
-			return
-		}
+			if !al.handleBannedIPs(r, authorized) {
+				return
+			}
 
-		if !authorized || username == "" {
-			al.bannedUsers.Add(username)
-			al.jsonErrorResponse(w, http.StatusUnauthorized, errors.New("unauthorized"))
-			return
-		}
+			if !authorized || username == "" {
+				al.bannedUsers.Add(username)
+				al.jsonErrorResponse(w, http.StatusUnauthorized, errors.New("unauthorized"))
+				return
+			}
 
-		newCtx := api.WithUser(r.Context(), username)
-		f.ServeHTTP(w, r.WithContext(newCtx))
+			newCtx := api.WithUser(r.Context(), username)
+			f.ServeHTTP(w, r.WithContext(newCtx))
+		})
 	}
 }
 
-func (al *APIListener) wrapClientAccessMiddleware(next http.HandlerFunc) http.HandlerFunc {
-	return func(w http.ResponseWriter, r *http.Request) {
+func (al *APIListener) wrapClientAccessMiddleware(next http.Handler) http.Handler {
+	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		if al.insecureForTests {
 			next.ServeHTTP(w, r)
 			return
@@ -121,5 +123,30 @@ func (al *APIListener) wrapClientAccessMiddleware(next http.HandlerFunc) http.Ha
 		}
 
 		next.ServeHTTP(w, r)
+	})
+}
+
+func (al *APIListener) permissionsMiddleware(permission string) mux.MiddlewareFunc {
+	return func(next http.Handler) http.Handler {
+		return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+			if al.insecureForTests {
+				next.ServeHTTP(w, r)
+				return
+			}
+
+			curUser, err := al.getUserModelForAuth(r.Context())
+			if err != nil {
+				al.jsonError(w, err)
+				return
+			}
+
+			err = al.userService.CheckPermission(curUser, permission)
+			if err != nil {
+				al.jsonError(w, err)
+				return
+			}
+
+			next.ServeHTTP(w, r)
+		})
 	}
 }

@@ -34,8 +34,13 @@ func (dpm *ProviderMock) ListGroups() ([]Group, error) {
 	return dpm.GroupsToGive, dpm.ErrorToGiveOnRead
 }
 
-func (dpm *ProviderMock) GetGroup(string) (Group, error) {
-	return dpm.GroupsToGive[0], dpm.ErrorToGiveOnRead
+func (dpm *ProviderMock) GetGroup(name string) (Group, error) {
+	for _, g := range dpm.GroupsToGive {
+		if g.Name == name {
+			return g, dpm.ErrorToGiveOnRead
+		}
+	}
+	return NewGroup(name), dpm.ErrorToGiveOnRead
 }
 
 func (dpm *ProviderMock) UpdateGroup(string, Group) error {
@@ -466,4 +471,74 @@ func TestExistsUserGroups(t *testing.T) {
 
 	gotErr5 := service.ExistGroups([]string{"group1"})
 	require.EqualError(t, gotErr5, "some error")
+}
+
+func TestCheckPermission(t *testing.T) {
+	testCases := []struct {
+		Name       string
+		Permission string
+		User       *User
+		Expected   bool
+	}{
+		{
+			Name:       "no groups",
+			Permission: PermissionCommands,
+			User:       &User{},
+			Expected:   false,
+		},
+		{
+			Name:       "no permissions",
+			Permission: PermissionCommands,
+			User: &User{
+				Groups: []string{"group-no-permissions"},
+			},
+			Expected: false,
+		},
+		{
+			Name:       "admin group",
+			Permission: PermissionCommands,
+			User: &User{
+				Groups: []string{"group-no-permissions", Administrators},
+			},
+			Expected: true,
+		},
+		{
+			Name:       "has permission",
+			Permission: PermissionCommands,
+			User: &User{
+				Groups: []string{"group-commands", "group-no-permissions"},
+			},
+			Expected: true,
+		},
+		{
+			Name:       "has other permission",
+			Permission: PermissionScheduler,
+			User: &User{
+				Groups: []string{"group-commands", "group-no-permissions"},
+			},
+			Expected: false,
+		},
+	}
+
+	for _, tc := range testCases {
+		tc := tc
+		t.Run(tc.Name, func(t *testing.T) {
+			t.Parallel()
+
+			givenGroups := []Group{NewGroup("group-no-permissions"), NewGroup("group-commands", PermissionCommands), AdministratorsGroup}
+			db := &ProviderMock{
+				GroupsToGive: givenGroups,
+			}
+			service := APIService{
+				Provider: db,
+			}
+
+			err := service.CheckPermission(tc.User, tc.Permission)
+			if tc.Expected {
+				assert.NoError(t, err)
+			} else {
+				assert.Error(t, err)
+			}
+		})
+	}
 }
