@@ -103,6 +103,8 @@ post:
                 clients that belong to given group(s)
               items:
                 type: string
+            tags:
+              $ref: ../components/schemas/Tags.yaml            
             interpreter:
               type: string
               description: >-

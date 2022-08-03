@@ -31,6 +31,8 @@ post:
               description: >-
                 ID of a client group where the file should be placed. You can
                 repeat 'group_id' parameter to indicate multiple groups
+            tags:
+              $ref: ../components/schemas/Tags.yaml
             dest:
               type: string
               description: >-

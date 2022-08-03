@@ -1,0 +1,14 @@
+type: object
+description: >-
+  list of client tags to target for execution, plus an operator either OR (for 
+  any matching tags) or AND (for all tags must match). Tags cannot be used in 
+  conjunction with client_ids or group_ids.
+properties:
+  tags:
+    type: array
+    description: list of tags to use for the targeting
+    items:
+      type: string
+  operator:
+    type: string
+    description: must be either OR or AND. if omitted will default to OR.
