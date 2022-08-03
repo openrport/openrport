@@ -1,4 +1,5 @@
 get:
+  operationId: UserGroupGet
   tags:
     - User Groups
   summary: Get user group
@@ -19,7 +20,14 @@ get:
             properties:
               data:
                 $ref: ../components/schemas/UserGroup.yaml
+    400:
+      description: Invalid request parameters
+      content:
+        application/json:
+          schema:
+            $ref: ../components/schemas/ErrorPayload.yaml
 put:
+  operationId: UserGroupPut
   tags:
     - User Groups
   summary: Update user group
@@ -46,7 +54,14 @@ put:
             properties:
               data:
                 $ref: ../components/schemas/UserGroup.yaml
+    400:
+      description: Invalid request parameters
+      content:
+        application/json:
+          schema:
+            $ref: ../components/schemas/ErrorPayload.yaml
 delete:
+  operationId: UserGroupDelete
   tags:
     - User Groups
   summary: Delete user group
@@ -61,3 +76,9 @@ delete:
   responses:
     204:
       description: Successful Operation
+    400:
+      description: Invalid request parameters
+      content:
+        application/json:
+          schema:
+            $ref: ../components/schemas/ErrorPayload.yaml

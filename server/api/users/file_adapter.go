@@ -190,3 +190,7 @@ func (fa *FileAdapter) Add(dataToChange *User) error {
 func (fa *FileAdapter) Type() enums.ProviderSource {
 	return enums.ProviderSourceFile
 }
+
+func (fa *FileAdapter) SupportsGroupPermissions() bool {
+	return false
+}

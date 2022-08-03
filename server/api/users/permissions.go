@@ -14,6 +14,8 @@ const (
 	PermissionVault      = "vault"
 	PermissionScheduler  = "scheduler"
 	PermissionMonitoring = "monitoring"
+	PermissionUploads    = "uploads"
+	PermissionsAuditLog  = "auditlog"
 )
 
 var AllPermissions = []string{
@@ -23,6 +25,8 @@ var AllPermissions = []string{
 	PermissionVault,
 	PermissionScheduler,
 	PermissionMonitoring,
+	PermissionUploads,
+	PermissionsAuditLog,
 }
 
 type Permissions struct {
@@ -58,14 +62,25 @@ func (permissions *Permissions) Scan(value interface{}) error {
 	if permissions == nil {
 		return errors.New("'permissions' cannot be nil")
 	}
-	valueStr, ok := value.(string)
-	if !ok {
-		return fmt.Errorf("expected to have string, got %T", value)
+
+	var err error
+	switch d := value.(type) {
+	case string:
+		// Handle sqlite json decoding
+		if d == "" {
+			return nil
+		}
+		err = json.Unmarshal([]byte(d), &permissions.data)
+	case []uint8:
+		// Handle MySQL json decoding
+		if len(d) == 0 {
+			return nil
+		}
+		err = json.Unmarshal(d, &permissions.data)
+	default:
+		return fmt.Errorf("failed to decode json column: unknown comlumn type %T", value)
 	}
-	if valueStr == "" {
-		return nil
-	}
-	err := json.Unmarshal([]byte(valueStr), &permissions.data)
+
 	if err != nil {
 		return fmt.Errorf("failed to decode 'permissions' field: %v", err)
 	}

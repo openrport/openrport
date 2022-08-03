@@ -26,7 +26,7 @@ func NewFileManager(fileName string) *FileManager {
 	}
 }
 
-// GetUsersFromFile returns users from a given file.
+// ReadUsersFromFile returns users from a given file.
 func (fm *FileManager) ReadUsersFromFile() ([]*User, error) {
 	fm.FileAccessLock.Lock()
 	defer fm.FileAccessLock.Unlock()

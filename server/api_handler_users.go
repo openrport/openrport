@@ -11,9 +11,11 @@ import (
 )
 
 type UserPayload struct {
-	Username    string   `json:"username"`
-	Groups      []string `json:"groups"`
-	TwoFASendTo string   `json:"two_fa_send_to"`
+	Username                 string          `json:"username"`
+	Groups                   []string        `json:"groups"`
+	TwoFASendTo              string          `json:"two_fa_send_to"`
+	EffectiveUserPermissions map[string]bool `json:"effective_user_permissions"`
+	GroupPermissionsEnabled  bool            `json:"group_permissions_enabled"`
 }
 
 func (al *APIListener) handleGetUsers(w http.ResponseWriter, req *http.Request) {

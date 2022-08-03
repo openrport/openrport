@@ -1,4 +1,5 @@
 get:
+  operationId: UserGroupsGet
   tags:
     - User Groups
   summary: List user groups
@@ -14,3 +15,9 @@ get:
                 type: array
                 items:
                   $ref: ../components/schemas/UserGroup.yaml
+    '400':
+      description: Invalid request parameters
+      content:
+        application/json:
+          schema:
+            $ref: ../components/schemas/ErrorPayload.yaml
