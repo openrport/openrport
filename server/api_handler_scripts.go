@@ -68,7 +68,7 @@ func (al *APIListener) handlePostMultiClientScript(w http.ResponseWriter, req *h
 		return
 	}
 
-	orderedClients, _, err := al.getOrderedClientsWithValidation(ctx, inboundMsg, maxClientsForGeneralTargeting)
+	orderedClients, _, err := al.getOrderedClientsWithValidation(ctx, inboundMsg)
 	if err != nil {
 		al.jsonErrorResponseWithAPIError(w, err)
 		return
@@ -140,7 +140,7 @@ func (al *APIListener) handleScriptsWS(w http.ResponseWriter, req *http.Request)
 		return
 	}
 
-	orderedClients, _, responseErr := al.getOrderedClientsWithValidation(ctx, inboundMsg, maxClientsForGeneralTargeting)
+	orderedClients, _, responseErr := al.getOrderedClientsWithValidation(ctx, inboundMsg)
 	if responseErr != nil {
 		uiConnTS.WriteError("", responseErr)
 		return

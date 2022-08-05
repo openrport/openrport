@@ -221,11 +221,6 @@ func TestHandleFileUploads(t *testing.T) {
 			fileContent:   "some content",
 			cl:            clients.New(t).ID("22114341234").Build(),
 			formParts: map[string][]string{
-				"tags": {
-					`{
-						"operator": "OR"
-					}`,
-				},
 				"dest": {
 					"/destination/myfile.txt",
 				},

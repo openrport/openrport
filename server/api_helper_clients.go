@@ -13,8 +13,7 @@ import (
 )
 
 const (
-	maxClientsForGeneralTargeting = 2
-	maxClientsForFileUploads      = 1
+	minClientsForTargeting = 1
 )
 
 var (
@@ -32,7 +31,6 @@ type TargetingParams interface {
 func (al *APIListener) getOrderedClientsWithValidation(
 	ctx context.Context,
 	params TargetingParams,
-	minClients int,
 ) (targetedClients []*clients.Client, groupClientsCount int, err error) {
 	err = checkTargetingParams(params)
 	if err != nil {
@@ -46,7 +44,7 @@ func (al *APIListener) getOrderedClientsWithValidation(
 			return nil, 0, err
 		}
 
-		err := validateNonClientsTagTargeting(params, groupClientsCount, targetedClients, minClients)
+		err := validateNonClientsTagTargeting(params, groupClientsCount, targetedClients)
 		if err != nil {
 			return nil, 0, err
 		}
@@ -211,7 +209,7 @@ func checkTargetingParams(params TargetingParams) (err error) {
 	return nil
 }
 
-func validateNonClientsTagTargeting(params TargetingParams, groupClientsCount int, orderedClients []*clients.Client, minClients int) (err error) {
+func validateNonClientsTagTargeting(params TargetingParams, groupClientsCount int, orderedClients []*clients.Client) (err error) {
 	if len(params.GetGroupIDs()) > 0 && groupClientsCount == 0 && len(params.GetClientIDs()) == 0 {
 		return errors2.APIError{
 			Err:        errors.New("no active clients belong to the selected group(s)"),
@@ -219,16 +217,16 @@ func validateNonClientsTagTargeting(params TargetingParams, groupClientsCount in
 		}
 	}
 
-	if len(params.GetClientIDs()) < minClients && groupClientsCount == 0 {
+	if len(params.GetClientIDs()) < minClientsForTargeting && groupClientsCount == 0 {
 		return errors2.APIError{
-			Err:        fmt.Errorf("at least %d clients should be specified", minClients),
+			Err:        errors.New("at least 1 client should be specified"),
 			HTTPStatus: http.StatusBadRequest,
 		}
 	}
 
 	if orderedClients != nil && len(orderedClients) == 0 {
 		return errors2.APIError{
-			Err:        fmt.Errorf("at least %d clients should be specified", minClients),
+			Err:        errors.New("at least 1 client should be specified"),
 			HTTPStatus: http.StatusBadRequest,
 		}
 	}
@@ -236,10 +234,9 @@ func validateNonClientsTagTargeting(params TargetingParams, groupClientsCount in
 }
 
 func validateClientTagsTargeting(orderedClients []*clients.Client) (err error) {
-	minClients := 1
-	if orderedClients == nil || len(orderedClients) < minClients {
+	if orderedClients == nil || len(orderedClients) < minClientsForTargeting {
 		return errors2.APIError{
-			Err:        fmt.Errorf("At least %d client should be specified.", minClients),
+			Err:        errors.New("at least 1 client should be specified"),
 			HTTPStatus: http.StatusBadRequest,
 		}
 	}

@@ -120,7 +120,7 @@ func TestHandlePostScheduleMultiClientJobWithTags(t *testing.T) {
 			}
 		}`,
 			wantStatusCode: http.StatusBadRequest,
-			wantErrDetail:  "At least 1 client should be specified.",
+			wantErrDetail:  "at least 1 client should be specified",
 		},
 		{
 			name: "error when group ids and tags included",
@@ -348,7 +348,7 @@ func TestHandlePostUpdateScheduleMultiClientJobWithTags(t *testing.T) {
 			}
 		}`,
 			wantStatusCode: http.StatusBadRequest,
-			wantErrDetail:  "At least 1 client should be specified.",
+			wantErrDetail:  "at least 1 client should be specified",
 		},
 		{
 			name: "error when group ids and tags included",

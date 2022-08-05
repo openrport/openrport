@@ -588,17 +588,6 @@ func TestHandlePostMultiClientCommand(t *testing.T) {
 			wantErrDetail:  ErrRequestMissingTargetingParams.Error(),
 		},
 		{
-			name: "only one client",
-			requestBody: `
-		{
-			"command": "/bin/date;foo;whoami",
-			"timeout_sec": 30,
-			"client_ids": ["client-1"]
-		}`,
-			wantStatusCode: http.StatusBadRequest,
-			wantErrDetail:  "at least 2 clients should be specified",
-		},
-		{
 			name: "disconnected client",
 			requestBody: `
 		{
@@ -713,6 +702,7 @@ func TestHandlePostMultiClientCommand(t *testing.T) {
 				gotMultiJob, err := jp.GetMultiJob(ctx, gotJID)
 				require.NoError(t, err)
 				require.NotNil(t, gotMultiJob)
+				// TODO: this checking assumes 2 jobs, which isn't very flexible. rework as part of the test refactoring.
 				if tc.abortOnErr {
 					require.Len(t, gotMultiJob.Jobs, 1)
 				} else {
@@ -754,7 +744,7 @@ func TestHandlePostMultiClientCommandWithGroupIDs(t *testing.T) {
 		wantErrDetail  string
 	}{
 		{
-			name: "valid when group id with at least 2 clients",
+			name: "valid when group id with 2 clients",
 			requestBody: `{
 				"command": "/bin/date;foo;whoami",
 				"timeout_sec": 30,
@@ -775,7 +765,7 @@ func TestHandlePostMultiClientCommandWithGroupIDs(t *testing.T) {
 				"execute_concurrently": false
 			}`,
 			wantStatusCode: http.StatusBadRequest,
-			wantErrDetail:  "at least 2 clients should be specified",
+			wantErrDetail:  "at least 1 client should be specified",
 		},
 		{
 			name: "valid when group id with 1 client",
@@ -994,7 +984,7 @@ func TestHandlePostMultiClientCommandWithTags(t *testing.T) {
 			}
 		}`,
 			wantStatusCode: http.StatusBadRequest,
-			wantErrDetail:  "At least 1 client should be specified.",
+			wantErrDetail:  "at least 1 client should be specified",
 		},
 		{
 			name: "error when group ids and tags included",
@@ -1211,7 +1201,7 @@ func TestHandlePostMultiClientWSCommandWithTags(t *testing.T) {
 			}
 		}`,
 			shouldSucceed: false,
-			wantErrDetail: "At least 1 client should be specified.",
+			wantErrDetail: "at least 1 client should be specified",
 		},
 		{
 			name: "error when client ids and tags included",
@@ -1440,7 +1430,7 @@ func TestHandlePostMultiClientScriptWithTags(t *testing.T) {
 			}
 		}`,
 			wantStatusCode: http.StatusBadRequest,
-			wantErrDetail:  "At least 1 client should be specified.",
+			wantErrDetail:  "at least 1 client should be specified",
 		},
 		{
 			name: "error when client ids and tags included",
@@ -1678,7 +1668,7 @@ func TestHandlePostMultiClientWSScriptWithTags(t *testing.T) {
 			}
 		}`,
 			shouldSucceed: false,
-			wantErrDetail: "At least 1 client should be specified.",
+			wantErrDetail: "at least 1 client should be specified",
 		},
 		{
 			name: "error when client ids and tags included",

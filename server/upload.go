@@ -320,7 +320,7 @@ func (al *APIListener) uploadRequestFromRequest(req *http.Request) (ur *UploadRe
 
 	ur.ClientTags = clientTags
 
-	orderedClients, clientsInGroupsCount, err := al.getOrderedClientsWithValidation(req.Context(), ur, maxClientsForFileUploads)
+	orderedClients, clientsInGroupsCount, err := al.getOrderedClientsWithValidation(req.Context(), ur)
 	if err != nil {
 		return nil, err
 	}
