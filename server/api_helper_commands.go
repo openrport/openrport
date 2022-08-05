@@ -88,7 +88,7 @@ func (al *APIListener) handleCommandsExecutionWS(
 			return
 		}
 
-		al.Debugf("Multi-client Job[id=%q] created to execute remote command on clients %s, groups %s tags %s: %q.", multiJob.JID, inboundMsg.ClientIDs, inboundMsg.GroupIDs, inboundMsg.GetTags(), inboundMsg.Command)
+		al.Debugf("Multi-client Job[id=%q] created to execute remote command on clients %s, groups %s tags %s: %q.", multiJob.JID, inboundMsg.ClientIDs, inboundMsg.GroupIDs, jobs.MakeClientTagsAsString(inboundMsg.GetClientTags()), inboundMsg.Command)
 
 		uiConnTS.SetWritesBeforeClose(len(inboundMsg.OrderedClients))
 
@@ -147,6 +147,7 @@ func (al *APIListener) handleCommandsExecutionWS(
 					continue
 				}
 
+				// TODO: review use of this flag as a testing hack. works but not too nice.
 				if al.insecureForTests {
 					continue
 				}

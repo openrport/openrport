@@ -11,7 +11,6 @@ import (
 	errors2 "github.com/cloudradar-monitoring/rport/server/api/errors"
 	"github.com/cloudradar-monitoring/rport/server/api/jobs/schedule"
 	"github.com/cloudradar-monitoring/rport/server/auditlog"
-	"github.com/cloudradar-monitoring/rport/server/clients"
 )
 
 func (al *APIListener) handleListSchedules(w http.ResponseWriter, req *http.Request) {
@@ -39,11 +38,9 @@ func (al *APIListener) handlePostSchedules(w http.ResponseWriter, req *http.Requ
 		return
 	}
 
-	var orderedClients []*clients.Client
-
-	orderedClients, _, isBadRequest, errTitle, err := al.getOrderedClientsWithValidation(ctx, &scheduleInput, 2)
+	orderedClients, _, err := al.getOrderedClientsWithValidation(ctx, &scheduleInput, maxClientsForGeneralTargeting)
 	if err != nil {
-		al.makeJSONErr(w, err, errTitle, isBadRequest)
+		al.jsonErrorResponseWithAPIError(w, err)
 		return
 	}
 
@@ -91,11 +88,9 @@ func (al *APIListener) handleUpdateSchedule(w http.ResponseWriter, req *http.Req
 		return
 	}
 
-	var orderedClients []*clients.Client
-
-	orderedClients, _, isBadRequest, errTitle, err := al.getOrderedClientsWithValidation(ctx, &scheduleInput, 2)
+	orderedClients, _, err := al.getOrderedClientsWithValidation(ctx, &scheduleInput, maxClientsForGeneralTargeting)
 	if err != nil {
-		al.makeJSONErr(w, err, errTitle, isBadRequest)
+		al.jsonErrorResponseWithAPIError(w, err)
 		return
 	}
 

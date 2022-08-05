@@ -1,6 +1,9 @@
 package jobs
 
 import (
+	"fmt"
+	"strings"
+
 	"github.com/cloudradar-monitoring/rport/server/clients"
 	"github.com/cloudradar-monitoring/rport/share/models"
 )
@@ -36,9 +39,24 @@ func (req *MultiJobRequest) GetClientTags() (clientTags *models.JobClientTags) {
 	return req.ClientTags
 }
 
-func (req *MultiJobRequest) GetTags() (ids []string) {
-	if req.ClientTags == nil {
-		return nil
+// TODO: add some unit tests. not high priority but good to get done.
+func MakeClientTagsAsString(jobTags *models.JobClientTags) (clientTags string) {
+	if jobTags == nil {
+		return "[]"
 	}
-	return req.ClientTags.Tags
+	numTags := len(jobTags.Tags)
+	if numTags == 0 {
+		return "[]"
+	}
+	tagsList := strings.Join(jobTags.Tags, ",")
+	if numTags == 1 {
+		clientTags = fmt.Sprintf("[%s]", tagsList)
+	} else {
+		operator := jobTags.Operator
+		if operator == "" {
+			operator = "OR"
+		}
+		clientTags = fmt.Sprintf("[%s: %s]", operator, tagsList)
+	}
+	return clientTags
 }

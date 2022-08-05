@@ -41,13 +41,6 @@ func (s *Schedule) GetClientTags() (clientTags *models.JobClientTags) {
 	return s.ClientTags
 }
 
-func (s *Schedule) GetTags() (tags []string) {
-	if s.Details.ClientTags == nil {
-		return nil
-	}
-	return s.Details.ClientTags.Tags
-}
-
 // DBSchedule is used for saving to database and has details in one json db column
 type DBSchedule struct {
 	Base

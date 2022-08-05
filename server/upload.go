@@ -10,7 +10,8 @@ import (
 	"sync"
 	"time"
 
-	errors2 "github.com/cloudradar-monitoring/rport/share/errors"
+	errors2 "github.com/cloudradar-monitoring/rport/server/api/errors"
+	errors3 "github.com/cloudradar-monitoring/rport/share/errors"
 
 	"github.com/cloudradar-monitoring/rport/server/api"
 
@@ -51,17 +52,10 @@ func (ur UploadRequest) GetClientTags() (clientTags *models.JobClientTags) {
 	return ur.ClientTags
 }
 
-func (ur UploadRequest) GetTags() (tags []string) {
-	if ur.ClientTags == nil {
-		return nil
-	}
-	return ur.ClientTags.Tags
-}
-
 func (al *APIListener) handleFileUploads(w http.ResponseWriter, req *http.Request) {
-	uploadRequest, isBadRequest, errTitle, err := al.uploadRequestFromRequest(req)
+	uploadRequest, err := al.uploadRequestFromRequest(req)
 	if err != nil {
-		al.makeJSONErr(w, err, errTitle, isBadRequest)
+		al.jsonErrorResponseWithAPIError(w, err)
 		return
 	}
 
@@ -83,7 +77,7 @@ func (al *APIListener) handleFileUploads(w http.ResponseWriter, req *http.Reques
 
 	uploadRequest.SourceFilePath = al.genFilePath(uploadRequest.ID)
 
-	err = validateUploadRequest(uploadRequest)
+	err = uploadRequest.Validate()
 	if err != nil {
 		al.jsonErrorResponseWithTitle(w, http.StatusBadRequest, err.Error())
 		return
@@ -272,7 +266,7 @@ func (al *APIListener) sendFileToClient(wg *sync.WaitGroup, file *models.Uploade
 
 	if cl.ClientConfiguration != nil && !cl.ClientConfiguration.FileReceptionConfig.Enabled {
 		resChan <- &uploadResult{
-			err:    errors2.ErrUploadsDisabled,
+			err:    errors3.ErrUploadsDisabled,
 			client: cl,
 			resp:   nil,
 		}
@@ -300,14 +294,17 @@ func (al *APIListener) notifyUploadEventListeners(msg interface{}) {
 	})
 }
 
-func (al *APIListener) uploadRequestFromRequest(req *http.Request) (ur *UploadRequest, isBadRequest bool, errTitle string, err error) {
+func (al *APIListener) uploadRequestFromRequest(req *http.Request) (ur *UploadRequest, err error) {
 	ur = &UploadRequest{
 		UploadedFile: &models.UploadedFile{},
 	}
 
 	err = req.ParseMultipartForm(uploadBufSize)
 	if err != nil {
-		return nil, false, "", err
+		return nil, &errors2.APIError{
+			Err:        err,
+			HTTPStatus: http.StatusBadRequest,
+		}
 	}
 
 	ur.ClientIDs = req.MultipartForm.Value["client_id"]
@@ -315,14 +312,17 @@ func (al *APIListener) uploadRequestFromRequest(req *http.Request) (ur *UploadRe
 
 	clientTags, err := getClientTagsFromReqForm(req)
 	if err != nil {
-		return nil, false, "", err
+		return nil, &errors2.APIError{
+			Err:        err,
+			HTTPStatus: http.StatusBadRequest,
+		}
 	}
 
 	ur.ClientTags = clientTags
 
-	orderedClients, clientsInGroupsCount, isBadRequest, errTitle, err := al.getOrderedClientsWithValidation(req.Context(), ur, 1)
+	orderedClients, clientsInGroupsCount, err := al.getOrderedClientsWithValidation(req.Context(), ur, maxClientsForFileUploads)
 	if err != nil {
-		return nil, isBadRequest, errTitle, err
+		return nil, err
 	}
 
 	ur.Clients = orderedClients
@@ -330,12 +330,18 @@ func (al *APIListener) uploadRequestFromRequest(req *http.Request) (ur *UploadRe
 
 	err = ur.FromMultipartRequest(req)
 	if err != nil {
-		return nil, false, "", err
+		return nil, &errors2.APIError{
+			Err:        err,
+			HTTPStatus: http.StatusBadRequest,
+		}
 	}
 
 	ur.File, ur.FileHeader, err = req.FormFile("upload")
 	if err != nil {
-		return nil, false, "", err
+		return nil, &errors2.APIError{
+			Err:        err,
+			HTTPStatus: http.StatusBadRequest,
+		}
 	}
 
 	if ur.UploadedFile.ID == "" {
@@ -347,7 +353,7 @@ func (al *APIListener) uploadRequestFromRequest(req *http.Request) (ur *UploadRe
 		ur.UploadedFile.ID = id
 	}
 
-	return ur, false, "", nil
+	return ur, nil
 }
 
 func getClientTagsFromReqForm(req *http.Request) (clientTags *models.JobClientTags, err error) {
@@ -368,10 +374,6 @@ func getClientTagsFromReqForm(req *http.Request) (clientTags *models.JobClientTa
 	}
 
 	return clientTags, nil
-}
-
-func validateUploadRequest(ur *UploadRequest) error {
-	return ur.Validate()
 }
 
 func validateRemoteDestination(ur *UploadRequest) error {

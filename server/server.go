@@ -368,7 +368,10 @@ func (m *jobResultChanMap) Get(jobID string) chan *models.Job {
 	return m.m[jobID]
 }
 
+// TODO: only used for testing purposes. we should review the approach.
 func (m *jobResultChanMap) GetAllKeys() (jobIDs []string) {
+	m.mu.RLock()
+	defer m.mu.RUnlock()
 	jobIDs = make([]string, 0, len(m.m))
 	for k := range m.m {
 		jobIDs = append(jobIDs, k)

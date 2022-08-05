@@ -101,6 +101,8 @@ func NewSqliteProvider(db *sqlx.DB, log *logger.Logger) *SqliteProvider {
 	}
 }
 
+// TODO: this was added to support test dependencies. we could potentially remove if there's a
+// better way.
 func (p *SqliteProvider) GetDB() (db *sqlx.DB) {
 	return p.db
 }

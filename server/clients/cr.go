@@ -36,6 +36,7 @@ func NewClientRepository(initClients []*Client, keepDisconnectedClients *time.Du
 	return NewClientRepositoryWithDB(initClients, keepDisconnectedClients, nil, logger)
 }
 
+// TODO: used for test setup in two separate packages. need to review use as part of the test code refactoring.
 func NewClientRepositoryWithDB(initClients []*Client, keepDisconnectedClients *time.Duration, provider ClientProvider, logger *logger.Logger) *ClientRepository {
 	clients := make(map[string]*Client)
 	for i := range initClients {
@@ -96,32 +97,45 @@ func (s *ClientRepository) GetClientsByTag(tags []string, operator string, allow
 	var availableClients []*Client
 	if allowDisconnected {
 		availableClients, err = s.GetAll()
+		if err != nil {
+			return nil, err
+		}
 	} else {
 		availableClients = s.GetAllActive()
 	}
-	if err == nil && strings.ToUpper(operator) == "AND" {
+	if strings.EqualFold(operator, "AND") {
 		matchingClients = findMatchingANDClients(availableClients, tags)
 	} else {
 		matchingClients = findMatchingORClients(availableClients, tags)
 	}
 
-	return matchingClients, err
+	return matchingClients, nil
 }
 
 func findMatchingANDClients(availableClients []*Client, tags []string) (matchingClients []*Client) {
 	matchingClients = make([]*Client, 0, 64)
+	matchingTags := make(map[string]bool)
 	for _, cl := range availableClients {
 		clientTags := cl.Tags
-		foundCount := 0
+		// update whether tag found or not
 		for _, tag := range tags {
+			// ensure map has an entry for each desired unique tag
+			matchingTags[tag] = false
 			for _, clTag := range clientTags {
 				if tag == clTag {
-					foundCount++
+					matchingTags[tag] = true
 					continue
 				}
 			}
 		}
-		if foundCount == len(tags) {
+		// check if all tags found
+		foundCount := 0
+		for tag := range matchingTags {
+			if matchingTags[tag] {
+				foundCount++
+			}
+		}
+		if foundCount == len(matchingTags) {
 			matchingClients = append(matchingClients, cl)
 		}
 	}

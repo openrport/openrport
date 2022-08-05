@@ -596,7 +596,7 @@ func TestHandlePostMultiClientCommand(t *testing.T) {
 			"client_ids": ["client-1"]
 		}`,
 			wantStatusCode: http.StatusBadRequest,
-			wantErrTitle:   "at least 2 clients should be specified",
+			wantErrDetail:  "at least 2 clients should be specified",
 		},
 		{
 			name: "disconnected client",
@@ -698,8 +698,6 @@ func TestHandlePostMultiClientCommand(t *testing.T) {
 			if tc.wantStatusCode == http.StatusOK {
 				// wait until async task executeMultiClientJob finishes
 				<-al.testDone
-			}
-			if tc.wantErrTitle == "" {
 				// success case
 				assert.Contains(t, w.Body.String(), `{"data":{"jid":`)
 				gotResp := api.NewSuccessPayload(newJobResponse{})
@@ -777,7 +775,7 @@ func TestHandlePostMultiClientCommandWithGroupIDs(t *testing.T) {
 				"execute_concurrently": false
 			}`,
 			wantStatusCode: http.StatusBadRequest,
-			wantErrTitle:   "at least 2 clients should be specified",
+			wantErrDetail:  "at least 2 clients should be specified",
 		},
 		{
 			name: "valid when group id with 1 client",
@@ -875,10 +873,7 @@ func TestHandlePostMultiClientCommandWithGroupIDs(t *testing.T) {
 			assert.Equal(t, tc.wantStatusCode, w.Code)
 			if tc.wantStatusCode == http.StatusOK {
 				// wait until async task executeMultiClientJob finishes
-				<-al.testDone
-			}
-			if tc.wantErrTitle == "" {
-				// success case
+				<-al.testDone // success case
 				assert.Contains(t, w.Body.String(), `{"data":{"jid":`)
 				gotResp := api.NewSuccessPayload(newJobResponse{})
 				require.NoError(t, json.Unmarshal(w.Body.Bytes(), &gotResp))
@@ -999,7 +994,7 @@ func TestHandlePostMultiClientCommandWithTags(t *testing.T) {
 			}
 		}`,
 			wantStatusCode: http.StatusBadRequest,
-			wantErrTitle:   "At least 1 client should be specified.",
+			wantErrDetail:  "At least 1 client should be specified.",
 		},
 		{
 			name: "error when group ids and tags included",
@@ -1107,8 +1102,6 @@ func TestHandlePostMultiClientCommandWithTags(t *testing.T) {
 			if tc.wantStatusCode == http.StatusOK {
 				// wait until async task executeMultiClientJob finishes
 				<-al.testDone
-			}
-			if tc.wantErrTitle == "" {
 				// success case
 				assert.Contains(t, w.Body.String(), `{"data":{"jid":`)
 				gotResp := api.NewSuccessPayload(newJobResponse{})
@@ -1173,7 +1166,6 @@ func TestHandlePostMultiClientWSCommandWithTags(t *testing.T) {
 			"timeout_sec": 30
 		}`,
 			shouldSucceed: false,
-			wantErrTitle:  "Missing targeting parameters.",
 			wantErrDetail: ErrRequestMissingTargetingParams.Error(),
 		},
 		{
@@ -1205,7 +1197,6 @@ func TestHandlePostMultiClientWSCommandWithTags(t *testing.T) {
 			}
 		}`,
 			shouldSucceed: false,
-			wantErrTitle:  "No tags specified.",
 			wantErrDetail: ErrMissingTagsInMultiJobRequest.Error(),
 		},
 		{
@@ -1238,7 +1229,6 @@ func TestHandlePostMultiClientWSCommandWithTags(t *testing.T) {
 			}
 		}`,
 			shouldSucceed: false,
-			wantErrTitle:  "Multiple targeting parameters.",
 			wantErrDetail: ErrRequestIncludesMultipleTargetingParams.Error(),
 		},
 		{
@@ -1257,7 +1247,6 @@ func TestHandlePostMultiClientWSCommandWithTags(t *testing.T) {
 			}
 		}`,
 			shouldSucceed: false,
-			wantErrTitle:  "Multiple targeting parameters.",
 			wantErrDetail: ErrRequestIncludesMultipleTargetingParams.Error(),
 		},
 	}
@@ -1355,6 +1344,8 @@ func TestHandlePostMultiClientWSCommandWithTags(t *testing.T) {
 			if tc.shouldSucceed {
 				<-al.testDone
 
+				// gotta find the job id somehow. not available in the WS as that is updated via
+				// the client listener which isn't running as part of the test.
 				multiJobIDs := al.jobsDoneChannel.GetAllKeys()
 				multiJobID := multiJobIDs[0]
 				multiJob, err := jp.GetMultiJob(ctx, multiJobID)
@@ -1449,7 +1440,7 @@ func TestHandlePostMultiClientScriptWithTags(t *testing.T) {
 			}
 		}`,
 			wantStatusCode: http.StatusBadRequest,
-			wantErrTitle:   "At least 1 client should be specified.",
+			wantErrDetail:  "At least 1 client should be specified.",
 		},
 		{
 			name: "error when client ids and tags included",
@@ -1579,8 +1570,6 @@ func TestHandlePostMultiClientScriptWithTags(t *testing.T) {
 			if tc.wantStatusCode == http.StatusOK {
 				// wait until async task executeMultiClientJob finishes
 				<-al.testDone
-			}
-			if tc.wantErrTitle == "" {
 				// success case
 				assert.Contains(t, w.Body.String(), `{"data":{"jid":`)
 				gotResp := api.NewSuccessPayload(newJobResponse{})
@@ -1826,6 +1815,8 @@ func TestHandlePostMultiClientWSScriptWithTags(t *testing.T) {
 			if tc.shouldSucceed {
 				<-al.testDone
 
+				// gotta find the job id somehow. not available in the WS as that is updated via
+				// the client listener which isn't running as part of the test.
 				multiJobIDs := al.jobsDoneChannel.GetAllKeys()
 				multiJobID := multiJobIDs[0]
 				multiJob, err := jp.GetMultiJob(ctx, multiJobID)

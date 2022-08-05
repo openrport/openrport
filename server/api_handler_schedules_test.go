@@ -120,7 +120,7 @@ func TestHandlePostScheduleMultiClientJobWithTags(t *testing.T) {
 			}
 		}`,
 			wantStatusCode: http.StatusBadRequest,
-			wantErrTitle:   "At least 1 client should be specified.",
+			wantErrDetail:  "At least 1 client should be specified.",
 		},
 		{
 			name: "error when group ids and tags included",
@@ -224,7 +224,7 @@ func TestHandlePostScheduleMultiClientJobWithTags(t *testing.T) {
 
 			// then
 			assert.Equal(t, tc.wantStatusCode, w.Code)
-			if tc.wantErrTitle == "" {
+			if tc.wantStatusCode == http.StatusCreated {
 				// success case
 				assert.Contains(t, w.Body.String(), `{"data":{"id":`)
 				gotResp := api.NewSuccessPayload(newJobResponse{})
@@ -348,7 +348,7 @@ func TestHandlePostUpdateScheduleMultiClientJobWithTags(t *testing.T) {
 			}
 		}`,
 			wantStatusCode: http.StatusBadRequest,
-			wantErrTitle:   "At least 1 client should be specified.",
+			wantErrDetail:  "At least 1 client should be specified.",
 		},
 		{
 			name: "error when group ids and tags included",
@@ -467,7 +467,7 @@ func TestHandlePostUpdateScheduleMultiClientJobWithTags(t *testing.T) {
 
 			// then
 			assert.Equal(t, tc.wantStatusCode, w.Code)
-			if tc.wantErrTitle == "" {
+			if tc.wantStatusCode == http.StatusOK {
 				// success case
 				assert.Contains(t, w.Body.String(), `{"data":{"id":`)
 				gotResp := api.NewSuccessPayload(newJobResponse{})

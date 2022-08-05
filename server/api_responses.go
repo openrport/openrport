@@ -65,3 +65,12 @@ func (al *APIListener) jsonErrorResponseWithError(w http.ResponseWriter, statusC
 	}
 	al.writeJSONResponse(w, statusCode, api.NewErrAPIPayloadFromMessage("", title, detail))
 }
+
+func (al *APIListener) jsonErrorResponseWithAPIError(w http.ResponseWriter, err error) {
+	responseErr := err.(errors2.APIError)
+	var detail string
+	if responseErr.Err != nil {
+		detail = responseErr.Err.Error()
+	}
+	al.writeJSONResponse(w, responseErr.HTTPStatus, api.NewErrAPIPayloadFromMessage("", responseErr.Message, detail))
+}

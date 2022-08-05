@@ -506,3 +506,74 @@ func TestGetUserClients(t *testing.T) {
 		})
 	}
 }
+
+func TestGetClientByTag(t *testing.T) {
+	// clients from data_test.go
+	availableClients := []*Client{c1, c2, c3, c4, c5}
+	cases := []struct {
+		name              string
+		tags              []string
+		operator          string
+		expectedClientIDs []string
+	}{
+		{
+			name:     "single tag",
+			tags:     []string{"Datacenter 4"},
+			operator: "OR",
+			expectedClientIDs: []string{
+				"7d2e0e7b92115970d0aef41b8e23c080e3c41df10a042c5179c79973ae5bd235",
+				"daflkdfjqlkerlkejrqlwedalfdfadfa",
+			},
+		},
+		{
+			name:     "more tags with OR",
+			tags:     []string{"Datacenter 3", "Datacenter 4"},
+			operator: "OR",
+			expectedClientIDs: []string{
+				"c1d3c6811e1282c675495c0b3149dfa3201883188c42727a318d4a0742564c96",
+				"7d2e0e7b92115970d0aef41b8e23c080e3c41df10a042c5179c79973ae5bd235",
+				"daflkdfjqlkerlkejrqlwedalfdfadfa",
+			},
+		},
+		{
+			name:     "more tags with AND",
+			tags:     []string{"Datacenter 3", "Linux"},
+			operator: "AND",
+			expectedClientIDs: []string{
+				"c1d3c6811e1282c675495c0b3149dfa3201883188c42727a318d4a0742564c96",
+			},
+		},
+		{
+			name:     "even more tags with AND",
+			tags:     []string{"Datacenter 3", "Linux", "Datacenter 4"},
+			operator: "AND",
+			expectedClientIDs: []string{
+				"7d2e0e7b92115970d0aef41b8e23c080e3c41df10a042c5179c79973ae5bd235",
+				"c1d3c6811e1282c675495c0b3149dfa3201883188c42727a318d4a0742564c96",
+				"daflkdfjqlkerlkejrqlwedalfdfadfa",
+			},
+		},
+		{
+			name:     "duplicate tags with AND",
+			tags:     []string{"Datacenter 3", "Linux", "Linux"},
+			operator: "AND",
+			expectedClientIDs: []string{
+				"c1d3c6811e1282c675495c0b3149dfa3201883188c42727a318d4a0742564c96",
+			},
+		},
+	}
+	for _, tc := range cases {
+		t.Run(tc.name, func(t *testing.T) {
+			var matchingClients []*Client
+			if tc.operator == "AND" {
+				matchingClients = findMatchingANDClients(availableClients, tc.tags)
+			} else {
+				matchingClients = findMatchingORClients(availableClients, tc.tags)
+			}
+
+			for idx, cl := range matchingClients {
+				assert.Equal(t, tc.expectedClientIDs[idx], cl.ID)
+			}
+		})
+	}
+}

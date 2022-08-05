@@ -68,9 +68,9 @@ func (al *APIListener) handlePostMultiClientScript(w http.ResponseWriter, req *h
 		return
 	}
 
-	orderedClients, _, isBadRequest, errTitle, err := al.getOrderedClientsWithValidation(ctx, inboundMsg, 2)
+	orderedClients, _, err := al.getOrderedClientsWithValidation(ctx, inboundMsg, maxClientsForGeneralTargeting)
 	if err != nil {
-		al.makeJSONErr(w, err, errTitle, isBadRequest)
+		al.jsonErrorResponseWithAPIError(w, err)
 		return
 	}
 
@@ -115,7 +115,7 @@ func (al *APIListener) handlePostMultiClientScript(w http.ResponseWriter, req *h
 
 	al.writeJSONResponse(w, http.StatusOK, api.NewSuccessPayload(resp))
 
-	al.Debugf("Multi-client Job[id=%q] created to execute remote command on clients %s, groups %s, tags %s: %q.", multiJob.JID, inboundMsg.ClientIDs, inboundMsg.GroupIDs, inboundMsg.GetTags(), inboundMsg.Command)
+	al.Debugf("Multi-client Job[id=%q] created to execute remote command on clients %s, groups %s, tags %s: %q.", multiJob.JID, inboundMsg.ClientIDs, inboundMsg.GroupIDs, jobs.MakeClientTagsAsString(inboundMsg.GetClientTags()), inboundMsg.Command)
 }
 
 // handleScriptsWS handles GET /ws/scripts
@@ -140,9 +140,9 @@ func (al *APIListener) handleScriptsWS(w http.ResponseWriter, req *http.Request)
 		return
 	}
 
-	orderedClients, _, _, _, err := al.getOrderedClientsWithValidation(ctx, inboundMsg, 2)
-	if err != nil {
-		uiConnTS.WriteError("", err)
+	orderedClients, _, responseErr := al.getOrderedClientsWithValidation(ctx, inboundMsg, maxClientsForGeneralTargeting)
+	if responseErr != nil {
+		uiConnTS.WriteError("", responseErr)
 		return
 	}
 

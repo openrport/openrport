@@ -212,6 +212,7 @@ func (al *APIListener) executeMultiClientJob(
 				continue
 			}
 
+			// TODO: review use of this flag as a testing hack. works but not too nice.
 			// in tests skip next part to avoid waiting
 			if al.insecureForTests {
 				continue
