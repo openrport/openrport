@@ -12,7 +12,7 @@ import (
 	"github.com/cloudradar-monitoring/rport/share/random"
 )
 
-// handleGetMe returns the currently logged in user and the groups the user belongs to.
+// handleGetMe returns the currently logged-in user and the groups the user belongs to.
 func (al *APIListener) handleGetMe(w http.ResponseWriter, req *http.Request) {
 	user, err := al.getUserModel(req.Context())
 	if err != nil {
@@ -24,11 +24,17 @@ func (al *APIListener) handleGetMe(w http.ResponseWriter, req *http.Request) {
 		al.jsonErrorResponseWithTitle(w, http.StatusNotFound, "user not found")
 		return
 	}
-
+	eup, err := al.userService.GetEffectiveUserPermissions(user)
+	if err != nil {
+		al.jsonErrorResponse(w, http.StatusInternalServerError, err)
+		return
+	}
 	me := UserPayload{
-		Username:    user.Username,
-		Groups:      user.Groups,
-		TwoFASendTo: user.TwoFASendTo,
+		Username:                 user.Username,
+		Groups:                   user.Groups,
+		TwoFASendTo:              user.TwoFASendTo,
+		EffectiveUserPermissions: eup,
+		GroupPermissionsEnabled:  al.userService.SupportsGroupPermissions(),
 	}
 	response := api.NewSuccessPayload(me)
 	al.writeJSONResponse(w, http.StatusOK, response)

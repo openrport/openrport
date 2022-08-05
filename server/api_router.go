@@ -73,8 +73,9 @@ func (al *APIListener) initRouter() {
 	clientMonitoring.HandleFunc("/mountpoints", al.handleGetClientMountpoints).Methods(http.MethodGet)
 
 	secureAPI.Handle("/tunnels", al.permissionsMiddleware(users.PermissionTunnels)(http.HandlerFunc(al.handleGetTunnels))).Methods(http.MethodGet)
-	secureAPI.HandleFunc("/auditlog", al.handleListAuditLog).Methods(http.MethodGet)
-	secureAPI.HandleFunc("/files", al.handleFileUploads).Methods(http.MethodPost).Name(filesUploadRouteName)
+	secureAPI.Handle("/auditlog", al.permissionsMiddleware(users.PermissionsAuditLog)(http.HandlerFunc(al.handleListAuditLog))).Methods(http.MethodGet)
+	secureAPI.Handle("/files", al.permissionsMiddleware(users.PermissionUploads)(http.HandlerFunc(al.handleFileUploads))).Methods(http.MethodPost).Name(filesUploadRouteName)
+
 	secureAPI.HandleFunc("/client-groups", al.handleGetClientGroups).Methods(http.MethodGet)
 	secureAPI.HandleFunc("/client-groups/{group_id}", al.handleGetClientGroup).Methods(http.MethodGet)
 
@@ -144,7 +145,7 @@ func (al *APIListener) initRouter() {
 	secureAPI.HandleFunc(totPRoutes, al.wrapTotPEnabledMiddleware(al.handlePostTotP)).Methods(http.MethodPost)
 	secureAPI.HandleFunc(totPRoutes, al.wrapTotPEnabledMiddleware(al.handleDeleteTotP)).Methods(http.MethodDelete)
 
-	// all routes defined below do not have authorization middleware, auth is done in each handlers separately
+	// all routes defined below do not have authorization middleware, auth is done in each handler separately
 	api.HandleFunc("/login", al.handleGetLogin).Methods(http.MethodGet)
 	api.HandleFunc("/login", al.handlePostLogin).Methods(http.MethodPost)
 	api.HandleFunc("/logout", al.handleDeleteLogout).Methods(http.MethodDelete)
@@ -152,9 +153,9 @@ func (al *APIListener) initRouter() {
 
 	// web sockets
 	// common auth middleware is not used due to JS issue https://stackoverflow.com/questions/22383089/is-it-possible-to-use-bearer-authentication-for-websocket-upgrade-requests
-	api.HandleFunc("/ws/commands", al.wsAuth(http.HandlerFunc(al.handleCommandsWS))).Methods(http.MethodGet)
-	api.HandleFunc("/ws/scripts", al.wsAuth(http.HandlerFunc(al.handleScriptsWS))).Methods(http.MethodGet)
-	api.HandleFunc("/ws/uploads", al.wsAuth(http.HandlerFunc(al.handleUploadsWS))).Methods(http.MethodGet)
+	api.HandleFunc("/ws/commands", al.wsAuth(al.permissionsMiddleware(users.PermissionCommands)(http.HandlerFunc(al.handleCommandsWS)))).Methods(http.MethodGet)
+	api.HandleFunc("/ws/scripts", al.wsAuth(al.permissionsMiddleware(users.PermissionScripts)(http.HandlerFunc(al.handleScriptsWS)))).Methods(http.MethodGet)
+	api.HandleFunc("/ws/uploads", al.wsAuth(al.permissionsMiddleware(users.PermissionUploads)(http.HandlerFunc(al.handleUploadsWS)))).Methods(http.MethodGet)
 
 	if al.config.Server.EnableWsTestEndpoints {
 		api.HandleFunc("/test/commands/ui", al.wsCommands)

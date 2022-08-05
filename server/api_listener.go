@@ -76,6 +76,8 @@ type UserService interface {
 	UpdateGroup(string, users.Group) (users.Group, error)
 	DeleteGroup(string) error
 	CheckPermission(*users.User, string) error
+	SupportsGroupPermissions() bool
+	GetEffectiveUserPermissions(*users.User) (map[string]bool, error)
 }
 
 func NewAPIListener(
@@ -381,7 +383,7 @@ func (al *APIListener) handleBearerToken(ctx context.Context, bearerToken, uri, 
 
 const htpasswdBcryptPrefix = "$2y$"
 
-// validateCredentials returns true if given credentials belong to a user with an access to API.
+// validateCredentials returns true if given credentials belong to a user with access to the API.
 func (al *APIListener) validateCredentials(username, password string, skipPasswordValidation bool) (bool, *users.User, error) {
 	if username == "" {
 		return false, nil, nil

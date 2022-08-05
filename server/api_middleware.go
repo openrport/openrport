@@ -139,13 +139,14 @@ func (al *APIListener) permissionsMiddleware(permission string) mux.MiddlewareFu
 				al.jsonError(w, err)
 				return
 			}
-
-			err = al.userService.CheckPermission(curUser, permission)
-			if err != nil {
-				al.jsonError(w, err)
-				return
+			if al.userService.SupportsGroupPermissions() {
+				// Check group permissions only if supported otherwise let pass.
+				err = al.userService.CheckPermission(curUser, permission)
+				if err != nil {
+					al.jsonError(w, err)
+					return
+				}
 			}
-
 			next.ServeHTTP(w, r)
 		})
 	}

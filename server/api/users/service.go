@@ -15,6 +15,7 @@ import (
 
 type Provider interface {
 	Type() enums.ProviderSource
+	SupportsGroupPermissions() bool
 	GetAll() ([]*User, error)
 	ListGroups() ([]Group, error)
 	GetGroup(string) (Group, error)
@@ -38,6 +39,10 @@ func NewAPIService(provider Provider, twoFAOn bool) *APIService {
 		Provider: provider,
 		TwoFAOn:  twoFAOn,
 	}
+}
+
+func (as APIService) SupportsGroupPermissions() bool {
+	return as.Provider.SupportsGroupPermissions()
 }
 
 func (as APIService) GetProviderType() enums.ProviderSource {
@@ -86,6 +91,26 @@ func (as *APIService) CheckPermission(user *User, permission string) error {
 		Message:    fmt.Sprintf("user does not have %q permission", permission),
 		HTTPStatus: http.StatusForbidden,
 	}
+}
+
+func (as *APIService) GetEffectiveUserPermissions(user *User) (map[string]bool, error) {
+	if !as.SupportsGroupPermissions() {
+		return NewPermissions(AllPermissions...).All(), nil
+	}
+	permissions := NewPermissions().All()
+
+	for _, groupName := range user.Groups {
+		group, err := as.Provider.GetGroup(groupName)
+		if err != nil {
+			return permissions, err
+		}
+		for _, permission := range AllPermissions {
+			if group.Permissions.Has(permission) && !permissions[permission] {
+				permissions[permission] = true
+			}
+		}
+	}
+	return permissions, nil
 }
 
 func (as *APIService) ExistGroups(groups []string) error {

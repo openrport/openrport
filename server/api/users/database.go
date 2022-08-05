@@ -64,7 +64,7 @@ func (d *UserDatabase) getSelectClause() string {
 	return s
 }
 
-// todo use context for all db operations
+// checkDatabaseTables @todo use context for all db operations
 func (d *UserDatabase) checkDatabaseTables() error {
 	_, err := d.db.Exec(fmt.Sprintf("SELECT token FROM `%s` LIMIT 0", d.usersTableName))
 	if err == nil {
@@ -90,7 +90,7 @@ func (d *UserDatabase) checkDatabaseTables() error {
 	return nil
 }
 
-// todo use context for all db operations
+// GetByUsername @todo use context for all db operations
 func (d *UserDatabase) GetByUsername(username string) (*User, error) {
 	user := &User{}
 	err := d.db.Get(user, fmt.Sprintf("SELECT %s FROM `%s` WHERE username = ? LIMIT 1", d.getSelectClause(), d.usersTableName), username)
@@ -108,7 +108,7 @@ func (d *UserDatabase) GetByUsername(username string) (*User, error) {
 	return user, nil
 }
 
-// todo use context for all db operations
+// GetAll @todo use context for all db operations
 func (d *UserDatabase) GetAll() ([]*User, error) {
 	var usrs []*User
 	err := d.db.Select(&usrs, fmt.Sprintf("SELECT %s FROM `%s` ORDER BY username", d.getSelectClause(), d.usersTableName))
@@ -197,26 +197,13 @@ func (d *UserDatabase) UpdateGroup(name string, group Group) error {
 		}
 	}
 	group.Name = name
-
-	result, err := d.db.NamedExec(
-		fmt.Sprintf("UPDATE `%s` SET permissions = :permissions WHERE name = :name", d.groupDetailsTableName),
+	_, err := d.db.NamedExec(
+		// We rely on a unique index. Let the database decide, if INSERT or UPDATE is needed.
+		fmt.Sprintf("REPLACE INTO `%s` (name, permissions) VALUES (:name, :permissions)", d.groupDetailsTableName),
 		group,
 	)
 	if err != nil {
 		return err
-	}
-	rows, err := result.RowsAffected()
-	if err != nil {
-		return err
-	}
-	if rows == 0 {
-		_, err := d.db.NamedExec(
-			fmt.Sprintf("INSERT INTO `%s` (name, permissions) VALUES (:name, :permissions)", d.groupDetailsTableName),
-			group,
-		)
-		if err != nil {
-			return err
-		}
 	}
 
 	return nil
@@ -257,7 +244,7 @@ func (d *UserDatabase) handleRollback(tx *sqlx.Tx) {
 	}
 }
 
-// todo use context for all db operations
+// Add todo use context for all db operations
 func (d *UserDatabase) Add(usr *User) error {
 	tx, err := d.db.Beginx()
 	if err != nil {
@@ -318,7 +305,7 @@ func (d *UserDatabase) Add(usr *User) error {
 	return nil
 }
 
-// todo use context for all db operations
+// Update @todo use context for all db operations
 func (d *UserDatabase) Update(usr *User, usernameToUpdate string) error {
 	if usernameToUpdate == "" {
 		return errors.New("cannot update user with empty username")
@@ -416,7 +403,7 @@ func (d *UserDatabase) Update(usr *User, usernameToUpdate string) error {
 	return nil
 }
 
-// todo use context for all db operations
+// Delete @todo use context for all db operations
 func (d *UserDatabase) Delete(usernameToDelete string) error {
 	tx, err := d.db.Beginx()
 	if err != nil {
@@ -440,4 +427,7 @@ func (d *UserDatabase) Delete(usernameToDelete string) error {
 
 func (d UserDatabase) Type() enums.ProviderSource {
 	return enums.ProviderSourceDB
+}
+func (d UserDatabase) SupportsGroupPermissions() bool {
+	return d.groupDetailsTableName != ""
 }
