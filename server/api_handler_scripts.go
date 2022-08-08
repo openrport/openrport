@@ -115,7 +115,7 @@ func (al *APIListener) handlePostMultiClientScript(w http.ResponseWriter, req *h
 
 	al.writeJSONResponse(w, http.StatusOK, api.NewSuccessPayload(resp))
 
-	al.Debugf("Multi-client Job[id=%q] created to execute remote command on clients %s, groups %s, tags %s: %q.", multiJob.JID, inboundMsg.ClientIDs, inboundMsg.GroupIDs, jobs.MakeClientTagsAsString(inboundMsg.GetClientTags()), inboundMsg.Command)
+	al.Debugf("Multi-client Job[id=%q] created to execute remote command on clients %s, groups %s, tags %s: %q.", multiJob.JID, inboundMsg.ClientIDs, inboundMsg.GroupIDs, inboundMsg.GetClientTags(), inboundMsg.Command)
 }
 
 // handleScriptsWS handles GET /ws/scripts

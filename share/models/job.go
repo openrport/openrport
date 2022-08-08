@@ -2,6 +2,7 @@ package models
 
 import (
 	"fmt"
+	"strings"
 	"time"
 )
 
@@ -81,4 +82,27 @@ func (j Job) LogPrefix() string {
 	}
 	r += fmt.Sprintf("jid=%q, clientID=%q", j.JID, j.ClientID)
 	return r
+}
+
+// TODO: add some unit tests. not high priority but good to get done.
+func (jct *JobClientTags) String() string {
+	var str string
+	if jct == nil {
+		return "[]"
+	}
+	numTags := len(jct.Tags)
+	if numTags == 0 {
+		return "[]"
+	}
+	tagsList := strings.Join(jct.Tags, ",")
+	if numTags == 1 {
+		str = fmt.Sprintf("[%s]", tagsList)
+	} else {
+		operator := jct.Operator
+		if operator == "" {
+			operator = "OR"
+		}
+		str = fmt.Sprintf("[%s: %s]", operator, tagsList)
+	}
+	return str
 }

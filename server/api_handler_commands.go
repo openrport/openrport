@@ -332,7 +332,7 @@ func (al *APIListener) handlePostMultiClientCommand(w http.ResponseWriter, req *
 
 	al.writeJSONResponse(w, http.StatusOK, api.NewSuccessPayload(resp))
 
-	al.Debugf("Multi-client Job[id=%q] created to execute remote command on clients %s, groups %s, tags %s: %q.", multiJob.JID, reqBody.ClientIDs, reqBody.GroupIDs, jobs.MakeClientTagsAsString(reqBody.GetClientTags()), reqBody.Command)
+	al.Debugf("Multi-client Job[id=%q] created to execute remote command on clients %s, groups %s, tags %s: %q.", multiJob.JID, reqBody.ClientIDs, reqBody.GroupIDs, reqBody.GetClientTags(), reqBody.Command)
 }
 
 func (al *APIListener) handleExecuteCommand(ctx context.Context, w http.ResponseWriter, executeInput *api.ExecuteInput) *newJobResponse {
