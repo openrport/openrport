@@ -224,7 +224,7 @@ func validateNonClientsTagTargeting(params TargetingParams, groupClientsCount in
 		}
 	}
 
-	if orderedClients != nil && len(orderedClients) == 0 {
+	if len(orderedClients) == 0 {
 		return errors2.APIError{
 			Err:        errors.New("at least 1 client should be specified"),
 			HTTPStatus: http.StatusBadRequest,

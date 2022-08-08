@@ -114,28 +114,24 @@ func (s *ClientRepository) GetClientsByTag(tags []string, operator string, allow
 
 func findMatchingANDClients(availableClients []*Client, tags []string) (matchingClients []*Client) {
 	matchingClients = make([]*Client, 0, 64)
-	matchingTags := make(map[string]bool)
 	for _, cl := range availableClients {
 		clientTags := cl.Tags
-		// update whether tag found or not
+
+		foundAllTags := true
 		for _, tag := range tags {
-			// ensure map has an entry for each desired unique tag
-			matchingTags[tag] = false
+			foundTag := false
 			for _, clTag := range clientTags {
 				if tag == clTag {
-					matchingTags[tag] = true
-					continue
+					foundTag = true
+					break
 				}
 			}
-		}
-		// check if all tags found
-		foundCount := 0
-		for tag := range matchingTags {
-			if matchingTags[tag] {
-				foundCount++
+			if !foundTag {
+				foundAllTags = false
+				break
 			}
 		}
-		if foundCount == len(matchingTags) {
+		if foundAllTags {
 			matchingClients = append(matchingClients, cl)
 		}
 	}

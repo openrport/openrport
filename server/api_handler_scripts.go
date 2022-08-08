@@ -70,7 +70,7 @@ func (al *APIListener) handlePostMultiClientScript(w http.ResponseWriter, req *h
 
 	orderedClients, _, err := al.getOrderedClientsWithValidation(ctx, inboundMsg)
 	if err != nil {
-		al.jsonErrorResponseWithAPIError(w, err)
+		al.jsonError(w, err)
 		return
 	}
 

@@ -293,7 +293,7 @@ func (al *APIListener) handlePostMultiClientCommand(w http.ResponseWriter, req *
 
 	orderedClients, _, responseErr := al.getOrderedClientsWithValidation(ctx, &reqBody)
 	if responseErr != nil {
-		al.jsonErrorResponseWithAPIError(w, responseErr)
+		al.jsonError(w, responseErr)
 		return
 	}
 

@@ -40,7 +40,7 @@ func (al *APIListener) handlePostSchedules(w http.ResponseWriter, req *http.Requ
 
 	orderedClients, _, err := al.getOrderedClientsWithValidation(ctx, &scheduleInput)
 	if err != nil {
-		al.jsonErrorResponseWithAPIError(w, err)
+		al.jsonError(w, err)
 		return
 	}
 
@@ -90,7 +90,7 @@ func (al *APIListener) handleUpdateSchedule(w http.ResponseWriter, req *http.Req
 
 	orderedClients, _, err := al.getOrderedClientsWithValidation(ctx, &scheduleInput)
 	if err != nil {
-		al.jsonErrorResponseWithAPIError(w, err)
+		al.jsonError(w, err)
 		return
 	}
 

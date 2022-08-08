@@ -765,7 +765,7 @@ func TestHandlePostMultiClientCommandWithGroupIDs(t *testing.T) {
 				"execute_concurrently": false
 			}`,
 			wantStatusCode: http.StatusBadRequest,
-			wantErrDetail:  "at least 1 client should be specified",
+			wantErrTitle:   "at least 1 client should be specified",
 		},
 		{
 			name: "valid when group id with 1 client",
@@ -984,7 +984,7 @@ func TestHandlePostMultiClientCommandWithTags(t *testing.T) {
 			}
 		}`,
 			wantStatusCode: http.StatusBadRequest,
-			wantErrDetail:  "at least 1 client should be specified",
+			wantErrTitle:   "at least 1 client should be specified",
 		},
 		{
 			name: "error when group ids and tags included",
@@ -1430,7 +1430,7 @@ func TestHandlePostMultiClientScriptWithTags(t *testing.T) {
 			}
 		}`,
 			wantStatusCode: http.StatusBadRequest,
-			wantErrDetail:  "at least 1 client should be specified",
+			wantErrTitle:   "at least 1 client should be specified",
 		},
 		{
 			name: "error when client ids and tags included",

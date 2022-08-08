@@ -55,7 +55,7 @@ func (ur UploadRequest) GetClientTags() (clientTags *models.JobClientTags) {
 func (al *APIListener) handleFileUploads(w http.ResponseWriter, req *http.Request) {
 	uploadRequest, err := al.uploadRequestFromRequest(req)
 	if err != nil {
-		al.jsonErrorResponseWithAPIError(w, err)
+		al.jsonError(w, err)
 		return
 	}
 
