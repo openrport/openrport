@@ -1,9 +1,7 @@
 package chserver
 
 import (
-	"context"
 	"encoding/base64"
-	"errors"
 	"fmt"
 	"io"
 	"net/http"
@@ -70,20 +68,17 @@ func (al *APIListener) handlePostMultiClientScript(w http.ResponseWriter, req *h
 		return
 	}
 
-	clientsInGroupsCount, err := al.enrichScriptInput(ctx, inboundMsg)
+	orderedClients, _, err := al.getOrderedClientsWithValidation(ctx, inboundMsg)
 	if err != nil {
 		al.jsonError(w, err)
 		return
 	}
 
-	if len(inboundMsg.GroupIDs) > 0 && clientsInGroupsCount == 0 && len(inboundMsg.ClientIDs) == 0 {
-		al.jsonErrorResponseWithTitle(w, http.StatusBadRequest, "No active clients belong to the selected group(s).")
-		return
-	}
+	inboundMsg.OrderedClients = orderedClients
 
-	minClients := 2
-	if len(inboundMsg.ClientIDs) < minClients && clientsInGroupsCount == 0 {
-		al.jsonErrorResponseWithTitle(w, http.StatusBadRequest, fmt.Sprintf("At least %d clients should be specified.", minClients))
+	err = al.enrichScriptInput(inboundMsg)
+	if err != nil {
+		al.jsonError(w, err)
 		return
 	}
 
@@ -120,7 +115,7 @@ func (al *APIListener) handlePostMultiClientScript(w http.ResponseWriter, req *h
 
 	al.writeJSONResponse(w, http.StatusOK, api.NewSuccessPayload(resp))
 
-	al.Debugf("Multi-client Job[id=%q] created to execute remote command on clients %s, groups %s: %q.", multiJob.JID, inboundMsg.ClientIDs, inboundMsg.GroupIDs, inboundMsg.Command)
+	al.Debugf("Multi-client Job[id=%q] created to execute remote command on clients %s, groups %s, tags %s: %q.", multiJob.JID, inboundMsg.ClientIDs, inboundMsg.GroupIDs, inboundMsg.GetClientTags(), inboundMsg.Command)
 }
 
 // handleScriptsWS handles GET /ws/scripts
@@ -144,7 +139,16 @@ func (al *APIListener) handleScriptsWS(w http.ResponseWriter, req *http.Request)
 		uiConnTS.WriteError("Invalid JSON data.", err)
 		return
 	}
-	clientsInGroupsCount, err := al.enrichScriptInput(ctx, inboundMsg)
+
+	orderedClients, _, responseErr := al.getOrderedClientsWithValidation(ctx, inboundMsg)
+	if responseErr != nil {
+		uiConnTS.WriteError("", responseErr)
+		return
+	}
+
+	inboundMsg.OrderedClients = orderedClients
+
+	err = al.enrichScriptInput(inboundMsg)
 	if err != nil {
 		uiConnTS.WriteError("Failed to create script on multiple clients", err)
 		return
@@ -152,15 +156,14 @@ func (al *APIListener) handleScriptsWS(w http.ResponseWriter, req *http.Request)
 
 	auditLogEntry := al.auditLog.Entry(auditlog.ApplicationClientScript, auditlog.ActionExecuteStart).WithHTTPRequest(req)
 
-	al.handleCommandsExecutionWS(ctx, uiConnTS, inboundMsg, clientsInGroupsCount, auditLogEntry)
+	al.handleCommandsExecutionWS(ctx, uiConnTS, inboundMsg, auditLogEntry)
 }
 
 func (al *APIListener) enrichScriptInput(
-	ctx context.Context,
 	inboundMsg *jobs.MultiJobRequest,
-) (clientsInGroupsCount int, err error) {
+) (err error) {
 	if inboundMsg.Script == "" {
-		return 0, errors2.APIError{
+		return errors2.APIError{
 			Message:    "Missing script body",
 			HTTPStatus: http.StatusBadRequest,
 		}
@@ -172,7 +175,7 @@ func (al *APIListener) enrichScriptInput(
 
 	decodedScriptBytes, err := base64.StdEncoding.DecodeString(inboundMsg.Script)
 	if err != nil {
-		return 0, errors2.APIError{
+		return errors2.APIError{
 			Err:        err,
 			HTTPStatus: http.StatusBadRequest,
 			Message:    "failed to decode script payload from base64",
@@ -182,15 +185,5 @@ func (al *APIListener) enrichScriptInput(
 	inboundMsg.Command = string(decodedScriptBytes)
 	inboundMsg.IsScript = true
 
-	orderedClients, clientsInGroupsCount, err := al.getOrderedClients(ctx, inboundMsg.ClientIDs, inboundMsg.GroupIDs, false /* allowDisconnected */)
-	if err != nil {
-		return 0, err
-	}
-	if len(orderedClients) == 0 {
-		return 0, errors.New("no clients to execute the script for")
-	}
-
-	inboundMsg.OrderedClients = orderedClients
-
-	return clientsInGroupsCount, nil
+	return nil
 }

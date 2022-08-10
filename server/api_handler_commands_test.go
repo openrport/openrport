@@ -2,31 +2,40 @@ package chserver
 
 import (
 	"context"
+	"encoding/base64"
 	"encoding/json"
 	"errors"
 	"fmt"
 	"net/http"
 	"net/http/httptest"
+	"net/url"
 	"strconv"
 	"strings"
 	"testing"
 	"time"
 
+	"github.com/gorilla/websocket"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 
+	"github.com/cloudradar-monitoring/rport/db/migration/client_groups"
 	jobsmigration "github.com/cloudradar-monitoring/rport/db/migration/jobs"
 	"github.com/cloudradar-monitoring/rport/db/sqlite"
 	"github.com/cloudradar-monitoring/rport/server/api"
 	"github.com/cloudradar-monitoring/rport/server/api/jobs"
+	"github.com/cloudradar-monitoring/rport/server/api/jobs/schedule"
 	"github.com/cloudradar-monitoring/rport/server/api/users"
+	"github.com/cloudradar-monitoring/rport/server/cgroups"
 	"github.com/cloudradar-monitoring/rport/server/clients"
 	"github.com/cloudradar-monitoring/rport/server/test/jb"
 	"github.com/cloudradar-monitoring/rport/share/comm"
+	"github.com/cloudradar-monitoring/rport/share/logger"
 	"github.com/cloudradar-monitoring/rport/share/models"
 	"github.com/cloudradar-monitoring/rport/share/query"
 	"github.com/cloudradar-monitoring/rport/share/random"
+	"github.com/cloudradar-monitoring/rport/share/security"
 	"github.com/cloudradar-monitoring/rport/share/test"
+	"github.com/cloudradar-monitoring/rport/share/ws"
 )
 
 type JobProviderMock struct {
@@ -568,15 +577,15 @@ func TestHandlePostMultiClientCommand(t *testing.T) {
 			wantStatusCode: http.StatusOK,
 		},
 		{
-			name: "only one client",
+			name: "no targeting params provided",
 			requestBody: `
 		{
 			"command": "/bin/date;foo;whoami",
-			"timeout_sec": 30,
-			"client_ids": ["client-1"]
+			"timeout_sec": 30
 		}`,
 			wantStatusCode: http.StatusBadRequest,
-			wantErrTitle:   "At least 2 clients should be specified.",
+			wantErrTitle:   "Missing targeting parameters.",
+			wantErrDetail:  ErrRequestMissingTargetingParams.Error(),
 		},
 		{
 			name: "disconnected client",
@@ -678,8 +687,6 @@ func TestHandlePostMultiClientCommand(t *testing.T) {
 			if tc.wantStatusCode == http.StatusOK {
 				// wait until async task executeMultiClientJob finishes
 				<-al.testDone
-			}
-			if tc.wantErrTitle == "" {
 				// success case
 				assert.Contains(t, w.Body.String(), `{"data":{"jid":`)
 				gotResp := api.NewSuccessPayload(newJobResponse{})
@@ -695,6 +702,7 @@ func TestHandlePostMultiClientCommand(t *testing.T) {
 				gotMultiJob, err := jp.GetMultiJob(ctx, gotJID)
 				require.NoError(t, err)
 				require.NotNil(t, gotMultiJob)
+				// TODO: this checking assumes 2 jobs, which isn't very flexible. rework as part of the test refactoring.
 				if tc.abortOnErr {
 					require.Len(t, gotMultiJob.Jobs, 1)
 				} else {
@@ -718,4 +726,1232 @@ func TestHandlePostMultiClientCommand(t *testing.T) {
 			}
 		})
 	}
+}
+
+func TestHandlePostMultiClientCommandWithGroupIDs(t *testing.T) {
+	testUser := "test-user"
+	defaultTimeout := 60
+
+	testCases := []struct {
+		name string
+
+		requestBody string
+
+		wantStatusCode int
+		wantJobCount   int
+		wantErrCode    string
+		wantErrTitle   string
+		wantErrDetail  string
+	}{
+		{
+			name: "valid when group id with 2 clients",
+			requestBody: `{
+				"command": "/bin/date;foo;whoami",
+				"timeout_sec": 30,
+				"group_ids": ["group-1"],
+				"abort_on_error": false,
+				"execute_concurrently": false
+			}`,
+			wantStatusCode: http.StatusOK,
+			wantJobCount:   2,
+		},
+		{
+			name: "invalid when empty group ids",
+			requestBody: `{
+				"command": "/bin/date;foo;whoami",
+				"timeout_sec": 30,
+				"group_ids": [],
+				"abort_on_error": false,
+				"execute_concurrently": false
+			}`,
+			wantStatusCode: http.StatusBadRequest,
+			wantErrTitle:   "at least 1 client should be specified",
+		},
+		{
+			name: "valid when group id with 1 client",
+			requestBody: `{
+				"command": "/bin/date;foo;whoami",
+				"timeout_sec": 30,
+				"group_ids": ["group-2"],
+				"abort_on_error": false,
+				"execute_concurrently": false
+			}`,
+			wantStatusCode: http.StatusOK,
+			wantJobCount:   1,
+		},
+		{
+			name: "valid when group id and client id",
+			requestBody: `{
+				"command": "/bin/date;foo;whoami",
+				"timeout_sec": 30,
+				"client_ids": ["client-1"],
+				"group_ids": ["group-2"],
+				"abort_on_error": false,
+				"execute_concurrently": false
+			}`,
+			wantStatusCode: http.StatusOK,
+			wantJobCount:   2,
+		},
+	}
+
+	for _, tc := range testCases {
+		t.Run(tc.name, func(t *testing.T) {
+			curUser := makeTestUser(testUser)
+
+			connMock1 := makeConnMock(t, 1, time.Date(2020, 10, 10, 10, 10, 1, 0, time.UTC))
+			connMock2 := makeConnMock(t, 2, time.Date(2020, 10, 10, 10, 10, 2, 0, time.UTC))
+			connMock4 := makeConnMock(t, 4, time.Date(2020, 10, 10, 10, 10, 4, 0, time.UTC))
+
+			c1 := clients.New(t).ID("client-1").Connection(connMock1).Build()
+			c2 := clients.New(t).ID("client-2").Connection(connMock2).Build()
+			c3 := clients.New(t).ID("client-3").DisconnectedDuration(5 * time.Minute).Build()
+			c4 := clients.New(t).ID("client-4").Connection(connMock4).Build()
+
+			g1 := makeClientGroup("group-1", &cgroups.ClientParams{
+				ClientID: &cgroups.ParamValues{"client-1", "client-2"},
+				OS:       &cgroups.ParamValues{"Linux*"},
+				Version:  &cgroups.ParamValues{"0.1.1*"},
+			})
+
+			g2 := makeClientGroup("group-2", &cgroups.ClientParams{
+				ClientID: &cgroups.ParamValues{"client-4"},
+				OS:       &cgroups.ParamValues{"Linux*"},
+				Version:  &cgroups.ParamValues{"0.1.1*"},
+			})
+
+			c1.AllowedUserGroups = []string{"group-1"}
+			c2.AllowedUserGroups = []string{"group-1"}
+			c4.AllowedUserGroups = []string{"group-2"}
+
+			al := makeAPIListener(curUser,
+				clients.NewClientRepository([]*clients.Client{c1, c2, c3, c4}, &hour, testLog),
+				defaultTimeout,
+				testLog)
+
+			var done chan bool
+			if tc.wantStatusCode == http.StatusOK {
+				done = make(chan bool)
+				al.testDone = done
+			}
+
+			jp := makeJobsProvider(t, DataSourceOptions, testLog)
+			defer jp.Close()
+
+			gp := makeGroupsProvider(t, DataSourceOptions)
+			defer gp.Close()
+
+			al.initRouter()
+
+			al.jobProvider = jp
+			al.clientGroupProvider = gp
+
+			ctx := api.WithUser(context.Background(), testUser)
+
+			err := gp.Create(ctx, g1)
+			assert.NoError(t, err)
+			err = gp.Create(ctx, g2)
+			assert.NoError(t, err)
+
+			req := httptest.NewRequest(http.MethodPost, "/api/v1/commands", strings.NewReader(tc.requestBody))
+			req = req.WithContext(ctx)
+
+			// when
+			w := httptest.NewRecorder()
+			al.router.ServeHTTP(w, req)
+
+			// then
+			assert.Equal(t, tc.wantStatusCode, w.Code)
+			if tc.wantStatusCode == http.StatusOK {
+				// wait until async task executeMultiClientJob finishes
+				<-al.testDone // success case
+				assert.Contains(t, w.Body.String(), `{"data":{"jid":`)
+				gotResp := api.NewSuccessPayload(newJobResponse{})
+				require.NoError(t, json.Unmarshal(w.Body.Bytes(), &gotResp))
+				gotPropMap, ok := gotResp.Data.(map[string]interface{})
+				require.True(t, ok)
+				jidObj, found := gotPropMap["jid"]
+				require.True(t, found)
+				gotJID, ok := jidObj.(string)
+				require.True(t, ok)
+				require.NotEmpty(t, gotJID)
+
+				gotMultiJob, err := jp.GetMultiJob(ctx, gotJID)
+				require.NoError(t, err)
+				require.NotNil(t, gotMultiJob)
+				require.Len(t, gotMultiJob.Jobs, tc.wantJobCount)
+			} else {
+				// failure case
+				wantResp := api.NewErrAPIPayloadFromMessage(tc.wantErrCode, tc.wantErrTitle, tc.wantErrDetail)
+				wantRespBytes, err := json.Marshal(wantResp)
+				require.NoError(t, err)
+				require.Equal(t, string(wantRespBytes), w.Body.String())
+			}
+		})
+	}
+}
+
+func TestHandlePostMultiClientCommandWithTags(t *testing.T) {
+	testUser := "test-user"
+	defaultTimeout := 60
+
+	testCases := []struct {
+		name string
+
+		requestBody string
+
+		wantStatusCode int
+		wantJobCount   int
+		wantErrCode    string
+		wantErrTitle   string
+		wantErrDetail  string
+	}{
+		{
+			name: "valid when only tags included",
+			requestBody: `{
+				"command": "/bin/date;foo;whoami",
+				"timeout_sec": 30,
+				"tags": {
+					"tags": [
+						"linux"
+					],
+					"operator": "OR"
+				},
+				"abort_on_error": false,
+				"execute_concurrently": false
+			}`,
+			wantStatusCode: http.StatusOK,
+			wantJobCount:   2,
+		},
+		{
+			name: "valid when only tags included and missing operator",
+			requestBody: `{
+				"command": "/bin/date;foo;whoami",
+				"timeout_sec": 30,
+				"tags": {
+					"tags": [
+						"linux"
+					]
+				},
+				"abort_on_error": false,
+				"execute_concurrently": false
+			}`,
+			wantStatusCode: http.StatusOK,
+			wantJobCount:   2,
+		},
+		{
+			name: "error when client ids and tags included",
+			requestBody: `
+		{
+			"command": "/bin/date;foo;whoami",
+			"timeout_sec": 30,
+			"client_ids": ["client-1", "client-2"],
+			"tags": {
+				"tags": [
+					"linux", 
+					"windows"
+				],
+				"operator": "OR"
+			}
+		}`,
+			wantStatusCode: http.StatusBadRequest,
+			wantErrTitle:   "Multiple targeting parameters.",
+			wantErrDetail:  ErrRequestIncludesMultipleTargetingParams.Error(),
+		},
+		{
+			name: "error when empty tags",
+			requestBody: `
+		{
+			"command": "/bin/date;foo;whoami",
+			"timeout_sec": 30,
+			"tags": {
+				"tags": [],
+				"operator": "OR"
+			}
+		}`,
+			wantStatusCode: http.StatusBadRequest,
+			wantErrTitle:   "No tags specified.",
+			wantErrDetail:  ErrMissingTagsInMultiJobRequest.Error(),
+		},
+		{
+			name: "error when no clients for tag",
+			requestBody: `
+		{
+			"command": "/bin/date;foo;whoami",
+			"timeout_sec": 30,
+			"tags": {
+				"tags": ["random"],
+				"operator": "OR"
+			}
+		}`,
+			wantStatusCode: http.StatusBadRequest,
+			wantErrTitle:   "at least 1 client should be specified",
+		},
+		{
+			name: "error when group ids and tags included",
+			requestBody: `
+		{
+			"command": "/bin/date;foo;whoami",
+			"timeout_sec": 30,
+			"group_ids": ["group-1"],
+			"tags": {
+				"tags": [
+					"linux", 
+					"windows"
+				],
+				"operator": "OR"
+			}
+		}`,
+			wantStatusCode: http.StatusBadRequest,
+			wantErrTitle:   "Multiple targeting parameters.",
+			wantErrDetail:  ErrRequestIncludesMultipleTargetingParams.Error(),
+		},
+	}
+
+	for _, tc := range testCases {
+		t.Run(tc.name, func(t *testing.T) {
+			curUser := makeTestUser(testUser)
+
+			connMock1 := makeConnMock(t, 1, time.Date(2020, 10, 10, 10, 10, 1, 0, time.UTC))
+			connMock2 := makeConnMock(t, 2, time.Date(2020, 10, 10, 10, 10, 2, 0, time.UTC))
+			connMock4 := makeConnMock(t, 4, time.Date(2020, 10, 10, 10, 10, 4, 0, time.UTC))
+
+			c1 := clients.New(t).ID("client-1").Connection(connMock1).Build()
+			c2 := clients.New(t).ID("client-2").Connection(connMock2).Build()
+			c3 := clients.New(t).ID("client-3").DisconnectedDuration(5 * time.Minute).Build()
+			c4 := clients.New(t).ID("client-4").Connection(connMock4).Build()
+
+			c1.Tags = []string{"linux"}
+			c2.Tags = []string{"windows"}
+			c3.Tags = []string{"mac"}
+			c4.Tags = []string{"linux", "windows"}
+
+			g1 := makeClientGroup("group-1", &cgroups.ClientParams{
+				ClientID: &cgroups.ParamValues{"client-1", "client-2"},
+				OS:       &cgroups.ParamValues{"Linux*"},
+				Version:  &cgroups.ParamValues{"0.1.1*"},
+			})
+
+			g2 := makeClientGroup("group-2", &cgroups.ClientParams{
+				ClientID: &cgroups.ParamValues{"client-4"},
+				OS:       &cgroups.ParamValues{"Linux*"},
+				Version:  &cgroups.ParamValues{"0.1.1*"},
+			})
+
+			c1.AllowedUserGroups = []string{"group-1"}
+			c2.AllowedUserGroups = []string{"group-1"}
+			c4.AllowedUserGroups = []string{"group-2"}
+
+			clientList := []*clients.Client{c1, c2, c4}
+
+			p := clients.NewFakeClientProvider(t, nil, nil)
+
+			al := makeAPIListener(curUser,
+				clients.NewClientRepositoryWithDB(nil, &hour, p, testLog),
+				defaultTimeout,
+				testLog)
+
+			// make sure the repo has the test clients
+			for _, cl := range clientList {
+				err := al.clientService.GetRepo().Save(cl)
+				assert.NoError(t, err)
+			}
+
+			var done chan bool
+			if tc.wantStatusCode == http.StatusOK {
+				done = make(chan bool)
+				al.testDone = done
+			}
+
+			jp := makeJobsProvider(t, DataSourceOptions, testLog)
+			defer jp.Close()
+
+			gp := makeGroupsProvider(t, DataSourceOptions)
+			defer gp.Close()
+
+			al.initRouter()
+
+			al.jobProvider = jp
+			al.clientGroupProvider = gp
+
+			ctx := api.WithUser(context.Background(), testUser)
+
+			err := gp.Create(ctx, g1)
+			assert.NoError(t, err)
+			err = gp.Create(ctx, g2)
+			assert.NoError(t, err)
+
+			req := httptest.NewRequest(http.MethodPost, "/api/v1/commands", strings.NewReader(tc.requestBody))
+			req = req.WithContext(ctx)
+
+			// when
+			w := httptest.NewRecorder()
+			al.router.ServeHTTP(w, req)
+
+			// then
+			assert.Equal(t, tc.wantStatusCode, w.Code)
+			if tc.wantStatusCode == http.StatusOK {
+				// wait until async task executeMultiClientJob finishes
+				<-al.testDone
+				// success case
+				assert.Contains(t, w.Body.String(), `{"data":{"jid":`)
+				gotResp := api.NewSuccessPayload(newJobResponse{})
+				require.NoError(t, json.Unmarshal(w.Body.Bytes(), &gotResp))
+				gotPropMap, ok := gotResp.Data.(map[string]interface{})
+				require.True(t, ok)
+				jidObj, found := gotPropMap["jid"]
+				require.True(t, found)
+				gotJID, ok := jidObj.(string)
+				require.True(t, ok)
+				require.NotEmpty(t, gotJID)
+
+				gotMultiJob, err := jp.GetMultiJob(ctx, gotJID)
+				require.NoError(t, err)
+				require.NotNil(t, gotMultiJob)
+				require.Len(t, gotMultiJob.Jobs, tc.wantJobCount)
+			} else {
+				// failure case
+				wantResp := api.NewErrAPIPayloadFromMessage(tc.wantErrCode, tc.wantErrTitle, tc.wantErrDetail)
+				wantRespBytes, err := json.Marshal(wantResp)
+				require.NoError(t, err)
+				require.Equal(t, string(wantRespBytes), w.Body.String())
+			}
+		})
+	}
+}
+
+func TestHandlePostMultiClientWSCommandWithTags(t *testing.T) {
+	testUser := "test-user"
+	testToken := "12345678"
+	defaultTimeout := 60
+
+	testCases := []struct {
+		name string
+
+		requestBody string
+
+		shouldSucceed bool
+		wantJobCount  int
+		wantErrCode   string
+		wantErrTitle  string
+		wantErrDetail string
+	}{
+		{
+			name: "valid with client ids",
+			requestBody: `
+		{
+			"command": "/bin/date;foo;whoami",
+			"timeout_sec": 30,
+			"client_ids": ["client-1", "client-2"],
+			"abort_on_error": false,
+			"execute_concurrently": false
+		}`,
+			shouldSucceed: true,
+			wantJobCount:  2,
+		},
+		{
+			name: "no targeting params provided",
+			requestBody: `
+		{
+			"command": "/bin/date;foo;whoami",
+			"timeout_sec": 30
+		}`,
+			shouldSucceed: false,
+			wantErrDetail: ErrRequestMissingTargetingParams.Error(),
+		},
+		{
+			name: "valid when only tags included",
+			requestBody: `{
+				"command": "/bin/date;foo;whoami",
+				"timeout_sec": 30,
+				"tags": {
+					"tags": [
+						"linux"
+					],
+					"operator": "OR"
+				},
+				"abort_on_error": false,
+				"execute_concurrently": false
+			}`,
+			shouldSucceed: true,
+			wantJobCount:  2,
+		},
+		{
+			name: "error when empty tags",
+			requestBody: `
+		{
+			"command": "/bin/date;foo;whoami",
+			"timeout_sec": 30,
+			"tags": {
+				"tags": [],
+				"operator": "OR"
+			}
+		}`,
+			shouldSucceed: false,
+			wantErrDetail: ErrMissingTagsInMultiJobRequest.Error(),
+		},
+		{
+			name: "error when no clients for tag",
+			requestBody: `
+		{
+			"command": "/bin/date;foo;whoami",
+			"timeout_sec": 30,
+			"tags": {
+				"tags": ["random"],
+				"operator": "OR"
+			}
+		}`,
+			shouldSucceed: false,
+			wantErrDetail: "at least 1 client should be specified",
+		},
+		{
+			name: "error when client ids and tags included",
+			requestBody: `
+		{
+			"command": "/bin/date;foo;whoami",
+			"timeout_sec": 30,
+			"client_ids": ["client-1", "client-2"],
+			"tags": {
+				"tags": [
+					"linux",
+					"windows"
+				],
+				"operator": "OR"
+			}
+		}`,
+			shouldSucceed: false,
+			wantErrDetail: ErrRequestIncludesMultipleTargetingParams.Error(),
+		},
+		{
+			name: "error when group ids and tags included",
+			requestBody: `
+		{
+			"command": "/bin/date;foo;whoami",
+			"timeout_sec": 30,
+			"group_ids": ["group-1"],
+			"tags": {
+				"tags": [
+					"linux",
+					"windows"
+				],
+				"operator": "OR"
+			}
+		}`,
+			shouldSucceed: false,
+			wantErrDetail: ErrRequestIncludesMultipleTargetingParams.Error(),
+		},
+	}
+
+	for _, tc := range testCases {
+		t.Run(tc.name, func(t *testing.T) {
+			curUser := makeTestUserWithToken(testUser, testToken)
+
+			connMock1 := makeConnMock(t, 1, time.Date(2020, 10, 10, 10, 10, 1, 0, time.UTC))
+			connMock2 := makeConnMock(t, 2, time.Date(2020, 10, 10, 10, 10, 2, 0, time.UTC))
+			connMock4 := makeConnMock(t, 4, time.Date(2020, 10, 10, 10, 10, 4, 0, time.UTC))
+
+			c1 := clients.New(t).ID("client-1").Connection(connMock1).Build()
+			c2 := clients.New(t).ID("client-2").Connection(connMock2).Build()
+			c3 := clients.New(t).ID("client-3").DisconnectedDuration(5 * time.Minute).Build()
+			c4 := clients.New(t).ID("client-4").Connection(connMock4).Build()
+
+			c1.Tags = []string{"linux"}
+			c2.Tags = []string{"windows"}
+			c3.Tags = []string{"mac"}
+			c4.Tags = []string{"linux", "windows"}
+
+			g1 := makeClientGroup("group-1", &cgroups.ClientParams{
+				ClientID: &cgroups.ParamValues{"client-1", "client-2"},
+				OS:       &cgroups.ParamValues{"Linux*"},
+				Version:  &cgroups.ParamValues{"0.1.1*"},
+			})
+
+			g2 := makeClientGroup("group-2", &cgroups.ClientParams{
+				ClientID: &cgroups.ParamValues{"client-4"},
+				OS:       &cgroups.ParamValues{"Linux*"},
+				Version:  &cgroups.ParamValues{"0.1.1*"},
+			})
+
+			c1.AllowedUserGroups = []string{"group-1"}
+			c2.AllowedUserGroups = []string{"group-1"}
+			c4.AllowedUserGroups = []string{"group-2"}
+
+			clientList := []*clients.Client{c1, c2, c4}
+
+			p := clients.NewFakeClientProvider(t, nil, nil)
+
+			al := makeAPIListener(curUser,
+				clients.NewClientRepositoryWithDB(nil, &hour, p, testLog),
+				defaultTimeout,
+				testLog)
+
+			// make sure the repo has the test clients
+			for _, cl := range clientList {
+				err := al.clientService.GetRepo().Save(cl)
+				assert.NoError(t, err)
+			}
+
+			var done chan bool
+			if tc.shouldSucceed {
+				done = make(chan bool)
+				al.testDone = done
+			}
+
+			jp := makeJobsProvider(t, DataSourceOptions, testLog)
+			defer jp.Close()
+
+			gp := makeGroupsProvider(t, DataSourceOptions)
+			defer gp.Close()
+
+			al.initRouter()
+
+			al.jobProvider = jp
+			al.clientGroupProvider = gp
+
+			ctx := api.WithUser(context.Background(), testUser)
+
+			err := gp.Create(ctx, g1)
+			assert.NoError(t, err)
+			err = gp.Create(ctx, g2)
+			assert.NoError(t, err)
+
+			// setup a web socket server running the handler under test
+			s := httptest.NewServer(al.wsAuth(http.HandlerFunc(al.handleCommandsWS)))
+			defer s.Close()
+
+			// prep the test user auth
+			reqHeader := makeAuthHeader(testUser, testToken)
+
+			// dial the test websocket server running the handler under test
+			wsURL := httpToWS(t, s.URL)
+			ws, _, err := websocket.DefaultDialer.Dial(wsURL, reqHeader)
+			assert.NoError(t, err)
+			defer ws.Close()
+
+			// send the request to the handler under test
+			err = ws.WriteMessage(websocket.TextMessage, []byte(tc.requestBody))
+			assert.NoError(t, err)
+
+			if tc.shouldSucceed {
+				<-al.testDone
+
+				// gotta find the job id somehow. not available in the WS as that is updated via
+				// the client listener which isn't running as part of the test.
+				multiJobIDs := al.jobsDoneChannel.GetAllKeys()
+				multiJobID := multiJobIDs[0]
+				multiJob, err := jp.GetMultiJob(ctx, multiJobID)
+				assert.NoError(t, err)
+
+				assert.Equal(t, tc.wantJobCount, len(multiJob.Jobs))
+
+				// ask the server to close the web socket
+				err = ws.WriteMessage(websocket.CloseMessage, websocket.FormatCloseMessage(websocket.CloseNormalClosure, ""))
+				assert.NoError(t, err)
+			} else {
+				_, res, err := ws.ReadMessage()
+				assert.NoError(t, err)
+
+				result := strings.TrimSpace(string(res))
+				wantResp := api.NewErrAPIPayloadFromMessage(tc.wantErrCode, tc.wantErrTitle, tc.wantErrDetail)
+				wantRespBytes, err := json.Marshal(wantResp)
+				require.NoError(t, err)
+				require.Equal(t, string(wantRespBytes), result)
+			}
+		})
+	}
+}
+
+func TestHandlePostMultiClientScriptWithTags(t *testing.T) {
+
+	defaultTimeout := 60
+
+	testCases := []struct {
+		name string
+
+		requestBody string
+
+		wantStatusCode int
+		wantJobCount   int
+		wantErrCode    string
+		wantErrTitle   string
+		wantErrDetail  string
+	}{
+		{
+			name: "valid when only tags included",
+			requestBody: `{
+				"script": "dGVzdC5zaA==",
+				"timeout_sec": 30,
+				"tags": {
+					"tags": [
+						"linux"
+					],
+					"operator": "OR"
+				},
+				"abort_on_error": false,
+				"execute_concurrently": false
+			}`,
+			wantStatusCode: http.StatusOK,
+			wantJobCount:   2,
+		},
+		{
+			name: "no targeting params provided",
+			requestBody: `
+		{
+			"script": "dGVzdC5zaA==",
+			"timeout_sec": 30
+		}`,
+			wantStatusCode: http.StatusBadRequest,
+			wantErrTitle:   "Missing targeting parameters.",
+			wantErrDetail:  ErrRequestMissingTargetingParams.Error(),
+		},
+		{
+			name: "error when empty tags",
+			requestBody: `
+		{
+			"script": "dGVzdC5zaA==",
+			"timeout_sec": 30,
+			"tags": {
+				"tags": [],
+				"operator": "OR"
+			}
+		}`,
+			wantStatusCode: http.StatusBadRequest,
+			wantErrTitle:   "No tags specified.",
+			wantErrDetail:  ErrMissingTagsInMultiJobRequest.Error(),
+		},
+		{
+			name: "error when no clients for tag",
+			requestBody: `
+		{
+			"script": "dGVzdC5zaA==",
+			"timeout_sec": 30,
+			"tags": {
+				"tags": ["random"],
+				"operator": "OR"
+			}
+		}`,
+			wantStatusCode: http.StatusBadRequest,
+			wantErrTitle:   "at least 1 client should be specified",
+		},
+		{
+			name: "error when client ids and tags included",
+			requestBody: `
+		{
+			"script": "dGVzdC5zaA==",
+			"timeout_sec": 30,
+			"client_ids": ["client-1", "client-2"],
+			"tags": {
+				"tags": [
+					"linux",
+					"windows"
+				],
+				"operator": "OR"
+			}
+		}`,
+			wantStatusCode: http.StatusBadRequest,
+			wantErrTitle:   "Multiple targeting parameters.",
+			wantErrDetail:  ErrRequestIncludesMultipleTargetingParams.Error(),
+		},
+		{
+			name: "error when group ids and tags included",
+			requestBody: `
+		{
+			"script": "dGVzdC5zaA==",
+			"timeout_sec": 30,
+			"group_ids": ["group-1"],
+			"tags": {
+				"tags": [
+					"linux",
+					"windows"
+				],
+				"operator": "OR"
+			}
+		}`,
+			wantStatusCode: http.StatusBadRequest,
+			wantErrTitle:   "Multiple targeting parameters.",
+			wantErrDetail:  ErrRequestIncludesMultipleTargetingParams.Error(),
+		},
+	}
+
+	for _, tc := range testCases {
+		t.Run(tc.name, func(t *testing.T) {
+			// given
+
+			testUser := "test-user"
+			curUser := makeTestUser(testUser)
+
+			connMock1 := makeConnMock(t, 1, time.Date(2020, 10, 10, 10, 10, 1, 0, time.UTC))
+			connMock2 := makeConnMock(t, 2, time.Date(2020, 10, 10, 10, 10, 2, 0, time.UTC))
+			connMock4 := makeConnMock(t, 4, time.Date(2020, 10, 10, 10, 10, 4, 0, time.UTC))
+
+			c1 := clients.New(t).ID("client-1").Connection(connMock1).Build()
+			c2 := clients.New(t).ID("client-2").Connection(connMock2).Build()
+			c3 := clients.New(t).ID("client-3").DisconnectedDuration(5 * time.Minute).Build()
+			c4 := clients.New(t).ID("client-4").Connection(connMock4).Build()
+
+			c1.Tags = []string{"linux"}
+			c2.Tags = []string{"windows"}
+			c3.Tags = []string{"mac"}
+			c4.Tags = []string{"linux", "windows"}
+
+			g1 := makeClientGroup("group-1", &cgroups.ClientParams{
+				ClientID: &cgroups.ParamValues{"client-1", "client-2"},
+				OS:       &cgroups.ParamValues{"Linux*"},
+				Version:  &cgroups.ParamValues{"0.1.1*"},
+			})
+
+			g2 := makeClientGroup("group-2", &cgroups.ClientParams{
+				ClientID: &cgroups.ParamValues{"client-4"},
+				OS:       &cgroups.ParamValues{"Linux*"},
+				Version:  &cgroups.ParamValues{"0.1.1*"},
+			})
+
+			c1.AllowedUserGroups = []string{"group-1"}
+			c2.AllowedUserGroups = []string{"group-1"}
+			c4.AllowedUserGroups = []string{"group-2"}
+
+			clientList := []*clients.Client{c1, c2, c4}
+
+			p := clients.NewFakeClientProvider(t, nil, nil)
+
+			al := makeAPIListener(curUser,
+				clients.NewClientRepositoryWithDB(nil, &hour, p, testLog),
+				defaultTimeout,
+				testLog)
+
+			// make sure the repo has the test clients
+			for _, cl := range clientList {
+				err := al.clientService.GetRepo().Save(cl)
+				assert.NoError(t, err)
+			}
+
+			var done chan bool
+			if tc.wantStatusCode == http.StatusOK {
+				done = make(chan bool)
+				al.testDone = done
+			}
+
+			jp := makeJobsProvider(t, DataSourceOptions, testLog)
+			defer jp.Close()
+
+			gp := makeGroupsProvider(t, DataSourceOptions)
+			defer gp.Close()
+
+			al.initRouter()
+
+			al.jobProvider = jp
+			al.clientGroupProvider = gp
+
+			ctx := api.WithUser(context.Background(), testUser)
+
+			err := gp.Create(ctx, g1)
+			assert.NoError(t, err)
+			err = gp.Create(ctx, g2)
+			assert.NoError(t, err)
+
+			req := httptest.NewRequest(http.MethodPost, "/api/v1/scripts", strings.NewReader(tc.requestBody))
+			req = req.WithContext(ctx)
+
+			// when
+			w := httptest.NewRecorder()
+			al.router.ServeHTTP(w, req)
+
+			// then
+			assert.Equal(t, tc.wantStatusCode, w.Code)
+			if tc.wantStatusCode == http.StatusOK {
+				// wait until async task executeMultiClientJob finishes
+				<-al.testDone
+				// success case
+				assert.Contains(t, w.Body.String(), `{"data":{"jid":`)
+				gotResp := api.NewSuccessPayload(newJobResponse{})
+				require.NoError(t, json.Unmarshal(w.Body.Bytes(), &gotResp))
+				gotPropMap, ok := gotResp.Data.(map[string]interface{})
+				require.True(t, ok)
+				jidObj, found := gotPropMap["jid"]
+				require.True(t, found)
+				gotJID, ok := jidObj.(string)
+				require.True(t, ok)
+				require.NotEmpty(t, gotJID)
+
+				gotMultiJob, err := jp.GetMultiJob(ctx, gotJID)
+				require.NoError(t, err)
+				require.NotNil(t, gotMultiJob)
+				require.Len(t, gotMultiJob.Jobs, tc.wantJobCount)
+			} else {
+				// failure case
+				wantResp := api.NewErrAPIPayloadFromMessage(tc.wantErrCode, tc.wantErrTitle, tc.wantErrDetail)
+				wantRespBytes, err := json.Marshal(wantResp)
+				require.NoError(t, err)
+				require.Equal(t, string(wantRespBytes), w.Body.String())
+			}
+		})
+	}
+}
+
+func TestHandlePostMultiClientWSScriptWithTags(t *testing.T) {
+	defaultTimeout := 60
+
+	testCases := []struct {
+		name string
+
+		requestBody string
+
+		shouldSucceed bool
+		wantJobCount  int
+		wantErrCode   string
+		wantErrTitle  string
+		wantErrDetail string
+	}{
+		{
+			name: "valid with client ids",
+			requestBody: `
+		{
+			"script": "dGVzdC5zaA==",
+			"timeout_sec": 30,
+			"client_ids": ["client-1", "client-2"],
+			"abort_on_error": false,
+			"execute_concurrently": false
+		}`,
+			shouldSucceed: true,
+			wantJobCount:  2,
+		},
+		{
+			name: "no targeting params provided",
+			requestBody: `
+		{
+			"script": "dGVzdC5zaA==",
+			"timeout_sec": 30
+		}`,
+			shouldSucceed: false,
+			wantErrDetail: ErrRequestMissingTargetingParams.Error(),
+		},
+		{
+			name: "valid when only tags included",
+			requestBody: `{
+				"script": "dGVzdC5zaA==",
+				"timeout_sec": 30,
+				"tags": {
+					"tags": [
+						"linux",
+						"windows"
+					],
+					"operator": "AND"
+				},
+				"abort_on_error": false,
+				"execute_concurrently": false
+			}`,
+			shouldSucceed: true,
+			wantJobCount:  1,
+		},
+		{
+			name: "error when empty tags",
+			requestBody: `
+		{
+			"script": "dGVzdC5zaA==",
+			"timeout_sec": 30,
+			"tags": {
+				"tags": [],
+				"operator": "OR"
+			}
+		}`,
+			shouldSucceed: false,
+			wantErrDetail: ErrMissingTagsInMultiJobRequest.Error(),
+		},
+		{
+			name: "error when no clients for tag",
+			requestBody: `
+		{
+			"script": "dGVzdC5zaA==",
+			"timeout_sec": 30,
+			"tags": {
+				"tags": ["random"],
+				"operator": "OR"
+			}
+		}`,
+			shouldSucceed: false,
+			wantErrDetail: "at least 1 client should be specified",
+		},
+		{
+			name: "error when client ids and tags included",
+			requestBody: `
+		{
+			"command": "/bin/date;foo;whoami",
+			"timeout_sec": 30,
+			"client_ids": ["client-1", "client-2"],
+			"tags": {
+				"tags": [
+					"linux",
+					"windows"
+				],
+				"operator": "OR"
+			}
+		}`,
+			shouldSucceed: false,
+			wantErrDetail: ErrRequestIncludesMultipleTargetingParams.Error(),
+		},
+		{
+			name: "error when group ids and tags included",
+			requestBody: `
+		{
+			"command": "/bin/date;foo;whoami",
+			"timeout_sec": 30,
+			"group_ids": ["group-1"],
+			"tags": {
+				"tags": [
+					"linux",
+					"windows"
+				],
+				"operator": "OR"
+			}
+		}`,
+			shouldSucceed: false,
+			wantErrDetail: ErrRequestIncludesMultipleTargetingParams.Error(),
+		},
+	}
+
+	for _, tc := range testCases {
+		t.Run(tc.name, func(t *testing.T) {
+			// given
+
+			testUser := "test-user"
+			testToken := "12345678"
+			curUser := makeTestUserWithToken(testUser, testToken)
+
+			connMock1 := makeConnMock(t, 1, time.Date(2020, 10, 10, 10, 10, 1, 0, time.UTC))
+			connMock2 := makeConnMock(t, 2, time.Date(2020, 10, 10, 10, 10, 2, 0, time.UTC))
+			connMock4 := makeConnMock(t, 4, time.Date(2020, 10, 10, 10, 10, 4, 0, time.UTC))
+
+			c1 := clients.New(t).ID("client-1").Connection(connMock1).Build()
+			c2 := clients.New(t).ID("client-2").Connection(connMock2).Build()
+			c3 := clients.New(t).ID("client-3").DisconnectedDuration(5 * time.Minute).Build()
+			c4 := clients.New(t).ID("client-4").Connection(connMock4).Build()
+
+			c1.Tags = []string{"linux"}
+			c2.Tags = []string{"windows"}
+			c3.Tags = []string{"mac"}
+			c4.Tags = []string{"linux", "windows"}
+
+			g1 := makeClientGroup("group-1", &cgroups.ClientParams{
+				ClientID: &cgroups.ParamValues{"client-1", "client-2"},
+				OS:       &cgroups.ParamValues{"Linux*"},
+				Version:  &cgroups.ParamValues{"0.1.1*"},
+			})
+
+			g2 := makeClientGroup("group-2", &cgroups.ClientParams{
+				ClientID: &cgroups.ParamValues{"client-4"},
+				OS:       &cgroups.ParamValues{"Linux*"},
+				Version:  &cgroups.ParamValues{"0.1.1*"},
+			})
+
+			c1.AllowedUserGroups = []string{"group-1"}
+			c2.AllowedUserGroups = []string{"group-1"}
+			c4.AllowedUserGroups = []string{"group-2"}
+
+			clientList := []*clients.Client{c1, c2, c4}
+
+			p := clients.NewFakeClientProvider(t, nil, nil)
+
+			al := makeAPIListener(curUser,
+				clients.NewClientRepositoryWithDB(nil, &hour, p, testLog),
+				defaultTimeout,
+				testLog)
+
+			// make sure the repo has the test clients
+			for _, cl := range clientList {
+				err := al.clientService.GetRepo().Save(cl)
+				assert.NoError(t, err)
+			}
+
+			var done chan bool
+			if tc.shouldSucceed {
+				done = make(chan bool)
+				al.testDone = done
+			}
+
+			jp := makeJobsProvider(t, DataSourceOptions, testLog)
+			defer jp.Close()
+
+			gp := makeGroupsProvider(t, DataSourceOptions)
+			defer gp.Close()
+
+			al.initRouter()
+
+			al.jobProvider = jp
+			al.clientGroupProvider = gp
+
+			ctx := api.WithUser(context.Background(), testUser)
+
+			err := gp.Create(ctx, g1)
+			assert.NoError(t, err)
+			err = gp.Create(ctx, g2)
+			assert.NoError(t, err)
+
+			// setup a web socket server running the handler under test
+			s := httptest.NewServer(al.wsAuth(http.HandlerFunc(al.handleScriptsWS)))
+			defer s.Close()
+
+			// prep the test user auth
+			reqHeader := makeAuthHeader(testUser, testToken)
+
+			// dial the test websocket server running the handler under test
+			wsURL := httpToWS(t, s.URL)
+			ws, _, err := websocket.DefaultDialer.Dial(wsURL, reqHeader)
+			assert.NoError(t, err)
+			defer ws.Close()
+
+			// send the request to the handler under test
+			err = ws.WriteMessage(websocket.TextMessage, []byte(tc.requestBody))
+			assert.NoError(t, err)
+
+			if tc.shouldSucceed {
+				<-al.testDone
+
+				// gotta find the job id somehow. not available in the WS as that is updated via
+				// the client listener which isn't running as part of the test.
+				multiJobIDs := al.jobsDoneChannel.GetAllKeys()
+				multiJobID := multiJobIDs[0]
+				multiJob, err := jp.GetMultiJob(ctx, multiJobID)
+				assert.NoError(t, err)
+
+				assert.Equal(t, tc.wantJobCount, len(multiJob.Jobs))
+
+				// ask the server to close the web socket
+				err = ws.WriteMessage(websocket.CloseMessage, websocket.FormatCloseMessage(websocket.CloseNormalClosure, ""))
+				assert.NoError(t, err)
+			} else {
+				_, res, err := ws.ReadMessage()
+				assert.NoError(t, err)
+
+				result := strings.TrimSpace(string(res))
+				wantResp := api.NewErrAPIPayloadFromMessage(tc.wantErrCode, tc.wantErrTitle, tc.wantErrDetail)
+				wantRespBytes, err := json.Marshal(wantResp)
+				require.NoError(t, err)
+				require.Equal(t, string(wantRespBytes), result)
+			}
+		})
+	}
+}
+
+func makeTestUser(testUser string) (curUser *users.User) {
+	curUser = &users.User{
+		Username: testUser,
+		Groups:   []string{users.Administrators},
+	}
+	return curUser
+}
+
+func makeTestUserWithToken(testUser string, token string) (curUser *users.User) {
+	curUser = &users.User{
+		Username: testUser,
+		Groups:   []string{users.Administrators},
+		Token:    &token,
+	}
+	return curUser
+}
+
+func makeAuthHeader(testUser string, testToken string) (reqHeader http.Header) {
+	auth := testUser + ":" + testToken
+	authContent := base64.StdEncoding.EncodeToString([]byte(auth))
+	reqHeader = http.Header{}
+	reqHeader.Add("Authorization", "Basic "+authContent)
+	return reqHeader
+}
+
+func makeClientGroup(groupID string, params *cgroups.ClientParams) (gp *cgroups.ClientGroup) {
+	gp = &cgroups.ClientGroup{
+		ID:     groupID,
+		Params: params,
+	}
+	return gp
+}
+
+func httpToWS(t *testing.T, u string) string {
+	t.Helper()
+
+	wsURL, err := url.Parse(u)
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	switch wsURL.Scheme {
+	case "http":
+		wsURL.Scheme = "ws"
+	case "https":
+		wsURL.Scheme = "wss"
+	}
+
+	return wsURL.String()
+}
+
+func makeConnMock(t *testing.T, pid int, startedAt time.Time) (connMock *test.ConnMock) {
+	t.Helper()
+	connMock = test.NewConnMock()
+	connMock.ReturnOk = true
+	sshSuccessResp := comm.RunCmdResponse{Pid: pid, StartedAt: startedAt}
+	sshRespBytes, err := json.Marshal(sshSuccessResp)
+	require.NoError(t, err)
+	connMock.ReturnResponsePayload = sshRespBytes
+	return connMock
+}
+
+func makeAPIListener(
+	curUser *users.User,
+	clientRepo *clients.ClientRepository,
+	defaultTimeout int,
+	testLog *logger.Logger) (al *APIListener) {
+	al = &APIListener{
+		insecureForTests: true,
+		Server: &Server{
+			clientService: NewClientService(nil, nil, clientRepo),
+			config: &Config{
+				Server: ServerConfig{
+					RunRemoteCmdTimeoutSec: defaultTimeout,
+					MaxRequestBytes:        1024 * 1024,
+				},
+			},
+			uiJobWebSockets: ws.NewWebSocketCache(),
+			jobsDoneChannel: jobResultChanMap{
+				m: make(map[string]chan *models.Job),
+			},
+		},
+		bannedUsers: security.NewBanList(time.Duration(60) * time.Second),
+		userService: users.NewAPIService(users.NewStaticProvider([]*users.User{curUser}), false),
+		Logger:      testLog,
+	}
+
+	return al
+}
+
+func makeJobsProvider(t *testing.T, dataSourceOptions sqlite.DataSourceOptions, testLog *logger.Logger) (jp *jobs.SqliteProvider) {
+	t.Helper()
+	jobsDB, err := sqlite.New(
+		":memory:",
+		jobsmigration.AssetNames(),
+		jobsmigration.Asset,
+		dataSourceOptions,
+	)
+	require.NoError(t, err)
+	jp = jobs.NewSqliteProvider(jobsDB, testLog)
+	return jp
+}
+
+func makeGroupsProvider(t *testing.T, dataSourceOptions sqlite.DataSourceOptions) (gp *cgroups.SqliteProvider) {
+	t.Helper()
+	groupsDB, err := sqlite.New(
+		":memory:",
+		client_groups.AssetNames(),
+		client_groups.Asset,
+		dataSourceOptions,
+	)
+	require.NoError(t, err)
+
+	gp, err = cgroups.NewSqliteProvider(groupsDB)
+	assert.NoError(t, err)
+	return gp
+}
+
+func makeScheduleManager(t *testing.T, jp *jobs.SqliteProvider, jobRunner schedule.JobRunner, testLog *logger.Logger) (scheduleManager *schedule.Manager) {
+	t.Helper()
+	scheduleManager = schedule.NewManager(jobRunner, jp.GetDB(), testLog, 30)
+
+	return scheduleManager
 }

@@ -130,15 +130,16 @@ type multiJobSummarySqlite struct {
 }
 
 type multiJobDetailSqlite struct {
-	ClientIDs   []string `json:"client_ids"`
-	GroupIDs    []string `json:"group_ids"`
-	Command     string   `json:"command"`
-	Interpreter string   `json:"interpreter"`
-	Cwd         string   `json:"cwd"`
-	IsSudo      bool     `json:"is_sudo"`
-	TimeoutSec  int      `json:"timeout_sec"`
-	Concurrent  bool     `json:"concurrent"`
-	AbortOnErr  bool     `json:"abort_on_err"`
+	ClientIDs   []string              `json:"client_ids"`
+	GroupIDs    []string              `json:"group_ids"`
+	ClientTags  *models.JobClientTags `json:"tags"`
+	Command     string                `json:"command"`
+	Interpreter string                `json:"interpreter"`
+	Cwd         string                `json:"cwd"`
+	IsSudo      bool                  `json:"is_sudo"`
+	TimeoutSec  int                   `json:"timeout_sec"`
+	Concurrent  bool                  `json:"concurrent"`
+	AbortOnErr  bool                  `json:"abort_on_err"`
 }
 
 func (d *multiJobDetailSqlite) Scan(value interface{}) error {
@@ -191,6 +192,7 @@ func (j *multiJobSqlite) convert() *models.MultiJob {
 		MultiJobSummary: *js,
 		ClientIDs:       d.ClientIDs,
 		GroupIDs:        d.GroupIDs,
+		ClientTags:      d.ClientTags,
 		Command:         d.Command,
 		Cwd:             d.Cwd,
 		IsSudo:          d.IsSudo,
@@ -212,6 +214,7 @@ func convertMultiJobToSqlite(job *models.MultiJob) *multiJobSqlite {
 		Details: &multiJobDetailSqlite{
 			ClientIDs:   job.ClientIDs,
 			GroupIDs:    job.GroupIDs,
+			ClientTags:  job.ClientTags,
 			Command:     job.Command,
 			Interpreter: job.Interpreter,
 			Cwd:         job.Cwd,

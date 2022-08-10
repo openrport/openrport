@@ -71,14 +71,7 @@ type Manager struct {
 }
 
 func New(ctx context.Context, logger *logger.Logger, db *sqlx.DB, jobRunner JobRunner, runRemoteCmdTimeoutSec int) (*Manager, error) {
-	m := &Manager{
-		Logger:    logger,
-		jobRunner: jobRunner,
-		provider:  newSQLiteProvider(db),
-		cron:      newCron(),
-
-		runRemoteCmdTimeoutSec: runRemoteCmdTimeoutSec,
-	}
+	m := NewManager(jobRunner, db, logger, runRemoteCmdTimeoutSec)
 
 	existing, err := m.provider.List(ctx, nil)
 	if err != nil {
@@ -93,6 +86,18 @@ func New(ctx context.Context, logger *logger.Logger, db *sqlx.DB, jobRunner JobR
 	}
 
 	return m, nil
+}
+
+func NewManager(jobRunner JobRunner, db *sqlx.DB, logger *logger.Logger, runRemoteCmdTimeoutSec int) (m *Manager) {
+	m = &Manager{
+		Logger:    logger,
+		jobRunner: jobRunner,
+		provider:  newSQLiteProvider(db),
+		cron:      newCron(),
+
+		runRemoteCmdTimeoutSec: runRemoteCmdTimeoutSec,
+	}
+	return m
 }
 
 func (m *Manager) List(ctx context.Context, r *http.Request) (*api.SuccessPayload, error) {
@@ -229,14 +234,6 @@ func (m *Manager) validate(s *Schedule) error {
 		return &errors.APIError{
 			Message:    "Invalid interpreter.",
 			Err:        err,
-			HTTPStatus: http.StatusBadRequest,
-		}
-	}
-
-	if len(s.Details.ClientIDs) == 0 && len(s.Details.GroupIDs) == 0 {
-		return &errors.APIError{
-			Message:    "Empty client_ids and group_ids.",
-			Err:        fmt.Errorf("at least 1 client_id or group_id must be specified"),
 			HTTPStatus: http.StatusBadRequest,
 		}
 	}

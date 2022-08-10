@@ -12,7 +12,7 @@ import (
 func TestClientsSqliteProvider(t *testing.T) {
 	ctx := context.Background()
 	keepLost := hour
-	p := newFakeClientProvider(t, &keepLost)
+	p := NewFakeClientProvider(t, &keepLost)
 	defer p.Close()
 	noObsoleteProvider := newSqliteProvider(p.db, nil)
 

@@ -17,7 +17,6 @@ func (al *APIListener) handleCommandsExecutionWS(
 	ctx context.Context,
 	uiConnTS *ws.ConcurrentWebSocket,
 	inboundMsg *jobs.MultiJobRequest,
-	clientsInGroupsCount int,
 	auditLogEntry *auditlog.Entry,
 ) {
 	if inboundMsg.Command == "" {
@@ -31,16 +30,6 @@ func (al *APIListener) handleCommandsExecutionWS(
 
 	if inboundMsg.TimeoutSec <= 0 {
 		inboundMsg.TimeoutSec = al.config.Server.RunRemoteCmdTimeoutSec
-	}
-
-	if len(inboundMsg.GroupIDs) > 0 && clientsInGroupsCount == 0 && len(inboundMsg.ClientIDs) == 0 {
-		uiConnTS.WriteError("No active clients belong to the selected group(s).", nil)
-		return
-	}
-
-	if len(inboundMsg.ClientIDs) < 1 && clientsInGroupsCount == 0 {
-		uiConnTS.WriteError("'client_ids' field should contain at least one client ID", nil)
-		return
 	}
 
 	curUser, err := al.getUserModelForAuth(ctx)
@@ -69,7 +58,7 @@ func (al *APIListener) handleCommandsExecutionWS(
 		SaveForMultipleClients(inboundMsg.OrderedClients)
 
 	createdBy := curUser.Username
-	if len(inboundMsg.ClientIDs) > 1 || clientsInGroupsCount > 0 {
+	if inboundMsg.OrderedClients != nil && len(inboundMsg.OrderedClients) > 0 {
 		// by default abortOnErr is true
 		abortOnErr := true
 		if inboundMsg.AbortOnError != nil {
@@ -84,6 +73,7 @@ func (al *APIListener) handleCommandsExecutionWS(
 			},
 			ClientIDs:   inboundMsg.ClientIDs,
 			GroupIDs:    inboundMsg.GroupIDs,
+			ClientTags:  inboundMsg.ClientTags,
 			Command:     inboundMsg.Command,
 			Cwd:         inboundMsg.Cwd,
 			Interpreter: inboundMsg.Interpreter,
@@ -98,11 +88,13 @@ func (al *APIListener) handleCommandsExecutionWS(
 			return
 		}
 
-		al.Debugf("Multi-client Job[id=%q] created to execute remote command on clients %s, groups %s: %q.", multiJob.JID, inboundMsg.ClientIDs, inboundMsg.GroupIDs, inboundMsg.Command)
+		al.Debugf("Multi-client Job[id=%q] created to execute remote command on clients %s, groups %s tags %s: %q.", multiJob.JID, inboundMsg.ClientIDs, inboundMsg.GroupIDs, inboundMsg.GetClientTags(), inboundMsg.Command)
+
 		uiConnTS.SetWritesBeforeClose(len(inboundMsg.OrderedClients))
 
 		// for sequential execution - create a channel to get the job result
 		var curJobDoneChannel chan *models.Job
+
 		if !multiJob.Concurrent {
 			curJobDoneChannel = make(chan *models.Job)
 			al.jobsDoneChannel.Set(multiJob.JID, curJobDoneChannel)
@@ -146,6 +138,7 @@ func (al *APIListener) handleCommandsExecutionWS(
 					multiJob.IsScript,
 					client,
 				)
+
 				if !success {
 					if multiJob.AbortOnErr {
 						uiConnTS.Close()
@@ -153,6 +146,12 @@ func (al *APIListener) handleCommandsExecutionWS(
 					}
 					continue
 				}
+
+				// TODO: review use of this flag as a testing hack. works but not too nice.
+				if al.insecureForTests {
+					continue
+				}
+
 				// wait until command is finished
 				jobResult := <-curJobDoneChannel
 				if multiJob.AbortOnErr && jobResult.Status == models.JobStatusFailed {
@@ -176,6 +175,10 @@ func (al *APIListener) handleCommandsExecutionWS(
 			inboundMsg.IsScript,
 			client,
 		)
+	}
+
+	if al.testDone != nil {
+		al.testDone <- true
 	}
 
 	// check for Close message from client to close the connection

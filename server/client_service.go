@@ -34,6 +34,7 @@ type ClientService interface {
 	GetByID(id string) (*clients.Client, error)
 	GetActiveByID(id string) (*clients.Client, error)
 	GetActiveByGroups(groups []*cgroups.ClientGroup) []*clients.Client
+	GetClientsByTag(tags []string, operator string, allowDisconnected bool) (clients []*clients.Client, err error)
 	PopulateGroupsWithUserClients(groups []*cgroups.ClientGroup, user clients.User)
 	GetAllByClientID(clientID string) []*clients.Client
 	GetAll() ([]*clients.Client, error)
@@ -210,6 +211,10 @@ func (s *ClientServiceProvider) GetActiveByGroups(groups []*cgroups.ClientGroup)
 		}
 	}
 	return res
+}
+
+func (s *ClientServiceProvider) GetClientsByTag(tags []string, operator string, allowDisconnected bool) (clients []*clients.Client, err error) {
+	return s.repo.GetClientsByTag(tags, operator, allowDisconnected)
 }
 
 func (s *ClientServiceProvider) PopulateGroupsWithUserClients(groups []*cgroups.ClientGroup, user clients.User) {

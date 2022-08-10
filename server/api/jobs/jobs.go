@@ -101,6 +101,12 @@ func NewSqliteProvider(db *sqlx.DB, log *logger.Logger) *SqliteProvider {
 	}
 }
 
+// TODO: this was added to support test dependencies. we could potentially remove if there's a
+// better way.
+func (p *SqliteProvider) GetDB() (db *sqlx.DB) {
+	return p.db
+}
+
 func (p *SqliteProvider) GetByJID(clientID, jid string) (*models.Job, error) {
 	res := &jobSqlite{}
 	err := p.db.Get(res, "SELECT jobs.*, schedule_id FROM jobs LEFT JOIN multi_jobs ON jobs.multi_job_id = multi_jobs.jid WHERE jobs.jid=?", jid)

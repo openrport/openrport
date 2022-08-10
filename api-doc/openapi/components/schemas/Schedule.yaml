@@ -35,6 +35,8 @@ properties:
     description: Group IDs that schedule will be executed on
     items:
       type: string
+  tags:
+    $ref: ./Tags.yaml
   command:
     type: string
     description: Command to be executed, only for type 'command'

@@ -3,6 +3,7 @@ package clients
 import (
 	"context"
 	"fmt"
+	"strings"
 	"sync"
 	"time"
 
@@ -32,10 +33,11 @@ type User interface {
 // keepDisconnectedClients is a duration to keep disconnected clients. If a client was disconnected longer than a given
 // duration it will be treated as obsolete.
 func NewClientRepository(initClients []*Client, keepDisconnectedClients *time.Duration, logger *logger.Logger) *ClientRepository {
-	return newClientRepositoryWithDB(initClients, keepDisconnectedClients, nil, logger)
+	return NewClientRepositoryWithDB(initClients, keepDisconnectedClients, nil, logger)
 }
 
-func newClientRepositoryWithDB(initClients []*Client, keepDisconnectedClients *time.Duration, provider ClientProvider, logger *logger.Logger) *ClientRepository {
+// TODO: used for test setup in two separate packages. need to review use as part of the test code refactoring.
+func NewClientRepositoryWithDB(initClients []*Client, keepDisconnectedClients *time.Duration, provider ClientProvider, logger *logger.Logger) *ClientRepository {
 	clients := make(map[string]*Client)
 	for i := range initClients {
 		clients[initClients[i].ID] = initClients[i]
@@ -60,7 +62,7 @@ func InitClientRepository(
 		return nil, err
 	}
 
-	return newClientRepositoryWithDB(initClients, keepDisconnectedClients, provider, logger), nil
+	return NewClientRepositoryWithDB(initClients, keepDisconnectedClients, provider, logger), nil
 }
 
 func (s *ClientRepository) Save(client *Client) error {
@@ -89,6 +91,68 @@ func (s *ClientRepository) Delete(client *Client) error {
 	defer s.mu.Unlock()
 	delete(s.clients, client.ID)
 	return nil
+}
+
+func (s *ClientRepository) GetClientsByTag(tags []string, operator string, allowDisconnected bool) (matchingClients []*Client, err error) {
+	var availableClients []*Client
+	if allowDisconnected {
+		availableClients, err = s.GetAll()
+		if err != nil {
+			return nil, err
+		}
+	} else {
+		availableClients = s.GetAllActive()
+	}
+	if strings.EqualFold(operator, "AND") {
+		matchingClients = findMatchingANDClients(availableClients, tags)
+	} else {
+		matchingClients = findMatchingORClients(availableClients, tags)
+	}
+
+	return matchingClients, nil
+}
+
+func findMatchingANDClients(availableClients []*Client, tags []string) (matchingClients []*Client) {
+	matchingClients = make([]*Client, 0, 64)
+	for _, cl := range availableClients {
+		clientTags := cl.Tags
+
+		foundAllTags := true
+		for _, tag := range tags {
+			foundTag := false
+			for _, clTag := range clientTags {
+				if tag == clTag {
+					foundTag = true
+					break
+				}
+			}
+			if !foundTag {
+				foundAllTags = false
+				break
+			}
+		}
+		if foundAllTags {
+			matchingClients = append(matchingClients, cl)
+		}
+	}
+	return matchingClients
+}
+
+func findMatchingORClients(availableClients []*Client, tags []string) (matchingClients []*Client) {
+	matchingClients = make([]*Client, 0, 64)
+	for _, cl := range availableClients {
+		clientTags := cl.Tags
+	nextClientForOR:
+		for _, clTag := range clientTags {
+			for _, tag := range tags {
+				if tag == clTag {
+					matchingClients = append(matchingClients, cl)
+					break nextClientForOR
+				}
+			}
+		}
+	}
+	return matchingClients
 }
 
 // DeleteObsolete deletes obsolete disconnected clients and returns them.

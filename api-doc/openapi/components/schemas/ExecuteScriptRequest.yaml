@@ -10,11 +10,21 @@ properties:
     type: boolean
     description: execute the command as a sudo user
   client_ids:
-    minItems: 1
     type: array
-    description: list of client IDs where to run the script
+    description: >-
+      list of client IDs where to run the script. At least one of client_ids, 
+      group_ids or tags must be specified.
     items:
       type: string
+  group_ids:
+    type: array
+    description: >-
+      list of client group IDs. A script will be executed on all
+      clients that belong to given group(s)
+    items:
+      type: string
+  tags:
+    $ref: ./Tags.yaml            
   interpreter:
     type: string
     description: >-

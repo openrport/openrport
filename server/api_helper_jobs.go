@@ -111,9 +111,17 @@ func (al *APIListener) StartMultiClientJob(ctx context.Context, multiJobRequest 
 	}
 
 	if multiJobRequest.OrderedClients == nil {
-		multiJobRequest.OrderedClients, _, err = al.getOrderedClients(ctx, multiJobRequest.ClientIDs, multiJobRequest.GroupIDs, true /* allowDisconnected */)
-		if err != nil {
-			return nil, err
+		// try to rebuild the ordered client list
+		if !hasClientTags(multiJobRequest) {
+			multiJobRequest.OrderedClients, _, err = al.getOrderedClients(ctx, multiJobRequest.ClientIDs, multiJobRequest.GroupIDs, true /* allowDisconnected */)
+			if err != nil {
+				return nil, err
+			}
+		} else {
+			multiJobRequest.OrderedClients, err = al.getOrderedClientsByTag(multiJobRequest.ClientTags, true /* allowDisconnected */)
+			if err != nil {
+				return nil, err
+			}
 		}
 	}
 
@@ -139,6 +147,7 @@ func (al *APIListener) StartMultiClientJob(ctx context.Context, multiJobRequest 
 		},
 		ClientIDs:   multiJobRequest.ClientIDs,
 		GroupIDs:    multiJobRequest.GroupIDs,
+		ClientTags:  multiJobRequest.ClientTags,
 		Command:     command,
 		Interpreter: multiJobRequest.Interpreter,
 		Cwd:         multiJobRequest.Cwd,
@@ -203,6 +212,7 @@ func (al *APIListener) executeMultiClientJob(
 				continue
 			}
 
+			// TODO: review use of this flag as a testing hack. works but not too nice.
 			// in tests skip next part to avoid waiting
 			if al.insecureForTests {
 				continue

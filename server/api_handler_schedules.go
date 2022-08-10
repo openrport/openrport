@@ -37,11 +37,13 @@ func (al *APIListener) handlePostSchedules(w http.ResponseWriter, req *http.Requ
 		al.jsonError(w, err)
 		return
 	}
-	orderedClients, _, err := al.getOrderedClients(ctx, scheduleInput.Details.ClientIDs, scheduleInput.Details.GroupIDs, true /* allowDisconnected */)
+
+	orderedClients, _, err := al.getOrderedClientsWithValidation(ctx, &scheduleInput)
 	if err != nil {
 		al.jsonError(w, err)
 		return
 	}
+
 	err = al.clientService.CheckClientsAccess(orderedClients, curUser)
 	if err != nil {
 		al.jsonError(w, err)
@@ -85,11 +87,13 @@ func (al *APIListener) handleUpdateSchedule(w http.ResponseWriter, req *http.Req
 		al.jsonError(w, err)
 		return
 	}
-	orderedClients, _, err := al.getOrderedClients(ctx, scheduleInput.Details.ClientIDs, scheduleInput.Details.GroupIDs, true /* allowDisconnected */)
+
+	orderedClients, _, err := al.getOrderedClientsWithValidation(ctx, &scheduleInput)
 	if err != nil {
 		al.jsonError(w, err)
 		return
 	}
+
 	err = al.clientService.CheckClientsAccess(orderedClients, curUser)
 	if err != nil {
 		al.jsonError(w, err)

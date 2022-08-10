@@ -64,8 +64,12 @@ func TestHandleFileUploads(t *testing.T) {
 		fileContent         string
 		formParts           map[string][]string
 		cl                  *clients.Client
+		clientTags          []string
 		user                string
 		group               string
+		wantErrCode         string
+		wantErrTitle        string
+		wantErrDetail       string
 	}{
 		{
 			name:       "send file success",
@@ -120,6 +124,143 @@ func TestHandleFileUploads(t *testing.T) {
 			},
 		},
 		{
+			name:       "send file success targeting tags",
+			wantStatus: http.StatusOK,
+			user:       "admin",
+			group:      users.Administrators,
+			wantResp: &models.UploadResponseShort{
+				ID:        "id-123",
+				Filepath:  "/destination/myfile.txt",
+				SizeBytes: 10,
+			},
+			useFsCallback: true,
+			fileName:      "file.txt",
+			fileContent:   "some content",
+			cl:            clients.New(t).ID("22114341234").Build(),
+			clientTags:    []string{"linux"},
+			formParts: map[string][]string{
+				"tags": {
+					`{
+						"tags": ["linux"],
+						"operator": "OR"
+					}`,
+				},
+				"dest": {
+					"/destination/myfile.txt",
+				},
+				"id": {
+					"id-123",
+				},
+				"user": {
+					"admin",
+				},
+				"group": {
+					"group",
+				},
+				"mode": {
+					"0744",
+				},
+				"force": {
+					"1",
+				},
+				"sync": {
+					"1",
+				},
+			},
+			wantClientInputFile: &models.UploadedFile{
+				ID:                   "id-123",
+				SourceFilePath:       "/data/filepush/id-123_rport_filepush",
+				DestinationPath:      "/destination/myfile.txt",
+				DestinationFileMode:  0744,
+				DestinationFileOwner: "admin",
+				DestinationFileGroup: "group",
+				ForceWrite:           true,
+				Sync:                 true,
+				Md5Checksum:          test.Md5Hash("some content"),
+			},
+		},
+		{
+			name:          "send file failed, multiple targeting params",
+			wantStatus:    http.StatusBadRequest,
+			user:          "admin",
+			group:         "",
+			wantResp:      &models.UploadResponseShort{},
+			useFsCallback: true,
+			fileName:      "file.txt",
+			fileContent:   "some content",
+			cl:            clients.New(t).ID("22114341234").Build(),
+			formParts: map[string][]string{
+				"client_id": {
+					"22114341234",
+				},
+				"tags": {
+					`{
+						"tags": ["linux"],
+						"operator": "OR"
+					}`,
+				},
+				"dest": {
+					"/destination/myfile.txt",
+				},
+				"id": {
+					"id-123",
+				},
+			},
+			wantClientInputFile: &models.UploadedFile{},
+			wantErrTitle:        "Multiple targeting parameters.",
+			wantErrDetail:       "multiple targeting options are not supported. Please specify only one",
+		},
+		{
+			name:          "send file failed, missing tags element",
+			wantStatus:    http.StatusBadRequest,
+			user:          "admin",
+			group:         "",
+			wantResp:      &models.UploadResponseShort{},
+			useFsCallback: true,
+			fileName:      "file.txt",
+			fileContent:   "some content",
+			cl:            clients.New(t).ID("22114341234").Build(),
+			formParts: map[string][]string{
+				"dest": {
+					"/destination/myfile.txt",
+				},
+				"id": {
+					"id-123",
+				},
+			},
+			wantClientInputFile: &models.UploadedFile{},
+			wantErrTitle:        "Missing targeting parameters.",
+			wantErrDetail:       "please specify targeting options, such as client ids, groups ids or tags",
+		},
+		{
+			name:          "send file failed, empty tags",
+			wantStatus:    http.StatusBadRequest,
+			user:          "admin",
+			group:         "",
+			wantResp:      &models.UploadResponseShort{},
+			useFsCallback: true,
+			fileName:      "file.txt",
+			fileContent:   "some content",
+			cl:            clients.New(t).ID("22114341234").Build(),
+			formParts: map[string][]string{
+				"tags": {
+					`{
+						"tags": [],
+						"operator": "OR"
+					}`,
+				},
+				"dest": {
+					"/destination/myfile.txt",
+				},
+				"id": {
+					"id-123",
+				},
+			},
+			wantClientInputFile: &models.UploadedFile{},
+			wantErrTitle:        "No tags specified.",
+			wantErrDetail:       "please specify tags in the tags list",
+		},
+		{
 			name:          "send file denied, bad user rights",
 			wantStatus:    http.StatusForbidden,
 			user:          "loser",
@@ -141,6 +282,9 @@ func TestHandleFileUploads(t *testing.T) {
 				},
 			},
 			wantClientInputFile: &models.UploadedFile{},
+			wantErrCode:         "ACCESS_CONTROL_VIOLATION",
+			wantErrTitle:        "upload forbidden",
+			wantErrDetail:       "Access denied to client(s) with ID(s): 22114341234",
 		},
 		{
 			name:          "send file denied, bad destination",
@@ -164,6 +308,9 @@ func TestHandleFileUploads(t *testing.T) {
 				},
 			},
 			wantClientInputFile: &models.UploadedFile{},
+			wantErrCode:         "BAD_DESTINATION",
+			wantErrTitle:        "upload denied",
+			wantErrDetail:       "uploads to /proc/ are forbidden",
 		},
 	}
 
@@ -171,6 +318,10 @@ func TestHandleFileUploads(t *testing.T) {
 		tc := tc
 		t.Run(tc.name, func(t *testing.T) {
 			cl := tc.cl
+
+			if tc.clientTags != nil {
+				cl.Tags = tc.clientTags
+			}
 
 			connMock := test.NewConnMock()
 
@@ -205,6 +356,7 @@ func TestHandleFileUploads(t *testing.T) {
 				Logger:      testLog,
 				userService: MockUserService(tc.user, tc.group),
 			}
+
 			al.initRouter()
 
 			body := &bytes.Buffer{}
@@ -236,7 +388,11 @@ func TestHandleFileUploads(t *testing.T) {
 
 			t.Logf("Got response %s", rec.Body)
 			assert.Equal(t, tc.wantStatus, rec.Code)
-			if tc.wantStatus != http.StatusOK {
+			if tc.wantErrTitle != "" {
+				wantResp := api.NewErrAPIPayloadFromMessage(tc.wantErrCode, tc.wantErrTitle, tc.wantErrDetail)
+				wantRespBytes, err := json.Marshal(wantResp)
+				require.NoError(t, err)
+				require.Equal(t, string(wantRespBytes), rec.Body.String())
 				return
 			}
 

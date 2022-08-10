@@ -8,6 +8,7 @@ import (
 	"time"
 
 	"github.com/cloudradar-monitoring/rport/server/api/jobs"
+	"github.com/cloudradar-monitoring/rport/share/models"
 )
 
 const (
@@ -26,6 +27,18 @@ func (s Schedule) ToDB() DBSchedule {
 		Base:    s.Base,
 		Details: s.Details,
 	}
+}
+
+func (s *Schedule) GetClientIDs() (ids []string) {
+	return s.Details.ClientIDs
+}
+
+func (s *Schedule) GetGroupIDs() (ids []string) {
+	return s.Details.GroupIDs
+}
+
+func (s *Schedule) GetClientTags() (clientTags *models.JobClientTags) {
+	return s.ClientTags
 }
 
 // DBSchedule is used for saving to database and has details in one json db column
@@ -53,17 +66,18 @@ type Base struct {
 }
 
 type Details struct {
-	ClientIDs           []string `json:"client_ids" db:"-"`
-	GroupIDs            []string `json:"group_ids" db:"-"`
-	Command             string   `json:"command,omitempty" db:"-"`
-	Script              string   `json:"script,omitempty" db:"-"`
-	Interpreter         string   `json:"interpreter" db:"-"`
-	Cwd                 string   `json:"cwd" db:"-"`
-	IsSudo              bool     `json:"is_sudo" db:"-"`
-	TimeoutSec          int      `json:"timeout_sec" db:"-"`
-	ExecuteConcurrently bool     `json:"execute_concurrently" db:"-"`
-	AbortOnError        *bool    `json:"abort_on_error" db:"-"`
-	Overlaps            bool     `json:"overlaps" db:"-"`
+	ClientIDs           []string              `json:"client_ids" db:"-"`
+	GroupIDs            []string              `json:"group_ids" db:"-"`
+	ClientTags          *models.JobClientTags `json:"tags" db:"-"`
+	Command             string                `json:"command,omitempty" db:"-"`
+	Script              string                `json:"script,omitempty" db:"-"`
+	Interpreter         string                `json:"interpreter" db:"-"`
+	Cwd                 string                `json:"cwd" db:"-"`
+	IsSudo              bool                  `json:"is_sudo" db:"-"`
+	TimeoutSec          int                   `json:"timeout_sec" db:"-"`
+	ExecuteConcurrently bool                  `json:"execute_concurrently" db:"-"`
+	AbortOnError        *bool                 `json:"abort_on_error" db:"-"`
+	Overlaps            bool                  `json:"overlaps" db:"-"`
 }
 
 func (d *Details) Scan(value interface{}) error {

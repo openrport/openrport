@@ -1,6 +1,7 @@
 package chserver
 
 import (
+	"encoding/json"
 	"fmt"
 	"mime/multipart"
 	"net/http"
@@ -9,7 +10,8 @@ import (
 	"sync"
 	"time"
 
-	errors2 "github.com/cloudradar-monitoring/rport/share/errors"
+	errors2 "github.com/cloudradar-monitoring/rport/server/api/errors"
+	errors3 "github.com/cloudradar-monitoring/rport/share/errors"
 
 	"github.com/cloudradar-monitoring/rport/server/api"
 
@@ -32,17 +34,31 @@ type UploadRequest struct {
 	FileHeader           *multipart.FileHeader
 	ClientIDs            []string
 	GroupIDs             []string
+	ClientTags           *models.JobClientTags
 	clientsInGroupsCount int
 	Clients              []*clients.Client
 	*models.UploadedFile
 }
 
+func (ur UploadRequest) GetClientIDs() (ids []string) {
+	return ur.ClientIDs
+}
+
+func (ur UploadRequest) GetGroupIDs() (ids []string) {
+	return ur.GroupIDs
+}
+
+func (ur UploadRequest) GetClientTags() (clientTags *models.JobClientTags) {
+	return ur.ClientTags
+}
+
 func (al *APIListener) handleFileUploads(w http.ResponseWriter, req *http.Request) {
 	uploadRequest, err := al.uploadRequestFromRequest(req)
 	if err != nil {
-		al.jsonErrorResponseWithTitle(w, http.StatusBadRequest, err.Error())
+		al.jsonError(w, err)
 		return
 	}
+
 	curUser, err := al.getUserModelForAuth(req.Context())
 	if err != nil {
 		al.jsonErrorResponseWithTitle(w, http.StatusBadRequest, err.Error())
@@ -61,7 +77,7 @@ func (al *APIListener) handleFileUploads(w http.ResponseWriter, req *http.Reques
 
 	uploadRequest.SourceFilePath = al.genFilePath(uploadRequest.ID)
 
-	err = validateUploadRequest(uploadRequest)
+	err = uploadRequest.Validate()
 	if err != nil {
 		al.jsonErrorResponseWithTitle(w, http.StatusBadRequest, err.Error())
 		return
@@ -250,7 +266,7 @@ func (al *APIListener) sendFileToClient(wg *sync.WaitGroup, file *models.Uploade
 
 	if cl.ClientConfiguration != nil && !cl.ClientConfiguration.FileReceptionConfig.Enabled {
 		resChan <- &uploadResult{
-			err:    errors2.ErrUploadsDisabled,
+			err:    errors3.ErrUploadsDisabled,
 			client: cl,
 			resp:   nil,
 		}
@@ -278,32 +294,54 @@ func (al *APIListener) notifyUploadEventListeners(msg interface{}) {
 	})
 }
 
-func (al *APIListener) uploadRequestFromRequest(req *http.Request) (*UploadRequest, error) {
-	ur := &UploadRequest{
+func (al *APIListener) uploadRequestFromRequest(req *http.Request) (ur *UploadRequest, err error) {
+	ur = &UploadRequest{
 		UploadedFile: &models.UploadedFile{},
 	}
 
-	err := req.ParseMultipartForm(uploadBufSize)
+	err = req.ParseMultipartForm(uploadBufSize)
 	if err != nil {
-		return nil, err
+		return nil, &errors2.APIError{
+			Err:        err,
+			HTTPStatus: http.StatusBadRequest,
+		}
 	}
 
 	ur.ClientIDs = req.MultipartForm.Value["client_id"]
 	ur.GroupIDs = req.MultipartForm.Value["group_id"]
 
-	ur.Clients, ur.clientsInGroupsCount, err = al.getOrderedClients(req.Context(), ur.ClientIDs, ur.GroupIDs, false /* allowDisconnected */)
+	clientTags, err := getClientTagsFromReqForm(req)
+	if err != nil {
+		return nil, &errors2.APIError{
+			Err:        err,
+			HTTPStatus: http.StatusBadRequest,
+		}
+	}
+
+	ur.ClientTags = clientTags
+
+	orderedClients, clientsInGroupsCount, err := al.getOrderedClientsWithValidation(req.Context(), ur)
 	if err != nil {
 		return nil, err
 	}
 
+	ur.Clients = orderedClients
+	ur.clientsInGroupsCount = clientsInGroupsCount
+
 	err = ur.FromMultipartRequest(req)
 	if err != nil {
-		return nil, err
+		return nil, &errors2.APIError{
+			Err:        err,
+			HTTPStatus: http.StatusBadRequest,
+		}
 	}
 
 	ur.File, ur.FileHeader, err = req.FormFile("upload")
 	if err != nil {
-		return nil, err
+		return nil, &errors2.APIError{
+			Err:        err,
+			HTTPStatus: http.StatusBadRequest,
+		}
 	}
 
 	if ur.UploadedFile.ID == "" {
@@ -318,20 +356,24 @@ func (al *APIListener) uploadRequestFromRequest(req *http.Request) (*UploadReque
 	return ur, nil
 }
 
-func validateUploadRequest(ur *UploadRequest) error {
-	if len(ur.ClientIDs) == 0 && ur.clientsInGroupsCount == 0 {
-		return errors.New("at least 1 client should be specified")
+func getClientTagsFromReqForm(req *http.Request) (clientTags *models.JobClientTags, err error) {
+	jsonTags := req.MultipartForm.Value["tags"]
+
+	if len(jsonTags) == 0 {
+		return nil, nil
 	}
 
-	if len(ur.GroupIDs) > 0 && ur.clientsInGroupsCount == 0 && len(ur.ClientIDs) == 0 {
-		return errors.New("No active clients belong to the selected group(s)")
+	if len(jsonTags) > 1 {
+		return nil, errors.New("tags form value must only contain a single element")
 	}
 
-	if len(ur.Clients) == 0 {
-		return errors.New("no active clients found for the provided criteria")
+	clientTags = &models.JobClientTags{}
+	err = json.Unmarshal([]byte(jsonTags[0]), clientTags)
+	if err != nil {
+		return nil, err
 	}
 
-	return ur.Validate()
+	return clientTags, nil
 }
 
 func validateRemoteDestination(ur *UploadRequest) error {

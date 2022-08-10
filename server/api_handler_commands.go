@@ -281,6 +281,7 @@ func (al *APIListener) handlePostMultiClientCommand(w http.ResponseWriter, req *
 		al.jsonError(w, err)
 		return
 	}
+
 	if reqBody.Command == "" {
 		al.jsonErrorResponseWithTitle(w, http.StatusBadRequest, "Command cannot be empty.")
 		return
@@ -290,23 +291,13 @@ func (al *APIListener) handlePostMultiClientCommand(w http.ResponseWriter, req *
 		return
 	}
 
-	orderedClients, groupClientsCount, err := al.getOrderedClients(ctx, reqBody.ClientIDs, reqBody.GroupIDs, false /* allowDisconnected */)
-	if err != nil {
-		al.jsonError(w, err)
+	orderedClients, _, responseErr := al.getOrderedClientsWithValidation(ctx, &reqBody)
+	if responseErr != nil {
+		al.jsonError(w, responseErr)
 		return
 	}
+
 	reqBody.OrderedClients = orderedClients
-
-	if len(reqBody.GroupIDs) > 0 && groupClientsCount == 0 && len(reqBody.ClientIDs) == 0 {
-		al.jsonErrorResponseWithTitle(w, http.StatusBadRequest, "No active clients belong to the selected group(s).")
-		return
-	}
-
-	minClients := 2
-	if len(reqBody.ClientIDs) < minClients && groupClientsCount == 0 {
-		al.jsonErrorResponseWithTitle(w, http.StatusBadRequest, fmt.Sprintf("At least %d clients should be specified.", minClients))
-		return
-	}
 
 	curUser, err := al.getUserModelForAuth(req.Context())
 	if err != nil {
@@ -341,7 +332,7 @@ func (al *APIListener) handlePostMultiClientCommand(w http.ResponseWriter, req *
 
 	al.writeJSONResponse(w, http.StatusOK, api.NewSuccessPayload(resp))
 
-	al.Debugf("Multi-client Job[id=%q] created to execute remote command on clients %s, groups %s: %q.", multiJob.JID, reqBody.ClientIDs, reqBody.GroupIDs, reqBody.Command)
+	al.Debugf("Multi-client Job[id=%q] created to execute remote command on clients %s, groups %s, tags %s: %q.", multiJob.JID, reqBody.ClientIDs, reqBody.GroupIDs, reqBody.GetClientTags(), reqBody.Command)
 }
 
 func (al *APIListener) handleExecuteCommand(ctx context.Context, w http.ResponseWriter, executeInput *api.ExecuteInput) *newJobResponse {
@@ -441,17 +432,18 @@ func (al *APIListener) handleCommandsWS(w http.ResponseWriter, req *http.Request
 		return
 	}
 
-	orderedClients, clientsInGroupsCount, err := al.getOrderedClients(ctx, inboundMsg.ClientIDs, inboundMsg.GroupIDs, false /* allowDisconnected */)
-	if err != nil {
-		uiConnTS.WriteError("", err)
+	orderedClients, _, responseErr := al.getOrderedClientsWithValidation(ctx, inboundMsg)
+	if responseErr != nil {
+		uiConnTS.WriteError("", responseErr)
 		return
 	}
+
 	inboundMsg.OrderedClients = orderedClients
 	inboundMsg.IsScript = false
 
 	auditLogEntry := al.auditLog.Entry(auditlog.ApplicationClientCommand, auditlog.ActionExecuteStart).WithHTTPRequest(req)
 
-	al.handleCommandsExecutionWS(ctx, uiConnTS, inboundMsg, clientsInGroupsCount, auditLogEntry)
+	al.handleCommandsExecutionWS(ctx, uiConnTS, inboundMsg, auditLogEntry)
 }
 
 // handleGetMultiClientCommand handles GET /commands/{job_id}

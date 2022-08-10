@@ -24,6 +24,8 @@ properties:
     description: list of client group IDs where the command was requested to run
     items:
       type: string
+  tags:
+    $ref: ./Tags.yaml
   command:
     type: string
     description: executed command

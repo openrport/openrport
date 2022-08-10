@@ -36,16 +36,6 @@ func TestValidate(t *testing.T) {
 			ExpectedError: "expected exactly 5 fields, found 3: [* * *]",
 		},
 		{
-			Name: "no clients",
-			Schedule: &Schedule{
-				Base: Base{
-					Type:     TypeCommand,
-					Schedule: "* * * * *",
-				},
-			},
-			ExpectedError: "at least 1 client_id or group_id must be specified",
-		},
-		{
 			Name: "empty command",
 			Schedule: &Schedule{
 				Base: Base{
