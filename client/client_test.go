@@ -33,11 +33,24 @@ import (
 )
 
 func TestCustomHeaders(t *testing.T) {
+	var reqCount int
+	var headReq bool
 	server := httptest.NewServer(http.HandlerFunc(func(rw http.ResponseWriter, req *http.Request) {
-		assert.Equal(t, "Bar", req.Header.Get("Foo"))
+		reqCount++
+		if req.Method == http.MethodGet {
+			// Check the initial connection request
+			assert.Equal(t, "Bar", req.Header.Get("Foo"))
+		} else if req.Method == http.MethodHead {
+			// Check the request created by clientutils.ConnectionErrorHints() was fired
+			headReq = true
+		}
+
 	}))
-	// Close the server when test finishes
-	defer server.Close()
+	defer func() {
+		server.Close()
+		assert.Equal(t, 2, reqCount)
+		assert.True(t, headReq, "HEAD request by clientutils.ConnectionErrorHints() missing")
+	}()
 
 	config := ClientConfigHolder{
 		Config: &clientconfig.Config{

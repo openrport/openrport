@@ -11,6 +11,8 @@ import (
 	"strings"
 	"time"
 
+	"github.com/cloudradar-monitoring/rport/client/clientutils"
+
 	"github.com/cloudradar-monitoring/rport/share/random"
 
 	"github.com/denisbrodbeck/machineid"
@@ -113,7 +115,7 @@ func (c *Client) Run() error {
 func (c *Client) verifyServer(hostname string, remote net.Addr, key ssh.PublicKey) error {
 	got := chshare.FingerprintKey(key)
 	if c.configHolder.Client.Fingerprint != "" && !strings.HasPrefix(got, c.configHolder.Client.Fingerprint) {
-		return fmt.Errorf("Invalid fingerprint (%s)", got)
+		return fmt.Errorf("invalid fingerprint (%s)", got)
 	}
 	//overwrite with complete fingerprint
 	c.Infof("Fingerprint %s", got)
@@ -262,10 +264,10 @@ func (c *Client) connectToMainOrFallback() (conn *sshClientConn, isPrimary bool,
 	for i, server := range servers {
 		conn, err = c.connect(server)
 		if err != nil {
-			c.Errorf(err.Error())
 			if _, ok := err.(retryableError); ok {
 				continue
 			}
+			c.Errorf(fmt.Sprintf("Unrecoverable error: %s", err))
 			break
 		}
 		return conn, i == 0, nil
@@ -278,7 +280,7 @@ func (c *Client) connect(server string) (*sshClientConn, error) {
 	if c.configHolder.Client.ProxyURL != nil {
 		via = " via " + c.configHolder.Client.ProxyURL.String()
 	}
-	c.Infof("Connecting to %s%s\n", server, via)
+	c.Infof("Trying to connect to %s%s ...\n", server, via)
 
 	netDialer := &net.Dialer{}
 	d := websocket.Dialer{
@@ -326,7 +328,8 @@ func (c *Client) connect(server string) (*sshClientConn, error) {
 	}
 	wsConn, _, err := d.Dial(server, c.configHolder.Connection.HTTPHeaders)
 	if err != nil {
-		return nil, retryableError{err}
+		//return nil, retryableError{err}
+		return nil, retryableError{clientutils.ConnectionErrorHints(server, c.Logger, err)}
 	}
 	conn := chshare.NewWebSocketConn(wsConn)
 	// perform SSH handshake on net.Conn
@@ -355,7 +358,7 @@ func (c *Client) sendConnectionRequest(ctx context.Context, sshConn ssh.Conn) er
 
 	req, err := chshare.EncodeConnectionRequest(connReq)
 	if err != nil {
-		return fmt.Errorf("Could not encode connection request: %v", err)
+		return fmt.Errorf("could not encode connection request: %v", err)
 	}
 	c.Debugf("Sending connection request: %+v", string(req))
 	t0 := time.Now()
