@@ -38,7 +38,7 @@ func DetectTransparentProxy(serverURL string) (proxy string, allHeaders string, 
 	var client = &http.Client{
 		Timeout: time.Second * 10,
 	}
-	res, err := client.Head(strings.ReplaceAll(serverURL, "ws", "http"))
+	res, err := client.Head(strings.Replace(serverURL, "ws", "http", 1))
 	if err != nil {
 		if os.IsTimeout(err) {
 			// timeout
