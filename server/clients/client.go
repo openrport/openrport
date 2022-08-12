@@ -133,7 +133,7 @@ func (c *Client) StartTunnel(r *models.Remote, acl *clienttunnel.TunnelACL, tunn
 		proxyPort = r.LocalPort
 		proxyACL = acl
 		r.LocalHost = clienttunnel.LocalHost
-		port, err := portDistributor.GetRandomPort()
+		port, err := portDistributor.GetRandomPort(r.Protocol)
 		if err != nil {
 			return nil, err
 		}

@@ -378,7 +378,7 @@ func (s *ClientServiceProvider) startClientTunnels(client *clients.Client, remot
 	tunnels := make([]*clienttunnel.Tunnel, 0, len(remotes))
 	for _, remote := range remotes {
 		if !remote.IsLocalSpecified() {
-			port, err := s.portDistributor.GetRandomPort()
+			port, err := s.portDistributor.GetRandomPort(remote.Protocol)
 			if err != nil {
 				return nil, err
 			}
@@ -386,7 +386,7 @@ func (s *ClientServiceProvider) startClientTunnels(client *clients.Client, remot
 			remote.LocalHost = models.ZeroHost
 			remote.LocalPortRandom = true
 		} else {
-			if err := s.checkLocalPort(remote.LocalPort); err != nil {
+			if err := s.checkLocalPort(remote.Protocol, remote.LocalPort); err != nil {
 				return nil, err
 			}
 		}
@@ -412,7 +412,7 @@ func (s *ClientServiceProvider) startClientTunnels(client *clients.Client, remot
 	return tunnels, nil
 }
 
-func (s *ClientServiceProvider) checkLocalPort(port string) error {
+func (s *ClientServiceProvider) checkLocalPort(protocol, port string) error {
 	localPort, err := strconv.Atoi(port)
 	if err != nil {
 		return errors.APIError{
@@ -429,7 +429,7 @@ func (s *ClientServiceProvider) checkLocalPort(port string) error {
 		}
 	}
 
-	if s.portDistributor.IsPortBusy(localPort) {
+	if s.portDistributor.IsPortBusy(protocol, localPort) {
 		return errors.APIError{
 			HTTPStatus: http.StatusConflict,
 			Message:    fmt.Sprintf("Local port %d already in use.", localPort),
