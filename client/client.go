@@ -11,8 +11,6 @@ import (
 	"strings"
 	"time"
 
-	"github.com/cloudradar-monitoring/rport/client/clientutils"
-
 	"github.com/cloudradar-monitoring/rport/share/random"
 
 	"github.com/denisbrodbeck/machineid"
@@ -328,8 +326,7 @@ func (c *Client) connect(server string) (*sshClientConn, error) {
 	}
 	wsConn, _, err := d.Dial(server, c.configHolder.Connection.HTTPHeaders)
 	if err != nil {
-		//return nil, retryableError{err}
-		return nil, retryableError{clientutils.ConnectionErrorHints(server, c.Logger, err)}
+		return nil, retryableError{ConnectionErrorHints(server, c.Logger, err)}
 	}
 	conn := chshare.NewWebSocketConn(wsConn)
 	// perform SSH handshake on net.Conn

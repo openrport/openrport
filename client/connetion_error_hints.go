@@ -1,10 +1,9 @@
-package clientutils
+package chclient
 
 import (
 	"encoding/json"
 	"fmt"
 	"net/http"
-	"os"
 	"strings"
 	"time"
 
@@ -40,10 +39,6 @@ func DetectTransparentProxy(serverURL string) (proxy string, allHeaders string, 
 	}
 	res, err := client.Head(strings.Replace(serverURL, "ws", "http", 1))
 	if err != nil {
-		if os.IsTimeout(err) {
-			// timeout
-			return "", "", fmt.Errorf("error on http HEAD request: %s", err)
-		}
 		return "", "", fmt.Errorf("error on http HEAD request: %s", err)
 	}
 	proxy = res.Header.Get("Via")
