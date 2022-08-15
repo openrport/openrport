@@ -51,6 +51,7 @@ type Client struct {
 	serverCapabilities *models.Capabilities
 	consoleDecoder     *encoding.Decoder
 	filesAPI           files.FileAPI
+	watchdog           Watchdog
 }
 
 //NewClient creates a new client instance
@@ -64,6 +65,10 @@ func NewClient(config *ClientConfigHolder, filesAPI files.FileAPI) (*Client, err
 	}
 	cmdExec := system.NewCmdExecutor(logger.NewLogger("cmd executor", config.Logging.LogOutput, config.Logging.LogLevel))
 	logger := logger.NewLogger("client", config.Logging.LogOutput, config.Logging.LogLevel)
+	watchdog, err := NewWatchdog(config.Connection.WatchdogIntegration, config.Client.DataDir, logger)
+	if err != nil {
+		return nil, fmt.Errorf("failed to create watchdog: %s", err)
+	}
 	logger.Infof("Client started with sessionID %s", sessionID)
 	systemInfo := system.NewSystemInfo(cmdExec)
 	client := &Client{
@@ -77,6 +82,7 @@ func NewClient(config *ClientConfigHolder, filesAPI files.FileAPI) (*Client, err
 		updates:      updates.New(logger, config.Client.UpdatesInterval),
 		monitor:      monitoring.NewMonitor(logger, config.Monitoring, systemInfo),
 		filesAPI:     filesAPI,
+		watchdog:     watchdog,
 	}
 
 	client.sshConfig = &ssh.ClientConfig{
@@ -120,7 +126,7 @@ func (c *Client) verifyServer(hostname string, remote net.Addr, key ssh.PublicKe
 	return nil
 }
 
-//Start client and does not block
+//Start client and do not block
 func (c *Client) Start(ctx context.Context) error {
 
 	//optional keepalive loop
@@ -145,7 +151,9 @@ func (c *Client) keepAliveLoop() {
 				c.Errorf("failed to send ping: %s", err)
 				c.sshConn.Close()
 			} else {
-				c.Debugf("ping to rport server %s succeeded within %s", c.sshConn.RemoteAddr(), rtt)
+				msg := fmt.Sprintf("ping to %s succeeded within %s", c.sshConn.RemoteAddr(), rtt)
+				c.Debugf(msg)
+				c.watchdog.Ping(WatchdogStateConnected, msg)
 			}
 		}
 	}
@@ -166,7 +174,9 @@ loop:
 			if c.configHolder.Connection.MaxRetryCount >= 0 && attempt >= c.configHolder.Connection.MaxRetryCount {
 				break
 			}
-			c.Errorf("Retrying in %s...", d)
+			msg := fmt.Sprintf("Retrying in %s...", d)
+			c.Errorf(msg)
+			c.watchdog.Ping(WatchdogStateReconnecting, msg)
 			connerr = nil
 			chshare.SleepSignal(d)
 		}
@@ -339,7 +349,6 @@ func (c *Client) connect(server string) (*sshClientConn, error) {
 		}
 		return nil, err
 	}
-
 	return &sshClientConn{
 		Connection: sshConn,
 		Requests:   reqs,
@@ -381,7 +390,9 @@ func (c *Client) sendConnectionRequest(ctx context.Context, sshConn ssh.Conn) er
 	if err != nil {
 		return fmt.Errorf("can't decode reply payload: %s", err)
 	}
-	c.Infof("Connected within %s", time.Since(t0))
+	msg := fmt.Sprintf("connected to %s within %s", sshConn.RemoteAddr().String(), time.Since(t0))
+	c.watchdog.Ping(WatchdogStateConnected, msg)
+	c.Infof(msg)
 	for _, r := range remotes {
 		c.Infof("new tunnel: %s", r.String())
 

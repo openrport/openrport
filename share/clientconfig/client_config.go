@@ -54,12 +54,13 @@ type TunnelsConfig struct {
 }
 
 type ConnectionConfig struct {
-	KeepAlive        time.Duration `json:"keep_alive" mapstructure:"keep_alive"`
-	KeepAliveTimeout time.Duration `json:"keep_alive_timeout" mapstructure:"keep_alive_timeout"`
-	MaxRetryCount    int           `json:"max_retry_count" mapstructure:"max_retry_count"`
-	MaxRetryInterval time.Duration `json:"max_retry_interval" mapstructure:"max_retry_interval"`
-	HeadersRaw       []string      `json:"headers" mapstructure:"headers"`
-	Hostname         string        `json:"hostname" mapstructure:"hostname"`
+	KeepAlive           time.Duration `json:"keep_alive" mapstructure:"keep_alive"`
+	KeepAliveTimeout    time.Duration `json:"keep_alive_timeout" mapstructure:"keep_alive_timeout"`
+	MaxRetryCount       int           `json:"max_retry_count" mapstructure:"max_retry_count"`
+	MaxRetryInterval    time.Duration `json:"max_retry_interval" mapstructure:"max_retry_interval"`
+	HeadersRaw          []string      `json:"headers" mapstructure:"headers"`
+	Hostname            string        `json:"hostname" mapstructure:"hostname"`
+	WatchdogIntegration bool          `json:"watchdog_integration" mapstructure:"watchdog_integration"`
 
 	HTTPHeaders http.Header `json:"http_headers"`
 }
