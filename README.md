@@ -41,7 +41,7 @@ and Microsoft Windows.
 Also, the server can run on any operating system supported by the golang compiler. At the moment we provide server
 binaries only for Linux X64 because this is the ideal platform for running it securely and cost-effective.
 
-![Rport Principle](docs/static/images/rport-principle.svg "Rport Principle")
+![Rport Principle](https://raw.githubusercontent.com/cloudradar-monitoring/rport/master/docs/static/images/rport-principle.svg "Rport Principle")
 
 ## Instantly launch an RPort server
 
