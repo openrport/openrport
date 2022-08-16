@@ -23,7 +23,6 @@ const (
 )
 
 type Watchdog struct {
-	enabled    bool
 	stateFile  string
 	logger     *logger.Logger
 	socketAddr *net.UnixAddr
@@ -39,21 +38,18 @@ type watchdogState struct {
 func NewWatchdog(enabled bool, dataDir string, logger *logger.Logger) (Watchdog, error) {
 	if !enabled {
 		logger.Debugf("Watchdog integration disabled")
-		return Watchdog{
-			enabled: enabled,
-		}, nil
+		return Watchdog{}, nil
 	}
 	socketAddr := &net.UnixAddr{
 		Name: os.Getenv("NOTIFY_SOCKET"),
 		Net:  "unixgram",
 	}
 	w := Watchdog{
-		enabled:    true,
 		stateFile:  filepath.Join(dataDir, "state.json"),
 		logger:     logger,
 		socketAddr: socketAddr,
 	}
-	logger.Debugf("Created watchdog state file in %s", w.stateFile)
+	logger.Debugf("Will create a watchdog state file in %s", w.stateFile)
 	if socketAddr.Name != "" {
 		logger.Debugf("Using NOTIFY_SOCKET %s for systemd watchdog integration", socketAddr.Name)
 	} else {
@@ -84,7 +80,7 @@ func (w *Watchdog) update(state string, msg string) error {
 }
 
 func (w *Watchdog) Ping(state string, msg string) {
-	if !w.enabled {
+	if w.stateFile == "" {
 		return
 	}
 	if err := w.update(state, msg); err != nil {

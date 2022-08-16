@@ -17,6 +17,8 @@ func TestWatchdog(t *testing.T) {
 	dir := t.TempDir()
 	stateFile := filepath.Join(dir, "state.json")
 	testLog := logger.NewLogger("client", logger.LogOutput{File: os.Stdout}, logger.LogLevelDebug)
+	_, err := NewWatchdog(false, dir, testLog)
+	require.NoError(t, err)
 	w, err := NewWatchdog(true, dir, testLog)
 	require.NoError(t, err)
 	testCases := []struct {
@@ -39,7 +41,6 @@ func TestWatchdog(t *testing.T) {
 			msg:      "connected to 127.0.0.1",
 		},
 	}
-	var lastUpdate = time.Now()
 	for _, tc := range testCases {
 		t.Run(tc.state, func(t *testing.T) {
 			w.Ping(tc.state, tc.msg)
@@ -50,8 +51,7 @@ func TestWatchdog(t *testing.T) {
 			require.NoError(t, err)
 			assert.Equal(t, tc.expected, ws.LastState)
 			assert.Equal(t, tc.msg, ws.LastMessage)
-			assert.NotEqual(t, lastUpdate, ws.LastUpdate)
-			lastUpdate = ws.LastUpdate
+			assert.WithinDurationf(t, ws.LastUpdate, time.Now(), 2*time.Millisecond, "")
 		})
 	}
 }
