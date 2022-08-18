@@ -177,10 +177,22 @@ func (al *APIListener) initRouter() {
 		return nil
 	})
 
+	if al.config.PlusOAuthEnabled() {
+		oauthRouter := r.PathPrefix("/oauth").Subrouter()
+		oauthRouter.HandleFunc("/callback", al.handleOAuthAuthorizationCode).Methods(http.MethodGet)
+		if al.config.OAuthConfig.ProvideOAuthLogin {
+			oauthRouter.HandleFunc("/login", al.handleOAuthLogin).Methods(http.MethodGet)
+		}
+	}
+
+	plusRouter := api.PathPrefix("/plus").Subrouter()
+	plusRouter.HandleFunc("/version", al.handlePlusVersion).Methods(http.MethodGet)
+
 	docRoot := al.config.API.DocRoot
 	if docRoot != "" {
 		// Start a http file server with proper Vue.js HTML5 history mode (aka rewrite to /) for the following paths
 		r.PathPrefix("/").Handler(middleware.Rewrite404ForVueJs(http.FileServer(http.Dir(docRoot)), vueHistoryPaths))
+		// r.PathPrefix("/").Handler(http.FileServer(http.Dir(docRoot)))
 	}
 
 	if al.requestLogOptions != nil {

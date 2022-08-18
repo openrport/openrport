@@ -23,6 +23,9 @@ import (
 	clientsmigration "github.com/cloudradar-monitoring/rport/db/migration/clients"
 	jobsmigration "github.com/cloudradar-monitoring/rport/db/migration/jobs"
 	"github.com/cloudradar-monitoring/rport/db/sqlite"
+	rportplus "github.com/cloudradar-monitoring/rport/rport-plus"
+	"github.com/cloudradar-monitoring/rport/rport-plus/capabilities/oauth"
+	"github.com/cloudradar-monitoring/rport/rport-plus/capabilities/version"
 	"github.com/cloudradar-monitoring/rport/server/api/jobs"
 	"github.com/cloudradar-monitoring/rport/server/api/jobs/schedule"
 	"github.com/cloudradar-monitoring/rport/server/api/session"
@@ -69,11 +72,18 @@ type Server struct {
 	capabilities        *models.Capabilities
 	scheduleManager     *schedule.Manager
 	filesAPI            files.FileAPI
+	plusManager         rportplus.Manager
+}
+
+type ServerOpts struct {
+	FilesAPI    files.FileAPI
+	PlusManager rportplus.Manager
 }
 
 // NewServer creates and returns a new rport server
-func NewServer(config *Config, filesAPI files.FileAPI) (*Server, error) {
+func NewServer(config *Config, opts *ServerOpts) (*Server, error) {
 	ctx := context.Background()
+
 	s := &Server{
 		Logger:           logger.NewLogger("server", config.Logging.LogOutput, config.Logging.LogLevel),
 		config:           config,
@@ -83,6 +93,9 @@ func NewServer(config *Config, filesAPI files.FileAPI) (*Server, error) {
 			m: make(map[string]chan *models.Job),
 		},
 	}
+
+	filesAPI := opts.FilesAPI
+	s.plusManager = opts.PlusManager
 
 	privateKey, err := initPrivateKey(config.Server.KeySeed)
 	if err != nil {
@@ -197,12 +210,18 @@ func NewServer(config *Config, filesAPI files.FileAPI) (*Server, error) {
 	if err != nil {
 		return nil, err
 	}
+
 	s.clientListener, err = NewClientListener(s, privateKey)
 	if err != nil {
 		return nil, err
 	}
 
 	s.filesAPI = filesAPI
+
+	err = s.EnablePlusIfLicensed()
+	if err != nil {
+		return nil, err
+	}
 
 	s.apiListener, err = NewAPIListener(s, fingerprint)
 	if err != nil {
@@ -247,6 +266,68 @@ func initPrivateKey(seed string) (ssh.Signer, error) {
 		return nil, fmt.Errorf("failed to parse key: %s", err)
 	}
 	return private, nil
+}
+
+// EnablePlusIfLicensed will initialize a new plus manager and request registration of the desired
+// capabilities
+func (s *Server) EnablePlusIfLicensed() (err error) {
+	if s.plusManager == nil && s.config.PlusConfig != nil {
+		plus, err := rportplus.NewPlusManager(s.config.PlusConfig, s.filesAPI)
+		if err != nil {
+			return err
+		}
+		s.plusManager = plus
+		s.Logger.Infof("plus manager initialized")
+	}
+
+	if s.plusManager != nil {
+		err = s.RegisterPlusCapabilities()
+		if err != nil {
+			return err
+		}
+	} else {
+		s.Logger.Infof("report-plus not enabled")
+	}
+	return nil
+}
+
+// RegisterPluginCapabilitities registers the rport-plus additional capabilities.
+// All plus capabilities must be added here.
+func (s *Server) RegisterPlusCapabilities() (err error) {
+	plus := s.plusManager
+
+	if s.config.PlusOAuthEnabled() {
+		_, err := plus.RegisterCapability(rportplus.PlusOAuthCapability, &oauth.Capability{
+			Config: s.config.OAuthConfig,
+			Logger: s.Logger,
+		})
+		if err != nil {
+			return fmt.Errorf("unable to register oauth plugin capability: %w", err)
+		}
+
+		// now validate the registered capability using the capability itself
+		v := plus.GetConfigValidator(rportplus.PlusOAuthCapability)
+		if v != nil {
+			err = v.ValidateConfig()
+			if err != nil {
+				return fmt.Errorf("invalid oauth configuration: %w", err)
+			}
+		}
+
+		s.Logger.Infof("oauth capability registered")
+	}
+
+	// always register the version capability
+	_, err = plus.RegisterCapability(rportplus.PlusVersionCapability, &version.Capability{
+		Config: nil,
+		Logger: s.Logger,
+	})
+	if err != nil {
+		return fmt.Errorf("unable to register version plugin capability: %w", err)
+	}
+	s.Logger.Infof("version capability registered")
+
+	return nil
 }
 
 // Run is responsible for starting the rport service

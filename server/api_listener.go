@@ -91,8 +91,13 @@ func NewAPIListener(
 	var usersProvider users.Provider
 	var err error
 	if config.API.AuthFile != "" {
+		skipPasswordCheck := false
+		if config.PlusConfig != nil && config.OAuthConfig != nil && config.OAuthConfig.UseAuthFile {
+			skipPasswordCheck = true
+		}
+
 		logger := logger.NewLogger("auth-file", config.Logging.LogOutput, config.Logging.LogLevel)
-		usersProvider, err = users.NewFileAdapter(logger, users.NewFileManager(config.API.AuthFile))
+		usersProvider, err = users.NewFileAdapter(logger, users.NewFileManager(config.API.AuthFile, skipPasswordCheck))
 		if err != nil {
 			return nil, err
 		}
@@ -393,7 +398,10 @@ func (al *APIListener) validateCredentials(username, password string, skipPasswo
 	if err != nil {
 		return false, nil, fmt.Errorf("failed to get user: %v", err)
 	}
-	if user == nil && skipPasswordValidation && al.config.API.CreateMissingUsers {
+
+	if user == nil && skipPasswordValidation &&
+		(al.config.API.CreateMissingUsers ||
+			(al.config.PlusOAuthEnabled() && al.config.OAuthConfig.CreateMissingUsers)) {
 		pswd, err := random.UUID4()
 		if err != nil {
 			return false, nil, err
@@ -408,6 +416,7 @@ func (al *APIListener) validateCredentials(username, password string, skipPasswo
 			return false, user, fmt.Errorf("failed to create missing user: %v", err)
 		}
 	}
+
 	if user == nil {
 		return false, user, nil
 	}

@@ -156,7 +156,7 @@ func TestParseUsers(t *testing.T) {
 		fileMock := strings.NewReader(tc.jsonBytes)
 
 		// when
-		gotRes, gotErr := parseUsers(fileMock)
+		gotRes, gotErr := parseUsers(fileMock, false)
 
 		// then
 		if len(tc.wantErrContains) > 0 {

@@ -6,6 +6,7 @@ import (
 	"strconv"
 	"time"
 
+	rportplus "github.com/cloudradar-monitoring/rport/rport-plus"
 	"github.com/cloudradar-monitoring/rport/server/api"
 	errors2 "github.com/cloudradar-monitoring/rport/server/api/errors"
 	chshare "github.com/cloudradar-monitoring/rport/share"
@@ -24,6 +25,23 @@ type loginResponse struct {
 }
 
 func (al *APIListener) handleGetLogin(w http.ResponseWriter, req *http.Request) {
+	if al.config.PlusOAuthEnabled() {
+		plus := al.Server.plusManager
+		capEx := plus.GetOAuthCapabilityEx()
+		if capEx == nil {
+			al.jsonErrorResponse(w, http.StatusUnauthorized, rportplus.ErrCapabilityNotAvailable(rportplus.PlusOAuthCapability))
+			return
+		}
+
+		loginMsg, _, _, err := capEx.GetOAuthLoginInfo()
+		if err != nil {
+			al.jsonErrorResponse(w, http.StatusUnauthorized, err)
+			return
+		}
+		al.jsonErrorResponseWithDetail(w, http.StatusUnauthorized, "", "Unauthorized", loginMsg)
+		return
+	}
+
 	if al.config.API.AuthHeader != "" && req.Header.Get(al.config.API.AuthHeader) != "" {
 		al.handleLogin(req.Header.Get(al.config.API.UserHeader), "", true /* skipPasswordValidation */, w, req)
 		return
