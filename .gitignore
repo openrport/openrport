@@ -16,6 +16,10 @@ deploy.sh
 # dependencies
 node_modules
 
+# hugo
+docs/public
+docs/.hugo_build.lock
+
 # Yarn logs
 yarn-debug.log*
 yarn-error.log*

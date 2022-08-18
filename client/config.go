@@ -184,6 +184,9 @@ func (c *ClientConfigHolder) parseProxyURL() error {
 		if err != nil {
 			return fmt.Errorf("invalid proxy URL: %v", err)
 		}
+		if proxyURL.Scheme == "https" {
+			return fmt.Errorf("https proxies not (yet) supported")
+		}
 		c.Client.ProxyURL = proxyURL
 	}
 	return nil

@@ -1,0 +1,6 @@
+/* Light mode theming */
+:root,
+:root[color-theme="light"] {
+    --header-background: #00528d;
+    --body-font-color: black;
+}
