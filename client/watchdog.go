@@ -23,9 +23,9 @@ const (
 )
 
 type Watchdog struct {
-	stateFile  string
-	logger     *logger.Logger
-	socketAddr *net.UnixAddr
+	stateFile string
+	logger    *logger.Logger
+	socket    *net.UnixConn
 }
 
 type watchdogState struct {
@@ -35,22 +35,26 @@ type watchdogState struct {
 	LastMessage  string    `json:"last_message"`
 }
 
-func NewWatchdog(enabled bool, dataDir string, logger *logger.Logger) (Watchdog, error) {
+func NewWatchdog(enabled bool, dataDir string, logger *logger.Logger) (*Watchdog, error) {
 	if !enabled {
 		logger.Debugf("Watchdog integration disabled")
-		return Watchdog{}, nil
+		return nil, nil
 	}
 	socketAddr := &net.UnixAddr{
 		Name: os.Getenv("NOTIFY_SOCKET"),
 		Net:  "unixgram",
 	}
-	w := Watchdog{
-		stateFile:  filepath.Join(dataDir, "state.json"),
-		logger:     logger,
-		socketAddr: socketAddr,
+	w := &Watchdog{
+		stateFile: filepath.Join(dataDir, "state.json"),
+		logger:    logger,
 	}
 	logger.Debugf("Will create a watchdog state file in %s", w.stateFile)
 	if socketAddr.Name != "" {
+		socket, err := net.DialUnix(socketAddr.Net, nil, socketAddr)
+		if err != nil {
+			return nil, err
+		}
+		w.socket = socket
 		logger.Debugf("Using NOTIFY_SOCKET %s for systemd watchdog integration", socketAddr.Name)
 	} else {
 		logger.Debugf("Not using NOTIFY_SOCKET. Either not running in systemd context or systemd watchdog disabled.")
@@ -80,7 +84,7 @@ func (w *Watchdog) update(state string, msg string) error {
 }
 
 func (w *Watchdog) Ping(state string, msg string) {
-	if w.stateFile == "" {
+	if w == nil {
 		return
 	}
 	if err := w.update(state, msg); err != nil {
@@ -89,18 +93,18 @@ func (w *Watchdog) Ping(state string, msg string) {
 }
 
 func (w *Watchdog) sdNotify() error {
-	if w.socketAddr.Name == "" {
+	if w.socket == nil {
 		return nil
 	}
-
-	conn, err := net.DialUnix(w.socketAddr.Net, nil, w.socketAddr)
-	if err != nil {
+	if _, err := w.socket.Write([]byte(sdNotifyWatchdog)); err != nil {
 		return err
 	}
-	defer conn.Close()
+	return nil
+}
 
-	if _, err = conn.Write([]byte(sdNotifyWatchdog)); err != nil {
-		return err
+func (w *Watchdog) Close() error {
+	if w.socket != nil {
+		return w.socket.Close()
 	}
 	return nil
 }

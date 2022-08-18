@@ -51,7 +51,7 @@ type Client struct {
 	serverCapabilities *models.Capabilities
 	consoleDecoder     *encoding.Decoder
 	filesAPI           files.FileAPI
-	watchdog           Watchdog
+	watchdog           *Watchdog
 }
 
 //NewClient creates a new client instance
@@ -527,6 +527,7 @@ func (c *Client) Wait() error {
 //Close manually stops the client
 func (c *Client) Close() error {
 	c.running = false
+	c.watchdog.Close()
 	if c.sshConn == nil {
 		return nil
 	}
