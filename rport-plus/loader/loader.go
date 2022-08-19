@@ -4,17 +4,9 @@ import (
 	"plugin"
 )
 
-func OpenPlugin(path string) (pin *plugin.Plugin, err error) {
-	pin, err = plugin.Open(path)
-	if err != nil {
-		return nil, err
-	}
-
-	return pin, nil
-}
-
+// LoadSymbol opens the plugin and looks up the symbol with the name specified.
 func LoadSymbol(pluginPath string, name string) (sym plugin.Symbol, err error) {
-	pin, err := OpenPlugin(pluginPath)
+	pin, err := plugin.Open(pluginPath)
 	if err != nil {
 		return nil, err
 	}

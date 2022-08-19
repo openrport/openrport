@@ -90,14 +90,19 @@ func NewAPIListener(
 
 	var usersProvider users.Provider
 	var err error
-	if config.API.AuthFile != "" {
-		skipPasswordCheck := false
-		if config.PlusConfig != nil && config.OAuthConfig != nil && config.OAuthConfig.UseAuthFile {
-			skipPasswordCheck = true
+
+	if config.PlusOAuthEnabled() && config.OAuthConfig.UseAuthFile && config.API.AuthFile != "" {
+		// use the auth file for the OAuth permitted user list with the password check not required as
+		// authentication will be performed by OAuth
+		logger := logger.NewLogger("auth-file", config.Logging.LogOutput, config.Logging.LogLevel)
+		usersProvider, err = users.NewFileAdapter(logger, users.NewFileManager(config.API.AuthFile, true))
+		if err != nil {
+			return nil, err
 		}
 
+	} else if config.API.AuthFile != "" {
 		logger := logger.NewLogger("auth-file", config.Logging.LogOutput, config.Logging.LogLevel)
-		usersProvider, err = users.NewFileAdapter(logger, users.NewFileManager(config.API.AuthFile, skipPasswordCheck))
+		usersProvider, err = users.NewFileAdapter(logger, users.NewFileManager(config.API.AuthFile, false))
 		if err != nil {
 			return nil, err
 		}

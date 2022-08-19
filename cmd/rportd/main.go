@@ -460,8 +460,16 @@ func runMain(*cobra.Command, []string) {
 	// Flush the in-memory logger
 	mLog.Flush(logger.NewLogger("server-startup", cfg.Logging.LogOutput, cfg.Logging.LogLevel))
 
+	filesAPI := files.NewFileSystem()
+
+	plusManager, err := chserver.EnablePlusIfLicensed(cfg, filesAPI)
+	if err != nil {
+		log.Fatal(err)
+	}
+
 	s, err := chserver.NewServer(cfg, &chserver.ServerOpts{
-		FilesAPI: files.NewFileSystem(),
+		FilesAPI:    filesAPI,
+		PlusManager: plusManager,
 	})
 	if err != nil {
 		log.Fatal(err)

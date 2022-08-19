@@ -11,12 +11,12 @@ import (
 	"github.com/cloudradar-monitoring/rport/rport-plus/loader"
 	"github.com/cloudradar-monitoring/rport/rport-plus/validator"
 	"github.com/cloudradar-monitoring/rport/share/files"
+	"github.com/cloudradar-monitoring/rport/share/logger"
 )
 
-// use var to allow a mock capability string to be patched in
-var (
-	PlusOAuthCapability   = "oauth_provider"
-	PlusVersionCapability = "plugin_version"
+const (
+	PlusOAuthCapability   = "plus-oauth"
+	PlusVersionCapability = "plus-version"
 )
 
 var (
@@ -40,7 +40,7 @@ type Capability interface {
 
 // Manager defines the plus manager behavior
 type Manager interface {
-	InitPlusManager(cfg *PlusConfig, fileAPI files.FileAPI)
+	InitPlusManager(cfg *PlusConfig, logger *logger.Logger, fileAPI files.FileAPI)
 	RegisterCapability(capName string, newCap Capability) (cap Capability, err error)
 	SetCapability(capName string, cap Capability)
 	HasCapabilityEnabled(capName string) (isEnabled bool)
@@ -54,6 +54,7 @@ type Manager interface {
 // plugin config. The manager is thread safe for reads but not initialization.
 type ManagerProvider struct {
 	Config *PlusConfig
+	logger *logger.Logger
 
 	caps map[string]Capability
 
@@ -62,7 +63,7 @@ type ManagerProvider struct {
 
 // NewPlusManager checks the plugin exists at the specified path, allocates a new
 // plus manager and initializes it
-func NewPlusManager(cfg *PlusConfig, filesAPI files.FileAPI) (pm Manager, err error) {
+func NewPlusManager(cfg *PlusConfig, logger *logger.Logger, filesAPI files.FileAPI) (pm Manager, err error) {
 	if filesAPI != nil {
 		exists, err := filesAPI.Exist(cfg.PluginPath)
 		if err != nil {
@@ -74,19 +75,20 @@ func NewPlusManager(cfg *PlusConfig, filesAPI files.FileAPI) (pm Manager, err er
 	}
 
 	pmp := &ManagerProvider{}
-	pmp.InitPlusManager(cfg, filesAPI)
+	pmp.InitPlusManager(cfg, logger, filesAPI)
 	return pmp, nil
 }
 
 // InitPlusManager initializes a plus manager
-func (pm *ManagerProvider) InitPlusManager(cfg *PlusConfig, fileAPI files.FileAPI) {
+func (pm *ManagerProvider) InitPlusManager(cfg *PlusConfig, logger *logger.Logger, filesAPI files.FileAPI) {
 	pm.Config = cfg
 	pm.caps = make(map[string]Capability, 0)
+	pm.logger = logger
 }
 
 // RegisterCapability adds a new plugin capability component, including loading
-// the relevant func symbols for capability from the plugin and calling the
-// capability config validation
+// the relevant init func for the capability from the plugin and initializing
+// the capability (via SetProvider)
 func (pm *ManagerProvider) RegisterCapability(capName string, newCap Capability) (cap Capability, err error) {
 	if pm.Config == nil {
 		return nil, ErrPlusNotAvailable
@@ -104,6 +106,7 @@ func (pm *ManagerProvider) RegisterCapability(capName string, newCap Capability)
 	return newCap, err
 }
 
+// LoadInitFunc loads the capability init func symbol from the plugin
 func (pm *ManagerProvider) LoadInitFunc(pluginPath string, capName string) (sym plugin.Symbol, err error) {
 	sym, _ = loader.LoadSymbol(pluginPath, capName)
 	if err != nil {
@@ -128,7 +131,7 @@ func (pm *ManagerProvider) HasCapabilityEnabled(capName string) (isEnabled bool)
 	return cap != nil
 }
 
-// GetOAuthCapability return a cast version of the OAuth capability
+// GetOAuthCapability returns a cast version of the OAuth capability
 func (pm *ManagerProvider) GetOAuthCapabilityEx() (capEx oauth.CapabilityEx) {
 	pm.mu.RLock()
 	defer pm.mu.RUnlock()
@@ -158,8 +161,8 @@ func (pm *ManagerProvider) GetVersionCapabilityEx() (capEx version.CapabilityEx)
 	return nil
 }
 
-// GetConfigValidator gets a validator interface that can be invoked to
-// validate the capability config
+// GetConfigValidator gets a validator interface that can be invoked to validate
+// the capability config
 func (pm *ManagerProvider) GetConfigValidator(capName string) (v validator.Validator) {
 	capEntry := pm.caps[capName]
 	if capEntry != nil {
@@ -168,7 +171,7 @@ func (pm *ManagerProvider) GetConfigValidator(capName string) (v validator.Valid
 	return v
 }
 
-// GetTotalCapabilities is currently primarily used for testing
+// GetTotalCapabilities is currently only used for testing
 func (pm *ManagerProvider) GetTotalCapabilities() (total int) {
 	return len(pm.caps)
 }
