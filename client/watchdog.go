@@ -103,6 +103,9 @@ func (w *Watchdog) sdNotify() error {
 }
 
 func (w *Watchdog) Close() error {
+	if w == nil {
+		return nil
+	}
 	if w.socket != nil {
 		return w.socket.Close()
 	}
