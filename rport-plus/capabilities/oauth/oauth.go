@@ -19,7 +19,7 @@ var (
 	ErrMissingClientSecret = errors.New("missing client_secret")
 )
 
-// CapabilityEx represents the functional interface provided by the OAuth plugin
+// CapabilityEx represents the functional interface provided by the OAuth capability
 type CapabilityEx interface {
 	ValidateConfig() (err error)
 	GetOAuthLoginInfo() (loginMsg string, loginURL string, state string, err error)
@@ -28,7 +28,7 @@ type CapabilityEx interface {
 	GetValidUser(token string) (username string, err error)
 }
 
-// Config is the plugin OAuth config, as loaded from the rportd config file
+// Config is the OAuth capability config, as loaded from the rportd config file
 type Config struct {
 	Provider             string `mapstructure:"provider"`
 	AuthorizeURL         string `mapstructure:"authorize_url"`

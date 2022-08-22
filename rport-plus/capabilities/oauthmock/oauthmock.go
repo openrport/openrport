@@ -16,8 +16,6 @@ type MockCapabilityProvider struct {
 	Username string
 }
 
-// Capability is used by rportd to maintain loaded info about the plugin's
-// oauth capability
 type Capability struct {
 	Provider *MockCapabilityProvider
 
@@ -25,7 +23,7 @@ type Capability struct {
 	Logger *logger.Logger
 }
 
-// GetInitFuncName return the empty string as the mock capability does use the plugin
+// GetInitFuncName return the empty string as the mock capability doesn't use the plugin
 func (cap *Capability) GetInitFuncName() (name string) {
 	return ""
 }
@@ -59,16 +57,16 @@ func (mp *MockCapabilityProvider) GetOAuthLoginInfo() (loginMsg string, loginURL
 	return "dummy login msg", "dummy login url", "dummy state", nil
 }
 
-// HandleLogin...
+// HandleLogin does nothing at the moment
 func (mp *MockCapabilityProvider) HandleLogin(w http.ResponseWriter, r *http.Request) {}
 
-// PerformAuthCodeExchange...
+// PerformAuthCodeExchange saves the received request and returns a mock token
 func (mp *MockCapabilityProvider) PerformAuthCodeExchange(r *http.Request) (token string, err error) {
 	mp.PerformAuthCodeExchangeRequest = r
 	return "mock token", nil
 }
 
-// GetValidUser...
+// GetValidUser saves the token received and returns the configured mock username
 func (mp *MockCapabilityProvider) GetValidUser(token string) (username string, err error) {
 	mp.GetUserToken = token
 	if mp.Username == "" {
