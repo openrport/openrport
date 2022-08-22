@@ -34,7 +34,6 @@ func EnablePlusIfLicensed(cfg *Config, filesAPI files.FileAPI) (plusManager rpor
 
 // RegisterPluginCapabilitities registers the rport-plus additional capabilities.
 // All plus capabilities must be added here.
-// TODO: no need to be part of the server component
 func RegisterPlusCapabilities(plusManager rportplus.Manager, cfg *Config, logger *logger.Logger) (err error) {
 	if cfg.PlusOAuthEnabled() {
 

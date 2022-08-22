@@ -40,6 +40,7 @@ type Config struct {
 	RequiredOrganization string `mapstructure:"required_organization"`
 	CreateMissingUsers   bool   `mapstructure:"create_missing_users"`
 	ProvideOAuthLogin    bool   `mapstructure:"provide_oauth_login"`
+	UsePKCE              bool   `mapstructure:"use_pkce"`
 }
 
 const (

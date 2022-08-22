@@ -19,23 +19,23 @@ const (
 
 var plusLog = logger.NewLogger("rport-plus", logger.LogOutput{File: os.Stdout}, logger.LogLevelDebug)
 
-type MockValidator struct{}
+type mockValidator struct{}
 
-func (m *MockValidator) ValidateConfig() (err error) {
+func (m *mockValidator) ValidateConfig() (err error) {
 	return nil
 }
 
-type PlusManagerMock struct {
+type plusManagerMock struct {
 	rportplus.ManagerProvider
 }
 
-func (pm *PlusManagerMock) RegisterCapability(capName string, newCap rportplus.Capability) (cap rportplus.Capability, err error) {
+func (pm *plusManagerMock) RegisterCapability(capName string, newCap rportplus.Capability) (cap rportplus.Capability, err error) {
 	pm.SetCapability(capName, newCap)
 	return newCap, nil
 }
 
-func (pm *PlusManagerMock) GetConfigValidator(capName string) (v validator.Validator) {
-	return &MockValidator{}
+func (pm *plusManagerMock) GetConfigValidator(capName string) (v validator.Validator) {
+	return &mockValidator{}
 }
 
 // Checks that the expected plugins are loaded using using mock interfaces.
@@ -51,8 +51,8 @@ func TestShouldRegisterPlusCapabilities(t *testing.T) {
 		},
 	}
 
-	plus := &PlusManagerMock{}
-	plus.InitPlusManager(config.PlusConfig, plusLog, nil)
+	plus := &plusManagerMock{}
+	plus.InitPlusManager(config.PlusConfig, plusLog)
 	require.NotNil(t, plus)
 
 	// register the capabilities with the plus manager partial mock. this will allow

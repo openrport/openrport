@@ -40,9 +40,10 @@ type Capability interface {
 
 // Manager defines the plus manager behavior
 type Manager interface {
-	InitPlusManager(cfg *PlusConfig, logger *logger.Logger, fileAPI files.FileAPI)
+	InitPlusManager(cfg *PlusConfig, logger *logger.Logger)
 	RegisterCapability(capName string, newCap Capability) (cap Capability, err error)
 	SetCapability(capName string, cap Capability)
+	GetCapability(capName string) (cap Capability)
 	HasCapabilityEnabled(capName string) (isEnabled bool)
 	GetOAuthCapabilityEx() (capEx oauth.CapabilityEx)
 	GetVersionCapabilityEx() (capEx version.CapabilityEx)
@@ -75,12 +76,12 @@ func NewPlusManager(cfg *PlusConfig, logger *logger.Logger, filesAPI files.FileA
 	}
 
 	pmp := &ManagerProvider{}
-	pmp.InitPlusManager(cfg, logger, filesAPI)
+	pmp.InitPlusManager(cfg, logger)
 	return pmp, nil
 }
 
 // InitPlusManager initializes a plus manager
-func (pm *ManagerProvider) InitPlusManager(cfg *PlusConfig, logger *logger.Logger, filesAPI files.FileAPI) {
+func (pm *ManagerProvider) InitPlusManager(cfg *PlusConfig, logger *logger.Logger) {
 	pm.Config = cfg
 	pm.caps = make(map[string]Capability, 0)
 	pm.logger = logger
@@ -96,12 +97,18 @@ func (pm *ManagerProvider) RegisterCapability(capName string, newCap Capability)
 
 	pm.SetCapability(capName, newCap)
 
-	sym, err := pm.LoadInitFunc(pm.Config.PluginPath, newCap.GetInitFuncName())
-	if err != nil {
-		return nil, err
+	initFuncName := newCap.GetInitFuncName()
+	if initFuncName != "" {
+		// init func name indicates that the provider should be initialized using the plugin
+		sym, err := pm.LoadInitFunc(pm.Config.PluginPath, newCap.GetInitFuncName())
+		if err != nil {
+			return nil, err
+		}
+		newCap.SetProvider(sym)
+	} else {
+		// empty init func name indicates that the provider can be initialized locally
+		newCap.SetProvider(nil)
 	}
-
-	newCap.SetProvider(sym)
 
 	return newCap, err
 }
@@ -118,6 +125,14 @@ func (pm *ManagerProvider) LoadInitFunc(pluginPath string, capName string) (sym 
 // SetCapability sets the capability in the capability map
 func (pm *ManagerProvider) SetCapability(capName string, cap Capability) {
 	pm.caps[capName] = cap
+}
+
+// GetCapability sets the raw capability in the capability map without casting
+func (pm *ManagerProvider) GetCapability(capName string) (cap Capability) {
+	pm.mu.RLock()
+	defer pm.mu.RUnlock()
+
+	return pm.caps[capName]
 }
 
 // HasCapabilityEnabled returns whether the specified capability is present/enabled

@@ -25,18 +25,18 @@ var defaultValidMinServerConfig = chserver.ServerConfig{
 
 var plusLog = logger.NewLogger("rport-plus", logger.LogOutput{File: os.Stdout}, logger.LogLevelDebug)
 
-type MockFileSystem struct {
+type mockFileSystem struct {
 	*files.FileSystem
 
 	ShouldNotExist bool
 	ExistPath      string
 }
 
-func (m *MockFileSystem) MakeDirAll(dir string) error {
+func (m *mockFileSystem) MakeDirAll(dir string) error {
 	return nil
 }
 
-func (m *MockFileSystem) Exist(path string) (bool, error) {
+func (m *mockFileSystem) Exist(path string) (bool, error) {
 	m.ExistPath = path
 	if m.ShouldNotExist {
 		return false, nil
@@ -50,7 +50,7 @@ func TestShouldFailToLoadPluginWhenNoPath(t *testing.T) {
 		PlusConfig: &rportplus.PlusConfig{},
 	}
 
-	fs := &MockFileSystem{
+	fs := &mockFileSystem{
 		ShouldNotExist: true,
 	}
 
@@ -67,7 +67,7 @@ func TestShouldLoadPluginWhenPath(t *testing.T) {
 		},
 	}
 
-	fs := &MockFileSystem{}
+	fs := &mockFileSystem{}
 	_, err := rportplus.NewPlusManager(config.PlusConfig, plusLog, fs)
 
 	assert.NoError(t, err)

@@ -4,14 +4,19 @@ import (
 	"context"
 	"net/http"
 	"net/http/httptest"
+	"os"
 	"testing"
 	"time"
 
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 
+	rportplus "github.com/cloudradar-monitoring/rport/rport-plus"
+	"github.com/cloudradar-monitoring/rport/rport-plus/capabilities/oauth"
+	"github.com/cloudradar-monitoring/rport/rport-plus/capabilities/oauthmock"
 	"github.com/cloudradar-monitoring/rport/server/api"
 	"github.com/cloudradar-monitoring/rport/server/api/users"
+	"github.com/cloudradar-monitoring/rport/share/logger"
 	"github.com/cloudradar-monitoring/rport/share/ptr"
 	"github.com/cloudradar-monitoring/rport/share/random"
 	"github.com/cloudradar-monitoring/rport/share/security"
@@ -337,4 +342,73 @@ func TestHandleGetLogin(t *testing.T) {
 			}
 		})
 	}
+}
+
+func TestHandleOAuthGetLogin(t *testing.T) {
+	plusLog := logger.NewLogger("rport-plus", logger.LogOutput{File: os.Stdout}, logger.LogLevelDebug)
+
+	plusConfig := &rportplus.PlusConfig{
+		PluginPath: defaultPluginPath,
+	}
+
+	oauthConfig := &oauth.Config{
+		Provider: oauth.GitHubOAuthProvider,
+	}
+
+	plusManager := &plusManagerForMockOAuth{}
+	plusManager.InitPlusManager(plusConfig, plusLog)
+
+	_, err := plusManager.RegisterCapability(PlusMockOAuthCapability, &oauthmock.Capability{
+		Config: oauthConfig,
+		Logger: plusLog,
+	})
+	require.NoError(t, err)
+
+	al := APIListener{
+		Server: &Server{
+			config: &Config{
+				API:         APIConfig{},
+				PlusConfig:  plusConfig,
+				OAuthConfig: oauthConfig,
+			},
+			plusManager: plusManager,
+		},
+		bannedUsers: security.NewBanList(0),
+		apiSessions: newEmptyAPISessionCache(t),
+	}
+	al.initRouter()
+
+	testCases := []struct {
+		Name              string
+		Username          string
+		BasicAuthPassword string
+	}{
+		{
+			Name: "no auth",
+		},
+		{
+			Name:              "fail with valid user as using oauth",
+			Username:          "user1",
+			BasicAuthPassword: "pwd",
+		},
+	}
+
+	for _, tc := range testCases {
+		tc := tc
+		t.Run(tc.Name, func(t *testing.T) {
+
+			w := httptest.NewRecorder()
+			req := httptest.NewRequest("GET", "/api/v1/login", nil)
+			if tc.BasicAuthPassword != "" {
+				req.SetBasicAuth(tc.Username, tc.BasicAuthPassword)
+			}
+
+			al.router.ServeHTTP(w, req)
+
+			assert.Equal(t, http.StatusUnauthorized, w.Code)
+			// confirm that the dummy login msg returned
+			assert.Contains(t, w.Body.String(), "dummy login msg")
+		})
+	}
+
 }

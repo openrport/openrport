@@ -28,6 +28,7 @@ func (al *APIListener) handleGetLogin(w http.ResponseWriter, req *http.Request) 
 	if al.config.PlusOAuthEnabled() {
 		plus := al.Server.plusManager
 		capEx := plus.GetOAuthCapabilityEx()
+
 		if capEx == nil {
 			al.jsonErrorResponse(w, http.StatusUnauthorized, rportplus.ErrCapabilityNotAvailable(rportplus.PlusOAuthCapability))
 			return
@@ -195,6 +196,11 @@ func (al *APIListener) sendJWTToken(username string, w http.ResponseWriter, req 
 }
 
 func (al *APIListener) handlePostLogin(w http.ResponseWriter, req *http.Request) {
+	if al.config.PlusOAuthEnabled() {
+		al.jsonErrorResponseWithDetail(w, http.StatusUnauthorized, "", "Unauthorized", "OAuth enabled. Please GET a login URL via the api login endpoint.")
+		return
+	}
+
 	username, pwd, err := parseLoginPostRequestBody(req)
 	if err != nil {
 		// ban IP if it sends a lot of bad requests
