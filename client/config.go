@@ -75,6 +75,10 @@ func (c *ClientConfigHolder) ParseAndValidate(skipScriptsDirValidation bool) err
 		return err
 	}
 
+	if err := c.ParseAndValidateConnection(); err != nil {
+		return err
+	}
+
 	return nil
 }
 
@@ -97,6 +101,19 @@ func (c *ClientConfigHolder) ParseAndValidateMonitoring() error {
 			return err
 		}
 		c.Monitoring.WanCard = wanCard
+	}
+	return nil
+}
+
+func (c *ClientConfigHolder) ParseAndValidateConnection() error {
+	if !c.Connection.WatchdogIntegration {
+		return nil
+	}
+	if c.Connection.KeepAlive == 0 {
+		return errors.New("watchdog integration requires 'keep_alive > 0'")
+	}
+	if c.Connection.MaxRetryCount > 0 {
+		return errors.New("watchdog integration requires 'max_retry_count = -1' (=disabled)")
 	}
 	return nil
 }
