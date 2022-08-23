@@ -13,7 +13,7 @@ import (
 )
 
 const (
-	defaultPluginPath = "../../rport-plus/plugin.so"
+	defaultPluginPath = "../../rport-plus/rport-plus.so"
 )
 
 var defaultValidMinServerConfig = chserver.ServerConfig{
@@ -29,7 +29,7 @@ type mockFileSystem struct {
 	*files.FileSystem
 
 	ShouldNotExist bool
-	ExistPath      string
+	CheckedPath    string
 }
 
 func (m *mockFileSystem) MakeDirAll(dir string) error {
@@ -37,17 +37,19 @@ func (m *mockFileSystem) MakeDirAll(dir string) error {
 }
 
 func (m *mockFileSystem) Exist(path string) (bool, error) {
-	m.ExistPath = path
+	m.CheckedPath = path
 	if m.ShouldNotExist {
 		return false, nil
 	}
 	return true, nil
 }
 
-func TestShouldFailToLoadPluginWhenNoPath(t *testing.T) {
+func TestShouldErrorWhenPluginPathDoesNotExist(t *testing.T) {
 	config := &chserver.Config{
-		Server:     defaultValidMinServerConfig,
-		PlusConfig: &rportplus.PlusConfig{},
+		Server: defaultValidMinServerConfig,
+		PlusConfig: &rportplus.PlusConfig{
+			PluginPath: "./invalid/path",
+		},
 	}
 
 	fs := &mockFileSystem{
@@ -55,11 +57,10 @@ func TestShouldFailToLoadPluginWhenNoPath(t *testing.T) {
 	}
 
 	_, err := rportplus.NewPlusManager(config.PlusConfig, plusLog, fs)
-	assert.EqualError(t, err, "plugin not found at path \"\"")
+	assert.EqualError(t, err, `plugin not found at path "./invalid/path"`)
 }
 
-// Requires a working plugin
-func TestShouldLoadPluginWhenPath(t *testing.T) {
+func TestShouldNotErrorWhenCorrectPluginPath(t *testing.T) {
 	config := &chserver.Config{
 		Server: defaultValidMinServerConfig,
 		PlusConfig: &rportplus.PlusConfig{
@@ -71,5 +72,5 @@ func TestShouldLoadPluginWhenPath(t *testing.T) {
 	_, err := rportplus.NewPlusManager(config.PlusConfig, plusLog, fs)
 
 	assert.NoError(t, err)
-	assert.Equal(t, config.PlusConfig.PluginPath, fs.ExistPath)
+	assert.Equal(t, config.PlusConfig.PluginPath, fs.CheckedPath)
 }
