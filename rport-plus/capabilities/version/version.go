@@ -8,7 +8,7 @@ import (
 )
 
 type CapabilityEx interface {
-	GetVersionInfo() (info Info)
+	GetVersionInfo() (info *Info)
 }
 
 type Config struct {
@@ -26,8 +26,11 @@ const (
 )
 
 type Info struct {
-	PlusVersion   string
-	PlusBuildDate string
+	PlusVersion    string
+	PlusBuildTime  string
+	PlusLocalBuild string
+	RportBranch    string
+	RportCommitID  string
 }
 
 func (cap *Capability) GetInitFuncName() (name string) {
