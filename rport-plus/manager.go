@@ -115,7 +115,7 @@ func (pm *ManagerProvider) RegisterCapability(capName string, newCap Capability)
 
 // LoadInitFunc loads the capability init func symbol from the plugin
 func (pm *ManagerProvider) LoadInitFunc(pluginPath string, capName string) (sym plugin.Symbol, err error) {
-	sym, _ = loader.LoadSymbol(pluginPath, capName)
+	sym, err = loader.LoadSymbol(pluginPath, capName)
 	if err != nil {
 		return nil, err
 	}
