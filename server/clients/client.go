@@ -200,12 +200,11 @@ func (c *Client) StartTunnel(r *models.Remote, acl *clienttunnel.TunnelACL, tunn
 					sinceLastActive := time.Since(t.LastActive())
 					if sinceLastActive > idleTimeout {
 						c.Logger.Infof("Terminating... inactivity period is reached: %d minute(s)", t.IdleTimeoutMinutes)
-						t.Terminate(true)
+						_ = t.Terminate(true)
 						c.cleanupAfterAutoClose(t)
 						return
-					} else {
-						timer.Reset(idleTimeout - sinceLastActive)
 					}
+					timer.Reset(idleTimeout - sinceLastActive)
 				}
 			}
 		}()

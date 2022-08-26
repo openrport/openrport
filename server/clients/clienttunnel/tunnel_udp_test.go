@@ -49,7 +49,7 @@ func TestTunnelUDP(t *testing.T) {
 	err = tunnel.Terminate(false)
 	require.NoError(t, err)
 
-	assert.WithinDuration(t, time.Now(), tunnel.LastActive(), time.Millisecond)
+	assert.WithinDuration(t, time.Now(), tunnel.LastActive(), 10*time.Millisecond)
 }
 
 func TestTunnelUDPWithACL(t *testing.T) {
