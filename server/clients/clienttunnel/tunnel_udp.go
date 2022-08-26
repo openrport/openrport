@@ -44,25 +44,25 @@ func newTunnelUDP(logger *logger.Logger, ssh ssh.Conn, remote models.Remote, acl
 	}
 }
 
-func (t *tunnelUDP) Start(ctx context.Context) (chan bool, error) {
+func (t *tunnelUDP) Start(ctx context.Context) error {
 	remoteAddr := t.Remote.Remote() + "/udp"
 	sshChan, reqs, err := t.sshConn.OpenChannel("rport", []byte(remoteAddr))
 	if err != nil {
-		return nil, err
+		return err
 	}
 	go ssh.DiscardRequests(reqs)
 
 	return t.start(ctx, sshChan)
 }
 
-func (t *tunnelUDP) start(ctx context.Context, sshChan io.ReadWriter) (chan bool, error) {
+func (t *tunnelUDP) start(ctx context.Context, sshChan io.ReadWriter) error {
 	a, err := net.ResolveUDPAddr("udp", t.Local())
 	if err != nil {
-		return nil, err
+		return err
 	}
 	conn, err := net.ListenUDP("udp", a)
 	if err != nil {
-		return nil, err
+		return err
 	}
 	t.conn = conn
 
@@ -83,12 +83,7 @@ func (t *tunnelUDP) start(ctx context.Context, sshChan io.ReadWriter) (chan bool
 		}
 	}()
 
-	var autoCloseChan chan bool
-	if t.idleTimeout > 0 {
-		autoCloseChan = t.getAutoCloseChan(ctx)
-	}
-
-	return autoCloseChan, nil
+	return nil
 }
 
 func (t *tunnelUDP) runInbound(ctx context.Context) error {
@@ -168,7 +163,7 @@ func (t *tunnelUDP) Terminate(force bool) error {
 	return nil
 }
 
-func (t *tunnelUDP) getLastActive() time.Time {
+func (t *tunnelUDP) LastActive() time.Time {
 	t.mtx.Lock()
 	defer t.mtx.Unlock()
 
@@ -180,27 +175,4 @@ func (t *tunnelUDP) setLastActive() {
 	defer t.mtx.Unlock()
 
 	t.lastActive = time.Now()
-}
-
-func (t *tunnelUDP) getAutoCloseChan(ctx context.Context) chan bool {
-	autoCloseChan := make(chan bool)
-	go func() {
-		for {
-			select {
-			case <-ctx.Done():
-				// close if the ctx was canceled
-				return
-			default:
-			}
-			untilTimeout := time.Until(t.getLastActive().Add(t.idleTimeout))
-			if untilTimeout < 0 {
-				t.Infof("Terminating... inactivity period is reached: %d minute(s)", t.IdleTimeoutMinutes)
-				_ = t.Terminate(true)
-				close(autoCloseChan)
-				return
-			}
-			time.Sleep(untilTimeout)
-		}
-	}()
-	return autoCloseChan
 }

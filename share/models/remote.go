@@ -25,13 +25,14 @@ import (
 //   .../udp ->  udp protocol
 
 const (
-	ZeroHost    = "0.0.0.0"
-	LocalHost   = "127.0.0.1"
-	ProtocolTCP = "tcp"
-	ProtocolUDP = "udp"
+	ZeroHost       = "0.0.0.0"
+	LocalHost      = "127.0.0.1"
+	ProtocolTCP    = "tcp"
+	ProtocolUDP    = "udp"
+	ProtocolTCPUDP = "tcp+udp"
 )
 
-var protocolRe = regexp.MustCompile(`(.*)\/(tcp|udp)$`)
+var protocolRe = regexp.MustCompile(`(.*)\/(tcp|udp|tcp\+udp)$`)
 
 // TODO(m-terel): Remote should be only used for parsing command args and URL query params. Current Remote is kind of a Tunnel model. Refactor to use separate models for representation and business logic.
 type Remote struct {
@@ -130,6 +131,20 @@ func (r *Remote) Local() string {
 
 func (r *Remote) Equals(other *Remote) bool {
 	return r.String() == other.String()
+}
+
+// IsProtocol compares remote's protocol with other, it returns true when tcp+udp is compared against either tcp or udp
+func (r *Remote) IsProtocol(other string) bool {
+	if r.Protocol == other {
+		return true
+	}
+	if r.Protocol == ProtocolTCPUDP && (other == ProtocolTCP || other == ProtocolUDP) {
+		return true
+	}
+	if other == ProtocolTCPUDP && (r.Protocol == ProtocolTCP || r.Protocol == ProtocolUDP) {
+		return true
+	}
+	return false
 }
 
 func (r *Remote) EqualACL(acl *string) bool {

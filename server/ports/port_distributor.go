@@ -34,17 +34,29 @@ func NewPortDistributorForTests(allowedPorts, tcpPortsPool, udpPortsPool mapset.
 }
 
 func (d *PortDistributor) GetRandomPort(protocol string) (int, error) {
-	if d.portsPools[protocol] == nil {
-		err := d.refresh(protocol)
-		if err != nil {
-			return 0, err
+	checkProtocols := []string{protocol}
+	if protocol == models.ProtocolTCPUDP {
+		checkProtocols = []string{models.ProtocolTCP, models.ProtocolUDP}
+	}
+	for _, p := range checkProtocols {
+		if d.portsPools[p] == nil {
+			err := d.refresh(p)
+			if err != nil {
+				return 0, err
+			}
 		}
 	}
 
-	port := d.portsPools[protocol].Pop()
+	pool := d.portsPools[protocol]
+	if protocol == models.ProtocolTCPUDP {
+		pool = d.portsPools[models.ProtocolTCP].Intersect(d.portsPools[models.ProtocolUDP])
+	}
+
+	port := pool.Pop()
 	if port == nil {
 		return 0, fmt.Errorf("no ports available")
 	}
+
 	return port.(int), nil
 }
 

@@ -416,13 +416,13 @@ func (al *APIListener) handlePutClientTunnel(w http.ResponseWriter, req *http.Re
 	}
 
 	for _, t := range client.Tunnels {
-		if t.Remote.Remote() == remote.Remote() && t.Remote.Protocol == remote.Protocol && t.EqualACL(remote.ACL) {
+		if t.Remote.Remote() == remote.Remote() && t.Remote.IsProtocol(remote.Protocol) && t.EqualACL(remote.ACL) {
 			al.jsonErrorResponseWithErrCode(w, http.StatusBadRequest, ErrCodeTunnelToPortExist, fmt.Sprintf("Tunnel to port %s already exist.", remote.RemotePort))
 			return
 		}
 	}
 
-	if checkPortStr := req.URL.Query().Get("check_port"); checkPortStr != "0" && remote.Protocol == models.ProtocolTCP {
+	if checkPortStr := req.URL.Query().Get("check_port"); checkPortStr != "0" && remote.IsProtocol(models.ProtocolTCP) {
 		if !al.checkRemotePort(w, *remote, client.Connection) {
 			return
 		}
@@ -445,7 +445,7 @@ func (al *APIListener) handlePutClientTunnel(w http.ResponseWriter, req *http.Re
 		al.jsonErrorResponseWithTitle(w, http.StatusBadRequest, fmt.Sprintf("tunnel proxy not allowed with scheme %s", schemeStr))
 		return
 	}
-	if isHTTPProxy && remote.Protocol != models.ProtocolTCP {
+	if isHTTPProxy && !remote.IsProtocol(models.ProtocolTCP) {
 		al.jsonErrorResponseWithTitle(w, http.StatusBadRequest, fmt.Sprintf("tunnel proxy not allowed with protcol %s", remote.Protocol))
 		return
 	}
