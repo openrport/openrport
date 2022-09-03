@@ -7,7 +7,7 @@ import (
 	"sync"
 
 	"github.com/cloudradar-monitoring/rport/rport-plus/capabilities/oauth"
-	"github.com/cloudradar-monitoring/rport/rport-plus/capabilities/version"
+	"github.com/cloudradar-monitoring/rport/rport-plus/capabilities/status"
 	"github.com/cloudradar-monitoring/rport/rport-plus/loader"
 	"github.com/cloudradar-monitoring/rport/rport-plus/validator"
 	"github.com/cloudradar-monitoring/rport/share/files"
@@ -15,8 +15,8 @@ import (
 )
 
 const (
-	PlusOAuthCapability   = "plus-oauth"
-	PlusVersionCapability = "plus-version"
+	PlusOAuthCapability  = "plus-oauth"
+	PlusStatusCapability = "plus-status"
 )
 
 var (
@@ -46,7 +46,7 @@ type Manager interface {
 	GetCapability(capName string) (cap Capability)
 	HasCapabilityEnabled(capName string) (isEnabled bool)
 	GetOAuthCapabilityEx() (capEx oauth.CapabilityEx)
-	GetVersionCapabilityEx() (capEx version.CapabilityEx)
+	GetStatusCapabilityEx() (capEx status.CapabilityEx)
 	GetConfigValidator(capName string) (v validator.Validator)
 	GetTotalCapabilities() (total int)
 }
@@ -99,7 +99,7 @@ func (pm *ManagerProvider) RegisterCapability(capName string, newCap Capability)
 
 	initFuncName := newCap.GetInitFuncName()
 	if initFuncName != "" {
-		// init func name indicates that the provider should be initialized using the plugin
+		// an init func name indicates that the provider should be initialized using the plugin
 		sym, err := pm.LoadInitFunc(pm.Config.PluginPath, newCap.GetInitFuncName())
 		if err != nil {
 			return nil, err
@@ -153,7 +153,11 @@ func (pm *ManagerProvider) GetOAuthCapabilityEx() (capEx oauth.CapabilityEx) {
 
 	capEntry := pm.caps[PlusOAuthCapability]
 	if capEntry != nil {
-		cap := capEntry.(*oauth.Capability)
+		cap, ok := capEntry.(*oauth.Capability)
+		if !ok {
+			// TODO: consider returning an error here
+			return nil
+		}
 		capEx = cap.GetOAuthCapabilityEx()
 		return capEx
 	}
@@ -161,15 +165,19 @@ func (pm *ManagerProvider) GetOAuthCapabilityEx() (capEx oauth.CapabilityEx) {
 	return nil
 }
 
-// GetVersionCapability returns a cast version of the Version capability
-func (pm *ManagerProvider) GetVersionCapabilityEx() (capEx version.CapabilityEx) {
+// GetStatusCapabilityEx returns a cast version of the Plus Status capability
+func (pm *ManagerProvider) GetStatusCapabilityEx() (capEx status.CapabilityEx) {
 	pm.mu.RLock()
 	defer pm.mu.RUnlock()
 
-	capEntry := pm.caps[PlusVersionCapability]
+	capEntry := pm.caps[PlusStatusCapability]
 	if capEntry != nil {
-		cap := capEntry.(*version.Capability)
-		capEx = cap.GetVersionCapabilityEx()
+		cap, ok := capEntry.(*status.Capability)
+		if !ok {
+			// TODO: consider returning an error here
+			return nil
+		}
+		capEx = cap.GetStatusCapabilityEx()
 		return capEx
 	}
 

@@ -177,16 +177,20 @@ func (al *APIListener) initRouter() {
 		return nil
 	})
 
+	plusRouter := api.PathPrefix("/plus").Subrouter()
+	plusRouter.HandleFunc("/status", al.handlePlusStatus).Methods(http.MethodGet)
+	plusRouter.HandleFunc("/oauth/status", al.handleOAuthStatusRequest).Methods(http.MethodGet)
+
 	if al.config.PlusOAuthEnabled() {
+		plusRouter.HandleFunc("/oauth/exchangecode", al.handleOAuthAuthorizationCode).Methods(http.MethodGet)
+
+		// urls outside of the api scope
 		oauthRouter := r.PathPrefix("/oauth").Subrouter()
 		oauthRouter.HandleFunc("/callback", al.handleOAuthAuthorizationCode).Methods(http.MethodGet)
-		if al.config.OAuthConfig.ProvideOAuthLogin {
+		if al.config.OAuthConfig.ProvideLoginURL {
 			oauthRouter.HandleFunc("/login", al.handleOAuthLogin).Methods(http.MethodGet)
 		}
 	}
-
-	plusRouter := api.PathPrefix("/plus").Subrouter()
-	plusRouter.HandleFunc("/version", al.handlePlusVersion).Methods(http.MethodGet)
 
 	docRoot := al.config.API.DocRoot
 	if docRoot != "" {

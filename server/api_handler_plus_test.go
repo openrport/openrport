@@ -1,6 +1,7 @@
 package chserver
 
 import (
+	"encoding/json"
 	"net/http"
 	"net/http/httptest"
 	"os"
@@ -37,49 +38,62 @@ func (pm *plusManagerForMockOAuth) GetOAuthCapabilityEx() (capEx oauth.Capabilit
 
 func TestHandleOAuthAuthorizationCode(t *testing.T) {
 	testCases := []struct {
-		Name           string
-		OAuthConfig    *oauth.Config
-		Username       string
-		ExpectedStatus int
+		Name            string
+		ExchangeCodeURL string
+		OAuthConfig     *oauth.Config
+		Username        string
+		ExpectedStatus  int
 	}{
 		{
-			Name: "unknown user",
+			Name:            "unknown user",
+			ExchangeCodeURL: "/oauth/callback",
 			OAuthConfig: &oauth.Config{
 				Provider:             oauth.GitHubOAuthProvider,
 				RequiredOrganization: "cloudradar",
-				CreateMissingUsers:   false,
+				PermittedUserList:    true, // don't create missing user
 			},
 			ExpectedStatus: http.StatusUnauthorized,
 		},
 		{
-			Name: "create missing user",
+			Name:            "create missing user",
+			ExchangeCodeURL: "/oauth/callback",
 			OAuthConfig: &oauth.Config{
 				Provider:             oauth.GitHubOAuthProvider,
 				RequiredOrganization: "cloudradar",
-				CreateMissingUsers:   true,
+				PermittedUserList:    false, // create missing user
 			},
 			Username:       "added-user",
 			ExpectedStatus: http.StatusOK,
 		},
 		{
-			Name: "use auth file with known user",
+			Name:            "use api auth with known user",
+			ExchangeCodeURL: "/oauth/callback",
 			OAuthConfig: &oauth.Config{
-				Provider:           oauth.GitHubOAuthProvider,
-				UseAuthFile:        true,
-				CreateMissingUsers: false,
+				Provider:          oauth.GitHubOAuthProvider,
+				PermittedUserList: true,
 			},
 			Username:       "user1",
 			ExpectedStatus: http.StatusOK,
 		},
 		{
-			Name: "use auth file with unknown user",
+			Name:            "use api auth with unknown user",
+			ExchangeCodeURL: "/oauth/callback",
 			OAuthConfig: &oauth.Config{
-				Provider:           oauth.GitHubOAuthProvider,
-				UseAuthFile:        true,
-				CreateMissingUsers: false,
+				Provider:          oauth.GitHubOAuthProvider,
+				PermittedUserList: true,
 			},
 			Username:       "unknown-user",
 			ExpectedStatus: http.StatusUnauthorized,
+		},
+		{
+			Name:            "exchangecode endpoint available",
+			ExchangeCodeURL: "/api/v1/plus/oauth/exchangecode",
+			OAuthConfig: &oauth.Config{
+				Provider:          oauth.GitHubOAuthProvider,
+				PermittedUserList: true,
+			},
+			Username:       "user1",
+			ExpectedStatus: http.StatusOK,
 		},
 	}
 
@@ -89,7 +103,7 @@ func TestHandleOAuthAuthorizationCode(t *testing.T) {
 			al, mockUsersService := SetupAPIListener(t, tc.OAuthConfig, tc.Username)
 
 			w := httptest.NewRecorder()
-			req := httptest.NewRequest("GET", "/oauth/callback", nil)
+			req := httptest.NewRequest("GET", tc.ExchangeCodeURL, nil)
 
 			al.router.ServeHTTP(w, req)
 
@@ -101,13 +115,44 @@ func TestHandleOAuthAuthorizationCode(t *testing.T) {
 				}
 			}
 
-			if tc.OAuthConfig.CreateMissingUsers {
+			if !tc.OAuthConfig.PermittedUserList {
 				changedUser := mockUsersService.ChangeUser
 				assert.Equal(t, tc.Username, changedUser.Username)
 			}
 		})
 	}
+}
 
+type OAuthConfigResponse struct {
+	Data *oauth.Config `json:"data"`
+}
+
+func TestShouldProvidePlusOauthStatus(t *testing.T) {
+	al, _ := SetupAPIListener(t,
+		&oauth.Config{
+			Provider:          oauth.GitHubOAuthProvider,
+			PermittedUserList: true,
+			ClientSecret:      "1234",
+		},
+		"user1")
+
+	w := httptest.NewRecorder()
+	req := httptest.NewRequest("GET", "/api/v1/plus/oauth/status", nil)
+
+	al.router.ServeHTTP(w, req)
+
+	assert.Equal(t, http.StatusOK, w.Code)
+
+	var cfgResponse OAuthConfigResponse
+
+	err := json.NewDecoder(w.Body).Decode(&cfgResponse)
+	assert.NoError(t, err)
+
+	cfg := cfgResponse.Data
+	assert.Equal(t, oauth.GitHubOAuthProvider, cfg.Provider)
+	assert.Equal(t, true, cfg.PermittedUserList)
+	// ensure not returned by the server
+	assert.Equal(t, "", cfg.ClientSecret)
 }
 
 func SetupAPIListener(t *testing.T, oauthConfig *oauth.Config, username string) (al *APIListener, mockUsersService *MockUsersService) {

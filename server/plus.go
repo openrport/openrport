@@ -5,7 +5,7 @@ import (
 
 	rportplus "github.com/cloudradar-monitoring/rport/rport-plus"
 	"github.com/cloudradar-monitoring/rport/rport-plus/capabilities/oauth"
-	"github.com/cloudradar-monitoring/rport/rport-plus/capabilities/version"
+	"github.com/cloudradar-monitoring/rport/rport-plus/capabilities/status"
 	"github.com/cloudradar-monitoring/rport/share/files"
 	"github.com/cloudradar-monitoring/rport/share/logger"
 )
@@ -57,15 +57,15 @@ func RegisterPlusCapabilities(plusManager rportplus.Manager, cfg *Config, logger
 		logger.Infof("oauth capability registered")
 	}
 
-	// always register the version capability
-	_, err = plusManager.RegisterCapability(rportplus.PlusVersionCapability, &version.Capability{
+	// always register the plus status capability
+	_, err = plusManager.RegisterCapability(rportplus.PlusStatusCapability, &status.Capability{
 		Config: nil,
 		Logger: logger,
 	})
 	if err != nil {
-		return fmt.Errorf("unable to register version plugin capability: %w", err)
+		return fmt.Errorf("unable to register plus status capability: %w", err)
 	}
-	logger.Infof("version capability registered")
+	logger.Infof("plus status capability registered")
 
 	return nil
 }

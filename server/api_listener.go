@@ -91,8 +91,8 @@ func NewAPIListener(
 	var usersProvider users.Provider
 	var err error
 
-	if config.PlusOAuthEnabled() && config.OAuthConfig.UseAuthFile && config.API.AuthFile != "" {
-		// use the auth file for the OAuth permitted user list with the password check not required as
+	if config.PlusOAuthEnabled() && config.OAuthConfig.PermittedUserList {
+		// use api auth for the OAuth permitted user list so the password check is not required as
 		// authentication will be performed by OAuth
 		logger := logger.NewLogger("auth-file", config.Logging.LogOutput, config.Logging.LogLevel)
 		usersProvider, err = users.NewFileAdapter(logger, users.NewFileManager(config.API.AuthFile, true))
@@ -406,7 +406,9 @@ func (al *APIListener) validateCredentials(username, password string, skipPasswo
 
 	if user == nil && skipPasswordValidation &&
 		(al.config.API.CreateMissingUsers ||
-			(al.config.PlusOAuthEnabled() && al.config.OAuthConfig.CreateMissingUsers)) {
+			// if we're using OAuth and there's no permitted_user_list then create
+			// any missing users
+			(al.config.PlusOAuthEnabled() && !al.config.OAuthConfig.PermittedUserList)) {
 		pswd, err := random.UUID4()
 		if err != nil {
 			return false, nil, err

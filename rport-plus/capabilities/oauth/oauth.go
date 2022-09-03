@@ -23,9 +23,9 @@ var (
 type CapabilityEx interface {
 	ValidateConfig() (err error)
 	GetOAuthLoginInfo() (loginMsg string, loginURL string, state string, err error)
+	PerformAuthCodeExchange(r *http.Request) (token string, username string, err error)
+	GetPermittedUser(r *http.Request, token string) (username string, err error)
 	HandleLogin(w http.ResponseWriter, r *http.Request)
-	PerformAuthCodeExchange(r *http.Request) (token string, err error)
-	GetValidUser(token string) (username string, err error)
 }
 
 // Config is the OAuth capability config, as loaded from the rportd config file
@@ -36,16 +36,24 @@ type Config struct {
 	RedirectURI          string `mapstructure:"redirect_uri"`
 	ClientID             string `mapstructure:"client_id"`
 	ClientSecret         string `mapstructure:"client_secret"`
-	UseAuthFile          bool   `mapstructure:"use_api_auth_file"`
 	RequiredOrganization string `mapstructure:"required_organization"`
-	CreateMissingUsers   bool   `mapstructure:"create_missing_users"`
-	ProvideOAuthLogin    bool   `mapstructure:"provide_oauth_login"`
-	UsePKCE              bool   `mapstructure:"use_pkce"`
+	PermittedUserList    bool   `mapstructure:"permitted_user_list"`
+	ProvideLoginURL      bool   `mapstructure:"provide_login_url"`
+	UseStateCookie       bool   `mapstructure:"use_state_cookie"`
+	UseServerPKCE        bool   `mapstructure:"use_server_pkce"`
+
+	// currently only used by the Auth0 provider
+	JWKSURL       string `mapstructure:"jwks_url"`
+	RoleClaim     string `mapstructure:"role_claim"`
+	RequiredRole  string `mapstructure:"required_role"`
+	UsernameClaim string `mapstructure:"username_claim"`
 }
 
 const (
-	InitOAuthCapabilityEx = "InitOAuthCapabilityEx"
-	GitHubOAuthProvider   = "github"
+	InitOAuthCapabilityEx  = "InitOAuthCapabilityEx"
+	GitHubOAuthProvider    = "github"
+	MicrosoftOAuthProvider = "microsoft"
+	Auth0OAuthProvider     = "auth0"
 )
 
 // Capability is used by rportd to maintain loaded info about the plugin's

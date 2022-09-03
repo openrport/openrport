@@ -1,4 +1,4 @@
-package version
+package status
 
 import (
 	"plugin"
@@ -8,7 +8,7 @@ import (
 )
 
 type CapabilityEx interface {
-	GetVersionInfo() (info *Info)
+	GetStatusInfo() (info *PlusStatusInfo)
 }
 
 type Config struct {
@@ -22,10 +22,10 @@ type Capability struct {
 }
 
 const (
-	InitVersionCapabilityEx = "InitVersionCapabilityEx"
+	InitPlusStatusCapabilityEx = "InitPlusStatusCapabilityEx"
 )
 
-type Info struct {
+type PlusStatusInfo struct {
 	PlusVersion    string
 	PlusBuildTime  string
 	PlusLocalBuild string
@@ -34,7 +34,7 @@ type Info struct {
 }
 
 func (cap *Capability) GetInitFuncName() (name string) {
-	return InitVersionCapabilityEx
+	return InitPlusStatusCapabilityEx
 }
 
 func (cap *Capability) SetProvider(sym plugin.Symbol) {
@@ -42,7 +42,7 @@ func (cap *Capability) SetProvider(sym plugin.Symbol) {
 	cap.Provider = fn(cap)
 }
 
-func (cap *Capability) GetVersionCapabilityEx() (capEx CapabilityEx) {
+func (cap *Capability) GetStatusCapabilityEx() (capEx CapabilityEx) {
 	return cap.Provider
 }
 

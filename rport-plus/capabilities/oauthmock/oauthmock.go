@@ -61,13 +61,13 @@ func (mp *MockCapabilityProvider) GetOAuthLoginInfo() (loginMsg string, loginURL
 func (mp *MockCapabilityProvider) HandleLogin(w http.ResponseWriter, r *http.Request) {}
 
 // PerformAuthCodeExchange saves the received request and returns a mock token
-func (mp *MockCapabilityProvider) PerformAuthCodeExchange(r *http.Request) (token string, err error) {
+func (mp *MockCapabilityProvider) PerformAuthCodeExchange(r *http.Request) (token string, username string, err error) {
 	mp.PerformAuthCodeExchangeRequest = r
-	return "mock token", nil
+	return "mock token", "", nil
 }
 
-// GetValidUser saves the token received and returns the configured mock username
-func (mp *MockCapabilityProvider) GetValidUser(token string) (username string, err error) {
+// GetPermittedUser saves the token received and returns the configured mock username
+func (mp *MockCapabilityProvider) GetPermittedUser(r *http.Request, token string) (username string, err error) {
 	mp.GetUserToken = token
 	if mp.Username == "" {
 		username = "mock-user"
