@@ -6,13 +6,53 @@ import (
 
 	"golang.org/x/crypto/ssh"
 
+	"github.com/hashicorp/go-multierror"
+	"github.com/pkg/errors"
+
 	"github.com/cloudradar-monitoring/rport/share/logger"
 	"github.com/cloudradar-monitoring/rport/share/models"
 )
 
 type TunnelProtocol interface {
-	Start(ctx context.Context) (autoCloseChan chan bool, err error)
+	Start(ctx context.Context) error
 	Terminate(force bool) error
+	LastActive() time.Time
+}
+
+type MultiTunnel struct {
+	Protocols []TunnelProtocol
+}
+
+func (mt *MultiTunnel) Start(ctx context.Context) error {
+	for _, tp := range mt.Protocols {
+		err := tp.Start(ctx)
+		if err != nil {
+			return err
+		}
+	}
+	return nil
+}
+
+func (mt *MultiTunnel) Terminate(force bool) error {
+	var result error
+	for _, tp := range mt.Protocols {
+		err := tp.Terminate(force)
+		if err != nil {
+			result = multierror.Append(result, err)
+		}
+	}
+	return result
+}
+
+func (mt *MultiTunnel) LastActive() time.Time {
+	var result time.Time
+	for _, tp := range mt.Protocols {
+		v := tp.LastActive()
+		if v.After(result) {
+			result = v
+		}
+	}
+	return result
 }
 
 // TODO(m-terel): Refactor to use separate models for representation and business logic.
@@ -26,15 +66,24 @@ type Tunnel struct {
 	CreatedAt      time.Time    `json:"created_at"`
 }
 
-func NewTunnel(logger *logger.Logger, ssh ssh.Conn, id string, remote models.Remote, acl *TunnelACL) *Tunnel {
+func NewTunnel(logger *logger.Logger, ssh ssh.Conn, id string, remote models.Remote, acl *TunnelACL) (*Tunnel, error) {
 	logger = logger.Fork("tunnel#%s:%s", id, remote)
 
 	var tunnelProtocol TunnelProtocol
 	switch remote.Protocol {
 	case models.ProtocolUDP:
 		tunnelProtocol = newTunnelUDP(logger, ssh, remote, acl)
-	default:
+	case models.ProtocolTCP:
 		tunnelProtocol = newTunnelTCP(logger, ssh, remote, acl)
+	case models.ProtocolTCPUDP:
+		tunnelProtocol = &MultiTunnel{
+			Protocols: []TunnelProtocol{
+				newTunnelTCP(logger, ssh, remote, acl),
+				newTunnelUDP(logger, ssh, remote, acl),
+			},
+		}
+	default:
+		return nil, errors.Errorf("unsupported protocol %q", remote.Protocol)
 	}
 
 	return &Tunnel{
@@ -42,5 +91,5 @@ func NewTunnel(logger *logger.Logger, ssh ssh.Conn, id string, remote models.Rem
 		ID:             id,
 		TunnelProtocol: tunnelProtocol,
 		CreatedAt:      time.Now(),
-	}
+	}, nil
 }

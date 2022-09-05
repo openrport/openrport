@@ -23,7 +23,7 @@ func TestTunnelUDP(t *testing.T) {
 	tunnel := newTunnelUDP(logger, nil, remote, nil)
 	serverChannel, clientChannel := test.NewMockChannel()
 	channel := comm.NewUDPChannel(clientChannel)
-	autoCloseChan, err := tunnel.start(context.Background(), serverChannel)
+	err := tunnel.start(context.Background(), serverChannel)
 	require.NoError(t, err)
 	conn, err := net.Dial("udp", tunnel.conn.LocalAddr().String())
 	require.NoError(t, err)
@@ -49,11 +49,10 @@ func TestTunnelUDP(t *testing.T) {
 	err = tunnel.Terminate(false)
 	require.NoError(t, err)
 
-	// auto close not enabled
-	assert.Nil(t, autoCloseChan)
+	assert.WithinDuration(t, time.Now(), tunnel.LastActive(), 10*time.Millisecond)
 }
 
-func TestTunnelUDPWithACLAndTimeout(t *testing.T) {
+func TestTunnelUDPWithACL(t *testing.T) {
 	udpReadTimeout = time.Millisecond
 	remote := models.Remote{}
 	logger := logger.NewLogger("udp-handler-test", logger.LogOutput{File: os.Stdout}, logger.LogLevelDebug)
@@ -67,7 +66,7 @@ func TestTunnelUDPWithACLAndTimeout(t *testing.T) {
 	local2, err := net.ResolveUDPAddr("udp", "127.0.0.2:0")
 	require.NoError(t, err)
 	tunnel.idleTimeout = time.Millisecond * 10
-	autoCloseChan, err := tunnel.start(context.Background(), serverChannel)
+	err = tunnel.start(context.Background(), serverChannel)
 	require.NoError(t, err)
 
 	// send from local1 - not allowed
@@ -86,7 +85,4 @@ func TestTunnelUDPWithACLAndTimeout(t *testing.T) {
 	require.NoError(t, err)
 	assert.Equal(t, []byte("def"), data)
 	assert.Equal(t, conn.LocalAddr(), addr)
-
-	// make sure auto close happens
-	<-autoCloseChan
 }
