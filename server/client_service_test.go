@@ -199,6 +199,7 @@ func TestCheckLocalPort(t *testing.T) {
 		portDistributor: ports.NewPortDistributorForTests(
 			mapset.NewThreadUnsafeSetFromSlice([]interface{}{1, 2, 3, 4, 5}),
 			mapset.NewThreadUnsafeSetFromSlice([]interface{}{2, 3, 4}),
+			mapset.NewThreadUnsafeSetFromSlice([]interface{}{2, 3, 4, 5}),
 		),
 	}
 
@@ -208,6 +209,7 @@ func TestCheckLocalPort(t *testing.T) {
 	testCases := []struct {
 		name      string
 		port      string
+		protocol  string
 		wantError error
 	}{
 		{
@@ -233,19 +235,28 @@ func TestCheckLocalPort(t *testing.T) {
 			},
 		},
 		{
-			name: "busy port",
+			name: "busy port tcp",
 			port: "5",
 			wantError: errors2.APIError{
 				Message:    "Local port 5 already in use.",
 				HTTPStatus: http.StatusConflict,
 			},
 		},
+		{
+			name:      "udp port not busy",
+			port:      "5",
+			protocol:  models.ProtocolUDP,
+			wantError: nil,
+		},
 	}
 
 	for _, tc := range testCases {
 		t.Run(tc.name, func(t *testing.T) {
+			if tc.protocol == "" {
+				tc.protocol = models.ProtocolTCP
+			}
 			// when
-			gotErr := srv.checkLocalPort(tc.port)
+			gotErr := srv.checkLocalPort(tc.protocol, tc.port)
 
 			// then
 			require.Equal(t, tc.wantError, gotErr)

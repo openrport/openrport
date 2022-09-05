@@ -416,13 +416,13 @@ func (al *APIListener) handlePutClientTunnel(w http.ResponseWriter, req *http.Re
 	}
 
 	for _, t := range client.Tunnels {
-		if t.Remote.Remote() == remote.Remote() && t.EqualACL(remote.ACL) {
+		if t.Remote.Remote() == remote.Remote() && t.Remote.IsProtocol(remote.Protocol) && t.EqualACL(remote.ACL) {
 			al.jsonErrorResponseWithErrCode(w, http.StatusBadRequest, ErrCodeTunnelToPortExist, fmt.Sprintf("Tunnel to port %s already exist.", remote.RemotePort))
 			return
 		}
 	}
 
-	if checkPortStr := req.URL.Query().Get("check_port"); checkPortStr != "0" && remote.Protocol == models.ProtocolTCP {
+	if checkPortStr := req.URL.Query().Get("check_port"); checkPortStr != "0" && remote.IsProtocol(models.ProtocolTCP) {
 		if !al.checkRemotePort(w, *remote, client.Connection) {
 			return
 		}
@@ -445,7 +445,7 @@ func (al *APIListener) handlePutClientTunnel(w http.ResponseWriter, req *http.Re
 		al.jsonErrorResponseWithTitle(w, http.StatusBadRequest, fmt.Sprintf("tunnel proxy not allowed with scheme %s", schemeStr))
 		return
 	}
-	if isHTTPProxy && remote.Protocol != models.ProtocolTCP {
+	if isHTTPProxy && !remote.IsProtocol(models.ProtocolTCP) {
 		al.jsonErrorResponseWithTitle(w, http.StatusBadRequest, fmt.Sprintf("tunnel proxy not allowed with protcol %s", remote.Protocol))
 		return
 	}
@@ -465,7 +465,7 @@ func (al *APIListener) handlePutClientTunnel(w http.ResponseWriter, req *http.Re
 	client.Lock()
 	defer client.Unlock()
 
-	if remote.IsLocalSpecified() && !al.checkLocalPort(w, remote.LocalPort) {
+	if remote.IsLocalSpecified() && !al.checkLocalPort(w, remote.LocalPort, remote.Protocol) {
 		return
 	}
 
@@ -489,14 +489,14 @@ func (al *APIListener) handlePutClientTunnel(w http.ResponseWriter, req *http.Re
 
 // TODO: remove this check, do it in client srv in startClientTunnels when https://github.com/cloudradar-monitoring/rport/pull/252 will be in master.
 // APIError needs both httpStatusCode and errorCode. To avoid too many merge conflicts with PR252 temporarily use this check to avoid breaking UI
-func (al *APIListener) checkLocalPort(w http.ResponseWriter, localPort string) bool {
+func (al *APIListener) checkLocalPort(w http.ResponseWriter, localPort, protocol string) bool {
 	lport, err := strconv.Atoi(localPort)
 	if err != nil {
 		al.jsonErrorResponseWithError(w, http.StatusBadRequest, fmt.Sprintf("Invalid port: %s.", localPort), err)
 		return false
 	}
 
-	busyPorts, err := ports.ListBusyPorts()
+	busyPorts, err := ports.ListBusyPorts(protocol)
 	if err != nil {
 		al.jsonErrorResponse(w, http.StatusInternalServerError, err)
 		return false
