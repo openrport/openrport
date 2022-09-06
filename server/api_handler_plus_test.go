@@ -36,17 +36,44 @@ func (pm *plusManagerForMockOAuth) GetOAuthCapabilityEx() (capEx oauth.Capabilit
 	return capEx
 }
 
+func TestHandleGetOAuthLoginURLs(t *testing.T) {
+	al, _ := SetupAPIListener(t,
+		&oauth.Config{
+			Provider:          oauth.GitHubOAuthProvider,
+			PermittedUserList: true,
+			ClientSecret:      "1234",
+		},
+		"user1")
+
+	w := httptest.NewRecorder()
+	req := httptest.NewRequest("GET", "/api/v1/login", nil)
+
+	al.router.ServeHTTP(w, req)
+
+	assert.Equal(t, http.StatusUnauthorized, w.Code)
+
+	var loginResponse LoginInfoResponse
+
+	err := json.NewDecoder(w.Body).Decode(&loginResponse)
+	assert.NoError(t, err)
+
+	loginErrors := loginResponse.Errors
+	loginError := loginErrors[0]
+
+	assert.Equal(t, "mock login msg", loginError.Detail)
+	assert.Equal(t, "mock login url", loginError.LoginURL)
+	assert.Equal(t, "/api/v1/plus/mock_exchange_uri", loginError.ExchangeURI)
+}
+
 func TestHandleOAuthAuthorizationCode(t *testing.T) {
-	testCases := []struct {
-		Name            string
-		ExchangeCodeURL string
-		OAuthConfig     *oauth.Config
-		Username        string
-		ExpectedStatus  int
+	tc := []struct {
+		Name           string
+		OAuthConfig    *oauth.Config
+		Username       string
+		ExpectedStatus int
 	}{
 		{
-			Name:            "unknown user",
-			ExchangeCodeURL: "/oauth/callback",
+			Name: "unknown user",
 			OAuthConfig: &oauth.Config{
 				Provider:             oauth.GitHubOAuthProvider,
 				RequiredOrganization: "cloudradar",
@@ -55,8 +82,7 @@ func TestHandleOAuthAuthorizationCode(t *testing.T) {
 			ExpectedStatus: http.StatusUnauthorized,
 		},
 		{
-			Name:            "create missing user",
-			ExchangeCodeURL: "/oauth/callback",
+			Name: "create missing user",
 			OAuthConfig: &oauth.Config{
 				Provider:             oauth.GitHubOAuthProvider,
 				RequiredOrganization: "cloudradar",
@@ -66,8 +92,7 @@ func TestHandleOAuthAuthorizationCode(t *testing.T) {
 			ExpectedStatus: http.StatusOK,
 		},
 		{
-			Name:            "use api auth with known user",
-			ExchangeCodeURL: "/oauth/callback",
+			Name: "use api auth with known user",
 			OAuthConfig: &oauth.Config{
 				Provider:          oauth.GitHubOAuthProvider,
 				PermittedUserList: true,
@@ -76,8 +101,7 @@ func TestHandleOAuthAuthorizationCode(t *testing.T) {
 			ExpectedStatus: http.StatusOK,
 		},
 		{
-			Name:            "use api auth with unknown user",
-			ExchangeCodeURL: "/oauth/callback",
+			Name: "use api auth with unknown user",
 			OAuthConfig: &oauth.Config{
 				Provider:          oauth.GitHubOAuthProvider,
 				PermittedUserList: true,
@@ -85,25 +109,15 @@ func TestHandleOAuthAuthorizationCode(t *testing.T) {
 			Username:       "unknown-user",
 			ExpectedStatus: http.StatusUnauthorized,
 		},
-		{
-			Name:            "exchangecode endpoint available",
-			ExchangeCodeURL: "/api/v1/plus/oauth/exchangecode",
-			OAuthConfig: &oauth.Config{
-				Provider:          oauth.GitHubOAuthProvider,
-				PermittedUserList: true,
-			},
-			Username:       "user1",
-			ExpectedStatus: http.StatusOK,
-		},
 	}
 
-	for _, tc := range testCases {
+	for _, tc := range tc {
 		tc := tc
 		t.Run(tc.Name, func(t *testing.T) {
 			al, mockUsersService := SetupAPIListener(t, tc.OAuthConfig, tc.Username)
 
 			w := httptest.NewRecorder()
-			req := httptest.NewRequest("GET", tc.ExchangeCodeURL, nil)
+			req := httptest.NewRequest("GET", "/api/v1/plus/oauth/exchangecode", nil)
 
 			al.router.ServeHTTP(w, req)
 

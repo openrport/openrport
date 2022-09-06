@@ -407,7 +407,7 @@ func TestHandleOAuthGetLogin(t *testing.T) {
 
 			assert.Equal(t, http.StatusUnauthorized, w.Code)
 			// confirm that the dummy login msg returned
-			assert.Contains(t, w.Body.String(), "dummy login msg")
+			assert.Contains(t, w.Body.String(), "mock login msg")
 		})
 	}
 

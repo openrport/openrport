@@ -22,10 +22,9 @@ var (
 // CapabilityEx represents the functional interface provided by the OAuth capability
 type CapabilityEx interface {
 	ValidateConfig() (err error)
-	GetOAuthLoginInfo() (loginMsg string, loginURL string, state string, err error)
+	GetOAuthLoginInfo() (loginMsg string, loginURL string, exchangeURI string, err error)
 	PerformAuthCodeExchange(r *http.Request) (token string, username string, err error)
 	GetPermittedUser(r *http.Request, token string) (username string, err error)
-	HandleLogin(w http.ResponseWriter, r *http.Request)
 }
 
 // Config is the OAuth capability config, as loaded from the rportd config file
@@ -38,9 +37,6 @@ type Config struct {
 	ClientSecret         string `mapstructure:"client_secret"`
 	RequiredOrganization string `mapstructure:"required_organization"`
 	PermittedUserList    bool   `mapstructure:"permitted_user_list"`
-	ProvideLoginURL      bool   `mapstructure:"provide_login_url"`
-	UseStateCookie       bool   `mapstructure:"use_state_cookie"`
-	UseServerPKCE        bool   `mapstructure:"use_server_pkce"`
 
 	// currently only used by the Auth0 provider
 	JWKSURL       string `mapstructure:"jwks_url"`
@@ -54,6 +50,8 @@ const (
 	GitHubOAuthProvider    = "github"
 	MicrosoftOAuthProvider = "microsoft"
 	Auth0OAuthProvider     = "auth0"
+
+	DefaultExchangeCodeSlug = "/oauth/exchangecode"
 )
 
 // Capability is used by rportd to maintain loaded info about the plugin's

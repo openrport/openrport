@@ -7,6 +7,34 @@ import (
 	"github.com/cloudradar-monitoring/rport/server/api"
 )
 
+type LoginInfoResponse struct {
+	Errors []LoginInfoPayload `json:"errors"`
+}
+
+type LoginInfoPayload struct {
+	Code   string `json:"code"`
+	Title  string `json:"title"`
+	Detail string `json:"detail"`
+
+	LoginURL    string `json:"login_url"`
+	ExchangeURI string `json:"exchange_uri"`
+}
+
+func (al *APIListener) jsonLoginInfoResponse(w http.ResponseWriter, loginMsg string, loginURL string, exchangeURI string) {
+	loginInfo := LoginInfoResponse{
+		Errors: []LoginInfoPayload{{
+			Code:     "",
+			Title:    "Unauthorized",
+			Detail:   loginMsg,
+			LoginURL: loginURL,
+			// TODO: is the rport server domain available for using here?
+			ExchangeURI: exchangeURI,
+		},
+		},
+	}
+	al.writeJSONResponse(w, http.StatusUnauthorized, loginInfo)
+}
+
 // note that the plugin not actually involved here
 func (al *APIListener) handleOAuthStatusRequest(w http.ResponseWriter, r *http.Request) {
 	cfg := *al.Server.config.OAuthConfig
@@ -73,21 +101,4 @@ func (al *APIListener) handlePlusStatus(w http.ResponseWriter, r *http.Request) 
 
 	response := api.NewSuccessPayload(statusInfo)
 	al.writeJSONResponse(w, http.StatusOK, response)
-}
-
-// TODO: if not going to be used then this can be deleted
-func (al *APIListener) handleOAuthLogin(w http.ResponseWriter, r *http.Request) {
-	plus := al.Server.plusManager
-	if plus == nil {
-		al.jsonErrorResponse(w, http.StatusUnauthorized, rportplus.ErrPlusNotAvailable)
-		return
-	}
-
-	capEx := plus.GetOAuthCapabilityEx()
-	if capEx == nil {
-		al.jsonErrorResponse(w, http.StatusUnauthorized, rportplus.ErrCapabilityNotAvailable(rportplus.PlusOAuthCapability))
-		return
-	}
-
-	capEx.HandleLogin(w, r)
 }

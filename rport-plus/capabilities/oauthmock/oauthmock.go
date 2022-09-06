@@ -52,9 +52,9 @@ func (mp *MockCapabilityProvider) ValidateConfig() (err error) {
 	return nil
 }
 
-// GetOAuthLoginInfo returns dummy login info
-func (mp *MockCapabilityProvider) GetOAuthLoginInfo() (loginMsg string, loginURL string, state string, err error) {
-	return "dummy login msg", "dummy login url", "dummy state", nil
+// GetOAuthLoginInfo returns mock login info
+func (mp *MockCapabilityProvider) GetOAuthLoginInfo() (loginMsg string, loginURL string, exchangeURI string, err error) {
+	return "mock login msg", "mock login url", "/mock_exchange_uri", nil
 }
 
 // HandleLogin does nothing at the moment

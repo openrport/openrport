@@ -34,12 +34,12 @@ func (al *APIListener) handleGetLogin(w http.ResponseWriter, req *http.Request) 
 			return
 		}
 
-		loginMsg, _, _, err := capEx.GetOAuthLoginInfo()
+		loginMsg, loginURL, exchangeURI, err := capEx.GetOAuthLoginInfo()
 		if err != nil {
 			al.jsonErrorResponse(w, http.StatusUnauthorized, err)
 			return
 		}
-		al.jsonErrorResponseWithDetail(w, http.StatusUnauthorized, "", "Unauthorized", loginMsg)
+		al.jsonLoginInfoResponse(w, loginMsg, loginURL, allPlusRoutesPrefix+exchangeURI)
 		return
 	}
 

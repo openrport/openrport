@@ -7,6 +7,7 @@ import (
 	"github.com/gorilla/mux"
 	"github.com/jpillora/requestlog"
 
+	"github.com/cloudradar-monitoring/rport/rport-plus/capabilities/oauth"
 	"github.com/cloudradar-monitoring/rport/server/api/middleware"
 	"github.com/cloudradar-monitoring/rport/server/api/users"
 	"github.com/cloudradar-monitoring/rport/share/security"
@@ -182,14 +183,7 @@ func (al *APIListener) initRouter() {
 	plusRouter.HandleFunc("/oauth/status", al.handleOAuthStatusRequest).Methods(http.MethodGet)
 
 	if al.config.PlusOAuthEnabled() {
-		plusRouter.HandleFunc("/oauth/exchangecode", al.handleOAuthAuthorizationCode).Methods(http.MethodGet)
-
-		// urls outside of the api scope
-		oauthRouter := r.PathPrefix("/oauth").Subrouter()
-		oauthRouter.HandleFunc("/callback", al.handleOAuthAuthorizationCode).Methods(http.MethodGet)
-		if al.config.OAuthConfig.ProvideLoginURL {
-			oauthRouter.HandleFunc("/login", al.handleOAuthLogin).Methods(http.MethodGet)
-		}
+		plusRouter.HandleFunc(oauth.DefaultExchangeCodeSlug, al.handleOAuthAuthorizationCode).Methods(http.MethodGet)
 	}
 
 	docRoot := al.config.API.DocRoot
