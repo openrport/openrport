@@ -113,6 +113,8 @@ func TestHandleGetClient(t *testing.T) {
                 "scheme":null,
                 "acl":null,
                 "host_header":"",
+				"auth_user":"",
+				"auth_password":"",
                 "http_proxy":false,
 		        "idle_timeout_minutes": 0,
 		        "auto_close": 0,
@@ -130,6 +132,8 @@ func TestHandleGetClient(t *testing.T) {
                 "scheme":null,
                 "acl":null,
                 "host_header":"",
+				"auth_user":"",
+				"auth_password":"",
                 "http_proxy":false,
 		        "idle_timeout_minutes": 0,
 		        "auto_close": 0,
@@ -386,19 +390,90 @@ func TestHandlePutTunnelWithName(t *testing.T) {
 	connMock.ReturnResponsePayload = []byte("{ \"IsAllowed\": true }")
 
 	testCases := []struct {
-		Name         string
-		URL          string
-		ExpectedJSON string
+		Name          string
+		URL           string
+		ExpectedJSON  string
+		ExpectedError string
 	}{
 		{
-			Name:         "With Name",
-			URL:          "/api/v1/clients/client-1/tunnels?scheme=ssh&acl=127.0.0.1&local=0.0.0.0%3A3390&remote=0.0.0.0%3A22&name=TUNNELNAME&check_port=0",
-			ExpectedJSON: `{"data":{"id":"10","name":"TUNNELNAME","protocol":"tcp","lhost":"0.0.0.0","lport":"3390","rhost":"0.0.0.0","rport":"22","lport_random":false,"scheme":"ssh","acl":"127.0.0.1","idle_timeout_minutes":5,"auto_close":0,"http_proxy":false,"host_header":"","created_at":"0001-01-01T00:00:00Z"}}`,
+			Name: "With Name",
+			URL:  "/api/v1/clients/client-1/tunnels?scheme=ssh&acl=127.0.0.1&local=0.0.0.0%3A3390&remote=0.0.0.0%3A22&name=TUNNELNAME&check_port=0",
+			ExpectedJSON: `{
+			"data": {
+				"id": "10",
+				"name": "TUNNELNAME",
+				"protocol": "tcp",
+				"lhost": "0.0.0.0",
+				"lport": "3390",
+				"rhost": "0.0.0.0",
+				"rport": "22",
+				"lport_random": false,
+				"scheme": "ssh",
+				"acl": "127.0.0.1",
+				"idle_timeout_minutes": 5,
+				"auto_close": 0,
+				"http_proxy": false,
+				"host_header": "",
+				"auth_user":"",
+				"auth_password":"",
+				"created_at": "0001-01-01T00:00:00Z"
+			}
+		}`,
 		},
 		{
-			Name:         "Without Name",
-			URL:          "/api/v1/clients/client-1/tunnels?scheme=ssh&acl=127.0.0.1&local=0.0.0.0%3A3390&remote=0.0.0.0%3A22&check_port=0",
-			ExpectedJSON: `{"data":{"id":"10","name":"","protocol":"tcp","lhost":"0.0.0.0","lport":"3390","rhost":"0.0.0.0","rport":"22","lport_random":false,"scheme":"ssh","acl":"127.0.0.1","idle_timeout_minutes":5,"auto_close":0,"http_proxy":false,"host_header":"","created_at":"0001-01-01T00:00:00Z"}}`,
+			Name: "Without Name",
+			URL:  "/api/v1/clients/client-1/tunnels?scheme=ssh&acl=127.0.0.1&local=0.0.0.0%3A3390&remote=0.0.0.0%3A22&check_port=0",
+			ExpectedJSON: `{
+			"data": {
+				"id": "10",
+				"name": "",
+				"protocol": "tcp",
+				"lhost": "0.0.0.0",
+				"lport": "3390",
+				"rhost": "0.0.0.0",
+				"rport": "22",
+				"lport_random": false,
+				"scheme": "ssh",
+				"acl": "127.0.0.1",
+				"idle_timeout_minutes": 5,
+				"auto_close": 0,
+				"http_proxy": false,
+				"host_header": "",
+				"auth_user":"",
+				"auth_password":"",
+				"created_at": "0001-01-01T00:00:00Z"
+			}
+		}`,
+		},
+		{
+			Name: "Without Name With User and Password",
+			URL:  "/api/v1/clients/client-1/tunnels?scheme=http&acl=127.0.0.1&local=0.0.0.0%3A3390&remote=0.0.0.0%3A22&check_port=0&auth_user=admin&auth_password=foo&http_proxy=1",
+			ExpectedJSON: `{
+			"data": {
+				"id": "10",
+				"name": "",
+				"protocol": "tcp",
+				"lhost": "0.0.0.0",
+				"lport": "3390",
+				"rhost": "0.0.0.0",
+				"rport": "22",
+				"lport_random": false,
+				"scheme": "http",
+				"acl": "127.0.0.1",
+				"idle_timeout_minutes": 5,
+				"auto_close": 0,
+				"http_proxy": true,
+				"host_header": "",
+				"auth_user":"admin",
+				"auth_password":"foo",
+				"created_at": "0001-01-01T00:00:00Z"
+			}
+		}`,
+		},
+		{
+			Name:          "Auth with error",
+			URL:           "/api/v1/clients/client-1/tunnels?scheme=http&acl=127.0.0.1&local=0.0.0.0%3A3390&remote=0.0.0.0%3A22&check_port=0&auth_user=admin&http_proxy=1",
+			ExpectedError: "auth_user requires auth_password",
 		},
 	}
 
@@ -422,7 +497,12 @@ func TestHandlePutTunnelWithName(t *testing.T) {
 				Server: &Server{
 					clientService: mockClientService,
 					config: &Config{
-						Server: ServerConfig{MaxRequestBytes: 1024 * 1024},
+						Server: ServerConfig{
+							MaxRequestBytes: 1024 * 1024,
+							TunnelProxyConfig: clienttunnel.TunnelProxyConfig{
+								Enabled: true,
+							},
+						},
 					},
 					clientGroupProvider: mockClientGroupProvider{},
 				},
@@ -434,11 +514,14 @@ func TestHandlePutTunnelWithName(t *testing.T) {
 			req := httptest.NewRequest("PUT", tc.URL, nil)
 
 			al.router.ServeHTTP(w, req)
-			assert.Equal(t, http.StatusOK, w.Code)
-
-			if w.Code == http.StatusOK {
+			if tc.ExpectedError == "" {
+				assert.Equal(t, http.StatusOK, w.Code, fmt.Sprintf("Response Body: %s", w.Body))
 				assert.JSONEq(t, tc.ExpectedJSON, w.Body.String())
+			} else {
+				assert.Equal(t, http.StatusBadRequest, w.Code)
+				assert.Contains(t, w.Body.String(), tc.ExpectedError)
 			}
+
 		})
 	}
 }
