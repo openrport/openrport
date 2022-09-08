@@ -248,6 +248,21 @@ func TestCheckLocalPort(t *testing.T) {
 			protocol:  models.ProtocolUDP,
 			wantError: nil,
 		},
+		{
+			name:     "tcp+udp port busy",
+			port:     "5",
+			protocol: models.ProtocolTCPUDP,
+			wantError: errors2.APIError{
+				Message:    "Local port 5 already in use.",
+				HTTPStatus: http.StatusConflict,
+			},
+		},
+		{
+			name:      "tcp+udp port not busy",
+			port:      "4",
+			protocol:  models.ProtocolTCPUDP,
+			wantError: nil,
+		},
 	}
 
 	for _, tc := range testCases {
