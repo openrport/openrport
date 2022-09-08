@@ -1,0 +1,62 @@
+get:
+  tags:
+    - OAuth / Exchange Code
+  summary: Exchange an OAuth Authorization Code for an Rport Authorization JWT Token
+  operationId: ExchangeCodeGet
+  security: []
+  description: >
+    * This API is only enabled if the Rport Plus plugin is loaded and running. For
+    more information, see [Rport Plus](https://oss.rport.io/docs/no25-plus-introduction.html).
+
+    * It allows an authorization code (`code`) returned by an OAuth provider
+    callback to be exchanged for an Rport Authorization JWT Token. The `state`
+    parameter also received in the callback must also be provided and will be
+    validated by the Rport server. 
+
+    * Note that security will be increased if clients verify that the `state` 
+    parameter returned in the callback matches the `state` parameter supplied 
+    initially as part of the OAuth `authorize` login url. To obtain an `authorize`
+    login url, the Rport login api must be called. It will return `Unauthorized`
+    but also two additional APIs that can be used to perform OAuth based logins.
+
+  parameters:
+    - name: code
+      in: query
+      description: >-
+        the authorization code received via the OAuth provider callback
+      schema:
+        type: string
+    - name: state
+      in: query
+      description: >-
+        the state received via the OAuth provider callback
+      schema:
+        type: string
+  responses:
+    "200":
+      description: Successful Login Operation
+      content:
+        application/json:
+          schema:
+            type: object
+            properties:
+              data:
+                $ref: ../components/schemas/LoginResponseOAuth.yaml
+    "400":
+      description: Invalid parameters
+      content:
+        application/json:
+          schema:
+            $ref: ../components/schemas/ErrorPayload.yaml
+    "401":
+      description: Unauthorized
+      content:
+        application/json:
+          schema:
+            $ref: ../components/schemas/ErrorPayload.yaml
+    "500":
+      description: Invalid Operation
+      content:
+        application/json:
+          schema:
+            $ref: ../components/schemas/ErrorPayload.yaml

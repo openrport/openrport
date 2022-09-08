@@ -16,7 +16,10 @@ security:
   - basic_auth: []
 tags:
   - name: Login
-    description: For more details https://oss.rport.io/docs/no02-api-auth.html
+    description: |
+      For more details https://oss.rport.io/docs/no02-api-auth.html
+
+      For use with Rport Plus OAuth, see https://oss.rport.io/docs/no25-plus-introduction.html
   - name: Profile & Info
     description: Profile and System Information
   - name: Clients and Tunnels
@@ -29,6 +32,8 @@ tags:
     description: For more details https://oss.rport.io/docs/no06-command-execution.html
   - name: Users
     description: For more details https://oss.rport.io/docs/no12-user.html
+  - name: OAuth / Exchange Code
+    description: For more details https://oss.rport.io/docs/no25-plus-introduction.html
 paths:
   /login:
     $ref: paths/login.yaml
@@ -138,6 +143,8 @@ paths:
     $ref: paths/schedules_{id}.yaml
   /files:
     $ref: paths/files.yaml
+  /oauth/exchangecode:
+    $ref: paths/oauth-exchangecode.yaml
 components:
   securitySchemes:
     basic_auth:

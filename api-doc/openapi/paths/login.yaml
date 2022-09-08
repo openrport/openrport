@@ -13,6 +13,16 @@ get:
     * If TotP is enabled, it returns a login token, which should be used to call
     `/verify-2fa` endpoint and also to create and read a totp secret for the
     first time (see `/me/totp-secret`)
+
+    * If Rport Plus OAuth is enabled, then this API can be used to get a valid
+    OAuth `authorize` login url and also the API endpoint for exchanging the OAuth
+    authorization `code` for an Rport token. The API will still return Unauthorized 
+    but with an error response containing two additional fields. `login_url` which
+    contains the `authorize` url that should be used to initiate user authorization 
+    with the configured OAuth provider. Also returned, will be an Rport `exchange_uri` 
+    that can be used to exchange the authorization code provided in the OAuth provider
+    callback URL for an Rport authorization JWT token that can be used with the other
+    Rport APIs. Note: does NOT require HTTP-basic authorization.
   parameters:
     - name: token-lifetime
       in: query
@@ -24,7 +34,7 @@ get:
         type: integer
         default: 600
   responses:
-    '200':
+    "200":
       description: Successful Login Operation
       content:
         application/json:
@@ -33,19 +43,19 @@ get:
             properties:
               data:
                 $ref: ../components/schemas/LoginResponse.yaml
-    '400':
+    "400":
       description: Invalid parameters
       content:
         application/json:
           schema:
             $ref: ../components/schemas/ErrorPayload.yaml
-    '401':
-      description: Unauthorized
+    "401":
+      description: Unauthorized (see above for behavior with OAuth providers)
       content:
         application/json:
           schema:
             $ref: ../components/schemas/ErrorPayload.yaml
-    '500':
+    "500":
       description: Invalid Operation
       content:
         application/json:
@@ -74,7 +84,7 @@ post:
         type: integer
         default: 600
   responses:
-    '200':
+    "200":
       description: Successful Operation
       content:
         application/json:
@@ -83,19 +93,19 @@ post:
             properties:
               data:
                 $ref: ../components/schemas/LoginResponse.yaml
-    '400':
+    "400":
       description: Invalid parameters
       content:
         application/json:
           schema:
             $ref: ../components/schemas/ErrorPayload.yaml
-    '401':
+    "401":
       description: Unauthorized
       content:
         application/json:
           schema:
             $ref: ../components/schemas/ErrorPayload.yaml
-    '500':
+    "500":
       description: Invalid Operation
       content:
         application/json:

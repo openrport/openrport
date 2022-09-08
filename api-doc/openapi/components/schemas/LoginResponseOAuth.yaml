@@ -1,0 +1,12 @@
+type: object
+properties:
+  token:
+    type: string
+    description: >-
+      Authorization JWT token.
+      type: object
+  two_fa:
+    object:
+      nullable: true
+    description: null when used with the Rport Plus OAuth plugin
+description: Response returned by the `/login` endpoint when Rport Plus OAuth is enabled
