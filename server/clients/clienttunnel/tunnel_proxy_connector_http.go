@@ -49,6 +49,14 @@ func (tc *TunnelProxyConnectorHTTP) createReverseProxy() {
 }
 
 func (tc *TunnelProxyConnectorHTTP) serveHTTP(w http.ResponseWriter, r *http.Request) {
+	if tc.tunnelProxy.Tunnel.Remote.AuthUser != "" && tc.tunnelProxy.Tunnel.Remote.AuthPassword != "" {
+		user, password, ok := r.BasicAuth()
+		if !ok || user != tc.tunnelProxy.Tunnel.Remote.AuthUser || password != tc.tunnelProxy.Tunnel.Remote.AuthPassword {
+			w.Header().Set("WWW-Authenticate", `Basic realm="restricted", charset="UTF-8"`)
+			http.Error(w, "Unauthorized", http.StatusUnauthorized)
+			return
+		}
+	}
 	tc.reverseProxy.ServeHTTP(w, r)
 }
 

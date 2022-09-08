@@ -6,7 +6,7 @@ apis:
     labels:
       - external
 
-lint:
+styleguide:
   extends:
     - recommended
 

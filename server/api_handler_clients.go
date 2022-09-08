@@ -428,38 +428,7 @@ func (al *APIListener) handlePutClientTunnel(w http.ResponseWriter, req *http.Re
 		}
 	}
 
-	httpProxy := req.URL.Query().Get("http_proxy")
-	if httpProxy == "" {
-		httpProxy = "false"
-	}
-	isHTTPProxy, err := strconv.ParseBool(httpProxy)
-	if err != nil {
-		al.jsonError(w, err)
-		return
-	}
-	if isHTTPProxy && !al.config.Server.TunnelProxyConfig.Enabled {
-		al.jsonErrorResponseWithTitle(w, http.StatusBadRequest, "creation of tunnel proxy not enabled")
-		return
-	}
-	if isHTTPProxy && !validation.SchemeSupportsHTTPProxy(schemeStr) {
-		al.jsonErrorResponseWithTitle(w, http.StatusBadRequest, fmt.Sprintf("tunnel proxy not allowed with scheme %s", schemeStr))
-		return
-	}
-	if isHTTPProxy && !remote.IsProtocol(models.ProtocolTCP) {
-		al.jsonErrorResponseWithTitle(w, http.StatusBadRequest, fmt.Sprintf("tunnel proxy not allowed with protcol %s", remote.Protocol))
-		return
-	}
-	remote.HTTPProxy = isHTTPProxy
-
-	hostHeader := req.URL.Query().Get("host_header")
-	if hostHeader != "" {
-		if isHTTPProxy {
-			remote.HostHeader = hostHeader
-		} else {
-			al.jsonErrorResponseWithTitle(w, http.StatusBadRequest, "host_header not allowed when http_proxy is false")
-			return
-		}
-	}
+	al.getTunnelProxyOptions(w, req, remote)
 
 	// make next steps thread-safe
 	client.Lock()
@@ -485,6 +454,61 @@ func (al *APIListener) handlePutClientTunnel(w http.ResponseWriter, req *http.Re
 		Save()
 
 	al.writeJSONResponse(w, http.StatusOK, response)
+}
+
+func (al *APIListener) getTunnelProxyOptions(w http.ResponseWriter, req *http.Request, remote *models.Remote) {
+	httpProxy := req.URL.Query().Get("http_proxy")
+	if httpProxy == "" {
+		httpProxy = "false"
+	}
+	isHTTPProxy, err := strconv.ParseBool(httpProxy)
+	if err != nil {
+		al.jsonError(w, err)
+		return
+	}
+	if isHTTPProxy && !al.config.Server.TunnelProxyConfig.Enabled {
+		al.jsonErrorResponseWithTitle(w, http.StatusBadRequest, "creation of tunnel proxy not enabled")
+		return
+	}
+	if isHTTPProxy && !validation.SchemeSupportsHTTPProxy(*remote.Scheme) {
+		al.jsonErrorResponseWithTitle(w, http.StatusBadRequest, fmt.Sprintf("tunnel proxy not allowed with scheme %s", *remote.Scheme))
+		return
+	}
+	if isHTTPProxy && !remote.IsProtocol(models.ProtocolTCP) {
+		al.jsonErrorResponseWithTitle(w, http.StatusBadRequest, fmt.Sprintf("tunnel proxy not allowed with protcol %s", remote.Protocol))
+		return
+	}
+	remote.HTTPProxy = isHTTPProxy
+
+	authUser := req.URL.Query().Get("auth_user")
+	authPassword := req.URL.Query().Get("auth_password")
+	if authUser != "" || authPassword != "" {
+		if !isHTTPProxy {
+			al.jsonErrorResponseWithTitle(w, http.StatusBadRequest, "http basic authentication requires http_proxy to be activated on the requested tunnel")
+			return
+		}
+		if authPassword != "" && authUser == "" {
+			al.jsonErrorResponseWithTitle(w, http.StatusBadRequest, "auth_password requires auth_user")
+			return
+		}
+		if authUser != "" && authPassword == "" {
+			al.jsonErrorResponseWithTitle(w, http.StatusBadRequest, "auth_user requires auth_password")
+			return
+		}
+		remote.AuthUser = authUser
+		remote.AuthPassword = authPassword
+	}
+
+	hostHeader := req.URL.Query().Get("host_header")
+	if hostHeader != "" {
+		if isHTTPProxy {
+			remote.HostHeader = hostHeader
+		} else {
+			al.jsonErrorResponseWithTitle(w, http.StatusBadRequest, "host_header not allowed when http_proxy is false")
+			return
+		}
+	}
+
 }
 
 // TODO: remove this check, do it in client srv in startClientTunnels when https://github.com/cloudradar-monitoring/rport/pull/252 will be in master.

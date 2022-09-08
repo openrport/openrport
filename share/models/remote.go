@@ -49,6 +49,8 @@ type Remote struct {
 	AutoClose          time.Duration `json:"auto_close"`
 	HTTPProxy          bool          `json:"http_proxy"`
 	HostHeader         string        `json:"host_header"`
+	AuthUser           string        `json:"auth_user"`
+	AuthPassword       string        `json:"auth_password"`
 }
 
 func DecodeRemote(s string) (*Remote, error) {
