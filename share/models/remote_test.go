@@ -1,6 +1,7 @@
 package models
 
 import (
+	"fmt"
 	"testing"
 
 	"github.com/stretchr/testify/assert"
@@ -53,8 +54,20 @@ func TestDecodeRemote(t *testing.T) {
 			WantRemotePort: "80",
 		},
 		{
+			Input:          "3000/tcp",
+			WantProtocol:   ProtocolTCP,
+			WantRemoteHost: LocalHost,
+			WantRemotePort: "3000",
+		},
+		{
 			Input:          "3000/udp",
 			WantProtocol:   ProtocolUDP,
+			WantRemoteHost: LocalHost,
+			WantRemotePort: "3000",
+		},
+		{
+			Input:          "3000/tcp+udp",
+			WantProtocol:   ProtocolTCPUDP,
 			WantRemoteHost: LocalHost,
 			WantRemotePort: "3000",
 		},
@@ -102,6 +115,63 @@ func TestDecodeRemote(t *testing.T) {
 			assert.Equal(t, tc.WantLocalPort, remote.LocalPort)
 			assert.Equal(t, tc.WantRemoteHost, remote.RemoteHost)
 			assert.Equal(t, tc.WantRemotePort, remote.RemotePort)
+		})
+	}
+}
+
+func TestIsProtocol(t *testing.T) {
+	testCases := []struct {
+		Protocol      string
+		OtherProtocol string
+		Expected      bool
+	}{
+		{
+			Protocol:      ProtocolTCP,
+			OtherProtocol: ProtocolTCP,
+			Expected:      true,
+		},
+		{
+			Protocol:      ProtocolUDP,
+			OtherProtocol: ProtocolUDP,
+			Expected:      true,
+		},
+		{
+			Protocol:      ProtocolTCP,
+			OtherProtocol: ProtocolUDP,
+			Expected:      false,
+		},
+		{
+			Protocol:      ProtocolTCPUDP,
+			OtherProtocol: ProtocolTCP,
+			Expected:      true,
+		},
+		{
+			Protocol:      ProtocolTCP,
+			OtherProtocol: ProtocolTCPUDP,
+			Expected:      true,
+		},
+		{
+			Protocol:      ProtocolTCPUDP,
+			OtherProtocol: ProtocolUDP,
+			Expected:      true,
+		},
+		{
+			Protocol:      ProtocolUDP,
+			OtherProtocol: ProtocolTCPUDP,
+			Expected:      true,
+		},
+	}
+
+	for _, tc := range testCases {
+		tc := tc
+		t.Run(fmt.Sprintf("%s/%s", tc.Protocol, tc.OtherProtocol), func(t *testing.T) {
+			t.Parallel()
+
+			remote := &Remote{Protocol: tc.Protocol}
+
+			result := remote.IsProtocol(tc.OtherProtocol)
+
+			assert.Equal(t, tc.Expected, result)
 		})
 	}
 }

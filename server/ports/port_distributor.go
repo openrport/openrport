@@ -34,11 +34,11 @@ func NewPortDistributorForTests(allowedPorts, tcpPortsPool, udpPortsPool mapset.
 }
 
 func (d *PortDistributor) GetRandomPort(protocol string) (int, error) {
-	checkProtocols := []string{protocol}
+	subProtocols := []string{protocol}
 	if protocol == models.ProtocolTCPUDP {
-		checkProtocols = []string{models.ProtocolTCP, models.ProtocolUDP}
+		subProtocols = []string{models.ProtocolTCP, models.ProtocolUDP}
 	}
-	for _, p := range checkProtocols {
+	for _, p := range subProtocols {
 		if d.portsPools[p] == nil {
 			err := d.refresh(p)
 			if err != nil {
@@ -47,14 +47,14 @@ func (d *PortDistributor) GetRandomPort(protocol string) (int, error) {
 		}
 	}
 
-	pool := d.portsPools[protocol]
-	if protocol == models.ProtocolTCPUDP {
-		pool = d.portsPools[models.ProtocolTCP].Intersect(d.portsPools[models.ProtocolUDP])
-	}
-
-	port := pool.Pop()
+	port := d.getPool(protocol).Pop()
 	if port == nil {
 		return 0, fmt.Errorf("no ports available")
+	}
+
+	// Make sure port is removed from all pools for tcp+udp protocol
+	for _, p := range subProtocols {
+		d.portsPools[p].Remove(port)
 	}
 
 	return port.(int), nil
@@ -65,7 +65,15 @@ func (d *PortDistributor) IsPortAllowed(port int) bool {
 }
 
 func (d *PortDistributor) IsPortBusy(protocol string, port int) bool {
-	return !d.portsPools[protocol].Contains(port)
+	return !d.getPool(protocol).Contains(port)
+}
+
+func (d *PortDistributor) getPool(protocol string) mapset.Set {
+	pool := d.portsPools[protocol]
+	if protocol == models.ProtocolTCPUDP {
+		pool = d.portsPools[models.ProtocolTCP].Intersect(d.portsPools[models.ProtocolUDP])
+	}
+	return pool
 }
 
 func (d *PortDistributor) Refresh() error {
