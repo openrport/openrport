@@ -29,7 +29,7 @@ type PlusStatusInfo struct {
 	PlusVersion    string
 	PlusBuildTime  string
 	PlusLocalBuild string
-	RportBranch    string
+	RportGitRef    string
 	RportCommitID  string
 }
 
