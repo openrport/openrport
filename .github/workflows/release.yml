@@ -39,19 +39,19 @@ jobs:
         run: |
           echo "RPORT_COMMIT_ID: $RPORT_COMMIT_ID"
           make build
-        working-directory: rport-plus
+        working-directory: rport/rport-plus
         env:
           RPORT_COMMIT_ID: ${{ steps.rport_commit_id.outputs.rport_commit_sha }}
-      - name: Compress Plus Release Assets
+      - name: Compress Rport Plus Release Assets
         uses: a7ul/tar-action@v1.1.0
         id: compress
         with:
           command: c
           files: |
-            rport-plus/README.md
-            rport-plus/rport-plus.so
-            rport-plus/rportd.example.conf
-          outPath: rport-plus/${{ github.event.repository.name }}-plus-${{github.ref_name}}.tar.gz
+            rport/rport-plus/README.md
+            rport/rport-plus/rport-plus.so
+            rport/rport-plus/rportd.example.conf
+          outPath: rport/rport-plus/${{ github.event.repository.name }}-plus-${{github.ref_name}}.tar.gz
 
       - name: Release Rport Plus
         uses: "marvinpinto/action-automatic-releases@latest"
@@ -61,4 +61,4 @@ jobs:
           prerelease: true
           draft: true
           files: |
-            rport-plus/${{ github.event.repository.name }}-plus-${{github.ref_name}}.tar.gz
+            rport/rport-plus/${{ github.event.repository.name }}-plus-${{github.ref_name}}.tar.gz
