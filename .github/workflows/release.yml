@@ -38,8 +38,9 @@ jobs:
       - name: Build Rport Plus
         run: |
           echo "RPORT_COMMIT_ID: $RPORT_COMMIT_ID"
+          pwd
+          cd rport-plus
           make build
-        working-directory: rport/rport-plus
         env:
           RPORT_COMMIT_ID: ${{ steps.rport_commit_id.outputs.rport_commit_sha }}
       - name: Compress Rport Plus Release Assets
