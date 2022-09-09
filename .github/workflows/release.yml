@@ -29,8 +29,10 @@ jobs:
       - name: Get Rport Build Commit Id
         id: rport_commit_id
         run: echo ::set-output name=rport_commit_sha::$(git rev-parse HEAD)
-      - uses: actions/checkout@v3
+      - name: Checkout Rport Plus
+        uses: actions/checkout@v3
         with:
+          repository: cloudradar-monitoring/rport-plus
           ssh-key: ${{ secrets.RPORT_PLUS_PRIV_KEY }}
           path: rport-plus
       - name: Build Rport Plus
@@ -40,7 +42,7 @@ jobs:
         working-directory: rport-plus
         env:
           RPORT_COMMIT_ID: ${{ steps.rport_commit_id.outputs.rport_commit_sha }}
-      - name: Compress Release Assets
+      - name: Compress Plus Release Assets
         uses: a7ul/tar-action@v1.1.0
         id: compress
         with:
@@ -51,7 +53,7 @@ jobs:
             rport-plus/rportd.example.conf
           outPath: rport-plus/${{ github.event.repository.name }}-plus-${{github.ref_name}}.tar.gz
 
-      - name: Release
+      - name: Release Rport Plus
         uses: "marvinpinto/action-automatic-releases@latest"
         with:
           repo_token: "${{ secrets.GITHUB_TOKEN }}"
