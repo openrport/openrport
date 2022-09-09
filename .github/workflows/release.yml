@@ -73,4 +73,4 @@ jobs:
           prerelease: true
           draft: true
           files: |
-            rport-plus/${{github.ref_name}}-${{ steps.rport_plus_build.outputs.repo_name }}.gz
+            rport-plus/${{github.ref_name}}-${{ steps.rport_plus_build.outputs.repo_name }}.tar.gz
