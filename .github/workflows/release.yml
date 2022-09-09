@@ -6,7 +6,7 @@ on:
       - "*"
 
 jobs:
-  goreleaser:
+  release:
     runs-on: ubuntu-latest
     steps:
       - name: Checkout
@@ -26,5 +26,37 @@ jobs:
           args: release --rm-dist
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-      - name: List
-        run: ls -la *
+      - name: Get Rport Build Commit Id
+        id: rport_commit_id
+        run: echo ::set-output name=rport_commit_sha::$(git rev-parse HEAD)
+      - uses: actions/checkout@v3
+        with:
+          ssh-key: ${{ secrets.RPORT_PLUS_PRIV_KEY }}
+          path: rport-plus
+      - name: Build Rport Plus
+        run: |
+          echo "RPORT_COMMIT_ID: $RPORT_COMMIT_ID"
+          make build
+        working-directory: rport-plus
+        env:
+          RPORT_COMMIT_ID: ${{ steps.rport_commit_id.outputs.rport_commit_sha }}
+      - name: Compress Release Assets
+        uses: a7ul/tar-action@v1.1.0
+        id: compress
+        with:
+          command: c
+          files: |
+            rport-plus/README.md
+            rport-plus/rport-plus.so
+            rport-plus/rportd.example.conf
+          outPath: rport-plus/${{ github.event.repository.name }}-plus-${{github.ref_name}}.tar.gz
+
+      - name: Release
+        uses: "marvinpinto/action-automatic-releases@latest"
+        with:
+          repo_token: "${{ secrets.GITHUB_TOKEN }}"
+          title: "${{ github.event.repository.name }}-plus-${{github.ref_name}}"
+          prerelease: true
+          draft: true
+          files: |
+            rport-plus/${{ github.event.repository.name }}-plus-${{github.ref_name}}.tar.gz

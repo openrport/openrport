@@ -2,44 +2,45 @@ env:
   - CGO_ENABLED=0
   - PROJECT=github.com/cloudradar-monitoring/rport
 builds:
-  - id: rport
-    main: ./cmd/rport
-    binary: rport
-    ldflags:
-      - "-s -w -X {{.Env.PROJECT}}/share.BuildVersion={{.Version}}"
-    goos:
-      - linux
-      - darwin
-      - windows
-      - freebsd
-    goarch:
-      - 386
-      - amd64
-      - arm
-      - arm64
-      - mips
-      - mipsle
-      - mips64
-      - mips64le
-      - s390x
-    goarm:
-      - 6
-      - 7
-    gomips:
-      - hardfloat
-      - softfloat
-    ignore:
-      - goos: windows
-        goarch: arm64
-      - goos: darwin
-        goarch: arm64
-      - goos: darwin
-        goarch: 386
-      # TODO: remove when https://github.com/go-ole/go-ole/issues/202 will be fixed
-      - goos: windows
-        goarch: arm
-      - goos: windows
-        goarch: 386
+  # TODO: reenable rport builds after working plus builds
+  # - id: rport
+  #   main: ./cmd/rport
+  #   binary: rport
+  #   ldflags:
+  #     - "-s -w -X {{.Env.PROJECT}}/share.BuildVersion={{.Version}}"
+  #   goos:
+  #     - linux
+  #     - darwin
+  #     - windows
+  #     - freebsd
+  #   goarch:
+  #     - 386
+  #     - amd64
+  #     - arm
+  #     - arm64
+  #     - mips
+  #     - mipsle
+  #     - mips64
+  #     - mips64le
+  #     - s390x
+  #   goarm:
+  #     - 6
+  #     - 7
+  #   gomips:
+  #     - hardfloat
+  #     - softfloat
+  #   ignore:
+  #     - goos: windows
+  #       goarch: arm64
+  #     - goos: darwin
+  #       goarch: arm64
+  #     - goos: darwin
+  #       goarch: 386
+  #     # TODO: remove when https://github.com/go-ole/go-ole/issues/202 will be fixed
+  #     - goos: windows
+  #       goarch: arm
+  #     - goos: windows
+  #       goarch: 386
   - id: rportd
     main: ./cmd/rportd
     binary: rportd
@@ -78,7 +79,7 @@ archives:
     files:
       - rportd.example.conf
 checksum:
-  name_template: 'checksums.txt'
+  name_template: "checksums.txt"
 snapshot:
   name_template: "{{ .Tag }}"
 changelog:
