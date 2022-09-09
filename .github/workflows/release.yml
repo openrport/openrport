@@ -10,7 +10,7 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - name: Checkout
-        uses: actions/checkout@v2
+        uses: actions/checkout@v3
         with:
           # fetch-depth: 0 is required for the change log to work correctly.
           # For the details please see https://goreleaser.com/ci/actions/
@@ -29,15 +29,7 @@ jobs:
       - name: Get Rport Build Commit Info
         id: rport_commit_info
         run: |
-          echo ::set-output name=commit_branch::$(git symbolic-ref --short HEAD)
           echo ::set-output name=commit_sha::$(git rev-parse HEAD)
-      - name: Show Rport Build Commit Info
-        run: |
-          echo "RPORT_BRANCH: $RPORT_BRANCH"
-          echo "RPORT_COMMIT_ID: $RPORT_COMMIT_ID"
-        env:
-          RPORT_BRANCH: ${{ steps.rport_commit_info.outputs.commit_branch }}
-          RPORT_COMMIT_ID: ${{ steps.rport_commit_info.outputs.commit_sha }}
       - name: Checkout Rport Plus
         uses: actions/checkout@v3
         with:
@@ -53,7 +45,7 @@ jobs:
           echo ::set-output name=repo_name::$(basename `git rev-parse --show-toplevel`)
           make build
         env:
-          RPORT_BRANCH: ${{ steps.rport_commit_info.outputs.commit_branch }}
+          RPORT_GIT_REF: ${{github.ref_name}}
           RPORT_COMMIT_ID: ${{ steps.rport_commit_info.outputs.commit_sha }}
       - name: Compress Rport Plus Release Assets
         uses: a7ul/tar-action@v1.1.0
