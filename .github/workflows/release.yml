@@ -31,18 +31,23 @@ jobs:
         run: |
           echo ::set-output name=commit_branch::$(git rev-parse --abbrev-ref HEAD)
           echo ::set-output name=commit_sha::$(git rev-parse HEAD)
+      - name: Show Rport Build Commit Info
+        run: |
+          echo "RPORT_BRANCH: $RPORT_BRANCH"
+          echo "RPORT_COMMIT_ID: $RPORT_COMMIT_ID"
+        env:
+          RPORT_BRANCH: ${{ steps.rport_commit_info.outputs.commit_branch }}
+          RPORT_COMMIT_ID: ${{ steps.rport_commit_info.outputs.commit_sha }}
       - name: Checkout Rport Plus
         uses: actions/checkout@v3
         with:
           repository: cloudradar-monitoring/rport-plus
-          ref: ${{ steps.rport_commit_info.outputs.commit_branch }}
+          ref: feature/DEV-2643-2649-sso-with-microsoft-and-auth0
           ssh-key: ${{ secrets.RPORT_PLUS_PRIV_KEY }}
           path: rport-plus
       - name: Build Rport Plus
         id: rport_plus_build
         run: |
-          echo "RPORT_BRANCH: $RPORT_BRANCH"
-          echo "RPORT_COMMIT_ID: $RPORT_COMMIT_ID"
           pwd
           cd rport-plus
           echo ::set-output name=repo_name::$(basename `git rev-parse --show-toplevel`)
