@@ -18,8 +18,8 @@ import (
 	"time"
 
 	"github.com/cloudradar-monitoring/rport/db/sqlite"
-	rportplus "github.com/cloudradar-monitoring/rport/rport-plus"
-	"github.com/cloudradar-monitoring/rport/rport-plus/capabilities/oauth"
+	rportplus "github.com/cloudradar-monitoring/rport/plus"
+	"github.com/cloudradar-monitoring/rport/plus/capabilities/oauth"
 
 	"github.com/cloudradar-monitoring/rport/share/files"
 

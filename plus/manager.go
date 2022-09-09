@@ -6,10 +6,10 @@ import (
 	"plugin"
 	"sync"
 
-	"github.com/cloudradar-monitoring/rport/rport-plus/capabilities/oauth"
-	"github.com/cloudradar-monitoring/rport/rport-plus/capabilities/status"
-	"github.com/cloudradar-monitoring/rport/rport-plus/loader"
-	"github.com/cloudradar-monitoring/rport/rport-plus/validator"
+	"github.com/cloudradar-monitoring/rport/plus/capabilities/oauth"
+	"github.com/cloudradar-monitoring/rport/plus/capabilities/status"
+	"github.com/cloudradar-monitoring/rport/plus/loader"
+	"github.com/cloudradar-monitoring/rport/plus/validator"
 	"github.com/cloudradar-monitoring/rport/share/files"
 	"github.com/cloudradar-monitoring/rport/share/logger"
 )

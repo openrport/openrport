@@ -6,7 +6,7 @@ import (
 	"strconv"
 	"time"
 
-	rportplus "github.com/cloudradar-monitoring/rport/rport-plus"
+	rportplus "github.com/cloudradar-monitoring/rport/plus"
 	"github.com/cloudradar-monitoring/rport/server/api"
 	errors2 "github.com/cloudradar-monitoring/rport/server/api/errors"
 	chshare "github.com/cloudradar-monitoring/rport/share"

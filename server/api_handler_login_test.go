@@ -11,9 +11,9 @@ import (
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 
-	rportplus "github.com/cloudradar-monitoring/rport/rport-plus"
-	"github.com/cloudradar-monitoring/rport/rport-plus/capabilities/oauth"
-	"github.com/cloudradar-monitoring/rport/rport-plus/capabilities/oauthmock"
+	rportplus "github.com/cloudradar-monitoring/rport/plus"
+	"github.com/cloudradar-monitoring/rport/plus/capabilities/oauth"
+	"github.com/cloudradar-monitoring/rport/plus/capabilities/oauthmock"
 	"github.com/cloudradar-monitoring/rport/server/api"
 	"github.com/cloudradar-monitoring/rport/server/api/users"
 	"github.com/cloudradar-monitoring/rport/share/logger"

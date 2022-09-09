@@ -3,9 +3,9 @@ package chserver
 import (
 	"fmt"
 
-	rportplus "github.com/cloudradar-monitoring/rport/rport-plus"
-	"github.com/cloudradar-monitoring/rport/rport-plus/capabilities/oauth"
-	"github.com/cloudradar-monitoring/rport/rport-plus/capabilities/status"
+	rportplus "github.com/cloudradar-monitoring/rport/plus"
+	"github.com/cloudradar-monitoring/rport/plus/capabilities/oauth"
+	"github.com/cloudradar-monitoring/rport/plus/capabilities/status"
 	"github.com/cloudradar-monitoring/rport/share/files"
 	"github.com/cloudradar-monitoring/rport/share/logger"
 )

@@ -7,7 +7,7 @@ import (
 	"github.com/gorilla/mux"
 	"github.com/jpillora/requestlog"
 
-	"github.com/cloudradar-monitoring/rport/rport-plus/capabilities/oauth"
+	"github.com/cloudradar-monitoring/rport/plus/capabilities/oauth"
 	"github.com/cloudradar-monitoring/rport/server/api/middleware"
 	"github.com/cloudradar-monitoring/rport/server/api/users"
 	"github.com/cloudradar-monitoring/rport/share/security"

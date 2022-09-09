@@ -3,7 +3,7 @@ package chserver
 import (
 	"net/http"
 
-	rportplus "github.com/cloudradar-monitoring/rport/rport-plus"
+	rportplus "github.com/cloudradar-monitoring/rport/plus"
 	"github.com/cloudradar-monitoring/rport/server/api"
 )
 

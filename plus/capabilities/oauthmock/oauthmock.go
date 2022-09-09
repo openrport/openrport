@@ -4,8 +4,8 @@ import (
 	"net/http"
 	"plugin"
 
-	"github.com/cloudradar-monitoring/rport/rport-plus/capabilities/oauth"
-	"github.com/cloudradar-monitoring/rport/rport-plus/validator"
+	"github.com/cloudradar-monitoring/rport/plus/capabilities/oauth"
+	"github.com/cloudradar-monitoring/rport/plus/validator"
 	"github.com/cloudradar-monitoring/rport/share/logger"
 )
 

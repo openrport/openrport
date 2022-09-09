@@ -6,7 +6,7 @@ import (
 
 	"github.com/stretchr/testify/assert"
 
-	rportplus "github.com/cloudradar-monitoring/rport/rport-plus"
+	rportplus "github.com/cloudradar-monitoring/rport/plus"
 	chserver "github.com/cloudradar-monitoring/rport/server"
 	"github.com/cloudradar-monitoring/rport/share/files"
 	"github.com/cloudradar-monitoring/rport/share/logger"
