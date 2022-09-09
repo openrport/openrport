@@ -26,24 +26,30 @@ jobs:
           args: release --rm-dist
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-      - name: Get Rport Build Commit Id
-        id: rport_commit_id
-        run: echo ::set-output name=rport_commit_sha::$(git rev-parse HEAD)
+      - name: Get Rport Build Commit Info
+        id: rport_commit_info
+        run: |
+          echo ::set-output name=commit_branch::$(git rev-parse --abbrev-ref HEAD)
+          echo ::set-output name=commit_sha::$(git rev-parse HEAD)
       - name: Checkout Rport Plus
         uses: actions/checkout@v3
         with:
           repository: cloudradar-monitoring/rport-plus
-          ref: feature/DEV-2643-2649-sso-with-microsoft-and-auth0
+          ref: ${{ steps.rport_commit_info.outputs.commit_branch }}
           ssh-key: ${{ secrets.RPORT_PLUS_PRIV_KEY }}
           path: rport-plus
       - name: Build Rport Plus
+        id: rport_plus_build
         run: |
+          echo "RPORT_BRANCH: $RPORT_BRANCH"
           echo "RPORT_COMMIT_ID: $RPORT_COMMIT_ID"
           pwd
           cd rport-plus
+          echo ::set-output name=repo_name::$(basename `git rev-parse --show-toplevel`)
           make build
         env:
-          RPORT_COMMIT_ID: ${{ steps.rport_commit_id.outputs.rport_commit_sha }}
+          RPORT_BRANCH: ${{ steps.rport_commit_info.outputs.commit_branch }}
+          RPORT_COMMIT_ID: ${{ steps.rport_commit_info.outputs.commit_sha }}
       - name: Compress Rport Plus Release Assets
         uses: a7ul/tar-action@v1.1.0
         id: compress
@@ -53,14 +59,13 @@ jobs:
             rport-plus/README.md
             rport-plus/rport-plus.so
             rport-plus/rportd.example.conf
-          outPath: rport-plus/${{ github.event.repository.name }}-plus-${{github.ref_name}}.tar.gz
-
+          outPath: rport-plus/${{github.ref_name}}-${{ steps.rport_plus_build.outputs.repo_name }}.tar.gz
       - name: Release Rport Plus
         uses: "marvinpinto/action-automatic-releases@latest"
         with:
           repo_token: "${{ secrets.GITHUB_TOKEN }}"
-          title: "${{ github.event.repository.name }}-plus-${{github.ref_name}}"
+          title: "${{github.ref_name}}-${{ steps.rport_plus_build.outputs.repo_name }}"
           prerelease: true
           draft: true
           files: |
-            rport-plus/${{ github.event.repository.name }}-plus-${{github.ref_name}}.tar.gz
+            rport-plus/${{github.ref_name}}-${{ steps.rport_plus_build.outputs.repo_name }}.gz
