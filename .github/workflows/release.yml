@@ -19,7 +19,7 @@ jobs:
         uses: actions/setup-go@v2
         with:
           go-version: 1.18
-      - name: Run GoReleaser
+      - name: Run GoReleaser for Rport Build
         uses: goreleaser/goreleaser-action@v2
         with:
           version: latest
@@ -50,10 +50,10 @@ jobs:
         with:
           command: c
           files: |
-            rport/rport-plus/README.md
-            rport/rport-plus/rport-plus.so
-            rport/rport-plus/rportd.example.conf
-          outPath: rport/rport-plus/${{ github.event.repository.name }}-plus-${{github.ref_name}}.tar.gz
+            rport-plus/README.md
+            rport-plus/rport-plus.so
+            rport-plus/rportd.example.conf
+          outPath: rport-plus/${{ github.event.repository.name }}-plus-${{github.ref_name}}.tar.gz
 
       - name: Release Rport Plus
         uses: "marvinpinto/action-automatic-releases@latest"
@@ -63,4 +63,4 @@ jobs:
           prerelease: true
           draft: true
           files: |
-            rport/rport-plus/${{ github.event.repository.name }}-plus-${{github.ref_name}}.tar.gz
+            rport-plus/${{ github.event.repository.name }}-plus-${{github.ref_name}}.tar.gz
