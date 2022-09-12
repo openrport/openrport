@@ -79,14 +79,28 @@ func (p *SqliteProvider) Save(ctx context.Context, s *Script, nowDate time.Time)
 
 		_, err = p.db.NamedExecContext(
 			ctx,
-			"INSERT INTO `scripts` (`id`, `name`, `created_at`, `created_by`, `interpreter`, `is_sudo`, `cwd`, `script`, `updated_at`, `updated_by`, `tags`) VALUES (:id, :name, :created_at, :created_by, :interpreter, :is_sudo, :cwd, :script, :updated_at, :updated_by, :tags)",
+			"INSERT INTO `scripts`"+
+				" (`id`, `name`, `created_at`, `created_by`, `interpreter`, `is_sudo`, `cwd`, `script`, `updated_at`, `updated_by`, `tags`, `timeout_sec`)"+
+				" VALUES "+
+				"(:id, :name, :created_at, :created_by, :interpreter, :is_sudo, :cwd, :script, :updated_at, :updated_by, :tags, :timeout_sec)",
 			s,
 		)
 
 		return scriptID, err
 	}
 
-	q := "UPDATE `scripts` SET `name` = :name, `interpreter` = :interpreter, `is_sudo` = :is_sudo, `cwd` = :cwd, `script` = :script, `updated_at` = :updated_at, `updated_by` = :updated_by, `tags` = :tags WHERE id = :id"
+	q := "UPDATE `scripts` SET " +
+		"`name` = :name, " +
+		"`interpreter` = :interpreter, " +
+		"`is_sudo` = :is_sudo, " +
+		"`cwd` = :cwd, " +
+		"`script` = :script, " +
+		"`updated_at` = :updated_at, " +
+		"`updated_by` = :updated_by, " +
+		"`tags` = :tags, " +
+		"`timeout_sec` = :timeout_sec" +
+		" WHERE id = :id "
+
 	_, err := p.db.NamedExecContext(ctx, q, s)
 
 	return s.ID, err

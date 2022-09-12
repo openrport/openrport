@@ -17,10 +17,14 @@ type Command struct {
 	UpdatedAt *time.Time         `json:"updated_at,omitempty" db:"updated_at"`
 	Cmd       string             `json:"cmd,omitempty" db:"cmd"`
 	Tags      *types.StringSlice `json:"tags,omitempty" db:"tags"`
+	TimoutSec *int               `json:"timeout_sec,omitempty" db:"timeout_sec"`
 }
 
 type InputCommand struct {
-	Name string   `json:"name" db:"name"`
-	Cmd  string   `json:"cmd" db:"script"`
-	Tags []string `json:"tags" db:"tags"`
+	Name      string   `json:"name" db:"name"`
+	Cmd       string   `json:"cmd" db:"script"`
+	Tags      []string `json:"tags" db:"tags"`
+	TimoutSec int      `json:"timeout_sec" db:"timeout_sec"`
 }
+
+const DefaultTimeoutSec = 60

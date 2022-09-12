@@ -19,7 +19,7 @@ import (
 )
 
 var DataSourceOptions = sqlite.DataSourceOptions{WALEnabled: false}
-
+var timeoutSec = DefaultTimeoutSec
 var demoData = []Script{
 	{
 		ID:          "1",
@@ -33,6 +33,7 @@ var demoData = []Script{
 		Cwd:         ptr.String("/bin"),
 		Script:      "ls -la",
 		Tags:        ptr.StringSlice("tag1", "tag2"),
+		TimoutSec:   &timeoutSec,
 	},
 	{
 		ID:          "2",
@@ -46,6 +47,7 @@ var demoData = []Script{
 		Cwd:         ptr.String("/bin"),
 		Script:      "pwd",
 		Tags:        ptr.StringSlice(),
+		TimoutSec:   &timeoutSec,
 	},
 }
 
@@ -285,6 +287,7 @@ func TestUpdate(t *testing.T) {
 			"cwd":         *itemToSave.Cwd,
 			"script":      itemToSave.Script,
 			"tags":        `["tag1","tag2"]`,
+			"timeout_sec": int64(timeoutSec),
 		},
 	}
 	q := "SELECT * FROM `scripts` where id = 1"
@@ -321,6 +324,7 @@ func TestDelete(t *testing.T) {
 			"cwd":         *demoData[0].Cwd,
 			"script":      demoData[0].Script,
 			"tags":        `["tag1","tag2"]`,
+			"timeout_sec": int64(timeoutSec),
 		},
 	}
 	q := "SELECT * FROM `scripts`"

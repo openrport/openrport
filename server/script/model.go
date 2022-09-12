@@ -20,6 +20,7 @@ type Script struct {
 	Cwd         *string            `json:"cwd,omitempty" db:"cwd"`
 	Script      string             `json:"script,omitempty" db:"script"`
 	Tags        *types.StringSlice `json:"tags,omitempty" db:"tags"`
+	TimoutSec   *int               `json:"timeout_sec,omitempty" db:"timeout_sec"`
 }
 
 type InputScript struct {
@@ -29,4 +30,7 @@ type InputScript struct {
 	Cwd         string   `json:"cwd" db:"cwd"`
 	Script      string   `json:"script" db:"script"`
 	Tags        []string `json:"tags" db:"tags"`
+	TimoutSec   int      `json:"timeout_sec" db:"timeout_sec"`
 }
+
+const DefaultTimeoutSec = 60
