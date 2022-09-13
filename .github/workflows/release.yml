@@ -56,7 +56,7 @@ jobs:
             rport-plus/README.md
             rport-plus/rport-plus.so
             rport-plus/rportd.example.conf
-          outPath: rport-plus/${{github.ref_name}}-${{ steps.rport_plus_build.outputs.repo_name }}.tar.gz
+          outPath: rport-plus/${{github.ref_name}}-${{ steps.rport_plus_build.outputs.repo_name }}_Linux_x86_64.tar.gz
       - name: Release Rport Plus
         uses: "marvinpinto/action-automatic-releases@latest"
         with:
@@ -65,4 +65,4 @@ jobs:
           prerelease: true
           draft: true
           files: |
-            rport-plus/${{github.ref_name}}-${{ steps.rport_plus_build.outputs.repo_name }}.tar.gz
+            rport-plus/${{github.ref_name}}-${{ steps.rport_plus_build.outputs.repo_name }}_Linux_x86_64.tar.gz
