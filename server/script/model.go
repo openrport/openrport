@@ -6,6 +6,8 @@ import (
 	"github.com/cloudradar-monitoring/rport/share/types"
 )
 
+const DefaultTimeoutSec = 60
+
 // To support sparse fieldsets, the fields that can have zero value,
 // use pointers so they're omitted only when they're nil not when they're zero value
 type Script struct {
@@ -32,5 +34,3 @@ type InputScript struct {
 	Tags        []string `json:"tags" db:"tags"`
 	TimoutSec   int      `json:"timeout_sec" db:"timeout_sec"`
 }
-
-const DefaultTimeoutSec = 60

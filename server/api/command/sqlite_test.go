@@ -55,27 +55,33 @@ func TestGetByID(t *testing.T) {
 	err = addDemoData(dbProv.db)
 	require.NoError(t, err)
 
-	val, found, err := dbProv.GetByID(ctx, "1", &query.RetrieveOptions{})
-	require.NoError(t, err)
-	require.True(t, found)
-	assert.Equal(t, demoData[0], *val, "first test")
+	var found bool
+	var com *Command
 
-	_, found, err = dbProv.GetByID(ctx, "-2", &query.RetrieveOptions{})
-	require.NoError(t, err)
-	require.False(t, found)
+	t.Run("first test", func(t *testing.T) {
+		com, found, err = dbProv.GetByID(ctx, "1", &query.RetrieveOptions{})
+		require.NoError(t, err)
+		require.True(t, found)
+		assert.Equal(t, demoData[0], *com)
+		_, found, err = dbProv.GetByID(ctx, "-2", &query.RetrieveOptions{})
+		require.NoError(t, err)
+		require.False(t, found)
+	})
 
-	val, found, err = dbProv.GetByID(ctx, "1", &query.RetrieveOptions{Fields: []query.FieldsOption{
-		{
-			Resource: "commands",
-			Fields:   []string{"created_by", "cmd"},
-		},
-	}})
-	require.NoError(t, err)
-	require.True(t, found)
-	assert.Equal(t, Command{
-		CreatedBy: "user1",
-		Cmd:       "ls -la",
-	}, *val, "second test")
+	t.Run("second test", func(t *testing.T) {
+		com, found, err = dbProv.GetByID(ctx, "1", &query.RetrieveOptions{Fields: []query.FieldsOption{
+			{
+				Resource: "commands",
+				Fields:   []string{"created_by", "cmd"},
+			},
+		}})
+		require.NoError(t, err)
+		require.True(t, found)
+		assert.Equal(t, Command{
+			CreatedBy: "user1",
+			Cmd:       "ls -la",
+		}, *com)
+	})
 }
 
 func TestList(t *testing.T) {
