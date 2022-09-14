@@ -44,7 +44,11 @@ func (al *APIListener) handlePostSchedules(w http.ResponseWriter, req *http.Requ
 		return
 	}
 
-	err = al.clientService.CheckClientsAccess(orderedClients, curUser)
+	clientGroups, err := al.clientGroupProvider.GetAll(ctx)
+	if err != nil {
+		al.jsonError(w, err)
+	}
+	err = al.clientService.CheckClientsAccess(orderedClients, curUser, clientGroups)
 	if err != nil {
 		al.jsonError(w, err)
 		return
@@ -93,8 +97,11 @@ func (al *APIListener) handleUpdateSchedule(w http.ResponseWriter, req *http.Req
 		al.jsonError(w, err)
 		return
 	}
-
-	err = al.clientService.CheckClientsAccess(orderedClients, curUser)
+	clientGroups, err := al.clientGroupProvider.GetAll(ctx)
+	if err != nil {
+		al.jsonError(w, err)
+	}
+	err = al.clientService.CheckClientsAccess(orderedClients, curUser, clientGroups)
 	if err != nil {
 		al.jsonError(w, err)
 		return

@@ -81,13 +81,21 @@ properties:
         description: client auth ID(s)
         items:
           type: string
-    description: >
+    description: |
       Parameters that define what clients belong to a given client group.
 
-
       Each parameter can be specified by:
-       1. exact match of the property (ignoring case). For example, "client_id": ["test-win2019-tk01", "qa-lin-ubuntu16"]
-       2. dynamic criteria using wildcards (ignoring case). For example, "os_family": ["linux*"]
+       1. exact match of the property (ignoring case). For example, `"client_id": ["test-win2019-tk01", "qa-lin-ubuntu16"]`
+       2. dynamic criteria using wildcards (ignoring case). For example, `"os_family": ["linux*"]`
 
       For more details please see
-      https://oss.rport.io/docs/no04-client-groups.html
+      https://oss.rport.io/get-started/client-groups/
+  allowed_user_groups:
+    type: array
+    items:
+      type: string
+    description: | 
+      List of user groups that are allowed to access the client.
+      
+      For more details please see
+      https://oss.rport.io/get-started/permissions-model/

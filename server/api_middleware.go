@@ -116,7 +116,11 @@ func (al *APIListener) wrapClientAccessMiddleware(next http.Handler) http.Handle
 			return
 		}
 
-		err = al.clientService.CheckClientAccess(clientID, curUser)
+		clientGroups, err := al.clientGroupProvider.GetAll(r.Context())
+		if err != nil {
+			al.jsonError(w, err)
+		}
+		err = al.clientService.CheckClientAccess(clientID, curUser, clientGroups)
 		if err != nil {
 			al.jsonError(w, err)
 			return

@@ -305,7 +305,12 @@ func (al *APIListener) handlePostMultiClientCommand(w http.ResponseWriter, req *
 		return
 	}
 
-	err = al.clientService.CheckClientsAccess(reqBody.OrderedClients, curUser)
+	clientGroups, err := al.clientGroupProvider.GetAll(req.Context())
+	if err != nil {
+		al.jsonError(w, err)
+		return
+	}
+	err = al.clientService.CheckClientsAccess(reqBody.OrderedClients, curUser, clientGroups)
 	if err != nil {
 		al.jsonError(w, err)
 		return

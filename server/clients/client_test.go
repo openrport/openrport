@@ -317,7 +317,7 @@ func TestHasAccess(t *testing.T) {
 	for _, tc := range testCases {
 		t.Run(tc.name, func(t *testing.T) {
 			// when
-			gotRes := tc.client.HasAccess(tc.userGroups)
+			gotRes := tc.client.HasAccessViaUserGroups(tc.userGroups)
 
 			// then
 			assert.Equal(t, tc.wantRes, gotRes)

@@ -348,8 +348,8 @@ func (c *Client) CalculateConnectionState() ConnectionState {
 	return Disconnected
 }
 
-// HasAccess returns true if at least one of given user groups has access to a current client.
-func (c *Client) HasAccess(userGroups []string) bool {
+// HasAccessViaUserGroups returns true if at least one of given user groups has access to a current client.
+func (c *Client) HasAccessViaUserGroups(userGroups []string) bool {
 	for _, curUserGroup := range userGroups {
 		if curUserGroup == users.Administrators {
 			return true
@@ -361,6 +361,17 @@ func (c *Client) HasAccess(userGroups []string) bool {
 		}
 	}
 
+	return false
+}
+
+// UserGroupHasAccessViaClientGroup returns true if the user is member of a user group that has access to a client
+// group the current client is member of
+func (c *Client) UserGroupHasAccessViaClientGroup(userGroups []string, allClientGroups []*cgroups.ClientGroup) bool {
+	for _, clientGroup := range allClientGroups {
+		if c.BelongsTo(clientGroup) && clientGroup.OneOfUserGroupsIsAllowed(userGroups) {
+			return true
+		}
+	}
 	return false
 }
 

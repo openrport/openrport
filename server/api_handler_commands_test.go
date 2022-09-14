@@ -649,6 +649,7 @@ func TestHandlePostMultiClientCommand(t *testing.T) {
 					jobsDoneChannel: jobResultChanMap{
 						m: make(map[string]chan *models.Job),
 					},
+					clientGroupProvider: mockClientGroupProvider{},
 				},
 				userService: users.NewAPIService(users.NewStaticProvider([]*users.User{curUser}), false),
 				Logger:      testLog,

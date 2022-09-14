@@ -11,6 +11,8 @@ import (
 	"testing"
 	"time"
 
+	"github.com/cloudradar-monitoring/rport/server/cgroups"
+
 	mapset "github.com/deckarep/golang-set"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
@@ -286,8 +288,19 @@ func TestCheckClientsAccess(t *testing.T) {
 	c4 := clients.New(t).AllowedUserGroups([]string{"group1"}).Build()                       // group1
 	c5 := clients.New(t).AllowedUserGroups([]string{"group1", "group2"}).Build()             // group1 + group2
 	c6 := clients.New(t).AllowedUserGroups([]string{"group3"}).Build()                       // group3
+	c7 := clients.New(t).Build()
 
 	allClients := []*clients.Client{c1, c2, c3, c4, c5, c6}
+	clientGroups := []*cgroups.ClientGroup{
+		{
+			ID:                "1",
+			AllowedUserGroups: []string{"group4"},
+			Params: &cgroups.ClientParams{
+				ClientID: &cgroups.ParamValues{cgroups.Param(c7.ID)},
+			},
+		},
+	}
+
 	testCases := []struct {
 		name                      string
 		clients                   []*clients.Client
@@ -336,6 +349,12 @@ func TestCheckClientsAccess(t *testing.T) {
 			user:                      &users.User{Groups: []string{"group4"}},
 			wantClientIDsWithNoAccess: []string{c1.ID, c2.ID, c3.ID, c4.ID, c5.ID, c6.ID},
 		},
+		{
+			name:                      "non-admin user given access via client groups",
+			clients:                   []*clients.Client{c7},
+			user:                      &users.User{Groups: []string{"group4"}},
+			wantClientIDsWithNoAccess: nil,
+		},
 	}
 
 	for _, tc := range testCases {
@@ -344,7 +363,7 @@ func TestCheckClientsAccess(t *testing.T) {
 			clientService := NewClientService(nil, nil, clients.NewClientRepository(allClients, nil, testLog))
 
 			// when
-			gotErr := clientService.CheckClientsAccess(tc.clients, tc.user)
+			gotErr := clientService.CheckClientsAccess(tc.clients, tc.user, clientGroups)
 
 			// then
 			if len(tc.wantClientIDsWithNoAccess) > 0 {
