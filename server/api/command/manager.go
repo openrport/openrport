@@ -142,6 +142,9 @@ func (m *Manager) Create(ctx context.Context, valueToStore *InputCommand, userna
 			HTTPStatus: http.StatusConflict,
 		}
 	}
+	if valueToStore.TimoutSec == 0 {
+		valueToStore.TimoutSec = DefaultTimeoutSec
+	}
 
 	now := time.Now()
 	commandToSave := &Command{
@@ -152,6 +155,7 @@ func (m *Manager) Create(ctx context.Context, valueToStore *InputCommand, userna
 		UpdatedAt: &now,
 		Cmd:       valueToStore.Cmd,
 		Tags:      (*types.StringSlice)(&valueToStore.Tags),
+		TimoutSec: &valueToStore.TimoutSec,
 	}
 	commandToSave.ID, err = m.db.Save(ctx, commandToSave)
 	if err != nil {
@@ -197,6 +201,9 @@ func (m *Manager) Update(ctx context.Context, existingID string, valueToStore *I
 			HTTPStatus: http.StatusConflict,
 		}
 	}
+	if valueToStore.TimoutSec == 0 {
+		valueToStore.TimoutSec = DefaultTimeoutSec
+	}
 
 	now := time.Now()
 	commandToSave := &Command{
@@ -208,6 +215,7 @@ func (m *Manager) Update(ctx context.Context, existingID string, valueToStore *I
 		UpdatedAt: &now,
 		Cmd:       valueToStore.Cmd,
 		Tags:      (*types.StringSlice)(&valueToStore.Tags),
+		TimoutSec: &valueToStore.TimoutSec,
 	}
 	_, err = m.db.Save(ctx, commandToSave)
 	if err != nil {

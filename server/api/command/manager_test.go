@@ -215,7 +215,7 @@ func TestGetOne(t *testing.T) {
 
 func TestStore(t *testing.T) {
 	inputValue := &InputCommand{
-		Name: "some nam",
+		Name: "some name",
 		Cmd:  "pwd",
 	}
 
@@ -239,26 +239,31 @@ func TestStore(t *testing.T) {
 		assert.Equal(t, "pwd", dbProv.saveCommandGiven.Cmd)
 		assert.Equal(t, "pwd", storedCommand.Cmd)
 
-		assert.Equal(t, "some nam", dbProv.saveCommandGiven.Name)
-		assert.Equal(t, "some nam", storedCommand.Name)
+		assert.Equal(t, "some name", dbProv.saveCommandGiven.Name)
+		assert.Equal(t, "some name", storedCommand.Name)
+
+		assert.Equal(t, DefaultTimeoutSec, *dbProv.saveCommandGiven.TimoutSec)
+		assert.Equal(t, DefaultTimeoutSec, *storedCommand.TimoutSec)
 	})
 
 	t.Run("update_success", func(t *testing.T) {
 		const idToUpdate = "123"
 		now := time.Now()
+		timeoutSec := 99
 		dbProv := &DbProviderMock{
 			getByIDFoundToGive: true,
 			getByIDCommandToGive: &Command{
 				ID:        "123",
 				CreatedBy: "user1",
 				CreatedAt: &now,
-				Name:      "some nam",
+				Name:      "some name",
 				Cmd:       "some command",
 			},
 			saveIDToGive: idToUpdate,
 		}
 		mngr := NewManager(dbProv)
 
+		inputValue.TimoutSec = timeoutSec
 		storedCommand, err := mngr.Update(context.Background(), idToUpdate, inputValue, "someuser")
 		require.NoError(t, err)
 
@@ -273,8 +278,11 @@ func TestStore(t *testing.T) {
 		assert.Equal(t, "pwd", dbProv.saveCommandGiven.Cmd)
 		assert.Equal(t, "pwd", storedCommand.Cmd)
 
-		assert.Equal(t, "some nam", dbProv.saveCommandGiven.Name)
-		assert.Equal(t, "some nam", storedCommand.Name)
+		assert.Equal(t, "some name", dbProv.saveCommandGiven.Name)
+		assert.Equal(t, "some name", storedCommand.Name)
+
+		assert.Equal(t, timeoutSec, *dbProv.saveCommandGiven.TimoutSec)
+		assert.Equal(t, timeoutSec, *storedCommand.TimoutSec)
 	})
 
 	t.Run("store_failure_key_exists_update", func(t *testing.T) {
@@ -289,7 +297,7 @@ func TestStore(t *testing.T) {
 		mngr := NewManager(dbProv)
 
 		_, err := mngr.Update(context.Background(), "1", inputValue, "someuser")
-		require.EqualError(t, err, "another command with the same name 'some nam' exists")
+		require.EqualError(t, err, "another command with the same name 'some name' exists")
 	})
 
 	t.Run("update_with_invalid_id", func(t *testing.T) {
@@ -313,7 +321,7 @@ func TestStore(t *testing.T) {
 		mngr := NewManager(dbProv)
 
 		_, err := mngr.Create(context.Background(), inputValue, "someuser")
-		require.EqualError(t, err, "another command with the same name 'some nam' exists")
+		require.EqualError(t, err, "another command with the same name 'some name' exists")
 	})
 
 	t.Run("update_list_error", func(t *testing.T) {

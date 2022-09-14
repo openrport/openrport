@@ -39,3 +39,6 @@ properties:
     description: List of tags for the script
     items:
       type: string
+  timeout_sec:
+    type: integer
+    description: Timout of the script in seconds

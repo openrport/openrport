@@ -41,6 +41,7 @@ var (
 			"cwd":         true,
 			"script":      true,
 			"tags":        true,
+			"timeout_sec": true,
 		},
 	}
 	manualFiltersConfig = map[string]bool{
@@ -151,6 +152,9 @@ func (m *Manager) Create(ctx context.Context, valueToStore *InputScript, usernam
 			HTTPStatus: http.StatusConflict,
 		}
 	}
+	if valueToStore.TimoutSec == 0 {
+		valueToStore.TimoutSec = DefaultTimeoutSec
+	}
 
 	now := time.Now()
 	scriptToSave := &Script{
@@ -164,6 +168,7 @@ func (m *Manager) Create(ctx context.Context, valueToStore *InputScript, usernam
 		Cwd:         &valueToStore.Cwd,
 		Script:      valueToStore.Script,
 		Tags:        (*types.StringSlice)(&valueToStore.Tags),
+		TimoutSec:   &valueToStore.TimoutSec,
 	}
 	scriptToSave.ID, err = m.db.Save(ctx, scriptToSave, now)
 	if err != nil {
@@ -209,6 +214,9 @@ func (m *Manager) Update(ctx context.Context, existingID string, valueToStore *I
 			HTTPStatus: http.StatusConflict,
 		}
 	}
+	if valueToStore.TimoutSec == 0 {
+		valueToStore.TimoutSec = DefaultTimeoutSec
+	}
 
 	now := time.Now()
 	scriptToSave := &Script{
@@ -222,6 +230,7 @@ func (m *Manager) Update(ctx context.Context, existingID string, valueToStore *I
 		IsSudo:      &valueToStore.IsSudo,
 		Cwd:         &valueToStore.Cwd,
 		Script:      valueToStore.Script,
+		TimoutSec:   &valueToStore.TimoutSec,
 		Tags:        (*types.StringSlice)(&valueToStore.Tags),
 	}
 	scriptToSave.ID, err = m.db.Save(ctx, scriptToSave, now)
