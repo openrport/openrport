@@ -47,7 +47,6 @@ Currently must be one of:
 
 * github
 * microsoft
-* google
 * auth0
 
 #### authorize_url (Required)

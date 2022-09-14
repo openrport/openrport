@@ -10,7 +10,7 @@ Rport Plus extends the functionality of Rport via a paid non open-source plugin.
 capabilities that can be individually enabled and configured.
 
 The first release of Rport Plus initially supports a single additional capability for SSO/OAuth via
-one of either GitHub, Microsoft, Google or Auth0.
+one of either GitHub, Microsoft or Auth0.
 
 ## Configuration
 
