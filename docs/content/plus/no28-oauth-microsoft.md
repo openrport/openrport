@@ -82,7 +82,7 @@ Depending on requirements, the following access control config parameters maybe 
 
 ### Microsoft and Rport Usernames
 
-For the Rport `username`, Rport uses the `displayName` field from the Microsoft Graph REST
+For the Rport `username`, Rport uses the `id` field from the Microsoft Graph REST
 ['user resource type - properties'](https://docs.microsoft.com/en-us/graph/api/resources/user?view=graph-rest-1.0#properties) API.
 
 ### Checking the Required Organization
