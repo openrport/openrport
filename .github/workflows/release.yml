@@ -54,6 +54,7 @@ jobs:
           command: c
           files: |
             rport-plus/README.md
+            rport-plus/license.txt
             rport-plus/rport-plus.so
           outPath: rport-plus/${{github.ref_name}}-${{ steps.rport_plus_build.outputs.repo_name }}_Linux_x86_64.tar.gz
       - name: Release Rport Plus
