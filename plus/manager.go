@@ -24,7 +24,7 @@ var (
 	ErrCapabilityNotAvailable = func(capName string) error { return fmt.Errorf("rport-plus capability (%s) not available", capName) }
 )
 
-// PlugConfig contains the overall config for the rport-plus plugin. note that
+// PlusConfig contains the overall config for the rport-plus plugin. note that
 // each capability should have it's own config section in the config file.
 type PlusConfig struct {
 	PluginPath string `mapstructure:"plugin_path"`
