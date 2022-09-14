@@ -13,7 +13,7 @@ import (
 )
 
 const (
-	defaultPluginPath = "../../rport-plus/rport-plus.so"
+	defaultPluginPath = "./rport-plus/rport-plus.so"
 )
 
 var defaultValidMinServerConfig = chserver.ServerConfig{
