@@ -5,6 +5,8 @@ import (
 	"fmt"
 	"net/http"
 
+	"github.com/cloudradar-monitoring/rport/server/clients"
+
 	"github.com/gorilla/mux"
 
 	"github.com/cloudradar-monitoring/rport/server/api"
@@ -23,38 +25,47 @@ func (al *APIListener) handleListSchedules(w http.ResponseWriter, req *http.Requ
 	al.writeJSONResponse(w, http.StatusOK, api.NewSuccessPayload(items))
 }
 
-func (al *APIListener) handlePostSchedules(w http.ResponseWriter, req *http.Request) {
-	ctx := req.Context()
+func (al *APIListener) prepareHandleSchedules(req *http.Request) (schedule.Schedule, string, []*clients.Client, error) {
 	var scheduleInput schedule.Schedule
+	var orderedClients []*clients.Client
+	var username string
+	ctx := req.Context()
 	err := parseRequestBody(req.Body, &scheduleInput)
 	if err != nil {
-		al.jsonError(w, err)
-		return
+		return scheduleInput, username, orderedClients, err
 	}
 
 	curUser, err := al.getUserModelForAuth(req.Context())
 	if err != nil {
-		al.jsonError(w, err)
-		return
+		return scheduleInput, username, orderedClients, err
 	}
+	username = curUser.GetUsername()
 
-	orderedClients, _, err := al.getOrderedClientsWithValidation(ctx, &scheduleInput)
+	orderedClients, _, err = al.getOrderedClientsWithValidation(ctx, &scheduleInput)
 	if err != nil {
-		al.jsonError(w, err)
-		return
+		return scheduleInput, username, orderedClients, err
 	}
 
 	clientGroups, err := al.clientGroupProvider.GetAll(ctx)
 	if err != nil {
-		al.jsonError(w, err)
+		return scheduleInput, username, orderedClients, err
 	}
 	err = al.clientService.CheckClientsAccess(orderedClients, curUser, clientGroups)
+	if err != nil {
+		return scheduleInput, username, orderedClients, err
+	}
+	return scheduleInput, username, orderedClients, nil
+}
+
+func (al *APIListener) handlePostSchedules(w http.ResponseWriter, req *http.Request) {
+	ctx := req.Context()
+	scheduleInput, username, orderedClients, err := al.prepareHandleSchedules(req)
 	if err != nil {
 		al.jsonError(w, err)
 		return
 	}
 
-	storedValue, err := al.scheduleManager.Create(ctx, &scheduleInput, curUser.GetUsername())
+	storedValue, err := al.scheduleManager.Create(ctx, &scheduleInput, username)
 	if err != nil {
 		al.jsonError(w, err)
 		return
@@ -79,29 +90,7 @@ func (al *APIListener) handleUpdateSchedule(w http.ResponseWriter, req *http.Req
 		return
 	}
 
-	var scheduleInput schedule.Schedule
-	err := parseRequestBody(req.Body, &scheduleInput)
-	if err != nil {
-		al.jsonError(w, err)
-		return
-	}
-
-	curUser, err := al.getUserModelForAuth(req.Context())
-	if err != nil {
-		al.jsonError(w, err)
-		return
-	}
-
-	orderedClients, _, err := al.getOrderedClientsWithValidation(ctx, &scheduleInput)
-	if err != nil {
-		al.jsonError(w, err)
-		return
-	}
-	clientGroups, err := al.clientGroupProvider.GetAll(ctx)
-	if err != nil {
-		al.jsonError(w, err)
-	}
-	err = al.clientService.CheckClientsAccess(orderedClients, curUser, clientGroups)
+	scheduleInput, _, orderedClients, err := al.prepareHandleSchedules(req)
 	if err != nil {
 		al.jsonError(w, err)
 		return
