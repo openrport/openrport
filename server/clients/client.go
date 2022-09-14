@@ -133,7 +133,7 @@ func (c *Client) StartTunnel(r *models.Remote, acl *clienttunnel.TunnelACL, tunn
 		proxyPort = r.LocalPort
 		proxyACL = acl
 		r.LocalHost = clienttunnel.LocalHost
-		port, err := portDistributor.GetRandomPort()
+		port, err := portDistributor.GetRandomPort(r.Protocol)
 		if err != nil {
 			return nil, err
 		}
@@ -142,7 +142,10 @@ func (c *Client) StartTunnel(r *models.Remote, acl *clienttunnel.TunnelACL, tunn
 	}
 
 	tunnelID := strconv.FormatInt(c.generateNewTunnelID(), 10)
-	t = clienttunnel.NewTunnel(c.Logger, c.Connection, tunnelID, *r, acl)
+	t, err := clienttunnel.NewTunnel(c.Logger, c.Connection, tunnelID, *r, acl)
+	if err != nil {
+		return nil, err
+	}
 
 	ctx := c.Context
 	if r.AutoClose > 0 {
@@ -150,7 +153,7 @@ func (c *Client) StartTunnel(r *models.Remote, acl *clienttunnel.TunnelACL, tunn
 		ctx, _ = context.WithTimeout(ctx, r.AutoClose) // nolint: govet
 	}
 
-	idleAutoCloseChan, err := t.Start(ctx)
+	err = t.Start(ctx)
 	if err != nil {
 		return nil, err
 	}
@@ -171,20 +174,38 @@ func (c *Client) StartTunnel(r *models.Remote, acl *clienttunnel.TunnelACL, tunn
 		t.Remote.LocalPort = t.Proxy.Port
 	}
 
-	// in case tunnel auto-closed due to inactivity - run background task to remove the tunnel from the list
-	// TODO: in case tunnel would be extended to have active/inactive status this wouldn't be needed
-	if idleAutoCloseChan != nil || t.AutoClose > 0 {
+	// in case tunnel auto-closed due to auto close - run background task to remove the tunnel from the list
+	// TODO: consider to create a separate background task to terminate all inactive tunnels based on some deadline/lastActivity time
+	if t.AutoClose > 0 {
 		go func() {
-			select {
-			case <-ctx.Done():
-				// DeadlineExceeded err is expected when tunnel AutoClose period is reached, otherwise skip cleanup
-				if ctx.Err() == context.DeadlineExceeded {
-					c.cleanupAfterAutoClose(t)
-				}
-				return
-			case <-idleAutoCloseChan:
+			<-ctx.Done()
+			// DeadlineExceeded err is expected when tunnel AutoClose period is reached, otherwise skip cleanup
+			if ctx.Err() == context.DeadlineExceeded {
 				c.cleanupAfterAutoClose(t)
-				return
+			}
+		}()
+	}
+	if t.IdleTimeoutMinutes > 0 {
+		idleTimeout := time.Duration(t.IdleTimeoutMinutes) * time.Minute
+		go func() {
+			timer := time.NewTimer(idleTimeout)
+			for {
+				select {
+				case <-ctx.Done():
+					if !timer.Stop() {
+						<-timer.C
+					}
+					return
+				case <-timer.C:
+					sinceLastActive := time.Since(t.LastActive())
+					if sinceLastActive > idleTimeout {
+						c.Logger.Infof("Terminating... inactivity period is reached: %d minute(s)", t.IdleTimeoutMinutes)
+						_ = t.Terminate(true)
+						c.cleanupAfterAutoClose(t)
+						return
+					}
+					timer.Reset(idleTimeout - sinceLastActive)
+				}
 			}
 		}()
 	}

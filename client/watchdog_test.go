@@ -51,7 +51,7 @@ func TestWatchdog(t *testing.T) {
 			require.NoError(t, err)
 			assert.Equal(t, tc.expected, ws.LastState)
 			assert.Equal(t, tc.msg, ws.LastMessage)
-			assert.WithinDurationf(t, ws.LastUpdate, time.Now(), 2*time.Millisecond, "")
+			assert.WithinDurationf(t, ws.LastUpdate, time.Now(), 10*time.Millisecond, "")
 		})
 	}
 }

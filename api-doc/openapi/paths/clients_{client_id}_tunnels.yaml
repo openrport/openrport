@@ -66,7 +66,7 @@ put:
         type: string
     - name: protocol
       in: query
-      description: Protocol for the tunnel. Can be `tcp` or `udp`. Default is `tcp`.
+      description: Protocol for the tunnel. Can be `tcp`, `udp` or `tcp+udp`. Default is `tcp`.
       schema:
         type: string
     - name: skip-idle-timeout
@@ -89,8 +89,20 @@ put:
       in: query
       description: >-
         If http_proxy is true, you can specify a host name which will be added
-        as header field `Host` to each outgouing proxy request. (virtual hosting
+        as header field `Host` to each outgoing proxy request. (virtual hosting
         on remote side)
+      schema:
+        type: string
+    - name: auth_user
+      in: query
+      description: >-
+        If present together with `auth_password` tunnels with an http reverse proxy (NoVNC, HTTP, HTTPS, RDP via browser)
+        will require additional http basic auth on access. Requires `http_proxy` to be `true`.
+      schema:
+          type: string
+    - name: auth_password
+      in: query
+      description: see `auth_user`
       schema:
         type: string
   responses:

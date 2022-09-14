@@ -26,7 +26,7 @@ type tunnelTCP struct {
 	stopFn                    func()
 	connectionIDAutoIncrement int
 	connCount                 int32
-	connCloseChan             chan bool
+	lastConnClose             int64          // time stored as int64 so it can be used with atomic
 	wg                        sync.WaitGroup // TODO: verify whether wait group is needed here
 }
 
@@ -39,21 +39,17 @@ func newTunnelTCP(logger *logger.Logger, ssh ssh.Conn, remote models.Remote, acl
 	}
 }
 
-func (t *tunnelTCP) Start(ctx context.Context) (autoCloseChan chan bool, err error) {
+func (t *tunnelTCP) Start(ctx context.Context) error {
 	// TODO(m-terel): consider to use ListenTCP
 	l, err := net.Listen("tcp4", t.Local())
 	if err != nil {
-		return nil, fmt.Errorf("%s: %s", t.Logger.Prefix(), err)
+		return fmt.Errorf("%s: %s", t.Logger.Prefix(), err)
 	}
 
 	ctx, t.stopFn = context.WithCancel(ctx)
-	if t.IdleTimeoutMinutes > 0 {
-		t.connCloseChan = make(chan bool)
-		autoCloseChan = t.getAutoCloseChan(ctx)
-	}
 	t.wg.Add(1)
 	go t.listen(ctx, l)
-	return
+	return nil
 }
 
 func (t *tunnelTCP) Terminate(force bool) error {
@@ -122,41 +118,16 @@ func (t *tunnelTCP) listen(ctx context.Context, l net.Listener) {
 		go func() {
 			t.accept(ctx, conn)
 			t.wg.Done()
-			if t.connCloseChan != nil {
-				// just track when connection was closed, because connection creation is covered by connection counter
-				t.connCloseChan <- true // TODO: on context close do not wait
-			}
+			atomic.StoreInt64(&t.lastConnClose, time.Now().Unix())
 		}()
 	}
 }
 
-// TODO: consider to create a separate background task to terminate all inactive tunnels based on some deadline/lastActivity time
-func (t *tunnelTCP) getAutoCloseChan(ctx context.Context) chan bool {
-	autoCloseChan := make(chan bool)
-	idleTimeout := time.Duration(t.IdleTimeoutMinutes) * time.Minute
-	go func() {
-		for {
-			select {
-			case <-ctx.Done():
-				// close if the ctx was canceled
-				return
-			case <-time.After(idleTimeout):
-				// track time after the last activity,
-				// if it reaches the timeout and there are no active connections - terminate the tunnel
-				if atomic.LoadInt32(&t.connCount) > 0 {
-					continue
-				}
-				t.Infof("Terminating... inactivity period is reached: %d minute(s)", t.IdleTimeoutMinutes)
-				_ = t.Terminate(true)
-				close(autoCloseChan)
-				return
-			case <-t.connCloseChan:
-				// if there was some activity - continue to restart the inactivity tracking
-				continue
-			}
-		}
-	}()
-	return autoCloseChan
+func (t *tunnelTCP) LastActive() time.Time {
+	if atomic.LoadInt32(&t.connCount) > 0 {
+		return time.Now()
+	}
+	return time.Unix(atomic.LoadInt64(&t.lastConnClose), 0)
 }
 
 func (t *tunnelTCP) accept(ctx context.Context, src io.ReadWriteCloser) {
