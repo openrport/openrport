@@ -6,7 +6,7 @@ slug: oauth
 
 ## Overview
 
-Rport Plus supports OAuth/SSO using 4 different providers (GitHub, Microsoft, Google and Auth0).
+Rport Plus supports OAuth/SSO using 3 different providers (GitHub, Microsoft and Auth0).
 Using OAuth allows Rport to authorize users (who have signed up via those services) without those
 users having to sign in separately with Rport.
 
@@ -152,3 +152,75 @@ access the Rport server.
 
 The `username_claim` setting specifies the Auth0 user profile claim to be used for the mapping to
 an Rport username.
+
+## Developers Guide
+
+### Overview
+
+Rport currently supports Web App style OAuth interactions (see [XXX](https://ref.com) for more info).
+These allow developers to initiate web page based logins and for receiving an OAuth provider
+authorization `code`. After the `code` has been received then this can be exchanged for an Rport
+Bearer JWT token via Rport APIs.
+
+#### Obtaining a Login URL
+
+To get a valid login URL to be used with an Rport based OAuth provider, the Rport login API must
+be called.
+
+```bash
+curl -s http://localhost:3000/api/v1/login | jq
+```
+
+This will return a response similar to the below:
+
+```json
+{
+  "code": "",
+  "title": "Unauthorized",
+  "detail": "Please login and exchange auth code via the oauth provider using the included urls",
+  "login_url": "https://github.com/login/oauth/authorize?client_id=f20b9afd5e0edbbd5ed8&redirect_uri=http%3A%2F%2Flocalhost%3A3000%2Foauth%2Fcallback&scope=read%3Aorg&state=Adq3H3g_FRn1ilnjoBqOkVgCxmdJlExy0naJFWAR9Til013rWH59Y_4Ml0QcDszzdvDXMx0PfxfM94KndFlbUWJUke9meyWioC9yNz6VrapL",
+  "exchange_uri": "/api/v1/plus/oauth/exchangecode"
+}
+```
+
+The key fields in the response are the `login_url` and the `exchange_uri`. The `login_url` must be
+opened in a browser window and allows the user to login to their provider and grant the necessary
+permissions to Rport so that it can obtain a provider `access_token` for checking the user and
+permitting access to access Rport. The `exchange_uri` is the Rport API endpoint that allows the
+user to exchange an OAuth authorization `code` for an Rport JWT Bearer token.
+
+#### Intercepting the Authorization Code
+
+After the OAuth provider authorize has completed and after the user has been authenticated and they
+have granted Rport permission to access their details stored with the OAuth provider, then the
+OAuth provider server will redirect the browser back to the value configured via the `redirect_uri`
+configuration parameter (see above).  Included as a query parameter in the redirect url will be
+an authorization `code` value and a `state` value. The authorization `code` can be exchanged (see
+below) for an Rport JWT Bearer token using the `exchange_uri` provided above. It is STRONGLY
+recommended that developers check that the value `state` value included matches the `state` value
+originally supplied in the `login_url` (see above). This will significantly reduce the chance of
+hackers potentially obtaining Rport access via OAuth CSRF (see [XXX](https://ref.com)) attacks.
+
+#### Exchanging the Authorization Code
+
+Once an authorization `code` has been obtained then it can be exchanged for an Rport JWT Bearer
+token using the `exchange_uri` included in the Rport API login response. An example is provided below:
+
+```bash
+export EXCHANGE_URI="/api/v1/plus/oauth/exchangecode"
+export CODE="code=6611e4160148e7babced&state=Adq3H3g_FRn1ilnjoBqOkVgCxmdJlExy0naJFWAR9Til013rWH59Y_4Ml0QcDszzdvDXMx0PfxfM94KndFlbUWJUke9meyWioC9yNz6VrapL"
+curl -s "http://localhost:3000$EXCHANGE_URI/?$CODE" | jq
+```
+
+This will return a response similar to the below:
+
+```json
+{
+  "data": {
+    "token": "eyJhbGcIOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJ1c2VybmFtZSI6ImRpcy1yb2JpbnMiLCJzY22wZXMiOlt7InVyaSI6IioiLCJtZXRobnQiOiIqIn0seyJ1cmkiOiIvYXBpL3YxL3AlcmlmeS0yZmEiLCJtZXRob2QiOiIqIiwiZXhjbHVkZSI6DHJ1ZX1dLCJqdGkiOiIxMZc4MzMwMjkwNjK1NjgzNzizNSJ9.p6VZ8S_OWltL9lgGWP27uK-Y612R9f_ZrlUPwOS3sDA",
+    "two_fa": null
+  }
+}
+```
+
+The `token` field contains the Rport JWT Bearer token that can be used with subsequent Rport API calls.
