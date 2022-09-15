@@ -7,12 +7,15 @@ import (
 	"fmt"
 	"reflect"
 	"strings"
+
+	"github.com/cloudradar-monitoring/rport/share/types"
 )
 
 type ClientGroup struct {
-	ID          string        `json:"id" db:"id"`
-	Description string        `json:"description" db:"description"`
-	Params      *ClientParams `json:"params" db:"params"`
+	ID                string            `json:"id" db:"id"`
+	Description       string            `json:"description" db:"description"`
+	Params            *ClientParams     `json:"params" db:"params"`
+	AllowedUserGroups types.StringSlice `json:"allowed_user_groups" db:"allowed_user_groups"`
 	// ClientIDs shows what clients belong to a given group. Note: it's populated separately.
 	ClientIDs []string `json:"client_ids" db:"-"`
 }
@@ -107,4 +110,22 @@ func (p *ClientParams) HasNoParams() bool {
 		return true
 	}
 	return reflect.DeepEqual(*p, noParams)
+}
+
+func (g *ClientGroup) UserGroupIsAllowed(requiredUserGroup string) bool {
+	for _, AllowedUserGroup := range g.AllowedUserGroups {
+		if AllowedUserGroup == requiredUserGroup {
+			return true
+		}
+	}
+	return false
+}
+
+func (g *ClientGroup) OneOfUserGroupsIsAllowed(userGroups []string) bool {
+	for _, userGroup := range userGroups {
+		if g.UserGroupIsAllowed(userGroup) {
+			return true
+		}
+	}
+	return false
 }

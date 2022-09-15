@@ -252,10 +252,10 @@ func (s *ClientRepository) GetAll() ([]*Client, error) {
 }
 
 // GetUserClients returns all non-obsolete active and disconnected clients that current user has access to
-func (s *ClientRepository) GetUserClients(user User) ([]*Client, error) {
+func (s *ClientRepository) GetUserClients(user User, groups []*cgroups.ClientGroup) ([]*Client, error) {
 	s.mu.RLock()
 	defer s.mu.RUnlock()
-	return s.getNonObsoleteByUser(user)
+	return s.getNonObsoleteByUser(user, groups)
 }
 
 // GetFilteredUserClients returns all non-obsolete active and disconnected clients that current user has access to, filtered by parameters
@@ -263,7 +263,7 @@ func (s *ClientRepository) GetFilteredUserClients(user User, filterOptions []que
 	s.mu.RLock()
 	defer s.mu.RUnlock()
 
-	clients, err := s.getNonObsoleteByUser(user)
+	clients, err := s.getNonObsoleteByUser(user, groups)
 	if err != nil {
 		return nil, err
 	}
@@ -307,19 +307,18 @@ func (s *ClientRepository) getNonObsolete() ([]*Client, error) {
 	return result, nil
 }
 
-func (s *ClientRepository) getNonObsoleteByUser(user User) ([]*Client, error) {
-	isAdmin := user.IsAdmin()
+//getNonObsoleteByUser return connected clients the user has access to either by user group or by client group
+func (s *ClientRepository) getNonObsoleteByUser(user User, clientGroups []*cgroups.ClientGroup) ([]*Client, error) {
+	userGroups := user.GetGroups()
 	result := make([]*Client, 0, len(s.clients))
 	for _, client := range s.clients {
 		if client.Obsolete(s.KeepDisconnectedClients) {
 			continue
 		}
-
-		if !isAdmin && !client.HasAccess(user.GetGroups()) {
+		if user.IsAdmin() || client.HasAccessViaUserGroups(userGroups) || client.UserGroupHasAccessViaClientGroup(userGroups, clientGroups) {
+			result = append(result, client)
 			continue
 		}
-
-		result = append(result, client)
 	}
 	return result, nil
 }

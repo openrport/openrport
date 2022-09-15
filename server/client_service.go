@@ -38,7 +38,7 @@ type ClientService interface {
 	PopulateGroupsWithUserClients(groups []*cgroups.ClientGroup, user clients.User)
 	GetAllByClientID(clientID string) []*clients.Client
 	GetAll() ([]*clients.Client, error)
-	GetUserClients(user clients.User) ([]*clients.Client, error)
+	GetUserClients(groups []*cgroups.ClientGroup, user clients.User) ([]*clients.Client, error)
 	GetFilteredUserClients(user clients.User, filterOptions []query.FilterOption, groups []*cgroups.ClientGroup) ([]*clients.CalculatedClient, error)
 	StartClient(
 		ctx context.Context, clientAuthID, clientID string, sshConn ssh.Conn, authMultiuseCreds bool,
@@ -51,8 +51,8 @@ type ClientService interface {
 	SetACL(clientID string, allowedUserGroups []string) error
 	SetUpdatesStatus(clientID string, updatesStatus *models.UpdatesStatus) error
 	SetLastHeartbeat(clientID string, heartbeat time.Time) error
-	CheckClientAccess(clientID string, user clients.User) error
-	CheckClientsAccess(clients []*clients.Client, user clients.User) error
+	CheckClientAccess(clientID string, user clients.User, groups []*cgroups.ClientGroup) error
+	CheckClientsAccess(clients []*clients.Client, user clients.User, groups []*cgroups.ClientGroup) error
 	GetRepo() *clients.ClientRepository
 }
 
@@ -218,7 +218,7 @@ func (s *ClientServiceProvider) GetClientsByTag(tags []string, operator string, 
 }
 
 func (s *ClientServiceProvider) PopulateGroupsWithUserClients(groups []*cgroups.ClientGroup, user clients.User) {
-	all, _ := s.repo.GetUserClients(user)
+	all, _ := s.repo.GetUserClients(user, groups)
 	for _, curClient := range all {
 		for _, curGroup := range groups {
 			if curClient.BelongsTo(curGroup) {
@@ -239,8 +239,8 @@ func (s *ClientServiceProvider) GetAll() ([]*clients.Client, error) {
 	return s.repo.GetAll()
 }
 
-func (s *ClientServiceProvider) GetUserClients(user clients.User) ([]*clients.Client, error) {
-	return s.repo.GetUserClients(user)
+func (s *ClientServiceProvider) GetUserClients(groups []*cgroups.ClientGroup, user clients.User) ([]*clients.Client, error) {
+	return s.repo.GetUserClients(user, groups)
 }
 
 func (s *ClientServiceProvider) GetFilteredUserClients(user clients.User, filterOptions []query.FilterOption, groups []*cgroups.ClientGroup) ([]*clients.CalculatedClient, error) {
@@ -532,27 +532,29 @@ func (s *ClientServiceProvider) SetLastHeartbeat(clientID string, heartbeat time
 
 // CheckClientAccess returns nil if a given user has an access to a given client.
 // Otherwise, APIError with 403 is returned.
-func (s *ClientServiceProvider) CheckClientAccess(clientID string, user clients.User) error {
+func (s *ClientServiceProvider) CheckClientAccess(clientID string, user clients.User, groups []*cgroups.ClientGroup) error {
 	existing, err := s.getExistingByID(clientID)
 	if err != nil {
 		return err
 	}
 
-	return s.CheckClientsAccess([]*clients.Client{existing}, user)
+	return s.CheckClientsAccess([]*clients.Client{existing}, user, groups)
 }
 
 // CheckClientsAccess returns nil if a given user has an access to all of the given clients.
 // Otherwise, APIError with 403 is returned.
-func (s *ClientServiceProvider) CheckClientsAccess(clients []*clients.Client, user clients.User) error {
+func (s *ClientServiceProvider) CheckClientsAccess(clients []*clients.Client, user clients.User, clientGroups []*cgroups.ClientGroup) error {
 	if user.IsAdmin() {
 		return nil
 	}
 
 	var clientsWithNoAccess []string
+	userGroups := user.GetGroups()
 	for _, curClient := range clients {
-		if !curClient.HasAccess(user.GetGroups()) {
-			clientsWithNoAccess = append(clientsWithNoAccess, curClient.ID)
+		if curClient.HasAccessViaUserGroups(userGroups) || curClient.UserGroupHasAccessViaClientGroup(userGroups, clientGroups) {
+			continue
 		}
+		clientsWithNoAccess = append(clientsWithNoAccess, curClient.ID)
 	}
 
 	if len(clientsWithNoAccess) > 0 {

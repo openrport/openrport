@@ -87,8 +87,11 @@ func (al *APIListener) handlePostMultiClientScript(w http.ResponseWriter, req *h
 		al.jsonError(w, err)
 		return
 	}
-
-	err = al.clientService.CheckClientsAccess(inboundMsg.OrderedClients, curUser)
+	clientGroups, err := al.clientGroupProvider.GetAll(ctx)
+	if err != nil {
+		al.jsonError(w, err)
+	}
+	err = al.clientService.CheckClientsAccess(inboundMsg.OrderedClients, curUser, clientGroups)
 	if err != nil {
 		al.jsonError(w, err)
 		return

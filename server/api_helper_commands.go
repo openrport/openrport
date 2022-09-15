@@ -38,7 +38,11 @@ func (al *APIListener) handleCommandsExecutionWS(
 		return
 	}
 
-	err = al.clientService.CheckClientsAccess(inboundMsg.OrderedClients, curUser)
+	clientGroups, err := al.clientGroupProvider.GetAll(ctx)
+	if err != nil {
+		uiConnTS.WriteError("Could not get client groups", err)
+	}
+	err = al.clientService.CheckClientsAccess(inboundMsg.OrderedClients, curUser, clientGroups)
 	if err != nil {
 		uiConnTS.WriteError(err.Error(), nil)
 		return

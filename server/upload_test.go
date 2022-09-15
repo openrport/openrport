@@ -345,6 +345,7 @@ func TestHandleFileUploads(t *testing.T) {
 						nil,
 						clients.NewClientRepository([]*clients.Client{cl}, &hour, testLog),
 					),
+					clientGroupProvider: mockClientGroupProvider{},
 					config: &Config{
 						Server: ServerConfig{
 							DataDir:         "/data",
