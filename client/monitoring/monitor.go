@@ -8,7 +8,6 @@ import (
 
 	"golang.org/x/crypto/ssh"
 
-	"github.com/cloudradar-monitoring/rport/client/monitoring/docker"
 	"github.com/cloudradar-monitoring/rport/client/monitoring/fs"
 	"github.com/cloudradar-monitoring/rport/client/monitoring/networking"
 	"github.com/cloudradar-monitoring/rport/client/monitoring/processes"
@@ -40,8 +39,7 @@ func NewMonitor(logger *logger.Logger, config clientconfig.MonitoringConfig, sys
 		Metrics:                     fs.DefaultMetrics(),
 		IdentifyMountpointsByDevice: config.FSIdentifyMountpointsByDevice,
 	}, logger)
-	dockerHandler := docker.NewHandler(logger)
-	processHandler := processes.NewProcessHandler(config, logger, dockerHandler)
+	processHandler := processes.NewProcessHandler(config, logger)
 	netHandler := networking.NewNetHandler(&config)
 	return &Monitor{logger: logger, config: config, systemInfo: systemInfo, fileSystemWatcher: fsWatcher, processHandler: processHandler, netHandler: netHandler}
 }
