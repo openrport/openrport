@@ -63,10 +63,20 @@ Depending on requirements, the following access control config parameters maybe 
 
   ```toml
   # Users must be members of the cloudradar.io organization
-  required_organization="cloudradar.io"
+  required_organization="cloudradar-monitoring"
   # All members are permitted to access Rport
   permitted_user_list=false
   ```
+
+Note: The required_organization must match the organization name as displayed in the
+GitHub URL for the organization or as under the list of organizations for which
+the user is a member. For example:
+
+```bash
+https://github.com/cloudradar-monitoring
+```
+
+The organization name that must match the required_organization is `cloudradar-monitoring`.
 
 13. Restart the rportd server with the configuration settings set as above.
 
