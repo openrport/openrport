@@ -83,19 +83,20 @@ file regularly.
 $stateFile = 'C:\Program Files\rport\data\state.json'
 $threshHoldSec = 600
 
-while($true) {
-    $now = ((Get-Date -UFormat %s) - [int](get-date -Uformat %Z)*3600)
-    $lastUpdate = (Get-Content $stateFile| ConvertFrom-Json).last_update_ts
-    $diff = $now - $lastUpdate
-    if ($diff -gt $threshHoldSec){
-        Write-Output "RPort hangs. No activity deteced for $($diff) seconds."
-        Restart-Service rport
-    } else {
-        Write-Output "RPort is running fine. Last activity $($diff) seconds ago."
-    }
-    Start-Sleep 60
+$now = ((Get-Date -UFormat %s) - [int](get-date -Uformat %Z)*3600)
+$lastUpdate = (Get-Content $stateFile| ConvertFrom-Json).last_update_ts
+$diff = $now - $lastUpdate
+if ($diff -gt $threshHoldSec){
+    Write-Output "RPort hangs. No activity deteced for $($diff) seconds."
+    Restart-Service rport
+} else {
+    Write-Output "RPort is running fine. Last activity $($diff) seconds ago."
 }
 ```
+
+🐶 A fully-featured rport watchdog for Windows implemented in PowerShell can be
+[downloaded here](https://github.com/cloudradar-monitoring/rport-win-watchdog). It comes ready-to-use with an easy
+installation.
 
 ### Using the systemd watchdog
 
