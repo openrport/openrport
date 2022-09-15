@@ -16,15 +16,13 @@ const htpasswdBcryptPrefix = "$2y$"
 const htpasswdBcryptAltPrefix = "$2a$"
 
 type FileManager struct {
-	FileName          string
-	SkipPasswordCheck bool
-	FileAccessLock    sync.Mutex
+	FileName       string
+	FileAccessLock sync.Mutex
 }
 
-func NewFileManager(fileName string, skipPasswordCheck bool) *FileManager {
+func NewFileManager(fileName string) *FileManager {
 	return &FileManager{
-		FileName:          fileName,
-		SkipPasswordCheck: skipPasswordCheck,
+		FileName: fileName,
 	}
 }
 
@@ -41,7 +39,7 @@ func (fm *FileManager) ReadUsersFromFile() ([]*User, error) {
 	log.Printf("API users file %s opened. Parsing...", fm.FileName)
 	defer file.Close()
 
-	users, err := parseUsers(file, fm.SkipPasswordCheck)
+	users, err := parseUsers(file)
 	if err != nil {
 		return users, err
 	}
@@ -63,7 +61,7 @@ func (fm *FileManager) SaveUsersToFile(usrs []*User) error {
 	return ioutil.WriteFile(fm.FileName, file, 0600)
 }
 
-func parseUsers(r io.Reader, skipPasswordCheck bool) ([]*User, error) {
+func parseUsers(r io.Reader) ([]*User, error) {
 	decoder := json.NewDecoder(r)
 	// read array open bracket
 	if _, err := decoder.Token(); err != nil {
@@ -88,13 +86,11 @@ func parseUsers(r io.Reader, skipPasswordCheck bool) ([]*User, error) {
 		user.Username = u
 
 		p := strings.TrimSpace(user.Password)
-		if !skipPasswordCheck {
-			if p == "" {
-				return nil, errors.New("password can not be empty")
-			}
-			if !strings.HasPrefix(p, htpasswdBcryptPrefix) {
-				return nil, fmt.Errorf("username %q: require passwords to be bcrypt hashed and to be compatible with \"htpasswd -bnBC 10 \"\" <password> | tr -d ':'\" ", user.Username)
-			}
+		if p == "" {
+			return nil, errors.New("password can not be empty")
+		}
+		if !strings.HasPrefix(p, htpasswdBcryptPrefix) {
+			return nil, fmt.Errorf("username %q: require passwords to be bcrypt hashed and to be compatible with \"htpasswd -bnBC 10 \"\" <password> | tr -d ':'\" ", user.Username)
 		}
 		user.Password = p
 

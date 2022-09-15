@@ -92,17 +92,24 @@ func NewAPIListener(
 	var err error
 
 	if config.PlusOAuthEnabled() && config.OAuthConfig.PermittedUserList {
-		// use api auth for the OAuth permitted user list so the password check is not required as
-		// authentication will be performed by OAuth
-		logger := logger.NewLogger("auth-file", config.Logging.LogOutput, config.Logging.LogLevel)
-		usersProvider, err = users.NewFileAdapter(logger, users.NewFileManager(config.API.AuthFile, true))
-		if err != nil {
-			return nil, err
+		if config.API.AuthFile != "" {
+			if err != nil {
+				logger := logger.NewLogger("auth-file", config.Logging.LogOutput, config.Logging.LogLevel)
+				usersProvider, err = users.NewFileAdapter(logger, users.NewFileManager(config.API.AuthFile))
+				if err != nil {
+					return nil, err
+				}
+			} else if config.API.AuthUserTable != "" {
+				logger := logger.NewLogger("database", config.Logging.LogOutput, config.Logging.LogLevel)
+				usersProvider, err = newAPIAuthDatabase(server, config, logger)
+				if err != nil {
+					return nil, err
+				}
+			}
 		}
-
 	} else if config.API.AuthFile != "" {
 		logger := logger.NewLogger("auth-file", config.Logging.LogOutput, config.Logging.LogLevel)
-		usersProvider, err = users.NewFileAdapter(logger, users.NewFileManager(config.API.AuthFile, false))
+		usersProvider, err = users.NewFileAdapter(logger, users.NewFileManager(config.API.AuthFile))
 		if err != nil {
 			return nil, err
 		}
@@ -116,15 +123,7 @@ func NewAPIListener(
 		usersProvider = users.NewStaticProvider([]*users.User{authUser})
 	} else if config.API.AuthUserTable != "" {
 		logger := logger.NewLogger("database", config.Logging.LogOutput, config.Logging.LogLevel)
-		usersProvider, err = users.NewUserDatabase(
-			server.authDB,
-			config.API.AuthUserTable,
-			config.API.AuthGroupTable,
-			config.API.AuthGroupDetailsTable,
-			config.API.IsTwoFAOn(),
-			config.API.TotPEnabled,
-			logger,
-		)
+		usersProvider, err = newAPIAuthDatabase(server, config, logger)
 		if err != nil {
 			return nil, err
 		}
@@ -262,6 +261,19 @@ func NewAPIListener(
 	a.initRouter()
 
 	return a, nil
+}
+
+func newAPIAuthDatabase(server *Server, config *Config, logger *logger.Logger) (usersProvider *users.UserDatabase, err error) {
+	usersProvider, err = users.NewUserDatabase(
+		server.authDB,
+		config.API.AuthUserTable,
+		config.API.AuthGroupTable,
+		config.API.AuthGroupDetailsTable,
+		config.API.IsTwoFAOn(),
+		config.API.TotPEnabled,
+		logger,
+	)
+	return usersProvider, err
 }
 
 func (al *APIListener) Start(addr string) error {
