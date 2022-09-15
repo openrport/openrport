@@ -6,20 +6,18 @@ import (
 
 	"github.com/shirou/gopsutil/mem"
 
-	"github.com/cloudradar-monitoring/rport/client/monitoring/docker"
 	"github.com/cloudradar-monitoring/rport/share/clientconfig"
 	"github.com/cloudradar-monitoring/rport/share/logger"
 )
 
 type ProcessHandler struct {
-	config        clientconfig.MonitoringConfig
-	logger        *logger.Logger
-	dockerHandler *docker.Handler
-	processCache  *ProcessCache
+	config       clientconfig.MonitoringConfig
+	logger       *logger.Logger
+	processCache *ProcessCache
 }
 
-func NewProcessHandler(config clientconfig.MonitoringConfig, logger *logger.Logger, dockerHandler *docker.Handler) *ProcessHandler {
-	return &ProcessHandler{config: config, logger: logger, dockerHandler: dockerHandler, processCache: NewProcessCache()}
+func NewProcessHandler(config clientconfig.MonitoringConfig, logger *logger.Logger) *ProcessHandler {
+	return &ProcessHandler{config: config, logger: logger, processCache: NewProcessCache()}
 }
 
 type ProcStat struct {
