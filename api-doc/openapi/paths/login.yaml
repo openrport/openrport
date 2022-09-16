@@ -14,15 +14,9 @@ get:
     `/verify-2fa` endpoint and also to create and read a totp secret for the
     first time (see `/me/totp-secret`)
 
-    * If Rport Plus OAuth is enabled, then this API can be used to get a valid
-    OAuth `authorize` login url and also the API endpoint for exchanging the OAuth
-    authorization `code` for an Rport token. The API will still return Unauthorized 
-    but with an error response containing two additional fields. `login_url` which
-    contains the `authorize` url that should be used to initiate user authorization 
-    with the configured OAuth provider. Also returned, will be an Rport `exchange_uri` 
-    that can be used to exchange the authorization code provided in the OAuth provider
-    callback URL for an Rport authorization JWT token that can be used with the other
-    Rport APIs. Note: does NOT require HTTP-basic authorization.
+    * If Rport Plus OAuth is enabled, then this API will be disabled and a 403
+    status response will be returned. Login using the `/auth/provider` and
+    `/auth/ext/settings` endpoints instead.
   parameters:
     - name: token-lifetime
       in: query
@@ -50,7 +44,13 @@ get:
           schema:
             $ref: ../components/schemas/ErrorPayload.yaml
     "401":
-      description: Unauthorized (see above for behavior with OAuth providers)
+      description: Unauthorized
+      content:
+        application/json:
+          schema:
+            $ref: ../components/schemas/ErrorPayload.yaml
+    "403":
+      description: Forbidden
       content:
         application/json:
           schema:
@@ -68,11 +68,17 @@ post:
   operationId: LoginPost
   description: |-
     If 2FA is disabled: returns authorization JWT token.
-     If 2FA is enabled: triggers sending 2FA token to the user. 2fa token can be further verified using `/verify-2fa` endpoint. Requires the user to have a valid `two_fa_send_to` delivery option.
+
+    If 2FA is enabled: triggers sending 2FA token to the user. 2fa token can be further verified using `/verify-2fa` endpoint. Requires the user to have a valid `two_fa_send_to` delivery option.
      `username` and `password` should be provided in request body either in JSON either in x-www-formurlencoded format.
-     If time based one time passwords (TotP) are enabled (Google/Microsoft authenticator app), it returns a login token, which should be used to call `/verify-2fa` endpoint and also to create and totp secret key for the first time (see `/me/totp-secret`)
-     To understand if TotP is enabled, `delivery_method` field will contain `totp_authenticator_app` value, that indicates the limited scope of the JWT token validity.
-     If user has already a TotP secret key, the value of totp_key_status field will be 'pending' or 'exists' otherwise.
+
+    If time based one time passwords (TotP) are enabled (Google/Microsoft authenticator app), it returns a login token, which should be used to call `/verify-2fa` endpoint and also to create and totp secret key for the first time (see `/me/totp-secret`)
+    To understand if TotP is enabled, `delivery_method` field will contain `totp_authenticator_app` value, that indicates the limited scope of the JWT token validity.
+    If user has already a TotP secret key, the value of totp_key_status field will be 'pending' or 'exists' otherwise.
+
+    IfRport Plus OAuth is enabled, then this API will be disabled and a 403
+    status response will be returned. Login using the `/auth/provider` and
+    `/auth/ext/settings` endpoints instead.
   parameters:
     - name: token-lifetime
       in: query
@@ -101,6 +107,12 @@ post:
             $ref: ../components/schemas/ErrorPayload.yaml
     "401":
       description: Unauthorized
+      content:
+        application/json:
+          schema:
+            $ref: ../components/schemas/ErrorPayload.yaml
+    "403":
+      description: Forbidden
       content:
         application/json:
           schema:

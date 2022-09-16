@@ -1,0 +1,22 @@
+get:
+  tags:
+    - Auth
+  summary: Get info on the configured authorization method
+  operationId: AuthProviderGet
+  security: []
+  description: >
+    This API allows clients to determine how to login to Rport. If the 
+    `auth_provider` is `built-in` then the regular OSS Rport login API can be 
+    used. If the `auth_provider` is one of the Rport Plus OAuth providers 
+    (e.g. `github` or `microsoft`) then the `settings_uri` endpoint must be 
+    queried for login related links.
+  responses:
+    "200":
+      description: Success
+      content:
+        application/json:
+          schema:
+            type: object
+            properties:
+              data:
+                $ref: ../components/schemas/AuthProviderResponse.yaml
