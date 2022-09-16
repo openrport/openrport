@@ -26,11 +26,11 @@ const (
 )
 
 type PlusStatusInfo struct {
-	PlusVersion    string
-	PlusBuildTime  string
-	PlusLocalBuild string
-	RportGitRef    string
-	RportCommitID  string
+	PlusVersion    string `json:"plus_version"`
+	PlusBuildTime  string `json:"build_time"`
+	PlusLocalBuild string `json:"local_build"`
+	RportGitRef    string `json:"rport_git_ref"`
+	RportCommitID  string `json:"rport_commit_id"`
 }
 
 func (cap *Capability) GetInitFuncName() (name string) {

@@ -4,6 +4,7 @@ import (
 	"errors"
 	"net/http"
 	"plugin"
+	"time"
 
 	"github.com/cloudradar-monitoring/rport/plus/validator"
 	"github.com/cloudradar-monitoring/rport/share/logger"
@@ -19,10 +20,18 @@ var (
 	ErrMissingClientSecret = errors.New("missing client_secret")
 )
 
+type LoginInfo struct {
+	LoginMsg     string    `json:"message"`
+	AuthorizeURL string    `json:"authorize_url"`
+	LoginURI     string    `json:"login_uri"`
+	State        string    `json:"state"`
+	Expiry       time.Time `json:"expiry"`
+}
+
 // CapabilityEx represents the functional interface provided by the OAuth capability
 type CapabilityEx interface {
 	ValidateConfig() (err error)
-	GetOAuthLoginInfo() (loginMsg string, loginURL string, exchangeURI string, err error)
+	GetOAuthLoginInfo() (loginInfo *LoginInfo, err error)
 	PerformAuthCodeExchange(r *http.Request) (token string, username string, err error)
 	GetPermittedUser(r *http.Request, token string) (username string, err error)
 }
@@ -30,7 +39,7 @@ type CapabilityEx interface {
 // Config is the OAuth capability config, as loaded from the rportd config file
 type Config struct {
 	Provider             string `mapstructure:"provider"`
-	AuthorizeURL         string `mapstructure:"authorize_url"`
+	BaseAuthorizeURL     string `mapstructure:"authorize_url"`
 	TokenURL             string `mapstructure:"token_url"`
 	RedirectURI          string `mapstructure:"redirect_uri"`
 	ClientID             string `mapstructure:"client_id"`
@@ -51,7 +60,7 @@ const (
 	MicrosoftOAuthProvider = "microsoft"
 	Auth0OAuthProvider     = "auth0"
 
-	DefaultExchangeCodeSlug = "/oauth/exchangecode"
+	DefaultLoginURI = "/oauth/exchangecode"
 )
 
 // Capability is used by rportd to maintain loaded info about the plugin's

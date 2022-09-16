@@ -1,12 +1,14 @@
 package chserver
 
 import (
+	"errors"
 	"fmt"
 	"net/http"
 	"strconv"
 	"time"
 
 	rportplus "github.com/cloudradar-monitoring/rport/plus"
+	"github.com/cloudradar-monitoring/rport/plus/capabilities/oauth"
 	"github.com/cloudradar-monitoring/rport/server/api"
 	errors2 "github.com/cloudradar-monitoring/rport/server/api/errors"
 	chshare "github.com/cloudradar-monitoring/rport/share"
@@ -26,20 +28,7 @@ type loginResponse struct {
 
 func (al *APIListener) handleGetLogin(w http.ResponseWriter, req *http.Request) {
 	if al.config.PlusOAuthEnabled() {
-		plus := al.Server.plusManager
-		capEx := plus.GetOAuthCapabilityEx()
-
-		if capEx == nil {
-			al.jsonErrorResponse(w, http.StatusUnauthorized, rportplus.ErrCapabilityNotAvailable(rportplus.PlusOAuthCapability))
-			return
-		}
-
-		loginMsg, loginURL, exchangeURI, err := capEx.GetOAuthLoginInfo()
-		if err != nil {
-			al.jsonErrorResponse(w, http.StatusUnauthorized, err)
-			return
-		}
-		al.jsonLoginInfoResponse(w, loginMsg, loginURL, allPlusRoutesPrefix+exchangeURI)
+		al.jsonErrorResponse(w, http.StatusForbidden, errors.New("built-in authorization disabled. please authorize via your configured authorization"))
 		return
 	}
 
@@ -197,7 +186,7 @@ func (al *APIListener) sendJWTToken(username string, w http.ResponseWriter, req 
 
 func (al *APIListener) handlePostLogin(w http.ResponseWriter, req *http.Request) {
 	if al.config.PlusOAuthEnabled() {
-		al.jsonErrorResponseWithDetail(w, http.StatusUnauthorized, "", "Unauthorized", "OAuth enabled. Please GET a login URL via the api login endpoint.")
+		al.jsonErrorResponse(w, http.StatusForbidden, errors.New("built-in authorization disabled. please authorize via your configured authorization"))
 		return
 	}
 
@@ -212,6 +201,64 @@ func (al *APIListener) handlePostLogin(w http.ResponseWriter, req *http.Request)
 	}
 
 	al.handleLogin(username, pwd, false, w, req)
+}
+
+const BuiltInAuthProviderName = "built-in"
+
+type AuthProviderSettings struct {
+	AuthProvider string `json:"auth_provider"`
+	SettingsURI  string `json:"settings_url"`
+}
+
+type AuthSettings struct {
+	AuthProvider string           `json:"auth_provider"`
+	LoginInfo    *oauth.LoginInfo `json:"details"`
+}
+
+func (al *APIListener) handleGetAuthProvider(w http.ResponseWriter, req *http.Request) {
+	var response api.SuccessPayload
+
+	if al.config.PlusOAuthEnabled() {
+		OAuthProvider := AuthProviderSettings{
+			AuthProvider: al.config.OAuthConfig.Provider,
+			SettingsURI:  allRoutesPrefix + authRoutesPrefix + authSettingsRoute,
+		}
+		response = api.NewSuccessPayload(OAuthProvider)
+	} else {
+		builtInAuthProvider := AuthProviderSettings{
+			AuthProvider: BuiltInAuthProviderName,
+			SettingsURI:  "",
+		}
+		response = api.NewSuccessPayload(builtInAuthProvider)
+	}
+	al.writeJSONResponse(w, http.StatusOK, response)
+}
+
+func (al *APIListener) handleGetAuthSettings(w http.ResponseWriter, req *http.Request) {
+	if !al.config.PlusOAuthEnabled() {
+		al.jsonErrorResponse(w, http.StatusForbidden, rportplus.ErrPlusNotAvailable)
+		return
+	}
+
+	plus := al.Server.plusManager
+	capEx := plus.GetOAuthCapabilityEx()
+	if capEx == nil {
+		al.jsonErrorResponse(w, http.StatusForbidden, rportplus.ErrCapabilityNotAvailable(rportplus.PlusOAuthCapability))
+		return
+	}
+
+	loginInfo, err := capEx.GetOAuthLoginInfo()
+	if err != nil {
+		al.jsonErrorResponse(w, http.StatusInternalServerError, err)
+		return
+	}
+	settings := AuthSettings{
+		AuthProvider: al.config.OAuthConfig.Provider,
+		LoginInfo:    loginInfo,
+	}
+	response := api.NewSuccessPayload(settings)
+	al.writeJSONResponse(w, http.StatusOK, response)
+
 }
 
 func parseLoginPostRequestBody(req *http.Request) (string, string, error) {

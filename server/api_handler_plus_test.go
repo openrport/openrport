@@ -2,6 +2,7 @@ package chserver
 
 import (
 	"encoding/json"
+	"fmt"
 	"net/http"
 	"net/http/httptest"
 	"os"
@@ -13,6 +14,7 @@ import (
 	rportplus "github.com/cloudradar-monitoring/rport/plus"
 	"github.com/cloudradar-monitoring/rport/plus/capabilities/oauth"
 	"github.com/cloudradar-monitoring/rport/plus/capabilities/oauthmock"
+	"github.com/cloudradar-monitoring/rport/server/api"
 	"github.com/cloudradar-monitoring/rport/server/api/users"
 	"github.com/cloudradar-monitoring/rport/share/logger"
 	"github.com/cloudradar-monitoring/rport/share/ptr"
@@ -36,7 +38,7 @@ func (pm *plusManagerForMockOAuth) GetOAuthCapabilityEx() (capEx oauth.Capabilit
 	return capEx
 }
 
-func TestHandleGetOAuthLoginURLs(t *testing.T) {
+func TestHandleFailedLoginWhenUsingOAuth(t *testing.T) {
 	al, _ := SetupAPIListener(t,
 		&oauth.Config{
 			Provider:          oauth.GitHubOAuthProvider,
@@ -50,19 +52,170 @@ func TestHandleGetOAuthLoginURLs(t *testing.T) {
 
 	al.router.ServeHTTP(w, req)
 
-	assert.Equal(t, http.StatusUnauthorized, w.Code)
+	assert.Equal(t, http.StatusForbidden, w.Code)
 
-	var loginResponse LoginInfoResponse
+	var failedResponse api.ErrorPayload
 
-	err := json.NewDecoder(w.Body).Decode(&loginResponse)
+	err := json.NewDecoder(w.Body).Decode(&failedResponse)
 	assert.NoError(t, err)
 
-	loginErrors := loginResponse.Errors
-	loginError := loginErrors[0]
+	loginErrors := failedResponse.Errors
+	loginError := loginErrors[0].Title
+	assert.Contains(t, loginError, "authorization disabled")
+}
 
-	assert.Equal(t, "mock login msg", loginError.Detail)
-	assert.Equal(t, "mock login url", loginError.LoginURL)
-	assert.Equal(t, "/api/v1/plus/mock_exchange_uri", loginError.ExchangeURI)
+func TestHandleGetOAuthProvider(t *testing.T) {
+	plusLog := logger.NewLogger("rport-plus", logger.LogOutput{File: os.Stdout}, logger.LogLevelDebug)
+
+	plusConfig := &rportplus.PlusConfig{
+		PluginPath: defaultPluginPath,
+	}
+
+	oauthConfig := &oauth.Config{
+		Provider: oauth.GitHubOAuthProvider,
+	}
+
+	plusManager := &plusManagerForMockOAuth{}
+	plusManager.InitPlusManager(plusConfig, plusLog)
+
+	_, err := plusManager.RegisterCapability(PlusMockOAuthCapability, &oauthmock.Capability{
+		Config: oauthConfig,
+		Logger: plusLog,
+	})
+	require.NoError(t, err)
+
+	al := APIListener{
+		Server: &Server{
+			config: &Config{
+				API:         APIConfig{},
+				PlusConfig:  plusConfig,
+				OAuthConfig: oauthConfig,
+			},
+			plusManager: nil,
+		},
+		bannedUsers: security.NewBanList(0),
+		apiSessions: newEmptyAPISessionCache(t),
+	}
+	al.initRouter()
+
+	w := httptest.NewRecorder()
+	req := httptest.NewRequest("GET", "/api/v1"+authRoutesPrefix+authProviderRoute, nil)
+
+	al.router.ServeHTTP(w, req)
+
+	assert.Equal(t, http.StatusOK, w.Code)
+
+	var info AuthProviderResponse
+	err = json.NewDecoder(w.Body).Decode(&info)
+	assert.NoError(t, err)
+
+	assert.Equal(t, "github", info.Data.AuthProvider)
+	assert.Equal(t, allRoutesPrefix+authRoutesPrefix+authSettingsRoute, info.Data.SettingsURI)
+}
+
+type AuthSettingsResponse struct {
+	Data AuthSettings
+}
+
+func TestHandleGetAuthSettings(t *testing.T) {
+	plusLog := logger.NewLogger("rport-plus", logger.LogOutput{File: os.Stdout}, logger.LogLevelDebug)
+
+	plusConfig := &rportplus.PlusConfig{
+		PluginPath: defaultPluginPath,
+	}
+
+	oauthConfig := &oauth.Config{
+		Provider: oauth.GitHubOAuthProvider,
+	}
+
+	plusManager := &plusManagerForMockOAuth{}
+	plusManager.InitPlusManager(plusConfig, plusLog)
+
+	_, err := plusManager.RegisterCapability(PlusMockOAuthCapability, &oauthmock.Capability{
+		Config: oauthConfig,
+		Logger: plusLog,
+	})
+	require.NoError(t, err)
+
+	al := APIListener{
+		Server: &Server{
+			config: &Config{
+				API:         APIConfig{},
+				PlusConfig:  plusConfig,
+				OAuthConfig: oauthConfig,
+			},
+			plusManager: plusManager,
+		},
+		bannedUsers: security.NewBanList(0),
+		apiSessions: newEmptyAPISessionCache(t),
+	}
+	al.initRouter()
+
+	w := httptest.NewRecorder()
+	req := httptest.NewRequest("GET", "/api/v1"+authRoutesPrefix+authSettingsRoute, nil)
+
+	al.router.ServeHTTP(w, req)
+
+	assert.Equal(t, http.StatusOK, w.Code)
+
+	var settings AuthSettingsResponse
+	err = json.NewDecoder(w.Body).Decode(&settings)
+	assert.NoError(t, err)
+
+	fmt.Printf("settings = %+v\n", settings)
+	loginInfo := settings.Data.LoginInfo
+	fmt.Printf("loginInfo = %+v\n", loginInfo)
+
+	assert.Equal(t, "github", settings.Data.AuthProvider)
+	assert.Equal(t, "mock login msg", settings.Data.LoginInfo.LoginMsg)
+	assert.Equal(t, "mock authorize url", settings.Data.LoginInfo.AuthorizeURL)
+	assert.Equal(t, "/mock_login_uri", settings.Data.LoginInfo.LoginURI)
+}
+
+func TestHandleGetAuthSettingsWhenFailedToGetLoginURL(t *testing.T) {
+	plusLog := logger.NewLogger("rport-plus", logger.LogOutput{File: os.Stdout}, logger.LogLevelDebug)
+
+	plusConfig := &rportplus.PlusConfig{
+		PluginPath: defaultPluginPath,
+	}
+
+	oauthConfig := &oauth.Config{
+		Provider: oauth.GitHubOAuthProvider,
+	}
+
+	plusManager := &plusManagerForMockOAuth{}
+	plusManager.InitPlusManager(plusConfig, plusLog)
+
+	mockOAuthCapability := &oauthmock.Capability{
+		Config: oauthConfig,
+		Logger: plusLog,
+	}
+
+	_, err := plusManager.RegisterCapability(PlusMockOAuthCapability, mockOAuthCapability)
+	require.NoError(t, err)
+
+	mockOAuthCapability.Provider.ShouldFailGetLoginInfo = true
+
+	al := APIListener{
+		Server: &Server{
+			config: &Config{
+				API:         APIConfig{},
+				PlusConfig:  plusConfig,
+				OAuthConfig: oauthConfig,
+			},
+			plusManager: plusManager,
+		},
+		bannedUsers: security.NewBanList(0),
+		apiSessions: newEmptyAPISessionCache(t),
+	}
+	al.initRouter()
+
+	w := httptest.NewRecorder()
+	req := httptest.NewRequest("GET", "/api/v1"+authRoutesPrefix+authSettingsRoute, nil)
+
+	al.router.ServeHTTP(w, req)
+
+	assert.Equal(t, http.StatusInternalServerError, w.Code)
 }
 
 func TestHandleOAuthAuthorizationCode(t *testing.T) {
@@ -135,38 +288,6 @@ func TestHandleOAuthAuthorizationCode(t *testing.T) {
 			}
 		})
 	}
-}
-
-type OAuthConfigResponse struct {
-	Data *oauth.Config `json:"data"`
-}
-
-func TestShouldProvidePlusOauthStatus(t *testing.T) {
-	al, _ := SetupAPIListener(t,
-		&oauth.Config{
-			Provider:          oauth.GitHubOAuthProvider,
-			PermittedUserList: true,
-			ClientSecret:      "1234",
-		},
-		"user1")
-
-	w := httptest.NewRecorder()
-	req := httptest.NewRequest("GET", "/api/v1/plus/oauth/status", nil)
-
-	al.router.ServeHTTP(w, req)
-
-	assert.Equal(t, http.StatusOK, w.Code)
-
-	var cfgResponse OAuthConfigResponse
-
-	err := json.NewDecoder(w.Body).Decode(&cfgResponse)
-	assert.NoError(t, err)
-
-	cfg := cfgResponse.Data
-	assert.Equal(t, oauth.GitHubOAuthProvider, cfg.Provider)
-	assert.Equal(t, true, cfg.PermittedUserList)
-	// ensure not returned by the server
-	assert.Equal(t, "", cfg.ClientSecret)
 }
 
 func SetupAPIListener(t *testing.T, oauthConfig *oauth.Config, username string) (al *APIListener, mockUsersService *MockUsersService) {

@@ -1,6 +1,7 @@
 package chserver
 
 import (
+	"errors"
 	"fmt"
 
 	rportplus "github.com/cloudradar-monitoring/rport/plus"
@@ -13,22 +14,21 @@ import (
 // EnablePlusIfLicensed will initialize a new plus manager and request registration of the desired
 // capabilities
 func EnablePlusIfLicensed(cfg *Config, filesAPI files.FileAPI) (plusManager rportplus.Manager, err error) {
-	if cfg.PlusConfig != nil {
-		logger := logger.NewLogger("rport-plus", cfg.Logging.LogOutput, cfg.Logging.LogLevel)
-		plusManager, err = rportplus.NewPlusManager(cfg.PlusConfig, logger, filesAPI)
-		if err != nil {
-			return nil, err
-		}
-		logger.Infof("plus manager initialized")
-
-		err = RegisterPlusCapabilities(plusManager, cfg, logger)
-		if err != nil {
-			return nil, err
-		}
+	if cfg.PlusConfig == nil {
+		return nil, errors.New("rport-plus not enabled")
 	}
-	//  else {
-	// 	logger.Infof("report-plus not enabled")
-	// }
+
+	logger := logger.NewLogger("rport-plus", cfg.Logging.LogOutput, cfg.Logging.LogLevel)
+	plusManager, err = rportplus.NewPlusManager(cfg.PlusConfig, logger, filesAPI)
+	if err != nil {
+		return nil, err
+	}
+	logger.Infof("plus manager initialized")
+
+	err = RegisterPlusCapabilities(plusManager, cfg, logger)
+	if err != nil {
+		return nil, err
+	}
 	return plusManager, nil
 }
 

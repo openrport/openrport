@@ -1,8 +1,10 @@
 package oauthmock
 
 import (
+	"errors"
 	"net/http"
 	"plugin"
+	"time"
 
 	"github.com/cloudradar-monitoring/rport/plus/capabilities/oauth"
 	"github.com/cloudradar-monitoring/rport/plus/validator"
@@ -12,8 +14,8 @@ import (
 type MockCapabilityProvider struct {
 	PerformAuthCodeExchangeRequest *http.Request
 	GetUserToken                   string
-
-	Username string
+	ShouldFailGetLoginInfo         bool
+	Username                       string
 }
 
 type Capability struct {
@@ -53,12 +55,19 @@ func (mp *MockCapabilityProvider) ValidateConfig() (err error) {
 }
 
 // GetOAuthLoginInfo returns mock login info
-func (mp *MockCapabilityProvider) GetOAuthLoginInfo() (loginMsg string, loginURL string, exchangeURI string, err error) {
-	return "mock login msg", "mock login url", "/mock_exchange_uri", nil
+func (mp *MockCapabilityProvider) GetOAuthLoginInfo() (loginInfo *oauth.LoginInfo, err error) {
+	if mp.ShouldFailGetLoginInfo {
+		return nil, errors.New("got an error")
+	}
+	loginInfo = &oauth.LoginInfo{
+		LoginMsg:     "mock login msg",
+		AuthorizeURL: "mock authorize url",
+		LoginURI:     "/mock_login_uri",
+		State:        "123456",
+		Expiry:       time.Time{},
+	}
+	return loginInfo, nil
 }
-
-// HandleLogin does nothing at the moment
-func (mp *MockCapabilityProvider) HandleLogin(w http.ResponseWriter, r *http.Request) {}
 
 // PerformAuthCodeExchange saves the received request and returns a mock token
 func (mp *MockCapabilityProvider) PerformAuthCodeExchange(r *http.Request) (token string, username string, err error) {

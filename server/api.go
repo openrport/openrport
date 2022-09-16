@@ -22,8 +22,10 @@ const (
 	ErrCodeAlreadyExist    = "ERR_CODE_ALREADY_EXIST"
 
 	allRoutesPrefix      = "/api/v1"
-	plusPrefix           = "/plus"
-	allPlusRoutesPrefix  = allRoutesPrefix + plusPrefix
+	authRoutesPrefix     = "/auth"
+	authProviderRoute    = "/provider"
+	authSettingsRoute    = "/ext/settings"
+	plusRoutesPrefix     = "/plus"
 	totPRoutes           = "/me/totp-secret"
 	verify2FaRoute       = "/verify-2fa"
 	filesUploadRouteName = "files"
