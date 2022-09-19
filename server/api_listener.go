@@ -93,18 +93,16 @@ func NewAPIListener(
 
 	if config.PlusOAuthEnabled() && config.OAuthConfig.PermittedUserList {
 		if config.API.AuthFile != "" {
+			logger := logger.NewLogger("auth-file", config.Logging.LogOutput, config.Logging.LogLevel)
+			usersProvider, err = users.NewFileAdapter(logger, users.NewFileManager(config.API.AuthFile))
 			if err != nil {
-				logger := logger.NewLogger("auth-file", config.Logging.LogOutput, config.Logging.LogLevel)
-				usersProvider, err = users.NewFileAdapter(logger, users.NewFileManager(config.API.AuthFile))
-				if err != nil {
-					return nil, err
-				}
-			} else if config.API.AuthUserTable != "" {
-				logger := logger.NewLogger("database", config.Logging.LogOutput, config.Logging.LogLevel)
-				usersProvider, err = newAPIAuthDatabase(server, config, logger)
-				if err != nil {
-					return nil, err
-				}
+				return nil, err
+			}
+		} else if config.API.AuthUserTable != "" {
+			logger := logger.NewLogger("database", config.Logging.LogOutput, config.Logging.LogLevel)
+			usersProvider, err = newAPIAuthDatabase(server, config, logger)
+			if err != nil {
+				return nil, err
 			}
 		}
 	} else if config.API.AuthFile != "" {
