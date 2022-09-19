@@ -203,11 +203,13 @@ func (al *APIListener) handlePostLogin(w http.ResponseWriter, req *http.Request)
 	al.handleLogin(username, pwd, false, w, req)
 }
 
+// TODO: consider moving these definitions to an auth related package
+
 const BuiltInAuthProviderName = "built-in"
 
 type AuthProviderSettings struct {
 	AuthProvider string `json:"auth_provider"`
-	SettingsURI  string `json:"settings_url"`
+	SettingsURI  string `json:"settings_uri"`
 }
 
 type AuthSettings struct {
