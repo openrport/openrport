@@ -47,6 +47,7 @@ jobs:
         env:
           RPORT_GIT_REF: ${{github.ref_name}}
           RPORT_COMMIT_ID: ${{ steps.rport_commit_info.outputs.commit_sha }}
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         run: |
           dpkg -l|grep -q python3-requests || apt-get -y install python3-requests
           pwd
@@ -62,7 +63,6 @@ jobs:
           tar tzf ${PLUS_ARTIFACT}
           ls -la ${PLUS_ARTIFACT}
           # Get the release id of the tag
-          export GITHUB_TOKEN=${GITHUB_TOKEN}
           RELEASE_ID=$(../.github/scripts/gh-release-id.py ${GITHUB_REF_NAME})
           echo "🚩 RELEASE_ID=$RELEASE_ID"
           curl -v -s --fail -T ${PLUS_ARTIFACT} \
