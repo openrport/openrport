@@ -52,7 +52,7 @@ func (p *SqliteProvider) Get(ctx context.Context, id string) (*ClientGroup, erro
 func (p *SqliteProvider) Create(ctx context.Context, group *ClientGroup) error {
 	_, err := p.db.NamedExecContext(
 		ctx,
-		"INSERT INTO client_groups (id, description, params) VALUES (:id, :description, :params)",
+		"INSERT INTO client_groups (id, description, params, allowed_user_groups) VALUES (:id, :description, :params, :allowed_user_groups)",
 		group,
 	)
 	return err
@@ -61,7 +61,7 @@ func (p *SqliteProvider) Create(ctx context.Context, group *ClientGroup) error {
 func (p *SqliteProvider) Update(ctx context.Context, group *ClientGroup) error {
 	_, err := p.db.NamedExecContext(
 		ctx,
-		"INSERT OR REPLACE INTO client_groups (id, description, params) VALUES (:id, :description, :params)",
+		"INSERT OR REPLACE INTO client_groups (id, description, params, allowed_user_groups) VALUES (:id, :description, :params, :allowed_user_groups)",
 		group,
 	)
 	return err
