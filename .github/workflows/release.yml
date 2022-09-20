@@ -62,6 +62,7 @@ jobs:
           tar tzf ${PLUS_ARTIFACT}
           ls -la ${PLUS_ARTIFACT}
           # Get the release id of the tag
+          export GITHUB_TOKEN=${GITHUB_TOKEN}
           RELEASE_ID=$(../.github/scripts/gh-release-id.py ${GITHUB_REF_NAME})
           echo "🚩 RELEASE_ID=$RELEASE_ID"
           curl -v -s --fail -T ${PLUS_ARTIFACT} \
