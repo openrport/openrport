@@ -46,6 +46,7 @@ type Config struct {
 	ClientSecret         string `mapstructure:"client_secret"`
 	RequiredOrganization string `mapstructure:"required_organization"`
 	PermittedUserList    bool   `mapstructure:"permitted_user_list"`
+	PermittedUserMatch   string `mapstructure:"permitted_user_match"`
 
 	// currently only used by the Auth0 provider
 	JWKSURL       string `mapstructure:"jwks_url"`
