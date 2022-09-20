@@ -83,7 +83,7 @@ func TestManagerList(t *testing.T) {
 			ID:        "123",
 			CreatedBy: "user1",
 			CreatedAt: &now,
-			Name:      "some nam",
+			Name:      "some name",
 			Script:    "some script",
 		},
 	}
@@ -93,7 +93,7 @@ func TestManagerList(t *testing.T) {
 
 	mngr := NewManager(dbProv, testLog)
 
-	inputURL, err := url.Parse("/someu?sort=name&sort=-created_at&filter[name]=some nam&fields[scripts]=id,name")
+	inputURL, err := url.Parse("/someu?sort=name&sort=-created_at&filter[name]=some name&fields[scripts]=id,name")
 	require.NoError(t, err)
 
 	req := &http.Request{
@@ -119,7 +119,7 @@ func TestManagerList(t *testing.T) {
 			Filters: []query.FilterOption{
 				{
 					Column: []string{"name"},
-					Values: []string{"some nam"},
+					Values: []string{"some name"},
 				},
 			},
 			Fields: []query.FieldsOption{
@@ -175,20 +175,23 @@ func TestManagerClose(t *testing.T) {
 }
 
 func TestGetOne(t *testing.T) {
+	timeoutSec := 99
 	givenStoredValue := &Script{
 		ID:        "123",
 		CreatedBy: "guy",
+		TimoutSec: &timeoutSec,
 	}
 	expectedValue := &Script{
 		ID:        "123",
 		CreatedBy: "guy",
+		TimoutSec: &timeoutSec,
 	}
 	dbProv := &DbProviderMock{
 		getByIDScriptToGive: givenStoredValue,
 		getByIDFoundToGive:  true,
 	}
 
-	inputURL, err := url.Parse("/scripts/id?fields[scripts]=id,name")
+	inputURL, err := url.Parse("/scripts/id?fields[scripts]=id,name,timeout_sec")
 	require.NoError(t, err)
 	req := &http.Request{
 		URL: inputURL,
@@ -222,12 +225,14 @@ func TestGetOne(t *testing.T) {
 }
 
 func TestStore(t *testing.T) {
+	timeoutSec := 66
 	inputValue := &InputScript{
-		Name:        "some nam",
+		Name:        "some name",
 		Interpreter: "some inter",
 		IsSudo:      true,
 		Cwd:         "/user/local",
 		Script:      "pwd",
+		TimoutSec:   timeoutSec,
 	}
 
 	t.Run("create_success", func(t *testing.T) {
@@ -256,8 +261,11 @@ func TestStore(t *testing.T) {
 		assert.Equal(t, "some inter", *dbProv.saveScriptGiven.Interpreter)
 		assert.Equal(t, "some inter", *storedScript.Interpreter)
 
-		assert.Equal(t, "some nam", dbProv.saveScriptGiven.Name)
-		assert.Equal(t, "some nam", storedScript.Name)
+		assert.Equal(t, "some name", dbProv.saveScriptGiven.Name)
+		assert.Equal(t, "some name", storedScript.Name)
+
+		assert.Equal(t, &timeoutSec, dbProv.saveScriptGiven.TimoutSec)
+		assert.Equal(t, &timeoutSec, storedScript.TimoutSec)
 
 		assert.True(t, *dbProv.saveScriptGiven.IsSudo)
 		assert.True(t, *storedScript.IsSudo)
@@ -289,8 +297,11 @@ func TestStore(t *testing.T) {
 		assert.Equal(t, "some inter", *dbProv.saveScriptGiven.Interpreter)
 		assert.Equal(t, "some inter", *storedScript.Interpreter)
 
-		assert.Equal(t, "some nam", dbProv.saveScriptGiven.Name)
-		assert.Equal(t, "some nam", storedScript.Name)
+		assert.Equal(t, "some name", dbProv.saveScriptGiven.Name)
+		assert.Equal(t, "some name", storedScript.Name)
+
+		assert.Equal(t, &timeoutSec, dbProv.saveScriptGiven.TimoutSec)
+		assert.Equal(t, &timeoutSec, storedScript.TimoutSec)
 
 		assert.True(t, *dbProv.saveScriptGiven.IsSudo)
 		assert.True(t, *storedScript.IsSudo)
@@ -309,7 +320,7 @@ func TestStore(t *testing.T) {
 		mngr := NewManager(dbProv, testLog)
 
 		_, err := mngr.Update(context.Background(), "1", inputValue, "someuser")
-		require.EqualError(t, err, "another script with the same name 'some nam' exists")
+		require.EqualError(t, err, "another script with the same name 'some name' exists")
 	})
 
 	t.Run("update_with_invalid_id", func(t *testing.T) {
@@ -333,7 +344,7 @@ func TestStore(t *testing.T) {
 		mngr := NewManager(dbProv, testLog)
 
 		_, err := mngr.Create(context.Background(), inputValue, "someuser")
-		require.EqualError(t, err, "another script with the same name 'some nam' exists")
+		require.EqualError(t, err, "another script with the same name 'some name' exists")
 	})
 
 	t.Run("update_list_error", func(t *testing.T) {

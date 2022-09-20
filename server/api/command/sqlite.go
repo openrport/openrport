@@ -77,14 +77,24 @@ func (p *SqliteProvider) Save(ctx context.Context, s *Command) (string, error) {
 
 		_, err = p.db.NamedExecContext(
 			ctx,
-			"INSERT INTO `commands` (`id`, `name`, `created_at`, `created_by`, `updated_at`, `updated_by`, `cmd`, `tags`) VALUES (:id, :name, :created_at, :created_by, :updated_at, :updated_by, :cmd, :tags)",
+			"INSERT INTO `commands` "+
+				"(`id`, `name`, `created_at`, `created_by`, `updated_at`, `updated_by`, `cmd`, `tags`, `timeout_sec`)"+
+				" VALUES "+
+				"(:id, :name, :created_at, :created_by, :updated_at, :updated_by, :cmd, :tags, :timeout_sec)",
 			s,
 		)
 
 		return commandID, err
 	}
 
-	q := "UPDATE `commands` SET `name` = :name, `updated_at` = :updated_at, `updated_by` =  :updated_by, `cmd` = :cmd, `tags` = :tags WHERE id = :id"
+	q := "UPDATE `commands` SET " +
+		"`name` = :name, " +
+		"`updated_at` = :updated_at, " +
+		"`updated_by` =  :updated_by, " +
+		"`cmd` = :cmd, " +
+		"`tags` = :tags, " +
+		"`timeout_sec` = :timeout_sec " +
+		"WHERE id = :id"
 	_, err := p.db.NamedExecContext(ctx, q, s)
 
 	return s.ID, err

@@ -11,7 +11,6 @@ import (
 	"os"
 	"os/exec"
 	"path/filepath"
-	"regexp"
 	"runtime"
 	"strconv"
 	"strings"
@@ -20,12 +19,10 @@ import (
 
 	"github.com/shirou/gopsutil/process"
 
-	"github.com/cloudradar-monitoring/rport/client/monitoring/docker"
 	"github.com/cloudradar-monitoring/rport/client/monitoring/helper"
 )
 
 var errorProcessTerminated = fmt.Errorf("Process was terminated")
-var dockerContainerIDRE = regexp.MustCompile(`(?m)/docker/([a-f0-9]*)$`)
 
 type ProcessCache struct {
 	monitoredProcessCache map[int]*process.Process
@@ -113,25 +110,6 @@ func (ph *ProcessHandler) processesFromProc(systemMemorySize uint64) ([]*ProcSta
 			ph.logger.Errorf("failed to read cmdline(%s):%v", cmdLineFilepath, err)
 		} else if err == nil {
 			stat.Cmdline = strings.Replace(string(bytes.TrimRight(cmdline, "\x00")), "\x00", " ", -1)
-		}
-
-		cgroupFilepath := helper.HostProc() + "/" + pidString + "/cgroup"
-		cgroup, err := readProcFile(cgroupFilepath)
-		if err != nil && err != errorProcessTerminated {
-			ph.logger.Errorf("failed to read cgroup(%s):%v", cgroupFilepath, err)
-		} else if err == nil {
-			reParts := dockerContainerIDRE.FindStringSubmatch(string(cgroup))
-			if len(reParts) > 0 {
-				containerID := reParts[1]
-				containerName, err := ph.dockerHandler.ContainerNameByID(containerID)
-				if err != nil {
-					if err != docker.ErrorNotImplementedForOS && err != docker.ErrorDockerNotAvailable {
-						ph.logger.Errorf("failed to read docker container name by id(%s):%v", containerID, err)
-					}
-				} else {
-					stat.Container = containerName
-				}
-			}
 		}
 
 		statFilepath := helper.HostProc() + "/" + pidString + "/stat"
@@ -359,7 +337,7 @@ func (ph *ProcessHandler) processesFromPS(systemMemorySize uint64) ([]*ProcStat,
 				ph.logger.Errorf("ps: failed to convert PGID(%s) to int:%v", pgidString, err)
 			}
 		} else {
-			// we can't left ProcessGID set to default 0 if it is unavailable for some reason, because 0 PGID means the kernel task group
+			// we can't leave ProcessGID set to default 0 if it is unavailable for some reason, because 0 PGID means the kernel task group
 			stat.ProcessGID = -1
 		}
 

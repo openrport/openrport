@@ -1,0 +1,2 @@
+ALTER TABLE "commands" ADD COLUMN "timeout_sec" INT NOT NULL DEFAULT 60;
+ALTER TABLE "scripts" ADD COLUMN "timeout_sec" INT NOT NULL DEFAULT 60;

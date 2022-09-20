@@ -4,6 +4,8 @@ import (
 	"testing"
 	"time"
 
+	"github.com/cloudradar-monitoring/rport/server/cgroups"
+
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 
@@ -465,7 +467,18 @@ func TestGetUserClients(t *testing.T) {
 	c6 := New(t).AllowedUserGroups([]string{"group2"}).Build()                       // group2
 	c7 := New(t).AllowedUserGroups([]string{"group3"}).Build()                       // group3
 	c8 := New(t).AllowedUserGroups([]string{"group2", "group3"}).Build()             // group2 + group3
-	allClients := []*Client{c1, c2, c3, c4, c5, c6, c7, c8}
+	c9 := New(t).Build()
+	allClients := []*Client{c1, c2, c3, c4, c5, c6, c7, c8, c9}
+
+	clientGroups := []*cgroups.ClientGroup{
+		{
+			ID:                "1",
+			AllowedUserGroups: []string{"group6"},
+			Params: &cgroups.ClientParams{
+				ClientID: &cgroups.ParamValues{cgroups.Param(c9.ID)},
+			},
+		},
+	}
 
 	repo := NewClientRepository(allClients, nil, testLog)
 	testCases := []struct {
@@ -493,12 +506,18 @@ func TestGetUserClients(t *testing.T) {
 			user:          &users.User{Groups: []string{"group1", "group2"}},
 			wantClientIDs: []*Client{c3, c4, c5, c6, c8},
 		},
+		{
+			name:          "non-admin user with access via client groups",
+			user:          &users.User{Groups: []string{"group6"}},
+			wantClientIDs: []*Client{c9},
+		},
 	}
 
 	for _, tc := range testCases {
 		t.Run(tc.name, func(t *testing.T) {
 			// when
-			gotClients, gotErr := repo.GetUserClients(tc.user)
+			gotClients, gotErr := repo.GetUserClients(tc.user, clientGroups)
+			t.Logf("Access ganted to %d clients", len(gotClients))
 
 			// then
 			require.NoError(t, gotErr)

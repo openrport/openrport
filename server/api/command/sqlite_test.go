@@ -18,6 +18,7 @@ import (
 	"github.com/cloudradar-monitoring/rport/share/test"
 )
 
+var timeoutSec = DefaultTimeoutSec
 var demoData = []Command{
 	{
 		ID:        "1",
@@ -28,6 +29,7 @@ var demoData = []Command{
 		UpdatedAt: ptr.Time(time.Date(2003, 1, 1, 1, 0, 0, 0, time.UTC)),
 		Cmd:       "ls -la",
 		Tags:      ptr.StringSlice("tag1", "tag2"),
+		TimoutSec: &timeoutSec,
 	},
 	{
 		ID:        "2",
@@ -38,6 +40,7 @@ var demoData = []Command{
 		UpdatedAt: ptr.Time(time.Date(2002, 1, 1, 2, 0, 0, 0, time.UTC)),
 		Cmd:       "pwd",
 		Tags:      ptr.StringSlice(),
+		TimoutSec: &timeoutSec,
 	},
 }
 var DataSourceOptions = sqlite.DataSourceOptions{WALEnabled: false}
@@ -52,27 +55,33 @@ func TestGetByID(t *testing.T) {
 	err = addDemoData(dbProv.db)
 	require.NoError(t, err)
 
-	val, found, err := dbProv.GetByID(ctx, "1", &query.RetrieveOptions{})
-	require.NoError(t, err)
-	require.True(t, found)
-	assert.Equal(t, demoData[0], *val)
+	var found bool
+	var com *Command
 
-	_, found, err = dbProv.GetByID(ctx, "-2", &query.RetrieveOptions{})
-	require.NoError(t, err)
-	require.False(t, found)
+	t.Run("first test", func(t *testing.T) {
+		com, found, err = dbProv.GetByID(ctx, "1", &query.RetrieveOptions{})
+		require.NoError(t, err)
+		require.True(t, found)
+		assert.Equal(t, demoData[0], *com)
+		_, found, err = dbProv.GetByID(ctx, "-2", &query.RetrieveOptions{})
+		require.NoError(t, err)
+		require.False(t, found)
+	})
 
-	val, found, err = dbProv.GetByID(ctx, "1", &query.RetrieveOptions{Fields: []query.FieldsOption{
-		{
-			Resource: "commands",
-			Fields:   []string{"created_by", "cmd"},
-		},
-	}})
-	require.NoError(t, err)
-	require.True(t, found)
-	assert.Equal(t, Command{
-		CreatedBy: "user1",
-		Cmd:       "ls -la",
-	}, *val)
+	t.Run("second test", func(t *testing.T) {
+		com, found, err = dbProv.GetByID(ctx, "1", &query.RetrieveOptions{Fields: []query.FieldsOption{
+			{
+				Resource: "commands",
+				Fields:   []string{"created_by", "cmd"},
+			},
+		}})
+		require.NoError(t, err)
+		require.True(t, found)
+		assert.Equal(t, Command{
+			CreatedBy: "user1",
+			Cmd:       "ls -la",
+		}, *com)
+	})
 }
 
 func TestList(t *testing.T) {
@@ -248,17 +257,17 @@ func TestUpdate(t *testing.T) {
 	id, err := dbProv.Save(ctx, &itemToSave)
 	require.NoError(t, err)
 	assert.Equal(t, itemToSave.ID, id)
-
 	expectedRows := []map[string]interface{}{
 		{
-			"id":         "1",
-			"name":       itemToSave.Name,
-			"created_at": *itemToSave.CreatedAt,
-			"created_by": itemToSave.CreatedBy,
-			"updated_at": *itemToSave.UpdatedAt,
-			"updated_by": itemToSave.UpdatedBy,
-			"cmd":        itemToSave.Cmd,
-			"tags":       `["tag1","tag2"]`,
+			"id":          "1",
+			"name":        itemToSave.Name,
+			"created_at":  *itemToSave.CreatedAt,
+			"created_by":  itemToSave.CreatedBy,
+			"updated_at":  *itemToSave.UpdatedAt,
+			"updated_by":  itemToSave.UpdatedBy,
+			"cmd":         itemToSave.Cmd,
+			"tags":        `["tag1","tag2"]`,
+			"timeout_sec": int64(timeoutSec),
 		},
 	}
 	q := "SELECT * FROM `commands` where id = ?"
@@ -284,14 +293,15 @@ func TestDelete(t *testing.T) {
 
 	expectedRows := []map[string]interface{}{
 		{
-			"id":         "1",
-			"name":       demoData[0].Name,
-			"created_at": *demoData[0].CreatedAt,
-			"created_by": demoData[0].CreatedBy,
-			"updated_at": *demoData[0].UpdatedAt,
-			"updated_by": demoData[0].UpdatedBy,
-			"cmd":        demoData[0].Cmd,
-			"tags":       `["tag1","tag2"]`,
+			"id":          "1",
+			"name":        demoData[0].Name,
+			"created_at":  *demoData[0].CreatedAt,
+			"created_by":  demoData[0].CreatedBy,
+			"updated_at":  *demoData[0].UpdatedAt,
+			"updated_by":  demoData[0].UpdatedBy,
+			"cmd":         demoData[0].Cmd,
+			"tags":        `["tag1","tag2"]`,
+			"timeout_sec": int64(timeoutSec),
 		},
 	}
 	q := "SELECT * FROM `commands`"

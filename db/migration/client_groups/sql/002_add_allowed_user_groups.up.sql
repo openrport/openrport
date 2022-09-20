@@ -1,0 +1,1 @@
+alter table "client_groups" add allowed_user_groups TEXT NOT NULL DEFAULT '[]';
