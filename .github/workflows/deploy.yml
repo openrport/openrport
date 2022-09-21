@@ -7,9 +7,8 @@ on:
 
 jobs:
   server:
-    name: Server
+    name: Deploy to demo server
     runs-on: ubuntu-latest
-    # TODO(m-terel): consider to run all ssh commands at once if current execution would be overhead
     steps:
       - name: Checkout
         uses: actions/checkout@v2
@@ -20,8 +19,14 @@ jobs:
           go-version: 1.18
 
       - name: Build
-        # set rport version to {date-time}-sha:{github-master-head-sha}
-        run: go build -v -ldflags="-X 'github.com/cloudradar-monitoring/rport/share.BuildVersion=`date -u +%d-%m-%Y.%H:%M:%S`-sha:`git rev-parse HEAD`'"  -o ./ ./cmd/...
+        # set rport version to {date-time}-{github-master-head-sha}
+        run: go build -v -ldflags="-X 'github.com/cloudradar-monitoring/rport/share.BuildVersion=$(date -u +%y.%m%d.%H%M)-$(git rev-parse HEAD)'"  -o ./ ./cmd/...
+
+      - name: Test Build
+        shell: bash
+        run: |
+            .github/scripts/start_rportd.sh
+            .github/scripts/start_rportd.sh
 
       - name: Copy a new version to remote server
         uses: appleboy/scp-action@master
