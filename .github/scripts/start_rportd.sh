@@ -19,11 +19,7 @@ EOF
 echo -n "RPortd "
 ./rportd --version
 ./rportd -c rportd.conf &
-for C in $(seq 1 10);do
-  ncat -w1 -z 127.0.0.1 8080 && break
-  echo "${C}: Waiting for server to come up"
-  sleep 1
-done
+sleep 3
 echo -n "RPortd pid "
 pidof rportd
 echo "✅ rportd is running"

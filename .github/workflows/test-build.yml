@@ -1,9 +1,9 @@
-name: Deploy
+name: Build and run
 on: [push]
 
 jobs:
-  server:
-    name: Server
+  build_n_run:
+    name: Build and run
     runs-on: ubuntu-latest
     steps:
       - name: Checkout
