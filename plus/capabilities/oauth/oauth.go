@@ -45,6 +45,7 @@ type Config struct {
 	ClientID             string `mapstructure:"client_id"`
 	ClientSecret         string `mapstructure:"client_secret"`
 	RequiredOrganization string `mapstructure:"required_organization"`
+	RequiredGroupID      string `mapstructure:"required_group_id"`
 	PermittedUserList    bool   `mapstructure:"permitted_user_list"`
 	PermittedUserMatch   string `mapstructure:"permitted_user_match"`
 
