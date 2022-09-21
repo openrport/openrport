@@ -463,7 +463,7 @@ func runMain(*cobra.Command, []string) {
 	filesAPI := files.NewFileSystem()
 
 	plusManager, err := chserver.EnablePlusIfLicensed(cfg, filesAPI)
-	if err != nil {
+	if err != nil && err != chserver.ErrPlusNotEnabled {
 		log.Fatal(err)
 	}
 

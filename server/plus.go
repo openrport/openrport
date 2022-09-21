@@ -11,11 +11,15 @@ import (
 	"github.com/cloudradar-monitoring/rport/share/logger"
 )
 
+var (
+	ErrPlusNotEnabled = errors.New("rport-plus not enabled")
+)
+
 // EnablePlusIfLicensed will initialize a new plus manager and request registration of the desired
 // capabilities
 func EnablePlusIfLicensed(cfg *Config, filesAPI files.FileAPI) (plusManager rportplus.Manager, err error) {
-	if cfg.PlusConfig == nil {
-		return nil, errors.New("rport-plus not enabled")
+	if cfg.PlusConfig == nil || (cfg.PlusConfig != nil && cfg.PlusConfig.PluginPath == "") {
+		return nil, ErrPlusNotEnabled
 	}
 
 	logger := logger.NewLogger("rport-plus", cfg.Logging.LogOutput, cfg.Logging.LogLevel)
