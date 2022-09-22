@@ -6,7 +6,7 @@ get:
   security: []
   description: >
     * This API is only enabled if the Rport Plus plugin is loaded and running. For
-    more information, see [Rport Plus](https://oss.rport.io/docs/no25-plus-introduction.html).
+    more information, see [Rport Plus](https://plus.rport.io/auth/oauth-introduction/).
 
     * It allows an authorization code (`code`) returned by an OAuth provider
     callback to be used to login and obtain an Rport Authorization JWT Token. The
