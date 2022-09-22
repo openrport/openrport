@@ -9,9 +9,9 @@ get:
     more information, see [Rport Plus](https://plus.rport.io/auth/oauth-introduction/).
 
     * It allows an authorization code (`code`) returned by an OAuth provider
-    callback to be used to login and obtain an Rport Authorization JWT Token. The
-    `state` parameter also received in the callback must also be provided and
-    will be validated by the Rport server.
+    callback to be used to login to RPort and obtain an Rport Authorization JWT
+    Token. The `state` parameter also received in the callback must also be
+    provided and will be validated by the Rport server.
 
     * Note that security will be increased if clients verify that the `state`
     parameter returned in the callback matches the `state` parameter supplied
