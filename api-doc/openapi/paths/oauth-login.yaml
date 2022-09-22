@@ -1,23 +1,23 @@
 get:
   tags:
-    - OAuth / Exchange Code
-  summary: Exchange an OAuth Authorization Code for an Rport Authorization JWT Token
-  operationId: ExchangeCodeGet
+    - OAuth / Login
+  summary: Login with OAuth
+  operationId: OAuthLoginGet
   security: []
   description: >
     * This API is only enabled if the Rport Plus plugin is loaded and running. For
     more information, see [Rport Plus](https://oss.rport.io/docs/no25-plus-introduction.html).
 
     * It allows an authorization code (`code`) returned by an OAuth provider
-    callback to be exchanged for an Rport Authorization JWT Token. The `state`
-    parameter also received in the callback must also be provided and will be
-    validated by the Rport server. 
+    callback to be used to login and obtain an Rport Authorization JWT Token. The
+    `state` parameter also received in the callback must also be provided and
+    will be validated by the Rport server.
 
-    * Note that security will be increased if clients verify that the `state` 
-    parameter returned in the callback matches the `state` parameter supplied 
-    initially as part of the OAuth `authorize` login url. To obtain an `authorize`
-    login url, the Rport login api must be called. It will return `Unauthorized`
-    but also two additional APIs that can be used to perform OAuth based logins.
+    * Note that security will be increased if clients verify that the `state`
+    parameter returned in the callback matches the `state` parameter supplied
+    initially as part of the OAuth `authorize` url. To obtain an `authorize`
+    url, the Rport `/auth/ext/settings` endpoint must be called. It will return
+    two additional APIs that can be used to perform OAuth based logins.
 
   parameters:
     - name: code

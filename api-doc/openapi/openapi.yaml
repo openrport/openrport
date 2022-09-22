@@ -23,7 +23,7 @@ tags:
       For more details (fix this) https://oss.rport.io/docs/no25-plus-oauth.html
 
       For use with Rport Plus OAuth, see https://oss.rport.io/docs/no25-plus-introduction.html
-  - name: OAuth / Exchange Code
+  - name: OAuth / Login
     description: For more details https://oss.rport.io/docs/no25-plus-oauth.html
   - name: Profile & Info
     description: Profile and System Information
@@ -47,8 +47,8 @@ paths:
     $ref: paths/auth-provider.yaml
   /auth/ext/settings:
     $ref: paths/auth-ext-settings.yaml
-  /oauth/exchangecode:
-    $ref: paths/oauth-exchangecode.yaml
+  /oauth/login:
+    $ref: paths/oauth-login.yaml
   /plus/status:
     $ref: paths/plus-status.yaml
   /logout:

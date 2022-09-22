@@ -62,7 +62,7 @@ const (
 	MicrosoftOAuthProvider = "microsoft"
 	Auth0OAuthProvider     = "auth0"
 
-	DefaultLoginURI = "/oauth/exchangecode"
+	DefaultLoginURI = "/oauth/login"
 )
 
 // Capability is used by rportd to maintain loaded info about the plugin's

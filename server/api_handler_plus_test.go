@@ -270,7 +270,7 @@ func TestHandleOAuthAuthorizationCode(t *testing.T) {
 			al, mockUsersService := SetupAPIListener(t, tc.OAuthConfig, tc.Username)
 
 			w := httptest.NewRecorder()
-			req := httptest.NewRequest("GET", "/api/v1/plus/oauth/exchangecode", nil)
+			req := httptest.NewRequest("GET", "/api/v1/plus/oauth/login", nil)
 
 			al.router.ServeHTTP(w, req)
 
