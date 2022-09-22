@@ -2,7 +2,6 @@ package chserver
 
 import (
 	"encoding/json"
-	"fmt"
 	"net/http"
 	"net/http/httptest"
 	"os"
@@ -161,10 +160,6 @@ func TestHandleGetAuthSettings(t *testing.T) {
 	var settings AuthSettingsResponse
 	err = json.NewDecoder(w.Body).Decode(&settings)
 	assert.NoError(t, err)
-
-	fmt.Printf("settings = %+v\n", settings)
-	loginInfo := settings.Data.LoginInfo
-	fmt.Printf("loginInfo = %+v\n", loginInfo)
 
 	assert.Equal(t, "github", settings.Data.AuthProvider)
 	assert.Equal(t, "mock login msg", settings.Data.LoginInfo.LoginMsg)
