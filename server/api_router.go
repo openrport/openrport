@@ -186,7 +186,7 @@ func (al *APIListener) initRouter() {
 	authRouter.HandleFunc(authSettingsRoute, al.handleGetAuthSettings).Methods(http.MethodGet)
 
 	if al.config.PlusOAuthEnabled() {
-		plusRouter.HandleFunc(oauth.DefaultLoginURI, al.handleOAuthAuthorizationCode).Methods(http.MethodGet)
+		api.HandleFunc(oauth.DefaultLoginURI, al.handleOAuthAuthorizationCode).Methods(http.MethodGet)
 	}
 
 	docRoot := al.config.API.DocRoot
