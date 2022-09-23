@@ -32,6 +32,7 @@ const (
 
 // Client represents client connection
 type Client struct {
+	tunnelIDAutoIncrement  int64
 	ID                     string                 `json:"id"`
 	SessionID              string                 `json:"session_id"`
 	Name                   string                 `json:"name"`
@@ -69,7 +70,6 @@ type Client struct {
 	Context    context.Context `json:"-"`
 	Logger     *logger.Logger  `json:"-"`
 
-	tunnelIDAutoIncrement int64
 	lock                  sync.Mutex
 }
 
