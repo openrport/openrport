@@ -18,6 +18,7 @@ import (
 )
 
 type tunnelTCP struct {
+	lastConnClose             int64          // time stored as int64 so it can be used with atomic
 	*logger.Logger
 	models.Remote
 	sshConn ssh.Conn
@@ -26,7 +27,6 @@ type tunnelTCP struct {
 	stopFn                    func()
 	connectionIDAutoIncrement int
 	connCount                 int32
-	lastConnClose             int64          // time stored as int64 so it can be used with atomic
 	wg                        sync.WaitGroup // TODO: verify whether wait group is needed here
 }
 
