@@ -14,7 +14,7 @@ import (
 )
 
 const (
-	defaultPluginPath = "./rport-plus/plugin.so"
+	defaultPluginPath = "../rport-plus/rport-plus.so"
 )
 
 var plusLog = logger.NewLogger("rport-plus", logger.LogOutput{File: os.Stdout}, logger.LogLevelDebug)
