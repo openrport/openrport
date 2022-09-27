@@ -61,6 +61,7 @@ const (
 	GitHubOAuthProvider    = "github"
 	MicrosoftOAuthProvider = "microsoft"
 	Auth0OAuthProvider     = "auth0"
+	GoogleOAuthProvider    = "google"
 
 	DefaultLoginURI = "/oauth/login"
 )
