@@ -12,10 +12,11 @@ import (
 )
 
 type MockCapabilityProvider struct {
-	PerformAuthCodeExchangeRequest *http.Request
-	GetUserToken                   string
-	ShouldFailGetLoginInfo         bool
-	Username                       string
+	PerformAuthCodeExchangeRequest    *http.Request
+	GetUserToken                      string
+	ShouldFailGetLoginInfo            bool
+	ShouldFailGetAccessTokenForDevice bool
+	Username                          string
 }
 
 type Capability struct {
@@ -54,8 +55,8 @@ func (mp *MockCapabilityProvider) ValidateConfig() (err error) {
 	return nil
 }
 
-// GetOAuthLoginInfo returns mock login info
-func (mp *MockCapabilityProvider) GetOAuthLoginInfo() (loginInfo *oauth.LoginInfo, err error) {
+// GetLoginInfo returns mock login info
+func (mp *MockCapabilityProvider) GetLoginInfo() (loginInfo *oauth.LoginInfo, err error) {
 	if mp.ShouldFailGetLoginInfo {
 		return nil, errors.New("got an error")
 	}
@@ -84,4 +85,44 @@ func (mp *MockCapabilityProvider) GetPermittedUser(r *http.Request, token string
 		username = mp.Username
 	}
 	return username, nil
+}
+
+func (mp *MockCapabilityProvider) GetLoginInfoForDevice(r *http.Request) (loginInfo *oauth.DeviceLoginInfo, err error) {
+	if mp.ShouldFailGetLoginInfo {
+		return nil, errors.New("got an error")
+	}
+
+	authInfo := &oauth.DeviceAuthInfo{
+		UserCode:        "mock-user-code",
+		DeviceCode:      "mock-device-code",
+		VerificationURI: "mock-verification-uri",
+		ExpiresIn:       333,
+		Interval:        4,
+		Message:         "mock-message",
+	}
+
+	loginInfo = &oauth.DeviceLoginInfo{
+		LoginURI:       "/mock_device_login_uri",
+		DeviceAuthInfo: authInfo,
+	}
+
+	return loginInfo, nil
+}
+
+func (mp *MockCapabilityProvider) GetAccessTokenForDevice(r *http.Request) (token string, username string, errInfo *oauth.DeviceAuthStatusErrorInfo, err error) {
+	if mp.ShouldFailGetAccessTokenForDevice {
+		errInfo := &oauth.DeviceAuthStatusErrorInfo{
+			StatusCode:   http.StatusForbidden,
+			ErrorCode:    "got an error",
+			ErrorMessage: "error message",
+			ErrorURI:     "https://error-info-here.com",
+		}
+		return "", "", errInfo, errors.New("got an error")
+	}
+
+	return "mock-token", "mock-username", nil, nil
+}
+
+func (mp *MockCapabilityProvider) GetPermittedUserForDevice(t *http.Request, token string) (username string, err error) {
+	return "testuser", nil
 }

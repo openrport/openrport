@@ -47,6 +47,55 @@ func (al *APIListener) handleOAuthAuthorizationCode(w http.ResponseWriter, r *ht
 	al.handleLogin(username, "", true /* skipPasswordValidation */, w, r)
 }
 
+// handleGetDeviceAuth will return an RPort JWT token if the user has completed authorization
+// and the user is permitted. If the user hasn't completed authorization yet then an
+// error will be returned as per the OAuth device flow rules and the client can retry
+// after the interval period returned in the device login info. If the response indicates
+// a non-retryable error then the client should stop retrying and inform the end user.
+func (al *APIListener) handleGetDeviceAuth(w http.ResponseWriter, r *http.Request) {
+	plus := al.Server.plusManager
+	if plus == nil {
+		al.jsonErrorResponse(w, http.StatusUnauthorized, rportplus.ErrPlusNotAvailable)
+		return
+	}
+
+	capEx := plus.GetOAuthCapabilityEx()
+	if capEx == nil {
+		al.jsonErrorResponse(w, http.StatusForbidden, rportplus.ErrCapabilityNotAvailable(rportplus.PlusOAuthCapability))
+		return
+	}
+
+	token, username, errInfo, err := capEx.GetAccessTokenForDevice(r)
+	if err != nil {
+		if errInfo != nil {
+			// error handling for the OAuth device flow is a little strange.
+			// pending and slow_down errors aren't really errors. Also
+			// the different providers seems to sometimes report errors via
+			// the statusCode and sometimes not. Do the best that we can
+			// here.
+			response := api.NewSuccessPayload(errInfo)
+			al.writeJSONResponse(w, errInfo.StatusCode, response)
+		} else {
+			al.jsonErrorResponse(w, http.StatusUnauthorized, err)
+		}
+		return
+	}
+
+	// if no previous err and an empty username then attempt to get
+	// a permitted username from the oauth/identity provider
+	if username == "" {
+		username, err = capEx.GetPermittedUserForDevice(r, token)
+		if err != nil {
+			al.jsonErrorResponse(w, http.StatusUnauthorized, err)
+			return
+		}
+	}
+
+	// pass the username to the existing login logic to create the user (if required) and
+	// get an rport JWT bearer token.
+	al.handleLogin(username, "", true /* skipPasswordValidation */, w, r)
+}
+
 // handlePlusStatus makes a request to the plugin for it's status/version info
 func (al *APIListener) handlePlusStatus(w http.ResponseWriter, r *http.Request) {
 	plus := al.Server.plusManager

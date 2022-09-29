@@ -28,12 +28,48 @@ type LoginInfo struct {
 	Expiry       time.Time `json:"expiry"`
 }
 
+type DeviceAuthInfo struct {
+	UserCode        string `json:"user_code"`
+	DeviceCode      string `json:"device_code"`
+	VerificationURI string `json:"verification_uri"`
+	ExpiresIn       int    `json:"expires_in"`
+	Interval        int    `json:"interval"`
+	Message         string `json:"message"`
+}
+
+type GoogleDeviceAuthInfo struct {
+	UserCode        string `json:"user_code"`
+	DeviceCode      string `json:"device_code"`
+	VerificationURL string `json:"verification_url"`
+	ExpiresIn       int    `json:"expires_in"`
+	Interval        int    `json:"interval"`
+	Message         string `json:"message"`
+}
+
+type DeviceLoginInfo struct {
+	LoginURI string `json:"login_uri"`
+
+	DeviceAuthInfo *DeviceAuthInfo `json:"auth_info"`
+}
+
+type DeviceAuthStatusErrorInfo struct {
+	StatusCode   int    `json:"status_code"`
+	ErrorCode    string `json:"error"`
+	ErrorMessage string `json:"error_description"`
+	ErrorURI     string `json:"error_uri"`
+}
+
 // CapabilityEx represents the functional interface provided by the OAuth capability
 type CapabilityEx interface {
 	ValidateConfig() (err error)
-	GetOAuthLoginInfo() (loginInfo *LoginInfo, err error)
+
+	GetLoginInfo() (loginInfo *LoginInfo, err error)
 	PerformAuthCodeExchange(r *http.Request) (token string, username string, err error)
-	GetPermittedUser(r *http.Request, token string) (username string, err error)
+	GetPermittedUser(r *http.Request, accessToken string) (username string, err error)
+
+	GetLoginInfoForDevice(r *http.Request) (loginInfo *DeviceLoginInfo, err error)
+	GetAccessTokenForDevice(r *http.Request) (token string, username string, errInfo *DeviceAuthStatusErrorInfo, err error)
+	GetPermittedUserForDevice(r *http.Request, accessToken string) (username string, err error)
 }
 
 // Config is the OAuth capability config, as loaded from the rportd config file
@@ -49,6 +85,14 @@ type Config struct {
 	PermittedUserList    bool   `mapstructure:"permitted_user_list"`
 	PermittedUserMatch   string `mapstructure:"permitted_user_match"`
 
+	// must be set when the device/cli flow is required.
+	// e.g. when using RPort CLI
+	BaseDeviceAuthorizeURL string `mapstructure:"device_authorize_url"`
+
+	// these two fields only required when using Google's device flow
+	DeviceClientID     string `mapstructure:"device_client_id"`
+	DeviceClientSecret string `mapstructure:"device_client_secret"`
+
 	// currently only used by the Auth0 provider
 	JWKSURL       string `mapstructure:"jwks_url"`
 	RoleClaim     string `mapstructure:"role_claim"`
@@ -63,7 +107,8 @@ const (
 	Auth0OAuthProvider     = "auth0"
 	GoogleOAuthProvider    = "google"
 
-	DefaultLoginURI = "/oauth/login"
+	DefaultLoginURI       = "/oauth/login"
+	DefaultDeviceLoginURI = "/oauth/login/device"
 )
 
 // Capability is used by rportd to maintain loaded info about the plugin's
