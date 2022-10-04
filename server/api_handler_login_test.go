@@ -347,7 +347,7 @@ func TestHandleGetLogin(t *testing.T) {
 }
 
 type AuthProviderResponse struct {
-	Data AuthProviderSettings
+	Data AuthProviderInfo
 }
 
 func TestHandleGetBuiltInAuthProvider(t *testing.T) {
@@ -462,7 +462,7 @@ func TestHandleGetAuthSettingsWhenPlusOAuthAvailable(t *testing.T) {
 	loginInfo := settings.Data.LoginInfo
 
 	assert.NotEmpty(t, loginInfo.AuthorizeURL)
-	assert.Equal(t, oauth.DefaultLoginURI, loginInfo.LoginURI)
+	assert.Equal(t, allRoutesPrefix+oauth.DefaultLoginURI, loginInfo.LoginURI)
 	assert.NotEmpty(t, loginInfo.State)
 	assert.NotEmpty(t, loginInfo.Expiry)
 	assert.Equal(t, http.StatusOK, w.Code)

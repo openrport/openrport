@@ -207,9 +207,9 @@ func (al *APIListener) handlePostLogin(w http.ResponseWriter, req *http.Request)
 
 const BuiltInAuthProviderName = "built-in"
 
-// AuthProviderSettings contains the provider name and the uris to be used
+// AuthProviderInfo contains the provider name and the uris to be used
 // for either regular or device flow based authorization
-type AuthProviderSettings struct {
+type AuthProviderInfo struct {
 	AuthProvider      string `json:"auth_provider"`
 	SettingsURI       string `json:"settings_uri"`
 	DeviceSettingsURI string `json:"device_settings_uri"`
@@ -233,14 +233,14 @@ func (al *APIListener) handleGetAuthProvider(w http.ResponseWriter, req *http.Re
 	var response api.SuccessPayload
 
 	if al.config.PlusOAuthEnabled() {
-		OAuthProvider := AuthProviderSettings{
+		OAuthProvider := AuthProviderInfo{
 			AuthProvider:      al.config.OAuthConfig.Provider,
 			SettingsURI:       allRoutesPrefix + authRoutesPrefix + authSettingsRoute,
 			DeviceSettingsURI: allRoutesPrefix + authRoutesPrefix + authDeviceSettingsRoute,
 		}
 		response = api.NewSuccessPayload(OAuthProvider)
 	} else {
-		builtInAuthProvider := AuthProviderSettings{
+		builtInAuthProvider := AuthProviderInfo{
 			AuthProvider: BuiltInAuthProviderName,
 			SettingsURI:  "",
 		}
