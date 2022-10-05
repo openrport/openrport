@@ -20,6 +20,8 @@ var (
 	ErrMissingClientSecret = errors.New("missing client_secret")
 )
 
+// LoginInfo contains the info returned when getting auth settings
+// for the web app style flow
 type LoginInfo struct {
 	LoginMsg     string    `json:"message"`
 	AuthorizeURL string    `json:"authorize_url"`
@@ -28,6 +30,8 @@ type LoginInfo struct {
 	Expiry       time.Time `json:"expiry"`
 }
 
+// DeviceAuthInfo contains the info returned when getting auth settings
+// for the device style flow
 type DeviceAuthInfo struct {
 	UserCode        string `json:"user_code"`
 	DeviceCode      string `json:"device_code"`
@@ -37,6 +41,11 @@ type DeviceAuthInfo struct {
 	Message         string `json:"message"`
 }
 
+// GoogleDeviceAuthInfo contains the user auth info google returns for
+// the OAuth device flow. Google doesn't follow the standard and
+// returns a verification_url rather than verification_uri. The Plus
+// plugin maps this to a verification_uri and returns consistent
+// DeviceAuthInfo.
 type GoogleDeviceAuthInfo struct {
 	UserCode        string `json:"user_code"`
 	DeviceCode      string `json:"device_code"`
@@ -46,12 +55,17 @@ type GoogleDeviceAuthInfo struct {
 	Message         string `json:"message"`
 }
 
+// DeviceLoginInfo represents the login info required for a user
+// to login using the device style flow.
 type DeviceLoginInfo struct {
 	LoginURI string `json:"login_uri"`
 
 	DeviceAuthInfo *DeviceAuthInfo `json:"auth_info"`
 }
 
+// DeviceAuthStatusErrorInfo contains any error info returned
+// when getting the login info (aka checking the auth status) for the device
+// style flow.
 type DeviceAuthStatusErrorInfo struct {
 	StatusCode   int    `json:"status_code"`
 	ErrorCode    string `json:"error"`
@@ -59,7 +73,8 @@ type DeviceAuthStatusErrorInfo struct {
 	ErrorURI     string `json:"error_uri"`
 }
 
-// CapabilityEx represents the functional interface provided by the OAuth capability
+// CapabilityEx represents the functional interface provided by the OAuth
+// capability
 type CapabilityEx interface {
 	ValidateConfig() (err error)
 
@@ -104,8 +119,8 @@ const (
 	InitOAuthCapabilityEx  = "InitOAuthCapabilityEx"
 	GitHubOAuthProvider    = "github"
 	MicrosoftOAuthProvider = "microsoft"
-	Auth0OAuthProvider     = "auth0"
 	GoogleOAuthProvider    = "google"
+	Auth0OAuthProvider     = "auth0"
 
 	DefaultLoginURI       = "/oauth/login"
 	DefaultDeviceLoginURI = "/oauth/login/device"
