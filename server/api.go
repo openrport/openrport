@@ -26,7 +26,6 @@ const (
 	authProviderRoute       = "/provider"
 	authSettingsRoute       = "/ext/settings"
 	authDeviceSettingsRoute = "/ext/settings/device"
-	plusRoutesPrefix        = "/plus"
 	totPRoutes              = "/me/totp-secret"
 	verify2FaRoute          = "/verify-2fa"
 	filesUploadRouteName    = "files"

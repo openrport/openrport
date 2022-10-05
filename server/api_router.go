@@ -178,7 +178,7 @@ func (al *APIListener) initRouter() {
 		return nil
 	})
 
-	plusRouter := api.PathPrefix(plusRoutesPrefix).Subrouter()
+	plusRouter := api.PathPrefix("/plus").Subrouter()
 	plusRouter.HandleFunc("/status", al.handlePlusStatus).Methods(http.MethodGet)
 
 	authRouter := api.PathPrefix(authRoutesPrefix).Subrouter()
