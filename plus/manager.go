@@ -44,7 +44,7 @@ type Manager interface {
 	RegisterCapability(capName string, newCap Capability) (cap Capability, err error)
 	SetCapability(capName string, cap Capability)
 	GetCapability(capName string) (cap Capability)
-	HasCapabilityEnabled(capName string) (isEnabled bool)
+	IsEnabledCapability(capName string) (isEnabled bool)
 	GetOAuthCapabilityEx() (capEx oauth.CapabilityEx)
 	GetStatusCapabilityEx() (capEx status.CapabilityEx)
 	GetConfigValidator(capName string) (v validator.Validator)
@@ -135,9 +135,8 @@ func (pm *ManagerProvider) GetCapability(capName string) (cap Capability) {
 	return pm.caps[capName]
 }
 
-// HasCapabilityEnabled returns whether the specified capability is present/enabled
-// or not
-func (pm *ManagerProvider) HasCapabilityEnabled(capName string) (isEnabled bool) {
+// IsEnabledCapability returns whether the specified capability is enabled
+func (pm *ManagerProvider) IsEnabledCapability(capName string) (isEnabled bool) {
 	pm.mu.RLock()
 	defer pm.mu.RUnlock()
 

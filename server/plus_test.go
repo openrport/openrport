@@ -68,6 +68,6 @@ func TestShouldRegisterPlusCapabilities(t *testing.T) {
 	assert.Equal(t, 2, count)
 
 	// additional capabilities should be checked here to see that the server is trying to load them
-	assert.True(t, plus.HasCapabilityEnabled(rportplus.PlusOAuthCapability))
-	assert.True(t, plus.HasCapabilityEnabled(rportplus.PlusStatusCapability))
+	assert.True(t, plus.IsEnabledCapability(rportplus.PlusOAuthCapability))
+	assert.True(t, plus.IsEnabledCapability(rportplus.PlusStatusCapability))
 }
