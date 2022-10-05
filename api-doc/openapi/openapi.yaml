@@ -45,8 +45,12 @@ paths:
     $ref: paths/auth-provider.yaml
   /auth/ext/settings:
     $ref: paths/auth-ext-settings.yaml
+  /auth/ext/settings/device:
+    $ref: paths/auth-ext-device-settings.yaml
   /oauth/login:
     $ref: paths/oauth-login.yaml
+  /oauth/login/device:
+    $ref: paths/oauth-login-device.yaml
   /plus/status:
     $ref: paths/plus-status.yaml
   /logout:

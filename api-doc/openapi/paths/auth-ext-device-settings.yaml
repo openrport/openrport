@@ -1,12 +1,13 @@
 get:
   tags:
     - Auth
-  summary: Get auth info for a web app login
-  operationId: AuthExtSettingsGet
+  summary: Get auth info for a device (or cli app) login
+  operationId: AuthExtSettingsDeviceGet
   security: []
   description: >
-    This API provides client with the necessary links to authorize a user and
-    then perform an Rport login to obtain an Rport JWT Bearer token.
+    This API provides client with the necessary information for a user to
+    authorize via an OAuth device flow. Typically the device flow is used
+    with limited UI/input apps such as CLI apps.
   responses:
     "200":
       description: Success
@@ -16,13 +17,7 @@ get:
             type: object
             properties:
               data:
-                $ref: ../components/schemas/AuthExtSettingsResponse.yaml
-    "400":
-      description: Invalid parameters
-      content:
-        application/json:
-          schema:
-            $ref: ../components/schemas/ErrorPayload.yaml
+                $ref: ../components/schemas/AuthExtDeviceSettingsResponse.yaml
     "403":
       description: Auth provider settings not enabled
       content:

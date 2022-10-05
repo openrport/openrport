@@ -8,10 +8,12 @@ get:
     * This API is only enabled if the Rport Plus plugin is loaded and running. For
     more information, see [Rport Plus](https://plus.rport.io/auth/oauth-introduction/).
 
+
     * It allows an authorization code (`code`) returned by an OAuth provider
     callback to be used to login to RPort and obtain an Rport Authorization JWT
     Token. The `state` parameter also received in the callback must also be
     provided and will be validated by the Rport server.
+
 
     * Note that security will be increased if clients verify that the `state`
     parameter returned in the callback matches the `state` parameter supplied
@@ -32,6 +34,15 @@ get:
         the state received via the OAuth provider callback
       schema:
         type: string
+    - name: token-lifetime
+      in: query
+      description: >-
+        initial lifetime of JWT token in seconds. Max value is 90 days. Default:
+        10 min
+      schema:
+        maximum: 7776000
+        type: integer
+        default: 600
   responses:
     "200":
       description: Successful Login Operation
