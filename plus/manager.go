@@ -41,13 +41,21 @@ type Capability interface {
 // Manager defines the plus manager behavior
 type Manager interface {
 	InitPlusManager(cfg *PlusConfig, logger *logger.Logger)
+
+	// General registry type funcs
 	RegisterCapability(capName string, newCap Capability) (cap Capability, err error)
-	SetCapability(capName string, cap Capability)
-	GetCapability(capName string) (cap Capability)
 	IsEnabledCapability(capName string) (isEnabled bool)
+
+	// Access specific capabilities
 	GetOAuthCapabilityEx() (capEx oauth.CapabilityEx)
 	GetStatusCapabilityEx() (capEx status.CapabilityEx)
+
+	// Access config validation
 	GetConfigValidator(capName string) (v validator.Validator)
+
+	// Helper functions (currently only used for testing)
+	SetCapability(capName string, cap Capability)
+	GetCapability(capName string) (cap Capability)
 	GetTotalCapabilities() (total int)
 }
 
@@ -57,9 +65,8 @@ type ManagerProvider struct {
 	Config *PlusConfig
 	logger *logger.Logger
 
+	mu   sync.RWMutex
 	caps map[string]Capability
-
-	mu sync.RWMutex
 }
 
 // NewPlusManager checks the plugin exists at the specified path, allocates a new
@@ -100,11 +107,11 @@ func (pm *ManagerProvider) RegisterCapability(capName string, newCap Capability)
 	initFuncName := newCap.GetInitFuncName()
 	if initFuncName != "" {
 		// an init func name indicates that the provider should be initialized using the plugin
-		sym, err := pm.LoadInitFunc(pm.Config.PluginPath, newCap.GetInitFuncName())
+		initFn, err := pm.LoadInitFunc(pm.Config.PluginPath, newCap.GetInitFuncName())
 		if err != nil {
 			return nil, err
 		}
-		newCap.SetProvider(sym)
+		newCap.SetProvider(initFn)
 	} else {
 		// empty init func name indicates that the provider can be initialized locally
 		newCap.SetProvider(nil)
@@ -122,35 +129,16 @@ func (pm *ManagerProvider) LoadInitFunc(pluginPath string, capName string) (sym 
 	return sym, nil
 }
 
-// SetCapability sets the capability in the capability map
-func (pm *ManagerProvider) SetCapability(capName string, cap Capability) {
-	pm.caps[capName] = cap
-}
-
-// GetCapability sets the raw capability in the capability map without casting
-func (pm *ManagerProvider) GetCapability(capName string) (cap Capability) {
-	pm.mu.RLock()
-	defer pm.mu.RUnlock()
-
-	return pm.caps[capName]
-}
-
 // IsEnabledCapability returns whether the specified capability is enabled
 func (pm *ManagerProvider) IsEnabledCapability(capName string) (isEnabled bool) {
-	pm.mu.RLock()
-	defer pm.mu.RUnlock()
-
 	// at the moment, if present it is enabled
-	cap := pm.caps[capName]
-	return cap != nil
+	capEntry := pm.GetCapability(capName)
+	return capEntry != nil
 }
 
 // GetOAuthCapability returns a cast version of the OAuth capability
 func (pm *ManagerProvider) GetOAuthCapabilityEx() (capEx oauth.CapabilityEx) {
-	pm.mu.RLock()
-	defer pm.mu.RUnlock()
-
-	capEntry := pm.caps[PlusOAuthCapability]
+	capEntry := pm.GetCapability(PlusOAuthCapability)
 	if capEntry != nil {
 		cap, ok := capEntry.(*oauth.Capability)
 		if !ok {
@@ -166,10 +154,7 @@ func (pm *ManagerProvider) GetOAuthCapabilityEx() (capEx oauth.CapabilityEx) {
 
 // GetStatusCapabilityEx returns a cast version of the Plus Status capability
 func (pm *ManagerProvider) GetStatusCapabilityEx() (capEx status.CapabilityEx) {
-	pm.mu.RLock()
-	defer pm.mu.RUnlock()
-
-	capEntry := pm.caps[PlusStatusCapability]
+	capEntry := pm.GetCapability(PlusStatusCapability)
 	if capEntry != nil {
 		cap, ok := capEntry.(*status.Capability)
 		if !ok {
@@ -186,14 +171,33 @@ func (pm *ManagerProvider) GetStatusCapabilityEx() (capEx status.CapabilityEx) {
 // GetConfigValidator gets a validator interface that can be invoked to validate
 // the capability config
 func (pm *ManagerProvider) GetConfigValidator(capName string) (v validator.Validator) {
-	capEntry := pm.caps[capName]
+	capEntry := pm.GetCapability(capName)
 	if capEntry != nil {
 		v = capEntry.GetConfigValidator()
 	}
 	return v
 }
 
+// SetCapability sets the capability in the capability map
+func (pm *ManagerProvider) SetCapability(capName string, cap Capability) {
+	pm.mu.Lock()
+	defer pm.mu.Unlock()
+
+	pm.caps[capName] = cap
+}
+
+// GetCapability sets the raw capability in the capability map without casting
+func (pm *ManagerProvider) GetCapability(capName string) (cap Capability) {
+	pm.mu.RLock()
+	defer pm.mu.RUnlock()
+
+	return pm.caps[capName]
+}
+
 // GetTotalCapabilities is currently only used for testing
 func (pm *ManagerProvider) GetTotalCapabilities() (total int) {
+	pm.mu.RLock()
+	defer pm.mu.RUnlock()
+
 	return len(pm.caps)
 }
