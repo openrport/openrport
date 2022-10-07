@@ -140,10 +140,10 @@ func (cap *Capability) GetInitFuncName() (name string) {
 	return InitOAuthCapabilityEx
 }
 
-// SetProvider invokes the capability init func in the plugin and saves
+// InitProvider invokes the capability init func in the plugin and saves
 // the returned capability provider interface. This interface provides
 // the functions of the capability.
-func (cap *Capability) SetProvider(initFn plugin.Symbol) {
+func (cap *Capability) InitProvider(initFn plugin.Symbol) {
 	fn := initFn.(func(cap *Capability) (capProvider CapabilityEx))
 	cap.Provider = fn(cap)
 }

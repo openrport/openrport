@@ -76,6 +76,7 @@ func (al *APIListener) handleGetDeviceAuth(w http.ResponseWriter, r *http.Reques
 			response := api.NewSuccessPayload(errInfo)
 			al.writeJSONResponse(w, errInfo.StatusCode, response)
 		} else {
+			// TODO: i think we need a better status code for the response
 			al.jsonErrorResponse(w, http.StatusUnauthorized, err)
 		}
 		return

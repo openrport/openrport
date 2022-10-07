@@ -31,8 +31,8 @@ func (cap *Capability) GetInitFuncName() (name string) {
 	return ""
 }
 
-// SetProvider sets the capability provider to the local mock implementation
-func (cap *Capability) SetProvider(initFn plugin.Symbol) {
+// InitProvider sets the capability provider to the local mock implementation
+func (cap *Capability) InitProvider(initFn plugin.Symbol) {
 	if cap.Provider == nil {
 		cap.Provider = &MockCapabilityProvider{}
 	}

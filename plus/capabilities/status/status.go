@@ -37,7 +37,7 @@ func (cap *Capability) GetInitFuncName() (name string) {
 	return InitPlusStatusCapabilityEx
 }
 
-func (cap *Capability) SetProvider(sym plugin.Symbol) {
+func (cap *Capability) InitProvider(sym plugin.Symbol) {
 	fn := sym.(func(cap *Capability) (capProvider CapabilityEx))
 	cap.Provider = fn(cap)
 }

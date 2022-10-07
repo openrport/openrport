@@ -34,7 +34,7 @@ type PlusConfig struct {
 // corresponding individual plugin Capability structs.
 type Capability interface {
 	GetInitFuncName() (name string)
-	SetProvider(sym plugin.Symbol)
+	InitProvider(sym plugin.Symbol)
 	GetConfigValidator() (v validator.Validator)
 }
 
@@ -96,7 +96,7 @@ func (pm *ManagerProvider) InitPlusManager(cfg *PlusConfig, logger *logger.Logge
 
 // RegisterCapability adds a new plugin capability component, including loading
 // the relevant init func for the capability from the plugin and initializing
-// the capability (via SetProvider)
+// the capability (via InitProvider)
 func (pm *ManagerProvider) RegisterCapability(capName string, newCap Capability) (cap Capability, err error) {
 	if pm.Config == nil {
 		return nil, ErrPlusNotAvailable
@@ -111,10 +111,10 @@ func (pm *ManagerProvider) RegisterCapability(capName string, newCap Capability)
 		if err != nil {
 			return nil, err
 		}
-		newCap.SetProvider(initFn)
+		newCap.InitProvider(initFn)
 	} else {
 		// empty init func name indicates that the provider can be initialized locally
-		newCap.SetProvider(nil)
+		newCap.InitProvider(nil)
 	}
 
 	return newCap, err
