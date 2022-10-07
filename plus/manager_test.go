@@ -23,8 +23,6 @@ var defaultValidMinServerConfig = chserver.ServerConfig{
 	UsedPortsRaw: []string{"10-20"},
 }
 
-var plusLog = logger.NewLogger("rport-plus", logger.LogOutput{File: os.Stdout}, logger.LogLevelDebug)
-
 type mockFileSystem struct {
 	*files.FileSystem
 
@@ -45,6 +43,8 @@ func (m *mockFileSystem) Exist(path string) (bool, error) {
 }
 
 func TestShouldErrorWhenPluginPathDoesNotExist(t *testing.T) {
+	plusLog := logger.NewLogger("rport-plus", logger.LogOutput{File: os.Stdout}, logger.LogLevelDebug)
+
 	config := &chserver.Config{
 		Server: defaultValidMinServerConfig,
 		PlusConfig: &rportplus.PlusConfig{
@@ -61,6 +61,8 @@ func TestShouldErrorWhenPluginPathDoesNotExist(t *testing.T) {
 }
 
 func TestShouldNotErrorWhenCorrectPluginPath(t *testing.T) {
+	plusLog := logger.NewLogger("rport-plus", logger.LogOutput{File: os.Stdout}, logger.LogLevelDebug)
+
 	config := &chserver.Config{
 		Server: defaultValidMinServerConfig,
 		PlusConfig: &rportplus.PlusConfig{

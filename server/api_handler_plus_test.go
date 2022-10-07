@@ -2,7 +2,6 @@ package chserver
 
 import (
 	"encoding/json"
-	"fmt"
 	"net/http"
 	"net/http/httptest"
 	"os"
@@ -22,18 +21,41 @@ import (
 )
 
 const (
-	PlusMockOAuthCapability = "plus-oauth-mock"
+	plusMockOAuthCapability = "plus-oauth-mock"
 )
 
 type plusManagerForMockOAuth struct {
+	cap rportplus.Capability
+
 	rportplus.ManagerProvider
 }
 
-// GetOAuthCapabilityEx overrides the default implementation to return a mock oauth
-// capability provider
+func initMockPlusManager() (plus *plusManagerForMockOAuth) {
+	plusLog := logger.NewLogger("rport-plus", logger.LogOutput{File: os.Stdout}, logger.LogLevelDebug)
+
+	config := &Config{
+		Server: defaultValidMinServerConfig,
+		PlusConfig: &rportplus.PlusConfig{
+			PluginPath: defaultPluginPath,
+		},
+		OAuthConfig: &oauth.Config{
+			Provider: oauth.GitHubOAuthProvider,
+		},
+	}
+
+	plus = &plusManagerForMockOAuth{}
+	plus.InitPlusManager(config.PlusConfig, plusLog)
+	return plus
+}
+
+func (pm *plusManagerForMockOAuth) RegisterCapability(capName string, newCap rportplus.Capability) (cap rportplus.Capability, err error) {
+	newCap.InitProvider(nil)
+	pm.cap = newCap
+	return newCap, nil
+}
+
 func (pm *plusManagerForMockOAuth) GetOAuthCapabilityEx() (capEx oauth.CapabilityEx) {
-	capEntry := pm.ManagerProvider.GetCapability(PlusMockOAuthCapability)
-	cap := capEntry.(*oauthmock.Capability)
+	cap := pm.cap.(*oauthmock.Capability)
 	capEx = cap.GetOAuthCapabilityEx()
 	return capEx
 }
@@ -75,10 +97,9 @@ func TestHandleGetOAuthProvider(t *testing.T) {
 		Provider: oauth.GitHubOAuthProvider,
 	}
 
-	plusManager := &plusManagerForMockOAuth{}
-	plusManager.InitPlusManager(plusConfig, plusLog)
+	plusManager := initMockPlusManager()
 
-	_, err := plusManager.RegisterCapability(PlusMockOAuthCapability, &oauthmock.Capability{
+	_, err := plusManager.RegisterCapability(plusMockOAuthCapability, &oauthmock.Capability{
 		Config: oauthConfig,
 		Logger: plusLog,
 	})
@@ -106,7 +127,7 @@ type AuthSettingsResponse struct {
 	Data AuthSettings
 }
 
-func SetupPlusOAuth() (plusManager rportplus.Manager, plusConfig *rportplus.PlusConfig, oauthConfig *oauth.Config, plusLog *logger.Logger) {
+func setupPlusOAuth() (plusManager rportplus.Manager, plusConfig *rportplus.PlusConfig, oauthConfig *oauth.Config, plusLog *logger.Logger) {
 	plusLog = logger.NewLogger("rport-plus", logger.LogOutput{File: os.Stdout}, logger.LogLevelDebug)
 
 	plusConfig = &rportplus.PlusConfig{
@@ -124,9 +145,9 @@ func SetupPlusOAuth() (plusManager rportplus.Manager, plusConfig *rportplus.Plus
 }
 
 func TestHandleGetAuthSettings(t *testing.T) {
-	plusManager, plusConfig, oauthConfig, plusLog := SetupPlusOAuth()
+	plusManager, plusConfig, oauthConfig, plusLog := setupPlusOAuth()
 
-	_, err := plusManager.RegisterCapability(PlusMockOAuthCapability, &oauthmock.Capability{
+	_, err := plusManager.RegisterCapability(plusMockOAuthCapability, &oauthmock.Capability{
 		Config: oauthConfig,
 		Logger: plusLog,
 	})
@@ -156,9 +177,9 @@ type DeviceAuthSettingsResponse struct {
 }
 
 func TestHandleGetAuthDeviceSettings(t *testing.T) {
-	plusManager, plusConfig, oauthConfig, plusLog := SetupPlusOAuth()
+	plusManager, plusConfig, oauthConfig, plusLog := setupPlusOAuth()
 
-	_, err := plusManager.RegisterCapability(PlusMockOAuthCapability, &oauthmock.Capability{
+	_, err := plusManager.RegisterCapability(plusMockOAuthCapability, &oauthmock.Capability{
 		Config: oauthConfig,
 		Logger: plusLog,
 	})
@@ -188,13 +209,13 @@ func TestHandleGetAuthDeviceSettings(t *testing.T) {
 }
 
 func TestHandleGetAuthDeviceSettingsWithError(t *testing.T) {
-	plusManager, plusConfig, oauthConfig, plusLog := SetupPlusOAuth()
+	plusManager, plusConfig, oauthConfig, plusLog := setupPlusOAuth()
 
 	mockOAuthCapability := &oauthmock.Capability{
 		Config: oauthConfig,
 		Logger: plusLog,
 	}
-	_, err := plusManager.RegisterCapability(PlusMockOAuthCapability, mockOAuthCapability)
+	_, err := plusManager.RegisterCapability(plusMockOAuthCapability, mockOAuthCapability)
 	require.NoError(t, err)
 
 	al, _ := MakeAPIListener(t, plusManager, plusConfig, oauthConfig)
@@ -210,14 +231,14 @@ func TestHandleGetAuthDeviceSettingsWithError(t *testing.T) {
 }
 
 func TestHandleGetAuthSettingsWhenFailedToGetLoginURL(t *testing.T) {
-	plusManager, plusConfig, oauthConfig, plusLog := SetupPlusOAuth()
+	plusManager, plusConfig, oauthConfig, plusLog := setupPlusOAuth()
 
 	mockOAuthCapability := &oauthmock.Capability{
 		Config: oauthConfig,
 		Logger: plusLog,
 	}
 
-	_, err := plusManager.RegisterCapability(PlusMockOAuthCapability, mockOAuthCapability)
+	_, err := plusManager.RegisterCapability(plusMockOAuthCapability, mockOAuthCapability)
 	require.NoError(t, err)
 
 	al, _ := MakeAPIListener(t, plusManager, plusConfig, oauthConfig)
@@ -305,9 +326,9 @@ func TestHandleOAuthAuthorizationCode(t *testing.T) {
 }
 
 func TestShouldHandleGetDeviceAuth(t *testing.T) {
-	plusManager, plusConfig, oauthConfig, plusLog := SetupPlusOAuth()
+	plusManager, plusConfig, oauthConfig, plusLog := setupPlusOAuth()
 
-	_, err := plusManager.RegisterCapability(PlusMockOAuthCapability, &oauthmock.Capability{
+	_, err := plusManager.RegisterCapability(plusMockOAuthCapability, &oauthmock.Capability{
 		Config: oauthConfig,
 		Logger: plusLog,
 	})
@@ -330,14 +351,14 @@ type AuthStatusErrorResponse struct {
 }
 
 func TestShouldHandleGetDeviceAuthStatusWithError(t *testing.T) {
-	plusManager, plusConfig, oauthConfig, plusLog := SetupPlusOAuth()
+	plusManager, plusConfig, oauthConfig, plusLog := setupPlusOAuth()
 
 	mockOAuthCapability := &oauthmock.Capability{
 		Config: oauthConfig,
 		Logger: plusLog,
 	}
 
-	_, err := plusManager.RegisterCapability(PlusMockOAuthCapability, mockOAuthCapability)
+	_, err := plusManager.RegisterCapability(plusMockOAuthCapability, mockOAuthCapability)
 	require.NoError(t, err)
 
 	mockOAuthCapability.Provider.ShouldFailGetAccessTokenForDevice = true
@@ -355,7 +376,6 @@ func TestShouldHandleGetDeviceAuthStatusWithError(t *testing.T) {
 	err = json.NewDecoder(w.Body).Decode(&errResponse)
 	assert.NoError(t, err)
 
-	fmt.Printf("errResponse = %+v\n", errResponse)
 	assert.Equal(t, 403, errResponse.Data.StatusCode)
 	assert.Equal(t, "got an error", errResponse.Data.ErrorCode)
 	assert.Equal(t, "error message", errResponse.Data.ErrorMessage)
@@ -372,7 +392,7 @@ func SetupAPIListener(t *testing.T, oauthConfig *oauth.Config, username string) 
 	plusManager := &plusManagerForMockOAuth{}
 	plusManager.InitPlusManager(plusConfig, plusLog)
 
-	_, err := plusManager.RegisterCapability(PlusMockOAuthCapability, &oauthmock.Capability{
+	_, err := plusManager.RegisterCapability(plusMockOAuthCapability, &oauthmock.Capability{
 		Config: oauthConfig,
 		Logger: plusLog,
 

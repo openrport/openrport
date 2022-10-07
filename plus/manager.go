@@ -52,11 +52,6 @@ type Manager interface {
 
 	// Access config validation
 	GetConfigValidator(capName string) (v validator.Validator)
-
-	// Helper functions (currently only used for testing)
-	SetCapability(capName string, cap Capability)
-	GetCapability(capName string) (cap Capability)
-	GetTotalCapabilities() (total int)
 }
 
 // ManagerProvider contains a map of all available capabilities and the overall
@@ -82,9 +77,9 @@ func NewPlusManager(cfg *PlusConfig, logger *logger.Logger, filesAPI files.FileA
 		}
 	}
 
-	pmp := &ManagerProvider{}
-	pmp.InitPlusManager(cfg, logger)
-	return pmp, nil
+	pm = &ManagerProvider{}
+	pm.InitPlusManager(cfg, logger)
+	return pm, nil
 }
 
 // InitPlusManager initializes a plus manager
@@ -102,7 +97,7 @@ func (pm *ManagerProvider) RegisterCapability(capName string, newCap Capability)
 		return nil, ErrPlusNotAvailable
 	}
 
-	pm.SetCapability(capName, newCap)
+	pm.setCap(capName, newCap)
 
 	initFuncName := newCap.GetInitFuncName()
 	if initFuncName != "" {
@@ -132,13 +127,13 @@ func (pm *ManagerProvider) LoadInitFunc(pluginPath string, capName string) (sym 
 // IsEnabledCapability returns whether the specified capability is enabled
 func (pm *ManagerProvider) IsEnabledCapability(capName string) (isEnabled bool) {
 	// at the moment, if present it is enabled
-	capEntry := pm.GetCapability(capName)
+	capEntry := pm.getCap(capName)
 	return capEntry != nil
 }
 
 // GetOAuthCapability returns a cast version of the OAuth capability
 func (pm *ManagerProvider) GetOAuthCapabilityEx() (capEx oauth.CapabilityEx) {
-	capEntry := pm.GetCapability(PlusOAuthCapability)
+	capEntry := pm.getCap(PlusOAuthCapability)
 	if capEntry != nil {
 		cap, ok := capEntry.(*oauth.Capability)
 		if !ok {
@@ -154,7 +149,7 @@ func (pm *ManagerProvider) GetOAuthCapabilityEx() (capEx oauth.CapabilityEx) {
 
 // GetStatusCapabilityEx returns a cast version of the Plus Status capability
 func (pm *ManagerProvider) GetStatusCapabilityEx() (capEx status.CapabilityEx) {
-	capEntry := pm.GetCapability(PlusStatusCapability)
+	capEntry := pm.getCap(PlusStatusCapability)
 	if capEntry != nil {
 		cap, ok := capEntry.(*status.Capability)
 		if !ok {
@@ -171,23 +166,23 @@ func (pm *ManagerProvider) GetStatusCapabilityEx() (capEx status.CapabilityEx) {
 // GetConfigValidator gets a validator interface that can be invoked to validate
 // the capability config
 func (pm *ManagerProvider) GetConfigValidator(capName string) (v validator.Validator) {
-	capEntry := pm.GetCapability(capName)
+	capEntry := pm.getCap(capName)
 	if capEntry != nil {
 		v = capEntry.GetConfigValidator()
 	}
 	return v
 }
 
-// SetCapability sets the capability in the capability map
-func (pm *ManagerProvider) SetCapability(capName string, cap Capability) {
+// setCap sets the capability in the capability map
+func (pm *ManagerProvider) setCap(capName string, cap Capability) {
 	pm.mu.Lock()
 	defer pm.mu.Unlock()
 
 	pm.caps[capName] = cap
 }
 
-// GetCapability sets the raw capability in the capability map without casting
-func (pm *ManagerProvider) GetCapability(capName string) (cap Capability) {
+// getCap sets the raw capability in the capability map without casting
+func (pm *ManagerProvider) getCap(capName string) (cap Capability) {
 	pm.mu.RLock()
 	defer pm.mu.RUnlock()
 
