@@ -102,7 +102,7 @@ func (pm *ManagerProvider) RegisterCapability(capName string, newCap Capability)
 	initFuncName := newCap.GetInitFuncName()
 	if initFuncName != "" {
 		// an init func name indicates that the provider should be initialized using the plugin
-		initFn, err := pm.LoadInitFunc(pm.Config.PluginPath, newCap.GetInitFuncName())
+		initFn, err := loader.LoadSymbol(pm.Config.PluginPath, newCap.GetInitFuncName())
 		if err != nil {
 			return nil, err
 		}
@@ -113,15 +113,6 @@ func (pm *ManagerProvider) RegisterCapability(capName string, newCap Capability)
 	}
 
 	return newCap, err
-}
-
-// LoadInitFunc loads the capability init func symbol from the plugin
-func (pm *ManagerProvider) LoadInitFunc(pluginPath string, capName string) (sym plugin.Symbol, err error) {
-	sym, err = loader.LoadSymbol(pluginPath, capName)
-	if err != nil {
-		return nil, err
-	}
-	return sym, nil
 }
 
 // IsEnabledCapability returns whether the specified capability is enabled
