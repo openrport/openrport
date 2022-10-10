@@ -42,17 +42,17 @@ paths:
   /login:
     $ref: paths/login.yaml
   /auth/provider:
-    $ref: paths/auth-provider.yaml
+    $ref: paths/auth_provider.yaml
   /auth/ext/settings:
-    $ref: paths/auth-ext-settings.yaml
+    $ref: paths/auth_ext_settings.yaml
   /auth/ext/settings/device:
-    $ref: paths/auth-ext-device-settings.yaml
+    $ref: paths/auth_ext_device_settings.yaml
   /oauth/login:
-    $ref: paths/oauth-login.yaml
+    $ref: paths/oauth_login.yaml
   /oauth/login/device:
-    $ref: paths/oauth-login-device.yaml
+    $ref: paths/oauth_login_device.yaml
   /plus/status:
-    $ref: paths/plus-status.yaml
+    $ref: paths/plus_status.yaml
   /logout:
     $ref: paths/logout.yaml
   /verify-2fa:
