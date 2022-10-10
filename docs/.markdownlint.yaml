@@ -21,6 +21,3 @@ MD013:
   strict: false
   # Stern length checking
   stern: false
-
-# TODO: disabled due to bug in markdown lint (i think). can be re-enabled in the future.
-MD029: false
