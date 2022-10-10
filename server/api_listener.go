@@ -414,11 +414,7 @@ func (al *APIListener) validateCredentials(username, password string, skipPasswo
 		return false, nil, fmt.Errorf("failed to get user: %v", err)
 	}
 
-	if user == nil && skipPasswordValidation &&
-		(al.config.API.CreateMissingUsers ||
-			// if we're using OAuth and there's no permitted_user_list then create
-			// any missing users
-			(al.config.PlusOAuthEnabled() && !al.config.OAuthConfig.PermittedUserList)) {
+	if al.shouldCreateMissingUser(user, skipPasswordValidation) {
 		pswd, err := random.UUID4()
 		if err != nil {
 			return false, nil, err
@@ -443,6 +439,17 @@ func (al *APIListener) validateCredentials(username, password string, skipPasswo
 	}
 
 	return verifyPassword(user.Password, password), user, nil
+}
+
+func (al *APIListener) shouldCreateMissingUser(user *users.User, skipPasswordValidation bool) bool {
+	if user == nil && skipPasswordValidation &&
+		(al.config.API.CreateMissingUsers ||
+			// if we're using OAuth and there's no permitted_user_list then create
+			// any missing users
+			(al.config.PlusOAuthEnabled() && !al.config.OAuthConfig.PermittedUserList)) {
+		return true
+	}
+	return false
 }
 
 func verifyPassword(saved, provided string) bool {
