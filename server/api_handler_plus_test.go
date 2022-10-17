@@ -105,7 +105,7 @@ func TestHandleGetOAuthProvider(t *testing.T) {
 	})
 	require.NoError(t, err)
 
-	al, _ := MakeAPIListener(t, plusManager, plusConfig, oauthConfig)
+	al, _ := setupTestAPIListenerForOAuth(t, plusManager, plusConfig, oauthConfig)
 
 	w := httptest.NewRecorder()
 	req := httptest.NewRequest("GET", "/api/v1"+authRoutesPrefix+authProviderRoute, nil)
@@ -153,7 +153,7 @@ func TestHandleGetAuthSettings(t *testing.T) {
 	})
 	require.NoError(t, err)
 
-	al, _ := MakeAPIListener(t, plusManager, plusConfig, oauthConfig)
+	al, _ := setupTestAPIListenerForOAuth(t, plusManager, plusConfig, oauthConfig)
 
 	w := httptest.NewRecorder()
 	req := httptest.NewRequest("GET", "/api/v1"+authRoutesPrefix+authSettingsRoute, nil)
@@ -185,7 +185,7 @@ func TestHandleGetAuthDeviceSettings(t *testing.T) {
 	})
 	require.NoError(t, err)
 
-	al, _ := MakeAPIListener(t, plusManager, plusConfig, oauthConfig)
+	al, _ := setupTestAPIListenerForOAuth(t, plusManager, plusConfig, oauthConfig)
 
 	w := httptest.NewRecorder()
 	req := httptest.NewRequest("GET", "/api/v1"+authRoutesPrefix+authDeviceSettingsRoute, nil)
@@ -218,7 +218,7 @@ func TestHandleGetAuthDeviceSettingsWithError(t *testing.T) {
 	_, err := plusManager.RegisterCapability(plusMockOAuthCapability, mockOAuthCapability)
 	require.NoError(t, err)
 
-	al, _ := MakeAPIListener(t, plusManager, plusConfig, oauthConfig)
+	al, _ := setupTestAPIListenerForOAuth(t, plusManager, plusConfig, oauthConfig)
 
 	mockOAuthCapability.Provider.ShouldFailGetLoginInfo = true
 
@@ -241,7 +241,7 @@ func TestHandleGetAuthSettingsWhenFailedToGetLoginURL(t *testing.T) {
 	_, err := plusManager.RegisterCapability(plusMockOAuthCapability, mockOAuthCapability)
 	require.NoError(t, err)
 
-	al, _ := MakeAPIListener(t, plusManager, plusConfig, oauthConfig)
+	al, _ := setupTestAPIListenerForOAuth(t, plusManager, plusConfig, oauthConfig)
 
 	mockOAuthCapability.Provider.ShouldFailGetLoginInfo = true
 
@@ -334,7 +334,7 @@ func TestShouldHandleGetDeviceAuth(t *testing.T) {
 	})
 	require.NoError(t, err)
 
-	al, _ := MakeAPIListener(t, plusManager, plusConfig, oauthConfig)
+	al, _ := setupTestAPIListenerForOAuth(t, plusManager, plusConfig, oauthConfig)
 
 	w := httptest.NewRecorder()
 	req := httptest.NewRequest("GET", "/api/v1"+oauth.DefaultDeviceLoginURI, nil)
@@ -363,7 +363,7 @@ func TestShouldHandleGetDeviceAuthStatusWithError(t *testing.T) {
 
 	mockOAuthCapability.Provider.ShouldFailGetAccessTokenForDevice = true
 
-	al, _ := MakeAPIListener(t, plusManager, plusConfig, oauthConfig)
+	al, _ := setupTestAPIListenerForOAuth(t, plusManager, plusConfig, oauthConfig)
 
 	w := httptest.NewRecorder()
 	req := httptest.NewRequest("GET", "/api/v1"+oauth.DefaultDeviceLoginURI, nil)
@@ -402,12 +402,12 @@ func SetupAPIListener(t *testing.T, oauthConfig *oauth.Config, username string) 
 	})
 	require.NoError(t, err)
 
-	al, mockUsersService = MakeAPIListener(t, plusManager, plusConfig, oauthConfig)
+	al, mockUsersService = setupTestAPIListenerForOAuth(t, plusManager, plusConfig, oauthConfig)
 
 	return al, mockUsersService
 }
 
-func MakeAPIListener(
+func setupTestAPIListenerForOAuth(
 	t *testing.T,
 	plusManager rportplus.Manager,
 	plusConfig *rportplus.PlusConfig,
