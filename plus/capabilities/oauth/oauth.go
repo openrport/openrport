@@ -18,6 +18,16 @@ var (
 	ErrMissingRedirectURI  = errors.New("missing redirect_uri")
 	ErrMissingClientID     = errors.New("missing client_id")
 	ErrMissingClientSecret = errors.New("missing client_secret")
+
+	ErrInvalidAuthorizeURL       = errors.New("invalid authorize_url")
+	ErrInvalidDeviceAuthorizeURL = errors.New("invalid device_authorize_url")
+	ErrInvalidTokenURL           = errors.New("invalid token_url")
+	ErrInvalidRedirectURI        = errors.New("invalid redirect_uri")
+
+	ErrNeedPermittedUserControl  = errors.New("permitted_user_list OR permitted_user_match must be specified")
+	ErrInvalidPermittedUserMatch = errors.New("invalid permitted_user_match")
+
+	ErrProviderNotSupportedMsg = "not currently supported"
 )
 
 // LoginInfo contains the info returned when getting auth settings
