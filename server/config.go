@@ -19,7 +19,6 @@ import (
 
 	"github.com/cloudradar-monitoring/rport/db/sqlite"
 	rportplus "github.com/cloudradar-monitoring/rport/plus"
-	"github.com/cloudradar-monitoring/rport/plus/capabilities/oauth"
 
 	"github.com/cloudradar-monitoring/rport/share/files"
 
@@ -258,9 +257,7 @@ type Config struct {
 	SMTP       SMTPConfig       `mapstructure:"smtp"`
 	Monitoring MonitoringConfig `mapstructure:"monitoring"`
 
-	// Config for rport-rplus is here. This is the place to add individual capability configs
-	PlusConfig  *rportplus.PlusConfig `mapstructure:"plus-plugin"`
-	OAuthConfig *oauth.Config         `mapstructure:"plus-oauth"`
+	PlusConfig *rportplus.PlusConfig `mapstructure:",quash"`
 }
 
 func (c *Config) GetVaultDBPath() string {
@@ -612,9 +609,11 @@ func generateJWTSecret() (string, error) {
 }
 
 func (c *Config) PlusEnabled() (enabled bool) {
-	return c.PlusConfig != nil && c.PlusConfig.PluginPath != ""
+	return c.PlusConfig != nil &&
+		c.PlusConfig.PluginConfig != nil &&
+		c.PlusConfig.PluginConfig.PluginPath != ""
 }
 
 func (c *Config) PlusOAuthEnabled() (enabled bool) {
-	return c.PlusEnabled() && c.OAuthConfig != nil
+	return c.PlusEnabled() && c.PlusConfig.OAuthConfig != nil
 }

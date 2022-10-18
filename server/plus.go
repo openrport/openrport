@@ -18,7 +18,7 @@ var (
 // EnablePlusIfLicensed will initialize a new plus manager and request registration of the desired
 // capabilities
 func EnablePlusIfLicensed(cfg *Config, filesAPI files.FileAPI) (plusManager rportplus.Manager, err error) {
-	if cfg.PlusConfig == nil || (cfg.PlusConfig != nil && cfg.PlusConfig.PluginPath == "") {
+	if cfg.PlusEnabled() {
 		return nil, ErrPlusNotEnabled
 	}
 
@@ -42,7 +42,7 @@ func RegisterPlusCapabilities(plusManager rportplus.Manager, cfg *Config, logger
 	if cfg.PlusOAuthEnabled() {
 
 		_, err := plusManager.RegisterCapability(rportplus.PlusOAuthCapability, &oauth.Capability{
-			Config: cfg.OAuthConfig,
+			Config: cfg.PlusConfig.OAuthConfig,
 			Logger: logger,
 		})
 		if err != nil {

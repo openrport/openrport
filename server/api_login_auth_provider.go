@@ -37,7 +37,7 @@ func (al *APIListener) handleGetAuthProvider(w http.ResponseWriter, req *http.Re
 
 	if al.config.PlusOAuthEnabled() {
 		OAuthProvider := AuthProviderInfo{
-			AuthProvider:      al.config.OAuthConfig.Provider,
+			AuthProvider:      al.config.PlusConfig.OAuthConfig.Provider,
 			SettingsURI:       allRoutesPrefix + authRoutesPrefix + authSettingsRoute,
 			DeviceSettingsURI: allRoutesPrefix + authRoutesPrefix + authDeviceSettingsRoute,
 		}
@@ -71,7 +71,7 @@ func (al *APIListener) handleGetAuthSettings(w http.ResponseWriter, req *http.Re
 		return
 	}
 	settings := AuthSettings{
-		AuthProvider: al.config.OAuthConfig.Provider,
+		AuthProvider: al.config.PlusConfig.OAuthConfig.Provider,
 		LoginInfo:    loginInfo,
 	}
 	response := api.NewSuccessPayload(settings)
@@ -98,7 +98,7 @@ func (al *APIListener) handleGetAuthDeviceSettings(w http.ResponseWriter, req *h
 	}
 
 	settings := DeviceAuthSettings{
-		AuthProvider: al.config.OAuthConfig.Provider,
+		AuthProvider: al.config.PlusConfig.OAuthConfig.Provider,
 		LoginInfo:    loginInfo,
 	}
 

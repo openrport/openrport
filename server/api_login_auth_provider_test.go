@@ -43,9 +43,8 @@ func TestHandleGetBuiltInAuthProvider(t *testing.T) {
 	al := APIListener{
 		Server: &Server{
 			config: &Config{
-				API:         APIConfig{},
-				PlusConfig:  nil,
-				OAuthConfig: nil,
+				API:        APIConfig{},
+				PlusConfig: nil,
 			},
 			plusManager: nil,
 		},
@@ -73,9 +72,8 @@ func TestHandleGetAuthSettingsWhenNoPlusOAuth(t *testing.T) {
 	al := APIListener{
 		Server: &Server{
 			config: &Config{
-				API:         APIConfig{},
-				PlusConfig:  nil,
-				OAuthConfig: nil,
+				API:        APIConfig{},
+				PlusConfig: nil,
 			},
 			plusManager: nil,
 		},
@@ -95,10 +93,6 @@ func TestHandleGetAuthSettingsWhenNoPlusOAuth(t *testing.T) {
 func TestHandleGetAuthSettingsWhenPlusOAuthAvailable(t *testing.T) {
 	plusLog := logger.NewLogger("rport-plus", logger.LogOutput{File: os.Stdout}, logger.LogLevelDebug)
 
-	plusConfig := &rportplus.PlusConfig{
-		PluginPath: defaultPluginPath,
-	}
-
 	oauthConfig := &oauth.Config{
 		Provider:             oauth.GitHubOAuthProvider,
 		BaseAuthorizeURL:     "https://test.com/authorize",
@@ -109,6 +103,13 @@ func TestHandleGetAuthSettingsWhenPlusOAuthAvailable(t *testing.T) {
 		RequiredOrganization: "testorg",
 	}
 
+	plusConfig := &rportplus.PlusConfig{
+		PluginConfig: &rportplus.PluginConfig{
+			PluginPath: defaultPluginPath,
+		},
+		OAuthConfig: oauthConfig,
+	}
+
 	filesAPI := files.NewFileSystem()
 
 	plusManager, err := rportplus.NewPlusManager(plusConfig, plusLog, filesAPI)
@@ -117,9 +118,8 @@ func TestHandleGetAuthSettingsWhenPlusOAuthAvailable(t *testing.T) {
 	}
 
 	serverCfg := &Config{
-		API:         APIConfig{},
-		PlusConfig:  plusConfig,
-		OAuthConfig: oauthConfig,
+		API:        APIConfig{},
+		PlusConfig: plusConfig,
 	}
 
 	err = RegisterPlusCapabilities(plusManager, serverCfg, plusLog)
@@ -128,9 +128,8 @@ func TestHandleGetAuthSettingsWhenPlusOAuthAvailable(t *testing.T) {
 	al := APIListener{
 		Server: &Server{
 			config: &Config{
-				API:         APIConfig{},
-				PlusConfig:  plusConfig,
-				OAuthConfig: oauthConfig,
+				API:        APIConfig{},
+				PlusConfig: plusConfig,
 			},
 			plusManager: plusManager,
 		},

@@ -36,10 +36,12 @@ func initMockPlusManager() (plus *plusManagerForMockOAuth) {
 	config := &Config{
 		Server: defaultValidMinServerConfig,
 		PlusConfig: &rportplus.PlusConfig{
-			PluginPath: defaultPluginPath,
-		},
-		OAuthConfig: &oauth.Config{
-			Provider: oauth.GitHubOAuthProvider,
+			PluginConfig: &rportplus.PluginConfig{
+				PluginPath: defaultPluginPath,
+			},
+			OAuthConfig: &oauth.Config{
+				Provider: oauth.GitHubOAuthProvider,
+			},
 		},
 	}
 
@@ -61,7 +63,7 @@ func (pm *plusManagerForMockOAuth) GetOAuthCapabilityEx() (capEx oauth.Capabilit
 }
 
 func TestHandleFailedLoginWhenUsingOAuth(t *testing.T) {
-	al, _ := SetupAPIListener(t,
+	al, _ := setupAPIListenerForPlusOAuth(t,
 		&oauth.Config{
 			Provider:          oauth.GitHubOAuthProvider,
 			PermittedUserList: true,
@@ -90,7 +92,9 @@ func TestHandleGetOAuthProvider(t *testing.T) {
 	plusLog := logger.NewLogger("rport-plus", logger.LogOutput{File: os.Stdout}, logger.LogLevelDebug)
 
 	plusConfig := &rportplus.PlusConfig{
-		PluginPath: defaultPluginPath,
+		PluginConfig: &rportplus.PluginConfig{
+			PluginPath: defaultPluginPath,
+		},
 	}
 
 	oauthConfig := &oauth.Config{
@@ -100,7 +104,6 @@ func TestHandleGetOAuthProvider(t *testing.T) {
 	plusManager := initMockPlusManager()
 
 	_, err := plusManager.RegisterCapability(plusMockOAuthCapability, &oauthmock.Capability{
-		Config: oauthConfig,
 		Logger: plusLog,
 	})
 	require.NoError(t, err)
@@ -131,7 +134,9 @@ func setupPlusOAuth() (plusManager rportplus.Manager, plusConfig *rportplus.Plus
 	plusLog = logger.NewLogger("rport-plus", logger.LogOutput{File: os.Stdout}, logger.LogLevelDebug)
 
 	plusConfig = &rportplus.PlusConfig{
-		PluginPath: defaultPluginPath,
+		PluginConfig: &rportplus.PluginConfig{
+			PluginPath: defaultPluginPath,
+		},
 	}
 
 	oauthConfig = &oauth.Config{
@@ -302,7 +307,7 @@ func TestHandleOAuthAuthorizationCode(t *testing.T) {
 	for _, tc := range tc {
 		tc := tc
 		t.Run(tc.Name, func(t *testing.T) {
-			al, mockUsersService := SetupAPIListener(t, tc.OAuthConfig, tc.Username)
+			al, mockUsersService := setupAPIListenerForPlusOAuth(t, tc.OAuthConfig, tc.Username)
 
 			w := httptest.NewRecorder()
 			req := httptest.NewRequest("GET", allRoutesPrefix+oauth.DefaultLoginURI, nil)
@@ -381,11 +386,14 @@ func TestShouldHandleGetDeviceAuthStatusWithError(t *testing.T) {
 	assert.Equal(t, "https://error-info-here.com", errResponse.Data.ErrorURI)
 }
 
-func SetupAPIListener(t *testing.T, oauthConfig *oauth.Config, username string) (al *APIListener, mockUsersService *MockUsersService) {
+func setupAPIListenerForPlusOAuth(t *testing.T, oauthConfig *oauth.Config, username string) (al *APIListener, mockUsersService *MockUsersService) {
 	plusLog := logger.NewLogger("rport-plus", logger.LogOutput{File: os.Stdout}, logger.LogLevelDebug)
 
 	plusConfig := &rportplus.PlusConfig{
-		PluginPath: defaultPluginPath,
+		PluginConfig: &rportplus.PluginConfig{
+			PluginPath: defaultPluginPath,
+		},
+		OAuthConfig: oauthConfig,
 	}
 
 	plusManager := &plusManagerForMockOAuth{}
@@ -422,14 +430,15 @@ func setupTestAPIListenerForOAuth(
 		UserService: users.NewAPIService(users.NewStaticProvider([]*users.User{user}), false),
 	}
 
+	plusConfig.OAuthConfig = oauthConfig
+
 	al = &APIListener{
 		Server: &Server{
 			config: &Config{
 				API: APIConfig{
 					DefaultUserGroup: userGroup,
 				},
-				PlusConfig:  plusConfig,
-				OAuthConfig: oauthConfig,
+				PlusConfig: plusConfig,
 			},
 			plusManager: plusManager,
 		},

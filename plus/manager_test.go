@@ -12,10 +12,6 @@ import (
 	"github.com/cloudradar-monitoring/rport/share/logger"
 )
 
-const (
-	defaultPluginPath = "./rport-plus/rport-plus.so"
-)
-
 var defaultValidMinServerConfig = chserver.ServerConfig{
 	URL:          []string{"http://localhost/"},
 	DataDir:      "./",
@@ -48,7 +44,9 @@ func TestShouldErrorWhenPluginPathDoesNotExist(t *testing.T) {
 	config := &chserver.Config{
 		Server: defaultValidMinServerConfig,
 		PlusConfig: &rportplus.PlusConfig{
-			PluginPath: "./invalid/path",
+			PluginConfig: &rportplus.PluginConfig{
+				PluginPath: "./invalid/path",
+			},
 		},
 	}
 
@@ -66,7 +64,9 @@ func TestShouldNotErrorWhenCorrectPluginPath(t *testing.T) {
 	config := &chserver.Config{
 		Server: defaultValidMinServerConfig,
 		PlusConfig: &rportplus.PlusConfig{
-			PluginPath: defaultPluginPath,
+			PluginConfig: &rportplus.PluginConfig{
+				PluginPath: "./invalid/path",
+			},
 		},
 	}
 
@@ -74,5 +74,5 @@ func TestShouldNotErrorWhenCorrectPluginPath(t *testing.T) {
 	_, err := rportplus.NewPlusManager(config.PlusConfig, plusLog, fs)
 
 	assert.NoError(t, err)
-	assert.Equal(t, config.PlusConfig.PluginPath, fs.CheckedPath)
+	assert.Equal(t, config.PlusConfig.PluginConfig.PluginPath, fs.CheckedPath)
 }

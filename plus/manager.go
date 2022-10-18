@@ -24,12 +24,6 @@ var (
 	ErrCapabilityNotAvailable = func(capName string) error { return fmt.Errorf("rport-plus capability (%s) not available", capName) }
 )
 
-// PlusConfig contains the overall config for the rport-plus plugin. note that
-// each capability should have it's own config section in the config file.
-type PlusConfig struct {
-	PluginPath string `mapstructure:"plugin_path"`
-}
-
 // Capability is used to track loaded info about a plugin capability. See the
 // corresponding individual plugin Capability structs.
 type Capability interface {
@@ -68,12 +62,13 @@ type ManagerProvider struct {
 // plus manager and initializes it
 func NewPlusManager(cfg *PlusConfig, logger *logger.Logger, filesAPI files.FileAPI) (pm Manager, err error) {
 	if filesAPI != nil {
-		exists, err := filesAPI.Exist(cfg.PluginPath)
+		pluginPath := cfg.PluginConfig.PluginPath
+		exists, err := filesAPI.Exist(pluginPath)
 		if err != nil {
 			return nil, err
 		}
 		if !exists {
-			return nil, fmt.Errorf("plugin not found at path \"%s\"", cfg.PluginPath)
+			return nil, fmt.Errorf("plugin not found at path \"%s\"", pluginPath)
 		}
 	}
 
@@ -102,7 +97,8 @@ func (pm *ManagerProvider) RegisterCapability(capName string, newCap Capability)
 	initFuncName := newCap.GetInitFuncName()
 	if initFuncName != "" {
 		// an init func name indicates that the provider should be initialized using the plugin
-		initFn, err := loader.LoadSymbol(pm.Config.PluginPath, newCap.GetInitFuncName())
+		pluginPath := pm.Config.PluginConfig.PluginPath
+		initFn, err := loader.LoadSymbol(pluginPath, newCap.GetInitFuncName())
 		if err != nil {
 			return nil, err
 		}
@@ -178,12 +174,4 @@ func (pm *ManagerProvider) getCap(capName string) (cap Capability) {
 	defer pm.mu.RUnlock()
 
 	return pm.caps[capName]
-}
-
-// GetTotalCapabilities is currently only used for testing
-func (pm *ManagerProvider) GetTotalCapabilities() (total int) {
-	pm.mu.RLock()
-	defer pm.mu.RUnlock()
-
-	return len(pm.caps)
 }

@@ -51,10 +51,12 @@ func TestShouldRegisterPlusCapabilities(t *testing.T) {
 	config := &Config{
 		Server: defaultValidMinServerConfig,
 		PlusConfig: &rportplus.PlusConfig{
-			PluginPath: defaultPluginPath,
-		},
-		OAuthConfig: &oauth.Config{
-			Provider: oauth.GitHubOAuthProvider,
+			PluginConfig: &rportplus.PluginConfig{
+				PluginPath: defaultPluginPath,
+			},
+			OAuthConfig: &oauth.Config{
+				Provider: oauth.GitHubOAuthProvider,
+			},
 		},
 	}
 
