@@ -35,7 +35,7 @@ func initMockPlusManager() (plus *plusManagerForMockOAuth) {
 
 	config := &Config{
 		Server: defaultValidMinServerConfig,
-		PlusConfig: &rportplus.PlusConfig{
+		PlusConfig: rportplus.PlusConfig{
 			PluginConfig: &rportplus.PluginConfig{
 				PluginPath: defaultPluginPath,
 			},
@@ -46,7 +46,7 @@ func initMockPlusManager() (plus *plusManagerForMockOAuth) {
 	}
 
 	plus = &plusManagerForMockOAuth{}
-	plus.InitPlusManager(config.PlusConfig, plusLog)
+	plus.InitPlusManager(&config.PlusConfig, plusLog)
 	return plus
 }
 
@@ -438,7 +438,7 @@ func setupTestAPIListenerForOAuth(
 				API: APIConfig{
 					DefaultUserGroup: userGroup,
 				},
-				PlusConfig: plusConfig,
+				PlusConfig: *plusConfig,
 			},
 			plusManager: plusManager,
 		},

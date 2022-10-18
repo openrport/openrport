@@ -257,7 +257,7 @@ type Config struct {
 	SMTP       SMTPConfig       `mapstructure:"smtp"`
 	Monitoring MonitoringConfig `mapstructure:"monitoring"`
 
-	PlusConfig *rportplus.PlusConfig `mapstructure:",quash"`
+	PlusConfig rportplus.PlusConfig `mapstructure:",squash"`
 }
 
 func (c *Config) GetVaultDBPath() string {
@@ -609,8 +609,7 @@ func generateJWTSecret() (string, error) {
 }
 
 func (c *Config) PlusEnabled() (enabled bool) {
-	return c.PlusConfig != nil &&
-		c.PlusConfig.PluginConfig != nil &&
+	return c.PlusConfig.PluginConfig != nil &&
 		c.PlusConfig.PluginConfig.PluginPath != ""
 }
 

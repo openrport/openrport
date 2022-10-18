@@ -44,7 +44,7 @@ func TestHandleGetBuiltInAuthProvider(t *testing.T) {
 		Server: &Server{
 			config: &Config{
 				API:        APIConfig{},
-				PlusConfig: nil,
+				PlusConfig: rportplus.PlusConfig{},
 			},
 			plusManager: nil,
 		},
@@ -73,7 +73,7 @@ func TestHandleGetAuthSettingsWhenNoPlusOAuth(t *testing.T) {
 		Server: &Server{
 			config: &Config{
 				API:        APIConfig{},
-				PlusConfig: nil,
+				PlusConfig: rportplus.PlusConfig{},
 			},
 			plusManager: nil,
 		},
@@ -103,7 +103,7 @@ func TestHandleGetAuthSettingsWhenPlusOAuthAvailable(t *testing.T) {
 		RequiredOrganization: "testorg",
 	}
 
-	plusConfig := &rportplus.PlusConfig{
+	plusConfig := rportplus.PlusConfig{
 		PluginConfig: &rportplus.PluginConfig{
 			PluginPath: defaultPluginPath,
 		},
@@ -112,7 +112,7 @@ func TestHandleGetAuthSettingsWhenPlusOAuthAvailable(t *testing.T) {
 
 	filesAPI := files.NewFileSystem()
 
-	plusManager, err := rportplus.NewPlusManager(plusConfig, plusLog, filesAPI)
+	plusManager, err := rportplus.NewPlusManager(&plusConfig, plusLog, filesAPI)
 	if err != nil {
 		t.Skipf("plus plugin not available: %s", err)
 	}

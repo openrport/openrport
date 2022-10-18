@@ -43,7 +43,7 @@ func TestShouldErrorWhenPluginPathDoesNotExist(t *testing.T) {
 
 	config := &chserver.Config{
 		Server: defaultValidMinServerConfig,
-		PlusConfig: &rportplus.PlusConfig{
+		PlusConfig: rportplus.PlusConfig{
 			PluginConfig: &rportplus.PluginConfig{
 				PluginPath: "./invalid/path",
 			},
@@ -54,7 +54,7 @@ func TestShouldErrorWhenPluginPathDoesNotExist(t *testing.T) {
 		ShouldNotExist: true,
 	}
 
-	_, err := rportplus.NewPlusManager(config.PlusConfig, plusLog, fs)
+	_, err := rportplus.NewPlusManager(&config.PlusConfig, plusLog, fs)
 	assert.EqualError(t, err, `plugin not found at path "./invalid/path"`)
 }
 
@@ -63,7 +63,7 @@ func TestShouldNotErrorWhenCorrectPluginPath(t *testing.T) {
 
 	config := &chserver.Config{
 		Server: defaultValidMinServerConfig,
-		PlusConfig: &rportplus.PlusConfig{
+		PlusConfig: rportplus.PlusConfig{
 			PluginConfig: &rportplus.PluginConfig{
 				PluginPath: "./invalid/path",
 			},
@@ -71,7 +71,7 @@ func TestShouldNotErrorWhenCorrectPluginPath(t *testing.T) {
 	}
 
 	fs := &mockFileSystem{}
-	_, err := rportplus.NewPlusManager(config.PlusConfig, plusLog, fs)
+	_, err := rportplus.NewPlusManager(&config.PlusConfig, plusLog, fs)
 
 	assert.NoError(t, err)
 	assert.Equal(t, config.PlusConfig.PluginConfig.PluginPath, fs.CheckedPath)

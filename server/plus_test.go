@@ -50,7 +50,7 @@ func TestShouldRegisterPlusCapabilities(t *testing.T) {
 
 	config := &Config{
 		Server: defaultValidMinServerConfig,
-		PlusConfig: &rportplus.PlusConfig{
+		PlusConfig: rportplus.PlusConfig{
 			PluginConfig: &rportplus.PluginConfig{
 				PluginPath: defaultPluginPath,
 			},
@@ -61,7 +61,7 @@ func TestShouldRegisterPlusCapabilities(t *testing.T) {
 	}
 
 	plus := &plusManagerMock{}
-	plus.InitPlusManager(config.PlusConfig, plusLog)
+	plus.InitPlusManager(&config.PlusConfig, plusLog)
 	require.NotNil(t, plus)
 
 	// register the capabilities with the plus manager partial mock. the purpose
