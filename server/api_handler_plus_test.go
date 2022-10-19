@@ -117,13 +117,12 @@ func TestHandleGetOAuthProvider(t *testing.T) {
 
 	assert.Equal(t, http.StatusOK, w.Code)
 
-	info := &SuccessPayloadResponse[AuthProviderInfo]{}
-	err = GetSuccessPayloadResponse(w.Body, info)
+	info, err := GetSuccessPayloadResponse[AuthProviderInfo](w.Body)
 	assert.NoError(t, err)
 
-	assert.Equal(t, "github", info.Data.AuthProvider)
-	assert.Equal(t, allRoutesPrefix+authRoutesPrefix+authSettingsRoute, info.Data.SettingsURI)
-	assert.Equal(t, allRoutesPrefix+authRoutesPrefix+authDeviceSettingsRoute, info.Data.DeviceSettingsURI)
+	assert.Equal(t, "github", info.AuthProvider)
+	assert.Equal(t, allRoutesPrefix+authRoutesPrefix+authSettingsRoute, info.SettingsURI)
+	assert.Equal(t, allRoutesPrefix+authRoutesPrefix+authDeviceSettingsRoute, info.DeviceSettingsURI)
 }
 
 type AuthSettingsResponse struct {
@@ -376,14 +375,13 @@ func TestShouldHandleGetDeviceAuthStatusWithError(t *testing.T) {
 	// note: As the GET to rport was successful and being used in a polling context
 	// we're returning a success response, but the provider may have returned an
 	// errInfo response themselves.
-	errResponse := &SuccessPayloadResponse[oauth.DeviceAuthStatusErrorInfo]{}
-	err = GetSuccessPayloadResponse(w.Body, errResponse)
+	errResponse, err := GetSuccessPayloadResponse[oauth.DeviceAuthStatusErrorInfo](w.Body)
 	assert.NoError(t, err)
 
-	assert.Equal(t, 403, errResponse.Data.StatusCode)
-	assert.Equal(t, "got an error", errResponse.Data.ErrorCode)
-	assert.Equal(t, "error message", errResponse.Data.ErrorMessage)
-	assert.Equal(t, "https://error-info-here.com", errResponse.Data.ErrorURI)
+	assert.Equal(t, 403, errResponse.StatusCode)
+	assert.Equal(t, "got an error", errResponse.ErrorCode)
+	assert.Equal(t, "error message", errResponse.ErrorMessage)
+	assert.Equal(t, "https://error-info-here.com", errResponse.ErrorURI)
 }
 
 func setupAPIListenerForPlusOAuth(t *testing.T, oauthConfig *oauth.Config, username string) (al *APIListener, mockUsersService *MockUsersService) {

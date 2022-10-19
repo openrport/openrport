@@ -25,7 +25,7 @@ type PayloadResponse interface {
 // SuccessPayloadResponse adds the "data" (in json) structural element of a successful api
 // response
 type SuccessPayloadResponse[T PayloadResponse] struct {
-	Data T
+	Data *T
 }
 
 // SuccessPayloadResponseParam provides type constraints for using the SuccessPayloadResponse
@@ -35,8 +35,13 @@ type SuccessPayloadResponseParam interface {
 }
 
 // GetSuccessPayloadResponse returns a successful payload response of the expected type
-func GetSuccessPayloadResponse[R SuccessPayloadResponseParam](r io.Reader, response *R) (err error) {
-	return json.NewDecoder(r).Decode(response)
+func GetSuccessPayloadResponse[R PayloadResponse](r io.Reader) (response *R, err error) {
+	resp := &SuccessPayloadResponse[R]{}
+	err = json.NewDecoder(r).Decode(&resp)
+	if err != nil {
+		return nil, err
+	}
+	return resp.Data, nil
 }
 
 func TestHandleGetBuiltInAuthProvider(t *testing.T) {
@@ -60,12 +65,11 @@ func TestHandleGetBuiltInAuthProvider(t *testing.T) {
 
 	assert.Equal(t, http.StatusOK, w.Code)
 
-	info := &SuccessPayloadResponse[AuthProviderInfo]{}
-	err := GetSuccessPayloadResponse(w.Body, info)
+	info, err := GetSuccessPayloadResponse[AuthProviderInfo](w.Body)
 	assert.NoError(t, err)
 
-	assert.Equal(t, BuiltInAuthProviderName, info.Data.AuthProvider)
-	assert.Equal(t, "", info.Data.SettingsURI)
+	assert.Equal(t, BuiltInAuthProviderName, info.AuthProvider)
+	assert.Equal(t, "", info.SettingsURI)
 }
 
 func TestHandleGetAuthSettingsWhenNoPlusOAuth(t *testing.T) {
