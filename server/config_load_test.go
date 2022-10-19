@@ -28,3 +28,34 @@ func TestLoadingExampleConf(t *testing.T) {
 	assert.Equal(t, "clientAuth1:1234", cfg.Server.Auth)
 	assert.Equal(t, "/var/lib/rport", cfg.Server.DataDir)
 }
+
+const (
+	cfgFilename = `./plus.test.conf`
+
+	sampleCfg = `
+[plus-plugin]
+	plugin_path = "/usr/local/lib/rport/rport-plus.so"
+[plus-oauth]
+	provider = "github"
+`
+)
+
+func TestLoadingPlusConf(t *testing.T) {
+	var (
+		viperCfg *viper.Viper
+		cfg      = &Config{}
+	)
+
+	viperCfg = viper.New()
+	viperCfg.SetConfigType("toml")
+	viperCfg.SetConfigFile(cfgFilename)
+
+	err := os.WriteFile(cfgFilename, []byte(sampleCfg), 0600)
+	require.NoError(t, err)
+	defer os.Remove(cfgFilename)
+
+	err = chshare.DecodeViperConfig(viperCfg, cfg)
+	require.NoError(t, err)
+	assert.Equal(t, "/usr/local/lib/rport/rport-plus.so", cfg.PlusConfig.PluginConfig.PluginPath)
+	assert.NotEmpty(t, "github", cfg.PlusConfig.OAuthConfig.Provider)
+}
