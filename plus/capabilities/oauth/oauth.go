@@ -3,6 +3,7 @@ package oauth
 import (
 	"errors"
 	"net/http"
+	"regexp"
 	"time"
 )
 
@@ -119,4 +120,6 @@ type Config struct {
 	RoleClaim     string `mapstructure:"role_claim"`
 	RequiredRole  string `mapstructure:"required_role"`
 	UsernameClaim string `mapstructure:"username_claim"`
+
+	CompiledPermittedUserMatch *regexp.Regexp
 }
