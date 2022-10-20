@@ -28,12 +28,6 @@ type SuccessPayloadResponse[T PayloadResponse] struct {
 	Data *T
 }
 
-// SuccessPayloadResponseParam provides type constraints for using the SuccessPayloadResponse
-// generic type as a fn param
-type SuccessPayloadResponseParam interface {
-	SuccessPayloadResponse[AuthProviderInfo] | SuccessPayloadResponse[oauth.DeviceAuthStatusErrorInfo]
-}
-
 // GetSuccessPayloadResponse returns a successful payload response of the expected type
 func GetSuccessPayloadResponse[R PayloadResponse](r io.Reader) (response *R, err error) {
 	resp := &SuccessPayloadResponse[R]{}
