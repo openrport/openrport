@@ -2,6 +2,7 @@ package chserver
 
 import (
 	"os"
+	"strings"
 	"testing"
 
 	"github.com/spf13/viper"
@@ -22,7 +23,7 @@ func TestLoadingExampleConf(t *testing.T) {
 	path, err := os.Getwd()
 	require.NoError(t, err)
 	t.Logf("Testing example config %s.rportd.example.conf\n", path)
-	err = chshare.DecodeViperConfig(viperCfg, cfg)
+	err = chshare.DecodeViperConfig(viperCfg, cfg, nil)
 	require.NoError(t, err)
 	assert.Equal(t, "<YOUR_SEED>", cfg.Server.KeySeed)
 	assert.Equal(t, "clientAuth1:1234", cfg.Server.Auth)
@@ -30,8 +31,6 @@ func TestLoadingExampleConf(t *testing.T) {
 }
 
 const (
-	cfgFilename = `./plus.test.conf`
-
 	sampleCfg = `
 [plus-plugin]
 	plugin_path = "/usr/local/lib/rport/rport-plus.so"
@@ -48,14 +47,12 @@ func TestLoadingPlusConf(t *testing.T) {
 
 	viperCfg = viper.New()
 	viperCfg.SetConfigType("toml")
-	viperCfg.SetConfigFile(cfgFilename)
 
-	err := os.WriteFile(cfgFilename, []byte(sampleCfg), 0600)
-	require.NoError(t, err)
-	defer os.Remove(cfgFilename)
+	cfgReader := strings.NewReader(sampleCfg)
 
-	err = chshare.DecodeViperConfig(viperCfg, cfg)
+	err := chshare.DecodeViperConfig(viperCfg, cfg, cfgReader)
 	require.NoError(t, err)
+
 	assert.Equal(t, "/usr/local/lib/rport/rport-plus.so", cfg.PlusConfig.PluginConfig.PluginPath)
 	assert.NotEmpty(t, "github", cfg.PlusConfig.OAuthConfig.Provider)
 }

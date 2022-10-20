@@ -366,7 +366,7 @@ func decodeConfig(args []string) error {
 		viperCfg.SetConfigName("rport.conf")
 	}
 
-	if err := chshare.DecodeViperConfig(viperCfg, config.Config); err != nil {
+	if err := chshare.DecodeViperConfig(viperCfg, config.Config, nil); err != nil {
 		return err
 	}
 
