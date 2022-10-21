@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"io"
 	"os"
+	"sync"
 	"testing"
 
 	"github.com/stretchr/testify/assert"
@@ -497,25 +498,28 @@ func TestHandleOutputChannel(t *testing.T) {
 	for _, tc := range testCases {
 		tc := tc
 		t.Run(tc.Name, func(t *testing.T) {
-			t.Parallel()
+			// t.Parallel()
 
 			jobData, err := json.Marshal(tc.Job)
 			require.NoError(t, err)
 
 			reader, writer := io.Pipe()
-			defer writer.Close()
+
+			wg := sync.WaitGroup{}
+			wg.Add(1)
 
 			go func() {
+				defer wg.Done()
 				err := cl.handleOutputChannel(tc.Type, jobData, log, reader)
 				require.NoError(t, err)
 			}()
 
-			// Write twice to make sure first write is processed
-			_, err = writer.Write([]byte("test-output"))
-			require.NoError(t, err)
 			_, err = writer.Write([]byte("test-output"))
 			require.NoError(t, err)
 
+			writer.Close()
+
+			wg.Wait()
 			assert.Equal(t, tc.Expected, mockConn.LastWrite)
 		})
 	}
