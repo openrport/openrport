@@ -26,14 +26,16 @@ get:
        ```
      4. Validates the inbound msg. If it fails - server sends an outbound JSON message `ErrorPayload`(see in 'Models') and closes the connection.
      5. Server sends a given command to rport client(s) to execute.
-     6. As soon as it gets a result from each rport client - it sends an outbound JSON message `Job`(see in 'Models').
+     6. Partial stdout and stderr messages are streamed with JSON message `JobPartial` (see in 'Models').
+     7. As soon as the command finishes a final result from each rport client is sent with JSON message `Job`(see in 'Models').
+     The final result contains full stdout and stderr outputs.
      It can contain a non-empty 'error' field if server wasn't able to send the command to the rport client.
-     Number of outbound messages is expected to be as many as rport clients. Or less if it's not a concurrent mode and 'abort_on_error' is turned on.
-     7. As soon as all rport clients send back the result - the connection is closed by server.
-     8. Also, a current connection can be closed by UI client.
+     Number of final outbound messages is expected to be as many as rport clients. Or less if it's not a concurrent mode and 'abort_on_error' is turned on.
+     8. As soon as all rport clients send back the result - the connection is closed by server.
+     9. Also, a current connection can be closed by UI client.
 
     There is a simple UI for testing. Try it out on http://127.0.0.1:3000/api/v1/test/commands/ui.
-     
+
   parameters:
     - name: access_token
       in: query
