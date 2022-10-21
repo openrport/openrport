@@ -19,7 +19,7 @@ import (
 
 type tunnelTCP struct {
 	// Declare 64-bit integer before 32-bit for alignment when compiling Go on 32-bit ARM platforms
-	lastConnClose             int64          // time stored as int64 so it can be used with atomic
+	lastConnClose int64 // time stored as int64 so it can be used with atomic
 	*logger.Logger
 	models.Remote
 	sshConn ssh.Conn
