@@ -1,6 +1,7 @@
 package chclient
 
 import (
+	"bytes"
 	"context"
 	"fmt"
 	"log"
@@ -528,6 +529,54 @@ func TestSummaryBuffer(t *testing.T) {
 			b.Stop()
 
 			assert.Equal(t, tc.Expected, string(b.GetSummary()))
+		})
+	}
+}
+
+func TestLimitedWriter(t *testing.T) {
+	testCases := []struct {
+		Name     string
+		Inputs   []string
+		Expected string
+	}{
+		{
+			Name:     "no input",
+			Inputs:   []string{},
+			Expected: "",
+		},
+		{
+			Name:     "short input",
+			Inputs:   []string{"abc"},
+			Expected: "abc",
+		},
+		{
+			Name:     "long input",
+			Inputs:   []string{"abcdefghi"},
+			Expected: "abcde",
+		},
+		{
+			Name:     "multiple inputs",
+			Inputs:   []string{"abc", "def", "ghi"},
+			Expected: "abcde",
+		},
+	}
+
+	for _, tc := range testCases {
+		tc := tc
+		t.Run(tc.Name, func(t *testing.T) {
+			t.Parallel()
+
+			result := &bytes.Buffer{}
+
+			w := &LimitedWriter{Writer: result, Limit: 5}
+			for _, i := range tc.Inputs {
+				n, err := w.Write([]byte(i))
+				require.NoError(t, err)
+
+				assert.Equal(t, len(i), n)
+			}
+
+			assert.Equal(t, tc.Expected, result.String())
 		})
 	}
 }

@@ -11,6 +11,9 @@ const (
 	JobStatusRunning    = "running"
 	JobStatusFailed     = "failed"
 	JobStatusUnknown    = "unknown"
+
+	ChannelStdout = "stdout"
+	ChannelStderr = "stderr"
 )
 
 type Job struct {
