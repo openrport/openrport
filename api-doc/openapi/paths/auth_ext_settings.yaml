@@ -1,7 +1,7 @@
 get:
   tags:
     - Auth
-  summary: Get urls for logging in via configured authorization method
+  summary: Get auth info for a web app login
   operationId: AuthExtSettingsGet
   security: []
   description: >

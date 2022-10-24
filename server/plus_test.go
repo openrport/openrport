@@ -17,8 +17,6 @@ const (
 	defaultPluginPath = "../rport-plus/rport-plus.so"
 )
 
-var plusLog = logger.NewLogger("rport-plus", logger.LogOutput{File: os.Stdout}, logger.LogLevelDebug)
-
 type mockValidator struct{}
 
 func (m *mockValidator) ValidateConfig() (err error) {
@@ -26,11 +24,18 @@ func (m *mockValidator) ValidateConfig() (err error) {
 }
 
 type plusManagerMock struct {
+	CapabilityCount int
+	Caps            map[string]rportplus.Capability
+
 	rportplus.ManagerProvider
 }
 
 func (pm *plusManagerMock) RegisterCapability(capName string, newCap rportplus.Capability) (cap rportplus.Capability, err error) {
-	pm.SetCapability(capName, newCap)
+	pm.CapabilityCount++
+	if pm.Caps == nil {
+		pm.Caps = make(map[string]rportplus.Capability, 0)
+	}
+	pm.Caps[capName] = newCap
 	return newCap, nil
 }
 
@@ -41,33 +46,36 @@ func (pm *plusManagerMock) GetConfigValidator(capName string) (v validator.Valid
 // Checks that the expected plugins are loaded using using mock interfaces.
 // Does not require a working plugin.
 func TestShouldRegisterPlusCapabilities(t *testing.T) {
+	plusLog := logger.NewLogger("rport-plus", logger.LogOutput{File: os.Stdout}, logger.LogLevelDebug)
+
 	config := &Config{
 		Server: defaultValidMinServerConfig,
-		PlusConfig: &rportplus.PlusConfig{
-			PluginPath: defaultPluginPath,
-		},
-		OAuthConfig: &oauth.Config{
-			Provider: oauth.GitHubOAuthProvider,
+		PlusConfig: rportplus.PlusConfig{
+			PluginConfig: &rportplus.PluginConfig{
+				PluginPath: defaultPluginPath,
+			},
+			OAuthConfig: &oauth.Config{
+				Provider: oauth.GitHubOAuthProvider,
+			},
 		},
 	}
 
 	plus := &plusManagerMock{}
-	plus.InitPlusManager(config.PlusConfig, plusLog)
+	plus.InitPlusManager(&config.PlusConfig, plusLog)
 	require.NotNil(t, plus)
 
-	// register the capabilities with the plus manager partial mock. this will allow
-	// the loading of the actual plugin to be bypassed. the purpose of the test is to
-	// check whether the expected capabilities are being requested, not to test the
-	// plugin manager.
+	// register the capabilities with the plus manager partial mock. the purpose
+	// of the test is to check whether the expected capabilities are being
+	// requested, not to test the plugin manager.
 	err := RegisterPlusCapabilities(plus, config, testLog)
 	assert.NoError(t, err)
 
 	// this check will flag when additional capabilities have been registered but the test
 	// not updated
-	count := plus.GetTotalCapabilities()
-	assert.Equal(t, 2, count)
+	assert.Equal(t, 2, plus.CapabilityCount)
 
-	// additional capabilities should be checked here to see that the server is trying to load them
-	assert.True(t, plus.HasCapabilityEnabled(rportplus.PlusOAuthCapability))
-	assert.True(t, plus.HasCapabilityEnabled(rportplus.PlusStatusCapability))
+	// additional capabilities should be checked here to see that the server has
+	// registered them
+	assert.NotNil(t, plus.Caps[rportplus.PlusOAuthCapability])
+	assert.NotNil(t, plus.Caps[rportplus.PlusStatusCapability])
 }

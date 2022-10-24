@@ -12,18 +12,12 @@ import (
 	"github.com/cloudradar-monitoring/rport/share/logger"
 )
 
-const (
-	defaultPluginPath = "./rport-plus/rport-plus.so"
-)
-
 var defaultValidMinServerConfig = chserver.ServerConfig{
 	URL:          []string{"http://localhost/"},
 	DataDir:      "./",
 	Auth:         "abc:def",
 	UsedPortsRaw: []string{"10-20"},
 }
-
-var plusLog = logger.NewLogger("rport-plus", logger.LogOutput{File: os.Stdout}, logger.LogLevelDebug)
 
 type mockFileSystem struct {
 	*files.FileSystem
@@ -45,10 +39,14 @@ func (m *mockFileSystem) Exist(path string) (bool, error) {
 }
 
 func TestShouldErrorWhenPluginPathDoesNotExist(t *testing.T) {
+	plusLog := logger.NewLogger("rport-plus", logger.LogOutput{File: os.Stdout}, logger.LogLevelDebug)
+
 	config := &chserver.Config{
 		Server: defaultValidMinServerConfig,
-		PlusConfig: &rportplus.PlusConfig{
-			PluginPath: "./invalid/path",
+		PlusConfig: rportplus.PlusConfig{
+			PluginConfig: &rportplus.PluginConfig{
+				PluginPath: "./invalid/path",
+			},
 		},
 	}
 
@@ -56,21 +54,25 @@ func TestShouldErrorWhenPluginPathDoesNotExist(t *testing.T) {
 		ShouldNotExist: true,
 	}
 
-	_, err := rportplus.NewPlusManager(config.PlusConfig, plusLog, fs)
+	_, err := rportplus.NewPlusManager(&config.PlusConfig, plusLog, fs)
 	assert.EqualError(t, err, `plugin not found at path "./invalid/path"`)
 }
 
 func TestShouldNotErrorWhenCorrectPluginPath(t *testing.T) {
+	plusLog := logger.NewLogger("rport-plus", logger.LogOutput{File: os.Stdout}, logger.LogLevelDebug)
+
 	config := &chserver.Config{
 		Server: defaultValidMinServerConfig,
-		PlusConfig: &rportplus.PlusConfig{
-			PluginPath: defaultPluginPath,
+		PlusConfig: rportplus.PlusConfig{
+			PluginConfig: &rportplus.PluginConfig{
+				PluginPath: "./invalid/path",
+			},
 		},
 	}
 
 	fs := &mockFileSystem{}
-	_, err := rportplus.NewPlusManager(config.PlusConfig, plusLog, fs)
+	_, err := rportplus.NewPlusManager(&config.PlusConfig, plusLog, fs)
 
 	assert.NoError(t, err)
-	assert.Equal(t, config.PlusConfig.PluginPath, fs.CheckedPath)
+	assert.Equal(t, config.PlusConfig.PluginConfig.PluginPath, fs.CheckedPath)
 }

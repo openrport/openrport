@@ -7,8 +7,6 @@ import (
 	"strconv"
 	"time"
 
-	rportplus "github.com/cloudradar-monitoring/rport/plus"
-	"github.com/cloudradar-monitoring/rport/plus/capabilities/oauth"
 	"github.com/cloudradar-monitoring/rport/server/api"
 	errors2 "github.com/cloudradar-monitoring/rport/server/api/errors"
 	chshare "github.com/cloudradar-monitoring/rport/share"
@@ -201,66 +199,6 @@ func (al *APIListener) handlePostLogin(w http.ResponseWriter, req *http.Request)
 	}
 
 	al.handleLogin(username, pwd, false, w, req)
-}
-
-// TODO: consider moving these definitions to an auth related package
-
-const BuiltInAuthProviderName = "built-in"
-
-type AuthProviderSettings struct {
-	AuthProvider string `json:"auth_provider"`
-	SettingsURI  string `json:"settings_uri"`
-}
-
-type AuthSettings struct {
-	AuthProvider string           `json:"auth_provider"`
-	LoginInfo    *oauth.LoginInfo `json:"details"`
-}
-
-func (al *APIListener) handleGetAuthProvider(w http.ResponseWriter, req *http.Request) {
-	var response api.SuccessPayload
-
-	if al.config.PlusOAuthEnabled() {
-		OAuthProvider := AuthProviderSettings{
-			AuthProvider: al.config.OAuthConfig.Provider,
-			SettingsURI:  allRoutesPrefix + authRoutesPrefix + authSettingsRoute,
-		}
-		response = api.NewSuccessPayload(OAuthProvider)
-	} else {
-		builtInAuthProvider := AuthProviderSettings{
-			AuthProvider: BuiltInAuthProviderName,
-			SettingsURI:  "",
-		}
-		response = api.NewSuccessPayload(builtInAuthProvider)
-	}
-	al.writeJSONResponse(w, http.StatusOK, response)
-}
-
-func (al *APIListener) handleGetAuthSettings(w http.ResponseWriter, req *http.Request) {
-	if !al.config.PlusOAuthEnabled() {
-		al.jsonErrorResponse(w, http.StatusForbidden, rportplus.ErrPlusNotAvailable)
-		return
-	}
-
-	plus := al.Server.plusManager
-	capEx := plus.GetOAuthCapabilityEx()
-	if capEx == nil {
-		al.jsonErrorResponse(w, http.StatusForbidden, rportplus.ErrCapabilityNotAvailable(rportplus.PlusOAuthCapability))
-		return
-	}
-
-	loginInfo, err := capEx.GetOAuthLoginInfo()
-	if err != nil {
-		al.jsonErrorResponse(w, http.StatusInternalServerError, err)
-		return
-	}
-	settings := AuthSettings{
-		AuthProvider: al.config.OAuthConfig.Provider,
-		LoginInfo:    loginInfo,
-	}
-	response := api.NewSuccessPayload(settings)
-	al.writeJSONResponse(w, http.StatusOK, response)
-
 }
 
 func parseLoginPostRequestBody(req *http.Request) (string, string, error) {

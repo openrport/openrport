@@ -406,7 +406,7 @@ func decodeAndValidateConfig(mLog *logger.MemLogger) error {
 		viperCfg.SetConfigName("rportd.conf")
 	}
 
-	if err := chshare.DecodeViperConfig(viperCfg, cfg); err != nil {
+	if err := chshare.DecodeViperConfig(viperCfg, cfg, nil); err != nil {
 		return err
 	}
 

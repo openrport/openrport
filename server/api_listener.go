@@ -91,7 +91,7 @@ func NewAPIListener(
 	var usersProvider users.Provider
 	var err error
 
-	if config.PlusOAuthEnabled() && config.OAuthConfig.PermittedUserList {
+	if isOAuthPermittedUserList(config) {
 		if config.API.AuthFile != "" {
 			logger := logger.NewLogger("auth-file", config.Logging.LogOutput, config.Logging.LogLevel)
 			usersProvider, err = users.NewFileAdapter(logger, users.NewFileManager(config.API.AuthFile))
@@ -414,11 +414,7 @@ func (al *APIListener) validateCredentials(username, password string, skipPasswo
 		return false, nil, fmt.Errorf("failed to get user: %v", err)
 	}
 
-	if user == nil && skipPasswordValidation &&
-		(al.config.API.CreateMissingUsers ||
-			// if we're using OAuth and there's no permitted_user_list then create
-			// any missing users
-			(al.config.PlusOAuthEnabled() && !al.config.OAuthConfig.PermittedUserList)) {
+	if al.shouldCreateMissingUser(user, skipPasswordValidation) {
 		pswd, err := random.UUID4()
 		if err != nil {
 			return false, nil, err
@@ -443,6 +439,23 @@ func (al *APIListener) validateCredentials(username, password string, skipPasswo
 	}
 
 	return verifyPassword(user.Password, password), user, nil
+}
+
+func (al *APIListener) shouldCreateMissingUser(user *users.User, skipPasswordValidation bool) bool {
+	if user != nil || !skipPasswordValidation {
+		return false
+	}
+	if al.config.API.CreateMissingUsers || !isOAuthPermittedUserList(al.config) {
+		return true
+	}
+	return false
+}
+
+func isOAuthPermittedUserList(cfg *Config) (is bool) {
+	if !cfg.PlusOAuthEnabled() {
+		return false
+	}
+	return cfg.PlusConfig.OAuthConfig.PermittedUserList
 }
 
 func verifyPassword(saved, provided string) bool {

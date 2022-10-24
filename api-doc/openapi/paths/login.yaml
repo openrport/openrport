@@ -16,7 +16,7 @@ get:
 
     * If Rport Plus OAuth is enabled, then this API will be disabled and a 403
     status response will be returned. Login using the `/auth/provider` and
-    `/auth/ext/settings` endpoints instead.
+    `/auth/ext/settings` or `/auth/ext/settings/device` endpoints instead.
   parameters:
     - name: token-lifetime
       in: query
