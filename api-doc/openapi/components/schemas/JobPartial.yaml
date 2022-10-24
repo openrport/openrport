@@ -1,0 +1,15 @@
+type: object
+properties:
+  jid:
+    type: string
+    description: job ID
+  result:
+    type: object
+    properties:
+      stdout:
+        type: string
+        description: partial process standard output
+      stderr:
+        type: string
+        description: partial process standard error
+    description: execution partial result
