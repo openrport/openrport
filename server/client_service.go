@@ -272,7 +272,7 @@ func (s *ClientServiceProvider) StartClient(
 		}
 
 		oldTunnels := GetTunnelsToReestablish(getRemotes(client.Tunnels), req.Remotes)
-		clientVersion, err := version.NewVersion(client.Version)
+		clientVersion, err := version.NewVersion(req.Version)
 		if err != nil {
 			return nil, fmt.Errorf("failed to determine client version: %v", err)
 		}
