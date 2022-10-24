@@ -1,6 +1,7 @@
 package chclient
 
 import (
+	"bytes"
 	"context"
 	"fmt"
 	"log"
@@ -20,6 +21,7 @@ import (
 	"github.com/cloudradar-monitoring/rport/share/clientconfig"
 	"github.com/cloudradar-monitoring/rport/share/comm"
 	"github.com/cloudradar-monitoring/rport/share/logger"
+	"github.com/cloudradar-monitoring/rport/share/models"
 	"github.com/cloudradar-monitoring/rport/share/test"
 )
 
@@ -194,21 +196,27 @@ func TestHandleRunCmdRequestPositiveCase(t *testing.T) {
 	stdErrSize := len(strings.Join(execMock.ReturnStdErr, ""))
 
 	testCases := []struct {
-		name            string
-		sendBackLimit   int
-		denyRegexp      *regexp.Regexp
-		wantJSON        string
-		wantErrContains string
+		name             string
+		sendBackLimit    int
+		denyRegexp       *regexp.Regexp
+		wantJSON         string
+		wantErrContains  string
+		wantStdoutWrites []string
+		wantStderrWrites []string
 	}{
 		{
-			name:          "limit is larger than stdout and stderr",
-			sendBackLimit: stdOutSize + 1,
-			wantJSON:      fmt.Sprintf(wantJSONPart1, "") + wantJSONPart2,
+			name:             "limit is larger than stdout and stderr",
+			sendBackLimit:    stdOutSize + 1,
+			wantJSON:         fmt.Sprintf(wantJSONPart1, "") + wantJSONPart2,
+			wantStdoutWrites: []string{"output1", "output2", "output3", "<summary>test</summary>"},
+			wantStderrWrites: []string{"error1", "error2"},
 		},
 		{
-			name:          "limit is equal to the larger output",
-			sendBackLimit: stdOutSize,
-			wantJSON:      fmt.Sprintf(wantJSONPart1, "") + wantJSONPart2,
+			name:             "limit is equal to the larger output",
+			sendBackLimit:    stdOutSize,
+			wantJSON:         fmt.Sprintf(wantJSONPart1, "") + wantJSONPart2,
+			wantStdoutWrites: []string{"output1", "output2", "output3", "<summary>test</summary>"},
+			wantStderrWrites: []string{"error1", "error2"},
 		},
 		{
 			name:          "limit is equal to the smaller output",
@@ -220,6 +228,8 @@ func TestHandleRunCmdRequestPositiveCase(t *testing.T) {
 	   "summary": "test"
    }
 }`,
+			wantStdoutWrites: []string{"output1", "outpu"},
+			wantStderrWrites: []string{"error1", "error2"},
 		},
 		{
 			name:          "limit is less than smaller output",
@@ -231,6 +241,8 @@ func TestHandleRunCmdRequestPositiveCase(t *testing.T) {
 		"summary": "test"
 	}
 }`,
+			wantStdoutWrites: []string{"output1", "outp"},
+			wantStderrWrites: []string{"error1", "error"},
 		},
 		{
 			name:          "limit is zero",
@@ -278,6 +290,8 @@ func TestHandleRunCmdRequestPositiveCase(t *testing.T) {
 			assert.Equal(t, comm.RequestTypeCmdResult, inputRequestName)
 			assert.Equal(t, false, inputWantReply)
 			assert.JSONEq(t, tc.wantJSON, string(inputPayload))
+			assert.Equal(t, tc.wantStdoutWrites, connMock.ChannelMocks[models.ChannelStdout].Writes)
+			assert.Equal(t, tc.wantStderrWrites, connMock.ChannelMocks[models.ChannelStderr].Writes)
 		})
 	}
 }
@@ -528,6 +542,54 @@ func TestSummaryBuffer(t *testing.T) {
 			b.Stop()
 
 			assert.Equal(t, tc.Expected, string(b.GetSummary()))
+		})
+	}
+}
+
+func TestLimitedWriter(t *testing.T) {
+	testCases := []struct {
+		Name     string
+		Inputs   []string
+		Expected string
+	}{
+		{
+			Name:     "no input",
+			Inputs:   []string{},
+			Expected: "",
+		},
+		{
+			Name:     "short input",
+			Inputs:   []string{"abc"},
+			Expected: "abc",
+		},
+		{
+			Name:     "long input",
+			Inputs:   []string{"abcdefghi"},
+			Expected: "abcde",
+		},
+		{
+			Name:     "multiple inputs",
+			Inputs:   []string{"abc", "def", "ghi"},
+			Expected: "abcde",
+		},
+	}
+
+	for _, tc := range testCases {
+		tc := tc
+		t.Run(tc.Name, func(t *testing.T) {
+			t.Parallel()
+
+			result := &bytes.Buffer{}
+
+			w := &LimitedWriter{Writer: result, Limit: 5}
+			for _, i := range tc.Inputs {
+				n, err := w.Write([]byte(i))
+				require.NoError(t, err)
+
+				assert.Equal(t, len(i), n)
+			}
+
+			assert.Equal(t, tc.Expected, result.String())
 		})
 	}
 }

@@ -2,37 +2,48 @@ package ws
 
 import (
 	"encoding/json"
+	"io"
 	"sync"
-
-	"github.com/gorilla/websocket"
 
 	"github.com/cloudradar-monitoring/rport/server/api"
 	"github.com/cloudradar-monitoring/rport/share/logger"
 )
 
+type Conn interface {
+	NextReader() (messageType int, r io.Reader, err error)
+	ReadMessage() (messageType int, p []byte, err error)
+	WriteMessage(messageType int, data []byte) error
+	WriteJSON(v interface{}) error
+	Close() error
+}
+
 type ConcurrentWebSocket struct {
-	*websocket.Conn
+	conn              Conn
 	mu                sync.Mutex
 	log               *logger.Logger
 	writesBeforeClose int
 }
 
-func NewConcurrentWebSocket(conn *websocket.Conn, log *logger.Logger) *ConcurrentWebSocket {
+func NewConcurrentWebSocket(conn Conn, log *logger.Logger) *ConcurrentWebSocket {
 	return &ConcurrentWebSocket{
-		Conn:              conn,
+		conn:              conn,
 		log:               log,
 		writesBeforeClose: 1,
 	}
 }
 
 func (ws *ConcurrentWebSocket) ReadJSON(inboundMsg interface{}) error {
-	_, r, err := ws.NextReader()
+	_, r, err := ws.conn.NextReader()
 	if err != nil {
 		return err
 	}
 	dec := json.NewDecoder(r)
 	dec.DisallowUnknownFields()
 	return dec.Decode(inboundMsg)
+}
+
+func (ws *ConcurrentWebSocket) ReadMessage() (messageType int, p []byte, err error) {
+	return ws.conn.ReadMessage()
 }
 
 func (ws *ConcurrentWebSocket) WriteError(title string, err error) {
@@ -43,11 +54,17 @@ func (ws *ConcurrentWebSocket) WriteError(title string, err error) {
 	_ = ws.WriteJSON(api.NewErrAPIPayloadFromMessage("", title, errMsg))
 }
 
+// WriteJSON write json message to websocket, counting towards writes before close
 func (ws *ConcurrentWebSocket) WriteJSON(jsonOutboundMsg interface{}) error {
+	defer ws.dec()
+	return ws.WriteNonFinalJSON(jsonOutboundMsg)
+}
+
+// WriteNonFinalJSON write json message to websocket, not counting towards writes before close
+func (ws *ConcurrentWebSocket) WriteNonFinalJSON(jsonOutboundMsg interface{}) error {
 	ws.mu.Lock()
 	defer ws.mu.Unlock()
-	defer ws.dec()
-	err := ws.Conn.WriteJSON(jsonOutboundMsg)
+	err := ws.conn.WriteJSON(jsonOutboundMsg)
 	if err != nil {
 		ws.log.Errorf("Error WS json write: %v", err)
 	}
@@ -58,7 +75,7 @@ func (ws *ConcurrentWebSocket) WriteMessage(messageType int, data []byte) error 
 	ws.mu.Lock()
 	defer ws.mu.Unlock()
 	defer ws.dec()
-	return ws.Conn.WriteMessage(messageType, data)
+	return ws.conn.WriteMessage(messageType, data)
 }
 
 func (ws *ConcurrentWebSocket) SetWritesBeforeClose(n int) {
@@ -70,7 +87,7 @@ func (ws *ConcurrentWebSocket) SetWritesBeforeClose(n int) {
 func (ws *ConcurrentWebSocket) dec() {
 	ws.writesBeforeClose--
 	if ws.writesBeforeClose == 0 {
-		err := ws.Conn.Close()
+		err := ws.conn.Close()
 		if err != nil {
 			ws.log.Errorf("Close ws on dec(): %v", err)
 		} else {
@@ -82,7 +99,7 @@ func (ws *ConcurrentWebSocket) dec() {
 func (ws *ConcurrentWebSocket) Close() error {
 	ws.mu.Lock()
 	defer ws.mu.Unlock()
-	err := ws.Conn.Close()
+	err := ws.conn.Close()
 	if err != nil {
 		ws.log.Errorf("Error on Close ws: %v", err)
 	} else {
