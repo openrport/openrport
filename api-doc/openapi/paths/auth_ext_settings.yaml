@@ -1,0 +1,37 @@
+get:
+  tags:
+    - Auth
+  summary: Get auth info for a web app login
+  operationId: AuthExtSettingsGet
+  security: []
+  description: >
+    This API provides client with the necessary links to authorize a user and
+    then perform an Rport login to obtain an Rport JWT Bearer token.
+  responses:
+    "200":
+      description: Success
+      content:
+        application/json:
+          schema:
+            type: object
+            properties:
+              data:
+                $ref: ../components/schemas/AuthExtSettingsResponse.yaml
+    "400":
+      description: Invalid parameters
+      content:
+        application/json:
+          schema:
+            $ref: ../components/schemas/ErrorPayload.yaml
+    "403":
+      description: Auth provider settings not enabled
+      content:
+        application/json:
+          schema:
+            $ref: ../components/schemas/ErrorPayload.yaml
+    "500":
+      description: Server error during processing
+      content:
+        application/json:
+          schema:
+            $ref: ../components/schemas/ErrorPayload.yaml

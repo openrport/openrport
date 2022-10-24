@@ -78,7 +78,7 @@ archives:
     files:
       - rportd.example.conf
 checksum:
-  name_template: 'checksums.txt'
+  name_template: "checksums.txt"
 snapshot:
   name_template: "{{ .Tag }}"
 changelog:

@@ -1,0 +1,25 @@
+type: object
+properties:
+  token:
+    type: string
+    description: >-
+      Authorization JWT token.
+      type: object
+  two_fa:
+    type: object
+    description: null when used with the Rport Plus OAuth plugin
+  error:
+    type: string
+    description: >-
+      The `error` value contains the reason that the user cannot currently be logged in. This may be
+      a soft error because the user has not authorized the api client yet or might be a hard error
+      such as the user refusing (or forgetting) to authorize or an api client programming error.
+  error_description:
+    type: string
+    description: >-
+      Contains more information about the error.
+  error_uri:
+    type: string
+    description: >-
+      Contains a URI where the user can go to find out more about the error
+description: Response returned by the `/oauth/login/device` endpoint when RPort Plus OAuth is enabled

@@ -21,10 +21,14 @@ const (
 	ErrCodeInvalidRequest  = "ERR_CODE_INVALID_REQUEST"
 	ErrCodeAlreadyExist    = "ERR_CODE_ALREADY_EXIST"
 
-	allRoutesPrefix      = "/api/v1"
-	totPRoutes           = "/me/totp-secret"
-	verify2FaRoute       = "/verify-2fa"
-	filesUploadRouteName = "files"
+	allRoutesPrefix         = "/api/v1"
+	authRoutesPrefix        = "/auth"
+	authProviderRoute       = "/provider"
+	authSettingsRoute       = "/ext/settings"
+	authDeviceSettingsRoute = "/ext/settings/device"
+	totPRoutes              = "/me/totp-secret"
+	verify2FaRoute          = "/verify-2fa"
+	filesUploadRouteName    = "files"
 )
 
 var apiUpgrader = websocket.Upgrader{

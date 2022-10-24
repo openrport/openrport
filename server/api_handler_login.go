@@ -1,6 +1,7 @@
 package chserver
 
 import (
+	"errors"
 	"fmt"
 	"net/http"
 	"strconv"
@@ -24,6 +25,11 @@ type loginResponse struct {
 }
 
 func (al *APIListener) handleGetLogin(w http.ResponseWriter, req *http.Request) {
+	if al.config.PlusOAuthEnabled() {
+		al.jsonErrorResponse(w, http.StatusForbidden, errors.New("built-in authorization disabled. please authorize via your configured authorization"))
+		return
+	}
+
 	if al.config.API.AuthHeader != "" && req.Header.Get(al.config.API.AuthHeader) != "" {
 		al.handleLogin(req.Header.Get(al.config.API.UserHeader), "", true /* skipPasswordValidation */, w, req)
 		return
@@ -177,6 +183,11 @@ func (al *APIListener) sendJWTToken(username string, w http.ResponseWriter, req 
 }
 
 func (al *APIListener) handlePostLogin(w http.ResponseWriter, req *http.Request) {
+	if al.config.PlusOAuthEnabled() {
+		al.jsonErrorResponse(w, http.StatusForbidden, errors.New("built-in authorization disabled. please authorize via your configured authorization"))
+		return
+	}
+
 	username, pwd, err := parseLoginPostRequestBody(req)
 	if err != nil {
 		// ban IP if it sends a lot of bad requests

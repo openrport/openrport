@@ -1,6 +1,6 @@
 module github.com/cloudradar-monitoring/rport
 
-go 1.18
+go 1.19
 
 require (
 	github.com/asaskevich/govalidator v0.0.0-20210307081110-f21760c49a8d
@@ -16,7 +16,7 @@ require (
 	github.com/golang-migrate/migrate/v4 v4.14.1
 	github.com/google/uuid v1.3.0
 	github.com/gorilla/handlers v1.5.1
-	github.com/gorilla/mux v1.7.4
+	github.com/gorilla/mux v1.8.0
 	github.com/gorilla/websocket v1.4.2
 	github.com/gregdel/pushover v1.0.0
 	github.com/h2non/parth v0.0.0-20190131123155-b4df798d6542 // indirect
@@ -56,7 +56,7 @@ require (
 	github.com/tklauser/numcpus v0.2.2 // indirect
 	github.com/wwt/guac v1.3.1
 	github.com/yusufpapurcu/wmi v1.2.2 // indirect
-	golang.org/x/crypto v0.0.0-20210921155107-089bfa567519
+	golang.org/x/crypto v0.0.0-20220214200702-86341886e292
 	golang.org/x/net v0.0.0-20211209124913-491a49abca63
 	golang.org/x/sync v0.0.0-20210220032951-036812b2e83c
 	golang.org/x/sys v0.0.0-20220520151302-bc2c85ada10a

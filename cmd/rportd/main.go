@@ -406,7 +406,7 @@ func decodeAndValidateConfig(mLog *logger.MemLogger) error {
 		viperCfg.SetConfigName("rportd.conf")
 	}
 
-	if err := chshare.DecodeViperConfig(viperCfg, cfg); err != nil {
+	if err := chshare.DecodeViperConfig(viperCfg, cfg, nil); err != nil {
 		return err
 	}
 
@@ -460,7 +460,17 @@ func runMain(*cobra.Command, []string) {
 	// Flush the in-memory logger
 	mLog.Flush(logger.NewLogger("server-startup", cfg.Logging.LogOutput, cfg.Logging.LogLevel))
 
-	s, err := chserver.NewServer(cfg, files.NewFileSystem())
+	filesAPI := files.NewFileSystem()
+
+	plusManager, err := chserver.EnablePlusIfLicensed(cfg, filesAPI)
+	if err != nil && err != chserver.ErrPlusNotEnabled {
+		log.Fatal(err)
+	}
+
+	s, err := chserver.NewServer(cfg, &chserver.ServerOpts{
+		FilesAPI:    filesAPI,
+		PlusManager: plusManager,
+	})
 	if err != nil {
 		log.Fatal(err)
 	}
