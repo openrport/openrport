@@ -46,8 +46,8 @@ jobs:
           echo "✅ Copied rportd to destination"
           ssh -p ${SSH_PORT} ${SSH_USERNAME}@${SSH_HOST} bash << EOF
           set -e
-          service rportd stop
-          sudo mv /tmp/.rportd /usr/local/bin/rportd
-          service rportd start
+          sudo -n service rportd stop
+          sudo -n mv /tmp/.rportd /usr/local/bin/rportd
+          sudo -n service rportd start
           EOF
           echo "✅ Rportd restarted on remote host"
