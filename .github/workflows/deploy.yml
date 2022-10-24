@@ -26,7 +26,7 @@ jobs:
         shell: bash
         run: |
             .github/scripts/start_rportd.sh
-            .github/scripts/start_rportd.sh
+            .github/scripts/start_rport.sh
 
       - name: Copy a new version to remote server
         shell: bash
@@ -42,10 +42,12 @@ jobs:
           echo "${SSH_KNOWN_HOSTS}" > ~/.ssh/known_hosts
           chmod 0400 ~/.ssh/*
           ls -lah ~/.ssh/
-          scp -P ${SSH_PORT} rportd ${SSH_USERNAME}@{SSH_HOST}:/tmp/.rportd
-          ssh -p ${SSH_PORT} ${SSH_USERNAME}@{SSH_HOST} bash << EOF
+          scp -P ${SSH_PORT} rportd ${SSH_USERNAME}@${SSH_HOST}:/tmp/.rportd
+          echo "✅ Copied rportd to destination"
+          ssh -p ${SSH_PORT} ${SSH_USERNAME}@${SSH_HOST} bash << EOF
           set -e
           service rportd stop
           sudo mv /tmp/.rportd /usr/local/bin/rportd
           service rportd start
           EOF
+          echo "✅ Rportd restarted on remote host"
