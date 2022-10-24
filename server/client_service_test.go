@@ -112,13 +112,12 @@ func TestStartClientDisconnected(t *testing.T) {
 			DisconnectedAt:    &now,
 			AllowedUserGroups: []string{"test-group"},
 			UpdatesStatus:     &models.UpdatesStatus{UpdatesAvailable: 13},
-			Version:           "0.7.0",
 		}}, nil, testLog),
 		portDistributor: ports.NewPortDistributor(mapset.NewThreadUnsafeSet()),
 	}
 	client, err := cs.StartClient(
 		context.Background(), "test-client-auth", "disconnected-client", connMock, false,
-		&chshare.ConnectionRequest{Name: "new-connection"}, testLog)
+		&chshare.ConnectionRequest{Name: "new-connection", Version: "0.7.0"}, testLog)
 	assert.NoError(t, err)
 
 	assert.Nil(t, client.DisconnectedAt)
