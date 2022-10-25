@@ -104,10 +104,7 @@ linters-settings:
 
 linters:
   enable:
-    # temporarily disable goimports. it seems the rules have updated (maybe with the 1.19 go compiler) and it
-    # is now finding errors in previously fine files. we need to fix the new errors and then we can enable
-    # again. 18oct22.
-    # - goimports
+    - goimports
     - govet
     - revive
     - gosimple
