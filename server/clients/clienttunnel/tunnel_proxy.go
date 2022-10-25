@@ -148,7 +148,7 @@ func (tp *TunnelProxy) TunnelAddr() string {
 	return net.JoinHostPort(tp.TunnelHost, tp.TunnelPort)
 }
 
-//handleACL middleware to handle ACL
+// handleACL middleware to handle ACL
 func (tp *TunnelProxy) handleACL(next http.Handler) http.Handler {
 	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		if tp.ACL == nil {
@@ -198,7 +198,7 @@ func (tp *TunnelProxy) sendHTML(w http.ResponseWriter, statusCode int, msg strin
 	_, _ = w.Write([]byte(m))
 }
 
-//noCache middleware to disable caching
+// noCache middleware to disable caching
 func (tp *TunnelProxy) noCache(next http.Handler) http.Handler {
 	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		w.Header().Set("Cache-Control", "no-cache")

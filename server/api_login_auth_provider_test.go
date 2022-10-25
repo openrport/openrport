@@ -8,13 +8,14 @@ import (
 	"os"
 	"testing"
 
+	"github.com/stretchr/testify/assert"
+	"github.com/stretchr/testify/require"
+
 	rportplus "github.com/cloudradar-monitoring/rport/plus"
 	"github.com/cloudradar-monitoring/rport/plus/capabilities/oauth"
 	"github.com/cloudradar-monitoring/rport/share/files"
 	"github.com/cloudradar-monitoring/rport/share/logger"
 	"github.com/cloudradar-monitoring/rport/share/security"
-	"github.com/stretchr/testify/assert"
-	"github.com/stretchr/testify/require"
 )
 
 // PayloadResponse represents the types that might be returned by a successful api response

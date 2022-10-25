@@ -4,7 +4,7 @@ import (
 	"github.com/gorilla/mux"
 )
 
-//TunnelProxyConnector connects the tunnel proxy http server with the tunnel behind
+// TunnelProxyConnector connects the tunnel proxy http server with the tunnel behind
 type TunnelProxyConnector interface {
 	InitRouter(router *mux.Router) *mux.Router
 }

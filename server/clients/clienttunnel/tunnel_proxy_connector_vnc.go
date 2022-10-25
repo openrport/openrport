@@ -17,7 +17,7 @@ var indexHTML string
 //go:embed novnc/error404.html
 var error404HTML string
 
-//TunnelProxyConnectorVNC is a kind of 'websockify' vnc to tcp proxy to be used by a novnc instance to connect to a vnc tunnel
+// TunnelProxyConnectorVNC is a kind of 'websockify' vnc to tcp proxy to be used by a novnc instance to connect to a vnc tunnel
 type TunnelProxyConnectorVNC struct {
 	tunnelProxy *TunnelProxy
 }
@@ -26,7 +26,7 @@ func NewTunnelConnectorVNC(tp *TunnelProxy) *TunnelProxyConnectorVNC {
 	return &TunnelProxyConnectorVNC{tunnelProxy: tp}
 }
 
-//InitRouter called when tunnel proxy is started
+// InitRouter called when tunnel proxy is started
 func (tc *TunnelProxyConnectorVNC) InitRouter(router *mux.Router) *mux.Router {
 	router.Use(tc.tunnelProxy.noCache)
 

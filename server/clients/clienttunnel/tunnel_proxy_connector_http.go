@@ -9,7 +9,7 @@ import (
 	"github.com/gorilla/mux"
 )
 
-//TunnelProxyConnectorHTTP uses the standard ReverseProxy from package httputil to connect to HTTP/HTTPS server on tunnel endpoint
+// TunnelProxyConnectorHTTP uses the standard ReverseProxy from package httputil to connect to HTTP/HTTPS server on tunnel endpoint
 type TunnelProxyConnectorHTTP struct {
 	tunnelProxy  *TunnelProxy
 	reverseProxy *httputil.ReverseProxy

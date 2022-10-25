@@ -111,7 +111,7 @@ func isHost(s string) bool {
 	return err == nil
 }
 
-//implement Stringer
+// implement Stringer
 func (r Remote) String() string {
 	s := r.LocalHost + ":" + r.LocalPort + ":" + r.Remote()
 	if r.Protocol != ProtocolTCP {

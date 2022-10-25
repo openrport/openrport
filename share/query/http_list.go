@@ -46,7 +46,7 @@ func NewOptions(req *http.Request, sortsDefault map[string][]string, filtersDefa
 	return qOptions
 }
 
-//ValidateListOptions when supportedFields is nil, the fields options are disabled and will not be validated or used, same for pagination
+// ValidateListOptions when supportedFields is nil, the fields options are disabled and will not be validated or used, same for pagination
 func ValidateListOptions(lo *ListOptions, supportedSorts map[string]bool, supportedFilters map[string]bool, supportedFields map[string]map[string]bool, paginationConfig *PaginationConfig) error {
 	errs := errors2.APIErrors{}
 	sortErrs := ValidateSortOptions(lo.Sorts, supportedSorts)
