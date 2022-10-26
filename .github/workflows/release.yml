@@ -49,20 +49,24 @@ jobs:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         run: |
           dpkg -l|grep -q python3-requests || apt-get -y install python3-requests
-          pwd
           cd rport-plus
+          pwd
+          git status
           PLUS_LATEST=$(git ls-remote --tags origin|tail -n1|awk '{print $2}'|cut -d'/' -f3)
-          git checkout tags/"$PLUS_LATEST" -b "$PLUS_LATEST"-branch
+          echo "Will checkout rport-plus branch ${PLUS_LATEST}"
+          git checkout tags/"${PLUS_LATEST}" -b "${PLUS_LATEST}"-branch
           echo ::set-output name=repo_name::$(basename `git rev-parse --show-toplevel`)
           make build
           ls -la rport-plus.so
           echo "=================================================================="
-          echo "✅ Successfully built rport-plus.so version ${GITHUB_REF_NAME}"
+          echo "✅ Successfully built rport-plus.so version ${PLUS_LATEST}"
           echo "=================================================================="
-          export PLUS_ARTIFACT=rport-plus_${GITHUB_REF_NAME}_Linux_$(uname -m).tar.gz
-          tar czf ${PLUS_ARTIFACT} README.md license.txt rport-plus.so
+          export PLUS_ARTIFACT=rport-plus_${PLUS_LATEST}_Linux_$(uname -m).tar.gz
+          echo "rport-plus v${PLUS_LATEST}; built $(date)" > version.txt
+          tar czf ${PLUS_ARTIFACT} README.md license.txt version.txt rport-plus.so
           tar tzf ${PLUS_ARTIFACT}
           ls -la ${PLUS_ARTIFACT}
+          echo "✅ Successfully created artifact ${PLUS_ARTIFACT}"
           # Get the release id of the tag
           RELEASE_ID=$(../.github/scripts/gh-release-id.py ${GITHUB_REF_NAME})
           echo "🚩 RELEASE_ID=$RELEASE_ID"
