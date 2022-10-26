@@ -78,8 +78,8 @@ jobs:
           #
           # Create a tar package
           #
-          export PLUS_ARTIFACT=rport-plus_${PLUS_LATEST}_Linux_$(uname -m).tar.gz
-          echo "rport-plus v${PLUS_LATEST}; built $(date)" > version.txt
+          export PLUS_ARTIFACT=rport-plus_${PLUS_LATEST}:${GITHUB_REF_NAME}_Linux_$(uname -m).tar.gz
+          echo "rport-plus v${PLUS_LATEST}; compiled for rportd ${GITHUB_REF_NAME}; built on $(date)" > version.txt
           tar czf ${PLUS_ARTIFACT} README.md license.txt version.txt rport-plus.so
           tar tzf ${PLUS_ARTIFACT}
           ls -la ${PLUS_ARTIFACT}
