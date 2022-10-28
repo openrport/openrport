@@ -3,6 +3,12 @@ properties:
   jid:
     type: string
     description: job ID
+  client_id:
+    type: string
+    description: client ID
+  client_name:
+    type: string
+    description: client name
   result:
     type: object
     properties:
