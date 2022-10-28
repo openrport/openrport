@@ -17,24 +17,25 @@ const (
 )
 
 type Job struct {
-	JID         string     `json:"jid"`
-	Status      string     `json:"status"`
-	FinishedAt  *time.Time `json:"finished_at"`
-	ClientID    string     `json:"client_id"`
-	ClientName  string     `json:"client_name"`
-	Command     string     `json:"command"`
-	Cwd         string     `json:"cwd"`
-	Interpreter string     `json:"interpreter"`
-	PID         *int       `json:"pid"`
-	StartedAt   time.Time  `json:"started_at"`
-	CreatedBy   string     `json:"created_by"`
-	TimeoutSec  int        `json:"timeout_sec"`
-	MultiJobID  *string    `json:"multi_job_id"`
-	ScheduleID  *string    `json:"schedule_id"`
-	Error       string     `json:"error"`
-	Result      *JobResult `json:"result"`
-	IsSudo      bool       `json:"is_sudo"`
-	IsScript    bool       `json:"is_script"`
+	JID          string     `json:"jid"`
+	Status       string     `json:"status"`
+	FinishedAt   *time.Time `json:"finished_at"`
+	ClientID     string     `json:"client_id"`
+	ClientName   string     `json:"client_name"`
+	Command      string     `json:"command"`
+	Cwd          string     `json:"cwd"`
+	Interpreter  string     `json:"interpreter"`
+	PID          *int       `json:"pid"`
+	StartedAt    time.Time  `json:"started_at"`
+	CreatedBy    string     `json:"created_by"`
+	TimeoutSec   int        `json:"timeout_sec"`
+	MultiJobID   *string    `json:"multi_job_id"`
+	ScheduleID   *string    `json:"schedule_id"`
+	Error        string     `json:"error"`
+	Result       *JobResult `json:"result"`
+	IsSudo       bool       `json:"is_sudo"`
+	IsScript     bool       `json:"is_script"`
+	StreamResult bool       `json:"stream_result"`
 }
 
 type JobResult struct {
