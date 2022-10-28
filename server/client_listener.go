@@ -534,8 +534,10 @@ func (cl *ClientListener) handleSSHChannels(clientLog *logger.Logger, chans <-ch
 }
 
 type outputChannelData struct {
-	JID    string            `json:"jid"`
-	Result *models.JobResult `json:"result"`
+	JID        string            `json:"jid"`
+	ClientID   string            `json:"client_id"`
+	ClientName string            `json:"client_name"`
+	Result     *models.JobResult `json:"result"`
 }
 
 func (cl *ClientListener) handleOutputChannel(typ string, jobData []byte, clientLog *logger.Logger, stream io.Reader) error {
@@ -554,7 +556,9 @@ func (cl *ClientListener) handleOutputChannel(typ string, jobData []byte, client
 	ws := cl.Server.uiJobWebSockets.Get(wsJID)
 
 	ocd := outputChannelData{
-		JID: job.JID,
+		JID:        job.JID,
+		ClientID:   job.ClientID,
+		ClientName: job.ClientName,
 	}
 
 	data := make([]byte, 4096)
