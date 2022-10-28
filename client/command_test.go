@@ -125,7 +125,8 @@ const jobToRunJSON = `
 	"created_by": "admin",
 	"timeout_sec": 60,
 	"is_sudo": true,
-	"cwd": "/root"
+	"cwd": "/root",
+	"stream_result": true
 }
 `
 const scriptToRunJSON = `
@@ -182,6 +183,7 @@ func TestHandleRunCmdRequestPositiveCase(t *testing.T) {
 	"timeout_sec": 60,
 	"multi_job_id":null,
 	"schedule_id":null,
+	"stream_result":true,
 	"error":"%s",
 `
 	wantJSONPart2 := `
@@ -294,6 +296,92 @@ func TestHandleRunCmdRequestPositiveCase(t *testing.T) {
 			assert.Equal(t, tc.wantStderrWrites, connMock.ChannelMocks[models.ChannelStderr].Writes)
 		})
 	}
+}
+
+func TestNoStreamResult(t *testing.T) {
+	now = nowMockF
+
+	wantPID := 123
+	execMock := NewCmdExecutorMock()
+	execMock.ReturnPID = wantPID
+	execMock.ReturnStdOut = []string{"output1", "output2", "output3", "<summary>test</summary>"}
+	execMock.ReturnStdErr = []string{"error1", "error2"}
+	connMock := test.NewConnMock()
+	// mimic real behavior and wait until background task sends the request
+	done := make(chan bool)
+	connMock.DoneChannel = done
+	configCopy := getDefaultValidMinConfig()
+	c := Client{
+		cmdExec:      execMock,
+		sshConn:      connMock,
+		Logger:       testLog,
+		configHolder: &configCopy,
+	}
+
+	configCopy.Client.DataDir = filepath.Join(configCopy.Client.DataDir, "TestHandleRunCmdRequestPositiveCase")
+	defer func() {
+		os.RemoveAll(configCopy.Client.DataDir)
+	}()
+	err := PrepareDirs(&configCopy)
+	require.NoError(t, err)
+
+	jobToRunJSON := `
+{
+	"jid": "5f02b216-3f8a-42be-b66c-f4c1d0ea3809",
+	"client_id": "d81e6b93e75aef59a7701b90555f43808458b34e30370c3b808c1816a32252b3",
+	"command": "/bin/date;foo;whoami",
+	"created_by": "admin",
+	"timeout_sec": 60,
+	"is_sudo": true,
+	"cwd": "/root"
+}`
+	wantJSON := `
+{
+	"jid": "5f02b216-3f8a-42be-b66c-f4c1d0ea3809",
+	"status": "successful",
+	"is_sudo": true,
+	"is_script": false,
+	"finished_at": "2020-08-19T12:00:00+03:00",
+	"client_id": "d81e6b93e75aef59a7701b90555f43808458b34e30370c3b808c1816a32252b3",
+	"client_name": "",
+	"command": "/bin/date;foo;whoami",
+	"interpreter": "",
+	"pid": 123,
+	"started_at": "2020-08-19T12:00:00+03:00",
+	"created_by": "admin",
+	"cwd": "/root",
+	"timeout_sec": 60,
+	"multi_job_id":null,
+	"schedule_id":null,
+	"stream_result":false,
+	"error":"",
+	"result": {
+		"stdout": "output1output2output3<summary>test</summary>",
+		"stderr": "error1error2",
+		"summary": "test"
+	}
+}
+	`
+
+	// given
+	c.configHolder.RemoteCommands.SendBackLimit = 1024
+
+	// when
+	res, err := c.HandleRunCmdRequest(context.Background(), []byte(jobToRunJSON))
+
+	// then
+	require.NoError(t, err)
+	<-done
+
+	// check returned result
+	assert.Equal(t, &comm.RunCmdResponse{Pid: wantPID, StartedAt: nowMock}, res)
+
+	// check job result that was sent to server
+	inputRequestName, inputWantReply, inputPayload := connMock.InputSendRequest()
+	assert.Equal(t, comm.RequestTypeCmdResult, inputRequestName)
+	assert.Equal(t, false, inputWantReply)
+	assert.JSONEq(t, wantJSON, string(inputPayload))
+	assert.Len(t, connMock.ChannelMocks, 0)
 }
 
 func TestRemoteCommandsDisabled(t *testing.T) {
