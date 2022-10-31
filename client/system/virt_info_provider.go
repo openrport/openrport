@@ -16,7 +16,7 @@ const (
 
 const UnknownValue = "unknown"
 
-/**
+/*
 This method interprets result of powerShell Get-Service output as following:
 Get-Service | findstr vmcompute detect if a machine is a HyperV host.
 This would result in "os_virtualization_system": "HyperV", "os_virtualization_role":"guest"
@@ -60,7 +60,7 @@ func getVirtInfoFromPowershellServicesList(rawServicesList string) (virtSystem, 
 	return UnknownValue, UnknownValue
 }
 
-/**
+/*
 Parses the output of /proc/bus/pci/devices on nix systems as following:
 If grep -c hyperv_fb /proc/bus/pci/devices > 0 the Linux system is a HyperV guest.
 If grep -c vmwgfx /proc/bus/pci/devices > 0 the Linux system is a Vmware guest.

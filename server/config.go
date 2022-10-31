@@ -18,6 +18,7 @@ import (
 	"time"
 
 	"github.com/cloudradar-monitoring/rport/db/sqlite"
+	rportplus "github.com/cloudradar-monitoring/rport/plus"
 
 	"github.com/cloudradar-monitoring/rport/share/files"
 
@@ -255,6 +256,8 @@ type Config struct {
 	Pushover   PushoverConfig   `mapstructure:"pushover"`
 	SMTP       SMTPConfig       `mapstructure:"smtp"`
 	Monitoring MonitoringConfig `mapstructure:"monitoring"`
+
+	PlusConfig rportplus.PlusConfig `mapstructure:",squash"`
 }
 
 func (c *Config) GetVaultDBPath() string {
@@ -603,4 +606,13 @@ func generateJWTSecret() (string, error) {
 		return "", fmt.Errorf("can't generate API JWT secret: %s", err)
 	}
 	return fmt.Sprintf("%x", sha256.Sum256(data)), nil
+}
+
+func (c *Config) PlusEnabled() (enabled bool) {
+	return c.PlusConfig.PluginConfig != nil &&
+		c.PlusConfig.PluginConfig.PluginPath != ""
+}
+
+func (c *Config) PlusOAuthEnabled() (enabled bool) {
+	return c.PlusEnabled() && c.PlusConfig.OAuthConfig != nil
 }

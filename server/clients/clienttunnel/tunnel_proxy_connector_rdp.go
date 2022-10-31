@@ -36,7 +36,7 @@ var guacIndexHTML string
 //go:embed guac/start-tunnel.html
 var guacStartTunnelHTML string
 
-//TunnelProxyConnectorRDP connects to a rdp tunnel via guacd (Guacamole server)
+// TunnelProxyConnectorRDP connects to a rdp tunnel via guacd (Guacamole server)
 type TunnelProxyConnectorRDP struct {
 	tunnelProxy         *TunnelProxy
 	guacWebsocketServer *guac.WebsocketServer
@@ -51,7 +51,7 @@ func NewTunnelConnectorRDP(tp *TunnelProxy) *TunnelProxyConnectorRDP {
 	return tpc
 }
 
-//InitRouter called when tunnel proxy is started
+// InitRouter called when tunnel proxy is started
 func (tc *TunnelProxyConnectorRDP) InitRouter(router *mux.Router) *mux.Router {
 	router.Use(tc.tunnelProxy.noCache)
 	router.Use(tc.handleFormValues)
@@ -191,7 +191,7 @@ func (tc *TunnelProxyConnectorRDP) connectToGuacamole(r *http.Request) (guac.Tun
 	return guac.NewSimpleTunnel(stream), nil
 }
 
-//handleFormValues middleware to handle parsing form values
+// handleFormValues middleware to handle parsing form values
 func (tc *TunnelProxyConnectorRDP) handleFormValues(next http.Handler) http.Handler {
 	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		err := r.ParseForm()

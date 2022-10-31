@@ -45,18 +45,19 @@ func (al *APIListener) createAndRunJobWS(
 	client *clients.Client,
 ) bool {
 	curJob := models.Job{
-		JID:         jid,
-		StartedAt:   time.Now(),
-		ClientID:    client.ID,
-		ClientName:  client.Name,
-		Command:     cmd,
-		Interpreter: interpreter,
-		CreatedBy:   createdBy,
-		TimeoutSec:  timeoutSec,
-		MultiJobID:  multiJobID,
-		Cwd:         cwd,
-		IsSudo:      isSudo,
-		IsScript:    isScript,
+		JID:          jid,
+		StartedAt:    time.Now(),
+		ClientID:     client.ID,
+		ClientName:   client.Name,
+		Command:      cmd,
+		Interpreter:  interpreter,
+		CreatedBy:    createdBy,
+		TimeoutSec:   timeoutSec,
+		MultiJobID:   multiJobID,
+		Cwd:          cwd,
+		IsSudo:       isSudo,
+		IsScript:     isScript,
+		StreamResult: true,
 	}
 	logPrefix := curJob.LogPrefix()
 

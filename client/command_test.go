@@ -1,6 +1,7 @@
 package chclient
 
 import (
+	"bytes"
 	"context"
 	"fmt"
 	"log"
@@ -20,6 +21,7 @@ import (
 	"github.com/cloudradar-monitoring/rport/share/clientconfig"
 	"github.com/cloudradar-monitoring/rport/share/comm"
 	"github.com/cloudradar-monitoring/rport/share/logger"
+	"github.com/cloudradar-monitoring/rport/share/models"
 	"github.com/cloudradar-monitoring/rport/share/test"
 )
 
@@ -123,7 +125,8 @@ const jobToRunJSON = `
 	"created_by": "admin",
 	"timeout_sec": 60,
 	"is_sudo": true,
-	"cwd": "/root"
+	"cwd": "/root",
+	"stream_result": true
 }
 `
 const scriptToRunJSON = `
@@ -180,6 +183,7 @@ func TestHandleRunCmdRequestPositiveCase(t *testing.T) {
 	"timeout_sec": 60,
 	"multi_job_id":null,
 	"schedule_id":null,
+	"stream_result":true,
 	"error":"%s",
 `
 	wantJSONPart2 := `
@@ -194,21 +198,27 @@ func TestHandleRunCmdRequestPositiveCase(t *testing.T) {
 	stdErrSize := len(strings.Join(execMock.ReturnStdErr, ""))
 
 	testCases := []struct {
-		name            string
-		sendBackLimit   int
-		denyRegexp      *regexp.Regexp
-		wantJSON        string
-		wantErrContains string
+		name             string
+		sendBackLimit    int
+		denyRegexp       *regexp.Regexp
+		wantJSON         string
+		wantErrContains  string
+		wantStdoutWrites []string
+		wantStderrWrites []string
 	}{
 		{
-			name:          "limit is larger than stdout and stderr",
-			sendBackLimit: stdOutSize + 1,
-			wantJSON:      fmt.Sprintf(wantJSONPart1, "") + wantJSONPart2,
+			name:             "limit is larger than stdout and stderr",
+			sendBackLimit:    stdOutSize + 1,
+			wantJSON:         fmt.Sprintf(wantJSONPart1, "") + wantJSONPart2,
+			wantStdoutWrites: []string{"output1", "output2", "output3", "<summary>test</summary>"},
+			wantStderrWrites: []string{"error1", "error2"},
 		},
 		{
-			name:          "limit is equal to the larger output",
-			sendBackLimit: stdOutSize,
-			wantJSON:      fmt.Sprintf(wantJSONPart1, "") + wantJSONPart2,
+			name:             "limit is equal to the larger output",
+			sendBackLimit:    stdOutSize,
+			wantJSON:         fmt.Sprintf(wantJSONPart1, "") + wantJSONPart2,
+			wantStdoutWrites: []string{"output1", "output2", "output3", "<summary>test</summary>"},
+			wantStderrWrites: []string{"error1", "error2"},
 		},
 		{
 			name:          "limit is equal to the smaller output",
@@ -220,6 +230,8 @@ func TestHandleRunCmdRequestPositiveCase(t *testing.T) {
 	   "summary": "test"
    }
 }`,
+			wantStdoutWrites: []string{"output1", "outpu"},
+			wantStderrWrites: []string{"error1", "error2"},
 		},
 		{
 			name:          "limit is less than smaller output",
@@ -231,6 +243,8 @@ func TestHandleRunCmdRequestPositiveCase(t *testing.T) {
 		"summary": "test"
 	}
 }`,
+			wantStdoutWrites: []string{"output1", "outp"},
+			wantStderrWrites: []string{"error1", "error"},
 		},
 		{
 			name:          "limit is zero",
@@ -278,8 +292,96 @@ func TestHandleRunCmdRequestPositiveCase(t *testing.T) {
 			assert.Equal(t, comm.RequestTypeCmdResult, inputRequestName)
 			assert.Equal(t, false, inputWantReply)
 			assert.JSONEq(t, tc.wantJSON, string(inputPayload))
+			assert.Equal(t, tc.wantStdoutWrites, connMock.ChannelMocks[models.ChannelStdout].Writes)
+			assert.Equal(t, tc.wantStderrWrites, connMock.ChannelMocks[models.ChannelStderr].Writes)
 		})
 	}
+}
+
+func TestNoStreamResult(t *testing.T) {
+	now = nowMockF
+
+	wantPID := 123
+	execMock := NewCmdExecutorMock()
+	execMock.ReturnPID = wantPID
+	execMock.ReturnStdOut = []string{"output1", "output2", "output3", "<summary>test</summary>"}
+	execMock.ReturnStdErr = []string{"error1", "error2"}
+	connMock := test.NewConnMock()
+	// mimic real behavior and wait until background task sends the request
+	done := make(chan bool)
+	connMock.DoneChannel = done
+	configCopy := getDefaultValidMinConfig()
+	c := Client{
+		cmdExec:      execMock,
+		sshConn:      connMock,
+		Logger:       testLog,
+		configHolder: &configCopy,
+	}
+
+	configCopy.Client.DataDir = filepath.Join(configCopy.Client.DataDir, "TestHandleRunCmdRequestPositiveCase")
+	defer func() {
+		os.RemoveAll(configCopy.Client.DataDir)
+	}()
+	err := PrepareDirs(&configCopy)
+	require.NoError(t, err)
+
+	jobToRunJSON := `
+{
+	"jid": "5f02b216-3f8a-42be-b66c-f4c1d0ea3809",
+	"client_id": "d81e6b93e75aef59a7701b90555f43808458b34e30370c3b808c1816a32252b3",
+	"command": "/bin/date;foo;whoami",
+	"created_by": "admin",
+	"timeout_sec": 60,
+	"is_sudo": true,
+	"cwd": "/root"
+}`
+	wantJSON := `
+{
+	"jid": "5f02b216-3f8a-42be-b66c-f4c1d0ea3809",
+	"status": "successful",
+	"is_sudo": true,
+	"is_script": false,
+	"finished_at": "2020-08-19T12:00:00+03:00",
+	"client_id": "d81e6b93e75aef59a7701b90555f43808458b34e30370c3b808c1816a32252b3",
+	"client_name": "",
+	"command": "/bin/date;foo;whoami",
+	"interpreter": "",
+	"pid": 123,
+	"started_at": "2020-08-19T12:00:00+03:00",
+	"created_by": "admin",
+	"cwd": "/root",
+	"timeout_sec": 60,
+	"multi_job_id":null,
+	"schedule_id":null,
+	"stream_result":false,
+	"error":"",
+	"result": {
+		"stdout": "output1output2output3<summary>test</summary>",
+		"stderr": "error1error2",
+		"summary": "test"
+	}
+}
+	`
+
+	// given
+	c.configHolder.RemoteCommands.SendBackLimit = 1024
+
+	// when
+	res, err := c.HandleRunCmdRequest(context.Background(), []byte(jobToRunJSON))
+
+	// then
+	require.NoError(t, err)
+	<-done
+
+	// check returned result
+	assert.Equal(t, &comm.RunCmdResponse{Pid: wantPID, StartedAt: nowMock}, res)
+
+	// check job result that was sent to server
+	inputRequestName, inputWantReply, inputPayload := connMock.InputSendRequest()
+	assert.Equal(t, comm.RequestTypeCmdResult, inputRequestName)
+	assert.Equal(t, false, inputWantReply)
+	assert.JSONEq(t, wantJSON, string(inputPayload))
+	assert.Len(t, connMock.ChannelMocks, 0)
 }
 
 func TestRemoteCommandsDisabled(t *testing.T) {
@@ -528,6 +630,54 @@ func TestSummaryBuffer(t *testing.T) {
 			b.Stop()
 
 			assert.Equal(t, tc.Expected, string(b.GetSummary()))
+		})
+	}
+}
+
+func TestLimitedWriter(t *testing.T) {
+	testCases := []struct {
+		Name     string
+		Inputs   []string
+		Expected string
+	}{
+		{
+			Name:     "no input",
+			Inputs:   []string{},
+			Expected: "",
+		},
+		{
+			Name:     "short input",
+			Inputs:   []string{"abc"},
+			Expected: "abc",
+		},
+		{
+			Name:     "long input",
+			Inputs:   []string{"abcdefghi"},
+			Expected: "abcde",
+		},
+		{
+			Name:     "multiple inputs",
+			Inputs:   []string{"abc", "def", "ghi"},
+			Expected: "abcde",
+		},
+	}
+
+	for _, tc := range testCases {
+		tc := tc
+		t.Run(tc.Name, func(t *testing.T) {
+			t.Parallel()
+
+			result := &bytes.Buffer{}
+
+			w := &LimitedWriter{Writer: result, Limit: 5}
+			for _, i := range tc.Inputs {
+				n, err := w.Write([]byte(i))
+				require.NoError(t, err)
+
+				assert.Equal(t, len(i), n)
+			}
+
+			assert.Equal(t, tc.Expected, result.String())
 		})
 	}
 }

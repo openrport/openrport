@@ -259,20 +259,20 @@ func (s *ClientServiceProvider) StartClient(
 	if err != nil {
 		return nil, fmt.Errorf("failed to get client by id %q", clientID)
 	}
-	// If the client got disconnected but not restarted, the sessionID will not change
-	var sessionReUsed = false
-	if req.SessionID != "" && req.SessionID == client.SessionID {
-		// Stored previous session id and the session id of the connection attempt are equal
-		sessionReUsed = true
-		clog.Debugf("resuming existing session %s for client %s [%s]", req.SessionID, client.Name, clientID)
-	}
+
 	if client != nil {
+		var sessionReUsed = false
+		if req.SessionID != "" && req.SessionID == client.SessionID {
+			// Stored previous session id and the session id of the connection attempt are equal
+			sessionReUsed = true
+			clog.Debugf("resuming existing session %s for client %s [%s]", req.SessionID, client.Name, clientID)
+		}
 		if client.DisconnectedAt == nil && !sessionReUsed {
 			return nil, fmt.Errorf("client is already connected: %s [%s]", client.Name, clientID)
 		}
 
 		oldTunnels := GetTunnelsToReestablish(getRemotes(client.Tunnels), req.Remotes)
-		clientVersion, err := version.NewVersion(client.Version)
+		clientVersion, err := version.NewVersion(req.Version)
 		if err != nil {
 			return nil, fmt.Errorf("failed to determine client version: %v", err)
 		}

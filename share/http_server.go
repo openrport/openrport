@@ -17,8 +17,8 @@ func WithTLS(certFile string, keyFile string, tlsConfig *tls.Config) ServerOptio
 	}
 }
 
-//HTTPServer extends net/http Server and
-//adds graceful shutdowns
+// HTTPServer extends net/http Server and
+// adds graceful shutdowns
 type HTTPServer struct {
 	*http.Server
 	listener  net.Listener
@@ -28,7 +28,7 @@ type HTTPServer struct {
 	keyFile   string
 }
 
-//NewHTTPServer creates a new HTTPServer
+// NewHTTPServer creates a new HTTPServer
 func NewHTTPServer(maxHeaderBytes int, options ...ServerOption) *HTTPServer {
 	s := &HTTPServer{
 		Server:   &http.Server{MaxHeaderBytes: maxHeaderBytes},

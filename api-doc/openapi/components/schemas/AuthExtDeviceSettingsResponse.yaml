@@ -1,0 +1,45 @@
+type: object
+properties:
+  auth_provider:
+    type: string
+    description: >-
+      This is the OAuth provider currently being used. Can be one of `github`, `microsoft` or
+      `google`.
+  details:
+    type: object
+    properties:
+      login_uri:
+        type: string
+        description: >-
+          The `login_uri` is the `rportd` api endpoint where the api client should poll to
+          see whether the user has authorized yet.
+      auth_info:
+        type: object
+        properties:
+          device_code:
+            type: string
+            description: >-
+              The `device_code` must be included when attempting an OAuth device login and checking
+              if the user has authorized.
+          verification_uri:
+            type: string
+            description: >-
+              The `verification_uri` is the location where the user should visit to authorize
+              the api client.
+          user_code:
+            type: string
+            description: >-
+              The `user_code` is the value that the user must enter at the `verification_uri` page
+              to authorize the api client.
+          interval:
+            type: number
+            description: >-
+              The `interval` is the time (in seconds) the api client must wait between checks to
+              see whether the user has authorized yet. note if the api client exceeds this rate then
+              the OAuth provider will rate limit future requests.
+          expires_in:
+            type: number
+            description: >-
+              The `expires_in` value is the number of seconds before expiry of the authorization
+              session.
+description: Response returned by the `/auth/ext/settings/device` endpoint

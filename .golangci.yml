@@ -8,7 +8,8 @@ run:
   # include test files or not, default is true
   tests: true
 
-  modules-download-mode: vendor
+  # disable use for vendor as causes problems for the plus plugin loading
+  # modules-download-mode: vendor
 
 output:
   # colored-line-number|line-number|json|tab|checkstyle, default is "colored-line-number"
@@ -101,16 +102,12 @@ linters-settings:
     range-loops: true # Report preallocation suggestions on range loops, true by default
     for-loops: false # Report preallocation suggestions on for loops, false by default
 
-
 linters:
   enable:
     - goimports
     - govet
-    #- golint
     - revive
     - gosimple
-    - structcheck
-    - deadcode
     - staticcheck
     - errcheck
     - unused
@@ -119,7 +116,6 @@ linters:
     - misspell
     - unparam
     - ineffassign
-    - varcheck
     - unconvert
 
   enable-all: false
@@ -127,7 +123,6 @@ linters:
   disable-all: true
   presets:
   fast: false
-
 
 issues:
   exclude:

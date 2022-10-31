@@ -7,6 +7,7 @@ import (
 	"github.com/gorilla/mux"
 	"github.com/jpillora/requestlog"
 
+	"github.com/cloudradar-monitoring/rport/plus/capabilities/oauth"
 	"github.com/cloudradar-monitoring/rport/server/api/middleware"
 	"github.com/cloudradar-monitoring/rport/server/api/users"
 	"github.com/cloudradar-monitoring/rport/share/security"
@@ -176,6 +177,19 @@ func (al *APIListener) initRouter() {
 		}
 		return nil
 	})
+
+	plusRouter := api.PathPrefix("/plus").Subrouter()
+	plusRouter.HandleFunc("/status", al.handlePlusStatus).Methods(http.MethodGet)
+
+	authRouter := api.PathPrefix(authRoutesPrefix).Subrouter()
+	authRouter.HandleFunc(authProviderRoute, al.handleGetAuthProvider).Methods(http.MethodGet)
+	authRouter.HandleFunc(authSettingsRoute, al.handleGetAuthSettings).Methods(http.MethodGet)
+	authRouter.HandleFunc(authDeviceSettingsRoute, al.handleGetAuthDeviceSettings).Methods(http.MethodGet)
+
+	if al.config.PlusOAuthEnabled() {
+		api.HandleFunc(oauth.DefaultLoginURI, al.handleOAuthAuthorizationCode).Methods(http.MethodGet)
+		api.HandleFunc(oauth.DefaultDeviceLoginURI, al.handleGetDeviceAuth).Methods(http.MethodGet)
+	}
 
 	docRoot := al.config.API.DocRoot
 	if docRoot != "" {

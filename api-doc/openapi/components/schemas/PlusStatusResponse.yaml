@@ -1,0 +1,23 @@
+type: object
+properties:
+  plus_version:
+    type: string
+    description: >-
+      The current product version of the Rport Plus plug-in
+  build_time:
+    type: string
+    description: >-
+      The time at which the plug-in was built
+  local_build:
+    type: string
+    description: >-
+      Whether the build was local to Rport
+  rport_git_ref:
+    type: string
+    description: >-
+      The git ref (tag or branch) used for the plug-in build
+  rport_commit_id:
+    type: string
+    description: >-
+      The git commit id used for the plug-in build
+description: Response returned by the `/plus/status` endpoint

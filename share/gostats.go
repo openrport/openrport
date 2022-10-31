@@ -11,8 +11,8 @@ import (
 	"github.com/jpillora/sizestr"
 )
 
-//GoStats prints statistics to
-//stdout on SIGUSR2 (posix-only)
+// GoStats prints statistics to
+// stdout on SIGUSR2 (posix-only)
 func GoStats() {
 	//silence complaints from windows
 	const SIGUSR2 = syscall.Signal(0x1f)

@@ -90,7 +90,22 @@ func NewAPIListener(
 
 	var usersProvider users.Provider
 	var err error
-	if config.API.AuthFile != "" {
+
+	if isOAuthPermittedUserList(config) {
+		if config.API.AuthFile != "" {
+			logger := logger.NewLogger("auth-file", config.Logging.LogOutput, config.Logging.LogLevel)
+			usersProvider, err = users.NewFileAdapter(logger, users.NewFileManager(config.API.AuthFile))
+			if err != nil {
+				return nil, err
+			}
+		} else if config.API.AuthUserTable != "" {
+			logger := logger.NewLogger("database", config.Logging.LogOutput, config.Logging.LogLevel)
+			usersProvider, err = newAPIAuthDatabase(server, config, logger)
+			if err != nil {
+				return nil, err
+			}
+		}
+	} else if config.API.AuthFile != "" {
 		logger := logger.NewLogger("auth-file", config.Logging.LogOutput, config.Logging.LogLevel)
 		usersProvider, err = users.NewFileAdapter(logger, users.NewFileManager(config.API.AuthFile))
 		if err != nil {
@@ -106,15 +121,7 @@ func NewAPIListener(
 		usersProvider = users.NewStaticProvider([]*users.User{authUser})
 	} else if config.API.AuthUserTable != "" {
 		logger := logger.NewLogger("database", config.Logging.LogOutput, config.Logging.LogLevel)
-		usersProvider, err = users.NewUserDatabase(
-			server.authDB,
-			config.API.AuthUserTable,
-			config.API.AuthGroupTable,
-			config.API.AuthGroupDetailsTable,
-			config.API.IsTwoFAOn(),
-			config.API.TotPEnabled,
-			logger,
-		)
+		usersProvider, err = newAPIAuthDatabase(server, config, logger)
 		if err != nil {
 			return nil, err
 		}
@@ -252,6 +259,19 @@ func NewAPIListener(
 	a.initRouter()
 
 	return a, nil
+}
+
+func newAPIAuthDatabase(server *Server, config *Config, logger *logger.Logger) (usersProvider *users.UserDatabase, err error) {
+	usersProvider, err = users.NewUserDatabase(
+		server.authDB,
+		config.API.AuthUserTable,
+		config.API.AuthGroupTable,
+		config.API.AuthGroupDetailsTable,
+		config.API.IsTwoFAOn(),
+		config.API.TotPEnabled,
+		logger,
+	)
+	return usersProvider, err
 }
 
 func (al *APIListener) Start(addr string) error {
@@ -393,7 +413,8 @@ func (al *APIListener) validateCredentials(username, password string, skipPasswo
 	if err != nil {
 		return false, nil, fmt.Errorf("failed to get user: %v", err)
 	}
-	if user == nil && skipPasswordValidation && al.config.API.CreateMissingUsers {
+
+	if al.shouldCreateMissingUser(user, skipPasswordValidation) {
 		pswd, err := random.UUID4()
 		if err != nil {
 			return false, nil, err
@@ -408,6 +429,7 @@ func (al *APIListener) validateCredentials(username, password string, skipPasswo
 			return false, user, fmt.Errorf("failed to create missing user: %v", err)
 		}
 	}
+
 	if user == nil {
 		return false, user, nil
 	}
@@ -417,6 +439,23 @@ func (al *APIListener) validateCredentials(username, password string, skipPasswo
 	}
 
 	return verifyPassword(user.Password, password), user, nil
+}
+
+func (al *APIListener) shouldCreateMissingUser(user *users.User, skipPasswordValidation bool) bool {
+	if user != nil || !skipPasswordValidation {
+		return false
+	}
+	if al.config.API.CreateMissingUsers || !isOAuthPermittedUserList(al.config) {
+		return true
+	}
+	return false
+}
+
+func isOAuthPermittedUserList(cfg *Config) (is bool) {
+	if !cfg.PlusOAuthEnabled() {
+		return false
+	}
+	return cfg.PlusConfig.OAuthConfig.PermittedUserList
 }
 
 func verifyPassword(saved, provided string) bool {

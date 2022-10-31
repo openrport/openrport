@@ -23,6 +23,7 @@ import (
 	clientsmigration "github.com/cloudradar-monitoring/rport/db/migration/clients"
 	jobsmigration "github.com/cloudradar-monitoring/rport/db/migration/jobs"
 	"github.com/cloudradar-monitoring/rport/db/sqlite"
+	rportplus "github.com/cloudradar-monitoring/rport/plus"
 	"github.com/cloudradar-monitoring/rport/server/api/jobs"
 	"github.com/cloudradar-monitoring/rport/server/api/jobs/schedule"
 	"github.com/cloudradar-monitoring/rport/server/api/session"
@@ -69,11 +70,18 @@ type Server struct {
 	capabilities        *models.Capabilities
 	scheduleManager     *schedule.Manager
 	filesAPI            files.FileAPI
+	plusManager         rportplus.Manager
+}
+
+type ServerOpts struct {
+	FilesAPI    files.FileAPI
+	PlusManager rportplus.Manager
 }
 
 // NewServer creates and returns a new rport server
-func NewServer(config *Config, filesAPI files.FileAPI) (*Server, error) {
+func NewServer(config *Config, opts *ServerOpts) (*Server, error) {
 	ctx := context.Background()
+
 	s := &Server{
 		Logger:           logger.NewLogger("server", config.Logging.LogOutput, config.Logging.LogLevel),
 		config:           config,
@@ -83,6 +91,9 @@ func NewServer(config *Config, filesAPI files.FileAPI) (*Server, error) {
 			m: make(map[string]chan *models.Job),
 		},
 	}
+
+	filesAPI := opts.FilesAPI
+	s.plusManager = opts.PlusManager
 
 	privateKey, err := initPrivateKey(config.Server.KeySeed)
 	if err != nil {
@@ -197,6 +208,7 @@ func NewServer(config *Config, filesAPI files.FileAPI) (*Server, error) {
 	if err != nil {
 		return nil, err
 	}
+
 	s.clientListener, err = NewClientListener(s, privateKey)
 	if err != nil {
 		return nil, err
