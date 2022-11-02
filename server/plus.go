@@ -1,6 +1,7 @@
 package chserver
 
 import (
+	"context"
 	"errors"
 	"fmt"
 
@@ -12,12 +13,13 @@ import (
 )
 
 var (
-	ErrPlusNotEnabled = errors.New("rport-plus not enabled")
+	ErrPlusNotEnabled           = errors.New("rport-plus not enabled")
+	ErrPlusLicenseNotConfigured = errors.New("rport-plus license not configured")
 )
 
 // EnablePlusIfLicensed will initialize a new plus manager and request registration of the desired
 // capabilities
-func EnablePlusIfLicensed(cfg *Config, filesAPI files.FileAPI) (plusManager rportplus.Manager, err error) {
+func EnablePlusIfLicensed(ctx context.Context, cfg *Config, filesAPI files.FileAPI) (plusManager rportplus.Manager, err error) {
 	logger := logger.NewLogger("rport-plus", cfg.Logging.LogOutput, cfg.Logging.LogLevel)
 
 	if !cfg.PlusEnabled() {
@@ -25,7 +27,16 @@ func EnablePlusIfLicensed(cfg *Config, filesAPI files.FileAPI) (plusManager rpor
 		return nil, ErrPlusNotEnabled
 	}
 
-	plusManager, err = rportplus.NewPlusManager(&cfg.PlusConfig, logger, filesAPI)
+	if !cfg.HasLicenseConfig() {
+		logger.Errorf(ErrPlusLicenseNotConfigured.Error())
+		return nil, ErrPlusLicenseNotConfigured
+	}
+
+	// Use the DataDir from the server config for the Rport Plus plugin license config
+	dataDir := cfg.Server.DataDir
+	cfg.PlusConfig.LicenseConfig.DataDir = dataDir
+
+	plusManager, err = rportplus.NewPlusManager(ctx, &cfg.PlusConfig, nil, logger, filesAPI)
 	if err != nil {
 		return nil, err
 	}
