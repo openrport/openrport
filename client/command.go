@@ -8,6 +8,7 @@ import (
 	"errors"
 	"fmt"
 	"io"
+	"io/ioutil"
 	"os"
 	"regexp"
 	"strings"
@@ -58,24 +59,34 @@ func (c *Client) HandleRunCmdRequest(ctx context.Context, reqPayload []byte) (*c
 		return nil, err
 	}
 
-	stdOutCh, reqs, err := c.sshConn.OpenChannel(models.ChannelStdout, reqPayload)
-	go ssh.DiscardRequests(reqs)
-	if err != nil {
-		return nil, err
-	}
-	limitedStdOutCh := &LimitedWriter{
-		Writer: stdOutCh,
-		Limit:  c.configHolder.RemoteCommands.SendBackLimit,
-	}
+	limitedStdOutCh := ioutil.Discard
+	limitedStdErrCh := ioutil.Discard
+	closeStreamChannels := func() {}
+	if job.StreamResult {
+		stdOutCh, reqs, err := c.sshConn.OpenChannel(models.ChannelStdout, reqPayload)
+		go ssh.DiscardRequests(reqs)
+		if err != nil {
+			return nil, err
+		}
+		limitedStdOutCh = &LimitedWriter{
+			Writer: stdOutCh,
+			Limit:  c.configHolder.RemoteCommands.SendBackLimit,
+		}
 
-	stdErrCh, reqs, err := c.sshConn.OpenChannel(models.ChannelStderr, reqPayload)
-	go ssh.DiscardRequests(reqs)
-	if err != nil {
-		return nil, err
-	}
-	limitedStdErrCh := &LimitedWriter{
-		Writer: stdErrCh,
-		Limit:  c.configHolder.RemoteCommands.SendBackLimit,
+		stdErrCh, reqs, err := c.sshConn.OpenChannel(models.ChannelStderr, reqPayload)
+		go ssh.DiscardRequests(reqs)
+		if err != nil {
+			return nil, err
+		}
+		limitedStdErrCh = &LimitedWriter{
+			Writer: stdErrCh,
+			Limit:  c.configHolder.RemoteCommands.SendBackLimit,
+		}
+
+		closeStreamChannels = func() {
+			stdOutCh.Close()
+			stdErrCh.Close()
+		}
 	}
 
 	execCtx := &system.CmdExecutorContext{
@@ -104,8 +115,7 @@ func (c *Client) HandleRunCmdRequest(ctx context.Context, reqPayload []byte) (*c
 	// observe the cmd execution in background
 	go func() {
 		defer c.rmScript(scriptPath)
-		defer stdOutCh.Close()
-		defer stdErrCh.Close()
+		defer closeStreamChannels()
 
 		c.Debugf("started to observe cmd [jid=%q,pid=%d]", job.JID, cmd.Process.Pid)
 
