@@ -305,17 +305,40 @@ explanations on how to set up the database connection.
 
 Having the database set up, enter the following two lines to the `[api]` section of the `rportd.config` to specify the table names.
 
-```text
-auth_user_table = "users"
-auth_group_table = "groups"
-group_details_table = "group_details"
+```toml
+[api]
+  #auth = "admin:foobaz" <-- Must be disabled
+  auth_user_table = "users"
+  auth_user_table = "users"
+  auth_group_table = "groups"
+  group_details_table = "group_details"
 ```
 
 Reload rportd to apply all changes.
 
-#### MySQL Example
+{{< tabs "db-tables" >}}
+{{< tab "MySQL/Maria DB" >}}
 
-Create table. Change column types and lengths to your needs.
+Set up the database details in the `rportd.conf`:
+
+```toml
+[database]
+  ## For MySQL or MariaDB.
+  db_type = "mysql"
+
+  ## Only for MySQL/Mariadb, ignored for Sqlite.
+  db_host = "localhost:3306"
+  #db_host = "socket:/var/run/mysqld/mysqld.sock"
+
+  ## Credentials, only for MySQL/Mariadb, ignored for Sqlite.
+  db_user = "rport"
+  db_password = "rport"
+
+  ## For MySQL/MariaDB name of the database.
+  db_name = "rport"
+```
+
+Create tables.
 
 ```sql
 CREATE TABLE `users` (
@@ -338,15 +361,11 @@ CREATE TABLE `group_details` (
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8;
 ```
 
-#### SQLite Example
+{{< /tab >}}
+{{< tab "SQLite" >}}
+Enter the following line to the `rportd.conf` file in `[database]` section:
 
-Enter the following line to the `rportd.conf` file in the `[api]` and `[database]` section:
-
-```text
-[api]
-  #auth = "admin:foobaz" <-- Must be disabled
-  auth_user_table = "users"
-  auth_group_table = "groups"
+```toml
 [database]
   db_type = "sqlite"
   db_name = "/var/lib/rport/database.sqlite3"
@@ -392,6 +411,13 @@ ON "groups" (
 );
 CREATE TABLE "group_details" (name TEXT, permissions TEXT);
 CREATE UNIQUE INDEX "main"."group_details_name" ON "group_details" ("name" ASC);
+CREATE TABLE "group_details" (
+    "name" TEXT(150) NOT NULL,
+    "permissions" TEXT DEFAULT "{}"
+);
+CREATE UNIQUE INDEX "main"."name" ON "group_details" (
+    "name" ASC
+);
 ```
 
 Sqlite does not print any confirmation. To confirm your tables have been created execute:
@@ -400,7 +426,11 @@ Sqlite does not print any confirmation. To confirm your tables have been created
 sqlite> SELECT name FROM sqlite_master WHERE type='table';
 users
 groups
+group_details
 ```
+
+{{< /tab >}}
+{{< /tabs >}}
 
 Insert the first user:
 {{< tabs "create-user-sqlite" >}}
