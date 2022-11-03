@@ -8,6 +8,7 @@ import (
 	rportplus "github.com/cloudradar-monitoring/rport/plus"
 	"github.com/cloudradar-monitoring/rport/plus/capabilities/oauth"
 	"github.com/cloudradar-monitoring/rport/plus/capabilities/status"
+	"github.com/cloudradar-monitoring/rport/plus/license"
 	"github.com/cloudradar-monitoring/rport/share/files"
 	"github.com/cloudradar-monitoring/rport/share/logger"
 )
@@ -25,6 +26,11 @@ func EnablePlusIfLicensed(ctx context.Context, cfg *Config, filesAPI files.FileA
 	if !cfg.PlusEnabled() {
 		logger.Infof("not enabled")
 		return nil, ErrPlusNotEnabled
+	}
+
+	// Disable license checking until release 1.0
+	cfg.PlusConfig.LicenseConfig = &license.Config{
+		CheckingEnabled: false,
 	}
 
 	if !cfg.HasLicenseConfig() {
@@ -53,7 +59,6 @@ func EnablePlusIfLicensed(ctx context.Context, cfg *Config, filesAPI files.FileA
 // All plus capabilities must be added here.
 func RegisterPlusCapabilities(plusManager rportplus.Manager, cfg *Config, logger *logger.Logger) (err error) {
 	if cfg.PlusOAuthEnabled() {
-
 		_, err := plusManager.RegisterCapability(rportplus.PlusOAuthCapability, &oauth.Capability{
 			Config: cfg.PlusConfig.OAuthConfig,
 			Logger: logger,
