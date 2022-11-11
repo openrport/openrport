@@ -24,14 +24,16 @@ func TestAPISessionSqlite(t *testing.T) {
 	longTTL := time.Hour
 	negativeTTL := -time.Minute
 
-	s1 := generateAPISession(t, longTTL)
-	s2 := generateAPISession(t, longTTL)
-	s3 := generateAPISession(t, longTTL)
-	s4Expired := generateAPISession(t, negativeTTL)
-	s5Expired := generateAPISession(t, negativeTTL)
+	timeNow := time.Now().UTC()
+
+	s1 := generateAPISession(t, "user1", timeNow.Add(longTTL), timeNow)
+	s2 := generateAPISession(t, "user1", timeNow.Add(longTTL), timeNow)
+	s3 := generateAPISession(t, "user1", timeNow.Add(longTTL), timeNow)
+	s4Expired := generateAPISession(t, "user1", timeNow.Add(negativeTTL), timeNow)
+	s5Expired := generateAPISession(t, "user1", timeNow.Add(negativeTTL), timeNow)
 	s5Updated := &APISession{
 		Token:     s5Expired.Token,
-		ExpiresAt: time.Now().UTC().Add(longTTL),
+		ExpiresAt: timeNow.Add(longTTL),
 	}
 
 	// check create
@@ -39,8 +41,11 @@ func TestAPISessionSqlite(t *testing.T) {
 
 	// check get all(unexpired)
 	gotAll1, err := p.GetAll(ctx)
+
 	require.NoError(t, err)
+
 	assert.ElementsMatch(t, []*APISession{s1, s2, s3}, gotAll1)
+
 	// check expired are in DB
 	gotExpiredS4, err := p.Get(ctx, s4Expired.Token)
 	require.NoError(t, err)
@@ -49,18 +54,21 @@ func TestAPISessionSqlite(t *testing.T) {
 	require.NoError(t, err)
 	assert.EqualValues(t, s5Expired, gotExpiredS5)
 
-	// check update
-	err = p.Save(ctx, s5Updated)
+	// check updated
+	sessionID, err := p.Save(ctx, s5Updated)
 	require.NoError(t, err)
+	s5Updated.SessionID = sessionID
 
 	// check get all(unexpired)
 	gotAll2, err := p.GetAll(ctx)
 	require.NoError(t, err)
 	assert.ElementsMatch(t, []*APISession{s1, s2, s3, s5Updated}, gotAll2)
+
 	// check expired is in DB
 	gotExpired, err := p.Get(ctx, s4Expired.Token)
 	require.NoError(t, err)
 	assert.EqualValues(t, s4Expired, gotExpired)
+
 	// check updated
 	gotUpdated, err := p.Get(ctx, s5Expired.Token)
 	require.NoError(t, err)
@@ -77,12 +85,14 @@ func TestAPISessionSqlite(t *testing.T) {
 	gotExpired2, err := p.Get(ctx, s4Expired.Token)
 	require.NoError(t, err)
 	require.NotNil(t, gotExpired2)
+
 	// check delete all expired
 	err = p.DeleteExpired(ctx)
 	require.NoError(t, err)
 	gotAll4, err := p.GetAll(ctx)
 	require.NoError(t, err)
 	assert.ElementsMatch(t, []*APISession{s1, s3, s5Updated}, gotAll4)
+
 	// make sure expired is not in DB
 	gotExpired3, err := p.Get(ctx, s4Expired.Token)
 	require.NoError(t, err)
@@ -94,7 +104,11 @@ func newInmemoryDB(t *testing.T, sessions ...*APISession) *SqliteProvider {
 	require.NoError(t, err)
 
 	for _, cur := range sessions {
-		require.NoError(t, p.Save(context.Background(), cur))
+		sessionID, err := p.Save(context.Background(), cur)
+		require.NoError(t, err)
+
+		// this will patch the supplied sessions to give them their session ids
+		cur.SessionID = sessionID
 	}
 
 	return p
@@ -105,12 +119,12 @@ type Token struct {
 	jwt.StandardClaims
 }
 
-func generateAPISession(t *testing.T, ttl time.Duration) *APISession {
+func generateAPISession(t *testing.T, username string, expiresAt time.Time, lastAccessAt time.Time) *APISession {
 	jwtSecret, err := generateJWTSecret()
 	require.NoError(t, err)
 
 	claims := Token{
-		Username: "username",
+		Username: username,
 		StandardClaims: jwt.StandardClaims{
 			Id: strconv.FormatUint(rand.Uint64(), 10),
 		},
@@ -120,8 +134,12 @@ func generateAPISession(t *testing.T, ttl time.Duration) *APISession {
 	require.NoError(t, err)
 
 	return &APISession{
-		Token:     tokenStr,
-		ExpiresAt: time.Now().UTC().Add(ttl),
+		Username:     username,
+		Token:        tokenStr,
+		ExpiresAt:    expiresAt,
+		LastAccessAt: lastAccessAt,
+		UserAgent:    "Chrome",
+		IPAddress:    "1.2.3.4",
 	}
 }
 

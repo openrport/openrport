@@ -58,17 +58,27 @@ func (p *SqliteProvider) Get(ctx context.Context, token string) (*APISession, er
 	return res, nil
 }
 
-func (p *SqliteProvider) Save(ctx context.Context, session *APISession) error {
-	_, err := p.db.NamedExecContext(
+func (p *SqliteProvider) Save(ctx context.Context, session *APISession) (sessionID int64, err error) {
+	result, err := p.db.NamedExecContext(
 		ctx,
-		"INSERT OR REPLACE INTO api_sessions (token, expires_at) VALUES (:token, :expires_at)",
+		"INSERT INTO"+
+			" api_sessions (token, expires_at, username, last_access_at, user_agent, ip_address)"+
+			" VALUES (:token, :expires_at, :username, :last_access_at, :user_agent, :ip_address)"+
+			" ON CONFLICT(token) DO UPDATE"+
+			"  SET token=:token, expires_at=:expires_at,username=:username,"+
+			"   last_access_at=:last_access_at, user_agent=:user_agent, ip_address=:ip_address",
 		session,
 	)
 	if err != nil {
-		return fmt.Errorf("unable to save api session: %w", err)
+		return 0, fmt.Errorf("unable to save api session: %w", err)
 	}
 
-	return nil
+	sessionID, err = result.LastInsertId()
+	if err != nil {
+		return 0, fmt.Errorf("unable to get api session ID for save: %w", err)
+	}
+
+	return sessionID, nil
 }
 
 func (p *SqliteProvider) Delete(ctx context.Context, token string) error {
@@ -99,4 +109,31 @@ func (p *SqliteProvider) DeleteExpired(ctx context.Context) error {
 
 func (p *SqliteProvider) Close() error {
 	return p.db.Close()
+}
+
+func (p *SqliteProvider) DeleteAllByUser(ctx context.Context, username string) (err error) {
+	_, err = p.db.ExecContext(
+		ctx,
+		"DELETE FROM api_sessions WHERE username = ?",
+		username,
+	)
+	if err != nil {
+		return err
+	}
+
+	return nil
+}
+
+func (p *SqliteProvider) DeleteByUser(ctx context.Context, username string, sessionID int64) (err error) {
+	_, err = p.db.ExecContext(
+		ctx,
+		"DELETE FROM api_sessions WHERE username = ? AND session_id = ?",
+		username,
+		sessionID,
+	)
+	if err != nil {
+		return err
+	}
+
+	return nil
 }

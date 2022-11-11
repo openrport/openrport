@@ -12,6 +12,7 @@ import (
 
 	"github.com/cloudradar-monitoring/rport/server/api"
 	"github.com/cloudradar-monitoring/rport/server/api/users"
+	"github.com/cloudradar-monitoring/rport/server/bearer"
 	"github.com/cloudradar-monitoring/rport/share/ptr"
 	"github.com/cloudradar-monitoring/rport/share/random"
 	"github.com/cloudradar-monitoring/rport/share/security"
@@ -126,7 +127,7 @@ func TestWrapWithAuthMiddleware(t *testing.T) {
 			config: &Config{},
 		},
 	}
-	jwt, err := al.createAuthToken(ctx, time.Hour, user.Username, []Scope{})
+	jwt, err := bearer.CreateAuthToken(ctx, al.apiSessions, al.config.API.JWTSecret, time.Hour, user.Username, []bearer.Scope{}, "", "")
 	require.NoError(t, err)
 
 	testCases := []struct {
@@ -213,6 +214,147 @@ func TestWrapWithAuthMiddleware(t *testing.T) {
 
 			w := httptest.NewRecorder()
 			req := httptest.NewRequest("GET", "/some-endpoint", nil)
+			if tc.Username != "" {
+				req.SetBasicAuth(tc.Username, tc.Password)
+			}
+			if tc.Bearer != "" {
+				req.Header.Set("Authorization", "Bearer "+tc.Bearer)
+			}
+
+			handler.ServeHTTP(w, req)
+
+			assert.Equal(t, tc.ExpectedStatus, w.Code)
+		})
+	}
+}
+
+func TestAPISessionUpdates(t *testing.T) {
+	ctx := context.Background()
+
+	user := &users.User{
+		Username: "user1",
+		Password: "$2y$05$ep2DdPDeLDDhwRrED9q/vuVEzRpZtB5WHCFT7YbcmH9r9oNmlsZOm",
+		Token:    ptr.String("$2y$05$/D7g/d0sDkNSOh.e6Jzc9OWClcpZ1ieE8Dx.WUaWgayd3Ab0rRdxu"),
+	}
+
+	userWithoutToken := &users.User{
+		Username: "user2",
+		Password: "$2y$05$ep2DdPDeLDDhwRrED9q/vuVEzRpZtB5WHCFT7YbcmH9r9oNmlsZOm",
+		Token:    nil,
+	}
+
+	al := APIListener{
+		apiSessions: newEmptyAPISessionCache(t),
+		bannedUsers: security.NewBanList(0),
+		userService: users.NewAPIService(users.NewStaticProvider([]*users.User{user, userWithoutToken}), false),
+		Server: &Server{
+			config: &Config{},
+		},
+	}
+
+	testIPAddress := "1.2.3.4"
+	testUserAgent := "Chrome"
+
+	jwt, err := bearer.CreateAuthToken(ctx, al.apiSessions, al.config.API.JWTSecret, time.Hour, user.Username, []bearer.Scope{}, testUserAgent, testIPAddress)
+	require.NoError(t, err)
+
+	testCases := []struct {
+		Name            string
+		Username        string
+		Password        string
+		EnableTwoFA     bool
+		BearerUsername  string
+		Bearer          string
+		ExpectedSession bool
+		ExpectedStatus  int
+	}{
+		{
+			Name:           "no session",
+			ExpectedStatus: http.StatusUnauthorized,
+		},
+		{
+			Name:            "user auth, regular login, existing token",
+			Username:        user.Username,
+			Password:        "pwd",
+			ExpectedSession: true,
+			ExpectedStatus:  http.StatusOK,
+		},
+		{
+			Name:            "user auth, regular login, no token",
+			Username:        userWithoutToken.Username,
+			Password:        "pwd",
+			ExpectedSession: false,
+			ExpectedStatus:  http.StatusOK,
+		},
+		{
+			Name:            "user auth, existing token, 2fa, bad password",
+			Username:        user.Username,
+			Password:        "pwd",
+			EnableTwoFA:     true,
+			ExpectedSession: true,
+			ExpectedStatus:  http.StatusUnauthorized,
+		},
+		{
+			Name:            "user auth, existing token, 2fa, good password",
+			Username:        user.Username,
+			Password:        "token",
+			EnableTwoFA:     true,
+			ExpectedSession: true,
+			ExpectedStatus:  http.StatusOK,
+		},
+		{
+			Name:            "existing bearer token only",
+			BearerUsername:  user.Username,
+			Bearer:          jwt,
+			ExpectedSession: true,
+			ExpectedStatus:  http.StatusOK,
+		},
+	}
+
+	for _, tc := range testCases {
+		tc := tc
+		t.Run(tc.Name, func(t *testing.T) {
+			twoFATokenDelivery := ""
+			if tc.EnableTwoFA {
+				twoFATokenDelivery = "smtp"
+			}
+			al.config.API.TwoFATokenDelivery = twoFATokenDelivery
+
+			testRunTime := time.Now()
+
+			handler := al.wrapWithAuthMiddleware(tc.Bearer != "")(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+				username := tc.Username
+				if tc.BearerUsername != "" {
+					username = tc.BearerUsername
+				}
+				sessions, err := al.apiSessions.GetAllByUser(ctx, username)
+				require.NoError(t, err)
+
+				if tc.ExpectedSession {
+					require.NotNil(t, sessions)
+					require.Less(t, 0, len(sessions))
+
+					if sessions != nil {
+						session := sessions[0]
+						assert.Equal(t, username, session.Username)
+						assert.Greater(t, time.Now(), session.LastAccessAt)
+						assert.Equal(t, testIPAddress, session.IPAddress)
+						assert.Equal(t, testUserAgent, session.UserAgent)
+						// if ok access and we used a bearer token
+						if tc.ExpectedStatus == http.StatusOK && tc.Bearer != "" {
+							// then test run time should be before last access time
+							assert.Less(t, testRunTime, session.LastAccessAt)
+						}
+					}
+
+				}
+			}))
+
+			w := httptest.NewRecorder()
+			req := httptest.NewRequest("GET", "/some-endpoint", nil)
+			req.RemoteAddr = testIPAddress
+			req.Header.Set("User-Agent", testUserAgent)
+
 			if tc.Username != "" {
 				req.SetBasicAuth(tc.Username, tc.Password)
 			}

@@ -1,4 +1,4 @@
-package chserver
+package bearer
 
 import (
 	"context"
@@ -12,11 +12,13 @@ import (
 	"github.com/golang-jwt/jwt/v4"
 
 	"github.com/cloudradar-monitoring/rport/server/api/session"
+	"github.com/cloudradar-monitoring/rport/server/routes"
+	"github.com/cloudradar-monitoring/rport/share/logger"
 )
 
 const (
-	maxTokenLifetime     = 90 * 24 * time.Hour
-	defaultTokenLifetime = 10 * time.Minute
+	DefaultMaxTokenLifetime = 90 * 24 * time.Hour
+	DefaultTokenLifetime    = 10 * time.Minute
 )
 
 type Token struct {
@@ -37,7 +39,7 @@ var ScopesAllExcluding2FaCheck = []Scope{
 		Method: "*",
 	},
 	{
-		URI:     allRoutesPrefix + verify2FaRoute,
+		URI:     routes.AllRoutesPrefix + routes.Verify2FaRoute,
 		Method:  "*",
 		Exclude: true,
 	},
@@ -45,14 +47,14 @@ var ScopesAllExcluding2FaCheck = []Scope{
 
 var ScopesTotPCreateOnly = []Scope{
 	{
-		URI:    allRoutesPrefix + totPRoutes,
+		URI:    routes.AllRoutesPrefix + routes.TotPRoutes,
 		Method: http.MethodPost,
 	},
 }
 
 var Scopes2FaCheckOnly = []Scope{
 	{
-		URI:    allRoutesPrefix + verify2FaRoute,
+		URI:    routes.AllRoutesPrefix + routes.Verify2FaRoute,
 		Method: http.MethodPost,
 	},
 }
@@ -63,11 +65,23 @@ type TokenContext struct {
 	JwtToken *jwt.Token
 }
 
-func (al *APIListener) createAuthToken(
+type APISessionUpdater interface {
+	Save(ctx context.Context, session *session.APISession) error
+}
+
+type APISessionGetter interface {
+	Get(ctx context.Context, token string) (*session.APISession, error)
+}
+
+func CreateAuthToken(
 	ctx context.Context,
+	sessionUpdater APISessionUpdater,
+	JWTSecret string,
 	lifetime time.Duration,
 	username string,
 	scopes []Scope,
+	userAgent string,
+	remoteAddress string,
 ) (string, error) {
 	if username == "" {
 		return "", errors.New("username cannot be empty")
@@ -81,13 +95,20 @@ func (al *APIListener) createAuthToken(
 		Scopes: scopes,
 	}
 	token := jwt.NewWithClaims(jwt.SigningMethodHS256, claims)
-	tokenStr, err := token.SignedString([]byte(al.config.API.JWTSecret))
+	tokenStr, err := token.SignedString([]byte(JWTSecret))
 	if err != nil {
 		return "", err
 	}
 
 	expiresAt := time.Now().Add(lifetime)
-	err = al.apiSessions.Save(ctx, &session.APISession{Token: tokenStr, ExpiresAt: expiresAt})
+	err = sessionUpdater.Save(ctx, &session.APISession{
+		Token:        tokenStr,
+		ExpiresAt:    expiresAt,
+		Username:     username,
+		LastAccessAt: time.Now(),
+		UserAgent:    userAgent,
+		IPAddress:    remoteAddress,
+	})
 	if err != nil {
 		return "", err
 	}
@@ -95,15 +116,18 @@ func (al *APIListener) createAuthToken(
 	return tokenStr, nil
 }
 
-func (al *APIListener) increaseSessionLifetime(ctx context.Context, s *session.APISession) error {
-	newExpirationDate := time.Now().Add(defaultTokenLifetime)
+func IncreaseSessionLifetime(
+	ctx context.Context,
+	sessionUpdater APISessionUpdater,
+	s *session.APISession) error {
+	newExpirationDate := time.Now().Add(DefaultTokenLifetime)
 	if s.ExpiresAt.Before(newExpirationDate) {
 		s.ExpiresAt = newExpirationDate
 	}
-	return al.apiSessions.Save(ctx, s)
+	return sessionUpdater.Save(ctx, s)
 }
 
-func (al *APIListener) currentURIMatchesTokenScopes(currentURI, currentMethod string, tokenScopes []Scope) bool {
+func currentURIMatchesTokenScopes(currentURI, currentMethod string, tokenScopes []Scope) bool {
 	// make it compatible with the old tokens which don't have scopes field in jwt
 	if len(tokenScopes) == 0 {
 		return true
@@ -128,14 +152,13 @@ func (al *APIListener) currentURIMatchesTokenScopes(currentURI, currentMethod st
 	return hasAtLeastOneMatch && !hasExcludeMatch
 }
 
-func (al *APIListener) parseToken(tokenStr string) (tokCtx *TokenContext, err error) {
+func ParseToken(tokenStr string, JWTSecret string) (tokCtx *TokenContext, err error) {
 	appToken := &Token{}
 	bearerToken, err := jwt.ParseWithClaims(tokenStr, appToken, func(token *jwt.Token) (i interface{}, err error) {
-		return []byte(al.config.API.JWTSecret), nil
+		return []byte(JWTSecret), nil
 	})
 	if err != nil {
 		// do not return error since it should respond with 401 instead of 500, just log it
-		al.Debugf("failed to parse jwt token: %v", err)
 		return nil, err
 	}
 
@@ -146,9 +169,14 @@ func (al *APIListener) parseToken(tokenStr string) (tokCtx *TokenContext, err er
 	}, nil
 }
 
-func (al *APIListener) validateBearerToken(ctx context.Context, tokCtx *TokenContext, uri, method string) (bool, *session.APISession, error) {
-	if !al.currentURIMatchesTokenScopes(uri, method, tokCtx.AppToken.Scopes) {
-		al.Errorf(
+func ValidateBearerToken(
+	ctx context.Context,
+	tokCtx *TokenContext,
+	uri, method string,
+	apiSessionGetter APISessionGetter,
+	l *logger.Logger) (bool, *session.APISession, error) {
+	if !currentURIMatchesTokenScopes(uri, method, tokCtx.AppToken.Scopes) {
+		l.Errorf(
 			"Token scopes %+v don't match with the current url %s[%s], so this token is not intended to be used for this page",
 			tokCtx.AppToken.Scopes,
 			method,
@@ -157,25 +185,17 @@ func (al *APIListener) validateBearerToken(ctx context.Context, tokCtx *TokenCon
 		return false, nil, nil
 	}
 
-	if al.bannedUsers.IsBanned(tokCtx.AppToken.Username) {
-		al.Errorf(
-			"User %s is banned",
-			tokCtx.AppToken.Username,
-		)
-		return false, nil, ErrTooManyRequests
-	}
-
 	if !tokCtx.JwtToken.Valid || tokCtx.AppToken.Username == "" {
-		al.Errorf(
+		l.Errorf(
 			"Token is invalid or user name is empty",
 			tokCtx.AppToken.Username,
 		)
 		return false, nil, nil
 	}
 
-	apiSession, err := al.apiSessions.Get(ctx, tokCtx.RawToken)
+	apiSession, err := apiSessionGetter.Get(ctx, tokCtx.RawToken)
 	if err != nil || apiSession == nil {
-		al.Errorf(
+		l.Errorf(
 			"Login session not found for %s",
 			tokCtx.AppToken.Username,
 		)
@@ -184,7 +204,7 @@ func (al *APIListener) validateBearerToken(ctx context.Context, tokCtx *TokenCon
 
 	isValidByExpirationTime := apiSession.ExpiresAt.After(time.Now())
 	if !isValidByExpirationTime {
-		al.Errorf(
+		l.Errorf(
 			"api session time %v is expired",
 			apiSession.ExpiresAt,
 		)
@@ -193,7 +213,7 @@ func (al *APIListener) validateBearerToken(ctx context.Context, tokCtx *TokenCon
 	return true, apiSession, nil
 }
 
-func getBearerToken(req *http.Request) (string, bool) {
+func GetBearerToken(req *http.Request) (string, bool) {
 	auth := req.Header.Get("Authorization")
 	const prefix = "Bearer "
 	// Case insensitive prefix match.

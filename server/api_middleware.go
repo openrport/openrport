@@ -1,15 +1,19 @@
 package chserver
 
 import (
+	"context"
 	"errors"
 	"fmt"
 	"net/http"
+	"time"
 
 	"github.com/gorilla/mux"
 
 	"github.com/cloudradar-monitoring/rport/server/api"
 	errors2 "github.com/cloudradar-monitoring/rport/server/api/errors"
 	"github.com/cloudradar-monitoring/rport/server/api/users"
+	"github.com/cloudradar-monitoring/rport/server/bearer"
+	"github.com/cloudradar-monitoring/rport/server/routes"
 	"github.com/cloudradar-monitoring/rport/share/enums"
 	"github.com/cloudradar-monitoring/rport/share/logger"
 )
@@ -91,6 +95,17 @@ func (al *APIListener) wrapWithAuthMiddleware(isBearerOnly bool) mux.MiddlewareF
 			}
 
 			newCtx := api.WithUser(r.Context(), username)
+
+			token, hasBearerToken := bearer.GetBearerToken(r)
+			if hasBearerToken {
+				// TODO: check with TH whether this is the only access flow?
+				err = al.updateTokenAccess(newCtx, token, time.Now(), r.UserAgent(), r.RemoteAddr)
+				if err != nil {
+					al.jsonError(w, err)
+					return
+				}
+			}
+
 			f.ServeHTTP(w, r.WithContext(newCtx))
 		})
 	}
@@ -104,9 +119,9 @@ func (al *APIListener) wrapClientAccessMiddleware(next http.Handler) http.Handle
 		}
 
 		vars := mux.Vars(r)
-		clientID := vars[routeParamClientID]
+		clientID := vars[routes.ParamClientID]
 		if clientID == "" {
-			al.jsonErrorResponseWithTitle(w, http.StatusBadRequest, fmt.Sprintf("Missing %q route param.", routeParamClientID))
+			al.jsonErrorResponseWithTitle(w, http.StatusBadRequest, fmt.Sprintf("Missing %q route param.", routes.ParamClientID))
 			return
 		}
 
@@ -138,20 +153,46 @@ func (al *APIListener) permissionsMiddleware(permission string) mux.MiddlewareFu
 				return
 			}
 
-			curUser, err := al.getUserModelForAuth(r.Context())
+			currUser, err := al.getUserModelForAuth(r.Context())
 			if err != nil {
 				al.jsonError(w, err)
 				return
 			}
+
 			if al.userService.SupportsGroupPermissions() {
 				// Check group permissions only if supported otherwise let pass.
-				err = al.userService.CheckPermission(curUser, permission)
+				err = al.userService.CheckPermission(currUser, permission)
 				if err != nil {
 					al.jsonError(w, err)
 					return
 				}
 			}
+
 			next.ServeHTTP(w, r)
 		})
+
 	}
+}
+
+func (al *APIListener) updateTokenAccess(ctx context.Context, token string, accessTime time.Time, userAgent string, remoteAddress string) (err error) {
+	sessionInfo, err := al.apiSessions.Get(ctx, token)
+	if err != nil {
+		return err
+	}
+
+	// if no session cache yet, then don't try to update
+	if sessionInfo == nil {
+		return nil
+	}
+
+	sessionInfo.LastAccessAt = accessTime
+	sessionInfo.UserAgent = userAgent
+	sessionInfo.IPAddress = remoteAddress
+
+	err = al.apiSessions.Save(ctx, sessionInfo)
+	if err != nil {
+		return err
+	}
+
+	return nil
 }

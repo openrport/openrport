@@ -6,6 +6,7 @@ import (
 	rportplus "github.com/cloudradar-monitoring/rport/plus"
 	"github.com/cloudradar-monitoring/rport/plus/capabilities/oauth"
 	"github.com/cloudradar-monitoring/rport/server/api"
+	"github.com/cloudradar-monitoring/rport/server/routes"
 )
 
 const BuiltInAuthProviderName = "built-in"
@@ -16,6 +17,7 @@ type AuthProviderInfo struct {
 	AuthProvider      string `json:"auth_provider"`
 	SettingsURI       string `json:"settings_uri"`
 	DeviceSettingsURI string `json:"device_settings_uri"`
+	MaxTokenLifetime  int    `json:"max_token_lifetime"`
 }
 
 // AuthSettings contains the auth info to be used by a regular web app
@@ -35,17 +37,21 @@ type DeviceAuthSettings struct {
 func (al *APIListener) handleGetAuthProvider(w http.ResponseWriter, req *http.Request) {
 	var response api.SuccessPayload
 
+	maxTokenLifetime := al.config.API.MaxTokenLifeTime
+
 	if al.config.PlusOAuthEnabled() {
 		OAuthProvider := AuthProviderInfo{
 			AuthProvider:      al.config.PlusConfig.OAuthConfig.Provider,
-			SettingsURI:       allRoutesPrefix + authRoutesPrefix + authSettingsRoute,
-			DeviceSettingsURI: allRoutesPrefix + authRoutesPrefix + authDeviceSettingsRoute,
+			SettingsURI:       routes.AllRoutesPrefix + routes.AuthRoutesPrefix + routes.AuthSettingsRoute,
+			DeviceSettingsURI: routes.AllRoutesPrefix + routes.AuthRoutesPrefix + routes.AuthDeviceSettingsRoute,
+			MaxTokenLifetime:  maxTokenLifetime,
 		}
 		response = api.NewSuccessPayload(OAuthProvider)
 	} else {
 		builtInAuthProvider := AuthProviderInfo{
-			AuthProvider: BuiltInAuthProviderName,
-			SettingsURI:  "",
+			AuthProvider:     BuiltInAuthProviderName,
+			SettingsURI:      "",
+			MaxTokenLifetime: maxTokenLifetime,
 		}
 		response = api.NewSuccessPayload(builtInAuthProvider)
 	}

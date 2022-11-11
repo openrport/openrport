@@ -4,6 +4,7 @@ import (
 	"net/http"
 
 	errors2 "github.com/cloudradar-monitoring/rport/server/api/errors"
+	"github.com/cloudradar-monitoring/rport/server/bearer"
 )
 
 func (al *APIListener) handlePostVerify2FAToken() http.Handler {
@@ -61,7 +62,7 @@ func (al *APIListener) parseAndValidate2FATokenRequest(req *http.Request) (usern
 	}
 
 	if al.config.API.TotPEnabled {
-		bearerToken, bearerAuthProvided := getBearerToken(req)
+		bearerToken, bearerAuthProvided := bearer.GetBearerToken(req)
 
 		if !bearerAuthProvided {
 			return reqBody.Username, errors2.APIError{

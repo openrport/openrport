@@ -12,6 +12,7 @@ import (
 	"github.com/cloudradar-monitoring/rport/server/api"
 	"github.com/cloudradar-monitoring/rport/server/api/jobs"
 	"github.com/cloudradar-monitoring/rport/server/auditlog"
+	"github.com/cloudradar-monitoring/rport/server/routes"
 	"github.com/cloudradar-monitoring/rport/server/validation"
 	"github.com/cloudradar-monitoring/rport/share/comm"
 	"github.com/cloudradar-monitoring/rport/share/models"
@@ -136,9 +137,9 @@ type newJobResponse struct {
 // handlePostCommand handles POST /clients/{client_id}/commands
 func (al *APIListener) handlePostCommand(w http.ResponseWriter, req *http.Request) {
 	vars := mux.Vars(req)
-	cid := vars[routeParamClientID]
+	cid := vars[routes.ParamClientID]
 	if cid == "" {
-		al.jsonErrorResponseWithTitle(w, http.StatusBadRequest, fmt.Sprintf("Missing %q route param.", routeParamClientID))
+		al.jsonErrorResponseWithTitle(w, http.StatusBadRequest, fmt.Sprintf("Missing %q route param.", routes.ParamClientID))
 		return
 	}
 
@@ -167,9 +168,9 @@ func (al *APIListener) handlePostCommand(w http.ResponseWriter, req *http.Reques
 // handleGetCommands handles GET /clients/{client_id}/commands
 func (al *APIListener) handleGetCommands(w http.ResponseWriter, req *http.Request) {
 	vars := mux.Vars(req)
-	cid := vars[routeParamClientID]
+	cid := vars[routes.ParamClientID]
 	if cid == "" {
-		al.jsonErrorResponseWithTitle(w, http.StatusBadRequest, fmt.Sprintf("Missing %q route param.", routeParamClientID))
+		al.jsonErrorResponseWithTitle(w, http.StatusBadRequest, fmt.Sprintf("Missing %q route param.", routes.ParamClientID))
 		return
 	}
 
@@ -207,9 +208,9 @@ func (al *APIListener) handleGetCommands(w http.ResponseWriter, req *http.Reques
 // handleGetMultiClientCommandJobs handles GET /commands/{job_id}/jobs
 func (al *APIListener) handleGetMultiClientCommandJobs(w http.ResponseWriter, req *http.Request) {
 	vars := mux.Vars(req)
-	multiJobID := vars[routeParamJobID]
+	multiJobID := vars[routes.ParamJobID]
 	if multiJobID == "" {
-		al.jsonErrorResponseWithTitle(w, http.StatusBadRequest, fmt.Sprintf("Missing %q route param.", routeParamJobID))
+		al.jsonErrorResponseWithTitle(w, http.StatusBadRequest, fmt.Sprintf("Missing %q route param.", routes.ParamJobID))
 		return
 	}
 
@@ -247,14 +248,14 @@ func (al *APIListener) handleGetMultiClientCommandJobs(w http.ResponseWriter, re
 // handleGetCommand handles GET /clients/{client_id}/commands/{job_id}
 func (al *APIListener) handleGetCommand(w http.ResponseWriter, req *http.Request) {
 	vars := mux.Vars(req)
-	cid := vars[routeParamClientID]
+	cid := vars[routes.ParamClientID]
 	if cid == "" {
-		al.jsonErrorResponseWithTitle(w, http.StatusBadRequest, fmt.Sprintf("Missing %q route param.", routeParamClientID))
+		al.jsonErrorResponseWithTitle(w, http.StatusBadRequest, fmt.Sprintf("Missing %q route param.", routes.ParamClientID))
 		return
 	}
-	jid := vars[routeParamJobID]
+	jid := vars[routes.ParamJobID]
 	if jid == "" {
-		al.jsonErrorResponseWithTitle(w, http.StatusBadRequest, fmt.Sprintf("Missing %q route param.", routeParamJobID))
+		al.jsonErrorResponseWithTitle(w, http.StatusBadRequest, fmt.Sprintf("Missing %q route param.", routes.ParamJobID))
 		return
 	}
 
@@ -454,9 +455,9 @@ func (al *APIListener) handleCommandsWS(w http.ResponseWriter, req *http.Request
 // handleGetMultiClientCommand handles GET /commands/{job_id}
 func (al *APIListener) handleGetMultiClientCommand(w http.ResponseWriter, req *http.Request) {
 	vars := mux.Vars(req)
-	jid := vars[routeParamJobID]
+	jid := vars[routes.ParamJobID]
 	if jid == "" {
-		al.jsonErrorResponseWithTitle(w, http.StatusBadRequest, fmt.Sprintf("Missing %q route param.", routeParamJobID))
+		al.jsonErrorResponseWithTitle(w, http.StatusBadRequest, fmt.Sprintf("Missing %q route param.", routes.ParamJobID))
 		return
 	}
 
