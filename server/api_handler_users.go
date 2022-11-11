@@ -184,6 +184,11 @@ func (al *APIListener) handleDeleteUserAPISession(w http.ResponseWriter, req *ht
 		return
 	}
 
+	al.auditLog.Entry(auditlog.ApplicationAuthAPISession, auditlog.ActionDelete).
+		WithHTTPRequest(req).
+		WithID(userID).
+		Save()
+
 	w.WriteHeader(http.StatusNoContent)
 }
 
@@ -203,6 +208,11 @@ func (al *APIListener) handleDeleteAllUserAPISessions(w http.ResponseWriter, req
 		al.jsonErrorResponseWithDetail(w, http.StatusInternalServerError, "", titleMsg, err.Error())
 		return
 	}
+
+	al.auditLog.Entry(auditlog.ApplicationAuthAPISession, auditlog.ActionDelete).
+		WithHTTPRequest(req).
+		WithID(userID).
+		Save()
 
 	w.WriteHeader(http.StatusNoContent)
 }
