@@ -98,7 +98,6 @@ func (al *APIListener) wrapWithAuthMiddleware(isBearerOnly bool) mux.MiddlewareF
 
 			token, hasBearerToken := bearer.GetBearerToken(r)
 			if hasBearerToken {
-				// TODO: check with TH whether this is the only access flow?
 				err = al.updateTokenAccess(newCtx, token, time.Now(), r.UserAgent(), r.RemoteAddr)
 				if err != nil {
 					al.jsonError(w, err)

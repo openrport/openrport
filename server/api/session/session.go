@@ -17,12 +17,15 @@ type APISession struct {
 	IPAddress    string    `db:"ip_address"`
 }
 
-type CacheProvider interface {
+// current implementation provided by go-cache
+type InternalCacheProvider interface {
 	Set(k string, x interface{}, d time.Duration)
 	Get(k string) (interface{}, bool)
 	Delete(k string)
 	ItemCount() int
-	// TODO: should cache item be an interface too?
+	// using `cache.Item` creates a interface dependency on go-cache but currently
+	// not worth de-coupling. if alternative cache implementations are required then
+	// deal with this then.
 	Items() map[string]cache.Item
 }
 

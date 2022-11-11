@@ -10,7 +10,7 @@ import (
 )
 
 type Cache struct {
-	cache   CacheProvider
+	cache   InternalCacheProvider
 	storage StorageProvider
 }
 
@@ -19,7 +19,7 @@ func NewCache(
 	defaultExpiration,
 	cleanupInterval time.Duration,
 	storage StorageProvider,
-	c CacheProvider,
+	c InternalCacheProvider,
 ) (*Cache, error) {
 	if c == nil {
 		c = cache.New(defaultExpiration, cleanupInterval)
@@ -71,6 +71,8 @@ func (p *Cache) Delete(ctx context.Context, token string) error {
 }
 
 func (p *Cache) DeleteExpired(ctx context.Context) error {
+	// only delete expired token in storage as go-cache will have already expired
+	// the internal cache tokens.
 	return p.storage.DeleteExpired(ctx)
 }
 
@@ -95,6 +97,7 @@ func (p *Cache) getFromCache(token string) (*APISession, error) {
 func (p *Cache) GetAllByUser(ctx context.Context, username string) (sessions []*APISession, err error) {
 	count := p.cache.ItemCount()
 	sessions = make([]*APISession, 0, count)
+	// just query the go-cache tokens. they will be more up to date than the storage tokens.
 	for _, item := range p.cache.Items() {
 		session, ok := item.Object.(*APISession)
 		if !ok {
@@ -105,7 +108,7 @@ func (p *Cache) GetAllByUser(ctx context.Context, username string) (sessions []*
 		}
 	}
 
-	// TODO: check with TH whether oldest should be first
+	// TODO: (rs): check with TH whether oldest should be first
 	// sort into oldest accessed first
 	sort.SliceStable(sessions, func(a, b int) bool {
 		return sessions[a].LastAccessAt.Before(sessions[b].LastAccessAt)
@@ -114,7 +117,7 @@ func (p *Cache) GetAllByUser(ctx context.Context, username string) (sessions []*
 }
 
 func (p *Cache) DeleteByUser(ctx context.Context, username string, sessionID int64) (err error) {
-	err = p.deleteUserSessionFromCache(username, sessionID)
+	err = p.deleteUserSessionsFromCache(username, sessionID)
 	if err != nil {
 		return err
 	}
@@ -125,7 +128,7 @@ func (p *Cache) DeleteByUser(ctx context.Context, username string, sessionID int
 	return nil
 }
 
-func (p *Cache) deleteUserSessionFromCache(username string, sessionID int64) (err error) {
+func (p *Cache) deleteUserSessionsFromCache(username string, sessionID int64) (err error) {
 	// Items() returns a copy of the underlying unexpired cache items and Delete
 	// won't error if item not found. this should be thread safe.
 	for _, item := range p.cache.Items() {
@@ -133,7 +136,11 @@ func (p *Cache) deleteUserSessionFromCache(username string, sessionID int64) (er
 		if !ok {
 			return fmt.Errorf("invalid cache entry: expected *APISession, got %T", item.Object)
 		}
-		if session.Username == username && session.SessionID == sessionID {
+		if session.Username == username {
+			// if deleting by session ID but the session ID doesn't match, then continue and don't delete
+			if sessionID != -1 && session.SessionID != sessionID {
+				continue
+			}
 			p.cache.Delete(session.Token)
 			break
 		}
@@ -151,26 +158,13 @@ func (p *Cache) deleteUserSessionFromStorage(ctx context.Context, username strin
 }
 
 func (p *Cache) DeleteAllByUser(ctx context.Context, username string) (err error) {
-	err = p.deleteUserSessionsFromCache(username)
+	err = p.deleteUserSessionsFromCache(username, -1 /* delete all sessions for user */)
 	if err != nil {
 		return err
 	}
 	err = p.deleteUserSessionsFromStorage(ctx, username)
 	if err != nil {
 		return err
-	}
-	return nil
-}
-
-func (p *Cache) deleteUserSessionsFromCache(username string) (err error) {
-	for _, item := range p.cache.Items() {
-		session, ok := item.Object.(*APISession)
-		if !ok {
-			return fmt.Errorf("invalid cache entry: expected *APISession, got %T", item.Object)
-		}
-		if session.Username == username {
-			p.cache.Delete(session.Token)
-		}
 	}
 	return nil
 }
