@@ -108,7 +108,6 @@ func (p *Cache) GetAllByUser(ctx context.Context, username string) (sessions []*
 		}
 	}
 
-	// TODO: (rs): check with TH whether oldest should be first
 	// sort into oldest accessed first
 	sort.SliceStable(sessions, func(a, b int) bool {
 		return sessions[a].LastAccessAt.Before(sessions[b].LastAccessAt)
