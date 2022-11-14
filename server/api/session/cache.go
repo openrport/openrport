@@ -136,12 +136,17 @@ func (p *Cache) deleteUserSessionsFromCache(username string, sessionID int64) (e
 			return fmt.Errorf("invalid cache entry: expected *APISession, got %T", item.Object)
 		}
 		if session.Username == username {
-			// if deleting by session ID but the session ID doesn't match, then continue and don't delete
-			if sessionID != -1 && session.SessionID != sessionID {
-				continue
+			if sessionID == -1 {
+				// deleting all sessions so just delete the session
+				p.cache.Delete(session.Token)
+			} else {
+				// deleting a single session so check if matching session
+				if session.SessionID == sessionID {
+					// if matching then delete and exit
+					p.cache.Delete(session.Token)
+					break
+				}
 			}
-			p.cache.Delete(session.Token)
-			break
 		}
 	}
 
