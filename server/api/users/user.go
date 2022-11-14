@@ -2,13 +2,14 @@ package users
 
 // User represents API user.
 type User struct {
-	Username        string   `json:"username" db:"username"`
-	Password        string   `json:"password" db:"password"`
-	PasswordExpired bool     `json:"password_expired" db:"password_expired"`
-	Groups          []string `json:"groups" db:"-"`
-	TwoFASendTo     string   `json:"two_fa_send_to" db:"two_fa_send_to"`
-	Token           *string  `json:"token,omitempty" db:"token"`
-	TotP            string   `json:"totp_secret,omitempty" db:"totp_secret"`
+	Username              string   `json:"username" db:"username"`
+	Password              string   `json:"password" db:"password"`
+	PasswordExpired       bool     `json:"-" db:"password_expired"`
+	ActionPasswordExpired string   `json:"password_expired" db:"-"`
+	Groups                []string `json:"groups" db:"-"`
+	TwoFASendTo           string   `json:"two_fa_send_to" db:"two_fa_send_to"`
+	Token                 *string  `json:"token,omitempty" db:"token"`
+	TotP                  string   `json:"totp_secret,omitempty" db:"totp_secret"`
 }
 
 func (u User) GetGroups() []string {

@@ -9,6 +9,7 @@ import (
 
 	"github.com/cloudradar-monitoring/rport/server/api"
 	errors2 "github.com/cloudradar-monitoring/rport/server/api/errors"
+	"github.com/cloudradar-monitoring/rport/server/api/users"
 	chshare "github.com/cloudradar-monitoring/rport/share"
 	"github.com/cloudradar-monitoring/rport/share/logger"
 )
@@ -68,12 +69,6 @@ func (al *APIListener) handleLogin(username, pwd string, newpwd string, skipPass
 		return
 	}
 
-	// password is correct, need to see if its expired:
-	if user.PasswordExpired {
-		al.jsonErrorResponseWithTitle(w, http.StatusUnauthorized, ErrThatPasswordHasExpired.Error())
-		return
-	}
-
 	if !al.handleBannedIPs(req, authorized) {
 		return
 	}
@@ -87,6 +82,25 @@ func (al *APIListener) handleLogin(username, pwd string, newpwd string, skipPass
 	lifetime, err := parseTokenLifetime(req)
 	if err != nil {
 		al.jsonErrorResponse(w, http.StatusBadRequest, err)
+		return
+	}
+
+	// password is correct,
+	// a new password is provided?
+	if newpwd != "" {
+		fmt.Printf("handleLogin changing newpwd %v \n", newpwd)
+		var user users.User
+		user.Password = newpwd
+		if err := al.userService.Change(&user, username); err != nil {
+			al.jsonError(w, err)
+			return
+		}
+		return
+	}
+
+	// is it expired?
+	if user.PasswordExpired {
+		al.jsonErrorResponseWithTitle(w, http.StatusUnauthorized, ErrThatPasswordHasExpired.Error())
 		return
 	}
 

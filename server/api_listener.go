@@ -348,9 +348,6 @@ func (al *APIListener) lookupUser(r *http.Request, isBearerOnly bool) (authorize
 
 // handleBasicAuth checks username and password against either user's password or token
 func (al *APIListener) handleBasicAuth(username, password string) (authorized bool, name string, err error) {
-	fmt.Printf("handleBasicAuth ENTER USER %+v\n", username)
-	// fmt.Printf("REQUEST %+v\n", req)
-
 	if al.bannedUsers.IsBanned(username) {
 		return false, username, ErrTooManyRequests
 	}
@@ -366,21 +363,10 @@ func (al *APIListener) handleBasicAuth(username, password string) (authorized bo
 	if user == nil {
 		return false, username, nil
 	}
+
 	if user.PasswordExpired {
 		return false, username, ErrThatPasswordHasExpired
 	}
-
-	if err := al.userService.Change(user, user.Username); err != nil {
-		//al.jsonError(w, err)
-		//return
-
-	}
-	fmt.Printf("got to change the user, result: %+v\n", err)
-
-	// err = al.userService.u  ExpiredPassword(username, false)
-	// if err != nil {
-	// return false, username, fmt.Errorf("failed to get user: %v", err)
-	// }
 
 	// skip basic auth with password when 2fa is enabled
 	if !al.config.API.IsTwoFAOn() && !al.config.API.TotPEnabled {

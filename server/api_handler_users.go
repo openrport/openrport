@@ -1,6 +1,7 @@
 package chserver
 
 import (
+	"fmt"
 	"net/http"
 
 	"github.com/gorilla/mux"
@@ -52,6 +53,7 @@ func (al *APIListener) handleChangeUser(w http.ResponseWriter, req *http.Request
 		al.jsonError(w, err)
 		return
 	}
+	fmt.Printf("handleChangeUser user = %v \n", user)
 
 	if err := al.userService.Change(&user, userID); err != nil {
 		al.jsonError(w, err)

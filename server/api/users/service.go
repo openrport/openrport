@@ -195,8 +195,11 @@ func (as *APIService) validate(dataToChange *User, usernameToFind string) error 
 			})
 		}
 	} else {
+		fmt.Printf("validate dataToChange = %v \n", dataToChange)
+
 		if (dataToChange.Username == "" || dataToChange.Username == usernameToFind) &&
 			dataToChange.Password == "" &&
+			dataToChange.ActionPasswordExpired == "" &&
 			dataToChange.Groups == nil &&
 			(!as.TwoFAOn || dataToChange.TwoFASendTo == "") &&
 			dataToChange.Token == nil &&

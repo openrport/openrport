@@ -307,6 +307,8 @@ func (d *UserDatabase) Add(usr *User) error {
 
 // Update @todo use context for all db operations
 func (d *UserDatabase) Update(usr *User, usernameToUpdate string) error {
+	fmt.Printf("database Update ENTER %v <-- %v\n", usr, usernameToUpdate)
+
 	if usernameToUpdate == "" {
 		return errors.New("cannot update user with empty username")
 	}
@@ -316,6 +318,11 @@ func (d *UserDatabase) Update(usr *User, usernameToUpdate string) error {
 	if usr.Password != "" {
 		statements = append(statements, "`password` = ?")
 		params = append(params, usr.Password)
+	}
+
+	if usr.ActionPasswordExpired != "" {
+		statements = append(statements, "`password_expired` = ?")
+		params = append(params, usr.ActionPasswordExpired == "true")
 	}
 
 	if usr.TwoFASendTo != "" {
@@ -351,6 +358,16 @@ func (d *UserDatabase) Update(usr *User, usernameToUpdate string) error {
 		)
 		params = append(params, usernameToUpdate)
 		_, err := tx.Exec(q, params...)
+		if err != nil {
+			d.handleRollback(tx)
+			return err
+		}
+	}
+	if usr.Username == "" && usr.Password != "" { // I am updating the password
+		_, err := tx.Exec(
+			fmt.Sprintf("UPDATE `%s` SET `password_expired` = false WHERE `username` = ?", d.usersTableName),
+			usernameToUpdate,
+		)
 		if err != nil {
 			d.handleRollback(tx)
 			return err
