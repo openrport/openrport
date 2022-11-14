@@ -51,7 +51,7 @@ func NewUserDatabase(
 }
 
 func (d *UserDatabase) getSelectClause() string {
-	s := "username, password"
+	s := "username, password, password_expired"
 	if d.twoFAOn {
 		s += ", two_fa_send_to"
 	}

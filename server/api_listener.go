@@ -319,6 +319,7 @@ func (al *APIListener) Close() error {
 }
 
 var ErrTooManyRequests = errors.New("too many requests, please try later")
+var ErrThatPasswordHasExpired = errors.New("password has expired, please change your password")
 
 // lookupUser is used to get the user on every request in auth middleware
 func (al *APIListener) lookupUser(r *http.Request, isBearerOnly bool) (authorized bool, username string, err error) {
@@ -347,6 +348,7 @@ func (al *APIListener) lookupUser(r *http.Request, isBearerOnly bool) (authorize
 
 // handleBasicAuth checks username and password against either user's password or token
 func (al *APIListener) handleBasicAuth(username, password string) (authorized bool, name string, err error) {
+	fmt.Printf("handleBasicAuth ENTER USER %+v\n", username)
 	if al.bannedUsers.IsBanned(username) {
 		return false, username, ErrTooManyRequests
 	}
@@ -362,6 +364,13 @@ func (al *APIListener) handleBasicAuth(username, password string) (authorized bo
 	if user == nil {
 		return false, username, nil
 	}
+	if user.PasswordExpired {
+		return false, username, ErrThatPasswordHasExpired
+	}
+	// err = al.userService.u  ExpiredPassword(username, false)
+	// if err != nil {
+	// return false, username, fmt.Errorf("failed to get user: %v", err)
+	// }
 
 	// skip basic auth with password when 2fa is enabled
 	if !al.config.API.IsTwoFAOn() && !al.config.API.TotPEnabled {

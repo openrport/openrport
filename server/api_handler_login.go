@@ -50,6 +50,8 @@ func (al *APIListener) handleGetLogin(w http.ResponseWriter, req *http.Request) 
 }
 
 func (al *APIListener) handleLogin(username, pwd string, skipPasswordValidation bool, w http.ResponseWriter, req *http.Request) {
+	fmt.Printf("handleLogin ENTER\n")
+
 	if al.bannedUsers.IsBanned(username) {
 		al.jsonErrorResponseWithTitle(w, http.StatusTooManyRequests, ErrTooManyRequests.Error())
 		return
@@ -63,6 +65,12 @@ func (al *APIListener) handleLogin(username, pwd string, skipPasswordValidation 
 	authorized, user, err := al.validateCredentials(username, pwd, skipPasswordValidation)
 	if err != nil {
 		al.jsonError(w, err)
+		return
+	}
+	fmt.Printf("handleLogin user from db %+v\n", user)
+	// password is correct, need to see if its expired:
+	if user.PasswordExpired {
+		al.jsonErrorResponseWithTitle(w, http.StatusUnauthorized, ErrThatPasswordHasExpired.Error())
 		return
 	}
 
@@ -189,6 +197,10 @@ func (al *APIListener) handlePostLogin(w http.ResponseWriter, req *http.Request)
 	}
 
 	username, pwd, err := parseLoginPostRequestBody(req)
+	fmt.Printf("handlePostLogin username %+v\n", username)
+	fmt.Printf("handlePostLogin pwd %+v\n", pwd)
+	// you can let through only the new_password field from here (not from GET)
+
 	if err != nil {
 		// ban IP if it sends a lot of bad requests
 		if !al.handleBannedIPs(req, false) {
