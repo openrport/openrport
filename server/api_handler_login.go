@@ -31,13 +31,13 @@ func (al *APIListener) handleGetLogin(w http.ResponseWriter, req *http.Request) 
 	}
 
 	if al.config.API.AuthHeader != "" && req.Header.Get(al.config.API.AuthHeader) != "" {
-		al.handleLogin(req.Header.Get(al.config.API.UserHeader), "", true /* skipPasswordValidation */, w, req)
+		al.handleLogin(req.Header.Get(al.config.API.UserHeader), "", "", true /* skipPasswordValidation */, w, req)
 		return
 	}
 
 	basicUser, basicPwd, basicAuthProvided := req.BasicAuth()
 	if basicAuthProvided {
-		al.handleLogin(basicUser, basicPwd, false, w, req)
+		al.handleLogin(basicUser, basicPwd, "", false, w, req)
 		return
 	}
 
@@ -49,8 +49,8 @@ func (al *APIListener) handleGetLogin(w http.ResponseWriter, req *http.Request) 
 	al.jsonErrorResponseWithTitle(w, http.StatusUnauthorized, "auth is required")
 }
 
-func (al *APIListener) handleLogin(username, pwd string, skipPasswordValidation bool, w http.ResponseWriter, req *http.Request) {
-	fmt.Printf("handleLogin ENTER\n")
+func (al *APIListener) handleLogin(username, pwd string, newpwd string, skipPasswordValidation bool, w http.ResponseWriter, req *http.Request) {
+	fmt.Printf("handleLogin ENTER %v \n", newpwd)
 
 	if al.bannedUsers.IsBanned(username) {
 		al.jsonErrorResponseWithTitle(w, http.StatusTooManyRequests, ErrTooManyRequests.Error())
@@ -67,7 +67,7 @@ func (al *APIListener) handleLogin(username, pwd string, skipPasswordValidation 
 		al.jsonError(w, err)
 		return
 	}
-	fmt.Printf("handleLogin user from db %+v\n", user)
+
 	// password is correct, need to see if its expired:
 	if user.PasswordExpired {
 		al.jsonErrorResponseWithTitle(w, http.StatusUnauthorized, ErrThatPasswordHasExpired.Error())
@@ -196,10 +196,8 @@ func (al *APIListener) handlePostLogin(w http.ResponseWriter, req *http.Request)
 		return
 	}
 
-	username, pwd, err := parseLoginPostRequestBody(req)
-	fmt.Printf("handlePostLogin username %+v\n", username)
-	fmt.Printf("handlePostLogin pwd %+v\n", pwd)
 	// you can let through only the new_password field from here (not from GET)
+	username, pwd, new_password, err := parseLoginPostRequestBody(req)
 
 	if err != nil {
 		// ban IP if it sends a lot of bad requests
@@ -210,34 +208,35 @@ func (al *APIListener) handlePostLogin(w http.ResponseWriter, req *http.Request)
 		return
 	}
 
-	al.handleLogin(username, pwd, false, w, req)
+	al.handleLogin(username, pwd, new_password, false, w, req)
 }
 
-func parseLoginPostRequestBody(req *http.Request) (string, string, error) {
+func parseLoginPostRequestBody(req *http.Request) (string, string, string, error) {
 	reqContentType := req.Header.Get("Content-Type")
 	if reqContentType == "application/x-www-form-urlencoded" {
 		err := req.ParseForm()
 		if err != nil {
-			return "", "", errors2.APIError{
+			return "", "", "", errors2.APIError{
 				Err:        fmt.Errorf("failed to parse form: %v", err),
 				HTTPStatus: http.StatusBadRequest,
 			}
 		}
-		return req.PostForm.Get("username"), req.PostForm.Get("password"), nil
+		return req.PostForm.Get("username"), req.PostForm.Get("password"), req.PostForm.Get("new_password"), nil
 	}
 	if reqContentType == "application/json" {
 		type loginReq struct {
-			Username string `json:"username"`
-			Password string `json:"password"`
+			Username     string `json:"username"`
+			Password     string `json:"password"`
+			New_password string `json:"new_password"`
 		}
 		var params loginReq
 		err := parseRequestBody(req.Body, &params)
 		if err != nil {
-			return "", "", err
+			return "", "", "", err
 		}
-		return params.Username, params.Password, nil
+		return params.Username, params.Password, params.New_password, nil
 	}
-	return "", "", errors2.APIError{
+	return "", "", "", errors2.APIError{
 		Message:    fmt.Sprintf("unsupported content type: %s", reqContentType),
 		HTTPStatus: http.StatusBadRequest,
 	}
