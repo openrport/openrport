@@ -25,7 +25,8 @@ func (p *YumPackageManager) IsAvailable(ctx context.Context) bool {
 	// Can select either dnf or yum command, whichever is available
 	for _, cmd := range []string{"dnf", "yum"} {
 		p.cmd = cmd
-		_, err := p.run(ctx, "help")
+		// Use --help instead of help, wider compatibility
+		_, err := p.run(ctx, "--help")
 		if err == nil {
 			return true
 		}
@@ -34,11 +35,19 @@ func (p *YumPackageManager) IsAvailable(ctx context.Context) bool {
 }
 
 func (p *YumPackageManager) GetUpdatesStatus(ctx context.Context, logger *logger.Logger) (*models.UpdatesStatus, error) {
-	allUpdates, err := p.listUpdates(ctx, "--refresh")
+	// --refresh doesn't work on CentOS, replace with clean expire-cache which should be supported by both dnf and yum
+	cmd := append([]string{"clean", "expire-cache", "--quiet"})
+        _, err := p.run(ctx, cmd...)
+	if err != nil && err.Error() != "exit status 1" {
+        	return nil, err
+        }
+
+	allUpdates, err := p.listUpdates(ctx)
 	if err != nil {
 		return nil, err
 	}
 
+	// This will always be 0 on CentOS-like Redhat without EPEL, as core CentOS doesn't include security metadata
 	securityUpdates, err := p.listUpdates(ctx, "--security")
 	if err != nil {
 		return nil, err
@@ -110,6 +119,7 @@ func (p *YumPackageManager) listUpdates(ctx context.Context, additionalArgs ...s
 func (p *YumPackageManager) checkRebootRequired(ctx context.Context) bool {
 	// The error is ignored here, since exit code is the same for reboot required and command does not exist.
 	// So we cannot use it to determine if reboot is required.
+	// Install yum-utils to make this available
 	output, _ := p.run(ctx, "needs-restarting", "-r")
 	return strings.Contains(output, "Reboot is required")
 }
