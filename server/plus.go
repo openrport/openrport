@@ -28,9 +28,15 @@ func EnablePlusIfLicensed(ctx context.Context, cfg *Config, filesAPI files.FileA
 		return nil, ErrPlusNotEnabled
 	}
 
-	// Disable license checking until release 1.0
-	cfg.PlusConfig.LicenseConfig = &license.Config{
-		CheckingEnabled: false,
+	// If plus is enabled then ensure license checking is disabled until release 1.0
+	if cfg.PlusEnabled() {
+		if !cfg.HasLicenseConfig() {
+			cfg.PlusConfig.LicenseConfig = &license.Config{
+				CheckingEnabled: false,
+			}
+		} else {
+			cfg.PlusConfig.LicenseConfig.CheckingEnabled = true
+		}
 	}
 
 	if !cfg.HasLicenseConfig() {
