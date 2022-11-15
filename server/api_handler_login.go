@@ -210,8 +210,8 @@ func (al *APIListener) handlePostLogin(w http.ResponseWriter, req *http.Request)
 		return
 	}
 
-	// you can let through only the new_password field from here (not from GET)
-	username, pwd, new_password, err := parseLoginPostRequestBody(req)
+	// you can let through only the newPassword field from here (not from GET)
+	username, pwd, newPassword, err := parseLoginPostRequestBody(req)
 
 	if err != nil {
 		// ban IP if it sends a lot of bad requests
@@ -222,7 +222,7 @@ func (al *APIListener) handlePostLogin(w http.ResponseWriter, req *http.Request)
 		return
 	}
 
-	al.handleLogin(username, pwd, new_password, false, w, req)
+	al.handleLogin(username, pwd, newPassword, false, w, req)
 }
 
 func parseLoginPostRequestBody(req *http.Request) (string, string, string, error) {
@@ -239,16 +239,16 @@ func parseLoginPostRequestBody(req *http.Request) (string, string, string, error
 	}
 	if reqContentType == "application/json" {
 		type loginReq struct {
-			Username     string `json:"username"`
-			Password     string `json:"password"`
-			New_password string `json:"new_password"`
+			Username    string `json:"username"`
+			Password    string `json:"password"`
+			NewPassword string `json:"new_password"`
 		}
 		var params loginReq
 		err := parseRequestBody(req.Body, &params)
 		if err != nil {
 			return "", "", "", err
 		}
-		return params.Username, params.Password, params.New_password, nil
+		return params.Username, params.Password, params.NewPassword, nil
 	}
 	return "", "", "", errors2.APIError{
 		Message:    fmt.Sprintf("unsupported content type: %s", reqContentType),

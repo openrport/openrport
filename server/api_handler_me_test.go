@@ -73,8 +73,8 @@ func TestHandleMeDBAuth(t *testing.T) {
 
 	require.NoError(t, err)
 	sqlExecs := []string{
-		`CREATE TABLE "users" ("username" TEXT PRIMARY KEY, "password" TEXT)`,
-		`INSERT INTO "users" VALUES("test-user","1")`,
+		`CREATE TABLE "users" ("username" TEXT PRIMARY KEY, "password" TEXT, "password_expired" BOOLEAN NOT NULL CHECK (password_expired IN (0, 1)) DEFAULT 0)`,
+		`INSERT INTO "users" VALUES("test-user","1", false)`,
 		`CREATE TABLE "groups" ("username" TEXT, "group" TEXT)`,
 		`INSERT INTO "groups" VALUES("test-user","group1")`,
 		`CREATE TABLE "group_details" ("name" TEXT, "permissions" TEXT)`,
