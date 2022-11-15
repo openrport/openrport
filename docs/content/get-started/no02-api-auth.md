@@ -344,6 +344,7 @@ Create tables.
 CREATE TABLE `users` (
   `username` varchar(150) NOT NULL,
   `password` varchar(255) NOT NULL,
+  `password_expired` bool NOT NULL default false,
   `two_fa_send_to` varchar(150),
   `token` char(36) default NULL,
   `totp_secret` longtext,
@@ -392,6 +393,7 @@ sqlite>
 CREATE TABLE "users" (
   "username" TEXT(150) NOT NULL,
   "password" TEXT(255) NOT NULL,
+  "password_expired" BOOLEAN NOT NULL CHECK (password_expired IN (0, 1)) DEFAULT 0,
   "token" TEXT(36) DEFAULT NULL,
   "two_fa_send_to" TEXT(150),
   "totp_secret" TEXT
