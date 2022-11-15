@@ -51,8 +51,6 @@ func (al *APIListener) handleGetLogin(w http.ResponseWriter, req *http.Request) 
 }
 
 func (al *APIListener) handleLogin(username, pwd string, newpwd string, skipPasswordValidation bool, w http.ResponseWriter, req *http.Request) {
-	fmt.Printf("handleLogin ENTER %v \n", newpwd)
-
 	if al.bannedUsers.IsBanned(username) {
 		al.jsonErrorResponseWithTitle(w, http.StatusTooManyRequests, ErrTooManyRequests.Error())
 		return
@@ -88,7 +86,6 @@ func (al *APIListener) handleLogin(username, pwd string, newpwd string, skipPass
 	// password is correct,
 	// a new password is provided?
 	if newpwd != "" {
-		fmt.Printf("handleLogin changing newpwd %v \n", newpwd)
 		var user users.User
 		user.Password = newpwd
 		if err := al.userService.Change(&user, username); err != nil {
