@@ -205,7 +205,7 @@ func (al *APIListener) handlePostLogin(w http.ResponseWriter, req *http.Request)
 		return
 	}
 
-	// you can let through only the newPassword field from here (not from GET)
+	// updating the Password via newPassword field is allowed only with a POST request
 	username, pwd, newPassword, err := parseLoginPostRequestBody(req)
 
 	if err != nil {
