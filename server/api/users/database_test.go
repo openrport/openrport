@@ -143,10 +143,9 @@ func TestGetByUsername(t *testing.T) {
 			Name:     "user without groups",
 			Username: "user1",
 			ExpectedUser: &User{
-				Username:        "user1",
-				Password:        "pass1",
-				PasswordExpired: false,
-				Token:           nil,
+				Username: "user1",
+				Password: "pass1",
+				Token:    nil,
 			},
 		}, {
 			Name:     "user with one group",
@@ -402,9 +401,8 @@ func TestAdd(t *testing.T) {
 		{
 			name: "create user",
 			userToChange: &User{
-				Username:        "login1",
-				Password:        "pass1",
-				PasswordExpired: false,
+				Username: "login1",
+				Password: "pass1",
 				Groups: []string{
 					"group1",
 					"group2",
@@ -465,9 +463,8 @@ func TestUpdate(t *testing.T) {
 		{
 			name: "overwrite all fields",
 			userToChange: &User{
-				Username:        "user_one",
-				Password:        "pass_one",
-				PasswordExpired: false,
+				Username: "user_one",
+				Password: "pass_one",
 				Groups: []string{
 					"group1",
 				},

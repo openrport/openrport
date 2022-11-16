@@ -318,9 +318,9 @@ func (d *UserDatabase) Update(usr *User, usernameToUpdate string) error {
 		params = append(params, usr.Password)
 	}
 
-	if usr.ActionPasswordExpired != "" {
+	if usr.PasswordExpired != nil {
 		statements = append(statements, "`password_expired` = ?")
-		params = append(params, usr.ActionPasswordExpired == "true")
+		params = append(params, usr.PasswordExpired)
 	}
 
 	if usr.TwoFASendTo != "" {
