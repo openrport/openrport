@@ -188,7 +188,7 @@ func TestShouldErrorWhenNonAdminUser(t *testing.T) {
 	w := httptest.NewRecorder()
 
 	req := httptest.NewRequest("GET", "/api/v1/users/user1/sessions", nil)
-	req.SetBasicAuth("admin", "foobaz")
+	req.SetBasicAuth(nonAdminUser.Username, nonAdminUser.Password)
 
 	al.router.ServeHTTP(w, req)
 
