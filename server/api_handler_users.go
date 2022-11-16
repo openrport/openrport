@@ -177,7 +177,7 @@ func (al *APIListener) handleDeleteUserAPISession(w http.ResponseWriter, req *ht
 		return
 	}
 
-	err = al.apiSessions.DeleteByUser(ctx, userID, sessID)
+	err = al.apiSessions.DeleteByID(ctx, userID, sessID)
 	if err != nil {
 		titleMsg := fmt.Sprintf("unable to delete session \"%s\" for user \"%s\"", sessionID, userID)
 		al.jsonErrorResponseWithDetail(w, http.StatusInternalServerError, "", titleMsg, err.Error())

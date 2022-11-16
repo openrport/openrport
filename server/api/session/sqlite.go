@@ -124,7 +124,7 @@ func (p *SqliteProvider) DeleteAllByUser(ctx context.Context, username string) (
 	return nil
 }
 
-func (p *SqliteProvider) DeleteByUser(ctx context.Context, username string, sessionID int64) (err error) {
+func (p *SqliteProvider) DeleteByID(ctx context.Context, username string, sessionID int64) (err error) {
 	_, err = p.db.ExecContext(
 		ctx,
 		"DELETE FROM api_sessions WHERE username = ? AND session_id = ?",

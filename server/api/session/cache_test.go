@@ -179,7 +179,7 @@ func TestShouldDeleteSessionForUser(t *testing.T) {
 	S2Token := s2.Token
 
 	// delete the s2 session
-	err = c.DeleteByUser(ctx, s2.Username, s2.SessionID)
+	err = c.DeleteByID(ctx, s2.Username, s2.SessionID)
 	require.NoError(t, err)
 
 	// check cached S2 no longer returned

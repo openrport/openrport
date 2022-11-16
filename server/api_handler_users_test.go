@@ -199,7 +199,7 @@ type MockAPISessionStorageProvider struct {
 	*session.SqliteProvider
 
 	shouldFailDeleteAllByUser bool
-	shouldFailDeleteByUser    bool
+	shouldFailDeleteByID      bool
 }
 
 func newEmptyMockAPISessionStorageProvider() (m *MockAPISessionStorageProvider, err error) {
@@ -215,11 +215,11 @@ func (p *MockAPISessionStorageProvider) DeleteAllByUser(ctx context.Context, use
 	return p.SqliteProvider.DeleteAllByUser(ctx, username)
 }
 
-func (p *MockAPISessionStorageProvider) DeleteByUser(ctx context.Context, username string, sessionID int64) (err error) {
-	if p.shouldFailDeleteByUser {
+func (p *MockAPISessionStorageProvider) DeleteByID(ctx context.Context, username string, sessionID int64) (err error) {
+	if p.shouldFailDeleteByID {
 		return errors.New("another random error")
 	}
-	return p.SqliteProvider.DeleteByUser(ctx, username, sessionID)
+	return p.SqliteProvider.DeleteByID(ctx, username, sessionID)
 }
 
 type MockAPISessionCacheProvider struct {
@@ -283,7 +283,7 @@ func TestShouldErrorIfUnableToDeleteSessionForUser(t *testing.T) {
 
 	mp, err := newEmptyMockAPISessionStorageProvider()
 	require.NoError(t, err)
-	mp.shouldFailDeleteByUser = true
+	mp.shouldFailDeleteByID = true
 
 	sessionCache := newEmptyAPISessionCacheWithProviders(t, mp, cp)
 

@@ -38,5 +38,5 @@ type StorageProvider interface {
 	Close() error
 
 	DeleteAllByUser(ctx context.Context, username string) (err error)
-	DeleteByUser(ctx context.Context, username string, sessionID int64) (err error)
+	DeleteByID(ctx context.Context, username string, sessionID int64) (err error)
 }
