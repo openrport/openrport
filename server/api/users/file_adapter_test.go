@@ -112,7 +112,7 @@ func TestFileAdapterUpdate(t *testing.T) {
 	updates := &User{
 		Username:        "user3",
 		Password:        "pass3",
-		PasswordExpired: new(bool),
+		PasswordExpired: PasswordExpired(false),
 		Token:           Token("token3"),
 		Groups:          []string{"group1", "group4"},
 		TotP:            "totp123",

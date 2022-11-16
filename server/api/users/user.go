@@ -28,6 +28,10 @@ func (u User) IsAdmin() bool {
 	return false
 }
 
+func PasswordExpired(f bool) *bool {
+	return &f
+}
+
 func Token(s string) *string {
 	return &s
 }

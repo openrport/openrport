@@ -138,7 +138,7 @@ func (fa *FileAdapter) Update(dataToChange *User, usernameToFind string) error {
 
 	if dataToChange.Password != "" {
 		users[userFound].Password = dataToChange.Password
-		users[userFound].PasswordExpired = new(bool)
+		users[userFound].PasswordExpired = PasswordExpired(false)
 	}
 	if dataToChange.PasswordExpired != nil {
 		users[userFound].PasswordExpired = dataToChange.PasswordExpired

@@ -145,7 +145,7 @@ func TestGetByUsername(t *testing.T) {
 			ExpectedUser: &User{
 				Username:        "user1",
 				Password:        "pass1",
-				PasswordExpired: new(bool),
+				PasswordExpired: PasswordExpired(false),
 				Token:           nil,
 			},
 		}, {
@@ -154,7 +154,7 @@ func TestGetByUsername(t *testing.T) {
 			ExpectedUser: &User{
 				Username:        "user2",
 				Password:        "pass2",
-				PasswordExpired: new(bool),
+				PasswordExpired: PasswordExpired(false),
 				Groups:          []string{"group1"},
 				Token:           nil,
 			},
@@ -164,7 +164,7 @@ func TestGetByUsername(t *testing.T) {
 			ExpectedUser: &User{
 				Username:        "user3",
 				Password:        "pass3",
-				PasswordExpired: new(bool),
+				PasswordExpired: PasswordExpired(false),
 				Groups:          []string{"group1", "group2"},
 				Token:           Token("token3"),
 			},
@@ -203,7 +203,7 @@ func TestGetAll(t *testing.T) {
 		{
 			Username:        "user1",
 			Password:        "pass1",
-			PasswordExpired: new(bool),
+			PasswordExpired: PasswordExpired(false),
 			Groups:          nil,
 			Token:           nil,
 			TotP:            "totP123",
@@ -211,7 +211,7 @@ func TestGetAll(t *testing.T) {
 		{
 			Username:        "user2",
 			Password:        "pass2",
-			PasswordExpired: new(bool),
+			PasswordExpired: PasswordExpired(false),
 			Groups: []string{
 				"group1",
 			},
@@ -220,7 +220,7 @@ func TestGetAll(t *testing.T) {
 		{
 			Username:        "user3",
 			Password:        "pass3",
-			PasswordExpired: new(bool),
+			PasswordExpired: PasswordExpired(false),
 			Groups: []string{
 				"group1",
 				"group2",
@@ -416,9 +416,10 @@ func TestAdd(t *testing.T) {
 			},
 			expectedUserRows: []map[string]interface{}{
 				{
-					"username": "login1",
-					"password": "pass1",
-					"token":    nil,
+					"username":         "login1",
+					"password":         "pass1",
+					"password_expired": false,
+					"token":            nil,
 				},
 			},
 			expectedGroupRows: []map[string]interface{}{
