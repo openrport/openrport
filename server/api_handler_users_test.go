@@ -307,7 +307,7 @@ func TestShouldErrorIfUnableToDeleteSessionForUser(t *testing.T) {
 
 	assert.Equal(t, http.StatusInternalServerError, w.Result().StatusCode)
 	assert.Equal(t, "unable to delete session \"1\" for user \"admin\"", errInfo.Errors[0].Title)
-	assert.Equal(t, "unable to delete session from cache: another random error", errInfo.Errors[0].Detail)
+	assert.Equal(t, "unable to delete session from storage: another random error", errInfo.Errors[0].Detail)
 }
 
 func TestShouldErrorIfUnableToDeleteAllSessionsForUser(t *testing.T) {
@@ -339,7 +339,7 @@ func TestShouldErrorIfUnableToDeleteAllSessionsForUser(t *testing.T) {
 
 	assert.Equal(t, http.StatusInternalServerError, w.Result().StatusCode)
 	assert.Equal(t, "unable to delete all sessions for user \"admin\"", errInfo.Errors[0].Title)
-	assert.Equal(t, "unable to delete sessions from cache: a random error", errInfo.Errors[0].Detail)
+	assert.Equal(t, "unable to delete sessions from storage: a random error", errInfo.Errors[0].Detail)
 }
 
 func newEmptyAPISessionCacheWithProviders(t *testing.T, mp *MockAPISessionStorageProvider, cp *MockAPISessionCacheProvider) *session.Cache {
