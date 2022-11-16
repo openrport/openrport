@@ -1,0 +1,192 @@
+ok  	github.com/cloudradar-monitoring/rport/client	(cached)
+?   	github.com/cloudradar-monitoring/rport/client/monitoring	[no test files]
+?   	github.com/cloudradar-monitoring/rport/client/monitoring/fs	[no test files]
+?   	github.com/cloudradar-monitoring/rport/client/monitoring/helper	[no test files]
+ok  	github.com/cloudradar-monitoring/rport/client/monitoring/networking	(cached)
+ok  	github.com/cloudradar-monitoring/rport/client/monitoring/processes	(cached)
+ok  	github.com/cloudradar-monitoring/rport/client/system	(cached)
+ok  	github.com/cloudradar-monitoring/rport/client/updates	(cached)
+?   	github.com/cloudradar-monitoring/rport/cmd/rport	[no test files]
+?   	github.com/cloudradar-monitoring/rport/cmd/rportd	[no test files]
+?   	github.com/cloudradar-monitoring/rport/db/migration/api_sessions	[no test files]
+?   	github.com/cloudradar-monitoring/rport/db/migration/auditlog	[no test files]
+?   	github.com/cloudradar-monitoring/rport/db/migration/client_groups	[no test files]
+?   	github.com/cloudradar-monitoring/rport/db/migration/clients	[no test files]
+?   	github.com/cloudradar-monitoring/rport/db/migration/dummy	[no test files]
+?   	github.com/cloudradar-monitoring/rport/db/migration/jobs	[no test files]
+?   	github.com/cloudradar-monitoring/rport/db/migration/library	[no test files]
+?   	github.com/cloudradar-monitoring/rport/db/migration/monitoring	[no test files]
+?   	github.com/cloudradar-monitoring/rport/db/migration/vaults	[no test files]
+ok  	github.com/cloudradar-monitoring/rport/db/sqlite	(cached)
+ok  	github.com/cloudradar-monitoring/rport/plus	(cached)
+?   	github.com/cloudradar-monitoring/rport/plus/capabilities/oauth	[no test files]
+?   	github.com/cloudradar-monitoring/rport/plus/capabilities/oauthmock	[no test files]
+?   	github.com/cloudradar-monitoring/rport/plus/capabilities/status	[no test files]
+?   	github.com/cloudradar-monitoring/rport/plus/loader	[no test files]
+?   	github.com/cloudradar-monitoring/rport/plus/validator	[no test files]
+2022/11/16 18:01:55 api-listener-test: ClientAuth "user4" created.
+2022/11/16 18:01:55 api-listener-test: ClientAuth "user4" created.
+2022/11/16 18:01:55 api-listener-test: ClientAuth "user1" deleted.
+2022/11/16 18:01:55 api-listener-test: ClientAuth "user1" deleted.
+2022/11/16 18:01:55 api-listener-test: ClientAuth "user1" deleted.
+2022/11/16 18:01:55 api-listener-test: ClientAuth "user1" deleted.
+2022/11/16 18:01:55 api-listener-test: Job[id="c49ff70c-54ff-4b55-bba9-423eea4ce085"] created to execute remote command on client with id="725f723a-c5bd-4307-b9c5-dbbe9642d5f7": "/bin/date;foo;whoami".
+2022/11/16 18:01:55 api-listener-test: Job[id="eba5b943-310f-41bb-8fb7-f3abc0fdeed9"] created to execute remote command on client with id="725f723a-c5bd-4307-b9c5-dbbe9642d5f7": "/bin/date;foo;whoami".
+2022/11/16 18:01:55 api-listener-test: Job[id="8864726c-ea71-4e32-b1fe-59b3609686e1"] created to execute remote command on client with id="725f723a-c5bd-4307-b9c5-dbbe9642d5f7": "/bin/date;foo;whoami".
+2022/11/16 18:01:55 api-listener-test: Job[id="fa2c3f7e-75c4-4551-b161-e985dc73a0ad"] created to execute remote command on client with id="725f723a-c5bd-4307-b9c5-dbbe9642d5f7": "/bin/date;foo;whoami".
+2022/11/16 18:01:55 api-listener-test: Multi-client Job saved successfully: {{157ec6ce-4490-4e32-974e-d29c1a67a573 2022-11-16 18:01:55.724104767 +0200 EET m=+0.139865305 test-user <nil>} [client-1 client-2] [] [] /bin/date;foo;whoami   30 false false [] false false}
+2022/11/16 18:01:55 api-listener-test: Multi-client Job[id="157ec6ce-4490-4e32-974e-d29c1a67a573"] created to execute remote command on clients [client-1 client-2], groups [], tags []: "/bin/date;foo;whoami".
+2022/11/16 18:01:55 api-listener-test: Job saved successfully: {41677a09-00ce-4078-9780-2d6dadade984 running <nil> client-1 Random Rport Client /bin/date;foo;whoami   0xc0001645a0 2020-10-10 10:10:01 +0000 UTC test-user 30 0xc000850ab0 <nil>  <nil> false false false}
+2022/11/16 18:01:55 api-listener-test: Job saved successfully: {2fde150d-aad9-42a6-aaad-fdee9da5402a running <nil> client-2 Random Rport Client /bin/date;foo;whoami   0xc000164720 2020-10-10 10:10:02 +0000 UTC test-user 30 0xc000850f90 <nil>  <nil> false false false}
+2022/11/16 18:01:55 api-listener-test: Multi-client Job saved successfully: {{26355a09-0bbb-423b-aebd-a12816fadb48 2022-11-16 18:01:55.734228486 +0200 EET m=+0.149989013 test-user <nil>} [client-1 client-2] [] [] /bin/date;foo;whoami   30 false false [] false false}
+2022/11/16 18:01:55 api-listener-test: Multi-client Job[id="26355a09-0bbb-423b-aebd-a12816fadb48"] created to execute remote command on clients [client-1 client-2], groups [], tags []: "/bin/date;foo;whoami".
+2022/11/16 18:01:55 api-listener-test: multi_client_id="26355a09-0bbb-423b-aebd-a12816fadb48", client_id="client-1", Error on execute remote command: failed to send request: send fake error
+2022/11/16 18:01:55 api-listener-test: Job saved successfully: {92a977ce-ac07-4aba-a369-88b37665a3bc failed 2022-11-16 18:01:55.734349841 +0200 EET m=+0.150110364 client-1 Random Rport Client /bin/date;foo;whoami   <nil> 2022-11-16 18:01:55.734327389 +0200 EET m=+0.150087911 test-user 30 0xc0008507f0 <nil> failed to send request: send fake error <nil> false false false}
+2022/11/16 18:01:55 api-listener-test: Job saved successfully: {0057c36e-5d11-4829-9b61-2bd2863ea4d3 running <nil> client-2 Random Rport Client /bin/date;foo;whoami   0xc000164620 2020-10-10 10:10:02 +0000 UTC test-user 30 0xc0008508e0 <nil>  <nil> false false false}
+2022/11/16 18:01:55 api-listener-test: Multi-client Job saved successfully: {{6bcb7dfc-65b3-4d0c-b540-20d11baef035 2022-11-16 18:01:55.737112694 +0200 EET m=+0.152873370 test-user <nil>} [client-1 client-2] [] [] /bin/date;foo;whoami   30 false true [] false false}
+2022/11/16 18:01:55 api-listener-test: Multi-client Job[id="6bcb7dfc-65b3-4d0c-b540-20d11baef035"] created to execute remote command on clients [client-1 client-2], groups [], tags []: "/bin/date;foo;whoami".
+2022/11/16 18:01:55 api-listener-test: multi_client_id="6bcb7dfc-65b3-4d0c-b540-20d11baef035", client_id="client-1", Error on execute remote command: failed to send request: send fake error
+2022/11/16 18:01:55 api-listener-test: Job saved successfully: {c5addddd-ef55-4bd4-b1fb-954195318fc1 failed 2022-11-16 18:01:55.737259972 +0200 EET m=+0.153020499 client-1 Random Rport Client /bin/date;foo;whoami   <nil> 2022-11-16 18:01:55.73723906 +0200 EET m=+0.152999582 test-user 30 0xc0005bcdc0 <nil> failed to send request: send fake error <nil> false false false}
+2022/11/16 18:01:55 api-listener-test: Multi-client Job saved successfully: {{abc9dbb5-403d-481c-be86-4feba29f30d6 2022-11-16 18:01:55.741384247 +0200 EET m=+0.157144770 test-user <nil>} [] [group-1] [] /bin/date;foo;whoami   30 false false [] false false}
+2022/11/16 18:01:55 api-listener-test: Multi-client Job[id="abc9dbb5-403d-481c-be86-4feba29f30d6"] created to execute remote command on clients [], groups [group-1], tags []: "/bin/date;foo;whoami".
+2022/11/16 18:01:55 api-listener-test: Job saved successfully: {5fc299de-2b0e-45dc-ad0e-eda73fe1c258 running <nil> client-2 Random Rport Client /bin/date;foo;whoami   0xc00048a600 2020-10-10 10:10:02 +0000 UTC test-user 30 0xc0003872b0 <nil>  <nil> false false false}
+2022/11/16 18:01:55 api-listener-test: Job saved successfully: {4dd71fcf-b78e-4a16-a4b4-3fe026087c0e running <nil> client-1 Random Rport Client /bin/date;foo;whoami   0xc00048a660 2020-10-10 10:10:01 +0000 UTC test-user 30 0xc0003873a0 <nil>  <nil> false false false}
+2022/11/16 18:01:55 api-listener-test: Multi-client Job saved successfully: {{5f0bf88a-ce03-46c8-8499-418717f4a4e5 2022-11-16 18:01:55.747778192 +0200 EET m=+0.163538717 test-user <nil>} [] [group-2] [] /bin/date;foo;whoami   30 false false [] false false}
+2022/11/16 18:01:55 api-listener-test: Multi-client Job[id="5f0bf88a-ce03-46c8-8499-418717f4a4e5"] created to execute remote command on clients [], groups [group-2], tags []: "/bin/date;foo;whoami".
+2022/11/16 18:01:55 api-listener-test: Job saved successfully: {d3673727-b380-4cb8-9939-e760aeec9026 running <nil> client-4 Random Rport Client /bin/date;foo;whoami   0xc0003d8500 2020-10-10 10:10:04 +0000 UTC test-user 30 0xc0002b9c30 <nil>  <nil> false false false}
+2022/11/16 18:01:55 api-listener-test: Multi-client Job saved successfully: {{14b7d6a5-a75b-4002-97c1-9d8b89cabf17 2022-11-16 18:01:55.751513303 +0200 EET m=+0.167273827 test-user <nil>} [client-1] [group-2] [] /bin/date;foo;whoami   30 false false [] false false}
+2022/11/16 18:01:55 api-listener-test: Multi-client Job[id="14b7d6a5-a75b-4002-97c1-9d8b89cabf17"] created to execute remote command on clients [client-1], groups [group-2], tags []: "/bin/date;foo;whoami".
+2022/11/16 18:01:55 api-listener-test: Job saved successfully: {0f655d54-2ec7-40d9-a93a-3fffe4f0d325 running <nil> client-1 Random Rport Client /bin/date;foo;whoami   0xc000592000 2020-10-10 10:10:01 +0000 UTC test-user 30 0xc0001fd020 <nil>  <nil> false false false}
+2022/11/16 18:01:55 api-listener-test: Job saved successfully: {3974613a-83dd-47b1-8484-9a049834e681 running <nil> client-4 Random Rport Client /bin/date;foo;whoami   0xc000592060 2020-10-10 10:10:04 +0000 UTC test-user 30 0xc0001fd0d0 <nil>  <nil> false false false}
+2022/11/16 18:01:55 api-listener-test: Multi-client Job saved successfully: {{258f1256-c0c2-4c67-a723-586d3e7aae24 2022-11-16 18:01:55.756359394 +0200 EET m=+0.172119916 test-user <nil>} [] [] [linux] /bin/date;foo;whoami   30 false false [] false false}
+2022/11/16 18:01:55 api-listener-test: Multi-client Job[id="258f1256-c0c2-4c67-a723-586d3e7aae24"] created to execute remote command on clients [], groups [], tags [linux]: "/bin/date;foo;whoami".
+2022/11/16 18:01:55 api-listener-test: Job saved successfully: {e512ea93-a76d-491c-8931-4933213d5fbc running <nil> client-4 Random Rport Client /bin/date;foo;whoami   0xc0003d92a0 2020-10-10 10:10:04 +0000 UTC test-user 30 0xc000594400 <nil>  <nil> false false false}
+2022/11/16 18:01:55 api-listener-test: Job saved successfully: {9eb92ce7-b481-4365-9d45-412a6e12c3a7 running <nil> client-1 Random Rport Client /bin/date;foo;whoami   0xc0003d9300 2020-10-10 10:10:01 +0000 UTC test-user 30 0xc0005944a0 <nil>  <nil> false false false}
+2022/11/16 18:01:55 api-listener-test: Multi-client Job saved successfully: {{5c3697ac-0761-4f78-8c69-029e136f040f 2022-11-16 18:01:55.760700064 +0200 EET m=+0.176460586 test-user <nil>} [] [] [linux] /bin/date;foo;whoami   30 false false [] false false}
+2022/11/16 18:01:55 api-listener-test: Multi-client Job[id="5c3697ac-0761-4f78-8c69-029e136f040f"] created to execute remote command on clients [], groups [], tags [linux]: "/bin/date;foo;whoami".
+2022/11/16 18:01:55 api-listener-test: Job saved successfully: {27f788ec-2fb0-4967-a231-f3c96e7d0e3b running <nil> client-1 Random Rport Client /bin/date;foo;whoami   0xc00099fc60 2020-10-10 10:10:01 +0000 UTC test-user 30 0xc000257160 <nil>  <nil> false false false}
+2022/11/16 18:01:55 api-listener-test: Job saved successfully: {bac978d0-25b9-4dbd-8b60-2dacaf228d1c running <nil> client-4 Random Rport Client /bin/date;foo;whoami   0xc00099fcc0 2020-10-10 10:10:04 +0000 UTC test-user 30 0xc000257200 <nil>  <nil> false false false}
+2022/11/16 18:01:55 http: panic serving 127.0.0.1:37998: runtime error: invalid memory address or nil pointer dereference
+goroutine 583 [running]:
+net/http.(*conn).serve.func1()
+	/usr/local/go/src/net/http/server.go:1850 +0xbf
+panic({0x1153060, 0x18f5160})
+	/usr/local/go/src/runtime/panic.go:890 +0x262
+github.com/cloudradar-monitoring/rport/server.(*APIListener).handleBasicAuth(0xc0000980f0, {0xc00003f248, 0x9}, {0xc00003f252, 0x8})
+	/home/eddy/rport/server/api_listener.go:367 +0xd7
+github.com/cloudradar-monitoring/rport/server.(*APIListener).wsAuth.func1({0x139f4d0, 0xc0001f00e0}, 0xc00054e000)
+	/home/eddy/rport/server/api_listener.go:508 +0x153
+net/http.HandlerFunc.ServeHTTP(0x0?, {0x139f4d0?, 0xc0001f00e0?}, 0x7d73ce?)
+	/usr/local/go/src/net/http/server.go:2109 +0x2f
+net/http.serverHandler.ServeHTTP({0xc0002203c0?}, {0x139f4d0, 0xc0001f00e0}, 0xc00054e000)
+	/usr/local/go/src/net/http/server.go:2947 +0x30c
+net/http.(*conn).serve(0xc000366000, {0x13a0b88, 0xc0006dc0c0})
+	/usr/local/go/src/net/http/server.go:1991 +0x607
+created by net/http.(*Server).Serve
+	/usr/local/go/src/net/http/server.go:3102 +0x4db
+--- FAIL: TestHandlePostMultiClientWSCommandWithTags (0.00s)
+    --- FAIL: TestHandlePostMultiClientWSCommandWithTags/valid_with_client_ids (0.00s)
+        api_handler_commands_test.go:1328: 
+            	Error Trace:	api_handler_commands_test.go:1328
+            	Error:      	Received unexpected error:
+            	            	unexpected EOF
+            	Test:       	TestHandlePostMultiClientWSCommandWithTags/valid_with_client_ids
+panic: runtime error: invalid memory address or nil pointer dereference
+	panic: runtime error: invalid memory address or nil pointer dereference [recovered]
+	panic: runtime error: invalid memory address or nil pointer dereference
+[signal SIGSEGV: segmentation violation code=0x1 addr=0x0 pc=0xbb7d54]
+
+goroutine 714 [running]:
+testing.tRunner.func1.2({0x1153060, 0x18f5160})
+	/usr/local/go/src/testing/testing.go:1396 +0x24e
+testing.tRunner.func1()
+	/usr/local/go/src/testing/testing.go:1399 +0x39f
+panic({0x1153060, 0x18f5160})
+	/usr/local/go/src/runtime/panic.go:884 +0x212
+github.com/gorilla/websocket.(*Conn).Close(0x1?)
+	/home/eddy/go/pkg/mod/github.com/gorilla/websocket@v1.4.2/conn.go:344 +0x14
+panic({0x1153060, 0x18f5160})
+	/usr/local/go/src/runtime/panic.go:884 +0x212
+github.com/gorilla/websocket.(*Conn).WriteMessage(0x13998c0?, 0x127d5bf?, {0xc0002d2000, 0xac, 0xb0})
+	/home/eddy/go/pkg/mod/github.com/gorilla/websocket@v1.4.2/conn.go:753 +0x30
+github.com/cloudradar-monitoring/rport/server.TestHandlePostMultiClientWSCommandWithTags.func1(0xc000003380?)
+	/home/eddy/rport/server/api_handler_commands_test.go:1332 +0x1270
+testing.tRunner(0xc000003380, 0xc0005c0c80)
+	/usr/local/go/src/testing/testing.go:1446 +0x10b
+created by testing.(*T).Run
+	/usr/local/go/src/testing/testing.go:1493 +0x35f
+FAIL	github.com/cloudradar-monitoring/rport/server	0.204s
+?   	github.com/cloudradar-monitoring/rport/server/api	[no test files]
+ok  	github.com/cloudradar-monitoring/rport/server/api/command	(cached)
+?   	github.com/cloudradar-monitoring/rport/server/api/errors	[no test files]
+ok  	github.com/cloudradar-monitoring/rport/server/api/jobs	(cached)
+ok  	github.com/cloudradar-monitoring/rport/server/api/jobs/schedule	(cached)
+ok  	github.com/cloudradar-monitoring/rport/server/api/message	(cached)
+ok  	github.com/cloudradar-monitoring/rport/server/api/middleware	(cached)
+ok  	github.com/cloudradar-monitoring/rport/server/api/session	(cached)
+--- FAIL: TestAdd (0.00s)
+    --- FAIL: TestAdd/create_user (0.00s)
+        db.go:31: 
+            	Error Trace:	db.go:31
+            	            				database_test.go:775
+            	            				database_test.go:454
+            	Error:      	Not equal: 
+            	            	expected: []map[string]interface {}{map[string]interface {}{"password":"pass1", "token":interface {}(nil), "username":"login1"}}
+            	            	actual  : []map[string]interface {}{map[string]interface {}{"password":"pass1", "password_expired":false, "token":interface {}(nil), "username":"login1"}}
+            	            	
+            	            	Diff:
+            	            	--- Expected
+            	            	+++ Actual
+            	            	@@ -1,4 +1,5 @@
+            	            	 ([]map[string]interface {}) (len=1) {
+            	            	- (map[string]interface {}) (len=3) {
+            	            	+ (map[string]interface {}) (len=4) {
+            	            	   (string) (len=8) "password": (string) (len=5) "pass1",
+            	            	+  (string) (len=16) "password_expired": (bool) false,
+            	            	   (string) (len=5) "token": (interface {}) <nil>,
+            	Test:       	TestAdd/create_user
+2022/11/16 18:01:55 file-adapter-test: Loaded 1 users from file.
+2022/11/16 18:01:55 file-adapter-test: Loaded 2 users from file.
+2022/11/16 18:01:55 file-adapter-test: Loaded 1 users from file.
+2022/11/16 18:01:55 file-adapter-test: Loaded 2 users from file.
+2022/11/16 18:01:55 file-adapter-test: Loaded 1 users from file.
+2022/11/16 18:01:55 file-adapter-test: Loaded 0 users from file.
+2022/11/16 18:01:55 file-adapter-test: Loaded 2 users from file.
+2022/11/16 18:01:55 file-adapter-test: Loaded 2 users from file.
+2022/11/16 18:01:55 Start to get API users from file.
+2022/11/16 18:01:55 API users file /tmp/example3127734149 opened. Parsing...
+2022/11/16 18:01:55 API users file /tmp/example3127734149 is parsed successfully
+FAIL
+FAIL	github.com/cloudradar-monitoring/rport/server/api/users	0.791s
+ok  	github.com/cloudradar-monitoring/rport/server/auditlog	(cached)
+ok  	github.com/cloudradar-monitoring/rport/server/cgroups	(cached)
+ok  	github.com/cloudradar-monitoring/rport/server/clients	(cached)
+ok  	github.com/cloudradar-monitoring/rport/server/clients/clienttunnel	(cached)
+ok  	github.com/cloudradar-monitoring/rport/server/clients/storedtunnels	(cached)
+ok  	github.com/cloudradar-monitoring/rport/server/clientsauth	(cached)
+ok  	github.com/cloudradar-monitoring/rport/server/monitoring	(cached)
+ok  	github.com/cloudradar-monitoring/rport/server/ports	(cached)
+?   	github.com/cloudradar-monitoring/rport/server/scheduler	[no test files]
+ok  	github.com/cloudradar-monitoring/rport/server/script	(cached)
+?   	github.com/cloudradar-monitoring/rport/server/test/jb	[no test files]
+?   	github.com/cloudradar-monitoring/rport/server/validation	[no test files]
+ok  	github.com/cloudradar-monitoring/rport/server/vault	(cached)
+ok  	github.com/cloudradar-monitoring/rport/share	(cached)
+?   	github.com/cloudradar-monitoring/rport/share/capabilities	[no test files]
+?   	github.com/cloudradar-monitoring/rport/share/clientconfig	[no test files]
+ok  	github.com/cloudradar-monitoring/rport/share/comm	(cached)
+?   	github.com/cloudradar-monitoring/rport/share/email	[no test files]
+ok  	github.com/cloudradar-monitoring/rport/share/enc	(cached)
+?   	github.com/cloudradar-monitoring/rport/share/enums	[no test files]
+?   	github.com/cloudradar-monitoring/rport/share/errors	[no test files]
+?   	github.com/cloudradar-monitoring/rport/share/files	[no test files]
+ok  	github.com/cloudradar-monitoring/rport/share/logger	(cached)
+ok  	github.com/cloudradar-monitoring/rport/share/models	(cached)
+?   	github.com/cloudradar-monitoring/rport/share/ptr	[no test files]
+ok  	github.com/cloudradar-monitoring/rport/share/query	(cached)
+?   	github.com/cloudradar-monitoring/rport/share/random	[no test files]
+?   	github.com/cloudradar-monitoring/rport/share/security	[no test files]
+?   	github.com/cloudradar-monitoring/rport/share/test	[no test files]
+?   	github.com/cloudradar-monitoring/rport/share/types	[no test files]
+ok  	github.com/cloudradar-monitoring/rport/share/ws	(cached)
+FAIL

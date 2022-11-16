@@ -407,9 +407,8 @@ func TestAdd(t *testing.T) {
 		{
 			name: "create user",
 			userToChange: &User{
-				Username:        "login1",
-				Password:        "pass1",
-				PasswordExpired: nil,
+				Username: "login1",
+				Password: "pass1",
 				Groups: []string{
 					"group1",
 					"group2",
@@ -417,10 +416,9 @@ func TestAdd(t *testing.T) {
 			},
 			expectedUserRows: []map[string]interface{}{
 				{
-					"username":         "login1",
-					"password":         "pass1",
-					"password_expired": false,
-					"token":            nil,
+					"username": "login1",
+					"password": "pass1",
+					"token":    nil,
 				},
 			},
 			expectedGroupRows: []map[string]interface{}{
