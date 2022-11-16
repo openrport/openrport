@@ -156,7 +156,7 @@ func (p *Cache) deleteUserSessionsFromCache(username string, sessionID int64) (e
 func (p *Cache) deleteUserSessionFromStorage(ctx context.Context, username string, sessionID int64) (err error) {
 	err = p.storage.DeleteByUser(ctx, username, sessionID)
 	if err != nil {
-		return fmt.Errorf("unable to delete session from cache: %w", err)
+		return fmt.Errorf("unable to delete session from storage: %w", err)
 	}
 	return nil
 }
@@ -176,7 +176,7 @@ func (p *Cache) DeleteAllByUser(ctx context.Context, username string) (err error
 func (p *Cache) deleteUserSessionsFromStorage(ctx context.Context, username string) (err error) {
 	err = p.storage.DeleteAllByUser(ctx, username)
 	if err != nil {
-		return fmt.Errorf("unable to delete sessions from cache: %w", err)
+		return fmt.Errorf("unable to delete sessions from storage: %w", err)
 	}
 	return nil
 }
