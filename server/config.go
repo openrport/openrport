@@ -56,7 +56,7 @@ type APIConfig struct {
 	UserLoginWait         float32 `mapstructure:"user_login_wait"`
 	MaxFailedLogin        int     `mapstructure:"max_failed_login"`
 	BanTime               int     `mapstructure:"ban_time"`
-	MaxTokenLifeTime      int     `mapstructure:"max_token_lifetime"`
+	MaxTokenLifeTimeHours int     `mapstructure:"max_token_lifetime"`
 
 	TwoFATokenDelivery       string                 `mapstructure:"two_fa_token_delivery"`
 	TwoFATokenTTLSeconds     int                    `mapstructure:"two_fa_token_ttl_seconds"`
@@ -398,7 +398,7 @@ func (c *Config) parseAndValidateAPI() error {
 			return err
 		}
 
-		if c.API.MaxTokenLifeTime < 0 || (time.Duration(c.API.MaxTokenLifeTime)*time.Hour) > bearer.DefaultMaxTokenLifetime {
+		if c.API.MaxTokenLifeTimeHours < 0 || (time.Duration(c.API.MaxTokenLifeTimeHours)*time.Hour) > bearer.DefaultMaxTokenLifetime {
 			return fmt.Errorf("max_token_lifetime outside allowable ranges. must be between 0 and %.0f", bearer.DefaultMaxTokenLifetime.Hours())
 		}
 	} else {

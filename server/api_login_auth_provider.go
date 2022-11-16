@@ -37,7 +37,7 @@ type DeviceAuthSettings struct {
 func (al *APIListener) handleGetAuthProvider(w http.ResponseWriter, req *http.Request) {
 	var response api.SuccessPayload
 
-	maxTokenLifetime := al.config.API.MaxTokenLifeTime
+	maxTokenLifetime := al.config.API.MaxTokenLifeTimeHours
 
 	if al.config.PlusOAuthEnabled() {
 		OAuthProvider := AuthProviderInfo{

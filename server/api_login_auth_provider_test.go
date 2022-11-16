@@ -45,7 +45,7 @@ func TestHandleGetBuiltInAuthProvider(t *testing.T) {
 		Server: &Server{
 			config: &Config{
 				API: APIConfig{
-					MaxTokenLifeTime: 999,
+					MaxTokenLifeTimeHours: 999,
 				},
 				PlusConfig: rportplus.PlusConfig{},
 			},
@@ -122,7 +122,7 @@ func TestHandleGetAuthProviderWhenPlusOAuthAvailable(t *testing.T) {
 
 	serverCfg := &Config{
 		API: APIConfig{
-			MaxTokenLifeTime: 999,
+			MaxTokenLifeTimeHours: 999,
 		},
 		PlusConfig: plusConfig,
 	}

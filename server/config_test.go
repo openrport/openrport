@@ -522,9 +522,9 @@ func TestParseAndValidateAPI(t *testing.T) {
 			Name: "api enabled, max token lifetime outside allowed range, negative",
 			Config: Config{
 				API: APIConfig{
-					Address:          "0.0.0.0:3000",
-					Auth:             "abc:def",
-					MaxTokenLifeTime: -1,
+					Address:               "0.0.0.0:3000",
+					Auth:                  "abc:def",
+					MaxTokenLifeTimeHours: -1,
 				},
 			},
 			ExpectedError: "API: max_token_lifetime outside allowable ranges. must be between 0 and 2160",
@@ -533,9 +533,9 @@ func TestParseAndValidateAPI(t *testing.T) {
 			Name: "api enabled, max token lifetime outside allowed range, too large",
 			Config: Config{
 				API: APIConfig{
-					Address:          "0.0.0.0:3000",
-					Auth:             "abc:def",
-					MaxTokenLifeTime: 9999,
+					Address:               "0.0.0.0:3000",
+					Auth:                  "abc:def",
+					MaxTokenLifeTimeHours: 9999,
 				},
 			},
 			ExpectedError: "API: max_token_lifetime outside allowable ranges. must be between 0 and 2160",
