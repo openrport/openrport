@@ -2,7 +2,6 @@ package chserver
 
 import (
 	"context"
-	"encoding/base64"
 	"encoding/json"
 	"errors"
 	"net/http"
@@ -39,7 +38,7 @@ func TestShouldHandleGetAllUserAPISessions(t *testing.T) {
 	w := httptest.NewRecorder()
 
 	req := httptest.NewRequest("GET", "/api/v1/users/admin/sessions", nil)
-	req.Header.Add("Authorization", "Basic "+basicAuth("admin", "foobaz"))
+	req.SetBasicAuth("admin", "foobaz")
 
 	al.router.ServeHTTP(w, req)
 
@@ -68,7 +67,7 @@ func TestShouldHandleDeleteUserSession(t *testing.T) {
 	w := httptest.NewRecorder()
 
 	req := httptest.NewRequest("DELETE", "/api/v1/users/admin/sessions/1", nil)
-	req.Header.Add("Authorization", "Basic "+basicAuth("admin", "foobaz"))
+	req.SetBasicAuth("admin", "foobaz")
 
 	al.router.ServeHTTP(w, req)
 
@@ -86,7 +85,7 @@ func TestShouldHandleDeleteAllUserSessions(t *testing.T) {
 	w := httptest.NewRecorder()
 
 	req := httptest.NewRequest("DELETE", "/api/v1/users/admin/sessions", nil)
-	req.Header.Add("Authorization", "Basic "+basicAuth("admin", "foobaz"))
+	req.SetBasicAuth("admin", "foobaz")
 
 	al.router.ServeHTTP(w, req)
 
@@ -157,7 +156,7 @@ func TestShouldHandleAuthorization(t *testing.T) {
 
 			req := httptest.NewRequest(tc.method, "/api/v1/"+tc.path, nil)
 			if tc.withAuth {
-				req.Header.Add("Authorization", "Basic "+basicAuth("admin", "foobaz"))
+				req.SetBasicAuth("admin", "foobaz")
 			}
 
 			al.router.ServeHTTP(w, req)
@@ -189,7 +188,7 @@ func TestShouldErrorWhenNonAdminUser(t *testing.T) {
 	w := httptest.NewRecorder()
 
 	req := httptest.NewRequest("GET", "/api/v1/users/user1/sessions", nil)
-	req.Header.Add("Authorization", "Basic "+basicAuth(nonAdminUser.Username, nonAdminUser.Password))
+	req.SetBasicAuth("admin", "foobaz")
 
 	al.router.ServeHTTP(w, req)
 
@@ -266,7 +265,7 @@ func TestShouldErrorIfUnableToGetAllSessionsForUser(t *testing.T) {
 	w := httptest.NewRecorder()
 
 	req := httptest.NewRequest("GET", "/api/v1/users/admin/sessions", nil)
-	req.Header.Add("Authorization", "Basic "+basicAuth("admin", "foobaz"))
+	req.SetBasicAuth("admin", "foobaz")
 
 	al.router.ServeHTTP(w, req)
 
@@ -298,7 +297,7 @@ func TestShouldErrorIfUnableToDeleteSessionForUser(t *testing.T) {
 	w := httptest.NewRecorder()
 
 	req := httptest.NewRequest("DELETE", "/api/v1/users/admin/sessions/1", nil)
-	req.Header.Add("Authorization", "Basic "+basicAuth("admin", "foobaz"))
+	req.SetBasicAuth("admin", "foobaz")
 
 	al.router.ServeHTTP(w, req)
 
@@ -330,7 +329,7 @@ func TestShouldErrorIfUnableToDeleteAllSessionsForUser(t *testing.T) {
 	w := httptest.NewRecorder()
 
 	req := httptest.NewRequest("DELETE", "/api/v1/users/admin/sessions", nil)
-	req.Header.Add("Authorization", "Basic "+basicAuth("admin", "foobaz"))
+	req.SetBasicAuth("admin", "foobaz")
 
 	al.router.ServeHTTP(w, req)
 
@@ -382,9 +381,4 @@ func setupTestAPIListenerUserAPISessions(t *testing.T, sessionCache *session.Cac
 	al.initRouter()
 
 	return al, adminUser
-}
-
-func basicAuth(username, password string) string {
-	auth := username + ":" + password
-	return base64.StdEncoding.EncodeToString([]byte(auth))
 }
