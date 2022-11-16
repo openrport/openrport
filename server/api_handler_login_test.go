@@ -332,7 +332,7 @@ func TestAPISessionUpdates(t *testing.T) {
 
 				if tc.ExpectedSession {
 					require.NotNil(t, sessions)
-					require.Less(t, 0, len(sessions))
+					require.Greater(t, len(sessions), 0)
 
 					if sessions != nil {
 						session := sessions[0]
