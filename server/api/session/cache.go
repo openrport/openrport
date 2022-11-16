@@ -95,8 +95,7 @@ func (p *Cache) getFromCache(token string) (*APISession, error) {
 }
 
 func (p *Cache) GetAllByUser(ctx context.Context, username string) (sessions []*APISession, err error) {
-	count := p.cache.ItemCount()
-	sessions = make([]*APISession, 0, count)
+	sessions = make([]*APISession, 0)
 	// just query the go-cache tokens. they will be more up to date than the storage tokens.
 	for _, item := range p.cache.Items() {
 		session, ok := item.Object.(*APISession)
