@@ -83,8 +83,7 @@ func (al *APIListener) handleLogin(username, pwd string, newpwd string, skipPass
 		return
 	}
 
-	// password is correct,
-	// a new password is provided?
+	// Only set the new password after the old password has been verified.
 	if newpwd != "" {
 		var user users.User
 		user.Password = newpwd
@@ -95,7 +94,6 @@ func (al *APIListener) handleLogin(username, pwd string, newpwd string, skipPass
 		return
 	}
 
-	// is it expired?
 	if user.PasswordExpired {
 		al.jsonErrorResponseWithTitle(w, http.StatusUnauthorized, ErrThatPasswordHasExpired.Error())
 		return
