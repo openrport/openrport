@@ -338,7 +338,7 @@ func (al *APIListener) lookupUser(r *http.Request, isBearerOnly bool) (authorize
 			return isAuthorized, "", err
 		}
 
-		return isAuthorized, token.AppToken.Username, nil
+		return isAuthorized, token.AppClaims.Username, nil
 	}
 
 	// case when no auth method is provided
@@ -393,10 +393,10 @@ func (al *APIListener) handleBearerToken(ctx context.Context, bearerToken, uri, 
 		return false, nil, err
 	}
 
-	if al.bannedUsers.IsBanned(tokenCtx.AppToken.Username) {
+	if al.bannedUsers.IsBanned(tokenCtx.AppClaims.Username) {
 		al.Errorf(
 			"User %s is banned",
-			tokenCtx.AppToken.Username,
+			tokenCtx.AppClaims.Username,
 		)
 		return false, nil, ErrTooManyRequests
 	}
@@ -532,7 +532,7 @@ func (al *APIListener) wsAuth(f http.Handler) http.HandlerFunc {
 			var token *bearer.TokenContext
 			authorized, token, err = al.handleBearerToken(r.Context(), tokenStr, r.URL.Path, r.Method)
 			if authorized && err == nil {
-				username = token.AppToken.Username
+				username = token.AppClaims.Username
 			}
 		}
 

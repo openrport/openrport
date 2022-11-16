@@ -83,11 +83,11 @@ func (al *APIListener) parseAndValidate2FATokenRequest(req *http.Request) (usern
 			}
 		}
 
-		user, err := al.userService.GetByUsername(token.AppToken.Username)
+		user, err := al.userService.GetByUsername(token.AppClaims.Username)
 		if err != nil {
 			return "", err
 		}
-		return token.AppToken.Username, al.twoFASrv.ValidateTotPCode(user, reqBody.Token)
+		return token.AppClaims.Username, al.twoFASrv.ValidateTotPCode(user, reqBody.Token)
 	}
 
 	return reqBody.Username, al.twoFASrv.ValidateToken(reqBody.Username, reqBody.Token)

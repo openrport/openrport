@@ -21,7 +21,7 @@ const (
 	DefaultTokenLifetime    = 10 * time.Minute
 )
 
-type Token struct {
+type AppTokenClaims struct {
 	Username string  `json:"username,omitempty"`
 	Scopes   []Scope `json:"scopes,omitempty"`
 	jwt.StandardClaims
@@ -60,9 +60,9 @@ var Scopes2FaCheckOnly = []Scope{
 }
 
 type TokenContext struct {
-	AppToken *Token
-	RawToken string
-	JwtToken *jwt.Token
+	AppClaims *AppTokenClaims
+	RawToken  string
+	JwtToken  *jwt.Token
 }
 
 type APISessionUpdater interface {
@@ -87,7 +87,7 @@ func CreateAuthToken(
 		return "", errors.New("username cannot be empty")
 	}
 
-	claims := Token{
+	claims := AppTokenClaims{
 		Username: username,
 		StandardClaims: jwt.StandardClaims{
 			Id: strconv.FormatUint(rand.Uint64(), 10),
@@ -153,8 +153,8 @@ func currentURIMatchesTokenScopes(currentURI, currentMethod string, tokenScopes 
 }
 
 func ParseToken(tokenStr string, JWTSecret string) (tokCtx *TokenContext, err error) {
-	appToken := &Token{}
-	bearerToken, err := jwt.ParseWithClaims(tokenStr, appToken, func(token *jwt.Token) (i interface{}, err error) {
+	appClaims := &AppTokenClaims{}
+	bearerToken, err := jwt.ParseWithClaims(tokenStr, appClaims, func(token *jwt.Token) (i interface{}, err error) {
 		return []byte(JWTSecret), nil
 	})
 	if err != nil {
@@ -163,9 +163,9 @@ func ParseToken(tokenStr string, JWTSecret string) (tokCtx *TokenContext, err er
 	}
 
 	return &TokenContext{
-		AppToken: appToken,
-		RawToken: tokenStr,
-		JwtToken: bearerToken,
+		AppClaims: appClaims,
+		RawToken:  tokenStr,
+		JwtToken:  bearerToken,
 	}, nil
 }
 
@@ -175,20 +175,20 @@ func ValidateBearerToken(
 	uri, method string,
 	apiSessionGetter APISessionGetter,
 	l *logger.Logger) (bool, *session.APISession, error) {
-	if !currentURIMatchesTokenScopes(uri, method, tokCtx.AppToken.Scopes) {
+	if !currentURIMatchesTokenScopes(uri, method, tokCtx.AppClaims.Scopes) {
 		l.Errorf(
 			"Token scopes %+v don't match with the current url %s[%s], so this token is not intended to be used for this page",
-			tokCtx.AppToken.Scopes,
+			tokCtx.AppClaims.Scopes,
 			method,
 			uri,
 		)
 		return false, nil, nil
 	}
 
-	if !tokCtx.JwtToken.Valid || tokCtx.AppToken.Username == "" {
+	if !tokCtx.JwtToken.Valid || tokCtx.AppClaims.Username == "" {
 		l.Errorf(
 			"Token is invalid or user name is empty",
-			tokCtx.AppToken.Username,
+			tokCtx.AppClaims.Username,
 		)
 		return false, nil, nil
 	}
@@ -197,7 +197,7 @@ func ValidateBearerToken(
 	if err != nil || apiSession == nil {
 		l.Errorf(
 			"Login session not found for %s",
-			tokCtx.AppToken.Username,
+			tokCtx.AppClaims.Username,
 		)
 		return false, nil, err
 	}
