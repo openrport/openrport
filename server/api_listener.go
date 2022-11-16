@@ -364,7 +364,7 @@ func (al *APIListener) handleBasicAuth(username, password string) (authorized bo
 		return false, username, nil
 	}
 
-	if *user.PasswordExpired {
+	if user.PasswordExpired != nil && *user.PasswordExpired {
 		return false, username, ErrThatPasswordHasExpired
 	}
 
