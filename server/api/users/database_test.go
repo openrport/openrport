@@ -143,27 +143,30 @@ func TestGetByUsername(t *testing.T) {
 			Name:     "user without groups",
 			Username: "user1",
 			ExpectedUser: &User{
-				Username: "user1",
-				Password: "pass1",
-				Token:    nil,
+				Username:        "user1",
+				Password:        "pass1",
+				PasswordExpired: new(bool),
+				Token:           nil,
 			},
 		}, {
 			Name:     "user with one group",
 			Username: "user2",
 			ExpectedUser: &User{
-				Username: "user2",
-				Password: "pass2",
-				Groups:   []string{"group1"},
-				Token:    nil,
+				Username:        "user2",
+				Password:        "pass2",
+				PasswordExpired: new(bool),
+				Groups:          []string{"group1"},
+				Token:           nil,
 			},
 		}, {
 			Name:     "user with multiple groups and token",
 			Username: "user3",
 			ExpectedUser: &User{
-				Username: "user3",
-				Password: "pass3",
-				Groups:   []string{"group1", "group2"},
-				Token:    Token("token3"),
+				Username:        "user3",
+				Password:        "pass3",
+				PasswordExpired: new(bool),
+				Groups:          []string{"group1", "group2"},
+				Token:           Token("token3"),
 			},
 		},
 	}
@@ -198,23 +201,26 @@ func TestGetAll(t *testing.T) {
 
 	expectedUsers := []*User{
 		{
-			Username: "user1",
-			Password: "pass1",
-			Groups:   nil,
-			Token:    nil,
-			TotP:     "totP123",
+			Username:        "user1",
+			Password:        "pass1",
+			PasswordExpired: new(bool),
+			Groups:          nil,
+			Token:           nil,
+			TotP:            "totP123",
 		},
 		{
-			Username: "user2",
-			Password: "pass2",
+			Username:        "user2",
+			Password:        "pass2",
+			PasswordExpired: new(bool),
 			Groups: []string{
 				"group1",
 			},
 			Token: nil,
 		},
 		{
-			Username: "user3",
-			Password: "pass3",
+			Username:        "user3",
+			Password:        "pass3",
+			PasswordExpired: new(bool),
 			Groups: []string{
 				"group1",
 				"group2",
@@ -401,8 +407,9 @@ func TestAdd(t *testing.T) {
 		{
 			name: "create user",
 			userToChange: &User{
-				Username: "login1",
-				Password: "pass1",
+				Username:        "login1",
+				Password:        "pass1",
+				PasswordExpired: nil,
 				Groups: []string{
 					"group1",
 					"group2",
