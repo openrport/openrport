@@ -8,13 +8,13 @@ import (
 )
 
 type APISession struct {
-	SessionID    int64     `db:"session_id"`
-	Token        string    `db:"token"`
-	ExpiresAt    time.Time `db:"expires_at"`
-	LastAccessAt time.Time `db:"last_access_at"`
-	Username     string    `db:"username"`
-	UserAgent    string    `db:"user_agent"`
-	IPAddress    string    `db:"ip_address"`
+	SessionID    int64     `json:"session_id" db:"session_id"`
+	Token        string    `json:"token" db:"token"`
+	ExpiresAt    time.Time `json:"expires_at" db:"expires_at"`
+	LastAccessAt time.Time `json:"last_access_at" db:"last_access_at"`
+	Username     string    `json:"username" db:"username"`
+	UserAgent    string    `json:"user_agent" db:"user_agent"`
+	IPAddress    string    `json:"ip_address" db:"ip_address"`
 }
 
 // current implementation provided by go-cache
