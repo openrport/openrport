@@ -53,7 +53,7 @@ func (al *APIListener) handleDeleteLogout(w http.ResponseWriter, req *http.Reque
 		return
 	}
 
-	err = al.apiSessions.Delete(req.Context(), apiSession.Token)
+	err = al.apiSessions.Delete(req.Context(), apiSession.SessionID)
 	if err != nil {
 		al.jsonErrorResponse(w, http.StatusInternalServerError, err)
 		return

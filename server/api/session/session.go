@@ -9,7 +9,6 @@ import (
 
 type APISession struct {
 	SessionID    int64     `json:"session_id" db:"session_id"`
-	Token        string    `json:"token" db:"token"`
 	ExpiresAt    time.Time `json:"expires_at" db:"expires_at"`
 	LastAccessAt time.Time `json:"last_access_at" db:"last_access_at"`
 	Username     string    `json:"username" db:"username"`
@@ -30,10 +29,10 @@ type InternalCacheProvider interface {
 }
 
 type StorageProvider interface {
-	Get(ctx context.Context, token string) (*APISession, error)
+	Get(ctx context.Context, sessionID int64) (*APISession, error)
 	GetAll(ctx context.Context) ([]*APISession, error)
 	Save(ctx context.Context, session *APISession) (sessionID int64, err error)
-	Delete(ctx context.Context, token string) error
+	Delete(ctx context.Context, sessionID int64) error
 	DeleteExpired(ctx context.Context) error
 	Close() error
 

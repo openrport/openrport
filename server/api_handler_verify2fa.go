@@ -71,7 +71,7 @@ func (al *APIListener) parseAndValidate2FATokenRequest(req *http.Request) (usern
 			}
 		}
 
-		isAuthorized, token, err := al.handleBearerToken(req.Context(), bearerToken, req.URL.Path, req.Method)
+		isAuthorized, token, err := al.checkBearerToken(req.Context(), bearerToken, req.URL.Path, req.Method)
 		if err != nil {
 			return reqBody.Username, err
 		}

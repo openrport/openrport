@@ -333,7 +333,7 @@ func (al *APIListener) lookupUser(r *http.Request, isBearerOnly bool) (authorize
 	}
 
 	if bearerToken, bearerAuthProvided := bearer.GetBearerToken(r); bearerAuthProvided {
-		isAuthorized, token, err := al.handleBearerToken(r.Context(), bearerToken, r.URL.Path, r.Method)
+		isAuthorized, token, err := al.checkBearerToken(r.Context(), bearerToken, r.URL.Path, r.Method)
 		if err != nil {
 			return isAuthorized, "", err
 		}
@@ -386,7 +386,7 @@ func (al *APIListener) handleBasicAuth(username, password string) (authorized bo
 	return false, username, nil
 }
 
-func (al *APIListener) handleBearerToken(ctx context.Context, bearerToken, uri, method string) (bool, *bearer.TokenContext, error) {
+func (al *APIListener) checkBearerToken(ctx context.Context, bearerToken, uri, method string) (bool, *bearer.TokenContext, error) {
 	tokenCtx, err := bearer.ParseToken(bearerToken, al.config.API.JWTSecret)
 	if err != nil {
 		al.Debugf("failed to parse jwt token: %v", err)
@@ -530,7 +530,7 @@ func (al *APIListener) wsAuth(f http.Handler) http.HandlerFunc {
 			}
 		} else {
 			var token *bearer.TokenContext
-			authorized, token, err = al.handleBearerToken(r.Context(), tokenStr, r.URL.Path, r.Method)
+			authorized, token, err = al.checkBearerToken(r.Context(), tokenStr, r.URL.Path, r.Method)
 			if authorized && err == nil {
 				username = token.AppClaims.Username
 			}
