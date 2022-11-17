@@ -12,14 +12,14 @@ import (
 
 var user1 = &User{
 	Username: "user1",
-	Password: "pass1",
+	Password: "pass0123456789",
 	Groups:   []string{"group1", "group2"},
 	TotP:     "totp123",
 }
 
 var user2 = &User{
 	Username: "user2",
-	Password: "pass2",
+	Password: "pass2123456789",
 	Groups:   []string{"group2", "group3"},
 }
 

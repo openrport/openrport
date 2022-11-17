@@ -144,7 +144,7 @@ func TestGetByUsername(t *testing.T) {
 			Username: "user1",
 			ExpectedUser: &User{
 				Username: "user1",
-				Password: "pass1",
+				Password: "pass0123456789",
 				Token:    nil,
 			},
 		}, {
@@ -152,7 +152,7 @@ func TestGetByUsername(t *testing.T) {
 			Username: "user2",
 			ExpectedUser: &User{
 				Username: "user2",
-				Password: "pass2",
+				Password: "pass2123456789",
 				Groups:   []string{"group1"},
 				Token:    nil,
 			},
@@ -199,14 +199,14 @@ func TestGetAll(t *testing.T) {
 	expectedUsers := []*User{
 		{
 			Username: "user1",
-			Password: "pass1",
+			Password: "pass0123456789",
 			Groups:   nil,
 			Token:    nil,
 			TotP:     "totP123",
 		},
 		{
 			Username: "user2",
-			Password: "pass2",
+			Password: "pass2123456789",
 			Groups: []string{
 				"group1",
 			},
@@ -402,7 +402,7 @@ func TestAdd(t *testing.T) {
 			name: "create user",
 			userToChange: &User{
 				Username: "login1",
-				Password: "pass1",
+				Password: "pass0123456789",
 				Groups: []string{
 					"group1",
 					"group2",
@@ -411,7 +411,7 @@ func TestAdd(t *testing.T) {
 			expectedUserRows: []map[string]interface{}{
 				{
 					"username": "login1",
-					"password": "pass1",
+					"password": "pass0123456789",
 					"token":    nil,
 				},
 			},
@@ -473,7 +473,7 @@ func TestUpdate(t *testing.T) {
 			expectedUserRows: []map[string]interface{}{
 				{
 					"username": "user2",
-					"password": "pass2",
+					"password": "pass2123456789",
 					"token":    nil,
 				},
 				{
@@ -515,7 +515,7 @@ func TestUpdate(t *testing.T) {
 			expectedUserRows: []map[string]interface{}{
 				{
 					"username": "user1",
-					"password": "pass1",
+					"password": "pass0123456789",
 					"token":    nil,
 				},
 				{
@@ -555,12 +555,12 @@ func TestUpdate(t *testing.T) {
 			expectedUserRows: []map[string]interface{}{
 				{
 					"username": "user1",
-					"password": "pass1",
+					"password": "pass0123456789",
 					"token":    nil,
 				},
 				{
 					"username": "user2",
-					"password": "pass2",
+					"password": "pass2123456789",
 					"token":    nil,
 				},
 				{
@@ -589,12 +589,12 @@ func TestUpdate(t *testing.T) {
 			expectedUserRows: []map[string]interface{}{
 				{
 					"username": "user1",
-					"password": "pass1",
+					"password": "pass0123456789",
 					"token":    nil,
 				},
 				{
 					"username": "user2",
-					"password": "pass2",
+					"password": "pass2123456789",
 					"token":    nil,
 				},
 				{
@@ -697,24 +697,24 @@ func prepareTables(db *sqlx.DB, twoFAOn, totPON bool) error {
 func prepareDummyData(db *sqlx.DB, withTwoFA, withTotP bool) error {
 	var err error
 	if !withTotP {
-		_, err = db.Exec("INSERT INTO `users` (username, password) VALUES (\"user1\", \"pass1\")")
+		_, err = db.Exec("INSERT INTO `users` (username, password) VALUES (\"user1\", \"pass0123456789\")")
 		if err != nil {
 			return err
 		}
 	} else {
-		_, err = db.Exec("INSERT INTO `users` (username, password, totp_secret) VALUES (\"user1\", \"pass1\", \"totP123\")")
+		_, err = db.Exec("INSERT INTO `users` (username, password, totp_secret) VALUES (\"user1\", \"pass0123456789\", \"totP123\")")
 		if err != nil {
 			return err
 		}
 	}
 
 	if !withTwoFA {
-		_, err = db.Exec("INSERT INTO `users` (username, password) VALUES (\"user2\", \"pass2\")")
+		_, err = db.Exec("INSERT INTO `users` (username, password) VALUES (\"user2\", \"pass2123456789\")")
 		if err != nil {
 			return err
 		}
 	} else {
-		_, err = db.Exec("INSERT INTO `users` (username, password, two_fa_send_to) VALUES (\"user2\", \"pass2\", \"no@mail.me\")")
+		_, err = db.Exec("INSERT INTO `users` (username, password, two_fa_send_to) VALUES (\"user2\", \"pass2123456789\", \"no@mail.me\")")
 		if err != nil {
 			return err
 		}
