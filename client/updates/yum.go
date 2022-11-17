@@ -38,7 +38,7 @@ func (p *YumPackageManager) GetUpdatesStatus(ctx context.Context, logger *logger
 	// --refresh doesn't work on CentOS, replace with clean expire-cache which should be supported by both dnf and yum
 	cmd := append([]string{"clean", "expire-cache", "--quiet"})
         _, err := p.run(ctx, cmd...)
-	if err != nil && err.Error() != "exit status 1" {
+	if err != nil {
         	return nil, err
         }
 
