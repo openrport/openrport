@@ -29,6 +29,7 @@ import (
 	"github.com/cloudradar-monitoring/rport/server/api/session"
 	"github.com/cloudradar-monitoring/rport/server/auditlog"
 	"github.com/cloudradar-monitoring/rport/server/cgroups"
+	"github.com/cloudradar-monitoring/rport/server/chconfig"
 	"github.com/cloudradar-monitoring/rport/server/clients"
 	"github.com/cloudradar-monitoring/rport/server/clientsauth"
 	"github.com/cloudradar-monitoring/rport/server/monitoring"
@@ -43,11 +44,10 @@ import (
 )
 
 const (
-	cleanupMeasurementsInterval           = time.Minute * 2
-	cleanupAPISessionsInterval            = time.Hour
-	cleanupJobsInterval                   = time.Hour
-	CheckClientsConnectionIntervalMinimum = time.Minute * 2
-	LogNumGoRoutinesInterval              = time.Minute * 2
+	cleanupMeasurementsInterval = time.Minute * 2
+	cleanupAPISessionsInterval  = time.Hour
+	cleanupJobsInterval         = time.Hour
+	LogNumGoRoutinesInterval    = time.Minute * 2
 )
 
 // Server represents a rport service
@@ -55,7 +55,7 @@ type Server struct {
 	*logger.Logger
 	clientListener      *ClientListener
 	apiListener         *APIListener
-	config              *Config
+	config              *chconfig.Config
 	clientService       ClientService
 	clientDB            *sqlx.DB
 	clientAuthProvider  clientsauth.Provider
@@ -79,7 +79,7 @@ type ServerOpts struct {
 }
 
 // NewServer creates and returns a new rport server
-func NewServer(config *Config, opts *ServerOpts) (*Server, error) {
+func NewServer(config *chconfig.Config, opts *ServerOpts) (*Server, error) {
 	ctx := context.Background()
 
 	s := &Server{
@@ -196,12 +196,12 @@ func NewServer(config *Config, opts *ServerOpts) (*Server, error) {
 		return nil, err
 	}
 
-	if config.Database.driver != "" {
-		s.authDB, err = sqlx.Connect(config.Database.driver, config.Database.dsn)
+	if config.Database.Driver != "" {
+		s.authDB, err = sqlx.Connect(config.Database.Driver, config.Database.Dsn)
 		if err != nil {
 			return nil, err
 		}
-		s.Infof("DB: successfully connected to %s", config.Database.dsnForLogs())
+		s.Infof("DB: successfully connected to %s", config.Database.DsnForLogs())
 	}
 
 	s.clientAuthProvider, err = getClientProvider(config, s.authDB)
@@ -231,7 +231,7 @@ func NewServer(config *Config, opts *ServerOpts) (*Server, error) {
 	return s, nil
 }
 
-func getClientProvider(config *Config, db *sqlx.DB) (clientsauth.Provider, error) {
+func getClientProvider(config *chconfig.Config, db *sqlx.DB) (clientsauth.Provider, error) {
 	if config.Server.AuthTable != "" {
 		return clientsauth.NewDatabaseProvider(db, config.Server.AuthTable), nil
 	}
@@ -241,7 +241,7 @@ func getClientProvider(config *Config, db *sqlx.DB) (clientsauth.Provider, error
 	}
 
 	if config.Server.Auth != "" {
-		return clientsauth.NewSingleProvider(config.Server.authID, config.Server.authPassword), nil
+		return clientsauth.NewSingleProvider(config.Server.AuthID, config.Server.AuthPassword), nil
 	}
 
 	return nil, errors.New("client authentication must to be enabled: set either 'auth' or 'auth_file'")

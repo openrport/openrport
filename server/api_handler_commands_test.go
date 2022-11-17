@@ -26,6 +26,7 @@ import (
 	"github.com/cloudradar-monitoring/rport/server/api/jobs/schedule"
 	"github.com/cloudradar-monitoring/rport/server/api/users"
 	"github.com/cloudradar-monitoring/rport/server/cgroups"
+	"github.com/cloudradar-monitoring/rport/server/chconfig"
 	"github.com/cloudradar-monitoring/rport/server/clients"
 	"github.com/cloudradar-monitoring/rport/server/test/jb"
 	"github.com/cloudradar-monitoring/rport/share/comm"
@@ -271,12 +272,13 @@ func TestHandlePostCommand(t *testing.T) {
 	for _, tc := range testCases {
 		t.Run(tc.name, func(t *testing.T) {
 			// given
+			clientService := NewClientService(nil, nil, clients.NewClientRepository(tc.clients, &hour, testLog))
 			al := APIListener{
 				insecureForTests: true,
 				Server: &Server{
-					clientService: NewClientService(nil, nil, clients.NewClientRepository(tc.clients, &hour, testLog)),
-					config: &Config{
-						Server: ServerConfig{
+					clientService: clientService,
+					config: &chconfig.Config{
+						Server: chconfig.ServerConfig{
 							RunRemoteCmdTimeoutSec: defaultTimeout,
 							MaxRequestBytes:        1024 * 1024,
 						},
@@ -378,8 +380,8 @@ func TestHandleGetCommand(t *testing.T) {
 				insecureForTests: true,
 				Logger:           testLog,
 				Server: &Server{
-					config: &Config{
-						Server: ServerConfig{MaxRequestBytes: 1024 * 1024},
+					config: &chconfig.Config{
+						Server: chconfig.ServerConfig{MaxRequestBytes: 1024 * 1024},
 					},
 				},
 			}
@@ -485,8 +487,8 @@ func TestHandleGetCommands(t *testing.T) {
 				insecureForTests: true,
 				Logger:           testLog,
 				Server: &Server{
-					config: &Config{
-						Server: ServerConfig{MaxRequestBytes: 1024 * 1024},
+					config: &chconfig.Config{
+						Server: chconfig.ServerConfig{MaxRequestBytes: 1024 * 1024},
 					},
 				},
 			}
@@ -640,8 +642,8 @@ func TestHandlePostMultiClientCommand(t *testing.T) {
 				insecureForTests: true,
 				Server: &Server{
 					clientService: NewClientService(nil, nil, clients.NewClientRepository([]*clients.Client{c1, c2, c3}, &hour, testLog)),
-					config: &Config{
-						Server: ServerConfig{
+					config: &chconfig.Config{
+						Server: chconfig.ServerConfig{
 							RunRemoteCmdTimeoutSec: defaultTimeout,
 							MaxRequestBytes:        1024 * 1024,
 						},
@@ -1899,12 +1901,13 @@ func makeAPIListener(
 	clientRepo *clients.ClientRepository,
 	defaultTimeout int,
 	testLog *logger.Logger) (al *APIListener) {
+	clientService := NewClientService(nil, nil, clientRepo)
 	al = &APIListener{
 		insecureForTests: true,
 		Server: &Server{
-			clientService: NewClientService(nil, nil, clientRepo),
-			config: &Config{
-				Server: ServerConfig{
+			clientService: clientService,
+			config: &chconfig.Config{
+				Server: chconfig.ServerConfig{
 					RunRemoteCmdTimeoutSec: defaultTimeout,
 					MaxRequestBytes:        1024 * 1024,
 				},

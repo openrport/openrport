@@ -15,6 +15,7 @@ import (
 	"github.com/cloudradar-monitoring/rport/plus/capabilities/oauthmock"
 	"github.com/cloudradar-monitoring/rport/server/api"
 	"github.com/cloudradar-monitoring/rport/server/api/users"
+	"github.com/cloudradar-monitoring/rport/server/chconfig"
 	"github.com/cloudradar-monitoring/rport/share/logger"
 	"github.com/cloudradar-monitoring/rport/share/ptr"
 	"github.com/cloudradar-monitoring/rport/share/security"
@@ -33,7 +34,7 @@ type plusManagerForMockOAuth struct {
 func initMockPlusManager() (plus *plusManagerForMockOAuth) {
 	plusLog := logger.NewLogger("rport-plus", logger.LogOutput{File: os.Stdout}, logger.LogLevelDebug)
 
-	config := &Config{
+	config := &chconfig.Config{
 		Server: defaultValidMinServerConfig,
 		PlusConfig: rportplus.PlusConfig{
 			PluginConfig: &rportplus.PluginConfig{
@@ -432,8 +433,8 @@ func setupTestAPIListenerForOAuth(
 
 	al = &APIListener{
 		Server: &Server{
-			config: &Config{
-				API: APIConfig{
+			config: &chconfig.Config{
+				API: chconfig.APIConfig{
 					DefaultUserGroup: userGroup,
 				},
 				PlusConfig: *plusConfig,

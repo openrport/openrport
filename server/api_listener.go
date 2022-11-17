@@ -15,6 +15,7 @@ import (
 	"github.com/cloudradar-monitoring/rport/db/migration/library"
 	"github.com/cloudradar-monitoring/rport/db/sqlite"
 	"github.com/cloudradar-monitoring/rport/server/api/session"
+	"github.com/cloudradar-monitoring/rport/server/chconfig"
 	"github.com/cloudradar-monitoring/rport/server/clients/storedtunnels"
 	"github.com/cloudradar-monitoring/rport/server/script"
 	"github.com/cloudradar-monitoring/rport/share/files"
@@ -206,7 +207,7 @@ func NewAPIListener(
 			msgSrv = message.NewScriptService(
 				config.API.TwoFATokenDelivery,
 				config.API.TwoFASendToType,
-				config.API.twoFASendToRegexCompiled,
+				config.API.TwoFASendToRegexCompiled,
 			)
 		}
 
@@ -261,7 +262,7 @@ func NewAPIListener(
 	return a, nil
 }
 
-func newAPIAuthDatabase(server *Server, config *Config, logger *logger.Logger) (usersProvider *users.UserDatabase, err error) {
+func newAPIAuthDatabase(server *Server, config *chconfig.Config, logger *logger.Logger) (usersProvider *users.UserDatabase, err error) {
 	usersProvider, err = users.NewUserDatabase(
 		server.authDB,
 		config.API.AuthUserTable,
@@ -451,7 +452,7 @@ func (al *APIListener) shouldCreateMissingUser(user *users.User, skipPasswordVal
 	return false
 }
 
-func isOAuthPermittedUserList(cfg *Config) (is bool) {
+func isOAuthPermittedUserList(cfg *chconfig.Config) (is bool) {
 	if !cfg.PlusOAuthEnabled() {
 		return false
 	}

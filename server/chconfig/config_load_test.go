@@ -1,4 +1,4 @@
-package chserver
+package chconfig
 
 import (
 	"os"
@@ -19,7 +19,7 @@ func TestLoadingExampleConf(t *testing.T) {
 	)
 	viperCfg = viper.New()
 	viperCfg.SetConfigType("toml")
-	viperCfg.SetConfigFile("../rportd.example.conf")
+	viperCfg.SetConfigFile("../../rportd.example.conf")
 	path, err := os.Getwd()
 	require.NoError(t, err)
 	t.Logf("Testing example config %s.rportd.example.conf\n", path)

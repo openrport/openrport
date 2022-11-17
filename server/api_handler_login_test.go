@@ -12,6 +12,7 @@ import (
 
 	"github.com/cloudradar-monitoring/rport/server/api"
 	"github.com/cloudradar-monitoring/rport/server/api/users"
+	"github.com/cloudradar-monitoring/rport/server/chconfig"
 	"github.com/cloudradar-monitoring/rport/share/ptr"
 	"github.com/cloudradar-monitoring/rport/share/random"
 	"github.com/cloudradar-monitoring/rport/share/security"
@@ -50,7 +51,7 @@ func TestPostToken(t *testing.T) {
 	al := APIListener{
 		insecureForTests: true,
 		Server: &Server{
-			config: &Config{},
+			config: &chconfig.Config{},
 		},
 		userService: mockUsersService,
 	}
@@ -84,7 +85,7 @@ func TestDeleteToken(t *testing.T) {
 	al := APIListener{
 		insecureForTests: true,
 		Server: &Server{
-			config: &Config{},
+			config: &chconfig.Config{},
 		},
 		userService: mockUsersService,
 	}
@@ -123,7 +124,7 @@ func TestWrapWithAuthMiddleware(t *testing.T) {
 		bannedUsers: security.NewBanList(0),
 		userService: users.NewAPIService(users.NewStaticProvider([]*users.User{user, userWithoutToken}), false),
 		Server: &Server{
-			config: &Config{},
+			config: &chconfig.Config{},
 		},
 	}
 	jwt, err := al.createAuthToken(ctx, time.Hour, user.Username, []Scope{})
@@ -241,8 +242,8 @@ func TestHandleGetLogin(t *testing.T) {
 	}
 	al := APIListener{
 		Server: &Server{
-			config: &Config{
-				API: APIConfig{
+			config: &chconfig.Config{
+				API: chconfig.APIConfig{
 					DefaultUserGroup: userGroup,
 				},
 			},

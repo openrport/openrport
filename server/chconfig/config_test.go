@@ -1,4 +1,4 @@
-package chserver
+package chconfig
 
 import (
 	"testing"
@@ -157,8 +157,8 @@ func TestDatabaseParseAndValidate(t *testing.T) {
 			if err != nil {
 				assert.EqualError(t, err, tc.ExpectedError)
 			}
-			assert.Equal(t, tc.ExpectedDriver, tc.Database.driver)
-			assert.Equal(t, tc.ExpectedDSN, tc.Database.dsn)
+			assert.Equal(t, tc.ExpectedDriver, tc.Database.Driver)
+			assert.Equal(t, tc.ExpectedDSN, tc.Database.Dsn)
 		})
 	}
 }
@@ -255,8 +255,8 @@ func TestParseAndValidateClientAuth(t *testing.T) {
 			} else {
 				assert.NoError(t, err)
 			}
-			assert.Equal(t, tc.ExpectedAuthID, tc.Config.Server.authID)
-			assert.Equal(t, tc.ExpectedAuthPassword, tc.Config.Server.authPassword)
+			assert.Equal(t, tc.ExpectedAuthID, tc.Config.Server.AuthID)
+			assert.Equal(t, tc.ExpectedAuthPassword, tc.Config.Server.AuthPassword)
 		})
 	}
 }

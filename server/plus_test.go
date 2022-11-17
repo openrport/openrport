@@ -10,12 +10,20 @@ import (
 	rportplus "github.com/cloudradar-monitoring/rport/plus"
 	"github.com/cloudradar-monitoring/rport/plus/capabilities/oauth"
 	"github.com/cloudradar-monitoring/rport/plus/validator"
+	"github.com/cloudradar-monitoring/rport/server/chconfig"
 	"github.com/cloudradar-monitoring/rport/share/logger"
 )
 
 const (
 	defaultPluginPath = "../rport-plus/rport-plus.so"
 )
+
+var defaultValidMinServerConfig = chconfig.ServerConfig{
+	URL:          []string{"http://localhost/"},
+	DataDir:      "./",
+	Auth:         "abc:def",
+	UsedPortsRaw: []string{"10-20"},
+}
 
 type mockValidator struct{}
 
@@ -48,7 +56,7 @@ func (pm *plusManagerMock) GetConfigValidator(capName string) (v validator.Valid
 func TestShouldRegisterPlusCapabilities(t *testing.T) {
 	plusLog := logger.NewLogger("rport-plus", logger.LogOutput{File: os.Stdout}, logger.LogLevelDebug)
 
-	config := &Config{
+	config := &chconfig.Config{
 		Server: defaultValidMinServerConfig,
 		PlusConfig: rportplus.PlusConfig{
 			PluginConfig: &rportplus.PluginConfig{
