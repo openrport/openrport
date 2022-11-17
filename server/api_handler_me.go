@@ -170,6 +170,7 @@ func (al *APIListener) handleChangeMe(w http.ResponseWriter, req *http.Request) 
 		return
 	}
 
+	// TODO: need to check if validate gets called ever from this one
 	if r.Password != "" {
 		if r.OldPassword == "" {
 			al.jsonErrorResponseWithTitle(w, http.StatusForbidden, "Missing old password.")

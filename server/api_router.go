@@ -36,7 +36,7 @@ func (al *APIListener) initRouter() {
 	}
 	secureAPI.HandleFunc("/status", al.handleGetStatus).Methods(http.MethodGet)
 	secureAPI.HandleFunc("/me", al.handleGetMe).Methods(http.MethodGet)
-	api.HandleFunc("/me", al.handleChangeMe).Methods(http.MethodPut)
+	secureAPI.HandleFunc("/me", al.handleChangeMe).Methods(http.MethodPut) // secureAPI.... instead of api.... to fix dev-2702 (or something related)
 	secureAPI.HandleFunc("/me/ip", al.handleGetIP).Methods(http.MethodGet)
 	secureAPI.HandleFunc("/me/token", al.handlePostToken).Methods(http.MethodPost)
 	secureAPI.HandleFunc("/me/token", al.handleDeleteToken).Methods(http.MethodDelete)
