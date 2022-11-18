@@ -39,13 +39,13 @@ func (p *SqliteProvider) GetAll(ctx context.Context) ([]*APISession, error) {
 	return result, nil
 }
 
-func (p *SqliteProvider) Get(ctx context.Context, token string) (*APISession, error) {
+func (p *SqliteProvider) Get(ctx context.Context, sessionID int64) (*APISession, error) {
 	res := &APISession{}
 
 	err := p.db.GetContext(ctx,
 		res,
-		"SELECT * FROM api_sessions WHERE token = ?",
-		token,
+		"SELECT * FROM api_sessions WHERE session_id = ?",
+		sessionID,
 	)
 	if err != nil {
 		if err == sql.ErrNoRows {
@@ -59,18 +59,29 @@ func (p *SqliteProvider) Get(ctx context.Context, token string) (*APISession, er
 }
 
 func (p *SqliteProvider) Save(ctx context.Context, session *APISession) (sessionID int64, err error) {
+	if session.SessionID == 0 {
+		sessionID, err = p.add(ctx, session)
+	} else {
+		sessionID, err = p.update(ctx, session)
+	}
+
+	if err != nil {
+		return -1, err
+	}
+
+	return sessionID, nil
+}
+
+func (p *SqliteProvider) add(ctx context.Context, session *APISession) (sessionID int64, err error) {
 	result, err := p.db.NamedExecContext(
 		ctx,
 		"INSERT INTO"+
-			" api_sessions (token, expires_at, username, last_access_at, user_agent, ip_address)"+
-			" VALUES (:token, :expires_at, :username, :last_access_at, :user_agent, :ip_address)"+
-			" ON CONFLICT(token) DO UPDATE"+
-			"  SET token=:token, expires_at=:expires_at,username=:username,"+
-			"   last_access_at=:last_access_at, user_agent=:user_agent, ip_address=:ip_address",
+			" api_sessions (expires_at, username, last_access_at, user_agent, ip_address)"+
+			" VALUES (:expires_at, :username, :last_access_at, :user_agent, :ip_address)",
 		session,
 	)
 	if err != nil {
-		return 0, fmt.Errorf("unable to save api session: %w", err)
+		return 0, fmt.Errorf("unable to create api session: %w", err)
 	}
 
 	sessionID, err = result.LastInsertId()
@@ -81,11 +92,28 @@ func (p *SqliteProvider) Save(ctx context.Context, session *APISession) (session
 	return sessionID, nil
 }
 
-func (p *SqliteProvider) Delete(ctx context.Context, token string) error {
+func (p *SqliteProvider) update(ctx context.Context, session *APISession) (sessionID int64, err error) {
+	_, err = p.db.NamedExecContext(
+		ctx,
+		"UPDATE api_sessions"+
+			"  SET expires_at=:expires_at,username=:username,"+
+			"   last_access_at=:last_access_at, user_agent=:user_agent, ip_address=:ip_address"+
+			"  WHERE session_id=:session_id",
+		session,
+	)
+	if err != nil {
+		return 0, fmt.Errorf("unable to update api session: %w", err)
+	}
+
+	sessionID = session.SessionID
+	return sessionID, nil
+}
+
+func (p *SqliteProvider) Delete(ctx context.Context, sessionID int64) error {
 	_, err := p.db.ExecContext(
 		ctx,
-		"DELETE FROM api_sessions WHERE token = ?",
-		token,
+		"DELETE FROM api_sessions WHERE session_id = ?",
+		sessionID,
 	)
 	if err != nil {
 		return fmt.Errorf("unable to delete api session by token: %w", err)

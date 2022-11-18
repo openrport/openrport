@@ -32,7 +32,7 @@ func TestShouldHandleGetAllUserAPISessions(t *testing.T) {
 	ctx := context.Background()
 	testRunTime := time.Now()
 
-	adminUserJWT, err := bearer.CreateAuthToken(ctx, al.apiSessions, al.config.API.JWTSecret, time.Hour, adminUser.Username, []bearer.Scope{}, "1.2.3.4", "Safari")
+	_, err := bearer.CreateAuthToken(ctx, al.apiSessions, al.config.API.JWTSecret, time.Hour, adminUser.Username, []bearer.Scope{}, "1.2.3.4", "Safari")
 	require.NoError(t, err)
 
 	w := httptest.NewRecorder()
@@ -51,7 +51,6 @@ func TestShouldHandleGetAllUserAPISessions(t *testing.T) {
 
 	adminSession := sessionsResponse.Data[0]
 
-	assert.Equal(t, adminUserJWT, adminSession.Token)
 	assert.Equal(t, adminUser.Username, adminSession.Username)
 	assert.Less(t, testRunTime, adminSession.LastAccessAt)
 }

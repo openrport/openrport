@@ -174,7 +174,20 @@ func (al *APIListener) permissionsMiddleware(permission string) mux.MiddlewareFu
 }
 
 func (al *APIListener) updateTokenAccess(ctx context.Context, token string, accessTime time.Time, userAgent string, remoteAddress string) (err error) {
-	sessionInfo, err := al.apiSessions.Get(ctx, token)
+	tokenCtx, err := bearer.ParseToken(token, al.config.API.JWTSecret)
+	if err != nil {
+		al.Debugf("failed to parse jwt token: %v", err)
+		return err
+	}
+
+	// at least make sure the source jwt was valid. not quite sure why ParseToken doesn't do this.
+	if !tokenCtx.JwtToken.Valid {
+		err := errors.New("jwt token is invalid")
+		al.Debugf("%v", err)
+		return err
+	}
+
+	sessionInfo, err := al.apiSessions.Get(ctx, tokenCtx.AppClaims.SessionID)
 	if err != nil {
 		return err
 	}
@@ -188,7 +201,7 @@ func (al *APIListener) updateTokenAccess(ctx context.Context, token string, acce
 	sessionInfo.UserAgent = userAgent
 	sessionInfo.IPAddress = remoteAddress
 
-	err = al.apiSessions.Save(ctx, sessionInfo)
+	_, err = al.apiSessions.Save(ctx, sessionInfo)
 	if err != nil {
 		return err
 	}

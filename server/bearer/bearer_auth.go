@@ -22,8 +22,9 @@ const (
 )
 
 type AppTokenClaims struct {
-	Username string  `json:"username,omitempty"`
-	Scopes   []Scope `json:"scopes,omitempty"`
+	Username  string  `json:"username,omitempty"`
+	SessionID int64   `json:"sessionID,omitempty"`
+	Scopes    []Scope `json:"scopes,omitempty"`
 	jwt.StandardClaims
 }
 
@@ -66,11 +67,11 @@ type TokenContext struct {
 }
 
 type APISessionUpdater interface {
-	Save(ctx context.Context, session *session.APISession) error
+	Save(ctx context.Context, session *session.APISession) (sessionID int64, err error)
 }
 
 type APISessionGetter interface {
-	Get(ctx context.Context, token string) (*session.APISession, error)
+	Get(ctx context.Context, sessionID int64) (*session.APISession, error)
 }
 
 func CreateAuthToken(
@@ -87,8 +88,23 @@ func CreateAuthToken(
 		return "", errors.New("username cannot be empty")
 	}
 
+	expiresAt := time.Now().Add(lifetime)
+
+	newSession := &session.APISession{
+		ExpiresAt:    expiresAt,
+		Username:     username,
+		LastAccessAt: time.Now(),
+		UserAgent:    userAgent,
+		IPAddress:    remoteAddress,
+	}
+	sessionID, err := sessionUpdater.Save(ctx, newSession)
+	if err != nil {
+		return "", err
+	}
+
 	claims := AppTokenClaims{
-		Username: username,
+		Username:  username,
+		SessionID: sessionID,
 		StandardClaims: jwt.StandardClaims{
 			Id: strconv.FormatUint(rand.Uint64(), 10),
 		},
@@ -96,19 +112,6 @@ func CreateAuthToken(
 	}
 	token := jwt.NewWithClaims(jwt.SigningMethodHS256, claims)
 	tokenStr, err := token.SignedString([]byte(JWTSecret))
-	if err != nil {
-		return "", err
-	}
-
-	expiresAt := time.Now().Add(lifetime)
-	err = sessionUpdater.Save(ctx, &session.APISession{
-		Token:        tokenStr,
-		ExpiresAt:    expiresAt,
-		Username:     username,
-		LastAccessAt: time.Now(),
-		UserAgent:    userAgent,
-		IPAddress:    remoteAddress,
-	})
 	if err != nil {
 		return "", err
 	}
@@ -124,7 +127,11 @@ func IncreaseSessionLifetime(
 	if s.ExpiresAt.Before(newExpirationDate) {
 		s.ExpiresAt = newExpirationDate
 	}
-	return sessionUpdater.Save(ctx, s)
+	_, err := sessionUpdater.Save(ctx, s)
+	if err != nil {
+		return err
+	}
+	return nil
 }
 
 func currentURIMatchesTokenScopes(currentURI, currentMethod string, tokenScopes []Scope) bool {
@@ -193,7 +200,7 @@ func ValidateBearerToken(
 		return false, nil, nil
 	}
 
-	apiSession, err := apiSessionGetter.Get(ctx, tokCtx.RawToken)
+	apiSession, err := apiSessionGetter.Get(ctx, tokCtx.AppClaims.SessionID)
 	if err != nil || apiSession == nil {
 		l.Errorf(
 			"Login session not found for %s",
