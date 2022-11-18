@@ -209,7 +209,7 @@ func (al *APIListener) handleDeleteAllUserAPISessions(w http.ResponseWriter, req
 		return
 	}
 
-	al.auditLog.Entry(auditlog.ApplicationAuthAPISession, auditlog.ActionDelete).
+	al.auditLog.Entry(auditlog.ApplicationAuthAPISessions, auditlog.ActionDelete).
 		WithHTTPRequest(req).
 		WithID(userID).
 		Save()

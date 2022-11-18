@@ -17,6 +17,7 @@ const (
 	ApplicationAuthUserTotP    = "auth.user.totp"
 	ApplicationAuthUserGroup   = "auth.user.group"
 	ApplicationAuthAPISession  = "auth.api.session"
+	ApplicationAuthAPISessions = "auth.api.sessions"
 	ApplicationClient          = "client"
 	ApplicationClientACL       = "client.acl"
 	ApplicationClientAuth      = "client.auth"
