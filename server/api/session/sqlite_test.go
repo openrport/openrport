@@ -2,10 +2,6 @@ package session
 
 import (
 	"context"
-	"crypto/sha256"
-	"fmt"
-	"math/rand"
-	"strconv"
 	"testing"
 	"time"
 
@@ -24,67 +20,82 @@ func TestAPISessionSqlite(t *testing.T) {
 	longTTL := time.Hour
 	negativeTTL := -time.Minute
 
-	s1 := generateAPISession(t, longTTL)
-	s2 := generateAPISession(t, longTTL)
-	s3 := generateAPISession(t, longTTL)
-	s4Expired := generateAPISession(t, negativeTTL)
-	s5Expired := generateAPISession(t, negativeTTL)
-	s5Updated := &APISession{
-		Token:     s5Expired.Token,
-		ExpiresAt: time.Now().UTC().Add(longTTL),
-	}
+	timeNow := time.Now().UTC()
+
+	s1 := generateAPISession(t, "user1", timeNow.Add(longTTL), timeNow)
+	s2 := generateAPISession(t, "user1", timeNow.Add(longTTL), timeNow)
+	s3 := generateAPISession(t, "user1", timeNow.Add(longTTL), timeNow)
+	s4Expired := generateAPISession(t, "user1", timeNow.Add(negativeTTL), timeNow)
+	s5Expired := generateAPISession(t, "user1", timeNow.Add(negativeTTL), timeNow)
 
 	// check create
 	p := newInmemoryDB(t, s1, s2, s3, s4Expired, s5Expired)
 
+	s5Updated := &APISession{
+		SessionID: s5Expired.SessionID,
+		ExpiresAt: timeNow.Add(longTTL),
+	}
+
 	// check get all(unexpired)
 	gotAll1, err := p.GetAll(ctx)
 	require.NoError(t, err)
+	require.NotNil(t, gotAll1)
+	require.NotEmpty(t, gotAll1)
+
+	assert.Equal(t, s1, gotAll1[0])
+
 	assert.ElementsMatch(t, []*APISession{s1, s2, s3}, gotAll1)
+
 	// check expired are in DB
-	gotExpiredS4, err := p.Get(ctx, s4Expired.Token)
+	gotExpiredS4, err := p.Get(ctx, s4Expired.SessionID)
 	require.NoError(t, err)
 	assert.EqualValues(t, s4Expired, gotExpiredS4)
-	gotExpiredS5, err := p.Get(ctx, s5Expired.Token)
+	gotExpiredS5, err := p.Get(ctx, s5Expired.SessionID)
 	require.NoError(t, err)
 	assert.EqualValues(t, s5Expired, gotExpiredS5)
 
-	// check update
-	err = p.Save(ctx, s5Updated)
+	// check updated
+	sessionID, err := p.Save(ctx, s5Updated)
 	require.NoError(t, err)
+	s5Updated.SessionID = sessionID
 
 	// check get all(unexpired)
 	gotAll2, err := p.GetAll(ctx)
 	require.NoError(t, err)
 	assert.ElementsMatch(t, []*APISession{s1, s2, s3, s5Updated}, gotAll2)
+
 	// check expired is in DB
-	gotExpired, err := p.Get(ctx, s4Expired.Token)
+	gotExpired, err := p.Get(ctx, s4Expired.SessionID)
 	require.NoError(t, err)
 	assert.EqualValues(t, s4Expired, gotExpired)
+
 	// check updated
-	gotUpdated, err := p.Get(ctx, s5Expired.Token)
+	gotUpdated, err := p.Get(ctx, s5Expired.SessionID)
 	require.NoError(t, err)
+
 	assert.EqualValues(t, s5Updated, gotUpdated)
 
 	// check delete by token
-	err = p.Delete(ctx, s2.Token)
+	err = p.Delete(ctx, s2.SessionID)
 	require.NoError(t, err)
 	gotAll3, err := p.GetAll(ctx)
 	require.NoError(t, err)
 	assert.ElementsMatch(t, []*APISession{s1, s3, s5Updated}, gotAll3)
 
 	// make sure expired is in DB
-	gotExpired2, err := p.Get(ctx, s4Expired.Token)
+	gotExpired2, err := p.Get(ctx, s4Expired.SessionID)
 	require.NoError(t, err)
 	require.NotNil(t, gotExpired2)
+
 	// check delete all expired
 	err = p.DeleteExpired(ctx)
 	require.NoError(t, err)
 	gotAll4, err := p.GetAll(ctx)
 	require.NoError(t, err)
 	assert.ElementsMatch(t, []*APISession{s1, s3, s5Updated}, gotAll4)
+
 	// make sure expired is not in DB
-	gotExpired3, err := p.Get(ctx, s4Expired.Token)
+	gotExpired3, err := p.Get(ctx, s4Expired.SessionID)
 	require.NoError(t, err)
 	require.Nil(t, gotExpired3)
 }
@@ -94,7 +105,11 @@ func newInmemoryDB(t *testing.T, sessions ...*APISession) *SqliteProvider {
 	require.NoError(t, err)
 
 	for _, cur := range sessions {
-		require.NoError(t, p.Save(context.Background(), cur))
+		sessionID, err := p.Save(context.Background(), cur)
+		require.NoError(t, err)
+
+		// this will patch the supplied sessions to give them their session ids
+		cur.SessionID = sessionID
 	}
 
 	return p
@@ -105,30 +120,16 @@ type Token struct {
 	jwt.StandardClaims
 }
 
-func generateAPISession(t *testing.T, ttl time.Duration) *APISession {
-	jwtSecret, err := generateJWTSecret()
-	require.NoError(t, err)
+func generateAPISession(t *testing.T, username string, expiresAt time.Time, lastAccessAt time.Time) (apiSession *APISession) {
+	t.Helper()
 
-	claims := Token{
-		Username: "username",
-		StandardClaims: jwt.StandardClaims{
-			Id: strconv.FormatUint(rand.Uint64(), 10),
-		},
+	apiSession = &APISession{
+		Username:     username,
+		ExpiresAt:    expiresAt,
+		LastAccessAt: lastAccessAt,
+		UserAgent:    "Chrome",
+		IPAddress:    "1.2.3.4",
 	}
-	token := jwt.NewWithClaims(jwt.SigningMethodHS256, claims)
-	tokenStr, err := token.SignedString([]byte(jwtSecret))
-	require.NoError(t, err)
 
-	return &APISession{
-		Token:     tokenStr,
-		ExpiresAt: time.Now().UTC().Add(ttl),
-	}
-}
-
-func generateJWTSecret() (string, error) {
-	data := make([]byte, 10)
-	if _, err := rand.Read(data); err != nil {
-		return "", fmt.Errorf("can't generate API JWT secret: %s", err)
-	}
-	return fmt.Sprintf("%x", sha256.Sum256(data)), nil
+	return apiSession
 }

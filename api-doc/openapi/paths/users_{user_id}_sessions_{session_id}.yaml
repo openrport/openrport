@@ -1,0 +1,35 @@
+delete:
+  tags:
+    - Users
+  summary: >-
+    Delete existing user api session.
+  operationId: UserAPISessionDelete
+  description: >-
+    Deletes the API session with the session id specified. This API requires the current
+    user to be member of group `Administrators`. Returns 403 otherwise. The
+    `Administrators` group name is hardcoded and cannot be changed at the moment
+  parameters:
+    - name: user_id
+      in: path
+      description: unique user ID
+      required: true
+      schema:
+        type: string
+    - name: session_id
+      in: path
+      description: session ID
+      required: true
+      schema:
+        type: string
+  responses:
+    "204":
+      description: Successful Operation
+      content: {}
+    "403":
+      description: >-
+        current user should belong to Administrators group to access this
+        resource
+      content:
+        application/json:
+          schema:
+            $ref: ../components/schemas/ErrorPayload.yaml

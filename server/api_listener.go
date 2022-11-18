@@ -12,27 +12,31 @@ import (
 	"strings"
 	"time"
 
-	"github.com/cloudradar-monitoring/rport/db/migration/library"
-	"github.com/cloudradar-monitoring/rport/db/sqlite"
-	"github.com/cloudradar-monitoring/rport/server/api/session"
-	"github.com/cloudradar-monitoring/rport/server/clients/storedtunnels"
-	"github.com/cloudradar-monitoring/rport/server/script"
-	"github.com/cloudradar-monitoring/rport/share/files"
-	"github.com/cloudradar-monitoring/rport/share/logger"
-	"github.com/cloudradar-monitoring/rport/share/random"
+	"golang.org/x/crypto/bcrypt"
+	"golang.org/x/sync/errgroup"
 
 	"github.com/gorilla/mux"
 	"github.com/jpillora/requestlog"
-	"golang.org/x/crypto/bcrypt"
-	"golang.org/x/sync/errgroup"
+
+	"github.com/cloudradar-monitoring/rport/db/migration/library"
+	"github.com/cloudradar-monitoring/rport/db/sqlite"
+
+	"github.com/cloudradar-monitoring/rport/server/api/session"
+	"github.com/cloudradar-monitoring/rport/server/clients/storedtunnels"
+	"github.com/cloudradar-monitoring/rport/server/script"
 
 	"github.com/cloudradar-monitoring/rport/server/api"
 	"github.com/cloudradar-monitoring/rport/server/api/command"
 	"github.com/cloudradar-monitoring/rport/server/api/message"
 	"github.com/cloudradar-monitoring/rport/server/api/users"
+	"github.com/cloudradar-monitoring/rport/server/bearer"
 	"github.com/cloudradar-monitoring/rport/server/vault"
+
 	chshare "github.com/cloudradar-monitoring/rport/share"
 	"github.com/cloudradar-monitoring/rport/share/enums"
+	"github.com/cloudradar-monitoring/rport/share/files"
+	"github.com/cloudradar-monitoring/rport/share/logger"
+	"github.com/cloudradar-monitoring/rport/share/random"
 	"github.com/cloudradar-monitoring/rport/share/security"
 )
 
@@ -251,7 +255,7 @@ func NewAPIListener(
 		return nil, err
 	}
 
-	a.apiSessions, err = session.NewCache(ctx, sessionDB, defaultTokenLifetime, cleanupAPISessionsInterval)
+	a.apiSessions, err = session.NewCache(ctx, bearer.DefaultTokenLifetime, cleanupAPISessionsInterval, sessionDB, nil)
 	if err != nil {
 		return nil, err
 	}
@@ -328,13 +332,13 @@ func (al *APIListener) lookupUser(r *http.Request, isBearerOnly bool) (authorize
 		}
 	}
 
-	if bearerToken, bearerAuthProvided := getBearerToken(r); bearerAuthProvided {
-		isAuthorized, token, err := al.handleBearerToken(r.Context(), bearerToken, r.URL.Path, r.Method)
+	if bearerToken, bearerAuthProvided := bearer.GetBearerToken(r); bearerAuthProvided {
+		isAuthorized, token, err := al.checkBearerToken(r.Context(), bearerToken, r.URL.Path, r.Method)
 		if err != nil {
 			return isAuthorized, "", err
 		}
 
-		return isAuthorized, token.AppToken.Username, nil
+		return isAuthorized, token.AppClaims.Username, nil
 	}
 
 	// case when no auth method is provided
@@ -382,23 +386,39 @@ func (al *APIListener) handleBasicAuth(username, password string) (authorized bo
 	return false, username, nil
 }
 
-func (al *APIListener) handleBearerToken(ctx context.Context, bearerToken, uri, method string) (bool, *TokenContext, error) {
-	token, err := al.parseToken(bearerToken)
+func (al *APIListener) checkBearerToken(ctx context.Context, bearerToken, uri, method string) (bool, *bearer.TokenContext, error) {
+	tokenCtx, err := bearer.ParseToken(bearerToken, al.config.API.JWTSecret)
 	if err != nil {
+		al.Debugf("failed to parse jwt token: %v", err)
 		return false, nil, err
 	}
 
-	authorized, apiSession, err := al.validateBearerToken(ctx, token, uri, method)
+	if al.bannedUsers.IsBanned(tokenCtx.AppClaims.Username) {
+		al.Errorf(
+			"User %s is banned",
+			tokenCtx.AppClaims.Username,
+		)
+		return false, nil, ErrTooManyRequests
+	}
+
+	authorized, apiSession, err := bearer.ValidateBearerToken(
+		ctx,
+		tokenCtx,
+		uri,
+		method,
+		al.apiSessions,
+		al.Logger)
 	if err != nil {
-		return false, token, err
+		return false, tokenCtx, err
 	}
 	if authorized {
-		if err := al.increaseSessionLifetime(ctx, apiSession); err != nil {
+		// extend the token lifetime by a short amount so that in-progress activities can complete
+		if err := bearer.IncreaseSessionLifetime(ctx, al.apiSessions, apiSession); err != nil {
 			// do not return error since it should respond with 401 instead of 500, just log it
 			al.Errorf("Failed to increase jwt token lifetime: %v", err)
 		}
 	}
-	return authorized, token, nil
+	return authorized, tokenCtx, nil
 }
 
 const htpasswdBcryptPrefix = "$2y$"
@@ -509,10 +529,10 @@ func (al *APIListener) wsAuth(f http.Handler) http.HandlerFunc {
 				return
 			}
 		} else {
-			var token *TokenContext
-			authorized, token, err = al.handleBearerToken(r.Context(), tokenStr, r.URL.Path, r.Method)
+			var token *bearer.TokenContext
+			authorized, token, err = al.checkBearerToken(r.Context(), tokenStr, r.URL.Path, r.Method)
 			if authorized && err == nil {
-				username = token.AppToken.Username
+				username = token.AppClaims.Username
 			}
 		}
 

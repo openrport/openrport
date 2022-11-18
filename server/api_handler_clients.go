@@ -15,6 +15,7 @@ import (
 	"github.com/cloudradar-monitoring/rport/server/clients"
 	"github.com/cloudradar-monitoring/rport/server/clients/clienttunnel"
 	"github.com/cloudradar-monitoring/rport/server/ports"
+	"github.com/cloudradar-monitoring/rport/server/routes"
 	"github.com/cloudradar-monitoring/rport/server/validation"
 	"github.com/cloudradar-monitoring/rport/share/clientconfig"
 	"github.com/cloudradar-monitoring/rport/share/comm"
@@ -179,7 +180,7 @@ func (al *APIListener) handleGetClient(w http.ResponseWriter, req *http.Request)
 	}
 
 	vars := mux.Vars(req)
-	clientID := vars[routeParamClientID]
+	clientID := vars[routes.ParamClientID]
 
 	client, err := al.clientService.GetByID(clientID)
 	if err != nil {
@@ -203,7 +204,7 @@ func (al *APIListener) handleGetClient(w http.ResponseWriter, req *http.Request)
 
 func (al *APIListener) handleDeleteClient(w http.ResponseWriter, req *http.Request) {
 	vars := mux.Vars(req)
-	clientID := vars[routeParamClientID]
+	clientID := vars[routes.ParamClientID]
 	err := al.clientService.DeleteOffline(clientID)
 	if err != nil {
 		al.jsonError(w, err)
@@ -225,9 +226,9 @@ type clientACLRequest struct {
 
 func (al *APIListener) handlePostClientACL(w http.ResponseWriter, req *http.Request) {
 	vars := mux.Vars(req)
-	cid := vars[routeParamClientID]
+	cid := vars[routes.ParamClientID]
 	if cid == "" {
-		al.jsonErrorResponseWithTitle(w, http.StatusBadRequest, fmt.Sprintf("Missing %q route param.", routeParamClientID))
+		al.jsonErrorResponseWithTitle(w, http.StatusBadRequest, fmt.Sprintf("Missing %q route param.", routes.ParamClientID))
 		return
 	}
 
@@ -324,7 +325,7 @@ const (
 
 func (al *APIListener) handlePutClientTunnel(w http.ResponseWriter, req *http.Request) {
 	vars := mux.Vars(req)
-	clientID := vars[routeParamClientID]
+	clientID := vars[routes.ParamClientID]
 	if clientID == "" {
 		al.jsonErrorResponseWithTitle(w, http.StatusBadRequest, "client id is missing")
 		return
@@ -566,7 +567,7 @@ func (al *APIListener) checkRemotePort(w http.ResponseWriter, remote models.Remo
 
 func (al *APIListener) handleDeleteClientTunnel(w http.ResponseWriter, req *http.Request) {
 	vars := mux.Vars(req)
-	clientID := vars[routeParamClientID]
+	clientID := vars[routes.ParamClientID]
 	if clientID == "" {
 		al.jsonErrorResponseWithTitle(w, http.StatusBadRequest, "client id is missing")
 		return
