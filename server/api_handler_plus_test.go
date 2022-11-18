@@ -46,7 +46,7 @@ func initMockPlusManager() (plus *plusManagerForMockOAuth) {
 	}
 
 	plus = &plusManagerForMockOAuth{}
-	plus.InitPlusManager(&config.PlusConfig, plusLog)
+	plus.InitPlusManager(&config.PlusConfig, nil, plusLog)
 	return plus
 }
 
@@ -143,7 +143,7 @@ func setupPlusOAuth() (plusManager rportplus.Manager, plusConfig *rportplus.Plus
 	}
 
 	plusManager = &plusManagerForMockOAuth{}
-	plusManager.InitPlusManager(plusConfig, plusLog)
+	plusManager.InitPlusManager(plusConfig, nil, plusLog)
 
 	return plusManager, plusConfig, oauthConfig, plusLog
 }
@@ -395,7 +395,7 @@ func setupAPIListenerForPlusOAuth(t *testing.T, oauthConfig *oauth.Config, usern
 	}
 
 	plusManager := &plusManagerForMockOAuth{}
-	plusManager.InitPlusManager(plusConfig, plusLog)
+	plusManager.InitPlusManager(plusConfig, nil, plusLog)
 
 	_, err := plusManager.RegisterCapability(plusMockOAuthCapability, &oauthmock.Capability{
 		Config: oauthConfig,
