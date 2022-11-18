@@ -1,6 +1,7 @@
 package main
 
 import (
+	"context"
 	"fmt"
 	"log"
 	"os"
@@ -462,12 +463,14 @@ func runMain(*cobra.Command, []string) {
 
 	filesAPI := files.NewFileSystem()
 
-	plusManager, err := chserver.EnablePlusIfLicensed(cfg, filesAPI)
+	ctx := context.Background()
+
+	plusManager, err := chserver.EnablePlusIfLicensed(ctx, cfg, filesAPI)
 	if err != nil && err != chserver.ErrPlusNotEnabled {
 		log.Fatal(err)
 	}
 
-	s, err := chserver.NewServer(cfg, &chserver.ServerOpts{
+	s, err := chserver.NewServer(ctx, cfg, &chserver.ServerOpts{
 		FilesAPI:    filesAPI,
 		PlusManager: plusManager,
 	})

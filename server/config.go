@@ -619,6 +619,10 @@ func (c *Config) PlusEnabled() (enabled bool) {
 		c.PlusConfig.PluginConfig.PluginPath != ""
 }
 
+func (c *Config) HasLicenseConfig() (enabled bool) {
+	return c.PlusEnabled() && c.PlusConfig.LicenseConfig != nil
+}
+
 func (c *Config) PlusOAuthEnabled() (enabled bool) {
 	return c.PlusEnabled() && c.PlusConfig.OAuthConfig != nil
 }
