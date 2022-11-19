@@ -79,9 +79,7 @@ type ServerOpts struct {
 }
 
 // NewServer creates and returns a new rport server
-func NewServer(config *Config, opts *ServerOpts) (*Server, error) {
-	ctx := context.Background()
-
+func NewServer(ctx context.Context, config *Config, opts *ServerOpts) (*Server, error) {
 	s := &Server{
 		Logger:           logger.NewLogger("server", config.Logging.LogOutput, config.Logging.LogLevel),
 		config:           config,

@@ -1,6 +1,9 @@
 package rportplus
 
-import "github.com/cloudradar-monitoring/rport/plus/capabilities/oauth"
+import (
+	"github.com/cloudradar-monitoring/rport/plus/capabilities/oauth"
+	"github.com/cloudradar-monitoring/rport/plus/license"
+)
 
 // PluginConfig contains the config related to the plugin itself
 type PluginConfig struct {
@@ -10,6 +13,7 @@ type PluginConfig struct {
 // PlusConfig contains the overall config for the rport-plus plugin. note that
 // each capability should have it's own config section in the config file.
 type PlusConfig struct {
-	PluginConfig *PluginConfig `mapstructure:"plus-plugin"`
-	OAuthConfig  *oauth.Config `mapstructure:"plus-oauth"`
+	PluginConfig  *PluginConfig   `mapstructure:"plus-plugin"`
+	OAuthConfig   *oauth.Config   `mapstructure:"plus-oauth"`
+	LicenseConfig *license.Config `mapstructure:"plus-license"`
 }

@@ -59,7 +59,7 @@ linters-settings:
   depguard:
     list-type: blacklist
     include-go-root: false
-    packages:
+    packages: []
   misspell:
     # Correct spellings using locale preferences for US or UK.
     # Default is to use a neutral variety of English.
@@ -119,9 +119,9 @@ linters:
     - unconvert
 
   enable-all: false
-  disable:
+  disable: []
   disable-all: true
-  presets:
+  presets: []
   fast: false
 
 issues:
