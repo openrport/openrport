@@ -108,16 +108,26 @@ func TestHandleGetAuthProviderWhenPlusOAuthAvailable(t *testing.T) {
 		RequiredOrganization: "testorg",
 	}
 
+	// note: the license actually isn't given time to verify, which is why test works
+	licConfig := &license.Config{
+		ID:      "83c5afc7-87a7-4a3d-9889-3905ec979045",
+		Key:     "6OO1STn0b0XUahz+RN6jBJ93KBuSbsKPef+SMl98NEU=",
+		DataDir: ".",
+	}
+
 	plusConfig := rportplus.PlusConfig{
 		PluginConfig: &rportplus.PluginConfig{
 			PluginPath: defaultPluginPath,
 		},
-		OAuthConfig: oauthConfig,
+		LicenseConfig: licConfig,
+		OAuthConfig:   oauthConfig,
 	}
 
 	filesAPI := files.NewFileSystem()
 
-	plusManager, err := rportplus.NewPlusManager(&plusConfig, plusLog, filesAPI)
+	ctx := context.Background()
+
+	plusManager, err := rportplus.NewPlusManager(ctx, &plusConfig, nil, plusLog, filesAPI)
 	if err != nil {
 		t.Skipf("plus plugin not available: %s", err)
 	}
