@@ -36,11 +36,11 @@ func (p *YumPackageManager) IsAvailable(ctx context.Context) bool {
 
 func (p *YumPackageManager) GetUpdatesStatus(ctx context.Context, logger *logger.Logger) (*models.UpdatesStatus, error) {
 	// --refresh doesn't work on CentOS, replace with clean expire-cache which should be supported by both dnf and yum
-	cmd := append([]string{"clean", "expire-cache", "--quiet"})
-        _, err := p.run(ctx, cmd...)
+	cmd := []string{"clean", "expire-cache", "--quiet"}
+	_, err := p.run(ctx, cmd...)
 	if err != nil {
-        	return nil, err
-        }
+		return nil, err
+	}
 
 	allUpdates, err := p.listUpdates(ctx)
 	if err != nil {
