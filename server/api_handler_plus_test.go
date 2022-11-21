@@ -16,6 +16,7 @@ import (
 	"github.com/cloudradar-monitoring/rport/server/api"
 	"github.com/cloudradar-monitoring/rport/server/api/users"
 	"github.com/cloudradar-monitoring/rport/server/chconfig"
+	"github.com/cloudradar-monitoring/rport/server/routes"
 	"github.com/cloudradar-monitoring/rport/share/logger"
 	"github.com/cloudradar-monitoring/rport/share/ptr"
 	"github.com/cloudradar-monitoring/rport/share/security"
@@ -47,7 +48,7 @@ func initMockPlusManager() (plus *plusManagerForMockOAuth) {
 	}
 
 	plus = &plusManagerForMockOAuth{}
-	plus.InitPlusManager(&config.PlusConfig, plusLog)
+	plus.InitPlusManager(&config.PlusConfig, nil, plusLog)
 	return plus
 }
 
@@ -112,7 +113,7 @@ func TestHandleGetOAuthProvider(t *testing.T) {
 	al, _ := setupTestAPIListenerForOAuth(t, plusManager, plusConfig, oauthConfig)
 
 	w := httptest.NewRecorder()
-	req := httptest.NewRequest("GET", "/api/v1"+authRoutesPrefix+authProviderRoute, nil)
+	req := httptest.NewRequest("GET", "/api/v1"+routes.AuthRoutesPrefix+routes.AuthProviderRoute, nil)
 
 	al.router.ServeHTTP(w, req)
 
@@ -122,8 +123,8 @@ func TestHandleGetOAuthProvider(t *testing.T) {
 	assert.NoError(t, err)
 
 	assert.Equal(t, "github", info.AuthProvider)
-	assert.Equal(t, allRoutesPrefix+authRoutesPrefix+authSettingsRoute, info.SettingsURI)
-	assert.Equal(t, allRoutesPrefix+authRoutesPrefix+authDeviceSettingsRoute, info.DeviceSettingsURI)
+	assert.Equal(t, routes.AllRoutesPrefix+routes.AuthRoutesPrefix+routes.AuthSettingsRoute, info.SettingsURI)
+	assert.Equal(t, routes.AllRoutesPrefix+routes.AuthRoutesPrefix+routes.AuthDeviceSettingsRoute, info.DeviceSettingsURI)
 }
 
 type AuthSettingsResponse struct {
@@ -144,7 +145,7 @@ func setupPlusOAuth() (plusManager rportplus.Manager, plusConfig *rportplus.Plus
 	}
 
 	plusManager = &plusManagerForMockOAuth{}
-	plusManager.InitPlusManager(plusConfig, plusLog)
+	plusManager.InitPlusManager(plusConfig, nil, plusLog)
 
 	return plusManager, plusConfig, oauthConfig, plusLog
 }
@@ -161,7 +162,7 @@ func TestHandleGetAuthSettings(t *testing.T) {
 	al, _ := setupTestAPIListenerForOAuth(t, plusManager, plusConfig, oauthConfig)
 
 	w := httptest.NewRecorder()
-	req := httptest.NewRequest("GET", "/api/v1"+authRoutesPrefix+authSettingsRoute, nil)
+	req := httptest.NewRequest("GET", "/api/v1"+routes.AuthRoutesPrefix+routes.AuthSettingsRoute, nil)
 
 	al.router.ServeHTTP(w, req)
 
@@ -193,7 +194,7 @@ func TestHandleGetAuthDeviceSettings(t *testing.T) {
 	al, _ := setupTestAPIListenerForOAuth(t, plusManager, plusConfig, oauthConfig)
 
 	w := httptest.NewRecorder()
-	req := httptest.NewRequest("GET", "/api/v1"+authRoutesPrefix+authDeviceSettingsRoute, nil)
+	req := httptest.NewRequest("GET", "/api/v1"+routes.AuthRoutesPrefix+routes.AuthDeviceSettingsRoute, nil)
 
 	al.router.ServeHTTP(w, req)
 
@@ -228,7 +229,7 @@ func TestHandleGetAuthDeviceSettingsWithError(t *testing.T) {
 	mockOAuthCapability.Provider.ShouldFailGetLoginInfo = true
 
 	w := httptest.NewRecorder()
-	req := httptest.NewRequest("GET", "/api/v1"+authRoutesPrefix+authDeviceSettingsRoute, nil)
+	req := httptest.NewRequest("GET", "/api/v1"+routes.AuthRoutesPrefix+routes.AuthDeviceSettingsRoute, nil)
 
 	al.router.ServeHTTP(w, req)
 
@@ -251,7 +252,7 @@ func TestHandleGetAuthSettingsWhenFailedToGetLoginURL(t *testing.T) {
 	mockOAuthCapability.Provider.ShouldFailGetLoginInfo = true
 
 	w := httptest.NewRecorder()
-	req := httptest.NewRequest("GET", "/api/v1"+authRoutesPrefix+authSettingsRoute, nil)
+	req := httptest.NewRequest("GET", "/api/v1"+routes.AuthRoutesPrefix+routes.AuthSettingsRoute, nil)
 
 	al.router.ServeHTTP(w, req)
 
@@ -310,7 +311,7 @@ func TestHandleOAuthAuthorizationCode(t *testing.T) {
 			al, mockUsersService := setupAPIListenerForPlusOAuth(t, tc.OAuthConfig, tc.Username)
 
 			w := httptest.NewRecorder()
-			req := httptest.NewRequest("GET", allRoutesPrefix+oauth.DefaultLoginURI, nil)
+			req := httptest.NewRequest("GET", routes.AllRoutesPrefix+oauth.DefaultLoginURI, nil)
 
 			al.router.ServeHTTP(w, req)
 
@@ -396,7 +397,7 @@ func setupAPIListenerForPlusOAuth(t *testing.T, oauthConfig *oauth.Config, usern
 	}
 
 	plusManager := &plusManagerForMockOAuth{}
-	plusManager.InitPlusManager(plusConfig, plusLog)
+	plusManager.InitPlusManager(plusConfig, nil, plusLog)
 
 	_, err := plusManager.RegisterCapability(plusMockOAuthCapability, &oauthmock.Capability{
 		Config: oauthConfig,

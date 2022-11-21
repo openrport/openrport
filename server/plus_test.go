@@ -69,7 +69,7 @@ func TestShouldRegisterPlusCapabilities(t *testing.T) {
 	}
 
 	plus := &plusManagerMock{}
-	plus.InitPlusManager(&config.PlusConfig, plusLog)
+	plus.InitPlusManager(&config.PlusConfig, nil, plusLog)
 	require.NotNil(t, plus)
 
 	// register the capabilities with the plus manager partial mock. the purpose

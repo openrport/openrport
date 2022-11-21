@@ -8,6 +8,7 @@ import (
 	"github.com/gorilla/mux"
 
 	"github.com/cloudradar-monitoring/rport/server/monitoring"
+	"github.com/cloudradar-monitoring/rport/server/routes"
 	"github.com/cloudradar-monitoring/rport/share/comm"
 	"github.com/cloudradar-monitoring/rport/share/query"
 )
@@ -15,7 +16,7 @@ import (
 // handleRefreshUpdatesStatus handles GET /clients/{client_id}/updates-status
 func (al *APIListener) handleRefreshUpdatesStatus(w http.ResponseWriter, req *http.Request) {
 	vars := mux.Vars(req)
-	clientID := vars[routeParamClientID]
+	clientID := vars[routes.ParamClientID]
 	if clientID == "" {
 		al.jsonErrorResponseWithTitle(w, http.StatusBadRequest, "client id is missing")
 		return
@@ -43,7 +44,7 @@ func (al *APIListener) handleRefreshUpdatesStatus(w http.ResponseWriter, req *ht
 // handleGetClientMetrics handles GET /clients/{client_id}/metrics
 func (al *APIListener) handleGetClientMetrics(w http.ResponseWriter, req *http.Request) {
 	vars := mux.Vars(req)
-	clientID := vars[routeParamClientID]
+	clientID := vars[routes.ParamClientID]
 
 	queryOptions := query.NewOptions(req, monitoring.ClientMetricsSortDefault, monitoring.ClientMetricsFilterDefault, monitoring.ClientMetricsFieldsDefault)
 
@@ -62,7 +63,7 @@ func (al *APIListener) handleGetClientMetrics(w http.ResponseWriter, req *http.R
 // handleGetClientGraphMetrics handles GET /clients/{client_id}/graph-metrics
 func (al *APIListener) handleGetClientGraphMetrics(w http.ResponseWriter, req *http.Request) {
 	vars := mux.Vars(req)
-	clientID := vars[routeParamClientID]
+	clientID := vars[routes.ParamClientID]
 
 	client, err := al.clientService.GetActiveByID(clientID)
 	if err != nil {
@@ -94,8 +95,8 @@ func (al *APIListener) handleGetClientGraphMetrics(w http.ResponseWriter, req *h
 // handleGetClientGraphMetricsGraph handles /clients/{client_id}/graph-metrics/{"+routeParamGraphName+"}
 func (al *APIListener) handleGetClientGraphMetricsGraph(w http.ResponseWriter, req *http.Request) {
 	vars := mux.Vars(req)
-	clientID := vars[routeParamClientID]
-	graph := vars[routeParamGraphName]
+	clientID := vars[routes.ParamClientID]
+	graph := vars[routes.ParamGraphName]
 
 	queryOptions := query.NewOptions(req, monitoring.ClientGraphMetricsSortDefault, monitoring.ClientGraphMetricsFilterDefault, monitoring.ClientGraphMetricsFieldsDefault)
 
@@ -124,7 +125,7 @@ func (al *APIListener) handleGetClientGraphMetricsGraph(w http.ResponseWriter, r
 // handleGetClientProcesses handles GET /clients/{client_id}/processes
 func (al *APIListener) handleGetClientProcesses(w http.ResponseWriter, req *http.Request) {
 	vars := mux.Vars(req)
-	clientID := vars[routeParamClientID]
+	clientID := vars[routes.ParamClientID]
 
 	queryOptions := query.NewOptions(req, monitoring.ClientProcessesSortDefault, monitoring.ClientProcessesFilterDefault, monitoring.ClientProcessesFieldsDefault)
 
@@ -143,7 +144,7 @@ func (al *APIListener) handleGetClientProcesses(w http.ResponseWriter, req *http
 // handleGetClientMountpoints handles GET /clients/{client_id}/mountpoints
 func (al *APIListener) handleGetClientMountpoints(w http.ResponseWriter, req *http.Request) {
 	vars := mux.Vars(req)
-	clientID := vars[routeParamClientID]
+	clientID := vars[routes.ParamClientID]
 
 	queryOptions := query.NewOptions(req, monitoring.ClientMountpointsSortDefault, monitoring.ClientMountpointsFilterDefault, monitoring.ClientMountpointsFieldsDefault)
 

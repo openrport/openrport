@@ -1,12 +1,15 @@
 package rportplus_test
 
 import (
+	"context"
 	"os"
+	"plugin"
 	"testing"
 
 	"github.com/stretchr/testify/assert"
 
 	rportplus "github.com/cloudradar-monitoring/rport/plus"
+	"github.com/cloudradar-monitoring/rport/plus/license"
 	"github.com/cloudradar-monitoring/rport/server/chconfig"
 	"github.com/cloudradar-monitoring/rport/share/files"
 	"github.com/cloudradar-monitoring/rport/share/logger"
@@ -54,24 +57,41 @@ func TestShouldErrorWhenPluginPathDoesNotExist(t *testing.T) {
 		ShouldNotExist: true,
 	}
 
-	_, err := rportplus.NewPlusManager(&config.PlusConfig, plusLog, fs)
+	ctx := context.Background()
+
+	_, err := rportplus.NewPlusManager(ctx, &config.PlusConfig, nil, plusLog, fs)
 	assert.EqualError(t, err, `plugin not found at path "./invalid/path"`)
+}
+
+type MockPluginLoader struct{}
+
+func (pl *MockPluginLoader) LoadSymbol(pluginPath string, name string) (sym plugin.Symbol, err error) {
+	return nil, nil
 }
 
 func TestShouldNotErrorWhenCorrectPluginPath(t *testing.T) {
 	plusLog := logger.NewLogger("rport-plus", logger.LogOutput{File: os.Stdout}, logger.LogLevelDebug)
 
+	licConfig := &license.Config{
+		ID:      "83c5afc7-87a7-4a3d-9889-3905ec979045",
+		Key:     "6OO1STn0b0XUahz+RN6jBJ93KBuSbsKPef+SMl98NEU=",
+		DataDir: ".",
+	}
+
 	config := &chconfig.Config{
 		Server: defaultValidMinServerConfig,
 		PlusConfig: rportplus.PlusConfig{
 			PluginConfig: &rportplus.PluginConfig{
-				PluginPath: "./invalid/path",
+				PluginPath: "./valid/path",
 			},
+			LicenseConfig: licConfig,
 		},
 	}
 
+	ctx := context.Background()
+
 	fs := &mockFileSystem{}
-	_, err := rportplus.NewPlusManager(&config.PlusConfig, plusLog, fs)
+	_, err := rportplus.NewPlusManager(ctx, &config.PlusConfig, &MockPluginLoader{}, plusLog, fs)
 
 	assert.NoError(t, err)
 	assert.Equal(t, config.PlusConfig.PluginConfig.PluginPath, fs.CheckedPath)

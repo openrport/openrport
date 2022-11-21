@@ -12,6 +12,7 @@ import (
 	"github.com/cloudradar-monitoring/rport/server/api"
 	"github.com/cloudradar-monitoring/rport/server/auditlog"
 	"github.com/cloudradar-monitoring/rport/server/cgroups"
+	"github.com/cloudradar-monitoring/rport/server/routes"
 )
 
 func (al *APIListener) handlePostClientGroups(w http.ResponseWriter, req *http.Request) {
@@ -44,9 +45,9 @@ func (al *APIListener) handlePostClientGroups(w http.ResponseWriter, req *http.R
 
 func (al *APIListener) handlePutClientGroup(w http.ResponseWriter, req *http.Request) {
 	vars := mux.Vars(req)
-	id := vars[routeParamGroupID]
+	id := vars[routes.ParamGroupID]
 	if id == "" {
-		al.jsonErrorResponseWithTitle(w, http.StatusBadRequest, fmt.Sprintf("Missing %q route param.", routeParamGroupID))
+		al.jsonErrorResponseWithTitle(w, http.StatusBadRequest, fmt.Sprintf("Missing %q route param.", routes.ParamGroupID))
 		return
 	}
 
@@ -58,7 +59,7 @@ func (al *APIListener) handlePutClientGroup(w http.ResponseWriter, req *http.Req
 	}
 
 	if id != group.ID {
-		al.jsonErrorResponseWithTitle(w, http.StatusBadRequest, fmt.Sprintf("%q route param doesn't not match group ID from request body.", routeParamGroupID))
+		al.jsonErrorResponseWithTitle(w, http.StatusBadRequest, fmt.Sprintf("%q route param doesn't not match group ID from request body.", routes.ParamGroupID))
 		return
 	}
 
@@ -102,9 +103,9 @@ func validateInputClientGroup(group cgroups.ClientGroup) error {
 
 func (al *APIListener) handleGetClientGroup(w http.ResponseWriter, req *http.Request) {
 	vars := mux.Vars(req)
-	id := vars[routeParamGroupID]
+	id := vars[routes.ParamGroupID]
 	if id == "" {
-		al.jsonErrorResponseWithTitle(w, http.StatusBadRequest, fmt.Sprintf("Missing %q route param.", routeParamGroupID))
+		al.jsonErrorResponseWithTitle(w, http.StatusBadRequest, fmt.Sprintf("Missing %q route param.", routes.ParamGroupID))
 		return
 	}
 
@@ -163,9 +164,9 @@ func filterEmptyGroups(groups []*cgroups.ClientGroup) []*cgroups.ClientGroup {
 
 func (al *APIListener) handleDeleteClientGroup(w http.ResponseWriter, req *http.Request) {
 	vars := mux.Vars(req)
-	id := vars[routeParamGroupID]
+	id := vars[routes.ParamGroupID]
 	if id == "" {
-		al.jsonErrorResponseWithTitle(w, http.StatusBadRequest, fmt.Sprintf("Missing %q route param.", routeParamGroupID))
+		al.jsonErrorResponseWithTitle(w, http.StatusBadRequest, fmt.Sprintf("Missing %q route param.", routes.ParamGroupID))
 		return
 	}
 

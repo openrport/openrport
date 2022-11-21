@@ -29,6 +29,7 @@ import (
 
 	"github.com/cloudradar-monitoring/rport/server/api/message"
 	"github.com/cloudradar-monitoring/rport/server/auditlog"
+	"github.com/cloudradar-monitoring/rport/server/bearer"
 	"github.com/cloudradar-monitoring/rport/server/clients/clienttunnel"
 	"github.com/cloudradar-monitoring/rport/server/ports"
 	chshare "github.com/cloudradar-monitoring/rport/share"
@@ -55,6 +56,7 @@ type APIConfig struct {
 	UserLoginWait         float32 `mapstructure:"user_login_wait"`
 	MaxFailedLogin        int     `mapstructure:"max_failed_login"`
 	BanTime               int     `mapstructure:"ban_time"`
+	MaxTokenLifeTimeHours int     `mapstructure:"max_token_lifetime"`
 
 	TwoFATokenDelivery       string                 `mapstructure:"two_fa_token_delivery"`
 	TwoFATokenTTLSeconds     int                    `mapstructure:"two_fa_token_ttl_seconds"`
@@ -399,6 +401,10 @@ func (c *Config) parseAndValidateAPI() error {
 		if err != nil {
 			return err
 		}
+
+		if c.API.MaxTokenLifeTimeHours < 0 || (time.Duration(c.API.MaxTokenLifeTimeHours)*time.Hour) > bearer.DefaultMaxTokenLifetime {
+			return fmt.Errorf("max_token_lifetime outside allowable ranges. must be between 0 and %.0f", bearer.DefaultMaxTokenLifetime.Hours())
+		}
 	} else {
 		// API disabled
 		if c.API.DocRoot != "" {
@@ -615,6 +621,10 @@ func generateJWTSecret() (string, error) {
 func (c *Config) PlusEnabled() (enabled bool) {
 	return c.PlusConfig.PluginConfig != nil &&
 		c.PlusConfig.PluginConfig.PluginPath != ""
+}
+
+func (c *Config) HasLicenseConfig() (enabled bool) {
+	return c.PlusEnabled() && c.PlusConfig.LicenseConfig != nil
 }
 
 func (c *Config) PlusOAuthEnabled() (enabled bool) {

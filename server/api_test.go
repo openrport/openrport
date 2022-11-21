@@ -11,6 +11,7 @@ import (
 
 	"github.com/cloudradar-monitoring/rport/db/sqlite"
 	"github.com/cloudradar-monitoring/rport/server/api/session"
+	"github.com/cloudradar-monitoring/rport/server/bearer"
 	chshare "github.com/cloudradar-monitoring/rport/share/logger"
 )
 
@@ -30,9 +31,9 @@ func (m *mockConnection) Close() error {
 }
 
 func newEmptyAPISessionCache(t *testing.T) *session.Cache {
-	p, err := session.NewSqliteProvider(":memory:", DataSourceOptions)
+	storage, err := session.NewSqliteProvider(":memory:", DataSourceOptions)
 	require.NoError(t, err)
-	c, err := session.NewCache(context.Background(), p, defaultTokenLifetime, cleanupAPISessionsInterval)
+	c, err := session.NewCache(context.Background(), bearer.DefaultTokenLifetime, cleanupAPISessionsInterval, storage, nil)
 	require.NoError(t, err)
 	return c
 }

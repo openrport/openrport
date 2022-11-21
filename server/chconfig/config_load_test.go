@@ -34,6 +34,10 @@ const (
 	sampleCfg = `
 [plus-plugin]
 	plugin_path = "/usr/local/lib/rport/rport-plus.so"
+[plus-license]
+  id = "<your-license-id>"
+  key = "<your-license-key>"
+  proxy_url = "http://user:pass@proxy.example.com:8080"
 [plus-oauth]
 	provider = "github"
 `
@@ -55,4 +59,8 @@ func TestLoadingPlusConf(t *testing.T) {
 
 	assert.Equal(t, "/usr/local/lib/rport/rport-plus.so", cfg.PlusConfig.PluginConfig.PluginPath)
 	assert.NotEmpty(t, "github", cfg.PlusConfig.OAuthConfig.Provider)
+
+	assert.Equal(t, "<your-license-id>", cfg.PlusConfig.LicenseConfig.ID)
+	assert.Equal(t, "<your-license-key>", cfg.PlusConfig.LicenseConfig.Key)
+	assert.Equal(t, "http://user:pass@proxy.example.com:8080", cfg.PlusConfig.LicenseConfig.ProxyURL)
 }
