@@ -15,6 +15,7 @@ import (
 
 	"github.com/stretchr/testify/assert"
 
+	"github.com/cloudradar-monitoring/rport/server/chconfig"
 	"github.com/cloudradar-monitoring/rport/server/clients"
 
 	"github.com/stretchr/testify/require"
@@ -116,8 +117,8 @@ func TestHandleGetClientsAuth(t *testing.T) {
 			al := APIListener{
 				Logger: testLog,
 				Server: &Server{
-					config: &Config{
-						Server: ServerConfig{MaxRequestBytes: 1024 * 1024},
+					config: &chconfig.Config{
+						Server: chconfig.ServerConfig{MaxRequestBytes: 1024 * 1024},
 					},
 					clientAuthProvider: tc.provider,
 				},
@@ -327,8 +328,8 @@ func TestHandlePostClientsAuth(t *testing.T) {
 			// given
 			al := APIListener{
 				Server: &Server{
-					config: &Config{
-						Server: ServerConfig{
+					config: &chconfig.Config{
+						Server: chconfig.ServerConfig{
 							AuthWrite:       tc.clientAuthWrite,
 							MaxRequestBytes: 1024 * 1024,
 						},
@@ -508,8 +509,8 @@ func TestHandleDeleteClientAuth(t *testing.T) {
 				insecureForTests: true,
 				Server: &Server{
 					clientService: NewClientService(nil, nil, clients.NewClientRepository(tc.clients, &hour, testLog)),
-					config: &Config{
-						Server: ServerConfig{
+					config: &chconfig.Config{
+						Server: chconfig.ServerConfig{
 							AuthWrite:       tc.clientAuthWrite,
 							MaxRequestBytes: 1024 * 1024,
 						},

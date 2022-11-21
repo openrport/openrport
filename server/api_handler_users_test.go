@@ -18,6 +18,7 @@ import (
 	"github.com/cloudradar-monitoring/rport/server/api/session"
 	"github.com/cloudradar-monitoring/rport/server/api/users"
 	"github.com/cloudradar-monitoring/rport/server/bearer"
+	"github.com/cloudradar-monitoring/rport/server/chconfig"
 	"github.com/cloudradar-monitoring/rport/share/logger"
 	"github.com/cloudradar-monitoring/rport/share/security"
 )
@@ -358,8 +359,8 @@ func setupTestAPIListenerUserAPISessions(t *testing.T, sessionCache *session.Cac
 		Groups:   []string{users.Administrators},
 	}
 
-	serverCfg := &Config{
-		API: APIConfig{
+	serverCfg := &chconfig.Config{
+		API: chconfig.APIConfig{
 			Auth: "admin:foobaz",
 		},
 	}

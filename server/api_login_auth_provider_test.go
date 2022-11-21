@@ -15,6 +15,7 @@ import (
 	rportplus "github.com/cloudradar-monitoring/rport/plus"
 	"github.com/cloudradar-monitoring/rport/plus/capabilities/oauth"
 	"github.com/cloudradar-monitoring/rport/plus/license"
+	"github.com/cloudradar-monitoring/rport/server/chconfig"
 	"github.com/cloudradar-monitoring/rport/server/routes"
 	"github.com/cloudradar-monitoring/rport/share/files"
 	"github.com/cloudradar-monitoring/rport/share/logger"
@@ -45,8 +46,8 @@ func GetSuccessPayloadResponse[R PayloadResponse](r io.Reader) (response *R, err
 func TestHandleGetBuiltInAuthProvider(t *testing.T) {
 	al := APIListener{
 		Server: &Server{
-			config: &Config{
-				API: APIConfig{
+			config: &chconfig.Config{
+				API: chconfig.APIConfig{
 					MaxTokenLifeTimeHours: 999,
 				},
 				PlusConfig: rportplus.PlusConfig{},
@@ -76,8 +77,8 @@ func TestHandleGetBuiltInAuthProvider(t *testing.T) {
 func TestHandleGetAuthSettingsWhenNoPlusOAuth(t *testing.T) {
 	al := APIListener{
 		Server: &Server{
-			config: &Config{
-				API:        APIConfig{},
+			config: &chconfig.Config{
+				API:        chconfig.APIConfig{},
 				PlusConfig: rportplus.PlusConfig{},
 			},
 			plusManager: nil,
@@ -132,8 +133,8 @@ func TestHandleGetAuthProviderWhenPlusOAuthAvailable(t *testing.T) {
 		t.Skipf("plus plugin not available: %s", err)
 	}
 
-	serverCfg := &Config{
-		API: APIConfig{
+	serverCfg := &chconfig.Config{
+		API: chconfig.APIConfig{
 			MaxTokenLifeTimeHours: 999,
 		},
 		PlusConfig: plusConfig,
@@ -204,8 +205,8 @@ func TestHandleGetAuthSettingsWhenPlusOAuthAvailable(t *testing.T) {
 		t.Skipf("plus plugin not available: %s", err)
 	}
 
-	serverCfg := &Config{
-		API:        APIConfig{},
+	serverCfg := &chconfig.Config{
+		API:        chconfig.APIConfig{},
 		PlusConfig: plusConfig,
 	}
 
