@@ -1,6 +1,7 @@
 package rportplus
 
 import (
+	"context"
 	"errors"
 	"fmt"
 	"plugin"
@@ -8,6 +9,7 @@ import (
 
 	"github.com/cloudradar-monitoring/rport/plus/capabilities/oauth"
 	"github.com/cloudradar-monitoring/rport/plus/capabilities/status"
+	"github.com/cloudradar-monitoring/rport/plus/license"
 	"github.com/cloudradar-monitoring/rport/plus/loader"
 	"github.com/cloudradar-monitoring/rport/plus/validator"
 	"github.com/cloudradar-monitoring/rport/share/files"
@@ -34,7 +36,7 @@ type Capability interface {
 
 // Manager defines the plus manager behavior
 type Manager interface {
-	InitPlusManager(cfg *PlusConfig, logger *logger.Logger)
+	InitPlusManager(cfg *PlusConfig, pluginLoader loader.Loader, logger *logger.Logger)
 
 	// General registry type funcs
 	RegisterCapability(capName string, newCap Capability) (cap Capability, err error)
@@ -51,8 +53,9 @@ type Manager interface {
 // ManagerProvider contains a map of all available capabilities and the overall
 // plugin config. The manager is thread safe for reads but not initialization.
 type ManagerProvider struct {
-	Config *PlusConfig
-	logger *logger.Logger
+	Config       *PlusConfig
+	pluginLoader loader.Loader
+	logger       *logger.Logger
 
 	mu   sync.RWMutex
 	caps map[string]Capability
@@ -60,7 +63,11 @@ type ManagerProvider struct {
 
 // NewPlusManager checks the plugin exists at the specified path, allocates a new
 // plus manager and initializes it
-func NewPlusManager(cfg *PlusConfig, logger *logger.Logger, filesAPI files.FileAPI) (pm Manager, err error) {
+func NewPlusManager(ctx context.Context, cfg *PlusConfig, pluginLoader loader.Loader, l *logger.Logger, filesAPI files.FileAPI) (pm Manager, err error) {
+	if pluginLoader == nil {
+		pluginLoader = loader.New()
+	}
+
 	if filesAPI != nil {
 		pluginPath := cfg.PluginConfig.PluginPath
 		exists, err := filesAPI.Exist(pluginPath)
@@ -70,16 +77,29 @@ func NewPlusManager(cfg *PlusConfig, logger *logger.Logger, filesAPI files.FileA
 		if !exists {
 			return nil, fmt.Errorf("plugin not found at path \"%s\"", pluginPath)
 		}
+
+		startFn, err := pluginLoader.LoadSymbol(pluginPath, "StartPluginEx")
+		if err != nil {
+			return nil, err
+		}
+
+		if startFn != nil {
+			err = startFn.(func(ctx context.Context, cfg *license.Config, l *logger.Logger) (err error))(ctx, cfg.LicenseConfig, l)
+			if err != nil {
+				return nil, err
+			}
+		}
 	}
 
 	pm = &ManagerProvider{}
-	pm.InitPlusManager(cfg, logger)
+	pm.InitPlusManager(cfg, pluginLoader, l)
 	return pm, nil
 }
 
 // InitPlusManager initializes a plus manager
-func (pm *ManagerProvider) InitPlusManager(cfg *PlusConfig, logger *logger.Logger) {
+func (pm *ManagerProvider) InitPlusManager(cfg *PlusConfig, pluginLoader loader.Loader, logger *logger.Logger) {
 	pm.Config = cfg
+	pm.pluginLoader = pluginLoader
 	pm.caps = make(map[string]Capability, 0)
 	pm.logger = logger
 }
@@ -98,7 +118,7 @@ func (pm *ManagerProvider) RegisterCapability(capName string, newCap Capability)
 	if initFuncName != "" {
 		// an init func name indicates that the provider should be initialized using the plugin
 		pluginPath := pm.Config.PluginConfig.PluginPath
-		initFn, err := loader.LoadSymbol(pluginPath, newCap.GetInitFuncName())
+		initFn, err := pm.pluginLoader.LoadSymbol(pluginPath, newCap.GetInitFuncName())
 		if err != nil {
 			return nil, err
 		}
@@ -124,7 +144,6 @@ func (pm *ManagerProvider) GetOAuthCapabilityEx() (capEx oauth.CapabilityEx) {
 	if capEntry != nil {
 		cap, ok := capEntry.(*oauth.Capability)
 		if !ok {
-			// TODO: consider returning an error here
 			return nil
 		}
 		capEx = cap.GetOAuthCapabilityEx()
