@@ -361,16 +361,6 @@ func (d *UserDatabase) Update(usr *User, usernameToUpdate string) error {
 			return err
 		}
 	}
-	if usr.Username == "" && usr.Password != "" { // I am updating the password
-		_, err := tx.Exec(
-			fmt.Sprintf("UPDATE `%s` SET `password_expired` = false WHERE `username` = ?", d.usersTableName),
-			usernameToUpdate,
-		)
-		if err != nil {
-			d.handleRollback(tx)
-			return err
-		}
-	}
 
 	if usr.Username != "" && usernameToUpdate != usr.Username {
 		_, err := tx.Exec(
