@@ -111,6 +111,10 @@ paths:
     $ref: paths/users.yaml
   /users/{user_id}:
     $ref: paths/users_{user_id}.yaml
+  /users/{user_id}/sessions:
+    $ref: paths/users_{user_id}_sessions.yaml
+  /users/{user_id}/sessions/{session_id}:
+    $ref: paths/users_{user_id}_sessions_{session_id}.yaml
   /users/{user_id}/totp-secret:
     $ref: paths/users_{user_id}_totp-secret.yaml
   /user-groups:

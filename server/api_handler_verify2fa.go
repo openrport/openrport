@@ -4,6 +4,7 @@ import (
 	"net/http"
 
 	errors2 "github.com/cloudradar-monitoring/rport/server/api/errors"
+	"github.com/cloudradar-monitoring/rport/server/bearer"
 )
 
 func (al *APIListener) handlePostVerify2FAToken() http.Handler {
@@ -61,7 +62,7 @@ func (al *APIListener) parseAndValidate2FATokenRequest(req *http.Request) (usern
 	}
 
 	if al.config.API.TotPEnabled {
-		bearerToken, bearerAuthProvided := getBearerToken(req)
+		bearerToken, bearerAuthProvided := bearer.GetBearerToken(req)
 
 		if !bearerAuthProvided {
 			return reqBody.Username, errors2.APIError{
@@ -70,7 +71,7 @@ func (al *APIListener) parseAndValidate2FATokenRequest(req *http.Request) (usern
 			}
 		}
 
-		isAuthorized, token, err := al.handleBearerToken(req.Context(), bearerToken, req.URL.Path, req.Method)
+		isAuthorized, token, err := al.checkBearerToken(req.Context(), bearerToken, req.URL.Path, req.Method)
 		if err != nil {
 			return reqBody.Username, err
 		}
@@ -82,11 +83,11 @@ func (al *APIListener) parseAndValidate2FATokenRequest(req *http.Request) (usern
 			}
 		}
 
-		user, err := al.userService.GetByUsername(token.AppToken.Username)
+		user, err := al.userService.GetByUsername(token.AppClaims.Username)
 		if err != nil {
 			return "", err
 		}
-		return token.AppToken.Username, al.twoFASrv.ValidateTotPCode(user, reqBody.Token)
+		return token.AppClaims.Username, al.twoFASrv.ValidateTotPCode(user, reqBody.Token)
 	}
 
 	return reqBody.Username, al.twoFASrv.ValidateToken(reqBody.Username, reqBody.Token)

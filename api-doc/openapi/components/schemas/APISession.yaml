@@ -1,0 +1,25 @@
+type: object
+properties:
+  session_id:
+    type: number
+    description: unique identifier for session
+  token:
+    type: string
+    description: token for session
+  expires_at:
+    type: string
+    description: specifies when the token will expire
+    format: date-time
+  last_access_at:
+    type: string
+    description: indicates when the token was last used
+    format: date-time
+  username:
+    type: string
+    description: username of user owning token
+  user_agent:
+    type: string
+    description: browser user agent last used
+  ip_address:
+    type: string
+    description: ip address last used

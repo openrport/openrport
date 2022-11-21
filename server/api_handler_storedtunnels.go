@@ -8,13 +8,14 @@ import (
 
 	"github.com/cloudradar-monitoring/rport/server/api"
 	"github.com/cloudradar-monitoring/rport/server/clients/storedtunnels"
+	"github.com/cloudradar-monitoring/rport/server/routes"
 	"github.com/cloudradar-monitoring/rport/share/query"
 )
 
 func (al *APIListener) handleGetStoredTunnels(w http.ResponseWriter, req *http.Request) {
 	ctx := req.Context()
 	vars := mux.Vars(req)
-	clientID := vars[routeParamClientID]
+	clientID := vars[routes.ParamClientID]
 
 	client, err := al.clientService.GetByID(clientID)
 	if err != nil {
@@ -39,7 +40,7 @@ func (al *APIListener) handleGetStoredTunnels(w http.ResponseWriter, req *http.R
 func (al *APIListener) handlePostStoredTunnels(w http.ResponseWriter, req *http.Request) {
 	ctx := req.Context()
 	vars := mux.Vars(req)
-	clientID := vars[routeParamClientID]
+	clientID := vars[routes.ParamClientID]
 
 	client, err := al.clientService.GetByID(clientID)
 	if err != nil {
@@ -70,7 +71,7 @@ func (al *APIListener) handlePostStoredTunnels(w http.ResponseWriter, req *http.
 func (al *APIListener) handleDeleteStoredTunnel(w http.ResponseWriter, req *http.Request) {
 	ctx := req.Context()
 	vars := mux.Vars(req)
-	clientID := vars[routeParamClientID]
+	clientID := vars[routes.ParamClientID]
 	tunnelID := vars["tunnel_id"]
 
 	client, err := al.clientService.GetByID(clientID)
@@ -95,7 +96,7 @@ func (al *APIListener) handleDeleteStoredTunnel(w http.ResponseWriter, req *http
 func (al *APIListener) handlePutStoredTunnel(w http.ResponseWriter, req *http.Request) {
 	ctx := req.Context()
 	vars := mux.Vars(req)
-	clientID := vars[routeParamClientID]
+	clientID := vars[routes.ParamClientID]
 	tunnelID := vars["tunnel_id"]
 
 	client, err := al.clientService.GetByID(clientID)
