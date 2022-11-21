@@ -57,8 +57,8 @@ func TestYumPackageMangerIsAvailable(t *testing.T) {
 			mr := newMockRunner()
 			pm := NewYumPackageManager()
 			pm.runner = mr
-			mr.Register([]string{"dnf", "help"}, "", tc.DnfError)
-			mr.Register([]string{"yum", "help"}, "", tc.YumError)
+			mr.Register([]string{"dnf", "--help"}, "", tc.DnfError)
+			mr.Register([]string{"yum", "--help"}, "", tc.YumError)
 
 			result := pm.IsAvailable(ctx)
 
@@ -194,7 +194,7 @@ It could be a DNF plugin command, try: "dnf install 'dnf-command(needs-restartin
 				pm.runner = mr
 				pm.cmd = cmd
 
-				mr.Register([]string{cmd, "check-update", "--quiet", "--refresh"}, tc.ListUpdatesOutput, tc.ListUpdatesErr)
+				mr.Register([]string{cmd, "check-update", "--quiet"}, tc.ListUpdatesOutput, tc.ListUpdatesErr)
 				mr.Register([]string{cmd, "check-update", "--quiet", "--security"}, tc.ListSecurityUpdatesOutput, tc.ListSecurityUpdatesErr)
 				mr.Register([]string{cmd, "needs-restarting", "-r"}, tc.NeedsRestartingOutput, tc.NeedsRestartingErr)
 
