@@ -429,10 +429,10 @@ CREATE UNIQUE INDEX "main"."name" ON "group_details" (
 ```
 
 If your database was created prior to Version 0.9.1
+
 ```sql
 ALTER TABLE `users` ADD `password_expired` BOOLEAN NOT NULL CHECK (password_expired IN (0, 1)) DEFAULT 0;
 ```
-
 
 Sqlite does not print any confirmation. To confirm your tables have been created execute:
 
