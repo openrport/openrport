@@ -1,6 +1,7 @@
 package main
 
 import (
+	"context"
 	"fmt"
 	"log"
 	"os"
@@ -16,6 +17,7 @@ import (
 	chserver "github.com/cloudradar-monitoring/rport/server"
 	"github.com/cloudradar-monitoring/rport/server/api/message"
 	"github.com/cloudradar-monitoring/rport/server/auditlog"
+	"github.com/cloudradar-monitoring/rport/server/chconfig"
 	chshare "github.com/cloudradar-monitoring/rport/share"
 	"github.com/cloudradar-monitoring/rport/share/files"
 )
@@ -229,7 +231,7 @@ var (
 	RootCmd  *cobra.Command
 	cfgPath  *string
 	viperCfg *viper.Viper
-	cfg      = &chserver.Config{}
+	cfg      = &chconfig.Config{}
 
 	svcCommand *string
 	svcUser    *string
@@ -406,7 +408,7 @@ func decodeAndValidateConfig(mLog *logger.MemLogger) error {
 		viperCfg.SetConfigName("rportd.conf")
 	}
 
-	if err := chshare.DecodeViperConfig(viperCfg, cfg); err != nil {
+	if err := chshare.DecodeViperConfig(viperCfg, cfg, nil); err != nil {
 		return err
 	}
 
@@ -460,7 +462,19 @@ func runMain(*cobra.Command, []string) {
 	// Flush the in-memory logger
 	mLog.Flush(logger.NewLogger("server-startup", cfg.Logging.LogOutput, cfg.Logging.LogLevel))
 
-	s, err := chserver.NewServer(cfg, files.NewFileSystem())
+	filesAPI := files.NewFileSystem()
+
+	ctx := context.Background()
+
+	plusManager, err := chserver.EnablePlusIfLicensed(ctx, cfg, filesAPI)
+	if err != nil && err != chserver.ErrPlusNotEnabled {
+		log.Fatal(err)
+	}
+
+	s, err := chserver.NewServer(ctx, cfg, &chserver.ServerOpts{
+		FilesAPI:    filesAPI,
+		PlusManager: plusManager,
+	})
 	if err != nil {
 		log.Fatal(err)
 	}

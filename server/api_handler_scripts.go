@@ -12,15 +12,16 @@ import (
 	errors2 "github.com/cloudradar-monitoring/rport/server/api/errors"
 	"github.com/cloudradar-monitoring/rport/server/api/jobs"
 	"github.com/cloudradar-monitoring/rport/server/auditlog"
+	"github.com/cloudradar-monitoring/rport/server/routes"
 	"github.com/cloudradar-monitoring/rport/share/ws"
 )
 
 // handleExecuteScript handles GET /clients/{client_id}/scripts
 func (al *APIListener) handleExecuteScript(w http.ResponseWriter, req *http.Request) {
 	vars := mux.Vars(req)
-	cid := vars[routeParamClientID]
+	cid := vars[routes.ParamClientID]
 	if cid == "" {
-		al.jsonErrorResponseWithTitle(w, http.StatusBadRequest, fmt.Sprintf("Missing %q route param.", routeParamClientID))
+		al.jsonErrorResponseWithTitle(w, http.StatusBadRequest, fmt.Sprintf("Missing %q route param.", routes.ParamClientID))
 		return
 	}
 

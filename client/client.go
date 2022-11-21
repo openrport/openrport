@@ -33,7 +33,7 @@ import (
 	"github.com/cloudradar-monitoring/rport/share/models"
 )
 
-//Client represents a client instance
+// Client represents a client instance
 type Client struct {
 	*logger.Logger
 
@@ -54,7 +54,7 @@ type Client struct {
 	watchdog           *Watchdog
 }
 
-//NewClient creates a new client instance
+// NewClient creates a new client instance
 func NewClient(config *ClientConfigHolder, filesAPI files.FileAPI) (*Client, error) {
 	ctx := context.Background()
 	// Generate a session id that will not change while the client is running
@@ -106,7 +106,7 @@ func NewClient(config *ClientConfigHolder, filesAPI files.FileAPI) (*Client, err
 	return client, nil
 }
 
-//Run starts client and blocks while connected
+// Run starts client and blocks while connected
 func (c *Client) Run() error {
 	ctx, cancel := context.WithCancel(context.Background())
 	defer cancel()
@@ -126,7 +126,7 @@ func (c *Client) verifyServer(hostname string, remote net.Addr, key ssh.PublicKe
 	return nil
 }
 
-//Start client and do not block
+// Start client and do not block
 func (c *Client) Start(ctx context.Context) error {
 
 	//optional keepalive loop
@@ -407,7 +407,7 @@ func (c *Client) sendConnectionRequest(ctx context.Context, sshConn ssh.Conn) er
 	return nil
 }
 
-//afterPutCapabilities is the place to do things dependent on server capabilities
+// afterPutCapabilities is the place to do things dependent on server capabilities
 func (c *Client) afterPutCapabilities(ctx context.Context) {
 	if c.serverCapabilities.MonitoringVersion > 0 {
 		c.monitor.Start(ctx)
@@ -518,13 +518,13 @@ func (c *Client) showConnectionError(connerr error, attempt int) {
 	c.Errorf(msg)
 }
 
-//Wait blocks while the client is running.
-//Can only be called once.
+// Wait blocks while the client is running.
+// Can only be called once.
 func (c *Client) Wait() error {
 	return <-c.runningc
 }
 
-//Close manually stops the client
+// Close manually stops the client
 func (c *Client) Close() error {
 	c.running = false
 	c.watchdog.Close()

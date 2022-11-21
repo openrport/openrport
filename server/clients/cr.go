@@ -307,7 +307,7 @@ func (s *ClientRepository) getNonObsolete() ([]*Client, error) {
 	return result, nil
 }
 
-//getNonObsoleteByUser return connected clients the user has access to either by user group or by client group
+// getNonObsoleteByUser return connected clients the user has access to either by user group or by client group
 func (s *ClientRepository) getNonObsoleteByUser(user User, clientGroups []*cgroups.ClientGroup) ([]*Client, error) {
 	userGroups := user.GetGroups()
 	result := make([]*Client, 0, len(s.clients))

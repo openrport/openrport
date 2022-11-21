@@ -15,6 +15,7 @@ import (
 
 	"github.com/cloudradar-monitoring/rport/server/api"
 	"github.com/cloudradar-monitoring/rport/server/api/users"
+	"github.com/cloudradar-monitoring/rport/server/chconfig"
 	"github.com/cloudradar-monitoring/rport/server/clients"
 	"github.com/cloudradar-monitoring/rport/share/files"
 	"github.com/cloudradar-monitoring/rport/share/models"
@@ -346,8 +347,8 @@ func TestHandleFileUploads(t *testing.T) {
 						clients.NewClientRepository([]*clients.Client{cl}, &hour, testLog),
 					),
 					clientGroupProvider: mockClientGroupProvider{},
-					config: &Config{
-						Server: ServerConfig{
+					config: &chconfig.Config{
+						Server: chconfig.ServerConfig{
 							DataDir:         "/data",
 							MaxFilePushSize: int64(10 << 20),
 						},

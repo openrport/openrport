@@ -1,0 +1,83 @@
+get:
+  tags:
+    - OAuth / Login
+  summary: Device Login with OAuth
+  operationId: OAuthLoginDeviceGet
+  security: []
+  description: >
+    * This API is only enabled if the Rport Plus plugin is loaded and running. For
+    more information, see [Rport Plus](https://plus.rport.io/auth/oauth-introduction/).
+
+
+    * Before this API can be called, the api client must have previously called the
+    `/auth/ext/settings/device` endpoint and presented the returned `verification_uri`
+    and `user_code` to the user. The user is then responsible for proceeding
+    independently to the `verification_uri` page and entering the `user_code` to
+    authorize the api client for use with Rport.
+
+
+    * Once the user is authorized then this API call will return an Rport
+    authentication token which will be stored in the `config.json`. The
+    user will not need to authenticate again until the Rport token expires.
+
+
+    * If the user has not authorized yet, then an error will be returned
+    indicating that the authorization is `authorization_pending`. The api
+    client must wait for the `interval` period (in seconds) after which they
+    may try to login again. If the api client retries too quickly then the
+    OAuth provider will rate limit the client and a `slow_down` error message
+    will be returned.
+
+
+    * Only the `authorization_pending` and `slow_down` error messages are soft
+    errors that can be retried. The api client should abort the authorization
+    on receiving any other errors.
+
+    * NOTE: Some OAuth providers return http error status codes while others
+    always return 200. If the response is 200, then the api client should
+    still check the `error` value in the response for non-empty text. If non-
+    empty then there is an error to be handled.
+  parameters:
+    - name: device_code
+      in: query
+      description: >-
+        the `device_code` received via the OAuth device settings API
+      schema:
+        type: string
+    - name: token-lifetime
+      in: query
+      description: >-
+        initial lifetime of JWT token in seconds. Max value is 90 days. Default:
+        10 min
+      schema:
+        maximum: 7776000
+        type: integer
+        default: 600
+  responses:
+    "200":
+      description: Successful Login Operation
+      content:
+        application/json:
+          schema:
+            type: object
+            properties:
+              data:
+                $ref: ../components/schemas/LoginResponseOAuthDevice.yaml
+    "400":
+      description: Invalid parameters
+      content:
+        application/json:
+          schema:
+            $ref: ../components/schemas/ErrorPayload.yaml
+    "401":
+      description: Unauthorized
+      content:
+        application/json:
+          schema:
+            $ref: ../components/schemas/ErrorPayload.yaml
+    "500":
+      description: Invalid Operation
+      content:
+        application/json:
+          schema:
+            $ref: ../components/schemas/ErrorPayload.yaml

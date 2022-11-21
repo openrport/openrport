@@ -6,7 +6,7 @@ on:
       - master
 
 jobs:
-  server:
+  deploy-to-demo-server:
     name: Deploy to demo server
     runs-on: ubuntu-latest
     steps:
@@ -16,7 +16,7 @@ jobs:
       - name: Set up Go
         uses: actions/setup-go@v2
         with:
-          go-version: 1.18
+          go-version: 1.19
 
       - name: Build
         # set rport version to {date-time}-{github-master-head-sha}
@@ -26,28 +26,27 @@ jobs:
         shell: bash
         run: |
             .github/scripts/start_rportd.sh
-            .github/scripts/start_rportd.sh
-
+            .github/scripts/start_rport.sh
       - name: Copy a new version to remote server
-        uses: appleboy/scp-action@master
-        with:
-          host: ${{ secrets.HOST }}
-          username: ${{ secrets.USERNAME }}
-          port: ${{ secrets.PORT }}
-          key: ${{ secrets.KEY }}
-          source: "rportd,rport"
-          target: ${{ secrets.DEPLOY_FOLDER }}
-          overwrite: true
-
-      - name: Replace bin and Restart rport server
-        uses: appleboy/ssh-action@master
-        with:
-          host: ${{ secrets.HOST }}
-          username: ${{ secrets.USERNAME }}
-          port: ${{ secrets.PORT }}
-          key: ${{ secrets.KEY }}
-          script: |
-            sudo service rportd stop
-            sudo cp /home/github/binaries/rportd /usr/local/bin
-            sudo cp /home/github/binaries/rport /usr/local/bin
-            sudo service rportd start
+        shell: bash
+        env:
+          SSH_HOST: ${{ secrets.SSH_HOST }}
+          SSH_USERNAME: ${{ secrets.SSH_USERNAME }}
+          SSH_PORT: ${{ secrets.SSH_PORT }}
+          SSH_PRIV_KEY: ${{ secrets.SSH_PRIV_KEY }}
+          SSH_KNOWN_HOSTS: ${{ secrets.SSH_KNOWN_HOSTS }}
+        run: |
+          test -e ~/.ssh || mkdir ~/.ssh 
+          echo "${SSH_PRIV_KEY}" > ~/.ssh/id_ed25519
+          echo "${SSH_KNOWN_HOSTS}" > ~/.ssh/known_hosts
+          chmod 0400 ~/.ssh/*
+          ls -lah ~/.ssh/
+          scp -P ${SSH_PORT} rportd ${SSH_USERNAME}@${SSH_HOST}:/tmp/.rportd
+          echo "✅ Copied rportd to destination"
+          ssh -p ${SSH_PORT} ${SSH_USERNAME}@${SSH_HOST} bash << EOF
+          set -e
+          sudo -n service rportd stop
+          sudo -n mv /tmp/.rportd /usr/local/bin/rportd
+          sudo -n service rportd start
+          EOF
+          echo "✅ Rportd restarted on remote host"

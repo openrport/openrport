@@ -33,7 +33,7 @@ const (
 // Client represents client connection
 type Client struct {
 	// Declare 64-bit integer before 32-bit for alignment when compiling Go on 32-bit ARM platforms
-	tunnelIDAutoIncrement  int64
+	tunnelIDAutoIncrement int64
 
 	ID                     string                 `json:"id"`
 	SessionID              string                 `json:"session_id"`
@@ -72,7 +72,7 @@ type Client struct {
 	Context    context.Context `json:"-"`
 	Logger     *logger.Logger  `json:"-"`
 
-	lock                  sync.Mutex
+	lock sync.Mutex
 }
 
 // CalculatedClient contains additional fields and is calculated on each request

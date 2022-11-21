@@ -10,6 +10,7 @@ import (
 	"github.com/cloudradar-monitoring/rport/server/api"
 	"github.com/cloudradar-monitoring/rport/server/auditlog"
 	"github.com/cloudradar-monitoring/rport/server/clientsauth"
+	"github.com/cloudradar-monitoring/rport/server/routes"
 	"github.com/cloudradar-monitoring/rport/share/query"
 )
 
@@ -25,7 +26,7 @@ const (
 
 func (al *APIListener) handleGetClientAuth(w http.ResponseWriter, req *http.Request) {
 	vars := mux.Vars(req)
-	clientAuthID := vars[routeParamClientAuthID]
+	clientAuthID := vars[routes.ParamClientAuthID]
 	clientAuth, err := al.clientAuthProvider.Get(clientAuthID)
 	if err != nil {
 		al.jsonError(w, err)

@@ -7,8 +7,10 @@ import (
 	"github.com/gorilla/mux"
 	"github.com/jpillora/requestlog"
 
+	"github.com/cloudradar-monitoring/rport/plus/capabilities/oauth"
 	"github.com/cloudradar-monitoring/rport/server/api/middleware"
 	"github.com/cloudradar-monitoring/rport/server/api/users"
+	"github.com/cloudradar-monitoring/rport/server/routes"
 	"github.com/cloudradar-monitoring/rport/share/security"
 )
 
@@ -27,7 +29,7 @@ var vueHistoryPaths = []string{
 
 func (al *APIListener) initRouter() {
 	r := mux.NewRouter()
-	api := r.PathPrefix(allRoutesPrefix).Subrouter()
+	api := r.PathPrefix(routes.AllRoutesPrefix).Subrouter()
 
 	secureAPI := api.NewRoute().Subrouter()
 	if !al.insecureForTests {
@@ -67,14 +69,14 @@ func (al *APIListener) initRouter() {
 	clientMonitoring.Use(al.permissionsMiddleware(users.PermissionMonitoring))
 	clientMonitoring.HandleFunc("/updates-status", al.handleRefreshUpdatesStatus).Methods(http.MethodPost)
 	clientMonitoring.HandleFunc("/graph-metrics", al.handleGetClientGraphMetrics).Methods(http.MethodGet)
-	clientMonitoring.HandleFunc("/graph-metrics/{"+routeParamGraphName+"}", al.handleGetClientGraphMetricsGraph).Methods(http.MethodGet)
+	clientMonitoring.HandleFunc("/graph-metrics/{"+routes.ParamGraphName+"}", al.handleGetClientGraphMetricsGraph).Methods(http.MethodGet)
 	clientMonitoring.HandleFunc("/metrics", al.handleGetClientMetrics).Methods(http.MethodGet)
 	clientMonitoring.HandleFunc("/processes", al.handleGetClientProcesses).Methods(http.MethodGet)
 	clientMonitoring.HandleFunc("/mountpoints", al.handleGetClientMountpoints).Methods(http.MethodGet)
 
 	secureAPI.Handle("/tunnels", al.permissionsMiddleware(users.PermissionTunnels)(http.HandlerFunc(al.handleGetTunnels))).Methods(http.MethodGet)
 	secureAPI.Handle("/auditlog", al.permissionsMiddleware(users.PermissionsAuditLog)(http.HandlerFunc(al.handleListAuditLog))).Methods(http.MethodGet)
-	secureAPI.Handle("/files", al.permissionsMiddleware(users.PermissionUploads)(http.HandlerFunc(al.handleFileUploads))).Methods(http.MethodPost).Name(filesUploadRouteName)
+	secureAPI.Handle("/files", al.permissionsMiddleware(users.PermissionUploads)(http.HandlerFunc(al.handleFileUploads))).Methods(http.MethodPost).Name(routes.FilesUploadRouteName)
 
 	secureAPI.HandleFunc("/client-groups", al.handleGetClientGroups).Methods(http.MethodGet)
 	secureAPI.HandleFunc("/client-groups/{group_id}", al.handleGetClientGroup).Methods(http.MethodGet)
@@ -91,6 +93,11 @@ func (al *APIListener) initRouter() {
 	adminOnly.HandleFunc("/users/{user_id}/totp-secret", al.wrapStaticPassModeMiddleware(
 		al.wrapTotPEnabledMiddleware(al.handleDeleteUsersTotP),
 	)).Methods(http.MethodDelete)
+
+	adminOnly.HandleFunc("/users/{user_id}/sessions", al.handleGetUserAPISessions).Methods(http.MethodGet)
+	adminOnly.HandleFunc("/users/{user_id}/sessions", al.handleDeleteAllUserAPISessions).Methods(http.MethodDelete)
+	adminOnly.HandleFunc("/users/{user_id}/sessions/{session_id}", al.handleDeleteUserAPISession).Methods(http.MethodDelete)
+
 	adminOnly.HandleFunc("/user-groups", al.handleListUserGroups).Methods(http.MethodGet)
 	adminOnly.HandleFunc("/user-groups/{group_name}", al.wrapStaticPassModeMiddleware(al.handleGetUserGroup)).Methods(http.MethodGet)
 	adminOnly.HandleFunc("/user-groups/{group_name}", al.wrapStaticPassModeMiddleware(al.handleUpdateUserGroup)).Methods(http.MethodPut)
@@ -108,17 +115,17 @@ func (al *APIListener) initRouter() {
 	commands.HandleFunc("/commands/{job_id}/jobs", al.handleGetMultiClientCommandJobs).Methods(http.MethodGet)
 	commands.HandleFunc("/library/commands", al.handleListCommands).Methods(http.MethodGet)
 	commands.HandleFunc("/library/commands", al.handleCommandCreate).Methods(http.MethodPost)
-	commands.HandleFunc("/library/commands/{"+routeParamCommandValueID+"}", al.handleCommandUpdate).Methods(http.MethodPut)
-	commands.HandleFunc("/library/commands/{"+routeParamCommandValueID+"}", al.handleReadCommand).Methods(http.MethodGet)
-	commands.HandleFunc("/library/commands/{"+routeParamCommandValueID+"}", al.handleDeleteCommand).Methods(http.MethodDelete)
+	commands.HandleFunc("/library/commands/{"+routes.ParamCommandValueID+"}", al.handleCommandUpdate).Methods(http.MethodPut)
+	commands.HandleFunc("/library/commands/{"+routes.ParamCommandValueID+"}", al.handleReadCommand).Methods(http.MethodGet)
+	commands.HandleFunc("/library/commands/{"+routes.ParamCommandValueID+"}", al.handleDeleteCommand).Methods(http.MethodDelete)
 
 	scripts := secureAPI.NewRoute().Subrouter()
 	scripts.Use(al.permissionsMiddleware(users.PermissionScripts))
 	scripts.HandleFunc("/library/scripts", al.handleListScripts).Methods(http.MethodGet)
 	scripts.HandleFunc("/library/scripts", al.handleScriptCreate).Methods(http.MethodPost)
-	scripts.HandleFunc("/library/scripts/{"+routeParamScriptValueID+"}", al.handleScriptUpdate).Methods(http.MethodPut)
-	scripts.HandleFunc("/library/scripts/{"+routeParamScriptValueID+"}", al.handleReadScript).Methods(http.MethodGet)
-	scripts.HandleFunc("/library/scripts/{"+routeParamScriptValueID+"}", al.handleDeleteScript).Methods(http.MethodDelete)
+	scripts.HandleFunc("/library/scripts/{"+routes.ParamScriptValueID+"}", al.handleScriptUpdate).Methods(http.MethodPut)
+	scripts.HandleFunc("/library/scripts/{"+routes.ParamScriptValueID+"}", al.handleReadScript).Methods(http.MethodGet)
+	scripts.HandleFunc("/library/scripts/{"+routes.ParamScriptValueID+"}", al.handleDeleteScript).Methods(http.MethodDelete)
 	scripts.HandleFunc("/scripts", al.handlePostMultiClientScript).Methods(http.MethodPost)
 
 	vault := secureAPI.NewRoute().Subrouter()
@@ -129,9 +136,9 @@ func (al *APIListener) initRouter() {
 	vault.Handle("/vault-admin/sesame", al.wrapAdminAccessMiddleware(http.HandlerFunc(al.handleVaultLock))).Methods(http.MethodDelete)
 	vault.HandleFunc("/vault", al.handleListVaultValues).Methods(http.MethodGet)
 	vault.HandleFunc("/vault", al.handleVaultStoreValue).Methods(http.MethodPost)
-	vault.HandleFunc("/vault/{"+routeParamVaultValueID+"}", al.handleReadVaultValue).Methods(http.MethodGet)
-	vault.HandleFunc("/vault/{"+routeParamVaultValueID+"}", al.handleVaultStoreValue).Methods(http.MethodPut)
-	vault.HandleFunc("/vault/{"+routeParamVaultValueID+"}", al.handleVaultDeleteValue).Methods(http.MethodDelete)
+	vault.HandleFunc("/vault/{"+routes.ParamVaultValueID+"}", al.handleReadVaultValue).Methods(http.MethodGet)
+	vault.HandleFunc("/vault/{"+routes.ParamVaultValueID+"}", al.handleVaultStoreValue).Methods(http.MethodPut)
+	vault.HandleFunc("/vault/{"+routes.ParamVaultValueID+"}", al.handleVaultDeleteValue).Methods(http.MethodDelete)
 
 	schedules := secureAPI.PathPrefix("/schedules").Subrouter()
 	schedules.Use(al.permissionsMiddleware(users.PermissionScheduler))
@@ -141,15 +148,15 @@ func (al *APIListener) initRouter() {
 	schedules.HandleFunc("/{schedule_id}", al.handleUpdateSchedule).Methods(http.MethodPut)
 	schedules.HandleFunc("/{schedule_id}", al.handleDeleteSchedule).Methods(http.MethodDelete)
 
-	secureAPI.HandleFunc(totPRoutes, al.wrapTotPEnabledMiddleware(al.handleGetTotP)).Methods(http.MethodGet)
-	secureAPI.HandleFunc(totPRoutes, al.wrapTotPEnabledMiddleware(al.handlePostTotP)).Methods(http.MethodPost)
-	secureAPI.HandleFunc(totPRoutes, al.wrapTotPEnabledMiddleware(al.handleDeleteTotP)).Methods(http.MethodDelete)
+	secureAPI.HandleFunc(routes.TotPRoutes, al.wrapTotPEnabledMiddleware(al.handleGetTotP)).Methods(http.MethodGet)
+	secureAPI.HandleFunc(routes.TotPRoutes, al.wrapTotPEnabledMiddleware(al.handlePostTotP)).Methods(http.MethodPost)
+	secureAPI.HandleFunc(routes.TotPRoutes, al.wrapTotPEnabledMiddleware(al.handleDeleteTotP)).Methods(http.MethodDelete)
 
 	// all routes defined below do not have authorization middleware, auth is done in each handler separately
 	api.HandleFunc("/login", al.handleGetLogin).Methods(http.MethodGet)
 	api.HandleFunc("/login", al.handlePostLogin).Methods(http.MethodPost)
 	api.HandleFunc("/logout", al.handleDeleteLogout).Methods(http.MethodDelete)
-	api.Handle(verify2FaRoute, al.wrapWithAuthMiddleware(true)(al.handlePostVerify2FAToken())).Methods(http.MethodPost)
+	api.Handle(routes.Verify2FaRoute, al.wrapWithAuthMiddleware(true)(al.handlePostVerify2FAToken())).Methods(http.MethodPost)
 
 	// web sockets
 	// common auth middleware is not used due to JS issue https://stackoverflow.com/questions/22383089/is-it-possible-to-use-bearer-authentication-for-websocket-upgrade-requests
@@ -169,13 +176,26 @@ func (al *APIListener) initRouter() {
 
 	// add max bytes middleware
 	_ = api.Walk(func(route *mux.Route, router *mux.Router, ancestors []*mux.Route) error {
-		if route.GetName() == filesUploadRouteName {
+		if route.GetName() == routes.FilesUploadRouteName {
 			route.HandlerFunc(middleware.MaxBytes(route.GetHandler(), al.config.Server.MaxFilePushSize))
 		} else {
 			route.HandlerFunc(middleware.MaxBytes(route.GetHandler(), al.config.Server.MaxRequestBytes))
 		}
 		return nil
 	})
+
+	plusRouter := api.PathPrefix("/plus").Subrouter()
+	plusRouter.HandleFunc("/status", al.handlePlusStatus).Methods(http.MethodGet)
+
+	authRouter := api.PathPrefix(routes.AuthRoutesPrefix).Subrouter()
+	authRouter.HandleFunc(routes.AuthProviderRoute, al.handleGetAuthProvider).Methods(http.MethodGet)
+	authRouter.HandleFunc(routes.AuthSettingsRoute, al.handleGetAuthSettings).Methods(http.MethodGet)
+	authRouter.HandleFunc(routes.AuthDeviceSettingsRoute, al.handleGetAuthDeviceSettings).Methods(http.MethodGet)
+
+	if al.config.PlusOAuthEnabled() {
+		api.HandleFunc(oauth.DefaultLoginURI, al.handleOAuthAuthorizationCode).Methods(http.MethodGet)
+		api.HandleFunc(oauth.DefaultDeviceLoginURI, al.handleGetDeviceAuth).Methods(http.MethodGet)
+	}
 
 	docRoot := al.config.API.DocRoot
 	if docRoot != "" {

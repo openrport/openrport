@@ -1,0 +1,32 @@
+get:
+  tags:
+    - Auth
+  summary: Get auth info for a device (or cli app) login
+  operationId: AuthExtSettingsDeviceGet
+  security: []
+  description: >
+    This API provides client with the necessary information for a user to
+    authorize via an OAuth device flow. Typically the device flow is used
+    with limited UI/input apps such as CLI apps.
+  responses:
+    "200":
+      description: Success
+      content:
+        application/json:
+          schema:
+            type: object
+            properties:
+              data:
+                $ref: ../components/schemas/AuthExtDeviceSettingsResponse.yaml
+    "403":
+      description: Auth provider settings not enabled
+      content:
+        application/json:
+          schema:
+            $ref: ../components/schemas/ErrorPayload.yaml
+    "500":
+      description: Server error during processing
+      content:
+        application/json:
+          schema:
+            $ref: ../components/schemas/ErrorPayload.yaml

@@ -11,6 +11,7 @@ import (
 	"github.com/cloudradar-monitoring/rport/server/api/command"
 	errors2 "github.com/cloudradar-monitoring/rport/server/api/errors"
 	"github.com/cloudradar-monitoring/rport/server/auditlog"
+	"github.com/cloudradar-monitoring/rport/server/routes"
 	"github.com/cloudradar-monitoring/rport/server/script"
 )
 
@@ -61,7 +62,7 @@ func (al *APIListener) handleScriptCreate(w http.ResponseWriter, req *http.Reque
 
 func (al *APIListener) handleScriptUpdate(w http.ResponseWriter, req *http.Request) {
 	vars := mux.Vars(req)
-	idStr, ok := vars[routeParamScriptValueID]
+	idStr, ok := vars[routes.ParamScriptValueID]
 	if !ok {
 		al.jsonErrorResponseWithTitle(w, http.StatusBadRequest, "Script ID is not provided")
 		return
@@ -98,7 +99,7 @@ func (al *APIListener) handleScriptUpdate(w http.ResponseWriter, req *http.Reque
 
 func (al *APIListener) handleReadScript(w http.ResponseWriter, req *http.Request) {
 	vars := mux.Vars(req)
-	idStr := vars[routeParamScriptValueID]
+	idStr := vars[routes.ParamScriptValueID]
 	if idStr == "" {
 		al.jsonError(w, errors2.APIError{
 			Err:        errors.New("empty script id provided"),
@@ -122,7 +123,7 @@ func (al *APIListener) handleReadScript(w http.ResponseWriter, req *http.Request
 
 func (al *APIListener) handleDeleteScript(w http.ResponseWriter, req *http.Request) {
 	vars := mux.Vars(req)
-	idStr := vars[routeParamScriptValueID]
+	idStr := vars[routes.ParamScriptValueID]
 	if idStr == "" {
 		al.jsonError(w, errors2.APIError{
 			Err:        errors.New("empty script id provided"),
@@ -190,7 +191,7 @@ func (al *APIListener) handleCommandCreate(w http.ResponseWriter, req *http.Requ
 
 func (al *APIListener) handleCommandUpdate(w http.ResponseWriter, req *http.Request) {
 	vars := mux.Vars(req)
-	idStr, ok := vars[routeParamCommandValueID]
+	idStr, ok := vars[routes.ParamCommandValueID]
 	if !ok {
 		al.jsonErrorResponseWithTitle(w, http.StatusBadRequest, "Command ID is not provided")
 		return
@@ -227,7 +228,7 @@ func (al *APIListener) handleCommandUpdate(w http.ResponseWriter, req *http.Requ
 
 func (al *APIListener) handleReadCommand(w http.ResponseWriter, req *http.Request) {
 	vars := mux.Vars(req)
-	idStr := vars[routeParamCommandValueID]
+	idStr := vars[routes.ParamCommandValueID]
 	if idStr == "" {
 		al.jsonError(w, errors2.APIError{
 			Err:        errors.New("empty command id provided"),
@@ -251,7 +252,7 @@ func (al *APIListener) handleReadCommand(w http.ResponseWriter, req *http.Reques
 
 func (al *APIListener) handleDeleteCommand(w http.ResponseWriter, req *http.Request) {
 	vars := mux.Vars(req)
-	idStr := vars[routeParamCommandValueID]
+	idStr := vars[routes.ParamCommandValueID]
 	if idStr == "" {
 		al.jsonError(w, errors2.APIError{
 			Err:        errors.New("empty command id provided"),

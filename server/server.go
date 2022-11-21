@@ -23,11 +23,13 @@ import (
 	clientsmigration "github.com/cloudradar-monitoring/rport/db/migration/clients"
 	jobsmigration "github.com/cloudradar-monitoring/rport/db/migration/jobs"
 	"github.com/cloudradar-monitoring/rport/db/sqlite"
+	rportplus "github.com/cloudradar-monitoring/rport/plus"
 	"github.com/cloudradar-monitoring/rport/server/api/jobs"
 	"github.com/cloudradar-monitoring/rport/server/api/jobs/schedule"
 	"github.com/cloudradar-monitoring/rport/server/api/session"
 	"github.com/cloudradar-monitoring/rport/server/auditlog"
 	"github.com/cloudradar-monitoring/rport/server/cgroups"
+	"github.com/cloudradar-monitoring/rport/server/chconfig"
 	"github.com/cloudradar-monitoring/rport/server/clients"
 	"github.com/cloudradar-monitoring/rport/server/clientsauth"
 	"github.com/cloudradar-monitoring/rport/server/monitoring"
@@ -42,11 +44,10 @@ import (
 )
 
 const (
-	cleanupMeasurementsInterval           = time.Minute * 2
-	cleanupAPISessionsInterval            = time.Hour
-	cleanupJobsInterval                   = time.Hour
-	CheckClientsConnectionIntervalMinimum = time.Minute * 2
-	LogNumGoRoutinesInterval              = time.Minute * 2
+	cleanupMeasurementsInterval = time.Minute * 2
+	cleanupAPISessionsInterval  = time.Hour
+	cleanupJobsInterval         = time.Hour
+	LogNumGoRoutinesInterval    = time.Minute * 2
 )
 
 // Server represents a rport service
@@ -54,7 +55,7 @@ type Server struct {
 	*logger.Logger
 	clientListener      *ClientListener
 	apiListener         *APIListener
-	config              *Config
+	config              *chconfig.Config
 	clientService       ClientService
 	clientDB            *sqlx.DB
 	clientAuthProvider  clientsauth.Provider
@@ -69,11 +70,16 @@ type Server struct {
 	capabilities        *models.Capabilities
 	scheduleManager     *schedule.Manager
 	filesAPI            files.FileAPI
+	plusManager         rportplus.Manager
+}
+
+type ServerOpts struct {
+	FilesAPI    files.FileAPI
+	PlusManager rportplus.Manager
 }
 
 // NewServer creates and returns a new rport server
-func NewServer(config *Config, filesAPI files.FileAPI) (*Server, error) {
-	ctx := context.Background()
+func NewServer(ctx context.Context, config *chconfig.Config, opts *ServerOpts) (*Server, error) {
 	s := &Server{
 		Logger:           logger.NewLogger("server", config.Logging.LogOutput, config.Logging.LogLevel),
 		config:           config,
@@ -83,6 +89,9 @@ func NewServer(config *Config, filesAPI files.FileAPI) (*Server, error) {
 			m: make(map[string]chan *models.Job),
 		},
 	}
+
+	filesAPI := opts.FilesAPI
+	s.plusManager = opts.PlusManager
 
 	privateKey, err := initPrivateKey(config.Server.KeySeed)
 	if err != nil {
@@ -185,18 +194,19 @@ func NewServer(config *Config, filesAPI files.FileAPI) (*Server, error) {
 		return nil, err
 	}
 
-	if config.Database.driver != "" {
-		s.authDB, err = sqlx.Connect(config.Database.driver, config.Database.dsn)
+	if config.Database.Driver != "" {
+		s.authDB, err = sqlx.Connect(config.Database.Driver, config.Database.Dsn)
 		if err != nil {
 			return nil, err
 		}
-		s.Infof("DB: successfully connected to %s", config.Database.dsnForLogs())
+		s.Infof("DB: successfully connected to %s", config.Database.DsnForLogs())
 	}
 
 	s.clientAuthProvider, err = getClientProvider(config, s.authDB)
 	if err != nil {
 		return nil, err
 	}
+
 	s.clientListener, err = NewClientListener(s, privateKey)
 	if err != nil {
 		return nil, err
@@ -219,7 +229,7 @@ func NewServer(config *Config, filesAPI files.FileAPI) (*Server, error) {
 	return s, nil
 }
 
-func getClientProvider(config *Config, db *sqlx.DB) (clientsauth.Provider, error) {
+func getClientProvider(config *chconfig.Config, db *sqlx.DB) (clientsauth.Provider, error) {
 	if config.Server.AuthTable != "" {
 		return clientsauth.NewDatabaseProvider(db, config.Server.AuthTable), nil
 	}
@@ -229,7 +239,7 @@ func getClientProvider(config *Config, db *sqlx.DB) (clientsauth.Provider, error
 	}
 
 	if config.Server.Auth != "" {
-		return clientsauth.NewSingleProvider(config.Server.authID, config.Server.authPassword), nil
+		return clientsauth.NewSingleProvider(config.Server.AuthID, config.Server.AuthPassword), nil
 	}
 
 	return nil, errors.New("client authentication must to be enabled: set either 'auth' or 'auth_file'")

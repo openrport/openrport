@@ -1,0 +1,21 @@
+type: object
+properties:
+  jid:
+    type: string
+    description: job ID
+  client_id:
+    type: string
+    description: client ID
+  client_name:
+    type: string
+    description: client name
+  result:
+    type: object
+    properties:
+      stdout:
+        type: string
+        description: partial process standard output
+      stderr:
+        type: string
+        description: partial process standard error
+    description: execution partial result

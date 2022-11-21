@@ -8,11 +8,14 @@ import (
 	"errors"
 	"fmt"
 	"io"
+	"io/ioutil"
 	"os"
 	"regexp"
 	"strings"
 	"sync"
 	"time"
+
+	"golang.org/x/crypto/ssh"
 
 	"github.com/cloudradar-monitoring/rport/client/system"
 	"github.com/cloudradar-monitoring/rport/share/comm"
@@ -56,6 +59,36 @@ func (c *Client) HandleRunCmdRequest(ctx context.Context, reqPayload []byte) (*c
 		return nil, err
 	}
 
+	limitedStdOutCh := ioutil.Discard
+	limitedStdErrCh := ioutil.Discard
+	closeStreamChannels := func() {}
+	if job.StreamResult {
+		stdOutCh, reqs, err := c.sshConn.OpenChannel(models.ChannelStdout, reqPayload)
+		go ssh.DiscardRequests(reqs)
+		if err != nil {
+			return nil, err
+		}
+		limitedStdOutCh = &LimitedWriter{
+			Writer: stdOutCh,
+			Limit:  c.configHolder.RemoteCommands.SendBackLimit,
+		}
+
+		stdErrCh, reqs, err := c.sshConn.OpenChannel(models.ChannelStderr, reqPayload)
+		go ssh.DiscardRequests(reqs)
+		if err != nil {
+			return nil, err
+		}
+		limitedStdErrCh = &LimitedWriter{
+			Writer: stdErrCh,
+			Limit:  c.configHolder.RemoteCommands.SendBackLimit,
+		}
+
+		closeStreamChannels = func() {
+			stdOutCh.Close()
+			stdErrCh.Close()
+		}
+	}
+
 	execCtx := &system.CmdExecutorContext{
 		Interpreter: interpreter,
 		Command:     scriptPath,
@@ -67,8 +100,8 @@ func (c *Client) HandleRunCmdRequest(ctx context.Context, reqPayload []byte) (*c
 	summary := NewSummaryBuffer()
 	stdOut := &CapacityBuffer{capacity: c.configHolder.RemoteCommands.SendBackLimit}
 	stdErr := &CapacityBuffer{capacity: c.configHolder.RemoteCommands.SendBackLimit}
-	cmd.Stdout = io.MultiWriter(summary, stdOut)
-	cmd.Stderr = stdErr
+	cmd.Stdout = io.MultiWriter(summary, stdOut, limitedStdOutCh)
+	cmd.Stderr = io.MultiWriter(stdErr, limitedStdErrCh)
 
 	c.Debugf("Input command: %s, sysProcAttributes: %+v, executable command: %s", job.Command, cmd.SysProcAttr, cmd.String())
 
@@ -79,16 +112,12 @@ func (c *Client) HandleRunCmdRequest(ctx context.Context, reqPayload []byte) (*c
 		return nil, fmt.Errorf("failed to start a command: %s", err)
 	}
 
-	res := &comm.RunCmdResponse{
-		Pid:       cmd.Process.Pid,
-		StartedAt: startedAt,
-	}
-
 	// observe the cmd execution in background
 	go func() {
 		defer c.rmScript(scriptPath)
+		defer closeStreamChannels()
 
-		c.Debugf("started to observe cmd [jid=%q,pid=%d]", job.JID, res.Pid)
+		c.Debugf("started to observe cmd [jid=%q,pid=%d]", job.JID, cmd.Process.Pid)
 
 		// after timeout stop observing but leave the cmd running
 		done := make(chan error)
@@ -100,20 +129,20 @@ func (c *Client) HandleRunCmdRequest(ctx context.Context, reqPayload []byte) (*c
 		case execErr = <-done:
 			if execErr != nil {
 				status = models.JobStatusFailed
-				c.Errorf("failed to run command[jid=%q,pid=%d]:\ncmd:\n%s\nerr: %s", job.JID, res.Pid, job.Command, execErr)
+				c.Errorf("failed to run command[jid=%q,pid=%d]:\ncmd:\n%s\nerr: %s", job.JID, cmd.Process.Pid, job.Command, execErr)
 			} else {
 				status = models.JobStatusSuccessful
 			}
 		case <-time.After(time.Duration(job.TimeoutSec) * time.Second):
 			status = models.JobStatusUnknown
-			c.Debugf("timeout (%d seconds) reached, stop observing command[jid=%q,pid=%d]:\n%s", job.TimeoutSec, job.JID, res.Pid, job.Command)
+			c.Debugf("timeout (%d seconds) reached, stop observing command[jid=%q,pid=%d]:\n%s", job.TimeoutSec, job.JID, cmd.Process.Pid, job.Command)
 		}
 
 		// fill all unset fields
 		now := now()
 		job.FinishedAt = &now
 		job.Status = status
-		job.PID = &res.Pid
+		job.PID = &cmd.Process.Pid
 		job.StartedAt = startedAt
 
 		job.Error = c.buildErrText(execErr, stdOut, stdErr)
@@ -132,19 +161,22 @@ func (c *Client) HandleRunCmdRequest(ctx context.Context, reqPayload []byte) (*c
 		// send the filled job to the server
 		jobBytes, err := json.Marshal(job)
 		if err != nil {
-			c.Errorf("failed to send command result for [jid=%q,pid=%d]: failed to encode job result: %s", job.JID, res.Pid, err)
+			c.Errorf("failed to send command result for [jid=%q,pid=%d]: failed to encode job result: %s", job.JID, cmd.Process.Pid, err)
 			return
 		}
 		c.Debugf("sending job to server: %v", job)
 		_, _, err = c.sshConn.SendRequest(comm.RequestTypeCmdResult, false, jobBytes)
 		if err != nil {
-			c.Errorf("failed to send command result to server[jid=%q,pid=%d]: %s", job.JID, res.Pid, err)
+			c.Errorf("failed to send command result to server[jid=%q,pid=%d]: %s", job.JID, cmd.Process.Pid, err)
 		}
 
-		c.Debugf("finished to observe cmd [jid=%q,pid=%d]", job.JID, res.Pid)
+		c.Debugf("finished to observe cmd [jid=%q,pid=%d]", job.JID, cmd.Process.Pid)
 	}()
 
-	return res, nil
+	return &comm.RunCmdResponse{
+		Pid:       cmd.Process.Pid,
+		StartedAt: startedAt,
+	}, nil
 }
 
 func (c *Client) buildErrText(execErr error, stdOut, stdErr *CapacityBuffer) string {
@@ -332,4 +364,25 @@ func (s *SummaryBuffer) write(data []byte) {
 	defer s.mtx.Unlock()
 
 	s.summary.Write(data)
+}
+
+type LimitedWriter struct {
+	io.Writer
+	Limit int
+}
+
+func (w *LimitedWriter) Write(p []byte) (int, error) {
+	toWrite := len(p)
+	if w.Limit < toWrite {
+		toWrite = w.Limit
+	}
+	if toWrite == 0 {
+		return len(p), nil
+	}
+	n, err := w.Writer.Write(p[:toWrite])
+	w.Limit -= n
+	if err != nil {
+		return n, err
+	}
+	return len(p), nil
 }

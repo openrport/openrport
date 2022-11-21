@@ -10,6 +10,7 @@ import (
 	"github.com/cloudradar-monitoring/rport/server/api"
 	errors2 "github.com/cloudradar-monitoring/rport/server/api/errors"
 	"github.com/cloudradar-monitoring/rport/server/auditlog"
+	"github.com/cloudradar-monitoring/rport/server/routes"
 	"github.com/cloudradar-monitoring/rport/server/vault"
 )
 
@@ -106,7 +107,7 @@ func (al *APIListener) readIntParam(paramName string, req *http.Request) (int, e
 }
 
 func (al *APIListener) handleReadVaultValue(w http.ResponseWriter, req *http.Request) {
-	id, err := al.readIntParam(routeParamVaultValueID, req)
+	id, err := al.readIntParam(routes.ParamVaultValueID, req)
 	if err != nil {
 		al.jsonError(w, errors2.APIError{
 			Err:        err,
@@ -116,7 +117,7 @@ func (al *APIListener) handleReadVaultValue(w http.ResponseWriter, req *http.Req
 	}
 	if id == 0 {
 		al.jsonError(w, errors2.APIError{
-			Err:        fmt.Errorf("missing %q route param", routeParamVaultValueID),
+			Err:        fmt.Errorf("missing %q route param", routes.ParamVaultValueID),
 			HTTPStatus: http.StatusBadRequest,
 		})
 		return
@@ -142,7 +143,7 @@ func (al *APIListener) handleReadVaultValue(w http.ResponseWriter, req *http.Req
 }
 
 func (al *APIListener) handleVaultStoreValue(w http.ResponseWriter, req *http.Request) {
-	id, err := al.readIntParam(routeParamVaultValueID, req)
+	id, err := al.readIntParam(routes.ParamVaultValueID, req)
 	if err != nil {
 		al.jsonError(w, errors2.APIError{
 			Err:        err,
@@ -195,7 +196,7 @@ func (al *APIListener) handleVaultStoreValue(w http.ResponseWriter, req *http.Re
 }
 
 func (al *APIListener) handleVaultDeleteValue(w http.ResponseWriter, req *http.Request) {
-	id, err := al.readIntParam(routeParamVaultValueID, req)
+	id, err := al.readIntParam(routes.ParamVaultValueID, req)
 	if err != nil {
 		al.jsonError(w, errors2.APIError{
 			Err:        err,
@@ -205,7 +206,7 @@ func (al *APIListener) handleVaultDeleteValue(w http.ResponseWriter, req *http.R
 	}
 	if id == 0 {
 		al.jsonError(w, errors2.APIError{
-			Err:        fmt.Errorf("missing %q route param", routeParamVaultValueID),
+			Err:        fmt.Errorf("missing %q route param", routes.ParamVaultValueID),
 			HTTPStatus: http.StatusBadRequest,
 		})
 		return

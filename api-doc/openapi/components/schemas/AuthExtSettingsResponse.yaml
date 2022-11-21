@@ -1,0 +1,35 @@
+type: object
+properties:
+  message:
+    type: string
+    description: >-
+      Contains a brief note about next steps.
+  authorize_url:
+    type: string
+    description: >-
+      This is the URL that must be used to authorize a user for subsequent login to Rport.
+      It must be opened in a browser as the user may be redirected to auth provider login
+      and permission pages if necessary. On completion the auth provider will most likely
+      redirect to a `redirect_url` where `code` and `state` values can be found for use 
+      with the `login_uri` below. Note actual details depend on the type of auth provider 
+      (e.g. OAuth).
+  login_uri:
+    type: string
+    description: >-
+      This URI can be used to obtain an Rport JWT bearer token. For OAuth providers this
+      involves exchanging the authorization `code` received via the `authorize_url`. Other types
+      of provider may have alternative implementations.
+  state:
+    type: string
+    description: >-
+      The `state` value must be treated as opaque by clients and for OAuth providers must
+      be included when using the `login_uri`. Client SHOULD check that the state value
+      returned in the `authorize_url` response matches this value. Doing so will significantly
+      reduce the risk of CSRF attacks. Note that the `state` value has a short lifetime
+      and will expire at the `expiry` time below.
+  expiry:
+    type: string
+    format: date-time
+    description: >-
+      The `expiry` value is the time when the `state` value will expire.
+description: Response returned by the `/auth/ext/settings` endpoint

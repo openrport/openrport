@@ -23,6 +23,7 @@ import (
 
 	"github.com/cloudradar-monitoring/rport/server/api/middleware"
 	"github.com/cloudradar-monitoring/rport/server/auditlog"
+	"github.com/cloudradar-monitoring/rport/server/chconfig"
 	"github.com/cloudradar-monitoring/rport/server/clients"
 	"github.com/cloudradar-monitoring/rport/server/clients/clienttunnel"
 	chshare "github.com/cloudradar-monitoring/rport/share"
@@ -298,7 +299,7 @@ func checkVersions(log *logger.Logger, clientVersion string) {
 	log.Infof("Client version (%s) differs from server version (%s)", v, chshare.BuildVersion)
 }
 
-func (cl *ClientListener) getCID(reqID string, config *Config, clientAuthID string) (string, error) {
+func (cl *ClientListener) getCID(reqID string, config *chconfig.Config, clientAuthID string) (string, error) {
 	if reqID != "" {
 		return reqID, nil
 	}
@@ -502,7 +503,7 @@ func (cl *ClientListener) saveCmdResult(respBytes []byte) (*models.Job, error) {
 
 func (cl *ClientListener) handleSSHChannels(clientLog *logger.Logger, chans <-chan ssh.NewChannel) {
 	for ch := range chans {
-		remote := string(ch.ExtraData())
+		extraData := string(ch.ExtraData())
 		stream, reqs, err := ch.Accept()
 		if err != nil {
 			clientLog.Debugf("Failed to accept stream: %s", err)
@@ -515,15 +516,84 @@ func (cl *ClientListener) handleSSHChannels(clientLog *logger.Logger, chans <-ch
 			}
 		}()
 
-		if ch.ChannelType() == "session" {
+		switch ch.ChannelType() {
+		case "session":
 			cl.handleSessionChannel(stream, clientLog)
-			continue
+		case models.ChannelStdout, models.ChannelStderr:
+			go func() {
+				err := cl.handleOutputChannel(ch.ChannelType(), ch.ExtraData(), clientLog, stream)
+				if err != nil {
+					clientLog.Errorf("Error handling output channel %s: %v", ch.ChannelType(), err)
+				}
+			}()
+		default:
+			//handle stream type
+			connID := cl.connStats.New()
+			go chshare.HandleTCPStream(clientLog.Fork("conn#%d", connID), &cl.connStats, stream, extraData)
+		}
+	}
+}
+
+type outputChannelData struct {
+	JID        string            `json:"jid"`
+	ClientID   string            `json:"client_id"`
+	ClientName string            `json:"client_name"`
+	Result     *models.JobResult `json:"result"`
+}
+
+func (cl *ClientListener) handleOutputChannel(typ string, jobData []byte, clientLog *logger.Logger, stream io.Reader) error {
+	job := models.Job{}
+	err := json.Unmarshal(jobData, &job)
+	if err != nil {
+		return err
+	}
+
+	var wsJID string
+	if job.MultiJobID != nil {
+		wsJID = *job.MultiJobID
+	} else {
+		wsJID = job.JID
+	}
+	ws := cl.Server.uiJobWebSockets.Get(wsJID)
+
+	ocd := outputChannelData{
+		JID:        job.JID,
+		ClientID:   job.ClientID,
+		ClientName: job.ClientName,
+	}
+
+	data := make([]byte, 4096)
+	for {
+		n, err := stream.Read(data)
+		if err != nil {
+			if err == io.EOF {
+				clientLog.Debugf("Output channel %s for %s stop: %v", typ, wsJID, err)
+				break
+			}
+			return err
 		}
 
-		//handle stream type
-		connID := cl.connStats.New()
-		go chshare.HandleTCPStream(clientLog.Fork("conn#%d", connID), &cl.connStats, stream, remote)
+		if ws != nil {
+			switch typ {
+			case models.ChannelStdout:
+				ocd.Result = &models.JobResult{
+					StdOut: string(data[:n]),
+				}
+			case models.ChannelStderr:
+				ocd.Result = &models.JobResult{
+					StdErr: string(data[:n]),
+				}
+			}
+			err := ws.WriteNonFinalJSON(ocd)
+			if err != nil {
+				clientLog.Errorf("Failed to write message to UI Web Socket: %v", err)
+				// proceed further
+			}
+		} else {
+			clientLog.Debugf("WS conn not found")
+		}
 	}
+	return nil
 }
 
 func (cl *ClientListener) handleReq(req *ssh.Request, clientLog *logger.Logger) {

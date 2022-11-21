@@ -1,4 +1,4 @@
-package chserver
+package chconfig
 
 import (
 	"context"
@@ -18,6 +18,7 @@ import (
 	"time"
 
 	"github.com/cloudradar-monitoring/rport/db/sqlite"
+	rportplus "github.com/cloudradar-monitoring/rport/plus"
 
 	"github.com/cloudradar-monitoring/rport/share/files"
 
@@ -28,6 +29,7 @@ import (
 
 	"github.com/cloudradar-monitoring/rport/server/api/message"
 	"github.com/cloudradar-monitoring/rport/server/auditlog"
+	"github.com/cloudradar-monitoring/rport/server/bearer"
 	"github.com/cloudradar-monitoring/rport/server/clients/clienttunnel"
 	"github.com/cloudradar-monitoring/rport/server/ports"
 	chshare "github.com/cloudradar-monitoring/rport/share"
@@ -54,13 +56,14 @@ type APIConfig struct {
 	UserLoginWait         float32 `mapstructure:"user_login_wait"`
 	MaxFailedLogin        int     `mapstructure:"max_failed_login"`
 	BanTime               int     `mapstructure:"ban_time"`
+	MaxTokenLifeTimeHours int     `mapstructure:"max_token_lifetime"`
 
 	TwoFATokenDelivery       string                 `mapstructure:"two_fa_token_delivery"`
 	TwoFATokenTTLSeconds     int                    `mapstructure:"two_fa_token_ttl_seconds"`
 	TwoFASendTimeout         time.Duration          `mapstructure:"two_fa_send_timeout"`
 	TwoFASendToType          message.ValidationType `mapstructure:"two_fa_send_to_type"`
 	TwoFASendToRegex         string                 `mapstructure:"two_fa_send_to_regex"`
-	twoFASendToRegexCompiled *regexp.Regexp
+	TwoFASendToRegexCompiled *regexp.Regexp
 
 	AuditLog                auditlog.Config `mapstructure:",squash"`
 	TotPEnabled             bool            `mapstructure:"totp_enabled"`
@@ -84,7 +87,7 @@ func (c *APIConfig) parseAndValidate2FASendToType() error {
 		if err != nil {
 			return fmt.Errorf("invalid api.two_fa_send_to_regex: %v", err)
 		}
-		c.twoFASendToRegexCompiled = regex
+		c.TwoFASendToRegexCompiled = regex
 	}
 
 	return nil
@@ -142,8 +145,8 @@ type ServerConfig struct {
 	JobsMaxResults                   int                            `mapstructure:"jobs_max_results"`
 
 	allowedPorts mapset.Set
-	authID       string
-	authPassword string
+	AuthID       string
+	AuthPassword string
 }
 
 type DatabaseConfig struct {
@@ -153,8 +156,8 @@ type DatabaseConfig struct {
 	Password string `mapstructure:"db_password"`
 	Name     string `mapstructure:"db_name"`
 
-	driver string
-	dsn    string
+	Driver string
+	Dsn    string
 }
 
 type PushoverConfig struct {
@@ -255,7 +258,13 @@ type Config struct {
 	Pushover   PushoverConfig   `mapstructure:"pushover"`
 	SMTP       SMTPConfig       `mapstructure:"smtp"`
 	Monitoring MonitoringConfig `mapstructure:"monitoring"`
+
+	PlusConfig rportplus.PlusConfig `mapstructure:",squash"`
 }
+
+var (
+	CheckClientsConnectionIntervalMinimum = time.Minute * 2
+)
 
 func (c *Config) GetVaultDBPath() string {
 	return path.Join(c.Server.DataDir, DefaultVaultDBName)
@@ -357,8 +366,8 @@ func (c *Config) parseAndValidateClientAuth() error {
 	}
 
 	if c.Server.Auth != "" {
-		c.Server.authID, c.Server.authPassword = chshare.ParseAuth(c.Server.Auth)
-		if c.Server.authID == "" || c.Server.authPassword == "" {
+		c.Server.AuthID, c.Server.AuthPassword = chshare.ParseAuth(c.Server.Auth)
+		if c.Server.AuthID == "" || c.Server.AuthPassword == "" {
 			return fmt.Errorf("invalid client auth credentials, expected '<client-id>:<password>', got %q", c.Server.Auth)
 		}
 	}
@@ -391,6 +400,10 @@ func (c *Config) parseAndValidateAPI() error {
 		err = c.parseAndValidateTotPSecret()
 		if err != nil {
 			return err
+		}
+
+		if c.API.MaxTokenLifeTimeHours < 0 || (time.Duration(c.API.MaxTokenLifeTimeHours)*time.Hour) > bearer.DefaultMaxTokenLifetime {
+			return fmt.Errorf("max_token_lifetime outside allowable ranges. must be between 0 and %.0f", bearer.DefaultMaxTokenLifetime.Hours())
 		}
 	} else {
 		// API disabled
@@ -560,28 +573,28 @@ func (d *DatabaseConfig) ParseAndValidate() error {
 	case "":
 		return nil
 	case "mysql":
-		d.driver = "mysql"
-		d.dsn = ""
+		d.Driver = "mysql"
+		d.Dsn = ""
 		if d.User != "" {
-			d.dsn += d.User
+			d.Dsn += d.User
 			if d.Password != "" {
-				d.dsn += ":"
-				d.dsn += d.Password
+				d.Dsn += ":"
+				d.Dsn += d.Password
 			}
-			d.dsn += "@"
+			d.Dsn += "@"
 		}
 		if d.Host != "" {
 			if strings.HasPrefix(d.Host, socketPrefix) {
-				d.dsn += fmt.Sprintf("unix(%s)", strings.TrimPrefix(d.Host, socketPrefix))
+				d.Dsn += fmt.Sprintf("unix(%s)", strings.TrimPrefix(d.Host, socketPrefix))
 			} else {
-				d.dsn += fmt.Sprintf("tcp(%s)", d.Host)
+				d.Dsn += fmt.Sprintf("tcp(%s)", d.Host)
 			}
 		}
-		d.dsn += "/"
-		d.dsn += d.Name
+		d.Dsn += "/"
+		d.Dsn += d.Name
 	case "sqlite":
-		d.driver = "sqlite3"
-		d.dsn = d.Name
+		d.Driver = "sqlite3"
+		d.Dsn = d.Name
 	default:
 		return fmt.Errorf("invalid 'db_type', expected 'mysql' or 'sqlite', got %q", d.Type)
 	}
@@ -589,12 +602,12 @@ func (d *DatabaseConfig) ParseAndValidate() error {
 	return nil
 }
 
-func (d *DatabaseConfig) dsnForLogs() string {
+func (d *DatabaseConfig) DsnForLogs() string {
 	if d.Password != "" {
 		// hide the password
-		return strings.Replace(d.dsn, ":"+d.Password, ":***", 1)
+		return strings.Replace(d.Dsn, ":"+d.Password, ":***", 1)
 	}
-	return d.dsn
+	return d.Dsn
 }
 
 func generateJWTSecret() (string, error) {
@@ -603,4 +616,17 @@ func generateJWTSecret() (string, error) {
 		return "", fmt.Errorf("can't generate API JWT secret: %s", err)
 	}
 	return fmt.Sprintf("%x", sha256.Sum256(data)), nil
+}
+
+func (c *Config) PlusEnabled() (enabled bool) {
+	return c.PlusConfig.PluginConfig != nil &&
+		c.PlusConfig.PluginConfig.PluginPath != ""
+}
+
+func (c *Config) HasLicenseConfig() (enabled bool) {
+	return c.PlusEnabled() && c.PlusConfig.LicenseConfig != nil
+}
+
+func (c *Config) PlusOAuthEnabled() (enabled bool) {
+	return c.PlusEnabled() && c.PlusConfig.OAuthConfig != nil
 }
