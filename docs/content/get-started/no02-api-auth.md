@@ -362,6 +362,12 @@ CREATE TABLE `group_details` (
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8;
 ```
 
+If your database was created prior to Version 0.9.1
+
+```sql
+ALTER TABLE `users` ADD `password_expired` bool NOT NULL DEFAULT(false);
+```
+
 {{< /tab >}}
 {{< tab "SQLite" >}}
 Enter the following line to the `rportd.conf` file in `[database]` section:
@@ -421,6 +427,12 @@ CREATE UNIQUE INDEX "main"."name" ON "group_details" (
     "name" ASC
 );
 ```
+
+If your database was created prior to Version 0.9.1
+```sql
+ALTER TABLE `users` ADD `password_expired` BOOLEAN NOT NULL CHECK (password_expired IN (0, 1)) DEFAULT 0;
+```
+
 
 Sqlite does not print any confirmation. To confirm your tables have been created execute:
 
