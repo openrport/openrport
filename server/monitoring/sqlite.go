@@ -2,6 +2,7 @@ package monitoring
 
 import (
 	"context"
+	"database/sql"
 	"fmt"
 	"math"
 	"strings"
@@ -187,7 +188,12 @@ func (p *SqliteProvider) CreateMeasurement(ctx context.Context, measurement *mod
 		q = q + `:net_wan.in, :net_wan.out`
 	}
 	query := q + ")"
-	_, err := p.db.NamedExecContext(ctx, query, measurement)
+
+	_, err := sqlite.WithRetryWhenBusy(func() (result sql.Result, err error) {
+		result, err = p.db.NamedExecContext(ctx, query, measurement)
+		return result, err
+	}, "createmeasurement", p.logger, sqlite.DefaultMaxAttempts)
+
 	return err
 }
 
