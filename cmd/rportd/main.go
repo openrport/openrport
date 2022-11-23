@@ -17,6 +17,7 @@ import (
 	chserver "github.com/cloudradar-monitoring/rport/server"
 	"github.com/cloudradar-monitoring/rport/server/api/message"
 	"github.com/cloudradar-monitoring/rport/server/auditlog"
+	"github.com/cloudradar-monitoring/rport/server/chconfig"
 	chshare "github.com/cloudradar-monitoring/rport/share"
 	"github.com/cloudradar-monitoring/rport/share/files"
 )
@@ -230,7 +231,7 @@ var (
 	RootCmd  *cobra.Command
 	cfgPath  *string
 	viperCfg *viper.Viper
-	cfg      = &chserver.Config{}
+	cfg      = &chconfig.Config{}
 
 	svcCommand *string
 	svcUser    *string

@@ -18,6 +18,7 @@ import (
 	"github.com/cloudradar-monitoring/rport/server/api"
 	"github.com/cloudradar-monitoring/rport/server/api/users"
 	"github.com/cloudradar-monitoring/rport/server/cgroups"
+	"github.com/cloudradar-monitoring/rport/server/chconfig"
 	"github.com/cloudradar-monitoring/rport/server/clients"
 	"github.com/cloudradar-monitoring/rport/server/clients/clienttunnel"
 	"github.com/cloudradar-monitoring/rport/share/models"
@@ -39,8 +40,8 @@ func TestHandleGetClient(t *testing.T) {
 		insecureForTests: true,
 		Server: &Server{
 			clientService: NewClientService(nil, nil, clients.NewClientRepository([]*clients.Client{c1}, &hour, testLog)),
-			config: &Config{
-				Server: ServerConfig{MaxRequestBytes: 1024 * 1024},
+			config: &chconfig.Config{
+				Server: chconfig.ServerConfig{MaxRequestBytes: 1024 * 1024},
 			},
 			clientGroupProvider: mockClientGroupProvider{},
 		},
@@ -174,8 +175,8 @@ func TestHandleGetClients(t *testing.T) {
 		insecureForTests: true,
 		Server: &Server{
 			clientService: NewClientService(nil, nil, clients.NewClientRepository([]*clients.Client{c1, c2}, &hour, testLog)),
-			config: &Config{
-				Server: ServerConfig{MaxRequestBytes: 1024 * 1024},
+			config: &chconfig.Config{
+				Server: chconfig.ServerConfig{MaxRequestBytes: 1024 * 1024},
 			},
 			clientGroupProvider: mockClientGroupProvider{},
 		},
@@ -496,8 +497,8 @@ func TestHandlePutTunnelWithName(t *testing.T) {
 				insecureForTests: true,
 				Server: &Server{
 					clientService: mockClientService,
-					config: &Config{
-						Server: ServerConfig{
+					config: &chconfig.Config{
+						Server: chconfig.ServerConfig{
 							MaxRequestBytes: 1024 * 1024,
 							TunnelProxyConfig: clienttunnel.TunnelProxyConfig{
 								Enabled: true,
@@ -507,7 +508,6 @@ func TestHandlePutTunnelWithName(t *testing.T) {
 					clientGroupProvider: mockClientGroupProvider{},
 				},
 			}
-
 			al.initRouter()
 
 			w := httptest.NewRecorder()

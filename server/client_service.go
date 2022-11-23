@@ -151,7 +151,7 @@ func NewClientService(
 	tunnelProxyConfig *clienttunnel.TunnelProxyConfig,
 	portDistributor *ports.PortDistributor,
 	repo *clients.ClientRepository,
-) ClientService {
+) *ClientServiceProvider {
 	return &ClientServiceProvider{
 		tunnelProxyConfig: tunnelProxyConfig,
 		portDistributor:   portDistributor,
@@ -166,7 +166,7 @@ func InitClientService(
 	db *sqlx.DB,
 	keepDisconnectedClients *time.Duration,
 	logger *logger.Logger,
-) (ClientService, error) {
+) (*ClientServiceProvider, error) {
 	repo, err := clients.InitClientRepository(ctx, db, keepDisconnectedClients, logger)
 	if err != nil {
 		return nil, fmt.Errorf("failed to init Client Repository: %v", err)

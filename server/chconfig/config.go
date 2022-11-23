@@ -1,4 +1,4 @@
-package chserver
+package chconfig
 
 import (
 	"context"
@@ -63,7 +63,7 @@ type APIConfig struct {
 	TwoFASendTimeout         time.Duration          `mapstructure:"two_fa_send_timeout"`
 	TwoFASendToType          message.ValidationType `mapstructure:"two_fa_send_to_type"`
 	TwoFASendToRegex         string                 `mapstructure:"two_fa_send_to_regex"`
-	twoFASendToRegexCompiled *regexp.Regexp
+	TwoFASendToRegexCompiled *regexp.Regexp
 
 	AuditLog                auditlog.Config `mapstructure:",squash"`
 	TotPEnabled             bool            `mapstructure:"totp_enabled"`
@@ -87,7 +87,7 @@ func (c *APIConfig) parseAndValidate2FASendToType() error {
 		if err != nil {
 			return fmt.Errorf("invalid api.two_fa_send_to_regex: %v", err)
 		}
-		c.twoFASendToRegexCompiled = regex
+		c.TwoFASendToRegexCompiled = regex
 	}
 
 	return nil
@@ -145,8 +145,8 @@ type ServerConfig struct {
 	JobsMaxResults                   int                            `mapstructure:"jobs_max_results"`
 
 	allowedPorts mapset.Set
-	authID       string
-	authPassword string
+	AuthID       string
+	AuthPassword string
 }
 
 type DatabaseConfig struct {
@@ -156,8 +156,8 @@ type DatabaseConfig struct {
 	Password string `mapstructure:"db_password"`
 	Name     string `mapstructure:"db_name"`
 
-	driver string
-	dsn    string
+	Driver string
+	Dsn    string
 }
 
 type PushoverConfig struct {
@@ -262,6 +262,10 @@ type Config struct {
 	PlusConfig rportplus.PlusConfig `mapstructure:",squash"`
 }
 
+var (
+	CheckClientsConnectionIntervalMinimum = time.Minute * 2
+)
+
 func (c *Config) GetVaultDBPath() string {
 	return path.Join(c.Server.DataDir, DefaultVaultDBName)
 }
@@ -362,8 +366,8 @@ func (c *Config) parseAndValidateClientAuth() error {
 	}
 
 	if c.Server.Auth != "" {
-		c.Server.authID, c.Server.authPassword = chshare.ParseAuth(c.Server.Auth)
-		if c.Server.authID == "" || c.Server.authPassword == "" {
+		c.Server.AuthID, c.Server.AuthPassword = chshare.ParseAuth(c.Server.Auth)
+		if c.Server.AuthID == "" || c.Server.AuthPassword == "" {
 			return fmt.Errorf("invalid client auth credentials, expected '<client-id>:<password>', got %q", c.Server.Auth)
 		}
 	}
@@ -569,28 +573,28 @@ func (d *DatabaseConfig) ParseAndValidate() error {
 	case "":
 		return nil
 	case "mysql":
-		d.driver = "mysql"
-		d.dsn = ""
+		d.Driver = "mysql"
+		d.Dsn = ""
 		if d.User != "" {
-			d.dsn += d.User
+			d.Dsn += d.User
 			if d.Password != "" {
-				d.dsn += ":"
-				d.dsn += d.Password
+				d.Dsn += ":"
+				d.Dsn += d.Password
 			}
-			d.dsn += "@"
+			d.Dsn += "@"
 		}
 		if d.Host != "" {
 			if strings.HasPrefix(d.Host, socketPrefix) {
-				d.dsn += fmt.Sprintf("unix(%s)", strings.TrimPrefix(d.Host, socketPrefix))
+				d.Dsn += fmt.Sprintf("unix(%s)", strings.TrimPrefix(d.Host, socketPrefix))
 			} else {
-				d.dsn += fmt.Sprintf("tcp(%s)", d.Host)
+				d.Dsn += fmt.Sprintf("tcp(%s)", d.Host)
 			}
 		}
-		d.dsn += "/"
-		d.dsn += d.Name
+		d.Dsn += "/"
+		d.Dsn += d.Name
 	case "sqlite":
-		d.driver = "sqlite3"
-		d.dsn = d.Name
+		d.Driver = "sqlite3"
+		d.Dsn = d.Name
 	default:
 		return fmt.Errorf("invalid 'db_type', expected 'mysql' or 'sqlite', got %q", d.Type)
 	}
@@ -598,12 +602,12 @@ func (d *DatabaseConfig) ParseAndValidate() error {
 	return nil
 }
 
-func (d *DatabaseConfig) dsnForLogs() string {
+func (d *DatabaseConfig) DsnForLogs() string {
 	if d.Password != "" {
 		// hide the password
-		return strings.Replace(d.dsn, ":"+d.Password, ":***", 1)
+		return strings.Replace(d.Dsn, ":"+d.Password, ":***", 1)
 	}
-	return d.dsn
+	return d.Dsn
 }
 
 func generateJWTSecret() (string, error) {

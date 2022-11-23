@@ -23,6 +23,7 @@ import (
 
 	"github.com/cloudradar-monitoring/rport/server/api/middleware"
 	"github.com/cloudradar-monitoring/rport/server/auditlog"
+	"github.com/cloudradar-monitoring/rport/server/chconfig"
 	"github.com/cloudradar-monitoring/rport/server/clients"
 	"github.com/cloudradar-monitoring/rport/server/clients/clienttunnel"
 	chshare "github.com/cloudradar-monitoring/rport/share"
@@ -298,7 +299,7 @@ func checkVersions(log *logger.Logger, clientVersion string) {
 	log.Infof("Client version (%s) differs from server version (%s)", v, chshare.BuildVersion)
 }
 
-func (cl *ClientListener) getCID(reqID string, config *Config, clientAuthID string) (string, error) {
+func (cl *ClientListener) getCID(reqID string, config *chconfig.Config, clientAuthID string) (string, error) {
 	if reqID != "" {
 		return reqID, nil
 	}

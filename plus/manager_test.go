@@ -10,12 +10,12 @@ import (
 
 	rportplus "github.com/cloudradar-monitoring/rport/plus"
 	"github.com/cloudradar-monitoring/rport/plus/license"
-	chserver "github.com/cloudradar-monitoring/rport/server"
+	"github.com/cloudradar-monitoring/rport/server/chconfig"
 	"github.com/cloudradar-monitoring/rport/share/files"
 	"github.com/cloudradar-monitoring/rport/share/logger"
 )
 
-var defaultValidMinServerConfig = chserver.ServerConfig{
+var defaultValidMinServerConfig = chconfig.ServerConfig{
 	URL:          []string{"http://localhost/"},
 	DataDir:      "./",
 	Auth:         "abc:def",
@@ -44,7 +44,7 @@ func (m *mockFileSystem) Exist(path string) (bool, error) {
 func TestShouldErrorWhenPluginPathDoesNotExist(t *testing.T) {
 	plusLog := logger.NewLogger("rport-plus", logger.LogOutput{File: os.Stdout}, logger.LogLevelDebug)
 
-	config := &chserver.Config{
+	config := &chconfig.Config{
 		Server: defaultValidMinServerConfig,
 		PlusConfig: rportplus.PlusConfig{
 			PluginConfig: &rportplus.PluginConfig{
@@ -78,7 +78,7 @@ func TestShouldNotErrorWhenCorrectPluginPath(t *testing.T) {
 		DataDir: ".",
 	}
 
-	config := &chserver.Config{
+	config := &chconfig.Config{
 		Server: defaultValidMinServerConfig,
 		PlusConfig: rportplus.PlusConfig{
 			PluginConfig: &rportplus.PluginConfig{

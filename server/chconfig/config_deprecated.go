@@ -1,4 +1,4 @@
-package chserver
+package chconfig
 
 import (
 	"reflect"
