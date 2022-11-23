@@ -14,6 +14,19 @@ const (
 	LogLevelDebug LogLevel = 2
 )
 
+func (l LogLevel) String() string {
+	switch l {
+	case LogLevelInfo:
+		return "info"
+	case LogLevelDebug:
+		return "debug"
+	case LogLevelError:
+		return "error"
+	default:
+		return ""
+	}
+}
+
 func ParseLogLevel(str string) (LogLevel, error) {
 	var m = map[string]LogLevel{
 		"error": LogLevelError,
@@ -88,7 +101,7 @@ func (l *Logger) Debugf(f string, args ...interface{}) {
 
 func (l *Logger) Logf(severity LogLevel, f string, args ...interface{}) {
 	if l.level >= severity {
-		l.logger.Printf(l.prefix+": "+f, args...)
+		l.logger.Printf(severity.String()+": "+l.prefix+": "+f, args...)
 	}
 }
 
