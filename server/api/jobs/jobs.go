@@ -167,7 +167,7 @@ func (p *SqliteProvider) SaveJob(job *models.Job) error {
 		VALUES (:jid, :status, :started_at, :finished_at, :created_by, :client_id, :multi_job_id, :details)`,
 			convertToSqlite(job))
 		return result, err
-	}, "savejob", p.log, sqlite.DefaultMaxAttempts)
+	}, "savejob", p.log)
 
 	if err == nil {
 		p.log.Debugf("Job saved successfully: %v", *job)
@@ -182,7 +182,7 @@ func (p *SqliteProvider) CreateJob(job *models.Job) error {
 		VALUES (:jid, :status, :started_at, :finished_at, :created_by, :client_id, :multi_job_id, :details)`,
 			convertToSqlite(job))
 		return result, err
-	}, "createjob", p.log, sqlite.DefaultMaxAttempts)
+	}, "createjob", p.log)
 	if err != nil {
 		// check if it's "already exist" err
 		typeErr, ok := err.(sqlite3.Error)

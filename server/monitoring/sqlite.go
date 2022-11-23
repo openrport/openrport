@@ -192,7 +192,7 @@ func (p *SqliteProvider) CreateMeasurement(ctx context.Context, measurement *mod
 	_, err := sqlite.WithRetryWhenBusy(func() (result sql.Result, err error) {
 		result, err = p.db.NamedExecContext(ctx, query, measurement)
 		return result, err
-	}, "createmeasurement", p.logger, sqlite.DefaultMaxAttempts)
+	}, "createmeasurement", p.logger)
 
 	return err
 }

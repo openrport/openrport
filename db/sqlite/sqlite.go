@@ -67,8 +67,8 @@ func New(dataSourceName string, assetNames []string, asset func(name string) ([]
 	return db, nil
 }
 
-func WithRetryWhenBusy[R any](retryAble func() (result R, err error), label string, l *logger.Logger, maxAttempts int) (result R, err error) {
-	for r := 0; r < maxAttempts; r++ {
+func WithRetryWhenBusy[R any](retryAble func() (result R, err error), label string, l *logger.Logger) (result R, err error) {
+	for r := 0; r < DefaultMaxAttempts; r++ {
 		result, err = retryAble()
 		if err != nil {
 			sqlErr, ok := err.(sql.Error)

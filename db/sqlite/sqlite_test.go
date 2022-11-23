@@ -37,7 +37,7 @@ func TestShouldSucceedWhenNoError(t *testing.T) {
 
 	_, err := WithRetryWhenBusy(func() (result any, err error) {
 		return nil, nil
-	}, "test", testLog, DefaultMaxAttempts)
+	}, "test", testLog)
 
 	assert.NoError(t, err)
 }
@@ -55,7 +55,7 @@ func TestShouldSucceedAfterRetries(t *testing.T) {
 			}
 		}
 		return nil, nil
-	}, "test", testLog, DefaultMaxAttempts)
+	}, "test", testLog)
 
 	assert.NoError(t, err)
 	assert.Equal(t, 2, attempts)
@@ -71,7 +71,7 @@ func TestShouldFailWhenMaxBusyErrors(t *testing.T) {
 		return nil, sql.Error{
 			Code: sql.ErrBusy,
 		}
-	}, "test", testLog, DefaultMaxAttempts)
+	}, "test", testLog)
 
 	assert.EqualError(t, err, sql.ErrBusy.Error())
 	assert.Equal(t, DefaultMaxAttempts, attempts)
@@ -88,7 +88,7 @@ func TestShouldFailImmediatelyWhenNonBusyError(t *testing.T) {
 		return nil, sql.Error{
 			Code: sql.ErrCorrupt,
 		}
-	}, "test", testLog, DefaultMaxAttempts)
+	}, "test", testLog)
 
 	assert.EqualError(t, err, sql.ErrCorrupt.Error())
 	assert.Equal(t, 1, attempts)
