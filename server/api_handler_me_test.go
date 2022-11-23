@@ -44,6 +44,7 @@ func TestHandleMeStaticAuth(t *testing.T) {
 	expectedJSON := `{
 		"data": {
 			"username": "test-user",
+			"password_expired": false,
 			"groups": [
 				"group1"
 			],
@@ -124,6 +125,7 @@ func TestHandleMeDBAuth(t *testing.T) {
 	expectedJSON := `{
 		"data": {
 			"username": "test-user",
+			"password_expired": false,
 			"groups": [
 				"group1"
 			],
