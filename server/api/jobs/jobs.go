@@ -12,6 +12,7 @@ import (
 	"github.com/mattn/go-sqlite3"
 	"github.com/pkg/errors"
 
+	"github.com/cloudradar-monitoring/rport/db/sqlite"
 	"github.com/cloudradar-monitoring/rport/share/logger"
 	"github.com/cloudradar-monitoring/rport/share/models"
 	"github.com/cloudradar-monitoring/rport/share/query"
@@ -161,9 +162,13 @@ func (p *SqliteProvider) Count(ctx context.Context, options *query.ListOptions) 
 
 // SaveJob creates a new or updates an existing job.
 func (p *SqliteProvider) SaveJob(job *models.Job) error {
-	_, err := p.db.NamedExec(`INSERT OR REPLACE INTO jobs (jid, status, started_at, finished_at, created_by, client_id, multi_job_id, details)
-														VALUES (:jid, :status, :started_at, :finished_at, :created_by, :client_id, :multi_job_id, :details)`,
-		convertToSqlite(job))
+	_, err := sqlite.WithRetryWhenBusy(func() (result sql.Result, err error) {
+		result, err = p.db.NamedExec(`INSERT OR REPLACE INTO jobs (jid, status, started_at, finished_at, created_by, client_id, multi_job_id, details)
+		VALUES (:jid, :status, :started_at, :finished_at, :created_by, :client_id, :multi_job_id, :details)`,
+			convertToSqlite(job))
+		return result, err
+	}, "savejob", p.log)
+
 	if err == nil {
 		p.log.Debugf("Job saved successfully: %v", *job)
 	}
@@ -172,9 +177,12 @@ func (p *SqliteProvider) SaveJob(job *models.Job) error {
 
 // CreateJob creates a new job. If already exists with the same ID - does nothing and returns nil.
 func (p *SqliteProvider) CreateJob(job *models.Job) error {
-	_, err := p.db.NamedExec(`INSERT INTO jobs (jid, status, started_at, finished_at, created_by, client_id, multi_job_id, details)
-											VALUES (:jid, :status, :started_at, :finished_at, :created_by, :client_id, :multi_job_id, :details)`,
-		convertToSqlite(job))
+	_, err := sqlite.WithRetryWhenBusy(func() (result sql.Result, err error) {
+		result, err = p.db.NamedExec(`INSERT INTO jobs (jid, status, started_at, finished_at, created_by, client_id, multi_job_id, details)
+		VALUES (:jid, :status, :started_at, :finished_at, :created_by, :client_id, :multi_job_id, :details)`,
+			convertToSqlite(job))
+		return result, err
+	}, "createjob", p.log)
 	if err != nil {
 		// check if it's "already exist" err
 		typeErr, ok := err.(sqlite3.Error)
