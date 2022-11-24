@@ -57,6 +57,8 @@ type APIConfig struct {
 	MaxFailedLogin        int     `mapstructure:"max_failed_login"`
 	BanTime               int     `mapstructure:"ban_time"`
 	MaxTokenLifeTimeHours int     `mapstructure:"max_token_lifetime"`
+	PasswordMinLength     int     `mapstructure:"password_min_length"`
+	PasswordZxcvbnCheck   bool    `mapstructure:"password_zxcvbn_check"`
 
 	TwoFATokenDelivery       string                 `mapstructure:"two_fa_token_delivery"`
 	TwoFATokenTTLSeconds     int                    `mapstructure:"two_fa_token_ttl_seconds"`

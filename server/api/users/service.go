@@ -28,16 +28,20 @@ type Provider interface {
 }
 
 type APIService struct {
-	DeliverySrv message.Service
-	Provider    Provider
-	TwoFAOn     bool
-	TotPOn      bool
+	DeliverySrv         message.Service
+	Provider            Provider
+	TwoFAOn             bool
+	TotPOn              bool
+	PasswordMinLength   int
+	PasswordZxcvbnCheck bool
 }
 
-func NewAPIService(provider Provider, twoFAOn bool) *APIService {
+func NewAPIService(provider Provider, twoFAOn bool, passwordMinLength int, passwordZxcvbnCheck bool) *APIService {
 	return &APIService{
-		Provider: provider,
-		TwoFAOn:  twoFAOn,
+		Provider:            provider,
+		TwoFAOn:             twoFAOn,
+		PasswordMinLength:   passwordMinLength,
+		PasswordZxcvbnCheck: passwordZxcvbnCheck,
 	}
 }
 
@@ -144,7 +148,7 @@ func (as *APIService) ExistGroups(groups []string) error {
 }
 
 func (as *APIService) Change(usr *User, username string) error {
-	err := as.validate(usr, username)
+	err := as.validate(usr, username) //validate does it all validation
 	if err != nil {
 		return err
 	}
@@ -163,7 +167,7 @@ func (as *APIService) Change(usr *User, username string) error {
 }
 
 func (as *APIService) validate(dataToChange *User, usernameToFind string) error {
-	// 2685 password validation happens here, and it should be good for any level
+	//    2685 password validation happens here, and it should be good for any level
 	fmt.Printf("**** validate User: %#v\n", dataToChange)
 	fmt.Printf("**** usernameToFind: %#v\n", usernameToFind)
 	fmt.Printf("**** dataToChange.Username: %#v\n", dataToChange.Username)
@@ -204,14 +208,16 @@ func (as *APIService) validate(dataToChange *User, usernameToFind string) error 
 		}
 	}
 
-	// password was validated and its ready to be encoded / stored
+	//    password was validated and its ready to be encoded / stored
 	if dataToChange.Password != "" { // curl -Ss -X PUT http://localhost:3000/api/v1/users/eddy -u Admin:ciccio -H "content-type:application/json" --data-raw '{"password": ""}'
-		if len(dataToChange.Password) < 14 { // TODO: 14 needs to be in config
+		if len(dataToChange.Password) < as.PasswordMinLength { // TODO: 14 needs to be in config
 			errs = append(errs, errors2.APIError{
-				Message:    "password must be at least 14",
+				Message:    fmt.Sprintf("password must be at least %v characters", as.PasswordMinLength),
 				HTTPStatus: http.StatusBadRequest,
 			})
 		}
+		// TODO: add the zxvbnm,skdjk check
+
 		passHash, err := bcrypt.GenerateFromPassword([]byte(dataToChange.Password), bcrypt.DefaultCost)
 		if err != nil {
 			return err
