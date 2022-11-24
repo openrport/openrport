@@ -341,6 +341,7 @@ func (s *ClientServiceProvider) StartClient(
 	client.Context = ctx
 	client.Logger = clog
 
+	client.SetConnected()
 	_, err = s.startClientTunnels(client, req.Remotes)
 	if err != nil {
 		return nil, err
@@ -453,7 +454,7 @@ func (s *ClientServiceProvider) Terminate(client *clients.Client) error {
 	}
 
 	now := time.Now()
-	client.DisconnectedAt = &now
+	client.SetDisconnected(&now)
 
 	// Do not save if client doesn't exist in repo - it was force deleted
 	existing, err := s.repo.GetByID(client.ID)
