@@ -444,7 +444,7 @@ func (s *ClientServiceProvider) checkLocalPort(protocol, port string) error {
 }
 
 func (s *ClientServiceProvider) Terminate(client *clients.Client) error {
-	s.logger.Debugf("terminating client: %s", client.ID)
+	s.logger.Infof("terminating client: %s", client.ID)
 
 	s.mu.Lock()
 	defer s.mu.Unlock()
