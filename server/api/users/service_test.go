@@ -236,7 +236,7 @@ func TestValidate(t *testing.T) {
 func TestAddUser(t *testing.T) {
 	givenUser := &User{
 		Username: "user13",
-		Password: "pass01234567893",
+		Password: "pass13",
 	}
 
 	dbProvider := &ProviderMock{}
@@ -274,18 +274,18 @@ func TestAddUser(t *testing.T) {
 func TestAddUserIfItExists(t *testing.T) {
 	userToUpdate := &User{
 		Username: "user1",
-		Password: "pass0123456789",
+		Password: "pass1",
 	}
 
 	dbProvider := &ProviderMock{
 		UsersToGive: []*User{
 			{
 				Username: "user1",
-				Password: "pass0123456789",
+				Password: "pass1",
 			},
 			{
 				Username: "user2",
-				Password: "pass2123456789",
+				Password: "pass2",
 			},
 		},
 	}
@@ -303,18 +303,18 @@ func TestAddUserIfItExists(t *testing.T) {
 func TestUpdateUserIfItExists(t *testing.T) {
 	givenUser := &User{
 		Username: "user1",
-		Password: "pass0123456789",
+		Password: "pass1",
 	}
 
 	dbProvider := &ProviderMock{
 		UsersToGive: []*User{
 			{
 				Username: "user1",
-				Password: "pass0123456789",
+				Password: "pass1",
 			},
 			{
 				Username: "user2",
-				Password: "pass2123456789",
+				Password: "pass2",
 			},
 		},
 	}
@@ -344,7 +344,7 @@ func TestUpdateUserInProvider(t *testing.T) {
 			},
 			{
 				Username: "user1",
-				Password: "pass0123456789",
+				Password: "pass1",
 				Groups:   []string{"group1", "group2"},
 			},
 		},

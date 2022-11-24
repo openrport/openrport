@@ -24,7 +24,7 @@ func TestHandleMeStaticAuth(t *testing.T) {
 	}
 	userProvider := users.NewStaticProvider([]*users.User{user})
 	mockUsersService := &MockUsersService{
-		UserService: users.NewAPIService(userProvider, false),
+		UserService: users.NewAPIService(userProvider, false, 0, false),
 	}
 	al := APIListener{
 		insecureForTests: true,
@@ -104,7 +104,7 @@ func TestHandleMeDBAuth(t *testing.T) {
 	require.NoError(t, err)
 
 	mockUsersService := &MockUsersService{
-		UserService: users.NewAPIService(userProvider, false),
+		UserService: users.NewAPIService(userProvider, false, 0, false),
 	}
 	al := APIListener{
 		insecureForTests: true,

@@ -427,7 +427,7 @@ func setupTestAPIListenerForOAuth(
 		Token:    ptr.String("$2y$05$/D7g/d0sDkNSOh.e6Jzc9OWClcpZ1ieE8Dx.WUaWgayd3Ab0rRdxu"),
 	}
 	mockUsersService = &MockUsersService{
-		UserService: users.NewAPIService(users.NewStaticProvider([]*users.User{user}), false),
+		UserService: users.NewAPIService(users.NewStaticProvider([]*users.User{user}), false, 0, false),
 	}
 
 	plusConfig.OAuthConfig = oauthConfig
