@@ -158,7 +158,7 @@ func NewClientService(
 		tunnelProxyConfig: tunnelProxyConfig,
 		portDistributor:   portDistributor,
 		repo:              repo,
-		logger:            logger,
+		logger:            logger.Fork("client-service"),
 	}
 }
 
@@ -175,7 +175,7 @@ func InitClientService(
 		return nil, fmt.Errorf("failed to init Client Repository: %v", err)
 	}
 
-	return NewClientService(tunnelProxyConfig, portDistributor, repo, logger.Fork("client-service")), nil
+	return NewClientService(tunnelProxyConfig, portDistributor, repo, logger), nil
 }
 
 func (s *ClientServiceProvider) Count() (int, error) {

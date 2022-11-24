@@ -46,7 +46,7 @@ func NewClientRepositoryWithDB(initClients []*Client, keepDisconnectedClients *t
 		clients:                 clients,
 		KeepDisconnectedClients: keepDisconnectedClients,
 		provider:                provider,
-		logger:                  logger,
+		logger:                  logger.Fork("client-repo"),
 	}
 }
 
