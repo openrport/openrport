@@ -51,7 +51,7 @@ func NewUserDatabase(
 }
 
 func (d *UserDatabase) getSelectClause() string {
-	s := "username, password"
+	s := "username, password, password_expired"
 	if d.twoFAOn {
 		s += ", two_fa_send_to"
 	}
@@ -316,6 +316,11 @@ func (d *UserDatabase) Update(usr *User, usernameToUpdate string) error {
 	if usr.Password != "" {
 		statements = append(statements, "`password` = ?")
 		params = append(params, usr.Password)
+	}
+
+	if usr.PasswordExpired != nil {
+		statements = append(statements, "`password_expired` = ?")
+		params = append(params, usr.PasswordExpired)
 	}
 
 	if usr.TwoFASendTo != "" {

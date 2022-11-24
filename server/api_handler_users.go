@@ -21,6 +21,7 @@ var (
 
 type UserPayload struct {
 	Username                 string          `json:"username"`
+	PasswordExpired          bool            `json:"password_expired"`
 	Groups                   []string        `json:"groups"`
 	TwoFASendTo              string          `json:"two_fa_send_to"`
 	EffectiveUserPermissions map[string]bool `json:"effective_user_permissions"`
@@ -38,9 +39,10 @@ func (al *APIListener) handleGetUsers(w http.ResponseWriter, req *http.Request) 
 	for i := range usrs {
 		user := usrs[i]
 		usersToSend = append(usersToSend, UserPayload{
-			Username:    user.Username,
-			Groups:      user.Groups,
-			TwoFASendTo: user.TwoFASendTo,
+			Username:        user.Username,
+			PasswordExpired: *user.PasswordExpired,
+			Groups:          user.Groups,
+			TwoFASendTo:     user.TwoFASendTo,
 		})
 	}
 
