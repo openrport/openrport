@@ -74,7 +74,7 @@ type Logger struct {
 	prefix string
 	logger *log.Logger
 	output LogOutput
-	level  LogLevel
+	Level  LogLevel
 }
 
 func NewLogger(prefix string, output LogOutput, level LogLevel) *Logger {
@@ -82,7 +82,7 @@ func NewLogger(prefix string, output LogOutput, level LogLevel) *Logger {
 		prefix: prefix,
 		logger: log.New(output.File, "", log.Ldate|log.Ltime),
 		output: output,
-		level:  level,
+		Level:  level,
 	}
 	return l
 }
@@ -100,7 +100,7 @@ func (l *Logger) Debugf(f string, args ...interface{}) {
 }
 
 func (l *Logger) Logf(severity LogLevel, f string, args ...interface{}) {
-	if l.level >= severity {
+	if l.Level >= severity {
 		l.logger.Printf(severity.String()+": "+l.prefix+": "+f, args...)
 	}
 }
@@ -108,7 +108,7 @@ func (l *Logger) Logf(severity LogLevel, f string, args ...interface{}) {
 func (l *Logger) Fork(prefix string, args ...interface{}) *Logger {
 	//slip the parent prefix at the front
 	args = append([]interface{}{l.prefix}, args...)
-	ll := NewLogger(fmt.Sprintf("%s: "+prefix, args...), l.output, l.level)
+	ll := NewLogger(fmt.Sprintf("%s: "+prefix, args...), l.output, l.Level)
 	return ll
 }
 
