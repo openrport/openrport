@@ -90,6 +90,8 @@ func NewServer(ctx context.Context, config *chconfig.Config, opts *ServerOpts) (
 		},
 	}
 
+	SetAPIResponsesErrorLog(s.Logger.Fork("api-error-response"))
+
 	filesAPI := opts.FilesAPI
 	s.plusManager = opts.PlusManager
 
