@@ -152,6 +152,14 @@ func (as *APIService) Change(usr *User, username string) error {
 	if err != nil {
 		return err
 	}
+	if usr.Password != "" {
+		passHash, err := bcrypt.GenerateFromPassword([]byte(usr.Password), bcrypt.DefaultCost)
+		if err != nil {
+			return err
+		}
+		usr.Password = strings.Replace(string(passHash), htpasswdBcryptAltPrefix, htpasswdBcryptPrefix, 1)
+	}
+
 	if usr.Token != nil && *usr.Token != "" {
 		tokenHash, err := bcrypt.GenerateFromPassword([]byte(*usr.Token), bcrypt.DefaultCost)
 		if err != nil {
@@ -174,12 +182,6 @@ func (as *APIService) validate(dataToChange *User, usernameToFind string) error 
 	errs := errors2.APIErrors{}
 
 	// TODO: need to move the password encoding after the validation!
-	if as.TwoFAOn && dataToChange.TwoFASendTo == "" {
-		errs = append(errs, errors2.APIError{
-			Message:    "two_fa_send_to is required",
-			HTTPStatus: http.StatusBadRequest,
-		})
-	}
 	if usernameToFind == "" {
 		if dataToChange.Username == "" {
 			errs = append(errs, errors2.APIError{
@@ -193,7 +195,12 @@ func (as *APIService) validate(dataToChange *User, usernameToFind string) error 
 				HTTPStatus: http.StatusBadRequest,
 			})
 		}
-
+		if as.TwoFAOn && dataToChange.TwoFASendTo == "" {
+			errs = append(errs, errors2.APIError{
+				Message:    "two_fa_send_to is required",
+				HTTPStatus: http.StatusBadRequest,
+			})
+		}
 	} else {
 		if (dataToChange.Username == "" || dataToChange.Username == usernameToFind) &&
 			dataToChange.Password == "" &&
@@ -208,7 +215,7 @@ func (as *APIService) validate(dataToChange *User, usernameToFind string) error 
 		}
 	}
 
-	//    password was validated and its ready to be encoded / stored
+	//    password validation
 	if dataToChange.Password != "" { // curl -Ss -X PUT http://localhost:3000/api/v1/users/eddy -u Admin:ciccio -H "content-type:application/json" --data-raw '{"password": ""}'
 		if len(dataToChange.Password) < as.PasswordMinLength { // TODO: 14 needs to be in config
 			errs = append(errs, errors2.APIError{
@@ -217,12 +224,6 @@ func (as *APIService) validate(dataToChange *User, usernameToFind string) error 
 			})
 		}
 		// TODO: add the zxvbnm,skdjk check
-
-		passHash, err := bcrypt.GenerateFromPassword([]byte(dataToChange.Password), bcrypt.DefaultCost)
-		if err != nil {
-			return err
-		}
-		dataToChange.Password = strings.Replace(string(passHash), htpasswdBcryptAltPrefix, htpasswdBcryptPrefix, 1)
 	}
 
 	if dataToChange.TwoFASendTo != "" && as.DeliverySrv != nil {
