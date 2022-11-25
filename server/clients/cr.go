@@ -20,8 +20,8 @@ type ClientRepository struct {
 	mu                      sync.RWMutex
 	KeepDisconnectedClients *time.Duration
 	// storage
-	provider ClientProvider
-	logger   *logger.Logger
+	store  ClientStore
+	logger *logger.Logger
 }
 
 type User interface {
@@ -37,15 +37,15 @@ func NewClientRepository(initClients []*Client, keepDisconnectedClients *time.Du
 }
 
 // TODO: used for test setup in two separate packages. need to review use as part of the test code refactoring.
-func NewClientRepositoryWithDB(initClients []*Client, keepDisconnectedClients *time.Duration, provider ClientProvider, logger *logger.Logger) *ClientRepository {
+func NewClientRepositoryWithDB(initialClients []*Client, keepDisconnectedClients *time.Duration, store ClientStore, logger *logger.Logger) *ClientRepository {
 	clients := make(map[string]*Client)
-	for i := range initClients {
-		clients[initClients[i].ID] = initClients[i]
+	for i := range initialClients {
+		clients[initialClients[i].ID] = initialClients[i]
 	}
 	return &ClientRepository{
 		clients:                 clients,
 		KeepDisconnectedClients: keepDisconnectedClients,
-		provider:                provider,
+		store:                   store,
 		logger:                  logger,
 	}
 }
@@ -57,17 +57,19 @@ func InitClientRepository(
 	logger *logger.Logger,
 ) (*ClientRepository, error) {
 	provider := newSqliteProvider(db, keepDisconnectedClients)
-	initClients, err := GetInitState(ctx, provider)
+	initialClients, err := LoadInitialClients(ctx, provider)
 	if err != nil {
 		return nil, err
 	}
 
-	return NewClientRepositoryWithDB(initClients, keepDisconnectedClients, provider, logger), nil
+	return NewClientRepositoryWithDB(initialClients, keepDisconnectedClients, provider, logger), nil
 }
 
 func (s *ClientRepository) Save(client *Client) error {
-	if s.provider != nil {
-		err := s.provider.Save(context.Background(), client)
+	s.logger.Debugf("saving client: %s: %s", client.ID, client.DisconnectedAt)
+
+	if s.store != nil {
+		err := s.store.Save(context.Background(), client)
 		if err != nil {
 			return fmt.Errorf("failed to save a client: %w", err)
 		}
@@ -80,8 +82,8 @@ func (s *ClientRepository) Save(client *Client) error {
 }
 
 func (s *ClientRepository) Delete(client *Client) error {
-	if s.provider != nil {
-		err := s.provider.Delete(context.Background(), client.ID)
+	if s.store != nil {
+		err := s.store.Delete(context.Background(), client.ID)
 		if err != nil {
 			return fmt.Errorf("failed to delete a client: %w", err)
 		}
@@ -157,8 +159,8 @@ func findMatchingORClients(availableClients []*Client, tags []string) (matchingC
 
 // DeleteObsolete deletes obsolete disconnected clients and returns them.
 func (s *ClientRepository) DeleteObsolete() ([]*Client, error) {
-	if s.provider != nil {
-		err := s.provider.DeleteObsolete(context.Background())
+	if s.store != nil {
+		err := s.store.DeleteObsolete(context.Background())
 		if err != nil {
 			return nil, fmt.Errorf("failed to delete obsolete clients: %w", err)
 		}

@@ -49,7 +49,7 @@ func TestGetInitState(t *testing.T) {
 			defer p.Close()
 
 			// when
-			gotClients, gotErr := GetInitState(ctx, p)
+			gotClients, gotErr := LoadInitialClients(ctx, p)
 
 			// then
 			assert.NoError(t, gotErr)

@@ -18,19 +18,19 @@ func TestCleanup(t *testing.T) {
 	clients := []*Client{c1, c2, c3}
 	p := NewFakeClientProvider(t, &hour, c1, c2, c3)
 	defer p.Close()
-	repo := NewClientRepositoryWithDB(clients, &hour, p, testLog)
-	require.Len(t, repo.clients, 3)
+	clientsRepo := NewClientRepositoryWithDB(clients, &hour, p, testLog)
+	require.Len(t, clientsRepo.clients, 3)
 	gotObsolete, err := p.get(ctx, c3.ID)
 	require.NoError(t, err)
 	require.EqualValues(t, c3, gotObsolete)
-	task := NewCleanupTask(testLog, repo)
+	task := NewCleanupTask(testLog, clientsRepo)
 
 	// when
 	err = task.Run(ctx)
 
 	// then
 	assert.NoError(t, err)
-	assert.ElementsMatch(t, getValues(repo.clients), []*Client{c1, c2})
+	assert.ElementsMatch(t, getValues(clientsRepo.clients), []*Client{c1, c2})
 	gotClients, err := p.GetAll(ctx)
 	assert.NoError(t, err)
 	assert.ElementsMatch(t, []*Client{c1, c2}, gotClients)
@@ -48,17 +48,17 @@ func TestCleanupDisabled(t *testing.T) {
 	clients := []*Client{c1, c2, c3}
 	p := NewFakeClientProvider(t, nil, c1, c2, c3)
 	defer p.Close()
-	repo := NewClientRepositoryWithDB(clients, nil, p, testLog)
-	require.Len(t, repo.clients, 3)
+	clientsRepo := NewClientRepositoryWithDB(clients, nil, p, testLog)
+	require.Len(t, clientsRepo.clients, 3)
 
-	task := NewCleanupTask(testLog, repo)
+	task := NewCleanupTask(testLog, clientsRepo)
 
 	// when
 	err := task.Run(ctx)
 
 	// then
 	assert.NoError(t, err)
-	assert.ElementsMatch(t, getValues(repo.clients), []*Client{c1, c2, c3})
+	assert.ElementsMatch(t, getValues(clientsRepo.clients), []*Client{c1, c2, c3})
 }
 
 func getValues(clients map[string]*Client) []*Client {

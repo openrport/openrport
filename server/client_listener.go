@@ -490,7 +490,7 @@ func (cl *ClientListener) saveCmdResult(respBytes []byte) (*models.Job, error) {
 			// proceed further
 		}
 	} else {
-		cl.Debugf("%s, WS conn not found", resp.LogPrefix())
+		cl.Debugf("%s, WS conn not found when saving command result. No active listeners connected", resp.LogPrefix())
 	}
 
 	err = cl.jobProvider.SaveJob(&resp)
@@ -554,6 +554,7 @@ func (cl *ClientListener) handleOutputChannel(typ string, jobData []byte, client
 	} else {
 		wsJID = job.JID
 	}
+
 	ws := cl.Server.uiJobWebSockets.Get(wsJID)
 
 	ocd := outputChannelData{
@@ -590,7 +591,7 @@ func (cl *ClientListener) handleOutputChannel(typ string, jobData []byte, client
 				// proceed further
 			}
 		} else {
-			clientLog.Debugf("WS conn not found")
+			clientLog.Debugf("WS conn not found handling output channel. No active listeners connected")
 		}
 	}
 	return nil
