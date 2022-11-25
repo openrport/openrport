@@ -25,7 +25,6 @@ import (
 	"github.com/cloudradar-monitoring/rport/server/auditlog"
 	"github.com/cloudradar-monitoring/rport/server/chconfig"
 	"github.com/cloudradar-monitoring/rport/server/clients"
-	"github.com/cloudradar-monitoring/rport/server/clients/clienttunnel"
 	chshare "github.com/cloudradar-monitoring/rport/share"
 	"github.com/cloudradar-monitoring/rport/share/comm"
 	"github.com/cloudradar-monitoring/rport/share/logger"
@@ -147,6 +146,7 @@ func (cl *ClientListener) getIP(addr net.Addr) string {
 }
 
 func (cl *ClientListener) Start(listenAddr string) error {
+	cl.Debugf("Client listener starting...")
 	if cl.reverseProxy != nil {
 		cl.Infof("Reverse proxy enabled")
 	}
@@ -157,6 +157,7 @@ func (cl *ClientListener) Start(listenAddr string) error {
 		h = security.RejectBannedIPs(cl.bannedIPs)(h)
 	}
 	h = requestlog.WrapWith(h, *cl.requestLogOptions)
+
 	return cl.httpServer.GoListenAndServe(listenAddr, h)
 }
 
@@ -310,70 +311,6 @@ func (cl *ClientListener) getCID(reqID string, config *chconfig.Config, clientAu
 	}
 
 	return clients.NewClientID()
-}
-
-func getRemotes(tunnels []*clienttunnel.Tunnel) []*models.Remote {
-	r := make([]*models.Remote, 0, len(tunnels))
-	for _, t := range tunnels {
-		r = append(r, &t.Remote)
-	}
-	return r
-}
-
-// GetTunnelsToReestablish returns old tunnels that should be re-establish taking into account new tunnels.
-func GetTunnelsToReestablish(old, new []*models.Remote) []*models.Remote {
-	if len(new) > len(old) {
-		return nil
-	}
-
-	// check if old tunnels contain all new tunnels
-	// NOTE: old tunnels contain random port if local was not specified
-	oldMarked := make([]bool, len(old))
-
-	// at first check new with local specified. It's done at first to cover a case when a new tunnel was specified
-	// with a port that is among random ports in old tunnels.
-loop1:
-	for _, curNew := range new {
-		if curNew.IsLocalSpecified() {
-			for i, curOld := range old {
-				if !oldMarked[i] && curNew.String() == curOld.String() {
-					oldMarked[i] = true
-					continue loop1
-				}
-			}
-			return nil
-		}
-	}
-
-	// then check without local
-loop2:
-	for _, curNew := range new {
-		if !curNew.IsLocalSpecified() {
-			for i, curOld := range old {
-				if !oldMarked[i] && curOld.LocalPortRandom && curNew.Remote() == curOld.Remote() && curNew.EqualACL(curOld.ACL) {
-					oldMarked[i] = true
-					continue loop2
-				}
-			}
-			return nil
-		}
-	}
-
-	// add tunnels that left among old
-	var res []*models.Remote
-	for i, marked := range oldMarked {
-		if !marked {
-			r := *old[i]
-			// if it was random then set up zero values
-			if r.LocalPortRandom {
-				r.LocalHost = ""
-				r.LocalPort = ""
-			}
-			res = append(res, &r)
-		}
-	}
-
-	return res
 }
 
 func (cl *ClientListener) replyConnectionSuccess(r *ssh.Request, remotes []*models.Remote) {

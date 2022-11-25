@@ -17,6 +17,7 @@ import (
 
 	"github.com/cloudradar-monitoring/rport/server/chconfig"
 	"github.com/cloudradar-monitoring/rport/server/clients"
+	"github.com/cloudradar-monitoring/rport/server/clientservice"
 
 	"github.com/stretchr/testify/require"
 
@@ -508,7 +509,7 @@ func TestHandleDeleteClientAuth(t *testing.T) {
 			al := APIListener{
 				insecureForTests: true,
 				Server: &Server{
-					clientService: NewClientService(nil, nil, clients.NewClientRepository(tc.clients, &hour, testLog)),
+					clientService: clientservice.New(nil, nil, clients.NewClientRepository(tc.clients, &hour, testLog)),
 					config: &chconfig.Config{
 						Server: chconfig.ServerConfig{
 							AuthWrite:       tc.clientAuthWrite,

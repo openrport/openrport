@@ -17,6 +17,7 @@ import (
 	"github.com/cloudradar-monitoring/rport/server/api/users"
 	"github.com/cloudradar-monitoring/rport/server/chconfig"
 	"github.com/cloudradar-monitoring/rport/server/clients"
+	"github.com/cloudradar-monitoring/rport/server/clientservice"
 	"github.com/cloudradar-monitoring/rport/share/files"
 	"github.com/cloudradar-monitoring/rport/share/models"
 	"github.com/cloudradar-monitoring/rport/share/test"
@@ -341,7 +342,7 @@ func TestHandleFileUploads(t *testing.T) {
 			al := APIListener{
 				insecureForTests: true,
 				Server: &Server{
-					clientService: NewClientService(
+					clientService: clientservice.New(
 						nil,
 						nil,
 						clients.NewClientRepository([]*clients.Client{cl}, &hour, testLog),

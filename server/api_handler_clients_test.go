@@ -21,6 +21,7 @@ import (
 	"github.com/cloudradar-monitoring/rport/server/chconfig"
 	"github.com/cloudradar-monitoring/rport/server/clients"
 	"github.com/cloudradar-monitoring/rport/server/clients/clienttunnel"
+	"github.com/cloudradar-monitoring/rport/server/clientservice"
 	"github.com/cloudradar-monitoring/rport/share/models"
 	"github.com/cloudradar-monitoring/rport/share/query"
 	"github.com/cloudradar-monitoring/rport/share/test"
@@ -39,7 +40,7 @@ func TestHandleGetClient(t *testing.T) {
 	al := APIListener{
 		insecureForTests: true,
 		Server: &Server{
-			clientService: NewClientService(nil, nil, clients.NewClientRepository([]*clients.Client{c1}, &hour, testLog)),
+			clientService: clientservice.New(nil, nil, clients.NewClientRepository([]*clients.Client{c1}, &hour, testLog)),
 			config: &chconfig.Config{
 				Server: chconfig.ServerConfig{MaxRequestBytes: 1024 * 1024},
 			},
@@ -174,7 +175,7 @@ func TestHandleGetClients(t *testing.T) {
 	al := APIListener{
 		insecureForTests: true,
 		Server: &Server{
-			clientService: NewClientService(nil, nil, clients.NewClientRepository([]*clients.Client{c1, c2}, &hour, testLog)),
+			clientService: clientservice.New(nil, nil, clients.NewClientRepository([]*clients.Client{c1, c2}, &hour, testLog)),
 			config: &chconfig.Config{
 				Server: chconfig.ServerConfig{MaxRequestBytes: 1024 * 1024},
 			},
@@ -361,7 +362,7 @@ type SimpleMockClientService struct {
 	ExpectedIDs   []string
 	ActiveClients []*clients.Client
 
-	*ClientServiceProvider
+	*clientservice.Provider
 }
 
 func (mcs *SimpleMockClientService) GetActiveByID(id string) (*clients.Client, error) {
