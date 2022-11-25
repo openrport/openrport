@@ -44,7 +44,7 @@ func (al *APIListener) handleOAuthAuthorizationCode(w http.ResponseWriter, r *ht
 
 	// pass the username to the existing login logic to create the user (if required) and
 	// get an rport-plus bearer token.
-	al.handleLogin(username, "", true /* skipPasswordValidation */, w, r)
+	al.handleLogin(username, "", "", true /* skipPasswordValidation */, w, r)
 }
 
 // handleGetDeviceAuth will return an RPort JWT token if the user has completed authorization
@@ -95,7 +95,7 @@ func (al *APIListener) handleGetDeviceAuth(w http.ResponseWriter, r *http.Reques
 
 	// pass the username to the existing login logic to create the user (if required) and
 	// get an rport JWT bearer token.
-	al.handleLogin(username, "", true /* skipPasswordValidation */, w, r)
+	al.handleLogin(username, "", "", true /* skipPasswordValidation */, w, r)
 }
 
 // handlePlusStatus makes a request to the plugin for it's status/version info

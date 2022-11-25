@@ -344,6 +344,7 @@ Create tables.
 CREATE TABLE `users` (
   `username` varchar(150) NOT NULL,
   `password` varchar(255) NOT NULL,
+  `password_expired` bool NOT NULL default false,
   `two_fa_send_to` varchar(150),
   `token` char(36) default NULL,
   `totp_secret` longtext,
@@ -359,6 +360,12 @@ CREATE TABLE `group_details` (
      `permissions` longtext DEFAULT '{}',
      UNIQUE KEY `name` (`name`)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8;
+```
+
+If your database was created prior to Version 0.9.1
+
+```sql
+ALTER TABLE `users` ADD `password_expired` bool NOT NULL DEFAULT(false);
 ```
 
 {{< /tab >}}
@@ -392,6 +399,7 @@ sqlite>
 CREATE TABLE "users" (
   "username" TEXT(150) NOT NULL,
   "password" TEXT(255) NOT NULL,
+  "password_expired" BOOLEAN NOT NULL CHECK (password_expired IN (0, 1)) DEFAULT 0,
   "token" TEXT(36) DEFAULT NULL,
   "two_fa_send_to" TEXT(150),
   "totp_secret" TEXT
@@ -418,6 +426,12 @@ CREATE TABLE "group_details" (
 CREATE UNIQUE INDEX "main"."name" ON "group_details" (
     "name" ASC
 );
+```
+
+If your database was created prior to Version 0.9.1
+
+```sql
+ALTER TABLE `users` ADD `password_expired` BOOLEAN NOT NULL CHECK (password_expired IN (0, 1)) DEFAULT 0;
 ```
 
 Sqlite does not print any confirmation. To confirm your tables have been created execute:
