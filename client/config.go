@@ -351,7 +351,7 @@ func PrepareDirs(c *ClientConfigHolder) error {
 		return fmt.Errorf("failed to create dir %q: %s", c.Client.DataDir, err)
 	}
 
-	logger.Infof("data directory path: %q", c.Client.DataDir)
+	logger.Debugf("Data directory path: %q", c.Client.DataDir)
 
 	scriptDir := c.GetScriptsDir()
 	if _, err := os.Stat(scriptDir); os.IsNotExist(err) {
