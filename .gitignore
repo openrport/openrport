@@ -30,3 +30,7 @@ rportd-*.conf
 rport.conf
 rportd.conf
 cheat-sheet.txt
+
+# Ignore packages that might have not been removed from your local project folder
+*.rpm
+*.deb
