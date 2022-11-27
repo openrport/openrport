@@ -143,27 +143,30 @@ func TestGetByUsername(t *testing.T) {
 			Name:     "user without groups",
 			Username: "user1",
 			ExpectedUser: &User{
-				Username: "user1",
-				Password: "pass1",
-				Token:    nil,
+				Username:        "user1",
+				Password:        "pass1",
+				PasswordExpired: PasswordExpired(false),
+				Token:           nil,
 			},
 		}, {
 			Name:     "user with one group",
 			Username: "user2",
 			ExpectedUser: &User{
-				Username: "user2",
-				Password: "pass2",
-				Groups:   []string{"group1"},
-				Token:    nil,
+				Username:        "user2",
+				Password:        "pass2",
+				PasswordExpired: PasswordExpired(false),
+				Groups:          []string{"group1"},
+				Token:           nil,
 			},
 		}, {
 			Name:     "user with multiple groups and token",
 			Username: "user3",
 			ExpectedUser: &User{
-				Username: "user3",
-				Password: "pass3",
-				Groups:   []string{"group1", "group2"},
-				Token:    Token("token3"),
+				Username:        "user3",
+				Password:        "pass3",
+				PasswordExpired: PasswordExpired(false),
+				Groups:          []string{"group1", "group2"},
+				Token:           Token("token3"),
 			},
 		},
 	}
@@ -198,23 +201,26 @@ func TestGetAll(t *testing.T) {
 
 	expectedUsers := []*User{
 		{
-			Username: "user1",
-			Password: "pass1",
-			Groups:   nil,
-			Token:    nil,
-			TotP:     "totP123",
+			Username:        "user1",
+			Password:        "pass1",
+			PasswordExpired: PasswordExpired(false),
+			Groups:          nil,
+			Token:           nil,
+			TotP:            "totP123",
 		},
 		{
-			Username: "user2",
-			Password: "pass2",
+			Username:        "user2",
+			Password:        "pass2",
+			PasswordExpired: PasswordExpired(false),
 			Groups: []string{
 				"group1",
 			},
 			Token: nil,
 		},
 		{
-			Username: "user3",
-			Password: "pass3",
+			Username:        "user3",
+			Password:        "pass3",
+			PasswordExpired: PasswordExpired(false),
 			Groups: []string{
 				"group1",
 				"group2",
@@ -410,9 +416,10 @@ func TestAdd(t *testing.T) {
 			},
 			expectedUserRows: []map[string]interface{}{
 				{
-					"username": "login1",
-					"password": "pass1",
-					"token":    nil,
+					"username":         "login1",
+					"password":         "pass1",
+					"password_expired": false,
+					"token":            nil,
 				},
 			},
 			expectedGroupRows: []map[string]interface{}{
@@ -472,19 +479,22 @@ func TestUpdate(t *testing.T) {
 			username: "user1",
 			expectedUserRows: []map[string]interface{}{
 				{
-					"username": "user2",
-					"password": "pass2",
-					"token":    nil,
+					"username":         "user2",
+					"password":         "pass2",
+					"password_expired": false,
+					"token":            nil,
 				},
 				{
-					"username": "user3",
-					"password": "pass3",
-					"token":    "token3",
+					"username":         "user3",
+					"password":         "pass3",
+					"password_expired": false,
+					"token":            "token3",
 				},
 				{
-					"username": "user_one",
-					"password": "pass_one",
-					"token":    "new-token",
+					"username":         "user_one",
+					"password":         "pass_one",
+					"password_expired": false,
+					"token":            "new-token",
 				},
 			},
 			expectedGroupRows: []map[string]interface{}{
@@ -514,19 +524,22 @@ func TestUpdate(t *testing.T) {
 			username: "user2",
 			expectedUserRows: []map[string]interface{}{
 				{
-					"username": "user1",
-					"password": "pass1",
-					"token":    nil,
+					"username":         "user1",
+					"password":         "pass1",
+					"password_expired": false,
+					"token":            nil,
 				},
 				{
-					"username": "user2",
-					"password": "pass_two",
-					"token":    nil,
+					"username":         "user2",
+					"password":         "pass_two",
+					"password_expired": false,
+					"token":            nil,
 				},
 				{
-					"username": "user3",
-					"password": "pass3",
-					"token":    "token3",
+					"username":         "user3",
+					"password":         "pass3",
+					"password_expired": false,
+					"token":            "token3",
 				},
 			},
 			expectedGroupRows: []map[string]interface{}{
@@ -554,19 +567,22 @@ func TestUpdate(t *testing.T) {
 			username: "user3",
 			expectedUserRows: []map[string]interface{}{
 				{
-					"username": "user1",
-					"password": "pass1",
-					"token":    nil,
+					"username":         "user1",
+					"password":         "pass1",
+					"password_expired": false,
+					"token":            nil,
 				},
 				{
-					"username": "user2",
-					"password": "pass2",
-					"token":    nil,
+					"username":         "user2",
+					"password":         "pass2",
+					"password_expired": false,
+					"token":            nil,
 				},
 				{
-					"username": "user3",
-					"password": "pass3",
-					"token":    "token3",
+					"username":         "user3",
+					"password":         "pass3",
+					"password_expired": false,
+					"token":            "token3",
 				},
 			},
 			expectedGroupRows: []map[string]interface{}{
@@ -588,19 +604,22 @@ func TestUpdate(t *testing.T) {
 			username: "user3",
 			expectedUserRows: []map[string]interface{}{
 				{
-					"username": "user1",
-					"password": "pass1",
-					"token":    nil,
+					"username":         "user1",
+					"password":         "pass1",
+					"password_expired": false,
+					"token":            nil,
 				},
 				{
-					"username": "user2",
-					"password": "pass2",
-					"token":    nil,
+					"username":         "user2",
+					"password":         "pass2",
+					"password_expired": false,
+					"token":            nil,
 				},
 				{
-					"username": "user3",
-					"password": "pass3",
-					"token":    "token3",
+					"username":         "user3",
+					"password":         "pass3",
+					"password_expired": false,
+					"token":            "token3",
 				},
 			},
 			expectedGroupRows: []map[string]interface{}{
@@ -666,7 +685,7 @@ func TestDelete(t *testing.T) {
 }
 
 func prepareTables(db *sqlx.DB, twoFAOn, totPON bool) error {
-	q := "CREATE TABLE `users` (username TEXT PRIMARY KEY, password TEXT, token TEXT%s)"
+	q := "CREATE TABLE `users` (username TEXT PRIMARY KEY, password TEXT, password_expired BOOLEAN NOT NULL CHECK (password_expired IN (0, 1)) DEFAULT 0, token TEXT%s)"
 	dynamicFieldsQ := ""
 	if twoFAOn {
 		dynamicFieldsQ += ", two_fa_send_to TEXT NOT NULL DEFAULT ''"
@@ -753,7 +772,7 @@ func prepareDummyData(db *sqlx.DB, withTwoFA, withTotP bool) error {
 }
 
 func assertUserTableEquals(t *testing.T, db *sqlx.DB, usersTableName string, expectedRows []map[string]interface{}) {
-	query := fmt.Sprintf("SELECT `username`, `password`, `token` FROM `%s` order by `username`", usersTableName)
+	query := fmt.Sprintf("SELECT `username`, `password`, `password_expired`, `token` FROM `%s` order by `username`", usersTableName)
 	test.AssertRowsEqual(t, db, expectedRows, query, []interface{}{})
 }
 

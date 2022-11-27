@@ -3,14 +3,22 @@ package sqlite
 import (
 	"fmt"
 	"os"
+	"time"
 
 	"github.com/golang-migrate/migrate/v4"
 	"github.com/golang-migrate/migrate/v4/database/sqlite3"
 	bindata "github.com/golang-migrate/migrate/v4/source/go_bindata"
 	"github.com/jmoiron/sqlx"
+	sql "github.com/mattn/go-sqlite3"
+
+	"github.com/cloudradar-monitoring/rport/share/logger"
 )
 
-const WALEnabled = "_journal_mode=WAL"
+const (
+	WALEnabled                  = "_journal_mode=WAL"
+	defaultDelayBetweenAttempts = 10 * time.Millisecond
+	DefaultMaxAttempts          = 3
+)
 
 type DataSourceOptions struct {
 	WALEnabled bool
@@ -57,4 +65,25 @@ func New(dataSourceName string, assetNames []string, asset func(name string) ([]
 	}
 
 	return db, nil
+}
+
+func WithRetryWhenBusy[R any](retryAble func() (result R, err error), label string, l *logger.Logger) (result R, err error) {
+	for r := 0; r < DefaultMaxAttempts; r++ {
+		result, err = retryAble()
+		if err != nil {
+			sqlErr, ok := err.(sql.Error)
+			if ok && sqlErr.Code == sql.ErrBusy {
+				l.Debugf("%s: attempt %d: source err = %+v\n", label, r+1, err)
+				time.Sleep(defaultDelayBetweenAttempts)
+				continue
+			}
+			// non retryable err
+			return result, sqlErr
+		}
+		// success
+		return result, nil
+	}
+
+	l.Debugf("%s: failed after max attempts: err = %+v\n", label, err)
+	return result, err
 }
