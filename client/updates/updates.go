@@ -104,9 +104,9 @@ func (u *Updates) refreshStatus(ctx context.Context) {
 	newStatus.Refreshed = time.Now()
 
 	if newStatus.Error != "" {
-		u.logger.Infof("Update status refresh failed: %v", newStatus.Error)
+		u.logger.Infof("Refreshing OS patch level (pending updates) failed: %v", newStatus.Error)
 	} else {
-		u.logger.Infof("Update status refreshed, %v updates available (%v security)",
+		u.logger.Infof("OS patch level (pending updates) refreshed, %v updates available (%v security)",
 			newStatus.UpdatesAvailable, newStatus.SecurityUpdatesAvailable)
 	}
 

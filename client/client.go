@@ -122,7 +122,7 @@ func (c *Client) verifyServer(hostname string, remote net.Addr, key ssh.PublicKe
 		return fmt.Errorf("invalid fingerprint (%s)", got)
 	}
 	//overwrite with complete fingerprint
-	c.Infof("Fingerprint %s", got)
+	c.Infof("Server's full fingerprint %s", got)
 	return nil
 }
 
@@ -131,7 +131,7 @@ func (c *Client) Start(ctx context.Context) error {
 
 	//optional keepalive loop
 	if c.configHolder.Connection.KeepAlive > 0 {
-		c.Infof("Keepalive job started with interval %s", c.configHolder.Connection.KeepAlive)
+		c.Infof("Keepalive job (client to server ping) started with interval %s", c.configHolder.Connection.KeepAlive)
 		go c.keepAliveLoop()
 	}
 	//connection loop
@@ -148,7 +148,7 @@ func (c *Client) keepAliveLoop() {
 		if c.sshConn != nil {
 			ok, _, rtt, err := comm.PingConnectionWithTimeout(c.sshConn, c.configHolder.Connection.KeepAliveTimeout)
 			if err != nil || !ok {
-				c.Errorf("failed to send ping: %s", err)
+				c.Errorf("Failed to keepalive (client to server ping): %s", err)
 				c.sshConn.Close()
 			} else {
 				msg := fmt.Sprintf("ping to %s succeeded within %s", c.sshConn.RemoteAddr(), rtt)
@@ -380,7 +380,7 @@ func (c *Client) sendConnectionRequest(ctx context.Context, sshConn ssh.Conn) er
 			if closeErr := sshConn.Close(); closeErr != nil {
 				c.Errorf(closeErr.Error())
 			}
-			return retryableError{errors.New(msg)}
+			return retryableError{errors.New("client is already connected or previous session was not properly closed")}
 		}
 
 		return errors.New(msg)
@@ -390,11 +390,11 @@ func (c *Client) sendConnectionRequest(ctx context.Context, sshConn ssh.Conn) er
 	if err != nil {
 		return fmt.Errorf("can't decode reply payload: %s", err)
 	}
-	msg := fmt.Sprintf("connected to %s within %s", sshConn.RemoteAddr().String(), time.Since(t0))
+	msg := fmt.Sprintf("Connected to %s within %s", sshConn.RemoteAddr().String(), time.Since(t0))
 	c.watchdog.Ping(WatchdogStateConnected, msg)
 	c.Infof(msg)
 	for _, r := range remotes {
-		c.Infof("new tunnel: %s", r.String())
+		c.Infof("New tunnel: %s", r.String())
 
 		serverStr := r.Local()
 		if r.HTTPProxy {
@@ -516,6 +516,9 @@ func (c *Client) showConnectionError(connerr error, attempt int) {
 		msg += ")"
 	}
 	c.Errorf(msg)
+	if strings.Contains(msg, "previous session was not properly closed") {
+		c.Infof("Server will clean up orphaned sessions within its {check_clients_connection_interval} automatically.")
+	}
 }
 
 // Wait blocks while the client is running.

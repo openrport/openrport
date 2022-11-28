@@ -7,7 +7,14 @@ import (
 
 	"github.com/cloudradar-monitoring/rport/server/api"
 	errors2 "github.com/cloudradar-monitoring/rport/server/api/errors"
+	"github.com/cloudradar-monitoring/rport/share/logger"
 )
+
+func (al *APIListener) writeErrorResponseLog(errPayload api.ErrorPayload) {
+	if al.errResponseLogger != nil && al.errResponseLogger.Level == logger.LogLevelDebug {
+		al.errResponseLogger.Debugf("payload: %+v", errPayload)
+	}
+}
 
 func (al *APIListener) writeJSONResponse(w http.ResponseWriter, statusCode int, response interface{}) {
 	b, err := json.Marshal(response)
@@ -24,7 +31,9 @@ func (al *APIListener) writeJSONResponse(w http.ResponseWriter, statusCode int, 
 }
 
 func (al *APIListener) jsonErrorResponse(w http.ResponseWriter, statusCode int, err error) {
-	al.writeJSONResponse(w, statusCode, api.NewErrAPIPayloadFromError(err, "", ""))
+	errPayload := api.NewErrAPIPayloadFromError(err, "", "")
+	al.writeErrorResponseLog(errPayload)
+	al.writeJSONResponse(w, statusCode, errPayload)
 }
 
 func (al *APIListener) jsonError(w http.ResponseWriter, err error) {
@@ -43,19 +52,27 @@ func (al *APIListener) jsonError(w http.ResponseWriter, err error) {
 		}
 	}
 
-	al.writeJSONResponse(w, statusCode, api.NewErrAPIPayloadFromError(err, errCode, ""))
+	errPayload := api.NewErrAPIPayloadFromError(err, errCode, "")
+	al.writeErrorResponseLog(errPayload)
+	al.writeJSONResponse(w, statusCode, errPayload)
 }
 
 func (al *APIListener) jsonErrorResponseWithErrCode(w http.ResponseWriter, statusCode int, errCode, title string) {
-	al.writeJSONResponse(w, statusCode, api.NewErrAPIPayloadFromMessage(errCode, title, ""))
+	errPayload := api.NewErrAPIPayloadFromMessage(errCode, title, "")
+	al.writeErrorResponseLog(errPayload)
+	al.writeJSONResponse(w, statusCode, errPayload)
 }
 
 func (al *APIListener) jsonErrorResponseWithTitle(w http.ResponseWriter, statusCode int, title string) {
-	al.writeJSONResponse(w, statusCode, api.NewErrAPIPayloadFromMessage("", title, ""))
+	errPayload := api.NewErrAPIPayloadFromMessage("", title, "")
+	al.writeErrorResponseLog(errPayload)
+	al.writeJSONResponse(w, statusCode, errPayload)
 }
 
 func (al *APIListener) jsonErrorResponseWithDetail(w http.ResponseWriter, statusCode int, errCode, title, detail string) {
-	al.writeJSONResponse(w, statusCode, api.NewErrAPIPayloadFromMessage(errCode, title, detail))
+	errPayload := api.NewErrAPIPayloadFromMessage(errCode, title, detail)
+	al.writeErrorResponseLog(errPayload)
+	al.writeJSONResponse(w, statusCode, errPayload)
 }
 
 func (al *APIListener) jsonErrorResponseWithError(w http.ResponseWriter, statusCode int, title string, err error) {
@@ -63,5 +80,7 @@ func (al *APIListener) jsonErrorResponseWithError(w http.ResponseWriter, statusC
 	if err != nil {
 		detail = err.Error()
 	}
-	al.writeJSONResponse(w, statusCode, api.NewErrAPIPayloadFromMessage("", title, detail))
+	errPayload := api.NewErrAPIPayloadFromMessage("", title, detail)
+	al.writeErrorResponseLog(errPayload)
+	al.writeJSONResponse(w, statusCode, errPayload)
 }

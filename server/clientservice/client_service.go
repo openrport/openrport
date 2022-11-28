@@ -60,6 +60,7 @@ type Provider struct {
 	repo              *clients.ClientRepository
 	portDistributor   *ports.PortDistributor
 	tunnelProxyConfig *clienttunnel.TunnelProxyConfig
+	logger            *logger.Logger
 
 	mu sync.Mutex
 }
@@ -151,11 +152,13 @@ func New(
 	tunnelProxyConfig *clienttunnel.TunnelProxyConfig,
 	portDistributor *ports.PortDistributor,
 	repo *clients.ClientRepository,
+	logger *logger.Logger,
 ) *Provider {
 	return &Provider{
 		tunnelProxyConfig: tunnelProxyConfig,
 		portDistributor:   portDistributor,
 		repo:              repo,
+		logger:            logger.Fork("client-service"),
 	}
 }
 
@@ -172,11 +175,7 @@ func Init(
 		return nil, fmt.Errorf("failed to init Client Repository: %v", err)
 	}
 
-	return &Provider{
-		tunnelProxyConfig: tunnelProxyConfig,
-		portDistributor:   portDistributor,
-		repo:              repo,
-	}, nil
+	return New(tunnelProxyConfig, portDistributor, repo, logger), nil
 }
 
 func (s *Provider) Count() (int, error) {
@@ -251,6 +250,8 @@ func (s *Provider) StartClient(
 	ctx context.Context, clientAuthID, clientID string, sshConn ssh.Conn, authMultiuseCreds bool,
 	req *chshare.ConnectionRequest, clog *logger.Logger,
 ) (*clients.Client, error) {
+	clog.Debugf("starting client session: %s", clientID)
+
 	s.mu.Lock()
 	defer s.mu.Unlock()
 
@@ -340,6 +341,8 @@ func (s *Provider) StartClient(
 	client.Context = ctx
 	client.Logger = clog
 
+	client.SetConnected()
+
 	_, err = s.startClientTunnels(client, req.Remotes)
 	if err != nil {
 		return nil, err
@@ -418,6 +421,8 @@ loop2:
 
 // StartClientTunnels returns a new tunnel for each requested remote or nil if error occurred
 func (s *Provider) StartClientTunnels(client *clients.Client, remotes []*models.Remote) ([]*clienttunnel.Tunnel, error) {
+	s.logger.Debugf("starting client tunnels: %s", client.ID)
+
 	s.mu.Lock()
 	defer s.mu.Unlock()
 	newTunnels, err := s.startClientTunnels(client, remotes)
@@ -464,6 +469,7 @@ func (s *Provider) startClientTunnels(client *clients.Client, remotes []*models.
 			}
 		}
 
+		s.logger.Debugf("starting tunnnel: %s", remote)
 		t, err := client.StartTunnel(remote, acl, s.tunnelProxyConfig, s.portDistributor)
 		if err != nil {
 			return nil, errors.APIError{
@@ -473,6 +479,7 @@ func (s *Provider) startClientTunnels(client *clients.Client, remotes []*models.
 		}
 		tunnels = append(tunnels, t)
 	}
+
 	return tunnels, nil
 }
 
@@ -504,6 +511,8 @@ func (s *Provider) checkLocalPort(protocol, port string) error {
 }
 
 func (s *Provider) Terminate(client *clients.Client) error {
+	s.logger.Infof("terminating client: %s", client.ID)
+
 	s.mu.Lock()
 	defer s.mu.Unlock()
 	if s.repo.KeepDisconnectedClients != nil && *s.repo.KeepDisconnectedClients == 0 {
@@ -511,7 +520,7 @@ func (s *Provider) Terminate(client *clients.Client) error {
 	}
 
 	now := time.Now()
-	client.DisconnectedAt = &now
+	client.SetDisconnected(&now)
 
 	// Do not save if client doesn't exist in repo - it was force deleted
 	existing, err := s.repo.GetByID(client.ID)
@@ -527,6 +536,8 @@ func (s *Provider) Terminate(client *clients.Client) error {
 // ForceDelete deletes client from repo regardless off KeepDisconnectedClients setting,
 // if client is active it will be closed
 func (s *Provider) ForceDelete(client *clients.Client) error {
+	s.logger.Debugf("force deleting client: %s", client.ID)
+
 	s.mu.Lock()
 	defer s.mu.Unlock()
 	if client.DisconnectedAt == nil {
@@ -538,6 +549,8 @@ func (s *Provider) ForceDelete(client *clients.Client) error {
 }
 
 func (s *Provider) DeleteOffline(clientID string) error {
+	s.logger.Debugf("deleting offline client: %s", clientID)
+
 	existing, err := s.getExistingByID(clientID)
 	if err != nil {
 		return err
