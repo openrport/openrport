@@ -369,7 +369,7 @@ func (mcs *SimpleMockClientService) GetActiveByID(id string) (*clients.Client, e
 	return mcs.ActiveClients[0], nil
 }
 
-func (mcs *SimpleMockClientService) StartClientTunnels(client *clients.Client, remotes []*models.Remote, forcing bool) ([]*clienttunnel.Tunnel, error) {
+func (mcs *SimpleMockClientService) StartClientTunnels(client *clients.Client, remotes []*models.Remote) ([]*clienttunnel.Tunnel, error) {
 	tunnels := make([]*clienttunnel.Tunnel, 0, 32)
 	for i, remote := range remotes {
 		tunnels = append(tunnels, makeTunnelResponse(mcs.ExpectedIDs[i], remote))

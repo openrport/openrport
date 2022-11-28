@@ -44,7 +44,7 @@ type ClientService interface {
 		ctx context.Context, clientAuthID, clientID string, sshConn ssh.Conn, authMultiuseCreds bool,
 		req *chshare.ConnectionRequest, clog *logger.Logger,
 	) (*clients.Client, error)
-	StartClientTunnels(client *clients.Client, remotes []*models.Remote, forcing bool) ([]*clienttunnel.Tunnel, error)
+	StartClientTunnels(client *clients.Client, remotes []*models.Remote) ([]*clienttunnel.Tunnel, error)
 	Terminate(client *clients.Client) error
 	ForceDelete(client *clients.Client) error
 	DeleteOffline(clientID string) error
@@ -343,7 +343,7 @@ func (s *ClientServiceProvider) StartClient(
 
 	client.SetConnected()
 
-	_, err = s.startClientTunnels(client, req.Remotes, false)
+	_, err = s.startClientTunnels(client, req.Remotes)
 	if err != nil {
 		return nil, err
 	}
@@ -356,12 +356,12 @@ func (s *ClientServiceProvider) StartClient(
 }
 
 // StartClientTunnels returns a new tunnel for each requested remote or nil if error occurred
-func (s *ClientServiceProvider) StartClientTunnels(client *clients.Client, remotes []*models.Remote, forcing bool) ([]*clienttunnel.Tunnel, error) {
+func (s *ClientServiceProvider) StartClientTunnels(client *clients.Client, remotes []*models.Remote) ([]*clienttunnel.Tunnel, error) {
 	s.logger.Debugf("starting client tunnels: %s", client.ID)
 
 	s.mu.Lock()
 	defer s.mu.Unlock()
-	newTunnels, err := s.startClientTunnels(client, remotes, forcing)
+	newTunnels, err := s.startClientTunnels(client, remotes)
 	if err != nil {
 		return nil, err
 	}
@@ -374,7 +374,7 @@ func (s *ClientServiceProvider) StartClientTunnels(client *clients.Client, remot
 	return newTunnels, err
 }
 
-func (s *ClientServiceProvider) startClientTunnels(client *clients.Client, remotes []*models.Remote, forcing bool) ([]*clienttunnel.Tunnel, error) {
+func (s *ClientServiceProvider) startClientTunnels(client *clients.Client, remotes []*models.Remote) ([]*clienttunnel.Tunnel, error) {
 	err := s.portDistributor.Refresh()
 	if err != nil {
 		return nil, err
@@ -414,11 +414,6 @@ func (s *ClientServiceProvider) startClientTunnels(client *clients.Client, remot
 			}
 		}
 		tunnels = append(tunnels, t)
-	}
-
-	// if we created the tunnels with a disconnected client then force reconnect the client
-	if forcing && client.DisconnectedAt != nil {
-		client.SetConnected()
 	}
 
 	return tunnels, nil

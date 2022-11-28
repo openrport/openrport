@@ -337,12 +337,10 @@ func (al *APIListener) handlePutClientTunnel(w http.ResponseWriter, req *http.Re
 		return
 	}
 
-	attemptingClientReconnect := false
 	if client == nil {
 		al.Debugf("active client with id %s not found", clientID)
 		// there isn't an active client, but let's see if there's a disconnect client and if so then
 		// try creating tunnels anyway by continuing with the non-active client.
-		attemptingClientReconnect = true
 		client, err = al.clientService.GetByID(clientID)
 		if err != nil {
 			al.jsonErrorResponse(w, http.StatusInternalServerError, err)
@@ -453,7 +451,7 @@ func (al *APIListener) handlePutClientTunnel(w http.ResponseWriter, req *http.Re
 		return
 	}
 
-	tunnels, err := al.clientService.StartClientTunnels(client, []*models.Remote{remote}, attemptingClientReconnect)
+	tunnels, err := al.clientService.StartClientTunnels(client, []*models.Remote{remote})
 	if err != nil {
 		al.jsonError(w, err)
 		return
