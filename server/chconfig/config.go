@@ -38,27 +38,27 @@ import (
 )
 
 type APIConfig struct {
-	Address               string  `mapstructure:"address"`
-	Auth                  string  `mapstructure:"auth"`
-	AuthFile              string  `mapstructure:"auth_file"`
-	AuthUserTable         string  `mapstructure:"auth_user_table"`
-	AuthGroupTable        string  `mapstructure:"auth_group_table"`
-	AuthGroupDetailsTable string  `mapstructure:"auth_group_details_table"`
-	AuthHeader            string  `mapstructure:"auth_header"`
-	UserHeader            string  `mapstructure:"user_header"`
-	CreateMissingUsers    bool    `mapstructure:"create_missing_users"`
-	DefaultUserGroup      string  `mapstructure:"default_user_group"`
-	JWTSecret             string  `mapstructure:"jwt_secret"`
-	DocRoot               string  `mapstructure:"doc_root"`
-	CertFile              string  `mapstructure:"cert_file"`
-	KeyFile               string  `mapstructure:"key_file"`
-	AccessLogFile         string  `mapstructure:"access_log_file"`
-	UserLoginWait         float32 `mapstructure:"user_login_wait"`
-	MaxFailedLogin        int     `mapstructure:"max_failed_login"`
-	BanTime               int     `mapstructure:"ban_time"`
-	MaxTokenLifeTimeHours int     `mapstructure:"max_token_lifetime"`
-	PasswordMinLength     int     `mapstructure:"password_min_length"`
-	PasswordZxcvbnCheck   bool    `mapstructure:"password_zxcvbn_check"`
+	Address                string  `mapstructure:"address"`
+	Auth                   string  `mapstructure:"auth"`
+	AuthFile               string  `mapstructure:"auth_file"`
+	AuthUserTable          string  `mapstructure:"auth_user_table"`
+	AuthGroupTable         string  `mapstructure:"auth_group_table"`
+	AuthGroupDetailsTable  string  `mapstructure:"auth_group_details_table"`
+	AuthHeader             string  `mapstructure:"auth_header"`
+	UserHeader             string  `mapstructure:"user_header"`
+	CreateMissingUsers     bool    `mapstructure:"create_missing_users"`
+	DefaultUserGroup       string  `mapstructure:"default_user_group"`
+	JWTSecret              string  `mapstructure:"jwt_secret"`
+	DocRoot                string  `mapstructure:"doc_root"`
+	CertFile               string  `mapstructure:"cert_file"`
+	KeyFile                string  `mapstructure:"key_file"`
+	AccessLogFile          string  `mapstructure:"access_log_file"`
+	UserLoginWait          float32 `mapstructure:"user_login_wait"`
+	MaxFailedLogin         int     `mapstructure:"max_failed_login"`
+	BanTime                int     `mapstructure:"ban_time"`
+	MaxTokenLifeTimeHours  int     `mapstructure:"max_token_lifetime"`
+	PasswordMinLength      int     `mapstructure:"password_min_length"`
+	PasswordZxcvbnMinscore int     `mapstructure:"password_zxcvbn_minscore"`
 
 	TwoFATokenDelivery       string                 `mapstructure:"two_fa_token_delivery"`
 	TwoFATokenTTLSeconds     int                    `mapstructure:"two_fa_token_ttl_seconds"`

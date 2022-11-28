@@ -6,6 +6,7 @@ import (
 	"net/http"
 	"strings"
 
+	zxcvbn "github.com/trustelem/zxcvbn"
 	"golang.org/x/crypto/bcrypt"
 
 	errors2 "github.com/cloudradar-monitoring/rport/server/api/errors"
@@ -28,20 +29,20 @@ type Provider interface {
 }
 
 type APIService struct {
-	DeliverySrv         message.Service
-	Provider            Provider
-	TwoFAOn             bool
-	TotPOn              bool
-	PasswordMinLength   int
-	PasswordZxcvbnCheck bool
+	DeliverySrv            message.Service
+	Provider               Provider
+	TwoFAOn                bool
+	TotPOn                 bool
+	PasswordMinLength      int
+	PasswordZxcvbnMinscore int
 }
 
-func NewAPIService(provider Provider, twoFAOn bool, passwordMinLength int, passwordZxcvbnCheck bool) *APIService {
+func NewAPIService(provider Provider, twoFAOn bool, passwordMinLength int, PasswordZxcvbnMinscore int) *APIService {
 	return &APIService{
-		Provider:            provider,
-		TwoFAOn:             twoFAOn,
-		PasswordMinLength:   passwordMinLength,
-		PasswordZxcvbnCheck: passwordZxcvbnCheck,
+		Provider:               provider,
+		TwoFAOn:                twoFAOn,
+		PasswordMinLength:      passwordMinLength,
+		PasswordZxcvbnMinscore: PasswordZxcvbnMinscore,
 	}
 }
 
@@ -223,7 +224,18 @@ func (as *APIService) validate(dataToChange *User, usernameToFind string) error 
 				HTTPStatus: http.StatusBadRequest,
 			})
 		}
-		// TODO: add the zxvbnm,skdjk check
+		fmt.Printf("**** as.PasswordZxcvbnMinscore: %#v\n", as.PasswordZxcvbnMinscore)
+		if as.PasswordZxcvbnMinscore >= 0 { // -1 means no zxcvbn
+			score := zxcvbn.PasswordStrength(string(dataToChange.Password), nil)
+			fmt.Printf("**** score: %#v\n", score)
+
+			if score.Score < as.PasswordZxcvbnMinscore { // TODO: move 5 into a new config parm or use 0 NO zxcvbn, 1 ... the value
+				errs = append(errs, errors2.APIError{
+					Message:    fmt.Sprintf("zxcvbn score is %v, must be at least %v", score.Score, as.PasswordZxcvbnMinscore),
+					HTTPStatus: http.StatusBadRequest,
+				})
+			}
+		}
 	}
 
 	if dataToChange.TwoFASendTo != "" && as.DeliverySrv != nil {
