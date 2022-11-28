@@ -14,6 +14,19 @@ const (
 	LogLevelDebug LogLevel = 2
 )
 
+func (l LogLevel) String() string {
+	switch l {
+	case LogLevelInfo:
+		return "info"
+	case LogLevelDebug:
+		return "debug"
+	case LogLevelError:
+		return "error"
+	default:
+		return ""
+	}
+}
+
 func ParseLogLevel(str string) (LogLevel, error) {
 	var m = map[string]LogLevel{
 		"error": LogLevelError,
@@ -61,7 +74,7 @@ type Logger struct {
 	prefix string
 	logger *log.Logger
 	output LogOutput
-	level  LogLevel
+	Level  LogLevel
 }
 
 func NewLogger(prefix string, output LogOutput, level LogLevel) *Logger {
@@ -69,7 +82,7 @@ func NewLogger(prefix string, output LogOutput, level LogLevel) *Logger {
 		prefix: prefix,
 		logger: log.New(output.File, "", log.Ldate|log.Ltime),
 		output: output,
-		level:  level,
+		Level:  level,
 	}
 	return l
 }
@@ -87,15 +100,15 @@ func (l *Logger) Debugf(f string, args ...interface{}) {
 }
 
 func (l *Logger) Logf(severity LogLevel, f string, args ...interface{}) {
-	if l.level >= severity {
-		l.logger.Printf(l.prefix+": "+f, args...)
+	if l.Level >= severity {
+		l.logger.Printf(severity.String()+": "+l.prefix+": "+f, args...)
 	}
 }
 
 func (l *Logger) Fork(prefix string, args ...interface{}) *Logger {
 	//slip the parent prefix at the front
 	args = append([]interface{}{l.prefix}, args...)
-	ll := NewLogger(fmt.Sprintf("%s: "+prefix, args...), l.output, l.level)
+	ll := NewLogger(fmt.Sprintf("%s: "+prefix, args...), l.output, l.Level)
 	return ll
 }
 

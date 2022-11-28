@@ -93,7 +93,9 @@ func (t *ClientsStatusCheckTask) PingClients(jobs <-chan *clients.Client, result
 		}
 		// None of the above. Ping must have failed or timed out.
 		t.log.Infof("ping to %s [%s] failed: %s", j.Name, j.ID, err)
-		j.DisconnectedAt = &now
+
+		j.SetDisconnected(&now)
+
 		j.Close()
 		results <- false
 	}
