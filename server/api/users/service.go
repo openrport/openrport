@@ -219,7 +219,7 @@ func (as *APIService) validate(dataToChange *User, usernameToFind string) error 
 			})
 		}
 		if as.PasswordZxcvbnMinscore >= 0 { // -1 means no zxcvbn
-			score := zxcvbn.PasswordStrength(string(dataToChange.Password), nil)
+			score := zxcvbn.PasswordStrength(dataToChange.Password, nil)
 			if score.Score < as.PasswordZxcvbnMinscore {
 				errs = append(errs, errors2.APIError{
 					Message:    fmt.Sprintf("zxcvbn score is %v, must be at least %v", score.Score, as.PasswordZxcvbnMinscore),
