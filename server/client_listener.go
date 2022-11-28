@@ -172,6 +172,7 @@ func (cl *ClientListener) Close() error {
 }
 
 func (cl *ClientListener) handleClient(w http.ResponseWriter, r *http.Request) {
+	cl.Debugf("Incoming client connection...")
 	//websockets upgrade AND has rport prefix
 	upgrade := strings.ToLower(r.Header.Get("Upgrade"))
 	protocol := r.Header.Get("Sec-WebSocket-Protocol")
@@ -201,6 +202,7 @@ func (cl *ClientListener) nextClientIndex() int32 {
 // handleWebsocket is responsible for handling the websocket connection
 func (cl *ClientListener) handleWebsocket(w http.ResponseWriter, req *http.Request) {
 	clog := cl.Fork("client#%d", cl.nextClientIndex())
+	clog.Debugf("Handling inbound web socket connection...")
 	wsConn, err := upgrader.Upgrade(w, req, nil)
 	if err != nil {
 		clog.Debugf("Failed to upgrade (%s)", err)
