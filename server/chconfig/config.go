@@ -39,6 +39,7 @@ import (
 
 type APIConfig struct {
 	Address               string  `mapstructure:"address"`
+	APIDomain             string  `mapstructure:"api_domain"`
 	Auth                  string  `mapstructure:"auth"`
 	AuthFile              string  `mapstructure:"auth_file"`
 	AuthUserTable         string  `mapstructure:"auth_user_table"`
@@ -107,42 +108,43 @@ type LogConfig struct {
 }
 
 type ServerConfig struct {
-	ListenAddress                    string                         `mapstructure:"address"`
-	URL                              []string                       `mapstructure:"url"`
-	PairingURL                       string                         `mapstructure:"pairing_url"`
-	TunnelHost                       string                         `mapstructure:"tunnel_host"`
-	KeySeed                          string                         `mapstructure:"key_seed"`
-	Auth                             string                         `mapstructure:"auth"`
-	AuthFile                         string                         `mapstructure:"auth_file"`
-	AuthTable                        string                         `mapstructure:"auth_table"`
-	Proxy                            string                         `mapstructure:"proxy"`
-	UsedPortsRaw                     []string                       `mapstructure:"used_ports"`
-	ExcludedPortsRaw                 []string                       `mapstructure:"excluded_ports"`
-	DataDir                          string                         `mapstructure:"data_dir"`
-	SqliteWAL                        bool                           `mapstructure:"sqlite_wal"`
-	PurgeDisconnectedClients         bool                           `mapstructure:"purge_disconnected_clients"`
-	CleanupLostClients               bool                           `mapstructure:"cleanup_lost_clients" replaced_by:"PurgeDisconnectedClients"`
-	KeepLostClients                  time.Duration                  `mapstructure:"keep_lost_clients" replaced_by:"KeepDisconnectedClients"`
-	KeepDisconnectedClients          time.Duration                  `mapstructure:"keep_disconnected_clients"`
-	CleanupClientsInterval           time.Duration                  `mapstructure:"cleanup_clients_interval" replaced_by:"PurgeDisconnectedClientsInterval"`
-	PurgeDisconnectedClientsInterval time.Duration                  `mapstructure:"purge_disconnected_clients_interval"`
-	CheckClientsConnectionInterval   time.Duration                  `mapstructure:"check_clients_connection_interval"`
-	CheckClientsConnectionTimeout    time.Duration                  `mapstructure:"check_clients_connection_timeout"`
-	MaxRequestBytes                  int64                          `mapstructure:"max_request_bytes"`
-	MaxRequestBytesClient            int64                          `mapstructure:"max_request_bytes_client"`
-	MaxFilePushSize                  int64                          `mapstructure:"max_filepush_size"`
-	CheckPortTimeout                 time.Duration                  `mapstructure:"check_port_timeout"`
-	RunRemoteCmdTimeoutSec           int                            `mapstructure:"run_remote_cmd_timeout_sec"`
-	AuthWrite                        bool                           `mapstructure:"auth_write"`
-	AuthMultiuseCreds                bool                           `mapstructure:"auth_multiuse_creds"`
-	EquateClientauthidClientid       bool                           `mapstructure:"equate_clientauthid_clientid"`
-	AllowRoot                        bool                           `mapstructure:"allow_root"`
-	ClientLoginWait                  float32                        `mapstructure:"client_login_wait"`
-	MaxFailedLogin                   int                            `mapstructure:"max_failed_login"`
-	BanTime                          int                            `mapstructure:"ban_time"`
-	EnableWsTestEndpoints            bool                           `mapstructure:"enable_ws_test_endpoints"`
-	TunnelProxyConfig                clienttunnel.TunnelProxyConfig `mapstructure:",squash"`
-	JobsMaxResults                   int                            `mapstructure:"jobs_max_results"`
+	ListenAddress                    string                             `mapstructure:"address"`
+	URL                              []string                           `mapstructure:"url"`
+	PairingURL                       string                             `mapstructure:"pairing_url"`
+	TunnelHost                       string                             `mapstructure:"tunnel_host"`
+	KeySeed                          string                             `mapstructure:"key_seed"`
+	Auth                             string                             `mapstructure:"auth"`
+	AuthFile                         string                             `mapstructure:"auth_file"`
+	AuthTable                        string                             `mapstructure:"auth_table"`
+	Proxy                            string                             `mapstructure:"proxy"`
+	UsedPortsRaw                     []string                           `mapstructure:"used_ports"`
+	ExcludedPortsRaw                 []string                           `mapstructure:"excluded_ports"`
+	DataDir                          string                             `mapstructure:"data_dir"`
+	SqliteWAL                        bool                               `mapstructure:"sqlite_wal"`
+	PurgeDisconnectedClients         bool                               `mapstructure:"purge_disconnected_clients"`
+	CleanupLostClients               bool                               `mapstructure:"cleanup_lost_clients" replaced_by:"PurgeDisconnectedClients"`
+	KeepLostClients                  time.Duration                      `mapstructure:"keep_lost_clients" replaced_by:"KeepDisconnectedClients"`
+	KeepDisconnectedClients          time.Duration                      `mapstructure:"keep_disconnected_clients"`
+	CleanupClientsInterval           time.Duration                      `mapstructure:"cleanup_clients_interval" replaced_by:"PurgeDisconnectedClientsInterval"`
+	PurgeDisconnectedClientsInterval time.Duration                      `mapstructure:"purge_disconnected_clients_interval"`
+	CheckClientsConnectionInterval   time.Duration                      `mapstructure:"check_clients_connection_interval"`
+	CheckClientsConnectionTimeout    time.Duration                      `mapstructure:"check_clients_connection_timeout"`
+	MaxRequestBytes                  int64                              `mapstructure:"max_request_bytes"`
+	MaxRequestBytesClient            int64                              `mapstructure:"max_request_bytes_client"`
+	MaxFilePushSize                  int64                              `mapstructure:"max_filepush_size"`
+	CheckPortTimeout                 time.Duration                      `mapstructure:"check_port_timeout"`
+	RunRemoteCmdTimeoutSec           int                                `mapstructure:"run_remote_cmd_timeout_sec"`
+	AuthWrite                        bool                               `mapstructure:"auth_write"`
+	AuthMultiuseCreds                bool                               `mapstructure:"auth_multiuse_creds"`
+	EquateClientauthidClientid       bool                               `mapstructure:"equate_clientauthid_clientid"`
+	AllowRoot                        bool                               `mapstructure:"allow_root"`
+	ClientLoginWait                  float32                            `mapstructure:"client_login_wait"`
+	MaxFailedLogin                   int                                `mapstructure:"max_failed_login"`
+	BanTime                          int                                `mapstructure:"ban_time"`
+	EnableWsTestEndpoints            bool                               `mapstructure:"enable_ws_test_endpoints"`
+	TunnelProxyConfig                clienttunnel.TunnelProxyConfig     `mapstructure:",squash"`
+	TunnelSubdomainConfig            clienttunnel.TunnelSubdomainConfig `mapstructure:",squash"`
+	JobsMaxResults                   int                                `mapstructure:"jobs_max_results"`
 
 	allowedPorts mapset.Set
 	AuthID       string
@@ -314,6 +316,10 @@ func (c *Config) ParseAndValidate(mLog *logger.MemLogger) error {
 		return err
 	}
 
+	if err := c.Server.TunnelSubdomainConfig.ParseAndValidate(); err != nil {
+		return err
+	}
+
 	if c.Server.DataDir == "" {
 		return errors.New("'data directory path' cannot be empty")
 	}
@@ -335,9 +341,10 @@ func (c *Config) ParseAndValidate(mLog *logger.MemLogger) error {
 		return err
 	}
 
-	if err := c.Server.parseAndValidateHosts(); err != nil {
+	if err := c.Server.parseAndValidateTunnelHost(); err != nil {
 		return err
 	}
+
 	if c.Server.CheckClientsConnectionInterval < CheckClientsConnectionIntervalMinimum {
 		c.Server.CheckClientsConnectionInterval = CheckClientsConnectionIntervalMinimum
 		mLog.Errorf("'check_clients_status_interval' too fast. Using the minimum possible of %s", CheckClientsConnectionIntervalMinimum)
@@ -382,7 +389,7 @@ func (c *Config) parseAndValidateAPI() error {
 		if err != nil {
 			return err
 		}
-		err = c.parseAndValidateAPIHTTPSOptions()
+		err = c.parseAndValidateAPIHTTPSOptions(false, false)
 		if err != nil {
 			return err
 		}
@@ -410,13 +417,58 @@ func (c *Config) parseAndValidateAPI() error {
 		if c.API.DocRoot != "" {
 			return errors.New("to use document root you need to specify API address")
 		}
-
 	}
 	err := c.API.AuditLog.Validate()
 	if err != nil {
 		return err
 	}
+
+	err = c.validateAPIWhenTunnelSubdomains()
+	if err != nil {
+		return err
+	}
+
 	return nil
+}
+
+func (c *Config) validateAPIWhenTunnelSubdomains() (err error) {
+	subdomainConfig := c.Server.TunnelSubdomainConfig
+	if !subdomainConfig.Enabled {
+		return nil
+	}
+
+	// The API and the tunnel subdomains are on the same port
+	matchingPorts, err := matchingPorts(c.API.Address, subdomainConfig.Address)
+	if err != nil {
+		return err
+	}
+	if matchingPorts {
+		// but the API is set up without TLS
+		err = c.parseAndValidateAPIHTTPSOptions(true /* mustBeConfigured */, true /* skipLoadCheck */)
+		if err != nil {
+			return fmt.Errorf("API and tunnel subdomains are on the same port. API https must be configured: %s", err)
+		}
+
+		// Required if tunnels by subdomain and the API run on the same https port
+		if c.API.APIDomain == "" {
+			return errors.New("API and tunnel subdomains are on the same port. The api_domain must be configured")
+		}
+	}
+
+	// TODO: (rs): check with TH whether should the api cert files match the api_domain?
+	return nil
+}
+
+func matchingPorts(address1 string, address2 string) (matching bool, err error) {
+	_, port1, err := net.SplitHostPort(address1)
+	if err != nil {
+		return false, err
+	}
+	_, port2, err := net.SplitHostPort(address2)
+	if err != nil {
+		return false, err
+	}
+	return port1 == port2, nil
 }
 
 func (c *Config) parseAndValidateTotPSecret() error {
@@ -489,8 +541,8 @@ func (c *Config) parseAndValidateAPIAuth() error {
 	return nil
 }
 
-func (c *Config) parseAndValidateAPIHTTPSOptions() error {
-	if c.API.CertFile == "" && c.API.KeyFile == "" {
+func (c *Config) parseAndValidateAPIHTTPSOptions(mustBeConfigured bool, skipLoadCheck bool) error {
+	if !mustBeConfigured && c.API.CertFile == "" && c.API.KeyFile == "" {
 		return nil
 	}
 	if c.API.CertFile != "" && c.API.KeyFile == "" {
@@ -499,9 +551,11 @@ func (c *Config) parseAndValidateAPIHTTPSOptions() error {
 	if c.API.CertFile == "" && c.API.KeyFile != "" {
 		return errors.New("when 'key_file' is set, 'cert_file' must be set as well")
 	}
-	_, err := tls.LoadX509KeyPair(c.API.CertFile, c.API.KeyFile)
-	if err != nil {
-		return fmt.Errorf("invalid 'cert_file', 'key_file': %v", err)
+	if !skipLoadCheck {
+		_, err := tls.LoadX509KeyPair(c.API.CertFile, c.API.KeyFile)
+		if err != nil {
+			return fmt.Errorf("invalid 'cert_file', 'key_file': %v", err)
+		}
 	}
 	return nil
 }
@@ -545,7 +599,7 @@ func (s *ServerConfig) parseAndValidateURLs() error {
 	return nil
 }
 
-func (s *ServerConfig) parseAndValidateHosts() error {
+func (s *ServerConfig) parseAndValidateTunnelHost() error {
 	if s.TunnelHost != "" && !govalidator.IsDNSName(s.TunnelHost) && !govalidator.IsIP(s.TunnelHost) {
 		return fmt.Errorf("invalid tunnel_host '%s': use IP address or FQDN", s.TunnelHost)
 	}

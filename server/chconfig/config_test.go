@@ -10,6 +10,7 @@ import (
 	"github.com/stretchr/testify/require"
 
 	"github.com/cloudradar-monitoring/rport/server/api/message"
+	"github.com/cloudradar-monitoring/rport/server/clients/clienttunnel"
 )
 
 var defaultValidMinServerConfig = ServerConfig{
@@ -652,6 +653,212 @@ func TestParseAndValidatePorts(t *testing.T) {
 				} else {
 					assert.Equal(t, tc.ExpectedAllowedPortsCount, tc.Config.allowedPorts.Cardinality())
 				}
+			}
+		})
+	}
+}
+
+func TestShouldParseAndValidateTunnelSubdomainConfig(t *testing.T) {
+	cases := []struct {
+		Name             string
+		Config           ServerConfig
+		ExpectedErrorStr string
+		NotConfigured    bool
+	}{
+		{
+			Name: "no error if not configured",
+			Config: ServerConfig{
+				TunnelSubdomainConfig: clienttunnel.TunnelSubdomainConfig{
+					Address:   "",
+					Subdomain: "",
+					CertFile:  "",
+					KeyFile:   "",
+				},
+			},
+			ExpectedErrorStr: "",
+			NotConfigured:    true,
+		},
+		{
+			Name: "no error if all values configured",
+			Config: ServerConfig{
+				TunnelSubdomainConfig: clienttunnel.TunnelSubdomainConfig{
+					Address:   "0.0.0.0:443",
+					Subdomain: "tunnels.rport.example.com",
+					CertFile:  "/var/lib/rport/wildcard.crt",
+					KeyFile:   "/var/lib/rport/wildcard.key",
+				},
+			},
+			ExpectedErrorStr: "",
+		},
+		{
+			Name: "error if address missing",
+			Config: ServerConfig{
+				TunnelSubdomainConfig: clienttunnel.TunnelSubdomainConfig{
+					// Address:   "0.0.0.0:443",
+					Subdomain: "tunnels.rport.example.com",
+					CertFile:  "/var/lib/rport/wildcard.crt",
+					KeyFile:   "/var/lib/rport/wildcard.key",
+				},
+			},
+			ExpectedErrorStr: clienttunnel.ErrTunnelSubdomainAddressMissing.Error(),
+		},
+		{
+			Name: "error if subdomain missing",
+			Config: ServerConfig{
+				TunnelSubdomainConfig: clienttunnel.TunnelSubdomainConfig{
+					Address: "0.0.0.0:443",
+					// Subdomain: "tunnels.rport.example.com",
+					CertFile: "/var/lib/rport/wildcard.crt",
+					KeyFile:  "/var/lib/rport/wildcard.key",
+				},
+			},
+			ExpectedErrorStr: clienttunnel.ErrTunnelSubdomainMissing.Error(),
+		},
+		{
+			Name: "error if cert file missing",
+			Config: ServerConfig{
+				TunnelSubdomainConfig: clienttunnel.TunnelSubdomainConfig{
+					Address:   "0.0.0.0:443",
+					Subdomain: "tunnels.rport.example.com",
+					// CertFile: "/var/lib/rport/wildcard.crt",
+					KeyFile: "/var/lib/rport/wildcard.key",
+				},
+			},
+			ExpectedErrorStr: clienttunnel.ErrTunnelSubdomainCertFileMissing.Error(),
+		},
+		{
+			Name: "error if key file missing",
+			Config: ServerConfig{
+				TunnelSubdomainConfig: clienttunnel.TunnelSubdomainConfig{
+					Address:   "0.0.0.0:443",
+					Subdomain: "tunnels.rport.example.com",
+					CertFile:  "/var/lib/rport/wildcard.crt",
+					// KeyFile:  "/var/lib/rport/wildcard.key",
+				},
+			},
+			ExpectedErrorStr: clienttunnel.ErrTunnelSubdomainKeyFileMissing.Error(),
+		},
+	}
+	for _, tc := range cases {
+		t.Run(tc.Name, func(t *testing.T) {
+			err := tc.Config.TunnelSubdomainConfig.ParseAndValidate()
+			if tc.ExpectedErrorStr == "" {
+				if tc.NotConfigured {
+					assert.NoError(t, err)
+				} else {
+					assert.NoError(t, err)
+					assert.True(t, tc.Config.TunnelSubdomainConfig.Enabled)
+				}
+			} else {
+				assert.Error(t, err)
+				assert.Contains(t, err.Error(), tc.ExpectedErrorStr)
+			}
+		})
+	}
+}
+
+func TestShouldValidateAPIDomainIfSharedPorts(t *testing.T) {
+	cases := []struct {
+		Name             string
+		Config           Config
+		ExpectedErrorStr string
+	}{
+		{
+			Name: "no error when tunnel subdomains not configured",
+			Config: Config{
+				Server: ServerConfig{
+					TunnelSubdomainConfig: clienttunnel.TunnelSubdomainConfig{
+						// Enabled is usually set when validating the subdomain config. However, we aren't
+						// validating it. We're only checking the API domain validation. So manually set
+						// the subdomain config as enabled.
+						Enabled: false,
+						Address: "0.0.0.0:6789",
+					},
+				},
+				API: APIConfig{
+					Address: "0.0.0.0:6789",
+				},
+			},
+			ExpectedErrorStr: "",
+		},
+		{
+			Name: "api https required when matching ports",
+			Config: Config{
+				Server: ServerConfig{
+					TunnelSubdomainConfig: clienttunnel.TunnelSubdomainConfig{
+						Enabled: true,
+						Address: "0.0.0.0:6789",
+					},
+				},
+				API: APIConfig{
+					Address:   "0.0.0.0:6789",
+					CertFile:  "certfile",
+					KeyFile:   "keyfile",
+					APIDomain: "apidomain",
+				},
+			},
+			ExpectedErrorStr: "",
+		},
+		{
+			Name: "error when invalid api https and matching ports",
+			Config: Config{
+				Server: ServerConfig{
+					TunnelSubdomainConfig: clienttunnel.TunnelSubdomainConfig{
+						Enabled: true,
+						Address: "0.0.0.0:6789",
+					},
+				},
+				API: APIConfig{
+					Address: "0.0.0.0:6789",
+					// CertFile:  "certfile",
+					KeyFile:   "keyfile",
+					APIDomain: "apidomain",
+				},
+			},
+			ExpectedErrorStr: "API https must be configured",
+		},
+		{
+			Name: "error when missing api domain and matching ports",
+			Config: Config{
+				Server: ServerConfig{
+					TunnelSubdomainConfig: clienttunnel.TunnelSubdomainConfig{
+						Enabled: true,
+						Address: "0.0.0.0:6789",
+					},
+				},
+				API: APIConfig{
+					Address:  "0.0.0.0:6789",
+					CertFile: "certfile",
+					KeyFile:  "keyfile",
+					// APIDomain: "apidomain",
+				},
+			},
+			ExpectedErrorStr: "The api_domain must be configured",
+		},
+		{
+			Name: "no api https required when non-matching ports",
+			Config: Config{
+				Server: ServerConfig{
+					TunnelSubdomainConfig: clienttunnel.TunnelSubdomainConfig{
+						Enabled: true,
+						Address: "0.0.0.0:6789",
+					},
+				},
+				API: APIConfig{
+					Address: "0.0.0.0:1234",
+				},
+			},
+			ExpectedErrorStr: "",
+		},
+	}
+	for _, tc := range cases {
+		t.Run(tc.Name, func(t *testing.T) {
+			err := tc.Config.validateAPIWhenTunnelSubdomain()
+			if tc.ExpectedErrorStr == "" {
+				assert.NoError(t, err)
+			} else {
+				assert.Error(t, err)
+				assert.Contains(t, err.Error(), tc.ExpectedErrorStr)
 			}
 		})
 	}
