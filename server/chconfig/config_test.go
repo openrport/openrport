@@ -853,7 +853,7 @@ func TestShouldValidateAPIDomainIfSharedPorts(t *testing.T) {
 	}
 	for _, tc := range cases {
 		t.Run(tc.Name, func(t *testing.T) {
-			err := tc.Config.validateAPIWhenTunnelSubdomain()
+			err := tc.Config.validateAPIWhenTunnelSubdomains()
 			if tc.ExpectedErrorStr == "" {
 				assert.NoError(t, err)
 			} else {
