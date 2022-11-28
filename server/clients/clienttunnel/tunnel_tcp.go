@@ -75,16 +75,16 @@ func (t *tunnelTCP) listen(ctx context.Context, l net.Listener) {
 		t.wg.Done()
 	}()
 
-	t.Infof("Listening")
+	t.Infof("Tunnel listening")
 
 	// background goroutine to close the listener when context is canceled
 	go func() {
 		<-ctx.Done()
 		if err := l.Close(); err != nil {
-			t.Errorf("Failed to close listener: %v", err)
+			t.Errorf("Failed to close tunnel listener: %v", err)
 			return
 		}
-		t.Debugf("Listener closed")
+		t.Debugf("Tunnel listener closed")
 	}()
 
 	for {
