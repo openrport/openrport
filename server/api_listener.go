@@ -47,6 +47,8 @@ const (
 
 type APIListener struct {
 	*logger.Logger
+	errResponseLogger *logger.Logger
+
 	*Server
 
 	fingerprint       string
@@ -190,6 +192,8 @@ func NewAPIListener(
 		commandManager:    commandManager,
 		storedTunnels:     storedtunnels.New(server.clientDB),
 	}
+
+	a.errResponseLogger = server.Logger.Fork("error-response")
 
 	if config.API.IsTwoFAOn() {
 		var msgSrv message.Service
