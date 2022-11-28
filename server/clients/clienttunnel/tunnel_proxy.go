@@ -96,6 +96,7 @@ func NewTunnelProxy(tunnel *Tunnel, logger *logger.Logger, config *TunnelProxyCo
 		ACL:        acl,
 	}
 	tp.Logger = logger.Fork("tunnel-proxy:%s", tp.Addr())
+	tp.Logger.Debugf("Starting tunnel proxy...")
 
 	tp.tunnelProxyConnector = NewTunnelProxyConnector(tp)
 	return tp

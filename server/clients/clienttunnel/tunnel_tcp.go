@@ -41,6 +41,7 @@ func newTunnelTCP(logger *logger.Logger, ssh ssh.Conn, remote models.Remote, acl
 }
 
 func (t *tunnelTCP) Start(ctx context.Context) error {
+	t.Logger.Debugf("Starting tcp tunnel...")
 	// TODO(m-terel): consider to use ListenTCP
 	l, err := net.Listen("tcp4", t.Local())
 	if err != nil {
