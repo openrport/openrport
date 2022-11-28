@@ -211,7 +211,7 @@ func (cl *ClientListener) handleWebsocket(w http.ResponseWriter, req *http.Reque
 	clog.Debugf("Handshaking...")
 	sshConn, chans, reqs, err := ssh.NewServerConn(conn, cl.sshConfig)
 	if err != nil {
-		cl.Debugf("Failed to handshake (%s)", err)
+		cl.Debugf("Failed to handshake (%s) from %s", err, conn.RemoteAddr().String())
 		return
 	}
 	//verify configuration

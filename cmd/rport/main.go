@@ -130,7 +130,7 @@ var clientHelp = `
 
     --service-user, An optional arg specifying user to run rport service under. Only on linux. Defaults to rport.
 
-    --log-level, Specify log level. Values: "error", "info", "debug" (defaults to "error")
+    --log-level, Specify log level. Values: "error", "info", "debug" (defaults to "info")
 
     --log-file, -l, Specifies log file path. (defaults to empty string: log printed to stdout)
 
@@ -282,7 +282,7 @@ func init() {
 	viperCfg.SetConfigType("toml")
 
 	viperCfg.SetDefault("client.server_switchback_interval", 2*time.Minute)
-	viperCfg.SetDefault("logging.log_level", "error")
+	viperCfg.SetDefault("logging.log_level", "info")
 	viperCfg.SetDefault("connection.max_retry_count", -1)
 	viperCfg.SetDefault("connection.keep_alive", "3m")
 	viperCfg.SetDefault("connection.keep_alive_timeout", "30s")

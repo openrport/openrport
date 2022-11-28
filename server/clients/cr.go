@@ -82,8 +82,10 @@ func (s *ClientRepository) Save(client *Client) error {
 }
 
 func (s *ClientRepository) Delete(client *Client) error {
+	s.logger.Debugf("deleting client: %s: %s", client.ID, client.DisconnectedAt)
 	if s.store != nil {
 		err := s.store.Delete(context.Background(), client.ID)
+
 		if err != nil {
 			return fmt.Errorf("failed to delete a client: %w", err)
 		}
@@ -159,8 +161,11 @@ func findMatchingORClients(availableClients []*Client, tags []string) (matchingC
 
 // DeleteObsolete deletes obsolete disconnected clients and returns them.
 func (s *ClientRepository) DeleteObsolete() ([]*Client, error) {
+	s.logger.Debugf("deleting obsolete clients")
+
 	if s.store != nil {
 		err := s.store.DeleteObsolete(context.Background())
+
 		if err != nil {
 			return nil, fmt.Errorf("failed to delete obsolete clients: %w", err)
 		}
@@ -171,6 +176,8 @@ func (s *ClientRepository) DeleteObsolete() ([]*Client, error) {
 	var deleted []*Client
 	for _, client := range s.clients {
 		if client.Obsolete(s.KeepDisconnectedClients) {
+			s.logger.Debugf("deleting obsolete client: %s: %s", client.ID, client.DisconnectedAt)
+
 			delete(s.clients, client.ID)
 			deleted = append(deleted, client)
 		}
