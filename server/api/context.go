@@ -2,7 +2,6 @@ package api
 
 import (
 	"context"
-	"fmt"
 
 	"github.com/cloudradar-monitoring/rport/share/logger"
 )
@@ -18,7 +17,6 @@ func WithUser(ctx context.Context, username string) context.Context {
 
 // GetUser returns a username from a given context.
 func GetUser(ctx context.Context, log *logger.Logger) string {
-	fmt.Printf("ctx: %#v\n", ctx)
 	userValue := ctx.Value(userCtxKey)
 	user, ok := userValue.(string)
 	if !ok {

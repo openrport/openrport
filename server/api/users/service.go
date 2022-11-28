@@ -176,13 +176,8 @@ func (as *APIService) Change(usr *User, username string) error {
 }
 
 func (as *APIService) validate(dataToChange *User, usernameToFind string) error {
-	//    2685 password validation happens here, and it should be good for any level
-	fmt.Printf("**** validate User: %#v\n", dataToChange)
-	fmt.Printf("**** usernameToFind: %#v\n", usernameToFind)
-	fmt.Printf("**** dataToChange.Username: %#v\n", dataToChange.Username)
 	errs := errors2.APIErrors{}
 
-	// TODO: need to move the password encoding after the validation!
 	if usernameToFind == "" {
 		if dataToChange.Username == "" {
 			errs = append(errs, errors2.APIError{
@@ -216,20 +211,16 @@ func (as *APIService) validate(dataToChange *User, usernameToFind string) error 
 		}
 	}
 
-	//    password validation
-	if dataToChange.Password != "" { // curl -Ss -X PUT http://localhost:3000/api/v1/users/eddy -u Admin:ciccio -H "content-type:application/json" --data-raw '{"password": ""}'
-		if len(dataToChange.Password) < as.PasswordMinLength { // TODO: 14 needs to be in config
+	if dataToChange.Password != "" {
+		if len(dataToChange.Password) < as.PasswordMinLength {
 			errs = append(errs, errors2.APIError{
 				Message:    fmt.Sprintf("password must be at least %v characters", as.PasswordMinLength),
 				HTTPStatus: http.StatusBadRequest,
 			})
 		}
-		fmt.Printf("**** as.PasswordZxcvbnMinscore: %#v\n", as.PasswordZxcvbnMinscore)
 		if as.PasswordZxcvbnMinscore >= 0 { // -1 means no zxcvbn
 			score := zxcvbn.PasswordStrength(string(dataToChange.Password), nil)
-			fmt.Printf("**** score: %#v\n", score)
-
-			if score.Score < as.PasswordZxcvbnMinscore { // TODO: move 5 into a new config parm or use 0 NO zxcvbn, 1 ... the value
+			if score.Score < as.PasswordZxcvbnMinscore {
 				errs = append(errs, errors2.APIError{
 					Message:    fmt.Sprintf("zxcvbn score is %v, must be at least %v", score.Score, as.PasswordZxcvbnMinscore),
 					HTTPStatus: http.StatusBadRequest,

@@ -180,7 +180,7 @@ func TestHandleGetClients(t *testing.T) {
 			},
 			clientGroupProvider: mockClientGroupProvider{},
 		},
-		userService: users.NewAPIService(users.NewStaticProvider([]*users.User{curUser}), false, 0, false),
+		userService: users.NewAPIService(users.NewStaticProvider([]*users.User{curUser}), false, 0, -1),
 	}
 	al.initRouter()
 

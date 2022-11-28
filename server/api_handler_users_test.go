@@ -177,7 +177,7 @@ func TestShouldErrorWhenNonAdminUser(t *testing.T) {
 		Groups:   []string{},
 	}
 
-	al.userService = users.NewAPIService(users.NewStaticProvider([]*users.User{adminUser, nonAdminUser}), false, 0, false)
+	al.userService = users.NewAPIService(users.NewStaticProvider([]*users.User{adminUser, nonAdminUser}), false, 0, -1)
 
 	_, err := bearer.CreateAuthToken(ctx, al.apiSessions, al.config.API.JWTSecret, time.Hour, adminUser.Username, []bearer.Scope{}, "1.2.3.4", "Safari")
 	require.NoError(t, err)
@@ -376,7 +376,7 @@ func setupTestAPIListenerUserAPISessions(t *testing.T, sessionCache *session.Cac
 		},
 		bannedUsers: security.NewBanList(0),
 		apiSessions: sessionCache,
-		userService: users.NewAPIService(users.NewStaticProvider([]*users.User{adminUser}), false, 0, false),
+		userService: users.NewAPIService(users.NewStaticProvider([]*users.User{adminUser}), false, 0, -1),
 	}
 	al.initRouter()
 
