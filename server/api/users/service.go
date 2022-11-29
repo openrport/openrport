@@ -149,7 +149,7 @@ func (as *APIService) ExistGroups(groups []string) error {
 }
 
 func (as *APIService) Change(usr *User, username string) error {
-	err := as.validate(usr, username) //validate does it all validation
+	err := as.validate(usr, username)
 	if err != nil {
 		return err
 	}
