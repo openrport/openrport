@@ -2,7 +2,9 @@ package chserver
 
 import (
 	"errors"
+	"fmt"
 	"net/http"
+	"net/http/httputil"
 
 	"github.com/cloudradar-monitoring/rport/server/api"
 	"github.com/cloudradar-monitoring/rport/server/api/users"
@@ -212,8 +214,15 @@ type postTokenResponse struct {
 	Token string `json:"token"`
 }
 
-// handlePostToken handles POST /me/token
+// 2683 ---> handlePostToken handles POST /me/token
 func (al *APIListener) handlePostToken(w http.ResponseWriter, req *http.Request) {
+	// Save a copy of this request for debugging.
+	requestDump, err := httputil.DumpRequest(req, true)
+	if err != nil {
+		fmt.Println(err)
+	}
+	fmt.Println("requestDump: ", string(requestDump))
+
 	curUser, err := al.getUserModelForAuth(req.Context())
 	if err != nil {
 		al.jsonError(w, err)
@@ -243,7 +252,7 @@ func (al *APIListener) handlePostToken(w http.ResponseWriter, req *http.Request)
 	al.writeJSONResponse(w, http.StatusOK, api.NewSuccessPayload(resp))
 }
 
-// handleDeleteToken handles DELETE /me/token
+// 2683 ---> handleDeleteToken handles DELETE /me/token
 func (al *APIListener) handleDeleteToken(w http.ResponseWriter, req *http.Request) {
 	curUser, err := al.getUserModelForAuth(req.Context())
 	if err != nil {
