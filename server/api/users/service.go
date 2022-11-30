@@ -177,6 +177,7 @@ func (as *APIService) Change(usr *User, username string) error {
 
 func (as *APIService) validate(dataToChange *User, usernameToFind string) error {
 	errs := errors2.APIErrors{}
+	var zxcvbnUserInputs []string
 
 	if usernameToFind == "" {
 		if dataToChange.Username == "" {
@@ -198,6 +199,8 @@ func (as *APIService) validate(dataToChange *User, usernameToFind string) error 
 			})
 		}
 	} else {
+		zxcvbnUserInputs = append(zxcvbnUserInputs, usernameToFind)
+
 		if (dataToChange.Username == "" || dataToChange.Username == usernameToFind) &&
 			dataToChange.Password == "" &&
 			dataToChange.Groups == nil &&
@@ -211,6 +214,10 @@ func (as *APIService) validate(dataToChange *User, usernameToFind string) error 
 		}
 	}
 
+	if dataToChange.Username != "" {
+		zxcvbnUserInputs = append(zxcvbnUserInputs, dataToChange.Username)
+	}
+
 	if dataToChange.Password != "" {
 		if len(dataToChange.Password) < as.PasswordMinLength {
 			errs = append(errs, errors2.APIError{
@@ -219,7 +226,7 @@ func (as *APIService) validate(dataToChange *User, usernameToFind string) error 
 			})
 		}
 		if as.PasswordZxcvbnMinscore >= 0 { // -1 means no zxcvbn
-			score := zxcvbn.PasswordStrength(dataToChange.Password, []string{usernameToFind})
+			score := zxcvbn.PasswordStrength(dataToChange.Password, zxcvbnUserInputs)
 			if score.Score < as.PasswordZxcvbnMinscore {
 				errs = append(errs, errors2.APIError{
 					Message:    fmt.Sprintf("zxcvbn score is %v, must be at least %v", score.Score, as.PasswordZxcvbnMinscore),
