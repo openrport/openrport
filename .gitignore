@@ -9,6 +9,11 @@ rportd
 !cmd/rportd
 rportd.exe
 deploy.sh
+
+# air
+.air.toml
+tmp/
+
 # Vuepress
 .vuepress/.cache
 .vuepress/.temp

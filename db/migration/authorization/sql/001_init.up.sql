@@ -1,4 +1,4 @@
-CREATE TABLE api_tokens (
+CREATE TABLE api_token (
     id TEXT PRIMARY KEY NOT NULL,
     username TEXT NOT NULL,
     prefix TEXT NOT NULL,
@@ -8,5 +8,5 @@ CREATE TABLE api_tokens (
     token TEXT NOT NULL,
 ) WITHOUT ROWID; -- username + prefix must have a unique key
 
-CREATE UNIQUE INDEX idx_api_tokens_username_prefix
+CREATE UNIQUE INDEX idx_api_token_username_prefix
     ON jobs (username, prefix);
