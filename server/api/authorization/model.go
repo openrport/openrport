@@ -6,7 +6,7 @@ import (
 
 const DefaultTimeoutSec = 60
 
-type ApiToken struct {
+type APIToken struct {
 	ID        string     `json:"id,omitempty" db:"id"`
 	Username  string     `json:"name,omitempty" db:"username"`
 	Prefix    string     `json:"name,omitempty" db:"prefix"`
