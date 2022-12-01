@@ -653,7 +653,7 @@ func TestHandlePostMultiClientCommand(t *testing.T) {
 					},
 					clientGroupProvider: mockClientGroupProvider{},
 				},
-				userService: users.NewAPIService(users.NewStaticProvider([]*users.User{curUser}), false),
+				userService: users.NewAPIService(users.NewStaticProvider([]*users.User{curUser}), false, 0, -1),
 				Logger:      testLog,
 			}
 			var done chan bool
@@ -1918,7 +1918,7 @@ func makeAPIListener(
 			},
 		},
 		bannedUsers: security.NewBanList(time.Duration(60) * time.Second),
-		userService: users.NewAPIService(users.NewStaticProvider([]*users.User{curUser}), false),
+		userService: users.NewAPIService(users.NewStaticProvider([]*users.User{curUser}), false, 0, -1),
 		Logger:      testLog,
 	}
 

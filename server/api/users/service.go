@@ -6,6 +6,7 @@ import (
 	"net/http"
 	"strings"
 
+	zxcvbn "github.com/trustelem/zxcvbn"
 	"golang.org/x/crypto/bcrypt"
 
 	errors2 "github.com/cloudradar-monitoring/rport/server/api/errors"
@@ -28,16 +29,20 @@ type Provider interface {
 }
 
 type APIService struct {
-	DeliverySrv message.Service
-	Provider    Provider
-	TwoFAOn     bool
-	TotPOn      bool
+	DeliverySrv            message.Service
+	Provider               Provider
+	TwoFAOn                bool
+	TotPOn                 bool
+	PasswordMinLength      int
+	PasswordZxcvbnMinscore int
 }
 
-func NewAPIService(provider Provider, twoFAOn bool) *APIService {
+func NewAPIService(provider Provider, twoFAOn bool, passwordMinLength int, PasswordZxcvbnMinscore int) *APIService {
 	return &APIService{
-		Provider: provider,
-		TwoFAOn:  twoFAOn,
+		Provider:               provider,
+		TwoFAOn:                twoFAOn,
+		PasswordMinLength:      passwordMinLength,
+		PasswordZxcvbnMinscore: PasswordZxcvbnMinscore,
 	}
 }
 
@@ -144,6 +149,10 @@ func (as *APIService) ExistGroups(groups []string) error {
 }
 
 func (as *APIService) Change(usr *User, username string) error {
+	err := as.validate(usr, username)
+	if err != nil {
+		return err
+	}
 	if usr.Password != "" {
 		passHash, err := bcrypt.GenerateFromPassword([]byte(usr.Password), bcrypt.DefaultCost)
 		if err != nil {
@@ -160,12 +169,6 @@ func (as *APIService) Change(usr *User, username string) error {
 		tokenHashStr := strings.Replace(string(tokenHash), htpasswdBcryptAltPrefix, htpasswdBcryptPrefix, 1)
 		usr.Token = &tokenHashStr
 	}
-
-	err := as.validate(usr, username)
-	if err != nil {
-		return err
-	}
-
 	if username != "" {
 		return as.updateUser(usr, username)
 	}
@@ -174,6 +177,7 @@ func (as *APIService) Change(usr *User, username string) error {
 
 func (as *APIService) validate(dataToChange *User, usernameToFind string) error {
 	errs := errors2.APIErrors{}
+	var zxcvbnUserInputs []string
 
 	if usernameToFind == "" {
 		if dataToChange.Username == "" {
@@ -195,6 +199,8 @@ func (as *APIService) validate(dataToChange *User, usernameToFind string) error 
 			})
 		}
 	} else {
+		zxcvbnUserInputs = append(zxcvbnUserInputs, usernameToFind)
+
 		if (dataToChange.Username == "" || dataToChange.Username == usernameToFind) &&
 			dataToChange.Password == "" &&
 			dataToChange.PasswordExpired == nil &&
@@ -206,6 +212,28 @@ func (as *APIService) validate(dataToChange *User, usernameToFind string) error 
 				Message:    "nothing to change",
 				HTTPStatus: http.StatusBadRequest,
 			})
+		}
+	}
+
+	if dataToChange.Username != "" {
+		zxcvbnUserInputs = append(zxcvbnUserInputs, dataToChange.Username)
+	}
+
+	if dataToChange.Password != "" {
+		if len(dataToChange.Password) < as.PasswordMinLength {
+			errs = append(errs, errors2.APIError{
+				Message:    fmt.Sprintf("password must be at least %v characters", as.PasswordMinLength),
+				HTTPStatus: http.StatusBadRequest,
+			})
+		}
+		if as.PasswordZxcvbnMinscore >= 0 { // -1 means no zxcvbn
+			score := zxcvbn.PasswordStrength(dataToChange.Password, zxcvbnUserInputs)
+			if score.Score < as.PasswordZxcvbnMinscore {
+				errs = append(errs, errors2.APIError{
+					Message:    fmt.Sprintf("zxcvbn score is %v, must be at least %v", score.Score, as.PasswordZxcvbnMinscore),
+					HTTPStatus: http.StatusBadRequest,
+				})
+			}
 		}
 	}
 
