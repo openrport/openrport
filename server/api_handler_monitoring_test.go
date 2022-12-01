@@ -9,6 +9,7 @@ import (
 
 	"github.com/stretchr/testify/assert"
 
+	"github.com/cloudradar-monitoring/rport/server/chconfig"
 	"github.com/cloudradar-monitoring/rport/server/clients"
 	"github.com/cloudradar-monitoring/rport/server/monitoring"
 	"github.com/cloudradar-monitoring/rport/share/comm"
@@ -58,11 +59,12 @@ func TestHandleRefreshUpdatesStatus(t *testing.T) {
 			connMock.ReturnOk = !tc.SSHError
 			c1.Connection = connMock
 
+			clientService := NewClientService(nil, nil, clients.NewClientRepository([]*clients.Client{c1, c2}, &hour, testLog), testLog)
 			al := APIListener{
 				insecureForTests: true,
 				Server: &Server{
-					clientService: NewClientService(nil, nil, clients.NewClientRepository([]*clients.Client{c1, c2}, &hour, testLog)),
-					config:        &Config{},
+					clientService: clientService,
+					config:        &chconfig.Config{},
 				},
 				Logger: testLog,
 			}
@@ -113,7 +115,7 @@ func TestListClientMetrics(t *testing.T) {
 	al := APIListener{
 		insecureForTests: true,
 		Server: &Server{
-			config:            &Config{},
+			config:            &chconfig.Config{},
 			monitoringService: monitoringService,
 		},
 	}

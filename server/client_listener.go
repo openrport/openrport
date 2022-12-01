@@ -23,6 +23,7 @@ import (
 
 	"github.com/cloudradar-monitoring/rport/server/api/middleware"
 	"github.com/cloudradar-monitoring/rport/server/auditlog"
+	"github.com/cloudradar-monitoring/rport/server/chconfig"
 	"github.com/cloudradar-monitoring/rport/server/clients"
 	"github.com/cloudradar-monitoring/rport/server/clients/clienttunnel"
 	chshare "github.com/cloudradar-monitoring/rport/share"
@@ -209,7 +210,7 @@ func (cl *ClientListener) handleWebsocket(w http.ResponseWriter, req *http.Reque
 	clog.Debugf("Handshaking...")
 	sshConn, chans, reqs, err := ssh.NewServerConn(conn, cl.sshConfig)
 	if err != nil {
-		cl.Debugf("Failed to handshake (%s)", err)
+		cl.Debugf("Failed to handshake (%s) from %s", err, conn.RemoteAddr().String())
 		return
 	}
 	//verify configuration
@@ -298,7 +299,7 @@ func checkVersions(log *logger.Logger, clientVersion string) {
 	log.Infof("Client version (%s) differs from server version (%s)", v, chshare.BuildVersion)
 }
 
-func (cl *ClientListener) getCID(reqID string, config *Config, clientAuthID string) (string, error) {
+func (cl *ClientListener) getCID(reqID string, config *chconfig.Config, clientAuthID string) (string, error) {
 	if reqID != "" {
 		return reqID, nil
 	}
@@ -489,7 +490,7 @@ func (cl *ClientListener) saveCmdResult(respBytes []byte) (*models.Job, error) {
 			// proceed further
 		}
 	} else {
-		cl.Debugf("%s, WS conn not found", resp.LogPrefix())
+		cl.Debugf("%s, WS conn not found when saving command result. No active listeners connected", resp.LogPrefix())
 	}
 
 	err = cl.jobProvider.SaveJob(&resp)
@@ -589,7 +590,7 @@ func (cl *ClientListener) handleOutputChannel(typ string, jobData []byte, client
 				// proceed further
 			}
 		} else {
-			clientLog.Debugf("WS conn not found")
+			clientLog.Debugf("WS conn not found handling output channel. No active listeners connected")
 		}
 	}
 	return nil

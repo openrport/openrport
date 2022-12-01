@@ -10,6 +10,8 @@ import (
 	"github.com/cloudradar-monitoring/rport/server/api"
 	errors2 "github.com/cloudradar-monitoring/rport/server/api/errors"
 	"github.com/cloudradar-monitoring/rport/server/api/users"
+	"github.com/cloudradar-monitoring/rport/server/bearer"
+
 	chshare "github.com/cloudradar-monitoring/rport/share"
 	"github.com/cloudradar-monitoring/rport/share/logger"
 )
@@ -106,11 +108,16 @@ func (al *APIListener) handleLogin(username, pwd string, newpwd string, skipPass
 			return
 		}
 
-		tokenStr, err := al.createAuthToken(
+		// 2fa token
+		tokenStr, err := bearer.CreateAuthToken(
 			req.Context(),
+			al.apiSessions,
+			al.config.API.JWTSecret,
 			lifetime,
 			username,
-			Scopes2FaCheckOnly,
+			bearer.Scopes2FaCheckOnly,
+			req.UserAgent(),
+			chshare.RemoteIP(req),
 		)
 		if err != nil {
 			al.jsonErrorResponse(w, http.StatusInternalServerError, err)
@@ -143,20 +150,25 @@ func (al *APIListener) handleLogin(username, pwd string, newpwd string, skipPass
 			return
 		}
 
-		scopes := Scopes2FaCheckOnly
+		scopes := bearer.Scopes2FaCheckOnly
 		if totP == nil {
 			// we allow access to totp-secret creation only if no totp secret was created before
-			scopes = append(scopes, ScopesTotPCreateOnly...)
+			scopes = append(scopes, bearer.ScopesTotPCreateOnly...)
 			loginResp.TwoFA.TotPKeyStatus = TotPKeyPending.String()
 		} else {
 			loginResp.TwoFA.TotPKeyStatus = TotPKeyExists.String()
 		}
 
-		tokenStr, err := al.createAuthToken(
+		// TotP token
+		tokenStr, err := bearer.CreateAuthToken(
 			req.Context(),
+			al.apiSessions,
+			al.config.API.JWTSecret,
 			lifetime,
 			username,
 			scopes,
+			req.UserAgent(),
+			chshare.RemoteIP(req),
 		)
 		if err != nil {
 			al.jsonErrorResponse(w, http.StatusInternalServerError, err)
@@ -168,7 +180,17 @@ func (al *APIListener) handleLogin(username, pwd string, newpwd string, skipPass
 		return
 	}
 
-	tokenStr, err := al.createAuthToken(req.Context(), lifetime, username, ScopesAllExcluding2FaCheck)
+	// login token, normal
+	tokenStr, err := bearer.CreateAuthToken(
+		req.Context(),
+		al.apiSessions,
+		al.config.API.JWTSecret,
+		lifetime,
+		username,
+		bearer.ScopesAllExcluding2FaCheck,
+		req.UserAgent(),
+		chshare.RemoteIP(req),
+	)
 	if err != nil {
 		al.jsonErrorResponse(w, http.StatusInternalServerError, err)
 		return
@@ -187,7 +209,17 @@ func (al *APIListener) sendJWTToken(username string, w http.ResponseWriter, req 
 		return
 	}
 
-	tokenStr, err := al.createAuthToken(req.Context(), lifetime, username, ScopesAllExcluding2FaCheck)
+	// login token, after 2fa
+	tokenStr, err := bearer.CreateAuthToken(
+		req.Context(),
+		al.apiSessions,
+		al.config.API.JWTSecret,
+		lifetime,
+		username,
+		bearer.ScopesAllExcluding2FaCheck,
+		req.UserAgent(),
+		chshare.RemoteIP(req),
+	)
 	if err != nil {
 		al.jsonErrorResponse(w, http.StatusInternalServerError, err)
 		return
@@ -261,11 +293,11 @@ func parseTokenLifetime(req *http.Request) (time.Duration, error) {
 		return 0, fmt.Errorf("invalid token-lifetime : %s", err)
 	}
 	result := time.Duration(lifetime) * time.Second
-	if result > maxTokenLifetime {
-		return 0, fmt.Errorf("requested token lifetime exceeds max allowed %d", maxTokenLifetime/time.Second)
+	if result > bearer.DefaultMaxTokenLifetime {
+		return 0, fmt.Errorf("requested token lifetime exceeds max allowed %d", bearer.DefaultMaxTokenLifetime/time.Second)
 	}
 	if result <= 0 {
-		result = defaultTokenLifetime
+		result = bearer.DefaultTokenLifetime
 	}
 	return result, nil
 }

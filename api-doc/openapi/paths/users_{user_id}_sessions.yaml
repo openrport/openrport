@@ -1,0 +1,66 @@
+get:
+  tags:
+    - Users
+  summary: >-
+    Gets all existing user api sessions for user.
+  operationId: UserAPISessionsGet
+  description: >-
+    Gets all the API sessions for the user specified. This API requires the current
+    user to be member of group `Administrators`. Returns 403 otherwise. The
+    `Administrators` group name is hardcoded and cannot be changed at the moment
+  parameters:
+    - name: user_id
+      in: path
+      description: unique user ID
+      required: true
+      schema:
+        type: string
+  responses:
+    "200":
+      description: Successful Operation
+      content:
+        application/json:
+          schema:
+            type: object
+            properties:
+              data:
+                type: array
+                items:
+                  $ref: ../components/schemas/APISession.yaml
+    "403":
+      description: >-
+        current user should belong to Administrators group to access this
+        resource
+      content:
+        application/json:
+          schema:
+            $ref: ../components/schemas/ErrorPayload.yaml
+delete:
+  tags:
+    - Users
+  summary: >-
+    Delete all existing user api sessions for user.
+  operationId: UserAPISessionsDelete
+  description: >-
+    Deletes all the API sessions for the user specified. This API requires the current
+    user to be member of group `Administrators`. Returns 403 otherwise. The
+    `Administrators` group name is hardcoded and cannot be changed at the moment
+  parameters:
+    - name: user_id
+      in: path
+      description: unique user ID
+      required: true
+      schema:
+        type: string
+  responses:
+    "204":
+      description: Successful Operation
+      content: {}
+    "403":
+      description: >-
+        current user should belong to Administrators group to access this
+        resource
+      content:
+        application/json:
+          schema:
+            $ref: ../components/schemas/ErrorPayload.yaml

@@ -12,6 +12,7 @@ import (
 
 	"github.com/cloudradar-monitoring/rport/server/api"
 	"github.com/cloudradar-monitoring/rport/server/api/users"
+	"github.com/cloudradar-monitoring/rport/server/chconfig"
 	"github.com/cloudradar-monitoring/rport/share/logger"
 )
 
@@ -28,7 +29,7 @@ func TestHandleMeStaticAuth(t *testing.T) {
 	al := APIListener{
 		insecureForTests: true,
 		Server: &Server{
-			config: &Config{},
+			config: &chconfig.Config{},
 		},
 		userService: mockUsersService,
 	}
@@ -44,6 +45,7 @@ func TestHandleMeStaticAuth(t *testing.T) {
 	expectedJSON := `{
 		"data": {
 			"username": "test-user",
+			"password_expired": false,
 			"groups": [
 				"group1"
 			],
@@ -108,7 +110,7 @@ func TestHandleMeDBAuth(t *testing.T) {
 	al := APIListener{
 		insecureForTests: true,
 		Server: &Server{
-			config: &Config{},
+			config: &chconfig.Config{},
 		},
 		userService: mockUsersService,
 	}
@@ -124,6 +126,7 @@ func TestHandleMeDBAuth(t *testing.T) {
 	expectedJSON := `{
 		"data": {
 			"username": "test-user",
+			"password_expired": false,
 			"groups": [
 				"group1"
 			],

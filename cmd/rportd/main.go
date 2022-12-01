@@ -1,6 +1,7 @@
 package main
 
 import (
+	"context"
 	"fmt"
 	"log"
 	"os"
@@ -16,6 +17,7 @@ import (
 	chserver "github.com/cloudradar-monitoring/rport/server"
 	"github.com/cloudradar-monitoring/rport/server/api/message"
 	"github.com/cloudradar-monitoring/rport/server/auditlog"
+	"github.com/cloudradar-monitoring/rport/server/chconfig"
 	chshare "github.com/cloudradar-monitoring/rport/share"
 	"github.com/cloudradar-monitoring/rport/share/files"
 )
@@ -229,7 +231,7 @@ var (
 	RootCmd  *cobra.Command
 	cfgPath  *string
 	viperCfg *viper.Viper
-	cfg      = &chserver.Config{}
+	cfg      = &chconfig.Config{}
 
 	svcCommand *string
 	svcUser    *string
@@ -462,12 +464,14 @@ func runMain(*cobra.Command, []string) {
 
 	filesAPI := files.NewFileSystem()
 
-	plusManager, err := chserver.EnablePlusIfLicensed(cfg, filesAPI)
+	ctx := context.Background()
+
+	plusManager, err := chserver.EnablePlusIfLicensed(ctx, cfg, filesAPI)
 	if err != nil && err != chserver.ErrPlusNotEnabled {
 		log.Fatal(err)
 	}
 
-	s, err := chserver.NewServer(cfg, &chserver.ServerOpts{
+	s, err := chserver.NewServer(ctx, cfg, &chserver.ServerOpts{
 		FilesAPI:    filesAPI,
 		PlusManager: plusManager,
 	})

@@ -82,6 +82,18 @@ type CalculatedClient struct {
 	ConnectionState ConnectionState `json:"connection_state"`
 }
 
+func (c *Client) SetConnected() {
+	c.Logger.Debugf("%s: set to connected at %s", c.ID, time.Now())
+	c.DisconnectedAt = nil
+}
+
+func (c *Client) SetDisconnected(at *time.Time) {
+	if c.Logger != nil {
+		c.Logger.Debugf("%s: set to disconnected at %s", c.ID, *at)
+	}
+	c.DisconnectedAt = at
+}
+
 func (c *Client) ToCalculated(allGroups []*cgroups.ClientGroup) *CalculatedClient {
 	clientGroups := []string{}
 	for _, group := range allGroups {

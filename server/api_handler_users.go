@@ -1,17 +1,27 @@
 package chserver
 
 import (
+	"errors"
+	"fmt"
 	"net/http"
+	"strconv"
 
 	"github.com/gorilla/mux"
 
 	"github.com/cloudradar-monitoring/rport/server/api"
 	"github.com/cloudradar-monitoring/rport/server/api/users"
 	"github.com/cloudradar-monitoring/rport/server/auditlog"
+	"github.com/cloudradar-monitoring/rport/server/routes"
+)
+
+var (
+	ErrMissingUserIDParam    = errors.New("missing user id param")
+	ErrMissingSessionIDParam = errors.New("missing session id param")
 )
 
 type UserPayload struct {
 	Username                 string          `json:"username"`
+	PasswordExpired          bool            `json:"password_expired"`
 	Groups                   []string        `json:"groups"`
 	TwoFASendTo              string          `json:"two_fa_send_to"`
 	EffectiveUserPermissions map[string]bool `json:"effective_user_permissions"`
@@ -29,9 +39,10 @@ func (al *APIListener) handleGetUsers(w http.ResponseWriter, req *http.Request) 
 	for i := range usrs {
 		user := usrs[i]
 		usersToSend = append(usersToSend, UserPayload{
-			Username:    user.Username,
-			Groups:      user.Groups,
-			TwoFASendTo: user.TwoFASendTo,
+			Username:        user.Username,
+			PasswordExpired: *user.PasswordExpired,
+			Groups:          user.Groups,
+			TwoFASendTo:     user.TwoFASendTo,
 		})
 	}
 
@@ -41,7 +52,7 @@ func (al *APIListener) handleGetUsers(w http.ResponseWriter, req *http.Request) 
 
 func (al *APIListener) handleChangeUser(w http.ResponseWriter, req *http.Request) {
 	vars := mux.Vars(req)
-	userID, userIDExists := vars[routeParamUserID]
+	userID, userIDExists := vars[routes.ParamUserID]
 	if !userIDExists {
 		userID = ""
 	}
@@ -78,7 +89,7 @@ func (al *APIListener) handleChangeUser(w http.ResponseWriter, req *http.Request
 
 func (al *APIListener) handleDeleteUser(w http.ResponseWriter, req *http.Request) {
 	vars := mux.Vars(req)
-	userID, userIDExists := vars[routeParamUserID]
+	userID, userIDExists := vars[routes.ParamUserID]
 	if !userIDExists {
 		al.jsonErrorResponseWithTitle(w, http.StatusBadRequest, "Empty user id provided")
 		return
@@ -100,7 +111,7 @@ func (al *APIListener) handleDeleteUser(w http.ResponseWriter, req *http.Request
 
 func (al *APIListener) handleDeleteUsersTotP(w http.ResponseWriter, req *http.Request) {
 	vars := mux.Vars(req)
-	userID, userIDProvided := vars[routeParamUserID]
+	userID, userIDProvided := vars[routes.ParamUserID]
 	if !userIDProvided {
 		al.jsonErrorResponseWithTitle(w, http.StatusBadRequest, "Empty user id provided")
 		return
@@ -122,4 +133,88 @@ func (al *APIListener) handleDeleteUsersTotP(w http.ResponseWriter, req *http.Re
 		Save()
 
 	al.handleManageTotP(w, req, user, "delete")
+}
+
+func (al *APIListener) handleGetUserAPISessions(w http.ResponseWriter, req *http.Request) {
+	vars := mux.Vars(req)
+	userID, userIDExists := vars[routes.ParamUserID]
+	if !userIDExists {
+		al.jsonError(w, ErrMissingUserIDParam)
+		return
+	}
+
+	ctx := req.Context()
+
+	userSessions, err := al.apiSessions.GetAllByUser(ctx, userID)
+	if err != nil {
+		titleMsg := fmt.Sprintf("unable to get sessions for user \"%s\"", userID)
+		al.jsonErrorResponseWithDetail(w, http.StatusInternalServerError, "", titleMsg, err.Error())
+		return
+	}
+
+	response := api.NewSuccessPayload(userSessions)
+	al.writeJSONResponse(w, http.StatusOK, response)
+}
+
+func (al *APIListener) handleDeleteUserAPISession(w http.ResponseWriter, req *http.Request) {
+	vars := mux.Vars(req)
+	userID, userIDExists := vars[routes.ParamUserID]
+	if !userIDExists {
+		al.jsonError(w, ErrMissingUserIDParam)
+		return
+	}
+
+	sessionID, sessionIDExists := vars[routes.ParamSessionID]
+	if !sessionIDExists {
+		al.jsonError(w, ErrMissingUserIDParam)
+		return
+	}
+
+	ctx := req.Context()
+
+	sessID, err := strconv.ParseInt(sessionID, 10, 64)
+	if err != nil {
+		titleMsg := fmt.Sprintf("unable to parse session ID \"%s\" for user \"%s\"", sessionID, userID)
+		al.jsonErrorResponseWithDetail(w, http.StatusInternalServerError, "", titleMsg, err.Error())
+		return
+	}
+
+	err = al.apiSessions.DeleteByID(ctx, userID, sessID)
+	if err != nil {
+		titleMsg := fmt.Sprintf("unable to delete session \"%s\" for user \"%s\"", sessionID, userID)
+		al.jsonErrorResponseWithDetail(w, http.StatusInternalServerError, "", titleMsg, err.Error())
+		return
+	}
+
+	al.auditLog.Entry(auditlog.ApplicationAuthAPISession, auditlog.ActionDelete).
+		WithHTTPRequest(req).
+		WithID(userID).
+		Save()
+
+	w.WriteHeader(http.StatusNoContent)
+}
+
+func (al *APIListener) handleDeleteAllUserAPISessions(w http.ResponseWriter, req *http.Request) {
+	vars := mux.Vars(req)
+	userID, userIDExists := vars[routes.ParamUserID]
+	if !userIDExists {
+		al.jsonError(w, ErrMissingUserIDParam)
+		return
+	}
+
+	ctx := req.Context()
+
+	err := al.apiSessions.DeleteAllByUser(ctx, userID)
+	if err != nil {
+		titleMsg := fmt.Sprintf("unable to delete all sessions for user \"%s\"", userID)
+		al.jsonErrorResponseWithDetail(w, http.StatusInternalServerError, "", titleMsg, err.Error())
+		return
+	}
+
+	al.auditLog.Entry(auditlog.ApplicationAuthAPISessions, auditlog.ActionDelete).
+		WithHTTPRequest(req).
+		WithID(userID).
+		Save()
+
+	w.WriteHeader(http.StatusNoContent)
 }

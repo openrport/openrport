@@ -97,7 +97,7 @@ func _001_initDownSql() (*asset, error) {
 		return nil, err
 	}
 
-	info := bindataFileInfo{name: "001_init.down.sql", size: 99, mode: os.FileMode(436), modTime: time.Unix(1625562284, 0)}
+	info := bindataFileInfo{name: "001_init.down.sql", size: 99, mode: os.FileMode(420), modTime: time.Unix(1656320425, 0)}
 	a := &asset{bytes: bytes, info: info}
 	return a, nil
 }
@@ -117,7 +117,7 @@ func _001_initUpSql() (*asset, error) {
 		return nil, err
 	}
 
-	info := bindataFileInfo{name: "001_init.up.sql", size: 356, mode: os.FileMode(436), modTime: time.Unix(1625562284, 0)}
+	info := bindataFileInfo{name: "001_init.up.sql", size: 356, mode: os.FileMode(420), modTime: time.Unix(1656320425, 0)}
 	a := &asset{bytes: bytes, info: info}
 	return a, nil
 }
@@ -137,7 +137,7 @@ func _002_stored_tunnelsDownSql() (*asset, error) {
 		return nil, err
 	}
 
-	info := bindataFileInfo{name: "002_stored_tunnels.down.sql", size: 27, mode: os.FileMode(436), modTime: time.Unix(1638793461, 0)}
+	info := bindataFileInfo{name: "002_stored_tunnels.down.sql", size: 27, mode: os.FileMode(420), modTime: time.Unix(1656320425, 0)}
 	a := &asset{bytes: bytes, info: info}
 	return a, nil
 }
@@ -157,7 +157,7 @@ func _002_stored_tunnelsUpSql() (*asset, error) {
 		return nil, err
 	}
 
-	info := bindataFileInfo{name: "002_stored_tunnels.up.sql", size: 251, mode: os.FileMode(436), modTime: time.Unix(1638886734, 0)}
+	info := bindataFileInfo{name: "002_stored_tunnels.up.sql", size: 251, mode: os.FileMode(420), modTime: time.Unix(1656320425, 0)}
 	a := &asset{bytes: bytes, info: info}
 	return a, nil
 }
@@ -177,7 +177,7 @@ func _003_add_tunnel_fieldsDownSql() (*asset, error) {
 		return nil, err
 	}
 
-	info := bindataFileInfo{name: "003_add_tunnel_fields.down.sql", size: 0, mode: os.FileMode(436), modTime: time.Unix(1638887470, 0)}
+	info := bindataFileInfo{name: "003_add_tunnel_fields.down.sql", size: 0, mode: os.FileMode(420), modTime: time.Unix(1656320425, 0)}
 	a := &asset{bytes: bytes, info: info}
 	return a, nil
 }
@@ -197,7 +197,7 @@ func _003_add_tunnel_fieldsUpSql() (*asset, error) {
 		return nil, err
 	}
 
-	info := bindataFileInfo{name: "003_add_tunnel_fields.up.sql", size: 104, mode: os.FileMode(436), modTime: time.Unix(1638887402, 0)}
+	info := bindataFileInfo{name: "003_add_tunnel_fields.up.sql", size: 104, mode: os.FileMode(420), modTime: time.Unix(1656320425, 0)}
 	a := &asset{bytes: bytes, info: info}
 	return a, nil
 }
