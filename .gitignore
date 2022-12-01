@@ -9,11 +9,9 @@ rportd
 !cmd/rportd
 rportd.exe
 deploy.sh
-
 # air
 .air.toml
 tmp/
-
 # Vuepress
 .vuepress/.cache
 .vuepress/.temp
@@ -34,3 +32,8 @@ rport-*.conf
 rportd-*.conf
 rport.conf
 rportd.conf
+cheat-sheet.txt
+
+# Ignore packages that might have not been removed from your local project folder
+*.rpm
+*.deb
