@@ -341,6 +341,8 @@ func init() {
 	viperCfg.SetDefault("monitoring.data_storage_days", DefaultMonitoringDataStorageDays)
 	viperCfg.SetDefault("api.totp_login_session_ttl", time.Minute*10)
 	viperCfg.SetDefault("api.totp_account_name", "RPort")
+	viperCfg.SetDefault("api.password_min_length", 14)
+	viperCfg.SetDefault("api.password_zxcvbn_minscore", 0)
 }
 
 func bindPFlags() {

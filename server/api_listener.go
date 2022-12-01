@@ -177,7 +177,7 @@ func NewAPIListener(
 	commandProvider := command.NewSqliteProvider(libraryDb)
 	commandManager := command.NewManager(commandProvider)
 
-	userService := users.NewAPIService(usersProvider, config.API.IsTwoFAOn())
+	userService := users.NewAPIService(usersProvider, config.API.IsTwoFAOn(), config.API.PasswordMinLength, config.API.PasswordZxcvbnMinscore)
 
 	a := &APIListener{
 		Server:            server,
