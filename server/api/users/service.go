@@ -29,11 +29,9 @@ type Provider interface {
 
 type APIService struct {
 	DeliverySrv message.Service
-	apiSessions *session.Cache
-
-	Provider Provider
-	TwoFAOn  bool
-	TotPOn   bool
+	Provider    Provider
+	TwoFAOn     bool
+	TotPOn      bool
 }
 
 func NewAPIService(provider Provider, twoFAOn bool) *APIService {
@@ -166,15 +164,6 @@ func (as *APIService) Change(usr *User, username string) error {
 	err := as.validate(usr, username)
 	if err != nil {
 		return err
-	}
-	if *usr.PasswordExpired { // this user password was just set to expired, need to kill all his/her sessions through internal call to DLETE /api/v1/users/{user-id}/sessions
-		err := as.apiSessions.DeleteAllByUser(context.Background(), username)
-		if err != nil {
-			titleMsg := fmt.Sprintf("unable to delete all sessions for user \"%s\"", userID)
-			as.jsonErrorResponseWithDetail(w, http.StatusInternalServerError, "", titleMsg, err.Error())
-			return
-		}
-		fmt.Printf("done")
 	}
 
 	if username != "" {
