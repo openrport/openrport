@@ -32,7 +32,7 @@ func MockUserService(user string, group string) *users.APIService {
 		Username: user,
 		Groups:   []string{group},
 	}
-	return users.NewAPIService(users.NewStaticProvider([]*users.User{curUser}), false)
+	return users.NewAPIService(users.NewStaticProvider([]*users.User{curUser}), false, 0, -1)
 }
 
 func FsCallback(fs *test.FileAPIMock, t *testing.T) {
