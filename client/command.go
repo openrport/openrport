@@ -54,7 +54,7 @@ func (c *Client) HandleRunCmdRequest(ctx context.Context, reqPayload []byte) (*c
 		InterpreterAliases:       c.configHolder.InterpreterAliases,
 	}
 
-	scriptPath, err := system.CreateScriptFile(c.configHolder.GetScriptsDir(), job.Command, interpreter)
+	scriptPath, err := system.CreateScriptFile(c.configHolder.GetScriptsDir(), job.Command, interpreter, c.consoleEncoder)
 	if err != nil {
 		return nil, err
 	}

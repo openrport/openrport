@@ -8,6 +8,8 @@ import (
 	"path/filepath"
 	"strings"
 
+	"golang.org/x/text/encoding"
+
 	chshare "github.com/cloudradar-monitoring/rport/share"
 	"github.com/cloudradar-monitoring/rport/share/random"
 )
@@ -15,7 +17,7 @@ import (
 const DefaultFileMode = os.FileMode(0540)
 const DefaultDirMode = os.FileMode(0700)
 
-func CreateScriptFile(scriptDir, scriptContent string, interpreter Interpreter) (filePath string, err error) {
+func CreateScriptFile(scriptDir, scriptContent string, interpreter Interpreter, encoder *encoding.Encoder) (filePath string, err error) {
 	err = ValidateScriptDir(scriptDir)
 	if err != nil {
 		return "", err
@@ -28,7 +30,15 @@ func CreateScriptFile(scriptDir, scriptContent string, interpreter Interpreter) 
 
 	scriptFilePath := filepath.Join(scriptDir, scriptFileName)
 
-	err = ioutil.WriteFile(scriptFilePath, []byte(scriptContent), DefaultFileMode)
+	byteContent := []byte(scriptContent)
+	if encoder != nil {
+		byteContent, err = encoder.Bytes(byteContent)
+		if err != nil {
+			return "", err
+		}
+	}
+
+	err = ioutil.WriteFile(scriptFilePath, byteContent, DefaultFileMode)
 	if err != nil {
 		return "", err
 	}
