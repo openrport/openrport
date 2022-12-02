@@ -339,19 +339,8 @@ func (al *APIListener) handlePutClientTunnel(w http.ResponseWriter, req *http.Re
 	}
 
 	if client == nil {
-		al.Debugf("active client with id %s not found", clientID)
-		// there isn't an active client, but let's see if there's a disconnect client and if so then
-		// try creating tunnels anyway by continuing with the non-active client.
-		client, err = al.clientService.GetByID(clientID)
-		if err != nil {
-			al.jsonErrorResponse(w, http.StatusInternalServerError, err)
-			return
-		}
-		if client == nil {
-			// still not found
-			al.jsonErrorResponseWithTitle(w, http.StatusNotFound, fmt.Sprintf("client with id %s not found", clientID))
-			return
-		}
+		al.jsonErrorResponseWithTitle(w, http.StatusNotFound, fmt.Sprintf("client with id %s not found", clientID))
+		return
 	}
 
 	localAddr := req.URL.Query().Get("local")
