@@ -15,7 +15,7 @@ import (
 	chshare "github.com/cloudradar-monitoring/rport/share/logger"
 )
 
-var testLog = chshare.NewLogger("api-listener-test", chshare.LogOutput{File: os.Stdout}, chshare.LogLevelDebug)
+var testLog = chshare.NewLogger("chserver-test", chshare.LogOutput{File: os.Stdout}, chshare.LogLevelDebug)
 var hour = time.Hour
 
 var DataSourceOptions = sqlite.DataSourceOptions{WALEnabled: false}

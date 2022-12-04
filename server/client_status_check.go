@@ -75,7 +75,8 @@ func (t *ClientsStatusCheckTask) Run(ctx context.Context) error {
 func (t *ClientsStatusCheckTask) PingClients(jobs <-chan *clients.Client, results chan<- bool) {
 	for j := range jobs {
 		ok, response, rtt, err := comm.PingConnectionWithTimeout(j.Connection, t.pingTimeout)
-		//t.log.Debugf("ok=%s, error=%s, response=%s", ok, err, response)
+		// t.log.Debugf("ok=%s, error=%s, response=%s", ok, err, response)
+
 		var now = time.Now()
 		//Old clients cannot respond properly to a ping request yet
 		if !ok && err == nil && string(response) == "unknown request" {

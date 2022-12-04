@@ -36,24 +36,26 @@ var protocolRe = regexp.MustCompile(`(.*)\/(tcp|udp|tcp\+udp)$`)
 
 // TODO(m-terel): Remote should be only used for parsing command args and URL query params. Current Remote is kind of a Tunnel model. Refactor to use separate models for representation and business logic.
 type Remote struct {
-	Name               string        `json:"name"`
-	Protocol           string        `json:"protocol"`
-	LocalHost          string        `json:"lhost"`
-	LocalPort          string        `json:"lport"`
-	RemoteHost         string        `json:"rhost"`
-	RemotePort         string        `json:"rport"`
-	LocalPortRandom    bool          `json:"lport_random"`
-	Scheme             *string       `json:"scheme"`
-	ACL                *string       `json:"acl"` // string representation of Tunnel.TunnelACL field
-	IdleTimeoutMinutes int           `json:"idle_timeout_minutes"`
-	AutoClose          time.Duration `json:"auto_close"`
-	HTTPProxy          bool          `json:"http_proxy"`
-	HostHeader         string        `json:"host_header"`
-	AuthUser           string        `json:"auth_user"`
-	AuthPassword       string        `json:"auth_password"`
+	Name                 string        `json:"name"`
+	Protocol             string        `json:"protocol"`
+	LocalHost            string        `json:"lhost"`
+	LocalPort            string        `json:"lport"`
+	LocalPortRandom      bool          `json:"lport_random"`
+	UseLocalSubdomain    bool          `json:"use_subdomain,omitempty"`
+	LocalSubdomainRandom bool          `json:"lsubdomain_random,omitempty"`
+	RemoteHost           string        `json:"rhost"`
+	RemotePort           string        `json:"rport"`
+	Scheme               *string       `json:"scheme"`
+	ACL                  *string       `json:"acl"` // string representation of Tunnel.TunnelACL field
+	IdleTimeoutMinutes   int           `json:"idle_timeout_minutes"`
+	AutoClose            time.Duration `json:"auto_close"`
+	HTTPProxy            bool          `json:"http_proxy"`
+	HostHeader           string        `json:"host_header"`
+	AuthUser             string        `json:"auth_user"`
+	AuthPassword         string        `json:"auth_password"`
 }
 
-func DecodeRemote(s string) (*Remote, error) {
+func NewRemote(s string) (*Remote, error) {
 	protocol := ProtocolTCP
 	matches := protocolRe.FindStringSubmatch(s)
 	if len(matches) >= 3 {
@@ -114,6 +116,7 @@ func isHost(s string) bool {
 // implement Stringer
 func (r Remote) String() string {
 	s := r.LocalHost + ":" + r.LocalPort + ":" + r.Remote()
+
 	if r.Protocol != ProtocolTCP {
 		s += "/" + r.Protocol
 	}

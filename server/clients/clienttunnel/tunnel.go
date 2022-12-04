@@ -19,11 +19,11 @@ type TunnelProtocol interface {
 	LastActive() time.Time
 }
 
-type MultiTunnel struct {
+type MultiProtocolTunnel struct {
 	Protocols []TunnelProtocol
 }
 
-func (mt *MultiTunnel) Start(ctx context.Context) error {
+func (mt *MultiProtocolTunnel) Start(ctx context.Context) error {
 	for _, tp := range mt.Protocols {
 		err := tp.Start(ctx)
 		if err != nil {
@@ -33,7 +33,7 @@ func (mt *MultiTunnel) Start(ctx context.Context) error {
 	return nil
 }
 
-func (mt *MultiTunnel) Terminate(force bool) error {
+func (mt *MultiProtocolTunnel) Terminate(force bool) error {
 	var result error
 	for _, tp := range mt.Protocols {
 		err := tp.Terminate(force)
@@ -44,7 +44,7 @@ func (mt *MultiTunnel) Terminate(force bool) error {
 	return result
 }
 
-func (mt *MultiTunnel) LastActive() time.Time {
+func (mt *MultiProtocolTunnel) LastActive() time.Time {
 	var result time.Time
 	for _, tp := range mt.Protocols {
 		v := tp.LastActive()
@@ -76,7 +76,7 @@ func NewTunnel(logger *logger.Logger, ssh ssh.Conn, id string, remote models.Rem
 	case models.ProtocolTCP:
 		tunnelProtocol = newTunnelTCP(logger, ssh, remote, acl)
 	case models.ProtocolTCPUDP:
-		tunnelProtocol = &MultiTunnel{
+		tunnelProtocol = &MultiProtocolTunnel{
 			Protocols: []TunnelProtocol{
 				newTunnelTCP(logger, ssh, remote, acl),
 				newTunnelUDP(logger, ssh, remote, acl),

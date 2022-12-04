@@ -57,10 +57,12 @@ var upgrader = websocket.Upgrader{
 
 func NewClientListener(server *Server, privateKey ssh.Signer) (*ClientListener, error) {
 	config := server.config
+
+	clog := logger.NewLogger("client-listener", config.Logging.LogOutput, config.Logging.LogLevel)
 	cl := &ClientListener{
 		Server:            server,
-		httpServer:        chshare.NewHTTPServer(int(config.Server.MaxRequestBytes)),
-		Logger:            logger.NewLogger("client-listener", config.Logging.LogOutput, config.Logging.LogLevel),
+		httpServer:        chshare.NewHTTPServer(int(config.Server.MaxRequestBytes), clog),
+		Logger:            clog,
 		requestLogOptions: config.InitRequestLogOptions(),
 		bannedClientAuths: security.NewBanList(time.Duration(config.Server.ClientLoginWait) * time.Second),
 	}
@@ -172,6 +174,7 @@ func (cl *ClientListener) Close() error {
 }
 
 func (cl *ClientListener) handleClient(w http.ResponseWriter, r *http.Request) {
+	cl.Debugf("Incoming client connection...")
 	//websockets upgrade AND has rport prefix
 	upgrade := strings.ToLower(r.Header.Get("Upgrade"))
 	protocol := r.Header.Get("Sec-WebSocket-Protocol")
@@ -201,6 +204,7 @@ func (cl *ClientListener) nextClientIndex() int32 {
 // handleWebsocket is responsible for handling the websocket connection
 func (cl *ClientListener) handleWebsocket(w http.ResponseWriter, req *http.Request) {
 	clog := cl.Fork("client#%d", cl.nextClientIndex())
+	clog.Debugf("Handling inbound web socket connection...")
 	wsConn, err := upgrader.Upgrade(w, req, nil)
 	if err != nil {
 		clog.Debugf("Failed to upgrade (%s)", err)
@@ -208,7 +212,7 @@ func (cl *ClientListener) handleWebsocket(w http.ResponseWriter, req *http.Reque
 	}
 	conn := chshare.NewWebSocketConn(wsConn)
 	// perform SSH handshake on net.Conn
-	clog.Debugf("Handshaking...")
+	clog.Debugf("SSH Handshaking...")
 	sshConn, chans, reqs, err := ssh.NewServerConn(conn, cl.sshConfig)
 	if err != nil {
 		cl.Debugf("Failed to handshake (%s) from %s", err, conn.RemoteAddr().String())

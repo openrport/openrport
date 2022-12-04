@@ -179,11 +179,12 @@ func NewAPIListener(
 
 	userService := users.NewAPIService(usersProvider, config.API.IsTwoFAOn())
 
+	allog := logger.NewLogger("api-listener", config.Logging.LogOutput, config.Logging.LogLevel)
 	a := &APIListener{
 		Server:            server,
-		Logger:            logger.NewLogger("api-listener", config.Logging.LogOutput, config.Logging.LogLevel),
+		Logger:            allog,
 		fingerprint:       fingerprint,
-		httpServer:        chshare.NewHTTPServer(int(config.Server.MaxRequestBytes), chshare.WithTLS(config.API.CertFile, config.API.KeyFile, security.TLSConfig)),
+		httpServer:        chshare.NewHTTPServer(int(config.Server.MaxRequestBytes), allog, chshare.WithTLS(config.API.CertFile, config.API.KeyFile, security.TLSConfig)),
 		requestLogOptions: config.InitRequestLogOptions(),
 		bannedUsers:       security.NewBanList(time.Duration(config.API.UserLoginWait) * time.Second),
 		userService:       userService,
@@ -193,7 +194,7 @@ func NewAPIListener(
 		storedTunnels:     storedtunnels.New(server.clientDB),
 	}
 
-	a.errResponseLogger = server.Logger.Fork("error-response")
+	a.errResponseLogger = allog.Fork("error-response")
 
 	if config.API.IsTwoFAOn() {
 		var msgSrv message.Service

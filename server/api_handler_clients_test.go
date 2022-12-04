@@ -508,6 +508,7 @@ func TestHandlePutTunnelWithName(t *testing.T) {
 					},
 					clientGroupProvider: mockClientGroupProvider{},
 				},
+				Logger: testLog,
 			}
 			al.initRouter()
 

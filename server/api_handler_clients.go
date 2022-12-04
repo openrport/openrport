@@ -339,37 +339,68 @@ func (al *APIListener) handlePutClientTunnel(w http.ResponseWriter, req *http.Re
 	}
 
 	if client == nil {
-		al.Debugf("active client with id %s not found", clientID)
-		// there isn't an active client, but let's see if there's a disconnect client and if so then
-		// try creating tunnels anyway by continuing with the non-active client.
-		client, err = al.clientService.GetByID(clientID)
-		if err != nil {
-			al.jsonErrorResponse(w, http.StatusInternalServerError, err)
-			return
-		}
-		if client == nil {
-			// still not found
-			al.jsonErrorResponseWithTitle(w, http.StatusNotFound, fmt.Sprintf("client with id %s not found", clientID))
-			return
-		}
+		al.jsonErrorResponseWithTitle(w, http.StatusNotFound, fmt.Sprintf("client with id %s not found", clientID))
+		return
 	}
 
 	localAddr := req.URL.Query().Get("local")
 	remoteAddr := req.URL.Query().Get("remote")
+
 	remoteStr := localAddr + ":" + remoteAddr
 	if localAddr == "" {
 		remoteStr = remoteAddr
 	}
+
 	protocol := req.URL.Query().Get("protocol")
 	if protocol != "" {
 		remoteStr += "/" + protocol
 	}
 
-	remote, err := models.DecodeRemote(remoteStr)
+	remote, err := models.NewRemote(remoteStr)
 	if err != nil {
 		al.jsonErrorResponseWithTitle(w, http.StatusBadRequest, fmt.Sprintf("failed to decode %q: %v", remoteStr, err))
 		return
 	}
+
+	name := req.URL.Query().Get("name")
+	if name != "" {
+		remote.Name = name
+	}
+
+	schemeStr := req.URL.Query().Get("scheme")
+	if len(schemeStr) > URISchemeMaxLength {
+		al.jsonErrorResponseWithDetail(w, http.StatusBadRequest, ErrCodeURISchemeLengthExceed, "Invalid URI scheme.", "Exceeds the max length.")
+		return
+	}
+	if schemeStr != "" {
+		remote.Scheme = &schemeStr
+	}
+
+	hadError := al.setTunnelProxyOptionsForRemote(w, req, remote)
+	if hadError {
+		return
+	}
+
+	hadError = al.setAuthOptionsForRemote(w, req, remote)
+	if hadError {
+		return
+	}
+
+	hadError = al.setAutoCloseIdleOptionsForRemote(w, req, remote)
+	if hadError {
+		return
+	}
+
+	aclStr := req.URL.Query().Get("acl")
+	if _, err = clienttunnel.ParseTunnelACL(aclStr); err != nil {
+		al.jsonErrorResponseWithErrCode(w, http.StatusBadRequest, ErrCodeInvalidACL, fmt.Sprintf("Invalid ACL: %s", err))
+		return
+	}
+	if aclStr != "" {
+		remote.ACL = &aclStr
+	}
+
+	al.Debugf("remote = %+v", remote)
 
 	allowed, err := clienttunnel.IsAllowed(remote.Remote(), client.Connection)
 	if err != nil {
@@ -380,6 +411,146 @@ func (al *APIListener) handlePutClientTunnel(w http.ResponseWriter, req *http.Re
 		al.jsonErrorResponseWithTitle(w, http.StatusBadRequest, "Tunnel destination is not allowed by client configuration.")
 		return
 	}
+
+	// check if new tunnel requested already exists
+	if existing := client.FindTunnelByRemote(remote); existing != nil {
+		al.jsonErrorResponseWithErrCode(w, http.StatusBadRequest, ErrCodeTunnelExist, "Tunnel already exists.")
+		return
+	}
+
+	for _, t := range client.Tunnels {
+		if t.Remote.Remote() == remote.Remote() && t.Remote.IsProtocol(remote.Protocol) && t.EqualACL(remote.ACL) {
+			al.jsonErrorResponseWithErrCode(w, http.StatusBadRequest, ErrCodeTunnelToPortExist, fmt.Sprintf("Tunnel to port %s already exists.", remote.RemotePort))
+			return
+		}
+	}
+
+	if checkPortStr := req.URL.Query().Get("check_port"); checkPortStr != "0" && remote.IsProtocol(models.ProtocolTCP) {
+		if !al.checkRemotePort(w, *remote, client.Connection) {
+			return
+		}
+	}
+
+	// make next steps thread-safe
+	client.Lock()
+	defer client.Unlock()
+
+	if remote.IsLocalSpecified() && !al.checkLocalPort(w, remote.LocalPort, remote.Protocol) {
+		return
+	}
+
+	// start the new tunnel only
+	tunnels, err := al.clientService.StartClientTunnels(client, []*models.Remote{remote})
+	if err != nil {
+		al.jsonError(w, err)
+		return
+	}
+	response := api.NewSuccessPayload(tunnels[0])
+
+	al.auditLog.Entry(auditlog.ApplicationClientTunnel, auditlog.ActionCreate).
+		WithHTTPRequest(req).
+		WithClient(client).
+		WithRequest(remote).
+		WithResponse(tunnels[0]).
+		WithID(tunnels[0].ID).
+		Save()
+
+	al.writeJSONResponse(w, http.StatusOK, response)
+}
+
+func (al *APIListener) setTunnelProxyOptionsForRemote(w http.ResponseWriter, req *http.Request, remote *models.Remote) (hadError bool) {
+	hadError = true
+
+	httpProxy := req.URL.Query().Get("http_proxy")
+	if httpProxy == "" {
+		httpProxy = "false"
+	}
+	isHTTPProxy, err := strconv.ParseBool(httpProxy)
+	if err != nil {
+		al.jsonError(w, err)
+		return hadError
+	}
+
+	shouldUseSubdomain := req.URL.Query().Get("use_subdomain")
+	if shouldUseSubdomain == "" {
+		shouldUseSubdomain = "false"
+	}
+	useSubdomain, err := strconv.ParseBool(shouldUseSubdomain)
+	if err != nil {
+		al.jsonError(w, err)
+		return hadError
+	}
+
+	if isHTTPProxy && !al.config.Server.TunnelProxyConfig.Enabled {
+		al.jsonErrorResponseWithTitle(w, http.StatusBadRequest, "creation of tunnel proxy not enabled")
+		return hadError
+	}
+	if isHTTPProxy && !validation.SchemeSupportsHTTPProxy(*remote.Scheme) {
+		al.jsonErrorResponseWithTitle(w, http.StatusBadRequest, fmt.Sprintf("tunnel proxy not allowed with scheme %s", *remote.Scheme))
+		return hadError
+	}
+	if isHTTPProxy && !remote.IsProtocol(models.ProtocolTCP) {
+		al.jsonErrorResponseWithTitle(w, http.StatusBadRequest, fmt.Sprintf("tunnel proxy not allowed with protcol %s", remote.Protocol))
+		return hadError
+	}
+
+	// TODO: (rs): add tests for when use_subdomain specified
+	if useSubdomain {
+		if !al.config.SubdomainTunnelsConfigured() {
+			al.jsonErrorResponseWithTitle(w, http.StatusBadRequest, "when using use_subdomain, subdomain tunnels must be configured")
+			return hadError
+		}
+		if !isHTTPProxy {
+			al.jsonErrorResponseWithTitle(w, http.StatusBadRequest, "when using use_subdomain, http_proxy must be specified")
+			return hadError
+		}
+	}
+
+	remote.UseLocalSubdomain = useSubdomain
+	remote.HTTPProxy = isHTTPProxy
+
+	hostHeader := req.URL.Query().Get("host_header")
+	if hostHeader != "" {
+		if isHTTPProxy {
+			remote.HostHeader = hostHeader
+		} else {
+			al.jsonErrorResponseWithTitle(w, http.StatusBadRequest, "host_header not allowed when http_proxy is false")
+			return hadError
+		}
+	}
+
+	hadError = false
+	return hadError
+}
+
+func (al *APIListener) setAuthOptionsForRemote(w http.ResponseWriter, req *http.Request, remote *models.Remote) (hadError bool) {
+	hadError = true
+
+	authUser := req.URL.Query().Get("auth_user")
+	authPassword := req.URL.Query().Get("auth_password")
+	if authUser != "" || authPassword != "" {
+		if !remote.HTTPProxy {
+			al.jsonErrorResponseWithTitle(w, http.StatusBadRequest, "http basic authentication requires http_proxy to be activated on the requested tunnel")
+			return hadError
+		}
+		if authPassword != "" && authUser == "" {
+			al.jsonErrorResponseWithTitle(w, http.StatusBadRequest, "auth_password requires auth_user")
+			return hadError
+		}
+		if authUser != "" && authPassword == "" {
+			al.jsonErrorResponseWithTitle(w, http.StatusBadRequest, "auth_user requires auth_password")
+			return hadError
+		}
+		remote.AuthUser = authUser
+		remote.AuthPassword = authPassword
+	}
+
+	hadError = false
+	return hadError
+}
+
+func (al *APIListener) setAutoCloseIdleOptionsForRemote(w http.ResponseWriter, req *http.Request, remote *models.Remote) (hadError bool) {
+	hadError = true
 
 	idleTimeoutMinutesStr := req.URL.Query().Get(idleTimeoutMinutesQueryParam)
 	skipIdleTimeout, err := strconv.ParseBool(req.URL.Query().Get(skipIdleTimeoutQueryParam))
@@ -401,128 +572,8 @@ func (al *APIListener) handlePutClientTunnel(w http.ResponseWriter, req *http.Re
 		return
 	}
 
-	aclStr := req.URL.Query().Get("acl")
-	if _, err = clienttunnel.ParseTunnelACL(aclStr); err != nil {
-		al.jsonErrorResponseWithErrCode(w, http.StatusBadRequest, ErrCodeInvalidACL, fmt.Sprintf("Invalid ACL: %s", err))
-		return
-	}
-	if aclStr != "" {
-		remote.ACL = &aclStr
-	}
-
-	name := req.URL.Query().Get("name")
-	if name != "" {
-		remote.Name = name
-	}
-
-	schemeStr := req.URL.Query().Get("scheme")
-	if len(schemeStr) > URISchemeMaxLength {
-		al.jsonErrorResponseWithDetail(w, http.StatusBadRequest, ErrCodeURISchemeLengthExceed, "Invalid URI scheme.", "Exceeds the max length.")
-		return
-	}
-	if schemeStr != "" {
-		remote.Scheme = &schemeStr
-	}
-
-	if existing := client.FindTunnelByRemote(remote); existing != nil {
-		al.jsonErrorResponseWithErrCode(w, http.StatusBadRequest, ErrCodeTunnelExist, "Tunnel already exist.")
-		return
-	}
-
-	for _, t := range client.Tunnels {
-		if t.Remote.Remote() == remote.Remote() && t.Remote.IsProtocol(remote.Protocol) && t.EqualACL(remote.ACL) {
-			al.jsonErrorResponseWithErrCode(w, http.StatusBadRequest, ErrCodeTunnelToPortExist, fmt.Sprintf("Tunnel to port %s already exist.", remote.RemotePort))
-			return
-		}
-	}
-
-	if checkPortStr := req.URL.Query().Get("check_port"); checkPortStr != "0" && remote.IsProtocol(models.ProtocolTCP) {
-		if !al.checkRemotePort(w, *remote, client.Connection) {
-			return
-		}
-	}
-
-	al.getTunnelProxyOptions(w, req, remote)
-
-	// make next steps thread-safe
-	client.Lock()
-	defer client.Unlock()
-
-	if remote.IsLocalSpecified() && !al.checkLocalPort(w, remote.LocalPort, remote.Protocol) {
-		return
-	}
-
-	tunnels, err := al.clientService.StartClientTunnels(client, []*models.Remote{remote})
-	if err != nil {
-		al.jsonError(w, err)
-		return
-	}
-	response := api.NewSuccessPayload(tunnels[0])
-
-	al.auditLog.Entry(auditlog.ApplicationClientTunnel, auditlog.ActionCreate).
-		WithHTTPRequest(req).
-		WithClient(client).
-		WithRequest(remote).
-		WithResponse(tunnels[0]).
-		WithID(tunnels[0].ID).
-		Save()
-
-	al.writeJSONResponse(w, http.StatusOK, response)
-}
-
-func (al *APIListener) getTunnelProxyOptions(w http.ResponseWriter, req *http.Request, remote *models.Remote) {
-	httpProxy := req.URL.Query().Get("http_proxy")
-	if httpProxy == "" {
-		httpProxy = "false"
-	}
-	isHTTPProxy, err := strconv.ParseBool(httpProxy)
-	if err != nil {
-		al.jsonError(w, err)
-		return
-	}
-	if isHTTPProxy && !al.config.Server.TunnelProxyConfig.Enabled {
-		al.jsonErrorResponseWithTitle(w, http.StatusBadRequest, "creation of tunnel proxy not enabled")
-		return
-	}
-	if isHTTPProxy && !validation.SchemeSupportsHTTPProxy(*remote.Scheme) {
-		al.jsonErrorResponseWithTitle(w, http.StatusBadRequest, fmt.Sprintf("tunnel proxy not allowed with scheme %s", *remote.Scheme))
-		return
-	}
-	if isHTTPProxy && !remote.IsProtocol(models.ProtocolTCP) {
-		al.jsonErrorResponseWithTitle(w, http.StatusBadRequest, fmt.Sprintf("tunnel proxy not allowed with protcol %s", remote.Protocol))
-		return
-	}
-	remote.HTTPProxy = isHTTPProxy
-
-	authUser := req.URL.Query().Get("auth_user")
-	authPassword := req.URL.Query().Get("auth_password")
-	if authUser != "" || authPassword != "" {
-		if !isHTTPProxy {
-			al.jsonErrorResponseWithTitle(w, http.StatusBadRequest, "http basic authentication requires http_proxy to be activated on the requested tunnel")
-			return
-		}
-		if authPassword != "" && authUser == "" {
-			al.jsonErrorResponseWithTitle(w, http.StatusBadRequest, "auth_password requires auth_user")
-			return
-		}
-		if authUser != "" && authPassword == "" {
-			al.jsonErrorResponseWithTitle(w, http.StatusBadRequest, "auth_user requires auth_password")
-			return
-		}
-		remote.AuthUser = authUser
-		remote.AuthPassword = authPassword
-	}
-
-	hostHeader := req.URL.Query().Get("host_header")
-	if hostHeader != "" {
-		if isHTTPProxy {
-			remote.HostHeader = hostHeader
-		} else {
-			al.jsonErrorResponseWithTitle(w, http.StatusBadRequest, "host_header not allowed when http_proxy is false")
-			return
-		}
-	}
-
+	hadError = false
+	return hadError
 }
 
 // TODO: remove this check, do it in client srv in startClientTunnels when https://github.com/cloudradar-monitoring/rport/pull/252 will be in master.

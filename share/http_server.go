@@ -5,6 +5,8 @@ import (
 	"errors"
 	"net"
 	"net/http"
+
+	"github.com/cloudradar-monitoring/rport/share/logger"
 )
 
 type ServerOption func(*HTTPServer)
@@ -26,14 +28,20 @@ type HTTPServer struct {
 	isRunning bool
 	certFile  string
 	keyFile   string
+	logger    *logger.Logger
 }
 
 // NewHTTPServer creates a new HTTPServer
-func NewHTTPServer(maxHeaderBytes int, options ...ServerOption) *HTTPServer {
+func NewHTTPServer(maxHeaderBytes int, l *logger.Logger, options ...ServerOption) *HTTPServer {
+	var httpLogger *logger.Logger
+	if l != nil {
+		httpLogger = l.Fork("http-server")
+	}
 	s := &HTTPServer{
 		Server:   &http.Server{MaxHeaderBytes: maxHeaderBytes},
 		listener: nil,
 		running:  make(chan error, 1),
+		logger:   httpLogger,
 	}
 
 	for _, o := range options {
@@ -53,8 +61,10 @@ func (h *HTTPServer) GoListenAndServe(addr string, handler http.Handler) error {
 	h.listener = l
 	go func() {
 		if h.certFile != "" && h.keyFile != "" {
+			h.logger.Debugf("serving HTTPS")
 			h.closeWith(h.ServeTLS(l, h.certFile, h.keyFile))
 		} else {
+			h.logger.Debugf("serving HTTP")
 			h.closeWith(h.Serve(l))
 		}
 	}()

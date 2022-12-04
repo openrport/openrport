@@ -108,7 +108,7 @@ func TestDecodeRemote(t *testing.T) {
 		t.Run(tc.Input, func(t *testing.T) {
 			t.Parallel()
 
-			remote, err := DecodeRemote(tc.Input)
+			remote, err := NewRemote(tc.Input)
 			require.NoError(t, err)
 			assert.Equal(t, tc.WantProtocol, remote.Protocol)
 			assert.Equal(t, tc.WantLocalHost, remote.LocalHost)

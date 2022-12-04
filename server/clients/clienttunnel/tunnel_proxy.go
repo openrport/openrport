@@ -96,11 +96,10 @@ func NewTunnelProxy(tunnel *Tunnel, logger *logger.Logger, config *TunnelProxyCo
 		ACL:        acl,
 	}
 	tp.Logger = logger.Fork("tunnel-proxy:%s", tp.Addr())
-	tp.Logger.Debugf("Starting tunnel proxy...")
-
 	tp.tunnelProxyConnector = NewTunnelProxyConnector(tp)
 	return tp
 }
+
 func (tp *TunnelProxy) Start(ctx context.Context) error {
 	router := mux.NewRouter()
 	router.Use(tp.handleACL)
@@ -114,20 +113,23 @@ func (tp *TunnelProxy) Start(ctx context.Context) error {
 		Handler: router,
 	}
 
-	go func() {
-		tp.proxyServer.TLSConfig = security.TLSConfig
-		err := tp.proxyServer.ListenAndServeTLS(tp.Config.CertFile, tp.Config.KeyFile)
-		if err != nil && err == http.ErrServerClosed {
-			tp.Logger.Infof("tunnel proxy closed")
-			return
-		}
-		if err != nil {
-			tp.Logger.Debugf("tunnel proxy ended with %v", err)
-		}
-	}()
+	go tp.listen()
 
 	tp.Logger.Infof("tunnel proxy started")
 	return nil
+}
+
+func (tp *TunnelProxy) listen() {
+	tp.Logger.Debugf("listener starting")
+	tp.proxyServer.TLSConfig = security.TLSConfig
+	err := tp.proxyServer.ListenAndServeTLS(tp.Config.CertFile, tp.Config.KeyFile)
+	if err != nil && err == http.ErrServerClosed {
+		tp.Logger.Infof("tunnel proxy closed")
+		return
+	}
+	if err != nil {
+		tp.Logger.Debugf("tunnel proxy ended with %v", err)
+	}
 }
 
 func (tp *TunnelProxy) Stop(ctx context.Context) error {

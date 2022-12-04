@@ -42,6 +42,7 @@ func NewClientRepositoryWithDB(initialClients []*Client, keepDisconnectedClients
 	for i := range initialClients {
 		clients[initialClients[i].ID] = initialClients[i]
 	}
+
 	return &ClientRepository{
 		clients:                 clients,
 		KeepDisconnectedClients: keepDisconnectedClients,
@@ -57,7 +58,7 @@ func InitClientRepository(
 	logger *logger.Logger,
 ) (*ClientRepository, error) {
 	provider := newSqliteProvider(db, keepDisconnectedClients)
-	initialClients, err := LoadInitialClients(ctx, provider)
+	initialClients, err := LoadInitialClients(ctx, provider, logger.Fork("client-loader"))
 	if err != nil {
 		return nil, err
 	}

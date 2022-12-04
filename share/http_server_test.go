@@ -8,7 +8,7 @@ import (
 )
 
 func TestNewHttpServer(t *testing.T) {
-	s := NewHTTPServer(123)
+	s := NewHTTPServer(123, nil)
 
 	assert.Equal(t, 123, s.MaxHeaderBytes)
 	assert.Equal(t, "", s.certFile)
@@ -22,7 +22,7 @@ func TestNewHttpServerWithTLS(t *testing.T) {
 		PreferServerCipherSuites: true,
 	}
 
-	s := NewHTTPServer(123, WithTLS("test.crt", "test.key", tlsConfig))
+	s := NewHTTPServer(123, nil, WithTLS("test.crt", "test.key", tlsConfig))
 
 	assert.Equal(t, 123, s.MaxHeaderBytes)
 	assert.Equal(t, "test.crt", s.certFile)

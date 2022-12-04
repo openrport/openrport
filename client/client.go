@@ -261,6 +261,7 @@ loop:
 type retryableError struct {
 	error
 }
+
 type sshClientConn struct {
 	Connection ssh.Conn
 	Channels   <-chan ssh.NewChannel
@@ -569,7 +570,7 @@ func (c *Client) connectStreams(chans <-chan ssh.NewChannel) {
 
 		switch protocol {
 		case models.ProtocolTCP:
-			l := c.Logger.Fork("conn#%d", c.connStats.New())
+			l := c.Logger.Fork("tcp conn#%d", c.connStats.New())
 			go chshare.HandleTCPStream(l, &c.connStats, stream, remote)
 		case models.ProtocolUDP:
 			go func() {

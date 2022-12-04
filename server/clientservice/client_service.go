@@ -446,6 +446,8 @@ func (s *Provider) startClientTunnels(client *clients.Client, remotes []*models.
 
 	tunnels := make([]*clienttunnel.Tunnel, 0, len(remotes))
 	for _, remote := range remotes {
+		s.logger.Debugf("initiating tunnel %+v", remote)
+
 		if !remote.IsLocalSpecified() {
 			port, err := s.portDistributor.GetRandomPort(remote.Protocol)
 			if err != nil {
@@ -469,12 +471,12 @@ func (s *Provider) startClientTunnels(client *clients.Client, remotes []*models.
 			}
 		}
 
-		s.logger.Debugf("starting tunnnel: %s", remote)
+		s.logger.Debugf("starting tunnel: %s", remote)
 		t, err := client.StartTunnel(remote, acl, s.tunnelProxyConfig, s.portDistributor)
 		if err != nil {
 			return nil, errors.APIError{
 				HTTPStatus: http.StatusConflict,
-				Err:        fmt.Errorf("can't create tunnel: %s", err),
+				Err:        fmt.Errorf("unable to start tunnel: %s", err),
 			}
 		}
 		tunnels = append(tunnels, t)

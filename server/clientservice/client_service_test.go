@@ -763,7 +763,7 @@ func TestGetTunnelsToReestablish(t *testing.T) {
 		// given
 		var old, new []*models.Remote
 		for i, v := range tc.oldStr {
-			r, err := models.DecodeRemote(v)
+			r, err := models.NewRemote(v)
 			require.NoErrorf(t, err, msg)
 			// mimic real behavior
 			if !r.IsLocalSpecified() {
@@ -777,7 +777,7 @@ func TestGetTunnelsToReestablish(t *testing.T) {
 			old = append(old, r)
 		}
 		for i, v := range tc.newStr {
-			r, err := models.DecodeRemote(v)
+			r, err := models.NewRemote(v)
 			require.NoErrorf(t, err, msg)
 			if tc.newACL != nil && tc.newACL[i] != "" {
 				r.ACL = &tc.newACL[i]
