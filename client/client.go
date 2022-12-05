@@ -509,11 +509,11 @@ func (c *Client) showConnectionError(connerr error, attempt int) {
 	//show error and attempt counts
 	msg := fmt.Sprintf("Connection error: %s", connerr)
 	if attempt > 0 {
-		msg += fmt.Sprintf(" (Attempt: %d", attempt)
-		if maxAttempt > 0 {
-			msg += fmt.Sprintf("/%d", maxAttempt)
+		maxAttemptStr := string(maxAttempt)
+		if maxAttempt < 0 {
+			maxAttemptStr = "∞"
 		}
-		msg += ")"
+		msg += fmt.Sprintf(" (Attempt: %d of %s)", attempt, maxAttemptStr)
 	}
 	c.Errorf(msg)
 	if strings.Contains(msg, "previous session was not properly closed") {
