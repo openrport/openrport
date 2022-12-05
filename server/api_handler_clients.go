@@ -1,6 +1,7 @@
 package chserver
 
 import (
+	"errors"
 	"fmt"
 	"net/http"
 	"strconv"
@@ -10,7 +11,7 @@ import (
 	"golang.org/x/crypto/ssh"
 
 	"github.com/cloudradar-monitoring/rport/server/api"
-	errors2 "github.com/cloudradar-monitoring/rport/server/api/errors"
+	apierrors "github.com/cloudradar-monitoring/rport/server/api/errors"
 	"github.com/cloudradar-monitoring/rport/server/auditlog"
 	"github.com/cloudradar-monitoring/rport/server/clients"
 	"github.com/cloudradar-monitoring/rport/server/clients/clienttunnel"
@@ -150,7 +151,7 @@ func getCorrespondingSortFunc(sorts []query.SortOption) (sortFunc func(a []*clie
 		return clients.SortByID, false, nil
 	}
 	if len(sorts) > 1 {
-		return nil, false, errors2.APIError{
+		return nil, false, apierrors.APIError{
 			Message:    "Only one sort field is supported for clients.",
 			HTTPStatus: http.StatusBadRequest,
 		}
@@ -376,18 +377,21 @@ func (al *APIListener) handlePutClientTunnel(w http.ResponseWriter, req *http.Re
 		remote.Scheme = &schemeStr
 	}
 
-	hadError := al.setTunnelProxyOptionsForRemote(w, req, remote)
-	if hadError {
+	err = al.setTunnelProxyOptionsForRemote(req, remote)
+	if err != nil {
+		al.jsonError(w, err)
 		return
 	}
 
-	hadError = al.setAuthOptionsForRemote(w, req, remote)
-	if hadError {
+	err = al.setAuthOptionsForRemote(req, remote)
+	if err != nil {
+		al.jsonError(w, err)
 		return
 	}
 
-	hadError = al.setAutoCloseIdleOptionsForRemote(w, req, remote)
-	if hadError {
+	err = al.setAutoCloseIdleOptionsForRemote(req, remote)
+	if err != nil {
+		al.jsonError(w, err)
 		return
 	}
 
@@ -399,8 +403,6 @@ func (al *APIListener) handlePutClientTunnel(w http.ResponseWriter, req *http.Re
 	if aclStr != "" {
 		remote.ACL = &aclStr
 	}
-
-	al.Debugf("remote = %+v", remote)
 
 	allowed, err := clienttunnel.IsAllowed(remote.Remote(), client.Connection)
 	if err != nil {
@@ -426,7 +428,9 @@ func (al *APIListener) handlePutClientTunnel(w http.ResponseWriter, req *http.Re
 	}
 
 	if checkPortStr := req.URL.Query().Get("check_port"); checkPortStr != "0" && remote.IsProtocol(models.ProtocolTCP) {
-		if !al.checkRemotePort(w, *remote, client.Connection) {
+		err = al.checkRemotePort(*remote, client.Connection)
+		if err != nil {
+			al.jsonError(w, err)
 			return
 		}
 	}
@@ -435,8 +439,12 @@ func (al *APIListener) handlePutClientTunnel(w http.ResponseWriter, req *http.Re
 	client.Lock()
 	defer client.Unlock()
 
-	if remote.IsLocalSpecified() && !al.checkLocalPort(w, remote.LocalPort, remote.Protocol) {
-		return
+	if remote.IsLocalSpecified() {
+		err = al.checkLocalPort(remote.LocalPort, remote.Protocol)
+		if err != nil {
+			al.jsonError(w, err)
+			return
+		}
 	}
 
 	// start the new tunnel only
@@ -458,17 +466,14 @@ func (al *APIListener) handlePutClientTunnel(w http.ResponseWriter, req *http.Re
 	al.writeJSONResponse(w, http.StatusOK, response)
 }
 
-func (al *APIListener) setTunnelProxyOptionsForRemote(w http.ResponseWriter, req *http.Request, remote *models.Remote) (hadError bool) {
-	hadError = true
-
+func (al *APIListener) setTunnelProxyOptionsForRemote(req *http.Request, remote *models.Remote) (err error) {
 	httpProxy := req.URL.Query().Get("http_proxy")
 	if httpProxy == "" {
 		httpProxy = "false"
 	}
 	isHTTPProxy, err := strconv.ParseBool(httpProxy)
 	if err != nil {
-		al.jsonError(w, err)
-		return hadError
+		return err
 	}
 
 	shouldUseSubdomain := req.URL.Query().Get("use_subdomain")
@@ -477,32 +482,26 @@ func (al *APIListener) setTunnelProxyOptionsForRemote(w http.ResponseWriter, req
 	}
 	useSubdomain, err := strconv.ParseBool(shouldUseSubdomain)
 	if err != nil {
-		al.jsonError(w, err)
-		return hadError
+		return err
 	}
 
 	if isHTTPProxy && !al.config.Server.TunnelProxyConfig.Enabled {
-		al.jsonErrorResponseWithTitle(w, http.StatusBadRequest, "creation of tunnel proxy not enabled")
-		return hadError
+		return apierrors.NewAPIError(http.StatusBadRequest, "", "creation of tunnel proxy not enabled", nil)
 	}
 	if isHTTPProxy && !validation.SchemeSupportsHTTPProxy(*remote.Scheme) {
-		al.jsonErrorResponseWithTitle(w, http.StatusBadRequest, fmt.Sprintf("tunnel proxy not allowed with scheme %s", *remote.Scheme))
-		return hadError
+		return apierrors.NewAPIError(http.StatusBadRequest, "", fmt.Sprintf("tunnel proxy not allowed with scheme %s", *remote.Scheme), nil)
 	}
 	if isHTTPProxy && !remote.IsProtocol(models.ProtocolTCP) {
-		al.jsonErrorResponseWithTitle(w, http.StatusBadRequest, fmt.Sprintf("tunnel proxy not allowed with protcol %s", remote.Protocol))
-		return hadError
+		return apierrors.NewAPIError(http.StatusBadRequest, "", fmt.Sprintf("tunnel proxy not allowed with protcol %s", remote.Protocol), nil)
 	}
 
 	// TODO: (rs): add tests for when use_subdomain specified
 	if useSubdomain {
 		if !al.config.SubdomainTunnelsConfigured() {
-			al.jsonErrorResponseWithTitle(w, http.StatusBadRequest, "when using use_subdomain, subdomain tunnels must be configured")
-			return hadError
+			return apierrors.NewAPIError(http.StatusBadRequest, "", "when using use_subdomain, subdomain tunnels must be configured", nil)
 		}
 		if !isHTTPProxy {
-			al.jsonErrorResponseWithTitle(w, http.StatusBadRequest, "when using use_subdomain, http_proxy must be specified")
-			return hadError
+			return apierrors.NewAPIError(http.StatusBadRequest, "", "when using use_subdomain, http_proxy must be specified", nil)
 		}
 	}
 
@@ -514,44 +513,34 @@ func (al *APIListener) setTunnelProxyOptionsForRemote(w http.ResponseWriter, req
 		if isHTTPProxy {
 			remote.HostHeader = hostHeader
 		} else {
-			al.jsonErrorResponseWithTitle(w, http.StatusBadRequest, "host_header not allowed when http_proxy is false")
-			return hadError
+			return apierrors.NewAPIError(http.StatusBadRequest, "", "host_header not allowed when http_proxy is false", nil)
 		}
 	}
 
-	hadError = false
-	return hadError
+	return err
 }
 
-func (al *APIListener) setAuthOptionsForRemote(w http.ResponseWriter, req *http.Request, remote *models.Remote) (hadError bool) {
-	hadError = true
-
+func (al *APIListener) setAuthOptionsForRemote(req *http.Request, remote *models.Remote) (err error) {
 	authUser := req.URL.Query().Get("auth_user")
 	authPassword := req.URL.Query().Get("auth_password")
 	if authUser != "" || authPassword != "" {
 		if !remote.HTTPProxy {
-			al.jsonErrorResponseWithTitle(w, http.StatusBadRequest, "http basic authentication requires http_proxy to be activated on the requested tunnel")
-			return hadError
+			return apierrors.NewAPIError(http.StatusBadRequest, "", "http basic authentication requires http_proxy to be activated on the requested tunnel", nil)
 		}
 		if authPassword != "" && authUser == "" {
-			al.jsonErrorResponseWithTitle(w, http.StatusBadRequest, "auth_password requires auth_user")
-			return hadError
+			return apierrors.NewAPIError(http.StatusBadRequest, "", "auth_password requires auth_user", nil)
 		}
 		if authUser != "" && authPassword == "" {
-			al.jsonErrorResponseWithTitle(w, http.StatusBadRequest, "auth_user requires auth_password")
-			return hadError
+			return apierrors.NewAPIError(http.StatusBadRequest, "", "auth_user requires auth_password", nil)
 		}
 		remote.AuthUser = authUser
 		remote.AuthPassword = authPassword
 	}
 
-	hadError = false
-	return hadError
+	return err
 }
 
-func (al *APIListener) setAutoCloseIdleOptionsForRemote(w http.ResponseWriter, req *http.Request, remote *models.Remote) (hadError bool) {
-	hadError = true
-
+func (al *APIListener) setAutoCloseIdleOptionsForRemote(req *http.Request, remote *models.Remote) (err error) {
 	idleTimeoutMinutesStr := req.URL.Query().Get(idleTimeoutMinutesQueryParam)
 	skipIdleTimeout, err := strconv.ParseBool(req.URL.Query().Get(skipIdleTimeoutQueryParam))
 	if err != nil {
@@ -560,73 +549,66 @@ func (al *APIListener) setAutoCloseIdleOptionsForRemote(w http.ResponseWriter, r
 
 	idleTimeout, err := validation.ResolveIdleTunnelTimeoutValue(idleTimeoutMinutesStr, skipIdleTimeout)
 	if err != nil {
-		al.jsonError(w, err)
-		return
+		return err
 	}
 
 	remote.IdleTimeoutMinutes = int(idleTimeout.Minutes())
 
 	remote.AutoClose, err = validation.ResolveTunnelAutoCloseValue(req.URL.Query().Get(autoCloseQueryParam))
 	if err != nil {
-		al.jsonError(w, err)
-		return
+		return err
 	}
 
-	hadError = false
-	return hadError
+	return err
 }
 
 // TODO: remove this check, do it in client srv in startClientTunnels when https://github.com/cloudradar-monitoring/rport/pull/252 will be in master.
 // APIError needs both httpStatusCode and errorCode. To avoid too many merge conflicts with PR252 temporarily use this check to avoid breaking UI
-func (al *APIListener) checkLocalPort(w http.ResponseWriter, localPort, protocol string) bool {
+func (al *APIListener) checkLocalPort(localPort, protocol string) (err error) {
 	lport, err := strconv.Atoi(localPort)
 	if err != nil {
-		al.jsonErrorResponseWithError(w, http.StatusBadRequest, fmt.Sprintf("Invalid port: %s.", localPort), err)
-		return false
+		return apierrors.NewAPIError(http.StatusBadRequest, "", fmt.Sprintf("Invalid port: %s.", localPort), err)
 	}
 
 	busyPorts, err := ports.ListBusyPorts(protocol)
 	if err != nil {
-		al.jsonErrorResponse(w, http.StatusInternalServerError, err)
-		return false
+		return apierrors.NewAPIError(http.StatusInternalServerError, "", "", err)
 	}
 
 	if busyPorts.Contains(lport) {
-		al.jsonErrorResponseWithErrCode(w, http.StatusBadRequest, ErrCodeLocalPortInUse, fmt.Sprintf("Port %d already in use.", lport))
-		return false
+		return apierrors.NewAPIError(http.StatusBadRequest, ErrCodeLocalPortInUse, fmt.Sprintf("Port %d already in use.", lport), nil)
 	}
 
-	return true
+	return nil
 }
 
-func (al *APIListener) checkRemotePort(w http.ResponseWriter, remote models.Remote, conn ssh.Conn) bool {
+func (al *APIListener) checkRemotePort(remote models.Remote, conn ssh.Conn) (err error) {
 	req := &comm.CheckPortRequest{
 		HostPort: remote.Remote(),
 		Timeout:  al.config.Server.CheckPortTimeout,
 	}
 	resp := &comm.CheckPortResponse{}
-	err := comm.SendRequestAndGetResponse(conn, comm.RequestTypeCheckPort, req, resp)
+	err = comm.SendRequestAndGetResponse(conn, comm.RequestTypeCheckPort, req, resp)
 	if err != nil {
 		if _, ok := err.(*comm.ClientError); ok {
-			al.jsonErrorResponse(w, http.StatusConflict, err)
+			err = apierrors.NewAPIError(http.StatusConflict, "", "", err)
 		} else {
-			al.jsonErrorResponse(w, http.StatusInternalServerError, err)
+			err = apierrors.NewAPIError(http.StatusInternalServerError, "", "", err)
 		}
-		return false
+		return err
 	}
 
 	if !resp.Open {
-		al.jsonErrorResponseWithDetail(
-			w,
+		err := apierrors.NewAPIError(
 			http.StatusBadRequest,
 			ErrCodeRemotePortNotOpen,
 			fmt.Sprintf("Port %s is not in listening state.", remote.RemotePort),
-			resp.ErrMsg,
+			errors.New(resp.ErrMsg),
 		)
-		return false
+		return err
 	}
 
-	return true
+	return nil
 }
 
 func (al *APIListener) handleDeleteClientTunnel(w http.ResponseWriter, req *http.Request) {
