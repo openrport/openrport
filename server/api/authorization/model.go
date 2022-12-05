@@ -1,4 +1,4 @@
-package authorization
+package command
 
 import (
 	"time"
@@ -6,12 +6,12 @@ import (
 
 const DefaultTimeoutSec = 60
 
-type APIToken struct {
+type ApiTokens struct {
 	ID        string     `json:"id,omitempty" db:"id"`
-	Username  string     `json:"name,omitempty" db:"username"`
-	Prefix    string     `json:"name,omitempty" db:"prefix"`
+	Username  string     `json:"username,omitempty" db:"username"`
+	Prefix    string     `json:"prefix,omitempty" db:"prefix"`
 	CreatedAt *time.Time `json:"created_at,omitempty" db:"created_at"`
-	ExpiresAt *time.Time `json:"updated_at,omitempty" db:"expires_at"`
-	Scope     string     `json:"cmd,omitempty" db:"scope"`
-	Token     string     `json:"cmd,omitempty" db:"token"`
+	ExpiresAt *time.Time `json:"expires_at,omitempty" db:"expires_at"`
+	Scope     string     `json:"scope,omitempty" db:"scope"`
+	Token     string     `json:"token,omitempty" db:"token"`
 }
