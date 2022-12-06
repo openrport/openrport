@@ -1,4 +1,4 @@
-package chserver
+package clients
 
 import (
 	"context"
@@ -18,7 +18,6 @@ import (
 
 	"github.com/cloudradar-monitoring/rport/server/api/errors"
 	"github.com/cloudradar-monitoring/rport/server/cgroups"
-	"github.com/cloudradar-monitoring/rport/server/clients"
 	"github.com/cloudradar-monitoring/rport/server/clients/clienttunnel"
 	"github.com/cloudradar-monitoring/rport/server/ports"
 	chshare "github.com/cloudradar-monitoring/rport/share"
@@ -31,33 +30,33 @@ type ClientService interface {
 	Count() (int, error)
 	CountActive() (int, error)
 	CountDisconnected() (int, error)
-	GetByID(id string) (*clients.Client, error)
-	GetActiveByID(id string) (*clients.Client, error)
-	GetActiveByGroups(groups []*cgroups.ClientGroup) []*clients.Client
-	GetClientsByTag(tags []string, operator string, allowDisconnected bool) (clients []*clients.Client, err error)
-	PopulateGroupsWithUserClients(groups []*cgroups.ClientGroup, user clients.User)
-	GetAllByClientID(clientID string) []*clients.Client
-	GetAll() ([]*clients.Client, error)
-	GetUserClients(groups []*cgroups.ClientGroup, user clients.User) ([]*clients.Client, error)
-	GetFilteredUserClients(user clients.User, filterOptions []query.FilterOption, groups []*cgroups.ClientGroup) ([]*clients.CalculatedClient, error)
+	GetByID(id string) (*Client, error)
+	GetActiveByID(id string) (*Client, error)
+	GetActiveByGroups(groups []*cgroups.ClientGroup) []*Client
+	GetClientsByTag(tags []string, operator string, allowDisconnected bool) (clients []*Client, err error)
+	PopulateGroupsWithUserClients(groups []*cgroups.ClientGroup, user User)
+	GetAllByClientID(clientID string) []*Client
+	GetAll() ([]*Client, error)
+	GetUserClients(groups []*cgroups.ClientGroup, user User) ([]*Client, error)
+	GetFilteredUserClients(user User, filterOptions []query.FilterOption, groups []*cgroups.ClientGroup) ([]*CalculatedClient, error)
 	StartClient(
 		ctx context.Context, clientAuthID, clientID string, sshConn ssh.Conn, authMultiuseCreds bool,
 		req *chshare.ConnectionRequest, clog *logger.Logger,
-	) (*clients.Client, error)
-	StartClientTunnels(client *clients.Client, remotes []*models.Remote) ([]*clienttunnel.Tunnel, error)
-	Terminate(client *clients.Client) error
-	ForceDelete(client *clients.Client) error
+	) (*Client, error)
+	StartClientTunnels(client *Client, remotes []*models.Remote) ([]*clienttunnel.Tunnel, error)
+	Terminate(client *Client) error
+	ForceDelete(client *Client) error
 	DeleteOffline(clientID string) error
 	SetACL(clientID string, allowedUserGroups []string) error
 	SetUpdatesStatus(clientID string, updatesStatus *models.UpdatesStatus) error
 	SetLastHeartbeat(clientID string, heartbeat time.Time) error
-	CheckClientAccess(clientID string, user clients.User, groups []*cgroups.ClientGroup) error
-	CheckClientsAccess(clients []*clients.Client, user clients.User, groups []*cgroups.ClientGroup) error
-	GetRepo() *clients.ClientRepository
+	CheckClientAccess(clientID string, user User, groups []*cgroups.ClientGroup) error
+	CheckClientsAccess(clients []*Client, user User, groups []*cgroups.ClientGroup) error
+	GetRepo() *ClientRepository
 }
 
 type ClientServiceProvider struct {
-	repo              *clients.ClientRepository
+	repo              *ClientRepository
 	portDistributor   *ports.PortDistributor
 	tunnelProxyConfig *clienttunnel.TunnelProxyConfig
 	logger            *logger.Logger
@@ -65,7 +64,7 @@ type ClientServiceProvider struct {
 	mu sync.Mutex
 }
 
-var clientsSupportedFilters = map[string]bool{
+var OptionsSupportedFilters = map[string]bool{
 	"id":                       true,
 	"name":                     true,
 	"os":                       true,
@@ -94,7 +93,7 @@ var clientsSupportedFilters = map[string]bool{
 	"connection_state":         true,
 }
 
-var clientsSupportedSorts = map[string]bool{
+var OptionsSupportedSorts = map[string]bool{
 	"id":       true,
 	"name":     true,
 	"os":       true,
@@ -102,7 +101,7 @@ var clientsSupportedSorts = map[string]bool{
 	"version":  true,
 }
 
-var clientsSupportedFields = map[string]map[string]bool{
+var OptionsSupportedFields = map[string]map[string]bool{
 	"clients": {
 		"id":                       true,
 		"name":                     true,
@@ -139,7 +138,7 @@ var clientsSupportedFields = map[string]map[string]bool{
 	},
 }
 
-var clientsListDefaultFields = map[string][]string{
+var OptionsListDefaultFields = map[string][]string{
 	"fields[clients]": {
 		"id",
 		"name",
@@ -147,11 +146,11 @@ var clientsListDefaultFields = map[string][]string{
 	},
 }
 
-// NewClientService returns a new instance of client service.
+// New returns a new instance of client service.
 func NewClientService(
 	tunnelProxyConfig *clienttunnel.TunnelProxyConfig,
 	portDistributor *ports.PortDistributor,
-	repo *clients.ClientRepository,
+	repo *ClientRepository,
 	logger *logger.Logger,
 ) *ClientServiceProvider {
 	return &ClientServiceProvider{
@@ -170,7 +169,7 @@ func InitClientService(
 	keepDisconnectedClients *time.Duration,
 	logger *logger.Logger,
 ) (*ClientServiceProvider, error) {
-	repo, err := clients.InitClientRepository(ctx, db, keepDisconnectedClients, logger)
+	repo, err := InitClientRepository(ctx, db, keepDisconnectedClients, logger)
 	if err != nil {
 		return nil, fmt.Errorf("failed to init Client Repository: %v", err)
 	}
@@ -190,20 +189,20 @@ func (s *ClientServiceProvider) CountDisconnected() (int, error) {
 	return s.repo.CountDisconnected()
 }
 
-func (s *ClientServiceProvider) GetByID(id string) (*clients.Client, error) {
+func (s *ClientServiceProvider) GetByID(id string) (*Client, error) {
 	return s.repo.GetByID(id)
 }
 
-func (s *ClientServiceProvider) GetActiveByID(id string) (*clients.Client, error) {
+func (s *ClientServiceProvider) GetActiveByID(id string) (*Client, error) {
 	return s.repo.GetActiveByID(id)
 }
 
-func (s *ClientServiceProvider) GetActiveByGroups(groups []*cgroups.ClientGroup) []*clients.Client {
+func (s *ClientServiceProvider) GetActiveByGroups(groups []*cgroups.ClientGroup) []*Client {
 	if len(groups) == 0 {
 		return nil
 	}
 
-	var res []*clients.Client
+	var res []*Client
 	for _, cur := range s.repo.GetAllActive() {
 		if cur.BelongsToOneOf(groups) {
 			res = append(res, cur)
@@ -212,11 +211,11 @@ func (s *ClientServiceProvider) GetActiveByGroups(groups []*cgroups.ClientGroup)
 	return res
 }
 
-func (s *ClientServiceProvider) GetClientsByTag(tags []string, operator string, allowDisconnected bool) (clients []*clients.Client, err error) {
+func (s *ClientServiceProvider) GetClientsByTag(tags []string, operator string, allowDisconnected bool) (clients []*Client, err error) {
 	return s.repo.GetClientsByTag(tags, operator, allowDisconnected)
 }
 
-func (s *ClientServiceProvider) PopulateGroupsWithUserClients(groups []*cgroups.ClientGroup, user clients.User) {
+func (s *ClientServiceProvider) PopulateGroupsWithUserClients(groups []*cgroups.ClientGroup, user User) {
 	all, _ := s.repo.GetUserClients(user, groups)
 	for _, curClient := range all {
 		for _, curGroup := range groups {
@@ -230,26 +229,26 @@ func (s *ClientServiceProvider) PopulateGroupsWithUserClients(groups []*cgroups.
 	}
 }
 
-func (s *ClientServiceProvider) GetAllByClientID(clientID string) []*clients.Client {
+func (s *ClientServiceProvider) GetAllByClientID(clientID string) []*Client {
 	return s.repo.GetAllByClientAuthID(clientID)
 }
 
-func (s *ClientServiceProvider) GetAll() ([]*clients.Client, error) {
+func (s *ClientServiceProvider) GetAll() ([]*Client, error) {
 	return s.repo.GetAll()
 }
 
-func (s *ClientServiceProvider) GetUserClients(groups []*cgroups.ClientGroup, user clients.User) ([]*clients.Client, error) {
+func (s *ClientServiceProvider) GetUserClients(groups []*cgroups.ClientGroup, user User) ([]*Client, error) {
 	return s.repo.GetUserClients(user, groups)
 }
 
-func (s *ClientServiceProvider) GetFilteredUserClients(user clients.User, filterOptions []query.FilterOption, groups []*cgroups.ClientGroup) ([]*clients.CalculatedClient, error) {
+func (s *ClientServiceProvider) GetFilteredUserClients(user User, filterOptions []query.FilterOption, groups []*cgroups.ClientGroup) ([]*CalculatedClient, error) {
 	return s.repo.GetFilteredUserClients(user, filterOptions, groups)
 }
 
 func (s *ClientServiceProvider) StartClient(
 	ctx context.Context, clientAuthID, clientID string, sshConn ssh.Conn, authMultiuseCreds bool,
 	req *chshare.ConnectionRequest, clog *logger.Logger,
-) (*clients.Client, error) {
+) (*Client, error) {
 	clog.Debugf("starting client session: %s", clientID)
 
 	s.mu.Lock()
@@ -306,7 +305,7 @@ func (s *ClientServiceProvider) StartClient(
 	}
 
 	if client == nil {
-		client = &clients.Client{
+		client = &Client{
 			ID: clientID,
 		}
 	}
@@ -355,8 +354,72 @@ func (s *ClientServiceProvider) StartClient(
 	return client, nil
 }
 
+func getRemotes(tunnels []*clienttunnel.Tunnel) []*models.Remote {
+	r := make([]*models.Remote, 0, len(tunnels))
+	for _, t := range tunnels {
+		r = append(r, &t.Remote)
+	}
+	return r
+}
+
+// GetTunnelsToReestablish returns old tunnels that should be re-establish taking into account new tunnels.
+func GetTunnelsToReestablish(old, new []*models.Remote) []*models.Remote {
+	if len(new) > len(old) {
+		return nil
+	}
+
+	// check if old tunnels contain all new tunnels
+	// NOTE: old tunnels contain random port if local was not specified
+	oldMarked := make([]bool, len(old))
+
+	// at first check new with local specified. It's done at first to cover a case when a new tunnel was specified
+	// with a port that is among random ports in old tunnels.
+loop1:
+	for _, curNew := range new {
+		if curNew.IsLocalSpecified() {
+			for i, curOld := range old {
+				if !oldMarked[i] && curNew.String() == curOld.String() {
+					oldMarked[i] = true
+					continue loop1
+				}
+			}
+			return nil
+		}
+	}
+
+	// then check without local
+loop2:
+	for _, curNew := range new {
+		if !curNew.IsLocalSpecified() {
+			for i, curOld := range old {
+				if !oldMarked[i] && curOld.LocalPortRandom && curNew.Remote() == curOld.Remote() && curNew.EqualACL(curOld.ACL) {
+					oldMarked[i] = true
+					continue loop2
+				}
+			}
+			return nil
+		}
+	}
+
+	// add tunnels that left among old
+	var res []*models.Remote
+	for i, marked := range oldMarked {
+		if !marked {
+			r := *old[i]
+			// if it was random then set up zero values
+			if r.LocalPortRandom {
+				r.LocalHost = ""
+				r.LocalPort = ""
+			}
+			res = append(res, &r)
+		}
+	}
+
+	return res
+}
+
 // StartClientTunnels returns a new tunnel for each requested remote or nil if error occurred
-func (s *ClientServiceProvider) StartClientTunnels(client *clients.Client, remotes []*models.Remote) ([]*clienttunnel.Tunnel, error) {
+func (s *ClientServiceProvider) StartClientTunnels(client *Client, remotes []*models.Remote) ([]*clienttunnel.Tunnel, error) {
 	s.logger.Debugf("starting client tunnels: %s", client.ID)
 
 	s.mu.Lock()
@@ -374,7 +437,7 @@ func (s *ClientServiceProvider) StartClientTunnels(client *clients.Client, remot
 	return newTunnels, err
 }
 
-func (s *ClientServiceProvider) startClientTunnels(client *clients.Client, remotes []*models.Remote) ([]*clienttunnel.Tunnel, error) {
+func (s *ClientServiceProvider) startClientTunnels(client *Client, remotes []*models.Remote) ([]*clienttunnel.Tunnel, error) {
 	err := s.portDistributor.Refresh()
 	if err != nil {
 		return nil, err
@@ -446,7 +509,7 @@ func (s *ClientServiceProvider) checkLocalPort(protocol, port string) error {
 	return nil
 }
 
-func (s *ClientServiceProvider) Terminate(client *clients.Client) error {
+func (s *ClientServiceProvider) Terminate(client *Client) error {
 	s.logger.Infof("terminating client: %s", client.ID)
 
 	s.mu.Lock()
@@ -471,7 +534,7 @@ func (s *ClientServiceProvider) Terminate(client *clients.Client) error {
 
 // ForceDelete deletes client from repo regardless off KeepDisconnectedClients setting,
 // if client is active it will be closed
-func (s *ClientServiceProvider) ForceDelete(client *clients.Client) error {
+func (s *ClientServiceProvider) ForceDelete(client *Client) error {
 	s.logger.Debugf("force deleting client: %s", client.ID)
 
 	s.mu.Lock()
@@ -545,18 +608,18 @@ func (s *ClientServiceProvider) SetLastHeartbeat(clientID string, heartbeat time
 
 // CheckClientAccess returns nil if a given user has an access to a given client.
 // Otherwise, APIError with 403 is returned.
-func (s *ClientServiceProvider) CheckClientAccess(clientID string, user clients.User, groups []*cgroups.ClientGroup) error {
+func (s *ClientServiceProvider) CheckClientAccess(clientID string, user User, groups []*cgroups.ClientGroup) error {
 	existing, err := s.getExistingByID(clientID)
 	if err != nil {
 		return err
 	}
 
-	return s.CheckClientsAccess([]*clients.Client{existing}, user, groups)
+	return s.CheckClientsAccess([]*Client{existing}, user, groups)
 }
 
-// CheckClientsAccess returns nil if a given user has an access to all of the given clients.
+// CheckClientsAccess returns nil if a given user has an access to all of the given
 // Otherwise, APIError with 403 is returned.
-func (s *ClientServiceProvider) CheckClientsAccess(clients []*clients.Client, user clients.User, clientGroups []*cgroups.ClientGroup) error {
+func (s *ClientServiceProvider) CheckClientsAccess(clients []*Client, user User, clientGroups []*cgroups.ClientGroup) error {
 	if user.IsAdmin() {
 		return nil
 	}
@@ -581,7 +644,7 @@ func (s *ClientServiceProvider) CheckClientsAccess(clients []*clients.Client, us
 }
 
 // getExistingByID returns non-nil client by id. If not found or failed to get a client - an error is returned.
-func (s *ClientServiceProvider) getExistingByID(clientID string) (*clients.Client, error) {
+func (s *ClientServiceProvider) getExistingByID(clientID string) (*Client, error) {
 	if clientID == "" {
 		return nil, errors.APIError{
 			Message:    "Client id is empty",
@@ -604,7 +667,7 @@ func (s *ClientServiceProvider) getExistingByID(clientID string) (*clients.Clien
 	return existing, nil
 }
 
-func (s *ClientServiceProvider) GetRepo() *clients.ClientRepository {
+func (s *ClientServiceProvider) GetRepo() *ClientRepository {
 	return s.repo
 }
 

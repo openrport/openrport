@@ -16,7 +16,7 @@ import (
 	"github.com/cloudradar-monitoring/rport/share/models"
 )
 
-type ClientProvider interface {
+type ClientStore interface {
 	GetAll(ctx context.Context) ([]*Client, error)
 	Save(ctx context.Context, client *Client) error
 	DeleteObsolete(ctx context.Context) error

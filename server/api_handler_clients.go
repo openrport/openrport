@@ -69,7 +69,7 @@ func convertToClientsPayload(clients []*clients.CalculatedClient, fields []query
 func convertToClientPayload(client *clients.CalculatedClient, fields []query.FieldsOption) ClientPayload { //nolint:gocyclo
 	requestedFields := query.RequestedFields(fields, "clients")
 	p := ClientPayload{}
-	for field := range clientsSupportedFields["clients"] {
+	for field := range clients.OptionsSupportedFields["clients"] {
 		if len(fields) > 0 && !requestedFields[field] {
 			continue
 		}
@@ -173,7 +173,7 @@ func getCorrespondingSortFunc(sorts []query.SortOption) (sortFunc func(a []*clie
 
 func (al *APIListener) handleGetClient(w http.ResponseWriter, req *http.Request) {
 	options := query.GetRetrieveOptions(req)
-	errs := query.ValidateRetrieveOptions(options, clientsSupportedFields)
+	errs := query.ValidateRetrieveOptions(options, clients.OptionsSupportedFields)
 	if errs != nil {
 		al.jsonError(w, errs)
 		return
@@ -261,8 +261,8 @@ func (al *APIListener) handlePostClientACL(w http.ResponseWriter, req *http.Requ
 }
 
 func (al *APIListener) handleGetClients(w http.ResponseWriter, req *http.Request) {
-	options := query.NewOptions(req, nil, nil, clientsListDefaultFields)
-	errs := query.ValidateListOptions(options, clientsSupportedSorts, clientsSupportedFilters, clientsSupportedFields, &query.PaginationConfig{
+	options := query.NewOptions(req, nil, nil, clients.OptionsListDefaultFields)
+	errs := query.ValidateListOptions(options, clients.OptionsSupportedSorts, clients.OptionsSupportedFilters, clients.OptionsSupportedFields, &query.PaginationConfig{
 		MaxLimit:     500,
 		DefaultLimit: 50,
 	})
@@ -338,19 +338,8 @@ func (al *APIListener) handlePutClientTunnel(w http.ResponseWriter, req *http.Re
 	}
 
 	if client == nil {
-		al.Debugf("active client with id %s not found", clientID)
-		// there isn't an active client, but let's see if there's a disconnect client and if so then
-		// try creating tunnels anyway by continuing with the non-active client.
-		client, err = al.clientService.GetByID(clientID)
-		if err != nil {
-			al.jsonErrorResponse(w, http.StatusInternalServerError, err)
-			return
-		}
-		if client == nil {
-			// still not found
-			al.jsonErrorResponseWithTitle(w, http.StatusNotFound, fmt.Sprintf("client with id %s not found", clientID))
-			return
-		}
+		al.jsonErrorResponseWithTitle(w, http.StatusNotFound, fmt.Sprintf("client with id %s not found", clientID))
+		return
 	}
 
 	localAddr := req.URL.Query().Get("local")
