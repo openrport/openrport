@@ -32,7 +32,6 @@ import (
 	"github.com/cloudradar-monitoring/rport/server/chconfig"
 	"github.com/cloudradar-monitoring/rport/server/clients"
 	"github.com/cloudradar-monitoring/rport/server/clientsauth"
-	"github.com/cloudradar-monitoring/rport/server/clientservice"
 	"github.com/cloudradar-monitoring/rport/server/monitoring"
 	"github.com/cloudradar-monitoring/rport/server/ports"
 	"github.com/cloudradar-monitoring/rport/server/scheduler"
@@ -57,7 +56,7 @@ type Server struct {
 	clientListener      *ClientListener
 	apiListener         *APIListener
 	config              *chconfig.Config
-	clientService       clientservice.ClientService
+	clientService       clients.ClientService
 	clientDB            *sqlx.DB
 	clientAuthProvider  clientsauth.Provider
 	jobProvider         JobProvider
@@ -172,7 +171,7 @@ func NewServer(ctx context.Context, config *chconfig.Config, opts *ServerOpts) (
 		keepDisconnectedClients = &config.Server.KeepDisconnectedClients
 	}
 
-	s.clientService, err = clientservice.Init(
+	s.clientService, err = clients.InitClientService(
 		ctx,
 		&s.config.Server.TunnelProxyConfig,
 		ports.NewPortDistributor(config.AllowedPorts()),

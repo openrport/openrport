@@ -28,7 +28,6 @@ import (
 	"github.com/cloudradar-monitoring/rport/server/cgroups"
 	"github.com/cloudradar-monitoring/rport/server/chconfig"
 	"github.com/cloudradar-monitoring/rport/server/clients"
-	"github.com/cloudradar-monitoring/rport/server/clientservice"
 	"github.com/cloudradar-monitoring/rport/server/test/jb"
 	"github.com/cloudradar-monitoring/rport/share/comm"
 	"github.com/cloudradar-monitoring/rport/share/logger"
@@ -273,7 +272,7 @@ func TestHandlePostCommand(t *testing.T) {
 	for _, tc := range testCases {
 		t.Run(tc.name, func(t *testing.T) {
 			// given
-			clientService := clientservice.New(nil, nil, clients.NewClientRepository(tc.clients, &hour, testLog), testLog)
+			clientService := clients.NewClientService(nil, nil, clients.NewClientRepository(tc.clients, &hour, testLog), testLog)
 			al := APIListener{
 				insecureForTests: true,
 				Server: &Server{
@@ -642,7 +641,7 @@ func TestHandlePostMultiClientCommand(t *testing.T) {
 			al := APIListener{
 				insecureForTests: true,
 				Server: &Server{
-					clientService: clientservice.New(nil, nil, clients.NewClientRepository([]*clients.Client{c1, c2, c3}, &hour, testLog), testLog),
+					clientService: clients.NewClientService(nil, nil, clients.NewClientRepository([]*clients.Client{c1, c2, c3}, &hour, testLog), testLog),
 					config: &chconfig.Config{
 						Server: chconfig.ServerConfig{
 							RunRemoteCmdTimeoutSec: defaultTimeout,
@@ -1902,7 +1901,7 @@ func makeAPIListener(
 	clientRepo *clients.ClientRepository,
 	defaultTimeout int,
 	testLog *logger.Logger) (al *APIListener) {
-	clientService := clientservice.New(nil, nil, clientRepo, testLog)
+	clientService := clients.NewClientService(nil, nil, clientRepo, testLog)
 	al = &APIListener{
 		insecureForTests: true,
 		Server: &Server{

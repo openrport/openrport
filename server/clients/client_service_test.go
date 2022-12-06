@@ -1,4 +1,4 @@
-package clientservice
+package clients
 
 import (
 	"context"
@@ -6,7 +6,6 @@ import (
 	"fmt"
 	"net"
 	"net/http"
-	"os"
 	"strconv"
 	"strings"
 	"testing"
@@ -20,15 +19,11 @@ import (
 
 	errors2 "github.com/cloudradar-monitoring/rport/server/api/errors"
 	"github.com/cloudradar-monitoring/rport/server/api/users"
-	"github.com/cloudradar-monitoring/rport/server/clients"
 	"github.com/cloudradar-monitoring/rport/server/ports"
 	chshare "github.com/cloudradar-monitoring/rport/share"
-	"github.com/cloudradar-monitoring/rport/share/logger"
 	"github.com/cloudradar-monitoring/rport/share/models"
 	"github.com/cloudradar-monitoring/rport/share/test"
 )
-
-var testLog = logger.NewLogger("client-service", logger.LogOutput{File: os.Stdout}, logger.LogLevelDebug)
 
 func TestStartClient(t *testing.T) {
 	connMock := test.NewConnMock()
@@ -90,8 +85,8 @@ func TestStartClient(t *testing.T) {
 
 	for _, tc := range testCases {
 		t.Run(tc.Name, func(t *testing.T) {
-			cs := &Provider{
-				repo: clients.NewClientRepository([]*clients.Client{{
+			cs := &ClientServiceProvider{
+				repo: NewClientRepository([]*Client{{
 					ID:           "test-client",
 					ClientAuthID: "test-client-auth",
 				}}, nil, testLog),
@@ -109,8 +104,8 @@ func TestStartClientDisconnected(t *testing.T) {
 	connMock := test.NewConnMock()
 	connMock.ReturnRemoteAddr = &net.TCPAddr{IP: net.IPv4(192, 0, 2, 1), Port: 2345}
 	now := time.Now()
-	cs := &Provider{
-		repo: clients.NewClientRepository([]*clients.Client{{
+	cs := &ClientServiceProvider{
+		repo: NewClientRepository([]*Client{{
 			ID:                "disconnected-client",
 			ClientAuthID:      "test-client-auth",
 			DisconnectedAt:    &now,
@@ -132,10 +127,10 @@ func TestStartClientDisconnected(t *testing.T) {
 }
 
 func TestDeleteOfflineClient(t *testing.T) {
-	c1Active := clients.New(t).Build()
-	c2Active := clients.New(t).Build()
-	c3Offline := clients.New(t).DisconnectedDuration(5 * time.Minute).Build()
-	c4Offline := clients.New(t).DisconnectedDuration(time.Minute).Build()
+	c1Active := New(t).Build()
+	c2Active := New(t).Build()
+	c3Offline := New(t).DisconnectedDuration(5 * time.Minute).Build()
+	c4Offline := New(t).DisconnectedDuration(time.Minute).Build()
 
 	testCases := []struct {
 		name      string
@@ -176,8 +171,7 @@ func TestDeleteOfflineClient(t *testing.T) {
 	for _, tc := range testCases {
 		t.Run(tc.name, func(t *testing.T) {
 			// given
-			hour := time.Hour
-			clientService := New(nil, nil, clients.NewClientRepository([]*clients.Client{c1Active, c2Active, c3Offline, c4Offline}, &hour, testLog), testLog)
+			clientService := NewClientService(nil, nil, NewClientRepository([]*Client{c1Active, c2Active, c3Offline, c4Offline}, &hour, testLog), testLog)
 			before, err := clientService.Count()
 			require.NoError(t, err)
 			require.Equal(t, 4, before)
@@ -201,7 +195,7 @@ func TestDeleteOfflineClient(t *testing.T) {
 }
 
 func TestCheckLocalPort(t *testing.T) {
-	srv := Provider{
+	srv := ClientServiceProvider{
 		portDistributor: ports.NewPortDistributorForTests(
 			mapset.NewThreadUnsafeSetFromSlice([]interface{}{1, 2, 3, 4, 5}),
 			mapset.NewThreadUnsafeSetFromSlice([]interface{}{2, 3, 4}),
@@ -286,15 +280,15 @@ func TestCheckLocalPort(t *testing.T) {
 }
 
 func TestCheckClientsAccess(t *testing.T) {
-	c1 := clients.New(t).Build()                                                             // no groups
-	c2 := clients.New(t).AllowedUserGroups([]string{users.Administrators}).Build()           // admin
-	c3 := clients.New(t).AllowedUserGroups([]string{users.Administrators, "group1"}).Build() // admin + group1
-	c4 := clients.New(t).AllowedUserGroups([]string{"group1"}).Build()                       // group1
-	c5 := clients.New(t).AllowedUserGroups([]string{"group1", "group2"}).Build()             // group1 + group2
-	c6 := clients.New(t).AllowedUserGroups([]string{"group3"}).Build()                       // group3
-	c7 := clients.New(t).Build()
+	c1 := New(t).Build()                                                             // no groups
+	c2 := New(t).AllowedUserGroups([]string{users.Administrators}).Build()           // admin
+	c3 := New(t).AllowedUserGroups([]string{users.Administrators, "group1"}).Build() // admin + group1
+	c4 := New(t).AllowedUserGroups([]string{"group1"}).Build()                       // group1
+	c5 := New(t).AllowedUserGroups([]string{"group1", "group2"}).Build()             // group1 + group2
+	c6 := New(t).AllowedUserGroups([]string{"group3"}).Build()                       // group3
+	c7 := New(t).Build()
 
-	allClients := []*clients.Client{c1, c2, c3, c4, c5, c6}
+	allClients := []*Client{c1, c2, c3, c4, c5, c6}
 	clientGroups := []*cgroups.ClientGroup{
 		{
 			ID:                "1",
@@ -307,7 +301,7 @@ func TestCheckClientsAccess(t *testing.T) {
 
 	testCases := []struct {
 		name                      string
-		clients                   []*clients.Client
+		clients                   []*Client
 		user                      *users.User
 		wantClientIDsWithNoAccess []string
 	}{
@@ -325,7 +319,7 @@ func TestCheckClientsAccess(t *testing.T) {
 		},
 		{
 			name:                      "non-admin user with access to all groups",
-			clients:                   []*clients.Client{c3, c4, c5, c6},
+			clients:                   []*Client{c3, c4, c5, c6},
 			user:                      &users.User{Groups: []string{"group1", "group2", "group3"}},
 			wantClientIDsWithNoAccess: nil,
 		},
@@ -355,7 +349,7 @@ func TestCheckClientsAccess(t *testing.T) {
 		},
 		{
 			name:                      "non-admin user given access via client groups",
-			clients:                   []*clients.Client{c7},
+			clients:                   []*Client{c7},
 			user:                      &users.User{Groups: []string{"group4"}},
 			wantClientIDsWithNoAccess: nil,
 		},
@@ -364,7 +358,7 @@ func TestCheckClientsAccess(t *testing.T) {
 	for _, tc := range testCases {
 		t.Run(tc.name, func(t *testing.T) {
 			// given
-			clientService := New(nil, nil, clients.NewClientRepository(allClients, nil, testLog), testLog)
+			clientService := NewClientService(nil, nil, NewClientRepository(allClients, nil, testLog), testLog)
 
 			// when
 			gotErr := clientService.CheckClientsAccess(tc.clients, tc.user, clientGroups)

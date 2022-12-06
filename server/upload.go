@@ -11,7 +11,6 @@ import (
 	"time"
 
 	errors2 "github.com/cloudradar-monitoring/rport/server/api/errors"
-	"github.com/cloudradar-monitoring/rport/server/clientservice"
 	errors3 "github.com/cloudradar-monitoring/rport/share/errors"
 
 	"github.com/cloudradar-monitoring/rport/server/api"
@@ -89,7 +88,7 @@ func (al *APIListener) handleFileUploads(w http.ResponseWriter, req *http.Reques
 		return
 	}
 
-	cr := clientservice.Provider{}
+	cr := clients.ClientServiceProvider{}
 	clientGroups, err := al.clientGroupProvider.GetAll(req.Context())
 	if err != nil {
 		al.jsonError(w, err)

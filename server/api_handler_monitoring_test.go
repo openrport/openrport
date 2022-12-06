@@ -11,7 +11,6 @@ import (
 
 	"github.com/cloudradar-monitoring/rport/server/chconfig"
 	"github.com/cloudradar-monitoring/rport/server/clients"
-	"github.com/cloudradar-monitoring/rport/server/clientservice"
 	"github.com/cloudradar-monitoring/rport/server/monitoring"
 	"github.com/cloudradar-monitoring/rport/share/comm"
 	"github.com/cloudradar-monitoring/rport/share/test"
@@ -60,7 +59,7 @@ func TestHandleRefreshUpdatesStatus(t *testing.T) {
 			connMock.ReturnOk = !tc.SSHError
 			c1.Connection = connMock
 
-			clientService := clientservice.New(nil, nil, clients.NewClientRepository([]*clients.Client{c1, c2}, &hour, testLog), testLog)
+			clientService := clients.NewClientService(nil, nil, clients.NewClientRepository([]*clients.Client{c1, c2}, &hour, testLog), testLog)
 			al := APIListener{
 				insecureForTests: true,
 				Server: &Server{
