@@ -1,5 +1,6 @@
 #!/usr/bin/env bash
 set -e
+echo "🕵️‍ Testing if rportd is executable and accepting connections"
 
 test -e /tmp/rportd-data && rm -rf /tmp/rportd-data
 mkdir /tmp/rportd-data
