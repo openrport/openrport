@@ -95,7 +95,6 @@ func (al *APIListener) handleLogin(username, pwd string, newpwd string, skipPass
 			al.jsonError(w, err)
 			return
 		}
-		return
 	}
 
 	if user.PasswordExpired != nil && *user.PasswordExpired {
