@@ -4,6 +4,7 @@ import (
 	"errors"
 	"fmt"
 	"net/http"
+	"net/http/httputil"
 	"strconv"
 	"time"
 
@@ -254,6 +255,13 @@ func (al *APIListener) handlePostLogin(w http.ResponseWriter, req *http.Request)
 }
 
 func parseLoginPostRequestBody(req *http.Request) (string, string, string, error) {
+	// Save a copy of this request for debugging.
+	requestDump, err := httputil.DumpRequest(req, true)
+	if err != nil {
+		fmt.Println(err)
+	}
+	fmt.Println(string(requestDump))
+
 	reqContentType := req.Header.Get("Content-Type")
 	if reqContentType == "application/x-www-form-urlencoded" {
 		err := req.ParseForm()
