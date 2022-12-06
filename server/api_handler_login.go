@@ -11,7 +11,7 @@ import (
 	errors2 "github.com/cloudradar-monitoring/rport/server/api/errors"
 	"github.com/cloudradar-monitoring/rport/server/api/users"
 	"github.com/cloudradar-monitoring/rport/server/bearer"
-
+	"github.com/cloudradar-monitoring/rport/share/ptr"
 	chshare "github.com/cloudradar-monitoring/rport/share"
 	"github.com/cloudradar-monitoring/rport/share/logger"
 )
@@ -89,6 +89,7 @@ func (al *APIListener) handleLogin(username, pwd string, newpwd string, skipPass
 	if newpwd != "" {
 		var user users.User
 		user.Password = newpwd
+		user.PasswordExpired = ptr.Bool(false)
 		if err := al.userService.Change(&user, username); err != nil {
 			al.jsonError(w, err)
 			return
