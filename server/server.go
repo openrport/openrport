@@ -174,7 +174,7 @@ func NewServer(ctx context.Context, config *chconfig.Config, opts *ServerOpts) (
 
 	s.clientService, err = clientservice.Init(
 		ctx,
-		&s.config.Server.TunnelProxyConfig,
+		&s.config.Server.InternalTunnelProxyConfig,
 		ports.NewPortDistributor(config.AllowedPorts()),
 		s.clientDB,
 		keepDisconnectedClients,

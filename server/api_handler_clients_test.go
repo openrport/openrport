@@ -501,7 +501,7 @@ func TestHandlePutTunnelWithName(t *testing.T) {
 					config: &chconfig.Config{
 						Server: chconfig.ServerConfig{
 							MaxRequestBytes: 1024 * 1024,
-							TunnelProxyConfig: clienttunnel.TunnelProxyConfig{
+							InternalTunnelProxyConfig: clienttunnel.InternalTunnelProxyConfig{
 								Enabled: true,
 							},
 						},

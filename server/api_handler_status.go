@@ -27,6 +27,7 @@ func (al *APIListener) handleGetStatus(w http.ResponseWriter, req *http.Request)
 		twoFADelivery = "totp_authenticator_app"
 	}
 
+	// TODO: (rs): add subdomain stuff here?
 	response := api.NewSuccessPayload(map[string]interface{}{
 		"version":                   chshare.BuildVersion,
 		"clients_connected":         countActive,
@@ -43,7 +44,7 @@ func (al *APIListener) handleGetStatus(w http.ResponseWriter, req *http.Request)
 		"two_fa_delivery_method":    twoFADelivery,
 		"auditlog":                  al.auditLog.Status(),
 		"auth_header":               al.config.API.AuthHeader != "",
-		"tunnel_proxy_enabled":      al.config.Server.TunnelProxyConfig.Enabled,
+		"tunnel_proxy_enabled":      al.config.Server.InternalTunnelProxyConfig.Enabled,
 		"excluded_ports":            al.config.Server.ExcludedPortsRaw,
 		"used_ports":                al.config.Server.UsedPortsRaw,
 	})

@@ -11,11 +11,11 @@ import (
 
 // TunnelProxyConnectorHTTP uses the standard ReverseProxy from package httputil to connect to HTTP/HTTPS server on tunnel endpoint
 type TunnelProxyConnectorHTTP struct {
-	tunnelProxy  *TunnelProxy
+	tunnelProxy  *InternalTunnelProxy
 	reverseProxy *httputil.ReverseProxy
 }
 
-func NewTunnelConnectorHTTP(tp *TunnelProxy) *TunnelProxyConnectorHTTP {
+func NewTunnelConnectorHTTP(tp *InternalTunnelProxy) *TunnelProxyConnectorHTTP {
 	return &TunnelProxyConnectorHTTP{tunnelProxy: tp}
 }
 

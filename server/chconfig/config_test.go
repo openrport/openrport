@@ -668,7 +668,7 @@ func TestShouldParseAndValidateTunnelSubdomainConfig(t *testing.T) {
 		{
 			Name: "no error if not configured",
 			Config: ServerConfig{
-				TunnelSubdomainConfig: clienttunnel.SubdomainConfig{
+				ExternalTunnelProxyConfig: clienttunnel.ExternalTunnelProxyConfig{
 					Address:       "",
 					BaseSubdomain: "",
 					CertFile:      "",
@@ -681,7 +681,7 @@ func TestShouldParseAndValidateTunnelSubdomainConfig(t *testing.T) {
 		{
 			Name: "no error if all values configured",
 			Config: ServerConfig{
-				TunnelSubdomainConfig: clienttunnel.SubdomainConfig{
+				ExternalTunnelProxyConfig: clienttunnel.ExternalTunnelProxyConfig{
 					Address:       "0.0.0.0:443",
 					BaseSubdomain: "tunnels.rport.example.com",
 					CertFile:      "/var/lib/rport/wildcard.crt",
@@ -693,7 +693,7 @@ func TestShouldParseAndValidateTunnelSubdomainConfig(t *testing.T) {
 		{
 			Name: "error if address missing",
 			Config: ServerConfig{
-				TunnelSubdomainConfig: clienttunnel.SubdomainConfig{
+				ExternalTunnelProxyConfig: clienttunnel.ExternalTunnelProxyConfig{
 					// Address:   "0.0.0.0:443",
 					BaseSubdomain: "tunnels.rport.example.com",
 					CertFile:      "/var/lib/rport/wildcard.crt",
@@ -705,7 +705,7 @@ func TestShouldParseAndValidateTunnelSubdomainConfig(t *testing.T) {
 		{
 			Name: "error if subdomain missing",
 			Config: ServerConfig{
-				TunnelSubdomainConfig: clienttunnel.SubdomainConfig{
+				ExternalTunnelProxyConfig: clienttunnel.ExternalTunnelProxyConfig{
 					Address: "0.0.0.0:443",
 					// Subdomain: "tunnels.rport.example.com",
 					CertFile: "/var/lib/rport/wildcard.crt",
@@ -717,7 +717,7 @@ func TestShouldParseAndValidateTunnelSubdomainConfig(t *testing.T) {
 		{
 			Name: "error if cert file missing",
 			Config: ServerConfig{
-				TunnelSubdomainConfig: clienttunnel.SubdomainConfig{
+				ExternalTunnelProxyConfig: clienttunnel.ExternalTunnelProxyConfig{
 					Address:       "0.0.0.0:443",
 					BaseSubdomain: "tunnels.rport.example.com",
 					// CertFile: "/var/lib/rport/wildcard.crt",
@@ -729,7 +729,7 @@ func TestShouldParseAndValidateTunnelSubdomainConfig(t *testing.T) {
 		{
 			Name: "error if key file missing",
 			Config: ServerConfig{
-				TunnelSubdomainConfig: clienttunnel.SubdomainConfig{
+				ExternalTunnelProxyConfig: clienttunnel.ExternalTunnelProxyConfig{
 					Address:       "0.0.0.0:443",
 					BaseSubdomain: "tunnels.rport.example.com",
 					CertFile:      "/var/lib/rport/wildcard.crt",
@@ -741,13 +741,13 @@ func TestShouldParseAndValidateTunnelSubdomainConfig(t *testing.T) {
 	}
 	for _, tc := range cases {
 		t.Run(tc.Name, func(t *testing.T) {
-			err := tc.Config.TunnelSubdomainConfig.ParseAndValidate()
+			err := tc.Config.ExternalTunnelProxyConfig.ParseAndValidate()
 			if tc.ExpectedErrorStr == "" {
 				if tc.NotConfigured {
 					assert.NoError(t, err)
 				} else {
 					assert.NoError(t, err)
-					assert.True(t, tc.Config.TunnelSubdomainConfig.Enabled)
+					assert.True(t, tc.Config.ExternalTunnelProxyConfig.Enabled)
 				}
 			} else {
 				assert.Error(t, err)
@@ -767,7 +767,7 @@ func TestShouldValidateAPIDomainIfSharedPorts(t *testing.T) {
 			Name: "no error when tunnel subdomains not configured",
 			Config: Config{
 				Server: ServerConfig{
-					TunnelSubdomainConfig: clienttunnel.SubdomainConfig{
+					ExternalTunnelProxyConfig: clienttunnel.ExternalTunnelProxyConfig{
 						// Enabled is usually set when validating the subdomain config. However, we aren't
 						// validating it. We're only checking the API domain validation. So manually set
 						// the subdomain config as enabled.
@@ -785,7 +785,7 @@ func TestShouldValidateAPIDomainIfSharedPorts(t *testing.T) {
 			Name: "api https required when matching ports",
 			Config: Config{
 				Server: ServerConfig{
-					TunnelSubdomainConfig: clienttunnel.SubdomainConfig{
+					ExternalTunnelProxyConfig: clienttunnel.ExternalTunnelProxyConfig{
 						Enabled: true,
 						Address: "0.0.0.0:6789",
 					},
@@ -803,7 +803,7 @@ func TestShouldValidateAPIDomainIfSharedPorts(t *testing.T) {
 			Name: "error when invalid api https and matching ports",
 			Config: Config{
 				Server: ServerConfig{
-					TunnelSubdomainConfig: clienttunnel.SubdomainConfig{
+					ExternalTunnelProxyConfig: clienttunnel.ExternalTunnelProxyConfig{
 						Enabled: true,
 						Address: "0.0.0.0:6789",
 					},
@@ -821,7 +821,7 @@ func TestShouldValidateAPIDomainIfSharedPorts(t *testing.T) {
 			Name: "error when missing api domain and matching ports",
 			Config: Config{
 				Server: ServerConfig{
-					TunnelSubdomainConfig: clienttunnel.SubdomainConfig{
+					ExternalTunnelProxyConfig: clienttunnel.ExternalTunnelProxyConfig{
 						Enabled: true,
 						Address: "0.0.0.0:6789",
 					},
@@ -839,7 +839,7 @@ func TestShouldValidateAPIDomainIfSharedPorts(t *testing.T) {
 			Name: "no api https required when non-matching ports",
 			Config: Config{
 				Server: ServerConfig{
-					TunnelSubdomainConfig: clienttunnel.SubdomainConfig{
+					ExternalTunnelProxyConfig: clienttunnel.ExternalTunnelProxyConfig{
 						Enabled: true,
 						Address: "0.0.0.0:6789",
 					},

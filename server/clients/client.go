@@ -135,7 +135,7 @@ func (c *Client) FindTunnelByRemote(r *models.Remote) *clienttunnel.Tunnel {
 func (c *Client) StartTunnel(
 	r *models.Remote,
 	acl *clienttunnel.TunnelACL,
-	tunnelProxyConfig *clienttunnel.TunnelProxyConfig,
+	tunnelProxyConfig *clienttunnel.InternalTunnelProxyConfig,
 	portDistributor *ports.PortDistributor) (t *clienttunnel.Tunnel, err error) {
 	t = c.FindTunnelByRemote(r)
 	// tunnel exists
@@ -196,13 +196,13 @@ func (c *Client) startTunnelWithProxy(
 	ctx context.Context,
 	r *models.Remote,
 	acl *clienttunnel.TunnelACL,
-	tunnelProxyConfig *clienttunnel.TunnelProxyConfig,
+	tunnelProxyConfig *clienttunnel.InternalTunnelProxyConfig,
 	portDistributor *ports.PortDistributor) (*clienttunnel.Tunnel, error) {
 	proxyHost := ""
 	proxyPort := ""
 	var proxyACL *clienttunnel.TunnelACL
 
-	c.Logger.Debugf("client %s will use tunnel proxy", c.ID)
+	c.Logger.Debugf("client %s will use tunnel with internal proxy", c.ID)
 
 	// get values for tunnel proxy local host addr from original remote
 	proxyHost = r.LocalHost
@@ -232,22 +232,22 @@ func (c *Client) startTunnelWithProxy(
 		return nil, err
 	}
 
-	// create new proxy tunnel listening at the original tunnel local host addr
-	tProxy := clienttunnel.NewTunnelProxy(t, c.Logger, tunnelProxyConfig, proxyHost, proxyPort, proxyACL)
+	// create new internal tunnel proxy listening at the original tunnel local host addr
+	tunnelProxy := clienttunnel.NewInternalTunnelProxy(t, c.Logger, tunnelProxyConfig, proxyHost, proxyPort, proxyACL)
 	c.Logger.Debugf("client %s starting tunnel proxy", c.ID)
-	if err := tProxy.Start(ctx); err != nil {
-		c.Logger.Debugf("tunnel proxy could not be started, tunnel must be terminated: %v", err)
+	if err := tunnelProxy.Start(ctx); err != nil {
+		c.Logger.Debugf("internal tunnel proxy could not be started, tunnel must be terminated: %v", err)
 		if tErr := t.Terminate(true); tErr != nil {
 			return nil, tErr
 		}
 		return nil, fmt.Errorf("tunnel started and terminated because of tunnel proxy start error")
 	}
 
-	t.Proxy = tProxy
+	t.InternalTunnelProxy = tunnelProxy
 
-	// reconfigure original tunnel remote host addr to be the new proxy tunnel
-	t.Remote.LocalHost = t.Proxy.Host
-	t.Remote.LocalPort = t.Proxy.Port
+	// reconfigure original tunnel remote host addr to be the new internal proxy
+	t.Remote.LocalHost = t.InternalTunnelProxy.Host
+	t.Remote.LocalPort = t.InternalTunnelProxy.Port
 
 	c.Logger.Debugf("client %s started tunnel proxy: %+v", c.ID, t)
 
@@ -290,8 +290,8 @@ func (c *Client) cleanupAfterAutoClose(t *clienttunnel.Tunnel) {
 	defer c.Unlock()
 
 	//stop tunnel proxy
-	if t.Proxy != nil {
-		if err := t.Proxy.Stop(c.Context); err != nil {
+	if t.InternalTunnelProxy != nil {
+		if err := t.InternalTunnelProxy.Stop(c.Context); err != nil {
 			c.Logger.Errorf("error while stopping tunnel proxy: %v", err)
 		}
 	}
@@ -308,8 +308,8 @@ func (c *Client) TerminateTunnel(t *clienttunnel.Tunnel, force bool) error {
 	if err != nil {
 		return err
 	}
-	if t.Proxy != nil {
-		if err := t.Proxy.Stop(c.Context); err != nil {
+	if t.InternalTunnelProxy != nil {
+		if err := t.InternalTunnelProxy.Stop(c.Context); err != nil {
 			return err
 		}
 	}

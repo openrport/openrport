@@ -14,15 +14,18 @@ var (
 	ErrTunnelSubdomainKeyFileMissing  = errors.New("tunnel subdomain key file missing")
 )
 
-type SubdomainConfig struct {
-	Address       string `mapstructure:"tunnel_subdomain_address"`
-	BaseSubdomain string `mapstructure:"tunnel_subdomain"`
-	CertFile      string `mapstructure:"tunnel_subdomain_cert_file"`
-	KeyFile       string `mapstructure:"tunnel_subdomain_key_file"`
-	Enabled       bool
+type ExternalTunnelProxyConfig struct {
+	Address           string `mapstructure:"tunnel_subdomain_address"`
+	BaseSubdomain     string `mapstructure:"tunnel_subdomain"`
+	CertFile          string `mapstructure:"tunnel_subdomain_cert_file"`
+	KeyFile           string `mapstructure:"tunnel_subdomain_key_file"`
+	CaddyExecFilename string `mapstructure:"caddy_exec_filename"`
+	CaddyExecPath     string `mapstructure:"caddy_exec_path"`
+	CaddyAPIPort      int    `mapstructure:"caddy_api_port"`
+	Enabled           bool
 }
 
-func (c *SubdomainConfig) ParseAndValidate() error {
+func (c *ExternalTunnelProxyConfig) ParseAndValidate() error {
 	// first check if not configured
 	if c.Address == "" && c.BaseSubdomain == "" && c.CertFile == "" && c.KeyFile == "" {
 		return nil
@@ -51,21 +54,21 @@ var (
 	subdomains    = []string{"1", "2", "3", "4"}
 )
 
-func (c *SubdomainConfig) GetLocalHostURL(subdomain string, remote *models.Remote) (hostURL string) {
+func (c *ExternalTunnelProxyConfig) GetLocalHostURL(subdomain string, remote *models.Remote) (hostURL string) {
 	hostURL = subdomain + "." + c.BaseSubdomain
 	return hostURL
 }
 
-func (c *SubdomainConfig) GetPort() (port string, err error) {
+func (c *ExternalTunnelProxyConfig) GetPort() (port string, err error) {
 	_, port, err = net.SplitHostPort(c.Address)
 	return port, err
 }
 
-func (c *SubdomainConfig) ResetRandomDomains() {
+func (c *ExternalTunnelProxyConfig) ResetRandomDomains() {
 	nextSubdomain = 0
 }
 
-func (c *SubdomainConfig) GetRandomSubdomain() (subdomain string) {
+func (c *ExternalTunnelProxyConfig) GetRandomSubdomain() (subdomain string) {
 	subdomain = subdomains[nextSubdomain]
 	nextSubdomain++
 	return subdomain

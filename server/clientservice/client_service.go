@@ -59,7 +59,7 @@ type ClientService interface {
 type Provider struct {
 	repo              *clients.ClientRepository
 	portDistributor   *ports.PortDistributor
-	tunnelProxyConfig *clienttunnel.TunnelProxyConfig
+	tunnelProxyConfig *clienttunnel.InternalTunnelProxyConfig
 	logger            *logger.Logger
 
 	mu sync.Mutex
@@ -149,7 +149,7 @@ var OptionsListDefaultFields = map[string][]string{
 
 // New returns a new instance of client service.
 func New(
-	tunnelProxyConfig *clienttunnel.TunnelProxyConfig,
+	tunnelProxyConfig *clienttunnel.InternalTunnelProxyConfig,
 	portDistributor *ports.PortDistributor,
 	repo *clients.ClientRepository,
 	logger *logger.Logger,
@@ -164,7 +164,7 @@ func New(
 
 func Init(
 	ctx context.Context,
-	tunnelProxyConfig *clienttunnel.TunnelProxyConfig,
+	tunnelProxyConfig *clienttunnel.InternalTunnelProxyConfig,
 	portDistributor *ports.PortDistributor,
 	db *sqlx.DB,
 	keepDisconnectedClients *time.Duration,
@@ -488,25 +488,15 @@ func (s *Provider) startClientTunnels(client *clients.Client, remotes []*models.
 func (s *Provider) checkLocalPort(protocol, port string) error {
 	localPort, err := strconv.Atoi(port)
 	if err != nil {
-		return errors.APIError{
-			HTTPStatus: http.StatusBadRequest,
-			Message:    fmt.Sprintf("Invalid local port: %s.", port),
-			Err:        err,
-		}
+		return errors.NewAPIError(http.StatusBadRequest, "", fmt.Sprintf("Invalid local port: %s.", port), err)
 	}
 
 	if !s.portDistributor.IsPortAllowed(localPort) {
-		return errors.APIError{
-			HTTPStatus: http.StatusBadRequest,
-			Message:    fmt.Sprintf("Local port %d is not among allowed ports.", localPort),
-		}
+		return errors.NewAPIError(http.StatusBadRequest, "", fmt.Sprintf("Local port %d is not among allowed ports.", localPort), nil)
 	}
 
 	if s.portDistributor.IsPortBusy(protocol, localPort) {
-		return errors.APIError{
-			HTTPStatus: http.StatusConflict,
-			Message:    fmt.Sprintf("Local port %d already in use.", localPort),
-		}
+		return errors.NewAPIError(http.StatusBadRequest, "", fmt.Sprintf("Local port %d already in use.", localPort), nil)
 	}
 
 	return nil

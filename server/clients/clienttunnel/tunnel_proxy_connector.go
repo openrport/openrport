@@ -9,7 +9,7 @@ type TunnelProxyConnector interface {
 	InitRouter(router *mux.Router) *mux.Router
 }
 
-func NewTunnelProxyConnector(tp *TunnelProxy) TunnelProxyConnector {
+func NewTunnelProxyConnector(tp *InternalTunnelProxy) TunnelProxyConnector {
 	switch *tp.Tunnel.Remote.Scheme {
 	case "http", "https":
 		return NewTunnelConnectorHTTP(tp)

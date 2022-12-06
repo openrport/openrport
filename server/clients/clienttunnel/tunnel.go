@@ -61,9 +61,9 @@ type Tunnel struct {
 	ID string `json:"id"`
 	models.Remote
 
-	TunnelProtocol `json:"-"`
-	Proxy          *TunnelProxy `json:"-"`
-	CreatedAt      time.Time    `json:"created_at"`
+	TunnelProtocol      `json:"-"`
+	InternalTunnelProxy *InternalTunnelProxy `json:"-"`
+	CreatedAt           time.Time            `json:"created_at"`
 }
 
 func NewTunnel(logger *logger.Logger, ssh ssh.Conn, id string, remote models.Remote, acl *TunnelACL) (*Tunnel, error) {
