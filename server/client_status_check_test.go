@@ -119,5 +119,5 @@ func TestClientsStatusDeterminationTask(t *testing.T) {
 	t.Logf("c4: DisconnectedAt: %s", c4.DisconnectedAt)
 	log, err := os.ReadFile(logfile)
 	assert.NoError(t, err, "error reading log file")
-	assert.Contains(t, string(log), fmt.Sprintf("ping to  [4] failed: timeout %s exceeded", timeout))
+	assert.Contains(t, string(log), fmt.Sprintf("ping to  [4] failed: conn.SendRequest(ping), timeout %s exceeded", timeout))
 }

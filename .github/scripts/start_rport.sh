@@ -1,6 +1,6 @@
 #!/usr/bin/env bash
 set -e
-
+echo "🕵️‍ Testing if rport is executable and able to connect"
 test -e /tmp/rport-data && rm -rf /tmp/rport-data
 mkdir /tmp/rport-data
 cat<<EOF>rport.conf
@@ -31,6 +31,7 @@ EOF
 echo -n "RPort "
 ./rport --version
 ./rport -c rport.conf &
+sleep 1
 echo -n "RPort pid "
 pidof rport
 SUCCESS=1
