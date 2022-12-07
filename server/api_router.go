@@ -155,7 +155,6 @@ func (al *APIListener) initRouter() {
 	// all routes defined below do not have authorization middleware, auth is done in each handler separately
 	api.HandleFunc("/login", al.handleGetLogin).Methods(http.MethodGet)
 	api.HandleFunc("/login", al.handlePostLogin).Methods(http.MethodPost)
-	api.HandleFunc("/login", al.handlePostLogin).Methods(http.MethodPatch) // for now is simply a repeat of the POST verb
 	api.HandleFunc("/logout", al.handleDeleteLogout).Methods(http.MethodDelete)
 	api.Handle(routes.Verify2FaRoute, al.wrapWithAuthMiddleware(true)(al.handlePostVerify2FAToken())).Methods(http.MethodPost)
 
