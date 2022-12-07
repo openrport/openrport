@@ -2,6 +2,7 @@ package clients
 
 import (
 	"context"
+	"errors"
 	"fmt"
 	"strconv"
 	"sync"
@@ -68,9 +69,10 @@ type Client struct {
 	UpdatesStatus       *models.UpdatesStatus `json:"updates_status"`
 	ClientConfiguration *clientconfig.Config  `json:"client_configuration"`
 
-	Connection ssh.Conn        `json:"-"`
-	Context    context.Context `json:"-"`
-	Logger     *logger.Logger  `json:"-"`
+	Connection       ssh.Conn          `json:"-"`
+	Context          context.Context   `json:"-"`
+	Logger           *logger.Logger    `json:"-"`
+	clientRepository *ClientRepository `json:"-"`
 
 	lock sync.Mutex
 }
@@ -80,6 +82,21 @@ type CalculatedClient struct {
 	*Client
 	Groups          []string        `json:"groups"`
 	ConnectionState ConnectionState `json:"connection_state"`
+}
+
+// InitWithRepo creates a client that has access to the upper level client repository
+func (c *Client) InitWithRepo(client *Client, cr *ClientRepository) *Client {
+	c.clientRepository = cr
+	return client
+}
+
+// Save persists the current client details by triggering save on the client repository aka a database update
+func (c *Client) Save() error {
+	if c.clientRepository == nil {
+		return errors.New("client has not been initiated with client repository")
+	}
+	c.Logger.Debugf("Self-saving client: %s", c.ID)
+	return c.clientRepository.Save(c)
 }
 
 func (c *Client) SetConnected() {
@@ -279,6 +296,9 @@ func (c *Client) removeTunnelByID(tunnelID string) {
 		}
 	}
 	c.Tunnels = result
+	if err := c.Save(); err != nil {
+		c.Logger.Errorf("Error saving client after tunnel removal: %s", err)
+	}
 }
 
 func (c *Client) Banner() string {
