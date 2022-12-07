@@ -146,7 +146,7 @@ var OptionsListDefaultFields = map[string][]string{
 	},
 }
 
-// New returns a new instance of client service.
+// NewClientService returns a new instance of client service.
 func NewClientService(
 	tunnelProxyConfig *clienttunnel.TunnelProxyConfig,
 	portDistributor *ports.PortDistributor,
