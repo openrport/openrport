@@ -4,7 +4,6 @@ import (
 	"errors"
 	"fmt"
 	"net/http"
-	"net/http/httputil"
 	"strconv"
 	"time"
 
@@ -12,9 +11,9 @@ import (
 	errors2 "github.com/cloudradar-monitoring/rport/server/api/errors"
 	"github.com/cloudradar-monitoring/rport/server/api/users"
 	"github.com/cloudradar-monitoring/rport/server/bearer"
-	"github.com/cloudradar-monitoring/rport/share/ptr"
 	chshare "github.com/cloudradar-monitoring/rport/share"
 	"github.com/cloudradar-monitoring/rport/share/logger"
+	"github.com/cloudradar-monitoring/rport/share/ptr"
 )
 
 type twoFAResponse struct {
@@ -238,8 +237,8 @@ func (al *APIListener) handlePostLogin(w http.ResponseWriter, req *http.Request)
 		return
 	}
 
-	// updating the Password via newPassword field is allowed only with a POST request
-	username, pwd, newPassword, err := parseLoginPostRequestBody(req)
+	// updating the Password via newPassword field is allowed with a POST or PATCH request
+	username, pwd, newPassword, err := parseLoginRequestBody(req)
 
 	if err != nil {
 		// ban IP if it sends a lot of bad requests
@@ -253,14 +252,7 @@ func (al *APIListener) handlePostLogin(w http.ResponseWriter, req *http.Request)
 	al.handleLogin(username, pwd, newPassword, false, w, req)
 }
 
-func parseLoginPostRequestBody(req *http.Request) (string, string, string, error) {
-	// Save a copy of this request for debugging.
-	requestDump, err := httputil.DumpRequest(req, true)
-	if err != nil {
-		fmt.Println(err)
-	}
-	fmt.Println(string(requestDump))
-
+func parseLoginRequestBody(req *http.Request) (string, string, string, error) {
 	reqContentType := req.Header.Get("Content-Type")
 	if reqContentType == "application/x-www-form-urlencoded" {
 		err := req.ParseForm()
