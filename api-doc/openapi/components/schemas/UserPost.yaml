@@ -7,7 +7,7 @@ properties:
     type: string
     description: Password for the credentials pair
   password_expired:
-    type: bool
+    type: boolean
     description: >-
       Password expired flag.
       Setting this to true, sessions are invalidated and 
