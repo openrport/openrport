@@ -87,13 +87,15 @@ func (al *APIListener) handleLogin(username, pwd string, newpwd string, skipPass
 
 	// Only set the new password after the old password has been verified.
 	if newpwd != "" {
-		var user users.User
-		user.Password = newpwd
-		user.PasswordExpired = ptr.Bool(false)
-		if err := al.userService.Change(&user, username); err != nil {
+		if err := al.userService.Change(
+			&users.User{
+				Password:        newpwd,
+				PasswordExpired: users.PasswordExpired(false)},
+			username); err != nil {
 			al.jsonError(w, err)
 			return
 		}
+		user.PasswordExpired = ptr.Bool(false) // from here on
 	}
 
 	if user.PasswordExpired != nil && *user.PasswordExpired {
