@@ -6,6 +6,12 @@ properties:
   password:
     type: string
     description: Password for the credentials pair
+  password_expired:
+    type: bool
+    description: >-
+      Password expired flag.
+      Setting this to true, sessions are invalidated and 
+      user is forced to create a new password on next login
   groups:
     type: array
     description: List of groups to which the current user belongs
