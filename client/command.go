@@ -119,13 +119,13 @@ func (c *Client) HandleRunCmdRequest(ctx context.Context, reqPayload []byte) (*c
 	startedAt := now()
 	err = c.cmdExec.Start(cmd)
 	if err != nil {
-		// c.rmScript(scriptPath)
+		c.rmScript(scriptPath)
 		return nil, fmt.Errorf("failed to start a command: %s", err)
 	}
 
 	// observe the cmd execution in background
 	go func() {
-		// defer c.rmScript(scriptPath)
+		defer c.rmScript(scriptPath)
 		defer closeStreamChannels()
 
 		c.Debugf("started to observe cmd [jid=%q,pid=%d]", job.JID, cmd.Process.Pid)
