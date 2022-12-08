@@ -38,12 +38,11 @@ func TestHandleRefreshUpdatesStatus(t *testing.T) {
 			ClientID:       c2.ID,
 			ExpectedStatus: http.StatusNotFound,
 		},
-		// The below test case throws "error: api-listener-test: runtime error: invalid memory address or nil pointer dereference"
-		//{
-		//	Name:           "Non-existing client",
-		//	ClientID:       "non-existing-client",
-		//	ExpectedStatus: http.StatusNotFound,
-		//},
+		{
+			Name:           "Non-existing client",
+			ClientID:       "non-existing-client",
+			ExpectedStatus: http.StatusNotFound,
+		},
 		{
 			Name:                "SSH error",
 			ClientID:            c1.ID,

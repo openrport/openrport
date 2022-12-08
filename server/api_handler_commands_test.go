@@ -212,14 +212,14 @@ func TestHandlePostCommand(t *testing.T) {
 			wantErrTitle:   "Invalid JSON data.",
 			wantErrDetail:  "json: unknown field \"timeout\"",
 		},
-		//{
-		//	name:           "no active client",
-		//	requestBody:    validReqBody,
-		//	cid:            c1.ID,
-		//	clients:        []*clients.Client{},
-		//	wantStatusCode: http.StatusNotFound,
-		//	wantErrTitle:   fmt.Sprintf("Active client with id=%q not found.", c1.ID),
-		//},
+		{
+			name:           "no active client",
+			requestBody:    validReqBody,
+			cid:            c1.ID,
+			clients:        []*clients.Client{},
+			wantStatusCode: http.StatusNotFound,
+			wantErrTitle:   fmt.Sprintf("Active client with id=%q not found.", c1.ID),
+		},
 		{
 			name:           "disconnected client",
 			requestBody:    validReqBody,
