@@ -10,6 +10,7 @@ import (
 	"net/http"
 	"net/smtp"
 	"net/url"
+	"os"
 	"os/exec"
 	"path"
 	"path/filepath"
@@ -317,7 +318,7 @@ func (c *Config) ParseAndValidate(mLog *logger.MemLogger) error {
 		return err
 	}
 
-	if err := c.Caddy.ParseAndValidate(); err != nil {
+	if err := c.Caddy.ParseAndValidate(c.Server.DataDir); err != nil {
 		return err
 	}
 
@@ -461,7 +462,39 @@ func (c *Config) validateAPIWhenCaddyIntegration() (err error) {
 	return nil
 }
 
+func (c *Config) WriteCaddyBaseConfig(caddyConfig *caddy.Config) (err error) {
+	bc, err := caddyConfig.MakeBaseConfig(c.API.CertFile, c.API.KeyFile, c.API.Address, c.API.DomainBasedAddress)
+	if err != nil {
+		return err
+	}
+
+	// TODO: (rs): Remove Text part of the GetBaseConfText name
+	baseConfigBytes, err := caddyConfig.GetBaseConfText(bc)
+	if err != nil {
+		return err
+	}
+
+	filename := caddyConfig.MakeBaseConfFilename()
+
+	err = os.Remove(filename)
+	if err != nil {
+		if !errors.Is(err, os.ErrNotExist) {
+			return err
+		}
+	}
+
+	err = os.WriteFile(filename, baseConfigBytes, 0600)
+	if err != nil {
+		return err
+	}
+
+	return nil
+}
+
 func (c *Config) CaddyConfigured() bool {
+	if c.Caddy.Enabled {
+		return true
+	}
 	return false
 }
 

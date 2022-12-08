@@ -470,9 +470,16 @@ func runMain(*cobra.Command, []string) {
 
 	if cfg.CaddyConfigured() {
 		caddyLog := logger.NewLogger("caddy", cfg.Logging.LogOutput, cfg.Logging.LogLevel)
+
+		err := cfg.WriteCaddyBaseConfig(&cfg.Caddy)
+		if err != nil {
+			log.Fatal(err)
+		}
+
 		errCh := make(chan error)
 		cs := caddy.NewCaddyServer(&cfg.Caddy, caddyLog, errCh)
 		go cs.Start(ctx)
+
 		// TODO: (rs): does this handle caddy failing to start?
 		go func() {
 			<-errCh

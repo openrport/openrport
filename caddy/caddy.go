@@ -20,14 +20,13 @@ type Server struct {
 	errCh  chan error
 }
 
-func CheckExecExists(path string, filesAPI files.FileAPI) (exists bool, err error) {
+func CheckCaddyExists(path string, filesAPI files.FileAPI) (exists bool, err error) {
 	exists, err = filesAPI.Exist(path)
 	if err != nil {
 		return false, err
 	}
 
 	return exists, nil
-
 }
 
 func GetServerVersion(ctx context.Context, cfg *Config) (majorVersion int, err error) {
@@ -56,8 +55,7 @@ func NewCaddyServer(cfg *Config, l *logger.Logger, errCh chan error) (c *Server)
 }
 
 func (c *Server) Start(ctx context.Context) {
-	confFile := "caddy-base.conf"
-	configParam := fmt.Sprintf("%s/%s", c.cfg.DataDir, confFile)
+	configParam := c.cfg.MakeBaseConfFilename()
 
 	c.logger.Debugf("caddy exec path: %s", c.cfg.ExecPath)
 	c.logger.Debugf("caddy config: %s", configParam)

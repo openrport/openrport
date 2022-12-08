@@ -102,15 +102,15 @@ func TestShouldMakeAPIReverseProxySettingsText(t *testing.T) {
 	require.NoError(t, err)
 
 	arp := &APIReverseProxySettings{
-		CertsFile:    "certs_file",
-		KeyFile:      "key_file",
-		ProxyDomain:  "proxy_domain",
-		ProxyPort:    "proxy_port",
-		APIDomain:    "api_domain",
-		APIScheme:    "api_scheme",
-		APIIPAddress: "api_ip_address",
-		APIPort:      "api_port",
-		ProxyLogFile: "proxy_log_file",
+		CertsFile:     "certs_file",
+		KeyFile:       "key_file",
+		ProxyDomain:   "proxy_domain",
+		ProxyPort:     "proxy_port",
+		APIDomain:     "api_domain",
+		APIScheme:     "api_scheme",
+		APITargetHost: "api_ip_address",
+		APITargetPort: "api_port",
+		ProxyLogFile:  "proxy_log_file",
 	}
 
 	var b bytes.Buffer
@@ -125,34 +125,6 @@ func TestShouldMakeAPIReverseProxySettingsText(t *testing.T) {
 	assert.Contains(t, templateText, "output file proxy_log_file")
 }
 
-func TestShouldMakeExternalReverseProxyText(t *testing.T) {
-	tmpl := template.New("ERP")
-	tmpl, err := tmpl.Parse(externalReverseProxyTemplate)
-	require.NoError(t, err)
-
-	erp := &ExternalReverseProxy{
-		CertsFile:        "certs_file",
-		KeyFile:          "key_file",
-		BaseDomain:       "base_domain",
-		Subdomain:        "sub_domain",
-		AllowedIPAddress: "allowed_ip_address",
-		TunnelScheme:     "tunnel_scheme",
-		TunnelIPAddress:  "tunnel_ip_address",
-		TunnelPort:       "tunnel_port",
-	}
-
-	var b bytes.Buffer
-	err = tmpl.Execute(&b, erp)
-	require.NoError(t, err)
-
-	templateText := b.String()
-
-	assert.Contains(t, templateText, "https://sub_domain.base_domain")
-	assert.Contains(t, templateText, "tls certs_file key_file")
-	assert.Contains(t, templateText, "@onlyif remote_ip allowed_ip_address")
-	assert.Contains(t, templateText, "reverse_proxy @onlyif tunnel_scheme://tunnel_ip_address:tunnel_port")
-}
-
 func TestShouldMakeAll(t *testing.T) {
 	tmpl := template.New("ALL")
 
@@ -163,9 +135,6 @@ func TestShouldMakeAll(t *testing.T) {
 	require.NoError(t, err)
 
 	tmpl, err = tmpl.Parse(apiReverseProxySettingsTemplate)
-	require.NoError(t, err)
-
-	tmpl, err = tmpl.Parse(externalReverseProxyTemplate)
 	require.NoError(t, err)
 
 	tmpl, err = tmpl.Parse(allTemplate)
@@ -184,33 +153,21 @@ func TestShouldMakeAll(t *testing.T) {
 	}
 
 	arp := &APIReverseProxySettings{
-		CertsFile:    "certs_file",
-		KeyFile:      "key_file",
-		ProxyDomain:  "proxy_domain",
-		ProxyPort:    "proxy_port",
-		APIDomain:    "api_domain",
-		APIScheme:    "api_scheme",
-		APIIPAddress: "api_ip_address",
-		APIPort:      "api_port",
-		ProxyLogFile: "proxy_log_file",
+		CertsFile:     "certs_file",
+		KeyFile:       "key_file",
+		ProxyDomain:   "proxy_domain",
+		ProxyPort:     "proxy_port",
+		APIDomain:     "api_domain",
+		APIScheme:     "api_scheme",
+		APITargetHost: "api_ip_address",
+		APITargetPort: "api_port",
+		ProxyLogFile:  "proxy_log_file",
 	}
 
-	erp := &ExternalReverseProxy{
-		CertsFile:        "certs_file",
-		KeyFile:          "key_file",
-		BaseDomain:       "base_domain",
-		Subdomain:        "sub_domain",
-		AllowedIPAddress: "allowed_ip_address",
-		TunnelScheme:     "tunnel_scheme",
-		TunnelIPAddress:  "tunnel_ip_address",
-		TunnelPort:       "tunnel_port",
-	}
-
-	c := ExecBaseConfig{
+	c := BaseConfig{
 		GlobalSettings:          gs,
 		DefaultVirtualHost:      dvh,
 		APIReverseProxySettings: arp,
-		ReverseProxies:          []ExternalReverseProxy{*erp},
 	}
 
 	var b bytes.Buffer
@@ -219,7 +176,7 @@ func TestShouldMakeAll(t *testing.T) {
 
 	templateText := b.String()
 
+	assert.Contains(t, templateText, "admin unix//tmp/caddyadmin.sock")
 	assert.Contains(t, templateText, "https://listen_address:listen_port")
 	assert.Contains(t, templateText, "https://proxy_domain:proxy_port")
-	assert.Contains(t, templateText, "https://sub_domain.base_domain")
 }

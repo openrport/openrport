@@ -67,6 +67,32 @@ func TestShouldStartCaddyServer(t *testing.T) {
 	assert.EqualError(t, err, "signal: killed")
 }
 
-func TestShouldStopCaddyServerWhenCtxCancelled(t *testing.T) {
+func TestShouldGenerateBaseConf(t *testing.T) {
+	cfg := &caddy.Config{
+		ExecPath:    "/usr/bin/caddy",
+		DataDir:     ".",
+		HostAddress: "0.0.0.0:443",
+		BaseDomain:  "tunnels.rpdev",
+		CertFile:    "proxy_cert_file",
+		KeyFile:     "proxy_key_file",
+	}
+
+	bc, err := cfg.MakeBaseConfig("api_cert_file", "api_key_file", "127.0.0.0:3000", "api.rpdev:443")
+	require.NoError(t, err)
+
+	bcBytes, err := cfg.GetBaseConfText(bc)
+	require.NoError(t, err)
+
+	text := string(bcBytes)
+
+	assert.Contains(t, text, "admin unix/./caddyadmin.sock")
+	assert.Contains(t, text, "https://0.0.0.0:443")
+	assert.Contains(t, text, "tls proxy_cert_file proxy_key_file {")
+	assert.Contains(t, text, "https://api.rpdev:443")
+	assert.Contains(t, text, "tls api_cert_file api_key_file")
+	assert.Contains(t, text, "reverse_proxy https://127.0.0.0:3000")
+}
+
+func TestShouldUnlinkExistingBaseConf(t *testing.T) {
 	t.Skip()
 }

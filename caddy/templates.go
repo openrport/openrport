@@ -124,23 +124,9 @@ https://{{.ProxyDomain}}:{{.ProxyPort}} {
 	tls {{.CertsFile}} {{.KeyFile}} {
 		protocols tls1.3
 	}
-	reverse_proxy {{.APIScheme}}://{{.APIIPAddress}}:{{.APIPort}}
+	reverse_proxy {{.APIScheme}}://{{.APITargetHost}}:{{.APITargetPort}}
 	log {
 		output file {{.ProxyLogFile}}
-	}
-}
-{{ end }}
-`
-
-const externalReverseProxyTemplate = `
-{{ define "ERP"}}
-https://{{.Subdomain}}.{{.BaseDomain}} {
-	tls {{.CertsFile}} {{.KeyFile}}
-	@onlyif remote_ip {{.AllowedIPAddress}}
-	reverse_proxy @onlyif {{.TunnelScheme}}://{{.TunnelIPAddress}}:{{.TunnelPort}} {
-	  transport http {
-	    tls_insecure_skip_verify
-	  }
 	}
 }
 {{ end }}
