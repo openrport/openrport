@@ -2,7 +2,6 @@ package clients
 
 import (
 	"context"
-	"fmt"
 	"strconv"
 	"sync"
 	"sync/atomic"
@@ -13,7 +12,6 @@ import (
 	"github.com/cloudradar-monitoring/rport/server/api/users"
 	"github.com/cloudradar-monitoring/rport/server/cgroups"
 	"github.com/cloudradar-monitoring/rport/server/clients/clienttunnel"
-	"github.com/cloudradar-monitoring/rport/server/ports"
 	"github.com/cloudradar-monitoring/rport/share/clientconfig"
 	"github.com/cloudradar-monitoring/rport/share/logger"
 	"github.com/cloudradar-monitoring/rport/share/models"
@@ -69,8 +67,8 @@ type Client struct {
 	ClientConfiguration *clientconfig.Config  `json:"client_configuration"`
 
 	Connection ssh.Conn        `json:"-"`
-	Context    context.Context `json:"-"`
 	Logger     *logger.Logger  `json:"-"`
+	Context    context.Context `json:"-"`
 
 	lock sync.Mutex
 }
@@ -123,210 +121,7 @@ func (c *Client) Unlock() {
 	c.lock.Unlock()
 }
 
-func (c *Client) FindTunnelByRemote(r *models.Remote) *clienttunnel.Tunnel {
-	for _, curr := range c.Tunnels {
-		if curr.Equals(r) {
-			return curr
-		}
-	}
-	return nil
-}
-
-func (c *Client) StartTunnel(
-	r *models.Remote,
-	acl *clienttunnel.TunnelACL,
-	tunnelProxyConfig *clienttunnel.InternalTunnelProxyConfig,
-	portDistributor *ports.PortDistributor) (t *clienttunnel.Tunnel, err error) {
-	t = c.FindTunnelByRemote(r)
-	// tunnel exists
-	if t != nil {
-		return t, nil
-	}
-
-	ctx := c.Context
-	if r.AutoClose > 0 {
-		// no need to cancel the ctx since it will be canceled by parent ctx or after given timeout
-		ctx, _ = context.WithTimeout(ctx, r.AutoClose) // nolint: govet
-	}
-
-	startTunnelProxy := tunnelProxyConfig.Enabled && r.HTTPProxy
-	if startTunnelProxy {
-		t, err = c.startTunnelWithProxy(ctx, r, acl, tunnelProxyConfig, portDistributor)
-		if err != nil {
-			return nil, err
-		}
-	} else {
-		t, err = c.startRegularTunnel(ctx, r, acl)
-		if err != nil {
-			return nil, err
-		}
-	}
-
-	// in case tunnel auto-closed due to auto close - run background task to remove the tunnel from the list
-	// TODO: consider to create a separate background task to terminate all inactive tunnels based on some deadline/lastActivity time
-	if t.AutoClose > 0 {
-		go cleanupOnAutoCloseDeadlineExceeded(ctx, t, c)
-	}
-
-	if t.IdleTimeoutMinutes > 0 {
-		go terminateTunnelOnIdleTimeout(ctx, t, c)
-	}
-
-	c.Tunnels = append(c.Tunnels, t)
-	return t, nil
-}
-
-func (c *Client) startRegularTunnel(ctx context.Context, r *models.Remote, acl *clienttunnel.TunnelACL) (*clienttunnel.Tunnel, error) {
-	tunnelID := c.newTunnelID()
-
-	t, err := clienttunnel.NewTunnel(c.Logger, c.Connection, tunnelID, *r, acl)
-	if err != nil {
-		return nil, err
-	}
-
-	err = t.Start(ctx)
-	if err != nil {
-		return nil, err
-	}
-
-	return t, nil
-}
-
-func (c *Client) startTunnelWithProxy(
-	ctx context.Context,
-	r *models.Remote,
-	acl *clienttunnel.TunnelACL,
-	tunnelProxyConfig *clienttunnel.InternalTunnelProxyConfig,
-	portDistributor *ports.PortDistributor) (*clienttunnel.Tunnel, error) {
-	proxyHost := ""
-	proxyPort := ""
-	var proxyACL *clienttunnel.TunnelACL
-
-	c.Logger.Debugf("client %s will use tunnel with internal proxy", c.ID)
-
-	// get values for tunnel proxy local host addr from original remote
-	proxyHost = r.LocalHost
-	proxyPort = r.LocalPort
-	proxyACL = acl
-
-	// reconfigure tunnel local host/addr to use 127.0.0.1 with a random port and make new acl
-	r.LocalHost = "127.0.0.1"
-	port, err := portDistributor.GetRandomPort(r.Protocol)
-	if err != nil {
-		return nil, err
-	}
-	r.LocalPort = strconv.Itoa(port)
-	acl, _ = clienttunnel.ParseTunnelACL("127.0.0.1") // access to tunnel is only allowed from localhost
-
-	tunnelID := c.newTunnelID()
-
-	// original tunnel will use the reconfigured original remote
-	t, err := clienttunnel.NewTunnel(c.Logger, c.Connection, tunnelID, *r, acl)
-	if err != nil {
-		return nil, err
-	}
-
-	// start the original tunnel before the proxy tunnel
-	err = t.Start(ctx)
-	if err != nil {
-		return nil, err
-	}
-
-	// create new internal tunnel proxy listening at the original tunnel local host addr
-	tunnelProxy := clienttunnel.NewInternalTunnelProxy(t, c.Logger, tunnelProxyConfig, proxyHost, proxyPort, proxyACL)
-	c.Logger.Debugf("client %s starting tunnel proxy", c.ID)
-	if err := tunnelProxy.Start(ctx); err != nil {
-		c.Logger.Debugf("internal tunnel proxy could not be started, tunnel must be terminated: %v", err)
-		if tErr := t.Terminate(true); tErr != nil {
-			return nil, tErr
-		}
-		return nil, fmt.Errorf("tunnel started and terminated because of tunnel proxy start error")
-	}
-
-	t.InternalTunnelProxy = tunnelProxy
-
-	// reconfigure original tunnel remote host addr to be the new internal proxy
-	t.Remote.LocalHost = t.InternalTunnelProxy.Host
-	t.Remote.LocalPort = t.InternalTunnelProxy.Port
-
-	c.Logger.Debugf("client %s started tunnel proxy: %+v", c.ID, t)
-
-	return t, nil
-}
-
-func cleanupOnAutoCloseDeadlineExceeded(ctx context.Context, t *clienttunnel.Tunnel, c *Client) {
-	<-ctx.Done()
-	// DeadlineExceeded err is expected when tunnel AutoClose period is reached, otherwise skip cleanup
-	if ctx.Err() == context.DeadlineExceeded {
-		c.cleanupAfterAutoClose(t)
-	}
-}
-
-func terminateTunnelOnIdleTimeout(ctx context.Context, t *clienttunnel.Tunnel, c *Client) {
-	idleTimeout := time.Duration(t.IdleTimeoutMinutes) * time.Minute
-	timer := time.NewTimer(idleTimeout)
-	for {
-		select {
-		case <-ctx.Done():
-			if !timer.Stop() {
-				<-timer.C
-			}
-			return
-		case <-timer.C:
-			sinceLastActive := time.Since(t.LastActive())
-			if sinceLastActive > idleTimeout {
-				c.Logger.Infof("Terminating... inactivity period is reached: %d minute(s)", t.IdleTimeoutMinutes)
-				_ = t.Terminate(true)
-				c.cleanupAfterAutoClose(t)
-				return
-			}
-			timer.Reset(idleTimeout - sinceLastActive)
-		}
-	}
-}
-
-func (c *Client) cleanupAfterAutoClose(t *clienttunnel.Tunnel) {
-	c.Lock()
-	defer c.Unlock()
-
-	//stop tunnel proxy
-	if t.InternalTunnelProxy != nil {
-		if err := t.InternalTunnelProxy.Stop(c.Context); err != nil {
-			c.Logger.Errorf("error while stopping tunnel proxy: %v", err)
-		}
-	}
-
-	c.removeTunnelByID(t.ID)
-
-	// TODO: (rs): should we be saving the client after the auto close? check with TH?
-	c.Logger.Debugf("tunnel with id=%s removed", t.ID)
-}
-
-func (c *Client) TerminateTunnel(t *clienttunnel.Tunnel, force bool) error {
-	c.Logger.Infof("Terminating tunnel %s (force: %v) ...", t.ID, force)
-	err := t.Terminate(force)
-	if err != nil {
-		return err
-	}
-	if t.InternalTunnelProxy != nil {
-		if err := t.InternalTunnelProxy.Stop(c.Context); err != nil {
-			return err
-		}
-	}
-	c.removeTunnelByID(t.ID)
-	return nil
-}
-
-func (c *Client) FindTunnel(id string) *clienttunnel.Tunnel {
-	for _, curr := range c.Tunnels {
-		if curr.ID == id {
-			return curr
-		}
-	}
-	return nil
-}
-
-func (c *Client) newTunnelID() (tunnelID string) {
+func (c *Client) NewTunnelID() (tunnelID string) {
 	tunnelID = strconv.FormatInt(c.generateNewTunnelID(), 10)
 	return tunnelID
 }
@@ -335,7 +130,7 @@ func (c *Client) generateNewTunnelID() int64 {
 	return atomic.AddInt64(&c.tunnelIDAutoIncrement, 1)
 }
 
-func (c *Client) removeTunnelByID(tunnelID string) {
+func (c *Client) RemoveTunnelByID(tunnelID string) {
 	result := make([]*clienttunnel.Tunnel, 0)
 	for _, curr := range c.Tunnels {
 		if curr.ID != tunnelID {

@@ -15,7 +15,6 @@ import (
 	"github.com/cloudradar-monitoring/rport/server/auditlog"
 	"github.com/cloudradar-monitoring/rport/server/clients"
 	"github.com/cloudradar-monitoring/rport/server/clients/clienttunnel"
-	"github.com/cloudradar-monitoring/rport/server/clientservice"
 	"github.com/cloudradar-monitoring/rport/server/ports"
 	"github.com/cloudradar-monitoring/rport/server/routes"
 	"github.com/cloudradar-monitoring/rport/server/validation"
@@ -71,7 +70,7 @@ func convertToClientsPayload(clients []*clients.CalculatedClient, fields []query
 func convertToClientPayload(client *clients.CalculatedClient, fields []query.FieldsOption) ClientPayload { //nolint:gocyclo
 	requestedFields := query.RequestedFields(fields, "clients")
 	p := ClientPayload{}
-	for field := range clientservice.OptionsSupportedFields["clients"] {
+	for field := range clients.OptionsSupportedFields["clients"] {
 		if len(fields) > 0 && !requestedFields[field] {
 			continue
 		}
@@ -175,7 +174,7 @@ func getCorrespondingSortFunc(sorts []query.SortOption) (sortFunc func(a []*clie
 
 func (al *APIListener) handleGetClient(w http.ResponseWriter, req *http.Request) {
 	options := query.GetRetrieveOptions(req)
-	errs := query.ValidateRetrieveOptions(options, clientservice.OptionsSupportedFields)
+	errs := query.ValidateRetrieveOptions(options, clients.OptionsSupportedFields)
 	if errs != nil {
 		al.jsonError(w, errs)
 		return
@@ -263,8 +262,8 @@ func (al *APIListener) handlePostClientACL(w http.ResponseWriter, req *http.Requ
 }
 
 func (al *APIListener) handleGetClients(w http.ResponseWriter, req *http.Request) {
-	options := query.NewOptions(req, nil, nil, clientservice.OptionsListDefaultFields)
-	errs := query.ValidateListOptions(options, clientservice.OptionsSupportedSorts, clientservice.OptionsSupportedFilters, clientservice.OptionsSupportedFields, &query.PaginationConfig{
+	options := query.NewOptions(req, nil, nil, clients.OptionsListDefaultFields)
+	errs := query.ValidateListOptions(options, clients.OptionsSupportedSorts, clients.OptionsSupportedFilters, clients.OptionsSupportedFields, &query.PaginationConfig{
 		MaxLimit:     500,
 		DefaultLimit: 50,
 	})
@@ -414,9 +413,8 @@ func (al *APIListener) handlePutClientTunnel(w http.ResponseWriter, req *http.Re
 		return
 	}
 
-	// check if new tunnel requested already exists
-	if existing := client.FindTunnelByRemote(remote); existing != nil {
-		al.jsonErrorResponseWithErrCode(w, http.StatusBadRequest, ErrCodeTunnelExist, "Tunnel already exists.")
+	if existing := al.clientService.FindTunnelByRemote(client, remote); existing != nil {
+		al.jsonErrorResponseWithErrCode(w, http.StatusBadRequest, ErrCodeTunnelExist, "Tunnel already exist.")
 		return
 	}
 
@@ -650,13 +648,13 @@ func (al *APIListener) handleDeleteClientTunnel(w http.ResponseWriter, req *http
 	client.Lock()
 	defer client.Unlock()
 
-	tunnel := client.FindTunnel(tunnelID)
+	tunnel := al.clientService.FindTunnel(client, tunnelID)
 	if tunnel == nil {
 		al.jsonErrorResponseWithTitle(w, http.StatusNotFound, "tunnel not found")
 		return
 	}
 
-	err = client.TerminateTunnel(tunnel, force)
+	err = al.clientService.TerminateTunnel(client, tunnel, force)
 	if err != nil {
 		al.jsonErrorResponseWithTitle(w, http.StatusConflict, err.Error())
 		return

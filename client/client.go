@@ -33,6 +33,8 @@ import (
 	"github.com/cloudradar-monitoring/rport/share/models"
 )
 
+const ConnectionTimeout = 10 * time.Second
+
 // Client represents a client instance
 type Client struct {
 	*logger.Logger
@@ -148,7 +150,7 @@ func (c *Client) keepAliveLoop() {
 		if c.sshConn != nil {
 			ok, _, rtt, err := comm.PingConnectionWithTimeout(c.sshConn, c.configHolder.Connection.KeepAliveTimeout)
 			if err != nil || !ok {
-				c.Errorf("Failed to keepalive (client to server ping): %s", err)
+				c.Errorf("Failed to send keepalive (client to server ping): %s", err)
 				c.sshConn.Close()
 			} else {
 				msg := fmt.Sprintf("ping to %s succeeded within %s", c.sshConn.RemoteAddr(), rtt)
@@ -367,12 +369,14 @@ func (c *Client) sendConnectionRequest(ctx context.Context, sshConn ssh.Conn) er
 	if err != nil {
 		return fmt.Errorf("could not encode connection request: %v", err)
 	}
-	c.Debugf("Sending connection request: %+v", string(req))
+	c.Infof("Sending connection request.")
+	c.Debugf("Sending connection request with client details %s", string(req))
 	t0 := time.Now()
-	replyOk, respBytes, err := sshConn.SendRequest("new_connection", true, req)
+	replyOk, respBytes, err := comm.SendRequestWithTimeout(sshConn, "new_connection", true, req, ConnectionTimeout)
 	if err != nil {
-		return fmt.Errorf("connection request verification failed: %v", err)
+		return retryableError{err}
 	}
+	c.Debugf("Connection request has been answered successfully.")
 	if !replyOk {
 		msg := string(respBytes)
 
@@ -510,11 +514,11 @@ func (c *Client) showConnectionError(connerr error, attempt int) {
 	//show error and attempt counts
 	msg := fmt.Sprintf("Connection error: %s", connerr)
 	if attempt > 0 {
-		msg += fmt.Sprintf(" (Attempt: %d", attempt)
-		if maxAttempt > 0 {
-			msg += fmt.Sprintf("/%d", maxAttempt)
+		maxAttemptStr := fmt.Sprint(maxAttempt)
+		if maxAttempt < 0 {
+			maxAttemptStr = "∞"
 		}
-		msg += ")"
+		msg += fmt.Sprintf(" (Attempt: %d of %s)", attempt, maxAttemptStr)
 	}
 	c.Errorf(msg)
 	if strings.Contains(msg, "previous session was not properly closed") {

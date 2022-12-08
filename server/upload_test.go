@@ -17,7 +17,6 @@ import (
 	"github.com/cloudradar-monitoring/rport/server/api/users"
 	"github.com/cloudradar-monitoring/rport/server/chconfig"
 	"github.com/cloudradar-monitoring/rport/server/clients"
-	"github.com/cloudradar-monitoring/rport/server/clientservice"
 	"github.com/cloudradar-monitoring/rport/share/files"
 	"github.com/cloudradar-monitoring/rport/share/models"
 	"github.com/cloudradar-monitoring/rport/share/test"
@@ -32,7 +31,7 @@ func MockUserService(user string, group string) *users.APIService {
 		Username: user,
 		Groups:   []string{group},
 	}
-	return users.NewAPIService(users.NewStaticProvider([]*users.User{curUser}), false)
+	return users.NewAPIService(users.NewStaticProvider([]*users.User{curUser}), false, 0, -1)
 }
 
 func FsCallback(fs *test.FileAPIMock, t *testing.T) {
@@ -342,7 +341,7 @@ func TestHandleFileUploads(t *testing.T) {
 			al := APIListener{
 				insecureForTests: true,
 				Server: &Server{
-					clientService: clientservice.New(
+					clientService: clients.NewClientService(
 						nil,
 						nil,
 						clients.NewClientRepository([]*clients.Client{cl}, &hour, testLog),

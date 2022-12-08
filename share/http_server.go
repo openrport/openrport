@@ -5,6 +5,7 @@ import (
 	"errors"
 	"net"
 	"net/http"
+	"time"
 
 	"github.com/cloudradar-monitoring/rport/share/logger"
 )
@@ -38,7 +39,7 @@ func NewHTTPServer(maxHeaderBytes int, l *logger.Logger, options ...ServerOption
 		httpLogger = l.Fork("http-server")
 	}
 	s := &HTTPServer{
-		Server:   &http.Server{MaxHeaderBytes: maxHeaderBytes},
+		Server:   &http.Server{MaxHeaderBytes: maxHeaderBytes, ReadHeaderTimeout: 5 * time.Second},
 		listener: nil,
 		running:  make(chan error, 1),
 		logger:   httpLogger,

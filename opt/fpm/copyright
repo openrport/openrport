@@ -1,0 +1,8 @@
+Format: https://www.debian.org/doc/packaging-manuals/copyright-format/1.0/
+Source: https://github.com/cloudradar-monitoring/rport/blob/master/LICENSE
+Copyright: 2022
+License: MIT
+
+Files: *
+Copyright: 2022
+License:  MIT

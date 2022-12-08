@@ -37,7 +37,7 @@ func TestPostToken(t *testing.T) {
 		Username: "test-user",
 	}
 	mockUsersService := &MockUsersService{
-		UserService: users.NewAPIService(users.NewStaticProvider([]*users.User{user}), false),
+		UserService: users.NewAPIService(users.NewStaticProvider([]*users.User{user}), false, 0, -1),
 	}
 
 	uuid := "cb5b6578-94f5-4a5b-af58-f7867a943b0c"
@@ -80,7 +80,7 @@ func TestDeleteToken(t *testing.T) {
 		Username: "test-user",
 	}
 	mockUsersService := &MockUsersService{
-		UserService: users.NewAPIService(users.NewStaticProvider([]*users.User{user}), false),
+		UserService: users.NewAPIService(users.NewStaticProvider([]*users.User{user}), false, 0, -1),
 	}
 	noToken := ""
 	al := APIListener{
@@ -123,7 +123,7 @@ func TestWrapWithAuthMiddleware(t *testing.T) {
 	al := APIListener{
 		apiSessions: newEmptyAPISessionCache(t),
 		bannedUsers: security.NewBanList(0),
-		userService: users.NewAPIService(users.NewStaticProvider([]*users.User{user, userWithoutToken}), false),
+		userService: users.NewAPIService(users.NewStaticProvider([]*users.User{user, userWithoutToken}), false, 0, -1),
 		Server: &Server{
 			config: &chconfig.Config{},
 		},
@@ -247,7 +247,7 @@ func TestAPISessionUpdates(t *testing.T) {
 	al := APIListener{
 		apiSessions: newEmptyAPISessionCache(t),
 		bannedUsers: security.NewBanList(0),
-		userService: users.NewAPIService(users.NewStaticProvider([]*users.User{user, userWithoutToken}), false),
+		userService: users.NewAPIService(users.NewStaticProvider([]*users.User{user, userWithoutToken}), false, 0, -1),
 		Server: &Server{
 			config: &chconfig.Config{},
 		},
@@ -380,7 +380,7 @@ func TestHandleGetLogin(t *testing.T) {
 		Token:    ptr.String("$2y$05$/D7g/d0sDkNSOh.e6Jzc9OWClcpZ1ieE8Dx.WUaWgayd3Ab0rRdxu"),
 	}
 	mockUsersService := &MockUsersService{
-		UserService: users.NewAPIService(users.NewStaticProvider([]*users.User{user}), false),
+		UserService: users.NewAPIService(users.NewStaticProvider([]*users.User{user}), false, 0, -1),
 	}
 	al := APIListener{
 		Server: &Server{

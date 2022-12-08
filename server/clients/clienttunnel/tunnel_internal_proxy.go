@@ -109,8 +109,9 @@ func (tp *InternalTunnelProxy) Start(ctx context.Context) error {
 	router = tp.tunnelProxyConnector.InitRouter(router)
 
 	tp.proxyServer = &http.Server{
-		Addr:    tp.Addr(),
-		Handler: router,
+		Addr:              tp.Addr(),
+		Handler:           router,
+		ReadHeaderTimeout: 5 * time.Second,
 	}
 
 	go tp.listen()
