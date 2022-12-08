@@ -497,7 +497,7 @@ func (al *APIListener) setTunnelProxyOptionsForRemote(req *http.Request, remote 
 
 	// TODO: (rs): add tests for when use_subdomain specified
 	if useSubdomain {
-		if !al.config.SubdomainTunnelsConfigured() {
+		if !al.config.CaddyConfigured() {
 			return apierrors.NewAPIError(http.StatusBadRequest, "", "when using use_subdomain, subdomain tunnels must be configured", nil)
 		}
 		if !isHTTPProxy {

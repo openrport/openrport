@@ -17,6 +17,7 @@ import (
 	"strings"
 	"time"
 
+	"github.com/cloudradar-monitoring/rport/caddy"
 	"github.com/cloudradar-monitoring/rport/db/sqlite"
 	rportplus "github.com/cloudradar-monitoring/rport/plus"
 
@@ -39,7 +40,7 @@ import (
 
 type APIConfig struct {
 	Address               string  `mapstructure:"address"`
-	APIDomain             string  `mapstructure:"api_domain"`
+	DomainBasedAddress    string  `mapstructure:"hostname_port"`
 	Auth                  string  `mapstructure:"auth"`
 	AuthFile              string  `mapstructure:"auth_file"`
 	AuthUserTable         string  `mapstructure:"auth_user_table"`
@@ -143,7 +144,6 @@ type ServerConfig struct {
 	BanTime                          int                                    `mapstructure:"ban_time"`
 	EnableWsTestEndpoints            bool                                   `mapstructure:"enable_ws_test_endpoints"`
 	InternalTunnelProxyConfig        clienttunnel.InternalTunnelProxyConfig `mapstructure:",squash"`
-	ExternalTunnelProxyConfig        clienttunnel.ExternalTunnelProxyConfig `mapstructure:",squash"`
 	JobsMaxResults                   int                                    `mapstructure:"jobs_max_results"`
 
 	allowedPorts mapset.Set
@@ -254,6 +254,7 @@ type MonitoringConfig struct {
 
 type Config struct {
 	Server     ServerConfig     `mapstructure:"server"`
+	Caddy      caddy.Config     `mapstructure:"caddy-integration"`
 	Logging    LogConfig        `mapstructure:"logging"`
 	API        APIConfig        `mapstructure:"api"`
 	Database   DatabaseConfig   `mapstructure:"database"`
@@ -316,7 +317,7 @@ func (c *Config) ParseAndValidate(mLog *logger.MemLogger) error {
 		return err
 	}
 
-	if err := c.Server.ExternalTunnelProxyConfig.ParseAndValidate(); err != nil {
+	if err := c.Caddy.ParseAndValidate(); err != nil {
 		return err
 	}
 
@@ -423,7 +424,7 @@ func (c *Config) parseAndValidateAPI() error {
 		return err
 	}
 
-	err = c.validateAPIWhenSubdomainTunnels()
+	err = c.validateAPIWhenCaddyIntegration()
 	if err != nil {
 		return err
 	}
@@ -431,14 +432,14 @@ func (c *Config) parseAndValidateAPI() error {
 	return nil
 }
 
-func (c *Config) validateAPIWhenSubdomainTunnels() (err error) {
-	subdomainConfig := c.Server.ExternalTunnelProxyConfig
-	if !subdomainConfig.Enabled {
+func (c *Config) validateAPIWhenCaddyIntegration() (err error) {
+	caddyConfig := c.Caddy
+	if !caddyConfig.Enabled {
 		return nil
 	}
 
 	// The API and the tunnel subdomains are on the same port
-	matchingPorts, err := matchingPorts(c.API.Address, subdomainConfig.Address)
+	matchingPorts, err := matchingPorts(c.API.Address, caddyConfig.HostAddress)
 	if err != nil {
 		return err
 	}
@@ -450,8 +451,8 @@ func (c *Config) validateAPIWhenSubdomainTunnels() (err error) {
 		}
 
 		// Required if tunnels by subdomain and the API run on the same https port
-		if c.API.APIDomain == "" {
-			return errors.New("API and tunnel subdomains are on the same port. The api_domain must be configured")
+		if c.API.DomainBasedAddress == "" {
+			return errors.New("API and tunnel subdomains are on the same port. The hostname_port must be configured")
 		}
 	}
 
@@ -460,7 +461,7 @@ func (c *Config) validateAPIWhenSubdomainTunnels() (err error) {
 	return nil
 }
 
-func (c *Config) SubdomainTunnelsConfigured() bool {
+func (c *Config) CaddyConfigured() bool {
 	return false
 }
 

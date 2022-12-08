@@ -8,6 +8,7 @@ import (
 	"runtime"
 	"time"
 
+	"github.com/cloudradar-monitoring/rport/caddy"
 	"github.com/cloudradar-monitoring/rport/share/logger"
 
 	"github.com/kardianos/service"
@@ -464,7 +465,20 @@ func runMain(*cobra.Command, []string) {
 
 	filesAPI := files.NewFileSystem()
 
-	ctx := context.Background()
+	ctx, cancel := context.WithCancel(context.Background())
+	defer cancel()
+
+	if cfg.CaddyConfigured() {
+		caddyLog := logger.NewLogger("caddy", cfg.Logging.LogOutput, cfg.Logging.LogLevel)
+		errCh := make(chan error)
+		cs := caddy.NewCaddyServer(&cfg.Caddy, caddyLog, errCh)
+		go cs.Start(ctx)
+		// TODO: (rs): does this handle caddy failing to start?
+		go func() {
+			<-errCh
+			cancel()
+		}()
+	}
 
 	plusManager, err := chserver.EnablePlusIfLicensed(ctx, cfg, filesAPI)
 	if err != nil && err != chserver.ErrPlusNotEnabled {

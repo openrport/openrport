@@ -496,7 +496,7 @@ func (s *Provider) checkLocalPort(protocol, port string) error {
 	}
 
 	if s.portDistributor.IsPortBusy(protocol, localPort) {
-		return errors.NewAPIError(http.StatusBadRequest, "", fmt.Sprintf("Local port %d already in use.", localPort), nil)
+		return errors.NewAPIError(http.StatusConflict, "", fmt.Sprintf("Local port %d already in use.", localPort), nil)
 	}
 
 	return nil
