@@ -236,7 +236,7 @@ func (s *ClientRepository) GetActiveByID(id string) (*Client, error) {
 	if client != nil && client.DisconnectedAt != nil {
 		return nil, nil
 	}
-	return client.InitWithRepo(client, s), nil
+	return client, nil
 }
 
 // GetAllByClientAuthID @todo: make it consistent with others whether to return an error. In general it's just a cache, so should not return an err.

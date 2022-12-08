@@ -412,7 +412,7 @@ func (al *APIListener) handlePutClientTunnel(w http.ResponseWriter, req *http.Re
 		remote.Scheme = &schemeStr
 	}
 
-	if existing := client.FindTunnelByRemote(remote); existing != nil {
+	if existing := al.clientService.FindTunnelByRemote(client, remote); existing != nil {
 		al.jsonErrorResponseWithErrCode(w, http.StatusBadRequest, ErrCodeTunnelExist, "Tunnel already exist.")
 		return
 	}
@@ -605,13 +605,13 @@ func (al *APIListener) handleDeleteClientTunnel(w http.ResponseWriter, req *http
 	client.Lock()
 	defer client.Unlock()
 
-	tunnel := client.FindTunnel(tunnelID)
+	tunnel := al.clientService.FindTunnel(client, tunnelID)
 	if tunnel == nil {
 		al.jsonErrorResponseWithTitle(w, http.StatusNotFound, "tunnel not found")
 		return
 	}
 
-	err = client.TerminateTunnel(tunnel, force)
+	err = al.clientService.TerminateTunnel(client, tunnel, force)
 	if err != nil {
 		al.jsonErrorResponseWithTitle(w, http.StatusConflict, err.Error())
 		return
