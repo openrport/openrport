@@ -55,17 +55,18 @@ func (c *Client) HandleRunCmdRequest(ctx context.Context, reqPayload []byte) (*c
 		InterpreterAliases:       c.configHolder.InterpreterAliases,
 	}
 
-	enc, err := system.DetectConsoleEncoding(ctx, interpreter)
+	inputEncoding, outputEncoding, err := system.DetectConsoleEncoding(ctx, interpreter)
 	if err != nil {
 		c.Errorf("could not detect console encoding, using UTF-8...: %v", err)
 	}
+	c.Infof("Console encoding detected as: input %s, output %s", inputEncoding, outputEncoding)
+
 	var decoder *encoding.Decoder
-	if enc != nil {
-		c.Infof("Console encoding detected as: %s", enc)
-		decoder = enc.NewDecoder()
+	if outputEncoding != nil {
+		decoder = outputEncoding.NewDecoder()
 	}
 
-	scriptPath, err := system.CreateScriptFile(c.configHolder.GetScriptsDir(), job.Command, interpreter, enc)
+	scriptPath, err := system.CreateScriptFile(c.configHolder.GetScriptsDir(), job.Command, interpreter, inputEncoding)
 	if err != nil {
 		return nil, err
 	}
@@ -80,8 +81,9 @@ func (c *Client) HandleRunCmdRequest(ctx context.Context, reqPayload []byte) (*c
 			return nil, err
 		}
 		limitedStdOutCh = &LimitedWriter{
-			Writer: stdOutCh,
-			Limit:  c.configHolder.RemoteCommands.SendBackLimit,
+			Writer:  stdOutCh,
+			Decoder: decoder,
+			Limit:   c.configHolder.RemoteCommands.SendBackLimit,
 		}
 
 		stdErrCh, reqs, err := c.sshConn.OpenChannel(models.ChannelStderr, reqPayload)
@@ -90,8 +92,9 @@ func (c *Client) HandleRunCmdRequest(ctx context.Context, reqPayload []byte) (*c
 			return nil, err
 		}
 		limitedStdErrCh = &LimitedWriter{
-			Writer: stdErrCh,
-			Limit:  c.configHolder.RemoteCommands.SendBackLimit,
+			Writer:  stdErrCh,
+			Decoder: decoder,
+			Limit:   c.configHolder.RemoteCommands.SendBackLimit,
 		}
 
 		closeStreamChannels = func() {
@@ -379,21 +382,30 @@ func (s *SummaryBuffer) write(data []byte) {
 
 type LimitedWriter struct {
 	io.Writer
-	Limit int
+	Decoder *encoding.Decoder
+	Limit   int
 }
 
 func (w *LimitedWriter) Write(p []byte) (int, error) {
+	originalLen := len(p)
+	if w.Decoder != nil {
+		newP, err := w.Decoder.Bytes(p)
+		if err != nil {
+			return 0, err
+		}
+		p = newP
+	}
 	toWrite := len(p)
 	if w.Limit < toWrite {
 		toWrite = w.Limit
 	}
 	if toWrite == 0 {
-		return len(p), nil
+		return originalLen, nil
 	}
 	n, err := w.Writer.Write(p[:toWrite])
 	w.Limit -= n
 	if err != nil {
 		return n, err
 	}
-	return len(p), nil
+	return originalLen, nil
 }

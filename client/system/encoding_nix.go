@@ -10,7 +10,7 @@ import (
 )
 
 // DetectConsoleEncoding returns encoding that interpreter is using. Returns nil, if it's UTF-8
-func DetectConsoleEncoding(ctx context.Context, interpreter Interpreter) (encoding.Encoding, error) {
+func DetectConsoleEncoding(ctx context.Context, interpreter Interpreter) (encoding.Encoding, encoding.Encoding, error) {
 	// impl only for windows
-	return nil, nil
+	return nil, nil, nil
 }

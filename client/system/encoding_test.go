@@ -76,31 +76,38 @@ func TestDetectCmdOutputEncoding(t *testing.T) {
 func TestDetectEncodingCommand(t *testing.T) {
 	testCases := []struct {
 		Interpreter string
-		Want        []string
+		WantInput   []string
+		WantOutput  []string
 	}{
 		{
 			Interpreter: chshare.CmdShell,
-			Want:        detectEncodingCmd,
+			WantInput:   detectEncodingCmd,
+			WantOutput:  nil,
 		},
 		{
 			Interpreter: chshare.PowerShell,
-			Want:        detectEncodingPowershell,
+			WantInput:   detectEncodingPowershellInput,
+			WantOutput:  detectEncodingPowershellOutput,
 		},
 		{
 			Interpreter: chshare.UnixShell,
-			Want:        nil,
+			WantInput:   nil,
+			WantOutput:  nil,
 		},
 		{
 			Interpreter: chshare.Tacoscript,
-			Want:        nil,
+			WantInput:   nil,
+			WantOutput:  nil,
 		},
 		{
 			Interpreter: `C:\Program Files\PowerShell\7\pwsh.exe`,
-			Want:        detectEncodingPowershell,
+			WantInput:   detectEncodingPowershellInput,
+			WantOutput:  detectEncodingPowershellOutput,
 		},
 		{
 			Interpreter: `C:\Program Files\Git\bin\bash.exe`,
-			Want:        nil,
+			WantInput:   nil,
+			WantOutput:  nil,
 		},
 	}
 
@@ -113,8 +120,9 @@ func TestDetectEncodingCommand(t *testing.T) {
 				InterpreterNameFromInput: tc.Interpreter,
 			}
 
-			got := detectEncodingCommand(interpreter)
-			assert.Equal(t, tc.Want, got)
+			gotInput, gotOutput := detectEncodingCommand(interpreter)
+			assert.Equal(t, tc.WantInput, gotInput)
+			assert.Equal(t, tc.WantOutput, gotOutput)
 		})
 	}
 }
