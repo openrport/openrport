@@ -31,7 +31,7 @@ func MockUserService(user string, group string) *users.APIService {
 		Username: user,
 		Groups:   []string{group},
 	}
-	return users.NewAPIService(users.NewStaticProvider([]*users.User{curUser}), false)
+	return users.NewAPIService(users.NewStaticProvider([]*users.User{curUser}), false, 0, -1)
 }
 
 func FsCallback(fs *test.FileAPIMock, t *testing.T) {
@@ -341,7 +341,7 @@ func TestHandleFileUploads(t *testing.T) {
 			al := APIListener{
 				insecureForTests: true,
 				Server: &Server{
-					clientService: NewClientService(
+					clientService: clients.NewClientService(
 						nil,
 						nil,
 						clients.NewClientRepository([]*clients.Client{cl}, &hour, testLog),

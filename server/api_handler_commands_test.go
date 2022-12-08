@@ -272,7 +272,7 @@ func TestHandlePostCommand(t *testing.T) {
 	for _, tc := range testCases {
 		t.Run(tc.name, func(t *testing.T) {
 			// given
-			clientService := NewClientService(nil, nil, clients.NewClientRepository(tc.clients, &hour, testLog), testLog)
+			clientService := clients.NewClientService(nil, nil, clients.NewClientRepository(tc.clients, &hour, testLog), testLog)
 			al := APIListener{
 				insecureForTests: true,
 				Server: &Server{
@@ -641,7 +641,7 @@ func TestHandlePostMultiClientCommand(t *testing.T) {
 			al := APIListener{
 				insecureForTests: true,
 				Server: &Server{
-					clientService: NewClientService(nil, nil, clients.NewClientRepository([]*clients.Client{c1, c2, c3}, &hour, testLog), testLog),
+					clientService: clients.NewClientService(nil, nil, clients.NewClientRepository([]*clients.Client{c1, c2, c3}, &hour, testLog), testLog),
 					config: &chconfig.Config{
 						Server: chconfig.ServerConfig{
 							RunRemoteCmdTimeoutSec: defaultTimeout,
@@ -653,7 +653,7 @@ func TestHandlePostMultiClientCommand(t *testing.T) {
 					},
 					clientGroupProvider: mockClientGroupProvider{},
 				},
-				userService: users.NewAPIService(users.NewStaticProvider([]*users.User{curUser}), false),
+				userService: users.NewAPIService(users.NewStaticProvider([]*users.User{curUser}), false, 0, -1),
 				Logger:      testLog,
 			}
 			var done chan bool
@@ -1901,7 +1901,7 @@ func makeAPIListener(
 	clientRepo *clients.ClientRepository,
 	defaultTimeout int,
 	testLog *logger.Logger) (al *APIListener) {
-	clientService := NewClientService(nil, nil, clientRepo, testLog)
+	clientService := clients.NewClientService(nil, nil, clientRepo, testLog)
 	al = &APIListener{
 		insecureForTests: true,
 		Server: &Server{
@@ -1918,7 +1918,7 @@ func makeAPIListener(
 			},
 		},
 		bannedUsers: security.NewBanList(time.Duration(60) * time.Second),
-		userService: users.NewAPIService(users.NewStaticProvider([]*users.User{curUser}), false),
+		userService: users.NewAPIService(users.NewStaticProvider([]*users.User{curUser}), false, 0, -1),
 		Logger:      testLog,
 	}
 
