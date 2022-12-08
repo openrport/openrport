@@ -36,7 +36,7 @@ func NewClientRepository(initClients []*Client, keepDisconnectedClients *time.Du
 	return NewClientRepositoryWithDB(initClients, keepDisconnectedClients, nil, logger)
 }
 
-// TODO: used for test setup in two separate packages. need to review use as part of the test code refactoring.
+// NewClientRepositoryWithDB @todo: used for test setup in two separate packages. need to review use as part of the test code refactoring.
 func NewClientRepositoryWithDB(initialClients []*Client, keepDisconnectedClients *time.Duration, store ClientStore, logger *logger.Logger) *ClientRepository {
 	clients := make(map[string]*Client)
 	for i := range initialClients {
@@ -66,7 +66,7 @@ func InitClientRepository(
 }
 
 func (s *ClientRepository) Save(client *Client) error {
-	s.logger.Debugf("saving client: %s: %s", client.ID, client.DisconnectedAt)
+	s.logger.Debugf("saving client: %s is_disconnected=%s", client.ID, client.DisconnectedAt)
 
 	if s.store != nil {
 		err := s.store.Save(context.Background(), client)
@@ -239,7 +239,7 @@ func (s *ClientRepository) GetActiveByID(id string) (*Client, error) {
 	return client, nil
 }
 
-// TODO(m-terel): make it consistent with others whether to return an error. In general it's just a cache, so should not return an err.
+// GetAllByClientAuthID @todo: make it consistent with others whether to return an error. In general it's just a cache, so should not return an err.
 func (s *ClientRepository) GetAllByClientAuthID(clientAuthID string) []*Client {
 	all, _ := s.GetAll()
 	var res []*Client

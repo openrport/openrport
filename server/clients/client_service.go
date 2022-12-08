@@ -34,25 +34,35 @@ type ClientService interface {
 	GetActiveByID(id string) (*Client, error)
 	GetActiveByGroups(groups []*cgroups.ClientGroup) []*Client
 	GetClientsByTag(tags []string, operator string, allowDisconnected bool) (clients []*Client, err error)
-	PopulateGroupsWithUserClients(groups []*cgroups.ClientGroup, user User)
 	GetAllByClientID(clientID string) []*Client
 	GetAll() ([]*Client, error)
 	GetUserClients(groups []*cgroups.ClientGroup, user User) ([]*Client, error)
 	GetFilteredUserClients(user User, filterOptions []query.FilterOption, groups []*cgroups.ClientGroup) ([]*CalculatedClient, error)
+
+	PopulateGroupsWithUserClients(groups []*cgroups.ClientGroup, user User)
+
 	StartClient(
 		ctx context.Context, clientAuthID, clientID string, sshConn ssh.Conn, authMultiuseCreds bool,
 		req *chshare.ConnectionRequest, clog *logger.Logger,
 	) (*Client, error)
-	StartClientTunnels(client *Client, remotes []*models.Remote) ([]*clienttunnel.Tunnel, error)
 	Terminate(client *Client) error
 	ForceDelete(client *Client) error
 	DeleteOffline(clientID string) error
+
 	SetACL(clientID string, allowedUserGroups []string) error
-	SetUpdatesStatus(clientID string, updatesStatus *models.UpdatesStatus) error
-	SetLastHeartbeat(clientID string, heartbeat time.Time) error
 	CheckClientAccess(clientID string, user User, groups []*cgroups.ClientGroup) error
 	CheckClientsAccess(clients []*Client, user User, groups []*cgroups.ClientGroup) error
+
+	SetUpdatesStatus(clientID string, updatesStatus *models.UpdatesStatus) error
+	SetLastHeartbeat(clientID string, heartbeat time.Time) error
+
 	GetRepo() *ClientRepository
+
+	StartClientTunnels(client *Client, remotes []*models.Remote) ([]*clienttunnel.Tunnel, error)
+	StartTunnel(c *Client, r *models.Remote, acl *clienttunnel.TunnelACL, tunnelProxyConfig *clienttunnel.TunnelProxyConfig, portDistributor *ports.PortDistributor) (*clienttunnel.Tunnel, error)
+	FindTunnel(c *Client, id string) *clienttunnel.Tunnel
+	FindTunnelByRemote(c *Client, r *models.Remote) *clienttunnel.Tunnel
+	TerminateTunnel(c *Client, t *clienttunnel.Tunnel, force bool) error
 }
 
 type ClientServiceProvider struct {
@@ -146,7 +156,7 @@ var OptionsListDefaultFields = map[string][]string{
 	},
 }
 
-// New returns a new instance of client service.
+// NewClientService returns a new instance of client service.
 func NewClientService(
 	tunnelProxyConfig *clienttunnel.TunnelProxyConfig,
 	portDistributor *ports.PortDistributor,
@@ -469,7 +479,7 @@ func (s *ClientServiceProvider) startClientTunnels(client *Client, remotes []*mo
 		}
 
 		s.logger.Debugf("starting tunnnel: %s", remote)
-		t, err := client.StartTunnel(remote, acl, s.tunnelProxyConfig, s.portDistributor)
+		t, err := s.StartTunnel(client, remote, acl, s.tunnelProxyConfig, s.portDistributor)
 		if err != nil {
 			return nil, errors.APIError{
 				HTTPStatus: http.StatusConflict,
@@ -688,4 +698,232 @@ func ExcludeNotAllowedTunnels(clog *logger.Logger, tunnels []*models.Remote, con
 		filtered = append(filtered, t)
 	}
 	return filtered, nil
+}
+
+func (s *ClientServiceProvider) FindTunnelByRemote(c *Client, r *models.Remote) *clienttunnel.Tunnel {
+	for _, curr := range c.Tunnels {
+		if curr.Equals(r) {
+			return curr
+		}
+	}
+	return nil
+}
+
+func (s *ClientServiceProvider) FindTunnel(c *Client, id string) *clienttunnel.Tunnel {
+	for _, curr := range c.Tunnels {
+		if curr.ID == id {
+			return curr
+		}
+	}
+	return nil
+}
+
+func (s *ClientServiceProvider) StartTunnel(
+	c *Client,
+	r *models.Remote,
+	acl *clienttunnel.TunnelACL,
+	tunnelProxyConfig *clienttunnel.TunnelProxyConfig,
+	portDistributor *ports.PortDistributor) (t *clienttunnel.Tunnel, err error) {
+	t = s.FindTunnelByRemote(c, r)
+	// tunnel exists
+	if t != nil {
+		return t, nil
+	}
+
+	ctx := c.Context
+	if r.AutoClose > 0 {
+		// no need to cancel the ctx since it will be canceled by parent ctx or after given timeout
+		ctx, _ = context.WithTimeout(ctx, r.AutoClose) // nolint: govet
+	}
+
+	startTunnelProxy := tunnelProxyConfig.Enabled && r.HTTPProxy
+	if startTunnelProxy {
+		t, err = s.startTunnelWithProxy(ctx, c, r, acl, tunnelProxyConfig, portDistributor)
+		if err != nil {
+			return nil, err
+		}
+	} else {
+		t, err = s.startRegularTunnel(ctx, c, r, acl)
+		if err != nil {
+			return nil, err
+		}
+	}
+
+	// in case tunnel auto-closed due to auto close - run background task to remove the tunnel from the list
+	// TODO: consider to create a separate background task to terminate all inactive tunnels based on some deadline/lastActivity time
+	if t.AutoClose > 0 {
+		go s.cleanupOnAutoCloseDeadlineExceeded(ctx, t, c)
+	}
+
+	if t.IdleTimeoutMinutes > 0 {
+		go s.terminateTunnelOnIdleTimeout(ctx, t, c)
+	}
+
+	c.Lock()
+	defer c.Unlock()
+
+	c.Tunnels = append(c.Tunnels, t)
+	return t, nil
+}
+
+func (s *ClientServiceProvider) startRegularTunnel(ctx context.Context, c *Client, r *models.Remote, acl *clienttunnel.TunnelACL) (*clienttunnel.Tunnel, error) {
+	tunnelID := c.NewTunnelID()
+
+	t, err := clienttunnel.NewTunnel(c.Logger, c.Connection, tunnelID, *r, acl)
+	if err != nil {
+		return nil, err
+	}
+
+	err = t.Start(ctx)
+	if err != nil {
+		return nil, err
+	}
+
+	return t, nil
+}
+
+func (s *ClientServiceProvider) startTunnelWithProxy(
+	ctx context.Context,
+	c *Client,
+	r *models.Remote,
+	acl *clienttunnel.TunnelACL,
+	tunnelProxyConfig *clienttunnel.TunnelProxyConfig,
+	portDistributor *ports.PortDistributor) (*clienttunnel.Tunnel, error) {
+	proxyHost := ""
+	proxyPort := ""
+	var proxyACL *clienttunnel.TunnelACL
+
+	// assuming that we still want to log activity in the client log
+	c.Logger.Debugf("client %s will use tunnel proxy", c.ID)
+
+	// get values for tunnel proxy local host addr from original remote
+	proxyHost = r.LocalHost
+	proxyPort = r.LocalPort
+	proxyACL = acl
+
+	// reconfigure tunnel local host/addr to use 127.0.0.1 with a random port and make new acl
+	r.LocalHost = "127.0.0.1"
+	port, err := portDistributor.GetRandomPort(r.Protocol)
+	if err != nil {
+		return nil, err
+	}
+	r.LocalPort = strconv.Itoa(port)
+	acl, _ = clienttunnel.ParseTunnelACL("127.0.0.1") // access to tunnel is only allowed from localhost
+
+	tunnelID := c.NewTunnelID()
+
+	// original tunnel will use the reconfigured original remote
+	t, err := clienttunnel.NewTunnel(c.Logger, c.Connection, tunnelID, *r, acl)
+	if err != nil {
+		return nil, err
+	}
+
+	// start the original tunnel before the proxy tunnel
+	err = t.Start(ctx)
+	if err != nil {
+		return nil, err
+	}
+
+	// create new proxy tunnel listening at the original tunnel local host addr
+	tProxy := clienttunnel.NewTunnelProxy(t, c.Logger, tunnelProxyConfig, proxyHost, proxyPort, proxyACL)
+	c.Logger.Debugf("client %s starting tunnel proxy", c.ID)
+	if err := tProxy.Start(ctx); err != nil {
+		c.Logger.Debugf("tunnel proxy could not be started, tunnel must be terminated: %v", err)
+		if tErr := t.Terminate(true); tErr != nil {
+			return nil, tErr
+		}
+		return nil, fmt.Errorf("tunnel started and terminated because of tunnel proxy start error")
+	}
+
+	t.Proxy = tProxy
+
+	// reconfigure original tunnel remote host addr to be the new proxy tunnel
+	t.Remote.LocalHost = t.Proxy.Host
+	t.Remote.LocalPort = t.Proxy.Port
+
+	c.Logger.Debugf("client %s started tunnel proxy: %+v", c.ID, t)
+
+	return t, nil
+}
+
+func (s *ClientServiceProvider) cleanupOnAutoCloseDeadlineExceeded(ctx context.Context, t *clienttunnel.Tunnel, c *Client) {
+	<-ctx.Done()
+	// DeadlineExceeded err is expected when tunnel AutoClose period is reached, otherwise skip cleanup
+	if ctx.Err() == context.DeadlineExceeded {
+		s.cleanupAfterAutoClose(c, t)
+	}
+}
+
+func (s *ClientServiceProvider) terminateTunnelOnIdleTimeout(ctx context.Context, t *clienttunnel.Tunnel, c *Client) {
+	idleTimeout := time.Duration(t.IdleTimeoutMinutes) * time.Minute
+	timer := time.NewTimer(idleTimeout)
+	for {
+		select {
+		case <-ctx.Done():
+			if !timer.Stop() {
+				<-timer.C
+			}
+			return
+		case <-timer.C:
+			sinceLastActive := time.Since(t.LastActive())
+			if sinceLastActive > idleTimeout {
+				c.Logger.Infof("Terminating... inactivity period is reached: %d minute(s)", t.IdleTimeoutMinutes)
+				_ = t.Terminate(true)
+				s.cleanupAfterAutoClose(c, t)
+				return
+			}
+			timer.Reset(idleTimeout - sinceLastActive)
+		}
+	}
+}
+
+func (s *ClientServiceProvider) cleanupAfterAutoClose(c *Client, t *clienttunnel.Tunnel) {
+	c.Lock()
+	defer c.Unlock()
+
+	c.Logger.Infof("Auto closing tunnel %s ...", t.ID)
+
+	//stop tunnel proxy
+	if t.Proxy != nil {
+		if err := t.Proxy.Stop(c.Context); err != nil {
+			c.Logger.Errorf("error while stopping tunnel proxy: %v", err)
+		}
+	}
+
+	c.RemoveTunnelByID(t.ID)
+
+	err := s.repo.Save(c)
+	if err != nil {
+		c.Logger.Errorf("unable to save client after auto close cleanup: %v", err)
+	}
+
+	c.Logger.Debugf("auto closed tunnel with id=%s removed", t.ID)
+}
+
+func (s *ClientServiceProvider) TerminateTunnel(c *Client, t *clienttunnel.Tunnel, force bool) error {
+	c.Lock()
+	defer c.Unlock()
+
+	c.Logger.Infof("Terminating tunnel %s (force: %v) ...", t.ID, force)
+
+	err := t.Terminate(force)
+	if err != nil {
+		return err
+	}
+
+	if t.Proxy != nil {
+		if err := t.Proxy.Stop(c.Context); err != nil {
+			return err
+		}
+	}
+
+	c.RemoveTunnelByID(t.ID)
+
+	err = s.repo.Save(c)
+	if err != nil {
+		c.Logger.Errorf("unable to save client after auto close cleanup: %v", err)
+	}
+
+	c.Logger.Debugf("terminated tunnel with id=%s removed", t.ID)
+	return nil
 }
