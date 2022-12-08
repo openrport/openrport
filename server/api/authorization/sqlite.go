@@ -75,25 +75,43 @@ func (p *SqliteProvider) Save(ctx context.Context, session *APIToken) (sessionID
 	// return sessionID, nil
 }
 
-func (p *SqliteProvider) add(ctx context.Context, session *APIToken) (sessionID int64, err error) {
-	return 0, nil
-	// result, err := p.db.NamedExecContext(
-	// 	ctx,
-	// 	"INSERT INTO"+
-	// 		" api_token (expires_at, username, last_access_at, user_agent, ip_address)"+
-	// 		" VALUES (:expires_at, :username, :last_access_at, :user_agent, :ip_address)",
-	// 	session,
-	// )
-	// if err != nil {
-	// 	return 0, fmt.Errorf("unable to create api session: %w", err)
-	// }
+/*
+upsert in sqlite:
 
-	// sessionID, err = result.LastInsertId()
-	// if err != nil {
-	// 	return 0, fmt.Errorf("unable to get api session ID for save: %w", err)
-	// }
+CREATE TABLE phonebook2(
 
-	// return sessionID, nil
+	name TEXT PRIMARY KEY,
+	phonenumber TEXT,
+	validDate DATE
+
+);
+INSERT INTO phonebook2(name,phonenumber,validDate)
+
+	VALUES('Alice','704-555-1212','2018-05-08')
+	ON CONFLICT(name) DO UPDATE SET
+	  phonenumber=EXCLUDED.phonenumber,
+	  validDate=EXCLUDED.validDate
+	WHERE EXCLUDED.validDate>phonebook2.validDate;
+*/
+func (p *SqliteProvider) save(ctx context.Context, tokenLine *APIToken) (err error) {
+	result, err := p.db.NamedExecContext(
+		ctx,
+		"INSERT INTO"+
+			" api_token (username, prefix, created_at, expires_at, scope, token)"+
+			" VALUES (:username, :prefix, :created_at, :expires_at, :scope, :token)"+
+			" 	ON CONFLICT(username, prefix) DO UPDATE SET"+
+			"		expires_at=EXCLUDED.expires_at,"+
+			"		scope=EXCLUDED.scope,"+
+			"		token=EXCLUDED.token,"+
+			"	WHERE EXCLUDED.username = api_token.username AND"+
+			"	       EXCLUDED.prefix = api_token.prefix",
+		tokenLine,
+	)
+	if err != nil {
+		return fmt.Errorf("unable to create api token: %w", err)
+	}
+
+	return nil
 }
 
 func (p *SqliteProvider) update(ctx context.Context, session *APIToken) (sessionID int64, err error) {

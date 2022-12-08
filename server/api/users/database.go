@@ -307,6 +307,8 @@ func (d *UserDatabase) Add(usr *User) error {
 
 // Update @todo use context for all db operations
 func (d *UserDatabase) Update(usr *User, usernameToUpdate string) error {
+	fmt.Println("Update")
+
 	if usernameToUpdate == "" {
 		return errors.New("cannot update user with empty username")
 	}
