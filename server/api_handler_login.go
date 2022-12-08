@@ -13,7 +13,6 @@ import (
 	"github.com/cloudradar-monitoring/rport/server/bearer"
 	chshare "github.com/cloudradar-monitoring/rport/share"
 	"github.com/cloudradar-monitoring/rport/share/logger"
-	"github.com/cloudradar-monitoring/rport/share/ptr"
 )
 
 type twoFAResponse struct {
@@ -95,7 +94,7 @@ func (al *APIListener) handleLogin(username, pwd string, newpwd string, skipPass
 			al.jsonError(w, err)
 			return
 		}
-		user.PasswordExpired = ptr.Bool(false) // from here on
+		user.PasswordExpired = users.PasswordExpired(false) // from here on
 	}
 
 	if user.PasswordExpired != nil && *user.PasswordExpired {
