@@ -16,6 +16,7 @@ import (
 	"time"
 
 	"golang.org/x/crypto/ssh"
+	"golang.org/x/text/encoding"
 
 	"github.com/cloudradar-monitoring/rport/client/system"
 	"github.com/cloudradar-monitoring/rport/share/comm"
@@ -54,7 +55,17 @@ func (c *Client) HandleRunCmdRequest(ctx context.Context, reqPayload []byte) (*c
 		InterpreterAliases:       c.configHolder.InterpreterAliases,
 	}
 
-	scriptPath, err := system.CreateScriptFile(c.configHolder.GetScriptsDir(), job.Command, interpreter, c.consoleEncoder)
+	enc, err := system.DetectConsoleEncoding(ctx, interpreter)
+	if err != nil {
+		c.Errorf("could not detect console encoding, using UTF-8...: %v", err)
+	}
+	var decoder *encoding.Decoder
+	if enc != nil {
+		c.Infof("Console encoding detected as: %s", enc)
+		decoder = enc.NewDecoder()
+	}
+
+	scriptPath, err := system.CreateScriptFile(c.configHolder.GetScriptsDir(), job.Command, interpreter, enc)
 	if err != nil {
 		return nil, err
 	}
@@ -108,13 +119,13 @@ func (c *Client) HandleRunCmdRequest(ctx context.Context, reqPayload []byte) (*c
 	startedAt := now()
 	err = c.cmdExec.Start(cmd)
 	if err != nil {
-		c.rmScript(scriptPath)
+		// c.rmScript(scriptPath)
 		return nil, fmt.Errorf("failed to start a command: %s", err)
 	}
 
 	// observe the cmd execution in background
 	go func() {
-		defer c.rmScript(scriptPath)
+		// defer c.rmScript(scriptPath)
 		defer closeStreamChannels()
 
 		c.Debugf("started to observe cmd [jid=%q,pid=%d]", job.JID, cmd.Process.Pid)
@@ -153,9 +164,9 @@ func (c *Client) HandleRunCmdRequest(ctx context.Context, reqPayload []byte) (*c
 		summary.Stop()
 
 		job.Result = &models.JobResult{
-			StdOut:  c.ToUTF8(stdOut.Bytes()),
-			StdErr:  c.ToUTF8(stdErr.Bytes()),
-			Summary: c.ToUTF8(summary.GetSummary()),
+			StdOut:  c.ToUTF8(stdOut.Bytes(), decoder),
+			StdErr:  c.ToUTF8(stdErr.Bytes(), decoder),
+			Summary: c.ToUTF8(summary.GetSummary(), decoder),
 		}
 
 		// send the filled job to the server
@@ -223,12 +234,12 @@ func (c *Client) isAllowed(cmd string) bool {
 	return false
 }
 
-func (c *Client) ToUTF8(b []byte) string {
-	if c.consoleDecoder == nil {
+func (c *Client) ToUTF8(b []byte, decoder *encoding.Decoder) string {
+	if decoder == nil {
 		return string(b)
 	}
 
-	decoded, err := c.consoleDecoder.Bytes(b)
+	decoded, err := decoder.Bytes(b)
 	if err != nil {
 		// just log and return original
 		c.Infof("could not convert cmd output to UTF-8: %v", err)

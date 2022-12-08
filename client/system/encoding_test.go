@@ -8,6 +8,8 @@ import (
 	"github.com/stretchr/testify/assert"
 	"golang.org/x/text/encoding"
 	"golang.org/x/text/encoding/charmap"
+
+	chshare "github.com/cloudradar-monitoring/rport/share"
 )
 
 func TestDetectCmdOutputEncoding(t *testing.T) {
@@ -67,6 +69,52 @@ func TestDetectCmdOutputEncoding(t *testing.T) {
 			gotEnc, gotErr := detectEncodingByCHCPOutput(tc.CmdOutput)
 			assert.Equal(t, tc.WantErr, gotErr)
 			assert.Equal(t, tc.WantEncoding, gotEnc)
+		})
+	}
+}
+
+func TestDetectEncodingCommand(t *testing.T) {
+	testCases := []struct {
+		Interpreter string
+		Want        []string
+	}{
+		{
+			Interpreter: chshare.CmdShell,
+			Want:        detectEncodingCmd,
+		},
+		{
+			Interpreter: chshare.PowerShell,
+			Want:        detectEncodingPowershell,
+		},
+		{
+			Interpreter: chshare.UnixShell,
+			Want:        nil,
+		},
+		{
+			Interpreter: chshare.Tacoscript,
+			Want:        nil,
+		},
+		{
+			Interpreter: `C:\Program Files\PowerShell\7\pwsh.exe`,
+			Want:        detectEncodingPowershell,
+		},
+		{
+			Interpreter: `C:\Program Files\Git\bin\bash.exe`,
+			Want:        nil,
+		},
+	}
+
+	for _, tc := range testCases {
+		tc := tc
+		t.Run(tc.Interpreter, func(t *testing.T) {
+			t.Parallel()
+
+			interpreter := Interpreter{
+				InterpreterNameFromInput: tc.Interpreter,
+			}
+
+			got := detectEncodingCommand(interpreter)
+			assert.Equal(t, tc.Want, got)
 		})
 	}
 }
