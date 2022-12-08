@@ -685,7 +685,7 @@ func TestLimitedWriter(t *testing.T) {
 
 			w := &LimitedWriter{Writer: result, Decoder: tc.Decoder, Limit: 5}
 			for _, i := range tc.Inputs {
-				n, err := w.Write([]byte(i))
+				n, err := w.Write(i)
 				require.NoError(t, err)
 
 				assert.Equal(t, len(i), n)
