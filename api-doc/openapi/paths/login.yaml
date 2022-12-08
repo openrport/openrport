@@ -72,6 +72,8 @@ post:
     If 2FA is enabled: triggers sending 2FA token to the user. 2fa token can be further verified using `/verify-2fa` endpoint. Requires the user to have a valid `two_fa_send_to` delivery option.
      `username` and `password` should be provided in request body either in JSON either in x-www-formurlencoded format.
 
+    If fields `username`, `password` and `new_password` are provided: a new password will be set for the user, the user will be logged in and `password_expired` flag will be reset to false.
+    
     If time based one time passwords (TotP) are enabled (Google/Microsoft authenticator app), it returns a login token, which should be used to call `/verify-2fa` endpoint and also to create and totp secret key for the first time (see `/me/totp-secret`)
     To understand if TotP is enabled, `delivery_method` field will contain `totp_authenticator_app` value, that indicates the limited scope of the JWT token validity.
     If user has already a TotP secret key, the value of totp_key_status field will be 'pending' or 'exists' otherwise.
