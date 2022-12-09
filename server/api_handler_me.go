@@ -215,8 +215,7 @@ type postTokenResponse struct {
 }
 
 /*
-
-Extend `/me/token` with the usual CRUD options to list, edit and delete tokens.
+EDTODO: Extend `/me/token` with the usual CRUD options to list, edit and delete tokens.
 On token generation, a token name must become mandatory.
 
 Regarding editing tokens, only the expiry date can be changed.
@@ -228,15 +227,16 @@ func (al *APIListener) handleGetToken(w http.ResponseWriter, req *http.Request) 
 }
 
 // 2683 ---> handlePostToken handles POST /me/token
+// EDTODO: On token generation, a token name must become mandatory.
 func (al *APIListener) handlePostToken(w http.ResponseWriter, req *http.Request) {
 
-	// TO BE REMOVED
+	// ****************************** Save a copy of this request for debugging. ******************************
 	requestDump, err := httputil.DumpRequest(req, true)
 	if err != nil {
 		fmt.Println(err)
 	}
-	fmt.Println("requestDump: ", string(requestDump))
-	// TO BE REMOVED END
+	fmt.Println(string(requestDump))
+	// ****************************** Save a copy of this request for debugging. ******************************
 
 	curUser, err := al.getUserModelForAuth(req.Context())
 	if err != nil {
