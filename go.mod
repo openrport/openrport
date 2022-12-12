@@ -11,9 +11,9 @@ require (
 	github.com/denisbrodbeck/machineid v1.0.1
 	github.com/felixge/httpsnoop v1.0.1 // indirect
 	github.com/go-ole/go-ole v1.2.6
-	github.com/go-sql-driver/mysql v1.5.0
+	github.com/go-sql-driver/mysql v1.6.0
 	github.com/golang-jwt/jwt/v4 v4.4.1
-	github.com/golang-migrate/migrate/v4 v4.14.1
+	github.com/golang-migrate/migrate/v4 v4.7.0
 	github.com/google/uuid v1.3.0
 	github.com/gorilla/handlers v1.5.1
 	github.com/gorilla/mux v1.8.0
@@ -24,7 +24,6 @@ require (
 	github.com/hashicorp/go-multierror v1.1.0
 	github.com/hashicorp/hcl v1.0.0 // indirect
 	github.com/inconshreveable/mousetrap v1.0.0 // indirect
-	github.com/jmoiron/sqlx v1.2.0
 	github.com/jordan-wright/email v4.0.1-0.20210109023952-943e75fe5223+incompatible
 	github.com/jpillora/backoff v1.0.0
 	github.com/jpillora/requestlog v1.0.0
@@ -32,7 +31,7 @@ require (
 	github.com/kardianos/service v1.1.0
 	github.com/kr/fs v0.1.0 // indirect
 	github.com/magiconair/properties v1.8.5 // indirect
-	github.com/mattn/go-sqlite3 v1.14.4
+	github.com/mattn/go-sqlite3 v1.14.6
 	github.com/mitchellh/mapstructure v1.4.1
 	github.com/mocktools/go-smtp-mock v1.8.0
 	github.com/patrickmn/go-cache v2.1.0+incompatible
@@ -71,18 +70,19 @@ require (
 require (
 	github.com/gobeam/stringy v0.0.5
 	github.com/hashicorp/go-version v1.5.0
+	github.com/jmoiron/sqlx v1.3.5
 	github.com/oleiade/reflections v1.0.1
 	github.com/pkg/sftp v1.13.4
+	github.com/trustelem/zxcvbn v1.0.1
 )
 
 require (
 	github.com/andrew-d/go-termutil v0.0.0-20150726205930-009166a695a2 // indirect
 	github.com/dlclark/regexp2 v1.7.0 // indirect
 	github.com/fsnotify/fsnotify v1.5.1 // indirect
-	github.com/go-bindata/go-bindata v3.1.2+incompatible // indirect
 	github.com/jpillora/ansi v1.0.2 // indirect
 	github.com/lxn/win v0.0.0-20210218163916-a377121e959e // indirect
+	github.com/test-go/testify v1.1.4 // indirect
 	github.com/tklauser/go-sysconf v0.3.6 // indirect
 	github.com/tomasen/realip v0.0.0-20180522021738-f0c99a92ddce // indirect
-	github.com/trustelem/zxcvbn v1.0.1 // indirect
 )
