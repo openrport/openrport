@@ -16,6 +16,8 @@ import (
 
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
+	"golang.org/x/text/encoding"
+	"golang.org/x/text/encoding/ianaindex"
 
 	"github.com/cloudradar-monitoring/rport/client/system"
 	"github.com/cloudradar-monitoring/rport/share/clientconfig"
@@ -635,30 +637,42 @@ func TestSummaryBuffer(t *testing.T) {
 }
 
 func TestLimitedWriter(t *testing.T) {
+	enc, err := ianaindex.IANA.Encoding("windows-1252")
+	require.NoError(t, err)
+	win1250Input, err := enc.NewEncoder().Bytes([]byte("ßä"))
+	require.NoError(t, err)
+
 	testCases := []struct {
 		Name     string
-		Inputs   []string
+		Inputs   [][]byte
+		Decoder  *encoding.Decoder
 		Expected string
 	}{
 		{
 			Name:     "no input",
-			Inputs:   []string{},
+			Inputs:   [][]byte{},
 			Expected: "",
 		},
 		{
 			Name:     "short input",
-			Inputs:   []string{"abc"},
+			Inputs:   [][]byte{[]byte("abc")},
 			Expected: "abc",
 		},
 		{
 			Name:     "long input",
-			Inputs:   []string{"abcdefghi"},
+			Inputs:   [][]byte{[]byte("abcdefghi")},
 			Expected: "abcde",
 		},
 		{
 			Name:     "multiple inputs",
-			Inputs:   []string{"abc", "def", "ghi"},
+			Inputs:   [][]byte{[]byte("abc"), []byte("def"), []byte("ghi")},
 			Expected: "abcde",
+		},
+		{
+			Name:     "with encoding",
+			Decoder:  enc.NewDecoder(),
+			Inputs:   [][]byte{win1250Input},
+			Expected: "ßä",
 		},
 	}
 
@@ -669,9 +683,9 @@ func TestLimitedWriter(t *testing.T) {
 
 			result := &bytes.Buffer{}
 
-			w := &LimitedWriter{Writer: result, Limit: 5}
+			w := &LimitedWriter{Writer: result, Decoder: tc.Decoder, Limit: 5}
 			for _, i := range tc.Inputs {
-				n, err := w.Write([]byte(i))
+				n, err := w.Write(i)
 				require.NoError(t, err)
 
 				assert.Equal(t, len(i), n)

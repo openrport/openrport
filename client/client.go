@@ -21,7 +21,6 @@ import (
 	"github.com/shirou/gopsutil/host"
 	"golang.org/x/crypto/ssh"
 	"golang.org/x/net/proxy"
-	"golang.org/x/text/encoding"
 
 	"github.com/cloudradar-monitoring/rport/client/monitoring"
 	"github.com/cloudradar-monitoring/rport/client/system"
@@ -51,14 +50,12 @@ type Client struct {
 	updates            *updates.Updates
 	monitor            *monitoring.Monitor
 	serverCapabilities *models.Capabilities
-	consoleDecoder     *encoding.Decoder
 	filesAPI           files.FileAPI
 	watchdog           *Watchdog
 }
 
 // NewClient creates a new client instance
 func NewClient(config *ClientConfigHolder, filesAPI files.FileAPI) (*Client, error) {
-	ctx := context.Background()
 	// Generate a session id that will not change while the client is running
 	// This allows the server to resume sessions.
 	sessionID, err := random.UUID4()
@@ -93,16 +90,6 @@ func NewClient(config *ClientConfigHolder, filesAPI files.FileAPI) (*Client, err
 		ClientVersion:   "SSH-" + chshare.ProtocolVersion + "-client",
 		HostKeyCallback: client.verifyServer,
 		Timeout:         30 * time.Second,
-	}
-
-	enc, err := system.DetectConsoleEncoding(ctx)
-	if err != nil {
-		logger.Errorf("could not detect console encoding, using UTF-8...: %v", err)
-	}
-
-	if enc != nil {
-		logger.Infof("Console encoding detected as: %s", enc)
-		client.consoleDecoder = enc.NewDecoder()
 	}
 
 	return client, nil

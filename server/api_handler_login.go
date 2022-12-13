@@ -11,7 +11,6 @@ import (
 	errors2 "github.com/cloudradar-monitoring/rport/server/api/errors"
 	"github.com/cloudradar-monitoring/rport/server/api/users"
 	"github.com/cloudradar-monitoring/rport/server/bearer"
-
 	chshare "github.com/cloudradar-monitoring/rport/share"
 	"github.com/cloudradar-monitoring/rport/share/logger"
 )
@@ -87,13 +86,15 @@ func (al *APIListener) handleLogin(username, pwd string, newpwd string, skipPass
 
 	// Only set the new password after the old password has been verified.
 	if newpwd != "" {
-		var user users.User
-		user.Password = newpwd
-		if err := al.userService.Change(&user, username); err != nil {
+		if err := al.userService.Change(
+			&users.User{
+				Password:        newpwd,
+				PasswordExpired: users.PasswordExpired(false)},
+			username); err != nil {
 			al.jsonError(w, err)
 			return
 		}
-		return
+		user.PasswordExpired = users.PasswordExpired(false) // from here on
 	}
 
 	if user.PasswordExpired != nil && *user.PasswordExpired {
@@ -237,8 +238,8 @@ func (al *APIListener) handlePostLogin(w http.ResponseWriter, req *http.Request)
 		return
 	}
 
-	// updating the Password via newPassword field is allowed only with a POST request
-	username, pwd, newPassword, err := parseLoginPostRequestBody(req)
+	// updating the Password via newPassword field is allowed with a POST or PATCH request
+	username, pwd, newPassword, err := parseLoginRequestBody(req)
 
 	if err != nil {
 		// ban IP if it sends a lot of bad requests
@@ -252,7 +253,7 @@ func (al *APIListener) handlePostLogin(w http.ResponseWriter, req *http.Request)
 	al.handleLogin(username, pwd, newPassword, false, w, req)
 }
 
-func parseLoginPostRequestBody(req *http.Request) (string, string, string, error) {
+func parseLoginRequestBody(req *http.Request) (string, string, string, error) {
 	reqContentType := req.Header.Get("Content-Type")
 	if reqContentType == "application/x-www-form-urlencoded" {
 		err := req.ParseForm()
