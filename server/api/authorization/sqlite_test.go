@@ -1,14 +1,17 @@
 package authorization
 
 import (
+	"context"
 	"testing"
 	"time"
 
 	"github.com/cloudradar-monitoring/rport/db/migration/api_token"
 	"github.com/cloudradar-monitoring/rport/db/sqlite"
 	"github.com/cloudradar-monitoring/rport/share/ptr"
+	"github.com/cloudradar-monitoring/rport/share/test"
 	"github.com/jmoiron/sqlx"
 
+	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 )
 
@@ -16,55 +19,65 @@ var DataSourceOptions = sqlite.DataSourceOptions{WALEnabled: false}
 var timeoutSec = DefaultTimeoutSec
 var demoData = []APIToken{
 	{
-		Username:  "user1",
-		Prefix:    "dshjdsfhj",
+		Username:  "username1",
+		Prefix:    "prefix1",
 		CreatedAt: ptr.Time(time.Date(2001, 1, 1, 1, 0, 0, 0, time.UTC)),
 		ExpiresAt: ptr.Time(time.Date(2001, 1, 1, 2, 0, 0, 0, time.UTC)),
-		Scope:     "dshjdsfhj",
-		Token:     "ddsfsddfsfdsfsdsfdsdfshjdsfhj",
+		Scope:     "onescope1",
+		Token:     "onelongtoken1",
+	},
+	{
+		Username:  "username2",
+		Prefix:    "prefix2",
+		CreatedAt: ptr.Time(time.Date(2001, 1, 1, 1, 0, 0, 0, time.UTC)),
+		ExpiresAt: ptr.Time(time.Date(2001, 1, 1, 2, 0, 0, 0, time.UTC)),
+		Scope:     "onescope2",
+		Token:     "onelongtoken2",
+	},
+	{
+		Username:  "username3",
+		Prefix:    "prefix3",
+		CreatedAt: ptr.Time(time.Date(2001, 1, 1, 1, 0, 0, 0, time.UTC)),
+		ExpiresAt: ptr.Time(time.Date(2001, 1, 1, 2, 0, 0, 0, time.UTC)),
+		Scope:     "onescope3",
+		Token:     "onelongtoken3",
+	},
+	{
+		Username:  "username4",
+		Prefix:    "prefix4",
+		CreatedAt: ptr.Time(time.Date(2001, 1, 1, 1, 0, 0, 0, time.UTC)),
+		ExpiresAt: ptr.Time(time.Date(2001, 1, 1, 2, 0, 0, 0, time.UTC)),
+		Scope:     "onescope4",
+		Token:     "onelongtoken4",
 	},
 }
 
-func TestGetByID(t *testing.T) {
+func TestGet(t *testing.T) {
 	db, err := sqlite.New(":memory:", api_token.AssetNames(), api_token.Asset, DataSourceOptions)
 	require.NoError(t, err)
 	dbProv := NewSqliteProvider(db)
 	defer dbProv.Close()
 
-	// ctx := context.Background()
+	ctx := context.Background()
 
 	err = addDemoData(dbProv.db)
 	require.NoError(t, err)
 
-	// val, found, err := dbProv.GetByID(ctx, "1", &query.RetrieveOptions{})
+	val, err := dbProv.Get(ctx, "username1", "prefix1")
 
-	// require.NoError(t, err)
-	// require.True(t, found)
-	// require.NoError(t, err)
-	// assert.Equal(t, demoData[0], *val)
+	require.NoError(t, err)
+	require.NotNil(t, val)
+	assert.Equal(t, demoData[0], *val)
 
-	// _, found, err = dbProv.GetByID(ctx, "-2", &query.RetrieveOptions{})
-	// require.NoError(t, err)
-	// require.False(t, found)
+	val, err = dbProv.Get(ctx, "username1", "prefix3")
 
-	// val, found, err = dbProv.GetByID(ctx, "1", &query.RetrieveOptions{Fields: []query.FieldsOption{
-	// 	{
-	// 		Resource: "scripts",
-	// 		Fields:   []string{"created_by", "script"},
-	// 	},
-	// }})
+	require.NoError(t, err)
+	require.Nil(t, val)
 
-	// require.NoError(t, err)
-	// require.True(t, found)
-	// require.NoError(t, err)
-	// assert.Equal(t, Script{
-	// 	CreatedBy: "user1",
-	// 	Script:    "ls -la",
-	// }, *val)
 }
 
 // func TestList(t *testing.T) {
-// 	db, err := sqlite.New(":memory:", library.AssetNames(), library.Asset, DataSourceOptions)
+// 	db, err := sqlite.New(":memory:", api_token.AssetNames(), api_token.Asset, DataSourceOptions)
 // 	require.NoError(t, err)
 // 	dbProv := NewSqliteProvider(db)
 // 	t.Cleanup(func() { dbProv.Close() })
@@ -192,42 +205,73 @@ func TestGetByID(t *testing.T) {
 // 	}
 // }
 
-// func TestCreate(t *testing.T) {
-// 	db, err := sqlite.New(":memory:", library.AssetNames(), library.Asset, DataSourceOptions)
-// 	require.NoError(t, err)
-// 	dbProv := NewSqliteProvider(db)
-// 	defer dbProv.Close()
+func TestCreate(t *testing.T) {
 
-// 	expectedCreatedAt, err := time.Parse("2006-01-02 15:04:05", "2001-01-01 01:00:00")
-// 	require.NoError(t, err)
+	db, err := sqlite.New(":memory:", api_token.AssetNames(), api_token.Asset, DataSourceOptions)
+	require.NoError(t, err)
+	dbProv := NewSqliteProvider(db)
+	defer dbProv.Close()
 
-// 	ctx := context.Background()
-// 	itemToSave := demoData[0]
-// 	itemToSave.ID = ""
-// 	id, err := dbProv.Save(ctx, &itemToSave, expectedCreatedAt.UTC())
-// 	require.NoError(t, err)
-// 	assert.True(t, id != "")
+	require.NoError(t, err)
 
-// 	expectedRows := []map[string]interface{}{
-// 		{
-// 			"name":        itemToSave.Name,
-// 			"created_at":  *itemToSave.CreatedAt,
-// 			"created_by":  itemToSave.CreatedBy,
-// 			"updated_at":  *itemToSave.UpdatedAt,
-// 			"updated_by":  itemToSave.UpdatedBy,
-// 			"interpreter": *itemToSave.Interpreter,
-// 			"is_sudo":     int64(0),
-// 			"cwd":         *itemToSave.Cwd,
-// 			"script":      itemToSave.Script,
-// 			"tags":        `["tag1","tag2"]`,
-// 		},
-// 	}
-// 	q := "SELECT name, created_at, created_by, updated_at, updated_by, interpreter, is_sudo, cwd, script, tags FROM `scripts`"
-// 	test.AssertRowsEqual(t, dbProv.db, expectedRows, q, []interface{}{})
-// }
+	ctx := context.Background()
+	itemToSave := demoData[0]
+	err = dbProv.save(ctx, &itemToSave)
+	require.NoError(t, err)
+
+	expectedRows := []map[string]interface{}{
+		{
+			"username":   itemToSave.Username,
+			"prefix":     itemToSave.Prefix,
+			"expires_at": *itemToSave.ExpiresAt,
+			"scope":      itemToSave.Scope,
+			"token":      itemToSave.Token,
+		},
+	}
+	q := "SELECT username, prefix, expires_at, scope, token FROM `api_token`"
+	test.AssertRowsEqual(t, dbProv.db, expectedRows, q, []interface{}{})
+}
+
+func TestUpdate(t *testing.T) {
+
+	db, err := sqlite.New(":memory:", api_token.AssetNames(), api_token.Asset, DataSourceOptions)
+	require.NoError(t, err)
+	dbProv := NewSqliteProvider(db)
+	defer dbProv.Close()
+
+	require.NoError(t, err)
+
+	ctx := context.Background()
+	itemToSave := demoData[0]
+	err = dbProv.save(ctx, &itemToSave)
+	require.NoError(t, err)
+
+	var demoDataUpdate = &APIToken{
+		Username:  "username1",
+		Prefix:    "prefix1",
+		ExpiresAt: ptr.Time(time.Date(2011, 3, 11, 2, 0, 0, 0, time.UTC)),
+		Scope:     "onenewscope1",
+		Token:     "onenewlongtoken1",
+	}
+
+	err = dbProv.save(ctx, demoDataUpdate)
+	require.NoError(t, err)
+
+	expectedRows := []map[string]interface{}{
+		{
+			"username":   demoDataUpdate.Username,
+			"prefix":     demoDataUpdate.Prefix,
+			"expires_at": *demoDataUpdate.ExpiresAt,
+			"scope":      demoDataUpdate.Scope,
+			"token":      demoDataUpdate.Token,
+		},
+	}
+	q := "SELECT username, prefix, expires_at, scope, token FROM `api_token`"
+	test.AssertRowsEqual(t, dbProv.db, expectedRows, q, []interface{}{})
+}
 
 // func TestUpdate(t *testing.T) {
-// 	db, err := sqlite.New(":memory:", library.AssetNames(), library.Asset, DataSourceOptions)
+// 	db, err := sqlite.New(":memory:", api_token.AssetNames(), api_token.Asset, DataSourceOptions)
 // 	require.NoError(t, err)
 // 	dbProv := NewSqliteProvider(db)
 // 	defer dbProv.Close()
@@ -269,7 +313,7 @@ func TestGetByID(t *testing.T) {
 // }
 
 // func TestDelete(t *testing.T) {
-// 	db, err := sqlite.New(":memory:", library.AssetNames(), library.Asset, DataSourceOptions)
+// 	db, err := sqlite.New(":memory:", api_token.AssetNames(), api_token.Asset, DataSourceOptions)
 // 	require.NoError(t, err)
 // 	dbProv := NewSqliteProvider(db)
 // 	defer dbProv.Close()

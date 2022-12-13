@@ -74,12 +74,12 @@ func (p *SqliteProvider) save(ctx context.Context, tokenLine *APIToken) (err err
 	_, err = p.db.NamedExecContext(
 		ctx,
 		"INSERT INTO"+
-			" api_token (username, prefix, created_at, expires_at, scope, token)"+
-			" VALUES (:username, :prefix, :created_at, :expires_at, :scope, :token)"+
+			" `api_token` (`username`, `prefix`, `expires_at`, `scope`, `token`)"+
+			"      VALUES (:username, :prefix, :expires_at, :scope, :token)"+
 			" 	ON CONFLICT(username, prefix) DO UPDATE SET"+
 			"		expires_at=EXCLUDED.expires_at,"+
 			"		scope=EXCLUDED.scope,"+
-			"		token=EXCLUDED.token,"+
+			"		token=EXCLUDED.token"+
 			"	WHERE EXCLUDED.username = api_token.username AND"+
 			"	       EXCLUDED.prefix = api_token.prefix",
 		tokenLine,

@@ -1,7 +1,7 @@
 CREATE TABLE api_token (
     username TEXT NOT NULL,
     prefix TEXT NOT NULL,
-    created_at DATETIME NOT NULL,
+    created_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP, 
     expires_at DATETIME,
     scope TEXT,
     token TEXT NOT NULL,
