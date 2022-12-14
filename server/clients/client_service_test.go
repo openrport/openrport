@@ -849,8 +849,8 @@ func TestShouldStartTunnelsWithSubdomains(t *testing.T) {
 
 			internalTunnelProxyConfig := &clienttunnel.InternalTunnelProxyConfig{
 				Enabled:  true,
-				CertFile: "../../testdata/certs/rpdev.lan.crt",
-				KeyFile:  "../../testdata/certs/rpdev.lan.key",
+				CertFile: "../../testdata/certs/rport.test.crt",
+				KeyFile:  "../../testdata/certs/rport.test.key",
 			}
 
 			pd := ports.NewPortDistributorForTests(
@@ -870,7 +870,7 @@ func TestShouldStartTunnelsWithSubdomains(t *testing.T) {
 			requestedRemote.Scheme = &scheme
 			requestedRemote.HTTPProxy = true
 			requestedRemote.UseDownstreamSubdomainProxy = true
-			requestedRemote.DownstreamBasedomain = "tunnels.rpdev.lan"
+			requestedRemote.DownstreamBasedomain = "tunnels.rport.test"
 			requestedRemote.DownstreamSubdomain = "12345678"
 
 			newTunnels, err := clientService.StartClientTunnels(

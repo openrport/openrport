@@ -589,7 +589,7 @@ func TestHandlePutTunnelUsingCaddyProxies(t *testing.T) {
 				"auth_password":"",
 				"created_at": "0001-01-01T00:00:00Z",
 				"use_downstream_subdomain_proxy": true,
-				"downstream_basedomain": "tunnels.rpdev.lan",
+				"downstream_basedomain": "tunnels.rport.test",
 				"downstream_subdomain": "12345678"
 			}
 		}`,
@@ -639,9 +639,9 @@ func TestHandlePutTunnelUsingCaddyProxies(t *testing.T) {
 							DataDir:          "/tmp",
 							BaseConfFilename: "caddy-base.conf",
 							HostAddress:      "0.0.0.0:8443",
-							BaseDomain:       "tunnels.rpdev.lan",
-							CertFile:         "../testdata/certs/tunnels.rpdev.lan.crt",
-							KeyFile:          "../testdata/certs/tunnels.rpdev.lan.key",
+							BaseDomain:       "tunnels.rport.test",
+							CertFile:         "../testdata/certs/tunnels.rport.test.crt",
+							KeyFile:          "../testdata/certs/tunnels.rport.test.key",
 							Enabled:          true,
 						},
 					},
