@@ -514,6 +514,7 @@ func (al *APIListener) setTunnelProxyOptionsForRemote(req *http.Request, remote 
 
 		remote.DownstreamSubdomain = downstreamSubdomain
 		remote.DownstreamBasedomain = al.config.Caddy.BaseDomain
+		remote.TunnelURL = remote.DownstreamProxyURL()
 	}
 
 	remote.UseDownstreamSubdomainProxy = useSubdomain
