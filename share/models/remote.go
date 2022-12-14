@@ -54,7 +54,7 @@ type Remote struct {
 	UseDownstreamSubdomainProxy bool          `json:"use_downstream_subdomain_proxy,omitempty"`
 	DownstreamSubdomain         string        `json:"downstream_subdomain,omitempty"`
 	DownstreamBasedomain        string        `json:"downstream_basedomain,omitempty"`
-	TunnelURL                   string        `json:"tunnel_url"`
+	TunnelURL                   string        `json:"tunnel_url,omitempty"`
 }
 
 func NewRemote(s string) (*Remote, error) {

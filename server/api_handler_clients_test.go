@@ -580,6 +580,7 @@ func TestHandlePutTunnelUsingCaddyProxies(t *testing.T) {
 				"rport": "22",
 				"lport_random": false,
 				"scheme": "http",
+				"tunnel_url": "https://12345678.tunnels.rport.test",
 				"acl": "127.0.0.1",
 				"idle_timeout_minutes": 5,
 				"auto_close": 0,
