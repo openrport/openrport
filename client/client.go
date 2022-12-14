@@ -153,15 +153,13 @@ func (c *Client) connectionLoop(ctx context.Context) {
 	var connerr error
 	switchbackChan := make(chan *sshClientConn, 1)
 	b := &backoff.Backoff{Max: c.configHolder.Connection.MaxRetryInterval}
-loop:
 	for c.running {
 		if connerr != nil {
 			attempt := int(b.Attempt())
 			d := b.Duration()
 			c.showConnectionError(connerr, attempt)
-			//give up?
 			if c.configHolder.Connection.MaxRetryCount >= 0 && attempt >= c.configHolder.Connection.MaxRetryCount {
-				break
+				break // Stop trying to connect if the user has set a max retry limit
 			}
 			msg := fmt.Sprintf("Retrying in %s...", d)
 			c.Errorf(msg)
@@ -180,11 +178,8 @@ loop:
 			var err error
 			sshConn, isPrimary, err = c.connectToMainOrFallback()
 			if err != nil {
-				if _, ok := err.(retryableError); ok {
-					connerr = err
-					continue
-				}
-				break loop
+				connerr = err // Setting a connerr causes the loop to sleep and try again later
+				continue
 			}
 		}
 		// Start handling requests and channels immediately, otherwise ssh connection might hang
@@ -261,15 +256,11 @@ func (c *Client) connectToMainOrFallback() (conn *sshClientConn, isPrimary bool,
 	for i, server := range servers {
 		conn, err = c.connect(server)
 		if err != nil {
-			if _, ok := err.(retryableError); ok {
-				continue
-			}
-			c.Errorf(fmt.Sprintf("Unrecoverable error: %s", err))
-			break
+			continue // Try the next server in the list
 		}
 		return conn, i == 0, nil
 	}
-	return nil, false, err
+	return nil, false, retryableError{err}
 }
 
 func (c *Client) connect(server string) (*sshClientConn, error) {
@@ -502,7 +493,7 @@ func (c *Client) showConnectionError(connerr error, attempt int) {
 	if attempt > 0 {
 		maxAttemptStr := fmt.Sprint(maxAttempt)
 		if maxAttempt < 0 {
-			maxAttemptStr = "∞"
+			maxAttemptStr = "infinite"
 		}
 		msg += fmt.Sprintf(" (Attempt: %d of %s)", attempt, maxAttemptStr)
 	}
