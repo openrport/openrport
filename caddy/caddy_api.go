@@ -10,17 +10,33 @@ import (
 )
 
 const (
-	HostDomainSocket = "//tmp/caddy-admin.sock"
-	NewRoutePath     = "/config/apps/http/servers/srv0/routes/0"
+	NewRoutePath = "/config/apps/http/servers/srv0/routes/0"
 )
 
-func AddRoute(ctx context.Context, nrr *NewRouteRequest) (res *http.Response, err error) {
+var (
+	HostDomainSocket = "//tmp/caddy-admin.sock"
+)
+
+type NewRouteRequest struct {
+	RouteID                   string
+	TargetTunnelHost          string
+	TargetTunnelPort          string
+	DownstreamProxySubdomain  string
+	DownstreamProxyBaseDomain string
+}
+
+type API interface {
+	AddRoute(ctx context.Context, nrr *NewRouteRequest) (res *http.Response, err error)
+	DeleteRoute(ctx context.Context, routeID string) (res *http.Response, err error)
+}
+
+func (s *Server) AddRoute(ctx context.Context, nrr *NewRouteRequest) (res *http.Response, err error) {
 	body, err := ExecuteTemplate("NRR", NewRouteRequestTemplate, nrr)
 	if err != nil {
 		return nil, err
 	}
 
-	res, err = SendRequest(ctx, "PUT", NewRoutePath, body)
+	res, err = s.sendRequest(ctx, "PUT", NewRoutePath, body)
 	if err != nil {
 		return nil, err
 	}
@@ -28,8 +44,8 @@ func AddRoute(ctx context.Context, nrr *NewRouteRequest) (res *http.Response, er
 	return res, nil
 }
 
-func DeleteRoute(ctx context.Context, routeID string) (res *http.Response, err error) {
-	res, err = SendRequest(ctx, "DELETE", makeCaddyResourcePath(routeID), nil)
+func (s *Server) DeleteRoute(ctx context.Context, routeID string) (res *http.Response, err error) {
+	res, err = s.sendRequest(ctx, "DELETE", makeCaddyResourcePath(routeID), nil)
 	if err != nil {
 		return nil, err
 	}
@@ -41,7 +57,7 @@ func makeCaddyResourcePath(in string) (out string) {
 	return fmt.Sprintf("/id/%s", in)
 }
 
-func SendRequest(ctx context.Context, method string, path string, body []byte) (res *http.Response, err error) {
+func (s *Server) sendRequest(ctx context.Context, method string, path string, body []byte) (res *http.Response, err error) {
 	httpClient := newHTTPDomainSocketClient()
 
 	var r io.Reader
@@ -49,7 +65,7 @@ func SendRequest(ctx context.Context, method string, path string, body []byte) (
 		r = bytes.NewReader(body)
 	}
 
-	req, err := http.NewRequest(method, "http://unix"+path, r)
+	req, err := http.NewRequestWithContext(ctx, method, "http://unix"+path, r)
 	if err != nil {
 		return nil, fmt.Errorf("unable to make new request: %w", err)
 	}

@@ -15,11 +15,11 @@ func TestShouldMakeNewRouteRequestJSON(t *testing.T) {
 	require.NoError(t, err)
 
 	nrr := &NewRouteRequest{
-		RouteID:                 "new_route_id",
-		TargetTunnelHost:        "target_tunnel_host",
-		TargetTunnelPort:        "target_tunnel_port",
-		UpstreamProxySubdomain:  "upstream_proxy_subdomain",
-		UpstreamProxyBaseDomain: "upstream_proxy_basedomain",
+		RouteID:                   "new_route_id",
+		TargetTunnelHost:          "target_tunnel_host",
+		TargetTunnelPort:          "target_tunnel_port",
+		DownstreamProxySubdomain:  "downstream_proxy_subdomain",
+		DownstreamProxyBaseDomain: "downstream_proxy_basedomain",
 	}
 
 	var b bytes.Buffer
@@ -31,7 +31,7 @@ func TestShouldMakeNewRouteRequestJSON(t *testing.T) {
 	assert.Contains(t, templateText, `"@id": "new_route_id"`)
 	assert.Contains(t, templateText, `"handler": "reverse_proxy"`)
 	assert.Contains(t, templateText, `"dial": "target_tunnel_host:target_tunnel_port"`)
-	assert.Contains(t, templateText, `"upstream_proxy_subdomain.upstream_proxy_basedomain"`)
+	assert.Contains(t, templateText, `"downstream_proxy_subdomain.downstream_proxy_basedomain"`)
 }
 
 func TestShouldParseTemplates(t *testing.T) {
@@ -60,7 +60,7 @@ func TestShouldMakeGlobalSettingsText(t *testing.T) {
 
 	gs := &GlobalSettings{
 		LogLevel:    "ERROR",
-		AdminSocket: "/tmp/caddyadmin.sock",
+		AdminSocket: "/tmp/caddy-admin.sock",
 	}
 
 	var b bytes.Buffer
@@ -71,7 +71,7 @@ func TestShouldMakeGlobalSettingsText(t *testing.T) {
 	// fmt.Printf("templateText = %+v\n", templateText)
 
 	assert.Contains(t, templateText, "level ERROR")
-	assert.Contains(t, templateText, "admin unix//tmp/caddyadmin.sock")
+	assert.Contains(t, templateText, "admin unix//tmp/caddy-admin.sock")
 }
 
 func TestShouldMakeDefaultVirtualHostText(t *testing.T) {
@@ -102,6 +102,7 @@ func TestShouldMakeAPIReverseProxySettingsText(t *testing.T) {
 	require.NoError(t, err)
 
 	arp := &APIReverseProxySettings{
+		UseAPIProxy:   true,
 		CertsFile:     "certs_file",
 		KeyFile:       "key_file",
 		ProxyDomain:   "proxy_domain",
@@ -121,8 +122,8 @@ func TestShouldMakeAPIReverseProxySettingsText(t *testing.T) {
 
 	assert.Contains(t, templateText, "https://proxy_domain:proxy_port")
 	assert.Contains(t, templateText, "tls certs_file key_file")
-	assert.Contains(t, templateText, "reverse_proxy api_scheme://api_ip_address:api_port")
-	assert.Contains(t, templateText, "output file proxy_log_file")
+	assert.Contains(t, templateText, "to api_scheme://api_ip_address:api_port")
+	assert.Contains(t, templateText, "output discard")
 }
 
 func TestShouldMakeAll(t *testing.T) {
@@ -137,12 +138,12 @@ func TestShouldMakeAll(t *testing.T) {
 	tmpl, err = tmpl.Parse(apiReverseProxySettingsTemplate)
 	require.NoError(t, err)
 
-	tmpl, err = tmpl.Parse(allTemplate)
+	tmpl, err = tmpl.Parse(combinedTemplates)
 	require.NoError(t, err)
 
 	gs := &GlobalSettings{
 		LogLevel:    "ERROR",
-		AdminSocket: "/tmp/caddyadmin.sock",
+		AdminSocket: "/tmp/caddy-admin.sock",
 	}
 
 	dvh := &DefaultVirtualHost{
@@ -153,6 +154,7 @@ func TestShouldMakeAll(t *testing.T) {
 	}
 
 	arp := &APIReverseProxySettings{
+		UseAPIProxy:   true,
 		CertsFile:     "certs_file",
 		KeyFile:       "key_file",
 		ProxyDomain:   "proxy_domain",
@@ -176,7 +178,7 @@ func TestShouldMakeAll(t *testing.T) {
 
 	templateText := b.String()
 
-	assert.Contains(t, templateText, "admin unix//tmp/caddyadmin.sock")
+	assert.Contains(t, templateText, "admin unix//tmp/caddy-admin.sock")
 	assert.Contains(t, templateText, "https://listen_address:listen_port")
 	assert.Contains(t, templateText, "https://proxy_domain:proxy_port")
 }

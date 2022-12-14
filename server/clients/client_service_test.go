@@ -11,7 +11,10 @@ import (
 	"testing"
 	"time"
 
+	"github.com/cloudradar-monitoring/rport/caddy"
 	"github.com/cloudradar-monitoring/rport/server/cgroups"
+	"github.com/cloudradar-monitoring/rport/server/clients/clienttunnel"
+	"github.com/cloudradar-monitoring/rport/server/clientsauth"
 
 	mapset "github.com/deckarep/golang-set"
 	"github.com/stretchr/testify/assert"
@@ -788,5 +791,112 @@ func TestGetTunnelsToReestablish(t *testing.T) {
 
 		// then
 		assert.ElementsMatch(t, tc.wantResStr, gotResStr, msg)
+	}
+}
+
+var (
+	cl1 = &clientsauth.ClientAuth{ID: "user1", Password: "pswd1"}
+)
+
+type MockCaddyAPI struct {
+	RouteRequest *caddy.NewRouteRequest
+}
+
+func (m *MockCaddyAPI) AddRoute(ctx context.Context, nrr *caddy.NewRouteRequest) (res *http.Response, err error) {
+	m.RouteRequest = nrr
+	res = &http.Response{
+		StatusCode: http.StatusOK,
+	}
+	return res, nil
+}
+
+func (m *MockCaddyAPI) DeleteRoute(ctx context.Context, routeID string) (res *http.Response, err error) {
+	res = &http.Response{
+		StatusCode: http.StatusOK,
+	}
+	return res, nil
+}
+
+func TestShouldStartTunnelsWithSubdomains(t *testing.T) {
+	connMock := test.NewConnMock()
+	connMock.ReturnOk = true
+	connMock.ReturnResponsePayload = []byte("{ \"IsAllowed\": true }")
+
+	cases := []struct {
+		name            string
+		requestedTunnel string
+	}{
+		{
+			name:            "basic tunnel with remote only",
+			requestedTunnel: "127.0.0.1:4001",
+		},
+		{
+			name:            "basic tunnel with local and remote",
+			requestedTunnel: "4000:127.0.0.1:4001",
+		},
+		{
+			name:            "full tunnel",
+			requestedTunnel: "127.0.0.1:4000:127.0.0.1:4001",
+		},
+	}
+	for _, tc := range cases {
+		t.Run(tc.name, func(t *testing.T) {
+			fmt.Printf("starting tc.name = %+v\n", tc.name)
+			c1 := New(t).ID("client-1").ClientAuthID(cl1.ID).Build()
+			c1.Connection = connMock
+			c1.Logger = testLog
+			c1.Context = context.Background()
+
+			internalTunnelProxyConfig := &clienttunnel.InternalTunnelProxyConfig{
+				Enabled:  true,
+				CertFile: "../../testdata/certs/rpdev.lan.crt",
+				KeyFile:  "../../testdata/certs/rpdev.lan.key",
+			}
+
+			pd := ports.NewPortDistributorForTests(
+				mapset.NewThreadUnsafeSetFromSlice([]interface{}{4000, 4001, 4002, 4003, 4004, 4005}),
+				mapset.NewThreadUnsafeSetFromSlice([]interface{}{4000, 4002, 4003, 4004, 4005}),
+				mapset.NewThreadUnsafeSetFromSlice([]interface{}{5002, 5003, 5004, 5005}),
+			)
+
+			mockCaddyAPI := &MockCaddyAPI{}
+			clientService := NewClientService(internalTunnelProxyConfig, pd, NewClientRepository([]*Client{c1}, &hour, testLog), testLog)
+			clientService.caddyAPI = mockCaddyAPI
+
+			requestedRemote, err := models.NewRemote(tc.requestedTunnel)
+			require.NoError(t, err)
+
+			scheme := "http"
+			requestedRemote.Scheme = &scheme
+			requestedRemote.HTTPProxy = true
+			requestedRemote.UseDownstreamSubdomainProxy = true
+			requestedRemote.DownstreamBasedomain = "tunnels.rpdev.lan"
+			requestedRemote.DownstreamSubdomain = "12345678"
+
+			newTunnels, err := clientService.StartClientTunnels(
+				c1,
+				[]*models.Remote{requestedRemote},
+			)
+			require.NoError(t, err)
+
+			newTunnel := newTunnels[0]
+
+			assert.Equal(t, requestedRemote.DownstreamSubdomain, mockCaddyAPI.RouteRequest.RouteID)
+			assert.Equal(t, requestedRemote.DownstreamSubdomain, mockCaddyAPI.RouteRequest.DownstreamProxySubdomain)
+			assert.Equal(t, requestedRemote.DownstreamBasedomain, mockCaddyAPI.RouteRequest.DownstreamProxyBaseDomain)
+
+			assert.Equal(t, requestedRemote.RemoteHost, newTunnel.RemoteHost)
+			assert.Equal(t, requestedRemote.RemotePort, newTunnel.RemotePort)
+			assert.Equal(t, true, newTunnel.CaddyDownstreamProxyExists)
+			assert.Equal(t, true, newTunnel.Remote.UseDownstreamSubdomainProxy)
+			assert.Equal(t, requestedRemote.DownstreamSubdomain, newTunnel.DownstreamSubdomain)
+			assert.Equal(t, requestedRemote.DownstreamBasedomain, newTunnel.DownstreamBasedomain)
+
+			err = clientService.TerminateTunnel(c1, newTunnel, true)
+			require.NoError(t, err)
+
+			time.Sleep(100 * time.Millisecond)
+			fmt.Printf("stopped tc.name = %+v\n", tc.name)
+		})
 	}
 }

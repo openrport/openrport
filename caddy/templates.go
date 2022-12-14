@@ -2,6 +2,7 @@ package caddy
 
 import (
 	"bytes"
+	_ "embed"
 	"text/template"
 )
 
@@ -21,89 +22,28 @@ func ExecuteTemplate(templateName string, t string, params any) (applied []byte,
 	return b.Bytes(), nil
 }
 
-const NewRouteRequestTemplate = `
-{
-	"@id": "{{.RouteID}}",
-	"handle": [
-			{
-					"handler": "subroute",
-					"routes": [
-							{
-									"handle": [
-											{
-													"body": "Access denied",
-													"close": true,
-													"handler": "static_response",
-													"status_code": 403
-											}
-									]
-							},
-							{
-									"handle": [
-											{
-													"handler": "reverse_proxy",
-													"headers": {
-															"request": {
-																	"set": {
-																			"X-Forwarded-Host": [
-																					"{http.request.host}"
-																			]
-																	}
-															}
-													},
-													"transport": {
-															"protocol": "http",
-															"tls": {
-																	"insecure_skip_verify": true
-															}
-													},
-													"upstreams": [
-															{
-																	"dial": "{{.TargetTunnelHost}}:{{.TargetTunnelPort}}"
-															}
-													]
-											}
-									]
-							}
-					]
-			}
-	],
-	"match": [
-			{
-					"host": [
-							"{{.UpstreamProxySubdomain}}.{{.UpstreamProxyBaseDomain}}"
-					]
-			}
-	],
-	"terminal": true
-}`
+//go:embed new_route_request_template.json
+var NewRouteRequestTemplate string
 
-const allTemplate = `
-	{{ template "GS" .GlobalSettings }}
-
-	{{ template "DVH" .DefaultVirtualHost }}
-
-	{{ template "ARP" .APIReverseProxySettings }}
-
-	{{ range $erp := .ReverseProxies }}
-		{{ template "ERP" $erp }}
-	{{ end }}
-`
+const combinedTemplates = `
+{{- template "GS" .GlobalSettings }}
+{{- template "ARP" .APIReverseProxySettings }}
+{{- template "DVH" .DefaultVirtualHost -}}`
 
 const globalSettingsTemplate = `
-{{ define "GS"}}
-	{
-		grace_period 1s
-		auto_https off
+{{- define "GS"}}
+{
+	grace_period 1s
+	auto_https off
 
-		log {
-			level {{.LogLevel}}
-		}
-
-		admin unix/{{.AdminSocket}} {
-			origins localhost
-		}
+	log {
+		level {{.LogLevel}}
 	}
+
+	admin unix/{{.AdminSocket}} {
+		origins unix
+	}
+}
 {{ end }}
 `
 
@@ -118,16 +58,28 @@ https://{{.ListenAddress}}:{{.ListenPort}} {
 {{ end }}
 `
 
+// TODO: (rs): add test for when not using API proxy
+
 const apiReverseProxySettingsTemplate = `
 {{ define "ARP"}}
+{{- if .UseAPIProxy }}
 https://{{.ProxyDomain}}:{{.ProxyPort}} {
 	tls {{.CertsFile}} {{.KeyFile}} {
 		protocols tls1.3
 	}
-	reverse_proxy {{.APIScheme}}://{{.APITargetHost}}:{{.APITargetPort}}
+	reverse_proxy {
+		to {{.APIScheme}}://{{.APITargetHost}}:{{.APITargetPort}}
+		{{- if .AllowInsecureCerts }}
+			transport http {
+				tls
+				tls_insecure_skip_verify
+			}
+		{{- end }}
+	}
 	log {
-		output file {{.ProxyLogFile}}
+		output discard
 	}
 }
+{{- end }}
 {{ end }}
 `

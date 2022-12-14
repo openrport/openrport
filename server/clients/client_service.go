@@ -16,6 +16,7 @@ import (
 	"github.com/hashicorp/go-version"
 	"github.com/jmoiron/sqlx"
 
+	"github.com/cloudradar-monitoring/rport/caddy"
 	"github.com/cloudradar-monitoring/rport/server/api/errors"
 	"github.com/cloudradar-monitoring/rport/server/cgroups"
 	"github.com/cloudradar-monitoring/rport/server/clients/clienttunnel"
@@ -58,8 +59,9 @@ type ClientService interface {
 
 	GetRepo() *ClientRepository
 
+	SetCaddyAPI(capi caddy.API)
 	StartClientTunnels(client *Client, remotes []*models.Remote) ([]*clienttunnel.Tunnel, error)
-	StartTunnel(c *Client, r *models.Remote, acl *clienttunnel.TunnelACL, tunnelProxyConfig *clienttunnel.InternalTunnelProxyConfig, portDistributor *ports.PortDistributor) (*clienttunnel.Tunnel, error)
+	StartTunnel(c *Client, r *models.Remote, acl *clienttunnel.TunnelACL) (*clienttunnel.Tunnel, error)
 	FindTunnel(c *Client, id string) *clienttunnel.Tunnel
 	FindTunnelByRemote(c *Client, r *models.Remote) *clienttunnel.Tunnel
 	TerminateTunnel(c *Client, t *clienttunnel.Tunnel, force bool) error
@@ -69,6 +71,7 @@ type ClientServiceProvider struct {
 	repo              *ClientRepository
 	portDistributor   *ports.PortDistributor
 	tunnelProxyConfig *clienttunnel.InternalTunnelProxyConfig
+	caddyAPI          caddy.API
 	logger            *logger.Logger
 
 	mu sync.Mutex
@@ -163,12 +166,14 @@ func NewClientService(
 	repo *ClientRepository,
 	logger *logger.Logger,
 ) *ClientServiceProvider {
-	return &ClientServiceProvider{
+	csp := &ClientServiceProvider{
 		tunnelProxyConfig: tunnelProxyConfig,
 		portDistributor:   portDistributor,
 		repo:              repo,
 		logger:            logger.Fork("client-service"),
 	}
+
+	return csp
 }
 
 func InitClientService(
@@ -455,9 +460,8 @@ func (s *ClientServiceProvider) startClientTunnels(client *Client, remotes []*mo
 
 	tunnels := make([]*clienttunnel.Tunnel, 0, len(remotes))
 	for _, remote := range remotes {
-		s.logger.Debugf("initiating tunnel %+v", remote)
-
 		if !remote.IsLocalSpecified() {
+			s.logger.Debugf("no local specified")
 			port, err := s.portDistributor.GetRandomPort(remote.Protocol)
 			if err != nil {
 				return nil, err
@@ -465,11 +469,15 @@ func (s *ClientServiceProvider) startClientTunnels(client *Client, remotes []*mo
 			remote.LocalPort = strconv.Itoa(port)
 			remote.LocalHost = models.ZeroHost
 			remote.LocalPortRandom = true
+			s.logger.Debugf("using random port %s", remote.LocalPort)
 		} else {
+			s.logger.Debugf("checking local port %s", remote.LocalPort)
 			if err := s.checkLocalPort(remote.Protocol, remote.LocalPort); err != nil {
 				return nil, err
 			}
 		}
+
+		s.logger.Debugf("initiating tunnel %+v", remote)
 
 		var acl *clienttunnel.TunnelACL
 		if remote.ACL != nil {
@@ -480,8 +488,7 @@ func (s *ClientServiceProvider) startClientTunnels(client *Client, remotes []*mo
 			}
 		}
 
-		s.logger.Debugf("starting tunnnel: %s", remote)
-		t, err := s.StartTunnel(client, remote, acl, s.tunnelProxyConfig, s.portDistributor)
+		t, err := s.StartTunnel(client, remote, acl)
 		if err != nil {
 			return nil, errors.APIError{
 				HTTPStatus: http.StatusConflict,
@@ -710,17 +717,21 @@ func (s *ClientServiceProvider) FindTunnel(c *Client, id string) *clienttunnel.T
 	return nil
 }
 
+func (s *ClientServiceProvider) SetCaddyAPI(capi caddy.API) {
+	s.caddyAPI = capi
+}
+
 func (s *ClientServiceProvider) StartTunnel(
 	c *Client,
 	r *models.Remote,
-	acl *clienttunnel.TunnelACL,
-	tunnelProxyConfig *clienttunnel.InternalTunnelProxyConfig,
-	portDistributor *ports.PortDistributor) (t *clienttunnel.Tunnel, err error) {
+	acl *clienttunnel.TunnelACL) (t *clienttunnel.Tunnel, err error) {
 	t = s.FindTunnelByRemote(c, r)
 	// tunnel exists
 	if t != nil {
 		return t, nil
 	}
+
+	s.logger.Debugf("starting tunnel: %s", r)
 
 	ctx := c.Context
 	if r.AutoClose > 0 {
@@ -728,11 +739,22 @@ func (s *ClientServiceProvider) StartTunnel(
 		ctx, _ = context.WithTimeout(ctx, r.AutoClose) // nolint: govet
 	}
 
-	startTunnelProxy := tunnelProxyConfig.Enabled && r.HTTPProxy
+	startTunnelProxy := s.tunnelProxyConfig.Enabled && r.HTTPProxy
 	if startTunnelProxy {
-		t, err = s.startTunnelWithProxy(ctx, c, r, acl, tunnelProxyConfig, portDistributor)
+		t, err = s.startTunnelWithProxy(ctx, c, r, acl)
 		if err != nil {
 			return nil, err
+		}
+		if r.UseDownstreamSubdomainProxy {
+			err = s.startCaddyDownstreamProxy(ctx, c, r, t)
+			if err != nil {
+				tunnelStopErr := t.InternalTunnelProxy.Stop(c.Context)
+				if tunnelStopErr != nil {
+					c.Logger.Infof("unable to stop internal tunnel proxy after failing to create caddy downstream proxy: %s", tunnelStopErr)
+				}
+				return nil, err
+			}
+			t.CaddyDownstreamProxyExists = true
 		}
 	} else {
 		t, err = s.startRegularTunnel(ctx, c, r, acl)
@@ -751,11 +773,41 @@ func (s *ClientServiceProvider) StartTunnel(
 		go s.terminateTunnelOnIdleTimeout(ctx, t, c)
 	}
 
-	c.Lock()
-	defer c.Unlock()
-
 	c.Tunnels = append(c.Tunnels, t)
 	return t, nil
+}
+
+func (s *ClientServiceProvider) startCaddyDownstreamProxy(
+	ctx context.Context,
+	c *Client,
+	r *models.Remote,
+	t *clienttunnel.Tunnel,
+) (err error) {
+	c.Logger.Infof("starting downstream caddy proxy at %s", r.DownstreamProxyURL())
+	c.Logger.Infof("tunnel = %#v", t)
+	c.Logger.Infof("remote = %#v", r)
+
+	nrr := &caddy.NewRouteRequest{
+		RouteID:                   r.DownstreamSubdomain,
+		TargetTunnelHost:          t.LocalHost,
+		TargetTunnelPort:          t.LocalPort,
+		DownstreamProxySubdomain:  r.DownstreamSubdomain,
+		DownstreamProxyBaseDomain: r.DownstreamBasedomain,
+	}
+
+	c.Logger.Debugf("requesting new caddy route = %+v", nrr)
+
+	res, err := s.caddyAPI.AddRoute(ctx, nrr)
+	if err != nil {
+		return err
+	}
+
+	if res.StatusCode != http.StatusOK {
+		return fmt.Errorf("failed to create downstream caddy proxy: status_code: %d", res.StatusCode)
+	}
+
+	c.Logger.Infof("started downstream caddy proxy at %s to %s:%s", r.DownstreamProxyURL(), t.LocalHost, t.LocalPort)
+	return nil
 }
 
 func (s *ClientServiceProvider) startRegularTunnel(ctx context.Context, c *Client, r *models.Remote, acl *clienttunnel.TunnelACL) (*clienttunnel.Tunnel, error) {
@@ -779,8 +831,7 @@ func (s *ClientServiceProvider) startTunnelWithProxy(
 	c *Client,
 	r *models.Remote,
 	acl *clienttunnel.TunnelACL,
-	tunnelProxyConfig *clienttunnel.InternalTunnelProxyConfig,
-	portDistributor *ports.PortDistributor) (*clienttunnel.Tunnel, error) {
+) (*clienttunnel.Tunnel, error) {
 	proxyHost := ""
 	proxyPort := ""
 	var proxyACL *clienttunnel.TunnelACL
@@ -795,10 +846,11 @@ func (s *ClientServiceProvider) startTunnelWithProxy(
 
 	// reconfigure tunnel local host/addr to use 127.0.0.1 with a random port and make new acl
 	r.LocalHost = "127.0.0.1"
-	port, err := portDistributor.GetRandomPort(r.Protocol)
+	port, err := s.portDistributor.GetRandomPort(r.Protocol)
 	if err != nil {
 		return nil, err
 	}
+
 	r.LocalPort = strconv.Itoa(port)
 	acl, _ = clienttunnel.ParseTunnelACL("127.0.0.1") // access to tunnel is only allowed from localhost
 
@@ -817,7 +869,7 @@ func (s *ClientServiceProvider) startTunnelWithProxy(
 	}
 
 	// create new proxy tunnel listening at the original tunnel local host addr
-	tProxy := clienttunnel.NewInternalTunnelProxy(t, c.Logger, tunnelProxyConfig, proxyHost, proxyPort, proxyACL)
+	tProxy := clienttunnel.NewInternalTunnelProxy(t, c.Logger, s.tunnelProxyConfig, proxyHost, proxyPort, proxyACL)
 	c.Logger.Debugf("client %s starting tunnel proxy", c.ID)
 	if err := tProxy.Start(ctx); err != nil {
 		c.Logger.Debugf("tunnel proxy could not be started, tunnel must be terminated: %v", err)
@@ -833,7 +885,8 @@ func (s *ClientServiceProvider) startTunnelWithProxy(
 	t.Remote.LocalHost = t.InternalTunnelProxy.Host
 	t.Remote.LocalPort = t.InternalTunnelProxy.Port
 
-	c.Logger.Debugf("client %s started tunnel proxy: %+v", c.ID, t)
+	c.Logger.Debugf("client %s started tunnel with proxy: %#v", c.ID, t)
+	c.Logger.Debugf("internal tunnel proxy: %#v", t.InternalTunnelProxy)
 
 	return t, nil
 }
@@ -880,6 +933,10 @@ func (s *ClientServiceProvider) cleanupAfterAutoClose(c *Client, t *clienttunnel
 		if err := t.InternalTunnelProxy.Stop(c.Context); err != nil {
 			c.Logger.Errorf("error while stopping tunnel proxy: %v", err)
 		}
+		if t.CaddyDownstreamProxyExists {
+			// err is logged in the remove fn
+			_ = s.removeCaddyDownstreamProxy(c, t)
+		}
 	}
 
 	c.RemoveTunnelByID(t.ID)
@@ -893,9 +950,6 @@ func (s *ClientServiceProvider) cleanupAfterAutoClose(c *Client, t *clienttunnel
 }
 
 func (s *ClientServiceProvider) TerminateTunnel(c *Client, t *clienttunnel.Tunnel, force bool) error {
-	c.Lock()
-	defer c.Unlock()
-
 	c.Logger.Infof("Terminating tunnel %s (force: %v) ...", t.ID, force)
 
 	err := t.Terminate(force)
@@ -905,6 +959,13 @@ func (s *ClientServiceProvider) TerminateTunnel(c *Client, t *clienttunnel.Tunne
 
 	if t.InternalTunnelProxy != nil {
 		if err := t.InternalTunnelProxy.Stop(c.Context); err != nil {
+			c.Logger.Errorf("error while stopping tunnel proxy: %v", err)
+		}
+		if t.CaddyDownstreamProxyExists {
+			// err is logged in the remove fn
+			_ = s.removeCaddyDownstreamProxy(c, t)
+		}
+		if err != nil {
 			return err
 		}
 	}
@@ -917,5 +978,21 @@ func (s *ClientServiceProvider) TerminateTunnel(c *Client, t *clienttunnel.Tunne
 	}
 
 	c.Logger.Debugf("terminated tunnel with id=%s removed", t.ID)
+	return nil
+}
+
+func (s *ClientServiceProvider) removeCaddyDownstreamProxy(c *Client, t *clienttunnel.Tunnel) (err error) {
+	c.Logger.Infof("removing downstream caddy proxy at %s", t.Remote.DownstreamProxyURL())
+
+	res, err := s.caddyAPI.DeleteRoute(c.Context, t.Remote.DownstreamSubdomain)
+	if err != nil {
+		return err
+	}
+
+	if res.StatusCode != http.StatusOK {
+		return fmt.Errorf("failed to delete downstream caddy proxy: status_code: %d", res.StatusCode)
+	}
+
+	c.Logger.Infof("removed downstream caddy proxy at %s", t.Remote.DownstreamProxyURL())
 	return nil
 }

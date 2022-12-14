@@ -59,7 +59,9 @@ func (mt *MultiProtocolTunnel) LastActive() time.Time {
 // Tunnel represents active remote proxy connection
 type Tunnel struct {
 	ID string `json:"id"`
+
 	models.Remote
+	CaddyDownstreamProxyExists bool `json:"caddy_proxy_tunnel_exists,omitempty"`
 
 	TunnelProtocol      `json:"-"`
 	InternalTunnelProxy *InternalTunnelProxy `json:"-"`
@@ -68,6 +70,7 @@ type Tunnel struct {
 
 func NewTunnel(logger *logger.Logger, ssh ssh.Conn, id string, remote models.Remote, acl *TunnelACL) (*Tunnel, error) {
 	logger = logger.Fork("tunnel#%s:%s", id, remote)
+	logger.Debugf("new tunnel with remote = %#v", remote)
 
 	var tunnelProtocol TunnelProtocol
 	switch remote.Protocol {

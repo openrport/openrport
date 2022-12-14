@@ -4,9 +4,8 @@ import (
 	"bufio"
 	"bytes"
 	"context"
-	"errors"
-	"fmt"
 	"io"
+	"log"
 	"os/exec"
 	"strings"
 
@@ -15,12 +14,16 @@ import (
 )
 
 type Server struct {
+	cmd    *exec.Cmd
+	lines  chan string
+	r      *io.PipeReader
+	w      *io.PipeWriter
 	cfg    *Config
 	logger *logger.Logger
 	errCh  chan error
 }
 
-func CheckCaddyExists(path string, filesAPI files.FileAPI) (exists bool, err error) {
+func ExecExists(path string, filesAPI files.FileAPI) (exists bool, err error) {
 	exists, err = filesAPI.Exist(path)
 	if err != nil {
 		return false, err
@@ -29,7 +32,8 @@ func CheckCaddyExists(path string, filesAPI files.FileAPI) (exists bool, err err
 	return exists, nil
 }
 
-func GetServerVersion(ctx context.Context, cfg *Config) (majorVersion int, err error) {
+func GetExecVersion(cfg *Config) (majorVersion int, err error) {
+	ctx := context.Background()
 	cmd := exec.CommandContext(ctx, cfg.ExecPath, "version") // #nosec G204
 
 	var b bytes.Buffer
@@ -54,52 +58,82 @@ func NewCaddyServer(cfg *Config, l *logger.Logger, errCh chan error) (c *Server)
 	return c
 }
 
-func (c *Server) Start(ctx context.Context) {
+func (c *Server) Start(ctx context.Context) (err error) {
 	configParam := c.cfg.MakeBaseConfFilename()
 
 	c.logger.Debugf("caddy exec path: %s", c.cfg.ExecPath)
 	c.logger.Debugf("caddy config: %s", configParam)
 
-	cmd := exec.CommandContext(ctx, c.cfg.ExecPath, "run", "--config", configParam, "--adapter", "caddyfile") // #nosec G204
-	defer func() {
-		c.errCh <- errors.New("caddy server closed")
-	}()
+	c.cmd = exec.CommandContext(ctx, c.cfg.ExecPath, "run", "--config", configParam, "--adapter", "caddyfile") // #nosec G204
 
-	r, w := io.Pipe()
-	cmd.Stdout = w
-	cmd.Stderr = w
+	c.r, c.w = io.Pipe()
+	c.cmd.Stdout = c.w
+	c.cmd.Stderr = c.w
 
-	lines := make(chan string)
+	c.lines = make(chan string)
 
-	go func() {
-		for line := range lines {
-			c.logger.Debugf("log: " + line)
-		}
-	}()
+	go c.readCaddyOutputLines()
+	go c.writeCaddyOutputToLog()
 
-	go func() {
-		defer close(lines)
-		scanner := bufio.NewScanner(r)
-		for scanner.Scan() {
-			lines <- scanner.Text()
-		}
-		if err := scanner.Err(); err != nil {
-			fmt.Printf("scanner err = %+v\n", err)
-		}
-	}()
+	c.logger.Debugf("server starting")
 
-	c.logger.Debugf("server running")
-	err := cmd.Run()
+	err = c.cmd.Start()
 	if err != nil {
-		if strings.Contains(err.Error(), "signal: killed") {
-			c.logger.Infof("server: %v", err)
-		} else {
-			c.logger.Errorf("server error: %v", err)
-		}
+		c.logger.Errorf("caddy server failed to start, reason: %s", err)
+		return err
+	}
 
-		if c.errCh != nil {
+	c.Run()
+	return nil
+}
+
+func (c *Server) Run() {
+	go func() {
+		c.logger.Debugf("running")
+		err := c.cmd.Wait()
+		if err != nil {
+			c.logger.Errorf("caddy server stopping, reason: %s", err)
 			c.errCh <- err
 		}
+	}()
+}
+
+func (c *Server) Wait() (err error) {
+	c.logger.Debugf("watching for errors")
+	err = <-c.errCh
+
+	if strings.Contains(err.Error(), "signal: killed") {
+		// valid shutdown
+		c.logger.Debugf("server: %v", err)
+	} else {
+		// caddy not happy so quit rportd
+		log.Fatalf("caddy server error: %v", err)
 	}
-	c.logger.Debugf("server stopped")
+
+	return err
+}
+
+func (c *Server) Close() (err error) {
+	c.logger.Debugf("close requested")
+	// close the standard io pipes
+	c.r.Close()
+	c.w.Close()
+	return nil
+}
+
+func (c *Server) readCaddyOutputLines() {
+	defer close(c.lines)
+	scanner := bufio.NewScanner(c.r)
+	for scanner.Scan() {
+		c.lines <- scanner.Text()
+	}
+	if err := scanner.Err(); err != nil {
+		c.logger.Debugf("scanner err: %+v\n", err)
+	}
+}
+
+func (c *Server) writeCaddyOutputToLog() {
+	for line := range c.lines {
+		c.logger.Debugf("log: %s", line)
+	}
 }

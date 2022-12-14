@@ -4,6 +4,7 @@ import (
 	"testing"
 
 	"github.com/cloudradar-monitoring/rport/caddy"
+	"github.com/cloudradar-monitoring/rport/share/files"
 	"github.com/cloudradar-monitoring/rport/share/logger"
 
 	mapset "github.com/deckarep/golang-set"
@@ -659,6 +660,8 @@ func TestParseAndValidatePorts(t *testing.T) {
 }
 
 func TestShouldParseAndValidateCaddyIntegration(t *testing.T) {
+	filesAPI := files.NewFileSystem()
+
 	cases := []struct {
 		Name             string
 		CaddyConfig      caddy.Config
@@ -680,7 +683,7 @@ func TestShouldParseAndValidateCaddyIntegration(t *testing.T) {
 		{
 			Name: "no error if all values configured",
 			CaddyConfig: caddy.Config{
-				ExecPath:    "caddy",
+				ExecPath:    "/usr/bin/caddy",
 				HostAddress: "0.0.0.0:443",
 				BaseDomain:  "tunnels.rport.example.com",
 				CertFile:    "/var/lib/rport/wildcard.crt",
@@ -691,7 +694,7 @@ func TestShouldParseAndValidateCaddyIntegration(t *testing.T) {
 		{
 			Name: "error if exec path missing",
 			CaddyConfig: caddy.Config{
-				// ExecPath: "caddy",
+				// ExecPath: "/usr/bin/caddy",
 				HostAddress: "0.0.0.0:443",
 				BaseDomain:  "tunnels.rport.example.com",
 				CertFile:    "/var/lib/rport/wildcard.crt",
@@ -702,7 +705,7 @@ func TestShouldParseAndValidateCaddyIntegration(t *testing.T) {
 		{
 			Name: "error if address missing",
 			CaddyConfig: caddy.Config{
-				ExecPath: "caddy",
+				ExecPath: "/usr/bin/caddy",
 				// HostAddress:   "0.0.0.0:443",
 				BaseDomain: "tunnels.rport.example.com",
 				CertFile:   "/var/lib/rport/wildcard.crt",
@@ -713,7 +716,7 @@ func TestShouldParseAndValidateCaddyIntegration(t *testing.T) {
 		{
 			Name: "error if subdomain missing",
 			CaddyConfig: caddy.Config{
-				ExecPath:    "caddy",
+				ExecPath:    "/usr/bin/caddy",
 				HostAddress: "0.0.0.0:443",
 				// BaseDomain: "tunnels.rport.example.com",
 				CertFile: "/var/lib/rport/wildcard.crt",
@@ -724,7 +727,7 @@ func TestShouldParseAndValidateCaddyIntegration(t *testing.T) {
 		{
 			Name: "error if cert file missing",
 			CaddyConfig: caddy.Config{
-				ExecPath:    "caddy",
+				ExecPath:    "/usr/bin/caddy",
 				HostAddress: "0.0.0.0:443",
 				BaseDomain:  "tunnels.rport.example.com",
 				// CertFile: "/var/lib/rport/wildcard.crt",
@@ -735,7 +738,7 @@ func TestShouldParseAndValidateCaddyIntegration(t *testing.T) {
 		{
 			Name: "error if key file missing",
 			CaddyConfig: caddy.Config{
-				ExecPath:    "caddy",
+				ExecPath:    "/usr/bin/caddy",
 				HostAddress: "0.0.0.0:443",
 				BaseDomain:  "tunnels.rport.example.com",
 				CertFile:    "/var/lib/rport/wildcard.crt",
@@ -746,7 +749,7 @@ func TestShouldParseAndValidateCaddyIntegration(t *testing.T) {
 	}
 	for _, tc := range cases {
 		t.Run(tc.Name, func(t *testing.T) {
-			err := tc.CaddyConfig.ParseAndValidate("datadir")
+			err := tc.CaddyConfig.ParseAndValidate("datadir", filesAPI)
 			if tc.ExpectedErrorStr == "" {
 				if tc.NotConfigured {
 					assert.NoError(t, err)
@@ -774,7 +777,7 @@ func TestShouldValidateAPIDomainBasedAddressIfSharedPorts(t *testing.T) {
 				Caddy: caddy.Config{
 					// Enabled is usually set when validating the subdomain config. However, we aren't
 					// validating it. We're only checking the API domain validation. So manually set
-					// the subdomain config as enabled.
+					// the subdomain config enabled status as required.
 					Enabled:     false,
 					HostAddress: "0.0.0.0:6789",
 				},

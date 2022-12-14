@@ -4,26 +4,58 @@ import (
 	"bytes"
 	"errors"
 	"net"
+	"strings"
 	"text/template"
 
+	"github.com/cloudradar-monitoring/rport/share/files"
+
 	"github.com/aidarkhanov/nanoid/v2"
-	"github.com/cloudradar-monitoring/rport/share/models"
 )
 
 const (
 	baseConfFilename    = "caddy-base.conf"
-	adminDomainSockName = "caddyadmin.sock"
+	adminDomainSockName = "caddy-admin.sock"
 )
 
 var (
 	ErrCaddyExecPathMissing                = errors.New("caddy executable path missing")
+	ErrCaddyExecNotFound                   = errors.New("caddy executable not found")
+	ErrCaddyFailedCheckingExecPath         = errors.New("failed checking caddy exec path")
+	ErrCaddyUnableToGetCaddyServerVersion  = errors.New("failed getting caddy server version")
+	ErrCaddyServerExecutableTooOld         = errors.New("caddy server version too old. please use v2 or later")
 	ErrCaddyTunnelsHostAddressMissing      = errors.New("caddy tunnels address missing")
 	ErrCaddyTunnelsBaseDomainMissing       = errors.New("caddy tunnels subdomain prefix missing")
 	ErrCaddyTunnelsWildcardCertFileMissing = errors.New("caddy tunnels wildcard domains cert file missing")
 	ErrCaddyTunnelsWildcardKeyFileMissing  = errors.New("caddy tunnels wildcard domains key file missing")
+	ErrCaddyUnknownLogLevel                = errors.New("unknown caddy log level")
 )
 
-func (c *Config) ParseAndValidate(serverDataDir string) error {
+type Config struct {
+	ExecPath         string `mapstructure:"caddy"`
+	BaseConfFilename string `mapstructure:"-"`
+	HostAddress      string `mapstructure:"address"`
+	BaseDomain       string `mapstructure:"subdomain_prefix"`
+	CertFile         string `mapstructure:"cert_file"`
+	KeyFile          string `mapstructure:"key_file"`
+	LogLevel         string `mapstructure:"caddy_log_level"`
+	DataDir          string `mapstructure:"-"`
+	Enabled          bool   `mapstructure:"-"`
+
+	SubDomainGenerator SubdomainGenerator
+}
+
+var caddyLogLevels = []string{"Debug", "Info", "Warn", "Error", "Panic", "Fatal"}
+
+func existingCaddyLogLevel(loglevel string) (found bool) {
+	for _, level := range caddyLogLevels {
+		if strings.EqualFold(loglevel, level) {
+			return true
+		}
+	}
+	return false
+}
+
+func (c *Config) ParseAndValidate(serverDataDir string, filesAPI *files.FileSystem) error {
 	// first check if not configured at all
 	if c.ExecPath == "" && c.HostAddress == "" && c.BaseDomain == "" && c.CertFile == "" && c.KeyFile == "" {
 		return nil
@@ -32,6 +64,23 @@ func (c *Config) ParseAndValidate(serverDataDir string) error {
 	if c.ExecPath == "" {
 		return ErrCaddyExecPathMissing
 	}
+
+	exists, err := ExecExists(c.ExecPath, filesAPI)
+	if err != nil {
+		return ErrCaddyFailedCheckingExecPath
+	}
+	if !exists {
+		return ErrCaddyExecNotFound
+	}
+
+	version, err := GetExecVersion(c)
+	if err != nil {
+		return ErrCaddyUnableToGetCaddyServerVersion
+	}
+	if version < 2 {
+		return ErrCaddyServerExecutableTooOld
+	}
+
 	if c.HostAddress == "" {
 		return ErrCaddyTunnelsHostAddressMissing
 	}
@@ -45,18 +94,19 @@ func (c *Config) ParseAndValidate(serverDataDir string) error {
 		return ErrCaddyTunnelsWildcardKeyFileMissing
 	}
 
-	// TODO: (rs): check executable exists at path
-	// TODO: (rs): check executable if greater than v2
-	// TODO: (rs): validate the cert and key files
+	if c.LogLevel != "" && !existingCaddyLogLevel(c.LogLevel) {
+		return ErrCaddyUnknownLogLevel
+	}
 
 	c.DataDir = serverDataDir
 	c.BaseConfFilename = baseConfFilename
-
+	c.SubDomainGenerator = c
 	c.Enabled = true
+
 	return nil
 }
 
-func (c *Config) GetBaseConfText(bc *BaseConfig) (text []byte, err error) {
+func (c *Config) GetBaseConf(bc *BaseConfig) (text []byte, err error) {
 	tmpl := template.New("ALL")
 
 	tmpl, err = tmpl.Parse(globalSettingsTemplate)
@@ -74,7 +124,7 @@ func (c *Config) GetBaseConfText(bc *BaseConfig) (text []byte, err error) {
 		return nil, err
 	}
 
-	tmpl, err = tmpl.Parse(allTemplate)
+	tmpl, err = tmpl.Parse(combinedTemplates)
 	if err != nil {
 		return nil, err
 	}
@@ -101,8 +151,13 @@ func (c *Config) MakeBaseConfig(
 ) (bc *BaseConfig, err error) {
 	adminSocket := c.DataDir + "/" + adminDomainSockName
 
+	logLevel := c.LogLevel
+	if logLevel == "" {
+		logLevel = "info"
+	}
+
 	gs := &GlobalSettings{
-		LogLevel:    "ERROR",
+		LogLevel:    logLevel,
 		AdminSocket: adminSocket,
 	}
 
@@ -118,9 +173,20 @@ func (c *Config) MakeBaseConfig(
 		KeyFile:       c.KeyFile,
 	}
 
-	APIHost, APIPort, err := net.SplitHostPort(APIHostNamePort)
-	if err != nil {
-		return nil, err
+	APIHost := ""
+	APIPort := ""
+	UseAPIProxy := false
+	if APIHostNamePort != "" {
+		APIHost, APIPort, err = net.SplitHostPort(APIHostNamePort)
+		if err != nil {
+			return nil, err
+		}
+		UseAPIProxy = true
+	}
+
+	APITargetScheme := "http"
+	if APICertFile != "" && APIKeyFile != "" {
+		APITargetScheme = "https"
 	}
 
 	APITargetHost, APITargetPort, err := net.SplitHostPort(APIAddress)
@@ -129,36 +195,37 @@ func (c *Config) MakeBaseConfig(
 	}
 
 	arp := &APIReverseProxySettings{
-		CertsFile:     APICertFile,
-		KeyFile:       APIKeyFile,
+		// TODO: (rs): Check with TH about which certs should be used in this scenario?
+		CertsFile: APICertFile,
+		KeyFile:   APIKeyFile,
+		// CertsFile:     c.CertFile,
+		// KeyFile:       c.KeyFile,
+		UseAPIProxy:   UseAPIProxy,
 		ProxyDomain:   APIHost,
 		ProxyPort:     APIPort,
-		APIScheme:     "https",
+		APIScheme:     APITargetScheme,
 		APITargetHost: APITargetHost,
 		APITargetPort: APITargetPort,
-		ProxyLogFile:  "proxy_log_file",
+		// TODO: (rs): decide what to do about this log file
+		ProxyLogFile: "caddy_log_file",
+		// TODO: (rs): don't allow insecure certs by default
+		AllowInsecureCerts: true,
 	}
 
 	bc = &BaseConfig{
 		GlobalSettings:          gs,
-		DefaultVirtualHost:      dvh,
 		APIReverseProxySettings: arp,
+		DefaultVirtualHost:      dvh,
 	}
 
 	return bc, nil
 }
 
-func (c *Config) GetLocalHostURL(subdomain string, remote *models.Remote) (hostURL string) {
-	hostURL = subdomain + "." + c.BaseDomain
-	return hostURL
-}
+const DefaultAlphabet = "0123456789abcdefghijklmnopqrstuvwxyz"
 
-func (c *Config) GetPort() (port string, err error) {
-	_, port, err = net.SplitHostPort(c.HostAddress)
-	return port, err
+type SubdomainGenerator interface {
+	GetRandomSubdomain() (subdomain string, err error)
 }
-
-var DefaultAlphabet = "0123456789ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz"
 
 func (c *Config) GetRandomSubdomain() (subdomain string, err error) {
 	subdomain, err = nanoid.GenerateString(DefaultAlphabet, 21)

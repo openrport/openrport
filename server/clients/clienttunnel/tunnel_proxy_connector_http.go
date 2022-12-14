@@ -23,6 +23,7 @@ func (tc *TunnelProxyConnectorHTTP) InitRouter(router *mux.Router) *mux.Router {
 	router.PathPrefix("/").HandlerFunc(tc.serveHTTP)
 
 	if tc.tunnelProxy.Tunnel.Remote.HostHeader != "" {
+		tc.tunnelProxy.Logger.Debugf("using host header %s", tc.tunnelProxy.Tunnel.HostHeader)
 		router.Use(tc.addHostHeader)
 	}
 

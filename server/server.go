@@ -19,6 +19,7 @@ import (
 
 	"github.com/patrickmn/go-cache"
 
+	"github.com/cloudradar-monitoring/rport/caddy"
 	"github.com/cloudradar-monitoring/rport/db/migration/client_groups"
 	clientsmigration "github.com/cloudradar-monitoring/rport/db/migration/clients"
 	jobsmigration "github.com/cloudradar-monitoring/rport/db/migration/jobs"
@@ -71,6 +72,7 @@ type Server struct {
 	scheduleManager     *schedule.Manager
 	filesAPI            files.FileAPI
 	plusManager         rportplus.Manager
+	caddyServer         *caddy.Server
 }
 
 type ServerOpts struct {
@@ -226,6 +228,22 @@ func NewServer(ctx context.Context, config *chconfig.Config, opts *ServerOpts) (
 		return nil, err
 	}
 
+	if s.config.CaddyEnabled() {
+		cfg := s.config
+		caddyLog := logger.NewLogger("caddy", cfg.Logging.LogOutput, cfg.Logging.LogLevel)
+
+		baseConfig, err := cfg.WriteCaddyBaseConfig(&cfg.Caddy)
+		if err != nil {
+			return nil, err
+		}
+
+		caddy.HostDomainSocket = baseConfig.GlobalSettings.AdminSocket
+
+		errCh := make(chan error)
+		s.caddyServer = caddy.NewCaddyServer(&cfg.Caddy, caddyLog, errCh)
+		s.clientService.SetCaddyAPI(s.caddyServer)
+	}
+
 	return s, nil
 }
 
@@ -260,10 +278,8 @@ func initPrivateKey(seed string) (ssh.Signer, error) {
 }
 
 // Run is responsible for starting the rport service
-func (s *Server) Run() error {
-	ctx := context.Background()
-
-	if err := s.Start(); err != nil {
+func (s *Server) Run(ctx context.Context) error {
+	if err := s.Start(ctx); err != nil {
 		return err
 	}
 
@@ -309,7 +325,7 @@ func (s *Server) Run() error {
 }
 
 // Start is responsible for kicking off the http server
-func (s *Server) Start() error {
+func (s *Server) Start(ctx context.Context) error {
 	s.Logger.Infof("will start server on %s", s.config.Server.ListenAddress)
 	err := s.clientListener.Start(s.config.Server.ListenAddress)
 	if err != nil {
@@ -319,20 +335,37 @@ func (s *Server) Start() error {
 	if s.config.API.Address != "" {
 		err = s.apiListener.Start(s.config.API.Address)
 	}
+
+	if s.config.CaddyEnabled() {
+		err = s.caddyServer.Start(ctx)
+	}
+
 	return err
 }
 
 func (s *Server) Wait() error {
+	// TODO: (rs): if this is refactored to use errgroup.WithContext then if we pass
+	// the derived ctx to the wait routinues then they will cancel cleanly together
+	// if one of them has an error.
 	wg := &errgroup.Group{}
 	wg.Go(s.clientListener.Wait)
 	wg.Go(s.apiListener.Wait)
+	// if caddy configured then also setup a dependencies on the caddy server running
+	if s.config.CaddyEnabled() {
+		wg.Go(s.caddyServer.Wait)
+	}
 	return wg.Wait()
 }
 
 func (s *Server) Close() error {
 	wg := &errgroup.Group{}
+
 	wg.Go(s.clientListener.Close)
 	wg.Go(s.apiListener.Close)
+	if s.config.CaddyEnabled() {
+		wg.Go(s.caddyServer.Close)
+	}
+
 	if s.authDB != nil {
 		wg.Go(s.authDB.Close)
 	}

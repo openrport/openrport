@@ -1,13 +1,5 @@
 package caddy
 
-type NewRouteRequest struct {
-	RouteID                 string
-	TargetTunnelHost        string
-	TargetTunnelPort        string
-	UpstreamProxySubdomain  string
-	UpstreamProxyBaseDomain string
-}
-
 type BaseConfig struct {
 	GlobalSettings          *GlobalSettings
 	DefaultVirtualHost      *DefaultVirtualHost
@@ -28,15 +20,17 @@ type DefaultVirtualHost struct {
 }
 
 type APIReverseProxySettings struct {
-	CertsFile     string
-	KeyFile       string
-	ProxyDomain   string
-	ProxyPort     string
-	APIDomain     string
-	APIScheme     string
-	APITargetHost string
-	APITargetPort string
-	ProxyLogFile  string
+	CertsFile          string
+	KeyFile            string
+	UseAPIProxy        bool
+	ProxyDomain        string
+	ProxyPort          string
+	APIDomain          string
+	APIScheme          string
+	APITargetHost      string
+	APITargetPort      string
+	ProxyLogFile       string
+	AllowInsecureCerts bool
 }
 
 type ExternalReverseProxy struct {
@@ -48,15 +42,4 @@ type ExternalReverseProxy struct {
 	TunnelScheme     string
 	TunnelIPAddress  string
 	TunnelPort       string
-}
-
-type Config struct {
-	ExecPath         string `mapstructure:"caddy"`
-	BaseConfFilename string `mapstructure:"-"`
-	HostAddress      string `mapstructure:"address"`
-	BaseDomain       string `mapstructure:"subdomain_prefix"`
-	CertFile         string `mapstructure:"cert_file"`
-	KeyFile          string `mapstructure:"key_file"`
-	DataDir          string `mapstructure:"-"`
-	Enabled          bool   `mapstructure:"-"`
 }

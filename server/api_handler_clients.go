@@ -343,8 +343,12 @@ func (al *APIListener) handlePutClientTunnel(w http.ResponseWriter, req *http.Re
 		return
 	}
 
+	client.Logger.Debugf("req = %s", req.URL.String())
+
 	localAddr := req.URL.Query().Get("local")
 	remoteAddr := req.URL.Query().Get("remote")
+
+	client.Logger.Debugf("remoteAddr = %s", remoteAddr)
 
 	remoteStr := localAddr + ":" + remoteAddr
 	if localAddr == "" {
@@ -361,6 +365,8 @@ func (al *APIListener) handlePutClientTunnel(w http.ResponseWriter, req *http.Re
 		al.jsonErrorResponseWithTitle(w, http.StatusBadRequest, fmt.Sprintf("failed to decode %q: %v", remoteStr, err))
 		return
 	}
+
+	client.Logger.Debugf("requested remote = %#v", remote)
 
 	name := req.URL.Query().Get("name")
 	if name != "" {
@@ -493,17 +499,24 @@ func (al *APIListener) setTunnelProxyOptionsForRemote(req *http.Request, remote 
 		return apierrors.NewAPIError(http.StatusBadRequest, "", fmt.Sprintf("tunnel proxy not allowed with protcol %s", remote.Protocol), nil)
 	}
 
-	// TODO: (rs): add tests for when use_subdomain specified
 	if useSubdomain {
-		if !al.config.CaddyConfigured() {
-			return apierrors.NewAPIError(http.StatusBadRequest, "", "when using use_subdomain, subdomain tunnels must be configured", nil)
+		if !al.config.CaddyEnabled() {
+			return apierrors.NewAPIError(http.StatusBadRequest, "", "when using use_subdomain, caddy integration must be enabled", nil)
 		}
 		if !isHTTPProxy {
 			return apierrors.NewAPIError(http.StatusBadRequest, "", "when using use_subdomain, http_proxy must be specified", nil)
 		}
+
+		downstreamSubdomain, err := al.config.Caddy.SubDomainGenerator.GetRandomSubdomain()
+		if err != nil {
+			return apierrors.NewAPIError(http.StatusInternalServerError, "", "failed to allocate random subdomain for downstream proxy", err)
+		}
+
+		remote.DownstreamSubdomain = downstreamSubdomain
+		remote.DownstreamBasedomain = al.config.Caddy.BaseDomain
 	}
 
-	remote.UseLocalSubdomain = useSubdomain
+	remote.UseDownstreamSubdomainProxy = useSubdomain
 	remote.HTTPProxy = isHTTPProxy
 
 	hostHeader := req.URL.Query().Get("host_header")

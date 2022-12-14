@@ -320,7 +320,9 @@ func (c *Config) ParseAndValidate(mLog *logger.MemLogger) error {
 		return err
 	}
 
-	if err := c.Caddy.ParseAndValidate(c.Server.DataDir); err != nil {
+	filesAPI := files.NewFileSystem()
+
+	if err := c.Caddy.ParseAndValidate(c.Server.DataDir, filesAPI); err != nil {
 		return err
 	}
 
@@ -464,16 +466,15 @@ func (c *Config) validateAPIWhenCaddyIntegration() (err error) {
 	return nil
 }
 
-func (c *Config) WriteCaddyBaseConfig(caddyConfig *caddy.Config) (err error) {
-	bc, err := caddyConfig.MakeBaseConfig(c.API.CertFile, c.API.KeyFile, c.API.Address, c.API.DomainBasedAddress)
+func (c *Config) WriteCaddyBaseConfig(caddyConfig *caddy.Config) (bc *caddy.BaseConfig, err error) {
+	bc, err = caddyConfig.MakeBaseConfig(c.API.CertFile, c.API.KeyFile, c.API.Address, c.API.DomainBasedAddress)
 	if err != nil {
-		return err
+		return nil, err
 	}
 
-	// TODO: (rs): Remove Text part of the GetBaseConfText name
-	baseConfigBytes, err := caddyConfig.GetBaseConfText(bc)
+	baseConfigBytes, err := caddyConfig.GetBaseConf(bc)
 	if err != nil {
-		return err
+		return nil, err
 	}
 
 	filename := caddyConfig.MakeBaseConfFilename()
@@ -481,23 +482,20 @@ func (c *Config) WriteCaddyBaseConfig(caddyConfig *caddy.Config) (err error) {
 	err = os.Remove(filename)
 	if err != nil {
 		if !errors.Is(err, os.ErrNotExist) {
-			return err
+			return nil, err
 		}
 	}
 
-	err = os.WriteFile(filename, baseConfigBytes, 0600)
+	err = os.WriteFile(filename, baseConfigBytes, 0400)
 	if err != nil {
-		return err
+		return nil, err
 	}
 
-	return nil
+	return bc, nil
 }
 
-func (c *Config) CaddyConfigured() bool {
-	if c.Caddy.Enabled {
-		return true
-	}
-	return false
+func (c *Config) CaddyEnabled() bool {
+	return c.Caddy.Enabled
 }
 
 func matchingPorts(address1 string, address2 string) (matching bool, err error) {
