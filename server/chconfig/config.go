@@ -461,8 +461,6 @@ func (c *Config) validateAPIWhenCaddyIntegration() (err error) {
 		}
 	}
 
-	// TODO: (rs): check the api cert files match the api_domain?
-
 	return nil
 }
 

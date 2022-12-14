@@ -54,6 +54,7 @@ type Remote struct {
 	UseDownstreamSubdomainProxy bool          `json:"use_downstream_subdomain_proxy,omitempty"`
 	DownstreamSubdomain         string        `json:"downstream_subdomain,omitempty"`
 	DownstreamBasedomain        string        `json:"downstream_basedomain,omitempty"`
+	TunnelURL                   string        `json:"tunnel_url"`
 }
 
 func NewRemote(s string) (*Remote, error) {
@@ -125,12 +126,6 @@ func (r Remote) String() string {
 		s += "(acl:" + *r.ACL + ")"
 	}
 	return s
-}
-
-// TODO: (rs): remove if no longer required
-func (r *Remote) ToString() string {
-	str := *r.Scheme + "://" + r.LocalHost + ":" + r.LocalPort + ":" + r.Remote()
-	return str
 }
 
 func (r *Remote) Remote() string {
