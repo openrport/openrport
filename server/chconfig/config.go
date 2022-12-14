@@ -321,8 +321,9 @@ func (c *Config) ParseAndValidate(mLog *logger.MemLogger) error {
 	}
 
 	filesAPI := files.NewFileSystem()
+	serverLogLevel := c.Logging.LogLevel.String()
 
-	if err := c.Caddy.ParseAndValidate(c.Server.DataDir, filesAPI); err != nil {
+	if err := c.Caddy.ParseAndValidate(c.Server.DataDir, serverLogLevel, filesAPI); err != nil {
 		return err
 	}
 

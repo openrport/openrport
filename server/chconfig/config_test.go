@@ -749,7 +749,7 @@ func TestShouldParseAndValidateCaddyIntegration(t *testing.T) {
 	}
 	for _, tc := range cases {
 		t.Run(tc.Name, func(t *testing.T) {
-			err := tc.CaddyConfig.ParseAndValidate("datadir", filesAPI)
+			err := tc.CaddyConfig.ParseAndValidate("datadir", "info", filesAPI)
 			if tc.ExpectedErrorStr == "" {
 				if tc.NotConfigured {
 					assert.NoError(t, err)

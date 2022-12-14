@@ -37,7 +37,7 @@ type Config struct {
 	BaseDomain       string `mapstructure:"subdomain_prefix"`
 	CertFile         string `mapstructure:"cert_file"`
 	KeyFile          string `mapstructure:"key_file"`
-	LogLevel         string `mapstructure:"caddy_log_level"`
+	LogLevel         string `mapstructure:"-"`
 	DataDir          string `mapstructure:"-"`
 	Enabled          bool   `mapstructure:"-"`
 
@@ -55,7 +55,7 @@ func existingCaddyLogLevel(loglevel string) (found bool) {
 	return false
 }
 
-func (c *Config) ParseAndValidate(serverDataDir string, filesAPI *files.FileSystem) error {
+func (c *Config) ParseAndValidate(serverDataDir string, serverLogLevel string, filesAPI *files.FileSystem) error {
 	// first check if not configured at all
 	if c.ExecPath == "" && c.HostAddress == "" && c.BaseDomain == "" && c.CertFile == "" && c.KeyFile == "" {
 		return nil
@@ -94,6 +94,7 @@ func (c *Config) ParseAndValidate(serverDataDir string, filesAPI *files.FileSyst
 		return ErrCaddyTunnelsWildcardKeyFileMissing
 	}
 
+	c.LogLevel = serverLogLevel
 	if c.LogLevel != "" && !existingCaddyLogLevel(c.LogLevel) {
 		return ErrCaddyUnknownLogLevel
 	}
