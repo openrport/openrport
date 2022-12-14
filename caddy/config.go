@@ -196,11 +196,8 @@ func (c *Config) MakeBaseConfig(
 	}
 
 	arp := &APIReverseProxySettings{
-		// TODO: (rs): Check with TH about which certs should be used in this scenario?
-		CertsFile: APICertFile,
-		KeyFile:   APIKeyFile,
-		// CertsFile:     c.CertFile,
-		// KeyFile:       c.KeyFile,
+		CertsFile:     APICertFile,
+		KeyFile:       APIKeyFile,
 		UseAPIProxy:   UseAPIProxy,
 		ProxyDomain:   APIHost,
 		ProxyPort:     APIPort,
