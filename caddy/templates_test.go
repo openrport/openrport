@@ -111,7 +111,6 @@ func TestShouldMakeAPIReverseProxySettingsText(t *testing.T) {
 		APIScheme:     "api_scheme",
 		APITargetHost: "api_ip_address",
 		APITargetPort: "api_port",
-		ProxyLogFile:  "proxy_log_file",
 	}
 
 	var b bytes.Buffer
@@ -163,7 +162,6 @@ func TestShouldMakeAll(t *testing.T) {
 		APIScheme:     "api_scheme",
 		APITargetHost: "api_ip_address",
 		APITargetPort: "api_port",
-		ProxyLogFile:  "proxy_log_file",
 	}
 
 	c := BaseConfig{

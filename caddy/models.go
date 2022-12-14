@@ -29,7 +29,6 @@ type APIReverseProxySettings struct {
 	APIScheme          string
 	APITargetHost      string
 	APITargetPort      string
-	ProxyLogFile       string
 	AllowInsecureCerts bool
 }
 
