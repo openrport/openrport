@@ -211,11 +211,8 @@ func (c *Client) connectionLoop(ctx context.Context) {
 		err := c.sendConnectionRequest(ctx, sshConn.Connection)
 		if err != nil {
 			cancelSwitchback()
-			if _, ok := err.(retryableError); ok {
-				connerr = err
-				continue
-			}
-			break
+			connerr = err
+			continue
 		}
 
 		b.Reset()
@@ -242,9 +239,6 @@ func (c *Client) connectionLoop(ctx context.Context) {
 	close(c.runningc)
 }
 
-type retryableError struct {
-	error
-}
 type sshClientConn struct {
 	Connection ssh.Conn
 	Channels   <-chan ssh.NewChannel
@@ -260,7 +254,7 @@ func (c *Client) connectToMainOrFallback() (conn *sshClientConn, isPrimary bool,
 		}
 		return conn, i == 0, nil
 	}
-	return nil, false, retryableError{err}
+	return nil, false, err
 }
 
 func (c *Client) connect(server string) (*sshClientConn, error) {
@@ -304,7 +298,7 @@ func (c *Client) connect(server string) (*sshClientConn, error) {
 			}
 			socksDialer, err := proxy.SOCKS5("tcp", c.configHolder.Client.ProxyURL.Host, auth, netDialer)
 			if err != nil {
-				return nil, retryableError{err}
+				return nil, err
 			}
 			d.NetDialContext = socksDialer.(proxy.ContextDialer).DialContext
 		} else {
@@ -316,7 +310,7 @@ func (c *Client) connect(server string) (*sshClientConn, error) {
 	}
 	wsConn, _, err := d.Dial(server, c.configHolder.Connection.HTTPHeaders)
 	if err != nil {
-		return nil, retryableError{ConnectionErrorHints(server, c.Logger, err)}
+		return nil, ConnectionErrorHints(server, c.Logger, err)
 	}
 	conn := chshare.NewWebSocketConn(wsConn)
 	// perform SSH handshake on net.Conn
@@ -325,7 +319,7 @@ func (c *Client) connect(server string) (*sshClientConn, error) {
 	if err != nil {
 		if strings.Contains(err.Error(), "unable to authenticate") {
 			c.Errorf("Authentication failed")
-			return nil, retryableError{err}
+			return nil, err
 		}
 		return nil, err
 	}
@@ -351,7 +345,7 @@ func (c *Client) sendConnectionRequest(ctx context.Context, sshConn ssh.Conn) er
 	t0 := time.Now()
 	replyOk, respBytes, err := comm.SendRequestWithTimeout(sshConn, "new_connection", true, req, ConnectionTimeout)
 	if err != nil {
-		return retryableError{err}
+		return err
 	}
 	c.Debugf("Connection request has been answered successfully.")
 	if !replyOk {
@@ -362,7 +356,7 @@ func (c *Client) sendConnectionRequest(ctx context.Context, sshConn ssh.Conn) er
 			if closeErr := sshConn.Close(); closeErr != nil {
 				c.Errorf(closeErr.Error())
 			}
-			return retryableError{errors.New("client is already connected or previous session was not properly closed")}
+			return errors.New("client is already connected or previous session was not properly closed")
 		}
 
 		return errors.New(msg)
