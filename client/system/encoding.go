@@ -6,6 +6,8 @@ import (
 
 	"golang.org/x/text/encoding"
 	"golang.org/x/text/encoding/ianaindex"
+
+	chshare "github.com/cloudradar-monitoring/rport/share"
 )
 
 var (
@@ -16,6 +18,10 @@ var (
 		"65001": "utf-8",
 		"1252":  "windows-1252",
 	}
+
+	detectEncodingCmd              = []string{"/c", "chcp"}
+	detectEncodingPowershellInput  = []string{"-Command", "[System.Text.Encoding]::Default.CodePage"}
+	detectEncodingPowershellOutput = []string{"-Command", "[Console]::OutputEncoding.CodePage"}
 )
 
 func detectEncodingByCHCPOutput(chcpOut string) (encoding.Encoding, error) {
@@ -50,4 +56,15 @@ func getIANAByCodePage(codePage string) string {
 	}
 
 	return codePage
+}
+
+func detectEncodingCommand(interpreter Interpreter) ([]string, []string) {
+	switch {
+	case interpreter.Matches(chshare.CmdShell, false):
+		return detectEncodingCmd, nil // nil output encoding implies it's the same as input
+	case interpreter.Matches(chshare.PowerShell, false):
+		return detectEncodingPowershellInput, detectEncodingPowershellOutput
+	default:
+		return nil, nil
+	}
 }

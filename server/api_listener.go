@@ -47,6 +47,8 @@ const (
 
 type APIListener struct {
 	*logger.Logger
+	errResponseLogger *logger.Logger
+
 	*Server
 
 	fingerprint       string
@@ -191,6 +193,8 @@ func NewAPIListener(
 		storedTunnels:     storedtunnels.New(server.clientDB),
 	}
 
+	a.errResponseLogger = server.Logger.Fork("error-response")
+
 	if config.API.IsTwoFAOn() {
 		var msgSrv message.Service
 		switch config.API.TwoFATokenDelivery {
@@ -324,6 +328,7 @@ func (al *APIListener) Close() error {
 }
 
 var ErrTooManyRequests = errors.New("too many requests, please try later")
+var ErrThatPasswordHasExpired = errors.New("password has expired, please change your password")
 
 // lookupUser is used to get the user on every request in auth middleware
 func (al *APIListener) lookupUser(r *http.Request, isBearerOnly bool) (authorized bool, username string, err error) {
@@ -366,6 +371,10 @@ func (al *APIListener) handleBasicAuth(username, password string) (authorized bo
 	}
 	if user == nil {
 		return false, username, nil
+	}
+
+	if user.PasswordExpired != nil && *user.PasswordExpired {
+		return false, username, ErrThatPasswordHasExpired
 	}
 
 	// skip basic auth with password when 2fa is enabled

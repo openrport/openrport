@@ -341,10 +341,11 @@ func TestHandleFileUploads(t *testing.T) {
 			al := APIListener{
 				insecureForTests: true,
 				Server: &Server{
-					clientService: NewClientService(
+					clientService: clients.NewClientService(
 						nil,
 						nil,
 						clients.NewClientRepository([]*clients.Client{cl}, &hour, testLog),
+						testLog,
 					),
 					clientGroupProvider: mockClientGroupProvider{},
 					config: &chconfig.Config{

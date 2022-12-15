@@ -56,7 +56,7 @@ type Server struct {
 	clientListener      *ClientListener
 	apiListener         *APIListener
 	config              *chconfig.Config
-	clientService       ClientService
+	clientService       clients.ClientService
 	clientDB            *sqlx.DB
 	clientAuthProvider  clientsauth.Provider
 	jobProvider         JobProvider
@@ -171,7 +171,7 @@ func NewServer(ctx context.Context, config *chconfig.Config, opts *ServerOpts) (
 		keepDisconnectedClients = &config.Server.KeepDisconnectedClients
 	}
 
-	s.clientService, err = InitClientService(
+	s.clientService, err = clients.InitClientService(
 		ctx,
 		&s.config.Server.TunnelProxyConfig,
 		ports.NewPortDistributor(config.AllowedPorts()),

@@ -19,7 +19,7 @@ type ClientsStatusCheckTask struct {
 // NewClientsStatusCheckTask pings all active clients and marks them disconnected on ping failure
 func NewClientsStatusCheckTask(log *logger.Logger, cr *clients.ClientRepository, th time.Duration, pingTimeout time.Duration) *ClientsStatusCheckTask {
 	return &ClientsStatusCheckTask{
-		log:         log.Fork("ClientsStatusCheck"),
+		log:         log.Fork("clients-status-check"),
 		cr:          cr,
 		th:          th,
 		pingTimeout: pingTimeout,
@@ -50,15 +50,15 @@ func (t *ClientsStatusCheckTask) Run(ctx context.Context) error {
 	if maxWorkers > len(dueClients) {
 		maxWorkers = len(dueClients)
 	}
-	jobs := make(chan *clients.Client, len(dueClients))
+	clientsToPing := make(chan *clients.Client, len(dueClients))
 	results := make(chan bool, len(dueClients))
 	for w := 1; w <= maxWorkers; w++ {
-		go t.PingClients(jobs, results)
+		go t.PingClients(clientsToPing, results)
 	}
 	for _, dueClient := range dueClients {
-		jobs <- dueClient
+		clientsToPing <- dueClient
 	}
-	close(jobs)
+	close(clientsToPing)
 	var dead = 0
 	var alive = 0
 	for a := 0; a < len(dueClients); a++ {
@@ -72,29 +72,31 @@ func (t *ClientsStatusCheckTask) Run(ctx context.Context) error {
 	return nil
 }
 
-func (t *ClientsStatusCheckTask) PingClients(jobs <-chan *clients.Client, results chan<- bool) {
-	for j := range jobs {
-		ok, response, rtt, err := comm.PingConnectionWithTimeout(j.Connection, t.pingTimeout)
+func (t *ClientsStatusCheckTask) PingClients(clientsToPing <-chan *clients.Client, results chan<- bool) {
+	for cl := range clientsToPing {
+		ok, response, rtt, err := comm.PingConnectionWithTimeout(cl.Connection, t.pingTimeout)
 		//t.log.Debugf("ok=%s, error=%s, response=%s", ok, err, response)
 		var now = time.Now()
 		//Old clients cannot respond properly to a ping request yet
 		if !ok && err == nil && string(response) == "unknown request" {
-			t.log.Debugf("ping to %s [%s] succeeded in %s. client < 0.8.2", j.Name, j.ID, rtt)
-			j.LastHeartbeatAt = &now
+			t.log.Debugf("ping to %s [%s] succeeded in %s. client < 0.8.2", cl.Name, cl.ID, rtt)
+			cl.LastHeartbeatAt = &now
 			results <- true
 			continue
 		}
 		// Only an empty response confirms the ping
 		if ok && err == nil && len(response) == 0 {
-			t.log.Debugf("ping to %s [%s] succeeded in %s. client >= 0.8.2", j.Name, j.ID, rtt)
-			j.LastHeartbeatAt = &now
+			t.log.Debugf("ping to %s [%s] succeeded in %s. client >= 0.8.2", cl.Name, cl.ID, rtt)
+			cl.LastHeartbeatAt = &now
 			results <- true
 			continue
 		}
 		// None of the above. Ping must have failed or timed out.
-		t.log.Infof("ping to %s [%s] failed: %s", j.Name, j.ID, err)
-		j.DisconnectedAt = &now
-		j.Close()
+		t.log.Infof("ping to %s [%s] failed: %s", cl.Name, cl.ID, err)
+
+		cl.SetDisconnected(&now)
+
+		cl.Close()
 		results <- false
 	}
 }

@@ -21,7 +21,6 @@ import (
 	"github.com/shirou/gopsutil/host"
 	"golang.org/x/crypto/ssh"
 	"golang.org/x/net/proxy"
-	"golang.org/x/text/encoding"
 
 	"github.com/cloudradar-monitoring/rport/client/monitoring"
 	"github.com/cloudradar-monitoring/rport/client/system"
@@ -32,6 +31,8 @@ import (
 	"github.com/cloudradar-monitoring/rport/share/logger"
 	"github.com/cloudradar-monitoring/rport/share/models"
 )
+
+const ConnectionTimeout = 10 * time.Second
 
 // Client represents a client instance
 type Client struct {
@@ -49,14 +50,12 @@ type Client struct {
 	updates            *updates.Updates
 	monitor            *monitoring.Monitor
 	serverCapabilities *models.Capabilities
-	consoleDecoder     *encoding.Decoder
 	filesAPI           files.FileAPI
 	watchdog           *Watchdog
 }
 
 // NewClient creates a new client instance
 func NewClient(config *ClientConfigHolder, filesAPI files.FileAPI) (*Client, error) {
-	ctx := context.Background()
 	// Generate a session id that will not change while the client is running
 	// This allows the server to resume sessions.
 	sessionID, err := random.UUID4()
@@ -93,16 +92,6 @@ func NewClient(config *ClientConfigHolder, filesAPI files.FileAPI) (*Client, err
 		Timeout:         30 * time.Second,
 	}
 
-	enc, err := system.DetectConsoleEncoding(ctx)
-	if err != nil {
-		logger.Errorf("could not detect console encoding, using UTF-8...: %v", err)
-	}
-
-	if enc != nil {
-		logger.Infof("Console encoding detected as: %s", enc)
-		client.consoleDecoder = enc.NewDecoder()
-	}
-
 	return client, nil
 }
 
@@ -122,7 +111,7 @@ func (c *Client) verifyServer(hostname string, remote net.Addr, key ssh.PublicKe
 		return fmt.Errorf("invalid fingerprint (%s)", got)
 	}
 	//overwrite with complete fingerprint
-	c.Infof("Fingerprint %s", got)
+	c.Infof("Server's full fingerprint %s", got)
 	return nil
 }
 
@@ -131,7 +120,7 @@ func (c *Client) Start(ctx context.Context) error {
 
 	//optional keepalive loop
 	if c.configHolder.Connection.KeepAlive > 0 {
-		c.Infof("Keepalive job started with interval %s", c.configHolder.Connection.KeepAlive)
+		c.Infof("Keepalive job (client to server ping) started with interval %s", c.configHolder.Connection.KeepAlive)
 		go c.keepAliveLoop()
 	}
 	//connection loop
@@ -148,7 +137,7 @@ func (c *Client) keepAliveLoop() {
 		if c.sshConn != nil {
 			ok, _, rtt, err := comm.PingConnectionWithTimeout(c.sshConn, c.configHolder.Connection.KeepAliveTimeout)
 			if err != nil || !ok {
-				c.Errorf("failed to send ping: %s", err)
+				c.Errorf("Failed to send keepalive (client to server ping): %s", err)
 				c.sshConn.Close()
 			} else {
 				msg := fmt.Sprintf("ping to %s succeeded within %s", c.sshConn.RemoteAddr(), rtt)
@@ -366,12 +355,14 @@ func (c *Client) sendConnectionRequest(ctx context.Context, sshConn ssh.Conn) er
 	if err != nil {
 		return fmt.Errorf("could not encode connection request: %v", err)
 	}
-	c.Debugf("Sending connection request: %+v", string(req))
+	c.Infof("Sending connection request.")
+	c.Debugf("Sending connection request with client details %s", string(req))
 	t0 := time.Now()
-	replyOk, respBytes, err := sshConn.SendRequest("new_connection", true, req)
+	replyOk, respBytes, err := comm.SendRequestWithTimeout(sshConn, "new_connection", true, req, ConnectionTimeout)
 	if err != nil {
-		return fmt.Errorf("connection request verification failed: %v", err)
+		return retryableError{err}
 	}
+	c.Debugf("Connection request has been answered successfully.")
 	if !replyOk {
 		msg := string(respBytes)
 
@@ -380,7 +371,7 @@ func (c *Client) sendConnectionRequest(ctx context.Context, sshConn ssh.Conn) er
 			if closeErr := sshConn.Close(); closeErr != nil {
 				c.Errorf(closeErr.Error())
 			}
-			return retryableError{errors.New(msg)}
+			return retryableError{errors.New("client is already connected or previous session was not properly closed")}
 		}
 
 		return errors.New(msg)
@@ -390,11 +381,11 @@ func (c *Client) sendConnectionRequest(ctx context.Context, sshConn ssh.Conn) er
 	if err != nil {
 		return fmt.Errorf("can't decode reply payload: %s", err)
 	}
-	msg := fmt.Sprintf("connected to %s within %s", sshConn.RemoteAddr().String(), time.Since(t0))
+	msg := fmt.Sprintf("Connected to %s within %s", sshConn.RemoteAddr().String(), time.Since(t0))
 	c.watchdog.Ping(WatchdogStateConnected, msg)
 	c.Infof(msg)
 	for _, r := range remotes {
-		c.Infof("new tunnel: %s", r.String())
+		c.Infof("New tunnel: %s", r.String())
 
 		serverStr := r.Local()
 		if r.HTTPProxy {
@@ -509,13 +500,16 @@ func (c *Client) showConnectionError(connerr error, attempt int) {
 	//show error and attempt counts
 	msg := fmt.Sprintf("Connection error: %s", connerr)
 	if attempt > 0 {
-		msg += fmt.Sprintf(" (Attempt: %d", attempt)
-		if maxAttempt > 0 {
-			msg += fmt.Sprintf("/%d", maxAttempt)
+		maxAttemptStr := fmt.Sprint(maxAttempt)
+		if maxAttempt < 0 {
+			maxAttemptStr = "∞"
 		}
-		msg += ")"
+		msg += fmt.Sprintf(" (Attempt: %d of %s)", attempt, maxAttemptStr)
 	}
 	c.Errorf(msg)
+	if strings.Contains(msg, "previous session was not properly closed") {
+		c.Infof("Server will clean up orphaned sessions within its {check_clients_connection_interval} automatically.")
+	}
 }
 
 // Wait blocks while the client is running.

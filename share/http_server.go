@@ -5,6 +5,7 @@ import (
 	"errors"
 	"net"
 	"net/http"
+	"time"
 )
 
 type ServerOption func(*HTTPServer)
@@ -31,7 +32,7 @@ type HTTPServer struct {
 // NewHTTPServer creates a new HTTPServer
 func NewHTTPServer(maxHeaderBytes int, options ...ServerOption) *HTTPServer {
 	s := &HTTPServer{
-		Server:   &http.Server{MaxHeaderBytes: maxHeaderBytes},
+		Server:   &http.Server{MaxHeaderBytes: maxHeaderBytes, ReadHeaderTimeout: 5 * time.Second},
 		listener: nil,
 		running:  make(chan error, 1),
 	}

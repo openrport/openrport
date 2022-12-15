@@ -21,8 +21,9 @@ func TestLogger(t *testing.T) {
 	logger.Errorf("Error %s", "Error")
 
 	log, err := os.ReadFile(logfile)
+
 	require.NoError(t, err, "error reading log file")
-	assert.Contains(t, string(log), "test: Debug Debug")
-	assert.Contains(t, string(log), "test: Info Info")
-	assert.Contains(t, string(log), "test: Error Error")
+	assert.Contains(t, string(log), "debug: test: Debug Debug")
+	assert.Contains(t, string(log), "info: test: Info Info")
+	assert.Contains(t, string(log), "error: test: Error Error")
 }

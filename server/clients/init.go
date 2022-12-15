@@ -5,8 +5,8 @@ import (
 	"fmt"
 )
 
-// GetInitState returns an initial Client Repository state populated with clients from the internal storage.
-func GetInitState(ctx context.Context, p ClientProvider) ([]*Client, error) {
+// LoadInitialClients returns an initial Client Repository state populated with clients from the internal storage.
+func LoadInitialClients(ctx context.Context, p ClientStore) ([]*Client, error) {
 	all, err := p.GetAll(ctx)
 	if err != nil {
 		return nil, fmt.Errorf("failed to get clients: %v", err)
@@ -16,7 +16,7 @@ func GetInitState(ctx context.Context, p ClientProvider) ([]*Client, error) {
 	now := now()
 	for _, cur := range all {
 		if cur.DisconnectedAt == nil {
-			cur.DisconnectedAt = &now
+			cur.SetDisconnected(&now)
 			err := p.Save(ctx, cur)
 			if err != nil {
 				return nil, fmt.Errorf("failed to save client: %v", err)

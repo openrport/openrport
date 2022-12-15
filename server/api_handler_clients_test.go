@@ -39,7 +39,7 @@ func TestHandleGetClient(t *testing.T) {
 	al := APIListener{
 		insecureForTests: true,
 		Server: &Server{
-			clientService: NewClientService(nil, nil, clients.NewClientRepository([]*clients.Client{c1}, &hour, testLog)),
+			clientService: clients.NewClientService(nil, nil, clients.NewClientRepository([]*clients.Client{c1}, &hour, testLog), testLog),
 			config: &chconfig.Config{
 				Server: chconfig.ServerConfig{MaxRequestBytes: 1024 * 1024},
 			},
@@ -174,7 +174,7 @@ func TestHandleGetClients(t *testing.T) {
 	al := APIListener{
 		insecureForTests: true,
 		Server: &Server{
-			clientService: NewClientService(nil, nil, clients.NewClientRepository([]*clients.Client{c1, c2}, &hour, testLog)),
+			clientService: clients.NewClientService(nil, nil, clients.NewClientRepository([]*clients.Client{c1, c2}, &hour, testLog), testLog),
 			config: &chconfig.Config{
 				Server: chconfig.ServerConfig{MaxRequestBytes: 1024 * 1024},
 			},
@@ -361,7 +361,7 @@ type SimpleMockClientService struct {
 	ExpectedIDs   []string
 	ActiveClients []*clients.Client
 
-	*ClientServiceProvider
+	*clients.ClientServiceProvider
 }
 
 func (mcs *SimpleMockClientService) GetActiveByID(id string) (*clients.Client, error) {

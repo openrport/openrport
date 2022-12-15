@@ -2,7 +2,6 @@ package clients
 
 import (
 	"context"
-	"fmt"
 	"strconv"
 	"sync"
 	"sync/atomic"
@@ -13,7 +12,6 @@ import (
 	"github.com/cloudradar-monitoring/rport/server/api/users"
 	"github.com/cloudradar-monitoring/rport/server/cgroups"
 	"github.com/cloudradar-monitoring/rport/server/clients/clienttunnel"
-	"github.com/cloudradar-monitoring/rport/server/ports"
 	"github.com/cloudradar-monitoring/rport/share/clientconfig"
 	"github.com/cloudradar-monitoring/rport/share/logger"
 	"github.com/cloudradar-monitoring/rport/share/models"
@@ -69,8 +67,8 @@ type Client struct {
 	ClientConfiguration *clientconfig.Config  `json:"client_configuration"`
 
 	Connection ssh.Conn        `json:"-"`
-	Context    context.Context `json:"-"`
 	Logger     *logger.Logger  `json:"-"`
+	Context    context.Context `json:"-"`
 
 	lock sync.Mutex
 }
@@ -80,6 +78,18 @@ type CalculatedClient struct {
 	*Client
 	Groups          []string        `json:"groups"`
 	ConnectionState ConnectionState `json:"connection_state"`
+}
+
+func (c *Client) SetConnected() {
+	c.Logger.Debugf("%s: set to connected at %s", c.ID, time.Now())
+	c.DisconnectedAt = nil
+}
+
+func (c *Client) SetDisconnected(at *time.Time) {
+	if c.Logger != nil {
+		c.Logger.Debugf("%s: set to disconnected at %s", c.ID, *at)
+	}
+	c.DisconnectedAt = at
 }
 
 func (c *Client) ToCalculated(allGroups []*cgroups.ClientGroup) *CalculatedClient {
@@ -111,155 +121,16 @@ func (c *Client) Unlock() {
 	c.lock.Unlock()
 }
 
-func (c *Client) FindTunnelByRemote(r *models.Remote) *clienttunnel.Tunnel {
-	for _, curr := range c.Tunnels {
-		if curr.Equals(r) {
-			return curr
-		}
-	}
-	return nil
-}
-
-func (c *Client) StartTunnel(r *models.Remote, acl *clienttunnel.TunnelACL, tunnelProxyConfig *clienttunnel.TunnelProxyConfig, portDistributor *ports.PortDistributor) (*clienttunnel.Tunnel, error) {
-	t := c.FindTunnelByRemote(r)
-	if t != nil {
-		return t, nil
-	}
-
-	startTunnelProxy := tunnelProxyConfig.Enabled && r.HTTPProxy
-	proxyHost := ""
-	proxyPort := ""
-	var proxyACL *clienttunnel.TunnelACL
-	if startTunnelProxy {
-		proxyHost = r.LocalHost
-		proxyPort = r.LocalPort
-		proxyACL = acl
-		r.LocalHost = clienttunnel.LocalHost
-		port, err := portDistributor.GetRandomPort(r.Protocol)
-		if err != nil {
-			return nil, err
-		}
-		r.LocalPort = strconv.Itoa(port)
-		acl, _ = clienttunnel.ParseTunnelACL(clienttunnel.LocalHost) // access to tunnel is only allowed from localhost
-	}
-
-	tunnelID := strconv.FormatInt(c.generateNewTunnelID(), 10)
-	t, err := clienttunnel.NewTunnel(c.Logger, c.Connection, tunnelID, *r, acl)
-	if err != nil {
-		return nil, err
-	}
-
-	ctx := c.Context
-	if r.AutoClose > 0 {
-		// no need to cancel the ctx since it will be canceled by parent ctx or after given timeout
-		ctx, _ = context.WithTimeout(ctx, r.AutoClose) // nolint: govet
-	}
-
-	err = t.Start(ctx)
-	if err != nil {
-		return nil, err
-	}
-
-	// start tunnel proxy
-	if startTunnelProxy {
-		tProxy := clienttunnel.NewTunnelProxy(t, c.Logger, tunnelProxyConfig, proxyHost, proxyPort, proxyACL)
-		if err := tProxy.Start(ctx); err != nil {
-			c.Logger.Debugf("tunnel proxy could not be started, tunnel must be terminated: %v", err)
-			if tErr := t.Terminate(true); tErr != nil {
-				return nil, tErr
-			}
-			return nil, fmt.Errorf("tunnel started and terminated because of tunnel proxy start error")
-		}
-
-		t.Proxy = tProxy
-		t.Remote.LocalHost = t.Proxy.Host
-		t.Remote.LocalPort = t.Proxy.Port
-	}
-
-	// in case tunnel auto-closed due to auto close - run background task to remove the tunnel from the list
-	// TODO: consider to create a separate background task to terminate all inactive tunnels based on some deadline/lastActivity time
-	if t.AutoClose > 0 {
-		go func() {
-			<-ctx.Done()
-			// DeadlineExceeded err is expected when tunnel AutoClose period is reached, otherwise skip cleanup
-			if ctx.Err() == context.DeadlineExceeded {
-				c.cleanupAfterAutoClose(t)
-			}
-		}()
-	}
-	if t.IdleTimeoutMinutes > 0 {
-		idleTimeout := time.Duration(t.IdleTimeoutMinutes) * time.Minute
-		go func() {
-			timer := time.NewTimer(idleTimeout)
-			for {
-				select {
-				case <-ctx.Done():
-					if !timer.Stop() {
-						<-timer.C
-					}
-					return
-				case <-timer.C:
-					sinceLastActive := time.Since(t.LastActive())
-					if sinceLastActive > idleTimeout {
-						c.Logger.Infof("Terminating... inactivity period is reached: %d minute(s)", t.IdleTimeoutMinutes)
-						_ = t.Terminate(true)
-						c.cleanupAfterAutoClose(t)
-						return
-					}
-					timer.Reset(idleTimeout - sinceLastActive)
-				}
-			}
-		}()
-	}
-
-	c.Tunnels = append(c.Tunnels, t)
-	return t, nil
-}
-
-func (c *Client) cleanupAfterAutoClose(t *clienttunnel.Tunnel) {
-	c.Lock()
-	defer c.Unlock()
-
-	//stop tunnel proxy
-	if t.Proxy != nil {
-		if err := t.Proxy.Stop(c.Context); err != nil {
-			c.Logger.Errorf("error while stopping tunnel proxy: %v", err)
-		}
-	}
-
-	c.removeTunnelByID(t.ID)
-	c.Logger.Debugf("tunnel with id=%s removed", t.ID)
-}
-
-func (c *Client) TerminateTunnel(t *clienttunnel.Tunnel, force bool) error {
-	c.Logger.Infof("Terminating tunnel %s (force: %v) ...", t.ID, force)
-	err := t.Terminate(force)
-	if err != nil {
-		return err
-	}
-	if t.Proxy != nil {
-		if err := t.Proxy.Stop(c.Context); err != nil {
-			return err
-		}
-	}
-	c.removeTunnelByID(t.ID)
-	return nil
-}
-
-func (c *Client) FindTunnel(id string) *clienttunnel.Tunnel {
-	for _, curr := range c.Tunnels {
-		if curr.ID == id {
-			return curr
-		}
-	}
-	return nil
+func (c *Client) NewTunnelID() (tunnelID string) {
+	tunnelID = strconv.FormatInt(c.generateNewTunnelID(), 10)
+	return tunnelID
 }
 
 func (c *Client) generateNewTunnelID() int64 {
 	return atomic.AddInt64(&c.tunnelIDAutoIncrement, 1)
 }
 
-func (c *Client) removeTunnelByID(tunnelID string) {
+func (c *Client) RemoveTunnelByID(tunnelID string) {
 	result := make([]*clienttunnel.Tunnel, 0)
 	for _, curr := range c.Tunnels {
 		if curr.ID != tunnelID {

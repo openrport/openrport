@@ -9,6 +9,7 @@ import (
 
 	"github.com/cloudradar-monitoring/rport/server/api"
 	errors2 "github.com/cloudradar-monitoring/rport/server/api/errors"
+	"github.com/cloudradar-monitoring/rport/server/api/users"
 	"github.com/cloudradar-monitoring/rport/server/bearer"
 	chshare "github.com/cloudradar-monitoring/rport/share"
 	"github.com/cloudradar-monitoring/rport/share/logger"
@@ -32,13 +33,13 @@ func (al *APIListener) handleGetLogin(w http.ResponseWriter, req *http.Request) 
 	}
 
 	if al.config.API.AuthHeader != "" && req.Header.Get(al.config.API.AuthHeader) != "" {
-		al.handleLogin(req.Header.Get(al.config.API.UserHeader), "", true /* skipPasswordValidation */, w, req)
+		al.handleLogin(req.Header.Get(al.config.API.UserHeader), "", "", true /* skipPasswordValidation */, w, req)
 		return
 	}
 
 	basicUser, basicPwd, basicAuthProvided := req.BasicAuth()
 	if basicAuthProvided {
-		al.handleLogin(basicUser, basicPwd, false, w, req)
+		al.handleLogin(basicUser, basicPwd, "", false, w, req)
 		return
 	}
 
@@ -50,7 +51,7 @@ func (al *APIListener) handleGetLogin(w http.ResponseWriter, req *http.Request) 
 	al.jsonErrorResponseWithTitle(w, http.StatusUnauthorized, "auth is required")
 }
 
-func (al *APIListener) handleLogin(username, pwd string, skipPasswordValidation bool, w http.ResponseWriter, req *http.Request) {
+func (al *APIListener) handleLogin(username, pwd string, newpwd string, skipPasswordValidation bool, w http.ResponseWriter, req *http.Request) {
 	if al.bannedUsers.IsBanned(username) {
 		al.jsonErrorResponseWithTitle(w, http.StatusTooManyRequests, ErrTooManyRequests.Error())
 		return
@@ -80,6 +81,24 @@ func (al *APIListener) handleLogin(username, pwd string, skipPasswordValidation 
 	lifetime, err := parseTokenLifetime(req)
 	if err != nil {
 		al.jsonErrorResponse(w, http.StatusBadRequest, err)
+		return
+	}
+
+	// Only set the new password after the old password has been verified.
+	if newpwd != "" {
+		if err := al.userService.Change(
+			&users.User{
+				Password:        newpwd,
+				PasswordExpired: users.PasswordExpired(false)},
+			username); err != nil {
+			al.jsonError(w, err)
+			return
+		}
+		user.PasswordExpired = users.PasswordExpired(false) // from here on
+	}
+
+	if user.PasswordExpired != nil && *user.PasswordExpired {
+		al.jsonErrorResponseWithTitle(w, http.StatusUnauthorized, ErrThatPasswordHasExpired.Error())
 		return
 	}
 
@@ -219,7 +238,9 @@ func (al *APIListener) handlePostLogin(w http.ResponseWriter, req *http.Request)
 		return
 	}
 
-	username, pwd, err := parseLoginPostRequestBody(req)
+	// updating the Password via newPassword field is allowed with a POST or PATCH request
+	username, pwd, newPassword, err := parseLoginRequestBody(req)
+
 	if err != nil {
 		// ban IP if it sends a lot of bad requests
 		if !al.handleBannedIPs(req, false) {
@@ -229,34 +250,35 @@ func (al *APIListener) handlePostLogin(w http.ResponseWriter, req *http.Request)
 		return
 	}
 
-	al.handleLogin(username, pwd, false, w, req)
+	al.handleLogin(username, pwd, newPassword, false, w, req)
 }
 
-func parseLoginPostRequestBody(req *http.Request) (string, string, error) {
+func parseLoginRequestBody(req *http.Request) (string, string, string, error) {
 	reqContentType := req.Header.Get("Content-Type")
 	if reqContentType == "application/x-www-form-urlencoded" {
 		err := req.ParseForm()
 		if err != nil {
-			return "", "", errors2.APIError{
+			return "", "", "", errors2.APIError{
 				Err:        fmt.Errorf("failed to parse form: %v", err),
 				HTTPStatus: http.StatusBadRequest,
 			}
 		}
-		return req.PostForm.Get("username"), req.PostForm.Get("password"), nil
+		return req.PostForm.Get("username"), req.PostForm.Get("password"), req.PostForm.Get("new_password"), nil
 	}
 	if reqContentType == "application/json" {
 		type loginReq struct {
-			Username string `json:"username"`
-			Password string `json:"password"`
+			Username    string `json:"username"`
+			Password    string `json:"password"`
+			NewPassword string `json:"new_password"`
 		}
 		var params loginReq
 		err := parseRequestBody(req.Body, &params)
 		if err != nil {
-			return "", "", err
+			return "", "", "", err
 		}
-		return params.Username, params.Password, nil
+		return params.Username, params.Password, params.NewPassword, nil
 	}
-	return "", "", errors2.APIError{
+	return "", "", "", errors2.APIError{
 		Message:    fmt.Sprintf("unsupported content type: %s", reqContentType),
 		HTTPStatus: http.StatusBadRequest,
 	}

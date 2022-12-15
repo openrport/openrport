@@ -1,9 +1,11 @@
-// Package responsible for sharing logic to handle communication between a server and clients.
+// Package comm is responsible for sharing logic to handle communication between a server and clients.
 package comm
 
 import (
+	"context"
 	"encoding/json"
 	"fmt"
+	"time"
 
 	"golang.org/x/crypto/ssh"
 
@@ -77,4 +79,30 @@ func (e *ClientError) Error() string {
 		return ""
 	}
 	return e.err.Error()
+}
+
+func SendRequestWithTimeout(conn ssh.Conn, name string, wantReplay bool, payload []byte, timeout time.Duration) (bool, []byte, error) {
+	var (
+		ok       bool
+		response []byte
+		err      error
+	)
+	ctx, cancel := context.WithCancel(context.Background())
+	defer cancel()
+	ch := make(chan bool, 1)
+	go func() {
+		ok, response, err = conn.SendRequest(name, wantReplay, payload)
+		select {
+		default:
+			ch <- true
+		case <-ctx.Done():
+			return
+		}
+	}()
+	select {
+	case <-ch:
+		return ok, response, err
+	case <-time.After(timeout):
+		return false, nil, fmt.Errorf("conn.SendRequest(%s), timeout %s exceeded", name, timeout)
+	}
 }
