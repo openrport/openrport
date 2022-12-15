@@ -219,11 +219,9 @@ EDTODO: Extend `/me/token` with the usual CRUD options to list, edit and delete 
 On token generation, a token name must become mandatory.
 
 Regarding editing tokens, only the expiry date can be changed.
-
-
 */
-
 func (al *APIListener) handleGetToken(w http.ResponseWriter, req *http.Request) {
+
 }
 
 // 2683 ---> handlePostToken handles POST /me/token
@@ -244,14 +242,26 @@ func (al *APIListener) handlePostToken(w http.ResponseWriter, req *http.Request)
 		return
 	}
 
+	/* 2683
+	the token prefix. The password of the basic auth will then consist of `{prefix}_{token}` separated by underscore.
+	The prefix is a randomly generated 8 digit [0-9][a-z][A-Z] string (no special characters). The prefixes must be unique per user.
+
+	*/
 	newToken, err := random.UUID4()
 	if err != nil {
 		al.jsonError(w, err)
 		return
 	}
+	newPrefix := random.AlphaNum(8)
 
 	if err := al.userService.Change(&users.User{
-		Token: &newToken,
+		Token: &[]users.APIToken{
+			users.APIToken{
+				Prefix: newPrefix,
+				Scope:  "",
+				Token:  newToken,
+			},
+		},
 	}, curUser.Username); err != nil {
 		al.jsonError(w, err)
 		return
@@ -268,6 +278,7 @@ func (al *APIListener) handlePostToken(w http.ResponseWriter, req *http.Request)
 }
 
 // 2683 ---> handleDeleteToken handles DELETE /me/token
+// `{prefix}_{token}`
 func (al *APIListener) handleDeleteToken(w http.ResponseWriter, req *http.Request) {
 	curUser, err := al.getUserModelForAuth(req.Context())
 	if err != nil {

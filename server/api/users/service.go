@@ -149,6 +149,7 @@ func (as *APIService) ExistGroups(groups []string) error {
 }
 
 func (as *APIService) Change(usr *User, username string) error {
+	fmt.Printf("Change USER: %#v", usr)
 	err := as.validate(usr, username)
 	if err != nil {
 		return err

@@ -1,5 +1,12 @@
 package users
 
+type APIToken struct {
+	Prefix string
+	Scope  string
+	// EDTODO: should User know expires_at field also?
+	Token string
+}
+
 // User represents API user.
 type User struct {
 	Username        string   `json:"username" db:"username"`
@@ -7,8 +14,8 @@ type User struct {
 	PasswordExpired *bool    `json:"password_expired" db:"password_expired"`
 	Groups          []string `json:"groups" db:"-"`
 	TwoFASendTo     string   `json:"two_fa_send_to" db:"two_fa_send_to"`
-	Token           *string  `json:"token,omitempty" db:"token"`
-	TotP            string   `json:"totp_secret,omitempty" db:"totp_secret"`
+	Token           *[]APIToken
+	TotP            string `json:"totp_secret,omitempty" db:"totp_secret"`
 }
 
 func (u User) GetGroups() []string {
@@ -32,6 +39,6 @@ func PasswordExpired(f bool) *bool {
 	return &f
 }
 
-func Token(s string) *string {
+func Token(s APIToken) *APIToken {
 	return &s
 }
