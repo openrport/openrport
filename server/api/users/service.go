@@ -2,7 +2,6 @@ package users
 
 import (
 	"context"
-	"errors"
 	"fmt"
 	"net/http"
 	"strings"
@@ -223,8 +222,8 @@ func (as *APIService) validate(dataToChange *User, usernameToFind string) error 
 	if dataToChange.Password != "" {
 		if len(dataToChange.Password) < as.PasswordMinLength {
 			errs = append(errs, errors2.APIError{
-				Message:    "Your password is too short",                                                             // title
-				Err:        errors.New(fmt.Sprintf("password must be at least %v characters", as.PasswordMinLength)), // detail
+				Message:    "Your password is too short",                                                // title
+				Err:        fmt.Errorf("password must be at least %v characters", as.PasswordMinLength), // detail
 				HTTPStatus: http.StatusBadRequest,
 			})
 		}
@@ -232,8 +231,8 @@ func (as *APIService) validate(dataToChange *User, usernameToFind string) error 
 			score := zxcvbn.PasswordStrength(dataToChange.Password, zxcvbnUserInputs)
 			if score.Score < as.PasswordZxcvbnMinscore {
 				errs = append(errs, errors2.APIError{
-					Message:    "Your password is too guessable",                                                                           // title
-					Err:        errors.New(fmt.Sprintf("zxcvbn score is %v, must be at least %v", score.Score, as.PasswordZxcvbnMinscore)), // detail
+					Message:    "Your password is too guessable",                                                              // title
+					Err:        fmt.Errorf("zxcvbn score is %v, must be at least %v", score.Score, as.PasswordZxcvbnMinscore), // detail
 					HTTPStatus: http.StatusBadRequest,
 				})
 			}
