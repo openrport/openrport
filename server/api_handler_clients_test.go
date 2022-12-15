@@ -448,6 +448,31 @@ func TestHandlePutTunnelWithName(t *testing.T) {
 		}`,
 		},
 		{
+			Name: "Without Scheme",
+			URL:  "/api/v1/clients/client-1/tunnels?acl=127.0.0.1&local=0.0.0.0%3A3390&remote=3000%3A22&check_port=0",
+			ExpectedJSON: `{
+			"data": {
+				"id": "10",
+				"name": "",
+				"protocol": "tcp",
+				"lhost": "0.0.0.0",
+				"lport": "3390",
+				"rhost": "0.0.0.0",
+				"rport": "22",
+				"lport_random": false,
+				"scheme": null,
+				"acl": "127.0.0.1",
+				"idle_timeout_minutes": 5,
+				"auto_close": 0,
+				"http_proxy": false,
+				"host_header": "",
+				"auth_user":"",
+				"auth_password":"",
+				"created_at": "0001-01-01T00:00:00Z"
+			}
+		}`,
+		},
+		{
 			Name: "Without Name With User and Password",
 			URL:  "/api/v1/clients/client-1/tunnels?scheme=http&acl=127.0.0.1&local=0.0.0.0%3A3390&remote=0.0.0.0%3A22&check_port=0&auth_user=admin&auth_password=foo&http_proxy=1",
 			ExpectedJSON: `{
@@ -580,6 +605,35 @@ func TestHandlePutTunnelUsingCaddyProxies(t *testing.T) {
 				"rport": "22",
 				"lport_random": false,
 				"scheme": "http",
+				"tunnel_url": "https://12345678.tunnels.rport.test",
+				"acl": "127.0.0.1",
+				"idle_timeout_minutes": 5,
+				"auto_close": 0,
+				"http_proxy": true,
+				"host_header": "",
+				"auth_user":"",
+				"auth_password":"",
+				"created_at": "0001-01-01T00:00:00Z",
+				"use_downstream_subdomain_proxy": true,
+				"downstream_basedomain": "tunnels.rport.test",
+				"downstream_subdomain": "12345678"
+			}
+		}`,
+		},
+		{
+			Name: "With Subdomain, Without Scheme",
+			URL:  "/api/v1/clients/client-1/tunnels?&acl=127.0.0.1&local=0.0.0.0%3A3390&remote=22&check_port=0&use_subdomain=true&http_proxy=true",
+			ExpectedJSON: `{
+			"data": {
+				"id": "10",
+				"name": "",
+				"protocol": "tcp",
+				"lhost": "0.0.0.0",
+				"lport": "3390",
+				"rhost": "0.0.0.0",
+				"rport": "22",
+				"lport_random": false,
+				"scheme": null,
 				"tunnel_url": "https://12345678.tunnels.rport.test",
 				"acl": "127.0.0.1",
 				"idle_timeout_minutes": 5,

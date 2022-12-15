@@ -492,7 +492,7 @@ func (al *APIListener) setTunnelProxyOptionsForRemote(req *http.Request, remote 
 	if isHTTPProxy && !al.config.Server.InternalTunnelProxyConfig.Enabled {
 		return apierrors.NewAPIError(http.StatusBadRequest, "", "creation of tunnel proxy not enabled", nil)
 	}
-	if isHTTPProxy && !validation.SchemeSupportsHTTPProxy(*remote.Scheme) {
+	if isHTTPProxy && remote.Scheme != nil && !validation.SchemeSupportsHTTPProxy(*remote.Scheme) {
 		return apierrors.NewAPIError(http.StatusBadRequest, "", fmt.Sprintf("tunnel proxy not allowed with scheme %s", *remote.Scheme), nil)
 	}
 	if isHTTPProxy && !remote.IsProtocol(models.ProtocolTCP) {
