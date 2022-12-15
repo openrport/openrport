@@ -26,29 +26,35 @@ and configuring the caddy server is entirely done by rportd. No manual caddy con
 
 ### Caddy
 
-You must have caddy installed on the same host with rportd. Using caddy inside a docker container is not supported.
-Rportd takes full control over caddy and the communication is handled over a unix socket.
+You must have caddy installed on the same host with rportd. Using caddy inside a separated docker container is not
+supported. Rportd takes full control over caddy and the communication is handled over a unix socket.
 
 Either install caddy manually by just downloading it
 
 ```bash
 sudo curl -L "https://caddyserver.com/api/download?os=linux&arch=amd64" -o /usr/local/bin/caddy
 sudo chmod +x /usr/local/bin/caddy
-sudo setcap 'cap_net_bind_service=+ep' /usr/local/bin/caddy
 ```
 
-or install [via package manager](https://caddyserver.com/docs/install#debian-ubuntu-raspbian).
+or install [via package manager](https://caddyserver.com/docs/install#debian-ubuntu-raspbian). This way you make sure
+you get caddy updates together with OS updates.
 
-The latter makes sure you get caddy updates together with OS updates.
-
-{{< hint type=important >}}
-**Disable caddy systemd unit**\
-When installing caddy via package manager, caddy will start automatically on system start. This might conflict with
-caddy being run as subprocess from rportd. You would be well advised to switch caddy systemd autostart off.
+Once installed execute
 
 ```bash
-systemctl disable caddy
+sudo setcap 'cap_net_bind_service=+ep' $(which caddy)
 ```
+
+{{< hint type=important title="CRUCIAL PRECONDITIONS">}}
+**Allow privileged port binding**\
+Because either `rportd` nor `caddy` run with root privileges, by default caddy cannot bind to port 443 or any port
+below 1024. You must explicitly allow this by executing `sudo setcap 'cap_net_bind_service=+ep' $(which caddy)`.
+If the command `setcap` is not available, install with `sudo apt-get install libcap2-bin`.
+
+**Disable caddy systemd unit**\
+When installing caddy via package manager, caddy will start automatically on system start. This might conflict with
+caddy being run as subprocess from rportd. You would be well advised to switch caddy systemd autostart off with
+`systemctl disable caddy`
 
 {{< /hint >}}
 
