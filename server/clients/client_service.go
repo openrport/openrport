@@ -478,7 +478,7 @@ func (s *ClientServiceProvider) startClientTunnels(client *Client, remotes []*mo
 			}
 		}
 
-		s.logger.Debugf("starting tunnnel: %s", remote)
+		s.logger.Debugf("starting tunnel: %s", remote)
 		t, err := s.StartTunnel(client, remote, acl, s.tunnelProxyConfig, s.portDistributor)
 		if err != nil {
 			return nil, errors.APIError{
@@ -759,9 +759,6 @@ func (s *ClientServiceProvider) StartTunnel(
 		go s.terminateTunnelOnIdleTimeout(ctx, t, c)
 	}
 
-	c.Lock()
-	defer c.Unlock()
-
 	c.Tunnels = append(c.Tunnels, t)
 	return t, nil
 }
@@ -901,9 +898,6 @@ func (s *ClientServiceProvider) cleanupAfterAutoClose(c *Client, t *clienttunnel
 }
 
 func (s *ClientServiceProvider) TerminateTunnel(c *Client, t *clienttunnel.Tunnel, force bool) error {
-	c.Lock()
-	defer c.Unlock()
-
 	c.Logger.Infof("Terminating tunnel %s (force: %v) ...", t.ID, force)
 
 	err := t.Terminate(force)
