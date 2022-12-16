@@ -47,3 +47,14 @@ jobs:
       - name: Create RPM and DEB packages
         id: create_pkgs
         run: bash opt/fpm/package.sh
+
+      - name: Publish RPM and DEB packages
+        id: publish_pkgs
+        env:
+          REPO_SSH_PRIV_KEY: ${{ secrets.REPO_SSH_PRIV_KEY }}
+          REPO_SSH_PORT: ${{ secrets.REPO_SSH_PORT }}
+          REPO_SSH_USER: ${{ secrets.REPO_SSH_USER }}
+          REPO_SSH_HOST: ${{ secrets.REPO_SSH_HOST }}
+          REPO_SSH_KNOWN_HOSTS: ${{ secrets.REPO_SSH_KNOWN_HOSTS }}
+          REPO_GPG_KEY_ID: ${{ secrets.REPO_GPG_KEY_ID }}
+        run: bash opt/fpm/publish.sh
