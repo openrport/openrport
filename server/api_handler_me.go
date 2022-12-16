@@ -277,7 +277,7 @@ func (al *APIListener) handlePostToken(w http.ResponseWriter, req *http.Request)
 	al.writeJSONResponse(w, http.StatusOK, api.NewSuccessPayload(resp))
 }
 
-// 2683 ---> handleDeleteToken handles DELETE /me/token
+// 2683 ---> handleDeleteToken handles DELETE /me/token API[1]
 // `{prefix}_{token}`
 func (al *APIListener) handleDeleteToken(w http.ResponseWriter, req *http.Request) {
 	curUser, err := al.getUserModelForAuth(req.Context())
@@ -288,7 +288,13 @@ func (al *APIListener) handleDeleteToken(w http.ResponseWriter, req *http.Reques
 
 	noToken := ""
 	if err := al.userService.Change(&users.User{
-		Token: &noToken,
+		Token: &[]users.APIToken{
+			users.APIToken{
+				Prefix: newPrefix,
+				Scope:  "",
+				Token:  newToken,
+			},
+		},
 	}, curUser.Username); err != nil {
 		al.jsonError(w, err)
 		return
