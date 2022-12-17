@@ -162,14 +162,18 @@ func (as *APIService) Change(usr *User, username string) error {
 		usr.Password = strings.Replace(string(passHash), htpasswdBcryptAltPrefix, htpasswdBcryptPrefix, 1)
 	}
 
-	if usr.Token != nil && *usr.Token != "" {
-		tokenHash, err := bcrypt.GenerateFromPassword([]byte(*usr.Token), bcrypt.DefaultCost)
-		if err != nil {
-			return err
+	// EDTODO: ⬇️⬇️⬇️⬇️⬇️⬇️⬇️⬇️ change the following to address token creation ⬇️⬇️⬇️⬇️⬇️⬇️⬇️
+	/*
+		if usr.Token != nil && *usr.Token != "" {
+			tokenHash, err := bcrypt.GenerateFromPassword([]byte(*usr.Token), bcrypt.DefaultCost)
+			if err != nil {
+				return err
+			}
+			tokenHashStr := strings.Replace(string(tokenHash), htpasswdBcryptAltPrefix, htpasswdBcryptPrefix, 1)
+			usr.Token = &tokenHashStr
 		}
-		tokenHashStr := strings.Replace(string(tokenHash), htpasswdBcryptAltPrefix, htpasswdBcryptPrefix, 1)
-		usr.Token = &tokenHashStr
-	}
+	*/
+	// ⬆️⬆️⬆️⬆️⬆️⬆️⬆️⬆️⬆️⬆️⬆️⬆️⬆️⬆️⬆️⬆️⬆️⬆️⬆️⬆️⬆️⬆️⬆️⬆️⬆️⬆️⬆️⬆️⬆️⬆️⬆️⬆️⬆️⬆️⬆️⬆️⬆️⬆️⬆️⬆️⬆️⬆️⬆️⬆️⬆️⬆️⬆️⬆️⬆️⬆️⬆️⬆️⬆️
 	if username != "" {
 		return as.updateUser(usr, username)
 	}
@@ -310,6 +314,8 @@ func (as *APIService) updateUser(dataToChange *User, usernameToFind string) erro
 	return nil
 }
 
+// EDTODO: deleting a user needs to delete all api tokens first(?)
+// 2683 API[3]
 func (as *APIService) Delete(usernameToDelete string) error {
 	user, err := as.Provider.GetByUsername(usernameToDelete)
 	if err != nil {

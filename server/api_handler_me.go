@@ -156,6 +156,7 @@ type changeMeRequest struct {
 	Password    string `json:"password"`
 	OldPassword string `json:"old_password"`
 	TwoFASendTo string `json:"two_fa_send_to"`
+	TokenPrefix string `json:"token_prefix"`
 }
 
 func (al *APIListener) handleChangeMe(w http.ResponseWriter, req *http.Request) {
@@ -279,26 +280,45 @@ func (al *APIListener) handlePostToken(w http.ResponseWriter, req *http.Request)
 
 // 2683 ---> handleDeleteToken handles DELETE /me/token API[1]
 // `{prefix}_{token}`
+// http://127.0.0.1:8080/#tag/Profile-and-Info/operation/MetTokenDelete
 func (al *APIListener) handleDeleteToken(w http.ResponseWriter, req *http.Request) {
+	// ****************************** Save a copy of this request for debugging. ******************************
+	requestDump, err := httputil.DumpRequest(req, true)
+	if err != nil {
+		fmt.Println(err)
+	}
+	fmt.Println(string(requestDump))
+	// ****************************** Save a copy of this request for debugging. ******************************
+
+	var r changeMeRequest
+	err = parseRequestBody(req.Body, &r)
+	if err != nil {
+		al.jsonError(w, err)
+		return
+	}
+
 	curUser, err := al.getUserModelForAuth(req.Context())
 	if err != nil {
 		al.jsonError(w, err)
 		return
 	}
 
-	noToken := ""
+	// EDTODO: a bit cryptic:
+	// if I send prefix I want to delete
+	// if I send expires_at I want to update
+	// if I send everything I want to add
 	if err := al.userService.Change(&users.User{
+		Username: r.Username,
 		Token: &[]users.APIToken{
 			users.APIToken{
-				Prefix: newPrefix,
-				Scope:  "",
-				Token:  newToken,
+				Prefix: r.TokenPrefix,
 			},
 		},
 	}, curUser.Username); err != nil {
 		al.jsonError(w, err)
 		return
 	}
+
 	al.auditLog.Entry(auditlog.ApplicationAuthUserMeToken, auditlog.ActionDelete).
 		WithHTTPRequest(req).
 		Save()

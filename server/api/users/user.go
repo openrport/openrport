@@ -3,7 +3,7 @@ package users
 type APIToken struct {
 	Prefix string
 	Scope  string
-	// EDTODO: should User know expires_at field also?
+	// EDTODO: should User know expires_at field also? (YES)
 	Token string
 }
 

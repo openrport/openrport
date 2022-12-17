@@ -385,14 +385,17 @@ func (al *APIListener) handleBasicAuth(username, password string) (authorized bo
 		}
 	}
 
+	// EDTODO: ⬇️⬇️⬇️⬇️⬇️ need to use the token, which one? ⬇️⬇️⬇️⬇️⬇️
 	// only check token if we have one saved
-	if user.Token != nil && *user.Token != "" {
-		tokenOk := verifyPassword(*user.Token, password)
-		if tokenOk {
-			return true, username, nil
+	/*
+		if user.Token != nil && *user.Token != "" {
+			tokenOk := verifyPassword(*user.Token, password)
+			if tokenOk {
+				return true, username, nil
+			}
 		}
-	}
-
+	*/
+	// ⬆️⬆️⬆️⬆️⬆️⬆️⬆️⬆️⬆️⬆️⬆️⬆️⬆️⬆️⬆️⬆️⬆️⬆️⬆️⬆️⬆️⬆️⬆️⬆️⬆️
 	return false, username, nil
 }
 

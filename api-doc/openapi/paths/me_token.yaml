@@ -34,6 +34,20 @@ delete:
     - Profile & Info
   summary: Delete user's API token
   operationId: MetTokenDelete
+  requestBody:
+    description: token to be deleted
+    content:
+      '*/*':
+        schema:
+          type: object
+          properties:
+            token_prefix:
+              type: string
+              description: prefix of the token to be deleted
+    required: true
+
+
+
   responses:
     '204':
       description: Successful operation.
