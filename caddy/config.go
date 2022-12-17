@@ -37,14 +37,14 @@ type Config struct {
 	BaseDomain       string `mapstructure:"subdomain_prefix"`
 	CertFile         string `mapstructure:"cert_file"`
 	KeyFile          string `mapstructure:"key_file"`
-	LogLevel         string `mapstructure:"-"`
+	LogLevel         string `mapstructure:"-"` // note: this is the rport server log level
 	DataDir          string `mapstructure:"-"`
 	Enabled          bool   `mapstructure:"-"`
 
 	SubDomainGenerator SubdomainGenerator
 }
 
-var caddyLogLevels = []string{"Debug", "Info", "Warn", "Error", "Panic", "Fatal"}
+var caddyLogLevels = []string{"debug", "info", "warn", "error", "panic", "fatal"}
 
 func existingCaddyLogLevel(loglevel string) (found bool) {
 	for _, level := range caddyLogLevels {

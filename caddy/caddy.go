@@ -7,6 +7,7 @@ import (
 	"io"
 	"log"
 	"os/exec"
+	"regexp"
 	"strings"
 
 	"github.com/cloudradar-monitoring/rport/share/files"
@@ -14,13 +15,14 @@ import (
 )
 
 type Server struct {
-	cmd    *exec.Cmd
-	lines  chan string
-	r      *io.PipeReader
-	w      *io.PipeWriter
-	cfg    *Config
-	logger *logger.Logger
-	errCh  chan error
+	cmd       *exec.Cmd
+	lines     chan string
+	r         *io.PipeReader
+	w         *io.PipeWriter
+	cfg       *Config
+	logger    *logger.Logger
+	logLogger *logger.Logger
+	errCh     chan error
 }
 
 func ExecExists(path string, filesAPI files.FileAPI) (exists bool, err error) {
@@ -51,9 +53,10 @@ func GetExecVersion(cfg *Config) (majorVersion int, err error) {
 
 func NewCaddyServer(cfg *Config, l *logger.Logger, errCh chan error) (c *Server) {
 	c = &Server{
-		cfg:    cfg,
-		logger: l,
-		errCh:  errCh,
+		cfg:       cfg,
+		logger:    l,
+		logLogger: l.Fork("log"),
+		errCh:     errCh,
 	}
 	return c
 }
@@ -132,8 +135,40 @@ func (c *Server) readCaddyOutputLines() {
 	}
 }
 
+var caddyToRportLogLevelMap = map[string]string{
+	"debug": "debug",
+	"info":  "info",
+	"warn":  "info",
+	"error": "error",
+	"fatal": "error",
+	"panic": "error",
+}
+
 func (c *Server) writeCaddyOutputToLog() {
 	for line := range c.lines {
-		c.logger.Debugf("log: %s", line)
+		level := extractCaddyLogLevel(line)
+		mapsTo, ok := caddyToRportLogLevelMap[level]
+		if ok {
+			switch mapsTo {
+			case "debug":
+				c.logLogger.Debugf(line)
+			case "info":
+				c.logLogger.Infof(line)
+			case "error":
+				c.logLogger.Errorf(line)
+			}
+		} else {
+			c.logLogger.Debugf(line)
+		}
 	}
+}
+
+var logLevelMatch = regexp.MustCompile("^{\"level\":\"(.*)\",\"ts\"")
+
+func extractCaddyLogLevel(line string) (level string) {
+	matches := logLevelMatch.FindAllStringSubmatch(line, -1)
+	if len(matches) > 0 && len(matches[0]) > 0 {
+		level = matches[0][1]
+	}
+	return level
 }
