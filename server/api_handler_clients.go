@@ -480,15 +480,6 @@ func (al *APIListener) setTunnelProxyOptionsForRemote(req *http.Request, remote 
 		return err
 	}
 
-	shouldUseSubdomain := req.URL.Query().Get("use_subdomain")
-	if shouldUseSubdomain == "" {
-		shouldUseSubdomain = "false"
-	}
-	useSubdomain, err := strconv.ParseBool(shouldUseSubdomain)
-	if err != nil {
-		return err
-	}
-
 	if isHTTPProxy && !al.config.Server.InternalTunnelProxyConfig.Enabled {
 		return apierrors.NewAPIError(http.StatusBadRequest, "", "creation of tunnel proxy not enabled", nil)
 	}
@@ -499,25 +490,15 @@ func (al *APIListener) setTunnelProxyOptionsForRemote(req *http.Request, remote 
 		return apierrors.NewAPIError(http.StatusBadRequest, "", fmt.Sprintf("tunnel proxy not allowed with protcol %s", remote.Protocol), nil)
 	}
 
-	if useSubdomain {
-		if !al.config.CaddyEnabled() {
-			return apierrors.NewAPIError(http.StatusBadRequest, "", "when using use_subdomain, caddy integration must be enabled", nil)
-		}
-		if !isHTTPProxy {
-			return apierrors.NewAPIError(http.StatusBadRequest, "", "when using use_subdomain, http_proxy must be specified", nil)
-		}
-
+	if isHTTPProxy && al.config.CaddyEnabled() {
 		downstreamSubdomain, err := al.config.Caddy.SubDomainGenerator.GetRandomSubdomain()
 		if err != nil {
 			return apierrors.NewAPIError(http.StatusInternalServerError, "", "failed to allocate random subdomain for downstream proxy", err)
 		}
 
-		remote.DownstreamSubdomain = downstreamSubdomain
-		remote.DownstreamBasedomain = al.config.Caddy.BaseDomain
-		remote.TunnelURL = remote.DownstreamProxyURL()
+		remote.TunnelURL = remote.NewDownstreamProxyURL(downstreamSubdomain, al.config.Caddy.BaseDomain)
 	}
 
-	remote.UseDownstreamSubdomainProxy = useSubdomain
 	remote.HTTPProxy = isHTTPProxy
 
 	hostHeader := req.URL.Query().Get("host_header")

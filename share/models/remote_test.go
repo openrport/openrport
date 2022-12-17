@@ -175,3 +175,37 @@ func TestIsProtocol(t *testing.T) {
 		})
 	}
 }
+
+func TestShouldGetDomainPartsFromTunnelURL(t *testing.T) {
+	cases := []struct {
+		name               string
+		tunnelURL          string
+		expectedSubdomain  string
+		expectedBasedomain string
+	}{
+		{
+			name:               "normal url",
+			tunnelURL:          "https://1234.tunnel.rport.test",
+			expectedSubdomain:  "1234",
+			expectedBasedomain: "tunnel.rport.test",
+		},
+		{
+			name:               "short base domain",
+			tunnelURL:          "https://1234.rpdev",
+			expectedSubdomain:  "1234",
+			expectedBasedomain: "rpdev",
+		},
+	}
+	for _, tc := range cases {
+		t.Run(tc.name, func(t *testing.T) {
+			r := &Remote{
+				TunnelURL: tc.tunnelURL,
+			}
+			subdomain, basedomain, err := r.GetTunnelDomains()
+			require.NoError(t, err)
+
+			assert.Equal(t, tc.expectedSubdomain, subdomain)
+			assert.Equal(t, tc.expectedBasedomain, basedomain)
+		})
+	}
+}

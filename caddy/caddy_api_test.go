@@ -100,7 +100,7 @@ func setupNewCaddyServer(ctx context.Context, t *testing.T) (cs *caddy.Server) {
 	require.NoError(t, err)
 
 	// allow time for the server start to settle
-	time.Sleep(100 * time.Millisecond)
+	time.Sleep(500 * time.Millisecond)
 
 	return cs
 }
@@ -108,5 +108,5 @@ func setupNewCaddyServer(ctx context.Context, t *testing.T) (cs *caddy.Server) {
 func withWait(cancel context.CancelFunc) {
 	cancel()
 	// give the server time to receive the cancel
-	time.Sleep(10 * time.Millisecond)
+	time.Sleep(100 * time.Millisecond)
 }

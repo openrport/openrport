@@ -841,7 +841,6 @@ func TestShouldStartTunnelsWithSubdomains(t *testing.T) {
 	}
 	for _, tc := range cases {
 		t.Run(tc.name, func(t *testing.T) {
-			fmt.Printf("starting tc.name = %+v\n", tc.name)
 			c1 := New(t).ID("client-1").ClientAuthID(cl1.ID).Build()
 			c1.Connection = connMock
 			c1.Logger = testLog
@@ -869,9 +868,7 @@ func TestShouldStartTunnelsWithSubdomains(t *testing.T) {
 			scheme := "http"
 			requestedRemote.Scheme = &scheme
 			requestedRemote.HTTPProxy = true
-			requestedRemote.UseDownstreamSubdomainProxy = true
-			requestedRemote.DownstreamBasedomain = "tunnels.rport.test"
-			requestedRemote.DownstreamSubdomain = "12345678"
+			requestedRemote.TunnelURL = "https://12345678.tunnels.rport.test"
 
 			newTunnels, err := clientService.StartClientTunnels(
 				c1,
@@ -881,22 +878,19 @@ func TestShouldStartTunnelsWithSubdomains(t *testing.T) {
 
 			newTunnel := newTunnels[0]
 
-			assert.Equal(t, requestedRemote.DownstreamSubdomain, mockCaddyAPI.RouteRequest.RouteID)
-			assert.Equal(t, requestedRemote.DownstreamSubdomain, mockCaddyAPI.RouteRequest.DownstreamProxySubdomain)
-			assert.Equal(t, requestedRemote.DownstreamBasedomain, mockCaddyAPI.RouteRequest.DownstreamProxyBaseDomain)
+			assert.Equal(t, "12345678", mockCaddyAPI.RouteRequest.RouteID)
+			assert.Equal(t, "12345678", mockCaddyAPI.RouteRequest.DownstreamProxySubdomain)
+			assert.Equal(t, "tunnels.rport.test", mockCaddyAPI.RouteRequest.DownstreamProxyBaseDomain)
 
 			assert.Equal(t, requestedRemote.RemoteHost, newTunnel.RemoteHost)
 			assert.Equal(t, requestedRemote.RemotePort, newTunnel.RemotePort)
-			assert.Equal(t, true, newTunnel.CaddyDownstreamProxyExists)
-			assert.Equal(t, true, newTunnel.Remote.UseDownstreamSubdomainProxy)
-			assert.Equal(t, requestedRemote.DownstreamSubdomain, newTunnel.DownstreamSubdomain)
-			assert.Equal(t, requestedRemote.DownstreamBasedomain, newTunnel.DownstreamBasedomain)
+			// assert.Equal(t, true, newTunnel.CaddyDownstreamProxyExists)
+			assert.Equal(t, requestedRemote.TunnelURL, newTunnel.Remote.TunnelURL)
 
 			err = clientService.TerminateTunnel(c1, newTunnel, true)
 			require.NoError(t, err)
 
 			time.Sleep(100 * time.Millisecond)
-			fmt.Printf("stopped tc.name = %+v\n", tc.name)
 		})
 	}
 }

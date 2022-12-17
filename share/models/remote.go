@@ -36,25 +36,22 @@ var protocolRe = regexp.MustCompile(`(.*)\/(tcp|udp|tcp\+udp)$`)
 
 // TODO(m-terel): Remote should be only used for parsing command args and URL query params. Current Remote is kind of a Tunnel model. Refactor to use separate models for representation and business logic.
 type Remote struct {
-	Name                        string        `json:"name"`
-	Protocol                    string        `json:"protocol"`
-	LocalHost                   string        `json:"lhost"`
-	LocalPort                   string        `json:"lport"`
-	LocalPortRandom             bool          `json:"lport_random"`
-	RemoteHost                  string        `json:"rhost"`
-	RemotePort                  string        `json:"rport"`
-	Scheme                      *string       `json:"scheme"`
-	ACL                         *string       `json:"acl"` // string representation of Tunnel.TunnelACL field
-	IdleTimeoutMinutes          int           `json:"idle_timeout_minutes"`
-	AutoClose                   time.Duration `json:"auto_close"`
-	HTTPProxy                   bool          `json:"http_proxy"`
-	HostHeader                  string        `json:"host_header"`
-	AuthUser                    string        `json:"auth_user"`
-	AuthPassword                string        `json:"auth_password"`
-	UseDownstreamSubdomainProxy bool          `json:"use_downstream_subdomain_proxy,omitempty"`
-	DownstreamSubdomain         string        `json:"downstream_subdomain,omitempty"`
-	DownstreamBasedomain        string        `json:"downstream_basedomain,omitempty"`
-	TunnelURL                   string        `json:"tunnel_url,omitempty"`
+	Name               string        `json:"name"`
+	Protocol           string        `json:"protocol"`
+	LocalHost          string        `json:"lhost"`
+	LocalPort          string        `json:"lport"`
+	LocalPortRandom    bool          `json:"lport_random"`
+	RemoteHost         string        `json:"rhost"`
+	RemotePort         string        `json:"rport"`
+	Scheme             *string       `json:"scheme"`
+	ACL                *string       `json:"acl"` // string representation of Tunnel.TunnelACL field
+	IdleTimeoutMinutes int           `json:"idle_timeout_minutes"`
+	AutoClose          time.Duration `json:"auto_close"`
+	HTTPProxy          bool          `json:"http_proxy"`
+	HostHeader         string        `json:"host_header"`
+	AuthUser           string        `json:"auth_user"`
+	AuthPassword       string        `json:"auth_password"`
+	TunnelURL          string        `json:"tunnel_url"`
 }
 
 func NewRemote(s string) (*Remote, error) {
@@ -168,6 +165,25 @@ func (r *Remote) IsLocalSpecified() bool {
 	return r.LocalHost != "" && r.LocalPort != ""
 }
 
-func (r *Remote) DownstreamProxyURL() (proxyURL string) {
-	return "https://" + r.DownstreamSubdomain + "." + r.DownstreamBasedomain
+func (r *Remote) NewDownstreamProxyURL(subdomain string, basedomain string) (proxyURL string) {
+	return "https://" + subdomain + "." + basedomain
+}
+
+func (r *Remote) HasSubdomainTunnel() bool {
+	return r.TunnelURL != ""
+}
+
+func (r *Remote) GetTunnelDomains() (subdomain string, basedomain string, err error) {
+	u, err := url.Parse(r.TunnelURL)
+	if err != nil {
+		return "", "", err
+	}
+
+	h := u.Hostname()
+
+	parts := strings.Split(h, ".")
+	subdomain = parts[0]
+	basedomain = strings.Join(parts[1:], ".")
+
+	return subdomain, basedomain, nil
 }

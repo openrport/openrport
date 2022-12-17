@@ -745,7 +745,7 @@ func (s *ClientServiceProvider) StartTunnel(
 		if err != nil {
 			return nil, err
 		}
-		if r.UseDownstreamSubdomainProxy {
+		if r.HasSubdomainTunnel() {
 			err = s.startCaddyDownstreamProxy(ctx, c, r, t)
 			if err != nil {
 				tunnelStopErr := t.InternalTunnelProxy.Stop(c.Context)
@@ -754,7 +754,6 @@ func (s *ClientServiceProvider) StartTunnel(
 				}
 				return nil, err
 			}
-			t.CaddyDownstreamProxyExists = true
 		}
 	} else {
 		t, err = s.startRegularTunnel(ctx, c, r, acl)
@@ -783,16 +782,21 @@ func (s *ClientServiceProvider) startCaddyDownstreamProxy(
 	r *models.Remote,
 	t *clienttunnel.Tunnel,
 ) (err error) {
-	c.Logger.Infof("starting downstream caddy proxy at %s", r.DownstreamProxyURL())
+	c.Logger.Infof("starting downstream caddy proxy at %s", r.TunnelURL)
 	c.Logger.Infof("tunnel = %#v", t)
 	c.Logger.Infof("remote = %#v", r)
 
+	subdomain, basedomain, err := r.GetTunnelDomains()
+	if err != nil {
+		return err
+	}
+
 	nrr := &caddy.NewRouteRequest{
-		RouteID:                   r.DownstreamSubdomain,
+		RouteID:                   subdomain,
 		TargetTunnelHost:          t.LocalHost,
 		TargetTunnelPort:          t.LocalPort,
-		DownstreamProxySubdomain:  r.DownstreamSubdomain,
-		DownstreamProxyBaseDomain: r.DownstreamBasedomain,
+		DownstreamProxySubdomain:  subdomain,
+		DownstreamProxyBaseDomain: basedomain,
 	}
 
 	c.Logger.Debugf("requesting new caddy route = %+v", nrr)
@@ -806,7 +810,7 @@ func (s *ClientServiceProvider) startCaddyDownstreamProxy(
 		return fmt.Errorf("failed to create downstream caddy proxy: status_code: %d", res.StatusCode)
 	}
 
-	c.Logger.Infof("started downstream caddy proxy at %s to %s:%s", r.DownstreamProxyURL(), t.LocalHost, t.LocalPort)
+	c.Logger.Infof("started downstream caddy proxy at %s to %s:%s", r.TunnelURL, t.LocalHost, t.LocalPort)
 	return nil
 }
 
@@ -933,8 +937,7 @@ func (s *ClientServiceProvider) cleanupAfterAutoClose(c *Client, t *clienttunnel
 		if err := t.InternalTunnelProxy.Stop(c.Context); err != nil {
 			c.Logger.Errorf("error while stopping tunnel proxy: %v", err)
 		}
-		if t.CaddyDownstreamProxyExists {
-			// err is logged in the remove fn
+		if t.Remote.HasSubdomainTunnel() {
 			_ = s.removeCaddyDownstreamProxy(c, t)
 		}
 	}
@@ -961,8 +964,7 @@ func (s *ClientServiceProvider) TerminateTunnel(c *Client, t *clienttunnel.Tunne
 		if err := t.InternalTunnelProxy.Stop(c.Context); err != nil {
 			c.Logger.Errorf("error while stopping tunnel proxy: %v", err)
 		}
-		if t.CaddyDownstreamProxyExists {
-			// err is logged in the remove fn
+		if t.Remote.HasSubdomainTunnel() {
 			_ = s.removeCaddyDownstreamProxy(c, t)
 		}
 		if err != nil {
@@ -982,9 +984,14 @@ func (s *ClientServiceProvider) TerminateTunnel(c *Client, t *clienttunnel.Tunne
 }
 
 func (s *ClientServiceProvider) removeCaddyDownstreamProxy(c *Client, t *clienttunnel.Tunnel) (err error) {
-	c.Logger.Infof("removing downstream caddy proxy at %s", t.Remote.DownstreamProxyURL())
+	c.Logger.Infof("removing downstream caddy proxy at %s", t.Remote.TunnelURL)
 
-	res, err := s.caddyAPI.DeleteRoute(c.Context, t.Remote.DownstreamSubdomain)
+	subdomain, _, err := t.Remote.GetTunnelDomains()
+	if err != nil {
+		return err
+	}
+
+	res, err := s.caddyAPI.DeleteRoute(c.Context, subdomain)
 	if err != nil {
 		return err
 	}
@@ -993,6 +1000,6 @@ func (s *ClientServiceProvider) removeCaddyDownstreamProxy(c *Client, t *clientt
 		return fmt.Errorf("failed to delete downstream caddy proxy: status_code: %d", res.StatusCode)
 	}
 
-	c.Logger.Infof("removed downstream caddy proxy at %s", t.Remote.DownstreamProxyURL())
+	c.Logger.Infof("removed downstream caddy proxy at %s", t.Remote.TunnelURL)
 	return nil
 }

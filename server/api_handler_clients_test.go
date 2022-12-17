@@ -121,7 +121,8 @@ func TestHandleGetClient(t *testing.T) {
                 "idle_timeout_minutes": 0,
                 "auto_close": 0,
                 "created_at":"0001-01-01T00:00:00Z",
-                "id":"1"
+                "id":"1",
+								"tunnel_url":""
             },
             {
                 "name": "",
@@ -140,7 +141,8 @@ func TestHandleGetClient(t *testing.T) {
                 "idle_timeout_minutes": 0,
                 "auto_close": 0,
                 "created_at":"0001-01-01T00:00:00Z",
-                "id":"2"
+                "id":"2",
+								"tunnel_url":""
             }
         ],
         "connection_state":"connected",
@@ -418,7 +420,8 @@ func TestHandlePutTunnelWithName(t *testing.T) {
 				"host_header": "",
 				"auth_user":"",
 				"auth_password":"",
-				"created_at": "0001-01-01T00:00:00Z"
+				"created_at": "0001-01-01T00:00:00Z",
+				"tunnel_url": ""
 			}
 		}`,
 		},
@@ -443,7 +446,8 @@ func TestHandlePutTunnelWithName(t *testing.T) {
 				"host_header": "",
 				"auth_user":"",
 				"auth_password":"",
-				"created_at": "0001-01-01T00:00:00Z"
+				"created_at": "0001-01-01T00:00:00Z",
+				"tunnel_url": ""
 			}
 		}`,
 		},
@@ -468,7 +472,8 @@ func TestHandlePutTunnelWithName(t *testing.T) {
 				"host_header": "",
 				"auth_user":"",
 				"auth_password":"",
-				"created_at": "0001-01-01T00:00:00Z"
+				"created_at": "0001-01-01T00:00:00Z",
+				"tunnel_url": ""
 			}
 		}`,
 		},
@@ -493,7 +498,8 @@ func TestHandlePutTunnelWithName(t *testing.T) {
 				"host_header": "",
 				"auth_user":"admin",
 				"auth_password":"foo",
-				"created_at": "0001-01-01T00:00:00Z"
+				"created_at": "0001-01-01T00:00:00Z",
+				"tunnel_url": ""
 			}
 		}`,
 		},
@@ -587,13 +593,14 @@ func TestHandlePutTunnelUsingCaddyProxies(t *testing.T) {
 				"host_header": "",
 				"auth_user":"",
 				"auth_password":"",
-				"created_at": "0001-01-01T00:00:00Z"
+				"created_at": "0001-01-01T00:00:00Z",
+				"tunnel_url": ""
 			}
 		}`,
 		},
 		{
 			Name: "With Subdomain",
-			URL:  "/api/v1/clients/client-1/tunnels?scheme=http&acl=127.0.0.1&local=0.0.0.0%3A3390&remote=0.0.0.0%3A22&check_port=0&use_subdomain=true&http_proxy=true",
+			URL:  "/api/v1/clients/client-1/tunnels?scheme=http&acl=127.0.0.1&local=0.0.0.0%3A3390&remote=0.0.0.0%3A22&check_port=0&http_proxy=true",
 			ExpectedJSON: `{
 			"data": {
 				"id": "10",
@@ -613,16 +620,13 @@ func TestHandlePutTunnelUsingCaddyProxies(t *testing.T) {
 				"host_header": "",
 				"auth_user":"",
 				"auth_password":"",
-				"created_at": "0001-01-01T00:00:00Z",
-				"use_downstream_subdomain_proxy": true,
-				"downstream_basedomain": "tunnels.rport.test",
-				"downstream_subdomain": "12345678"
+				"created_at": "0001-01-01T00:00:00Z"
 			}
 		}`,
 		},
 		{
 			Name: "With Subdomain, Without Scheme",
-			URL:  "/api/v1/clients/client-1/tunnels?&acl=127.0.0.1&local=0.0.0.0%3A3390&remote=22&check_port=0&use_subdomain=true&http_proxy=true",
+			URL:  "/api/v1/clients/client-1/tunnels?&acl=127.0.0.1&local=0.0.0.0%3A3390&remote=22&check_port=0&http_proxy=true",
 			ExpectedJSON: `{
 			"data": {
 				"id": "10",
@@ -642,22 +646,35 @@ func TestHandlePutTunnelUsingCaddyProxies(t *testing.T) {
 				"host_header": "",
 				"auth_user":"",
 				"auth_password":"",
-				"created_at": "0001-01-01T00:00:00Z",
-				"use_downstream_subdomain_proxy": true,
-				"downstream_basedomain": "tunnels.rport.test",
-				"downstream_subdomain": "12345678"
+				"created_at": "0001-01-01T00:00:00Z"
 			}
 		}`,
 		},
 		{
-			Name:          "With Subdomain, Missing http_proxy",
-			URL:           "/api/v1/clients/client-1/tunnels?scheme=http&acl=127.0.0.1&local=0.0.0.0%3A3390&remote=0.0.0.0%3A22&check_port=0&use_subdomain=true",
-			ExpectedError: "when using use_subdomain, http_proxy must be specified",
-		},
-		{
-			Name:               "With Subdomain, Caddy Not Configured",
-			URL:                "/api/v1/clients/client-1/tunnels?scheme=http&acl=127.0.0.1&local=0.0.0.0%3A3390&remote=0.0.0.0%3A22&check_port=0&use_subdomain=true",
-			ExpectedError:      "when using use_subdomain, caddy integration must be enabled",
+			Name: "With HTTP proxy, Caddy Not Configured",
+			URL:  "/api/v1/clients/client-1/tunnels?scheme=http&acl=127.0.0.1&local=0.0.0.0%3A3390&remote=0.0.0.0%3A22&check_port=0&http_proxy=true",
+			ExpectedJSON: `{
+				"data": {
+					"id": "10",
+					"name": "",
+					"protocol": "tcp",
+					"lhost": "0.0.0.0",
+					"lport": "3390",
+					"rhost": "0.0.0.0",
+					"rport": "22",
+					"lport_random": false,
+					"scheme": "http",
+					"tunnel_url": "",
+					"acl": "127.0.0.1",
+					"idle_timeout_minutes": 5,
+					"auto_close": 0,
+					"http_proxy": true,
+					"host_header": "",
+					"auth_user":"",
+					"auth_password":"",
+					"created_at": "0001-01-01T00:00:00Z"
+				}
+			}`,
 			DisableCaddyConfig: true,
 		},
 	}

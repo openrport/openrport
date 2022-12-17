@@ -61,7 +61,6 @@ type Tunnel struct {
 	ID string `json:"id"`
 
 	models.Remote
-	CaddyDownstreamProxyExists bool `json:"caddy_proxy_tunnel_exists,omitempty"`
 
 	TunnelProtocol      `json:"-"`
 	InternalTunnelProxy *InternalTunnelProxy `json:"-"`
