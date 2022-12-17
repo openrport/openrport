@@ -204,8 +204,6 @@ func (c *Config) MakeBaseConfig(
 		APIScheme:     APITargetScheme,
 		APITargetHost: APITargetHost,
 		APITargetPort: APITargetPort,
-		// TODO: (rs): don't allow insecure certs by default
-		AllowInsecureCerts: true,
 	}
 
 	bc = &BaseConfig{

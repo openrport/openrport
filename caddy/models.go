@@ -20,16 +20,15 @@ type DefaultVirtualHost struct {
 }
 
 type APIReverseProxySettings struct {
-	CertsFile          string
-	KeyFile            string
-	UseAPIProxy        bool
-	ProxyDomain        string
-	ProxyPort          string
-	APIDomain          string
-	APIScheme          string
-	APITargetHost      string
-	APITargetPort      string
-	AllowInsecureCerts bool
+	CertsFile     string
+	KeyFile       string
+	UseAPIProxy   bool
+	ProxyDomain   string
+	ProxyPort     string
+	APIDomain     string
+	APIScheme     string
+	APITargetHost string
+	APITargetPort string
 }
 
 type ExternalReverseProxy struct {

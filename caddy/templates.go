@@ -69,12 +69,10 @@ https://{{.ProxyDomain}}:{{.ProxyPort}} {
 	}
 	reverse_proxy {
 		to {{.APIScheme}}://{{.APITargetHost}}:{{.APITargetPort}}
-		{{- if .AllowInsecureCerts }}
 			transport http {
 				tls
 				tls_insecure_skip_verify
 			}
-		{{- end }}
 	}
 	log {
 		output discard
