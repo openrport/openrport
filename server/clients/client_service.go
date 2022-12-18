@@ -259,7 +259,7 @@ func (s *ClientServiceProvider) StartClient(
 	ctx context.Context, clientAuthID, clientID string, sshConn ssh.Conn, authMultiuseCreds bool,
 	req *chshare.ConnectionRequest, clog *logger.Logger,
 ) (*Client, error) {
-	clog.Debugf("starting client session: %s", clientID)
+	clog.Debugf("Starting client session: %s", clientID)
 
 	s.mu.Lock()
 	defer s.mu.Unlock()

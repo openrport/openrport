@@ -347,7 +347,7 @@ func (c *Client) sendConnectionRequest(ctx context.Context, sshConn ssh.Conn) er
 	if err != nil {
 		return err
 	}
-	c.Debugf("Connection request has been answered successfully.")
+	c.Debugf("Connection request has been answered successfully within %s.", time.Since(t0))
 	if !replyOk {
 		msg := string(respBytes)
 
