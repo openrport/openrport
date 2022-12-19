@@ -137,14 +137,16 @@ func (c *Client) Start(ctx context.Context) error {
 func (c *Client) keepAliveLoop() {
 	for c.running {
 		time.Sleep(c.configHolder.Connection.KeepAlive)
+
 		c.mu.RLock()
 		conn := c.sshConn
 		c.mu.RUnlock()
+
 		if conn != nil {
 			ok, _, rtt, err := comm.PingConnectionWithTimeout(conn, c.configHolder.Connection.KeepAliveTimeout)
 			if err != nil || !ok {
 				c.Errorf("Failed to send keepalive (client to server ping): %s", err)
-				conn.Close()
+				c.sshConn.Close()
 			} else {
 				msg := fmt.Sprintf("ping to %s succeeded within %s", conn.RemoteAddr(), rtt)
 				c.Debugf(msg)
