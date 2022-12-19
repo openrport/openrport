@@ -76,7 +76,7 @@ func (al *APIListener) handleChangeUser(w http.ResponseWriter, req *http.Request
 		err := al.apiSessions.DeleteAllByUser(ctx, userID)
 		if err != nil {
 			titleMsg := fmt.Sprintf("password expired, unable to delete all sessions for user \"%s\"", userID)
-			al.jsonErrorResponseWithDetail(w, http.StatusInternalServerError, "", titleMsg, err.Error())
+			al.jsonErrorResponseWithDetail(w, http.StatusInternalServerError, "Unable to delete all User's sessions", titleMsg, err.Error())
 			return
 		}
 	}
