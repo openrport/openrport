@@ -228,22 +228,22 @@ func (c *Client) connectionLoop(ctx context.Context) {
 
 		err := c.sendConnectionRequest(ctx, sshConn.Connection)
 		if err != nil {
+			// Connection request has failed, we try again
 			cancelSwitchback()
 			connerr = err
 			continue
 		}
-
+		// Connection request has succeeded
 		b.Reset()
 
 		c.mu.Lock()
-		c.sshConn = sshConn.Connection
+		c.sshConn = sshConn.Connection // Hand over the open SSH connection to the client
 		c.mu.Unlock()
 
 		c.updates.SetConn(sshConn.Connection)
 		c.monitor.SetConn(sshConn.Connection)
 
-		// we might be some time waiting here
-		err = sshConn.Connection.Wait()
+		err = sshConn.Connection.Wait() // Block aka wait until the connection is closed
 
 		c.mu.Lock()
 		//disconnected
