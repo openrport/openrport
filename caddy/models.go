@@ -1,10 +1,10 @@
 package caddy
 
 type BaseConfig struct {
+	IncludeAPIProxy         bool
 	GlobalSettings          *GlobalSettings
 	DefaultVirtualHost      *DefaultVirtualHost
 	APIReverseProxySettings *APIReverseProxySettings
-	ReverseProxies          []ExternalReverseProxy
 }
 
 type GlobalSettings struct {
@@ -22,7 +22,6 @@ type DefaultVirtualHost struct {
 type APIReverseProxySettings struct {
 	CertsFile     string
 	KeyFile       string
-	UseAPIProxy   bool
 	ProxyDomain   string
 	ProxyPort     string
 	APIDomain     string

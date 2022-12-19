@@ -80,10 +80,9 @@ func setupNewCaddyServer(ctx context.Context, t *testing.T) (cs *caddy.Server) {
 
 	chCfg := &chconfig.Config{
 		API: chconfig.APIConfig{
-			Address:            "0.0.0.0:3000",
-			DomainBasedAddress: "",
-			CertFile:           cfg.CertFile,
-			KeyFile:            cfg.KeyFile,
+			Address:  "0.0.0.0:3000",
+			CertFile: cfg.CertFile,
+			KeyFile:  cfg.KeyFile,
 		},
 	}
 

@@ -179,12 +179,17 @@ func NewAPIListener(
 
 	userService := users.NewAPIService(usersProvider, config.API.IsTwoFAOn(), config.API.PasswordMinLength, config.API.PasswordZxcvbnMinscore)
 
+	HTTPServerOptions := chshare.WithTLS(config.API.CertFile, config.API.KeyFile, security.TLSConfig)
+	if config.CaddyEnabled() && config.Caddy.APIHostname != "" {
+		HTTPServerOptions = nil
+	}
+
 	allog := logger.NewLogger("api-listener", config.Logging.LogOutput, config.Logging.LogLevel)
 	a := &APIListener{
 		Server:            server,
 		Logger:            allog,
 		fingerprint:       fingerprint,
-		httpServer:        chshare.NewHTTPServer(int(config.Server.MaxRequestBytes), allog, chshare.WithTLS(config.API.CertFile, config.API.KeyFile, security.TLSConfig)),
+		httpServer:        chshare.NewHTTPServer(int(config.Server.MaxRequestBytes), allog, HTTPServerOptions),
 		requestLogOptions: config.InitRequestLogOptions(),
 		bannedUsers:       security.NewBanList(time.Duration(config.API.UserLoginWait) * time.Second),
 		userService:       userService,

@@ -102,7 +102,6 @@ func TestShouldMakeAPIReverseProxySettingsText(t *testing.T) {
 	require.NoError(t, err)
 
 	arp := &APIReverseProxySettings{
-		UseAPIProxy:   true,
 		CertsFile:     "certs_file",
 		KeyFile:       "key_file",
 		ProxyDomain:   "proxy_domain",
@@ -153,7 +152,6 @@ func TestShouldMakeAll(t *testing.T) {
 	}
 
 	arp := &APIReverseProxySettings{
-		UseAPIProxy:   true,
 		CertsFile:     "certs_file",
 		KeyFile:       "key_file",
 		ProxyDomain:   "proxy_domain",

@@ -28,11 +28,25 @@ var (
 	ErrCaddyTunnelsWildcardCertFileMissing = errors.New("caddy tunnels wildcard domains cert file missing")
 	ErrCaddyTunnelsWildcardKeyFileMissing  = errors.New("caddy tunnels wildcard domains key file missing")
 	ErrCaddyUnknownLogLevel                = errors.New("unknown caddy log level")
+	ErrCaddyMissingAPIPort                 = errors.New("when api_hostname specified then api_port must also be set")
+	ErrCaddyMissingAPIHostname             = errors.New("when api_port specified then api_hostname must also be set")
+	ErrUnableToCheckIfCertFileExists       = errors.New("unable to check if caddy cert file exists")
+	ErrCaddyCertFileNotFound               = errors.New("caddy cert file not found")
+	ErrUnableToCheckIfKeyFileExists        = errors.New("unable to check if caddy key file exists")
+	ErrCaddyKeyFileNotFound                = errors.New("caddy key file not found")
+	ErrUnableToCheckIfAPICertFileExists    = errors.New("unable to check if caddy api cert file exists")
+	ErrCaddyAPICertFileNotFound            = errors.New("caddy api cert file not found")
+	ErrUnableToCheckIfAPIKeyFileExists     = errors.New("unable to check if caddy api cert file exists")
+	ErrCaddyAPIKeyFileNotFound             = errors.New("caddy api key file not found")
 )
 
 type Config struct {
 	ExecPath         string `mapstructure:"caddy"`
 	BaseConfFilename string `mapstructure:"-"`
+	APIHostname      string `mapstructure:"api_hostname"`
+	APIPort          string `mapstructure:"api_port"`
+	APICertFile      string `mapstructure:"api_cert_file"`
+	APIKeyFile       string `mapstructure:"api_key_file"`
 	HostAddress      string `mapstructure:"address"`
 	BaseDomain       string `mapstructure:"subdomain_prefix"`
 	CertFile         string `mapstructure:"cert_file"`
@@ -55,7 +69,7 @@ func existingCaddyLogLevel(loglevel string) (found bool) {
 	return false
 }
 
-func (c *Config) ParseAndValidate(serverDataDir string, serverLogLevel string, filesAPI *files.FileSystem) error {
+func (c *Config) ParseAndValidate(serverDataDir string, serverLogLevel string, filesAPI files.FileAPI) error {
 	// first check if not configured at all
 	if c.ExecPath == "" && c.HostAddress == "" && c.BaseDomain == "" && c.CertFile == "" && c.KeyFile == "" {
 		return nil
@@ -94,6 +108,55 @@ func (c *Config) ParseAndValidate(serverDataDir string, serverLogLevel string, f
 		return ErrCaddyTunnelsWildcardKeyFileMissing
 	}
 
+	exists, err = filesAPI.Exist(c.CertFile)
+	if err != nil {
+		return ErrUnableToCheckIfCertFileExists
+	}
+	if !exists {
+		return ErrCaddyCertFileNotFound
+	}
+
+	exists, err = filesAPI.Exist(c.KeyFile)
+	if err != nil {
+		return ErrUnableToCheckIfKeyFileExists
+	}
+	if !exists {
+		return ErrCaddyKeyFileNotFound
+	}
+
+	// TODO: (rs): think about how to add a test for this
+	// _, err = tls.LoadX509KeyPair(c.CertFile, c.KeyFile)
+	// if err != nil {
+	// 	return fmt.Errorf("invalid 'cert_file', 'key_file': %v", err)
+	// }
+
+	if c.APIHostname != "" && c.APIPort == "" {
+		return ErrCaddyMissingAPIPort
+	}
+	if c.APIPort != "" && c.APIHostname == "" {
+		return ErrCaddyMissingAPIHostname
+	}
+
+	if c.APICertFile != "" {
+		exists, err = filesAPI.Exist(c.APICertFile)
+		if err != nil {
+			return ErrUnableToCheckIfAPICertFileExists
+		}
+		if !exists {
+			return ErrCaddyAPICertFileNotFound
+		}
+	}
+
+	if c.APIKeyFile != "" {
+		exists, err = filesAPI.Exist(c.APIKeyFile)
+		if err != nil {
+			return ErrUnableToCheckIfAPIKeyFileExists
+		}
+		if !exists {
+			return ErrCaddyAPIKeyFileNotFound
+		}
+	}
+
 	c.LogLevel = serverLogLevel
 	if c.LogLevel != "" && !existingCaddyLogLevel(c.LogLevel) {
 		return ErrCaddyUnknownLogLevel
@@ -120,14 +183,21 @@ func (c *Config) GetBaseConf(bc *BaseConfig) (text []byte, err error) {
 		return nil, err
 	}
 
-	tmpl, err = tmpl.Parse(apiReverseProxySettingsTemplate)
-	if err != nil {
-		return nil, err
-	}
+	if bc.IncludeAPIProxy {
+		tmpl, err = tmpl.Parse(apiReverseProxySettingsTemplate)
+		if err != nil {
+			return nil, err
+		}
 
-	tmpl, err = tmpl.Parse(combinedTemplates)
-	if err != nil {
-		return nil, err
+		tmpl, err = tmpl.Parse(combinedTemplatesWithAPIProxy)
+		if err != nil {
+			return nil, err
+		}
+	} else {
+		tmpl, err = tmpl.Parse(combinedTemplates)
+		if err != nil {
+			return nil, err
+		}
 	}
 
 	var b bytes.Buffer
@@ -139,17 +209,16 @@ func (c *Config) GetBaseConf(bc *BaseConfig) (text []byte, err error) {
 	return b.Bytes(), nil
 }
 
-func (c *Config) MakeBaseConfFilename() (filename string) {
-	filename = c.DataDir + "/" + c.BaseConfFilename
-	return filename
-}
+func (c *Config) MakeBaseConfig() (bc *BaseConfig, err error) {
+	APICertFile := c.CertFile
+	if c.APICertFile != "" {
+		APICertFile = c.APICertFile
+	}
+	APIKeyFile := c.CertFile
+	if c.APIKeyFile != "" {
+		APIKeyFile = c.APIKeyFile
+	}
 
-func (c *Config) MakeBaseConfig(
-	APICertFile string,
-	APIKeyFile string,
-	APIAddress string,
-	APIHostNamePort string,
-) (bc *BaseConfig, err error) {
 	adminSocket := c.DataDir + "/" + adminDomainSockName
 
 	logLevel := c.LogLevel
@@ -174,45 +243,32 @@ func (c *Config) MakeBaseConfig(
 		KeyFile:       c.KeyFile,
 	}
 
-	APIHost := ""
-	APIPort := ""
-	UseAPIProxy := false
-	if APIHostNamePort != "" {
-		APIHost, APIPort, err = net.SplitHostPort(APIHostNamePort)
-		if err != nil {
-			return nil, err
-		}
-		UseAPIProxy = true
-	}
-
-	APITargetScheme := "http"
-	if APICertFile != "" && APIKeyFile != "" {
-		APITargetScheme = "https"
-	}
-
-	APITargetHost, APITargetPort, err := net.SplitHostPort(APIAddress)
-	if err != nil {
-		return nil, err
-	}
-
-	arp := &APIReverseProxySettings{
-		CertsFile:     APICertFile,
-		KeyFile:       APIKeyFile,
-		UseAPIProxy:   UseAPIProxy,
-		ProxyDomain:   APIHost,
-		ProxyPort:     APIPort,
-		APIScheme:     APITargetScheme,
-		APITargetHost: APITargetHost,
-		APITargetPort: APITargetPort,
-	}
-
 	bc = &BaseConfig{
-		GlobalSettings:          gs,
-		APIReverseProxySettings: arp,
-		DefaultVirtualHost:      dvh,
+		GlobalSettings:     gs,
+		DefaultVirtualHost: dvh,
+	}
+
+	if c.APIHostname != "" {
+		arp := &APIReverseProxySettings{
+			CertsFile:     APICertFile,
+			KeyFile:       APIKeyFile,
+			ProxyDomain:   c.APIHostname,
+			ProxyPort:     port,
+			APIScheme:     "http",
+			APITargetHost: "127.0.0.1",
+			APITargetPort: c.APIPort,
+		}
+
+		bc.APIReverseProxySettings = arp
+		bc.IncludeAPIProxy = true
 	}
 
 	return bc, nil
+}
+
+func (c *Config) MakeBaseConfFilename() (filename string) {
+	filename = c.DataDir + "/" + c.BaseConfFilename
+	return filename
 }
 
 const DefaultAlphabet = "0123456789abcdefghijklmnopqrstuvwxyz"

@@ -4,7 +4,6 @@ import (
 	"testing"
 
 	"github.com/cloudradar-monitoring/rport/caddy"
-	"github.com/cloudradar-monitoring/rport/share/files"
 	"github.com/cloudradar-monitoring/rport/share/logger"
 
 	mapset "github.com/deckarep/golang-set"
@@ -659,194 +658,24 @@ func TestParseAndValidatePorts(t *testing.T) {
 	}
 }
 
-func TestShouldParseAndValidateCaddyIntegration(t *testing.T) {
-	filesAPI := files.NewFileSystem()
-
-	cases := []struct {
-		Name             string
-		CaddyConfig      caddy.Config
-		ExpectedErrorStr string
-		NotConfigured    bool
-	}{
-		{
-			Name: "no error if not configured",
-			CaddyConfig: caddy.Config{
-				ExecPath:    "",
-				HostAddress: "",
-				BaseDomain:  "",
-				CertFile:    "",
-				KeyFile:     "",
-			},
-			ExpectedErrorStr: "",
-			NotConfigured:    true,
-		},
-		{
-			Name: "no error if all values configured",
-			CaddyConfig: caddy.Config{
-				ExecPath:    "/usr/bin/caddy",
-				HostAddress: "0.0.0.0:443",
-				BaseDomain:  "tunnels.rport.example.com",
-				CertFile:    "/var/lib/rport/wildcard.crt",
-				KeyFile:     "/var/lib/rport/wildcard.key",
-			},
-			ExpectedErrorStr: "",
-		},
-		{
-			Name: "error if exec path missing",
-			CaddyConfig: caddy.Config{
-				// ExecPath: "/usr/bin/caddy",
-				HostAddress: "0.0.0.0:443",
-				BaseDomain:  "tunnels.rport.example.com",
-				CertFile:    "/var/lib/rport/wildcard.crt",
-				KeyFile:     "/var/lib/rport/wildcard.key",
-			},
-			ExpectedErrorStr: caddy.ErrCaddyExecPathMissing.Error(),
-		},
-		{
-			Name: "error if address missing",
-			CaddyConfig: caddy.Config{
-				ExecPath: "/usr/bin/caddy",
-				// HostAddress:   "0.0.0.0:443",
-				BaseDomain: "tunnels.rport.example.com",
-				CertFile:   "/var/lib/rport/wildcard.crt",
-				KeyFile:    "/var/lib/rport/wildcard.key",
-			},
-			ExpectedErrorStr: caddy.ErrCaddyTunnelsHostAddressMissing.Error(),
-		},
-		{
-			Name: "error if subdomain missing",
-			CaddyConfig: caddy.Config{
-				ExecPath:    "/usr/bin/caddy",
-				HostAddress: "0.0.0.0:443",
-				// BaseDomain: "tunnels.rport.example.com",
-				CertFile: "/var/lib/rport/wildcard.crt",
-				KeyFile:  "/var/lib/rport/wildcard.key",
-			},
-			ExpectedErrorStr: caddy.ErrCaddyTunnelsBaseDomainMissing.Error(),
-		},
-		{
-			Name: "error if cert file missing",
-			CaddyConfig: caddy.Config{
-				ExecPath:    "/usr/bin/caddy",
-				HostAddress: "0.0.0.0:443",
-				BaseDomain:  "tunnels.rport.example.com",
-				// CertFile: "/var/lib/rport/wildcard.crt",
-				KeyFile: "/var/lib/rport/wildcard.key",
-			},
-			ExpectedErrorStr: caddy.ErrCaddyTunnelsWildcardCertFileMissing.Error(),
-		},
-		{
-			Name: "error if key file missing",
-			CaddyConfig: caddy.Config{
-				ExecPath:    "/usr/bin/caddy",
-				HostAddress: "0.0.0.0:443",
-				BaseDomain:  "tunnels.rport.example.com",
-				CertFile:    "/var/lib/rport/wildcard.crt",
-				// KeyFile:  "/var/lib/rport/wildcard.key",
-			},
-			ExpectedErrorStr: caddy.ErrCaddyTunnelsWildcardKeyFileMissing.Error(),
-		},
-	}
-	for _, tc := range cases {
-		t.Run(tc.Name, func(t *testing.T) {
-			err := tc.CaddyConfig.ParseAndValidate("datadir", "info", filesAPI)
-			if tc.ExpectedErrorStr == "" {
-				if tc.NotConfigured {
-					assert.NoError(t, err)
-				} else {
-					assert.NoError(t, err)
-					assert.True(t, tc.CaddyConfig.Enabled)
-				}
-			} else {
-				assert.Error(t, err)
-				assert.Contains(t, err.Error(), tc.ExpectedErrorStr)
-			}
-		})
-	}
-}
-
-func TestShouldValidateAPIDomainBasedAddressIfSharedPorts(t *testing.T) {
+func TestShouldValidateCaddyAPIHostnameAndAPIPortConfiguredIfSharedPorts(t *testing.T) {
 	cases := []struct {
 		Name             string
 		Config           Config
 		ExpectedErrorStr string
 	}{
 		{
-			Name: "no error when tunnel subdomains not configured",
-			Config: Config{
-				Caddy: caddy.Config{
-					// Enabled is usually set when validating the subdomain config. However, we aren't
-					// validating it. We're only checking the API domain validation. So manually set
-					// the subdomain config enabled status as required.
-					Enabled:     false,
-					HostAddress: "0.0.0.0:6789",
-				},
-				API: APIConfig{
-					Address: "0.0.0.0:6789",
-				},
-			},
-			ExpectedErrorStr: "",
-		},
-		{
-			Name: "api https required when matching ports",
+			Name: "error when caddy configured, no api_port, and matching caddy and api ports",
 			Config: Config{
 				Caddy: caddy.Config{
 					Enabled:     true,
-					HostAddress: "0.0.0.0:6789",
+					HostAddress: "0.0.0.0:443",
 				},
 				API: APIConfig{
-					Address:            "0.0.0.0:6789",
-					CertFile:           "certfile",
-					KeyFile:            "keyfile",
-					DomainBasedAddress: "hostname_port",
+					Address: "0.0.0.0:443",
 				},
 			},
-			ExpectedErrorStr: "",
-		},
-		{
-			Name: "error when invalid api https and matching ports",
-			Config: Config{
-				Caddy: caddy.Config{
-					Enabled:     true,
-					HostAddress: "0.0.0.0:6789",
-				},
-				API: APIConfig{
-					Address: "0.0.0.0:6789",
-					// CertFile:  "certfile",
-					KeyFile:            "keyfile",
-					DomainBasedAddress: "hostname_port",
-				},
-			},
-			ExpectedErrorStr: "API https must be configured",
-		},
-		{
-			Name: "error when missing api domain and matching ports",
-			Config: Config{
-				Caddy: caddy.Config{
-					Enabled:     true,
-					HostAddress: "0.0.0.0:6789",
-				},
-				API: APIConfig{
-					Address:  "0.0.0.0:6789",
-					CertFile: "certfile",
-					KeyFile:  "keyfile",
-					// DomainBasedAddress: "hostname_port",
-				},
-			},
-			ExpectedErrorStr: "API and tunnel subdomains are on the same port. The hostname_port must be configured",
-		},
-		{
-			Name: "no api https required when non-matching ports",
-			Config: Config{
-				Caddy: caddy.Config{
-					Enabled:     true,
-					HostAddress: "0.0.0.0:6789",
-				},
-				API: APIConfig{
-					Address: "0.0.0.0:1234",
-				},
-			},
-			ExpectedErrorStr: "",
+			ExpectedErrorStr: "API and tunnel subdomains are on the same port. The api_hostname and api_port must be configured",
 		},
 	}
 	for _, tc := range cases {

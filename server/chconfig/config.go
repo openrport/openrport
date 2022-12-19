@@ -41,7 +41,6 @@ import (
 
 type APIConfig struct {
 	Address                string  `mapstructure:"address"`
-	DomainBasedAddress     string  `mapstructure:"hostname_port"`
 	Auth                   string  `mapstructure:"auth"`
 	AuthFile               string  `mapstructure:"auth_file"`
 	AuthUserTable          string  `mapstructure:"auth_user_table"`
@@ -444,21 +443,14 @@ func (c *Config) validateAPIWhenCaddyIntegration() (err error) {
 		return nil
 	}
 
-	// The API and the tunnel subdomains are on the same port
-	matchingPorts, err := matchingPorts(c.API.Address, caddyConfig.HostAddress)
-	if err != nil {
-		return err
-	}
-	if matchingPorts {
-		// but the API is set up without TLS
-		err = c.parseAndValidateAPIHTTPSOptions(true /* mustBeConfigured */, true /* skipLoadCheck */)
+	if caddyConfig.APIHostname == "" || caddyConfig.APIPort == "" {
+		// Check if the API and the tunnel subdomains are on the same port
+		matchingPorts, err := matchingPorts(c.API.Address, caddyConfig.HostAddress)
 		if err != nil {
-			return fmt.Errorf("API and tunnel subdomains are on the same port. API https must be configured: %s", err)
+			return err
 		}
-
-		// Required if tunnels by subdomain and the API run on the same https port
-		if c.API.DomainBasedAddress == "" {
-			return errors.New("API and tunnel subdomains are on the same port. The hostname_port must be configured")
+		if matchingPorts {
+			return errors.New("API and tunnel subdomains are on the same port. The api_hostname and api_port must be configured")
 		}
 	}
 
@@ -466,7 +458,7 @@ func (c *Config) validateAPIWhenCaddyIntegration() (err error) {
 }
 
 func (c *Config) WriteCaddyBaseConfig(caddyConfig *caddy.Config) (bc *caddy.BaseConfig, err error) {
-	bc, err = caddyConfig.MakeBaseConfig(c.API.CertFile, c.API.KeyFile, c.API.Address, c.API.DomainBasedAddress)
+	bc, err = caddyConfig.MakeBaseConfig()
 	if err != nil {
 		return nil, err
 	}

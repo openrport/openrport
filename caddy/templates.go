@@ -27,6 +27,10 @@ var NewRouteRequestTemplate string
 
 const combinedTemplates = `
 {{- template "GS" .GlobalSettings }}
+{{- template "DVH" .DefaultVirtualHost -}}`
+
+const combinedTemplatesWithAPIProxy = `
+{{- template "GS" .GlobalSettings }}
 {{- template "ARP" .APIReverseProxySettings }}
 {{- template "DVH" .DefaultVirtualHost -}}`
 
@@ -58,26 +62,18 @@ https://{{.ListenAddress}}:{{.ListenPort}} {
 {{ end }}
 `
 
-// TODO: (rs): add test for when not using API proxy
-
 const apiReverseProxySettingsTemplate = `
 {{ define "ARP"}}
-{{- if .UseAPIProxy }}
 https://{{.ProxyDomain}}:{{.ProxyPort}} {
 	tls {{.CertsFile}} {{.KeyFile}} {
 		protocols tls1.3
 	}
 	reverse_proxy {
 		to {{.APIScheme}}://{{.APITargetHost}}:{{.APITargetPort}}
-			transport http {
-				tls
-				tls_insecure_skip_verify
-			}
 	}
 	log {
 		output discard
 	}
 }
-{{- end }}
 {{ end }}
 `

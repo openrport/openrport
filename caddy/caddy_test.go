@@ -54,10 +54,9 @@ func TestShouldStartCaddyServer(t *testing.T) {
 
 	chCfg := &chconfig.Config{
 		API: chconfig.APIConfig{
-			Address:            "0.0.0.0:3000",
-			DomainBasedAddress: "",
-			CertFile:           cfg.CertFile,
-			KeyFile:            cfg.KeyFile,
+			Address:  "0.0.0.0:3000",
+			CertFile: cfg.CertFile,
+			KeyFile:  cfg.KeyFile,
 		},
 	}
 
@@ -92,9 +91,13 @@ func TestShouldGenerateBaseConf(t *testing.T) {
 		BaseDomain:  "tunnels.rpdev",
 		CertFile:    "proxy_cert_file",
 		KeyFile:     "proxy_key_file",
+		APICertFile: "api_cert_file",
+		APIKeyFile:  "api_key_file",
+		APIHostname: "api_hostname",
+		APIPort:     "api_port",
 	}
 
-	bc, err := cfg.MakeBaseConfig("api_cert_file", "api_key_file", "127.0.0.0:3000", "api.rpdev:443")
+	bc, err := cfg.MakeBaseConfig()
 	require.NoError(t, err)
 
 	bcBytes, err := cfg.GetBaseConf(bc)
@@ -105,7 +108,7 @@ func TestShouldGenerateBaseConf(t *testing.T) {
 	assert.Contains(t, text, "admin unix/./caddy-admin.sock")
 	assert.Contains(t, text, "https://0.0.0.0:443")
 	assert.Contains(t, text, "tls proxy_cert_file proxy_key_file {")
-	assert.Contains(t, text, "https://api.rpdev:443")
+	assert.Contains(t, text, "https://api_hostname:443")
 	assert.Contains(t, text, "tls api_cert_file api_key_file")
-	assert.Contains(t, text, "to https://127.0.0.0:3000")
+	assert.Contains(t, text, "to http://127.0.0.1:api_port")
 }
