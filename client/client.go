@@ -5,6 +5,7 @@ import (
 	"encoding/json"
 	"fmt"
 	"io"
+	"math/rand"
 	"net"
 	"net/http"
 	"net/url"
@@ -164,13 +165,19 @@ func (c *Client) connectionLoop(ctx context.Context) {
 	for c.running {
 		if connerr != nil {
 			attempt := int(b.Attempt())
-			d := b.Duration()
+			var d = b.Duration()
 			c.showConnectionError(connerr, attempt)
 			if c.configHolder.Connection.MaxRetryCount >= 0 && attempt >= c.configHolder.Connection.MaxRetryCount {
 				break // Stop trying to connect if the user has set a max retry limit
 			}
+			if _, ok := connerr.(comm.TimeoutError); ok {
+				// Timeout means the server is available. No need to wait up to 5 min to try again.
+				rand.Seed(time.Now().UnixNano())
+				d = time.Duration(rand.Intn(20)) * time.Second
+				b.Reset()
+			}
 			msg := fmt.Sprintf("Retrying in %s...", d)
-			c.Errorf(msg)
+			c.Infof(msg)
 			c.watchdog.Ping(WatchdogStateReconnecting, msg)
 			connerr = nil
 			chshare.SleepSignal(d)
@@ -365,7 +372,7 @@ func (c *Client) sendConnectionRequest(ctx context.Context, sshConn ssh.Conn) er
 	replyOk, respBytes, err := comm.SendRequestWithTimeout(sshConn, "new_connection", true, req, ConnectionTimeout)
 	if err != nil {
 		if err2 := sshConn.Close(); err2 != nil {
-			return fmt.Errorf("%s, %s", err, err2)
+			c.Errorf("Failed to close connection: %s", err2)
 		}
 		return err
 	}
