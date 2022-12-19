@@ -362,6 +362,9 @@ func (c *Client) sendConnectionRequest(ctx context.Context, sshConn ssh.Conn) er
 	t0 := time.Now()
 	replyOk, respBytes, err := comm.SendRequestWithTimeout(sshConn, "new_connection", true, req, ConnectionTimeout)
 	if err != nil {
+		if err2 := sshConn.Close(); err2 != nil {
+			return fmt.Errorf("%s, %s", err, err2)
+		}
 		return err
 	}
 	c.Debugf("Connection request has been answered successfully within %s.", time.Since(t0))
