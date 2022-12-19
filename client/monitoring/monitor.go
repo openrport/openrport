@@ -68,11 +68,14 @@ func (m *Monitor) refreshLoop(ctx context.Context) {
 	for {
 		m.refreshMeasurement(ctx)
 
+		intTimeout := time.NewTimer(m.config.Interval)
+		intTimeout.Stop()
+
 		select {
 		case <-ctx.Done():
 			m.logger.Errorf("Monitoring ended by context.Done")
 			return
-		case <-time.After(m.config.Interval):
+		case <-intTimeout.C:
 		}
 	}
 }

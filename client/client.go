@@ -9,6 +9,7 @@ import (
 	"net/http"
 	"net/url"
 	"strings"
+	"sync"
 	"time"
 
 	"github.com/cloudradar-monitoring/rport/share/random"
@@ -52,6 +53,8 @@ type Client struct {
 	serverCapabilities *models.Capabilities
 	filesAPI           files.FileAPI
 	watchdog           *Watchdog
+
+	mu sync.RWMutex
 }
 
 // NewClient creates a new client instance
@@ -134,13 +137,16 @@ func (c *Client) Start(ctx context.Context) error {
 func (c *Client) keepAliveLoop() {
 	for c.running {
 		time.Sleep(c.configHolder.Connection.KeepAlive)
-		if c.sshConn != nil {
-			ok, _, rtt, err := comm.PingConnectionWithTimeout(c.sshConn, c.configHolder.Connection.KeepAliveTimeout)
+		c.mu.RLock()
+		conn := c.sshConn
+		c.mu.RUnlock()
+		if conn != nil {
+			ok, _, rtt, err := comm.PingConnectionWithTimeout(conn, c.configHolder.Connection.KeepAliveTimeout)
 			if err != nil || !ok {
 				c.Errorf("Failed to send keepalive (client to server ping): %s", err)
-				c.sshConn.Close()
+				conn.Close()
 			} else {
-				msg := fmt.Sprintf("ping to %s succeeded within %s", c.sshConn.RemoteAddr(), rtt)
+				msg := fmt.Sprintf("ping to %s succeeded within %s", conn.RemoteAddr(), rtt)
 				c.Debugf(msg)
 				c.watchdog.Ping(WatchdogStateConnected, msg)
 			}
@@ -182,6 +188,7 @@ func (c *Client) connectionLoop(ctx context.Context) {
 				continue
 			}
 		}
+
 		// Start handling requests and channels immediately, otherwise ssh connection might hang
 		go c.handleSSHRequests(ctx, sshConn)
 		go c.connectStreams(sshConn.Channels)
@@ -190,10 +197,12 @@ func (c *Client) connectionLoop(ctx context.Context) {
 		if !isPrimary {
 			go func() {
 				for {
+					switchbackTimer := time.NewTimer(c.configHolder.Client.ServerSwitchbackInterval)
+					defer switchbackTimer.Stop()
 					select {
 					case <-switchbackCtx.Done():
 						return
-					case <-time.After(c.configHolder.Client.ServerSwitchbackInterval):
+					case <-switchbackTimer.C:
 						switchbackConn, err := c.connect(c.configHolder.Client.Server)
 						if err != nil {
 							c.Errorf("Switchback failed: %v", err.Error())
@@ -217,13 +226,21 @@ func (c *Client) connectionLoop(ctx context.Context) {
 
 		b.Reset()
 
+		c.mu.Lock()
 		c.sshConn = sshConn.Connection
+		c.mu.Unlock()
+
 		c.updates.SetConn(sshConn.Connection)
 		c.monitor.SetConn(sshConn.Connection)
 
+		// we might be some time waiting here
 		err = sshConn.Connection.Wait()
+
+		c.mu.Lock()
 		//disconnected
 		c.sshConn = nil
+		c.mu.Unlock()
+
 		c.updates.SetConn(nil)
 		c.monitor.SetConn(nil)
 		c.monitor.Stop()
