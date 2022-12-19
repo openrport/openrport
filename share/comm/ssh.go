@@ -99,10 +99,12 @@ func SendRequestWithTimeout(conn ssh.Conn, name string, wantReplay bool, payload
 			return
 		}
 	}()
+	reqTimeout := time.NewTimer(timeout)
+	defer reqTimeout.Stop()
 	select {
 	case <-ch:
 		return ok, response, err
-	case <-time.After(timeout):
+	case <-reqTimeout.C:
 		return false, nil, fmt.Errorf("conn.SendRequest(%s), timeout %s exceeded", name, timeout)
 	}
 }

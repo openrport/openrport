@@ -857,9 +857,7 @@ func (s *ClientServiceProvider) terminateTunnelOnIdleTimeout(ctx context.Context
 	for {
 		select {
 		case <-ctx.Done():
-			if !timer.Stop() {
-				<-timer.C
-			}
+			timer.Stop()
 			return
 		case <-timer.C:
 			sinceLastActive := time.Since(t.LastActive())
