@@ -52,7 +52,7 @@ func (m *Monitor) Start(ctx context.Context) {
 	ctx, m.stopFn = context.WithCancel(ctx)
 
 	go m.refreshLoop(ctx)
-	m.logger.Debugf("Monitor started")
+	m.logger.Debugf("Monitoring started")
 }
 
 func (m *Monitor) Stop() {
@@ -61,21 +61,22 @@ func (m *Monitor) Stop() {
 	}
 
 	m.stopFn()
-	m.logger.Debugf("Monitor stopped")
+	m.logger.Debugf("Monitoring stopped")
 }
 
 func (m *Monitor) refreshLoop(ctx context.Context) {
 	for {
 		m.refreshMeasurement(ctx)
 
-		intTimeout := time.NewTimer(m.config.Interval)
-		intTimeout.Stop()
+		//intTimeout := time.NewTimer(m.config.Interval)
+		//intTimeout.Stop()
 
 		select {
 		case <-ctx.Done():
 			m.logger.Errorf("Monitoring ended by context.Done")
 			return
-		case <-intTimeout.C:
+		//case <-intTimeout.C:
+		case <-time.After(m.config.Interval):
 		}
 	}
 }
@@ -138,8 +139,13 @@ func (m *Monitor) createMeasurement(ctx context.Context) *models.Measurement {
 
 // sends system measurement data to server using ssh-connection
 func (m *Monitor) sendMeasurement() {
+	t0 := time.Now()
 	m.mtx.RLock()
 	defer m.mtx.RUnlock()
+
+	if m.conn == nil {
+		m.logger.Debugf("Cannot send measurement. SSH connection missing. m.conn = nil")
+	}
 
 	if m.conn != nil && m.measurement != nil {
 		data, err := json.Marshal(m.measurement)
@@ -153,10 +159,13 @@ func (m *Monitor) sendMeasurement() {
 			m.logger.Errorf("Could not send save_measurement: %v", err)
 			return
 		}
+		m.logger.Debugf("%d bytes of monitoring measurements sent within %s", len(data), time.Since(t0))
 	}
+
 }
 
 func (m *Monitor) SetConn(c ssh.Conn) {
+	m.logger.Debugf("SSH Connection for monitoring set.")
 	m.mtx.Lock()
 	defer m.mtx.Unlock()
 
