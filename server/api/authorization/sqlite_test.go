@@ -94,111 +94,13 @@ func TestList(t *testing.T) {
 		{
 			Name:           "no options",
 			Options:        &query.ListOptions{},
-			ExpectedResult: demoData,
+			ExpectedResult: []APIToken{demoData[0]},
 		},
-		// {
-		// 	Name: "sort only",
-		// 	Options: &query.ListOptions{
-		// 		Sorts: []query.SortOption{
-		// 			{
-		// 				Column: "created_at",
-		// 				IsASC:  false,
-		// 			},
-		// 		},
-		// 	},
-		// 	ExpectedResult: []APIToken{demoData[0], demoData[1]},
-		// },
-		// {
-		// 	Name: "filter and sort",
-		// 	Options: &query.ListOptions{
-		// 		Sorts: []query.SortOption{
-		// 			{
-		// 				Column: "username",
-		// 				IsASC:  true,
-		// 			},
-		// 		},
-		// 		Filters: []query.FilterOption{
-		// 			{
-		// 				Column: []string{"created_by"},
-		// 				Values: []string{"user1"},
-		// 			},
-		// 		},
-		// 	},
-		// 	ExpectedResult: []APIToken{demoData[1], demoData[0]},
-		// },
-		// {
-		// 	Name: "filter, no results",
-		// 	Options: &query.ListOptions{
-		// 		Filters: []query.FilterOption{
-		// 			{
-		// 				Column: []string{"interpreter"},
-		// 				Values: []string{"not-existing-interpreter"},
-		// 			},
-		// 		},
-		// 	},
-		// 	ExpectedResult: []APIToken{},
-		// },
-		// {
-		// 	Name: "filter, 1 result",
-		// 	Options: &query.ListOptions{
-		// 		Filters: []query.FilterOption{
-		// 			{
-		// 				Column: []string{"is_sudo"},
-		// 				Values: []string{"0"},
-		// 			},
-		// 		},
-		// 	},
-		// 	ExpectedResult: []APIToken{demoData[0]},
-		// },
-		// {
-		// 	Name: "multiple filters",
-		// 	Options: &query.ListOptions{
-		// 		Sorts: []query.SortOption{
-		// 			{
-		// 				Column: "interpreter",
-		// 				IsASC:  true,
-		// 			},
-		// 		},
-		// 		Filters: []query.FilterOption{
-		// 			{
-		// 				Column: []string{"name"},
-		// 				Values: []string{"some name", "other name 2"},
-		// 			},
-		// 			{
-		// 				Column: []string{"created_by"},
-		// 				Values: []string{"user1"},
-		// 			},
-		// 		},
-		// 	},
-		// 	ExpectedResult: demoData,
-		// },
-		// {
-		// 	Name: "fields",
-		// 	Options: &query.ListOptions{
-		// 		Fields: []query.FieldsOption{
-		// 			{
-		// 				Resource: "scripts",
-		// 				Fields:   []string{"", "name"},
-		// 			},
-		// 		},
-		// 	},
-		// 	ExpectedResult: []APIToken{
-		// 		{
-		// 			ID:   "1",
-		// 			Name: "some name",
-		// 		},
-		// 		{
-		// 			ID:   "2",
-		// 			Name: "other name 2",
-		// 		},
-		// 	},
-		// },
 	}
-
 	for _, tc := range testCases {
 		tc := tc
 		t.Run(tc.Name, func(t *testing.T) {
-			result, err := dbProv.List(context.Background(), tc.Options)
+			result, err := dbProv.GetAll(context.Background(), "username1")
 			require.NoError(t, err)
 
 			assert.Equal(t, tc.ExpectedResult, result)
@@ -217,7 +119,7 @@ func TestCreate(t *testing.T) {
 
 	ctx := context.Background()
 	itemToSave := demoData[0]
-	err = dbProv.save(ctx, &itemToSave)
+	err = dbProv.Save(ctx, &itemToSave)
 	require.NoError(t, err)
 
 	expectedRows := []map[string]interface{}{
@@ -244,7 +146,7 @@ func TestUpdate(t *testing.T) {
 
 	ctx := context.Background()
 	itemToSave := demoData[0]
-	err = dbProv.save(ctx, &itemToSave)
+	err = dbProv.Save(ctx, &itemToSave)
 	require.NoError(t, err)
 
 	var demoDataUpdate = &APIToken{
@@ -255,7 +157,7 @@ func TestUpdate(t *testing.T) {
 		Token:     "onenewlongtoken1",
 	}
 
-	err = dbProv.save(ctx, demoDataUpdate)
+	err = dbProv.Save(ctx, demoDataUpdate)
 	require.NoError(t, err)
 
 	expectedRows := []map[string]interface{}{

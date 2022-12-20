@@ -155,7 +155,7 @@ func (al *APIListener) handleManageAPIToken(w http.ResponseWriter, req *http.Req
 			Scope:    r.Scope,
 			Token:    newToken,
 		}
-		err = al.tokenManager.Save(req.Context(), newAPIToken)
+		err = al.tokenManager.Create(req.Context(), newAPIToken)
 		if err != nil {
 			al.jsonError(w, err)
 			return
@@ -166,10 +166,40 @@ func (al *APIListener) handleManageAPIToken(w http.ResponseWriter, req *http.Req
 			WithID(user.Username).
 			Save()
 
-		al.Debugf("APIToken is created for user [%s].", user.Username)
+		al.Debugf("APIToken [%s] is created for user [%s].", newPrefix, user.Username)
 		al.writeJSONResponse(w, http.StatusOK, api.NewSuccessPayload(newAPIToken))
 	}
+	if action == "update" {
+		var r struct {
+			Prefix    string     `json:"prefix"`
+			ExpiresAt *time.Time `json:"expires_at"`
+		}
+		err := parseRequestBody(req.Body, &r)
+		if err != nil {
+			al.jsonError(w, err)
+			return
+		}
 
+		updAPIToken := &authorization.APIToken{
+			Username:  user.Username,
+			Prefix:    r.Prefix,
+			ExpiresAt: r.ExpiresAt,
+		}
+		err = al.tokenManager.Save(req.Context(), updAPIToken)
+		if err != nil {
+			al.jsonError(w, err)
+			return
+		}
+
+		al.auditLog.Entry(auditlog.ApplicationAuthUserMeToken, auditlog.ActionUpdate).
+			WithHTTPRequest(req).
+			WithID(user.Username).
+			WithID(r.Prefix).
+			Save()
+
+		al.Debugf("APIToken [%s] is updated for user [%s].", r.Prefix, user.Username)
+		al.writeJSONResponse(w, http.StatusOK, api.NewSuccessPayload(updAPIToken))
+	}
 	if action == "list" {
 		type APITokenPayload struct {
 			CreatedAt *time.Time `json:"created_at,omitempty" db:"created_at"`
@@ -336,6 +366,10 @@ func (al *APIListener) handleGetToken(w http.ResponseWriter, req *http.Request) 
 
 func (al *APIListener) handlePostToken(w http.ResponseWriter, req *http.Request) {
 	al.handleManageCurUserAPIToken(w, req, "create")
+}
+
+func (al *APIListener) handlePutToken(w http.ResponseWriter, req *http.Request) {
+	al.handleManageCurUserAPIToken(w, req, "update")
 }
 
 func (al *APIListener) handleDeleteToken(w http.ResponseWriter, req *http.Request) {

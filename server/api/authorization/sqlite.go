@@ -81,9 +81,7 @@ func (p *SqliteProvider) Save(ctx context.Context, tokenLine *APIToken) (err err
 			" `api_token` (`username`, `prefix`, `expires_at`, `scope`, `token`)"+
 			"      VALUES (:username, :prefix, :expires_at, :scope, :token)"+
 			" 	ON CONFLICT(username, prefix) DO UPDATE SET"+
-			"		expires_at=EXCLUDED.expires_at,"+
-			"		scope=EXCLUDED.scope,"+
-			"		token=EXCLUDED.token"+
+			"		expires_at=EXCLUDED.expires_at"+
 			"	WHERE EXCLUDED.username = api_token.username AND"+
 			"	       EXCLUDED.prefix = api_token.prefix",
 		tokenLine,
@@ -91,7 +89,7 @@ func (p *SqliteProvider) Save(ctx context.Context, tokenLine *APIToken) (err err
 	if err != nil {
 		return fmt.Errorf("unable to create api token: %w", err)
 	}
-
+	fmt.Printf("tried to save %+v", tokenLine)
 	return nil
 }
 
@@ -125,16 +123,3 @@ func (p *SqliteProvider) Close() error {
 
 	return nil
 }
-
-// func (p *SqliteProvider) DeleteAllByUser(ctx context.Context, username string) (err error) {
-// 	// _, err = p.db.ExecContext(
-// 	// 	ctx,
-// 	// 	"DELETE FROM api_token WHERE username = ?",
-// 	// 	username,
-// 	// )
-// 	// if err != nil {
-// 	// 	return err
-// 	// }
-
-// 	return nil
-// }
