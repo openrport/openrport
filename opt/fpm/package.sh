@@ -105,9 +105,10 @@ docker run --name rpmlint --mount type=bind,source="$(pwd)",target=/src rockylin
   bash -c "dnf -y install rpmlint >/dev/null 2>&1 && rpmlint -f /src/opt/fpm/rpmlint.conf /src/rport-*.x86_64.rpm"
 docker rm rpmlint
 # Check the package installs and uninstalls without errors.
-# Inside docker it's a weak check but it will still catch mots obvious errors
+# Inside docker it's a weak check but it will still catch most obvious errors
 echo "👷 Checking if rpm installs and uninstalls ..."
 docker run --name rpminstall --mount type=bind,source="$(pwd)",target=/src rockylinux:9 \
   bash -c "rpm -i /src/rport-*.x86_64.rpm && rpm -e rport"
 docker rm rpminstall
 echo "✅ Check passed"
+ls -la

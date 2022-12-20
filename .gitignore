@@ -37,3 +37,6 @@ cheat-sheet.txt
 # Ignore packages that might have not been removed from your local project folder
 *.rpm
 *.deb
+
+# Ignore the local evironment used to test fpm and package releasing
+opt/fpm/.env

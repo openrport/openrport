@@ -488,6 +488,7 @@ func (s *ClientServiceProvider) startClientTunnels(client *Client, remotes []*mo
 			}
 		}
 
+		s.logger.Debugf("starting tunnel: %s", remote)
 		t, err := s.StartTunnel(client, remote, acl)
 		if err != nil {
 			return nil, errors.APIError{

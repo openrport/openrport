@@ -67,7 +67,7 @@ func InitClientRepository(
 }
 
 func (s *ClientRepository) Save(client *Client) error {
-	s.logger.Debugf("saving client: %s is_disconnected=%s", client.ID, client.DisconnectedAt)
+	s.logger.Debugf("saving client: %s status=%s", client.ID, FormatConnectionState(client.DisconnectedAt))
 
 	if s.store != nil {
 		err := s.store.Save(context.Background(), client)
@@ -83,7 +83,7 @@ func (s *ClientRepository) Save(client *Client) error {
 }
 
 func (s *ClientRepository) Delete(client *Client) error {
-	s.logger.Debugf("deleting client: %s: %s", client.ID, client.DisconnectedAt)
+	s.logger.Debugf("deleting client: %s status=%s", client.ID, FormatConnectionState(client.DisconnectedAt))
 
 	if s.store != nil {
 		err := s.store.Delete(context.Background(), client.ID)
@@ -175,7 +175,7 @@ func (s *ClientRepository) DeleteObsolete() ([]*Client, error) {
 	var deleted []*Client
 	for _, client := range s.clients {
 		if client.Obsolete(s.KeepDisconnectedClients) {
-			s.logger.Debugf("deleting obsolete client: %s: %s", client.ID, client.DisconnectedAt)
+			s.logger.Debugf("deleting obsolete client: %s status=%s", client.ID, FormatConnectionState(client.DisconnectedAt))
 
 			delete(s.clients, client.ID)
 			deleted = append(deleted, client)
