@@ -18,9 +18,11 @@ import (
 	"github.com/gorilla/mux"
 	"github.com/jpillora/requestlog"
 
+	"github.com/cloudradar-monitoring/rport/db/migration/api_token"
 	"github.com/cloudradar-monitoring/rport/db/migration/library"
 	"github.com/cloudradar-monitoring/rport/db/sqlite"
 
+	"github.com/cloudradar-monitoring/rport/server/api/authorization"
 	"github.com/cloudradar-monitoring/rport/server/api/session"
 	"github.com/cloudradar-monitoring/rport/server/chconfig"
 	"github.com/cloudradar-monitoring/rport/server/clients/storedtunnels"
@@ -67,6 +69,7 @@ type APIListener struct {
 	userService    UserService
 	vaultManager   *vault.Manager
 	scriptManager  *script.Manager
+	tokenManager   *authorization.Manager
 	commandManager *command.Manager
 	storedTunnels  *storedtunnels.Manager
 }
@@ -170,12 +173,25 @@ func NewAPIListener(
 		return nil, fmt.Errorf("failed init library DB instance: %w", err)
 	}
 
+	api_tokenDb, err := sqlite.New(
+		path.Join(config.Server.DataDir, "api_token.db"),
+		api_token.AssetNames(),
+		api_token.Asset,
+		config.Server.GetSQLiteDataSourceOptions(),
+	)
+	if err != nil {
+		return nil, fmt.Errorf("failed init api_token DB instance: %w", err)
+	}
+
 	scriptLogger := logger.NewLogger("scripts", config.Logging.LogOutput, config.Logging.LogLevel)
 	scriptProvider := script.NewSqliteProvider(libraryDb)
 	scriptManager := script.NewManager(scriptProvider, scriptLogger)
 
 	commandProvider := command.NewSqliteProvider(libraryDb)
 	commandManager := command.NewManager(commandProvider)
+
+	tokenProvider := authorization.NewSqliteProvider(api_tokenDb)
+	tokenManager := authorization.NewManager(tokenProvider)
 
 	userService := users.NewAPIService(usersProvider, config.API.IsTwoFAOn(), config.API.PasswordMinLength, config.API.PasswordZxcvbnMinscore)
 
@@ -190,6 +206,7 @@ func NewAPIListener(
 		vaultManager:      vault.NewManager(vaultDBProviderFactory, &vault.Aes256PassManager{}, vaultLogger),
 		scriptManager:     scriptManager,
 		commandManager:    commandManager,
+		tokenManager:      tokenManager,
 		storedTunnels:     storedtunnels.New(server.clientDB),
 	}
 

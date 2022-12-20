@@ -1,11 +1,6 @@
 package users
 
-type APIToken struct {
-	Prefix string
-	Scope  string
-	// EDTODO: should User know expires_at field also? (YES)
-	Token string
-}
+import "github.com/cloudradar-monitoring/rport/server/api/authorization"
 
 // User represents API user.
 type User struct {
@@ -14,7 +9,7 @@ type User struct {
 	PasswordExpired *bool    `json:"password_expired" db:"password_expired"`
 	Groups          []string `json:"groups" db:"-"`
 	TwoFASendTo     string   `json:"two_fa_send_to" db:"two_fa_send_to"`
-	Token           *[]APIToken
+	Token           *[]authorization.APIToken
 	TotP            string `json:"totp_secret,omitempty" db:"totp_secret"`
 }
 
@@ -37,8 +32,4 @@ func (u User) IsAdmin() bool {
 
 func PasswordExpired(f bool) *bool {
 	return &f
-}
-
-func Token(s APIToken) *APIToken {
-	return &s
 }

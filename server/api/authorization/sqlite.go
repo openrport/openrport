@@ -21,35 +21,20 @@ func NewSqliteProvider(db *sqlx.DB) *SqliteProvider {
 	}
 }
 
-func (p *SqliteProvider) List(ctx context.Context, lo *query.ListOptions) ([]APIToken, error) {
-	values := []APIToken{}
-
-	q := "SELECT * FROM `api_token`"
-
-	q, params := p.converter.ConvertListOptionsToQuery(lo, q)
-
-	err := p.db.SelectContext(ctx, &values, q, params...)
+func (p *SqliteProvider) GetAll(ctx context.Context, username string) ([]*APIToken, error) {
+	var result []*APIToken
+	err := p.db.SelectContext(
+		ctx, &result,
+		"SELECT * FROM api_token WHERE username = ?", // later? AND DATETIME(expires_at) >= DATETIME(?)",
+		username,
+		// time.Now(),
+	)
 	if err != nil {
-		return values, err
+		return result, fmt.Errorf("unable to get api_token from DB: %w", err)
 	}
 
-	return values, nil
+	return result, nil
 }
-
-// EDTODO: decide if a base filter is always needed and delete this
-// func (p *SqliteProvider) GetAll(ctx context.Context) ([]*APIToken, error) {
-// 	var result []*APIToken
-// 	err := p.db.SelectContext(
-// 		ctx, &result,
-// 		"SELECT * FROM api_token WHERE DATETIME(expires_at) >= DATETIME(?)",
-// 		time.Now(),
-// 	)
-// 	if err != nil {
-// 		return result, fmt.Errorf("unable to get api_token from DB: %w", err)
-// 	}
-
-// 	return result, nil
-// }
 
 func (p *SqliteProvider) Get(ctx context.Context, username, prefix string) (*APIToken, error) {
 	res := &APIToken{}
@@ -89,7 +74,7 @@ INSERT INTO phonebook2(name,phonenumber,validDate)
 	  validDate=EXCLUDED.validDate
 	WHERE EXCLUDED.validDate>phonebook2.validDate;
 */
-func (p *SqliteProvider) save(ctx context.Context, tokenLine *APIToken) (err error) {
+func (p *SqliteProvider) Save(ctx context.Context, tokenLine *APIToken) (err error) {
 	_, err = p.db.NamedExecContext(
 		ctx,
 		"INSERT INTO"+

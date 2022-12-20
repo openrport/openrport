@@ -14,3 +14,14 @@ type APIToken struct {
 	Scope     string     `json:"scope,omitempty" db:"scope"`
 	Token     string     `json:"token,omitempty" db:"token"`
 }
+
+func IsValidScope(scope string) bool {
+	switch scope {
+	case
+		"read",
+		"read+write",
+		"clients-auth":
+		return true
+	}
+	return false
+}

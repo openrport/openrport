@@ -2,11 +2,12 @@ package chserver
 
 import (
 	"errors"
-	"fmt"
 	"net/http"
-	"net/http/httputil"
+	"time"
 
 	"github.com/cloudradar-monitoring/rport/server/api"
+	"github.com/cloudradar-monitoring/rport/server/api/authorization"
+	apitoken "github.com/cloudradar-monitoring/rport/server/api/authorization"
 	"github.com/cloudradar-monitoring/rport/server/api/users"
 	"github.com/cloudradar-monitoring/rport/server/auditlog"
 	chshare "github.com/cloudradar-monitoring/rport/share"
@@ -91,6 +92,115 @@ func (al *APIListener) handleManageCurUserTotP(w http.ResponseWriter, req *http.
 	al.handleManageTotP(w, req, user, action)
 }
 
+func (al *APIListener) handleManageAPIToken(w http.ResponseWriter, req *http.Request, user *users.User, action string) {
+	if action == "delete" {
+		// http://127.0.0.1:8080/#tag/Profile-and-Info/operation/MetTokenDelete
+		var r struct {
+			TokenPrefix string `json:"token_prefix"`
+		}
+		err := parseRequestBody(req.Body, &r)
+		if err != nil {
+			al.jsonError(w, err)
+			return
+		}
+
+		if len(r.TokenPrefix) != 8 {
+			al.jsonErrorResponseWithTitle(w, http.StatusBadRequest, "missing or invalid token prefix.")
+			return
+		}
+
+		err = al.tokenManager.Delete(req.Context(), user.Username, r.TokenPrefix)
+		if err != nil {
+			al.jsonError(w, err)
+			return
+		}
+
+		// EDTODO
+		// al.auditLog.Entry(auditlog.ApplicationAuthUserTotP, auditlog.ActionDelete).
+		// 	WithHTTPRequest(req).
+		// 	WithID(meUser.Username).
+		// 	Save()
+
+		// al.Debugf("APIToken is deleted for user [%s].", user.Username)
+		// w.WriteHeader(http.StatusNoContent)
+	}
+	if action == "create" {
+		var r struct {
+			Scope string `json:"scope"`
+		}
+		err := parseRequestBody(req.Body, &r)
+		if err != nil {
+			al.jsonError(w, err)
+			return
+		}
+
+		if !apitoken.IsValidScope(r.Scope) {
+			al.jsonErrorResponseWithTitle(w, http.StatusBadRequest, "missing or invalid scope.")
+			return
+		}
+		// 2683 ---> handlePostToken handles POST /me/token
+		// EDTODO: On token generation, a token name must become mandatory.
+		// the token prefix. The password of the basic auth will then consist of `{prefix}_{token}` separated by underscore.
+		// The prefix is a randomly generated 8 digit [0-9][a-z][A-Z] string (no special characters). The prefixes must be unique per user.
+
+		newToken, err := random.UUID4()
+		if err != nil {
+			al.jsonError(w, err)
+			return
+		}
+		newPrefix := random.AlphaNum(8)
+		newAPIToken := &authorization.APIToken{
+			Username: user.Username,
+			Prefix:   newPrefix,
+			Scope:    r.Scope,
+			Token:    newToken,
+		}
+		err = al.tokenManager.Save(req.Context(), newAPIToken)
+		if err != nil {
+			al.jsonError(w, err)
+			return
+		}
+
+		al.auditLog.Entry(auditlog.ApplicationAuthUserMeToken, auditlog.ActionCreate).
+			WithHTTPRequest(req).
+			WithID(user.Username).
+			Save()
+
+		al.Debugf("APIToken is created for user [%s].", user.Username)
+		al.writeJSONResponse(w, http.StatusOK, api.NewSuccessPayload(newAPIToken))
+	}
+
+	if action == "list" {
+		type APITokenPayload struct {
+			CreatedAt *time.Time `json:"created_at,omitempty" db:"created_at"`
+			ExpiresAt *time.Time `json:"expires_at,omitempty" db:"expires_at"`
+			Scope     string     `json:"scope,omitempty" db:"scope"`
+			Prefix    string     `json:"token,omitempty" db:"token"`
+		}
+		apitokenset, err := al.tokenManager.GetAll(req.Context(), user.Username)
+		if err != nil {
+			al.jsonError(w, err)
+			return
+		}
+
+		apiTokenToSend := make([]APITokenPayload, 0, len(apitokenset))
+		for i := range apitokenset {
+			at := apitokenset[i]
+			apiTokenToSend = append(apiTokenToSend,
+				APITokenPayload{
+					CreatedAt: *&at.CreatedAt,
+					ExpiresAt: *&at.ExpiresAt,
+					Scope:     at.Scope,
+					Prefix:    at.Prefix,
+				})
+		}
+
+		response := api.NewSuccessPayload(apiTokenToSend)
+		al.writeJSONResponse(w, http.StatusOK, response)
+		return
+	}
+}
+
 func (al *APIListener) handleManageTotP(w http.ResponseWriter, req *http.Request, user *users.User, action string) {
 	totP := &TotP{}
 	if action == "create" {
@@ -156,7 +266,6 @@ type changeMeRequest struct {
 	Password    string `json:"password"`
 	OldPassword string `json:"old_password"`
 	TwoFASendTo string `json:"two_fa_send_to"`
-	TokenPrefix string `json:"token_prefix"`
 }
 
 func (al *APIListener) handleChangeMe(w http.ResponseWriter, req *http.Request) {
@@ -211,7 +320,7 @@ func (al *APIListener) handleGetIP(w http.ResponseWriter, req *http.Request) {
 	al.writeJSONResponse(w, http.StatusOK, api.NewSuccessPayload(ipResp))
 }
 
-type postTokenResponse struct {
+type postTokenResponse struct { // EDTODO: REMOVE/CHANGE
 	Token string `json:"token"`
 }
 
@@ -222,106 +331,27 @@ On token generation, a token name must become mandatory.
 Regarding editing tokens, only the expiry date can be changed.
 */
 func (al *APIListener) handleGetToken(w http.ResponseWriter, req *http.Request) {
-
+	al.handleManageCurUserAPIToken(w, req, "list")
 }
 
-// 2683 ---> handlePostToken handles POST /me/token
-// EDTODO: On token generation, a token name must become mandatory.
 func (al *APIListener) handlePostToken(w http.ResponseWriter, req *http.Request) {
-
-	// ****************************** Save a copy of this request for debugging. ******************************
-	requestDump, err := httputil.DumpRequest(req, true)
-	if err != nil {
-		fmt.Println(err)
-	}
-	fmt.Println(string(requestDump))
-	// ****************************** Save a copy of this request for debugging. ******************************
-
-	curUser, err := al.getUserModelForAuth(req.Context())
-	if err != nil {
-		al.jsonError(w, err)
-		return
-	}
-
-	/* 2683
-	the token prefix. The password of the basic auth will then consist of `{prefix}_{token}` separated by underscore.
-	The prefix is a randomly generated 8 digit [0-9][a-z][A-Z] string (no special characters). The prefixes must be unique per user.
-
-	*/
-	newToken, err := random.UUID4()
-	if err != nil {
-		al.jsonError(w, err)
-		return
-	}
-	newPrefix := random.AlphaNum(8)
-
-	if err := al.userService.Change(&users.User{
-		Token: &[]users.APIToken{
-			users.APIToken{
-				Prefix: newPrefix,
-				Scope:  "",
-				Token:  newToken,
-			},
-		},
-	}, curUser.Username); err != nil {
-		al.jsonError(w, err)
-		return
-	}
-
-	al.auditLog.Entry(auditlog.ApplicationAuthUserMeToken, auditlog.ActionCreate).
-		WithHTTPRequest(req).
-		Save()
-
-	resp := postTokenResponse{
-		Token: newToken,
-	}
-	al.writeJSONResponse(w, http.StatusOK, api.NewSuccessPayload(resp))
+	al.handleManageCurUserAPIToken(w, req, "create")
 }
 
-// 2683 ---> handleDeleteToken handles DELETE /me/token API[1]
-// `{prefix}_{token}`
-// http://127.0.0.1:8080/#tag/Profile-and-Info/operation/MetTokenDelete
 func (al *APIListener) handleDeleteToken(w http.ResponseWriter, req *http.Request) {
-	// ****************************** Save a copy of this request for debugging. ******************************
-	requestDump, err := httputil.DumpRequest(req, true)
-	if err != nil {
-		fmt.Println(err)
-	}
-	fmt.Println(string(requestDump))
-	// ****************************** Save a copy of this request for debugging. ******************************
+	al.handleManageCurUserAPIToken(w, req, "delete")
+}
 
-	var r changeMeRequest
-	err = parseRequestBody(req.Body, &r)
+func (al *APIListener) handleManageCurUserAPIToken(w http.ResponseWriter, req *http.Request, action string) {
+	user, err := al.getUserModel(req.Context())
 	if err != nil {
-		al.jsonError(w, err)
+		al.jsonErrorResponse(w, http.StatusInternalServerError, err)
 		return
 	}
 
-	curUser, err := al.getUserModelForAuth(req.Context())
-	if err != nil {
-		al.jsonError(w, err)
+	if user == nil {
+		al.jsonErrorResponseWithTitle(w, http.StatusNotFound, "user not found")
 		return
 	}
-
-	// EDTODO: a bit cryptic:
-	// if I send prefix I want to delete
-	// if I send expires_at I want to update
-	// if I send everything I want to add
-	if err := al.userService.Change(&users.User{
-		Username: r.Username,
-		Token: &[]users.APIToken{
-			users.APIToken{
-				Prefix: r.TokenPrefix,
-			},
-		},
-	}, curUser.Username); err != nil {
-		al.jsonError(w, err)
-		return
-	}
-
-	al.auditLog.Entry(auditlog.ApplicationAuthUserMeToken, auditlog.ActionDelete).
-		WithHTTPRequest(req).
-		Save()
-
-	w.WriteHeader(http.StatusNoContent)
+	al.handleManageAPIToken(w, req, user, action)
 }
