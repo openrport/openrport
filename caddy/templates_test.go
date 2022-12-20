@@ -124,7 +124,7 @@ func TestShouldMakeAPIReverseProxySettingsText(t *testing.T) {
 	assert.Contains(t, templateText, "output discard")
 }
 
-func TestShouldMakeAll(t *testing.T) {
+func TestShouldMakeAllWithAPIReverseProxy(t *testing.T) {
 	tmpl := template.New("ALL")
 
 	tmpl, err := tmpl.Parse(globalSettingsTemplate)
@@ -136,7 +136,8 @@ func TestShouldMakeAll(t *testing.T) {
 	tmpl, err = tmpl.Parse(apiReverseProxySettingsTemplate)
 	require.NoError(t, err)
 
-	tmpl, err = tmpl.Parse(combinedTemplates)
+	// combined template with api reverse proxy
+	tmpl, err = tmpl.Parse(combinedTemplatesWithAPIProxy)
 	require.NoError(t, err)
 
 	gs := &GlobalSettings{
@@ -164,8 +165,8 @@ func TestShouldMakeAll(t *testing.T) {
 
 	c := BaseConfig{
 		GlobalSettings:          gs,
-		DefaultVirtualHost:      dvh,
 		APIReverseProxySettings: arp,
+		DefaultVirtualHost:      dvh,
 	}
 
 	var b bytes.Buffer
@@ -177,4 +178,61 @@ func TestShouldMakeAll(t *testing.T) {
 	assert.Contains(t, templateText, "admin unix//tmp/caddy-admin.sock")
 	assert.Contains(t, templateText, "https://listen_address:listen_port")
 	assert.Contains(t, templateText, "https://proxy_domain:proxy_port")
+}
+
+func TestShouldMakeAllWithoutAPIReverseProxy(t *testing.T) {
+	tmpl := template.New("ALL")
+
+	tmpl, err := tmpl.Parse(globalSettingsTemplate)
+	require.NoError(t, err)
+
+	tmpl, err = tmpl.Parse(defaultVirtualHost)
+	require.NoError(t, err)
+
+	tmpl, err = tmpl.Parse(apiReverseProxySettingsTemplate)
+	require.NoError(t, err)
+
+	// combined template without api reverse proxy
+	tmpl, err = tmpl.Parse(combinedTemplates)
+	require.NoError(t, err)
+
+	gs := &GlobalSettings{
+		LogLevel:    "ERROR",
+		AdminSocket: "/tmp/caddy-admin.sock",
+	}
+
+	dvh := &DefaultVirtualHost{
+		ListenAddress: "listen_address",
+		ListenPort:    "listen_port",
+		CertsFile:     "certs_file",
+		KeyFile:       "key_file",
+	}
+
+	arp := &APIReverseProxySettings{
+		CertsFile:     "certs_file",
+		KeyFile:       "key_file",
+		ProxyDomain:   "proxy_domain",
+		ProxyPort:     "proxy_port",
+		APIDomain:     "api_domain",
+		APIScheme:     "api_scheme",
+		APITargetHost: "api_ip_address",
+		APITargetPort: "api_port",
+	}
+
+	// include everything but we shouldn't seethe api  reverse proxy settings in the text later
+	c := BaseConfig{
+		GlobalSettings:          gs,
+		APIReverseProxySettings: arp,
+		DefaultVirtualHost:      dvh,
+	}
+
+	var b bytes.Buffer
+	err = tmpl.Execute(&b, c)
+	require.NoError(t, err)
+
+	templateText := b.String()
+
+	assert.Contains(t, templateText, "admin unix//tmp/caddy-admin.sock")
+	assert.Contains(t, templateText, "https://listen_address:listen_port")
+	assert.NotContains(t, templateText, "https://proxy_domain:proxy_port")
 }

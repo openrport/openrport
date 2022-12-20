@@ -27,6 +27,16 @@ func (m *mockFileSystem) Exist(path string) (bool, error) {
 func TestShouldParseAndValidateCaddyIntegration(t *testing.T) {
 	filesAPI := &mockFileSystem{}
 
+	cfg := &caddy.Config{
+		ExecPath: "/usr/bin/caddy",
+	}
+
+	// the config checks currently include physical checks for the caddy
+	// version. skip the config tests if caddy not installed.
+	if !caddyAvailable(t, cfg) {
+		t.Skip()
+	}
+
 	cases := []struct {
 		Name             string
 		CaddyConfig      caddy.Config
