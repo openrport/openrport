@@ -81,6 +81,7 @@ func (t *ClientsStatusCheckTask) PingClients(clientsToPing <-chan *clients.Clien
 		if !ok && err == nil && string(response) == "unknown request" {
 			t.log.Debugf("ping to %s [%s] succeeded in %s. client < 0.8.2", cl.Name, cl.ID, rtt)
 			cl.LastHeartbeatAt = &now
+			cl.DisconnectedAt = nil
 			results <- true
 			continue
 		}
@@ -88,6 +89,7 @@ func (t *ClientsStatusCheckTask) PingClients(clientsToPing <-chan *clients.Clien
 		if ok && err == nil && len(response) == 0 {
 			t.log.Debugf("ping to %s [%s] succeeded in %s. client >= 0.8.2", cl.Name, cl.ID, rtt)
 			cl.LastHeartbeatAt = &now
+			cl.DisconnectedAt = nil
 			results <- true
 			continue
 		}

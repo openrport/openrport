@@ -613,6 +613,7 @@ func (s *ClientServiceProvider) SetLastHeartbeat(clientID string, heartbeat time
 		return err
 	}
 	existing.LastHeartbeatAt = &heartbeat
+	existing.DisconnectedAt = nil
 	return nil
 }
 
