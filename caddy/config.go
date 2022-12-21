@@ -178,7 +178,7 @@ func (c *Config) ParseAndValidate(serverDataDir string, serverLogLevel string, f
 }
 
 func (c *Config) APIReverseProxyEnabled() (enabled bool) {
-	return c.APIPort != ""
+	return c.APIHostname != "" && c.APIPort != ""
 }
 
 func (c *Config) GetBaseConf(bc *BaseConfig) (text []byte, err error) {
