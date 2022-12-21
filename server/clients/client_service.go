@@ -528,8 +528,7 @@ func (s *ClientServiceProvider) Terminate(client *Client) error {
 		return s.repo.Delete(client)
 	}
 
-	now := time.Now()
-	client.SetDisconnected(&now)
+	client.SetDisconnectedNow()
 
 	// Do not save if client doesn't exist in repo - it was force deleted
 	existing, err := s.repo.GetByID(client.ID)
@@ -612,8 +611,7 @@ func (s *ClientServiceProvider) SetLastHeartbeat(clientID string, heartbeat time
 	if err != nil {
 		return err
 	}
-	existing.LastHeartbeatAt = &heartbeat
-	existing.DisconnectedAt = nil
+	existing.SetHeartbeat(&heartbeat)
 	return nil
 }
 
