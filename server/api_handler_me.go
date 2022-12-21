@@ -143,9 +143,10 @@ func (al *APIListener) handleManageAPIToken(w http.ResponseWriter, req *http.Req
 		}
 		newPrefix := random.AlphaNum(8)
 		newAPIToken := &authorization.APIToken{
-			Prefix: newPrefix,
-			Scope:  r.Scope,
-			Token:  newToken,
+			Username: user.Username,
+			Prefix:   newPrefix,
+			Scope:    r.Scope,
+			Token:    newToken,
 		}
 		err = al.tokenManager.Create(req.Context(), newAPIToken)
 		if err != nil {
@@ -173,6 +174,7 @@ func (al *APIListener) handleManageAPIToken(w http.ResponseWriter, req *http.Req
 		}
 
 		updAPIToken := &authorization.APIToken{
+			Username:  user.Username,
 			Prefix:    r.Prefix,
 			ExpiresAt: r.ExpiresAt,
 		}

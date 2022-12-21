@@ -75,7 +75,7 @@ INSERT INTO phonebook2(name,phonenumber,validDate)
 	WHERE EXCLUDED.validDate>phonebook2.validDate;
 */
 func (p *SqliteProvider) Save(ctx context.Context, tokenLine *APIToken) (err error) {
-	_, err = p.db.NamedExecContext(
+	res, err := p.db.NamedExecContext(
 		ctx,
 		"INSERT INTO"+
 			" `api_token` (`username`, `prefix`, `expires_at`, `scope`, `token`)"+
@@ -86,9 +86,18 @@ func (p *SqliteProvider) Save(ctx context.Context, tokenLine *APIToken) (err err
 			"	       EXCLUDED.prefix = api_token.prefix",
 		tokenLine,
 	)
+
 	if err != nil {
 		return fmt.Errorf("Unable to create api token: %w", err)
 	}
+	affectedRows, err := res.RowsAffected()
+	if err != nil {
+		return err
+	}
+	if affectedRows == 0 {
+		return fmt.Errorf("Cannot Insert or Update token %s", tokenLine.Prefix)
+	}
+
 	return nil
 }
 
