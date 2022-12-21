@@ -7,7 +7,7 @@ import (
 const DefaultTimeoutSec = 60
 
 type APIToken struct {
-	Username  string     `json:"username" db:"username"`
+	Username  string     `json:"username,omitempty" db:"username"`
 	Prefix    string     `json:"prefix" db:"prefix"`
 	CreatedAt *time.Time `json:"created_at,omitempty" db:"created_at"`
 	ExpiresAt *time.Time `json:"expires_at,omitempty" db:"expires_at"`

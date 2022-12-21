@@ -94,9 +94,8 @@ func (al *APIListener) handleManageCurUserTotP(w http.ResponseWriter, req *http.
 
 func (al *APIListener) handleManageAPIToken(w http.ResponseWriter, req *http.Request, user *users.User, action string) {
 	if action == "delete" {
-		// http://127.0.0.1:8080/#tag/Profile-and-Info/operation/MetTokenDelete
 		var r struct {
-			TokenPrefix string `json:"token_prefix"`
+			Prefix string `json:"prefix"`
 		}
 		err := parseRequestBody(req.Body, &r)
 		if err != nil {
@@ -104,25 +103,23 @@ func (al *APIListener) handleManageAPIToken(w http.ResponseWriter, req *http.Req
 			return
 		}
 
-		if len(r.TokenPrefix) != 8 {
+		if len(r.Prefix) != 8 {
 			al.jsonErrorResponseWithTitle(w, http.StatusBadRequest, "missing or invalid token prefix.")
 			return
 		}
 
-		err = al.tokenManager.Delete(req.Context(), user.Username, r.TokenPrefix)
+		err = al.tokenManager.Delete(req.Context(), user.Username, r.Prefix)
 		if err != nil {
 			al.jsonError(w, err)
 			return
 		}
+		al.auditLog.Entry(auditlog.ApplicationAuthUserMeToken, auditlog.ActionDelete).
+			WithHTTPRequest(req).
+			WithID(user.Username).
+			Save()
 
-		// EDTODO
-		// al.auditLog.Entry(auditlog.ApplicationAuthUserTotP, auditlog.ActionDelete).
-		// 	WithHTTPRequest(req).
-		// 	WithID(meUser.Username).
-		// 	Save()
-
-		// al.Debugf("APIToken is deleted for user [%s].", user.Username)
-		// w.WriteHeader(http.StatusNoContent)
+		al.Debugf("APIToken %s is deleted for user [%s].", r.Prefix, user.Username)
+		w.WriteHeader(http.StatusNoContent)
 	}
 	if action == "create" {
 		var r struct {
@@ -138,10 +135,6 @@ func (al *APIListener) handleManageAPIToken(w http.ResponseWriter, req *http.Req
 			al.jsonErrorResponseWithTitle(w, http.StatusBadRequest, "missing or invalid scope.")
 			return
 		}
-		// 2683 ---> handlePostToken handles POST /me/token
-		// EDTODO: On token generation, a token name must become mandatory.
-		// the token prefix. The password of the basic auth will then consist of `{prefix}_{token}` separated by underscore.
-		// The prefix is a randomly generated 8 digit [0-9][a-z][A-Z] string (no special characters). The prefixes must be unique per user.
 
 		newToken, err := random.UUID4()
 		if err != nil {
@@ -150,10 +143,9 @@ func (al *APIListener) handleManageAPIToken(w http.ResponseWriter, req *http.Req
 		}
 		newPrefix := random.AlphaNum(8)
 		newAPIToken := &authorization.APIToken{
-			Username: user.Username,
-			Prefix:   newPrefix,
-			Scope:    r.Scope,
-			Token:    newToken,
+			Prefix: newPrefix,
+			Scope:  r.Scope,
+			Token:  newToken,
 		}
 		err = al.tokenManager.Create(req.Context(), newAPIToken)
 		if err != nil {
@@ -181,7 +173,6 @@ func (al *APIListener) handleManageAPIToken(w http.ResponseWriter, req *http.Req
 		}
 
 		updAPIToken := &authorization.APIToken{
-			Username:  user.Username,
 			Prefix:    r.Prefix,
 			ExpiresAt: r.ExpiresAt,
 		}
@@ -202,11 +193,12 @@ func (al *APIListener) handleManageAPIToken(w http.ResponseWriter, req *http.Req
 	}
 	if action == "list" {
 		type APITokenPayload struct {
-			CreatedAt *time.Time `json:"created_at,omitempty" db:"created_at"`
-			ExpiresAt *time.Time `json:"expires_at,omitempty" db:"expires_at"`
-			Scope     string     `json:"scope,omitempty" db:"scope"`
-			Prefix    string     `json:"token,omitempty" db:"token"`
+			Prefix    string     `json:"prefix" db:"token"`
+			CreatedAt *time.Time `json:"created_at" db:"created_at"`
+			ExpiresAt *time.Time `json:"expires_at" db:"expires_at"`
+			Scope     string     `json:"scope" db:"scope"`
 		}
+
 		apitokenset, err := al.tokenManager.GetAll(req.Context(), user.Username)
 		if err != nil {
 			al.jsonError(w, err)
@@ -218,10 +210,10 @@ func (al *APIListener) handleManageAPIToken(w http.ResponseWriter, req *http.Req
 			at := apitokenset[i]
 			apiTokenToSend = append(apiTokenToSend,
 				APITokenPayload{
+					Prefix:    at.Prefix,
 					CreatedAt: *&at.CreatedAt,
 					ExpiresAt: *&at.ExpiresAt,
 					Scope:     at.Scope,
-					Prefix:    at.Prefix,
 				})
 		}
 
@@ -350,16 +342,6 @@ func (al *APIListener) handleGetIP(w http.ResponseWriter, req *http.Request) {
 	al.writeJSONResponse(w, http.StatusOK, api.NewSuccessPayload(ipResp))
 }
 
-type postTokenResponse struct { // EDTODO: REMOVE/CHANGE
-	Token string `json:"token"`
-}
-
-/*
-EDTODO: Extend `/me/token` with the usual CRUD options to list, edit and delete tokens.
-On token generation, a token name must become mandatory.
-
-Regarding editing tokens, only the expiry date can be changed.
-*/
 func (al *APIListener) handleGetToken(w http.ResponseWriter, req *http.Request) {
 	al.handleManageCurUserAPIToken(w, req, "list")
 }
