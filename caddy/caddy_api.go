@@ -67,13 +67,13 @@ func (s *Server) sendRequest(ctx context.Context, method string, path string, bo
 
 	req, err := http.NewRequestWithContext(ctx, method, "http://unix"+path, r)
 	if err != nil {
-		return nil, fmt.Errorf("unable to make new request: %w", err)
+		return nil, fmt.Errorf("unable to make new caddy http request: %w", err)
 	}
 	req.Header.Set("Content-Type", "application/json")
 
 	res, err = httpClient.Do(req)
 	if err != nil {
-		return nil, fmt.Errorf("unable to send request: %w", err)
+		return nil, fmt.Errorf("unable to send caddy http request: %w", err)
 	}
 
 	return res, err

@@ -443,7 +443,7 @@ func (c *Config) validateAPIWhenCaddyIntegration() (err error) {
 		return nil
 	}
 
-	if caddyConfig.APIHostname == "" || caddyConfig.APIPort == "" {
+	if !caddyConfig.APIReverseProxyEnabled() {
 		// Check if the API and the tunnel subdomains are on the same port
 		matchingPorts, err := matchingPorts(c.API.Address, caddyConfig.HostAddress)
 		if err != nil {

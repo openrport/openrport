@@ -180,7 +180,9 @@ func NewAPIListener(
 	userService := users.NewAPIService(usersProvider, config.API.IsTwoFAOn(), config.API.PasswordMinLength, config.API.PasswordZxcvbnMinscore)
 
 	HTTPServerOptions := chshare.WithTLS(config.API.CertFile, config.API.KeyFile, security.TLSConfig)
-	if config.CaddyEnabled() && config.Caddy.APIHostname != "" {
+
+	// no need for TLS on the api listener when using caddy for API access
+	if config.CaddyEnabled() && config.Caddy.APIReverseProxyEnabled() {
 		HTTPServerOptions = nil
 	}
 

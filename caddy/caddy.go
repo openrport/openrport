@@ -4,6 +4,7 @@ import (
 	"bufio"
 	"bytes"
 	"context"
+	"errors"
 	"io"
 	"log"
 	"os/exec"
@@ -15,14 +16,18 @@ import (
 )
 
 type Server struct {
-	cmd       *exec.Cmd
-	lines     chan string
-	r         *io.PipeReader
-	w         *io.PipeWriter
-	cfg       *Config
-	logger    *logger.Logger
+	cmd    *exec.Cmd
+	cfg    *Config
+	logger *logger.Logger
+	errCh  chan error
+
+	// for forwarding caddy logs into the rportd log
 	logLogger *logger.Logger
-	errCh     chan error
+
+	// readers below used in a pipe that we use for relaying caddy log messages into the rport log
+	w     *io.PipeWriter // where caddy should write log messages
+	r     *io.PipeReader // where rport should read caddy log messages
+	lines chan string    // we'll write these lines to the rportd log
 }
 
 func ExecExists(path string, filesAPI files.FileAPI) (exists bool, err error) {
@@ -35,18 +40,25 @@ func ExecExists(path string, filesAPI files.FileAPI) (exists bool, err error) {
 }
 
 func GetExecVersion(cfg *Config) (majorVersion int, err error) {
-	ctx := context.Background()
-	cmd := exec.CommandContext(ctx, cfg.ExecPath, "version") // #nosec G204
+	cmd := exec.Command(cfg.ExecPath, "version") // #nosec G204
 
 	var b bytes.Buffer
 	cmd.Stdout = &b
-	// cmd.Stderr = &b
 	err = cmd.Run()
 	if err != nil {
 		return -1, err
 	}
 
+	// caddy version output
 	out := b.Bytes()
+
+	// current caddy version output always starts with the letter v. use this as a
+	// crude check that we're getting a response we might recognize.
+	if out[0] != 'v' {
+		return -1, errors.New("unexpected caddy version response")
+	}
+
+	// major version number is the second byte of the output
 	majorVersion = int(out[1])
 	return majorVersion, nil
 }
@@ -119,8 +131,15 @@ func (c *Server) Wait() (err error) {
 func (c *Server) Close() (err error) {
 	c.logger.Debugf("close requested")
 	// close the standard io pipes
-	c.r.Close()
-	c.w.Close()
+	err = c.r.Close()
+	if err != nil {
+		c.logger.Infof("error closing caddy log reader: %v", err)
+	}
+	err = c.w.Close()
+	if err != nil {
+		c.logger.Infof("error closing caddy log writer: %v, err")
+	}
+	// return value required to confirm with wg.Go interface
 	return nil
 }
 

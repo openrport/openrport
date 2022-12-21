@@ -52,6 +52,8 @@ func TestShouldStartCaddyServer(t *testing.T) {
 		KeyFile:          "../testdata/certs/tunnels.rport.test.key",
 	}
 
+	// TODO: (rs): api cert files not used anymore. api info is part of the caddy config.
+	// update this test.
 	chCfg := &chconfig.Config{
 		API: chconfig.APIConfig{
 			Address:  "0.0.0.0:3000",

@@ -343,12 +343,8 @@ func (al *APIListener) handlePutClientTunnel(w http.ResponseWriter, req *http.Re
 		return
 	}
 
-	client.Logger.Debugf("req = %s", req.URL.String())
-
 	localAddr := req.URL.Query().Get("local")
 	remoteAddr := req.URL.Query().Get("remote")
-
-	client.Logger.Debugf("remoteAddr = %s", remoteAddr)
 
 	remoteStr := localAddr + ":" + remoteAddr
 	if localAddr == "" {

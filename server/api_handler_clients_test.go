@@ -252,6 +252,7 @@ func TestHandleGetClients(t *testing.T) {
 	}
 
 	for _, tc := range testCases {
+		tc := tc
 		t.Run(tc.Name, func(t *testing.T) {
 			t.Parallel()
 
@@ -722,6 +723,8 @@ func TestHandlePutTunnelUsingCaddyProxies(t *testing.T) {
 				Logger: testLog,
 			}
 			al.initRouter()
+
+			originalGenerator := al.Server.config.Caddy.SubDomainGenerator
 			al.Server.config.Caddy.SubDomainGenerator = &MockSubdomainGenerator{}
 
 			if tc.DisableCaddyConfig {
@@ -733,9 +736,6 @@ func TestHandlePutTunnelUsingCaddyProxies(t *testing.T) {
 
 			al.router.ServeHTTP(w, req)
 
-			body := w.Body.String()
-			fmt.Printf("body = %+v\n", body)
-
 			if tc.ExpectedError == "" {
 				assert.Equal(t, http.StatusOK, w.Code, fmt.Sprintf("Response Body: %s", w.Body))
 				assert.JSONEq(t, tc.ExpectedJSON, w.Body.String())
@@ -744,6 +744,8 @@ func TestHandlePutTunnelUsingCaddyProxies(t *testing.T) {
 				assert.Contains(t, w.Body.String(), tc.ExpectedError)
 			}
 
+			// be good and restore the original generator
+			al.Server.config.Caddy.SubDomainGenerator = originalGenerator
 		})
 	}
 }

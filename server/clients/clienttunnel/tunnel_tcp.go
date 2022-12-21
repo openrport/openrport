@@ -86,7 +86,7 @@ func (t *tunnelTCP) listen(ctx context.Context, l net.Listener) {
 			t.Errorf("Failed to close tunnel listener: %v", err)
 			return
 		}
-		t.Debugf("Tunnel listener closed")
+		t.Debugf("tunnel listener closed")
 	}()
 
 	for {

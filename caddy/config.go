@@ -27,7 +27,7 @@ var (
 	ErrCaddyTunnelsBaseDomainMissing       = errors.New("caddy tunnels subdomain prefix missing")
 	ErrCaddyTunnelsWildcardCertFileMissing = errors.New("caddy tunnels wildcard domains cert file missing")
 	ErrCaddyTunnelsWildcardKeyFileMissing  = errors.New("caddy tunnels wildcard domains key file missing")
-	ErrCaddyUnknownLogLevel                = errors.New("unknown caddy log level")
+	ErrCaddyUnknownLogLevel                = errors.New("rport log level not a known caddy log level")
 	ErrCaddyMissingAPIPort                 = errors.New("when api_hostname specified then api_port must also be set")
 	ErrCaddyMissingAPIHostname             = errors.New("when api_port specified then api_hostname must also be set")
 	ErrUnableToCheckIfCertFileExists       = errors.New("unable to check if caddy cert file exists")
@@ -42,17 +42,17 @@ var (
 
 type Config struct {
 	ExecPath         string `mapstructure:"caddy"`
-	BaseConfFilename string `mapstructure:"-"`
-	APIHostname      string `mapstructure:"api_hostname"`
-	APIPort          string `mapstructure:"api_port"`
-	APICertFile      string `mapstructure:"api_cert_file"`
-	APIKeyFile       string `mapstructure:"api_key_file"`
 	HostAddress      string `mapstructure:"address"`
 	BaseDomain       string `mapstructure:"subdomain_prefix"`
 	CertFile         string `mapstructure:"cert_file"`
 	KeyFile          string `mapstructure:"key_file"`
-	LogLevel         string `mapstructure:"-"` // note: this is the rport server log level
-	DataDir          string `mapstructure:"-"`
+	APIHostname      string `mapstructure:"api_hostname"`
+	APIPort          string `mapstructure:"api_port"`
+	APICertFile      string `mapstructure:"api_cert_file"`
+	APIKeyFile       string `mapstructure:"api_key_file"`
+	LogLevel         string `mapstructure:"-"` // taken from the rport server log level
+	DataDir          string `mapstructure:"-"` // taken from the rport server datadir
+	BaseConfFilename string `mapstructure:"-"`
 	Enabled          bool   `mapstructure:"-"`
 
 	SubDomainGenerator SubdomainGenerator
@@ -170,6 +170,10 @@ func (c *Config) ParseAndValidate(serverDataDir string, serverLogLevel string, f
 	return nil
 }
 
+func (c *Config) APIReverseProxyEnabled() (enabled bool) {
+	return c.APIPort != ""
+}
+
 func (c *Config) GetBaseConf(bc *BaseConfig) (text []byte, err error) {
 	tmpl := template.New("ALL")
 
@@ -248,7 +252,7 @@ func (c *Config) MakeBaseConfig() (bc *BaseConfig, err error) {
 		DefaultVirtualHost: dvh,
 	}
 
-	if c.APIHostname != "" {
+	if c.APIReverseProxyEnabled() {
 		arp := &APIReverseProxySettings{
 			CertsFile:     APICertFile,
 			KeyFile:       APIKeyFile,

@@ -25,6 +25,7 @@ func (m *mockFileSystem) Exist(path string) (bool, error) {
 }
 
 func TestShouldParseAndValidateCaddyIntegration(t *testing.T) {
+	// used when check cert paths
 	filesAPI := &mockFileSystem{}
 
 	cfg := &caddy.Config{
@@ -89,7 +90,7 @@ func TestShouldParseAndValidateCaddyIntegration(t *testing.T) {
 			ExpectedErrorStr: caddy.ErrCaddyTunnelsHostAddressMissing.Error(),
 		},
 		{
-			Name: "error if subdomain missing",
+			Name: "error if basedomain missing",
 			CaddyConfig: caddy.Config{
 				ExecPath:    "/usr/bin/caddy",
 				HostAddress: "0.0.0.0:443",

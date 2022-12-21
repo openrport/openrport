@@ -43,6 +43,22 @@ func TestShouldParseTemplates(t *testing.T) {
 			name:     "global settings",
 			template: globalSettingsTemplate,
 		},
+		{
+			name:     "default virtual host",
+			template: defaultVirtualHost,
+		},
+		{
+			name:     "api reverse proxy settings",
+			template: apiReverseProxySettingsTemplate,
+		},
+		{
+			name:     "combined without api reverse proxy",
+			template: combinedTemplates,
+		},
+		{
+			name:     "combined with api reverse proxy",
+			template: combinedTemplatesWithAPIProxy,
+		},
 	}
 	for _, tc := range cases {
 		t.Run(tc.name, func(t *testing.T) {
@@ -68,7 +84,6 @@ func TestShouldMakeGlobalSettingsText(t *testing.T) {
 	require.NoError(t, err)
 
 	templateText := b.String()
-	// fmt.Printf("templateText = %+v\n", templateText)
 
 	assert.Contains(t, templateText, "level ERROR")
 	assert.Contains(t, templateText, "admin unix//tmp/caddy-admin.sock")
@@ -219,7 +234,7 @@ func TestShouldMakeAllWithoutAPIReverseProxy(t *testing.T) {
 		APITargetPort: "api_port",
 	}
 
-	// include everything but we shouldn't seethe api  reverse proxy settings in the text later
+	// include everything but we shouldn't see the api  reverse proxy settings in the text later
 	c := BaseConfig{
 		GlobalSettings:          gs,
 		APIReverseProxySettings: arp,
