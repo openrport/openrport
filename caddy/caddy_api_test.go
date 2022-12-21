@@ -28,7 +28,6 @@ func TestShouldAddRouteToCaddyServer(t *testing.T) {
 	res, err := s.AddRoute(ctx, nrr)
 	require.NoError(t, err)
 
-	// TODO: (rs): it would be better if this test could check that the route was added
 	assert.Equal(t, http.StatusOK, res.StatusCode)
 }
 
@@ -47,13 +46,7 @@ func TestShouldDeleteRouteFromCaddyServer(t *testing.T) {
 	res, err = s.DeleteRoute(ctx, nrr.RouteID)
 	require.NoError(t, err)
 
-	// TODO: (rs): it would be better if this test could check that the route was removed
 	assert.Equal(t, http.StatusOK, res.StatusCode)
-}
-
-func TestShouldErrorWhenCaddyNotAvailable(t *testing.T) {
-	// TODO: (rs): should this be a test?
-	t.Skip()
 }
 
 func makeTestNewRouteRequest() (nrr *caddy.NewRouteRequest) {

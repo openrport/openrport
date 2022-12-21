@@ -46,7 +46,9 @@ func NewHTTPServer(maxHeaderBytes int, l *logger.Logger, options ...ServerOption
 	}
 
 	for _, o := range options {
-		o(s)
+		if o != nil {
+			o(s)
+		}
 	}
 
 	return s

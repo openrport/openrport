@@ -2,7 +2,9 @@ package caddy
 
 import (
 	"bytes"
+	"crypto/tls"
 	"errors"
+	"fmt"
 	"net"
 	"strings"
 	"text/template"
@@ -124,11 +126,10 @@ func (c *Config) ParseAndValidate(serverDataDir string, serverLogLevel string, f
 		return ErrCaddyKeyFileNotFound
 	}
 
-	// TODO: (rs): think about how to add a test for this
-	// _, err = tls.LoadX509KeyPair(c.CertFile, c.KeyFile)
-	// if err != nil {
-	// 	return fmt.Errorf("invalid 'cert_file', 'key_file': %v", err)
-	// }
+	_, err = tls.LoadX509KeyPair(c.CertFile, c.KeyFile)
+	if err != nil {
+		return fmt.Errorf("invalid 'cert_file', 'key_file': %v", err)
+	}
 
 	if c.APIHostname != "" && c.APIPort == "" {
 		return ErrCaddyMissingAPIPort
@@ -145,6 +146,12 @@ func (c *Config) ParseAndValidate(serverDataDir string, serverLogLevel string, f
 		if !exists {
 			return ErrCaddyAPICertFileNotFound
 		}
+
+		_, err = tls.LoadX509KeyPair(c.APICertFile, c.APIKeyFile)
+		if err != nil {
+			return fmt.Errorf("invalid 'cert_file', 'key_file': %v", err)
+		}
+
 	}
 
 	if c.APIKeyFile != "" {

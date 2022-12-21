@@ -46,19 +46,19 @@ func TestShouldStartCaddyServer(t *testing.T) {
 		ExecPath:         "/usr/bin/caddy",
 		DataDir:          "/tmp",
 		BaseConfFilename: "caddy-base.conf",
-		HostAddress:      "0.0.0.0:8443",
+		HostAddress:      "0.0.0.0:443",
 		BaseDomain:       "tunnels.rport.test",
 		CertFile:         "../testdata/certs/tunnels.rport.test.crt",
 		KeyFile:          "../testdata/certs/tunnels.rport.test.key",
+		APIHostname:      "api.rport.test",
+		APIPort:          "443",
+		APICertFile:      "../testdata/certs/api.rport.test.crt",
+		APIKeyFile:       "../testdata/certs/api.rport.test.crt",
 	}
 
-	// TODO: (rs): api cert files not used anymore. api info is part of the caddy config.
-	// update this test.
 	chCfg := &chconfig.Config{
 		API: chconfig.APIConfig{
-			Address:  "0.0.0.0:3000",
-			CertFile: cfg.CertFile,
-			KeyFile:  cfg.KeyFile,
+			Address: "0.0.0.0:3000",
 		},
 	}
 
