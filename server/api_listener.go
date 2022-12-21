@@ -346,6 +346,8 @@ func (al *APIListener) Close() error {
 
 var ErrTooManyRequests = errors.New("too many requests, please try later")
 var ErrThatPasswordHasExpired = errors.New("password has expired, please change your password")
+var ErrCantLoadThatToken = errors.New("There was a problem accessing that token with the provided prefix")
+var ErrPrefixNotFound = errors.New("There is no token with that prefix")
 
 // lookupUser is used to get the user on every request in auth middleware
 func (al *APIListener) lookupUser(r *http.Request, isBearerOnly bool) (authorized bool, username string, err error) {
@@ -407,12 +409,15 @@ func (al *APIListener) handleBasicAuth(username, password string) (authorized bo
 		return false, username, err
 	}
 
-	// only check token if we have one saved
-	if user.Token != nil && *user.Token != "" {
-		tokenOk := verifyPassword(*user.Token, password)
+	// EDTODO: find a way to load the map of all this users's tokens (at each request?) ...or just query the sqlite db 	with a context: al.tokenManager.Get(ctx, "username", "prefix")
+	if tkm, ok := user.APITokenMap[prefix]; ok {
+		// tkm is a nameMap := make(map[string]APIToken)
+		tokenOk := verifyPassword(tkm.Token, password) // EDTODO: even better, if you query the db, doit inside verifyPassword
 		if tokenOk {
 			return true, username, nil
 		}
+	} else {
+		return false, username, ErrPrefixNotFound
 	}
 
 	return false, username, nil

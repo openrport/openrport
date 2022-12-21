@@ -9,7 +9,7 @@ type User struct {
 	PasswordExpired *bool    `json:"password_expired" db:"password_expired"`
 	Groups          []string `json:"groups" db:"-"`
 	TwoFASendTo     string   `json:"two_fa_send_to" db:"two_fa_send_to"`
-	Token           *[]authorization.APIToken
+	APIToken        *[]authorization.APIToken
 	TotP            string `json:"totp_secret,omitempty" db:"totp_secret"`
 }
 

@@ -211,7 +211,6 @@ func (as *APIService) validate(dataToChange *User, usernameToFind string) error 
 			dataToChange.PasswordExpired == nil &&
 			dataToChange.Groups == nil &&
 			(!as.TwoFAOn || dataToChange.TwoFASendTo == "") &&
-			dataToChange.Token == nil &&
 			dataToChange.TotP == "" {
 			errs = append(errs, errors2.APIError{
 				Message:    "nothing to change",
