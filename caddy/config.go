@@ -220,7 +220,7 @@ func (c *Config) GetBaseConf(bc *BaseConfig) (text []byte, err error) {
 	return b.Bytes(), nil
 }
 
-func (c *Config) MakeBaseConfig() (bc *BaseConfig, err error) {
+func (c *Config) MakeBaseConfig(targetAPIPort string) (bc *BaseConfig, err error) {
 	APICertFile := c.CertFile
 	if c.APICertFile != "" {
 		APICertFile = c.APICertFile
@@ -264,10 +264,10 @@ func (c *Config) MakeBaseConfig() (bc *BaseConfig, err error) {
 			CertsFile:     APICertFile,
 			KeyFile:       APIKeyFile,
 			ProxyDomain:   c.APIHostname,
-			ProxyPort:     port,
+			ProxyPort:     c.APIPort,
 			APIScheme:     "http",
 			APITargetHost: "127.0.0.1",
-			APITargetPort: c.APIPort,
+			APITargetPort: targetAPIPort,
 		}
 
 		bc.APIReverseProxySettings = arp

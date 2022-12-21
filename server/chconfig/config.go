@@ -458,7 +458,13 @@ func (c *Config) validateAPIWhenCaddyIntegration() (err error) {
 }
 
 func (c *Config) WriteCaddyBaseConfig(caddyConfig *caddy.Config) (bc *caddy.BaseConfig, err error) {
-	bc, err = caddyConfig.MakeBaseConfig()
+	// targetAPIPort is required if the API reverse proxy is being used
+	_, targetAPIPort, err := net.SplitHostPort(c.API.Address)
+	if err != nil {
+		return nil, err
+	}
+
+	bc, err = caddyConfig.MakeBaseConfig(targetAPIPort)
 	if err != nil {
 		return nil, err
 	}
