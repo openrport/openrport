@@ -50,7 +50,6 @@ func (al *APIListener) handleGetUsers(w http.ResponseWriter, req *http.Request) 
 	al.writeJSONResponse(w, http.StatusOK, response)
 }
 
-// 2683 API[2] need to check parsing of new token fields
 func (al *APIListener) handleChangeUser(w http.ResponseWriter, req *http.Request) {
 	vars := mux.Vars(req)
 	userID, userIDExists := vars[routes.ParamUserID]
@@ -99,7 +98,6 @@ func (al *APIListener) handleChangeUser(w http.ResponseWriter, req *http.Request
 	}
 }
 
-// 2683 maybe need to handleDelete/Change/EtcUsersToken* operations?
 func (al *APIListener) handleDeleteUser(w http.ResponseWriter, req *http.Request) {
 	vars := mux.Vars(req)
 	userID, userIDExists := vars[routes.ParamUserID]

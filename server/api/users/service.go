@@ -316,8 +316,7 @@ func (as *APIService) updateUser(dataToChange *User, usernameToFind string) erro
 	return nil
 }
 
-// EDTODO: deleting a user needs to delete all api tokens first(?)
-// 2683 API[3]
+// EDTODO: deleting a user needs to delete all api tokens first(?) - 2683 - API[3]
 func (as *APIService) Delete(usernameToDelete string) error {
 	user, err := as.Provider.GetByUsername(usernameToDelete)
 	if err != nil {

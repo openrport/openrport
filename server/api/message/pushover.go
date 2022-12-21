@@ -19,7 +19,7 @@ type PushoverService struct {
 
 func NewPushoverService(apiToken string) *PushoverService {
 	return &PushoverService{
-		p: pushover.New(apiToken), // EDTODO: 2683...
+		p: pushover.New(apiToken),
 	}
 }
 

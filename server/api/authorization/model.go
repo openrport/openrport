@@ -1,6 +1,8 @@
 package authorization
 
 import (
+	"errors"
+	"strings"
 	"time"
 )
 
@@ -13,6 +15,16 @@ type APIToken struct {
 	ExpiresAt *time.Time `json:"expires_at,omitempty" db:"expires_at"`
 	Scope     string     `json:"scope,omitempty" db:"scope"`
 	Token     string     `json:"token,omitempty" db:"token"`
+}
+
+func Extract(prefixedpwd string) (string, string, error) {
+	i := strings.Index(prefixedpwd, "_")
+	if i < 0 {
+		return "", "", errors.New("Token should be in the format 'prefix_token'")
+	}
+	prefix := prefixedpwd[0:i]
+	token := prefixedpwd[i+1:]
+	return prefix, token, nil
 }
 
 func IsValidScope(scope string) bool {

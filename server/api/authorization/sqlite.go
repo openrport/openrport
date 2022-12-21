@@ -25,9 +25,8 @@ func (p *SqliteProvider) GetAll(ctx context.Context, username string) ([]*APITok
 	var result []*APIToken
 	err := p.db.SelectContext(
 		ctx, &result,
-		"SELECT * FROM api_token WHERE username = ?", // later? AND DATETIME(expires_at) >= DATETIME(?)",
+		"SELECT * FROM api_token WHERE username = ?",
 		username,
-		// time.Now(),
 	)
 	if err != nil {
 		return result, fmt.Errorf("Unable to get api_token from DB: %w", err)
@@ -56,24 +55,6 @@ func (p *SqliteProvider) Get(ctx context.Context, username, prefix string) (*API
 	return res, nil
 }
 
-/*
-upsert in sqlite:
-
-CREATE TABLE phonebook2(
-
-	name TEXT PRIMARY KEY,
-	phonenumber TEXT,
-	validDate DATE
-
-);
-INSERT INTO phonebook2(name,phonenumber,validDate)
-
-	VALUES('Alice','704-555-1212','2018-05-08')
-	ON CONFLICT(name) DO UPDATE SET
-	  phonenumber=EXCLUDED.phonenumber,
-	  validDate=EXCLUDED.validDate
-	WHERE EXCLUDED.validDate>phonebook2.validDate;
-*/
 func (p *SqliteProvider) Save(ctx context.Context, tokenLine *APIToken) (err error) {
 	res, err := p.db.NamedExecContext(
 		ctx,
