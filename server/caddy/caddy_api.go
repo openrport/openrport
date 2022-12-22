@@ -58,8 +58,6 @@ func makeCaddyResourcePath(in string) (out string) {
 }
 
 func (s *Server) sendRequest(ctx context.Context, method string, path string, body []byte) (res *http.Response, err error) {
-	httpClient := newHTTPDomainSocketClient()
-
 	var r io.Reader
 	if len(body) > 0 {
 		r = bytes.NewReader(body)
@@ -71,7 +69,7 @@ func (s *Server) sendRequest(ctx context.Context, method string, path string, bo
 	}
 	req.Header.Set("Content-Type", "application/json")
 
-	res, err = httpClient.Do(req)
+	res, err = s.httpClient.Do(req)
 	if err != nil {
 		return nil, fmt.Errorf("unable to send caddy http request: %w", err)
 	}

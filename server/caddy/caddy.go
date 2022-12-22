@@ -7,6 +7,7 @@ import (
 	"errors"
 	"io"
 	"log"
+	"net/http"
 	"os/exec"
 	"regexp"
 	"strings"
@@ -15,10 +16,11 @@ import (
 )
 
 type Server struct {
-	cmd    *exec.Cmd
-	cfg    *Config
-	logger *logger.Logger
-	errCh  chan error
+	cmd        *exec.Cmd
+	cfg        *Config
+	logger     *logger.Logger
+	errCh      chan error
+	httpClient http.Client
 
 	// for forwarding caddy logs into the rportd log
 	logLogger *logger.Logger
@@ -55,11 +57,14 @@ func GetExecVersion(cfg *Config) (majorVersion int, err error) {
 
 func NewCaddyServer(cfg *Config, l *logger.Logger) (c *Server) {
 	errCh := make(chan error)
+	httpClient := newHTTPDomainSocketClient()
+
 	c = &Server{
-		cfg:       cfg,
-		logger:    l,
-		logLogger: l.Fork("log"),
-		errCh:     errCh,
+		httpClient: httpClient,
+		cfg:        cfg,
+		logger:     l,
+		logLogger:  l.Fork("log"),
+		errCh:      errCh,
 	}
 	return c
 }
