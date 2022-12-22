@@ -81,7 +81,7 @@ func (c *Config) ParseAndValidate(serverDataDir string, serverLogLevel string, f
 		return ErrCaddyExecPathMissing
 	}
 
-	exists, err := ExecExists(c.ExecPath, filesAPI)
+	exists, err := filesAPI.Exist(c.ExecPath)
 	if err != nil {
 		return ErrCaddyFailedCheckingExecPath
 	}

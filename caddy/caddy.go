@@ -11,7 +11,6 @@ import (
 	"regexp"
 	"strings"
 
-	"github.com/cloudradar-monitoring/rport/share/files"
 	"github.com/cloudradar-monitoring/rport/share/logger"
 )
 
@@ -28,15 +27,6 @@ type Server struct {
 	w     *io.PipeWriter // where caddy should write log messages
 	r     *io.PipeReader // where rport should read caddy log messages
 	lines chan string    // we'll write these lines to the rportd log
-}
-
-func ExecExists(path string, filesAPI files.FileAPI) (exists bool, err error) {
-	exists, err = filesAPI.Exist(path)
-	if err != nil {
-		return false, err
-	}
-
-	return exists, nil
 }
 
 func GetExecVersion(cfg *Config) (majorVersion int, err error) {
