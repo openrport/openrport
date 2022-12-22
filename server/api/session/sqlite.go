@@ -59,7 +59,7 @@ func (p *SqliteProvider) Get(ctx context.Context, sessionID int64) (*APISession,
 }
 
 func (p *SqliteProvider) Save(ctx context.Context, session *APISession) (sessionID int64, err error) {
-	if session.SessionID == 0 {
+	if session.GetSessionID() == 0 {
 		sessionID, err = p.add(ctx, session)
 	} else {
 		sessionID, err = p.update(ctx, session)
@@ -73,6 +73,9 @@ func (p *SqliteProvider) Save(ctx context.Context, session *APISession) (session
 }
 
 func (p *SqliteProvider) add(ctx context.Context, session *APISession) (sessionID int64, err error) {
+	session.RLock()
+	defer session.RUnlock()
+
 	result, err := p.db.NamedExecContext(
 		ctx,
 		"INSERT INTO"+
@@ -93,6 +96,9 @@ func (p *SqliteProvider) add(ctx context.Context, session *APISession) (sessionI
 }
 
 func (p *SqliteProvider) update(ctx context.Context, session *APISession) (sessionID int64, err error) {
+	session.RLock()
+	defer session.RUnlock()
+
 	_, err = p.db.NamedExecContext(
 		ctx,
 		"UPDATE api_sessions"+
@@ -105,7 +111,7 @@ func (p *SqliteProvider) update(ctx context.Context, session *APISession) (sessi
 		return 0, fmt.Errorf("unable to update api session: %w", err)
 	}
 
-	sessionID = session.SessionID
+	sessionID = session.GetSessionID()
 	return sessionID, nil
 }
 

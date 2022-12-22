@@ -66,7 +66,7 @@ func InitClientRepository(
 }
 
 func (s *ClientRepository) Save(client *Client) error {
-	s.logger.Debugf("saving client: %s is_disconnected=%s", client.ID, client.DisconnectedAt)
+	s.logger.Debugf("saving client: %s is_disconnected=%s", client.ID, client.GetDisconnectedAt())
 
 	if s.store != nil {
 		err := s.store.Save(context.Background(), client)
@@ -82,7 +82,7 @@ func (s *ClientRepository) Save(client *Client) error {
 }
 
 func (s *ClientRepository) Delete(client *Client) error {
-	s.logger.Debugf("deleting client: %s: %s", client.ID, client.DisconnectedAt)
+	s.logger.Debugf("deleting client: %s: %s", client.ID, client.GetDisconnectedAt())
 
 	if s.store != nil {
 		err := s.store.Delete(context.Background(), client.ID)
@@ -174,7 +174,7 @@ func (s *ClientRepository) DeleteObsolete() ([]*Client, error) {
 	var deleted []*Client
 	for _, client := range s.clients {
 		if client.Obsolete(s.KeepDisconnectedClients) {
-			s.logger.Debugf("deleting obsolete client: %s: %s", client.ID, client.DisconnectedAt)
+			s.logger.Debugf("deleting obsolete client: %s: %s", client.ID, client.GetDisconnectedAt())
 
 			delete(s.clients, client.ID)
 			deleted = append(deleted, client)
@@ -210,7 +210,7 @@ func (s *ClientRepository) CountDisconnected() (int, error) {
 
 	var n int
 	for _, cur := range all {
-		if cur.DisconnectedAt != nil {
+		if cur.GetDisconnectedAt() != nil {
 			n++
 		}
 	}
@@ -233,7 +233,7 @@ func (s *ClientRepository) GetActiveByID(id string) (*Client, error) {
 	s.mu.RLock()
 	defer s.mu.RUnlock()
 	client := s.clients[id]
-	if client != nil && client.DisconnectedAt != nil {
+	if client != nil && client.GetDisconnectedAt() != nil {
 		return nil, nil
 	}
 	return client, nil
@@ -279,7 +279,12 @@ func (s *ClientRepository) GetFilteredUserClients(user User, filterOptions []que
 	for _, client := range clients {
 		calculatedClient := client.ToCalculated(groups)
 
+		// MatchFilters performs a json marshal of the client, which is basically a read access.
+		// We need to lock at the field level to guard against concurrent access.
+		client.fLock.RLock()
 		matches, err := query.MatchesFilters(calculatedClient, filterOptions)
+		client.fLock.RUnlock()
+
 		if err != nil {
 			return result, err
 		}
@@ -297,7 +302,7 @@ func (s *ClientRepository) GetAllActive() []*Client {
 	defer s.mu.RUnlock()
 	var result []*Client
 	for _, client := range s.clients {
-		if client.DisconnectedAt == nil {
+		if client.GetDisconnectedAt() == nil {
 			result = append(result, client)
 		}
 	}

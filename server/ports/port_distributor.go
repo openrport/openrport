@@ -2,6 +2,7 @@ package ports
 
 import (
 	"fmt"
+	"sync"
 
 	mapset "github.com/deckarep/golang-set"
 	"github.com/shirou/gopsutil/net"
@@ -13,6 +14,8 @@ type PortDistributor struct {
 	allowedPorts mapset.Set
 
 	portsPools map[string]mapset.Set
+
+	mu sync.RWMutex
 }
 
 func NewPortDistributor(allowedPorts mapset.Set) *PortDistributor {
@@ -33,13 +36,25 @@ func NewPortDistributorForTests(allowedPorts, tcpPortsPool, udpPortsPool mapset.
 	}
 }
 
+func (d *PortDistributor) GetPortsPool(p string) mapset.Set {
+	d.mu.RLock()
+	defer d.mu.RUnlock()
+	return d.portsPools[p]
+}
+
+func (d *PortDistributor) SetPortsPool(p string, m mapset.Set) {
+	d.mu.Lock()
+	defer d.mu.Unlock()
+	d.portsPools[p] = m
+}
+
 func (d *PortDistributor) GetRandomPort(protocol string) (int, error) {
 	subProtocols := []string{protocol}
 	if protocol == models.ProtocolTCPUDP {
 		subProtocols = []string{models.ProtocolTCP, models.ProtocolUDP}
 	}
 	for _, p := range subProtocols {
-		if d.portsPools[p] == nil {
+		if d.GetPortsPool(p) == nil {
 			err := d.refresh(p)
 			if err != nil {
 				return 0, err
@@ -54,7 +69,7 @@ func (d *PortDistributor) GetRandomPort(protocol string) (int, error) {
 
 	// Make sure port is removed from all pools for tcp+udp protocol
 	for _, p := range subProtocols {
-		d.portsPools[p].Remove(port)
+		d.GetPortsPool(p).Remove(port)
 	}
 
 	return port.(int), nil
@@ -69,9 +84,9 @@ func (d *PortDistributor) IsPortBusy(protocol string, port int) bool {
 }
 
 func (d *PortDistributor) getPool(protocol string) mapset.Set {
-	pool := d.portsPools[protocol]
+	pool := d.GetPortsPool(protocol)
 	if protocol == models.ProtocolTCPUDP {
-		pool = d.portsPools[models.ProtocolTCP].Intersect(d.portsPools[models.ProtocolUDP])
+		pool = d.GetPortsPool(models.ProtocolTCP).Intersect(d.GetPortsPool(models.ProtocolUDP))
 	}
 	return pool
 }
@@ -93,13 +108,12 @@ func (d *PortDistributor) refresh(protocol string) error {
 	if err != nil {
 		return err
 	}
-
-	d.portsPools[protocol] = d.allowedPorts.Difference(busyPorts)
+	d.SetPortsPool(protocol, d.allowedPorts.Difference(busyPorts))
 	return nil
 }
 
 func ListBusyPorts(protocol string) (mapset.Set, error) {
-	result := mapset.NewThreadUnsafeSet()
+	result := mapset.NewSet()
 	connections, err := net.Connections(protocol)
 	if err != nil {
 		return nil, err

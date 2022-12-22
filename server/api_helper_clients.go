@@ -144,7 +144,7 @@ func (al *APIListener) makeClientsList(clientIDs []string, allowDisconnected boo
 			return orderedClients, usedClientIDs, err
 		}
 
-		if client.DisconnectedAt != nil && !allowDisconnected {
+		if client.GetDisconnectedAt() != nil && !allowDisconnected {
 			err = errors2.APIError{
 				Message:    fmt.Sprintf("Client with id=%q is not active.", cid),
 				Err:        err,

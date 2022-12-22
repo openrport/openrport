@@ -60,8 +60,6 @@ type ClientService interface {
 
 	StartClientTunnels(client *Client, remotes []*models.Remote) ([]*clienttunnel.Tunnel, error)
 	StartTunnel(c *Client, r *models.Remote, acl *clienttunnel.TunnelACL, tunnelProxyConfig *clienttunnel.TunnelProxyConfig, portDistributor *ports.PortDistributor) (*clienttunnel.Tunnel, error)
-	FindTunnel(c *Client, id string) *clienttunnel.Tunnel
-	FindTunnelByRemote(c *Client, r *models.Remote) *clienttunnel.Tunnel
 	TerminateTunnel(c *Client, t *clienttunnel.Tunnel, force bool) error
 }
 
@@ -71,7 +69,7 @@ type ClientServiceProvider struct {
 	tunnelProxyConfig *clienttunnel.TunnelProxyConfig
 	logger            *logger.Logger
 
-	mu sync.Mutex
+	Gate sync.Mutex
 }
 
 var OptionsSupportedFilters = map[string]bool{
@@ -261,8 +259,8 @@ func (s *ClientServiceProvider) StartClient(
 ) (*Client, error) {
 	clog.Debugf("starting client session: %s", clientID)
 
-	s.mu.Lock()
-	defer s.mu.Unlock()
+	// s.mu.Lock()
+	// defer s.mu.Unlock()
 
 	// if client id is in use, deny connection
 	client, err := s.repo.GetByID(clientID)
@@ -277,7 +275,7 @@ func (s *ClientServiceProvider) StartClient(
 			sessionReUsed = true
 			clog.Debugf("resuming existing session %s for client %s [%s]", req.SessionID, client.Name, clientID)
 		}
-		if client.DisconnectedAt == nil && !sessionReUsed {
+		if client.GetDisconnectedAt() == nil && !sessionReUsed {
 			return nil, fmt.Errorf("client is already connected: %s [%s]", client.Name, clientID)
 		}
 
@@ -319,6 +317,10 @@ func (s *ClientServiceProvider) StartClient(
 			ID: clientID,
 		}
 	}
+
+	client.Gate.Lock()
+	defer client.Gate.Unlock()
+
 	client.Name = req.Name
 	client.SessionID = req.SessionID
 	client.OS = req.OS
@@ -432,8 +434,9 @@ loop2:
 func (s *ClientServiceProvider) StartClientTunnels(client *Client, remotes []*models.Remote) ([]*clienttunnel.Tunnel, error) {
 	s.logger.Debugf("starting client tunnels: %s", client.ID)
 
-	s.mu.Lock()
-	defer s.mu.Unlock()
+	// s.mu.Lock()
+	// defer s.mu.Unlock()
+
 	newTunnels, err := s.startClientTunnels(client, remotes)
 	if err != nil {
 		return nil, err
@@ -522,8 +525,12 @@ func (s *ClientServiceProvider) checkLocalPort(protocol, port string) error {
 func (s *ClientServiceProvider) Terminate(client *Client) error {
 	s.logger.Infof("terminating client: %s", client.ID)
 
-	s.mu.Lock()
-	defer s.mu.Unlock()
+	client.Gate.Lock()
+	defer client.Gate.Unlock()
+
+	// s.mu.Lock()
+	// defer s.mu.Unlock()
+
 	if s.repo.KeepDisconnectedClients != nil && *s.repo.KeepDisconnectedClients == 0 {
 		return s.repo.Delete(client)
 	}
@@ -547,9 +554,13 @@ func (s *ClientServiceProvider) Terminate(client *Client) error {
 func (s *ClientServiceProvider) ForceDelete(client *Client) error {
 	s.logger.Debugf("force deleting client: %s", client.ID)
 
-	s.mu.Lock()
-	defer s.mu.Unlock()
-	if client.DisconnectedAt == nil {
+	client.Gate.Lock()
+	defer client.Gate.Unlock()
+
+	// s.mu.Lock()
+	// defer s.mu.Unlock()
+
+	if client.GetDisconnectedAt() == nil {
 		if err := client.Close(); err != nil {
 			return err
 		}
@@ -565,7 +576,7 @@ func (s *ClientServiceProvider) DeleteOffline(clientID string) error {
 		return err
 	}
 
-	if existing.DisconnectedAt == nil {
+	if existing.GetDisconnectedAt() == nil {
 		return errors.APIError{
 			Message:    "Client is active, should be disconnected",
 			HTTPStatus: http.StatusBadRequest,
@@ -612,7 +623,7 @@ func (s *ClientServiceProvider) SetLastHeartbeat(clientID string, heartbeat time
 	if err != nil {
 		return err
 	}
-	existing.LastHeartbeatAt = &heartbeat
+	existing.SetLastHeartbeatAt(&heartbeat)
 	return nil
 }
 
@@ -700,31 +711,13 @@ func ExcludeNotAllowedTunnels(clog *logger.Logger, tunnels []*models.Remote, con
 	return filtered, nil
 }
 
-func (s *ClientServiceProvider) FindTunnelByRemote(c *Client, r *models.Remote) *clienttunnel.Tunnel {
-	for _, curr := range c.Tunnels {
-		if curr.Equals(r) {
-			return curr
-		}
-	}
-	return nil
-}
-
-func (s *ClientServiceProvider) FindTunnel(c *Client, id string) *clienttunnel.Tunnel {
-	for _, curr := range c.Tunnels {
-		if curr.ID == id {
-			return curr
-		}
-	}
-	return nil
-}
-
 func (s *ClientServiceProvider) StartTunnel(
 	c *Client,
 	r *models.Remote,
 	acl *clienttunnel.TunnelACL,
 	tunnelProxyConfig *clienttunnel.TunnelProxyConfig,
 	portDistributor *ports.PortDistributor) (t *clienttunnel.Tunnel, err error) {
-	t = s.FindTunnelByRemote(c, r)
+	t = c.FindTunnelByRemote(r)
 	// tunnel exists
 	if t != nil {
 		return t, nil
@@ -758,9 +751,6 @@ func (s *ClientServiceProvider) StartTunnel(
 	if t.IdleTimeoutMinutes > 0 {
 		go s.terminateTunnelOnIdleTimeout(ctx, t, c)
 	}
-
-	c.Lock()
-	defer c.Unlock()
 
 	c.Tunnels = append(c.Tunnels, t)
 	return t, nil
@@ -878,8 +868,10 @@ func (s *ClientServiceProvider) terminateTunnelOnIdleTimeout(ctx context.Context
 }
 
 func (s *ClientServiceProvider) cleanupAfterAutoClose(c *Client, t *clienttunnel.Tunnel) {
-	c.Lock()
-	defer c.Unlock()
+	// this lock will ensure we won't try to cleanup while existing create or delete
+	// tunnels are taking place.
+	c.Gate.Lock()
+	defer c.Gate.Unlock()
 
 	c.Logger.Infof("Auto closing tunnel %s ...", t.ID)
 
@@ -901,9 +893,6 @@ func (s *ClientServiceProvider) cleanupAfterAutoClose(c *Client, t *clienttunnel
 }
 
 func (s *ClientServiceProvider) TerminateTunnel(c *Client, t *clienttunnel.Tunnel, force bool) error {
-	c.Lock()
-	defer c.Unlock()
-
 	c.Logger.Infof("Terminating tunnel %s (force: %v) ...", t.ID, force)
 
 	err := t.Terminate(force)

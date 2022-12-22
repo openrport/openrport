@@ -9,6 +9,7 @@ import (
 	"net/http"
 	"net/url"
 	"strings"
+	"sync"
 	"time"
 
 	"github.com/cloudradar-monitoring/rport/share/random"
@@ -52,6 +53,8 @@ type Client struct {
 	serverCapabilities *models.Capabilities
 	filesAPI           files.FileAPI
 	watchdog           *Watchdog
+
+	mu sync.RWMutex
 }
 
 // NewClient creates a new client instance
@@ -134,13 +137,16 @@ func (c *Client) Start(ctx context.Context) error {
 func (c *Client) keepAliveLoop() {
 	for c.running {
 		time.Sleep(c.configHolder.Connection.KeepAlive)
-		if c.sshConn != nil {
-			ok, _, rtt, err := comm.PingConnectionWithTimeout(c.sshConn, c.configHolder.Connection.KeepAliveTimeout)
+		c.mu.RLock()
+		conn := c.sshConn
+		c.mu.RUnlock()
+		if conn != nil {
+			ok, _, rtt, err := comm.PingConnectionWithTimeout(conn, c.configHolder.Connection.KeepAliveTimeout)
 			if err != nil || !ok {
 				c.Errorf("Failed to send keepalive (client to server ping): %s", err)
 				c.sshConn.Close()
 			} else {
-				msg := fmt.Sprintf("ping to %s succeeded within %s", c.sshConn.RemoteAddr(), rtt)
+				msg := fmt.Sprintf("ping to %s succeeded within %s", conn.RemoteAddr(), rtt)
 				c.Debugf(msg)
 				c.watchdog.Ping(WatchdogStateConnected, msg)
 			}
@@ -225,13 +231,21 @@ loop:
 
 		b.Reset()
 
+		c.mu.Lock()
 		c.sshConn = sshConn.Connection
+		c.mu.Unlock()
+
 		c.updates.SetConn(sshConn.Connection)
 		c.monitor.SetConn(sshConn.Connection)
 
+		// we might be some time waiting here
 		err = sshConn.Connection.Wait()
+
+		c.mu.Lock()
 		//disconnected
 		c.sshConn = nil
+		c.mu.Unlock()
+
 		c.updates.SetConn(nil)
 		c.monitor.SetConn(nil)
 		c.monitor.Stop()
@@ -244,6 +258,7 @@ loop:
 
 		c.Infof("Disconnected\n")
 	}
+
 	close(c.runningc)
 }
 
@@ -520,6 +535,8 @@ func (c *Client) Wait() error {
 
 // Close manually stops the client
 func (c *Client) Close() error {
+	c.mu.Lock()
+	defer c.mu.Unlock()
 	c.running = false
 	c.watchdog.Close()
 	if c.sshConn == nil {

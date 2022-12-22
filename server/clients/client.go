@@ -70,7 +70,8 @@ type Client struct {
 	Logger     *logger.Logger  `json:"-"`
 	Context    context.Context `json:"-"`
 
-	lock sync.Mutex
+	Gate  sync.Mutex   // critical section lock to guard against concurrent client tunnel updates
+	fLock sync.RWMutex // fine grained lock for updates to the field level state updates
 }
 
 // CalculatedClient contains additional fields and is calculated on each request
@@ -80,8 +81,22 @@ type CalculatedClient struct {
 	ConnectionState ConnectionState `json:"connection_state"`
 }
 
+func (c *Client) GetLastHeartbeatAt() *time.Time {
+	c.fLock.RLock()
+	defer c.fLock.RUnlock()
+	return c.LastHeartbeatAt
+}
+
+func (c *Client) SetLastHeartbeatAt(at *time.Time) {
+	c.fLock.Lock()
+	defer c.fLock.Unlock()
+	c.LastHeartbeatAt = at
+}
+
 func (c *Client) SetConnected() {
 	c.Logger.Debugf("%s: set to connected at %s", c.ID, time.Now())
+	c.fLock.Lock()
+	defer c.fLock.Unlock()
 	c.DisconnectedAt = nil
 }
 
@@ -89,7 +104,15 @@ func (c *Client) SetDisconnected(at *time.Time) {
 	if c.Logger != nil {
 		c.Logger.Debugf("%s: set to disconnected at %s", c.ID, *at)
 	}
+	c.fLock.Lock()
+	defer c.fLock.Unlock()
 	c.DisconnectedAt = at
+}
+
+func (c *Client) GetDisconnectedAt() (at *time.Time) {
+	c.fLock.RLock()
+	defer c.fLock.RUnlock()
+	return c.DisconnectedAt
 }
 
 func (c *Client) ToCalculated(allGroups []*cgroups.ClientGroup) *CalculatedClient {
@@ -109,16 +132,8 @@ func (c *Client) ToCalculated(allGroups []*cgroups.ClientGroup) *CalculatedClien
 // Obsolete returns true if a given client was disconnected longer than a given duration.
 // If a given duration is nil - returns false (never obsolete).
 func (c *Client) Obsolete(duration *time.Duration) bool {
-	return duration != nil && c.DisconnectedAt != nil &&
-		c.DisconnectedAt.Add(*duration).Before(now())
-}
-
-func (c *Client) Lock() {
-	c.lock.Lock()
-}
-
-func (c *Client) Unlock() {
-	c.lock.Unlock()
+	return duration != nil && c.GetDisconnectedAt() != nil &&
+		c.GetDisconnectedAt().Add(*duration).Before(now())
 }
 
 func (c *Client) NewTunnelID() (tunnelID string) {
@@ -131,6 +146,9 @@ func (c *Client) generateNewTunnelID() int64 {
 }
 
 func (c *Client) RemoveTunnelByID(tunnelID string) {
+	c.fLock.Lock()
+	defer c.fLock.Unlock()
+
 	result := make([]*clienttunnel.Tunnel, 0)
 	for _, curr := range c.Tunnels {
 		if curr.ID != tunnelID {
@@ -141,6 +159,9 @@ func (c *Client) RemoveTunnelByID(tunnelID string) {
 }
 
 func (c *Client) Banner() string {
+	c.fLock.RLock()
+	defer c.fLock.RUnlock()
+
 	banner := c.ID
 	if c.Name != "" {
 		banner += " (" + c.Name + ")"
@@ -168,6 +189,9 @@ func (c *Client) BelongsToOneOf(groups []*cgroups.ClientGroup) bool {
 }
 
 func (c *Client) BelongsTo(group *cgroups.ClientGroup) bool {
+	c.fLock.RLock()
+	defer c.fLock.RUnlock()
+
 	p := group.Params
 	if p.HasNoParams() {
 		return false
@@ -215,7 +239,7 @@ func (c *Client) BelongsTo(group *cgroups.ClientGroup) bool {
 }
 
 func (c *Client) CalculateConnectionState() ConnectionState {
-	if c.DisconnectedAt == nil {
+	if c.GetDisconnectedAt() == nil {
 		return Connected
 	}
 	return Disconnected
@@ -251,4 +275,22 @@ func (c *Client) UserGroupHasAccessViaClientGroup(userGroups []string, allClient
 // NewClientID generates a new client ID.
 func NewClientID() (string, error) {
 	return random.UUID4()
+}
+
+func (c *Client) FindTunnelByRemote(r *models.Remote) *clienttunnel.Tunnel {
+	for _, curr := range c.Tunnels {
+		if curr.Equals(r) {
+			return curr
+		}
+	}
+	return nil
+}
+
+func (c *Client) FindTunnel(id string) *clienttunnel.Tunnel {
+	for _, curr := range c.Tunnels {
+		if curr.ID == id {
+			return curr
+		}
+	}
+	return nil
 }

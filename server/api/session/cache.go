@@ -32,7 +32,7 @@ func NewCache(
 	}
 
 	for _, cur := range validSessions {
-		c.Set(formatID(cur.SessionID), cur, cur.ExpiresAt.Sub(now))
+		c.Set(formatID(cur.GetSessionID()), cur, cur.ExpiresAt.Sub(now))
 	}
 
 	return &Cache{
@@ -52,9 +52,7 @@ func (p *Cache) Save(ctx context.Context, session *APISession) (sessionID int64,
 		return -1, err
 	}
 
-	// make sure the session id is included in the cache version. this also updates
-	// the session ID in the supplied session.
-	session.SessionID = sessionID
+	session.SetSessionID(sessionID)
 
 	p.cache.Set(formatID(sessionID), session, time.Until(session.ExpiresAt))
 
@@ -141,7 +139,7 @@ func (p *Cache) deleteUserSessionsFromCache(username string, sessionID int64) (e
 			return fmt.Errorf("invalid cache entry: expected *APISession, got %T", item.Object)
 		}
 		if session.Username == username {
-			p.cache.Delete(formatID(session.SessionID))
+			p.cache.Delete(formatID(session.GetSessionID()))
 		}
 	}
 

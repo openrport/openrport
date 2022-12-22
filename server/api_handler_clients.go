@@ -101,9 +101,11 @@ func convertToClientPayload(client *clients.CalculatedClient, fields []query.Fie
 		case "tunnels":
 			p.Tunnels = &client.Tunnels
 		case "disconnected_at":
-			p.DisconnectedAt = &client.DisconnectedAt
+			disconnectedAt := client.GetDisconnectedAt()
+			p.DisconnectedAt = &disconnectedAt
 		case "last_heartbeat_at":
-			p.LastHeartbeatAt = &client.LastHeartbeatAt
+			lastHeartbeatAt := client.GetLastHeartbeatAt()
+			p.LastHeartbeatAt = &lastHeartbeatAt
 		case "connection_state":
 			connectionState := string(client.ConnectionState)
 			p.ConnectionState = &connectionState
@@ -412,7 +414,7 @@ func (al *APIListener) handlePutClientTunnel(w http.ResponseWriter, req *http.Re
 		remote.Scheme = &schemeStr
 	}
 
-	if existing := al.clientService.FindTunnelByRemote(client, remote); existing != nil {
+	if existing := client.FindTunnelByRemote(remote); existing != nil {
 		al.jsonErrorResponseWithErrCode(w, http.StatusBadRequest, ErrCodeTunnelExist, "Tunnel already exist.")
 		return
 	}
@@ -432,13 +434,17 @@ func (al *APIListener) handlePutClientTunnel(w http.ResponseWriter, req *http.Re
 
 	al.getTunnelProxyOptions(w, req, remote)
 
-	// make next steps thread-safe
-	client.Lock()
-	defer client.Unlock()
-
 	if remote.IsLocalSpecified() && !al.checkLocalPort(w, remote.LocalPort, remote.Protocol) {
 		return
 	}
+
+	// this lock will create a critical section based on the individual client. this means that other code
+	// that wants to create another critical section for this client will need to wait until this section
+	// completes. that means for example that it won't be possible to create two tunnels for this client at
+	// the same time. additionally, it won't be possible to delete tunnels for the client as they use
+	// the same lock and therefore will wait until the lock for this client is released.
+	client.Gate.Lock()
+	defer client.Gate.Unlock()
 
 	tunnels, err := al.clientService.StartClientTunnels(client, []*models.Remote{remote})
 	if err != nil {
@@ -601,11 +607,10 @@ func (al *APIListener) handleDeleteClientTunnel(w http.ResponseWriter, req *http
 		return
 	}
 
-	// make next steps thread-safe
-	client.Lock()
-	defer client.Unlock()
+	client.Gate.Lock()
+	defer client.Gate.Unlock()
 
-	tunnel := al.clientService.FindTunnel(client, tunnelID)
+	tunnel := client.FindTunnel(tunnelID)
 	if tunnel == nil {
 		al.jsonErrorResponseWithTitle(w, http.StatusNotFound, "tunnel not found")
 		return

@@ -442,6 +442,7 @@ func (cl *ClientListener) saveCmdResult(respBytes []byte) (*models.Job, error) {
 
 func (cl *ClientListener) handleSSHChannels(clientLog *logger.Logger, chans <-chan ssh.NewChannel) {
 	for ch := range chans {
+		ch := ch
 		extraData := string(ch.ExtraData())
 		stream, reqs, err := ch.Accept()
 		if err != nil {

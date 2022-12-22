@@ -34,7 +34,8 @@ func (t *ClientsStatusCheckTask) Run(ctx context.Context) error {
 	for _, c := range t.cr.GetAllActive() {
 		// Shorten the threshold aka make heartbeat older than it is because the ping response is stored after this check.
 		// Clients would get checked only every second time otherwise.
-		if c.LastHeartbeatAt != nil && now.Sub(*c.LastHeartbeatAt) < t.th-10*time.Second {
+		lastHeartbeatAt := c.GetLastHeartbeatAt()
+		if lastHeartbeatAt != nil && now.Sub(*lastHeartbeatAt) < t.th-10*time.Second {
 			// Skip all clients having sent a heartbeat from client to server recently
 			confirmedClients++
 			continue
@@ -74,21 +75,24 @@ func (t *ClientsStatusCheckTask) Run(ctx context.Context) error {
 
 func (t *ClientsStatusCheckTask) PingClients(clientsToPing <-chan *clients.Client, results chan<- bool) {
 	for cl := range clientsToPing {
+		cl.Gate.Lock()
 		ok, response, rtt, err := comm.PingConnectionWithTimeout(cl.Connection, t.pingTimeout)
 		//t.log.Debugf("ok=%s, error=%s, response=%s", ok, err, response)
 		var now = time.Now()
 		//Old clients cannot respond properly to a ping request yet
 		if !ok && err == nil && string(response) == "unknown request" {
 			t.log.Debugf("ping to %s [%s] succeeded in %s. client < 0.8.2", cl.Name, cl.ID, rtt)
-			cl.LastHeartbeatAt = &now
+			cl.SetLastHeartbeatAt(&now)
 			results <- true
+			cl.Gate.Unlock()
 			continue
 		}
 		// Only an empty response confirms the ping
 		if ok && err == nil && len(response) == 0 {
 			t.log.Debugf("ping to %s [%s] succeeded in %s. client >= 0.8.2", cl.Name, cl.ID, rtt)
-			cl.LastHeartbeatAt = &now
+			cl.SetLastHeartbeatAt(&now)
 			results <- true
+			cl.Gate.Unlock()
 			continue
 		}
 		// None of the above. Ping must have failed or timed out.
@@ -98,5 +102,6 @@ func (t *ClientsStatusCheckTask) PingClients(clientsToPing <-chan *clients.Clien
 
 		cl.Close()
 		results <- false
+		cl.Gate.Unlock()
 	}
 }

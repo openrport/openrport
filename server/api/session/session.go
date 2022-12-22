@@ -2,6 +2,7 @@ package session
 
 import (
 	"context"
+	"sync"
 	"time"
 
 	"github.com/patrickmn/go-cache"
@@ -14,6 +15,8 @@ type APISession struct {
 	Username     string    `json:"username" db:"username"`
 	UserAgent    string    `json:"user_agent" db:"user_agent"`
 	IPAddress    string    `json:"ip_address" db:"ip_address"`
+
+	sync.RWMutex
 }
 
 // current implementation provided by go-cache
@@ -38,4 +41,16 @@ type StorageProvider interface {
 
 	DeleteAllByUser(ctx context.Context, username string) (err error)
 	DeleteByID(ctx context.Context, username string, sessionID int64) (err error)
+}
+
+func (s *APISession) GetSessionID() (id int64) {
+	s.RLock()
+	defer s.RUnlock()
+	return s.SessionID
+}
+
+func (s *APISession) SetSessionID(id int64) {
+	s.Lock()
+	defer s.Unlock()
+	s.SessionID = id
 }

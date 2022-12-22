@@ -44,7 +44,7 @@ func (al *APIListener) handleGetTunnels(w http.ResponseWriter, req *http.Request
 
 	tunnels := make([]TunnelPayload, 0)
 	for _, c := range clients {
-		if c.DisconnectedAt != nil {
+		if c.GetDisconnectedAt() != nil {
 			continue
 		}
 

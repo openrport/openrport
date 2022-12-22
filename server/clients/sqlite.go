@@ -92,44 +92,45 @@ func (p *SqliteProvider) keepDisconnectedClientsStart() time.Time {
 	return t
 }
 
-func convertToSqlite(v *Client) *clientSqlite {
-	if v == nil {
+func convertToSqlite(c *Client) *clientSqlite {
+	if c == nil {
 		return nil
 	}
 	res := &clientSqlite{
-		ID:           v.ID,
-		ClientAuthID: v.ClientAuthID,
+		ID:           c.ID,
+		ClientAuthID: c.ClientAuthID,
 		Details: &clientDetails{
-			Name:                   v.Name,
-			OS:                     v.OS,
-			OSArch:                 v.OSArch,
-			OSFamily:               v.OSFamily,
-			OSKernel:               v.OSKernel,
-			Hostname:               v.Hostname,
-			Version:                v.Version,
-			Address:                v.Address,
-			OSFullName:             v.OSFullName,
-			OSVersion:              v.OSVersion,
-			OSVirtualizationSystem: v.OSVirtualizationSystem,
-			OSVirtualizationRole:   v.OSVirtualizationRole,
-			CPUFamily:              v.CPUFamily,
-			CPUModel:               v.CPUModel,
-			CPUModelName:           v.CPUModelName,
-			CPUVendor:              v.CPUVendor,
-			NumCPUs:                v.NumCPUs,
-			MemoryTotal:            v.MemoryTotal,
-			Timezone:               v.Timezone,
-			IPv4:                   v.IPv4,
-			IPv6:                   v.IPv6,
-			Tags:                   v.Tags,
-			Tunnels:                v.Tunnels,
-			AllowedUserGroups:      v.AllowedUserGroups,
-			UpdatesStatus:          v.UpdatesStatus,
-			ClientConfig:           v.ClientConfiguration,
+			Name:                   c.Name,
+			OS:                     c.OS,
+			OSArch:                 c.OSArch,
+			OSFamily:               c.OSFamily,
+			OSKernel:               c.OSKernel,
+			Hostname:               c.Hostname,
+			Version:                c.Version,
+			Address:                c.Address,
+			OSFullName:             c.OSFullName,
+			OSVersion:              c.OSVersion,
+			OSVirtualizationSystem: c.OSVirtualizationSystem,
+			OSVirtualizationRole:   c.OSVirtualizationRole,
+			CPUFamily:              c.CPUFamily,
+			CPUModel:               c.CPUModel,
+			CPUModelName:           c.CPUModelName,
+			CPUVendor:              c.CPUVendor,
+			NumCPUs:                c.NumCPUs,
+			MemoryTotal:            c.MemoryTotal,
+			Timezone:               c.Timezone,
+			IPv4:                   c.IPv4,
+			IPv6:                   c.IPv6,
+			Tags:                   c.Tags,
+			Tunnels:                c.Tunnels,
+			AllowedUserGroups:      c.AllowedUserGroups,
+			UpdatesStatus:          c.UpdatesStatus,
+			ClientConfig:           c.ClientConfiguration,
 		},
 	}
-	if v.DisconnectedAt != nil {
-		res.DisconnectedAt = sql.NullTime{Time: *v.DisconnectedAt, Valid: true}
+	if c.GetDisconnectedAt() != nil {
+		at := c.GetDisconnectedAt()
+		res.DisconnectedAt = sql.NullTime{Time: *at, Valid: true}
 	}
 	return res
 }
