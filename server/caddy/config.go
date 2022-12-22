@@ -43,15 +43,16 @@ var (
 )
 
 type Config struct {
-	ExecPath         string `mapstructure:"caddy"`
-	HostAddress      string `mapstructure:"address"`
-	BaseDomain       string `mapstructure:"subdomain_prefix"`
-	CertFile         string `mapstructure:"cert_file"`
-	KeyFile          string `mapstructure:"key_file"`
-	APIHostname      string `mapstructure:"api_hostname"`
-	APIPort          string `mapstructure:"api_port"`
-	APICertFile      string `mapstructure:"api_cert_file"`
-	APIKeyFile       string `mapstructure:"api_key_file"`
+	ExecPath    string `mapstructure:"caddy"`
+	HostAddress string `mapstructure:"address"`
+	BaseDomain  string `mapstructure:"subdomain_prefix"`
+	CertFile    string `mapstructure:"cert_file"`
+	KeyFile     string `mapstructure:"key_file"`
+	APIHostname string `mapstructure:"api_hostname"`
+	APIPort     string `mapstructure:"api_port"`
+	APICertFile string `mapstructure:"api_cert_file"`
+	APIKeyFile  string `mapstructure:"api_key_file"`
+
 	LogLevel         string `mapstructure:"-"` // taken from the rport server log level
 	DataDir          string `mapstructure:"-"` // taken from the rport server datadir
 	BaseConfFilename string `mapstructure:"-"`
