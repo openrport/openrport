@@ -848,8 +848,8 @@ func TestShouldStartTunnelsWithSubdomains(t *testing.T) {
 
 			internalTunnelProxyConfig := &clienttunnel.InternalTunnelProxyConfig{
 				Enabled:  true,
-				CertFile: "../../testdata/certs/rport.test.crt",
-				KeyFile:  "../../testdata/certs/rport.test.key",
+				CertFile: "../../../testdata/certs/rport.test.crt",
+				KeyFile:  "../../../testdata/certs/rport.test.key",
 			}
 
 			pd := ports.NewPortDistributorForTests(

@@ -48,12 +48,12 @@ func TestShouldStartCaddyServer(t *testing.T) {
 		BaseConfFilename: "caddy-base.conf",
 		HostAddress:      "0.0.0.0:8443",
 		BaseDomain:       "tunnels.rport.test",
-		CertFile:         "../testdata/certs/tunnels.rport.test.crt",
-		KeyFile:          "../testdata/certs/tunnels.rport.test.key",
+		CertFile:         "../../testdata/certs/tunnels.rport.test.crt",
+		KeyFile:          "../../testdata/certs/tunnels.rport.test.key",
 		APIHostname:      "api.rport.test",
 		APIPort:          "8443",
-		APICertFile:      "../testdata/certs/api.rport.test.crt",
-		APIKeyFile:       "../testdata/certs/api.rport.test.key",
+		APICertFile:      "../../testdata/certs/api.rport.test.crt",
+		APIKeyFile:       "../../testdata/certs/api.rport.test.key",
 	}
 
 	chCfg := &chconfig.Config{
