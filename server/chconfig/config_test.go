@@ -580,7 +580,7 @@ func TestParseAndValidatePorts(t *testing.T) {
 				UsedPortsRaw:     []string{"45-50"},
 				ExcludedPortsRaw: []string{"1-10", "44", "51", "80-90"},
 			},
-			ExpectedAllowedPorts: mapset.NewThreadUnsafeSetFromSlice([]interface{}{45, 46, 47, 48, 49, 50}),
+			ExpectedAllowedPorts: mapset.NewSetFromSlice([]interface{}{45, 46, 47, 48, 49, 50}),
 		},
 		{
 			Name: "used ports and excluded ports",
@@ -588,7 +588,7 @@ func TestParseAndValidatePorts(t *testing.T) {
 				UsedPortsRaw:     []string{"100-200", "205", "250-300", "305", "400-500"},
 				ExcludedPortsRaw: []string{"80-110", "114-116", "118", "120-198", "200", "240-310", "305", "401-499"},
 			},
-			ExpectedAllowedPorts: mapset.NewThreadUnsafeSetFromSlice([]interface{}{111, 112, 113, 117, 119, 199, 205, 400, 500}),
+			ExpectedAllowedPorts: mapset.NewSetFromSlice([]interface{}{111, 112, 113, 117, 119, 199, 205, 400, 500}),
 		},
 		{
 			Name: "excluded ports empty",
@@ -596,7 +596,7 @@ func TestParseAndValidatePorts(t *testing.T) {
 				UsedPortsRaw:     []string{"45-46"},
 				ExcludedPortsRaw: []string{},
 			},
-			ExpectedAllowedPorts: mapset.NewThreadUnsafeSetFromSlice([]interface{}{45, 46}),
+			ExpectedAllowedPorts: mapset.NewSetFromSlice([]interface{}{45, 46}),
 		},
 		{
 			Name: "one allowed port",
@@ -604,7 +604,7 @@ func TestParseAndValidatePorts(t *testing.T) {
 				UsedPortsRaw:     []string{"20000"},
 				ExcludedPortsRaw: []string{},
 			},
-			ExpectedAllowedPorts: mapset.NewThreadUnsafeSetFromSlice([]interface{}{20000}),
+			ExpectedAllowedPorts: mapset.NewSetFromSlice([]interface{}{20000}),
 		},
 		{
 			Name: "both empty",

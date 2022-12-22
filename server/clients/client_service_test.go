@@ -90,7 +90,7 @@ func TestStartClient(t *testing.T) {
 					ID:           "test-client",
 					ClientAuthID: "test-client-auth",
 				}}, nil, testLog),
-				portDistributor: ports.NewPortDistributor(mapset.NewThreadUnsafeSet()),
+				portDistributor: ports.NewPortDistributor(mapset.NewSet()),
 			}
 			_, err := cs.StartClient(
 				context.Background(), tc.ClientAuthID, tc.ClientID, connMock, tc.AuthMultiuseCreds,
@@ -112,7 +112,7 @@ func TestStartClientDisconnected(t *testing.T) {
 			AllowedUserGroups: []string{"test-group"},
 			UpdatesStatus:     &models.UpdatesStatus{UpdatesAvailable: 13},
 		}}, nil, testLog),
-		portDistributor: ports.NewPortDistributor(mapset.NewThreadUnsafeSet()),
+		portDistributor: ports.NewPortDistributor(mapset.NewSet()),
 	}
 	client, err := cs.StartClient(
 		context.Background(), "test-client-auth", "disconnected-client", connMock, false,
@@ -197,9 +197,9 @@ func TestDeleteOfflineClient(t *testing.T) {
 func TestCheckLocalPort(t *testing.T) {
 	srv := ClientServiceProvider{
 		portDistributor: ports.NewPortDistributorForTests(
-			mapset.NewThreadUnsafeSetFromSlice([]interface{}{1, 2, 3, 4, 5}),
-			mapset.NewThreadUnsafeSetFromSlice([]interface{}{2, 3, 4}),
-			mapset.NewThreadUnsafeSetFromSlice([]interface{}{2, 3, 4, 5}),
+			mapset.NewSetFromSlice([]interface{}{1, 2, 3, 4, 5}),
+			mapset.NewSetFromSlice([]interface{}{2, 3, 4}),
+			mapset.NewSetFromSlice([]interface{}{2, 3, 4, 5}),
 		),
 	}
 

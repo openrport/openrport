@@ -15,9 +15,9 @@ func TestPortDistributor(t *testing.T) {
 	for _, protocol := range []string{models.ProtocolTCP, models.ProtocolUDP, models.ProtocolTCPUDP} {
 		t.Run(protocol, func(t *testing.T) {
 			pd := NewPortDistributorForTests(
-				mapset.NewThreadUnsafeSetFromSlice([]interface{}{1, 2, 3, 4, 5}),
-				mapset.NewThreadUnsafeSetFromSlice([]interface{}{2, 3, 4, 5}),
-				mapset.NewThreadUnsafeSetFromSlice([]interface{}{2, 3, 4, 5}),
+				mapset.NewSetFromSlice([]interface{}{1, 2, 3, 4, 5}),
+				mapset.NewSetFromSlice([]interface{}{2, 3, 4, 5}),
+				mapset.NewSetFromSlice([]interface{}{2, 3, 4, 5}),
 			)
 
 			assert.Equal(t, true, pd.IsPortBusy(protocol, 1))
