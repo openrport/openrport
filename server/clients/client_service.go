@@ -481,7 +481,7 @@ func (s *ClientServiceProvider) startClientTunnels(client *Client, remotes []*mo
 			}
 		}
 
-		s.logger.Debugf("starting tunnnel: %s", remote)
+		s.logger.Debugf("starting tunnel: %s", remote)
 		t, err := s.StartTunnel(client, remote, acl, s.tunnelProxyConfig, s.portDistributor)
 		if err != nil {
 			return nil, errors.APIError{
