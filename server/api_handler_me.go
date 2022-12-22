@@ -2,6 +2,7 @@ package chserver
 
 import (
 	"errors"
+	"fmt"
 	"net/http"
 	"strings"
 	"time"
@@ -123,12 +124,14 @@ func (al *APIListener) handleManageAPIToken(w http.ResponseWriter, req *http.Req
 		w.WriteHeader(http.StatusNoContent)
 	}
 	if action == "create" {
+		// EDTODO: Reject the creation of a `clients-auth`-token if the user is not in the admin group.
+
 		var r struct {
 			Scope string `json:"scope"`
 		}
 		err := parseRequestBody(req.Body, &r)
 		if err != nil {
-			al.jsonError(w, err)
+			al.jsonErrorResponseWithTitle(w, http.StatusBadRequest, "missing body with scope.")
 			return
 		}
 
@@ -137,7 +140,7 @@ func (al *APIListener) handleManageAPIToken(w http.ResponseWriter, req *http.Req
 			return
 		}
 
-		newToken, err := random.UUID4()
+		newTokenClear, err := random.UUID4()
 		if err != nil {
 			al.jsonError(w, err)
 			return
@@ -145,7 +148,7 @@ func (al *APIListener) handleManageAPIToken(w http.ResponseWriter, req *http.Req
 		newPrefix := random.AlphaNum(8)
 
 		// token creation
-		tokenHash, err := bcrypt.GenerateFromPassword([]byte(newToken), bcrypt.DefaultCost)
+		tokenHash, err := bcrypt.GenerateFromPassword([]byte(newTokenClear), bcrypt.DefaultCost)
 		if err != nil {
 			al.jsonErrorResponse(w, http.StatusInternalServerError, err)
 			return
@@ -170,7 +173,12 @@ func (al *APIListener) handleManageAPIToken(w http.ResponseWriter, req *http.Req
 			Save()
 
 		al.Debugf("APIToken [%s] is created for user [%s].", newPrefix, user.Username)
-		al.writeJSONResponse(w, http.StatusOK, api.NewSuccessPayload(newAPIToken))
+		al.writeJSONResponse(w, http.StatusOK, api.NewSuccessPayload(
+			authorization.APIToken{
+				Prefix: newPrefix,
+				Scope:  r.Scope,
+				Token:  newTokenClear,
+			}))
 	}
 	if action == "update" {
 		var r struct {
