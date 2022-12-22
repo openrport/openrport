@@ -476,13 +476,6 @@ func (c *Config) WriteCaddyBaseConfig(caddyConfig *caddy.Config) (bc *caddy.Base
 
 	filename := caddyConfig.MakeBaseConfFilename()
 
-	err = os.Remove(filename)
-	if err != nil {
-		if !errors.Is(err, os.ErrNotExist) {
-			return nil, err
-		}
-	}
-
 	err = os.WriteFile(filename, baseConfigBytes, 0400)
 	if err != nil {
 		return nil, err
