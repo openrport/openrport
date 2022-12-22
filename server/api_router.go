@@ -104,10 +104,18 @@ func (al *APIListener) initRouter() {
 	adminOnly.HandleFunc("/user-groups/{group_name}", al.wrapStaticPassModeMiddleware(al.handleGetUserGroup)).Methods(http.MethodGet)
 	adminOnly.HandleFunc("/user-groups/{group_name}", al.wrapStaticPassModeMiddleware(al.handleUpdateUserGroup)).Methods(http.MethodPut)
 	adminOnly.HandleFunc("/user-groups/{group_name}", al.wrapStaticPassModeMiddleware(al.handleDeleteUserGroup)).Methods(http.MethodDelete)
+
 	adminOnly.HandleFunc("/clients-auth", al.handleGetClientsAuth).Methods(http.MethodGet)
 	adminOnly.HandleFunc("/clients-auth/{client_auth_id}", al.handleGetClientAuth).Methods(http.MethodGet)
 	adminOnly.HandleFunc("/clients-auth", al.handlePostClientsAuth).Methods(http.MethodPost)
 	adminOnly.HandleFunc("/clients-auth/{client_auth_id}", al.handleDeleteClientAuth).Methods(http.MethodDelete)
+	// 2683 A token can have one of the following scopes:
+	// * `read` Only GET requests are allowed
+	// * `read+write` All requests are allowed
+	// * `clients-auth` Only the following requests are allowed
+	//   * `GET /clients-auth`
+	//   * `GET /clients-auth/{client_auth_id}`
+	//   * `POST /clients-auth`
 
 	commands := secureAPI.NewRoute().Subrouter()
 	commands.Use(al.permissionsMiddleware(users.PermissionCommands))

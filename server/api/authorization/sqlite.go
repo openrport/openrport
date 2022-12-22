@@ -29,7 +29,7 @@ func (p *SqliteProvider) GetAll(ctx context.Context, username string) ([]*APITok
 		username,
 	)
 	if err != nil {
-		return result, fmt.Errorf("Unable to get api_token from DB: %w", err)
+		return result, fmt.Errorf("unable to get api_token from DB: %w", err)
 	}
 
 	return result, nil
@@ -49,7 +49,7 @@ func (p *SqliteProvider) Get(ctx context.Context, username, prefix string) (*API
 			return nil, nil
 		}
 
-		return nil, fmt.Errorf("Unable to get api token from DB: %w", err)
+		return nil, fmt.Errorf("unable to get api token from DB: %w", err)
 	}
 
 	return res, nil
@@ -69,14 +69,14 @@ func (p *SqliteProvider) Save(ctx context.Context, tokenLine *APIToken) (err err
 	)
 
 	if err != nil {
-		return fmt.Errorf("Unable to create api token: %w", err)
+		return fmt.Errorf("unable to create api token: %w", err)
 	}
 	affectedRows, err := res.RowsAffected()
 	if err != nil {
 		return err
 	}
 	if affectedRows == 0 {
-		return fmt.Errorf("Cannot Insert or Update token %s", tokenLine.Prefix)
+		return fmt.Errorf("cannot Insert or Update token %s", tokenLine.Prefix)
 	}
 
 	return nil
@@ -99,7 +99,7 @@ func (p *SqliteProvider) Delete(ctx context.Context, username, prefix string) er
 	}
 
 	if affectedRows == 0 {
-		return fmt.Errorf("Cannot find API Token by prefix %s", prefix)
+		return fmt.Errorf("cannot find API Token by prefix %s", prefix)
 	}
 
 	return nil

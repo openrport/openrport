@@ -353,7 +353,7 @@ var ErrPrefixNotFound = errors.New("There is no token with that prefix")
 func (al *APIListener) lookupUser(r *http.Request, isBearerOnly bool) (authorized bool, username string, err error) {
 	if !isBearerOnly {
 		if basicUser, basicPwd, basicAuthProvided := r.BasicAuth(); basicAuthProvided {
-			return al.handleBasicAuth(basicUser, basicPwd)
+			return al.handleBasicAuth(r.Context(), basicUser, basicPwd)
 		}
 	}
 
@@ -375,7 +375,7 @@ func (al *APIListener) lookupUser(r *http.Request, isBearerOnly bool) (authorize
 }
 
 // handleBasicAuth checks username and password against either user's password or token
-func (al *APIListener) handleBasicAuth(username, password string) (authorized bool, name string, err error) {
+func (al *APIListener) handleBasicAuth(ctx context.Context, username, password string) (authorized bool, name string, err error) {
 	if al.bannedUsers.IsBanned(username) {
 		return false, username, ErrTooManyRequests
 	}
@@ -404,22 +404,20 @@ func (al *APIListener) handleBasicAuth(username, password string) (authorized bo
 		}
 	}
 
-	prefix, password, err := authorization.Extract(password)
-	if err != nil {
-		return false, username, err
-	}
-
-	// EDTODO: find a way to load the map of all this users's tokens (at each request?) ...or just query the sqlite db 	with a context: al.tokenManager.Get(ctx, "username", "prefix")
-	if tkm, ok := user.APITokenMap[prefix]; ok {
-		// tkm is a nameMap := make(map[string]APIToken)
-		tokenOk := verifyPassword(tkm.Token, password) // EDTODO: even better, if you query the db, doit inside verifyPassword
-		if tokenOk {
-			return true, username, nil
+	// only check token if we have one saved
+	// AKA I can't know if I have the token for this operation until I check the prefix inside the db
+	//   only check token if the prefix gives me a match with the db
+	// TODO: this type of tokens "User tokens", meant to be used by scripts - used instead of the password at each request - should be renamed "passwords" or long lived passwords or encrypted long lived passwords
+	prefix, password, errPrefix := authorization.Extract(password)
+	if errPrefix == nil {
+		userToken, err := al.tokenManager.Get(ctx, username, prefix)
+		if err == nil {
+			tokenOk := verifyPassword(userToken.Token, password)
+			if tokenOk {
+				return true, username, nil
+			}
 		}
-	} else {
-		return false, username, ErrPrefixNotFound
 	}
-
 	return false, username, nil
 }
 
@@ -557,7 +555,7 @@ func (al *APIListener) wsAuth(f http.Handler) http.HandlerFunc {
 			basicUser, basicPwd, basicAuthProvided := r.BasicAuth()
 
 			if basicAuthProvided {
-				authorized, username, err = al.handleBasicAuth(basicUser, basicPwd)
+				authorized, username, err = al.handleBasicAuth(r.Context(), basicUser, basicPwd)
 			} else {
 				if !al.handleBannedIPs(r, false) {
 					return

@@ -149,7 +149,6 @@ func (as *APIService) ExistGroups(groups []string) error {
 }
 
 func (as *APIService) Change(usr *User, username string) error {
-	fmt.Printf("Change USER: %#v", usr)
 	err := as.validate(usr, username)
 	if err != nil {
 		return err
@@ -159,21 +158,9 @@ func (as *APIService) Change(usr *User, username string) error {
 		if err != nil {
 			return err
 		}
-		usr.Password = strings.Replace(string(passHash), htpasswdBcryptAltPrefix, htpasswdBcryptPrefix, 1)
+		usr.Password = strings.Replace(string(passHash), HtpasswdBcryptAltPrefix, HtpasswdBcryptPrefix, 1)
 	}
 
-	// EDTODO: ⬇️⬇️⬇️⬇️⬇️⬇️⬇️⬇️ change the following to address token creation ⬇️⬇️⬇️⬇️⬇️⬇️⬇️
-	/*
-		if usr.Token != nil && *usr.Token != "" {
-			tokenHash, err := bcrypt.GenerateFromPassword([]byte(*usr.Token), bcrypt.DefaultCost)
-			if err != nil {
-				return err
-			}
-			tokenHashStr := strings.Replace(string(tokenHash), htpasswdBcryptAltPrefix, htpasswdBcryptPrefix, 1)
-			usr.Token = &tokenHashStr
-		}
-	*/
-	// ⬆️⬆️⬆️⬆️⬆️⬆️⬆️⬆️⬆️⬆️⬆️⬆️⬆️⬆️⬆️⬆️⬆️⬆️⬆️⬆️⬆️⬆️⬆️⬆️⬆️⬆️⬆️⬆️⬆️⬆️⬆️⬆️⬆️⬆️⬆️⬆️⬆️⬆️⬆️⬆️⬆️⬆️⬆️⬆️⬆️⬆️⬆️⬆️⬆️⬆️⬆️⬆️⬆️
 	if username != "" {
 		return as.updateUser(usr, username)
 	}

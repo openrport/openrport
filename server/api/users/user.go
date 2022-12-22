@@ -1,7 +1,5 @@
 package users
 
-import "github.com/cloudradar-monitoring/rport/server/api/authorization"
-
 // User represents API user.
 type User struct {
 	Username        string   `json:"username" db:"username"`
@@ -9,8 +7,7 @@ type User struct {
 	PasswordExpired *bool    `json:"password_expired" db:"password_expired"`
 	Groups          []string `json:"groups" db:"-"`
 	TwoFASendTo     string   `json:"two_fa_send_to" db:"two_fa_send_to"`
-	APIToken        *[]authorization.APIToken
-	TotP            string `json:"totp_secret,omitempty" db:"totp_secret"`
+	TotP            string   `json:"totp_secret,omitempty" db:"totp_secret"`
 }
 
 func (u User) GetGroups() []string {

@@ -20,7 +20,10 @@ type APIToken struct {
 func Extract(prefixedpwd string) (string, string, error) {
 	i := strings.Index(prefixedpwd, "_")
 	if i < 0 {
-		return "", "", errors.New("Token should be in the format 'prefix_token'")
+		return "", "", errors.New("token should be in the format 'prefix_token'")
+	}
+	if i != 7 {
+		return "", "", errors.New("invalid token")
 	}
 	prefix := prefixedpwd[0:i]
 	token := prefixedpwd[i+1:]

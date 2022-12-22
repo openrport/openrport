@@ -3,16 +3,17 @@ package chserver
 import (
 	"errors"
 	"net/http"
+	"strings"
 	"time"
 
 	"github.com/cloudradar-monitoring/rport/server/api"
 	"github.com/cloudradar-monitoring/rport/server/api/authorization"
-	apitoken "github.com/cloudradar-monitoring/rport/server/api/authorization"
-	"github.com/cloudradar-monitoring/rport/server/api/users"
+	users "github.com/cloudradar-monitoring/rport/server/api/users"
 	"github.com/cloudradar-monitoring/rport/server/auditlog"
 	chshare "github.com/cloudradar-monitoring/rport/share"
 	"github.com/cloudradar-monitoring/rport/share/logger"
 	"github.com/cloudradar-monitoring/rport/share/random"
+	"golang.org/x/crypto/bcrypt"
 )
 
 // handleGetMe returns the currently logged-in user and the groups the user belongs to.
@@ -131,7 +132,7 @@ func (al *APIListener) handleManageAPIToken(w http.ResponseWriter, req *http.Req
 			return
 		}
 
-		if !apitoken.IsValidScope(r.Scope) {
+		if !authorization.IsValidScope(r.Scope) {
 			al.jsonErrorResponseWithTitle(w, http.StatusBadRequest, "missing or invalid scope.")
 			return
 		}
@@ -142,11 +143,20 @@ func (al *APIListener) handleManageAPIToken(w http.ResponseWriter, req *http.Req
 			return
 		}
 		newPrefix := random.AlphaNum(8)
+
+		// token creation
+		tokenHash, err := bcrypt.GenerateFromPassword([]byte(newToken), bcrypt.DefaultCost)
+		if err != nil {
+			al.jsonErrorResponse(w, http.StatusInternalServerError, err)
+			return
+		}
+		tokenHashStr := strings.Replace(string(tokenHash), users.HtpasswdBcryptAltPrefix, users.HtpasswdBcryptPrefix, 1)
+
 		newAPIToken := &authorization.APIToken{
 			Username: user.Username,
 			Prefix:   newPrefix,
 			Scope:    r.Scope,
-			Token:    newToken,
+			Token:    tokenHashStr,
 		}
 		err = al.tokenManager.Create(req.Context(), newAPIToken)
 		if err != nil {
@@ -213,8 +223,8 @@ func (al *APIListener) handleManageAPIToken(w http.ResponseWriter, req *http.Req
 			apiTokenToSend = append(apiTokenToSend,
 				APITokenPayload{
 					Prefix:    at.Prefix,
-					CreatedAt: *&at.CreatedAt,
-					ExpiresAt: *&at.ExpiresAt,
+					CreatedAt: at.CreatedAt,
+					ExpiresAt: at.ExpiresAt,
 					Scope:     at.Scope,
 				})
 		}
