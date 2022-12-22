@@ -207,9 +207,9 @@ func (c *Client) connectionLoop(ctx context.Context) {
 			go func() {
 				for {
 					switchbackTimer := time.NewTimer(c.configHolder.Client.ServerSwitchbackInterval)
-					defer switchbackTimer.Stop()
 					select {
 					case <-switchbackCtx.Done():
+						switchbackTimer.Stop()
 						return
 					case <-switchbackTimer.C:
 						switchbackConn, err := c.connect(c.configHolder.Client.Server)
