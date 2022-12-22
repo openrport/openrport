@@ -55,9 +55,6 @@ func (d *UserDatabase) getSelectClause() string {
 	if d.twoFAOn {
 		s += ", two_fa_send_to"
 	}
-	if d.hasTokenColumn {
-		s += ", token"
-	}
 	if d.totPOn {
 		s += ", totp_secret"
 	}
