@@ -71,8 +71,7 @@ func TestShouldStartCaddyServer(t *testing.T) {
 	_, err := chCfg.WriteCaddyBaseConfig(cfg)
 	require.NoError(t, err)
 
-	errCh := make(chan error, 1)
-	caddyServer := caddy.NewCaddyServer(cfg, testLog, errCh)
+	caddyServer := caddy.NewCaddyServer(cfg, testLog)
 
 	err = caddyServer.Start(ctx)
 	require.NoError(t, err)

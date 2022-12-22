@@ -239,8 +239,7 @@ func NewServer(ctx context.Context, config *chconfig.Config, opts *ServerOpts) (
 
 		caddy.HostDomainSocket = baseConfig.GlobalSettings.AdminSocket
 
-		errCh := make(chan error)
-		s.caddyServer = caddy.NewCaddyServer(&cfg.Caddy, caddyLog, errCh)
+		s.caddyServer = caddy.NewCaddyServer(&cfg.Caddy, caddyLog)
 		s.clientService.SetCaddyAPI(s.caddyServer)
 	}
 

@@ -63,7 +63,8 @@ func GetExecVersion(cfg *Config) (majorVersion int, err error) {
 	return majorVersion, nil
 }
 
-func NewCaddyServer(cfg *Config, l *logger.Logger, errCh chan error) (c *Server) {
+func NewCaddyServer(cfg *Config, l *logger.Logger) (c *Server) {
+	errCh := make(chan error)
 	c = &Server{
 		cfg:       cfg,
 		logger:    l,
