@@ -19,7 +19,6 @@ import (
 
 	"github.com/patrickmn/go-cache"
 
-	"github.com/cloudradar-monitoring/rport/caddy"
 	"github.com/cloudradar-monitoring/rport/db/migration/client_groups"
 	clientsmigration "github.com/cloudradar-monitoring/rport/db/migration/clients"
 	jobsmigration "github.com/cloudradar-monitoring/rport/db/migration/jobs"
@@ -29,6 +28,7 @@ import (
 	"github.com/cloudradar-monitoring/rport/server/api/jobs/schedule"
 	"github.com/cloudradar-monitoring/rport/server/api/session"
 	"github.com/cloudradar-monitoring/rport/server/auditlog"
+	"github.com/cloudradar-monitoring/rport/server/caddy"
 	"github.com/cloudradar-monitoring/rport/server/cgroups"
 	"github.com/cloudradar-monitoring/rport/server/chconfig"
 	"github.com/cloudradar-monitoring/rport/server/clients"

@@ -3,7 +3,7 @@ package chconfig
 import (
 	"testing"
 
-	"github.com/cloudradar-monitoring/rport/caddy"
+	"github.com/cloudradar-monitoring/rport/server/caddy"
 	"github.com/cloudradar-monitoring/rport/share/logger"
 
 	mapset "github.com/deckarep/golang-set"

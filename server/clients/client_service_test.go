@@ -11,7 +11,7 @@ import (
 	"testing"
 	"time"
 
-	"github.com/cloudradar-monitoring/rport/caddy"
+	"github.com/cloudradar-monitoring/rport/server/caddy"
 	"github.com/cloudradar-monitoring/rport/server/cgroups"
 	"github.com/cloudradar-monitoring/rport/server/clients/clienttunnel"
 	"github.com/cloudradar-monitoring/rport/server/clientsauth"

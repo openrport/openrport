@@ -18,9 +18,9 @@ import (
 	"strings"
 	"time"
 
-	"github.com/cloudradar-monitoring/rport/caddy"
 	"github.com/cloudradar-monitoring/rport/db/sqlite"
 	rportplus "github.com/cloudradar-monitoring/rport/plus"
+	"github.com/cloudradar-monitoring/rport/server/caddy"
 
 	"github.com/cloudradar-monitoring/rport/share/files"
 

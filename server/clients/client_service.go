@@ -16,8 +16,8 @@ import (
 	"github.com/hashicorp/go-version"
 	"github.com/jmoiron/sqlx"
 
-	"github.com/cloudradar-monitoring/rport/caddy"
 	"github.com/cloudradar-monitoring/rport/server/api/errors"
+	"github.com/cloudradar-monitoring/rport/server/caddy"
 	"github.com/cloudradar-monitoring/rport/server/cgroups"
 	"github.com/cloudradar-monitoring/rport/server/clients/clienttunnel"
 	"github.com/cloudradar-monitoring/rport/server/ports"
