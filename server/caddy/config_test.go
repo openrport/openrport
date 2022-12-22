@@ -4,6 +4,7 @@ import (
 	"testing"
 
 	"github.com/stretchr/testify/assert"
+	"github.com/stretchr/testify/require"
 
 	"github.com/cloudradar-monitoring/rport/server/caddy"
 	"github.com/cloudradar-monitoring/rport/share/files"
@@ -165,4 +166,34 @@ func TestShouldParseAndValidateCaddyIntegration(t *testing.T) {
 			}
 		})
 	}
+}
+
+func TestShouldGenerateBaseConf(t *testing.T) {
+	cfg := &caddy.Config{
+		ExecPath:    "/usr/bin/caddy",
+		DataDir:     ".",
+		HostAddress: "0.0.0.0:443",
+		BaseDomain:  "tunnels.rpdev",
+		CertFile:    "proxy_cert_file",
+		KeyFile:     "proxy_key_file",
+		APICertFile: "api_cert_file",
+		APIKeyFile:  "api_key_file",
+		APIHostname: "api_hostname",
+		APIPort:     "api_port",
+	}
+
+	bc, err := cfg.MakeBaseConfig("target_api_port")
+	require.NoError(t, err)
+
+	bcBytes, err := cfg.GetBaseConf(bc)
+	require.NoError(t, err)
+
+	text := string(bcBytes)
+
+	assert.Contains(t, text, "admin unix/./caddy-admin.sock")
+	assert.Contains(t, text, "https://0.0.0.0:443")
+	assert.Contains(t, text, "tls proxy_cert_file proxy_key_file {")
+	assert.Contains(t, text, "https://api_hostname:api_port")
+	assert.Contains(t, text, "tls api_cert_file api_key_file")
+	assert.Contains(t, text, "to http://127.0.0.1:target_api_port")
 }
