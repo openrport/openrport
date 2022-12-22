@@ -12,6 +12,10 @@ import (
 	"github.com/cloudradar-monitoring/rport/share/logger"
 )
 
+type TimeoutError struct {
+	error
+}
+
 // ReplyError sends a failure response with a given error message if not nil to a given request.
 func ReplyError(log *logger.Logger, req *ssh.Request, err error) {
 	var errMsg string
@@ -99,10 +103,12 @@ func SendRequestWithTimeout(conn ssh.Conn, name string, wantReplay bool, payload
 			return
 		}
 	}()
+	reqTimeout := time.NewTimer(timeout)
+	defer reqTimeout.Stop()
 	select {
 	case <-ch:
 		return ok, response, err
-	case <-time.After(timeout):
-		return false, nil, fmt.Errorf("conn.SendRequest(%s), timeout %s exceeded", name, timeout)
+	case <-reqTimeout.C:
+		return false, nil, TimeoutError{fmt.Errorf("conn.SendRequest(%s), timeout %s exceeded", name, timeout)}
 	}
 }

@@ -259,7 +259,7 @@ func (s *ClientServiceProvider) StartClient(
 	ctx context.Context, clientAuthID, clientID string, sshConn ssh.Conn, authMultiuseCreds bool,
 	req *chshare.ConnectionRequest, clog *logger.Logger,
 ) (*Client, error) {
-	clog.Debugf("starting client session: %s", clientID)
+	clog.Debugf("Starting client session: %s", clientID)
 
 	s.mu.Lock()
 	defer s.mu.Unlock()
@@ -528,8 +528,7 @@ func (s *ClientServiceProvider) Terminate(client *Client) error {
 		return s.repo.Delete(client)
 	}
 
-	now := time.Now()
-	client.SetDisconnected(&now)
+	client.SetDisconnectedNow()
 
 	// Do not save if client doesn't exist in repo - it was force deleted
 	existing, err := s.repo.GetByID(client.ID)
@@ -612,7 +611,7 @@ func (s *ClientServiceProvider) SetLastHeartbeat(clientID string, heartbeat time
 	if err != nil {
 		return err
 	}
-	existing.LastHeartbeatAt = &heartbeat
+	existing.SetHeartbeat(&heartbeat)
 	return nil
 }
 
@@ -857,9 +856,7 @@ func (s *ClientServiceProvider) terminateTunnelOnIdleTimeout(ctx context.Context
 	for {
 		select {
 		case <-ctx.Done():
-			if !timer.Stop() {
-				<-timer.C
-			}
+			timer.Stop()
 			return
 		case <-timer.C:
 			sinceLastActive := time.Since(t.LastActive())
