@@ -1846,7 +1846,6 @@ func makeTestUserWithToken(testUser string, token string) (curUser *users.User) 
 	curUser = &users.User{
 		Username: testUser,
 		Groups:   []string{users.Administrators},
-		Token:    &token,
 	}
 	return curUser
 }

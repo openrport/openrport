@@ -8,7 +8,6 @@ import (
 	"github.com/cloudradar-monitoring/rport/db/migration/api_token"
 	"github.com/cloudradar-monitoring/rport/db/sqlite"
 	"github.com/cloudradar-monitoring/rport/share/ptr"
-	"github.com/cloudradar-monitoring/rport/share/query"
 	"github.com/cloudradar-monitoring/rport/share/test"
 	"github.com/jmoiron/sqlx"
 
@@ -17,7 +16,6 @@ import (
 )
 
 var DataSourceOptions = sqlite.DataSourceOptions{WALEnabled: false}
-var timeoutSec = DefaultTimeoutSec
 var demoData = []APIToken{
 	{
 		Username:  "username1",
@@ -50,6 +48,14 @@ var demoData = []APIToken{
 		ExpiresAt: ptr.Time(time.Date(2001, 1, 1, 2, 0, 0, 0, time.UTC)),
 		Scope:     "onescope4",
 		Token:     "onelongtoken4",
+	},
+	{
+		Username:  "username4",
+		Prefix:    "prefix41",
+		CreatedAt: ptr.Time(time.Date(2001, 1, 1, 1, 0, 0, 0, time.UTC)),
+		ExpiresAt: ptr.Time(time.Date(2001, 1, 1, 2, 0, 0, 0, time.UTC)),
+		Scope:     "onescope41",
+		Token:     "onelongtoken41",
 	},
 }
 
@@ -86,26 +92,14 @@ func TestList(t *testing.T) {
 	err = addDemoData(dbProv.db)
 	require.NoError(t, err)
 
-	testCases := []struct {
-		Name           string
-		Options        *query.ListOptions
-		ExpectedResult []APIToken
-	}{
-		{
-			Name:           "no options",
-			Options:        &query.ListOptions{},
-			ExpectedResult: []APIToken{demoData[0]},
-		},
-	}
-	for _, tc := range testCases {
-		tc := tc
-		t.Run(tc.Name, func(t *testing.T) {
-			result, err := dbProv.GetAll(context.Background(), "username1")
-			require.NoError(t, err)
+	result, err := dbProv.GetAll(context.Background(), "username1")
+	require.NoError(t, err)
+	assert.Equal(t, demoData[0], *result[0])
 
-			assert.Equal(t, tc.ExpectedResult, result)
-		})
-	}
+	result, err = dbProv.GetAll(context.Background(), "username4")
+	require.NoError(t, err)
+	assert.Equal(t, demoData[3], *result[0])
+	assert.Equal(t, demoData[4], *result[1])
 }
 
 func TestCreate(t *testing.T) {
@@ -153,8 +147,6 @@ func TestUpdate(t *testing.T) {
 		Username:  "username1",
 		Prefix:    "prefix1",
 		ExpiresAt: ptr.Time(time.Date(2011, 3, 11, 2, 0, 0, 0, time.UTC)),
-		Scope:     "onenewscope1",
-		Token:     "onenewlongtoken1",
 	}
 
 	err = dbProv.Save(ctx, demoDataUpdate)
@@ -165,11 +157,9 @@ func TestUpdate(t *testing.T) {
 			"username":   demoDataUpdate.Username,
 			"prefix":     demoDataUpdate.Prefix,
 			"expires_at": *demoDataUpdate.ExpiresAt,
-			"scope":      demoDataUpdate.Scope,
-			"token":      demoDataUpdate.Token,
 		},
 	}
-	q := "SELECT username, prefix, expires_at, scope, token FROM `api_token`"
+	q := "SELECT username, prefix, expires_at FROM `api_token`"
 	test.AssertRowsEqual(t, dbProv.db, expectedRows, q, []interface{}{})
 }
 
@@ -185,7 +175,7 @@ func TestDelete(t *testing.T) {
 	require.NoError(t, err)
 
 	err = dbProv.Delete(ctx, "username1", "prefix2")
-	assert.EqualError(t, err, "cannot find entry by username username1 and prefix2")
+	assert.EqualError(t, err, "cannot find API Token by prefix prefix2")
 
 	err = dbProv.Delete(ctx, "username2", "prefix2")
 	require.NoError(t, err)
@@ -194,6 +184,9 @@ func TestDelete(t *testing.T) {
 	require.NoError(t, err)
 
 	err = dbProv.Delete(ctx, "username4", "prefix4")
+	require.NoError(t, err)
+
+	err = dbProv.Delete(ctx, "username4", "prefix41")
 	require.NoError(t, err)
 
 	expectedRows := []map[string]interface{}{
