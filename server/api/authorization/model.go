@@ -30,6 +30,7 @@ func Extract(prefixedpwd string) (string, string, error) {
 	return prefix, token, nil
 }
 
+// TODO: hardcode the scopes in one place only
 func IsValidScope(scope string) bool {
 	switch scope {
 	case

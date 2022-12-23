@@ -299,15 +299,17 @@ func (as *APIService) updateUser(dataToChange *User, usernameToFind string) erro
 	if err != nil {
 		return err
 	}
+	// TODO: if a username changes needs to update username in api tokens table also
+
 	return nil
 }
 
-// EDTODO: deleting a user needs to delete all api tokens first(?) - 2683 - API[3]
 func (as *APIService) Delete(usernameToDelete string) error {
 	user, err := as.Provider.GetByUsername(usernameToDelete)
 	if err != nil {
 		return err
 	}
+	// TODO: deleting a user needs to delete all his api tokens
 
 	if user == nil {
 		return errors2.APIError{

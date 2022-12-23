@@ -123,8 +123,6 @@ func (al *APIListener) handleManageAPIToken(w http.ResponseWriter, req *http.Req
 		w.WriteHeader(http.StatusNoContent)
 	}
 	if action == "create" {
-		// EDTODO: Reject the creation of a `clients-auth`-token if the user is not in the admin group.
-
 		var r struct {
 			Scope string `json:"scope"`
 		}
@@ -136,6 +134,11 @@ func (al *APIListener) handleManageAPIToken(w http.ResponseWriter, req *http.Req
 
 		if !authorization.IsValidScope(r.Scope) {
 			al.jsonErrorResponseWithTitle(w, http.StatusBadRequest, "missing or invalid scope.")
+			return
+		}
+
+		if r.Scope == "clients-auth" && !user.IsAdmin() {
+			al.jsonErrorResponseWithTitle(w, http.StatusBadRequest, "current user should belong to Administrators group to create a token with this scope")
 			return
 		}
 
