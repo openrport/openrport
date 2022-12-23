@@ -404,20 +404,21 @@ func (al *APIListener) handleBasicAuth(ctx context.Context, username, password s
 		}
 	}
 
-	// only check token if we have one saved
-	// AKA I can't know if I have the token for this operation until I check the prefix inside the db
+	// only check token if we have one saved == I can't know if I have the token for this operation until I check the prefix inside the db
 	//   only check token if the prefix gives me a match with the db
 	// TODO: this type of tokens "User tokens", meant to be used by scripts - used instead of the password at each request - should be renamed "passwords" or long lived passwords or encrypted long lived passwords
-	prefix, password, errPrefix := authorization.Extract(password)
-	if errPrefix == nil {
-		userToken, err := al.tokenManager.Get(ctx, username, prefix)
-		if err == nil {
-			tokenOk := verifyPassword(userToken.Token, password)
-			if tokenOk {
-				return true, username, nil
-			}
+	prefix, password, err := authorization.Extract(password)
+	if err != nil {
+		return false, username, err
+	}
+	userToken, err := al.tokenManager.Get(ctx, username, prefix)
+	if err == nil {
+		tokenOk := verifyPassword(userToken.Token, password)
+		if tokenOk {
+			return true, username, nil
 		}
 	}
+
 	return false, username, nil
 }
 

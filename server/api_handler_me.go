@@ -2,7 +2,6 @@ package chserver
 
 import (
 	"errors"
-	"fmt"
 	"net/http"
 	"strings"
 	"time"

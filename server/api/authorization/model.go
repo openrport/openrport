@@ -22,7 +22,7 @@ func Extract(prefixedpwd string) (string, string, error) {
 	if i < 0 {
 		return "", "", errors.New("token should be in the format 'prefix_token'")
 	}
-	if i != 7 {
+	if i != 8 {
 		return "", "", errors.New("invalid token")
 	}
 	prefix := prefixedpwd[0:i]
