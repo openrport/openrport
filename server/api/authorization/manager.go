@@ -28,13 +28,9 @@ func NewManager(db DbProvider) *Manager {
 }
 
 func (m *Manager) Get(ctx context.Context, username, prefix string) (*APIToken, error) {
-	val, err := m.db.Get(ctx, username, prefix)
-	if err != nil {
-		return nil, err
-	}
-
-	return val, nil
+	return m.db.Get(ctx, username, prefix)
 }
+
 func (m *Manager) GetAll(ctx context.Context, username string) ([]*APIToken, error) {
 	val, err := m.db.GetAll(ctx, username)
 	if err != nil {
