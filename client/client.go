@@ -5,10 +5,12 @@ import (
 	"encoding/json"
 	"fmt"
 	"io"
+	"math/rand"
 	"net"
 	"net/http"
 	"net/url"
 	"strings"
+	"sync"
 	"time"
 
 	"github.com/cloudradar-monitoring/rport/share/random"
@@ -52,6 +54,8 @@ type Client struct {
 	serverCapabilities *models.Capabilities
 	filesAPI           files.FileAPI
 	watchdog           *Watchdog
+
+	mu sync.RWMutex
 }
 
 // NewClient creates a new client instance
@@ -134,13 +138,18 @@ func (c *Client) Start(ctx context.Context) error {
 func (c *Client) keepAliveLoop() {
 	for c.running {
 		time.Sleep(c.configHolder.Connection.KeepAlive)
-		if c.sshConn != nil {
-			ok, _, rtt, err := comm.PingConnectionWithTimeout(c.sshConn, c.configHolder.Connection.KeepAliveTimeout)
+
+		c.mu.RLock()
+		conn := c.sshConn
+		c.mu.RUnlock()
+
+		if conn != nil {
+			ok, _, rtt, err := comm.PingConnectionWithTimeout(conn, c.configHolder.Connection.KeepAliveTimeout)
 			if err != nil || !ok {
 				c.Errorf("Failed to send keepalive (client to server ping): %s", err)
 				c.sshConn.Close()
 			} else {
-				msg := fmt.Sprintf("ping to %s succeeded within %s", c.sshConn.RemoteAddr(), rtt)
+				msg := fmt.Sprintf("ping to %s succeeded within %s", conn.RemoteAddr(), rtt)
 				c.Debugf(msg)
 				c.watchdog.Ping(WatchdogStateConnected, msg)
 			}
@@ -156,13 +165,19 @@ func (c *Client) connectionLoop(ctx context.Context) {
 	for c.running {
 		if connerr != nil {
 			attempt := int(b.Attempt())
-			d := b.Duration()
+			var d = b.Duration()
 			c.showConnectionError(connerr, attempt)
 			if c.configHolder.Connection.MaxRetryCount >= 0 && attempt >= c.configHolder.Connection.MaxRetryCount {
 				break // Stop trying to connect if the user has set a max retry limit
 			}
+			if _, ok := connerr.(comm.TimeoutError); ok {
+				// Timeout means the server is available. No need to wait up to 5 min to try again.
+				rand.Seed(time.Now().UnixNano())
+				d = time.Duration(rand.Intn(20)) * time.Second
+				b.Reset()
+			}
 			msg := fmt.Sprintf("Retrying in %s...", d)
-			c.Errorf(msg)
+			c.Infof(msg)
 			c.watchdog.Ping(WatchdogStateReconnecting, msg)
 			connerr = nil
 			chshare.SleepSignal(d)
@@ -182,6 +197,7 @@ func (c *Client) connectionLoop(ctx context.Context) {
 				continue
 			}
 		}
+
 		// Start handling requests and channels immediately, otherwise ssh connection might hang
 		go c.handleSSHRequests(ctx, sshConn)
 		go c.connectStreams(sshConn.Channels)
@@ -190,10 +206,12 @@ func (c *Client) connectionLoop(ctx context.Context) {
 		if !isPrimary {
 			go func() {
 				for {
+					switchbackTimer := time.NewTimer(c.configHolder.Client.ServerSwitchbackInterval)
 					select {
 					case <-switchbackCtx.Done():
+						switchbackTimer.Stop()
 						return
-					case <-time.After(c.configHolder.Client.ServerSwitchbackInterval):
+					case <-switchbackTimer.C:
 						switchbackConn, err := c.connect(c.configHolder.Client.Server)
 						if err != nil {
 							c.Errorf("Switchback failed: %v", err.Error())
@@ -210,20 +228,28 @@ func (c *Client) connectionLoop(ctx context.Context) {
 
 		err := c.sendConnectionRequest(ctx, sshConn.Connection)
 		if err != nil {
+			// Connection request has failed, we try again
 			cancelSwitchback()
 			connerr = err
 			continue
 		}
-
+		// Connection request has succeeded
 		b.Reset()
 
-		c.sshConn = sshConn.Connection
+		c.mu.Lock()
+		c.sshConn = sshConn.Connection // Hand over the open SSH connection to the client
+		c.mu.Unlock()
+
 		c.updates.SetConn(sshConn.Connection)
 		c.monitor.SetConn(sshConn.Connection)
 
-		err = sshConn.Connection.Wait()
+		err = sshConn.Connection.Wait() // Block aka wait until the connection is closed
+
+		c.mu.Lock()
 		//disconnected
 		c.sshConn = nil
+		c.mu.Unlock()
+
 		c.updates.SetConn(nil)
 		c.monitor.SetConn(nil)
 		c.monitor.Stop()
@@ -345,9 +371,12 @@ func (c *Client) sendConnectionRequest(ctx context.Context, sshConn ssh.Conn) er
 	t0 := time.Now()
 	replyOk, respBytes, err := comm.SendRequestWithTimeout(sshConn, "new_connection", true, req, ConnectionTimeout)
 	if err != nil {
+		if err2 := sshConn.Close(); err2 != nil {
+			c.Errorf("Failed to close connection: %s", err2)
+		}
 		return err
 	}
-	c.Debugf("Connection request has been answered successfully.")
+	c.Debugf("Connection request has been answered successfully within %s.", time.Since(t0))
 	if !replyOk {
 		msg := string(respBytes)
 

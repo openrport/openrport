@@ -66,8 +66,7 @@ func InitClientRepository(
 }
 
 func (s *ClientRepository) Save(client *Client) error {
-	s.logger.Debugf("saving client: %s status=%s", client.ID, FormatConnectionState(client.DisconnectedAt))
-
+	ts := time.Now()
 	if s.store != nil {
 		err := s.store.Save(context.Background(), client)
 		if err != nil {
@@ -78,6 +77,12 @@ func (s *ClientRepository) Save(client *Client) error {
 	s.mu.Lock()
 	defer s.mu.Unlock()
 	s.clients[client.ID] = client
+	s.logger.Debugf(
+		"saved client: %s status=%s, within %s",
+		client.ID,
+		FormatConnectionState(client.DisconnectedAt),
+		time.Since(ts),
+	)
 	return nil
 }
 
