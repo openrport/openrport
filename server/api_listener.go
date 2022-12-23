@@ -348,12 +348,13 @@ var ErrTooManyRequests = errors.New("too many requests, please try later")
 var ErrThatPasswordHasExpired = errors.New("password has expired, please change your password")
 var ErrCantLoadThatToken = errors.New("There was a problem accessing that token with the provided prefix")
 var ErrPrefixNotFound = errors.New("There is no token with that prefix")
+var ErrInvalidScopeOfThatToken = errors.New("The scope of the provided token is not authorized for this operation")
 
 // lookupUser is used to get the user on every request in auth middleware
 func (al *APIListener) lookupUser(r *http.Request, isBearerOnly bool) (authorized bool, username string, err error) {
 	if !isBearerOnly {
 		if basicUser, basicPwd, basicAuthProvided := r.BasicAuth(); basicAuthProvided {
-			return al.handleBasicAuth(r.Context(), basicUser, basicPwd)
+			return al.handleBasicAuth(r.Context(), r.Method, r.URL.Path, basicUser, basicPwd)
 		}
 	}
 
@@ -375,7 +376,7 @@ func (al *APIListener) lookupUser(r *http.Request, isBearerOnly bool) (authorize
 }
 
 // handleBasicAuth checks username and password against either user's password or token
-func (al *APIListener) handleBasicAuth(ctx context.Context, username, password string) (authorized bool, name string, err error) {
+func (al *APIListener) handleBasicAuth(ctx context.Context, httpverb, urlpath, username, password string) (authorized bool, name string, err error) {
 	if al.bannedUsers.IsBanned(username) {
 		return false, username, ErrTooManyRequests
 	}
@@ -412,10 +413,26 @@ func (al *APIListener) handleBasicAuth(ctx context.Context, username, password s
 		return false, username, err
 	}
 	userToken, err := al.tokenManager.Get(ctx, username, prefix)
-	if err == nil {
+	if err != nil {
+		return false, username, err
+	}
+
+	if userToken != nil {
 		tokenOk := verifyPassword(userToken.Token, password)
 		if tokenOk {
-			return true, username, nil
+			switch userToken.Scope {
+			case "read":
+				if httpverb == "GET" {
+					return true, username, nil
+				}
+			case "read+write":
+				return true, username, nil
+			case "clients-auth":
+				if strings.Index(urlpath, "clients-auth") > 0 {
+					return true, username, nil
+				}
+			}
+			return false, username, ErrInvalidScopeOfThatToken
 		}
 	}
 
@@ -556,7 +573,7 @@ func (al *APIListener) wsAuth(f http.Handler) http.HandlerFunc {
 			basicUser, basicPwd, basicAuthProvided := r.BasicAuth()
 
 			if basicAuthProvided {
-				authorized, username, err = al.handleBasicAuth(r.Context(), basicUser, basicPwd)
+				authorized, username, err = al.handleBasicAuth(r.Context(), r.Method, r.URL.Path, basicUser, basicPwd)
 			} else {
 				if !al.handleBannedIPs(r, false) {
 					return
