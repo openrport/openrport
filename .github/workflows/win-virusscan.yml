@@ -1,0 +1,39 @@
+name: Windows-Virusscan
+
+on:
+  push:
+    branches:
+      - master
+
+jobs:
+  win-virusscan:
+    name: Execute Virustoal Scan
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v2
+
+      - name: Set up Go
+        uses: actions/setup-go@v2
+        with:
+          go-version: 1.19
+
+      - name: Build and Scan
+        env:
+          VTCLI_APIKEY = ${{secrets.VTCLI_APIKEY}}
+        run: |
+          # Build rport for windows
+          VERSION=$(date -u +%y.%m%d.%H%M)
+          BIN=./rport-$VERSION.exe
+          GOOS=windows go build -v -ldflags="-X 'github.com/cloudradar-monitoring/rport/share.BuildVersion=$VERSION-$(git rev-parse HEAD)'"\
+            -o $BIN ./cmd/rport/...
+          # Install the virus total cli
+          curl -LO https://github.com/VirusTotal/vt-cli/releases/download/0.10.4/Linux64.zip
+          unzip Linux64.zip
+          pip3 install yq
+          ./vt scan file $BIN -v|tee vtscan
+          ./vt analysis $(cat vtscan|awk '{print $2}') -v |tee vtresult
+          if [ $(yq .[0].stats.malicious < vtresult) -gt 0 ]; then
+            echo "☢️ Virus found. See detail above."
+            false
+          fi
