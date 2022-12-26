@@ -15,16 +15,19 @@ jobs:
 
       - name: Build and Scan
         env:
-          VTCLI_APIKEY = ${{secrets.VTCLI_APIKEY}}
+          VTCLI_APIKEY: ${{secrets.VTCLI_APIKEY}}
         run: |
           # Build rport for windows
           VERSION=$(date -u +%y.%m%d.%H%M)
           BIN=./rport-$VERSION.exe
           GOOS=windows go build -v -ldflags="-X 'github.com/cloudradar-monitoring/rport/share.BuildVersion=$VERSION-$(git rev-parse HEAD)'"\
             -o $BIN ./cmd/rport/...
+          echo "✅ $BIN compiled"
           # Install the virus total cli
           curl -LO https://github.com/VirusTotal/vt-cli/releases/download/0.10.4/Linux64.zip
           unzip Linux64.zip
+          echo "✅ vt cli installed"
+          ./vt version
           pip3 install yq
           ./vt scan file $BIN -v|tee vtscan
           ./vt analysis $(cat vtscan|awk '{print $2}') -v |tee vtresult
@@ -32,3 +35,4 @@ jobs:
             echo "☢️ Virus found. See detail above."
             false
           fi
+          echo "✅ no virus found"
