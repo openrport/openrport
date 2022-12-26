@@ -29,8 +29,20 @@ jobs:
           echo "✅ vt cli installed"
           ./vt version
           pip3 install yq
-          ./vt scan file $BIN -v|tee vtscan
-          ./vt analysis $(cat vtscan|awk '{print $2}') -v |tee vtresult
+          ./vt scan file $BIN |tee vtscan
+          echo "🚚 $BIN queded for scanning"
+          SCAN_ID=$(cat vtscan|awk '{print $2}')
+          echo "⏳ Waiting for results..."
+          for I in $(seq 1 60);do
+            echo "${I}/60"
+            STATUS=$(vt analysis YzA1ZDcxOGQ3YWM3NDUyMDQwNGQ0NDkzY2JlZWMwYWI6MTY3MjA1NjgwNA==|tee vtresult|yq -r .[0].status)
+            if [ $STATUS == "completed" ]; then
+              echo "✅ virus total scan finished"
+              break
+            fi
+            sleep 2
+          done
+        
           if [ $(yq .[0].stats.malicious < vtresult) -gt 0 ]; then
             echo "☢️ Virus found. See detail above."
             false
