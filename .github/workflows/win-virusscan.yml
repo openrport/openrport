@@ -35,7 +35,7 @@ jobs:
           echo "⏳ Waiting for results..."
           for I in $(seq 1 60);do
             echo "${I}/60"
-            STATUS=$(vt analysis YzA1ZDcxOGQ3YWM3NDUyMDQwNGQ0NDkzY2JlZWMwYWI6MTY3MjA1NjgwNA==|tee vtresult|yq -r .[0].status)
+            STATUS=$(./vt analysis YzA1ZDcxOGQ3YWM3NDUyMDQwNGQ0NDkzY2JlZWMwYWI6MTY3MjA1NjgwNA==|tee vtresult|yq -r .[0].status)
             if [ $STATUS == "completed" ]; then
               echo "✅ virus total scan finished"
               break
