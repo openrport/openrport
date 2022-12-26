@@ -1,13 +1,8 @@
 name: Windows-Virusscan
-
-on:
-  push:
-    branches:
-      - master
-
+on: [push]
 jobs:
   win-virusscan:
-    name: Execute Virustoal Scan
+    name: Execute Virustotal Scan
     runs-on: ubuntu-latest
     steps:
       - name: Checkout
