@@ -40,10 +40,10 @@ func TestShouldParseAndValidateCaddyIntegration(t *testing.T) {
 	}
 
 	cases := []struct {
-		Name             string
-		CaddyConfig      caddy.Config
-		ExpectedErrorStr string
-		NotConfigured    bool
+		Name          string
+		CaddyConfig   caddy.Config
+		ExpectedError error
+		NotConfigured bool
 	}{
 		{
 			Name: "no error if not configured",
@@ -54,8 +54,8 @@ func TestShouldParseAndValidateCaddyIntegration(t *testing.T) {
 				CertFile:    "",
 				KeyFile:     "",
 			},
-			ExpectedErrorStr: "",
-			NotConfigured:    true,
+			ExpectedError: nil,
+			NotConfigured: true,
 		},
 		{
 			Name: "no error if mandatory values configured",
@@ -66,7 +66,7 @@ func TestShouldParseAndValidateCaddyIntegration(t *testing.T) {
 				CertFile:    "../../testdata/certs/tunnels.rport.test.crt",
 				KeyFile:     "../../testdata/certs/tunnels.rport.test.key",
 			},
-			ExpectedErrorStr: "",
+			ExpectedError: nil,
 		},
 		{
 			Name: "error if exec path missing",
@@ -77,7 +77,7 @@ func TestShouldParseAndValidateCaddyIntegration(t *testing.T) {
 				CertFile:    "../../testdata/certs/tunnels.rport.test.crt",
 				KeyFile:     "../../testdata/certs/tunnels.rport.test.key",
 			},
-			ExpectedErrorStr: caddy.ErrCaddyExecPathMissing.Error(),
+			ExpectedError: caddy.ErrCaddyExecPathMissing,
 		},
 		{
 			Name: "error if address missing",
@@ -88,7 +88,7 @@ func TestShouldParseAndValidateCaddyIntegration(t *testing.T) {
 				CertFile:   "../../testdata/certs/tunnels.rport.test.crt",
 				KeyFile:    "../../testdata/certs/tunnels.rport.test.key",
 			},
-			ExpectedErrorStr: caddy.ErrCaddyTunnelsHostAddressMissing.Error(),
+			ExpectedError: caddy.ErrCaddyTunnelsHostAddressMissing,
 		},
 		{
 			Name: "error if basedomain missing",
@@ -99,7 +99,7 @@ func TestShouldParseAndValidateCaddyIntegration(t *testing.T) {
 				CertFile: "../../testdata/certs/tunnels.rport.test.crt",
 				KeyFile:  "../../testdata/certs/tunnels.rport.test.key",
 			},
-			ExpectedErrorStr: caddy.ErrCaddyTunnelsBaseDomainMissing.Error(),
+			ExpectedError: caddy.ErrCaddyTunnelsBaseDomainMissing,
 		},
 		{
 			Name: "error if cert file missing",
@@ -110,7 +110,7 @@ func TestShouldParseAndValidateCaddyIntegration(t *testing.T) {
 				// CertFile: "/var/lib/rport/wildcard.crt",
 				KeyFile: "/var/lib/rport/wildcard.key",
 			},
-			ExpectedErrorStr: caddy.ErrCaddyTunnelsWildcardCertFileMissing.Error(),
+			ExpectedError: caddy.ErrCaddyTunnelsWildcardCertFileMissing,
 		},
 		{
 			Name: "error if key file missing",
@@ -121,7 +121,7 @@ func TestShouldParseAndValidateCaddyIntegration(t *testing.T) {
 				CertFile:    "/var/lib/rport/wildcard.crt",
 				// KeyFile:  "/var/lib/rport/wildcard.key",
 			},
-			ExpectedErrorStr: caddy.ErrCaddyTunnelsWildcardKeyFileMissing.Error(),
+			ExpectedError: caddy.ErrCaddyTunnelsWildcardKeyFileMissing,
 		},
 		{
 			Name: "error if api_hostname set but not api_port",
@@ -134,7 +134,7 @@ func TestShouldParseAndValidateCaddyIntegration(t *testing.T) {
 				APIHostname: "api.rport.test",
 				// APIPort: "443",
 			},
-			ExpectedErrorStr: caddy.ErrCaddyMissingAPIPort.Error(),
+			ExpectedError: caddy.ErrCaddyMissingAPIPort,
 		},
 		{
 			Name: "error if api_port set but not api_hostname",
@@ -147,13 +147,13 @@ func TestShouldParseAndValidateCaddyIntegration(t *testing.T) {
 				// APIHostname: "api.rport.test",
 				APIPort: "443",
 			},
-			ExpectedErrorStr: caddy.ErrCaddyMissingAPIHostname.Error(),
+			ExpectedError: caddy.ErrCaddyMissingAPIHostname,
 		},
 	}
 	for _, tc := range cases {
 		t.Run(tc.Name, func(t *testing.T) {
 			err := tc.CaddyConfig.ParseAndValidate("datadir", "info", filesAPI)
-			if tc.ExpectedErrorStr == "" {
+			if tc.ExpectedError == nil {
 				if tc.NotConfigured {
 					assert.NoError(t, err)
 				} else {
@@ -162,7 +162,7 @@ func TestShouldParseAndValidateCaddyIntegration(t *testing.T) {
 				}
 			} else {
 				assert.Error(t, err)
-				assert.Contains(t, err.Error(), tc.ExpectedErrorStr)
+				assert.ErrorIs(t, err, tc.ExpectedError)
 			}
 		})
 	}
