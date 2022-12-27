@@ -884,13 +884,10 @@ func TestShouldStartTunnelsWithSubdomains(t *testing.T) {
 
 			assert.Equal(t, requestedRemote.RemoteHost, newTunnel.RemoteHost)
 			assert.Equal(t, requestedRemote.RemotePort, newTunnel.RemotePort)
-			// assert.Equal(t, true, newTunnel.CaddyDownstreamProxyExists)
 			assert.Equal(t, requestedRemote.TunnelURL, newTunnel.Remote.TunnelURL)
 
 			err = clientService.TerminateTunnel(c1, newTunnel, true)
 			require.NoError(t, err)
-
-			time.Sleep(100 * time.Millisecond)
 		})
 	}
 }
