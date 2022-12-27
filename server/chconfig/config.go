@@ -476,6 +476,15 @@ func (c *Config) WriteCaddyBaseConfig(caddyConfig *caddy.Config) (bc *caddy.Base
 
 	filename := caddyConfig.MakeBaseConfFilename()
 
+	// note this remove is required as the caddy base config file is created with
+	// read only permissions and write file won't overwrite the existing contents
+	err = os.Remove(filename)
+	if err != nil {
+		if !errors.Is(err, os.ErrNotExist) {
+			return nil, err
+		}
+	}
+
 	err = os.WriteFile(filename, baseConfigBytes, 0400)
 	if err != nil {
 		return nil, err
