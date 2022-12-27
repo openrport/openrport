@@ -11,7 +11,10 @@ import (
 
 	"github.com/cloudradar-monitoring/rport/server/caddy"
 	"github.com/cloudradar-monitoring/rport/server/chconfig"
+	"github.com/cloudradar-monitoring/rport/share/logger"
 )
+
+var testLog = logger.NewLogger("caddy", logger.LogOutput{File: os.Stdout}, logger.LogLevelDebug)
 
 func caddyAvailable(t *testing.T, cfg *caddy.Config) (available bool) {
 	t.Helper()

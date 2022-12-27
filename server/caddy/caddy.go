@@ -4,12 +4,14 @@ import (
 	"bufio"
 	"bytes"
 	"context"
+	"encoding/json"
 	"errors"
 	"io"
 	"log"
 	"net/http"
 	"os/exec"
 	"regexp"
+	"strconv"
 	"strings"
 
 	"github.com/cloudradar-monitoring/rport/share/logger"
@@ -31,6 +33,17 @@ type Server struct {
 	lines chan string    // we'll write these lines to the rportd log
 }
 
+// caddy version string -> v2.6.2 h1:wKoFIxpmOJLGl3QXoo6PNbYvGW4xLEgo32GPBEjWL8o=
+var versionStringMatch = regexp.MustCompile(`^v(.*)\..*\..*.* `)
+
+func ExtractCaddyMajorVersionStr(versionInfo string) (majorVersion string) {
+	matches := versionStringMatch.FindAllStringSubmatch(versionInfo, -1)
+	if len(matches) > 0 && len(matches[0]) > 0 {
+		majorVersion = matches[0][1]
+	}
+	return
+}
+
 func GetExecVersion(cfg *Config) (majorVersion int, err error) {
 	cmd := exec.Command(cfg.ExecPath, "version") // #nosec G204
 
@@ -42,16 +55,15 @@ func GetExecVersion(cfg *Config) (majorVersion int, err error) {
 	}
 
 	// caddy version output
-	out := b.Bytes()
+	out := b.String()
 
-	// current caddy version output always starts with the letter v. use this as a
-	// crude check that we're getting a response we might recognize.
-	if out[0] != 'v' {
-		return -1, errors.New("unexpected caddy version response")
+	majorVersionStr := ExtractCaddyMajorVersionStr(out)
+
+	majorVersion, err = strconv.Atoi(majorVersionStr)
+	if err != nil {
+		return -1, errors.New("unable to process caddy version")
 	}
 
-	// major version number is the second byte of the output
-	majorVersion = int(out[1])
 	return majorVersion, nil
 }
 
@@ -161,7 +173,12 @@ var caddyToRportLogLevelMap = map[string]string{
 
 func (c *Server) writeCaddyOutputToLog() {
 	for line := range c.lines {
-		level := extractCaddyLogLevel(line)
+		level, err := extractCaddyLogLevel(line)
+		if err != nil {
+			c.logger.Debugf("unable to parse caddy log line")
+			continue
+		}
+
 		mapsTo, ok := caddyToRportLogLevelMap[level]
 		if ok {
 			switch mapsTo {
@@ -178,12 +195,16 @@ func (c *Server) writeCaddyOutputToLog() {
 	}
 }
 
-var logLevelMatch = regexp.MustCompile("^{\"level\":\"(.*)\",\"ts\"")
+type logMessage struct {
+	Level string `json:"level"`
+}
 
-func extractCaddyLogLevel(line string) (level string) {
-	matches := logLevelMatch.FindAllStringSubmatch(line, -1)
-	if len(matches) > 0 && len(matches[0]) > 0 {
-		level = matches[0][1]
+func extractCaddyLogLevel(line string) (level string, err error) {
+	logLine := &logMessage{}
+	err = json.Unmarshal([]byte(line), logLine)
+	if err != nil {
+		return "", err
 	}
-	return level
+
+	return logLine.Level, nil
 }

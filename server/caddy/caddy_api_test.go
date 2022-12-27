@@ -3,7 +3,6 @@ package caddy_test
 import (
 	"context"
 	"net/http"
-	"os"
 	"testing"
 	"time"
 
@@ -12,10 +11,7 @@ import (
 
 	"github.com/cloudradar-monitoring/rport/server/caddy"
 	"github.com/cloudradar-monitoring/rport/server/chconfig"
-	"github.com/cloudradar-monitoring/rport/share/logger"
 )
-
-var testLog = logger.NewLogger("caddy", logger.LogOutput{File: os.Stdout}, logger.LogLevelDebug)
 
 func TestShouldAddRouteToCaddyServer(t *testing.T) {
 	ctx, cancel := context.WithCancel(context.Background())
