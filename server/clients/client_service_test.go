@@ -799,11 +799,12 @@ var (
 )
 
 type MockCaddyAPI struct {
-	RouteRequest *caddy.NewRouteRequest
+	NewRouteRequest *caddy.NewRouteRequest
+	DeletedRouteID  string
 }
 
 func (m *MockCaddyAPI) AddRoute(ctx context.Context, nrr *caddy.NewRouteRequest) (res *http.Response, err error) {
-	m.RouteRequest = nrr
+	m.NewRouteRequest = nrr
 	res = &http.Response{
 		StatusCode: http.StatusOK,
 	}
@@ -811,6 +812,7 @@ func (m *MockCaddyAPI) AddRoute(ctx context.Context, nrr *caddy.NewRouteRequest)
 }
 
 func (m *MockCaddyAPI) DeleteRoute(ctx context.Context, routeID string) (res *http.Response, err error) {
+	m.DeletedRouteID = routeID
 	res = &http.Response{
 		StatusCode: http.StatusOK,
 	}
@@ -878,9 +880,9 @@ func TestShouldStartTunnelsWithSubdomains(t *testing.T) {
 
 			newTunnel := newTunnels[0]
 
-			assert.Equal(t, "12345678", mockCaddyAPI.RouteRequest.RouteID)
-			assert.Equal(t, "12345678", mockCaddyAPI.RouteRequest.DownstreamProxySubdomain)
-			assert.Equal(t, "tunnels.rport.test", mockCaddyAPI.RouteRequest.DownstreamProxyBaseDomain)
+			assert.Equal(t, "12345678", mockCaddyAPI.NewRouteRequest.RouteID)
+			assert.Equal(t, "12345678", mockCaddyAPI.NewRouteRequest.DownstreamProxySubdomain)
+			assert.Equal(t, "tunnels.rport.test", mockCaddyAPI.NewRouteRequest.DownstreamProxyBaseDomain)
 
 			assert.Equal(t, requestedRemote.RemoteHost, newTunnel.RemoteHost)
 			assert.Equal(t, requestedRemote.RemotePort, newTunnel.RemotePort)
@@ -888,6 +890,8 @@ func TestShouldStartTunnelsWithSubdomains(t *testing.T) {
 
 			err = clientService.TerminateTunnel(c1, newTunnel, true)
 			require.NoError(t, err)
+
+			assert.Equal(t, "12345678", mockCaddyAPI.DeletedRouteID)
 		})
 	}
 }
