@@ -147,7 +147,7 @@ func (cl *ClientListener) getIP(addr net.Addr) string {
 	return host
 }
 
-func (cl *ClientListener) Start(listenAddr string) error {
+func (cl *ClientListener) Start(ctx context.Context, listenAddr string) error {
 	cl.Debugf("Client listener starting...")
 	if cl.reverseProxy != nil {
 		cl.Infof("Reverse proxy enabled")
@@ -160,7 +160,7 @@ func (cl *ClientListener) Start(listenAddr string) error {
 	}
 	h = requestlog.WrapWith(h, *cl.requestLogOptions)
 
-	return cl.httpServer.GoListenAndServe(listenAddr, h)
+	return cl.httpServer.GoListenAndServe(ctx, listenAddr, h)
 }
 
 // Wait waits for the http server to close

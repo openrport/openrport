@@ -326,13 +326,13 @@ func (s *Server) Run(ctx context.Context) error {
 // Start is responsible for kicking off the http server
 func (s *Server) Start(ctx context.Context) error {
 	s.Logger.Infof("will start server on %s", s.config.Server.ListenAddress)
-	err := s.clientListener.Start(s.config.Server.ListenAddress)
+	err := s.clientListener.Start(ctx, s.config.Server.ListenAddress)
 	if err != nil {
 		return err
 	}
 
 	if s.config.API.Address != "" {
-		err = s.apiListener.Start(s.config.API.Address)
+		err = s.apiListener.Start(ctx, s.config.API.Address)
 	}
 
 	if s.config.CaddyEnabled() {
@@ -343,9 +343,6 @@ func (s *Server) Start(ctx context.Context) error {
 }
 
 func (s *Server) Wait() error {
-	// TODO: (rs): if this is refactored to use errgroup.WithContext then if we pass
-	// the derived ctx to the wait routinues then they will cancel cleanly together
-	// if one of them has an error.
 	wg := &errgroup.Group{}
 	wg.Go(s.clientListener.Wait)
 	wg.Go(s.apiListener.Wait)

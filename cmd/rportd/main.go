@@ -5,7 +5,9 @@ import (
 	"fmt"
 	"log"
 	"os"
+	"os/signal"
 	"runtime"
+	"syscall"
 	"time"
 
 	"github.com/cloudradar-monitoring/rport/share/logger"
@@ -466,8 +468,11 @@ func runMain(*cobra.Command, []string) {
 
 	filesAPI := files.NewFileSystem()
 
-	ctx, cancel := context.WithCancel(context.Background())
+	baseCtx, cancel := context.WithCancel(context.Background())
 	defer cancel()
+
+	// this ctx will be used to co-ordinate shutdown of the various server go-routines
+	ctx, _ := signal.NotifyContext(baseCtx, syscall.SIGINT, syscall.SIGTERM, syscall.SIGHUP, syscall.SIGCHLD)
 
 	plusManager, err := chserver.EnablePlusIfLicensed(ctx, cfg, filesAPI)
 	if err != nil && err != chserver.ErrPlusNotEnabled {

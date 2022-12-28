@@ -1,6 +1,7 @@
 package chshare
 
 import (
+	"context"
 	"crypto/tls"
 	"errors"
 	"net"
@@ -25,6 +26,7 @@ func WithTLS(certFile string, keyFile string, tlsConfig *tls.Config) ServerOptio
 type HTTPServer struct {
 	*http.Server
 	listener  net.Listener
+	ctx       context.Context
 	running   chan error
 	isRunning bool
 	certFile  string
@@ -46,22 +48,25 @@ func NewHTTPServer(maxHeaderBytes int, l *logger.Logger, options ...ServerOption
 	}
 
 	for _, o := range options {
-		if o != nil {
-			o(s)
-		}
+		o(s)
 	}
 
 	return s
 }
 
-func (h *HTTPServer) GoListenAndServe(addr string, handler http.Handler) error {
+func (h *HTTPServer) GoListenAndServe(ctx context.Context, addr string, handler http.Handler) error {
 	l, err := net.Listen("tcp", addr)
 	if err != nil {
 		return err
 	}
 	h.isRunning = true
+	h.ctx = ctx
 	h.Handler = handler
 	h.listener = l
+	h.BaseContext = func(l net.Listener) context.Context {
+		return h.ctx
+	}
+
 	go func() {
 		if h.certFile != "" && h.keyFile != "" {
 			h.logger.Debugf("serving HTTPS")
@@ -91,5 +96,11 @@ func (h *HTTPServer) Wait() error {
 	if !h.isRunning {
 		return errors.New("Already closed")
 	}
-	return <-h.running
+	select {
+	case <-h.running:
+		return nil
+	case <-h.ctx.Done():
+		h.logger.Debugf("context canceled")
+		return h.ctx.Err()
+	}
 }

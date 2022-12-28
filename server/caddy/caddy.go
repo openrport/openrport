@@ -13,12 +13,14 @@ import (
 	"regexp"
 	"strconv"
 	"strings"
+	"time"
 
 	"github.com/cloudradar-monitoring/rport/share/logger"
 )
 
 type Server struct {
 	cmd        *exec.Cmd
+	ctx        context.Context
 	cfg        *Config
 	logger     *logger.Logger
 	errCh      chan error
@@ -88,6 +90,7 @@ func (c *Server) Start(ctx context.Context) (err error) {
 	c.logger.Debugf("caddy config: %s", configParam)
 
 	c.cmd = exec.CommandContext(ctx, c.cfg.ExecPath, "run", "--config", configParam, "--adapter", "caddyfile") // #nosec G204
+	c.ctx = ctx
 
 	c.r, c.w = io.Pipe()
 	c.cmd.Stdout = c.w
@@ -123,7 +126,14 @@ func (c *Server) Run() {
 
 func (c *Server) Wait() (err error) {
 	c.logger.Debugf("watching for errors")
-	err = <-c.errCh
+	select {
+	case <-c.ctx.Done():
+		c.logger.Debugf("context canceled")
+		// allow a little time for other go-routines to process their cancellations
+		time.Sleep(100 * time.Millisecond)
+		return c.ctx.Err()
+	case err = <-c.errCh:
+	}
 
 	if strings.Contains(err.Error(), "signal: killed") {
 		// valid shutdown
@@ -148,6 +158,8 @@ func (c *Server) Close() (err error) {
 		c.logger.Infof("error closing caddy log writer: %v, err")
 	}
 	// return value required to confirm with wg.Go interface
+	close(c.errCh)
+	c.logger.Debugf("closed")
 	return nil
 }
 
@@ -174,8 +186,9 @@ var caddyToRportLogLevelMap = map[string]string{
 func (c *Server) writeCaddyOutputToLog() {
 	for line := range c.lines {
 		level, err := extractCaddyLogLevel(line)
+		// err indicates wasn't a caddy log message. we don't really care what the err is.
 		if err != nil {
-			c.logger.Debugf("unable to parse caddy log line")
+			c.logger.Debugf(line)
 			continue
 		}
 
@@ -203,7 +216,7 @@ func extractCaddyLogLevel(line string) (level string, err error) {
 	logLine := &logMessage{}
 	err = json.Unmarshal([]byte(line), logLine)
 	if err != nil {
-		return "", err
+		return "debug", err
 	}
 
 	return logLine.Level, nil
