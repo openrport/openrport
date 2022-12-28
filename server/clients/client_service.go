@@ -784,8 +784,8 @@ func (s *ClientServiceProvider) startCaddyDownstreamProxy(
 	t *clienttunnel.Tunnel,
 ) (err error) {
 	c.Logger.Infof("starting downstream caddy proxy at %s", r.TunnelURL)
-	c.Logger.Infof("tunnel = %#v", t)
-	c.Logger.Infof("remote = %#v", r)
+	c.Logger.Debugf("tunnel = %#v", t)
+	c.Logger.Debugf("remote = %#v", r)
 
 	subdomain, basedomain, err := r.GetTunnelDomains()
 	if err != nil {
