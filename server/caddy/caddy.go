@@ -96,7 +96,6 @@ func (c *Server) Start(ctx context.Context) (err error) {
 	c.lines = make(chan string)
 
 	go c.readCaddyOutputLines()
-	go c.writeCaddyOutputToLog()
 
 	c.logger.Debugf("server starting")
 
@@ -153,7 +152,8 @@ func (c *Server) readCaddyOutputLines() {
 	defer close(c.lines)
 	scanner := bufio.NewScanner(c.r)
 	for scanner.Scan() {
-		c.lines <- scanner.Text()
+		line := scanner.Text()
+		c.writeCaddyLogLine(line)
 	}
 	if err := scanner.Err(); err != nil {
 		c.logger.Debugf("scanner err: %+v\n", err)
@@ -169,28 +169,26 @@ var caddyToRportLogLevelMap = map[string]string{
 	"panic": "error",
 }
 
-func (c *Server) writeCaddyOutputToLog() {
-	for line := range c.lines {
-		level, err := extractCaddyLogLevel(line)
-		// err indicates wasn't a caddy log message. we don't really care what the err is.
-		if err != nil {
-			c.logger.Debugf(line)
-			continue
-		}
+func (c *Server) writeCaddyLogLine(line string) {
+	level, err := extractCaddyLogLevel(line)
+	// err indicates wasn't a caddy log message. we don't really care what the err is.
+	if err != nil {
+		c.logger.Debugf(line)
+		return
+	}
 
-		mapsTo, ok := caddyToRportLogLevelMap[level]
-		if ok {
-			switch mapsTo {
-			case "debug":
-				c.logLogger.Debugf(line)
-			case "info":
-				c.logLogger.Infof(line)
-			case "error":
-				c.logLogger.Errorf(line)
-			}
-		} else {
+	mapsTo, ok := caddyToRportLogLevelMap[level]
+	if ok {
+		switch mapsTo {
+		case "debug":
 			c.logLogger.Debugf(line)
+		case "info":
+			c.logLogger.Infof(line)
+		case "error":
+			c.logLogger.Errorf(line)
 		}
+	} else {
+		c.logLogger.Debugf(line)
 	}
 }
 
