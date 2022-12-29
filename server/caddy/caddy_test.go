@@ -84,5 +84,5 @@ func TestShouldStartCaddyServer(t *testing.T) {
 	})
 
 	err = caddyServer.Wait()
-	assert.EqualError(t, err, "signal: killed")
+	assert.EqualError(t, err, "context canceled")
 }

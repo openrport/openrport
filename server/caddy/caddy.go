@@ -7,13 +7,10 @@ import (
 	"encoding/json"
 	"errors"
 	"io"
-	"log"
 	"net/http"
 	"os/exec"
 	"regexp"
 	"strconv"
-	"strings"
-	"time"
 
 	"github.com/cloudradar-monitoring/rport/share/logger"
 )
@@ -128,26 +125,16 @@ func (c *Server) Wait() (err error) {
 	c.logger.Debugf("watching for errors")
 	select {
 	case <-c.ctx.Done():
-		c.logger.Debugf("context canceled")
-		// allow a little time for other go-routines to process their cancellations
-		time.Sleep(100 * time.Millisecond)
-		return c.ctx.Err()
+		err = c.ctx.Err()
 	case err = <-c.errCh:
 	}
 
-	if strings.Contains(err.Error(), "signal: killed") {
-		// valid shutdown
-		c.logger.Debugf("server: %v", err)
-	} else {
-		// caddy not happy so quit rportd
-		log.Fatalf("caddy server error: %v", err)
-	}
+	c.logger.Debugf("%v", err)
 
 	return err
 }
 
 func (c *Server) Close() (err error) {
-	c.logger.Debugf("close requested")
 	// close the standard io pipes
 	err = c.r.Close()
 	if err != nil {
@@ -157,9 +144,8 @@ func (c *Server) Close() (err error) {
 	if err != nil {
 		c.logger.Infof("error closing caddy log writer: %v, err")
 	}
-	// return value required to confirm with wg.Go interface
-	close(c.errCh)
-	c.logger.Debugf("closed")
+
+	c.logger.Debugf("stopped")
 	return nil
 }
 

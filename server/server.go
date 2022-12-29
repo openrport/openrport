@@ -320,7 +320,14 @@ func (s *Server) Run(ctx context.Context) error {
 		}()
 	}
 
-	return s.Wait()
+	err := s.Wait()
+
+	// allow time for go-routines (and the caddy server) to process their cancellations
+	time.Sleep(250 * time.Millisecond)
+
+	s.Close()
+
+	return err
 }
 
 // Start is responsible for kicking off the http server
@@ -350,10 +357,12 @@ func (s *Server) Wait() error {
 	if s.config.CaddyEnabled() {
 		wg.Go(s.caddyServer.Wait)
 	}
+
 	return wg.Wait()
 }
 
 func (s *Server) Close() error {
+	s.Logger.Debugf("closing server")
 	wg := &errgroup.Group{}
 
 	wg.Go(s.clientListener.Close)

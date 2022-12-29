@@ -7,6 +7,7 @@ import (
 	"os"
 	"os/signal"
 	"runtime"
+	"strings"
 	"syscall"
 	"time"
 
@@ -497,7 +498,16 @@ func runMain(*cobra.Command, []string) {
 
 	go chshare.GoStats()
 
-	if err = s.Run(ctx); err != nil {
+	err = s.Run(ctx)
+	s.Logger.Debugf("run finished")
+
+	if err != nil {
+		// the standard context canceled message is somewhat unclear. just let the user know that
+		// the server has shutdown.
+		if strings.Contains(err.Error(), "context canceled") {
+			log.Fatal("server shutdown")
+		}
+
 		log.Fatal(err)
 	}
 }
