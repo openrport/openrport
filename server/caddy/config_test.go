@@ -154,10 +154,8 @@ func TestShouldParseAndValidateCaddyIntegration(t *testing.T) {
 		t.Run(tc.Name, func(t *testing.T) {
 			err := tc.CaddyConfig.ParseAndValidate("datadir", "info", filesAPI)
 			if tc.ExpectedError == nil {
-				if tc.NotConfigured {
-					assert.NoError(t, err)
-				} else {
-					assert.NoError(t, err)
+				assert.NoError(t, err)
+				if !tc.NotConfigured {
 					assert.True(t, tc.CaddyConfig.Enabled)
 				}
 			} else {
