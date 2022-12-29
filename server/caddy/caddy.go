@@ -27,9 +27,8 @@ type Server struct {
 	logLogger *logger.Logger
 
 	// readers below used in a pipe that we use for relaying caddy log messages into the rport log
-	w     *io.PipeWriter // where caddy should write log messages
-	r     *io.PipeReader // where rport should read caddy log messages
-	lines chan string    // we'll write these lines to the rportd log
+	w *io.PipeWriter // where caddy should write log messages
+	r *io.PipeReader // where rport should read caddy log messages
 }
 
 // caddy version string -> v2.6.2 h1:wKoFIxpmOJLGl3QXoo6PNbYvGW4xLEgo32GPBEjWL8o=
@@ -93,8 +92,6 @@ func (c *Server) Start(ctx context.Context) (err error) {
 	c.cmd.Stdout = c.w
 	c.cmd.Stderr = c.w
 
-	c.lines = make(chan string)
-
 	go c.readCaddyOutputLines()
 
 	c.logger.Debugf("server starting")
@@ -149,14 +146,18 @@ func (c *Server) Close() (err error) {
 }
 
 func (c *Server) readCaddyOutputLines() {
-	defer close(c.lines)
 	scanner := bufio.NewScanner(c.r)
 	for scanner.Scan() {
 		line := scanner.Text()
 		c.writeCaddyLogLine(line)
 	}
 	if err := scanner.Err(); err != nil {
-		c.logger.Debugf("scanner err: %+v\n", err)
+		// ignore if err on closed pipe
+		if !errors.Is(err, io.ErrClosedPipe) {
+			c.logger.Debugf("scanner err: %+v\n", err)
+		} else {
+			c.logger.Debugf("scanner closed")
+		}
 	}
 }
 
