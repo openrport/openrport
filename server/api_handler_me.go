@@ -2,7 +2,6 @@ package chserver
 
 import (
 	"errors"
-	"fmt"
 	"net/http"
 	"strings"
 	"time"
@@ -124,24 +123,19 @@ func (al *APIListener) handleManageAPIToken(w http.ResponseWriter, req *http.Req
 		w.WriteHeader(http.StatusNoContent)
 	}
 	if action == "create" {
-		fmt.Println("handleManageAPIToken 1")
 		var r struct {
 			Scope string `json:"scope"`
 		}
 		err := parseRequestBody(req.Body, &r)
-		fmt.Println("handleManageAPIToken 2")
 		if err != nil {
-			// al.jsonErrorResponseWithError(w, http.StatusBadRequest, "", err)
 			al.jsonErrorResponseWithTitle(w, http.StatusBadRequest, "missing body with scope.")
 			return
 		}
-		fmt.Println("handleManageAPIToken 3")
 
 		if !authorization.IsValidScope(r.Scope) {
 			al.jsonErrorResponseWithTitle(w, http.StatusBadRequest, "missing or invalid scope.")
 			return
 		}
-		fmt.Println("handleManageAPIToken 4")
 
 		if r.Scope == "clients-auth" && !user.IsAdmin() {
 			al.jsonErrorResponseWithTitle(w, http.StatusBadRequest, "current user should belong to Administrators group to create a token with this scope")
@@ -387,18 +381,14 @@ func (al *APIListener) handleDeleteToken(w http.ResponseWriter, req *http.Reques
 }
 
 func (al *APIListener) handleManageCurUserAPIToken(w http.ResponseWriter, req *http.Request, action string) {
-	fmt.Println("handleManageCurUserAPIToken 1")
 	user, err := al.getUserModel(req.Context())
 	if err != nil {
 		al.jsonErrorResponse(w, http.StatusInternalServerError, err)
 		return
 	}
-	fmt.Println("handleManageCurUserAPIToken 2")
-
 	if user == nil {
 		al.jsonErrorResponseWithTitle(w, http.StatusNotFound, "user not found")
 		return
 	}
-	fmt.Println("handleManageCurUserAPIToken 3")
 	al.handleManageAPIToken(w, req, user, action)
 }

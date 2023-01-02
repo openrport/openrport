@@ -2,11 +2,8 @@ package chserver
 
 import (
 	"context"
-	"encoding/json"
-	"fmt"
 	"net/http"
 	"net/http/httptest"
-	"net/http/httputil"
 	"strings"
 	"testing"
 	"time"
@@ -14,11 +11,13 @@ import (
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 
+	"github.com/cloudradar-monitoring/rport/db/migration/api_token"
+	"github.com/cloudradar-monitoring/rport/db/sqlite"
 	"github.com/cloudradar-monitoring/rport/server/api"
+	"github.com/cloudradar-monitoring/rport/server/api/authorization"
 	"github.com/cloudradar-monitoring/rport/server/api/users"
 	"github.com/cloudradar-monitoring/rport/server/bearer"
 	"github.com/cloudradar-monitoring/rport/server/chconfig"
-	"github.com/cloudradar-monitoring/rport/server/clientsauth"
 	"github.com/cloudradar-monitoring/rport/share/random"
 	"github.com/cloudradar-monitoring/rport/share/security"
 )
@@ -44,6 +43,13 @@ func TestPostToken(t *testing.T) {
 		UserService: users.NewAPIService(users.NewStaticProvider([]*users.User{user}), false, 0, -1),
 	}
 
+	// database
+	api_tokenDb, err := sqlite.New(":memory:", api_token.AssetNames(), api_token.Asset, DataSourceOptions)
+	require.NoError(t, err)
+	defer api_tokenDb.Close()
+	tokenProvider := authorization.NewSqliteProvider(api_tokenDb)
+	mockTokenManager := authorization.NewManager(tokenProvider)
+
 	uuid := "cb5b6578-94f5-4a5b-af58-f7867a943b0c"
 	oldUUID := random.UUID4
 	random.UUID4 = func() (string, error) {
@@ -62,45 +68,26 @@ func TestPostToken(t *testing.T) {
 				},
 			},
 		},
-		userService: mockUsersService,
+		tokenManager: mockTokenManager,
+		userService:  mockUsersService,
 	}
 	al.initRouter()
 
-	// bodyReader := strings.NewReader(`{"scope": "read"}`)
-	c := clientsauth.ClientAuth{ID: `test-user`, Password: `pswd`}
-	_, err := json.Marshal(c)
-
-	if err != nil {
-		fmt.Println("err ", err)
-	}
-
+	w := httptest.NewRecorder()
 	req := httptest.NewRequest("POST", "/api/v1/me/token", strings.NewReader(`{"scope": "read"}`))
-
 	ctx := api.WithUser(req.Context(), user.Username)
 	req = req.WithContext(ctx)
-
-	// ****************************** Save a copy of this request for debugging. ******************************
-	requestDump, err := httputil.DumpRequest(req, true)
-	if err != nil {
-		fmt.Println(err)
-	}
-	fmt.Println("******************************")
-	fmt.Println(string(requestDump))
-	fmt.Println("******************************")
-	// ****************************** Save a copy of this request for debugging. ******************************
-
-	w := httptest.NewRecorder()
 	al.router.ServeHTTP(w, req)
 
-	assert.Equal(t, http.StatusOK, w.Code)
 	expectedJSON := `{"data":{"token":"` + uuid + `"}}`
+	assert.Equal(t, http.StatusOK, w.Code)
 	assert.JSONEq(t, expectedJSON, w.Body.String())
 
-	// expectedUser := &users.User{
-	// 	// Token: &uuid,
-	// }
-	// assert.Equal(t, user.Username, mockUsersService.ChangeUsername)
-	// assert.Equal(t, expectedUser, mockUsersService.ChangeUser)
+	expectedUser := &users.User{
+		// Token: &uuid,
+	}
+	assert.Equal(t, user.Username, mockUsersService.ChangeUsername)
+	assert.Equal(t, expectedUser, mockUsersService.ChangeUser)
 }
 
 func TestDeleteToken(t *testing.T) {
