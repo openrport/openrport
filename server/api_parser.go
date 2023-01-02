@@ -2,6 +2,7 @@ package chserver
 
 import (
 	"encoding/json"
+	"fmt"
 	"io"
 	"net/http"
 
@@ -10,6 +11,8 @@ import (
 
 func parseRequestBody(reqBody io.ReadCloser, dest interface{}) error {
 	dec := json.NewDecoder(reqBody)
+	fmt.Printf(" parseRequestBody decoded data: \n%+v\n", reqBody)
+
 	dec.DisallowUnknownFields()
 	err := dec.Decode(dest)
 	if err == io.EOF { // is handled separately to return an informative error message
