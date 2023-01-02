@@ -43,12 +43,10 @@ func (m *Manager) GetAll(ctx context.Context, username string) ([]*APIToken, err
 func (m *Manager) Create(ctx context.Context, tokenLine *APIToken) error {
 	now := time.Now()
 	tokenLine.CreatedAt = &now
-
 	err := m.db.Save(ctx, tokenLine)
 	if err != nil {
 		return err
 	}
-
 	return nil
 }
 

@@ -386,7 +386,6 @@ func (al *APIListener) handleManageCurUserAPIToken(w http.ResponseWriter, req *h
 		al.jsonErrorResponse(w, http.StatusInternalServerError, err)
 		return
 	}
-
 	if user == nil {
 		al.jsonErrorResponseWithTitle(w, http.StatusNotFound, "user not found")
 		return

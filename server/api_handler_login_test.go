@@ -4,17 +4,20 @@ import (
 	"context"
 	"net/http"
 	"net/http/httptest"
+	"strings"
 	"testing"
 	"time"
 
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 
+	"github.com/cloudradar-monitoring/rport/db/migration/api_token"
+	"github.com/cloudradar-monitoring/rport/db/sqlite"
 	"github.com/cloudradar-monitoring/rport/server/api"
+	"github.com/cloudradar-monitoring/rport/server/api/authorization"
 	"github.com/cloudradar-monitoring/rport/server/api/users"
 	"github.com/cloudradar-monitoring/rport/server/bearer"
 	"github.com/cloudradar-monitoring/rport/server/chconfig"
-	"github.com/cloudradar-monitoring/rport/share/ptr"
 	"github.com/cloudradar-monitoring/rport/share/random"
 	"github.com/cloudradar-monitoring/rport/share/security"
 )
@@ -40,6 +43,13 @@ func TestPostToken(t *testing.T) {
 		UserService: users.NewAPIService(users.NewStaticProvider([]*users.User{user}), false, 0, -1),
 	}
 
+	// database
+	api_tokenDb, err := sqlite.New(":memory:", api_token.AssetNames(), api_token.Asset, DataSourceOptions)
+	require.NoError(t, err)
+	defer api_tokenDb.Close()
+	tokenProvider := authorization.NewSqliteProvider(api_tokenDb)
+	mockTokenManager := authorization.NewManager(tokenProvider)
+
 	uuid := "cb5b6578-94f5-4a5b-af58-f7867a943b0c"
 	oldUUID := random.UUID4
 	random.UUID4 = func() (string, error) {
@@ -52,14 +62,19 @@ func TestPostToken(t *testing.T) {
 	al := APIListener{
 		insecureForTests: true,
 		Server: &Server{
-			config: &chconfig.Config{},
+			config: &chconfig.Config{
+				Server: chconfig.ServerConfig{
+					MaxRequestBytes: 1000,
+				},
+			},
 		},
-		userService: mockUsersService,
+		tokenManager: mockTokenManager,
+		userService:  mockUsersService,
 	}
 	al.initRouter()
 
 	w := httptest.NewRecorder()
-	req := httptest.NewRequest("POST", "/api/v1/me/token", nil)
+	req := httptest.NewRequest("POST", "/api/v1/me/token", strings.NewReader(`{"scope": "read"}`))
 	ctx := api.WithUser(req.Context(), user.Username)
 	req = req.WithContext(ctx)
 	al.router.ServeHTTP(w, req)
@@ -69,7 +84,7 @@ func TestPostToken(t *testing.T) {
 	assert.JSONEq(t, expectedJSON, w.Body.String())
 
 	expectedUser := &users.User{
-		Token: &uuid,
+		// Token: &uuid,
 	}
 	assert.Equal(t, user.Username, mockUsersService.ChangeUsername)
 	assert.Equal(t, expectedUser, mockUsersService.ChangeUser)
@@ -82,7 +97,7 @@ func TestDeleteToken(t *testing.T) {
 	mockUsersService := &MockUsersService{
 		UserService: users.NewAPIService(users.NewStaticProvider([]*users.User{user}), false, 0, -1),
 	}
-	noToken := ""
+	// noToken := ""
 	al := APIListener{
 		insecureForTests: true,
 		Server: &Server{
@@ -101,7 +116,7 @@ func TestDeleteToken(t *testing.T) {
 	assert.Equal(t, http.StatusNoContent, w.Code)
 
 	expectedUser := &users.User{
-		Token: &noToken,
+		// Token: &noToken,
 	}
 	assert.Equal(t, user.Username, mockUsersService.ChangeUsername)
 	assert.Equal(t, expectedUser, mockUsersService.ChangeUser)
@@ -113,12 +128,12 @@ func TestWrapWithAuthMiddleware(t *testing.T) {
 	user := &users.User{
 		Username: "user1",
 		Password: "$2y$05$ep2DdPDeLDDhwRrED9q/vuVEzRpZtB5WHCFT7YbcmH9r9oNmlsZOm",
-		Token:    ptr.String("$2y$05$/D7g/d0sDkNSOh.e6Jzc9OWClcpZ1ieE8Dx.WUaWgayd3Ab0rRdxu"),
+		// Token:    ptr.String("$2y$05$/D7g/d0sDkNSOh.e6Jzc9OWClcpZ1ieE8Dx.WUaWgayd3Ab0rRdxu"),
 	}
 	userWithoutToken := &users.User{
 		Username: "user2",
 		Password: "$2y$05$ep2DdPDeLDDhwRrED9q/vuVEzRpZtB5WHCFT7YbcmH9r9oNmlsZOm",
-		Token:    nil,
+		// Token:    nil,
 	}
 	al := APIListener{
 		apiSessions: newEmptyAPISessionCache(t),
@@ -235,13 +250,13 @@ func TestAPISessionUpdates(t *testing.T) {
 	user := &users.User{
 		Username: "user1",
 		Password: "$2y$05$ep2DdPDeLDDhwRrED9q/vuVEzRpZtB5WHCFT7YbcmH9r9oNmlsZOm",
-		Token:    ptr.String("$2y$05$/D7g/d0sDkNSOh.e6Jzc9OWClcpZ1ieE8Dx.WUaWgayd3Ab0rRdxu"),
+		// Token:    ptr.String("$2y$05$/D7g/d0sDkNSOh.e6Jzc9OWClcpZ1ieE8Dx.WUaWgayd3Ab0rRdxu"),
 	}
 
 	userWithoutToken := &users.User{
 		Username: "user2",
 		Password: "$2y$05$ep2DdPDeLDDhwRrED9q/vuVEzRpZtB5WHCFT7YbcmH9r9oNmlsZOm",
-		Token:    nil,
+		// Token:    nil,
 	}
 
 	al := APIListener{
@@ -377,7 +392,7 @@ func TestHandleGetLogin(t *testing.T) {
 	user := &users.User{
 		Username: "user1",
 		Password: "$2y$05$ep2DdPDeLDDhwRrED9q/vuVEzRpZtB5WHCFT7YbcmH9r9oNmlsZOm",
-		Token:    ptr.String("$2y$05$/D7g/d0sDkNSOh.e6Jzc9OWClcpZ1ieE8Dx.WUaWgayd3Ab0rRdxu"),
+		// Token:    ptr.String("$2y$05$/D7g/d0sDkNSOh.e6Jzc9OWClcpZ1ieE8Dx.WUaWgayd3Ab0rRdxu"),
 	}
 	mockUsersService := &MockUsersService{
 		UserService: users.NewAPIService(users.NewStaticProvider([]*users.User{user}), false, 0, -1),
