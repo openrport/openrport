@@ -122,7 +122,7 @@ func TestHandleGetClient(t *testing.T) {
                 "auto_close": 0,
                 "created_at":"0001-01-01T00:00:00Z",
                 "id":"1",
-								"tunnel_url":""
+                "tunnel_url":""
             },
             {
                 "name": "",
@@ -142,7 +142,7 @@ func TestHandleGetClient(t *testing.T) {
                 "auto_close": 0,
                 "created_at":"0001-01-01T00:00:00Z",
                 "id":"2",
-								"tunnel_url":""
+                "tunnel_url":""
             }
         ],
         "connection_state":"connected",
