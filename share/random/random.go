@@ -23,6 +23,11 @@ func AlphaNum(n int) string {
 	return String(n, alphaNum)
 }
 
+// ALPHANUM8 returns a random generated alphanum of 8 chars.
+var ALPHANUM8 = func() string {
+	return AlphaNum(8)
+}
+
 // Hex returns a random hex of length 'n', regexp: [a-f0-9]{n}.
 func Hex(n int) string {
 	return String(n, hex)

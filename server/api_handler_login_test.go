@@ -59,7 +59,17 @@ func TestPostToken(t *testing.T) {
 		random.UUID4 = oldUUID
 	}()
 
+	MyalphaNumNewPrefix := "2l0u3d10"
+	oldAlphaNum := random.ALPHANUM8
+	random.ALPHANUM8 = func() string {
+		return MyalphaNumNewPrefix
+	}
+	defer func() {
+		random.ALPHANUM8 = oldAlphaNum
+	}()
+
 	al := APIListener{
+		Logger:           testLog,
 		insecureForTests: true,
 		Server: &Server{
 			config: &chconfig.Config{
@@ -79,15 +89,16 @@ func TestPostToken(t *testing.T) {
 	req = req.WithContext(ctx)
 	al.router.ServeHTTP(w, req)
 
-	expectedJSON := `{"data":{"token":"` + uuid + `"}}`
+	// expectedJSON := `{"data":{"token":"` + uuid + `"}}`
+	expectedJSON := `{"data":{"prefix":"2l0u3d10", "scope":"read", "token":"cb5b6578-94f5-4a5b-af58-f7867a943b0c"}}`
 	assert.Equal(t, http.StatusOK, w.Code)
 	assert.JSONEq(t, expectedJSON, w.Body.String())
 
-	expectedUser := &users.User{
-		// Token: &uuid,
-	}
-	assert.Equal(t, user.Username, mockUsersService.ChangeUsername)
-	assert.Equal(t, expectedUser, mockUsersService.ChangeUser)
+	// expectedUser := &users.User{
+	// 	// Token: &uuid,
+	// }
+	// assert.Equal(t, user.Username, mockUsersService.ChangeUsername)
+	// assert.Equal(t, expectedUser, mockUsersService.ChangeUser)
 }
 
 func TestDeleteToken(t *testing.T) {

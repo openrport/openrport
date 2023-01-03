@@ -147,7 +147,7 @@ func (al *APIListener) handleManageAPIToken(w http.ResponseWriter, req *http.Req
 			al.jsonError(w, err)
 			return
 		}
-		newPrefix := random.AlphaNum(8)
+		newPrefix := random.ALPHANUM8()
 
 		// token creation
 		tokenHash, err := bcrypt.GenerateFromPassword([]byte(newTokenClear), bcrypt.DefaultCost)
@@ -175,6 +175,7 @@ func (al *APIListener) handleManageAPIToken(w http.ResponseWriter, req *http.Req
 			Save()
 
 		al.Debugf("APIToken [%s] is created for user [%s].", newPrefix, user.Username)
+
 		al.writeJSONResponse(w, http.StatusOK, api.NewSuccessPayload(
 			authorization.APIToken{
 				Prefix: newPrefix,
@@ -182,6 +183,7 @@ func (al *APIListener) handleManageAPIToken(w http.ResponseWriter, req *http.Req
 				Token:  newTokenClear,
 			}))
 	}
+
 	if action == "update" {
 		var r struct {
 			Prefix    string     `json:"prefix"`
