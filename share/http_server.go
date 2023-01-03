@@ -89,6 +89,9 @@ func (h *HTTPServer) closeWith(err error) {
 
 func (h *HTTPServer) Close() error {
 	h.closeWith(nil)
+	if h.listener == nil {
+		return nil
+	}
 	return h.listener.Close()
 }
 
