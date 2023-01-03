@@ -114,6 +114,8 @@ func (c *Server) Run() {
 			c.logger.Errorf("caddy server stopping, reason: %s", err)
 			c.errCh <- err
 		}
+		close(c.errCh)
+		c.logger.Debugf("stopped")
 	}()
 }
 
@@ -125,7 +127,10 @@ func (c *Server) Wait() (err error) {
 	case err = <-c.errCh:
 	}
 
-	c.logger.Debugf("%v", err)
+	// don't log unless we have an explicit error
+	if err != nil {
+		c.logger.Debugf("%v", err)
+	}
 
 	return err
 }
