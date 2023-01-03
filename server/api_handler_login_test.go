@@ -2,6 +2,8 @@ package chserver
 
 import (
 	"context"
+	"encoding/json"
+	"io"
 	"net/http"
 	"net/http/httptest"
 	"strings"
@@ -21,6 +23,135 @@ import (
 	"github.com/cloudradar-monitoring/rport/share/random"
 	"github.com/cloudradar-monitoring/rport/share/security"
 )
+
+func TestAPITokenOps(t *testing.T) {
+	require := require.New(t)
+	assert := assert.New(t)
+
+	user := &users.User{
+		Username: "test-user",
+	}
+	mockUsersService := &MockUsersService{
+		UserService: users.NewAPIService(users.NewStaticProvider([]*users.User{user}), false, 0, -1),
+	}
+
+	// database
+	api_tokenDb, err := sqlite.New(":memory:", api_token.AssetNames(), api_token.Asset, DataSourceOptions)
+	require.NoError(err)
+	defer api_tokenDb.Close()
+	tokenProvider := authorization.NewSqliteProvider(api_tokenDb)
+	mockTokenManager := authorization.NewManager(tokenProvider)
+
+	uuid := "cb5b6578-94f5-4a5b-af58-f7867a943b0c"
+	oldUUID := random.UUID4
+	random.UUID4 = func() (string, error) {
+		return uuid, nil
+	}
+	defer func() {
+		random.UUID4 = oldUUID
+	}()
+
+	MyalphaNumNewPrefix := "2l0u3d10"
+	oldAlphaNum := random.ALPHANUM8
+	random.ALPHANUM8 = func() string {
+		return MyalphaNumNewPrefix
+	}
+	defer func() {
+		random.ALPHANUM8 = oldAlphaNum
+	}()
+
+	testCases := []struct {
+		descr string // Test Case Description
+
+		clientAuthWrite bool
+		requestMethod   string
+		requestBody     io.Reader
+
+		wantStatusCode int
+		wantJson       string
+		wantErrCode    string
+		wantErrTitle   string
+		wantErrDetail  string
+	}{
+		{
+			descr:          "new token read creation",
+			requestMethod:  http.MethodPost,
+			requestBody:    strings.NewReader(`{"scope": "read"}`),
+			wantStatusCode: http.StatusOK,
+			wantJson:       `{"data":{"prefix":"2l0u3d10", "scope":"read", "token":"cb5b6578-94f5-4a5b-af58-f7867a943b0c"}}`,
+		},
+		{
+			descr:          "create token empty request body",
+			requestMethod:  http.MethodPost,
+			requestBody:    nil,
+			wantStatusCode: http.StatusBadRequest,
+			wantErrCode:    "",
+			wantErrTitle:   "missing body with scope.",
+		},
+		{
+			descr:          "new token bad scope creation",
+			requestMethod:  http.MethodPost,
+			requestBody:    strings.NewReader(`{"scope": "reads"}`),
+			wantStatusCode: http.StatusBadRequest,
+			wantErrCode:    "",
+			wantErrTitle:   "missing or invalid scope.",
+		},
+		{
+			descr:          "new token no scope provided",
+			requestMethod:  http.MethodPost,
+			requestBody:    strings.NewReader(""),
+			wantStatusCode: http.StatusBadRequest,
+			wantErrCode:    "",
+			wantErrTitle:   "missing body with scope.",
+		},
+	}
+
+	for _, tc := range testCases {
+		t.Run(tc.descr, func(t *testing.T) {
+			// given
+			al := APIListener{
+				Logger:           testLog,
+				insecureForTests: true,
+				Server: &Server{
+					config: &chconfig.Config{
+						Server: chconfig.ServerConfig{
+							MaxRequestBytes: 1000,
+						},
+					},
+				},
+				tokenManager: mockTokenManager,
+				userService:  mockUsersService,
+			}
+
+			al.initRouter()
+			req := httptest.NewRequest(tc.requestMethod, "/api/v1/me/token", tc.requestBody)
+
+			// when
+			w := httptest.NewRecorder()
+			ctx := api.WithUser(req.Context(), user.Username)
+			req = req.WithContext(ctx)
+			al.router.ServeHTTP(w, req)
+			t.Logf("Got response %s", w.Body)
+
+			// then
+			require.Equal(tc.wantStatusCode, w.Code)
+			if tc.wantErrTitle == "" {
+				// success case
+				if tc.wantJson == "" {
+					assert.Empty(w.Body.String())
+				} else {
+					assert.JSONEq(tc.wantJson, w.Body.String())
+				}
+			} else {
+				// failure case
+				wantResp := api.NewErrAPIPayloadFromMessage(tc.wantErrCode, tc.wantErrTitle, tc.wantErrDetail)
+				wantRespBytes, err := json.Marshal(wantResp)
+				require.NoError(err)
+				require.Equal(string(wantRespBytes), w.Body.String())
+			}
+		})
+	}
+}
 
 type MockUsersService struct {
 	UserService
@@ -81,24 +212,18 @@ func TestPostToken(t *testing.T) {
 		tokenManager: mockTokenManager,
 		userService:  mockUsersService,
 	}
+
 	al.initRouter()
+	req := httptest.NewRequest("POST", "/api/v1/me/token", strings.NewReader(`{"scope": "read"}`))
 
 	w := httptest.NewRecorder()
-	req := httptest.NewRequest("POST", "/api/v1/me/token", strings.NewReader(`{"scope": "read"}`))
 	ctx := api.WithUser(req.Context(), user.Username)
 	req = req.WithContext(ctx)
 	al.router.ServeHTTP(w, req)
 
-	// expectedJSON := `{"data":{"token":"` + uuid + `"}}`
 	expectedJSON := `{"data":{"prefix":"2l0u3d10", "scope":"read", "token":"cb5b6578-94f5-4a5b-af58-f7867a943b0c"}}`
 	assert.Equal(t, http.StatusOK, w.Code)
 	assert.JSONEq(t, expectedJSON, w.Body.String())
-
-	// expectedUser := &users.User{
-	// 	// Token: &uuid,
-	// }
-	// assert.Equal(t, user.Username, mockUsersService.ChangeUsername)
-	// assert.Equal(t, expectedUser, mockUsersService.ChangeUser)
 }
 
 func TestDeleteToken(t *testing.T) {
