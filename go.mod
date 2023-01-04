@@ -68,6 +68,7 @@ require (
 )
 
 require (
+	github.com/aidarkhanov/nanoid/v2 v2.0.5
 	github.com/gobeam/stringy v0.0.5
 	github.com/hashicorp/go-version v1.5.0
 	github.com/jmoiron/sqlx v1.3.5

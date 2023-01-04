@@ -1,6 +1,8 @@
 package errors
 
-import "strings"
+import (
+	"strings"
+)
 
 // APIError wraps error which is interpreted as in http error
 type APIError struct {
@@ -8,6 +10,16 @@ type APIError struct {
 	Err        error
 	HTTPStatus int
 	ErrCode    string
+}
+
+func NewAPIError(statusCode int, errCode string, message string, err error) (ae APIError) {
+	ae = APIError{
+		HTTPStatus: statusCode,
+		ErrCode:    errCode,
+		Message:    message,
+		Err:        err,
+	}
+	return ae
 }
 
 // Error interface implementation

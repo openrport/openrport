@@ -11,7 +11,10 @@ import (
 	"testing"
 	"time"
 
+	"github.com/cloudradar-monitoring/rport/server/caddy"
 	"github.com/cloudradar-monitoring/rport/server/cgroups"
+	"github.com/cloudradar-monitoring/rport/server/clients/clienttunnel"
+	"github.com/cloudradar-monitoring/rport/server/clientsauth"
 
 	mapset "github.com/deckarep/golang-set"
 	"github.com/stretchr/testify/assert"
@@ -756,7 +759,7 @@ func TestGetTunnelsToReestablish(t *testing.T) {
 		// given
 		var old, new []*models.Remote
 		for i, v := range tc.oldStr {
-			r, err := models.DecodeRemote(v)
+			r, err := models.NewRemote(v)
 			require.NoErrorf(t, err, msg)
 			// mimic real behavior
 			if !r.IsLocalSpecified() {
@@ -770,7 +773,7 @@ func TestGetTunnelsToReestablish(t *testing.T) {
 			old = append(old, r)
 		}
 		for i, v := range tc.newStr {
-			r, err := models.DecodeRemote(v)
+			r, err := models.NewRemote(v)
 			require.NoErrorf(t, err, msg)
 			if tc.newACL != nil && tc.newACL[i] != "" {
 				r.ACL = &tc.newACL[i]
@@ -788,5 +791,107 @@ func TestGetTunnelsToReestablish(t *testing.T) {
 
 		// then
 		assert.ElementsMatch(t, tc.wantResStr, gotResStr, msg)
+	}
+}
+
+var (
+	cl1 = &clientsauth.ClientAuth{ID: "user1", Password: "pswd1"}
+)
+
+type MockCaddyAPI struct {
+	NewRouteRequest *caddy.NewRouteRequest
+	DeletedRouteID  string
+}
+
+func (m *MockCaddyAPI) AddRoute(ctx context.Context, nrr *caddy.NewRouteRequest) (res *http.Response, err error) {
+	m.NewRouteRequest = nrr
+	res = &http.Response{
+		StatusCode: http.StatusOK,
+	}
+	return res, nil
+}
+
+func (m *MockCaddyAPI) DeleteRoute(ctx context.Context, routeID string) (res *http.Response, err error) {
+	m.DeletedRouteID = routeID
+	res = &http.Response{
+		StatusCode: http.StatusOK,
+	}
+	return res, nil
+}
+
+func TestShouldStartTunnelsWithSubdomains(t *testing.T) {
+	connMock := test.NewConnMock()
+	connMock.ReturnOk = true
+	connMock.ReturnResponsePayload = []byte("{ \"IsAllowed\": true }")
+
+	cases := []struct {
+		name            string
+		requestedTunnel string
+	}{
+		{
+			name:            "basic tunnel with remote only",
+			requestedTunnel: "127.0.0.1:4001",
+		},
+		{
+			name:            "basic tunnel with local and remote",
+			requestedTunnel: "4000:127.0.0.1:4001",
+		},
+		{
+			name:            "full tunnel",
+			requestedTunnel: "127.0.0.1:4000:127.0.0.1:4001",
+		},
+	}
+	for _, tc := range cases {
+		t.Run(tc.name, func(t *testing.T) {
+			c1 := New(t).ID("client-1").ClientAuthID(cl1.ID).Build()
+			c1.Connection = connMock
+			c1.Logger = testLog
+			c1.Context = context.Background()
+
+			internalTunnelProxyConfig := &clienttunnel.InternalTunnelProxyConfig{
+				Enabled:  true,
+				CertFile: "../../../testdata/certs/rport.test.crt",
+				KeyFile:  "../../../testdata/certs/rport.test.key",
+			}
+
+			pd := ports.NewPortDistributorForTests(
+				mapset.NewThreadUnsafeSetFromSlice([]interface{}{4000, 4001, 4002, 4003, 4004, 4005}),
+				mapset.NewThreadUnsafeSetFromSlice([]interface{}{4000, 4002, 4003, 4004, 4005}),
+				mapset.NewThreadUnsafeSetFromSlice([]interface{}{5002, 5003, 5004, 5005}),
+			)
+
+			mockCaddyAPI := &MockCaddyAPI{}
+			clientService := NewClientService(internalTunnelProxyConfig, pd, NewClientRepository([]*Client{c1}, &hour, testLog), testLog)
+			clientService.caddyAPI = mockCaddyAPI
+
+			requestedRemote, err := models.NewRemote(tc.requestedTunnel)
+			require.NoError(t, err)
+
+			scheme := "http"
+			requestedRemote.Scheme = &scheme
+			requestedRemote.HTTPProxy = true
+			requestedRemote.TunnelURL = "https://12345678.tunnels.rport.test"
+
+			newTunnels, err := clientService.StartClientTunnels(
+				c1,
+				[]*models.Remote{requestedRemote},
+			)
+			require.NoError(t, err)
+
+			newTunnel := newTunnels[0]
+
+			assert.Equal(t, "12345678", mockCaddyAPI.NewRouteRequest.RouteID)
+			assert.Equal(t, "12345678", mockCaddyAPI.NewRouteRequest.DownstreamProxySubdomain)
+			assert.Equal(t, "tunnels.rport.test", mockCaddyAPI.NewRouteRequest.DownstreamProxyBaseDomain)
+
+			assert.Equal(t, requestedRemote.RemoteHost, newTunnel.RemoteHost)
+			assert.Equal(t, requestedRemote.RemotePort, newTunnel.RemotePort)
+			assert.Equal(t, requestedRemote.TunnelURL, newTunnel.Remote.TunnelURL)
+
+			err = clientService.TerminateTunnel(c1, newTunnel, true)
+			require.NoError(t, err)
+
+			assert.Equal(t, "12345678", mockCaddyAPI.DeletedRouteID)
+		})
 	}
 }

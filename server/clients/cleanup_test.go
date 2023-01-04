@@ -22,6 +22,7 @@ func TestCleanup(t *testing.T) {
 	require.Len(t, clientsRepo.clients, 3)
 	gotObsolete, err := p.get(ctx, c3.ID)
 	require.NoError(t, err)
+	c3.Logger = nil
 	require.EqualValues(t, c3, gotObsolete)
 	task := NewCleanupTask(testLog, clientsRepo)
 

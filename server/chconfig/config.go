@@ -10,6 +10,7 @@ import (
 	"net/http"
 	"net/smtp"
 	"net/url"
+	"os"
 	"os/exec"
 	"path"
 	"path/filepath"
@@ -19,6 +20,7 @@ import (
 
 	"github.com/cloudradar-monitoring/rport/db/sqlite"
 	rportplus "github.com/cloudradar-monitoring/rport/plus"
+	"github.com/cloudradar-monitoring/rport/server/caddy"
 
 	"github.com/cloudradar-monitoring/rport/share/files"
 
@@ -109,42 +111,42 @@ type LogConfig struct {
 }
 
 type ServerConfig struct {
-	ListenAddress                    string                         `mapstructure:"address"`
-	URL                              []string                       `mapstructure:"url"`
-	PairingURL                       string                         `mapstructure:"pairing_url"`
-	TunnelHost                       string                         `mapstructure:"tunnel_host"`
-	KeySeed                          string                         `mapstructure:"key_seed"`
-	Auth                             string                         `mapstructure:"auth"`
-	AuthFile                         string                         `mapstructure:"auth_file"`
-	AuthTable                        string                         `mapstructure:"auth_table"`
-	Proxy                            string                         `mapstructure:"proxy"`
-	UsedPortsRaw                     []string                       `mapstructure:"used_ports"`
-	ExcludedPortsRaw                 []string                       `mapstructure:"excluded_ports"`
-	DataDir                          string                         `mapstructure:"data_dir"`
-	SqliteWAL                        bool                           `mapstructure:"sqlite_wal"`
-	PurgeDisconnectedClients         bool                           `mapstructure:"purge_disconnected_clients"`
-	CleanupLostClients               bool                           `mapstructure:"cleanup_lost_clients" replaced_by:"PurgeDisconnectedClients"`
-	KeepLostClients                  time.Duration                  `mapstructure:"keep_lost_clients" replaced_by:"KeepDisconnectedClients"`
-	KeepDisconnectedClients          time.Duration                  `mapstructure:"keep_disconnected_clients"`
-	CleanupClientsInterval           time.Duration                  `mapstructure:"cleanup_clients_interval" replaced_by:"PurgeDisconnectedClientsInterval"`
-	PurgeDisconnectedClientsInterval time.Duration                  `mapstructure:"purge_disconnected_clients_interval"`
-	CheckClientsConnectionInterval   time.Duration                  `mapstructure:"check_clients_connection_interval"`
-	CheckClientsConnectionTimeout    time.Duration                  `mapstructure:"check_clients_connection_timeout"`
-	MaxRequestBytes                  int64                          `mapstructure:"max_request_bytes"`
-	MaxRequestBytesClient            int64                          `mapstructure:"max_request_bytes_client"`
-	MaxFilePushSize                  int64                          `mapstructure:"max_filepush_size"`
-	CheckPortTimeout                 time.Duration                  `mapstructure:"check_port_timeout"`
-	RunRemoteCmdTimeoutSec           int                            `mapstructure:"run_remote_cmd_timeout_sec"`
-	AuthWrite                        bool                           `mapstructure:"auth_write"`
-	AuthMultiuseCreds                bool                           `mapstructure:"auth_multiuse_creds"`
-	EquateClientauthidClientid       bool                           `mapstructure:"equate_clientauthid_clientid"`
-	AllowRoot                        bool                           `mapstructure:"allow_root"`
-	ClientLoginWait                  float32                        `mapstructure:"client_login_wait"`
-	MaxFailedLogin                   int                            `mapstructure:"max_failed_login"`
-	BanTime                          int                            `mapstructure:"ban_time"`
-	EnableWsTestEndpoints            bool                           `mapstructure:"enable_ws_test_endpoints"`
-	TunnelProxyConfig                clienttunnel.TunnelProxyConfig `mapstructure:",squash"`
-	JobsMaxResults                   int                            `mapstructure:"jobs_max_results"`
+	ListenAddress                    string                                 `mapstructure:"address"`
+	URL                              []string                               `mapstructure:"url"`
+	PairingURL                       string                                 `mapstructure:"pairing_url"`
+	TunnelHost                       string                                 `mapstructure:"tunnel_host"`
+	KeySeed                          string                                 `mapstructure:"key_seed"`
+	Auth                             string                                 `mapstructure:"auth"`
+	AuthFile                         string                                 `mapstructure:"auth_file"`
+	AuthTable                        string                                 `mapstructure:"auth_table"`
+	Proxy                            string                                 `mapstructure:"proxy"`
+	UsedPortsRaw                     []string                               `mapstructure:"used_ports"`
+	ExcludedPortsRaw                 []string                               `mapstructure:"excluded_ports"`
+	DataDir                          string                                 `mapstructure:"data_dir"`
+	SqliteWAL                        bool                                   `mapstructure:"sqlite_wal"`
+	PurgeDisconnectedClients         bool                                   `mapstructure:"purge_disconnected_clients"`
+	CleanupLostClients               bool                                   `mapstructure:"cleanup_lost_clients" replaced_by:"PurgeDisconnectedClients"`
+	KeepLostClients                  time.Duration                          `mapstructure:"keep_lost_clients" replaced_by:"KeepDisconnectedClients"`
+	KeepDisconnectedClients          time.Duration                          `mapstructure:"keep_disconnected_clients"`
+	CleanupClientsInterval           time.Duration                          `mapstructure:"cleanup_clients_interval" replaced_by:"PurgeDisconnectedClientsInterval"`
+	PurgeDisconnectedClientsInterval time.Duration                          `mapstructure:"purge_disconnected_clients_interval"`
+	CheckClientsConnectionInterval   time.Duration                          `mapstructure:"check_clients_connection_interval"`
+	CheckClientsConnectionTimeout    time.Duration                          `mapstructure:"check_clients_connection_timeout"`
+	MaxRequestBytes                  int64                                  `mapstructure:"max_request_bytes"`
+	MaxRequestBytesClient            int64                                  `mapstructure:"max_request_bytes_client"`
+	MaxFilePushSize                  int64                                  `mapstructure:"max_filepush_size"`
+	CheckPortTimeout                 time.Duration                          `mapstructure:"check_port_timeout"`
+	RunRemoteCmdTimeoutSec           int                                    `mapstructure:"run_remote_cmd_timeout_sec"`
+	AuthWrite                        bool                                   `mapstructure:"auth_write"`
+	AuthMultiuseCreds                bool                                   `mapstructure:"auth_multiuse_creds"`
+	EquateClientauthidClientid       bool                                   `mapstructure:"equate_clientauthid_clientid"`
+	AllowRoot                        bool                                   `mapstructure:"allow_root"`
+	ClientLoginWait                  float32                                `mapstructure:"client_login_wait"`
+	MaxFailedLogin                   int                                    `mapstructure:"max_failed_login"`
+	BanTime                          int                                    `mapstructure:"ban_time"`
+	EnableWsTestEndpoints            bool                                   `mapstructure:"enable_ws_test_endpoints"`
+	InternalTunnelProxyConfig        clienttunnel.InternalTunnelProxyConfig `mapstructure:",squash"`
+	JobsMaxResults                   int                                    `mapstructure:"jobs_max_results"`
 
 	allowedPorts mapset.Set
 	AuthID       string
@@ -254,6 +256,7 @@ type MonitoringConfig struct {
 
 type Config struct {
 	Server     ServerConfig     `mapstructure:"server"`
+	Caddy      caddy.Config     `mapstructure:"caddy-integration"`
 	Logging    LogConfig        `mapstructure:"logging"`
 	API        APIConfig        `mapstructure:"api"`
 	Database   DatabaseConfig   `mapstructure:"database"`
@@ -312,7 +315,14 @@ func (c *Config) ParseAndValidate(mLog *logger.MemLogger) error {
 		return err
 	}
 
-	if err := c.Server.TunnelProxyConfig.ParseAndValidate(); err != nil {
+	if err := c.Server.InternalTunnelProxyConfig.ParseAndValidate(); err != nil {
+		return err
+	}
+
+	filesAPI := files.NewFileSystem()
+	serverLogLevel := c.Logging.LogLevel.String()
+
+	if err := c.Caddy.ParseAndValidate(c.Server.DataDir, serverLogLevel, filesAPI); err != nil {
 		return err
 	}
 
@@ -337,9 +347,10 @@ func (c *Config) ParseAndValidate(mLog *logger.MemLogger) error {
 		return err
 	}
 
-	if err := c.Server.parseAndValidateHosts(); err != nil {
+	if err := c.Server.parseAndValidateTunnelHost(); err != nil {
 		return err
 	}
+
 	if c.Server.CheckClientsConnectionInterval < CheckClientsConnectionIntervalMinimum {
 		c.Server.CheckClientsConnectionInterval = CheckClientsConnectionIntervalMinimum
 		mLog.Errorf("'check_clients_status_interval' too fast. Using the minimum possible of %s", CheckClientsConnectionIntervalMinimum)
@@ -384,7 +395,7 @@ func (c *Config) parseAndValidateAPI() error {
 		if err != nil {
 			return err
 		}
-		err = c.parseAndValidateAPIHTTPSOptions()
+		err = c.parseAndValidateAPIHTTPSOptions(false, false)
 		if err != nil {
 			return err
 		}
@@ -412,13 +423,90 @@ func (c *Config) parseAndValidateAPI() error {
 		if c.API.DocRoot != "" {
 			return errors.New("to use document root you need to specify API address")
 		}
-
 	}
 	err := c.API.AuditLog.Validate()
 	if err != nil {
 		return err
 	}
+
+	err = c.validateAPIWhenCaddyIntegration()
+	if err != nil {
+		return err
+	}
+
 	return nil
+}
+
+func (c *Config) validateAPIWhenCaddyIntegration() (err error) {
+	caddyConfig := c.Caddy
+	if !caddyConfig.Enabled {
+		return nil
+	}
+
+	if !caddyConfig.APIReverseProxyEnabled() {
+		// Check if the API and the tunnel subdomains are on the same port
+		matchingPorts, err := matchingPorts(c.API.Address, caddyConfig.HostAddress)
+		if err != nil {
+			return err
+		}
+		if matchingPorts {
+			return errors.New("API and tunnel subdomains are on the same port. The api_hostname and api_port must be configured")
+		}
+	}
+
+	return nil
+}
+
+func (c *Config) WriteCaddyBaseConfig(caddyConfig *caddy.Config) (bc *caddy.BaseConfig, err error) {
+	// targetAPIPort is required if the API reverse proxy is being used
+	_, targetAPIPort, err := net.SplitHostPort(c.API.Address)
+	if err != nil {
+		return nil, err
+	}
+
+	bc, err = caddyConfig.MakeBaseConfig(targetAPIPort)
+	if err != nil {
+		return nil, err
+	}
+
+	baseConfigBytes, err := caddyConfig.GetBaseConf(bc)
+	if err != nil {
+		return nil, err
+	}
+
+	filename := caddyConfig.MakeBaseConfFilename()
+
+	// note this remove is required as the caddy base config file is created with
+	// read only permissions and write file won't overwrite the existing contents
+	err = os.Remove(filename)
+	if err != nil {
+		if !errors.Is(err, os.ErrNotExist) {
+			return nil, err
+		}
+	}
+
+	err = os.WriteFile(filename, baseConfigBytes, 0400)
+	if err != nil {
+		return nil, err
+	}
+
+	return bc, nil
+}
+
+func (c *Config) CaddyEnabled() bool {
+	return c.Caddy.Enabled
+}
+
+func matchingPorts(address1 string, address2 string) (matching bool, err error) {
+	_, port1, err := net.SplitHostPort(address1)
+	if err != nil {
+		return false, err
+	}
+	_, port2, err := net.SplitHostPort(address2)
+	if err != nil {
+		return false, err
+	}
+	return port1 == port2, nil
 }
 
 func (c *Config) parseAndValidateTotPSecret() error {
@@ -491,8 +579,8 @@ func (c *Config) parseAndValidateAPIAuth() error {
 	return nil
 }
 
-func (c *Config) parseAndValidateAPIHTTPSOptions() error {
-	if c.API.CertFile == "" && c.API.KeyFile == "" {
+func (c *Config) parseAndValidateAPIHTTPSOptions(mustBeConfigured bool, skipLoadCheck bool) error {
+	if !mustBeConfigured && c.API.CertFile == "" && c.API.KeyFile == "" {
 		return nil
 	}
 	if c.API.CertFile != "" && c.API.KeyFile == "" {
@@ -501,9 +589,11 @@ func (c *Config) parseAndValidateAPIHTTPSOptions() error {
 	if c.API.CertFile == "" && c.API.KeyFile != "" {
 		return errors.New("when 'key_file' is set, 'cert_file' must be set as well")
 	}
-	_, err := tls.LoadX509KeyPair(c.API.CertFile, c.API.KeyFile)
-	if err != nil {
-		return fmt.Errorf("invalid 'cert_file', 'key_file': %v", err)
+	if !skipLoadCheck {
+		_, err := tls.LoadX509KeyPair(c.API.CertFile, c.API.KeyFile)
+		if err != nil {
+			return fmt.Errorf("invalid 'cert_file', 'key_file': %v", err)
+		}
 	}
 	return nil
 }
@@ -547,7 +637,7 @@ func (s *ServerConfig) parseAndValidateURLs() error {
 	return nil
 }
 
-func (s *ServerConfig) parseAndValidateHosts() error {
+func (s *ServerConfig) parseAndValidateTunnelHost() error {
 	if s.TunnelHost != "" && !govalidator.IsDNSName(s.TunnelHost) && !govalidator.IsIP(s.TunnelHost) {
 		return fmt.Errorf("invalid tunnel_host '%s': use IP address or FQDN", s.TunnelHost)
 	}

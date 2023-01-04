@@ -195,11 +195,19 @@ func NewAPIListener(
 
 	userService := users.NewAPIService(usersProvider, config.API.IsTwoFAOn(), config.API.PasswordMinLength, config.API.PasswordZxcvbnMinscore)
 
+	HTTPServerOptions := []chshare.ServerOption{chshare.WithTLS(config.API.CertFile, config.API.KeyFile, security.TLSConfig)}
+
+	// no need for TLS on the api listener when using caddy for API access
+	if config.CaddyEnabled() && config.Caddy.APIReverseProxyEnabled() {
+		HTTPServerOptions = nil
+	}
+
+	allog := logger.NewLogger("api-listener", config.Logging.LogOutput, config.Logging.LogLevel)
 	a := &APIListener{
 		Server:            server,
-		Logger:            logger.NewLogger("api-listener", config.Logging.LogOutput, config.Logging.LogLevel),
+		Logger:            allog,
 		fingerprint:       fingerprint,
-		httpServer:        chshare.NewHTTPServer(int(config.Server.MaxRequestBytes), chshare.WithTLS(config.API.CertFile, config.API.KeyFile, security.TLSConfig)),
+		httpServer:        chshare.NewHTTPServer(int(config.Server.MaxRequestBytes), allog, HTTPServerOptions...),
 		requestLogOptions: config.InitRequestLogOptions(),
 		bannedUsers:       security.NewBanList(time.Duration(config.API.UserLoginWait) * time.Second),
 		userService:       userService,
@@ -210,7 +218,7 @@ func NewAPIListener(
 		storedTunnels:     storedtunnels.New(server.clientDB),
 	}
 
-	a.errResponseLogger = server.Logger.Fork("error-response")
+	a.errResponseLogger = allog.Fork("error-response")
 
 	if config.API.IsTwoFAOn() {
 		var msgSrv message.Service
@@ -300,10 +308,10 @@ func newAPIAuthDatabase(server *Server, config *chconfig.Config, logger *logger.
 	return usersProvider, err
 }
 
-func (al *APIListener) Start(addr string) error {
+func (al *APIListener) Start(ctx context.Context, addr string) error {
 	al.Infof("API Listening on %s...", addr)
 
-	err := al.httpServer.GoListenAndServe(addr, al.router)
+	err := al.httpServer.GoListenAndServe(ctx, addr, al.router)
 	if err != nil {
 		return err
 	}

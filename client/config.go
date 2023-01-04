@@ -222,7 +222,7 @@ func (c *ClientConfigHolder) parseRemotes() error {
 	}
 
 	for _, s := range c.Client.Remotes {
-		r, err := models.DecodeRemote(s)
+		r, err := models.NewRemote(s)
 		if err != nil {
 			return fmt.Errorf("failed to decode remote %q: %v", s, err)
 		}

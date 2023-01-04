@@ -17,6 +17,7 @@ import (
 
 	"github.com/cloudradar-monitoring/rport/server/api"
 	"github.com/cloudradar-monitoring/rport/server/api/users"
+	"github.com/cloudradar-monitoring/rport/server/caddy"
 	"github.com/cloudradar-monitoring/rport/server/cgroups"
 	"github.com/cloudradar-monitoring/rport/server/chconfig"
 	"github.com/cloudradar-monitoring/rport/server/clients"
@@ -120,7 +121,8 @@ func TestHandleGetClient(t *testing.T) {
                 "idle_timeout_minutes": 0,
                 "auto_close": 0,
                 "created_at":"0001-01-01T00:00:00Z",
-                "id":"1"
+                "id":"1",
+                "tunnel_url":""
             },
             {
                 "name": "",
@@ -139,7 +141,8 @@ func TestHandleGetClient(t *testing.T) {
                 "idle_timeout_minutes": 0,
                 "auto_close": 0,
                 "created_at":"0001-01-01T00:00:00Z",
-                "id":"2"
+                "id":"2",
+                "tunnel_url":""
             }
         ],
         "connection_state":"connected",
@@ -249,6 +252,7 @@ func TestHandleGetClients(t *testing.T) {
 	}
 
 	for _, tc := range testCases {
+		tc := tc
 		t.Run(tc.Name, func(t *testing.T) {
 			t.Parallel()
 
@@ -417,7 +421,8 @@ func TestHandlePutTunnelWithName(t *testing.T) {
 				"host_header": "",
 				"auth_user":"",
 				"auth_password":"",
-				"created_at": "0001-01-01T00:00:00Z"
+				"created_at": "0001-01-01T00:00:00Z",
+				"tunnel_url": ""
 			}
 		}`,
 		},
@@ -442,7 +447,34 @@ func TestHandlePutTunnelWithName(t *testing.T) {
 				"host_header": "",
 				"auth_user":"",
 				"auth_password":"",
-				"created_at": "0001-01-01T00:00:00Z"
+				"created_at": "0001-01-01T00:00:00Z",
+				"tunnel_url": ""
+			}
+		}`,
+		},
+		{
+			Name: "Without Scheme",
+			URL:  "/api/v1/clients/client-1/tunnels?acl=127.0.0.1&local=0.0.0.0%3A3390&remote=3000%3A22&check_port=0",
+			ExpectedJSON: `{
+			"data": {
+				"id": "10",
+				"name": "",
+				"protocol": "tcp",
+				"lhost": "0.0.0.0",
+				"lport": "3390",
+				"rhost": "0.0.0.0",
+				"rport": "22",
+				"lport_random": false,
+				"scheme": null,
+				"acl": "127.0.0.1",
+				"idle_timeout_minutes": 5,
+				"auto_close": 0,
+				"http_proxy": false,
+				"host_header": "",
+				"auth_user":"",
+				"auth_password":"",
+				"created_at": "0001-01-01T00:00:00Z",
+				"tunnel_url": ""
 			}
 		}`,
 		},
@@ -467,7 +499,8 @@ func TestHandlePutTunnelWithName(t *testing.T) {
 				"host_header": "",
 				"auth_user":"admin",
 				"auth_password":"foo",
-				"created_at": "0001-01-01T00:00:00Z"
+				"created_at": "0001-01-01T00:00:00Z",
+				"tunnel_url": ""
 			}
 		}`,
 		},
@@ -485,6 +518,7 @@ func TestHandlePutTunnelWithName(t *testing.T) {
 
 			c1 := clients.New(t).ID("client-1").ClientAuthID(cl1.ID).Build()
 			c1.Connection = connMock
+			c1.Logger = testLog
 
 			mockClientService := &SimpleMockClientService{
 				ExpectedIDs: []string{"10"},
@@ -500,13 +534,14 @@ func TestHandlePutTunnelWithName(t *testing.T) {
 					config: &chconfig.Config{
 						Server: chconfig.ServerConfig{
 							MaxRequestBytes: 1024 * 1024,
-							TunnelProxyConfig: clienttunnel.TunnelProxyConfig{
+							InternalTunnelProxyConfig: clienttunnel.InternalTunnelProxyConfig{
 								Enabled: true,
 							},
 						},
 					},
 					clientGroupProvider: mockClientGroupProvider{},
 				},
+				Logger: testLog,
 			}
 			al.initRouter()
 
@@ -524,4 +559,203 @@ func TestHandlePutTunnelWithName(t *testing.T) {
 
 		})
 	}
+}
+
+func TestHandlePutTunnelUsingCaddyProxies(t *testing.T) {
+	connMock := test.NewConnMock()
+	connMock.ReturnOk = true
+	connMock.ReturnResponsePayload = []byte("{ \"IsAllowed\": true }")
+
+	testCases := []struct {
+		Name               string
+		URL                string
+		ExpectedJSON       string
+		ExpectedError      string
+		DisableCaddyConfig bool
+	}{
+		{
+			Name: "With no subdomain",
+			URL:  "/api/v1/clients/client-1/tunnels?scheme=ssh&acl=127.0.0.1&local=0.0.0.0%3A3390&remote=0.0.0.0%3A22&name=TUNNELNAME&check_port=0",
+			ExpectedJSON: `{
+			"data": {
+				"id": "10",
+				"name": "TUNNELNAME",
+				"protocol": "tcp",
+				"lhost": "0.0.0.0",
+				"lport": "3390",
+				"rhost": "0.0.0.0",
+				"rport": "22",
+				"lport_random": false,
+				"scheme": "ssh",
+				"acl": "127.0.0.1",
+				"idle_timeout_minutes": 5,
+				"auto_close": 0,
+				"http_proxy": false,
+				"host_header": "",
+				"auth_user":"",
+				"auth_password":"",
+				"created_at": "0001-01-01T00:00:00Z",
+				"tunnel_url": ""
+			}
+		}`,
+		},
+		{
+			Name: "With Subdomain",
+			URL:  "/api/v1/clients/client-1/tunnels?scheme=http&acl=127.0.0.1&local=0.0.0.0%3A3390&remote=0.0.0.0%3A22&check_port=0&http_proxy=true",
+			ExpectedJSON: `{
+			"data": {
+				"id": "10",
+				"name": "",
+				"protocol": "tcp",
+				"lhost": "0.0.0.0",
+				"lport": "3390",
+				"rhost": "0.0.0.0",
+				"rport": "22",
+				"lport_random": false,
+				"scheme": "http",
+				"tunnel_url": "https://12345678.tunnels.rport.test",
+				"acl": "127.0.0.1",
+				"idle_timeout_minutes": 5,
+				"auto_close": 0,
+				"http_proxy": true,
+				"host_header": "",
+				"auth_user":"",
+				"auth_password":"",
+				"created_at": "0001-01-01T00:00:00Z"
+			}
+		}`,
+		},
+		{
+			Name: "With Subdomain, Without Scheme",
+			URL:  "/api/v1/clients/client-1/tunnels?&acl=127.0.0.1&local=0.0.0.0%3A3390&remote=22&check_port=0&http_proxy=true",
+			ExpectedJSON: `{
+			"data": {
+				"id": "10",
+				"name": "",
+				"protocol": "tcp",
+				"lhost": "0.0.0.0",
+				"lport": "3390",
+				"rhost": "0.0.0.0",
+				"rport": "22",
+				"lport_random": false,
+				"scheme": null,
+				"tunnel_url": "https://12345678.tunnels.rport.test",
+				"acl": "127.0.0.1",
+				"idle_timeout_minutes": 5,
+				"auto_close": 0,
+				"http_proxy": true,
+				"host_header": "",
+				"auth_user":"",
+				"auth_password":"",
+				"created_at": "0001-01-01T00:00:00Z"
+			}
+		}`,
+		},
+		{
+			Name: "With HTTP proxy, Caddy Not Configured",
+			URL:  "/api/v1/clients/client-1/tunnels?scheme=http&acl=127.0.0.1&local=0.0.0.0%3A3390&remote=0.0.0.0%3A22&check_port=0&http_proxy=true",
+			ExpectedJSON: `{
+				"data": {
+					"id": "10",
+					"name": "",
+					"protocol": "tcp",
+					"lhost": "0.0.0.0",
+					"lport": "3390",
+					"rhost": "0.0.0.0",
+					"rport": "22",
+					"lport_random": false,
+					"scheme": "http",
+					"tunnel_url": "",
+					"acl": "127.0.0.1",
+					"idle_timeout_minutes": 5,
+					"auto_close": 0,
+					"http_proxy": true,
+					"host_header": "",
+					"auth_user":"",
+					"auth_password":"",
+					"created_at": "0001-01-01T00:00:00Z"
+				}
+			}`,
+			DisableCaddyConfig: true,
+		},
+	}
+
+	for _, tc := range testCases {
+		tc := tc
+		t.Run(tc.Name, func(t *testing.T) {
+			t.Parallel()
+
+			c1 := clients.New(t).ID("client-1").ClientAuthID(cl1.ID).Build()
+			c1.Connection = connMock
+			c1.Logger = testLog
+
+			mockClientService := &SimpleMockClientService{
+				ExpectedIDs: []string{"10"},
+				ActiveClients: []*clients.Client{
+					c1,
+				},
+			}
+
+			al := APIListener{
+				insecureForTests: true,
+				Server: &Server{
+					clientService: mockClientService,
+					config: &chconfig.Config{
+						Server: chconfig.ServerConfig{
+							MaxRequestBytes: 1024 * 1024,
+							InternalTunnelProxyConfig: clienttunnel.InternalTunnelProxyConfig{
+								Enabled: true,
+							},
+						},
+						Caddy: caddy.Config{
+							ExecPath:         "/usr/bin/caddy",
+							DataDir:          "/tmp",
+							BaseConfFilename: "caddy-base.conf",
+							HostAddress:      "0.0.0.0:8443",
+							BaseDomain:       "tunnels.rport.test",
+							CertFile:         "../../testdata/certs/tunnels.rport.test.crt",
+							KeyFile:          "../../testdata/certs/tunnels.rport.test.key",
+							Enabled:          true,
+						},
+					},
+					clientGroupProvider: mockClientGroupProvider{},
+				},
+				Logger: testLog,
+			}
+			al.initRouter()
+
+			originalGenerator := al.Server.config.Caddy.SubDomainGenerator
+			al.Server.config.Caddy.SubDomainGenerator = &MockSubdomainGenerator{}
+
+			if tc.DisableCaddyConfig {
+				al.Server.config.Caddy.Enabled = false
+			}
+
+			w := httptest.NewRecorder()
+			req := httptest.NewRequest("PUT", tc.URL, nil)
+
+			al.router.ServeHTTP(w, req)
+
+			if tc.ExpectedError == "" {
+				assert.Equal(t, http.StatusOK, w.Code, fmt.Sprintf("Response Body: %s", w.Body))
+				assert.JSONEq(t, tc.ExpectedJSON, w.Body.String())
+			} else {
+				assert.Equal(t, http.StatusBadRequest, w.Code)
+				assert.Contains(t, w.Body.String(), tc.ExpectedError)
+			}
+
+			// be good and restore the original generator
+			al.Server.config.Caddy.SubDomainGenerator = originalGenerator
+		})
+	}
+}
+
+type MockSubdomainGenerator struct{}
+
+func NewMockConfigWithSubdomainGenerator() (m *MockSubdomainGenerator) {
+	return &MockSubdomainGenerator{}
+}
+
+func (m *MockSubdomainGenerator) GetRandomSubdomain() (subdomain string, err error) {
+	return "12345678", nil
 }

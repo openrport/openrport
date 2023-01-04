@@ -22,7 +22,7 @@ import (
 //go:embed css/tunnel-proxy.css
 var tunnelProxyCSS embed.FS
 
-type TunnelProxyConfig struct {
+type InternalTunnelProxyConfig struct {
 	CertFile     string `mapstructure:"tunnel_proxy_cert_file"`
 	KeyFile      string `mapstructure:"tunnel_proxy_key_file"`
 	NovncRoot    string `mapstructure:"novnc_root"`
@@ -30,7 +30,7 @@ type TunnelProxyConfig struct {
 	Enabled      bool
 }
 
-func (c *TunnelProxyConfig) ParseAndValidate() error {
+func (c *InternalTunnelProxyConfig) ParseAndValidate() error {
 	if c.CertFile == "" && c.KeyFile == "" {
 		c.Enabled = false
 		return nil
@@ -53,7 +53,7 @@ func (c *TunnelProxyConfig) ParseAndValidate() error {
 	return nil
 }
 
-func (c *TunnelProxyConfig) validateGuacd(addr string) error {
+func (c *InternalTunnelProxyConfig) validateGuacd(addr string) error {
 	if addr == "" {
 		return nil
 	}
@@ -72,10 +72,10 @@ func (c *TunnelProxyConfig) validateGuacd(addr string) error {
 	return nil
 }
 
-type TunnelProxy struct {
+type InternalTunnelProxy struct {
 	Tunnel               *Tunnel
 	Logger               *logger.Logger
-	Config               *TunnelProxyConfig
+	Config               *InternalTunnelProxyConfig
 	Host                 string
 	Port                 string
 	TunnelHost           string
@@ -85,8 +85,8 @@ type TunnelProxy struct {
 	tunnelProxyConnector TunnelProxyConnector
 }
 
-func NewTunnelProxy(tunnel *Tunnel, logger *logger.Logger, config *TunnelProxyConfig, host string, port string, acl *TunnelACL) *TunnelProxy {
-	tp := &TunnelProxy{
+func NewInternalTunnelProxy(tunnel *Tunnel, logger *logger.Logger, config *InternalTunnelProxyConfig, host string, port string, acl *TunnelACL) *InternalTunnelProxy {
+	tp := &InternalTunnelProxy{
 		Tunnel:     tunnel,
 		Config:     config,
 		Host:       host,
@@ -96,11 +96,11 @@ func NewTunnelProxy(tunnel *Tunnel, logger *logger.Logger, config *TunnelProxyCo
 		ACL:        acl,
 	}
 	tp.Logger = logger.Fork("tunnel-proxy:%s", tp.Addr())
-
 	tp.tunnelProxyConnector = NewTunnelProxyConnector(tp)
 	return tp
 }
-func (tp *TunnelProxy) Start(ctx context.Context) error {
+
+func (tp *InternalTunnelProxy) Start(ctx context.Context) error {
 	router := mux.NewRouter()
 	router.Use(tp.handleACL)
 
@@ -114,23 +114,26 @@ func (tp *TunnelProxy) Start(ctx context.Context) error {
 		ReadHeaderTimeout: 5 * time.Second,
 	}
 
-	go func() {
-		tp.proxyServer.TLSConfig = security.TLSConfig
-		err := tp.proxyServer.ListenAndServeTLS(tp.Config.CertFile, tp.Config.KeyFile)
-		if err != nil && err == http.ErrServerClosed {
-			tp.Logger.Infof("tunnel proxy closed")
-			return
-		}
-		if err != nil {
-			tp.Logger.Debugf("tunnel proxy ended with %v", err)
-		}
-	}()
+	go tp.listen()
 
 	tp.Logger.Infof("tunnel proxy started")
 	return nil
 }
 
-func (tp *TunnelProxy) Stop(ctx context.Context) error {
+func (tp *InternalTunnelProxy) listen() {
+	tp.Logger.Debugf("listener starting")
+	tp.proxyServer.TLSConfig = security.TLSConfig
+	err := tp.proxyServer.ListenAndServeTLS(tp.Config.CertFile, tp.Config.KeyFile)
+	if err != nil && err == http.ErrServerClosed {
+		tp.Logger.Infof("tunnel proxy closed")
+		return
+	}
+	if err != nil {
+		tp.Logger.Debugf("tunnel proxy ended with %v", err)
+	}
+}
+
+func (tp *InternalTunnelProxy) Stop(ctx context.Context) error {
 	ctxShutDown, cancel := context.WithTimeout(ctx, 5*time.Second)
 	defer cancel()
 
@@ -141,16 +144,16 @@ func (tp *TunnelProxy) Stop(ctx context.Context) error {
 	return nil
 }
 
-func (tp *TunnelProxy) Addr() string {
+func (tp *InternalTunnelProxy) Addr() string {
 	return net.JoinHostPort(tp.Host, tp.Port)
 }
 
-func (tp *TunnelProxy) TunnelAddr() string {
+func (tp *InternalTunnelProxy) TunnelAddr() string {
 	return net.JoinHostPort(tp.TunnelHost, tp.TunnelPort)
 }
 
 // handleACL middleware to handle ACL
-func (tp *TunnelProxy) handleACL(next http.Handler) http.Handler {
+func (tp *InternalTunnelProxy) handleACL(next http.Handler) http.Handler {
 	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		if tp.ACL == nil {
 			next.ServeHTTP(w, r)
@@ -174,7 +177,7 @@ func (tp *TunnelProxy) handleACL(next http.Handler) http.Handler {
 	})
 }
 
-func (tp *TunnelProxy) serveTemplate(w http.ResponseWriter, r *http.Request, templateContent string, templateData map[string]interface{}) {
+func (tp *InternalTunnelProxy) serveTemplate(w http.ResponseWriter, r *http.Request, templateContent string, templateData map[string]interface{}) {
 	w.Header().Set("Content-Type", "text/html; charset=utf-8")
 	w.WriteHeader(http.StatusOK)
 
@@ -187,12 +190,12 @@ func (tp *TunnelProxy) serveTemplate(w http.ResponseWriter, r *http.Request, tem
 	}
 }
 
-func (tp *TunnelProxy) handleProxyError(w http.ResponseWriter, r *http.Request, err error) {
+func (tp *InternalTunnelProxy) handleProxyError(w http.ResponseWriter, r *http.Request, err error) {
 	tp.Logger.Errorf("Error during proxy request %v", err)
 	tp.sendHTML(w, http.StatusInternalServerError, err.Error())
 }
 
-func (tp *TunnelProxy) sendHTML(w http.ResponseWriter, statusCode int, msg string) {
+func (tp *InternalTunnelProxy) sendHTML(w http.ResponseWriter, statusCode int, msg string) {
 	w.Header().Set("Content-Type", "text/html; charset=UTF-8")
 	w.WriteHeader(statusCode)
 	m := fmt.Sprintf("[%d] Rport tunnel proxy: %s", statusCode, msg)
@@ -200,7 +203,7 @@ func (tp *TunnelProxy) sendHTML(w http.ResponseWriter, statusCode int, msg strin
 }
 
 // noCache middleware to disable caching
-func (tp *TunnelProxy) noCache(next http.Handler) http.Handler {
+func (tp *InternalTunnelProxy) noCache(next http.Handler) http.Handler {
 	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		w.Header().Set("Cache-Control", "no-cache")
 		next.ServeHTTP(w, r)

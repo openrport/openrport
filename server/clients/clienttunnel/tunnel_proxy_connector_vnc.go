@@ -19,10 +19,10 @@ var error404HTML string
 
 // TunnelProxyConnectorVNC is a kind of 'websockify' vnc to tcp proxy to be used by a novnc instance to connect to a vnc tunnel
 type TunnelProxyConnectorVNC struct {
-	tunnelProxy *TunnelProxy
+	tunnelProxy *InternalTunnelProxy
 }
 
-func NewTunnelConnectorVNC(tp *TunnelProxy) *TunnelProxyConnectorVNC {
+func NewTunnelConnectorVNC(tp *InternalTunnelProxy) *TunnelProxyConnectorVNC {
 	return &TunnelProxyConnectorVNC{tunnelProxy: tp}
 }
 

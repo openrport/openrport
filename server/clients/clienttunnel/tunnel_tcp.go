@@ -41,6 +41,9 @@ func newTunnelTCP(logger *logger.Logger, ssh ssh.Conn, remote models.Remote, acl
 }
 
 func (t *tunnelTCP) Start(ctx context.Context) error {
+	t.Logger.Debugf("starting tcp tunnel...")
+	t.Logger.Debugf("listening on %+v", t.Local())
+
 	// TODO(m-terel): consider to use ListenTCP
 	l, err := net.Listen("tcp4", t.Local())
 	if err != nil {
@@ -74,16 +77,16 @@ func (t *tunnelTCP) listen(ctx context.Context, l net.Listener) {
 		t.wg.Done()
 	}()
 
-	t.Infof("Listening")
+	t.Infof("tunnel listening")
 
 	// background goroutine to close the listener when context is canceled
 	go func() {
 		<-ctx.Done()
 		if err := l.Close(); err != nil {
-			t.Errorf("Failed to close listener: %v", err)
+			t.Errorf("Failed to close tunnel listener: %v", err)
 			return
 		}
-		t.Debugf("Listener closed")
+		t.Debugf("tunnel listener closed")
 	}()
 
 	for {
@@ -139,7 +142,8 @@ func (t *tunnelTCP) accept(ctx context.Context, src io.ReadWriteCloser) {
 
 	cid := t.connectionIDAutoIncrement
 	l := t.Fork("conn#%d", cid)
-	l.Debugf("Open")
+
+	l.Debugf("Accept")
 
 	done := make(chan bool)
 	// link ctx to conn
@@ -158,12 +162,16 @@ func (t *tunnelTCP) accept(ctx context.Context, src io.ReadWriteCloser) {
 		l.Debugf("No remote connection")
 		return
 	}
-	//ssh request for tcp connection for this proxy's remote
+	// ssh request to open connection to this tunnel's remote
 	dst, reqs, err := t.sshConn.OpenChannel("rport", []byte(t.Remote.Remote()))
 	if err != nil {
 		l.Errorf("Could not establish TCP tunnel: %v", err)
 		return
 	}
+
+	l.Debugf("SSH channel open")
+	l.Debugf("from %+v", t.sshConn.RemoteAddr())
+
 	go ssh.DiscardRequests(reqs)
 	//then pipe
 	s, r := chshare.Pipe(src, dst)

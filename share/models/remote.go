@@ -40,9 +40,9 @@ type Remote struct {
 	Protocol           string        `json:"protocol"`
 	LocalHost          string        `json:"lhost"`
 	LocalPort          string        `json:"lport"`
+	LocalPortRandom    bool          `json:"lport_random"`
 	RemoteHost         string        `json:"rhost"`
 	RemotePort         string        `json:"rport"`
-	LocalPortRandom    bool          `json:"lport_random"`
 	Scheme             *string       `json:"scheme"`
 	ACL                *string       `json:"acl"` // string representation of Tunnel.TunnelACL field
 	IdleTimeoutMinutes int           `json:"idle_timeout_minutes"`
@@ -51,9 +51,10 @@ type Remote struct {
 	HostHeader         string        `json:"host_header"`
 	AuthUser           string        `json:"auth_user"`
 	AuthPassword       string        `json:"auth_password"`
+	TunnelURL          string        `json:"tunnel_url"`
 }
 
-func DecodeRemote(s string) (*Remote, error) {
+func NewRemote(s string) (*Remote, error) {
 	protocol := ProtocolTCP
 	matches := protocolRe.FindStringSubmatch(s)
 	if len(matches) >= 3 {
@@ -114,6 +115,7 @@ func isHost(s string) bool {
 // implement Stringer
 func (r Remote) String() string {
 	s := r.LocalHost + ":" + r.LocalPort + ":" + r.Remote()
+
 	if r.Protocol != ProtocolTCP {
 		s += "/" + r.Protocol
 	}
@@ -161,4 +163,27 @@ func (r *Remote) EqualACL(acl *string) bool {
 
 func (r *Remote) IsLocalSpecified() bool {
 	return r.LocalHost != "" && r.LocalPort != ""
+}
+
+func (r *Remote) NewDownstreamProxyURL(subdomain string, basedomain string) (proxyURL string) {
+	return "https://" + subdomain + "." + basedomain
+}
+
+func (r *Remote) HasSubdomainTunnel() bool {
+	return r.TunnelURL != ""
+}
+
+func (r *Remote) GetTunnelDomains() (subdomain string, basedomain string, err error) {
+	u, err := url.Parse(r.TunnelURL)
+	if err != nil {
+		return "", "", err
+	}
+
+	h := u.Hostname()
+
+	parts := strings.Split(h, ".")
+	subdomain = parts[0]
+	basedomain = strings.Join(parts[1:], ".")
+
+	return subdomain, basedomain, nil
 }

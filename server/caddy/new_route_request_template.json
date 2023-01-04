@@ -1,0 +1,51 @@
+{
+  "@id": "{{.RouteID}}",
+  "handle": [
+    {
+      "handler": "subroute",
+      "routes": [
+        {
+          "handle": [
+            {
+              "handler": "reverse_proxy",
+              "headers": {
+                "request": {
+                  "set": {
+                    "X-Forwarded-Host": [
+                      "{http.request.host}"
+                    ]
+                  }
+                }
+              },
+              "transport": {
+                "protocol": "http",
+                "tls": {
+                  "insecure_skip_verify": true
+                }
+              },
+              "upstreams": [
+                {
+                  "dial": "{{.TargetTunnelHost}}:{{.TargetTunnelPort}}"
+                }
+              ]
+            },
+            {
+              "body": "Access denied",
+              "close": true,
+              "handler": "static_response",
+              "status_code": 403
+            }
+          ]
+        }
+      ]
+    }
+  ],
+  "match": [
+    {
+      "host": [
+        "{{.DownstreamProxySubdomain}}.{{.DownstreamProxyBaseDomain}}"
+      ]
+    }
+  ],
+  "terminal": true
+}

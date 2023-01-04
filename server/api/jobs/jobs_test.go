@@ -19,7 +19,7 @@ import (
 )
 
 var DataSourceOptions = sqlite.DataSourceOptions{WALEnabled: false}
-var testLog = logger.NewLogger("api-listener-test", logger.LogOutput{File: os.Stdout}, logger.LogLevelDebug)
+var testLog = logger.NewLogger("jobs-test", logger.LogOutput{File: os.Stdout}, logger.LogLevelDebug)
 
 func TestJobsSqliteProvider(t *testing.T) {
 	ctx := context.Background()

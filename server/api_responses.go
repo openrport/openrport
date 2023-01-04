@@ -39,20 +39,23 @@ func (al *APIListener) jsonErrorResponse(w http.ResponseWriter, statusCode int, 
 func (al *APIListener) jsonError(w http.ResponseWriter, err error) {
 	statusCode := http.StatusInternalServerError
 	errCode := ""
+	message := ""
 	var apiErr errors2.APIError
 	var apiErrs errors2.APIErrors
 	switch {
 	case errors.As(err, &apiErr):
 		statusCode = apiErr.HTTPStatus
 		errCode = apiErr.ErrCode
+		message = apiErr.Message
 	case errors.As(err, &apiErrs):
 		if len(apiErrs) > 0 {
 			statusCode = apiErrs[0].HTTPStatus
 			errCode = apiErrs[0].ErrCode
+			message = apiErrs[0].Message
 		}
 	}
 
-	errPayload := api.NewErrAPIPayloadFromError(err, errCode, "")
+	errPayload := api.NewErrAPIPayloadFromError(err, errCode, message)
 	al.writeErrorResponseLog(errPayload)
 	al.writeJSONResponse(w, statusCode, errPayload)
 }

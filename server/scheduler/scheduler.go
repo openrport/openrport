@@ -22,6 +22,7 @@ func Run(ctx context.Context, log *logger.Logger, task Task, interval time.Durat
 				log.Errorf("Task %T finished with an error: %v.", task, err)
 			}
 		case <-ctx.Done():
+			log.Debugf("%T: context canceled", task)
 			return
 		}
 	}

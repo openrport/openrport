@@ -43,7 +43,8 @@ func (al *APIListener) handleGetStatus(w http.ResponseWriter, req *http.Request)
 		"two_fa_delivery_method":    twoFADelivery,
 		"auditlog":                  al.auditLog.Status(),
 		"auth_header":               al.config.API.AuthHeader != "",
-		"tunnel_proxy_enabled":      al.config.Server.TunnelProxyConfig.Enabled,
+		"tunnel_proxy_enabled":      al.config.Server.InternalTunnelProxyConfig.Enabled,
+		"caddy_integration_enabled": al.config.Caddy.Enabled,
 		"excluded_ports":            al.config.Server.ExcludedPortsRaw,
 		"used_ports":                al.config.Server.UsedPortsRaw,
 	})
