@@ -265,7 +265,7 @@ func (c *Config) MakeBaseConfig(targetAPIPort string) (bc *BaseConfig, err error
 			CertsFile:     APICertFile,
 			KeyFile:       APIKeyFile,
 			ProxyDomain:   c.APIHostname,
-			ProxyPort:     c.APIPort,
+			ProxyPort:     port, // Start the API reverse proxy on the same port as the tunnel reverse proxy
 			APIScheme:     "http",
 			APITargetHost: "127.0.0.1",
 			APITargetPort: targetAPIPort,

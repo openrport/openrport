@@ -191,7 +191,7 @@ func TestShouldGenerateBaseConf(t *testing.T) {
 	assert.Contains(t, text, "admin unix/./caddy-admin.sock")
 	assert.Contains(t, text, "https://0.0.0.0:443")
 	assert.Contains(t, text, "tls proxy_cert_file proxy_key_file {")
-	assert.Contains(t, text, "https://api_hostname:api_port")
+	assert.Contains(t, text, "https://api_hostname:443")
 	assert.Contains(t, text, "tls api_cert_file api_key_file")
 	assert.Contains(t, text, "to http://127.0.0.1:target_api_port")
 }
