@@ -748,7 +748,7 @@ func TestConfigParseInterpreterAliases(t *testing.T) {
 			},
 		},
 		{
-			Name:   "input and ouput encoding",
+			Name:   "input and output encoding",
 			Config: []any{"/bin/bash", "windows-1252", "cp437"},
 			ExpectedAliases: map[string]string{
 				alias: "/bin/bash",
