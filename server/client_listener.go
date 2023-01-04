@@ -253,6 +253,8 @@ func (cl *ClientListener) handleWebsocket(w http.ResponseWriter, req *http.Reque
 		return
 	}
 
+	clog.Debugf("client version: %s", connRequest.Version)
+
 	checkVersions(clog, connRequest.Version)
 
 	// get the current client auth id
@@ -397,17 +399,20 @@ func (cl *ClientListener) handleSSHRequests(clientLog *logger.Logger, clientID s
 				continue
 			}
 		case comm.RequestTypeSaveMeasurement:
-			measurement := &models.Measurement{}
-			err := json.Unmarshal(r.Payload, measurement)
-			if err != nil {
-				clientLog.Errorf("Failed to unmarshal save_measurement: %s", err)
-				continue
-			}
-			measurement.ClientID = clientID
-			err = cl.monitoringService.SaveMeasurement(context.Background(), measurement)
-			if err != nil {
-				clientLog.Errorf("Failed to save measurement for client %s: %s", clientID, err)
-				continue
+			// if server monitoring is disabled then do not save measurements even if received
+			if cl.Server.config.Monitoring.Enabled {
+				measurement := &models.Measurement{}
+				err := json.Unmarshal(r.Payload, measurement)
+				if err != nil {
+					clientLog.Errorf("Failed to unmarshal save_measurement: %s", err)
+					continue
+				}
+				measurement.ClientID = clientID
+				err = cl.monitoringService.SaveMeasurement(context.Background(), measurement)
+				if err != nil {
+					clientLog.Errorf("Failed to save measurement for client %s: %s", clientID, err)
+					continue
+				}
 			}
 		default:
 			clientLog.Debugf("Unknown request: %s", r.Type)

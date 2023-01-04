@@ -39,7 +39,7 @@ const (
 	DefaultServerAddress                    = "0.0.0.0:8080"
 	DefaultLogLevel                         = "info"
 	DefaultRunRemoteCmdTimeoutSec           = 60
-	DefaultMonitoringDataStorageDays        = 30
+	DefaultMonitoringDataStorageDuration    = 7 * time.Hour * 24
 	DefaultPairingURL                       = "https://pairing.rport.io"
 )
 
@@ -341,7 +341,8 @@ func init() {
 	viperCfg.SetDefault("api.enable_audit_log", true)
 	viperCfg.SetDefault("api.totp_enabled", false)
 	viperCfg.SetDefault("api.audit_log_rotation", auditlog.RotationMonthly)
-	viperCfg.SetDefault("monitoring.data_storage_days", DefaultMonitoringDataStorageDays)
+	viperCfg.SetDefault("monitoring.data_storage_duration", DefaultMonitoringDataStorageDuration)
+	viperCfg.SetDefault("monitoring.enabled", true)
 	viperCfg.SetDefault("api.totp_login_session_ttl", time.Minute*10)
 	viperCfg.SetDefault("api.totp_account_name", "RPort")
 	viperCfg.SetDefault("api.password_min_length", 14)
@@ -395,6 +396,8 @@ func bindPFlags() {
 	_ = viperCfg.BindPFlag("database.db_user", pFlags.Lookup("db-user"))
 	_ = viperCfg.BindPFlag("database.db_password", pFlags.Lookup("db-password"))
 
+	_ = viperCfg.BindPFlag("monitoring.data_storage_duration", pFlags.Lookup("monitoring-data-storage-duration"))
+	_ = viperCfg.BindPFlag("monitoring.enabled", pFlags.Lookup("monitoring-enabled"))
 	_ = viperCfg.BindPFlag("monitoring.data_storage_days", pFlags.Lookup("monitoring-data-storage-days"))
 }
 
