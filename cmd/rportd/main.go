@@ -5,7 +5,10 @@ import (
 	"fmt"
 	"log"
 	"os"
+	"os/signal"
 	"runtime"
+	"strings"
+	"syscall"
 	"time"
 
 	"github.com/cloudradar-monitoring/rport/share/logger"
@@ -466,7 +469,9 @@ func runMain(*cobra.Command, []string) {
 
 	filesAPI := files.NewFileSystem()
 
-	ctx := context.Background()
+	// this ctx will be used to co-ordinate shutdown of the various server go-routines
+	ctx, cancel := signal.NotifyContext(context.Background(), syscall.SIGINT, syscall.SIGTERM, syscall.SIGHUP, syscall.SIGCHLD)
+	defer cancel()
 
 	plusManager, err := chserver.EnablePlusIfLicensed(ctx, cfg, filesAPI)
 	if err != nil && err != chserver.ErrPlusNotEnabled {
@@ -491,7 +496,16 @@ func runMain(*cobra.Command, []string) {
 
 	go chshare.GoStats()
 
-	if err = s.Run(); err != nil {
+	err = s.Run(ctx)
+	s.Logger.Debugf("run finished")
+
+	if err != nil {
+		// the standard context canceled message is somewhat unclear. just let the user know that
+		// the server has shutdown.
+		if strings.Contains(err.Error(), "context canceled") {
+			log.Fatal("server shutdown")
+		}
+
 		log.Fatal(err)
 	}
 }

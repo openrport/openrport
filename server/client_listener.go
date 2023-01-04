@@ -57,10 +57,12 @@ var upgrader = websocket.Upgrader{
 
 func NewClientListener(server *Server, privateKey ssh.Signer) (*ClientListener, error) {
 	config := server.config
+
+	clog := logger.NewLogger("client-listener", config.Logging.LogOutput, config.Logging.LogLevel)
 	cl := &ClientListener{
 		Server:            server,
-		httpServer:        chshare.NewHTTPServer(int(config.Server.MaxRequestBytes)),
-		Logger:            logger.NewLogger("client-listener", config.Logging.LogOutput, config.Logging.LogLevel),
+		httpServer:        chshare.NewHTTPServer(int(config.Server.MaxRequestBytes), clog),
+		Logger:            clog,
 		requestLogOptions: config.InitRequestLogOptions(),
 		bannedClientAuths: security.NewBanList(time.Duration(config.Server.ClientLoginWait) * time.Second),
 	}
@@ -145,7 +147,7 @@ func (cl *ClientListener) getIP(addr net.Addr) string {
 	return host
 }
 
-func (cl *ClientListener) Start(listenAddr string) error {
+func (cl *ClientListener) Start(ctx context.Context, listenAddr string) error {
 	cl.Debugf("Client listener starting...")
 	if cl.reverseProxy != nil {
 		cl.Infof("Reverse proxy enabled")
@@ -158,7 +160,7 @@ func (cl *ClientListener) Start(listenAddr string) error {
 	}
 	h = requestlog.WrapWith(h, *cl.requestLogOptions)
 
-	return cl.httpServer.GoListenAndServe(listenAddr, h)
+	return cl.httpServer.GoListenAndServe(ctx, listenAddr, h)
 }
 
 // Wait waits for the http server to close
@@ -211,7 +213,7 @@ func (cl *ClientListener) handleWebsocket(w http.ResponseWriter, req *http.Reque
 	}
 	conn := chshare.NewWebSocketConn(wsConn)
 	// perform SSH handshake on net.Conn
-	clog.Debugf("Handshaking...")
+	clog.Debugf("SSH Handshaking...")
 	sshConn, chans, reqs, err := ssh.NewServerConn(conn, cl.sshConfig)
 	if err != nil {
 		cl.Debugf("Failed to handshake (%s) from %s", err, conn.RemoteAddr().String())

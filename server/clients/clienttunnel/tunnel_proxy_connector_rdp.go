@@ -38,12 +38,12 @@ var guacStartTunnelHTML string
 
 // TunnelProxyConnectorRDP connects to a rdp tunnel via guacd (Guacamole server)
 type TunnelProxyConnectorRDP struct {
-	tunnelProxy         *TunnelProxy
+	tunnelProxy         *InternalTunnelProxy
 	guacWebsocketServer *guac.WebsocketServer
 	guacTokenStore      *GuacTokenStore
 }
 
-func NewTunnelConnectorRDP(tp *TunnelProxy) *TunnelProxyConnectorRDP {
+func NewTunnelConnectorRDP(tp *InternalTunnelProxy) *TunnelProxyConnectorRDP {
 	tpc := &TunnelProxyConnectorRDP{tunnelProxy: tp}
 	tpc.guacWebsocketServer = guac.NewWebsocketServer(tpc.connectToGuacamole)
 	tpc.guacTokenStore = NewGuacTokenStore()

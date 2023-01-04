@@ -3,6 +3,7 @@ package chconfig
 import (
 	"testing"
 
+	"github.com/cloudradar-monitoring/rport/server/caddy"
 	"github.com/cloudradar-monitoring/rport/share/logger"
 
 	mapset "github.com/deckarep/golang-set"
@@ -652,6 +653,39 @@ func TestParseAndValidatePorts(t *testing.T) {
 				} else {
 					assert.Equal(t, tc.ExpectedAllowedPortsCount, tc.Config.allowedPorts.Cardinality())
 				}
+			}
+		})
+	}
+}
+
+func TestShouldValidateCaddyAPIHostnameAndAPIPortConfiguredIfSharedPorts(t *testing.T) {
+	cases := []struct {
+		Name             string
+		Config           Config
+		ExpectedErrorStr string
+	}{
+		{
+			Name: "error when caddy configured, no api_port, and matching caddy and api ports",
+			Config: Config{
+				Caddy: caddy.Config{
+					Enabled:     true,
+					HostAddress: "0.0.0.0:443",
+				},
+				API: APIConfig{
+					Address: "0.0.0.0:443",
+				},
+			},
+			ExpectedErrorStr: "API and tunnel subdomains are on the same port. The api_hostname and api_port must be configured",
+		},
+	}
+	for _, tc := range cases {
+		t.Run(tc.Name, func(t *testing.T) {
+			err := tc.Config.validateAPIWhenCaddyIntegration()
+			if tc.ExpectedErrorStr == "" {
+				assert.NoError(t, err)
+			} else {
+				assert.Error(t, err)
+				assert.Contains(t, err.Error(), tc.ExpectedErrorStr)
 			}
 		})
 	}

@@ -6,8 +6,6 @@ import (
 	"strings"
 )
 
-const LocalHost string = "127.0.0.1"
-
 type TunnelACL struct {
 	AllowedIPs []net.IPNet
 }

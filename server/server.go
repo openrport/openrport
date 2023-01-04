@@ -28,6 +28,7 @@ import (
 	"github.com/cloudradar-monitoring/rport/server/api/jobs/schedule"
 	"github.com/cloudradar-monitoring/rport/server/api/session"
 	"github.com/cloudradar-monitoring/rport/server/auditlog"
+	"github.com/cloudradar-monitoring/rport/server/caddy"
 	"github.com/cloudradar-monitoring/rport/server/cgroups"
 	"github.com/cloudradar-monitoring/rport/server/chconfig"
 	"github.com/cloudradar-monitoring/rport/server/clients"
@@ -71,6 +72,7 @@ type Server struct {
 	scheduleManager     *schedule.Manager
 	filesAPI            files.FileAPI
 	plusManager         rportplus.Manager
+	caddyServer         *caddy.Server
 }
 
 type ServerOpts struct {
@@ -173,7 +175,7 @@ func NewServer(ctx context.Context, config *chconfig.Config, opts *ServerOpts) (
 
 	s.clientService, err = clients.InitClientService(
 		ctx,
-		&s.config.Server.TunnelProxyConfig,
+		&s.config.Server.InternalTunnelProxyConfig,
 		ports.NewPortDistributor(config.AllowedPorts()),
 		s.clientDB,
 		keepDisconnectedClients,
@@ -226,6 +228,21 @@ func NewServer(ctx context.Context, config *chconfig.Config, opts *ServerOpts) (
 		return nil, err
 	}
 
+	if s.config.CaddyEnabled() {
+		cfg := s.config
+		caddyLog := logger.NewLogger("caddy", cfg.Logging.LogOutput, cfg.Logging.LogLevel)
+
+		baseConfig, err := cfg.WriteCaddyBaseConfig(&cfg.Caddy)
+		if err != nil {
+			return nil, err
+		}
+
+		caddy.HostDomainSocket = baseConfig.GlobalSettings.AdminSocket
+
+		s.caddyServer = caddy.NewCaddyServer(&cfg.Caddy, caddyLog)
+		s.clientService.SetCaddyAPI(s.caddyServer)
+	}
+
 	return s, nil
 }
 
@@ -260,10 +277,8 @@ func initPrivateKey(seed string) (ssh.Signer, error) {
 }
 
 // Run is responsible for starting the rport service
-func (s *Server) Run() error {
-	ctx := context.Background()
-
-	if err := s.Start(); err != nil {
+func (s *Server) Run(ctx context.Context) error {
+	if err := s.Start(ctx); err != nil {
 		return err
 	}
 
@@ -305,20 +320,32 @@ func (s *Server) Run() error {
 		}()
 	}
 
-	return s.Wait()
+	err := s.Wait()
+
+	// allow time for go-routines (and the caddy server) to process their cancellations
+	time.Sleep(250 * time.Millisecond)
+
+	s.Close()
+
+	return err
 }
 
 // Start is responsible for kicking off the http server
-func (s *Server) Start() error {
+func (s *Server) Start(ctx context.Context) error {
 	s.Logger.Infof("will start server on %s", s.config.Server.ListenAddress)
-	err := s.clientListener.Start(s.config.Server.ListenAddress)
+	err := s.clientListener.Start(ctx, s.config.Server.ListenAddress)
 	if err != nil {
 		return err
 	}
 
 	if s.config.API.Address != "" {
-		err = s.apiListener.Start(s.config.API.Address)
+		err = s.apiListener.Start(ctx, s.config.API.Address)
 	}
+
+	if s.config.CaddyEnabled() {
+		err = s.caddyServer.Start(ctx)
+	}
+
 	return err
 }
 
@@ -326,13 +353,24 @@ func (s *Server) Wait() error {
 	wg := &errgroup.Group{}
 	wg.Go(s.clientListener.Wait)
 	wg.Go(s.apiListener.Wait)
+	// if caddy configured then also setup a dependencies on the caddy server running
+	if s.config.CaddyEnabled() {
+		wg.Go(s.caddyServer.Wait)
+	}
+
 	return wg.Wait()
 }
 
 func (s *Server) Close() error {
+	s.Logger.Debugf("closing server")
 	wg := &errgroup.Group{}
+
 	wg.Go(s.clientListener.Close)
 	wg.Go(s.apiListener.Close)
+	if s.config.CaddyEnabled() {
+		wg.Go(s.caddyServer.Close)
+	}
+
 	if s.authDB != nil {
 		wg.Go(s.authDB.Close)
 	}

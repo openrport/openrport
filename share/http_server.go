@@ -1,11 +1,14 @@
 package chshare
 
 import (
+	"context"
 	"crypto/tls"
 	"errors"
 	"net"
 	"net/http"
 	"time"
+
+	"github.com/cloudradar-monitoring/rport/share/logger"
 )
 
 type ServerOption func(*HTTPServer)
@@ -23,18 +26,25 @@ func WithTLS(certFile string, keyFile string, tlsConfig *tls.Config) ServerOptio
 type HTTPServer struct {
 	*http.Server
 	listener  net.Listener
+	ctx       context.Context
 	running   chan error
 	isRunning bool
 	certFile  string
 	keyFile   string
+	logger    *logger.Logger
 }
 
 // NewHTTPServer creates a new HTTPServer
-func NewHTTPServer(maxHeaderBytes int, options ...ServerOption) *HTTPServer {
+func NewHTTPServer(maxHeaderBytes int, l *logger.Logger, options ...ServerOption) *HTTPServer {
+	var httpLogger *logger.Logger
+	if l != nil {
+		httpLogger = l.Fork("http-server")
+	}
 	s := &HTTPServer{
 		Server:   &http.Server{MaxHeaderBytes: maxHeaderBytes, ReadHeaderTimeout: 5 * time.Second},
 		listener: nil,
 		running:  make(chan error, 1),
+		logger:   httpLogger,
 	}
 
 	for _, o := range options {
@@ -44,18 +54,25 @@ func NewHTTPServer(maxHeaderBytes int, options ...ServerOption) *HTTPServer {
 	return s
 }
 
-func (h *HTTPServer) GoListenAndServe(addr string, handler http.Handler) error {
+func (h *HTTPServer) GoListenAndServe(ctx context.Context, addr string, handler http.Handler) error {
 	l, err := net.Listen("tcp", addr)
 	if err != nil {
 		return err
 	}
 	h.isRunning = true
+	h.ctx = ctx
 	h.Handler = handler
 	h.listener = l
+	h.BaseContext = func(l net.Listener) context.Context {
+		return h.ctx
+	}
+
 	go func() {
 		if h.certFile != "" && h.keyFile != "" {
+			h.logger.Debugf("serving HTTPS")
 			h.closeWith(h.ServeTLS(l, h.certFile, h.keyFile))
 		} else {
+			h.logger.Debugf("serving HTTP")
 			h.closeWith(h.Serve(l))
 		}
 	}()
@@ -72,6 +89,9 @@ func (h *HTTPServer) closeWith(err error) {
 
 func (h *HTTPServer) Close() error {
 	h.closeWith(nil)
+	if h.listener == nil {
+		return nil
+	}
 	return h.listener.Close()
 }
 
@@ -79,5 +99,11 @@ func (h *HTTPServer) Wait() error {
 	if !h.isRunning {
 		return errors.New("Already closed")
 	}
-	return <-h.running
+	select {
+	case <-h.running:
+		return nil
+	case <-h.ctx.Done():
+		h.logger.Debugf("context canceled")
+		return h.ctx.Err()
+	}
 }

@@ -11,11 +11,11 @@ import (
 
 // TunnelProxyConnectorHTTP uses the standard ReverseProxy from package httputil to connect to HTTP/HTTPS server on tunnel endpoint
 type TunnelProxyConnectorHTTP struct {
-	tunnelProxy  *TunnelProxy
+	tunnelProxy  *InternalTunnelProxy
 	reverseProxy *httputil.ReverseProxy
 }
 
-func NewTunnelConnectorHTTP(tp *TunnelProxy) *TunnelProxyConnectorHTTP {
+func NewTunnelConnectorHTTP(tp *InternalTunnelProxy) *TunnelProxyConnectorHTTP {
 	return &TunnelProxyConnectorHTTP{tunnelProxy: tp}
 }
 
@@ -23,6 +23,7 @@ func (tc *TunnelProxyConnectorHTTP) InitRouter(router *mux.Router) *mux.Router {
 	router.PathPrefix("/").HandlerFunc(tc.serveHTTP)
 
 	if tc.tunnelProxy.Tunnel.Remote.HostHeader != "" {
+		tc.tunnelProxy.Logger.Debugf("using host header %s", tc.tunnelProxy.Tunnel.HostHeader)
 		router.Use(tc.addHostHeader)
 	}
 

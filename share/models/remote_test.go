@@ -108,7 +108,7 @@ func TestDecodeRemote(t *testing.T) {
 		t.Run(tc.Input, func(t *testing.T) {
 			t.Parallel()
 
-			remote, err := DecodeRemote(tc.Input)
+			remote, err := NewRemote(tc.Input)
 			require.NoError(t, err)
 			assert.Equal(t, tc.WantProtocol, remote.Protocol)
 			assert.Equal(t, tc.WantLocalHost, remote.LocalHost)
@@ -172,6 +172,40 @@ func TestIsProtocol(t *testing.T) {
 			result := remote.IsProtocol(tc.OtherProtocol)
 
 			assert.Equal(t, tc.Expected, result)
+		})
+	}
+}
+
+func TestShouldGetDomainPartsFromTunnelURL(t *testing.T) {
+	cases := []struct {
+		name               string
+		tunnelURL          string
+		expectedSubdomain  string
+		expectedBasedomain string
+	}{
+		{
+			name:               "normal url",
+			tunnelURL:          "https://1234.tunnel.rport.test",
+			expectedSubdomain:  "1234",
+			expectedBasedomain: "tunnel.rport.test",
+		},
+		{
+			name:               "short base domain",
+			tunnelURL:          "https://1234.rpdev",
+			expectedSubdomain:  "1234",
+			expectedBasedomain: "rpdev",
+		},
+	}
+	for _, tc := range cases {
+		t.Run(tc.name, func(t *testing.T) {
+			r := &Remote{
+				TunnelURL: tc.tunnelURL,
+			}
+			subdomain, basedomain, err := r.GetTunnelDomains()
+			require.NoError(t, err)
+
+			assert.Equal(t, tc.expectedSubdomain, subdomain)
+			assert.Equal(t, tc.expectedBasedomain, basedomain)
 		})
 	}
 }
