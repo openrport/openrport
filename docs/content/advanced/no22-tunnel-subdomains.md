@@ -76,13 +76,29 @@ certbot certonly --manual --preferred-challenges dns -d *.tunnels.example.com
 ```
 
 Before executing the above command, make sure you are logged in to the admin panel of your DNS.
-The command will display a DNS text record you must create, and then it waits and constantly checks the DNS record to
-become available. This can take several minutes. Don't cancel the certbot command. It's not hanging.
+The command will display a DNS text record you must create, and then it waits for your confirmation.
+Before continuing open a new terminal and make sure your DNS TXT record has become available using for example `dig`:
+
+```shell
+dig -t txt _acme-challenge.tunnels.example.com
+```
+
+If your record is listed as indicated by certbot, continue.
 
 Doublecheck your certificate is a wildcard certificate with:
 
 ```bash
 openssl x509 -noout -subject -in  /etc/letsencrypt/live/<YOUR-DOMAIN>/fullchain.pem
+```
+
+Make sure the `rport` **user has read-rights on the certificate** and key file. By default, Let's encrypt creates files  
+readable just for root. Consider giving read access to anyone or create a user group.
+
+```bash
+find /etc/letsencrypt/archive/ -type d -exec chmod o+rx {} \;
+find /etc/letsencrypt/archive/ -type f -exec chmod o+r {} \;
+find /etc/letsencrypt/live/ -type d -exec chmod o+rx {} \;
+find /etc/letsencrypt/live/ -type f -exec chmod o+r {} \;
 ```
 
 ## Configure rportd
@@ -110,24 +126,15 @@ For any kind of setup, add a configuration like this to your `/etc/rport/rportd.
   ## The bind address where caddy should listen for subdomain tunnels connections. mandatory.
   # address="0.0.0.0:8443"
   ## All caddy subdomain tunnels will have the domain prefix listed below. mandatory.
-  # subdomain_prefix="tunnels.rport.test"
+  # subdomain_prefix="tunnels.example.com"
   ## An SSL wildcard certificate is required that matches the subdomain prefix above. mandatory.
-  # cert_file="/var/lib/rport/tunnels.test.crt"
-  # key_file="/var/lib/tunnels.rport.test.key"
+  # cert_file="/etc/letsencrypt/live/<YOUR-DOMAIN>/fullchain.pem"
+  # key_file="/etc/letsencrypt/live/<YOUR-DOMAIN>/privkey.pem"
 ```
 
 * For the `subdomain_prefix` do not enter the `*` sign. If your DNS record is `*.rport.example.com` enter
   `rport.example.com`.
 * Make sure the port of the `address` does not conflict with the port of the address in the `[api]` section.
-* Make sure the `rport` user has read-rights on the certificate and key file. By default, Let's encrypt creates files  
-  readable just for root. Consider giving read access to anyone or create a user group.
-
-  ```bash
-  find /etc/letsencrypt/archive/ -type d -exec chmod o+rx {} \;
-  find /etc/letsencrypt/archive/ -type f -exec chmod o+r {} \;
-  find /etc/letsencrypt/live/ -type d -exec chmod o+rx {} \;
-  find /etc/letsencrypt/live/ -type f -exec chmod o+r {} \;
-  ```
 
 If you want to run the subdomains managed by caddy and the rport API/UI on different TCP ports, you can stop here and
 restart rportd.
@@ -160,3 +167,13 @@ The `address` on the `[api]` section will be ignored and the API will listen on 
 
 2. Also, look at `/var/log/rport/rportd.log`.
 3. Consider increasing the `log_level` to `debug` in the `/etc/rport/rportd.conf` file.
+
+## Use it
+
+* Create a tunnel for RDP and activate "Enable RDP via browser" or
+* Create a tunnel for VNC and select "Enable NoVNC (VNC via Browser)" or
+* Create a tunnel for HTTP/HTTPs and activate "Enable HTTP Reverse proxy"
+
+All the above tunnel settings will trigger the creation of a subdomain. After tunnel creation you will notice that the
+API returns a field `tunnel_url`. The "access tunnel" button of the UI will point to that URL instead of pointing to the
+random port on the main domain of the rport server.
