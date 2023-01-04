@@ -203,6 +203,7 @@ func (cl *ClientListener) nextClientIndex() int32 {
 
 // handleWebsocket is responsible for handling the websocket connection
 func (cl *ClientListener) handleWebsocket(w http.ResponseWriter, req *http.Request) {
+	ts := time.Now()
 	clog := cl.Fork("client#%d", cl.nextClientIndex())
 	clog.Debugf("Handling inbound web socket connection...")
 	wsConn, err := upgrader.Upgrade(w, req, nil)
@@ -218,6 +219,8 @@ func (cl *ClientListener) handleWebsocket(w http.ResponseWriter, req *http.Reque
 		cl.Debugf("Failed to handshake (%s) from %s", err, conn.RemoteAddr().String())
 		return
 	}
+	clog.Debugf("Handshake finished after %s", time.Since(ts))
+
 	//verify configuration
 	clog.Debugf("Verifying configuration...")
 	//wait for request, with timeout
@@ -265,18 +268,20 @@ func (cl *ClientListener) handleWebsocket(w http.ResponseWriter, req *http.Reque
 	ctx, cancel := context.WithCancel(context.Background())
 	defer cancel()
 
+	ts = time.Now()
 	client, err := cl.clientService.StartClient(ctx, clientAuthID, cid, sshConn, cl.config.Server.AuthMultiuseCreds, connRequest, clog)
 	if err != nil {
 		failed(err)
 		return
 	}
-	clog.Debugf("client service started for %s", client.Name)
+	clog.Debugf("Client service started for %s (%s) within %s", client.ID, client.Name, time.Since(ts))
 
 	cl.replyConnectionSuccess(r, connRequest.Remotes)
 	cl.sendCapabilities(sshConn)
+	// Now the client is fully connected and ready to create tunnels and execute command and scripts
 
 	clientBanner := client.Banner()
-	clog.Debugf("open %s", clientBanner)
+	clog.Debugf("opened %s within %s", clientBanner, time.Since(ts))
 	go cl.handleSSHRequests(clog, cid, reqs)
 	go cl.handleSSHChannels(clog, chans)
 	if err = sshConn.Wait(); err != nil {

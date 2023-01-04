@@ -76,25 +76,24 @@ func (t *ClientsStatusCheckTask) PingClients(clientsToPing <-chan *clients.Clien
 	for cl := range clientsToPing {
 		ok, response, rtt, err := comm.PingConnectionWithTimeout(cl.Connection, t.pingTimeout)
 		//t.log.Debugf("ok=%s, error=%s, response=%s", ok, err, response)
-		var now = time.Now()
 		//Old clients cannot respond properly to a ping request yet
 		if !ok && err == nil && string(response) == "unknown request" {
 			t.log.Debugf("ping to %s [%s] succeeded in %s. client < 0.8.2", cl.Name, cl.ID, rtt)
-			cl.LastHeartbeatAt = &now
+			cl.SetHeartbeatNow()
 			results <- true
 			continue
 		}
 		// Only an empty response confirms the ping
 		if ok && err == nil && len(response) == 0 {
 			t.log.Debugf("ping to %s [%s] succeeded in %s. client >= 0.8.2", cl.Name, cl.ID, rtt)
-			cl.LastHeartbeatAt = &now
+			cl.SetHeartbeatNow()
 			results <- true
 			continue
 		}
 		// None of the above. Ping must have failed or timed out.
 		t.log.Infof("ping to %s [%s] failed: %s", cl.Name, cl.ID, err)
 
-		cl.SetDisconnected(&now)
+		cl.SetDisconnectedNow()
 
 		cl.Close()
 		results <- false

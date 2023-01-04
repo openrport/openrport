@@ -87,9 +87,25 @@ func (c *Client) SetConnected() {
 
 func (c *Client) SetDisconnected(at *time.Time) {
 	if c.Logger != nil {
-		c.Logger.Debugf("%s: set to disconnected at %s", c.ID, *at)
+		c.Logger.Debugf("%s: set to disconnected at %s", c.ID, at)
 	}
 	c.DisconnectedAt = at
+}
+
+func (c *Client) SetDisconnectedNow() {
+	now := time.Now()
+	c.DisconnectedAt = &now
+}
+
+func (c *Client) SetHeartbeatNow() {
+	now := time.Now()
+	c.DisconnectedAt = nil
+	c.LastHeartbeatAt = &now
+}
+
+func (c *Client) SetHeartbeat(at *time.Time) {
+	c.DisconnectedAt = nil
+	c.LastHeartbeatAt = at
 }
 
 func (c *Client) ToCalculated(allGroups []*cgroups.ClientGroup) *CalculatedClient {

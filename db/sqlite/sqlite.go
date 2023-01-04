@@ -2,6 +2,7 @@ package sqlite
 
 import (
 	"fmt"
+	"math/rand"
 	"os"
 	"time"
 
@@ -16,8 +17,8 @@ import (
 
 const (
 	WALEnabled                  = "_journal_mode=WAL"
-	defaultDelayBetweenAttempts = 10 * time.Millisecond
-	DefaultMaxAttempts          = 3
+	defaultDelayBetweenAttempts = 200 * time.Millisecond
+	DefaultMaxAttempts          = 5
 )
 
 type DataSourceOptions struct {
@@ -40,6 +41,8 @@ func New(dataSourceName string, assetNames []string, asset func(name string) ([]
 			return nil, fmt.Errorf("failed to chmod %s: %s", dbPath, err)
 		}
 	}
+
+	db.SetMaxOpenConns(1)
 
 	s := bindata.Resource(assetNames,
 		func(name string) ([]byte, error) {
@@ -67,6 +70,9 @@ func New(dataSourceName string, assetNames []string, asset func(name string) ([]
 	return db, nil
 }
 
+// TODO: (rs): we've moved to use single db connections. with potentially slower access to the sqlite
+// volumes it seems there's too much concurrent contention for the dbs, so there's less need for this fn.
+// not removing yet but check again in approx 6 months (from dec 22) and remove if no longer required.
 func WithRetryWhenBusy[R any](retryAble func() (result R, err error), label string, l *logger.Logger) (result R, err error) {
 	for r := 0; r < DefaultMaxAttempts; r++ {
 		result, err = retryAble()
@@ -74,7 +80,8 @@ func WithRetryWhenBusy[R any](retryAble func() (result R, err error), label stri
 			sqlErr, ok := err.(sql.Error)
 			if ok && sqlErr.Code == sql.ErrBusy {
 				l.Debugf("%s: attempt %d: source err = %+v\n", label, r+1, err)
-				time.Sleep(defaultDelayBetweenAttempts)
+				jitter := time.Duration((rand.Intn(100))) * time.Millisecond
+				time.Sleep(defaultDelayBetweenAttempts + jitter)
 				continue
 			}
 			// non retryable err
