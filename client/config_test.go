@@ -716,3 +716,101 @@ func TestConfigParseAndValidateFilePushConfig(t *testing.T) {
 		})
 	}
 }
+
+func TestConfigParseInterpreterAliases(t *testing.T) {
+	alias := "test-alias"
+	testCases := []struct {
+		Name              string
+		Config            any
+		ExpectedError     string
+		ExpectedAliases   map[string]string
+		ExpectedEncodings map[string]clientconfig.InterpreterAliasEncoding
+	}{
+		{
+			Name:   "shell only",
+			Config: "/bin/bash",
+			ExpectedAliases: map[string]string{
+				alias: "/bin/bash",
+			},
+			ExpectedEncodings: map[string]clientconfig.InterpreterAliasEncoding{},
+		},
+		{
+			Name:   "single encoding",
+			Config: []any{"/bin/bash", "windows-1252"},
+			ExpectedAliases: map[string]string{
+				alias: "/bin/bash",
+			},
+			ExpectedEncodings: map[string]clientconfig.InterpreterAliasEncoding{
+				alias: {
+					InputEncoding:  "windows-1252",
+					OutputEncoding: "windows-1252",
+				},
+			},
+		},
+		{
+			Name:   "input and ouput encoding",
+			Config: []any{"/bin/bash", "windows-1252", "cp437"},
+			ExpectedAliases: map[string]string{
+				alias: "/bin/bash",
+			},
+			ExpectedEncodings: map[string]clientconfig.InterpreterAliasEncoding{
+				alias: {
+					InputEncoding:  "windows-1252",
+					OutputEncoding: "cp437",
+				},
+			},
+		},
+		{
+			Name:          "invalid alias value",
+			Config:        123,
+			ExpectedError: `invalid interpreter alias "test-alias": 123`,
+		},
+		{
+			Name:          "invalid shell value",
+			Config:        []any{123},
+			ExpectedError: `interpreter alias "test-alias" shell should be a string, got: 123`,
+		},
+		{
+			Name:          "invalid encoding value",
+			Config:        []any{"/bin/bash", 123},
+			ExpectedError: `interpreter alias "test-alias" encoding should be a string, got: 123`,
+		},
+		{
+			Name:          "invalid output encoding value",
+			Config:        []any{"/bin/bash", "windows-1252", 123},
+			ExpectedError: `interpreter alias "test-alias" output encoding should be a string, got: 123`,
+		},
+		{
+			Name:          "invalid input encoding",
+			Config:        []any{"/bin/bash", "invalid", "windows-1252"},
+			ExpectedError: `interpreter alias "test-alias": invalid input encoding "invalid": ianaindex: invalid encoding name`,
+		},
+		{
+			Name:          "invalid output encoding",
+			Config:        []any{"/bin/bash", "windows-1252", "invalid"},
+			ExpectedError: `interpreter alias "test-alias": invalid output encoding "invalid": ianaindex: invalid encoding name`,
+		},
+	}
+
+	for _, tc := range testCases {
+		tc := tc
+		t.Run(tc.Name, func(t *testing.T) {
+			t.Parallel()
+
+			config := getDefaultValidMinConfig()
+			config.InterpreterAliasesConfig = map[string]any{
+				alias: tc.Config,
+			}
+
+			err := config.ParseAndValidate(true)
+
+			if tc.ExpectedError == "" {
+				require.NoError(t, err)
+				assert.Equal(t, tc.ExpectedAliases, config.InterpreterAliases)
+				assert.Equal(t, tc.ExpectedEncodings, config.InterpreterAliasesEncodings)
+			} else {
+				require.EqualError(t, err, tc.ExpectedError)
+			}
+		})
+	}
+}

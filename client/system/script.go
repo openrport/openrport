@@ -17,7 +17,7 @@ import (
 const DefaultFileMode = os.FileMode(0540)
 const DefaultDirMode = os.FileMode(0700)
 
-func CreateScriptFile(scriptDir, scriptContent string, interpreter Interpreter, enc encoding.Encoding) (filePath string, err error) {
+func CreateScriptFile(scriptDir, scriptContent string, interpreter Interpreter, enc *encoding.Encoder) (filePath string, err error) {
 	err = ValidateScriptDir(scriptDir)
 	if err != nil {
 		return "", err
@@ -32,7 +32,7 @@ func CreateScriptFile(scriptDir, scriptContent string, interpreter Interpreter, 
 
 	byteContent := []byte(scriptContent)
 	if enc != nil {
-		byteContent, err = enc.NewEncoder().Bytes(byteContent)
+		byteContent, err = enc.Bytes(byteContent)
 		if err != nil {
 			return "", err
 		}

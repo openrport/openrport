@@ -55,18 +55,24 @@ func (c *Client) HandleRunCmdRequest(ctx context.Context, reqPayload []byte) (*c
 		InterpreterAliases:       c.configHolder.InterpreterAliases,
 	}
 
-	inputEncoding, outputEncoding, err := system.DetectConsoleEncoding(ctx, interpreter)
-	if err != nil {
-		c.Errorf("could not detect console encoding, using UTF-8...: %v", err)
+	encodingConfig, ok := c.configHolder.InterpreterAliasesEncodings[job.Interpreter]
+	var encoding *system.ShellEncoding
+	if ok {
+		encoding, err = system.EncodingFromConfig(encodingConfig)
+		if err != nil {
+			c.Errorf("could not get console encoding, using UTF-8...: %v", err)
+		}
+	} else {
+		encoding, err = system.DetectConsoleEncoding(ctx, interpreter)
+		if err != nil {
+			c.Errorf("could not detect console encoding, using UTF-8...: %v", err)
+		}
 	}
-	c.Infof("Console encoding detected as: input %s, output %s", inputEncoding, outputEncoding)
+	c.Infof("Console encoding: %s", encoding)
 
-	var decoder *encoding.Decoder
-	if outputEncoding != nil {
-		decoder = outputEncoding.NewDecoder()
-	}
+	decoder := encoding.GetOutputDecoder()
 
-	scriptPath, err := system.CreateScriptFile(c.configHolder.GetScriptsDir(), job.Command, interpreter, inputEncoding)
+	scriptPath, err := system.CreateScriptFile(c.configHolder.GetScriptsDir(), job.Command, interpreter, encoding.GetInputEncoder())
 	if err != nil {
 		return nil, err
 	}
