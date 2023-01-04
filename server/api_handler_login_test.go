@@ -104,6 +104,36 @@ func TestAPITokenOps(t *testing.T) {
 			wantErrCode:    "",
 			wantErrTitle:   "missing body with scope.",
 		},
+		{
+			descr:          "delete a token, no prefix",
+			requestMethod:  http.MethodDelete,
+			requestBody:    strings.NewReader(`{"prefix": ""}`),
+			wantStatusCode: http.StatusBadRequest,
+			wantErrCode:    "",
+			wantErrTitle:   "missing or invalid token prefix.",
+		},
+		{
+			descr:          "delete a token, prefix wrong len",
+			requestMethod:  http.MethodDelete,
+			requestBody:    strings.NewReader(`{"prefix": "hjk"}`),
+			wantStatusCode: http.StatusBadRequest,
+			wantErrCode:    "",
+			wantErrTitle:   "missing or invalid token prefix.",
+		},
+		{
+			descr:          "delete a token, no prefix",
+			requestMethod:  http.MethodDelete,
+			requestBody:    strings.NewReader(""),
+			wantStatusCode: http.StatusBadRequest,
+			wantErrCode:    "",
+			wantErrTitle:   "Missing body with json data.",
+		},
+		{
+			descr:          "delete a token ",
+			requestMethod:  http.MethodDelete,
+			requestBody:    strings.NewReader(`{"prefix": "` + MyalphaNumNewPrefix + `"}`),
+			wantStatusCode: http.StatusNoContent,
+		},
 	}
 
 	for _, tc := range testCases {
@@ -224,38 +254,6 @@ func TestPostToken(t *testing.T) {
 	expectedJSON := `{"data":{"prefix":"2l0u3d10", "scope":"read", "token":"cb5b6578-94f5-4a5b-af58-f7867a943b0c"}}`
 	assert.Equal(t, http.StatusOK, w.Code)
 	assert.JSONEq(t, expectedJSON, w.Body.String())
-}
-
-func TestDeleteToken(t *testing.T) {
-	user := &users.User{
-		Username: "test-user",
-	}
-	mockUsersService := &MockUsersService{
-		UserService: users.NewAPIService(users.NewStaticProvider([]*users.User{user}), false, 0, -1),
-	}
-	// noToken := ""
-	al := APIListener{
-		insecureForTests: true,
-		Server: &Server{
-			config: &chconfig.Config{},
-		},
-		userService: mockUsersService,
-	}
-	al.initRouter()
-
-	w := httptest.NewRecorder()
-	req := httptest.NewRequest("DELETE", "/api/v1/me/token", nil)
-	ctx := api.WithUser(req.Context(), user.Username)
-	req = req.WithContext(ctx)
-	al.router.ServeHTTP(w, req)
-
-	assert.Equal(t, http.StatusNoContent, w.Code)
-
-	expectedUser := &users.User{
-		// Token: &noToken,
-	}
-	assert.Equal(t, user.Username, mockUsersService.ChangeUsername)
-	assert.Equal(t, expectedUser, mockUsersService.ChangeUser)
 }
 
 func TestWrapWithAuthMiddleware(t *testing.T) {
