@@ -305,7 +305,7 @@ func (s *Server) Run(ctx context.Context) error {
 	if s.config.Monitoring.Enabled {
 		var cleaningPeriod time.Duration
 		if s.config.Monitoring.DataStorageDays > 0 {
-			s.Infof("Period to keep measurements will be %s day(s)", s.config.Monitoring.DataStorageDays)
+			s.Infof("Period to keep measurements will be %d day(s)", s.config.Monitoring.DataStorageDays)
 			cleaningPeriod = time.Hour * 24 * time.Duration(s.config.Monitoring.DataStorageDays)
 		} else {
 			s.Infof("Period to keep measurements will be %s", s.config.Monitoring.DataStorageDuration)
