@@ -11,15 +11,18 @@ import (
 )
 
 type Config struct {
-	Client              ClientConfig        `json:"client" mapstructure:"client"`
-	Connection          ConnectionConfig    `json:"connection" mapstructure:"connection"`
-	Logging             LogConfig           `json:"logging" mapstructure:"logging"`
-	RemoteCommands      CommandsConfig      `json:"remote_commands" mapstructure:"remote-commands"`
-	RemoteScripts       ScriptsConfig       `json:"remote_scripts" mapstructure:"remote-scripts"`
-	Monitoring          MonitoringConfig    `json:"monitoring" mapstructure:"monitoring"`
-	Tunnels             TunnelsConfig       `json:"-"`
-	InterpreterAliases  map[string]string   `json:"interpreter_aliases" mapstructure:"interpreter-aliases"`
-	FileReceptionConfig FileReceptionConfig `json:"file_reception" mapstructure:"file-reception"`
+	Client                   ClientConfig        `json:"client" mapstructure:"client"`
+	Connection               ConnectionConfig    `json:"connection" mapstructure:"connection"`
+	Logging                  LogConfig           `json:"logging" mapstructure:"logging"`
+	RemoteCommands           CommandsConfig      `json:"remote_commands" mapstructure:"remote-commands"`
+	RemoteScripts            ScriptsConfig       `json:"remote_scripts" mapstructure:"remote-scripts"`
+	Monitoring               MonitoringConfig    `json:"monitoring" mapstructure:"monitoring"`
+	Tunnels                  TunnelsConfig       `json:"-"`
+	InterpreterAliasesConfig map[string]any      `json:"-" mapstructure:"interpreter-aliases"`
+	FileReceptionConfig      FileReceptionConfig `json:"file_reception" mapstructure:"file-reception"`
+
+	InterpreterAliases          map[string]string                   `json:"interpreter_aliases"`
+	InterpreterAliasesEncodings map[string]InterpreterAliasEncoding `json:"interpreter_aliases_encodings"`
 }
 
 type ClientConfig struct {
@@ -105,4 +108,9 @@ type MonitoringConfig struct {
 type FileReceptionConfig struct {
 	Protected []string `json:"protected" mapstructure:"protected"`
 	Enabled   bool     `json:"enabled" mapstructure:"enabled"`
+}
+
+type InterpreterAliasEncoding struct {
+	InputEncoding  string `json:"input_encoding"`
+	OutputEncoding string `json:"output_encoding"`
 }

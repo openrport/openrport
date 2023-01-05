@@ -12,30 +12,36 @@ import (
 )
 
 // DetectConsoleEncoding returns input and output encoding that interpreter is using. Returns nil, if it's UTF-8
-func DetectConsoleEncoding(ctx context.Context, interpreter Interpreter) (encoding.Encoding, encoding.Encoding, error) {
+func DetectConsoleEncoding(ctx context.Context, interpreter Interpreter) (*ShellEncoding, error) {
 	commandInput, commandOutput := detectEncodingCommand(interpreter)
 
 	// use utf-8 if detection is not supported for interpreter
 	if len(commandInput) == 0 {
-		return nil, nil, nil
+		return nil, nil
 	}
 
 	input, err := detectEncoding(ctx, interpreter, commandInput)
 	if err != nil {
-		return nil, nil, err
+		return nil, err
 	}
 
-	// empty output command implies same encoding
+	// empty command for output encoding implies same encoding
 	if len(commandOutput) == 0 {
-		return input, input, nil
+		return &ShellEncoding{
+			InputEncoding:  input,
+			OutputEncoding: input,
+		}, nil
 	}
 
 	output, err := detectEncoding(ctx, interpreter, commandOutput)
 	if err != nil {
-		return nil, nil, err
+		return nil, err
 	}
 
-	return input, output, nil
+	return &ShellEncoding{
+		InputEncoding:  input,
+		OutputEncoding: output,
+	}, nil
 }
 
 func detectEncoding(ctx context.Context, interpreter Interpreter, command []string) (encoding.Encoding, error) {
