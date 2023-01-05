@@ -48,6 +48,9 @@ func (c *ClientConfigHolder) ParseAndValidate(skipScriptsDirValidation bool) err
 	if err := c.parseRemotes(); err != nil {
 		return err
 	}
+	if err := c.parseInterpreterAliases(); err != nil {
+		return err
+	}
 
 	if c.Connection.MaxRetryInterval < time.Second {
 		c.Connection.MaxRetryInterval = 5 * time.Minute
@@ -361,5 +364,58 @@ func PrepareDirs(c *ClientConfigHolder) error {
 		}
 	}
 
+	return nil
+}
+
+func (c *ClientConfigHolder) parseInterpreterAliases() error {
+	c.InterpreterAliases = make(map[string]string, len(c.InterpreterAliasesConfig))
+	c.InterpreterAliasesEncodings = make(map[string]clientconfig.InterpreterAliasEncoding)
+
+	for alias, value := range c.InterpreterAliasesConfig {
+		if str, ok := value.(string); ok {
+			c.InterpreterAliases[alias] = str
+			continue
+		}
+
+		if values, ok := value.([]any); ok && len(values) > 0 {
+			str, ok := values[0].(string)
+			if !ok {
+				return fmt.Errorf("interpreter alias %q shell should be a string, got: %v", alias, values[0])
+			}
+			c.InterpreterAliases[alias] = str
+
+			if len(values) > 1 {
+				enc, ok := values[1].(string)
+				if !ok {
+					return fmt.Errorf("interpreter alias %q encoding should be a string, got: %v", alias, values[1])
+				}
+
+				// set both encodings in case only 1 value is provided, otherwise output encoding is overrided with 2nd value
+				encoding := clientconfig.InterpreterAliasEncoding{
+					InputEncoding:  enc,
+					OutputEncoding: enc,
+				}
+
+				if len(values) > 2 {
+					outputEncoding, ok := values[2].(string)
+					if !ok {
+						return fmt.Errorf("interpreter alias %q output encoding should be a string, got: %v", alias, values[2])
+					}
+					encoding.OutputEncoding = outputEncoding
+				}
+
+				_, err := system.EncodingFromConfig(encoding)
+				if err != nil {
+					return fmt.Errorf("interpreter alias %q: %w", alias, err)
+				}
+
+				c.InterpreterAliasesEncodings[alias] = encoding
+			}
+
+			continue
+		}
+
+		return fmt.Errorf("invalid interpreter alias %q: %v", alias, value)
+	}
 	return nil
 }

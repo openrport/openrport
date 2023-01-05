@@ -8,6 +8,7 @@ import (
 	"golang.org/x/text/encoding/ianaindex"
 
 	chshare "github.com/cloudradar-monitoring/rport/share"
+	"github.com/cloudradar-monitoring/rport/share/clientconfig"
 )
 
 var (
@@ -67,4 +68,62 @@ func detectEncodingCommand(interpreter Interpreter) ([]string, []string) {
 	default:
 		return nil, nil
 	}
+}
+
+type ShellEncoding struct {
+	InputEncoding  encoding.Encoding
+	OutputEncoding encoding.Encoding
+}
+
+func EncodingFromConfig(config clientconfig.InterpreterAliasEncoding) (*ShellEncoding, error) {
+	inputEncoding, err := ianaindex.IANA.Encoding(config.InputEncoding)
+	if err != nil {
+		return nil, fmt.Errorf("invalid input encoding %q: %w", config.InputEncoding, err)
+	}
+	outputEncoding, err := ianaindex.IANA.Encoding(config.OutputEncoding)
+	if err != nil {
+		return nil, fmt.Errorf("invalid output encoding %q: %w", config.OutputEncoding, err)
+	}
+	return &ShellEncoding{
+		InputEncoding:  inputEncoding,
+		OutputEncoding: outputEncoding,
+	}, nil
+}
+
+func (e *ShellEncoding) GetInputEncoder() *encoding.Encoder {
+	if e == nil {
+		return nil
+	}
+	if e.InputEncoding == nil {
+		return nil
+	}
+	return e.InputEncoding.NewEncoder()
+}
+
+func (e *ShellEncoding) GetOutputDecoder() *encoding.Decoder {
+	if e == nil {
+		return nil
+	}
+	if e.OutputEncoding == nil {
+		return nil
+	}
+	return e.OutputEncoding.NewDecoder()
+}
+
+func (e *ShellEncoding) String() string {
+	if e == nil {
+		return "utf-8"
+	}
+	inputEncodingString := "utf-8"
+	if e.InputEncoding != nil {
+		inputEncodingString = fmt.Sprint(e.InputEncoding)
+	}
+	outputEncodingString := "utf-8"
+	if e.OutputEncoding != nil {
+		outputEncodingString = fmt.Sprint(e.OutputEncoding)
+	}
+	if inputEncodingString == outputEncodingString {
+		return inputEncodingString
+	}
+	return fmt.Sprintf("input: %s, output: %s", inputEncodingString, outputEncodingString)
 }
