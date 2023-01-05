@@ -1122,6 +1122,7 @@ func TestHandlePostMultiClientCommandWithTags(t *testing.T) {
 	}
 }
 
+// TODO: 2746 needs review for API Token
 func TestHandlePostMultiClientWSCommandWithTags(t *testing.T) {
 	testUser := "test-user"
 	testToken := "12345678"
@@ -1590,6 +1591,7 @@ func TestHandlePostMultiClientScriptWithTags(t *testing.T) {
 	}
 }
 
+// TODO: 2746 needs review for API Tokens
 func TestHandlePostMultiClientWSScriptWithTags(t *testing.T) {
 	defaultTimeout := 60
 
@@ -1846,6 +1848,7 @@ func makeTestUserWithToken(testUser string, token string) (curUser *users.User) 
 	curUser = &users.User{
 		Username: testUser,
 		Groups:   []string{users.Administrators},
+		// Token:    &token,
 	}
 	return curUser
 }

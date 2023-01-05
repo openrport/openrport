@@ -262,11 +262,12 @@ func TestWrapWithAuthMiddleware(t *testing.T) {
 	user := &users.User{
 		Username: "user1",
 		Password: "$2y$05$ep2DdPDeLDDhwRrED9q/vuVEzRpZtB5WHCFT7YbcmH9r9oNmlsZOm",
+		// TODO 2683: (1) create a read+write token with a known prefix and use it here with new format "prefix_token" THE TOKEN HERE IS THE PASSWORD
 		// Token:    ptr.String("$2y$05$/D7g/d0sDkNSOh.e6Jzc9OWClcpZ1ieE8Dx.WUaWgayd3Ab0rRdxu"),
 	}
 	userWithoutToken := &users.User{
 		Username: "user2",
-		Password: "$2y$05$ep2DdPDeLDDhwRrED9q/vuVEzRpZtB5WHCFT7YbcmH9r9oNmlsZOm",
+		Password: "$2y$05$ep2DdPDeLDDhwRrED9q/vuVEzRpZtB5WHCFT7YbcmH9r9oNmlsZOm", // TODO: same as (1)
 		// Token:    nil,
 	}
 	al := APIListener{
@@ -385,12 +386,14 @@ func TestAPISessionUpdates(t *testing.T) {
 		Username: "user1",
 		Password: "$2y$05$ep2DdPDeLDDhwRrED9q/vuVEzRpZtB5WHCFT7YbcmH9r9oNmlsZOm",
 		// Token:    ptr.String("$2y$05$/D7g/d0sDkNSOh.e6Jzc9OWClcpZ1ieE8Dx.WUaWgayd3Ab0rRdxu"),
+		// TODO 2683: (1) create a read+write token with a known prefix and use it here with new format "prefix_token" THE TOKEN HERE IS THE PASSWORD
 	}
 
 	userWithoutToken := &users.User{
 		Username: "user2",
 		Password: "$2y$05$ep2DdPDeLDDhwRrED9q/vuVEzRpZtB5WHCFT7YbcmH9r9oNmlsZOm",
 		// Token:    nil,
+		// TODO: same as (1)
 	}
 
 	al := APIListener{
@@ -526,7 +529,7 @@ func TestHandleGetLogin(t *testing.T) {
 	user := &users.User{
 		Username: "user1",
 		Password: "$2y$05$ep2DdPDeLDDhwRrED9q/vuVEzRpZtB5WHCFT7YbcmH9r9oNmlsZOm",
-		// Token:    ptr.String("$2y$05$/D7g/d0sDkNSOh.e6Jzc9OWClcpZ1ieE8Dx.WUaWgayd3Ab0rRdxu"),
+		Token:    ptr.String("$2y$05$/D7g/d0sDkNSOh.e6Jzc9OWClcpZ1ieE8Dx.WUaWgayd3Ab0rRdxu"), // TODO: 2683 this token needs to be provided as a new read+write scope APItoken
 	}
 	mockUsersService := &MockUsersService{
 		UserService: users.NewAPIService(users.NewStaticProvider([]*users.User{user}), false, 0, -1),
@@ -542,6 +545,7 @@ func TestHandleGetLogin(t *testing.T) {
 		bannedUsers: security.NewBanList(0),
 		userService: mockUsersService,
 		apiSessions: newEmptyAPISessionCache(t),
+		// TODO: 2683 add the token manager and use it in the test
 	}
 	al.initRouter()
 
