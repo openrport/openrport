@@ -400,20 +400,24 @@ func (cl *ClientListener) handleSSHRequests(clientLog *logger.Logger, clientID s
 			}
 		case comm.RequestTypeSaveMeasurement:
 			// if server monitoring is disabled then do not save measurements even if received
-			if cl.Server.config.Monitoring.Enabled {
-				measurement := &models.Measurement{}
-				err := json.Unmarshal(r.Payload, measurement)
-				if err != nil {
-					clientLog.Errorf("Failed to unmarshal save_measurement: %s", err)
-					continue
-				}
-				measurement.ClientID = clientID
-				err = cl.monitoringService.SaveMeasurement(context.Background(), measurement)
-				if err != nil {
-					clientLog.Errorf("Failed to save measurement for client %s: %s", clientID, err)
-					continue
-				}
+			if !cl.Server.config.Monitoring.Enabled {
+				clientLog.Errorf("Received measurement when monitoring disabled. Measurement not saved.")
+				continue
 			}
+
+			measurement := &models.Measurement{}
+			err := json.Unmarshal(r.Payload, measurement)
+			if err != nil {
+				clientLog.Errorf("Failed to unmarshal save_measurement: %s", err)
+				continue
+			}
+			measurement.ClientID = clientID
+			err = cl.monitoringService.SaveMeasurement(context.Background(), measurement)
+			if err != nil {
+				clientLog.Errorf("Failed to save measurement for client %s: %s", clientID, err)
+				continue
+			}
+
 		default:
 			clientLog.Debugf("Unknown request: %s", r.Type)
 		}
