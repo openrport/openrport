@@ -39,7 +39,7 @@ const (
 	DefaultServerAddress                    = "0.0.0.0:8080"
 	DefaultLogLevel                         = "info"
 	DefaultRunRemoteCmdTimeoutSec           = 60
-	DefaultMonitoringDataStorageDuration    = 7 * time.Hour * 24
+	DefaultMonitoringDataStorageDuration    = "7d"
 	DefaultPairingURL                       = "https://pairing.rport.io"
 )
 
