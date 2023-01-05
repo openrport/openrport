@@ -533,6 +533,7 @@ func (mc *MonitoringConfig) parseAndValidateMonitoring(mLog *logger.MemLogger) (
 		mLog.Infof("monitoring setting 'data_storage_days' is deprecated and will be removed soon. Use 'data_storage_duration' only instead.")
 	}
 
+	// we need to do this conversion as time.Duration doesn't support days
 	mc.duration, err = convertHourOrDayStringToDuration("data_storage_duration", mc.DataStorageDuration)
 	if err != nil {
 		return err
