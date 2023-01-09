@@ -2,13 +2,11 @@ package chserver
 
 import (
 	"context"
-	"encoding/base64"
 	"encoding/json"
 	"errors"
 	"fmt"
 	"net/http"
 	"net/http/httptest"
-	"net/url"
 	"strconv"
 	"strings"
 	"testing"
@@ -1356,47 +1354,12 @@ func makeTestUser(testUser string) (curUser *users.User) {
 	return curUser
 }
 
-func makeTestUserWithToken(testUser string, token string) (curUser *users.User) {
-	curUser = &users.User{
-		Username: testUser,
-		Groups:   []string{users.Administrators},
-		// Token:    &token,
-	}
-	return curUser
-}
-
-func makeAuthHeader(testUser string, testToken string) (reqHeader http.Header) {
-	auth := testUser + ":" + testToken
-	authContent := base64.StdEncoding.EncodeToString([]byte(auth))
-	reqHeader = http.Header{}
-	reqHeader.Add("Authorization", "Basic "+authContent)
-	return reqHeader
-}
-
 func makeClientGroup(groupID string, params *cgroups.ClientParams) (gp *cgroups.ClientGroup) {
 	gp = &cgroups.ClientGroup{
 		ID:     groupID,
 		Params: params,
 	}
 	return gp
-}
-
-func httpToWS(t *testing.T, u string) string {
-	t.Helper()
-
-	wsURL, err := url.Parse(u)
-	if err != nil {
-		t.Fatal(err)
-	}
-
-	switch wsURL.Scheme {
-	case "http":
-		wsURL.Scheme = "ws"
-	case "https":
-		wsURL.Scheme = "wss"
-	}
-
-	return wsURL.String()
 }
 
 func makeConnMock(t *testing.T, pid int, startedAt time.Time) (connMock *test.ConnMock) {
