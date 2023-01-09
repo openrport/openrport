@@ -3,7 +3,7 @@ post:
     - Profile & Info
   summary: Generate a new API token for user and return it
   operationId: MetTokenPost
-  requestBody:
+  requestBody: 
     content:
       'application/json:':
         schema:
@@ -15,7 +15,7 @@ post:
                 - read+write
                 - clients-auth
               description: what this token is authorized for
-              required: true
+    required: true
   responses:
     '200':
       description: API token
@@ -49,11 +49,11 @@ put:
             prefix:
               type: string
               description: token id prefix
-              required: true
             expires_at:
               type: string
               description: date and time when this token will expire
               format: date-time
+    required: true
   responses:
     '200':
       description: API token
@@ -142,8 +142,7 @@ get:
                   - read
                   - read+write
                   - clients-auth
-                description: what this token is authorized for
-                
+                description: what this token is authorized for                
     '401':
       description: Unauthorized
       content:
