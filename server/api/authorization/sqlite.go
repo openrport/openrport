@@ -6,19 +6,15 @@ import (
 	"fmt"
 
 	"github.com/jmoiron/sqlx"
-
-	"github.com/cloudradar-monitoring/rport/share/query"
 )
 
 type SqliteProvider struct {
-	db        *sqlx.DB
-	converter *query.SQLConverter
+	db *sqlx.DB
 }
 
 func NewSqliteProvider(db *sqlx.DB) *SqliteProvider {
 	return &SqliteProvider{
-		db:        db,
-		converter: query.NewSQLConverter(db.DriverName()),
+		db: db,
 	}
 }
 
