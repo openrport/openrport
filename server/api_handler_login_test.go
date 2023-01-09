@@ -145,7 +145,7 @@ func TestAPITokenOps(t *testing.T) {
 				Server: &Server{
 					config: &chconfig.Config{
 						Server: chconfig.ServerConfig{
-							MaxRequestBytes: 1000,
+							MaxRequestBytes: 1024 * 1024,
 						},
 					},
 				},
@@ -198,13 +198,15 @@ func (s *MockUsersService) Change(user *users.User, username string) error {
 
 func TestPostToken(t *testing.T) {
 	user := &users.User{
-		Username: "test-user",
+		Username: "user1",
+		Password: "$2y$05$ep2DdPDeLDDhwRrED9q/vuVEzRpZtB5WHCFT7YbcmH9r9oNmlsZOm",
 	}
-	mockUsersService := &MockUsersService{
-		UserService: users.NewAPIService(users.NewStaticProvider([]*users.User{user}), false, 0, -1),
+	userWithoutToken := &users.User{
+		Username: "user2",
+		Password: "$2y$05$ep2DdPDeLDDhwRrED9q/vuVEzRpZtB5WHCFT7YbcmH9r9oNmlsZOm",
 	}
 
-	// database
+	// database for tokenManager, creates a token "read+write"
 	api_tokenDb, err := sqlite.New(":memory:", api_token.AssetNames(), api_token.Asset, DataSourceOptions)
 	require.NoError(t, err)
 	defer api_tokenDb.Close()
@@ -230,54 +232,91 @@ func TestPostToken(t *testing.T) {
 	}()
 
 	al := APIListener{
-		Logger:           testLog,
-		insecureForTests: true,
+		Logger:      testLog,
+		bannedUsers: security.NewBanList(0),
+		apiSessions: newEmptyAPISessionCache(t),
 		Server: &Server{
 			config: &chconfig.Config{
 				Server: chconfig.ServerConfig{
-					MaxRequestBytes: 1000,
+					MaxRequestBytes: 1024 * 1024,
 				},
 			},
 		},
 		tokenManager: mockTokenManager,
-		userService:  mockUsersService,
+		userService:  users.NewAPIService(users.NewStaticProvider([]*users.User{user, userWithoutToken}), false, 0, -1),
 	}
 
 	al.initRouter()
-	req := httptest.NewRequest("POST", "/api/v1/me/token", strings.NewReader(`{"scope": "read"}`))
-
+	req := httptest.NewRequest("POST", "/api/v1/me/token", strings.NewReader(`{"scope": "read+write"}`))
 	w := httptest.NewRecorder()
-	ctx := api.WithUser(req.Context(), user.Username)
-	req = req.WithContext(ctx)
+	ctxUser1 := api.WithUser(req.Context(), user.Username)
+	req = req.WithContext(ctxUser1)
+	req.SetBasicAuth(user.Username, "pwd")
 	al.router.ServeHTTP(w, req)
-
-	expectedJSON := `{"data":{"prefix":"2l0u3d10", "scope":"read", "token":"cb5b6578-94f5-4a5b-af58-f7867a943b0c"}}`
+	expectedJSON := `{"data":{"prefix":"2l0u3d10", "scope":"read+write", "token":"cb5b6578-94f5-4a5b-af58-f7867a943b0c"}}`
 	assert.Equal(t, http.StatusOK, w.Code)
 	assert.JSONEq(t, expectedJSON, w.Body.String())
 }
-
 func TestWrapWithAuthMiddleware(t *testing.T) {
 	ctx := context.Background()
 
 	user := &users.User{
 		Username: "user1",
 		Password: "$2y$05$ep2DdPDeLDDhwRrED9q/vuVEzRpZtB5WHCFT7YbcmH9r9oNmlsZOm",
-		// TODO 2683: (1) create a read+write token with a known prefix and use it here with new format "prefix_token" THE TOKEN HERE IS THE PASSWORD
-		// Token:    ptr.String("$2y$05$/D7g/d0sDkNSOh.e6Jzc9OWClcpZ1ieE8Dx.WUaWgayd3Ab0rRdxu"),
 	}
 	userWithoutToken := &users.User{
 		Username: "user2",
-		Password: "$2y$05$ep2DdPDeLDDhwRrED9q/vuVEzRpZtB5WHCFT7YbcmH9r9oNmlsZOm", // TODO: same as (1)
-		// Token:    nil,
+		Password: "$2y$05$ep2DdPDeLDDhwRrED9q/vuVEzRpZtB5WHCFT7YbcmH9r9oNmlsZOm",
 	}
+
+	// database for tokenManager, creates a token "read+write"
+	api_tokenDb, err := sqlite.New(":memory:", api_token.AssetNames(), api_token.Asset, DataSourceOptions)
+	require.NoError(t, err)
+	defer api_tokenDb.Close()
+	tokenProvider := authorization.NewSqliteProvider(api_tokenDb)
+	mockTokenManager := authorization.NewManager(tokenProvider)
+	uuid := "cb5b6578-94f5-4a5b-af58-f7867a943b0c"
+	oldUUID := random.UUID4
+	random.UUID4 = func() (string, error) {
+		return uuid, nil
+	}
+	defer func() {
+		random.UUID4 = oldUUID
+	}()
+	MyalphaNumNewPrefix := "2l0u3d10"
+	oldAlphaNum := random.ALPHANUM8
+	random.ALPHANUM8 = func() string {
+		return MyalphaNumNewPrefix
+	}
+	defer func() {
+		random.ALPHANUM8 = oldAlphaNum
+	}()
+
 	al := APIListener{
 		apiSessions: newEmptyAPISessionCache(t),
 		bannedUsers: security.NewBanList(0),
-		userService: users.NewAPIService(users.NewStaticProvider([]*users.User{user, userWithoutToken}), false, 0, -1),
 		Server: &Server{
-			config: &chconfig.Config{},
+			config: &chconfig.Config{
+				Server: chconfig.ServerConfig{
+					MaxRequestBytes: 1024 * 1024,
+				},
+			},
 		},
+		insecureForTests: true,
+		tokenManager:     mockTokenManager,
+		userService:      users.NewAPIService(users.NewStaticProvider([]*users.User{user, userWithoutToken}), false, 0, -1),
 	}
+	al.initRouter()
+	req := httptest.NewRequest("POST", "/api/v1/me/token", strings.NewReader(`{"scope": "read+write"}`))
+	w := httptest.NewRecorder()
+	ctxUser1 := api.WithUser(req.Context(), user.Username)
+	req = req.WithContext(ctxUser1)
+	al.router.ServeHTTP(w, req)
+	expectedJSON := `{"data":{"prefix":"2l0u3d10", "scope":"read+write", "token":"cb5b6578-94f5-4a5b-af58-f7867a943b0c"}}`
+	assert.Equal(t, http.StatusOK, w.Code)
+	assert.JSONEq(t, expectedJSON, w.Body.String())
+	t.Logf("\n******* \n/api/v1/me/token received %s\n\n\n", w.Body.String())
+
 	jwt, err := bearer.CreateAuthToken(ctx, al.apiSessions, al.config.API.JWTSecret, time.Hour, user.Username, []bearer.Scope{}, "", "")
 	require.NoError(t, err)
 
@@ -321,7 +360,7 @@ func TestWrapWithAuthMiddleware(t *testing.T) {
 		{
 			Name:           "basic auth with token",
 			Username:       user.Username,
-			Password:       "token",
+			Password:       "2l0u3d10_cb5b6578-94f5-4a5b-af58-f7867a943b0c",
 			ExpectedStatus: http.StatusOK,
 		},
 		{
@@ -529,11 +568,34 @@ func TestHandleGetLogin(t *testing.T) {
 	user := &users.User{
 		Username: "user1",
 		Password: "$2y$05$ep2DdPDeLDDhwRrED9q/vuVEzRpZtB5WHCFT7YbcmH9r9oNmlsZOm",
-		// Token:    ptr.String("$2y$05$/D7g/d0sDkNSOh.e6Jzc9OWClcpZ1ieE8Dx.WUaWgayd3Ab0rRdxu"), // TODO: 2683 this token needs to be provided as a new read+write scope APItoken
 	}
 	mockUsersService := &MockUsersService{
 		UserService: users.NewAPIService(users.NewStaticProvider([]*users.User{user}), false, 0, -1),
 	}
+
+	// database for tokenManager, creates a token "read+write"
+	api_tokenDb, err := sqlite.New(":memory:", api_token.AssetNames(), api_token.Asset, DataSourceOptions)
+	require.NoError(t, err)
+	defer api_tokenDb.Close()
+	tokenProvider := authorization.NewSqliteProvider(api_tokenDb)
+	mockTokenManager := authorization.NewManager(tokenProvider)
+	uuid := "cb5b6578-94f5-4a5b-af58-f7867a943b0c"
+	oldUUID := random.UUID4
+	random.UUID4 = func() (string, error) {
+		return uuid, nil
+	}
+	defer func() {
+		random.UUID4 = oldUUID
+	}()
+	MyalphaNumNewPrefix := "2l0u3d10"
+	oldAlphaNum := random.ALPHANUM8
+	random.ALPHANUM8 = func() string {
+		return MyalphaNumNewPrefix
+	}
+	defer func() {
+		random.ALPHANUM8 = oldAlphaNum
+	}()
+
 	al := APIListener{
 		Server: &Server{
 			config: &chconfig.Config{
@@ -542,12 +604,20 @@ func TestHandleGetLogin(t *testing.T) {
 				},
 			},
 		},
-		bannedUsers: security.NewBanList(0),
-		userService: mockUsersService,
-		apiSessions: newEmptyAPISessionCache(t),
-		// TODO: 2683 add the token manager and use it in the test
+		bannedUsers:  security.NewBanList(0),
+		userService:  mockUsersService,
+		apiSessions:  newEmptyAPISessionCache(t),
+		tokenManager: mockTokenManager,
 	}
 	al.initRouter()
+	req := httptest.NewRequest("POST", "/api/v1/me/token", strings.NewReader(`{"scope": "read"}`))
+	w := httptest.NewRecorder()
+	ctx := api.WithUser(req.Context(), user.Username)
+	req = req.WithContext(ctx)
+	al.router.ServeHTTP(w, req)
+	expectedJSON := `{"data":{"prefix":"2l0u3d10", "scope":"read", "token":"cb5b6578-94f5-4a5b-af58-f7867a943b0c"}}`
+	assert.Equal(t, http.StatusOK, w.Code)
+	assert.JSONEq(t, expectedJSON, w.Body.String())
 
 	testCases := []struct {
 		Name              string

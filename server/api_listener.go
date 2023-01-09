@@ -354,9 +354,9 @@ func (al *APIListener) Close() error {
 
 var ErrTooManyRequests = errors.New("too many requests, please try later")
 var ErrThatPasswordHasExpired = errors.New("password has expired, please change your password")
-var ErrCantLoadThatToken = errors.New("There was a problem accessing that token with the provided prefix")
-var ErrPrefixNotFound = errors.New("There is no token with that prefix")
-var ErrInvalidScopeOfThatToken = errors.New("The scope of the provided token is not authorized for this operation")
+var ErrCantLoadThatToken = errors.New("there was a problem accessing that token with the provided prefix")
+var ErrPrefixNotFound = errors.New("there is no token with that prefix")
+var ErrInvalidScopeOfThatToken = errors.New("the scope of the provided token is not authorized for this operation")
 
 // lookupUser is used to get the user on every request in auth middleware
 func (al *APIListener) lookupUser(r *http.Request, isBearerOnly bool) (authorized bool, username string, err error) {
@@ -415,10 +415,10 @@ func (al *APIListener) handleBasicAuth(ctx context.Context, httpverb, urlpath, u
 
 	// only check token if we have one saved == I can't know if I have the token for this operation until I check the prefix inside the db
 	//   only check token if the prefix gives me a match with the db
-	// TODO: this type of tokens "User tokens", meant to be used by scripts - used instead of the password at each request - should be renamed "passwords" or long lived passwords or encrypted long lived passwords
+	// TODO: this type of tokens "User tokens", meant to be used by scripts - used in place of the password at each request - should be renamed "passwords" or "long lived passwords" or "encrypted long lived passwords"
 	prefix, password, err := authorization.Extract(password)
 	if err != nil {
-		return false, username, err
+		return false, username, nil
 	}
 	userToken, err := al.tokenManager.Get(ctx, username, prefix)
 	if err != nil {
