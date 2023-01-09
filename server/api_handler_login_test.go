@@ -36,10 +36,10 @@ func TestAPITokenOps(t *testing.T) {
 	}
 
 	// database
-	api_tokenDb, err := sqlite.New(":memory:", api_token.AssetNames(), api_token.Asset, DataSourceOptions)
+	apiTokenDb, err := sqlite.New(":memory:", api_token.AssetNames(), api_token.Asset, DataSourceOptions)
 	require.NoError(err)
-	defer api_tokenDb.Close()
-	tokenProvider := authorization.NewSqliteProvider(api_tokenDb)
+	defer apiTokenDb.Close()
+	tokenProvider := authorization.NewSqliteProvider(apiTokenDb)
 	mockTokenManager := authorization.NewManager(tokenProvider)
 
 	uuid := "cb5b6578-94f5-4a5b-af58-f7867a943b0c"
@@ -68,7 +68,7 @@ func TestAPITokenOps(t *testing.T) {
 		requestBody     io.Reader
 
 		wantStatusCode int
-		wantJson       string
+		wantJSON       string
 		wantErrCode    string
 		wantErrTitle   string
 		wantErrDetail  string
@@ -78,7 +78,7 @@ func TestAPITokenOps(t *testing.T) {
 			requestMethod:  http.MethodPost,
 			requestBody:    strings.NewReader(`{"scope": "read"}`),
 			wantStatusCode: http.StatusOK,
-			wantJson:       `{"data":{"prefix":"2l0u3d10", "scope":"read", "token":"cb5b6578-94f5-4a5b-af58-f7867a943b0c"}}`,
+			wantJSON:       `{"data":{"prefix":"2l0u3d10", "scope":"read", "token":"cb5b6578-94f5-4a5b-af58-f7867a943b0c"}}`,
 		},
 		{
 			descr:          "create token empty request body",
@@ -167,10 +167,10 @@ func TestAPITokenOps(t *testing.T) {
 			require.Equal(tc.wantStatusCode, w.Code)
 			if tc.wantErrTitle == "" {
 				// success case
-				if tc.wantJson == "" {
+				if tc.wantJSON == "" {
 					assert.Empty(w.Body.String())
 				} else {
-					assert.JSONEq(tc.wantJson, w.Body.String())
+					assert.JSONEq(tc.wantJSON, w.Body.String())
 				}
 			} else {
 				// failure case
@@ -207,10 +207,10 @@ func TestPostToken(t *testing.T) {
 	}
 
 	// database for tokenManager, creates a token "read+write"
-	api_tokenDb, err := sqlite.New(":memory:", api_token.AssetNames(), api_token.Asset, DataSourceOptions)
+	apiTokenDb, err := sqlite.New(":memory:", api_token.AssetNames(), api_token.Asset, DataSourceOptions)
 	require.NoError(t, err)
-	defer api_tokenDb.Close()
-	tokenProvider := authorization.NewSqliteProvider(api_tokenDb)
+	defer apiTokenDb.Close()
+	tokenProvider := authorization.NewSqliteProvider(apiTokenDb)
 	mockTokenManager := authorization.NewManager(tokenProvider)
 
 	uuid := "cb5b6578-94f5-4a5b-af58-f7867a943b0c"
@@ -270,10 +270,10 @@ func TestWrapWithAuthMiddleware(t *testing.T) {
 	}
 
 	// database for tokenManager, creates a token "read+write"
-	api_tokenDb, err := sqlite.New(":memory:", api_token.AssetNames(), api_token.Asset, DataSourceOptions)
+	apiTokenDb, err := sqlite.New(":memory:", api_token.AssetNames(), api_token.Asset, DataSourceOptions)
 	require.NoError(t, err)
-	defer api_tokenDb.Close()
-	tokenProvider := authorization.NewSqliteProvider(api_tokenDb)
+	defer apiTokenDb.Close()
+	tokenProvider := authorization.NewSqliteProvider(apiTokenDb)
 	mockTokenManager := authorization.NewManager(tokenProvider)
 	uuid := "cb5b6578-94f5-4a5b-af58-f7867a943b0c"
 	oldUUID := random.UUID4
@@ -433,10 +433,10 @@ func TestAPISessionUpdates(t *testing.T) {
 	}
 
 	// database for tokenManager, creates a token "read+write"
-	api_tokenDb, err := sqlite.New(":memory:", api_token.AssetNames(), api_token.Asset, DataSourceOptions)
+	apiTokenDb, err := sqlite.New(":memory:", api_token.AssetNames(), api_token.Asset, DataSourceOptions)
 	require.NoError(t, err)
-	defer api_tokenDb.Close()
-	tokenProvider := authorization.NewSqliteProvider(api_tokenDb)
+	defer apiTokenDb.Close()
+	tokenProvider := authorization.NewSqliteProvider(apiTokenDb)
 	mockTokenManager := authorization.NewManager(tokenProvider)
 
 	uuid := "cb5b6578-94f5-4a5b-af58-f7867a943b0c"
@@ -613,10 +613,10 @@ func TestHandleGetLogin(t *testing.T) {
 	}
 
 	// database for tokenManager, creates a token "read+write"
-	api_tokenDb, err := sqlite.New(":memory:", api_token.AssetNames(), api_token.Asset, DataSourceOptions)
+	apiTokenDb, err := sqlite.New(":memory:", api_token.AssetNames(), api_token.Asset, DataSourceOptions)
 	require.NoError(t, err)
-	defer api_tokenDb.Close()
-	tokenProvider := authorization.NewSqliteProvider(api_tokenDb)
+	defer apiTokenDb.Close()
+	tokenProvider := authorization.NewSqliteProvider(apiTokenDb)
 	mockTokenManager := authorization.NewManager(tokenProvider)
 	uuid := "cb5b6578-94f5-4a5b-af58-f7867a943b0c"
 	oldUUID := random.UUID4

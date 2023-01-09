@@ -173,7 +173,7 @@ func NewAPIListener(
 		return nil, fmt.Errorf("failed init library DB instance: %w", err)
 	}
 
-	api_tokenDb, err := sqlite.New(
+	apiTokenDb, err := sqlite.New(
 		path.Join(config.Server.DataDir, "api_token.db"),
 		api_token.AssetNames(),
 		api_token.Asset,
@@ -190,7 +190,7 @@ func NewAPIListener(
 	commandProvider := command.NewSqliteProvider(libraryDb)
 	commandManager := command.NewManager(commandProvider)
 
-	tokenProvider := authorization.NewSqliteProvider(api_tokenDb)
+	tokenProvider := authorization.NewSqliteProvider(apiTokenDb)
 	tokenManager := authorization.NewManager(tokenProvider)
 
 	userService := users.NewAPIService(usersProvider, config.API.IsTwoFAOn(), config.API.PasswordMinLength, config.API.PasswordZxcvbnMinscore)

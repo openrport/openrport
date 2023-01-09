@@ -5,8 +5,9 @@ import (
 	"database/sql"
 	"fmt"
 
-	"github.com/cloudradar-monitoring/rport/share/query"
 	"github.com/jmoiron/sqlx"
+
+	"github.com/cloudradar-monitoring/rport/share/query"
 )
 
 type SqliteProvider struct {

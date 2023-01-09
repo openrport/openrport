@@ -6,6 +6,8 @@ import (
 	"strings"
 	"time"
 
+	"golang.org/x/crypto/bcrypt"
+
 	"github.com/cloudradar-monitoring/rport/server/api"
 	"github.com/cloudradar-monitoring/rport/server/api/authorization"
 	users "github.com/cloudradar-monitoring/rport/server/api/users"
@@ -13,7 +15,6 @@ import (
 	chshare "github.com/cloudradar-monitoring/rport/share"
 	"github.com/cloudradar-monitoring/rport/share/logger"
 	"github.com/cloudradar-monitoring/rport/share/random"
-	"golang.org/x/crypto/bcrypt"
 )
 
 // handleGetMe returns the currently logged-in user and the groups the user belongs to.
