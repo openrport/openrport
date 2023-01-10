@@ -2,6 +2,7 @@ package chserver
 
 import (
 	"errors"
+	"fmt"
 	"net/http"
 	"strings"
 	"time"
@@ -117,7 +118,7 @@ func (al *APIListener) handleManageAPIToken(w http.ResponseWriter, req *http.Req
 		}
 		al.auditLog.Entry(auditlog.ApplicationAuthUserMeToken, auditlog.ActionDelete).
 			WithHTTPRequest(req).
-			WithID(user.Username).
+			WithID(fmt.Sprintf("[%s,%s]", user.Username, r.Prefix)).
 			Save()
 
 		al.Debugf("APIToken %s is deleted for user [%s].", r.Prefix, user.Username)
@@ -172,7 +173,7 @@ func (al *APIListener) handleManageAPIToken(w http.ResponseWriter, req *http.Req
 
 		al.auditLog.Entry(auditlog.ApplicationAuthUserMeToken, auditlog.ActionCreate).
 			WithHTTPRequest(req).
-			WithID(user.Username).
+			WithID(fmt.Sprintf("[%s,%s]", user.Username, newPrefix)).
 			Save()
 
 		al.Debugf("APIToken [%s] is created for user [%s].", newPrefix, user.Username)
@@ -184,7 +185,6 @@ func (al *APIListener) handleManageAPIToken(w http.ResponseWriter, req *http.Req
 				Token:  newTokenClear,
 			}))
 	}
-
 	if action == "update" {
 		var r struct {
 			Prefix    string     `json:"prefix"`
@@ -209,8 +209,7 @@ func (al *APIListener) handleManageAPIToken(w http.ResponseWriter, req *http.Req
 
 		al.auditLog.Entry(auditlog.ApplicationAuthUserMeToken, auditlog.ActionUpdate).
 			WithHTTPRequest(req).
-			WithID(user.Username).
-			WithID(r.Prefix).
+			WithID(fmt.Sprintf("[%s,%s]", user.Username, r.Prefix)).
 			Save()
 
 		al.Debugf("APIToken [%s] is updated for user [%s].", r.Prefix, user.Username)
