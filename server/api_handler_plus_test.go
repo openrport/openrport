@@ -14,6 +14,7 @@ import (
 	"github.com/cloudradar-monitoring/rport/plus/capabilities/oauth"
 	"github.com/cloudradar-monitoring/rport/plus/capabilities/oauthmock"
 	"github.com/cloudradar-monitoring/rport/server/api"
+	"github.com/cloudradar-monitoring/rport/server/api/authorization"
 	"github.com/cloudradar-monitoring/rport/server/api/users"
 	"github.com/cloudradar-monitoring/rport/server/chconfig"
 	"github.com/cloudradar-monitoring/rport/server/routes"
@@ -423,11 +424,12 @@ func setupTestAPIListenerForOAuth(
 	user := &users.User{
 		Username: "user1",
 		Password: "$2y$05$ep2DdPDeLDDhwRrED9q/vuVEzRpZtB5WHCFT7YbcmH9r9oNmlsZOm",
-		// Token:    ptr.String("$2y$05$/D7g/d0sDkNSOh.e6Jzc9OWClcpZ1ieE8Dx.WUaWgayd3Ab0rRdxu"),
 	}
 	mockUsersService = &MockUsersService{
 		UserService: users.NewAPIService(users.NewStaticProvider([]*users.User{user}), false, 0, -1),
 	}
+	mockTokenManager := authorization.NewManager(
+		CommonAPITokenTestDb("user1", "2l0u3d10", "read+write", "cb5b6578-94f5-4a5b-af58-f7867a943b0c")) // APIToken database
 
 	plusConfig.OAuthConfig = oauthConfig
 
@@ -441,9 +443,10 @@ func setupTestAPIListenerForOAuth(
 			},
 			plusManager: plusManager,
 		},
-		bannedUsers: security.NewBanList(0),
-		userService: mockUsersService,
-		apiSessions: newEmptyAPISessionCache(t),
+		tokenManager: mockTokenManager,
+		bannedUsers:  security.NewBanList(0),
+		userService:  mockUsersService,
+		apiSessions:  newEmptyAPISessionCache(t),
 	}
 	al.initRouter()
 
