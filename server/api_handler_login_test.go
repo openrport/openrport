@@ -20,6 +20,7 @@ import (
 	"github.com/cloudradar-monitoring/rport/server/api/users"
 	"github.com/cloudradar-monitoring/rport/server/bearer"
 	"github.com/cloudradar-monitoring/rport/server/chconfig"
+	"github.com/cloudradar-monitoring/rport/share/ptr"
 	"github.com/cloudradar-monitoring/rport/share/random"
 	"github.com/cloudradar-monitoring/rport/share/security"
 )
@@ -183,6 +184,23 @@ func TestAPITokenOps(t *testing.T) {
 	}
 }
 
+func CommonAPITokenTestDb(username, prefix, scope, token string) *authorization.SqliteProvider {
+	db, _ := sqlite.New(":memory:", api_token.AssetNames(), api_token.Asset, DataSourceOptions)
+	dbProv := authorization.NewSqliteProvider(db)
+
+	ctx := context.Background()
+	itemToSave := authorization.APIToken{
+		Username:  username,
+		Prefix:    prefix,
+		CreatedAt: ptr.Time(time.Date(2001, 1, 1, 1, 0, 0, 0, time.UTC)),
+		ExpiresAt: ptr.Time(time.Date(2051, 1, 1, 2, 0, 0, 0, time.UTC)),
+		Scope:     scope,
+		Token:     token,
+	}
+	_ = dbProv.Save(ctx, &itemToSave)
+	return dbProv
+}
+
 type MockUsersService struct {
 	UserService
 
@@ -268,29 +286,8 @@ func TestWrapWithAuthMiddleware(t *testing.T) {
 		Username: "user2",
 		Password: "$2y$05$ep2DdPDeLDDhwRrED9q/vuVEzRpZtB5WHCFT7YbcmH9r9oNmlsZOm",
 	}
-
-	// database for tokenManager, creates a token "read+write"
-	apiTokenDb, err := sqlite.New(":memory:", api_token.AssetNames(), api_token.Asset, DataSourceOptions)
-	require.NoError(t, err)
-	defer apiTokenDb.Close()
-	tokenProvider := authorization.NewSqliteProvider(apiTokenDb)
-	mockTokenManager := authorization.NewManager(tokenProvider)
-	uuid := "cb5b6578-94f5-4a5b-af58-f7867a943b0c"
-	oldUUID := random.UUID4
-	random.UUID4 = func() (string, error) {
-		return uuid, nil
-	}
-	defer func() {
-		random.UUID4 = oldUUID
-	}()
-	MyalphaNumNewPrefix := "2l0u3d10"
-	oldAlphaNum := random.ALPHANUM8
-	random.ALPHANUM8 = func() string {
-		return MyalphaNumNewPrefix
-	}
-	defer func() {
-		random.ALPHANUM8 = oldAlphaNum
-	}()
+	mockTokenManager := authorization.NewManager(
+		CommonAPITokenTestDb("user1", "2l0u3d10", "read+write", "cb5b6578-94f5-4a5b-af58-f7867a943b0c")) // APIToken database
 
 	al := APIListener{
 		Logger:      testLog,
@@ -308,17 +305,6 @@ func TestWrapWithAuthMiddleware(t *testing.T) {
 	}
 
 	al.initRouter()
-	req := httptest.NewRequest("POST", "/api/v1/me/token", strings.NewReader(`{"scope": "read+write"}`))
-	w := httptest.NewRecorder()
-	ctxUser1 := api.WithUser(req.Context(), user.Username)
-	req = req.WithContext(ctxUser1)
-	req.SetBasicAuth(user.Username, "pwd")
-	al.router.ServeHTTP(w, req)
-	expectedJSON := `{"data":{"prefix":"2l0u3d10", "scope":"read+write", "token":"cb5b6578-94f5-4a5b-af58-f7867a943b0c"}}`
-	assert.Equal(t, http.StatusOK, w.Code)
-	assert.JSONEq(t, expectedJSON, w.Body.String())
-	t.Logf("\n******* \n/api/v1/me/token received %s\n\n\n", w.Body.String())
-
 	jwt, err := bearer.CreateAuthToken(ctx, al.apiSessions, al.config.API.JWTSecret, time.Hour, user.Username, []bearer.Scope{}, "", "")
 	require.NoError(t, err)
 
@@ -431,31 +417,8 @@ func TestAPISessionUpdates(t *testing.T) {
 		Username: "user2",
 		Password: "$2y$05$ep2DdPDeLDDhwRrED9q/vuVEzRpZtB5WHCFT7YbcmH9r9oNmlsZOm",
 	}
-
-	// database for tokenManager, creates a token "read+write"
-	apiTokenDb, err := sqlite.New(":memory:", api_token.AssetNames(), api_token.Asset, DataSourceOptions)
-	require.NoError(t, err)
-	defer apiTokenDb.Close()
-	tokenProvider := authorization.NewSqliteProvider(apiTokenDb)
-	mockTokenManager := authorization.NewManager(tokenProvider)
-
-	uuid := "cb5b6578-94f5-4a5b-af58-f7867a943b0c"
-	oldUUID := random.UUID4
-	random.UUID4 = func() (string, error) {
-		return uuid, nil
-	}
-	defer func() {
-		random.UUID4 = oldUUID
-	}()
-
-	MyalphaNumNewPrefix := "2l0u3d10"
-	oldAlphaNum := random.ALPHANUM8
-	random.ALPHANUM8 = func() string {
-		return MyalphaNumNewPrefix
-	}
-	defer func() {
-		random.ALPHANUM8 = oldAlphaNum
-	}()
+	mockTokenManager := authorization.NewManager(
+		CommonAPITokenTestDb("user1", "2l0u3d10", "read+write", "cb5b6578-94f5-4a5b-af58-f7867a943b0c")) // APIToken database
 
 	al := APIListener{
 		Logger:      testLog,
@@ -471,17 +434,7 @@ func TestAPISessionUpdates(t *testing.T) {
 		tokenManager: mockTokenManager,
 		userService:  users.NewAPIService(users.NewStaticProvider([]*users.User{user, userWithoutToken}), false, 0, -1),
 	}
-
 	al.initRouter()
-	req := httptest.NewRequest("POST", "/api/v1/me/token", strings.NewReader(`{"scope": "read+write"}`))
-	w := httptest.NewRecorder()
-	ctxUser1 := api.WithUser(req.Context(), user.Username)
-	req = req.WithContext(ctxUser1)
-	req.SetBasicAuth(user.Username, "pwd")
-	al.router.ServeHTTP(w, req)
-	expectedJSON := `{"data":{"prefix":"2l0u3d10", "scope":"read+write", "token":"cb5b6578-94f5-4a5b-af58-f7867a943b0c"}}`
-	assert.Equal(t, http.StatusOK, w.Code)
-	assert.JSONEq(t, expectedJSON, w.Body.String())
 
 	testIPAddress := "1.2.3.4"
 	testUserAgent := "Chrome"
@@ -611,29 +564,8 @@ func TestHandleGetLogin(t *testing.T) {
 	mockUsersService := &MockUsersService{
 		UserService: users.NewAPIService(users.NewStaticProvider([]*users.User{user}), false, 0, -1),
 	}
-
-	// database for tokenManager, creates a token "read+write"
-	apiTokenDb, err := sqlite.New(":memory:", api_token.AssetNames(), api_token.Asset, DataSourceOptions)
-	require.NoError(t, err)
-	defer apiTokenDb.Close()
-	tokenProvider := authorization.NewSqliteProvider(apiTokenDb)
-	mockTokenManager := authorization.NewManager(tokenProvider)
-	uuid := "cb5b6578-94f5-4a5b-af58-f7867a943b0c"
-	oldUUID := random.UUID4
-	random.UUID4 = func() (string, error) {
-		return uuid, nil
-	}
-	defer func() {
-		random.UUID4 = oldUUID
-	}()
-	MyalphaNumNewPrefix := "2l0u3d10"
-	oldAlphaNum := random.ALPHANUM8
-	random.ALPHANUM8 = func() string {
-		return MyalphaNumNewPrefix
-	}
-	defer func() {
-		random.ALPHANUM8 = oldAlphaNum
-	}()
+	mockTokenManager := authorization.NewManager(
+		CommonAPITokenTestDb("user1", "2l0u3d10", "read+write", "cb5b6578-94f5-4a5b-af58-f7867a943b0c")) // APIToken database
 
 	al := APIListener{
 		Logger: testLog,
@@ -653,15 +585,6 @@ func TestHandleGetLogin(t *testing.T) {
 		tokenManager: mockTokenManager,
 	}
 	al.initRouter()
-	req := httptest.NewRequest("POST", "/api/v1/me/token", strings.NewReader(`{"scope": "read+write"}`))
-	w := httptest.NewRecorder()
-	ctxUser1 := api.WithUser(req.Context(), user.Username)
-	req = req.WithContext(ctxUser1)
-	req.SetBasicAuth(user.Username, "pwd")
-	al.router.ServeHTTP(w, req)
-	expectedJSON := `{"data":{"prefix":"2l0u3d10", "scope":"read+write", "token":"cb5b6578-94f5-4a5b-af58-f7867a943b0c"}}`
-	assert.Equal(t, http.StatusOK, w.Code)
-	assert.JSONEq(t, expectedJSON, w.Body.String())
 
 	testCases := []struct {
 		Name              string
