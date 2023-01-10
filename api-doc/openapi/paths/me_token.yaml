@@ -15,6 +15,10 @@ post:
                 - read+write
                 - clients-auth
               description: what this token is authorized for
+            expires_at:
+              type: string
+              description: date and time when this token will expire
+              format: date-time
     required: true
   responses:
     '200':

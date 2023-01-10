@@ -61,6 +61,9 @@ func TestAPITokenOps(t *testing.T) {
 		random.ALPHANUM8 = oldAlphaNum
 	}()
 
+	expirationDate, _ := time.Date(2025, 1, 1, 2, 0, 0, 0, time.UTC).UTC().MarshalText()
+	updateExpirationDate, _ := time.Date(2026, 3, 10, 5, 0, 0, 0, time.UTC).UTC().MarshalText()
+
 	testCases := []struct {
 		descr string // Test Case Description
 
@@ -80,6 +83,20 @@ func TestAPITokenOps(t *testing.T) {
 			requestBody:    strings.NewReader(`{"scope": "read"}`),
 			wantStatusCode: http.StatusOK,
 			wantJSON:       `{"data":{"prefix":"2l0u3d10", "scope":"read", "token":"cb5b6578-94f5-4a5b-af58-f7867a943b0c"}}`,
+		},
+		{
+			descr:          "new token read+write creation with expires_at",
+			requestMethod:  http.MethodPost,
+			requestBody:    strings.NewReader(`{"scope": "read+write", "expires_at": "` + string(expirationDate) + `"}`),
+			wantStatusCode: http.StatusOK,
+			wantJSON:       `{"data":{"expires_at":"2025-01-01T02:00:00Z", "prefix":"2l0u3d10", "scope":"read+write", "token":"cb5b6578-94f5-4a5b-af58-f7867a943b0c"}}`,
+		},
+		{
+			descr:          "token update with expires_at",
+			requestMethod:  http.MethodPut,
+			requestBody:    strings.NewReader(`{"prefix": "2l0u3d10", "expires_at": "` + string(updateExpirationDate) + `"}`),
+			wantStatusCode: http.StatusOK,
+			wantJSON:       `{"data":{"expires_at":"2026-03-10T05:00:00Z", "prefix":"2l0u3d10", "username":"test-user" }}`,
 		},
 		{
 			descr:          "create token empty request body",

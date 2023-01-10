@@ -126,7 +126,8 @@ func (al *APIListener) handleManageAPIToken(w http.ResponseWriter, req *http.Req
 	}
 	if action == "create" {
 		var r struct {
-			Scope string `json:"scope"`
+			Scope     string     `json:"scope"`
+			ExpiresAt *time.Time `json:"expires_at"`
 		}
 		err := parseRequestBody(req.Body, &r)
 		if err != nil {
@@ -160,10 +161,11 @@ func (al *APIListener) handleManageAPIToken(w http.ResponseWriter, req *http.Req
 		tokenHashStr := strings.Replace(string(tokenHash), users.HtpasswdBcryptAltPrefix, users.HtpasswdBcryptPrefix, 1)
 
 		newAPIToken := &authorization.APIToken{
-			Username: user.Username,
-			Prefix:   newPrefix,
-			Scope:    r.Scope,
-			Token:    tokenHashStr,
+			Username:  user.Username,
+			Prefix:    newPrefix,
+			Scope:     r.Scope,
+			ExpiresAt: r.ExpiresAt,
+			Token:     tokenHashStr,
 		}
 		err = al.tokenManager.Create(req.Context(), newAPIToken)
 		if err != nil {
@@ -180,11 +182,13 @@ func (al *APIListener) handleManageAPIToken(w http.ResponseWriter, req *http.Req
 
 		al.writeJSONResponse(w, http.StatusOK, api.NewSuccessPayload(
 			authorization.APIToken{
-				Prefix: newPrefix,
-				Scope:  r.Scope,
-				Token:  newTokenClear,
+				Prefix:    newPrefix,
+				Scope:     r.Scope,
+				ExpiresAt: r.ExpiresAt,
+				Token:     newTokenClear,
 			}))
 	}
+
 	if action == "update" {
 		var r struct {
 			Prefix    string     `json:"prefix"`
