@@ -6,8 +6,6 @@ import (
 	"time"
 )
 
-const DefaultTimeoutSec = 60
-
 type APIToken struct {
 	Username  string     `json:"username,omitempty" db:"username"`
 	Prefix    string     `json:"prefix" db:"prefix"`
