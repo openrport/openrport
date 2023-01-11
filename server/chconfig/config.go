@@ -323,7 +323,8 @@ func (c *Config) ParseAndValidate(mLog *logger.MemLogger) error {
 	serverLogLevel := c.Logging.LogLevel.String()
 
 	if err := c.Caddy.ParseAndValidate(c.Server.DataDir, serverLogLevel, filesAPI); err != nil {
-		return err
+		// caddy integration is not critical, so continue running with caddy integration disabled
+		mLog.Errorf("caddy integration not enabled due to error: %v", err)
 	}
 
 	if c.Server.DataDir == "" {
