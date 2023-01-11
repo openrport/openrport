@@ -470,7 +470,7 @@ func runMain(*cobra.Command, []string) {
 	filesAPI := files.NewFileSystem()
 
 	// this ctx will be used to co-ordinate shutdown of the various server go-routines
-	ctx, cancel := signal.NotifyContext(context.Background(), syscall.SIGINT, syscall.SIGTERM, syscall.SIGHUP, syscall.SIGCHLD)
+	ctx, cancel := signal.NotifyContext(context.Background(), syscall.SIGINT, syscall.SIGTERM, syscall.SIGHUP)
 	defer cancel()
 
 	plusManager, err := chserver.EnablePlusIfLicensed(ctx, cfg, filesAPI)
