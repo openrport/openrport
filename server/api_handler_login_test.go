@@ -201,7 +201,7 @@ func TestAPITokenOps(t *testing.T) {
 	}
 }
 
-func CommonAPITokenTestDb(t *testing.T, username, prefix string, scope enums.APITokenScope, token string) *authorization.SqliteProvider {
+func CommonAPITokenTestDb(t *testing.T, username, prefix string, scope authorization.APITokenScope, token string) *authorization.SqliteProvider {
 	db, err := sqlite.New(":memory:", api_token.AssetNames(), api_token.Asset, DataSourceOptions)
 	require.NoError(t, err)
 	dbProv := authorization.NewSqliteProvider(db)
