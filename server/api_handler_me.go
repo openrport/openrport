@@ -13,9 +13,11 @@ import (
 	"github.com/cloudradar-monitoring/rport/server/api/authorization"
 	users "github.com/cloudradar-monitoring/rport/server/api/users"
 	"github.com/cloudradar-monitoring/rport/server/auditlog"
+	"github.com/cloudradar-monitoring/rport/server/routes"
 	chshare "github.com/cloudradar-monitoring/rport/share"
 	"github.com/cloudradar-monitoring/rport/share/logger"
 	"github.com/cloudradar-monitoring/rport/share/random"
+	"github.com/gorilla/mux"
 )
 
 // handleGetMe returns the currently logged-in user and the groups the user belongs to.
@@ -327,6 +329,13 @@ func (al *APIListener) handlePostToken(w http.ResponseWriter, req *http.Request)
 }
 
 func (al *APIListener) handlePutToken(w http.ResponseWriter, req *http.Request) {
+	vars := mux.Vars(req)
+	prefix := vars[routes.ParamTokenPrefix]
+	if len(prefix) != 8 {
+		al.jsonErrorResponseWithTitle(w, http.StatusBadRequest, "missing or invalid token prefix.")
+		return
+	}
+
 	user, err := al.getUserModel(req.Context())
 	if err != nil {
 		al.jsonErrorResponse(w, http.StatusInternalServerError, err)
@@ -336,8 +345,8 @@ func (al *APIListener) handlePutToken(w http.ResponseWriter, req *http.Request) 
 		al.jsonErrorResponseWithTitle(w, http.StatusNotFound, "user not found")
 		return
 	}
+
 	var r struct {
-		Prefix    string     `json:"prefix"`
 		ExpiresAt *time.Time `json:"expires_at"`
 	}
 	err = parseRequestBody(req.Body, &r)
@@ -348,7 +357,7 @@ func (al *APIListener) handlePutToken(w http.ResponseWriter, req *http.Request) 
 
 	updAPIToken := &authorization.APIToken{
 		Username:  user.Username,
-		Prefix:    r.Prefix,
+		Prefix:    prefix,
 		ExpiresAt: r.ExpiresAt,
 	}
 	err = al.tokenManager.Save(req.Context(), updAPIToken)
@@ -363,11 +372,18 @@ func (al *APIListener) handlePutToken(w http.ResponseWriter, req *http.Request) 
 		WithRequest(r).
 		Save()
 
-	al.Debugf("APIToken [%s] is updated for user [%s].", r.Prefix, user.Username)
+	al.Debugf("APIToken [%s] is updated for user [%s].", prefix, user.Username)
 	al.writeJSONResponse(w, http.StatusOK, api.NewSuccessPayload(updAPIToken))
 }
 
 func (al *APIListener) handleDeleteToken(w http.ResponseWriter, req *http.Request) {
+	vars := mux.Vars(req)
+	prefix := vars[routes.ParamTokenPrefix]
+	if len(prefix) != 8 {
+		al.jsonErrorResponseWithTitle(w, http.StatusBadRequest, "missing or invalid token prefix.")
+		return
+	}
+
 	user, err := al.getUserModel(req.Context())
 	if err != nil {
 		al.jsonErrorResponse(w, http.StatusInternalServerError, err)
@@ -377,21 +393,8 @@ func (al *APIListener) handleDeleteToken(w http.ResponseWriter, req *http.Reques
 		al.jsonErrorResponseWithTitle(w, http.StatusNotFound, "user not found")
 		return
 	}
-	var r struct {
-		Prefix string `json:"prefix"`
-	}
-	err = parseRequestBody(req.Body, &r)
-	if err != nil {
-		al.jsonError(w, err)
-		return
-	}
 
-	if len(r.Prefix) != 8 {
-		al.jsonErrorResponseWithTitle(w, http.StatusBadRequest, "missing or invalid token prefix.")
-		return
-	}
-
-	err = al.tokenManager.Delete(req.Context(), user.Username, r.Prefix)
+	err = al.tokenManager.Delete(req.Context(), user.Username, prefix)
 	if err != nil {
 		al.jsonError(w, err)
 		return
@@ -399,9 +402,9 @@ func (al *APIListener) handleDeleteToken(w http.ResponseWriter, req *http.Reques
 	al.auditLog.Entry(auditlog.ApplicationAuthUserMeToken, auditlog.ActionDelete).
 		WithHTTPRequest(req).
 		WithID(user.Username).
-		WithRequest(r).
+		WithRequest(req).
 		Save()
 
-	al.Debugf("APIToken %s is deleted for user [%s].", r.Prefix, user.Username)
+	al.Debugf("APIToken [%s] is deleted for user [%s].", prefix, user.Username)
 	w.WriteHeader(http.StatusNoContent)
 }

@@ -69,6 +69,7 @@ func TestAPITokenOps(t *testing.T) {
 
 		clientAuthWrite bool
 		requestMethod   string
+		requestURL      string
 		requestBody     io.Reader
 
 		wantStatusCode int
@@ -80,6 +81,7 @@ func TestAPITokenOps(t *testing.T) {
 		{
 			descr:          "new token read creation",
 			requestMethod:  http.MethodPost,
+			requestURL:     "/api/v1/me/token",
 			requestBody:    strings.NewReader(`{"scope": "` + string(authorization.APITokenRead) + `"}`),
 			wantStatusCode: http.StatusOK,
 			wantJSON:       `{"data":{"prefix":"2l0u3d10", "scope":"` + string(authorization.APITokenRead) + `", "token":"cb5b6578-94f5-4a5b-af58-f7867a943b0c"}}`,
@@ -87,6 +89,7 @@ func TestAPITokenOps(t *testing.T) {
 		{
 			descr:          "new token read+write creation with expires_at",
 			requestMethod:  http.MethodPost,
+			requestURL:     "/api/v1/me/token",
 			requestBody:    strings.NewReader(`{"scope": "` + string(authorization.APITokenReadWrite) + `", "expires_at": "` + string(expirationDate) + `"}`),
 			wantStatusCode: http.StatusOK,
 			wantJSON:       `{"data":{"expires_at":"2025-01-01T02:00:00Z", "prefix":"2l0u3d10", "scope":"` + string(authorization.APITokenReadWrite) + `", "token":"cb5b6578-94f5-4a5b-af58-f7867a943b0c"}}`,
@@ -94,13 +97,15 @@ func TestAPITokenOps(t *testing.T) {
 		{
 			descr:          "token update with expires_at",
 			requestMethod:  http.MethodPut,
-			requestBody:    strings.NewReader(`{"prefix": "2l0u3d10", "expires_at": "` + string(updateExpirationDate) + `"}`),
+			requestURL:     "/api/v1/me/token/2l0u3d10",
+			requestBody:    strings.NewReader(`{"expires_at": "` + string(updateExpirationDate) + `"}`),
 			wantStatusCode: http.StatusOK,
 			wantJSON:       `{"data":{"expires_at":"2026-03-10T05:00:00Z", "prefix":"2l0u3d10", "username":"test-user" }}`,
 		},
 		{
 			descr:          "create token empty request body",
 			requestMethod:  http.MethodPost,
+			requestURL:     "/api/v1/me/token",
 			requestBody:    nil,
 			wantStatusCode: http.StatusBadRequest,
 			wantErrCode:    "",
@@ -109,6 +114,7 @@ func TestAPITokenOps(t *testing.T) {
 		{
 			descr:          "new token bad scope creation",
 			requestMethod:  http.MethodPost,
+			requestURL:     "/api/v1/me/token",
 			requestBody:    strings.NewReader(`{"scope": "reads"}`),
 			wantStatusCode: http.StatusBadRequest,
 			wantErrCode:    "",
@@ -117,39 +123,24 @@ func TestAPITokenOps(t *testing.T) {
 		{
 			descr:          "new token no scope provided",
 			requestMethod:  http.MethodPost,
+			requestURL:     "/api/v1/me/token",
 			requestBody:    strings.NewReader(""),
 			wantStatusCode: http.StatusBadRequest,
 			wantErrCode:    "",
 			wantErrTitle:   "missing body with scope.",
 		},
 		{
-			descr:          "delete a token, no prefix",
-			requestMethod:  http.MethodDelete,
-			requestBody:    strings.NewReader(`{"prefix": ""}`),
-			wantStatusCode: http.StatusBadRequest,
-			wantErrCode:    "",
-			wantErrTitle:   "missing or invalid token prefix.",
-		},
-		{
 			descr:          "delete a token, prefix wrong len",
 			requestMethod:  http.MethodDelete,
-			requestBody:    strings.NewReader(`{"prefix": "hjk"}`),
+			requestURL:     "/api/v1/me/token/hjk",
 			wantStatusCode: http.StatusBadRequest,
 			wantErrCode:    "",
 			wantErrTitle:   "missing or invalid token prefix.",
-		},
-		{
-			descr:          "delete a token, no prefix",
-			requestMethod:  http.MethodDelete,
-			requestBody:    strings.NewReader(""),
-			wantStatusCode: http.StatusBadRequest,
-			wantErrCode:    "",
-			wantErrTitle:   "Missing body with json data.",
 		},
 		{
 			descr:          "delete a token ",
 			requestMethod:  http.MethodDelete,
-			requestBody:    strings.NewReader(`{"prefix": "` + MyalphaNumNewPrefix + `"}`),
+			requestURL:     "/api/v1/me/token/" + MyalphaNumNewPrefix,
 			wantStatusCode: http.StatusNoContent,
 		},
 	}
@@ -172,7 +163,7 @@ func TestAPITokenOps(t *testing.T) {
 			}
 
 			al.initRouter()
-			req := httptest.NewRequest(tc.requestMethod, "/api/v1/me/token", tc.requestBody)
+			req := httptest.NewRequest(tc.requestMethod, tc.requestURL, tc.requestBody)
 
 			// when
 			w := httptest.NewRecorder()

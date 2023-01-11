@@ -41,8 +41,8 @@ func (al *APIListener) initRouter() {
 	secureAPI.HandleFunc("/me/ip", al.handleGetIP).Methods(http.MethodGet)
 	secureAPI.HandleFunc("/me/token", al.handleGetToken).Methods(http.MethodGet)
 	secureAPI.HandleFunc("/me/token", al.handlePostToken).Methods(http.MethodPost)
-	secureAPI.HandleFunc("/me/token", al.handlePutToken).Methods(http.MethodPut)
-	secureAPI.HandleFunc("/me/token", al.handleDeleteToken).Methods(http.MethodDelete)
+	secureAPI.HandleFunc("/me/token/{prefix}", al.handlePutToken).Methods(http.MethodPut)
+	secureAPI.HandleFunc("/me/token/{prefix}", al.handleDeleteToken).Methods(http.MethodDelete)
 
 	secureAPI.HandleFunc("/clients", al.handleGetClients).Methods(http.MethodGet)
 	clientDetails := secureAPI.PathPrefix("/clients/{client_id}").Subrouter()
