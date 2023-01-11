@@ -14,6 +14,7 @@ import (
 	users "github.com/cloudradar-monitoring/rport/server/api/users"
 	"github.com/cloudradar-monitoring/rport/server/auditlog"
 	chshare "github.com/cloudradar-monitoring/rport/share"
+	"github.com/cloudradar-monitoring/rport/share/enums"
 	"github.com/cloudradar-monitoring/rport/share/logger"
 	"github.com/cloudradar-monitoring/rport/share/random"
 )
@@ -126,8 +127,8 @@ func (al *APIListener) handleManageAPIToken(w http.ResponseWriter, req *http.Req
 	}
 	if action == "create" {
 		var r struct {
-			Scope     string     `json:"scope"`
-			ExpiresAt *time.Time `json:"expires_at"`
+			Scope     enums.APITokenScope `json:"scope"`
+			ExpiresAt *time.Time          `json:"expires_at"`
 		}
 		err := parseRequestBody(req.Body, &r)
 		if err != nil {
@@ -140,7 +141,7 @@ func (al *APIListener) handleManageAPIToken(w http.ResponseWriter, req *http.Req
 			return
 		}
 
-		if r.Scope == "clients-auth" && !user.IsAdmin() {
+		if r.Scope == enums.APITokenClientsAuth && !user.IsAdmin() {
 			al.jsonErrorResponseWithTitle(w, http.StatusBadRequest, "current user should belong to Administrators group to create a token with this scope")
 			return
 		}
@@ -221,10 +222,10 @@ func (al *APIListener) handleManageAPIToken(w http.ResponseWriter, req *http.Req
 	}
 	if action == "list" {
 		type APITokenPayload struct {
-			Prefix    string     `json:"prefix" db:"token"`
-			CreatedAt *time.Time `json:"created_at" db:"created_at"`
-			ExpiresAt *time.Time `json:"expires_at" db:"expires_at"`
-			Scope     string     `json:"scope" db:"scope"`
+			Prefix    string              `json:"prefix" db:"token"`
+			CreatedAt *time.Time          `json:"created_at" db:"created_at"`
+			ExpiresAt *time.Time          `json:"expires_at" db:"expires_at"`
+			Scope     enums.APITokenScope `json:"scope" db:"scope"`
 		}
 
 		apitokenset, err := al.tokenManager.GetAll(req.Context(), user.Username)

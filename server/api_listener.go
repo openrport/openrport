@@ -429,13 +429,13 @@ func (al *APIListener) handleBasicAuth(ctx context.Context, httpverb, urlpath, u
 		tokenOk := verifyPassword(userToken.Token, password)
 		if tokenOk {
 			switch userToken.Scope {
-			case "read":
+			case enums.APITokenRead:
 				if httpverb == "GET" {
 					return true, username, nil
 				}
-			case "read+write":
+			case enums.APITokenReadWrite:
 				return true, username, nil
-			case "clients-auth":
+			case enums.APITokenClientsAuth:
 				if strings.Index(urlpath, "clients-auth") > 0 {
 					return true, username, nil
 				}

@@ -23,7 +23,7 @@ var demoData = []APIToken{
 		Prefix:    "prefix1",
 		CreatedAt: ptr.Time(time.Date(2001, 1, 1, 1, 0, 0, 0, time.UTC)),
 		ExpiresAt: ptr.Time(time.Date(2001, 1, 1, 2, 0, 0, 0, time.UTC)),
-		Scope:     "onescope1",
+		Scope:     "read",
 		Token:     "onelongtoken1",
 	},
 	{
@@ -31,7 +31,7 @@ var demoData = []APIToken{
 		Prefix:    "prefix2",
 		CreatedAt: ptr.Time(time.Date(2001, 1, 1, 1, 0, 0, 0, time.UTC)),
 		ExpiresAt: ptr.Time(time.Date(2001, 1, 1, 2, 0, 0, 0, time.UTC)),
-		Scope:     "onescope2",
+		Scope:     "read",
 		Token:     "onelongtoken2",
 	},
 	{
@@ -39,7 +39,7 @@ var demoData = []APIToken{
 		Prefix:    "prefix3",
 		CreatedAt: ptr.Time(time.Date(2001, 1, 1, 1, 0, 0, 0, time.UTC)),
 		ExpiresAt: ptr.Time(time.Date(2001, 1, 1, 2, 0, 0, 0, time.UTC)),
-		Scope:     "onescope3",
+		Scope:     "read+write",
 		Token:     "onelongtoken3",
 	},
 	{
@@ -47,7 +47,7 @@ var demoData = []APIToken{
 		Prefix:    "prefix4",
 		CreatedAt: ptr.Time(time.Date(2001, 1, 1, 1, 0, 0, 0, time.UTC)),
 		ExpiresAt: ptr.Time(time.Date(2001, 1, 1, 2, 0, 0, 0, time.UTC)),
-		Scope:     "onescope4",
+		Scope:     "read+write",
 		Token:     "onelongtoken4",
 	},
 	{
@@ -55,7 +55,7 @@ var demoData = []APIToken{
 		Prefix:    "prefix41",
 		CreatedAt: ptr.Time(time.Date(2001, 1, 1, 1, 0, 0, 0, time.UTC)),
 		ExpiresAt: ptr.Time(time.Date(2001, 1, 1, 2, 0, 0, 0, time.UTC)),
-		Scope:     "onescope41",
+		Scope:     "read+write",
 		Token:     "onelongtoken41",
 	},
 }
@@ -122,11 +122,12 @@ func TestCreate(t *testing.T) {
 			"username":   itemToSave.Username,
 			"prefix":     itemToSave.Prefix,
 			"expires_at": *itemToSave.ExpiresAt,
-			"scope":      itemToSave.Scope,
+			"scope":      "read", // needed to avoid test fail using itemToSave.Scope which is of type enum
 			"token":      itemToSave.Token,
 		},
 	}
 	q := "SELECT username, prefix, expires_at, scope, token FROM `api_token`"
+
 	test.AssertRowsEqual(t, dbProv.db, expectedRows, q, []interface{}{})
 }
 
@@ -196,7 +197,7 @@ func TestDelete(t *testing.T) {
 			"prefix":     demoData[0].Prefix,
 			"created_at": *demoData[0].CreatedAt,
 			"expires_at": *demoData[0].ExpiresAt,
-			"scope":      demoData[0].Scope,
+			"scope":      "read", // needed to avoid test fail using itemToSave.Scope which is of type enum
 			"token":      demoData[0].Token,
 		},
 	}

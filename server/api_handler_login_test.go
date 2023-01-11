@@ -20,6 +20,7 @@ import (
 	"github.com/cloudradar-monitoring/rport/server/api/users"
 	"github.com/cloudradar-monitoring/rport/server/bearer"
 	"github.com/cloudradar-monitoring/rport/server/chconfig"
+	"github.com/cloudradar-monitoring/rport/share/enums"
 	"github.com/cloudradar-monitoring/rport/share/ptr"
 	"github.com/cloudradar-monitoring/rport/share/random"
 	"github.com/cloudradar-monitoring/rport/share/security"
@@ -80,16 +81,16 @@ func TestAPITokenOps(t *testing.T) {
 		{
 			descr:          "new token read creation",
 			requestMethod:  http.MethodPost,
-			requestBody:    strings.NewReader(`{"scope": "read"}`),
+			requestBody:    strings.NewReader(`{"scope": "` + string(enums.APITokenRead) + `"}`),
 			wantStatusCode: http.StatusOK,
-			wantJSON:       `{"data":{"prefix":"2l0u3d10", "scope":"read", "token":"cb5b6578-94f5-4a5b-af58-f7867a943b0c"}}`,
+			wantJSON:       `{"data":{"prefix":"2l0u3d10", "scope":"` + string(enums.APITokenRead) + `", "token":"cb5b6578-94f5-4a5b-af58-f7867a943b0c"}}`,
 		},
 		{
 			descr:          "new token read+write creation with expires_at",
 			requestMethod:  http.MethodPost,
-			requestBody:    strings.NewReader(`{"scope": "read+write", "expires_at": "` + string(expirationDate) + `"}`),
+			requestBody:    strings.NewReader(`{"scope": "` + string(enums.APITokenReadWrite) + `", "expires_at": "` + string(expirationDate) + `"}`),
 			wantStatusCode: http.StatusOK,
-			wantJSON:       `{"data":{"expires_at":"2025-01-01T02:00:00Z", "prefix":"2l0u3d10", "scope":"read+write", "token":"cb5b6578-94f5-4a5b-af58-f7867a943b0c"}}`,
+			wantJSON:       `{"data":{"expires_at":"2025-01-01T02:00:00Z", "prefix":"2l0u3d10", "scope":"` + string(enums.APITokenReadWrite) + `", "token":"cb5b6578-94f5-4a5b-af58-f7867a943b0c"}}`,
 		},
 		{
 			descr:          "token update with expires_at",
@@ -201,7 +202,7 @@ func TestAPITokenOps(t *testing.T) {
 	}
 }
 
-func CommonAPITokenTestDb(username, prefix, scope, token string) *authorization.SqliteProvider {
+func CommonAPITokenTestDb(username, prefix string, scope enums.APITokenScope, token string) *authorization.SqliteProvider {
 	db, _ := sqlite.New(":memory:", api_token.AssetNames(), api_token.Asset, DataSourceOptions)
 	dbProv := authorization.NewSqliteProvider(db)
 
@@ -241,7 +242,7 @@ func TestPostToken(t *testing.T) {
 		Password: "$2y$05$ep2DdPDeLDDhwRrED9q/vuVEzRpZtB5WHCFT7YbcmH9r9oNmlsZOm",
 	}
 
-	// database for tokenManager, creates a token "read+write"
+	// database for tokenManager, creates a token read+write
 	apiTokenDb, err := sqlite.New(":memory:", api_token.AssetNames(), api_token.Asset, DataSourceOptions)
 	require.NoError(t, err)
 	defer apiTokenDb.Close()
@@ -282,13 +283,13 @@ func TestPostToken(t *testing.T) {
 	}
 
 	al.initRouter()
-	req := httptest.NewRequest("POST", "/api/v1/me/token", strings.NewReader(`{"scope": "read+write"}`))
+	req := httptest.NewRequest("POST", "/api/v1/me/token", strings.NewReader(`{"scope": "`+string(enums.APITokenReadWrite)+`"}`))
 	w := httptest.NewRecorder()
 	ctxUser1 := api.WithUser(req.Context(), user.Username)
 	req = req.WithContext(ctxUser1)
 	req.SetBasicAuth(user.Username, "pwd")
 	al.router.ServeHTTP(w, req)
-	expectedJSON := `{"data":{"prefix":"2l0u3d10", "scope":"read+write", "token":"cb5b6578-94f5-4a5b-af58-f7867a943b0c"}}`
+	expectedJSON := `{"data":{"prefix":"2l0u3d10", "scope":"` + string(enums.APITokenReadWrite) + `", "token":"cb5b6578-94f5-4a5b-af58-f7867a943b0c"}}`
 	assert.Equal(t, http.StatusOK, w.Code)
 	assert.JSONEq(t, expectedJSON, w.Body.String())
 }
@@ -304,7 +305,7 @@ func TestWrapWithAuthMiddleware(t *testing.T) {
 		Password: "$2y$05$ep2DdPDeLDDhwRrED9q/vuVEzRpZtB5WHCFT7YbcmH9r9oNmlsZOm",
 	}
 	mockTokenManager := authorization.NewManager(
-		CommonAPITokenTestDb("user1", "2l0u3d10", "read+write", "cb5b6578-94f5-4a5b-af58-f7867a943b0c")) // APIToken database
+		CommonAPITokenTestDb("user1", "2l0u3d10", enums.APITokenReadWrite, "cb5b6578-94f5-4a5b-af58-f7867a943b0c")) // APIToken database
 
 	al := APIListener{
 		Logger:      testLog,
@@ -435,7 +436,7 @@ func TestAPISessionUpdates(t *testing.T) {
 		Password: "$2y$05$ep2DdPDeLDDhwRrED9q/vuVEzRpZtB5WHCFT7YbcmH9r9oNmlsZOm",
 	}
 	mockTokenManager := authorization.NewManager(
-		CommonAPITokenTestDb("user1", "2l0u3d10", "read+write", "cb5b6578-94f5-4a5b-af58-f7867a943b0c")) // APIToken database
+		CommonAPITokenTestDb("user1", "2l0u3d10", enums.APITokenReadWrite, "cb5b6578-94f5-4a5b-af58-f7867a943b0c")) // APIToken database
 
 	al := APIListener{
 		Logger:      testLog,
@@ -582,7 +583,7 @@ func TestHandleGetLogin(t *testing.T) {
 		UserService: users.NewAPIService(users.NewStaticProvider([]*users.User{user}), false, 0, -1),
 	}
 	mockTokenManager := authorization.NewManager(
-		CommonAPITokenTestDb("user1", "2l0u3d10", "read+write", "cb5b6578-94f5-4a5b-af58-f7867a943b0c")) // APIToken database
+		CommonAPITokenTestDb("user1", "2l0u3d10", enums.APITokenReadWrite, "cb5b6578-94f5-4a5b-af58-f7867a943b0c")) // APIToken database
 
 	al := APIListener{
 		Logger: testLog,
