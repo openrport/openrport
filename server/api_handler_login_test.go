@@ -201,8 +201,9 @@ func TestAPITokenOps(t *testing.T) {
 	}
 }
 
-func CommonAPITokenTestDb(username, prefix string, scope authorization.APITokenScope, token string) *authorization.SqliteProvider {
-	db, _ := sqlite.New(":memory:", api_token.AssetNames(), api_token.Asset, DataSourceOptions)
+func CommonAPITokenTestDb(t *testing.T, username, prefix string, scope enums.APITokenScope, token string) *authorization.SqliteProvider {
+	db, err := sqlite.New(":memory:", api_token.AssetNames(), api_token.Asset, DataSourceOptions)
+	require.NoError(t, err)
 	dbProv := authorization.NewSqliteProvider(db)
 
 	ctx := context.Background()
@@ -214,7 +215,7 @@ func CommonAPITokenTestDb(username, prefix string, scope authorization.APITokenS
 		Scope:     scope,
 		Token:     token,
 	}
-	_ = dbProv.Save(ctx, &itemToSave)
+	err = dbProv.Save(ctx, &itemToSave)
 
 	itemToSave = authorization.APIToken{
 		Username:  username,
@@ -226,6 +227,7 @@ func CommonAPITokenTestDb(username, prefix string, scope authorization.APITokenS
 	}
 	_ = dbProv.Save(ctx, &itemToSave)
 
+	require.NoError(t, err)
 	return dbProv
 }
 
@@ -315,7 +317,7 @@ func TestWrapWithAuthMiddleware(t *testing.T) {
 		Password: "$2y$05$ep2DdPDeLDDhwRrED9q/vuVEzRpZtB5WHCFT7YbcmH9r9oNmlsZOm",
 	}
 	mockTokenManager := authorization.NewManager(
-		CommonAPITokenTestDb("user1", "2l0u3d10", authorization.APITokenReadWrite, "cb5b6578-94f5-4a5b-af58-f7867a943b0c")) // APIToken database
+		CommonAPITokenTestDb(t, "user1", "2l0u3d10", authorization.APITokenReadWrite, "cb5b6578-94f5-4a5b-af58-f7867a943b0c")) // APIToken database
 
 	al := APIListener{
 		Logger:      testLog,
@@ -453,7 +455,7 @@ func TestAPISessionUpdates(t *testing.T) {
 		Password: "$2y$05$ep2DdPDeLDDhwRrED9q/vuVEzRpZtB5WHCFT7YbcmH9r9oNmlsZOm",
 	}
 	mockTokenManager := authorization.NewManager(
-		CommonAPITokenTestDb("user1", "2l0u3d10", authorization.APITokenReadWrite, "cb5b6578-94f5-4a5b-af58-f7867a943b0c")) // APIToken database
+		CommonAPITokenTestDb(t, "user1", "2l0u3d10", authorization.APITokenReadWrite, "cb5b6578-94f5-4a5b-af58-f7867a943b0c")) // APIToken database
 
 	al := APIListener{
 		Logger:      testLog,
@@ -600,7 +602,7 @@ func TestHandleGetLogin(t *testing.T) {
 		UserService: users.NewAPIService(users.NewStaticProvider([]*users.User{user}), false, 0, -1),
 	}
 	mockTokenManager := authorization.NewManager(
-		CommonAPITokenTestDb("user1", "2l0u3d10", authorization.APITokenReadWrite, "cb5b6578-94f5-4a5b-af58-f7867a943b0c")) // APIToken database
+		CommonAPITokenTestDb(t, "user1", "2l0u3d10", authorization.APITokenReadWrite, "cb5b6578-94f5-4a5b-af58-f7867a943b0c")) // APIToken database
 
 	al := APIListener{
 		Logger: testLog,

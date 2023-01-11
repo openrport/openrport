@@ -429,7 +429,7 @@ func setupTestAPIListenerForOAuth(
 		UserService: users.NewAPIService(users.NewStaticProvider([]*users.User{user}), false, 0, -1),
 	}
 	mockTokenManager := authorization.NewManager(
-		CommonAPITokenTestDb("user1", "2l0u3d10", authorization.APITokenReadWrite, "cb5b6578-94f5-4a5b-af58-f7867a943b0c")) // APIToken database
+		CommonAPITokenTestDb(t, "user1", "2l0u3d10", authorization.APITokenReadWrite, "cb5b6578-94f5-4a5b-af58-f7867a943b0c")) // APIToken database
 
 	plusConfig.OAuthConfig = oauthConfig
 
