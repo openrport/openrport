@@ -357,6 +357,7 @@ var ErrThatPasswordHasExpired = errors.New("password has expired, please change 
 var ErrCantLoadThatToken = errors.New("there was a problem accessing that token with the provided prefix")
 var ErrPrefixNotFound = errors.New("there is no token with that prefix")
 var ErrInvalidScopeOfThatToken = errors.New("the scope of the provided token is not authorized for this operation")
+var ErrThatTokenHasExpired = errors.New("the provided token has expired")
 
 // lookupUser is used to get the user on every request in auth middleware
 func (al *APIListener) lookupUser(r *http.Request, isBearerOnly bool) (authorized bool, username string, err error) {
@@ -426,16 +427,21 @@ func (al *APIListener) handleBasicAuth(ctx context.Context, httpverb, urlpath, u
 	}
 
 	if userToken != nil {
+		if userToken.ExpiresAt != nil {
+			if userToken.ExpiresAt.Before(time.Now()) {
+				return false, username, nil
+			}
+		}
 		tokenOk := verifyPassword(userToken.Token, password)
 		if tokenOk {
 			switch userToken.Scope {
-			case enums.APITokenRead:
+			case authorization.APITokenRead:
 				if httpverb == "GET" {
 					return true, username, nil
 				}
-			case enums.APITokenReadWrite:
+			case authorization.APITokenReadWrite:
 				return true, username, nil
-			case enums.APITokenClientsAuth:
+			case authorization.APITokenClientsAuth:
 				if strings.Index(urlpath, "clients-auth") > 0 {
 					return true, username, nil
 				}

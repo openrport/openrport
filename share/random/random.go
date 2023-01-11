@@ -19,13 +19,8 @@ func init() {
 }
 
 // AlphaNum returns a random string of length 'n' using alphanumeric characters, regexp: [a-z0-9]{n}.
-func AlphaNum(n int) string {
+var AlphaNum = func(n int) string {
 	return String(n, alphaNum)
-}
-
-// ALPHANUM8 returns a random generated alphanum of 8 chars.
-var ALPHANUM8 = func() string {
-	return AlphaNum(8)
 }
 
 // Hex returns a random hex of length 'n', regexp: [a-f0-9]{n}.

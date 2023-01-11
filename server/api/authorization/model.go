@@ -3,22 +3,28 @@ package authorization
 import (
 	"errors"
 
-	"github.com/cloudradar-monitoring/rport/share/enums"
-
 	"strings"
 	"time"
 )
 
 type APIToken struct {
-	Username  string              `json:"username,omitempty" db:"username"`
-	Prefix    string              `json:"prefix" db:"prefix"`
-	CreatedAt *time.Time          `json:"created_at,omitempty" db:"created_at"`
-	ExpiresAt *time.Time          `json:"expires_at,omitempty" db:"expires_at"`
-	Scope     enums.APITokenScope `json:"scope,omitempty" db:"scope"`
-	Token     string              `json:"token,omitempty" db:"token"`
+	Username  string        `json:"username,omitempty" db:"username"`
+	Prefix    string        `json:"prefix" db:"prefix"`
+	CreatedAt *time.Time    `json:"created_at,omitempty" db:"created_at"`
+	ExpiresAt *time.Time    `json:"expires_at,omitempty" db:"expires_at"`
+	Scope     APITokenScope `json:"scope,omitempty" db:"scope"`
+	Token     string        `json:"token,omitempty" db:"token"`
 }
 
 const APITokenPrefixLength = 8
+
+type APITokenScope string
+
+const (
+	APITokenRead        APITokenScope = "read"
+	APITokenReadWrite   APITokenScope = "read+write"
+	APITokenClientsAuth APITokenScope = "clients-auth"
+)
 
 func Extract(prefixedpwd string) (string, string, error) {
 	i := strings.Index(prefixedpwd, "_")
@@ -33,12 +39,12 @@ func Extract(prefixedpwd string) (string, string, error) {
 	return prefix, token, nil
 }
 
-func IsValidScope(scope enums.APITokenScope) bool {
+func IsValidScope(scope APITokenScope) bool {
 	switch scope {
 	case
-		enums.APITokenRead,
-		enums.APITokenReadWrite,
-		enums.APITokenClientsAuth:
+		APITokenRead,
+		APITokenReadWrite,
+		APITokenClientsAuth:
 		return true
 	}
 	return false

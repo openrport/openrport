@@ -20,7 +20,6 @@ import (
 	"github.com/cloudradar-monitoring/rport/server/api/users"
 	"github.com/cloudradar-monitoring/rport/server/bearer"
 	"github.com/cloudradar-monitoring/rport/server/chconfig"
-	"github.com/cloudradar-monitoring/rport/share/enums"
 	"github.com/cloudradar-monitoring/rport/share/ptr"
 	"github.com/cloudradar-monitoring/rport/share/random"
 	"github.com/cloudradar-monitoring/rport/share/security"
@@ -54,12 +53,12 @@ func TestAPITokenOps(t *testing.T) {
 	}()
 
 	MyalphaNumNewPrefix := "2l0u3d10"
-	oldAlphaNum := random.ALPHANUM8
-	random.ALPHANUM8 = func() string {
+	oldAlphaNum := random.AlphaNum
+	random.AlphaNum = func(int) string {
 		return MyalphaNumNewPrefix
 	}
 	defer func() {
-		random.ALPHANUM8 = oldAlphaNum
+		random.AlphaNum = oldAlphaNum
 	}()
 
 	expirationDate, _ := time.Date(2025, 1, 1, 2, 0, 0, 0, time.UTC).UTC().MarshalText()
@@ -81,16 +80,16 @@ func TestAPITokenOps(t *testing.T) {
 		{
 			descr:          "new token read creation",
 			requestMethod:  http.MethodPost,
-			requestBody:    strings.NewReader(`{"scope": "` + string(enums.APITokenRead) + `"}`),
+			requestBody:    strings.NewReader(`{"scope": "` + string(authorization.APITokenRead) + `"}`),
 			wantStatusCode: http.StatusOK,
-			wantJSON:       `{"data":{"prefix":"2l0u3d10", "scope":"` + string(enums.APITokenRead) + `", "token":"cb5b6578-94f5-4a5b-af58-f7867a943b0c"}}`,
+			wantJSON:       `{"data":{"prefix":"2l0u3d10", "scope":"` + string(authorization.APITokenRead) + `", "token":"cb5b6578-94f5-4a5b-af58-f7867a943b0c"}}`,
 		},
 		{
 			descr:          "new token read+write creation with expires_at",
 			requestMethod:  http.MethodPost,
-			requestBody:    strings.NewReader(`{"scope": "` + string(enums.APITokenReadWrite) + `", "expires_at": "` + string(expirationDate) + `"}`),
+			requestBody:    strings.NewReader(`{"scope": "` + string(authorization.APITokenReadWrite) + `", "expires_at": "` + string(expirationDate) + `"}`),
 			wantStatusCode: http.StatusOK,
-			wantJSON:       `{"data":{"expires_at":"2025-01-01T02:00:00Z", "prefix":"2l0u3d10", "scope":"` + string(enums.APITokenReadWrite) + `", "token":"cb5b6578-94f5-4a5b-af58-f7867a943b0c"}}`,
+			wantJSON:       `{"data":{"expires_at":"2025-01-01T02:00:00Z", "prefix":"2l0u3d10", "scope":"` + string(authorization.APITokenReadWrite) + `", "token":"cb5b6578-94f5-4a5b-af58-f7867a943b0c"}}`,
 		},
 		{
 			descr:          "token update with expires_at",
@@ -202,7 +201,7 @@ func TestAPITokenOps(t *testing.T) {
 	}
 }
 
-func CommonAPITokenTestDb(username, prefix string, scope enums.APITokenScope, token string) *authorization.SqliteProvider {
+func CommonAPITokenTestDb(username, prefix string, scope authorization.APITokenScope, token string) *authorization.SqliteProvider {
 	db, _ := sqlite.New(":memory:", api_token.AssetNames(), api_token.Asset, DataSourceOptions)
 	dbProv := authorization.NewSqliteProvider(db)
 
@@ -216,6 +215,17 @@ func CommonAPITokenTestDb(username, prefix string, scope enums.APITokenScope, to
 		Token:     token,
 	}
 	_ = dbProv.Save(ctx, &itemToSave)
+
+	itemToSave = authorization.APIToken{
+		Username:  username,
+		Prefix:    "expired1",
+		CreatedAt: ptr.Time(time.Date(2001, 1, 1, 1, 0, 0, 0, time.UTC)),
+		ExpiresAt: ptr.Time(time.Date(2001, 1, 1, 2, 0, 0, 0, time.UTC)),
+		Scope:     scope,
+		Token:     token,
+	}
+	_ = dbProv.Save(ctx, &itemToSave)
+
 	return dbProv
 }
 
@@ -259,12 +269,12 @@ func TestPostToken(t *testing.T) {
 	}()
 
 	MyalphaNumNewPrefix := "2l0u3d10"
-	oldAlphaNum := random.ALPHANUM8
-	random.ALPHANUM8 = func() string {
+	oldAlphaNum := random.AlphaNum
+	random.AlphaNum = func(int) string {
 		return MyalphaNumNewPrefix
 	}
 	defer func() {
-		random.ALPHANUM8 = oldAlphaNum
+		random.AlphaNum = oldAlphaNum
 	}()
 
 	al := APIListener{
@@ -283,13 +293,13 @@ func TestPostToken(t *testing.T) {
 	}
 
 	al.initRouter()
-	req := httptest.NewRequest("POST", "/api/v1/me/token", strings.NewReader(`{"scope": "`+string(enums.APITokenReadWrite)+`"}`))
+	req := httptest.NewRequest("POST", "/api/v1/me/token", strings.NewReader(`{"scope": "`+string(authorization.APITokenReadWrite)+`"}`))
 	w := httptest.NewRecorder()
 	ctxUser1 := api.WithUser(req.Context(), user.Username)
 	req = req.WithContext(ctxUser1)
 	req.SetBasicAuth(user.Username, "pwd")
 	al.router.ServeHTTP(w, req)
-	expectedJSON := `{"data":{"prefix":"2l0u3d10", "scope":"` + string(enums.APITokenReadWrite) + `", "token":"cb5b6578-94f5-4a5b-af58-f7867a943b0c"}}`
+	expectedJSON := `{"data":{"prefix":"2l0u3d10", "scope":"` + string(authorization.APITokenReadWrite) + `", "token":"cb5b6578-94f5-4a5b-af58-f7867a943b0c"}}`
 	assert.Equal(t, http.StatusOK, w.Code)
 	assert.JSONEq(t, expectedJSON, w.Body.String())
 }
@@ -305,7 +315,7 @@ func TestWrapWithAuthMiddleware(t *testing.T) {
 		Password: "$2y$05$ep2DdPDeLDDhwRrED9q/vuVEzRpZtB5WHCFT7YbcmH9r9oNmlsZOm",
 	}
 	mockTokenManager := authorization.NewManager(
-		CommonAPITokenTestDb("user1", "2l0u3d10", enums.APITokenReadWrite, "cb5b6578-94f5-4a5b-af58-f7867a943b0c")) // APIToken database
+		CommonAPITokenTestDb("user1", "2l0u3d10", authorization.APITokenReadWrite, "cb5b6578-94f5-4a5b-af58-f7867a943b0c")) // APIToken database
 
 	al := APIListener{
 		Logger:      testLog,
@@ -370,6 +380,12 @@ func TestWrapWithAuthMiddleware(t *testing.T) {
 			ExpectedStatus: http.StatusOK,
 		},
 		{
+			Name:           "basic auth with an expired token",
+			Username:       user.Username,
+			Password:       "expired1_cb5b6578-94f5-4a5b-af58-f7867a943b0c",
+			ExpectedStatus: http.StatusUnauthorized,
+		},
+		{
 			Name:           "basic auth with token, 2fa enabled",
 			Username:       user.Username,
 			Password:       "2l0u3d10_cb5b6578-94f5-4a5b-af58-f7867a943b0c",
@@ -413,6 +429,7 @@ func TestWrapWithAuthMiddleware(t *testing.T) {
 			if tc.Username != "" {
 				req.SetBasicAuth(tc.Username, tc.Password)
 			}
+
 			if tc.Bearer != "" {
 				req.Header.Set("Authorization", "Bearer "+tc.Bearer)
 			}
@@ -436,7 +453,7 @@ func TestAPISessionUpdates(t *testing.T) {
 		Password: "$2y$05$ep2DdPDeLDDhwRrED9q/vuVEzRpZtB5WHCFT7YbcmH9r9oNmlsZOm",
 	}
 	mockTokenManager := authorization.NewManager(
-		CommonAPITokenTestDb("user1", "2l0u3d10", enums.APITokenReadWrite, "cb5b6578-94f5-4a5b-af58-f7867a943b0c")) // APIToken database
+		CommonAPITokenTestDb("user1", "2l0u3d10", authorization.APITokenReadWrite, "cb5b6578-94f5-4a5b-af58-f7867a943b0c")) // APIToken database
 
 	al := APIListener{
 		Logger:      testLog,
@@ -583,7 +600,7 @@ func TestHandleGetLogin(t *testing.T) {
 		UserService: users.NewAPIService(users.NewStaticProvider([]*users.User{user}), false, 0, -1),
 	}
 	mockTokenManager := authorization.NewManager(
-		CommonAPITokenTestDb("user1", "2l0u3d10", enums.APITokenReadWrite, "cb5b6578-94f5-4a5b-af58-f7867a943b0c")) // APIToken database
+		CommonAPITokenTestDb("user1", "2l0u3d10", authorization.APITokenReadWrite, "cb5b6578-94f5-4a5b-af58-f7867a943b0c")) // APIToken database
 
 	al := APIListener{
 		Logger: testLog,

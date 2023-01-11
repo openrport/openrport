@@ -18,7 +18,6 @@ import (
 	"github.com/cloudradar-monitoring/rport/server/api/users"
 	"github.com/cloudradar-monitoring/rport/server/chconfig"
 	"github.com/cloudradar-monitoring/rport/server/routes"
-	"github.com/cloudradar-monitoring/rport/share/enums"
 	"github.com/cloudradar-monitoring/rport/share/logger"
 	"github.com/cloudradar-monitoring/rport/share/security"
 )
@@ -430,7 +429,7 @@ func setupTestAPIListenerForOAuth(
 		UserService: users.NewAPIService(users.NewStaticProvider([]*users.User{user}), false, 0, -1),
 	}
 	mockTokenManager := authorization.NewManager(
-		CommonAPITokenTestDb("user1", "2l0u3d10", enums.APITokenReadWrite, "cb5b6578-94f5-4a5b-af58-f7867a943b0c")) // APIToken database
+		CommonAPITokenTestDb("user1", "2l0u3d10", authorization.APITokenReadWrite, "cb5b6578-94f5-4a5b-af58-f7867a943b0c")) // APIToken database
 
 	plusConfig.OAuthConfig = oauthConfig
 
