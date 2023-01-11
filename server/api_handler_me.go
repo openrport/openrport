@@ -96,8 +96,9 @@ func (al *APIListener) handleManageCurUserTotP(w http.ResponseWriter, req *http.
 	al.handleManageTotP(w, req, user, action)
 }
 
-func (al *APIListener) handleManageAPIToken(w http.ResponseWriter, req *http.Request, user *users.User, action string) {
-	if action == "delete" {
+func (al *APIListener) handleManageAPIToken(w http.ResponseWriter, req *http.Request, user *users.User, action enums.Action) {
+	switch action {
+	case enums.ActionDelete:
 		var r struct {
 			Prefix string `json:"prefix"`
 		}
@@ -124,8 +125,8 @@ func (al *APIListener) handleManageAPIToken(w http.ResponseWriter, req *http.Req
 
 		al.Debugf("APIToken %s is deleted for user [%s].", r.Prefix, user.Username)
 		w.WriteHeader(http.StatusNoContent)
-	}
-	if action == "create" {
+
+	case enums.ActionCreate:
 		var r struct {
 			Scope     enums.APITokenScope `json:"scope"`
 			ExpiresAt *time.Time          `json:"expires_at"`
@@ -188,9 +189,8 @@ func (al *APIListener) handleManageAPIToken(w http.ResponseWriter, req *http.Req
 				ExpiresAt: r.ExpiresAt,
 				Token:     newTokenClear,
 			}))
-	}
 
-	if action == "update" {
+	case enums.ActionUpdate:
 		var r struct {
 			Prefix    string     `json:"prefix"`
 			ExpiresAt *time.Time `json:"expires_at"`
@@ -219,8 +219,8 @@ func (al *APIListener) handleManageAPIToken(w http.ResponseWriter, req *http.Req
 
 		al.Debugf("APIToken [%s] is updated for user [%s].", r.Prefix, user.Username)
 		al.writeJSONResponse(w, http.StatusOK, api.NewSuccessPayload(updAPIToken))
-	}
-	if action == "list" {
+
+	case enums.ActionList:
 		type APITokenPayload struct {
 			Prefix    string              `json:"prefix" db:"token"`
 			CreatedAt *time.Time          `json:"created_at" db:"created_at"`
@@ -387,7 +387,7 @@ func (al *APIListener) handleDeleteToken(w http.ResponseWriter, req *http.Reques
 	al.handleManageCurUserAPIToken(w, req, "delete")
 }
 
-func (al *APIListener) handleManageCurUserAPIToken(w http.ResponseWriter, req *http.Request, action string) {
+func (al *APIListener) handleManageCurUserAPIToken(w http.ResponseWriter, req *http.Request, action enums.Action) {
 	user, err := al.getUserModel(req.Context())
 	if err != nil {
 		al.jsonErrorResponse(w, http.StatusInternalServerError, err)
