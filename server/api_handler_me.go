@@ -4,10 +4,7 @@ import (
 	"errors"
 	"fmt"
 	"net/http"
-	"strings"
 	"time"
-
-	"golang.org/x/crypto/bcrypt"
 
 	"github.com/cloudradar-monitoring/rport/server/api"
 	"github.com/cloudradar-monitoring/rport/server/api/authorization"
@@ -291,13 +288,11 @@ func (al *APIListener) handlePostToken(w http.ResponseWriter, req *http.Request)
 	}
 	newPrefix := random.AlphaNum(authorization.APITokenPrefixLength)
 
-	// token creation
-	tokenHash, err := bcrypt.GenerateFromPassword([]byte(newTokenClear), bcrypt.DefaultCost)
+	tokenHashStr, err := users.GenerateTokenHash(newTokenClear)
 	if err != nil {
 		al.jsonErrorResponse(w, http.StatusInternalServerError, err)
 		return
 	}
-	tokenHashStr := strings.Replace(string(tokenHash), users.HtpasswdBcryptAltPrefix, users.HtpasswdBcryptPrefix, 1)
 
 	newAPIToken := &authorization.APIToken{
 		Username:  user.Username,

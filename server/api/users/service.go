@@ -154,11 +154,11 @@ func (as *APIService) Change(usr *User, username string) error {
 		return err
 	}
 	if usr.Password != "" {
-		passHash, err := bcrypt.GenerateFromPassword([]byte(usr.Password), bcrypt.DefaultCost)
+		passHash, err := GenerateTokenHash(usr.Password)
 		if err != nil {
 			return err
 		}
-		usr.Password = strings.Replace(string(passHash), HtpasswdBcryptAltPrefix, HtpasswdBcryptPrefix, 1)
+		usr.Password = passHash
 	}
 
 	if username != "" {
@@ -319,4 +319,13 @@ func (as *APIService) Delete(usernameToDelete string) error {
 	}
 
 	return as.Provider.Delete(usernameToDelete)
+}
+
+func GenerateTokenHash(newTokenClear string) (string, error) {
+	tokenHash, err := bcrypt.GenerateFromPassword([]byte(newTokenClear), bcrypt.DefaultCost)
+	if err != nil {
+		return "", err
+	}
+	tokenHashStr := strings.Replace(string(tokenHash), HtpasswdBcryptAltPrefix, HtpasswdBcryptPrefix, 1)
+	return tokenHashStr, nil
 }
