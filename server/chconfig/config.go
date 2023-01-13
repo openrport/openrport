@@ -61,6 +61,9 @@ type APIConfig struct {
 	MaxTokenLifeTimeHours  int     `mapstructure:"max_token_lifetime"`
 	PasswordMinLength      int     `mapstructure:"password_min_length"`
 	PasswordZxcvbnMinscore int     `mapstructure:"password_zxcvbn_minscore"`
+	EnableWsTestEndpoints  bool    `mapstructure:"enable_ws_test_endpoints"`
+	MaxRequestBytes        int64   `mapstructure:"max_request_bytes"`
+	MaxFilePushSize        int64   `mapstructure:"max_filepush_size"`
 
 	TwoFATokenDelivery       string                 `mapstructure:"two_fa_token_delivery"`
 	TwoFATokenTTLSeconds     int                    `mapstructure:"two_fa_token_ttl_seconds"`
@@ -132,9 +135,7 @@ type ServerConfig struct {
 	PurgeDisconnectedClientsInterval time.Duration                          `mapstructure:"purge_disconnected_clients_interval"`
 	CheckClientsConnectionInterval   time.Duration                          `mapstructure:"check_clients_connection_interval"`
 	CheckClientsConnectionTimeout    time.Duration                          `mapstructure:"check_clients_connection_timeout"`
-	MaxRequestBytes                  int64                                  `mapstructure:"max_request_bytes"`
 	MaxRequestBytesClient            int64                                  `mapstructure:"max_request_bytes_client"`
-	MaxFilePushSize                  int64                                  `mapstructure:"max_filepush_size"`
 	CheckPortTimeout                 time.Duration                          `mapstructure:"check_port_timeout"`
 	RunRemoteCmdTimeoutSec           int                                    `mapstructure:"run_remote_cmd_timeout_sec"`
 	AuthWrite                        bool                                   `mapstructure:"auth_write"`
@@ -144,9 +145,13 @@ type ServerConfig struct {
 	ClientLoginWait                  float32                                `mapstructure:"client_login_wait"`
 	MaxFailedLogin                   int                                    `mapstructure:"max_failed_login"`
 	BanTime                          int                                    `mapstructure:"ban_time"`
-	EnableWsTestEndpoints            bool                                   `mapstructure:"enable_ws_test_endpoints"`
 	InternalTunnelProxyConfig        clienttunnel.InternalTunnelProxyConfig `mapstructure:",squash"`
 	JobsMaxResults                   int                                    `mapstructure:"jobs_max_results"`
+
+	// DEPRECATED, only here for backwards compatibility
+	MaxRequestBytes       int64 `mapstructure:"max_request_bytes"`
+	MaxFilePushSize       int64 `mapstructure:"max_filepush_size"`
+	EnableWsTestEndpoints bool  `mapstructure:"enable_ws_test_endpoints"`
 
 	allowedPorts mapset.Set
 	AuthID       string
@@ -297,16 +302,27 @@ func (c *Config) AllowedPorts() mapset.Set {
 }
 
 func (c *Config) ParseAndValidate(mLog *logger.MemLogger) error {
-	var err error
-	var rpl map[string]string
-	rpl, err = ConfigReplaceDeprecated(&c.Server)
+	rpl, err := ConfigReplaceDeprecated(&c.Server)
 	for old, new := range rpl {
 		mLog.Infof("server setting '%s' is deprecated and will be removed soon. Use '%s' instead.", old, new)
 	}
-
 	if err != nil {
 		return err
 	}
+
+	if c.Server.MaxRequestBytes > 0 {
+		c.API.MaxRequestBytes = c.Server.MaxRequestBytes
+		mLog.Info("server setting 'max_request_bytes' is deprecated and will be removed soon. Use the setting in api section instead.")
+	}
+	if c.Server.MaxFilePushSize > 0 {
+		c.API.MaxFilePushSize = c.Server.MaxFilePushSize
+		mLog.Info("server setting 'max_filepush_size' is deprecated and will be removed soon. Use the setting in api section instead.")
+	}
+	if c.Server.EnableWsTestEndpoints {
+		c.API.EnableWsTestEndpoints = c.Server.EnableWsTestEndpoints
+		mLog.Info("server setting 'enable_ws_test_endpoints' is deprecated and will be removed soon. Use the setting in api section instead.")
+	}
+
 	if err := c.Server.parseAndValidateURLs(); err != nil {
 		return err
 	}

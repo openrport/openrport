@@ -164,7 +164,7 @@ func (al *APIListener) initRouter() {
 	api.HandleFunc("/ws/scripts", al.wsAuth(al.permissionsMiddleware(users.PermissionScripts)(http.HandlerFunc(al.handleScriptsWS)))).Methods(http.MethodGet)
 	api.HandleFunc("/ws/uploads", al.wsAuth(al.permissionsMiddleware(users.PermissionUploads)(http.HandlerFunc(al.handleUploadsWS)))).Methods(http.MethodGet)
 
-	if al.config.Server.EnableWsTestEndpoints {
+	if al.config.API.EnableWsTestEndpoints {
 		api.HandleFunc("/test/commands/ui", al.wsCommands)
 		api.HandleFunc("/test/scripts/ui", al.wsScripts)
 		api.HandleFunc("/test/uploads/ui", al.wsUploads)
@@ -177,9 +177,9 @@ func (al *APIListener) initRouter() {
 	// add max bytes middleware
 	_ = api.Walk(func(route *mux.Route, router *mux.Router, ancestors []*mux.Route) error {
 		if route.GetName() == routes.FilesUploadRouteName {
-			route.HandlerFunc(middleware.MaxBytes(route.GetHandler(), al.config.Server.MaxFilePushSize))
+			route.HandlerFunc(middleware.MaxBytes(route.GetHandler(), al.config.API.MaxFilePushSize))
 		} else {
-			route.HandlerFunc(middleware.MaxBytes(route.GetHandler(), al.config.Server.MaxRequestBytes))
+			route.HandlerFunc(middleware.MaxBytes(route.GetHandler(), al.config.API.MaxRequestBytes))
 		}
 		return nil
 	})

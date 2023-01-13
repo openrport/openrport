@@ -280,7 +280,9 @@ func TestHandlePostCommand(t *testing.T) {
 					config: &chconfig.Config{
 						Server: chconfig.ServerConfig{
 							RunRemoteCmdTimeoutSec: defaultTimeout,
-							MaxRequestBytes:        1024 * 1024,
+						},
+						API: chconfig.APIConfig{
+							MaxRequestBytes: 1024 * 1024,
 						},
 					},
 				},
@@ -381,7 +383,9 @@ func TestHandleGetCommand(t *testing.T) {
 				Logger:           testLog,
 				Server: &Server{
 					config: &chconfig.Config{
-						Server: chconfig.ServerConfig{MaxRequestBytes: 1024 * 1024},
+						API: chconfig.APIConfig{
+							MaxRequestBytes: 1024 * 1024,
+						},
 					},
 				},
 			}
@@ -488,7 +492,9 @@ func TestHandleGetCommands(t *testing.T) {
 				Logger:           testLog,
 				Server: &Server{
 					config: &chconfig.Config{
-						Server: chconfig.ServerConfig{MaxRequestBytes: 1024 * 1024},
+						API: chconfig.APIConfig{
+							MaxRequestBytes: 1024 * 1024,
+						},
 					},
 				},
 			}
@@ -645,7 +651,9 @@ func TestHandlePostMultiClientCommand(t *testing.T) {
 					config: &chconfig.Config{
 						Server: chconfig.ServerConfig{
 							RunRemoteCmdTimeoutSec: defaultTimeout,
-							MaxRequestBytes:        1024 * 1024,
+						},
+						API: chconfig.APIConfig{
+							MaxRequestBytes: 1024 * 1024,
 						},
 					},
 					jobsDoneChannel: jobResultChanMap{
@@ -950,7 +958,7 @@ func TestHandlePostMultiClientCommandWithTags(t *testing.T) {
 			"client_ids": ["client-1", "client-2"],
 			"tags": {
 				"tags": [
-					"linux", 
+					"linux",
 					"windows"
 				],
 				"operator": "OR"
@@ -998,7 +1006,7 @@ func TestHandlePostMultiClientCommandWithTags(t *testing.T) {
 			"group_ids": ["group-1"],
 			"tags": {
 				"tags": [
-					"linux", 
+					"linux",
 					"windows"
 				],
 				"operator": "OR"
@@ -1909,7 +1917,9 @@ func makeAPIListener(
 			config: &chconfig.Config{
 				Server: chconfig.ServerConfig{
 					RunRemoteCmdTimeoutSec: defaultTimeout,
-					MaxRequestBytes:        1024 * 1024,
+				},
+				API: chconfig.APIConfig{
+					MaxRequestBytes: 1024 * 1024,
 				},
 			},
 			uiJobWebSockets: ws.NewWebSocketCache(),
