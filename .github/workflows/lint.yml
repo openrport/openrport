@@ -11,7 +11,7 @@ jobs:
       - name: golangci-lint
         shell: bash
         run: |
-          mdkir ~/bin
+          mkdir ~/bin
           curl -L https://github.com/golangci/golangci-lint/releases/download/v1.50.1/golangci-lint-1.50.1-linux-amd64.tar.gz -o /tmp/golangci-lint-1.50.1-linux-amd64.tar.gz
           tar xzf /tmp/golangci-lint-1.50.1-linux-amd64.tar.gz -C /tmp/
           mv /tmp/golangci-lint-1.50.1-linux-amd64/golangci-lint ~/bin
