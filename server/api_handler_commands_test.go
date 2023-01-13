@@ -1127,9 +1127,9 @@ func TestHandlePostMultiClientCommandWithTags(t *testing.T) {
 
 func TestHandlePostMultiClientWSCommandWithTags(t *testing.T) {
 	testUser := "user1"
-	testToken := "2l0u3d10_cb5b6578-94f5-4a5b-af58-f7867a943b0c"
+	testLongLivedPwd := "theprefix_mynicefi-xedl-enth-long-livedpasswor"
 	mockTokenManager := authorization.NewManager(
-		CommonAPITokenTestDb(t, "user1", "2l0u3d10", authorization.APITokenReadWrite, "cb5b6578-94f5-4a5b-af58-f7867a943b0c")) // APIToken database
+		CommonAPITokenTestDb(t, "user1", "theprefix", authorization.APITokenReadWrite, "mynicefi-xedl-enth-long-livedpasswor")) // APIToken database
 
 	defaultTimeout := 60
 
@@ -1329,7 +1329,7 @@ func TestHandlePostMultiClientWSCommandWithTags(t *testing.T) {
 			defer s.Close()
 
 			// prep the test user auth
-			reqHeader := makeAuthHeader(testUser, testToken)
+			reqHeader := makeAuthHeader(testUser, testLongLivedPwd)
 
 			// dial the test websocket server running the handler under test
 			wsURL := httpToWS(t, s.URL)
@@ -1601,7 +1601,7 @@ func TestHandlePostMultiClientScriptWithTags(t *testing.T) {
 func TestHandlePostMultiClientWSScriptWithTags(t *testing.T) {
 	defaultTimeout := 60
 	mockTokenManager := authorization.NewManager(
-		CommonAPITokenTestDb(t, "user1", "2l0u3d10", authorization.APITokenReadWrite, "cb5b6578-94f5-4a5b-af58-f7867a943b0c")) // APIToken database
+		CommonAPITokenTestDb(t, "user1", "theprefix", authorization.APITokenReadWrite, "mynicefi-xedl-enth-long-livedpasswor")) // APIToken database
 
 	testCases := []struct {
 		name string
@@ -1726,7 +1726,7 @@ func TestHandlePostMultiClientWSScriptWithTags(t *testing.T) {
 			// given
 
 			testUser := "user1"
-			testToken := "2l0u3d10_cb5b6578-94f5-4a5b-af58-f7867a943b0c"
+			testLongLivedPwd := "theprefix_mynicefi-xedl-enth-long-livedpasswor"
 			curUser := makeTestUser(testUser)
 
 			connMock1 := makeConnMock(t, 1, time.Date(2020, 10, 10, 10, 10, 1, 0, time.UTC))
@@ -1804,7 +1804,7 @@ func TestHandlePostMultiClientWSScriptWithTags(t *testing.T) {
 			defer s.Close()
 
 			// prep the test user auth
-			reqHeader := makeAuthHeader(testUser, testToken)
+			reqHeader := makeAuthHeader(testUser, testLongLivedPwd)
 
 			// dial the test websocket server running the handler under test
 			wsURL := httpToWS(t, s.URL)

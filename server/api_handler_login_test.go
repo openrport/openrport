@@ -43,7 +43,7 @@ func TestAPITokenOps(t *testing.T) {
 	tokenProvider := authorization.NewSqliteProvider(apiTokenDb)
 	mockTokenManager := authorization.NewManager(tokenProvider)
 
-	uuid := "cb5b6578-94f5-4a5b-af58-f7867a943b0c"
+	uuid := "mynicefi-xedl-enth-long-livedpasswor"
 	oldUUID := random.UUID4
 	random.UUID4 = func() (string, error) {
 		return uuid, nil
@@ -52,7 +52,7 @@ func TestAPITokenOps(t *testing.T) {
 		random.UUID4 = oldUUID
 	}()
 
-	MyalphaNumNewPrefix := "2l0u3d10"
+	MyalphaNumNewPrefix := "theprefix"
 	oldAlphaNum := random.AlphaNum
 	random.AlphaNum = func(int) string {
 		return MyalphaNumNewPrefix
@@ -84,7 +84,7 @@ func TestAPITokenOps(t *testing.T) {
 			requestURL:     "/api/v1/me/token",
 			requestBody:    strings.NewReader(`{"scope": "` + string(authorization.APITokenRead) + `"}`),
 			wantStatusCode: http.StatusOK,
-			wantJSON:       `{"data":{"prefix":"2l0u3d10", "scope":"` + string(authorization.APITokenRead) + `", "token":"cb5b6578-94f5-4a5b-af58-f7867a943b0c"}}`,
+			wantJSON:       `{"data":{"prefix":"theprefix", "scope":"` + string(authorization.APITokenRead) + `", "token":"mynicefi-xedl-enth-long-livedpasswor"}}`,
 		},
 		{
 			descr:          "new token read+write creation with expires_at",
@@ -92,15 +92,15 @@ func TestAPITokenOps(t *testing.T) {
 			requestURL:     "/api/v1/me/token",
 			requestBody:    strings.NewReader(`{"scope": "` + string(authorization.APITokenReadWrite) + `", "expires_at": "` + string(expirationDate) + `"}`),
 			wantStatusCode: http.StatusOK,
-			wantJSON:       `{"data":{"expires_at":"2025-01-01T02:00:00Z", "prefix":"2l0u3d10", "scope":"` + string(authorization.APITokenReadWrite) + `", "token":"cb5b6578-94f5-4a5b-af58-f7867a943b0c"}}`,
+			wantJSON:       `{"data":{"expires_at":"2025-01-01T02:00:00Z", "prefix":"theprefix", "scope":"` + string(authorization.APITokenReadWrite) + `", "token":"mynicefi-xedl-enth-long-livedpasswor"}}`,
 		},
 		{
 			descr:          "token update with expires_at",
 			requestMethod:  http.MethodPut,
-			requestURL:     "/api/v1/me/token/2l0u3d10",
+			requestURL:     "/api/v1/me/token/theprefix",
 			requestBody:    strings.NewReader(`{"expires_at": "` + string(updateExpirationDate) + `"}`),
 			wantStatusCode: http.StatusOK,
-			wantJSON:       `{"data":{"expires_at":"2026-03-10T05:00:00Z", "prefix":"2l0u3d10", "username":"test-user" }}`,
+			wantJSON:       `{"data":{"expires_at":"2026-03-10T05:00:00Z", "prefix":"theprefix", "username":"test-user" }}`,
 		},
 		{
 			descr:          "create token empty request body",
@@ -252,7 +252,7 @@ func TestPostToken(t *testing.T) {
 	tokenProvider := authorization.NewSqliteProvider(apiTokenDb)
 	mockTokenManager := authorization.NewManager(tokenProvider)
 
-	uuid := "cb5b6578-94f5-4a5b-af58-f7867a943b0c"
+	uuid := "mynicefi-xedl-enth-long-livedpasswor"
 	oldUUID := random.UUID4
 	random.UUID4 = func() (string, error) {
 		return uuid, nil
@@ -261,7 +261,7 @@ func TestPostToken(t *testing.T) {
 		random.UUID4 = oldUUID
 	}()
 
-	MyalphaNumNewPrefix := "2l0u3d10"
+	MyalphaNumNewPrefix := "theprefix"
 	oldAlphaNum := random.AlphaNum
 	random.AlphaNum = func(int) string {
 		return MyalphaNumNewPrefix
@@ -292,7 +292,7 @@ func TestPostToken(t *testing.T) {
 	req = req.WithContext(ctxUser1)
 	req.SetBasicAuth(user.Username, "pwd")
 	al.router.ServeHTTP(w, req)
-	expectedJSON := `{"data":{"prefix":"2l0u3d10", "scope":"` + string(authorization.APITokenReadWrite) + `", "token":"cb5b6578-94f5-4a5b-af58-f7867a943b0c"}}`
+	expectedJSON := `{"data":{"prefix":"theprefix", "scope":"` + string(authorization.APITokenReadWrite) + `", "token":"mynicefi-xedl-enth-long-livedpasswor"}}`
 	assert.Equal(t, http.StatusOK, w.Code)
 	assert.JSONEq(t, expectedJSON, w.Body.String())
 }
@@ -308,7 +308,7 @@ func TestWrapWithAuthMiddleware(t *testing.T) {
 		Password: "$2y$05$ep2DdPDeLDDhwRrED9q/vuVEzRpZtB5WHCFT7YbcmH9r9oNmlsZOm",
 	}
 	mockTokenManager := authorization.NewManager(
-		CommonAPITokenTestDb(t, "user1", "2l0u3d10", authorization.APITokenReadWrite, "cb5b6578-94f5-4a5b-af58-f7867a943b0c")) // APIToken database
+		CommonAPITokenTestDb(t, "user1", "theprefix", authorization.APITokenReadWrite, "mynicefi-xedl-enth-long-livedpasswor")) // APIToken database
 
 	al := APIListener{
 		Logger:      testLog,
@@ -369,19 +369,19 @@ func TestWrapWithAuthMiddleware(t *testing.T) {
 		{
 			Name:           "basic auth with token",
 			Username:       user.Username,
-			Password:       "2l0u3d10_cb5b6578-94f5-4a5b-af58-f7867a943b0c",
+			Password:       "theprefix_mynicefi-xedl-enth-long-livedpasswor",
 			ExpectedStatus: http.StatusOK,
 		},
 		{
 			Name:           "basic auth with an expired token",
 			Username:       user.Username,
-			Password:       "expired1_cb5b6578-94f5-4a5b-af58-f7867a943b0c",
+			Password:       "expired1_mynicefi-xedl-enth-long-livedpasswor",
 			ExpectedStatus: http.StatusUnauthorized,
 		},
 		{
 			Name:           "basic auth with token, 2fa enabled",
 			Username:       user.Username,
-			Password:       "2l0u3d10_cb5b6578-94f5-4a5b-af58-f7867a943b0c",
+			Password:       "theprefix_mynicefi-xedl-enth-long-livedpasswor",
 			EnableTwoFA:    true,
 			ExpectedStatus: http.StatusOK,
 		},
@@ -446,7 +446,7 @@ func TestAPISessionUpdates(t *testing.T) {
 		Password: "$2y$05$ep2DdPDeLDDhwRrED9q/vuVEzRpZtB5WHCFT7YbcmH9r9oNmlsZOm",
 	}
 	mockTokenManager := authorization.NewManager(
-		CommonAPITokenTestDb(t, "user1", "2l0u3d10", authorization.APITokenReadWrite, "cb5b6578-94f5-4a5b-af58-f7867a943b0c")) // APIToken database
+		CommonAPITokenTestDb(t, "user1", "theprefix", authorization.APITokenReadWrite, "mynicefi-xedl-enth-long-livedpasswor")) // APIToken database
 
 	al := APIListener{
 		Logger:      testLog,
@@ -509,7 +509,7 @@ func TestAPISessionUpdates(t *testing.T) {
 		{
 			Name:            "user auth, existing token, 2fa, good password",
 			Username:        user.Username,
-			Password:        "2l0u3d10_cb5b6578-94f5-4a5b-af58-f7867a943b0c",
+			Password:        "theprefix_mynicefi-xedl-enth-long-livedpasswor",
 			EnableTwoFA:     true,
 			ExpectedSession: true,
 			ExpectedStatus:  http.StatusOK,
@@ -593,7 +593,7 @@ func TestHandleGetLogin(t *testing.T) {
 		UserService: users.NewAPIService(users.NewStaticProvider([]*users.User{user}), false, 0, -1),
 	}
 	mockTokenManager := authorization.NewManager(
-		CommonAPITokenTestDb(t, "user1", "2l0u3d10", authorization.APITokenReadWrite, "cb5b6578-94f5-4a5b-af58-f7867a943b0c")) // APIToken database
+		CommonAPITokenTestDb(t, "user1", "theprefix", authorization.APITokenReadWrite, "mynicefi-xedl-enth-long-livedpasswor")) // APIToken database
 
 	al := APIListener{
 		Logger: testLog,

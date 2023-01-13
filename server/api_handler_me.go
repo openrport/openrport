@@ -6,6 +6,8 @@ import (
 	"net/http"
 	"time"
 
+	"github.com/gorilla/mux"
+
 	"github.com/cloudradar-monitoring/rport/server/api"
 	"github.com/cloudradar-monitoring/rport/server/api/authorization"
 	users "github.com/cloudradar-monitoring/rport/server/api/users"
@@ -14,7 +16,6 @@ import (
 	chshare "github.com/cloudradar-monitoring/rport/share"
 	"github.com/cloudradar-monitoring/rport/share/logger"
 	"github.com/cloudradar-monitoring/rport/share/random"
-	"github.com/gorilla/mux"
 )
 
 // handleGetMe returns the currently logged-in user and the groups the user belongs to.
