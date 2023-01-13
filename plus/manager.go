@@ -7,6 +7,7 @@ import (
 	"plugin"
 	"sync"
 
+	licensecap "github.com/cloudradar-monitoring/rport/plus/capabilities/license"
 	"github.com/cloudradar-monitoring/rport/plus/capabilities/oauth"
 	"github.com/cloudradar-monitoring/rport/plus/capabilities/status"
 	"github.com/cloudradar-monitoring/rport/plus/license"
@@ -17,8 +18,9 @@ import (
 )
 
 const (
-	PlusOAuthCapability  = "plus-oauth"
-	PlusStatusCapability = "plus-status"
+	PlusOAuthCapability   = "plus-oauth"
+	PlusStatusCapability  = "plus-status"
+	PlusLicenseCapability = "plus-license"
 )
 
 var (
@@ -45,17 +47,23 @@ type Manager interface {
 	// Access specific capabilities
 	GetOAuthCapabilityEx() (capEx oauth.CapabilityEx)
 	GetStatusCapabilityEx() (capEx status.CapabilityEx)
+	GetLicenseCapabilityEx() (capEx licensecap.CapabilityEx)
 
 	// Access config validation
 	GetConfigValidator(capName string) (v validator.Validator)
+
+	// Handle receiving plus license info
+	SetPlusLicenseInfoAvailable(avail bool)
+	PlusLicenseInfoAvailable() (avail bool)
 }
 
 // ManagerProvider contains a map of all available capabilities and the overall
 // plugin config. The manager is thread safe for reads but not initialization.
 type ManagerProvider struct {
-	Config       *PlusConfig
-	pluginLoader loader.Loader
-	logger       *logger.Logger
+	Config               *PlusConfig
+	pluginLoader         loader.Loader
+	licenseInfoAvailable bool
+	logger               *logger.Logger
 
 	mu   sync.RWMutex
 	caps map[string]Capability
@@ -102,6 +110,16 @@ func (pm *ManagerProvider) InitPlusManager(cfg *PlusConfig, pluginLoader loader.
 	pm.pluginLoader = pluginLoader
 	pm.caps = make(map[string]Capability, 0)
 	pm.logger = logger
+}
+
+// SetPlusLicenseInfoAvailable updates the manager so that it knows license info has been received
+func (pm *ManagerProvider) SetPlusLicenseInfoAvailable(avail bool) {
+	pm.licenseInfoAvailable = avail
+}
+
+// PlusLicenseInfoAvailable returns whether license info is now available
+func (pm *ManagerProvider) PlusLicenseInfoAvailable() (avail bool) {
+	return pm.licenseInfoAvailable
 }
 
 // RegisterCapability adds a new plugin capability component, including loading
@@ -159,10 +177,24 @@ func (pm *ManagerProvider) GetStatusCapabilityEx() (capEx status.CapabilityEx) {
 	if capEntry != nil {
 		cap, ok := capEntry.(*status.Capability)
 		if !ok {
-			// TODO: consider returning an error here
 			return nil
 		}
 		capEx = cap.GetStatusCapabilityEx()
+		return capEx
+	}
+
+	return nil
+}
+
+// GetLicenseCapabilityEx returns a cast version of the Plus License capability
+func (pm *ManagerProvider) GetLicenseCapabilityEx() (capEx licensecap.CapabilityEx) {
+	capEntry := pm.getCap(PlusLicenseCapability)
+	if capEntry != nil {
+		cap, ok := capEntry.(*licensecap.Capability)
+		if !ok {
+			return nil
+		}
+		capEx = cap.GetLicenseCapabilityEx()
 		return capEx
 	}
 

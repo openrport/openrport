@@ -6,6 +6,7 @@ import (
 	"fmt"
 
 	rportplus "github.com/cloudradar-monitoring/rport/plus"
+	licensecap "github.com/cloudradar-monitoring/rport/plus/capabilities/license"
 	"github.com/cloudradar-monitoring/rport/plus/capabilities/oauth"
 	"github.com/cloudradar-monitoring/rport/plus/capabilities/status"
 	"github.com/cloudradar-monitoring/rport/plus/license"
@@ -95,6 +96,16 @@ func RegisterPlusCapabilities(plusManager rportplus.Manager, cfg *chconfig.Confi
 		return fmt.Errorf("unable to register plus status capability: %w", err)
 	}
 	logger.Infof("plus status capability registered")
+
+	// always register the plus license capability
+	_, err = plusManager.RegisterCapability(rportplus.PlusLicenseCapability, &licensecap.Capability{
+		Config: nil,
+		Logger: logger,
+	})
+	if err != nil {
+		return fmt.Errorf("unable to register plus license capability: %w", err)
+	}
+	logger.Infof("plus license capability registered")
 
 	return nil
 }

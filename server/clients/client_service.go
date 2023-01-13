@@ -16,7 +16,8 @@ import (
 	"github.com/hashicorp/go-version"
 	"github.com/jmoiron/sqlx"
 
-	"github.com/cloudradar-monitoring/rport/server/api/errors"
+	rportplus "github.com/cloudradar-monitoring/rport/plus"
+	apiErrors "github.com/cloudradar-monitoring/rport/server/api/errors"
 	"github.com/cloudradar-monitoring/rport/server/caddy"
 	"github.com/cloudradar-monitoring/rport/server/cgroups"
 	"github.com/cloudradar-monitoring/rport/server/clients/clienttunnel"
@@ -28,6 +29,8 @@ import (
 )
 
 type ClientService interface {
+	SetPlusManager(plusManager rportplus.Manager)
+
 	Count() (int, error)
 	CountActive() (int, error)
 	CountDisconnected() (int, error)
@@ -41,6 +44,7 @@ type ClientService interface {
 	GetFilteredUserClients(user User, filterOptions []query.FilterOption, groups []*cgroups.ClientGroup) ([]*CalculatedClient, error)
 
 	PopulateGroupsWithUserClients(groups []*cgroups.ClientGroup, user User)
+	UpdateClientStatus()
 
 	StartClient(
 		ctx context.Context, clientAuthID, clientID string, sshConn ssh.Conn, authMultiuseCreds bool,
@@ -73,6 +77,8 @@ type ClientServiceProvider struct {
 	tunnelProxyConfig *clienttunnel.InternalTunnelProxyConfig
 	caddyAPI          caddy.API
 	logger            *logger.Logger
+
+	plusManager rportplus.Manager
 
 	mu sync.Mutex
 }
@@ -190,6 +196,37 @@ func InitClientService(
 	}
 
 	return NewClientService(tunnelProxyConfig, portDistributor, repo, logger), nil
+}
+
+func (s *ClientServiceProvider) SetPlusManager(plusManager rportplus.Manager) {
+	s.plusManager = plusManager
+}
+
+func (s *ClientServiceProvider) GetMaxClients() (maxClients int) {
+	if s.plusManager != nil && s.plusManager.PlusLicenseInfoAvailable() {
+		maxClients = s.plusManager.GetLicenseCapabilityEx().GetMaxClients()
+	}
+	return maxClients
+}
+
+func (s *ClientServiceProvider) UpdateClientStatus() {
+	// only proceed if the plus manager is available and license info has been received
+	if s.plusManager == nil || (s.plusManager != nil && !s.plusManager.PlusLicenseInfoAvailable()) {
+		return
+	}
+
+	s.logger.Debugf("updating client status")
+
+	clientList := s.repo.GetAllActive()
+
+	for i, client := range clientList {
+		if i < s.GetMaxClients() {
+			client.SetPaused(false, "")
+		} else {
+			client.SetPaused(true, PausedDueToMaxClientsExceeded)
+		}
+	}
+
 }
 
 func (s *ClientServiceProvider) Count() (int, error) {
@@ -324,6 +361,7 @@ func (s *ClientServiceProvider) StartClient(
 			ID: clientID,
 		}
 	}
+
 	client.Name = req.Name
 	client.SessionID = req.SessionID
 	client.OS = req.OS
@@ -357,15 +395,20 @@ func (s *ClientServiceProvider) StartClient(
 
 	client.SetConnected()
 
-	_, err = s.startClientTunnels(client, req.Remotes)
-	if err != nil {
-		return nil, err
+	s.UpdateClientStatus()
+
+	if !client.IsPaused() {
+		_, err = s.startClientTunnels(client, req.Remotes)
+		if err != nil {
+			return nil, err
+		}
 	}
 
 	err = s.repo.Save(client)
 	if err != nil {
 		return nil, err
 	}
+
 	return client, nil
 }
 
@@ -491,7 +534,7 @@ func (s *ClientServiceProvider) startClientTunnels(client *Client, remotes []*mo
 		s.logger.Debugf("starting tunnel: %s", remote)
 		t, err := s.StartTunnel(client, remote, acl)
 		if err != nil {
-			return nil, errors.APIError{
+			return nil, apiErrors.APIError{
 				HTTPStatus: http.StatusConflict,
 				Err:        fmt.Errorf("unable to start tunnel: %s", err),
 			}
@@ -505,15 +548,15 @@ func (s *ClientServiceProvider) startClientTunnels(client *Client, remotes []*mo
 func (s *ClientServiceProvider) checkLocalPort(protocol, port string) error {
 	localPort, err := strconv.Atoi(port)
 	if err != nil {
-		return errors.NewAPIError(http.StatusBadRequest, "", fmt.Sprintf("Invalid local port: %s.", port), err)
+		return apiErrors.NewAPIError(http.StatusBadRequest, "", fmt.Sprintf("Invalid local port: %s.", port), err)
 	}
 
 	if !s.portDistributor.IsPortAllowed(localPort) {
-		return errors.NewAPIError(http.StatusBadRequest, "", fmt.Sprintf("Local port %d is not among allowed ports.", localPort), nil)
+		return apiErrors.NewAPIError(http.StatusBadRequest, "", fmt.Sprintf("Local port %d is not among allowed ports.", localPort), nil)
 	}
 
 	if s.portDistributor.IsPortBusy(protocol, localPort) {
-		return errors.NewAPIError(http.StatusConflict, "", fmt.Sprintf("Local port %d already in use.", localPort), nil)
+		return apiErrors.NewAPIError(http.StatusConflict, "", fmt.Sprintf("Local port %d already in use.", localPort), nil)
 	}
 
 	return nil
@@ -565,7 +608,7 @@ func (s *ClientServiceProvider) DeleteOffline(clientID string) error {
 	}
 
 	if existing.DisconnectedAt == nil {
-		return errors.APIError{
+		return apiErrors.APIError{
 			Message:    "Client is active, should be disconnected",
 			HTTPStatus: http.StatusBadRequest,
 		}
@@ -643,7 +686,7 @@ func (s *ClientServiceProvider) CheckClientsAccess(clients []*Client, user User,
 	}
 
 	if len(clientsWithNoAccess) > 0 {
-		return errors.APIError{
+		return apiErrors.APIError{
 			Message:    fmt.Sprintf("Access denied to client(s) with ID(s): %v", strings.Join(clientsWithNoAccess, ", ")),
 			HTTPStatus: http.StatusForbidden,
 		}
@@ -655,7 +698,7 @@ func (s *ClientServiceProvider) CheckClientsAccess(clients []*Client, user User,
 // getExistingByID returns non-nil client by id. If not found or failed to get a client - an error is returned.
 func (s *ClientServiceProvider) getExistingByID(clientID string) (*Client, error) {
 	if clientID == "" {
-		return nil, errors.APIError{
+		return nil, apiErrors.APIError{
 			Message:    "Client id is empty",
 			HTTPStatus: http.StatusBadRequest,
 		}
@@ -667,7 +710,7 @@ func (s *ClientServiceProvider) getExistingByID(clientID string) (*Client, error
 	}
 
 	if existing == nil {
-		return nil, errors.APIError{
+		return nil, apiErrors.APIError{
 			Message:    fmt.Sprintf("Client with id=%q not found.", clientID),
 			HTTPStatus: http.StatusNotFound,
 		}
