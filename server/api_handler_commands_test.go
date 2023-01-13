@@ -1127,9 +1127,9 @@ func TestHandlePostMultiClientCommandWithTags(t *testing.T) {
 
 func TestHandlePostMultiClientWSCommandWithTags(t *testing.T) {
 	testUser := "user1"
-	testLongLivedPwd := "theprefix_mynicefi-xedl-enth-long-livedpasswor"
+	testLongLivedPwd := "theprefi_mynicefi-xedl-enth-long-livedpasswor"
 	mockTokenManager := authorization.NewManager(
-		CommonAPITokenTestDb(t, "user1", "theprefix", authorization.APITokenReadWrite, "mynicefi-xedl-enth-long-livedpasswor")) // APIToken database
+		CommonAPITokenTestDb(t, "user1", "theprefi", authorization.APITokenReadWrite, "mynicefi-xedl-enth-long-livedpasswor")) // APIToken database
 
 	defaultTimeout := 60
 
@@ -1601,7 +1601,7 @@ func TestHandlePostMultiClientScriptWithTags(t *testing.T) {
 func TestHandlePostMultiClientWSScriptWithTags(t *testing.T) {
 	defaultTimeout := 60
 	mockTokenManager := authorization.NewManager(
-		CommonAPITokenTestDb(t, "user1", "theprefix", authorization.APITokenReadWrite, "mynicefi-xedl-enth-long-livedpasswor")) // APIToken database
+		CommonAPITokenTestDb(t, "user1", "theprefi", authorization.APITokenReadWrite, "mynicefi-xedl-enth-long-livedpasswor")) // APIToken database
 
 	testCases := []struct {
 		name string
@@ -1726,7 +1726,7 @@ func TestHandlePostMultiClientWSScriptWithTags(t *testing.T) {
 			// given
 
 			testUser := "user1"
-			testLongLivedPwd := "theprefix_mynicefi-xedl-enth-long-livedpasswor"
+			testLongLivedPwd := "theprefi_mynicefi-xedl-enth-long-livedpasswor"
 			curUser := makeTestUser(testUser)
 
 			connMock1 := makeConnMock(t, 1, time.Date(2020, 10, 10, 10, 10, 1, 0, time.UTC))
