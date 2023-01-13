@@ -122,7 +122,7 @@ func (tp *InternalTunnelProxy) Start(ctx context.Context) error {
 
 func (tp *InternalTunnelProxy) listen() {
 	tp.Logger.Debugf("listener starting")
-	tp.proxyServer.TLSConfig = security.TLSConfig
+	tp.proxyServer.TLSConfig = security.TLSConfig // 2732 TLSConfig.MinVersion needs to be a config
 	err := tp.proxyServer.ListenAndServeTLS(tp.Config.CertFile, tp.Config.KeyFile)
 	if err != nil && err == http.ErrServerClosed {
 		tp.Logger.Infof("tunnel proxy closed")
