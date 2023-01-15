@@ -193,7 +193,11 @@ func NewServer(ctx context.Context, config *chconfig.Config, opts *ServerOpts) (
 	if err != nil {
 		return nil, err
 	}
-	s.clientService.SetPlusManager(s.plusManager)
+
+	if s.config.PlusEnabled() {
+		licCapEx := s.plusManager.GetLicenseCapabilityEx()
+		s.clientService.SetPlusLicenseInfoCap(licCapEx)
+	}
 
 	s.auditLog, err = auditlog.New(
 		logger.NewLogger("auditlog", config.Logging.LogOutput, config.Logging.LogLevel),
@@ -258,8 +262,6 @@ func NewServer(ctx context.Context, config *chconfig.Config, opts *ServerOpts) (
 
 func (s *Server) HandlePlusLicenseInfoAvailable() {
 	s.Logger.Debugf("received license info from rport-plus")
-
-	s.plusManager.SetPlusLicenseInfoAvailable(true)
 
 	if s.clientListener != nil && s.clientListener.clientService != nil {
 		s.clientListener.clientService.UpdateClientStatus()

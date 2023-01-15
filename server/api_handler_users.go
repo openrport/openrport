@@ -107,15 +107,17 @@ func (al *APIListener) handleChangeUser(w http.ResponseWriter, req *http.Request
 }
 
 func (al *APIListener) checkUserCount() (err error) {
-	users, err := al.userService.GetAll()
-	if err != nil {
-		return err
-	}
-
 	maxUsers := al.getMaxUsers()
 
-	if maxUsers > 0 && len(users) >= maxUsers {
-		return errors.New("failed to create user. max user limit reached. please upgrade your license for additional users")
+	if maxUsers > 0 {
+		users, err := al.userService.GetAll()
+		if err != nil {
+			return err
+		}
+
+		if len(users) >= maxUsers {
+			return errors.New("failed to create user. max user limit reached. please upgrade your license for additional users")
+		}
 	}
 
 	return nil
@@ -123,10 +125,7 @@ func (al *APIListener) checkUserCount() (err error) {
 
 func (al *APIListener) getMaxUsers() (maxUsers int) {
 	if al.Server.config.PlusEnabled() {
-		plusManager := al.Server.plusManager
-		if plusManager.PlusLicenseInfoAvailable() {
-			maxUsers = plusManager.GetLicenseCapabilityEx().GetMaxUsers()
-		}
+		maxUsers = al.Server.plusManager.GetLicenseCapabilityEx().GetMaxUsers()
 	}
 	return maxUsers
 }

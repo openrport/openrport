@@ -14,9 +14,11 @@ const (
 type LicenseInfoAvailableNotifier func()
 
 type CapabilityEx interface {
+	SetLicenseInfoAvailableNotifier(notifyFn LicenseInfoAvailableNotifier)
+	LicenseInfoAvailable() (avail bool)
+
 	GetMaxClients() (maxClients int)
 	GetMaxUsers() (maxUsers int)
-	SetLicenseInfoAvailableNotifier(notifyFn LicenseInfoAvailableNotifier)
 }
 
 type Config struct {

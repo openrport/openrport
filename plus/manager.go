@@ -51,19 +51,14 @@ type Manager interface {
 
 	// Access config validation
 	GetConfigValidator(capName string) (v validator.Validator)
-
-	// Handle receiving plus license info
-	SetPlusLicenseInfoAvailable(avail bool)
-	PlusLicenseInfoAvailable() (avail bool)
 }
 
 // ManagerProvider contains a map of all available capabilities and the overall
 // plugin config. The manager is thread safe for reads but not initialization.
 type ManagerProvider struct {
-	Config               *PlusConfig
-	pluginLoader         loader.Loader
-	licenseInfoAvailable bool
-	logger               *logger.Logger
+	Config       *PlusConfig
+	pluginLoader loader.Loader
+	logger       *logger.Logger
 
 	mu   sync.RWMutex
 	caps map[string]Capability
@@ -110,16 +105,6 @@ func (pm *ManagerProvider) InitPlusManager(cfg *PlusConfig, pluginLoader loader.
 	pm.pluginLoader = pluginLoader
 	pm.caps = make(map[string]Capability, 0)
 	pm.logger = logger
-}
-
-// SetPlusLicenseInfoAvailable updates the manager so that it knows license info has been received
-func (pm *ManagerProvider) SetPlusLicenseInfoAvailable(avail bool) {
-	pm.licenseInfoAvailable = avail
-}
-
-// PlusLicenseInfoAvailable returns whether license info is now available
-func (pm *ManagerProvider) PlusLicenseInfoAvailable() (avail bool) {
-	return pm.licenseInfoAvailable
 }
 
 // RegisterCapability adds a new plugin capability component, including loading

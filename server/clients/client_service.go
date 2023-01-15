@@ -16,7 +16,7 @@ import (
 	"github.com/hashicorp/go-version"
 	"github.com/jmoiron/sqlx"
 
-	rportplus "github.com/cloudradar-monitoring/rport/plus"
+	licensecap "github.com/cloudradar-monitoring/rport/plus/capabilities/license"
 	apiErrors "github.com/cloudradar-monitoring/rport/server/api/errors"
 	"github.com/cloudradar-monitoring/rport/server/caddy"
 	"github.com/cloudradar-monitoring/rport/server/cgroups"
@@ -29,7 +29,7 @@ import (
 )
 
 type ClientService interface {
-	SetPlusManager(plusManager rportplus.Manager)
+	SetPlusLicenseInfoCap(licensecap licensecap.CapabilityEx)
 
 	Count() (int, error)
 	CountActive() (int, error)
@@ -78,7 +78,7 @@ type ClientServiceProvider struct {
 	caddyAPI          caddy.API
 	logger            *logger.Logger
 
-	plusManager rportplus.Manager
+	licensecap licensecap.CapabilityEx
 
 	mu sync.Mutex
 }
@@ -198,20 +198,20 @@ func InitClientService(
 	return NewClientService(tunnelProxyConfig, portDistributor, repo, logger), nil
 }
 
-func (s *ClientServiceProvider) SetPlusManager(plusManager rportplus.Manager) {
-	s.plusManager = plusManager
+func (s *ClientServiceProvider) SetPlusLicenseInfoCap(licensecap licensecap.CapabilityEx) {
+	s.licensecap = licensecap
 }
 
 func (s *ClientServiceProvider) GetMaxClients() (maxClients int) {
-	if s.plusManager != nil && s.plusManager.PlusLicenseInfoAvailable() {
-		maxClients = s.plusManager.GetLicenseCapabilityEx().GetMaxClients()
+	if s.licensecap != nil {
+		maxClients = s.licensecap.GetMaxClients()
 	}
 	return maxClients
 }
 
 func (s *ClientServiceProvider) UpdateClientStatus() {
 	// only proceed if the plus manager is available and license info has been received
-	if s.plusManager == nil || (s.plusManager != nil && !s.plusManager.PlusLicenseInfoAvailable()) {
+	if s.licensecap == nil || (s.licensecap != nil && !s.licensecap.LicenseInfoAvailable()) {
 		return
 	}
 
@@ -581,6 +581,9 @@ func (s *ClientServiceProvider) Terminate(client *Client) error {
 	if existing == nil {
 		return nil
 	}
+
+	s.UpdateClientStatus()
+
 	return s.repo.Save(client)
 }
 
