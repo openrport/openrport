@@ -93,8 +93,6 @@ func (c *Client) SetPaused(paused bool, reason string) {
 	c.PausedReason = reason
 	if paused {
 		c.Logger.Errorf("client %s is paused (reason = %s)", c.ID, c.PausedReason)
-	} else {
-		c.Logger.Errorf("client %s is running", c.ID)
 	}
 }
 
