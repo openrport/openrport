@@ -6,6 +6,7 @@ import (
 	"errors"
 	"fmt"
 	"net"
+	"os"
 	"strings"
 	"text/template"
 
@@ -232,6 +233,15 @@ func (c *Config) MakeBaseConfig(targetAPIPort string) (bc *BaseConfig, err error
 	}
 
 	adminSocket := c.DataDir + "/" + adminDomainSockName
+
+	// make sure we always start with a new sock file, as leaving the old file around seems to cause
+	// startup issues otherwise.
+	err = os.Remove(adminSocket)
+	if err != nil {
+		if !errors.Is(err, os.ErrNotExist) {
+			return nil, err
+		}
+	}
 
 	logLevel := c.LogLevel
 	if logLevel == "" {
