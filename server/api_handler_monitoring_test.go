@@ -114,7 +114,11 @@ func TestListClientMetrics(t *testing.T) {
 	al := APIListener{
 		insecureForTests: true,
 		Server: &Server{
-			config:            &chconfig.Config{},
+			config: &chconfig.Config{
+				Monitoring: chconfig.MonitoringConfig{
+					Enabled: true,
+				},
+			},
 			monitoringService: monitoringService,
 		},
 	}
