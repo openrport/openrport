@@ -34,8 +34,9 @@ func Extract(prefixedpwd string) (string, string, error) {
 	if i != APITokenPrefixLength {
 		return "", "", errors.New("invalid token")
 	}
-	prefix := prefixedpwd[0:i]
-	token := prefixedpwd[i+1:]
+	parts := strings.SplitN(prefixedpwd, "_", i)
+	prefix := parts[0]
+	token := parts[1]
 	return prefix, token, nil
 }
 
