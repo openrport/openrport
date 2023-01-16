@@ -3,6 +3,7 @@ package chserver
 import (
 	"context"
 	"crypto/subtle"
+	"crypto/tls"
 	"errors"
 	"fmt"
 	"io"
@@ -179,7 +180,14 @@ func NewAPIListener(
 
 	userService := users.NewAPIService(usersProvider, config.API.IsTwoFAOn(), config.API.PasswordMinLength, config.API.PasswordZxcvbnMinscore)
 
-	HTTPServerOptions := []chshare.ServerOption{chshare.WithTLS(config.API.CertFile, config.API.KeyFile, security.TLSConfig)} // 2732 TLSConfig.MinVersion needs to be a config
+	tlsMin := uint16(tls.VersionTLS13)
+	if config.API.TlsMin != "" && config.API.TlsMin != "1.3" {
+		if config.API.TlsMin != "1.2" {
+			return nil, fmt.Errorf("API: TLS version allowed values: 1.2 or 1.3")
+		}
+		tlsMin = tls.VersionTLS12
+	}
+	HTTPServerOptions := []chshare.ServerOption{chshare.WithTLS(config.API.CertFile, config.API.KeyFile, security.TLSConfig(tlsMin))}
 
 	// no need for TLS on the api listener when using caddy for API access
 	if config.CaddyEnabled() && config.Caddy.APIReverseProxyEnabled() {

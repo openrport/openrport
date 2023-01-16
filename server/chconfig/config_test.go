@@ -541,6 +541,17 @@ func TestParseAndValidateAPI(t *testing.T) {
 			},
 			ExpectedError: "API: max_token_lifetime outside allowable ranges. must be between 0 and 2160",
 		},
+		{
+			Name: "api enabled, invalid tls min version",
+			Config: Config{
+				API: APIConfig{
+					Address: "0.0.0.0:3000",
+					Auth:    "abc:def",
+					TlsMin:  "1.7",
+				},
+			},
+			ExpectedError: "API: TLS version can either be 1.2 or 1.3",
+		},
 	}
 
 	for _, tc := range testCases {

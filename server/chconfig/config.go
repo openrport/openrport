@@ -61,6 +61,7 @@ type APIConfig struct {
 	MaxTokenLifeTimeHours  int     `mapstructure:"max_token_lifetime"`
 	PasswordMinLength      int     `mapstructure:"password_min_length"`
 	PasswordZxcvbnMinscore int     `mapstructure:"password_zxcvbn_minscore"`
+	TlsMin                 string  `mapstructure:"tls_min"`
 
 	TwoFATokenDelivery       string                 `mapstructure:"two_fa_token_delivery"`
 	TwoFATokenTTLSeconds     int                    `mapstructure:"two_fa_token_ttl_seconds"`

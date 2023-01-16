@@ -346,6 +346,7 @@ func init() {
 	viperCfg.SetDefault("api.totp_account_name", "RPort")
 	viperCfg.SetDefault("api.password_min_length", 14)
 	viperCfg.SetDefault("api.password_zxcvbn_minscore", 0)
+	viperCfg.SetDefault("api.tls_min", "1.3")
 }
 
 func bindPFlags() {
