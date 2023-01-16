@@ -436,13 +436,13 @@ func (al *APIListener) handleBasicAuth(ctx context.Context, httpverb, urlpath, u
 		if tokenOk {
 			switch userToken.Scope {
 			case authorization.APITokenRead:
-				if httpverb == "GET" {
+				if httpverb == "GET" && !strings.Contains(urlpath, "/ws") {
 					return true, username, nil
 				}
 			case authorization.APITokenReadWrite:
 				return true, username, nil
 			case authorization.APITokenClientsAuth:
-				if strings.Index(urlpath, "clients-auth") > 0 {
+				if strings.Contains(urlpath, "clients-auth") {
 					return true, username, nil
 				}
 			}

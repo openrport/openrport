@@ -327,7 +327,7 @@ func (al *APIListener) handlePostToken(w http.ResponseWriter, req *http.Request)
 func (al *APIListener) handlePutToken(w http.ResponseWriter, req *http.Request) {
 	vars := mux.Vars(req)
 	prefix := vars[routes.ParamTokenPrefix]
-	if len(prefix) != 8 {
+	if len(prefix) != authorization.APITokenPrefixLength {
 		al.jsonErrorResponseWithTitle(w, http.StatusBadRequest, "missing or invalid token prefix.")
 		return
 	}
@@ -375,7 +375,7 @@ func (al *APIListener) handlePutToken(w http.ResponseWriter, req *http.Request) 
 func (al *APIListener) handleDeleteToken(w http.ResponseWriter, req *http.Request) {
 	vars := mux.Vars(req)
 	prefix := vars[routes.ParamTokenPrefix]
-	if len(prefix) != 8 {
+	if len(prefix) != authorization.APITokenPrefixLength {
 		al.jsonErrorResponseWithTitle(w, http.StatusBadRequest, "missing or invalid token prefix.")
 		return
 	}
