@@ -171,3 +171,92 @@ func TestListClientMetrics(t *testing.T) {
 		})
 	}
 }
+
+func TestMonitoringDisabled(t *testing.T) {
+	m1 := time.Date(2021, time.September, 1, 0, 0, 0, 0, time.UTC)
+	m2 := time.Date(2021, time.September, 1, 0, 1, 0, 0, time.UTC)
+	cmp1 := &monitoring.ClientMetricsPayload{
+		Timestamp:          m1,
+		CPUUsagePercent:    10.5,
+		MemoryUsagePercent: 2.5,
+		IOUsagePercent:     20,
+	}
+	cmp2 := &monitoring.ClientMetricsPayload{
+		Timestamp:          m2,
+		CPUUsagePercent:    20.5,
+		MemoryUsagePercent: 2.5,
+		IOUsagePercent:     25,
+	}
+	lcmp := []*monitoring.ClientMetricsPayload{cmp1, cmp2}
+
+	cpp1 := &monitoring.ClientProcessesPayload{
+		Timestamp: m1,
+		Processes: `[{"pid":30212,"parent_pid":4711,"name":"chrome"}]`,
+	}
+	lcpp := []*monitoring.ClientProcessesPayload{cpp1}
+	dbProvider := &monitoring.DBProviderMock{
+		MetricsListPayload:     lcmp,
+		ProcessesListPayload:   lcpp,
+		MountpointsListPayload: nil,
+	}
+	monitoringService := monitoring.NewService(dbProvider)
+
+	testCases := []struct {
+		Name           string
+		URL            string
+		Enabled        bool
+		ExpectedStatus int
+	}{
+		{
+			Name:           "metrics, monitoring enabled",
+			URL:            "metrics",
+			Enabled:        true,
+			ExpectedStatus: http.StatusOK,
+		},
+		{
+			Name:           "metrics, monitoring disabled",
+			URL:            "metrics",
+			Enabled:        false,
+			ExpectedStatus: http.StatusNotFound,
+		},
+		{
+			Name:           "processes, monitoring enabled",
+			URL:            "processes",
+			Enabled:        true,
+			ExpectedStatus: http.StatusOK,
+		},
+		{
+			Name:           "processes, monitoring disabled",
+			URL:            "processes",
+			Enabled:        false,
+			ExpectedStatus: http.StatusNotFound,
+		},
+	}
+
+	for _, tc := range testCases {
+		t.Run(tc.Name, func(t *testing.T) {
+			al := APIListener{
+				insecureForTests: true,
+				Server: &Server{
+					config: &chconfig.Config{
+						Monitoring: chconfig.MonitoringConfig{
+							Enabled: tc.Enabled,
+						},
+					},
+					monitoringService: monitoringService,
+				},
+			}
+			al.initRouter()
+
+			w := httptest.NewRecorder()
+			req := httptest.NewRequest("GET", "/api/v1/clients/test_client/"+tc.URL, nil)
+			al.router.ServeHTTP(w, req)
+
+			assert.Equal(t, tc.ExpectedStatus, w.Code)
+			if tc.ExpectedStatus != http.StatusOK {
+				gotJSON := w.Body.String()
+				assert.Contains(t, gotJSON, "monitoring disabled")
+			}
+		})
+	}
+}
