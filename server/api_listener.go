@@ -191,7 +191,7 @@ func NewAPIListener(
 		Server:            server,
 		Logger:            allog,
 		fingerprint:       fingerprint,
-		httpServer:        chshare.NewHTTPServer(int(config.Server.MaxRequestBytes), allog, HTTPServerOptions...),
+		httpServer:        chshare.NewHTTPServer(int(config.API.MaxRequestBytes), allog, HTTPServerOptions...),
 		requestLogOptions: config.InitRequestLogOptions(),
 		bannedUsers:       security.NewBanList(time.Duration(config.API.UserLoginWait) * time.Second),
 		userService:       userService,
