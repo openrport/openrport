@@ -68,11 +68,19 @@ func (al *APIListener) initRouter() {
 	clientMonitoring := clientDetails.NewRoute().Subrouter()
 	clientMonitoring.Use(al.permissionsMiddleware(users.PermissionMonitoring))
 	clientMonitoring.HandleFunc("/updates-status", al.handleRefreshUpdatesStatus).Methods(http.MethodPost)
-	clientMonitoring.HandleFunc("/graph-metrics", al.handleGetClientGraphMetrics).Methods(http.MethodGet)
-	clientMonitoring.HandleFunc("/graph-metrics/{"+routes.ParamGraphName+"}", al.handleGetClientGraphMetricsGraph).Methods(http.MethodGet)
-	clientMonitoring.HandleFunc("/metrics", al.handleGetClientMetrics).Methods(http.MethodGet)
-	clientMonitoring.HandleFunc("/processes", al.handleGetClientProcesses).Methods(http.MethodGet)
-	clientMonitoring.HandleFunc("/mountpoints", al.handleGetClientMountpoints).Methods(http.MethodGet)
+	if al.Server.config.Monitoring.Enabled {
+		clientMonitoring.HandleFunc("/graph-metrics", al.handleGetClientGraphMetrics).Methods(http.MethodGet)
+		clientMonitoring.HandleFunc("/graph-metrics/{"+routes.ParamGraphName+"}", al.handleGetClientGraphMetricsGraph).Methods(http.MethodGet)
+		clientMonitoring.HandleFunc("/metrics", al.handleGetClientMetrics).Methods(http.MethodGet)
+		clientMonitoring.HandleFunc("/processes", al.handleGetClientProcesses).Methods(http.MethodGet)
+		clientMonitoring.HandleFunc("/mountpoints", al.handleGetClientMountpoints).Methods(http.MethodGet)
+	} else {
+		clientMonitoring.HandleFunc("/graph-metrics", al.handleMonitoringDisabled).Methods(http.MethodGet)
+		clientMonitoring.HandleFunc("/graph-metrics/{"+routes.ParamGraphName+"}", al.handleMonitoringDisabled).Methods(http.MethodGet)
+		clientMonitoring.HandleFunc("/metrics", al.handleMonitoringDisabled).Methods(http.MethodGet)
+		clientMonitoring.HandleFunc("/processes", al.handleMonitoringDisabled).Methods(http.MethodGet)
+		clientMonitoring.HandleFunc("/mountpoints", al.handleMonitoringDisabled).Methods(http.MethodGet)
+	}
 
 	secureAPI.Handle("/tunnels", al.permissionsMiddleware(users.PermissionTunnels)(http.HandlerFunc(al.handleGetTunnels))).Methods(http.MethodGet)
 	secureAPI.Handle("/auditlog", al.permissionsMiddleware(users.PermissionsAuditLog)(http.HandlerFunc(al.handleListAuditLog))).Methods(http.MethodGet)
