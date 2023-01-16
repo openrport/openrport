@@ -28,7 +28,6 @@ get:
          e.g. `filter[timestamp][gt]=1636009200&filter[timestamp][lt]=1636009500` or
          e.g. `filter[timestamp][since]=2021-01-01T00:00:00+01:00&filter[timestamp][until]=2021-01-01T01:00:00+01:00`.
 
-         
       schema:
         type: string
     - name: fields[<RESOURCE>]
@@ -52,7 +51,7 @@ get:
       schema:
         type: integer
   responses:
-    '200':
+    "200":
       description: Successful Operation
       content:
         application/json:
@@ -68,19 +67,19 @@ get:
                 properties:
                   count:
                     type: integer
-    '400':
+    "400":
       description: Bad Request
       content:
         application/json:
           schema:
             $ref: ../components/schemas/ErrorPayload.yaml
-    '404':
-      description: Cannot find measurements by the provided id
+    "404":
+      description: Cannot find measurements by the provided id (or monitoring disabled)
       content:
         application/json:
           schema:
             $ref: ../components/schemas/ErrorPayload.yaml
-    '500':
+    "500":
       description: Invalid Operation
       content:
         application/json:
