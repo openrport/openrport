@@ -153,7 +153,7 @@ func TestAPITokenOps(t *testing.T) {
 				insecureForTests: true,
 				Server: &Server{
 					config: &chconfig.Config{
-						Server: chconfig.ServerConfig{
+						API: chconfig.APIConfig{
 							MaxRequestBytes: 1024 * 1024,
 						},
 					},
@@ -277,7 +277,7 @@ func TestPostToken(t *testing.T) {
 		apiSessions: newEmptyAPISessionCache(t),
 		Server: &Server{
 			config: &chconfig.Config{
-				Server: chconfig.ServerConfig{
+				API: chconfig.APIConfig{
 					MaxRequestBytes: 1024 * 1024,
 				},
 			},
@@ -317,7 +317,7 @@ func TestWrapWithAuthMiddleware(t *testing.T) {
 		bannedUsers: security.NewBanList(0),
 		Server: &Server{
 			config: &chconfig.Config{
-				Server: chconfig.ServerConfig{
+				API: chconfig.APIConfig{
 					MaxRequestBytes: 1024 * 1024,
 				},
 			},
@@ -455,7 +455,7 @@ func TestAPISessionUpdates(t *testing.T) {
 		bannedUsers: security.NewBanList(0),
 		Server: &Server{
 			config: &chconfig.Config{
-				Server: chconfig.ServerConfig{
+				API: chconfig.APIConfig{
 					MaxRequestBytes: 1024 * 1024,
 				},
 			},
@@ -602,9 +602,7 @@ func TestHandleGetLogin(t *testing.T) {
 			config: &chconfig.Config{
 				API: chconfig.APIConfig{
 					DefaultUserGroup: userGroup,
-				},
-				Server: chconfig.ServerConfig{
-					MaxRequestBytes: 1024 * 1024,
+					MaxRequestBytes:  1024 * 1024,
 				},
 			},
 		},
