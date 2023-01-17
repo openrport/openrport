@@ -207,6 +207,7 @@ func CommonAPITokenTestDb(t *testing.T, username, prefix string, scope authoriza
 		Token:     token,
 	}
 	err = dbProv.Save(ctx, &itemToSave)
+	require.NoError(t, err)
 
 	itemToSave = authorization.APIToken{
 		Username:  username,
@@ -216,9 +217,9 @@ func CommonAPITokenTestDb(t *testing.T, username, prefix string, scope authoriza
 		Scope:     scope,
 		Token:     token,
 	}
-	_ = dbProv.Save(ctx, &itemToSave)
-
+	err = dbProv.Save(ctx, &itemToSave)
 	require.NoError(t, err)
+
 	return dbProv
 }
 
