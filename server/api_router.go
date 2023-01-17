@@ -39,8 +39,10 @@ func (al *APIListener) initRouter() {
 	secureAPI.HandleFunc("/me", al.handleGetMe).Methods(http.MethodGet)
 	secureAPI.HandleFunc("/me", al.handleChangeMe).Methods(http.MethodPut)
 	secureAPI.HandleFunc("/me/ip", al.handleGetIP).Methods(http.MethodGet)
+	secureAPI.HandleFunc("/me/token", al.handleGetToken).Methods(http.MethodGet)
 	secureAPI.HandleFunc("/me/token", al.handlePostToken).Methods(http.MethodPost)
-	secureAPI.HandleFunc("/me/token", al.handleDeleteToken).Methods(http.MethodDelete)
+	secureAPI.HandleFunc("/me/token/{prefix}", al.handlePutToken).Methods(http.MethodPut)
+	secureAPI.HandleFunc("/me/token/{prefix}", al.handleDeleteToken).Methods(http.MethodDelete)
 
 	secureAPI.HandleFunc("/clients", al.handleGetClients).Methods(http.MethodGet)
 	clientDetails := secureAPI.PathPrefix("/clients/{client_id}").Subrouter()
@@ -102,6 +104,7 @@ func (al *APIListener) initRouter() {
 	adminOnly.HandleFunc("/user-groups/{group_name}", al.wrapStaticPassModeMiddleware(al.handleGetUserGroup)).Methods(http.MethodGet)
 	adminOnly.HandleFunc("/user-groups/{group_name}", al.wrapStaticPassModeMiddleware(al.handleUpdateUserGroup)).Methods(http.MethodPut)
 	adminOnly.HandleFunc("/user-groups/{group_name}", al.wrapStaticPassModeMiddleware(al.handleDeleteUserGroup)).Methods(http.MethodDelete)
+
 	adminOnly.HandleFunc("/clients-auth", al.handleGetClientsAuth).Methods(http.MethodGet)
 	adminOnly.HandleFunc("/clients-auth/{client_auth_id}", al.handleGetClientAuth).Methods(http.MethodGet)
 	adminOnly.HandleFunc("/clients-auth", al.handlePostClientsAuth).Methods(http.MethodPost)

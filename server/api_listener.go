@@ -18,9 +18,11 @@ import (
 	"github.com/gorilla/mux"
 	"github.com/jpillora/requestlog"
 
+	"github.com/cloudradar-monitoring/rport/db/migration/api_token"
 	"github.com/cloudradar-monitoring/rport/db/migration/library"
 	"github.com/cloudradar-monitoring/rport/db/sqlite"
 
+	"github.com/cloudradar-monitoring/rport/server/api/authorization"
 	"github.com/cloudradar-monitoring/rport/server/api/session"
 	"github.com/cloudradar-monitoring/rport/server/chconfig"
 	"github.com/cloudradar-monitoring/rport/server/clients/storedtunnels"
@@ -67,6 +69,7 @@ type APIListener struct {
 	userService    UserService
 	vaultManager   *vault.Manager
 	scriptManager  *script.Manager
+	tokenManager   *authorization.Manager
 	commandManager *command.Manager
 	storedTunnels  *storedtunnels.Manager
 }
@@ -170,12 +173,25 @@ func NewAPIListener(
 		return nil, fmt.Errorf("failed init library DB instance: %w", err)
 	}
 
+	apiTokenDb, err := sqlite.New(
+		path.Join(config.Server.DataDir, "api_token.db"),
+		api_token.AssetNames(),
+		api_token.Asset,
+		config.Server.GetSQLiteDataSourceOptions(),
+	)
+	if err != nil {
+		return nil, fmt.Errorf("failed init api_token DB instance: %w", err)
+	}
+
 	scriptLogger := logger.NewLogger("scripts", config.Logging.LogOutput, config.Logging.LogLevel)
 	scriptProvider := script.NewSqliteProvider(libraryDb)
 	scriptManager := script.NewManager(scriptProvider, scriptLogger)
 
 	commandProvider := command.NewSqliteProvider(libraryDb)
 	commandManager := command.NewManager(commandProvider)
+
+	tokenProvider := authorization.NewSqliteProvider(apiTokenDb)
+	tokenManager := authorization.NewManager(tokenProvider)
 
 	userService := users.NewAPIService(usersProvider, config.API.IsTwoFAOn(), config.API.PasswordMinLength, config.API.PasswordZxcvbnMinscore)
 
@@ -198,6 +214,7 @@ func NewAPIListener(
 		vaultManager:      vault.NewManager(vaultDBProviderFactory, &vault.Aes256PassManager{}, vaultLogger),
 		scriptManager:     scriptManager,
 		commandManager:    commandManager,
+		tokenManager:      tokenManager,
 		storedTunnels:     storedtunnels.New(server.clientDB),
 	}
 
@@ -337,12 +354,16 @@ func (al *APIListener) Close() error {
 
 var ErrTooManyRequests = errors.New("too many requests, please try later")
 var ErrThatPasswordHasExpired = errors.New("password has expired, please change your password")
+var ErrCantLoadThatToken = errors.New("there was a problem accessing that token with the provided prefix")
+var ErrPrefixNotFound = errors.New("there is no token with that prefix")
+var ErrInvalidScopeOfThatToken = errors.New("the scope of the provided token is not authorized for this operation")
+var ErrThatTokenHasExpired = errors.New("the provided token has expired")
 
 // lookupUser is used to get the user on every request in auth middleware
 func (al *APIListener) lookupUser(r *http.Request, isBearerOnly bool) (authorized bool, username string, err error) {
 	if !isBearerOnly {
 		if basicUser, basicPwd, basicAuthProvided := r.BasicAuth(); basicAuthProvided {
-			return al.handleBasicAuth(basicUser, basicPwd)
+			return al.handleBasicAuth(r.Context(), r.Method, r.URL.Path, basicUser, basicPwd)
 		}
 	}
 
@@ -364,7 +385,7 @@ func (al *APIListener) lookupUser(r *http.Request, isBearerOnly bool) (authorize
 }
 
 // handleBasicAuth checks username and password against either user's password or token
-func (al *APIListener) handleBasicAuth(username, password string) (authorized bool, name string, err error) {
+func (al *APIListener) handleBasicAuth(ctx context.Context, httpverb, urlpath, username, password string) (authorized bool, name string, err error) {
 	if al.bannedUsers.IsBanned(username) {
 		return false, username, ErrTooManyRequests
 	}
@@ -393,11 +414,39 @@ func (al *APIListener) handleBasicAuth(username, password string) (authorized bo
 		}
 	}
 
-	// only check token if we have one saved
-	if user.Token != nil && *user.Token != "" {
-		tokenOk := verifyPassword(*user.Token, password)
+	// only check token if we have one saved == I can't know if I have the token for this operation until I check the prefix inside the db
+	//   only check token if the prefix gives me a match with the db
+	// TODO: this type of tokens "User tokens", meant to be used by scripts - used in place of the password at each request - should be renamed "passwords" or "long lived passwords" or "encrypted long lived passwords"
+	prefix, password, err := authorization.Extract(password)
+	if err != nil {
+		return false, username, nil
+	}
+	userToken, err := al.tokenManager.Get(ctx, username, prefix)
+	if err != nil {
+		return false, username, err
+	}
+
+	if userToken != nil {
+		if userToken.ExpiresAt != nil {
+			if userToken.ExpiresAt.Before(time.Now()) {
+				return false, username, nil
+			}
+		}
+		tokenOk := verifyPassword(userToken.Token, password)
 		if tokenOk {
-			return true, username, nil
+			switch userToken.Scope {
+			case authorization.APITokenRead:
+				if httpverb == "GET" && !strings.Contains(urlpath, "/ws") {
+					return true, username, nil
+				}
+			case authorization.APITokenReadWrite:
+				return true, username, nil
+			case authorization.APITokenClientsAuth:
+				if strings.Contains(urlpath, "clients-auth") {
+					return true, username, nil
+				}
+			}
+			return false, username, ErrInvalidScopeOfThatToken
 		}
 	}
 
@@ -538,7 +587,7 @@ func (al *APIListener) wsAuth(f http.Handler) http.HandlerFunc {
 			basicUser, basicPwd, basicAuthProvided := r.BasicAuth()
 
 			if basicAuthProvided {
-				authorized, username, err = al.handleBasicAuth(basicUser, basicPwd)
+				authorized, username, err = al.handleBasicAuth(r.Context(), r.Method, r.URL.Path, basicUser, basicPwd)
 			} else {
 				if !al.handleBannedIPs(r, false) {
 					return

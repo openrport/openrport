@@ -19,7 +19,7 @@ func init() {
 }
 
 // AlphaNum returns a random string of length 'n' using alphanumeric characters, regexp: [a-z0-9]{n}.
-func AlphaNum(n int) string {
+var AlphaNum = func(n int) string {
 	return String(n, alphaNum)
 }
 
