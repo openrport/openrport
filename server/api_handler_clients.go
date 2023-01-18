@@ -3,6 +3,7 @@ package chserver
 import (
 	"errors"
 	"fmt"
+	"net"
 	"net/http"
 	"strconv"
 	"time"
@@ -492,7 +493,12 @@ func (al *APIListener) setTunnelProxyOptionsForRemote(req *http.Request, remote 
 			return apierrors.NewAPIError(http.StatusInternalServerError, "", "failed to allocate random subdomain for downstream proxy", err)
 		}
 
-		remote.TunnelURL = remote.NewDownstreamProxyURL(downstreamSubdomain, al.config.Caddy.BaseDomain)
+		_, port, err := net.SplitHostPort(al.config.Caddy.HostAddress)
+		if err != nil {
+			return apierrors.NewAPIError(http.StatusInternalServerError, "", "failed to get host port from caddy config", err)
+		}
+
+		remote.TunnelURL = remote.NewDownstreamProxyURL(downstreamSubdomain, al.config.Caddy.BaseDomain, port)
 	}
 
 	remote.HTTPProxy = isHTTPProxy
