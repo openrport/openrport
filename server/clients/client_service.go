@@ -65,6 +65,7 @@ type ClientService interface {
 	FindTunnel(c *Client, id string) *clienttunnel.Tunnel
 	FindTunnelByRemote(c *Client, r *models.Remote) *clienttunnel.Tunnel
 	TerminateTunnel(c *Client, t *clienttunnel.Tunnel, force bool) error
+	SetTunnelACL(c *Client, t *clienttunnel.Tunnel, aclStr *string) error
 }
 
 type ClientServiceProvider struct {
@@ -978,6 +979,31 @@ func (s *ClientServiceProvider) TerminateTunnel(c *Client, t *clienttunnel.Tunne
 	}
 
 	c.Logger.Debugf("terminated tunnel with id=%s removed", t.ID)
+	return nil
+}
+
+func (s *ClientServiceProvider) SetTunnelACL(c *Client, t *clienttunnel.Tunnel, aclStr *string) error {
+	var err error
+	var acl *clienttunnel.TunnelACL
+
+	t.Remote.ACL = aclStr
+
+	if aclStr != nil {
+		acl, err = clienttunnel.ParseTunnelACL(*aclStr)
+		if err != nil {
+			return err
+		}
+	}
+	t.TunnelProtocol.SetACL(acl)
+	if t.InternalTunnelProxy != nil {
+		t.InternalTunnelProxy.SetACL(acl)
+	}
+
+	err = s.repo.Save(c)
+	if err != nil {
+		c.Logger.Errorf("unable to save client after tunnel ACL update: %v", err)
+	}
+
 	return nil
 }
 

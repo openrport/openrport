@@ -5,6 +5,7 @@ import (
 	"io"
 	"net"
 	"sync"
+	"sync/atomic"
 	"time"
 
 	"golang.org/x/crypto/ssh"
@@ -20,7 +21,7 @@ type tunnelUDP struct {
 	*logger.Logger
 	models.Remote
 	sshConn     ssh.Conn
-	acl         *TunnelACL // parsed Remote.ACL field
+	acl         atomic.Pointer[TunnelACL] // parsed Remote.ACL field
 	idleTimeout time.Duration
 
 	conn    *net.UDPConn
@@ -33,15 +34,16 @@ type tunnelUDP struct {
 }
 
 func newTunnelUDP(logger *logger.Logger, ssh ssh.Conn, remote models.Remote, acl *TunnelACL) *tunnelUDP {
-	return &tunnelUDP{
+	t := &tunnelUDP{
 		Logger:      logger,
 		Remote:      remote,
 		sshConn:     ssh,
-		acl:         acl,
 		done:        make(chan struct{}),
 		lastActive:  time.Now(),
 		idleTimeout: time.Duration(remote.IdleTimeoutMinutes) * time.Minute,
 	}
+	t.SetACL(acl)
+	return t
 }
 
 func (t *tunnelUDP) Start(ctx context.Context) error {
@@ -118,8 +120,9 @@ func (t *tunnelUDP) runInbound(ctx context.Context) error {
 
 		t.setLastActive()
 
-		if t.acl != nil {
-			if !t.acl.CheckAccess(sourceAddr.IP) {
+		acl := t.acl.Load()
+		if acl != nil {
+			if !acl.CheckAccess(sourceAddr.IP) {
 				t.Debugf("Access rejected. Remote addr: %s", sourceAddr)
 				continue
 			}
@@ -176,4 +179,8 @@ func (t *tunnelUDP) setLastActive() {
 	defer t.mtx.Unlock()
 
 	t.lastActive = time.Now()
+}
+
+func (t *tunnelUDP) SetACL(acl *TunnelACL) {
+	t.acl.Store(acl)
 }

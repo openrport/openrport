@@ -36,14 +36,16 @@ func (al *APIListener) handleGetUsers(w http.ResponseWriter, req *http.Request) 
 	}
 
 	usersToSend := make([]UserPayload, 0, len(usrs))
-	for i := range usrs {
-		user := usrs[i]
-		usersToSend = append(usersToSend, UserPayload{
-			Username:        user.Username,
-			PasswordExpired: *user.PasswordExpired,
-			Groups:          user.Groups,
-			TwoFASendTo:     user.TwoFASendTo,
-		})
+	for _, user := range usrs {
+		payload := UserPayload{
+			Username:    user.Username,
+			Groups:      user.Groups,
+			TwoFASendTo: user.TwoFASendTo,
+		}
+		if user.PasswordExpired != nil {
+			payload.PasswordExpired = *user.PasswordExpired
+		}
+		usersToSend = append(usersToSend, payload)
 	}
 
 	response := api.NewSuccessPayload(usersToSend)

@@ -10,6 +10,7 @@ import (
 	"html/template"
 	"net"
 	"net/http"
+	"sync/atomic"
 	"time"
 
 	"github.com/gorilla/mux"
@@ -84,7 +85,7 @@ type InternalTunnelProxy struct {
 	Port                 string
 	TunnelHost           string
 	TunnelPort           string
-	ACL                  *TunnelACL
+	acl                  atomic.Pointer[TunnelACL]
 	proxyServer          *http.Server
 	tunnelProxyConnector TunnelProxyConnector
 }
@@ -97,8 +98,8 @@ func NewInternalTunnelProxy(tunnel *Tunnel, logger *logger.Logger, config *Inter
 		Port:       port,
 		TunnelHost: tunnel.Remote.LocalHost,
 		TunnelPort: tunnel.Remote.LocalPort,
-		ACL:        acl,
 	}
+	tp.SetACL(acl)
 	tp.Logger = logger.Fork("tunnel-proxy:%s", tp.Addr())
 	tp.tunnelProxyConnector = NewTunnelProxyConnector(tp)
 	return tp
@@ -161,7 +162,8 @@ func (tp *InternalTunnelProxy) TunnelAddr() string {
 // handleACL middleware to handle ACL
 func (tp *InternalTunnelProxy) handleACL(next http.Handler) http.Handler {
 	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		if tp.ACL == nil {
+		acl := tp.acl.Load()
+		if acl == nil {
 			next.ServeHTTP(w, r)
 			return
 		}
@@ -172,7 +174,7 @@ func (tp *InternalTunnelProxy) handleACL(next http.Handler) http.Handler {
 		}
 		if ipv4 != nil {
 			tcpIP := &net.TCPAddr{IP: ipv4}
-			if tp.ACL.CheckAccess(tcpIP.IP) {
+			if acl.CheckAccess(tcpIP.IP) {
 				next.ServeHTTP(w, r)
 				return
 			}
@@ -214,4 +216,8 @@ func (tp *InternalTunnelProxy) noCache(next http.Handler) http.Handler {
 		w.Header().Set("Cache-Control", "no-cache")
 		next.ServeHTTP(w, r)
 	})
+}
+
+func (tp *InternalTunnelProxy) SetACL(acl *TunnelACL) {
+	tp.acl.Store(acl)
 }
