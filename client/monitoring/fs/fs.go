@@ -4,7 +4,7 @@ import (
 	"context"
 	"time"
 
-	"github.com/shirou/gopsutil/disk"
+	"github.com/shirou/gopsutil/v3/disk"
 )
 
 const fsInfoRequestTimeout = time.Second * 10
