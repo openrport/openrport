@@ -87,7 +87,7 @@ func TestCustomHeaders(t *testing.T) {
 }
 
 func TestConnectionRequest(t *testing.T) {
-	uuid := "cb5b6578-94f5-4a5b-af58-f7867a943b0c"
+	uuid := "mynicefi-xedl-enth-long-livedpasswor"
 	oldUUID := random.UUID4
 	random.UUID4 = func() (string, error) {
 		return uuid, nil

@@ -21,10 +21,9 @@ type UserDatabase struct {
 	groupsTableName       string
 	groupDetailsTableName string
 
-	twoFAOn        bool
-	hasTokenColumn bool
-	totPOn         bool
-	logger         *logger.Logger
+	twoFAOn bool
+	totPOn  bool
+	logger  *logger.Logger
 }
 
 func NewUserDatabase(
@@ -55,9 +54,6 @@ func (d *UserDatabase) getSelectClause() string {
 	if d.twoFAOn {
 		s += ", two_fa_send_to"
 	}
-	if d.hasTokenColumn {
-		s += ", token"
-	}
 	if d.totPOn {
 		s += ", totp_secret"
 	}
@@ -66,12 +62,7 @@ func (d *UserDatabase) getSelectClause() string {
 
 // checkDatabaseTables @todo use context for all db operations
 func (d *UserDatabase) checkDatabaseTables() error {
-	_, err := d.db.Exec(fmt.Sprintf("SELECT token FROM `%s` LIMIT 0", d.usersTableName))
-	if err == nil {
-		d.hasTokenColumn = true
-	}
-
-	_, err = d.db.Exec(fmt.Sprintf("SELECT %s FROM `%s` LIMIT 0", d.getSelectClause(), d.usersTableName))
+	_, err := d.db.Exec(fmt.Sprintf("SELECT %s FROM `%s` LIMIT 0", d.getSelectClause(), d.usersTableName))
 	if err != nil {
 		err = fmt.Errorf("%v, if you have 2fa enabled please check additional column requirements at https://oss.rport.io/docs/no02-api-auth.html#database", err)
 		return err
@@ -336,11 +327,6 @@ func (d *UserDatabase) Update(usr *User, usernameToUpdate string) error {
 	if usr.Username != "" && usr.Username != usernameToUpdate {
 		statements = append(statements, "`username` = ?")
 		params = append(params, usr.Username)
-	}
-
-	if usr.Token != nil {
-		statements = append(statements, "`token` = ?")
-		params = append(params, usr.Token)
 	}
 
 	tx, err := d.db.Beginx()

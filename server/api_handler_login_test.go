@@ -2,15 +2,21 @@ package chserver
 
 import (
 	"context"
+	"encoding/json"
+	"io"
 	"net/http"
 	"net/http/httptest"
+	"strings"
 	"testing"
 	"time"
 
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 
+	"github.com/cloudradar-monitoring/rport/db/migration/api_token"
+	"github.com/cloudradar-monitoring/rport/db/sqlite"
 	"github.com/cloudradar-monitoring/rport/server/api"
+	"github.com/cloudradar-monitoring/rport/server/api/authorization"
 	"github.com/cloudradar-monitoring/rport/server/api/users"
 	"github.com/cloudradar-monitoring/rport/server/bearer"
 	"github.com/cloudradar-monitoring/rport/server/chconfig"
@@ -18,6 +24,204 @@ import (
 	"github.com/cloudradar-monitoring/rport/share/random"
 	"github.com/cloudradar-monitoring/rport/share/security"
 )
+
+func TestAPITokenOps(t *testing.T) {
+	require := require.New(t)
+	assert := assert.New(t)
+
+	user := &users.User{
+		Username: "test-user",
+	}
+	mockUsersService := &MockUsersService{
+		UserService: users.NewAPIService(users.NewStaticProvider([]*users.User{user}), false, 0, -1),
+	}
+
+	// database
+	apiTokenDb, err := sqlite.New(":memory:", api_token.AssetNames(), api_token.Asset, DataSourceOptions)
+	require.NoError(err)
+	defer apiTokenDb.Close()
+	tokenProvider := authorization.NewSqliteProvider(apiTokenDb)
+	mockTokenManager := authorization.NewManager(tokenProvider)
+
+	uuid := "mynicefi-xedl-enth-long-livedpasswor"
+	oldUUID := random.UUID4
+	random.UUID4 = func() (string, error) {
+		return uuid, nil
+	}
+	defer func() {
+		random.UUID4 = oldUUID
+	}()
+
+	MyalphaNumNewPrefix := "theprefi"
+	oldAlphaNum := random.AlphaNum
+	random.AlphaNum = func(int) string {
+		return MyalphaNumNewPrefix
+	}
+	defer func() {
+		random.AlphaNum = oldAlphaNum
+	}()
+
+	expirationDate, _ := time.Date(2025, 1, 1, 2, 0, 0, 0, time.UTC).UTC().MarshalText()
+	updateExpirationDate, _ := time.Date(2026, 3, 10, 5, 0, 0, 0, time.UTC).UTC().MarshalText()
+
+	testCases := []struct {
+		descr string // Test Case Description
+
+		clientAuthWrite bool
+		requestMethod   string
+		requestURL      string
+		requestBody     io.Reader
+
+		wantStatusCode int
+		wantJSON       string
+		wantErrCode    string
+		wantErrTitle   string
+		wantErrDetail  string
+	}{
+		{
+			descr:          "new token read creation",
+			requestMethod:  http.MethodPost,
+			requestURL:     "/api/v1/me/token",
+			requestBody:    strings.NewReader(`{"scope": "` + string(authorization.APITokenRead) + `"}`),
+			wantStatusCode: http.StatusOK,
+			wantJSON:       `{"data":{"prefix":"theprefi", "scope":"` + string(authorization.APITokenRead) + `", "token":"mynicefi-xedl-enth-long-livedpasswor"}}`,
+		},
+		{
+			descr:          "new token read+write creation with expires_at",
+			requestMethod:  http.MethodPost,
+			requestURL:     "/api/v1/me/token",
+			requestBody:    strings.NewReader(`{"scope": "` + string(authorization.APITokenReadWrite) + `", "expires_at": "` + string(expirationDate) + `"}`),
+			wantStatusCode: http.StatusOK,
+			wantJSON:       `{"data":{"expires_at":"2025-01-01T02:00:00Z", "prefix":"theprefi", "scope":"` + string(authorization.APITokenReadWrite) + `", "token":"mynicefi-xedl-enth-long-livedpasswor"}}`,
+		},
+		{
+			descr:          "token update with expires_at",
+			requestMethod:  http.MethodPut,
+			requestURL:     "/api/v1/me/token/theprefi",
+			requestBody:    strings.NewReader(`{"expires_at": "` + string(updateExpirationDate) + `"}`),
+			wantStatusCode: http.StatusOK,
+			wantJSON:       `{"data":{"expires_at":"2026-03-10T05:00:00Z", "prefix":"theprefi", "username":"test-user" }}`,
+		},
+		{
+			descr:          "create token empty request body",
+			requestMethod:  http.MethodPost,
+			requestURL:     "/api/v1/me/token",
+			requestBody:    nil,
+			wantStatusCode: http.StatusBadRequest,
+			wantErrCode:    "",
+			wantErrTitle:   "missing body with scope.",
+		},
+		{
+			descr:          "new token bad scope creation",
+			requestMethod:  http.MethodPost,
+			requestURL:     "/api/v1/me/token",
+			requestBody:    strings.NewReader(`{"scope": "reads"}`),
+			wantStatusCode: http.StatusBadRequest,
+			wantErrCode:    "",
+			wantErrTitle:   "missing or invalid scope.",
+		},
+		{
+			descr:          "new token no scope provided",
+			requestMethod:  http.MethodPost,
+			requestURL:     "/api/v1/me/token",
+			requestBody:    strings.NewReader(""),
+			wantStatusCode: http.StatusBadRequest,
+			wantErrCode:    "",
+			wantErrTitle:   "missing body with scope.",
+		},
+		{
+			descr:          "delete a token, prefix wrong len",
+			requestMethod:  http.MethodDelete,
+			requestURL:     "/api/v1/me/token/hjk",
+			wantStatusCode: http.StatusBadRequest,
+			wantErrCode:    "",
+			wantErrTitle:   "missing or invalid token prefix.",
+		},
+		{
+			descr:          "delete a token ",
+			requestMethod:  http.MethodDelete,
+			requestURL:     "/api/v1/me/token/" + MyalphaNumNewPrefix,
+			wantStatusCode: http.StatusNoContent,
+		},
+	}
+
+	for _, tc := range testCases {
+		t.Run(tc.descr, func(t *testing.T) {
+			// given
+			al := APIListener{
+				Logger:           testLog,
+				insecureForTests: true,
+				Server: &Server{
+					config: &chconfig.Config{
+						API: chconfig.APIConfig{
+							MaxRequestBytes: 1024 * 1024,
+						},
+					},
+				},
+				tokenManager: mockTokenManager,
+				userService:  mockUsersService,
+			}
+
+			al.initRouter()
+			req := httptest.NewRequest(tc.requestMethod, tc.requestURL, tc.requestBody)
+
+			// when
+			w := httptest.NewRecorder()
+			ctx := api.WithUser(req.Context(), user.Username)
+			req = req.WithContext(ctx)
+			al.router.ServeHTTP(w, req)
+			t.Logf("Got response %s", w.Body)
+
+			// then
+			require.Equal(tc.wantStatusCode, w.Code)
+			if tc.wantErrTitle == "" {
+				// success case
+				if tc.wantJSON == "" {
+					assert.Empty(w.Body.String())
+				} else {
+					assert.JSONEq(tc.wantJSON, w.Body.String())
+				}
+			} else {
+				// failure case
+				wantResp := api.NewErrAPIPayloadFromMessage(tc.wantErrCode, tc.wantErrTitle, tc.wantErrDetail)
+				wantRespBytes, err := json.Marshal(wantResp)
+				require.NoError(err)
+				require.Equal(string(wantRespBytes), w.Body.String())
+			}
+		})
+	}
+}
+
+func CommonAPITokenTestDb(t *testing.T, username, prefix string, scope authorization.APITokenScope, token string) *authorization.SqliteProvider {
+	db, err := sqlite.New(":memory:", api_token.AssetNames(), api_token.Asset, DataSourceOptions)
+	require.NoError(t, err)
+	dbProv := authorization.NewSqliteProvider(db)
+
+	ctx := context.Background()
+	itemToSave := authorization.APIToken{
+		Username:  username,
+		Prefix:    prefix,
+		CreatedAt: ptr.Time(time.Date(2001, 1, 1, 1, 0, 0, 0, time.UTC)),
+		ExpiresAt: ptr.Time(time.Date(2051, 1, 1, 2, 0, 0, 0, time.UTC)),
+		Scope:     scope,
+		Token:     token,
+	}
+	err = dbProv.Save(ctx, &itemToSave)
+	require.NoError(t, err)
+
+	itemToSave = authorization.APIToken{
+		Username:  username,
+		Prefix:    "expired1",
+		CreatedAt: ptr.Time(time.Date(2001, 1, 1, 1, 0, 0, 0, time.UTC)),
+		ExpiresAt: ptr.Time(time.Date(2001, 1, 1, 2, 0, 0, 0, time.UTC)),
+		Scope:     scope,
+		Token:     token,
+	}
+	err = dbProv.Save(ctx, &itemToSave)
+	require.NoError(t, err)
+
+	return dbProv
+}
 
 type MockUsersService struct {
 	UserService
@@ -34,13 +238,22 @@ func (s *MockUsersService) Change(user *users.User, username string) error {
 
 func TestPostToken(t *testing.T) {
 	user := &users.User{
-		Username: "test-user",
+		Username: "user1",
+		Password: "$2y$05$ep2DdPDeLDDhwRrED9q/vuVEzRpZtB5WHCFT7YbcmH9r9oNmlsZOm",
 	}
-	mockUsersService := &MockUsersService{
-		UserService: users.NewAPIService(users.NewStaticProvider([]*users.User{user}), false, 0, -1),
+	userWithoutToken := &users.User{
+		Username: "user2",
+		Password: "$2y$05$ep2DdPDeLDDhwRrED9q/vuVEzRpZtB5WHCFT7YbcmH9r9oNmlsZOm",
 	}
 
-	uuid := "cb5b6578-94f5-4a5b-af58-f7867a943b0c"
+	// database for tokenManager, creates a token read+write
+	apiTokenDb, err := sqlite.New(":memory:", api_token.AssetNames(), api_token.Asset, DataSourceOptions)
+	require.NoError(t, err)
+	defer apiTokenDb.Close()
+	tokenProvider := authorization.NewSqliteProvider(apiTokenDb)
+	mockTokenManager := authorization.NewManager(tokenProvider)
+
+	uuid := "mynicefi-xedl-enth-long-livedpasswor"
 	oldUUID := random.UUID4
 	random.UUID4 = func() (string, error) {
 		return uuid, nil
@@ -49,85 +262,71 @@ func TestPostToken(t *testing.T) {
 		random.UUID4 = oldUUID
 	}()
 
-	al := APIListener{
-		insecureForTests: true,
-		Server: &Server{
-			config: &chconfig.Config{},
-		},
-		userService: mockUsersService,
+	MyalphaNumNewPrefix := "theprefi"
+	oldAlphaNum := random.AlphaNum
+	random.AlphaNum = func(int) string {
+		return MyalphaNumNewPrefix
 	}
+	defer func() {
+		random.AlphaNum = oldAlphaNum
+	}()
+
+	al := APIListener{
+		Logger:      testLog,
+		bannedUsers: security.NewBanList(0),
+		apiSessions: newEmptyAPISessionCache(t),
+		Server: &Server{
+			config: &chconfig.Config{
+				API: chconfig.APIConfig{
+					MaxRequestBytes: 1024 * 1024,
+				},
+			},
+		},
+		tokenManager: mockTokenManager,
+		userService:  users.NewAPIService(users.NewStaticProvider([]*users.User{user, userWithoutToken}), false, 0, -1),
+	}
+
 	al.initRouter()
-
+	req := httptest.NewRequest("POST", "/api/v1/me/token", strings.NewReader(`{"scope": "`+string(authorization.APITokenReadWrite)+`"}`))
 	w := httptest.NewRecorder()
-	req := httptest.NewRequest("POST", "/api/v1/me/token", nil)
-	ctx := api.WithUser(req.Context(), user.Username)
-	req = req.WithContext(ctx)
+	ctxUser1 := api.WithUser(req.Context(), user.Username)
+	req = req.WithContext(ctxUser1)
+	req.SetBasicAuth(user.Username, "pwd")
 	al.router.ServeHTTP(w, req)
-
-	expectedJSON := `{"data":{"token":"` + uuid + `"}}`
+	expectedJSON := `{"data":{"prefix":"theprefi", "scope":"` + string(authorization.APITokenReadWrite) + `", "token":"mynicefi-xedl-enth-long-livedpasswor"}}`
 	assert.Equal(t, http.StatusOK, w.Code)
 	assert.JSONEq(t, expectedJSON, w.Body.String())
-
-	expectedUser := &users.User{
-		Token: &uuid,
-	}
-	assert.Equal(t, user.Username, mockUsersService.ChangeUsername)
-	assert.Equal(t, expectedUser, mockUsersService.ChangeUser)
 }
-
-func TestDeleteToken(t *testing.T) {
-	user := &users.User{
-		Username: "test-user",
-	}
-	mockUsersService := &MockUsersService{
-		UserService: users.NewAPIService(users.NewStaticProvider([]*users.User{user}), false, 0, -1),
-	}
-	noToken := ""
-	al := APIListener{
-		insecureForTests: true,
-		Server: &Server{
-			config: &chconfig.Config{},
-		},
-		userService: mockUsersService,
-	}
-	al.initRouter()
-
-	w := httptest.NewRecorder()
-	req := httptest.NewRequest("DELETE", "/api/v1/me/token", nil)
-	ctx := api.WithUser(req.Context(), user.Username)
-	req = req.WithContext(ctx)
-	al.router.ServeHTTP(w, req)
-
-	assert.Equal(t, http.StatusNoContent, w.Code)
-
-	expectedUser := &users.User{
-		Token: &noToken,
-	}
-	assert.Equal(t, user.Username, mockUsersService.ChangeUsername)
-	assert.Equal(t, expectedUser, mockUsersService.ChangeUser)
-}
-
 func TestWrapWithAuthMiddleware(t *testing.T) {
 	ctx := context.Background()
 
 	user := &users.User{
 		Username: "user1",
 		Password: "$2y$05$ep2DdPDeLDDhwRrED9q/vuVEzRpZtB5WHCFT7YbcmH9r9oNmlsZOm",
-		Token:    ptr.String("$2y$05$/D7g/d0sDkNSOh.e6Jzc9OWClcpZ1ieE8Dx.WUaWgayd3Ab0rRdxu"),
 	}
 	userWithoutToken := &users.User{
 		Username: "user2",
 		Password: "$2y$05$ep2DdPDeLDDhwRrED9q/vuVEzRpZtB5WHCFT7YbcmH9r9oNmlsZOm",
-		Token:    nil,
 	}
+	mockTokenManager := authorization.NewManager(
+		CommonAPITokenTestDb(t, "user1", "theprefi", authorization.APITokenReadWrite, "mynicefi-xedl-enth-long-livedpasswor")) // APIToken database
+
 	al := APIListener{
+		Logger:      testLog,
 		apiSessions: newEmptyAPISessionCache(t),
 		bannedUsers: security.NewBanList(0),
-		userService: users.NewAPIService(users.NewStaticProvider([]*users.User{user, userWithoutToken}), false, 0, -1),
 		Server: &Server{
-			config: &chconfig.Config{},
+			config: &chconfig.Config{
+				API: chconfig.APIConfig{
+					MaxRequestBytes: 1024 * 1024,
+				},
+			},
 		},
+		tokenManager: mockTokenManager,
+		userService:  users.NewAPIService(users.NewStaticProvider([]*users.User{user, userWithoutToken}), false, 0, -1),
 	}
+
+	al.initRouter()
 	jwt, err := bearer.CreateAuthToken(ctx, al.apiSessions, al.config.API.JWTSecret, time.Hour, user.Username, []bearer.Scope{}, "", "")
 	require.NoError(t, err)
 
@@ -171,13 +370,19 @@ func TestWrapWithAuthMiddleware(t *testing.T) {
 		{
 			Name:           "basic auth with token",
 			Username:       user.Username,
-			Password:       "token",
+			Password:       "theprefi_mynicefi-xedl-enth-long-livedpasswor",
 			ExpectedStatus: http.StatusOK,
+		},
+		{
+			Name:           "basic auth with an expired token",
+			Username:       user.Username,
+			Password:       "expired1_mynicefi-xedl-enth-long-livedpasswor",
+			ExpectedStatus: http.StatusUnauthorized,
 		},
 		{
 			Name:           "basic auth with token, 2fa enabled",
 			Username:       user.Username,
-			Password:       "token",
+			Password:       "theprefi_mynicefi-xedl-enth-long-livedpasswor",
 			EnableTwoFA:    true,
 			ExpectedStatus: http.StatusOK,
 		},
@@ -218,6 +423,7 @@ func TestWrapWithAuthMiddleware(t *testing.T) {
 			if tc.Username != "" {
 				req.SetBasicAuth(tc.Username, tc.Password)
 			}
+
 			if tc.Bearer != "" {
 				req.Header.Set("Authorization", "Bearer "+tc.Bearer)
 			}
@@ -235,23 +441,29 @@ func TestAPISessionUpdates(t *testing.T) {
 	user := &users.User{
 		Username: "user1",
 		Password: "$2y$05$ep2DdPDeLDDhwRrED9q/vuVEzRpZtB5WHCFT7YbcmH9r9oNmlsZOm",
-		Token:    ptr.String("$2y$05$/D7g/d0sDkNSOh.e6Jzc9OWClcpZ1ieE8Dx.WUaWgayd3Ab0rRdxu"),
 	}
-
 	userWithoutToken := &users.User{
 		Username: "user2",
 		Password: "$2y$05$ep2DdPDeLDDhwRrED9q/vuVEzRpZtB5WHCFT7YbcmH9r9oNmlsZOm",
-		Token:    nil,
 	}
+	mockTokenManager := authorization.NewManager(
+		CommonAPITokenTestDb(t, "user1", "theprefi", authorization.APITokenReadWrite, "mynicefi-xedl-enth-long-livedpasswor")) // APIToken database
 
 	al := APIListener{
+		Logger:      testLog,
 		apiSessions: newEmptyAPISessionCache(t),
 		bannedUsers: security.NewBanList(0),
-		userService: users.NewAPIService(users.NewStaticProvider([]*users.User{user, userWithoutToken}), false, 0, -1),
 		Server: &Server{
-			config: &chconfig.Config{},
+			config: &chconfig.Config{
+				API: chconfig.APIConfig{
+					MaxRequestBytes: 1024 * 1024,
+				},
+			},
 		},
+		tokenManager: mockTokenManager,
+		userService:  users.NewAPIService(users.NewStaticProvider([]*users.User{user, userWithoutToken}), false, 0, -1),
 	}
+	al.initRouter()
 
 	testIPAddress := "1.2.3.4"
 	testUserAgent := "Chrome"
@@ -298,7 +510,7 @@ func TestAPISessionUpdates(t *testing.T) {
 		{
 			Name:            "user auth, existing token, 2fa, good password",
 			Username:        user.Username,
-			Password:        "token",
+			Password:        "theprefi_mynicefi-xedl-enth-long-livedpasswor",
 			EnableTwoFA:     true,
 			ExpectedSession: true,
 			ExpectedStatus:  http.StatusOK,
@@ -377,22 +589,27 @@ func TestHandleGetLogin(t *testing.T) {
 	user := &users.User{
 		Username: "user1",
 		Password: "$2y$05$ep2DdPDeLDDhwRrED9q/vuVEzRpZtB5WHCFT7YbcmH9r9oNmlsZOm",
-		Token:    ptr.String("$2y$05$/D7g/d0sDkNSOh.e6Jzc9OWClcpZ1ieE8Dx.WUaWgayd3Ab0rRdxu"),
 	}
 	mockUsersService := &MockUsersService{
 		UserService: users.NewAPIService(users.NewStaticProvider([]*users.User{user}), false, 0, -1),
 	}
+	mockTokenManager := authorization.NewManager(
+		CommonAPITokenTestDb(t, "user1", "theprefi", authorization.APITokenReadWrite, "mynicefi-xedl-enth-long-livedpasswor")) // APIToken database
+
 	al := APIListener{
+		Logger: testLog,
 		Server: &Server{
 			config: &chconfig.Config{
 				API: chconfig.APIConfig{
 					DefaultUserGroup: userGroup,
+					MaxRequestBytes:  1024 * 1024,
 				},
 			},
 		},
-		bannedUsers: security.NewBanList(0),
-		userService: mockUsersService,
-		apiSessions: newEmptyAPISessionCache(t),
+		bannedUsers:  security.NewBanList(0),
+		userService:  mockUsersService,
+		apiSessions:  newEmptyAPISessionCache(t),
+		tokenManager: mockTokenManager,
 	}
 	al.initRouter()
 

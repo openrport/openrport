@@ -174,12 +174,12 @@ func TestSaveUsersToFile(t *testing.T) {
 	givenUsers := []*User{
 		{
 			Username: "user1",
-			Password: htpasswdBcryptPrefix + "pass1",
+			Password: HtpasswdBcryptPrefix + "pass1",
 			Groups:   []string{"group1"},
 		},
 		{
 			Username: "user2",
-			Password: htpasswdBcryptPrefix + "pass2",
+			Password: HtpasswdBcryptPrefix + "pass2",
 			Groups:   []string{"group1", "group2"},
 		},
 	}

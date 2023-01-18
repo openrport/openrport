@@ -82,7 +82,7 @@ func (e *Entry) WithClient(c *clients.Client) *Entry {
 	}
 
 	e.ClientID = c.ID
-	e.ClientHostName = c.Address
+	e.ClientHostName = c.Hostname
 	return e
 }
 
@@ -99,7 +99,7 @@ func (e *Entry) WithClientID(cid string) *Entry {
 		return e
 	}
 	if client != nil {
-		e.ClientHostName = client.Address
+		e.ClientHostName = client.Hostname
 	}
 
 	return e

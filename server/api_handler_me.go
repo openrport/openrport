@@ -2,11 +2,17 @@ package chserver
 
 import (
 	"errors"
+	"fmt"
 	"net/http"
+	"time"
+
+	"github.com/gorilla/mux"
 
 	"github.com/cloudradar-monitoring/rport/server/api"
-	"github.com/cloudradar-monitoring/rport/server/api/users"
+	"github.com/cloudradar-monitoring/rport/server/api/authorization"
+	users "github.com/cloudradar-monitoring/rport/server/api/users"
 	"github.com/cloudradar-monitoring/rport/server/auditlog"
+	"github.com/cloudradar-monitoring/rport/server/routes"
 	chshare "github.com/cloudradar-monitoring/rport/share"
 	"github.com/cloudradar-monitoring/rport/share/logger"
 	"github.com/cloudradar-monitoring/rport/share/random"
@@ -208,59 +214,193 @@ func (al *APIListener) handleGetIP(w http.ResponseWriter, req *http.Request) {
 	al.writeJSONResponse(w, http.StatusOK, api.NewSuccessPayload(ipResp))
 }
 
-type postTokenResponse struct {
-	Token string `json:"token"`
+func (al *APIListener) handleGetToken(w http.ResponseWriter, req *http.Request) {
+	user, err := al.getUserModel(req.Context())
+	if err != nil {
+		al.jsonErrorResponse(w, http.StatusInternalServerError, err)
+		return
+	}
+	if user == nil {
+		al.jsonErrorResponseWithTitle(w, http.StatusNotFound, "user not found")
+		return
+	}
+	type APITokenPayload struct {
+		Prefix    string                      `json:"prefix" db:"token"`
+		CreatedAt *time.Time                  `json:"created_at" db:"created_at"`
+		ExpiresAt *time.Time                  `json:"expires_at" db:"expires_at"`
+		Scope     authorization.APITokenScope `json:"scope" db:"scope"`
+	}
+
+	apitokenset, err := al.tokenManager.GetAll(req.Context(), user.Username)
+	if err != nil {
+		al.jsonError(w, err)
+		return
+	}
+
+	apiTokenToSend := make([]APITokenPayload, 0, len(apitokenset))
+	for _, at := range apitokenset {
+		apiTokenToSend = append(apiTokenToSend,
+			APITokenPayload{
+				Prefix:    at.Prefix,
+				CreatedAt: at.CreatedAt,
+				ExpiresAt: at.ExpiresAt,
+				Scope:     at.Scope,
+			})
+	}
+
+	response := api.NewSuccessPayload(apiTokenToSend)
+	al.writeJSONResponse(w, http.StatusOK, response)
 }
 
-// handlePostToken handles POST /me/token
 func (al *APIListener) handlePostToken(w http.ResponseWriter, req *http.Request) {
-	curUser, err := al.getUserModelForAuth(req.Context())
+	user, err := al.getUserModel(req.Context())
+	if err != nil {
+		al.jsonErrorResponse(w, http.StatusInternalServerError, err)
+		return
+	}
+	if user == nil {
+		al.jsonErrorResponseWithTitle(w, http.StatusNotFound, "user not found")
+		return
+	}
+	var r struct {
+		Scope     authorization.APITokenScope `json:"scope"`
+		ExpiresAt *time.Time                  `json:"expires_at"`
+	}
+	err = parseRequestBody(req.Body, &r)
+	if err != nil {
+		al.jsonErrorResponseWithTitle(w, http.StatusBadRequest, "missing body with scope.")
+		return
+	}
+
+	if !authorization.IsValidScope(r.Scope) {
+		al.jsonErrorResponseWithTitle(w, http.StatusBadRequest, "missing or invalid scope.")
+		return
+	}
+
+	if r.Scope == authorization.APITokenClientsAuth && !user.IsAdmin() {
+		al.jsonErrorResponseWithTitle(w, http.StatusBadRequest, "current user should belong to Administrators group to create a token with this scope")
+		return
+	}
+
+	newTokenClear, err := random.UUID4()
 	if err != nil {
 		al.jsonError(w, err)
 		return
 	}
+	newPrefix := random.AlphaNum(authorization.APITokenPrefixLength)
 
-	newToken, err := random.UUID4()
+	tokenHashStr, err := users.GenerateTokenHash(newTokenClear)
 	if err != nil {
-		al.jsonError(w, err)
+		al.jsonErrorResponse(w, http.StatusInternalServerError, err)
 		return
 	}
 
-	if err := al.userService.Change(&users.User{
-		Token: &newToken,
-	}, curUser.Username); err != nil {
+	newAPIToken := &authorization.APIToken{
+		Username:  user.Username,
+		Prefix:    newPrefix,
+		Scope:     r.Scope,
+		ExpiresAt: r.ExpiresAt,
+		Token:     tokenHashStr,
+	}
+	err = al.tokenManager.Create(req.Context(), newAPIToken)
+	if err != nil {
 		al.jsonError(w, err)
 		return
 	}
 
 	al.auditLog.Entry(auditlog.ApplicationAuthUserMeToken, auditlog.ActionCreate).
 		WithHTTPRequest(req).
+		WithID(fmt.Sprintf("[%s,%s]", user.Username, newPrefix)).
 		Save()
 
-	resp := postTokenResponse{
-		Token: newToken,
-	}
-	al.writeJSONResponse(w, http.StatusOK, api.NewSuccessPayload(resp))
+	al.Debugf("APIToken [%s] is created for user [%s].", newPrefix, user.Username)
+
+	al.writeJSONResponse(w, http.StatusOK, api.NewSuccessPayload(
+		authorization.APIToken{
+			Prefix:    newPrefix,
+			Scope:     r.Scope,
+			ExpiresAt: r.ExpiresAt,
+			Token:     newTokenClear,
+		}))
 }
 
-// handleDeleteToken handles DELETE /me/token
-func (al *APIListener) handleDeleteToken(w http.ResponseWriter, req *http.Request) {
-	curUser, err := al.getUserModelForAuth(req.Context())
+func (al *APIListener) handlePutToken(w http.ResponseWriter, req *http.Request) {
+	vars := mux.Vars(req)
+	prefix := vars[routes.ParamTokenPrefix]
+	if len(prefix) != authorization.APITokenPrefixLength {
+		al.jsonErrorResponseWithTitle(w, http.StatusBadRequest, "missing or invalid token prefix.")
+		return
+	}
+
+	user, err := al.getUserModel(req.Context())
+	if err != nil {
+		al.jsonErrorResponse(w, http.StatusInternalServerError, err)
+		return
+	}
+	if user == nil {
+		al.jsonErrorResponseWithTitle(w, http.StatusNotFound, "user not found")
+		return
+	}
+
+	var r struct {
+		ExpiresAt *time.Time `json:"expires_at"`
+	}
+	err = parseRequestBody(req.Body, &r)
 	if err != nil {
 		al.jsonError(w, err)
 		return
 	}
 
-	noToken := ""
-	if err := al.userService.Change(&users.User{
-		Token: &noToken,
-	}, curUser.Username); err != nil {
+	updAPIToken := &authorization.APIToken{
+		Username:  user.Username,
+		Prefix:    prefix,
+		ExpiresAt: r.ExpiresAt,
+	}
+	err = al.tokenManager.Save(req.Context(), updAPIToken)
+	if err != nil {
+		al.jsonError(w, err)
+		return
+	}
+
+	al.auditLog.Entry(auditlog.ApplicationAuthUserMeToken, auditlog.ActionUpdate).
+		WithHTTPRequest(req).
+		WithID(user.Username).
+		WithRequest(r).
+		Save()
+
+	al.Debugf("APIToken [%s] is updated for user [%s].", prefix, user.Username)
+	al.writeJSONResponse(w, http.StatusOK, api.NewSuccessPayload(updAPIToken))
+}
+
+func (al *APIListener) handleDeleteToken(w http.ResponseWriter, req *http.Request) {
+	vars := mux.Vars(req)
+	prefix := vars[routes.ParamTokenPrefix]
+	if len(prefix) != authorization.APITokenPrefixLength {
+		al.jsonErrorResponseWithTitle(w, http.StatusBadRequest, "missing or invalid token prefix.")
+		return
+	}
+
+	user, err := al.getUserModel(req.Context())
+	if err != nil {
+		al.jsonErrorResponse(w, http.StatusInternalServerError, err)
+		return
+	}
+	if user == nil {
+		al.jsonErrorResponseWithTitle(w, http.StatusNotFound, "user not found")
+		return
+	}
+
+	err = al.tokenManager.Delete(req.Context(), user.Username, prefix)
+	if err != nil {
 		al.jsonError(w, err)
 		return
 	}
 	al.auditLog.Entry(auditlog.ApplicationAuthUserMeToken, auditlog.ActionDelete).
 		WithHTTPRequest(req).
+		WithID(user.Username).
+		WithRequest(req).
 		Save()
 
+	al.Debugf("APIToken [%s] is deleted for user [%s].", prefix, user.Username)
 	w.WriteHeader(http.StatusNoContent)
 }

@@ -27,13 +27,11 @@ It can be used for Linux and Windows, but also appliances and IoT devices provid
 From a technological perspective, [Ngrok](https://ngrok.com/) and [openport.io](https://openport.io) are similar
 products. Rport differs from them in many aspects.
 
-* Rport is 100% open source. Client and Server. Remote management is a matter of trust and security. Rport is fully
-* transparent.
+* Rport is 100% open source. Client and Server. Remote management is a matter of trust and security. Rport is fully transparent.
 * Rport will come with a user interface making the management of remote systems easy and user-friendly.
 * Rport is made for all operating systems with native and small binaries. No need for Python or similar heavyweights.
 * Rport allows you to self-host the server.
-* Rport allows clients to wait in standby mode without an active tunnel. Tunnels can be requested on-demand by the user
-* remotely.
+* Rport allows clients to wait in standby mode without an active tunnel. Tunnels can be requested on-demand by the user remotely.
 
 **Supported operating systems**
 For the client almost all operating systems are supported, and we provide binaries for a variety of Linux architectures
