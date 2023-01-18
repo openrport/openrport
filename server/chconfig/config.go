@@ -61,7 +61,7 @@ type APIConfig struct {
 	MaxTokenLifeTimeHours  int     `mapstructure:"max_token_lifetime"`
 	PasswordMinLength      int     `mapstructure:"password_min_length"`
 	PasswordZxcvbnMinscore int     `mapstructure:"password_zxcvbn_minscore"`
-	TlsMin                 string  `mapstructure:"tls_min"`
+	TLSMin                 string  `mapstructure:"tls_min"`
 	EnableWsTestEndpoints  bool    `mapstructure:"enable_ws_test_endpoints"`
 	MaxRequestBytes        int64   `mapstructure:"max_request_bytes"`
 	MaxFilePushSize        int64   `mapstructure:"max_filepush_size"`
@@ -148,6 +148,7 @@ type ServerConfig struct {
 	BanTime                          int                                    `mapstructure:"ban_time"`
 	InternalTunnelProxyConfig        clienttunnel.InternalTunnelProxyConfig `mapstructure:",squash"`
 	JobsMaxResults                   int                                    `mapstructure:"jobs_max_results"`
+	TLSMin                           string                                 `mapstructure:"tls_min"`
 
 	// DEPRECATED, only here for backwards compatibility
 	MaxRequestBytes       int64 `mapstructure:"max_request_bytes"`

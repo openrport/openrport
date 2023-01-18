@@ -197,8 +197,8 @@ func NewAPIListener(
 	userService := users.NewAPIService(usersProvider, config.API.IsTwoFAOn(), config.API.PasswordMinLength, config.API.PasswordZxcvbnMinscore)
 
 	tlsMin := uint16(tls.VersionTLS13)
-	if config.API.TlsMin != "" && config.API.TlsMin != "1.3" {
-		if config.API.TlsMin != "1.2" {
+	if config.API.TLSMin != "" && config.API.TLSMin != "1.3" {
+		if config.API.TLSMin != "1.2" {
 			return nil, fmt.Errorf("API: TLS version allowed values: 1.2 or 1.3")
 		}
 		tlsMin = tls.VersionTLS12

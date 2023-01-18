@@ -26,6 +26,7 @@ type InternalTunnelProxyConfig struct {
 	CertFile     string `mapstructure:"tunnel_proxy_cert_file"`
 	KeyFile      string `mapstructure:"tunnel_proxy_key_file"`
 	NovncRoot    string `mapstructure:"novnc_root"`
+	TLSMin       string `mapstructure:"tls_min"`
 	GuacdAddress string `mapstructure:"guacd_address"`
 	Enabled      bool
 }
@@ -47,6 +48,9 @@ func (c *InternalTunnelProxyConfig) ParseAndValidate() error {
 	}
 	if err := c.validateGuacd(c.GuacdAddress); err != nil {
 		return fmt.Errorf("try guacd connection: %v", err)
+	}
+	if c.TLSMin != "1.2" && c.TLSMin == "1.3" {
+		return errors.New("TLS must be either 1.2 or 1.3")
 	}
 
 	c.Enabled = true
@@ -122,9 +126,16 @@ func (tp *InternalTunnelProxy) Start(ctx context.Context) error {
 
 func (tp *InternalTunnelProxy) listen() {
 	tp.Logger.Debugf("listener starting")
-	config := tp.server.config // TODO: 2732 needs to access config from here, maybe
 
-	tp.proxyServer.TLSConfig = security.TLSConfig(config.API.TlsMin) // 2732 TLSConfig.MinVersion needs to be a config
+	// this tlsmin is the server config
+	tlsMin := uint16(tls.VersionTLS13)
+	if tp.Config.TLSMin != "" && tp.Config.TLSMin != "1.3" {
+		if tp.Config.TLSMin != "1.2" {
+			tp.Logger.Errorf("Server: TLS version allowed values: 1.2 or 1.3")
+		}
+		tlsMin = tls.VersionTLS12
+	}
+	tp.proxyServer.TLSConfig = security.TLSConfig(tlsMin)
 	err := tp.proxyServer.ListenAndServeTLS(tp.Config.CertFile, tp.Config.KeyFile)
 	if err != nil && err == http.ErrServerClosed {
 		tp.Logger.Infof("tunnel proxy closed")

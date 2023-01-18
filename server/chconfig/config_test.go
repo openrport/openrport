@@ -547,10 +547,19 @@ func TestParseAndValidateAPI(t *testing.T) {
 				API: APIConfig{
 					Address: "0.0.0.0:3000",
 					Auth:    "abc:def",
-					TlsMin:  "1.7",
+					TLSMin:  "1.7",
 				},
 			},
 			ExpectedError: "API: TLS version can either be 1.2 or 1.3",
+		},
+		{
+			Name: "api disabled, no auth, invalid tls min version",
+			Config: Config{
+				Server: ServerConfig{
+					TLSMin: "1.7",
+				},
+			},
+			ExpectedError: "Server Config TLS version can either be 1.2 or 1.3",
 		},
 	}
 
