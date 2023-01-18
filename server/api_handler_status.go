@@ -47,6 +47,7 @@ func (al *APIListener) handleGetStatus(w http.ResponseWriter, req *http.Request)
 		"caddy_integration_enabled": al.config.Caddy.Enabled,
 		"excluded_ports":            al.config.Server.ExcludedPortsRaw,
 		"used_ports":                al.config.Server.UsedPortsRaw,
+		"monitoring_enabled":        al.config.Monitoring.Enabled,
 	})
 
 	al.writeJSONResponse(w, http.StatusOK, response)

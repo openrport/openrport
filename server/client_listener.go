@@ -253,6 +253,8 @@ func (cl *ClientListener) handleWebsocket(w http.ResponseWriter, req *http.Reque
 		return
 	}
 
+	clog.Debugf("client version: %s", connRequest.Version)
+
 	checkVersions(clog, connRequest.Version)
 
 	// get the current client auth id
@@ -397,6 +399,12 @@ func (cl *ClientListener) handleSSHRequests(clientLog *logger.Logger, clientID s
 				continue
 			}
 		case comm.RequestTypeSaveMeasurement:
+			// if server monitoring is disabled then do not save measurements even if received
+			if !cl.Server.config.Monitoring.Enabled {
+				clientLog.Errorf("Received measurement when monitoring disabled. Measurement not saved.")
+				continue
+			}
+
 			measurement := &models.Measurement{}
 			err := json.Unmarshal(r.Payload, measurement)
 			if err != nil {
@@ -409,6 +417,7 @@ func (cl *ClientListener) handleSSHRequests(clientLog *logger.Logger, clientID s
 				clientLog.Errorf("Failed to save measurement for client %s: %s", clientID, err)
 				continue
 			}
+
 		default:
 			clientLog.Debugf("Unknown request: %s", r.Type)
 		}

@@ -15,6 +15,7 @@ import (
 	"path"
 	"path/filepath"
 	"regexp"
+	"strconv"
 	"strings"
 	"time"
 
@@ -256,7 +257,16 @@ func (c *SMTPConfig) Validate() error {
 }
 
 type MonitoringConfig struct {
-	DataStorageDays int64 `mapstructure:"data_storage_days"`
+	DataStorageDuration string `mapstructure:"data_storage_duration"`
+	DataStorageDays     int64  `mapstructure:"data_storage_days"`
+	Enabled             bool   `mapstructure:"enabled"`
+
+	// cached version of DataStorageDuration as real time.Duration
+	duration time.Duration `mapstructure:"-"`
+}
+
+func (mc *MonitoringConfig) GetDataStorageDuration() (duration time.Duration) {
+	return mc.duration
 }
 
 type Config struct {
@@ -371,6 +381,10 @@ func (c *Config) ParseAndValidate(mLog *logger.MemLogger) error {
 	if c.Server.CheckClientsConnectionInterval < CheckClientsConnectionIntervalMinimum {
 		c.Server.CheckClientsConnectionInterval = CheckClientsConnectionIntervalMinimum
 		mLog.Errorf("'check_clients_status_interval' too fast. Using the minimum possible of %s", CheckClientsConnectionIntervalMinimum)
+	}
+
+	if err := c.Monitoring.parseAndValidateMonitoring(mLog); err != nil {
+		return err
 	}
 
 	return nil
@@ -524,6 +538,60 @@ func matchingPorts(address1 string, address2 string) (matching bool, err error) 
 		return false, err
 	}
 	return port1 == port2, nil
+}
+
+func (mc *MonitoringConfig) parseAndValidateMonitoring(mLog *logger.MemLogger) (err error) {
+	if !mc.Enabled {
+		return nil
+	}
+
+	if mc.DataStorageDays > 0 {
+		mLog.Infof("monitoring setting 'data_storage_days' is deprecated and will be removed soon. Use 'data_storage_duration' only instead.")
+	}
+
+	// we need to do this conversion as time.Duration doesn't support days
+	mc.duration, err = convertHourOrDayStringToDuration("data_storage_duration", mc.DataStorageDuration)
+	if err != nil {
+		return err
+	}
+
+	if mc.Enabled && mc.GetDataStorageDuration() < time.Hour {
+		return errors.New("monitoring results must be stored for at least 1 hour")
+	}
+	return nil
+}
+
+func convertHourOrDayStringToDuration(desc string, inputStr string) (duration time.Duration, err error) {
+	if len(inputStr) == 0 {
+		return 0, fmt.Errorf("'%s' must not be empty value", desc)
+	}
+	if len(inputStr) == 1 {
+		return 0, fmt.Errorf("'%s' must include value and units, use suffix d (=days) or h (=hours)", desc)
+	}
+
+	// byte strings are assumed
+	units := inputStr[len(inputStr)-1:]
+	isHours := strings.EqualFold(units, "h")
+	isDays := strings.EqualFold(units, "d")
+
+	if !isHours && !isDays {
+		return 0, fmt.Errorf("'%s' must include units of either d (=days) or h (=hours)", desc)
+	}
+
+	value := inputStr[:len(inputStr)-1]
+	dur, err := strconv.ParseUint(strings.TrimSpace(value), 10, 64)
+	if err != nil {
+		return 0, fmt.Errorf("'%s' must be simple value: %w", desc, err)
+	}
+
+	if isHours {
+		duration = time.Duration(dur) * time.Hour
+	}
+	if isDays {
+		duration = time.Duration(dur) * time.Hour * 24
+	}
+
+	return duration, nil
 }
 
 func (c *Config) parseAndValidateTotPSecret() error {

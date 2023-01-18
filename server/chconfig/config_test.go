@@ -2,6 +2,7 @@ package chconfig
 
 import (
 	"testing"
+	"time"
 
 	"github.com/cloudradar-monitoring/rport/server/caddy"
 	"github.com/cloudradar-monitoring/rport/share/logger"
@@ -686,6 +687,56 @@ func TestShouldValidateCaddyAPIHostnameAndAPIPortConfiguredIfSharedPorts(t *test
 			} else {
 				assert.Error(t, err)
 				assert.Contains(t, err.Error(), tc.ExpectedErrorStr)
+			}
+		})
+	}
+}
+
+func TestShouldConvertHourOrDayStringToDuration(t *testing.T) {
+	cases := []struct {
+		name             string
+		str              string
+		expectedDuration time.Duration
+		expectedErrorStr string
+	}{
+		{
+			name:             "simple hour",
+			str:              "1h",
+			expectedDuration: 1 * time.Hour,
+		},
+		{
+			name:             "simple day",
+			str:              "1d",
+			expectedDuration: 1 * time.Hour * 24,
+		},
+		{
+			name:             "space allowed",
+			str:              " 1 d",
+			expectedDuration: 1 * time.Hour * 24,
+		},
+		{
+			name:             "empty value not allowed",
+			expectedErrorStr: "must not be empty",
+		},
+		{
+			name:             "must be units",
+			str:              "1",
+			expectedErrorStr: "must include value",
+		},
+		{
+			name:             "must be simple value",
+			str:              "1.1h",
+			expectedErrorStr: "must be simple value",
+		},
+	}
+	for _, tc := range cases {
+		t.Run(tc.name, func(t *testing.T) {
+			duration, err := convertHourOrDayStringToDuration("test_field", tc.str)
+			if tc.expectedErrorStr == "" {
+				assert.NoError(t, err)
+				assert.Equal(t, tc.expectedDuration, duration)
+			} else {
+				assert.ErrorContains(t, err, tc.expectedErrorStr)
 			}
 		})
 	}

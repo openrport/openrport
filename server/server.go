@@ -155,6 +155,8 @@ func NewServer(ctx context.Context, config *chconfig.Config, opts *ServerOpts) (
 	if err != nil {
 		return nil, err
 	}
+
+	// even if monitoring disabled, always create the monitoring service to support queries of past data etc
 	s.monitoringService = monitoring.NewService(monitoringProvider)
 
 	s.clientDB, err = sqlite.New(
@@ -221,7 +223,7 @@ func NewServer(ctx context.Context, config *chconfig.Config, opts *ServerOpts) (
 		return nil, err
 	}
 
-	s.capabilities = capabilities.NewServerCapabilities()
+	s.capabilities = capabilities.NewServerCapabilities(&config.Monitoring)
 
 	s.scheduleManager, err = schedule.New(ctx, s.Logger, jobsDB, s.apiListener, config.Server.RunRemoteCmdTimeoutSec)
 	if err != nil {
@@ -300,9 +302,21 @@ func (s *Server) Run(ctx context.Context) error {
 	), s.config.Server.CheckClientsConnectionInterval)
 	s.Infof("Task to check the clients connection status will run with interval %v", s.config.Server.CheckClientsConnectionInterval)
 
-	cleaningPeriod := time.Hour * 24 * time.Duration(s.config.Monitoring.DataStorageDays)
-	go scheduler.Run(ctx, s.Logger, monitoring.NewCleanupTask(s.Logger, s.monitoringService, cleaningPeriod), cleanupMeasurementsInterval)
-	s.Infof("Task to cleanup measurements will run with interval %v", cleanupMeasurementsInterval)
+	if s.config.Monitoring.Enabled {
+		var cleaningPeriod time.Duration
+		if s.config.Monitoring.DataStorageDays > 0 {
+			s.Infof("Period to keep measurements will be %d day(s)", s.config.Monitoring.DataStorageDays)
+			cleaningPeriod = time.Hour * 24 * time.Duration(s.config.Monitoring.DataStorageDays)
+		} else {
+			s.Infof("Period to keep measurements will be %s", s.config.Monitoring.DataStorageDuration)
+			cleaningPeriod = s.config.Monitoring.GetDataStorageDuration()
+		}
+
+		go scheduler.Run(ctx, s.Logger, monitoring.NewCleanupTask(s.Logger, s.monitoringService, cleaningPeriod), cleanupMeasurementsInterval)
+		s.Infof("Task to cleanup measurements will run with interval %v", cleanupMeasurementsInterval)
+	} else {
+		s.Infof("Measurement disabled")
+	}
 
 	go scheduler.Run(ctx, s.Logger, session.NewCleanupTask(s.apiListener.apiSessions), cleanupAPISessionsInterval)
 	s.Infof("Task to cleanup expired api sessions will run with interval %v", cleanupAPISessionsInterval)
