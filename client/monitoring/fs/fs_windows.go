@@ -5,6 +5,7 @@ package fs
 
 import (
 	"bytes"
+	"context"
 	"strings"
 	"unsafe"
 
@@ -15,90 +16,30 @@ import (
 	"golang.org/x/sys/windows/registry"
 )
 
-const (
-	minDriveLabelChar = 65
-	maxDriveLabelChar = 90
-
-	driveTypeRemovable = 2
-	driveTypeFixed     = 3
-	driveTypeRemote    = 4
-	driveTypeCDROM     = 5
-)
-
-// getPartitions is an improved version of gopsutil/disk.GetPartitions()
-// which is capable of determining the fs type of network drives.
+// getPartitions wraps gopsutil/disk.Partitions and also determines fs type of network drives
 func getPartitions(onlyUniqueDevices bool) ([]disk.PartitionStat, error) {
-	var result []disk.PartitionStat
-	lpBuffer := make([]byte, 254)
-	bufferPtr := unsafe.Pointer(&lpBuffer[0])
-	diskret, err := windows.GetLogicalDriveStrings(uint32(len(lpBuffer)), (*uint16)(bufferPtr))
-	if diskret == 0 {
-		return result, err
-	}
+	ctx, cancel := context.WithTimeout(context.Background(), fsInfoRequestTimeout)
+	defer cancel()
 
-	for _, v := range lpBuffer {
-		if v >= minDriveLabelChar && v <= maxDriveLabelChar {
-			path := string(v) + ":"
-			typepath, _ := windows.UTF16PtrFromString(path)
-			typeret := windows.GetDriveType(typepath)
-			if typeret == 0 {
-				return result, windows.GetLastError()
-			}
-
-			if typeret == driveTypeRemovable || typeret == driveTypeFixed || typeret == driveTypeRemote || typeret == driveTypeCDROM {
-				lpVolumeNameBuffer := make([]byte, 256)
-				lpVolumeSerialNumber := int64(0)
-				lpMaximumComponentLength := int64(0)
-				lpFileSystemFlags := int64(0)
-				lpFileSystemNameBuffer := make([]byte, 256)
-				volpath, _ := windows.UTF16PtrFromString(string(v) + ":/")
-
-				err := windows.GetVolumeInformation(
-					volpath,
-					(*uint16)(unsafe.Pointer(&lpVolumeNameBuffer[0])),
-					uint32(len(lpVolumeNameBuffer)),
-					(*uint32)(unsafe.Pointer(&lpVolumeSerialNumber)),
-					(*uint32)(unsafe.Pointer(&lpMaximumComponentLength)),
-					(*uint32)(unsafe.Pointer(&lpFileSystemFlags)),
-					(*uint16)(unsafe.Pointer(&lpFileSystemNameBuffer[0])),
-					uint32(len(lpFileSystemNameBuffer)),
-				)
-				if err != nil {
-					if typeret == driveTypeCDROM || typeret == driveTypeRemovable || typeret == driveTypeRemote {
-						continue // device is not ready will happen if there is no disk in the drive or not connected to network drive
-					}
-					return result, err
-				}
-				opts := "rw"
-				if lpFileSystemFlags&disk.FileReadOnlyVolume != 0 {
-					opts = "ro"
-				}
-				if lpFileSystemFlags&disk.FileFileCompression != 0 {
-					opts += ".compress"
-				}
-
-				fsType := string(bytes.Replace(lpFileSystemNameBuffer, []byte("\x00"), []byte(""), -1))
-				if typeret == driveTypeRemote {
-					remoteDriveType, err := tryRetrieveRemoteDriveFSType(typepath)
-					if err != nil {
-						return result, err
-					}
-					if remoteDriveType != "" {
-						fsType = remoteDriveType
-					}
-				}
-
-				d := disk.PartitionStat{
-					Mountpoint: path,
-					Device:     path,
-					Fstype:     fsType,
-					Opts:       opts,
-				}
-				result = append(result, d)
-			}
+	partitions, err := disk.PartitionsWithContext(ctx, true)
+	if err != nil {
+		// Ignore warnings. Warning might happen if the network drive is not connected
+		if _, ok := err.(*disk.Warnings); !ok {
+			return nil, err
 		}
 	}
-	return result, nil
+	for i, partition := range partitions {
+		typepath, _ := windows.UTF16PtrFromString(partition.Mountpoint)
+		remoteDriveType, err := tryRetrieveRemoteDriveFSType(typepath)
+		// Ignore errors that might happen trying to identify remote drive type
+		if err != nil {
+			continue
+		}
+		if remoteDriveType != "" {
+			partitions[i].Fstype = remoteDriveType
+		}
+	}
+	return partitions, nil
 }
 
 // tryRetrieveRemoteDriveFSType can detect the original network share filesystem.
