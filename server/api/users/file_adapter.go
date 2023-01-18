@@ -149,9 +149,6 @@ func (fa *FileAdapter) Update(dataToChange *User, usernameToFind string) error {
 	if dataToChange.Username != "" {
 		users[userFound].Username = dataToChange.Username
 	}
-	if dataToChange.Token != nil {
-		users[userFound].Token = dataToChange.Token
-	}
 	if dataToChange.TotP != "" {
 		users[userFound].TotP = dataToChange.TotP
 	}

@@ -68,7 +68,7 @@ var clientHelp = `
     starts client with configuration loaded from the file
 
   Options:
-    NOTE: The order of options is important. <SERVER>:<PORT> and <REMOTES> aka the tunnels 
+    NOTE: The order of options is important. <SERVER>:<PORT> and <REMOTES> aka the tunnels
     must be the last options on the command line.
 
     --fingerprint, A *strongly recommended* fingerprint string

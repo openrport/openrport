@@ -85,12 +85,13 @@ func TestWithResponse(t *testing.T) {
 
 func TestWithClient(t *testing.T) {
 	e := emptyEntry().WithClient(&clients.Client{
-		ID:      "11236310-6cad-408e-b372-a0f04d68d2df",
-		Address: "127.0.0.1",
+		ID:       "11236310-6cad-408e-b372-a0f04d68d2df",
+		Address:  "127.0.0.1",
+		Hostname: "hostname",
 	})
 
 	assert.Equal(t, "11236310-6cad-408e-b372-a0f04d68d2df", e.ClientID)
-	assert.Equal(t, "127.0.0.1", e.ClientHostName)
+	assert.Equal(t, "hostname", e.ClientHostName)
 }
 
 func TestWithClientID(t *testing.T) {
@@ -100,7 +101,7 @@ func TestWithClientID(t *testing.T) {
 	t.Run("client exists", func(t *testing.T) {
 		e := auditLog.Entry("", "").WithClientID("11236310-6cad-408e-b372-a0f04d68d2df")
 		assert.Equal(t, "11236310-6cad-408e-b372-a0f04d68d2df", e.ClientID)
-		assert.Equal(t, "127.0.0.1", e.ClientHostName)
+		assert.Equal(t, "hostname", e.ClientHostName)
 	})
 
 	t.Run("client does not exist", func(t *testing.T) {
@@ -137,20 +138,22 @@ func TestSaveForMultipleClients(t *testing.T) {
 
 	auditLog.Entry("", "").SaveForMultipleClients([]*clients.Client{
 		{
-			ID:      "c1",
-			Address: "c1.com",
+			ID:       "c1",
+			Address:  "c1.com",
+			Hostname: "hostname1",
 		},
 		{
-			ID:      "c2",
-			Address: "c2.com",
+			ID:       "c2",
+			Address:  "c2.com",
+			Hostname: "hostname2",
 		},
 	})
 
 	assert.Len(t, mockProvider.entries, 2)
 	assert.Equal(t, "c1", mockProvider.entries[0].ClientID)
-	assert.Equal(t, "c1.com", mockProvider.entries[0].ClientHostName)
+	assert.Equal(t, "hostname1", mockProvider.entries[0].ClientHostName)
 	assert.Equal(t, "c2", mockProvider.entries[1].ClientID)
-	assert.Equal(t, "c2.com", mockProvider.entries[1].ClientHostName)
+	assert.Equal(t, "hostname2", mockProvider.entries[1].ClientHostName)
 }
 
 func enabledAuditLog() *AuditLog {
@@ -171,8 +174,9 @@ type mockClientGetter struct {
 func (mockClientGetter) GetByID(id string) (*clients.Client, error) {
 	if id == "11236310-6cad-408e-b372-a0f04d68d2df" {
 		return &clients.Client{
-			ID:      "11236310-6cad-408e-b372-a0f04d68d2df",
-			Address: "127.0.0.1",
+			ID:       "11236310-6cad-408e-b372-a0f04d68d2df",
+			Address:  "127.0.0.1",
+			Hostname: "hostname",
 		}, nil
 	}
 	return nil, nil

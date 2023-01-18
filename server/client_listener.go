@@ -61,7 +61,7 @@ func NewClientListener(server *Server, privateKey ssh.Signer) (*ClientListener, 
 	clog := logger.NewLogger("client-listener", config.Logging.LogOutput, config.Logging.LogLevel)
 	cl := &ClientListener{
 		Server:            server,
-		httpServer:        chshare.NewHTTPServer(int(config.Server.MaxRequestBytes), clog),
+		httpServer:        chshare.NewHTTPServer(int(config.Server.MaxRequestBytesClient), clog),
 		Logger:            clog,
 		requestLogOptions: config.InitRequestLogOptions(),
 		bannedClientAuths: security.NewBanList(time.Duration(config.Server.ClientLoginWait) * time.Second),

@@ -350,7 +350,9 @@ func TestHandleFileUploads(t *testing.T) {
 					clientGroupProvider: mockClientGroupProvider{},
 					config: &chconfig.Config{
 						Server: chconfig.ServerConfig{
-							DataDir:         "/data",
+							DataDir: "/data",
+						},
+						API: chconfig.APIConfig{
 							MaxFilePushSize: int64(10 << 20),
 						},
 					},

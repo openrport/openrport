@@ -118,7 +118,9 @@ func TestHandleGetClientsAuth(t *testing.T) {
 				Logger: testLog,
 				Server: &Server{
 					config: &chconfig.Config{
-						Server: chconfig.ServerConfig{MaxRequestBytes: 1024 * 1024},
+						API: chconfig.APIConfig{
+							MaxRequestBytes: 1024 * 1024,
+						},
 					},
 					clientAuthProvider: tc.provider,
 				},
@@ -330,7 +332,9 @@ func TestHandlePostClientsAuth(t *testing.T) {
 				Server: &Server{
 					config: &chconfig.Config{
 						Server: chconfig.ServerConfig{
-							AuthWrite:       tc.clientAuthWrite,
+							AuthWrite: tc.clientAuthWrite,
+						},
+						API: chconfig.APIConfig{
 							MaxRequestBytes: 1024 * 1024,
 						},
 					},
@@ -511,7 +515,9 @@ func TestHandleDeleteClientAuth(t *testing.T) {
 					clientService: clients.NewClientService(nil, nil, clients.NewClientRepository(tc.clients, &hour, testLog), testLog),
 					config: &chconfig.Config{
 						Server: chconfig.ServerConfig{
-							AuthWrite:       tc.clientAuthWrite,
+							AuthWrite: tc.clientAuthWrite,
+						},
+						API: chconfig.APIConfig{
 							MaxRequestBytes: 1024 * 1024,
 						},
 					},
