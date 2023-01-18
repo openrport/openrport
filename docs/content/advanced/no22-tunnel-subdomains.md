@@ -145,17 +145,32 @@ Additionally, to the above setting, add the following lines to the `[caddy-integ
 
 ```toml
   ## If you want to run the API and the tunnel subdomains on the same HTTPs port,
-  ## you must specify a hostname for the API. 
-  #api_hostname = "rport-api.example.com"
-  ## If the above api_hostname is not inside the validity of the above certificate, you can optionally specify
-  ## wich certificate to use for the API.
-  #api_cert_file = "/etc/ssl/certs/rport/api.crt"
-  #api_key_file = "/etc/ssl/certs/rport/api.key"
-  ## The API will come up on localhost only without TLS on the given port.
-  # api_port = "3000"
+  ## you must specify a hostname for the API.
+  api_hostname = "rport-api.example.com"
+  ## Even if the above api_hostname is  inside the validity of the above certificate, 
+  ## you must specify wich certificate to use for the API.
+  api_cert_file = "/etc/ssl/certs/rport/api.crt"
+  api_key_file = "/etc/ssl/certs/rport/api.key"
+  ## Port of the API with TLS switched off. Port must match the port of "[api] address"
+  api_port = "3000"
 ```
 
-The `address` on the `[api]` section will be ignored and the API will listen on `127.0.0.1` only.
+The `address` on the `[api]` must match the `api_port` on the `[caddy-integration]` section.
+Also, **the api must have SSL/TLS switched off**, by commenting out the paths to the key and certificate.
+
+For the above example the corresponding `[api]` config is:
+
+```toml
+  [api]
+  ## Defines the IP address and port the API server listens on.
+  ## Specify non-empty {address} to enable API support.
+  address = "0.0.0.0:3000"
+  ## <snip snap>
+  ## If both cert_file and key_file are specified, then rportd will use them to serve the API with https.
+  ## Intermediate certificates should be included in cert_file if required.
+  #cert_file = "/etc/letsencrypt/live/rport/fullchain.pem"
+  #key_file = "/etc/letsencrypt/live/rport/privkey.pem"
+```
 
 ### Troubleshoot
 
@@ -167,6 +182,12 @@ The `address` on the `[api]` section will be ignored and the API will listen on 
 
 2. Also, look at `/var/log/rport/rportd.log`.
 3. Consider increasing the `log_level` to `debug` in the `/etc/rport/rportd.conf` file.
+4. To query the current caddy routing and the active subdomains, use:
+
+    ```bash
+    curl http://localhost/config/apps/http/servers/srv0/routes \
+    --unix-socket /var/lib/rport/caddy-admin.sock -H "host:unix"|jq
+    ```
 
 ## Use it
 
