@@ -12,24 +12,21 @@ import (
 	"testing"
 	"time"
 
-	"github.com/cloudradar-monitoring/rport/share/random"
-
-	"github.com/cloudradar-monitoring/rport/share/test"
-
 	"github.com/gorilla/websocket"
-	"github.com/shirou/gopsutil/cpu"
-	"github.com/shirou/gopsutil/mem"
-	"golang.org/x/crypto/ssh"
-
-	"github.com/shirou/gopsutil/host"
+	"github.com/shirou/gopsutil/v3/cpu"
+	"github.com/shirou/gopsutil/v3/host"
+	"github.com/shirou/gopsutil/v3/mem"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
+	"golang.org/x/crypto/ssh"
 
 	"github.com/cloudradar-monitoring/rport/client/system"
 	chshare "github.com/cloudradar-monitoring/rport/share"
 	"github.com/cloudradar-monitoring/rport/share/clientconfig"
 	"github.com/cloudradar-monitoring/rport/share/logger"
 	"github.com/cloudradar-monitoring/rport/share/models"
+	"github.com/cloudradar-monitoring/rport/share/random"
+	"github.com/cloudradar-monitoring/rport/share/test"
 )
 
 func TestCustomHeaders(t *testing.T) {

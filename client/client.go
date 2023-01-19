@@ -20,7 +20,7 @@ import (
 
 	"github.com/gorilla/websocket"
 	"github.com/jpillora/backoff"
-	"github.com/shirou/gopsutil/host"
+	"github.com/shirou/gopsutil/v3/host"
 	"golang.org/x/crypto/ssh"
 	"golang.org/x/net/proxy"
 

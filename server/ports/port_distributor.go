@@ -4,7 +4,7 @@ import (
 	"fmt"
 
 	mapset "github.com/deckarep/golang-set"
-	"github.com/shirou/gopsutil/net"
+	"github.com/shirou/gopsutil/v3/net"
 
 	"github.com/cloudradar-monitoring/rport/share/models"
 )
