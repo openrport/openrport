@@ -327,7 +327,6 @@ func init() {
 	viperCfg.SetDefault("server.pairing_url", DefaultPairingURL)
 	viperCfg.SetDefault("server.ban_time", 3600)
 	viperCfg.SetDefault("server.jobs_max_results", 10000)
-	viperCfg.SetDefault("server.tls_min", "1.3")
 	viperCfg.SetDefault("api.user_header", "Authentication-User")
 	viperCfg.SetDefault("api.default_user_group", "Administrators")
 	viperCfg.SetDefault("api.user_login_wait", 2)

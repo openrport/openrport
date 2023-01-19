@@ -148,7 +148,6 @@ type ServerConfig struct {
 	BanTime                          int                                    `mapstructure:"ban_time"`
 	InternalTunnelProxyConfig        clienttunnel.InternalTunnelProxyConfig `mapstructure:",squash"`
 	JobsMaxResults                   int                                    `mapstructure:"jobs_max_results"`
-	TLSMin                           string                                 `mapstructure:"tls_min"`
 
 	// DEPRECATED, only here for backwards compatibility
 	MaxRequestBytes       int64 `mapstructure:"max_request_bytes"`

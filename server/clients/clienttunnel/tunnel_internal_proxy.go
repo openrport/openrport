@@ -49,11 +49,11 @@ func (c *InternalTunnelProxyConfig) ParseAndValidate() error {
 	if err := c.validateGuacd(c.GuacdAddress); err != nil {
 		return fmt.Errorf("try guacd connection: %v", err)
 	}
-	if c.TLSMin != "1.2" && c.TLSMin == "1.3" {
+	if c.TLSMin != "" && c.TLSMin != "1.2" && c.TLSMin != "1.3" {
 		return errors.New("TLS must be either 1.2 or 1.3")
 	}
-
 	c.Enabled = true
+
 	return nil
 }
 
@@ -127,7 +127,7 @@ func (tp *InternalTunnelProxy) Start(ctx context.Context) error {
 func (tp *InternalTunnelProxy) listen() {
 	tp.Logger.Debugf("listener starting")
 
-	// this tlsmin is the server config
+	// this tlsmin is the InternalTunnelProxyConfig config in the server section
 	tlsMin := uint16(tls.VersionTLS13)
 	if tp.Config.TLSMin != "" && tp.Config.TLSMin != "1.3" {
 		if tp.Config.TLSMin != "1.2" {

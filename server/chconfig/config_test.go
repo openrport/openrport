@@ -4,6 +4,7 @@ import (
 	"testing"
 
 	"github.com/cloudradar-monitoring/rport/server/caddy"
+	"github.com/cloudradar-monitoring/rport/server/clients/clienttunnel"
 	"github.com/cloudradar-monitoring/rport/share/logger"
 
 	mapset "github.com/deckarep/golang-set"
@@ -36,6 +37,22 @@ func TestParseAndValidateServerConfig(t *testing.T) {
 				},
 			},
 			ExpectedError: "server.pairingURL: invalid url ftp:example.com: schema must be http or https",
+		},
+		{
+			Name: "invalid tls_min version in InternalTunnelProxyConfig",
+			Config: Config{
+				Server: ServerConfig{
+					InternalTunnelProxyConfig: clienttunnel.InternalTunnelProxyConfig{
+						CertFile: "../../testdata/certs/tunnels.rport.test.crt",
+						KeyFile:  "../../testdata/certs/tunnels.rport.test.key",
+
+						TLSMin: "1.7",
+					},
+					URL:          []string{"https://go.lang"},
+					UsedPortsRaw: []string{"10-20"},
+				},
+			},
+			ExpectedError: "TLS must be either 1.2 or 1.3",
 		},
 		{
 			Name: "Bad server connection URL",
@@ -551,15 +568,6 @@ func TestParseAndValidateAPI(t *testing.T) {
 				},
 			},
 			ExpectedError: "API: TLS version can either be 1.2 or 1.3",
-		},
-		{
-			Name: "api disabled, no auth, invalid tls min version",
-			Config: Config{
-				Server: ServerConfig{
-					TLSMin: "1.7",
-				},
-			},
-			ExpectedError: "Server Config TLS version can either be 1.2 or 1.3",
 		},
 	}
 
