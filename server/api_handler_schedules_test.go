@@ -186,6 +186,7 @@ func TestHandlePostScheduleMultiClientJobWithTags(t *testing.T) {
 			al := makeAPIListener(curUser,
 				clients.NewClientRepositoryWithDB(nil, &hour, p, testLog),
 				defaultTimeout,
+				nil,
 				testLog)
 
 			// make sure the repo has the test clients
@@ -414,6 +415,7 @@ func TestHandlePostUpdateScheduleMultiClientJobWithTags(t *testing.T) {
 			al := makeAPIListener(curUser,
 				clients.NewClientRepositoryWithDB(nil, &hour, p, testLog),
 				defaultTimeout,
+				nil,
 				testLog)
 
 			// make sure the repo has the test clients

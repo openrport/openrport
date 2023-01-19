@@ -7,7 +7,6 @@ type User struct {
 	PasswordExpired *bool    `json:"password_expired" db:"password_expired"`
 	Groups          []string `json:"groups" db:"-"`
 	TwoFASendTo     string   `json:"two_fa_send_to" db:"two_fa_send_to"`
-	Token           *string  `json:"token,omitempty" db:"token"`
 	TotP            string   `json:"totp_secret,omitempty" db:"totp_secret"`
 }
 
@@ -30,8 +29,4 @@ func (u User) IsAdmin() bool {
 
 func PasswordExpired(f bool) *bool {
 	return &f
-}
-
-func Token(s string) *string {
-	return &s
 }

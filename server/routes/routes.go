@@ -7,6 +7,7 @@ const (
 	ParamSessionID      = "session_id"
 	ParamJobID          = "job_id"
 	ParamGroupID        = "group_id"
+	ParamTokenPrefix    = "prefix"
 	ParamVaultValueID   = "vault_value_id"
 	ParamScriptValueID  = "script_value_id"
 	ParamCommandValueID = "command_value_id"

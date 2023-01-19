@@ -8,11 +8,15 @@ jobs:
       - uses: actions/setup-go@v2
       - uses: actions/checkout@v2
 
-      - name: go mod vendor
-        run: go mod vendor
-
       - name: golangci-lint
-        uses: golangci/golangci-lint-action@v2
-        with:
-          version: v1.50.1
-          args: -c .golangci.yml
+        shell: bash
+        run: |
+          mkdir ~/bin
+          curl -L https://github.com/golangci/golangci-lint/releases/download/v1.50.1/golangci-lint-1.50.1-linux-amd64.tar.gz -o /tmp/golangci-lint-1.50.1-linux-amd64.tar.gz
+          tar xzf /tmp/golangci-lint-1.50.1-linux-amd64.tar.gz -C /tmp/
+          mv /tmp/golangci-lint-1.50.1-linux-amd64/golangci-lint ~/bin
+          echo "Running go mod vendor"
+          go mod vendor
+          ~/bin/golangci-lint version
+          echo "Running ~/bin/golangci-lint run"
+          ~/bin/golangci-lint run

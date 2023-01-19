@@ -1,0 +1,25 @@
+type: object
+properties:
+  prefix:
+    type: string
+    description: randomly generated 8 digit [0-9][a-z][A-Z] string (no special characters), unique per user
+
+  token:
+    type: string
+    format: uuid
+    description: the actual token
+  created_at:
+    type: string
+    description: date and time when this token was created
+    format: date-time
+  expires_at:
+    type: string
+    description: date and time when this token will expire
+    format: date-time
+  scope:
+    enum:
+      - read
+      - read+write
+      - clients-auth
+    description: what this token is authorized for
+    

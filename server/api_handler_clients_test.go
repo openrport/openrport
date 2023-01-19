@@ -42,7 +42,9 @@ func TestHandleGetClient(t *testing.T) {
 		Server: &Server{
 			clientService: clients.NewClientService(nil, nil, clients.NewClientRepository([]*clients.Client{c1}, &hour, testLog), testLog),
 			config: &chconfig.Config{
-				Server: chconfig.ServerConfig{MaxRequestBytes: 1024 * 1024},
+				API: chconfig.APIConfig{
+					MaxRequestBytes: 1024 * 1024,
+				},
 			},
 			clientGroupProvider: mockClientGroupProvider{},
 		},
@@ -179,7 +181,9 @@ func TestHandleGetClients(t *testing.T) {
 		Server: &Server{
 			clientService: clients.NewClientService(nil, nil, clients.NewClientRepository([]*clients.Client{c1, c2}, &hour, testLog), testLog),
 			config: &chconfig.Config{
-				Server: chconfig.ServerConfig{MaxRequestBytes: 1024 * 1024},
+				API: chconfig.APIConfig{
+					MaxRequestBytes: 1024 * 1024,
+				},
 			},
 			clientGroupProvider: mockClientGroupProvider{},
 		},
@@ -533,10 +537,12 @@ func TestHandlePutTunnelWithName(t *testing.T) {
 					clientService: mockClientService,
 					config: &chconfig.Config{
 						Server: chconfig.ServerConfig{
-							MaxRequestBytes: 1024 * 1024,
 							InternalTunnelProxyConfig: clienttunnel.InternalTunnelProxyConfig{
 								Enabled: true,
 							},
+						},
+						API: chconfig.APIConfig{
+							MaxRequestBytes: 1024 * 1024,
 						},
 					},
 					clientGroupProvider: mockClientGroupProvider{},
@@ -702,10 +708,12 @@ func TestHandlePutTunnelUsingCaddyProxies(t *testing.T) {
 					clientService: mockClientService,
 					config: &chconfig.Config{
 						Server: chconfig.ServerConfig{
-							MaxRequestBytes: 1024 * 1024,
 							InternalTunnelProxyConfig: clienttunnel.InternalTunnelProxyConfig{
 								Enabled: true,
 							},
+						},
+						API: chconfig.APIConfig{
+							MaxRequestBytes: 1024 * 1024,
 						},
 						Caddy: caddy.Config{
 							ExecPath:         "/usr/bin/caddy",

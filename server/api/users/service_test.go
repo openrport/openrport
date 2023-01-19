@@ -249,7 +249,7 @@ func TestAddUser(t *testing.T) {
 
 	require.Len(t, dbProvider.UsersToAdd, 1)
 	assert.Equal(t, "user13", dbProvider.UsersToAdd[0].Username)
-	assert.True(t, strings.HasPrefix(dbProvider.UsersToAdd[0].Password, htpasswdBcryptPrefix))
+	assert.True(t, strings.HasPrefix(dbProvider.UsersToAdd[0].Password, HtpasswdBcryptPrefix))
 	require.Len(t, dbProvider.UsersToUpdate, 0)
 
 	dbProvider = &ProviderMock{
@@ -334,7 +334,6 @@ func TestUpdateUserInProvider(t *testing.T) {
 		Username: "user_one",
 		Password: "pass_one",
 		Groups:   []string{"group_one", "group_two"},
-		Token:    Token("token_one"),
 	}
 
 	dbProvider := &ProviderMock{
@@ -359,8 +358,7 @@ func TestUpdateUserInProvider(t *testing.T) {
 	assert.Len(t, dbProvider.UsersToAdd, 0)
 	require.Len(t, dbProvider.UsersToUpdate, 1)
 	assert.Equal(t, "user_one", dbProvider.UsersToUpdate[0].Username)
-	assert.True(t, strings.HasPrefix(dbProvider.UsersToUpdate[0].Password, htpasswdBcryptPrefix))
-	assert.True(t, strings.HasPrefix(*dbProvider.UsersToUpdate[0].Token, htpasswdBcryptPrefix))
+	assert.True(t, strings.HasPrefix(dbProvider.UsersToUpdate[0].Password, HtpasswdBcryptPrefix))
 	assert.Equal(t, []string{"group_one", "group_two"}, dbProvider.UsersToUpdate[0].Groups)
 
 	dbProvider.UsersToUpdate = []*User{}

@@ -12,8 +12,8 @@ import (
 	"sync"
 )
 
-const htpasswdBcryptPrefix = "$2y$"
-const htpasswdBcryptAltPrefix = "$2a$"
+const HtpasswdBcryptPrefix = "$2y$"
+const HtpasswdBcryptAltPrefix = "$2a$"
 
 type FileManager struct {
 	FileName       string
@@ -89,7 +89,7 @@ func parseUsers(r io.Reader) ([]*User, error) {
 		if p == "" {
 			return nil, errors.New("password can not be empty")
 		}
-		if !strings.HasPrefix(p, htpasswdBcryptPrefix) {
+		if !strings.HasPrefix(p, HtpasswdBcryptPrefix) {
 			return nil, fmt.Errorf("username %q: require passwords to be bcrypt hashed and to be compatible with \"htpasswd -bnBC 10 \"\" <password> | tr -d ':'\" ", user.Username)
 		}
 		user.Password = p

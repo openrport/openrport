@@ -2,7 +2,62 @@ post:
   tags:
     - Profile & Info
   summary: Generate a new API token for user and return it
-  operationId: MetTokenGet
+  operationId: MetTokenPost
+  requestBody: 
+    content:
+      'application/json:':
+        schema:
+          type: object
+          properties:
+            scope:
+              enum:
+                - read
+                - read+write
+                - clients-auth
+              description: what this token is authorized for
+            expires_at:
+              type: string
+              description: date and time when this token will expire
+              format: date-time
+    required: true
+  responses:
+    '200':
+      description: API token
+      content:
+        application/json:
+          schema:
+            $ref: ../components/schemas/APIToken.yaml
+    '401':
+      description: Unauthorized
+      content:
+        application/json:
+          schema:
+            $ref: ../components/schemas/ErrorPayload.yaml
+    '500':
+      description: Invalid Operation
+      content:
+        application/json:
+          schema:
+            $ref: ../components/schemas/ErrorPayload.yaml
+put:
+  tags:
+    - Profile & Info
+  summary: Updates a specific user's API token
+  operationId: MetTokenPut
+  requestBody:
+    content:
+      'application/json:':
+        schema:
+          type: object
+          properties:
+            prefix:
+              type: string
+              description: token id prefix
+            expires_at:
+              type: string
+              description: date and time when this token will expire
+              format: date-time
+    required: true
   responses:
     '200':
       description: API token
@@ -11,12 +66,13 @@ post:
           schema:
             type: object
             properties:
-              data:
-                type: object
-                properties:
-                  token:
-                    type: string
-                    format: uuid
+              prefix:
+                type: string
+                description: token id prefix
+              expires_at:
+                type: string
+                description: date and time when this token will expire
+                format: date-time
     '401':
       description: Unauthorized
       content:
@@ -34,6 +90,17 @@ delete:
     - Profile & Info
   summary: Delete user's API token
   operationId: MetTokenDelete
+  requestBody:
+    description: token to be deleted
+    content:
+      'application/json':
+        schema:
+          type: object
+          properties:
+            token_prefix:
+              type: string
+              description: prefix of the token to be deleted
+    required: true
   responses:
     '204':
       description: Successful operation.
@@ -48,5 +115,47 @@ delete:
       description: Invalid Operation
       content:
         '*/*':
+          schema:
+            $ref: ../components/schemas/ErrorPayload.yaml
+get:
+  tags:
+    - Profile & Info
+  summary: Returns the user's list of Tokens 
+  operationId: MetTokenGet
+  responses:
+    '200':
+      description: Successful Operation
+      content:
+        application/json:
+          schema:
+            type: object
+            properties:
+              prefix:
+                type: string
+                description: 8 char alphanumeric random generated field 
+              created_at:
+                type: string
+                description: date and time when this token was created
+                format: date-time
+              expires_at:
+                type: string
+                description: date and time when this token will expire
+                format: date-time
+              scope:
+                enum:
+                  - read
+                  - read+write
+                  - clients-auth
+                description: what this token is authorized for                
+    '401':
+      description: Unauthorized
+      content:
+        application/json:
+          schema:
+            $ref: ../components/schemas/ErrorPayload.yaml
+    '500':
+      description: Invalid Operation
+      content:
+        application/json:
           schema:
             $ref: ../components/schemas/ErrorPayload.yaml

@@ -22,6 +22,7 @@ import (
 	jobsmigration "github.com/cloudradar-monitoring/rport/db/migration/jobs"
 	"github.com/cloudradar-monitoring/rport/db/sqlite"
 	"github.com/cloudradar-monitoring/rport/server/api"
+	"github.com/cloudradar-monitoring/rport/server/api/authorization"
 	"github.com/cloudradar-monitoring/rport/server/api/jobs"
 	"github.com/cloudradar-monitoring/rport/server/api/jobs/schedule"
 	"github.com/cloudradar-monitoring/rport/server/api/users"
@@ -280,7 +281,9 @@ func TestHandlePostCommand(t *testing.T) {
 					config: &chconfig.Config{
 						Server: chconfig.ServerConfig{
 							RunRemoteCmdTimeoutSec: defaultTimeout,
-							MaxRequestBytes:        1024 * 1024,
+						},
+						API: chconfig.APIConfig{
+							MaxRequestBytes: 1024 * 1024,
 						},
 					},
 				},
@@ -381,7 +384,9 @@ func TestHandleGetCommand(t *testing.T) {
 				Logger:           testLog,
 				Server: &Server{
 					config: &chconfig.Config{
-						Server: chconfig.ServerConfig{MaxRequestBytes: 1024 * 1024},
+						API: chconfig.APIConfig{
+							MaxRequestBytes: 1024 * 1024,
+						},
 					},
 				},
 			}
@@ -488,7 +493,9 @@ func TestHandleGetCommands(t *testing.T) {
 				Logger:           testLog,
 				Server: &Server{
 					config: &chconfig.Config{
-						Server: chconfig.ServerConfig{MaxRequestBytes: 1024 * 1024},
+						API: chconfig.APIConfig{
+							MaxRequestBytes: 1024 * 1024,
+						},
 					},
 				},
 			}
@@ -645,7 +652,9 @@ func TestHandlePostMultiClientCommand(t *testing.T) {
 					config: &chconfig.Config{
 						Server: chconfig.ServerConfig{
 							RunRemoteCmdTimeoutSec: defaultTimeout,
-							MaxRequestBytes:        1024 * 1024,
+						},
+						API: chconfig.APIConfig{
+							MaxRequestBytes: 1024 * 1024,
 						},
 					},
 					jobsDoneChannel: jobResultChanMap{
@@ -829,6 +838,7 @@ func TestHandlePostMultiClientCommandWithGroupIDs(t *testing.T) {
 			al := makeAPIListener(curUser,
 				clients.NewClientRepository([]*clients.Client{c1, c2, c3, c4}, &hour, testLog),
 				defaultTimeout,
+				nil,
 				testLog)
 
 			var done chan bool
@@ -950,7 +960,7 @@ func TestHandlePostMultiClientCommandWithTags(t *testing.T) {
 			"client_ids": ["client-1", "client-2"],
 			"tags": {
 				"tags": [
-					"linux", 
+					"linux",
 					"windows"
 				],
 				"operator": "OR"
@@ -998,7 +1008,7 @@ func TestHandlePostMultiClientCommandWithTags(t *testing.T) {
 			"group_ids": ["group-1"],
 			"tags": {
 				"tags": [
-					"linux", 
+					"linux",
 					"windows"
 				],
 				"operator": "OR"
@@ -1051,6 +1061,7 @@ func TestHandlePostMultiClientCommandWithTags(t *testing.T) {
 			al := makeAPIListener(curUser,
 				clients.NewClientRepositoryWithDB(nil, &hour, p, testLog),
 				defaultTimeout,
+				nil,
 				testLog)
 
 			// make sure the repo has the test clients
@@ -1123,8 +1134,11 @@ func TestHandlePostMultiClientCommandWithTags(t *testing.T) {
 }
 
 func TestHandlePostMultiClientWSCommandWithTags(t *testing.T) {
-	testUser := "test-user"
-	testToken := "12345678"
+	testUser := "user1"
+	testLongLivedPwd := "theprefi_mynicefi-xedl-enth-long-livedpasswor"
+	mockTokenManager := authorization.NewManager(
+		CommonAPITokenTestDb(t, "user1", "theprefi", authorization.APITokenReadWrite, "mynicefi-xedl-enth-long-livedpasswor")) // APIToken database
+
 	defaultTimeout := 60
 
 	testCases := []struct {
@@ -1246,7 +1260,7 @@ func TestHandlePostMultiClientWSCommandWithTags(t *testing.T) {
 
 	for _, tc := range testCases {
 		t.Run(tc.name, func(t *testing.T) {
-			curUser := makeTestUserWithToken(testUser, testToken)
+			curUser := makeTestUser(testUser)
 
 			connMock1 := makeConnMock(t, 1, time.Date(2020, 10, 10, 10, 10, 1, 0, time.UTC))
 			connMock2 := makeConnMock(t, 2, time.Date(2020, 10, 10, 10, 10, 2, 0, time.UTC))
@@ -1285,6 +1299,7 @@ func TestHandlePostMultiClientWSCommandWithTags(t *testing.T) {
 			al := makeAPIListener(curUser,
 				clients.NewClientRepositoryWithDB(nil, &hour, p, testLog),
 				defaultTimeout,
+				mockTokenManager,
 				testLog)
 
 			// make sure the repo has the test clients
@@ -1322,7 +1337,7 @@ func TestHandlePostMultiClientWSCommandWithTags(t *testing.T) {
 			defer s.Close()
 
 			// prep the test user auth
-			reqHeader := makeAuthHeader(testUser, testToken)
+			reqHeader := makeAuthHeader(testUser, testLongLivedPwd)
 
 			// dial the test websocket server running the handler under test
 			wsURL := httpToWS(t, s.URL)
@@ -1519,6 +1534,7 @@ func TestHandlePostMultiClientScriptWithTags(t *testing.T) {
 			al := makeAPIListener(curUser,
 				clients.NewClientRepositoryWithDB(nil, &hour, p, testLog),
 				defaultTimeout,
+				nil,
 				testLog)
 
 			// make sure the repo has the test clients
@@ -1592,6 +1608,8 @@ func TestHandlePostMultiClientScriptWithTags(t *testing.T) {
 
 func TestHandlePostMultiClientWSScriptWithTags(t *testing.T) {
 	defaultTimeout := 60
+	mockTokenManager := authorization.NewManager(
+		CommonAPITokenTestDb(t, "user1", "theprefi", authorization.APITokenReadWrite, "mynicefi-xedl-enth-long-livedpasswor")) // APIToken database
 
 	testCases := []struct {
 		name string
@@ -1715,9 +1733,9 @@ func TestHandlePostMultiClientWSScriptWithTags(t *testing.T) {
 		t.Run(tc.name, func(t *testing.T) {
 			// given
 
-			testUser := "test-user"
-			testToken := "12345678"
-			curUser := makeTestUserWithToken(testUser, testToken)
+			testUser := "user1"
+			testLongLivedPwd := "theprefi_mynicefi-xedl-enth-long-livedpasswor"
+			curUser := makeTestUser(testUser)
 
 			connMock1 := makeConnMock(t, 1, time.Date(2020, 10, 10, 10, 10, 1, 0, time.UTC))
 			connMock2 := makeConnMock(t, 2, time.Date(2020, 10, 10, 10, 10, 2, 0, time.UTC))
@@ -1756,6 +1774,7 @@ func TestHandlePostMultiClientWSScriptWithTags(t *testing.T) {
 			al := makeAPIListener(curUser,
 				clients.NewClientRepositoryWithDB(nil, &hour, p, testLog),
 				defaultTimeout,
+				mockTokenManager,
 				testLog)
 
 			// make sure the repo has the test clients
@@ -1793,7 +1812,7 @@ func TestHandlePostMultiClientWSScriptWithTags(t *testing.T) {
 			defer s.Close()
 
 			// prep the test user auth
-			reqHeader := makeAuthHeader(testUser, testToken)
+			reqHeader := makeAuthHeader(testUser, testLongLivedPwd)
 
 			// dial the test websocket server running the handler under test
 			wsURL := httpToWS(t, s.URL)
@@ -1838,15 +1857,6 @@ func makeTestUser(testUser string) (curUser *users.User) {
 	curUser = &users.User{
 		Username: testUser,
 		Groups:   []string{users.Administrators},
-	}
-	return curUser
-}
-
-func makeTestUserWithToken(testUser string, token string) (curUser *users.User) {
-	curUser = &users.User{
-		Username: testUser,
-		Groups:   []string{users.Administrators},
-		Token:    &token,
 	}
 	return curUser
 }
@@ -1900,6 +1910,7 @@ func makeAPIListener(
 	curUser *users.User,
 	clientRepo *clients.ClientRepository,
 	defaultTimeout int,
+	tokenManager *authorization.Manager,
 	testLog *logger.Logger) (al *APIListener) {
 	clientService := clients.NewClientService(nil, nil, clientRepo, testLog)
 	al = &APIListener{
@@ -1909,7 +1920,9 @@ func makeAPIListener(
 			config: &chconfig.Config{
 				Server: chconfig.ServerConfig{
 					RunRemoteCmdTimeoutSec: defaultTimeout,
-					MaxRequestBytes:        1024 * 1024,
+				},
+				API: chconfig.APIConfig{
+					MaxRequestBytes: 1024 * 1024,
 				},
 			},
 			uiJobWebSockets: ws.NewWebSocketCache(),
@@ -1917,9 +1930,10 @@ func makeAPIListener(
 				m: make(map[string]chan *models.Job),
 			},
 		},
-		bannedUsers: security.NewBanList(time.Duration(60) * time.Second),
-		userService: users.NewAPIService(users.NewStaticProvider([]*users.User{curUser}), false, 0, -1),
-		Logger:      testLog,
+		bannedUsers:  security.NewBanList(time.Duration(60) * time.Second),
+		tokenManager: tokenManager,
+		userService:  users.NewAPIService(users.NewStaticProvider([]*users.User{curUser}), false, 0, -1),
+		Logger:       testLog,
 	}
 
 	return al
