@@ -433,6 +433,10 @@ func (c *Config) parseAndValidateAPI() error {
 			return err
 		}
 
+		if c.API.TLSMin != "" && c.API.TLSMin != "1.2" && c.API.TLSMin != "1.3" {
+			return errors.New("TLS must be either 1.2 or 1.3")
+		}
+
 		if c.API.MaxTokenLifeTimeHours < 0 || (time.Duration(c.API.MaxTokenLifeTimeHours)*time.Hour) > bearer.DefaultMaxTokenLifetime {
 			return fmt.Errorf("max_token_lifetime outside allowable ranges. must be between 0 and %.0f", bearer.DefaultMaxTokenLifetime.Hours())
 		}

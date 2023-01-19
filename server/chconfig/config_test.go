@@ -3,6 +3,7 @@ package chconfig
 import (
 	"testing"
 
+	"github.com/cloudradar-monitoring/rport/server/api/message"
 	"github.com/cloudradar-monitoring/rport/server/caddy"
 	"github.com/cloudradar-monitoring/rport/server/clients/clienttunnel"
 	"github.com/cloudradar-monitoring/rport/share/logger"
@@ -10,8 +11,6 @@ import (
 	mapset "github.com/deckarep/golang-set"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
-
-	"github.com/cloudradar-monitoring/rport/server/api/message"
 )
 
 var defaultValidMinServerConfig = ServerConfig{
@@ -567,7 +566,7 @@ func TestParseAndValidateAPI(t *testing.T) {
 					TLSMin:  "1.7",
 				},
 			},
-			ExpectedError: "API: TLS version can either be 1.2 or 1.3",
+			ExpectedError: "API: TLS must be either 1.2 or 1.3",
 		},
 	}
 
