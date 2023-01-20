@@ -26,6 +26,7 @@ func MatchesFilters(v interface{}, filterOptions []FilterOption) (bool, error) {
 }
 
 func matchesFilter(valueMap map[string]interface{}, filter FilterOption) (bool, error) {
+	nMatches := 0
 	for _, col := range filter.Column {
 		clientFieldValueToMatch, ok := valueMap[col]
 		if !ok {
@@ -39,33 +40,45 @@ func matchesFilter(valueMap map[string]interface{}, filter FilterOption) (bool, 
 
 		for _, clientFieldValueToMatch := range clientFieldSliceToMatch {
 			clientFieldValueToMatchStr := fmt.Sprint(clientFieldValueToMatch)
+			/*
+			   FilterOption
 
+			   	"Microsoft Windows Server 2016 Standard",
+			   	"192.168.*.111",
+			*/
+
+			// for each filter I cycle all the map matchFilter
+			// OR == at least one filterOptions matches
+			// AND == all filterOptions's need to match (count)
 			for _, filterValue := range filter.Values {
 				hasUnescapedWildCard := strings.Contains(filterValue, "*")
 				if !hasUnescapedWildCard {
 					if strings.EqualFold(filterValue, clientFieldValueToMatchStr) {
-						return true, nil
+						nMatches++ //return true, nil
 					}
-
 					continue
 				}
 				re := "(?i)^" + strings.ReplaceAll(filterValue, "*", ".*?") + "$"
 				filterValueRegex, err := regexp.Compile(re)
 				if err != nil {
 					if strings.EqualFold(filterValue, clientFieldValueToMatchStr) {
-						return true, nil
+						nMatches++ //return true, nil
 					}
 					continue
 				}
 
 				if filterValueRegex.MatchString(clientFieldValueToMatchStr) {
-					return true, nil
+					nMatches++ //return true, nil
 				}
 			}
 		}
 	}
 
-	return false, nil
+	switch filter.ColumnOperator {
+	case FilterColumnOperatorTypeAND:
+		return nMatches == len(filter.Values), nil
+	}
+	return nMatches > 0, nil
 }
 
 func toMap(v interface{}) (map[string]interface{}, error) {

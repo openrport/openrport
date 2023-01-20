@@ -14,6 +14,7 @@ import (
 var filterRegex = regexp.MustCompile(`^filter\[([\w|*]+)](\[(\w+)])?`)
 
 type FilterOperatorType string
+type FilterColumnOperatorType string
 
 const (
 	FilterOperatorTypeEQ    FilterOperatorType = "eq"
@@ -21,6 +22,10 @@ const (
 	FilterOperatorTypeLT    FilterOperatorType = "lt"
 	FilterOperatorTypeSince FilterOperatorType = "since"
 	FilterOperatorTypeUntil FilterOperatorType = "until"
+)
+const (
+	FilterColumnOperatorTypeOR  FilterColumnOperatorType = "or"
+	FilterColumnOperatorTypeAND FilterColumnOperatorType = "and"
 )
 
 func (fot FilterOperatorType) Code() string {
@@ -38,7 +43,9 @@ func (fot FilterOperatorType) Code() string {
 }
 
 type FilterOption struct {
-	Column   []string // Columns filters are ORed together
+	Column         []string // Columns filters are [ColumnOperator]ed together (only AND, OR, default OR)
+	ColumnOperator FilterColumnOperatorType
+
 	Operator FilterOperatorType
 	Values   []string
 }

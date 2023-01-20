@@ -259,6 +259,36 @@ func TestCRWithFilter(t *testing.T) {
 			},
 		},
 		{
+			name: "and columns",
+			filters: []query.FilterOption{
+				{
+					Column:         []string{"os_full_name", "tags"},
+					ColumnOperator: query.FilterColumnOperatorTypeAND,
+					Values: []string{
+						"Linux*",
+						"Datacenter 1",
+					},
+				},
+			},
+			expectedClientIDs: []string{
+				"aa1210c7-1899-491e-8e71-564cacaf1df8",
+			},
+		},
+		{
+			name: "and columns, no results",
+			filters: []query.FilterOption{
+				{
+					Column:         []string{"tags", "os_family"},
+					ColumnOperator: query.FilterColumnOperatorTypeAND,
+					Values: []string{
+						"Windows",
+						"alpine",
+					},
+				},
+			},
+			expectedClientIDs: []string{},
+		},
+		{
 			name: "no results",
 			filters: []query.FilterOption{
 				{
