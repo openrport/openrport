@@ -62,6 +62,7 @@ type APIConfig struct {
 	MaxTokenLifeTimeHours  int     `mapstructure:"max_token_lifetime"`
 	PasswordMinLength      int     `mapstructure:"password_min_length"`
 	PasswordZxcvbnMinscore int     `mapstructure:"password_zxcvbn_minscore"`
+	TLSMin                 string  `mapstructure:"tls_min"`
 	EnableWsTestEndpoints  bool    `mapstructure:"enable_ws_test_endpoints"`
 	MaxRequestBytes        int64   `mapstructure:"max_request_bytes"`
 	MaxFilePushSize        int64   `mapstructure:"max_filepush_size"`
@@ -444,6 +445,10 @@ func (c *Config) parseAndValidateAPI() error {
 		err = c.parseAndValidateTotPSecret()
 		if err != nil {
 			return err
+		}
+
+		if c.API.TLSMin != "" && c.API.TLSMin != "1.2" && c.API.TLSMin != "1.3" {
+			return errors.New("TLS must be either 1.2 or 1.3")
 		}
 
 		if c.API.MaxTokenLifeTimeHours < 0 || (time.Duration(c.API.MaxTokenLifeTimeHours)*time.Hour) > bearer.DefaultMaxTokenLifetime {

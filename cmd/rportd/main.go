@@ -327,6 +327,7 @@ func init() {
 	viperCfg.SetDefault("server.pairing_url", DefaultPairingURL)
 	viperCfg.SetDefault("server.ban_time", 3600)
 	viperCfg.SetDefault("server.jobs_max_results", 10000)
+	viperCfg.SetDefault("server.tls_min", "1.3")
 	viperCfg.SetDefault("api.user_header", "Authentication-User")
 	viperCfg.SetDefault("api.default_user_group", "Administrators")
 	viperCfg.SetDefault("api.user_login_wait", 2)
@@ -347,6 +348,7 @@ func init() {
 	viperCfg.SetDefault("api.totp_account_name", "RPort")
 	viperCfg.SetDefault("api.password_min_length", 14)
 	viperCfg.SetDefault("api.password_zxcvbn_minscore", 0)
+	viperCfg.SetDefault("api.tls_min", "1.3")
 }
 
 func bindPFlags() {

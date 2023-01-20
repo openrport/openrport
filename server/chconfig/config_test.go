@@ -4,14 +4,14 @@ import (
 	"testing"
 	"time"
 
+	"github.com/cloudradar-monitoring/rport/server/api/message"
 	"github.com/cloudradar-monitoring/rport/server/caddy"
+	"github.com/cloudradar-monitoring/rport/server/clients/clienttunnel"
 	"github.com/cloudradar-monitoring/rport/share/logger"
 
 	mapset "github.com/deckarep/golang-set"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
-
-	"github.com/cloudradar-monitoring/rport/server/api/message"
 )
 
 var defaultValidMinServerConfig = ServerConfig{
@@ -37,6 +37,22 @@ func TestParseAndValidateServerConfig(t *testing.T) {
 				},
 			},
 			ExpectedError: "server.pairingURL: invalid url ftp:example.com: schema must be http or https",
+		},
+		{
+			Name: "invalid tls_min version in InternalTunnelProxyConfig",
+			Config: Config{
+				Server: ServerConfig{
+					InternalTunnelProxyConfig: clienttunnel.InternalTunnelProxyConfig{
+						CertFile: "../../testdata/certs/tunnels.rport.test.crt",
+						KeyFile:  "../../testdata/certs/tunnels.rport.test.key",
+
+						TLSMin: "1.7",
+					},
+					URL:          []string{"https://go.lang"},
+					UsedPortsRaw: []string{"10-20"},
+				},
+			},
+			ExpectedError: "TLS must be either 1.2 or 1.3",
 		},
 		{
 			Name: "Bad server connection URL",
@@ -541,6 +557,17 @@ func TestParseAndValidateAPI(t *testing.T) {
 				},
 			},
 			ExpectedError: "API: max_token_lifetime outside allowable ranges. must be between 0 and 2160",
+		},
+		{
+			Name: "api enabled, invalid tls min version",
+			Config: Config{
+				API: APIConfig{
+					Address: "0.0.0.0:3000",
+					Auth:    "abc:def",
+					TLSMin:  "1.7",
+				},
+			},
+			ExpectedError: "API: TLS must be either 1.2 or 1.3",
 		},
 	}
 
