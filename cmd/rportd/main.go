@@ -327,6 +327,7 @@ func init() {
 	viperCfg.SetDefault("server.pairing_url", DefaultPairingURL)
 	viperCfg.SetDefault("server.ban_time", 3600)
 	viperCfg.SetDefault("server.jobs_max_results", 10000)
+	viperCfg.SetDefault("server.tls_min", "1.3")
 	viperCfg.SetDefault("api.user_header", "Authentication-User")
 	viperCfg.SetDefault("api.default_user_group", "Administrators")
 	viperCfg.SetDefault("api.user_login_wait", 2)
@@ -372,7 +373,6 @@ func bindPFlags() {
 	_ = viperCfg.BindPFlag("server.allow_root", pFlags.Lookup("allow-root"))
 	_ = viperCfg.BindPFlag("server.tunnel_proxy_cert_file", pFlags.Lookup("tunnel-proxy-cert-file"))
 	_ = viperCfg.BindPFlag("server.tunnel_proxy_key_file", pFlags.Lookup("tunnel-proxy-key-file"))
-	_ = viperCfg.BindPFlag("server.tls_min", pFlags.Lookup("tls_min"))
 	_ = viperCfg.BindPFlag("server.novnc_root", pFlags.Lookup("novnc-root"))
 	_ = viperCfg.BindPFlag("server.guacd_address", pFlags.Lookup("guacd-address"))
 

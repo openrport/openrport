@@ -128,14 +128,7 @@ func (tp *InternalTunnelProxy) listen() {
 	tp.Logger.Debugf("listener starting")
 
 	// this tlsmin is the InternalTunnelProxyConfig config in the server section
-	tlsMin := uint16(tls.VersionTLS13)
-	if tp.Config.TLSMin != "" && tp.Config.TLSMin != "1.3" {
-		if tp.Config.TLSMin != "1.2" {
-			tp.Logger.Errorf("Server: TLS version allowed values: 1.2 or 1.3")
-		}
-		tlsMin = tls.VersionTLS12
-	}
-	tp.proxyServer.TLSConfig = security.TLSConfig(tlsMin)
+	tp.proxyServer.TLSConfig = security.TLSConfig(tp.Config.TLSMin)
 	err := tp.proxyServer.ListenAndServeTLS(tp.Config.CertFile, tp.Config.KeyFile)
 	if err != nil && err == http.ErrServerClosed {
 		tp.Logger.Infof("tunnel proxy closed")
