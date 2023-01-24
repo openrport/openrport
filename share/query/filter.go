@@ -44,8 +44,7 @@ func (fot FilterOperatorType) Code() string {
 }
 
 type FilterOption struct {
-	Column                []string // Columns filters are [ColumnLogicalOperator]ed together (only AND, OR, default OR)
-	ColumnLogicalOperator FilterLogicalOperator
+	Column                []string
 	Operator              FilterOperatorType
 	Values                []string // Values are [ValuesLogicalOperator]ed together (only AND, OR, default OR)
 	ValuesLogicalOperator FilterLogicalOperator

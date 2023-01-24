@@ -233,6 +233,31 @@ func TestParseFilterOptions(t *testing.T) {
 				},
 			},
 		},
+		{
+			Name: "or beetween tags old notation",
+			Query: map[string][]string{
+				"filter[tags]": {"val1", "val2", "val3"},
+			},
+			ExpectedFilterOptions: []FilterOption{
+				{
+					Column: []string{"tags"},
+					Values: []string{"val1", "val2", "val3"},
+				},
+			},
+		},
+		{
+			Name: "and beetween tags new notation, more than two fields",
+			Query: map[string][]string{
+				"filter[tags]": {"and(val1, val2, val3)"},
+			},
+			ExpectedFilterOptions: []FilterOption{
+				{
+					Column:                []string{"tags"},
+					Values:                []string{"val1", "val2", "val3"},
+					ValuesLogicalOperator: FilterLogicalOperatorTypeAND,
+				},
+			},
+		},
 	}
 
 	for _, tc := range testCases {

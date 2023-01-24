@@ -259,36 +259,6 @@ func TestCRWithFilter(t *testing.T) {
 			},
 		},
 		{
-			name: "and columns",
-			filters: []query.FilterOption{
-				{
-					Column:                []string{"os_full_name", "tags"},
-					ColumnLogicalOperator: query.FilterLogicalOperatorTypeAND,
-					Values: []string{
-						"Linux*",
-						"Datacenter 1",
-					},
-				},
-			},
-			expectedClientIDs: []string{
-				"aa1210c7-1899-491e-8e71-564cacaf1df8",
-			},
-		},
-		{
-			name: "and columns, no results",
-			filters: []query.FilterOption{
-				{
-					Column:                []string{"tags", "os_family"},
-					ColumnLogicalOperator: query.FilterLogicalOperatorTypeAND,
-					Values: []string{
-						"Windows",
-						"alpine",
-					},
-				},
-			},
-			expectedClientIDs: []string{},
-		},
-		{
 			name: "no results",
 			filters: []query.FilterOption{
 				{
@@ -300,6 +270,73 @@ func TestCRWithFilter(t *testing.T) {
 			},
 			expectedClientIDs: []string{},
 		},
+		{
+			name: "or inside tags, old notation",
+			filters: []query.FilterOption{
+				{
+					Column: []string{"tags"},
+					Values: []string{
+						"Datacenter 4",
+						"Linux",
+					},
+				},
+			},
+			expectedClientIDs: []string{
+				"daflkdfjqlkerlkejrqlwedalfdfadfa",
+				"aa1210c7-1899-491e-8e71-564cacaf1df8",
+				"2fb5eca74d7bdf5f5b879ebadb446af7c113b076354d74e1882d8101e9f4b918",
+			},
+		},
+		{
+			name: "or inside tags, new notation",
+			filters: []query.FilterOption{
+				{
+					Column:                []string{"tags"},
+					ValuesLogicalOperator: query.FilterLogicalOperatorTypeOR,
+					Values: []string{
+						"Datacenter 4",
+						"Linux",
+					},
+				},
+			},
+			expectedClientIDs: []string{
+				"daflkdfjqlkerlkejrqlwedalfdfadfa",
+				"aa1210c7-1899-491e-8e71-564cacaf1df8",
+				"2fb5eca74d7bdf5f5b879ebadb446af7c113b076354d74e1882d8101e9f4b918",
+			},
+		},
+		{
+			name: "and inside tags, one result",
+			filters: []query.FilterOption{
+				{
+					Column:                []string{"tags"},
+					ValuesLogicalOperator: query.FilterLogicalOperatorTypeAND,
+					Values: []string{
+						"Datacenter 4",
+						"Linux",
+					},
+				},
+			},
+			expectedClientIDs: []string{
+				"daflkdfjqlkerlkejrqlwedalfdfadfa",
+			},
+		},
+		{
+			name: "and inside tags, three operands no result",
+			filters: []query.FilterOption{
+				{
+					Column:                []string{"tags"},
+					ValuesLogicalOperator: query.FilterLogicalOperatorTypeAND,
+					Values: []string{
+						"Datacenter 4",
+						"Datacenter 2",
+						"Linux",
+					},
+				},
+			},
+			expectedClientIDs: []string{},
+		},
+
 		{
 			name: "all filters",
 			filters: []query.FilterOption{
