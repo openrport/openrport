@@ -25,7 +25,7 @@ func (m *mockFileSystem) Exist(path string) (bool, error) {
 	return true, nil
 }
 
-func TestShouldParseAndValidateCaddyIntegration(t *testing.T) {
+func TestShouldParseAndValidateCaddyIntegrationConfig(t *testing.T) {
 	// used when check cert paths
 	filesAPI := &mockFileSystem{}
 
@@ -89,6 +89,17 @@ func TestShouldParseAndValidateCaddyIntegration(t *testing.T) {
 				KeyFile:    "../../testdata/certs/tunnels.rport.test.key",
 			},
 			ExpectedError: caddy.ErrCaddyTunnelsHostAddressMissing,
+		},
+		{
+			Name: "error if address is missing port",
+			CaddyConfig: caddy.Config{
+				ExecPath:    "/usr/bin/caddy",
+				HostAddress: "0.0.0.0",
+				BaseDomain:  "tunnels.rport.example.com",
+				CertFile:    "../../testdata/certs/tunnels.rport.test.crt",
+				KeyFile:     "../../testdata/certs/tunnels.rport.test.key",
+			},
+			ExpectedError: caddy.ErrUnableToGetAddressAndPortFromHostAddress,
 		},
 		{
 			Name: "error if basedomain missing",

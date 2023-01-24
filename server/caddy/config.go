@@ -21,26 +21,27 @@ const (
 )
 
 var (
-	ErrCaddyExecPathMissing                = errors.New("caddy executable path missing")
-	ErrCaddyExecNotFound                   = errors.New("caddy executable not found")
-	ErrCaddyFailedCheckingExecPath         = errors.New("failed checking caddy exec path")
-	ErrCaddyUnableToGetCaddyServerVersion  = errors.New("failed getting caddy server version")
-	ErrCaddyServerExecutableTooOld         = errors.New("caddy server version too old. please use v2 or later")
-	ErrCaddyTunnelsHostAddressMissing      = errors.New("caddy tunnels address missing")
-	ErrCaddyTunnelsBaseDomainMissing       = errors.New("caddy tunnels subdomain prefix missing")
-	ErrCaddyTunnelsWildcardCertFileMissing = errors.New("caddy tunnels wildcard domains cert file missing")
-	ErrCaddyTunnelsWildcardKeyFileMissing  = errors.New("caddy tunnels wildcard domains key file missing")
-	ErrCaddyUnknownLogLevel                = errors.New("rport log level not a known caddy log level")
-	ErrCaddyMissingAPIPort                 = errors.New("when api_hostname specified then api_port must also be set")
-	ErrCaddyMissingAPIHostname             = errors.New("when api_port specified then api_hostname must also be set")
-	ErrUnableToCheckIfCertFileExists       = errors.New("unable to check if caddy cert file exists")
-	ErrCaddyCertFileNotFound               = errors.New("caddy cert file not found")
-	ErrUnableToCheckIfKeyFileExists        = errors.New("unable to check if caddy key file exists")
-	ErrCaddyKeyFileNotFound                = errors.New("caddy key file not found")
-	ErrUnableToCheckIfAPICertFileExists    = errors.New("unable to check if caddy api cert file exists")
-	ErrCaddyAPICertFileNotFound            = errors.New("caddy api cert file not found")
-	ErrUnableToCheckIfAPIKeyFileExists     = errors.New("unable to check if caddy api cert file exists")
-	ErrCaddyAPIKeyFileNotFound             = errors.New("caddy api key file not found")
+	ErrCaddyExecPathMissing                     = errors.New("caddy executable path missing")
+	ErrCaddyExecNotFound                        = errors.New("caddy executable not found")
+	ErrCaddyFailedCheckingExecPath              = errors.New("failed checking caddy exec path")
+	ErrCaddyUnableToGetCaddyServerVersion       = errors.New("failed getting caddy server version")
+	ErrCaddyServerExecutableTooOld              = errors.New("caddy server version too old. please use v2 or later")
+	ErrCaddyTunnelsHostAddressMissing           = errors.New("caddy tunnels address missing")
+	ErrCaddyTunnelsBaseDomainMissing            = errors.New("caddy tunnels subdomain prefix missing")
+	ErrCaddyTunnelsWildcardCertFileMissing      = errors.New("caddy tunnels wildcard domains cert file missing")
+	ErrCaddyTunnelsWildcardKeyFileMissing       = errors.New("caddy tunnels wildcard domains key file missing")
+	ErrCaddyUnknownLogLevel                     = errors.New("rport log level not a known caddy log level")
+	ErrCaddyMissingAPIPort                      = errors.New("when api_hostname specified then api_port must also be set")
+	ErrCaddyMissingAPIHostname                  = errors.New("when api_port specified then api_hostname must also be set")
+	ErrUnableToGetAddressAndPortFromHostAddress = errors.New("unable to get ip address and port from caddy address. please make sure both are set")
+	ErrUnableToCheckIfCertFileExists            = errors.New("unable to check if caddy cert file exists")
+	ErrCaddyCertFileNotFound                    = errors.New("caddy cert file not found")
+	ErrUnableToCheckIfKeyFileExists             = errors.New("unable to check if caddy key file exists")
+	ErrCaddyKeyFileNotFound                     = errors.New("caddy key file not found")
+	ErrUnableToCheckIfAPICertFileExists         = errors.New("unable to check if caddy api cert file exists")
+	ErrCaddyAPICertFileNotFound                 = errors.New("caddy api cert file not found")
+	ErrUnableToCheckIfAPIKeyFileExists          = errors.New("unable to check if caddy api cert file exists")
+	ErrCaddyAPIKeyFileNotFound                  = errors.New("caddy api key file not found")
 )
 
 type Config struct {
@@ -110,6 +111,11 @@ func (c *Config) ParseAndValidate(serverDataDir string, serverLogLevel string, f
 	}
 	if c.KeyFile == "" {
 		return ErrCaddyTunnelsWildcardKeyFileMissing
+	}
+
+	_, _, err = net.SplitHostPort(c.HostAddress)
+	if err != nil {
+		return ErrUnableToGetAddressAndPortFromHostAddress
 	}
 
 	exists, err = filesAPI.Exist(c.CertFile)

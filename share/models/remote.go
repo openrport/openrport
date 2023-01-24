@@ -165,8 +165,11 @@ func (r *Remote) IsLocalSpecified() bool {
 	return r.LocalHost != "" && r.LocalPort != ""
 }
 
-func (r *Remote) NewDownstreamProxyURL(subdomain string, basedomain string) (proxyURL string) {
-	return "https://" + subdomain + "." + basedomain
+func (r *Remote) NewDownstreamProxyURL(subdomain string, basedomain string, port string) (proxyURL string) {
+	if port == "" {
+		return "https://" + subdomain + "." + basedomain
+	}
+	return "https://" + subdomain + "." + basedomain + ":" + port
 }
 
 func (r *Remote) HasSubdomainTunnel() bool {

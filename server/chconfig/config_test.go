@@ -2,15 +2,16 @@ package chconfig
 
 import (
 	"testing"
+	"time"
 
+	"github.com/cloudradar-monitoring/rport/server/api/message"
 	"github.com/cloudradar-monitoring/rport/server/caddy"
+	"github.com/cloudradar-monitoring/rport/server/clients/clienttunnel"
 	"github.com/cloudradar-monitoring/rport/share/logger"
 
 	mapset "github.com/deckarep/golang-set"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
-
-	"github.com/cloudradar-monitoring/rport/server/api/message"
 )
 
 var defaultValidMinServerConfig = ServerConfig{
@@ -36,6 +37,22 @@ func TestParseAndValidateServerConfig(t *testing.T) {
 				},
 			},
 			ExpectedError: "server.pairingURL: invalid url ftp:example.com: schema must be http or https",
+		},
+		{
+			Name: "invalid tls_min version in InternalTunnelProxyConfig",
+			Config: Config{
+				Server: ServerConfig{
+					InternalTunnelProxyConfig: clienttunnel.InternalTunnelProxyConfig{
+						CertFile: "../../testdata/certs/tunnels.rport.test.crt",
+						KeyFile:  "../../testdata/certs/tunnels.rport.test.key",
+
+						TLSMin: "1.7",
+					},
+					URL:          []string{"https://go.lang"},
+					UsedPortsRaw: []string{"10-20"},
+				},
+			},
+			ExpectedError: "TLS must be either 1.2 or 1.3",
 		},
 		{
 			Name: "Bad server connection URL",
@@ -541,6 +558,17 @@ func TestParseAndValidateAPI(t *testing.T) {
 			},
 			ExpectedError: "API: max_token_lifetime outside allowable ranges. must be between 0 and 2160",
 		},
+		{
+			Name: "api enabled, invalid tls min version",
+			Config: Config{
+				API: APIConfig{
+					Address: "0.0.0.0:3000",
+					Auth:    "abc:def",
+					TLSMin:  "1.7",
+				},
+			},
+			ExpectedError: "API: TLS must be either 1.2 or 1.3",
+		},
 	}
 
 	for _, tc := range testCases {
@@ -686,6 +714,56 @@ func TestShouldValidateCaddyAPIHostnameAndAPIPortConfiguredIfSharedPorts(t *test
 			} else {
 				assert.Error(t, err)
 				assert.Contains(t, err.Error(), tc.ExpectedErrorStr)
+			}
+		})
+	}
+}
+
+func TestShouldConvertHourOrDayStringToDuration(t *testing.T) {
+	cases := []struct {
+		name             string
+		str              string
+		expectedDuration time.Duration
+		expectedErrorStr string
+	}{
+		{
+			name:             "simple hour",
+			str:              "1h",
+			expectedDuration: 1 * time.Hour,
+		},
+		{
+			name:             "simple day",
+			str:              "1d",
+			expectedDuration: 1 * time.Hour * 24,
+		},
+		{
+			name:             "space allowed",
+			str:              " 1 d",
+			expectedDuration: 1 * time.Hour * 24,
+		},
+		{
+			name:             "empty value not allowed",
+			expectedErrorStr: "must not be empty",
+		},
+		{
+			name:             "must be units",
+			str:              "1",
+			expectedErrorStr: "must include value",
+		},
+		{
+			name:             "must be simple value",
+			str:              "1.1h",
+			expectedErrorStr: "must be simple value",
+		},
+	}
+	for _, tc := range cases {
+		t.Run(tc.name, func(t *testing.T) {
+			duration, err := convertHourOrDayStringToDuration("test_field", tc.str)
+			if tc.expectedErrorStr == "" {
+				assert.NoError(t, err)
+				assert.Equal(t, tc.expectedDuration, duration)
+			} else {
+				assert.ErrorContains(t, err, tc.expectedErrorStr)
 			}
 		})
 	}

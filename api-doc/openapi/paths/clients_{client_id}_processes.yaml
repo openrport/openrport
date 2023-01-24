@@ -31,7 +31,6 @@ get:
          Fetching data for a period greater than `48 hours` is not allowed. If the period exceeds `2 hours`, than the returned measurement points get down sampled to reduce the amount of data.
          When down sampling takes place you get `average, min and max` values for `cpu_usage_percent, memory_usage_percent and io_usage_percent`
 
-         
       schema:
         type: string
     - name: page
@@ -44,7 +43,7 @@ get:
       schema:
         type: integer
   responses:
-    '200':
+    "200":
       description: Successful Operation
       content:
         application/json:
@@ -60,19 +59,19 @@ get:
                 properties:
                   count:
                     type: integer
-    '400':
+    "400":
       description: Bad Request
       content:
         application/json:
           schema:
             $ref: ../components/schemas/ErrorPayload.yaml
-    '404':
-      description: Cannot find measurements by the provided id
+    "404":
+      description: Cannot find measurements by the provided id (or monitoring disabled)
       content:
         application/json:
           schema:
             $ref: ../components/schemas/ErrorPayload.yaml
-    '500':
+    "500":
       description: Invalid Operation
       content:
         application/json:

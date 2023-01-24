@@ -6,7 +6,7 @@ package fs
 import (
 	"context"
 
-	"github.com/shirou/gopsutil/disk"
+	"github.com/shirou/gopsutil/v3/disk"
 
 	"github.com/cloudradar-monitoring/rport/client/monitoring/helper"
 )

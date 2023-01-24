@@ -575,13 +575,15 @@ func TestHandlePutTunnelUsingCaddyProxies(t *testing.T) {
 	testCases := []struct {
 		Name               string
 		URL                string
+		CaddyHostAddress   string
 		ExpectedJSON       string
 		ExpectedError      string
 		DisableCaddyConfig bool
 	}{
 		{
-			Name: "With no subdomain",
-			URL:  "/api/v1/clients/client-1/tunnels?scheme=ssh&acl=127.0.0.1&local=0.0.0.0%3A3390&remote=0.0.0.0%3A22&name=TUNNELNAME&check_port=0",
+			Name:             "With no subdomain",
+			URL:              "/api/v1/clients/client-1/tunnels?scheme=ssh&acl=127.0.0.1&local=0.0.0.0%3A3390&remote=0.0.0.0%3A22&name=TUNNELNAME&check_port=0",
+			CaddyHostAddress: "0.0.0.0:443",
 			ExpectedJSON: `{
 			"data": {
 				"id": "10",
@@ -606,8 +608,9 @@ func TestHandlePutTunnelUsingCaddyProxies(t *testing.T) {
 		}`,
 		},
 		{
-			Name: "With Subdomain",
-			URL:  "/api/v1/clients/client-1/tunnels?scheme=http&acl=127.0.0.1&local=0.0.0.0%3A3390&remote=0.0.0.0%3A22&check_port=0&http_proxy=true",
+			Name:             "With Subdomain",
+			URL:              "/api/v1/clients/client-1/tunnels?scheme=http&acl=127.0.0.1&local=0.0.0.0%3A3390&remote=0.0.0.0%3A22&check_port=0&http_proxy=true",
+			CaddyHostAddress: "0.0.0.0:443",
 			ExpectedJSON: `{
 			"data": {
 				"id": "10",
@@ -619,7 +622,7 @@ func TestHandlePutTunnelUsingCaddyProxies(t *testing.T) {
 				"rport": "22",
 				"lport_random": false,
 				"scheme": "http",
-				"tunnel_url": "https://12345678.tunnels.rport.test",
+				"tunnel_url": "https://12345678.tunnels.rport.test:443",
 				"acl": "127.0.0.1",
 				"idle_timeout_minutes": 5,
 				"auto_close": 0,
@@ -632,8 +635,36 @@ func TestHandlePutTunnelUsingCaddyProxies(t *testing.T) {
 		}`,
 		},
 		{
-			Name: "With Subdomain, Without Scheme",
-			URL:  "/api/v1/clients/client-1/tunnels?&acl=127.0.0.1&local=0.0.0.0%3A3390&remote=22&check_port=0&http_proxy=true",
+			Name:             "With Subdomain and non-443 port",
+			URL:              "/api/v1/clients/client-1/tunnels?scheme=http&acl=127.0.0.1&local=0.0.0.0%3A3390&remote=0.0.0.0%3A22&check_port=0&http_proxy=true",
+			CaddyHostAddress: "0.0.0.0:8443",
+			ExpectedJSON: `{
+			"data": {
+				"id": "10",
+				"name": "",
+				"protocol": "tcp",
+				"lhost": "0.0.0.0",
+				"lport": "3390",
+				"rhost": "0.0.0.0",
+				"rport": "22",
+				"lport_random": false,
+				"scheme": "http",
+				"tunnel_url": "https://12345678.tunnels.rport.test:8443",
+				"acl": "127.0.0.1",
+				"idle_timeout_minutes": 5,
+				"auto_close": 0,
+				"http_proxy": true,
+				"host_header": "",
+				"auth_user":"",
+				"auth_password":"",
+				"created_at": "0001-01-01T00:00:00Z"
+			}
+		}`,
+		},
+		{
+			Name:             "With Subdomain, Without Scheme",
+			URL:              "/api/v1/clients/client-1/tunnels?&acl=127.0.0.1&local=0.0.0.0%3A3390&remote=22&check_port=0&http_proxy=true",
+			CaddyHostAddress: "0.0.0.0:443",
 			ExpectedJSON: `{
 			"data": {
 				"id": "10",
@@ -645,7 +676,7 @@ func TestHandlePutTunnelUsingCaddyProxies(t *testing.T) {
 				"rport": "22",
 				"lport_random": false,
 				"scheme": null,
-				"tunnel_url": "https://12345678.tunnels.rport.test",
+				"tunnel_url": "https://12345678.tunnels.rport.test:443",
 				"acl": "127.0.0.1",
 				"idle_timeout_minutes": 5,
 				"auto_close": 0,
@@ -658,8 +689,9 @@ func TestHandlePutTunnelUsingCaddyProxies(t *testing.T) {
 		}`,
 		},
 		{
-			Name: "With HTTP proxy, Caddy Not Configured",
-			URL:  "/api/v1/clients/client-1/tunnels?scheme=http&acl=127.0.0.1&local=0.0.0.0%3A3390&remote=0.0.0.0%3A22&check_port=0&http_proxy=true",
+			Name:             "With HTTP proxy, Caddy Not Configured",
+			CaddyHostAddress: "0.0.0.0:443",
+			URL:              "/api/v1/clients/client-1/tunnels?scheme=http&acl=127.0.0.1&local=0.0.0.0%3A3390&remote=0.0.0.0%3A22&check_port=0&http_proxy=true",
 			ExpectedJSON: `{
 				"data": {
 					"id": "10",
@@ -719,7 +751,7 @@ func TestHandlePutTunnelUsingCaddyProxies(t *testing.T) {
 							ExecPath:         "/usr/bin/caddy",
 							DataDir:          "/tmp",
 							BaseConfFilename: "caddy-base.conf",
-							HostAddress:      "0.0.0.0:8443",
+							HostAddress:      tc.CaddyHostAddress,
 							BaseDomain:       "tunnels.rport.test",
 							CertFile:         "../../testdata/certs/tunnels.rport.test.crt",
 							KeyFile:          "../../testdata/certs/tunnels.rport.test.key",

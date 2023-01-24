@@ -41,7 +41,7 @@ require (
 	github.com/pquerna/otp v1.3.0
 	github.com/robfig/cron/v3 v3.0.1
 	github.com/scjalliance/comshim v0.0.0-20190308082608-cf06d2532c4e
-	github.com/shirou/gopsutil v3.21.11+incompatible
+	github.com/shirou/gopsutil v3.21.11+incompatible // indirect
 	github.com/sirupsen/logrus v1.8.1
 	github.com/spf13/afero v1.6.0 // indirect
 	github.com/spf13/cast v1.3.1 // indirect
@@ -49,22 +49,22 @@ require (
 	github.com/spf13/jwalterweatherman v1.1.0 // indirect
 	github.com/spf13/pflag v1.0.5 // indirect
 	github.com/spf13/viper v1.8.1
-	github.com/stretchr/objx v0.2.0 // indirect
-	github.com/stretchr/testify v1.7.1
+	github.com/stretchr/objx v0.5.0 // indirect
+	github.com/stretchr/testify v1.8.1
 	github.com/subosito/gotenv v1.2.0 // indirect
-	github.com/tklauser/numcpus v0.2.2 // indirect
+	github.com/tklauser/numcpus v0.6.0 // indirect
 	github.com/wwt/guac v1.3.1
 	github.com/yusufpapurcu/wmi v1.2.2 // indirect
 	golang.org/x/crypto v0.0.0-20220214200702-86341886e292
 	golang.org/x/net v0.0.0-20211209124913-491a49abca63
 	golang.org/x/sync v0.0.0-20210220032951-036812b2e83c
-	golang.org/x/sys v0.0.0-20220520151302-bc2c85ada10a
+	golang.org/x/sys v0.3.0
 	golang.org/x/term v0.0.0-20210615171337-6886f2dfbf5b // indirect
 	golang.org/x/text v0.3.7
 	gopkg.in/h2non/gock.v1 v1.1.2
 	gopkg.in/ini.v1 v1.62.0 // indirect
 	gopkg.in/yaml.v2 v2.4.0 // indirect
-	gopkg.in/yaml.v3 v3.0.0-20210107192922-496545a6307b // indirect
+	gopkg.in/yaml.v3 v3.0.1 // indirect
 )
 
 require (
@@ -74,6 +74,7 @@ require (
 	github.com/jmoiron/sqlx v1.3.5
 	github.com/oleiade/reflections v1.0.1
 	github.com/pkg/sftp v1.13.4
+	github.com/shirou/gopsutil/v3 v3.22.12
 	github.com/trustelem/zxcvbn v1.0.1
 )
 
@@ -82,8 +83,10 @@ require (
 	github.com/dlclark/regexp2 v1.7.0 // indirect
 	github.com/fsnotify/fsnotify v1.5.1 // indirect
 	github.com/jpillora/ansi v1.0.2 // indirect
+	github.com/lufia/plan9stats v0.0.0-20211012122336-39d0f177ccd0 // indirect
 	github.com/lxn/win v0.0.0-20210218163916-a377121e959e // indirect
+	github.com/power-devops/perfstat v0.0.0-20210106213030-5aafc221ea8c // indirect
 	github.com/test-go/testify v1.1.4 // indirect
-	github.com/tklauser/go-sysconf v0.3.6 // indirect
+	github.com/tklauser/go-sysconf v0.3.11 // indirect
 	github.com/tomasen/realip v0.0.0-20180522021738-f0c99a92ddce // indirect
 )

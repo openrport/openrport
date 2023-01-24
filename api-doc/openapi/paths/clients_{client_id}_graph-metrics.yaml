@@ -33,11 +33,10 @@ get:
          Downsampling data is available for a period `>= 2 hours` and `<= 48 hours`.
          When downsampling takes place you get `avg, min and max` values for `cpu_usage_percent, memory_usage_percent and io_usage_percent`
 
-         
       schema:
         type: string
   responses:
-    '200':
+    "200":
       description: Successful Operation
       content:
         application/json:
@@ -65,19 +64,19 @@ get:
                     type: string
                   net_usage_bps_wan:
                     type: string
-    '400':
+    "400":
       description: Bad Request
       content:
         application/json:
           schema:
             $ref: ../components/schemas/ErrorPayload.yaml
-    '404':
-      description: Cannot find measurements by the provided id
+    "404":
+      description: Cannot find measurements by the provided id (or monitoring disabled)
       content:
         application/json:
           schema:
             $ref: ../components/schemas/ErrorPayload.yaml
-    '500':
+    "500":
       description: Invalid Operation
       content:
         application/json:

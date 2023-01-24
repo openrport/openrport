@@ -39,7 +39,7 @@ const (
 	DefaultServerAddress                    = "0.0.0.0:8080"
 	DefaultLogLevel                         = "info"
 	DefaultRunRemoteCmdTimeoutSec           = 60
-	DefaultMonitoringDataStorageDays        = 30
+	DefaultMonitoringDataStorageDuration    = "7d"
 	DefaultPairingURL                       = "https://pairing.rport.io"
 )
 
@@ -327,6 +327,7 @@ func init() {
 	viperCfg.SetDefault("server.pairing_url", DefaultPairingURL)
 	viperCfg.SetDefault("server.ban_time", 3600)
 	viperCfg.SetDefault("server.jobs_max_results", 10000)
+	viperCfg.SetDefault("server.tls_min", "1.3")
 	viperCfg.SetDefault("api.user_header", "Authentication-User")
 	viperCfg.SetDefault("api.default_user_group", "Administrators")
 	viperCfg.SetDefault("api.user_login_wait", 2)
@@ -338,14 +339,16 @@ func init() {
 	viperCfg.SetDefault("api.enable_audit_log", true)
 	viperCfg.SetDefault("api.totp_enabled", false)
 	viperCfg.SetDefault("api.audit_log_rotation", auditlog.RotationMonthly)
+	viperCfg.SetDefault("monitoring.data_storage_duration", DefaultMonitoringDataStorageDuration)
+	viperCfg.SetDefault("monitoring.enabled", true)
 	viperCfg.SetDefault("api.max_request_bytes", DefaultMaxRequestBytes)
 	viperCfg.SetDefault("api.max_filepush_size", DefaultMaxFilePushBytes)
 	viperCfg.SetDefault("api.enable_ws_test_endpoints", false)
-	viperCfg.SetDefault("monitoring.data_storage_days", DefaultMonitoringDataStorageDays)
 	viperCfg.SetDefault("api.totp_login_session_ttl", time.Minute*10)
 	viperCfg.SetDefault("api.totp_account_name", "RPort")
 	viperCfg.SetDefault("api.password_min_length", 14)
 	viperCfg.SetDefault("api.password_zxcvbn_minscore", 0)
+	viperCfg.SetDefault("api.tls_min", "1.3")
 }
 
 func bindPFlags() {
@@ -395,6 +398,8 @@ func bindPFlags() {
 	_ = viperCfg.BindPFlag("database.db_user", pFlags.Lookup("db-user"))
 	_ = viperCfg.BindPFlag("database.db_password", pFlags.Lookup("db-password"))
 
+	_ = viperCfg.BindPFlag("monitoring.data_storage_duration", pFlags.Lookup("monitoring-data-storage-duration"))
+	_ = viperCfg.BindPFlag("monitoring.enabled", pFlags.Lookup("monitoring-enabled"))
 	_ = viperCfg.BindPFlag("monitoring.data_storage_days", pFlags.Lookup("monitoring-data-storage-days"))
 }
 
