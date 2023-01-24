@@ -53,7 +53,7 @@ func ParseFieldsOptions(values url.Values) []FieldsOption {
 			continue
 		}
 
-		orValues := getOrValues(fieldsValues)
+		orValues, _ := getValues(fieldsValues)
 		if len(orValues) == 0 {
 			continue
 		}

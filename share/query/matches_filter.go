@@ -74,8 +74,8 @@ func matchesFilter(valueMap map[string]interface{}, filter FilterOption) (bool, 
 		}
 	}
 
-	switch filter.ColumnOperator {
-	case FilterColumnOperatorTypeAND:
+	switch filter.ColumnLogicalOperator {
+	case FilterLogicalOperatorTypeAND:
 		return nMatches == len(filter.Values), nil
 	}
 	return nMatches > 0, nil

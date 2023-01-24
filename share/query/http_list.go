@@ -84,12 +84,23 @@ func ValidateListOptions(lo *ListOptions, supportedSorts map[string]bool, suppor
 	return nil
 }
 
-func getOrValues(values []string) []string {
-	orValues := make([]string, 0)
+func getValues(values []string) ([]string, FilterLogicalOperator) {
+	var op FilterLogicalOperator
+	outValues := make([]string, 0)
 	for i := range values {
-		orValue := strings.TrimSpace(values[i])
+		value := strings.TrimSpace(values[i])
 
-		orValues = append(orValues, strings.Split(orValue, ",")...)
+		matchesAndOr := valuesLogicalOpsblock.FindStringSubmatch(value)
+		if matchesAndOr != nil {
+			op = FilterLogicalOperator(matchesAndOr[1])
+			value = matchesAndOr[2]
+		}
+
+		operands := strings.Split(value, ",")
+		for i := range operands {
+			operands[i] = strings.TrimSpace(operands[i])
+		}
+		outValues = append(outValues, operands...)
 	}
-	return orValues
+	return outValues, op
 }

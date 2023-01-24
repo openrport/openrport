@@ -12,9 +12,10 @@ import (
 )
 
 var filterRegex = regexp.MustCompile(`^filter\[([\w|*]+)](\[(\w+)])?`)
+var valuesLogicalOpsblock = regexp.MustCompile(`^(and|or){1}\((.+)\)`)
 
 type FilterOperatorType string
-type FilterColumnOperatorType string
+type FilterLogicalOperator string
 
 const (
 	FilterOperatorTypeEQ    FilterOperatorType = "eq"
@@ -24,8 +25,8 @@ const (
 	FilterOperatorTypeUntil FilterOperatorType = "until"
 )
 const (
-	FilterColumnOperatorTypeOR  FilterColumnOperatorType = "or"
-	FilterColumnOperatorTypeAND FilterColumnOperatorType = "and"
+	FilterLogicalOperatorTypeOR  FilterLogicalOperator = "or"
+	FilterLogicalOperatorTypeAND FilterLogicalOperator = "and"
 )
 
 func (fot FilterOperatorType) Code() string {
@@ -43,11 +44,11 @@ func (fot FilterOperatorType) Code() string {
 }
 
 type FilterOption struct {
-	Column         []string // Columns filters are [ColumnOperator]ed together (only AND, OR, default OR)
-	ColumnOperator FilterColumnOperatorType
-
-	Operator FilterOperatorType
-	Values   []string
+	Column                []string // Columns filters are [ColumnLogicalOperator]ed together (only AND, OR, default OR)
+	ColumnLogicalOperator FilterLogicalOperator
+	Operator              FilterOperatorType
+	Values                []string // Values are [ValuesLogicalOperator]ed together (only AND, OR, default OR)
+	ValuesLogicalOperator FilterLogicalOperator
 }
 
 func (fo FilterOption) String() string {
@@ -107,9 +108,9 @@ func ParseFilterOptions(values url.Values) []FilterOption {
 			continue
 		}
 
-		orValues := getOrValues(filterValues)
+		operands, logicalOperator := getValues(filterValues)
 
-		if len(orValues) == 0 {
+		if len(operands) == 0 {
 			continue
 		}
 
@@ -129,9 +130,10 @@ func ParseFilterOptions(values url.Values) []FilterOption {
 		filterOperator = strings.TrimSpace(filterOperator)
 
 		fo := FilterOption{
-			Column:   filterColumns,
-			Operator: FilterOperatorType(filterOperator),
-			Values:   orValues,
+			Column:                filterColumns,
+			Operator:              FilterOperatorType(filterOperator),
+			ValuesLogicalOperator: logicalOperator,
+			Values:                operands,
 		}
 
 		res = append(res, fo)

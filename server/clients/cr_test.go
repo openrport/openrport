@@ -262,8 +262,8 @@ func TestCRWithFilter(t *testing.T) {
 			name: "and columns",
 			filters: []query.FilterOption{
 				{
-					Column:         []string{"os_full_name", "tags"},
-					ColumnOperator: query.FilterColumnOperatorTypeAND,
+					Column:                []string{"os_full_name", "tags"},
+					ColumnLogicalOperator: query.FilterLogicalOperatorTypeAND,
 					Values: []string{
 						"Linux*",
 						"Datacenter 1",
@@ -278,8 +278,8 @@ func TestCRWithFilter(t *testing.T) {
 			name: "and columns, no results",
 			filters: []query.FilterOption{
 				{
-					Column:         []string{"tags", "os_family"},
-					ColumnOperator: query.FilterColumnOperatorTypeAND,
+					Column:                []string{"tags", "os_family"},
+					ColumnLogicalOperator: query.FilterLogicalOperatorTypeAND,
 					Values: []string{
 						"Windows",
 						"alpine",
