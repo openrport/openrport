@@ -107,7 +107,7 @@ func ParseFilterOptions(values url.Values) []FilterOption {
 			continue
 		}
 
-		operands, logicalOperator := getValues(filterValues)
+		operands, logicalOperator := getFilterValues(filterValues)
 
 		if len(operands) == 0 {
 			continue

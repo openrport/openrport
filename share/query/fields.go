@@ -53,8 +53,7 @@ func ParseFieldsOptions(values url.Values) []FieldsOption {
 			continue
 		}
 
-		// treating fieldsValue as a simple list,
-		orValues, _ := getValues(fieldsValues) // no AND / OR syntax -> FilterLogicalOperator is discarded
+		orValues := getOrValues(fieldsValues)
 		if len(orValues) == 0 {
 			continue
 		}
