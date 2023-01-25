@@ -336,6 +336,23 @@ func TestCRWithFilter(t *testing.T) {
 			},
 			expectedClientIDs: []string{},
 		},
+		{
+			name: "and inside tags, three operands, wide wildcards, one result",
+			filters: []query.FilterOption{
+				{
+					Column:                []string{"tags"},
+					ValuesLogicalOperator: query.FilterLogicalOperatorTypeAND,
+					Values: []string{
+						"*n*",
+						"*a*",
+						"Datacenter 2",
+					},
+				},
+			},
+			expectedClientIDs: []string{
+				"2fb5eca74d7bdf5f5b879ebadb446af7c113b076354d74e1882d8101e9f4b918",
+			},
+		},
 
 		{
 			name: "all filters",

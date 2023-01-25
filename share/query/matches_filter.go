@@ -26,7 +26,8 @@ func MatchesFilters(v interface{}, filterOptions []FilterOption) (bool, error) {
 }
 
 func matchesFilter(valueMap map[string]interface{}, filter FilterOption) (bool, error) {
-	nMatches := 0
+	matches := map[string]string{}
+
 	for _, col := range filter.Column {
 		clientFieldValueToMatch, ok := valueMap[col]
 		if !ok {
@@ -45,10 +46,13 @@ func matchesFilter(valueMap map[string]interface{}, filter FilterOption) (bool, 
 			// OR == at least one filterOptions matches
 			// AND == all filterOptions's need to match (count)
 			for _, filterValue := range filter.Values {
+				if matches[filterValue] != "" { // this filter was already "assigned" to a match
+					continue
+				}
 				hasUnescapedWildCard := strings.Contains(filterValue, "*")
 				if !hasUnescapedWildCard {
 					if strings.EqualFold(filterValue, clientFieldValueToMatchStr) {
-						nMatches++
+						matches[filterValue] = clientFieldValueToMatchStr
 					}
 					continue
 				}
@@ -56,13 +60,13 @@ func matchesFilter(valueMap map[string]interface{}, filter FilterOption) (bool, 
 				filterValueRegex, err := regexp.Compile(re)
 				if err != nil {
 					if strings.EqualFold(filterValue, clientFieldValueToMatchStr) {
-						nMatches++
+						matches[filterValue] = clientFieldValueToMatchStr
 					}
 					continue
 				}
 
 				if filterValueRegex.MatchString(clientFieldValueToMatchStr) {
-					nMatches++
+					matches[filterValue] = clientFieldValueToMatchStr
 				}
 			}
 		}
@@ -70,9 +74,9 @@ func matchesFilter(valueMap map[string]interface{}, filter FilterOption) (bool, 
 
 	switch filter.ValuesLogicalOperator {
 	case FilterLogicalOperatorTypeAND:
-		return nMatches == len(filter.Values), nil
+		return len(matches) == len(filter.Values), nil
 	}
-	return nMatches > 0, nil
+	return len(matches) > 0, nil
 }
 
 func toMap(v interface{}) (map[string]interface{}, error) {
