@@ -1,3 +1,4 @@
+set -e
 #
 # Create the private key that gives access to the private rport-plus repo
 #
@@ -23,6 +24,7 @@ echo ::set-output name=repo_name::$(basename `git rev-parse --show-toplevel`)
 #
 # Build the plugin
 #
+echo "🚚 Building plus plugin now"
 make build
 ls -la rport-plus.so
 echo "=================================================================="

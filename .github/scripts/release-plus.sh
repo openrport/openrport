@@ -1,3 +1,4 @@
+set -e
 #
 # Create a tar package
 #
