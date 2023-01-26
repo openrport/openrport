@@ -23,7 +23,7 @@ jobs:
           go build -v -ldflags="-X 'github.com/cloudradar-monitoring/rport/share.BuildVersion=$(date -u +%y.%m%d.%H%M)-$(git rev-parse HEAD)'"  -o ./ ./cmd/...
           echo "✅ Successfully build rport"
           echo "🚚 Building Plus Plugin now ..."
-          .github/scripts/build-plus.sh
+          bash .github/scripts/build-plus.sh
           ls -l /home/runner/work/rport/rport/rport-plus/rport-plus.so
           echo "✅ Successfully built the plus plugin"
 
