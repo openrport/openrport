@@ -207,6 +207,57 @@ func TestParseFilterOptions(t *testing.T) {
 			},
 			ExpectedFilterOptions: []FilterOption{},
 		},
+		{
+			Name: "and beetween tags",
+			Query: map[string][]string{
+				"filter[tags]": {"and(val1, val2)"},
+			},
+			ExpectedFilterOptions: []FilterOption{
+				{
+					Column:                []string{"tags"},
+					ValuesLogicalOperator: FilterLogicalOperatorTypeAND,
+					Values:                []string{"val1", "val2"},
+				},
+			},
+		},
+		{
+			Name: "or beetween tags",
+			Query: map[string][]string{
+				"filter[tags]": {"or(val1, val2)"},
+			},
+			ExpectedFilterOptions: []FilterOption{
+				{
+					Column:                []string{"tags"},
+					ValuesLogicalOperator: FilterLogicalOperatorTypeOR,
+					Values:                []string{"val1", "val2"},
+				},
+			},
+		},
+		{
+			Name: "or beetween tags old notation",
+			Query: map[string][]string{
+				"filter[tags]": {"val1", "val2", "val3"},
+			},
+			ExpectedFilterOptions: []FilterOption{
+				{
+					Column: []string{"tags"},
+					Values: []string{"val1", "val2", "val3"},
+				},
+			},
+		},
+		{
+			Name: "and beetween tags new notation, more than two fields",
+			Query: map[string][]string{
+				"filter[tags]": {"and(val1, val2, val3)"},
+			},
+			ExpectedFilterOptions: []FilterOption{
+				{
+					Column:                []string{"tags"},
+					Values:                []string{"val1", "val2", "val3"},
+					ValuesLogicalOperator: FilterLogicalOperatorTypeAND,
+				},
+			},
+		},
 	}
 
 	for _, tc := range testCases {

@@ -93,3 +93,25 @@ func getOrValues(values []string) []string {
 	}
 	return orValues
 }
+
+// this is a more specialized version of getOrValues that deals with filters only
+func getFilterValues(values []string) ([]string, FilterLogicalOperator) {
+	var op FilterLogicalOperator
+	outValues := make([]string, 0)
+	for i := range values {
+		value := strings.TrimSpace(values[i])
+
+		matchesAndOr := valuesLogicalOpsblock.FindStringSubmatch(value)
+		if matchesAndOr != nil {
+			op = FilterLogicalOperator(matchesAndOr[1])
+			value = matchesAndOr[2]
+		}
+
+		operands := strings.Split(value, ",")
+		for i := range operands {
+			operands[i] = strings.TrimSpace(operands[i])
+		}
+		outValues = append(outValues, operands...)
+	}
+	return outValues, op
+}
