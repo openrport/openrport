@@ -15,7 +15,12 @@ cat<<EOF>rportd.conf
 [logging]
   log_file = "/tmp/rportd-data/rportd.log"
   log_level = "debug"
+[plus-plugin]
+  plugin_path = "/home/runner/work/rport/rport/rport-plus/rport-plus.so"
 EOF
+
+echo "✅️ Created config file"
+cat rportd.conf
 
 echo -n "RPortd "
 ./rportd --version
