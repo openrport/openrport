@@ -829,7 +829,9 @@ func TestHandlePostMultiClientCommandWithPausedClient(t *testing.T) {
 					config: &chconfig.Config{
 						Server: chconfig.ServerConfig{
 							RunRemoteCmdTimeoutSec: defaultTimeout,
-							MaxRequestBytes:        1024 * 1024,
+						},
+						API: chconfig.APIConfig{
+							MaxRequestBytes: 1024 * 1024,
 						},
 					},
 					jobsDoneChannel: jobResultChanMap{
