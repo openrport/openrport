@@ -344,6 +344,11 @@ func (al *APIListener) handlePutClientTunnel(w http.ResponseWriter, req *http.Re
 		return
 	}
 
+	if client.IsPaused() {
+		al.jsonErrorResponseWithTitle(w, http.StatusNotFound, fmt.Sprintf("failed to start tunnel for client with id %s due to client being paused (reason = %s)", clientID, client.PausedReason))
+		return
+	}
+
 	localAddr := req.URL.Query().Get("local")
 	remoteAddr := req.URL.Query().Get("remote")
 
