@@ -26,6 +26,8 @@ func MatchesFilters(v interface{}, filterOptions []FilterOption) (bool, error) {
 }
 
 func matchesFilter(valueMap map[string]interface{}, filter FilterOption) (bool, error) {
+	matches := make(map[string]bool, len(filter.Values))
+
 	for _, col := range filter.Column {
 		clientFieldValueToMatch, ok := valueMap[col]
 		if !ok {
@@ -40,32 +42,41 @@ func matchesFilter(valueMap map[string]interface{}, filter FilterOption) (bool, 
 		for _, clientFieldValueToMatch := range clientFieldSliceToMatch {
 			clientFieldValueToMatchStr := fmt.Sprint(clientFieldValueToMatch)
 
+			// for each filter I cycle all the map matchFilter
+			// OR == at least one filterOptions matches
+			// AND == all filterOptions's need to match (count)
 			for _, filterValue := range filter.Values {
+				if matches[filterValue] { // this filter was already "assigned" to a match
+					continue
+				}
 				hasUnescapedWildCard := strings.Contains(filterValue, "*")
 				if !hasUnescapedWildCard {
 					if strings.EqualFold(filterValue, clientFieldValueToMatchStr) {
-						return true, nil
+						matches[filterValue] = true
 					}
-
 					continue
 				}
 				re := "(?i)^" + strings.ReplaceAll(filterValue, "*", ".*?") + "$"
 				filterValueRegex, err := regexp.Compile(re)
 				if err != nil {
 					if strings.EqualFold(filterValue, clientFieldValueToMatchStr) {
-						return true, nil
+						matches[filterValue] = true
 					}
 					continue
 				}
 
 				if filterValueRegex.MatchString(clientFieldValueToMatchStr) {
-					return true, nil
+					matches[filterValue] = true
 				}
 			}
 		}
 	}
 
-	return false, nil
+	switch filter.ValuesLogicalOperator {
+	case FilterLogicalOperatorTypeAND:
+		return len(matches) == len(filter.Values), nil
+	}
+	return len(matches) > 0, nil
 }
 
 func toMap(v interface{}) (map[string]interface{}, error) {

@@ -257,12 +257,19 @@ func (al *APIListener) createAndRunJob(
 		TimeoutSec:  timeoutSec,
 		MultiJobID:  &multiJobID,
 	}
+
 	sshResp := &comm.RunCmdResponse{}
-	if client.Connection != nil {
-		err = comm.SendRequestAndGetResponse(client.Connection, comm.RequestTypeRunCmd, curJob, sshResp)
+
+	if !client.IsPaused() {
+		if client.Connection != nil {
+			err = comm.SendRequestAndGetResponse(client.Connection, comm.RequestTypeRunCmd, curJob, sshResp)
+		} else {
+			err = errors.New("client is not connected")
+		}
 	} else {
-		err = errors.New("client is not connected")
+		err = fmt.Errorf("client is paused (reason = %s)", client.PausedReason)
 	}
+
 	// return an error after saving the job
 	if err != nil {
 		// failure, set fields to mark it as failed

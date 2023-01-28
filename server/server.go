@@ -95,6 +95,15 @@ func NewServer(ctx context.Context, config *chconfig.Config, opts *ServerOpts) (
 	filesAPI := opts.FilesAPI
 	s.plusManager = opts.PlusManager
 
+	if s.config.PlusEnabled() {
+		licCap := s.plusManager.GetLicenseCapabilityEx()
+		if licCap == nil {
+			return nil, errors.New("failed to get license info capability from rport-plus")
+		}
+
+		licCap.SetLicenseInfoAvailableNotifier(s.HandlePlusLicenseInfoAvailable)
+	}
+
 	privateKey, err := initPrivateKey(config.Server.KeySeed)
 	if err != nil {
 		return nil, err
@@ -187,6 +196,11 @@ func NewServer(ctx context.Context, config *chconfig.Config, opts *ServerOpts) (
 		return nil, err
 	}
 
+	if s.config.PlusEnabled() {
+		licCapEx := s.plusManager.GetLicenseCapabilityEx()
+		s.clientService.SetPlusLicenseInfoCap(licCapEx)
+	}
+
 	s.auditLog, err = auditlog.New(
 		logger.NewLogger("auditlog", config.Logging.LogOutput, config.Logging.LogLevel),
 		s.clientService,
@@ -246,6 +260,14 @@ func NewServer(ctx context.Context, config *chconfig.Config, opts *ServerOpts) (
 	}
 
 	return s, nil
+}
+
+func (s *Server) HandlePlusLicenseInfoAvailable() {
+	s.Logger.Debugf("received license info from rport-plus")
+
+	if s.clientListener != nil && s.clientListener.clientService != nil {
+		s.clientListener.clientService.UpdateClientStatus()
+	}
 }
 
 func getClientProvider(config *chconfig.Config, db *sqlx.DB) (clientsauth.Provider, error) {

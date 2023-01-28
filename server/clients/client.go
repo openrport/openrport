@@ -66,11 +66,12 @@ type Client struct {
 	UpdatesStatus       *models.UpdatesStatus `json:"updates_status"`
 	ClientConfiguration *clientconfig.Config  `json:"client_configuration"`
 
-	Connection ssh.Conn        `json:"-"`
-	Logger     *logger.Logger  `json:"-"`
-	Context    context.Context `json:"-"`
-
-	lock sync.Mutex
+	Connection   ssh.Conn        `json:"-"`
+	Logger       *logger.Logger  `json:"-"`
+	Context      context.Context `json:"-"`
+	Paused       bool            `json:"-"`
+	PausedReason string          `json:"-"`
+	lock         sync.Mutex
 }
 
 // CalculatedClient contains additional fields and is calculated on each request
@@ -78,6 +79,21 @@ type CalculatedClient struct {
 	*Client
 	Groups          []string        `json:"groups"`
 	ConnectionState ConnectionState `json:"connection_state"`
+}
+
+func (c *Client) IsPaused() (paused bool) {
+	paused = c.Paused
+	return paused
+}
+
+const PausedDueToMaxClientsExceeded = "unlicensed"
+
+func (c *Client) SetPaused(paused bool, reason string) {
+	c.Paused = paused
+	c.PausedReason = reason
+	if paused {
+		c.Logger.Infof("client %s is paused (reason = %s)", c.ID, c.PausedReason)
+	}
 }
 
 func (c *Client) SetConnected() {
