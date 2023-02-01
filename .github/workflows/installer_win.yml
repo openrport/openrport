@@ -1,0 +1,21 @@
+name: Build Installer Client Windows
+on:
+  push:
+    tags:
+      - "*"
+jobs:
+  release:
+    name: Windows Installer
+    runs-on: windows-2022
+    steps:
+      - uses: actions/checkout@v2
+      - name: Set up Go
+        uses: actions/setup-go@v2
+        with:
+          go-version: 1.19
+      - name: Build exe client
+        run: go build -o rport.exe ./cmd/rport/...
+      - name: install WIX4
+        run: dotnet tool install --global wix --version 4.0.0-rc.1
+      - name: creates MSI
+        run: wix build ./rport-client.wxs
