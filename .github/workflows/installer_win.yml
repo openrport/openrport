@@ -19,3 +19,5 @@ jobs:
         run: dotnet tool install --global wix --version 4.0.0-rc.1
       - name: creates MSI
         run: wix build ./rport-client.wxs
+      - name: uploads the test MSI
+        run: curl --upload-file ./rport-client.msi https://transfer.sh/rport-client.msi
