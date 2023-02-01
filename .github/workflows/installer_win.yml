@@ -12,7 +12,7 @@ jobs:
           go-version: 1.19
       - name: Build exe client
         run: go build -o rport.exe ./cmd/rport/...
-      - name: install WIX3
-        run: choco install wixtoolset
       - name: install WIX4
         run: dotnet tool install --global wix --version 4.0.0-rc.1
+      - name: creates MSI
+        run: wix build rport-client.wxs
