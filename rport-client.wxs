@@ -1,16 +1,29 @@
 <Wix xmlns="http://wixtoolset.org/schemas/v4/wxs">
-	<Package Language="1033" Manufacturer="RealVNC" Name="RPort" Version="1.0.0.0" ProductCode="DD475EBC-D960-4AF4-BB8A-BE91FA942756"><MediaTemplate EmbedCab="yes" />
-	  <Feature Id="RPortClientFeature">
+
+	<Package Language="1033" 
+				Manufacturer="RealVNC" 
+				Name="RPort" 
+				Version="1.0.0.0" 
+				UpgradeCode="1F633E9D-7F55-449D-8BC9-56F9E72342E9" 
+				ProductCode="DD475EBC-D960-4AF4-BB8A-BE91FA942777">
+	
+	<MediaTemplate EmbedCab="yes" />
+	<Feature Id="RPortClientFeature">
 		<ComponentRef Id="ProductComponent" />
 		<ComponentRef Id="ProductComponent2" />
-	  </Feature>
+		<ComponentRef Id="ProductComponent3" />
+	</Feature>
+    <MajorUpgrade DowngradeErrorMessage="A later version of [ProductName] is already installed. Setup will now exit." />
 		<StandardDirectory Id="ProgramFiles64Folder">
 		  <Directory Id="INSTALLFOLDER" Name="RPort Client">
 			<Component Id="ProductComponent">
-			  <File Id="FileToInstall.txt" KeyPath="yes" Source="FileToInstall.txt"></File>
+			  <File KeyPath="yes" Source="FileToInstall.txt"></File>
 			</Component>
 			<Component Id="ProductComponent2">
-			  <File Id="rport.exe" KeyPath="yes" Source="rport.exe"></File>
+			  <File KeyPath="yes" Source="rport.exe"></File>
+			</Component>
+			<Component Id="ProductComponent3">
+			  <File Name="rport.conf" KeyPath="yes" Source="rport.example.conf"></File>
 			</Component>
 		  </Directory>
 		</StandardDirectory>

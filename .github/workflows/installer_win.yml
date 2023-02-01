@@ -1,8 +1,5 @@
-name: Build Installer Client Windows
-on:
-  push:
-    tags:
-      - "*"
+name: Build! Installer Client Windows
+on: [push]
 jobs:
   release:
     name: Windows Installer
