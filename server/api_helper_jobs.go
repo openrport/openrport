@@ -201,7 +201,7 @@ func (al *APIListener) executeMultiClientJob(
 			return
 		}
 		if job.Concurrent {
-			go al.createAndRunJob(
+			go al.createAndRunJob( //nolint:errcheck // error is logged, nothing to act on here
 				nil,
 				&job.JID,
 				curJID,

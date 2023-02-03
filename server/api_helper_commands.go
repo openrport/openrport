@@ -116,7 +116,7 @@ func (al *APIListener) handleCommandsExecutionWS(
 				return
 			}
 			if multiJob.Concurrent {
-				go al.createAndRunJob(
+				go al.createAndRunJob( //nolint:errcheck // error is logged, nothing to act on here
 					uiConnTS,
 					&jid,
 					curJID,
@@ -168,7 +168,7 @@ func (al *APIListener) handleCommandsExecutionWS(
 	} else {
 		client := inboundMsg.OrderedClients[0]
 
-		al.createAndRunJob(
+		al.createAndRunJob( //nolint:errcheck // error is logged, nothing to act on here
 			uiConnTS,
 			nil,
 			jid,
