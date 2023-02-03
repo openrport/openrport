@@ -45,7 +45,7 @@ func (t *tunnelTCP) Start(ctx context.Context) error {
 	t.Logger.Debugf("listening on %+v", t.Local())
 
 	// TODO(m-terel): consider to use ListenTCP
-	l, err := net.Listen("tcp4", t.Local())
+	l, err := net.Listen("tcp", t.Local())
 	if err != nil {
 		return fmt.Errorf("%s: %s", t.Logger.Prefix(), err)
 	}

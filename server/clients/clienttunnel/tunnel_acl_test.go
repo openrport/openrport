@@ -26,22 +26,22 @@ func TestParseTunnelACL(t *testing.T) {
 			Name:  "single ip",
 			Input: "192.0.2.1",
 			Expected: []net.IPNet{
-				net.IPNet{IP: net.IPv4(192, 0, 2, 1), Mask: net.CIDRMask(32, 32)},
+				{IP: net.IPv4(192, 0, 2, 1), Mask: net.CIDRMask(32, 32)},
 			},
 		},
 		{
 			Name:  "ip range",
 			Input: "192.0.2.0/24",
 			Expected: []net.IPNet{
-				net.IPNet{IP: net.IPv4(192, 0, 2, 0), Mask: net.CIDRMask(24, 32)},
+				{IP: net.IPv4(192, 0, 2, 0), Mask: net.CIDRMask(24, 32)},
 			},
 		},
 		{
 			Name:  "multiple entries",
 			Input: "192.0.2.1,192.0.2.2/31",
 			Expected: []net.IPNet{
-				net.IPNet{IP: net.IPv4(192, 0, 2, 1), Mask: net.CIDRMask(32, 32)},
-				net.IPNet{IP: net.IPv4(192, 0, 2, 2), Mask: net.CIDRMask(31, 32)},
+				{IP: net.IPv4(192, 0, 2, 1), Mask: net.CIDRMask(32, 32)},
+				{IP: net.IPv4(192, 0, 2, 2), Mask: net.CIDRMask(31, 32)},
 			},
 		},
 		{
@@ -50,9 +50,36 @@ func TestParseTunnelACL(t *testing.T) {
 			ExpectedError: errors.New("0.0.0.0 would allow access to everyone. If that's what you want, do not set the ACL"),
 		},
 		{
-			Name:          "ipv6",
-			Input:         "2001:db8:3333:4444:5555:6666:7777:8888",
-			ExpectedError: errors.New("2001:db8:3333:4444:5555:6666:7777:8888 is not IPv4 address"),
+			Name:  "ipv6",
+			Input: "2001:db8:3333:4444:5555:6666:7777:8888",
+			Expected: []net.IPNet{
+				{IP: net.ParseIP("2001:db8:3333:4444:5555:6666:7777:8888"), Mask: net.CIDRMask(128, 128)},
+			},
+		},
+		{
+			Name:  "ipv6 range",
+			Input: "2001:db8:3333:4444::/64",
+			Expected: []net.IPNet{
+				{IP: net.ParseIP("2001:db8:3333:4444::"), Mask: net.CIDRMask(64, 128)},
+			},
+		},
+		{
+			Name:  "mixed entries",
+			Input: "::1,127.0.0.0/24",
+			Expected: []net.IPNet{
+				{IP: net.ParseIP("::1"), Mask: net.CIDRMask(128, 128)},
+				{IP: net.ParseIP("127.0.0.0"), Mask: net.CIDRMask(24, 32)},
+			},
+		},
+		{
+			Name:          "zero ipv6",
+			Input:         "::",
+			ExpectedError: errors.New(":: would allow access to everyone. If that's what you want, do not set the ACL"),
+		},
+		{
+			Name:          "invalid ip",
+			Input:         "invalid.ip",
+			ExpectedError: errors.New("invalid IP addr: invalid.ip"),
 		},
 	}
 
