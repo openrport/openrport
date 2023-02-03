@@ -171,6 +171,14 @@ func TestValidate(t *testing.T) {
 		},
 		{
 			user: &User{
+				Username: "someuser ",
+				Password: "123",
+			},
+			expectedError: "username must not start or end with whitespace",
+			name:          "username ending with space",
+		},
+		{
+			user: &User{
 				Username: "user123",
 			},
 			expectedError:    "nothing to change",

@@ -208,6 +208,12 @@ func (as *APIService) validate(dataToChange *User, usernameToFind string) error 
 
 	if dataToChange.Username != "" {
 		zxcvbnUserInputs = append(zxcvbnUserInputs, dataToChange.Username)
+		if strings.TrimSpace(dataToChange.Username) != dataToChange.Username {
+			errs = append(errs, errors2.APIError{
+				Message:    "username must not start or end with whitespace",
+				HTTPStatus: http.StatusBadRequest,
+			})
+		}
 	}
 
 	if dataToChange.Password != "" {
