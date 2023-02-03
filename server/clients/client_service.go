@@ -36,7 +36,7 @@ type ClientService interface {
 	CountDisconnected() (int, error)
 	GetByID(id string) (*Client, error)
 	GetActiveByID(id string) (*Client, error)
-	GetActiveByGroups(groups []*cgroups.ClientGroup) []*Client
+	GetByGroups(groups []*cgroups.ClientGroup) ([]*Client, error)
 	GetClientsByTag(tags []string, operator string, allowDisconnected bool) (clients []*Client, err error)
 	GetAllByClientID(clientID string) []*Client
 	GetAll() ([]*Client, error)
@@ -249,18 +249,23 @@ func (s *ClientServiceProvider) GetActiveByID(id string) (*Client, error) {
 	return s.repo.GetActiveByID(id)
 }
 
-func (s *ClientServiceProvider) GetActiveByGroups(groups []*cgroups.ClientGroup) []*Client {
+func (s *ClientServiceProvider) GetByGroups(groups []*cgroups.ClientGroup) ([]*Client, error) {
 	if len(groups) == 0 {
-		return nil
+		return nil, nil
+	}
+
+	all, err := s.repo.GetAll()
+	if err != nil {
+		return nil, err
 	}
 
 	var res []*Client
-	for _, cur := range s.repo.GetAllActive() {
+	for _, cur := range all {
 		if cur.BelongsToOneOf(groups) {
 			res = append(res, cur)
 		}
 	}
-	return res
+	return res, nil
 }
 
 func (s *ClientServiceProvider) GetClientsByTag(tags []string, operator string, allowDisconnected bool) (clients []*Client, err error) {
