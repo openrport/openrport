@@ -574,7 +574,6 @@ func TestHandlePostMultiClientCommand(t *testing.T) {
 		name string
 
 		requestBody string
-		abortOnErr  bool
 
 		connReturnErr error
 
@@ -582,12 +581,14 @@ func TestHandlePostMultiClientCommand(t *testing.T) {
 		wantErrCode    string
 		wantErrTitle   string
 		wantErrDetail  string
+		wantJobStatus  []string
 		wantJobErr     string
 	}{
 		{
 			name:           "valid cmd",
 			requestBody:    validReqBody,
 			wantStatusCode: http.StatusOK,
+			wantJobStatus:  []string{models.JobStatusRunning, models.JobStatusRunning},
 		},
 		{
 			name: "no targeting params provided",
@@ -606,10 +607,11 @@ func TestHandlePostMultiClientCommand(t *testing.T) {
 		{
 			"command": "/bin/date;foo;whoami",
 			"timeout_sec": 30,
-			"client_ids": ["client-1", "client-3"]
+			"client_ids": ["client-3", "client-1"]
 		}`,
-			wantStatusCode: http.StatusBadRequest,
-			wantErrTitle:   fmt.Sprintf("Client with id=%q is not active.", c3.ID),
+			wantStatusCode: http.StatusOK,
+			wantJobStatus:  []string{models.JobStatusFailed, models.JobStatusRunning},
+			wantJobErr:     "client is not connected",
 		},
 		{
 			name: "client not found",
@@ -627,6 +629,7 @@ func TestHandlePostMultiClientCommand(t *testing.T) {
 			requestBody:    validReqBody,
 			connReturnErr:  errors.New("send fake error"),
 			wantStatusCode: http.StatusOK,
+			wantJobStatus:  []string{models.JobStatusFailed, models.JobStatusRunning},
 			wantJobErr:     "failed to send request: send fake error",
 		},
 		{
@@ -639,9 +642,9 @@ func TestHandlePostMultiClientCommand(t *testing.T) {
 				"execute_concurrently": false,
 				"abort_on_error": true
 			}`,
-			abortOnErr:     true,
 			connReturnErr:  errors.New("send fake error"),
 			wantStatusCode: http.StatusOK,
+			wantJobStatus:  []string{models.JobStatusFailed},
 			wantJobErr:     "failed to send request: send fake error",
 		},
 	}
@@ -718,20 +721,12 @@ func TestHandlePostMultiClientCommand(t *testing.T) {
 				gotMultiJob, err := jp.GetMultiJob(ctx, gotJID)
 				require.NoError(t, err)
 				require.NotNil(t, gotMultiJob)
-				// TODO: this checking assumes 2 jobs, which isn't very flexible. rework as part of the test refactoring.
-				if tc.abortOnErr {
-					require.Len(t, gotMultiJob.Jobs, 1)
-				} else {
-					require.Len(t, gotMultiJob.Jobs, 2)
-				}
-				if tc.connReturnErr != nil {
-					assert.Equal(t, models.JobStatusFailed, gotMultiJob.Jobs[0].Status)
-					assert.Equal(t, tc.wantJobErr, gotMultiJob.Jobs[0].Error)
-				} else {
-					assert.Equal(t, models.JobStatusRunning, gotMultiJob.Jobs[0].Status)
-				}
-				if !tc.abortOnErr {
-					assert.Equal(t, models.JobStatusRunning, gotMultiJob.Jobs[1].Status)
+				require.Len(t, gotMultiJob.Jobs, len(tc.wantJobStatus))
+				for i := range gotMultiJob.Jobs {
+					assert.Equal(t, tc.wantJobStatus[i], gotMultiJob.Jobs[i].Status)
+					if tc.wantJobStatus[i] == models.JobStatusFailed {
+						assert.Equal(t, tc.wantJobErr, gotMultiJob.Jobs[i].Error)
+					}
 				}
 			} else {
 				// failure case

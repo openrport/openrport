@@ -16,6 +16,8 @@ import (
 	"github.com/cloudradar-monitoring/rport/share/ws"
 )
 
+var ErrClientNotConnected = errors.New("client is not connected")
+
 var generateNewJobID = func() (string, error) {
 	return random.UUID4()
 }
@@ -36,34 +38,44 @@ type JobProvider interface {
 	Close() error
 }
 
-func (al *APIListener) createAndRunJobWS(
+func (al *APIListener) createAndRunJob(
 	uiConnTS *ws.ConcurrentWebSocket,
 	multiJobID *string,
 	jid, cmd, interpreter, createdBy, cwd string,
 	timeoutSec int,
 	isSudo, isScript bool,
 	client *clients.Client,
-) bool {
+) error {
 	curJob := models.Job{
 		JID:          jid,
 		StartedAt:    time.Now(),
 		ClientID:     client.ID,
 		ClientName:   client.Name,
 		Command:      cmd,
+		Cwd:          cwd,
+		IsSudo:       isSudo,
+		IsScript:     isScript,
 		Interpreter:  interpreter,
 		CreatedBy:    createdBy,
 		TimeoutSec:   timeoutSec,
 		MultiJobID:   multiJobID,
-		Cwd:          cwd,
-		IsSudo:       isSudo,
-		IsScript:     isScript,
-		StreamResult: true,
+		StreamResult: uiConnTS != nil,
 	}
 	logPrefix := curJob.LogPrefix()
 
 	// send the command to the client
 	sshResp := &comm.RunCmdResponse{}
-	err := comm.SendRequestAndGetResponse(client.Connection, comm.RequestTypeRunCmd, curJob, sshResp)
+
+	var err error
+	if !client.IsPaused() {
+		if client.Connection != nil {
+			err = comm.SendRequestAndGetResponse(client.Connection, comm.RequestTypeRunCmd, curJob, sshResp)
+		} else {
+			err = ErrClientNotConnected
+		}
+	} else {
+		err = fmt.Errorf("client is paused (reason = %s)", client.PausedReason)
+	}
 	if err != nil {
 		al.Errorf("%s, Error on execute remote command: %v", logPrefix, err)
 
@@ -73,7 +85,9 @@ func (al *APIListener) createAndRunJobWS(
 		curJob.Error = err.Error()
 
 		// send the failed job to UI
-		_ = uiConnTS.WriteJSON(curJob)
+		if uiConnTS != nil {
+			_ = uiConnTS.WriteJSON(curJob)
+		}
 	} else {
 		al.Debugf("%s, Job was sent to execute remote command: %q.", logPrefix, curJob.Command)
 
@@ -85,7 +99,7 @@ func (al *APIListener) createAndRunJobWS(
 
 	// do not save the failed job if it's a single-client job
 	if err != nil && multiJobID == nil {
-		return false
+		return err
 	}
 
 	if dbErr := al.jobProvider.CreateJob(&curJob); dbErr != nil {
@@ -93,7 +107,7 @@ func (al *APIListener) createAndRunJobWS(
 		al.Errorf("%s, Failed to persist job: %v", logPrefix, dbErr)
 	}
 
-	return err == nil
+	return err
 }
 
 func (al *APIListener) StartMultiClientJob(ctx context.Context, multiJobRequest *jobs.MultiJobRequest) (*models.MultiJob, error) {
@@ -114,12 +128,12 @@ func (al *APIListener) StartMultiClientJob(ctx context.Context, multiJobRequest 
 	if multiJobRequest.OrderedClients == nil {
 		// try to rebuild the ordered client list
 		if !hasClientTags(multiJobRequest) {
-			multiJobRequest.OrderedClients, _, err = al.getOrderedClients(ctx, multiJobRequest.ClientIDs, multiJobRequest.GroupIDs, true /* allowDisconnected */)
+			multiJobRequest.OrderedClients, _, err = al.getOrderedClients(ctx, multiJobRequest.ClientIDs, multiJobRequest.GroupIDs)
 			if err != nil {
 				return nil, err
 			}
 		} else {
-			multiJobRequest.OrderedClients, err = al.getOrderedClientsByTag(multiJobRequest.ClientTags, true /* allowDisconnected */)
+			multiJobRequest.OrderedClients, err = al.getOrderedClientsByTag(multiJobRequest.ClientTags)
 			if err != nil {
 				return nil, err
 			}
@@ -182,9 +196,15 @@ func (al *APIListener) executeMultiClientJob(
 		}()
 	}
 	for _, client := range orderedClients {
+		curJID, err := generateNewJobID()
+		if err != nil {
+			return
+		}
 		if job.Concurrent {
-			go al.createAndRunJob(
-				job.JID,
+			go al.createAndRunJob( //nolint:errcheck // error is logged, nothing to act on here
+				nil,
+				&job.JID,
+				curJID,
 				job.Command,
 				job.Interpreter,
 				job.CreatedBy,
@@ -195,8 +215,10 @@ func (al *APIListener) executeMultiClientJob(
 				client,
 			)
 		} else {
-			success := al.createAndRunJob(
-				job.JID,
+			err := al.createAndRunJob(
+				nil,
+				&job.JID,
+				curJID,
 				job.Command,
 				job.Interpreter,
 				job.CreatedBy,
@@ -206,8 +228,8 @@ func (al *APIListener) executeMultiClientJob(
 				job.IsScript,
 				client,
 			)
-			if !success {
-				if job.AbortOnErr {
+			if err != nil {
+				if job.AbortOnErr && !errors.Is(err, ErrClientNotConnected) {
 					break
 				}
 				continue
@@ -229,66 +251,4 @@ func (al *APIListener) executeMultiClientJob(
 	if al.testDone != nil {
 		al.testDone <- true
 	}
-}
-
-func (al *APIListener) createAndRunJob(
-	multiJobID, cmd, interpreter, createdBy, cwd string,
-	timeoutSec int,
-	isSudo, isScript bool,
-	client *clients.Client,
-) bool {
-	jid, err := generateNewJobID()
-	if err != nil {
-		al.Errorf("multi_client_id=%q, client_id=%q, Could not generate job id: %v", multiJobID, client.ID, err)
-		return false
-	}
-	// send the command to the client
-	curJob := models.Job{
-		JID:         jid,
-		StartedAt:   time.Now(),
-		ClientID:    client.ID,
-		ClientName:  client.Name,
-		Command:     cmd,
-		Cwd:         cwd,
-		IsSudo:      isSudo,
-		IsScript:    isScript,
-		Interpreter: interpreter,
-		CreatedBy:   createdBy,
-		TimeoutSec:  timeoutSec,
-		MultiJobID:  &multiJobID,
-	}
-
-	sshResp := &comm.RunCmdResponse{}
-
-	if !client.IsPaused() {
-		if client.Connection != nil {
-			err = comm.SendRequestAndGetResponse(client.Connection, comm.RequestTypeRunCmd, curJob, sshResp)
-		} else {
-			err = errors.New("client is not connected")
-		}
-	} else {
-		err = fmt.Errorf("client is paused (reason = %s)", client.PausedReason)
-	}
-
-	// return an error after saving the job
-	if err != nil {
-		// failure, set fields to mark it as failed
-		al.Errorf("multi_client_id=%q, client_id=%q, Error on execute remote command: %v", *curJob.MultiJobID, curJob.ClientID, err)
-		curJob.Status = models.JobStatusFailed
-		now := time.Now()
-		curJob.FinishedAt = &now
-		curJob.Error = err.Error()
-	} else {
-		// success, set fields received in response
-		curJob.PID = &sshResp.Pid
-		curJob.StartedAt = sshResp.StartedAt // override with the start time of the command
-		curJob.Status = models.JobStatusRunning
-	}
-
-	if dbErr := al.jobProvider.CreateJob(&curJob); dbErr != nil {
-		// just log it, cmd is running, when it's finished it can be saved on result return
-		al.Errorf("multi_client_id=%q, client_id=%q, Failed to persist a child job: %v", *curJob.MultiJobID, curJob.ClientID, dbErr)
-	}
-
-	return err == nil
 }

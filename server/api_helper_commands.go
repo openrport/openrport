@@ -2,7 +2,7 @@ package chserver
 
 import (
 	"context"
-	"fmt"
+	"errors"
 	"time"
 
 	"github.com/gorilla/websocket"
@@ -110,20 +110,13 @@ func (al *APIListener) handleCommandsExecutionWS(
 		}
 
 		for _, client := range inboundMsg.OrderedClients {
-			if client.IsPaused() {
-				msg := fmt.Sprintf("failed to execute command/script for client with id %s", client.ID)
-				err := fmt.Errorf("client is paused (reason = %s)", client.PausedReason)
-				uiConnTS.WriteError(msg, err)
-				continue
-			}
-
 			curJID, err := generateNewJobID()
 			if err != nil {
 				uiConnTS.WriteError("Could not generate job id.", err)
 				return
 			}
 			if multiJob.Concurrent {
-				go al.createAndRunJobWS(
+				go al.createAndRunJob( //nolint:errcheck // error is logged, nothing to act on here
 					uiConnTS,
 					&jid,
 					curJID,
@@ -137,7 +130,7 @@ func (al *APIListener) handleCommandsExecutionWS(
 					client,
 				)
 			} else {
-				success := al.createAndRunJobWS(
+				err := al.createAndRunJob(
 					uiConnTS,
 					&jid,
 					curJID,
@@ -151,8 +144,8 @@ func (al *APIListener) handleCommandsExecutionWS(
 					client,
 				)
 
-				if !success {
-					if multiJob.AbortOnErr {
+				if err != nil {
+					if multiJob.AbortOnErr && !errors.Is(err, ErrClientNotConnected) {
 						uiConnTS.Close()
 						return
 					}
@@ -175,14 +168,7 @@ func (al *APIListener) handleCommandsExecutionWS(
 	} else {
 		client := inboundMsg.OrderedClients[0]
 
-		if client.IsPaused() {
-			msg := fmt.Sprintf("failed to execute command/script for client with id %s", client.ID)
-			err := fmt.Errorf("client is paused (reason = %s)", client.PausedReason)
-			uiConnTS.WriteError(msg, err)
-			return
-		}
-
-		al.createAndRunJobWS(
+		al.createAndRunJob( //nolint:errcheck // error is logged, nothing to act on here
 			uiConnTS,
 			nil,
 			jid,
