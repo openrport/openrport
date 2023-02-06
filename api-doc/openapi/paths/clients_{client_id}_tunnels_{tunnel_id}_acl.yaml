@@ -1,0 +1,51 @@
+put:
+  tags:
+    - Clients and Tunnels
+  summary: Update a specified tunnel ACL
+  operationId: ClientTunnelACLPut
+  parameters:
+    - name: client_id
+      in: path
+      description: unique client id retrieved previously
+      required: true
+      schema:
+        type: string
+    - name: tunnel_id
+      in: path
+      description: unique tunnel id retrieved previously
+      required: true
+      schema:
+        type: string
+  requestBody:
+    content:
+      'application/json:':
+        schema:
+          type: object
+          properties:
+            acl:
+              type: string
+              description: >-
+                ACL, IP v4 addresses or ranges who is allowed to use the tunnel (ipv6 is
+                not supported yet). For example, '142.78.90.8,201.98.123.0/24'
+    required: true
+  responses:
+    '204':
+      description: tunnel ACL updated
+    '400':
+      description: invalid parameters
+      content:
+        'application/json':
+          schema:
+            $ref: ../components/schemas/ErrorPayload.yaml
+    '404':
+      description: specified client or tunnel does not exist
+      content:
+        'application/json':
+          schema:
+            $ref: ../components/schemas/ErrorPayload.yaml
+    '500':
+      description: invalid operation
+      content:
+        'application/json':
+          schema:
+            $ref: ../components/schemas/ErrorPayload.yaml

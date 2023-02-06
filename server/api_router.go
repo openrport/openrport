@@ -62,6 +62,7 @@ func (al *APIListener) initRouter() {
 	clientTunnels.Use(al.permissionsMiddleware(users.PermissionTunnels))
 	clientTunnels.HandleFunc("/tunnels", al.handlePutClientTunnel).Methods(http.MethodPut)
 	clientTunnels.HandleFunc("/tunnels/{tunnel_id}", al.handleDeleteClientTunnel).Methods(http.MethodDelete)
+	clientTunnels.HandleFunc("/tunnels/{tunnel_id}/acl", al.handlePutClientTunnelACL).Methods(http.MethodPut)
 	clientTunnels.HandleFunc("/stored-tunnels", al.handleGetStoredTunnels).Methods(http.MethodGet)
 	clientTunnels.HandleFunc("/stored-tunnels", al.handlePostStoredTunnels).Methods(http.MethodPost)
 	clientTunnels.HandleFunc("/stored-tunnels/{tunnel_id}", al.handleDeleteStoredTunnel).Methods(http.MethodDelete)
