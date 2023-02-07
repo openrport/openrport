@@ -2,6 +2,7 @@ package chserver
 
 import (
 	"context"
+	"errors"
 	"time"
 
 	"github.com/gorilla/websocket"
@@ -115,7 +116,7 @@ func (al *APIListener) handleCommandsExecutionWS(
 				return
 			}
 			if multiJob.Concurrent {
-				go al.createAndRunJobWS(
+				go al.createAndRunJob( //nolint:errcheck // error is logged, nothing to act on here
 					uiConnTS,
 					&jid,
 					curJID,
@@ -129,7 +130,7 @@ func (al *APIListener) handleCommandsExecutionWS(
 					client,
 				)
 			} else {
-				success := al.createAndRunJobWS(
+				err := al.createAndRunJob(
 					uiConnTS,
 					&jid,
 					curJID,
@@ -143,8 +144,8 @@ func (al *APIListener) handleCommandsExecutionWS(
 					client,
 				)
 
-				if !success {
-					if multiJob.AbortOnErr {
+				if err != nil {
+					if multiJob.AbortOnErr && !errors.Is(err, ErrClientNotConnected) {
 						uiConnTS.Close()
 						return
 					}
@@ -166,7 +167,8 @@ func (al *APIListener) handleCommandsExecutionWS(
 		}
 	} else {
 		client := inboundMsg.OrderedClients[0]
-		al.createAndRunJobWS(
+
+		al.createAndRunJob( //nolint:errcheck // error is logged, nothing to act on here
 			uiConnTS,
 			nil,
 			jid,

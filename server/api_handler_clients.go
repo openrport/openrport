@@ -344,6 +344,11 @@ func (al *APIListener) handlePutClientTunnel(w http.ResponseWriter, req *http.Re
 		return
 	}
 
+	if client.IsPaused() {
+		al.jsonErrorResponseWithTitle(w, http.StatusNotFound, fmt.Sprintf("failed to start tunnel for client with id %s due to client being paused (reason = %s)", clientID, client.PausedReason))
+		return
+	}
+
 	localAddr := req.URL.Query().Get("local")
 	remoteAddr := req.URL.Query().Get("remote")
 
@@ -664,6 +669,61 @@ func (al *APIListener) handleDeleteClientTunnel(w http.ResponseWriter, req *http
 		WithRequest(map[string]interface{}{
 			"force": force,
 		}).
+		Save()
+
+	w.WriteHeader(http.StatusNoContent)
+}
+
+func (al *APIListener) handlePutClientTunnelACL(w http.ResponseWriter, req *http.Request) {
+	vars := mux.Vars(req)
+	clientID := vars[routes.ParamClientID]
+	if clientID == "" {
+		al.jsonErrorResponseWithTitle(w, http.StatusBadRequest, "client id is missing")
+		return
+	}
+
+	client, err := al.clientService.GetActiveByID(clientID)
+	if err != nil {
+		al.jsonErrorResponse(w, http.StatusInternalServerError, err)
+		return
+	}
+	if client == nil {
+		al.jsonErrorResponseWithTitle(w, http.StatusNotFound, fmt.Sprintf("client with id %s not found", clientID))
+		return
+	}
+
+	tunnelID := vars["tunnel_id"]
+	if tunnelID == "" {
+		al.jsonErrorResponseWithTitle(w, http.StatusBadRequest, "tunnel id is missing")
+		return
+	}
+
+	tunnel := al.clientService.FindTunnel(client, tunnelID)
+	if tunnel == nil {
+		al.jsonErrorResponseWithTitle(w, http.StatusNotFound, "tunnel not found")
+		return
+	}
+
+	var reqBody struct {
+		ACL *string `json:"acl"`
+	}
+	err = parseRequestBody(req.Body, &reqBody)
+	if err != nil {
+		al.jsonError(w, err)
+		return
+	}
+
+	err = al.clientService.SetTunnelACL(client, tunnel, reqBody.ACL)
+	if err != nil {
+		al.jsonErrorResponseWithTitle(w, http.StatusBadRequest, err.Error())
+		return
+	}
+
+	al.auditLog.Entry(auditlog.ApplicationClientTunnel, auditlog.ActionUpdate).
+		WithHTTPRequest(req).
+		WithClient(client).
+		WithID(tunnelID).
+		WithRequest(reqBody).
 		Save()
 
 	w.WriteHeader(http.StatusNoContent)

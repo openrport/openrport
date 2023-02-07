@@ -36,14 +36,16 @@ func (al *APIListener) handleGetUsers(w http.ResponseWriter, req *http.Request) 
 	}
 
 	usersToSend := make([]UserPayload, 0, len(usrs))
-	for i := range usrs {
-		user := usrs[i]
-		usersToSend = append(usersToSend, UserPayload{
-			Username:        user.Username,
-			PasswordExpired: *user.PasswordExpired,
-			Groups:          user.Groups,
-			TwoFASendTo:     user.TwoFASendTo,
-		})
+	for _, user := range usrs {
+		payload := UserPayload{
+			Username:    user.Username,
+			Groups:      user.Groups,
+			TwoFASendTo: user.TwoFASendTo,
+		}
+		if user.PasswordExpired != nil {
+			payload.PasswordExpired = *user.PasswordExpired
+		}
+		usersToSend = append(usersToSend, payload)
 	}
 
 	response := api.NewSuccessPayload(usersToSend)
@@ -52,9 +54,17 @@ func (al *APIListener) handleGetUsers(w http.ResponseWriter, req *http.Request) 
 
 func (al *APIListener) handleChangeUser(w http.ResponseWriter, req *http.Request) {
 	vars := mux.Vars(req)
+
+	// if the username is part of the route params then we're updating the user, otherwise creating a new user
 	userID, userIDExists := vars[routes.ParamUserID]
 	if !userIDExists {
 		userID = ""
+
+		err := al.checkUserCount()
+		if err != nil {
+			al.jsonError(w, err)
+			return
+		}
 	}
 
 	var user users.User
@@ -96,6 +106,30 @@ func (al *APIListener) handleChangeUser(w http.ResponseWriter, req *http.Request
 		al.Debugf("User [%s] created.", user.Username)
 		w.WriteHeader(http.StatusCreated)
 	}
+}
+
+func (al *APIListener) checkUserCount() (err error) {
+	maxUsers := al.getMaxUsers()
+
+	if maxUsers > 0 {
+		users, err := al.userService.GetAll()
+		if err != nil {
+			return err
+		}
+
+		if len(users) >= maxUsers {
+			return errors.New("failed to create user. max user limit reached. please upgrade your license for additional users")
+		}
+	}
+
+	return nil
+}
+
+func (al *APIListener) getMaxUsers() (maxUsers int) {
+	if al.Server.config.PlusEnabled() {
+		maxUsers = al.Server.plusManager.GetLicenseCapabilityEx().GetMaxUsers()
+	}
+	return maxUsers
 }
 
 func (al *APIListener) handleDeleteUser(w http.ResponseWriter, req *http.Request) {

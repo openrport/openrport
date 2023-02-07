@@ -23,7 +23,7 @@ type tunnelTCP struct {
 	*logger.Logger
 	models.Remote
 	sshConn ssh.Conn
-	acl     *TunnelACL // parsed Remote.ACL field
+	acl     atomic.Pointer[TunnelACL] // parsed Remote.ACL field
 
 	stopFn                    func()
 	connectionIDAutoIncrement int
@@ -32,12 +32,13 @@ type tunnelTCP struct {
 }
 
 func newTunnelTCP(logger *logger.Logger, ssh ssh.Conn, remote models.Remote, acl *TunnelACL) *tunnelTCP {
-	return &tunnelTCP{
+	t := &tunnelTCP{
 		Logger:  logger,
 		Remote:  remote,
 		sshConn: ssh,
-		acl:     acl,
 	}
+	t.SetACL(acl)
+	return t
 }
 
 func (t *tunnelTCP) Start(ctx context.Context) error {
@@ -45,7 +46,7 @@ func (t *tunnelTCP) Start(ctx context.Context) error {
 	t.Logger.Debugf("listening on %+v", t.Local())
 
 	// TODO(m-terel): consider to use ListenTCP
-	l, err := net.Listen("tcp4", t.Local())
+	l, err := net.Listen("tcp", t.Local())
 	if err != nil {
 		return fmt.Errorf("%s: %s", t.Logger.Prefix(), err)
 	}
@@ -103,7 +104,8 @@ func (t *tunnelTCP) listen(ctx context.Context, l net.Listener) {
 			return
 		}
 
-		if t.acl != nil {
+		acl := t.acl.Load()
+		if acl != nil {
 			tcpAddr, ok := conn.RemoteAddr().(*net.TCPAddr)
 			if !ok {
 				t.Errorf("Unsupported remote address type. Expected net.TCPAddr. %v", conn.RemoteAddr())
@@ -111,7 +113,7 @@ func (t *tunnelTCP) listen(ctx context.Context, l net.Listener) {
 				continue
 			}
 
-			if !t.acl.CheckAccess(tcpAddr.IP) {
+			if !acl.CheckAccess(tcpAddr.IP) {
 				t.Debugf("Access rejected. Remote addr: %s", tcpAddr)
 				conn.Close()
 				continue
@@ -177,4 +179,8 @@ func (t *tunnelTCP) accept(ctx context.Context, src io.ReadWriteCloser) {
 	s, r := chshare.Pipe(src, dst)
 	l.Debugf("Close (sent %s received %s)", sizestr.ToString(s), sizestr.ToString(r))
 	close(done)
+}
+
+func (t *tunnelTCP) SetACL(acl *TunnelACL) {
+	t.acl.Store(acl)
 }

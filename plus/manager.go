@@ -7,6 +7,7 @@ import (
 	"plugin"
 	"sync"
 
+	licensecap "github.com/cloudradar-monitoring/rport/plus/capabilities/license"
 	"github.com/cloudradar-monitoring/rport/plus/capabilities/oauth"
 	"github.com/cloudradar-monitoring/rport/plus/capabilities/status"
 	"github.com/cloudradar-monitoring/rport/plus/license"
@@ -17,8 +18,9 @@ import (
 )
 
 const (
-	PlusOAuthCapability  = "plus-oauth"
-	PlusStatusCapability = "plus-status"
+	PlusOAuthCapability   = "plus-oauth"
+	PlusStatusCapability  = "plus-status"
+	PlusLicenseCapability = "plus-license"
 )
 
 var (
@@ -45,6 +47,7 @@ type Manager interface {
 	// Access specific capabilities
 	GetOAuthCapabilityEx() (capEx oauth.CapabilityEx)
 	GetStatusCapabilityEx() (capEx status.CapabilityEx)
+	GetLicenseCapabilityEx() (capEx licensecap.CapabilityEx)
 
 	// Access config validation
 	GetConfigValidator(capName string) (v validator.Validator)
@@ -159,10 +162,24 @@ func (pm *ManagerProvider) GetStatusCapabilityEx() (capEx status.CapabilityEx) {
 	if capEntry != nil {
 		cap, ok := capEntry.(*status.Capability)
 		if !ok {
-			// TODO: consider returning an error here
 			return nil
 		}
 		capEx = cap.GetStatusCapabilityEx()
+		return capEx
+	}
+
+	return nil
+}
+
+// GetLicenseCapabilityEx returns a cast version of the Plus License capability
+func (pm *ManagerProvider) GetLicenseCapabilityEx() (capEx licensecap.CapabilityEx) {
+	capEntry := pm.getCap(PlusLicenseCapability)
+	if capEntry != nil {
+		cap, ok := capEntry.(*licensecap.Capability)
+		if !ok {
+			return nil
+		}
+		capEx = cap.GetLicenseCapabilityEx()
 		return capEx
 	}
 

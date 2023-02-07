@@ -556,6 +556,10 @@ func TestHandlePostMultiClientCommand(t *testing.T) {
 	c2 := clients.New(t).ID("client-2").Connection(connMock2).Build()
 	c3 := clients.New(t).ID("client-3").DisconnectedDuration(5 * time.Minute).Build()
 
+	c1.Logger = testLog
+	c2.Logger = testLog
+	c3.Logger = testLog
+
 	defaultTimeout := 60
 	gotCmd := "/bin/date;foo;whoami"
 	gotCmdTimeoutSec := 30
@@ -570,7 +574,6 @@ func TestHandlePostMultiClientCommand(t *testing.T) {
 		name string
 
 		requestBody string
-		abortOnErr  bool
 
 		connReturnErr error
 
@@ -578,12 +581,14 @@ func TestHandlePostMultiClientCommand(t *testing.T) {
 		wantErrCode    string
 		wantErrTitle   string
 		wantErrDetail  string
+		wantJobStatus  []string
 		wantJobErr     string
 	}{
 		{
 			name:           "valid cmd",
 			requestBody:    validReqBody,
 			wantStatusCode: http.StatusOK,
+			wantJobStatus:  []string{models.JobStatusRunning, models.JobStatusRunning},
 		},
 		{
 			name: "no targeting params provided",
@@ -602,10 +607,11 @@ func TestHandlePostMultiClientCommand(t *testing.T) {
 		{
 			"command": "/bin/date;foo;whoami",
 			"timeout_sec": 30,
-			"client_ids": ["client-1", "client-3"]
+			"client_ids": ["client-3", "client-1"]
 		}`,
-			wantStatusCode: http.StatusBadRequest,
-			wantErrTitle:   fmt.Sprintf("Client with id=%q is not active.", c3.ID),
+			wantStatusCode: http.StatusOK,
+			wantJobStatus:  []string{models.JobStatusFailed, models.JobStatusRunning},
+			wantJobErr:     "client is not connected",
 		},
 		{
 			name: "client not found",
@@ -623,6 +629,7 @@ func TestHandlePostMultiClientCommand(t *testing.T) {
 			requestBody:    validReqBody,
 			connReturnErr:  errors.New("send fake error"),
 			wantStatusCode: http.StatusOK,
+			wantJobStatus:  []string{models.JobStatusFailed, models.JobStatusRunning},
 			wantJobErr:     "failed to send request: send fake error",
 		},
 		{
@@ -635,9 +642,9 @@ func TestHandlePostMultiClientCommand(t *testing.T) {
 				"execute_concurrently": false,
 				"abort_on_error": true
 			}`,
-			abortOnErr:     true,
 			connReturnErr:  errors.New("send fake error"),
 			wantStatusCode: http.StatusOK,
+			wantJobStatus:  []string{models.JobStatusFailed},
 			wantJobErr:     "failed to send request: send fake error",
 		},
 	}
@@ -714,20 +721,12 @@ func TestHandlePostMultiClientCommand(t *testing.T) {
 				gotMultiJob, err := jp.GetMultiJob(ctx, gotJID)
 				require.NoError(t, err)
 				require.NotNil(t, gotMultiJob)
-				// TODO: this checking assumes 2 jobs, which isn't very flexible. rework as part of the test refactoring.
-				if tc.abortOnErr {
-					require.Len(t, gotMultiJob.Jobs, 1)
-				} else {
-					require.Len(t, gotMultiJob.Jobs, 2)
-				}
-				if tc.connReturnErr != nil {
-					assert.Equal(t, models.JobStatusFailed, gotMultiJob.Jobs[0].Status)
-					assert.Equal(t, tc.wantJobErr, gotMultiJob.Jobs[0].Error)
-				} else {
-					assert.Equal(t, models.JobStatusRunning, gotMultiJob.Jobs[0].Status)
-				}
-				if !tc.abortOnErr {
-					assert.Equal(t, models.JobStatusRunning, gotMultiJob.Jobs[1].Status)
+				require.Len(t, gotMultiJob.Jobs, len(tc.wantJobStatus))
+				for i := range gotMultiJob.Jobs {
+					assert.Equal(t, tc.wantJobStatus[i], gotMultiJob.Jobs[i].Status)
+					if tc.wantJobStatus[i] == models.JobStatusFailed {
+						assert.Equal(t, tc.wantJobErr, gotMultiJob.Jobs[i].Error)
+					}
 				}
 			} else {
 				// failure case
@@ -736,6 +735,166 @@ func TestHandlePostMultiClientCommand(t *testing.T) {
 				require.NoError(t, err)
 				require.Equal(t, string(wantRespBytes), w.Body.String())
 			}
+		})
+	}
+}
+
+func TestHandlePostMultiClientCommandWithPausedClient(t *testing.T) {
+	testUser := "test-user"
+	curUser := &users.User{
+		Username: testUser,
+		Groups:   []string{users.Administrators},
+	}
+
+	connMock1 := test.NewConnMock()
+	// by default set to return success
+	connMock1.ReturnOk = true
+	sshSuccessResp1 := comm.RunCmdResponse{Pid: 1, StartedAt: time.Date(2020, 10, 10, 10, 10, 1, 0, time.UTC)}
+	sshRespBytes1, err := json.Marshal(sshSuccessResp1)
+	require.NoError(t, err)
+	connMock1.ReturnResponsePayload = sshRespBytes1
+
+	connMock2 := test.NewConnMock()
+	// by default set to return success
+	connMock2.ReturnOk = true
+	sshSuccessResp2 := comm.RunCmdResponse{Pid: 2, StartedAt: time.Date(2020, 10, 10, 10, 10, 2, 0, time.UTC)}
+	sshRespBytes2, err := json.Marshal(sshSuccessResp2)
+	require.NoError(t, err)
+	connMock2.ReturnResponsePayload = sshRespBytes2
+
+	c1 := clients.New(t).ID("client-1").Connection(connMock1).Build()
+	c1.Logger = testLog
+	c1.SetPaused(true, clients.PausedDueToMaxClientsExceeded)
+
+	c2 := clients.New(t).ID("client-2").Connection(connMock2).Build()
+	c2.Logger = testLog
+
+	defaultTimeout := 60
+	gotCmd := "/bin/date;foo;whoami"
+	gotCmdTimeoutSec := 30
+
+	c1ValidReqBody := `{"command": "` + gotCmd +
+		`","timeout_sec": ` + strconv.Itoa(gotCmdTimeoutSec) +
+		`,"client_ids": ["` + c1.ID + `"]` +
+		`,"abort_on_error": false` +
+		`,"execute_concurrently": false` +
+		`}`
+
+	c2ValidReqBody := `{"command": "` + gotCmd +
+		`","timeout_sec": ` + strconv.Itoa(gotCmdTimeoutSec) +
+		`,"client_ids": ["` + c2.ID + `"]` +
+		`,"abort_on_error": false` +
+		`,"execute_concurrently": false` +
+		`}`
+
+	testCases := []struct {
+		name   string
+		client *clients.Client
+
+		requestBody string
+		abortOnErr  bool
+
+		jobFailedErr error
+
+		wantErrCode   string
+		wantErrTitle  string
+		wantErrDetail string
+		wantJobErr    string
+	}{
+		{
+			name:         "valid cmd with paused client",
+			client:       c1,
+			requestBody:  c1ValidReqBody,
+			jobFailedErr: errors.New("client is paused (reason = unlicensed)"),
+		},
+		{
+			name:        "valid cmd with ok client",
+			client:      c2,
+			requestBody: c2ValidReqBody,
+		},
+	}
+
+	for _, tc := range testCases {
+		t.Run(tc.name, func(t *testing.T) {
+			// given
+			al := APIListener{
+				insecureForTests: true,
+				Server: &Server{
+					clientService: clients.NewClientService(nil, nil, clients.NewClientRepository([]*clients.Client{c1, c2}, &hour, testLog), testLog),
+					config: &chconfig.Config{
+						Server: chconfig.ServerConfig{
+							RunRemoteCmdTimeoutSec: defaultTimeout,
+						},
+						API: chconfig.APIConfig{
+							MaxRequestBytes: 1024 * 1024,
+						},
+					},
+					jobsDoneChannel: jobResultChanMap{
+						m: make(map[string]chan *models.Job),
+					},
+					clientGroupProvider: mockClientGroupProvider{},
+				},
+				userService: users.NewAPIService(users.NewStaticProvider([]*users.User{curUser}), false, 0, -1),
+				Logger:      testLog,
+			}
+
+			done := make(chan bool)
+			al.testDone = done
+
+			al.initRouter()
+
+			jobsDB, err := sqlite.New(
+				":memory:",
+				jobsmigration.AssetNames(),
+				jobsmigration.Asset,
+				DataSourceOptions,
+			)
+			require.NoError(t, err)
+			jp := jobs.NewSqliteProvider(jobsDB, testLog)
+			defer jp.Close()
+			al.jobProvider = jp
+
+			ctx := api.WithUser(context.Background(), testUser)
+			req := httptest.NewRequest(http.MethodPost, "/api/v1/commands", strings.NewReader(tc.requestBody))
+			req = req.WithContext(ctx)
+
+			// when
+			w := httptest.NewRecorder()
+			al.router.ServeHTTP(w, req)
+
+			// then
+			assert.Equal(t, http.StatusOK, w.Code)
+
+			// wait until async task executeMultiClientJob finishes
+			<-al.testDone
+			// success case
+			assert.Contains(t, w.Body.String(), `{"data":{"jid":`)
+
+			gotResp := api.NewSuccessPayload(newJobResponse{})
+			require.NoError(t, json.Unmarshal(w.Body.Bytes(), &gotResp))
+			gotPropMap, ok := gotResp.Data.(map[string]interface{})
+			require.True(t, ok)
+			jidObj, found := gotPropMap["jid"]
+			require.True(t, found)
+			gotJID, ok := jidObj.(string)
+			require.True(t, ok)
+			require.NotEmpty(t, gotJID)
+
+			gotMultiJob, err := jp.GetMultiJob(ctx, gotJID)
+			require.NoError(t, err)
+			require.NotNil(t, gotMultiJob)
+
+			if !tc.client.IsPaused() {
+				require.Len(t, gotMultiJob.Jobs, 1)
+			}
+
+			if tc.jobFailedErr != nil {
+				assert.Equal(t, models.JobStatusFailed, gotMultiJob.Jobs[0].Status)
+				assert.Contains(t, gotMultiJob.Jobs[0].Error, tc.jobFailedErr.Error())
+			} else {
+				assert.Equal(t, models.JobStatusRunning, gotMultiJob.Jobs[0].Status)
+			}
+
 		})
 	}
 }
@@ -1379,7 +1538,6 @@ func TestHandlePostMultiClientWSCommandWithTags(t *testing.T) {
 }
 
 func TestHandlePostMultiClientScriptWithTags(t *testing.T) {
-
 	defaultTimeout := 60
 
 	testCases := []struct {

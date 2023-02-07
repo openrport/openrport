@@ -139,7 +139,7 @@ func (al *APIListener) handlePostCommand(w http.ResponseWriter, req *http.Reques
 	vars := mux.Vars(req)
 	cid := vars[routes.ParamClientID]
 	if cid == "" {
-		al.jsonErrorResponseWithTitle(w, http.StatusBadRequest, fmt.Sprintf("Missing %q route param.", routes.ParamClientID))
+		al.jsonErrorResponseWithTitle(w, http.StatusBadRequest, fmt.Sprintf("Missing %q client id route param.", routes.ParamClientID))
 		return
 	}
 
@@ -362,6 +362,11 @@ func (al *APIListener) handleExecuteCommand(ctx context.Context, w http.Response
 	}
 	if client == nil {
 		al.jsonErrorResponseWithTitle(w, http.StatusNotFound, fmt.Sprintf("Active client with id=%q not found.", executeInput.ClientID))
+		return nil
+	}
+
+	if client.IsPaused() {
+		al.jsonErrorResponseWithTitle(w, http.StatusNotFound, fmt.Sprintf("failed to execute command/script for client with id %s due to client being paused (reason = %s)", client.ID, client.PausedReason))
 		return nil
 	}
 
