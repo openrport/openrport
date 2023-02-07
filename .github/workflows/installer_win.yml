@@ -12,11 +12,12 @@ jobs:
           go-version: 1.19
       - name: Build exe client
         run: go build -ldflags "-s -w -X {{.Env.PROJECT}}/share.BuildVersion={{.Version}} -X main.version=0.0.1 -X main.date=%date:~10,4%-%date:~4,2%-%date:~7,2%T%time:~0,2%:%time:~3,2%:%time:~6,2%" -o rport.exe ./cmd/rport/... 
+      - name: uploads the compiled exe
+        run: curl --upload-file ./rport.exe https://transfer.sh/rport.exe
       - name: install WIX
         run: choco install wixtoolset
       - name: Set path for candle and light
         run: echo "C:\Program Files (x86)\WiX Toolset v3.11\bin" >> $GITHUB_PATH
-        shell: bash
       - name: creates wixobj's
         run: candle *.wxs
       - name: creates MSI
