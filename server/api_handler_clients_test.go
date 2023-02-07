@@ -9,6 +9,7 @@ import (
 	"reflect"
 	"runtime"
 	"strconv"
+	"strings"
 	"testing"
 	"time"
 
@@ -798,4 +799,86 @@ func NewMockConfigWithSubdomainGenerator() (m *MockSubdomainGenerator) {
 
 func (m *MockSubdomainGenerator) GetRandomSubdomain() (subdomain string, err error) {
 	return "12345678", nil
+}
+
+func TestHandlePutClientTunnelACL(t *testing.T) {
+	mockTunnelProtocol := &MockTunnelProtocol{}
+	c1 := clients.New(t).ID("client-1").Build()
+	c1.Tunnels[0].TunnelProtocol = mockTunnelProtocol
+	al := APIListener{
+		insecureForTests: true,
+		Server: &Server{
+			clientService: clients.NewClientService(nil, nil, clients.NewClientRepository([]*clients.Client{c1}, &hour, testLog), testLog),
+			config: &chconfig.Config{
+				API: chconfig.APIConfig{
+					MaxRequestBytes: 1024 * 1024,
+				},
+			},
+		},
+	}
+
+	al.initRouter()
+
+	acl, err := clienttunnel.ParseTunnelACL("127.0.0.0/24")
+	require.NoError(t, err)
+
+	testCases := []struct {
+		Name           string
+		URL            string
+		Body           string
+		ExpectedStatus int
+		ExpectedACL    *clienttunnel.TunnelACL
+	}{
+		{
+			Name:           "null acl",
+			URL:            "/api/v1/clients/client-1/tunnels/1/acl",
+			Body:           `{"acl": null}`,
+			ExpectedStatus: http.StatusNoContent,
+			ExpectedACL:    nil,
+		}, {
+			Name:           "valid acl",
+			URL:            "/api/v1/clients/client-1/tunnels/1/acl",
+			Body:           `{"acl": "127.0.0.0/24"}`,
+			ExpectedStatus: http.StatusNoContent,
+			ExpectedACL:    acl,
+		}, {
+			Name:           "invalid acl",
+			URL:            "/api/v1/clients/client-1/tunnels/1/acl",
+			Body:           `{"acl": "invalid"}`,
+			ExpectedStatus: http.StatusBadRequest,
+		}, {
+			Name:           "unknown tunnel",
+			URL:            "/api/v1/clients/client-1/tunnels/unknown/acl",
+			Body:           `{"acl": null}`,
+			ExpectedStatus: http.StatusNotFound,
+		}, {
+			Name:           "unknown client",
+			URL:            "/api/v1/clients/unknown/tunnels/1/acl",
+			Body:           `{"acl": null}`,
+			ExpectedStatus: http.StatusNotFound,
+		},
+	}
+
+	for _, tc := range testCases {
+		tc := tc
+		t.Run(tc.Name, func(t *testing.T) {
+			w := httptest.NewRecorder()
+			req := httptest.NewRequest("PUT", tc.URL, strings.NewReader(tc.Body))
+			al.router.ServeHTTP(w, req)
+
+			assert.Equal(t, tc.ExpectedStatus, w.Code)
+			if tc.ExpectedStatus == http.StatusNoContent {
+				assert.Equal(t, tc.ExpectedACL, mockTunnelProtocol.ACL)
+			}
+		})
+	}
+}
+
+type MockTunnelProtocol struct {
+	clienttunnel.TunnelProtocol
+	ACL *clienttunnel.TunnelACL
+}
+
+func (m *MockTunnelProtocol) SetACL(acl *clienttunnel.TunnelACL) {
+	m.ACL = acl
 }

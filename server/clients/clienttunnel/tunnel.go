@@ -17,6 +17,7 @@ type TunnelProtocol interface {
 	Start(ctx context.Context) error
 	Terminate(force bool) error
 	LastActive() time.Time
+	SetACL(*TunnelACL)
 }
 
 type MultiProtocolTunnel struct {
@@ -53,6 +54,12 @@ func (mt *MultiProtocolTunnel) LastActive() time.Time {
 		}
 	}
 	return result
+}
+
+func (mt *MultiProtocolTunnel) SetACL(acl *TunnelACL) {
+	for _, tp := range mt.Protocols {
+		tp.SetACL(acl)
+	}
 }
 
 // TODO(m-terel): Refactor to use separate models for representation and business logic.

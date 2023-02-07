@@ -39,7 +39,7 @@ func (al *APIListener) getOrderedClientsWithValidation(
 
 	if !hasClientTags(params) {
 		// do the original client ids flow
-		targetedClients, groupClientsCount, err = al.getOrderedClients(ctx, params.GetClientIDs(), params.GetGroupIDs(), false /* allowDisconnected */)
+		targetedClients, groupClientsCount, err = al.getOrderedClients(ctx, params.GetClientIDs(), params.GetGroupIDs())
 		if err != nil {
 			return nil, 0, err
 		}
@@ -50,7 +50,7 @@ func (al *APIListener) getOrderedClientsWithValidation(
 		}
 	} else {
 		// do tags
-		targetedClients, err = al.getOrderedClientsByTag(params.GetClientTags(), false /* allowDisconnected */)
+		targetedClients, err = al.getOrderedClientsByTag(params.GetClientTags())
 		if err != nil {
 			return nil, 0, err
 		}
@@ -66,7 +66,6 @@ func (al *APIListener) getOrderedClientsWithValidation(
 func (al *APIListener) getOrderedClients(
 	ctx context.Context,
 	clientIDs, groupIDs []string,
-	allowDisconnected bool,
 ) (
 	orderedClients []*clients.Client,
 	groupClientsFoundCount int,
@@ -78,7 +77,7 @@ func (al *APIListener) getOrderedClients(
 	}
 	groupClientsFoundCount = len(groupClients)
 
-	orderedClients, usedClientIDs, err := al.makeClientsList(clientIDs, allowDisconnected)
+	orderedClients, usedClientIDs, err := al.makeClientsList(clientIDs)
 	if err != nil {
 		return orderedClients, groupClientsFoundCount, err
 	}
@@ -116,11 +115,10 @@ func (al *APIListener) makeGroupClientsList(ctx context.Context, groupIDs []stri
 		}
 		groups = append(groups, group)
 	}
-	groupClients = al.clientService.GetActiveByGroups(groups)
-	return groupClients, nil
+	return al.clientService.GetByGroups(groups)
 }
 
-func (al *APIListener) makeClientsList(clientIDs []string, allowDisconnected bool) (orderedClients []*clients.Client, usedClientIDs map[string]bool, err error) {
+func (al *APIListener) makeClientsList(clientIDs []string) (orderedClients []*clients.Client, usedClientIDs map[string]bool, err error) {
 	orderedClients = make([]*clients.Client, 0)
 	usedClientIDs = make(map[string]bool)
 
@@ -144,31 +142,18 @@ func (al *APIListener) makeClientsList(clientIDs []string, allowDisconnected boo
 			return orderedClients, usedClientIDs, err
 		}
 
-		if client.DisconnectedAt != nil && !allowDisconnected {
-			err = errors2.APIError{
-				Message:    fmt.Sprintf("Client with id=%q is not active.", cid),
-				Err:        err,
-				HTTPStatus: http.StatusBadRequest,
-			}
-
-			return orderedClients, usedClientIDs, err
-		}
-
 		usedClientIDs[cid] = true
 		orderedClients = append(orderedClients, client)
 	}
 	return orderedClients, usedClientIDs, nil
 }
 
-func (al *APIListener) getOrderedClientsByTag(
-	clientTags *models.JobClientTags,
-	allowDisconnected bool,
-) (
+func (al *APIListener) getOrderedClientsByTag(clientTags *models.JobClientTags) (
 	orderedClients []*clients.Client,
 	err error,
 ) {
 	// find the clientIDs that have matching tags
-	orderedClients, err = al.clientService.GetClientsByTag(clientTags.Tags, clientTags.Operator, allowDisconnected)
+	orderedClients, err = al.clientService.GetClientsByTag(clientTags.Tags, clientTags.Operator, true /* allowDisconnected */)
 	if err != nil {
 		err = errors2.APIError{
 			Message:    "Unable to get active clients by tags",
