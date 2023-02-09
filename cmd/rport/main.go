@@ -58,6 +58,61 @@ func runMain(*cobra.Command, []string) {
 	}
 }
 
+func manageService() {
+	var svcUser string
+	pFlags := RootCmd.PersistentFlags()
+	cfgPath := must.Must(pFlags.GetString("config"))
+	svcCommand := must.Must(pFlags.GetString("service"))
+
+	if runtime.GOOS != "windows" {
+		svcUser = must.Must(pFlags.GetString("service-user"))
+	}
+
+	if svcCommand == "install" {
+		// validate config file without command line args before installing it for the service
+		// other service commands do not change config file specified at install
+
+		config := must.Mustf(decodeConfig(cfgPath, false))("Invalid config: %v. Check your config file.")
+
+		must.Must0f(config.ParseAndValidate(true), "config validation failed: %v")
+
+	}
+
+	must.Must0(cliboilerplate.HandleSvcCommand(svcCommand, cfgPath, svcUser))
+}
+
+func runClient() {
+	pFlags := RootCmd.PersistentFlags()
+
+	cfgPath := must.Must(pFlags.GetString("config"))
+
+	config := must.Mustf(decodeConfig(cfgPath, service.Interactive()))("Invalid config: %v. Check your config file.")
+
+	must.Must0f(config.Logging.LogOutput.Start(), "failed starting log output: %v")
+	defer config.Logging.LogOutput.Shutdown()
+
+	must.Must0f(chclient.PrepareDirs(config), "failed preparing directories: %v")
+
+	must.Must0f(config.ParseAndValidate(false), "config validation failed: %v")
+
+	must.Must0f(checkRootOK(config), "root check failed: %v")
+
+	fileAPI := files.NewFileSystem()
+	c := must.Mustf(chclient.NewClient(config, fileAPI))("failed creating client: %v")
+
+	if service.Interactive() { // if run from command line
+
+		go chshare.GoStats()
+
+		must.Must0f(c.Run(), "failed to run client: %v")
+
+	} else { // if run as OS service
+
+		must.Must0f(cliboilerplate.RunAsService(c, cfgPath), "failed to start service: %v")
+
+	}
+}
+
 func isServiceManager() bool {
 	pFlags := RootCmd.PersistentFlags()
 	svcCommand := must.Must(pFlags.GetString("service"))
@@ -110,65 +165,9 @@ func decodeConfig(cfgPath string, overrideConfigWithCLIArgs bool) (*chclient.Cli
 	return config, nil
 }
 
-func runClient() {
-	pFlags := RootCmd.PersistentFlags()
-
-	cfgPath := must.Must(pFlags.GetString("config"))
-
-	config := must.Mustf(decodeConfig(cfgPath, service.Interactive()))("Invalid config: %v. Check your config file.")
-
-	must.Must0f(config.Logging.LogOutput.Start(), "failed starting log output: %v")
-	defer config.Logging.LogOutput.Shutdown()
-
-	must.Must0f(chclient.PrepareDirs(config), "failed preparing directories: %v")
-
-	must.Must0f(config.ParseAndValidate(false), "config validation failed: %v")
-
-	must.Must0f(checkRootOK(config), "root check failed: %v")
-
-	fileAPI := files.NewFileSystem()
-	c := must.Mustf(chclient.NewClient(config, fileAPI))("failed creating client: %v")
-
-	if service.Interactive() { // if run from command line
-
-		go chshare.GoStats()
-
-		must.Must0f(c.Run(), "failed to run client: %v")
-
-	} else { // if run as OS service
-
-		must.Must0f(runAsService(c, cfgPath), "failed to start service: %v")
-
-	}
-
-}
-
 func checkRootOK(config *chclient.ClientConfigHolder) error {
 	if !config.Client.AllowRoot && chshare.IsRunningAsRoot() {
 		return errors.New("by default running as root is not allowed")
 	}
 	return nil
-}
-
-func manageService() {
-	var svcUser string
-	pFlags := RootCmd.PersistentFlags()
-	cfgPath := must.Must(pFlags.GetString("config"))
-	svcCommand := must.Must(pFlags.GetString("service"))
-
-	if runtime.GOOS != "windows" {
-		svcUser = must.Must(pFlags.GetString("service-user"))
-	}
-
-	if svcCommand == "install" {
-		// validate config file without command line args before installing it for the service
-		// other service commands do not change config file specified at install
-
-		config := must.Mustf(decodeConfig(cfgPath, false))("Invalid config: %v. Check your config file.")
-
-		must.Must0f(config.ParseAndValidate(true), "config validation failed: %v")
-
-	}
-
-	must.Must0(handleSvcCommand(svcCommand, cfgPath, svcUser))
 }

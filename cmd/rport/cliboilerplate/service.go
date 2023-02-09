@@ -1,4 +1,4 @@
-package main
+package cliboilerplate
 
 import (
 	"log"
@@ -16,7 +16,7 @@ var svcConfig = &service.Config{
 	Description: "Create reverse tunnels with ease.",
 }
 
-func handleSvcCommand(svcCommand string, configPath string, user string) error {
+func HandleSvcCommand(svcCommand string, configPath string, user string) error {
 	svc, err := getService(nil, configPath, user)
 	if err != nil {
 		return err
@@ -25,7 +25,7 @@ func handleSvcCommand(svcCommand string, configPath string, user string) error {
 	return chshare.HandleServiceCommand(svc, svcCommand)
 }
 
-func runAsService(c *chclient.Client, configPath string) error {
+func RunAsService(c *chclient.Client, configPath string) error {
 	svc, err := getService(c, configPath, "")
 	if err != nil {
 		return err

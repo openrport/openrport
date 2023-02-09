@@ -11,6 +11,7 @@ import (
 	"syscall"
 	"time"
 
+	"github.com/cloudradar-monitoring/rport/cmd/rportd/cliboilerplate"
 	"github.com/cloudradar-monitoring/rport/share/logger"
 
 	"github.com/kardianos/service"
@@ -443,7 +444,7 @@ func runMain(*cobra.Command, []string) {
 			}
 		}
 
-		err := handleSvcCommand(*svcCommand, *cfgPath, svcUser)
+		err := cliboilerplate.HandleSvcCommand(*svcCommand, *cfgPath, svcUser)
 		if err != nil {
 			log.Fatal(err)
 		}
@@ -492,7 +493,7 @@ func runMain(*cobra.Command, []string) {
 	}
 
 	if !service.Interactive() {
-		err = runAsService(s, *cfgPath)
+		err = cliboilerplate.RunAsService(s, *cfgPath)
 		if err != nil {
 			log.Fatal(err)
 		}
