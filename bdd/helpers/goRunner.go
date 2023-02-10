@@ -2,52 +2,51 @@ package helpers
 
 import (
 	"bufio"
+	"context"
 	"errors"
 	"fmt"
-	"io"
-	"log"
-	"net/http"
 	"os/exec"
 	"strings"
 	"testing"
 	"time"
 
-	"github.com/KonradKuznicki/must"
 	"github.com/stretchr/testify/assert"
 )
 
-func CallAPIGET(t *testing.T, requestURL string) string {
-	client := &http.Client{
-		Timeout: time.Second * 10,
-	}
-	req, err := http.NewRequest(http.MethodGet, requestURL, nil)
-	assert.Nil(t, err)
-	req.SetBasicAuth("admin", "foobaz")
-	res, err := client.Do(req)
-	assert.Nil(t, err)
-	data := string(must.Must(io.ReadAll(res.Body)))
-	log.Println(data)
-	return data
-}
+func StartClientAndServerAndWaitForConnection(ctx context.Context, t *testing.T) (*exec.Cmd, *exec.Cmd) {
 
-func StartClientAndServerAndWaitForConnection(t *testing.T) (*exec.Cmd, *exec.Cmd) {
-	rd, rdOutChan, _ := Run(t, "", "../../cmd/rportd/main.go")
-	defer func() {
-		rd.Process.Kill()
+	internalCtx, cancelFn := context.WithCancel(ctx)
+
+	rd, rdOutChan, rdErrChan := Run(t, "", "../../cmd/rportd/main.go")
+	go func() {
+		for range rdErrChan {
+			assert.Fail(t, "server errors on stdErr")
+			rd.Process.Kill()
+			cancelFn()
+		}
 	}()
 
-	err := WaitForText(rdOutChan, "API Listening") // wait for server to initialize and boot
+	timeout, _ := context.WithTimeout(internalCtx, time.Second*30) //nolint:govet
+	err := WaitForText(timeout, rdOutChan, "API Listening")        // wait for server to initialize and boot - takes looooong time
 	assert.Nil(t, err)
 
-	rc, rcOutChan, _ := Run(t, "", "../../cmd/rport/main.go")
+	rc, rcOutChan, rcErrChan := Run(t, "", "../../cmd/rport/main.go")
+	go func() {
+		for range rcErrChan {
+			assert.Fail(t, "client errors on stdErr")
+			rc.Process.Kill()
+			cancelFn()
+		}
+	}()
 
-	err = WaitForText(rcOutChan, "info: client: Connected") // wait for client to connect
+	timeout, _ = context.WithTimeout(internalCtx, time.Second*5)     //nolint:govet
+	err = WaitForText(timeout, rcOutChan, "info: client: Connected") // wait for client to connect - should be fast
 	assert.Nil(t, err)
 
 	return rd, rc
 }
 
-func WaitForText(ch chan string, txt string) error {
+func WaitForText(ctx context.Context, ch chan string, txt string) error {
 	txtMatched := make(chan bool, 1)
 	go func() {
 		for lineOut := range ch {
@@ -61,7 +60,7 @@ func WaitForText(ch chan string, txt string) error {
 	select {
 	case <-txtMatched:
 		return nil
-	case <-time.After(time.Second * 15):
+	case <-ctx.Done():
 		return errors.New("timeout waiting for text: " + txt)
 	}
 
@@ -98,6 +97,7 @@ func Run(t *testing.T, pwd string, cmd string) (*exec.Cmd, chan string, chan str
 			errChan <- errTxt
 			// rd.Process.Kill()
 		}
+		close(errChan)
 	}()
 
 	go func() {
@@ -106,15 +106,9 @@ func Run(t *testing.T, pwd string, cmd string) (*exec.Cmd, chan string, chan str
 			fmt.Println(cmd, "---", text)
 			startChan <- text
 		}
-
+		close(startChan)
 	}()
 
-	select {
-	case <-errChan:
-		return rd, startChan, errChan
-
-	case <-startChan:
-		return rd, startChan, errChan
-	}
+	return rd, startChan, errChan
 
 }

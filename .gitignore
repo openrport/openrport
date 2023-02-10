@@ -43,3 +43,6 @@ cheat-sheet.txt
 opt/fpm/.env
 /bdd/simple_client_connects/rc-dev-resources/
 /bdd/simple_client_connects/rd-dev-resources/
+
+# resources genereated during tests
+*dev-resources

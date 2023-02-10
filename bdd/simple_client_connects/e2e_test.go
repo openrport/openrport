@@ -1,8 +1,9 @@
 package simple_client_connects_test
 
 import (
-	"github.com/cloudradar-monitoring/rport/bdd/helpers"
 	"testing"
+
+	"github.com/cloudradar-monitoring/rport/bdd/helpers"
 
 	"github.com/stretchr/testify/assert"
 )
@@ -14,7 +15,7 @@ func TestClientConnects(t *testing.T) {
 		rd.Process.Kill()
 	}()
 
-	err := helpers.WaitForText(rdOutChan, "API Listening") // wait for server to initialize and boot
+	err := helpers.WaitForText("API Listening", rdOutChan) // wait for server to initialize and boot
 	assert.Nil(t, err)
 
 	rc, rcOutChan, _ := helpers.Run(t, "", "../../cmd/rport/main.go")
@@ -22,7 +23,7 @@ func TestClientConnects(t *testing.T) {
 		rc.Process.Kill()
 	}()
 
-	err = helpers.WaitForText(rcOutChan, "info: client: Connected") // wait for client to connect
+	err = helpers.WaitForText("info: client: Connected", rcOutChan) // wait for client to connect
 	assert.Nil(t, err)
 
 }
