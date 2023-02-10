@@ -1,29 +1,30 @@
 package simple_client_connects_test
 
 import (
+	"context"
+	"os/exec"
 	"testing"
 
-	"github.com/cloudradar-monitoring/rport/bdd/helpers"
-
 	"github.com/stretchr/testify/assert"
+
+	"github.com/cloudradar-monitoring/rport/bdd/helpers"
 )
 
 func TestClientConnects(t *testing.T) {
 
-	rd, rdOutChan, _ := helpers.Run(t, "", "../../cmd/rportd/main.go")
+	ctx := context.Background()
+
+	rd, rc := helpers.StartClientAndServerAndWaitForConnection(ctx, t)
+
 	defer func() {
 		rd.Process.Kill()
-	}()
-
-	err := helpers.WaitForText("API Listening", rdOutChan) // wait for server to initialize and boot
-	assert.Nil(t, err)
-
-	rc, rcOutChan, _ := helpers.Run(t, "", "../../cmd/rport/main.go")
-	defer func() {
 		rc.Process.Kill()
 	}()
 
-	err = helpers.WaitForText("info: client: Connected", rcOutChan) // wait for client to connect
-	assert.Nil(t, err)
+	assertProcessiesAreNotDead(t, rd, rc)
+}
 
+func assertProcessiesAreNotDead(t *testing.T, rd *exec.Cmd, rc *exec.Cmd) {
+	assert.Nil(t, rd.ProcessState)
+	assert.Nil(t, rc.ProcessState)
 }
