@@ -44,8 +44,8 @@ func (suite *TagsAndLabelsTestSuite) SetupSuite() {
 }
 
 func (suite *TagsAndLabelsTestSuite) TearDownSuite() {
-	suite.rc.Process.Kill()
-	suite.rd.Process.Kill()
+	helpers.Yolo(suite.rc.Process.Kill())
+	helpers.Yolo(suite.rd.Process.Kill())
 }
 
 func (suite *TagsAndLabelsTestSuite) TestClientHasTags() {

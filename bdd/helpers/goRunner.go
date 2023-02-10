@@ -5,6 +5,7 @@ import (
 	"context"
 	"errors"
 	"fmt"
+	"log"
 	"os/exec"
 	"strings"
 	"testing"
@@ -21,7 +22,7 @@ func StartClientAndServerAndWaitForConnection(ctx context.Context, t *testing.T)
 	go func() {
 		for range rdErrChan {
 			assert.Fail(t, "server errors on stdErr")
-			rd.Process.Kill()
+			Yolo(rd.Process.Kill())
 			cancelFn()
 		}
 	}()
@@ -34,7 +35,7 @@ func StartClientAndServerAndWaitForConnection(ctx context.Context, t *testing.T)
 	go func() {
 		for range rcErrChan {
 			assert.Fail(t, "client errors on stdErr")
-			rc.Process.Kill()
+			Yolo(rc.Process.Kill())
 			cancelFn()
 		}
 	}()
@@ -111,4 +112,10 @@ func Run(t *testing.T, pwd string, cmd string) (*exec.Cmd, chan string, chan str
 
 	return rd, startChan, errChan
 
+}
+
+func Yolo(err error) {
+	// yolo :)
+	// there can be an error, but I don't care and want to silence the linter
+	log.Println(err)
 }
