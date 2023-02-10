@@ -27,8 +27,8 @@ func StartClientAndServerAndWaitForConnection(ctx context.Context, t *testing.T)
 		}
 	}()
 
-	timeout, _ := context.WithTimeout(internalCtx, time.Second*30) //nolint:govet
-	err := WaitForText(timeout, rdOutChan, "API Listening")        // wait for server to initialize and boot - takes looooong time
+	timeout, _ := context.WithTimeout(internalCtx, time.Second*120) //nolint:govet
+	err := WaitForText(timeout, rdOutChan, "API Listening")         // wait for server to initialize and boot - takes looooong time
 	assert.Nil(t, err)
 
 	rc, rcOutChan, rcErrChan := Run(t, "", "../../cmd/rport/main.go")
