@@ -40,8 +40,8 @@ func StartClientAndServerAndWaitForConnection(ctx context.Context, t *testing.T)
 		}
 	}()
 
-	timeout, _ = context.WithTimeout(internalCtx, time.Second*5)     //nolint:govet
-	err = WaitForText(timeout, rcOutChan, "info: client: Connected") // wait for client to connect - should be fast
+	timeout, _ = context.WithTimeout(internalCtx, time.Second*120)   //nolint:govet
+	err = WaitForText(timeout, rcOutChan, "info: client: Connected") // wait for client to connect - sloooooow - needs to compile...
 	assert.Nil(t, err)
 
 	return rd, rc
