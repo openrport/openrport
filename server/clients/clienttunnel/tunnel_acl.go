@@ -64,17 +64,16 @@ func parseIPNet(strVal string) (*net.IPNet, error) {
 		}
 	}
 
-	if ip.To4() == nil {
-		return nil, fmt.Errorf("%s is not IPv4 address", strVal)
-	}
-
-	if ip.Equal(net.IPv4zero) {
-		return nil, fmt.Errorf("0.0.0.0 would allow access to everyone. If that's what you want, do not set the ACL")
+	if ip.Equal(net.IPv4zero) || ip.Equal(net.IPv6zero) {
+		return nil, fmt.Errorf("%s would allow access to everyone. If that's what you want, do not set the ACL", ip)
 	}
 
 	if ipNet == nil {
-		// if range is not specified, specify mask for one addr (/32)
+		// if range is not specified, specify mask for one addr (/32 or /128)
 		ipMask := net.IPv4Mask(255, 255, 255, 255)
+		if ip.To4() == nil {
+			ipMask = net.CIDRMask(128, 128)
+		}
 		ipNet = &net.IPNet{IP: ip, Mask: ipMask}
 	}
 

@@ -85,4 +85,26 @@ func TestTunnelUDPWithACL(t *testing.T) {
 	require.NoError(t, err)
 	assert.Equal(t, []byte("def"), data)
 	assert.Equal(t, conn.LocalAddr(), addr)
+
+	// update ACL
+	acl2, err := ParseTunnelACL("127.0.0.1")
+	require.NoError(t, err)
+	tunnel.SetACL(acl2)
+
+	// send from local2 - not allowed
+	conn, err = net.DialUDP("udp", local2, tunnel.conn.LocalAddr().(*net.UDPAddr))
+	require.NoError(t, err)
+	_, err = conn.Write([]byte("abc"))
+	require.NoError(t, err)
+
+	// send from local1 - allowed
+	conn, err = net.DialUDP("udp", local1, tunnel.conn.LocalAddr().(*net.UDPAddr))
+	require.NoError(t, err)
+	_, err = conn.Write([]byte("def"))
+	require.NoError(t, err)
+
+	addr, data, err = channel.Decode()
+	require.NoError(t, err)
+	assert.Equal(t, []byte("def"), data)
+	assert.Equal(t, conn.LocalAddr(), addr)
 }

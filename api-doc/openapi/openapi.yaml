@@ -75,6 +75,8 @@ paths:
     $ref: paths/clients_{client_id}_tunnels.yaml
   /clients/{client_id}/tunnels/{tunnel_id}:
     $ref: paths/clients_{client_id}_tunnels_{tunnel_id}.yaml
+  /clients/{client_id}/tunnels/{tunnel_id}/acl:
+    $ref: paths/clients_{client_id}_tunnels_{tunnel_id}_acl.yaml
   /clients/{client_id}/acl:
     $ref: paths/clients_{client_id}_acl.yaml
   /clients/{client_id}/updates-status:
