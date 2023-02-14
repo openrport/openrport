@@ -72,8 +72,6 @@ func (suite *TagsAndLabelsTestSuite) TestClientsCanBeFilteredByTags_findOne() {
 
 func (suite *TagsAndLabelsTestSuite) TestClientHasLabels() {
 
-	suite.T().Skip("merge e2e cleanly")
-
 	requestURL := "http://localhost:3000/api/v1/clients?fields[clients]=tags,labels"
 
 	content := []TagsAndLabels{{Tags: []string{"task-vm", "vm"}}}

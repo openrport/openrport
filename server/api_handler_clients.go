@@ -53,6 +53,7 @@ type ClientPayload struct {
 	IPv4                   *[]string               `json:"ipv4,omitempty"`
 	IPv6                   *[]string               `json:"ipv6,omitempty"`
 	Tags                   *[]string               `json:"tags,omitempty"`
+	Labels                 *map[string]string      `json:"labels,omitempty"`
 	AllowedUserGroups      *[]string               `json:"allowed_user_groups,omitempty"`
 	Tunnels                *[]*clienttunnel.Tunnel `json:"tunnels,omitempty"`
 	UpdatesStatus          **models.UpdatesStatus  `json:"updates_status,omitempty"`
@@ -96,6 +97,8 @@ func convertToClientPayload(client *clients.CalculatedClient, fields []query.Fie
 			p.IPv6 = &client.IPv6
 		case "tags":
 			p.Tags = &client.Tags
+		case "labels":
+			p.Labels = &map[string]string{"country": "Germany", "city": "Cologne", "datacenter": "NetCologne GmbH"}
 		case "version":
 			p.Version = &client.Version
 		case "address":
