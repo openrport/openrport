@@ -41,3 +41,8 @@ cheat-sheet.txt
 
 # Ignore the local evironment used to test fpm and package releasing
 opt/fpm/.env
+/bdd/simple_client_connects/rc-dev-resources/
+/bdd/simple_client_connects/rd-dev-resources/
+
+# resources genereated during tests
+*dev-resources
