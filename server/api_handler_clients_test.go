@@ -37,7 +37,7 @@ func (mockClientGroupProvider) GetAll(ctx context.Context) ([]*cgroups.ClientGro
 }
 
 func TestHandleGetClient(t *testing.T) {
-	c1 := clients.New(t).ID("client-1").ClientAuthID(cl1.ID).Build()
+	c1 := clients.New(t).ID("client-1").ClientAuthID(cl1.ID).Logger(testLog).Build()
 	al := APIListener{
 		insecureForTests: true,
 		Server: &Server{
@@ -175,8 +175,12 @@ func TestHandleGetClients(t *testing.T) {
 		Username: "admin",
 		Groups:   []string{users.Administrators},
 	}
-	c1 := clients.New(t).ID("client-1").ClientAuthID(cl1.ID).Build()
-	c2 := clients.New(t).ID("client-2").ClientAuthID(cl1.ID).DisconnectedDuration(5 * time.Minute).Build()
+	c1 := clients.New(t).ID("client-1").ClientAuthID(cl1.ID).Logger(testLog).Build()
+	c1.Logger = testLog
+
+	c2 := clients.New(t).ID("client-2").ClientAuthID(cl1.ID).DisconnectedDuration(5 * time.Minute).Logger(testLog).Build()
+	c2.Logger = testLog
+
 	al := APIListener{
 		insecureForTests: true,
 		Server: &Server{
@@ -521,8 +525,8 @@ func TestHandlePutTunnelWithName(t *testing.T) {
 		t.Run(tc.Name, func(t *testing.T) {
 			t.Parallel()
 
-			c1 := clients.New(t).ID("client-1").ClientAuthID(cl1.ID).Build()
-			c1.Connection = connMock
+			c1 := clients.New(t).ID("client-1").ClientAuthID(cl1.ID).Logger(testLog).Build()
+			c1.SetConnection(connMock)
 			c1.Logger = testLog
 
 			mockClientService := &SimpleMockClientService{
@@ -724,8 +728,8 @@ func TestHandlePutTunnelUsingCaddyProxies(t *testing.T) {
 		t.Run(tc.Name, func(t *testing.T) {
 			t.Parallel()
 
-			c1 := clients.New(t).ID("client-1").ClientAuthID(cl1.ID).Build()
-			c1.Connection = connMock
+			c1 := clients.New(t).ID("client-1").ClientAuthID(cl1.ID).Logger(testLog).Build()
+			c1.SetConnection(connMock)
 			c1.Logger = testLog
 
 			mockClientService := &SimpleMockClientService{

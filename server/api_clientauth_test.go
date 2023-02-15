@@ -377,8 +377,8 @@ func TestHandleDeleteClientAuth(t *testing.T) {
 	mockConn := &mockConnection{}
 	initState := []*clientsauth.ClientAuth{cl1, cl2, cl3}
 
-	c1 := clients.New(t).ClientAuthID(cl1.ID).Connection(mockConn).Build()
-	c2 := clients.New(t).ClientAuthID(cl1.ID).DisconnectedDuration(5 * time.Minute).Build()
+	c1 := clients.New(t).ClientAuthID(cl1.ID).Connection(mockConn).Logger(testLog).Build()
+	c2 := clients.New(t).ClientAuthID(cl1.ID).DisconnectedDuration(5 * time.Minute).Logger(testLog).Build()
 
 	testCases := []struct {
 		descr string // Test Case Description
@@ -557,8 +557,7 @@ func TestHandleDeleteClientAuth(t *testing.T) {
 			require.NoError(err)
 			assert.ElementsMatch(tc.wantClientsAuth, clients, "clients auth not as expected")
 			assert.Equal(tc.wantClosedConn, mockConn.closed)
-			allClients, err := al.clientService.GetAll()
-			require.NoError(err)
+			allClients := al.clientService.GetAll()
 			assert.ElementsMatch(tc.wantClients, allClients)
 		})
 	}

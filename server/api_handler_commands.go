@@ -366,7 +366,7 @@ func (al *APIListener) handleExecuteCommand(ctx context.Context, w http.Response
 	}
 
 	if client.IsPaused() {
-		al.jsonErrorResponseWithTitle(w, http.StatusNotFound, fmt.Sprintf("failed to execute command/script for client with id %s due to client being paused (reason = %s)", client.ID, client.PausedReason))
+		al.jsonErrorResponseWithTitle(w, http.StatusNotFound, fmt.Sprintf("failed to execute command/script for client with id %s due to client being paused (reason = %s)", client.GetID(), client.GetPausedReason()))
 		return nil
 	}
 
@@ -382,7 +382,7 @@ func (al *APIListener) handleExecuteCommand(ctx context.Context, w http.Response
 		JID:         jid,
 		FinishedAt:  nil,
 		ClientID:    executeInput.ClientID,
-		ClientName:  client.Name,
+		ClientName:  client.GetName(),
 		Command:     executeInput.Command,
 		Interpreter: executeInput.Interpreter,
 		CreatedBy:   api.GetUser(ctx, al.Logger),
@@ -393,7 +393,7 @@ func (al *APIListener) handleExecuteCommand(ctx context.Context, w http.Response
 		IsScript:    executeInput.IsScript,
 	}
 	sshResp := &comm.RunCmdResponse{}
-	err = comm.SendRequestAndGetResponse(client.Connection, comm.RequestTypeRunCmd, curJob, sshResp)
+	err = comm.SendRequestAndGetResponse(client.GetConnection(), comm.RequestTypeRunCmd, curJob, sshResp, al.Log())
 	if err != nil {
 		if _, ok := err.(*comm.ClientError); ok {
 			al.jsonErrorResponseWithTitle(w, http.StatusConflict, err.Error())

@@ -1,8 +1,12 @@
+//go:build linux
+// +build linux
+
 package caddy_test
 
 import (
 	"context"
 	"net/http"
+	"os"
 	"testing"
 	"time"
 
@@ -85,6 +89,9 @@ func setupNewCaddyServer(ctx context.Context, t *testing.T) (cs *caddy.Server) {
 	bc, err := chCfg.WriteCaddyBaseConfig(cfg)
 	require.NoError(t, err)
 	caddy.HostDomainSocket = bc.GlobalSettings.AdminSocket
+
+	// ensure the no existing admin socket file
+	os.Remove(caddy.HostDomainSocket)
 
 	cs = caddy.NewCaddyServer(cfg, testLog)
 	err = cs.Start(ctx)

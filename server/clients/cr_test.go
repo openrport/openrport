@@ -40,29 +40,26 @@ func TestCRWithExpiration(t *testing.T) {
 	assert.NoError(repo.Save(c3))
 	assert.NoError(repo.Save(c4))
 
-	gotCount, err := repo.Count()
-	assert.NoError(err)
+	gotCount := repo.Count()
 	assert.Equal(3, gotCount)
 
-	gotCountActive, err := repo.CountActive()
-	assert.NoError(err)
+	gotCountActive := repo.CountActive()
 	assert.Equal(1, gotCountActive)
 
 	gotCountDisconnected, err := repo.CountDisconnected()
 	assert.NoError(err)
 	assert.Equal(2, gotCountDisconnected)
 
-	gotClients, err := repo.GetAll()
-	assert.NoError(err)
+	gotClients := repo.GetAllClients()
 	assert.ElementsMatch([]*Client{c1, c2, c3}, gotClients)
 
 	// active
-	gotClient, err := repo.GetActiveByID(c1.ID)
+	gotClient, err := repo.GetActiveByID(c1.GetID())
 	assert.NoError(err)
 	assert.Equal(c1, gotClient)
 
 	// disconnected
-	gotClient, err = repo.GetActiveByID(c2.ID)
+	gotClient, err = repo.GetActiveByID(c2.GetID())
 	assert.NoError(err)
 	assert.Nil(gotClient)
 
@@ -70,12 +67,11 @@ func TestCRWithExpiration(t *testing.T) {
 	assert.NoError(err)
 	require.Len(t, deleted, 1)
 	assert.Equal(c4, deleted[0])
-	gotClients, err = repo.GetAll()
-	assert.NoError(err)
+	gotClients = repo.GetAllClients()
 	assert.ElementsMatch([]*Client{c1, c2, c3}, gotClients)
 
 	assert.NoError(repo.Delete(c3))
-	gotClients, err = repo.GetAll()
+	gotClients = repo.GetAllClients()
 	assert.NoError(err)
 	assert.ElementsMatch([]*Client{c1, c2}, gotClients)
 }
@@ -90,29 +86,26 @@ func TestCRWithNoExpiration(t *testing.T) {
 	assert := assert.New(t)
 	assert.NoError(repo.Save(c4Active))
 
-	gotCount, err := repo.Count()
-	assert.NoError(err)
+	gotCount := repo.Count()
 	assert.Equal(4, gotCount)
 
-	gotCountActive, err := repo.CountActive()
-	assert.NoError(err)
+	gotCountActive := repo.CountActive()
 	assert.Equal(2, gotCountActive)
 
 	gotCountDisconnected, err := repo.CountDisconnected()
 	assert.NoError(err)
 	assert.Equal(2, gotCountDisconnected)
 
-	gotClients, err := repo.GetAll()
-	assert.NoError(err)
+	gotClients := repo.GetAllClients()
 	assert.ElementsMatch([]*Client{c1, c2, c3, c4Active}, gotClients)
 
 	// active
-	gotClient, err := repo.GetActiveByID(c1.ID)
+	gotClient, err := repo.GetActiveByID(c1.GetID())
 	assert.NoError(err)
 	assert.Equal(c1, gotClient)
 
 	// disconnected
-	gotClient, err = repo.GetActiveByID(c2.ID)
+	gotClient, err = repo.GetActiveByID(c2.GetID())
 	assert.NoError(err)
 	assert.Nil(gotClient)
 
@@ -121,8 +114,7 @@ func TestCRWithNoExpiration(t *testing.T) {
 	assert.Len(deleted, 0)
 
 	assert.NoError(repo.Delete(c4Active))
-	gotClients, err = repo.GetAll()
-	assert.NoError(err)
+	gotClients = repo.GetAllClients()
 	assert.ElementsMatch([]*Client{c1, c2, c3}, gotClients)
 }
 
@@ -521,7 +513,7 @@ func TestCRWithFilter(t *testing.T) {
 			actualClientIDs := make([]string, 0, len(actualClients))
 
 			for _, actualClient := range actualClients {
-				actualClientIDs = append(actualClientIDs, actualClient.ID)
+				actualClientIDs = append(actualClientIDs, actualClient.GetID())
 			}
 
 			assert.ElementsMatch(t, tc.expectedClientIDs, actualClientIDs)
@@ -543,15 +535,15 @@ func TestCRWithUnsupportedFilter(t *testing.T) {
 }
 
 func TestGetUserClients(t *testing.T) {
-	c1 := New(t).Build()                                                             // no groups
-	c2 := New(t).AllowedUserGroups([]string{users.Administrators}).Build()           // admin
-	c3 := New(t).AllowedUserGroups([]string{users.Administrators, "group1"}).Build() // admin + group1
-	c4 := New(t).AllowedUserGroups([]string{"group1"}).Build()                       // group1
-	c5 := New(t).AllowedUserGroups([]string{"group1", "group2"}).Build()             // group1 + group2
-	c6 := New(t).AllowedUserGroups([]string{"group2"}).Build()                       // group2
-	c7 := New(t).AllowedUserGroups([]string{"group3"}).Build()                       // group3
-	c8 := New(t).AllowedUserGroups([]string{"group2", "group3"}).Build()             // group2 + group3
-	c9 := New(t).Build()
+	c1 := New(t).Logger(testLog).Build()                                                             // no groups
+	c2 := New(t).AllowedUserGroups([]string{users.Administrators}).Logger(testLog).Build()           // admin
+	c3 := New(t).AllowedUserGroups([]string{users.Administrators, "group1"}).Logger(testLog).Build() // admin + group1
+	c4 := New(t).AllowedUserGroups([]string{"group1"}).Logger(testLog).Build()                       // group1
+	c5 := New(t).AllowedUserGroups([]string{"group1", "group2"}).Logger(testLog).Build()             // group1 + group2
+	c6 := New(t).AllowedUserGroups([]string{"group2"}).Logger(testLog).Build()                       // group2
+	c7 := New(t).AllowedUserGroups([]string{"group3"}).Logger(testLog).Build()                       // group3
+	c8 := New(t).AllowedUserGroups([]string{"group2", "group3"}).Logger(testLog).Build()             // group2 + group3
+	c9 := New(t).Logger(testLog).Build()
 	allClients := []*Client{c1, c2, c3, c4, c5, c6, c7, c8, c9}
 
 	clientGroups := []*cgroups.ClientGroup{
@@ -559,7 +551,7 @@ func TestGetUserClients(t *testing.T) {
 			ID:                "1",
 			AllowedUserGroups: []string{"group6"},
 			Params: &cgroups.ClientParams{
-				ClientID: &cgroups.ParamValues{cgroups.Param(c9.ID)},
+				ClientID: &cgroups.ParamValues{cgroups.Param(c9.GetID())},
 			},
 		},
 	}
@@ -675,7 +667,7 @@ func TestGetClientByTag(t *testing.T) {
 			}
 
 			for idx, cl := range matchingClients {
-				assert.Equal(t, tc.expectedClientIDs[idx], cl.ID)
+				assert.Equal(t, tc.expectedClientIDs[idx], cl.GetID())
 			}
 		})
 	}

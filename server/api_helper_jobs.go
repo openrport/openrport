@@ -49,8 +49,8 @@ func (al *APIListener) createAndRunJob(
 	curJob := models.Job{
 		JID:          jid,
 		StartedAt:    time.Now(),
-		ClientID:     client.ID,
-		ClientName:   client.Name,
+		ClientID:     client.GetID(),
+		ClientName:   client.GetName(),
 		Command:      cmd,
 		Cwd:          cwd,
 		IsSudo:       isSudo,
@@ -69,13 +69,14 @@ func (al *APIListener) createAndRunJob(
 	var err error
 	if !client.IsPaused() {
 		if client.Connection != nil {
-			err = comm.SendRequestAndGetResponse(client.Connection, comm.RequestTypeRunCmd, curJob, sshResp)
+			err = comm.SendRequestAndGetResponse(client.GetConnection(), comm.RequestTypeRunCmd, curJob, sshResp, al.Log())
 		} else {
 			err = ErrClientNotConnected
 		}
 	} else {
 		err = fmt.Errorf("client is paused (reason = %s)", client.PausedReason)
 	}
+
 	if err != nil {
 		al.Errorf("%s, Error on execute remote command: %v", logPrefix, err)
 

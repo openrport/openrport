@@ -6,7 +6,6 @@ import (
 	"net"
 	"net/http"
 	"strconv"
-	"time"
 
 	"github.com/gorilla/mux"
 	"golang.org/x/crypto/ssh"
@@ -19,132 +18,10 @@ import (
 	"github.com/cloudradar-monitoring/rport/server/ports"
 	"github.com/cloudradar-monitoring/rport/server/routes"
 	"github.com/cloudradar-monitoring/rport/server/validation"
-	"github.com/cloudradar-monitoring/rport/share/clientconfig"
 	"github.com/cloudradar-monitoring/rport/share/comm"
 	"github.com/cloudradar-monitoring/rport/share/models"
 	"github.com/cloudradar-monitoring/rport/share/query"
 )
-
-type ClientPayload struct {
-	ID                     *string                 `json:"id,omitempty"`
-	Name                   *string                 `json:"name,omitempty"`
-	Address                *string                 `json:"address,omitempty"`
-	Hostname               *string                 `json:"hostname,omitempty"`
-	OS                     *string                 `json:"os,omitempty"`
-	OSFullName             *string                 `json:"os_full_name,omitempty"`
-	OSVersion              *string                 `json:"os_version,omitempty"`
-	OSArch                 *string                 `json:"os_arch,omitempty"`
-	OSFamily               *string                 `json:"os_family,omitempty"`
-	OSKernel               *string                 `json:"os_kernel,omitempty"`
-	OSVirtualizationSystem *string                 `json:"os_virtualization_system,omitempty"`
-	OSVirtualizationRole   *string                 `json:"os_virtualization_role,omitempty"`
-	NumCPUs                *int                    `json:"num_cpus,omitempty"`
-	CPUFamily              *string                 `json:"cpu_family,omitempty"`
-	CPUModel               *string                 `json:"cpu_model,omitempty"`
-	CPUModelName           *string                 `json:"cpu_model_name,omitempty"`
-	CPUVendor              *string                 `json:"cpu_vendor,omitempty"`
-	MemoryTotal            *uint64                 `json:"mem_total,omitempty"`
-	Timezone               *string                 `json:"timezone,omitempty"`
-	ClientAuthID           *string                 `json:"client_auth_id,omitempty"`
-	Version                *string                 `json:"version,omitempty"`
-	DisconnectedAt         **time.Time             `json:"disconnected_at,omitempty"`
-	LastHeartbeatAt        **time.Time             `json:"last_heartbeat_at,omitempty"`
-	ConnectionState        *string                 `json:"connection_state,omitempty"`
-	IPv4                   *[]string               `json:"ipv4,omitempty"`
-	IPv6                   *[]string               `json:"ipv6,omitempty"`
-	Tags                   *[]string               `json:"tags,omitempty"`
-	AllowedUserGroups      *[]string               `json:"allowed_user_groups,omitempty"`
-	Tunnels                *[]*clienttunnel.Tunnel `json:"tunnels,omitempty"`
-	UpdatesStatus          **models.UpdatesStatus  `json:"updates_status,omitempty"`
-	ClientConfiguration    **clientconfig.Config   `json:"client_configuration,omitempty"`
-	Groups                 *[]string               `json:"groups,omitempty"`
-}
-
-func convertToClientsPayload(clients []*clients.CalculatedClient, fields []query.FieldsOption) []ClientPayload {
-	r := make([]ClientPayload, 0, len(clients))
-	for _, cur := range clients {
-		r = append(r, convertToClientPayload(cur, fields))
-	}
-	return r
-}
-
-func convertToClientPayload(client *clients.CalculatedClient, fields []query.FieldsOption) ClientPayload { //nolint:gocyclo
-	requestedFields := query.RequestedFields(fields, "clients")
-	p := ClientPayload{}
-	for field := range clients.OptionsSupportedFields["clients"] {
-		if len(fields) > 0 && !requestedFields[field] {
-			continue
-		}
-		switch field {
-		case "id":
-			p.ID = &client.ID
-		case "name":
-			p.Name = &client.Name
-		case "os":
-			p.OS = &client.OS
-		case "os_arch":
-			p.OSArch = &client.OSArch
-		case "os_family":
-			p.OSFamily = &client.OSFamily
-		case "os_kernel":
-			p.OSKernel = &client.OSKernel
-		case "hostname":
-			p.Hostname = &client.Hostname
-		case "ipv4":
-			p.IPv4 = &client.IPv4
-		case "ipv6":
-			p.IPv6 = &client.IPv6
-		case "tags":
-			p.Tags = &client.Tags
-		case "version":
-			p.Version = &client.Version
-		case "address":
-			p.Address = &client.Address
-		case "tunnels":
-			p.Tunnels = &client.Tunnels
-		case "disconnected_at":
-			p.DisconnectedAt = &client.DisconnectedAt
-		case "last_heartbeat_at":
-			p.LastHeartbeatAt = &client.LastHeartbeatAt
-		case "connection_state":
-			connectionState := string(client.ConnectionState)
-			p.ConnectionState = &connectionState
-		case "client_auth_id":
-			p.ClientAuthID = &client.ClientAuthID
-		case "os_full_name":
-			p.OSFullName = &client.OSFullName
-		case "os_version":
-			p.OSVersion = &client.OSVersion
-		case "os_virtualization_system":
-			p.OSVirtualizationSystem = &client.OSVirtualizationSystem
-		case "os_virtualization_role":
-			p.OSVirtualizationRole = &client.OSVirtualizationRole
-		case "cpu_family":
-			p.CPUFamily = &client.CPUFamily
-		case "cpu_model":
-			p.CPUModel = &client.CPUModel
-		case "cpu_model_name":
-			p.CPUModelName = &client.CPUModelName
-		case "cpu_vendor":
-			p.CPUVendor = &client.CPUVendor
-		case "timezone":
-			p.Timezone = &client.Timezone
-		case "num_cpus":
-			p.NumCPUs = &client.NumCPUs
-		case "mem_total":
-			p.MemoryTotal = &client.MemoryTotal
-		case "allowed_user_groups":
-			p.AllowedUserGroups = &client.AllowedUserGroups
-		case "updates_status":
-			p.UpdatesStatus = &client.UpdatesStatus
-		case "client_configuration":
-			p.ClientConfiguration = &client.ClientConfiguration
-		case "groups":
-			p.Groups = &client.Groups
-		}
-	}
-	return p
-}
 
 func getCorrespondingSortFunc(sorts []query.SortOption) (sortFunc func(a []*clients.CalculatedClient, desc bool), desc bool, err error) {
 	if len(sorts) < 1 {
@@ -200,7 +77,7 @@ func (al *APIListener) handleGetClient(w http.ResponseWriter, req *http.Request)
 		return
 	}
 
-	clientPayload := convertToClientPayload(client.ToCalculated(groups), options.Fields)
+	clientPayload := clients.ConvertToClientPayload(client.ToCalculated(groups), options.Fields)
 	al.writeJSONResponse(w, http.StatusOK, api.NewSuccessPayload(clientPayload))
 }
 
@@ -291,19 +168,20 @@ func (al *APIListener) handleGetClients(w http.ResponseWriter, req *http.Request
 		return
 	}
 
-	cls, err := al.clientService.GetFilteredUserClients(curUser, options.Filters, groups)
+	filteredClients, err := al.clientService.GetFilteredUserClients(curUser, options.Filters, groups)
 	if err != nil {
 		al.jsonError(w, err)
 		return
 	}
 
-	sortFunc(cls, desc)
+	sortFunc(filteredClients, desc)
 
-	totalCount := len(cls)
+	totalCount := len(filteredClients)
 	start, end := options.Pagination.GetStartEnd(totalCount)
-	cls = cls[start:end]
+	filteredClients = filteredClients[start:end]
 
-	clientsPayload := convertToClientsPayload(cls, options.Fields)
+	clientsPayload := clients.ConvertToClientsPayload(filteredClients, options.Fields)
+
 	al.writeJSONResponse(w, http.StatusOK, &api.SuccessPayload{
 		Data: clientsPayload,
 		Meta: api.NewMeta(totalCount),
@@ -345,7 +223,7 @@ func (al *APIListener) handlePutClientTunnel(w http.ResponseWriter, req *http.Re
 	}
 
 	if client.IsPaused() {
-		al.jsonErrorResponseWithTitle(w, http.StatusNotFound, fmt.Sprintf("failed to start tunnel for client with id %s due to client being paused (reason = %s)", clientID, client.PausedReason))
+		al.jsonErrorResponseWithTitle(w, http.StatusNotFound, fmt.Sprintf("failed to start tunnel for client with id %s due to client being paused (reason = %s)", clientID, client.GetPausedReason()))
 		return
 	}
 
@@ -411,7 +289,7 @@ func (al *APIListener) handlePutClientTunnel(w http.ResponseWriter, req *http.Re
 		remote.ACL = &aclStr
 	}
 
-	allowed, err := clienttunnel.IsAllowed(remote.Remote(), client.Connection)
+	allowed, err := clienttunnel.IsAllowed(remote.Remote(), client.GetConnection(), al.Log())
 	if err != nil {
 		al.jsonError(w, err)
 		return
@@ -426,7 +304,7 @@ func (al *APIListener) handlePutClientTunnel(w http.ResponseWriter, req *http.Re
 		return
 	}
 
-	for _, t := range client.Tunnels {
+	for _, t := range client.GetTunnels() {
 		if t.Remote.Remote() == remote.Remote() && t.Remote.IsProtocol(remote.Protocol) && t.EqualACL(remote.ACL) {
 			al.jsonErrorResponseWithErrCode(w, http.StatusBadRequest, ErrCodeTunnelToPortExist, fmt.Sprintf("Tunnel to port %s already exists.", remote.RemotePort))
 			return
@@ -434,16 +312,12 @@ func (al *APIListener) handlePutClientTunnel(w http.ResponseWriter, req *http.Re
 	}
 
 	if checkPortStr := req.URL.Query().Get("check_port"); checkPortStr != "0" && remote.IsProtocol(models.ProtocolTCP) {
-		err = al.checkRemotePort(*remote, client.Connection)
+		err = al.checkRemotePort(*remote, client.GetConnection())
 		if err != nil {
 			al.jsonError(w, err)
 			return
 		}
 	}
-
-	// make next steps thread-safe
-	client.Lock()
-	defer client.Unlock()
 
 	if remote.IsLocalSpecified() {
 		err = al.checkLocalPort(remote.LocalPort, remote.Protocol)
@@ -588,7 +462,7 @@ func (al *APIListener) checkRemotePort(remote models.Remote, conn ssh.Conn) (err
 		Timeout:  al.config.Server.CheckPortTimeout,
 	}
 	resp := &comm.CheckPortResponse{}
-	err = comm.SendRequestAndGetResponse(conn, comm.RequestTypeCheckPort, req, resp)
+	err = comm.SendRequestAndGetResponse(conn, comm.RequestTypeCheckPort, req, resp, al.Log())
 	if err != nil {
 		if _, ok := err.(*comm.ClientError); ok {
 			err = apierrors.NewAPIError(http.StatusConflict, "", "", err)
@@ -645,10 +519,6 @@ func (al *APIListener) handleDeleteClientTunnel(w http.ResponseWriter, req *http
 		al.jsonErrorResponseWithTitle(w, http.StatusBadRequest, "tunnel id is missing")
 		return
 	}
-
-	// make next steps thread-safe
-	client.Lock()
-	defer client.Unlock()
 
 	tunnel := al.clientService.FindTunnel(client, tunnelID)
 	if tunnel == nil {

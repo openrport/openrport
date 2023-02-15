@@ -217,8 +217,9 @@ func (al *APIListener) sendFileToClients(uploadRequest *UploadRequest) {
 
 func (al *APIListener) consumeUploadResults(resChan chan *uploadResult, uploadRequest *UploadRequest) {
 	for res := range resChan {
+		clientID := res.client.GetID()
 		output := &UploadOutput{
-			ClientID:       res.client.ID,
+			ClientID:       clientID,
 			UploadResponse: res.resp,
 		}
 		if res.err != nil {
@@ -238,7 +239,7 @@ func (al *APIListener) consumeUploadResults(resChan chan *uploadResult, uploadRe
 				errTxt,
 				uploadRequest.ID,
 				uploadRequest.DestinationPath,
-				res.client.ID,
+				clientID,
 			)
 			al.auditLog.Entry(auditlog.ApplicationUploads, auditlog.ActionFailed).
 				WithRequest(uploadRequest.UploadedFile).
@@ -251,7 +252,7 @@ func (al *APIListener) consumeUploadResults(resChan chan *uploadResult, uploadRe
 				"upload success, file id: %s, file path: %s, client %s",
 				uploadRequest.ID,
 				uploadRequest.DestinationPath,
-				res.client.ID,
+				clientID,
 			)
 			al.auditLog.Entry(auditlog.ApplicationUploads, auditlog.ActionSuccess).
 				WithRequest(uploadRequest.UploadedFile).
@@ -268,7 +269,8 @@ func (al *APIListener) consumeUploadResults(resChan chan *uploadResult, uploadRe
 func (al *APIListener) sendFileToClient(wg *sync.WaitGroup, file *models.UploadedFile, cl *clients.Client, resChan chan *uploadResult) {
 	defer wg.Done()
 
-	if cl.ClientConfiguration != nil && !cl.ClientConfiguration.FileReceptionConfig.Enabled {
+	fileReceptionConfig := cl.GetFileReceptionConfig()
+	if fileReceptionConfig != nil && !fileReceptionConfig.Enabled {
 		resChan <- &uploadResult{
 			err:    errors3.ErrUploadsDisabled,
 			client: cl,
@@ -277,7 +279,7 @@ func (al *APIListener) sendFileToClient(wg *sync.WaitGroup, file *models.Uploade
 		return
 	}
 	resp := &models.UploadResponse{}
-	err := comm.SendRequestAndGetResponse(cl.Connection, comm.RequestTypeUpload, file, resp)
+	err := comm.SendRequestAndGetResponse(cl.GetConnection(), comm.RequestTypeUpload, file, resp, al.Log())
 
 	resChan <- &uploadResult{
 		err:    err,

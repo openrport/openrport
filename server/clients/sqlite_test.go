@@ -39,12 +39,12 @@ func TestClientsSqliteProvider(t *testing.T) {
 	assert.ElementsMatch(t, []*Client{c1, c2, c3, c4, c5}, gotAll)
 
 	// verify delete obsolete clients
-	gotObsolete, err := p.get(ctx, c5.ID)
+	gotObsolete, err := p.get(ctx, c5.GetID())
 	require.NoError(t, err)
 	require.EqualValues(t, c5, gotObsolete)
 
-	require.NoError(t, p.DeleteObsolete(ctx))
-	gotObsolete, err = p.get(ctx, c5.ID)
+	require.NoError(t, p.DeleteObsolete(ctx, testLog))
+	gotObsolete, err = p.get(ctx, c5.GetID())
 	require.NoError(t, err)
 	require.Nil(t, gotObsolete)
 
@@ -61,7 +61,7 @@ func TestClientsSqliteProvider(t *testing.T) {
 	d := time.Date(2020, 11, 5, 12, 11, 20, 0, time.UTC)
 	c1.DisconnectedAt = &d
 	require.NoError(t, p.Save(ctx, c1))
-	gotUpdated, err := p.get(ctx, c1.ID)
+	gotUpdated, err := p.get(ctx, c1.GetID())
 	require.NoError(t, err)
 	require.EqualValues(t, c1, gotUpdated)
 	gotAll, err = p.GetAll(ctx)

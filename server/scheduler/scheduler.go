@@ -13,16 +13,20 @@ type Task interface {
 
 // Run runs the given task periodically with a given interval between executions.
 func Run(ctx context.Context, log *logger.Logger, task Task, interval time.Duration) {
+	log.Debugf("started")
 	tick := time.NewTicker(interval)
-	defer tick.Stop()
 	for {
 		select {
 		case <-tick.C:
+			log.Debugf("running")
 			if err := task.Run(ctx); err != nil {
-				log.Errorf("Task %T finished with an error: %v.", task, err)
+				log.Errorf("finished with an error: %v.", err)
 			}
+			log.Debugf("finished")
 		case <-ctx.Done():
-			log.Debugf("%T: context canceled", task)
+			tick.Stop()
+			log.Debugf("context canceled", task)
+			log.Debugf("stopped")
 			return
 		}
 	}

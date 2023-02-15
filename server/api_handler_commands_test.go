@@ -107,8 +107,8 @@ func TestHandlePostCommand(t *testing.T) {
 	require.NoError(t, err)
 	connMock.ReturnResponsePayload = sshRespBytes
 
-	c1 := clients.New(t).Connection(connMock).Build()
-	c2 := clients.New(t).DisconnectedDuration(5 * time.Minute).Build()
+	c1 := clients.New(t).Connection(connMock).Logger(testLog).Build()
+	c2 := clients.New(t).DisconnectedDuration(5 * time.Minute).Logger(testLog).Build()
 
 	testCases := []struct {
 		name string
@@ -132,7 +132,7 @@ func TestHandlePostCommand(t *testing.T) {
 		{
 			name:           "valid cmd",
 			requestBody:    validReqBody,
-			cid:            c1.ID,
+			cid:            c1.GetID(),
 			clients:        []*clients.Client{c1},
 			wantStatusCode: http.StatusOK,
 			wantTimeout:    gotCmdTimeoutSec,
@@ -140,7 +140,7 @@ func TestHandlePostCommand(t *testing.T) {
 		{
 			name:            "valid cmd with interpreter",
 			requestBody:     `{"command": "` + gotCmd + `","interpreter": "powershell"}`,
-			cid:             c1.ID,
+			cid:             c1.GetID(),
 			clients:         []*clients.Client{c1},
 			wantStatusCode:  http.StatusOK,
 			wantTimeout:     defaultTimeout,
@@ -149,7 +149,7 @@ func TestHandlePostCommand(t *testing.T) {
 		{
 			name:           "invalid interpreter",
 			requestBody:    `{"command": "` + gotCmd + `","interpreter": "unsupported"}`,
-			cid:            c1.ID,
+			cid:            c1.GetID(),
 			clients:        []*clients.Client{c1},
 			wantStatusCode: http.StatusBadRequest,
 			wantErrTitle:   "Invalid interpreter.",
@@ -158,7 +158,7 @@ func TestHandlePostCommand(t *testing.T) {
 		{
 			name:           "valid cmd with no timeout",
 			requestBody:    `{"command": "/bin/date;foo;whoami"}`,
-			cid:            c1.ID,
+			cid:            c1.GetID(),
 			clients:        []*clients.Client{c1},
 			wantTimeout:    defaultTimeout,
 			wantStatusCode: http.StatusOK,
@@ -166,7 +166,7 @@ func TestHandlePostCommand(t *testing.T) {
 		{
 			name:           "valid cmd with 0 timeout",
 			requestBody:    `{"command": "/bin/date;foo;whoami", "timeout_sec": 0}`,
-			cid:            c1.ID,
+			cid:            c1.GetID(),
 			clients:        []*clients.Client{c1},
 			wantTimeout:    defaultTimeout,
 			wantStatusCode: http.StatusOK,
@@ -174,7 +174,7 @@ func TestHandlePostCommand(t *testing.T) {
 		{
 			name:           "empty cmd",
 			requestBody:    `{"command": "", "timeout_sec": 30}`,
-			cid:            c1.ID,
+			cid:            c1.GetID(),
 			clients:        []*clients.Client{c1},
 			wantStatusCode: http.StatusBadRequest,
 			wantErrTitle:   "Command cannot be empty.",
@@ -182,7 +182,7 @@ func TestHandlePostCommand(t *testing.T) {
 		{
 			name:           "no cmd",
 			requestBody:    `{"timeout_sec": 30}`,
-			cid:            c1.ID,
+			cid:            c1.GetID(),
 			clients:        []*clients.Client{c1},
 			wantStatusCode: http.StatusBadRequest,
 			wantErrTitle:   "Command cannot be empty.",
@@ -190,7 +190,7 @@ func TestHandlePostCommand(t *testing.T) {
 		{
 			name:           "empty body",
 			requestBody:    "",
-			cid:            c1.ID,
+			cid:            c1.GetID(),
 			clients:        []*clients.Client{c1},
 			wantStatusCode: http.StatusBadRequest,
 			wantErrTitle:   "Missing body with json data.",
@@ -198,7 +198,7 @@ func TestHandlePostCommand(t *testing.T) {
 		{
 			name:           "invalid request body",
 			requestBody:    "sdfn fasld fasdf sdlf jd",
-			cid:            c1.ID,
+			cid:            c1.GetID(),
 			clients:        []*clients.Client{c1},
 			wantStatusCode: http.StatusBadRequest,
 			wantErrTitle:   "Invalid JSON data.",
@@ -207,7 +207,7 @@ func TestHandlePostCommand(t *testing.T) {
 		{
 			name:           "invalid request body: unknown param",
 			requestBody:    `{"command": "/bin/date;foo;whoami", "timeout": 30}`,
-			cid:            c1.ID,
+			cid:            c1.GetID(),
 			clients:        []*clients.Client{c1},
 			wantStatusCode: http.StatusBadRequest,
 			wantErrTitle:   "Invalid JSON data.",
@@ -216,24 +216,24 @@ func TestHandlePostCommand(t *testing.T) {
 		{
 			name:           "no active client",
 			requestBody:    validReqBody,
-			cid:            c1.ID,
+			cid:            c1.GetID(),
 			clients:        []*clients.Client{},
 			wantStatusCode: http.StatusNotFound,
-			wantErrTitle:   fmt.Sprintf("Active client with id=%q not found.", c1.ID),
+			wantErrTitle:   fmt.Sprintf("Active client with id=%q not found.", c1.GetID()),
 		},
 		{
 			name:           "disconnected client",
 			requestBody:    validReqBody,
-			cid:            c2.ID,
+			cid:            c2.GetID(),
 			clients:        []*clients.Client{c1, c2},
 			wantStatusCode: http.StatusNotFound,
-			wantErrTitle:   fmt.Sprintf("Active client with id=%q not found.", c2.ID),
+			wantErrTitle:   fmt.Sprintf("Active client with id=%q not found.", c2.GetID()),
 		},
 		{
 			name:            "error on save job",
 			requestBody:     validReqBody,
 			jpReturnSaveErr: errors.New("save fake error"),
-			cid:             c1.ID,
+			cid:             c1.GetID(),
 			clients:         []*clients.Client{c1},
 			wantStatusCode:  http.StatusInternalServerError,
 			wantErrTitle:    "Failed to persist a new job.",
@@ -243,7 +243,7 @@ func TestHandlePostCommand(t *testing.T) {
 			name:           "error on send request",
 			requestBody:    validReqBody,
 			connReturnErr:  errors.New("send fake error"),
-			cid:            c1.ID,
+			cid:            c1.GetID(),
 			clients:        []*clients.Client{c1},
 			wantStatusCode: http.StatusInternalServerError,
 			wantErrTitle:   "Failed to execute remote command.",
@@ -253,7 +253,7 @@ func TestHandlePostCommand(t *testing.T) {
 			name:           "invalid ssh response format",
 			requestBody:    validReqBody,
 			connReturnResp: []byte("invalid ssh response data"),
-			cid:            c1.ID,
+			cid:            c1.GetID(),
 			clients:        []*clients.Client{c1},
 			wantStatusCode: http.StatusConflict,
 			wantErrTitle:   "invalid client response format: failed to decode response into *comm.RunCmdResponse: invalid character 'i' looking for beginning of value",
@@ -263,7 +263,7 @@ func TestHandlePostCommand(t *testing.T) {
 			requestBody:     validReqBody,
 			connReturnNotOk: true,
 			connReturnResp:  []byte("fake failure msg"),
-			cid:             c1.ID,
+			cid:             c1.GetID(),
 			clients:         []*clients.Client{c1},
 			wantStatusCode:  http.StatusConflict,
 			wantErrTitle:    "client error: fake failure msg",
@@ -552,9 +552,9 @@ func TestHandlePostMultiClientCommand(t *testing.T) {
 	require.NoError(t, err)
 	connMock2.ReturnResponsePayload = sshRespBytes2
 
-	c1 := clients.New(t).ID("client-1").Connection(connMock1).Build()
-	c2 := clients.New(t).ID("client-2").Connection(connMock2).Build()
-	c3 := clients.New(t).ID("client-3").DisconnectedDuration(5 * time.Minute).Build()
+	c1 := clients.New(t).ID("client-1").Connection(connMock1).Logger(testLog).Build()
+	c2 := clients.New(t).ID("client-2").Connection(connMock2).Logger(testLog).Build()
+	c3 := clients.New(t).ID("client-3").DisconnectedDuration(5 * time.Minute).Logger(testLog).Build()
 
 	c1.Logger = testLog
 	c2.Logger = testLog
@@ -565,7 +565,7 @@ func TestHandlePostMultiClientCommand(t *testing.T) {
 	gotCmdTimeoutSec := 30
 	validReqBody := `{"command": "` + gotCmd +
 		`","timeout_sec": ` + strconv.Itoa(gotCmdTimeoutSec) +
-		`,"client_ids": ["` + c1.ID + `", "` + c2.ID + `"]` +
+		`,"client_ids": ["` + c1.GetID() + `", "` + c2.GetID() + `"]` +
 		`,"abort_on_error": false` +
 		`,"execute_concurrently": false` +
 		`}`
@@ -762,11 +762,11 @@ func TestHandlePostMultiClientCommandWithPausedClient(t *testing.T) {
 	require.NoError(t, err)
 	connMock2.ReturnResponsePayload = sshRespBytes2
 
-	c1 := clients.New(t).ID("client-1").Connection(connMock1).Build()
+	c1 := clients.New(t).ID("client-1").Connection(connMock1).Logger(testLog).Build()
 	c1.Logger = testLog
 	c1.SetPaused(true, clients.PausedDueToMaxClientsExceeded)
 
-	c2 := clients.New(t).ID("client-2").Connection(connMock2).Build()
+	c2 := clients.New(t).ID("client-2").Connection(connMock2).Logger(testLog).Build()
 	c2.Logger = testLog
 
 	defaultTimeout := 60
@@ -775,14 +775,14 @@ func TestHandlePostMultiClientCommandWithPausedClient(t *testing.T) {
 
 	c1ValidReqBody := `{"command": "` + gotCmd +
 		`","timeout_sec": ` + strconv.Itoa(gotCmdTimeoutSec) +
-		`,"client_ids": ["` + c1.ID + `"]` +
+		`,"client_ids": ["` + c1.GetID() + `"]` +
 		`,"abort_on_error": false` +
 		`,"execute_concurrently": false` +
 		`}`
 
 	c2ValidReqBody := `{"command": "` + gotCmd +
 		`","timeout_sec": ` + strconv.Itoa(gotCmdTimeoutSec) +
-		`,"client_ids": ["` + c2.ID + `"]` +
+		`,"client_ids": ["` + c2.GetID() + `"]` +
 		`,"abort_on_error": false` +
 		`,"execute_concurrently": false` +
 		`}`
@@ -973,10 +973,10 @@ func TestHandlePostMultiClientCommandWithGroupIDs(t *testing.T) {
 			connMock2 := makeConnMock(t, 2, time.Date(2020, 10, 10, 10, 10, 2, 0, time.UTC))
 			connMock4 := makeConnMock(t, 4, time.Date(2020, 10, 10, 10, 10, 4, 0, time.UTC))
 
-			c1 := clients.New(t).ID("client-1").Connection(connMock1).Build()
-			c2 := clients.New(t).ID("client-2").Connection(connMock2).Build()
-			c3 := clients.New(t).ID("client-3").DisconnectedDuration(5 * time.Minute).Build()
-			c4 := clients.New(t).ID("client-4").Connection(connMock4).Build()
+			c1 := clients.New(t).ID("client-1").Connection(connMock1).Logger(testLog).Build()
+			c2 := clients.New(t).ID("client-2").Connection(connMock2).Logger(testLog).Build()
+			c3 := clients.New(t).ID("client-3").DisconnectedDuration(5 * time.Minute).Logger(testLog).Build()
+			c4 := clients.New(t).ID("client-4").Connection(connMock4).Logger(testLog).Build()
 
 			g1 := makeClientGroup("group-1", &cgroups.ClientParams{
 				ClientID: &cgroups.ParamValues{"client-1", "client-2"},
@@ -990,9 +990,9 @@ func TestHandlePostMultiClientCommandWithGroupIDs(t *testing.T) {
 				Version:  &cgroups.ParamValues{"0.1.1*"},
 			})
 
-			c1.AllowedUserGroups = []string{"group-1"}
-			c2.AllowedUserGroups = []string{"group-1"}
-			c4.AllowedUserGroups = []string{"group-2"}
+			c1.SetAllowedUserGroups([]string{"group-1"})
+			c2.SetAllowedUserGroups([]string{"group-1"})
+			c4.SetAllowedUserGroups([]string{"group-2"})
 
 			al := makeAPIListener(curUser,
 				clients.NewClientRepository([]*clients.Client{c1, c2, c3, c4}, &hour, testLog),
@@ -1187,15 +1187,15 @@ func TestHandlePostMultiClientCommandWithTags(t *testing.T) {
 			connMock2 := makeConnMock(t, 2, time.Date(2020, 10, 10, 10, 10, 2, 0, time.UTC))
 			connMock4 := makeConnMock(t, 4, time.Date(2020, 10, 10, 10, 10, 4, 0, time.UTC))
 
-			c1 := clients.New(t).ID("client-1").Connection(connMock1).Build()
-			c2 := clients.New(t).ID("client-2").Connection(connMock2).Build()
-			c3 := clients.New(t).ID("client-3").DisconnectedDuration(5 * time.Minute).Build()
-			c4 := clients.New(t).ID("client-4").Connection(connMock4).Build()
+			c1 := clients.New(t).ID("client-1").Connection(connMock1).Logger(testLog).Build()
+			c2 := clients.New(t).ID("client-2").Connection(connMock2).Logger(testLog).Build()
+			c3 := clients.New(t).ID("client-3").DisconnectedDuration(5 * time.Minute).Logger(testLog).Build()
+			c4 := clients.New(t).ID("client-4").Connection(connMock4).Logger(testLog).Build()
 
-			c1.Tags = []string{"linux"}
-			c2.Tags = []string{"windows"}
-			c3.Tags = []string{"mac"}
-			c4.Tags = []string{"linux", "windows"}
+			c1.SetTags([]string{"linux"})
+			c2.SetTags([]string{"windows"})
+			c3.SetTags([]string{"mac"})
+			c4.SetTags([]string{"linux", "windows"})
 
 			g1 := makeClientGroup("group-1", &cgroups.ClientParams{
 				ClientID: &cgroups.ParamValues{"client-1", "client-2"},
@@ -1209,9 +1209,9 @@ func TestHandlePostMultiClientCommandWithTags(t *testing.T) {
 				Version:  &cgroups.ParamValues{"0.1.1*"},
 			})
 
-			c1.AllowedUserGroups = []string{"group-1"}
-			c2.AllowedUserGroups = []string{"group-1"}
-			c4.AllowedUserGroups = []string{"group-2"}
+			c1.SetAllowedUserGroups([]string{"group-1"})
+			c2.SetAllowedUserGroups([]string{"group-1"})
+			c4.SetAllowedUserGroups([]string{"group-2"})
 
 			clientList := []*clients.Client{c1, c2, c4}
 
@@ -1425,15 +1425,15 @@ func TestHandlePostMultiClientWSCommandWithTags(t *testing.T) {
 			connMock2 := makeConnMock(t, 2, time.Date(2020, 10, 10, 10, 10, 2, 0, time.UTC))
 			connMock4 := makeConnMock(t, 4, time.Date(2020, 10, 10, 10, 10, 4, 0, time.UTC))
 
-			c1 := clients.New(t).ID("client-1").Connection(connMock1).Build()
-			c2 := clients.New(t).ID("client-2").Connection(connMock2).Build()
-			c3 := clients.New(t).ID("client-3").DisconnectedDuration(5 * time.Minute).Build()
-			c4 := clients.New(t).ID("client-4").Connection(connMock4).Build()
+			c1 := clients.New(t).ID("client-1").Connection(connMock1).Logger(testLog).Build()
+			c2 := clients.New(t).ID("client-2").Connection(connMock2).Logger(testLog).Build()
+			c3 := clients.New(t).ID("client-3").DisconnectedDuration(5 * time.Minute).Logger(testLog).Build()
+			c4 := clients.New(t).ID("client-4").Connection(connMock4).Logger(testLog).Build()
 
-			c1.Tags = []string{"linux"}
-			c2.Tags = []string{"windows"}
-			c3.Tags = []string{"mac"}
-			c4.Tags = []string{"linux", "windows"}
+			c1.SetTags([]string{"linux"})
+			c2.SetTags([]string{"windows"})
+			c3.SetTags([]string{"mac"})
+			c4.SetTags([]string{"linux", "windows"})
 
 			g1 := makeClientGroup("group-1", &cgroups.ClientParams{
 				ClientID: &cgroups.ParamValues{"client-1", "client-2"},
@@ -1447,9 +1447,9 @@ func TestHandlePostMultiClientWSCommandWithTags(t *testing.T) {
 				Version:  &cgroups.ParamValues{"0.1.1*"},
 			})
 
-			c1.AllowedUserGroups = []string{"group-1"}
-			c2.AllowedUserGroups = []string{"group-1"}
-			c4.AllowedUserGroups = []string{"group-2"}
+			c1.SetAllowedUserGroups([]string{"group-1"})
+			c2.SetAllowedUserGroups([]string{"group-1"})
+			c4.SetAllowedUserGroups([]string{"group-2"})
 
 			clientList := []*clients.Client{c1, c2, c4}
 
@@ -1659,15 +1659,15 @@ func TestHandlePostMultiClientScriptWithTags(t *testing.T) {
 			connMock2 := makeConnMock(t, 2, time.Date(2020, 10, 10, 10, 10, 2, 0, time.UTC))
 			connMock4 := makeConnMock(t, 4, time.Date(2020, 10, 10, 10, 10, 4, 0, time.UTC))
 
-			c1 := clients.New(t).ID("client-1").Connection(connMock1).Build()
-			c2 := clients.New(t).ID("client-2").Connection(connMock2).Build()
-			c3 := clients.New(t).ID("client-3").DisconnectedDuration(5 * time.Minute).Build()
-			c4 := clients.New(t).ID("client-4").Connection(connMock4).Build()
+			c1 := clients.New(t).ID("client-1").Connection(connMock1).Logger(testLog).Build()
+			c2 := clients.New(t).ID("client-2").Connection(connMock2).Logger(testLog).Build()
+			c3 := clients.New(t).ID("client-3").DisconnectedDuration(5 * time.Minute).Logger(testLog).Build()
+			c4 := clients.New(t).ID("client-4").Connection(connMock4).Logger(testLog).Build()
 
-			c1.Tags = []string{"linux"}
-			c2.Tags = []string{"windows"}
-			c3.Tags = []string{"mac"}
-			c4.Tags = []string{"linux", "windows"}
+			c1.SetTags([]string{"linux"})
+			c2.SetTags([]string{"windows"})
+			c3.SetTags([]string{"mac"})
+			c4.SetTags([]string{"linux", "windows"})
 
 			g1 := makeClientGroup("group-1", &cgroups.ClientParams{
 				ClientID: &cgroups.ParamValues{"client-1", "client-2"},
@@ -1681,9 +1681,9 @@ func TestHandlePostMultiClientScriptWithTags(t *testing.T) {
 				Version:  &cgroups.ParamValues{"0.1.1*"},
 			})
 
-			c1.AllowedUserGroups = []string{"group-1"}
-			c2.AllowedUserGroups = []string{"group-1"}
-			c4.AllowedUserGroups = []string{"group-2"}
+			c1.SetAllowedUserGroups([]string{"group-1"})
+			c2.SetAllowedUserGroups([]string{"group-1"})
+			c4.SetAllowedUserGroups([]string{"group-2"})
 
 			clientList := []*clients.Client{c1, c2, c4}
 
@@ -1899,15 +1899,15 @@ func TestHandlePostMultiClientWSScriptWithTags(t *testing.T) {
 			connMock2 := makeConnMock(t, 2, time.Date(2020, 10, 10, 10, 10, 2, 0, time.UTC))
 			connMock4 := makeConnMock(t, 4, time.Date(2020, 10, 10, 10, 10, 4, 0, time.UTC))
 
-			c1 := clients.New(t).ID("client-1").Connection(connMock1).Build()
-			c2 := clients.New(t).ID("client-2").Connection(connMock2).Build()
-			c3 := clients.New(t).ID("client-3").DisconnectedDuration(5 * time.Minute).Build()
-			c4 := clients.New(t).ID("client-4").Connection(connMock4).Build()
+			c1 := clients.New(t).ID("client-1").Connection(connMock1).Logger(testLog).Build()
+			c2 := clients.New(t).ID("client-2").Connection(connMock2).Logger(testLog).Build()
+			c3 := clients.New(t).ID("client-3").DisconnectedDuration(5 * time.Minute).Logger(testLog).Build()
+			c4 := clients.New(t).ID("client-4").Connection(connMock4).Logger(testLog).Build()
 
-			c1.Tags = []string{"linux"}
-			c2.Tags = []string{"windows"}
-			c3.Tags = []string{"mac"}
-			c4.Tags = []string{"linux", "windows"}
+			c1.SetTags([]string{"linux"})
+			c2.SetTags([]string{"windows"})
+			c3.SetTags([]string{"mac"})
+			c4.SetTags([]string{"linux", "windows"})
 
 			g1 := makeClientGroup("group-1", &cgroups.ClientParams{
 				ClientID: &cgroups.ParamValues{"client-1", "client-2"},
@@ -1921,9 +1921,9 @@ func TestHandlePostMultiClientWSScriptWithTags(t *testing.T) {
 				Version:  &cgroups.ParamValues{"0.1.1*"},
 			})
 
-			c1.AllowedUserGroups = []string{"group-1"}
-			c2.AllowedUserGroups = []string{"group-1"}
-			c4.AllowedUserGroups = []string{"group-2"}
+			c1.SetAllowedUserGroups([]string{"group-1"})
+			c2.SetAllowedUserGroups([]string{"group-1"})
+			c4.SetAllowedUserGroups([]string{"group-2"})
 
 			clientList := []*clients.Client{c1, c2, c4}
 

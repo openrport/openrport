@@ -28,7 +28,7 @@ func (al *APIListener) handleGetStoredTunnels(w http.ResponseWriter, req *http.R
 	}
 
 	options := query.GetListOptions(req)
-	result, err := al.storedTunnels.List(ctx, options, client.ID)
+	result, err := al.storedTunnels.List(ctx, options, client.GetID())
 	if err != nil {
 		al.jsonError(w, err)
 		return
@@ -59,7 +59,7 @@ func (al *APIListener) handlePostStoredTunnels(w http.ResponseWriter, req *http.
 		return
 	}
 
-	result, err := al.storedTunnels.Create(ctx, client.ID, storedTunnel)
+	result, err := al.storedTunnels.Create(ctx, client.GetID(), storedTunnel)
 	if err != nil {
 		al.jsonError(w, err)
 		return
@@ -84,7 +84,7 @@ func (al *APIListener) handleDeleteStoredTunnel(w http.ResponseWriter, req *http
 		return
 	}
 
-	err = al.storedTunnels.Delete(ctx, client.ID, tunnelID)
+	err = al.storedTunnels.Delete(ctx, client.GetID(), tunnelID)
 	if err != nil {
 		al.jsonError(w, err)
 		return
@@ -117,7 +117,7 @@ func (al *APIListener) handlePutStoredTunnel(w http.ResponseWriter, req *http.Re
 	}
 	storedTunnel.ID = tunnelID
 
-	result, err := al.storedTunnels.Update(ctx, client.ID, storedTunnel)
+	result, err := al.storedTunnels.Update(ctx, client.GetID(), storedTunnel)
 	if err != nil {
 		al.jsonError(w, err)
 		return

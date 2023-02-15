@@ -44,12 +44,13 @@ func (al *APIListener) handleGetTunnels(w http.ResponseWriter, req *http.Request
 
 	tunnels := make([]TunnelPayload, 0)
 	for _, c := range clients {
-		if c.DisconnectedAt != nil {
+		clientID := c.GetID()
+		if !c.IsConnected() {
 			continue
 		}
 
-		for _, t := range c.Tunnels {
-			tunnels = append(tunnels, convertToTunnelPayload(t, c.ID))
+		for _, t := range c.GetTunnels() {
+			tunnels = append(tunnels, convertToTunnelPayload(t, clientID))
 		}
 	}
 

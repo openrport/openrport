@@ -84,11 +84,12 @@ func TestWithResponse(t *testing.T) {
 }
 
 func TestWithClient(t *testing.T) {
-	e := emptyEntry().WithClient(&clients.Client{
-		ID:       "11236310-6cad-408e-b372-a0f04d68d2df",
-		Address:  "127.0.0.1",
-		Hostname: "hostname",
-	})
+	c1 := clients.Client{}
+	c1.SetID("11236310-6cad-408e-b372-a0f04d68d2df")
+	c1.SetAddress("127.0.0.1")
+	c1.SetHostname("hostname")
+
+	e := emptyEntry().WithClient(&c1)
 
 	assert.Equal(t, "11236310-6cad-408e-b372-a0f04d68d2df", e.ClientID)
 	assert.Equal(t, "hostname", e.ClientHostName)
@@ -136,18 +137,17 @@ func TestSaveForMultipleClients(t *testing.T) {
 	auditLog := enabledAuditLog()
 	auditLog.provider = mockProvider
 
-	auditLog.Entry("", "").SaveForMultipleClients([]*clients.Client{
-		{
-			ID:       "c1",
-			Address:  "c1.com",
-			Hostname: "hostname1",
-		},
-		{
-			ID:       "c2",
-			Address:  "c2.com",
-			Hostname: "hostname2",
-		},
-	})
+	c1 := clients.Client{}
+	c1.SetID("c1")
+	c1.SetAddress("c1.com")
+	c1.SetHostname("hostname1")
+
+	c2 := clients.Client{}
+	c2.SetID("c2")
+	c2.SetAddress("c2.com")
+	c2.SetHostname("hostname2")
+
+	auditLog.Entry("", "").SaveForMultipleClients([]*clients.Client{&c1, &c2})
 
 	assert.Len(t, mockProvider.entries, 2)
 	assert.Equal(t, "c1", mockProvider.entries[0].ClientID)
@@ -172,12 +172,13 @@ type mockClientGetter struct {
 }
 
 func (mockClientGetter) GetByID(id string) (*clients.Client, error) {
+	c1 := clients.Client{}
+	c1.SetID("11236310-6cad-408e-b372-a0f04d68d2df")
+	c1.SetAddress("127.0.0.1")
+	c1.SetHostname("hostname")
+
 	if id == "11236310-6cad-408e-b372-a0f04d68d2df" {
-		return &clients.Client{
-			ID:       "11236310-6cad-408e-b372-a0f04d68d2df",
-			Address:  "127.0.0.1",
-			Hostname: "hostname",
-		}, nil
+		return &c1, nil
 	}
 	return nil, nil
 }
