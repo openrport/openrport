@@ -291,15 +291,16 @@ func (c *Client) SetClientAuthID(authID string) {
 
 // test only
 func (c *Client) SetTags(tags []string) {
+	c.flock.Lock()
+	defer c.flock.Unlock()
+
 	if c.Tags == nil {
 		return
 	}
 
-	c.flock.Lock()
 	// make sure not to just copy the tag reference
 	c.Tags = make([]string, len(c.Tags))
 	copy(c.Tags, tags)
-	c.flock.Unlock()
 }
 
 // test only
@@ -317,8 +318,11 @@ func (c *Client) SetTunnels(tunnels []*clienttunnel.Tunnel) {
 
 func (c *Client) SetAllowedUserGroups(groups []string) {
 	c.flock.Lock()
-	c.AllowedUserGroups = groups
-	c.flock.Unlock()
+	defer c.flock.Unlock()
+
+	// make sure not to just copy the tag reference
+	c.AllowedUserGroups = make([]string, len(groups))
+	copy(c.AllowedUserGroups, groups)
 }
 
 func (c *Client) SetUpdatesStatus(status *models.UpdatesStatus) {
@@ -328,9 +332,8 @@ func (c *Client) SetUpdatesStatus(status *models.UpdatesStatus) {
 }
 
 func (c *Client) SetDisconnectedAt(at *time.Time) {
-	l := c.Log()
-	if l != nil && at != nil {
-		l.Debugf("%s: set to disconnected at %s", c.GetID(), at)
+	if at != nil {
+		c.Log().Debugf("%s: set to disconnected at %s", c.GetID(), at)
 	}
 	c.flock.Lock()
 	c.DisconnectedAt = at
@@ -391,8 +394,7 @@ func (c *Client) ToCalculated(allGroups []*cgroups.ClientGroup) *CalculatedClien
 // If a given duration is nil - returns false (never obsolete).
 func (c *Client) Obsolete(duration *time.Duration) bool {
 	disconnectedAt := c.GetDisconnectedAt()
-	return duration != nil && disconnectedAt != nil &&
-		disconnectedAt.Add(*duration).Before(now())
+	return duration != nil && !c.IsConnected() && disconnectedAt.Add(*duration).Before(now())
 }
 
 func (c *Client) NewTunnelID() (tunnelID string) {

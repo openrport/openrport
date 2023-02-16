@@ -44,6 +44,7 @@ var upgrader = websocket.Upgrader{
 type ClientListener struct {
 	logger *logger.Logger
 	server *Server
+	ctx    context.Context
 
 	connStats         chshare.ConnStats
 	httpServer        *chshare.HTTPServer
@@ -61,13 +62,19 @@ type ClientListener struct {
 	mu sync.RWMutex
 }
 
-func (cl *ClientListener) Log() (l *logger.Logger) {
+func (cl *ClientListener) log() (l *logger.Logger) {
 	cl.mu.RLock()
 	defer cl.mu.RUnlock()
 	return cl.logger
 }
 
-func (cl *ClientListener) GetClientService() (cs clients.ClientService) {
+func (cl *ClientListener) getCtx() (ctx context.Context) {
+	cl.mu.RLock()
+	defer cl.mu.RUnlock()
+	return cl.ctx
+}
+
+func (cl *ClientListener) getClientService() (cs clients.ClientService) {
 	cl.mu.RLock()
 	defer cl.mu.RUnlock()
 	return cl.server.clientService
@@ -131,7 +138,7 @@ func (cl *ClientListener) authUser(c ssh.ConnMetadata, password []byte) (*ssh.Pe
 	clientAuthID := c.User()
 
 	if cl.bannedClientAuths.IsBanned(clientAuthID) {
-		cl.Log().Infof("Failed login attempt for client auth id %q, forcing to wait for %vs (%s)",
+		cl.log().Infof("Failed login attempt for client auth id %q, forcing to wait for %vs (%s)",
 			clientAuthID,
 			cl.server.config.Server.ClientLoginWait,
 			cl.getIP(c.RemoteAddr()),
@@ -147,7 +154,7 @@ func (cl *ClientListener) authUser(c ssh.ConnMetadata, password []byte) (*ssh.Pe
 	ip := cl.getIP(c.RemoteAddr())
 	// constant time compare is used for security reasons
 	if clientAuth == nil || subtle.ConstantTimeCompare([]byte(clientAuth.Password), password) != 1 {
-		cl.Log().Debugf("Login failed for client auth id: %s", clientAuthID)
+		cl.log().Debugf("Login failed for client auth id: %s", clientAuthID)
 		cl.bannedClientAuths.Add(clientAuthID)
 		if cl.bannedIPs != nil {
 			cl.bannedIPs.AddBadAttempt(ip)
@@ -165,15 +172,19 @@ func (cl *ClientListener) getIP(addr net.Addr) string {
 	addrStr := addr.String()
 	host, _, err := net.SplitHostPort(addrStr)
 	if err != nil {
-		cl.Log().Errorf("failed to split host port for %q: %v", addr, err)
+		cl.log().Errorf("failed to split host port for %q: %v", addr, err)
 		return addrStr
 	}
 	return host
 }
 
 func (cl *ClientListener) Start(ctx context.Context, listenAddr string) error {
-	clLogger := cl.Log()
+	clLogger := cl.log()
 	clLogger.Debugf("Client listener starting...")
+
+	// save the server ctx for use when handling client ssh connections etc
+	cl.ctx = ctx
+
 	if cl.reverseProxy != nil {
 		clLogger.Infof("Reverse proxy enabled")
 	}
@@ -199,7 +210,7 @@ func (cl *ClientListener) Close() error {
 }
 
 func (cl *ClientListener) handleClient(w http.ResponseWriter, r *http.Request) {
-	cl.Log().Debugf("Incoming client connection...")
+	cl.log().Debugf("Incoming client connection...")
 	//websockets upgrade AND has rport prefix
 	upgrade := strings.ToLower(r.Header.Get("Upgrade"))
 	protocol := r.Header.Get("Sec-WebSocket-Protocol")
@@ -209,7 +220,7 @@ func (cl *ClientListener) handleClient(w http.ResponseWriter, r *http.Request) {
 			return
 		}
 		//print into server logs and silently fall-through
-		cl.Log().Infof("ignored client connection using protocol '%s', expected '%s'",
+		cl.log().Infof("ignored client connection using protocol '%s', expected '%s'",
 			protocol, chshare.ProtocolVersion)
 	}
 	//proxy target was provided
@@ -230,7 +241,7 @@ func (cl *ClientListener) acceptSSHConnection(w http.ResponseWriter, req *http.R
 	// add to pending connections. will block if the chan is full
 	cl.inprogressSSHHandshakes <- struct{}{}
 
-	clog = cl.Log().Fork("client#%d", cl.nextClientIndex())
+	clog = cl.log().Fork("client#%d", cl.nextClientIndex())
 
 	clog.Debugf("Handling inbound web socket connection...")
 	ts := time.Now()
@@ -264,11 +275,16 @@ func (cl *ClientListener) acceptSSHConnection(w http.ResponseWriter, req *http.R
 
 func (cl *ClientListener) receiveClientConnectionRequest(sshConn *ssh.ServerConn, reqs <-chan *ssh.Request, clog *logger.Logger) (connRequest *chshare.ConnectionRequest, r *ssh.Request, err error) {
 	pendingRequestTimer := time.NewTimer(ConnectionRequestTimeOut)
+
 	select {
 	case r = <-reqs:
 		pendingRequestTimer.Stop()
 
-	case <-time.After(ConnectionRequestTimeOut):
+	case <-cl.getCtx().Done():
+		pendingRequestTimer.Stop()
+		return nil, nil, cl.ctx.Err()
+
+	case <-pendingRequestTimer.C:
 		clog.Debugf("SSH connection request timeout exceeded %s sec", ConnectionRequestTimeOut.Seconds())
 		err = sshConn.Close()
 		if err != nil {
@@ -298,24 +314,24 @@ func (cl *ClientListener) handleWebsocket(w http.ResponseWriter, req *http.Reque
 	// keep the time from the initial client connection attempt
 	ts1 := time.Now()
 
-	sshConn, chans, reqs, clog, err := cl.acceptSSHConnection(w, req)
+	sshConn, chans, reqs, clientLog, err := cl.acceptSSHConnection(w, req)
 	if err != nil {
 		return
 	}
 
 	// verify configuration
-	clog.Debugf("Verifying configuration...")
+	clientLog.Debugf("Verifying configuration...")
 
 	// first request to be received must be a connection request
-	connRequest, r, err := cl.receiveClientConnectionRequest(sshConn, reqs, clog)
+	connRequest, r, err := cl.receiveClientConnectionRequest(sshConn, reqs, clientLog)
 	if err != nil {
 		cl.replyConnectionError(r, err)
 		return
 	}
 
-	clog.Debugf("client version: %s", connRequest.Version)
+	clientLog.Debugf("client version: %s", connRequest.Version)
 
-	checkVersions(clog, connRequest.Version)
+	checkVersions(clientLog, connRequest.Version)
 
 	// get the current client auth id
 	clientAuthID := sshConn.User()
@@ -326,16 +342,15 @@ func (cl *ClientListener) handleWebsocket(w http.ResponseWriter, req *http.Reque
 		return
 	}
 
-	// TODO: (rs): shouldn't this ctx be based on the server start ctx?
-	ctx, cancel := context.WithCancel(context.Background())
+	ctx, cancel := context.WithCancel(cl.getCtx())
 	defer cancel()
 
-	client, err := cl.GetClientService().StartClient(ctx, clientAuthID, clientID, sshConn, cl.server.config.Server.AuthMultiuseCreds, connRequest, clog)
+	client, err := cl.getClientService().StartClient(ctx, clientAuthID, clientID, sshConn, cl.server.config.Server.AuthMultiuseCreds, connRequest, clientLog)
 	if err != nil {
 		cl.replyConnectionError(r, err)
 		return
 	}
-	clog.Debugf("Client service started for %s (%s) within %s", client.GetID(), client.GetName(), time.Since(ts1))
+	clientLog.Debugf("Client service started for %s (%s) within %s", client.GetID(), client.GetName(), time.Since(ts1))
 
 	ts2 := time.Now()
 
@@ -344,22 +359,21 @@ func (cl *ClientListener) handleWebsocket(w http.ResponseWriter, req *http.Reque
 	// Now the client is fully connected and ready to create tunnels and execute command and scripts
 
 	clientBanner := client.Banner()
-	clog.Debugf("opened %s within %s", clientBanner, time.Since(ts2))
+	clientLog.Debugf("opened %s within %s", clientBanner, time.Since(ts2))
 
 	// now run handler for other client requests and connections
-	// TODO: (rs): shouldn't these also use the server start ctx
-	go cl.handleSSHRequests(clog, clientID, reqs)
-	go cl.handleSSHChannels(clog, chans)
+	go cl.handleSSHRequests(clientLog, clientID, reqs)
+	go cl.handleSSHChannels(clientLog, chans)
 
 	// wait until we're disconnected from the client
 	if err = sshConn.Wait(); err != nil {
-		clog.Debugf("sshConn.Wait() error: %s", err)
+		clientLog.Debugf("sshConn.Wait() error: %s", err)
 	}
-	clog.Debugf("close %s", clientBanner)
+	clientLog.Debugf("close %s", clientBanner)
 
-	err = cl.GetClientService().Terminate(client)
+	err = cl.getClientService().Terminate(client)
 	if err != nil {
-		cl.Log().Errorf("could not terminate client: %s", err)
+		cl.log().Errorf("could not terminate client: %s", err)
 	}
 }
 
@@ -393,7 +407,7 @@ func (cl *ClientListener) getClientID(reqID string, config *chconfig.Config, cli
 func (cl *ClientListener) replyConnectionSuccess(r *ssh.Request, remotes []*models.Remote) {
 	replyPayload, err := json.Marshal(remotes)
 	if err != nil {
-		cl.Log().Errorf("can't encode success reply payload")
+		cl.log().Errorf("can't encode success reply payload")
 		cl.replyConnectionError(r, err)
 		return
 	}
@@ -403,11 +417,11 @@ func (cl *ClientListener) replyConnectionSuccess(r *ssh.Request, remotes []*mode
 
 func (cl *ClientListener) replyConnectionError(r *ssh.Request, err error) {
 	if r == nil {
-		cl.Log().Errorf("failed to send connection reply with error due to nil request")
+		cl.log().Errorf("failed to send connection reply with error due to nil request")
 		return
 	}
 	if err == nil {
-		cl.Log().Debugf("sending connection reply with nil error: %s", r.Type)
+		cl.log().Debugf("sending connection reply with nil error: %s", r.Type)
 		_ = r.Reply(false, nil)
 		return
 	}
@@ -415,7 +429,7 @@ func (cl *ClientListener) replyConnectionError(r *ssh.Request, err error) {
 }
 
 func (cl *ClientListener) handleSSHRequests(clientLog *logger.Logger, clientID string, reqs <-chan *ssh.Request) {
-	clientService := cl.GetClientService()
+	clientService := cl.getClientService()
 
 	for r := range reqs {
 		if len(r.Payload) > int(cl.server.config.Server.MaxRequestBytesClient) {
@@ -554,11 +568,11 @@ func (cl *ClientListener) saveCmdResult(respBytes []byte) (*models.Job, error) {
 	if ws != nil {
 		err := ws.WriteMessage(websocket.TextMessage, respBytes)
 		if err != nil {
-			cl.Log().Errorf("%s, failed to write message to UI Web Socket: %v", resp.LogPrefix(), err)
+			cl.log().Errorf("%s, failed to write message to UI Web Socket: %v", resp.LogPrefix(), err)
 			// proceed further
 		}
 	} else {
-		cl.Log().Debugf("%s, WS conn not found when saving command result. No active listeners connected", resp.LogPrefix())
+		cl.log().Debugf("%s, WS conn not found when saving command result. No active listeners connected", resp.LogPrefix())
 	}
 
 	err = cl.server.jobProvider.SaveJob(&resp)
@@ -707,11 +721,11 @@ func (cl *ClientListener) handleSessionChannel(stream ssh.Channel, clientLog *lo
 func (cl *ClientListener) sendCapabilities(conn *ssh.ServerConn) {
 	payload, err := json.Marshal(cl.server.capabilities)
 	if err != nil {
-		cl.Log().Errorf("can't encode capabilities payload")
+		cl.log().Errorf("can't encode capabilities payload")
 		return
 	}
 
 	if _, _, err = conn.SendRequest(comm.RequestTypePutCapabilities, false, payload); err != nil {
-		cl.Log().Errorf("can't send capabilities: %v", err)
+		cl.log().Errorf("can't send capabilities: %v", err)
 	}
 }

@@ -48,11 +48,12 @@ func (t *ClientsStatusCheckTask) Run(ctx context.Context) error {
 
 	// make a channel that will receive all the clients to ping
 	clientsToPing := make(chan *clients.Client, len(dueClients))
+	// make another channel for ping results
 	results := make(chan bool, len(dueClients))
 
 	// create workers to ping clients
 	for w := 1; w <= maxWorkers; w++ {
-		go t.PingClients(w, clientsToPing, results)
+		go t.PingClients(ctx, w, clientsToPing, results)
 	}
 
 	// send the clients to ping to the workers
@@ -83,7 +84,7 @@ func (t *ClientsStatusCheckTask) Run(ctx context.Context) error {
 func (t *ClientsStatusCheckTask) getDueClients() (dueClients []*clients.Client) {
 	var confirmedClients = 0
 	var now = time.Now()
-	activeClients, _ := t.clientRepo.GetAllActiveClients()
+	activeClients := t.clientRepo.GetAllActiveClients()
 	for _, c := range activeClients {
 		// Shorten the threshold aka make heartbeat older than it is because the ping response is stored after this check.
 		// Clients would get checked only every second time otherwise.
@@ -101,12 +102,12 @@ func (t *ClientsStatusCheckTask) getDueClients() (dueClients []*clients.Client) 
 	return dueClients
 }
 
-func (t *ClientsStatusCheckTask) PingClients(workerNum int, clientsToPing <-chan *clients.Client, results chan<- bool) {
+func (t *ClientsStatusCheckTask) PingClients(ctx context.Context, workerNum int, clientsToPing <-chan *clients.Client, results chan<- bool) {
 	// while there are clients to ping
 	for cl := range clientsToPing {
 		clientName := cl.GetName()
 		clientID := cl.GetID()
-		ok, response, rtt, err := comm.PingConnectionWithTimeout(cl.GetConnection(), t.pingTimeout, cl.Log())
+		ok, response, rtt, err := comm.PingConnectionWithTimeout(ctx, cl.GetConnection(), t.pingTimeout, cl.Log())
 		//t.log.Debugf("ok=%s, error=%s, response=%s", ok, err, response)
 
 		// Old clients cannot respond properly to a ping request yet

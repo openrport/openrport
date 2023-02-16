@@ -40,7 +40,7 @@ type ClientService interface {
 	GetClientsByTag(tags []string, operator string, allowDisconnected bool) (clients []*Client, err error)
 	GetAllByClientID(clientID string) []*Client
 	GetAll() []*Client
-	GetUserClients(groups []*cgroups.ClientGroup, user User) ([]*Client, error)
+	GetUserClients(groups []*cgroups.ClientGroup, user User) []*Client
 	GetFilteredUserClients(user User, filterOptions []query.FilterOption, groups []*cgroups.ClientGroup) ([]*CalculatedClient, error)
 
 	PopulateGroupsWithUserClients(groups []*cgroups.ClientGroup, user User)
@@ -82,12 +82,6 @@ type ClientServiceProvider struct {
 	licensecap licensecap.CapabilityEx
 
 	mu sync.RWMutex
-}
-
-func (s *ClientServiceProvider) log() (l *logger.Logger) {
-	s.mu.RLock()
-	defer s.mu.RUnlock()
-	return s.logger
 }
 
 var OptionsSupportedFilters = map[string]bool{
@@ -224,7 +218,7 @@ func (s *ClientServiceProvider) UpdateClientStatus() {
 
 	s.log().Debugf("updating client status")
 
-	clientList, _ := s.repo.GetAllActiveClients()
+	clientList := s.repo.GetAllActiveClients()
 
 	for i, client := range clientList {
 		if i < s.GetMaxClients() {
@@ -276,7 +270,7 @@ func (s *ClientServiceProvider) GetClientsByTag(tags []string, operator string, 
 }
 
 func (s *ClientServiceProvider) PopulateGroupsWithUserClients(groups []*cgroups.ClientGroup, user User) {
-	availableClients, _ := s.repo.GetUserClients(user, groups)
+	availableClients := s.repo.GetUserClients(user, groups)
 	for _, client := range availableClients {
 		clientID := client.GetID()
 		for _, curGroup := range groups {
@@ -298,7 +292,7 @@ func (s *ClientServiceProvider) GetAll() []*Client {
 	return s.repo.GetAllClients()
 }
 
-func (s *ClientServiceProvider) GetUserClients(groups []*cgroups.ClientGroup, user User) ([]*Client, error) {
+func (s *ClientServiceProvider) GetUserClients(groups []*cgroups.ClientGroup, user User) []*Client {
 	return s.repo.GetUserClients(user, groups)
 }
 
@@ -389,8 +383,8 @@ func (s *ClientServiceProvider) StartClient(
 	}
 
 	// TODO: (rs): should we keep this?
-	_, totalClients := repo.GetAllActiveClients()
-	s.log().Debugf("total clients = %d (last: %s)", totalClients, client.GetName())
+	totalClients := repo.GetAllActiveClients()
+	s.log().Debugf("total clients = %d (last: %s)", len(totalClients), client.GetName())
 
 	return client, nil
 }
@@ -660,12 +654,11 @@ func (s *ClientServiceProvider) CheckClientsAccess(clients []*Client, user User,
 	var clientsWithNoAccess []string
 	userGroups := user.GetGroups()
 	for _, client := range clients {
-		clientID := client.GetID()
 		if client.HasAccessViaUserGroups(userGroups) || client.UserGroupHasAccessViaClientGroup(userGroups, clientGroups) {
 			continue
 		}
 
-		clientsWithNoAccess = append(clientsWithNoAccess, clientID)
+		clientsWithNoAccess = append(clientsWithNoAccess, client.GetID())
 	}
 
 	if len(clientsWithNoAccess) > 0 {
@@ -700,12 +693,6 @@ func (s *ClientServiceProvider) getExistingClientByID(clientID string) (*Client,
 	}
 
 	return existing, nil
-}
-
-func (s *ClientServiceProvider) GetRepo() *ClientRepository {
-	s.mu.RLock()
-	defer s.mu.RUnlock()
-	return s.repo
 }
 
 func (s *ClientServiceProvider) excludeNotAllowedTunnels(clog *logger.Logger, tunnels []*models.Remote, conn ssh.Conn) ([]*models.Remote, error) {
@@ -748,6 +735,7 @@ func (s *ClientServiceProvider) FindTunnel(c *Client, id string) *clienttunnel.T
 }
 
 func (s *ClientServiceProvider) SetCaddyAPI(capi caddy.API) {
+	// unguarded as set during initialization
 	s.caddyAPI = capi
 }
 
@@ -875,10 +863,11 @@ func (s *ClientServiceProvider) startTunnelWithProxy(
 	proxyHost := ""
 	proxyPort := ""
 
+	clientID := client.GetID()
 	clientLogger := client.Log()
 
 	// assuming that we still want to log activity in the client log
-	client.Logger.Debugf("client %s will use tunnel proxy", client.GetID())
+	clientLogger.Debugf("client %s will use tunnel proxy", clientID)
 
 	// get values for tunnel proxy local host addr from original remote
 	proxyHost = remote.LocalHost
@@ -898,7 +887,7 @@ func (s *ClientServiceProvider) startTunnelWithProxy(
 	tunnelID := client.NewTunnelID()
 
 	// original tunnel will use the reconfigured original remote
-	t, err := clienttunnel.NewTunnel(client.Logger, client.GetConnection(), tunnelID, *remote, acl)
+	t, err := clienttunnel.NewTunnel(clientLogger, client.GetConnection(), tunnelID, *remote, acl)
 	if err != nil {
 		return nil, err
 	}
@@ -910,10 +899,10 @@ func (s *ClientServiceProvider) startTunnelWithProxy(
 	}
 
 	// create new proxy tunnel listening at the original tunnel local host addr
-	tProxy := clienttunnel.NewInternalTunnelProxy(t, client.Log(), s.tunnelProxyConfig, proxyHost, proxyPort, proxyACL)
-	clientLogger.Debugf("client %s starting tunnel proxy", client.GetID())
+	tProxy := clienttunnel.NewInternalTunnelProxy(t, clientLogger, s.tunnelProxyConfig, proxyHost, proxyPort, proxyACL)
+	clientLogger.Debugf("client %s starting tunnel proxy", clientID)
 	if err := tProxy.Start(ctx); err != nil {
-		client.Logger.Debugf("tunnel proxy could not be started, tunnel must be terminated: %v", err)
+		clientLogger.Debugf("tunnel proxy could not be started, tunnel must be terminated: %v", err)
 		if tErr := t.Terminate(true); tErr != nil {
 			return nil, tErr
 		}
@@ -926,7 +915,7 @@ func (s *ClientServiceProvider) startTunnelWithProxy(
 	t.Remote.LocalHost = t.InternalTunnelProxy.Host
 	t.Remote.LocalPort = t.InternalTunnelProxy.Port
 
-	clientLogger.Debugf("client %s started tunnel with proxy: %#v", client.GetID(), t)
+	clientLogger.Debugf("client %s started tunnel with proxy: %#v", clientID, t)
 	clientLogger.Debugf("internal tunnel proxy: %#v", t.InternalTunnelProxy)
 
 	return t, nil
@@ -1038,7 +1027,7 @@ func (s *ClientServiceProvider) SetTunnelACL(c *Client, t *clienttunnel.Tunnel, 
 
 	err = s.repo.Save(c)
 	if err != nil {
-		c.Logger.Errorf("unable to save client after tunnel ACL update: %v", err)
+		c.Log().Errorf("unable to save client after tunnel ACL update: %v", err)
 	}
 
 	return nil
@@ -1065,4 +1054,16 @@ func (s *ClientServiceProvider) removeCaddyDownstreamProxy(c *Client, t *clientt
 
 	clientLogger.Infof("removed downstream caddy proxy at %s", t.Remote.TunnelURL)
 	return nil
+}
+
+func (s *ClientServiceProvider) GetRepo() *ClientRepository {
+	s.mu.RLock()
+	defer s.mu.RUnlock()
+	return s.repo
+}
+
+func (s *ClientServiceProvider) log() (l *logger.Logger) {
+	s.mu.RLock()
+	defer s.mu.RUnlock()
+	return s.logger
 }

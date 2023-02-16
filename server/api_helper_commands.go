@@ -3,7 +3,6 @@ package chserver
 import (
 	"context"
 	"errors"
-	"fmt"
 	"time"
 
 	"github.com/gorilla/websocket"
@@ -111,13 +110,6 @@ func (al *APIListener) handleCommandsExecutionWS(
 		}
 
 		for _, client := range inboundMsg.OrderedClients {
-			if client.IsPaused() {
-				msg := fmt.Sprintf("failed to execute command/script for client with id %s", client.GetID())
-				err := fmt.Errorf("client is paused (reason = %s)", client.GetPausedReason())
-				uiConnTS.WriteError(msg, err)
-				continue
-			}
-
 			curJID, err := generateNewJobID()
 			if err != nil {
 				uiConnTS.WriteError("Could not generate job id.", err)
@@ -176,14 +168,7 @@ func (al *APIListener) handleCommandsExecutionWS(
 	} else {
 		client := inboundMsg.OrderedClients[0]
 
-		if client.IsPaused() {
-			msg := fmt.Sprintf("failed to execute command/script for client with id %s", client.GetID())
-			err := fmt.Errorf("client is paused (reason = %s)", client.GetPausedReason())
-			uiConnTS.WriteError(msg, err)
-			return
-		}
-
-		al.createAndRunJob(
+		al.createAndRunJob( //nolint:errcheck // error is logged, nothing to act on here
 			uiConnTS,
 			nil,
 			jid,

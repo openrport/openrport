@@ -24,19 +24,6 @@ func NewPortDistributor(allowedPorts mapset.Set) *PortDistributor {
 	}
 }
 
-func (d *PortDistributor) getPoolFromMap(protocol string) (pool mapset.Set) {
-	d.mu.RLock()
-	pool = d.portsPools[protocol]
-	d.mu.RUnlock()
-	return pool
-}
-
-func (d *PortDistributor) setPool(protocol string, pool mapset.Set) {
-	d.mu.Lock()
-	d.portsPools[protocol] = pool
-	d.mu.Unlock()
-}
-
 // NewPortDistributorForTests is used only for unit-testing.
 func NewPortDistributorForTests(allowedPorts, tcpPortsPool, udpPortsPool mapset.Set) *PortDistributor {
 	return &PortDistributor{
@@ -132,4 +119,17 @@ func ListBusyPorts(protocol string) (mapset.Set, error) {
 	}
 
 	return result, nil
+}
+
+func (d *PortDistributor) getPoolFromMap(protocol string) (pool mapset.Set) {
+	d.mu.RLock()
+	pool = d.portsPools[protocol]
+	d.mu.RUnlock()
+	return pool
+}
+
+func (d *PortDistributor) setPool(protocol string, pool mapset.Set) {
+	d.mu.Lock()
+	d.portsPools[protocol] = pool
+	d.mu.Unlock()
 }

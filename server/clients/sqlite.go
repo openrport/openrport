@@ -65,9 +65,9 @@ func (p *SqliteProvider) get(ctx context.Context, id string) (*Client, error) {
 
 func (p *SqliteProvider) Save(ctx context.Context, client *Client) error {
 
-	_, err := sqlite.WithRetryWhenBusy(func() (result sql.Result, err error) {
+	clientForSQL := convertToSqlite(client)
 
-		clientForSQL := convertToSqlite(client)
+	_, err := sqlite.WithRetryWhenBusy(func() (result sql.Result, err error) {
 
 		_, err = p.db.NamedExecContext(
 			ctx,

@@ -112,7 +112,7 @@ func TestStartClient(t *testing.T) {
 }
 
 // this is a fairly crude concurrency test for start client. currently excluded from the regular test runs as
-// it consumes a moderate amount of memory and takes some time to run.
+// it consumes a moderate amount of memory and takes some time to run. If run, remember to uncomment the t.Skip().
 // go test -count=1 -race -v github.com/cloudradar-monitoring/rport/server/clients -run TestStartClientConcurrency
 func TestStartClientConcurrency(t *testing.T) {
 	t.Skip()

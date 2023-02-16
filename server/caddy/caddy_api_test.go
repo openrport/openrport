@@ -90,7 +90,7 @@ func setupNewCaddyServer(ctx context.Context, t *testing.T) (cs *caddy.Server) {
 	require.NoError(t, err)
 	caddy.HostDomainSocket = bc.GlobalSettings.AdminSocket
 
-	// ensure the no existing admin socket file
+	// ensure no existing admin socket file
 	os.Remove(caddy.HostDomainSocket)
 
 	cs = caddy.NewCaddyServer(cfg, testLog)

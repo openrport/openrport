@@ -95,7 +95,7 @@ type requestResponse struct {
 	err      error
 }
 
-func SendRequestWithTimeout(conn ssh.Conn, name string, wantReply bool, payload []byte, timeout time.Duration, l *logger.Logger) (bool, []byte, error) {
+func SendRequestWithTimeout(parentCtx context.Context, conn ssh.Conn, name string, wantReply bool, payload []byte, timeout time.Duration, l *logger.Logger) (bool, []byte, error) {
 	var (
 		ok       bool
 		response []byte
@@ -106,7 +106,7 @@ func SendRequestWithTimeout(conn ssh.Conn, name string, wantReply bool, payload 
 		return false, nil, errors.New("cannot send request when conn is nil")
 	}
 
-	ctx, cancel := context.WithCancel(context.Background())
+	ctx, cancel := context.WithCancel(parentCtx)
 	defer cancel()
 	ch := make(chan requestResponse, 1)
 
@@ -136,21 +136,24 @@ func SendRequestWithTimeout(conn ssh.Conn, name string, wantReply bool, payload 
 }
 
 const DefaultMaxRetryAttempts = 3
+const DefaultRetryWaitJitterMilliSeconds = 500
 
-func WithRetry[R any](retryAbleFn func() (result R, err error), canRetry func(err error) (shouldRetry bool), minRetryWaitDuration time.Duration, label string, l *logger.Logger) (result R, err error) {
+type retryCheckerFn func(err error) (shouldRetry bool)
+
+func WithRetry[R any](retryAbleFn func() (result R, err error), canRetryFn retryCheckerFn, minRetryWaitDuration time.Duration, label string, l *logger.Logger) (result R, err error) {
 	for r := 0; r < DefaultMaxRetryAttempts; r++ {
 		attempt := r + 1
 		// l.Debugf("%s: attempt %d", label, attempt)
-		if r > 0 {
+		if attempt > 1 {
 			// backoff with some jitter
-			delay := (minRetryWaitDuration * time.Duration(r*r)) + time.Duration(rand.Intn(1000))*time.Millisecond
-			l.Debugf("%s: attempt %d failed. will sleep for: %d seconds", label, attempt, delay/time.Second)
+			delay := (minRetryWaitDuration * time.Duration(r*r)) + time.Duration(rand.Intn(DefaultRetryWaitJitterMilliSeconds))*time.Millisecond
+			l.Debugf("%s: attempt %d failed. will sleep for: %0.2f seconds", label, attempt, delay.Seconds())
 			time.Sleep(delay)
 		}
 		result, err = retryAbleFn()
 		if err != nil {
 			l.Debugf("%s: attempt %d err = %+v\n", label, attempt, err)
-			if !canRetry(err) {
+			if !canRetryFn(err) {
 				// non retryable err
 				l.Debugf("%s: attempt %d non-retryable err %v", label, attempt, err)
 				return result, err

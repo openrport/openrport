@@ -246,7 +246,7 @@ func (al *APIListener) handlePutClientTunnel(w http.ResponseWriter, req *http.Re
 		return
 	}
 
-	client.Logger.Debugf("requested remote = %#v", remote)
+	client.Log().Debugf("requested remote = %#v", remote)
 
 	name := req.URL.Query().Get("name")
 	if name != "" {

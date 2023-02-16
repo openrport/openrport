@@ -592,11 +592,10 @@ func TestGetUserClients(t *testing.T) {
 	for _, tc := range testCases {
 		t.Run(tc.name, func(t *testing.T) {
 			// when
-			gotClients, gotErr := repo.GetUserClients(tc.user, clientGroups)
+			gotClients := repo.GetUserClients(tc.user, clientGroups)
 			t.Logf("Access ganted to %d clients", len(gotClients))
 
 			// then
-			require.NoError(t, gotErr)
 			assert.ElementsMatch(t, tc.wantClientIDs, gotClients)
 		})
 	}

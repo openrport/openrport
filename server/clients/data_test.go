@@ -204,7 +204,6 @@ func shallowCopy(c *Client) *Client {
 		Address:                c.Address,
 		Tunnels:                append([]*clienttunnel.Tunnel{}, c.Tunnels...),
 		DisconnectedAt:         c.DisconnectedAt,
-		LastHeartbeatAt:        c.LastHeartbeatAt,
 		ClientAuthID:           c.ClientAuthID,
 		Logger:                 c.Logger,
 	}

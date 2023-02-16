@@ -136,7 +136,7 @@ func (c *Client) Start(ctx context.Context) error {
 	//optional keepalive loop
 	if c.configHolder.Connection.KeepAlive > 0 {
 		c.Infof("Keepalive job (client to server ping) started with interval %s", c.configHolder.Connection.KeepAlive)
-		go c.keepAliveLoop()
+		go c.keepAliveLoop(ctx)
 	}
 
 	//connection loop
@@ -147,7 +147,7 @@ func (c *Client) Start(ctx context.Context) error {
 	return nil
 }
 
-func (c *Client) keepAliveLoop() {
+func (c *Client) keepAliveLoop(ctx context.Context) {
 	for c.running {
 		time.Sleep(c.configHolder.Connection.KeepAlive + (time.Duration(rand.Intn(MaxKeepAliveJitterMilliseconds)))*time.Millisecond)
 
@@ -158,7 +158,7 @@ func (c *Client) keepAliveLoop() {
 		if conn != nil {
 
 			res, err := comm.WithRetry(func() (res *sendResponse, err error) {
-				ok, _, rtt, err := comm.PingConnectionWithTimeout(conn, c.configHolder.Connection.KeepAliveTimeout, c.Logger)
+				ok, _, rtt, err := comm.PingConnectionWithTimeout(ctx, conn, c.configHolder.Connection.KeepAliveTimeout, c.Logger)
 				return &sendResponse{
 					replyOk:   ok,
 					rtt:       rtt,
@@ -168,7 +168,7 @@ func (c *Client) keepAliveLoop() {
 
 			if err != nil || !res.replyOk {
 				c.Errorf("Failed to send keepalive (client to server ping): %s", err)
-				c.sshConn.Close()
+				conn.Close()
 			} else {
 				msg := fmt.Sprintf("ping to %s succeeded within %s", conn.RemoteAddr(), res.rtt)
 				c.Debugf(msg)
@@ -292,7 +292,6 @@ func (c *Client) handleConnectionError(backoff *backoff.Backoff, connerr error) 
 	}
 	msg := fmt.Sprintf("Retrying in %s...", d)
 	c.Infof(msg)
-	// TODO: (rs): what is this watchdog ping?
 	c.watchdog.Ping(WatchdogStateReconnecting, msg)
 	chshare.SleepSignal(d)
 
@@ -460,7 +459,7 @@ func (c *Client) sendConnectionRequest(ctx context.Context, sshConn ssh.Conn, mi
 	t0 := time.Now()
 
 	res, err := comm.WithRetry(func() (res *sendResponse, err error) {
-		replyOk, respBytes, err := comm.SendRequestWithTimeout(sshConn, "new_connection", true, req, SendRequestTimeout, c.Logger)
+		replyOk, respBytes, err := comm.SendRequestWithTimeout(ctx, sshConn, "new_connection", true, req, SendRequestTimeout, c.Logger)
 		return &sendResponse{
 			replyOk:   replyOk,
 			respBytes: respBytes,
