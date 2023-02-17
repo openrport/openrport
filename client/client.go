@@ -197,7 +197,7 @@ func (c *Client) connectionLoop(ctx context.Context, withInitialSendRequestDelay
 			connerr = nil
 		}
 
-		c.Logger.Debugf("conn loop attempt = %d", int(backoff.Attempt()))
+		c.Logger.Debugf("conn loop attempt = %d", int(backoff.Attempt())+1)
 
 		// make the connection attempt
 		var sshConn *sshClientConn
@@ -343,7 +343,7 @@ func (c *Client) connect(server string) (*sshClientConn, error) {
 		via = " via " + c.configHolder.Client.ProxyURL.String()
 	}
 	c.Infof("Trying to connect to %s%s ...\n", server, via)
-
+	c.Infof("Will wait up to %0.2f seconds for the server to respond", DialTimeout.Seconds())
 	d, netDialer, err := c.setupDialer()
 	if err != nil {
 		return nil, err
