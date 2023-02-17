@@ -12,7 +12,7 @@
     "FileDescription": "rport windows client",
     "FileVersion": "0.9.1",
     "InternalName": "rport.exe",
-    "LegalCopyright": "Copyright (c) 2022 RPort",
+    "LegalCopyright": "Copyright (c) 2022 RealVNC Ltd",
     "LegalTrademarks": "",
     "OriginalFilename": "main.go",
     "PrivateBuild": "",
