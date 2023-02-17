@@ -20,11 +20,8 @@ func TestCleanup(t *testing.T) {
 	defer p.Close()
 	clientsRepo := NewClientRepositoryWithDB(clients, &hour, p, testLog)
 	require.Len(t, clientsRepo.clientState, 3)
-	gotObsolete, err := p.get(ctx, c3.GetID())
+	gotObsolete, err := p.get(ctx, c3.GetID(), testLog)
 	require.NoError(t, err)
-
-	// patch in the logger for the client
-	gotObsolete.Logger = testLog
 
 	require.EqualValues(t, c3, gotObsolete)
 	task := NewCleanupTask(testLog, clientsRepo)
@@ -35,15 +32,11 @@ func TestCleanup(t *testing.T) {
 	// then
 	assert.NoError(t, err)
 	assert.ElementsMatch(t, getValues(clientsRepo.clientState), []*Client{c1, c2})
-	gotClients, err := p.GetAll(ctx)
+	gotClients, err := p.GetAll(ctx, testLog)
 	assert.NoError(t, err)
 
-	// patch in the logger for the clients
-	gotClients[0].Logger = testLog
-	gotClients[1].Logger = testLog
-
 	assert.ElementsMatch(t, []*Client{c1, c2}, gotClients)
-	gotObsolete, err = p.get(ctx, c3.GetID())
+	gotObsolete, err = p.get(ctx, c3.GetID(), testLog)
 	require.NoError(t, err)
 	require.Nil(t, gotObsolete)
 }

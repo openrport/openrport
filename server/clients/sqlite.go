@@ -19,7 +19,7 @@ import (
 )
 
 type ClientStore interface {
-	GetAll(ctx context.Context) ([]*Client, error)
+	GetAll(ctx context.Context, l *logger.Logger) ([]*Client, error)
 	Save(ctx context.Context, client *Client) error
 	DeleteObsolete(ctx context.Context, l *logger.Logger) error
 	Delete(ctx context.Context, id string, l *logger.Logger) error
@@ -35,7 +35,7 @@ func newSqliteProvider(db *sqlx.DB, keepDisconnectedClients *time.Duration) *Sql
 	return &SqliteProvider{db: db, keepDisconnectedClients: keepDisconnectedClients}
 }
 
-func (p *SqliteProvider) GetAll(ctx context.Context) ([]*Client, error) {
+func (p *SqliteProvider) GetAll(ctx context.Context, l *logger.Logger) ([]*Client, error) {
 	var res []*clientSqlite
 	err := p.db.SelectContext(
 		ctx,
@@ -47,11 +47,11 @@ func (p *SqliteProvider) GetAll(ctx context.Context) ([]*Client, error) {
 	if err != nil {
 		return nil, err
 	}
-	return convertClientList(res), nil
+	return convertClientList(res, l), nil
 }
 
 // test only
-func (p *SqliteProvider) get(ctx context.Context, id string) (*Client, error) {
+func (p *SqliteProvider) get(ctx context.Context, id string, l *logger.Logger) (*Client, error) {
 	res := &clientSqlite{}
 	err := p.db.GetContext(ctx, res, "SELECT * FROM clients WHERE id = ?", id)
 	if err != nil {
@@ -60,7 +60,7 @@ func (p *SqliteProvider) get(ctx context.Context, id string) (*Client, error) {
 		}
 		return nil, err
 	}
-	return res.convert(), nil
+	return res.convert(l), nil
 }
 
 func (p *SqliteProvider) Save(ctx context.Context, client *Client) error {
@@ -228,7 +228,7 @@ func (d *clientDetails) Value() (driver.Value, error) {
 	return string(b), nil
 }
 
-func (s *clientSqlite) convert() (res *Client) {
+func (s *clientSqlite) convert(l *logger.Logger) (res *Client) {
 	d := s.Details
 	res = &Client{
 		ID:                     s.ID,
@@ -259,6 +259,7 @@ func (s *clientSqlite) convert() (res *Client) {
 		AllowedUserGroups:      d.AllowedUserGroups,
 		UpdatesStatus:          d.UpdatesStatus,
 		ClientConfiguration:    d.ClientConfig,
+		Logger:                 l,
 	}
 	if s.DisconnectedAt.Valid {
 		res.SetDisconnectedAt(&s.DisconnectedAt.Time)
@@ -266,10 +267,10 @@ func (s *clientSqlite) convert() (res *Client) {
 	return res
 }
 
-func convertClientList(list []*clientSqlite) []*Client {
+func convertClientList(list []*clientSqlite, l *logger.Logger) []*Client {
 	res := make([]*Client, 0, len(list))
 	for _, cur := range list {
-		res = append(res, cur.convert())
+		res = append(res, cur.convert(l))
 	}
 	return res
 }

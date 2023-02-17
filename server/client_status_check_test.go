@@ -70,22 +70,26 @@ func TestClientsStatusDeterminationTask(t *testing.T) {
 	c1.SetID("1")
 	c1.SetClientAuthID("1")
 	c1.SetConnection(connSuccess)
+	c1.Logger = myTestLog
 
 	c2 := clients.Client{}
 	c2.SetID("2")
 	c2.SetClientAuthID("2")
 	c2.SetConnection(connSuccess)
 	c2.SetLastHeartbeatAt(&now)
+	c2.Logger = myTestLog
 
 	c3 := clients.Client{}
 	c3.SetID("3")
 	c3.SetClientAuthID("3")
 	c3.SetConnection(connFailure)
+	c3.Logger = myTestLog
 
 	c4 := clients.Client{}
 	c4.SetID("4")
 	c4.SetClientAuthID("4")
 	c4.SetConnection(connTimeout)
+	c4.Logger = myTestLog
 
 	cr := clients.NewClientRepository([]*clients.Client{&c1, &c2, &c3, &c4}, nil, myTestLog)
 	task := NewClientsStatusCheckTask(myTestLog, cr, 120*time.Second, timeout)
