@@ -98,7 +98,7 @@ func convertToClientPayload(client *clients.CalculatedClient, fields []query.Fie
 		case "tags":
 			p.Tags = &client.Tags
 		case "labels":
-			p.Labels = &map[string]string{"country": "Germany", "city": "Cologne", "datacenter": "NetCologne GmbH"}
+			p.Labels = &client.Labels
 		case "version":
 			p.Version = &client.Version
 		case "address":

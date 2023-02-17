@@ -41,6 +41,7 @@ var c1 = &Client{
 	IPv4:                   []string{"192.168.122.111"},
 	IPv6:                   []string{"fe80::b84f:aff:fe59:a0b1"},
 	Tags:                   []string{"Linux", "Datacenter 1"},
+	Labels:                 map[string]string{"country": "Germany", "city": "Cologne", "datacenter": "NetCologne GmbH"},
 	Version:                "0.1.12",
 	Address:                "88.198.189.161:50078",
 	Tunnels: []*clienttunnel.Tunnel{

@@ -18,8 +18,8 @@ import (
 )
 
 type TagsAndLabels struct {
-	Tags   []string `json:"tags"`
-	Labels []string `json:"labels"`
+	Tags   []string          `json:"tags"`
+	Labels map[string]string `json:"labels"`
 }
 
 type Rsp struct {
