@@ -285,12 +285,13 @@ func (cl *ClientListener) receiveClientConnectionRequest(sshConn *ssh.ServerConn
 		return nil, nil, cl.ctx.Err()
 
 	case <-pendingRequestTimer.C:
-		clog.Debugf("SSH connection request timeout exceeded %s sec", ConnectionRequestTimeOut.Seconds())
-		err = sshConn.Close()
-		if err != nil {
-			clog.Debugf("error on SSH connection close: %s", err)
+		errMsg := fmt.Sprintf("connection request timeout exceeded %0.2f sec", ConnectionRequestTimeOut.Seconds())
+		clog.Debugf(errMsg)
+		closeErr := sshConn.Close()
+		if closeErr != nil {
+			clog.Debugf("error on SSH connection close: %s", closeErr)
 		}
-		return nil, nil, err
+		return nil, nil, errors.New(errMsg)
 	}
 
 	if r.Type != "new_connection" {
