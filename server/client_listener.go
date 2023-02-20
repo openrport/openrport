@@ -294,6 +294,11 @@ func (cl *ClientListener) receiveClientConnectionRequest(sshConn *ssh.ServerConn
 		return nil, nil, errors.New(errMsg)
 	}
 
+	// it seems that nil requests are possible, so return an error
+	if r == nil {
+		return nil, nil, errors.New("received nil request from client")
+	}
+
 	if r.Type != "new_connection" {
 		return nil, nil, errors.New("expecting connection request")
 	}
