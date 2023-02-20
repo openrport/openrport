@@ -26,11 +26,11 @@
 		<WixVariable Id="WixUILicenseRtf" Value="dummy" />
 
 		<!-- UI customization -->
-		<WixVariable Id="WixUIBannerBmp" Value="cmd\rport\resource\images\BannerTop.bmp" />
-		<WixVariable Id="WixUIDialogBmp" Value="cmd\rport\resource\images\Dialog.bmp" />
+		<WixVariable Id="WixUIBannerBmp" Value="opt\resource\images\BannerTop.bmp" />
+		<WixVariable Id="WixUIDialogBmp" Value="opt\resource\images\Dialog.bmp" />
 
 		<!-- Define icons (ID should not be longer than 18 chars and must end with ".exe") -->
-		<Icon Id="Icon.exe" SourceFile="cmd\rport\resource\images\app.ico" />
+		<Icon Id="Icon.exe" SourceFile="opt\resource\images\app.ico" />
 
 		<!-- Set properties for add/remove programs -->
 		<Property Id="ARPPRODUCTICON" Value="Icon.exe" />
