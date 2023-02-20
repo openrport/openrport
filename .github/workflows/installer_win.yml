@@ -1,4 +1,4 @@
-name: Build! Installer Client Windows
+name: Build Installer Client Windows
 on: [push]
 jobs:
   release:
@@ -10,17 +10,16 @@ jobs:
         uses: actions/setup-go@v2
         with:
           go-version: 1.19
-      - name: Build exe client
-        run: go build -ldflags "-s -w -X {{.Env.PROJECT}}/share.BuildVersion={{.Version}} -X main.version=0.0.1 -X main.date=%date:~10,4%-%date:~4,2%-%date:~7,2%T%time:~0,2%:%time:~3,2%:%time:~6,2%" -o rport.exe ./cmd/rport/... 
-      - name: uploads the compiled exe
-        run: curl --upload-file ./rport.exe https://transfer.sh/rport.exe
-      - name: install WIX
-        run: choco install wixtoolset
-      - name: Set path for candle and light
-        run: echo "C:\Program Files (x86)\WiX Toolset v3.11\bin" >> $GITHUB_PATH
-      - name: creates wixobj's
-        run: candle *.wxs
-      - name: creates MSI
-        run: light -loc Product_en-us.wxl -ext WixUIExtension -sval -out rport-client.msi LicenseAgreementDlg_HK.wixobj ServerDlg.wixobj WixUI_HK.wixobj Product.wixobj 
-      - name: uploads the test MSI
-        run: curl --upload-file ./rport-client.msi https://transfer.sh/rport-client.msi
+      - name: Set exe's and MSI version 
+        run: |
+            set -e
+            echo "Updating versioninfo.json with Ver: ${GITHUB_REF_NAME}"
+            export VER=${GITHUB_REF_NAME}
+            jq '.StringFileInfo.FileVersion = "'"$VER"'" | .StringFileInfo.ProductVersion = "'"$VER"'"' cmd/rport/versioninfo.json > new.json
+        shell: bash
+      - name: Creates MSI
+        run: .github/scripts/makemsi.ps1
+      - name: Tests install, files and uninstallation
+        run: .github/scripts/msi-base-test.ps1
+
+        

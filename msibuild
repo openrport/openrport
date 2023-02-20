@@ -1,4 +1,0 @@
-docker run --rm -v $(pwd):/wix dactiv/wix candle *.wxs
-docker run --rm -v $(pwd):/wix dactiv/wix light -loc Product_en-us.wxl -ext WixUIExtension -sval -out RPort.msi LicenseAgreementDlg_HK.wixobj ServerDlg.wixobj WixUI_HK.wixobj Product.wixobj 
-rm *.wixobj
-rm *.wixpdb
