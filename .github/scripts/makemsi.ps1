@@ -15,9 +15,9 @@ go generate cmd/rport/main.go
 Write-Output "Build exe client"
 go build -ldflags "-s -w -X {{.Env.PROJECT}}/share.BuildVersion={{.Version}}" -o rport.exe ./cmd/rport/... 
 Write-Output "creates wixobj's"
-& 'C:\Program Files (x86)\WiX Toolset v3.11\bin\candle.exe' -dPlatform=x64 -ext WixUtilExtension cmd/rport/resource/*.wxs
+& 'C:\Program Files (x86)\WiX Toolset v3.11\bin\candle.exe' -dPlatform=x64 -ext WixUtilExtension opt/resource/*.wxs
 Write-Output "creates MSI"
-& 'C:\Program Files (x86)\WiX Toolset v3.11\bin\light.exe' -loc cmd/rport/resource/Product_en-us.wxl -ext WixUtilExtension -ext WixUIExtension -sval -out rport-client.msi LicenseAgreementDlg_HK.wixobj WixUI_HK.wixobj Product.wixobj
+& 'C:\Program Files (x86)\WiX Toolset v3.11\bin\light.exe' -loc opt/resource/Product_en-us.wxl -ext WixUtilExtension -ext WixUIExtension -sval -out rport-client.msi LicenseAgreementDlg_HK.wixobj WixUI_HK.wixobj Product.wixobj
 
 Write-Output "creating a self signed certificate"
 $cert = New-SelfSignedCertificate -DnsName selfsignedtest.rport.com -CertStoreLocation cert:\LocalMachine\My -type CodeSigning

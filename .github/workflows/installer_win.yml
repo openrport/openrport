@@ -20,6 +20,6 @@ jobs:
       - name: Creates MSI
         run: .github/scripts/makemsi.ps1
       - name: Tests install, files and uninstallation
-        run: .github/scripts/inunin-stall.ps1
+        run: .github/scripts/msi-base-test.ps1
 
         
