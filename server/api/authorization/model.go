@@ -9,7 +9,8 @@ import (
 
 type APIToken struct {
 	Username  string        `json:"username,omitempty" db:"username"`
-	Prefix    string        `json:"prefix" db:"prefix"`
+	Prefix    string        `json:"prefix,omitempty" db:"prefix"`
+	Name      string        `json:"name,omitempty" db:"name"`
 	CreatedAt *time.Time    `json:"created_at,omitempty" db:"created_at"`
 	ExpiresAt *time.Time    `json:"expires_at,omitempty" db:"expires_at"`
 	Scope     APITokenScope `json:"scope,omitempty" db:"scope"`

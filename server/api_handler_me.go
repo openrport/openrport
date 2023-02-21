@@ -264,16 +264,22 @@ func (al *APIListener) handlePostToken(w http.ResponseWriter, req *http.Request)
 	}
 	var r struct {
 		Scope     authorization.APITokenScope `json:"scope"`
+		Name      string                      `json:"name"`
 		ExpiresAt *time.Time                  `json:"expires_at"`
 	}
 	err = parseRequestBody(req.Body, &r)
 	if err != nil {
-		al.jsonErrorResponseWithTitle(w, http.StatusBadRequest, "missing body with scope.")
+		al.jsonErrorResponseWithDetail(w, http.StatusBadRequest, "", "Invalid JSON data", err.Error())
 		return
 	}
 
 	if !authorization.IsValidScope(r.Scope) {
 		al.jsonErrorResponseWithTitle(w, http.StatusBadRequest, "missing or invalid scope.")
+		return
+	}
+
+	if len(r.Name) == 0 || len(r.Name) >= 250 {
+		al.jsonErrorResponseWithDetail(w, http.StatusBadRequest, "", "missing or invalid name.", "field name should be 250 characters max")
 		return
 	}
 
@@ -298,6 +304,7 @@ func (al *APIListener) handlePostToken(w http.ResponseWriter, req *http.Request)
 	newAPIToken := &authorization.APIToken{
 		Username:  user.Username,
 		Prefix:    newPrefix,
+		Name:      r.Name,
 		Scope:     r.Scope,
 		ExpiresAt: r.ExpiresAt,
 		Token:     tokenHashStr,
@@ -317,10 +324,9 @@ func (al *APIListener) handlePostToken(w http.ResponseWriter, req *http.Request)
 
 	al.writeJSONResponse(w, http.StatusOK, api.NewSuccessPayload(
 		authorization.APIToken{
-			Prefix:    newPrefix,
 			Scope:     r.Scope,
 			ExpiresAt: r.ExpiresAt,
-			Token:     newTokenClear,
+			Token:     fmt.Sprintf("%s_%s", newPrefix, newTokenClear),
 		}))
 }
 
