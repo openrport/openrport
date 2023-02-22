@@ -172,6 +172,73 @@ func TestUpdate(t *testing.T) {
 	q := "SELECT username, prefix, name, expires_at FROM `api_token`"
 	test.AssertRowsEqual(t, dbProv.db, expectedRows, q, []interface{}{})
 }
+func TestUpdateOneAtATimeName(t *testing.T) {
+	db, err := sqlite.New(":memory:", api_token.AssetNames(), api_token.Asset, DataSourceOptions)
+	require.NoError(t, err)
+	dbProv := NewSqliteProvider(db)
+	defer dbProv.Close()
+
+	require.NoError(t, err)
+
+	ctx := context.Background()
+	itemToSave := demoData[0]
+	err = dbProv.Save(ctx, &itemToSave)
+	require.NoError(t, err)
+
+	var demoDataUpdate = &APIToken{
+		Username: "username1",
+		Prefix:   "prefix1",
+		Name:     "a brand new name",
+	}
+
+	err = dbProv.Save(ctx, demoDataUpdate)
+	require.NoError(t, err)
+
+	expectedRows := []map[string]interface{}{
+		{
+			"username":   demoDataUpdate.Username,
+			"prefix":     demoDataUpdate.Prefix,
+			"name":       demoDataUpdate.Name,
+			"expires_at": *itemToSave.ExpiresAt,
+		},
+	}
+	q := "SELECT username, prefix, name, expires_at FROM `api_token`"
+	test.AssertRowsEqual(t, dbProv.db, expectedRows, q, []interface{}{})
+}
+
+func TestUpdateOneAtATimeExpiresAt(t *testing.T) {
+	db, err := sqlite.New(":memory:", api_token.AssetNames(), api_token.Asset, DataSourceOptions)
+	require.NoError(t, err)
+	dbProv := NewSqliteProvider(db)
+	defer dbProv.Close()
+
+	require.NoError(t, err)
+
+	ctx := context.Background()
+	itemToSave := demoData[0]
+	err = dbProv.Save(ctx, &itemToSave)
+	require.NoError(t, err)
+
+	var demoDataUpdate = &APIToken{
+		Username:  "username1",
+		Prefix:    "prefix1",
+		ExpiresAt: ptr.Time(time.Date(2011, 3, 11, 2, 0, 0, 0, time.UTC)),
+	}
+
+	err = dbProv.Save(ctx, demoDataUpdate)
+	require.NoError(t, err)
+
+	expectedRows := []map[string]interface{}{
+		{
+			"username":   demoDataUpdate.Username,
+			"prefix":     demoDataUpdate.Prefix,
+			"name":       itemToSave.Name,
+			"expires_at": *demoDataUpdate.ExpiresAt,
+		},
+	}
+	q := "SELECT username, prefix, name, expires_at FROM `api_token`"
+	test.AssertRowsEqual(t, dbProv.db, expectedRows, q, []interface{}{})
+}
 
 func TestDelete(t *testing.T) {
 	db, err := sqlite.New(":memory:", api_token.AssetNames(), api_token.Asset, DataSourceOptions)

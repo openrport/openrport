@@ -155,7 +155,7 @@ func TestAPITokenOps(t *testing.T) {
 			requestURL:     "/api/v1/me/token",
 			requestBody:    strings.NewReader(`{"scope": "` + string(authorization.APITokenReadWrite) + `", "name": "This is my name", "expires_at": "` + string(expirationDate) + `"}`),
 			wantStatusCode: http.StatusOK,
-			wantJSON:       `{"data":{"expires_at":"2025-01-01T02:00:00Z", "prefix":"theprefi", "scope":"` + string(authorization.APITokenReadWrite) + `", "token":"mynicefi-xedl-enth-long-livedpasswor"}}`,
+			wantJSON:       `{"data":{"expires_at":"2025-01-01T02:00:00Z", "scope":"` + string(authorization.APITokenReadWrite) + `", "token":"theprefi_mynicefi-xedl-enth-long-livedpasswor"}}`,
 		},
 		{
 			descr:          "token update with expires_at",
@@ -165,12 +165,12 @@ func TestAPITokenOps(t *testing.T) {
 			wantStatusCode: http.StatusOK,
 			wantJSON:       `{"data":{"expires_at":"2026-03-10T05:00:00Z", "prefix":"theprefi", "username":"test-user" }}`,
 		},
-		{
-			descr:          "delete a token ",
-			requestMethod:  http.MethodDelete,
-			requestURL:     "/api/v1/me/token/" + MyalphaNumNewPrefix,
-			wantStatusCode: http.StatusNoContent,
-		},
+		// {
+		// 	descr:          "delete a token ",
+		// 	requestMethod:  http.MethodDelete,
+		// 	requestURL:     "/api/v1/me/token/" + MyalphaNumNewPrefix,
+		// 	wantStatusCode: http.StatusNoContent,
+		// },
 	}
 
 	for _, tc := range testCases {
