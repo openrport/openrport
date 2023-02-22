@@ -60,8 +60,8 @@ func (p *SqliteProvider) Save(ctx context.Context, tokenLine *APIToken) (err err
 			 	ON CONFLICT(username, prefix) DO UPDATE SET
 				 -- the following is per-field logic to update only with non empty value
 				 -- (that is to say these fields cannot be blanked/nulled)
-				 name=CASE WHEN length(:name) > 0 THEN EXCLUDED.name ELSE api_token.name END,
-				 expires_at=CASE WHEN length(:expires_at) > 0 THEN EXCLUDED.expires_at ELSE api_token.expires_at END
+				 name=CASE WHEN :name != "" THEN EXCLUDED.name ELSE api_token.name END,
+				 expires_at=CASE WHEN :expires_at != "" THEN EXCLUDED.expires_at ELSE api_token.expires_at END
 				WHERE EXCLUDED.username = api_token.username AND
 				       EXCLUDED.prefix = api_token.prefix`,
 		tokenLine,

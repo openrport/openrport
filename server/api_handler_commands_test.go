@@ -1296,7 +1296,7 @@ func TestHandlePostMultiClientWSCommandWithTags(t *testing.T) {
 	testUser := "user1"
 	testLongLivedPwd := "theprefi_mynicefi-xedl-enth-long-livedpasswor"
 	mockTokenManager := authorization.NewManager(
-		CommonAPITokenTestDb(t, "user1", "theprefi", authorization.APITokenReadWrite, "mynicefi-xedl-enth-long-livedpasswor")) // APIToken database
+		CommonAPITokenTestDb(t, "user1", "theprefi", "the name", authorization.APITokenReadWrite, "mynicefi-xedl-enth-long-livedpasswor")) // APIToken database
 
 	defaultTimeout := 60
 
@@ -1767,7 +1767,7 @@ func TestHandlePostMultiClientScriptWithTags(t *testing.T) {
 func TestHandlePostMultiClientWSScriptWithTags(t *testing.T) {
 	defaultTimeout := 60
 	mockTokenManager := authorization.NewManager(
-		CommonAPITokenTestDb(t, "user1", "theprefi", authorization.APITokenReadWrite, "mynicefi-xedl-enth-long-livedpasswor")) // APIToken database
+		CommonAPITokenTestDb(t, "user1", "theprefi", "the name", authorization.APITokenReadWrite, "mynicefi-xedl-enth-long-livedpasswor")) // APIToken database
 
 	testCases := []struct {
 		name string

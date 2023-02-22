@@ -139,7 +139,7 @@ func TestAPITokenOps(t *testing.T) {
 			requestBody:    strings.NewReader(`{"scope": "` + string(authorization.APITokenRead) + `", "name":"` + strings.Repeat("I am a token and this is my name", 10) + `"}`),
 			wantStatusCode: http.StatusBadRequest,
 			wantErrTitle:   "missing or invalid name.",
-			wantErrDetail:  "field name should be 250 characters max",
+			wantErrDetail:  "field name is required, 250 characters max",
 		},
 		{
 			descr:          "new token read creation",
@@ -165,12 +165,20 @@ func TestAPITokenOps(t *testing.T) {
 			wantStatusCode: http.StatusOK,
 			wantJSON:       `{"data":{"expires_at":"2026-03-10T05:00:00Z", "prefix":"theprefi", "username":"test-user" }}`,
 		},
-		// {
-		// 	descr:          "delete a token ",
-		// 	requestMethod:  http.MethodDelete,
-		// 	requestURL:     "/api/v1/me/token/" + MyalphaNumNewPrefix,
-		// 	wantStatusCode: http.StatusNoContent,
-		// },
+		{
+			descr:          "token update with name",
+			requestMethod:  http.MethodPut,
+			requestURL:     "/api/v1/me/token/theprefi",
+			requestBody:    strings.NewReader(`{"name": "new name"}`),
+			wantStatusCode: http.StatusOK,
+			wantJSON:       `{"data":{"name": "new name", "prefix":"theprefi", "username":"test-user" }}`,
+		},
+		{
+			descr:          "delete a token ",
+			requestMethod:  http.MethodDelete,
+			requestURL:     "/api/v1/me/token/" + MyalphaNumNewPrefix,
+			wantStatusCode: http.StatusNoContent,
+		},
 	}
 
 	for _, tc := range testCases {
@@ -224,21 +232,12 @@ func TestAPITokenOps(t *testing.T) {
 				if tc.wantErrDetail != "" {
 					require.Equal(tc.wantErrDetail, tResponse.Errors[0].Detail)
 				}
-
-				// details compare only first part
-				// assert.equal(error.title startsWith("INVALID JSOPMN: ..."))
-				// failure case check title only
-
-				// wantResp := api.NewErrAPIPayloadFromMessage(tc.wantErrCode, tc.wantErrTitle, tc.wantErrDetail)
-				// wantRespBytes, err := json.Marshal(wantResp)
-				// require.NoError(err)
-				// require.Equal(string(wantRespBytes), w.Body.String())
 			}
 		})
 	}
 }
 
-func CommonAPITokenTestDb(t *testing.T, username, prefix string, scope authorization.APITokenScope, token string) *authorization.SqliteProvider {
+func CommonAPITokenTestDb(t *testing.T, username, prefix, name string, scope authorization.APITokenScope, token string) *authorization.SqliteProvider {
 	db, err := sqlite.New(":memory:", api_token.AssetNames(), api_token.Asset, DataSourceOptions)
 	require.NoError(t, err)
 	dbProv := authorization.NewSqliteProvider(db)
@@ -247,6 +246,7 @@ func CommonAPITokenTestDb(t *testing.T, username, prefix string, scope authoriza
 	itemToSave := authorization.APIToken{
 		Username:  username,
 		Prefix:    prefix,
+		Name:      name,
 		CreatedAt: ptr.Time(time.Date(2001, 1, 1, 1, 0, 0, 0, time.UTC)),
 		ExpiresAt: ptr.Time(time.Date(2051, 1, 1, 2, 0, 0, 0, time.UTC)),
 		Scope:     scope,
@@ -258,6 +258,7 @@ func CommonAPITokenTestDb(t *testing.T, username, prefix string, scope authoriza
 	itemToSave = authorization.APIToken{
 		Username:  username,
 		Prefix:    "expired1",
+		Name:      "another name",
 		CreatedAt: ptr.Time(time.Date(2001, 1, 1, 1, 0, 0, 0, time.UTC)),
 		ExpiresAt: ptr.Time(time.Date(2001, 1, 1, 2, 0, 0, 0, time.UTC)),
 		Scope:     scope,
@@ -333,7 +334,7 @@ func TestPostToken(t *testing.T) {
 	}
 
 	al.initRouter()
-	req := httptest.NewRequest("POST", "/api/v1/me/token", strings.NewReader(`{"scope": "`+string(authorization.APITokenReadWrite)+`"}`))
+	req := httptest.NewRequest("POST", "/api/v1/me/token", strings.NewReader(`{"name": "token name", "scope": "`+string(authorization.APITokenReadWrite)+`"}`))
 	w := httptest.NewRecorder()
 	ctxUser1 := api.WithUser(req.Context(), user.Username)
 	req = req.WithContext(ctxUser1)
@@ -355,7 +356,7 @@ func TestWrapWithAuthMiddleware(t *testing.T) {
 		Password: "$2y$05$ep2DdPDeLDDhwRrED9q/vuVEzRpZtB5WHCFT7YbcmH9r9oNmlsZOm",
 	}
 	mockTokenManager := authorization.NewManager(
-		CommonAPITokenTestDb(t, "user1", "theprefi", authorization.APITokenReadWrite, "mynicefi-xedl-enth-long-livedpasswor")) // APIToken database
+		CommonAPITokenTestDb(t, "user1", "theprefi", "the name", authorization.APITokenReadWrite, "mynicefi-xedl-enth-long-livedpasswor")) // APIToken database
 
 	al := APIListener{
 		Logger:      testLog,
@@ -493,7 +494,7 @@ func TestAPISessionUpdates(t *testing.T) {
 		Password: "$2y$05$ep2DdPDeLDDhwRrED9q/vuVEzRpZtB5WHCFT7YbcmH9r9oNmlsZOm",
 	}
 	mockTokenManager := authorization.NewManager(
-		CommonAPITokenTestDb(t, "user1", "theprefi", authorization.APITokenReadWrite, "mynicefi-xedl-enth-long-livedpasswor")) // APIToken database
+		CommonAPITokenTestDb(t, "user1", "theprefi", "the name", authorization.APITokenReadWrite, "mynicefi-xedl-enth-long-livedpasswor")) // APIToken database
 
 	al := APIListener{
 		Logger:      testLog,
@@ -640,7 +641,7 @@ func TestHandleGetLogin(t *testing.T) {
 		UserService: users.NewAPIService(users.NewStaticProvider([]*users.User{user}), false, 0, -1),
 	}
 	mockTokenManager := authorization.NewManager(
-		CommonAPITokenTestDb(t, "user1", "theprefi", authorization.APITokenReadWrite, "mynicefi-xedl-enth-long-livedpasswor")) // APIToken database
+		CommonAPITokenTestDb(t, "user1", "theprefi", "the name", authorization.APITokenReadWrite, "mynicefi-xedl-enth-long-livedpasswor")) // APIToken database
 
 	al := APIListener{
 		Logger: testLog,

@@ -279,7 +279,7 @@ func (al *APIListener) handlePostToken(w http.ResponseWriter, req *http.Request)
 	}
 
 	if len(r.Name) == 0 || len(r.Name) >= 250 {
-		al.jsonErrorResponseWithDetail(w, http.StatusBadRequest, "", "missing or invalid name.", "field name should be 250 characters max")
+		al.jsonErrorResponseWithDetail(w, http.StatusBadRequest, "", "missing or invalid name.", "field name is required, 250 characters max")
 		return
 	}
 
@@ -350,6 +350,7 @@ func (al *APIListener) handlePutToken(w http.ResponseWriter, req *http.Request) 
 
 	var r struct {
 		ExpiresAt *time.Time `json:"expires_at"`
+		Name      string     `json:"name"`
 	}
 	err = parseRequestBody(req.Body, &r)
 	if err != nil {
@@ -360,6 +361,7 @@ func (al *APIListener) handlePutToken(w http.ResponseWriter, req *http.Request) 
 	updAPIToken := &authorization.APIToken{
 		Username:  user.Username,
 		Prefix:    prefix,
+		Name:      r.Name,
 		ExpiresAt: r.ExpiresAt,
 	}
 	err = al.tokenManager.Save(req.Context(), updAPIToken)
