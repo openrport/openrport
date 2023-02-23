@@ -1,3 +1,7 @@
+*.msi
+*.wixobj
+*.wixpdb
+resource.syso
 .vscode/
 .idea
 .DS_Store
