@@ -52,9 +52,10 @@ type Client struct {
 	SessionID          string
 	configHolder       *ClientConfigHolder
 	sshConfig          *ssh.ClientConfig
-	sshConn            ssh.Conn
+	sshConnection      ssh.Conn
 	running            bool
 	runningc           chan error
+	connActive         bool
 	connStats          chshare.ConnStats
 	cmdExec            system.CmdExecutor
 	systemInfo         system.SysInfo
@@ -65,6 +66,12 @@ type Client struct {
 	watchdog           *Watchdog
 
 	mu sync.RWMutex
+}
+
+type sshClientConnection struct {
+	Connection ssh.Conn
+	Channels   <-chan ssh.NewChannel
+	Requests   <-chan *ssh.Request
 }
 
 // NewClient creates a new client instance
@@ -78,6 +85,7 @@ func NewClient(config *ClientConfigHolder, filesAPI files.FileAPI) (*Client, err
 
 	cmdExec := system.NewCmdExecutor(logger.NewLogger("cmd executor", config.Logging.LogOutput, config.Logging.LogLevel))
 	logger := logger.NewLogger("client", config.Logging.LogOutput, config.Logging.LogLevel)
+
 	watchdog, err := NewWatchdog(config.Connection.WatchdogIntegration, config.Client.DataDir, logger)
 	if err != nil {
 		return nil, fmt.Errorf("failed to create watchdog: %s", err)
@@ -111,13 +119,18 @@ func NewClient(config *ClientConfigHolder, filesAPI files.FileAPI) (*Client, err
 }
 
 // Run starts client and blocks while connected
-func (c *Client) Run() error {
-	ctx, cancel := context.WithCancel(context.Background())
-	defer cancel()
-	if err := c.Start(ctx); err != nil {
+func (c *Client) Run(ctx context.Context) (err error) {
+	if err = c.Start(ctx); err != nil {
 		return err
 	}
-	return c.Wait()
+
+	err = c.Wait(ctx)
+
+	if err != nil {
+		return err
+	}
+
+	return nil
 }
 
 func (c *Client) verifyServer(hostname string, remote net.Addr, key ssh.PublicKey) error {
@@ -132,7 +145,6 @@ func (c *Client) verifyServer(hostname string, remote net.Addr, key ssh.PublicKe
 
 // Start client and do not block
 func (c *Client) Start(ctx context.Context) error {
-
 	//optional keepalive loop
 	if c.configHolder.Connection.KeepAlive > 0 {
 		c.Infof("Keepalive job (client to server ping) started with interval %s", c.configHolder.Connection.KeepAlive)
@@ -147,13 +159,35 @@ func (c *Client) Start(ctx context.Context) error {
 	return nil
 }
 
+func (c *Client) getConn() (sshConnection ssh.Conn) {
+	c.mu.RLock()
+	defer c.mu.RUnlock()
+	return c.sshConnection
+}
+
+func (c *Client) setConn(sshConnection ssh.Conn) {
+	c.mu.Lock()
+	defer c.mu.Unlock()
+	c.sshConnection = sshConnection
+}
+
+func (c *Client) isConnActive() (isActive bool) {
+	c.mu.RLock()
+	defer c.mu.RUnlock()
+	return c.connActive
+}
+
+func (c *Client) setConnActive(active bool) {
+	c.mu.Lock()
+	defer c.mu.Unlock()
+	c.connActive = active
+}
+
 func (c *Client) keepAliveLoop(ctx context.Context) {
-	for c.running {
+	for c.isRunning() {
 		time.Sleep(c.configHolder.Connection.KeepAlive + (time.Duration(rand.Intn(MaxKeepAliveJitterMilliseconds)))*time.Millisecond)
 
-		c.mu.RLock()
-		conn := c.sshConn
-		c.mu.RUnlock()
+		conn := c.getConn()
 
 		if conn != nil {
 
@@ -176,19 +210,23 @@ func (c *Client) keepAliveLoop(ctx context.Context) {
 			}
 		}
 	}
+
+	c.Logger.Debugf("keepAliveLoop finished")
 }
 
 func (c *Client) connectionLoop(ctx context.Context, withInitialSendRequestDelay bool) {
 	//connection loop!
 	var connerr error
-	switchbackChan := make(chan *sshClientConn, 1)
+	switchbackChan := make(chan *sshClientConnection, 1)
 	backoff := &backoff.Backoff{
 		Min:    MinConnectionBackoffWaitTime + time.Duration(rand.Intn(60)),
 		Max:    MaxConnectionBackoffWaitTime,
 		Jitter: true,
 	}
 
-	for c.running {
+	c.setConnActive(false)
+
+	for c.isRunning() {
 		if connerr != nil {
 			stopRetrying := c.handleConnectionError(backoff, connerr)
 			if stopRetrying {
@@ -200,28 +238,35 @@ func (c *Client) connectionLoop(ctx context.Context, withInitialSendRequestDelay
 		c.Logger.Debugf("conn loop attempt = %d", int(backoff.Attempt())+1)
 
 		// make the connection attempt
-		var sshConn *sshClientConn
+		var sshClientConn *sshClientConnection
 		var isPrimary bool
 		select {
 		// When switchback to main server succeeds we get connection on the channel, otherwise try to connect
-		case sshConn = <-switchbackChan:
+		case sshClientConn = <-switchbackChan:
 			isPrimary = true
+		case <-ctx.Done():
+			connerr = ctx.Err()
+			continue
 		default:
 			var err error
-			sshConn, isPrimary, err = c.connectToMainOrFallback()
+			sshClientConn, isPrimary, err = c.connectToMainOrFallback()
 			if err != nil {
 				connerr = err // Setting a connerr causes the loop to sleep and try again later
 				continue
 			}
 		}
 
-		// Start handling requests and channels immediately, otherwise ssh connection might hang
-		go c.handleSSHRequests(ctx, sshConn)
-		go c.connectStreams(sshConn.Channels)
+		// check if already handling requets and channels on this connection
+		if !c.isConnActive() {
+			// Start handling requests and channels immediately, otherwise ssh connection might hang
+			go c.handleSSHRequests(ctx, sshClientConn)
+			go c.connectStreams(sshClientConn.Channels)
+		}
+		c.setConnActive(true)
 
 		switchbackCtx, cancelSwitchback := context.WithCancel(ctx)
 		if !isPrimary {
-			go c.handleServerSwitchBack(switchbackCtx, switchbackChan, sshConn)
+			go c.handleServerSwitchBack(switchbackCtx, switchbackChan, sshClientConn)
 		}
 
 		if withInitialSendRequestDelay {
@@ -230,7 +275,7 @@ func (c *Client) connectionLoop(ctx context.Context, withInitialSendRequestDelay
 			time.Sleep(delay)
 		}
 
-		err := c.sendConnectionRequest(ctx, sshConn.Connection, MinSendRequestRetryWaitTime)
+		err := c.sendConnectionRequest(ctx, sshClientConn.Connection, MinSendRequestRetryWaitTime)
 		if err != nil {
 			// Connection request has failed, we try again
 			cancelSwitchback()
@@ -242,21 +287,24 @@ func (c *Client) connectionLoop(ctx context.Context, withInitialSendRequestDelay
 		backoff.Reset()
 
 		// Hand over the open SSH connection to the client
-		c.mu.Lock()
-		c.sshConn = sshConn.Connection
-		c.mu.Unlock()
+		c.setConn(sshClientConn.Connection)
 
-		c.updates.SetConn(sshConn.Connection)
-		c.monitor.SetConn(sshConn.Connection)
+		c.updates.SetConn(sshClientConn.Connection)
+		c.monitor.SetConn(sshClientConn.Connection)
+
+		// watch for shutting down due to ctx.Done
+		go func() {
+			<-ctx.Done()
+			_ = c.CloseConnection()
+			c.Logger.Infof("connection closed by ctx.Done")
+		}()
 
 		// now wait with the client handling SSH Requests and Channel Connections
-		err = sshConn.Connection.Wait()
+		err = sshClientConn.Connection.Wait()
 
-		c.mu.Lock()
-		//disconnected
-		c.sshConn = nil
-		c.mu.Unlock()
+		c.Logger.Infof("connection wait stopped")
 
+		c.setConn(nil)
 		c.updates.SetConn(nil)
 		c.monitor.SetConn(nil)
 		c.monitor.Stop()
@@ -271,12 +319,18 @@ func (c *Client) connectionLoop(ctx context.Context, withInitialSendRequestDelay
 	}
 
 	close(c.runningc)
+
+	c.Infof("connectionLoop finished")
 }
 
 func (c *Client) handleConnectionError(backoff *backoff.Backoff, connerr error) (stopRetrying bool) {
 	attempt := int(backoff.Attempt())
 
 	c.showConnectionError(connerr, attempt)
+
+	if errors.Is(connerr, context.Canceled) {
+		return true
+	}
 
 	// check if the user has set a max retry limit
 	if c.configHolder.Connection.MaxRetryCount >= 0 && attempt >= c.configHolder.Connection.MaxRetryCount {
@@ -298,7 +352,7 @@ func (c *Client) handleConnectionError(backoff *backoff.Backoff, connerr error) 
 	return false
 }
 
-func (c *Client) handleServerSwitchBack(switchbackCtx context.Context, switchbackChan chan *sshClientConn, sshConn *sshClientConn) {
+func (c *Client) handleServerSwitchBack(switchbackCtx context.Context, switchbackChan chan *sshClientConnection, sshClientConn *sshClientConnection) {
 	for {
 		switchbackTimer := time.NewTimer(c.configHolder.Client.ServerSwitchbackInterval)
 		select {
@@ -313,19 +367,13 @@ func (c *Client) handleServerSwitchBack(switchbackCtx context.Context, switchbac
 			}
 			c.Infof("Connected to main server, switching back.")
 			switchbackChan <- switchbackConn
-			sshConn.Connection.Close()
+			sshClientConn.Connection.Close()
 			return
 		}
 	}
 }
 
-type sshClientConn struct {
-	Connection ssh.Conn
-	Channels   <-chan ssh.NewChannel
-	Requests   <-chan *ssh.Request
-}
-
-func (c *Client) connectToMainOrFallback() (conn *sshClientConn, isPrimary bool, err error) {
+func (c *Client) connectToMainOrFallback() (conn *sshClientConnection, isPrimary bool, err error) {
 	servers := append([]string{c.configHolder.Client.Server}, c.configHolder.Client.FallbackServers...)
 	for i, server := range servers {
 		conn, err = c.connect(server)
@@ -337,7 +385,7 @@ func (c *Client) connectToMainOrFallback() (conn *sshClientConn, isPrimary bool,
 	return nil, false, err
 }
 
-func (c *Client) connect(server string) (*sshClientConn, error) {
+func (c *Client) connect(server string) (*sshClientConnection, error) {
 	via := ""
 	if c.configHolder.Client.ProxyURL != nil {
 		via = " via " + c.configHolder.Client.ProxyURL.String()
@@ -365,7 +413,7 @@ func (c *Client) connect(server string) (*sshClientConn, error) {
 	conn := chshare.NewWebSocketConn(wsConn)
 	// perform SSH handshake on net.Conn
 	c.Debugf("Handshaking...")
-	sshConn, chans, reqs, err := ssh.NewClientConn(conn, "", c.sshConfig)
+	sshClientConn, chans, reqs, err := ssh.NewClientConn(conn, "", c.sshConfig)
 	if err != nil {
 		if strings.Contains(err.Error(), "unable to authenticate") {
 			c.Errorf("Authentication failed")
@@ -374,8 +422,8 @@ func (c *Client) connect(server string) (*sshClientConn, error) {
 		return nil, err
 	}
 
-	return &sshClientConn{
-		Connection: sshConn,
+	return &sshClientConnection{
+		Connection: sshClientConn,
 		Requests:   reqs,
 		Channels:   chans,
 	}, nil
@@ -541,8 +589,10 @@ func (c *Client) handlePutCapabilitiesRequest(ctx context.Context, payload []byt
 	c.afterPutCapabilities(ctx)
 }
 
-func (c *Client) handleSSHRequests(ctx context.Context, sshConn *sshClientConn) {
-	for r := range sshConn.Requests {
+func (c *Client) handleSSHRequests(ctx context.Context, sshClientConn *sshClientConnection) {
+	c.Logger.Debugf("handleSSHRequests started")
+
+	for r := range sshClientConn.Requests {
 		var err error
 		var resp interface{}
 		switch r.Type {
@@ -559,7 +609,7 @@ func (c *Client) handleSSHRequests(ctx context.Context, sshConn *sshClientConn) 
 				c.Logger,
 				c.filesAPI,
 				c.configHolder,
-				sshConn.Connection,
+				sshClientConn.Connection,
 				system.SysUserProvider{},
 			)
 			resp, err = uploadManager.HandleUploadRequest(r.Payload)
@@ -582,6 +632,8 @@ func (c *Client) handleSSHRequests(ctx context.Context, sshConn *sshClientConn) 
 
 		comm.ReplySuccessJSON(c.Logger, r, resp)
 	}
+
+	c.Logger.Debugf("handleSSHRequests finished")
 }
 
 func checkPort(payload []byte) (*comm.CheckPortResponse, error) {
@@ -619,6 +671,10 @@ func (c *Client) checkTunnelAllowed(payload []byte) (*comm.CheckTunnelAllowedRes
 }
 
 func (c *Client) showConnectionError(connerr error, attempt int) {
+	if errors.Is(connerr, context.Canceled) {
+		c.Infof("context canceled")
+		return
+	}
 	maxAttempt := c.configHolder.Connection.MaxRetryCount
 	//show error and attempt counts
 	msg := fmt.Sprintf("Connection error: %s", connerr)
@@ -637,21 +693,46 @@ func (c *Client) showConnectionError(connerr error, attempt int) {
 
 // Wait blocks while the client is running.
 // Can only be called once.
-func (c *Client) Wait() error {
-	return <-c.runningc
+func (c *Client) Wait(ctx context.Context) (err error) {
+	select {
+	case <-c.runningc:
+	case <-ctx.Done():
+		c.Logger.Debugf("context canceled during client wait")
+		err = ctx.Err()
+	}
+	return err
 }
 
 // Close manually stops the client
 func (c *Client) Close() error {
-	c.running = false
+	c.stopRunning()
 	c.watchdog.Close()
-	if c.sshConn == nil {
+	return c.CloseConnection()
+}
+
+func (c *Client) CloseConnection() error {
+	c.setConnActive(false)
+	sshConn := c.getConn()
+	if sshConn == nil {
 		return nil
 	}
-	return c.sshConn.Close()
+	return sshConn.Close()
+}
+
+func (c *Client) isRunning() (isRunning bool) {
+	c.mu.RLock()
+	defer c.mu.RUnlock()
+	return c.running
+}
+
+func (c *Client) stopRunning() {
+	c.mu.Lock()
+	defer c.mu.Unlock()
+	c.running = false
 }
 
 func (c *Client) connectStreams(chans <-chan ssh.NewChannel) {
+	c.Logger.Debugf("connectStreams started")
 	for ch := range chans {
 		remote := string(ch.ExtraData())
 		protocol := models.ProtocolTCP
@@ -697,6 +778,7 @@ func (c *Client) connectStreams(chans <-chan ssh.NewChannel) {
 			stream.Close()
 		}
 	}
+	c.Logger.Debugf("connectStreams finished")
 }
 
 // returns all local ipv4, ipv6 addresses

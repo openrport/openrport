@@ -81,7 +81,7 @@ func (c *Client) HandleRunCmdRequest(ctx context.Context, reqPayload []byte) (*c
 	limitedStdErrCh := ioutil.Discard
 	closeStreamChannels := func() {}
 	if job.StreamResult {
-		stdOutCh, reqs, err := c.sshConn.OpenChannel(models.ChannelStdout, reqPayload)
+		stdOutCh, reqs, err := c.getConn().OpenChannel(models.ChannelStdout, reqPayload)
 		go ssh.DiscardRequests(reqs)
 		if err != nil {
 			return nil, err
@@ -92,7 +92,7 @@ func (c *Client) HandleRunCmdRequest(ctx context.Context, reqPayload []byte) (*c
 			Limit:   c.configHolder.RemoteCommands.SendBackLimit,
 		}
 
-		stdErrCh, reqs, err := c.sshConn.OpenChannel(models.ChannelStderr, reqPayload)
+		stdErrCh, reqs, err := c.getConn().OpenChannel(models.ChannelStderr, reqPayload)
 		go ssh.DiscardRequests(reqs)
 		if err != nil {
 			return nil, err
@@ -185,7 +185,7 @@ func (c *Client) HandleRunCmdRequest(ctx context.Context, reqPayload []byte) (*c
 			return
 		}
 		c.Debugf("sending job to server: %v", job)
-		_, _, err = c.sshConn.SendRequest(comm.RequestTypeCmdResult, false, jobBytes)
+		_, _, err = c.getConn().SendRequest(comm.RequestTypeCmdResult, false, jobBytes)
 		if err != nil {
 			c.Errorf("failed to send command result to server[jid=%q,pid=%d]: %s", job.JID, cmd.Process.Pid, err)
 		}

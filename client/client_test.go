@@ -79,7 +79,10 @@ func TestCustomHeaders(t *testing.T) {
 	c, err := NewClient(&config, fileAPI)
 	require.NoError(t, err)
 
-	err = c.Run()
+	ctx, cancel := context.WithCancel(context.Background())
+	defer cancel()
+
+	err = c.Run(ctx)
 	require.NoError(t, err)
 }
 

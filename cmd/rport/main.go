@@ -1,10 +1,14 @@
 package main
 
 import (
+	"context"
+	"errors"
 	"fmt"
 	"log"
 	"os"
+	"os/signal"
 	"runtime"
+	"syscall"
 	"time"
 
 	"github.com/cloudradar-monitoring/rport/share/files"
@@ -438,6 +442,7 @@ func runMain(cmd *cobra.Command, args []string) {
 	}
 
 	fileAPI := files.NewFileSystem()
+
 	c, err := chclient.NewClient(config, fileAPI)
 	if err != nil {
 		log.Fatal(err)
@@ -453,7 +458,12 @@ func runMain(cmd *cobra.Command, args []string) {
 
 	go chshare.GoStats()
 
-	if err = c.Run(); err != nil {
-		log.Fatal(err)
+	ctx, cancel := signal.NotifyContext(context.Background(), syscall.SIGINT, syscall.SIGTERM, syscall.SIGHUP)
+	defer cancel()
+
+	if err = c.Run(ctx); err != nil {
+		if !errors.Is(err, context.Canceled) {
+			log.Fatal(err)
+		}
 	}
 }

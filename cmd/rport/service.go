@@ -1,6 +1,7 @@
 package main
 
 import (
+	"context"
 	"log"
 	"path/filepath"
 
@@ -55,7 +56,10 @@ func (w *serviceWrapper) Start(service.Service) error {
 		return nil
 	}
 	go func() {
-		if err := w.Client.Run(); err != nil {
+		ctx, cancel := context.WithCancel(context.Background())
+		defer cancel()
+
+		if err := w.Client.Run(ctx); err != nil {
 			log.Println(err)
 		}
 	}()

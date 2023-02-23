@@ -154,10 +154,10 @@ func TestHandleRunCmdRequestPositiveCase(t *testing.T) {
 	connMock.DoneChannel = done
 	configCopy := getDefaultValidMinConfig()
 	c := Client{
-		cmdExec:      execMock,
-		sshConn:      connMock,
-		Logger:       testLog,
-		configHolder: &configCopy,
+		cmdExec:       execMock,
+		sshConnection: connMock,
+		Logger:        testLog,
+		configHolder:  &configCopy,
 	}
 
 	configCopy.Client.DataDir = filepath.Join(configCopy.Client.DataDir, "TestHandleRunCmdRequestPositiveCase")
@@ -314,10 +314,10 @@ func TestNoStreamResult(t *testing.T) {
 	connMock.DoneChannel = done
 	configCopy := getDefaultValidMinConfig()
 	c := Client{
-		cmdExec:      execMock,
-		sshConn:      connMock,
-		Logger:       testLog,
-		configHolder: &configCopy,
+		cmdExec:       execMock,
+		sshConnection: connMock,
+		Logger:        testLog,
+		configHolder:  &configCopy,
 	}
 
 	configCopy.Client.DataDir = filepath.Join(configCopy.Client.DataDir, "TestHandleRunCmdRequestPositiveCase")
