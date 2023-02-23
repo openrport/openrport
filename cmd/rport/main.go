@@ -3,6 +3,8 @@ package main
 import (
 	"errors"
 	"fmt"
+	"log"
+	_ "net/http/pprof"
 	"os"
 	"runtime"
 
@@ -119,6 +121,28 @@ func isServiceManager() bool {
 	return svcCommand != ""
 }
 
+type ClientAttributesConfigHolder struct {
+	Tags   []string
+	Labels map[string]string
+}
+
+func readConfigFile(cfgPath string) (ClientAttributesConfigHolder, error) {
+
+	viperCfg := viper.New()
+	viperCfg.AddConfigPath(".")
+	viperCfg.SetConfigName(cfgPath)
+
+	attributes := ClientAttributesConfigHolder{}
+
+	if err := viperCfg.ReadInConfig(); err != nil {
+		if _, ok := err.(viper.ConfigFileNotFoundError); !ok {
+			return ClientAttributesConfigHolder{}, fmt.Errorf("error reading config file: %s", err)
+		}
+	}
+	err := viperCfg.Unmarshal(&attributes)
+	return attributes, err
+}
+
 func decodeConfig(cfgPath string, overrideConfigWithCLIArgs bool) (*chclient.ClientConfigHolder, error) {
 
 	viperCfg := viper.New()
@@ -160,6 +184,16 @@ func decodeConfig(cfgPath string, overrideConfigWithCLIArgs bool) (*chclient.Cli
 		config.Tunnels.Scheme = must.Must(pFlags.GetString("scheme"))
 		config.Tunnels.ReverseProxy = must.Must(pFlags.GetBool("enable-reverse-proxy"))
 		config.Tunnels.HostHeader = must.Must(pFlags.GetString("host-header"))
+	}
+
+	file, err := readConfigFile("client_attributes")
+	if err != nil {
+		log.Println("error reading attributes_file", err)
+		log.Println("ignoring attributes_file")
+	} else {
+		fmt.Printf("extending config by client_attributes: %v\n", file)
+		config.Client.Tags = file.Tags
+		config.Client.Labels = file.Labels
 	}
 
 	return config, nil

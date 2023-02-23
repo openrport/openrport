@@ -51,37 +51,55 @@ func (suite *TagsAndLabelsTestSuite) TearDownSuite() {
 func (suite *TagsAndLabelsTestSuite) TestClientHasTags() {
 	requestURL := "http://localhost:3000/api/v1/clients?fields[clients]=tags"
 
-	content := []TagsAndLabels{{Tags: []string{"task-vm", "vm"}}}
-	suite.ExpectAnswer(requestURL, content)
+	expected := []TagsAndLabels{{Tags: []string{"task-vm", "vm"}}}
+	suite.ExpectAnswer(requestURL, expected)
 }
 
 func (suite *TagsAndLabelsTestSuite) TestClientsCanBeFilteredByTags_findNone() {
 	requestURL := "http://localhost:3000/api/v1/clients?fields[clients]=tags&filter[tags]=test"
 
-	content := []TagsAndLabels{}
-	suite.ExpectAnswer(requestURL, content)
+	expected := []TagsAndLabels{}
+	suite.ExpectAnswer(requestURL, expected)
 }
 
 func (suite *TagsAndLabelsTestSuite) TestClientsCanBeFilteredByTags_findOne() {
 
 	requestURL := "http://localhost:3000/api/v1/clients?fields[clients]=tags&filter[tags]=vm"
 
-	content := []TagsAndLabels{{Tags: []string{"task-vm", "vm"}}}
-	suite.ExpectAnswer(requestURL, content)
+	expected := []TagsAndLabels{{Tags: []string{"task-vm", "vm"}}}
+	suite.ExpectAnswer(requestURL, expected)
 }
 
 func (suite *TagsAndLabelsTestSuite) TestClientHasLabels() {
 
 	requestURL := "http://localhost:3000/api/v1/clients?fields[clients]=tags,labels"
 
-	content := []TagsAndLabels{{Tags: []string{"task-vm", "vm"}}}
+	expected := []TagsAndLabels{{Tags: []string{"task-vm", "vm"}, Labels: map[string]string{"country": "Germany", "city": "Cologne", "datacenter": "NetCologne GmbH"}}}
 
-	suite.ExpectAnswer(requestURL, content)
+	suite.ExpectAnswer(requestURL, expected)
 }
 
-func (suite *TagsAndLabelsTestSuite) ExpectAnswer(requestURL string, content []TagsAndLabels) bool {
+func (suite *TagsAndLabelsTestSuite) TestClientHasLabels_findNone() {
+
+	requestURL := "http://localhost:3000/api/v1/clients?fields[clients]=tags,labels&filter[labels]=not:existing"
+
+	expected := []TagsAndLabels{}
+
+	suite.ExpectAnswer(requestURL, expected)
+}
+
+func (suite *TagsAndLabelsTestSuite) TestClientHasLabels_findOne() {
+
+	requestURL := "http://localhost:3000/api/v1/clients?fields[clients]=tags,labels&filter[labels]=city:Cologne"
+
+	expected := []TagsAndLabels{{Tags: []string{"task-vm", "vm"}, Labels: map[string]string{"country": "Germany", "city": "Cologne", "datacenter": "NetCologne GmbH"}}}
+
+	suite.ExpectAnswer(requestURL, expected)
+}
+
+func (suite *TagsAndLabelsTestSuite) ExpectAnswer(requestURL string, expected []TagsAndLabels) bool {
 	structured := suite.call(requestURL)
-	return assert.Equal(suite.T(), structured, Rsp{Data: content})
+	return assert.Equal(suite.T(), structured, Rsp{Data: expected})
 }
 
 func (suite *TagsAndLabelsTestSuite) call(requestURL string) Rsp {

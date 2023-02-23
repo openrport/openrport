@@ -201,6 +201,7 @@ func shallowCopy(c *Client) *Client {
 		IPv4:                   append([]string{}, c.IPv4...),
 		IPv6:                   append([]string{}, c.IPv6...),
 		Tags:                   append([]string{}, c.Tags...),
+		Labels:                 c.Labels,
 		Version:                c.Version,
 		Address:                c.Address,
 		Tunnels:                append([]*clienttunnel.Tunnel{}, c.Tunnels...),
