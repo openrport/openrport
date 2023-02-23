@@ -214,6 +214,10 @@ func (al *APIListener) handleGetIP(w http.ResponseWriter, req *http.Request) {
 	al.writeJSONResponse(w, http.StatusOK, api.NewSuccessPayload(ipResp))
 }
 
+func (al *APIListener) handleTokenGone(w http.ResponseWriter, req *http.Request) {
+	al.jsonErrorResponseWithTitle(w, http.StatusGone, "use new token management on /me/tokens")
+}
+
 func (al *APIListener) handleGetToken(w http.ResponseWriter, req *http.Request) {
 	user, err := al.getUserModel(req.Context())
 	if err != nil {

@@ -61,7 +61,7 @@ paths:
     $ref: paths/me.yaml
   /me/ip:
     $ref: paths/me_ip.yaml
-  /me/token:
+  /me/tokens:
     $ref: paths/me_token.yaml
   /status:
     $ref: paths/status.yaml
@@ -172,7 +172,7 @@ components:
       description: >-
         HTTP-basic authentication works for all routes. You can use user's
         password only when 2FA is not enabled. For scripting you can use
-        long-lived API token generated using /me/token endpoint instead of the
+        long-lived API token generated using /me/tokens endpoint instead of the
         password.
       scheme: basic
     bearer_auth:

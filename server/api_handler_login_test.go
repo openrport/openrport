@@ -82,7 +82,7 @@ func TestAPITokenOps(t *testing.T) {
 		{
 			descr:          "create token bad json in request body",
 			requestMethod:  http.MethodPost,
-			requestURL:     "/api/v1/me/token",
+			requestURL:     "/api/v1/me/tokens",
 			requestBody:    strings.NewReader(`}`),
 			wantStatusCode: http.StatusBadRequest,
 			wantErrTitle:   "Invalid JSON data",
@@ -90,7 +90,7 @@ func TestAPITokenOps(t *testing.T) {
 		{
 			descr:          "create token empty request body",
 			requestMethod:  http.MethodPost,
-			requestURL:     "/api/v1/me/token",
+			requestURL:     "/api/v1/me/tokens",
 			requestBody:    nil,
 			wantStatusCode: http.StatusBadRequest,
 			wantErrTitle:   "Invalid JSON data",
@@ -100,7 +100,7 @@ func TestAPITokenOps(t *testing.T) {
 		{
 			descr:          "new token bad scope creation",
 			requestMethod:  http.MethodPost,
-			requestURL:     "/api/v1/me/token",
+			requestURL:     "/api/v1/me/tokens",
 			requestBody:    strings.NewReader(`{"scope": "reads"}`),
 			wantStatusCode: http.StatusBadRequest,
 			wantErrCode:    "",
@@ -109,7 +109,7 @@ func TestAPITokenOps(t *testing.T) {
 		{
 			descr:          "new token no scope provided",
 			requestMethod:  http.MethodPost,
-			requestURL:     "/api/v1/me/token",
+			requestURL:     "/api/v1/me/tokens",
 			requestBody:    strings.NewReader(`{"name": "This is a test name"}`),
 			wantStatusCode: http.StatusBadRequest,
 			wantErrCode:    "",
@@ -118,7 +118,7 @@ func TestAPITokenOps(t *testing.T) {
 		{
 			descr:          "new token no name provided",
 			requestMethod:  http.MethodPost,
-			requestURL:     "/api/v1/me/token",
+			requestURL:     "/api/v1/me/tokens",
 			requestBody:    strings.NewReader(`{"scope": "` + string(authorization.APITokenRead) + `"}`),
 			wantStatusCode: http.StatusBadRequest,
 			wantErrCode:    "",
@@ -127,7 +127,7 @@ func TestAPITokenOps(t *testing.T) {
 		{
 			descr:          "delete a token, prefix wrong len",
 			requestMethod:  http.MethodDelete,
-			requestURL:     "/api/v1/me/token/hjk",
+			requestURL:     "/api/v1/me/tokens/hjk",
 			wantStatusCode: http.StatusBadRequest,
 			wantErrCode:    "",
 			wantErrTitle:   "missing or invalid token prefix.",
@@ -135,7 +135,7 @@ func TestAPITokenOps(t *testing.T) {
 		{
 			descr:          "new token read creation, too long of a name",
 			requestMethod:  http.MethodPost,
-			requestURL:     "/api/v1/me/token",
+			requestURL:     "/api/v1/me/tokens",
 			requestBody:    strings.NewReader(`{"scope": "` + string(authorization.APITokenRead) + `", "name":"` + strings.Repeat("I am a token and this is my name", 10) + `"}`),
 			wantStatusCode: http.StatusBadRequest,
 			wantErrTitle:   "missing or invalid name.",
@@ -144,7 +144,7 @@ func TestAPITokenOps(t *testing.T) {
 		{
 			descr:          "new token read creation",
 			requestMethod:  http.MethodPost,
-			requestURL:     "/api/v1/me/token",
+			requestURL:     "/api/v1/me/tokens",
 			requestBody:    strings.NewReader(`{"scope": "` + string(authorization.APITokenRead) + `", "name": "This is my name"}`),
 			wantStatusCode: http.StatusOK,
 			wantJSON:       `{"data":{"scope":"` + string(authorization.APITokenRead) + `", "token":"theprefi_mynicefi-xedl-enth-long-livedpasswor"}}`,
@@ -152,7 +152,7 @@ func TestAPITokenOps(t *testing.T) {
 		{
 			descr:          "new token read+write creation with expires_at",
 			requestMethod:  http.MethodPost,
-			requestURL:     "/api/v1/me/token",
+			requestURL:     "/api/v1/me/tokens",
 			requestBody:    strings.NewReader(`{"scope": "` + string(authorization.APITokenReadWrite) + `", "name": "This is my name", "expires_at": "` + string(expirationDate) + `"}`),
 			wantStatusCode: http.StatusOK,
 			wantJSON:       `{"data":{"expires_at":"2025-01-01T02:00:00Z", "scope":"` + string(authorization.APITokenReadWrite) + `", "token":"theprefi_mynicefi-xedl-enth-long-livedpasswor"}}`,
@@ -160,7 +160,7 @@ func TestAPITokenOps(t *testing.T) {
 		{
 			descr:          "token update with expires_at",
 			requestMethod:  http.MethodPut,
-			requestURL:     "/api/v1/me/token/theprefi",
+			requestURL:     "/api/v1/me/tokens/theprefi",
 			requestBody:    strings.NewReader(`{"expires_at": "` + string(updateExpirationDate) + `"}`),
 			wantStatusCode: http.StatusOK,
 			wantJSON:       `{"data":{"expires_at":"2026-03-10T05:00:00Z", "prefix":"theprefi", "username":"test-user" }}`,
@@ -168,7 +168,7 @@ func TestAPITokenOps(t *testing.T) {
 		{
 			descr:          "token update with name",
 			requestMethod:  http.MethodPut,
-			requestURL:     "/api/v1/me/token/theprefi",
+			requestURL:     "/api/v1/me/tokens/theprefi",
 			requestBody:    strings.NewReader(`{"name": "new name"}`),
 			wantStatusCode: http.StatusOK,
 			wantJSON:       `{"data":{"name": "new name", "prefix":"theprefi", "username":"test-user" }}`,
@@ -176,7 +176,7 @@ func TestAPITokenOps(t *testing.T) {
 		{
 			descr:          "delete a token ",
 			requestMethod:  http.MethodDelete,
-			requestURL:     "/api/v1/me/token/" + MyalphaNumNewPrefix,
+			requestURL:     "/api/v1/me/tokens/" + MyalphaNumNewPrefix,
 			wantStatusCode: http.StatusNoContent,
 		},
 	}
@@ -334,7 +334,7 @@ func TestPostToken(t *testing.T) {
 	}
 
 	al.initRouter()
-	req := httptest.NewRequest("POST", "/api/v1/me/token", strings.NewReader(`{"name": "token name", "scope": "`+string(authorization.APITokenReadWrite)+`"}`))
+	req := httptest.NewRequest("POST", "/api/v1/me/tokens", strings.NewReader(`{"name": "token name", "scope": "`+string(authorization.APITokenReadWrite)+`"}`))
 	w := httptest.NewRecorder()
 	ctxUser1 := api.WithUser(req.Context(), user.Username)
 	req = req.WithContext(ctxUser1)
