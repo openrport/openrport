@@ -58,10 +58,9 @@ func (p *SqliteProvider) Save(ctx context.Context, tokenLine *APIToken) (err err
 		`INSERT INTO api_token (username, prefix, name, expires_at, scope, token)
 			      VALUES (:username, :prefix, :name, :expires_at, :scope, :token)
 			 	ON CONFLICT(username, prefix) DO UPDATE SET
-				 -- the following is per-field logic to update only with non empty value
-				 -- (that is to say these fields cannot be blanked/nulled)
-				 name=CASE WHEN :name != "" THEN EXCLUDED.name ELSE api_token.name END,
-				 expires_at=CASE WHEN :expires_at != "" THEN EXCLUDED.expires_at ELSE api_token.expires_at END
+				 expires_at=CASE WHEN :expires_at IS NOT NULL THEN EXCLUDED.expires_at ELSE api_token.expires_at END,
+				 -- the following is per-field logic to update only with non empty value (this field cannot be blanked)
+				 name=CASE WHEN :name != "" THEN EXCLUDED.name ELSE api_token.name END
 				WHERE EXCLUDED.username = api_token.username AND
 				       EXCLUDED.prefix = api_token.prefix`,
 		tokenLine,
