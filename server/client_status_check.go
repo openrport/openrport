@@ -13,7 +13,7 @@ const DefaultMaxWorkers = 100
 
 type ClientsStatusCheckTask struct {
 	log         *logger.Logger
-	clientRepo  *clients.ClientRepository
+	clientsRepo *clients.ClientRepository
 	threshold   time.Duration // Threshold after which a client to server ping is considered outdated.
 	pingTimeout time.Duration // Don't wait longer than pingTimeout for a response
 }
@@ -22,7 +22,7 @@ type ClientsStatusCheckTask struct {
 func NewClientsStatusCheckTask(log *logger.Logger, cr *clients.ClientRepository, th time.Duration, pingTimeout time.Duration) *ClientsStatusCheckTask {
 	return &ClientsStatusCheckTask{
 		log:         log.Fork("clients-status-check"),
-		clientRepo:  cr,
+		clientsRepo: cr,
 		threshold:   th,
 		pingTimeout: pingTimeout,
 	}
@@ -33,7 +33,7 @@ func (t *ClientsStatusCheckTask) Run(ctx context.Context) error {
 	timerStart := time.Now()
 	var confirmedClients = 0
 
-	dueClients := t.getDueClients()
+	dueClients, totalClientsCount := t.getDueClients()
 	if len(dueClients) == 0 {
 		// Nothing to do
 		t.log.Debugf("ended after %s, no clients to ping", time.Since(timerStart))
@@ -77,14 +77,14 @@ func (t *ClientsStatusCheckTask) Run(ctx context.Context) error {
 		}
 	}
 
-	t.log.Debugf("ended after %s, skipped: %d, pinged: %d, alive: %d, dead: %d", time.Since(timerStart), confirmedClients, len(dueClients), alive, dead)
+	t.log.Debugf("ended after %s, skipped: %d, pinged: %d, alive: %d, dead: %d, total: %d", time.Since(timerStart), confirmedClients, len(dueClients), alive, dead, totalClientsCount)
 	return nil
 }
 
-func (t *ClientsStatusCheckTask) getDueClients() (dueClients []*clients.Client) {
+func (t *ClientsStatusCheckTask) getDueClients() (dueClients []*clients.Client, totalCount int) {
 	var confirmedClients = 0
 	var now = time.Now()
-	activeClients := t.clientRepo.GetAllActiveClients()
+	activeClients := t.clientsRepo.GetAllActiveClients()
 	for _, c := range activeClients {
 		// Shorten the threshold aka make heartbeat older than it is because the ping response is stored after this check.
 		// Clients would get checked only every second time otherwise.
@@ -99,7 +99,7 @@ func (t *ClientsStatusCheckTask) getDueClients() (dueClients []*clients.Client) 
 		}
 		dueClients = append(dueClients, c)
 	}
-	return dueClients
+	return dueClients, len(activeClients)
 }
 
 func (t *ClientsStatusCheckTask) PingClients(ctx context.Context, workerNum int, clientsToPing <-chan *clients.Client, results chan<- bool) {
