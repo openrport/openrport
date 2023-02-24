@@ -81,7 +81,7 @@ func (suite *TagsAndLabelsTestSuite) TestClientHasLabels() {
 
 func (suite *TagsAndLabelsTestSuite) TestClientHasLabels_findNone() {
 
-	requestURL := "http://localhost:3000/api/v1/clients?fields[clients]=tags,labels&filter[labels]=not:existing"
+	requestURL := "http://localhost:3000/api/v1/clients?fields[clients]=tags,labels&filter[labels]=not_existing"
 
 	expected := []TagsAndLabels{}
 
@@ -90,7 +90,7 @@ func (suite *TagsAndLabelsTestSuite) TestClientHasLabels_findNone() {
 
 func (suite *TagsAndLabelsTestSuite) TestClientHasLabels_findOne() {
 
-	requestURL := "http://localhost:3000/api/v1/clients?fields[clients]=tags,labels&filter[labels]=city:Cologne"
+	requestURL := "http://localhost:3000/api/v1/clients?fields[clients]=tags,labels&filter[labels]=city_Cologne"
 
 	expected := []TagsAndLabels{{Tags: []string{"task-vm", "vm"}, Labels: map[string]string{"country": "Germany", "city": "Cologne", "datacenter": "NetCologne GmbH"}}}
 
