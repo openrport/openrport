@@ -4,7 +4,6 @@ import (
 	"errors"
 	"fmt"
 	"log"
-	_ "net/http/pprof"
 	"os"
 	"runtime"
 
