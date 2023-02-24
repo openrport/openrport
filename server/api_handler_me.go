@@ -15,6 +15,7 @@ import (
 	"github.com/cloudradar-monitoring/rport/server/routes"
 	chshare "github.com/cloudradar-monitoring/rport/share"
 	"github.com/cloudradar-monitoring/rport/share/logger"
+	"github.com/cloudradar-monitoring/rport/share/ptr"
 	"github.com/cloudradar-monitoring/rport/share/random"
 )
 
@@ -229,7 +230,8 @@ func (al *APIListener) handleGetToken(w http.ResponseWriter, req *http.Request) 
 		return
 	}
 	type APITokenPayload struct {
-		Prefix    string                      `json:"prefix" db:"token"`
+		Prefix    string                      `json:"prefix" db:"prefix"`
+		Name      string                      `json:"name" db:"name"`
 		CreatedAt *time.Time                  `json:"created_at" db:"created_at"`
 		ExpiresAt *time.Time                  `json:"expires_at" db:"expires_at"`
 		Scope     authorization.APITokenScope `json:"scope" db:"scope"`
@@ -246,6 +248,7 @@ func (al *APIListener) handleGetToken(w http.ResponseWriter, req *http.Request) 
 		apiTokenToSend = append(apiTokenToSend,
 			APITokenPayload{
 				Prefix:    at.Prefix,
+				Name:      at.Name,
 				CreatedAt: at.CreatedAt,
 				ExpiresAt: at.ExpiresAt,
 				Scope:     at.Scope,
@@ -292,6 +295,11 @@ func (al *APIListener) handlePostToken(w http.ResponseWriter, req *http.Request)
 		return
 	}
 
+	createdAt := ptr.Time(time.Now().Truncate(time.Second).UTC())
+	if r.ExpiresAt == nil {
+		r.ExpiresAt = ptr.Time(createdAt.AddDate(1, 0, 0))
+	}
+
 	newTokenClear, err := random.UUID4()
 	if err != nil {
 		al.jsonError(w, err)
@@ -310,12 +318,13 @@ func (al *APIListener) handlePostToken(w http.ResponseWriter, req *http.Request)
 		Prefix:    newPrefix,
 		Name:      r.Name,
 		Scope:     r.Scope,
+		CreatedAt: createdAt,
 		ExpiresAt: r.ExpiresAt,
 		Token:     tokenHashStr,
 	}
 	err = al.tokenManager.Create(req.Context(), newAPIToken)
 	if err != nil {
-		al.jsonError(w, err)
+		al.jsonErrorResponseWithTitle(w, http.StatusBadRequest, err.Error())
 		return
 	}
 
@@ -328,9 +337,10 @@ func (al *APIListener) handlePostToken(w http.ResponseWriter, req *http.Request)
 
 	al.writeJSONResponse(w, http.StatusOK, api.NewSuccessPayload(
 		authorization.APIToken{
-			Scope:     r.Scope,
 			ExpiresAt: r.ExpiresAt,
+			Scope:     r.Scope,
 			Token:     fmt.Sprintf("%s_%s", newPrefix, newTokenClear),
+			Prefix:    newPrefix,
 		}))
 }
 
@@ -370,7 +380,7 @@ func (al *APIListener) handlePutToken(w http.ResponseWriter, req *http.Request) 
 	}
 	err = al.tokenManager.Save(req.Context(), updAPIToken)
 	if err != nil {
-		al.jsonError(w, err)
+		al.jsonErrorResponseWithTitle(w, http.StatusBadRequest, err.Error())
 		return
 	}
 
@@ -381,7 +391,12 @@ func (al *APIListener) handlePutToken(w http.ResponseWriter, req *http.Request) 
 		Save()
 
 	al.Debugf("APIToken [%s] is updated for user [%s].", prefix, user.Username)
-	al.writeJSONResponse(w, http.StatusOK, api.NewSuccessPayload(updAPIToken))
+	al.writeJSONResponse(w, http.StatusOK, api.NewSuccessPayload(
+		authorization.APIToken{
+			ExpiresAt: r.ExpiresAt,
+			Prefix:    prefix,
+			Name:      r.Name,
+		}))
 }
 
 func (al *APIListener) handleDeleteToken(w http.ResponseWriter, req *http.Request) {

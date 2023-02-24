@@ -145,17 +145,33 @@ func TestAPITokenOps(t *testing.T) {
 			descr:          "new token read creation",
 			requestMethod:  http.MethodPost,
 			requestURL:     "/api/v1/me/tokens",
-			requestBody:    strings.NewReader(`{"scope": "` + string(authorization.APITokenRead) + `", "name": "This is my name"}`),
+			requestBody:    strings.NewReader(`{"scope": "` + string(authorization.APITokenRead) + `", "expires_at": "` + string(expirationDate) + `",  "name": "This is my name"}`),
 			wantStatusCode: http.StatusOK,
-			wantJSON:       `{"data":{"scope":"` + string(authorization.APITokenRead) + `", "token":"theprefi_mynicefi-xedl-enth-long-livedpasswor"}}`,
+			wantJSON:       `{"data":{"expires_at":"2025-01-01T02:00:00Z", "scope":"` + string(authorization.APITokenRead) + `", "token":"theprefi_mynicefi-xedl-enth-long-livedpasswor", "prefix": "theprefi"}}`,
 		},
 		{
-			descr:          "new token read+write creation with expires_at",
+			descr:          "new token same name",
 			requestMethod:  http.MethodPost,
 			requestURL:     "/api/v1/me/tokens",
-			requestBody:    strings.NewReader(`{"scope": "` + string(authorization.APITokenReadWrite) + `", "name": "This is my name", "expires_at": "` + string(expirationDate) + `"}`),
+			requestBody:    strings.NewReader(`{"scope": "` + string(authorization.APITokenRead) + `", "name": "This is my name"}`),
+			wantStatusCode: http.StatusBadRequest,
+			wantErrTitle:   "A token with the same name already exists",
+		},
+		{
+			descr:          "new token read+write creation",
+			requestMethod:  http.MethodPost,
+			requestURL:     "/api/v1/me/tokens",
+			requestBody:    strings.NewReader(`{"scope": "` + string(authorization.APITokenReadWrite) + `", "name": "This is my name 2", "expires_at": "` + string(expirationDate) + `"}`),
 			wantStatusCode: http.StatusOK,
-			wantJSON:       `{"data":{"expires_at":"2025-01-01T02:00:00Z", "scope":"` + string(authorization.APITokenReadWrite) + `", "token":"theprefi_mynicefi-xedl-enth-long-livedpasswor"}}`,
+			wantJSON:       `{"data":{"expires_at":"2025-01-01T02:00:00Z", "scope":"` + string(authorization.APITokenReadWrite) + `", "token":"theprefi_mynicefi-xedl-enth-long-livedpasswor", "prefix":"theprefi"}}`,
+		},
+		{
+			descr:          "update token name collision",
+			requestMethod:  http.MethodPut,
+			requestURL:     "/api/v1/me/tokens/theprefi",
+			requestBody:    strings.NewReader(`{"name": "This is my name 2"}`),
+			wantStatusCode: http.StatusBadRequest,
+			wantErrTitle:   "A token with the same name already exists",
 		},
 		{
 			descr:          "token update with expires_at",
@@ -163,7 +179,7 @@ func TestAPITokenOps(t *testing.T) {
 			requestURL:     "/api/v1/me/tokens/theprefi",
 			requestBody:    strings.NewReader(`{"expires_at": "` + string(updateExpirationDate) + `"}`),
 			wantStatusCode: http.StatusOK,
-			wantJSON:       `{"data":{"expires_at":"2026-03-10T05:00:00Z", "prefix":"theprefi", "username":"test-user" }}`,
+			wantJSON:       `{"data":{"expires_at":"2026-03-10T05:00:00Z", "prefix":"theprefi" }}`,
 		},
 		{
 			descr:          "token update with name",
@@ -171,7 +187,7 @@ func TestAPITokenOps(t *testing.T) {
 			requestURL:     "/api/v1/me/tokens/theprefi",
 			requestBody:    strings.NewReader(`{"name": "new name"}`),
 			wantStatusCode: http.StatusOK,
-			wantJSON:       `{"data":{"name": "new name", "prefix":"theprefi", "username":"test-user" }}`,
+			wantJSON:       `{"data":{"name": "new name", "prefix":"theprefi" }}`,
 		},
 		{
 			descr:          "delete a token ",
@@ -216,6 +232,7 @@ func TestAPITokenOps(t *testing.T) {
 					assert.Empty(w.Body.String())
 				} else {
 					assert.JSONEq(tc.wantJSON, w.Body.String())
+
 				}
 			} else {
 				// failure case
@@ -227,10 +244,10 @@ func TestAPITokenOps(t *testing.T) {
 
 				// compare items of struct error, one by one,
 				if tc.wantErrTitle != "" {
-					require.Equal(tc.wantErrTitle, tResponse.Errors[0].Title)
+					assert.Equal(tc.wantErrTitle, tResponse.Errors[0].Title)
 				}
 				if tc.wantErrDetail != "" {
-					require.Equal(tc.wantErrDetail, tResponse.Errors[0].Detail)
+					assert.Equal(tc.wantErrDetail, tResponse.Errors[0].Detail)
 				}
 			}
 		})

@@ -52,14 +52,31 @@ func (p *SqliteProvider) Get(ctx context.Context, username, prefix string) (*API
 	return res, nil
 }
 
+func (p *SqliteProvider) GetByName(ctx context.Context, username, name string) (*APIToken, error) {
+	res := &APIToken{}
+	err := p.db.GetContext(ctx,
+		res,
+		"SELECT * FROM api_token WHERE username = ? AND name = ?",
+		username,
+		name,
+	)
+	if err != nil {
+		if err == sql.ErrNoRows {
+			return nil, nil
+		}
+		return nil, fmt.Errorf("unable to get api token from DB: %w", err)
+	}
+	return res, nil
+}
+
 func (p *SqliteProvider) Save(ctx context.Context, tokenLine *APIToken) (err error) {
 	res, err := p.db.NamedExecContext(
 		ctx,
-		`INSERT INTO api_token (username, prefix, name, expires_at, scope, token)
-			      VALUES (:username, :prefix, :name, :expires_at, :scope, :token)
+		`INSERT INTO api_token (username, prefix, name, created_at, expires_at, scope, token)
+			      VALUES (:username, :prefix, :name, :created_at, :expires_at,:scope, :token)
 			 	ON CONFLICT(username, prefix) DO UPDATE SET
+				 -- the following is per-field logic to update only with non empty value (this fields cannot be blanked)
 				 expires_at=CASE WHEN :expires_at IS NOT NULL THEN EXCLUDED.expires_at ELSE api_token.expires_at END,
-				 -- the following is per-field logic to update only with non empty value (this field cannot be blanked)
 				 name=CASE WHEN :name != "" THEN EXCLUDED.name ELSE api_token.name END
 				WHERE EXCLUDED.username = api_token.username AND
 				       EXCLUDED.prefix = api_token.prefix`,
@@ -67,7 +84,7 @@ func (p *SqliteProvider) Save(ctx context.Context, tokenLine *APIToken) (err err
 	)
 
 	if err != nil {
-		return fmt.Errorf("unable to create api token: %w", err)
+		return err
 	}
 	affectedRows, err := res.RowsAffected()
 	if err != nil {
