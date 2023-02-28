@@ -55,6 +55,7 @@ type Client struct {
 	IPv4                   []string               `json:"ipv4"`
 	IPv6                   []string               `json:"ipv6"`
 	Tags                   []string               `json:"tags"`
+	Labels                 map[string]string      `json:"labels"`
 	Version                string                 `json:"version"`
 	Address                string                 `json:"address"`
 	Tunnels                []*clienttunnel.Tunnel `json:"tunnels"`

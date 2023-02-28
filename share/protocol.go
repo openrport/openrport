@@ -33,6 +33,7 @@ type ConnectionRequest struct {
 	IPv4                   []string
 	IPv6                   []string
 	Tags                   []string
+	Labels                 map[string]string
 	Remotes                []*models.Remote
 	ClientConfiguration    *clientconfig.Config
 }

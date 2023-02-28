@@ -4,6 +4,7 @@ package main
 import (
 	"errors"
 	"fmt"
+	"log"
 	"os"
 	"runtime"
 
@@ -120,6 +121,26 @@ func isServiceManager() bool {
 	return svcCommand != ""
 }
 
+type ClientAttributesConfigHolder struct {
+	Tags   []string
+	Labels map[string]string
+}
+
+func readConfigFile(cfgPath string) (ClientAttributesConfigHolder, error) {
+
+	viperCfg := viper.New()
+	viperCfg.SetConfigFile(cfgPath)
+
+	attributes := ClientAttributesConfigHolder{}
+
+	if err := viperCfg.ReadInConfig(); err != nil {
+		return ClientAttributesConfigHolder{}, fmt.Errorf("error reading config file: %s", err)
+
+	}
+	err := viperCfg.Unmarshal(&attributes)
+	return attributes, err
+}
+
 func decodeConfig(cfgPath string, overrideConfigWithCLIArgs bool) (*chclient.ClientConfigHolder, error) {
 
 	viperCfg := viper.New()
@@ -163,6 +184,17 @@ func decodeConfig(cfgPath string, overrideConfigWithCLIArgs bool) (*chclient.Cli
 		config.Tunnels.HostHeader = must.Must(pFlags.GetString("host-header"))
 	}
 
+	if len(config.Config.Client.AttributesFilePath) > 0 {
+		file, err := readConfigFile(config.Config.Client.AttributesFilePath)
+		if err != nil {
+			log.Println("error reading attributes_file", err)
+			log.Println("ignoring attributes_file")
+		} else {
+			fmt.Printf("extending config by extra client attributes file %v\n", file)
+			config.Client.Tags = file.Tags
+			config.Client.Labels = file.Labels
+		}
+	}
 	return config, nil
 }
 

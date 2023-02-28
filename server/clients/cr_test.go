@@ -477,6 +477,11 @@ func TestCRWithFilter(t *testing.T) {
 						"Datacenter 1",
 					},
 				},
+				// TODO: kk: figure out how to make it work
+				//{
+				//	Column: []string{"labes"},
+				//	Values: map[string]string{"country": "Germany", "city": "Cologne", "datacenter": "NetCologne GmbH"}
+				//},
 				{
 					Column: []string{"version"},
 					Values: []string{

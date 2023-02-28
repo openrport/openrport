@@ -18,8 +18,8 @@ import (
 )
 
 type TagsAndLabels struct {
-	Tags   []string `json:"tags"`
-	Labels []string `json:"labels"`
+	Tags   []string          `json:"tags"`
+	Labels map[string]string `json:"labels"`
 }
 
 type Rsp struct {
@@ -36,7 +36,9 @@ type TagsAndLabelsTestSuite struct {
 
 func (suite *TagsAndLabelsTestSuite) SetupSuite() {
 	suite.ctx = context.Background()
-	suite.rd, suite.rc = helpers.StartClientAndServerAndWaitForConnection(suite.ctx, suite.T())
+	ctx, cancel := context.WithTimeout(suite.ctx, time.Minute*5)
+	defer cancel()
+	suite.rd, suite.rc = helpers.StartClientAndServerAndWaitForConnection(ctx, suite.T())
 	time.Sleep(time.Millisecond * 100)
 	if suite.rc.ProcessState != nil || suite.rd.ProcessState != nil {
 		suite.Fail("deamons didn't start")
@@ -44,46 +46,62 @@ func (suite *TagsAndLabelsTestSuite) SetupSuite() {
 }
 
 func (suite *TagsAndLabelsTestSuite) TearDownSuite() {
-	helpers.Yolo(suite.rc.Process.Kill())
-	helpers.Yolo(suite.rd.Process.Kill())
+	helpers.LogAndIgnore(suite.rc.Process.Kill())
+	helpers.LogAndIgnore(suite.rd.Process.Kill())
 }
 
 func (suite *TagsAndLabelsTestSuite) TestClientHasTags() {
 	requestURL := "http://localhost:3000/api/v1/clients?fields[clients]=tags"
 
-	content := []TagsAndLabels{{Tags: []string{"task-vm", "vm"}}}
-	suite.ExpectAnswer(requestURL, content)
+	expected := []TagsAndLabels{{Tags: []string{"task-vm", "vm"}}}
+	suite.ExpectAnswer(requestURL, expected)
 }
 
 func (suite *TagsAndLabelsTestSuite) TestClientsCanBeFilteredByTags_findNone() {
 	requestURL := "http://localhost:3000/api/v1/clients?fields[clients]=tags&filter[tags]=test"
 
-	content := []TagsAndLabels{}
-	suite.ExpectAnswer(requestURL, content)
+	expected := []TagsAndLabels{}
+	suite.ExpectAnswer(requestURL, expected)
 }
 
 func (suite *TagsAndLabelsTestSuite) TestClientsCanBeFilteredByTags_findOne() {
 
 	requestURL := "http://localhost:3000/api/v1/clients?fields[clients]=tags&filter[tags]=vm"
 
-	content := []TagsAndLabels{{Tags: []string{"task-vm", "vm"}}}
-	suite.ExpectAnswer(requestURL, content)
+	expected := []TagsAndLabels{{Tags: []string{"task-vm", "vm"}}}
+	suite.ExpectAnswer(requestURL, expected)
 }
 
 func (suite *TagsAndLabelsTestSuite) TestClientHasLabels() {
 
-	suite.T().Skip("merge e2e cleanly")
-
 	requestURL := "http://localhost:3000/api/v1/clients?fields[clients]=tags,labels"
 
-	content := []TagsAndLabels{{Tags: []string{"task-vm", "vm"}}}
+	expected := []TagsAndLabels{{Tags: []string{"task-vm", "vm"}, Labels: map[string]string{"country": "Germany", "city": "Cologne", "datacenter": "NetCologne GmbH"}}}
 
-	suite.ExpectAnswer(requestURL, content)
+	suite.ExpectAnswer(requestURL, expected)
 }
 
-func (suite *TagsAndLabelsTestSuite) ExpectAnswer(requestURL string, content []TagsAndLabels) bool {
+func (suite *TagsAndLabelsTestSuite) TestClientHasLabels_findNone() {
+
+	requestURL := "http://localhost:3000/api/v1/clients?fields[clients]=tags,labels&filter[labels]=not_existing"
+
+	expected := []TagsAndLabels{}
+
+	suite.ExpectAnswer(requestURL, expected)
+}
+
+func (suite *TagsAndLabelsTestSuite) TestClientHasLabels_findOne() {
+
+	requestURL := "http://localhost:3000/api/v1/clients?fields[clients]=tags,labels&filter[labels]=city_Cologne"
+
+	expected := []TagsAndLabels{{Tags: []string{"task-vm", "vm"}, Labels: map[string]string{"country": "Germany", "city": "Cologne", "datacenter": "NetCologne GmbH"}}}
+
+	suite.ExpectAnswer(requestURL, expected)
+}
+
+func (suite *TagsAndLabelsTestSuite) ExpectAnswer(requestURL string, expected []TagsAndLabels) bool {
 	structured := suite.call(requestURL)
-	return assert.Equal(suite.T(), structured, Rsp{Data: content})
+	return assert.Equal(suite.T(), structured, Rsp{Data: expected})
 }
 
 func (suite *TagsAndLabelsTestSuite) call(requestURL string) Rsp {

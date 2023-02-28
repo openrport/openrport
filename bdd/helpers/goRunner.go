@@ -9,7 +9,6 @@ import (
 	"os/exec"
 	"strings"
 	"testing"
-	"time"
 
 	"github.com/stretchr/testify/assert"
 )
@@ -20,28 +19,32 @@ func StartClientAndServerAndWaitForConnection(ctx context.Context, t *testing.T)
 
 	rd, rdOutChan, rdErrChan := Run(t, "", "../../cmd/rportd/main.go")
 	go func() {
-		for range rdErrChan {
+		for line := range rdErrChan {
+			if strings.Contains(line, "go: downloading") {
+				continue
+			}
 			assert.Fail(t, "server errors on stdErr")
-			Yolo(rd.Process.Kill())
+			LogAndIgnore(rd.Process.Kill())
 			cancelFn()
 		}
 	}()
 
-	timeout, _ := context.WithTimeout(internalCtx, time.Second*120) //nolint:govet
-	err := WaitForText(timeout, rdOutChan, "API Listening")         // wait for server to initialize and boot - takes looooong time
+	err := WaitForText(internalCtx, rdOutChan, "API Listening") // wait for server to initialize and boot - takes looooong time
 	assert.Nil(t, err)
 
 	rc, rcOutChan, rcErrChan := Run(t, "", "../../cmd/rport/main.go")
 	go func() {
-		for range rcErrChan {
+		for line := range rcErrChan {
+			if strings.Contains(line, "go: downloading") {
+				continue
+			}
 			assert.Fail(t, "client errors on stdErr")
-			Yolo(rc.Process.Kill())
+			LogAndIgnore(rc.Process.Kill())
 			cancelFn()
 		}
 	}()
 
-	timeout, _ = context.WithTimeout(internalCtx, time.Second*120)   //nolint:govet
-	err = WaitForText(timeout, rcOutChan, "info: client: Connected") // wait for client to connect - sloooooow - needs to compile...
+	err = WaitForText(internalCtx, rcOutChan, "info: client: Connected") // wait for client to connect - sloooooow - needs to compile...
 	assert.Nil(t, err)
 
 	return rd, rc
@@ -114,7 +117,7 @@ func Run(t *testing.T, pwd string, cmd string) (*exec.Cmd, chan string, chan str
 
 }
 
-func Yolo(err error) {
+func LogAndIgnore(err error) {
 	// yolo :)
 	// there can be an error, but I don't care and want to silence the linter
 	log.Println(err)

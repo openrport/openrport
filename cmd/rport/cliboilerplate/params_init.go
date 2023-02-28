@@ -128,6 +128,7 @@ func SetViperConfigDefaults(viperCfg *viper.Viper) {
 	viperCfg.SetDefault("client.server_switchback_interval", 2*time.Minute)
 	viperCfg.SetDefault("client.updates_interval", 4*time.Hour)
 	viperCfg.SetDefault("client.data_dir", chclient.DefaultDataDir)
+	viperCfg.SetDefault("client.attributes_file_path", "")
 
 	viperCfg.SetDefault("monitoring.enabled", true)
 	viperCfg.SetDefault("monitoring.interval", chclient.DefaultMonitoringInterval)

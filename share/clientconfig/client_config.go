@@ -26,23 +26,25 @@ type Config struct {
 }
 
 type ClientConfig struct {
-	Server                   string        `json:"server" mapstructure:"server"`
-	FallbackServers          []string      `json:"fallback_servers" mapstructure:"fallback_servers"`
-	ServerSwitchbackInterval time.Duration `json:"server_switchback_interval" mapstructure:"server_switchback_interval"`
-	Fingerprint              string        `json:"fingerprint" mapstructure:"fingerprint"`
-	Auth                     string        `json:"auth" mapstructure:"auth"`
-	Proxy                    string        `json:"proxy" mapstructure:"proxy"`
-	ID                       string        `json:"id" mapstructure:"id"`
-	UseSystemID              bool          `json:"use_system_id" mapstructure:"use_system_id"`
-	Name                     string        `json:"name" mapstructure:"name"`
-	UseHostname              bool          `json:"use_hostname" mapstructure:"use_hostname"`
-	Tags                     []string      `json:"tags" mapstructure:"tags"`
-	Remotes                  []string      `json:"remotes" mapstructure:"remotes"`
-	TunnelAllowed            []string      `json:"tunnel_allowed" mapstructure:"tunnel_allowed"`
-	AllowRoot                bool          `json:"allow_root" mapstructure:"allow_root"`
-	UpdatesInterval          time.Duration `json:"updates_interval" mapstructure:"updates_interval"`
-	DataDir                  string        `json:"data_dir" mapstructure:"data_dir"`
-	BindInterface            string        `json:"bind_interface" mapstructure:"bind_interface"`
+	AttributesFilePath       string            `json:"-" mapstructure:"attributes_file_path"`
+	Server                   string            `json:"server" mapstructure:"server"`
+	FallbackServers          []string          `json:"fallback_servers" mapstructure:"fallback_servers"`
+	ServerSwitchbackInterval time.Duration     `json:"server_switchback_interval" mapstructure:"server_switchback_interval"`
+	Fingerprint              string            `json:"fingerprint" mapstructure:"fingerprint"`
+	Auth                     string            `json:"auth" mapstructure:"auth"`
+	Proxy                    string            `json:"proxy" mapstructure:"proxy"`
+	ID                       string            `json:"id" mapstructure:"id"`
+	UseSystemID              bool              `json:"use_system_id" mapstructure:"use_system_id"`
+	Name                     string            `json:"name" mapstructure:"name"`
+	UseHostname              bool              `json:"use_hostname" mapstructure:"use_hostname"`
+	Tags                     []string          `json:"tags" mapstructure:"tags"`
+	Labels                   map[string]string `json:"labels" mapstructure:"labels"`
+	Remotes                  []string          `json:"remotes" mapstructure:"remotes"`
+	TunnelAllowed            []string          `json:"tunnel_allowed" mapstructure:"tunnel_allowed"`
+	AllowRoot                bool              `json:"allow_root" mapstructure:"allow_root"`
+	UpdatesInterval          time.Duration     `json:"updates_interval" mapstructure:"updates_interval"`
+	DataDir                  string            `json:"data_dir" mapstructure:"data_dir"`
+	BindInterface            string            `json:"bind_interface" mapstructure:"bind_interface"`
 
 	ProxyURL *url.URL         `json:"proxy_url"`
 	Tunnels  []*models.Remote `json:"tunnels"`

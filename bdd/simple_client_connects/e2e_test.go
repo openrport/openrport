@@ -4,6 +4,7 @@ import (
 	"context"
 	"os/exec"
 	"testing"
+	"time"
 
 	"github.com/stretchr/testify/assert"
 
@@ -12,13 +13,14 @@ import (
 
 func TestClientConnects(t *testing.T) {
 
-	ctx := context.Background()
+	ctx, cancel := context.WithTimeout(context.Background(), time.Minute*5)
+	defer cancel()
 
 	rd, rc := helpers.StartClientAndServerAndWaitForConnection(ctx, t)
 
 	defer func() {
-		helpers.Yolo(rd.Process.Kill())
-		helpers.Yolo(rc.Process.Kill())
+		helpers.LogAndIgnore(rd.Process.Kill())
+		helpers.LogAndIgnore(rc.Process.Kill())
 	}()
 
 	assertProcessiesAreNotDead(t, rd, rc)

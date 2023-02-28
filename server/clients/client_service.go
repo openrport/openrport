@@ -105,6 +105,7 @@ var OptionsSupportedFilters = map[string]bool{
 	"ipv4":                     true,
 	"ipv6":                     true,
 	"tags":                     true,
+	"labels":                   true,
 	"version":                  true,
 	"address":                  true,
 	"client_auth_id":           true,
@@ -133,6 +134,7 @@ var OptionsSupportedFields = map[string]map[string]bool{
 		"ipv4":                     true,
 		"ipv6":                     true,
 		"tags":                     true,
+		"labels":                   true,
 		"version":                  true,
 		"address":                  true,
 		"tunnels":                  true,
@@ -389,6 +391,7 @@ func (s *ClientServiceProvider) StartClient(
 	client.IPv4 = req.IPv4
 	client.IPv6 = req.IPv6
 	client.Tags = req.Tags
+	client.Labels = req.Labels
 	client.Version = req.Version
 	client.ClientConfiguration = req.ClientConfiguration
 	client.Address = clientHost
