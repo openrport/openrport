@@ -26,6 +26,7 @@ type Config struct {
 }
 
 type ClientConfig struct {
+	AttributesFilePath       string            `json:"-" mapstructure:"attributes_file_path"`
 	Server                   string            `json:"server" mapstructure:"server"`
 	FallbackServers          []string          `json:"fallback_servers" mapstructure:"fallback_servers"`
 	ServerSwitchbackInterval time.Duration     `json:"server_switchback_interval" mapstructure:"server_switchback_interval"`
