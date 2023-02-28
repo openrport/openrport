@@ -36,7 +36,9 @@ type TagsAndLabelsTestSuite struct {
 
 func (suite *TagsAndLabelsTestSuite) SetupSuite() {
 	suite.ctx = context.Background()
-	suite.rd, suite.rc = helpers.StartClientAndServerAndWaitForConnection(suite.ctx, suite.T())
+	ctx, cancel := context.WithTimeout(suite.ctx, time.Minute*5)
+	defer cancel()
+	suite.rd, suite.rc = helpers.StartClientAndServerAndWaitForConnection(ctx, suite.T())
 	time.Sleep(time.Millisecond * 100)
 	if suite.rc.ProcessState != nil || suite.rd.ProcessState != nil {
 		suite.Fail("deamons didn't start")

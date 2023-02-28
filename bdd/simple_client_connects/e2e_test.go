@@ -4,6 +4,7 @@ import (
 	"context"
 	"os/exec"
 	"testing"
+	"time"
 
 	"github.com/stretchr/testify/assert"
 
@@ -12,7 +13,8 @@ import (
 
 func TestClientConnects(t *testing.T) {
 
-	ctx := context.Background()
+	ctx, cancel := context.WithTimeout(context.Background(), time.Minute*5)
+	defer cancel()
 
 	rd, rc := helpers.StartClientAndServerAndWaitForConnection(ctx, t)
 
