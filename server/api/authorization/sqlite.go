@@ -22,7 +22,7 @@ func (p *SqliteProvider) GetAll(ctx context.Context, username string) ([]*APITok
 	var result []*APIToken
 	err := p.db.SelectContext(
 		ctx, &result,
-		"SELECT * FROM api_token WHERE username = ?",
+		"SELECT * FROM api_tokens WHERE username = ?",
 		username,
 	)
 	if err != nil {
@@ -37,7 +37,7 @@ func (p *SqliteProvider) Get(ctx context.Context, username, prefix string) (*API
 
 	err := p.db.GetContext(ctx,
 		res,
-		"SELECT * FROM api_token WHERE username = ? AND prefix = ?",
+		"SELECT * FROM api_tokens WHERE username = ? AND prefix = ?",
 		username,
 		prefix,
 	)
@@ -56,7 +56,7 @@ func (p *SqliteProvider) GetByName(ctx context.Context, username, name string) (
 	res := &APIToken{}
 	err := p.db.GetContext(ctx,
 		res,
-		"SELECT * FROM api_token WHERE username = ? AND name = ?",
+		"SELECT * FROM api_tokens WHERE username = ? AND name = ?",
 		username,
 		name,
 	)
@@ -72,7 +72,7 @@ func (p *SqliteProvider) GetByName(ctx context.Context, username, name string) (
 func (p *SqliteProvider) Save(ctx context.Context, tokenLine *APIToken) (err error) {
 	res, err := p.db.NamedExecContext(
 		ctx,
-		`INSERT INTO api_token (username, prefix, name, created_at, expires_at, scope, token)
+		`INSERT INTO api_tokens (username, prefix, name, created_at, expires_at, scope, token)
 			      VALUES (:username, :prefix, :name, :created_at, :expires_at,:scope, :token)
 			 	ON CONFLICT(username, prefix) DO UPDATE SET
 				 -- the following is per-field logic to update only with non empty value (this fields cannot be blanked)
@@ -100,7 +100,7 @@ func (p *SqliteProvider) Save(ctx context.Context, tokenLine *APIToken) (err err
 func (p *SqliteProvider) Delete(ctx context.Context, username, prefix string) error {
 	res, err := p.db.ExecContext(
 		ctx,
-		"DELETE FROM api_token WHERE username = ? AND prefix = ?",
+		"DELETE FROM api_tokens WHERE username = ? AND prefix = ?",
 		username,
 		prefix,
 	)

@@ -349,15 +349,16 @@ func TestPostToken(t *testing.T) {
 		tokenManager: mockTokenManager,
 		userService:  users.NewAPIService(users.NewStaticProvider([]*users.User{user, userWithoutToken}), false, 0, -1),
 	}
+	expirationDate, _ := time.Date(2025, 1, 1, 2, 0, 0, 0, time.UTC).UTC().MarshalText()
 
 	al.initRouter()
-	req := httptest.NewRequest("POST", "/api/v1/me/tokens", strings.NewReader(`{"name": "token name", "scope": "`+string(authorization.APITokenReadWrite)+`"}`))
+	req := httptest.NewRequest("POST", "/api/v1/me/tokens", strings.NewReader(`{"name": "token name", "scope": "`+string(authorization.APITokenReadWrite)+`", "expires_at": "`+string(expirationDate)+`"}`))
 	w := httptest.NewRecorder()
 	ctxUser1 := api.WithUser(req.Context(), user.Username)
 	req = req.WithContext(ctxUser1)
 	req.SetBasicAuth(user.Username, "pwd")
 	al.router.ServeHTTP(w, req)
-	expectedJSON := `{"data":{"scope":"` + string(authorization.APITokenReadWrite) + `", "token":"theprefi_mynicefi-xedl-enth-long-livedpasswor"}}`
+	expectedJSON := `{"data":{"scope":"` + string(authorization.APITokenReadWrite) + `", "token":"theprefi_mynicefi-xedl-enth-long-livedpasswor", "prefix":"theprefi", "expires_at": "` + string(expirationDate) + `"}}`
 	assert.Equal(t, http.StatusOK, w.Code)
 	assert.JSONEq(t, expectedJSON, w.Body.String())
 }
