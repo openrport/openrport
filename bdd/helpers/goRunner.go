@@ -20,9 +20,12 @@ func StartClientAndServerAndWaitForConnection(ctx context.Context, t *testing.T)
 
 	rd, rdOutChan, rdErrChan := Run(t, "", "../../cmd/rportd/main.go")
 	go func() {
-		for range rdErrChan {
+		for line := range rdErrChan {
+			if strings.Contains(line, "go: downloading") {
+				continue
+			}
 			assert.Fail(t, "server errors on stdErr")
-			Yolo(rd.Process.Kill())
+			LogAndIgnore(rd.Process.Kill())
 			cancelFn()
 		}
 	}()
@@ -33,9 +36,12 @@ func StartClientAndServerAndWaitForConnection(ctx context.Context, t *testing.T)
 
 	rc, rcOutChan, rcErrChan := Run(t, "", "../../cmd/rport/main.go")
 	go func() {
-		for range rcErrChan {
+		for line := range rcErrChan {
+			if strings.Contains(line, "go: downloading") {
+				continue
+			}
 			assert.Fail(t, "client errors on stdErr")
-			Yolo(rc.Process.Kill())
+			LogAndIgnore(rc.Process.Kill())
 			cancelFn()
 		}
 	}()
@@ -114,7 +120,7 @@ func Run(t *testing.T, pwd string, cmd string) (*exec.Cmd, chan string, chan str
 
 }
 
-func Yolo(err error) {
+func LogAndIgnore(err error) {
 	// yolo :)
 	// there can be an error, but I don't care and want to silence the linter
 	log.Println(err)

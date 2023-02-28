@@ -17,8 +17,8 @@ func TestClientConnects(t *testing.T) {
 	rd, rc := helpers.StartClientAndServerAndWaitForConnection(ctx, t)
 
 	defer func() {
-		helpers.Yolo(rd.Process.Kill())
-		helpers.Yolo(rc.Process.Kill())
+		helpers.LogAndIgnore(rd.Process.Kill())
+		helpers.LogAndIgnore(rc.Process.Kill())
 	}()
 
 	assertProcessiesAreNotDead(t, rd, rc)
