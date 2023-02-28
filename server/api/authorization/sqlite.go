@@ -73,13 +73,14 @@ func (p *SqliteProvider) Save(ctx context.Context, tokenLine *APIToken) (err err
 	res, err := p.db.NamedExecContext(
 		ctx,
 		`INSERT INTO api_tokens (username, prefix, name, created_at, expires_at, scope, token)
-			      VALUES (:username, :prefix, :name, :created_at, :expires_at,:scope, :token)
+			      VALUES (:username, :prefix, :name, 
+					CASE WHEN :created_at IS NOT NULL THEN :created_at ELSE CURRENT_TIMESTAMP END,
+					:expires_at, :scope, :token)
 			 	ON CONFLICT(username, prefix) DO UPDATE SET
-				 -- the following is per-field logic to update only with non empty value (this fields cannot be blanked)
-				 expires_at=CASE WHEN :expires_at IS NOT NULL THEN EXCLUDED.expires_at ELSE api_token.expires_at END,
-				 name=CASE WHEN :name != "" THEN EXCLUDED.name ELSE api_token.name END
-				WHERE EXCLUDED.username = api_token.username AND
-				       EXCLUDED.prefix = api_token.prefix`,
+				 expires_at=CASE WHEN :expires_at IS NOT NULL THEN EXCLUDED.expires_at ELSE api_tokens.expires_at END,
+				 name=CASE WHEN :name != "" THEN EXCLUDED.name ELSE api_tokens.name END
+				WHERE EXCLUDED.username = api_tokens.username AND
+				       EXCLUDED.prefix = api_tokens.prefix`,
 		tokenLine,
 	)
 

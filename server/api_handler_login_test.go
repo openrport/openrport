@@ -3,7 +3,6 @@ package chserver
 import (
 	"context"
 	"encoding/json"
-	"fmt"
 	"io"
 	"net/http"
 	"net/http/httptest"
@@ -226,7 +225,7 @@ func TestAPITokenOps(t *testing.T) {
 
 			// then
 			require.Equal(tc.wantStatusCode, w.Code)
-			if strings.HasPrefix(fmt.Sprintf("%d", tc.wantStatusCode), "2") { // any 2** status code is a success test case
+			if tc.wantStatusCode/100 == 2 { // any 2** status code is a success test case
 				// success case
 				if tc.wantJSON == "" {
 					assert.Empty(w.Body.String())
