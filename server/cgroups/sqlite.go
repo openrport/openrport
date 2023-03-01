@@ -5,11 +5,14 @@ import (
 	"database/sql"
 
 	"github.com/jmoiron/sqlx"
+
+	"github.com/cloudradar-monitoring/rport/share/query"
 )
 
 type ClientGroupProvider interface {
 	Get(ctx context.Context, id string) (*ClientGroup, error)
 	GetAll(ctx context.Context) ([]*ClientGroup, error)
+	List(ctx context.Context, options *query.ListOptions) ([]*ClientGroup, error)
 	Create(ctx context.Context, group *ClientGroup) error
 	Update(ctx context.Context, group *ClientGroup) error
 	Delete(ctx context.Context, id string) error
@@ -17,11 +20,15 @@ type ClientGroupProvider interface {
 }
 
 type SqliteProvider struct {
-	db *sqlx.DB
+	db        *sqlx.DB
+	converter *query.SQLConverter
 }
 
 func NewSqliteProvider(db *sqlx.DB) (*SqliteProvider, error) {
-	return &SqliteProvider{db: db}, nil
+	return &SqliteProvider{
+		db:        db,
+		converter: query.NewSQLConverter(db.DriverName()),
+	}, nil
 }
 
 func (p *SqliteProvider) GetAll(ctx context.Context) ([]*ClientGroup, error) {
@@ -30,6 +37,23 @@ func (p *SqliteProvider) GetAll(ctx context.Context) ([]*ClientGroup, error) {
 		ctx,
 		&res,
 		"SELECT * FROM client_groups ORDER BY id COLLATE NOCASE",
+	)
+	if err != nil {
+		return nil, err
+	}
+	return res, nil
+}
+
+func (p *SqliteProvider) List(ctx context.Context, options *query.ListOptions) ([]*ClientGroup, error) {
+	query := "SELECT * FROM client_groups"
+	q, params := p.converter.ConvertListOptionsToQuery(options, query)
+
+	var res []*ClientGroup
+	err := p.db.SelectContext(
+		ctx,
+		&res,
+		q,
+		params...,
 	)
 	if err != nil {
 		return nil, err

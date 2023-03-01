@@ -13,6 +13,8 @@ import (
 	"github.com/cloudradar-monitoring/rport/server/auditlog"
 	"github.com/cloudradar-monitoring/rport/server/cgroups"
 	"github.com/cloudradar-monitoring/rport/server/routes"
+	"github.com/cloudradar-monitoring/rport/share/query"
+	"github.com/cloudradar-monitoring/rport/share/types"
 )
 
 func (al *APIListener) handlePostClientGroups(w http.ResponseWriter, req *http.Request) {
@@ -109,6 +111,14 @@ func (al *APIListener) handleGetClientGroup(w http.ResponseWriter, req *http.Req
 		return
 	}
 
+	options := query.GetRetrieveOptions(req)
+	err := query.ValidateRetrieveOptions(options, cgroups.OptionsSupportedFields)
+	if err != nil {
+		al.jsonError(w, err)
+		return
+	}
+	requestedFields := query.RequestedFields(options.Fields, cgroups.OptionsResource)
+
 	group, err := al.clientGroupProvider.Get(req.Context(), id)
 	if err != nil {
 		al.jsonErrorResponseWithError(w, http.StatusInternalServerError, fmt.Sprintf("Failed to find client group[id=%q].", id), err)
@@ -126,30 +136,56 @@ func (al *APIListener) handleGetClientGroup(w http.ResponseWriter, req *http.Req
 	}
 
 	al.clientService.PopulateGroupsWithUserClients([]*cgroups.ClientGroup{group}, curUser)
-	al.writeJSONResponse(w, http.StatusOK, api.NewSuccessPayload(group))
+
+	al.writeJSONResponse(w, http.StatusOK, api.NewSuccessPayload(convertToClientGroupPayload(group, requestedFields)))
 }
 
 func (al *APIListener) handleGetClientGroups(w http.ResponseWriter, req *http.Request) {
-	res, err := al.clientGroupProvider.GetAll(req.Context())
-	if err != nil {
-		al.jsonErrorResponseWithError(w, http.StatusInternalServerError, "Failed to get client groups.", err)
-		return
-	}
+	ctx := req.Context()
+	options := query.NewOptions(req, cgroups.OptionsListDefaultSort, nil /* filtersDefault */, cgroups.OptionsListDefaultFields)
 
-	curUser, err := al.getUserModelForAuth(req.Context())
+	err := query.ValidateListOptions(options, cgroups.OptionsSupportedFiltersAndSorts, cgroups.OptionsSupportedFiltersAndSorts, cgroups.OptionsSupportedFields, &query.PaginationConfig{
+		MaxLimit:     500,
+		DefaultLimit: 50,
+	})
 	if err != nil {
 		al.jsonError(w, err)
 		return
 	}
 
-	al.clientService.PopulateGroupsWithUserClients(res, curUser)
+	// pagination and fields are not done in db, because of filterEmptyGroups
+	pagination := options.Pagination
+	options.Pagination = nil
+	requestedFields := query.RequestedFields(options.Fields, cgroups.OptionsResource)
+	options.Fields = nil
+
+	groups, err := al.clientGroupProvider.List(ctx, options)
+	if err != nil {
+		al.jsonErrorResponseWithError(w, http.StatusInternalServerError, "Failed to get client groups.", err)
+		return
+	}
+
+	curUser, err := al.getUserModelForAuth(ctx)
+	if err != nil {
+		al.jsonError(w, err)
+		return
+	}
+
+	al.clientService.PopulateGroupsWithUserClients(groups, curUser)
 
 	// for non-admins filter out groups with no clients
 	if !curUser.IsAdmin() {
-		res = filterEmptyGroups(res)
+		groups = filterEmptyGroups(groups)
 	}
 
-	al.writeJSONResponse(w, http.StatusOK, api.NewSuccessPayload(res))
+	totalCount := len(groups)
+	start, end := pagination.GetStartEnd(totalCount)
+	limited := groups[start:end]
+
+	al.writeJSONResponse(w, http.StatusOK, &api.SuccessPayload{
+		Data: convertToClientGroupsPayload(limited, requestedFields),
+		Meta: api.NewMeta(len(groups)),
+	})
 }
 
 func filterEmptyGroups(groups []*cgroups.ClientGroup) []*cgroups.ClientGroup {
@@ -183,4 +219,42 @@ func (al *APIListener) handleDeleteClientGroup(w http.ResponseWriter, req *http.
 
 	w.WriteHeader(http.StatusNoContent)
 	al.Debugf("Client Group [id=%q] deleted.", id)
+}
+
+type ClientGroupPayload struct {
+	ID                *string               `json:"id,omitempty"`
+	Description       *string               `json:"description,omitempty"`
+	Params            *cgroups.ClientParams `json:"params,omitempty" db:"params"`
+	AllowedUserGroups *types.StringSlice    `json:"allowed_user_groups,omitempty"`
+	ClientIDs         *[]string             `json:"client_ids,omitempty" db:"-"`
+}
+
+func convertToClientGroupsPayload(clientGroups []*cgroups.ClientGroup, requestedFields map[string]bool) []ClientGroupPayload {
+	r := make([]ClientGroupPayload, 0, len(clientGroups))
+	for _, cur := range clientGroups {
+		r = append(r, convertToClientGroupPayload(cur, requestedFields))
+	}
+	return r
+}
+
+func convertToClientGroupPayload(clientGroup *cgroups.ClientGroup, requestedFields map[string]bool) ClientGroupPayload {
+	p := ClientGroupPayload{}
+	for field := range cgroups.OptionsSupportedFields[cgroups.OptionsResource] {
+		if len(requestedFields) > 0 && !requestedFields[field] {
+			continue
+		}
+		switch field {
+		case "id":
+			p.ID = &clientGroup.ID
+		case "description":
+			p.Description = &clientGroup.Description
+		case "params":
+			p.Params = clientGroup.Params
+		case "allowed_user_groups":
+			p.AllowedUserGroups = &clientGroup.AllowedUserGroups
+		case "client_ids":
+			p.ClientIDs = &clientGroup.ClientIDs
+		}
+	}
+	return p
 }
