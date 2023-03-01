@@ -4,6 +4,38 @@ get:
   summary: Return all client groups
   operationId: ClientgroupsGet
   description: Return a list of all existing client groups sorted by ID in asc order
+  parameters:
+    - name: sort
+      in: query
+      description: >-
+        Sort option `-<field>`(desc) or `<field>`(asc). `<field>` can be one of
+        `'id', 'description'`.
+      schema:
+        type: string
+    - name: filter
+      in: query
+      description: >-
+        Filter option `filter[<FIELD>]=<VALUE>`. `<FIELD>` can be one of `'id', 'descripiton'`.
+      schema:
+        type: string
+    - name: fields[<RESOURCE>]
+      in: query
+      description: >-
+        Fields to be returned. It should be provided in the format as
+        `fields[<RESOURCE>]=<FIELDS>`, where `<RESOURCE>` is `client_groups` and
+        `<FIELDS>` is a comma separated list of fields. Example:
+        `fields[client_groups]=id,description`. If no fields are specified, only id and
+        description will be returned.
+      schema:
+        type: string
+    - name: page
+      in: query
+      description: >-
+        Pagination options `page[limit]` and `page[offset]` can be used to get
+        more than the first page of results. Default limit is 50 and maximum is
+        500. The `count` property in meta shows the total number of results.
+      schema:
+        type: integer
   responses:
     '200':
       description: Successful Operation
@@ -16,6 +48,11 @@ get:
                 type: array
                 items:
                   $ref: ../components/schemas/ClientGroup.yaml
+              meta:
+                type: object
+                properties:
+                  count:
+                    type: integer
     '400':
       description: Invalid request parameters
       content:
