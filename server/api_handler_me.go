@@ -15,6 +15,7 @@ import (
 	"github.com/cloudradar-monitoring/rport/server/routes"
 	chshare "github.com/cloudradar-monitoring/rport/share"
 	"github.com/cloudradar-monitoring/rport/share/logger"
+	"github.com/cloudradar-monitoring/rport/share/ptr"
 	"github.com/cloudradar-monitoring/rport/share/random"
 )
 
@@ -214,6 +215,10 @@ func (al *APIListener) handleGetIP(w http.ResponseWriter, req *http.Request) {
 	al.writeJSONResponse(w, http.StatusOK, api.NewSuccessPayload(ipResp))
 }
 
+func (al *APIListener) handleTokenGone(w http.ResponseWriter, req *http.Request) {
+	al.jsonErrorResponseWithTitle(w, http.StatusGone, "use new token management on /me/tokens")
+}
+
 func (al *APIListener) handleGetToken(w http.ResponseWriter, req *http.Request) {
 	user, err := al.getUserModel(req.Context())
 	if err != nil {
@@ -225,7 +230,8 @@ func (al *APIListener) handleGetToken(w http.ResponseWriter, req *http.Request) 
 		return
 	}
 	type APITokenPayload struct {
-		Prefix    string                      `json:"prefix" db:"token"`
+		Prefix    string                      `json:"prefix" db:"prefix"`
+		Name      string                      `json:"name" db:"name"`
 		CreatedAt *time.Time                  `json:"created_at" db:"created_at"`
 		ExpiresAt *time.Time                  `json:"expires_at" db:"expires_at"`
 		Scope     authorization.APITokenScope `json:"scope" db:"scope"`
@@ -242,6 +248,7 @@ func (al *APIListener) handleGetToken(w http.ResponseWriter, req *http.Request) 
 		apiTokenToSend = append(apiTokenToSend,
 			APITokenPayload{
 				Prefix:    at.Prefix,
+				Name:      at.Name,
 				CreatedAt: at.CreatedAt,
 				ExpiresAt: at.ExpiresAt,
 				Scope:     at.Scope,
@@ -264,11 +271,12 @@ func (al *APIListener) handlePostToken(w http.ResponseWriter, req *http.Request)
 	}
 	var r struct {
 		Scope     authorization.APITokenScope `json:"scope"`
+		Name      string                      `json:"name"`
 		ExpiresAt *time.Time                  `json:"expires_at"`
 	}
 	err = parseRequestBody(req.Body, &r)
 	if err != nil {
-		al.jsonErrorResponseWithTitle(w, http.StatusBadRequest, "missing body with scope.")
+		al.jsonErrorResponseWithDetail(w, http.StatusBadRequest, "", "Invalid JSON data", err.Error())
 		return
 	}
 
@@ -277,9 +285,19 @@ func (al *APIListener) handlePostToken(w http.ResponseWriter, req *http.Request)
 		return
 	}
 
+	if len(r.Name) == 0 || len(r.Name) >= 250 {
+		al.jsonErrorResponseWithDetail(w, http.StatusBadRequest, "", "missing or invalid name.", "field name is required, 250 characters max")
+		return
+	}
+
 	if r.Scope == authorization.APITokenClientsAuth && !user.IsAdmin() {
 		al.jsonErrorResponseWithTitle(w, http.StatusBadRequest, "current user should belong to Administrators group to create a token with this scope")
 		return
+	}
+
+	createdAt := ptr.Time(time.Now().Truncate(time.Second).UTC())
+	if r.ExpiresAt == nil {
+		r.ExpiresAt = ptr.Time(createdAt.AddDate(1 /* year */, 0, 0)) // expiry date default is creation date + one year
 	}
 
 	newTokenClear, err := random.UUID4()
@@ -298,13 +316,15 @@ func (al *APIListener) handlePostToken(w http.ResponseWriter, req *http.Request)
 	newAPIToken := &authorization.APIToken{
 		Username:  user.Username,
 		Prefix:    newPrefix,
+		Name:      r.Name,
 		Scope:     r.Scope,
+		CreatedAt: createdAt,
 		ExpiresAt: r.ExpiresAt,
 		Token:     tokenHashStr,
 	}
 	err = al.tokenManager.Create(req.Context(), newAPIToken)
 	if err != nil {
-		al.jsonError(w, err)
+		al.jsonErrorResponseWithTitle(w, http.StatusBadRequest, err.Error())
 		return
 	}
 
@@ -317,10 +337,10 @@ func (al *APIListener) handlePostToken(w http.ResponseWriter, req *http.Request)
 
 	al.writeJSONResponse(w, http.StatusOK, api.NewSuccessPayload(
 		authorization.APIToken{
-			Prefix:    newPrefix,
-			Scope:     r.Scope,
 			ExpiresAt: r.ExpiresAt,
-			Token:     newTokenClear,
+			Scope:     r.Scope,
+			Token:     fmt.Sprintf("%s_%s", newPrefix, newTokenClear),
+			Prefix:    newPrefix,
 		}))
 }
 
@@ -344,6 +364,7 @@ func (al *APIListener) handlePutToken(w http.ResponseWriter, req *http.Request) 
 
 	var r struct {
 		ExpiresAt *time.Time `json:"expires_at"`
+		Name      string     `json:"name"`
 	}
 	err = parseRequestBody(req.Body, &r)
 	if err != nil {
@@ -354,11 +375,12 @@ func (al *APIListener) handlePutToken(w http.ResponseWriter, req *http.Request) 
 	updAPIToken := &authorization.APIToken{
 		Username:  user.Username,
 		Prefix:    prefix,
+		Name:      r.Name,
 		ExpiresAt: r.ExpiresAt,
 	}
 	err = al.tokenManager.Save(req.Context(), updAPIToken)
 	if err != nil {
-		al.jsonError(w, err)
+		al.jsonErrorResponseWithTitle(w, http.StatusBadRequest, err.Error())
 		return
 	}
 
@@ -369,7 +391,12 @@ func (al *APIListener) handlePutToken(w http.ResponseWriter, req *http.Request) 
 		Save()
 
 	al.Debugf("APIToken [%s] is updated for user [%s].", prefix, user.Username)
-	al.writeJSONResponse(w, http.StatusOK, api.NewSuccessPayload(updAPIToken))
+	al.writeJSONResponse(w, http.StatusOK, api.NewSuccessPayload(
+		authorization.APIToken{
+			ExpiresAt: r.ExpiresAt,
+			Prefix:    prefix,
+			Name:      r.Name,
+		}))
 }
 
 func (al *APIListener) handleDeleteToken(w http.ResponseWriter, req *http.Request) {

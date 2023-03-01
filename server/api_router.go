@@ -39,10 +39,16 @@ func (al *APIListener) initRouter() {
 	secureAPI.HandleFunc("/me", al.handleGetMe).Methods(http.MethodGet)
 	secureAPI.HandleFunc("/me", al.handleChangeMe).Methods(http.MethodPut)
 	secureAPI.HandleFunc("/me/ip", al.handleGetIP).Methods(http.MethodGet)
-	secureAPI.HandleFunc("/me/token", al.handleGetToken).Methods(http.MethodGet)
-	secureAPI.HandleFunc("/me/token", al.handlePostToken).Methods(http.MethodPost)
-	secureAPI.HandleFunc("/me/token/{prefix}", al.handlePutToken).Methods(http.MethodPut)
-	secureAPI.HandleFunc("/me/token/{prefix}", al.handleDeleteToken).Methods(http.MethodDelete)
+
+	secureAPI.HandleFunc("/me/token", al.handleTokenGone).Methods(http.MethodGet)
+	secureAPI.HandleFunc("/me/token", al.handleTokenGone).Methods(http.MethodPost)
+	secureAPI.HandleFunc("/me/token/{_}", al.handleTokenGone).Methods(http.MethodPut)
+	secureAPI.HandleFunc("/me/token/{_}", al.handleTokenGone).Methods(http.MethodDelete)
+
+	secureAPI.HandleFunc("/me/tokens", al.handleGetToken).Methods(http.MethodGet)
+	secureAPI.HandleFunc("/me/tokens", al.handlePostToken).Methods(http.MethodPost)
+	secureAPI.HandleFunc("/me/tokens/{prefix}", al.handlePutToken).Methods(http.MethodPut)
+	secureAPI.HandleFunc("/me/tokens/{prefix}", al.handleDeleteToken).Methods(http.MethodDelete)
 
 	secureAPI.HandleFunc("/clients", al.handleGetClients).Methods(http.MethodGet)
 	clientDetails := secureAPI.PathPrefix("/clients/{client_id}").Subrouter()

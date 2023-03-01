@@ -79,42 +79,27 @@ func TestAPITokenOps(t *testing.T) {
 		wantErrDetail  string
 	}{
 		{
-			descr:          "new token read creation",
+			descr:          "create token bad json in request body",
 			requestMethod:  http.MethodPost,
-			requestURL:     "/api/v1/me/token",
-			requestBody:    strings.NewReader(`{"scope": "` + string(authorization.APITokenRead) + `"}`),
-			wantStatusCode: http.StatusOK,
-			wantJSON:       `{"data":{"prefix":"theprefi", "scope":"` + string(authorization.APITokenRead) + `", "token":"mynicefi-xedl-enth-long-livedpasswor"}}`,
-		},
-		{
-			descr:          "new token read+write creation with expires_at",
-			requestMethod:  http.MethodPost,
-			requestURL:     "/api/v1/me/token",
-			requestBody:    strings.NewReader(`{"scope": "` + string(authorization.APITokenReadWrite) + `", "expires_at": "` + string(expirationDate) + `"}`),
-			wantStatusCode: http.StatusOK,
-			wantJSON:       `{"data":{"expires_at":"2025-01-01T02:00:00Z", "prefix":"theprefi", "scope":"` + string(authorization.APITokenReadWrite) + `", "token":"mynicefi-xedl-enth-long-livedpasswor"}}`,
-		},
-		{
-			descr:          "token update with expires_at",
-			requestMethod:  http.MethodPut,
-			requestURL:     "/api/v1/me/token/theprefi",
-			requestBody:    strings.NewReader(`{"expires_at": "` + string(updateExpirationDate) + `"}`),
-			wantStatusCode: http.StatusOK,
-			wantJSON:       `{"data":{"expires_at":"2026-03-10T05:00:00Z", "prefix":"theprefi", "username":"test-user" }}`,
+			requestURL:     "/api/v1/me/tokens",
+			requestBody:    strings.NewReader(`}`),
+			wantStatusCode: http.StatusBadRequest,
+			wantErrTitle:   "Invalid JSON data",
 		},
 		{
 			descr:          "create token empty request body",
 			requestMethod:  http.MethodPost,
-			requestURL:     "/api/v1/me/token",
+			requestURL:     "/api/v1/me/tokens",
 			requestBody:    nil,
 			wantStatusCode: http.StatusBadRequest,
+			wantErrTitle:   "Invalid JSON data",
+			wantErrDetail:  "Missing body with json data.",
 			wantErrCode:    "",
-			wantErrTitle:   "missing body with scope.",
 		},
 		{
 			descr:          "new token bad scope creation",
 			requestMethod:  http.MethodPost,
-			requestURL:     "/api/v1/me/token",
+			requestURL:     "/api/v1/me/tokens",
 			requestBody:    strings.NewReader(`{"scope": "reads"}`),
 			wantStatusCode: http.StatusBadRequest,
 			wantErrCode:    "",
@@ -123,24 +108,90 @@ func TestAPITokenOps(t *testing.T) {
 		{
 			descr:          "new token no scope provided",
 			requestMethod:  http.MethodPost,
-			requestURL:     "/api/v1/me/token",
-			requestBody:    strings.NewReader(""),
+			requestURL:     "/api/v1/me/tokens",
+			requestBody:    strings.NewReader(`{"name": "This is a test name"}`),
 			wantStatusCode: http.StatusBadRequest,
 			wantErrCode:    "",
-			wantErrTitle:   "missing body with scope.",
+			wantErrTitle:   "missing or invalid scope.",
+		},
+		{
+			descr:          "new token no name provided",
+			requestMethod:  http.MethodPost,
+			requestURL:     "/api/v1/me/tokens",
+			requestBody:    strings.NewReader(`{"scope": "` + string(authorization.APITokenRead) + `"}`),
+			wantStatusCode: http.StatusBadRequest,
+			wantErrCode:    "",
+			wantErrTitle:   "missing or invalid name.",
 		},
 		{
 			descr:          "delete a token, prefix wrong len",
 			requestMethod:  http.MethodDelete,
-			requestURL:     "/api/v1/me/token/hjk",
+			requestURL:     "/api/v1/me/tokens/hjk",
 			wantStatusCode: http.StatusBadRequest,
 			wantErrCode:    "",
 			wantErrTitle:   "missing or invalid token prefix.",
 		},
 		{
+			descr:          "new token read creation, too long of a name",
+			requestMethod:  http.MethodPost,
+			requestURL:     "/api/v1/me/tokens",
+			requestBody:    strings.NewReader(`{"scope": "` + string(authorization.APITokenRead) + `", "name":"` + strings.Repeat("I am a token and this is my name", 10) + `"}`),
+			wantStatusCode: http.StatusBadRequest,
+			wantErrTitle:   "missing or invalid name.",
+			wantErrDetail:  "field name is required, 250 characters max",
+		},
+		{
+			descr:          "new token read creation",
+			requestMethod:  http.MethodPost,
+			requestURL:     "/api/v1/me/tokens",
+			requestBody:    strings.NewReader(`{"scope": "` + string(authorization.APITokenRead) + `", "expires_at": "` + string(expirationDate) + `",  "name": "This is my name"}`),
+			wantStatusCode: http.StatusOK,
+			wantJSON:       `{"data":{"expires_at":"2025-01-01T02:00:00Z", "scope":"` + string(authorization.APITokenRead) + `", "token":"theprefi_mynicefi-xedl-enth-long-livedpasswor", "prefix": "theprefi"}}`,
+		},
+		{
+			descr:          "new token same name",
+			requestMethod:  http.MethodPost,
+			requestURL:     "/api/v1/me/tokens",
+			requestBody:    strings.NewReader(`{"scope": "` + string(authorization.APITokenRead) + `", "name": "This is my name"}`),
+			wantStatusCode: http.StatusBadRequest,
+			wantErrTitle:   "A token with the same name already exists",
+		},
+		{
+			descr:          "new token read+write creation",
+			requestMethod:  http.MethodPost,
+			requestURL:     "/api/v1/me/tokens",
+			requestBody:    strings.NewReader(`{"scope": "` + string(authorization.APITokenReadWrite) + `", "name": "This is my name 2", "expires_at": "` + string(expirationDate) + `"}`),
+			wantStatusCode: http.StatusOK,
+			wantJSON:       `{"data":{"expires_at":"2025-01-01T02:00:00Z", "scope":"` + string(authorization.APITokenReadWrite) + `", "token":"theprefi_mynicefi-xedl-enth-long-livedpasswor", "prefix":"theprefi"}}`,
+		},
+		{
+			descr:          "update token name collision",
+			requestMethod:  http.MethodPut,
+			requestURL:     "/api/v1/me/tokens/theprefi",
+			requestBody:    strings.NewReader(`{"name": "This is my name 2"}`),
+			wantStatusCode: http.StatusBadRequest,
+			wantErrTitle:   "A token with the same name already exists",
+		},
+		{
+			descr:          "token update with expires_at",
+			requestMethod:  http.MethodPut,
+			requestURL:     "/api/v1/me/tokens/theprefi",
+			requestBody:    strings.NewReader(`{"expires_at": "` + string(updateExpirationDate) + `"}`),
+			wantStatusCode: http.StatusOK,
+			wantJSON:       `{"data":{"expires_at":"2026-03-10T05:00:00Z", "prefix":"theprefi" }}`,
+		},
+		{
+			descr:          "token update with name",
+			requestMethod:  http.MethodPut,
+			requestURL:     "/api/v1/me/tokens/theprefi",
+			requestBody:    strings.NewReader(`{"name": "new name"}`),
+			wantStatusCode: http.StatusOK,
+			wantJSON:       `{"data":{"name": "new name", "prefix":"theprefi" }}`,
+		},
+		{
 			descr:          "delete a token ",
 			requestMethod:  http.MethodDelete,
-			requestURL:     "/api/v1/me/token/" + MyalphaNumNewPrefix,
+			requestURL:     "/api/v1/me/tokens/" + MyalphaNumNewPrefix,
 			wantStatusCode: http.StatusNoContent,
 		},
 	}
@@ -174,25 +225,35 @@ func TestAPITokenOps(t *testing.T) {
 
 			// then
 			require.Equal(tc.wantStatusCode, w.Code)
-			if tc.wantErrTitle == "" {
+			if tc.wantStatusCode/100 == 2 { // any 2** status code is a success test case
 				// success case
 				if tc.wantJSON == "" {
 					assert.Empty(w.Body.String())
 				} else {
 					assert.JSONEq(tc.wantJSON, w.Body.String())
+
 				}
 			} else {
 				// failure case
-				wantResp := api.NewErrAPIPayloadFromMessage(tc.wantErrCode, tc.wantErrTitle, tc.wantErrDetail)
-				wantRespBytes, err := json.Marshal(wantResp)
+
+				// decode response
+				tResponse := api.NewErrAPIPayloadFromMessage("", "", "")
+				err = json.Unmarshal(w.Body.Bytes(), &tResponse)
 				require.NoError(err)
-				require.Equal(string(wantRespBytes), w.Body.String())
+
+				// compare items of struct error, one by one,
+				if tc.wantErrTitle != "" {
+					assert.Equal(tc.wantErrTitle, tResponse.Errors[0].Title)
+				}
+				if tc.wantErrDetail != "" {
+					assert.Equal(tc.wantErrDetail, tResponse.Errors[0].Detail)
+				}
 			}
 		})
 	}
 }
 
-func CommonAPITokenTestDb(t *testing.T, username, prefix string, scope authorization.APITokenScope, token string) *authorization.SqliteProvider {
+func CommonAPITokenTestDb(t *testing.T, username, prefix, name string, scope authorization.APITokenScope, token string) *authorization.SqliteProvider {
 	db, err := sqlite.New(":memory:", api_token.AssetNames(), api_token.Asset, DataSourceOptions)
 	require.NoError(t, err)
 	dbProv := authorization.NewSqliteProvider(db)
@@ -201,6 +262,7 @@ func CommonAPITokenTestDb(t *testing.T, username, prefix string, scope authoriza
 	itemToSave := authorization.APIToken{
 		Username:  username,
 		Prefix:    prefix,
+		Name:      name,
 		CreatedAt: ptr.Time(time.Date(2001, 1, 1, 1, 0, 0, 0, time.UTC)),
 		ExpiresAt: ptr.Time(time.Date(2051, 1, 1, 2, 0, 0, 0, time.UTC)),
 		Scope:     scope,
@@ -212,6 +274,7 @@ func CommonAPITokenTestDb(t *testing.T, username, prefix string, scope authoriza
 	itemToSave = authorization.APIToken{
 		Username:  username,
 		Prefix:    "expired1",
+		Name:      "another name",
 		CreatedAt: ptr.Time(time.Date(2001, 1, 1, 1, 0, 0, 0, time.UTC)),
 		ExpiresAt: ptr.Time(time.Date(2001, 1, 1, 2, 0, 0, 0, time.UTC)),
 		Scope:     scope,
@@ -285,15 +348,16 @@ func TestPostToken(t *testing.T) {
 		tokenManager: mockTokenManager,
 		userService:  users.NewAPIService(users.NewStaticProvider([]*users.User{user, userWithoutToken}), false, 0, -1),
 	}
+	expirationDate, _ := time.Date(2025, 1, 1, 2, 0, 0, 0, time.UTC).UTC().MarshalText()
 
 	al.initRouter()
-	req := httptest.NewRequest("POST", "/api/v1/me/token", strings.NewReader(`{"scope": "`+string(authorization.APITokenReadWrite)+`"}`))
+	req := httptest.NewRequest("POST", "/api/v1/me/tokens", strings.NewReader(`{"name": "token name", "scope": "`+string(authorization.APITokenReadWrite)+`", "expires_at": "`+string(expirationDate)+`"}`))
 	w := httptest.NewRecorder()
 	ctxUser1 := api.WithUser(req.Context(), user.Username)
 	req = req.WithContext(ctxUser1)
 	req.SetBasicAuth(user.Username, "pwd")
 	al.router.ServeHTTP(w, req)
-	expectedJSON := `{"data":{"prefix":"theprefi", "scope":"` + string(authorization.APITokenReadWrite) + `", "token":"mynicefi-xedl-enth-long-livedpasswor"}}`
+	expectedJSON := `{"data":{"scope":"` + string(authorization.APITokenReadWrite) + `", "token":"theprefi_mynicefi-xedl-enth-long-livedpasswor", "prefix":"theprefi", "expires_at": "` + string(expirationDate) + `"}}`
 	assert.Equal(t, http.StatusOK, w.Code)
 	assert.JSONEq(t, expectedJSON, w.Body.String())
 }
@@ -309,7 +373,7 @@ func TestWrapWithAuthMiddleware(t *testing.T) {
 		Password: "$2y$05$ep2DdPDeLDDhwRrED9q/vuVEzRpZtB5WHCFT7YbcmH9r9oNmlsZOm",
 	}
 	mockTokenManager := authorization.NewManager(
-		CommonAPITokenTestDb(t, "user1", "theprefi", authorization.APITokenReadWrite, "mynicefi-xedl-enth-long-livedpasswor")) // APIToken database
+		CommonAPITokenTestDb(t, "user1", "theprefi", "the name", authorization.APITokenReadWrite, "mynicefi-xedl-enth-long-livedpasswor")) // APIToken database
 
 	al := APIListener{
 		Logger:      testLog,
@@ -447,7 +511,7 @@ func TestAPISessionUpdates(t *testing.T) {
 		Password: "$2y$05$ep2DdPDeLDDhwRrED9q/vuVEzRpZtB5WHCFT7YbcmH9r9oNmlsZOm",
 	}
 	mockTokenManager := authorization.NewManager(
-		CommonAPITokenTestDb(t, "user1", "theprefi", authorization.APITokenReadWrite, "mynicefi-xedl-enth-long-livedpasswor")) // APIToken database
+		CommonAPITokenTestDb(t, "user1", "theprefi", "the name", authorization.APITokenReadWrite, "mynicefi-xedl-enth-long-livedpasswor")) // APIToken database
 
 	al := APIListener{
 		Logger:      testLog,
@@ -594,7 +658,7 @@ func TestHandleGetLogin(t *testing.T) {
 		UserService: users.NewAPIService(users.NewStaticProvider([]*users.User{user}), false, 0, -1),
 	}
 	mockTokenManager := authorization.NewManager(
-		CommonAPITokenTestDb(t, "user1", "theprefi", authorization.APITokenReadWrite, "mynicefi-xedl-enth-long-livedpasswor")) // APIToken database
+		CommonAPITokenTestDb(t, "user1", "theprefi", "the name", authorization.APITokenReadWrite, "mynicefi-xedl-enth-long-livedpasswor")) // APIToken database
 
 	al := APIListener{
 		Logger: testLog,

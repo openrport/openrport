@@ -53,6 +53,9 @@ put:
             prefix:
               type: string
               description: token id prefix
+            name:
+              type: string
+              description: token name, 250 chars max description, unique per user
             expires_at:
               type: string
               description: date and time when this token will expire
