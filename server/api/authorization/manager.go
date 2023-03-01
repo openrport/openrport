@@ -2,15 +2,16 @@ package authorization
 
 import (
 	"context"
+	"fmt"
 	"io"
 	"net/http"
-	"time"
 
 	errors2 "github.com/cloudradar-monitoring/rport/server/api/errors"
 )
 
 type DbProvider interface {
 	Get(ctx context.Context, username, prefix string) (*APIToken, error)
+	GetByName(ctx context.Context, username, name string) (*APIToken, error)
 	GetAll(ctx context.Context, username string) ([]*APIToken, error)
 	Save(ctx context.Context, tokenLine *APIToken) error
 	Delete(ctx context.Context, username, prefix string) error
@@ -41,10 +42,12 @@ func (m *Manager) GetAll(ctx context.Context, username string) ([]*APIToken, err
 }
 
 func (m *Manager) Create(ctx context.Context, tokenLine *APIToken) error {
-	now := time.Now()
-	tokenLine.CreatedAt = &now
+	err := checkNameExist(ctx, m.db, tokenLine.Username, tokenLine.Name)
+	if err != nil {
+		return err
+	}
 
-	err := m.db.Save(ctx, tokenLine)
+	err = m.db.Save(ctx, tokenLine)
 	if err != nil {
 		return err
 	}
@@ -53,11 +56,29 @@ func (m *Manager) Create(ctx context.Context, tokenLine *APIToken) error {
 }
 
 func (m *Manager) Save(ctx context.Context, tokenLine *APIToken) error {
-	err := m.db.Save(ctx, tokenLine)
+	err := checkNameExist(ctx, m.db, tokenLine.Username, tokenLine.Name)
 	if err != nil {
 		return err
 	}
 
+	err = m.db.Save(ctx, tokenLine)
+	if err != nil {
+		return err
+	}
+
+	return nil
+}
+
+func checkNameExist(ctx context.Context, db DbProvider, username, name string) error {
+	if name != "" {
+		item, err := db.GetByName(ctx, username, name)
+		if err != nil {
+			return err
+		}
+		if item != nil {
+			return fmt.Errorf("A token with the same name already exists")
+		}
+	}
 	return nil
 }
 

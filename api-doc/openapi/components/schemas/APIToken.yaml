@@ -3,6 +3,9 @@ properties:
   prefix:
     type: string
     description: randomly generated 8 digit [0-9][a-z][A-Z] string (no special characters), unique per user
+  name:
+    type: string
+    description: token name, 250 chars max description, unique per user
 
   token:
     type: string

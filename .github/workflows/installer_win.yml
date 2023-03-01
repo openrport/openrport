@@ -1,0 +1,28 @@
+name: Build Installer Client Windows
+on:
+  push:
+    tags:
+      - "*"
+jobs:
+  release:
+    name: Windows Installer
+    runs-on: windows-2022
+    steps:
+      - uses: actions/checkout@v2
+      - name: Set up Go
+        uses: actions/setup-go@v2
+        with:
+          go-version: 1.19
+      - name: Set exe's and MSI version 
+        run: |
+            set -e
+            echo "Updating versioninfo.json with Ver: ${GITHUB_REF_NAME}"
+            export VER=${GITHUB_REF_NAME}
+            jq '.StringFileInfo.FileVersion = "'"$VER"'" | .StringFileInfo.ProductVersion = "'"$VER"'"' cmd/rport/versioninfo.json > new.json
+        shell: bash
+      - name: Creates MSI
+        run: .github/scripts/makemsi.ps1
+      - name: Tests install, files and uninstallation
+        run: .github/scripts/msi-base-test.ps1
+
+        

@@ -42,7 +42,9 @@ jobs:
           RPORT_COMMIT_ID: ${{ steps.rport_commit_info.outputs.commit_sha }}
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
           RPORT_PLUS_PRIV_KEY: ${{ secrets.RPORT_PLUS_PRIV_KEY }}
-        run: bash .github/scripts/build-and-release-plus.sh
+        run: | 
+          bash .github/scripts/build-plus.sh
+          bash .github/scripts/release-plus.sh
 
       - name: Create RPM and DEB packages
         id: create_pkgs
