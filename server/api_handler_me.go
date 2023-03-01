@@ -297,7 +297,7 @@ func (al *APIListener) handlePostToken(w http.ResponseWriter, req *http.Request)
 
 	createdAt := ptr.Time(time.Now().Truncate(time.Second).UTC())
 	if r.ExpiresAt == nil {
-		r.ExpiresAt = ptr.Time(createdAt.AddDate(1, 0, 0))
+		r.ExpiresAt = ptr.Time(createdAt.AddDate(1 /* year */, 0, 0)) // expiry date default is creation date + one year
 	}
 
 	newTokenClear, err := random.UUID4()
