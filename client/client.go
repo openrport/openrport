@@ -503,6 +503,9 @@ func (c *Client) checkTunnelAllowed(payload []byte) (*comm.CheckTunnelAllowedRes
 	if err != nil {
 		return nil, err
 	}
+	if !allowed {
+		c.Errorf(`Tunnel to %q not allowed based on "tunnel_allowed" config: %v`, req.Remote, c.configHolder.Client.TunnelAllowed)
+	}
 
 	return &comm.CheckTunnelAllowedResponse{
 		IsAllowed: allowed,
@@ -557,7 +560,7 @@ func (c *Client) connectStreams(chans <-chan ssh.NewChannel) {
 			c.Errorf("Could not check if remote is allowed: %v", err)
 		}
 		if !allowed {
-			c.Infof(`Rejecting stream to %s based on "tunnel_allowed" config.`, remote)
+			c.Errorf(`Rejecting stream to %q based on "tunnel_allowed" config: %v`, remote, c.configHolder.Client.TunnelAllowed)
 			err := ch.Reject(ssh.Prohibited, `not allowed with "tunnel_allowed" config`)
 			if err != nil {
 				c.Errorf("Failed to reject stream: %v", err)
