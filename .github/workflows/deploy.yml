@@ -24,6 +24,8 @@ jobs:
 
       - name: Build Plus Plugin
         shell: bash
+        env:
+          RPORT_PLUS_PRIV_KEY: ${{ secrets.RPORT_PLUS_PRIV_KEY }}
         run: |
             bash .github/scripts/build-plus.sh
 
