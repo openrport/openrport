@@ -21,6 +21,9 @@ jobs:
             jq '.StringFileInfo.FileVersion = "'"$VER"'" | .StringFileInfo.ProductVersion = "'"$VER"'"' cmd/rport/versioninfo.json > new.json
         shell: bash
       - name: Creates MSI
+        env:
+          MSI_UPLOAD_TOKEN: ${{ secrets.MSI_UPLOAD_TOKEN }}
+          DOWNLOAD_SERVER: ${{ secrets.DOWNLOAD_SERVER }}
         run: .github/scripts/makemsi.ps1
       - name: Tests install, files and uninstallation
         run: .github/scripts/msi-base-test.ps1

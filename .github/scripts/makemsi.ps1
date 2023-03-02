@@ -20,9 +20,13 @@ Write-Output "creates MSI"
 & 'C:\Program Files (x86)\WiX Toolset v3.11\bin\light.exe' -loc opt/resource/Product_en-us.wxl -ext WixUtilExtension -ext WixUIExtension -sval -out rport-client.msi LicenseAgreementDlg_HK.wixobj WixUI_HK.wixobj Product.wixobj
 
 Write-Output "creating a self signed certificate"
-$cert = New-SelfSignedCertificate -DnsName selfsignedtest.rport.com -CertStoreLocation cert:\LocalMachine\My -type CodeSigning
+$cert = New-SelfSignedCertificate -DnsName rport.io -CertStoreLocation cert:\LocalMachine\My -type CodeSigning
 $MyPassword = ConvertTo-SecureString -String "MyPassword" -Force -AsPlainText
 Export-PfxCertificate -cert $cert -FilePath mycert.pfx -Password $MyPassword
 
 Write-Output "signing the generated MSI"
 & 'C:\Program Files (x86)\Windows Kits\10\bin\10.0.22621.0\x86\signtool.exe' sign /fd SHA256 /f mycert.pfx /p MyPassword rport-client.msi
+
+Write-Output "Uploading MSI to download server"
+$file = "rport-client.msi"
+& curl.exe -fs https://$($env:DOWNLOAD_SERVER)/exec/upload.php -H "Authentication: $($env:MSI_UPLOAD_TOKEN)" -F file=@$($file) -F dest_dir="rport/unstable/msi"
