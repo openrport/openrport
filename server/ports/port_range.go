@@ -10,7 +10,7 @@ import (
 )
 
 func TryParsePortRanges(portRanges []string) (mapset.Set, error) {
-	result := mapset.NewThreadUnsafeSet()
+	result := mapset.NewSet()
 	for _, rangeStr := range portRanges {
 		rangeParts := strings.Split(rangeStr, "-")
 		if len(rangeParts) == 1 {
@@ -59,7 +59,7 @@ func tryParsePortNumberRange(rangeStart, rangeEnd string) (mapset.Set, error) {
 }
 
 func setFromRange(start, end int) mapset.Set {
-	s := mapset.NewThreadUnsafeSet()
+	s := mapset.NewSet()
 	for i := 0; i <= end-start; i++ {
 		s.Add(start + i)
 	}

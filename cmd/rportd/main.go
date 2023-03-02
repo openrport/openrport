@@ -26,21 +26,22 @@ import (
 )
 
 const (
-	DefaultKeepDisconnectedClients          = time.Hour
-	DefaultPurgeDisconnectedClientsInterval = 1 * time.Minute
-	DefaultCheckClientsConnectionInterval   = 5 * time.Minute
-	DefaultCheckClientsConnectionTimeout    = 30 * time.Second
-	DefaultMaxRequestBytes                  = 10 * 1024       // 10 KB
-	DefaultMaxRequestBytesClient            = 512 * 1024      // 512KB
-	DefaultMaxFilePushBytes                 = int64(10 << 20) // 10M
-	DefaultCheckPortTimeout                 = 2 * time.Second
-	DefaultUsedPorts                        = "20000-30000"
-	DefaultExcludedPorts                    = "1-1024"
-	DefaultServerAddress                    = "0.0.0.0:8080"
-	DefaultLogLevel                         = "info"
-	DefaultRunRemoteCmdTimeoutSec           = 60
-	DefaultMonitoringDataStorageDuration    = "7d"
-	DefaultPairingURL                       = "https://pairing.rport.io"
+	DefaultMaxConcurrentSSHConnectionHandshakes = 4
+	DefaultKeepDisconnectedClients              = time.Hour
+	DefaultPurgeDisconnectedClientsInterval     = 1 * time.Minute
+	DefaultCheckClientsConnectionInterval       = 5 * time.Minute
+	DefaultCheckClientsConnectionTimeout        = 30 * time.Second
+	DefaultMaxRequestBytes                      = 10 * 1024       // 10 KB
+	DefaultMaxRequestBytesClient                = 512 * 1024      // 512KB
+	DefaultMaxFilePushBytes                     = int64(10 << 20) // 10M
+	DefaultCheckPortTimeout                     = 2 * time.Second
+	DefaultUsedPorts                            = "20000-30000"
+	DefaultExcludedPorts                        = "1-1024"
+	DefaultServerAddress                        = "0.0.0.0:8080"
+	DefaultLogLevel                             = "info"
+	DefaultRunRemoteCmdTimeoutSec               = 60
+	DefaultMonitoringDataStorageDuration        = "7d"
+	DefaultPairingURL                           = "https://pairing.rport.io"
 )
 
 var serverHelp = `
@@ -314,6 +315,7 @@ func init() {
 	viperCfg.SetDefault("server.data_dir", chserver.DefaultDataDirectory)
 	viperCfg.SetDefault("server.sqlite_wal", true)
 	viperCfg.SetDefault("server.keep_disconnected_clients", DefaultKeepDisconnectedClients)
+	viperCfg.SetDefault("server.max_concurrent_ssh_handshakes", DefaultMaxConcurrentSSHConnectionHandshakes)
 	viperCfg.SetDefault("server.purge_disconnected_clients_interval", DefaultPurgeDisconnectedClientsInterval)
 	viperCfg.SetDefault("server.check_clients_connection_interval", DefaultCheckClientsConnectionInterval)
 	viperCfg.SetDefault("server.check_clients_connection_timeout", DefaultCheckClientsConnectionTimeout)

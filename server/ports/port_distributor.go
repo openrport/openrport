@@ -2,6 +2,7 @@ package ports
 
 import (
 	"fmt"
+	"sync"
 
 	mapset "github.com/deckarep/golang-set"
 	"github.com/shirou/gopsutil/v3/net"
@@ -13,6 +14,7 @@ type PortDistributor struct {
 	allowedPorts mapset.Set
 
 	portsPools map[string]mapset.Set
+	mu         sync.RWMutex
 }
 
 func NewPortDistributor(allowedPorts mapset.Set) *PortDistributor {
@@ -39,7 +41,8 @@ func (d *PortDistributor) GetRandomPort(protocol string) (int, error) {
 		subProtocols = []string{models.ProtocolTCP, models.ProtocolUDP}
 	}
 	for _, p := range subProtocols {
-		if d.portsPools[p] == nil {
+		pool := d.getPoolFromMap(p)
+		if pool == nil {
 			err := d.refresh(p)
 			if err != nil {
 				return 0, err
@@ -54,7 +57,8 @@ func (d *PortDistributor) GetRandomPort(protocol string) (int, error) {
 
 	// Make sure port is removed from all pools for tcp+udp protocol
 	for _, p := range subProtocols {
-		d.portsPools[p].Remove(port)
+		pool := d.getPoolFromMap(p)
+		pool.Remove(port)
 	}
 
 	return port.(int), nil
@@ -69,7 +73,7 @@ func (d *PortDistributor) IsPortBusy(protocol string, port int) bool {
 }
 
 func (d *PortDistributor) getPool(protocol string) mapset.Set {
-	pool := d.portsPools[protocol]
+	pool := d.getPoolFromMap(protocol)
 	if protocol == models.ProtocolTCPUDP {
 		pool = d.portsPools[models.ProtocolTCP].Intersect(d.portsPools[models.ProtocolUDP])
 	}
@@ -94,12 +98,14 @@ func (d *PortDistributor) refresh(protocol string) error {
 		return err
 	}
 
-	d.portsPools[protocol] = d.allowedPorts.Difference(busyPorts)
+	pool := d.allowedPorts.Difference(busyPorts)
+	d.setPool(protocol, pool)
+
 	return nil
 }
 
 func ListBusyPorts(protocol string) (mapset.Set, error) {
-	result := mapset.NewThreadUnsafeSet()
+	result := mapset.NewSet()
 	connections, err := net.Connections(protocol)
 	if err != nil {
 		return nil, err
@@ -113,4 +119,17 @@ func ListBusyPorts(protocol string) (mapset.Set, error) {
 	}
 
 	return result, nil
+}
+
+func (d *PortDistributor) getPoolFromMap(protocol string) (pool mapset.Set) {
+	d.mu.RLock()
+	pool = d.portsPools[protocol]
+	d.mu.RUnlock()
+	return pool
+}
+
+func (d *PortDistributor) setPool(protocol string, pool mapset.Set) {
+	d.mu.Lock()
+	d.portsPools[protocol] = pool
+	d.mu.Unlock()
 }

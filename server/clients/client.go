@@ -12,6 +12,7 @@ import (
 	"github.com/cloudradar-monitoring/rport/server/api/users"
 	"github.com/cloudradar-monitoring/rport/server/cgroups"
 	"github.com/cloudradar-monitoring/rport/server/clients/clienttunnel"
+	chshare "github.com/cloudradar-monitoring/rport/share"
 	"github.com/cloudradar-monitoring/rport/share/clientconfig"
 	"github.com/cloudradar-monitoring/rport/share/logger"
 	"github.com/cloudradar-monitoring/rport/share/models"
@@ -58,6 +59,7 @@ type Client struct {
 	Version                string                 `json:"version"`
 	Address                string                 `json:"address"`
 	Tunnels                []*clienttunnel.Tunnel `json:"tunnels"`
+
 	// DisconnectedAt is a time when a client was disconnected. If nil - it's connected.
 	DisconnectedAt      *time.Time            `json:"disconnected_at"`
 	LastHeartbeatAt     *time.Time            `json:"last_heartbeat_at"`
@@ -67,11 +69,13 @@ type Client struct {
 	ClientConfiguration *clientconfig.Config  `json:"client_configuration"`
 
 	Connection   ssh.Conn        `json:"-"`
-	Logger       *logger.Logger  `json:"-"`
 	Context      context.Context `json:"-"`
 	Paused       bool            `json:"-"`
 	PausedReason string          `json:"-"`
-	lock         sync.Mutex
+
+	Logger *logger.Logger `json:"-"`
+
+	flock sync.RWMutex
 }
 
 // CalculatedClient contains additional fields and is calculated on each request
@@ -81,47 +85,298 @@ type CalculatedClient struct {
 	ConnectionState ConnectionState `json:"connection_state"`
 }
 
+func NewCalculatedClient(c *Client, groups []string, connectionState ConnectionState) (cc *CalculatedClient) {
+	cc = &CalculatedClient{}
+	cc.Client = c
+	cc.Groups = groups
+	cc.ConnectionState = connectionState
+	return cc
+}
+
+func (cc *CalculatedClient) GetConnectionState() (cs ConnectionState) {
+	return cc.ConnectionState
+}
+
+func (c *Client) GetID() (id string) {
+	c.flock.RLock()
+	defer c.flock.RUnlock()
+	return c.ID
+}
+
+func (c *Client) GetName() (name string) {
+	c.flock.RLock()
+	defer c.flock.RUnlock()
+	return c.Name
+}
+
+func (c *Client) GetSessionID() (sessionID string) {
+	c.flock.RLock()
+	defer c.flock.RUnlock()
+	return c.SessionID
+}
+
+func (c *Client) GetOS() (os string) {
+	c.flock.RLock()
+	defer c.flock.RUnlock()
+	return c.OS
+}
+
+func (c *Client) GetHostname() (hostname string) {
+	c.flock.RLock()
+	defer c.flock.RUnlock()
+	return c.Hostname
+}
+
+func (c *Client) GetTags() (tags []string) {
+	c.flock.RLock()
+	defer c.flock.RUnlock()
+
+	if c.Tags == nil {
+		return nil
+	}
+
+	// make sure not to return reference to underlying array
+	tags = make([]string, len(c.Tags))
+	copy(tags, c.Tags)
+	return tags
+}
+
+func (c *Client) GetAllowedUserGroups() (groups []string) {
+	c.flock.RLock()
+	defer c.flock.RUnlock()
+
+	if c.AllowedUserGroups == nil {
+		return nil
+	}
+
+	// make sure not to return reference to underlying array
+	groups = make([]string, len(c.AllowedUserGroups))
+	copy(groups, c.AllowedUserGroups)
+	return groups
+}
+
+func (c *Client) GetVersion() (version string) {
+	c.flock.RLock()
+	defer c.flock.RUnlock()
+	return c.Version
+}
+
+func (c *Client) GetDisconnectedAt() (at *time.Time) {
+	c.flock.RLock()
+	defer c.flock.RUnlock()
+	return c.DisconnectedAt
+}
+
+func (c *Client) GetDisconnectedAtValue() (at time.Time) {
+	c.flock.RLock()
+	if c.DisconnectedAt != nil {
+		at = *c.DisconnectedAt
+	}
+	c.flock.RUnlock()
+	return at
+}
+
+func (c *Client) HasLastHeartbeatAt() (has bool) {
+	c.flock.RLock()
+	defer c.flock.RUnlock()
+	return c.LastHeartbeatAt != nil
+}
+
+func (c *Client) GetLastHeartbeatAt() (at *time.Time) {
+	c.flock.RLock()
+	defer c.flock.RUnlock()
+	return c.LastHeartbeatAt
+}
+
+func (c *Client) GetLastHeartbeatAtValue() (at time.Time) {
+	c.flock.RLock()
+	if c.LastHeartbeatAt != nil {
+		at = *c.LastHeartbeatAt
+	}
+	c.flock.RUnlock()
+	return at
+}
+
+func (c *Client) GetConnection() (conn ssh.Conn) {
+	c.flock.RLock()
+	defer c.flock.RUnlock()
+	return c.Connection
+}
+
+func (c *Client) GetPausedReason() (reason string) {
+	c.flock.RLock()
+	defer c.flock.RUnlock()
+	return c.PausedReason
+}
+
+func (c *Client) GetContext() (ctx context.Context) {
+	c.flock.RLock()
+	defer c.flock.RUnlock()
+	return c.Context
+}
+
+func (c *Client) GetClientAuthID() (authID string) {
+	c.flock.RLock()
+	defer c.flock.RUnlock()
+	return c.ClientAuthID
+}
+
+func (c *Client) GetTunnels() (tunnels []*clienttunnel.Tunnel) {
+	c.flock.RLock()
+	defer c.flock.RUnlock()
+	return c.Tunnels
+}
+
+func (c *Client) Log() (l *logger.Logger) {
+	c.flock.RLock()
+	defer c.flock.RUnlock()
+	return c.Logger
+}
+
 func (c *Client) IsPaused() (paused bool) {
-	paused = c.Paused
-	return paused
+	c.flock.RLock()
+	defer c.flock.RUnlock()
+	return c.Paused
+}
+
+func (c *Client) GetMonitoringConfig() (monitoringConfig *clientconfig.MonitoringConfig) {
+	c.flock.RLock()
+	defer c.flock.RUnlock()
+
+	if c.ClientConfiguration == nil {
+		return nil
+	}
+
+	return &c.ClientConfiguration.Monitoring
+}
+
+func (c *Client) GetFileReceptionConfig() (fileReceptionConfig *clientconfig.FileReceptionConfig) {
+	c.flock.RLock()
+	defer c.flock.RUnlock()
+
+	if c.ClientConfiguration == nil {
+		return nil
+	}
+
+	return &c.ClientConfiguration.FileReceptionConfig
+}
+
+// test only
+func (c *Client) SetID(id string) {
+	c.flock.Lock()
+	c.ID = id
+	c.flock.Unlock()
+}
+
+// test only
+func (c *Client) SetAddress(address string) {
+	c.flock.Lock()
+	c.Address = address
+	c.flock.Unlock()
+}
+
+// test only
+func (c *Client) SetHostname(hostname string) {
+	c.flock.Lock()
+	c.Hostname = hostname
+	c.flock.Unlock()
+}
+
+// test only
+func (c *Client) SetClientAuthID(authID string) {
+	c.flock.Lock()
+	c.ClientAuthID = authID
+	c.flock.Unlock()
+}
+
+// test only
+func (c *Client) SetTags(tags []string) {
+	c.flock.Lock()
+	defer c.flock.Unlock()
+
+	if c.Tags == nil {
+		return
+	}
+
+	// make sure not to just copy the tag reference
+	c.Tags = make([]string, len(c.Tags))
+	copy(c.Tags, tags)
+}
+
+// test only
+func (c *Client) SetConnection(conn ssh.Conn) {
+	c.flock.Lock()
+	c.Connection = conn
+	c.flock.Unlock()
+}
+
+func (c *Client) SetTunnels(tunnels []*clienttunnel.Tunnel) {
+	c.flock.Lock()
+	c.Tunnels = tunnels
+	c.flock.Unlock()
+}
+
+func (c *Client) SetAllowedUserGroups(groups []string) {
+	c.flock.Lock()
+	defer c.flock.Unlock()
+
+	// make sure not to just copy the tag reference
+	c.AllowedUserGroups = make([]string, len(groups))
+	copy(c.AllowedUserGroups, groups)
+}
+
+func (c *Client) SetUpdatesStatus(status *models.UpdatesStatus) {
+	c.flock.Lock()
+	c.UpdatesStatus = status
+	c.flock.Unlock()
+}
+
+func (c *Client) SetDisconnectedAt(at *time.Time) {
+	if at != nil {
+		c.Log().Debugf("%s: set to disconnected at %s", c.GetID(), at)
+	}
+	c.flock.Lock()
+	c.DisconnectedAt = at
+	c.flock.Unlock()
+}
+
+func (c *Client) SetLastHeartbeatAt(at *time.Time) {
+	c.SetDisconnectedAt(nil)
+	c.flock.Lock()
+	c.LastHeartbeatAt = at
+	c.flock.Unlock()
 }
 
 const PausedDueToMaxClientsExceeded = "unlicensed"
 
 func (c *Client) SetPaused(paused bool, reason string) {
+	c.flock.Lock()
 	c.Paused = paused
 	c.PausedReason = reason
+	c.flock.Unlock()
 	if paused {
-		c.Logger.Infof("client %s is paused (reason = %s)", c.ID, c.PausedReason)
+		c.Log().Infof("client %s is paused (reason = %s)", c.GetID(), reason)
 	}
+}
+
+func (c *Client) IsConnected() bool {
+	return c.GetDisconnectedAt() == nil
 }
 
 func (c *Client) SetConnected() {
-	c.Logger.Debugf("%s: set to connected at %s", c.ID, time.Now())
-	c.DisconnectedAt = nil
-}
-
-func (c *Client) SetDisconnected(at *time.Time) {
-	if c.Logger != nil {
-		c.Logger.Debugf("%s: set to disconnected at %s", c.ID, at)
-	}
-	c.DisconnectedAt = at
+	c.Log().Debugf("%s: set to connected at %s", c.GetID(), time.Now())
+	c.SetDisconnectedAt(nil)
 }
 
 func (c *Client) SetDisconnectedNow() {
 	now := time.Now()
-	c.DisconnectedAt = &now
+	c.SetDisconnectedAt(&now)
 }
 
 func (c *Client) SetHeartbeatNow() {
 	now := time.Now()
-	c.DisconnectedAt = nil
-	c.LastHeartbeatAt = &now
-}
-
-func (c *Client) SetHeartbeat(at *time.Time) {
-	c.DisconnectedAt = nil
-	c.LastHeartbeatAt = at
+	c.SetLastHeartbeatAt(&now)
+	c.SetDisconnectedAt(nil)
 }
 
 func (c *Client) ToCalculated(allGroups []*cgroups.ClientGroup) *CalculatedClient {
@@ -131,26 +386,15 @@ func (c *Client) ToCalculated(allGroups []*cgroups.ClientGroup) *CalculatedClien
 			clientGroups = append(clientGroups, group.ID)
 		}
 	}
-	return &CalculatedClient{
-		Client:          c,
-		Groups:          clientGroups,
-		ConnectionState: c.CalculateConnectionState(),
-	}
+
+	return NewCalculatedClient(c, clientGroups, c.CalculateConnectionState())
 }
 
 // Obsolete returns true if a given client was disconnected longer than a given duration.
 // If a given duration is nil - returns false (never obsolete).
 func (c *Client) Obsolete(duration *time.Duration) bool {
-	return duration != nil && c.DisconnectedAt != nil &&
-		c.DisconnectedAt.Add(*duration).Before(now())
-}
-
-func (c *Client) Lock() {
-	c.lock.Lock()
-}
-
-func (c *Client) Unlock() {
-	c.lock.Unlock()
+	disconnectedAt := c.GetDisconnectedAt()
+	return duration != nil && !c.IsConnected() && disconnectedAt.Add(*duration).Before(now())
 }
 
 func (c *Client) NewTunnelID() (tunnelID string) {
@@ -163,31 +407,37 @@ func (c *Client) generateNewTunnelID() int64 {
 }
 
 func (c *Client) RemoveTunnelByID(tunnelID string) {
-	result := make([]*clienttunnel.Tunnel, 0)
-	for _, curr := range c.Tunnels {
-		if curr.ID != tunnelID {
-			result = append(result, curr)
+	updatedTunnelList := make([]*clienttunnel.Tunnel, 0)
+	// TODO: (rs): not thread-safe
+	for _, tunnel := range c.GetTunnels() {
+		if tunnel.ID != tunnelID {
+			updatedTunnelList = append(updatedTunnelList, tunnel)
 		}
 	}
-	c.Tunnels = result
+	c.SetTunnels(updatedTunnelList)
 }
 
 func (c *Client) Banner() string {
-	banner := c.ID
-	if c.Name != "" {
-		banner += " (" + c.Name + ")"
+	clientID := c.GetID()
+	clientName := c.GetName()
+	tags := c.GetTags()
+
+	banner := clientID
+	if clientName != "" {
+		banner += " (" + clientName + ")"
 	}
-	if len(c.Tags) != 0 {
-		for _, t := range c.Tags {
+	if len(tags) != 0 {
+		for _, t := range tags {
 			banner += " #" + t
 		}
 	}
+
 	return banner
 }
 
 func (c *Client) Close() error {
 	// The tunnels are closed automatically when ssh connection is closed.
-	return c.Connection.Close()
+	return c.GetConnection().Close()
 }
 
 func (c *Client) BelongsToOneOf(groups []*cgroups.ClientGroup) bool {
@@ -204,6 +454,10 @@ func (c *Client) BelongsTo(group *cgroups.ClientGroup) bool {
 	if p.HasNoParams() {
 		return false
 	}
+
+	c.flock.RLock()
+	defer c.flock.RUnlock()
+
 	if !p.ClientID.MatchesOneOf(c.ID) {
 		return false
 	}
@@ -247,7 +501,7 @@ func (c *Client) BelongsTo(group *cgroups.ClientGroup) bool {
 }
 
 func (c *Client) CalculateConnectionState() ConnectionState {
-	if c.DisconnectedAt == nil {
+	if c.IsConnected() {
 		return Connected
 	}
 	return Disconnected
@@ -259,7 +513,7 @@ func (c *Client) HasAccessViaUserGroups(userGroups []string) bool {
 		if curUserGroup == users.Administrators {
 			return true
 		}
-		for _, allowedGroup := range c.AllowedUserGroups {
+		for _, allowedGroup := range c.GetAllowedUserGroups() {
 			if allowedGroup == curUserGroup {
 				return true
 			}
@@ -283,4 +537,49 @@ func (c *Client) UserGroupHasAccessViaClientGroup(userGroups []string, allClient
 // NewClientID generates a new client ID.
 func NewClientID() (string, error) {
 	return random.UUID4()
+}
+
+func NewClientFromConnRequest(ctx context.Context, existingClient *Client, clientAuthID string, clientID string, req *chshare.ConnectionRequest, clientHost string, sshConn ssh.Conn, clog *logger.Logger) (client *Client) {
+	if existingClient == nil {
+		client = &Client{
+			ID: clientID,
+		}
+	} else {
+		client = existingClient
+	}
+
+	client.flock.Lock()
+	client.Name = req.Name
+	client.SessionID = req.SessionID
+	client.OS = req.OS
+	client.OSArch = req.OSArch
+	client.OSFamily = req.OSFamily
+	client.OSKernel = req.OSKernel
+	client.OSFullName = req.OSFullName
+	client.OSVersion = req.OSVersion
+	client.OSVirtualizationSystem = req.OSVirtualizationSystem
+	client.OSVirtualizationRole = req.OSVirtualizationRole
+	client.Hostname = req.Hostname
+	client.CPUFamily = req.CPUFamily
+	client.CPUModel = req.CPUModel
+	client.CPUModelName = req.CPUModelName
+	client.CPUVendor = req.CPUVendor
+	client.NumCPUs = req.NumCPUs
+	client.MemoryTotal = req.MemoryTotal
+	client.Timezone = req.Timezone
+	client.IPv4 = req.IPv4
+	client.IPv6 = req.IPv6
+	client.Tags = req.Tags
+	client.Version = req.Version
+	client.ClientConfiguration = req.ClientConfiguration
+	client.Address = clientHost
+	client.Tunnels = make([]*clienttunnel.Tunnel, 0)
+	client.DisconnectedAt = nil
+	client.ClientAuthID = clientAuthID
+	client.Connection = sshConn
+	client.Context = ctx
+	client.Logger = clog
+	client.flock.Unlock()
+
+	return client
 }

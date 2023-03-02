@@ -92,17 +92,19 @@ func (c *FileProvider) Get(id string) (*ClientAuth, error) {
 	return nil, nil
 }
 
-func (c *FileProvider) Add(client *ClientAuth) (bool, error) {
+func (c *FileProvider) Add(clientAuth *ClientAuth) (bool, error) {
 	idPswdPairs, err := c.load()
 	if err != nil {
 		return false, fmt.Errorf("failed to decode rport clients auth file: %v", err)
 	}
 
-	if _, ok := idPswdPairs[client.ID]; ok {
+	clientID := clientAuth.ID
+
+	if _, ok := idPswdPairs[clientID]; ok {
 		return false, nil
 	}
 
-	idPswdPairs[client.ID] = client.Password
+	idPswdPairs[clientID] = clientAuth.Password
 
 	if err := c.save(idPswdPairs); err != nil {
 		return false, fmt.Errorf("failed to encode rport clients auth file: %v", err)

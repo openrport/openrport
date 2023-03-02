@@ -65,58 +65,62 @@ func TestClientsStatusDeterminationTask(t *testing.T) {
 		timeout = 1 * time.Millisecond
 	)
 	now := time.Now()
-	cr := clients.NewClientRepository([]*clients.Client{
-		{
-			ID:           "1",
-			ClientAuthID: "1",
-			Connection:   connSuccess,
-		},
-		{
-			ID:              "2",
-			ClientAuthID:    "2",
-			Connection:      connSuccess,
-			LastHeartbeatAt: &now,
-		},
-		{
-			ID:           "3",
-			ClientAuthID: "3",
-			Connection:   connFailure,
-		},
-		{
-			ID:           "4",
-			ClientAuthID: "4",
-			Connection:   connTimeout,
-		},
-	}, nil, myTestLog)
+
+	c1 := clients.Client{}
+	c1.SetID("1")
+	c1.SetClientAuthID("1")
+	c1.SetConnection(connSuccess)
+	c1.Logger = myTestLog
+
+	c2 := clients.Client{}
+	c2.SetID("2")
+	c2.SetClientAuthID("2")
+	c2.SetConnection(connSuccess)
+	c2.SetLastHeartbeatAt(&now)
+	c2.Logger = myTestLog
+
+	c3 := clients.Client{}
+	c3.SetID("3")
+	c3.SetClientAuthID("3")
+	c3.SetConnection(connFailure)
+	c3.Logger = myTestLog
+
+	c4 := clients.Client{}
+	c4.SetID("4")
+	c4.SetClientAuthID("4")
+	c4.SetConnection(connTimeout)
+	c4.Logger = myTestLog
+
+	cr := clients.NewClientRepository([]*clients.Client{&c1, &c2, &c3, &c4}, nil, myTestLog)
 	task := NewClientsStatusCheckTask(myTestLog, cr, 120*time.Second, timeout)
 
 	// Check the last heartbeat of c1 has changed due to the ping sent
 	err = task.Run(context.Background())
 	assert.NoError(t, err)
-	c1, err := cr.GetByID("1")
+	tcl1, err := cr.GetByID("1")
 	assert.NoError(t, err)
-	assert.IsType(t, &time.Time{}, c1.LastHeartbeatAt)
-	t.Logf("c1: LastHeartbeatAt: %s", c1.LastHeartbeatAt)
+	assert.IsType(t, &time.Time{}, tcl1.GetLastHeartbeatAt())
+	t.Logf("tcl1: LastHeartbeatAt: %s", tcl1.GetLastHeartbeatAt())
 
 	// Check the last heartbeat of c2 has not changed because the task must skip this client
-	c2, err := cr.GetByID("2")
+	tcl2, err := cr.GetByID("2")
 	assert.NoError(t, err)
-	assert.Equal(t, &now, c2.LastHeartbeatAt, "LastHeartbeatAt of c2 must not change")
-	t.Logf("c2: LastHeartbeatAt: %s", c2.LastHeartbeatAt)
+	assert.Equal(t, &now, tcl2.GetLastHeartbeatAt(), "LastHeartbeatAt of tcl2 must not change")
+	t.Logf("tcl2: LastHeartbeatAt: %s", tcl2.GetLastHeartbeatAt())
 
 	// Check the status of c3 changed to disconnected
-	c3, err := cr.GetByID("3")
+	tcl3, err := cr.GetByID("3")
 	assert.NoError(t, err)
-	assert.NotNil(t, c3.DisconnectedAt)
-	assert.Equal(t, "disconnected", string(c3.CalculateConnectionState()))
-	t.Logf("c3: DisconnectedAt: %s", c3.DisconnectedAt)
+	assert.NotNil(t, tcl3.GetDisconnectedAt())
+	assert.Equal(t, "disconnected", string(tcl3.CalculateConnectionState()))
+	t.Logf("tcl3: GetDisconnectedAt(): %s", tcl3.GetDisconnectedAt())
 
 	// Check the status of c4 changed to disconnected caused by a timeout
-	c4, err := cr.GetByID("4")
+	tcl4, err := cr.GetByID("4")
 	assert.NoError(t, err)
-	assert.NotNil(t, c4.DisconnectedAt)
-	assert.Equal(t, "disconnected", string(c4.CalculateConnectionState()))
-	t.Logf("c4: DisconnectedAt: %s", c4.DisconnectedAt)
+	assert.NotNil(t, tcl4.GetDisconnectedAt())
+	assert.Equal(t, "disconnected", string(tcl4.CalculateConnectionState()))
+	t.Logf("tcl4: DisconnectedAt: %s", tcl4.GetDisconnectedAt())
 	log, err := os.ReadFile(logfile)
 	assert.NoError(t, err, "error reading log file")
 	assert.Contains(t, string(log), fmt.Sprintf("ping to  [4] failed: conn.SendRequest(ping), timeout %s exceeded", timeout))

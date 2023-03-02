@@ -17,8 +17,8 @@ import (
 )
 
 func TestHandleRefreshUpdatesStatus(t *testing.T) {
-	c1 := clients.New(t).Build()
-	c2 := clients.New(t).DisconnectedDuration(5 * time.Minute).Build()
+	c1 := clients.New(t).Logger(testLog).Build()
+	c2 := clients.New(t).DisconnectedDuration(5 * time.Minute).Logger(testLog).Build()
 
 	testCases := []struct {
 		Name                string
@@ -29,13 +29,13 @@ func TestHandleRefreshUpdatesStatus(t *testing.T) {
 	}{
 		{
 			Name:                "Connected client",
-			ClientID:            c1.ID,
+			ClientID:            c1.GetID(),
 			ExpectedStatus:      http.StatusNoContent,
 			ExpectedRequestName: comm.RequestTypeRefreshUpdatesStatus,
 		},
 		{
 			Name:           "Disconnected client",
-			ClientID:       c2.ID,
+			ClientID:       c2.GetID(),
 			ExpectedStatus: http.StatusNotFound,
 		},
 		{
@@ -45,7 +45,7 @@ func TestHandleRefreshUpdatesStatus(t *testing.T) {
 		},
 		{
 			Name:                "SSH error",
-			ClientID:            c1.ID,
+			ClientID:            c1.GetID(),
 			SSHError:            true,
 			ExpectedRequestName: comm.RequestTypeRefreshUpdatesStatus,
 			ExpectedStatus:      http.StatusInternalServerError,
@@ -57,7 +57,7 @@ func TestHandleRefreshUpdatesStatus(t *testing.T) {
 			connMock := test.NewConnMock()
 			// by default set to return success
 			connMock.ReturnOk = !tc.SSHError
-			c1.Connection = connMock
+			c1.SetConnection(connMock)
 			clientService := clients.NewClientService(nil, nil, clients.NewClientRepository([]*clients.Client{c1, c2}, &hour, testLog), testLog)
 			al := APIListener{
 				insecureForTests: true,

@@ -84,8 +84,9 @@ func (al *APIListener) getOrderedClients(
 
 	// append group clients
 	for _, groupClient := range groupClients {
-		if !usedClientIDs[groupClient.ID] {
-			usedClientIDs[groupClient.ID] = true
+		groupClientID := groupClient.GetID()
+		if !usedClientIDs[groupClientID] {
+			usedClientIDs[groupClientID] = true
 			orderedClients = append(orderedClients, groupClient)
 		}
 	}

@@ -31,16 +31,16 @@ import (
 type ClientService interface {
 	SetPlusLicenseInfoCap(licensecap licensecap.CapabilityEx)
 
-	Count() (int, error)
-	CountActive() (int, error)
+	Count() int
+	CountActive() int
 	CountDisconnected() (int, error)
 	GetByID(id string) (*Client, error)
 	GetActiveByID(id string) (*Client, error)
 	GetByGroups(groups []*cgroups.ClientGroup) ([]*Client, error)
 	GetClientsByTag(tags []string, operator string, allowDisconnected bool) (clients []*Client, err error)
 	GetAllByClientID(clientID string) []*Client
-	GetAll() ([]*Client, error)
-	GetUserClients(groups []*cgroups.ClientGroup, user User) ([]*Client, error)
+	GetAll() []*Client
+	GetUserClients(groups []*cgroups.ClientGroup, user User) []*Client
 	GetFilteredUserClients(user User, filterOptions []query.FilterOption, groups []*cgroups.ClientGroup) ([]*CalculatedClient, error)
 
 	PopulateGroupsWithUserClients(groups []*cgroups.ClientGroup, user User)
@@ -81,7 +81,7 @@ type ClientServiceProvider struct {
 
 	licensecap licensecap.CapabilityEx
 
-	mu sync.Mutex
+	mu sync.RWMutex
 }
 
 var OptionsSupportedFilters = map[string]bool{
@@ -216,9 +216,9 @@ func (s *ClientServiceProvider) UpdateClientStatus() {
 		return
 	}
 
-	s.logger.Debugf("updating client status")
+	s.log().Debugf("updating client status")
 
-	clientList := s.repo.GetAllActive()
+	clientList := s.repo.GetAllActiveClients()
 
 	for i, client := range clientList {
 		if i < s.GetMaxClients() {
@@ -227,14 +227,13 @@ func (s *ClientServiceProvider) UpdateClientStatus() {
 			client.SetPaused(true, PausedDueToMaxClientsExceeded)
 		}
 	}
-
 }
 
-func (s *ClientServiceProvider) Count() (int, error) {
+func (s *ClientServiceProvider) Count() int {
 	return s.repo.Count()
 }
 
-func (s *ClientServiceProvider) CountActive() (int, error) {
+func (s *ClientServiceProvider) CountActive() int {
 	return s.repo.CountActive()
 }
 
@@ -255,13 +254,10 @@ func (s *ClientServiceProvider) GetByGroups(groups []*cgroups.ClientGroup) ([]*C
 		return nil, nil
 	}
 
-	all, err := s.repo.GetAll()
-	if err != nil {
-		return nil, err
-	}
+	allClients := s.repo.GetAllClients()
 
 	var res []*Client
-	for _, cur := range all {
+	for _, cur := range allClients {
 		if cur.BelongsToOneOf(groups) {
 			res = append(res, cur)
 		}
@@ -274,11 +270,12 @@ func (s *ClientServiceProvider) GetClientsByTag(tags []string, operator string, 
 }
 
 func (s *ClientServiceProvider) PopulateGroupsWithUserClients(groups []*cgroups.ClientGroup, user User) {
-	all, _ := s.repo.GetUserClients(user, groups)
-	for _, curClient := range all {
+	availableClients := s.repo.GetUserClients(user, groups)
+	for _, client := range availableClients {
+		clientID := client.GetID()
 		for _, curGroup := range groups {
-			if curClient.BelongsTo(curGroup) {
-				curGroup.ClientIDs = append(curGroup.ClientIDs, curClient.ID)
+			if client.BelongsTo(curGroup) {
+				curGroup.ClientIDs = append(curGroup.ClientIDs, clientID)
 			}
 		}
 	}
@@ -291,11 +288,11 @@ func (s *ClientServiceProvider) GetAllByClientID(clientID string) []*Client {
 	return s.repo.GetAllByClientAuthID(clientID)
 }
 
-func (s *ClientServiceProvider) GetAll() ([]*Client, error) {
-	return s.repo.GetAll()
+func (s *ClientServiceProvider) GetAll() []*Client {
+	return s.repo.GetAllClients()
 }
 
-func (s *ClientServiceProvider) GetUserClients(groups []*cgroups.ClientGroup, user User) ([]*Client, error) {
+func (s *ClientServiceProvider) GetUserClients(groups []*cgroups.ClientGroup, user User) []*Client {
 	return s.repo.GetUserClients(user, groups)
 }
 
@@ -308,40 +305,49 @@ func (s *ClientServiceProvider) StartClient(
 	req *chshare.ConnectionRequest, clog *logger.Logger,
 ) (*Client, error) {
 	clog.Debugf("Starting client session: %s", clientID)
+	repo := s.GetRepo()
 
-	s.mu.Lock()
-	defer s.mu.Unlock()
+	clientAddr := sshConn.RemoteAddr().String()
+	clientHost, _, err := net.SplitHostPort(clientAddr)
+	if err != nil {
+		return nil, fmt.Errorf("failed to get host for address %q: %v", clientAddr, err)
+	}
 
 	// if client id is in use, deny connection
-	client, err := s.repo.GetByID(clientID)
+	client, err := repo.GetByID(clientID)
 	if err != nil {
 		return nil, fmt.Errorf("failed to get client by id %q", clientID)
 	}
 
+	// if found existing client
 	if client != nil {
+		clog.Debugf("found existing client %s", clientID)
 		var sessionReUsed = false
-		if req.SessionID != "" && req.SessionID == client.SessionID {
+		if req.SessionID != "" && req.SessionID == client.GetSessionID() {
 			// Stored previous session id and the session id of the connection attempt are equal
 			sessionReUsed = true
-			clog.Debugf("resuming existing session %s for client %s [%s]", req.SessionID, client.Name, clientID)
-		}
-		if client.DisconnectedAt == nil && !sessionReUsed {
-			return nil, fmt.Errorf("client is already connected: %s [%s]", client.Name, clientID)
+			clog.Debugf("resuming existing session %s for client %s [%s]", req.SessionID, client.GetName(), clientID)
 		}
 
-		oldTunnels := GetTunnelsToReestablish(getRemotes(client.Tunnels), req.Remotes)
+		if client.IsConnected() && !sessionReUsed {
+			clog.Debugf("client is already connected:  %s", clientID)
+			return nil, fmt.Errorf("client is already connected: %s [%s]", client.GetName(), clientID)
+		}
+
+		oldTunnels := getTunnelsToReestablish(getRemotes(client.GetTunnels()), req.Remotes)
+
 		clientVersion, err := version.NewVersion(req.Version)
 		if err != nil {
 			return nil, fmt.Errorf("failed to determine client version: %v", err)
 		}
 		requiredVersion, _ := version.NewVersion("0.6.4")
 		if clientVersion.GreaterThanOrEqual(requiredVersion) {
-			oldTunnels, err = ExcludeNotAllowedTunnels(clog, oldTunnels, sshConn)
+			oldTunnels, err = s.excludeNotAllowedTunnels(clog, oldTunnels, sshConn)
 			if err != nil {
 				return nil, fmt.Errorf("failed to filter tunnels: %v", err)
 			}
 		} else {
-			clog.Infof("client %s (%s) version %s does not support 'tunnel_allowed' policies. Consider upgrading.", client.ID, client.Name, client.Version)
+			clog.Infof("client %s (%s) version %s does not support 'tunnel_allowed' policies. Consider upgrading.", client.GetID(), client.GetName(), client.GetVersion())
 		}
 
 		clog.Infof("tunnels to create %d: %v", len(req.Remotes), req.Remotes)
@@ -353,67 +359,32 @@ func (s *ClientServiceProvider) StartClient(
 
 	// check if client auth ID is already used by another client
 	if !authMultiuseCreds && s.isClientAuthIDInUse(clientAuthID, clientID) {
+		clog.Debugf("client auth ID is already in use: %s: %q: ", clientID, clientAuthID)
 		return nil, fmt.Errorf("client auth ID is already in use: %q", clientAuthID)
 	}
 
-	clientAddr := sshConn.RemoteAddr().String()
-	clientHost, _, err := net.SplitHostPort(clientAddr)
-	if err != nil {
-		return nil, fmt.Errorf("failed to get host for address %q: %v", clientAddr, err)
-	}
-
-	if client == nil {
-		client = &Client{
-			ID: clientID,
-		}
-	}
-
-	client.Name = req.Name
-	client.SessionID = req.SessionID
-	client.OS = req.OS
-	client.OSArch = req.OSArch
-	client.OSFamily = req.OSFamily
-	client.OSKernel = req.OSKernel
-	client.OSFullName = req.OSFullName
-	client.OSVersion = req.OSVersion
-	client.OSVirtualizationSystem = req.OSVirtualizationSystem
-	client.OSVirtualizationRole = req.OSVirtualizationRole
-	client.Hostname = req.Hostname
-	client.CPUFamily = req.CPUFamily
-	client.CPUModel = req.CPUModel
-	client.CPUModelName = req.CPUModelName
-	client.CPUVendor = req.CPUVendor
-	client.NumCPUs = req.NumCPUs
-	client.MemoryTotal = req.MemoryTotal
-	client.Timezone = req.Timezone
-	client.IPv4 = req.IPv4
-	client.IPv6 = req.IPv6
-	client.Tags = req.Tags
-	client.Version = req.Version
-	client.ClientConfiguration = req.ClientConfiguration
-	client.Address = clientHost
-	client.Tunnels = make([]*clienttunnel.Tunnel, 0)
-	client.DisconnectedAt = nil
-	client.ClientAuthID = clientAuthID
-	client.Connection = sshConn
-	client.Context = ctx
-	client.Logger = clog
+	client = NewClientFromConnRequest(ctx, client, clientAuthID, clientID, req, clientHost, sshConn, clog)
 
 	client.SetConnected()
 
 	s.UpdateClientStatus()
 
 	if !client.IsPaused() {
-		_, err = s.startClientTunnels(client, req.Remotes)
+		_, err = s.startClientTunnels(client, req.Remotes, clog)
+
 		if err != nil {
 			return nil, err
 		}
 	}
 
-	err = s.repo.Save(client)
+	err = repo.Save(client)
 	if err != nil {
 		return nil, err
 	}
+
+	// TODO: (rs): should we keep this?
+	totalClients := repo.GetAllActiveClients()
+	s.log().Debugf("total clients = %d (last: %s)", len(totalClients), client.GetName())
 
 	return client, nil
 }
@@ -426,8 +397,8 @@ func getRemotes(tunnels []*clienttunnel.Tunnel) []*models.Remote {
 	return r
 }
 
-// GetTunnelsToReestablish returns old tunnels that should be re-establish taking into account new tunnels.
-func GetTunnelsToReestablish(old, new []*models.Remote) []*models.Remote {
+// getTunnelsToReestablish returns old tunnels that should be re-establish taking into account new tunnels.
+func getTunnelsToReestablish(old, new []*models.Remote) []*models.Remote {
 	if len(new) > len(old) {
 		return nil
 	}
@@ -484,11 +455,9 @@ loop2:
 
 // StartClientTunnels returns a new tunnel for each requested remote or nil if error occurred
 func (s *ClientServiceProvider) StartClientTunnels(client *Client, remotes []*models.Remote) ([]*clienttunnel.Tunnel, error) {
-	s.logger.Debugf("starting client tunnels: %s", client.ID)
+	s.logger.Debugf("starting client tunnels: %s", client.GetID())
 
-	s.mu.Lock()
-	defer s.mu.Unlock()
-	newTunnels, err := s.startClientTunnels(client, remotes)
+	newTunnels, err := s.startClientTunnels(client, remotes, s.log())
 	if err != nil {
 		return nil, err
 	}
@@ -501,7 +470,7 @@ func (s *ClientServiceProvider) StartClientTunnels(client *Client, remotes []*mo
 	return newTunnels, err
 }
 
-func (s *ClientServiceProvider) startClientTunnels(client *Client, remotes []*models.Remote) ([]*clienttunnel.Tunnel, error) {
+func (s *ClientServiceProvider) startClientTunnels(client *Client, remotes []*models.Remote, clog *logger.Logger) ([]*clienttunnel.Tunnel, error) {
 	err := s.portDistributor.Refresh()
 	if err != nil {
 		return nil, err
@@ -510,7 +479,7 @@ func (s *ClientServiceProvider) startClientTunnels(client *Client, remotes []*mo
 	tunnels := make([]*clienttunnel.Tunnel, 0, len(remotes))
 	for _, remote := range remotes {
 		if !remote.IsLocalSpecified() {
-			s.logger.Debugf("no local specified")
+			clog.Debugf("no local specified")
 			port, err := s.portDistributor.GetRandomPort(remote.Protocol)
 			if err != nil {
 				return nil, err
@@ -518,15 +487,15 @@ func (s *ClientServiceProvider) startClientTunnels(client *Client, remotes []*mo
 			remote.LocalPort = strconv.Itoa(port)
 			remote.LocalHost = models.ZeroHost
 			remote.LocalPortRandom = true
-			s.logger.Debugf("using random port %s", remote.LocalPort)
+			clog.Debugf("using random port %s", remote.LocalPort)
 		} else {
-			s.logger.Debugf("checking local port %s", remote.LocalPort)
+			clog.Debugf("checking local port %s", remote.LocalPort)
 			if err := s.checkLocalPort(remote.Protocol, remote.LocalPort); err != nil {
 				return nil, err
 			}
 		}
 
-		s.logger.Debugf("initiating tunnel %+v", remote)
+		clog.Debugf("initiating tunnel %+v", remote)
 
 		var acl *clienttunnel.TunnelACL
 		if remote.ACL != nil {
@@ -537,9 +506,10 @@ func (s *ClientServiceProvider) startClientTunnels(client *Client, remotes []*mo
 			}
 		}
 
-		s.logger.Debugf("starting tunnel: %s", remote)
+		clog.Debugf("starting tunnel: %s", remote)
 		t, err := s.StartTunnel(client, remote, acl)
 		if err != nil {
+			clog.Debugf("failed starting tunnel: %s: %v", remote, err)
 			return nil, apiErrors.APIError{
 				HTTPStatus: http.StatusConflict,
 				Err:        fmt.Errorf("unable to start tunnel: %s", err),
@@ -569,18 +539,16 @@ func (s *ClientServiceProvider) checkLocalPort(protocol, port string) error {
 }
 
 func (s *ClientServiceProvider) Terminate(client *Client) error {
-	s.logger.Infof("terminating client: %s", client.ID)
-
-	s.mu.Lock()
-	defer s.mu.Unlock()
-	if s.repo.KeepDisconnectedClients != nil && *s.repo.KeepDisconnectedClients == 0 {
+	s.log().Infof("terminating client: %s: %s", client.GetID(), client.GetName())
+	keepDisconnectedClientsDuration := s.repo.GetKeepDisconnectedClients()
+	if keepDisconnectedClientsDuration != nil && *keepDisconnectedClientsDuration == 0 {
 		return s.repo.Delete(client)
 	}
 
 	client.SetDisconnectedNow()
 
 	// Do not save if client doesn't exist in repo - it was force deleted
-	existing, err := s.repo.GetByID(client.ID)
+	existing, err := s.repo.GetByID(client.GetID())
 	if err != nil {
 		return err
 	}
@@ -596,11 +564,9 @@ func (s *ClientServiceProvider) Terminate(client *Client) error {
 // ForceDelete deletes client from repo regardless off KeepDisconnectedClients setting,
 // if client is active it will be closed
 func (s *ClientServiceProvider) ForceDelete(client *Client) error {
-	s.logger.Debugf("force deleting client: %s", client.ID)
+	s.logger.Debugf("force deleting client: %s", client.GetID())
 
-	s.mu.Lock()
-	defer s.mu.Unlock()
-	if client.DisconnectedAt == nil {
+	if client.IsConnected() {
 		if err := client.Close(); err != nil {
 			return err
 		}
@@ -611,12 +577,12 @@ func (s *ClientServiceProvider) ForceDelete(client *Client) error {
 func (s *ClientServiceProvider) DeleteOffline(clientID string) error {
 	s.logger.Debugf("deleting offline client: %s", clientID)
 
-	existing, err := s.getExistingByID(clientID)
+	existing, err := s.getExistingClientByID(clientID)
 	if err != nil {
 		return err
 	}
 
-	if existing.DisconnectedAt == nil {
+	if existing.IsConnected() {
 		return apiErrors.APIError{
 			Message:    "Client is active, should be disconnected",
 			HTTPStatus: http.StatusBadRequest,
@@ -628,8 +594,8 @@ func (s *ClientServiceProvider) DeleteOffline(clientID string) error {
 
 // isClientAuthIDInUse returns true when the client with different id exists for the client auth
 func (s *ClientServiceProvider) isClientAuthIDInUse(clientAuthID, clientID string) bool {
-	for _, s := range s.repo.GetAllByClientAuthID(clientAuthID) {
-		if s.ID != clientID {
+	for _, client := range s.repo.GetAllByClientAuthID(clientAuthID) {
+		if client.GetID() != clientID {
 			return true
 		}
 	}
@@ -637,40 +603,40 @@ func (s *ClientServiceProvider) isClientAuthIDInUse(clientAuthID, clientID strin
 }
 
 func (s *ClientServiceProvider) SetACL(clientID string, allowedUserGroups []string) error {
-	existing, err := s.getExistingByID(clientID)
+	client, err := s.getExistingClientByID(clientID)
 	if err != nil {
 		return err
 	}
 
-	existing.AllowedUserGroups = allowedUserGroups
+	client.SetAllowedUserGroups(allowedUserGroups)
 
-	return s.repo.Save(existing)
+	return s.repo.Save(client)
 }
 
 func (s *ClientServiceProvider) SetUpdatesStatus(clientID string, updatesStatus *models.UpdatesStatus) error {
-	existing, err := s.getExistingByID(clientID)
+	client, err := s.getExistingClientByID(clientID)
 	if err != nil {
 		return err
 	}
 
-	existing.UpdatesStatus = updatesStatus
+	client.SetUpdatesStatus(updatesStatus)
 
-	return s.repo.Save(existing)
+	return s.repo.Save(client)
 }
 
 func (s *ClientServiceProvider) SetLastHeartbeat(clientID string, heartbeat time.Time) error {
-	existing, err := s.getExistingByID(clientID)
+	existing, err := s.getExistingClientByID(clientID)
 	if err != nil {
 		return err
 	}
-	existing.SetHeartbeat(&heartbeat)
+	existing.SetLastHeartbeatAt(&heartbeat)
 	return nil
 }
 
 // CheckClientAccess returns nil if a given user has an access to a given client.
 // Otherwise, APIError with 403 is returned.
 func (s *ClientServiceProvider) CheckClientAccess(clientID string, user User, groups []*cgroups.ClientGroup) error {
-	existing, err := s.getExistingByID(clientID)
+	existing, err := s.getExistingClientByID(clientID)
 	if err != nil {
 		return err
 	}
@@ -687,11 +653,12 @@ func (s *ClientServiceProvider) CheckClientsAccess(clients []*Client, user User,
 
 	var clientsWithNoAccess []string
 	userGroups := user.GetGroups()
-	for _, curClient := range clients {
-		if curClient.HasAccessViaUserGroups(userGroups) || curClient.UserGroupHasAccessViaClientGroup(userGroups, clientGroups) {
+	for _, client := range clients {
+		if client.HasAccessViaUserGroups(userGroups) || client.UserGroupHasAccessViaClientGroup(userGroups, clientGroups) {
 			continue
 		}
-		clientsWithNoAccess = append(clientsWithNoAccess, curClient.ID)
+
+		clientsWithNoAccess = append(clientsWithNoAccess, client.GetID())
 	}
 
 	if len(clientsWithNoAccess) > 0 {
@@ -704,8 +671,8 @@ func (s *ClientServiceProvider) CheckClientsAccess(clients []*Client, user User,
 	return nil
 }
 
-// getExistingByID returns non-nil client by id. If not found or failed to get a client - an error is returned.
-func (s *ClientServiceProvider) getExistingByID(clientID string) (*Client, error) {
+// getExistingClientByID returns non-nil client by id. If not found or failed to get a client - an error is returned.
+func (s *ClientServiceProvider) getExistingClientByID(clientID string) (*Client, error) {
 	if clientID == "" {
 		return nil, apiErrors.APIError{
 			Message:    "Client id is empty",
@@ -728,14 +695,10 @@ func (s *ClientServiceProvider) getExistingByID(clientID string) (*Client, error
 	return existing, nil
 }
 
-func (s *ClientServiceProvider) GetRepo() *ClientRepository {
-	return s.repo
-}
-
-func ExcludeNotAllowedTunnels(clog *logger.Logger, tunnels []*models.Remote, conn ssh.Conn) ([]*models.Remote, error) {
+func (s *ClientServiceProvider) excludeNotAllowedTunnels(clog *logger.Logger, tunnels []*models.Remote, conn ssh.Conn) ([]*models.Remote, error) {
 	filtered := make([]*models.Remote, 0, len(tunnels))
 	for _, t := range tunnels {
-		allowed, err := clienttunnel.IsAllowed(t.Remote(), conn)
+		allowed, err := clienttunnel.IsAllowed(t.Remote(), conn, s.log())
 		if err != nil {
 			if strings.Contains(err.Error(), "unknown request") {
 				return tunnels, nil
@@ -751,25 +714,28 @@ func ExcludeNotAllowedTunnels(clog *logger.Logger, tunnels []*models.Remote, con
 	return filtered, nil
 }
 
+// TODO: (rs): can this move to the tunnel package?
 func (s *ClientServiceProvider) FindTunnelByRemote(c *Client, r *models.Remote) *clienttunnel.Tunnel {
-	for _, curr := range c.Tunnels {
-		if curr.Equals(r) {
-			return curr
+	for _, tunnel := range c.GetTunnels() {
+		if tunnel.Equals(r) {
+			return tunnel
 		}
 	}
 	return nil
 }
 
+// TODO: (rs): can this move to the tunnel package?
 func (s *ClientServiceProvider) FindTunnel(c *Client, id string) *clienttunnel.Tunnel {
-	for _, curr := range c.Tunnels {
-		if curr.ID == id {
-			return curr
+	for _, tunnel := range c.GetTunnels() {
+		if tunnel.ID == id {
+			return tunnel
 		}
 	}
 	return nil
 }
 
 func (s *ClientServiceProvider) SetCaddyAPI(capi caddy.API) {
+	// unguarded as set during initialization
 	s.caddyAPI = capi
 }
 
@@ -783,9 +749,9 @@ func (s *ClientServiceProvider) StartTunnel(
 		return tunnel, nil
 	}
 
-	s.logger.Debugf("starting tunnel: %s", remote)
+	s.log().Debugf("starting tunnel: %s", remote)
 
-	ctx := client.Context
+	ctx := client.GetContext()
 	if remote.AutoClose > 0 {
 		// no need to cancel the ctx since it will be canceled by parent ctx or after given timeout
 		ctx, _ = context.WithTimeout(ctx, remote.AutoClose) // nolint: govet
@@ -800,9 +766,9 @@ func (s *ClientServiceProvider) StartTunnel(
 		if remote.HasSubdomainTunnel() {
 			err = s.startCaddyDownstreamProxy(ctx, client, remote, tunnel)
 			if err != nil {
-				tunnelStopErr := tunnel.InternalTunnelProxy.Stop(client.Context)
+				tunnelStopErr := tunnel.InternalTunnelProxy.Stop(client.GetContext())
 				if tunnelStopErr != nil {
-					client.Logger.Infof("unable to stop internal tunnel proxy after failing to create caddy downstream proxy: %s", tunnelStopErr)
+					client.Log().Infof("unable to stop internal tunnel proxy after failing to create caddy downstream proxy: %s", tunnelStopErr)
 				}
 				return nil, err
 			}
@@ -824,7 +790,10 @@ func (s *ClientServiceProvider) StartTunnel(
 		go s.terminateTunnelOnIdleTimeout(ctx, tunnel, client)
 	}
 
-	client.Tunnels = append(client.Tunnels, tunnel)
+	existingTunnels := client.GetTunnels()
+	existingTunnels = append(existingTunnels, tunnel)
+	client.SetTunnels(existingTunnels)
+
 	return tunnel, nil
 }
 
@@ -834,9 +803,11 @@ func (s *ClientServiceProvider) startCaddyDownstreamProxy(
 	remote *models.Remote,
 	tunnel *clienttunnel.Tunnel,
 ) (err error) {
-	client.Logger.Infof("starting downstream caddy proxy at %s", remote.TunnelURL)
-	client.Logger.Debugf("tunnel = %#v", tunnel)
-	client.Logger.Debugf("remote = %#v", remote)
+	clientLogger := client.Log()
+
+	clientLogger.Infof("starting downstream caddy proxy at %s", remote.TunnelURL)
+	clientLogger.Debugf("tunnel = %#v", tunnel)
+	clientLogger.Debugf("remote = %#v", remote)
 
 	subdomain, basedomain, err := remote.GetTunnelDomains()
 	if err != nil {
@@ -851,7 +822,7 @@ func (s *ClientServiceProvider) startCaddyDownstreamProxy(
 		DownstreamProxyBaseDomain: basedomain,
 	}
 
-	client.Logger.Debugf("requesting new caddy route = %+v", nrr)
+	clientLogger.Debugf("requesting new caddy route = %+v", nrr)
 
 	res, err := s.caddyAPI.AddRoute(ctx, nrr)
 	if err != nil {
@@ -862,14 +833,14 @@ func (s *ClientServiceProvider) startCaddyDownstreamProxy(
 		return fmt.Errorf("failed to create downstream caddy proxy: status_code: %d", res.StatusCode)
 	}
 
-	client.Logger.Infof("started downstream caddy proxy at %s to %s:%s", remote.TunnelURL, tunnel.LocalHost, tunnel.LocalPort)
+	clientLogger.Infof("started downstream caddy proxy at %s to %s:%s", remote.TunnelURL, tunnel.LocalHost, tunnel.LocalPort)
 	return nil
 }
 
 func (s *ClientServiceProvider) startRegularTunnel(ctx context.Context, client *Client, remote *models.Remote, acl *clienttunnel.TunnelACL) (*clienttunnel.Tunnel, error) {
 	tunnelID := client.NewTunnelID()
 
-	tunnel, err := clienttunnel.NewTunnel(client.Logger, client.Connection, tunnelID, *remote, acl)
+	tunnel, err := clienttunnel.NewTunnel(client.Log(), client.GetConnection(), tunnelID, *remote, acl)
 	if err != nil {
 		return nil, err
 	}
@@ -888,12 +859,15 @@ func (s *ClientServiceProvider) startTunnelWithProxy(
 	remote *models.Remote,
 	acl *clienttunnel.TunnelACL,
 ) (*clienttunnel.Tunnel, error) {
+	var proxyACL *clienttunnel.TunnelACL
 	proxyHost := ""
 	proxyPort := ""
-	var proxyACL *clienttunnel.TunnelACL
+
+	clientID := client.GetID()
+	clientLogger := client.Log()
 
 	// assuming that we still want to log activity in the client log
-	client.Logger.Debugf("client %s will use tunnel proxy", client.ID)
+	clientLogger.Debugf("client %s will use tunnel proxy", clientID)
 
 	// get values for tunnel proxy local host addr from original remote
 	proxyHost = remote.LocalHost
@@ -913,7 +887,7 @@ func (s *ClientServiceProvider) startTunnelWithProxy(
 	tunnelID := client.NewTunnelID()
 
 	// original tunnel will use the reconfigured original remote
-	t, err := clienttunnel.NewTunnel(client.Logger, client.Connection, tunnelID, *remote, acl)
+	t, err := clienttunnel.NewTunnel(clientLogger, client.GetConnection(), tunnelID, *remote, acl)
 	if err != nil {
 		return nil, err
 	}
@@ -925,10 +899,10 @@ func (s *ClientServiceProvider) startTunnelWithProxy(
 	}
 
 	// create new proxy tunnel listening at the original tunnel local host addr
-	tProxy := clienttunnel.NewInternalTunnelProxy(t, client.Logger, s.tunnelProxyConfig, proxyHost, proxyPort, proxyACL)
-	client.Logger.Debugf("client %s starting tunnel proxy", client.ID)
+	tProxy := clienttunnel.NewInternalTunnelProxy(t, clientLogger, s.tunnelProxyConfig, proxyHost, proxyPort, proxyACL)
+	clientLogger.Debugf("client %s starting tunnel proxy", clientID)
 	if err := tProxy.Start(ctx); err != nil {
-		client.Logger.Debugf("tunnel proxy could not be started, tunnel must be terminated: %v", err)
+		clientLogger.Debugf("tunnel proxy could not be started, tunnel must be terminated: %v", err)
 		if tErr := t.Terminate(true); tErr != nil {
 			return nil, tErr
 		}
@@ -941,8 +915,8 @@ func (s *ClientServiceProvider) startTunnelWithProxy(
 	t.Remote.LocalHost = t.InternalTunnelProxy.Host
 	t.Remote.LocalPort = t.InternalTunnelProxy.Port
 
-	client.Logger.Debugf("client %s started tunnel with proxy: %#v", client.ID, t)
-	client.Logger.Debugf("internal tunnel proxy: %#v", t.InternalTunnelProxy)
+	clientLogger.Debugf("client %s started tunnel with proxy: %#v", clientID, t)
+	clientLogger.Debugf("internal tunnel proxy: %#v", t.InternalTunnelProxy)
 
 	return t, nil
 }
@@ -966,7 +940,7 @@ func (s *ClientServiceProvider) terminateTunnelOnIdleTimeout(ctx context.Context
 		case <-timer.C:
 			sinceLastActive := time.Since(t.LastActive())
 			if sinceLastActive > idleTimeout {
-				c.Logger.Infof("Terminating... inactivity period is reached: %d minute(s)", t.IdleTimeoutMinutes)
+				c.Log().Infof("Terminating... inactivity period is reached: %d minute(s)", t.IdleTimeoutMinutes)
 				_ = t.Terminate(true)
 				s.cleanupAfterAutoClose(c, t)
 				return
@@ -977,15 +951,14 @@ func (s *ClientServiceProvider) terminateTunnelOnIdleTimeout(ctx context.Context
 }
 
 func (s *ClientServiceProvider) cleanupAfterAutoClose(c *Client, t *clienttunnel.Tunnel) {
-	c.Lock()
-	defer c.Unlock()
+	clientLogger := c.Log()
 
-	c.Logger.Infof("Auto closing tunnel %s ...", t.ID)
+	clientLogger.Infof("Auto closing tunnel %s ...", t.ID)
 
 	//stop tunnel proxy
 	if t.InternalTunnelProxy != nil {
-		if err := t.InternalTunnelProxy.Stop(c.Context); err != nil {
-			c.Logger.Errorf("error while stopping tunnel proxy: %v", err)
+		if err := t.InternalTunnelProxy.Stop(c.GetContext()); err != nil {
+			clientLogger.Errorf("error while stopping tunnel proxy: %v", err)
 		}
 		if t.Remote.HasSubdomainTunnel() {
 			_ = s.removeCaddyDownstreamProxy(c, t)
@@ -996,14 +969,16 @@ func (s *ClientServiceProvider) cleanupAfterAutoClose(c *Client, t *clienttunnel
 
 	err := s.repo.Save(c)
 	if err != nil {
-		c.Logger.Errorf("unable to save client after auto close cleanup: %v", err)
+		clientLogger.Errorf("unable to save client after auto close cleanup: %v", err)
 	}
 
-	c.Logger.Debugf("auto closed tunnel with id=%s removed", t.ID)
+	clientLogger.Debugf("auto closed tunnel with id=%s removed", t.ID)
 }
 
 func (s *ClientServiceProvider) TerminateTunnel(c *Client, t *clienttunnel.Tunnel, force bool) error {
-	c.Logger.Infof("Terminating tunnel %s (force: %v) ...", t.ID, force)
+	clientLogger := c.Log()
+
+	clientLogger.Infof("Terminating tunnel %s (force: %v) ...", t.ID, force)
 
 	err := t.Terminate(force)
 	if err != nil {
@@ -1011,8 +986,8 @@ func (s *ClientServiceProvider) TerminateTunnel(c *Client, t *clienttunnel.Tunne
 	}
 
 	if t.InternalTunnelProxy != nil {
-		if err := t.InternalTunnelProxy.Stop(c.Context); err != nil {
-			c.Logger.Errorf("error while stopping tunnel proxy: %v", err)
+		if err := t.InternalTunnelProxy.Stop(c.GetContext()); err != nil {
+			clientLogger.Errorf("error while stopping tunnel proxy: %v", err)
 		}
 		if t.Remote.HasSubdomainTunnel() {
 			_ = s.removeCaddyDownstreamProxy(c, t)
@@ -1026,10 +1001,10 @@ func (s *ClientServiceProvider) TerminateTunnel(c *Client, t *clienttunnel.Tunne
 
 	err = s.repo.Save(c)
 	if err != nil {
-		c.Logger.Errorf("unable to save client after auto close cleanup: %v", err)
+		clientLogger.Errorf("unable to save client after auto close cleanup: %v", err)
 	}
 
-	c.Logger.Debugf("terminated tunnel with id=%s removed", t.ID)
+	clientLogger.Debugf("terminated tunnel with id=%s removed", t.ID)
 	return nil
 }
 
@@ -1052,21 +1027,23 @@ func (s *ClientServiceProvider) SetTunnelACL(c *Client, t *clienttunnel.Tunnel, 
 
 	err = s.repo.Save(c)
 	if err != nil {
-		c.Logger.Errorf("unable to save client after tunnel ACL update: %v", err)
+		c.Log().Errorf("unable to save client after tunnel ACL update: %v", err)
 	}
 
 	return nil
 }
 
 func (s *ClientServiceProvider) removeCaddyDownstreamProxy(c *Client, t *clienttunnel.Tunnel) (err error) {
-	c.Logger.Infof("removing downstream caddy proxy at %s", t.Remote.TunnelURL)
+	clientLogger := c.Log()
+
+	clientLogger.Infof("removing downstream caddy proxy at %s", t.Remote.TunnelURL)
 
 	subdomain, _, err := t.Remote.GetTunnelDomains()
 	if err != nil {
 		return err
 	}
 
-	res, err := s.caddyAPI.DeleteRoute(c.Context, subdomain)
+	res, err := s.caddyAPI.DeleteRoute(c.GetContext(), subdomain)
 	if err != nil {
 		return err
 	}
@@ -1075,6 +1052,18 @@ func (s *ClientServiceProvider) removeCaddyDownstreamProxy(c *Client, t *clientt
 		return fmt.Errorf("failed to delete downstream caddy proxy: status_code: %d", res.StatusCode)
 	}
 
-	c.Logger.Infof("removed downstream caddy proxy at %s", t.Remote.TunnelURL)
+	clientLogger.Infof("removed downstream caddy proxy at %s", t.Remote.TunnelURL)
 	return nil
+}
+
+func (s *ClientServiceProvider) GetRepo() *ClientRepository {
+	s.mu.RLock()
+	defer s.mu.RUnlock()
+	return s.repo
+}
+
+func (s *ClientServiceProvider) log() (l *logger.Logger) {
+	s.mu.RLock()
+	defer s.mu.RUnlock()
+	return s.logger
 }

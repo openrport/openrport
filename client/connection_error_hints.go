@@ -27,7 +27,7 @@ func ConnectionErrorHints(server string, logger *logger.Logger, err error) error
 		if allHeaders != "" {
 			logger.Debugf("headers collected while detecting proxy: %s", allHeaders)
 		}
-		return fmt.Errorf("%s - Check your client credentials AND check for tranparent proxies", err)
+		return fmt.Errorf("%s - Server maybe busy. Also check your client credentials AND check for tranparent proxies", err)
 	default:
 		return err
 	}

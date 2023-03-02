@@ -10,6 +10,7 @@ import (
 	"os"
 	"path"
 	"strings"
+	"sync"
 	"time"
 
 	"golang.org/x/crypto/bcrypt"
@@ -72,6 +73,15 @@ type APIListener struct {
 	tokenManager   *authorization.Manager
 	commandManager *command.Manager
 	storedTunnels  *storedtunnels.Manager
+
+	mu sync.RWMutex
+}
+
+func (al *APIListener) Log() (l *logger.Logger) {
+	al.mu.RLock()
+	defer al.mu.RUnlock()
+
+	return al.Logger
 }
 
 type UserService interface {

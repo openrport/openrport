@@ -10,11 +10,12 @@ import (
 
 func TestGetInitState(t *testing.T) {
 	ctx := context.Background()
-	c1 := New(t).Build()
+	c1 := New(t).ID("client-1").Logger(testLog).Build()
 	wantC1 := shallowCopy(c1)
-	wantC1.DisconnectedAt = &nowMock
-	c2 := New(t).DisconnectedDuration(5 * time.Minute).Build()
-	c3 := New(t).DisconnectedDuration(2 * time.Hour).Build()
+
+	wantC1.SetDisconnectedAt(&nowMock)
+	c2 := New(t).ID("client-2").DisconnectedDuration(5 * time.Minute).Logger(testLog).Build()
+	c3 := New(t).ID("client-3").DisconnectedDuration(2 * time.Hour).Logger(testLog).Build()
 
 	testCases := []struct {
 		name string
@@ -44,16 +45,18 @@ func TestGetInitState(t *testing.T) {
 
 	for _, tc := range testCases {
 		t.Run(tc.name, func(t *testing.T) {
-			// given
 			p := NewFakeClientProvider(t, &tc.expiration, tc.dbClients...)
 			defer p.Close()
 
-			// when
-			gotClients, gotErr := LoadInitialClients(ctx, p, nil)
-
-			// then
+			gotClients, gotErr := LoadInitialClients(ctx, p, testLog)
 			assert.NoError(t, gotErr)
 			assert.Len(t, gotClients, len(tc.wantRes))
+
+			// patch the client logger for the ElementsMatch check
+			for _, c := range gotClients {
+				c.Logger = testLog
+			}
+
 			assert.ElementsMatch(t, gotClients, tc.wantRes)
 		})
 	}

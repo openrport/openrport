@@ -18,10 +18,10 @@ import (
 
 func TestHandleOutputChannel(t *testing.T) {
 	log := logger.NewLogger("client-listener-test", logger.LogOutput{File: os.Stdout}, logger.LogLevelDebug)
-	cl := &ClientListener{Server: &Server{uiJobWebSockets: ws.NewWebSocketCache()}}
+	cl := &ClientListener{server: &Server{uiJobWebSockets: ws.NewWebSocketCache()}}
 	mockConn := &connMock{}
 	ws := ws.NewConcurrentWebSocket(mockConn, log)
-	cl.Server.uiJobWebSockets.Set("test-jid", ws)
+	cl.server.uiJobWebSockets.Set("test-jid", ws)
 
 	testCases := []struct {
 		Name     string

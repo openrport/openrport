@@ -132,7 +132,7 @@ func TestCreate(t *testing.T) {
 			"token":      itemToSave.Token,
 		},
 	}
-	q := "SELECT username, prefix, name, expires_at, scope, token FROM `api_token`"
+	q := "SELECT username, prefix, name, expires_at, scope, token FROM `api_tokens`"
 
 	test.AssertRowsEqual(t, dbProv.db, expectedRows, q, []interface{}{})
 }
@@ -169,7 +169,7 @@ func TestUpdate(t *testing.T) {
 			"expires_at": *demoDataUpdate.ExpiresAt,
 		},
 	}
-	q := "SELECT username, prefix, name, expires_at FROM `api_token`"
+	q := "SELECT username, prefix, name, expires_at FROM `api_tokens`"
 	test.AssertRowsEqual(t, dbProv.db, expectedRows, q, []interface{}{})
 }
 func TestUpdateOneAtATimeName(t *testing.T) {
@@ -202,7 +202,7 @@ func TestUpdateOneAtATimeName(t *testing.T) {
 			"expires_at": *itemToSave.ExpiresAt,
 		},
 	}
-	q := "SELECT username, prefix, name, expires_at FROM `api_token`"
+	q := "SELECT username, prefix, name, expires_at FROM `api_tokens`"
 	test.AssertRowsEqual(t, dbProv.db, expectedRows, q, []interface{}{})
 }
 
@@ -236,7 +236,7 @@ func TestUpdateOneAtATimeExpiresAt(t *testing.T) {
 			"expires_at": *demoDataUpdate.ExpiresAt,
 		},
 	}
-	q := "SELECT username, prefix, name, expires_at FROM `api_token`"
+	q := "SELECT username, prefix, name, expires_at FROM `api_tokens`"
 	test.AssertRowsEqual(t, dbProv.db, expectedRows, q, []interface{}{})
 }
 
@@ -277,14 +277,14 @@ func TestDelete(t *testing.T) {
 			"token":      demoData[0].Token,
 		},
 	}
-	q := "SELECT * FROM `api_token`"
+	q := "SELECT * FROM `api_tokens`"
 	test.AssertRowsEqual(t, dbProv.db, expectedRows, q, []interface{}{})
 }
 
 func addDemoData(db *sqlx.DB) error {
 	for i := range demoData {
 		_, err := db.Exec(
-			"INSERT INTO `api_token` (`username`, `prefix`, `name`, `created_at`, `expires_at`, `scope`, `token`) VALUES (?,?,?,?,?,?,?)",
+			"INSERT INTO `api_tokens` (`username`, `prefix`, `name`, `created_at`, `expires_at`, `scope`, `token`) VALUES (?,?,?,?,?,?,?)",
 			demoData[i].Username,
 			demoData[i].Prefix,
 			demoData[i].Name,

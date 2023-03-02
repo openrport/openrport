@@ -153,15 +153,15 @@ func TestHandlePostScheduleMultiClientJobWithTags(t *testing.T) {
 			connMock2 := makeConnMock(t, 2, time.Date(2020, 10, 10, 10, 10, 2, 0, time.UTC))
 			connMock4 := makeConnMock(t, 4, time.Date(2020, 10, 10, 10, 10, 4, 0, time.UTC))
 
-			c1 := clients.New(t).ID("client-1").Connection(connMock1).Build()
-			c2 := clients.New(t).ID("client-2").Connection(connMock2).Build()
-			c3 := clients.New(t).ID("client-3").DisconnectedDuration(5 * time.Minute).Build()
-			c4 := clients.New(t).ID("client-4").Connection(connMock4).Build()
+			c1 := clients.New(t).ID("client-1").Connection(connMock1).Logger(testLog).Build()
+			c2 := clients.New(t).ID("client-2").Connection(connMock2).Logger(testLog).Build()
+			c3 := clients.New(t).ID("client-3").DisconnectedDuration(5 * time.Minute).Logger(testLog).Build()
+			c4 := clients.New(t).ID("client-4").Connection(connMock4).Logger(testLog).Build()
 
-			c1.Tags = []string{"linux"}
-			c2.Tags = []string{"windows"}
-			c3.Tags = []string{"mac"}
-			c4.Tags = []string{"linux", "windows"}
+			c1.SetTags([]string{"linux"})
+			c2.SetTags([]string{"windows"})
+			c3.SetTags([]string{"mac"})
+			c4.SetTags([]string{"linux", "windows"})
 
 			g1 := makeClientGroup("group-1", &cgroups.ClientParams{
 				ClientID: &cgroups.ParamValues{"client-1", "client-2"},
@@ -175,9 +175,9 @@ func TestHandlePostScheduleMultiClientJobWithTags(t *testing.T) {
 				Version:  &cgroups.ParamValues{"0.1.1*"},
 			})
 
-			c1.AllowedUserGroups = []string{"group-1"}
-			c2.AllowedUserGroups = []string{"group-1"}
-			c4.AllowedUserGroups = []string{"group-2"}
+			c1.SetAllowedUserGroups([]string{"group-1"})
+			c2.SetAllowedUserGroups([]string{"group-1"})
+			c4.SetAllowedUserGroups([]string{"group-2"})
 
 			clientList := []*clients.Client{c1, c2, c4}
 
@@ -382,15 +382,15 @@ func TestHandlePostUpdateScheduleMultiClientJobWithTags(t *testing.T) {
 			connMock2 := makeConnMock(t, 2, time.Date(2020, 10, 10, 10, 10, 2, 0, time.UTC))
 			connMock4 := makeConnMock(t, 4, time.Date(2020, 10, 10, 10, 10, 4, 0, time.UTC))
 
-			c1 := clients.New(t).ID("client-1").Connection(connMock1).Build()
-			c2 := clients.New(t).ID("client-2").Connection(connMock2).Build()
-			c3 := clients.New(t).ID("client-3").DisconnectedDuration(5 * time.Minute).Build()
-			c4 := clients.New(t).ID("client-4").Connection(connMock4).Build()
+			c1 := clients.New(t).ID("client-1").Connection(connMock1).Logger(testLog).Build()
+			c2 := clients.New(t).ID("client-2").Connection(connMock2).Logger(testLog).Build()
+			c3 := clients.New(t).ID("client-3").DisconnectedDuration(5 * time.Minute).Logger(testLog).Build()
+			c4 := clients.New(t).ID("client-4").Connection(connMock4).Logger(testLog).Build()
 
-			c1.Tags = []string{"linux"}
-			c2.Tags = []string{"windows"}
-			c3.Tags = []string{"mac"}
-			c4.Tags = []string{"linux", "windows"}
+			c1.SetTags([]string{"linux"})
+			c2.SetTags([]string{"windows"})
+			c3.SetTags([]string{"mac"})
+			c4.SetTags([]string{"linux", "windows"})
 
 			g1 := makeClientGroup("group-1", &cgroups.ClientParams{
 				ClientID: &cgroups.ParamValues{"client-1", "client-2"},
@@ -404,9 +404,9 @@ func TestHandlePostUpdateScheduleMultiClientJobWithTags(t *testing.T) {
 				Version:  &cgroups.ParamValues{"0.1.1*"},
 			})
 
-			c1.AllowedUserGroups = []string{"group-1"}
-			c2.AllowedUserGroups = []string{"group-1"}
-			c4.AllowedUserGroups = []string{"group-2"}
+			c1.SetAllowedUserGroups([]string{"group-1"})
+			c2.SetAllowedUserGroups([]string{"group-1"})
+			c4.SetAllowedUserGroups([]string{"group-2"})
 
 			clientList := []*clients.Client{c1, c2, c4}
 
