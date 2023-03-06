@@ -429,7 +429,7 @@ func setupTestAPIListenerForOAuth(
 		UserService: users.NewAPIService(users.NewStaticProvider([]*users.User{user}), false, 0, -1),
 	}
 	mockTokenManager := authorization.NewManager(
-		CommonAPITokenTestDb(t, "user1", "prefixtkn", authorization.APITokenReadWrite, "mynicefi-xedl-enth-long-livedpasswor")) // APIToken database
+		CommonAPITokenTestDb(t, "user1", "prefixtkn", "the name", authorization.APITokenReadWrite, "mynicefi-xedl-enth-long-livedpasswor")) // APIToken database
 
 	plusConfig.OAuthConfig = oauthConfig
 

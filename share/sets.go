@@ -5,7 +5,7 @@ import (
 )
 
 func SetFromRange(start, end int) mapset.Set {
-	s := mapset.NewThreadUnsafeSet()
+	s := mapset.NewSet()
 	for i := 0; i <= end-start; i++ {
 		s.Add(start + i)
 	}

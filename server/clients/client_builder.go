@@ -14,6 +14,7 @@ import (
 	"time"
 
 	"github.com/cloudradar-monitoring/rport/share/clientconfig"
+	"github.com/cloudradar-monitoring/rport/share/logger"
 
 	"golang.org/x/crypto/ssh"
 
@@ -39,6 +40,7 @@ type ClientBuilder struct {
 	disconnectedAt    *time.Time
 	allowedUserGroups []string
 	conn              ssh.Conn
+	logger            *logger.Logger
 	cfg               *clientconfig.Config
 }
 
@@ -55,6 +57,11 @@ func New(t *testing.T) ClientBuilder {
 
 func (b ClientBuilder) ID(id string) ClientBuilder {
 	b.id = id
+	return b
+}
+
+func (b ClientBuilder) Logger(l *logger.Logger) ClientBuilder {
+	b.logger = l
 	return b
 }
 
@@ -140,6 +147,7 @@ func (b ClientBuilder) Build() *Client {
 
 		Connection:          b.conn,
 		ClientConfiguration: b.cfg,
+		Logger:              b.logger,
 	}
 
 	return cl

@@ -79,7 +79,10 @@ func TestCustomHeaders(t *testing.T) {
 	c, err := NewClient(&config, fileAPI)
 	require.NoError(t, err)
 
-	err = c.Run()
+	ctx, cancel := context.WithCancel(context.Background())
+	defer cancel()
+
+	err = c.Run(ctx)
 	require.NoError(t, err)
 }
 
@@ -433,11 +436,11 @@ func (m *mockServer) IsConnected() bool {
 }
 
 func (m *mockServer) WaitForStatus(isConnected bool) error {
-	for i := 0; i < 1500; i++ {
+	for i := 0; i < 60; i++ {
 		if m.IsConnected() == isConnected {
 			return nil
 		}
-		time.Sleep(2 * time.Millisecond)
+		time.Sleep(200 * time.Millisecond)
 	}
 	return fmt.Errorf("timeout waiting for isConnected=%v", isConnected)
 }
@@ -497,7 +500,7 @@ func TestConnectionLoop(t *testing.T) {
 	c, err := NewClient(&config, test.NewFileAPIMock())
 	require.NoError(t, err)
 
-	go c.connectionLoop(context.Background())
+	go c.connectionLoop(context.Background(), false)
 
 	// connects to main server successfully
 	assert.NoError(t, mainServer.WaitForStatus(true))

@@ -5,10 +5,22 @@ import (
 	"time"
 
 	"github.com/stretchr/testify/assert"
+	"golang.org/x/crypto/ssh"
 
 	"github.com/cloudradar-monitoring/rport/server/api/users"
 	"github.com/cloudradar-monitoring/rport/server/cgroups"
 )
+
+func NewTestClient(id string, address string, hostname string, clientAuthID string, connection ssh.Conn) (c *Client) {
+	c = &Client{
+		ID:           id,
+		Address:      address,
+		Hostname:     hostname,
+		ClientAuthID: clientAuthID,
+		Connection:   connection,
+	}
+	return c
+}
 
 func TestClientBelongsToGroup(t *testing.T) {
 	c1 := &Client{

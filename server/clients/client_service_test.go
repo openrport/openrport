@@ -4,23 +4,30 @@ import (
 	"context"
 	"errors"
 	"fmt"
+	"math/rand"
 	"net"
 	"net/http"
+	"os"
+	"path"
+	"runtime"
 	"strconv"
 	"strings"
+	"sync"
 	"testing"
 	"time"
-
-	"github.com/cloudradar-monitoring/rport/server/caddy"
-	"github.com/cloudradar-monitoring/rport/server/cgroups"
-	"github.com/cloudradar-monitoring/rport/server/clients/clienttunnel"
-	"github.com/cloudradar-monitoring/rport/server/clientsauth"
 
 	mapset "github.com/deckarep/golang-set"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 
-	errors2 "github.com/cloudradar-monitoring/rport/server/api/errors"
+	clientsmigration "github.com/cloudradar-monitoring/rport/db/migration/clients"
+	"github.com/cloudradar-monitoring/rport/db/sqlite"
+	"github.com/cloudradar-monitoring/rport/server/caddy"
+	"github.com/cloudradar-monitoring/rport/server/cgroups"
+	"github.com/cloudradar-monitoring/rport/server/clients/clienttunnel"
+	"github.com/cloudradar-monitoring/rport/server/clientsauth"
+
+	apiErrors "github.com/cloudradar-monitoring/rport/server/api/errors"
 	"github.com/cloudradar-monitoring/rport/server/api/users"
 	"github.com/cloudradar-monitoring/rport/server/ports"
 	chshare "github.com/cloudradar-monitoring/rport/share"
@@ -93,7 +100,8 @@ func TestStartClient(t *testing.T) {
 					ID:           "test-client",
 					ClientAuthID: "test-client-auth",
 				}}, nil, testLog),
-				portDistributor: ports.NewPortDistributor(mapset.NewThreadUnsafeSet()),
+				portDistributor: ports.NewPortDistributor(mapset.NewSet()),
+				logger:          testLog,
 			}
 			_, err := cs.StartClient(
 				context.Background(), tc.ClientAuthID, tc.ClientID, connMock, tc.AuthMultiuseCreds,
@@ -101,6 +109,90 @@ func TestStartClient(t *testing.T) {
 			assert.Equal(t, tc.ExpectedError, err)
 		})
 	}
+}
+
+// this is a fairly crude concurrency test for start client. currently excluded from the regular test runs as
+// it consumes a moderate amount of memory and takes some time to run. If run, remember to uncomment the t.Skip().
+// go test -count=1 -race -v github.com/cloudradar-monitoring/rport/server/clients -run TestStartClientConcurrency
+func TestStartClientConcurrency(t *testing.T) {
+	t.Skip()
+
+	// runtime.GOMAXPROCS(runtime.NumCPU() - 1)
+	runtime.GOMAXPROCS(8)
+
+	sourceOptions := sqlite.DataSourceOptions{
+		MaxOpenConnections: 250,
+		WALEnabled:         false,
+	}
+
+	clientDB, err := sqlite.New(
+		path.Join("./", "clients.db"),
+		clientsmigration.AssetNames(),
+		clientsmigration.Asset,
+		sourceOptions,
+	)
+	require.NoError(t, err)
+	defer os.Remove("./clients.db")
+	defer os.Remove("./clients.db-shm")
+
+	pd := ports.NewPortDistributor(mapset.NewSet())
+
+	totalClients := 1500
+
+	clients := []*Client{{}}
+	for i := 0; i < totalClients; i++ {
+		client := Client{
+			Name:         "test-name-" + strconv.Itoa(i),
+			ID:           "test-id-" + strconv.Itoa(i),
+			ClientAuthID: "test-client-auth-" + strconv.Itoa(i),
+			Version:      "0.6.4",
+		}
+		clients = append(clients, &client)
+	}
+
+	mockConns := []*test.ConnMock{}
+	for i := 0; i < totalClients; i++ {
+		mockConn := test.NewConnMock()
+		mockConn.ReturnRemoteAddr = &net.TCPAddr{IP: net.IPv4(192, 0, 2, 1), Port: 2000}
+		mockConns = append(mockConns, mockConn)
+	}
+
+	repo, err := InitClientRepository(context.Background(), clientDB, nil, testLog)
+	require.NoError(t, err)
+
+	cs := &ClientServiceProvider{
+		repo:            repo,
+		portDistributor: pd,
+		logger:          testLog,
+	}
+
+	wg := sync.WaitGroup{}
+
+	for i := 0; i < totalClients; i++ {
+		wg.Add(1)
+		go func(i int) {
+			time.Sleep(time.Duration(rand.Intn(10)) * time.Millisecond)
+			client := clients[i]
+
+			_, err := cs.StartClient(
+				context.Background(),
+				client.GetClientAuthID(),
+				client.GetID(),
+				mockConns[i],
+				false,
+				&chshare.ConnectionRequest{
+					Name: client.GetName(),
+				},
+				testLog,
+			)
+
+			assert.NoError(t, err)
+
+			wg.Done()
+		}(i)
+	}
+
+	wg.Wait()
 }
 
 func TestStartClientDisconnected(t *testing.T) {
@@ -115,25 +207,27 @@ func TestStartClientDisconnected(t *testing.T) {
 			AllowedUserGroups: []string{"test-group"},
 			UpdatesStatus:     &models.UpdatesStatus{UpdatesAvailable: 13},
 		}}, nil, testLog),
-		portDistributor: ports.NewPortDistributor(mapset.NewThreadUnsafeSet()),
+		portDistributor: ports.NewPortDistributor(mapset.NewSet()),
+		logger:          testLog,
 	}
+
 	client, err := cs.StartClient(
 		context.Background(), "test-client-auth", "disconnected-client", connMock, false,
 		&chshare.ConnectionRequest{Name: "new-connection", Version: "0.7.0"}, testLog)
 	assert.NoError(t, err)
 
 	assert.Nil(t, client.DisconnectedAt)
-	assert.Equal(t, "disconnected-client", client.ID)
-	assert.Equal(t, "new-connection", client.Name)
-	assert.Equal(t, []string{"test-group"}, client.AllowedUserGroups)
+	assert.Equal(t, "disconnected-client", client.GetID())
+	assert.Equal(t, "new-connection", client.GetName())
+	assert.Equal(t, []string{"test-group"}, client.GetAllowedUserGroups())
 	assert.Equal(t, 13, client.UpdatesStatus.UpdatesAvailable)
 }
 
 func TestDeleteOfflineClient(t *testing.T) {
-	c1Active := New(t).Build()
-	c2Active := New(t).Build()
-	c3Offline := New(t).DisconnectedDuration(5 * time.Minute).Build()
-	c4Offline := New(t).DisconnectedDuration(time.Minute).Build()
+	c1Active := New(t).Logger(testLog).Build()
+	c2Active := New(t).Logger(testLog).Build()
+	c3Offline := New(t).DisconnectedDuration(5 * time.Minute).Logger(testLog).Build()
+	c4Offline := New(t).DisconnectedDuration(time.Minute).Logger(testLog).Build()
 
 	testCases := []struct {
 		name      string
@@ -142,13 +236,13 @@ func TestDeleteOfflineClient(t *testing.T) {
 	}{
 		{
 			name:      "delete offline client",
-			clientID:  c3Offline.ID,
+			clientID:  c3Offline.GetID(),
 			wantError: nil,
 		},
 		{
 			name:     "delete active client",
-			clientID: c1Active.ID,
-			wantError: errors2.APIError{
+			clientID: c1Active.GetID(),
+			wantError: apiErrors.APIError{
 				Message:    "Client is active, should be disconnected",
 				HTTPStatus: http.StatusBadRequest,
 			},
@@ -156,7 +250,7 @@ func TestDeleteOfflineClient(t *testing.T) {
 		{
 			name:     "delete unknown client",
 			clientID: "unknown-id",
-			wantError: errors2.APIError{
+			wantError: apiErrors.APIError{
 				Message:    fmt.Sprintf("Client with id=%q not found.", "unknown-id"),
 				HTTPStatus: http.StatusNotFound,
 			},
@@ -164,7 +258,7 @@ func TestDeleteOfflineClient(t *testing.T) {
 		{
 			name:     "empty client ID",
 			clientID: "",
-			wantError: errors2.APIError{
+			wantError: apiErrors.APIError{
 				Message:    "Client id is empty",
 				HTTPStatus: http.StatusBadRequest,
 			},
@@ -175,8 +269,7 @@ func TestDeleteOfflineClient(t *testing.T) {
 		t.Run(tc.name, func(t *testing.T) {
 			// given
 			clientService := NewClientService(nil, nil, NewClientRepository([]*Client{c1Active, c2Active, c3Offline, c4Offline}, &hour, testLog), testLog)
-			before, err := clientService.Count()
-			require.NoError(t, err)
+			before := clientService.Count()
 			require.Equal(t, 4, before)
 
 			// when
@@ -190,8 +283,7 @@ func TestDeleteOfflineClient(t *testing.T) {
 			} else {
 				wantAfter = before - 1
 			}
-			gotAfter, err := clientService.Count()
-			require.NoError(t, err)
+			gotAfter := clientService.Count()
 			assert.Equal(t, wantAfter, gotAfter)
 		})
 	}
@@ -200,9 +292,9 @@ func TestDeleteOfflineClient(t *testing.T) {
 func TestCheckLocalPort(t *testing.T) {
 	srv := ClientServiceProvider{
 		portDistributor: ports.NewPortDistributorForTests(
-			mapset.NewThreadUnsafeSetFromSlice([]interface{}{1, 2, 3, 4, 5}),
-			mapset.NewThreadUnsafeSetFromSlice([]interface{}{2, 3, 4}),
-			mapset.NewThreadUnsafeSetFromSlice([]interface{}{2, 3, 4, 5}),
+			mapset.NewSetFromSlice([]interface{}{1, 2, 3, 4, 5}),
+			mapset.NewSetFromSlice([]interface{}{2, 3, 4}),
+			mapset.NewSetFromSlice([]interface{}{2, 3, 4, 5}),
 		),
 	}
 
@@ -223,7 +315,7 @@ func TestCheckLocalPort(t *testing.T) {
 		{
 			name: "invalid port",
 			port: invalidPort,
-			wantError: errors2.APIError{
+			wantError: apiErrors.APIError{
 				Message:    "Invalid local port: 24563a.",
 				Err:        invalidPortParseErr,
 				HTTPStatus: http.StatusBadRequest,
@@ -232,7 +324,7 @@ func TestCheckLocalPort(t *testing.T) {
 		{
 			name: "not allowed port",
 			port: "6",
-			wantError: errors2.APIError{
+			wantError: apiErrors.APIError{
 				Message:    "Local port 6 is not among allowed ports.",
 				HTTPStatus: http.StatusBadRequest,
 			},
@@ -240,7 +332,7 @@ func TestCheckLocalPort(t *testing.T) {
 		{
 			name: "busy port tcp",
 			port: "5",
-			wantError: errors2.APIError{
+			wantError: apiErrors.APIError{
 				Message:    "Local port 5 already in use.",
 				HTTPStatus: http.StatusConflict,
 			},
@@ -255,7 +347,7 @@ func TestCheckLocalPort(t *testing.T) {
 			name:     "tcp+udp port busy",
 			port:     "5",
 			protocol: models.ProtocolTCPUDP,
-			wantError: errors2.APIError{
+			wantError: apiErrors.APIError{
 				Message:    "Local port 5 already in use.",
 				HTTPStatus: http.StatusConflict,
 			},
@@ -283,13 +375,13 @@ func TestCheckLocalPort(t *testing.T) {
 }
 
 func TestCheckClientsAccess(t *testing.T) {
-	c1 := New(t).Build()                                                             // no groups
-	c2 := New(t).AllowedUserGroups([]string{users.Administrators}).Build()           // admin
-	c3 := New(t).AllowedUserGroups([]string{users.Administrators, "group1"}).Build() // admin + group1
-	c4 := New(t).AllowedUserGroups([]string{"group1"}).Build()                       // group1
-	c5 := New(t).AllowedUserGroups([]string{"group1", "group2"}).Build()             // group1 + group2
-	c6 := New(t).AllowedUserGroups([]string{"group3"}).Build()                       // group3
-	c7 := New(t).Build()
+	c1 := New(t).Logger(testLog).Build()                                                             // no groups
+	c2 := New(t).AllowedUserGroups([]string{users.Administrators}).Logger(testLog).Build()           // admin
+	c3 := New(t).AllowedUserGroups([]string{users.Administrators, "group1"}).Logger(testLog).Build() // admin + group1
+	c4 := New(t).AllowedUserGroups([]string{"group1"}).Logger(testLog).Build()                       // group1
+	c5 := New(t).AllowedUserGroups([]string{"group1", "group2"}).Logger(testLog).Build()             // group1 + group2
+	c6 := New(t).AllowedUserGroups([]string{"group3"}).Logger(testLog).Build()                       // group3
+	c7 := New(t).Logger(testLog).Build()
 
 	allClients := []*Client{c1, c2, c3, c4, c5, c6}
 	clientGroups := []*cgroups.ClientGroup{
@@ -297,7 +389,7 @@ func TestCheckClientsAccess(t *testing.T) {
 			ID:                "1",
 			AllowedUserGroups: []string{"group4"},
 			Params: &cgroups.ClientParams{
-				ClientID: &cgroups.ParamValues{cgroups.Param(c7.ID)},
+				ClientID: &cgroups.ParamValues{cgroups.Param(c7.GetID())},
 			},
 		},
 	}
@@ -312,7 +404,7 @@ func TestCheckClientsAccess(t *testing.T) {
 			name:                      "user with no groups has no access",
 			clients:                   allClients,
 			user:                      &users.User{Groups: nil},
-			wantClientIDsWithNoAccess: []string{c1.ID, c2.ID, c3.ID, c4.ID, c5.ID, c6.ID},
+			wantClientIDsWithNoAccess: []string{c1.GetID(), c2.GetID(), c3.GetID(), c4.GetID(), c5.GetID(), c6.GetID()},
 		},
 		{
 			name:                      "admin user has access to all",
@@ -330,25 +422,25 @@ func TestCheckClientsAccess(t *testing.T) {
 			name:                      "non-admin user with no access to clients with no groups and with admin group",
 			clients:                   allClients,
 			user:                      &users.User{Groups: []string{"group1", "group2", "group3"}},
-			wantClientIDsWithNoAccess: []string{c1.ID, c2.ID},
+			wantClientIDsWithNoAccess: []string{c1.GetID(), c2.GetID()},
 		},
 		{
 			name:                      "non-admin user with access to one client",
 			clients:                   allClients,
 			user:                      &users.User{Groups: []string{"group3"}},
-			wantClientIDsWithNoAccess: []string{c1.ID, c2.ID, c3.ID, c4.ID, c5.ID},
+			wantClientIDsWithNoAccess: []string{c1.GetID(), c2.GetID(), c3.GetID(), c4.GetID(), c5.GetID()},
 		},
 		{
 			name:                      "non-admin user with access to few clients",
 			clients:                   allClients,
 			user:                      &users.User{Groups: []string{"group1"}},
-			wantClientIDsWithNoAccess: []string{c1.ID, c2.ID, c6.ID},
+			wantClientIDsWithNoAccess: []string{c1.GetID(), c2.GetID(), c6.GetID()},
 		},
 		{
 			name:                      "non-admin user that has unknown group",
 			clients:                   allClients,
 			user:                      &users.User{Groups: []string{"group4"}},
-			wantClientIDsWithNoAccess: []string{c1.ID, c2.ID, c3.ID, c4.ID, c5.ID, c6.ID},
+			wantClientIDsWithNoAccess: []string{c1.GetID(), c2.GetID(), c3.GetID(), c4.GetID(), c5.GetID(), c6.GetID()},
 		},
 		{
 			name:                      "non-admin user given access via client groups",
@@ -368,7 +460,7 @@ func TestCheckClientsAccess(t *testing.T) {
 
 			// then
 			if len(tc.wantClientIDsWithNoAccess) > 0 {
-				wantErr := errors2.APIError{
+				wantErr := apiErrors.APIError{
 					Message:    fmt.Sprintf("Access denied to client(s) with ID(s): %v", strings.Join(tc.wantClientIDsWithNoAccess, ", ")),
 					HTTPStatus: http.StatusForbidden,
 				}
@@ -782,7 +874,7 @@ func TestGetTunnelsToReestablish(t *testing.T) {
 		}
 
 		// when
-		gotRes := GetTunnelsToReestablish(old, new)
+		gotRes := getTunnelsToReestablish(old, new)
 
 		var gotResStr []string
 		for _, r := range gotRes {
@@ -843,7 +935,7 @@ func TestShouldStartTunnelsWithSubdomains(t *testing.T) {
 	}
 	for _, tc := range cases {
 		t.Run(tc.name, func(t *testing.T) {
-			c1 := New(t).ID("client-1").ClientAuthID(cl1.ID).Build()
+			c1 := New(t).ID("client-1").ClientAuthID(cl1.ID).Logger(testLog).Build()
 			c1.Connection = connMock
 			c1.Logger = testLog
 			c1.Context = context.Background()
@@ -855,9 +947,9 @@ func TestShouldStartTunnelsWithSubdomains(t *testing.T) {
 			}
 
 			pd := ports.NewPortDistributorForTests(
-				mapset.NewThreadUnsafeSetFromSlice([]interface{}{4000, 4001, 4002, 4003, 4004, 4005}),
-				mapset.NewThreadUnsafeSetFromSlice([]interface{}{4000, 4002, 4003, 4004, 4005}),
-				mapset.NewThreadUnsafeSetFromSlice([]interface{}{5002, 5003, 5004, 5005}),
+				mapset.NewSetFromSlice([]interface{}{4000, 4001, 4002, 4003, 4004, 4005}),
+				mapset.NewSetFromSlice([]interface{}{4000, 4002, 4003, 4004, 4005}),
+				mapset.NewSetFromSlice([]interface{}{5002, 5003, 5004, 5005}),
 			)
 
 			mockCaddyAPI := &MockCaddyAPI{}

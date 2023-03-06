@@ -22,7 +22,7 @@ func (p *SqliteProvider) GetAll(ctx context.Context, username string) ([]*APITok
 	var result []*APIToken
 	err := p.db.SelectContext(
 		ctx, &result,
-		"SELECT * FROM api_token WHERE username = ?",
+		"SELECT * FROM api_tokens WHERE username = ?",
 		username,
 	)
 	if err != nil {
@@ -37,7 +37,7 @@ func (p *SqliteProvider) Get(ctx context.Context, username, prefix string) (*API
 
 	err := p.db.GetContext(ctx,
 		res,
-		"SELECT * FROM api_token WHERE username = ? AND prefix = ?",
+		"SELECT * FROM api_tokens WHERE username = ? AND prefix = ?",
 		username,
 		prefix,
 	)
@@ -52,20 +52,40 @@ func (p *SqliteProvider) Get(ctx context.Context, username, prefix string) (*API
 	return res, nil
 }
 
+func (p *SqliteProvider) GetByName(ctx context.Context, username, name string) (*APIToken, error) {
+	res := &APIToken{}
+	err := p.db.GetContext(ctx,
+		res,
+		"SELECT * FROM api_tokens WHERE username = ? AND name = ?",
+		username,
+		name,
+	)
+	if err != nil {
+		if err == sql.ErrNoRows {
+			return nil, nil
+		}
+		return nil, fmt.Errorf("unable to get api token from DB: %w", err)
+	}
+	return res, nil
+}
+
 func (p *SqliteProvider) Save(ctx context.Context, tokenLine *APIToken) (err error) {
 	res, err := p.db.NamedExecContext(
 		ctx,
-		`INSERT INTO api_token (username, prefix, expires_at, scope, token)
-			      VALUES (:username, :prefix, :expires_at, :scope, :token)
+		`INSERT INTO api_tokens (username, prefix, name, created_at, expires_at, scope, token)
+			      VALUES (:username, :prefix, :name, 
+					CASE WHEN :created_at IS NOT NULL THEN :created_at ELSE CURRENT_TIMESTAMP END,
+					:expires_at, :scope, :token)
 			 	ON CONFLICT(username, prefix) DO UPDATE SET
-					expires_at=EXCLUDED.expires_at
-				WHERE EXCLUDED.username = api_token.username AND
-				       EXCLUDED.prefix = api_token.prefix`,
+				 expires_at=CASE WHEN :expires_at IS NOT NULL THEN EXCLUDED.expires_at ELSE api_tokens.expires_at END,
+				 name=CASE WHEN :name != "" THEN EXCLUDED.name ELSE api_tokens.name END
+				WHERE EXCLUDED.username = api_tokens.username AND
+				       EXCLUDED.prefix = api_tokens.prefix`,
 		tokenLine,
 	)
 
 	if err != nil {
-		return fmt.Errorf("unable to create api token: %w", err)
+		return err
 	}
 	affectedRows, err := res.RowsAffected()
 	if err != nil {
@@ -81,7 +101,7 @@ func (p *SqliteProvider) Save(ctx context.Context, tokenLine *APIToken) (err err
 func (p *SqliteProvider) Delete(ctx context.Context, username, prefix string) error {
 	res, err := p.db.ExecContext(
 		ctx,
-		"DELETE FROM api_token WHERE username = ? AND prefix = ?",
+		"DELETE FROM api_tokens WHERE username = ? AND prefix = ?",
 		username,
 		prefix,
 	)

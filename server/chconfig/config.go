@@ -15,6 +15,7 @@ import (
 	"path"
 	"path/filepath"
 	"regexp"
+	"runtime"
 	"strconv"
 	"strings"
 	"time"
@@ -116,39 +117,40 @@ type LogConfig struct {
 }
 
 type ServerConfig struct {
-	ListenAddress                    string                                 `mapstructure:"address"`
-	URL                              []string                               `mapstructure:"url"`
-	PairingURL                       string                                 `mapstructure:"pairing_url"`
-	TunnelHost                       string                                 `mapstructure:"tunnel_host"`
-	KeySeed                          string                                 `mapstructure:"key_seed"`
-	Auth                             string                                 `mapstructure:"auth"`
-	AuthFile                         string                                 `mapstructure:"auth_file"`
-	AuthTable                        string                                 `mapstructure:"auth_table"`
-	Proxy                            string                                 `mapstructure:"proxy"`
-	UsedPortsRaw                     []string                               `mapstructure:"used_ports"`
-	ExcludedPortsRaw                 []string                               `mapstructure:"excluded_ports"`
-	DataDir                          string                                 `mapstructure:"data_dir"`
-	SqliteWAL                        bool                                   `mapstructure:"sqlite_wal"`
-	PurgeDisconnectedClients         bool                                   `mapstructure:"purge_disconnected_clients"`
-	CleanupLostClients               bool                                   `mapstructure:"cleanup_lost_clients" replaced_by:"PurgeDisconnectedClients"`
-	KeepLostClients                  time.Duration                          `mapstructure:"keep_lost_clients" replaced_by:"KeepDisconnectedClients"`
-	KeepDisconnectedClients          time.Duration                          `mapstructure:"keep_disconnected_clients"`
-	CleanupClientsInterval           time.Duration                          `mapstructure:"cleanup_clients_interval" replaced_by:"PurgeDisconnectedClientsInterval"`
-	PurgeDisconnectedClientsInterval time.Duration                          `mapstructure:"purge_disconnected_clients_interval"`
-	CheckClientsConnectionInterval   time.Duration                          `mapstructure:"check_clients_connection_interval"`
-	CheckClientsConnectionTimeout    time.Duration                          `mapstructure:"check_clients_connection_timeout"`
-	MaxRequestBytesClient            int64                                  `mapstructure:"max_request_bytes_client"`
-	CheckPortTimeout                 time.Duration                          `mapstructure:"check_port_timeout"`
-	RunRemoteCmdTimeoutSec           int                                    `mapstructure:"run_remote_cmd_timeout_sec"`
-	AuthWrite                        bool                                   `mapstructure:"auth_write"`
-	AuthMultiuseCreds                bool                                   `mapstructure:"auth_multiuse_creds"`
-	EquateClientauthidClientid       bool                                   `mapstructure:"equate_clientauthid_clientid"`
-	AllowRoot                        bool                                   `mapstructure:"allow_root"`
-	ClientLoginWait                  float32                                `mapstructure:"client_login_wait"`
-	MaxFailedLogin                   int                                    `mapstructure:"max_failed_login"`
-	BanTime                          int                                    `mapstructure:"ban_time"`
-	InternalTunnelProxyConfig        clienttunnel.InternalTunnelProxyConfig `mapstructure:",squash"`
-	JobsMaxResults                   int                                    `mapstructure:"jobs_max_results"`
+	ListenAddress                        string                                 `mapstructure:"address"`
+	URL                                  []string                               `mapstructure:"url"`
+	PairingURL                           string                                 `mapstructure:"pairing_url"`
+	TunnelHost                           string                                 `mapstructure:"tunnel_host"`
+	KeySeed                              string                                 `mapstructure:"key_seed"`
+	Auth                                 string                                 `mapstructure:"auth"`
+	AuthFile                             string                                 `mapstructure:"auth_file"`
+	AuthTable                            string                                 `mapstructure:"auth_table"`
+	Proxy                                string                                 `mapstructure:"proxy"`
+	UsedPortsRaw                         []string                               `mapstructure:"used_ports"`
+	ExcludedPortsRaw                     []string                               `mapstructure:"excluded_ports"`
+	DataDir                              string                                 `mapstructure:"data_dir"`
+	SqliteWAL                            bool                                   `mapstructure:"sqlite_wal"`
+	MaxConcurrentSSHConnectionHandshakes int                                    `mapstructure:"max_concurrent_ssh_handshakes"`
+	PurgeDisconnectedClients             bool                                   `mapstructure:"purge_disconnected_clients"`
+	CleanupLostClients                   bool                                   `mapstructure:"cleanup_lost_clients" replaced_by:"PurgeDisconnectedClients"`
+	KeepLostClients                      time.Duration                          `mapstructure:"keep_lost_clients" replaced_by:"KeepDisconnectedClients"`
+	KeepDisconnectedClients              time.Duration                          `mapstructure:"keep_disconnected_clients"`
+	CleanupClientsInterval               time.Duration                          `mapstructure:"cleanup_clients_interval" replaced_by:"PurgeDisconnectedClientsInterval"`
+	PurgeDisconnectedClientsInterval     time.Duration                          `mapstructure:"purge_disconnected_clients_interval"`
+	CheckClientsConnectionInterval       time.Duration                          `mapstructure:"check_clients_connection_interval"`
+	CheckClientsConnectionTimeout        time.Duration                          `mapstructure:"check_clients_connection_timeout"`
+	MaxRequestBytesClient                int64                                  `mapstructure:"max_request_bytes_client"`
+	CheckPortTimeout                     time.Duration                          `mapstructure:"check_port_timeout"`
+	RunRemoteCmdTimeoutSec               int                                    `mapstructure:"run_remote_cmd_timeout_sec"`
+	AuthWrite                            bool                                   `mapstructure:"auth_write"`
+	AuthMultiuseCreds                    bool                                   `mapstructure:"auth_multiuse_creds"`
+	EquateClientauthidClientid           bool                                   `mapstructure:"equate_clientauthid_clientid"`
+	AllowRoot                            bool                                   `mapstructure:"allow_root"`
+	ClientLoginWait                      float32                                `mapstructure:"client_login_wait"`
+	MaxFailedLogin                       int                                    `mapstructure:"max_failed_login"`
+	BanTime                              int                                    `mapstructure:"ban_time"`
+	InternalTunnelProxyConfig            clienttunnel.InternalTunnelProxyConfig `mapstructure:",squash"`
+	JobsMaxResults                       int                                    `mapstructure:"jobs_max_results"`
 
 	// DEPRECATED, only here for backwards compatibility
 	MaxRequestBytes       int64 `mapstructure:"max_request_bytes"`
@@ -377,6 +379,11 @@ func (c *Config) ParseAndValidate(mLog *logger.MemLogger) error {
 
 	if err := c.Server.parseAndValidateTunnelHost(); err != nil {
 		return err
+	}
+
+	maxProcs := runtime.GOMAXPROCS(0)
+	if c.Server.MaxConcurrentSSHConnectionHandshakes > (maxProcs * 2) {
+		mLog.Infof("warning: allowing too many concurrent ssh handhakes ('max_concurrent_ssh_handshakes') will slow down the server significantly and cause operational reliability issues. Please use a value less than or equal to the MAX_PROCS (%d)", maxProcs)
 	}
 
 	if c.Server.CheckClientsConnectionInterval < CheckClientsConnectionIntervalMinimum {

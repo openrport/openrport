@@ -32,7 +32,7 @@ func (al *APIListener) handleRefreshUpdatesStatus(w http.ResponseWriter, req *ht
 		return
 	}
 
-	err = comm.SendRequestAndGetResponse(client.Connection, comm.RequestTypeRefreshUpdatesStatus, nil, nil)
+	err = comm.SendRequestAndGetResponse(client.GetConnection(), comm.RequestTypeRefreshUpdatesStatus, nil, nil, al.Log())
 	if err != nil {
 		al.jsonErrorResponse(w, http.StatusInternalServerError, err)
 		return
@@ -77,8 +77,10 @@ func (al *APIListener) handleGetClientGraphMetrics(w http.ResponseWriter, req *h
 
 	queryOptions := query.NewOptions(req, monitoring.ClientGraphMetricsSortDefault, monitoring.ClientGraphMetricsFilterDefault, monitoring.ClientGraphMetricsFieldsDefault)
 	requestInfo := query.ParseRequestInfo(req)
-	netLan := client.ClientConfiguration.Monitoring.LanCard != nil
-	netWan := client.ClientConfiguration.Monitoring.WanCard != nil
+
+	monitoringConfig := client.GetMonitoringConfig()
+	netLan := monitoringConfig.LanCard != nil
+	netWan := monitoringConfig.WanCard != nil
 
 	payload, err := al.monitoringService.ListClientGraphMetrics(req.Context(), clientID, queryOptions, requestInfo, netLan, netWan)
 	if err != nil {
@@ -110,7 +112,9 @@ func (al *APIListener) handleGetClientGraphMetricsGraph(w http.ResponseWriter, r
 		return
 	}
 
-	payload, err := al.monitoringService.ListClientGraph(req.Context(), clientID, queryOptions, graph, client.ClientConfiguration.Monitoring.LanCard, client.ClientConfiguration.Monitoring.WanCard)
+	monitoringConfig := client.GetMonitoringConfig()
+
+	payload, err := al.monitoringService.ListClientGraph(req.Context(), clientID, queryOptions, graph, monitoringConfig.LanCard, monitoringConfig.WanCard)
 	if err != nil {
 		if err == sql.ErrNoRows {
 			al.jsonErrorResponseWithTitle(w, http.StatusNotFound, fmt.Sprintf("graph-metrics for client with id %q not found", clientID))

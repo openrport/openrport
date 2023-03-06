@@ -6,14 +6,15 @@ import (
 	"golang.org/x/crypto/ssh"
 
 	"github.com/cloudradar-monitoring/rport/share/comm"
+	"github.com/cloudradar-monitoring/rport/share/logger"
 )
 
-func IsAllowed(remote string, conn ssh.Conn) (bool, error) {
+func IsAllowed(remote string, conn ssh.Conn, l *logger.Logger) (bool, error) {
 	req := &comm.CheckTunnelAllowedRequest{
 		Remote: remote,
 	}
 	resp := &comm.CheckTunnelAllowedResponse{}
-	err := comm.SendRequestAndGetResponse(conn, comm.RequestTypeCheckTunnelAllowed, req, resp)
+	err := comm.SendRequestAndGetResponse(conn, comm.RequestTypeCheckTunnelAllowed, req, resp, l)
 	if err != nil {
 		if strings.Contains(err.Error(), "unknown request") {
 			return true, nil

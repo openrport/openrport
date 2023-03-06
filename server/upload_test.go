@@ -85,7 +85,7 @@ func TestHandleFileUploads(t *testing.T) {
 			useFsCallback: true,
 			fileName:      "file.txt",
 			fileContent:   "some content",
-			cl:            clients.New(t).ID("22114341234").Build(),
+			cl:            clients.New(t).ID("22114341234").Logger(testLog).Build(),
 			formParts: map[string][]string{
 				"client_id": {
 					"22114341234",
@@ -137,7 +137,7 @@ func TestHandleFileUploads(t *testing.T) {
 			useFsCallback: true,
 			fileName:      "file.txt",
 			fileContent:   "some content",
-			cl:            clients.New(t).ID("22114341234").Build(),
+			cl:            clients.New(t).ID("22114341234").Logger(testLog).Build(),
 			clientTags:    []string{"linux"},
 			formParts: map[string][]string{
 				"tags": {
@@ -189,7 +189,7 @@ func TestHandleFileUploads(t *testing.T) {
 			useFsCallback: true,
 			fileName:      "file.txt",
 			fileContent:   "some content",
-			cl:            clients.New(t).ID("22114341234").Build(),
+			cl:            clients.New(t).ID("22114341234").Logger(testLog).Build(),
 			formParts: map[string][]string{
 				"client_id": {
 					"22114341234",
@@ -220,7 +220,7 @@ func TestHandleFileUploads(t *testing.T) {
 			useFsCallback: true,
 			fileName:      "file.txt",
 			fileContent:   "some content",
-			cl:            clients.New(t).ID("22114341234").Build(),
+			cl:            clients.New(t).ID("22114341234").Logger(testLog).Build(),
 			formParts: map[string][]string{
 				"dest": {
 					"/destination/myfile.txt",
@@ -242,7 +242,7 @@ func TestHandleFileUploads(t *testing.T) {
 			useFsCallback: true,
 			fileName:      "file.txt",
 			fileContent:   "some content",
-			cl:            clients.New(t).ID("22114341234").Build(),
+			cl:            clients.New(t).ID("22114341234").Logger(testLog).Build(),
 			formParts: map[string][]string{
 				"tags": {
 					`{
@@ -270,7 +270,7 @@ func TestHandleFileUploads(t *testing.T) {
 			useFsCallback: true,
 			fileName:      "file.txt",
 			fileContent:   "some content",
-			cl:            clients.New(t).ID("22114341234").Build(),
+			cl:            clients.New(t).ID("22114341234").Logger(testLog).Build(),
 			formParts: map[string][]string{
 				"client_id": {
 					"22114341234",
@@ -296,7 +296,7 @@ func TestHandleFileUploads(t *testing.T) {
 			useFsCallback: true,
 			fileName:      "file.txt",
 			fileContent:   "some content",
-			cl:            clients.New(t).ID("22114341234").Build(),
+			cl:            clients.New(t).ID("22114341234").Logger(testLog).Build(),
 			formParts: map[string][]string{
 				"client_id": {
 					"22114341234",
@@ -321,7 +321,7 @@ func TestHandleFileUploads(t *testing.T) {
 			cl := tc.cl
 
 			if tc.clientTags != nil {
-				cl.Tags = tc.clientTags
+				cl.SetTags(tc.clientTags)
 			}
 
 			connMock := test.NewConnMock()
@@ -331,7 +331,7 @@ func TestHandleFileUploads(t *testing.T) {
 			done := make(chan bool)
 			connMock.DoneChannel = done
 
-			cl.Connection = connMock
+			cl.SetConnection(connMock)
 
 			fileAPIMock := test.NewFileAPIMock()
 			if tc.useFsCallback {

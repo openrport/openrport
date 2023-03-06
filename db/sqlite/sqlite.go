@@ -19,10 +19,12 @@ const (
 	WALEnabled                  = "_journal_mode=WAL"
 	defaultDelayBetweenAttempts = 200 * time.Millisecond
 	DefaultMaxAttempts          = 5
+	DefaultMaxOpenConnections   = 1
 )
 
 type DataSourceOptions struct {
-	WALEnabled bool
+	WALEnabled         bool
+	MaxOpenConnections int
 }
 
 // New returns a new sqlite DB instance with migrated DB scheme to the latest version.
@@ -42,7 +44,12 @@ func New(dataSourceName string, assetNames []string, asset func(name string) ([]
 		}
 	}
 
-	db.SetMaxOpenConns(1)
+	maxConns := dataSourceOptions.MaxOpenConnections
+	if maxConns == 0 {
+		maxConns = DefaultMaxOpenConnections
+	}
+
+	db.SetMaxOpenConns(maxConns)
 
 	s := bindata.Resource(assetNames,
 		func(name string) ([]byte, error) {
@@ -70,27 +77,28 @@ func New(dataSourceName string, assetNames []string, asset func(name string) ([]
 	return db, nil
 }
 
-// TODO: (rs): we've moved to use single db connections. with potentially slower access to the sqlite
-// volumes it seems there's too much concurrent contention for the dbs, so there's less need for this fn.
-// not removing yet but check again in approx 6 months (from dec 22) and remove if no longer required.
-func WithRetryWhenBusy[R any](retryAble func() (result R, err error), label string, l *logger.Logger) (result R, err error) {
-	for r := 0; r < DefaultMaxAttempts; r++ {
-		result, err = retryAble()
-		if err != nil {
+func WithRetryWhenBusy[R any](retryAbleFn func() (result R, err error), label string, l *logger.Logger) (result R, err error) {
+	for attempt := 1; attempt <= DefaultMaxAttempts; attempt++ {
+		if attempt > 1 && err != nil {
 			sqlErr, ok := err.(sql.Error)
 			if ok && sqlErr.Code == sql.ErrBusy {
-				l.Debugf("%s: attempt %d: source err = %+v\n", label, r+1, err)
+				l.Debugf("%s: attempt %d: source err = %+v\n", label, attempt, err)
 				jitter := time.Duration((rand.Intn(100))) * time.Millisecond
 				time.Sleep(defaultDelayBetweenAttempts + jitter)
-				continue
+			} else {
+				// a different error from database busy, so fail immediately
+				l.Debugf("%s: attempt %d: non-retryable err = %+v\n", label, attempt, err)
+				return result, err
 			}
-			// non retryable err
-			return result, sqlErr
 		}
-		// success
-		return result, nil
+		// make an attempt to complete the retryable fn
+		result, err = retryAbleFn()
+		// if no error then return immediately if with success result
+		if err == nil {
+			return result, nil
+		}
 	}
 
-	l.Debugf("%s: failed after max attempts: err = %+v\n", label, err)
+	l.Errorf("%s: failed after max attempts: err = %+v\n", label, err)
 	return result, err
 }

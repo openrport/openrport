@@ -11,16 +11,18 @@ import (
 
 	"github.com/jmoiron/sqlx"
 
+	"github.com/cloudradar-monitoring/rport/db/sqlite"
 	"github.com/cloudradar-monitoring/rport/server/clients/clienttunnel"
 	chshare "github.com/cloudradar-monitoring/rport/share/clientconfig"
+	"github.com/cloudradar-monitoring/rport/share/logger"
 	"github.com/cloudradar-monitoring/rport/share/models"
 )
 
 type ClientStore interface {
-	GetAll(ctx context.Context) ([]*Client, error)
+	GetAll(ctx context.Context, l *logger.Logger) ([]*Client, error)
 	Save(ctx context.Context, client *Client) error
-	DeleteObsolete(ctx context.Context) error
-	Delete(ctx context.Context, id string) error
+	DeleteObsolete(ctx context.Context, l *logger.Logger) error
+	Delete(ctx context.Context, id string, l *logger.Logger) error
 	Close() error
 }
 
@@ -33,7 +35,7 @@ func newSqliteProvider(db *sqlx.DB, keepDisconnectedClients *time.Duration) *Sql
 	return &SqliteProvider{db: db, keepDisconnectedClients: keepDisconnectedClients}
 }
 
-func (p *SqliteProvider) GetAll(ctx context.Context) ([]*Client, error) {
+func (p *SqliteProvider) GetAll(ctx context.Context, l *logger.Logger) ([]*Client, error) {
 	var res []*clientSqlite
 	err := p.db.SelectContext(
 		ctx,
@@ -45,10 +47,11 @@ func (p *SqliteProvider) GetAll(ctx context.Context) ([]*Client, error) {
 	if err != nil {
 		return nil, err
 	}
-	return convertClientList(res), nil
+	return convertClientList(res, l), nil
 }
 
-func (p *SqliteProvider) get(ctx context.Context, id string) (*Client, error) {
+// test only
+func (p *SqliteProvider) get(ctx context.Context, id string, l *logger.Logger) (*Client, error) {
 	res := &clientSqlite{}
 	err := p.db.GetContext(ctx, res, "SELECT * FROM clients WHERE id = ?", id)
 	if err != nil {
@@ -57,31 +60,56 @@ func (p *SqliteProvider) get(ctx context.Context, id string) (*Client, error) {
 		}
 		return nil, err
 	}
-	return res.convert(), nil
+	return res.convert(l), nil
 }
 
 func (p *SqliteProvider) Save(ctx context.Context, client *Client) error {
-	_, err := p.db.NamedExecContext(
-		ctx,
-		"INSERT OR REPLACE INTO clients (id, client_auth_id, disconnected_at, details) VALUES (:id, :client_auth_id, :disconnected_at, :details)",
-		convertToSqlite(client),
-	)
+
+	clientForSQL := convertToSqlite(client)
+
+	_, err := sqlite.WithRetryWhenBusy(func() (result sql.Result, err error) {
+
+		_, err = p.db.NamedExecContext(
+			ctx,
+			"INSERT OR REPLACE INTO clients (id, client_auth_id, disconnected_at, details) VALUES (:id, :client_auth_id, :disconnected_at, :details)",
+			clientForSQL,
+		)
+
+		return nil, err
+	}, "save", client.Log())
+
 	return err
 }
 
-func (p *SqliteProvider) DeleteObsolete(ctx context.Context) error {
-	_, err := p.db.ExecContext(
-		ctx,
-		"DELETE FROM clients WHERE disconnected_at IS NOT NULL AND DATETIME(disconnected_at) < DATETIME(?) AND ?",
-		p.keepDisconnectedClientsStart(),
-		p.keepDisconnectedClients != nil,
-	)
+func (p *SqliteProvider) DeleteObsolete(ctx context.Context, l *logger.Logger) error {
+	_, err := sqlite.WithRetryWhenBusy(func() (result sql.Result, err error) {
+
+		_, err = p.db.ExecContext(
+			ctx,
+			"DELETE FROM clients WHERE disconnected_at IS NOT NULL AND DATETIME(disconnected_at) < DATETIME(?) AND ?",
+			p.keepDisconnectedClientsStart(),
+			p.keepDisconnectedClients != nil,
+		)
+
+		return nil, err
+	}, "delete obsolete", l)
+
 	return err
 }
 
-func (p *SqliteProvider) Delete(ctx context.Context, id string) error {
-	_, err := p.db.ExecContext(ctx, "DELETE FROM clients WHERE id = ?", id)
+func (p *SqliteProvider) Delete(ctx context.Context, id string, l *logger.Logger) error {
+	_, err := sqlite.WithRetryWhenBusy(func() (result sql.Result, err error) {
+
+		_, err = p.db.ExecContext(ctx, "DELETE FROM clients WHERE id = ?", id)
+
+		return nil, err
+	}, "delete", l)
+
 	return err
+}
+
+func (p *SqliteProvider) Close() error {
+	return p.db.Close()
 }
 
 func (p *SqliteProvider) keepDisconnectedClientsStart() time.Time {
@@ -92,46 +120,50 @@ func (p *SqliteProvider) keepDisconnectedClientsStart() time.Time {
 	return t
 }
 
-func convertToSqlite(v *Client) *clientSqlite {
-	if v == nil {
+func convertToSqlite(c *Client) (res *clientSqlite) {
+	if c == nil {
 		return nil
 	}
-	res := &clientSqlite{
-		ID:           v.ID,
-		ClientAuthID: v.ClientAuthID,
+
+	c.flock.RLock()
+	res = &clientSqlite{
+		ID:           c.ID,
+		ClientAuthID: c.ClientAuthID,
 		Details: &clientDetails{
-			Name:                   v.Name,
-			OS:                     v.OS,
-			OSArch:                 v.OSArch,
-			OSFamily:               v.OSFamily,
-			OSKernel:               v.OSKernel,
-			Hostname:               v.Hostname,
-			Version:                v.Version,
-			Address:                v.Address,
-			OSFullName:             v.OSFullName,
-			OSVersion:              v.OSVersion,
-			OSVirtualizationSystem: v.OSVirtualizationSystem,
-			OSVirtualizationRole:   v.OSVirtualizationRole,
-			CPUFamily:              v.CPUFamily,
-			CPUModel:               v.CPUModel,
-			CPUModelName:           v.CPUModelName,
-			CPUVendor:              v.CPUVendor,
-			NumCPUs:                v.NumCPUs,
-			MemoryTotal:            v.MemoryTotal,
-			Timezone:               v.Timezone,
-			IPv4:                   v.IPv4,
-			IPv6:                   v.IPv6,
-			Tags:                   v.Tags,
+			Name:                   c.Name,
+			OS:                     c.OS,
+			OSArch:                 c.OSArch,
+			OSFamily:               c.OSFamily,
+			OSKernel:               c.OSKernel,
+			Hostname:               c.Hostname,
+			Version:                c.Version,
+			Address:                c.Address,
+			OSFullName:             c.OSFullName,
+			OSVersion:              c.OSVersion,
+			OSVirtualizationSystem: c.OSVirtualizationSystem,
+			OSVirtualizationRole:   c.OSVirtualizationRole,
+			CPUFamily:              c.CPUFamily,
+			CPUModel:               c.CPUModel,
+			CPUModelName:           c.CPUModelName,
+			CPUVendor:              c.CPUVendor,
+			NumCPUs:                c.NumCPUs,
+			MemoryTotal:            c.MemoryTotal,
+			Timezone:               c.Timezone,
+			IPv4:                   c.IPv4,
+			IPv6:                   c.IPv6,
+			Tags:                   c.Tags,
 			Labels:                 v.Labels,
-			Tunnels:                v.Tunnels,
-			AllowedUserGroups:      v.AllowedUserGroups,
-			UpdatesStatus:          v.UpdatesStatus,
-			ClientConfig:           v.ClientConfiguration,
+			Tunnels:                c.Tunnels,
+			AllowedUserGroups:      c.AllowedUserGroups,
+			UpdatesStatus:          c.UpdatesStatus,
+			ClientConfig:           c.ClientConfiguration,
 		},
 	}
-	if v.DisconnectedAt != nil {
-		res.DisconnectedAt = sql.NullTime{Time: *v.DisconnectedAt, Valid: true}
+	c.flock.RUnlock()
+	if !c.IsConnected() {
+		res.DisconnectedAt = sql.NullTime{Time: c.GetDisconnectedAtValue(), Valid: true}
 	}
+
 	return res
 }
 
@@ -198,9 +230,9 @@ func (d *clientDetails) Value() (driver.Value, error) {
 	return string(b), nil
 }
 
-func (s *clientSqlite) convert() *Client {
+func (s *clientSqlite) convert(l *logger.Logger) (res *Client) {
 	d := s.Details
-	res := &Client{
+	res = &Client{
 		ID:                     s.ID,
 		ClientAuthID:           s.ClientAuthID,
 		Name:                   d.Name,
@@ -230,21 +262,18 @@ func (s *clientSqlite) convert() *Client {
 		AllowedUserGroups:      d.AllowedUserGroups,
 		UpdatesStatus:          d.UpdatesStatus,
 		ClientConfiguration:    d.ClientConfig,
+		Logger:                 l,
 	}
 	if s.DisconnectedAt.Valid {
-		res.DisconnectedAt = &s.DisconnectedAt.Time
+		res.SetDisconnectedAt(&s.DisconnectedAt.Time)
 	}
 	return res
 }
 
-func (p *SqliteProvider) Close() error {
-	return p.db.Close()
-}
-
-func convertClientList(list []*clientSqlite) []*Client {
+func convertClientList(list []*clientSqlite, l *logger.Logger) []*Client {
 	res := make([]*Client, 0, len(list))
 	for _, cur := range list {
-		res = append(res, cur.convert())
+		res = append(res, cur.convert(l))
 	}
 	return res
 }

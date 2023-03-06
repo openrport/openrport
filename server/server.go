@@ -49,6 +49,8 @@ const (
 	cleanupAPISessionsInterval  = time.Hour
 	cleanupJobsInterval         = time.Hour
 	LogNumGoRoutinesInterval    = time.Minute * 2
+
+	DefaultMaxClientDBConnections = 50
 )
 
 // Server represents a rport service
@@ -168,11 +170,18 @@ func NewServer(ctx context.Context, config *chconfig.Config, opts *ServerOpts) (
 	// even if monitoring disabled, always create the monitoring service to support queries of past data etc
 	s.monitoringService = monitoring.NewService(monitoringProvider)
 
+	sourceOptions := config.Server.GetSQLiteDataSourceOptions()
+
+	// particularly the client.db needs performant db access, so allow multi-threaded access
+	// and use the RetryWhenBusy fn to ensure writes succeed if we get a busy error due to
+	// concurrent thread access.
+	sourceOptions.MaxOpenConnections = DefaultMaxClientDBConnections
+
 	s.clientDB, err = sqlite.New(
 		path.Join(config.Server.DataDir, "clients.db"),
 		clientsmigration.AssetNames(),
 		clientsmigration.Asset,
-		config.Server.GetSQLiteDataSourceOptions(),
+		sourceOptions,
 	)
 	if err != nil {
 		return nil, fmt.Errorf("failed to create clients DB instance: %v", err)
@@ -265,8 +274,8 @@ func NewServer(ctx context.Context, config *chconfig.Config, opts *ServerOpts) (
 func (s *Server) HandlePlusLicenseInfoAvailable() {
 	s.Logger.Debugf("received license info from rport-plus")
 
-	if s.clientListener != nil && s.clientListener.clientService != nil {
-		s.clientListener.clientService.UpdateClientStatus()
+	if s.clientListener != nil && s.clientListener.server.clientService != nil {
+		s.clientListener.server.clientService.UpdateClientStatus()
 	}
 }
 
@@ -309,19 +318,20 @@ func (s *Server) Run(ctx context.Context) error {
 	// TODO(m-terel): add graceful shutdown of background task
 	if s.config.Server.PurgeDisconnectedClients {
 		s.Infof("Period to keep disconnected clients is set to %v", s.config.Server.KeepDisconnectedClients)
-		go scheduler.Run(ctx, s.Logger, clients.NewCleanupTask(s.Logger, s.clientListener.clientService.GetRepo()), s.config.Server.PurgeDisconnectedClientsInterval)
+		go scheduler.Run(ctx, s.Logger, clients.NewCleanupTask(s.Logger, s.clientListener.server.clientService.GetRepo()), s.config.Server.PurgeDisconnectedClientsInterval)
 		s.Infof("Task to purge disconnected clients will run with interval %v", s.config.Server.PurgeDisconnectedClientsInterval)
 	} else {
 		s.Debugf("Task to purge disconnected clients disabled")
 	}
 
 	//Run a task to Check the client connections status by sending and receiving pings
-	go scheduler.Run(ctx, s.Logger, NewClientsStatusCheckTask(
+	clientsStatusCheckTask := NewClientsStatusCheckTask(
 		s.Logger,
-		s.clientListener.clientService.GetRepo(),
+		s.clientListener.server.clientService.GetRepo(),
 		s.config.Server.CheckClientsConnectionInterval,
 		s.config.Server.CheckClientsConnectionTimeout,
-	), s.config.Server.CheckClientsConnectionInterval)
+	)
+	go scheduler.Run(ctx, s.Logger.Fork(fmt.Sprintf("task %T", clientsStatusCheckTask)), clientsStatusCheckTask, s.config.Server.CheckClientsConnectionInterval)
 	s.Infof("Task to check the clients connection status will run with interval %v", s.config.Server.CheckClientsConnectionInterval)
 
 	if s.config.Monitoring.Enabled {
@@ -334,16 +344,19 @@ func (s *Server) Run(ctx context.Context) error {
 			cleaningPeriod = s.config.Monitoring.GetDataStorageDuration()
 		}
 
-		go scheduler.Run(ctx, s.Logger, monitoring.NewCleanupTask(s.Logger, s.monitoringService, cleaningPeriod), cleanupMeasurementsInterval)
+		monitoringCleanupTask := monitoring.NewCleanupTask(s.Logger, s.monitoringService, cleaningPeriod)
+		go scheduler.Run(ctx, s.Logger.Fork(fmt.Sprintf("task %T", monitoringCleanupTask)), monitoringCleanupTask, cleanupMeasurementsInterval)
 		s.Infof("Task to cleanup measurements will run with interval %v", cleanupMeasurementsInterval)
 	} else {
 		s.Infof("Measurement disabled")
 	}
 
-	go scheduler.Run(ctx, s.Logger, session.NewCleanupTask(s.apiListener.apiSessions), cleanupAPISessionsInterval)
+	sessionsCleanupTask := session.NewCleanupTask(s.apiListener.apiSessions)
+	go scheduler.Run(ctx, s.Logger.Fork(fmt.Sprintf("task %T", sessionsCleanupTask)), sessionsCleanupTask, cleanupAPISessionsInterval)
 	s.Infof("Task to cleanup expired api sessions will run with interval %v", cleanupAPISessionsInterval)
 
-	go scheduler.Run(ctx, s.Logger, jobs.NewCleanupTask(s.jobProvider, s.config.Server.JobsMaxResults), cleanupJobsInterval)
+	jobsCleanupTask := jobs.NewCleanupTask(s.jobProvider, s.config.Server.JobsMaxResults)
+	go scheduler.Run(ctx, s.Logger.Fork(fmt.Sprintf("task %T", jobsCleanupTask)), jobsCleanupTask, cleanupJobsInterval)
 	s.Infof("Task to cleanup jobs will run with interval %v", cleanupJobsInterval)
 
 	// Only on debug mode, log the number of running go routines
