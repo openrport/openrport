@@ -12,13 +12,14 @@ test -e ~.ssh || mkdir -p ~/.ssh
 grep -q "$REPO_SSH_HOST" ~/.ssh/known_hosts || echo "$REPO_SSH_KNOWN_HOSTS">>~/.ssh/known_hosts
 echo "👷 Copying to repo server ... "
 scp -P ${REPO_SSH_PORT} *.deb "${REPO_SSH_USER}"@"${REPO_SSH_HOST}":~/incoming/
+scp -P ${REPO_SSH_PORT} *.rpm "${REPO_SSH_USER}"@"${REPO_SSH_HOST}":~/incoming/
 echo "✅ All files copied"
 echo "👷 Triggering package publishing ... "
 ssh -p "${REPO_SSH_PORT}" "${REPO_SSH_USER}"@"${REPO_SSH_HOST}" bash <<EOF
 cd ~/incoming
 ls -la
-#aptly repo add unstable *.deb
-#aptly publish repo --gpg-key="${REPO_GPG_KEY_ID}" unstable
-#rm -f *.deb
+aptly repo add unstable *.deb
+aptly publish repo --gpg-key="${REPO_GPG_KEY_ID}" unstable
+rm -f *.deb
 EOF
 echo "✅ All packages published"
