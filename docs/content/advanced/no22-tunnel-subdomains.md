@@ -172,6 +172,11 @@ For the above example the corresponding `[api]` config is:
   #key_file = "/etc/letsencrypt/live/rport/privkey.pem"
 ```
 
+{{< hint type=caution title="Attention to hostname changes">}}
+If you change the hostname of your rport server in the `rportd.conf` file you very likely must change it in the
+email-based two-factor sender script too. Check `/usr/local/bin/2fa-sender.sh`.
+{{< /hint>}}
+
 ### Troubleshoot
 
 1. If rport doesn't start with the new configuration, inspect the start errors with
