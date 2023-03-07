@@ -28,10 +28,9 @@ type Rsp struct {
 
 type TagsAndLabelsTestSuite struct {
 	suite.Suite
-	VariableThatShouldStartAtFive int
-	rd                            *exec.Cmd
-	rc                            *exec.Cmd
-	ctx                           context.Context
+	rd  *exec.Cmd
+	rc  *exec.Cmd
+	ctx context.Context
 }
 
 func (suite *TagsAndLabelsTestSuite) SetupSuite() {
