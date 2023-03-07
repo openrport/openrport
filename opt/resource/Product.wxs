@@ -8,7 +8,7 @@
 	<?define UpgradeCode="181410DA-06A6-413A-A1C7-261B894D4999" ?>	<!-- YOUR-GUID-HERE -->
 
 	<!-- The URL for add/remove programs -->
-	<?define InfoURL="https://rport.com/" ?>
+	<?define InfoURL="https://rport.io/" ?>
 
 	<?define Win64 = "yes" ?>
 	<?define rportClientExeSourcePath = "rport.exe" ?>
@@ -80,7 +80,7 @@
 						<File Source="$(var.rportClientExeSourcePath)" Id='rportClientExe' Name='rport.exe' DiskId='1' KeyPath='yes'/>
 						<ServiceInstall Id="ServiceInstaller"
 											Type="ownProcess"
-											Name="rport.exe"											
+											Name="rport"
 											DisplayName="Rport Client"
 											Start="auto"
 											Description="Create reverse Tunnels with ease."
@@ -99,7 +99,7 @@
 										/>
 						</ServiceInstall>
 						<ServiceControl Id="ServiceInstaller" 
-											Name="rport.exe" 
+											Name="rport"
 											Remove="uninstall" 
 											Stop="uninstall" 
 											Wait="yes" />

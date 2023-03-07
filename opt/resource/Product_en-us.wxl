@@ -2,9 +2,9 @@
 <WixLocalization Culture="en-us" Codepage="1252" xmlns="http://schemas.microsoft.com/wix/2006/localization">
    <String Id="Language">1033</String>         <!-- Supported language and codepage codes can be found here: http://www.tramontana.co.hu/wix/lesson2.php#2.4 -->
    
-   <String Id="ApplicationName">RPort</String>
+   <String Id="ApplicationName">rport</String>
    <String Id="ManufacturerName">RealVNC</String>
-   <String Id="ManufacturerFullName">RealVNC Ltd</String>
+   <String Id="ManufacturerFullName">RealVNC</String>
    <String Id="ProductDescription">Remote Access and Remote Management Client</String>
    <String Id="Comments">Installs RPort client</String>
 
