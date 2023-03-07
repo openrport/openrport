@@ -152,7 +152,7 @@ func convertToSqlite(c *Client) (res *clientSqlite) {
 			IPv4:                   c.IPv4,
 			IPv6:                   c.IPv6,
 			Tags:                   c.Tags,
-			Labels:                 v.Labels,
+			Labels:                 c.Labels,
 			Tunnels:                c.Tunnels,
 			AllowedUserGroups:      c.AllowedUserGroups,
 			UpdatesStatus:          c.UpdatesStatus,

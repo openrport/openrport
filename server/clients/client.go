@@ -571,6 +571,7 @@ func NewClientFromConnRequest(ctx context.Context, existingClient *Client, clien
 	client.IPv4 = req.IPv4
 	client.IPv6 = req.IPv6
 	client.Tags = req.Tags
+	client.Labels = req.Labels
 	client.Version = req.Version
 	client.ClientConfiguration = req.ClientConfiguration
 	client.Address = clientHost
