@@ -30,9 +30,9 @@ Write-Output $versionInfo|convertTo-Json
 # Write the file used for the build process
 $versionInfo|ConvertTo-Json|Out-File -Path cmd/rport/versioninfo.json
 # Convert the versioninfo.json to resource.syso
-cd ./cmd/rport
+Set-Location ./cmd/rport
 goversioninfo.exe
-cd ../../
+Set-Location ../../
 
 Write-Output "[*] Building rport.exe for windows"
 go build -ldflags "-s -w -X github.com/cloudradar-monitoring/rport/share.BuildVersion=$($env:GITHUB_REF_NAME)" -o rport.exe ./cmd/rport/...
