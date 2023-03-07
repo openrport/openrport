@@ -160,11 +160,9 @@ func runClient() error {
 		defer cancel()
 		return c.Run(ctx)
 
-	} else { // if run as OS service
-
-		return cliboilerplate.RunAsService(c, cfgPath)
-
 	}
+	// if run as OS service
+	return cliboilerplate.RunAsService(c, cfgPath)
 }
 
 func isServiceManager() (bool, error) {
