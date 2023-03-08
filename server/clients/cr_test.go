@@ -471,7 +471,7 @@ func TestCRWithFilter(t *testing.T) {
 				},
 				{
 					Column: []string{"labels"},
-					Values: []string{"country_Germany", "city_Cologne", "datacenter_NetCologne GmbH"},
+					Values: []string{"country: Germany", "city: Cologne", "datacenter: NetCologne GmbH"},
 				},
 				{
 					Column: []string{"version"},
