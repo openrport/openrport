@@ -1,4 +1,4 @@
-package simple_client_connects_test
+package client_labels_test
 
 import (
 	"context"
