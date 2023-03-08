@@ -39,10 +39,11 @@ labels:
 clients can be filtered by tags and labels like text through additional filter parameter
 
 `/api/v1/clients?filter[tags]=server`
-`/api/v1/clients?filter[labels]=city_Cologne`
+`/api/v1/clients?filter[labels]=city: Cologne`
 
 with possible use of wildcards
 
 `/api/v1/clients?filter[tags]=ser*`
-`/api/v1/clients?filter[labels]=*_Cologne`
+`/api/v1/clients?filter[labels]=*: Cologne`
 
+though remember to encode space (" ") into proper url %20

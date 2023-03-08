@@ -45,7 +45,7 @@ func matchesFilter(valueMap map[string]interface{}, filter FilterOption) (bool, 
 		if ok {
 			clientFieldSliceToMatch = []interface{}{}
 			for key, val := range clientFieldMapToMatch {
-				clientFieldSliceToMatch = append(clientFieldSliceToMatch, fmt.Sprintf("%v_%v", key, val))
+				clientFieldSliceToMatch = append(clientFieldSliceToMatch, fmt.Sprintf("%v: %v", key, val))
 			}
 		}
 
