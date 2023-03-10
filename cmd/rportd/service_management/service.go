@@ -1,4 +1,4 @@
-package cliboilerplate
+package service_management
 
 import (
 	"context"
@@ -7,17 +7,21 @@ import (
 
 	"github.com/kardianos/service"
 
-	chclient "github.com/cloudradar-monitoring/rport/client"
+	chserver "github.com/cloudradar-monitoring/rport/server"
 	chshare "github.com/cloudradar-monitoring/rport/share"
 )
 
 var svcConfig = &service.Config{
-	Name:        "rport",
-	DisplayName: "Rport Client",
+	Name:        "rportd",
+	DisplayName: "Rport Server",
 	Description: "Create reverse tunnels with ease.",
+	Option: service.KeyValue{
+		"LimitNOFILE":         1048576,
+		"AmbientCapabilities": "CAP_NET_BIND_SERVICE",
+	},
 }
 
-func HandleSvcCommand(svcCommand string, configPath string, user string) error {
+func HandleSvcCommand(svcCommand string, configPath string, user *string) error {
 	svc, err := getService(nil, configPath, user)
 	if err != nil {
 		return err
@@ -26,8 +30,8 @@ func HandleSvcCommand(svcCommand string, configPath string, user string) error {
 	return chshare.HandleServiceCommand(svc, svcCommand)
 }
 
-func RunAsService(c *chclient.Client, configPath string) error {
-	svc, err := getService(c, configPath, "")
+func RunAsService(s *chserver.Server, configPath string) error {
+	svc, err := getService(s, configPath, nil)
 	if err != nil {
 		return err
 	}
@@ -35,31 +39,29 @@ func RunAsService(c *chclient.Client, configPath string) error {
 	return svc.Run()
 }
 
-func getService(c *chclient.Client, configPath string, user string) (service.Service, error) {
+func getService(s *chserver.Server, configPath string, user *string) (service.Service, error) {
 	absConfigPath, err := filepath.Abs(configPath)
 	if err != nil {
 		return nil, err
 	}
 	svcConfig.Arguments = []string{"-c", absConfigPath}
-	if user != "" {
-		svcConfig.UserName = user
+	if user != nil {
+		svcConfig.UserName = *user
 	}
-	return service.New(&serviceWrapper{c}, svcConfig)
+	return service.New(&serviceWrapper{s}, svcConfig)
 }
 
 type serviceWrapper struct {
-	*chclient.Client
+	*chserver.Server
 }
 
 func (w *serviceWrapper) Start(service.Service) error {
-	if w.Client == nil {
+	if w.Server == nil {
 		return nil
 	}
 	go func() {
-		ctx, cancel := context.WithCancel(context.Background())
-		defer cancel()
-
-		if err := w.Client.Run(ctx); err != nil {
+		ctx := context.Background()
+		if err := w.Server.Run(ctx); err != nil {
 			log.Println(err)
 		}
 	}()
@@ -67,5 +69,5 @@ func (w *serviceWrapper) Start(service.Service) error {
 }
 
 func (w *serviceWrapper) Stop(service.Service) error {
-	return w.Client.Close()
+	return w.Server.Close()
 }

@@ -1,4 +1,4 @@
-package cliboilerplate
+package cli
 
 import (
 	"os"

@@ -1,4 +1,4 @@
-package cliboilerplate
+package cli
 
 var ClientHelp = `
   Usage: rport [options] [<server> [remote] [remote] [remote] ...]

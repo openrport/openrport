@@ -11,16 +11,18 @@ import (
 	"runtime"
 	"syscall"
 
+	"github.com/spf13/pflag"
+
+	"github.com/cloudradar-monitoring/rport/cmd/rport/service_management"
+
 	"github.com/kardianos/service"
 	"github.com/spf13/cobra"
-	"github.com/spf13/viper"
 
-	"github.com/cloudradar-monitoring/rport/cmd/rport/cliboilerplate"
+	"github.com/cloudradar-monitoring/rport/cmd/rport/cli"
 	"github.com/cloudradar-monitoring/rport/share/files"
 
 	chclient "github.com/cloudradar-monitoring/rport/client"
 	chshare "github.com/cloudradar-monitoring/rport/share"
-	"github.com/cloudradar-monitoring/rport/share/clientconfig"
 )
 
 var (
@@ -36,14 +38,14 @@ func init() {
 
 	// set help message
 	RootCmd.SetUsageFunc(func(*cobra.Command) error {
-		fmt.Print(cliboilerplate.ClientHelp)
+		fmt.Print(cli.ClientHelp)
 		os.Exit(1)
 		return nil
 	})
 
 	pFlags := RootCmd.PersistentFlags()
 
-	cliboilerplate.SetPFlags(pFlags)
+	cli.SetPFlags(pFlags)
 }
 
 // main this binary can be run in 3 ways
@@ -57,25 +59,26 @@ func main() {
 }
 
 func runMain(*cobra.Command, []string) {
-	serviceManager, err := isServiceManager()
+	pFlags := RootCmd.PersistentFlags()
+	serviceManager, err := isServiceManager(pFlags)
 	if err != nil {
 		log.Fatal(err)
 	}
 
 	if serviceManager {
-		if err := manageService(); err != nil { // app run to change state of OS service
+		if err := ManageService(pFlags); err != nil { // app run to change state of OS service
 			log.Fatal(err)
 		}
 	} else {
-		if err := runClient(); err != nil { // app run as rport client
+		if err := runClient(pFlags); err != nil { // app run as rport client
 			log.Fatal(err)
 		}
 	}
 }
 
-func manageService() error {
+func ManageService(pFlags *pflag.FlagSet) error {
 	var svcUser string
-	pFlags := RootCmd.PersistentFlags()
+
 	cfgPath, err := pFlags.GetString("config")
 	if err != nil {
 		return err
@@ -97,7 +100,7 @@ func manageService() error {
 		// validate config file without command line args before installing it for the service
 		// other service commands do not change config file specified at install
 
-		config, err := decodeConfig(cfgPath, false)
+		config, err := cli.DecodeConfig(cfgPath, pFlags, false)
 		if err != nil {
 			return fmt.Errorf("invalid config: %v. Check your config file", err)
 		}
@@ -109,18 +112,17 @@ func manageService() error {
 
 	}
 
-	return cliboilerplate.HandleSvcCommand(svcCommand, cfgPath, svcUser)
+	return service_management.HandleSvcCommand(svcCommand, cfgPath, svcUser)
 }
 
-func runClient() error {
-	pFlags := RootCmd.PersistentFlags()
+func runClient(pFlags *pflag.FlagSet) error {
 
 	cfgPath, err := pFlags.GetString("config")
 	if err != nil {
 		return err
 	}
 
-	config, err := decodeConfig(cfgPath, service.Interactive())
+	config, err := cli.DecodeConfig(cfgPath, pFlags, service.Interactive())
 	if err != nil {
 		return fmt.Errorf("invalid config: %v. Check your config file", err)
 	}
@@ -162,104 +164,12 @@ func runClient() error {
 
 	}
 	// if run as OS service
-	return cliboilerplate.RunAsService(c, cfgPath)
+	return service_management.RunAsService(c, cfgPath)
 }
 
-func isServiceManager() (bool, error) {
-	pFlags := RootCmd.PersistentFlags()
+func isServiceManager(pFlags *pflag.FlagSet) (bool, error) {
 	svcCommand, err := pFlags.GetString("service")
 	return svcCommand != "", err
-}
-
-type ClientAttributesConfigHolder struct {
-	Tags   []string
-	Labels map[string]string
-}
-
-func readConfigFile(cfgPath string) (ClientAttributesConfigHolder, error) {
-
-	viperCfg := viper.New()
-	viperCfg.SetConfigFile(cfgPath)
-
-	attributes := ClientAttributesConfigHolder{}
-
-	if err := viperCfg.ReadInConfig(); err != nil {
-		return ClientAttributesConfigHolder{}, fmt.Errorf("error reading config file: %s", err)
-
-	}
-	err := viperCfg.Unmarshal(&attributes)
-	return attributes, err
-}
-
-func decodeConfig(cfgPath string, overrideConfigWithCLIArgs bool) (*chclient.ClientConfigHolder, error) {
-
-	viperCfg := viper.New()
-	viperCfg.SetConfigType("toml")
-
-	cliboilerplate.SetViperConfigDefaults(viperCfg)
-
-	if cfgPath != "" {
-		viperCfg.SetConfigFile(cfgPath)
-	} else {
-		viperCfg.AddConfigPath(".")
-		viperCfg.SetConfigName("rport.conf")
-	}
-
-	config := &chclient.ClientConfigHolder{Config: &clientconfig.Config{}}
-
-	pFlags := RootCmd.PersistentFlags()
-
-	if overrideConfigWithCLIArgs {
-		cliboilerplate.BindPFlagsToViperConfig(pFlags, viperCfg)
-	}
-
-	if err := chshare.DecodeViperConfig(viperCfg, config.Config, nil); err != nil {
-		return nil, err
-	}
-
-	if config.InterpreterAliases == nil {
-		config.InterpreterAliases = map[string]string{}
-	}
-
-	if overrideConfigWithCLIArgs {
-		args := pFlags.Args()
-
-		if len(args) > 0 {
-			config.Client.Server = args[0]
-			config.Client.Remotes = args[1:]
-		}
-
-		scheme, err := pFlags.GetString("scheme")
-		if err != nil {
-			return nil, err
-		}
-		config.Tunnels.Scheme = scheme
-
-		proxy, err := pFlags.GetBool("enable-reverse-proxy")
-		if err != nil {
-			return nil, err
-		}
-		config.Tunnels.ReverseProxy = proxy
-
-		HostHeader, err := pFlags.GetString("host-header")
-		if err != nil {
-			return nil, err
-		}
-		config.Tunnels.HostHeader = HostHeader
-	}
-
-	if len(config.Config.Client.AttributesFilePath) > 0 {
-		file, err := readConfigFile(config.Config.Client.AttributesFilePath)
-		if err != nil {
-			log.Println("error reading attributes_file", err)
-			log.Println("ignoring attributes_file")
-		} else {
-			fmt.Printf("extending config by extra client attributes file %v\n", file)
-			config.Client.Tags = file.Tags
-			config.Client.Labels = file.Labels
-		}
-	}
-	return config, nil
 }
 
 func checkRootOK(config *chclient.ClientConfigHolder) error {
