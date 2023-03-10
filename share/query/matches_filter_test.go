@@ -11,11 +11,13 @@ import (
 
 func TestMatchesFilters(t *testing.T) {
 	value := struct {
-		Name string `json:"name"`
-		Tags []int  `json:"tags"`
+		Name   string            `json:"name"`
+		Tags   []int             `json:"tags"`
+		Labels map[string]string `json:"labels"`
 	}{
-		Name: "abcde",
-		Tags: []int{123, 456},
+		Name:   "abcde",
+		Tags:   []int{123, 456},
+		Labels: map[string]string{"country": "Germany", "city": "Cologne", "datacenter": "NetCologne GmbH"},
 	}
 	testCases := []struct {
 		Name           string
@@ -77,6 +79,18 @@ func TestMatchesFilters(t *testing.T) {
 					Column: []string{"tags"},
 					Values: []string{
 						"123",
+					},
+				},
+			},
+			ExpectedResult: true,
+		},
+		{
+			Name: "map value",
+			Filters: []query.FilterOption{
+				{
+					Column: []string{"labels"},
+					Values: []string{
+						"city: Cologne",
 					},
 				},
 			},
