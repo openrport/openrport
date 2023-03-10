@@ -13,7 +13,7 @@ import (
 
 	"github.com/spf13/pflag"
 
-	"github.com/cloudradar-monitoring/rport/cmd/rport/service_management"
+	"github.com/cloudradar-monitoring/rport/cmd/rport/servicemanagement"
 
 	"github.com/kardianos/service"
 	"github.com/spf13/cobra"
@@ -112,7 +112,7 @@ func ManageService(pFlags *pflag.FlagSet) error {
 
 	}
 
-	return service_management.HandleSvcCommand(svcCommand, cfgPath, svcUser)
+	return servicemanagement.HandleSvcCommand(svcCommand, cfgPath, svcUser)
 }
 
 func runClient(pFlags *pflag.FlagSet) error {
@@ -164,7 +164,7 @@ func runClient(pFlags *pflag.FlagSet) error {
 
 	}
 	// if run as OS service
-	return service_management.RunAsService(c, cfgPath)
+	return servicemanagement.RunAsService(c, cfgPath)
 }
 
 func isServiceManager(pFlags *pflag.FlagSet) (bool, error) {

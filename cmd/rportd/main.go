@@ -11,7 +11,7 @@ import (
 	"syscall"
 	"time"
 
-	"github.com/cloudradar-monitoring/rport/cmd/rportd/service_management"
+	"github.com/cloudradar-monitoring/rport/cmd/rportd/servicemanagement"
 	"github.com/cloudradar-monitoring/rport/share/logger"
 
 	"github.com/kardianos/service"
@@ -446,7 +446,7 @@ func runMain(*cobra.Command, []string) {
 			}
 		}
 
-		err := service_management.HandleSvcCommand(*svcCommand, *cfgPath, svcUser)
+		err := servicemanagement.HandleSvcCommand(*svcCommand, *cfgPath, svcUser)
 		if err != nil {
 			log.Fatal(err)
 		}
@@ -495,7 +495,7 @@ func runMain(*cobra.Command, []string) {
 	}
 
 	if !service.Interactive() {
-		err = service_management.RunAsService(s, *cfgPath)
+		err = servicemanagement.RunAsService(s, *cfgPath)
 		if err != nil {
 			log.Fatal(err)
 		}
