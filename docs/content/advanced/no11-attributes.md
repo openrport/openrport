@@ -9,7 +9,7 @@ aliases:
 
 Clients can be described for filtering and identification by:
  - single dimension tags `["win", "server", "vm"]` 
- - 2-dimensional labels  `"lables": {"country": "Germany", "city": "Cologne", "datacenter": "NetCologne GmbH" }`
+ - 2-dimensional labels  `"labels": {"country": "Germany", "city": "Cologne", "datacenter": "NetCologne GmbH" }`
 
 
 ## "attributes_file_path"
