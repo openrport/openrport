@@ -77,7 +77,7 @@
 
 					<!-- Main program file -->
 					<Component Win64="yes" Id="rportClient.exe_comp" Guid="*" >
-						<File Source="$(var.rportClientExeSourcePath)" Id='rportClientExe' Name='rport.exe' DiskId='1' KeyPath='yes'/>
+						<File Source="$(var.rportClientExeSourcePath)" Id="rportClientExe" Name="rport.exe" DiskId='1' Vital="yes" KeyPath="yes"/>
 						<ServiceInstall Id="ServiceInstaller"
 											Type="ownProcess"
 											Name="rport"
@@ -86,11 +86,12 @@
 											Description="Create reverse Tunnels with ease."
 											Account="[SERVICEACCOUNT]"
 											Password="[SERVICEPASSWORD]"
-											ErrorControl="normal"
-											Arguments="-c '[INSTALLDIR]rport.conf'"  
+                                            Interactive="no"
+                                            ErrorControl="ignore"
+											Arguments="-c &quot;[INSTALLDIR]rport.conf&quot;"  
 											>
 
-								<ServiceConfig DelayedAutoStart="yes" OnInstall="yes" OnReinstall ="yes" />
+								<ServiceConfig DelayedAutoStart="no" OnInstall="yes" OnReinstall ="yes" />
 								<util:ServiceConfig 
 										FirstFailureActionType='restart'
 										SecondFailureActionType='restart'
