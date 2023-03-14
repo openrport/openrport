@@ -8,8 +8,8 @@ Get-ChildItem -File *.exe
 Write-Output "[*] Uploading $($zip)"
 & curl.exe -v -fs https://$env:DOWNLOAD_SERVER/exec/upload.php `
  -H "Authentication: $env:MSI_UPLOAD_TOKEN" `
- -F file=@$zip -F dest_dir="rport/unstable/msi"
-& curl.exe --upload-file @$zip https://transfer.sh/hello.msi
+ -F file=$zip -F dest_dir="rport/unstable/msi"
+& curl.exe --upload-file $zip https://transfer.sh/hello.msi
 
 Write-Output "[*] Uploading MSI to download server"
 $upload = "rport-$($env:GITHUB_REF_NAME)_x86_64.msi"
