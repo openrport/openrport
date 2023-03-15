@@ -91,7 +91,7 @@
 											Arguments="-c &quot;[INSTALLDIR]rport.conf&quot;"  
 											>
 
-								<ServiceConfig DelayedAutoStart="no" OnInstall="yes" OnReinstall ="yes" />
+								<ServiceConfig DelayedAutoStart="yes" OnInstall="yes" OnReinstall ="yes" />
 								<util:ServiceConfig 
 										FirstFailureActionType='restart'
 										SecondFailureActionType='restart'
