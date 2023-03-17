@@ -5,6 +5,7 @@ import (
 	"testing"
 
 	"github.com/cloudradar-monitoring/rport/server/api/users"
+	"github.com/cloudradar-monitoring/rport/server/auditlog/config"
 
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
@@ -20,7 +21,7 @@ func TestNotEnabled(t *testing.T) {
 	req := httptest.NewRequest("GET", "/", nil)
 
 	mockProvider := &mockProvider{}
-	auditLog, err := New(nil, nil, "", Config{Enable: false}, DataSourceOptions)
+	auditLog, err := New(nil, nil, "", config.Config{Enable: false}, DataSourceOptions)
 	require.NoError(t, err)
 	auditLog.provider = mockProvider
 
@@ -64,7 +65,7 @@ func TestIPObfuscation(t *testing.T) {
 			t.Run("with obfuscation", func(t *testing.T) {
 				mockProvider := &mockProvider{}
 				auditLog := &AuditLog{
-					config: Config{
+					config: config.Config{
 						Enable:           true,
 						UseIPObfuscation: true,
 					},
@@ -81,7 +82,7 @@ func TestIPObfuscation(t *testing.T) {
 			t.Run("without obfuscation", func(t *testing.T) {
 				mockProvider := &mockProvider{}
 				auditLog := &AuditLog{
-					config: Config{
+					config: config.Config{
 						Enable:           true,
 						UseIPObfuscation: false,
 					},
@@ -134,7 +135,7 @@ func TestList(t *testing.T) {
 		db: db,
 	}
 	auditLog := &AuditLog{
-		config: Config{
+		config: config.Config{
 			Enable: true,
 		},
 		provider: dbProv,

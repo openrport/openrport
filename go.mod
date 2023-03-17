@@ -59,6 +59,7 @@ require (
 	golang.org/x/net v0.7.0
 	golang.org/x/sync v0.0.0-20210220032951-036812b2e83c
 	golang.org/x/sys v0.5.0
+	golang.org/x/term v0.5.0
 	golang.org/x/text v0.7.0
 	gopkg.in/h2non/gock.v1 v1.1.2
 	gopkg.in/ini.v1 v1.62.0 // indirect
@@ -74,6 +75,7 @@ require (
 	github.com/oleiade/reflections v1.0.1
 	github.com/pkg/sftp v1.13.4
 	github.com/shirou/gopsutil/v3 v3.22.12
+	github.com/test-go/testify v1.1.4
 	github.com/trustelem/zxcvbn v1.0.1
 )
 
@@ -85,7 +87,6 @@ require (
 	github.com/lufia/plan9stats v0.0.0-20211012122336-39d0f177ccd0 // indirect
 	github.com/lxn/win v0.0.0-20210218163916-a377121e959e // indirect
 	github.com/power-devops/perfstat v0.0.0-20210106213030-5aafc221ea8c // indirect
-	github.com/test-go/testify v1.1.4 // indirect
 	github.com/tklauser/go-sysconf v0.3.11 // indirect
 	github.com/tomasen/realip v0.0.0-20180522021738-f0c99a92ddce // indirect
 )

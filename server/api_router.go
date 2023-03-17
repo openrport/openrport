@@ -7,6 +7,7 @@ import (
 	"github.com/gorilla/mux"
 	"github.com/jpillora/requestlog"
 
+	rportplus "github.com/cloudradar-monitoring/rport/plus"
 	"github.com/cloudradar-monitoring/rport/plus/capabilities/oauth"
 	"github.com/cloudradar-monitoring/rport/server/api/middleware"
 	"github.com/cloudradar-monitoring/rport/server/api/users"
@@ -212,7 +213,7 @@ func (al *APIListener) initRouter() {
 	authRouter.HandleFunc(routes.AuthSettingsRoute, al.handleGetAuthSettings).Methods(http.MethodGet)
 	authRouter.HandleFunc(routes.AuthDeviceSettingsRoute, al.handleGetAuthDeviceSettings).Methods(http.MethodGet)
 
-	if al.config.PlusOAuthEnabled() {
+	if rportplus.IsPlusOAuthEnabled(al.config.PlusConfig) {
 		api.HandleFunc(oauth.DefaultLoginURI, al.handleOAuthAuthorizationCode).Methods(http.MethodGet)
 		api.HandleFunc(oauth.DefaultDeviceLoginURI, al.handleGetDeviceAuth).Methods(http.MethodGet)
 	}

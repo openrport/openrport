@@ -9,6 +9,7 @@ import (
 	"time"
 
 	"github.com/cloudradar-monitoring/rport/server/api/users"
+	"github.com/cloudradar-monitoring/rport/server/auditlog/config"
 
 	"github.com/cloudradar-monitoring/rport/db/sqlite"
 
@@ -59,7 +60,7 @@ type AuditLog struct {
 	logger       *logger.Logger
 	clientGetter ClientGetter
 	provider     Provider
-	config       Config
+	config       config.Config
 }
 
 type NotAllowedError struct {
@@ -70,7 +71,7 @@ func (e *NotAllowedError) Error() string {
 	return e.Msg
 }
 
-func New(l *logger.Logger, cg ClientGetter, dataDir string, cfg Config, dataSourceOptions sqlite.DataSourceOptions) (*AuditLog, error) {
+func New(l *logger.Logger, cg ClientGetter, dataDir string, cfg config.Config, dataSourceOptions sqlite.DataSourceOptions) (*AuditLog, error) {
 	a := &AuditLog{
 		logger:       l,
 		clientGetter: cg,
@@ -80,7 +81,7 @@ func New(l *logger.Logger, cg ClientGetter, dataDir string, cfg Config, dataSour
 	if cfg.Enable {
 		rotation, err := newRotationProvider(
 			l,
-			cfg.rotationPeriod(),
+			cfg.RotationPeriod(),
 			dataDir,
 			dataSourceOptions,
 		)
