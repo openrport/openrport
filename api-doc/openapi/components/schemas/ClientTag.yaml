@@ -1,0 +1,11 @@
+type: object
+properties:
+  tag:
+    type: string
+    description: Client Tag
+  client_ids:
+    type: array
+    description: >-
+      Shows active and disconnected clients that have this tag.
+    items:
+      type: string
