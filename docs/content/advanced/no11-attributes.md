@@ -20,7 +20,7 @@ specifies additional configuration file with both tags and labels
 ### tags
 
 can be also specified in client configuration file for backwards compatibility
-but if __attributes_file_path__ is specified __tags__ in client configuration file will be ignored.
+but if **attributes_file_path** is specified **tags** in client configuration file will be ignored.
 
 ### labels
 
