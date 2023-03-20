@@ -97,11 +97,11 @@ func (suite *TagsAndLabelsTestSuite) TestClientHasLabels_findOne() {
 
 func (suite *TagsAndLabelsTestSuite) ExpectAnswer(requestURL string, expected []TagsAndLabels) bool {
 	structured := suite.callURL(requestURL)
-	return suite.Equal(suite.T(), structured, Rsp{Data: expected})
+	return suite.Equal(structured, Rsp{Data: expected})
 }
 
 func (suite *TagsAndLabelsTestSuite) callURL(requestURL string) Rsp {
-	var t *testing.T = suite.T()
+
 	client := &http.Client{
 		Timeout: time.Second * 10,
 	}
@@ -111,7 +111,7 @@ func (suite *TagsAndLabelsTestSuite) callURL(requestURL string) Rsp {
 	req.SetBasicAuth("admin", "foobaz")
 	res, err := client.Do(req)
 	suite.NoError(err)
-	suite.Equal(t, http.StatusOK, res.StatusCode)
+	suite.Equal(http.StatusOK, res.StatusCode)
 
 	rawBody, err := io.ReadAll(res.Body)
 	suite.NoError(err)
