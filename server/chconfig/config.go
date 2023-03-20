@@ -32,7 +32,7 @@ import (
 	"github.com/pkg/errors"
 
 	"github.com/cloudradar-monitoring/rport/server/api/message"
-	"github.com/cloudradar-monitoring/rport/server/auditlog"
+	auditlog "github.com/cloudradar-monitoring/rport/server/auditlog/config"
 	"github.com/cloudradar-monitoring/rport/server/bearer"
 	"github.com/cloudradar-monitoring/rport/server/clients/clienttunnel"
 	"github.com/cloudradar-monitoring/rport/server/ports"
@@ -805,17 +805,4 @@ func generateJWTSecret() (string, error) {
 		return "", fmt.Errorf("can't generate API JWT secret: %s", err)
 	}
 	return fmt.Sprintf("%x", sha256.Sum256(data)), nil
-}
-
-func (c *Config) PlusEnabled() (enabled bool) {
-	return c.PlusConfig.PluginConfig != nil &&
-		c.PlusConfig.PluginConfig.PluginPath != ""
-}
-
-func (c *Config) HasLicenseConfig() (enabled bool) {
-	return c.PlusEnabled() && c.PlusConfig.LicenseConfig != nil
-}
-
-func (c *Config) PlusOAuthEnabled() (enabled bool) {
-	return c.PlusEnabled() && c.PlusConfig.OAuthConfig != nil
 }

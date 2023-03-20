@@ -1,0 +1,53 @@
+get:
+  tags:
+    - Clients and Tunnels
+  summary: Return all client tags
+  operationId: ClienttagsGet
+  description: Return a list of all client tags with belonging client IDs sorted by tag in asc order
+  parameters:
+    - name: fields[<RESOURCE>]
+      in: query
+      description: >-
+        Fields to be returned. It should be provided in the format as
+        `fields[<RESOURCE>]=<FIELDS>`, where `<RESOURCE>` is `client_tags` and
+        `<FIELDS>` is a comma separated list of fields. Example:
+        `fields[client_tags]=tag`. If no fields are specified, all fields will be returned.
+      schema:
+        type: string
+    - name: page
+      in: query
+      description: >-
+        Pagination options `page[limit]` and `page[offset]` can be used to get
+        more than the first page of results. Default limit is 50 and maximum is
+        500. The `count` property in meta shows the total number of results.
+      schema:
+        type: integer
+  responses:
+    '200':
+      description: Successful Operation
+      content:
+        application/json:
+          schema:
+            type: object
+            properties:
+              data:
+                type: array
+                items:
+                  $ref: ../components/schemas/ClientTag.yaml
+              meta:
+                type: object
+                properties:
+                  count:
+                    type: integer
+    '400':
+      description: Invalid request parameters
+      content:
+        application/json:
+          schema:
+            $ref: ../components/schemas/ErrorPayload.yaml
+    '500':
+      description: Invalid Operation
+      content:
+        application/json:
+          schema:
+            $ref: ../components/schemas/ErrorPayload.yaml

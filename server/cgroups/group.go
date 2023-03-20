@@ -11,6 +11,34 @@ import (
 	"github.com/cloudradar-monitoring/rport/share/types"
 )
 
+const OptionsResource = "client_groups"
+
+var OptionsSupportedFiltersAndSorts = map[string]bool{
+	"id":          true,
+	"description": true,
+}
+
+var OptionsSupportedFields = map[string]map[string]bool{
+	OptionsResource: {
+		"id":                  true,
+		"description":         true,
+		"params":              true,
+		"allowed_user_groups": true,
+		"client_ids":          true,
+	},
+}
+
+var OptionsListDefaultSort = map[string][]string{
+	"sort": {"id"},
+}
+
+var OptionsListDefaultFields = map[string][]string{
+	fmt.Sprintf("fields[%s]", OptionsResource): {
+		"id",
+		"description",
+	},
+}
+
 type ClientGroup struct {
 	ID                string            `json:"id" db:"id"`
 	Description       string            `json:"description" db:"description"`

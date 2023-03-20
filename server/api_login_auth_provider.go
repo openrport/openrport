@@ -39,7 +39,7 @@ func (al *APIListener) handleGetAuthProvider(w http.ResponseWriter, req *http.Re
 
 	maxTokenLifetime := al.config.API.MaxTokenLifeTimeHours
 
-	if al.config.PlusOAuthEnabled() {
+	if rportplus.IsPlusOAuthEnabled(al.config.PlusConfig) {
 		OAuthProvider := AuthProviderInfo{
 			AuthProvider:      al.config.PlusConfig.OAuthConfig.Provider,
 			SettingsURI:       routes.AllRoutesPrefix + routes.AuthRoutesPrefix + routes.AuthSettingsRoute,
@@ -59,7 +59,7 @@ func (al *APIListener) handleGetAuthProvider(w http.ResponseWriter, req *http.Re
 }
 
 func (al *APIListener) handleGetAuthSettings(w http.ResponseWriter, req *http.Request) {
-	if !al.config.PlusOAuthEnabled() {
+	if !rportplus.IsPlusOAuthEnabled(al.config.PlusConfig) {
 		al.jsonErrorResponse(w, http.StatusForbidden, rportplus.ErrPlusNotAvailable)
 		return
 	}
@@ -85,7 +85,7 @@ func (al *APIListener) handleGetAuthSettings(w http.ResponseWriter, req *http.Re
 }
 
 func (al *APIListener) handleGetAuthDeviceSettings(w http.ResponseWriter, req *http.Request) {
-	if !al.config.PlusOAuthEnabled() {
+	if !rportplus.IsPlusOAuthEnabled(al.config.PlusConfig) {
 		al.jsonErrorResponse(w, http.StatusForbidden, rportplus.ErrPlusNotAvailable)
 		return
 	}

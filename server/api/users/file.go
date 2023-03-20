@@ -6,22 +6,26 @@ import (
 	"fmt"
 	"io"
 	"io/ioutil"
-	"log"
 	"os"
 	"strings"
 	"sync"
+
+	"github.com/cloudradar-monitoring/rport/share/logger"
 )
 
 const HtpasswdBcryptPrefix = "$2y$"
 const HtpasswdBcryptAltPrefix = "$2a$"
 
 type FileManager struct {
+	*logger.Logger
+
 	FileName       string
 	FileAccessLock sync.Mutex
 }
 
-func NewFileManager(fileName string) *FileManager {
+func NewFileManager(logger *logger.Logger, fileName string) *FileManager {
 	return &FileManager{
+		Logger:   logger,
 		FileName: fileName,
 	}
 }
@@ -30,20 +34,20 @@ func NewFileManager(fileName string) *FileManager {
 func (fm *FileManager) ReadUsersFromFile() ([]*User, error) {
 	fm.FileAccessLock.Lock()
 	defer fm.FileAccessLock.Unlock()
-	log.Println("Start to get API users from file.")
+	fm.Logger.Infof("Start to get API users from file.")
 
 	file, err := os.Open(fm.FileName)
 	if err != nil {
 		return nil, fmt.Errorf("failed to open users file: %v", err)
 	}
-	log.Printf("API users file %s opened. Parsing...", fm.FileName)
+	fm.Logger.Infof("API users file %s opened. Parsing...", fm.FileName)
 	defer file.Close()
 
 	users, err := parseUsers(file)
 	if err != nil {
 		return users, err
 	}
-	log.Printf("API users file %s is parsed successfully", fm.FileName)
+	fm.Logger.Infof("API users file %s is parsed successfully", fm.FileName)
 
 	return users, nil
 }

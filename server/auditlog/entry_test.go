@@ -10,6 +10,7 @@ import (
 	"github.com/stretchr/testify/assert"
 
 	"github.com/cloudradar-monitoring/rport/server/api"
+	"github.com/cloudradar-monitoring/rport/server/auditlog/config"
 	"github.com/cloudradar-monitoring/rport/server/clients"
 	"github.com/cloudradar-monitoring/rport/share/query"
 )
@@ -158,7 +159,7 @@ func TestSaveForMultipleClients(t *testing.T) {
 
 func enabledAuditLog() *AuditLog {
 	return &AuditLog{
-		config: Config{
+		config: config.Config{
 			Enable: true,
 		},
 	}

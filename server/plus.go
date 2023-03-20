@@ -25,14 +25,14 @@ var (
 func EnablePlusIfLicensed(ctx context.Context, cfg *chconfig.Config, filesAPI files.FileAPI) (plusManager rportplus.Manager, err error) {
 	logger := logger.NewLogger("rport-plus", cfg.Logging.LogOutput, cfg.Logging.LogLevel)
 
-	if !cfg.PlusEnabled() {
+	if !rportplus.IsPlusEnabled(cfg.PlusConfig) {
 		logger.Infof("not enabled")
 		return nil, ErrPlusNotEnabled
 	}
 
 	// If plus is enabled then ensure license checking is disabled until release 1.0
-	if cfg.PlusEnabled() {
-		if !cfg.HasLicenseConfig() {
+	if rportplus.IsPlusEnabled(cfg.PlusConfig) {
+		if !rportplus.HasLicenseConfig(cfg.PlusConfig) {
 			cfg.PlusConfig.LicenseConfig = &license.Config{
 				CheckingEnabled: false,
 			}
@@ -41,7 +41,7 @@ func EnablePlusIfLicensed(ctx context.Context, cfg *chconfig.Config, filesAPI fi
 		}
 	}
 
-	if !cfg.HasLicenseConfig() {
+	if !rportplus.HasLicenseConfig(cfg.PlusConfig) {
 		logger.Errorf(ErrPlusLicenseNotConfigured.Error())
 		return nil, ErrPlusLicenseNotConfigured
 	}
@@ -66,7 +66,7 @@ func EnablePlusIfLicensed(ctx context.Context, cfg *chconfig.Config, filesAPI fi
 // RegisterPluginCapabilitities registers the rport-plus additional capabilities.
 // All plus capabilities must be added here.
 func RegisterPlusCapabilities(plusManager rportplus.Manager, cfg *chconfig.Config, logger *logger.Logger) (err error) {
-	if cfg.PlusOAuthEnabled() {
+	if rportplus.IsPlusOAuthEnabled(cfg.PlusConfig) {
 		_, err := plusManager.RegisterCapability(rportplus.PlusOAuthCapability, &oauth.Capability{
 			Config: cfg.PlusConfig.OAuthConfig,
 			Logger: logger,

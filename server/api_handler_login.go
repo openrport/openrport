@@ -7,6 +7,7 @@ import (
 	"strconv"
 	"time"
 
+	rportplus "github.com/cloudradar-monitoring/rport/plus"
 	"github.com/cloudradar-monitoring/rport/server/api"
 	errors2 "github.com/cloudradar-monitoring/rport/server/api/errors"
 	"github.com/cloudradar-monitoring/rport/server/api/users"
@@ -27,7 +28,7 @@ type loginResponse struct {
 }
 
 func (al *APIListener) handleGetLogin(w http.ResponseWriter, req *http.Request) {
-	if al.config.PlusOAuthEnabled() {
+	if rportplus.IsPlusOAuthEnabled(al.config.PlusConfig) {
 		al.jsonErrorResponse(w, http.StatusForbidden, errors.New("built-in authorization disabled. please authorize via your configured authorization"))
 		return
 	}
@@ -233,7 +234,7 @@ func (al *APIListener) sendJWTToken(username string, w http.ResponseWriter, req 
 }
 
 func (al *APIListener) handlePostLogin(w http.ResponseWriter, req *http.Request) {
-	if al.config.PlusOAuthEnabled() {
+	if rportplus.IsPlusOAuthEnabled(al.config.PlusConfig) {
 		al.jsonErrorResponse(w, http.StatusForbidden, errors.New("built-in authorization disabled. please authorize via your configured authorization"))
 		return
 	}

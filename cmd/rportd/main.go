@@ -20,7 +20,7 @@ import (
 
 	chserver "github.com/cloudradar-monitoring/rport/server"
 	"github.com/cloudradar-monitoring/rport/server/api/message"
-	"github.com/cloudradar-monitoring/rport/server/auditlog"
+	auditlog "github.com/cloudradar-monitoring/rport/server/auditlog/config"
 	"github.com/cloudradar-monitoring/rport/server/chconfig"
 	chshare "github.com/cloudradar-monitoring/rport/share"
 	"github.com/cloudradar-monitoring/rport/share/files"
@@ -59,6 +59,9 @@ var serverHelp = `
 
     ./rportd -c /etc/rport/rportd.conf
     starts server with configuration loaded from the file
+
+    ./rportd user
+    commands for user management, run for more options
 
   Options:
 
@@ -245,59 +248,63 @@ var (
 func init() {
 	// Assign root cmd late to avoid initialization loop
 	RootCmd = &cobra.Command{
+		Use:     "rportd",
 		Version: chshare.BuildVersion,
 		Run:     runMain,
 	}
 
+	// lFlags are used only when starting server
+	// pFlags are used when running subcommands like user as well
+	lFlags := RootCmd.Flags()
 	pFlags := RootCmd.PersistentFlags()
 
-	pFlags.StringP("addr", "a", "", "")
-	pFlags.String("url", "", "")
-	pFlags.String("key", "", "")
-	pFlags.String("authfile", "", "")
-	pFlags.String("auth", "", "")
-	pFlags.String("auth-table", "", "")
-	pFlags.String("proxy", "", "")
-	pFlags.String("api-addr", "", "")
-	pFlags.String("api-authfile", "", "")
-	pFlags.String("api-auth", "", "")
-	pFlags.String("api-auth-user-table", "", "")
-	pFlags.String("api-auth-group-table", "", "")
-	pFlags.String("api-jwt-secret", "", "")
-	pFlags.String("api-doc-root", "", "")
-	pFlags.String("api-cert-file", "", "")
-	pFlags.String("api-key-file", "", "")
-	pFlags.String("api-access-log-file", "", "")
-	pFlags.String("db-type", "", "")
-	pFlags.String("db-name", "", "")
-	pFlags.String("db-host", "", "")
-	pFlags.String("db-user", "", "")
-	pFlags.String("db-password", "", "")
-	pFlags.StringP("log-file", "l", "", "")
-	pFlags.String("log-level", "", "")
-	pFlags.StringSlice("use-ports", nil, "")
-	pFlags.StringSliceP("exclude-ports", "e", nil, "")
-	pFlags.String("data-dir", "", "")
-	pFlags.Duration("save-clients-interval", 0, "")
-	pFlags.Int64("max-request-bytes", 0, "")
-	pFlags.Int64("max-filepush-bytes", 0, "")
-	pFlags.Int64("max-request-bytes-client", 0, "")
-	pFlags.Duration("check-port-timeout", 0, "")
-	pFlags.Bool("auth-write", false, "")
-	pFlags.Bool("auth-multiuse-creds", false, "")
-	pFlags.Bool("equate-clientauthid-clientid", false, "")
-	pFlags.Int("run-remote-cmd-timeout-sec", 0, "")
-	pFlags.Bool("allow-root", false, "")
-	pFlags.Int64("monitoring-data-storage-days", 0, "")
-	pFlags.String("tunnel-proxy-cert-file", "", "")
-	pFlags.String("tunnel-proxy-key-file", "", "")
-	pFlags.String("novnc-root", "", "")
-	pFlags.String("guacd-address", "", "")
+	lFlags.StringP("addr", "a", "", "")
+	lFlags.String("url", "", "")
+	lFlags.String("key", "", "")
+	lFlags.String("authfile", "", "")
+	lFlags.String("auth", "", "")
+	lFlags.String("auth-table", "", "")
+	lFlags.String("proxy", "", "")
+	lFlags.String("api-addr", "", "")
+	lFlags.String("api-authfile", "", "")
+	lFlags.String("api-auth", "", "")
+	lFlags.String("api-auth-user-table", "", "")
+	lFlags.String("api-auth-group-table", "", "")
+	lFlags.String("api-jwt-secret", "", "")
+	lFlags.String("api-doc-root", "", "")
+	lFlags.String("api-cert-file", "", "")
+	lFlags.String("api-key-file", "", "")
+	lFlags.String("api-access-log-file", "", "")
+	lFlags.String("db-type", "", "")
+	lFlags.String("db-name", "", "")
+	lFlags.String("db-host", "", "")
+	lFlags.String("db-user", "", "")
+	lFlags.String("db-password", "", "")
+	lFlags.StringP("log-file", "l", "", "")
+	lFlags.String("log-level", "", "")
+	lFlags.StringSlice("use-ports", nil, "")
+	lFlags.StringSliceP("exclude-ports", "e", nil, "")
+	lFlags.String("data-dir", "", "")
+	lFlags.Duration("save-clients-interval", 0, "")
+	lFlags.Int64("max-request-bytes", 0, "")
+	lFlags.Int64("max-filepush-bytes", 0, "")
+	lFlags.Int64("max-request-bytes-client", 0, "")
+	lFlags.Duration("check-port-timeout", 0, "")
+	lFlags.Bool("auth-write", false, "")
+	lFlags.Bool("auth-multiuse-creds", false, "")
+	lFlags.Bool("equate-clientauthid-clientid", false, "")
+	lFlags.Int("run-remote-cmd-timeout-sec", 0, "")
+	lFlags.Bool("allow-root", false, "")
+	lFlags.Int64("monitoring-data-storage-days", 0, "")
+	lFlags.String("tunnel-proxy-cert-file", "", "")
+	lFlags.String("tunnel-proxy-key-file", "", "")
+	lFlags.String("novnc-root", "", "")
+	lFlags.String("guacd-address", "", "")
 
-	cfgPath = pFlags.StringP("config", "c", "", "")
-	svcCommand = pFlags.String("service", "", "")
+	cfgPath = pFlags.StringP("config", "c", "", "location of the config file")
+	svcCommand = lFlags.String("service", "", "")
 	if runtime.GOOS != "windows" {
-		svcUser = pFlags.String("service-user", "rport", "")
+		svcUser = lFlags.String("service-user", "rport", "")
 	}
 
 	RootCmd.SetUsageFunc(func(*cobra.Command) error {

@@ -1,4 +1,4 @@
-package auditlog
+package config
 
 import (
 	"errors"

@@ -109,6 +109,8 @@ paths:
     $ref: paths/client-groups.yaml
   /client-groups/{group_id}:
     $ref: paths/client-groups_{group_id}.yaml
+  /client-tags:
+    $ref: paths/client-tags.yaml
   /users:
     $ref: paths/users.yaml
   /users/{user_id}:

@@ -97,7 +97,7 @@ func NewServer(ctx context.Context, config *chconfig.Config, opts *ServerOpts) (
 	filesAPI := opts.FilesAPI
 	s.plusManager = opts.PlusManager
 
-	if s.config.PlusEnabled() {
+	if rportplus.IsPlusEnabled(config.PlusConfig) {
 		licCap := s.plusManager.GetLicenseCapabilityEx()
 		if licCap == nil {
 			return nil, errors.New("failed to get license info capability from rport-plus")
@@ -205,7 +205,7 @@ func NewServer(ctx context.Context, config *chconfig.Config, opts *ServerOpts) (
 		return nil, err
 	}
 
-	if s.config.PlusEnabled() {
+	if rportplus.IsPlusEnabled(config.PlusConfig) {
 		licCapEx := s.plusManager.GetLicenseCapabilityEx()
 		s.clientService.SetPlusLicenseInfoCap(licCapEx)
 	}
