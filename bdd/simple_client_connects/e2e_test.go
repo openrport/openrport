@@ -16,17 +16,17 @@ func TestClientConnects(t *testing.T) {
 	ctx, cancel := context.WithTimeout(context.Background(), time.Minute*5)
 	defer cancel()
 
-	rd, rc := helpers.StartClientAndServerAndWaitForConnection(ctx, t)
+	serverProcess, clientProcess := helpers.StartClientAndServerAndWaitForConnection(ctx, t)
 
 	defer func() {
-		helpers.LogAndIgnore(rd.Process.Kill())
-		helpers.LogAndIgnore(rc.Process.Kill())
+		helpers.LogAndIgnore(serverProcess.Process.Kill())
+		helpers.LogAndIgnore(clientProcess.Process.Kill())
 	}()
 
-	assertProcessiesAreNotDead(t, rd, rc)
+	assertProcessiesAreNotDead(t, serverProcess, clientProcess)
 }
 
-func assertProcessiesAreNotDead(t *testing.T, rd *exec.Cmd, rc *exec.Cmd) {
-	assert.Nil(t, rd.ProcessState)
-	assert.Nil(t, rc.ProcessState)
+func assertProcessiesAreNotDead(t *testing.T, serverProcess *exec.Cmd, clientProcess *exec.Cmd) {
+	assert.Nil(t, serverProcess.ProcessState)
+	assert.Nil(t, clientProcess.ProcessState)
 }
