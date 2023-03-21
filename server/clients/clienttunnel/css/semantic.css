@@ -248,7 +248,7 @@
      overflow-x: hidden;
      min-width: 320px;
      background: #fff;
-     font-family: Lato, 'Helvetica Neue', Arial, Helvetica, sans-serif;
+     font-family: system-ui, "Segoe UI", Roboto, Helvetica, Arial, sans-serif, "Apple Color Emoji", "Segoe UI Emoji", "Segoe UI Symbol";
      font-size: 14px;
      line-height: 1.4285em;
      color: rgba(0, 0, 0, .87)
@@ -259,7 +259,7 @@
  h3,
  h4,
  h5 {
-     font-family: Lato, 'Helvetica Neue', Arial, Helvetica, sans-serif;
+     font-family: system-ui, "Segoe UI", Roboto, Helvetica, Arial, sans-serif, "Apple Color Emoji", "Segoe UI Emoji", "Segoe UI Symbol";
      line-height: 1.28571429em;
      margin: calc(2rem - .1428571428571429em) 0 1rem;
      font-weight: 700;
@@ -420,7 +420,7 @@
      vertical-align: baseline;
      background: #e0e1e2 none;
      color: rgba(0, 0, 0, .6);
-     font-family: Lato, 'Helvetica Neue', Arial, Helvetica, sans-serif;
+     font-family: system-ui, "Segoe UI", Roboto, Helvetica, Arial, sans-serif, "Apple Color Emoji", "Segoe UI Emoji", "Segoe UI Symbol";
      margin: 0 .25em 0 0;
      padding: .78571429em 1.5em .78571429em;
      text-transform: none;
@@ -5113,7 +5113,7 @@
  }
 
  .ui.text.container {
-     font-family: Lato, 'Helvetica Neue', Arial, Helvetica, sans-serif;
+     font-family: system-ui, "Segoe UI", Roboto, Helvetica, Arial, sans-serif, "Apple Color Emoji", "Segoe UI Emoji", "Segoe UI Symbol";
      max-width: 700px;
      line-height: 1.5;
      font-size: 1.14285714rem
@@ -22006,7 +22006,7 @@
      border: none;
      margin: calc(2rem - .1428571428571429em) 0 1rem;
      padding: 0 0;
-     font-family: Lato, 'Helvetica Neue', Arial, Helvetica, sans-serif;
+     font-family: system-ui, "Segoe UI", Roboto, Helvetica, Arial, sans-serif, "Apple Color Emoji", "Segoe UI Emoji", "Segoe UI Symbol";
      font-weight: 700;
      line-height: 1.28571429em;
      text-transform: none;
@@ -31762,7 +31762,7 @@
      -webkit-tap-highlight-color: rgba(255, 255, 255, 0);
      text-align: left;
      line-height: 1.21428571em;
-     font-family: Lato, 'Helvetica Neue', Arial, Helvetica, sans-serif;
+     font-family: system-ui, "Segoe UI", Roboto, Helvetica, Arial, sans-serif, "Apple Color Emoji", "Segoe UI Emoji", "Segoe UI Symbol";
      padding: .67857143em 1em;
      background: #fff;
      border: 1px solid rgba(34, 36, 38, .15);
@@ -34524,7 +34524,7 @@
  .ui.list>.item .header {
      display: block;
      margin: 0;
-     font-family: Lato, 'Helvetica Neue', Arial, Helvetica, sans-serif;
+     font-family: system-ui, "Segoe UI", Roboto, Helvetica, Arial, sans-serif, "Apple Color Emoji", "Segoe UI Emoji", "Segoe UI Symbol";
      font-weight: 700;
      color: rgba(0, 0, 0, .87)
  }
@@ -37756,7 +37756,7 @@
  }
 
  .ui.steps .step .title {
-     font-family: Lato, 'Helvetica Neue', Arial, Helvetica, sans-serif;
+     font-family: system-ui, "Segoe UI", Roboto, Helvetica, Arial, sans-serif, "Apple Color Emoji", "Segoe UI Emoji", "Segoe UI Symbol";
      font-size: 1.14285714em;
      font-weight: 700
  }
@@ -38617,7 +38617,7 @@
  .ui.form input[type=text],
  .ui.form input[type=time],
  .ui.form input[type=url] {
-     font-family: Lato, 'Helvetica Neue', Arial, Helvetica, sans-serif;
+     font-family: system-ui, "Segoe UI", Roboto, Helvetica, Arial, sans-serif, "Apple Color Emoji", "Segoe UI Emoji", "Segoe UI Symbol";
      margin: 0;
      outline: 0;
      -webkit-appearance: none;
@@ -38651,7 +38651,7 @@
      -webkit-transition: color .1s ease, border-color .1s ease;
      transition: color .1s ease, border-color .1s ease;
      font-size: 1em;
-     font-family: Lato, 'Helvetica Neue', Arial, Helvetica, sans-serif;
+     font-family: system-ui, "Segoe UI", Roboto, Helvetica, Arial, sans-serif, "Apple Color Emoji", "Segoe UI Emoji", "Segoe UI Symbol";
      line-height: 1.2857;
      resize: vertical
  }
@@ -42377,7 +42377,7 @@
      display: -ms-flexbox;
      display: flex;
      margin: 1rem 0;
-     font-family: Lato, 'Helvetica Neue', Arial, Helvetica, sans-serif;
+     font-family: system-ui, "Segoe UI", Roboto, Helvetica, Arial, sans-serif, "Apple Color Emoji", "Segoe UI Emoji", "Segoe UI Symbol";
      background: #fff;
      font-weight: 400;
      border: 1px solid rgba(34, 36, 38, .15);
@@ -44521,7 +44521,7 @@
 
  .ui.message .header {
      display: block;
-     font-family: Lato, 'Helvetica Neue', Arial, Helvetica, sans-serif;
+     font-family: system-ui, "Segoe UI", Roboto, Helvetica, Arial, sans-serif, "Apple Color Emoji", "Segoe UI Emoji", "Segoe UI Symbol";
      font-weight: 700;
      margin: -.14285714em 0 0 0
  }
@@ -47876,7 +47876,7 @@
  .ui.cards>.card>.content>.header {
      display: block;
      margin: '';
-     font-family: Lato, 'Helvetica Neue', Arial, Helvetica, sans-serif;
+     font-family: system-ui, "Segoe UI", Roboto, Helvetica, Arial, sans-serif, "Apple Color Emoji", "Segoe UI Emoji", "Segoe UI Symbol";
      color: rgba(0, 0, 0, .85)
  }
 
@@ -49692,7 +49692,7 @@
  .ui.items>.item>.content>.header {
      display: inline-block;
      margin: -.21425em 0 0;
-     font-family: Lato, 'Helvetica Neue', Arial, Helvetica, sans-serif;
+     font-family: system-ui, "Segoe UI", Roboto, Helvetica, Arial, sans-serif, "Apple Color Emoji", "Segoe UI Emoji", "Segoe UI Symbol";
      font-weight: 700;
      color: rgba(0, 0, 0, .85)
  }
@@ -50160,7 +50160,7 @@
 
  .ui.statistic>.value,
  .ui.statistics .statistic>.value {
-     font-family: Lato, 'Helvetica Neue', Arial, Helvetica, sans-serif;
+     font-family: system-ui, "Segoe UI", Roboto, Helvetica, Arial, sans-serif, "Apple Color Emoji", "Segoe UI Emoji", "Segoe UI Symbol";
      font-size: 4rem;
      font-weight: 400;
      line-height: 1em;
@@ -50171,7 +50171,7 @@
 
  .ui.statistic>.label,
  .ui.statistics .statistic>.label {
-     font-family: Lato, 'Helvetica Neue', Arial, Helvetica, sans-serif;
+     font-family: system-ui, "Segoe UI", Roboto, Helvetica, Arial, sans-serif, "Apple Color Emoji", "Segoe UI Emoji", "Segoe UI Symbol";
      font-size: 1em;
      font-weight: 700;
      color: rgba(0, 0, 0, .87);
@@ -50723,7 +50723,7 @@
 
  .ui.accordion .title:not(.ui) {
      padding: .5em 0;
-     font-family: Lato, 'Helvetica Neue', Arial, Helvetica, sans-serif;
+     font-family: system-ui, "Segoe UI", Roboto, Helvetica, Arial, sans-serif, "Apple Color Emoji", "Segoe UI Emoji", "Segoe UI Symbol";
      font-size: 1em;
      color: rgba(0, 0, 0, .87)
  }
@@ -54079,7 +54079,7 @@
 
  .ui.modal>.header {
      display: block;
-     font-family: Lato, 'Helvetica Neue', Arial, Helvetica, sans-serif;
+     font-family: system-ui, "Segoe UI", Roboto, Helvetica, Arial, sans-serif, "Apple Color Emoji", "Segoe UI Emoji", "Segoe UI Symbol";
      background: #fff;
      margin: 0;
      padding: 1.25rem 1.5rem;
@@ -54909,7 +54909,7 @@
 
  .ui.popup>.header {
      padding: 0;
-     font-family: Lato, 'Helvetica Neue', Arial, Helvetica, sans-serif;
+     font-family: system-ui, "Segoe UI", Roboto, Helvetica, Arial, sans-serif, "Apple Color Emoji", "Segoe UI Emoji", "Segoe UI Symbol";
      font-size: 1.14285714em;
      line-height: 1.2;
      font-weight: 700
@@ -57868,7 +57868,7 @@
 
  .ui.search>.results .result .title {
      margin: -.14285714em 0 0;
-     font-family: Lato, 'Helvetica Neue', Arial, Helvetica, sans-serif;
+     font-family: system-ui, "Segoe UI", Roboto, Helvetica, Arial, sans-serif, "Apple Color Emoji", "Segoe UI Emoji", "Segoe UI Symbol";
      font-weight: 700;
      font-size: 1em;
      color: rgba(0, 0, 0, .85)
@@ -57890,7 +57890,7 @@
  }
 
  .ui.search>.results>.message .header {
-     font-family: Lato, 'Helvetica Neue', Arial, Helvetica, sans-serif;
+     font-family: system-ui, "Segoe UI", Roboto, Helvetica, Arial, sans-serif, "Apple Color Emoji", "Segoe UI Emoji", "Segoe UI Symbol";
      font-size: 1rem;
      font-weight: 700;
      color: rgba(0, 0, 0, .87)
@@ -58053,7 +58053,7 @@
      width: 100px;
      white-space: nowrap;
      background: 0 0;
-     font-family: Lato, 'Helvetica Neue', Arial, Helvetica, sans-serif;
+     font-family: system-ui, "Segoe UI", Roboto, Helvetica, Arial, sans-serif, "Apple Color Emoji", "Segoe UI Emoji", "Segoe UI Symbol";
      font-size: 1em;
      padding: .4em 1em;
      font-weight: 700;
