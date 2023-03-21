@@ -470,6 +470,10 @@ func TestCRWithFilter(t *testing.T) {
 					},
 				},
 				{
+					Column: []string{"labels"},
+					Values: []string{"country: Germany", "city: Cologne", "datacenter: NetCologne GmbH"},
+				},
+				{
 					Column: []string{"version"},
 					Values: []string{
 						"0.1.12",

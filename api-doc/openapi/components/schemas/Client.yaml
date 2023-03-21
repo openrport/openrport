@@ -73,6 +73,12 @@ properties:
     type: array
     items:
       type: string
+  labels:
+    description: additional key-value metadata stored in client attributes file
+    type: object
+    additionalProperties:
+      type: string
+
   version:
     type: string
     description: client version

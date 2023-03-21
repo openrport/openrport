@@ -1,4 +1,4 @@
-package main
+package servicemanagement
 
 import (
 	"context"
@@ -21,7 +21,7 @@ var svcConfig = &service.Config{
 	},
 }
 
-func handleSvcCommand(svcCommand string, configPath string, user *string) error {
+func HandleSvcCommand(svcCommand string, configPath string, user *string) error {
 	svc, err := getService(nil, configPath, user)
 	if err != nil {
 		return err
@@ -30,7 +30,7 @@ func handleSvcCommand(svcCommand string, configPath string, user *string) error 
 	return chshare.HandleServiceCommand(svc, svcCommand)
 }
 
-func runAsService(s *chserver.Server, configPath string) error {
+func RunAsService(s *chserver.Server, configPath string) error {
 	svc, err := getService(s, configPath, nil)
 	if err != nil {
 		return err

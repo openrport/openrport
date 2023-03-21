@@ -45,3 +45,6 @@ cheat-sheet.txt
 
 # Ignore the local evironment used to test fpm and package releasing
 opt/fpm/.env
+
+# resources genereated during tests
+*test-resources

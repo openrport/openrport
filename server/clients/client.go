@@ -56,6 +56,7 @@ type Client struct {
 	IPv4                   []string               `json:"ipv4"`
 	IPv6                   []string               `json:"ipv6"`
 	Tags                   []string               `json:"tags"`
+	Labels                 map[string]string      `json:"labels"`
 	Version                string                 `json:"version"`
 	Address                string                 `json:"address"`
 	Tunnels                []*clienttunnel.Tunnel `json:"tunnels"`
@@ -570,6 +571,7 @@ func NewClientFromConnRequest(ctx context.Context, existingClient *Client, clien
 	client.IPv4 = req.IPv4
 	client.IPv6 = req.IPv6
 	client.Tags = req.Tags
+	client.Labels = req.Labels
 	client.Version = req.Version
 	client.ClientConfiguration = req.ClientConfiguration
 	client.Address = clientHost

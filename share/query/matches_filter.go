@@ -33,10 +33,20 @@ func matchesFilter(valueMap map[string]interface{}, filter FilterOption) (bool, 
 		if !ok {
 			return false, fmt.Errorf("unsupported filter column: %s", col)
 		}
+
 		// Cast into slice if it's array field, otherwise set single value slice
 		clientFieldSliceToMatch, ok := clientFieldValueToMatch.([]interface{})
 		if !ok {
 			clientFieldSliceToMatch = []interface{}{clientFieldValueToMatch}
+		}
+
+		// check if value is a map[string]interface{} // assume values are reasonably printable into string
+		clientFieldMapToMatch, ok := clientFieldValueToMatch.(map[string]interface{})
+		if ok {
+			clientFieldSliceToMatch = []interface{}{}
+			for key, val := range clientFieldMapToMatch {
+				clientFieldSliceToMatch = append(clientFieldSliceToMatch, fmt.Sprintf("%v: %v", key, val))
+			}
 		}
 
 		for _, clientFieldValueToMatch := range clientFieldSliceToMatch {

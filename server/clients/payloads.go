@@ -42,6 +42,7 @@ type ClientPayload struct {
 	UpdatesStatus          **models.UpdatesStatus  `json:"updates_status,omitempty"`
 	ClientConfiguration    **clientconfig.Config   `json:"client_configuration,omitempty"`
 	Groups                 *[]string               `json:"groups,omitempty"`
+	Labels                 *map[string]string      `json:"labels,omitempty"`
 }
 
 func ConvertToClientsPayload(clientsList []*CalculatedClient, fields []query.FieldsOption) []ClientPayload {
@@ -86,6 +87,8 @@ func ConvertToClientPayload(client *CalculatedClient, fields []query.FieldsOptio
 			p.IPv6 = &client.IPv6
 		case "tags":
 			p.Tags = &client.Tags
+		case "labels":
+			p.Labels = &client.Labels
 		case "version":
 			p.Version = &client.Version
 		case "address":

@@ -822,6 +822,7 @@ func (c *Client) connectionRequest(ctx context.Context) (*chshare.ConnectionRequ
 		Name:                   c.configHolder.Client.Name,
 		SessionID:              c.SessionID,
 		Tags:                   c.configHolder.Client.Tags,
+		Labels:                 c.configHolder.Client.Labels,
 		Remotes:                c.configHolder.Client.Tunnels,
 		OS:                     system.UnknownValue,
 		OSArch:                 c.systemInfo.GoArch(),

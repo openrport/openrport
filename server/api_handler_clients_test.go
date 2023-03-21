@@ -103,6 +103,7 @@ func TestHandleGetClient(t *testing.T) {
             "Linux",
             "Datacenter 1"
         ],
+        "labels": {"country": "Germany", "city": "Cologne", "datacenter": "NetCologne GmbH" },
         "version":"0.1.12",
         "address":"88.198.189.161:50078",
         "timezone":"UTC-0",

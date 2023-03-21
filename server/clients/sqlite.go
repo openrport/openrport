@@ -152,6 +152,7 @@ func convertToSqlite(c *Client) (res *clientSqlite) {
 			IPv4:                   c.IPv4,
 			IPv6:                   c.IPv6,
 			Tags:                   c.Tags,
+			Labels:                 c.Labels,
 			Tunnels:                c.Tunnels,
 			AllowedUserGroups:      c.AllowedUserGroups,
 			UpdatesStatus:          c.UpdatesStatus,
@@ -196,6 +197,7 @@ type clientDetails struct {
 	IPv4                   []string               `json:"ipv4"`
 	IPv6                   []string               `json:"ipv6"`
 	Tags                   []string               `json:"tags"`
+	Labels                 map[string]string      `json:"labels"`
 	Tunnels                []*clienttunnel.Tunnel `json:"tunnels"`
 	AllowedUserGroups      []string               `json:"allowed_user_groups"`
 	UpdatesStatus          *models.UpdatesStatus  `json:"updates_status"`
@@ -242,6 +244,7 @@ func (s *clientSqlite) convert(l *logger.Logger) (res *Client) {
 		IPv4:                   d.IPv4,
 		IPv6:                   d.IPv6,
 		Tags:                   d.Tags,
+		Labels:                 d.Labels,
 		Version:                d.Version,
 		Address:                d.Address,
 		Tunnels:                d.Tunnels,

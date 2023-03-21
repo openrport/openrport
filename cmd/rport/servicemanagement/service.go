@@ -1,4 +1,4 @@
-package main
+package servicemanagement
 
 import (
 	"context"
@@ -17,7 +17,7 @@ var svcConfig = &service.Config{
 	Description: "Create reverse tunnels with ease.",
 }
 
-func handleSvcCommand(svcCommand string, configPath string, user *string) error {
+func HandleSvcCommand(svcCommand string, configPath string, user string) error {
 	svc, err := getService(nil, configPath, user)
 	if err != nil {
 		return err
@@ -26,8 +26,8 @@ func handleSvcCommand(svcCommand string, configPath string, user *string) error 
 	return chshare.HandleServiceCommand(svc, svcCommand)
 }
 
-func runAsService(c *chclient.Client, configPath string) error {
-	svc, err := getService(c, configPath, nil)
+func RunAsService(c *chclient.Client, configPath string) error {
+	svc, err := getService(c, configPath, "")
 	if err != nil {
 		return err
 	}
@@ -35,14 +35,14 @@ func runAsService(c *chclient.Client, configPath string) error {
 	return svc.Run()
 }
 
-func getService(c *chclient.Client, configPath string, user *string) (service.Service, error) {
+func getService(c *chclient.Client, configPath string, user string) (service.Service, error) {
 	absConfigPath, err := filepath.Abs(configPath)
 	if err != nil {
 		return nil, err
 	}
 	svcConfig.Arguments = []string{"-c", absConfigPath}
-	if user != nil {
-		svcConfig.UserName = *user
+	if user != "" {
+		svcConfig.UserName = user
 	}
 	return service.New(&serviceWrapper{c}, svcConfig)
 }
