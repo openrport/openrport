@@ -23,6 +23,11 @@ import (
 //go:embed css/tunnel-proxy.css
 var tunnelProxyCSS embed.FS
 
+// semantic.css was deminified via js-beautify
+//
+//go:embed css/semantic.css
+var tunnelProxySemanticCSS embed.FS
+
 type InternalTunnelProxyConfig struct {
 	CertFile     string `mapstructure:"tunnel_proxy_cert_file"`
 	KeyFile      string `mapstructure:"tunnel_proxy_key_file"`
