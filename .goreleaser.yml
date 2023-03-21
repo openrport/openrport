@@ -57,8 +57,8 @@ archives:
       {{- if eq .Arch "amd64" }}x86_64
       {{- else if eq .Arch "386" }}i386
       {{- else }}{{ .Arch }}{{ end }}
-      {{ if .Arm }}v{{ .Arm }}{{ end }}
-      {{ if .Mips }}_{{ .Mips }}{{ end }}
+      {{- if .Arm }}v{{ .Arm }}{{ end }}
+      {{- if .Mips }}_{{ .Mips }}{{ end }}
     builds:
       - rport
     format_overrides:
@@ -68,12 +68,12 @@ archives:
       - rport.example.conf
   - id: rportd-only
     name_template: >-
-      rport_{{ .Version }}_{{ .Os }}_
+      rportd_{{ .Version }}_{{ .Os }}_
       {{- if eq .Arch "amd64" }}x86_64
       {{- else if eq .Arch "386" }}i386
       {{- else }}{{ .Arch }}{{ end }}
-      {{ if .Arm }}v{{ .Arm }}{{ end }}
-      {{ if .Mips }}_{{ .Mips }}{{ end }}
+      {{- if .Arm }}v{{ .Arm }}{{ end }}
+      {{- if .Mips }}_{{ .Mips }}{{ end }}
     builds:
       - rportd
     files:
