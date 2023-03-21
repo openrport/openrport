@@ -32,8 +32,6 @@ builds:
       - goos: windows
         goarch: arm64
       - goos: darwin
-        goarch: arm64
-      - goos: darwin
         goarch: 386
       # TODO: remove when https://github.com/go-ole/go-ole/issues/202 will be fixed
       - goos: windows
@@ -54,27 +52,30 @@ builds:
       - amd64
 archives:
   - id: rport-only
-    name_template: "rport_{{ .Version }}_{{ .Os }}_{{ .Arch }}{{ if .Arm }}v{{ .Arm }}{{ end }}{{ if .Mips }}_{{ .Mips }}{{ end }}"
+    name_template: >-
+      rport_{{ .Version }}_{{ .Os }}_
+      {{- if eq .Arch "amd64" }}x86_64
+      {{- else if eq .Arch "386" }}i386
+      {{- else }}{{ .Arch }}{{ end }}
+      {{ if .Arm }}v{{ .Arm }}{{ end }}
+      {{ if .Mips }}_{{ .Mips }}{{ end }}
     builds:
       - rport
     format_overrides:
       - goos: windows
         format: zip
-    replacements:
-      darwin: Darwin
-      linux: Linux
-      windows: Windows
-      386: i386
-      amd64: x86_64
     files:
       - rport.example.conf
   - id: rportd-only
-    name_template: "rportd_{{ .Version }}_{{ .Os }}_{{ .Arch }}{{ if .Arm }}v{{ .Arm }}{{ end }}{{ if .Mips }}_{{ .Mips }}{{ end }}"
+    name_template: >-
+      rport_{{ .Version }}_{{ .Os }}_
+      {{- if eq .Arch "amd64" }}x86_64
+      {{- else if eq .Arch "386" }}i386
+      {{- else }}{{ .Arch }}{{ end }}
+      {{ if .Arm }}v{{ .Arm }}{{ end }}
+      {{ if .Mips }}_{{ .Mips }}{{ end }}
     builds:
       - rportd
-    replacements:
-      linux: Linux
-      amd64: x86_64
     files:
       - rportd.example.conf
 checksum:
