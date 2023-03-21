@@ -26,7 +26,7 @@ var tunnelProxyCSS embed.FS
 // semantic.css was deminified via js-beautify
 //
 //go:embed css/semantic.css
-var tunnelProxySemanticCSS embed.FS
+var semanticCSS embed.FS
 
 type InternalTunnelProxyConfig struct {
 	CertFile     string `mapstructure:"tunnel_proxy_cert_file"`
@@ -115,6 +115,7 @@ func (tp *InternalTunnelProxy) Start(ctx context.Context) error {
 	router.Use(tp.handleACL)
 
 	router.Handle("/css/tunnel-proxy.css", http.FileServer(http.FS(tunnelProxyCSS)))
+	router.Handle("/css/semantic.css", http.FileServer(http.FS(semanticCSS)))
 
 	router = tp.tunnelProxyConnector.InitRouter(router)
 
