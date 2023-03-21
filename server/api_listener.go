@@ -22,10 +22,10 @@ import (
 	"github.com/cloudradar-monitoring/rport/db/migration/api_token"
 	"github.com/cloudradar-monitoring/rport/db/migration/library"
 	"github.com/cloudradar-monitoring/rport/db/sqlite"
+	rportplus "github.com/cloudradar-monitoring/rport/plus"
 
 	"github.com/cloudradar-monitoring/rport/server/api/authorization"
 	"github.com/cloudradar-monitoring/rport/server/api/session"
-	"github.com/cloudradar-monitoring/rport/server/chconfig"
 	"github.com/cloudradar-monitoring/rport/server/clients/storedtunnels"
 	"github.com/cloudradar-monitoring/rport/server/script"
 
@@ -108,45 +108,6 @@ func NewAPIListener(
 
 	config := server.config
 
-	var usersProvider users.Provider
-	var err error
-
-	if isOAuthPermittedUserList(config) {
-		if config.API.AuthFile != "" {
-			logger := logger.NewLogger("auth-file", config.Logging.LogOutput, config.Logging.LogLevel)
-			usersProvider, err = users.NewFileAdapter(logger, users.NewFileManager(config.API.AuthFile))
-			if err != nil {
-				return nil, err
-			}
-		} else if config.API.AuthUserTable != "" {
-			logger := logger.NewLogger("database", config.Logging.LogOutput, config.Logging.LogLevel)
-			usersProvider, err = newAPIAuthDatabase(server, config, logger)
-			if err != nil {
-				return nil, err
-			}
-		}
-	} else if config.API.AuthFile != "" {
-		logger := logger.NewLogger("auth-file", config.Logging.LogOutput, config.Logging.LogLevel)
-		usersProvider, err = users.NewFileAdapter(logger, users.NewFileManager(config.API.AuthFile))
-		if err != nil {
-			return nil, err
-		}
-	} else if config.API.Auth != "" {
-		authUser, e := parseHTTPAuthStr(config.API.Auth)
-		if e != nil {
-			return nil, e
-		}
-		// for static user set the admin group
-		authUser.Groups = []string{users.Administrators}
-		usersProvider = users.NewStaticProvider([]*users.User{authUser})
-	} else if config.API.AuthUserTable != "" {
-		logger := logger.NewLogger("database", config.Logging.LogOutput, config.Logging.LogLevel)
-		usersProvider, err = newAPIAuthDatabase(server, config, logger)
-		if err != nil {
-			return nil, err
-		}
-	}
-
 	if config.Server.CheckPortTimeout > DefaultMaxCheckPortTimeout {
 		return nil, fmt.Errorf("'check_port_timeout' can not be more than %s", DefaultMaxCheckPortTimeout)
 	}
@@ -203,7 +164,10 @@ func NewAPIListener(
 	tokenProvider := authorization.NewSqliteProvider(apiTokenDb)
 	tokenManager := authorization.NewManager(tokenProvider)
 
-	userService := users.NewAPIService(usersProvider, config.API.IsTwoFAOn(), config.API.PasswordMinLength, config.API.PasswordZxcvbnMinscore)
+	userService, err := users.NewAPIServiceFromConfig(server.authDB, config)
+	if err != nil {
+		return nil, fmt.Errorf("failed init api users service: %w", err)
+	}
 
 	HTTPServerOptions := []chshare.ServerOption{chshare.WithTLS(config.API.CertFile, config.API.KeyFile, security.TLSConfig(config.API.TLSMin))}
 
@@ -303,19 +267,6 @@ func NewAPIListener(
 	a.initRouter()
 
 	return a, nil
-}
-
-func newAPIAuthDatabase(server *Server, config *chconfig.Config, logger *logger.Logger) (usersProvider *users.UserDatabase, err error) {
-	usersProvider, err = users.NewUserDatabase(
-		server.authDB,
-		config.API.AuthUserTable,
-		config.API.AuthGroupTable,
-		config.API.AuthGroupDetailsTable,
-		config.API.IsTwoFAOn(),
-		config.API.TotPEnabled,
-		logger,
-	)
-	return usersProvider, err
 }
 
 func (al *APIListener) Start(ctx context.Context, addr string) error {
@@ -542,17 +493,10 @@ func (al *APIListener) shouldCreateMissingUser(user *users.User, skipPasswordVal
 	if user != nil || !skipPasswordValidation {
 		return false
 	}
-	if al.config.API.CreateMissingUsers || !isOAuthPermittedUserList(al.config) {
+	if al.config.API.CreateMissingUsers || !rportplus.IsOAuthPermittedUserList(al.config.PlusConfig) {
 		return true
 	}
 	return false
-}
-
-func isOAuthPermittedUserList(cfg *chconfig.Config) (is bool) {
-	if !cfg.PlusOAuthEnabled() {
-		return false
-	}
-	return cfg.PlusConfig.OAuthConfig.PermittedUserList
 }
 
 func verifyPassword(saved, provided string) bool {
@@ -563,20 +507,6 @@ func verifyPassword(saved, provided string) bool {
 
 	// plaintext password, constant time compare is used for security reasons
 	return subtle.ConstantTimeCompare([]byte(saved), []byte(provided)) == 1
-}
-
-// parseHTTPAuthStr parses <user>:<password> string, returns (user, nil) or (nil, error)
-func parseHTTPAuthStr(basicAuth string) (*users.User, error) {
-	if basicAuth == "" {
-		return nil, nil
-	}
-
-	user, pass := chshare.ParseAuth(basicAuth)
-	if user == "" || pass == "" {
-		return nil, fmt.Errorf("invalid auth format: expected <user>:<password>, actual %s", basicAuth)
-	}
-
-	return &users.User{Username: user, Password: pass}, nil
 }
 
 const WebSocketAccessTokenQueryParam = "access_token"

@@ -8,6 +8,7 @@ import (
 
 	"github.com/gorilla/mux"
 
+	rportplus "github.com/cloudradar-monitoring/rport/plus"
 	"github.com/cloudradar-monitoring/rport/server/api"
 	"github.com/cloudradar-monitoring/rport/server/api/users"
 	"github.com/cloudradar-monitoring/rport/server/auditlog"
@@ -126,7 +127,7 @@ func (al *APIListener) checkUserCount() (err error) {
 }
 
 func (al *APIListener) getMaxUsers() (maxUsers int) {
-	if al.Server.config.PlusEnabled() {
+	if rportplus.IsPlusEnabled(al.config.PlusConfig) {
 		maxUsers = al.Server.plusManager.GetLicenseCapabilityEx().GetMaxUsers()
 	}
 	return maxUsers

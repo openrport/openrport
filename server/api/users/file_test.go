@@ -10,6 +10,8 @@ import (
 
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
+
+	"github.com/cloudradar-monitoring/rport/share/logger"
 )
 
 func TestParseUsers(t *testing.T) {
@@ -188,6 +190,7 @@ func TestSaveUsersToFile(t *testing.T) {
 	require.NoError(t, err)
 
 	fm := FileManager{
+		Logger:         logger.NewLogger("test", logger.LogOutput{File: os.Stdout}, logger.LogLevelDebug),
 		FileName:       tmpfile.Name(),
 		FileAccessLock: sync.Mutex{},
 	}

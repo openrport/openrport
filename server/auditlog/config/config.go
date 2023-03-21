@@ -1,4 +1,4 @@
-package auditlog
+package config
 
 import (
 	"fmt"
@@ -33,7 +33,7 @@ func (c *Config) Validate() error {
 	return nil
 }
 
-func (c Config) rotationPeriod() time.Duration {
+func (c Config) RotationPeriod() time.Duration {
 	switch c.Rotation {
 	case RotationDaily:
 		return 24 * time.Hour
