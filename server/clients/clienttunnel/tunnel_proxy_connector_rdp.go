@@ -2,8 +2,6 @@ package clienttunnel
 
 import (
 	_ "embed" //to embed html templates
-	"encoding/json"
-	"fmt"
 	"net"
 	"net/http"
 	"strconv"
@@ -75,13 +73,17 @@ func (tc *TunnelProxyConnectorRDP) serveIndex(w http.ResponseWriter, r *http.Req
 
 	selSecurity := r.Form.Get(queryParSecurity)
 	selKeyboard := r.Form.Get(queryParKeyboard)
+	microphoneChecked := ""
+	if r.Form.Get(queryParMicrophone) != "" {
+		microphoneChecked = "checked"
+	}
 	guacError := r.Form.Get(queryParGuacError)
 	templateData := map[string]interface{}{
 		queryParUsername:   r.Form.Get(queryParUsername),
 		queryParDomain:     r.Form.Get(queryParDomain),
 		queryParSecurity:   r.Form.Get(queryParSecurity),
 		queryParKeyboard:   r.Form.Get(queryParKeyboard),
-		queryParMicrophone: r.Form.Get(queryParMicrophone),
+		queryParMicrophone: microphoneChecked,
 		queryParWidth:      r.Form.Get(queryParWidth),
 		queryParHeight:     r.Form.Get(queryParHeight),
 		queryParTitle:      r.Form.Get(queryParTitle),
@@ -100,11 +102,12 @@ func (tc *TunnelProxyConnectorRDP) serveTunnelStarter(w http.ResponseWriter, r *
 	tc.guacTokenStore.Add(token, guacToken)
 
 	templateData := map[string]interface{}{
-		"token":          token,
-		queryParUsername: guacToken.username,
-		queryParDomain:   guacToken.domain,
-		queryParSecurity: guacToken.security,
-		queryParKeyboard: guacToken.keyboard,
+		"token":            token,
+		queryParUsername:   guacToken.username,
+		queryParDomain:     guacToken.domain,
+		queryParSecurity:   guacToken.security,
+		queryParKeyboard:   guacToken.keyboard,
+		queryParMicrophone: guacToken.microphone,
 	}
 
 	tc.tunnelProxy.serveTemplate(w, r, guacStartTunnelHTML, templateData)
@@ -119,6 +122,7 @@ func parseGuacToken(r *http.Request) *GuacToken {
 	token.width = r.Form.Get(queryParWidth)
 	token.height = r.Form.Get(queryParHeight)
 	token.keyboard = r.Form.Get(queryParKeyboard)
+	token.microphone = r.Form.Get(queryParMicrophone)
 
 	return token
 }
@@ -173,9 +177,6 @@ func (tc *TunnelProxyConnectorRDP) connectToGuacamole(r *http.Request) (guac.Tun
 	if microphone != "" {
 		config.Parameters["disable-sound"] = "false"
 		config.Parameters["enable-audio-input"] = "true"
-
-		s, _ := json.MarshalIndent(config, "", "\t")
-		fmt.Printf("GUACD CONFIGS AT THIS: \n\n%v\n\n", s)
 	}
 
 	tc.tunnelProxy.Logger.Debugf("Connecting to guacd")
