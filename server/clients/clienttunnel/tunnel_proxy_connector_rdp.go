@@ -172,6 +172,8 @@ func (tc *TunnelProxyConnectorRDP) connectToGuacamole(r *http.Request) (guac.Tun
 	if guacToken.microphone {
 		config.Parameters["disable-sound"] = "false"
 		config.Parameters["enable-audio-input"] = "true"
+	} else {
+		config.Parameters["disable-sound"] = "true"
 	}
 
 	tc.tunnelProxy.Logger.Debugf("Connecting to guacd")
