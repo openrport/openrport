@@ -20,7 +20,7 @@ type GuacToken struct {
 	width      string
 	height     string
 	keyboard   string
-	microphone string
+	microphone bool
 }
 
 type GuacTokenStore struct {

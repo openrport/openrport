@@ -73,17 +73,13 @@ func (tc *TunnelProxyConnectorRDP) serveIndex(w http.ResponseWriter, r *http.Req
 
 	selSecurity := r.Form.Get(queryParSecurity)
 	selKeyboard := r.Form.Get(queryParKeyboard)
-	microphoneChecked := ""
-	if r.Form.Get(queryParMicrophone) != "" {
-		microphoneChecked = "checked"
-	}
 	guacError := r.Form.Get(queryParGuacError)
 	templateData := map[string]interface{}{
 		queryParUsername:   r.Form.Get(queryParUsername),
 		queryParDomain:     r.Form.Get(queryParDomain),
 		queryParSecurity:   r.Form.Get(queryParSecurity),
 		queryParKeyboard:   r.Form.Get(queryParKeyboard),
-		queryParMicrophone: microphoneChecked,
+		queryParMicrophone: r.Form.Get(queryParMicrophone),
 		queryParWidth:      r.Form.Get(queryParWidth),
 		queryParHeight:     r.Form.Get(queryParHeight),
 		queryParTitle:      r.Form.Get(queryParTitle),
@@ -122,7 +118,7 @@ func parseGuacToken(r *http.Request) *GuacToken {
 	token.width = r.Form.Get(queryParWidth)
 	token.height = r.Form.Get(queryParHeight)
 	token.keyboard = r.Form.Get(queryParKeyboard)
-	token.microphone = r.Form.Get(queryParMicrophone)
+	token.microphone = r.Form.Get(queryParMicrophone) != ""
 
 	return token
 }
@@ -173,8 +169,7 @@ func (tc *TunnelProxyConnectorRDP) connectToGuacamole(r *http.Request) (guac.Tun
 
 	config.AudioMimetypes = []string{"audio/L16", "rate=44100", "channels=2"}
 
-	microphone := guacToken.microphone
-	if microphone != "" {
+	if guacToken.microphone {
 		config.Parameters["disable-sound"] = "false"
 		config.Parameters["enable-audio-input"] = "true"
 	}

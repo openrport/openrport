@@ -60,7 +60,7 @@
                 <div class="field">
                     <div class="ui labeled input">
                         <label class="ui label" for="microphone">Enable sound and microphone</label>
-                        <input class="ui checkbox" type="checkbox" id="microphone" name="microphone"  {{ .microphone }}>
+                        <input class="ui checkbox" type="checkbox" id="microphone" name="microphone"  {{ if .microphone }} checked{{ end }}>
                     </div>
                 </div>
 
