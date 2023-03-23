@@ -4,8 +4,8 @@ import (
 	"encoding/json"
 	"fmt"
 
-	"github.com/cloudradar-monitoring/rport/share/clientconfig"
-	"github.com/cloudradar-monitoring/rport/share/models"
+	"github.com/realvnc-labs/rport/share/clientconfig"
+	"github.com/realvnc-labs/rport/share/models"
 )
 
 // ConnectionRequest represents configuration options when initiating client-server connection

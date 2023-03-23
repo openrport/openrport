@@ -7,7 +7,7 @@ import (
 	"strings"
 	"time"
 
-	"github.com/cloudradar-monitoring/rport/share/logger"
+	"github.com/realvnc-labs/rport/share/logger"
 )
 
 func ConnectionErrorHints(server string, logger *logger.Logger, err error) error {

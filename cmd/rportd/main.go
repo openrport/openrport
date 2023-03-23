@@ -11,19 +11,19 @@ import (
 	"syscall"
 	"time"
 
-	"github.com/cloudradar-monitoring/rport/cmd/rportd/servicemanagement"
-	"github.com/cloudradar-monitoring/rport/share/logger"
+	"github.com/realvnc-labs/rport/cmd/rportd/servicemanagement"
+	"github.com/realvnc-labs/rport/share/logger"
 
 	"github.com/kardianos/service"
 	"github.com/spf13/cobra"
 	"github.com/spf13/viper"
 
-	chserver "github.com/cloudradar-monitoring/rport/server"
-	"github.com/cloudradar-monitoring/rport/server/api/message"
-	auditlog "github.com/cloudradar-monitoring/rport/server/auditlog/config"
-	"github.com/cloudradar-monitoring/rport/server/chconfig"
-	chshare "github.com/cloudradar-monitoring/rport/share"
-	"github.com/cloudradar-monitoring/rport/share/files"
+	chserver "github.com/realvnc-labs/rport/server"
+	"github.com/realvnc-labs/rport/server/api/message"
+	auditlog "github.com/realvnc-labs/rport/server/auditlog/config"
+	"github.com/realvnc-labs/rport/server/chconfig"
+	chshare "github.com/realvnc-labs/rport/share"
+	"github.com/realvnc-labs/rport/share/files"
 )
 
 const (

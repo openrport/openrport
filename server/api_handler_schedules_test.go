@@ -13,10 +13,10 @@ import (
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 
-	"github.com/cloudradar-monitoring/rport/server/api"
-	"github.com/cloudradar-monitoring/rport/server/api/jobs/schedule"
-	"github.com/cloudradar-monitoring/rport/server/cgroups"
-	"github.com/cloudradar-monitoring/rport/server/clients"
+	"github.com/realvnc-labs/rport/server/api"
+	"github.com/realvnc-labs/rport/server/api/jobs/schedule"
+	"github.com/realvnc-labs/rport/server/cgroups"
+	"github.com/realvnc-labs/rport/server/clients"
 )
 
 func TestHandlePostScheduleMultiClientJobWithTags(t *testing.T) {

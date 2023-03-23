@@ -6,10 +6,10 @@ import (
 	"fmt"
 	"net/http"
 
-	errors2 "github.com/cloudradar-monitoring/rport/server/api/errors"
-	"github.com/cloudradar-monitoring/rport/server/cgroups"
-	"github.com/cloudradar-monitoring/rport/server/clients"
-	"github.com/cloudradar-monitoring/rport/share/models"
+	errors2 "github.com/realvnc-labs/rport/server/api/errors"
+	"github.com/realvnc-labs/rport/server/cgroups"
+	"github.com/realvnc-labs/rport/server/clients"
+	"github.com/realvnc-labs/rport/share/models"
 )
 
 const (

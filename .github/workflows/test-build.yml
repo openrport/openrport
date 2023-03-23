@@ -20,7 +20,7 @@ jobs:
           RPORT_PLUS_PRIV_KEY: ${{ secrets.RPORT_PLUS_PRIV_KEY }}
         run: |
           echo "🚚 Building rport & rportd now ..."
-          go build -v -ldflags="-X 'github.com/cloudradar-monitoring/rport/share.BuildVersion=$(date -u +%y.%m%d.%H%M)-$(git rev-parse HEAD)'"  -o ./ ./cmd/...
+          go build -v -ldflags="-X 'github.com/realvnc-labs/rport/share.BuildVersion=$(date -u +%y.%m%d.%H%M)-$(git rev-parse HEAD)'"  -o ./ ./cmd/...
           echo "✅ Successfully build rport"
           echo "🚚 Building Plus Plugin now ..."
           bash .github/scripts/build-plus.sh

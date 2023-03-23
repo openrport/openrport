@@ -12,8 +12,8 @@ import (
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 
-	errors2 "github.com/cloudradar-monitoring/rport/server/api/errors"
-	"github.com/cloudradar-monitoring/rport/share/query"
+	errors2 "github.com/realvnc-labs/rport/server/api/errors"
+	"github.com/realvnc-labs/rport/share/query"
 )
 
 type DbProviderMock struct {

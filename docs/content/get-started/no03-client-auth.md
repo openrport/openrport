@@ -1,11 +1,12 @@
 ---
-title: "Client Authentication"
+title: 'Client Authentication'
 weight: 3
 slug: client-authentication
 aliases:
   - /docs/no03-client-auth.html
   - /docs/get-started/no03-client-auth.md
 ---
+
 {{< toc >}}
 The Rportd can read client auth credentials from three different sources.
 
@@ -39,9 +40,9 @@ It can be done in three ways:
 1. Use a command arg: `--auth rport:a-strong-password12345`
 2. Enter the following line to the client config(`rport.config`) in the `[client]` section.
 
-    ```text
-    auth = "rport:a-strong-password12345"
-    ```
+   ```text
+   auth = "rport:a-strong-password12345"
+   ```
 
 3. Alternatively, export credentials to the environment variable `RPORT_AUTH`.
 
@@ -58,9 +59,9 @@ If you want to have more than one credential, create a json file with the follow
 ```json
 {
     "clientAuth1": "1234",
-    "admin":       "123456",
-    "client1":     "yienei5Ch",
-    "client2":     "ieRi1Noo2"
+    "admin": "123456",
+    "client1": "yienei5Ch",
+    "client2": "ieRi1Noo2"
 }
 ```
 
@@ -86,7 +87,7 @@ Clients auth credentials can be read from and written to a database table.
 
 To use the database client authentication you must set up a global database connection in the `[database]` section of
 `rportd.conf` first. Only MySQL/MariaDB and SQLite3 are supported at the moment.
-The [example config](https://github.com/cloudradar-monitoring/rport/blob/master/rportd.example.conf) contains all
+The [example config](https://github.com/realvnc-labs/rport/blob/master/rportd.example.conf) contains all
 explanations on how to set up the database connection.
 
 The tables must be created manually.

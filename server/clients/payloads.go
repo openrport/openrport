@@ -3,10 +3,10 @@ package clients
 import (
 	"time"
 
-	"github.com/cloudradar-monitoring/rport/server/clients/clienttunnel"
-	"github.com/cloudradar-monitoring/rport/share/clientconfig"
-	"github.com/cloudradar-monitoring/rport/share/models"
-	"github.com/cloudradar-monitoring/rport/share/query"
+	"github.com/realvnc-labs/rport/server/clients/clienttunnel"
+	"github.com/realvnc-labs/rport/share/clientconfig"
+	"github.com/realvnc-labs/rport/share/models"
+	"github.com/realvnc-labs/rport/share/query"
 )
 
 type ClientPayload struct {

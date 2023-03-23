@@ -7,7 +7,7 @@ import (
 	mapset "github.com/deckarep/golang-set"
 	"github.com/shirou/gopsutil/v3/net"
 
-	"github.com/cloudradar-monitoring/rport/share/models"
+	"github.com/realvnc-labs/rport/share/models"
 )
 
 type PortDistributor struct {

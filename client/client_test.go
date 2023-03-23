@@ -20,13 +20,13 @@ import (
 	"github.com/stretchr/testify/require"
 	"golang.org/x/crypto/ssh"
 
-	"github.com/cloudradar-monitoring/rport/client/system"
-	chshare "github.com/cloudradar-monitoring/rport/share"
-	"github.com/cloudradar-monitoring/rport/share/clientconfig"
-	"github.com/cloudradar-monitoring/rport/share/logger"
-	"github.com/cloudradar-monitoring/rport/share/models"
-	"github.com/cloudradar-monitoring/rport/share/random"
-	"github.com/cloudradar-monitoring/rport/share/test"
+	"github.com/realvnc-labs/rport/client/system"
+	chshare "github.com/realvnc-labs/rport/share"
+	"github.com/realvnc-labs/rport/share/clientconfig"
+	"github.com/realvnc-labs/rport/share/logger"
+	"github.com/realvnc-labs/rport/share/models"
+	"github.com/realvnc-labs/rport/share/random"
+	"github.com/realvnc-labs/rport/share/test"
 )
 
 func TestCustomHeaders(t *testing.T) {

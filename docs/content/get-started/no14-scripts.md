@@ -1,10 +1,11 @@
 ---
-title: "Scripts"
+title: 'Scripts'
 weight: 14
 slug: scripts
 aliases:
-- /docs/no14-scripts.html
+  - /docs/no14-scripts.html
 ---
+
 {{< toc >}}
 Rport allows to store your scripts for later reuse, so you can share them with your teammates and to have access to them from anywhere.
 
@@ -92,7 +93,7 @@ The response will be
             "interpreter": "/bin/bash",
             "is_sudo": true,
             "cwd": "/root",
-            "script": "pwd",
+            "script": "pwd"
         },
         {
             "id": "4943d682-7874-4f7a-999c-12r2343241",
@@ -102,8 +103,8 @@ The response will be
             "interpreter": "/bin/sh",
             "is_sudo": false,
             "cwd": "/root",
-            "script": "hostname",
-        },
+            "script": "hostname"
+        }
     ]
 }
 ```
@@ -125,18 +126,18 @@ date. If multiple entries are created at the same time, they will be sorted by n
 
 ### Filter
 
-You can filter entries by `id`,`name`,`created_by`,`created_at` fields:  
+You can filter entries by `id`,`name`,`created_by`,`created_at` fields:
 
 `http://localhost:3000/api/v1/library/scripts?filter[name]=current_directory` will list scripts with the name `current_directory`.
 
-You can combine filters for multiple fields:  
+You can combine filters for multiple fields:
 `http://localhost:3000/api/v1/library/scripts?filter[name]=current_directory&filter[created_by]=admin` -
 gives you a list of scripts with name `current_directory` and created by `admin`.
 
-You can also specify multiple filter values e.g.  
+You can also specify multiple filter values e.g.
 `http://localhost:3000/api/v1/library/scripts?filter[name]=script1,scriptX` - gives you scripts `script1` or `scriptX`.
 
-You can also combine both sort and filter queries in a single request:  
+You can also combine both sort and filter queries in a single request:
 
 `http://localhost:3000/api/v1/library/scripts?sort=created_at&filter[created_by]=admin` - gives you scripts created by
 `admin` sorted by `created_at` in order of creation.
@@ -206,16 +207,16 @@ In all cases the scripts are executed by the following algorithm:
 
 - Rport calls the existing command API to execute the script on the target client, e.g.:
 
-    ```text
-     #Linux/macOS
-    sh /var/lib/rport/scripts/f68a779d-1d46-414a-b165-d8d2df5f348c.sh
-  
-    #Windows non-powershell execution
-    cmd C:\Users\me\AppData\Local\Temp\68a779d-1d46-414a-b165-d8d2df5f348c.bat 
-    
-    #Windows powershell execution
-    powershell -executionpolicy bypass -file C:\Users\me\AppData\Local\Temp\68a779d-1d46-414a-b165-d8d2df5f348c.ps1 
-    ```
+  ```text
+   #Linux/macOS
+  sh /var/lib/rport/scripts/f68a779d-1d46-414a-b165-d8d2df5f348c.sh
+
+  #Windows non-powershell execution
+  cmd C:\Users\me\AppData\Local\Temp\68a779d-1d46-414a-b165-d8d2df5f348c.bat
+
+  #Windows powershell execution
+  powershell -executionpolicy bypass -file C:\Users\me\AppData\Local\Temp\68a779d-1d46-414a-b165-d8d2df5f348c.ps1
+  ```
 
 - Rport deletes the temp script file in any case disregard if script execution fails or not.
 
@@ -311,13 +312,13 @@ executable contains "powershell" word (case-insensitive).
 
 For fast and unified script execution with different interpreters and shells, you can specify aliases. Instead of
 providing the full path to the shell, sending the alias is sufficient. You can specify aliases in `rport.conf`
-(see `rport.example.conf`), see `[interpreter-aliases]` section. Having aliases list  
+(see `rport.example.conf`), see `[interpreter-aliases]` section. Having aliases list
 
 ```text
  ## Examples:
  # pwsh7 = 'C:\Program Files\PowerShell\7\pwsh.exe'
  # latestbash = 'C:\Program Files\Gitinash.exe'
- ```
+```
 
 allows you to use `pwsh7` or `latestbash` as interpreter in the script execution APIs.
 
@@ -346,7 +347,7 @@ see in the Output field.
 
 ### Execution of taco scripts
 
-[tacoscript](https://github.com/cloudradar-monitoring/tacoscript) interpreter can be used to execute scripts in a
+[tacoscript](https://github.com/realvnc-labs/tacoscript) interpreter can be used to execute scripts in a
 Saltstack similar format for both Windows and Linux machines. Tacoscript interpreter doesn't require additional libraries
 or tools to be installed in the system and it has capabilities for:
 
@@ -386,4 +387,4 @@ date command:
 
 As a result this script will output the current date.
 In order to execute taco scripts, there should be `tacoscript` binary available in the system path
-(see here [the installation instructions](https://github.com/cloudradar-monitoring/tacoscript#installation))
+(see here [the installation instructions](https://github.com/realvnc-labs/tacoscript#installation))

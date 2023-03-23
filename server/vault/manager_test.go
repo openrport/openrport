@@ -9,14 +9,14 @@ import (
 	"testing"
 	"time"
 
-	"github.com/cloudradar-monitoring/rport/share/query"
+	"github.com/realvnc-labs/rport/share/query"
 
-	"github.com/cloudradar-monitoring/rport/share/enc"
+	"github.com/realvnc-labs/rport/share/enc"
 
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 
-	errors2 "github.com/cloudradar-monitoring/rport/server/api/errors"
+	errors2 "github.com/realvnc-labs/rport/server/api/errors"
 )
 
 type DbProviderMock struct {

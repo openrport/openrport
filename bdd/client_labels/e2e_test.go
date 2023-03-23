@@ -11,7 +11,7 @@ import (
 
 	"github.com/stretchr/testify/suite"
 
-	"github.com/cloudradar-monitoring/rport/bdd/helpers"
+	"github.com/realvnc-labs/rport/bdd/helpers"
 )
 
 type TagsAndLabels struct {

@@ -15,8 +15,8 @@ import (
 
 	"github.com/stretchr/testify/require"
 
-	"github.com/cloudradar-monitoring/rport/share/models"
-	"github.com/cloudradar-monitoring/rport/share/random"
+	"github.com/realvnc-labs/rport/share/models"
+	"github.com/realvnc-labs/rport/share/random"
 )
 
 type JobBuilder struct {

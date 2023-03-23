@@ -9,7 +9,7 @@ import (
 
 	"github.com/stretchr/testify/assert"
 
-	"github.com/cloudradar-monitoring/rport/server/api/message"
+	"github.com/realvnc-labs/rport/server/api/message"
 )
 
 func TestScriptServiceValidateReceiver(t *testing.T) {

@@ -18,9 +18,9 @@ import (
 	"golang.org/x/crypto/ssh"
 	"golang.org/x/text/encoding"
 
-	"github.com/cloudradar-monitoring/rport/client/system"
-	"github.com/cloudradar-monitoring/rport/share/comm"
-	"github.com/cloudradar-monitoring/rport/share/models"
+	"github.com/realvnc-labs/rport/client/system"
+	"github.com/realvnc-labs/rport/share/comm"
+	"github.com/realvnc-labs/rport/share/models"
 )
 
 var (

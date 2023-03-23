@@ -10,7 +10,7 @@ import (
 	"strings"
 	"sync"
 
-	"github.com/cloudradar-monitoring/rport/share/logger"
+	"github.com/realvnc-labs/rport/share/logger"
 )
 
 const HtpasswdBcryptPrefix = "$2y$"

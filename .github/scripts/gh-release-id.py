@@ -19,7 +19,7 @@ except IndexError:
 
 headers = {"Authorization": "Bearer " + github_token}
 r = requests.get(
-    "https://api.github.com/repos/cloudradar-monitoring/rport/releases?page=1&per_page=5",
+    "https://api.github.com/repos/realvnc-labs/rport/releases?page=1&per_page=5",
     headers=headers,
 )
 if r.status_code != 200:

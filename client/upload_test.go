@@ -10,11 +10,11 @@ import (
 	"strings"
 	"testing"
 
-	"github.com/cloudradar-monitoring/rport/share/errors"
-	"github.com/cloudradar-monitoring/rport/share/files"
-	"github.com/cloudradar-monitoring/rport/share/logger"
-	"github.com/cloudradar-monitoring/rport/share/models"
-	"github.com/cloudradar-monitoring/rport/share/test"
+	"github.com/realvnc-labs/rport/share/errors"
+	"github.com/realvnc-labs/rport/share/files"
+	"github.com/realvnc-labs/rport/share/logger"
+	"github.com/realvnc-labs/rport/share/models"
+	"github.com/realvnc-labs/rport/share/test"
 
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/mock"

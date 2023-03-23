@@ -8,7 +8,7 @@ import (
 	"net/http"
 	"time"
 
-	"github.com/cloudradar-monitoring/rport/share/logger"
+	"github.com/realvnc-labs/rport/share/logger"
 )
 
 type ServerOption func(*HTTPServer)

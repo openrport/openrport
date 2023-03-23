@@ -4,13 +4,13 @@ import (
 	"testing"
 	"time"
 
-	"github.com/cloudradar-monitoring/rport/server/cgroups"
+	"github.com/realvnc-labs/rport/server/cgroups"
 
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 
-	"github.com/cloudradar-monitoring/rport/server/api/users"
-	"github.com/cloudradar-monitoring/rport/share/query"
+	"github.com/realvnc-labs/rport/server/api/users"
+	"github.com/realvnc-labs/rport/share/query"
 )
 
 type UserMock struct {

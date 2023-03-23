@@ -36,7 +36,7 @@ goversioninfo.exe
 Set-Location ../../
 
 Write-Output "[*] Building rport.exe for windows"
-go build -ldflags "-s -w -X github.com/cloudradar-monitoring/rport/share.BuildVersion=$($env:GITHUB_REF_NAME)" -o rport.exe ./cmd/rport
+go build -ldflags "-s -w -X github.com/realvnc-labs/rport/share.BuildVersion=$($env:GITHUB_REF_NAME)" -o rport.exe ./cmd/rport
 Get-ChildItem -File *.exe
 .\rport.exe --version
 

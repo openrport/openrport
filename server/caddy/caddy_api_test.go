@@ -13,8 +13,8 @@ import (
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 
-	"github.com/cloudradar-monitoring/rport/server/caddy"
-	"github.com/cloudradar-monitoring/rport/server/chconfig"
+	"github.com/realvnc-labs/rport/server/caddy"
+	"github.com/realvnc-labs/rport/server/chconfig"
 )
 
 func TestShouldAddRouteToCaddyServer(t *testing.T) {

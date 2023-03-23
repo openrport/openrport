@@ -3,8 +3,8 @@ package chserver
 import (
 	"net/http"
 
-	"github.com/cloudradar-monitoring/rport/server/api"
-	chshare "github.com/cloudradar-monitoring/rport/share"
+	"github.com/realvnc-labs/rport/server/api"
+	chshare "github.com/realvnc-labs/rport/share"
 )
 
 func (al *APIListener) handleGetStatus(w http.ResponseWriter, req *http.Request) {

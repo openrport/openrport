@@ -7,10 +7,10 @@ import (
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 
-	"github.com/cloudradar-monitoring/rport/db/migration/clients"
-	"github.com/cloudradar-monitoring/rport/db/sqlite"
-	"github.com/cloudradar-monitoring/rport/share/query"
-	"github.com/cloudradar-monitoring/rport/share/random"
+	"github.com/realvnc-labs/rport/db/migration/clients"
+	"github.com/realvnc-labs/rport/db/sqlite"
+	"github.com/realvnc-labs/rport/share/query"
+	"github.com/realvnc-labs/rport/share/random"
 )
 
 var DataSourceOptions = sqlite.DataSourceOptions{WALEnabled: false}

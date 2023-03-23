@@ -12,13 +12,13 @@ import (
 	"strings"
 	"time"
 
-	"github.com/cloudradar-monitoring/rport/share/files"
+	"github.com/realvnc-labs/rport/share/files"
 
-	"github.com/cloudradar-monitoring/rport/client/system"
-	chshare "github.com/cloudradar-monitoring/rport/share"
-	"github.com/cloudradar-monitoring/rport/share/clientconfig"
-	"github.com/cloudradar-monitoring/rport/share/logger"
-	"github.com/cloudradar-monitoring/rport/share/models"
+	"github.com/realvnc-labs/rport/client/system"
+	chshare "github.com/realvnc-labs/rport/share"
+	"github.com/realvnc-labs/rport/share/clientconfig"
+	"github.com/realvnc-labs/rport/share/logger"
+	"github.com/realvnc-labs/rport/share/models"
 )
 
 const DefaultMonitoringInterval = 60 * time.Second

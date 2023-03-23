@@ -9,12 +9,12 @@ import (
 	"sync"
 	"time"
 
-	"github.com/cloudradar-monitoring/rport/share/logger"
-	"github.com/cloudradar-monitoring/rport/share/query"
+	"github.com/realvnc-labs/rport/share/logger"
+	"github.com/realvnc-labs/rport/share/query"
 
-	"github.com/cloudradar-monitoring/rport/share/enc"
+	"github.com/realvnc-labs/rport/share/enc"
 
-	errors2 "github.com/cloudradar-monitoring/rport/server/api/errors"
+	errors2 "github.com/realvnc-labs/rport/server/api/errors"
 )
 
 var supportedFields = map[string]bool{

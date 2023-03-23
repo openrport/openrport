@@ -5,9 +5,9 @@ import (
 
 	"github.com/jmoiron/sqlx"
 
-	"github.com/cloudradar-monitoring/rport/server/api/users"
-	"github.com/cloudradar-monitoring/rport/server/chconfig"
-	"github.com/cloudradar-monitoring/rport/share/enums"
+	"github.com/realvnc-labs/rport/server/api/users"
+	"github.com/realvnc-labs/rport/server/chconfig"
+	"github.com/realvnc-labs/rport/share/enums"
 )
 
 type UserInput struct {

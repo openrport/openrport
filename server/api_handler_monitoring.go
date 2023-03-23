@@ -7,10 +7,10 @@ import (
 
 	"github.com/gorilla/mux"
 
-	"github.com/cloudradar-monitoring/rport/server/monitoring"
-	"github.com/cloudradar-monitoring/rport/server/routes"
-	"github.com/cloudradar-monitoring/rport/share/comm"
-	"github.com/cloudradar-monitoring/rport/share/query"
+	"github.com/realvnc-labs/rport/server/monitoring"
+	"github.com/realvnc-labs/rport/server/routes"
+	"github.com/realvnc-labs/rport/share/comm"
+	"github.com/realvnc-labs/rport/share/query"
 )
 
 // handleRefreshUpdatesStatus handles GET /clients/{client_id}/updates-status

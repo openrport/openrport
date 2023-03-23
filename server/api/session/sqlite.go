@@ -8,8 +8,8 @@ import (
 
 	"github.com/jmoiron/sqlx"
 
-	"github.com/cloudradar-monitoring/rport/db/migration/api_sessions"
-	"github.com/cloudradar-monitoring/rport/db/sqlite"
+	"github.com/realvnc-labs/rport/db/migration/api_sessions"
+	"github.com/realvnc-labs/rport/db/sqlite"
 )
 
 type SqliteProvider struct {

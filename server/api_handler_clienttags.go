@@ -4,8 +4,8 @@ import (
 	"net/http"
 	"sort"
 
-	"github.com/cloudradar-monitoring/rport/server/api"
-	"github.com/cloudradar-monitoring/rport/share/query"
+	"github.com/realvnc-labs/rport/server/api"
+	"github.com/realvnc-labs/rport/share/query"
 )
 
 var (

@@ -13,16 +13,16 @@ import (
 
 	"github.com/spf13/pflag"
 
-	"github.com/cloudradar-monitoring/rport/cmd/rport/servicemanagement"
+	"github.com/realvnc-labs/rport/cmd/rport/servicemanagement"
 
 	"github.com/kardianos/service"
 	"github.com/spf13/cobra"
 
-	"github.com/cloudradar-monitoring/rport/cmd/rport/cli"
-	"github.com/cloudradar-monitoring/rport/share/files"
+	"github.com/realvnc-labs/rport/cmd/rport/cli"
+	"github.com/realvnc-labs/rport/share/files"
 
-	chclient "github.com/cloudradar-monitoring/rport/client"
-	chshare "github.com/cloudradar-monitoring/rport/share"
+	chclient "github.com/realvnc-labs/rport/client"
+	chshare "github.com/realvnc-labs/rport/share"
 )
 
 var (

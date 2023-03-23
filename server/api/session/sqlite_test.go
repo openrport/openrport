@@ -5,7 +5,7 @@ import (
 	"testing"
 	"time"
 
-	"github.com/cloudradar-monitoring/rport/db/sqlite"
+	"github.com/realvnc-labs/rport/db/sqlite"
 
 	"github.com/golang-jwt/jwt/v4"
 	"github.com/stretchr/testify/assert"

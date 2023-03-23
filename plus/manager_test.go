@@ -8,11 +8,11 @@ import (
 
 	"github.com/stretchr/testify/assert"
 
-	rportplus "github.com/cloudradar-monitoring/rport/plus"
-	"github.com/cloudradar-monitoring/rport/plus/license"
-	"github.com/cloudradar-monitoring/rport/server/chconfig"
-	"github.com/cloudradar-monitoring/rport/share/files"
-	"github.com/cloudradar-monitoring/rport/share/logger"
+	rportplus "github.com/realvnc-labs/rport/plus"
+	"github.com/realvnc-labs/rport/plus/license"
+	"github.com/realvnc-labs/rport/server/chconfig"
+	"github.com/realvnc-labs/rport/share/files"
+	"github.com/realvnc-labs/rport/share/logger"
 )
 
 var defaultValidMinServerConfig = chconfig.ServerConfig{

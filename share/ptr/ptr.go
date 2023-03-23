@@ -3,7 +3,7 @@ package ptr
 import (
 	"time"
 
-	"github.com/cloudradar-monitoring/rport/share/types"
+	"github.com/realvnc-labs/rport/share/types"
 )
 
 func Time(t time.Time) *time.Time {

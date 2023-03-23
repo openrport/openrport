@@ -8,10 +8,10 @@ import (
 	"sync"
 	"time"
 
-	"github.com/cloudradar-monitoring/rport/db/sqlite"
+	"github.com/realvnc-labs/rport/db/sqlite"
 
-	"github.com/cloudradar-monitoring/rport/share/logger"
-	"github.com/cloudradar-monitoring/rport/share/query"
+	"github.com/realvnc-labs/rport/share/logger"
+	"github.com/realvnc-labs/rport/share/query"
 )
 
 const (

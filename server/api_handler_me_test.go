@@ -10,10 +10,10 @@ import (
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 
-	"github.com/cloudradar-monitoring/rport/server/api"
-	"github.com/cloudradar-monitoring/rport/server/api/users"
-	"github.com/cloudradar-monitoring/rport/server/chconfig"
-	"github.com/cloudradar-monitoring/rport/share/logger"
+	"github.com/realvnc-labs/rport/server/api"
+	"github.com/realvnc-labs/rport/server/api/users"
+	"github.com/realvnc-labs/rport/server/chconfig"
+	"github.com/realvnc-labs/rport/share/logger"
 )
 
 // TestHandleMeStaticAuth verifies group permissions are not supported

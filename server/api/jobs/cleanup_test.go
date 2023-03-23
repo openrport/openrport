@@ -8,9 +8,9 @@ import (
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 
-	"github.com/cloudradar-monitoring/rport/db/migration/jobs"
-	"github.com/cloudradar-monitoring/rport/db/sqlite"
-	"github.com/cloudradar-monitoring/rport/server/test/jb"
+	"github.com/realvnc-labs/rport/db/migration/jobs"
+	"github.com/realvnc-labs/rport/db/sqlite"
+	"github.com/realvnc-labs/rport/server/test/jb"
 )
 
 func TestCleanupJobsMultiJobs(t *testing.T) {

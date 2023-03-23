@@ -7,11 +7,11 @@ import (
 
 	"github.com/gorilla/websocket"
 
-	"github.com/cloudradar-monitoring/rport/server/api/jobs"
-	"github.com/cloudradar-monitoring/rport/server/auditlog"
-	"github.com/cloudradar-monitoring/rport/server/validation"
-	"github.com/cloudradar-monitoring/rport/share/models"
-	"github.com/cloudradar-monitoring/rport/share/ws"
+	"github.com/realvnc-labs/rport/server/api/jobs"
+	"github.com/realvnc-labs/rport/server/auditlog"
+	"github.com/realvnc-labs/rport/server/validation"
+	"github.com/realvnc-labs/rport/share/models"
+	"github.com/realvnc-labs/rport/share/ws"
 )
 
 func (al *APIListener) handleCommandsExecutionWS(

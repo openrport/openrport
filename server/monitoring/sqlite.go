@@ -10,11 +10,11 @@ import (
 
 	"github.com/jmoiron/sqlx"
 
-	monitoring "github.com/cloudradar-monitoring/rport/db/migration/monitoring"
-	"github.com/cloudradar-monitoring/rport/db/sqlite"
-	"github.com/cloudradar-monitoring/rport/share/logger"
-	"github.com/cloudradar-monitoring/rport/share/models"
-	"github.com/cloudradar-monitoring/rport/share/query"
+	monitoring "github.com/realvnc-labs/rport/db/migration/monitoring"
+	"github.com/realvnc-labs/rport/db/sqlite"
+	"github.com/realvnc-labs/rport/share/logger"
+	"github.com/realvnc-labs/rport/share/models"
+	"github.com/realvnc-labs/rport/share/query"
 )
 
 type DBProvider interface {

@@ -7,9 +7,9 @@ import (
 	"github.com/spf13/pflag"
 	"github.com/spf13/viper"
 
-	chclient "github.com/cloudradar-monitoring/rport/client"
-	chshare "github.com/cloudradar-monitoring/rport/share"
-	"github.com/cloudradar-monitoring/rport/share/clientconfig"
+	chclient "github.com/realvnc-labs/rport/client"
+	chshare "github.com/realvnc-labs/rport/share"
+	"github.com/realvnc-labs/rport/share/clientconfig"
 )
 
 type ClientAttributesConfigHolder struct {

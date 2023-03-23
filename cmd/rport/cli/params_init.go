@@ -4,7 +4,7 @@ import (
 	"os"
 	"time"
 
-	chclient "github.com/cloudradar-monitoring/rport/client"
+	chclient "github.com/realvnc-labs/rport/client"
 
 	"github.com/spf13/pflag"
 	"github.com/spf13/viper"

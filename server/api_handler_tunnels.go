@@ -4,9 +4,9 @@ import (
 	"net/http"
 	"time"
 
-	"github.com/cloudradar-monitoring/rport/server/api"
-	"github.com/cloudradar-monitoring/rport/server/clients/clienttunnel"
-	"github.com/cloudradar-monitoring/rport/share/models"
+	"github.com/realvnc-labs/rport/server/api"
+	"github.com/realvnc-labs/rport/server/clients/clienttunnel"
+	"github.com/realvnc-labs/rport/share/models"
 )
 
 type TunnelPayload struct {

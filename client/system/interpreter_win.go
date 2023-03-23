@@ -8,7 +8,7 @@ import (
 	"path/filepath"
 	"strings"
 
-	chshare "github.com/cloudradar-monitoring/rport/share"
+	chshare "github.com/realvnc-labs/rport/share"
 )
 
 func (i Interpreter) Get() string {

@@ -3,8 +3,8 @@ package oauth
 import (
 	"plugin"
 
-	"github.com/cloudradar-monitoring/rport/plus/validator"
-	"github.com/cloudradar-monitoring/rport/share/logger"
+	"github.com/realvnc-labs/rport/plus/validator"
+	"github.com/realvnc-labs/rport/share/logger"
 )
 
 const (

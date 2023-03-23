@@ -9,10 +9,10 @@ import (
 	"github.com/google/uuid"
 	"github.com/stretchr/testify/assert"
 
-	"github.com/cloudradar-monitoring/rport/server/api"
-	"github.com/cloudradar-monitoring/rport/server/auditlog/config"
-	"github.com/cloudradar-monitoring/rport/server/clients"
-	"github.com/cloudradar-monitoring/rport/share/query"
+	"github.com/realvnc-labs/rport/server/api"
+	"github.com/realvnc-labs/rport/server/auditlog/config"
+	"github.com/realvnc-labs/rport/server/clients"
+	"github.com/realvnc-labs/rport/share/query"
 )
 
 func TestEntry(t *testing.T) {

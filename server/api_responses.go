@@ -5,9 +5,9 @@ import (
 	"errors"
 	"net/http"
 
-	"github.com/cloudradar-monitoring/rport/server/api"
-	errors2 "github.com/cloudradar-monitoring/rport/server/api/errors"
-	"github.com/cloudradar-monitoring/rport/share/logger"
+	"github.com/realvnc-labs/rport/server/api"
+	errors2 "github.com/realvnc-labs/rport/server/api/errors"
+	"github.com/realvnc-labs/rport/share/logger"
 )
 
 func (al *APIListener) writeErrorResponseLog(errPayload api.ErrorPayload) {

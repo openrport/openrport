@@ -4,15 +4,15 @@ import (
 	"net/http/httptest"
 	"testing"
 
-	"github.com/cloudradar-monitoring/rport/server/api/users"
-	"github.com/cloudradar-monitoring/rport/server/auditlog/config"
+	"github.com/realvnc-labs/rport/server/api/users"
+	"github.com/realvnc-labs/rport/server/auditlog/config"
 
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 
-	"github.com/cloudradar-monitoring/rport/db/migration/auditlog"
-	"github.com/cloudradar-monitoring/rport/db/sqlite"
-	"github.com/cloudradar-monitoring/rport/server/clients"
+	"github.com/realvnc-labs/rport/db/migration/auditlog"
+	"github.com/realvnc-labs/rport/db/sqlite"
+	"github.com/realvnc-labs/rport/server/clients"
 )
 
 var DataSourceOptions = sqlite.DataSourceOptions{WALEnabled: false}

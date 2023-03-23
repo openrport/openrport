@@ -3,7 +3,7 @@ package validation
 import (
 	"fmt"
 
-	chshare "github.com/cloudradar-monitoring/rport/share"
+	chshare "github.com/realvnc-labs/rport/share"
 )
 
 var validInputInterpreter = []string{chshare.CmdShell, chshare.PowerShell, chshare.Tacoscript}

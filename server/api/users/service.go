@@ -10,13 +10,13 @@ import (
 	zxcvbn "github.com/trustelem/zxcvbn"
 	"golang.org/x/crypto/bcrypt"
 
-	rportplus "github.com/cloudradar-monitoring/rport/plus"
-	errors2 "github.com/cloudradar-monitoring/rport/server/api/errors"
-	"github.com/cloudradar-monitoring/rport/server/api/message"
-	"github.com/cloudradar-monitoring/rport/server/chconfig"
-	chshare "github.com/cloudradar-monitoring/rport/share"
-	"github.com/cloudradar-monitoring/rport/share/enums"
-	"github.com/cloudradar-monitoring/rport/share/logger"
+	rportplus "github.com/realvnc-labs/rport/plus"
+	errors2 "github.com/realvnc-labs/rport/server/api/errors"
+	"github.com/realvnc-labs/rport/server/api/message"
+	"github.com/realvnc-labs/rport/server/chconfig"
+	chshare "github.com/realvnc-labs/rport/share"
+	"github.com/realvnc-labs/rport/share/enums"
+	"github.com/realvnc-labs/rport/share/logger"
 )
 
 type Provider interface {

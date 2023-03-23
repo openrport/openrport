@@ -7,9 +7,9 @@ import (
 
 	"github.com/jmoiron/sqlx"
 
-	"github.com/cloudradar-monitoring/rport/db/migration/auditlog"
-	"github.com/cloudradar-monitoring/rport/db/sqlite"
-	"github.com/cloudradar-monitoring/rport/share/query"
+	"github.com/realvnc-labs/rport/db/migration/auditlog"
+	"github.com/realvnc-labs/rport/db/sqlite"
+	"github.com/realvnc-labs/rport/share/query"
 )
 
 type SQLiteProvider struct {

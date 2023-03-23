@@ -13,16 +13,16 @@ import (
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 
-	"github.com/cloudradar-monitoring/rport/db/migration/api_token"
-	"github.com/cloudradar-monitoring/rport/db/sqlite"
-	"github.com/cloudradar-monitoring/rport/server/api"
-	"github.com/cloudradar-monitoring/rport/server/api/authorization"
-	"github.com/cloudradar-monitoring/rport/server/api/users"
-	"github.com/cloudradar-monitoring/rport/server/bearer"
-	"github.com/cloudradar-monitoring/rport/server/chconfig"
-	"github.com/cloudradar-monitoring/rport/share/ptr"
-	"github.com/cloudradar-monitoring/rport/share/random"
-	"github.com/cloudradar-monitoring/rport/share/security"
+	"github.com/realvnc-labs/rport/db/migration/api_token"
+	"github.com/realvnc-labs/rport/db/sqlite"
+	"github.com/realvnc-labs/rport/server/api"
+	"github.com/realvnc-labs/rport/server/api/authorization"
+	"github.com/realvnc-labs/rport/server/api/users"
+	"github.com/realvnc-labs/rport/server/bearer"
+	"github.com/realvnc-labs/rport/server/chconfig"
+	"github.com/realvnc-labs/rport/share/ptr"
+	"github.com/realvnc-labs/rport/share/random"
+	"github.com/realvnc-labs/rport/share/security"
 )
 
 func TestAPITokenOps(t *testing.T) {

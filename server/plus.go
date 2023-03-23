@@ -5,14 +5,14 @@ import (
 	"errors"
 	"fmt"
 
-	rportplus "github.com/cloudradar-monitoring/rport/plus"
-	licensecap "github.com/cloudradar-monitoring/rport/plus/capabilities/license"
-	"github.com/cloudradar-monitoring/rport/plus/capabilities/oauth"
-	"github.com/cloudradar-monitoring/rport/plus/capabilities/status"
-	"github.com/cloudradar-monitoring/rport/plus/license"
-	"github.com/cloudradar-monitoring/rport/server/chconfig"
-	"github.com/cloudradar-monitoring/rport/share/files"
-	"github.com/cloudradar-monitoring/rport/share/logger"
+	rportplus "github.com/realvnc-labs/rport/plus"
+	licensecap "github.com/realvnc-labs/rport/plus/capabilities/license"
+	"github.com/realvnc-labs/rport/plus/capabilities/oauth"
+	"github.com/realvnc-labs/rport/plus/capabilities/status"
+	"github.com/realvnc-labs/rport/plus/license"
+	"github.com/realvnc-labs/rport/server/chconfig"
+	"github.com/realvnc-labs/rport/share/files"
+	"github.com/realvnc-labs/rport/share/logger"
 )
 
 var (

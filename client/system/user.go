@@ -5,7 +5,7 @@ import (
 	"os/user"
 	"strconv"
 
-	chshare "github.com/cloudradar-monitoring/rport/share"
+	chshare "github.com/realvnc-labs/rport/share"
 )
 
 type SysUserLookup interface {

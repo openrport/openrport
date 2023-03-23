@@ -6,9 +6,9 @@ import (
 	"net/http"
 	"time"
 
-	"github.com/cloudradar-monitoring/rport/server/api"
-	"github.com/cloudradar-monitoring/rport/server/clients"
-	chshare "github.com/cloudradar-monitoring/rport/share"
+	"github.com/realvnc-labs/rport/server/api"
+	"github.com/realvnc-labs/rport/server/clients"
+	chshare "github.com/realvnc-labs/rport/share"
 )
 
 type Entry struct {

@@ -9,8 +9,8 @@ import (
 	"fmt"
 	"time"
 
-	"github.com/cloudradar-monitoring/rport/share/models"
-	"github.com/cloudradar-monitoring/rport/share/query"
+	"github.com/realvnc-labs/rport/share/models"
+	"github.com/realvnc-labs/rport/share/query"
 )
 
 var MultiJobSupportedFilters = map[string]bool{

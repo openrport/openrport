@@ -9,11 +9,11 @@ import (
 
 	"github.com/stretchr/testify/assert"
 
-	"github.com/cloudradar-monitoring/rport/server/chconfig"
-	"github.com/cloudradar-monitoring/rport/server/clients"
-	"github.com/cloudradar-monitoring/rport/server/monitoring"
-	"github.com/cloudradar-monitoring/rport/share/comm"
-	"github.com/cloudradar-monitoring/rport/share/test"
+	"github.com/realvnc-labs/rport/server/chconfig"
+	"github.com/realvnc-labs/rport/server/clients"
+	"github.com/realvnc-labs/rport/server/monitoring"
+	"github.com/realvnc-labs/rport/share/comm"
+	"github.com/realvnc-labs/rport/share/test"
 )
 
 func TestHandleRefreshUpdatesStatus(t *testing.T) {

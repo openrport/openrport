@@ -1,8 +1,9 @@
 ---
-title: "Concepts practically explained"
+title: 'Concepts practically explained'
 weight: 0
 slug: quick-start
 ---
+
 {{< hint type=warning title="This is not an installation tutorial!" >}}
 If you want to **install and run rport (server and client), switch to the [installation tutorial](https://kb.rport.io/install-the-rport-server)**.  
 Our end-user knowledge [kb.rport.io](https://kb.rport.io) base focuses on installation and server maintenance from a user's perspective.
@@ -15,23 +16,23 @@ It's intended to be read by developers and experienced users who want to learn w
 
 ### Binaries
 
-We provide pre-compiled binaries. You can download them [here](https://github.com/cloudradar-monitoring/rport/releases).
+We provide pre-compiled binaries. You can download them [here](https://github.com/realvnc-labs/rport/releases).
 
 ### From source
 
-1) Build from source (Linux or macOS):
+1. Build from source (Linux or macOS):
 
-    ```bash
-    make all
-    ```
+   ```bash
+   make all
+   ```
 
    `rport` and `rportd` binaries will appear in directory.
 
-2) Build using Docker:
+2. Build using Docker:
 
-    ```bash
-    make docker-goreleaser
-    ```
+   ```bash
+   make docker-goreleaser
+   ```
 
    will create binaries for all supported platforms in `./dist` directory.
 
@@ -43,10 +44,10 @@ We provide pre-compiled binaries. You can download them [here](https://github.co
 
 Minimal setup:
 
-1) Execute `./rportd --addr 0.0.0.0:9999 --auth rport:password123 --data-dir /var/tmp` on a server.
-2) Execute `./rport --auth rport:password123 <SERVER_IP>:9999 2222:22` on a client or  
-  `./rport --auth rport:password123 <SERVER_IP>:9999 22` and the server tunnel port will be randomly chosen for you.
-3) Now end-users can connect to `<SERVER_IP>:2222` (e.g. using a SSH Connection). The connection will be proxied to
+1. Execute `./rportd --addr 0.0.0.0:9999 --auth rport:password123 --data-dir /var/tmp` on a server.
+2. Execute `./rport --auth rport:password123 <SERVER_IP>:9999 2222:22` on a client or  
+   `./rport --auth rport:password123 <SERVER_IP>:9999 22` and the server tunnel port will be randomly chosen for you.
+3. Now end-users can connect to `<SERVER_IP>:2222` (e.g. using a SSH Connection). The connection will be proxied to
    the client machine.
 
 See `./rportd --help` and `./rport --help` for more options, like:
@@ -254,8 +255,8 @@ Please refer to [clients on other operating systems](no05-client-on-other-os.md)
 
 Config files can be used to set up both the rport server and clients. In order to use it an arg `--config`(or `-c`)
 should be passed to a command with a path to the file. Configuration examples `rportd.example.conf`
-([view online](https://github.com/cloudradar-monitoring/rport/blob/master/rportd.example.conf)) and `rport.example.conf`
-([view online](https://github.com/cloudradar-monitoring/rport/blob/master/rport.example.conf)) can be found in the
+([view online](https://github.com/realvnc-labs/rport/blob/master/rportd.example.conf)) and `rport.example.conf`
+([view online](https://github.com/realvnc-labs/rport/blob/master/rport.example.conf)) can be found in the
 release archive or in the source.
 
 NOTE: command arguments and env variables will override values from the config file.
@@ -273,7 +274,7 @@ To prevent anyone who knows the address and the port of your rport server to use
 authentication is required.
 
 Using a static username password pair is the most basic option. See the comments in the
-[rportd.example.conf](https://github.com/cloudradar-monitoring/rport/blob/master/rportd.example.conf) and read more about
+[rportd.example.conf](https://github.com/realvnc-labs/rport/blob/master/rportd.example.conf) and read more about
 all supported [authentication options](no03-client-auth.md).
 
 On the client start the tunnel this way
@@ -293,6 +294,6 @@ The installation is quick and easy. [Learn more](/docs/content/get-started/no07-
 
 You can also manage clients, tunnels, and command from a user-friendly command-line utility. It's available as a
 stand-alone static binary for Windows and Linux.
-See [https://github.com/cloudradar-monitoring/rportcli](https://github.com/cloudradar-monitoring/rportcli).
+See [https://github.com/realvnc-labs/rportcli](https://github.com/realvnc-labs/rportcli).
 The command-line utility does not cover all API capabilities yet. But it's already a very useful tool making rport even
 more powerful.

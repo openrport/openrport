@@ -1,8 +1,9 @@
 ---
-title: "Watchdog Integration"
+title: 'Watchdog Integration'
 weight: 21
 slug: watchdog-integration
 ---
+
 {{< toc >}}
 
 ## Watchdog integration
@@ -95,7 +96,7 @@ if ($diff -gt $threshHoldSec){
 ```
 
 🐶 A fully-featured rport watchdog for Windows implemented in PowerShell can be
-[downloaded here](https://github.com/cloudradar-monitoring/rport-win-watchdog). It comes ready-to-use with an easy
+[downloaded here](https://github.com/realvnc-labs/rport-win-watchdog). It comes ready-to-use with an easy
 installation.
 
 ### Using the systemd watchdog
@@ -108,8 +109,7 @@ To enable the systemd watchdog you must enter a line `WatchdogSec=N` to the serv
 The rport client will automatically recognize the presence of the socket and updates will be pushed on the events listed
 above.
 
-If you enable debug logging, you will get a confirmation like `Using NOTIFY_SOCKET /run/systemd/notify for systemd
-watchdog integration` in the log file.
+If you enable debug logging, you will get a confirmation like `Using NOTIFY_SOCKET /run/systemd/notify for systemd watchdog integration` in the log file.
 
 If systemd does not detect any updates on the socket within the `WatchdogSec` period, it will restart the rport client.
 This means you must set `WatchdogSec` a bit longer than `max_retry_interval` and `keep_alive`. See above.

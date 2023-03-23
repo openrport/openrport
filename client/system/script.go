@@ -10,8 +10,8 @@ import (
 
 	"golang.org/x/text/encoding"
 
-	chshare "github.com/cloudradar-monitoring/rport/share"
-	"github.com/cloudradar-monitoring/rport/share/random"
+	chshare "github.com/realvnc-labs/rport/share"
+	"github.com/realvnc-labs/rport/share/random"
 )
 
 const DefaultFileMode = os.FileMode(0540)

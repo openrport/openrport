@@ -12,9 +12,9 @@ import (
 	"github.com/jpillora/sizestr"
 	"golang.org/x/crypto/ssh"
 
-	chshare "github.com/cloudradar-monitoring/rport/share"
-	"github.com/cloudradar-monitoring/rport/share/logger"
-	"github.com/cloudradar-monitoring/rport/share/models"
+	chshare "github.com/realvnc-labs/rport/share"
+	"github.com/realvnc-labs/rport/share/logger"
+	"github.com/realvnc-labs/rport/share/models"
 )
 
 type tunnelTCP struct {

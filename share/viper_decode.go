@@ -10,7 +10,7 @@ import (
 	"github.com/mitchellh/mapstructure"
 	"github.com/spf13/viper"
 
-	"github.com/cloudradar-monitoring/rport/share/logger"
+	"github.com/realvnc-labs/rport/share/logger"
 )
 
 func decodeLogOutput(src reflect.Type, dst reflect.Type, srcVal interface{}) (interface{}, error) {

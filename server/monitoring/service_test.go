@@ -5,12 +5,12 @@ import (
 	"testing"
 	"time"
 
-	"github.com/cloudradar-monitoring/rport/db/sqlite"
+	"github.com/realvnc-labs/rport/db/sqlite"
 
 	"github.com/stretchr/testify/require"
 
-	"github.com/cloudradar-monitoring/rport/share/models"
-	"github.com/cloudradar-monitoring/rport/share/query"
+	"github.com/realvnc-labs/rport/share/models"
+	"github.com/realvnc-labs/rport/share/query"
 )
 
 var DataSourceOptions = sqlite.DataSourceOptions{WALEnabled: false}

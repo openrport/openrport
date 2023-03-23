@@ -6,9 +6,9 @@ import (
 
 	"github.com/jmoiron/sqlx"
 
-	"github.com/cloudradar-monitoring/rport/server/api"
-	"github.com/cloudradar-monitoring/rport/share/query"
-	"github.com/cloudradar-monitoring/rport/share/random"
+	"github.com/realvnc-labs/rport/server/api"
+	"github.com/realvnc-labs/rport/share/query"
+	"github.com/realvnc-labs/rport/share/random"
 )
 
 var (

@@ -3,10 +3,10 @@ package chserver
 import (
 	"net/http"
 
-	rportplus "github.com/cloudradar-monitoring/rport/plus"
-	"github.com/cloudradar-monitoring/rport/plus/capabilities/oauth"
-	"github.com/cloudradar-monitoring/rport/server/api"
-	"github.com/cloudradar-monitoring/rport/server/routes"
+	rportplus "github.com/realvnc-labs/rport/plus"
+	"github.com/realvnc-labs/rport/plus/capabilities/oauth"
+	"github.com/realvnc-labs/rport/server/api"
+	"github.com/realvnc-labs/rport/server/routes"
 )
 
 const BuiltInAuthProviderName = "built-in"

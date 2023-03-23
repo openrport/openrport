@@ -13,7 +13,7 @@ echo "✅ SSH private key created"
 #
 echo "🚚 Cloning plus plugin repository now"
 export GIT_SSH_COMMAND="ssh -i ~/.ssh/rport-plus-key"
-git clone git@github.com:cloudradar-monitoring/rport-plus.git
+git clone git@github.com:realvnc-labs/rport-plus.git
 cd rport-plus
 pwd
 git status

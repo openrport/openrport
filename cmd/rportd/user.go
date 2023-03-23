@@ -6,9 +6,9 @@ import (
 
 	"github.com/spf13/cobra"
 
-	"github.com/cloudradar-monitoring/rport/cmd/rportd/usercli"
-	"github.com/cloudradar-monitoring/rport/share/enums"
-	"github.com/cloudradar-monitoring/rport/share/logger"
+	"github.com/realvnc-labs/rport/cmd/rportd/usercli"
+	"github.com/realvnc-labs/rport/share/enums"
+	"github.com/realvnc-labs/rport/share/logger"
 )
 
 const (

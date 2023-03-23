@@ -7,8 +7,8 @@ import (
 	"fmt"
 	"time"
 
-	"github.com/cloudradar-monitoring/rport/server/api/jobs"
-	"github.com/cloudradar-monitoring/rport/share/models"
+	"github.com/realvnc-labs/rport/server/api/jobs"
+	"github.com/realvnc-labs/rport/share/models"
 )
 
 const (

@@ -3,7 +3,7 @@ package script
 import (
 	"time"
 
-	"github.com/cloudradar-monitoring/rport/share/types"
+	"github.com/realvnc-labs/rport/share/types"
 )
 
 const DefaultTimeoutSec = 60

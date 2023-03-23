@@ -7,7 +7,7 @@ info:
   version: 1.0.0
   license:
     name: MIT
-    url: https://raw.githubusercontent.com/cloudradar-monitoring/rport/master/LICENSE
+    url: https://raw.githubusercontent.com/realvnc-labs/rport/master/LICENSE
 servers:
   - url: http://yourserver:3000/api/v1
   - url: https://yourserver:3000/api/v1

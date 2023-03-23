@@ -3,7 +3,7 @@ package api
 import (
 	"context"
 
-	"github.com/cloudradar-monitoring/rport/share/logger"
+	"github.com/realvnc-labs/rport/share/logger"
 )
 
 type userCtxKeyType string

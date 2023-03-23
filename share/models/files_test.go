@@ -7,7 +7,7 @@ import (
 	"os"
 	"testing"
 
-	"github.com/cloudradar-monitoring/rport/share/logger"
+	"github.com/realvnc-labs/rport/share/logger"
 
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"

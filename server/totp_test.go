@@ -7,7 +7,7 @@ import (
 	"testing"
 	"time"
 
-	"github.com/cloudradar-monitoring/rport/server/api/users"
+	"github.com/realvnc-labs/rport/server/api/users"
 
 	"github.com/pquerna/otp/totp"
 	"github.com/stretchr/testify/assert"

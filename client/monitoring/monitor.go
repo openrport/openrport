@@ -8,14 +8,14 @@ import (
 
 	"golang.org/x/crypto/ssh"
 
-	"github.com/cloudradar-monitoring/rport/client/monitoring/fs"
-	"github.com/cloudradar-monitoring/rport/client/monitoring/networking"
-	"github.com/cloudradar-monitoring/rport/client/monitoring/processes"
-	"github.com/cloudradar-monitoring/rport/client/system"
-	"github.com/cloudradar-monitoring/rport/share/clientconfig"
-	"github.com/cloudradar-monitoring/rport/share/comm"
-	"github.com/cloudradar-monitoring/rport/share/logger"
-	"github.com/cloudradar-monitoring/rport/share/models"
+	"github.com/realvnc-labs/rport/client/monitoring/fs"
+	"github.com/realvnc-labs/rport/client/monitoring/networking"
+	"github.com/realvnc-labs/rport/client/monitoring/processes"
+	"github.com/realvnc-labs/rport/client/system"
+	"github.com/realvnc-labs/rport/share/clientconfig"
+	"github.com/realvnc-labs/rport/share/comm"
+	"github.com/realvnc-labs/rport/share/logger"
+	"github.com/realvnc-labs/rport/share/models"
 )
 
 type Monitor struct {

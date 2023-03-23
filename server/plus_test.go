@@ -7,11 +7,11 @@ import (
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 
-	rportplus "github.com/cloudradar-monitoring/rport/plus"
-	"github.com/cloudradar-monitoring/rport/plus/capabilities/oauth"
-	"github.com/cloudradar-monitoring/rport/plus/validator"
-	"github.com/cloudradar-monitoring/rport/server/chconfig"
-	"github.com/cloudradar-monitoring/rport/share/logger"
+	rportplus "github.com/realvnc-labs/rport/plus"
+	"github.com/realvnc-labs/rport/plus/capabilities/oauth"
+	"github.com/realvnc-labs/rport/plus/validator"
+	"github.com/realvnc-labs/rport/server/chconfig"
+	"github.com/realvnc-labs/rport/share/logger"
 )
 
 const (

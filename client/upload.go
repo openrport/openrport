@@ -8,9 +8,9 @@ import (
 	"path/filepath"
 	"strings"
 
-	errors2 "github.com/cloudradar-monitoring/rport/share/errors"
+	errors2 "github.com/realvnc-labs/rport/share/errors"
 
-	"github.com/cloudradar-monitoring/rport/client/system"
+	"github.com/realvnc-labs/rport/client/system"
 
 	"github.com/pkg/sftp"
 
@@ -18,9 +18,9 @@ import (
 
 	"golang.org/x/crypto/ssh"
 
-	"github.com/cloudradar-monitoring/rport/share/files"
-	"github.com/cloudradar-monitoring/rport/share/logger"
-	"github.com/cloudradar-monitoring/rport/share/models"
+	"github.com/realvnc-labs/rport/share/files"
+	"github.com/realvnc-labs/rport/share/logger"
+	"github.com/realvnc-labs/rport/share/models"
 )
 
 type SourceFileProvider interface {

@@ -3,13 +3,13 @@ package clientsauth
 import (
 	"testing"
 
-	"github.com/cloudradar-monitoring/rport/share/query"
+	"github.com/realvnc-labs/rport/share/query"
 
 	"github.com/jmoiron/sqlx"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 
-	"github.com/cloudradar-monitoring/rport/share/enums"
+	"github.com/realvnc-labs/rport/share/enums"
 )
 
 func TestDatabaseProvider(t *testing.T) {

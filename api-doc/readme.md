@@ -3,11 +3,11 @@
 This folder contains the sources of rportd API documentation following the openapi 3.0.1 standard.
 
 If you came by here to read the API documentation go to [apidoc.rport.io](https://apidoc.rport.io/master/) to switch to the rendered HTML version.
-For those preferring swagger-style rendering, use [this link](https://petstore.swagger.io/?url=https://raw.githubusercontent.com/cloudradar-monitoring/rport/master/api-doc/openapi/openapi.yaml#/)
+For those preferring swagger-style rendering, use [this link](https://petstore.swagger.io/?url=https://raw.githubusercontent.com/realvnc-labs/rport/master/api-doc/openapi/openapi.yaml#/)
 
 ## Build the documentation from the sources
 
-There a many tools out there to convert the yaml sources into different formats.  For example [Swagger Codegen](https://swagger.io/docs/open-source-tools/swagger-codegen/) or the [Open API Codegenerator](https://repo1.maven.org/maven2/org/openapitools/openapi-generator-cli/5.0.0/).
+There a many tools out there to convert the yaml sources into different formats. For example [Swagger Codegen](https://swagger.io/docs/open-source-tools/swagger-codegen/) or the [Open API Codegenerator](https://repo1.maven.org/maven2/org/openapitools/openapi-generator-cli/5.0.0/).
 Both are java command line tools.
 
 More comfort for reading and writing Open API docs is provided by [Redoc](https://github.com/Redocly/redoc) and there command line tool [Redoc CLI](https://redocly.com/docs/redoc/deployment/cli/).

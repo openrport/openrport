@@ -15,7 +15,7 @@ import (
 	"github.com/jpillora/sizestr"
 	"golang.org/x/crypto/ssh"
 
-	"github.com/cloudradar-monitoring/rport/share/logger"
+	"github.com/realvnc-labs/rport/share/logger"
 )
 
 func GenerateKey(seed string) ([]byte, error) {

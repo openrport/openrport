@@ -7,10 +7,10 @@ import (
 	"net/http"
 	"time"
 
-	"github.com/cloudradar-monitoring/rport/share/query"
-	"github.com/cloudradar-monitoring/rport/share/types"
+	"github.com/realvnc-labs/rport/share/query"
+	"github.com/realvnc-labs/rport/share/types"
 
-	errors2 "github.com/cloudradar-monitoring/rport/server/api/errors"
+	errors2 "github.com/realvnc-labs/rport/server/api/errors"
 )
 
 var (

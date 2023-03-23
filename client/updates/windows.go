@@ -11,8 +11,8 @@ import (
 	"github.com/go-ole/go-ole/oleutil"
 	"github.com/scjalliance/comshim"
 
-	"github.com/cloudradar-monitoring/rport/share/logger"
-	"github.com/cloudradar-monitoring/rport/share/models"
+	"github.com/realvnc-labs/rport/share/logger"
+	"github.com/realvnc-labs/rport/share/models"
 )
 
 var packageManagers = []PackageManager{

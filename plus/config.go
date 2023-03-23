@@ -1,8 +1,8 @@
 package rportplus
 
 import (
-	"github.com/cloudradar-monitoring/rport/plus/capabilities/oauth"
-	"github.com/cloudradar-monitoring/rport/plus/license"
+	"github.com/realvnc-labs/rport/plus/capabilities/oauth"
+	"github.com/realvnc-labs/rport/plus/license"
 )
 
 // PluginConfig contains the config related to the plugin itself

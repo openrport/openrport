@@ -7,8 +7,8 @@ import (
 
 	"github.com/stretchr/testify/require"
 
-	"github.com/cloudradar-monitoring/rport/db/migration/clients"
-	"github.com/cloudradar-monitoring/rport/db/sqlite"
+	"github.com/realvnc-labs/rport/db/migration/clients"
+	"github.com/realvnc-labs/rport/db/sqlite"
 )
 
 var DataSourceOptions = sqlite.DataSourceOptions{WALEnabled: false}

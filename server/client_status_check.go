@@ -4,9 +4,9 @@ import (
 	"context"
 	"time"
 
-	"github.com/cloudradar-monitoring/rport/server/clients"
-	"github.com/cloudradar-monitoring/rport/share/comm"
-	"github.com/cloudradar-monitoring/rport/share/logger"
+	"github.com/realvnc-labs/rport/server/clients"
+	"github.com/realvnc-labs/rport/share/comm"
+	"github.com/realvnc-labs/rport/share/logger"
 )
 
 const DefaultMaxWorkers = 100

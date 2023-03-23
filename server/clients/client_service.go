@@ -16,16 +16,16 @@ import (
 	"github.com/hashicorp/go-version"
 	"github.com/jmoiron/sqlx"
 
-	licensecap "github.com/cloudradar-monitoring/rport/plus/capabilities/license"
-	apiErrors "github.com/cloudradar-monitoring/rport/server/api/errors"
-	"github.com/cloudradar-monitoring/rport/server/caddy"
-	"github.com/cloudradar-monitoring/rport/server/cgroups"
-	"github.com/cloudradar-monitoring/rport/server/clients/clienttunnel"
-	"github.com/cloudradar-monitoring/rport/server/ports"
-	chshare "github.com/cloudradar-monitoring/rport/share"
-	"github.com/cloudradar-monitoring/rport/share/logger"
-	"github.com/cloudradar-monitoring/rport/share/models"
-	"github.com/cloudradar-monitoring/rport/share/query"
+	licensecap "github.com/realvnc-labs/rport/plus/capabilities/license"
+	apiErrors "github.com/realvnc-labs/rport/server/api/errors"
+	"github.com/realvnc-labs/rport/server/caddy"
+	"github.com/realvnc-labs/rport/server/cgroups"
+	"github.com/realvnc-labs/rport/server/clients/clienttunnel"
+	"github.com/realvnc-labs/rport/server/ports"
+	chshare "github.com/realvnc-labs/rport/share"
+	"github.com/realvnc-labs/rport/share/logger"
+	"github.com/realvnc-labs/rport/share/models"
+	"github.com/realvnc-labs/rport/share/query"
 )
 
 type ClientService interface {

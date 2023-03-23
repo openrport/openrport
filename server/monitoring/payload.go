@@ -3,8 +3,8 @@ package monitoring
 import (
 	"time"
 
-	"github.com/cloudradar-monitoring/rport/share/query"
-	"github.com/cloudradar-monitoring/rport/share/types"
+	"github.com/realvnc-labs/rport/share/query"
+	"github.com/realvnc-labs/rport/share/types"
 )
 
 const (

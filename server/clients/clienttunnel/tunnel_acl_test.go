@@ -7,7 +7,7 @@ import (
 
 	"github.com/stretchr/testify/assert"
 
-	"github.com/cloudradar-monitoring/rport/server/clients/clienttunnel"
+	"github.com/realvnc-labs/rport/server/clients/clienttunnel"
 )
 
 func TestParseTunnelACL(t *testing.T) {

@@ -19,7 +19,7 @@ import (
 
 	"github.com/shirou/gopsutil/v3/process"
 
-	"github.com/cloudradar-monitoring/rport/client/monitoring/helper"
+	"github.com/realvnc-labs/rport/client/monitoring/helper"
 )
 
 var errorProcessTerminated = fmt.Errorf("Process was terminated")

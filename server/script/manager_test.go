@@ -13,9 +13,9 @@ import (
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 
-	errors2 "github.com/cloudradar-monitoring/rport/server/api/errors"
-	chshare "github.com/cloudradar-monitoring/rport/share/logger"
-	"github.com/cloudradar-monitoring/rport/share/query"
+	errors2 "github.com/realvnc-labs/rport/server/api/errors"
+	chshare "github.com/realvnc-labs/rport/share/logger"
+	"github.com/realvnc-labs/rport/share/query"
 )
 
 var testLog = chshare.NewLogger("script", chshare.LogOutput{File: os.Stdout}, chshare.LogLevelDebug)

@@ -1,9 +1,9 @@
 package capabilities
 
 import (
-	"github.com/cloudradar-monitoring/rport/server/chconfig"
-	chshare "github.com/cloudradar-monitoring/rport/share"
-	"github.com/cloudradar-monitoring/rport/share/models"
+	"github.com/realvnc-labs/rport/server/chconfig"
+	chshare "github.com/realvnc-labs/rport/share"
+	"github.com/realvnc-labs/rport/share/models"
 )
 
 func NewServerCapabilities(cfg *chconfig.MonitoringConfig) *models.Capabilities {

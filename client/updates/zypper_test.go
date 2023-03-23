@@ -7,7 +7,7 @@ import (
 
 	"github.com/stretchr/testify/assert"
 
-	"github.com/cloudradar-monitoring/rport/share/models"
+	"github.com/realvnc-labs/rport/share/models"
 )
 
 func TestZypperPackageMangerIsAvailable(t *testing.T) { //nolint:dupl

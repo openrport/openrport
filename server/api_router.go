@@ -7,12 +7,12 @@ import (
 	"github.com/gorilla/mux"
 	"github.com/jpillora/requestlog"
 
-	rportplus "github.com/cloudradar-monitoring/rport/plus"
-	"github.com/cloudradar-monitoring/rport/plus/capabilities/oauth"
-	"github.com/cloudradar-monitoring/rport/server/api/middleware"
-	"github.com/cloudradar-monitoring/rport/server/api/users"
-	"github.com/cloudradar-monitoring/rport/server/routes"
-	"github.com/cloudradar-monitoring/rport/share/security"
+	rportplus "github.com/realvnc-labs/rport/plus"
+	"github.com/realvnc-labs/rport/plus/capabilities/oauth"
+	"github.com/realvnc-labs/rport/server/api/middleware"
+	"github.com/realvnc-labs/rport/server/api/users"
+	"github.com/realvnc-labs/rport/server/routes"
+	"github.com/realvnc-labs/rport/share/security"
 )
 
 // define which URL paths vue aka the frontend is using. Listed paths are rewritten to / aka returning index.html

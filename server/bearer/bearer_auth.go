@@ -11,9 +11,9 @@ import (
 
 	"github.com/golang-jwt/jwt/v4"
 
-	"github.com/cloudradar-monitoring/rport/server/api/session"
-	"github.com/cloudradar-monitoring/rport/server/routes"
-	"github.com/cloudradar-monitoring/rport/share/logger"
+	"github.com/realvnc-labs/rport/server/api/session"
+	"github.com/realvnc-labs/rport/server/routes"
+	"github.com/realvnc-labs/rport/share/logger"
 )
 
 const (

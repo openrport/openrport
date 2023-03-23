@@ -3,8 +3,8 @@ package clientsauth
 import (
 	"errors"
 
-	"github.com/cloudradar-monitoring/rport/share/enums"
-	"github.com/cloudradar-monitoring/rport/share/query"
+	"github.com/realvnc-labs/rport/share/enums"
+	"github.com/realvnc-labs/rport/share/query"
 )
 
 type SingleProvider struct {

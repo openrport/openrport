@@ -10,7 +10,7 @@ import (
 
 	"github.com/cloudradar-monitoring/cagent/pkg/winapi"
 
-	"github.com/cloudradar-monitoring/rport/client/monitoring/helper"
+	"github.com/realvnc-labs/rport/client/monitoring/helper"
 )
 
 type ProcessCache struct {

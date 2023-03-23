@@ -6,12 +6,12 @@ import (
 	"testing"
 	"time"
 
-	jobsmigration "github.com/cloudradar-monitoring/rport/db/migration/jobs"
-	"github.com/cloudradar-monitoring/rport/db/sqlite"
-	"github.com/cloudradar-monitoring/rport/server/api/jobs"
-	"github.com/cloudradar-monitoring/rport/server/test/jb"
-	"github.com/cloudradar-monitoring/rport/share/logger"
-	"github.com/cloudradar-monitoring/rport/share/ptr"
+	jobsmigration "github.com/realvnc-labs/rport/db/migration/jobs"
+	"github.com/realvnc-labs/rport/db/sqlite"
+	"github.com/realvnc-labs/rport/server/api/jobs"
+	"github.com/realvnc-labs/rport/server/test/jb"
+	"github.com/realvnc-labs/rport/share/logger"
+	"github.com/realvnc-labs/rport/share/ptr"
 
 	"github.com/jmoiron/sqlx"
 

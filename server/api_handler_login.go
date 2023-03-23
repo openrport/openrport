@@ -7,13 +7,13 @@ import (
 	"strconv"
 	"time"
 
-	rportplus "github.com/cloudradar-monitoring/rport/plus"
-	"github.com/cloudradar-monitoring/rport/server/api"
-	errors2 "github.com/cloudradar-monitoring/rport/server/api/errors"
-	"github.com/cloudradar-monitoring/rport/server/api/users"
-	"github.com/cloudradar-monitoring/rport/server/bearer"
-	chshare "github.com/cloudradar-monitoring/rport/share"
-	"github.com/cloudradar-monitoring/rport/share/logger"
+	rportplus "github.com/realvnc-labs/rport/plus"
+	"github.com/realvnc-labs/rport/server/api"
+	errors2 "github.com/realvnc-labs/rport/server/api/errors"
+	"github.com/realvnc-labs/rport/server/api/users"
+	"github.com/realvnc-labs/rport/server/bearer"
+	chshare "github.com/realvnc-labs/rport/share"
+	"github.com/realvnc-labs/rport/share/logger"
 )
 
 type twoFAResponse struct {
@@ -44,7 +44,7 @@ func (al *APIListener) handleGetLogin(w http.ResponseWriter, req *http.Request) 
 		return
 	}
 
-	// TODO: consider to move this check from all API endpoints to middleware similar to https://github.com/cloudradar-monitoring/rport/pull/199/commits/4ca1ca9f56c557762d79a60ffc96d2de47f3133c
+	// TODO: consider to move this check from all API endpoints to middleware similar to https://github.com/realvnc-labs/rport/pull/199/commits/4ca1ca9f56c557762d79a60ffc96d2de47f3133c
 	// ban IP if it sends a lot of bad requests
 	if !al.handleBannedIPs(req, false) {
 		return

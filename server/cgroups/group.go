@@ -8,7 +8,7 @@ import (
 	"reflect"
 	"strings"
 
-	"github.com/cloudradar-monitoring/rport/share/types"
+	"github.com/realvnc-labs/rport/share/types"
 )
 
 const OptionsResource = "client_groups"

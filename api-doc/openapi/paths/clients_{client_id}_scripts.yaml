@@ -35,7 +35,7 @@ post:
               description: >-
                 command interpreter to use to execute the script. If not set
                 'cmd' is used by default on Windows and /bin/sh on Linux.
-                 For tacoscript interpreter you should install tacoscript binary from here: https://github.com/cloudradar-monitoring/tacoscript#installation. It should also be available in the system path.
+                 For tacoscript interpreter you should install tacoscript binary from here: https://github.com/realvnc-labs/tacoscript#installation. It should also be available in the system path.
                  Additionally, you can use interpreter aliases or full absolute paths to an interpreter of your choice (see https://oss.rport.io/docs/no14-scripts.html#scripts-execution for details).
               enum:
                 - cmd

@@ -3,8 +3,8 @@ package users
 import (
 	"net/http"
 
-	errors2 "github.com/cloudradar-monitoring/rport/server/api/errors"
-	"github.com/cloudradar-monitoring/rport/share/enums"
+	errors2 "github.com/realvnc-labs/rport/server/api/errors"
+	"github.com/realvnc-labs/rport/share/enums"
 )
 
 type StaticProvider struct {

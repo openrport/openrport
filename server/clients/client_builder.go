@@ -13,16 +13,16 @@ import (
 	"testing"
 	"time"
 
-	"github.com/cloudradar-monitoring/rport/share/clientconfig"
-	"github.com/cloudradar-monitoring/rport/share/logger"
+	"github.com/realvnc-labs/rport/share/clientconfig"
+	"github.com/realvnc-labs/rport/share/logger"
 
 	"golang.org/x/crypto/ssh"
 
 	"github.com/stretchr/testify/require"
 
-	"github.com/cloudradar-monitoring/rport/server/clients/clienttunnel"
-	chshare "github.com/cloudradar-monitoring/rport/share/models"
-	"github.com/cloudradar-monitoring/rport/share/random"
+	"github.com/realvnc-labs/rport/server/clients/clienttunnel"
+	chshare "github.com/realvnc-labs/rport/share/models"
+	"github.com/realvnc-labs/rport/share/random"
 )
 
 var clientsNow, _ = time.ParseInLocation(time.RFC3339, "2020-08-19T13:09:23+03:00", nil)

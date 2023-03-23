@@ -9,7 +9,7 @@ import (
 	"golang.org/x/text/encoding"
 	"golang.org/x/text/encoding/charmap"
 
-	chshare "github.com/cloudradar-monitoring/rport/share"
+	chshare "github.com/realvnc-labs/rport/share"
 )
 
 func TestDetectCmdOutputEncoding(t *testing.T) {

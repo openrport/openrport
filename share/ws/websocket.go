@@ -5,8 +5,8 @@ import (
 	"io"
 	"sync"
 
-	"github.com/cloudradar-monitoring/rport/server/api"
-	"github.com/cloudradar-monitoring/rport/share/logger"
+	"github.com/realvnc-labs/rport/server/api"
+	"github.com/realvnc-labs/rport/share/logger"
 )
 
 type Conn interface {

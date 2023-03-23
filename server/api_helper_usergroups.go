@@ -5,9 +5,9 @@ import (
 
 	"github.com/gorilla/mux"
 
-	"github.com/cloudradar-monitoring/rport/server/api"
-	"github.com/cloudradar-monitoring/rport/server/api/users"
-	"github.com/cloudradar-monitoring/rport/server/auditlog"
+	"github.com/realvnc-labs/rport/server/api"
+	"github.com/realvnc-labs/rport/server/api/users"
+	"github.com/realvnc-labs/rport/server/auditlog"
 )
 
 func (al *APIListener) handleListUserGroups(w http.ResponseWriter, req *http.Request) {

@@ -8,7 +8,7 @@ import (
 
 	"github.com/stretchr/testify/assert"
 
-	"github.com/cloudradar-monitoring/rport/bdd/helpers"
+	"github.com/realvnc-labs/rport/bdd/helpers"
 )
 
 func TestClientConnects(t *testing.T) {

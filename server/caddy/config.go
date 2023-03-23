@@ -10,7 +10,7 @@ import (
 	"strings"
 	"text/template"
 
-	"github.com/cloudradar-monitoring/rport/share/files"
+	"github.com/realvnc-labs/rport/share/files"
 
 	"github.com/aidarkhanov/nanoid/v2"
 )

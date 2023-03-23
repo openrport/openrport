@@ -6,9 +6,9 @@ import (
 	"fmt"
 	"time"
 
-	"github.com/cloudradar-monitoring/rport/share/random"
+	"github.com/realvnc-labs/rport/share/random"
 
-	"github.com/cloudradar-monitoring/rport/share/query"
+	"github.com/realvnc-labs/rport/share/query"
 
 	"github.com/jmoiron/sqlx"
 )

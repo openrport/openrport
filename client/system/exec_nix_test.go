@@ -4,7 +4,7 @@
 package system
 
 import (
-	chshare "github.com/cloudradar-monitoring/rport/share"
+	chshare "github.com/realvnc-labs/rport/share"
 )
 
 func getCmdBuildTestcases() []cmdBuildTestCase {

@@ -3,7 +3,7 @@ package chserver
 import (
 	"net/http"
 
-	chshare "github.com/cloudradar-monitoring/rport/share"
+	chshare "github.com/realvnc-labs/rport/share"
 )
 
 func (al *APIListener) handleBannedIPs(r *http.Request, authorized bool) (ok bool) {

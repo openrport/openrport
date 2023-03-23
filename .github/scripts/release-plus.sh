@@ -31,4 +31,4 @@ echo "🚚 Will upload a new asset to the existing release"
 curl -v -s --fail -T ${PLUS_ARTIFACT} \
  -H "Authorization: token ${GITHUB_TOKEN}" -H "Content-Type: $(file -b --mime-type ${PLUS_ARTIFACT})" \
  -H "Accept: application/vnd.github.v3+json" \
- "https://uploads.github.com/repos/cloudradar-monitoring/rport/releases/${RELEASE_ID}/assets?name=$(basename ${PLUS_ARTIFACT})"|tee upload.log|jq
+ "https://uploads.github.com/repos/realvnc-labs/rport/releases/${RELEASE_ID}/assets?name=$(basename ${PLUS_ARTIFACT})"|tee upload.log|jq

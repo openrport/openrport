@@ -8,7 +8,7 @@ import (
 	"os/exec"
 	"regexp"
 
-	email2 "github.com/cloudradar-monitoring/rport/share/email"
+	email2 "github.com/realvnc-labs/rport/share/email"
 )
 
 const stderrLimit = 1024

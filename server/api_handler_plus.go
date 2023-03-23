@@ -3,8 +3,8 @@ package chserver
 import (
 	"net/http"
 
-	rportplus "github.com/cloudradar-monitoring/rport/plus"
-	"github.com/cloudradar-monitoring/rport/server/api"
+	rportplus "github.com/realvnc-labs/rport/plus"
+	"github.com/realvnc-labs/rport/server/api"
 )
 
 // handleOAuthAuthorizationCode takes a request containing the OAuth authorization code parameters

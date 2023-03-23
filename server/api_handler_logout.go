@@ -4,7 +4,7 @@ import (
 	"fmt"
 	"net/http"
 
-	"github.com/cloudradar-monitoring/rport/server/bearer"
+	"github.com/realvnc-labs/rport/server/bearer"
 )
 
 func (al *APIListener) handleDeleteLogout(w http.ResponseWriter, req *http.Request) {

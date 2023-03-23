@@ -43,7 +43,7 @@ linters-settings:
   goimports:
     # put imports beginning with prefix after 3rd-party packages;
     # it's a comma-separated list of prefixes
-    local-prefixes: github.com/cloudradar-monitoring/rport
+    local-prefixes: github.com/realvnc-labs/rport
   gocyclo:
     # minimal code complexity to report, 30 by default (but we recommend 10-20)
     # TODO: reduce to 20 when complex code would be refactored
@@ -127,15 +127,15 @@ linters:
 issues:
   exclude:
     # gosec
-    - "G401: Use of weak cryptographic primitive"
+    - 'G401: Use of weak cryptographic primitive'
     - "G404: Use of weak random number generator \\(math/rand instead of crypto/rand\\)"
-    - "G501: Blocklisted import crypto/md5: weak cryptographic primitive"
-    - "G505: Blocklisted import crypto/sha1: weak cryptographic primitive"
-    - "G204: Subprocess launched with function call as argument or cmd arguments"
+    - 'G501: Blocklisted import crypto/md5: weak cryptographic primitive'
+    - 'G505: Blocklisted import crypto/sha1: weak cryptographic primitive'
+    - 'G204: Subprocess launched with function call as argument or cmd arguments'
     # govet
-    - "shadow: declaration of .err. shadows declaration"
+    - 'shadow: declaration of .err. shadows declaration'
     - 'shadow: declaration of "c." shadows declaration'
     # staticcheck
-    - "SA1019" # x is deprecated
+    - 'SA1019' # x is deprecated
 
 new: true

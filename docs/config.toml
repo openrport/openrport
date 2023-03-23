@@ -53,7 +53,7 @@ geekdocBreadcrumb = false
 
 # (Optional, default none) Set source repository location. Used for 'Edit page' links.
 # You can also specify this parameter per page in front matter.
-geekdocRepo = "https://github.com/cloudradar-monitoring/rport/tree/master"
+geekdocRepo = "https://github.com/realvnc-labs/rport/tree/master"
 
 # (Optional, default none) Enable 'Edit page' links. Requires 'GeekdocRepo' param
 # and the path must point to the parent directory of the 'content' folder.
@@ -114,4 +114,4 @@ geekdocFileTreeSortBy = "title"
 # Could be used if you want to define a default license for your content.
 [params.geekdocContentLicense]
 name = "The MIT License"
-link = "https://github.com/cloudradar-monitoring/rport/blob/master/LICENSE"
+link = "https://github.com/realvnc-labs/rport/blob/master/LICENSE"

@@ -11,8 +11,8 @@ import (
 
 	"github.com/patrickmn/go-cache"
 
-	"github.com/cloudradar-monitoring/rport/share/enums"
-	"github.com/cloudradar-monitoring/rport/share/query"
+	"github.com/realvnc-labs/rport/share/enums"
+	"github.com/realvnc-labs/rport/share/query"
 )
 
 // FileProvider is file based client provider.

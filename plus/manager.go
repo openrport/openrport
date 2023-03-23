@@ -7,14 +7,14 @@ import (
 	"plugin"
 	"sync"
 
-	licensecap "github.com/cloudradar-monitoring/rport/plus/capabilities/license"
-	"github.com/cloudradar-monitoring/rport/plus/capabilities/oauth"
-	"github.com/cloudradar-monitoring/rport/plus/capabilities/status"
-	"github.com/cloudradar-monitoring/rport/plus/license"
-	"github.com/cloudradar-monitoring/rport/plus/loader"
-	"github.com/cloudradar-monitoring/rport/plus/validator"
-	"github.com/cloudradar-monitoring/rport/share/files"
-	"github.com/cloudradar-monitoring/rport/share/logger"
+	licensecap "github.com/realvnc-labs/rport/plus/capabilities/license"
+	"github.com/realvnc-labs/rport/plus/capabilities/oauth"
+	"github.com/realvnc-labs/rport/plus/capabilities/status"
+	"github.com/realvnc-labs/rport/plus/license"
+	"github.com/realvnc-labs/rport/plus/loader"
+	"github.com/realvnc-labs/rport/plus/validator"
+	"github.com/realvnc-labs/rport/share/files"
+	"github.com/realvnc-labs/rport/share/logger"
 )
 
 const (

@@ -13,7 +13,7 @@ import (
 	"sync"
 	"time"
 
-	"github.com/cloudradar-monitoring/rport/share/random"
+	"github.com/realvnc-labs/rport/share/random"
 
 	"github.com/denisbrodbeck/machineid"
 	"github.com/pkg/errors"
@@ -24,14 +24,14 @@ import (
 	"golang.org/x/crypto/ssh"
 	"golang.org/x/net/proxy"
 
-	"github.com/cloudradar-monitoring/rport/client/monitoring"
-	"github.com/cloudradar-monitoring/rport/client/system"
-	"github.com/cloudradar-monitoring/rport/client/updates"
-	chshare "github.com/cloudradar-monitoring/rport/share"
-	"github.com/cloudradar-monitoring/rport/share/comm"
-	"github.com/cloudradar-monitoring/rport/share/files"
-	"github.com/cloudradar-monitoring/rport/share/logger"
-	"github.com/cloudradar-monitoring/rport/share/models"
+	"github.com/realvnc-labs/rport/client/monitoring"
+	"github.com/realvnc-labs/rport/client/system"
+	"github.com/realvnc-labs/rport/client/updates"
+	chshare "github.com/realvnc-labs/rport/share"
+	"github.com/realvnc-labs/rport/share/comm"
+	"github.com/realvnc-labs/rport/share/files"
+	"github.com/realvnc-labs/rport/share/logger"
+	"github.com/realvnc-labs/rport/share/models"
 )
 
 const DialTimeout = 5 * 60 * time.Second

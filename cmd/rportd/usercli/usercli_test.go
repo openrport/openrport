@@ -6,7 +6,7 @@ import (
 	"github.com/test-go/testify/assert"
 	"github.com/test-go/testify/require"
 
-	"github.com/cloudradar-monitoring/rport/share/enums"
+	"github.com/realvnc-labs/rport/share/enums"
 )
 
 func TestCreateUser(t *testing.T) {

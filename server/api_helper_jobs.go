@@ -7,13 +7,13 @@ import (
 	"fmt"
 	"time"
 
-	"github.com/cloudradar-monitoring/rport/server/api/jobs"
-	"github.com/cloudradar-monitoring/rport/server/clients"
-	"github.com/cloudradar-monitoring/rport/share/comm"
-	"github.com/cloudradar-monitoring/rport/share/models"
-	"github.com/cloudradar-monitoring/rport/share/query"
-	"github.com/cloudradar-monitoring/rport/share/random"
-	"github.com/cloudradar-monitoring/rport/share/ws"
+	"github.com/realvnc-labs/rport/server/api/jobs"
+	"github.com/realvnc-labs/rport/server/clients"
+	"github.com/realvnc-labs/rport/share/comm"
+	"github.com/realvnc-labs/rport/share/models"
+	"github.com/realvnc-labs/rport/share/query"
+	"github.com/realvnc-labs/rport/share/random"
+	"github.com/realvnc-labs/rport/share/ws"
 )
 
 var ErrClientNotConnected = errors.New("client is not connected")

@@ -1,12 +1,12 @@
 env:
   - CGO_ENABLED=0
-  - PROJECT=github.com/cloudradar-monitoring/rport
+  - PROJECT=github.com/realvnc-labs/rport
 builds:
   - id: rport
     main: ./cmd/rport
     binary: rport
     ldflags:
-      - "-s -w -X {{.Env.PROJECT}}/share.BuildVersion={{.Version}}"
+      - '-s -w -X {{.Env.PROJECT}}/share.BuildVersion={{.Version}}'
     goos:
       - linux
       - darwin
@@ -42,7 +42,7 @@ builds:
     main: ./cmd/rportd
     binary: rportd
     ldflags:
-      - "-s -w -X {{.Env.PROJECT}}/share.BuildVersion={{.Version}}"
+      - '-s -w -X {{.Env.PROJECT}}/share.BuildVersion={{.Version}}'
       #- "-extldflags '-static'"
     env:
       - CGO_ENABLED=1
@@ -79,14 +79,14 @@ archives:
     files:
       - rportd.example.conf
 checksum:
-  name_template: "checksums.txt"
+  name_template: 'checksums.txt'
 snapshot:
-  name_template: "{{ .Tag }}"
+  name_template: '{{ .Tag }}'
 changelog:
   sort: asc
 release:
   github:
-    owner: cloudradar-monitoring
+    owner: realvnc-labs
     name: rport
   draft: true
   prerelease: true

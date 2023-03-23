@@ -4,7 +4,7 @@ import (
 	"context"
 	"os/exec"
 
-	"github.com/cloudradar-monitoring/rport/share/logger"
+	"github.com/realvnc-labs/rport/share/logger"
 )
 
 type CmdExecutorContext struct {

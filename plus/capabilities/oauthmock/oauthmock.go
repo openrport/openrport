@@ -6,9 +6,9 @@ import (
 	"plugin"
 	"time"
 
-	"github.com/cloudradar-monitoring/rport/plus/capabilities/oauth"
-	"github.com/cloudradar-monitoring/rport/plus/validator"
-	"github.com/cloudradar-monitoring/rport/share/logger"
+	"github.com/realvnc-labs/rport/plus/capabilities/oauth"
+	"github.com/realvnc-labs/rport/plus/validator"
+	"github.com/realvnc-labs/rport/share/logger"
 )
 
 type MockCapabilityProvider struct {

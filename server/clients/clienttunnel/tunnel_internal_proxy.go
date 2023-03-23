@@ -15,9 +15,9 @@ import (
 
 	"github.com/gorilla/mux"
 
-	chshare "github.com/cloudradar-monitoring/rport/share"
-	"github.com/cloudradar-monitoring/rport/share/logger"
-	"github.com/cloudradar-monitoring/rport/share/security"
+	chshare "github.com/realvnc-labs/rport/share"
+	"github.com/realvnc-labs/rport/share/logger"
+	"github.com/realvnc-labs/rport/share/security"
 )
 
 //go:embed css/tunnel-proxy.css

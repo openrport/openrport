@@ -8,11 +8,11 @@ import (
 
 	"github.com/gorilla/mux"
 
-	rportplus "github.com/cloudradar-monitoring/rport/plus"
-	"github.com/cloudradar-monitoring/rport/server/api"
-	"github.com/cloudradar-monitoring/rport/server/api/users"
-	"github.com/cloudradar-monitoring/rport/server/auditlog"
-	"github.com/cloudradar-monitoring/rport/server/routes"
+	rportplus "github.com/realvnc-labs/rport/plus"
+	"github.com/realvnc-labs/rport/server/api"
+	"github.com/realvnc-labs/rport/server/api/users"
+	"github.com/realvnc-labs/rport/server/auditlog"
+	"github.com/realvnc-labs/rport/server/routes"
 )
 
 var (
