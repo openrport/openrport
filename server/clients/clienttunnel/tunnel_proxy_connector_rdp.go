@@ -12,16 +12,17 @@ import (
 )
 
 const (
-	queryParToken     = "token"
-	queryParSecurity  = "security"
-	queryParUsername  = "username"
-	queryParPassword  = "password"
-	queryParDomain    = "domain"
-	queryParWidth     = "width"
-	queryParHeight    = "height"
-	queryParTitle     = "title"
-	queryParKeyboard  = "keyboard"
-	queryParGuacError = "guac-error"
+	queryParToken      = "token"
+	queryParSecurity   = "security"
+	queryParUsername   = "username"
+	queryParPassword   = "password"
+	queryParDomain     = "domain"
+	queryParWidth      = "width"
+	queryParHeight     = "height"
+	queryParTitle      = "title"
+	queryParKeyboard   = "keyboard"
+	queryParMicrophone = "microphone"
+	queryParGuacError  = "guac-error"
 )
 
 var keysSecurity = []string{"", "any", "nla", "nla-ext", "tls", "vmconnect", "rdp"}
@@ -74,17 +75,18 @@ func (tc *TunnelProxyConnectorRDP) serveIndex(w http.ResponseWriter, r *http.Req
 	selKeyboard := r.Form.Get(queryParKeyboard)
 	guacError := r.Form.Get(queryParGuacError)
 	templateData := map[string]interface{}{
-		queryParUsername:  r.Form.Get(queryParUsername),
-		queryParDomain:    r.Form.Get(queryParDomain),
-		queryParSecurity:  r.Form.Get(queryParSecurity),
-		queryParKeyboard:  r.Form.Get(queryParKeyboard),
-		queryParWidth:     r.Form.Get(queryParWidth),
-		queryParHeight:    r.Form.Get(queryParHeight),
-		queryParTitle:     r.Form.Get(queryParTitle),
-		"errorMessage":    guacError,
-		"isError":         guacError != "",
-		"securityOptions": CreateOptions(keysSecurity, keysSecurity, selSecurity),
-		"keyboardOptions": CreateOptions(keysKeyboard, valuesKeyboard, selKeyboard),
+		queryParUsername:   r.Form.Get(queryParUsername),
+		queryParDomain:     r.Form.Get(queryParDomain),
+		queryParSecurity:   r.Form.Get(queryParSecurity),
+		queryParKeyboard:   r.Form.Get(queryParKeyboard),
+		queryParMicrophone: r.Form.Get(queryParMicrophone),
+		queryParWidth:      r.Form.Get(queryParWidth),
+		queryParHeight:     r.Form.Get(queryParHeight),
+		queryParTitle:      r.Form.Get(queryParTitle),
+		"errorMessage":     guacError,
+		"isError":          guacError != "",
+		"securityOptions":  CreateOptions(keysSecurity, keysSecurity, selSecurity),
+		"keyboardOptions":  CreateOptions(keysKeyboard, valuesKeyboard, selKeyboard),
 	}
 
 	tc.tunnelProxy.serveTemplate(w, r, guacIndexHTML, templateData)
@@ -96,11 +98,12 @@ func (tc *TunnelProxyConnectorRDP) serveTunnelStarter(w http.ResponseWriter, r *
 	tc.guacTokenStore.Add(token, guacToken)
 
 	templateData := map[string]interface{}{
-		"token":          token,
-		queryParUsername: guacToken.username,
-		queryParDomain:   guacToken.domain,
-		queryParSecurity: guacToken.security,
-		queryParKeyboard: guacToken.keyboard,
+		"token":            token,
+		queryParUsername:   guacToken.username,
+		queryParDomain:     guacToken.domain,
+		queryParSecurity:   guacToken.security,
+		queryParKeyboard:   guacToken.keyboard,
+		queryParMicrophone: guacToken.microphone,
 	}
 
 	tc.tunnelProxy.serveTemplate(w, r, guacStartTunnelHTML, templateData)
@@ -115,6 +118,7 @@ func parseGuacToken(r *http.Request) *GuacToken {
 	token.width = r.Form.Get(queryParWidth)
 	token.height = r.Form.Get(queryParHeight)
 	token.keyboard = r.Form.Get(queryParKeyboard)
+	token.microphone = r.Form.Get(queryParMicrophone) != ""
 
 	return token
 }
@@ -164,6 +168,13 @@ func (tc *TunnelProxyConnectorRDP) connectToGuacamole(r *http.Request) (guac.Tun
 	}
 
 	config.AudioMimetypes = []string{"audio/L16", "rate=44100", "channels=2"}
+
+	if guacToken.microphone {
+		config.Parameters["disable-sound"] = "false"
+		config.Parameters["enable-audio-input"] = "true"
+	} else {
+		config.Parameters["disable-sound"] = "true"
+	}
 
 	tc.tunnelProxy.Logger.Debugf("Connecting to guacd")
 	addr, err := net.ResolveTCPAddr("tcp", tc.tunnelProxy.Config.GuacdAddress)
