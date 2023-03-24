@@ -127,5 +127,6 @@ func (suite *TagsAndLabelsTestSuite) callURL(requestURL string) Rsp {
 // In order for 'go test' to run this suite, we need to create
 // a normal test function and pass our suite to suite.Run
 func TestTagsAndLabelsTestSuite(t *testing.T) {
+	helpers.CleanUp(t, "./rc-test-resurces", "./rd-test-resources")
 	suite.Run(t, new(TagsAndLabelsTestSuite))
 }
