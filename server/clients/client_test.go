@@ -128,6 +128,21 @@ func TestClientBelongsToGroup(t *testing.T) {
 
 			wantRes: true,
 		},
+		// {
+		// 	name: "match with and",
+
+		// 	client: c1,
+		// 	group: &cgroups.ClientGroup{
+		// 		ID: "group-1",
+		// 		Params: &cgroups.ClientParams{
+		// 			Tag: &cgroups.ParamValues{
+		// 				map[string][]string{"and": {"LinuxPRM", "DatacenterPRM 3"}},
+		// 			},
+		// 		},
+		// 	},
+
+		// 	wantRes: true,
+		// },
 		{
 			name: "one param does not match",
 

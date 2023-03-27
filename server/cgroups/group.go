@@ -65,17 +65,23 @@ type ClientParams struct {
 }
 
 type Param string
-type ParamValues []Param
+type ParamValues []interface{}
 
 func (p *ParamValues) MatchesOneOf(values ...string) bool {
 	if p == nil || len(*p) == 0 && len(values) == 0 {
 		return true
 	}
-
-	for _, curParam := range *p {
-		for _, curValue := range values {
-			if curParam.matches(curValue) {
-				return true
+	var curParam Param
+	for _, curGenericParam := range *p {
+		switch curGenericParam.(type) {
+		case map[string][]string:
+			// fmt.Println("ANDING.....")
+		default:
+			curParam = Param(fmt.Sprintf("%v", curGenericParam))
+			for _, curValue := range values {
+				if curParam.matches(curValue) {
+					return true
+				}
 			}
 		}
 	}
