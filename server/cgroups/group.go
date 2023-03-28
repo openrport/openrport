@@ -74,18 +74,20 @@ func (p *ParamValues) MatchesOneOf(values ...string) bool {
 	var curParam Param
 	for _, curGenericParam := range *p {
 		switch curGenericParam := curGenericParam.(type) {
-		case map[string][]string:
+		case map[string]interface{}:
 			for k, curParamsOperands := range curGenericParam {
 				matches := 0
 				for _, curValue := range values {
-					for _, curParamAnd := range curParamsOperands {
-						if Param(curParamAnd).matches(curValue) {
+					thisBlock := curParamsOperands.([]interface{})
+
+					for _, curOperand := range thisBlock {
+						if Param(curOperand.(string)).matches(curValue) {
 							matches++
 						}
 					}
 					switch strings.ToLower(k) { // operators
 					case "and":
-						if matches == len(curParamsOperands) {
+						if matches == len(thisBlock) {
 							return true
 						}
 					case "or":
@@ -95,6 +97,7 @@ func (p *ParamValues) MatchesOneOf(values ...string) bool {
 					}
 				}
 			}
+			break
 		default:
 			curParam = Param(fmt.Sprintf("%v", curGenericParam))
 			for _, curValue := range values {

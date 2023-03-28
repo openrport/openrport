@@ -1,6 +1,7 @@
 package clients
 
 import (
+	"encoding/json"
 	"testing"
 	"time"
 
@@ -129,16 +130,12 @@ func TestClientBelongsToGroup(t *testing.T) {
 			wantRes: true,
 		},
 		{
-			name: "match with new and",
+			name: "match with and",
 
 			client: c1,
 			group: &cgroups.ClientGroup{
 				ID: "group-1",
 				Params: &cgroups.ClientParams{
-					// OR
-					// Tag: &cgroups.ParamValues{"Li nux", "Datacenter 2"},
-
-					// AND
 					Tag: &cgroups.ParamValues{
 						map[string][]string{"and": {"Linux", "Datacenter 3", "tag1"}},
 					},
@@ -148,7 +145,7 @@ func TestClientBelongsToGroup(t *testing.T) {
 			wantRes: true,
 		},
 		{
-			name: "match with new or",
+			name: "match with or",
 
 			client: c1,
 			group: &cgroups.ClientGroup{
@@ -287,6 +284,100 @@ func TestClientBelongsToGroup(t *testing.T) {
 			},
 
 			wantRes: true,
+		},
+	}
+
+	for _, tc := range testCases {
+		t.Run(tc.name, func(t *testing.T) {
+			// when
+			gotRes := tc.client.BelongsTo(tc.group)
+
+			// then
+			assert.Equal(t, tc.wantRes, gotRes)
+		})
+	}
+}
+
+func TestClientBelongsToGroupLogicalOps(t *testing.T) {
+	c1 := &Client{
+		ID:           "test-client-id-1",
+		Name:         "Random Rport Client 1",
+		OS:           "Linux alpine-3-10-tk-03 4.19.80-0-virt #1-Alpine SMP Fri Oct 18 11:51:24 UTC 2019 x86_64 Linux",
+		OSArch:       "amd64",
+		OSFamily:     "alpine",
+		OSKernel:     "linux",
+		Hostname:     "alpine-1-10-tk-01",
+		IPv4:         []string{"192.168.122.113", "192.168.122.114"},
+		IPv6:         []string{"fe80::b84f:aff:fe59:a0b3"},
+		Tags:         []string{"Linux", "Datacenter 3", "TAG1", "Tag2", "Tag3"},
+		Version:      "0.1.12",
+		Address:      "88.198.189.163:50078",
+		ClientAuthID: "client-auth-1",
+	}
+
+	var andTestCaseFalse cgroups.ClientParams
+	err := json.Unmarshal([]byte(`{ "tag": [{ "and": ["Linux", "Datacenter 2"] }] }`), &andTestCaseFalse)
+	assert.NoError(t, err)
+
+	var andTestCaseTrue cgroups.ClientParams
+	err = json.Unmarshal([]byte(` { "tag": [{ "and": ["Linux", "Datacenter 3"] }] }`), &andTestCaseTrue)
+	assert.NoError(t, err)
+
+	var orTestCaseTrue cgroups.ClientParams
+	err = json.Unmarshal([]byte(` {"tag": [{ "or": ["Linux", "Datacenter 2"] }] }`), &orTestCaseTrue)
+	assert.NoError(t, err)
+
+	var andTestCaseWildcardFalse cgroups.ClientParams
+	err = json.Unmarshal([]byte(`{ "tag": [{ "and": ["T*", "Datacenter 2", "Datacenter 5"] }] }`), &andTestCaseWildcardFalse)
+	assert.NoError(t, err)
+
+	testCases := []struct {
+		name string
+
+		client *Client
+		group  *cgroups.ClientGroup
+
+		wantRes bool
+	}{
+		// {
+		// 	name: "match with and 1",
+
+		// 	client: c1,
+		// 	group: &cgroups.ClientGroup{
+		// 		ID:     "group-1",
+		// 		Params: &andTestCaseFalse,
+		// 	},
+		// 	wantRes: false,
+		// },
+
+		// {
+		// 	name:   "match with and 2",
+		// 	client: c1,
+		// 	group: &cgroups.ClientGroup{
+		// 		ID:     "group-1",
+		// 		Params: &andTestCaseTrue,
+		// 	},
+		// 	wantRes: true,
+		// },
+
+		// {
+		// 	name:   "match with or",
+		// 	client: c1,
+		// 	group: &cgroups.ClientGroup{
+		// 		ID:     "group-1",
+		// 		Params: &orTestCaseTrue,
+		// 	},
+		// 	wantRes: true,
+		// },
+
+		{
+			name:   "match with and with wildcards",
+			client: c1,
+			group: &cgroups.ClientGroup{
+				ID:     "group-1",
+				Params: &andTestCaseWildcardFalse,
+			},
+			wantRes: false,
 		},
 	}
 
