@@ -73,9 +73,9 @@ func (p *ParamValues) MatchesOneOf(values ...string) bool {
 	}
 	var curParam Param
 	for _, curGenericParam := range *p {
-		switch curGenericParam.(type) {
+		switch curGenericParam := curGenericParam.(type) {
 		case map[string][]string:
-			for k, curParamsOperands := range curGenericParam.(map[string][]string) {
+			for k, curParamsOperands := range curGenericParam {
 				matches := 0
 				for _, curValue := range values {
 					for _, curParamAnd := range curParamsOperands {
