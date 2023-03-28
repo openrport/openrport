@@ -75,7 +75,26 @@ func (p *ParamValues) MatchesOneOf(values ...string) bool {
 	for _, curGenericParam := range *p {
 		switch curGenericParam.(type) {
 		case map[string][]string:
-			// fmt.Println("ANDING.....")
+			for k, curParamsOperands := range curGenericParam.(map[string][]string) {
+				matches := 0
+				for _, curValue := range values {
+					for _, curParamAnd := range curParamsOperands {
+						if Param(curParamAnd).matches(curValue) {
+							matches++
+						}
+					}
+					switch strings.ToLower(k) { // operators
+					case "and":
+						if matches == len(curParamsOperands) {
+							return true
+						}
+					case "or":
+						if matches > 0 {
+							return true
+						}
+					}
+				}
+			}
 		default:
 			curParam = Param(fmt.Sprintf("%v", curGenericParam))
 			for _, curValue := range values {

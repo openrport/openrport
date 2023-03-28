@@ -128,21 +128,40 @@ func TestClientBelongsToGroup(t *testing.T) {
 
 			wantRes: true,
 		},
-		// {
-		// 	name: "match with and",
+		{
+			name: "match with new and",
 
-		// 	client: c1,
-		// 	group: &cgroups.ClientGroup{
-		// 		ID: "group-1",
-		// 		Params: &cgroups.ClientParams{
-		// 			Tag: &cgroups.ParamValues{
-		// 				map[string][]string{"and": {"LinuxPRM", "DatacenterPRM 3"}},
-		// 			},
-		// 		},
-		// 	},
+			client: c1,
+			group: &cgroups.ClientGroup{
+				ID: "group-1",
+				Params: &cgroups.ClientParams{
+					// OR
+					// Tag: &cgroups.ParamValues{"Li nux", "Datacenter 2"},
 
-		// 	wantRes: true,
-		// },
+					// AND
+					Tag: &cgroups.ParamValues{
+						map[string][]string{"and": {"Linux", "Datacenter 3", "tag1"}},
+					},
+				},
+			},
+
+			wantRes: true,
+		},
+		{
+			name: "match with new or",
+
+			client: c1,
+			group: &cgroups.ClientGroup{
+				ID: "group-1",
+				Params: &cgroups.ClientParams{
+					Tag: &cgroups.ParamValues{
+						map[string][]string{"or": {"Linux", "Datacenter 2"}},
+					},
+				},
+			},
+
+			wantRes: true,
+		},
 		{
 			name: "one param does not match",
 
