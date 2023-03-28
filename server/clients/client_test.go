@@ -130,36 +130,6 @@ func TestClientBelongsToGroup(t *testing.T) {
 			wantRes: true,
 		},
 		{
-			name: "match with and",
-
-			client: c1,
-			group: &cgroups.ClientGroup{
-				ID: "group-1",
-				Params: &cgroups.ClientParams{
-					Tag: &cgroups.ParamValues{
-						map[string][]string{"and": {"Linux", "Datacenter 3", "tag1"}},
-					},
-				},
-			},
-
-			wantRes: true,
-		},
-		{
-			name: "match with or",
-
-			client: c1,
-			group: &cgroups.ClientGroup{
-				ID: "group-1",
-				Params: &cgroups.ClientParams{
-					Tag: &cgroups.ParamValues{
-						map[string][]string{"or": {"Linux", "Datacenter 2"}},
-					},
-				},
-			},
-
-			wantRes: true,
-		},
-		{
 			name: "one param does not match",
 
 			client: c1,
@@ -339,36 +309,35 @@ func TestClientBelongsToGroupLogicalOps(t *testing.T) {
 
 		wantRes bool
 	}{
-		// {
-		// 	name: "match with and 1",
+		{
+			name:   "match with and 1",
+			client: c1,
+			group: &cgroups.ClientGroup{
+				ID:     "group-1",
+				Params: &andTestCaseFalse,
+			},
+			wantRes: false,
+		},
 
-		// 	client: c1,
-		// 	group: &cgroups.ClientGroup{
-		// 		ID:     "group-1",
-		// 		Params: &andTestCaseFalse,
-		// 	},
-		// 	wantRes: false,
-		// },
+		{
+			name:   "match with and 2",
+			client: c1,
+			group: &cgroups.ClientGroup{
+				ID:     "group-1",
+				Params: &andTestCaseTrue,
+			},
+			wantRes: true,
+		},
 
-		// {
-		// 	name:   "match with and 2",
-		// 	client: c1,
-		// 	group: &cgroups.ClientGroup{
-		// 		ID:     "group-1",
-		// 		Params: &andTestCaseTrue,
-		// 	},
-		// 	wantRes: true,
-		// },
-
-		// {
-		// 	name:   "match with or",
-		// 	client: c1,
-		// 	group: &cgroups.ClientGroup{
-		// 		ID:     "group-1",
-		// 		Params: &orTestCaseTrue,
-		// 	},
-		// 	wantRes: true,
-		// },
+		{
+			name:   "match with or",
+			client: c1,
+			group: &cgroups.ClientGroup{
+				ID:     "group-1",
+				Params: &orTestCaseTrue,
+			},
+			wantRes: true,
+		},
 
 		{
 			name:   "match with and with wildcards",

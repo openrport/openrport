@@ -75,23 +75,26 @@ func (p *ParamValues) MatchesOneOf(values ...string) bool {
 	for _, curGenericParam := range *p {
 		switch curGenericParam := curGenericParam.(type) {
 		case map[string]interface{}:
+			matches := make(map[string]bool, len(curGenericParam))
 			for k, curParamsOperands := range curGenericParam {
-				matches := 0
 				for _, curValue := range values {
 					thisBlock := curParamsOperands.([]interface{})
 
 					for _, curOperand := range thisBlock {
+						if matches[curOperand.(string)] { // this filter was already "assigned" to a match
+							continue
+						}
 						if Param(curOperand.(string)).matches(curValue) {
-							matches++
+							matches[curOperand.(string)] = true
 						}
 					}
 					switch strings.ToLower(k) { // operators
 					case "and":
-						if matches == len(thisBlock) {
+						if len(matches) == len(thisBlock) {
 							return true
 						}
 					case "or":
-						if matches > 0 {
+						if len(matches) > 0 {
 							return true
 						}
 					}
