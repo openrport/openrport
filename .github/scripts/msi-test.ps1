@@ -47,6 +47,7 @@ if (-not($files.name.Contains('ciccio.conf')))
 {
     Write-Error "rport.conf was overwritten / removed from an upgrade"
 }
+Start-Process msiexec.exe -Wait -ArgumentList '/x rport-client.msi /qn /quiet /log msi-uninstall.log'
 
 if (Test-Path 'C:\Program Files\RPort')
 {
