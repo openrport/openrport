@@ -72,7 +72,7 @@ Each parameter can be specified by:
 
   Means clients belong to this group only if following condition is met:
   1. has a `tag` equals to `Linux` **AND** a `tag` that equals to `Datacenter 3`;
-  <i>**OR** operator can be specified in the same way</i>
+  **OR** operator can be specified in the same way
 
 * `client_ids` - read-only field that is populated with IDs of active clients that belong to this group.
 
