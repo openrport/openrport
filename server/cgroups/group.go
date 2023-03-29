@@ -100,7 +100,6 @@ func (p *ParamValues) MatchesOneOf(values ...string) bool {
 					}
 				}
 			}
-			break
 		default:
 			curParam = Param(fmt.Sprintf("%v", curGenericParam))
 			for _, curValue := range values {
