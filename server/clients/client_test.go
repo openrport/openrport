@@ -285,20 +285,24 @@ func TestClientBelongsToGroupLogicalOps(t *testing.T) {
 		ClientAuthID: "client-auth-1",
 	}
 
+	var basicTestCase cgroups.ClientParams
+	err := json.Unmarshal([]byte(` { "tag": ["Linux", "Datacenter 3"] } `), &basicTestCase)
+	assert.NoError(t, err)
+
 	var andTestCaseFalse cgroups.ClientParams
-	err := json.Unmarshal([]byte(`{ "tag": [{ "and": ["Linux", "Datacenter 2"] }] }`), &andTestCaseFalse)
+	err = json.Unmarshal([]byte(`{ "tag": { "and": ["Linux", "Datacenter 2"] } }`), &andTestCaseFalse)
 	assert.NoError(t, err)
 
 	var andTestCaseTrue cgroups.ClientParams
-	err = json.Unmarshal([]byte(` { "tag": [{ "and": ["Linux", "Datacenter 3"] }] }`), &andTestCaseTrue)
+	err = json.Unmarshal([]byte(` { "tag": { "and": ["Linux", "Datacenter 3"] } }`), &andTestCaseTrue)
 	assert.NoError(t, err)
 
 	var orTestCaseTrue cgroups.ClientParams
-	err = json.Unmarshal([]byte(` {"tag": [{ "or": ["Linux", "Datacenter 2"] }] }`), &orTestCaseTrue)
+	err = json.Unmarshal([]byte(` {"tag": { "or": ["Linux", "Datacenter 2"] } }`), &orTestCaseTrue)
 	assert.NoError(t, err)
 
 	var andTestCaseWildcardFalse cgroups.ClientParams
-	err = json.Unmarshal([]byte(`{ "tag": [{ "and": ["T*", "Datacenter 2", "Datacenter 5"] }] }`), &andTestCaseWildcardFalse)
+	err = json.Unmarshal([]byte(`{ "tag": { "and": ["T*", "Datacenter 2", "Datacenter 5"] } }`), &andTestCaseWildcardFalse)
 	assert.NoError(t, err)
 
 	testCases := []struct {
@@ -309,6 +313,16 @@ func TestClientBelongsToGroupLogicalOps(t *testing.T) {
 
 		wantRes bool
 	}{
+		{
+			name:   "match with or no logical operator",
+			client: c1,
+			group: &cgroups.ClientGroup{
+				ID:     "group-1",
+				Params: &basicTestCase,
+			},
+			wantRes: true,
+		},
+
 		{
 			name:   "match with and 1",
 			client: c1,
