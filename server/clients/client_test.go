@@ -285,96 +285,78 @@ func TestClientBelongsToGroupLogicalOps(t *testing.T) {
 		ClientAuthID: "client-auth-1",
 	}
 
-	var basicTestCase cgroups.ClientParams
-	err := json.Unmarshal([]byte(` { "tag": ["Linux", "Datacenter 3"] } `), &basicTestCase)
-	assert.NoError(t, err)
-
-	var andTestCaseFalse cgroups.ClientParams
-	err = json.Unmarshal([]byte(`{ "tag": { "and": ["Linux", "Datacenter 2"] } }`), &andTestCaseFalse)
-	assert.NoError(t, err)
-
-	var andTestCaseTrue cgroups.ClientParams
-	err = json.Unmarshal([]byte(` { "tag": { "and": ["Linux", "Datacenter 3"] } }`), &andTestCaseTrue)
-	assert.NoError(t, err)
-
-	var orTestCaseTrue cgroups.ClientParams
-	err = json.Unmarshal([]byte(` {"tag": { "or": ["Linux", "Datacenter 2"] } }`), &orTestCaseTrue)
-	assert.NoError(t, err)
-
-	var andTestCaseWildcardFalse cgroups.ClientParams
-	err = json.Unmarshal([]byte(`{ "tag": { "and": ["T*", "Datacenter 2", "Datacenter 5"] } }`), &andTestCaseWildcardFalse)
-	assert.NoError(t, err)
-
 	testCases := []struct {
-		name string
-
-		client *Client
-		group  *cgroups.ClientGroup
-
-		wantRes bool
+		name     string
+		client   *Client
+		jsonData string
+		wantRes  bool
 	}{
 		{
-			name:   "match with or no logical operator",
-			client: c1,
-			group: &cgroups.ClientGroup{
-				ID:     "group-1",
-				Params: &basicTestCase,
-			},
-			wantRes: true,
+			name:     "match with or no logical operator",
+			client:   c1,
+			jsonData: ` { "tag": ["Linux", "Datacenter 3"] } `,
+			wantRes:  true,
 		},
 
 		{
-			name:   "match with and 1",
-			client: c1,
-			group: &cgroups.ClientGroup{
-				ID:     "group-1",
-				Params: &andTestCaseFalse,
-			},
-			wantRes: false,
+			name:     "match with and 1",
+			client:   c1,
+			jsonData: `{ "tag": { "and": ["Linux", "Datacenter 2"] } }`,
+			wantRes:  false,
 		},
 
 		{
-			name:   "match with and 2",
-			client: c1,
-			group: &cgroups.ClientGroup{
-				ID:     "group-1",
-				Params: &andTestCaseTrue,
-			},
-			wantRes: true,
+			name:     "match with and 2",
+			client:   c1,
+			jsonData: ` { "tag": { "and": ["Linux", "Datacenter 3"] } }`,
+			wantRes:  true,
 		},
 
 		{
-			name:   "match with or",
-			client: c1,
-			group: &cgroups.ClientGroup{
-				ID:     "group-1",
-				Params: &orTestCaseTrue,
-			},
-			wantRes: true,
+			name:     "match with or",
+			client:   c1,
+			jsonData: ` {"tag": { "or": ["Linux", "Datacenter 2"] } }`,
+			wantRes:  true,
 		},
 
 		{
-			name:   "match with and with wildcards",
-			client: c1,
-			group: &cgroups.ClientGroup{
-				ID:     "group-1",
-				Params: &andTestCaseWildcardFalse,
-			},
-			wantRes: false,
+			name:     "match with and with wildcards",
+			client:   c1,
+			jsonData: `{ "tag": { "and": ["T*", "Datacenter 2", "Datacenter 5"] } }`,
+			wantRes:  false,
 		},
+
+		// {
+		// 	name:     "json parsing error base",
+		// 	client:   c1,
+		// 	jsonData: ` { "tag": "Linux", "Datacenter 3"] } `,
+		// 	wantRes:  true,
+		// },
+
+		// {
+		// 	name:     "json parsing error 2",
+		// 	client:   c1,
+		// 	jsonData: ` { "tag": { "and": ["T*", "Datacenter 2, "Datacenter 5"] } } `,
+		// 	wantRes:  true,
+		// },
 	}
 
 	for _, tc := range testCases {
 		t.Run(tc.name, func(t *testing.T) {
+			var group cgroups.ClientGroup
+			var basicTestCase cgroups.ClientParams
+			err := json.Unmarshal([]byte(tc.jsonData), &basicTestCase)
+			assert.NoError(t, err)
+			group.ID = "group1"
+			group.Params = &basicTestCase
 			// when
-			gotRes := tc.client.BelongsTo(tc.group)
+			gotRes := tc.client.BelongsTo(&group)
 
 			// then
 			assert.Equal(t, tc.wantRes, gotRes)
 		})
 	}
 }
-
 func TestHasAccess(t *testing.T) {
 	testCases := []struct {
 		name string

@@ -49,63 +49,33 @@ type ClientGroup struct {
 }
 
 type ClientParams struct {
-	ClientID     *ParamValues `json:"client_id"`
-	Name         *ParamValues `json:"name"`
-	OS           *ParamValues `json:"os"`
-	OSArch       *ParamValues `json:"os_arch"`
-	OSFamily     *ParamValues `json:"os_family"`
-	OSKernel     *ParamValues `json:"os_kernel"`
-	Hostname     *ParamValues `json:"hostname"`
-	IPv4         *ParamValues `json:"ipv4"`
-	IPv6         *ParamValues `json:"ipv6"`
-	Tag          *ParamValues `json:"tag"`
-	Version      *ParamValues `json:"version"`
-	Address      *ParamValues `json:"address"`
-	ClientAuthID *ParamValues `json:"client_auth_id"`
+	ClientID     *ParamValues     `json:"client_id"`
+	Name         *ParamValues     `json:"name"`
+	OS           *ParamValues     `json:"os"`
+	OSArch       *ParamValues     `json:"os_arch"`
+	OSFamily     *ParamValues     `json:"os_family"`
+	OSKernel     *ParamValues     `json:"os_kernel"`
+	Hostname     *ParamValues     `json:"hostname"`
+	IPv4         *ParamValues     `json:"ipv4"`
+	IPv6         *ParamValues     `json:"ipv6"`
+	Tag          *json.RawMessage `json:"tag"`
+	Version      *ParamValues     `json:"version"`
+	Address      *ParamValues     `json:"address"`
+	ClientAuthID *ParamValues     `json:"client_auth_id"`
 }
 
 type Param string
-type ParamValues []interface{}
+type ParamValues []Param
 
 func (p *ParamValues) MatchesOneOf(values ...string) bool {
 	if p == nil || len(*p) == 0 && len(values) == 0 {
 		return true
 	}
-	var curParam Param
-	for _, curGenericParam := range *p {
-		switch curGenericParam := curGenericParam.(type) {
-		case map[string]interface{}:
-			matches := make(map[string]bool, len(curGenericParam))
-			for k, curParamsOperands := range curGenericParam {
-				for _, curValue := range values {
-					thisBlock := curParamsOperands.([]interface{})
 
-					for _, curOperand := range thisBlock {
-						if matches[curOperand.(string)] { // this filter was already "assigned" to a match
-							continue
-						}
-						if Param(curOperand.(string)).matches(curValue) {
-							matches[curOperand.(string)] = true
-						}
-					}
-					switch strings.ToLower(k) { // operators
-					case "and":
-						if len(matches) == len(thisBlock) {
-							return true
-						}
-					case "or":
-						if len(matches) > 0 {
-							return true
-						}
-					}
-				}
-			}
-		default:
-			curParam = Param(fmt.Sprintf("%v", curGenericParam))
-			for _, curValue := range values {
-				if curParam.matches(curValue) {
-					return true
-				}
+	for _, curParam := range *p {
+		for _, curValue := range values {
+			if curParam.matches(curValue) {
+				return true
 			}
 		}
 	}
@@ -133,6 +103,55 @@ func (p Param) matches(value string) bool {
 	}
 
 	return str == value
+}
+
+func MatchesRawTags(p *json.RawMessage, values []string) bool {
+	if p == nil || len(*p) == 0 && len(values) == 0 {
+		return true
+	}
+	var curGenericParam map[string][]string
+	err := json.Unmarshal(*p, &curGenericParam)
+	var matches map[string]bool
+	operator := "or" // default
+	var operands []string
+	if err == nil && len(curGenericParam) == 1 {
+		matches = make(map[string]bool, len(curGenericParam))
+		operator = reflect.ValueOf(curGenericParam).MapKeys()[0].String()
+		operands = curGenericParam[operator]
+	} else {
+		// unmarshaling as "and|or" : [ "first", "second"] failed
+		var listPattern []string
+		err := json.Unmarshal(*p, &listPattern)
+		if err == nil {
+			matches = make(map[string]bool, len(listPattern))
+			operands = listPattern
+		} else {
+			// unmarshaling as [ "first", "second"] failed
+		}
+	}
+
+	for _, curValue := range values {
+		for _, curOperand := range operands {
+			if matches[curOperand] { // this filter was already "assigned" to a match
+				continue
+			}
+			if Param(curOperand).matches(curValue) {
+				matches[curOperand] = true
+			}
+		}
+	}
+	switch strings.ToLower(operator) { // operators
+	case "and":
+		if len(matches) == len(operands) {
+			return true
+		}
+	case "or":
+		if len(matches) > 0 {
+			return true
+		}
+	}
+
+	return false
 }
 
 func (p *ClientParams) Scan(value interface{}) error {
