@@ -24,6 +24,10 @@ func NewTestClient(id string, address string, hostname string, clientAuthID stri
 }
 
 func TestClientBelongsToGroup(t *testing.T) {
+	data1 := []byte(`"Linux", "Tag1", "Data*", "Some Tag", "AB*"`)
+	data2 := []byte(`"Some Tag", "AB*"`)
+	dataEmpty := []byte(``)
+
 	c1 := &Client{
 		ID:           "test-client-id-1",
 		Name:         "Random Rport Client 1",
@@ -57,7 +61,7 @@ func TestClientBelongsToGroup(t *testing.T) {
 			Hostname:     &cgroups.ParamValues{"a*", "l*", "w*"},
 			IPv4:         &cgroups.ParamValues{"192.168.122.121", "192.168.122.11*"},
 			IPv6:         &cgroups.ParamValues{"fe80::b84f:aff:fe59:a0b3"},
-			Tag:          &cgroups.ParamValues{"Linux", "Tag1", "Data*", "Some Tag", "AB*"},
+			Tag:          (*json.RawMessage)(&data1),
 			Version:      &cgroups.ParamValues{"0.1.1*"},
 			Address:      &cgroups.ParamValues{"88.198.189.163*"},
 			ClientAuthID: &cgroups.ParamValues{"client-auth-1", "client-auth-2", "client-auth-3*"},
@@ -139,7 +143,7 @@ func TestClientBelongsToGroup(t *testing.T) {
 					ClientID: &cgroups.ParamValues{"test-client-id-1", "test-client-id-2"},
 					Name:     &cgroups.ParamValues{"Random Rport Client*", "My Client*"},
 					OS:       &cgroups.ParamValues{"Linux*"},
-					Tag:      &cgroups.ParamValues{"Some Tag", "AB*"},
+					Tag:      (*json.RawMessage)(&data2),
 				},
 			},
 
@@ -169,7 +173,7 @@ func TestClientBelongsToGroup(t *testing.T) {
 				ID: "no tags",
 				Params: &cgroups.ClientParams{
 					ClientID: &cgroups.ParamValues{"*"},
-					Tag:      &cgroups.ParamValues{},
+					Tag:      (*json.RawMessage)(&dataEmpty),
 				},
 			},
 
@@ -185,7 +189,7 @@ func TestClientBelongsToGroup(t *testing.T) {
 				ID: "no tags",
 				Params: &cgroups.ClientParams{
 					ClientID: &cgroups.ParamValues{"*"},
-					Tag:      &cgroups.ParamValues{},
+					Tag:      (*json.RawMessage)(&dataEmpty),
 				},
 			},
 
@@ -201,7 +205,7 @@ func TestClientBelongsToGroup(t *testing.T) {
 				ID: "no tags",
 				Params: &cgroups.ClientParams{
 					ClientID: &cgroups.ParamValues{"*"},
-					Tag:      &cgroups.ParamValues{},
+					Tag:      (*json.RawMessage)(&dataEmpty),
 				},
 			},
 
@@ -217,7 +221,7 @@ func TestClientBelongsToGroup(t *testing.T) {
 				ID: "no tags",
 				Params: &cgroups.ClientParams{
 					ClientID: &cgroups.ParamValues{"*"},
-					Tag:      &cgroups.ParamValues{},
+					Tag:      (*json.RawMessage)(&dataEmpty),
 				},
 			},
 
@@ -428,6 +432,8 @@ func TestHasAccess(t *testing.T) {
 }
 
 func TestToCalculatedForGroups(t *testing.T) {
+	data4 := []byte(`"AB*"`)
+	data5 := []byte(`"Other"`)
 	client := &Client{
 		Name: "abc",
 		Tags: []string{"ABC"},
@@ -442,13 +448,13 @@ func TestToCalculatedForGroups(t *testing.T) {
 		{
 			ID: "group2",
 			Params: &cgroups.ClientParams{
-				Tag: &cgroups.ParamValues{"AB*"},
+				Tag: (*json.RawMessage)(&data4),
 			},
 		},
 		{
 			ID: "group3",
 			Params: &cgroups.ClientParams{
-				Tag: &cgroups.ParamValues{"Other"},
+				Tag: (*json.RawMessage)(&data5),
 			},
 		},
 	}
