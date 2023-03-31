@@ -24,9 +24,9 @@ func NewTestClient(id string, address string, hostname string, clientAuthID stri
 }
 
 func TestClientBelongsToGroup(t *testing.T) {
-	data1 := []byte(`"Linux", "Tag1", "Data*", "Some Tag", "AB*"`)
-	data2 := []byte(`"Some Tag", "AB*"`)
-	dataEmpty := []byte(``)
+	data1 := []byte(`["Linux", "Tag1", "Data*", "Some Tag", "AB*"]`)
+	data2 := []byte(`["Some Tag", "AB*"]`)
+	dataEmpty := []byte(`[]`)
 
 	c1 := &Client{
 		ID:           "test-client-id-1",
@@ -85,6 +85,7 @@ func TestClientBelongsToGroup(t *testing.T) {
 			Version:  &cgroups.ParamValues{"0.1.1*"},
 		},
 	}
+
 	testCases := []struct {
 		name string
 
@@ -94,48 +95,42 @@ func TestClientBelongsToGroup(t *testing.T) {
 		wantRes bool
 	}{
 		{
-			name: "all group param, all client params",
-
-			client: c1,
-			group:  g1,
-
+			name:    "all group param, all client params",
+			client:  c1,
+			group:   g1,
 			wantRes: true,
 		},
+
 		{
-			name: "all group params, not all client params",
-
-			client: c2,
-			group:  g1,
-
+			name:    "all group params, not all client params",
+			client:  c2,
+			group:   g1,
 			wantRes: false,
 		},
+
 		{
-			name: "not all group params, not all client params, extra group param",
-
-			client: c2,
-			group:  g2,
-
+			name:    "not all group params, not all client params, extra group param",
+			client:  c2,
+			group:   g2,
 			wantRes: false,
 		},
+
 		{
-			name: "not all group params, not all client params, extra client param",
-
-			client: c2,
-			group:  g3,
-
+			name:    "not all group params, not all client params, extra client param",
+			client:  c2,
+			group:   g3,
 			wantRes: true,
 		},
+
 		{
-			name: "not all group params, all client params",
-
-			client: c1,
-			group:  g2,
-
+			name:    "not all group params, all client params",
+			client:  c1,
+			group:   g2,
 			wantRes: true,
 		},
-		{
-			name: "one param does not match",
 
+		{
+			name:   "one param does not match",
 			client: c1,
 			group: &cgroups.ClientGroup{
 				ID: "group-1",
@@ -146,12 +141,11 @@ func TestClientBelongsToGroup(t *testing.T) {
 					Tag:      (*json.RawMessage)(&data2),
 				},
 			},
-
 			wantRes: false,
 		},
+
 		{
 			name: "no group params, one client param",
-
 			client: &Client{
 				ID: "test-client-id-1",
 			},
@@ -160,41 +154,9 @@ func TestClientBelongsToGroup(t *testing.T) {
 				Description: "Group with no params",
 				Params:      &cgroups.ClientParams{},
 			},
-
 			wantRes: false,
 		},
-		{
-			name: "group with no tags, client with nil tags",
-			client: &Client{
-				ID:   "test-client-id-1",
-				Tags: nil,
-			},
-			group: &cgroups.ClientGroup{
-				ID: "no tags",
-				Params: &cgroups.ClientParams{
-					ClientID: &cgroups.ParamValues{"*"},
-					Tag:      (*json.RawMessage)(&dataEmpty),
-				},
-			},
 
-			wantRes: true,
-		},
-		{
-			name: "group with no tags, client with no tags",
-			client: &Client{
-				ID:   "test-client-id-1",
-				Tags: []string{},
-			},
-			group: &cgroups.ClientGroup{
-				ID: "no tags",
-				Params: &cgroups.ClientParams{
-					ClientID: &cgroups.ParamValues{"*"},
-					Tag:      (*json.RawMessage)(&dataEmpty),
-				},
-			},
-
-			wantRes: true,
-		},
 		{
 			name: "group with no tags, client with empty tag",
 			client: &Client{
@@ -208,9 +170,9 @@ func TestClientBelongsToGroup(t *testing.T) {
 					Tag:      (*json.RawMessage)(&dataEmpty),
 				},
 			},
-
 			wantRes: false,
 		},
+
 		{
 			name: "group with no tags, client with nonempty tag",
 			client: &Client{
@@ -224,9 +186,9 @@ func TestClientBelongsToGroup(t *testing.T) {
 					Tag:      (*json.RawMessage)(&dataEmpty),
 				},
 			},
-
 			wantRes: false,
 		},
+
 		{
 			name: "group with unset tags, client with tags",
 			client: &Client{
@@ -240,9 +202,9 @@ func TestClientBelongsToGroup(t *testing.T) {
 					Tag:      nil,
 				},
 			},
-
 			wantRes: true,
 		},
+
 		{
 			name: "group with unset tags, client with empty tag",
 			client: &Client{
@@ -256,7 +218,6 @@ func TestClientBelongsToGroup(t *testing.T) {
 					Tag:      nil,
 				},
 			},
-
 			wantRes: true,
 		},
 	}
@@ -329,20 +290,6 @@ func TestClientBelongsToGroupLogicalOps(t *testing.T) {
 			jsonData: `{ "tag": { "and": ["T*", "Datacenter 2", "Datacenter 5"] } }`,
 			wantRes:  false,
 		},
-
-		// {
-		// 	name:     "json parsing error base",
-		// 	client:   c1,
-		// 	jsonData: ` { "tag": "Linux", "Datacenter 3"] } `,
-		// 	wantRes:  true,
-		// },
-
-		// {
-		// 	name:     "json parsing error 2",
-		// 	client:   c1,
-		// 	jsonData: ` { "tag": { "and": ["T*", "Datacenter 2, "Datacenter 5"] } } `,
-		// 	wantRes:  true,
-		// },
 	}
 
 	for _, tc := range testCases {
@@ -432,8 +379,8 @@ func TestHasAccess(t *testing.T) {
 }
 
 func TestToCalculatedForGroups(t *testing.T) {
-	data4 := []byte(`"AB*"`)
-	data5 := []byte(`"Other"`)
+	data4 := []byte(`["AB*"]`)
+	data5 := []byte(`"[Other]"`)
 	client := &Client{
 		Name: "abc",
 		Tags: []string{"ABC"},

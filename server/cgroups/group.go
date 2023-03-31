@@ -126,8 +126,11 @@ func MatchesRawTags(p *json.RawMessage, values []string) bool {
 			matches = make(map[string]bool, len(listPattern))
 			operands = listPattern
 		} else {
-			// unmarshaling as [ "first", "second"] failed
+			return false // also unmarshaling as [ "first", "second"] failed
 		}
+	}
+	if len(operands) == 0 {
+		return false
 	}
 
 	for _, curValue := range values {
