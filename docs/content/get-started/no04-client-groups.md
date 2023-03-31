@@ -66,7 +66,7 @@ Each parameter can be specified by:
 
   ```text
     params: {
-      "tag": [ { "and": [ "Linux", "Datacenter 3" ] }]
+      "tags": { "and": [ "Linux", "Datacenter 3" ] }
     }
   ```
 
