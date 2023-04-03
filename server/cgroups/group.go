@@ -109,51 +109,69 @@ func MatchesRawTags(p *json.RawMessage, values []string) bool {
 	if p == nil || len(*p) == 0 && len(values) == 0 {
 		return true
 	}
+
+	operator, operands, err := ParseTag(p)
+	if err == nil {
+		if len(operands) == 0 {
+			return false
+		}
+		matches := make(map[string]bool, len(operands))
+		for _, curValue := range values {
+			for _, curOperand := range operands {
+				if matches[curOperand] { // this filter was already "assigned" to a match
+					continue
+				}
+				if Param(curOperand).matches(curValue) {
+					matches[curOperand] = true
+				}
+			}
+		}
+		switch operator { // operators
+		case "and":
+			if len(matches) == len(operands) {
+				return true
+			}
+		case "or":
+			if len(matches) > 0 {
+				return true
+			}
+		}
+	}
+
+	return false
+}
+
+func ParseTag(p *json.RawMessage) (string, []string, error) {
+	operator := "or" // default
 	var curGenericParam map[string][]string
 	err := json.Unmarshal(*p, &curGenericParam)
-	var matches map[string]bool
-	operator := "or" // default
-	var operands []string
+
 	if err == nil && len(curGenericParam) == 1 {
-		matches = make(map[string]bool, len(curGenericParam))
 		operator = reflect.ValueOf(curGenericParam).MapKeys()[0].String()
-		operands = curGenericParam[operator]
-	} else {
-		// unmarshaling as "and|or" : [ "first", "second"] failed
-		var listPattern []string
-		err := json.Unmarshal(*p, &listPattern)
-		if err == nil {
-			matches = make(map[string]bool, len(listPattern))
-			operands = listPattern
-		} else {
-			return false // also unmarshaling as [ "first", "second"] failed
+		if !allowedOperator(operator) {
+			return operator, nil, fmt.Errorf("error, only and/or is allowed for tags group definitions")
 		}
-	}
-	if len(operands) == 0 {
-		return false
-	}
-
-	for _, curValue := range values {
-		for _, curOperand := range operands {
-			if matches[curOperand] { // this filter was already "assigned" to a match
-				continue
-			}
-			if Param(curOperand).matches(curValue) {
-				matches[curOperand] = true
-			}
+		if len(curGenericParam[operator]) == 0 {
+			return operator, nil, fmt.Errorf("error parsing tags group definitions")
 		}
+		return operator, curGenericParam[operator], nil
 	}
-	switch strings.ToLower(operator) { // operators
-	case "and":
-		if len(matches) == len(operands) {
-			return true
-		}
-	case "or":
-		if len(matches) > 0 {
-			return true
-		}
+	// unmarshaling as "and|or" : [ "first", "second"] failed
+	var listPattern []string
+	err = json.Unmarshal(*p, &listPattern)
+	if err == nil && len(listPattern) > 0 {
+		return "or", listPattern, nil
 	}
-
+	// also unmarshaling as [ "first", "second"] failed
+	return operator, nil, fmt.Errorf("error parsing tags group definitions")
+}
+func allowedOperator(op string) bool {
+	switch strings.ToLower(op) {
+	case
+		"and",
+		"or":
+		return true
+	}
 	return false
 }
 

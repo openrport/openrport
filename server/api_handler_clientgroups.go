@@ -1,11 +1,9 @@
 package chserver
 
 import (
-	"encoding/json"
 	"errors"
 	"fmt"
 	"net/http"
-	"reflect"
 	"regexp"
 	"strings"
 
@@ -103,22 +101,9 @@ func validateInputClientGroup(group cgroups.ClientGroup) error {
 		return fmt.Errorf("invalid group ID %q: can contain only %q", group.ID, validGroupIDChars)
 	}
 	if group.Params != nil {
-		var curGenericParam map[string][]string
-		err := json.Unmarshal(*group.Params.Tag, &curGenericParam)
+		_, _, err := cgroups.ParseTag(group.Params.Tag)
 		if err != nil {
-			// unmarshaling as "and|or" : [ "first", "second"] failed
-			var listPattern []string
-			err := json.Unmarshal(*group.Params.Tag, &listPattern)
-			if err != nil {
-				// unmarshaling as [ "first", "second"] failed
-				return errors.New("error parsing tags group definitions")
-			}
-		} else {
-			// operator check
-			operator := strings.ToLower(reflect.ValueOf(curGenericParam).MapKeys()[0].String())
-			if (operator != "and") && operator != "or" {
-				return errors.New("error, only and/or is allowed for tags group definitions")
-			}
+			return err
 		}
 	}
 	return nil

@@ -120,6 +120,36 @@ func TestValidateInputClientGroupParamsTag(t *testing.T) {
 			jsonData: ` { "and": ["T*", "Datacenter 2, "Datacenter 5"] } `,
 			wantErr:  errors.New("error parsing tags group definitions"),
 		},
+		{
+			name:     "both and and or are present",
+			jsonData: ` { [ { "and": [ "Linux", "Datacenter 3" ] }, { "or": [ "Linux", "Datacenter 3" ] }    ] } `,
+			wantErr:  errors.New("error parsing tags group definitions"),
+		},
+		{
+			name:     "no map keys",
+			jsonData: ` `,
+			wantErr:  errors.New("error parsing tags group definitions"),
+		},
+		{
+			name:     "no map keys",
+			jsonData: ` { } `,
+			wantErr:  errors.New("error parsing tags group definitions"),
+		},
+		{
+			name:     "no map keys 2 ",
+			jsonData: ` { [] } `,
+			wantErr:  errors.New("error parsing tags group definitions"),
+		},
+		{
+			name:     "no map keys 3 ",
+			jsonData: ` [] `,
+			wantErr:  errors.New("error parsing tags group definitions"),
+		},
+		{
+			name:     "no map keys 4 ",
+			jsonData: ` { "and" : [] } `,
+			wantErr:  errors.New("error parsing tags group definitions"),
+		},
 	}
 
 	for _, tc := range testCases {
