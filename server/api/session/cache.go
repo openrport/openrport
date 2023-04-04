@@ -41,19 +41,18 @@ func NewCache(
 	}, nil
 }
 
-func (p *Cache) Get(ctx context.Context, sessionID int64) (*APISession, error) {
+func (p *Cache) Get(ctx context.Context, sessionID int64) (found bool, sessionInfo APISession, err error) {
 	return p.getFromCache(sessionID)
 }
 
-func (p *Cache) Save(ctx context.Context, session *APISession) (sessionID int64, err error) {
+func (p *Cache) Save(ctx context.Context, session APISession) (sessionID int64, err error) {
 	// always save to storage as we want the token last access time saved
 	sessionID, err = p.storage.Save(ctx, session)
 	if err != nil {
 		return -1, err
 	}
 
-	// make sure the session id is included in the cache version. this also updates
-	// the session ID in the supplied session.
+	// make sure the session id is included in the cache version.
 	session.SessionID = sessionID
 
 	p.cache.Set(formatID(sessionID), session, time.Until(session.ExpiresAt))
@@ -81,25 +80,25 @@ func (p *Cache) Close() error {
 	return p.storage.Close()
 }
 
-func (p *Cache) getFromCache(sessionID int64) (*APISession, error) {
+func (p *Cache) getFromCache(sessionID int64) (found bool, sessionInfo APISession, err error) {
 	existingObj, _ := p.cache.Get(formatID(sessionID))
 	if existingObj == nil {
-		return nil, nil
+		return false, APISession{}, nil
 	}
 
-	existing, ok := existingObj.(*APISession)
+	existing, ok := existingObj.(APISession)
 	if !ok {
-		return nil, fmt.Errorf("invalid cache entry: expected *APISession, got %T", existingObj)
+		return false, APISession{}, fmt.Errorf("invalid cache entry: expected APISession, got %T", existingObj)
 	}
 
-	return existing, nil
+	return true, existing, nil
 }
 
-func (p *Cache) GetAllByUser(ctx context.Context, username string) (sessions []*APISession, err error) {
-	sessions = make([]*APISession, 0)
+func (p *Cache) GetAllByUser(ctx context.Context, username string) (sessions []APISession, err error) {
+	sessions = make([]APISession, 0)
 	// just query the go-cache tokens. they will be more up to date than the storage tokens.
 	for _, item := range p.cache.Items() {
-		session, ok := item.Object.(*APISession)
+		session, ok := item.Object.(APISession)
 		if !ok {
 			return nil, fmt.Errorf("invalid cache entry: expected *APISession, got %T", item.Object)
 		}
@@ -136,7 +135,7 @@ func (p *Cache) deleteUserSessionsFromCache(username string, sessionID int64) (e
 	// Items() returns a copy of the underlying unexpired cache items and Delete
 	// won't error if item not found. this should be thread safe.
 	for _, item := range p.cache.Items() {
-		session, ok := item.Object.(*APISession)
+		session, ok := item.Object.(APISession)
 		if !ok {
 			return fmt.Errorf("invalid cache entry: expected *APISession, got %T", item.Object)
 		}
