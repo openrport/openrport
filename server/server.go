@@ -24,6 +24,7 @@ import (
 	jobsmigration "github.com/realvnc-labs/rport/db/migration/jobs"
 	"github.com/realvnc-labs/rport/db/sqlite"
 	rportplus "github.com/realvnc-labs/rport/plus"
+	"github.com/realvnc-labs/rport/server/acme"
 	"github.com/realvnc-labs/rport/server/api/jobs"
 	"github.com/realvnc-labs/rport/server/api/jobs/schedule"
 	"github.com/realvnc-labs/rport/server/api/session"
@@ -75,6 +76,7 @@ type Server struct {
 	filesAPI            files.FileAPI
 	plusManager         rportplus.Manager
 	caddyServer         *caddy.Server
+	acme                *acme.Acme
 }
 
 type ServerOpts struct {
@@ -92,6 +94,10 @@ func NewServer(ctx context.Context, config *chconfig.Config, opts *ServerOpts) (
 		jobsDoneChannel: jobResultChanMap{
 			m: make(map[string]chan *models.Job),
 		},
+	}
+	s.acme = acme.New(s.Logger.Fork("acme"), config.Server.DataDir, config.Server.AcmeHTTPPort)
+	if config.Server.InternalTunnelProxyConfig.EnableAcme {
+		s.acme.AddHost(config.Server.InternalTunnelProxyConfig.Host)
 	}
 
 	filesAPI := opts.FilesAPI
@@ -200,6 +206,7 @@ func NewServer(ctx context.Context, config *chconfig.Config, opts *ServerOpts) (
 		s.clientDB,
 		keepDisconnectedClients,
 		s.Logger,
+		s.acme,
 	)
 	if err != nil {
 		return nil, err
@@ -314,6 +321,8 @@ func (s *Server) Run(ctx context.Context) error {
 	if err := s.Start(ctx); err != nil {
 		return err
 	}
+
+	s.acme.Start()
 
 	// TODO(m-terel): add graceful shutdown of background task
 	if s.config.Server.PurgeDisconnectedClients {

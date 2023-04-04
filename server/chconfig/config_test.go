@@ -72,7 +72,10 @@ func TestParseAndValidateServerConfig(t *testing.T) {
 					DataDir:      "./",
 					Auth:         "abc:def",
 					UsedPortsRaw: []string{"10-20"},
-					TunnelHost:   "bad tunnel host",
+					InternalTunnelProxyConfig: clienttunnel.InternalTunnelProxyConfig{
+						EnableAcme: true,
+						Host:       "bad tunnel host",
+					},
 				},
 			},
 			ExpectedError: "invalid tunnel_host 'bad tunnel host': use IP address or FQDN",
@@ -85,7 +88,10 @@ func TestParseAndValidateServerConfig(t *testing.T) {
 					DataDir:      "./",
 					Auth:         "abc:def",
 					UsedPortsRaw: []string{"10-20"},
-					TunnelHost:   "tunnel.rport.example.com",
+					InternalTunnelProxyConfig: clienttunnel.InternalTunnelProxyConfig{
+						EnableAcme: true,
+						Host:       "tunnel.rport.example.com",
+					},
 				},
 			},
 		},
@@ -419,6 +425,42 @@ func TestParseAndValidateAPI(t *testing.T) {
 				},
 			},
 			ExpectedError: "API: when 'key_file' is set, 'cert_file' must be set as well",
+		},
+		{
+			Name: "api enabled, cert and key file with acme",
+			Config: Config{
+				API: APIConfig{
+					Address:    "0.0.0.0:3000",
+					Auth:       "abc:def",
+					CertFile:   "/var/lib/rport/server.crt",
+					KeyFile:    "/var/lib/rport/server.key",
+					EnableAcme: true,
+					BaseURL:    "https://rport.example.com",
+				},
+			},
+			ExpectedError: "API: cert_file, key_file and enable_acme cannot be used together",
+		},
+		{
+			Name: "api enabled, acme without base url",
+			Config: Config{
+				API: APIConfig{
+					Address:    "0.0.0.0:3000",
+					Auth:       "abc:def",
+					EnableAcme: true,
+				},
+			},
+			ExpectedError: "API: base_url must have a host when acme is enabled",
+		},
+		{
+			Name: "api enabled, invalid base url",
+			Config: Config{
+				API: APIConfig{
+					Address: "0.0.0.0:3000",
+					Auth:    "abc:def",
+					BaseURL: "://invalid",
+				},
+			},
+			ExpectedError: "API: base_url must be a valid url: parse \"://invalid\": missing protocol scheme",
 		},
 		{
 			Name: "api enabled, single user auth, 2fa enabled",

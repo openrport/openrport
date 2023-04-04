@@ -169,11 +169,21 @@ func NewAPIListener(
 		return nil, fmt.Errorf("failed init api users service: %w", err)
 	}
 
-	HTTPServerOptions := []chshare.ServerOption{chshare.WithTLS(config.API.CertFile, config.API.KeyFile, security.TLSConfig(config.API.TLSMin))}
-
+	var HTTPServerOptions []chshare.ServerOption
+	if config.API.CertFile != "" && config.API.KeyFile != "" {
+		HTTPServerOptions = []chshare.ServerOption{chshare.WithTLS(config.API.CertFile, config.API.KeyFile, security.TLSConfig(config.API.TLSMin))}
+	}
 	// no need for TLS on the api listener when using caddy for API access
 	if config.CaddyEnabled() && config.Caddy.APIReverseProxyEnabled() {
 		HTTPServerOptions = nil
+	}
+
+	if config.API.EnableAcme {
+		server.acme.AddHost(config.API.BaseURL)
+		tlsConfig := server.acme.ApplyTLSConfig(security.TLSConfig(config.API.TLSMin))
+		HTTPServerOptions = []chshare.ServerOption{
+			chshare.WithTLS("", "", tlsConfig),
+		}
 	}
 
 	allog := logger.NewLogger("api-listener", config.Logging.LogOutput, config.Logging.LogLevel)
