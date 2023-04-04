@@ -108,7 +108,7 @@
 					</Component>
 	
 					<!-- Configuration file -->
-					<Component Win64="yes" Id="rportClient.conf_comp" Guid="181410DA-06A6-413A-A1C7-261B894D4000">						<!-- NOPE! ANOTHER YOUR-GUID-HERE -->
+					<Component Win64="yes" Id="rportClient.conf_comp" NeverOverwrite="yes" Permanent="yes">						
 						<File Source="rport.example.conf" Id="RPortConf" Name="rport.conf" KeyPath="yes" />
 					</Component>
 				</Directory>
