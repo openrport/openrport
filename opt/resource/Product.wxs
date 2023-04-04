@@ -72,7 +72,6 @@
 					<!-- Installation directory as a component so it can be emptied during uninstall (by default files added by someone other than Windows Installer are not removed) -->
 					<Component Win64="yes" Id="INSTALLDIR_comp" Guid="$(var.UpgradeCode)">						<!-- YOUR-GUID-HERE -->
 						<CreateFolder />
-						<RemoveFile Id="RemoveFilesFromAppDirectory" Name="*.*" On="uninstall" />
 					</Component>
 
 					<!-- Main program file -->
@@ -108,8 +107,8 @@
 					</Component>
 	
 					<!-- Configuration file -->
-					<Component Win64="yes" Id="rportClient.conf_comp" NeverOverwrite="yes" Permanent="yes">						
-						<File Source="rport.example.conf" Id="RPortConf" Name="rport.conf" KeyPath="yes" />
+					<Component Win64="yes" Id="rportClient.conf_comp" Guid="*">
+						<File Source="rport.example.conf" Name="rport.conf" Id="RPortConf" KeyPath="yes" />
 					</Component>
 				</Directory>
 			</Directory>
