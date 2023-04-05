@@ -1,17 +1,5 @@
 {
   "FixedFileInfo": {
-    "FileVersion": {
-      "Major": 1,
-      "Minor": 3,
-      "Patch": 4,
-      "Build": 0
-    },
-    "ProductVersion": {
-      "Major": 1,
-      "Minor": 3,
-      "Patch": 4,
-      "Build": 0
-    },
     "FileFlagsMask": "3f",
     "FileFlags ": "00",
     "FileOS": "040004",
@@ -19,17 +7,17 @@
     "FileSubType": "00"
   },
   "StringFileInfo": {
-    "Comments": "RPort client for Windows",
-    "CompanyName": "RealVNC Ltd.",
-    "FileDescription": "RPort client for Windows",
-    "FileVersion": "1.3.4",
+    "Comments": "RPort client",
+    "CompanyName": "RealVNC Ltd",
+    "FileDescription": "rport windows client",
+    "FileVersion": "0.9.1",
     "InternalName": "rport.exe",
     "LegalCopyright": "Copyright (c) 2022 RealVNC Ltd",
     "LegalTrademarks": "",
-    "OriginalFilename": "https://github.com/realvnc-labs/rport/",
+    "OriginalFilename": "main.go",
     "PrivateBuild": "",
     "ProductName": "rport",
-    "ProductVersion": "1.3.4",
+    "ProductVersion": "0.9.1",
     "SpecialBuild": ""
   },
   "VarFileInfo": {

@@ -108,7 +108,7 @@
 	
 					<!-- Configuration file -->
 					<Component Win64="yes" Id="rportClient.conf_comp" Guid="*">
-						<File Source="rport.example.conf" Name="rport.conf" Id="RPortConf" KeyPath="yes" />
+						<File Source="rport.example.conf" Id="RPortConf" Name="rport.conf" KeyPath="yes" />
 					</Component>
 				</Directory>
 			</Directory>

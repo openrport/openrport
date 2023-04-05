@@ -1,4 +1,4 @@
-Write-Output "creates a specific version of rport-client.msi"
+Write-Output "Creates a specific version of rport-client.msi"
 Write-Output "----------------------------------------------"
 $ErrorActionPreference = 'Stop'
 
@@ -8,10 +8,6 @@ $patch = $args[2]
 
 Write-Output "--------------------------------------------------"
 Write-Output "  - build rport msi ver. $major.$minor.$patch"
-Remove-Item *.exe
-Remove-Item *.msi
-Remove-Item *.wixpdb
-Remove-Item *.wixobj
 
 # Read the template
 $versionInfo = (Get-Content -Raw opt/resource/versioninfo.json | ConvertFrom-Json)
