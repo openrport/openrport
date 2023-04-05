@@ -2,9 +2,12 @@ Write-Output "Install upgrade sequence msi test"
 Write-Output "---------------------------------"
 $ErrorActionPreference = 'Stop'
 
-Write-Output "  - clear any previous installation"
-Start-Process msiexec.exe -Wait -ArgumentList '/x rport-client.msi /qn /quiet /log msi-uninstall.log'
-Remove-Item 'C:\Program Files\rport' -r -force -ErrorAction SilentlyContinue
+Write-Output "[*] Installing goversioninfo"
+go install github.com/josephspurrier/goversioninfo/cmd/goversioninfo@latest
+$ENV:PATH="$ENV:PATH;$($env:home)\go\bin"
+
+Write-Output "[*] Installing WIX"
+choco install wixtoolset
 
 Write-Output "  - build rport msi ver. 0.1.2"
 .github/scripts/msi-buildver.ps1 0 1 2
