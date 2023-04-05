@@ -43,7 +43,7 @@
 		<!-- Upgrade logic -->
 		<!-- AllowSameVersionUpgrades -> Always upgrade, never allow two versions to be installed next to each other -->
 		<!-- AllowSameVersionUpgrades causes ICE61 which must be ignored -->
-		<MajorUpgrade DowngradeErrorMessage="!(loc.NewerInstalled)" AllowSameVersionUpgrades="no" />
+		<MajorUpgrade DowngradeErrorMessage="!(loc.NewerInstalled)" AllowSameVersionUpgrades="yes" />
 
 		<!-- This is the main installer sequence run when the product is actually installed -->
 		<InstallExecuteSequence>
@@ -70,8 +70,9 @@
 				<!-- INSTALLDIR is a property name. We need it later for the UI (to be able to change the install dir. -->
 				<Directory Id="INSTALLDIR" Name="!(loc.ApplicationName)">
 					<!-- Installation directory as a component so it can be emptied during uninstall (by default files added by someone other than Windows Installer are not removed) -->
-					<Component Win64="yes" Id="INSTALLDIR_comp" Guid="$(var.UpgradeCode)">						
+					<Component Win64="yes" Id="INSTALLDIR_comp" Guid="$(var.UpgradeCode)">						<!-- YOUR-GUID-HERE -->
 						<CreateFolder />
+						<RemoveFile Id="RemoveFilesFromAppDirectory" Name="*.*" On="uninstall" />
 					</Component>
 
 					<!-- Main program file -->
@@ -107,7 +108,7 @@
 					</Component>
 	
 					<!-- Configuration file -->
-					<Component Win64="yes" Id="rportClient.conf_comp" Guid="*">
+					<Component Win64="yes" Id="rportClient.conf_comp" Guid="181410DA-06A6-413A-A1C7-261B894D4000">						<!-- NOPE! ANOTHER YOUR-GUID-HERE -->
 						<File Source="rport.example.conf" Id="RPortConf" Name="rport.conf" KeyPath="yes" />
 					</Component>
 				</Directory>
