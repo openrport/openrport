@@ -512,7 +512,7 @@ func TestHandleDeleteClientAuth(t *testing.T) {
 			al := APIListener{
 				insecureForTests: true,
 				Server: &Server{
-					clientService: clients.NewClientService(nil, nil, clients.NewClientRepository(tc.clients, &hour, testLog), testLog),
+					clientService: clients.NewClientService(nil, nil, clients.NewClientRepository(tc.clients, &hour, testLog), testLog, nil),
 					config: &chconfig.Config{
 						Server: chconfig.ServerConfig{
 							AuthWrite: tc.clientAuthWrite,
