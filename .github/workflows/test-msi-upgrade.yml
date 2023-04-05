@@ -1,4 +1,4 @@
-name: Test MSI install/upgrade for Windows
+name: Test install/upgrade for Windows
 on:
   push:
     tags:
@@ -6,7 +6,7 @@ on:
 
 jobs:
   release:
-    name: Test MSI install / upgrade
+    name: Test install / upgrade
     runs-on: windows-2022
     steps:
       - uses: actions/checkout@v2
@@ -14,7 +14,5 @@ jobs:
         uses: actions/setup-go@v2
         with:
           go-version: 1.19
-      - name: Creates MSI
-        run: .github/scripts/msi-build.ps1
       - name: Test MSI upgrade(s)
         run: .github/scripts/msi-test-install-upgrade.ps1

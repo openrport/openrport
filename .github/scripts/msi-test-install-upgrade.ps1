@@ -13,7 +13,7 @@ Write-Output "  - install rport ver 0.1.2"
 Start-Process msiexec.exe -Wait -ArgumentList '/i rport-client-ver0.1.2.msi /qn /quiet /log msi-install0.1.2.log'
 if (Select-String -Path "msi-install0.1.2.log" -Pattern "The same or a newer version of this product is already installed" -SimpleMatch -Quiet)
 {
-    Write-Error "install rport ver 0.1.2 failed"
+    Write-Error "install rport ver 0.1.2 failed: same or a newer version..."
 }
  
 Write-Output "  - editing rport.conf"
@@ -27,7 +27,7 @@ Write-Output "  - upgrade rport ver 1.3.4 (major upgrade)"
 Start-Process msiexec.exe -Wait -ArgumentList '/i rport-client-ver1.3.4.msi /qn /quiet /log msi-install1.3.4.log'
 if (Select-String -Path "msi-install1.3.4.log" -Pattern "The same or a newer version of this product is already installed" -SimpleMatch -Quiet)
 {
-    Write-Error "upgrade to rport ver 1.3.4 failed"
+    Write-Error "upgrade to rport ver 1.3.4 failed: same or a newer version..."
 }
 
 Write-Output "  - check rport.conf is still there "
