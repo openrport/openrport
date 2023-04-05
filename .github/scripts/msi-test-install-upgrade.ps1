@@ -20,7 +20,7 @@ if (Select-String -Path "msi-install0.1.2.log" -Pattern "The same or a newer ver
 }
  
 Write-Output "  - editing rport.conf"
-Add-Content "C:\Program Files\RPort\rport.conf" "`n# Hello, I was added by the user in version 0.1.2"
+Add-Content "C:\Program Files\RPort\rport.conf" "`n# Hello, I was edited by the user in version 0.1.2"
 Get-Content "C:\Program Files\RPort\rport.conf" -Tail 3
 
 Write-Output "  - build rport msi ver. 1.3.4"
@@ -42,7 +42,7 @@ if (-not($files.name.Contains('rport.conf')))
 
 Write-Output "  - check rport.conf edited is the same "
 Get-Content "C:\Program Files\RPort\rport.conf" -Tail 3
-if (Select-String -Path "C:\Program Files\RPort\rport.conf" -Pattern "Hello, I was added by the user in version 0.1.2" -SimpleMatch -Quiet)
+if (Select-String -Path "C:\Program Files\RPort\rport.conf" -Pattern "Hello, I was edited by the user in version 0.1.2" -SimpleMatch -Quiet)
 {
     Write-Output "  - found rport.conf edited content, all good!"
 }
