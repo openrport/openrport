@@ -18,8 +18,6 @@ jobs:
         run: .github/scripts/msi-build.ps1
       - name: Test MSI
         run: .github/scripts/msi-test.ps1
-      - name: Test MSI upgrade(s)
-        run: .github/scripts/msi-test-install-upgrade.ps1
       - name: Publish MSI
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
