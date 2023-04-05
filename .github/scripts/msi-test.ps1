@@ -9,9 +9,9 @@ Get-Content msi-install.log
 
 $files = Get-ChildItem "C:\Program Files\RPort"|Select-Object -Property Name
 
-if (-not($files.name.Contains('rport.conf')))
+if (-not($files.name.Contains('rport.example.conf')))
 {
-    Write-Error "rport.conf not installed"
+    Write-Error "rport.example.conf not installed"
 }
 
 if (-not($files.name.Contains('rport.exe')))
