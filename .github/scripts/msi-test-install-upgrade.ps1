@@ -19,6 +19,7 @@ if (-not($files.name.Contains('rport.conf')))
     Write-Error "rport.conf was removed from an upgrade"
 }
 Write-Output "  - check rport.conf edited is the same "
+Get-Content "C:\Program Files\RPort\rport.conf" -Tail 10
 if (Select-String -Path "C:\Program Files\RPort\rport.conf" -Pattern "Hello, I was added by the user in version 0.1.2" -SimpleMatch -Quiet)
 {
     Write-Output "  - found rport.conf edited content, all good!"

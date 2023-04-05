@@ -6,8 +6,7 @@ $major =  $args[0]
 $minor = $args[1]
 $patch = $args[2]
 
-Write-Output "--------------------------------------------------"
-Write-Output "  - build rport msi ver. $major.$minor.$patch"
+Write-Output "[*] Build rport msi ver. $major.$minor.$patch"
 
 # Read the template
 $versionInfo = (Get-Content -Raw opt/resource/versioninfo.json | ConvertFrom-Json)
