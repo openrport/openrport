@@ -304,6 +304,7 @@ func (c *Client) connectionLoop(ctx context.Context, withInitialSendRequestDelay
 
 		c.Logger.Infof("connection wait stopped")
 
+		c.setConnActive(false)
 		c.setConn(nil)
 		c.updates.SetConn(nil)
 		c.monitor.SetConn(nil)
@@ -329,16 +330,19 @@ func (c *Client) handleConnectionError(backoff *backoff.Backoff, connerr error) 
 	c.showConnectionError(connerr, attempt)
 
 	if errors.Is(connerr, context.Canceled) {
+		c.Errorf("context canceled")
 		return true
 	}
 
 	// check if the user has set a max retry limit
 	if c.configHolder.Connection.MaxRetryCount >= 0 && attempt >= c.configHolder.Connection.MaxRetryCount {
+		c.Errorf("max retries exceeded")
 		return true // if so, stop trying
 	}
 
 	var d = backoff.Duration()
 	if _, ok := connerr.(comm.TimeoutError); ok {
+		c.Debugf("reseting backoff timer")
 		// Timeout means the server isn't offline, so reset the backoff and use an initial short retry duration
 		backoff.Reset()
 		rand.Seed(time.Now().UnixNano())
@@ -516,13 +520,14 @@ func (c *Client) sendConnectionRequest(ctx context.Context, sshConn ssh.Conn, mi
 
 	if err != nil {
 		c.Errorf("connection request err = %v", err)
+		c.Errorf("closing sshConn")
 		if closeErr := sshConn.Close(); closeErr != nil {
 			c.Errorf("Failed to close connection: %s", closeErr)
 		}
 		reconnect := strings.Contains(err.Error(), "reconnect")
 		if reconnect {
 			reconnectDelay := ServerReconnectRequestBackoffTime + (time.Duration(rand.Intn(30)) * time.Second)
-			c.Debugf("waiting %d seconds before reconnect", reconnectDelay/time.Second)
+			c.Debugf("reconnect requested. waiting %d seconds before retrying.", reconnectDelay/time.Second)
 			// this probably means the server is too busy for us. wait quite a while
 			// before returning to the conn loop.
 			time.Sleep(reconnectDelay)
@@ -593,6 +598,8 @@ func (c *Client) handleSSHRequests(ctx context.Context, sshClientConn *sshClient
 	c.Logger.Debugf("handleSSHRequests started")
 
 	for r := range sshClientConn.Requests {
+		c.Logger.Debugf("handling request: %s", r.Type)
+		c.Logger.Debugf("payload: %v", string(r.Payload))
 		var err error
 		var resp interface{}
 		switch r.Type {
