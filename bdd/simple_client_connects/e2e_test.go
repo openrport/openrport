@@ -16,7 +16,7 @@ func TestClientConnects(t *testing.T) {
 	ctx, cancel := context.WithTimeout(context.Background(), time.Minute*5)
 	defer cancel()
 
-	serverProcess, clientProcess := helpers.StartClientAndServerAndWaitForConnection(ctx, t)
+	serverProcess, clientProcess := helpers.StartClientAndServerAndWaitForConnection(ctx, t, "../../")
 
 	defer func() {
 		helpers.LogAndIgnore(serverProcess.Process.Kill())

@@ -535,6 +535,18 @@ func (c *Client) UserGroupHasAccessViaClientGroup(userGroups []string, allClient
 	return false
 }
 
+type Metadata struct {
+	Tags   []string          `json:"tags"`
+	Labels map[string]string `json:"labels"`
+}
+
+func (c *Client) SetMetadata(metadata *Metadata) {
+	c.flock.Lock()
+	c.Labels = metadata.Labels
+	c.Tags = metadata.Tags
+	c.flock.Unlock()
+}
+
 // NewClientID generates a new client ID.
 func NewClientID() (string, error) {
 	return random.UUID4()

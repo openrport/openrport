@@ -1,6 +1,8 @@
 package chserver
 
 import (
+	"context"
+	"fmt"
 	"net/http"
 
 	"github.com/gorilla/handlers"
@@ -58,6 +60,11 @@ func (al *APIListener) initRouter() {
 	clientDetails.HandleFunc("", al.handleDeleteClient).Methods(http.MethodDelete)
 	clientDetails.Handle("/acl", al.wrapAdminAccessMiddleware(http.HandlerFunc(al.handlePostClientACL))).Methods(http.MethodPost)
 	clientDetails.Handle("/scripts", al.permissionsMiddleware(users.PermissionScripts)(http.HandlerFunc(al.handleExecuteScript))).Methods(http.MethodPost)
+
+	clientMetadata := clientDetails.PathPrefix("/metadata").Subrouter()
+	clientMetadata.Use(al.withActiveClient)
+	clientMetadata.HandleFunc("", al.handleGetClientMetadata).Methods(http.MethodGet)
+	clientMetadata.HandleFunc("", al.handleUpdateClientMetadata).Methods(http.MethodPut)
 
 	clientCommands := clientDetails.PathPrefix("/commands").Subrouter()
 	clientCommands.Use(al.permissionsMiddleware(users.PermissionCommands))
@@ -238,4 +245,33 @@ func (al *APIListener) initRouter() {
 	))
 
 	al.router = r
+}
+
+func (al *APIListener) withActiveClient(next http.Handler) http.Handler {
+	return http.HandlerFunc(func(writer http.ResponseWriter, request *http.Request) {
+
+		vars := mux.Vars(request)
+		cid := vars[routes.ParamClientID]
+		if cid == "" {
+			al.jsonErrorResponseWithTitle(writer, http.StatusBadRequest, fmt.Sprintf("Missing %q route param.", routes.ParamClientID))
+			return
+		}
+
+		client, err := al.clientService.GetActiveByID(cid)
+		if err != nil {
+			al.jsonErrorResponseWithError(writer, http.StatusInternalServerError, fmt.Sprintf("Failed to find an active client with id=%q.", cid), err)
+			return
+		}
+		if client == nil {
+			al.jsonErrorResponseWithTitle(writer, http.StatusNotFound, fmt.Sprintf("Active client with id=%q not found.", cid))
+			return
+		}
+
+		if client.IsPaused() {
+			al.jsonErrorResponseWithTitle(writer, http.StatusNotFound, fmt.Sprintf("failed to execute command/script for client with id %s due to client being paused (reason = %s)", client.GetID(), client.GetPausedReason()))
+			return
+		}
+
+		next.ServeHTTP(writer, request.WithContext(context.WithValue(request.Context(), "client", client)))
+	})
 }

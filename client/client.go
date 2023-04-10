@@ -4,11 +4,13 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
+	"github.com/realvnc-labs/rport/server/clients"
 	"io"
 	"math/rand"
 	"net"
 	"net/http"
 	"net/url"
+	"os"
 	"strings"
 	"sync"
 	"time"
@@ -596,6 +598,10 @@ func (c *Client) handleSSHRequests(ctx context.Context, sshClientConn *sshClient
 		var err error
 		var resp interface{}
 		switch r.Type {
+
+		case comm.RequestTypeUpdateClientMetadata:
+			c.Logger.Infof("received request to update metadata")
+			resp, err = c.updateMetadata(r.Payload)
 		case comm.RequestTypeCheckPort:
 			resp, err = checkPort(r.Payload)
 		case comm.RequestTypeRunCmd:
@@ -974,4 +980,39 @@ func (c *Client) localAddrForInterface(ifaceName string) (net.Addr, error) {
 	c.Infof("Connecting using %s (%s)", iface.Name, selected)
 
 	return laddr, nil
+}
+
+func (c *Client) updateMetadata(payload []byte) (any, error) {
+	c.mu.RLock()
+	attributesFilePath := c.configHolder.Client.AttributesFilePath
+	c.mu.RUnlock()
+
+	if attributesFilePath == "" {
+		return nil, fmt.Errorf("attributes file path not set")
+	}
+
+	configHolder := &clients.Metadata{}
+	err := json.Unmarshal(payload, configHolder)
+	if err != nil {
+		return nil, fmt.Errorf("payload unreadable: %v", err)
+	}
+
+	data, err := json.Marshal(configHolder)
+	if err != nil {
+		return nil, fmt.Errorf("can't serialize attributes: %v", err)
+	}
+
+	err = os.WriteFile(attributesFilePath, data, 0644)
+	if err != nil {
+		return nil, fmt.Errorf("can't write attributes to file: %v", err)
+	}
+
+	c.mu.Lock()
+	c.configHolder.Client.Tags = configHolder.Tags
+	c.configHolder.Client.Labels = configHolder.Labels
+	c.mu.Unlock()
+
+	return struct {
+		Status string `json:"status"`
+	}{Status: "OK"}, nil
 }

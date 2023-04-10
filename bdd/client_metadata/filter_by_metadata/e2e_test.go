@@ -1,4 +1,4 @@
-package client_labels_test
+package filter_by_metadata_test
 
 import (
 	"context"
@@ -34,10 +34,10 @@ func (suite *TagsAndLabelsTestSuite) SetupSuite() {
 	suite.ctx = context.Background()
 	ctx, cancel := context.WithTimeout(suite.ctx, time.Minute*5)
 	defer cancel()
-	suite.serverProcess, suite.clientProcess = helpers.StartClientAndServerAndWaitForConnection(ctx, suite.T())
+	suite.serverProcess, suite.clientProcess = helpers.StartClientAndServerAndWaitForConnection(ctx, suite.T(), "../../../")
 	time.Sleep(time.Millisecond * 100)
 	if suite.clientProcess.ProcessState != nil || suite.serverProcess.ProcessState != nil {
-		suite.Fail("deamons didn't start")
+		suite.Fail("daemons didn't start")
 	}
 }
 
@@ -97,7 +97,7 @@ func (suite *TagsAndLabelsTestSuite) TestClientHasLabels_findOne() {
 
 func (suite *TagsAndLabelsTestSuite) ExpectAnswer(requestURL string, expected []TagsAndLabels) bool {
 	structured := suite.callURL(requestURL)
-	return suite.Equal(structured, Rsp{Data: expected})
+	return suite.Equal(Rsp{Data: expected}, structured)
 }
 
 func (suite *TagsAndLabelsTestSuite) callURL(requestURL string) Rsp {
