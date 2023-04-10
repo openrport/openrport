@@ -9,6 +9,7 @@ import (
 	"net"
 	"net/http"
 	"net/url"
+	"runtime"
 	"strings"
 	"sync"
 	"time"
@@ -55,7 +56,6 @@ type Client struct {
 	sshConnection      ssh.Conn
 	running            bool
 	runningc           chan error
-	connActive         bool
 	connStats          chshare.ConnStats
 	cmdExec            system.CmdExecutor
 	systemInfo         system.SysInfo
@@ -171,20 +171,24 @@ func (c *Client) setConn(sshConnection ssh.Conn) {
 	c.sshConnection = sshConnection
 }
 
-func (c *Client) isConnActive() (isActive bool) {
-	c.mu.RLock()
-	defer c.mu.RUnlock()
-	return c.connActive
-}
-
-func (c *Client) setConnActive(active bool) {
-	c.mu.Lock()
-	defer c.mu.Unlock()
-	c.connActive = active
+func printMemStats(c *Client, rtm runtime.MemStats) {
+	runtime.GC()
+	c.Debugf("mem usage summary: liveobjects=%d, heapObjects=%d, heapAlloc=%d, numGC=%d, lastGC=%s",
+		rtm.Mallocs-rtm.Frees,
+		rtm.HeapObjects,
+		rtm.HeapAlloc,
+		rtm.NumGC,
+		time.UnixMilli(int64(rtm.LastGC/1_000_000)),
+	)
 }
 
 func (c *Client) keepAliveLoop(ctx context.Context) {
+	var rtm runtime.MemStats
+
 	for c.isRunning() {
+		runtime.ReadMemStats(&rtm)
+		printMemStats(c, rtm)
+
 		time.Sleep(c.configHolder.Connection.KeepAlive + (time.Duration(rand.Intn(MaxKeepAliveJitterMilliseconds)))*time.Millisecond)
 
 		conn := c.getConn()
@@ -224,8 +228,6 @@ func (c *Client) connectionLoop(ctx context.Context, withInitialSendRequestDelay
 		Jitter: true,
 	}
 
-	c.setConnActive(false)
-
 	for c.isRunning() {
 		if connerr != nil {
 			stopRetrying := c.handleConnectionError(backoff, connerr)
@@ -256,13 +258,8 @@ func (c *Client) connectionLoop(ctx context.Context, withInitialSendRequestDelay
 			}
 		}
 
-		// check if already handling requets and channels on this connection
-		if !c.isConnActive() {
-			// Start handling requests and channels immediately, otherwise ssh connection might hang
-			go c.handleSSHRequests(ctx, sshClientConn)
-			go c.connectStreams(sshClientConn.Channels)
-		}
-		c.setConnActive(true)
+		go c.handleSSHRequests(ctx, sshClientConn)
+		go c.connectStreams(sshClientConn.Channels)
 
 		switchbackCtx, cancelSwitchback := context.WithCancel(ctx)
 		if !isPrimary {
@@ -277,7 +274,7 @@ func (c *Client) connectionLoop(ctx context.Context, withInitialSendRequestDelay
 
 		err := c.sendConnectionRequest(ctx, sshClientConn.Connection, MinSendRequestRetryWaitTime)
 		if err != nil {
-			// Connection request has failed, we try again
+			// Connection request has failed then the connection will be closed and we try again
 			cancelSwitchback()
 			connerr = err
 			continue
@@ -304,7 +301,6 @@ func (c *Client) connectionLoop(ctx context.Context, withInitialSendRequestDelay
 
 		c.Logger.Infof("connection wait stopped")
 
-		c.setConnActive(false)
 		c.setConn(nil)
 		c.updates.SetConn(nil)
 		c.monitor.SetConn(nil)
@@ -415,6 +411,7 @@ func (c *Client) connect(server string) (*sshClientConnection, error) {
 	}
 
 	conn := chshare.NewWebSocketConn(wsConn)
+
 	// perform SSH handshake on net.Conn
 	c.Debugf("Handshaking...")
 	sshClientConn, chans, reqs, err := ssh.NewClientConn(conn, "", c.sshConfig)
@@ -509,7 +506,6 @@ func (c *Client) sendConnectionRequest(ctx context.Context, sshConn ssh.Conn, mi
 	c.Infof("Sending connection request.")
 	c.Debugf("Sending connection request with client details %s", string(req))
 	t0 := time.Now()
-
 	res, err := comm.WithRetry(func() (res *sendResponse, err error) {
 		replyOk, respBytes, err := comm.SendRequestWithTimeout(ctx, sshConn, "new_connection", true, req, SendRequestTimeout, c.Logger)
 		return &sendResponse{
@@ -605,12 +601,16 @@ func (c *Client) handleSSHRequests(ctx context.Context, sshClientConn *sshClient
 		switch r.Type {
 		case comm.RequestTypeCheckPort:
 			resp, err = checkPort(r.Payload)
+			// fall through for err and resp handling
 		case comm.RequestTypeRunCmd:
 			resp, err = c.HandleRunCmdRequest(ctx, r.Payload)
+			// fall through for err and resp handling
 		case comm.RequestTypeRefreshUpdatesStatus:
 			c.updates.Refresh()
+			// fall through to reply success with empty resp
 		case comm.RequestTypePutCapabilities:
 			c.handlePutCapabilitiesRequest(ctx, r.Payload)
+			// fall through to reply success with empty resp
 		case comm.RequestTypeUpload:
 			uploadManager := NewSSHUploadManager(
 				c.Logger,
@@ -620,9 +620,12 @@ func (c *Client) handleSSHRequests(ctx context.Context, sshClientConn *sshClient
 				system.SysUserProvider{},
 			)
 			resp, err = uploadManager.HandleUploadRequest(r.Payload)
+			// fall through for err and resp handling
 		case comm.RequestTypeCheckTunnelAllowed:
 			resp, err = c.checkTunnelAllowed(r.Payload)
+			// fall through for err and resp handling
 		case comm.RequestTypePing:
+			// use empty reply (and NOT empty resp with success reply)
 			_ = r.Reply(true, nil)
 			continue
 		default:
@@ -721,7 +724,6 @@ func (c *Client) Close() error {
 }
 
 func (c *Client) CloseConnection() error {
-	c.setConnActive(false)
 	sshConn := c.getConn()
 	if sshConn == nil {
 		return nil
@@ -746,6 +748,7 @@ func (c *Client) connectStreams(chans <-chan ssh.NewChannel) {
 	for ch := range chans {
 		remote := string(ch.ExtraData())
 		protocol := models.ProtocolTCP
+		c.Debugf("handling connect stream: remote=%s, protocol=%s", remote, protocol)
 		parts := strings.SplitN(remote, "/", 2)
 		if len(parts) == 2 {
 			remote = parts[0]
