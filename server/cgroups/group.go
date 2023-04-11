@@ -20,11 +20,13 @@ var OptionsSupportedFiltersAndSorts = map[string]bool{
 
 var OptionsSupportedFields = map[string]map[string]bool{
 	OptionsResource: {
-		"id":                  true,
-		"description":         true,
-		"params":              true,
-		"allowed_user_groups": true,
-		"client_ids":          true,
+		"id":                    true,
+		"description":           true,
+		"params":                true,
+		"allowed_user_groups":   true,
+		"client_ids":            true,
+		"num_clients":           true,
+		"num_clients_connected": true,
 	},
 }
 
