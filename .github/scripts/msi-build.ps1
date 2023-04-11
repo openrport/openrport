@@ -1,5 +1,10 @@
-Write-Output "Making the MSI..."
-Write-Output "-----------------"
+param (
+    [string]$major = (&{If($env:GITHUB_REF_NAME) {  [int]($env:GITHUB_REF_NAME.Split(".")[0]) } Else { $(throw "-major is required.") }}),
+    [string]$minor = (&{If($env:GITHUB_REF_NAME) {  [int]($env:GITHUB_REF_NAME.Split(".")[1]) } Else { $(throw "-minor is required.") }}),
+    [string]$patch = (&{If($env:GITHUB_REF_NAME) {  [int]($env:GITHUB_REF_NAME.Split(".")[2]) } Else { $(throw "-patch is required.") }})
+)
+Write-Output "Making the MSI... ver $major.$minor.$patch"
+Write-Output "--------------------------------------"
 $ErrorActionPreference = 'Stop'
 Get-ChildItem env:
 $PSVersionTable
@@ -16,17 +21,14 @@ Write-Output "[*] Versioning the build"
 # Read the template
 $versionInfo = (Get-Content -Raw opt/resource/versioninfo.json | ConvertFrom-Json)
 # Set values
-$major=[int]($env:GITHUB_REF_NAME.Split(".")[0])
-$minor=[int]($env:GITHUB_REF_NAME.Split(".")[1])
-$patch=[int]($env:GITHUB_REF_NAME.Split(".")[2])
 $versionInfo.FixedFileInfo.FileVersion.Major = $major
 $versionInfo.FixedFileInfo.FileVersion.Minor = $minor
 $versionInfo.FixedFileInfo.FileVersion.Patch = $patch
 $versionInfo.FixedFileInfo.ProductVersion.Major = $major
 $versionInfo.FixedFileInfo.ProductVersion.Minor = $minor
 $versionInfo.FixedFileInfo.ProductVersion.Patch = $patch
-$versionInfo.StringFileInfo.FileVersion = $env:GITHUB_REF_NAME
-$versionInfo.StringFileInfo.ProductVersion = $env:GITHUB_REF_NAME
+$versionInfo.StringFileInfo.FileVersion = "$major.$minor.$patch"
+$versionInfo.StringFileInfo.ProductVersion = "$major.$minor.$patch"
 Write-Output $versionInfo|convertTo-Json
 # Write the file used for the build process
 $versionInfo|ConvertTo-Json|Out-File -Path cmd/rport/versioninfo.json
