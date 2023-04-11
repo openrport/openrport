@@ -3,7 +3,7 @@ Write-Output "---------------------------------"
 $ErrorActionPreference = 'Stop'
 
 Write-Output "  - build rport msi ver. 0.1.2"
-.github/scripts/msi-build.ps1 -major 0 -minor 1 -patch 2
+.github/scripts/msi-build.ps1 -major 0 -minor 1 -patch 2 -SignMsi:$false
 
 Write-Output "  - install rport ver 0.1.2"
 Start-Process msiexec.exe -Wait -ArgumentList '/i rport-client.msi /qn /quiet /log msi-install0.1.2.log'
@@ -16,7 +16,7 @@ Write-Output "  - adding and editing rport.conf"
 Add-Content "C:\Program Files\RPort\rport.conf" "`n# Hello, I was edited by the user in version 0.1.2"
 
 Write-Output "  - build rport msi ver. 1.3.4"
-.github/scripts/msi-build.ps1 1 3 4
+.github/scripts/msi-build.ps1 1 3 4 -SignMsi:$false
 
 Write-Output "  - upgrade rport ver 1.3.4 (major upgrade)"
 Start-Process msiexec.exe -Wait -ArgumentList '/i rport-client.msi /qn /quiet /log msi-install1.3.4.log'
