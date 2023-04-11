@@ -100,7 +100,7 @@ func validateInputClientGroup(group cgroups.ClientGroup) error {
 	if invalidGroupIDRegexp.MatchString(group.ID) {
 		return fmt.Errorf("invalid group ID %q: can contain only %q", group.ID, validGroupIDChars)
 	}
-	if group.Params != nil {
+	if group.Params != nil && group.Params.Tag != nil {
 		_, _, err := cgroups.ParseTag(group.Params.Tag)
 		if err != nil {
 			return err
