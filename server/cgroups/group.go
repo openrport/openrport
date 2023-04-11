@@ -49,19 +49,19 @@ type ClientGroup struct {
 }
 
 type ClientParams struct {
-	ClientID     *ParamValues `json:"client_id"`
-	Name         *ParamValues `json:"name"`
-	OS           *ParamValues `json:"os"`
-	OSArch       *ParamValues `json:"os_arch"`
-	OSFamily     *ParamValues `json:"os_family"`
-	OSKernel     *ParamValues `json:"os_kernel"`
-	Hostname     *ParamValues `json:"hostname"`
-	IPv4         *ParamValues `json:"ipv4"`
-	IPv6         *ParamValues `json:"ipv6"`
-	Tag          *ParamValues `json:"tag"`
-	Version      *ParamValues `json:"version"`
-	Address      *ParamValues `json:"address"`
-	ClientAuthID *ParamValues `json:"client_auth_id"`
+	ClientID     *ParamValues     `json:"client_id"`
+	Name         *ParamValues     `json:"name"`
+	OS           *ParamValues     `json:"os"`
+	OSArch       *ParamValues     `json:"os_arch"`
+	OSFamily     *ParamValues     `json:"os_family"`
+	OSKernel     *ParamValues     `json:"os_kernel"`
+	Hostname     *ParamValues     `json:"hostname"`
+	IPv4         *ParamValues     `json:"ipv4"`
+	IPv6         *ParamValues     `json:"ipv6"`
+	Tag          *json.RawMessage `json:"tag"`
+	Version      *ParamValues     `json:"version"`
+	Address      *ParamValues     `json:"address"`
+	ClientAuthID *ParamValues     `json:"client_auth_id"`
 }
 
 type Param string
@@ -103,6 +103,76 @@ func (p Param) matches(value string) bool {
 	}
 
 	return str == value
+}
+
+func MatchesRawTags(p *json.RawMessage, values []string) bool {
+	if p == nil || len(*p) == 0 && len(values) == 0 {
+		return true
+	}
+
+	operator, operands, err := ParseTag(p)
+	if err == nil {
+		if len(operands) == 0 {
+			return false
+		}
+		matches := make(map[string]bool, len(operands))
+		for _, curValue := range values {
+			for _, curOperand := range operands {
+				if matches[curOperand] { // this filter was already "assigned" to a match
+					continue
+				}
+				if Param(curOperand).matches(curValue) {
+					matches[curOperand] = true
+				}
+			}
+		}
+		switch operator { // operators
+		case "and":
+			if len(matches) == len(operands) {
+				return true
+			}
+		case "or":
+			if len(matches) > 0 {
+				return true
+			}
+		}
+	}
+
+	return false
+}
+
+func ParseTag(p *json.RawMessage) (string, []string, error) {
+	operator := "or" // default
+	var curGenericParam map[string][]string
+	err := json.Unmarshal(*p, &curGenericParam)
+
+	if err == nil && len(curGenericParam) == 1 {
+		operator = reflect.ValueOf(curGenericParam).MapKeys()[0].String()
+		if !allowedOperator(operator) {
+			return operator, nil, fmt.Errorf("error, only and/or is allowed for tags group definitions")
+		}
+		if len(curGenericParam[operator]) == 0 {
+			return operator, nil, fmt.Errorf("error parsing tags group definitions")
+		}
+		return operator, curGenericParam[operator], nil
+	}
+	// unmarshaling as "and|or" : [ "first", "second"] failed
+	var listPattern []string
+	err = json.Unmarshal(*p, &listPattern)
+	if err == nil && len(listPattern) > 0 {
+		return "or", listPattern, nil
+	}
+	// also unmarshaling as [ "first", "second"] failed
+	return operator, nil, fmt.Errorf("error parsing tags group definitions")
+}
+func allowedOperator(op string) bool {
+	switch strings.ToLower(op) {
+	case
+		"and",
+		"or":
+		return true
+	}
+	return false
 }
 
 func (p *ClientParams) Scan(value interface{}) error {

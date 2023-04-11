@@ -1,6 +1,7 @@
 package chserver
 
 import (
+	"encoding/json"
 	"errors"
 	"testing"
 
@@ -80,4 +81,97 @@ func TestValidateInputClientGroup(t *testing.T) {
 			assert.Equal(t, tc.wantErr, gotErr)
 		})
 	}
+}
+
+func TestValidateInputClientGroupParamsTag(t *testing.T) {
+	testCases := []struct {
+		name     string
+		jsonData *json.RawMessage
+		wantRes  bool
+		wantErr  error
+	}{
+		{
+			name:     "Tags json parsing ok 1",
+			jsonData: jsonData(` ["Linux", "Datacenter 3"] `),
+			wantErr:  nil,
+		},
+		{
+			name:     "Tags json parsing ok 2",
+			jsonData: jsonData(` { "AND": [ "Linux", "Datacenter 3" ] } `),
+			wantErr:  nil,
+		},
+		{
+			name:     "Tags json parsing ok 2",
+			jsonData: jsonData(` { "amd": [ "Linux", "Datacenter 3" ] } `),
+			wantErr:  errors.New("error, only and/or is allowed for tags group definitions"),
+		},
+		{
+			name:     "Tags json parsing ok 2",
+			jsonData: jsonData(` { "": [ "Linux", "Datacenter 3" ] } `),
+			wantErr:  errors.New("error, only and/or is allowed for tags group definitions"),
+		},
+		{
+			name:     "Tags json parsing error 1",
+			jsonData: jsonData(` [Linux", "Datacenter 3"] `),
+			wantErr:  errors.New("error parsing tags group definitions"),
+		},
+		{
+			name:     "Tags json parsing error 2",
+			jsonData: jsonData(` { "and": ["T*", "Datacenter 2, "Datacenter 5"] } `),
+			wantErr:  errors.New("error parsing tags group definitions"),
+		},
+		{
+			name:     "both and and or are present",
+			jsonData: jsonData(` { [ { "and": [ "Linux", "Datacenter 3" ] }, { "or": [ "Linux", "Datacenter 3" ] }    ] } `),
+			wantErr:  errors.New("error parsing tags group definitions"),
+		},
+		{
+			name:     "no map keys",
+			jsonData: jsonData(` `),
+			wantErr:  errors.New("error parsing tags group definitions"),
+		},
+		{
+			name:     "no map keys",
+			jsonData: jsonData(` { } `),
+			wantErr:  errors.New("error parsing tags group definitions"),
+		},
+		{
+			name:     "no map keys 2 ",
+			jsonData: jsonData(` { [] } `),
+			wantErr:  errors.New("error parsing tags group definitions"),
+		},
+		{
+			name:     "no map keys 3 ",
+			jsonData: jsonData(` [] `),
+			wantErr:  errors.New("error parsing tags group definitions"),
+		},
+		{
+			name:     "no map keys 4 ",
+			jsonData: jsonData(` { "and" : [] } `),
+			wantErr:  errors.New("error parsing tags group definitions"),
+		},
+		{
+			name:     "no tags",
+			jsonData: nil,
+			wantErr:  nil,
+		},
+	}
+
+	for _, tc := range testCases {
+		t.Run(tc.name, func(t *testing.T) {
+			var group cgroups.ClientGroup
+			group.ID = "testg1"
+			group.Params = &cgroups.ClientParams{
+				Tag: tc.jsonData,
+			}
+
+			gotErr := validateInputClientGroup(group)
+			assert.Equal(t, tc.wantErr, gotErr)
+		})
+	}
+}
+
+func jsonData(data string) *json.RawMessage {
+	bytes := []byte(data)
+	return (*json.RawMessage)(&bytes)
 }

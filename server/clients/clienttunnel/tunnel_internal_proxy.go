@@ -13,8 +13,10 @@ import (
 	"sync/atomic"
 	"time"
 
+	"github.com/asaskevich/govalidator"
 	"github.com/gorilla/mux"
 
+	"github.com/realvnc-labs/rport/server/acme"
 	chshare "github.com/realvnc-labs/rport/share"
 	"github.com/realvnc-labs/rport/share/logger"
 	"github.com/realvnc-labs/rport/share/security"
@@ -29,8 +31,10 @@ var tunnelProxyCSS embed.FS
 var semanticCSS embed.FS
 
 type InternalTunnelProxyConfig struct {
+	Host         string `mapstructure:"tunnel_host"`
 	CertFile     string `mapstructure:"tunnel_proxy_cert_file"`
 	KeyFile      string `mapstructure:"tunnel_proxy_key_file"`
+	EnableAcme   bool   `mapstructure:"tunnel_enable_acme"`
 	NovncRoot    string `mapstructure:"novnc_root"`
 	TLSMin       string `mapstructure:"tls_min"`
 	GuacdAddress string `mapstructure:"guacd_address"`
@@ -38,7 +42,7 @@ type InternalTunnelProxyConfig struct {
 }
 
 func (c *InternalTunnelProxyConfig) ParseAndValidate() error {
-	if c.CertFile == "" && c.KeyFile == "" {
+	if c.CertFile == "" && c.KeyFile == "" && !c.EnableAcme {
 		c.Enabled = false
 		return nil
 	}
@@ -48,12 +52,20 @@ func (c *InternalTunnelProxyConfig) ParseAndValidate() error {
 	if c.KeyFile != "" && c.CertFile == "" {
 		return errors.New("when 'tunnel_proxy_key_file' is set, 'tunnel_proxy_cert_file' must be set as well")
 	}
-	_, err := tls.LoadX509KeyPair(c.CertFile, c.KeyFile)
-	if err != nil {
-		return fmt.Errorf("invalid 'tunnel_proxy_cert_file', 'tunnel_proxy_key_file': %v", err)
+	if c.EnableAcme && c.CertFile != "" {
+		return errors.New("tunnel_proxy_cert_file, tunnel_proxy_key_file and tunnel_enable_acme cannot be used together")
+	}
+	if c.CertFile != "" && c.KeyFile != "" {
+		_, err := tls.LoadX509KeyPair(c.CertFile, c.KeyFile)
+		if err != nil {
+			return fmt.Errorf("invalid 'tunnel_proxy_cert_file', 'tunnel_proxy_key_file': %v", err)
+		}
 	}
 	if err := c.validateGuacd(c.GuacdAddress); err != nil {
 		return fmt.Errorf("try guacd connection: %v", err)
+	}
+	if err := c.validateHost(); err != nil {
+		return err
 	}
 	if c.TLSMin != "" && c.TLSMin != "1.2" && c.TLSMin != "1.3" {
 		return errors.New("TLS must be either 1.2 or 1.3")
@@ -82,6 +94,13 @@ func (c *InternalTunnelProxyConfig) validateGuacd(addr string) error {
 	return nil
 }
 
+func (c *InternalTunnelProxyConfig) validateHost() error {
+	if c.Host != "" && !govalidator.IsDNSName(c.Host) && !govalidator.IsIP(c.Host) {
+		return fmt.Errorf("invalid tunnel_host '%s': use IP address or FQDN", c.Host)
+	}
+	return nil
+}
+
 type InternalTunnelProxy struct {
 	Tunnel               *Tunnel
 	Logger               *logger.Logger
@@ -93,9 +112,10 @@ type InternalTunnelProxy struct {
 	acl                  atomic.Pointer[TunnelACL]
 	proxyServer          *http.Server
 	tunnelProxyConnector TunnelProxyConnector
+	acme                 *acme.Acme
 }
 
-func NewInternalTunnelProxy(tunnel *Tunnel, logger *logger.Logger, config *InternalTunnelProxyConfig, host string, port string, acl *TunnelACL) *InternalTunnelProxy {
+func NewInternalTunnelProxy(tunnel *Tunnel, logger *logger.Logger, config *InternalTunnelProxyConfig, host string, port string, acl *TunnelACL, acme *acme.Acme) *InternalTunnelProxy {
 	tp := &InternalTunnelProxy{
 		Tunnel:     tunnel,
 		Config:     config,
@@ -103,6 +123,7 @@ func NewInternalTunnelProxy(tunnel *Tunnel, logger *logger.Logger, config *Inter
 		Port:       port,
 		TunnelHost: tunnel.Remote.LocalHost,
 		TunnelPort: tunnel.Remote.LocalPort,
+		acme:       acme,
 	}
 	tp.SetACL(acl)
 	tp.Logger = logger.Fork("tunnel-proxy:%s", tp.Addr())
@@ -136,6 +157,9 @@ func (tp *InternalTunnelProxy) listen() {
 
 	// this tlsmin is the InternalTunnelProxyConfig config in the server section
 	tp.proxyServer.TLSConfig = security.TLSConfig(tp.Config.TLSMin)
+	if tp.Config.EnableAcme {
+		tp.proxyServer.TLSConfig = tp.acme.ApplyTLSConfig(tp.proxyServer.TLSConfig)
+	}
 	err := tp.proxyServer.ListenAndServeTLS(tp.Config.CertFile, tp.Config.KeyFile)
 	if err != nil && err == http.ErrServerClosed {
 		tp.Logger.Infof("tunnel proxy closed")

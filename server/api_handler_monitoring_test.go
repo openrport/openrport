@@ -58,7 +58,7 @@ func TestHandleRefreshUpdatesStatus(t *testing.T) {
 			// by default set to return success
 			connMock.ReturnOk = !tc.SSHError
 			c1.SetConnection(connMock)
-			clientService := clients.NewClientService(nil, nil, clients.NewClientRepository([]*clients.Client{c1, c2}, &hour, testLog), testLog)
+			clientService := clients.NewClientService(nil, nil, clients.NewClientRepository([]*clients.Client{c1, c2}, &hour, testLog), testLog, nil)
 			al := APIListener{
 				insecureForTests: true,
 				Server: &Server{

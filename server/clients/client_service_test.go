@@ -268,7 +268,7 @@ func TestDeleteOfflineClient(t *testing.T) {
 	for _, tc := range testCases {
 		t.Run(tc.name, func(t *testing.T) {
 			// given
-			clientService := NewClientService(nil, nil, NewClientRepository([]*Client{c1Active, c2Active, c3Offline, c4Offline}, &hour, testLog), testLog)
+			clientService := NewClientService(nil, nil, NewClientRepository([]*Client{c1Active, c2Active, c3Offline, c4Offline}, &hour, testLog), testLog, nil)
 			before := clientService.Count()
 			require.Equal(t, 4, before)
 
@@ -453,7 +453,7 @@ func TestCheckClientsAccess(t *testing.T) {
 	for _, tc := range testCases {
 		t.Run(tc.name, func(t *testing.T) {
 			// given
-			clientService := NewClientService(nil, nil, NewClientRepository(allClients, nil, testLog), testLog)
+			clientService := NewClientService(nil, nil, NewClientRepository(allClients, nil, testLog), testLog, nil)
 
 			// when
 			gotErr := clientService.CheckClientsAccess(tc.clients, tc.user, clientGroups)
@@ -953,7 +953,7 @@ func TestShouldStartTunnelsWithSubdomains(t *testing.T) {
 			)
 
 			mockCaddyAPI := &MockCaddyAPI{}
-			clientService := NewClientService(internalTunnelProxyConfig, pd, NewClientRepository([]*Client{c1}, &hour, testLog), testLog)
+			clientService := NewClientService(internalTunnelProxyConfig, pd, NewClientRepository([]*Client{c1}, &hour, testLog), testLog, nil)
 			clientService.caddyAPI = mockCaddyAPI
 
 			requestedRemote, err := models.NewRemote(tc.requestedTunnel)

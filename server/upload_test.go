@@ -346,6 +346,7 @@ func TestHandleFileUploads(t *testing.T) {
 						nil,
 						clients.NewClientRepository([]*clients.Client{cl}, &hour, testLog),
 						testLog,
+						nil,
 					),
 					clientGroupProvider: mockClientGroupProvider{},
 					config: &chconfig.Config{
