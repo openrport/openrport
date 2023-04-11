@@ -27,8 +27,8 @@ $versionInfo.FixedFileInfo.FileVersion.Patch = $patch
 $versionInfo.FixedFileInfo.ProductVersion.Major = $major
 $versionInfo.FixedFileInfo.ProductVersion.Minor = $minor
 $versionInfo.FixedFileInfo.ProductVersion.Patch = $patch
-$versionInfo.StringFileInfo.FileVersion = "$major.$minor.$patch"
-$versionInfo.StringFileInfo.ProductVersion = "$major.$minor.$patch"
+$versionInfo.StringFileInfo.FileVersion = $major.$minor.$patch
+$versionInfo.StringFileInfo.ProductVersion = $major.$minor.$patch
 Write-Output $versionInfo|convertTo-Json
 # Write the file used for the build process
 $versionInfo|ConvertTo-Json|Out-File -Path cmd/rport/versioninfo.json
