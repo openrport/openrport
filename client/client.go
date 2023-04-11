@@ -171,8 +171,10 @@ func (c *Client) setConn(sshConnection ssh.Conn) {
 	c.sshConnection = sshConnection
 }
 
-func printMemStats(c *Client, rtm runtime.MemStats) {
-	runtime.GC()
+func printMemStats(c *Client) {
+	var rtm runtime.MemStats
+	runtime.ReadMemStats(&rtm)
+
 	c.Debugf("mem usage summary: liveobjects=%d, heapObjects=%d, heapAlloc=%d, numGC=%d, lastGC=%s",
 		rtm.Mallocs-rtm.Frees,
 		rtm.HeapObjects,
@@ -183,11 +185,8 @@ func printMemStats(c *Client, rtm runtime.MemStats) {
 }
 
 func (c *Client) keepAliveLoop(ctx context.Context) {
-	var rtm runtime.MemStats
-
 	for c.isRunning() {
-		runtime.ReadMemStats(&rtm)
-		printMemStats(c, rtm)
+		printMemStats(c)
 
 		time.Sleep(c.configHolder.Connection.KeepAlive + (time.Duration(rand.Intn(MaxKeepAliveJitterMilliseconds)))*time.Millisecond)
 
@@ -325,14 +324,9 @@ func (c *Client) handleConnectionError(backoff *backoff.Backoff, connerr error) 
 
 	c.showConnectionError(connerr, attempt)
 
-	if errors.Is(connerr, context.Canceled) {
-		c.Errorf("context canceled")
-		return true
-	}
-
 	// check if the user has set a max retry limit
 	if c.configHolder.Connection.MaxRetryCount >= 0 && attempt >= c.configHolder.Connection.MaxRetryCount {
-		c.Errorf("max retries exceeded")
+		c.Errorf("connection error: max retries exceeded")
 		return true // if so, stop trying
 	}
 
@@ -350,6 +344,27 @@ func (c *Client) handleConnectionError(backoff *backoff.Backoff, connerr error) 
 	chshare.SleepSignal(d)
 
 	return false
+}
+
+func (c *Client) showConnectionError(connerr error, attempt int) {
+	if errors.Is(connerr, context.Canceled) {
+		c.Infof("connection error: context canceled")
+		return
+	}
+	maxAttempt := c.configHolder.Connection.MaxRetryCount
+	//show error and attempt counts
+	msg := fmt.Sprintf("connection error: %s", connerr)
+	if attempt > 0 {
+		maxAttemptStr := fmt.Sprint(maxAttempt)
+		if maxAttempt < 0 {
+			maxAttemptStr = "infinite"
+		}
+		msg += fmt.Sprintf(" (attempt: %d of %s)", attempt, maxAttemptStr)
+	}
+	c.Errorf(msg)
+	if strings.Contains(msg, "previous session was not properly closed") {
+		c.Infof("Server will clean up orphaned sessions within its {check_clients_connection_interval} automatically.")
+	}
 }
 
 func (c *Client) handleServerSwitchBack(switchbackCtx context.Context, switchbackChan chan *sshClientConnection, sshClientConn *sshClientConnection) {
@@ -681,27 +696,6 @@ func (c *Client) checkTunnelAllowed(payload []byte) (*comm.CheckTunnelAllowedRes
 	return &comm.CheckTunnelAllowedResponse{
 		IsAllowed: allowed,
 	}, nil
-}
-
-func (c *Client) showConnectionError(connerr error, attempt int) {
-	if errors.Is(connerr, context.Canceled) {
-		c.Infof("context canceled")
-		return
-	}
-	maxAttempt := c.configHolder.Connection.MaxRetryCount
-	//show error and attempt counts
-	msg := fmt.Sprintf("Connection error: %s", connerr)
-	if attempt > 0 {
-		maxAttemptStr := fmt.Sprint(maxAttempt)
-		if maxAttempt < 0 {
-			maxAttemptStr = "infinite"
-		}
-		msg += fmt.Sprintf(" (Attempt: %d of %s)", attempt, maxAttemptStr)
-	}
-	c.Errorf(msg)
-	if strings.Contains(msg, "previous session was not properly closed") {
-		c.Infof("Server will clean up orphaned sessions within its {check_clients_connection_interval} automatically.")
-	}
 }
 
 // Wait blocks while the client is running.
