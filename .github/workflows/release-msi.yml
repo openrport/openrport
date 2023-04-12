@@ -18,7 +18,9 @@ jobs:
         run: .github/scripts/msi-build.ps1
       - name: Test MSI
         run: .github/scripts/msi-test.ps1
-      - name: Test MSI upgrade(s)
+      - name: Test MSI patch upgrade
+        run: .github/scripts/msi-test-install-upgrade-patch.ps1
+      - name: Test MSI major upgrade
         run: .github/scripts/msi-test-install-upgrade.ps1
       - name: Publish MSI
         env:
