@@ -1,6 +1,7 @@
 package clients
 
 import (
+	"encoding/json"
 	"testing"
 	"time"
 
@@ -23,6 +24,10 @@ func NewTestClient(id string, address string, hostname string, clientAuthID stri
 }
 
 func TestClientBelongsToGroup(t *testing.T) {
+	data1 := []byte(`["Linux", "Tag1", "Data*", "Some Tag", "AB*"]`)
+	data2 := []byte(`["Some Tag", "AB*"]`)
+	dataEmpty := []byte(`[]`)
+
 	c1 := &Client{
 		ID:           "test-client-id-1",
 		Name:         "Random Rport Client 1",
@@ -56,7 +61,7 @@ func TestClientBelongsToGroup(t *testing.T) {
 			Hostname:     &cgroups.ParamValues{"a*", "l*", "w*"},
 			IPv4:         &cgroups.ParamValues{"192.168.122.121", "192.168.122.11*"},
 			IPv6:         &cgroups.ParamValues{"fe80::b84f:aff:fe59:a0b3"},
-			Tag:          &cgroups.ParamValues{"Linux", "Tag1", "Data*", "Some Tag", "AB*"},
+			Tag:          (*json.RawMessage)(&data1),
 			Version:      &cgroups.ParamValues{"0.1.1*"},
 			Address:      &cgroups.ParamValues{"88.198.189.163*"},
 			ClientAuthID: &cgroups.ParamValues{"client-auth-1", "client-auth-2", "client-auth-3*"},
@@ -80,6 +85,7 @@ func TestClientBelongsToGroup(t *testing.T) {
 			Version:  &cgroups.ParamValues{"0.1.1*"},
 		},
 	}
+
 	testCases := []struct {
 		name string
 
@@ -89,48 +95,42 @@ func TestClientBelongsToGroup(t *testing.T) {
 		wantRes bool
 	}{
 		{
-			name: "all group param, all client params",
-
-			client: c1,
-			group:  g1,
-
+			name:    "all group param, all client params",
+			client:  c1,
+			group:   g1,
 			wantRes: true,
 		},
+
 		{
-			name: "all group params, not all client params",
-
-			client: c2,
-			group:  g1,
-
+			name:    "all group params, not all client params",
+			client:  c2,
+			group:   g1,
 			wantRes: false,
 		},
+
 		{
-			name: "not all group params, not all client params, extra group param",
-
-			client: c2,
-			group:  g2,
-
+			name:    "not all group params, not all client params, extra group param",
+			client:  c2,
+			group:   g2,
 			wantRes: false,
 		},
+
 		{
-			name: "not all group params, not all client params, extra client param",
-
-			client: c2,
-			group:  g3,
-
+			name:    "not all group params, not all client params, extra client param",
+			client:  c2,
+			group:   g3,
 			wantRes: true,
 		},
+
 		{
-			name: "not all group params, all client params",
-
-			client: c1,
-			group:  g2,
-
+			name:    "not all group params, all client params",
+			client:  c1,
+			group:   g2,
 			wantRes: true,
 		},
-		{
-			name: "one param does not match",
 
+		{
+			name:   "one param does not match",
 			client: c1,
 			group: &cgroups.ClientGroup{
 				ID: "group-1",
@@ -138,15 +138,14 @@ func TestClientBelongsToGroup(t *testing.T) {
 					ClientID: &cgroups.ParamValues{"test-client-id-1", "test-client-id-2"},
 					Name:     &cgroups.ParamValues{"Random Rport Client*", "My Client*"},
 					OS:       &cgroups.ParamValues{"Linux*"},
-					Tag:      &cgroups.ParamValues{"Some Tag", "AB*"},
+					Tag:      (*json.RawMessage)(&data2),
 				},
 			},
-
 			wantRes: false,
 		},
+
 		{
 			name: "no group params, one client param",
-
 			client: &Client{
 				ID: "test-client-id-1",
 			},
@@ -155,41 +154,9 @@ func TestClientBelongsToGroup(t *testing.T) {
 				Description: "Group with no params",
 				Params:      &cgroups.ClientParams{},
 			},
-
 			wantRes: false,
 		},
-		{
-			name: "group with no tags, client with nil tags",
-			client: &Client{
-				ID:   "test-client-id-1",
-				Tags: nil,
-			},
-			group: &cgroups.ClientGroup{
-				ID: "no tags",
-				Params: &cgroups.ClientParams{
-					ClientID: &cgroups.ParamValues{"*"},
-					Tag:      &cgroups.ParamValues{},
-				},
-			},
 
-			wantRes: true,
-		},
-		{
-			name: "group with no tags, client with no tags",
-			client: &Client{
-				ID:   "test-client-id-1",
-				Tags: []string{},
-			},
-			group: &cgroups.ClientGroup{
-				ID: "no tags",
-				Params: &cgroups.ClientParams{
-					ClientID: &cgroups.ParamValues{"*"},
-					Tag:      &cgroups.ParamValues{},
-				},
-			},
-
-			wantRes: true,
-		},
 		{
 			name: "group with no tags, client with empty tag",
 			client: &Client{
@@ -200,12 +167,12 @@ func TestClientBelongsToGroup(t *testing.T) {
 				ID: "no tags",
 				Params: &cgroups.ClientParams{
 					ClientID: &cgroups.ParamValues{"*"},
-					Tag:      &cgroups.ParamValues{},
+					Tag:      (*json.RawMessage)(&dataEmpty),
 				},
 			},
-
 			wantRes: false,
 		},
+
 		{
 			name: "group with no tags, client with nonempty tag",
 			client: &Client{
@@ -216,12 +183,12 @@ func TestClientBelongsToGroup(t *testing.T) {
 				ID: "no tags",
 				Params: &cgroups.ClientParams{
 					ClientID: &cgroups.ParamValues{"*"},
-					Tag:      &cgroups.ParamValues{},
+					Tag:      (*json.RawMessage)(&dataEmpty),
 				},
 			},
-
 			wantRes: false,
 		},
+
 		{
 			name: "group with unset tags, client with tags",
 			client: &Client{
@@ -235,9 +202,9 @@ func TestClientBelongsToGroup(t *testing.T) {
 					Tag:      nil,
 				},
 			},
-
 			wantRes: true,
 		},
+
 		{
 			name: "group with unset tags, client with empty tag",
 			client: &Client{
@@ -251,7 +218,6 @@ func TestClientBelongsToGroup(t *testing.T) {
 					Tag:      nil,
 				},
 			},
-
 			wantRes: true,
 		},
 	}
@@ -267,6 +233,81 @@ func TestClientBelongsToGroup(t *testing.T) {
 	}
 }
 
+func TestClientBelongsToGroupLogicalOps(t *testing.T) {
+	c1 := &Client{
+		ID:           "test-client-id-1",
+		Name:         "Random Rport Client 1",
+		OS:           "Linux alpine-3-10-tk-03 4.19.80-0-virt #1-Alpine SMP Fri Oct 18 11:51:24 UTC 2019 x86_64 Linux",
+		OSArch:       "amd64",
+		OSFamily:     "alpine",
+		OSKernel:     "linux",
+		Hostname:     "alpine-1-10-tk-01",
+		IPv4:         []string{"192.168.122.113", "192.168.122.114"},
+		IPv6:         []string{"fe80::b84f:aff:fe59:a0b3"},
+		Tags:         []string{"Linux", "Datacenter 3", "TAG1", "Tag2", "Tag3"},
+		Version:      "0.1.12",
+		Address:      "88.198.189.163:50078",
+		ClientAuthID: "client-auth-1",
+	}
+
+	testCases := []struct {
+		name     string
+		client   *Client
+		jsonData string
+		wantRes  bool
+	}{
+		{
+			name:     "match with or no logical operator",
+			client:   c1,
+			jsonData: ` { "tag": ["Linux", "Datacenter 3"] } `,
+			wantRes:  true,
+		},
+
+		{
+			name:     "match with and 1",
+			client:   c1,
+			jsonData: `{ "tag": { "and": ["Linux", "Datacenter 2"] } }`,
+			wantRes:  false,
+		},
+
+		{
+			name:     "match with and 2",
+			client:   c1,
+			jsonData: ` { "tag": { "and": ["Linux", "Datacenter 3"] } }`,
+			wantRes:  true,
+		},
+
+		{
+			name:     "match with or",
+			client:   c1,
+			jsonData: ` {"tag": { "or": ["Linux", "Datacenter 2"] } }`,
+			wantRes:  true,
+		},
+
+		{
+			name:     "match with and with wildcards",
+			client:   c1,
+			jsonData: `{ "tag": { "and": ["T*", "Datacenter 2", "Datacenter 5"] } }`,
+			wantRes:  false,
+		},
+	}
+
+	for _, tc := range testCases {
+		t.Run(tc.name, func(t *testing.T) {
+			var group cgroups.ClientGroup
+			var basicTestCase cgroups.ClientParams
+			err := json.Unmarshal([]byte(tc.jsonData), &basicTestCase)
+			assert.NoError(t, err)
+			group.ID = "group1"
+			group.Params = &basicTestCase
+			// when
+			gotRes := tc.client.BelongsTo(&group)
+
+			// then
+			assert.Equal(t, tc.wantRes, gotRes)
+		})
+	}
+}
 func TestHasAccess(t *testing.T) {
 	testCases := []struct {
 		name string
@@ -338,6 +379,8 @@ func TestHasAccess(t *testing.T) {
 }
 
 func TestToCalculatedForGroups(t *testing.T) {
+	data4 := []byte(`["AB*"]`)
+	data5 := []byte(`"[Other]"`)
 	client := &Client{
 		Name: "abc",
 		Tags: []string{"ABC"},
@@ -352,13 +395,13 @@ func TestToCalculatedForGroups(t *testing.T) {
 		{
 			ID: "group2",
 			Params: &cgroups.ClientParams{
-				Tag: &cgroups.ParamValues{"AB*"},
+				Tag: (*json.RawMessage)(&data4),
 			},
 		},
 		{
 			ID: "group3",
 			Params: &cgroups.ClientParams{
-				Tag: &cgroups.ParamValues{"Other"},
+				Tag: (*json.RawMessage)(&data5),
 			},
 		},
 	}
