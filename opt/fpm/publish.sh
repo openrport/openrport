@@ -15,27 +15,5 @@ scp -P ${REPO_SSH_PORT} *.deb "${REPO_SSH_USER}"@"${REPO_SSH_HOST}":~/incoming/
 scp -P ${REPO_SSH_PORT} *.rpm "${REPO_SSH_USER}"@"${REPO_SSH_HOST}":~/incoming/
 echo "✅ All files copied"
 echo "👷 Triggering package publishing ... "
-ssh -p "${REPO_SSH_PORT}" "${REPO_SSH_USER}"@"${REPO_SSH_HOST}" bash <<"EOF"
-cd ~/incomning
-ls -la
-DISTS="jammy focal bionic bullseye buster"
-for DIST in $DISTS;do
-   aptly repo add ${DIST}-unstable *.deb
-done
-
-## Update all repos, otherwise newly added packages are not published
-for DIST in $DISTS;do
-   aptly publish update --gpg-key="${REPO_GPG_KEY_ID}" $DIST
-done
-echo "==========================================================="
-echo " Debian Repos Updated"
-echo "==========================================================="
-
-rpm --addsign ~/incoming/*.rpm
-mv *.rpm ~/public/rpm/unstable
-~/bin/rpm-updaterepo.sh
-echo "==========================================================="
-echo " RPM Repos Updated"
-echo "==========================================================="
-EOF
+ssh -p "${REPO_SSH_PORT}" "${REPO_SSH_USER}"@"${REPO_SSH_HOST}" ~/update-repos.sh
 echo "✅ All packages published"
