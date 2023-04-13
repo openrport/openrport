@@ -599,9 +599,9 @@ func (c *Client) handleSSHRequests(ctx context.Context, sshClientConn *sshClient
 		var resp interface{}
 		switch r.Type {
 
-		case comm.RequestTypeUpdateClientMetadata:
-			c.Logger.Infof("received request to update metadata")
-			resp, err = c.updateMetadata(r.Payload)
+		case comm.RequestTypeUpdateClientAttributes:
+			c.Logger.Infof("received request to update attributes")
+			resp, err = c.updateAttributes(r.Payload)
 		case comm.RequestTypeCheckPort:
 			resp, err = checkPort(r.Payload)
 		case comm.RequestTypeRunCmd:
@@ -982,7 +982,7 @@ func (c *Client) localAddrForInterface(ifaceName string) (net.Addr, error) {
 	return laddr, nil
 }
 
-func (c *Client) updateMetadata(payload []byte) (any, error) {
+func (c *Client) updateAttributes(payload []byte) (any, error) {
 	c.mu.RLock()
 	attributesFilePath := c.configHolder.Client.AttributesFilePath
 	c.mu.RUnlock()
@@ -991,7 +991,7 @@ func (c *Client) updateMetadata(payload []byte) (any, error) {
 		return nil, fmt.Errorf("attributes file path not set")
 	}
 
-	configHolder := &clients.Metadata{}
+	configHolder := &clients.Attributes{}
 	err := json.Unmarshal(payload, configHolder)
 	if err != nil {
 		return nil, fmt.Errorf("payload unreadable: %v", err)

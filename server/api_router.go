@@ -61,10 +61,10 @@ func (al *APIListener) initRouter() {
 	clientDetails.Handle("/acl", al.wrapAdminAccessMiddleware(http.HandlerFunc(al.handlePostClientACL))).Methods(http.MethodPost)
 	clientDetails.Handle("/scripts", al.permissionsMiddleware(users.PermissionScripts)(http.HandlerFunc(al.handleExecuteScript))).Methods(http.MethodPost)
 
-	clientMetadata := clientDetails.PathPrefix("/metadata").Subrouter()
-	clientMetadata.Use(al.withActiveClient)
-	clientMetadata.HandleFunc("", al.handleGetClientMetadata).Methods(http.MethodGet)
-	clientMetadata.HandleFunc("", al.handleUpdateClientMetadata).Methods(http.MethodPut)
+	clientAttributes := clientDetails.PathPrefix("/attributes").Subrouter()
+	clientAttributes.Use(al.withActiveClient)
+	clientAttributes.HandleFunc("", al.handleGetClientAttributes).Methods(http.MethodGet)
+	clientAttributes.HandleFunc("", al.handleUpdateClientAttributes).Methods(http.MethodPut)
 
 	clientCommands := clientDetails.PathPrefix("/commands").Subrouter()
 	clientCommands.Use(al.permissionsMiddleware(users.PermissionCommands))

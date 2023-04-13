@@ -14,7 +14,7 @@ const (
 	RequestTypePutCapabilities      = "put_capabilities"
 	RequestTypeCheckTunnelAllowed   = "check_tunnel_allowed"
 
-	RequestTypeUpdateClientMetadata = "update_client_metadata"
+	RequestTypeUpdateClientAttributes = "update_client_metadata"
 
 	// request types sent by clients to server
 	RequestTypeCmdResult       = "cmd_result"

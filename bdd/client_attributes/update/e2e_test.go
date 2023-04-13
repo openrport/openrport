@@ -6,7 +6,9 @@ import (
 	"encoding/json"
 	"fmt"
 	"io"
+	"log"
 	"net/http"
+	"os"
 	"os/exec"
 	"testing"
 	"time"
@@ -27,14 +29,12 @@ type ID struct {
 type Rsp struct {
 	Data []TagsAndLabels `json:"data"`
 }
+
 type RspID struct {
 	Data []ID `json:"data"`
 }
-type RspMeta struct {
-	Data Metadata `json:"data"`
-}
 
-type SaveMetadataTestSuite struct {
+type SaveAttributesTestSuite struct {
 	suite.Suite
 	serverProcess *exec.Cmd
 	clientProcess *exec.Cmd
@@ -42,51 +42,62 @@ type SaveMetadataTestSuite struct {
 	clientId      string
 }
 
-func (suite *SaveMetadataTestSuite) SetupSuite() {
+func (suite *SaveAttributesTestSuite) SetupTest() {
+	err := os.WriteFile("./client_attributes.json", []byte("{\"tags\":[\"vm\"],\"labels\":{}}"), 0644)
+	suite.NoError(err)
 	suite.ctx = context.Background()
 	ctx, cancel := context.WithTimeout(suite.ctx, time.Minute*5)
 	defer cancel()
 	suite.serverProcess, suite.clientProcess = helpers.StartClientAndServerAndWaitForConnection(ctx, suite.T(), "../../../")
 	time.Sleep(time.Millisecond * 100)
 	if suite.clientProcess.ProcessState != nil || suite.serverProcess.ProcessState != nil {
-		suite.Fail("deamons didn't start")
+		suite.Fail("daemons didn't start")
 	}
 	suite.clientId = callURL[RspID](suite, "http://localhost:3000/api/v1/clients?fields[clients]=id").Data[0].ID
 
 }
 
-func (suite *SaveMetadataTestSuite) TearDownSuite() {
+func (suite *SaveAttributesTestSuite) TearDownTest() {
 	helpers.LogAndIgnore(suite.clientProcess.Process.Kill())
 	helpers.LogAndIgnore(suite.serverProcess.Process.Kill())
+	log.Println("done")
 }
 
-type Metadata struct {
+type Attributes struct {
 	Tags   []string          `json:"tags"`
 	Labels map[string]string `json:"labels"`
 }
 
-func (suite *SaveMetadataTestSuite) TestClientMetadataIsReadOnly() {
+func (suite *SaveAttributesTestSuite) TestClientAttributesIsUpdated() {
 
-	requestURL := fmt.Sprintf("http://localhost:3000/api/v1/clients/%v/metadata", suite.clientId)
+	requestURL := fmt.Sprintf("http://localhost:3000/api/v1/clients/%v/attributes", suite.clientId)
 
-	data, err := json.Marshal(Metadata{Tags: []string{}, Labels: map[string]string{}})
+	data, err := json.Marshal(Attributes{Tags: []string{"test"}, Labels: map[string]string{"test": "test"}})
 	suite.NoError(err)
 
-	checkOperationHttpStatus(suite, requestURL, http.MethodPut, data, http.StatusConflict)
+	checkOperationHttpStatus(suite, requestURL, http.MethodPut, data, http.StatusOK)
+
+	requestURL = "http://localhost:3000/api/v1/clients?fields[clients]=tags,labels&filter[labels]=test:%20test"
+
+	expected := []TagsAndLabels{{Tags: []string{"test"}, Labels: map[string]string{"test": "test"}}}
+
+	suite.ExpectAnswer(requestURL, expected)
+
+	suite.TearDownTest()
 }
 
-func (suite *SaveMetadataTestSuite) ExpectAnswer(requestURL string, expected []TagsAndLabels) bool {
+func (suite *SaveAttributesTestSuite) ExpectAnswer(requestURL string, expected []TagsAndLabels) bool {
 	structured := callURL[Rsp](suite, requestURL)
 	return suite.Equal(Rsp{Data: expected}, structured)
 }
 
 // In order for 'go test' to run this suite, we need to create
 // a normal test function and pass our suite to suite.Run
-func TestSaveMetadataTestSuite(t *testing.T) {
-	suite.Run(t, new(SaveMetadataTestSuite))
+func TestSaveAttributesTestSuite(t *testing.T) {
+	suite.Run(t, new(SaveAttributesTestSuite))
 }
 
-func checkOperationHttpStatus(suite *SaveMetadataTestSuite, requestURL string, method string, content []byte, expectedStatus int) {
+func checkOperationHttpStatus(suite *SaveAttributesTestSuite, requestURL string, method string, content []byte, expectedStatus int) {
 
 	client := &http.Client{
 		Timeout: time.Second * 10,
@@ -109,7 +120,7 @@ func checkOperationHttpStatus(suite *SaveMetadataTestSuite, requestURL string, m
 	return
 }
 
-func callURL[T any](suite *SaveMetadataTestSuite, requestURL string) T {
+func callURL[T any](suite *SaveAttributesTestSuite, requestURL string) T {
 
 	client := &http.Client{
 		Timeout: time.Second * 10,

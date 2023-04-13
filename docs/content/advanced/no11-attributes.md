@@ -12,7 +12,23 @@ Clients can be described for filtering and identification by:
 - single dimension tags `["win", "server", "vm"]`
 - 2-dimensional labels  `"labels": {"country": "Germany", "city": "Cologne", "datacenter": "NetCologne GmbH" }`
 
-## Using an attributes file
+## setting attributes
+As of writing this Doc there are 3 ways to set up client's attributes.
+
+1. In client's `rport.conf` config file, under property tags (labels are not supported)
+2. As a separate file on the client `attributes file`
+3. Through the API - `attributes file` has to be enabled 
+
+### 1. Using tags in the main config
+
+As an alternative to the attributes file you can still use the "old-style" (=< 0.9.6) tags directly inserted to the
+`rport.conf` file.  
+`attributes_file_path` has precedence. To enable reading tags from the main configuration file you must remove
+or disable `attributes_file_path`.
+
+
+
+### 2. Using an attributes file
 
 You can maintain attributes (tags and labels) inside a separate file.
 This file can be formatted as JSON, YAML or TOML using the file extensions `.josn`, `yaml`, or `toml`.
@@ -73,12 +89,19 @@ labels = { "country" = Germany, "city" = Cologne, "datacenter" = "NetCologne Gmb
 
 The file is read only on rport client start. On every file change a restart of the rport client is required.
 
-## Using tags in the main config
+### 3. Using API or UI
 
-As an alternative to the attributes file you can still use the "old-style" (=< 0.9.6) tags directly inserted to the
-`rport.conf` file.  
-`attributes_file_path` has precedence. To enable reading tags from the main configuration file you must remove
-or disable `attributes_file_path`.
+__! When managing attributes through the server, attributes file will be overwritten, and the json format will be used !__
+
+To manage that remotely:
+ - `attributes_file_path` has to be set, read point 2.
+ - path has to be writable by the client when running as daemon
+ - client has to be `Active` - currently connected to the server
+
+To update from the API you need to send __PUT__ request with the desired JSON to
+
+`/api/v1/client/{client_id}/attributes`
+
 
 ## Filtering
 

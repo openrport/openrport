@@ -1,4 +1,4 @@
-package filter_by_metadata_test
+package filter_test
 
 import (
 	"context"

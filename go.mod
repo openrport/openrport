@@ -77,6 +77,7 @@ require (
 	github.com/shirou/gopsutil/v3 v3.22.12
 	github.com/test-go/testify v1.1.4
 	github.com/trustelem/zxcvbn v1.0.1
+	golang.org/x/exp v0.0.0-20230321023759-10a507213a29
 )
 
 require (
