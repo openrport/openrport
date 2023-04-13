@@ -13,6 +13,7 @@ import (
 	"github.com/realvnc-labs/rport/server/auditlog"
 	"github.com/realvnc-labs/rport/server/cgroups"
 	"github.com/realvnc-labs/rport/server/routes"
+	"github.com/realvnc-labs/rport/share/ptr"
 	"github.com/realvnc-labs/rport/share/query"
 	"github.com/realvnc-labs/rport/share/types"
 )
@@ -100,7 +101,7 @@ func validateInputClientGroup(group cgroups.ClientGroup) error {
 	if invalidGroupIDRegexp.MatchString(group.ID) {
 		return fmt.Errorf("invalid group ID %q: can contain only %q", group.ID, validGroupIDChars)
 	}
-	if group.Params != nil {
+	if group.Params != nil && group.Params.Tag != nil {
 		_, _, err := cgroups.ParseTag(group.Params.Tag)
 		if err != nil {
 			return err
@@ -143,7 +144,13 @@ func (al *APIListener) handleGetClientGroup(w http.ResponseWriter, req *http.Req
 
 	al.clientService.PopulateGroupsWithUserClients([]*cgroups.ClientGroup{group}, curUser)
 
-	al.writeJSONResponse(w, http.StatusOK, api.NewSuccessPayload(convertToClientGroupPayload(group, requestedFields)))
+	payload, err := al.convertToClientGroupPayload(group, requestedFields)
+	if err != nil {
+		al.jsonError(w, err)
+		return
+	}
+
+	al.writeJSONResponse(w, http.StatusOK, api.NewSuccessPayload(payload))
 }
 
 func (al *APIListener) handleGetClientGroups(w http.ResponseWriter, req *http.Request) {
@@ -188,8 +195,13 @@ func (al *APIListener) handleGetClientGroups(w http.ResponseWriter, req *http.Re
 	start, end := pagination.GetStartEnd(totalCount)
 	limited := groups[start:end]
 
+	payload, err := al.convertToClientGroupsPayload(limited, requestedFields)
+	if err != nil {
+		al.jsonError(w, err)
+		return
+	}
 	al.writeJSONResponse(w, http.StatusOK, &api.SuccessPayload{
-		Data: convertToClientGroupsPayload(limited, requestedFields),
+		Data: payload,
 		Meta: api.NewMeta(len(groups)),
 	})
 }
@@ -228,22 +240,28 @@ func (al *APIListener) handleDeleteClientGroup(w http.ResponseWriter, req *http.
 }
 
 type ClientGroupPayload struct {
-	ID                *string               `json:"id,omitempty"`
-	Description       *string               `json:"description,omitempty"`
-	Params            *cgroups.ClientParams `json:"params,omitempty" db:"params"`
-	AllowedUserGroups *types.StringSlice    `json:"allowed_user_groups,omitempty"`
-	ClientIDs         *[]string             `json:"client_ids,omitempty" db:"-"`
+	ID                  *string               `json:"id,omitempty"`
+	Description         *string               `json:"description,omitempty"`
+	Params              *cgroups.ClientParams `json:"params,omitempty" db:"params"`
+	AllowedUserGroups   *types.StringSlice    `json:"allowed_user_groups,omitempty"`
+	ClientIDs           *[]string             `json:"client_ids,omitempty" db:"-"`
+	NumClients          *int                  `json:"num_clients,omitempty" db:"-"`
+	NumClientsConnected *int                  `json:"num_clients_connected,omitempty" db:"-"`
 }
 
-func convertToClientGroupsPayload(clientGroups []*cgroups.ClientGroup, requestedFields map[string]bool) []ClientGroupPayload {
+func (al *APIListener) convertToClientGroupsPayload(clientGroups []*cgroups.ClientGroup, requestedFields map[string]bool) ([]ClientGroupPayload, error) {
 	r := make([]ClientGroupPayload, 0, len(clientGroups))
 	for _, cur := range clientGroups {
-		r = append(r, convertToClientGroupPayload(cur, requestedFields))
+		payload, err := al.convertToClientGroupPayload(cur, requestedFields)
+		if err != nil {
+			return nil, err
+		}
+		r = append(r, payload)
 	}
-	return r
+	return r, nil
 }
 
-func convertToClientGroupPayload(clientGroup *cgroups.ClientGroup, requestedFields map[string]bool) ClientGroupPayload {
+func (al *APIListener) convertToClientGroupPayload(clientGroup *cgroups.ClientGroup, requestedFields map[string]bool) (ClientGroupPayload, error) {
 	p := ClientGroupPayload{}
 	for field := range cgroups.OptionsSupportedFields[cgroups.OptionsResource] {
 		if len(requestedFields) > 0 && !requestedFields[field] {
@@ -260,7 +278,29 @@ func convertToClientGroupPayload(clientGroup *cgroups.ClientGroup, requestedFiel
 			p.AllowedUserGroups = &clientGroup.AllowedUserGroups
 		case "client_ids":
 			p.ClientIDs = &clientGroup.ClientIDs
+		case "num_clients":
+			p.NumClients = ptr.Int(len(clientGroup.ClientIDs))
+		case "num_clients_connected":
+			count, err := al.countActiveClients(clientGroup.ClientIDs)
+			if err != nil {
+				return p, err
+			}
+			p.NumClientsConnected = &count
 		}
 	}
-	return p
+	return p, nil
+}
+
+func (al *APIListener) countActiveClients(clientIDs []string) (int, error) {
+	count := 0
+	for _, clientID := range clientIDs {
+		client, err := al.clientService.GetActiveByID(clientID)
+		if err != nil {
+			return 0, err
+		}
+		if client != nil {
+			count++
+		}
+	}
+	return count, nil
 }

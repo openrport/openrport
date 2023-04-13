@@ -15,7 +15,7 @@ get:
     - name: filter
       in: query
       description: >-
-        Filter option `filter[<FIELD>]=<VALUE>`. `<FIELD>` can be one of `'id', 'descripiton'`.
+        Filter option `filter[<FIELD>]=<VALUE>`. `<FIELD>` can be one of `'id', 'description'`.
       schema:
         type: string
     - name: fields[<RESOURCE>]
@@ -26,6 +26,7 @@ get:
         `<FIELDS>` is a comma separated list of fields. Example:
         `fields[client_groups]=id,description`. If no fields are specified, only id and
         description will be returned.
+        Supported fields: `id`, `description`, `num_clients`, `num_clients_connected`
       schema:
         type: string
     - name: page
