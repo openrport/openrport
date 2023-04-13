@@ -17,6 +17,7 @@ import (
 	"github.com/jmoiron/sqlx"
 
 	licensecap "github.com/realvnc-labs/rport/plus/capabilities/license"
+	"github.com/realvnc-labs/rport/server/acme"
 	apiErrors "github.com/realvnc-labs/rport/server/api/errors"
 	"github.com/realvnc-labs/rport/server/caddy"
 	"github.com/realvnc-labs/rport/server/cgroups"
@@ -78,6 +79,7 @@ type ClientServiceProvider struct {
 	tunnelProxyConfig *clienttunnel.InternalTunnelProxyConfig
 	caddyAPI          caddy.API
 	logger            *logger.Logger
+	acme              *acme.Acme
 
 	licensecap licensecap.CapabilityEx
 
@@ -174,12 +176,14 @@ func NewClientService(
 	portDistributor *ports.PortDistributor,
 	repo *ClientRepository,
 	logger *logger.Logger,
+	acme *acme.Acme,
 ) *ClientServiceProvider {
 	csp := &ClientServiceProvider{
 		tunnelProxyConfig: tunnelProxyConfig,
 		portDistributor:   portDistributor,
 		repo:              repo,
 		logger:            logger.Fork("client-service"),
+		acme:              acme,
 	}
 
 	return csp
@@ -192,13 +196,14 @@ func InitClientService(
 	db *sqlx.DB,
 	keepDisconnectedClients *time.Duration,
 	logger *logger.Logger,
+	acme *acme.Acme,
 ) (*ClientServiceProvider, error) {
 	repo, err := InitClientRepository(ctx, db, keepDisconnectedClients, logger)
 	if err != nil {
 		return nil, fmt.Errorf("failed to init Client Repository: %v", err)
 	}
 
-	return NewClientService(tunnelProxyConfig, portDistributor, repo, logger), nil
+	return NewClientService(tunnelProxyConfig, portDistributor, repo, logger, acme), nil
 }
 
 func (s *ClientServiceProvider) SetPlusLicenseInfoCap(licensecap licensecap.CapabilityEx) {
@@ -901,7 +906,7 @@ func (s *ClientServiceProvider) startTunnelWithProxy(
 	}
 
 	// create new proxy tunnel listening at the original tunnel local host addr
-	tProxy := clienttunnel.NewInternalTunnelProxy(t, clientLogger, s.tunnelProxyConfig, proxyHost, proxyPort, proxyACL)
+	tProxy := clienttunnel.NewInternalTunnelProxy(t, clientLogger, s.tunnelProxyConfig, proxyHost, proxyPort, proxyACL, s.acme)
 	clientLogger.Debugf("client %s starting tunnel proxy", clientID)
 	if err := tProxy.Start(ctx); err != nil {
 		clientLogger.Debugf("tunnel proxy could not be started, tunnel must be terminated: %v", err)

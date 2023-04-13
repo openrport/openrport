@@ -11,6 +11,8 @@ import (
 	"github.com/realvnc-labs/rport/share/logger"
 )
 
+const readHeaderTimeout = 5 * time.Second
+
 type ServerOption func(*HTTPServer)
 
 func WithTLS(certFile string, keyFile string, tlsConfig *tls.Config) ServerOption {
@@ -41,7 +43,10 @@ func NewHTTPServer(maxHeaderBytes int, l *logger.Logger, options ...ServerOption
 		httpLogger = l.Fork("http-server")
 	}
 	s := &HTTPServer{
-		Server:   &http.Server{MaxHeaderBytes: maxHeaderBytes, ReadHeaderTimeout: 5 * time.Second},
+		Server: &http.Server{
+			MaxHeaderBytes:    maxHeaderBytes,
+			ReadHeaderTimeout: readHeaderTimeout,
+		},
 		listener: nil,
 		running:  make(chan error, 1),
 		logger:   httpLogger,
@@ -68,7 +73,7 @@ func (h *HTTPServer) GoListenAndServe(ctx context.Context, addr string, handler 
 	}
 
 	go func() {
-		if h.certFile != "" && h.keyFile != "" {
+		if h.TLSConfig != nil {
 			h.logger.Debugf("serving HTTPS")
 			h.closeWith(h.ServeTLS(l, h.certFile, h.keyFile))
 		} else {

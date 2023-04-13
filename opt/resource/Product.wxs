@@ -70,9 +70,8 @@
 				<!-- INSTALLDIR is a property name. We need it later for the UI (to be able to change the install dir. -->
 				<Directory Id="INSTALLDIR" Name="!(loc.ApplicationName)">
 					<!-- Installation directory as a component so it can be emptied during uninstall (by default files added by someone other than Windows Installer are not removed) -->
-					<Component Win64="yes" Id="INSTALLDIR_comp" Guid="$(var.UpgradeCode)">						<!-- YOUR-GUID-HERE -->
+					<Component Win64="yes" Id="INSTALLDIR_comp" Guid="$(var.UpgradeCode)">
 						<CreateFolder />
-						<RemoveFile Id="RemoveFilesFromAppDirectory" Name="*.*" On="uninstall" />
 					</Component>
 
 					<!-- Main program file -->
@@ -108,8 +107,8 @@
 					</Component>
 	
 					<!-- Configuration file -->
-					<Component Win64="yes" Id="rportClient.conf_comp" Guid="181410DA-06A6-413A-A1C7-261B894D4000">						<!-- NOPE! ANOTHER YOUR-GUID-HERE -->
-						<File Source="rport.example.conf" Id="RPortConf" Name="rport.conf" KeyPath="yes" />
+					<Component Win64="yes" Id="rportClient.conf_comp" Guid="*">
+						<File Source="rport.example.conf" Id="RPortConf" KeyPath="yes" />
 					</Component>
 				</Directory>
 			</Directory>

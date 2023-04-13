@@ -505,15 +505,19 @@ func (c *Client) BelongsTo(group *cgroups.ClientGroup) bool {
 	if !p.IPv6.MatchesOneOf(c.IPv6...) {
 		return false
 	}
-	if !p.Tag.MatchesOneOf(c.Tags...) {
+
+	if !cgroups.MatchesRawTags(p.Tag, c.Tags) {
 		return false
 	}
+
 	if !p.Version.MatchesOneOf(c.Version) {
 		return false
 	}
+
 	if !p.Address.MatchesOneOf(c.Address) {
 		return false
 	}
+
 	if !p.ClientAuthID.MatchesOneOf(c.ClientAuthID) {
 		return false
 	}
