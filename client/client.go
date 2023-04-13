@@ -4,7 +4,6 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
-	"github.com/realvnc-labs/rport/server/clients"
 	"io"
 	"math/rand"
 	"net"
@@ -14,6 +13,8 @@ import (
 	"strings"
 	"sync"
 	"time"
+
+	"github.com/realvnc-labs/rport/server/clients"
 
 	"github.com/realvnc-labs/rport/share/random"
 
@@ -1002,7 +1003,7 @@ func (c *Client) updateAttributes(payload []byte) (any, error) {
 		return nil, fmt.Errorf("can't serialize attributes: %v", err)
 	}
 
-	err = os.WriteFile(attributesFilePath, data, 0644)
+	err = os.WriteFile(attributesFilePath, data, 0600)
 	if err != nil {
 		return nil, fmt.Errorf("can't write attributes to file: %v", err)
 	}
