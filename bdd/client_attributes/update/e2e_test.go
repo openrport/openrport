@@ -39,11 +39,11 @@ type SaveAttributesTestSuite struct {
 	serverProcess *exec.Cmd
 	clientProcess *exec.Cmd
 	ctx           context.Context
-	clientId      string
+	clientID      string
 }
 
 func (suite *SaveAttributesTestSuite) SetupTest() {
-	err := os.WriteFile("./client_attributes.json", []byte("{\"tags\":[\"vm\"],\"labels\":{}}"), 0644)
+	err := os.WriteFile("./client_attributes.json", []byte("{\"tags\":[\"vm\"],\"labels\":{}}"), 0600)
 	suite.NoError(err)
 	suite.ctx = context.Background()
 	ctx, cancel := context.WithTimeout(suite.ctx, time.Minute*5)
@@ -53,7 +53,7 @@ func (suite *SaveAttributesTestSuite) SetupTest() {
 	if suite.clientProcess.ProcessState != nil || suite.serverProcess.ProcessState != nil {
 		suite.Fail("daemons didn't start")
 	}
-	suite.clientId = callURL[RspID](suite, "http://localhost:3000/api/v1/clients?fields[clients]=id").Data[0].ID
+	suite.clientID = callURL[RspID](suite, "http://localhost:3000/api/v1/clients?fields[clients]=id").Data[0].ID
 
 }
 
@@ -70,12 +70,12 @@ type Attributes struct {
 
 func (suite *SaveAttributesTestSuite) TestClientAttributesIsUpdated() {
 
-	requestURL := fmt.Sprintf("http://localhost:3000/api/v1/clients/%v/attributes", suite.clientId)
+	requestURL := fmt.Sprintf("http://localhost:3000/api/v1/clients/%v/attributes", suite.clientID)
 
 	data, err := json.Marshal(Attributes{Tags: []string{"test"}, Labels: map[string]string{"test": "test"}})
 	suite.NoError(err)
 
-	checkOperationHttpStatus(suite, requestURL, http.MethodPut, data, http.StatusOK)
+	checkOperationHTTPStatus(suite, requestURL, http.MethodPut, data, http.StatusOK)
 
 	requestURL = "http://localhost:3000/api/v1/clients?fields[clients]=tags,labels&filter[labels]=test:%20test"
 
@@ -97,7 +97,7 @@ func TestSaveAttributesTestSuite(t *testing.T) {
 	suite.Run(t, new(SaveAttributesTestSuite))
 }
 
-func checkOperationHttpStatus(suite *SaveAttributesTestSuite, requestURL string, method string, content []byte, expectedStatus int) {
+func checkOperationHTTPStatus(suite *SaveAttributesTestSuite, requestURL string, method string, content []byte, expectedStatus int) {
 
 	client := &http.Client{
 		Timeout: time.Second * 10,
@@ -116,8 +116,6 @@ func checkOperationHttpStatus(suite *SaveAttributesTestSuite, requestURL string,
 
 	body := string(rawBody)
 	suite.T().Log(body)
-
-	return
 }
 
 func callURL[T any](suite *SaveAttributesTestSuite, requestURL string) T {

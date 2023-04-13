@@ -13,6 +13,7 @@ Clients can be described for filtering and identification by:
 - 2-dimensional labels  `"labels": {"country": "Germany", "city": "Cologne", "datacenter": "NetCologne GmbH" }`
 
 ## setting attributes
+
 As of writing this Doc there are 3 ways to set up client's attributes.
 
 1. In client's `rport.conf` config file, under property tags (labels are not supported)
@@ -25,8 +26,6 @@ As an alternative to the attributes file you can still use the "old-style" (=< 0
 `rport.conf` file.  
 `attributes_file_path` has precedence. To enable reading tags from the main configuration file you must remove
 or disable `attributes_file_path`.
-
-
 
 ### 2. Using an attributes file
 
@@ -94,14 +93,14 @@ The file is read only on rport client start. On every file change a restart of t
 __! When managing attributes through the server, attributes file will be overwritten, and the json format will be used !__
 
 To manage that remotely:
- - `attributes_file_path` has to be set, read point 2.
- - path has to be writable by the client when running as daemon
- - client has to be `Active` - currently connected to the server
+
+- `attributes_file_path` has to be set, read point 2.
+- path has to be writable by the client when running as daemon
+- client has to be `Active` - currently connected to the server
 
 To update from the API you need to send __PUT__ request with the desired JSON to
 
 `/api/v1/client/{client_id}/attributes`
-
 
 ## Filtering
 

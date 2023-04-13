@@ -561,7 +561,7 @@ type Attributes struct {
 func (c *Client) GetAttributes() Attributes {
 	attr := Attributes{}
 	c.flock.RLock()
-	copierClientsToAttrs(*c, &attr)
+	copierClientsToAttrs(*c, &attr) //nolint:govet
 	c.flock.RUnlock()
 	return attr
 }
