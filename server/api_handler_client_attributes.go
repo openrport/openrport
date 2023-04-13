@@ -4,13 +4,15 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
+	"io"
+	"net/http"
+
 	"github.com/gorilla/mux"
+
 	"github.com/realvnc-labs/rport/server/api"
 	"github.com/realvnc-labs/rport/server/clients"
 	"github.com/realvnc-labs/rport/server/routes"
 	"github.com/realvnc-labs/rport/share/comm"
-	"io"
-	"net/http"
 )
 
 type clientCtxKeyType int

@@ -2,11 +2,12 @@ package clients
 
 import (
 	"context"
-	"github.com/realvnc-labs/rport/share/dyncopy"
 	"strconv"
 	"sync"
 	"sync/atomic"
 	"time"
+
+	"github.com/realvnc-labs/rport/share/dyncopy"
 
 	"golang.org/x/crypto/ssh"
 
