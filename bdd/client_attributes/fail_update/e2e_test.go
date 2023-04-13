@@ -32,7 +32,7 @@ type RspID struct {
 	Data []ID `json:"data"`
 }
 
-type SaveAttributesTestSuite struct {
+type FailUpdateAttributesTestSuite struct {
 	suite.Suite
 	serverProcess *exec.Cmd
 	clientProcess *exec.Cmd
@@ -40,7 +40,7 @@ type SaveAttributesTestSuite struct {
 	clientID      string
 }
 
-func (suite *SaveAttributesTestSuite) SetupSuite() {
+func (suite *FailUpdateAttributesTestSuite) SetupSuite() {
 	suite.ctx = context.Background()
 	ctx, cancel := context.WithTimeout(suite.ctx, time.Minute*5)
 	defer cancel()
@@ -53,7 +53,7 @@ func (suite *SaveAttributesTestSuite) SetupSuite() {
 
 }
 
-func (suite *SaveAttributesTestSuite) TearDownSuite() {
+func (suite *FailUpdateAttributesTestSuite) TearDownSuite() {
 	helpers.LogAndIgnore(suite.clientProcess.Process.Kill())
 	helpers.LogAndIgnore(suite.serverProcess.Process.Kill())
 }
@@ -63,7 +63,7 @@ type Attributes struct {
 	Labels map[string]string `json:"labels"`
 }
 
-func (suite *SaveAttributesTestSuite) TestClientAttributesIsReadOnly() {
+func (suite *FailUpdateAttributesTestSuite) TestClientAttributesIsReadOnly() {
 
 	requestURL := fmt.Sprintf("http://localhost:3000/api/v1/clients/%v/attributes", suite.clientID)
 
@@ -73,7 +73,7 @@ func (suite *SaveAttributesTestSuite) TestClientAttributesIsReadOnly() {
 	checkOperationHTTPStatus(suite, requestURL, http.MethodPut, data, http.StatusConflict)
 }
 
-func (suite *SaveAttributesTestSuite) ExpectAnswer(requestURL string, expected []TagsAndLabels) bool {
+func (suite *FailUpdateAttributesTestSuite) ExpectAnswer(requestURL string, expected []TagsAndLabels) bool {
 	structured := callURL[Rsp](suite, requestURL)
 	return suite.Equal(Rsp{Data: expected}, structured)
 }
@@ -81,10 +81,10 @@ func (suite *SaveAttributesTestSuite) ExpectAnswer(requestURL string, expected [
 // In order for 'go test' to run this suite, we need to create
 // a normal test function and pass our suite to suite.Run
 func TestSaveAttributesTestSuite(t *testing.T) {
-	suite.Run(t, new(SaveAttributesTestSuite))
+	suite.Run(t, new(FailUpdateAttributesTestSuite))
 }
 
-func checkOperationHTTPStatus(suite *SaveAttributesTestSuite, requestURL string, method string, content []byte, expectedStatus int) {
+func checkOperationHTTPStatus(suite *FailUpdateAttributesTestSuite, requestURL string, method string, content []byte, expectedStatus int) {
 
 	client := &http.Client{
 		Timeout: time.Second * 10,
@@ -105,7 +105,7 @@ func checkOperationHTTPStatus(suite *SaveAttributesTestSuite, requestURL string,
 	suite.T().Log(body)
 }
 
-func callURL[T any](suite *SaveAttributesTestSuite, requestURL string) T {
+func callURL[T any](suite *FailUpdateAttributesTestSuite, requestURL string) T {
 
 	client := &http.Client{
 		Timeout: time.Second * 10,

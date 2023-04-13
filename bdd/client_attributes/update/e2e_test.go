@@ -34,7 +34,7 @@ type RspID struct {
 	Data []ID `json:"data"`
 }
 
-type SaveAttributesTestSuite struct {
+type UpdateAttributesTestSuite struct {
 	suite.Suite
 	serverProcess *exec.Cmd
 	clientProcess *exec.Cmd
@@ -42,7 +42,7 @@ type SaveAttributesTestSuite struct {
 	clientID      string
 }
 
-func (suite *SaveAttributesTestSuite) SetupTest() {
+func (suite *UpdateAttributesTestSuite) SetupTest() {
 	err := os.WriteFile("./client_attributes.json", []byte("{\"tags\":[\"vm\"],\"labels\":{}}"), 0600)
 	suite.NoError(err)
 	suite.ctx = context.Background()
@@ -57,7 +57,7 @@ func (suite *SaveAttributesTestSuite) SetupTest() {
 
 }
 
-func (suite *SaveAttributesTestSuite) TearDownTest() {
+func (suite *UpdateAttributesTestSuite) TearDownTest() {
 	helpers.LogAndIgnore(suite.clientProcess.Process.Kill())
 	helpers.LogAndIgnore(suite.serverProcess.Process.Kill())
 	log.Println("done")
@@ -68,7 +68,7 @@ type Attributes struct {
 	Labels map[string]string `json:"labels"`
 }
 
-func (suite *SaveAttributesTestSuite) TestClientAttributesIsUpdated() {
+func (suite *UpdateAttributesTestSuite) TestClientAttributesIsUpdated() {
 
 	requestURL := fmt.Sprintf("http://localhost:3000/api/v1/clients/%v/attributes", suite.clientID)
 
@@ -86,7 +86,7 @@ func (suite *SaveAttributesTestSuite) TestClientAttributesIsUpdated() {
 	suite.TearDownTest()
 }
 
-func (suite *SaveAttributesTestSuite) ExpectAnswer(requestURL string, expected []TagsAndLabels) bool {
+func (suite *UpdateAttributesTestSuite) ExpectAnswer(requestURL string, expected []TagsAndLabels) bool {
 	structured := callURL[Rsp](suite, requestURL)
 	return suite.Equal(Rsp{Data: expected}, structured)
 }
@@ -94,10 +94,10 @@ func (suite *SaveAttributesTestSuite) ExpectAnswer(requestURL string, expected [
 // In order for 'go test' to run this suite, we need to create
 // a normal test function and pass our suite to suite.Run
 func TestSaveAttributesTestSuite(t *testing.T) {
-	suite.Run(t, new(SaveAttributesTestSuite))
+	suite.Run(t, new(UpdateAttributesTestSuite))
 }
 
-func checkOperationHTTPStatus(suite *SaveAttributesTestSuite, requestURL string, method string, content []byte, expectedStatus int) {
+func checkOperationHTTPStatus(suite *UpdateAttributesTestSuite, requestURL string, method string, content []byte, expectedStatus int) {
 
 	client := &http.Client{
 		Timeout: time.Second * 10,
@@ -118,7 +118,7 @@ func checkOperationHTTPStatus(suite *SaveAttributesTestSuite, requestURL string,
 	suite.T().Log(body)
 }
 
-func callURL[T any](suite *SaveAttributesTestSuite, requestURL string) T {
+func callURL[T any](suite *UpdateAttributesTestSuite, requestURL string) T {
 
 	client := &http.Client{
 		Timeout: time.Second * 10,

@@ -18,7 +18,7 @@ As of writing this Doc there are 3 ways to set up client's attributes.
 
 1. In client's `rport.conf` config file, under property tags (labels are not supported)
 2. As a separate file on the client `attributes file`
-3. Through the API - `attributes file` has to be enabled 
+3. Through the API - `attributes file` has to be enabled
 
 ### 1. Using tags in the main config
 
