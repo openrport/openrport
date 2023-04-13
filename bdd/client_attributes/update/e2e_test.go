@@ -43,6 +43,7 @@ type UpdateAttributesTestSuite struct {
 }
 
 func (suite *UpdateAttributesTestSuite) SetupTest() {
+	helpers.CleanUp(suite.T(), "./rc-test-resurces", "./rd-test-resources")
 	err := os.WriteFile("./client_attributes.json", []byte("{\"tags\":[\"vm\"],\"labels\":{}}"), 0600)
 	suite.NoError(err)
 	suite.ctx = context.Background()
@@ -93,7 +94,7 @@ func (suite *UpdateAttributesTestSuite) ExpectAnswer(requestURL string, expected
 
 // In order for 'go test' to run this suite, we need to create
 // a normal test function and pass our suite to suite.Run
-func TestSaveAttributesTestSuite(t *testing.T) {
+func TestUpdateAttributesTestSuite(t *testing.T) {
 	suite.Run(t, new(UpdateAttributesTestSuite))
 }
 
