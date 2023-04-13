@@ -3,8 +3,9 @@ package dyncopy_test
 import (
 	"testing"
 
-	"github.com/realvnc-labs/rport/share/dyncopy"
 	"github.com/stretchr/testify/suite"
+
+	"github.com/realvnc-labs/rport/share/dyncopy"
 )
 
 type TestStructFrom struct {
