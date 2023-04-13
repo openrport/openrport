@@ -1,0 +1,11 @@
+type: object
+properties:
+  tags:
+    type: array
+    items:
+      type: string
+  labels:
+    description: additional key-value metadata stored in client attributes file
+    type: object
+    additionalProperties:
+      type: string

@@ -71,6 +71,8 @@ paths:
     $ref: paths/tunnels.yaml
   /clients/{client_id}:
     $ref: paths/clients_{client_id}.yaml
+  /clients/{client_id}/attributes:
+    $ref: paths/clients_{client_id}_attributes.yaml
   /clients/{client_id}/tunnels:
     $ref: paths/clients_{client_id}_tunnels.yaml
   /clients/{client_id}/tunnels/{tunnel_id}:
