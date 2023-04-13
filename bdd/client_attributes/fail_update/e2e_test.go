@@ -1,11 +1,9 @@
 package client_labels_test
 
 import (
-	"bytes"
 	"context"
 	"encoding/json"
 	"fmt"
-	"io"
 	"net/http"
 	"os/exec"
 	"testing"
@@ -32,6 +30,8 @@ type RspID struct {
 	Data []ID `json:"data"`
 }
 
+const apiHost = "http://localhost:4013"
+
 type FailUpdateAttributesTestSuite struct {
 	suite.Suite
 	serverProcess *exec.Cmd
@@ -50,7 +50,7 @@ func (suite *FailUpdateAttributesTestSuite) SetupSuite() {
 	if suite.clientProcess.ProcessState != nil || suite.serverProcess.ProcessState != nil {
 		suite.Fail("deamons didn't start")
 	}
-	suite.clientID = callURL[RspID](suite, "http://localhost:3000/api/v1/clients?fields[clients]=id").Data[0].ID
+	suite.clientID = helpers.CallURL[RspID](&suite.Suite, apiHost+"/api/v1/clients?fields[clients]=id").Data[0].ID
 
 }
 
@@ -66,16 +66,16 @@ type Attributes struct {
 
 func (suite *FailUpdateAttributesTestSuite) TestClientAttributesIsReadOnly() {
 
-	requestURL := fmt.Sprintf("http://localhost:3000/api/v1/clients/%v/attributes", suite.clientID)
+	requestURL := fmt.Sprintf(apiHost+"/api/v1/clients/%v/attributes", suite.clientID)
 
 	data, err := json.Marshal(Attributes{Tags: []string{}, Labels: map[string]string{}})
 	suite.NoError(err)
 
-	checkOperationHTTPStatus(suite, requestURL, http.MethodPut, data, http.StatusConflict)
+	helpers.CheckOperationHTTPStatus(&suite.Suite, requestURL, http.MethodPut, data, http.StatusConflict)
 }
 
 func (suite *FailUpdateAttributesTestSuite) ExpectAnswer(requestURL string, expected []TagsAndLabels) bool {
-	structured := callURL[Rsp](suite, requestURL)
+	structured := helpers.CallURL[Rsp](&suite.Suite, requestURL)
 	return suite.Equal(Rsp{Data: expected}, structured)
 }
 
@@ -83,49 +83,4 @@ func (suite *FailUpdateAttributesTestSuite) ExpectAnswer(requestURL string, expe
 // a normal test function and pass our suite to suite.Run
 func TestFailUpdateAttributesTestSuite(t *testing.T) {
 	suite.Run(t, new(FailUpdateAttributesTestSuite))
-}
-
-func checkOperationHTTPStatus(suite *FailUpdateAttributesTestSuite, requestURL string, method string, content []byte, expectedStatus int) {
-
-	client := &http.Client{
-		Timeout: time.Second * 10,
-	}
-
-	req, err := http.NewRequest(method, requestURL, bytes.NewReader(content))
-	suite.NoError(err)
-	req.SetBasicAuth("admin", "foobaz")
-	res, err := client.Do(req)
-	suite.NoError(err)
-
-	suite.Equal(expectedStatus, res.StatusCode)
-
-	rawBody, err := io.ReadAll(res.Body)
-	suite.NoError(err)
-
-	body := string(rawBody)
-	suite.T().Log(body)
-}
-
-func callURL[T any](suite *FailUpdateAttributesTestSuite, requestURL string) T {
-
-	client := &http.Client{
-		Timeout: time.Second * 10,
-	}
-
-	req, err := http.NewRequest(http.MethodGet, requestURL, nil)
-	suite.NoError(err)
-	req.SetBasicAuth("admin", "foobaz")
-	res, err := client.Do(req)
-	suite.NoError(err)
-	suite.Equal(http.StatusOK, res.StatusCode)
-
-	rawBody, err := io.ReadAll(res.Body)
-	suite.NoError(err)
-
-	body := string(rawBody)
-	suite.T().Log(body)
-
-	var structured T
-	suite.NoError(json.Unmarshal([]byte(body), &structured))
-	return structured
 }
