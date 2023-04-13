@@ -12,6 +12,7 @@ import (
 )
 
 func TestClientConnects(t *testing.T) {
+	helpers.CleanUp(t, "./rc-test-resurces", "./rd-test-resources")
 
 	ctx, cancel := context.WithTimeout(context.Background(), time.Minute*5)
 	defer cancel()
