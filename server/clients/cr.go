@@ -12,6 +12,8 @@ import (
 	"github.com/realvnc-labs/rport/server/cgroups"
 	"github.com/realvnc-labs/rport/share/logger"
 	"github.com/realvnc-labs/rport/share/query"
+	"github.com/realvnc-labs/rport/share/simplestore"
+	"github.com/realvnc-labs/rport/share/simplestore/kvs/fskv"
 )
 
 type ClientRepository struct {
@@ -61,7 +63,16 @@ func InitClientRepository(
 	keepDisconnectedClients *time.Duration,
 	logger *logger.Logger,
 ) (*ClientRepository, error) {
-	provider := newSqliteProvider(db, keepDisconnectedClients)
+	// provider := newSqliteProvider(db, keepDisconnectedClients)
+	newFSKV, err := fskv.NewFSKV("./clientskv")
+	if err != nil {
+		return nil, err
+	}
+	store, err := simplestore.NewSimpleStore[Client](ctx, newFSKV)
+	if err != nil {
+		return nil, err
+	}
+	provider := NewSimpleClientStore(store, keepDisconnectedClients)
 	initialClients, err := LoadInitialClients(ctx, provider, logger)
 	if err != nil {
 		return nil, err
