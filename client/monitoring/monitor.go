@@ -68,6 +68,7 @@ func (m *Monitor) refreshLoop(ctx context.Context) {
 	for {
 		m.refreshMeasurement(ctx)
 
+		// use of time.After is ok here as ctx.Done will be very rare
 		select {
 		case <-ctx.Done():
 			m.logger.Errorf("Monitoring ended by context.Done")
