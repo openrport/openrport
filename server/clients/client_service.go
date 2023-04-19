@@ -43,6 +43,8 @@ type ClientService interface {
 	GetAll() []*Client
 	GetUserClients(groups []*cgroups.ClientGroup, user User) []*Client
 	GetFilteredUserClients(user User, filterOptions []query.FilterOption, groups []*cgroups.ClientGroup) ([]*CalculatedClient, error)
+	GetFilteredUserClientsU(user User, filterOptions []query.FilterOption, groups []*cgroups.ClientGroup) ([]*CalculatedClient, error)
+	GetFilteredUserClientsM(user User, filterOptions []query.FilterOption, groups []*cgroups.ClientGroup) ([]Client, error)
 
 	PopulateGroupsWithUserClients(groups []*cgroups.ClientGroup, user User)
 	UpdateClientStatus()
@@ -84,6 +86,10 @@ type ClientServiceProvider struct {
 	licensecap licensecap.CapabilityEx
 
 	mu sync.RWMutex
+}
+
+func (s *ClientServiceProvider) GetFilteredUserClientsM(user User, filterOptions []query.FilterOption, groups []*cgroups.ClientGroup) ([]Client, error) {
+	return s.repo.GetFilteredUserClientsM(user, filterOptions, groups)
 }
 
 var OptionsSupportedFilters = map[string]bool{
@@ -305,6 +311,10 @@ func (s *ClientServiceProvider) GetUserClients(groups []*cgroups.ClientGroup, us
 
 func (s *ClientServiceProvider) GetFilteredUserClients(user User, filterOptions []query.FilterOption, groups []*cgroups.ClientGroup) ([]*CalculatedClient, error) {
 	return s.repo.GetFilteredUserClients(user, filterOptions, groups)
+}
+
+func (s *ClientServiceProvider) GetFilteredUserClientsU(user User, filterOptions []query.FilterOption, groups []*cgroups.ClientGroup) ([]*CalculatedClient, error) {
+	return s.repo.GetFilteredUserClientsU(user, filterOptions, groups)
 }
 
 func (s *ClientServiceProvider) StartClient(

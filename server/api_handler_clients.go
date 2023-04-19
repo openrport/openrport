@@ -3,9 +3,13 @@ package chserver
 import (
 	"errors"
 	"fmt"
+	"log"
 	"net"
 	"net/http"
+	"runtime"
+	"sort"
 	"strconv"
+	"time"
 
 	"github.com/gorilla/mux"
 	"golang.org/x/crypto/ssh"
@@ -19,6 +23,7 @@ import (
 	"github.com/realvnc-labs/rport/server/routes"
 	"github.com/realvnc-labs/rport/server/validation"
 	"github.com/realvnc-labs/rport/share/comm"
+	"github.com/realvnc-labs/rport/share/formatter"
 	"github.com/realvnc-labs/rport/share/models"
 	"github.com/realvnc-labs/rport/share/query"
 )
@@ -139,7 +144,22 @@ func (al *APIListener) handlePostClientACL(w http.ResponseWriter, req *http.Requ
 	w.WriteHeader(http.StatusNoContent)
 }
 
+func insp(t time.Time) {
+	_, filename, line, _ := runtime.Caller(1)
+	log.Printf("[time to here] %s:%d %v", filename, line, time.Since(t))
+}
+
 func (al *APIListener) handleGetClients(w http.ResponseWriter, req *http.Request) {
+	t := time.Now()
+	//f, err := os.Create("slowmo.prof")
+	//if err != nil {
+	//	log.Fatal(err)
+	//}
+	//pprof.StartCPUProfile(f)
+	//defer pprof.StopCPUProfile()
+	//
+	insp(t)
+
 	options := query.NewOptions(req, nil, nil, clients.OptionsListDefaultFields)
 	errs := query.ValidateListOptions(options, clients.OptionsSupportedSorts, clients.OptionsSupportedFilters, clients.OptionsSupportedFields, &query.PaginationConfig{
 		MaxLimit:     500,
@@ -149,43 +169,200 @@ func (al *APIListener) handleGetClients(w http.ResponseWriter, req *http.Request
 		al.jsonError(w, errs)
 		return
 	}
+	insp(t)
 
 	sortFunc, desc, err := getCorrespondingSortFunc(options.Sorts)
 	if err != nil {
 		al.jsonError(w, err)
 		return
 	}
+	insp(t)
 
 	curUser, err := al.getUserModelForAuth(req.Context())
 	if err != nil {
 		al.jsonError(w, err)
 		return
 	}
+	insp(t)
 
 	groups, err := al.clientGroupProvider.GetAll(req.Context())
 	if err != nil {
 		al.jsonErrorResponseWithError(w, http.StatusInternalServerError, "Failed to get client groups.", err)
 		return
 	}
+	insp(t)
 
 	filteredClients, err := al.clientService.GetFilteredUserClients(curUser, options.Filters, groups)
 	if err != nil {
 		al.jsonError(w, err)
 		return
 	}
+	insp(t)
 
 	sortFunc(filteredClients, desc)
+	insp(t)
 
 	totalCount := len(filteredClients)
 	start, end := options.Pagination.GetStartEnd(totalCount)
 	filteredClients = filteredClients[start:end]
+	insp(t)
 
 	clientsPayload := clients.ConvertToClientsPayload(filteredClients, options.Fields)
+	insp(t)
 
 	al.writeJSONResponse(w, http.StatusOK, &api.SuccessPayload{
 		Data: clientsPayload,
 		Meta: api.NewMeta(totalCount),
 	})
+	insp(t)
+
+}
+
+func (al *APIListener) handleGetClientsU(w http.ResponseWriter, req *http.Request) {
+	t := time.Now()
+	//f, err := os.Create("slowmo.prof")
+	//if err != nil {
+	//	log.Fatal(err)
+	//}
+	//pprof.StartCPUProfile(f)
+	//defer pprof.StopCPUProfile()
+	//
+	insp(t)
+
+	options := query.NewOptions(req, nil, nil, clients.OptionsListDefaultFields)
+	log.Println("Sort: ", options.Sorts)
+	errs := query.ValidateListOptions(options, clients.OptionsSupportedSorts, clients.OptionsSupportedFilters, clients.OptionsSupportedFields, &query.PaginationConfig{
+		MaxLimit:     500,
+		DefaultLimit: 50,
+	})
+	if errs != nil {
+		al.jsonError(w, errs)
+		return
+	}
+	insp(t)
+	//
+	//sortFunc, desc, err := getCorrespondingSortFunc(options.Sorts)
+	//if err != nil {
+	//	al.jsonError(w, err)
+	//	return
+	//}
+	//insp(t)
+
+	curUser, err := al.getUserModelForAuth(req.Context())
+	if err != nil {
+		al.jsonError(w, err)
+		return
+	}
+	insp(t)
+
+	groups, err := al.clientGroupProvider.GetAll(req.Context())
+	if err != nil {
+		al.jsonErrorResponseWithError(w, http.StatusInternalServerError, "Failed to get client groups.", err)
+		return
+	}
+	insp(t)
+
+	filteredClients, err := al.clientService.GetFilteredUserClientsU(curUser, options.Filters, groups)
+	if err != nil {
+		al.jsonError(w, err)
+		return
+	}
+	insp(t)
+
+	sort.Slice(filteredClients, func(i, j int) bool {
+		return filteredClients[i].ID > filteredClients[j].ID
+	})
+
+	insp(t)
+
+	totalCount := len(filteredClients)
+	start, end := options.Pagination.GetStartEnd(totalCount)
+	filteredClients = filteredClients[start:end]
+	insp(t)
+
+	clientsPayload := clients.ConvertToClientsPayload(filteredClients, options.Fields)
+	insp(t)
+
+	al.writeJSONResponse(w, http.StatusOK, &api.SuccessPayload{
+		Data: clientsPayload,
+		Meta: api.NewMeta(totalCount),
+	})
+	insp(t)
+
+}
+
+func (al *APIListener) handleGetClientsM(w http.ResponseWriter, req *http.Request) {
+	t := time.Now()
+
+	options := query.NewOptions(req, nil, nil, clients.OptionsListDefaultFields)
+	log.Println("Sort: ", options.Sorts)
+	errs := query.ValidateListOptions(options, clients.OptionsSupportedSorts, clients.OptionsSupportedFilters, clients.OptionsSupportedFields, &query.PaginationConfig{
+		MaxLimit:     500,
+		DefaultLimit: 50,
+	})
+	if errs != nil {
+		al.jsonError(w, errs)
+		return
+	}
+	insp(t)
+
+	curUser, err := al.getUserModelForAuth(req.Context())
+	if err != nil {
+		al.jsonError(w, err)
+		return
+	}
+	insp(t)
+
+	groups, err := al.clientGroupProvider.GetAll(req.Context())
+	if err != nil {
+		al.jsonErrorResponseWithError(w, http.StatusInternalServerError, "Failed to get client groups.", err)
+		return
+	}
+	insp(t)
+
+	filteredClients, err := al.clientService.GetFilteredUserClientsM(curUser, options.Filters, groups)
+	if err != nil {
+		al.jsonError(w, err)
+		return
+	}
+	if len(filteredClients) == 0 {
+		al.writeJSONResponse(w, http.StatusOK, &api.SuccessPayload{
+			Data: map[string]interface{}{},
+			Meta: api.NewMeta(0),
+		})
+	}
+	insp(t)
+
+	sort.Slice(filteredClients, func(i, j int) bool {
+		return filteredClients[i].Name > filteredClients[j].Name
+	})
+
+	insp(t)
+
+	totalCount := len(filteredClients)
+	start, end := options.Pagination.GetStartEnd(totalCount)
+	filteredClients = filteredClients[start:end]
+	insp(t)
+	clientsPayload := make([]map[string]interface{}, len(filteredClients))
+
+	ft := formatter.NewFormatter(filteredClients[0])
+	translator, err := ft.NewTranslator(options.Fields[0].Fields)
+	if err != nil {
+		al.jsonError(w, err)
+		return
+	}
+	for i, o := range filteredClients {
+		clientsPayload[i] = translator.Format(o)
+	}
+
+	insp(t)
+
+	al.writeJSONResponse(w, http.StatusOK, &api.SuccessPayload{
+		Data: clientsPayload,
+		Meta: api.NewMeta(totalCount),
+	})
+	insp(t)
+
 }
 
 const (

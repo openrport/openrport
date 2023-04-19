@@ -7,11 +7,12 @@ import (
 
 func SortByID(a []*CalculatedClient, desc bool) {
 	sort.Slice(a, func(i, j int) bool {
-		less := strings.ToLower(a[i].GetID()) < strings.ToLower(a[j].GetID())
-		if desc {
-			return !less
-		}
-		return less
+		return a[i].ID > a[j].ID
+		//less := strings.ToLower(a[i].GetID()) < strings.ToLower(a[j].GetID())
+		//if desc {
+		//	return !less
+		//}
+		//return less
 	})
 }
 
