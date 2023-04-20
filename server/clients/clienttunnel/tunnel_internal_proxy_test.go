@@ -3,7 +3,7 @@ package clienttunnel_test
 import (
 	"testing"
 
-	"github.com/test-go/testify/assert"
+	"github.com/stretchr/testify/assert"
 
 	"github.com/realvnc-labs/rport/server/clients/clienttunnel"
 )
