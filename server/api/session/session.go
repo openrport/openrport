@@ -18,8 +18,8 @@ type APISession struct {
 
 // current implementation provided by go-cache
 type InternalCacheProvider interface {
-	Set(k string, x interface{}, d time.Duration)
-	Get(k string) (interface{}, bool)
+	Set(k string, item interface{}, d time.Duration)
+	Get(k string) (item interface{}, found bool)
 	Delete(k string)
 	ItemCount() int
 	// using `cache.Item` creates a interface dependency on go-cache but currently

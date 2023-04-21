@@ -81,8 +81,8 @@ func (p *Cache) Close() error {
 }
 
 func (p *Cache) getFromCache(sessionID int64) (found bool, sessionInfo APISession, err error) {
-	existingObj, _ := p.cache.Get(formatID(sessionID))
-	if existingObj == nil {
+	existingObj, found := p.cache.Get(formatID(sessionID))
+	if !found {
 		return false, APISession{}, nil
 	}
 
