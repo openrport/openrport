@@ -7,8 +7,6 @@ import (
 	"sync/atomic"
 	"time"
 
-	"github.com/realvnc-labs/rport/share/dyncopy"
-
 	"golang.org/x/crypto/ssh"
 
 	"github.com/realvnc-labs/rport/server/api/users"
@@ -25,16 +23,13 @@ var copyAttrsToClient func(attributes Attributes, client *Client)
 var copierClientsToAttrs func(client Client, attributes *Attributes)
 
 func init() {
-	var err error
-
-	pairs := []dyncopy.FromToPair{dyncopy.NewPair("Tags", "Tags"), dyncopy.NewPair("Labels", "Labels")}
-	copyAttrsToClient, err = dyncopy.NewCopier[Attributes, Client](Attributes{}, Client{}, pairs)
-	if err != nil {
-		panic(err)
+	copyAttrsToClient = func(attributes Attributes, client *Client) {
+		client.Labels = attributes.Labels
+		client.Tags = attributes.Tags
 	}
-	copierClientsToAttrs, err = dyncopy.NewCopier[Client, Attributes](Client{}, Attributes{}, pairs)
-	if err != nil {
-		panic(err)
+	copierClientsToAttrs = func(client Client, attributes *Attributes) {
+		attributes.Labels = client.Labels
+		attributes.Tags = client.Tags
 	}
 }
 
