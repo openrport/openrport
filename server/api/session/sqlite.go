@@ -25,8 +25,8 @@ func NewSqliteProvider(dbPath string, dataSourceOptions sqlite.DataSourceOptions
 	return &SqliteProvider{db: db}, nil
 }
 
-func (p *SqliteProvider) GetAll(ctx context.Context) ([]*APISession, error) {
-	var result []*APISession
+func (p *SqliteProvider) GetAll(ctx context.Context) ([]APISession, error) {
+	var result []APISession
 	err := p.db.SelectContext(
 		ctx, &result,
 		"SELECT * FROM api_sessions WHERE DATETIME(expires_at) >= DATETIME(?)",
@@ -39,26 +39,24 @@ func (p *SqliteProvider) GetAll(ctx context.Context) ([]*APISession, error) {
 	return result, nil
 }
 
-func (p *SqliteProvider) Get(ctx context.Context, sessionID int64) (*APISession, error) {
-	res := &APISession{}
-
-	err := p.db.GetContext(ctx,
-		res,
+func (p *SqliteProvider) Get(ctx context.Context, sessionID int64) (found bool, sessionInfo APISession, err error) {
+	err = p.db.GetContext(ctx,
+		&sessionInfo,
 		"SELECT * FROM api_sessions WHERE session_id = ?",
 		sessionID,
 	)
 	if err != nil {
 		if err == sql.ErrNoRows {
-			return nil, nil
+			return false, APISession{}, nil
 		}
 
-		return nil, fmt.Errorf("unable to get api session from DB by token: %w", err)
+		return false, APISession{}, fmt.Errorf("unable to get api session from DB by token: %w", err)
 	}
 
-	return res, nil
+	return true, sessionInfo, nil
 }
 
-func (p *SqliteProvider) Save(ctx context.Context, session *APISession) (sessionID int64, err error) {
+func (p *SqliteProvider) Save(ctx context.Context, session APISession) (sessionID int64, err error) {
 	if session.SessionID == 0 {
 		sessionID, err = p.add(ctx, session)
 	} else {
@@ -72,7 +70,7 @@ func (p *SqliteProvider) Save(ctx context.Context, session *APISession) (session
 	return sessionID, nil
 }
 
-func (p *SqliteProvider) add(ctx context.Context, session *APISession) (sessionID int64, err error) {
+func (p *SqliteProvider) add(ctx context.Context, session APISession) (sessionID int64, err error) {
 	result, err := p.db.NamedExecContext(
 		ctx,
 		"INSERT INTO"+
@@ -92,7 +90,7 @@ func (p *SqliteProvider) add(ctx context.Context, session *APISession) (sessionI
 	return sessionID, nil
 }
 
-func (p *SqliteProvider) update(ctx context.Context, session *APISession) (sessionID int64, err error) {
+func (p *SqliteProvider) update(ctx context.Context, session APISession) (sessionID int64, err error) {
 	_, err = p.db.NamedExecContext(
 		ctx,
 		"UPDATE api_sessions"+

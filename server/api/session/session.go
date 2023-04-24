@@ -18,8 +18,8 @@ type APISession struct {
 
 // current implementation provided by go-cache
 type InternalCacheProvider interface {
-	Set(k string, x interface{}, d time.Duration)
-	Get(k string) (interface{}, bool)
+	Set(k string, item interface{}, d time.Duration)
+	Get(k string) (item interface{}, found bool)
 	Delete(k string)
 	ItemCount() int
 	// using `cache.Item` creates a interface dependency on go-cache but currently
@@ -29,9 +29,9 @@ type InternalCacheProvider interface {
 }
 
 type StorageProvider interface {
-	Get(ctx context.Context, sessionID int64) (*APISession, error)
-	GetAll(ctx context.Context) ([]*APISession, error)
-	Save(ctx context.Context, session *APISession) (sessionID int64, err error)
+	Get(ctx context.Context, sessionID int64) (found bool, sessionInfo APISession, err error)
+	GetAll(ctx context.Context) ([]APISession, error)
+	Save(ctx context.Context, session APISession) (sessionID int64, err error)
 	Delete(ctx context.Context, sessionID int64) error
 	DeleteExpired(ctx context.Context) error
 	Close() error
