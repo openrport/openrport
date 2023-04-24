@@ -34,7 +34,7 @@ func (suite *TagsAndLabelsTestSuite) SetupSuite() {
 	suite.ctx = context.Background()
 	ctx, cancel := context.WithTimeout(suite.ctx, time.Minute*5)
 	defer cancel()
-	suite.serverProcess, suite.clientProcess = helpers.StartClientAndServerAndWaitForConnection(ctx, suite.T(), "../../../")
+	suite.serverProcess, suite.clientProcess = helpers.StartClientAndServerAndWaitForConnection(ctx, suite.T(), helpers.FindProjectRoot(suite.T()))
 }
 
 func (suite *TagsAndLabelsTestSuite) TearDownSuite() {

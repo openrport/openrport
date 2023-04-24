@@ -6,8 +6,10 @@ import (
 	"errors"
 	"fmt"
 	"log"
+	"os"
 	"os/exec"
 	"path"
+	"path/filepath"
 	"strings"
 	"testing"
 	"time"
@@ -126,4 +128,32 @@ func LogAndIgnore(err error) {
 	// yolo :)
 	// there can be an error, but I don't care and want to silence the linter
 	log.Println(err)
+}
+
+func FindProjectRoot(t *testing.T) string {
+	getwd, err := os.Getwd()
+	if err != nil {
+		assert.Failf(t, "couldn't find project root: %v", err.Error())
+		return ""
+	}
+
+	parts := append([]string{string(filepath.Separator)}, strings.Split(getwd, string(filepath.Separator))...)
+	parts = parts[:len(parts)-2]
+	for i := len(parts); i > 0; i-- {
+		left := parts[:i]
+		basePath := filepath.Join(left...)
+		testPath := filepath.Join(basePath, "go.mod")
+		_, err := os.Stat(testPath)
+		if err == nil {
+			t.Log("found root", basePath)
+			return basePath
+		}
+		if errors.Is(err, os.ErrNotExist) {
+			continue
+		}
+		t.Log("error checking path ", err)
+	}
+
+	assert.Failf(t, "couldn't find project root: %v", err.Error())
+	return ""
 }

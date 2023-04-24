@@ -45,7 +45,7 @@ func (suite *FailUpdateAttributesTestSuite) SetupSuite() {
 	suite.ctx = context.Background()
 	ctx, cancel := context.WithTimeout(suite.ctx, time.Minute*5)
 	defer cancel()
-	suite.serverProcess, suite.clientProcess = helpers.StartClientAndServerAndWaitForConnection(ctx, suite.T(), "../../../")
+	suite.serverProcess, suite.clientProcess = helpers.StartClientAndServerAndWaitForConnection(ctx, suite.T(), helpers.FindProjectRoot(suite.T()))
 
 	suite.clientID = helpers.CallURL[RspID](&suite.Suite, apiHost+"/api/v1/clients?fields[clients]=id").Data[0].ID
 
