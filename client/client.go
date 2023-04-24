@@ -619,7 +619,6 @@ func (c *Client) handleSSHRequests(ctx context.Context, sshClientConn *sshClient
 		switch r.Type {
 
 		case comm.RequestTypeUpdateClientAttributes:
-			c.Logger.Infof("received request to update attributes")
 			resp, err = c.updateAttributes(r.Payload)
 		case comm.RequestTypeCheckPort:
 			resp, err = checkPort(r.Payload)

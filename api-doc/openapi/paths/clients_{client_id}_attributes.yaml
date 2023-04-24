@@ -15,7 +15,7 @@ put:
   requestBody:
     description: value in the json format
     content:
-      '*/*':
+      'application/json':
         schema:
           $ref: ../components/schemas/ClientAttributes.yaml
     required: true
@@ -23,7 +23,7 @@ put:
     '200':
       description: Successful Operation
       content:
-        '*/*':
+        'application/json':
           schema:
             type: object
             properties:
@@ -32,19 +32,19 @@ put:
     '400':
       description: Invalid body parameters
       content:
-        '*/*':
+        'application/json':
           schema:
             $ref: ../components/schemas/ErrorPayload.yaml
     '409':
       description: Error processing request on the client - most likely attributes_file_path is not set or path is not writeable by the client daemon
       content:
-        '*/*':
+        'application/json':
           schema:
             $ref: ../components/schemas/ErrorPayload.yaml
     '500':
       description: Error processing request
       content:
-        '*/*':
+        'application/json':
           schema:
             $ref: ../components/schemas/ErrorPayload.yaml
   x-codegen-request-body-name: body
@@ -65,18 +65,18 @@ get:
     '200':
       description: Current set of attributes
       content:
-        '*/*':
+        'application/json':
           schema:
             $ref: ../components/schemas/ClientAttributes.yaml
     '404':
       description: cannot find active client by the provided id
       content:
-        '*/*':
+        'application/json':
           schema:
             $ref: ../components/schemas/ErrorPayload.yaml
     '500':
       description: Invalid Operation
       content:
-        '*/*':
+        'application/json':
           schema:
             $ref: ../components/schemas/ErrorPayload.yaml

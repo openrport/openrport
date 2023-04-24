@@ -46,10 +46,7 @@ func (suite *FailUpdateAttributesTestSuite) SetupSuite() {
 	ctx, cancel := context.WithTimeout(suite.ctx, time.Minute*5)
 	defer cancel()
 	suite.serverProcess, suite.clientProcess = helpers.StartClientAndServerAndWaitForConnection(ctx, suite.T(), "../../../")
-	time.Sleep(time.Millisecond * 100)
-	if suite.clientProcess.ProcessState != nil || suite.serverProcess.ProcessState != nil {
-		suite.Fail("deamons didn't start")
-	}
+
 	suite.clientID = helpers.CallURL[RspID](&suite.Suite, apiHost+"/api/v1/clients?fields[clients]=id").Data[0].ID
 
 }

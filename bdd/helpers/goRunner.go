@@ -10,6 +10,7 @@ import (
 	"path"
 	"strings"
 	"testing"
+	"time"
 
 	"github.com/stretchr/testify/assert"
 )
@@ -47,7 +48,10 @@ func StartClientAndServerAndWaitForConnection(ctx context.Context, t *testing.T,
 
 	err = WaitForText(internalCtx, rcOutChan, "info: client: Connected") // wait for client to connect - sloooooow - needs to compile...
 	assert.Nil(t, err)
-
+	time.Sleep(time.Millisecond * 100)
+	if rd.ProcessState != nil || rc.ProcessState != nil {
+		assert.Fail(t, "daemons didn't start")
+	}
 	return rd, rc
 }
 
