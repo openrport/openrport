@@ -653,6 +653,13 @@ func (c *Config) parseAndValidate2FA() error {
 		if _, err := exec.LookPath(c.API.TwoFATokenDelivery); err == nil {
 			return c.API.parseAndValidate2FASendToType()
 		}
+		// if the setting is a valid url, we set url delivery
+		if err := validateHTTPorHTTPSURL(c.API.TwoFATokenDelivery); err == nil {
+			if c.API.BaseURL == "" {
+				return errors.New("base_url is required for url two_fa_token_delivery")
+			}
+			return nil
+		}
 	}
 
 	return fmt.Errorf("unknown 2fa token delivery method: %s", c.API.TwoFATokenDelivery)

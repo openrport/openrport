@@ -8,6 +8,7 @@ import (
 	"io"
 	"net/http"
 	"os"
+	"os/exec"
 	"path"
 	"strings"
 	"sync"
@@ -221,11 +222,15 @@ func NewAPIListener(
 				return nil, fmt.Errorf("failed to init smtp service: %v", err)
 			}
 		default:
-			msgSrv = message.NewScriptService(
-				config.API.TwoFATokenDelivery,
-				config.API.TwoFASendToType,
-				config.API.TwoFASendToRegexCompiled,
-			)
+			if _, err := exec.LookPath(config.API.TwoFATokenDelivery); err == nil {
+				msgSrv = message.NewScriptService(
+					config.API.TwoFATokenDelivery,
+					config.API.TwoFASendToType,
+					config.API.TwoFASendToRegexCompiled,
+				)
+			} else {
+				msgSrv = message.NewURLService(config.API.TwoFATokenDelivery, config.API.BaseURL)
+			}
 		}
 
 		a.twoFASrv = NewTwoFAService(
