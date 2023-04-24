@@ -27,7 +27,7 @@ func init() {
 		client.Labels = attributes.Labels
 		client.Tags = attributes.Tags
 	}
-	copierClientsToAttrs = func(client Client, attributes *Attributes) { //nolint:govet ugly but necessary - I'm ok with copying locks here
+	copierClientsToAttrs = func(client Client, attributes *Attributes) { //nolint:govet
 		attributes.Labels = client.Labels
 		attributes.Tags = client.Tags
 	}
