@@ -15,6 +15,8 @@ import (
 	"github.com/realvnc-labs/rport/share/comm"
 )
 
+const ATTRIBUTES_UPDADTE_REQUST_SIZE_LIMIT = 2 ^ 10*5
+
 type clientCtxKeyType int
 
 const clientCtxKey clientCtxKeyType = iota
@@ -56,7 +58,7 @@ func (al *APIListener) handleUpdateClientAttributes(w http.ResponseWriter, req *
 		al.jsonErrorResponseWithTitle(w, http.StatusInternalServerError, "client not present in the request")
 	}
 
-	if req.ContentLength > 2^10*5 { // limit JSON to 5KB
+	if req.ContentLength > ATTRIBUTES_UPDADTE_REQUST_SIZE_LIMIT { // limit JSON to 5KB
 		al.jsonErrorResponseWithTitle(w, http.StatusBadRequest, "request too big")
 		return
 	}
