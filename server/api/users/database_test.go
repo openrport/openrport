@@ -235,17 +235,17 @@ func TestListGroups(t *testing.T) {
 			Name:         "no details",
 			DetailsTable: "",
 			Expected: []Group{
-				NewGroup("group1"),
-				NewGroup("group2"),
+				NewGroup("group1", (*TunnelsRestricted)(nil), (*CommandsRestricted)(nil)),
+				NewGroup("group2", (*TunnelsRestricted)(nil), (*CommandsRestricted)(nil)),
 			},
 		},
 		{
 			Name:         "with details",
 			DetailsTable: "group_details",
 			Expected: []Group{
-				NewGroup("group1", PermissionCommands),
-				NewGroup("group2"),
-				NewGroup("group3", PermissionScripts),
+				NewGroup("group1", (*TunnelsRestricted)(nil), (*CommandsRestricted)(nil), PermissionCommands),
+				NewGroup("group2", (*TunnelsRestricted)(nil), (*CommandsRestricted)(nil)),
+				NewGroup("group3", (*TunnelsRestricted)(nil), (*CommandsRestricted)(nil), PermissionScripts),
 			},
 		},
 	}
@@ -284,19 +284,19 @@ func TestGetGroup(t *testing.T) {
 			Name:         "no details",
 			DetailsTable: "",
 			Group:        "group1",
-			Expected:     NewGroup("group1"),
+			Expected:     NewGroup("group1", (*TunnelsRestricted)(nil), (*CommandsRestricted)(nil)),
 		},
 		{
 			Name:         "with details existing",
 			DetailsTable: "group_details",
 			Group:        "group1",
-			Expected:     NewGroup("group1", PermissionCommands),
+			Expected:     NewGroup("group1", (*TunnelsRestricted)(nil), (*CommandsRestricted)(nil), PermissionCommands),
 		},
 		{
 			Name:         "with details not existing",
 			DetailsTable: "group_details",
 			Group:        "group2",
-			Expected:     NewGroup("group2"),
+			Expected:     NewGroup("group2", (*TunnelsRestricted)(nil), (*CommandsRestricted)(nil)),
 		},
 	}
 
@@ -330,11 +330,11 @@ func TestUpdateGroup(t *testing.T) {
 	}{
 		{
 			Name:  "existing",
-			Group: NewGroup("group1", PermissionScripts),
+			Group: NewGroup("group1", &TunnelsRestricted{}, &CommandsRestricted{}, PermissionScripts),
 		},
 		{
 			Name:  "with details not existing",
-			Group: NewGroup("group2", PermissionCommands),
+			Group: NewGroup("group2", &TunnelsRestricted{}, &CommandsRestricted{}, PermissionCommands),
 		},
 	}
 
@@ -385,8 +385,8 @@ func TestDeleteGroup(t *testing.T) {
 	require.NoError(t, err)
 
 	expected := []Group{
-		NewGroup("group2"),
-		NewGroup("group3", PermissionScripts),
+		NewGroup("group2", (*TunnelsRestricted)(nil), (*CommandsRestricted)(nil)),
+		NewGroup("group3", (*TunnelsRestricted)(nil), (*CommandsRestricted)(nil), PermissionScripts),
 	}
 	assert.ElementsMatch(t, expected, actual)
 }
@@ -685,7 +685,7 @@ func prepareTables(db *sqlx.DB, twoFAOn, totPON bool) error {
 		return err
 	}
 
-	_, err = db.Exec(`CREATE TABLE "group_details" (name TEXT, permissions TEXT);CREATE UNIQUE INDEX "main"."group_details_name" ON "group_details" ("name" ASC);`)
+	_, err = db.Exec(`CREATE TABLE "group_details" (name TEXT, permissions TEXT, tunnels_restricted TEXT, commands_restricted TEXT);CREATE UNIQUE INDEX "main"."group_details_name" ON "group_details" ("name" ASC);`)
 	if err != nil {
 		return err
 	}

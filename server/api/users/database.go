@@ -72,7 +72,7 @@ func (d *UserDatabase) checkDatabaseTables() error {
 		return err
 	}
 	if d.groupDetailsTableName != "" {
-		_, err = d.db.Exec(fmt.Sprintf("SELECT name, permissions FROM `%s` LIMIT 0", d.groupDetailsTableName))
+		_, err = d.db.Exec(fmt.Sprintf("SELECT name, permissions, tunnels_restricted, commands_restricted FROM `%s` LIMIT 0", d.groupDetailsTableName))
 		if err != nil {
 			return err
 		}
@@ -157,7 +157,7 @@ func (d *UserDatabase) ListGroups() ([]Group, error) {
 			}
 		}
 		if !found {
-			groups = append(groups, NewGroup(ug))
+			groups = append(groups, NewGroup(ug, nil, nil))
 		}
 	}
 
@@ -166,13 +166,13 @@ func (d *UserDatabase) ListGroups() ([]Group, error) {
 
 func (d *UserDatabase) GetGroup(name string) (Group, error) {
 	if d.groupDetailsTableName == "" {
-		return NewGroup(name), nil
+		return NewGroup(name, nil, nil), nil
 	}
 
 	group := Group{}
-	err := d.db.Get(&group, fmt.Sprintf("SELECT name, permissions FROM `%s` WHERE name = ? LIMIT 1", d.groupDetailsTableName), name)
+	err := d.db.Get(&group, fmt.Sprintf("SELECT name, permissions, tunnels_restricted, commands_restricted FROM `%s` WHERE name = ? LIMIT 1", d.groupDetailsTableName), name)
 	if err == sql.ErrNoRows {
-		return NewGroup(name), nil
+		return NewGroup(name, nil, nil), nil
 	} else if err != nil {
 		return Group{}, err
 	}
@@ -181,6 +181,7 @@ func (d *UserDatabase) GetGroup(name string) (Group, error) {
 }
 
 func (d *UserDatabase) UpdateGroup(name string, group Group) error {
+	// fmt.Printf("\n3 DATAVBSE UpdateGroup(%s, \n%+v)", name, group.TunnelsRestricted)
 	if d.groupDetailsTableName == "" {
 		return errors2.APIError{
 			Message:    "User group details table must be configured for this operation.",
@@ -190,10 +191,12 @@ func (d *UserDatabase) UpdateGroup(name string, group Group) error {
 	group.Name = name
 	_, err := d.db.NamedExec(
 		// We rely on a unique index. Let the database decide, if INSERT or UPDATE is needed.
-		fmt.Sprintf("REPLACE INTO `%s` (name, permissions) VALUES (:name, :permissions)", d.groupDetailsTableName),
+		fmt.Sprintf("REPLACE INTO `%s` (name, permissions, tunnels_restricted, commands_restricted) VALUES (:name, :permissions, :tunnels_restricted, :commands_restricted)", d.groupDetailsTableName),
 		group,
 	)
 	if err != nil {
+		fmt.Printf("\n\nDATAVBSE UpdateGroup \n%+v", err)
+
 		return err
 	}
 

@@ -79,9 +79,9 @@ func TestHandleMeDBAuth(t *testing.T) {
 		`INSERT INTO "users" VALUES("test-user","1", false)`,
 		`CREATE TABLE "groups" ("username" TEXT, "group" TEXT)`,
 		`INSERT INTO "groups" VALUES("test-user","group1")`,
-		`CREATE TABLE "group_details" ("name" TEXT, "permissions" TEXT)`,
+		`CREATE TABLE "group_details" ("name" TEXT, "permissions" TEXT, "tunnels_restricted" TEXT, "commands_restricted" TEXT)`,
 		`CREATE UNIQUE INDEX "main"."username_group_name" ON "group_details" ("name" ASC)`,
-		`INSERT INTO "group_details" VALUES('group1','{"vault":true, "monitoring": true}')`,
+		`INSERT INTO "group_details" VALUES('group1','{"vault":true, "monitoring": true}', null, null)`,
 	}
 	for _, sqlExec := range sqlExecs {
 		_, err = db.Exec(sqlExec)

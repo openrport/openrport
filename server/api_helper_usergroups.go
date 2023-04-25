@@ -1,6 +1,7 @@
 package chserver
 
 import (
+	"fmt"
 	"net/http"
 
 	"github.com/gorilla/mux"
@@ -44,6 +45,7 @@ func (al *APIListener) handleUpdateUserGroup(w http.ResponseWriter, req *http.Re
 		return
 	}
 
+	fmt.Println("******   1 handleUpdateUserGroup   *******")
 	group, err := al.userService.UpdateGroup(name, input)
 	if err != nil {
 		al.jsonError(w, err)

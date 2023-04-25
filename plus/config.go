@@ -17,3 +17,5 @@ type PlusConfig struct {
 	OAuthConfig   *oauth.Config   `mapstructure:"plus-oauth"`
 	LicenseConfig *license.Config `mapstructure:"plus-license"`
 }
+
+// EDTODO: validateExtendedTunnelPermissions contains the logic for the validation and must be executed in rport-plus

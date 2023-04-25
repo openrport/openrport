@@ -408,6 +408,8 @@ CREATE UNIQUE INDEX "main"."group_details_name" ON "group_details" ("name" ASC);
 CREATE TABLE "group_details" (
     "name" TEXT(150) NOT NULL,
     "permissions" TEXT DEFAULT "{}"
+    "tunnels_restricted" TEXT DEFAULT "{}"
+    "commands_restricted" TEXT DEFAULT "{}"
 );
 CREATE UNIQUE INDEX "main"."name" ON "group_details" (
     "name" ASC
