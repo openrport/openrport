@@ -273,7 +273,7 @@ func TestHandlePostCommand(t *testing.T) {
 	for _, tc := range testCases {
 		t.Run(tc.name, func(t *testing.T) {
 			// given
-			clientService := clients.NewClientService(nil, nil, clients.NewClientRepository(tc.clients, &hour, testLog), testLog)
+			clientService := clients.NewClientService(nil, nil, clients.NewClientRepository(tc.clients, &hour, testLog), testLog, nil)
 			al := APIListener{
 				insecureForTests: true,
 				Server: &Server{
@@ -655,7 +655,7 @@ func TestHandlePostMultiClientCommand(t *testing.T) {
 			al := APIListener{
 				insecureForTests: true,
 				Server: &Server{
-					clientService: clients.NewClientService(nil, nil, clients.NewClientRepository([]*clients.Client{c1, c2, c3}, &hour, testLog), testLog),
+					clientService: clients.NewClientService(nil, nil, clients.NewClientRepository([]*clients.Client{c1, c2, c3}, &hour, testLog), testLog, nil),
 					config: &chconfig.Config{
 						Server: chconfig.ServerConfig{
 							RunRemoteCmdTimeoutSec: defaultTimeout,
@@ -820,7 +820,7 @@ func TestHandlePostMultiClientCommandWithPausedClient(t *testing.T) {
 			al := APIListener{
 				insecureForTests: true,
 				Server: &Server{
-					clientService: clients.NewClientService(nil, nil, clients.NewClientRepository([]*clients.Client{c1, c2}, &hour, testLog), testLog),
+					clientService: clients.NewClientService(nil, nil, clients.NewClientRepository([]*clients.Client{c1, c2}, &hour, testLog), testLog, nil),
 					config: &chconfig.Config{
 						Server: chconfig.ServerConfig{
 							RunRemoteCmdTimeoutSec: defaultTimeout,
@@ -2070,7 +2070,7 @@ func makeAPIListener(
 	defaultTimeout int,
 	tokenManager *authorization.Manager,
 	testLog *logger.Logger) (al *APIListener) {
-	clientService := clients.NewClientService(nil, nil, clientRepo, testLog)
+	clientService := clients.NewClientService(nil, nil, clientRepo, testLog, nil)
 	al = &APIListener{
 		insecureForTests: true,
 		Server: &Server{

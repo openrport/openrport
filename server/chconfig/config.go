@@ -26,7 +26,6 @@ import (
 
 	"github.com/realvnc-labs/rport/share/files"
 
-	"github.com/asaskevich/govalidator"
 	mapset "github.com/deckarep/golang-set"
 	"github.com/jpillora/requestlog"
 	"github.com/pkg/errors"
@@ -43,6 +42,8 @@ import (
 
 type APIConfig struct {
 	Address                string  `mapstructure:"address"`
+	BaseURL                string  `mapstructure:"base_url"`
+	EnableAcme             bool    `mapstructure:"enable_acme"`
 	Auth                   string  `mapstructure:"auth"`
 	AuthFile               string  `mapstructure:"auth_file"`
 	AuthUserTable          string  `mapstructure:"auth_user_table"`
@@ -120,7 +121,6 @@ type ServerConfig struct {
 	ListenAddress                        string                                 `mapstructure:"address"`
 	URL                                  []string                               `mapstructure:"url"`
 	PairingURL                           string                                 `mapstructure:"pairing_url"`
-	TunnelHost                           string                                 `mapstructure:"tunnel_host"`
 	KeySeed                              string                                 `mapstructure:"key_seed"`
 	Auth                                 string                                 `mapstructure:"auth"`
 	AuthFile                             string                                 `mapstructure:"auth_file"`
@@ -151,6 +151,7 @@ type ServerConfig struct {
 	BanTime                              int                                    `mapstructure:"ban_time"`
 	InternalTunnelProxyConfig            clienttunnel.InternalTunnelProxyConfig `mapstructure:",squash"`
 	JobsMaxResults                       int                                    `mapstructure:"jobs_max_results"`
+	AcmeHTTPPort                         int                                    `mapstructure:"acme_http_port"`
 
 	// DEPRECATED, only here for backwards compatibility
 	MaxRequestBytes       int64 `mapstructure:"max_request_bytes"`
@@ -377,11 +378,10 @@ func (c *Config) ParseAndValidate(mLog *logger.MemLogger) error {
 		return err
 	}
 
-	if err := c.Server.parseAndValidateTunnelHost(); err != nil {
-		return err
-	}
-
 	maxProcs := runtime.GOMAXPROCS(0)
+
+	mLog.Debugf("max_concurrent_ssh_handshakes = %d", c.Server.MaxConcurrentSSHConnectionHandshakes)
+
 	if c.Server.MaxConcurrentSSHConnectionHandshakes > (maxProcs * 2) {
 		mLog.Infof("warning: allowing too many concurrent ssh handhakes ('max_concurrent_ssh_handshakes') will slow down the server significantly and cause operational reliability issues. Please use a value less than or equal to the MAX_PROCS (%d)", maxProcs)
 	}
@@ -434,6 +434,10 @@ func (c *Config) parseAndValidateAPI() error {
 		if err != nil {
 			return err
 		}
+		err = c.parseAndValidateBaseURL()
+		if err != nil {
+			return err
+		}
 		err = c.parseAndValidateAPIHTTPSOptions(false, false)
 		if err != nil {
 			return err
@@ -477,6 +481,21 @@ func (c *Config) parseAndValidateAPI() error {
 		return err
 	}
 
+	return nil
+}
+
+func (c *Config) parseAndValidateBaseURL() error {
+	u, err := url.Parse(c.API.BaseURL)
+	if c.API.BaseURL != "" {
+		if err != nil {
+			return fmt.Errorf("base_url must be a valid url: %w", err)
+		}
+	}
+	if c.API.EnableAcme {
+		if u.Host == "" {
+			return errors.New("base_url must have a host when acme is enabled")
+		}
+	}
 	return nil
 }
 
@@ -686,6 +705,9 @@ func (c *Config) parseAndValidateAPIHTTPSOptions(mustBeConfigured bool, skipLoad
 	if c.API.CertFile == "" && c.API.KeyFile != "" {
 		return errors.New("when 'key_file' is set, 'cert_file' must be set as well")
 	}
+	if c.API.EnableAcme {
+		return errors.New("cert_file, key_file and enable_acme cannot be used together")
+	}
 	if !skipLoadCheck {
 		_, err := tls.LoadX509KeyPair(c.API.CertFile, c.API.KeyFile)
 		if err != nil {
@@ -731,13 +753,6 @@ func (s *ServerConfig) parseAndValidateURLs() error {
 		}
 	}
 
-	return nil
-}
-
-func (s *ServerConfig) parseAndValidateTunnelHost() error {
-	if s.TunnelHost != "" && !govalidator.IsDNSName(s.TunnelHost) && !govalidator.IsIP(s.TunnelHost) {
-		return fmt.Errorf("invalid tunnel_host '%s': use IP address or FQDN", s.TunnelHost)
-	}
 	return nil
 }
 

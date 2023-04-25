@@ -62,6 +62,18 @@ Each parameter can be specified by:
   1. has `tag` equals to `QA` **OR** `tag` that starts with `my-tag`;
   2. its `os_family` starts with `linux` or `ubuntu`.
 
+  Example specifing logical operators:
+
+  ```text
+    params: {
+      "tags": { "and": [ "Linux", "Datacenter 3" ] }
+    }
+  ```
+
+  Means clients belong to this group only if following condition is met:
+  1. has a `tag` equals to `Linux` **AND** a `tag` that equals to `Datacenter 3`;
+  **OR** operator can be specified in the same way
+
 * `client_ids` - read-only field that is populated with IDs of active clients that belong to this group.
 
 ## Manage client groups via the API

@@ -27,23 +27,34 @@ import (
 )
 
 const (
-	DefaultMaxConcurrentSSHConnectionHandshakes = 4
-	DefaultKeepDisconnectedClients              = time.Hour
-	DefaultPurgeDisconnectedClientsInterval     = 1 * time.Minute
-	DefaultCheckClientsConnectionInterval       = 5 * time.Minute
-	DefaultCheckClientsConnectionTimeout        = 30 * time.Second
-	DefaultMaxRequestBytes                      = 10 * 1024       // 10 KB
-	DefaultMaxRequestBytesClient                = 512 * 1024      // 512KB
-	DefaultMaxFilePushBytes                     = int64(10 << 20) // 10M
-	DefaultCheckPortTimeout                     = 2 * time.Second
-	DefaultUsedPorts                            = "20000-30000"
-	DefaultExcludedPorts                        = "1-1024"
-	DefaultServerAddress                        = "0.0.0.0:8080"
-	DefaultLogLevel                             = "info"
-	DefaultRunRemoteCmdTimeoutSec               = 60
-	DefaultMonitoringDataStorageDuration        = "7d"
-	DefaultPairingURL                           = "https://pairing.rport.io"
+	DefaultKeepDisconnectedClients          = time.Hour
+	DefaultPurgeDisconnectedClientsInterval = 1 * time.Minute
+	DefaultCheckClientsConnectionInterval   = 5 * time.Minute
+	DefaultCheckClientsConnectionTimeout    = 30 * time.Second
+	DefaultMaxRequestBytes                  = 10 * 1024       // 10 KB
+	DefaultMaxRequestBytesClient            = 512 * 1024      // 512KB
+	DefaultMaxFilePushBytes                 = int64(10 << 20) // 10M
+	DefaultCheckPortTimeout                 = 2 * time.Second
+	DefaultUsedPorts                        = "20000-30000"
+	DefaultExcludedPorts                    = "1-1024"
+	DefaultServerAddress                    = "0.0.0.0:8080"
+	DefaultLogLevel                         = "info"
+	DefaultRunRemoteCmdTimeoutSec           = 60
+	DefaultMonitoringDataStorageDuration    = "7d"
+	DefaultPairingURL                       = "https://pairing.rport.io"
 )
+
+var (
+	DefaultMaxConcurrentSSHConnectionHandshakes = calcMaxConcurrentSSHConnectionHandshakes()
+)
+
+func calcMaxConcurrentSSHConnectionHandshakes() (max int) {
+	maxProcs := runtime.GOMAXPROCS(0)
+	if maxProcs == 1 {
+		return maxProcs
+	}
+	return maxProcs / 2
+}
 
 var serverHelp = `
   Usage: rportd [options]
