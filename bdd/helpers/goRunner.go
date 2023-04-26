@@ -142,18 +142,19 @@ func FindProjectRoot(t *testing.T) string {
 		left := parts[:i]
 		basePath := filepath.Join(left...)
 		testPath := filepath.Join(basePath, "go.mod")
+		t.Log("testing", testPath)
 		_, err = os.Stat(testPath)
 		if err == nil {
 			t.Log("found root", basePath)
 			return basePath
 		}
 		if errors.Is(err, os.ErrNotExist) {
+			t.Log("error checking path ", err)
 			continue
 		}
-		t.Log("error checking path ", err)
 	}
 
-	assert.Failf(t, "couldn't find project root: %v", err.Error())
+	assert.Fail(t, "couldn't find project root: "+err.Error())
 	return ""
 }
 
