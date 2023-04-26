@@ -276,6 +276,47 @@ func TestListGroups(t *testing.T) {
 		})
 	}
 }
+func TestListGroupsPlusOn(t *testing.T) {
+	testCases := []struct {
+		Name         string
+		DetailsTable string
+		Expected     []Group
+	}{
+		{
+			Name:         "with details",
+			DetailsTable: "group_details",
+			Expected: []Group{
+				NewGroup("group1", (*TunnelsRestricted)(nil), (*CommandsRestricted)(nil), PermissionCommands),
+				NewGroup("group3", (*TunnelsRestricted)(nil), (*CommandsRestricted)(nil), PermissionScripts),
+				NewGroup("group4", &TunnelsRestricted{Local: []string{"20000", "20001"}, MinIdleTimeout: 5, MaxAutoClose: "60m", AuthAllowed: true}, (*CommandsRestricted)(nil)),
+				NewGroup("group5", (*TunnelsRestricted)(nil), &CommandsRestricted{Deny: []string{"apache2", "ssh"}, IsSudo: false}),
+				NewGroup("group2", (*TunnelsRestricted)(nil), (*CommandsRestricted)(nil)),
+			},
+		},
+	}
+
+	db, err := sqlx.Connect("sqlite3", ":memory:")
+	require.NoError(t, err)
+	defer db.Close()
+
+	err = prepareTables(db, false, false, true)
+	require.NoError(t, err)
+
+	err = prepareDummyData(db, false, false, true)
+	require.NoError(t, err)
+
+	for _, tc := range testCases {
+		t.Run(tc.Name, func(t *testing.T) {
+			d, err := NewUserDatabase(db, "users", "groups", tc.DetailsTable, false, false, true, testLog)
+			require.NoError(t, err)
+
+			actualGroups, err := d.ListGroups()
+			require.NoError(t, err)
+
+			assert.ElementsMatch(t, tc.Expected, actualGroups)
+		})
+	}
+}
 
 func TestGetGroup(t *testing.T) {
 	testCases := []struct {
@@ -355,6 +396,47 @@ func TestUpdateGroup(t *testing.T) {
 	for _, tc := range testCases {
 		t.Run(tc.Name, func(t *testing.T) {
 			d, err := NewUserDatabase(db, "users", "groups", "group_details", false, false, false, testLog)
+			require.NoError(t, err)
+
+			err = d.UpdateGroup(tc.Group.Name, tc.Group)
+			require.NoError(t, err)
+
+			actual, err := d.GetGroup(tc.Group.Name)
+			require.NoError(t, err)
+
+			assert.Equal(t, tc.Group, actual)
+		})
+	}
+}
+
+func TestUpdateGroupPlusOn(t *testing.T) {
+	testCases := []struct {
+		Name string
+		Group
+	}{
+		{
+			Name:  "existing",
+			Group: NewGroup("group1", &TunnelsRestricted{Local: []string{"20000", "20001"}, MinIdleTimeout: 5, MaxAutoClose: "60m", AuthAllowed: true}, &CommandsRestricted{Deny: []string{"apache2", "ssh"}, IsSudo: false}, PermissionCommands),
+		},
+		{
+			Name:  "with details not existing",
+			Group: NewGroup("group2", &TunnelsRestricted{Local: []string{"20000", "20001"}, MinIdleTimeout: 5, MaxAutoClose: "60m", AuthAllowed: true}, &CommandsRestricted{Deny: []string{"apache2", "ssh"}, IsSudo: false}, PermissionCommands),
+		},
+	}
+
+	db, err := sqlx.Connect("sqlite3", ":memory:")
+	require.NoError(t, err)
+	defer db.Close()
+
+	err = prepareTables(db, false, false, true)
+	require.NoError(t, err)
+
+	err = prepareDummyData(db, false, false, true)
+	require.NoError(t, err)
+
+	for _, tc := range testCases {
+		t.Run(tc.Name, func(t *testing.T) {
+			d, err := NewUserDatabase(db, "users", "groups", "group_details", false, false, true, testLog)
 			require.NoError(t, err)
 
 			err = d.UpdateGroup(tc.Group.Name, tc.Group)
@@ -729,11 +811,11 @@ func prepareDummyData(db *sqlx.DB, withTwoFA, withTotP bool, plusOn bool) error 
 	}
 
 	if plusOn {
-		_, err = db.Exec(`INSERT INTO group_details (name, permissions, tunnels_restricted) VALUES ("group4", '{}', '{ "local": ["20000","20001"], "remote": ["22","3389"], "scheme": ["ssh","rdp"], "acl": ["201.203.40.9"], "min-idle-timeout-minutes": 5, "max-auto-close": "60m", "protocol": ["tcp","udp","tcp-udp"], "skip-idle-timeout": 0, "http_proxy": true, "host_header": ":*", "auth_allowed": true }')`)
+		_, err = db.Exec(`INSERT INTO group_details (name, permissions, tunnels_restricted) VALUES ("group4", '{}', '{ "local": ["20000","20001"], "min-idle-timeout-minutes": 5, "max-auto-close": "60m", "auth_allowed": true }')`)
 		if err != nil {
 			return err
 		}
-		_, err = db.Exec(`INSERT INTO group_details (name, permissions, commands_restricted) VALUES ("group5", '{}', '{ "allow": ["^sudo reboot$","^systemctl .* restart$"], "deny": ["apache2","ssh"], "is_sudo": false }')`)
+		_, err = db.Exec(`INSERT INTO group_details (name, permissions, commands_restricted) VALUES ("group5", '{}', '{ "deny": ["apache2","ssh"], "is_sudo": false }' )`)
 		if err != nil {
 			return err
 		}
