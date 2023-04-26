@@ -19,18 +19,14 @@ import (
 	"github.com/realvnc-labs/rport/share/random"
 )
 
-var copyAttrsToClient func(attributes Attributes, client *Client)
-var copierClientsToAttrs func(client Client, attributes *Attributes)
+func copyAttrsToClient(attributes Attributes, client *Client) {
+	client.Labels = attributes.Labels
+	client.Tags = attributes.Tags
+}
 
-func init() {
-	copyAttrsToClient = func(attributes Attributes, client *Client) {
-		client.Labels = attributes.Labels
-		client.Tags = attributes.Tags
-	}
-	copierClientsToAttrs = func(client Client, attributes *Attributes) { //nolint:govet
-		attributes.Labels = client.Labels
-		attributes.Tags = client.Tags
-	}
+func copyClientsToAttrs(client Client, attributes *Attributes) { //nolint:govet
+	attributes.Labels = client.Labels
+	attributes.Tags = client.Tags
 }
 
 // now is used to stub time.Now in tests
@@ -561,7 +557,7 @@ type Attributes struct {
 func (c *Client) GetAttributes() Attributes {
 	attr := Attributes{}
 	c.flock.RLock()
-	copierClientsToAttrs(*c, &attr) //nolint:govet
+	copyClientsToAttrs(*c, &attr) //nolint:govet
 	c.flock.RUnlock()
 	return attr
 }
