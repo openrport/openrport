@@ -35,12 +35,12 @@ type TunnelsRestricted struct {
 	Local           []string `json:"local,omitempty"`
 	Remote          []string `json:"remote,omitempty"`
 	Scheme          []string `json:"scheme,omitempty"`
-	Acl             []string `json:"acl,omitempty"`
+	ACL             []string `json:"acl,omitempty"`
 	MinIdleTimeout  int      `json:"min-idle-timeout-minutes,omitempty"`
 	MaxAutoClose    string   `json:"max-auto-close,omitempty"`
 	Protocol        []string `json:"protocol,omitempty"`
 	SkipIdleTimeout int      `json:"skip-idle-timeout,omitempty"`
-	HttpProxy       bool     `json:"http_proxy,omitempty"`
+	HTTPProxy       bool     `json:"http_proxy,omitempty"`
 	HostHeader      string   `json:"host_header,omitempty"`
 	AuthAllowed     bool     `json:"auth_allowed,omitempty"`
 }
