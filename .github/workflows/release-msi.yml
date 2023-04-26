@@ -15,10 +15,12 @@ jobs:
         with:
           go-version: 1.19
       - name: Creates MSI
+        env:
+          CS_PFX: ${{ secrets.CS_PFX }}
         run: .github/scripts/msi-build.ps1
       - name: Test MSI
         run: .github/scripts/msi-test.ps1
-      - name: Test MSI upgrade(s)
+      - name: Test MSI major upgrade
         run: .github/scripts/msi-test-install-upgrade.ps1
       - name: Publish MSI
         env:

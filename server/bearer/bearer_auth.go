@@ -67,11 +67,11 @@ type TokenContext struct {
 }
 
 type APISessionUpdater interface {
-	Save(ctx context.Context, session *session.APISession) (sessionID int64, err error)
+	Save(ctx context.Context, session session.APISession) (sessionID int64, err error)
 }
 
 type APISessionGetter interface {
-	Get(ctx context.Context, sessionID int64) (*session.APISession, error)
+	Get(ctx context.Context, sessionID int64) (found bool, sessionInfo session.APISession, err error)
 }
 
 func CreateAuthToken(
@@ -90,7 +90,7 @@ func CreateAuthToken(
 
 	expiresAt := time.Now().Add(lifetime)
 
-	newSession := &session.APISession{
+	newSession := session.APISession{
 		ExpiresAt:    expiresAt,
 		Username:     username,
 		LastAccessAt: time.Now(),
@@ -122,7 +122,7 @@ func CreateAuthToken(
 func IncreaseSessionLifetime(
 	ctx context.Context,
 	sessionUpdater APISessionUpdater,
-	s *session.APISession) error {
+	s session.APISession) error {
 	newExpirationDate := time.Now().Add(DefaultTokenLifetime)
 	if s.ExpiresAt.Before(newExpirationDate) {
 		s.ExpiresAt = newExpirationDate
@@ -181,7 +181,7 @@ func ValidateBearerToken(
 	tokCtx *TokenContext,
 	uri, method string,
 	apiSessionGetter APISessionGetter,
-	l *logger.Logger) (bool, *session.APISession, error) {
+	l *logger.Logger) (valid bool, sessionInfo session.APISession, err error) {
 	if !currentURIMatchesTokenScopes(uri, method, tokCtx.AppClaims.Scopes) {
 		l.Errorf(
 			"Token scopes %+v don't match with the current url %s[%s], so this token is not intended to be used for this page",
@@ -189,7 +189,7 @@ func ValidateBearerToken(
 			method,
 			uri,
 		)
-		return false, nil, nil
+		return false, session.APISession{}, nil
 	}
 
 	if !tokCtx.JwtToken.Valid || tokCtx.AppClaims.Username == "" {
@@ -197,27 +197,27 @@ func ValidateBearerToken(
 			"Token is invalid or user name is empty",
 			tokCtx.AppClaims.Username,
 		)
-		return false, nil, nil
+		return false, session.APISession{}, nil
 	}
 
-	apiSession, err := apiSessionGetter.Get(ctx, tokCtx.AppClaims.SessionID)
-	if err != nil || apiSession == nil {
+	found, sessionInfo, err := apiSessionGetter.Get(ctx, tokCtx.AppClaims.SessionID)
+	if err != nil || !found {
 		l.Errorf(
 			"Login session not found for %s",
 			tokCtx.AppClaims.Username,
 		)
-		return false, nil, err
+		return false, session.APISession{}, err
 	}
 
-	isValidByExpirationTime := apiSession.ExpiresAt.After(time.Now())
+	isValidByExpirationTime := sessionInfo.ExpiresAt.After(time.Now())
 	if !isValidByExpirationTime {
 		l.Errorf(
 			"api session time %v is expired",
-			apiSession.ExpiresAt,
+			sessionInfo.ExpiresAt,
 		)
-		return false, nil, err
+		return false, sessionInfo, err
 	}
-	return true, apiSession, nil
+	return true, sessionInfo, nil
 }
 
 func GetBearerToken(req *http.Request) (string, bool) {
