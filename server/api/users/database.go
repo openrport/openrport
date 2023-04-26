@@ -74,7 +74,7 @@ func (d *UserDatabase) checkDatabaseTables() error {
 		return err
 	}
 	if d.groupDetailsTableName != "" {
-		_, err = d.db.Exec(fmt.Sprintf("SELECT name, permissions FROM `%s` LIMIT 0", d.groupDetailsTableName))
+		_, err = d.db.Exec(fmt.Sprintf("SELECT * FROM `%s` LIMIT 0", d.groupDetailsTableName))
 		if err != nil {
 			return err
 		}
@@ -138,7 +138,7 @@ func (d *UserDatabase) ListGroups() ([]Group, error) {
 	var groups []Group
 
 	if d.groupDetailsTableName != "" {
-		err := d.db.Select(&groups, fmt.Sprintf("SELECT name, permissions FROM `%s` ORDER BY `name`", d.groupDetailsTableName))
+		err := d.db.Select(&groups, fmt.Sprintf("SELECT * FROM `%s` ORDER BY `name`", d.groupDetailsTableName))
 		if err != nil && err != sql.ErrNoRows {
 			return nil, err
 		}
@@ -172,7 +172,7 @@ func (d *UserDatabase) GetGroup(name string) (Group, error) {
 	}
 
 	group := Group{}
-	err := d.db.Get(&group, fmt.Sprintf("SELECT name, permissions FROM `%s` WHERE name = ? LIMIT 1", d.groupDetailsTableName), name)
+	err := d.db.Get(&group, fmt.Sprintf("SELECT * FROM `%s` WHERE name = ? LIMIT 1", d.groupDetailsTableName), name)
 	if err == sql.ErrNoRows {
 		return NewGroup(name, nil, nil), nil
 	} else if err != nil {
