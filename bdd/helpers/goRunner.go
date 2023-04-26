@@ -142,7 +142,6 @@ func FindProjectRoot(t *testing.T) string {
 		left := parts[:i]
 		basePath := filepath.Join(left...)
 		testPath := filepath.Join(basePath, "go.mod")
-		t.Log("checking path", testPath)
 		_, err = os.Stat(testPath)
 		if err == nil {
 			t.Log("found root", basePath)
@@ -161,7 +160,7 @@ func FindProjectRoot(t *testing.T) string {
 func getRoot(getwd string) string {
 	vol := filepath.VolumeName(getwd)
 	if vol != "" {
-		return vol
+		return ""
 	}
 	return "/"
 }
