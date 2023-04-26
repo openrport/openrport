@@ -136,14 +136,14 @@ func FindProjectRoot(t *testing.T) string {
 		return ""
 	}
 
-	parts := append([]string{filepath.VolumeName(getwd)}, strings.Split(getwd, string(filepath.Separator))...)
+	parts := append([]string{getRoot(getwd)}, strings.Split(getwd, string(filepath.Separator))...)
 
-	parts = parts[:len(parts)-2]
 	for i := len(parts); i > 0; i-- {
 		left := parts[:i]
 		basePath := filepath.Join(left...)
 		testPath := filepath.Join(basePath, "go.mod")
-		_, err := os.Stat(testPath)
+		t.Log("checking path", testPath)
+		_, err = os.Stat(testPath)
 		if err == nil {
 			t.Log("found root", basePath)
 			return basePath
@@ -156,4 +156,12 @@ func FindProjectRoot(t *testing.T) string {
 
 	assert.Failf(t, "couldn't find project root: %v", err.Error())
 	return ""
+}
+
+func getRoot(getwd string) string {
+	vol := filepath.VolumeName(getwd)
+	if vol != "" {
+		return vol
+	}
+	return "/"
 }
