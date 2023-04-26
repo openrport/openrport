@@ -23,6 +23,7 @@ type UserDatabase struct {
 
 	twoFAOn bool
 	totPOn  bool
+	plusOn  bool
 	logger  *logger.Logger
 }
 
@@ -30,7 +31,7 @@ func NewUserDatabase(
 	DB *sqlx.DB,
 	usersTableName, groupsTableName, groupDetailsTableName string,
 	twoFAOn, totPOn bool,
-	logger *logger.Logger,
+	plusOn bool, logger *logger.Logger,
 ) (*UserDatabase, error) {
 	d := &UserDatabase{
 		db: DB,
@@ -41,6 +42,7 @@ func NewUserDatabase(
 
 		twoFAOn: twoFAOn,
 		totPOn:  totPOn,
+		plusOn:  plusOn,
 		logger:  logger,
 	}
 	if err := d.checkDatabaseTables(); err != nil {
@@ -72,7 +74,7 @@ func (d *UserDatabase) checkDatabaseTables() error {
 		return err
 	}
 	if d.groupDetailsTableName != "" {
-		_, err = d.db.Exec(fmt.Sprintf("SELECT name, permissions, tunnels_restricted, commands_restricted FROM `%s` LIMIT 0", d.groupDetailsTableName))
+		_, err = d.db.Exec(fmt.Sprintf("SELECT name, permissions FROM `%s` LIMIT 0", d.groupDetailsTableName))
 		if err != nil {
 			return err
 		}
@@ -170,7 +172,7 @@ func (d *UserDatabase) GetGroup(name string) (Group, error) {
 	}
 
 	group := Group{}
-	err := d.db.Get(&group, fmt.Sprintf("SELECT name, permissions, tunnels_restricted, commands_restricted FROM `%s` WHERE name = ? LIMIT 1", d.groupDetailsTableName), name)
+	err := d.db.Get(&group, fmt.Sprintf("SELECT name, permissions FROM `%s` WHERE name = ? LIMIT 1", d.groupDetailsTableName), name)
 	if err == sql.ErrNoRows {
 		return NewGroup(name, nil, nil), nil
 	} else if err != nil {
@@ -181,22 +183,26 @@ func (d *UserDatabase) GetGroup(name string) (Group, error) {
 }
 
 func (d *UserDatabase) UpdateGroup(name string, group Group) error {
-	// fmt.Printf("\n3 DATAVBSE UpdateGroup(%s, \n%+v)", name, group.TunnelsRestricted)
 	if d.groupDetailsTableName == "" {
 		return errors2.APIError{
 			Message:    "User group details table must be configured for this operation.",
 			HTTPStatus: http.StatusBadRequest,
 		}
 	}
+
+	// We rely on a unique index. Let the database decide, if INSERT or UPDATE is needed.
+	query := "REPLACE INTO `%s` (name, permissions) VALUES (:name, :permissions)"
+	if d.plusOn {
+		// when plus is enabled, we need to update the other fields as well
+		query = "REPLACE INTO `%s` (name, permissions, tunnels_restricted, commands_restricted) VALUES (:name, :permissions, :tunnels_restricted, :commands_restricted)"
+	}
+
 	group.Name = name
 	_, err := d.db.NamedExec(
-		// We rely on a unique index. Let the database decide, if INSERT or UPDATE is needed.
-		fmt.Sprintf("REPLACE INTO `%s` (name, permissions, tunnels_restricted, commands_restricted) VALUES (:name, :permissions, :tunnels_restricted, :commands_restricted)", d.groupDetailsTableName),
+		fmt.Sprintf(query, d.groupDetailsTableName),
 		group,
 	)
 	if err != nil {
-		fmt.Printf("\n\nDATAVBSE UpdateGroup \n%+v", err)
-
 		return err
 	}
 

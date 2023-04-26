@@ -393,6 +393,7 @@ func newAPIAuthDatabase(authDB *sqlx.DB, config *chconfig.Config, logger *logger
 		config.API.AuthGroupDetailsTable,
 		config.API.IsTwoFAOn(),
 		config.API.TotPEnabled,
+		rportplus.IsPlusEnabled(config.PlusConfig),
 		logger,
 	)
 	return usersProvider, err

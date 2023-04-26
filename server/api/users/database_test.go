@@ -105,7 +105,7 @@ func TestNewUserDatabase(t *testing.T) {
 			_, err = db.Exec("CREATE TABLE `invalid_group_details` (name TEXT, other TEXT)")
 			require.NoError(t, err)
 
-			_, err = NewUserDatabase(db, tc.UsersTable, tc.GroupsTable, tc.GroupDetailsTable, tc.twoFAOn, tc.totPOn, testLog)
+			_, err = NewUserDatabase(db, tc.UsersTable, tc.GroupsTable, tc.GroupDetailsTable, tc.twoFAOn, tc.totPOn, false, testLog)
 			if tc.ExpectedError == "" {
 				require.NoError(t, err)
 			} else {
@@ -127,7 +127,7 @@ func TestGetByUsername(t *testing.T) {
 	err = prepareDummyData(db, true, false)
 	require.NoError(t, err)
 
-	d, err := NewUserDatabase(db, "users", "groups", "", false, false, testLog)
+	d, err := NewUserDatabase(db, "users", "groups", "", false, false, false, testLog)
 	require.NoError(t, err)
 
 	testCases := []struct {
@@ -190,7 +190,7 @@ func TestGetAll(t *testing.T) {
 	err = prepareDummyData(db, false, true)
 	require.NoError(t, err)
 
-	d, err := NewUserDatabase(db, "users", "groups", "", false, true, testLog)
+	d, err := NewUserDatabase(db, "users", "groups", "", false, true, false, testLog)
 	require.NoError(t, err)
 
 	actualUsers, err := d.GetAll()
@@ -262,7 +262,7 @@ func TestListGroups(t *testing.T) {
 
 	for _, tc := range testCases {
 		t.Run(tc.Name, func(t *testing.T) {
-			d, err := NewUserDatabase(db, "users", "groups", tc.DetailsTable, false, false, testLog)
+			d, err := NewUserDatabase(db, "users", "groups", tc.DetailsTable, false, false, false, testLog)
 			require.NoError(t, err)
 
 			actualGroups, err := d.ListGroups()
@@ -312,7 +312,7 @@ func TestGetGroup(t *testing.T) {
 
 	for _, tc := range testCases {
 		t.Run(tc.Name, func(t *testing.T) {
-			d, err := NewUserDatabase(db, "users", "groups", tc.DetailsTable, false, false, testLog)
+			d, err := NewUserDatabase(db, "users", "groups", tc.DetailsTable, false, false, false, testLog)
 			require.NoError(t, err)
 
 			actual, err := d.GetGroup(tc.Group)
@@ -330,11 +330,11 @@ func TestUpdateGroup(t *testing.T) {
 	}{
 		{
 			Name:  "existing",
-			Group: NewGroup("group1", &TunnelsRestricted{}, &CommandsRestricted{}, PermissionScripts),
+			Group: NewGroup("group1", (*TunnelsRestricted)(nil), (*CommandsRestricted)(nil), PermissionScripts),
 		},
 		{
 			Name:  "with details not existing",
-			Group: NewGroup("group2", &TunnelsRestricted{}, &CommandsRestricted{}, PermissionCommands),
+			Group: NewGroup("group2", (*TunnelsRestricted)(nil), (*CommandsRestricted)(nil), PermissionCommands),
 		},
 	}
 
@@ -350,7 +350,7 @@ func TestUpdateGroup(t *testing.T) {
 
 	for _, tc := range testCases {
 		t.Run(tc.Name, func(t *testing.T) {
-			d, err := NewUserDatabase(db, "users", "groups", "group_details", false, false, testLog)
+			d, err := NewUserDatabase(db, "users", "groups", "group_details", false, false, false, testLog)
 			require.NoError(t, err)
 
 			err = d.UpdateGroup(tc.Group.Name, tc.Group)
@@ -375,7 +375,7 @@ func TestDeleteGroup(t *testing.T) {
 	err = prepareDummyData(db, false, false)
 	require.NoError(t, err)
 
-	d, err := NewUserDatabase(db, "users", "groups", "group_details", false, false, testLog)
+	d, err := NewUserDatabase(db, "users", "groups", "group_details", false, false, false, testLog)
 	require.NoError(t, err)
 
 	err = d.DeleteGroup("group1")
@@ -439,7 +439,7 @@ func TestAdd(t *testing.T) {
 			err = prepareTables(db, false, false)
 			require.NoError(t, err)
 
-			d, err := NewUserDatabase(db, "users", "groups", "", false, false, testLog)
+			d, err := NewUserDatabase(db, "users", "groups", "", false, false, false, testLog)
 			require.NoError(t, err)
 
 			err = d.Add(testCase.userToChange)
@@ -623,7 +623,7 @@ func TestUpdate(t *testing.T) {
 			err = prepareDummyData(db, false, false)
 			require.NoError(t, err)
 
-			d, err := NewUserDatabase(db, "users", "groups", "", false, false, testLog)
+			d, err := NewUserDatabase(db, "users", "groups", "", false, false, false, testLog)
 			require.NoError(t, err)
 
 			testCase := testCases[i]
@@ -648,7 +648,7 @@ func TestDelete(t *testing.T) {
 	err = prepareDummyData(db, false, false)
 	require.NoError(t, err)
 
-	d, err := NewUserDatabase(db, "users", "groups", "", false, false, testLog)
+	d, err := NewUserDatabase(db, "users", "groups", "", false, false, false, testLog)
 	require.NoError(t, err)
 
 	err = d.Delete("user1")
@@ -685,7 +685,7 @@ func prepareTables(db *sqlx.DB, twoFAOn, totPON bool) error {
 		return err
 	}
 
-	_, err = db.Exec(`CREATE TABLE "group_details" (name TEXT, permissions TEXT, tunnels_restricted TEXT, commands_restricted TEXT);CREATE UNIQUE INDEX "main"."group_details_name" ON "group_details" ("name" ASC);`)
+	_, err = db.Exec(`CREATE TABLE "group_details" (name TEXT, permissions TEXT);CREATE UNIQUE INDEX "main"."group_details_name" ON "group_details" ("name" ASC);`)
 	if err != nil {
 		return err
 	}
