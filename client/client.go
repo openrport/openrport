@@ -15,8 +15,6 @@ import (
 	"sync"
 	"time"
 
-	"github.com/realvnc-labs/rport/server/clients"
-
 	"github.com/realvnc-labs/rport/share/random"
 
 	"github.com/denisbrodbeck/machineid"
@@ -995,7 +993,7 @@ func (c *Client) updateAttributes(payload []byte) (any, error) {
 		return nil, fmt.Errorf("attributes file path not set")
 	}
 
-	configHolder := &clients.Attributes{}
+	configHolder := &models.Attributes{}
 	err := json.Unmarshal(payload, configHolder)
 	if err != nil {
 		return nil, fmt.Errorf("payload unreadable: %v", err)

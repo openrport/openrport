@@ -8,6 +8,7 @@ import (
 	"net/http"
 
 	"github.com/gorilla/mux"
+	"github.com/realvnc-labs/rport/share/models"
 
 	"github.com/realvnc-labs/rport/server/api"
 	"github.com/realvnc-labs/rport/server/clients"
@@ -62,7 +63,7 @@ func (al *APIListener) handleUpdateClientAttributes(w http.ResponseWriter, req *
 		return
 	}
 
-	attributes := clients.Attributes{}
+	attributes := models.Attributes{}
 	err = json.Unmarshal(attributesRaw, &attributes)
 	if err != nil {
 		al.jsonErrorResponseWithTitle(w, http.StatusBadRequest, fmt.Sprintf("failed parsing attributes: %v", err))

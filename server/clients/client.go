@@ -19,12 +19,12 @@ import (
 	"github.com/realvnc-labs/rport/share/random"
 )
 
-func copyAttrsToClient(attributes Attributes, client *Client) {
+func CopyAttrsToClient(attributes models.Attributes, client *Client) {
 	client.Labels = attributes.Labels
 	client.Tags = attributes.Tags
 }
 
-func copyClientsToAttrs(client Client, attributes *Attributes) { //nolint:govet
+func CopyClientsToAttrs(client Client, attributes *models.Attributes) { //nolint:govet
 	attributes.Labels = client.Labels
 	attributes.Tags = client.Tags
 }
@@ -549,22 +549,17 @@ func (c *Client) UserGroupHasAccessViaClientGroup(userGroups []string, allClient
 	return false
 }
 
-type Attributes struct {
-	Tags   []string          `json:"tags"`
-	Labels map[string]string `json:"labels"`
-}
-
-func (c *Client) GetAttributes() Attributes {
-	attr := Attributes{}
+func (c *Client) GetAttributes() models.Attributes {
+	attr := models.Attributes{}
 	c.flock.RLock()
-	copyClientsToAttrs(*c, &attr) //nolint:govet
+	CopyClientsToAttrs(*c, &attr) //nolint:govet
 	c.flock.RUnlock()
 	return attr
 }
 
-func (c *Client) SetAttributes(attributes Attributes) {
+func (c *Client) SetAttributes(attributes models.Attributes) {
 	c.flock.Lock()
-	copyAttrsToClient(attributes, c)
+	CopyAttrsToClient(attributes, c)
 	c.flock.Unlock()
 }
 
