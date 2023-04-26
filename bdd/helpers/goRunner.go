@@ -136,7 +136,8 @@ func FindProjectRoot(t *testing.T) string {
 		return ""
 	}
 
-	parts := append([]string{string(filepath.Separator)}, strings.Split(getwd, string(filepath.Separator))...)
+	parts := append([]string{filepath.VolumeName(getwd)}, strings.Split(getwd, string(filepath.Separator))...)
+
 	parts = parts[:len(parts)-2]
 	for i := len(parts); i > 0; i-- {
 		left := parts[:i]
