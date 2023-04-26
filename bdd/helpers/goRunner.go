@@ -125,7 +125,6 @@ func Run(t *testing.T, pwd string, cmd string) (*exec.Cmd, chan string, chan str
 }
 
 func LogAndIgnore(err error) {
-	// yolo :)
 	// there can be an error, but I don't care and want to silence the linter
 	log.Println(err)
 }
