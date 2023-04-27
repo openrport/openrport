@@ -3,7 +3,10 @@ package simplestore
 import (
 	"context"
 	"encoding/json"
+	"sort"
 	"sync"
+
+	"github.com/realvnc-labs/rport/share/query"
 )
 
 type KVStore[T any] interface {
@@ -46,6 +49,7 @@ func NewSimpleStore[T any](ctx context.Context, store KVStore[T]) (*SimpleStore[
 func (s *SimpleStore[T]) GetAll(ctx context.Context) ([]T, error) {
 	s.RLock()
 	defer s.RUnlock()
+
 	ts := make([]T, len(s.memory))
 	i := 0
 	for _, o := range s.memory {
@@ -84,4 +88,45 @@ func (s *SimpleStore[T]) Delete(ctx context.Context, key string) error {
 	delete(s.memory, key)
 
 	return nil
+}
+
+func (s *SimpleStore[T]) Filter(ctx context.Context, options query.ListOptions) ([]T, error) {
+	s.RLock()
+	keys := make([]string, len(s.memory))
+	i := 0
+	for k := range s.memory {
+		keys[i] = k
+		i++
+	}
+	s.RUnlock()
+
+	sort.Strings(keys)
+
+	s.RLock()
+	defer s.RUnlock()
+
+	ts := make([]T, len(s.memory))
+	i = 0
+	for _, k := range keys {
+		ts[i] = s.memory[k]
+		i++
+	}
+
+	return ts, nil
+	//all, err := s.GetAll(ctx)
+	//if err != nil {
+	//	return nil, err
+	//}
+
+	//if len(options.Sorts) > 0 {
+	//	sort.Slice(all, func(i, j int) bool {
+	//
+	//		reflect.ValueOf(all[i]).FieldByName(options.Sorts[0].Column).String()
+	//		// asd := options.Sorts[0].Column
+	//
+	//		return true
+	//	})
+	//}
+
+	// return all, err
 }

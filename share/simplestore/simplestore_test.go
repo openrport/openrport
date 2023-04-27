@@ -6,6 +6,7 @@ import (
 
 	"github.com/stretchr/testify/suite"
 
+	"github.com/realvnc-labs/rport/share/query"
 	"github.com/realvnc-labs/rport/share/simplestore"
 	"github.com/realvnc-labs/rport/share/simplestore/kvs/inmemory"
 )
@@ -24,7 +25,8 @@ func (suite *SimpleStoreTestSuite) SetupTest() {
 }
 
 type TestStruct struct {
-	ID string
+	ID   string
+	Key1 string
 }
 
 func (suite *SimpleStoreTestSuite) TestSimpleStore_GetAll() {
@@ -65,6 +67,41 @@ func (suite *SimpleStoreTestSuite) TestSimpleStore_Persistence() {
 	all, err := suite.store.GetAll(context.Background())
 	suite.NoError(err)
 	suite.Equal([]TestStruct{{ID: "some-id"}}, all)
+}
+
+func (suite *SimpleStoreTestSuite) TestSimpleStore_Filter_sort() {
+	store, testStructs := suite.manyStore()
+	options := query.ListOptions{
+		Sorts: []query.SortOption{{
+			Column: "ID",
+			IsASC:  false,
+		}},
+		Filters:    nil,
+		Fields:     nil,
+		Pagination: nil,
+	}
+
+	all, err := store.Filter(context.Background(), options)
+	suite.NoError(err)
+
+	suite.Equal(testStructs, all)
+}
+
+func (suite *SimpleStoreTestSuite) manyStore() (*simplestore.SimpleStore[TestStruct], []TestStruct) {
+	store, err := simplestore.NewSimpleStore[TestStruct](context.Background(), inmemory.NewInMemory())
+	suite.NoError(err)
+
+	testStructs := []TestStruct{
+		{ID: "id-1", Key1: "key-1"},
+		{ID: "id-2", Key1: "key-2"},
+		{ID: "id-3", Key1: "key-3"},
+	}
+
+	for _, testStruct := range testStructs {
+		err := store.Save(context.Background(), testStruct.ID, testStruct)
+		suite.NoError(err)
+	}
+	return store, testStructs
 }
 
 func TestSimpleStoreTestSuite(t *testing.T) {
