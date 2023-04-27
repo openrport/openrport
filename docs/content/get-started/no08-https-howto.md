@@ -74,10 +74,18 @@ reverse proxy.
 
 Let's encrypt needs to validate your certificate request. Validation will happen over port 80 or 443. Other ports are
 not supported. That means, if you can't expose any of these two ports to the internet, you cannot use the built-in ACME
-not `certbot` from the commandline. You will have to use self-signed or commercial certificates.
+nor `certbot` from the commandline. You will have to use self-signed or commercial certificates.
 
-If you are using the built-in reverse proxy for NoVNC, Guacamole and other HTTP-based tunnels, the built-in ACME can
-also handle the needed certificates. Just set `tunnel_enable_acme = true` in the `[server]` section of `rportd.conf`.
+If you are using the **built-in reverse proxy for NoVNC, Guacamole and other HTTP-based tunnels**, the built-in ACME can
+also handle the needed certificates. Set `tunnel_enable_acme = true` and set `tunnel_host` to an existing publicly
+available DNS record in the `[server]` section of `rportd.conf`. The certificate will be requested for the hostname
+taken from `tunnel_host`.
+
+All certificates managed by the built-in ACME are stored in `{data_dir}/acme` which usually resolves to
+`/var/lib/rport/acme`.
+
+If you are experiencing trouble using the built-in ACME, run the server with `log_level = "debug"` to get detailed
+information.
 
 ## Create and manage certificates manually
 
