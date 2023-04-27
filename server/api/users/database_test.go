@@ -54,7 +54,7 @@ func TestNewUserDatabase(t *testing.T) {
 			GroupsTable:   "invalid_groups",
 			ExpectedError: "no such column: group",
 		}, {
-			Name:              "invalid groups columns",
+			Name:              "invalid groups details columns",
 			UsersTable:        "users",
 			GroupsTable:       "groups",
 			GroupDetailsTable: "invalid_group_details",

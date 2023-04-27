@@ -62,15 +62,6 @@ func (d *UserDatabase) getSelectClause() string {
 	return s
 }
 
-func (d *UserDatabase) extendedPermissionSelect() string {
-	extPermSelect := ""
-	if d.plusOn {
-		// when plus is enabled, we need to select the other fields as well
-		extPermSelect = ", tunnels_restricted, commands_restricted"
-	}
-	return extPermSelect
-}
-
 // checkDatabaseTables @todo use context for all db operations
 func (d *UserDatabase) checkDatabaseTables() error {
 	_, err := d.db.Exec(fmt.Sprintf("SELECT %s FROM `%s` LIMIT 0", d.getSelectClause(), d.usersTableName))
@@ -83,7 +74,13 @@ func (d *UserDatabase) checkDatabaseTables() error {
 		return err
 	}
 	if d.groupDetailsTableName != "" {
-		_, err = d.db.Exec(fmt.Sprintf("SELECT name, permissions %s FROM `%s` LIMIT 0", d.extendedPermissionSelect(), d.groupDetailsTableName))
+		extPermSelect := ""
+		if d.plusOn {
+			// when plus is enabled, we need to select the other fields as well
+			// can't do select * cause it is being used for the tests
+			extPermSelect = ", tunnels_restricted, commands_restricted"
+		}
+		_, err = d.db.Exec(fmt.Sprintf("SELECT name, permissions %s FROM `%s` LIMIT 0", extPermSelect, d.groupDetailsTableName))
 		if err != nil {
 			return err
 		}
@@ -147,7 +144,8 @@ func (d *UserDatabase) ListGroups() ([]Group, error) {
 	var groups []Group
 
 	if d.groupDetailsTableName != "" {
-		err := d.db.Select(&groups, fmt.Sprintf("SELECT name, permissions %s FROM `%s` ORDER BY `name`", d.extendedPermissionSelect(), d.groupDetailsTableName))
+		// err := d.db.Select(&groups, fmt.Sprintf("SELECT name, permissions %s FROM `%s` ORDER BY `name`", d.extendedPermissionSelect(), d.groupDetailsTableName))
+		err := d.db.Select(&groups, fmt.Sprintf("SELECT * FROM `%s` ORDER BY `name`", d.groupDetailsTableName))
 		if err != nil && err != sql.ErrNoRows {
 			return nil, err
 		}
@@ -181,7 +179,7 @@ func (d *UserDatabase) GetGroup(name string) (Group, error) {
 	}
 
 	group := Group{}
-	err := d.db.Get(&group, fmt.Sprintf("SELECT name, permissions %s FROM `%s` WHERE name = ? LIMIT 1", d.extendedPermissionSelect(), d.groupDetailsTableName), name)
+	err := d.db.Get(&group, fmt.Sprintf("SELECT * FROM `%s` WHERE name = ? LIMIT 1", d.groupDetailsTableName), name)
 	if err == sql.ErrNoRows {
 		return NewGroup(name, nil, nil), nil
 	} else if err != nil {
@@ -200,19 +198,20 @@ func (d *UserDatabase) UpdateGroup(name string, group Group) error {
 	}
 
 	// We rely on a unique index. Let the database decide, if INSERT or UPDATE is needed.
-	query := "REPLACE INTO `%s` (name, permissions) VALUES (:name, :permissions)"
-	if d.plusOn {
-		// when plus is enabled, we need to update the other fields as well
-		query = "REPLACE INTO `%s` (name, permissions, tunnels_restricted, commands_restricted) VALUES (:name, :permissions, :tunnels_restricted, :commands_restricted)"
-	}
+	query_base := "REPLACE INTO `%s` (name, permissions) VALUES (:name, :permissions)"
+	query_plus := "REPLACE INTO `%s` (name, permissions, tunnels_restricted, commands_restricted) VALUES (:name, :permissions, :tunnels_restricted, :commands_restricted)"
 
 	group.Name = name
-	_, err := d.db.NamedExec(
-		fmt.Sprintf(query, d.groupDetailsTableName),
-		group,
-	)
+	_, err := d.db.NamedExec(fmt.Sprintf(query_plus, d.groupDetailsTableName), group) // assume the extended fields are present
 	if err != nil {
-		return err
+		if d.plusOn {
+			return err
+		} else {
+			_, err = d.db.NamedExec(fmt.Sprintf(query_base, d.groupDetailsTableName), group) // ignore the extended fields
+			if err != nil {
+				return err
+			}
+		}
 	}
 
 	return nil
