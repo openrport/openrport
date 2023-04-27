@@ -7,25 +7,22 @@ import (
 	"github.com/spf13/pflag"
 	"github.com/spf13/viper"
 
+	"github.com/realvnc-labs/rport/share/models"
+
 	chclient "github.com/realvnc-labs/rport/client"
 	chshare "github.com/realvnc-labs/rport/share"
 	"github.com/realvnc-labs/rport/share/clientconfig"
 )
 
-type ClientAttributesConfigHolder struct {
-	Tags   []string
-	Labels map[string]string
-}
-
-func readConfigFile(cfgPath string) (ClientAttributesConfigHolder, error) {
+func readConfigFile(cfgPath string) (models.Attributes, error) {
 
 	viperCfg := viper.New()
 	viperCfg.SetConfigFile(cfgPath)
 
-	attributes := ClientAttributesConfigHolder{}
+	attributes := models.Attributes{}
 
 	if err := viperCfg.ReadInConfig(); err != nil {
-		return ClientAttributesConfigHolder{}, fmt.Errorf("error reading config file: %s", err)
+		return models.Attributes{}, fmt.Errorf("error reading config file: %s", err)
 
 	}
 	err := viperCfg.Unmarshal(&attributes)

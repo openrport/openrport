@@ -19,6 +19,16 @@ import (
 	"github.com/realvnc-labs/rport/share/random"
 )
 
+func CopyAttrsToClient(attributes models.Attributes, client *Client) {
+	client.Labels = attributes.Labels
+	client.Tags = attributes.Tags
+}
+
+func CopyClientsToAttrs(client Client, attributes *models.Attributes) { //nolint:govet
+	attributes.Labels = client.Labels
+	attributes.Tags = client.Tags
+}
+
 // now is used to stub time.Now in tests
 var now = time.Now
 
@@ -537,6 +547,20 @@ func (c *Client) UserGroupHasAccessViaClientGroup(userGroups []string, allClient
 		}
 	}
 	return false
+}
+
+func (c *Client) GetAttributes() models.Attributes {
+	attr := models.Attributes{}
+	c.flock.RLock()
+	CopyClientsToAttrs(*c, &attr) //nolint:govet
+	c.flock.RUnlock()
+	return attr
+}
+
+func (c *Client) SetAttributes(attributes models.Attributes) {
+	c.flock.Lock()
+	CopyAttrsToClient(attributes, c)
+	c.flock.Unlock()
 }
 
 // NewClientID generates a new client ID.

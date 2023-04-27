@@ -1,0 +1,82 @@
+put:
+  tags:
+    - Clients and Tunnels
+  summary: Updates Client's attributes
+  operationId: ClientAttributesUpdate
+  description: |-
+    Updates client's attributes, they are persisted on the client if the client has configured and writeable attributes file
+  parameters:
+    - name: client_id
+      in: path
+      description: Unique client ID
+      required: true
+      schema:
+        type: string
+  requestBody:
+    description: value in the json format
+    content:
+      'application/json':
+        schema:
+          $ref: ../components/schemas/ClientAttributes.yaml
+    required: true
+  responses:
+    '200':
+      description: Successful Operation
+      content:
+        'application/json':
+          schema:
+            type: object
+            properties:
+              data:
+                type: string
+    '400':
+      description: Invalid body parameters
+      content:
+        'application/json':
+          schema:
+            $ref: ../components/schemas/ErrorPayload.yaml
+    '409':
+      description: Error processing request on the client - most likely attributes_file_path is not set or path is not writeable by the client daemon
+      content:
+        'application/json':
+          schema:
+            $ref: ../components/schemas/ErrorPayload.yaml
+    '500':
+      description: Error processing request
+      content:
+        'application/json':
+          schema:
+            $ref: ../components/schemas/ErrorPayload.yaml
+  x-codegen-request-body-name: body
+
+get:
+  tags:
+    - Clients and Tunnels
+  summary: Shows Client's attributes
+  operationId: ClientAttributesGet
+  parameters:
+    - name: client_id
+      in: path
+      description: Unique client ID
+      required: true
+      schema:
+        type: string
+  responses:
+    '200':
+      description: Current set of attributes
+      content:
+        'application/json':
+          schema:
+            $ref: ../components/schemas/ClientAttributes.yaml
+    '404':
+      description: cannot find active client by the provided id
+      content:
+        'application/json':
+          schema:
+            $ref: ../components/schemas/ErrorPayload.yaml
+    '500':
+      description: Invalid Operation
+      content:
+        'application/json':
+          schema:
+            $ref: ../components/schemas/ErrorPayload.yaml
