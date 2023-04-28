@@ -23,6 +23,9 @@ import (
 	"github.com/realvnc-labs/rport/db/migration/library"
 	"github.com/realvnc-labs/rport/db/sqlite"
 	rportplus "github.com/realvnc-labs/rport/plus"
+	"github.com/realvnc-labs/rport/server/clients/storedtunnels/tunnelprovider"
+	"github.com/realvnc-labs/rport/share/simplestore"
+	"github.com/realvnc-labs/rport/share/simplestore/kvs/fskv"
 
 	"github.com/realvnc-labs/rport/server/api/authorization"
 	"github.com/realvnc-labs/rport/server/api/session"
@@ -187,6 +190,16 @@ func NewAPIListener(
 	}
 
 	allog := logger.NewLogger("api-listener", config.Logging.LogOutput, config.Logging.LogLevel)
+
+	newFSKV, err := fskv.NewFSKV("./tunnels")
+	if err != nil {
+		return nil, err
+	}
+	store, err := simplestore.NewSimpleStore[storedtunnels.StoredTunnel](context.Background(), newFSKV)
+	if err != nil {
+		return nil, err
+	}
+
 	a := &APIListener{
 		Server:            server,
 		Logger:            allog,
@@ -199,7 +212,7 @@ func NewAPIListener(
 		scriptManager:     scriptManager,
 		commandManager:    commandManager,
 		tokenManager:      tokenManager,
-		storedTunnels:     storedtunnels.New(server.clientDB),
+		storedTunnels:     storedtunnels.New(tunnelprovider.NewTunnelProvider(store)),
 	}
 
 	a.errResponseLogger = allog.Fork("error-response")

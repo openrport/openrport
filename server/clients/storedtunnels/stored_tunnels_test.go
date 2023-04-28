@@ -26,7 +26,7 @@ func TestStoredTunnels(t *testing.T) {
 	tunnel := &StoredTunnel{}
 	options := &query.ListOptions{}
 
-	manager := New(db)
+	manager := New(newSQLiteProvider(db))
 
 	// no results initially
 	results, err := manager.List(ctx, options, client1)

@@ -11,8 +11,8 @@ type FromToPair struct {
 }
 
 type Field struct {
-	id   int
-	kind reflect.Type
+	ID   int
+	Kind reflect.Type
 }
 
 func BuildTranslationTable(value any) map[string]Field {
@@ -27,7 +27,7 @@ func BuildTranslationTable(value any) map[string]Field {
 
 	for i := 0; i < reflectedValue.NumField(); i++ {
 		reflectedField := typeOf.Field(i)
-		tmp[reflectedField.Name] = Field{id: i, kind: reflectedField.Type}
+		tmp[reflectedField.Name] = Field{ID: i, Kind: reflectedField.Type}
 	}
 
 	return tmp
@@ -61,11 +61,11 @@ func NewCopier[FromType any, ToType any](example1 FromType, example2 ToType, pai
 		if !ok {
 			return nil, fmt.Errorf("no such field in %v: \"%v\"", reflect.TypeOf(example2), pair.to)
 		}
-		if fromField.kind != toField.kind {
+		if fromField.Kind != toField.Kind {
 			return nil, fmt.Errorf("types of fields don't align - copy impossible for fields: %v, %v", pair.from, pair.to)
 		}
 
-		converterPairs[i] = converterPair{from: fromField.id, to: toField.id}
+		converterPairs[i] = converterPair{from: fromField.ID, to: toField.ID}
 	}
 
 	return func(from FromType, to *ToType) {

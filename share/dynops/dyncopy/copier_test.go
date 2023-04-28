@@ -5,7 +5,7 @@ import (
 
 	"github.com/stretchr/testify/suite"
 
-	"github.com/realvnc-labs/rport/share/dyncopy"
+	"github.com/realvnc-labs/rport/share/dynops/dyncopy"
 )
 
 type TestStructFrom struct {

@@ -23,7 +23,7 @@ import (
 	"github.com/realvnc-labs/rport/server/routes"
 	"github.com/realvnc-labs/rport/server/validation"
 	"github.com/realvnc-labs/rport/share/comm"
-	"github.com/realvnc-labs/rport/share/formatter"
+	"github.com/realvnc-labs/rport/share/dynops/formatter"
 	"github.com/realvnc-labs/rport/share/models"
 	"github.com/realvnc-labs/rport/share/query"
 )

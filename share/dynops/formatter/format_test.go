@@ -6,7 +6,7 @@ import (
 
 	"github.com/stretchr/testify/suite"
 
-	"github.com/realvnc-labs/rport/share/formatter"
+	"github.com/realvnc-labs/rport/share/dynops/formatter"
 )
 
 type FormatTestSuite struct {

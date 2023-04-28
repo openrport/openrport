@@ -13,7 +13,7 @@ import (
 	"github.com/jmoiron/sqlx"
 
 	"github.com/realvnc-labs/rport/server/cgroups"
-	"github.com/realvnc-labs/rport/share/formatter"
+	"github.com/realvnc-labs/rport/share/dynops/formatter"
 	"github.com/realvnc-labs/rport/share/logger"
 	"github.com/realvnc-labs/rport/share/query"
 	"github.com/realvnc-labs/rport/share/simplestore"

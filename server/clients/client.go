@@ -7,7 +7,7 @@ import (
 	"sync/atomic"
 	"time"
 
-	"github.com/realvnc-labs/rport/share/dyncopy"
+	"github.com/realvnc-labs/rport/share/dynops/dyncopy"
 
 	"golang.org/x/crypto/ssh"
 

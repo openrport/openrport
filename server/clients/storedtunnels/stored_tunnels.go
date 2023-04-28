@@ -4,8 +4,6 @@ import (
 	"context"
 	"time"
 
-	"github.com/jmoiron/sqlx"
-
 	"github.com/realvnc-labs/rport/server/api"
 	"github.com/realvnc-labs/rport/share/query"
 	"github.com/realvnc-labs/rport/share/random"
@@ -39,9 +37,9 @@ type Manager struct {
 	provider Provider
 }
 
-func New(db *sqlx.DB) *Manager {
+func New(provider Provider) *Manager {
 	return &Manager{
-		provider: newSQLiteProvider(db),
+		provider: provider,
 	}
 }
 

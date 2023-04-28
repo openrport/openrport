@@ -5,18 +5,24 @@ import (
 	"fmt"
 
 	"github.com/realvnc-labs/rport/server/clients/storedtunnels"
+	"github.com/realvnc-labs/rport/share/dynops/filterer"
 	"github.com/realvnc-labs/rport/share/query"
+	"github.com/realvnc-labs/rport/share/simpleops"
 )
 
 type TunnelKV interface {
 	GetAll(context.Context) ([]storedtunnels.StoredTunnel, error)
 	Save(context.Context, string, storedtunnels.StoredTunnel) error
 	Delete(context.Context, string) error
-	Filter(ctx context.Context, options query.ListOptions) ([]storedtunnels.StoredTunnel, error)
+	Filter(ctx context.Context, sieve func(tunnel storedtunnels.StoredTunnel) bool) ([]storedtunnels.StoredTunnel, error)
 }
 
 type TunnelProvider struct {
 	kv TunnelKV
+}
+
+func NewTunnelProvider(kv TunnelKV) *TunnelProvider {
+	return &TunnelProvider{kv: kv}
 }
 
 func (t TunnelProvider) Delete(ctx context.Context, clientID string, tunnelID string) error {
@@ -32,25 +38,21 @@ func (t TunnelProvider) Update(ctx context.Context, tunnel *storedtunnels.Stored
 }
 
 func (t TunnelProvider) List(ctx context.Context, clientID string, options *query.ListOptions) ([]*storedtunnels.StoredTunnel, error) {
-	newOps := *options
-	newOps.Filters = append([]query.FilterOption{{
-		Column:                []string{"ClientID"},
-		Operator:              query.FilterOperatorTypeEQ,
-		Values:                []string{clientID},
-		ValuesLogicalOperator: query.FilterLogicalOperatorTypeAND,
-	}}, newOps.Filters...)
 
-	tunnels, err := t.kv.Filter(ctx, newOps)
+	filter, err := filterer.CompileFromQueryListOptions[storedtunnels.StoredTunnel](options)
 	if err != nil {
 		return nil, err
 	}
 
-	tmp := make([]*storedtunnels.StoredTunnel, len(tunnels))
-	for k, v := range tunnels {
-		tmp[k] = &v
+	tunnels, err := t.kv.Filter(ctx, func(tunnel storedtunnels.StoredTunnel) bool {
+		return tunnel.ClientID == clientID && filter.Run(tunnel)
+	})
+
+	if err != nil {
+		return nil, err
 	}
 
-	return tmp, err
+	return simpleops.ToPointerSlice(tunnels), nil
 }
 
 func (t TunnelProvider) Count(ctx context.Context, clientID string, options *query.ListOptions) (int, error) {
