@@ -76,6 +76,7 @@ func (u *Updates) refreshLoop(ctx context.Context) {
 		case <-ctx.Done():
 			u.logger.Debugf("updates refreshLoop finished")
 			return
+		// acceptable use of time.After, as the number of triggered refreshes is small
 		case <-time.After(u.interval):
 		case <-u.refreshChan:
 		}

@@ -9,10 +9,6 @@ aliases:
 {{< toc >}}
 Some features require the rport server to send messages, e.g., [2FA Auth](no02-api-auth.md#two-factor-auth)
 requires sending a verification code to a user.
-It can be done using:
-
-1. email (requires [SMTP](/docs/get-started/no15-messaging.md#smtp) setup)
-2. [pushover.net](https://pushover.net) (requires [Pushover](/docs/get-started/no15-messaging.md#pushover) setup)
 
 ## SMTP
 
@@ -122,4 +118,16 @@ URL="https://api.telegram.org/bot${BOT_TOKEN}/sendMessage"
 curl -fs -X POST $URL \
   -d chat_id=$RPORT_2FA_SENDTO \
   -d text="Your RPort 2fa token: $RPORT_2FA_TOKEN (valid for $RPORT_2FA_TOKEN_TTL seconds)"
+```
+
+## URL
+
+Rport will make a POST request to the specified URL.
+The token and the recipient's details are passed as form values.
+This method requires `base_url` to be set in server config.
+
+Example using free 2FA service:
+
+```text
+two_fa_token_delivery = 'https://free-2fa-sender.rport.io'
 ```

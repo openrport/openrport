@@ -80,6 +80,7 @@ Supported delivery methods:
 1. email (requires [SMTP setup](/docs/content/get-started/no15-messaging.md#smtp))
 2. [pushover.net](https://pushover.net) (requires [Pushover setup](/docs/content/get-started/no15-messaging.md#pushover))
 3. Custom [script](/docs/content/get-started/no15-messaging.md#script)
+4. Custom [URL](/docs/content/get-started/no15-messaging.md#url)
 
 By default, 2FA is disabled.
 
@@ -546,9 +547,9 @@ Authenticator app.
 ### (2) generate secret
 
 To generate a new secret send a POST request to the `/me/totp-secret` API with the Bearer Authorization header
-containing the token you got from the `/login` endpoint:  
-`curl -s -XPOST -H "Authorization: Bearer eyJhbGc...SNIP...SNAP" http://localhost:3000/api/v1/me/totp-secret`  
-As a result you will get a secret key in text format and a qr code as a base64 encoded png image e.g.:  
+containing the token you got from the `/login` endpoint:
+`curl -s -XPOST -H "Authorization: Bearer eyJhbGc...SNIP...SNAP" http://localhost:3000/api/v1/me/totp-secret`
+As a result you will get a secret key in text format and a qr code as a base64 encoded png image e.g.:
 `{ "secret": "54E4WYG5XSNZ37KI4CLILAVZKCMZ5MY7", "qr": "iVBORw0...snip...snap" }`
 
 The secret key will be stored in the users' database for the current user and can only be used with the combination with his login.

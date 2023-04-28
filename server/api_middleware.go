@@ -187,13 +187,13 @@ func (al *APIListener) updateTokenAccess(ctx context.Context, token string, acce
 		return err
 	}
 
-	sessionInfo, err := al.apiSessions.Get(ctx, tokenCtx.AppClaims.SessionID)
+	found, sessionInfo, err := al.apiSessions.Get(ctx, tokenCtx.AppClaims.SessionID)
 	if err != nil {
 		return err
 	}
 
 	// if no session cache yet, then don't try to update
-	if sessionInfo == nil {
+	if !found {
 		return nil
 	}
 

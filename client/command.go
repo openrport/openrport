@@ -145,15 +145,20 @@ func (c *Client) HandleRunCmdRequest(ctx context.Context, reqPayload []byte) (*c
 
 		var status string
 		var execErr error
+
+		// use an explicit timer, so that we can cancel it immediately if a job (or jobs) fail
+		jobTimeoutTimer := time.NewTimer(time.Duration(job.TimeoutSec) * time.Second)
+
 		select {
 		case execErr = <-done:
+			jobTimeoutTimer.Stop()
 			if execErr != nil {
 				status = models.JobStatusFailed
 				c.Errorf("failed to run command[jid=%q,pid=%d]:\ncmd:\n%s\nerr: %s", job.JID, cmd.Process.Pid, job.Command, execErr)
 			} else {
 				status = models.JobStatusSuccessful
 			}
-		case <-time.After(time.Duration(job.TimeoutSec) * time.Second):
+		case <-jobTimeoutTimer.C:
 			status = models.JobStatusUnknown
 			c.Debugf("timeout (%d seconds) reached, stop observing command[jid=%q,pid=%d]:\n%s", job.TimeoutSec, job.JID, cmd.Process.Pid, job.Command)
 		}
