@@ -3,6 +3,9 @@ package clients
 import (
 	"context"
 	"fmt"
+	"log"
+	"reflect"
+	"runtime"
 	"strings"
 	"sync"
 	"time"
@@ -10,6 +13,7 @@ import (
 	"github.com/jmoiron/sqlx"
 
 	"github.com/realvnc-labs/rport/server/cgroups"
+	"github.com/realvnc-labs/rport/share/formatter"
 	"github.com/realvnc-labs/rport/share/logger"
 	"github.com/realvnc-labs/rport/share/query"
 	"github.com/realvnc-labs/rport/share/simplestore"
@@ -312,6 +316,95 @@ func (r *ClientRepository) GetFilteredUserClients(user User, filterOptions []que
 	}
 
 	return matchingClients, nil
+}
+
+func insp(t time.Time) {
+	_, filename, line, _ := runtime.Caller(1)
+	log.Printf("[time to here] %s:%d %v", filename, line, time.Since(t))
+}
+
+// GetFilteredUserClients returns all non-obsolete active and disconnected clients that current user has access to, filtered by parameters
+func (r *ClientRepository) GetFilteredUserClientsU(user User, filterOptions []query.FilterOption, groups []*cgroups.ClientGroup) (matchingClients []*CalculatedClient, err error) {
+	t := time.Now()
+	matchingClients = make([]*CalculatedClient, 0, DefaultInitialClientsArraySize)
+
+	insp(t)
+	clients := r.getNonObsoleteClientsByUser(user, groups)
+	insp(t)
+
+	// uses copy of clients array returned by getNonObsoleteClientsByUser
+	for _, client := range clients {
+		calculatedClient := client.ToCalculatedU(groups)
+
+		// we need to lock because MatchesFilters receives an interface and not a client,
+		// therefore we lose our ability to lock.
+
+		matches, err := true, error(nil)
+		//matches, err := query.MatchesFilters(calculatedClient, filterOptions)
+
+		if err != nil {
+			return matchingClients, err
+		}
+
+		if matches {
+			matchingClients = append(matchingClients, calculatedClient)
+		}
+
+	}
+	insp(t)
+
+	return matchingClients, nil
+}
+
+func (r *ClientRepository) GetFilteredUserClientsM(user User, filterOptions []query.FilterOption, groups []*cgroups.ClientGroup) ([]Client, error) {
+	t := time.Now()
+	insp(t)
+	clientsP := r.getNonObsoleteClientsByUser(user, groups)
+
+	insp(t)
+	clients := make([]Client, len(clientsP))
+	for i, c := range clientsP {
+		clients[i] = *c
+	}
+
+	if len(filterOptions) == 0 {
+		return clients, nil
+	}
+
+	insp(t)
+
+	matchingClients := make([]Client, 0, len(clientsP))
+	matcher := NewMatcher(clientsP[0], filterOptions[0].Column[0], filterOptions[0].Values[0])
+
+	for _, c := range clients {
+		if matcher.Matches(c) {
+			matchingClients = append(matchingClients, c)
+		}
+	}
+
+	insp(t)
+
+	return matchingClients, nil
+}
+
+type Matcher struct {
+	prop int
+	val  string
+}
+
+func (m Matcher) Matches(c Client) bool {
+	v := reflect.ValueOf(c)
+
+	return v.Field(m.prop).String() == m.val
+}
+
+func NewMatcher(smth any, key, value string) *Matcher {
+	tt := formatter.BuildTranslationTable(smth)
+
+	return &Matcher{
+		prop: tt[key],
+		val:  value,
+	}
 }
 
 func (r *ClientRepository) getStore() (store ClientStore) {

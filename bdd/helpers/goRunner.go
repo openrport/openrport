@@ -7,17 +7,18 @@ import (
 	"fmt"
 	"log"
 	"os/exec"
+	"path"
 	"strings"
 	"testing"
 
 	"github.com/stretchr/testify/assert"
 )
 
-func StartClientAndServerAndWaitForConnection(ctx context.Context, t *testing.T) (*exec.Cmd, *exec.Cmd) {
+func StartClientAndServerAndWaitForConnection(ctx context.Context, t *testing.T, projectRoot string) (*exec.Cmd, *exec.Cmd) {
 
 	internalCtx, cancelFn := context.WithCancel(ctx)
 
-	rd, rdOutChan, rdErrChan := Run(t, "", "../../cmd/rportd/main.go")
+	rd, rdOutChan, rdErrChan := Run(t, "", path.Join(projectRoot, "cmd/rportd/main.go"))
 	go func() {
 		for line := range rdErrChan {
 			if strings.Contains(line, "go: downloading") {
@@ -32,7 +33,7 @@ func StartClientAndServerAndWaitForConnection(ctx context.Context, t *testing.T)
 	err := WaitForText(internalCtx, rdOutChan, "API Listening") // wait for server to initialize and boot - takes looooong time
 	assert.Nil(t, err)
 
-	rc, rcOutChan, rcErrChan := Run(t, "", "../../cmd/rport/main.go")
+	rc, rcOutChan, rcErrChan := Run(t, "", path.Join(projectRoot, "cmd/rport/main.go"))
 	go func() {
 		for line := range rcErrChan {
 			if strings.Contains(line, "go: downloading") {

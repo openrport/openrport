@@ -52,12 +52,19 @@ func (al *APIListener) initRouter() {
 	secureAPI.HandleFunc("/me/tokens/{prefix}", al.handleDeleteToken).Methods(http.MethodDelete)
 
 	secureAPI.HandleFunc("/clients", al.handleGetClients).Methods(http.MethodGet)
+	secureAPI.HandleFunc("/clientsu", al.handleGetClientsU).Methods(http.MethodGet)
+	secureAPI.HandleFunc("/clientsm", al.handleGetClientsM).Methods(http.MethodGet)
 	clientDetails := secureAPI.PathPrefix("/clients/{client_id}").Subrouter()
 	clientDetails.Use(al.wrapClientAccessMiddleware)
 	clientDetails.HandleFunc("", al.handleGetClient).Methods(http.MethodGet)
 	clientDetails.HandleFunc("", al.handleDeleteClient).Methods(http.MethodDelete)
 	clientDetails.Handle("/acl", al.wrapAdminAccessMiddleware(http.HandlerFunc(al.handlePostClientACL))).Methods(http.MethodPost)
 	clientDetails.Handle("/scripts", al.permissionsMiddleware(users.PermissionScripts)(http.HandlerFunc(al.handleExecuteScript))).Methods(http.MethodPost)
+
+	clientAttributes := clientDetails.PathPrefix("/attributes").Subrouter()
+	clientAttributes.Use(al.withActiveClient)
+	clientAttributes.HandleFunc("", al.handleGetClientAttributes).Methods(http.MethodGet)
+	clientAttributes.HandleFunc("", al.handleUpdateClientAttributes).Methods(http.MethodPut)
 
 	clientCommands := clientDetails.PathPrefix("/commands").Subrouter()
 	clientCommands.Use(al.permissionsMiddleware(users.PermissionCommands))

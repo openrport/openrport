@@ -212,6 +212,19 @@ func NewServer(ctx context.Context, config *chconfig.Config, opts *ServerOpts) (
 		return nil, err
 	}
 
+	//all := s.clientService.GetAll()
+	//c := all[0]
+	//log.Println(c)
+	//// s.clientService.
+	//
+	//for i := 0; i < 25000; i++ {
+	//	cc := *c
+	//	uid, err := uuid.NewUUID()
+	//	cc.ID = uid.String()
+	//	cc.Hostname = fmt.Sprintf("group%v", i/100)
+	//	s.clientService.GetRepo().Save(&cc)
+	//}
+
 	if rportplus.IsPlusEnabled(config.PlusConfig) {
 		licCapEx := s.plusManager.GetLicenseCapabilityEx()
 		s.clientService.SetPlusLicenseInfoCap(licCapEx)

@@ -3,6 +3,7 @@ package query
 import (
 	"encoding/json"
 	"fmt"
+	"log"
 	"regexp"
 	"strings"
 )
@@ -13,6 +14,7 @@ func MatchesFilters(v interface{}, filterOptions []FilterOption) (bool, error) {
 		return false, err
 	}
 	for _, f := range filterOptions {
+		log.Println("aaaaaaaaaaaaaaaaaaaaaaaaaaaaa")
 		matches, err := matchesFilter(valueMap, f)
 		if err != nil {
 			return false, err
