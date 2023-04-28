@@ -30,7 +30,7 @@ or disable `attributes_file_path`.
 ### 2. Using an attributes file
 
 You can maintain attributes (tags and labels) inside a separate file.
-This file can be formatted as JSON, YAML or TOML using the file extensions `.josn`, `yaml`, or `toml`.
+This file can only be formatted as JSON.
 
 Add the `attributes_file_path` into the `[client]` section of your `rport.conf` file.  
 The following example shows how to activate attributes read from a file.
@@ -43,24 +43,7 @@ attributes_file_path = "/var/lib/rport/client_attributes.yaml"
 ```
 
 The attributes file could look like the below example.
-
-{{< tabs "attribute_examples" >}}
-{{< tab "Yaml" >}}
-
-```yaml
-tags:
-  - win
-  - server
-  - vm
-labels:
-  country: Germany
-  city: Cologne
-  datacenter: NetCologne GmbH
-```
-
-{{< /tab >}}
-
-{{< tab "Json" >}}
+\
 
 ```json
 { 
@@ -73,18 +56,6 @@ labels:
 }
 
 ```
-
-{{< /tab >}}
-{{< tab "Toml" >}}
-
-```toml
-tags = [ "win", "server", "vm" ]
-labels = { "country" = Germany, "city" = Cologne, "datacenter" = "NetCologne GmbH" }
-```
-
-{{< /tab >}}
-
-{{< /tabs >}}
 
 The file is read only on rport client start. On every file change a restart of the rport client is required.
 
