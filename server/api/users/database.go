@@ -198,16 +198,26 @@ func (d *UserDatabase) UpdateGroup(name string, group Group) error {
 	}
 
 	// We rely on a unique index. Let the database decide, if INSERT or UPDATE is needed.
-	query_base := "REPLACE INTO `%s` (name, permissions) VALUES (:name, :permissions)"
-	query_plus := "REPLACE INTO `%s` (name, permissions, tunnels_restricted, commands_restricted) VALUES (:name, :permissions, :tunnels_restricted, :commands_restricted)"
-
+	var err error
 	group.Name = name
-	_, err := d.db.NamedExec(fmt.Sprintf(query_plus, d.groupDetailsTableName), group) // assume the extended fields are present
+
+	// compose the query (assume the extended fields are present)
+	qb := fmt.Sprintf("UPDATE `%s` SET name=:name, permissions=:permissions", d.groupDetailsTableName)
+	if group.TunnelsRestricted != nil {
+		qb += ", tunnels_restricted=:tunnels_restricted"
+	}
+	if group.CommandsRestricted != nil {
+		qb += ", commands_restricted=:commands_restricted"
+	}
+	qb += " WHERE name=:name"
+	_, err = d.db.NamedExec(qb, group)
+
+	// EDTODO: need to validate the json before updating it
 	if err != nil {
 		if d.plusOn {
 			return err
 		} else {
-			_, err = d.db.NamedExec(fmt.Sprintf(query_base, d.groupDetailsTableName), group) // ignore the extended fields
+			_, err = d.db.NamedExec(qb+"(name, permissions) VALUES (:name, :permissions)", group) // ignore the extended fields
 			if err != nil {
 				return err
 			}

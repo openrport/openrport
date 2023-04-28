@@ -30,7 +30,7 @@ var AdministratorsGroup = Group{
 	    "host_header": ":*", 				// The user can only add a host header matching the regular expression (any host in this case)
 	    "auth_allowed": true 				// The user is allowed to enable http basic auth for a tunnel
 	}
-*/
+
 type TunnelsRestricted struct {
 	Local           []string `json:"local,omitempty"`
 	Remote          []string `json:"remote,omitempty"`
@@ -45,28 +45,7 @@ type TunnelsRestricted struct {
 	AuthAllowed     bool     `json:"auth_allowed,omitempty"`
 }
 
-func (t *TunnelsRestricted) Scan(value interface{}) error {
-	if t == nil {
-		return errors.New("'TunnelsRestricted' cannot be nil")
-	}
-	valueStr, ok := value.(string)
-	if !ok {
-		return fmt.Errorf("expected to have string, got %T", value)
-	}
-	err := json.Unmarshal([]byte(valueStr), t)
-	if err != nil {
-		return fmt.Errorf("failed to decode 'TunnelsRestricted' field: %v", err)
-	}
-	return nil
-}
-
-func (t *TunnelsRestricted) Value() (driver.Value, error) {
-	b, err := json.Marshal(t)
-	if err != nil {
-		return nil, fmt.Errorf("failed to encode 'TunnelsRestricted' field: %v", err)
-	}
-	return string(b), nil
-}
+*/
 
 /*
 	"commands_restricted": {
@@ -80,45 +59,60 @@ func (t *TunnelsRestricted) Value() (driver.Value, error) {
 EDTODO: The list of deny and allow keywords are regular expressions.
 Step 1: If the command matches against any of the deny expressions, the command is denied.
 Step 2: The command must match against any of the allow expressions. Otherwise, the command is denied.
-*/
+
 type CommandsRestricted struct {
 	Allow  []string `json:"allow,omitempty"` // EDTODO: This is a regex, Using an empty list or omitting an object will remove any restrictions. For example, if allowed is not present, or if "allowed": [] then any command can be used.
 	Deny   []string `json:"deny,omitempty"`  // EDTODO: If deny is missing or empty, the command is not validated against the deny patterns.
 	IsSudo bool     `json:"is_sudo,omitempty"`
 }
 
-func (c *CommandsRestricted) Scan(value interface{}) error {
-	if c == nil {
-		return errors.New("'CommandsRestricted' cannot be nil")
+*/
+
+// EDTODO: If the user groups have, for example, tunnel permissions and tunnels_restricted permissions, wider permissions wins. That means, to effectively enable restricted tunnels or commands, the general tunnel or commands permission must be authorized.
+type (
+	StringInterfaceMap map[string]interface{}
+	Group              struct {
+		Name               string              `json:"name" db:"name"`
+		Permissions        Permissions         `json:"permissions" db:"permissions"`
+		TunnelsRestricted  *StringInterfaceMap `json:"tunnels_restricted" db:"tunnels_restricted"`
+		CommandsRestricted *StringInterfaceMap `json:"commands_restricted" db:"commands_restricted"`
 	}
-	valueStr, ok := value.(string)
-	if !ok {
-		return fmt.Errorf("expected to have string, got %T", value)
+)
+
+func (m StringInterfaceMap) Value() (driver.Value, error) {
+	if len(m) == 0 {
+		return nil, nil
 	}
-	err := json.Unmarshal([]byte(valueStr), c)
+	j, err := json.Marshal(m)
 	if err != nil {
-		return fmt.Errorf("failed to decode 'CommandsRestricted' field: %v", err)
+		return nil, err
 	}
+	return driver.Value([]byte(j)), nil
+}
+
+func (m *StringInterfaceMap) Scan(src interface{}) error {
+	var source []byte
+	_m := make(map[string]interface{})
+
+	switch src.(type) {
+	case string:
+		source = []byte(src.(string))
+	case []uint8:
+		source = []byte(src.([]uint8))
+	case nil:
+		return nil
+	default:
+		return errors.New(fmt.Sprintf("incompatible type %T for StringInterfaceMap", src))
+	}
+	err := json.Unmarshal(source, &_m)
+	if err != nil {
+		return err
+	}
+	*m = StringInterfaceMap(_m)
 	return nil
 }
 
-func (c *CommandsRestricted) Value() (driver.Value, error) {
-	b, err := json.Marshal(c)
-	if err != nil {
-		return nil, fmt.Errorf("failed to encode 'CommandsRestricted' field: %v", err)
-	}
-	return string(b), nil
-}
-
-// EDTODO: If the user groups have, for example, tunnel permissions and tunnels_restricted permissions, wider permissions wins. That means, to effectively enable restricted tunnels or commands, the general tunnel or commands permission must be authorized.
-type Group struct {
-	Name               string              `json:"name" db:"name"`
-	Permissions        Permissions         `json:"permissions" db:"permissions"`
-	TunnelsRestricted  *TunnelsRestricted  `json:"tunnels_restricted" db:"tunnels_restricted"`
-	CommandsRestricted *CommandsRestricted `json:"commands_restricted" db:"commands_restricted"`
-}
-
-func NewGroup(name string, tr *TunnelsRestricted, cr *CommandsRestricted, perms ...string) Group {
+func NewGroup(name string, tr *StringInterfaceMap, cr *StringInterfaceMap, perms ...string) Group {
 	fmt.Println("NewGroup", name, perms)
 	if name == Administrators {
 		return AdministratorsGroup

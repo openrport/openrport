@@ -239,17 +239,17 @@ func TestListGroups(t *testing.T) {
 			Name:         "no details",
 			DetailsTable: "",
 			Expected: []Group{
-				NewGroup("group1", (*TunnelsRestricted)(nil), (*CommandsRestricted)(nil)),
-				NewGroup("group2", (*TunnelsRestricted)(nil), (*CommandsRestricted)(nil)),
+				NewGroup("group1", nil, nil),
+				NewGroup("group2", nil, nil),
 			},
 		},
 		{
 			Name:         "with details",
 			DetailsTable: "group_details",
 			Expected: []Group{
-				NewGroup("group1", (*TunnelsRestricted)(nil), (*CommandsRestricted)(nil), PermissionCommands),
-				NewGroup("group2", (*TunnelsRestricted)(nil), (*CommandsRestricted)(nil)),
-				NewGroup("group3", (*TunnelsRestricted)(nil), (*CommandsRestricted)(nil), PermissionScripts),
+				NewGroup("group1", nil, nil, PermissionCommands),
+				NewGroup("group2", nil, nil),
+				NewGroup("group3", nil, nil, PermissionScripts),
 			},
 		},
 	}
@@ -286,11 +286,11 @@ func TestListGroupsPlusOn(t *testing.T) {
 			Name:         "with details",
 			DetailsTable: "group_details",
 			Expected: []Group{
-				NewGroup("group1", (*TunnelsRestricted)(nil), (*CommandsRestricted)(nil), PermissionCommands),
-				NewGroup("group3", (*TunnelsRestricted)(nil), (*CommandsRestricted)(nil), PermissionScripts),
-				NewGroup("group4", &TunnelsRestricted{Local: []string{"20000", "20001"}, MinIdleTimeout: 5, MaxAutoClose: "60m", AuthAllowed: true}, (*CommandsRestricted)(nil)),
-				NewGroup("group5", (*TunnelsRestricted)(nil), &CommandsRestricted{Deny: []string{"apache2", "ssh"}, IsSudo: false}),
-				NewGroup("group2", (*TunnelsRestricted)(nil), (*CommandsRestricted)(nil)),
+				NewGroup("group1", nil, nil, PermissionCommands),
+				NewGroup("group3", nil, nil, PermissionScripts),
+				NewGroup("group4", &StringInterfaceMap{"Local": []string{"20000", "20001"}, "MinIdleTimeout": 5, "MaxAutoClose": "60m", "AuthAllowed": true}, nil),
+				NewGroup("group5", nil, &StringInterfaceMap{"Deny": []string{"apache2", "ssh"}, "IsSudo": false}),
+				NewGroup("group2", nil, nil),
 			},
 		},
 	}
@@ -329,19 +329,19 @@ func TestGetGroup(t *testing.T) {
 			Name:         "no details",
 			DetailsTable: "",
 			Group:        "group1",
-			Expected:     NewGroup("group1", (*TunnelsRestricted)(nil), (*CommandsRestricted)(nil)),
+			Expected:     NewGroup("group1", nil, nil),
 		},
 		{
 			Name:         "with details existing",
 			DetailsTable: "group_details",
 			Group:        "group1",
-			Expected:     NewGroup("group1", (*TunnelsRestricted)(nil), (*CommandsRestricted)(nil), PermissionCommands),
+			Expected:     NewGroup("group1", nil, nil, PermissionCommands),
 		},
 		{
 			Name:         "with details not existing",
 			DetailsTable: "group_details",
 			Group:        "group2",
-			Expected:     NewGroup("group2", (*TunnelsRestricted)(nil), (*CommandsRestricted)(nil)),
+			Expected:     NewGroup("group2", nil, nil),
 		},
 	}
 
@@ -375,11 +375,11 @@ func TestUpdateGroup(t *testing.T) {
 	}{
 		{
 			Name:  "existing",
-			Group: NewGroup("group1", (*TunnelsRestricted)(nil), (*CommandsRestricted)(nil), PermissionScripts),
+			Group: NewGroup("group1", nil, nil, PermissionScripts),
 		},
 		{
 			Name:  "with details not existing",
-			Group: NewGroup("group2", (*TunnelsRestricted)(nil), (*CommandsRestricted)(nil), PermissionCommands),
+			Group: NewGroup("group2", nil, nil, PermissionCommands),
 		},
 	}
 
@@ -416,11 +416,11 @@ func TestUpdateGroupPlusOn(t *testing.T) {
 	}{
 		{
 			Name:  "existing",
-			Group: NewGroup("group1", &TunnelsRestricted{Local: []string{"20000", "20001"}, MinIdleTimeout: 5, MaxAutoClose: "60m", AuthAllowed: true}, &CommandsRestricted{Deny: []string{"apache2", "ssh"}, IsSudo: false}, PermissionCommands),
+			Group: NewGroup("group1", &StringInterfaceMap{"Local": []interface{}{"20000", "20001"}, "MinIdleTimeout": 5, "MaxAutoClose": "60m", "AuthAllowed": true}, &StringInterfaceMap{"Deny": []interface{}{"apache2", "ssh"}, "IsSudo": false}, PermissionCommands),
 		},
 		{
 			Name:  "with details not existing",
-			Group: NewGroup("group2", &TunnelsRestricted{Local: []string{"20000", "20001"}, MinIdleTimeout: 5, MaxAutoClose: "60m", AuthAllowed: true}, &CommandsRestricted{Deny: []string{"apache2", "ssh"}, IsSudo: false}, PermissionCommands),
+			Group: NewGroup("group2", &StringInterfaceMap{"Local": []string{"20000", "20001"}, "MinIdleTimeout": 5, "MaxAutoClose": "60m", "AuthAllowed": true}, &StringInterfaceMap{"Deny": []string{"apache2", "ssh"}, "IsSudo": false}, PermissionCommands),
 		},
 	}
 
@@ -471,8 +471,8 @@ func TestDeleteGroup(t *testing.T) {
 	require.NoError(t, err)
 
 	expected := []Group{
-		NewGroup("group2", (*TunnelsRestricted)(nil), (*CommandsRestricted)(nil)),
-		NewGroup("group3", (*TunnelsRestricted)(nil), (*CommandsRestricted)(nil), PermissionScripts),
+		NewGroup("group2", nil, nil),
+		NewGroup("group3", nil, nil, PermissionScripts),
 	}
 	assert.ElementsMatch(t, expected, actual)
 }
