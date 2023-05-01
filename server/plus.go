@@ -8,6 +8,7 @@ import (
 	rportplus "github.com/realvnc-labs/rport/plus"
 	licensecap "github.com/realvnc-labs/rport/plus/capabilities/license"
 	"github.com/realvnc-labs/rport/plus/capabilities/oauth"
+	"github.com/realvnc-labs/rport/plus/capabilities/permission"
 	"github.com/realvnc-labs/rport/plus/capabilities/status"
 	"github.com/realvnc-labs/rport/plus/license"
 	"github.com/realvnc-labs/rport/server/chconfig"
@@ -106,6 +107,16 @@ func RegisterPlusCapabilities(plusManager rportplus.Manager, cfg *chconfig.Confi
 		return fmt.Errorf("unable to register plus license capability: %w", err)
 	}
 	logger.Infof("plus license capability registered")
+
+	// always register the plus permission capability
+	_, err = plusManager.RegisterCapability(rportplus.PlusPermissionCapability, &permission.Capability{
+		Config: nil,
+		Logger: logger,
+	})
+	if err != nil {
+		return fmt.Errorf("unable to register plus permission capability: %w", err)
+	}
+	logger.Infof("plus permission capability registered")
 
 	return nil
 }

@@ -49,3 +49,6 @@ opt/fpm/.env
 
 # resources genereated during tests
 *test-resources
+
+# plus dev
+rport-plus
