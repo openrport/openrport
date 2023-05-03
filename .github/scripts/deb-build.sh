@@ -9,7 +9,7 @@ set -e
 #
 # Resolve dependencies
 #
-DEBIAN_FRONTEND=noninteractive apt-get install -y lintian
+DEBIAN_FRONTEND=noninteractive sudo apt-get install -y lintian
 
 INPUT_ARCH=$1
 BIN_FILE=./dist/rport_linux_${INPUT_ARCH}/rport
