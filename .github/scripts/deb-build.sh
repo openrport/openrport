@@ -1,11 +1,15 @@
 #!/usr/bin/env bash
+set -e
 
 #
 # Create a debian package from a file located in ./dist previously created by goreleaser.
 # Fpm and go-fpm have proven to be unreliable.
 #
 
-set -e
+#
+# Resolve dependencies
+#
+DEBIAN_FRONTEND=noninteractive apt-get install -y lintian
 
 INPUT_ARCH=$1
 BIN_FILE=./dist/rport_linux_${INPUT_ARCH}/rport
