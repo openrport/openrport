@@ -147,6 +147,24 @@ func (as *APIService) CheckPermission(user *User, permission string) error {
 	}
 }
 
+func (as *APIService) GetEffectiveUserExtendedPermissions(user *User) ([]StringInterfaceMap, []StringInterfaceMap) {
+	var tunnels_restricted []StringInterfaceMap
+	var commands_restricted []StringInterfaceMap
+
+	for _, groupName := range user.Groups {
+		group, err := as.Provider.GetGroup(groupName)
+		if err == nil {
+			if group.TunnelsRestricted != nil {
+				tunnels_restricted = append(tunnels_restricted, *group.TunnelsRestricted)
+			}
+			if group.CommandsRestricted != nil {
+				commands_restricted = append(commands_restricted, *group.CommandsRestricted)
+			}
+		}
+	}
+	return tunnels_restricted, commands_restricted
+}
+
 func (as *APIService) GetEffectiveUserPermissions(user *User) (map[string]bool, error) {
 	if !as.SupportsGroupPermissions() {
 		return NewPermissions(AllPermissions...).All(), nil

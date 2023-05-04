@@ -212,7 +212,7 @@ func (d *UserDatabase) UpdateGroup(name string, group Group) error {
 	qb += " WHERE name=:name"
 	_, err = d.db.NamedExec(qb, group)
 
-	// EDTODO: need to validate the json before updating it
+	// ED TODO: need to validate the json before updating it
 	if err != nil {
 		if d.plusOn {
 			return err

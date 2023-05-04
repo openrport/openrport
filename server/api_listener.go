@@ -99,6 +99,7 @@ type UserService interface {
 	CheckPermission(*users.User, string) error
 	SupportsGroupPermissions() bool
 	GetEffectiveUserPermissions(*users.User) (map[string]bool, error)
+	GetEffectiveUserExtendedPermissions(*users.User) ([]users.StringInterfaceMap, []users.StringInterfaceMap)
 }
 
 func NewAPIListener(

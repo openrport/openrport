@@ -56,7 +56,7 @@ type TunnelsRestricted struct {
 */
 
 /*
-EDTODO: The list of deny and allow keywords are regular expressions.
+ED TODO: The list of deny and allow keywords are regular expressions.
 Step 1: If the command matches against any of the deny expressions, the command is denied.
 Step 2: The command must match against any of the allow expressions. Otherwise, the command is denied.
 
@@ -113,7 +113,6 @@ func (m *StringInterfaceMap) Scan(src interface{}) error {
 }
 
 func NewGroup(name string, tr *StringInterfaceMap, cr *StringInterfaceMap, perms ...string) Group {
-	fmt.Println("NewGroup", name, perms)
 	if name == Administrators {
 		return AdministratorsGroup
 	}
