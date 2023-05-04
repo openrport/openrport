@@ -6,6 +6,7 @@ import (
 	"fmt"
 	"log"
 	"net/http"
+	"regexp"
 	"strconv"
 	"time"
 
@@ -225,8 +226,8 @@ func (al *APIListener) extendedPermissionsMiddleware() mux.MiddlewareFunc {
 							restriction := TunnelsRestricted[parameter].(bool)
 							requestedParam, _ := strconv.ParseBool(r.FormValue(parameter))
 
-							al.Debugf("bool parameter %v=%v must be %v", parameter, requestedParam, restriction)
-							if requestedParam != TunnelsRestricted[parameter] {
+							// al.Debugf("bool parameter %v=%v restriction %v", parameter, requestedParam, restriction)
+							if !restriction && requestedParam != restriction { // all false are to disallow
 								msg1, msg2 := messageEnforceDisallow(restriction)
 								al.jsonErrorResponseWithTitle(w, http.StatusUnauthorized, fmt.Sprintf("%s %v value%s", msg1, parameter, msg2))
 								return
@@ -236,11 +237,18 @@ func (al *APIListener) extendedPermissionsMiddleware() mux.MiddlewareFunc {
 							//*   "http_proxy": true // The user is allowed to enable the http proxy
 
 						case string:
-							// restriction := TunnelsRestricted[parameter].(string)
-							requestedParam, _ := strconv.ParseBool(r.FormValue(parameter))
-							al.Debugf("string parameter %v=%v must match regular expression %v", parameter, r.FormValue(parameter), TunnelsRestricted[parameter])
-							if TunnelsRestricted[parameter] == requestedParam {
-								al.jsonErrorResponseWithTitle(w, http.StatusUnauthorized, fmt.Sprintf("You are not allowed to use this %v value.", parameter))
+							restriction := TunnelsRestricted[parameter].(string)
+							requestedParam := r.FormValue(parameter)
+							al.Debugf("string parameter  %v=%v restriction %v", parameter, requestedParam, restriction)
+							r, err := regexp.Compile(restriction)
+							if err != nil {
+								// ED TODO: need a validation function for the extended permissions, on save
+								al.Debugf("invalid restriction regular expression %q: %v", restriction, err)
+							}
+
+							if !r.Match([]byte(requestedParam)) {
+								msg1, msg2 := messageEnforceDisallow(false)
+								al.jsonErrorResponseWithTitle(w, http.StatusUnauthorized, fmt.Sprintf("%s %v value%s", msg1, parameter, msg2))
 								return
 							}
 							//*   "host_header": ":*" // The user can only add a host header matching the regular expression.
