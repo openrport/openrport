@@ -49,8 +49,8 @@ func (c ComparatorInt[T]) Run(o T) bool {
 	return false
 }
 
-func CompileFromQueryListOptions[T any](options *query.ListOptions) (Operation[T], error) {
-	if options == nil || len(options.Filters) == 0 {
+func CompileFromQueryListOptions[T any](filters []query.FilterOption) (Operation[T], error) {
+	if len(filters) == 0 {
 		return NewTrue[T](), nil
 	}
 
@@ -58,8 +58,8 @@ func CompileFromQueryListOptions[T any](options *query.ListOptions) (Operation[T
 
 	tt := dyncopy.BuildTranslationTable(proto)
 
-	comparators := make([]Operation[T], len(options.Filters))
-	for i, filter := range options.Filters {
+	comparators := make([]Operation[T], len(filters))
+	for i, filter := range filters {
 		field, err := getColumnField(tt, filter)
 		if err != nil {
 			return nil, fmt.Errorf("%v on type: %v on filter: %v", err, reflect.TypeOf(proto), i)

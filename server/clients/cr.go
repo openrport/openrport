@@ -13,6 +13,7 @@ import (
 	"github.com/jmoiron/sqlx"
 
 	"github.com/realvnc-labs/rport/server/cgroups"
+	"github.com/realvnc-labs/rport/share/dynops/filterer"
 	"github.com/realvnc-labs/rport/share/dynops/formatter"
 	"github.com/realvnc-labs/rport/share/logger"
 	"github.com/realvnc-labs/rport/share/query"
@@ -373,11 +374,14 @@ func (r *ClientRepository) GetFilteredUserClientsM(user User, filterOptions []qu
 
 	insp(t)
 
-	matchingClients := make([]Client, 0, len(clientsP))
-	matcher := NewMatcher(clientsP[0], filterOptions[0].Column[0], filterOptions[0].Values[0])
+	filter, err := filterer.CompileFromQueryListOptions[Client](filterOptions)
+	if err != nil {
+		return nil, err
+	}
 
+	matchingClients := make([]Client, 0, len(clientsP))
 	for _, c := range clients {
-		if matcher.Matches(c) {
+		if filter.Run(c) {
 			matchingClients = append(matchingClients, c)
 		}
 	}

@@ -43,8 +43,11 @@ func (t TunnelProvider) Update(ctx context.Context, tunnel *storedtunnels.Stored
 }
 
 func (t TunnelProvider) List(ctx context.Context, clientID string, options *query.ListOptions) ([]*storedtunnels.StoredTunnel, error) {
+	if options == nil {
+		return nil, fmt.Errorf("options for filtering and pagination is nil")
+	}
 
-	filter, err := filterer.CompileFromQueryListOptions[storedtunnels.StoredTunnel](options)
+	filter, err := filterer.CompileFromQueryListOptions[storedtunnels.StoredTunnel](options.Filters)
 	if err != nil {
 		return nil, err
 	}

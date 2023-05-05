@@ -30,7 +30,7 @@ func (suite *FiltererTestSuite) TestFilterer_nilFilterShouldBeTrue() {
 
 	options := genOptions(nil)
 
-	filter, err := filterer.CompileFromQueryListOptions[bool](options)
+	filter, err := filterer.CompileFromQueryListOptions[bool](options.Filters)
 	suite.NoError(err)
 	suite.True(filter.Run(false))
 }
@@ -39,7 +39,7 @@ func (suite *FiltererTestSuite) TestFilterer_emptyFilterShouldBeTrue() {
 
 	options := genOptions([]query.FilterOption{})
 
-	filter, err := filterer.CompileFromQueryListOptions[bool](options)
+	filter, err := filterer.CompileFromQueryListOptions[bool](options.Filters)
 	suite.NoError(err)
 	suite.True(filter.Run(false))
 }
@@ -58,7 +58,7 @@ func (suite *FiltererTestSuite) TestFilterer_simpleEquation() {
 		ValuesLogicalOperator: "",
 	}})
 
-	filter, err := filterer.CompileFromQueryListOptions[TestStruct](options)
+	filter, err := filterer.CompileFromQueryListOptions[TestStruct](options.Filters)
 	suite.NoError(err)
 	suite.True(filter.Run(TestStruct{SomeField: "some-value"}))
 	suite.False(filter.Run(TestStruct{SomeField: "wrong-value"}))
@@ -73,7 +73,7 @@ func (suite *FiltererTestSuite) TestFilterer_testInt() {
 		ValuesLogicalOperator: "",
 	}})
 
-	filter, err := filterer.CompileFromQueryListOptions[TestStruct](options)
+	filter, err := filterer.CompileFromQueryListOptions[TestStruct](options.Filters)
 	suite.NoError(err)
 	suite.True(filter.Run(TestStruct{SomeInt: 5}))
 	suite.False(filter.Run(TestStruct{SomeInt: 3}))
@@ -88,7 +88,7 @@ func (suite *FiltererTestSuite) TestFilterer_testGt() {
 		ValuesLogicalOperator: "",
 	}})
 
-	filter, err := filterer.CompileFromQueryListOptions[TestStruct](options)
+	filter, err := filterer.CompileFromQueryListOptions[TestStruct](options.Filters)
 	suite.NoError(err)
 	suite.True(filter.Run(TestStruct{SomeInt: 3}))
 	suite.False(filter.Run(TestStruct{SomeInt: 50}))
@@ -111,7 +111,7 @@ func (suite *FiltererTestSuite) TestFilterer_testMultiple() {
 		},
 	})
 
-	filter, err := filterer.CompileFromQueryListOptions[TestStruct](options)
+	filter, err := filterer.CompileFromQueryListOptions[TestStruct](options.Filters)
 	suite.NoError(err)
 	suite.True(filter.Run(TestStruct{SomeInt: 5, SomeField: "some-value"}))
 	suite.False(filter.Run(TestStruct{SomeInt: 5, SomeField: "other-value"}))
@@ -129,7 +129,7 @@ func (suite *FiltererTestSuite) TestFilterer_errorOnNonExistentField() {
 		},
 	})
 
-	_, err := filterer.CompileFromQueryListOptions[TestStruct](options)
+	_, err := filterer.CompileFromQueryListOptions[TestStruct](options.Filters)
 	suite.ErrorContains(err, "field: non-existent does not exist on type: filterer_test.TestStruct on filter: 0")
 }
 
@@ -144,7 +144,7 @@ func (suite *FiltererTestSuite) TestFilterer_errorOnNonExistentOperator() {
 		},
 	})
 
-	_, err := filterer.CompileFromQueryListOptions[TestStruct](options)
+	_, err := filterer.CompileFromQueryListOptions[TestStruct](options.Filters)
 	suite.ErrorContains(err, "invalid string operator: non-existent on filter: 0")
 }
 
@@ -206,7 +206,7 @@ func BenchmarkFilterer(b *testing.B) {
 		},
 	})
 
-	filter, _ := filterer.CompileFromQueryListOptions[TestStruct](options)
+	filter, _ := filterer.CompileFromQueryListOptions[TestStruct](options.Filters)
 
 	for i := 0; i < b.N; i++ {
 		filter.Run(GenList[i%maxGen])

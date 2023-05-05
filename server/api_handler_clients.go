@@ -23,6 +23,8 @@ import (
 	"github.com/realvnc-labs/rport/server/routes"
 	"github.com/realvnc-labs/rport/server/validation"
 	"github.com/realvnc-labs/rport/share/comm"
+	"github.com/realvnc-labs/rport/share/dynops"
+	"github.com/realvnc-labs/rport/share/dynops/dyncopy"
 	"github.com/realvnc-labs/rport/share/dynops/formatter"
 	"github.com/realvnc-labs/rport/share/models"
 	"github.com/realvnc-labs/rport/share/query"
@@ -333,16 +335,17 @@ func (al *APIListener) handleGetClientsM(w http.ResponseWriter, req *http.Reques
 	}
 	insp(t)
 
-	sort.Slice(filteredClients, func(i, j int) bool {
-		return filteredClients[i].Name > filteredClients[j].Name
-	})
-
+	tt := dyncopy.BuildTranslationTable(filteredClients[0])
+	filteredClients, err = dynops.FastSorter1(tt, filteredClients, options.Sorts)
+	if err != nil {
+		al.jsonErrorResponseWithError(w, http.StatusBadRequest, "bad sorting parameters", err)
+		return
+	}
 	insp(t)
 
-	totalCount := len(filteredClients)
-	start, end := options.Pagination.GetStartEnd(totalCount)
-	filteredClients = filteredClients[start:end]
+	filteredClients = dynops.Paginator(filteredClients, options.Pagination)
 	insp(t)
+
 	clientsPayload := make([]map[string]interface{}, len(filteredClients))
 
 	ft := formatter.NewFormatter(filteredClients[0])
@@ -354,12 +357,11 @@ func (al *APIListener) handleGetClientsM(w http.ResponseWriter, req *http.Reques
 	for i, o := range filteredClients {
 		clientsPayload[i] = translator.Format(o)
 	}
-
 	insp(t)
 
 	al.writeJSONResponse(w, http.StatusOK, &api.SuccessPayload{
 		Data: clientsPayload,
-		Meta: api.NewMeta(totalCount),
+		Meta: api.NewMeta(len(clientsPayload)),
 	})
 	insp(t)
 
