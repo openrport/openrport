@@ -1,12 +1,14 @@
 package filterer_test
 
 import (
+	"math/rand"
 	"testing"
 
 	"github.com/stretchr/testify/suite"
 
 	"github.com/realvnc-labs/rport/share/dynops/filterer"
 	"github.com/realvnc-labs/rport/share/query"
+	"github.com/realvnc-labs/rport/share/random"
 )
 
 type FiltererTestSuite struct {
@@ -26,7 +28,7 @@ func (suite *FiltererTestSuite) TestFilterer_nilOptionsShouldAlwaysBeTrue() {
 
 func (suite *FiltererTestSuite) TestFilterer_nilFilterShouldBeTrue() {
 
-	options := suite.genOptions(nil)
+	options := genOptions(nil)
 
 	filter, err := filterer.CompileFromQueryListOptions[bool](options)
 	suite.NoError(err)
@@ -35,7 +37,7 @@ func (suite *FiltererTestSuite) TestFilterer_nilFilterShouldBeTrue() {
 
 func (suite *FiltererTestSuite) TestFilterer_emptyFilterShouldBeTrue() {
 
-	options := suite.genOptions([]query.FilterOption{})
+	options := genOptions([]query.FilterOption{})
 
 	filter, err := filterer.CompileFromQueryListOptions[bool](options)
 	suite.NoError(err)
@@ -49,7 +51,7 @@ type TestStruct struct {
 
 func (suite *FiltererTestSuite) TestFilterer_simpleEquation() {
 
-	options := suite.genOptions([]query.FilterOption{{
+	options := genOptions([]query.FilterOption{{
 		Column:                []string{"SomeField"},
 		Operator:              query.FilterOperatorTypeEQ,
 		Values:                []string{"some-value"},
@@ -64,7 +66,7 @@ func (suite *FiltererTestSuite) TestFilterer_simpleEquation() {
 
 func (suite *FiltererTestSuite) TestFilterer_testInt() {
 
-	options := suite.genOptions([]query.FilterOption{{
+	options := genOptions([]query.FilterOption{{
 		Column:                []string{"SomeInt"},
 		Operator:              query.FilterOperatorTypeEQ,
 		Values:                []string{"5"},
@@ -79,7 +81,7 @@ func (suite *FiltererTestSuite) TestFilterer_testInt() {
 
 func (suite *FiltererTestSuite) TestFilterer_testGt() {
 
-	options := suite.genOptions([]query.FilterOption{{
+	options := genOptions([]query.FilterOption{{
 		Column:                []string{"SomeInt"},
 		Operator:              query.FilterOperatorTypeGT,
 		Values:                []string{"15"},
@@ -94,7 +96,7 @@ func (suite *FiltererTestSuite) TestFilterer_testGt() {
 
 func (suite *FiltererTestSuite) TestFilterer_testMultiple() {
 
-	options := suite.genOptions([]query.FilterOption{
+	options := genOptions([]query.FilterOption{
 		{
 			Column:                []string{"SomeInt"},
 			Operator:              query.FilterOperatorTypeEQ,
@@ -118,7 +120,7 @@ func (suite *FiltererTestSuite) TestFilterer_testMultiple() {
 
 func (suite *FiltererTestSuite) TestFilterer_errorOnNonExistentField() {
 
-	options := suite.genOptions([]query.FilterOption{
+	options := genOptions([]query.FilterOption{
 		{
 			Column:                []string{"non-existent"},
 			Operator:              query.FilterOperatorTypeEQ,
@@ -133,7 +135,7 @@ func (suite *FiltererTestSuite) TestFilterer_errorOnNonExistentField() {
 
 func (suite *FiltererTestSuite) TestFilterer_errorOnNonExistentOperator() {
 
-	options := suite.genOptions([]query.FilterOption{
+	options := genOptions([]query.FilterOption{
 		{
 			Column:                []string{"SomeField"},
 			Operator:              "non-existent",
@@ -146,11 +148,15 @@ func (suite *FiltererTestSuite) TestFilterer_errorOnNonExistentOperator() {
 	suite.ErrorContains(err, "invalid string operator: non-existent on filter: 0")
 }
 
+func (suite *FiltererTestSuite) TestJust() {
+
+}
+
 func TestFiltererTestSuite(t *testing.T) {
 	suite.Run(t, new(FiltererTestSuite))
 }
 
-func (suite *FiltererTestSuite) genOptions(filters []query.FilterOption) *query.ListOptions {
+func genOptions(filters []query.FilterOption) *query.ListOptions {
 	options := &query.ListOptions{
 		Sorts:      nil,
 		Filters:    filters,
@@ -158,4 +164,52 @@ func (suite *FiltererTestSuite) genOptions(filters []query.FilterOption) *query.
 		Pagination: nil,
 	}
 	return options
+}
+
+func MakeList(N int) []TestStruct {
+	list := make([]TestStruct, N)
+	for i := 0; i < N; i++ {
+		list[i].SomeInt = rand.Int()
+		list[i].SomeField = random.String(3, "asdfxcvn,m1209")
+	}
+	return list
+}
+
+var table = []struct {
+	input int
+}{
+	{input: 100},
+	{input: 1000},
+	{input: 10000},
+	{input: 100000},
+	{input: 1000000},
+	// 	{input: 10000000},
+}
+var maxGen = table[len(table)-1].input
+
+var GenList = MakeList(maxGen)
+
+func BenchmarkFilterer(b *testing.B) {
+
+	options := genOptions([]query.FilterOption{
+		{
+			Column:                []string{"SomeInt"},
+			Operator:              query.FilterOperatorTypeGT,
+			Values:                []string{"5"},
+			ValuesLogicalOperator: "",
+		},
+		{
+			Column:                []string{"SomeField"},
+			Operator:              query.FilterOperatorTypeEQ,
+			Values:                []string{"aaa"},
+			ValuesLogicalOperator: "",
+		},
+	})
+
+	filter, _ := filterer.CompileFromQueryListOptions[TestStruct](options)
+
+	for i := 0; i < b.N; i++ {
+		filter.Run(GenList[i%maxGen])
+	}
+
 }

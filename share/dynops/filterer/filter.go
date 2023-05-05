@@ -85,7 +85,10 @@ func getComparator[T any](operator query.FilterOperatorType, field dyncopy.Field
 	switch field.Kind.Kind() {
 	case reflect.String:
 		return GetStringComparator[T](operator, field, v)
-
+	case reflect.Slice:
+		return GetSliceComparator[T](operator, field, v)
+	case reflect.Map:
+		return GetMapComparator[T](operator, field, v)
 	case reflect.Int, reflect.Int64:
 		return GetIntComparator[T](operator, field, v)
 	default:
@@ -117,6 +120,32 @@ func GetIntComparator[T any](operator query.FilterOperatorType, field dyncopy.Fi
 }
 
 func GetStringComparator[T any](operator query.FilterOperatorType, field dyncopy.Field, v string) (Operation[T], error) {
+	switch operator {
+	case query.FilterOperatorTypeEQ:
+		return ComparatorStringEQ[T]{
+			fieldID: fieldID[T](field.ID),
+			value:   v,
+		}, nil
+	default:
+		return nil, fmt.Errorf("invalid string operator: %v", operator)
+	}
+}
+
+func GetSliceComparator[T any](operator query.FilterOperatorType, field dyncopy.Field, v string) (Operation[T], error) {
+	panic("make me work")
+	switch operator {
+	case query.FilterOperatorTypeEQ:
+		return ComparatorStringEQ[T]{
+			fieldID: fieldID[T](field.ID),
+			value:   v,
+		}, nil
+	default:
+		return nil, fmt.Errorf("invalid string operator: %v", operator)
+	}
+}
+
+func GetMapComparator[T any](operator query.FilterOperatorType, field dyncopy.Field, v string) (Operation[T], error) {
+	panic("make me work!")
 	switch operator {
 	case query.FilterOperatorTypeEQ:
 		return ComparatorStringEQ[T]{

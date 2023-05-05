@@ -5,6 +5,8 @@ import (
 	"fmt"
 
 	"github.com/realvnc-labs/rport/server/clients/storedtunnels"
+	"github.com/realvnc-labs/rport/share/dynops"
+	"github.com/realvnc-labs/rport/share/dynops/dyncopy"
 	"github.com/realvnc-labs/rport/share/dynops/filterer"
 	"github.com/realvnc-labs/rport/share/query"
 	"github.com/realvnc-labs/rport/share/simpleops"
@@ -18,11 +20,14 @@ type TunnelKV interface {
 }
 
 type TunnelProvider struct {
-	kv TunnelKV
+	kv                   TunnelKV
+	sortTranslationTable map[string]dyncopy.Field
 }
 
 func NewTunnelProvider(kv TunnelKV) *TunnelProvider {
-	return &TunnelProvider{kv: kv}
+	return &TunnelProvider{
+		kv:                   kv,
+		sortTranslationTable: dyncopy.BuildTranslationTable(storedtunnels.StoredTunnel{})}
 }
 
 func (t TunnelProvider) Delete(ctx context.Context, clientID string, tunnelID string) error {
@@ -47,10 +52,16 @@ func (t TunnelProvider) List(ctx context.Context, clientID string, options *quer
 	tunnels, err := t.kv.Filter(ctx, func(tunnel storedtunnels.StoredTunnel) bool {
 		return tunnel.ClientID == clientID && filter.Run(tunnel)
 	})
-
 	if err != nil {
 		return nil, err
 	}
+
+	tunnels, err = dynops.FastSorter1(t.sortTranslationTable, tunnels, options.Sorts)
+	if err != nil {
+		return nil, err
+	}
+
+	tunnels = dynops.Paginator(tunnels, options.Pagination)
 
 	return simpleops.ToPointerSlice(tunnels), nil
 }
