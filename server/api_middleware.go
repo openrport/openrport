@@ -4,14 +4,15 @@ import (
 	"context"
 	"errors"
 	"fmt"
-	"log"
 	"net/http"
 	"regexp"
 	"strconv"
+	"strings"
 	"time"
 
 	"github.com/gorilla/mux"
 
+	rportplus "github.com/realvnc-labs/rport/plus"
 	"github.com/realvnc-labs/rport/server/api"
 	errors2 "github.com/realvnc-labs/rport/server/api/errors"
 	"github.com/realvnc-labs/rport/server/api/users"
@@ -175,12 +176,6 @@ func (al *APIListener) permissionsMiddleware(permission string) mux.MiddlewareFu
 
 	}
 }
-func messageEnforceDisallow(s bool) (string, string) {
-	if !s {
-		return "You are not allowed to set", ""
-	}
-	return "You must set", " to true"
-}
 func intIsMinute(m interface{}) (*time.Duration, error) {
 	parseable := fmt.Sprintf("%v", m)
 	dur, err := time.ParseDuration(parseable)
@@ -194,14 +189,39 @@ func intIsMinute(m interface{}) (*time.Duration, error) {
 	}
 	return &dur, nil
 }
+func messageEnforceDisallow(s bool) (string, string) {
+	if !s {
+		return "You are not allowed to set", ""
+	}
+	return "You must set", " to true"
+}
+func errorMessageMaxMinLimits(pName string, pValue string, limit string, ruleValue string) string {
+	mm := "greater"
+	if ruleValue == "max" {
+		mm = "less"
+	}
+	return fmt.Sprintf("Tunnel with %v=%v is forbidden. Allowed value for user group must be %s than %v", pName, pValue, mm, limit)
+}
+func shortDur(d time.Duration) string {
+	s := d.String()
+	if strings.HasSuffix(s, "m0s") {
+		s = s[:len(s)-2]
+	}
+	if strings.HasSuffix(s, "h0m") {
+		s = s[:len(s)-2]
+	}
+	return s
+}
+
+// EDTODO: THIS IS DONE (via the combination of middlewares permission -- extendedpermissions) If the user groups have, for example, tunnel permissions and tunnels_restricted permissions, wider permissions wins. That means, to effectively enable restricted tunnels or commands, the general tunnel or commands permission must be authorized.
 
 // ED TODO: move this to plus repo
 func (al *APIListener) extendedPermissionsMiddleware() mux.MiddlewareFunc {
 	return func(next http.Handler) http.Handler {
 		return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-			// ED TODO: enable this
+
 			// this should do nothing for r.Method == "GET"
-			if r.Method == "GETenable_this" {
+			if r.Method == "GETenable_this" { // ED TODO: enable this
 				next.ServeHTTP(w, r)
 				return
 			}
@@ -219,45 +239,49 @@ func (al *APIListener) extendedPermissionsMiddleware() mux.MiddlewareFunc {
 				return
 			}
 
-			// ED TODO check if plus is enabled
-
+			//  ED TODO: The method will validate the permissions 5 times and then all validations will be denied with a message, "You are running the plus-plugin without a licence. Max 5 validation reached. Restart rportd to continue testing."
 			tr, cr := al.userService.GetEffectiveUserExtendedPermissions(currUser)
+			if len(tr) > 0 || len(cr) > 0 {
+				if !rportplus.IsPlusEnabled(al.config.PlusConfig) { // that checks whether the plugin is enabled in the config -- if it is enabled but fails to load, then there will be an error and the server won't start
+					al.jsonErrorResponseWithTitle(w, http.StatusForbidden, "Extended permission validation failed because rport-plus plugin not loaded")
+					return
+				}
+			}
 			if len(tr) > 0 {
+				// ED TODO If a request for tunnel creation or command execution comes in, and the user group has tunnels_restricted or commands_restricted and the plugin is not loaded, the request must be rejected with "403 "
+				if !rportplus.IsPlusEnabled(al.config.PlusConfig) { // that checks whether the plugin is enabled in the config -- if it is enabled but fails to load, then there will be an error and the server won't start
+					// return 403
+					al.jsonErrorResponseWithTitle(w, http.StatusForbidden, "Extended permission validation failed because rport-plus plugin not loaded")
+					return
+				}
+
 				for _, TunnelsRestricted := range tr {
-					if TunnelsRestricted == nil {
-						continue
-					}
 					// cycle through the keys of the tunnel restriction map (e.g. "auto-close")
 					for pName := range TunnelsRestricted {
 						switch TunnelsRestricted[pName].(type) {
 						case bool:
-							//   "skip-idle-timeout": false // The user is not allowed to enable `skip-idle-timeout` on a tunnel (skipIdleTimeoutQueryParam)
-							//*   "auth_allowed": true // The user is allowed to enable http basic auth for a tunnel
-							//*   "http_proxy": true // The user is allowed to enable the http proxy
-
+							// given a bool param,
+							//		if the restriction is false then the param can't be set (or it can be set only false);
+							//		if the restriction is true (or there is no restriction for the param) then the param can be set (true or false)
 							restriction := TunnelsRestricted[pName].(bool)
 							pValue, _ := strconv.ParseBool(r.FormValue(pName))
 							if !restriction && pValue != restriction { // all false are to disallow
 								msg1, msg2 := messageEnforceDisallow(restriction)
-								al.jsonErrorResponseWithTitle(w, http.StatusUnauthorized, fmt.Sprintf("%s %v value%s", msg1, pName, msg2))
+								// ""
+								al.jsonErrorResponseWithTitle(w, http.StatusUnauthorized, fmt.Sprintf("Tunnel with %v=%v is forbidden. %s %v value%s ", pName, pValue, msg1, pName, msg2))
 								return
 							}
 							break
 						case string:
-							//*   "host_header": ":*" // The user can only add a host header matching the regular expression.
 							// like with true or false but if the param content matches the regular expression
-
 							restriction := TunnelsRestricted[pName].(string)
 							pValue := r.FormValue(pName)
 							r, err := regexp.Compile(restriction)
 							if err != nil {
-								// ED TODO: need a validation function for the extended permissions regexes, on save
-								al.Debugf("invalid restriction regular expression %q: %v", restriction, err)
+								al.Debugf("invalid restriction regular expression %q: %v", restriction, err) // ED TODO: need a validation function for the extended permissions regexes, on save
 							}
-
 							if !r.Match([]byte(pValue)) {
-								msg1, msg2 := messageEnforceDisallow(false)
-								al.jsonErrorResponseWithTitle(w, http.StatusUnauthorized, fmt.Sprintf("%s %v value%s", msg1, pName, msg2))
+								al.jsonErrorResponseWithTitle(w, http.StatusUnauthorized, fmt.Sprintf("Tunnel with %v=%v is forbidden. Allowed values for user group must match '%v' regular expression", pName, pValue, restriction))
 								return
 							}
 							break
@@ -265,17 +289,11 @@ func (al *APIListener) extendedPermissionsMiddleware() mux.MiddlewareFunc {
 							// Using an empty list or omitting an object will remove any restrictions.
 							// For example, if allowed is not present, or if "allowed": [] then any command can be used.
 							// If denied is missing or empty, the command is not validated against the deny patterns.
-							//*   "local": ["20000","20001"] // The user can only create tunnels that would use port 2000 or 20001 on the rport server.
-							//*   "remote": ["22","3389"] // The user can only create tunnels to the remote ports 22 or 3389.
-							//*   "scheme": ["ssh","rdp"] // Scheme must be SSH or RDP
-							//*   "protocol": ["tcp", "udp", "tcp-udp"] // Any protocols are allowed AKA only tunnels that matches at least one protocol can be created
-
 							rl := TunnelsRestricted[pName].([]interface{})
 							restrictionList := make([]string, len(rl)) // only strings are allowed
 							for i, v := range rl {
 								restrictionList[i] = fmt.Sprint(v)
 							}
-
 							pValue := r.FormValue(pName)
 							al.Debugf("[]string parameter %v=%v restriction %v", pName, pValue, restrictionList)
 							found := false
@@ -286,51 +304,41 @@ func (al *APIListener) extendedPermissionsMiddleware() mux.MiddlewareFunc {
 								}
 							}
 							if !found && len(restrictionList) > 0 {
-								al.jsonErrorResponseWithTitle(w, http.StatusUnauthorized, fmt.Sprintf("%v=%v must be one of %v", pName, pValue, restrictionList))
+								al.jsonErrorResponseWithTitle(w, http.StatusUnauthorized, fmt.Sprintf("Tunnel with %v=%v forbidden. Allowed values for user group: %v", pName, pValue, restrictionList))
 								return
 							}
 							break
-						case map[string]interface{}: // { stuff like this } like this { "max" : "60m" }
+						case map[string]interface{}: // stuff like this { "max": "60m", "min": "5m" }
+							//	If the user tries to create a tunnel without auto-close or with auto-close greater than 60m, it's forbidden.
+							// 	AKA this rule is about enforcing auto-close (min) and limiting it (max).
 							restriction := TunnelsRestricted[pName].(map[string]interface{})
 							pValue := r.FormValue(pName)
-							al.Debugf("map[string]interface{} parameter %v=%v restriction %v", pName, pValue, restriction)
-							durPValue, err := intIsMinute(pValue)
-							if err != nil { // ED TODO: what to do if the parsing of the parameter fails? 500?
-								al.jsonErrorResponseWithTitle(w, http.StatusUnauthorized, fmt.Sprintf("parameter %v not parseable as time.duration", pName))
-								return
-							}
-							if restriction["min"] != nil {
-								//   "idle-timeout-minutes": { "min" : 5 } // On tunnel creation, the idle time out must be at least 5 minutes.
-								min, err := intIsMinute(restriction["min"])
-								if err != nil {
+							for rule := range restriction {
+								if pValue == "" {
+									pValue = "0m"
+								}
+								al.Debugf("map[string]interface{} rule(%v) parameter %v=%v restriction %v", rule, pName, pValue, restriction[rule])
+								durPValue, err := intIsMinute(pValue)
+								if err != nil { // ED TODO: what to do if the parsing of the parameter fails? 500?
+									al.jsonErrorResponseWithTitle(w, http.StatusUnauthorized, fmt.Sprintf("parameter %v not parseable as time.duration", pName))
+									return
+								}
+								ruleValue, err := intIsMinute(restriction[rule])
+								if err != nil { // ED TODO: this should not happen, the validation should be done on save
 									al.jsonErrorResponseWithTitle(w, http.StatusUnauthorized, fmt.Sprintf("restriction %v not parseable as time.duration", restriction["min"]))
 									return
 								}
-								if *durPValue <= *min {
-									al.jsonErrorResponseWithTitle(w, http.StatusUnauthorized, fmt.Sprintf("%v=%v must be greater than %v", pName, pValue, min))
-									return
-								}
-							}
-							if restriction["max"] != nil { // ED TODO: this is not working, the max is not enforced
-								//   "auto-close": { "max":  "60m" } // Auto-close must be used, with a maximum of 60m, that means the user will not be able to use the tunnel for more than 60 minutes.
-								//	 If the user tries to create a tunnel without auto-close or with auto-close greater than 60m, it's forbidden. AKA this rule is about enforcing auto-close
-
-								max, err := intIsMinute(restriction["max"])
-								if err != nil {
-									al.jsonErrorResponseWithTitle(w, http.StatusUnauthorized, fmt.Sprintf("restriction %v not parseable as time.duration", restriction["max"]))
-									return
-								}
-								if *durPValue > *max {
-									al.jsonErrorResponseWithTitle(w, http.StatusUnauthorized, fmt.Sprintf("%v=%v must be less than %v", pName, pValue, max))
+								if rule == "min" && *durPValue <= *ruleValue || rule == "max" && *durPValue > *ruleValue {
+									al.jsonErrorResponseWithTitle(w, http.StatusUnauthorized, errorMessageMaxMinLimits(pName, pValue, shortDur(*ruleValue), rule))
 									return
 								}
 							}
 							break
 						default:
-							log.Printf(">>>>>>>>> : %v of type %T not recognized", TunnelsRestricted[pName], TunnelsRestricted[pName])
+							// ED TODO: this should not happen, the validation should be done on save
+							al.Debugf("UserExtendedPermissions %v of type %T not recognized", TunnelsRestricted[pName], TunnelsRestricted[pName])
 						}
 					}
-
 				}
 			}
 			if len(cr) > 0 {
