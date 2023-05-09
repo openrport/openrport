@@ -72,7 +72,6 @@ func (al *APIListener) initRouter() {
 
 	clientTunnels := clientDetails.NewRoute().Subrouter()
 	clientTunnels.Use(al.permissionsMiddleware(users.PermissionTunnels))
-	clientTunnels.Use(al.extendedPermissionsMiddleware()) // extended permissions check for plus features
 	clientTunnels.HandleFunc("/tunnels", al.handlePutClientTunnel).Methods(http.MethodPut)
 	clientTunnels.HandleFunc("/tunnels/{tunnel_id}", al.handleDeleteClientTunnel).Methods(http.MethodDelete)
 	clientTunnels.HandleFunc("/tunnels/{tunnel_id}/acl", al.handlePutClientTunnelACL).Methods(http.MethodPut)

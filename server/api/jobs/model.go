@@ -9,10 +9,10 @@ type MultiJobRequest struct {
 	ClientIDs           []string              `json:"client_ids"`
 	GroupIDs            []string              `json:"group_ids"`
 	ClientTags          *models.JobClientTags `json:"tags"`
-	Command             string                `json:"command"`
+	Command             string                `json:"command"` // ED TODO: command!
 	Script              string                `json:"script"`
 	Cwd                 string                `json:"cwd"`
-	IsSudo              bool                  `json:"is_sudo"`
+	IsSudo              bool                  `json:"is_sudo"` // ED TODO: command!
 	Interpreter         string                `json:"interpreter"`
 	TimeoutSec          int                   `json:"timeout_sec"`
 	ExecuteConcurrently bool                  `json:"execute_concurrently"`
