@@ -35,30 +35,32 @@ func TestShouldAddSessionsToCacheAndStorage(t *testing.T) {
 	s1 := generateAPISession(t, "user1", timeNow.UTC().Add(longTTL), timeNow)
 	s2 := generateAPISession(t, "user1", timeNow.UTC().Add(longTTL), timeNow)
 
-	_, err := c.Save(ctx, s1)
+	sid, err := c.Save(ctx, s1)
 	require.NoError(t, err)
+	s1.SessionID = sid
 
-	_, err = c.Save(ctx, s2)
+	sid, err = c.Save(ctx, s2)
 	require.NoError(t, err)
+	s2.SessionID = sid
 
 	// first check the cache
-	cachedS1, err := c.Get(ctx, s1.SessionID)
+	_, cachedS1, err := c.Get(ctx, s1.SessionID)
 	require.NoError(t, err)
 	assert.Equal(t, s1, cachedS1)
 
-	cachedS2, err := c.Get(ctx, s2.SessionID)
+	_, cachedS2, err := c.Get(ctx, s2.SessionID)
 	require.NoError(t, err)
 	assert.Equal(t, s2, cachedS2)
 
 	// then check storage
-	storedS1, err := c.storage.Get(ctx, s1.SessionID)
+	_, storedS1, err := c.storage.Get(ctx, s1.SessionID)
 	require.NoError(t, err)
 
 	// stored version of s1 will have the session id assigned
 	s1.SessionID = storedS1.SessionID
 	assert.Equal(t, s1, storedS1)
 
-	storedS2, err := c.storage.Get(ctx, s2.SessionID)
+	_, storedS2, err := c.storage.Get(ctx, s2.SessionID)
 	require.NoError(t, err)
 
 	// stored version of s2 will have the session id assigned
@@ -76,17 +78,20 @@ func TestShouldGetSortedSessionsForUser(t *testing.T) {
 	s2 := generateAPISession(t, "user2", timeNow.UTC().Add(longTTL), timeNow.Add(1*time.Minute))
 	s3 := generateAPISession(t, "user2", timeNow.UTC().Add(longTTL), timeNow)
 
-	_, err := c.Save(ctx, s1)
+	sid, err := c.Save(ctx, s1)
 	require.NoError(t, err)
+	s1.SessionID = sid
 
-	_, err = c.Save(ctx, s2)
+	sid, err = c.Save(ctx, s2)
 	require.NoError(t, err)
+	s2.SessionID = sid
 
-	_, err = c.Save(ctx, s3)
+	sid, err = c.Save(ctx, s3)
 	require.NoError(t, err)
+	s3.SessionID = sid
 
 	sessions, err := c.GetAllByUser(ctx, s2.Username)
-	assert.NoError(t, err)
+	require.NoError(t, err)
 
 	assert.Equal(t, 2, len(sessions))
 
@@ -104,11 +109,13 @@ func TestShouldUpdateSession(t *testing.T) {
 	s1 := generateAPISession(t, "user1", timeNow.UTC().Add(longTTL), timeNow)
 	s2 := generateAPISession(t, "user1", timeNow.UTC().Add(longTTL), timeNow)
 
-	_, err := c.Save(ctx, s1)
+	sid, err := c.Save(ctx, s1)
 	require.NoError(t, err)
+	s1.SessionID = sid
 
-	_, err = c.Save(ctx, s2)
+	sid, err = c.Save(ctx, s2)
 	require.NoError(t, err)
+	s2.SessionID = sid
 
 	s2.IPAddress = "4.3.2.1"
 
@@ -116,12 +123,12 @@ func TestShouldUpdateSession(t *testing.T) {
 	require.NoError(t, err)
 
 	// first check the cache
-	cachedS2, err := c.Get(ctx, s2.SessionID)
+	_, cachedS2, err := c.Get(ctx, s2.SessionID)
 	require.NoError(t, err)
 	assert.Equal(t, s2.IPAddress, cachedS2.IPAddress)
 
 	// then check storage
-	storedS2, err := c.storage.Get(ctx, s2.SessionID)
+	_, storedS2, err := c.storage.Get(ctx, s2.SessionID)
 	require.NoError(t, err)
 	assert.Equal(t, s2.IPAddress, storedS2.IPAddress)
 }
@@ -135,30 +142,33 @@ func TestShouldDeleteSessionFromCacheAndStorageByToken(t *testing.T) {
 	s1 := generateAPISession(t, "user1", timeNow.UTC().Add(longTTL), timeNow)
 	s2 := generateAPISession(t, "user2", timeNow.UTC().Add(longTTL), timeNow)
 
-	_, err := c.Save(ctx, s1)
+	sid, err := c.Save(ctx, s1)
 	require.NoError(t, err)
+	s1.SessionID = sid
 
-	_, err = c.Save(ctx, s2)
+	sid, err = c.Save(ctx, s2)
 	require.NoError(t, err)
+	s2.SessionID = sid
 
 	// delete the s2 session
 	err = c.Delete(ctx, s2.SessionID)
 	require.NoError(t, err)
 
 	// check cached S2 no longer returned
-	cachedS2, err := c.Get(ctx, s2.SessionID)
+	found, _, err := c.Get(ctx, s2.SessionID)
 	assert.NoError(t, err)
-	assert.Nil(t, cachedS2)
+	assert.False(t, found)
 
 	// check stored S2 no longer returned
-	storedS2, err := c.storage.Get(ctx, s2.SessionID)
+	found, _, err = c.storage.Get(ctx, s2.SessionID)
 	assert.NoError(t, err)
-	assert.Nil(t, storedS2)
+	assert.False(t, found)
 
 	// just as an extra check, check that storedS1 is still there
-	storedS1, err := c.storage.Get(ctx, s1.SessionID)
+	found, storedS1, err := c.storage.Get(ctx, s1.SessionID)
 	assert.NoError(t, err)
-	assert.NotNil(t, storedS1)
+	assert.True(t, found)
+	assert.Equal(t, s1, storedS1)
 }
 
 func TestShouldDeleteSessionForUser(t *testing.T) {
@@ -170,30 +180,33 @@ func TestShouldDeleteSessionForUser(t *testing.T) {
 	s1 := generateAPISession(t, "user1", timeNow.UTC().Add(longTTL), timeNow)
 	s2 := generateAPISession(t, "user2", timeNow.UTC().Add(longTTL), timeNow)
 
-	_, err := c.Save(ctx, s1)
+	sid, err := c.Save(ctx, s1)
 	require.NoError(t, err)
+	s1.SessionID = sid
 
-	_, err = c.Save(ctx, s2)
+	sid, err = c.Save(ctx, s2)
 	require.NoError(t, err)
+	s2.SessionID = sid
 
 	// delete the s2 session
 	err = c.DeleteByID(ctx, s2.Username, s2.SessionID)
 	require.NoError(t, err)
 
 	// check cached S2 no longer returned
-	cachedS2, err := c.Get(ctx, s2.SessionID)
+	found, _, err := c.Get(ctx, s2.SessionID)
 	assert.NoError(t, err)
-	assert.Nil(t, cachedS2)
+	assert.False(t, found)
 
 	// check stored S2 no longer returned
-	storedS2, err := c.storage.Get(ctx, s2.SessionID)
+	found, _, err = c.storage.Get(ctx, s2.SessionID)
 	assert.NoError(t, err)
-	assert.Nil(t, storedS2)
+	assert.False(t, found)
 
 	// just as an extra check, check that storedS1 is still there
-	storedS1, err := c.storage.Get(ctx, s1.SessionID)
+	found, storedS1, err := c.storage.Get(ctx, s1.SessionID)
 	assert.NoError(t, err)
-	assert.NotNil(t, storedS1)
+	assert.True(t, found)
+	assert.Equal(t, s1, storedS1)
 }
 
 func TestShouldDeleteAllSessionsForUserFromCache(t *testing.T) {
@@ -206,43 +219,47 @@ func TestShouldDeleteAllSessionsForUserFromCache(t *testing.T) {
 	s2 := generateAPISession(t, "user2", timeNow.UTC().Add(longTTL), timeNow)
 	s3 := generateAPISession(t, "user2", timeNow.UTC().Add(longTTL), timeNow)
 
-	_, err := c.Save(ctx, s1)
+	sid, err := c.Save(ctx, s1)
 	require.NoError(t, err)
+	s1.SessionID = sid
 
-	_, err = c.Save(ctx, s2)
+	sid, err = c.Save(ctx, s2)
 	require.NoError(t, err)
+	s2.SessionID = sid
 
-	_, err = c.Save(ctx, s3)
+	sid, err = c.Save(ctx, s3)
 	require.NoError(t, err)
+	s3.SessionID = sid
 
 	// delete sessions for user2
 	err = c.DeleteAllByUser(ctx, s2.Username)
 	require.NoError(t, err)
 
 	// check cached S2 no longer returned
-	cachedS2, err := c.Get(ctx, s2.SessionID)
+	found, _, err := c.Get(ctx, s2.SessionID)
 	assert.NoError(t, err)
-	assert.Nil(t, cachedS2)
+	assert.False(t, found)
 
 	// check stored S2 no longer returned
-	storedS2, err := c.storage.Get(ctx, s2.SessionID)
+	found, _, err = c.storage.Get(ctx, s2.SessionID)
 	assert.NoError(t, err)
-	assert.Nil(t, storedS2)
+	assert.False(t, found)
 
 	// check cached S3 no longer returned
-	cachedS3, err := c.Get(ctx, s3.SessionID)
+	found, _, err = c.Get(ctx, s3.SessionID)
 	assert.NoError(t, err)
-	assert.Nil(t, cachedS3)
+	assert.False(t, found)
 
 	// check stored S3 no longer returned
-	storedS3, err := c.storage.Get(ctx, s3.SessionID)
+	found, _, err = c.storage.Get(ctx, s3.SessionID)
 	assert.NoError(t, err)
-	assert.Nil(t, storedS3)
+	assert.False(t, found)
 
 	// just as an extra check, check that storedS1 is still there
-	storedS1, err := c.storage.Get(ctx, s1.SessionID)
+	found, storedS1, err := c.storage.Get(ctx, s1.SessionID)
 	assert.NoError(t, err)
-	assert.NotNil(t, storedS1)
+	assert.True(t, found)
+	assert.Equal(t, s1, storedS1)
 }
 
 func TestShouldNotChangeExistingSessionsWhenDeleteAllForUnknownUser(t *testing.T) {
@@ -255,40 +272,41 @@ func TestShouldNotChangeExistingSessionsWhenDeleteAllForUnknownUser(t *testing.T
 	s2 := generateAPISession(t, "user2", timeNow.UTC().Add(longTTL), timeNow)
 	s3 := generateAPISession(t, "user2", timeNow.UTC().Add(longTTL), timeNow)
 
-	_, err := c.Save(ctx, s1)
+	sid, err := c.Save(ctx, s1)
 	require.NoError(t, err)
+	s1.SessionID = sid
 
-	_, err = c.Save(ctx, s2)
+	sid, err = c.Save(ctx, s2)
 	require.NoError(t, err)
+	s2.SessionID = sid
 
-	_, err = c.Save(ctx, s3)
+	sid, err = c.Save(ctx, s3)
 	require.NoError(t, err)
+	s3.SessionID = sid
 
 	// delete sessions for unknown user
 	err = c.DeleteAllByUser(ctx, "user99")
 	require.NoError(t, err)
 
 	// first check the cache
-	cachedS1, err := c.Get(ctx, s1.SessionID)
+	found, cachedS1, err := c.Get(ctx, s1.SessionID)
 	require.NoError(t, err)
+	require.True(t, found)
 	assert.Equal(t, s1, cachedS1)
 
-	cachedS2, err := c.Get(ctx, s2.SessionID)
+	found, cachedS2, err := c.Get(ctx, s2.SessionID)
 	require.NoError(t, err)
+	assert.True(t, found)
 	assert.Equal(t, s2, cachedS2)
 
 	// then check storage
-	storedS1, err := c.storage.Get(ctx, s1.SessionID)
+	found, storedS1, err := c.storage.Get(ctx, s1.SessionID)
 	require.NoError(t, err)
-
-	// stored version of s1 will have the session id assigned
-	s1.SessionID = storedS1.SessionID
+	require.True(t, found)
 	assert.Equal(t, s1, storedS1)
 
-	storedS2, err := c.storage.Get(ctx, s2.SessionID)
+	found, storedS2, err := c.storage.Get(ctx, s2.SessionID)
 	require.NoError(t, err)
-
-	// stored version of s2 will have the session id assigned
-	s2.SessionID = storedS2.SessionID
+	require.True(t, found)
 	assert.Equal(t, s2, storedS2)
 }

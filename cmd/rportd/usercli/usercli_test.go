@@ -3,8 +3,8 @@ package usercli
 import (
 	"testing"
 
-	"github.com/test-go/testify/assert"
-	"github.com/test-go/testify/require"
+	"github.com/stretchr/testify/assert"
+	"github.com/stretchr/testify/require"
 
 	"github.com/realvnc-labs/rport/share/enums"
 )

@@ -44,8 +44,8 @@ cheat-sheet.txt
 *.rpm
 *.deb
 
-# Ignore the local evironment used to test fpm and package releasing
-opt/fpm/.env
+# Ignore the local evironment used to package publishing
+.pkg-env
 
 # resources genereated during tests
 *test-resources

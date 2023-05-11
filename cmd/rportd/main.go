@@ -72,7 +72,7 @@ var serverHelp = `
     starts server with configuration loaded from the file
 
     ./rportd user
-    commands for user management, run for more options
+    commands for user management, run './rportd user help' for more options
 
   Options:
 

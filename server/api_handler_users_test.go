@@ -24,7 +24,7 @@ import (
 )
 
 type UserAPISessionsResponse struct {
-	Data []*session.APISession
+	Data []session.APISession
 }
 
 func TestShouldHandleGetAllUserAPISessions(t *testing.T) {

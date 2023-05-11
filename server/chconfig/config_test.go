@@ -522,6 +522,28 @@ func TestParseAndValidateAPI(t *testing.T) {
 			},
 		},
 		{
+			Name: "api enabled, url 2fa method, no base_url",
+			Config: Config{
+				API: APIConfig{
+					Address:            "0.0.0.0:3000",
+					AuthFile:           "test.json",
+					TwoFATokenDelivery: "https://example.com",
+				},
+			},
+			ExpectedError: "API: base_url is required for url two_fa_token_delivery",
+		},
+		{
+			Name: "api enabled, url 2fa method, ok",
+			Config: Config{
+				API: APIConfig{
+					BaseURL:            "https://rport.example.com",
+					Address:            "0.0.0.0:3000",
+					AuthFile:           "test.json",
+					TwoFATokenDelivery: "https://2fa.example.com",
+				},
+			},
+		},
+		{
 			Name: "api enabled, auth_header no user_header",
 			Config: Config{
 				API: APIConfig{

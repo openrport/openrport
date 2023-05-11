@@ -9,6 +9,8 @@ import (
 
 	"github.com/gorilla/mux"
 
+	"github.com/realvnc-labs/rport/share/models"
+
 	"github.com/realvnc-labs/rport/server/api"
 	"github.com/realvnc-labs/rport/server/clients"
 	"github.com/realvnc-labs/rport/server/routes"
@@ -56,18 +58,13 @@ func (al *APIListener) handleUpdateClientAttributes(w http.ResponseWriter, req *
 		al.jsonErrorResponseWithTitle(w, http.StatusInternalServerError, "client not present in the request")
 	}
 
-	if req.ContentLength > 2^10*5 { // limit JSON to 5KB
-		al.jsonErrorResponseWithTitle(w, http.StatusBadRequest, "request too big")
-		return
-	}
-
 	attributesRaw, err := io.ReadAll(req.Body)
 	if err != nil {
 		al.jsonErrorResponseWithTitle(w, http.StatusBadRequest, fmt.Sprintf("failed reading request: %v", err))
 		return
 	}
 
-	attributes := clients.Attributes{}
+	attributes := models.Attributes{}
 	err = json.Unmarshal(attributesRaw, &attributes)
 	if err != nil {
 		al.jsonErrorResponseWithTitle(w, http.StatusBadRequest, fmt.Sprintf("failed parsing attributes: %v", err))

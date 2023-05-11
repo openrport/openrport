@@ -11,13 +11,13 @@ aliases:
 
 ## Authentication Mechanisms
 
-The Rportd API support two ways of authentication.
+The Rportd API support three ways of authentication.
 
-1. HTTP Basic Auth
+1. HTTP Basic Auth with username and password
 2. Bearer Token Auth
-3. Two-Factor Auth
+3. HTTP Basic Auth with username and personal API Token
 
-### HTTP Basic Auth
+### HTTP Basic Auth with username and password
 
 The API claims to be REST compliant. Submitting credentials on each request using an HTTP basic auth header is therefore
 possible, for example:
@@ -27,12 +27,7 @@ curl -s -u admin:foobaz http://localhost:3000/api/v1/clients|jq
 ```
 
 With the two-factor authentication enabled, HTTP basic authentication with a username and user's password stops working.
-But you can create a static API token per user to activate HTTP basic auth again. Users must submit the personal API
-token instead of the password, for example:
-
-```shell
-curl -s -u admin:e83d40e4-e237-43d6-bb99-35972ded631b http://localhost:3000/api/v1/clients|jq
-```
+But you can create an API token per user (see below) to activate HTTP basic auth again.
 
 ### Bearer Token Auth
 
@@ -70,7 +65,24 @@ app), rport issues a token, which can be used only in the `/verify-2fa` API. Thi
 connected to the 2fa code verification. On the other hand, tokens which are issued after successful 2fa code validation
 cannot be used to call the `/verify-2fa` API.
 
-### Two-Factor Auth
+### HTTP Basic Auth with username and personal API Token
+
+For the integration of third-party applications or for the development of scripts RPort supports the creation of
+personal API tokens. These tokens can be used for HTTP basic authentication.
+
+Users must submit the personal API token instead of the password, for example:
+
+```shell
+curl -s -u admin:e83d40e4-e237-43d6-bb99-35972ded631b http://localhost:3000/api/v1/clients|jq
+```
+
+Prior to RPort 0.9.11 each user could have only a single API token. Starting with 0.9.11 users can have an unlimited
+number of API token. Tokens have a scope and an expiry date.
+
+To generate personal API token navigate to the `Settings` -> `API Tokens` on the user interface, or generate tokens
+[using the API](https://apidoc.rport.io/master/#tag/Profile-and-Info/operation/MetTokenPost).
+
+## Two-Factor Auth
 
 If you want an extra layer of security, you can enable 2FA. It allows you to confirm your login with a verification code
 sent by a chosen delivery method.
@@ -80,10 +92,11 @@ Supported delivery methods:
 1. email (requires [SMTP setup](/docs/content/get-started/no15-messaging.md#smtp))
 2. [pushover.net](https://pushover.net) (requires [Pushover setup](/docs/content/get-started/no15-messaging.md#pushover))
 3. Custom [script](/docs/content/get-started/no15-messaging.md#script)
+4. Custom [URL](/docs/content/get-started/no15-messaging.md#url)
 
 By default, 2FA is disabled.
 
-#### How to enable 2FA?
+### How to enable 2FA?
 
 Note: 2FA is not available if you use [a single static user-password pair](/docs/content/get-started/no02-api-auth.md#hardcoded-single-user).
 
@@ -497,6 +510,51 @@ curl -Ss -X PUT https://localhost/api/v1/users/Willy \
 --data-raw '{"password": "4321ssap"}'
 ```
 
+### Manage user from the command line
+
+Starting with RPort 0.9.11 the ability to manage users from the command line has been introduced. The allows adding
+users or changing passwords independent of the underlying storage mechanism.
+
+{{< hint type=important title="don't execute from root account" >}}
+When managing users from the command line, rportd will directly write to the configured files or databases. The command
+line interface is not a wrapper for API calls. Therefor it's highly recommended to use the cli only from the user
+account that rportd is using, usually `rport`.  
+💣 By executing `rportd user [command]` from the root account you run **the risk of messing up file permissions** and make the files
+unreadable for the running daemon process.
+
+💁‍♂️ Change the user account with `su - rport -s /bin/bash` first.
+
+{{< /hint >}}
+
+To learn more about user management via the cli, execute `rportd user help`, which will display the following messages:
+
+```text
+Add, change or delete api users
+
+Usage:
+  rportd user [command]
+
+Available Commands:
+  add         add a new user
+  change      change a user
+  delete      delete a user
+
+Flags:
+  -h, --help              help for user
+  -u, --username string   username [required]
+
+Global Flags:
+  -c, --config string   location of the config file
+
+Use "rportd user [command] --help" for more information about a command.
+```
+
+To change the password of an existing user, execute
+
+```shell
+rportd user change -u <USERNAME> -p -c /etc/rport/rportd.conf
+```
+
 ## Enabling 2FA with an Authenticator app (TotP auth)
 
 You can enable 2FA with an authenticator app e.g. [Google Authenticator](https://play.google.com/store/apps/details?id=com.google.android.apps.authenticator2&hl=de&gl=US)
@@ -544,9 +602,9 @@ Authenticator app.
 ### (2) generate secret
 
 To generate a new secret send a POST request to the `/me/totp-secret` API with the Bearer Authorization header
-containing the token you got from the `/login` endpoint:  
-`curl -s -XPOST -H "Authorization: Bearer eyJhbGc...SNIP...SNAP" http://localhost:3000/api/v1/me/totp-secret`  
-As a result you will get a secret key in text format and a qr code as a base64 encoded png image e.g.:  
+containing the token you got from the `/login` endpoint:
+`curl -s -XPOST -H "Authorization: Bearer eyJhbGc...SNIP...SNAP" http://localhost:3000/api/v1/me/totp-secret`
+As a result you will get a secret key in text format and a qr code as a base64 encoded png image e.g.:
 `{ "secret": "54E4WYG5XSNZ37KI4CLILAVZKCMZ5MY7", "qr": "iVBORw0...snip...snap" }`
 
 The secret key will be stored in the users' database for the current user and can only be used with the combination with his login.

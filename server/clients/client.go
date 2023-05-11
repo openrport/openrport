@@ -21,21 +21,31 @@ import (
 	"github.com/realvnc-labs/rport/share/random"
 )
 
-var copyAttrsToClient func(attributes Attributes, client *Client)
-var copierClientsToAttrs func(client Client, attributes *Attributes)
+//var copyAttrsToClient func(attributes Attributes, client *Client)
+//var copierClientsToAttrs func(client Client, attributes *Attributes)
+//
+//func init() {
+//	var err error
+//
+//	pairs := []dyncopy.FromToPair{dyncopy.NewPair("Tags", "Tags"), dyncopy.NewPair("Labels", "Labels")}
+//	copyAttrsToClient, err = dyncopy.NewCopier[Attributes, Client](Attributes{}, Client{}, pairs)
+//	if err != nil {
+//		panic(err)
+//	}
+//	copierClientsToAttrs, err = dyncopy.NewCopier[Client, Attributes](Client{}, Attributes{}, pairs)
+//	if err != nil {
+//		panic(err)
+//	}
+//}
 
-func init() {
-	var err error
+func CopyAttrsToClient(attributes models.Attributes, client *Client) {
+	client.Labels = attributes.Labels
+	client.Tags = attributes.Tags
+}
 
-	pairs := []dyncopy.FromToPair{dyncopy.NewPair("Tags", "Tags"), dyncopy.NewPair("Labels", "Labels")}
-	copyAttrsToClient, err = dyncopy.NewCopier[Attributes, Client](Attributes{}, Client{}, pairs)
-	if err != nil {
-		panic(err)
-	}
-	copierClientsToAttrs, err = dyncopy.NewCopier[Client, Attributes](Client{}, Attributes{}, pairs)
-	if err != nil {
-		panic(err)
-	}
+func CopyClientsToAttrs(client Client, attributes *models.Attributes) { //nolint:govet
+	attributes.Labels = client.Labels
+	attributes.Tags = client.Tags
 }
 
 // now is used to stub time.Now in tests
@@ -540,6 +550,11 @@ func (c *Client) BelongsTo(group *cgroups.ClientGroup) bool {
 	if !p.ClientAuthID.MatchesOneOf(c.ClientAuthID) {
 		return false
 	}
+
+	if !p.ConnectionState.MatchesOneOf(string(c.CalculateConnectionState())) {
+		return false
+	}
+
 	return true
 }
 
@@ -636,22 +651,17 @@ func (c *Client) UserGroupHasAccessViaClientGroup(userGroups []string, allClient
 	return false
 }
 
-type Attributes struct {
-	Tags   []string          `json:"tags"`
-	Labels map[string]string `json:"labels"`
-}
-
-func (c *Client) GetAttributes() Attributes {
-	attr := Attributes{}
+func (c *Client) GetAttributes() models.Attributes {
+	attr := models.Attributes{}
 	c.flock.RLock()
-	copierClientsToAttrs(*c, &attr) //nolint:govet
+	CopyClientsToAttrs(*c, &attr) //nolint:govet
 	c.flock.RUnlock()
 	return attr
 }
 
-func (c *Client) SetAttributes(attributes Attributes) {
+func (c *Client) SetAttributes(attributes models.Attributes) {
 	c.flock.Lock()
-	copyAttrsToClient(attributes, c)
+	CopyAttrsToClient(attributes, c)
 	c.flock.Unlock()
 }
 

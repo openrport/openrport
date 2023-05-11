@@ -35,7 +35,7 @@ jobs:
           echo ::set-output name=commit_sha::$(git rev-parse HEAD)
 
 
-      - name: Checkout, build and release Rport Plus
+      - name: Checkout, build and release RPort Plus
         id: rport_plus_build
         env:
           RPORT_GIT_REF: ${{github.ref_name}}
@@ -46,9 +46,29 @@ jobs:
           bash .github/scripts/build-plus.sh
           bash .github/scripts/release-plus.sh
 
-      - name: Create RPM and DEB packages
-        id: create_pkgs
-        run: bash opt/fpm/package.sh
+      - name: Create DEB packages
+        id: create_deb
+        run: |
+          # Loop over specified folders in the dist folder to create packages
+          SOURCES="amd64_v1 arm64 386 arm_7" # Refers to dist/rport_linux_${SOURCE}
+          for SRC in $SOURCES; do
+            bash .github/scripts/deb-build.sh ${SRC}
+          done
+          ls -lh *.deb
+
+      - name: Create RPM packages
+        id: create_rpm
+        run: |
+          cat <<EOF|docker run --interactive --rm --env GITHUB_REF_NAME --name rocky \
+            --mount type=bind,source="$(pwd)",target=/run rockylinux:9 bash -
+          cd /run
+          SOURCES="amd64_v1 arm64 386"
+          for SRC in \$SOURCES; do
+          bash .github/scripts/rpm-build.sh \${SRC}
+          done
+          EOF
+          ls -lh *.rpm
+
 
       - name: Publish RPM and DEB packages
         id: publish_pkgs
@@ -58,5 +78,4 @@ jobs:
           REPO_SSH_USER: ${{ secrets.REPO_SSH_USER }}
           REPO_SSH_HOST: ${{ secrets.REPO_SSH_HOST }}
           REPO_SSH_KNOWN_HOSTS: ${{ secrets.REPO_SSH_KNOWN_HOSTS }}
-          REPO_GPG_KEY_ID: ${{ secrets.REPO_GPG_KEY_ID }}
-        run: bash opt/fpm/publish.sh
+        run: bash .github/scripts/pkg-publish.sh

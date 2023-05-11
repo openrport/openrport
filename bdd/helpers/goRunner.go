@@ -6,10 +6,13 @@ import (
 	"errors"
 	"fmt"
 	"log"
+	"os"
 	"os/exec"
 	"path"
+	"path/filepath"
 	"strings"
 	"testing"
+	"time"
 
 	"github.com/stretchr/testify/assert"
 )
@@ -47,7 +50,10 @@ func StartClientAndServerAndWaitForConnection(ctx context.Context, t *testing.T,
 
 	err = WaitForText(internalCtx, rcOutChan, "info: client: Connected") // wait for client to connect - sloooooow - needs to compile...
 	assert.Nil(t, err)
-
+	time.Sleep(time.Millisecond * 100)
+	if rd.ProcessState != nil || rc.ProcessState != nil {
+		assert.Fail(t, "daemons didn't start")
+	}
 	return rd, rc
 }
 
@@ -119,7 +125,35 @@ func Run(t *testing.T, pwd string, cmd string) (*exec.Cmd, chan string, chan str
 }
 
 func LogAndIgnore(err error) {
-	// yolo :)
 	// there can be an error, but I don't care and want to silence the linter
 	log.Println(err)
+}
+
+func FindProjectRoot(t *testing.T) string {
+	getwd, err := os.Getwd()
+	if err != nil {
+		assert.Failf(t, "couldn't find project root: %v", err.Error())
+		return ""
+	}
+
+	basePath := filepath.Dir(getwd)
+
+	for len(basePath) > 3 {
+		basePath = filepath.Dir(basePath)
+
+		testPath := filepath.Join(basePath, "go.mod")
+		t.Log("testing", testPath)
+		_, err = os.Stat(testPath)
+		if err == nil {
+			t.Log("found root", basePath)
+			return basePath
+		}
+		if errors.Is(err, os.ErrNotExist) {
+			t.Log("error checking path ", err)
+			continue
+		}
+	}
+
+	assert.Fail(t, "couldn't find project root: "+err.Error())
+	return ""
 }

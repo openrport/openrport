@@ -619,7 +619,6 @@ func (c *Client) handleSSHRequests(ctx context.Context, sshClientConn *sshClient
 		switch r.Type {
 
 		case comm.RequestTypeUpdateClientAttributes:
-			c.Logger.Infof("received request to update attributes")
 			resp, err = c.updateAttributes(r.Payload)
 		case comm.RequestTypeCheckPort:
 			resp, err = checkPort(r.Payload)
@@ -996,7 +995,7 @@ func (c *Client) updateAttributes(payload []byte) (any, error) {
 		return nil, fmt.Errorf("attributes file path not set")
 	}
 
-	configHolder := &clients.Attributes{}
+	configHolder := &models.Attributes{}
 	err := json.Unmarshal(payload, configHolder)
 	if err != nil {
 		return nil, fmt.Errorf("payload unreadable: %v", err)

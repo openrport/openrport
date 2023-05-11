@@ -1,34 +1,33 @@
 package cli
 
 import (
+	"encoding/json"
 	"fmt"
 	"log"
+	"os"
 
 	"github.com/spf13/pflag"
 	"github.com/spf13/viper"
+
+	"github.com/realvnc-labs/rport/share/models"
 
 	chclient "github.com/realvnc-labs/rport/client"
 	chshare "github.com/realvnc-labs/rport/share"
 	"github.com/realvnc-labs/rport/share/clientconfig"
 )
 
-type ClientAttributesConfigHolder struct {
-	Tags   []string
-	Labels map[string]string
-}
+func readAttributesFile(cfgPath string) (models.Attributes, error) {
 
-func readConfigFile(cfgPath string) (ClientAttributesConfigHolder, error) {
+	attributes := models.Attributes{}
 
-	viperCfg := viper.New()
-	viperCfg.SetConfigFile(cfgPath)
+	data, err := os.ReadFile(cfgPath)
 
-	attributes := ClientAttributesConfigHolder{}
-
-	if err := viperCfg.ReadInConfig(); err != nil {
-		return ClientAttributesConfigHolder{}, fmt.Errorf("error reading config file: %s", err)
-
+	if err != nil {
+		return models.Attributes{}, err
 	}
-	err := viperCfg.Unmarshal(&attributes)
+
+	err = json.Unmarshal(data, &attributes)
+
 	return attributes, err
 }
 
@@ -107,7 +106,7 @@ func readArgsFromCLI(pFlags *pflag.FlagSet, config *chclient.ClientConfigHolder)
 
 func readAdditionalAttributes(config *chclient.ClientConfigHolder) {
 	if len(config.Config.Client.AttributesFilePath) > 0 {
-		file, err := readConfigFile(config.Config.Client.AttributesFilePath)
+		file, err := readAttributesFile(config.Config.Client.AttributesFilePath)
 		if err != nil {
 			log.Println("error reading attributes_file", err) // logger is not initialized yet
 			log.Println("ignoring attributes_file")
