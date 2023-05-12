@@ -832,3 +832,28 @@ func TestShouldConvertHourOrDayStringToDuration(t *testing.T) {
 		})
 	}
 }
+
+func TestParseAndValidateCORS(t *testing.T) {
+	input := []string{
+		// ok
+		"*",
+		"https://example.com:123",
+		"http://localhost",
+		"https://*.example.com:123",
+		// not ok
+		"example.com",
+		"https://example.com:123/def",
+		"https://example.com:123?def=ghi",
+		"https://example.com:123#def",
+	}
+
+	result := parseAndValidateCORS(&Mlog, input)
+
+	expected := []string{
+		"*",
+		"https://example.com:123",
+		"http://localhost",
+		"https://*.example.com:123",
+	}
+	assert.Equal(t, expected, result)
+}
