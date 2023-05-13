@@ -4,6 +4,7 @@ import (
 	"fmt"
 	"reflect"
 	"strconv"
+	"strings"
 
 	"github.com/realvnc-labs/rport/share/dynops/dyncopy"
 	"github.com/realvnc-labs/rport/share/query"
@@ -16,13 +17,62 @@ func (fid fieldID[T]) GetFieldFromObject(o T) reflect.Value {
 	return v.Field(int(fid))
 }
 
+type ComparatorSliceEQ[T any] struct {
+	fieldID[T]
+	comparator func(value string) bool
+}
+
+func (c ComparatorSliceEQ[T]) Run(o T) bool {
+	strings := c.GetFieldFromObject(o).Interface().([]string)
+	for _, ss := range strings {
+		if c.comparator(ss) {
+			return true
+		}
+	}
+	return false
+}
+
+type ComparatorMapEQ[T any] struct {
+	fieldID[T]
+	comparator func(value string) bool
+}
+
+func (c ComparatorMapEQ[T]) Run(o T) bool {
+	entries := c.GetFieldFromObject(o).Interface().(map[string]string)
+	for k, v := range entries {
+		if c.comparator(fmt.Sprintf("%v: %v", k, v)) {
+			return true
+		}
+	}
+	return false
+}
+
 type ComparatorStringEQ[T any] struct {
 	fieldID[T]
 	value string
 }
 
+type ComparatorStringWithComp[T any] struct {
+	fieldID[T]
+	comparator func(value string) bool
+}
+
+func (c ComparatorStringWithComp[T]) Run(o T) bool {
+	return c.comparator(c.GetFieldFromObject(o).String())
+}
+
 func (c ComparatorStringEQ[T]) Run(o T) bool {
 	return c.GetFieldFromObject(o).Interface() == c.value
+}
+
+type ComparatorSubStringEQ[T any] struct {
+	fieldID[T]
+	parts []string
+}
+
+func (c ComparatorSubStringEQ[T]) Run(o T) bool {
+	txt := c.GetFieldFromObject(o).String()
+	return StringMather(txt, c.parts)
 }
 
 type ComparatorInt[T any] struct {
@@ -65,32 +115,51 @@ func CompileFromQueryListOptions[T any](filters []query.FilterOption) (Operation
 			return nil, fmt.Errorf("%v on type: %v on filter: %v", err, reflect.TypeOf(proto), i)
 		}
 
-		v, err := getValue(filter)
-		if err != nil {
-			return nil, fmt.Errorf("%v on filter: %v", err, i)
+		switch len(filter.Values) {
+		case 0:
+			return nil, fmt.Errorf("no values for filter: %v", i)
+		case 1:
+			c, err := getComparator[T](filter.Operator, field, filter.Values[0])
+			if err != nil {
+				return nil, fmt.Errorf("%v on filter: %v", err, i)
+			}
+
+			comparators[i] = c
+		default:
+			ops := make([]Operation[T], len(filter.Values))
+			for vid, v := range filter.Values {
+				c, err := getComparator[T](filter.Operator, field, v)
+				if err != nil {
+					return nil, fmt.Errorf("%v on filter: %v", err, vid)
+				}
+				ops[vid] = c
+			}
+
+			switch filter.ValuesLogicalOperator {
+			case query.FilterLogicalOperatorTypeOR:
+				comparators[i] = NewOr(ops...)
+			case query.FilterLogicalOperatorTypeAND:
+				comparators[i] = NewAnd(ops...)
+			default:
+				return nil, fmt.Errorf("unknown logical operator: %v", filter.ValuesLogicalOperator)
+			}
 		}
 
-		c, err := getComparator[T](filter.Operator, field, v)
-		if err != nil {
-			return nil, fmt.Errorf("%v on filter: %v", err, i)
-		}
-
-		comparators[i] = c
 	}
 	return NewAnd[T](comparators...), nil
 }
 
-func getComparator[T any](operator query.FilterOperatorType, field dyncopy.Field, v string) (Operation[T], error) {
+func getComparator[T any](operator query.FilterOperatorType, field dyncopy.Field, query string) (Operation[T], error) {
 
 	switch field.Kind.Kind() {
 	case reflect.String:
-		return GetStringComparator[T](operator, field, v)
+		return GetStringComparator[T](operator, field, query)
 	case reflect.Slice:
-		return GetSliceComparator[T](operator, field, v)
+		return GetSliceComparator[T](operator, field, query)
 	case reflect.Map:
-		return GetMapComparator[T](operator, field, v)
+		return GetMapComparator[T](operator, field, query)
 	case reflect.Int, reflect.Int64:
-		return GetIntComparator[T](operator, field, v)
+		return GetIntComparator[T](operator, field, query)
 	default:
 		return nil, fmt.Errorf("can't compare field, unhandled type")
 	}
@@ -119,12 +188,60 @@ func GetIntComparator[T any](operator query.FilterOperatorType, field dyncopy.Fi
 	}, nil
 }
 
+func StringMather(txt string, parts []string) bool {
+	if len(txt) == 0 || len(parts) == 0 {
+		return false
+	}
+
+	first := parts[0]
+
+	subtext := txt
+	i := strings.Index(subtext, first)
+	if first != "" && i != 0 {
+		return false
+	}
+	subtext = subtext[i+len(first):]
+
+	if len(parts) > 2 {
+		for _, part := range parts[1 : len(parts)-1] {
+			i := strings.Index(subtext, part)
+			if i < 0 {
+				return false
+			}
+			subtext = subtext[i+len(part):]
+		}
+	}
+
+	if len(parts) > 1 {
+		last := parts[len(parts)-1]
+		if strings.LastIndex(subtext, last)+len(last) != len(subtext) && last != "" {
+			return false
+		}
+	}
+
+	return true
+}
+
+func GenStringComparator(query string) func(value string) bool {
+	if strings.Contains(query, "*") {
+		parts := strings.Split(query, "*")
+		return func(value string) bool {
+			return StringMather(value, parts)
+		}
+	}
+
+	return func(value string) bool {
+		return value == query
+	}
+}
+
 func GetStringComparator[T any](operator query.FilterOperatorType, field dyncopy.Field, v string) (Operation[T], error) {
+
 	switch operator {
 	case query.FilterOperatorTypeEQ:
-		return ComparatorStringEQ[T]{
-			fieldID: fieldID[T](field.ID),
-			value:   v,
+		return ComparatorStringWithComp[T]{
+			fieldID:    fieldID[T](field.ID),
+			comparator: GenStringComparator(v),
 		}, nil
 	default:
 		return nil, fmt.Errorf("invalid string operator: %v", operator)
@@ -132,12 +249,11 @@ func GetStringComparator[T any](operator query.FilterOperatorType, field dyncopy
 }
 
 func GetSliceComparator[T any](operator query.FilterOperatorType, field dyncopy.Field, v string) (Operation[T], error) {
-	panic("make me work")
 	switch operator {
 	case query.FilterOperatorTypeEQ:
-		return ComparatorStringEQ[T]{
-			fieldID: fieldID[T](field.ID),
-			value:   v,
+		return ComparatorSliceEQ[T]{
+			fieldID:    fieldID[T](field.ID),
+			comparator: GenStringComparator(v),
 		}, nil
 	default:
 		return nil, fmt.Errorf("invalid string operator: %v", operator)
@@ -145,12 +261,12 @@ func GetSliceComparator[T any](operator query.FilterOperatorType, field dyncopy.
 }
 
 func GetMapComparator[T any](operator query.FilterOperatorType, field dyncopy.Field, v string) (Operation[T], error) {
-	panic("make me work!")
+
 	switch operator {
 	case query.FilterOperatorTypeEQ:
-		return ComparatorStringEQ[T]{
-			fieldID: fieldID[T](field.ID),
-			value:   v,
+		return ComparatorMapEQ[T]{
+			fieldID:    fieldID[T](field.ID),
+			comparator: GenStringComparator(v),
 		}, nil
 	default:
 		return nil, fmt.Errorf("invalid string operator: %v", operator)

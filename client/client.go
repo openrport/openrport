@@ -15,8 +15,6 @@ import (
 	"sync"
 	"time"
 
-	"github.com/realvnc-labs/rport/server/clients"
-
 	"github.com/realvnc-labs/rport/share/random"
 
 	"github.com/denisbrodbeck/machineid"
