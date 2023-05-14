@@ -27,6 +27,7 @@ import (
 	"github.com/realvnc-labs/rport/server/clients/storedtunnels/tunnelprovider"
 	"github.com/realvnc-labs/rport/share/simplestore"
 	"github.com/realvnc-labs/rport/share/simplestore/kvs/fskv"
+	"github.com/realvnc-labs/rport/share/simplestore/kvs/inmemory"
 
 	"github.com/realvnc-labs/rport/server/api/authorization"
 	"github.com/realvnc-labs/rport/server/api/session"
@@ -120,7 +121,25 @@ func NewAPIListener(
 
 	vaultDBProviderFactory := vault.NewStatefulDbProviderFactory(
 		func() (vault.DbProvider, error) {
-			return vault.NewSqliteProvider(config, vaultLogger)
+			// return vault.NewSqliteProvider(config, vaultLogger)
+			newFSKVstatus, err := fskv.NewFSKV(path.Join(config.GetVaultDBPath(), "status"))
+			if err != nil {
+				return nil, err
+			}
+			newFSKVvalues, err := fskv.NewFSKV(path.Join(config.GetVaultDBPath(), "values"))
+			if err != nil {
+				return nil, err
+			}
+			statusStore, err := simplestore.NewSimpleStore[vault.DbStatus](ctx, newFSKVstatus)
+			if err != nil {
+				return nil, err
+			}
+
+			valuesStore, err := simplestore.NewSimpleStore[vault.StoredValue](ctx, newFSKVvalues)
+			return vault.NewKVVaultProvider(
+				statusStore,
+				valuesStore,
+			), nil
 		},
 		&vault.NotInitDbProvider{},
 	)
@@ -282,10 +301,16 @@ func NewAPIListener(
 		a.accessLogFile = accessLogFile
 	}
 
-	sessionDB, err := session.NewSqliteProvider(path.Join(config.Server.DataDir, "api_sessions.db"), config.Server.GetSQLiteDataSourceOptions())
+	sessionStore, err := simplestore.NewSimpleStore[session.APISession](ctx, inmemory.NewInMemory())
 	if err != nil {
 		return nil, err
 	}
+	sessionDB := session.NewKVSessionProvider(sessionStore)
+
+	//sessionDB, err := session.NewSqliteProvider(path.Join(config.Server.DataDir, "api_sessions.db"), config.Server.GetSQLiteDataSourceOptions())
+	//if err != nil {
+	//	return nil, err
+	//}
 
 	a.apiSessions, err = session.NewCache(ctx, bearer.DefaultTokenLifetime, cleanupAPISessionsInterval, sessionDB, nil)
 	if err != nil {

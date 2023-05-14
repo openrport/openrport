@@ -44,6 +44,13 @@ func NewSimpleStore[T any](ctx context.Context, store KVStore[T]) (*SimpleStore[
 	}, nil
 }
 
+func (s *SimpleStore[T]) Get(ctx context.Context, key string) (T, bool, error) {
+	s.RLock()
+	defer s.RUnlock()
+	t, found := s.memory[key]
+	return t, found, nil
+}
+
 func (s *SimpleStore[T]) GetAll(ctx context.Context) ([]T, error) {
 	s.RLock()
 	keys := make([]string, len(s.memory))
@@ -117,3 +124,31 @@ func (s *SimpleStore[T]) Filter(ctx context.Context, sieve func(T) bool) ([]T, e
 	return tmp, nil
 
 }
+
+//func EndpointFiltering[T any]() {
+//	if options == nil {
+//		return nil, fmt.Errorf("options for filtering and pagination is nil")
+//	}
+//
+//	filter, err := filterer.CompileFromQueryListOptions[T](options.Filters)
+//	if err != nil {
+//		return nil, err
+//	}
+//
+//	tunnels, err := t.kv.Filter(ctx, func(tunnel T) bool {
+//		return tunnel.ClientID == clientID && filter.Run(tunnel)
+//	})
+//	if err != nil {
+//		return nil, err
+//	}
+//
+//	tunnels, err = dynops.FastSorter1(t.sortTranslationTable, tunnels, options.Sorts)
+//	if err != nil {
+//		return nil, err
+//	}
+//
+//	tunnels = dynops.Paginator(tunnels, options.Pagination)
+//
+//	return simpleops.ToPointerSlice(tunnels), nil
+//
+//}
