@@ -5,6 +5,7 @@ import (
 	"math/rand"
 	"reflect"
 	"testing"
+	"time"
 
 	"github.com/realvnc-labs/rport/share/dynops"
 	"github.com/realvnc-labs/rport/share/dynops/dyncopy"
@@ -13,9 +14,10 @@ import (
 )
 
 type TestStruct struct {
-	FieldA string
-	FieldB int
-	FieldC []string
+	FieldA    string
+	FieldB    int
+	FieldC    []string
+	FieldTime time.Time
 }
 
 func TestPaginator(t *testing.T) {
@@ -139,6 +141,36 @@ func TestSorter(t *testing.T) {
 			want: []TestStruct{{FieldA: "A"}, {FieldA: "B", FieldB: 2}, {FieldA: "B", FieldB: 1}},
 		},
 		{
+			name: "test int sort",
+			args: args[TestStruct]{
+				list: []TestStruct{
+					{FieldA: "B", FieldB: 11}, {FieldA: "A"}, {FieldA: "B", FieldB: 2},
+				},
+				sorts: []query.SortOption{
+					{
+						Column: "FieldB",
+						IsASC:  false,
+					},
+				},
+			},
+			want: []TestStruct{{FieldA: "A"}, {FieldA: "B", FieldB: 2}, {FieldA: "B", FieldB: 11}},
+		},
+		{
+			name: "test time sort",
+			args: args[TestStruct]{
+				list: []TestStruct{
+					{FieldTime: time.Time{}, FieldA: "A"}, {FieldTime: time.Time{}.Add(time.Hour), FieldA: "B"},
+				},
+				sorts: []query.SortOption{
+					{
+						Column: "FieldTime",
+						IsASC:  true,
+					},
+				},
+			},
+			want: []TestStruct{{FieldTime: time.Time{}.Add(time.Hour), FieldA: "B"}, {FieldTime: time.Time{}, FieldA: "A"}},
+		},
+		{
 			name: "test nested reverse sort",
 			args: args[TestStruct]{
 				list: []TestStruct{
@@ -160,7 +192,8 @@ func TestSorter(t *testing.T) {
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			if got := dynops.SlowBasicSorter(tt.args.list, tt.args.sorts); !reflect.DeepEqual(got, tt.want) {
+			ttt := dyncopy.BuildTranslationTable(TestStruct{})
+			if got, _ := dynops.FastSorter1(ttt, tt.args.list, tt.args.sorts); !reflect.DeepEqual(got, tt.want) {
 				t.Errorf("SlowBasicSorter() = %v, want %v", got, tt.want)
 			}
 		})

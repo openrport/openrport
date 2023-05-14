@@ -5,6 +5,7 @@ import (
 	"reflect"
 	"strconv"
 	"strings"
+	"time"
 
 	"github.com/realvnc-labs/rport/share/dynops/dyncopy"
 	"github.com/realvnc-labs/rport/share/query"
@@ -73,6 +74,30 @@ type ComparatorSubStringEQ[T any] struct {
 func (c ComparatorSubStringEQ[T]) Run(o T) bool {
 	txt := c.GetFieldFromObject(o).String()
 	return StringMather(txt, c.parts)
+}
+
+type ComparatorTime[T any] struct {
+	fieldID[T]
+	value    time.Time
+	operator query.FilterOperatorType
+}
+
+func (c ComparatorTime[T]) Run(o T) bool {
+	value := c.GetFieldFromObject(o).Interface().(time.Time)
+	switch c.operator {
+	case query.FilterOperatorTypeEQ:
+		return c.value == value
+	case query.FilterOperatorTypeGT:
+		return c.value.After(value)
+	case query.FilterOperatorTypeLT:
+		return c.value.Before(value)
+	case query.FilterOperatorTypeSince:
+		return c.value.After(value)
+	case query.FilterOperatorTypeUntil:
+		return c.value.Before(value)
+	}
+
+	return false
 }
 
 type ComparatorInt[T any] struct {
@@ -161,8 +186,36 @@ func getComparator[T any](operator query.FilterOperatorType, field dyncopy.Field
 	case reflect.Int, reflect.Int64:
 		return GetIntComparator[T](operator, field, query)
 	default:
+		switch field.Kind.Kind().String() {
+		case "time.time":
+			return GetTimeComparator[T](operator, field, query)
+		}
+
 		return nil, fmt.Errorf("can't compare field, unhandled type")
 	}
+}
+
+func GetTimeComparator[T any](operator query.FilterOperatorType, field dyncopy.Field, v string) (Operation[T], error) {
+	switch operator {
+	case query.FilterOperatorTypeEQ:
+	case query.FilterOperatorTypeGT:
+	case query.FilterOperatorTypeLT:
+	case query.FilterOperatorTypeSince:
+	case query.FilterOperatorTypeUntil:
+	default:
+		return nil, fmt.Errorf("invalid time operator: %v", operator)
+	}
+
+	i, err := time.Parse(time.RFC3339, v)
+	if err != nil {
+		return nil, fmt.Errorf("can't parse value: %v into time: %v", v, err)
+	}
+
+	return ComparatorTime[T]{
+		operator: operator,
+		fieldID:  fieldID[T](field.ID),
+		value:    i,
+	}, nil
 }
 
 func GetIntComparator[T any](operator query.FilterOperatorType, field dyncopy.Field, v string) (Operation[T], error) {

@@ -4,6 +4,7 @@ import (
 	"fmt"
 	"reflect"
 	"sort"
+	"time"
 
 	"github.com/realvnc-labs/rport/share/dynops/dyncopy"
 	"github.com/realvnc-labs/rport/share/query"
@@ -76,18 +77,64 @@ func FastSorter1[T any](tt map[string]dyncopy.Field, list []T, sorts []query.Sor
 		rb := reflect.ValueOf(b)
 
 		for _, s := range tsorts {
-			ka := fmt.Sprintf("%v", ra.Field(s.f.ID).Interface())
-			kb := fmt.Sprintf("%v", rb.Field(s.f.ID).Interface())
 
-			if ka == kb {
-				continue
+			switch s.f.Kind.Kind().String() {
+			case "string":
+				ka := ra.Field(s.f.ID).String()
+				kb := rb.Field(s.f.ID).String()
+
+				if ka == kb {
+					continue
+				}
+
+				if s.isAsc {
+					return ka > kb
+				}
+
+				return ka < kb
+
+			case "int":
+				ka := ra.Field(s.f.ID).Interface().(int)
+				kb := rb.Field(s.f.ID).Interface().(int)
+
+				if ka == kb {
+					continue
+				}
+
+				if s.isAsc {
+					return ka > kb
+				}
+
+				return ka < kb
+
+			case "time.Time": // Time has to be separate because of the timezones
+				ka := ra.Field(s.f.ID).Interface().(time.Time)
+				kb := rb.Field(s.f.ID).Interface().(time.Time)
+
+				if ka == kb {
+					continue
+				}
+
+				if s.isAsc {
+					return ka.After(kb)
+				}
+
+				return ka.Before(kb)
+
+			default:
+				ka := fmt.Sprintf("%v", ra.Field(s.f.ID).Interface())
+				kb := fmt.Sprintf("%v", rb.Field(s.f.ID).Interface())
+
+				if ka == kb {
+					continue
+				}
+
+				if s.isAsc {
+					return ka > kb
+				}
+
+				return ka < kb
 			}
-
-			if s.isAsc {
-				return ka > kb
-			}
-
-			return ka < kb
 
 		}
 
