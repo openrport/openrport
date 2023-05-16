@@ -1,13 +1,15 @@
 package chserver
 
 import (
+	"bytes"
 	"context"
+	"encoding/json"
 	"errors"
 	"fmt"
+	"io/ioutil"
 	"net/http"
 	"regexp"
 	"strconv"
-	"strings"
 	"time"
 
 	"github.com/gorilla/mux"
@@ -169,25 +171,23 @@ func (al *APIListener) permissionsMiddleware(permission string) mux.MiddlewareFu
 					al.jsonError(w, err)
 					return
 				}
-				if permission == users.PermissionTunnels || permission == users.PermissionCommands {
-					al.Debugf("extended \"%s\" PermissionsMiddleware: %v %v", permission, r.Method, r.URL.Path)
-
+				if permission == users.PermissionTunnels || permission == users.PermissionCommands || permission == users.PermissionScheduler {
 					if !rportplus.IsPlusEnabled(al.config.PlusConfig) { // that checks whether the plugin is enabled in the config -- if it is enabled but fails to load, then there will be an error and the server won't start
 						al.jsonErrorResponseWithTitle(w, http.StatusForbidden, "Extended permissions validation failed because rport-plus plugin not loaded")
 						return
 					}
-
+					al.Debugf("extended \"%s\" PermissionsMiddleware: %v %v", permission, r.Method, r.URL.Path)
 					tr, cr := al.userService.GetEffectiveUserExtendedPermissions(currUser)
-
 					switch permission {
 					case users.PermissionTunnels:
 						if tr != nil {
-							err = validateExtendedTunnelPermissions(r, tr)
+							err = validateExtendedTunnelPermission(r, tr)
 						}
 						break
 					case users.PermissionCommands:
+					case users.PermissionScheduler:
 						if cr != nil {
-							err = validateExtendedCommandPermissions(r, cr)
+							err = validateExtendedCommandPermission(r, cr)
 						}
 						break
 					}
@@ -198,6 +198,7 @@ func (al *APIListener) permissionsMiddleware(permission string) mux.MiddlewareFu
 				}
 			}
 
+			al.Debugf("ENDF PermissionsMiddleware: %v %v", r.Method, r.URL.Path)
 			next.ServeHTTP(w, r)
 		})
 
@@ -233,24 +234,17 @@ func errorMessageMaxMinLimits(pName string, pValue string, limit string, ruleVal
 	if ruleValue == "max" {
 		mm = "less"
 	}
-	return fmt.Sprintf("Tunnel with %v=%v is forbidden. Allowed value for user group must be %s than %v", pName, pValue, mm, limit)
+	return fmt.Sprintf("4 Tunnel with %v=%v is forbidden. Allowed value must be %s than %v", pName, pValue, mm, limit)
 }
 
 // ED TODO: this INSIDE PLUS!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
 // ED TODO: use shortDur in all messages that use time.Duration
 func shortDur(d time.Duration) string {
-	s := d.String()
-	if strings.HasSuffix(s, "m0s") {
-		s = s[:len(s)-2]
-	}
-	if strings.HasSuffix(s, "h0m") {
-		s = s[:len(s)-2]
-	}
-	return s
+	return fmt.Sprintf("%vm", d.Minutes())
 }
 
 // ED TODO: this INSIDE PLUS!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
-func validateExtendedTunnelPermissions(r *http.Request, tr []users.StringInterfaceMap) error {
+func validateExtendedTunnelPermission(r *http.Request, tr []users.StringInterfaceMap) error {
 	//  ED TODO: Plus plugin LICENSE CHECK The method will validate the permissions 5 times and then all validations will be denied with a message, "You are running the plus-plugin without a licence. Max 5 validation reached. Restart rportd to continue testing."
 	if len(tr) > 0 && r.Method != "GET" {
 		for _, TunnelsRestricted := range tr {
@@ -265,26 +259,32 @@ func validateExtendedTunnelPermissions(r *http.Request, tr []users.StringInterfa
 					pValue, _ := strconv.ParseBool(r.FormValue(pName))
 					if !restriction && pValue != restriction { // all false are to disallow
 						msg1, msg2 := messageEnforceDisallow(restriction)
-						return errors.New(fmt.Sprintf("Tunnel with %v=%v is forbidden. %s %v value%s ", pName, pValue, msg1, pName, msg2))
+						return errors.New(fmt.Sprintf("1 Tunnel with %v=%v is forbidden. %s %v value%s", pName, pValue, msg1, pName, msg2))
 					}
 					break
 				case string: // like with true or false but if the param content matches the regular expression
+					fmt.Printf("TunnelsRestricted[pName].(string) = %v\n", TunnelsRestricted[pName].(string))
 					restriction := TunnelsRestricted[pName].(string)
 					pValue := r.FormValue(pName)
 					r, err := regexp.Compile(restriction)
 					if err != nil {
-						// al.Debugf("invalid restriction regular expression %q: %v", restriction, err) // ED TODO: need a validation function for the extended permissions regexes, on save
+						fmt.Printf("invalid restriction regular expression %q: %v", restriction, err) // ED TODO: need a validation function for the extended permissions regexes, on save
 					}
 					if !r.Match([]byte(pValue)) {
-						return errors.New(fmt.Sprintf("Tunnel with %v=%v is forbidden. Allowed values for user group must match '%v' regular expression", pName, pValue, restriction))
+						return errors.New(fmt.Sprintf("2 Tunnel with %v=%v is forbidden. Allowed values must match '%v' regular expression", pName, pValue, restriction))
 					}
-					break
+					break //
 				case []interface{}: // [ "stuff", "like" "this" ]
-					if !restrictionInList(pName, r.FormValue(pName), TunnelsRestricted,
+					pValue := r.FormValue(pName)
+					if inList, _ := restrictionInList(pName, pValue, TunnelsRestricted,
 						func(pValue string, restriction string) bool {
 							return pValue == restriction
-						}) {
-						return errors.New(fmt.Sprintf("Tunnel with %v=%v forbidden. Allowed values for user group: %v", pName, r.FormValue(pName), TunnelsRestricted[pName]))
+						}); !inList {
+						paramStr := fmt.Sprintf("with parameter %s=%s", pName, pValue)
+						if (pValue == "") || (pValue == "0") {
+							paramStr = fmt.Sprintf("without parameter %s", pName)
+						}
+						return errors.New(fmt.Sprintf("3 Tunnel %s is forbidden. Allowed values: %v", paramStr, TunnelsRestricted[pName]))
 					}
 					break
 				case map[string]interface{}: // stuff like this { "max": "60m", "min": "5m" }
@@ -306,8 +306,8 @@ func validateExtendedTunnelPermissions(r *http.Request, tr []users.StringInterfa
 						if err != nil { // ED TODO: this should not happen, the validation should be done on save
 							return errors.New(fmt.Sprintf("restriction %v not parseable as time.duration: %v", restriction[rule], err))
 						}
-						if rule == "min" && *durPValue <= *ruleValue || rule == "max" && *durPValue > *ruleValue {
-							return errors.New(errorMessageMaxMinLimits(pName, pValue, shortDur(*ruleValue), rule))
+						if (rule == "min" && *durPValue < *ruleValue) || (rule == "max" && *durPValue > *ruleValue) {
+							return errors.New(errorMessageMaxMinLimits(pName, fmt.Sprintf("%v", durPValue.Minutes()), shortDur(*ruleValue), rule))
 						}
 					}
 					break
@@ -321,119 +321,99 @@ func validateExtendedTunnelPermissions(r *http.Request, tr []users.StringInterfa
 	return nil
 }
 
-func restrictionInList(pName string, pValue string, TunnelsRestricted users.StringInterfaceMap, restrictionMatch func(string, string) bool) bool {
+func restrictionInList(pName string, pValue string, TunnelsRestricted users.StringInterfaceMap, restrictionMatch func(string, string) bool) (bool, string) {
 	rl := TunnelsRestricted[pName].([]interface{})
 	restrictionList := make([]string, len(rl)) // only strings are allowed
 	for i, v := range rl {
 		restrictionList[i] = fmt.Sprint(v)
 	}
-	// al.Debugf("[]string parameter %v=%v restriction %v", pName, pValue, restrictionList)
 	found := false
+	rFound := ""
 	for _, restriction := range restrictionList {
 		if restrictionMatch(pValue, restriction) {
 			found = true
+			rFound = restriction
 			break
 		}
 	}
-	return found && len(restrictionList) > 0
+	return (found && len(restrictionList) > 0) || len(restrictionList) == 0, rFound
 }
 
 // ED TODO: this INSIDE PLUS!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
-func validateExtendedCommandPermissions(r *http.Request, cr []users.StringInterfaceMap) error {
-	//  ED TODO: Plus plugin LICENSE CHECK The method will validate the permissions 5 times and then all validations will be denied with a message, "You are running the plus-plugin without a licence. Max 5 validation reached. Restart rportd to continue testing."
-	if len(cr) > 0 && r.Method != "GET**********" { // ED TODO: this should do nothing for r.Method == "GET" but for WS connections, find a way to detect WS GETs{
-		// al.Debugf("validateExtendedCommandPermissions %v", cr)
-		for _, CommandsRestricted := range cr {
-			// cycle through the keys of the tunnel restriction map (e.g. "auto-close")
-			for pName := range CommandsRestricted {
-				switch CommandsRestricted[pName].(type) {
-				case bool: // true or false
-				case []interface{}:
-					if !restrictionInList(pName, r.FormValue(pName), CommandsRestricted,
-						func(pValue string, restriction string) bool {
-							r, err := regexp.Compile(restriction)
-							if err != nil {
-								// al.Debugf("invalid restriction regular expression %q: %v", restriction, err) // ED TODO: need a validation function for the extended permissions regexes, on save
-							}
-							return !r.Match([]byte(pValue))
-						}) {
-						return errors.New(fmt.Sprintf("Command with %v=%v forbidden. Allowed values for user group: %v", pName, r.FormValue(pName), CommandsRestricted[pName]))
-					}
-					break
-				default:
-					// ED TODO: CommandsRestricted validation is a simple cycle like this, a function that cycle the type and checks if type IN [ list of admitted types for CommandsRestricted])
-					// even if valiudation is done on save
-					// al.Debugf("extended \"commands\" Permissions %v of type %T not recognized", CommandsRestricted[pName], CommandsRestricted[pName])
+func validateExtendedCommandPermission(r *http.Request, cr []users.StringInterfaceMap) error {
+	// check if we have a "cmd" or "command" parameter
+	if r.Method != "GET" {
+		isSudo := false
+		if r.FormValue("is_sudo") != "" {
+			isSudo, _ = strconv.ParseBool(r.FormValue("is_sudo"))
+		}
+		command := r.FormValue("cmd") // some endpoint use "cmd" instead of "command"
+		if command == "" {
+			command = r.FormValue("command")
+		}
+		if command == "" {
+			bodyBytes, _ := ioutil.ReadAll(r.Body)                // read all request body
+			r.Body.Close()                                        //  must close
+			r.Body = ioutil.NopCloser(bytes.NewBuffer(bodyBytes)) // creates a new one for the next handler
+
+			var data map[string]interface{}
+			err := json.Unmarshal(bodyBytes, &data) // sample data {"command": "/bin/date;foo;whoami", "timeout_sec": 0}
+			if err == nil {
+				if cmdValue, ok := data["command"].(string); ok {
+					command = cmdValue
+				}
+				if cmdValue, ok := data["cmd"].(string); ok {
+					command = cmdValue
+				}
+
+				if data["is_sudo"] != nil {
+					isSudo = data["is_sudo"].(bool)
 				}
 			}
 		}
+
+		// We check for any of the denies in any groups. If I'm member of two groups and the command is denied by one but allowed by the other, deny wins.
+		if command != "" {
+			for _, CommandsRestricted := range cr {
+				// * Step 1 check, if the command matches against any of the deny expressions, the command is denied
+				if _, ok := CommandsRestricted["deny"].([]interface{}); ok { // we have a deny list
+					if inList, whichOne := restrictionInList("deny", command, CommandsRestricted,
+						func(pValue string, restriction string) bool {
+							r, err := regexp.Compile(restriction)
+							if err != nil {
+								fmt.Printf("invalid deny restriction regular expression %q: %v", restriction, err) // ED TODO: need a validation function for the extended permissions regexes, on save
+							}
+							return r.Match([]byte(pValue))
+						}); inList {
+						return errors.New(fmt.Sprintf("Command '%v' forbidden. Allowed values must not match DENY '%v' regular expressions: %v", command, whichOne, CommandsRestricted["deny"]))
+					}
+				}
+
+				// * Step 2: The command must match against any of the allow expressions. Otherwise, the command is denied.
+				if _, ok := CommandsRestricted["allow"].([]interface{}); ok { // we have an allow list
+					if inList, _ := restrictionInList("allow", command, CommandsRestricted,
+						func(pValue string, restriction string) bool {
+							r, err := regexp.Compile(restriction)
+							if err != nil {
+								fmt.Printf("invalid allow restriction regular expression %q: %v", restriction, err) // ED TODO: need a validation function for the extended permissions regexes, on save
+							}
+							return r.Match([]byte(pValue))
+						}); !inList {
+						return errors.New(fmt.Sprintf("Command '%v' forbidden. Allowed values must match one of ALLOW regular expressions: %v", command, CommandsRestricted["allow"]))
+					}
+				}
+
+				if (isSudo) && CommandsRestricted["is_sudo"].(bool) == false {
+					return errors.New(fmt.Sprintf("Command '%v' forbidden. Allowed values must not use the global is_sudo switch", command))
+				}
+				// if is_sudo, ok := CommandsRestricted["is_sudo"].(bool); ok {
+				// 	fmt.Printf("\nis_sudo: %v and should be %v", isSudo, is_sudo)
+				// }
+
+			}
+
+		}
 	}
-
-	/*
-						   "commands_restricted": {
-							   "allow": ["^sudo reboot$","^systemctl .* restart$"],
-							   "deny": ["apache2","ssh"],
-							   "is_sudo": false
-						   }
-
-		The example means.
-
-		I can reboot the machine.
-		I can restart any service except apache2 and ssh
-		I cannot use the global is_sudo switch.
-		The list of deny and allow keywords are regular expressions.
-
-		Step 1: If the command matches against any of the deny expressions, the command is denied.
-		Step 2: The command must match against any of the allow expressions. Otherwise, the command is denied.
-		Using an empty list or omitting an object will remove any restrictions. For example, if allowed is not present, or if "allowed": [] then any command can be used.
-		If denied is missing or empty, the command is not validated against the deny patterns.
-
-
-		this has to be applied to
-
-		type Command struct {
-			ID        string             `json:"id,omitempty" db:"id"`
-			Name      string             `json:"name,omitempty" db:"name"`
-			CreatedBy string             `json:"created_by,omitempty" db:"created_by"`
-			CreatedAt *time.Time         `json:"created_at,omitempty" db:"created_at"`
-			UpdatedBy string             `json:"updated_by,omitempty" db:"updated_by"`
-			UpdatedAt *time.Time         `json:"updated_at,omitempty" db:"updated_at"`
-			Cmd       string             `json:"cmd,omitempty" db:"cmd"`
-			Tags      *types.StringSlice `json:"tags,omitempty" db:"tags"`
-			TimoutSec *int               `json:"timeout_sec,omitempty" db:"timeout_sec"`
-		}
-
-		type InputCommand struct {
-			Name      string   `json:"name" db:"name"`
-			Cmd       string   `json:"cmd" db:"script"`
-			Tags      []string `json:"tags" db:"tags"`
-			TimoutSec int      `json:"timeout_sec" db:"timeout_sec"`
-		}
-
-		and
-
-		type MultiJobRequest struct {
-			ClientIDs           []string              `json:"client_ids"`
-			GroupIDs            []string              `json:"group_ids"`
-			ClientTags          *models.JobClientTags `json:"tags"`
-			Command             string                `json:"command"`
-			Script              string                `json:"script"`
-			Cwd                 string                `json:"cwd"`
-			IsSudo              bool                  `json:"is_sudo"`
-			Interpreter         string                `json:"interpreter"`
-			TimeoutSec          int                   `json:"timeout_sec"`
-			ExecuteConcurrently bool                  `json:"execute_concurrently"`
-			AbortOnError        *bool                 `json:"abort_on_error"` // pointer is used because it's default value is true. Otherwise it would be more difficult to check whether this field is missing or not
-
-			Username       string            `json:"-"`
-			IsScript       bool              `json:"-"`
-			OrderedClients []*clients.Client `json:"-"`
-			ScheduleID     *string           `json:"-"`
-		}
-
-
-
-	*/
 	return nil
 }
 
