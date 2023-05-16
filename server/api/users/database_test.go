@@ -276,6 +276,7 @@ func TestListGroups(t *testing.T) {
 		})
 	}
 }
+
 func TestListGroupsPlusOn(t *testing.T) {
 	testCases := []struct {
 		Name         string
@@ -287,10 +288,24 @@ func TestListGroupsPlusOn(t *testing.T) {
 			DetailsTable: "group_details",
 			Expected: []Group{
 				NewGroup("group1", nil, nil, PermissionCommands),
-				NewGroup("group3", nil, nil, PermissionScripts),
-				NewGroup("group4", &StringInterfaceMap{"Local": []string{"20000", "20001"}, "MinIdleTimeout": 5, "MaxAutoClose": "60m", "AuthAllowed": true}, nil),
-				NewGroup("group5", nil, &StringInterfaceMap{"Deny": []string{"apache2", "ssh"}, "IsSudo": false}),
 				NewGroup("group2", nil, nil),
+				NewGroup("group3", nil, nil, PermissionScripts),
+				NewGroup("group4",
+					&StringInterfaceMap{
+						"auth_allowed":         true,
+						"local":                []interface{}{"20000", "20001"},
+						"auto_close":           map[string]interface{}{"max": "60m", "min": "2m"},
+						"idle-timeout-minutes": map[string]interface{}{"min": 5.0},
+					},
+					nil,
+					PermissionTunnels),
+				NewGroup("group5",
+					nil,
+					&StringInterfaceMap{
+						"deny":    []interface{}{"apache2", "ssh"},
+						"is_sudo": false,
+					},
+					PermissionCommands),
 			},
 		},
 	}
@@ -368,6 +383,76 @@ func TestGetGroup(t *testing.T) {
 	}
 }
 
+func TestGetGroupPlusOn(t *testing.T) {
+	testCases := []struct {
+		Name         string
+		DetailsTable string
+		Group        string
+		Expected     Group
+	}{
+		{
+			Name:         "no details",
+			DetailsTable: "",
+			Group:        "group1",
+			Expected:     NewGroup("group1", nil, nil),
+		},
+		{
+			Name:         "with details existing",
+			DetailsTable: "group_details",
+			Group:        "group1",
+			Expected:     NewGroup("group1", nil, nil, PermissionCommands),
+		},
+		{
+			Name:         "with details not existing",
+			DetailsTable: "group_details",
+			Group:        "group4",
+			Expected: NewGroup("group4",
+				&StringInterfaceMap{
+					"auth_allowed":         true,
+					"local":                []interface{}{"20000", "20001"},
+					"auto_close":           map[string]interface{}{"max": "60m", "min": "2m"},
+					"idle-timeout-minutes": map[string]interface{}{"min": 5.0},
+				},
+				nil,
+				PermissionTunnels),
+		},
+		{
+			Name:         "with details not existing",
+			DetailsTable: "group_details",
+			Group:        "group5",
+			Expected: NewGroup("group5",
+				nil,
+				&StringInterfaceMap{
+					"deny":    []interface{}{"apache2", "ssh"},
+					"is_sudo": false,
+				},
+				PermissionCommands),
+		},
+	}
+
+	db, err := sqlx.Connect("sqlite3", ":memory:")
+	require.NoError(t, err)
+	defer db.Close()
+
+	err = prepareTables(db, false, false, true)
+	require.NoError(t, err)
+
+	err = prepareDummyData(db, false, false, true)
+	require.NoError(t, err)
+
+	for _, tc := range testCases {
+		t.Run(tc.Name, func(t *testing.T) {
+			d, err := NewUserDatabase(db, "users", "groups", tc.DetailsTable, false, false, true, testLog)
+			require.NoError(t, err)
+
+			actual, err := d.GetGroup(tc.Group)
+			require.NoError(t, err)
+
+			assert.Equal(t, tc.Expected, actual)
+		})
+	}
+}
+
 func TestUpdateGroup(t *testing.T) {
 	testCases := []struct {
 		Name string
@@ -379,7 +464,7 @@ func TestUpdateGroup(t *testing.T) {
 		},
 		{
 			Name:  "with details not existing",
-			Group: NewGroup("group2", nil, nil, PermissionCommands),
+			Group: NewGroup("group2", nil, nil),
 		},
 	}
 
@@ -410,17 +495,41 @@ func TestUpdateGroup(t *testing.T) {
 }
 
 func TestUpdateGroupPlusOn(t *testing.T) {
+	myMap := make(StringInterfaceMap)
+
+	if myMap == nil {
+		fmt.Println("myMap is nil")
+	} else {
+		fmt.Println("myMap is not nil")
+	}
 	testCases := []struct {
 		Name string
 		Group
 	}{
 		{
-			Name:  "existing",
-			Group: NewGroup("group1", &StringInterfaceMap{"Local": []interface{}{"20000", "20001"}, "MinIdleTimeout": 5, "MaxAutoClose": "60m", "AuthAllowed": true}, &StringInterfaceMap{"Deny": []interface{}{"apache2", "ssh"}, "IsSudo": false}, PermissionCommands),
+			Name: "existing",
+			Group: NewGroup("group1",
+				&StringInterfaceMap{
+					"auth_allowed":         true,
+					"local":                []interface{}{"20001", "20002"},
+					"auto_close":           map[string]interface{}{"max": "30m", "min": "2m"},
+					"idle-timeout-minutes": map[string]interface{}{"min": 2.0},
+				},
+				&StringInterfaceMap{
+					"deny":    []interface{}{"apache2", "ssh"},
+					"is_sudo": false,
+				},
+				PermissionCommands, PermissionTunnels),
 		},
 		{
-			Name:  "with details not existing",
-			Group: NewGroup("group2", &StringInterfaceMap{"Local": []string{"20000", "20001"}, "MinIdleTimeout": 5, "MaxAutoClose": "60m", "AuthAllowed": true}, &StringInterfaceMap{"Deny": []string{"apache2", "ssh"}, "IsSudo": false}, PermissionCommands),
+			Name: "existing only tunnels",
+			Group: NewGroup("group4",
+				&StringInterfaceMap{
+					"auth_allowed":         true,
+					"local":                []interface{}{"20001", "20002"},
+					"auto_close":           map[string]interface{}{"max": "30m", "min": "2m"},
+					"idle-timeout-minutes": map[string]interface{}{"min": 2.0},
+				}, nil, PermissionTunnels),
 		},
 	}
 
@@ -811,11 +920,11 @@ func prepareDummyData(db *sqlx.DB, withTwoFA, withTotP bool, plusOn bool) error 
 	}
 
 	if plusOn {
-		_, err = db.Exec(`INSERT INTO group_details (name, permissions, tunnels_restricted) VALUES ("group4", '{}', '{ "local": ["20000","20001"], "min-idle-timeout-minutes": 5, "max-auto-close": "60m", "auth_allowed": true }')`)
+		_, err = db.Exec(`INSERT INTO group_details (name, permissions, tunnels_restricted) VALUES ("group4", '{"tunnels":true}', '{ "local": ["20000","20001"], "idle-timeout-minutes": { "min": 5 }, "auto_close": { "max": "60m", "min" : "2m" }, "auth_allowed": true }')`)
 		if err != nil {
 			return err
 		}
-		_, err = db.Exec(`INSERT INTO group_details (name, permissions, commands_restricted) VALUES ("group5", '{}', '{ "deny": ["apache2","ssh"], "is_sudo": false }' )`)
+		_, err = db.Exec(`INSERT INTO group_details (name, permissions, commands_restricted) VALUES ("group5", '{"commands":true}', '{ "deny": ["apache2","ssh"], "is_sudo": false }' )`)
 		if err != nil {
 			return err
 		}

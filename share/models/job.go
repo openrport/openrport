@@ -55,14 +55,14 @@ type MultiJob struct {
 	ClientIDs   []string       `json:"client_ids"`
 	GroupIDs    []string       `json:"group_ids"`
 	ClientTags  *JobClientTags `json:"tags"`
-	Command     string         `json:"command"` // ED TODO: command!
+	Command     string         `json:"command"`
 	Cwd         string         `json:"cwd"`
 	Interpreter string         `json:"interpreter"`
 	TimeoutSec  int            `json:"timeout_sec"`
 	Concurrent  bool           `json:"concurrent"`
 	AbortOnErr  bool           `json:"abort_on_err"`
 	Jobs        []*Job         `json:"jobs"`
-	IsSudo      bool           `json:"is_sudo"` // ED TODO: command!
+	IsSudo      bool           `json:"is_sudo"`
 	IsScript    bool           `json:"is_script"`
 }
 

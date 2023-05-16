@@ -16,27 +16,6 @@ var AdministratorsGroup = Group{
 	Permissions: NewPermissions(AllPermissions...),
 }
 
-/*
-	"commands_restricted": {
-	    "allow": ["^sudo reboot$","^systemctl .* restart$"],		// I can reboot the machine. I can restart any service.
-	    "deny": ["apache2","ssh"],									// I can restart any service except apache2 and ssh
-	    "is_sudo": false											// I cannot use the global is_sudo switch. I can still prefix commands with sudo, if the keyword "sudo" is allowed.
-	}
-*/
-
-/*
-ED TODO: The list of deny and allow keywords are regular expressions.
-Step 1: If the command matches against any of the deny expressions, the command is denied.
-Step 2: The command must match against any of the allow expressions. Otherwise, the command is denied.
-
-type CommandsRestricted struct {
-	Allow  []string `json:"allow,omitempty"` // EDTODO: This is a regex, Using an empty list or omitting an object will remove any restrictions. For example, if allowed is not present, or if "allowed": [] then any command can be used.
-	Deny   []string `json:"deny,omitempty"`  // EDTODO: If deny is missing or empty, the command is not validated against the deny patterns.
-	IsSudo bool     `json:"is_sudo,omitempty"`
-}
-
-*/
-
 type (
 	StringInterfaceMap map[string]interface{}
 	Group              struct {
@@ -88,8 +67,8 @@ func NewGroup(name string, tr *StringInterfaceMap, cr *StringInterfaceMap, perms
 	}
 	return Group{
 		Name:               name,
-		Permissions:        NewPermissions(perms...),
 		TunnelsRestricted:  tr,
 		CommandsRestricted: cr,
+		Permissions:        NewPermissions(perms...),
 	}
 }

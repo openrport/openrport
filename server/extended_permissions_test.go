@@ -44,7 +44,7 @@ func TestValidateExtendedTunnelsPermissions(t *testing.T) {
 			]
 	`), &restrictions)
 	require.NoError(t, err)
-	// ED TODO: remove numbers in the test cases
+
 	testCases := []struct {
 		Name          string
 		URL           string
@@ -53,84 +53,84 @@ func TestValidateExtendedTunnelsPermissions(t *testing.T) {
 		{
 			Name:          "missing local port",
 			URL:           "/someurl?scheme=ssh&skip-idle-timeout=false&local=&remote=22&acl=201.203.40.9&auth_allowed=true&host_header=cray-1&idle-timeout-minutes=20&auto-close=60m&protocol=tcp&protocol=udp&protocol=tcp-udp",
-			ExpectedError: "3 Tunnel without parameter local is forbidden. Allowed values: [20000 20001]",
+			ExpectedError: "Tunnel without parameter local is forbidden. Allowed values: [20000 20001]",
 		},
 		{
 			Name:          "wrong local port",
 			URL:           "/someurl?scheme=ssh&skip-idle-timeout=false&local=8080&remote=22&acl=201.203.40.9&auth_allowed=true&host_header=cray-1&idle-timeout-minutes=20&auto-close=60m&protocol=tcp&protocol=udp&protocol=tcp-udp",
-			ExpectedError: "3 Tunnel with parameter local=8080 is forbidden. Allowed values: [20000 20001]",
+			ExpectedError: "Tunnel with parameter local=8080 is forbidden. Allowed values: [20000 20001]",
 		},
 
 		{
 			Name:          "missing remote port",
 			URL:           "/someurl?scheme=ssh&skip-idle-timeout=false&local=20000&acl=201.203.40.9&auth_allowed=true&host_header=cray-1&idle-timeout-minutes=20&auto-close=60m&protocol=tcp&protocol=udp&protocol=tcp-udp",
-			ExpectedError: "3 Tunnel without parameter remote is forbidden. Allowed values: [22 3389]",
+			ExpectedError: "Tunnel without parameter remote is forbidden. Allowed values: [22 3389]",
 		},
 		{
 			Name:          "wrong remote port",
 			URL:           "/someurl?scheme=ssh&skip-idle-timeout=false&local=20000&remote=8080&acl=201.203.40.9&auth_allowed=true&host_header=cray-1&idle-timeout-minutes=20&auto-close=60m&protocol=tcp&protocol=udp&protocol=tcp-udp",
-			ExpectedError: "3 Tunnel with parameter remote=8080 is forbidden. Allowed values: [22 3389]",
+			ExpectedError: "Tunnel with parameter remote=8080 is forbidden. Allowed values: [22 3389]",
 		},
 
 		{
 			Name:          "missing scheme",
 			URL:           "/someurl?scheme=&skip-idle-timeout=false&local=20000&remote=22&acl=201.203.40.9&auth_allowed=true&host_header=cray-1&idle-timeout-minutes=20&auto-close=60m&protocol=tcp&protocol=udp&protocol=tcp-udp",
-			ExpectedError: "3 Tunnel without parameter scheme is forbidden. Allowed values: [ssh rdp]",
+			ExpectedError: "Tunnel without parameter scheme is forbidden. Allowed values: [ssh rdp]",
 		},
 		{
 			Name:          "wrong scheme",
 			URL:           "/someurl?scheme=ftp&skip-idle-timeout=false&local=20000&remote=22&acl=201.203.40.9&auth_allowed=true&host_header=cray-1&idle-timeout-minutes=20&auto-close=60m&protocol=tcp&protocol=udp&protocol=tcp-udp",
-			ExpectedError: "3 Tunnel with parameter scheme=ftp is forbidden. Allowed values: [ssh rdp]",
+			ExpectedError: "Tunnel with parameter scheme=ftp is forbidden. Allowed values: [ssh rdp]",
 		},
 
 		{
 			Name:          "missing acl",
 			URL:           "/someurl?scheme=ssh&skip-idle-timeout=false&local=20000&remote=22&acl=&auth_allowed=true&host_header=cray-1&idle-timeout-minutes=20&auto-close=60m&protocol=tcp&protocol=udp&protocol=tcp-udp",
-			ExpectedError: "3 Tunnel without parameter acl is forbidden. Allowed values: [201.203.40.9]",
+			ExpectedError: "Tunnel without parameter acl is forbidden. Allowed values: [201.203.40.9]",
 		},
 		{
 			Name:          "wrong acl",
 			URL:           "/someurl?scheme=ssh&skip-idle-timeout=false&local=20000&remote=22&acl=202.203.40.9&auth_allowed=true&host_header=cray-1&idle-timeout-minutes=20&auto-close=60m&protocol=tcp&protocol=udp&protocol=tcp-udp",
-			ExpectedError: "3 Tunnel with parameter acl=202.203.40.9 is forbidden. Allowed values: [201.203.40.9]",
+			ExpectedError: "Tunnel with parameter acl=202.203.40.9 is forbidden. Allowed values: [201.203.40.9]",
 		},
 
 		{
 			Name:          "idle-timeout-minutes is not set",
 			URL:           "/someurl?scheme=ssh&local=20000&remote=22&acl=201.203.40.9&auth_allowed=true&host_header=cray-1&auto-close=60m&protocol=tcp&protocol=udp&protocol=tcp-udp",
-			ExpectedError: "4 Tunnel with idle-timeout-minutes=0 is forbidden. Allowed value must be greater than 5m",
+			ExpectedError: "Tunnel with idle-timeout-minutes=0 is forbidden. Allowed value must be greater than 5m",
 		},
 		{
 			Name:          "idle-timeout-minutes is lower",
 			URL:           "/someurl?scheme=ssh&skip-idle-timeout=false&local=20000&remote=22&acl=201.203.40.9&auth_allowed=true&host_header=cray-1&idle-timeout-minutes=2&auto-close=60m&protocol=tcp&protocol=udp&protocol=tcp-udp",
-			ExpectedError: "4 Tunnel with idle-timeout-minutes=2 is forbidden. Allowed value must be greater than 5m",
+			ExpectedError: "Tunnel with idle-timeout-minutes=2 is forbidden. Allowed value must be greater than 5m",
 		},
 
 		{
 			Name:          "auto-close is not set / lower than expected",
 			URL:           "/someurl?idle-timeout-minutes=5&scheme=ssh&local=20000&remote=22&acl=201.203.40.9&auth_allowed=true&host_header=cray-1&auto-close=0&protocol=tcp&protocol=udp&protocol=tcp-udp",
-			ExpectedError: "4 Tunnel with auto-close=0 is forbidden. Allowed value must be greater than 1m",
+			ExpectedError: "Tunnel with auto-close=0 is forbidden. Allowed value must be greater than 1m",
 		},
 		{
 			Name:          "auto-close is higher than expected",
 			URL:           "/someurl?idle-timeout-minutes=5&scheme=ssh&skip-idle-timeout=false&local=20000&remote=22&acl=201.203.40.9&auth_allowed=true&host_header=cray-1&auto-close=200m&protocol=tcp&protocol=udp&protocol=tcp-udp",
-			ExpectedError: "4 Tunnel with auto-close=200 is forbidden. Allowed value must be less than 60m",
+			ExpectedError: "Tunnel with auto-close=200 is forbidden. Allowed value must be less than 60m",
 		},
 
 		{
 			Name:          "missing protocol",
 			URL:           "/someurl?protocol=&scheme=ssh&skip-idle-timeout=false&local=20000&remote=22&acl=201.203.40.9&auth_allowed=true&host_header=cray-1&idle-timeout-minutes=20&auto-close=60m&protocol=tcp&protocol=udp&protocol=tcp-udp",
-			ExpectedError: "3 Tunnel without parameter protocol is forbidden. Allowed values: [tcp udp tcp-udp]",
+			ExpectedError: "Tunnel without parameter protocol is forbidden. Allowed values: [tcp udp tcp-udp]",
 		},
 		{
 			Name:          "wrong protocol",
 			URL:           "/someurl?protocol=icmp&scheme=ssh&skip-idle-timeout=false&local=20000&remote=22&acl=201.203.40.9&auth_allowed=true&host_header=cray-1&idle-timeout-minutes=20&auto-close=60m&protocol=tcp&protocol=udp&protocol=tcp-udp",
-			ExpectedError: "3 Tunnel with parameter protocol=icmp is forbidden. Allowed values: [tcp udp tcp-udp]",
+			ExpectedError: "Tunnel with parameter protocol=icmp is forbidden. Allowed values: [tcp udp tcp-udp]",
 		},
 
 		{
 			Name:          "trying to set skip-idle-timeout",
 			URL:           "/someurl?protocol=tcp&scheme=ssh&skip-idle-timeout=true&local=20000&remote=22&acl=201.203.40.9&auth_allowed=true&host_header=cray-1&idle-timeout-minutes=20&auto-close=60m&protocol=tcp&protocol=udp&protocol=tcp-udp",
-			ExpectedError: "1 Tunnel with skip-idle-timeout=true is forbidden. You are not allowed to set skip-idle-timeout value",
+			ExpectedError: "Tunnel with skip-idle-timeout=true is forbidden. You are not allowed to set skip-idle-timeout value",
 		},
 
 		{

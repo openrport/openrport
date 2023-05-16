@@ -119,7 +119,6 @@ func (as *APIService) GetGroup(name string) (Group, error) {
 }
 
 func (as *APIService) UpdateGroup(name string, g Group) (Group, error) {
-	fmt.Println("2 UpdateGroup", name, g)
 	err := as.Provider.UpdateGroup(name, g)
 	if err != nil {
 		return Group{}, err

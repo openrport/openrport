@@ -17,7 +17,7 @@ type Command struct {
 	CreatedAt *time.Time         `json:"created_at,omitempty" db:"created_at"`
 	UpdatedBy string             `json:"updated_by,omitempty" db:"updated_by"`
 	UpdatedAt *time.Time         `json:"updated_at,omitempty" db:"updated_at"`
-	Cmd       string             `json:"cmd,omitempty" db:"cmd"` // ED TODO: command!
+	Cmd       string             `json:"cmd,omitempty" db:"cmd"`
 	Tags      *types.StringSlice `json:"tags,omitempty" db:"tags"`
 	TimoutSec *int               `json:"timeout_sec,omitempty" db:"timeout_sec"`
 }

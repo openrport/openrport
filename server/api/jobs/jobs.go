@@ -213,9 +213,9 @@ type jobSqlite struct {
 }
 
 type JobDetails struct {
-	Command     string            `json:"command"` // ED TODO: command!
+	Command     string            `json:"command"`
 	Cwd         string            `json:"cwd"`
-	IsSudo      bool              `json:"is_sudo"` // ED TODO: command!
+	IsSudo      bool              `json:"is_sudo"`
 	IsScript    bool              `json:"is_script"`
 	Interpreter string            `json:"interpreter"`
 	PID         *int              `json:"pid"`

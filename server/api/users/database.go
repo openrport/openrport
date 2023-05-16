@@ -77,7 +77,6 @@ func (d *UserDatabase) checkDatabaseTables() error {
 		extPermSelect := ""
 		if d.plusOn {
 			// when plus is enabled, we need to select the other fields as well
-			// can't do select * cause it is being used for the tests
 			extPermSelect = ", tunnels_restricted, commands_restricted"
 		}
 		_, err = d.db.Exec(fmt.Sprintf("SELECT name, permissions %s FROM `%s` LIMIT 0", extPermSelect, d.groupDetailsTableName))
@@ -144,7 +143,6 @@ func (d *UserDatabase) ListGroups() ([]Group, error) {
 	var groups []Group
 
 	if d.groupDetailsTableName != "" {
-		// err := d.db.Select(&groups, fmt.Sprintf("SELECT name, permissions %s FROM `%s` ORDER BY `name`", d.extendedPermissionSelect(), d.groupDetailsTableName))
 		err := d.db.Select(&groups, fmt.Sprintf("SELECT * FROM `%s` ORDER BY `name`", d.groupDetailsTableName))
 		if err != nil && err != sql.ErrNoRows {
 			return nil, err

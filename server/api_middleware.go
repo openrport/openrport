@@ -234,7 +234,7 @@ func errorMessageMaxMinLimits(pName string, pValue string, limit string, ruleVal
 	if ruleValue == "max" {
 		mm = "less"
 	}
-	return fmt.Sprintf("4 Tunnel with %v=%v is forbidden. Allowed value must be %s than %v", pName, pValue, mm, limit)
+	return fmt.Sprintf("Tunnel with %v=%v is forbidden. Allowed value must be %s than %v", pName, pValue, mm, limit)
 }
 
 // ED TODO: this INSIDE PLUS!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
@@ -259,7 +259,7 @@ func validateExtendedTunnelPermission(r *http.Request, tr []users.StringInterfac
 					pValue, _ := strconv.ParseBool(r.FormValue(pName))
 					if !restriction && pValue != restriction { // all false are to disallow
 						msg1, msg2 := messageEnforceDisallow(restriction)
-						return errors.New(fmt.Sprintf("1 Tunnel with %v=%v is forbidden. %s %v value%s", pName, pValue, msg1, pName, msg2))
+						return errors.New(fmt.Sprintf("Tunnel with %v=%v is forbidden. %s %v value%s", pName, pValue, msg1, pName, msg2))
 					}
 					break
 				case string: // like with true or false but if the param content matches the regular expression
@@ -284,7 +284,7 @@ func validateExtendedTunnelPermission(r *http.Request, tr []users.StringInterfac
 						if (pValue == "") || (pValue == "0") {
 							paramStr = fmt.Sprintf("without parameter %s", pName)
 						}
-						return errors.New(fmt.Sprintf("3 Tunnel %s is forbidden. Allowed values: %v", paramStr, TunnelsRestricted[pName]))
+						return errors.New(fmt.Sprintf("Tunnel %s is forbidden. Allowed values: %v", paramStr, TunnelsRestricted[pName]))
 					}
 					break
 				case map[string]interface{}: // stuff like this { "max": "60m", "min": "5m" }

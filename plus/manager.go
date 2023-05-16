@@ -174,6 +174,7 @@ func (pm *ManagerProvider) GetStatusCapabilityEx() (capEx status.CapabilityEx) {
 	return nil
 }
 
+// ED TODO: rename Permission to ExtendedPermission
 // GetPermissionCapabilityEx returns a cast version of the Plus Permission capability
 func (pm *ManagerProvider) GetPermissionCapabilityEx() (capEx permission.CapabilityEx) {
 	capEntry := pm.getCap(PlusPermissionCapability)

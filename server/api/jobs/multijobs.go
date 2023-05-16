@@ -133,10 +133,10 @@ type multiJobDetailSqlite struct {
 	ClientIDs   []string              `json:"client_ids"`
 	GroupIDs    []string              `json:"group_ids"`
 	ClientTags  *models.JobClientTags `json:"tags"`
-	Command     string                `json:"command"` // ED TODO: command!
+	Command     string                `json:"command"`
 	Interpreter string                `json:"interpreter"`
 	Cwd         string                `json:"cwd"`
-	IsSudo      bool                  `json:"is_sudo"` // ED TODO: command!
+	IsSudo      bool                  `json:"is_sudo"`
 	TimeoutSec  int                   `json:"timeout_sec"`
 	Concurrent  bool                  `json:"concurrent"`
 	AbortOnErr  bool                  `json:"abort_on_err"`
