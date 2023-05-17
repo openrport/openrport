@@ -1,3 +1,4 @@
+// ED TODO: this INSIDE PLUS!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
 package chserver
 
 import (
@@ -12,7 +13,6 @@ import (
 	"github.com/stretchr/testify/require"
 )
 
-// ED TODO: this INSIDE PLUS!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
 func TestValidateExtendedTunnelsPermissions(t *testing.T) {
 	var restrictions []users.StringInterfaceMap
 	err := json.Unmarshal([]byte(`
@@ -149,7 +149,7 @@ func TestValidateExtendedTunnelsPermissions(t *testing.T) {
 		{
 			Name:          "wrong host_header",
 			URL:           "/someurl?host_header=aBc&protocol=tcp&scheme=ssh&skip-idle-timeout=false&local=20000&remote=22&acl=201.203.40.9&auth_allowed=true&idle-timeout-minutes=20&auto-close=60m&protocol=tcp&protocol=udp&protocol=tcp-udp",
-			ExpectedError: "2 Tunnel with host_header=aBc is forbidden. Allowed values must match 'cray-1' regular expression",
+			ExpectedError: "Tunnel with host_header=aBc is forbidden. Allowed values must match 'cray-1' regular expression",
 		},
 
 		{

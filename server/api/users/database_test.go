@@ -495,16 +495,10 @@ func TestUpdateGroup(t *testing.T) {
 }
 
 func TestUpdateGroupPlusOn(t *testing.T) {
-	myMap := make(StringInterfaceMap)
-
-	if myMap == nil {
-		fmt.Println("myMap is nil")
-	} else {
-		fmt.Println("myMap is not nil")
-	}
 	testCases := []struct {
 		Name string
 		Group
+		ExpectedError string
 	}{
 		{
 			Name: "existing",
@@ -531,6 +525,54 @@ func TestUpdateGroupPlusOn(t *testing.T) {
 					"idle-timeout-minutes": map[string]interface{}{"min": 2.0},
 				}, nil, PermissionTunnels),
 		},
+		{
+			Name: "wrong format strings and ints",
+			Group: NewGroup("group4",
+				&StringInterfaceMap{
+					"local": []interface{}{20001, "20002"},
+				}, nil),
+			ExpectedError: `sql: converting argument $3 type: invalid restriction list 20001 of type int`,
+		},
+		{
+			Name: "wrong rule in max / min values",
+			Group: NewGroup("group4",
+				&StringInterfaceMap{
+					"idle-timeout-Minutes": map[string]interface{}{"mex": 2.0},
+				}, nil),
+			ExpectedError: `sql: converting argument $3 type: invalid restriction rule 'mex'`,
+		},
+		{
+			Name: "unparseable duration",
+			Group: NewGroup("group4",
+				&StringInterfaceMap{
+					"idle-timeout-minutes": map[string]interface{}{"max": "jk"},
+				}, nil),
+			ExpectedError: `sql: converting argument $3 type: restriction jk not parseable as time.duration: invalid type`,
+		},
+		{
+			Name: "unparseable regex single string",
+			Group: NewGroup("group4",
+				&StringInterfaceMap{
+					"host_header": "[abc",
+				}, nil),
+			ExpectedError: "sql: converting argument $3 type: invalid restriction regular expression \"[abc\": error parsing regexp: missing closing ]: `[abc`",
+		},
+		{
+			Name: "unparseable regex in a list of strings allow / deny",
+			Group: NewGroup("group4",
+				&StringInterfaceMap{
+					"Deny": []interface{}{"abc", "[abc"},
+				}, nil),
+			ExpectedError: "sql: converting argument $3 type: invalid restriction regular expression \"[abc\": error parsing regexp: missing closing ]: `[abc`",
+		},
+		{
+			Name: "wrong type as restriction",
+			Group: NewGroup("group4",
+				&StringInterfaceMap{
+					"hello": 7.0,
+				}, nil),
+			ExpectedError: "sql: converting argument $3 type: restriction 7 of type float64 not recognized",
+		},
 	}
 
 	db, err := sqlx.Connect("sqlite3", ":memory:")
@@ -549,12 +591,15 @@ func TestUpdateGroupPlusOn(t *testing.T) {
 			require.NoError(t, err)
 
 			err = d.UpdateGroup(tc.Group.Name, tc.Group)
-			require.NoError(t, err)
+			if tc.ExpectedError != "" {
+				require.EqualError(t, err, tc.ExpectedError)
+			} else {
+				require.NoError(t, err)
+				actual, err := d.GetGroup(tc.Group.Name)
+				require.NoError(t, err)
 
-			actual, err := d.GetGroup(tc.Group.Name)
-			require.NoError(t, err)
-
-			assert.Equal(t, tc.Group, actual)
+				assert.Equal(t, tc.Group, actual)
+			}
 		})
 	}
 }

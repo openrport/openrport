@@ -130,6 +130,12 @@ func (as *APIService) DeleteGroup(name string) error {
 	return as.Provider.DeleteGroup(name)
 }
 
+func (as *APIService) ExtendedPermissionsParsingValidation(g Group) error {
+	return errors2.APIError{
+		Message:    fmt.Sprintf("BAD %v", g.Name),
+		HTTPStatus: http.StatusBadRequest,
+	}
+}
 func (as *APIService) CheckPermission(user *User, permission string) error {
 	for _, groupName := range user.Groups {
 		group, err := as.Provider.GetGroup(groupName)

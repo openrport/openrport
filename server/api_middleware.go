@@ -206,21 +206,6 @@ func (al *APIListener) permissionsMiddleware(permission string) mux.MiddlewareFu
 }
 
 // ED TODO: this INSIDE PLUS!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
-func intIsMinute(m interface{}) (*time.Duration, error) {
-	parseable := fmt.Sprintf("%v", m)
-	dur, err := time.ParseDuration(parseable)
-	if err != nil {
-		parseable = fmt.Sprintf("%vm", m)
-		dur, err := time.ParseDuration(parseable)
-		if err != nil {
-			return nil, errors.New("invalid type")
-		}
-		return &dur, nil
-	}
-	return &dur, nil
-}
-
-// ED TODO: this INSIDE PLUS!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
 func messageEnforceDisallow(s bool) (string, string) {
 	if !s {
 		return "You are not allowed to set", ""
@@ -238,7 +223,6 @@ func errorMessageMaxMinLimits(pName string, pValue string, limit string, ruleVal
 }
 
 // ED TODO: this INSIDE PLUS!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
-// ED TODO: use shortDur in all messages that use time.Duration
 func shortDur(d time.Duration) string {
 	return fmt.Sprintf("%vm", d.Minutes())
 }
@@ -263,17 +247,16 @@ func validateExtendedTunnelPermission(r *http.Request, tr []users.StringInterfac
 					}
 					break
 				case string: // like with true or false but if the param content matches the regular expression
-					fmt.Printf("TunnelsRestricted[pName].(string) = %v\n", TunnelsRestricted[pName].(string))
 					restriction := TunnelsRestricted[pName].(string)
 					pValue := r.FormValue(pName)
 					r, err := regexp.Compile(restriction)
 					if err != nil {
-						fmt.Printf("invalid restriction regular expression %q: %v", restriction, err) // ED TODO: need a validation function for the extended permissions regexes, on save
+						return errors.New(fmt.Sprintf("invalid restriction regular expression %q: %v", restriction, err))
 					}
 					if !r.Match([]byte(pValue)) {
-						return errors.New(fmt.Sprintf("2 Tunnel with %v=%v is forbidden. Allowed values must match '%v' regular expression", pName, pValue, restriction))
+						return errors.New(fmt.Sprintf("Tunnel with %v=%v is forbidden. Allowed values must match '%v' regular expression", pName, pValue, restriction))
 					}
-					break //
+					break
 				case []interface{}: // [ "stuff", "like" "this" ]
 					pValue := r.FormValue(pName)
 					if inList, _ := restrictionInList(pName, pValue, TunnelsRestricted,
@@ -296,14 +279,12 @@ func validateExtendedTunnelPermission(r *http.Request, tr []users.StringInterfac
 						if pValue == "" {
 							pValue = "0m"
 						}
-						// al.Debugf("map[string]interface{} rule(%v) parameter %v=%v restriction %v", rule, pName, pValue, restriction[rule])
-						durPValue, err := intIsMinute(pValue)
-						if err != nil { // ED TODO: what to do if the parsing of the parameter fails? 500?
+						durPValue, err := users.ParseMinutes(pValue)
+						if err != nil { // this is a failsafe, it should never happen
 							return errors.New(fmt.Sprintf("parameter %v not parseable as time.duration", pName))
-
 						}
-						ruleValue, err := intIsMinute(restriction[rule])
-						if err != nil { // ED TODO: this should not happen, the validation should be done on save
+						ruleValue, err := users.ParseMinutes(restriction[rule])
+						if err != nil {
 							return errors.New(fmt.Sprintf("restriction %v not parseable as time.duration: %v", restriction[rule], err))
 						}
 						if (rule == "min" && *durPValue < *ruleValue) || (rule == "max" && *durPValue > *ruleValue) {
@@ -312,8 +293,7 @@ func validateExtendedTunnelPermission(r *http.Request, tr []users.StringInterfac
 					}
 					break
 				default:
-					// ED TODO: TunnelsRestricted validation is a simple cycle like this, a function that cycle the type and checks if type IN [ list of admitted types for TunnelsRestricted])
-					// al.Debugf("extended \"tunnels\" Permissions %v of type %T not recognized", TunnelsRestricted[pName], TunnelsRestricted[pName])
+					return errors.New(fmt.Sprintf("ExtendedPermissions %v of type %T not recognized", TunnelsRestricted[pName], TunnelsRestricted[pName]))
 				}
 			}
 		}
@@ -381,7 +361,8 @@ func validateExtendedCommandPermission(r *http.Request, cr []users.StringInterfa
 						func(pValue string, restriction string) bool {
 							r, err := regexp.Compile(restriction)
 							if err != nil {
-								fmt.Printf("invalid deny restriction regular expression %q: %v", restriction, err) // ED TODO: need a validation function for the extended permissions regexes, on save
+								fmt.Printf("invalid deny restriction regular expression %q: %v", restriction, err) // ED TODO: this needs to be logged in the proper place
+								return false
 							}
 							return r.Match([]byte(pValue))
 						}); inList {
@@ -395,7 +376,8 @@ func validateExtendedCommandPermission(r *http.Request, cr []users.StringInterfa
 						func(pValue string, restriction string) bool {
 							r, err := regexp.Compile(restriction)
 							if err != nil {
-								fmt.Printf("invalid allow restriction regular expression %q: %v", restriction, err) // ED TODO: need a validation function for the extended permissions regexes, on save
+								fmt.Printf("invalid allow restriction regular expression %q: %v", restriction, err) // ED TODO: this needs to be logged in the proper place
+								return false
 							}
 							return r.Match([]byte(pValue))
 						}); !inList {
@@ -406,12 +388,7 @@ func validateExtendedCommandPermission(r *http.Request, cr []users.StringInterfa
 				if (isSudo) && CommandsRestricted["is_sudo"].(bool) == false {
 					return errors.New(fmt.Sprintf("Command '%v' forbidden. Allowed values must not use the global is_sudo switch", command))
 				}
-				// if is_sudo, ok := CommandsRestricted["is_sudo"].(bool); ok {
-				// 	fmt.Printf("\nis_sudo: %v and should be %v", isSudo, is_sudo)
-				// }
-
 			}
-
 		}
 	}
 	return nil
