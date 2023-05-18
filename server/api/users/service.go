@@ -11,6 +11,7 @@ import (
 	"golang.org/x/crypto/bcrypt"
 
 	rportplus "github.com/realvnc-labs/rport/plus"
+	plusprm "github.com/realvnc-labs/rport/plus/capabilities/permission"
 	errors2 "github.com/realvnc-labs/rport/server/api/errors"
 	"github.com/realvnc-labs/rport/server/api/message"
 	"github.com/realvnc-labs/rport/server/chconfig"
@@ -152,9 +153,9 @@ func (as *APIService) CheckPermission(user *User, permission string) error {
 	}
 }
 
-func (as *APIService) GetEffectiveUserExtendedPermissions(user *User) ([]StringInterfaceMap, []StringInterfaceMap) {
-	var tunnels_restricted []StringInterfaceMap
-	var commands_restricted []StringInterfaceMap
+func (as *APIService) GetEffectiveUserExtendedPermissions(user *User) ([]plusprm.StringInterfaceMap, []plusprm.StringInterfaceMap) {
+	var tunnels_restricted []plusprm.StringInterfaceMap
+	var commands_restricted []plusprm.StringInterfaceMap
 
 	for _, groupName := range user.Groups {
 		group, err := as.Provider.GetGroup(groupName)

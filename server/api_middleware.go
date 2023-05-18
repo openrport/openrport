@@ -1,15 +1,10 @@
 package chserver
 
 import (
-	"bytes"
 	"context"
-	"encoding/json"
 	"errors"
 	"fmt"
-	"io/ioutil"
 	"net/http"
-	"regexp"
-	"strconv"
 	"time"
 
 	"github.com/gorilla/mux"
@@ -172,7 +167,7 @@ func (al *APIListener) permissionsMiddleware(permission string) mux.MiddlewareFu
 					return
 				}
 				if permission == users.PermissionTunnels || permission == users.PermissionCommands || permission == users.PermissionScheduler {
-					if !rportplus.IsPlusEnabled(al.config.PlusConfig) { // that checks whether the plugin is enabled in the config -- if it is enabled but fails to load, then there will be an error and the server won't start
+					if !rportplus.IsPlusEnabled(al.config.PlusConfig) { // ED TODO: VERIFY! that checks whether the plugin is enabled in the config -- if it is enabled but fails to load, then there will be an error and the server won't start
 						al.jsonErrorResponseWithTitle(w, http.StatusForbidden, "Extended permissions validation failed because rport-plus plugin not loaded")
 						return
 					}
@@ -181,13 +176,13 @@ func (al *APIListener) permissionsMiddleware(permission string) mux.MiddlewareFu
 					switch permission {
 					case users.PermissionTunnels:
 						if tr != nil {
-							err = validateExtendedTunnelPermission(r, tr)
+							err = al.Server.plusManager.GetPermissionCapabilityEx().ValidateExtendedTunnelPermission(r, tr)
 						}
 						break
 					case users.PermissionCommands:
 					case users.PermissionScheduler:
 						if cr != nil {
-							err = validateExtendedCommandPermission(r, cr)
+							err = al.Server.plusManager.GetPermissionCapabilityEx().ValidateExtendedCommandPermission(r, cr)
 						}
 						break
 					}
@@ -197,201 +192,10 @@ func (al *APIListener) permissionsMiddleware(permission string) mux.MiddlewareFu
 					}
 				}
 			}
-
-			al.Debugf("ENDF PermissionsMiddleware: %v %v", r.Method, r.URL.Path)
 			next.ServeHTTP(w, r)
 		})
 
 	}
-}
-
-// ED TODO: this INSIDE PLUS!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
-func messageEnforceDisallow(s bool) (string, string) {
-	if !s {
-		return "You are not allowed to set", ""
-	}
-	return "You must set", " to true"
-}
-
-// ED TODO: this INSIDE PLUS!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
-func errorMessageMaxMinLimits(pName string, pValue string, limit string, ruleValue string) string {
-	mm := "greater"
-	if ruleValue == "max" {
-		mm = "less"
-	}
-	return fmt.Sprintf("Tunnel with %v=%v is forbidden. Allowed value must be %s than %v", pName, pValue, mm, limit)
-}
-
-// ED TODO: this INSIDE PLUS!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
-func shortDur(d time.Duration) string {
-	return fmt.Sprintf("%vm", d.Minutes())
-}
-
-// ED TODO: this INSIDE PLUS!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
-func validateExtendedTunnelPermission(r *http.Request, tr []users.StringInterfaceMap) error {
-	//  ED TODO: Plus plugin LICENSE CHECK The method will validate the permissions 5 times and then all validations will be denied with a message, "You are running the plus-plugin without a licence. Max 5 validation reached. Restart rportd to continue testing."
-	if len(tr) > 0 && r.Method != "GET" {
-		for _, TunnelsRestricted := range tr {
-			// cycle through the keys of the tunnel restriction map (e.g. "auto-close")
-			for pName := range TunnelsRestricted {
-				switch TunnelsRestricted[pName].(type) {
-				case bool:
-					// given a bool param,
-					//		if the restriction is false then the param can't be set (or it can be set only false);
-					//		if the restriction is true (or there is no restriction for the param) then the param can be set (true or false)
-					restriction := TunnelsRestricted[pName].(bool)
-					pValue, _ := strconv.ParseBool(r.FormValue(pName))
-					if !restriction && pValue != restriction { // all false are to disallow
-						msg1, msg2 := messageEnforceDisallow(restriction)
-						return errors.New(fmt.Sprintf("Tunnel with %v=%v is forbidden. %s %v value%s", pName, pValue, msg1, pName, msg2))
-					}
-					break
-				case string: // like with true or false but if the param content matches the regular expression
-					restriction := TunnelsRestricted[pName].(string)
-					pValue := r.FormValue(pName)
-					r, err := regexp.Compile(restriction)
-					if err != nil {
-						return errors.New(fmt.Sprintf("invalid restriction regular expression %q: %v", restriction, err))
-					}
-					if !r.Match([]byte(pValue)) {
-						return errors.New(fmt.Sprintf("Tunnel with %v=%v is forbidden. Allowed values must match '%v' regular expression", pName, pValue, restriction))
-					}
-					break
-				case []interface{}: // [ "stuff", "like" "this" ]
-					pValue := r.FormValue(pName)
-					if inList, _ := restrictionInList(pName, pValue, TunnelsRestricted,
-						func(pValue string, restriction string) bool {
-							return pValue == restriction
-						}); !inList {
-						paramStr := fmt.Sprintf("with parameter %s=%s", pName, pValue)
-						if (pValue == "") || (pValue == "0") {
-							paramStr = fmt.Sprintf("without parameter %s", pName)
-						}
-						return errors.New(fmt.Sprintf("Tunnel %s is forbidden. Allowed values: %v", paramStr, TunnelsRestricted[pName]))
-					}
-					break
-				case map[string]interface{}: // stuff like this { "max": "60m", "min": "5m" }
-					//	If the user tries to create a tunnel without auto-close or with auto-close greater than 60m, it's forbidden.
-					// 	AKA this rule is about enforcing auto-close (min) and limiting it (max).
-					restriction := TunnelsRestricted[pName].(map[string]interface{})
-					pValue := r.FormValue(pName)
-					for rule := range restriction {
-						if pValue == "" {
-							pValue = "0m"
-						}
-						durPValue, err := users.ParseMinutes(pValue)
-						if err != nil { // this is a failsafe, it should never happen
-							return errors.New(fmt.Sprintf("parameter %v not parseable as time.duration", pName))
-						}
-						ruleValue, err := users.ParseMinutes(restriction[rule])
-						if err != nil {
-							return errors.New(fmt.Sprintf("restriction %v not parseable as time.duration: %v", restriction[rule], err))
-						}
-						if (rule == "min" && *durPValue < *ruleValue) || (rule == "max" && *durPValue > *ruleValue) {
-							return errors.New(errorMessageMaxMinLimits(pName, fmt.Sprintf("%v", durPValue.Minutes()), shortDur(*ruleValue), rule))
-						}
-					}
-					break
-				default:
-					return errors.New(fmt.Sprintf("ExtendedPermissions %v of type %T not recognized", TunnelsRestricted[pName], TunnelsRestricted[pName]))
-				}
-			}
-		}
-	}
-	return nil
-}
-
-func restrictionInList(pName string, pValue string, TunnelsRestricted users.StringInterfaceMap, restrictionMatch func(string, string) bool) (bool, string) {
-	rl := TunnelsRestricted[pName].([]interface{})
-	restrictionList := make([]string, len(rl)) // only strings are allowed
-	for i, v := range rl {
-		restrictionList[i] = fmt.Sprint(v)
-	}
-	found := false
-	rFound := ""
-	for _, restriction := range restrictionList {
-		if restrictionMatch(pValue, restriction) {
-			found = true
-			rFound = restriction
-			break
-		}
-	}
-	return (found && len(restrictionList) > 0) || len(restrictionList) == 0, rFound
-}
-
-// ED TODO: this INSIDE PLUS!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
-func validateExtendedCommandPermission(r *http.Request, cr []users.StringInterfaceMap) error {
-	// check if we have a "cmd" or "command" parameter
-	if r.Method != "GET" {
-		isSudo := false
-		if r.FormValue("is_sudo") != "" {
-			isSudo, _ = strconv.ParseBool(r.FormValue("is_sudo"))
-		}
-		command := r.FormValue("cmd") // some endpoint use "cmd" instead of "command"
-		if command == "" {
-			command = r.FormValue("command")
-		}
-		if command == "" {
-			bodyBytes, _ := ioutil.ReadAll(r.Body)                // read all request body
-			r.Body.Close()                                        //  must close
-			r.Body = ioutil.NopCloser(bytes.NewBuffer(bodyBytes)) // creates a new one for the next handler
-
-			var data map[string]interface{}
-			err := json.Unmarshal(bodyBytes, &data) // sample data {"command": "/bin/date;foo;whoami", "timeout_sec": 0}
-			if err == nil {
-				if cmdValue, ok := data["command"].(string); ok {
-					command = cmdValue
-				}
-				if cmdValue, ok := data["cmd"].(string); ok {
-					command = cmdValue
-				}
-
-				if data["is_sudo"] != nil {
-					isSudo = data["is_sudo"].(bool)
-				}
-			}
-		}
-
-		// We check for any of the denies in any groups. If I'm member of two groups and the command is denied by one but allowed by the other, deny wins.
-		if command != "" {
-			for _, CommandsRestricted := range cr {
-				// * Step 1 check, if the command matches against any of the deny expressions, the command is denied
-				if _, ok := CommandsRestricted["deny"].([]interface{}); ok { // we have a deny list
-					if inList, whichOne := restrictionInList("deny", command, CommandsRestricted,
-						func(pValue string, restriction string) bool {
-							r, err := regexp.Compile(restriction)
-							if err != nil {
-								fmt.Printf("invalid deny restriction regular expression %q: %v", restriction, err) // ED TODO: this needs to be logged in the proper place
-								return false
-							}
-							return r.Match([]byte(pValue))
-						}); inList {
-						return errors.New(fmt.Sprintf("Command '%v' forbidden. Allowed values must not match DENY '%v' regular expressions: %v", command, whichOne, CommandsRestricted["deny"]))
-					}
-				}
-
-				// * Step 2: The command must match against any of the allow expressions. Otherwise, the command is denied.
-				if _, ok := CommandsRestricted["allow"].([]interface{}); ok { // we have an allow list
-					if inList, _ := restrictionInList("allow", command, CommandsRestricted,
-						func(pValue string, restriction string) bool {
-							r, err := regexp.Compile(restriction)
-							if err != nil {
-								fmt.Printf("invalid allow restriction regular expression %q: %v", restriction, err) // ED TODO: this needs to be logged in the proper place
-								return false
-							}
-							return r.Match([]byte(pValue))
-						}); !inList {
-						return errors.New(fmt.Sprintf("Command '%v' forbidden. Allowed values must match one of ALLOW regular expressions: %v", command, CommandsRestricted["allow"]))
-					}
-				}
-
-				if (isSudo) && CommandsRestricted["is_sudo"].(bool) == false {
-					return errors.New(fmt.Sprintf("Command '%v' forbidden. Allowed values must not use the global is_sudo switch", command))
-				}
-			}
-		}
-	}
-	return nil
 }
 
 func (al *APIListener) updateTokenAccess(ctx context.Context, token string, accessTime time.Time, userAgent string, remoteAddress string) (err error) {

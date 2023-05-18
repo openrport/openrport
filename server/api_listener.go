@@ -37,6 +37,7 @@ import (
 	"github.com/realvnc-labs/rport/server/bearer"
 	"github.com/realvnc-labs/rport/server/vault"
 
+	plusprm "github.com/realvnc-labs/rport/plus/capabilities/permission"
 	chshare "github.com/realvnc-labs/rport/share"
 	"github.com/realvnc-labs/rport/share/enums"
 	"github.com/realvnc-labs/rport/share/files"
@@ -99,7 +100,7 @@ type UserService interface {
 	CheckPermission(*users.User, string) error
 	SupportsGroupPermissions() bool
 	GetEffectiveUserPermissions(*users.User) (map[string]bool, error)
-	GetEffectiveUserExtendedPermissions(*users.User) ([]users.StringInterfaceMap, []users.StringInterfaceMap)
+	GetEffectiveUserExtendedPermissions(*users.User) ([]plusprm.StringInterfaceMap, []plusprm.StringInterfaceMap)
 }
 
 func NewAPIListener(
