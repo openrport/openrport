@@ -20,9 +20,6 @@ import (
 	"github.com/gorilla/mux"
 	"github.com/jpillora/requestlog"
 
-	"github.com/realvnc-labs/rport/db/migration/api_token"
-	"github.com/realvnc-labs/rport/db/migration/library"
-	"github.com/realvnc-labs/rport/db/sqlite"
 	rportplus "github.com/realvnc-labs/rport/plus"
 	"github.com/realvnc-labs/rport/server/clients/storedtunnels/tunnelprovider"
 	"github.com/realvnc-labs/rport/share/simplestore"
@@ -157,34 +154,61 @@ func NewAPIListener(
 		}
 	}
 
-	libraryDb, err := sqlite.New(
-		path.Join(config.Server.DataDir, "library.db"),
-		library.AssetNames(),
-		library.Asset,
-		config.Server.GetSQLiteDataSourceOptions(),
-	)
-	if err != nil {
-		return nil, fmt.Errorf("failed init library DB instance: %w", err)
-	}
-
-	apiTokenDb, err := sqlite.New(
-		path.Join(config.Server.DataDir, "api_token.db"),
-		api_token.AssetNames(),
-		api_token.Asset,
-		config.Server.GetSQLiteDataSourceOptions(),
-	)
-	if err != nil {
-		return nil, fmt.Errorf("failed init api_token DB instance: %w", err)
-	}
+	//libraryDb, err := sqlite.New(
+	//	path.Join(config.Server.DataDir, "library.db"),
+	//	library.AssetNames(),
+	//	library.Asset,
+	//	config.Server.GetSQLiteDataSourceOptions(),
+	//)
+	//if err != nil {
+	//	return nil, fmt.Errorf("failed init library DB instance: %w", err)
+	//}
+	//
+	//apiTokenDb, err := sqlite.New(
+	//	path.Join(config.Server.DataDir, "api_token.db"),
+	//	api_token.AssetNames(),
+	//	api_token.Asset,
+	//	config.Server.GetSQLiteDataSourceOptions(),
+	//)
+	//if err != nil {
+	//	return nil, fmt.Errorf("failed init api_token DB instance: %w", err)
+	//}
 
 	scriptLogger := logger.NewLogger("scripts", config.Logging.LogOutput, config.Logging.LogLevel)
-	scriptProvider := script.NewSqliteProvider(libraryDb)
+	// scriptProvider := script.NewSqliteProvider(libraryDb)
+	fileScriptStore, err := fskv.NewFSKV("scripts")
+	if err != nil {
+		return nil, err
+	}
+	simpleStore, err := simplestore.NewSimpleStore[script.Script](ctx, fileScriptStore)
+	if err != nil {
+		return nil, err
+	}
+	scriptProvider := script.NewKVScriptProvider(simpleStore)
 	scriptManager := script.NewManager(scriptProvider, scriptLogger)
 
-	commandProvider := command.NewSqliteProvider(libraryDb)
+	fileCommandStore, err := fskv.NewFSKV("scripts")
+	if err != nil {
+		return nil, err
+	}
+	simpleCommandStore, err := simplestore.NewSimpleStore[command.Command](ctx, fileCommandStore)
+	if err != nil {
+		return nil, err
+	}
+	// commandProvider := command.NewSqliteProvider(libraryDb)
+	commandProvider := command.NewKVCommandProvider(simpleCommandStore)
 	commandManager := command.NewManager(commandProvider)
 
-	tokenProvider := authorization.NewSqliteProvider(apiTokenDb)
+	fileAPITokensStore, err := fskv.NewFSKV("api-tokens")
+	if err != nil {
+		return nil, err
+	}
+	simpleAPITokensStore, err := simplestore.NewSimpleStore[authorization.APIToken](ctx, fileAPITokensStore)
+	if err != nil {
+		return nil, err
+	}
+	// tokenProvider := authorization.NewSqliteProvider(apiTokenDb)
+	tokenProvider := authorization.NewKVAPITokenProvider(simpleAPITokensStore)
 	tokenManager := authorization.NewManager(tokenProvider)
 
 	userService, err := users.NewAPIServiceFromConfig(server.authDB, config)
