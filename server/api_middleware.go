@@ -167,11 +167,11 @@ func (al *APIListener) permissionsMiddleware(permission string) mux.MiddlewareFu
 					return
 				}
 				if permission == users.PermissionTunnels || permission == users.PermissionCommands || permission == users.PermissionScheduler {
-					if !rportplus.IsPlusEnabled(al.config.PlusConfig) { // ED TODO: VERIFY! that checks whether the plugin is enabled in the config -- if it is enabled but fails to load, then there will be an error and the server won't start
-						al.jsonErrorResponseWithTitle(w, http.StatusForbidden, "Extended permissions validation failed because rport-plus plugin not loaded")
+					if !rportplus.IsPlusEnabled(al.config.PlusConfig) {
+						al.jsonErrorResponseWithTitle(w, http.StatusForbidden, "Extended permission validation failed because rport-plus plugin not loaded")
 						return
 					}
-					al.Debugf("extended \"%s\" PermissionsMiddleware: %v %v", permission, r.Method, r.URL.Path)
+					al.Debugf("extended \"%s\" permission middleware: %v %v", permission, r.Method, r.URL.Path)
 					tr, cr := al.userService.GetEffectiveUserExtendedPermissions(currUser)
 					switch permission {
 					case users.PermissionTunnels:
@@ -187,14 +187,13 @@ func (al *APIListener) permissionsMiddleware(permission string) mux.MiddlewareFu
 						break
 					}
 					if err != nil {
-						al.jsonError(w, err)
+						al.jsonErrorResponseWithDetail(w, http.StatusBadRequest, "", err.Error(), "")
 						return
 					}
 				}
 			}
 			next.ServeHTTP(w, r)
 		})
-
 	}
 }
 
