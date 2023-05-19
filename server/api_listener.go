@@ -37,7 +37,7 @@ import (
 	"github.com/realvnc-labs/rport/server/bearer"
 	"github.com/realvnc-labs/rport/server/vault"
 
-	plusprm "github.com/realvnc-labs/rport/plus/capabilities/permission"
+	plusprm "github.com/realvnc-labs/rport/plus/capabilities/extendedpermission"
 	chshare "github.com/realvnc-labs/rport/share"
 	"github.com/realvnc-labs/rport/share/enums"
 	"github.com/realvnc-labs/rport/share/files"

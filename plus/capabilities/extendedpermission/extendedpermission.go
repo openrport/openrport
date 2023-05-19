@@ -1,4 +1,4 @@
-package permission
+package extendedpermission
 
 import (
 	"database/sql/driver"
@@ -31,11 +31,11 @@ type Capability struct {
 }
 
 const (
-	InitPlusPermissionCapabilityEx = "InitPlusPermissionCapabilityEx"
+	InitPlusExtendedPermissionCapabilityEx = "InitPlusExtendedPermissionCapabilityEx"
 )
 
 func (cap *Capability) GetInitFuncName() (name string) {
-	return InitPlusPermissionCapabilityEx
+	return InitPlusExtendedPermissionCapabilityEx
 }
 
 func (cap *Capability) InitProvider(sym plugin.Symbol) {
@@ -43,7 +43,7 @@ func (cap *Capability) InitProvider(sym plugin.Symbol) {
 	cap.Provider = fn(cap)
 }
 
-func (cap *Capability) GetPermissionCapabilityEx() (capEx CapabilityEx) {
+func (cap *Capability) GetExtendedPermissionCapabilityEx() (capEx CapabilityEx) {
 	return cap.Provider
 }
 

@@ -7,9 +7,9 @@ import (
 	"plugin"
 	"sync"
 
+	"github.com/realvnc-labs/rport/plus/capabilities/extendedpermission"
 	licensecap "github.com/realvnc-labs/rport/plus/capabilities/license"
 	"github.com/realvnc-labs/rport/plus/capabilities/oauth"
-	"github.com/realvnc-labs/rport/plus/capabilities/permission"
 	"github.com/realvnc-labs/rport/plus/capabilities/status"
 	"github.com/realvnc-labs/rport/plus/license"
 	"github.com/realvnc-labs/rport/plus/loader"
@@ -19,10 +19,10 @@ import (
 )
 
 const (
-	PlusOAuthCapability      = "plus-oauth"
-	PlusStatusCapability     = "plus-status"
-	PlusPermissionCapability = "plus-permission"
-	PlusLicenseCapability    = "plus-license"
+	PlusOAuthCapability              = "plus-oauth"
+	PlusStatusCapability             = "plus-status"
+	PlusExtendedPermissionCapability = "plus-extendedpermission"
+	PlusLicenseCapability            = "plus-license"
 )
 
 var (
@@ -49,7 +49,7 @@ type Manager interface {
 	// Access specific capabilities
 	GetOAuthCapabilityEx() (capEx oauth.CapabilityEx)
 	GetStatusCapabilityEx() (capEx status.CapabilityEx)
-	GetPermissionCapabilityEx() (capEx permission.CapabilityEx)
+	GetExtendedPermissionCapabilityEx() (capEx extendedpermission.CapabilityEx)
 	GetLicenseCapabilityEx() (capEx licensecap.CapabilityEx)
 
 	// Access config validation
@@ -174,15 +174,15 @@ func (pm *ManagerProvider) GetStatusCapabilityEx() (capEx status.CapabilityEx) {
 	return nil
 }
 
-// GetPermissionCapabilityEx returns a cast version of the Plus Permission capability
-func (pm *ManagerProvider) GetPermissionCapabilityEx() (capEx permission.CapabilityEx) {
-	capEntry := pm.getCap(PlusPermissionCapability)
+// GetExtendedPermissionCapabilityEx returns a cast version of the Plus Extended Permission capability
+func (pm *ManagerProvider) GetExtendedPermissionCapabilityEx() (capEx extendedpermission.CapabilityEx) {
+	capEntry := pm.getCap(PlusExtendedPermissionCapability)
 	if capEntry != nil {
-		cap, ok := capEntry.(*permission.Capability)
+		cap, ok := capEntry.(*extendedpermission.Capability)
 		if !ok {
 			return nil
 		}
-		capEx = cap.GetPermissionCapabilityEx()
+		capEx = cap.GetExtendedPermissionCapabilityEx()
 		return capEx
 	}
 

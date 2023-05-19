@@ -11,7 +11,7 @@ import (
 	"golang.org/x/crypto/bcrypt"
 
 	rportplus "github.com/realvnc-labs/rport/plus"
-	plusprm "github.com/realvnc-labs/rport/plus/capabilities/permission"
+	plusprm "github.com/realvnc-labs/rport/plus/capabilities/extendedpermission"
 	errors2 "github.com/realvnc-labs/rport/server/api/errors"
 	"github.com/realvnc-labs/rport/server/api/message"
 	"github.com/realvnc-labs/rport/server/chconfig"

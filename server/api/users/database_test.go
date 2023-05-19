@@ -5,7 +5,7 @@ import (
 	"os"
 	"testing"
 
-	plusprm "github.com/realvnc-labs/rport/plus/capabilities/permission"
+	plusprm "github.com/realvnc-labs/rport/plus/capabilities/extendedpermission"
 	chshare "github.com/realvnc-labs/rport/share/logger"
 
 	"github.com/realvnc-labs/rport/share/test"

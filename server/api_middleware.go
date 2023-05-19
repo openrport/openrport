@@ -176,13 +176,13 @@ func (al *APIListener) permissionsMiddleware(permission string) mux.MiddlewareFu
 					switch permission {
 					case users.PermissionTunnels:
 						if tr != nil {
-							err = al.Server.plusManager.GetPermissionCapabilityEx().ValidateExtendedTunnelPermission(r, tr)
+							err = al.Server.plusManager.GetExtendedPermissionCapabilityEx().ValidateExtendedTunnelPermission(r, tr)
 						}
 						break
 					case users.PermissionCommands:
 					case users.PermissionScheduler:
 						if cr != nil {
-							err = al.Server.plusManager.GetPermissionCapabilityEx().ValidateExtendedCommandPermission(r, cr)
+							err = al.Server.plusManager.GetExtendedPermissionCapabilityEx().ValidateExtendedCommandPermission(r, cr)
 						}
 						break
 					}

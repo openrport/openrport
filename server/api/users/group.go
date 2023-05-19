@@ -1,7 +1,7 @@
 package users
 
 import (
-	plusprm "github.com/realvnc-labs/rport/plus/capabilities/permission"
+	plusprm "github.com/realvnc-labs/rport/plus/capabilities/extendedpermission"
 )
 
 const (
