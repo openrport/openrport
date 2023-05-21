@@ -6,7 +6,6 @@ import (
 
 	"github.com/stretchr/testify/suite"
 
-	"github.com/realvnc-labs/rport/share/query"
 	"github.com/realvnc-labs/rport/share/simplestore"
 	"github.com/realvnc-labs/rport/share/simplestore/kvs/inmemory"
 )
@@ -70,21 +69,22 @@ func (suite *SimpleStoreTestSuite) TestSimpleStore_Persistence() {
 }
 
 func (suite *SimpleStoreTestSuite) TestSimpleStore_Filter_sort() {
-	store, testStructs := suite.manyStore()
-	options := query.ListOptions{
-		Sorts: []query.SortOption{{
-			Column: "ID",
-			IsASC:  false,
-		}},
-		Filters:    nil,
-		Fields:     nil,
-		Pagination: nil,
-	}
-
-	all, err := store.Filter(context.Background(), options)
-	suite.NoError(err)
-
-	suite.Equal(testStructs, all)
+	suite.Fail("finish me!")
+	//store, testStructs := suite.manyStore()
+	//options := query.ListOptions{
+	//	Sorts: []query.SortOption{{
+	//		Column: "ID",
+	//		IsASC:  false,
+	//	}},
+	//	Filters:    nil,
+	//	Fields:     nil,
+	//	Pagination: nil,
+	//}
+	//
+	//all, err := store.Filter(context.Background(), options)
+	//suite.NoError(err)
+	//
+	//suite.Equal(testStructs, all)
 }
 
 func (suite *SimpleStoreTestSuite) manyStore() (*simplestore.SimpleStore[TestStruct], []TestStruct) {

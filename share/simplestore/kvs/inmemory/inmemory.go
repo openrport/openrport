@@ -14,6 +14,13 @@ func NewInMemory() *InMemory {
 	return &InMemory{datas: make(map[string][]byte)}
 }
 
+func (m *InMemory) Read(ctx context.Context, key string) ([]byte, bool, error) {
+	m.RLock()
+	defer m.RUnlock()
+	bytes, found := m.datas[key]
+	return bytes, found, nil
+}
+
 func (m *InMemory) ReadAll(ctx context.Context, reader func(key string, data []byte) error) error {
 	m.RLock()
 	defer m.RUnlock()

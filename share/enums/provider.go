@@ -7,4 +7,5 @@ const (
 	ProviderSourceFile   ProviderSource = "File"
 	ProviderSourceDB     ProviderSource = "DB"
 	ProviderSourceMock   ProviderSource = "Mock"
+	ProviderSourceKV     ProviderSource = "KV"
 )

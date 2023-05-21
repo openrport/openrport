@@ -7,7 +7,8 @@ import (
 	"sync"
 )
 
-type KVStore[T any] interface {
+type KVStore interface {
+	Read(ctx context.Context, key string) ([]byte, bool, error)
 	Put(ctx context.Context, key string, data []byte) error
 	ReadAll(ctx context.Context, reader func(key string, data []byte) error) error
 	Delete(ctx context.Context, key string) error
@@ -16,10 +17,10 @@ type KVStore[T any] interface {
 type SimpleStore[T any] struct {
 	sync.RWMutex
 	memory  map[string]T
-	kvstore KVStore[T]
+	kvstore KVStore
 }
 
-func NewSimpleStore[T any](ctx context.Context, store KVStore[T]) (*SimpleStore[T], error) {
+func NewSimpleStore[T any](ctx context.Context, store KVStore) (*SimpleStore[T], error) {
 
 	memory := map[string]T{}
 
