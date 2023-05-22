@@ -349,6 +349,7 @@ func (c *Config) ParseAndValidate(mLog *logger.MemLogger) error {
 	if err := c.Server.InternalTunnelProxyConfig.ParseAndValidate(); err != nil {
 		return err
 	}
+	c.Server.InternalTunnelProxyConfig.CORS = parseAndValidateCORS(mLog, c.Server.InternalTunnelProxyConfig.CORS)
 
 	filesAPI := files.NewFileSystem()
 	serverLogLevel := c.Logging.LogLevel.String()
@@ -371,7 +372,7 @@ func (c *Config) ParseAndValidate(mLog *logger.MemLogger) error {
 		return err
 	}
 
-	if err := c.parseAndValidateAPI(); err != nil {
+	if err := c.parseAndValidateAPI(mLog); err != nil {
 		return fmt.Errorf("API: %v", err)
 	}
 
@@ -428,7 +429,7 @@ func (c *Config) parseAndValidateClientAuth() error {
 	return nil
 }
 
-func (c *Config) parseAndValidateAPI() error {
+func (c *Config) parseAndValidateAPI(mLog *logger.MemLogger) error {
 	if c.API.Address != "" {
 		// API enabled
 		err := c.parseAndValidateAPIAuth()
@@ -466,6 +467,8 @@ func (c *Config) parseAndValidateAPI() error {
 		if c.API.MaxTokenLifeTimeHours < 0 || (time.Duration(c.API.MaxTokenLifeTimeHours)*time.Hour) > bearer.DefaultMaxTokenLifetime {
 			return fmt.Errorf("max_token_lifetime outside allowable ranges. must be between 0 and %.0f", bearer.DefaultMaxTokenLifetime.Hours())
 		}
+
+		c.API.CORS = parseAndValidateCORS(mLog, c.API.CORS)
 	} else {
 		// API disabled
 		if c.API.DocRoot != "" {
@@ -828,4 +831,44 @@ func generateJWTSecret() (string, error) {
 		return "", fmt.Errorf("can't generate API JWT secret: %s", err)
 	}
 	return fmt.Sprintf("%x", sha256.Sum256(data)), nil
+}
+
+func parseAndValidateCORS(mLog *logger.MemLogger, cors []string) []string {
+	result := []string{}
+	for _, c := range cors {
+		err := validateCORSOrigin(c)
+		if err != nil {
+			mLog.Errorf("invalid cors origin %q: %v", c, err)
+			continue
+		}
+		result = append(result, c)
+	}
+	return result
+}
+
+func validateCORSOrigin(c string) error {
+	if c == "*" {
+		return nil
+	}
+	u, err := url.Parse(c)
+	if err != nil {
+		return err
+	}
+	if u.Scheme != "http" && u.Scheme != "https" {
+		return fmt.Errorf("invalid scheme: %s", u.Scheme)
+	}
+	if u.Host == "" {
+		return errors.New("must have a host")
+
+	}
+	if u.Path != "" {
+		return errors.New("must not have a path")
+	}
+	if u.RawQuery != "" {
+		return errors.New("must not have query params")
+	}
+	if u.Fragment != "" {
+		return errors.New("must not contain a fragment")
+	}
+	return nil
 }
