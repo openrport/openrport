@@ -178,13 +178,11 @@ func (al *APIListener) permissionsMiddleware(permission string) mux.MiddlewareFu
 						if tr != nil {
 							err = al.Server.plusManager.GetExtendedPermissionCapabilityEx().ValidateExtendedTunnelPermission(r, tr)
 						}
-						break
 					case users.PermissionCommands:
 					case users.PermissionScheduler:
 						if cr != nil {
 							err = al.Server.plusManager.GetExtendedPermissionCapabilityEx().ValidateExtendedCommandPermission(r, cr)
 						}
-						break
 					}
 					if err != nil {
 						al.jsonErrorResponseWithDetail(w, http.StatusBadRequest, "", err.Error(), "")

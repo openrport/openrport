@@ -213,14 +213,12 @@ func (d *UserDatabase) UpdateGroup(name string, group Group) error {
 	if err != nil {
 		if d.plusOn {
 			return err
-		} else {
-			_, err = d.db.NamedExec(qb+"(name, permissions) VALUES (:name, :permissions)", group) // ignore the extended fields
-			if err != nil {
-				return err
-			}
+		}
+		_, err = d.db.NamedExec(qb+"(name, permissions) VALUES (:name, :permissions)", group) // ignore the extended fields
+		if err != nil {
+			return err
 		}
 	}
-
 	return nil
 }
 

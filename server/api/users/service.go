@@ -154,21 +154,21 @@ func (as *APIService) CheckPermission(user *User, permission string) error {
 }
 
 func (as *APIService) GetEffectiveUserExtendedPermissions(user *User) ([]plusprm.StringInterfaceMap, []plusprm.StringInterfaceMap) {
-	var tunnels_restricted []plusprm.StringInterfaceMap
-	var commands_restricted []plusprm.StringInterfaceMap
+	var tunnelsRestricted []plusprm.StringInterfaceMap
+	var commandsRestricted []plusprm.StringInterfaceMap
 
 	for _, groupName := range user.Groups {
 		group, err := as.Provider.GetGroup(groupName)
 		if err == nil {
 			if group.TunnelsRestricted != nil {
-				tunnels_restricted = append(tunnels_restricted, *group.TunnelsRestricted)
+				tunnelsRestricted = append(tunnelsRestricted, *group.TunnelsRestricted)
 			}
 			if group.CommandsRestricted != nil {
-				commands_restricted = append(commands_restricted, *group.CommandsRestricted)
+				commandsRestricted = append(commandsRestricted, *group.CommandsRestricted)
 			}
 		}
 	}
-	return tunnels_restricted, commands_restricted
+	return tunnelsRestricted, commandsRestricted
 }
 
 func (as *APIService) GetEffectiveUserPermissions(user *User) (map[string]bool, error) {
