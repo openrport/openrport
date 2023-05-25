@@ -9,6 +9,7 @@ import (
 	"sync"
 	"time"
 
+	"github.com/dgraph-io/badger/v4"
 	"github.com/jmoiron/sqlx"
 	"golang.org/x/crypto/ssh"
 	"golang.org/x/sync/errgroup"
@@ -24,6 +25,7 @@ import (
 	jobsmigration "github.com/realvnc-labs/rport/db/migration/jobs"
 	"github.com/realvnc-labs/rport/db/sqlite"
 	rportplus "github.com/realvnc-labs/rport/plus"
+	"github.com/realvnc-labs/rport/plus/capabilities/alerting/transformers"
 	"github.com/realvnc-labs/rport/server/acme"
 	"github.com/realvnc-labs/rport/server/api/jobs"
 	"github.com/realvnc-labs/rport/server/api/jobs/schedule"
@@ -95,6 +97,7 @@ func NewServer(ctx context.Context, config *chconfig.Config, opts *ServerOpts) (
 			m: make(map[string]chan *models.Job),
 		},
 	}
+
 	s.acme = acme.New(s.Logger.Fork("acme"), config.Server.DataDir, config.Server.AcmeHTTPPort)
 	if config.Server.InternalTunnelProxyConfig.EnableAcme {
 		s.acme.AddHost(config.Server.InternalTunnelProxyConfig.Host)
@@ -110,6 +113,35 @@ func NewServer(ctx context.Context, config *chconfig.Config, opts *ServerOpts) (
 		}
 
 		licCap.SetLicenseInfoAvailableNotifier(s.HandlePlusLicenseInfoAvailable)
+
+		// TODO: (rs):  refactor this into separate fn
+		alertingCap := s.plusManager.GetAlertingCapabilityEx()
+		if alertingCap != nil {
+			// TODO: (rs): where is the db closed?
+			// TODO: (rs): use a fn to make the badgerdb path
+			bdb, err := badger.Open(badger.DefaultOptions(config.Server.DataDir + "/alerts.bdb"))
+			if err != nil {
+				return nil, err
+			}
+
+			err = alertingCap.Init(bdb)
+			if err != nil {
+				return nil, fmt.Errorf("failed to initialize the alerting service: %w", err)
+			}
+
+			as := alertingCap.GetService()
+
+			err = as.LoadLatestRuleSet()
+			if err != nil {
+				return nil, fmt.Errorf("failed to load latest ruleset: %w", err)
+			}
+
+			// TODO: (rs): will we have an enabled type flag?
+			as.Run(ctx)
+			s.Infof("Alerting capability enabled")
+		} else {
+			s.Infof("Alerting capability not available")
+		}
 	}
 
 	privateKey, err := initPrivateKey(config.Server.KeySeed)
@@ -215,6 +247,24 @@ func NewServer(ctx context.Context, config *chconfig.Config, opts *ServerOpts) (
 	if rportplus.IsPlusEnabled(config.PlusConfig) {
 		licCapEx := s.plusManager.GetLicenseCapabilityEx()
 		s.clientService.SetPlusLicenseInfoCap(licCapEx)
+
+		clientRepo := s.clientService.GetRepo()
+		alertingCap := s.plusManager.GetAlertingCapabilityEx()
+		if alertingCap != nil {
+			// TODO: (rs): this should probably be in the client service, with a reference to the alerting service
+			clientRepo.SetPostSaveHandlerFn(func(cl *clients.Client) {
+				ascl, err := transformers.TransformRportClientToClientUpdate(cl)
+				if err != nil {
+					s.Debugf("unable to transform client update for alerting service")
+				}
+				as := alertingCap.GetService()
+				err = as.PutClientUpdate(ascl)
+				if err != nil {
+					s.Debugf("Failed to send client update to the alerting service")
+				}
+
+			})
+		}
 	}
 
 	s.auditLog, err = auditlog.New(
@@ -303,12 +353,12 @@ func getClientProvider(config *chconfig.Config, db *sqlx.DB) (clientsauth.Provid
 }
 
 func initPrivateKey(seed string) (ssh.Signer, error) {
-	//generate private key (optionally using seed)
+	// generate private key (optionally using seed)
 	key, err := chshare.GenerateKey(seed)
 	if err != nil {
 		return nil, fmt.Errorf("failed to generate key seed: %s", err)
 	}
-	//convert into ssh.PrivateKey
+	// convert into ssh.PrivateKey
 	private, err := ssh.ParsePrivateKey(key)
 	if err != nil {
 		return nil, fmt.Errorf("failed to parse key: %s", err)
@@ -333,7 +383,7 @@ func (s *Server) Run(ctx context.Context) error {
 		s.Debugf("Task to purge disconnected clients disabled")
 	}
 
-	//Run a task to Check the client connections status by sending and receiving pings
+	// Run a task to Check the client connections status by sending and receiving pings
 	clientsStatusCheckTask := NewClientsStatusCheckTask(
 		s.Logger,
 		s.clientListener.server.clientService.GetRepo(),
@@ -446,6 +496,8 @@ func (s *Server) Close() error {
 		}
 		return true
 	})
+
+	// TODO: (rs):  should we be shutting down the plugin capabilities here?
 
 	return wg.Wait()
 }

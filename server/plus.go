@@ -6,6 +6,7 @@ import (
 	"fmt"
 
 	rportplus "github.com/realvnc-labs/rport/plus"
+	alertingcap "github.com/realvnc-labs/rport/plus/capabilities/alerting"
 	licensecap "github.com/realvnc-labs/rport/plus/capabilities/license"
 	"github.com/realvnc-labs/rport/plus/capabilities/oauth"
 	"github.com/realvnc-labs/rport/plus/capabilities/status"
@@ -106,6 +107,18 @@ func RegisterPlusCapabilities(plusManager rportplus.Manager, cfg *chconfig.Confi
 		return fmt.Errorf("unable to register plus license capability: %w", err)
 	}
 	logger.Infof("plus license capability registered")
+
+	// register the plus alerting capability
+	_, err = plusManager.RegisterCapability(rportplus.PlusAlertingCapability, &alertingcap.Capability{
+		Config: &alertingcap.Config{
+			AlertsLogPath: cfg.Server.DataDir,
+		},
+		Logger: logger,
+	})
+	if err != nil {
+		return fmt.Errorf("unable to register plus alerting capability: %w", err)
+	}
+	logger.Infof("plus alerting capability registered")
 
 	return nil
 }

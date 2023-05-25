@@ -29,7 +29,7 @@ func NewClientsStatusCheckTask(log *logger.Logger, cr *clients.ClientRepository,
 }
 
 func (t *ClientsStatusCheckTask) Run(ctx context.Context) error {
-	t.log.Debugf("running")
+	t.log.Debugf("status check running")
 	timerStart := time.Now()
 	var confirmedClients = 0
 

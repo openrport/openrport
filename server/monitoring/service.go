@@ -45,8 +45,8 @@ type monitoringService struct {
 func NewService(dbProvider DBProvider) Service {
 	return &monitoringService{DBProvider: dbProvider}
 }
+
 func (s *monitoringService) SaveMeasurement(ctx context.Context, measurement *models.Measurement) error {
-	measurement.Timestamp = time.Now().UTC()
 	return s.DBProvider.CreateMeasurement(ctx, measurement)
 }
 

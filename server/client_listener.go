@@ -22,6 +22,8 @@ import (
 	"github.com/jpillora/requestlog"
 	"golang.org/x/crypto/ssh"
 
+	rportplus "github.com/realvnc-labs/rport/plus"
+	"github.com/realvnc-labs/rport/plus/capabilities/alerting/transformers"
 	"github.com/realvnc-labs/rport/server/api/middleware"
 	"github.com/realvnc-labs/rport/server/auditlog"
 	"github.com/realvnc-labs/rport/server/chconfig"
@@ -545,12 +547,30 @@ func (cl *ClientListener) handleSSHRequests(clientLog *logger.Logger, clientID s
 				continue
 			}
 			measurement.ClientID = clientID
+			measurement.Timestamp = time.Now().UTC()
 			err = cl.server.monitoringService.SaveMeasurement(context.Background(), measurement)
 			if err != nil {
 				clientLog.Errorf("Failed to save measurement for client %s: %s", clientID, err)
 				continue
 			}
 
+			// TODO: (rs): move to post measurement save fn?
+			if rportplus.IsPlusEnabled(cl.server.config.PlusConfig) {
+				alertingCap := cl.server.plusManager.GetAlertingCapabilityEx()
+				if alertingCap != nil {
+					m, err := transformers.TransformRportMeasurementToToMeasure(measurement)
+					if err != nil {
+						clientLog.Debugf("Failed to transform measurement")
+					}
+
+					as := alertingCap.GetService()
+
+					err = as.PutMeasurement(m)
+					if err != nil {
+						clientLog.Debugf("Failed to send measurement to the alerting service")
+					}
+				}
+			}
 		default:
 			clientLog.Debugf("Unknown request: %s", r.Type)
 		}

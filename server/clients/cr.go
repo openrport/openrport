@@ -22,6 +22,8 @@ type ClientRepository struct {
 
 	keepDisconnectedClients *time.Duration
 
+	postSaveHandlerFn func(cl *Client)
+
 	logger *logger.Logger
 
 	mu sync.RWMutex
@@ -70,6 +72,17 @@ func InitClientRepository(
 	return NewClientRepositoryWithDB(initialClients, keepDisconnectedClients, provider, logger), nil
 }
 
+func (r *ClientRepository) SetPostSaveHandlerFn(handlerFn func(cl *Client)) {
+	r.postSaveHandlerFn = handlerFn
+}
+
+func (r *ClientRepository) GetPostSaveHandlerFn() (handlerFn func(cl *Client)) {
+	r.mu.RLock()
+	handlerFn = r.postSaveHandlerFn
+	r.mu.RUnlock()
+	return handlerFn
+}
+
 func (r *ClientRepository) Save(client *Client) error {
 	ts := time.Now()
 
@@ -83,6 +96,11 @@ func (r *ClientRepository) Save(client *Client) error {
 	}
 
 	r.updateClient(client)
+
+	handlerFn := r.GetPostSaveHandlerFn()
+	if handlerFn != nil {
+		handlerFn(client)
+	}
 
 	r.log().Debugf(
 		"saved client: %s status=%s, within %s",

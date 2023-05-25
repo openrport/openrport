@@ -17,6 +17,7 @@ import (
 	"github.com/jmoiron/sqlx"
 
 	licensecap "github.com/realvnc-labs/rport/plus/capabilities/license"
+
 	"github.com/realvnc-labs/rport/server/acme"
 	apiErrors "github.com/realvnc-labs/rport/server/api/errors"
 	"github.com/realvnc-labs/rport/server/caddy"

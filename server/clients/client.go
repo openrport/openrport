@@ -172,6 +172,107 @@ func (c *Client) GetVersion() (version string) {
 	return c.Version
 }
 
+// TODO: (rs): these extra getters probably aren't required. talk to KK about options.
+
+func (c *Client) GetAddress() (address string) {
+	c.flock.RLock()
+	defer c.flock.RUnlock()
+	return c.Address
+}
+
+func (c *Client) GetMemoryTotal() (mem uint64) {
+	c.flock.RLock()
+	defer c.flock.RUnlock()
+	return c.MemoryTotal
+}
+
+func (c *Client) GetNumCPUs() (num int) {
+	c.flock.RLock()
+	defer c.flock.RUnlock()
+	return c.NumCPUs
+}
+
+func (c *Client) GetOSArch() (arch string) {
+	c.flock.RLock()
+	defer c.flock.RUnlock()
+	return c.OSArch
+}
+
+func (c *Client) GetOSFamily() (fam string) {
+	c.flock.RLock()
+	defer c.flock.RUnlock()
+	return c.OSFamily
+}
+
+func (c *Client) GetOSFullName() (name string) {
+	c.flock.RLock()
+	defer c.flock.RUnlock()
+	return c.OSFullName
+}
+
+func (c *Client) GetOSKernel() (kernel string) {
+	c.flock.RLock()
+	defer c.flock.RUnlock()
+	return c.OSKernel
+}
+
+func (c *Client) GetOSVersion() (ver string) {
+	c.flock.RLock()
+	defer c.flock.RUnlock()
+	return c.OSVersion
+}
+
+func (c *Client) GetOSVirtualizationRole() (role string) {
+	c.flock.RLock()
+	defer c.flock.RUnlock()
+	return c.OSVirtualizationRole
+}
+
+func (c *Client) GetOSVirtualizationSystem() (sys string) {
+	c.flock.RLock()
+	defer c.flock.RUnlock()
+	return c.OSVirtualizationSystem
+}
+
+func (c *Client) GetTimezone() (tz string) {
+	c.flock.RLock()
+	defer c.flock.RUnlock()
+	return c.Timezone
+}
+
+func (c *Client) GetLabels() (labels map[string]string) {
+	c.flock.RLock()
+	defer c.flock.RUnlock()
+	labels = make(map[string]string, len(c.Labels))
+	for k, v := range c.Labels {
+		labels[k] = v
+	}
+	return labels
+}
+
+func (c *Client) GetIPv4() (ipv4 []string) {
+	c.flock.RLock()
+	defer c.flock.RUnlock()
+	ipv4 = make([]string, 0, len(c.IPv4))
+	copy(ipv4, c.IPv4)
+	return ipv4
+}
+
+func (c *Client) GetIPv6() (ipv6 []string) {
+	c.flock.RLock()
+	defer c.flock.RUnlock()
+	ipv6 = make([]string, 0, len(c.IPv6))
+	copy(ipv6, c.IPv6)
+	return ipv6
+}
+
+func (c *Client) GetUpdatesStatus() (status models.UpdatesStatus) {
+	c.flock.RLock()
+	defer c.flock.RUnlock()
+	status = *c.UpdatesStatus
+	return status
+}
+
 func (c *Client) GetDisconnectedAt() (at *time.Time) {
 	c.flock.RLock()
 	defer c.flock.RUnlock()

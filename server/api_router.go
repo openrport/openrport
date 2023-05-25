@@ -219,6 +219,11 @@ func (al *APIListener) initRouter() {
 	authRouter.HandleFunc(routes.AuthSettingsRoute, al.handleGetAuthSettings).Methods(http.MethodGet)
 	authRouter.HandleFunc(routes.AuthDeviceSettingsRoute, al.handleGetAuthDeviceSettings).Methods(http.MethodGet)
 
+	// TODO: (rs): only when plus?
+	alertingServiceRouter := api.PathPrefix(routes.AlertingServiceRoutesPrefix).Subrouter()
+	alertingServiceRouter.HandleFunc(routes.ASSaveRuleSetRoute, al.handleSaveRuleSet).Methods(http.MethodPost)
+	alertingServiceRouter.HandleFunc(routes.ASGetActionStatesRoute, al.handleGetActiveRuleActionStates).Methods(http.MethodGet)
+
 	if rportplus.IsPlusOAuthEnabled(al.config.PlusConfig) {
 		api.HandleFunc(oauth.DefaultLoginURI, al.handleOAuthAuthorizationCode).Methods(http.MethodGet)
 		api.HandleFunc(oauth.DefaultDeviceLoginURI, al.handleGetDeviceAuth).Methods(http.MethodGet)
