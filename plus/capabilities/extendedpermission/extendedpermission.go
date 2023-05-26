@@ -93,7 +93,6 @@ func (m StringInterfaceMap) Value() (driver.Value, error) {
 				return nil, fmt.Errorf("invalid restriction regular expression %q: %v", restriction, err)
 			}
 		case []interface{}: // [ "stuff", "like" "this" ]
-			fmt.Printf("[]interface{} %v\n", m[pName])
 			for _, restriction := range m[pName].([]interface{}) {
 				switch restriction := restriction.(type) {
 				case string: // need to check if are all strings

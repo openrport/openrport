@@ -27,7 +27,7 @@ func TestNewUserDatabase(t *testing.T) {
 		ExpectedError     string
 		twoFAOn           bool
 		totPOn            bool
-		plusOn            bool
+		plusEnabled       bool
 	}{
 		{
 			Name:          "invalid users tables",
@@ -76,14 +76,14 @@ func TestNewUserDatabase(t *testing.T) {
 			UsersTable:  "users",
 			GroupsTable: "groups",
 			totPOn:      true,
-			plusOn:      false,
+			plusEnabled: false,
 		},
 		{
 			Name:        "2fa and totP on",
 			UsersTable:  "users",
 			GroupsTable: "groups",
 			twoFAOn:     true,
-			plusOn:      false,
+			plusEnabled: false,
 		},
 		{
 			Name:        "2fa on",
@@ -91,7 +91,7 @@ func TestNewUserDatabase(t *testing.T) {
 			GroupsTable: "groups",
 			twoFAOn:     true,
 			totPOn:      true,
-			plusOn:      false,
+			plusEnabled: false,
 		},
 	}
 
@@ -101,7 +101,7 @@ func TestNewUserDatabase(t *testing.T) {
 			require.NoError(t, err)
 			defer db.Close()
 
-			err = prepareTables(db, tc.twoFAOn, tc.totPOn, tc.plusOn)
+			err = prepareTables(db, tc.twoFAOn, tc.totPOn, tc.plusEnabled)
 			require.NoError(t, err)
 
 			_, err = db.Exec("CREATE TABLE `invalid_users` (username TEXT PRIMARY KEY, pass TEXT)")
@@ -279,7 +279,7 @@ func TestListGroups(t *testing.T) {
 	}
 }
 
-func TestListGroupsPlusOn(t *testing.T) {
+func TestListGroupsPlusEnabled(t *testing.T) {
 	testCases := []struct {
 		Name         string
 		DetailsTable string
@@ -385,7 +385,7 @@ func TestGetGroup(t *testing.T) {
 	}
 }
 
-func TestGetGroupPlusOn(t *testing.T) {
+func TestGetGroupPlusEnabled(t *testing.T) {
 	testCases := []struct {
 		Name         string
 		DetailsTable string
@@ -496,7 +496,7 @@ func TestUpdateGroup(t *testing.T) {
 	}
 }
 
-func TestUpdateGroupPlusOn(t *testing.T) {
+func TestUpdateGroupPlusEnabled(t *testing.T) {
 	testCases := []struct {
 		Name string
 		Group
@@ -906,7 +906,7 @@ func TestDelete(t *testing.T) {
 	assertGroupTableEquals(t, db, d.groupsTableName, []map[string]interface{}{})
 }
 
-func prepareTables(db *sqlx.DB, twoFAOn, totPON bool, plusOn bool) error {
+func prepareTables(db *sqlx.DB, twoFAOn, totPON bool, plusEnabled bool) error {
 	q := "CREATE TABLE `users` (username TEXT PRIMARY KEY, password TEXT, password_expired BOOLEAN NOT NULL CHECK (password_expired IN (0, 1)) DEFAULT 0%s)"
 	dynamicFieldsQ := ""
 	if twoFAOn {
@@ -927,7 +927,7 @@ func prepareTables(db *sqlx.DB, twoFAOn, totPON bool, plusOn bool) error {
 		return err
 	}
 
-	if plusOn {
+	if plusEnabled {
 		_, err = db.Exec(`CREATE TABLE "group_details" (name TEXT, permissions TEXT, tunnels_restricted TEXT, commands_restricted TEXT);CREATE UNIQUE INDEX "main"."group_details_name" ON "group_details" ("name" ASC);`)
 	} else {
 		_, err = db.Exec(`CREATE TABLE "group_details" (name TEXT, permissions TEXT);CREATE UNIQUE INDEX "main"."group_details_name" ON "group_details" ("name" ASC);`)
@@ -940,7 +940,7 @@ func prepareTables(db *sqlx.DB, twoFAOn, totPON bool, plusOn bool) error {
 	return nil
 }
 
-func prepareDummyData(db *sqlx.DB, withTwoFA, withTotP bool, plusOn bool) error {
+func prepareDummyData(db *sqlx.DB, withTwoFA, withTotP bool, plusEnabled bool) error {
 	var err error
 	if !withTotP {
 		_, err = db.Exec("INSERT INTO `users` (username, password) VALUES (\"user1\", \"pass1\")")
@@ -966,7 +966,7 @@ func prepareDummyData(db *sqlx.DB, withTwoFA, withTotP bool, plusOn bool) error 
 		}
 	}
 
-	if plusOn {
+	if plusEnabled {
 		_, err = db.Exec(`INSERT INTO group_details (name, permissions, tunnels_restricted) VALUES ("group4", '{"tunnels":true}', '{ "local": ["20000","20001"], "idle-timeout-minutes": { "min": 5 }, "auto_close": { "max": "60m", "min" : "2m" }, "auth_allowed": true }')`)
 		if err != nil {
 			return err

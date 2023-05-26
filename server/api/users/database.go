@@ -21,17 +21,17 @@ type UserDatabase struct {
 	groupsTableName       string
 	groupDetailsTableName string
 
-	twoFAOn bool
-	totPOn  bool
-	plusOn  bool
-	logger  *logger.Logger
+	twoFAOn     bool
+	totPOn      bool
+	plusEnabled bool
+	logger      *logger.Logger
 }
 
 func NewUserDatabase(
 	DB *sqlx.DB,
 	usersTableName, groupsTableName, groupDetailsTableName string,
 	twoFAOn, totPOn bool,
-	plusOn bool, logger *logger.Logger,
+	plusEnabled bool, logger *logger.Logger,
 ) (*UserDatabase, error) {
 	d := &UserDatabase{
 		db: DB,
@@ -40,10 +40,10 @@ func NewUserDatabase(
 		groupsTableName:       groupsTableName,
 		groupDetailsTableName: groupDetailsTableName,
 
-		twoFAOn: twoFAOn,
-		totPOn:  totPOn,
-		plusOn:  plusOn,
-		logger:  logger,
+		twoFAOn:     twoFAOn,
+		totPOn:      totPOn,
+		plusEnabled: plusEnabled,
+		logger:      logger,
 	}
 	if err := d.checkDatabaseTables(); err != nil {
 		return nil, err
@@ -75,7 +75,7 @@ func (d *UserDatabase) checkDatabaseTables() error {
 	}
 	if d.groupDetailsTableName != "" {
 		extPermSelect := ""
-		if d.plusOn {
+		if d.plusEnabled {
 			// when plus is enabled, we need to select the other fields as well
 			extPermSelect = ", tunnels_restricted, commands_restricted"
 		}
@@ -211,7 +211,7 @@ func (d *UserDatabase) UpdateGroup(name string, group Group) error {
 	_, err = d.db.NamedExec(qb, group)
 
 	if err != nil {
-		if d.plusOn {
+		if d.plusEnabled {
 			return err
 		}
 		_, err = d.db.NamedExec(qb+"(name, permissions) VALUES (:name, :permissions)", group) // ignore the extended fields
