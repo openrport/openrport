@@ -91,7 +91,7 @@ func TestClientsStatusDeterminationTask(t *testing.T) {
 	c4.SetConnection(connTimeout)
 	c4.Logger = myTestLog
 
-	cr := clients.NewClientRepository([]*clients.Client{&c1, &c2, &c3, &c4}, nil, myTestLog)
+	cr := clients.NewClientRepositoryForTestsSetupWithInMemoryCache([]*clients.Client{&c1, &c2, &c3, &c4}, nil, myTestLog)
 	task := NewClientsStatusCheckTask(myTestLog, cr, 120*time.Second, timeout)
 
 	// Check the last heartbeat of c1 has changed due to the ping sent

@@ -142,7 +142,14 @@ func (al *APIListener) handleGetClientGroup(w http.ResponseWriter, req *http.Req
 		return
 	}
 
-	al.clientService.PopulateGroupsWithUserClients([]*cgroups.ClientGroup{group}, curUser)
+	err = al.clientService.PopulateGroupsWithUserClients([]*cgroups.ClientGroup{group}, curUser)
+	if err != nil {
+		if err != nil {
+			al.jsonError(w, err)
+			return
+		}
+		return
+	}
 
 	payload, err := al.convertToClientGroupPayload(group, requestedFields)
 	if err != nil {
@@ -184,7 +191,11 @@ func (al *APIListener) handleGetClientGroups(w http.ResponseWriter, req *http.Re
 		return
 	}
 
-	al.clientService.PopulateGroupsWithUserClients(groups, curUser)
+	err = al.clientService.PopulateGroupsWithUserClients(groups, curUser)
+	if err != nil {
+		al.jsonError(w, err)
+		return
+	}
 
 	// for non-admins filter out groups with no clients
 	if !curUser.IsAdmin() {

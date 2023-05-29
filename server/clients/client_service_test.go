@@ -96,7 +96,7 @@ func TestStartClient(t *testing.T) {
 	for _, tc := range testCases {
 		t.Run(tc.Name, func(t *testing.T) {
 			cs := &ClientServiceProvider{
-				repo: NewClientRepository([]*Client{{
+				repo: NewClientRepositoryForTestsSetupWithInMemoryCache([]*Client{{
 					ID:           "test-client",
 					ClientAuthID: "test-client-auth",
 				}}, nil, testLog),
@@ -157,7 +157,8 @@ func TestStartClientConcurrency(t *testing.T) {
 		mockConns = append(mockConns, mockConn)
 	}
 
-	repo, err := InitClientRepository(context.Background(), clientDB, nil, testLog)
+	// repo, err := InitClientRepository(context.Background(), clientDB, nil, testLog)
+	repo, err := BootstrapManager(context.Background(), BoostrapConfig{}, testLog)
 	require.NoError(t, err)
 
 	cs := &ClientServiceProvider{
@@ -200,7 +201,7 @@ func TestStartClientDisconnected(t *testing.T) {
 	connMock.ReturnRemoteAddr = &net.TCPAddr{IP: net.IPv4(192, 0, 2, 1), Port: 2345}
 	now := time.Now()
 	cs := &ClientServiceProvider{
-		repo: NewClientRepository([]*Client{{
+		repo: NewClientRepositoryForTestsSetupWithInMemoryCache([]*Client{{
 			ID:                "disconnected-client",
 			ClientAuthID:      "test-client-auth",
 			DisconnectedAt:    &now,
@@ -268,8 +269,9 @@ func TestDeleteOfflineClient(t *testing.T) {
 	for _, tc := range testCases {
 		t.Run(tc.name, func(t *testing.T) {
 			// given
-			clientService := NewClientService(nil, nil, NewClientRepository([]*Client{c1Active, c2Active, c3Offline, c4Offline}, &hour, testLog), testLog, nil)
-			before := clientService.Count()
+			repository := NewClientRepositoryForTestsSetupWithInMemoryCache([]*Client{c1Active, c2Active, c3Offline, c4Offline}, &hour, testLog)
+			clientService := NewClientService(nil, nil, repository, testLog, nil)
+			before := countClients(repository)
 			require.Equal(t, 4, before)
 
 			// when
@@ -283,10 +285,15 @@ func TestDeleteOfflineClient(t *testing.T) {
 			} else {
 				wantAfter = before - 1
 			}
-			gotAfter := clientService.Count()
-			assert.Equal(t, wantAfter, gotAfter)
+
+			assert.Equal(t, wantAfter, countClients(repository))
 		})
 	}
+}
+
+func countClients(repository *ClientRepository) int {
+	clients, _ := repository.GetAllClients()
+	return len(clients)
 }
 
 func TestCheckLocalPort(t *testing.T) {
@@ -453,7 +460,7 @@ func TestCheckClientsAccess(t *testing.T) {
 	for _, tc := range testCases {
 		t.Run(tc.name, func(t *testing.T) {
 			// given
-			clientService := NewClientService(nil, nil, NewClientRepository(allClients, nil, testLog), testLog, nil)
+			clientService := NewClientService(nil, nil, NewClientRepositoryForTestsSetupWithInMemoryCache(allClients, nil, testLog), testLog, nil)
 
 			// when
 			gotErr := clientService.CheckClientsAccess(tc.clients, tc.user, clientGroups)
@@ -953,7 +960,7 @@ func TestShouldStartTunnelsWithSubdomains(t *testing.T) {
 			)
 
 			mockCaddyAPI := &MockCaddyAPI{}
-			clientService := NewClientService(internalTunnelProxyConfig, pd, NewClientRepository([]*Client{c1}, &hour, testLog), testLog, nil)
+			clientService := NewClientService(internalTunnelProxyConfig, pd, NewClientRepositoryForTestsSetupWithInMemoryCache([]*Client{c1}, &hour, testLog), testLog, nil)
 			clientService.caddyAPI = mockCaddyAPI
 
 			requestedRemote, err := models.NewRemote(tc.requestedTunnel)

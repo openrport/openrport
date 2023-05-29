@@ -163,16 +163,6 @@ func NewAPIListener(
 	//if err != nil {
 	//	return nil, fmt.Errorf("failed init library DB instance: %w", err)
 	//}
-	//
-	//apiTokenDb, err := sqlite.New(
-	//	path.Join(config.Server.DataDir, "api_token.db"),
-	//	api_token.AssetNames(),
-	//	api_token.Asset,
-	//	config.Server.GetSQLiteDataSourceOptions(),
-	//)
-	//if err != nil {
-	//	return nil, fmt.Errorf("failed init api_token DB instance: %w", err)
-	//}
 
 	scriptLogger := logger.NewLogger("scripts", config.Logging.LogOutput, config.Logging.LogLevel)
 	// scriptProvider := script.NewSqliteProvider(libraryDb)
@@ -187,7 +177,7 @@ func NewAPIListener(
 	scriptProvider := script.NewKVScriptProvider(simpleStore)
 	scriptManager := script.NewManager(scriptProvider, scriptLogger)
 
-	fileCommandStore, err := fskv.NewFSKV("scripts")
+	fileCommandStore, err := fskv.NewFSKV("commands")
 	if err != nil {
 		return nil, err
 	}
@@ -199,17 +189,10 @@ func NewAPIListener(
 	commandProvider := command.NewKVCommandProvider(simpleCommandStore)
 	commandManager := command.NewManager(commandProvider)
 
-	fileAPITokensStore, err := fskv.NewFSKV("api-tokens")
+	tokenManager, err := authorization.BootstrapManager(ctx, authorization.BoostrapConfig{SQLiteStorageConfig: &config.Server})
 	if err != nil {
 		return nil, err
 	}
-	simpleAPITokensStore, err := simplestore.NewSimpleStore[authorization.APIToken](ctx, fileAPITokensStore)
-	if err != nil {
-		return nil, err
-	}
-	// tokenProvider := authorization.NewSqliteProvider(apiTokenDb)
-	tokenProvider := authorization.NewKVAPITokenProvider(simpleAPITokensStore)
-	tokenManager := authorization.NewManager(tokenProvider)
 
 	userService, err := users.NewAPIServiceFromConfig(server.authDB, config)
 	if err != nil {

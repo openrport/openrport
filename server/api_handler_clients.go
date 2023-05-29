@@ -7,7 +7,6 @@ import (
 	"net"
 	"net/http"
 	"runtime"
-	"sort"
 	"strconv"
 	"time"
 
@@ -220,80 +219,7 @@ func (al *APIListener) handleGetClients(w http.ResponseWriter, req *http.Request
 
 }
 
-func (al *APIListener) handleGetClientsU(w http.ResponseWriter, req *http.Request) {
-	t := time.Now()
-	//f, err := os.Create("slowmo.prof")
-	//if err != nil {
-	//	log.Fatal(err)
-	//}
-	//pprof.StartCPUProfile(f)
-	//defer pprof.StopCPUProfile()
-	//
-	insp(t)
-
-	options := query.NewOptions(req, nil, nil, clients.OptionsListDefaultFields)
-	log.Println("Sort: ", options.Sorts)
-	errs := query.ValidateListOptions(options, clients.OptionsSupportedSorts, clients.OptionsSupportedFilters, clients.OptionsSupportedFields, &query.PaginationConfig{
-		MaxLimit:     500,
-		DefaultLimit: 50,
-	})
-	if errs != nil {
-		al.jsonError(w, errs)
-		return
-	}
-	insp(t)
-	//
-	//sortFunc, desc, err := getCorrespondingSortFunc(options.Sorts)
-	//if err != nil {
-	//	al.jsonError(w, err)
-	//	return
-	//}
-	//insp(t)
-
-	curUser, err := al.getUserModelForAuth(req.Context())
-	if err != nil {
-		al.jsonError(w, err)
-		return
-	}
-	insp(t)
-
-	groups, err := al.clientGroupProvider.GetAll(req.Context())
-	if err != nil {
-		al.jsonErrorResponseWithError(w, http.StatusInternalServerError, "Failed to get client groups.", err)
-		return
-	}
-	insp(t)
-
-	filteredClients, err := al.clientService.GetFilteredUserClientsU(curUser, options.Filters, groups)
-	if err != nil {
-		al.jsonError(w, err)
-		return
-	}
-	insp(t)
-
-	sort.Slice(filteredClients, func(i, j int) bool {
-		return filteredClients[i].ID > filteredClients[j].ID
-	})
-
-	insp(t)
-
-	totalCount := len(filteredClients)
-	start, end := options.Pagination.GetStartEnd(totalCount)
-	filteredClients = filteredClients[start:end]
-	insp(t)
-
-	clientsPayload := clients.ConvertToClientsPayload(filteredClients, options.Fields)
-	insp(t)
-
-	al.writeJSONResponse(w, http.StatusOK, &api.SuccessPayload{
-		Data: clientsPayload,
-		Meta: api.NewMeta(totalCount),
-	})
-	insp(t)
-
-}
-
-func (al *APIListener) handleGetClientsM(w http.ResponseWriter, req *http.Request) {
+func (al *APIListener) handleGetClientsFaster(w http.ResponseWriter, req *http.Request) {
 	t := time.Now()
 
 	options := query.NewOptions(req, nil, nil, clients.OptionsListDefaultFields)
@@ -322,7 +248,7 @@ func (al *APIListener) handleGetClientsM(w http.ResponseWriter, req *http.Reques
 	}
 	insp(t)
 
-	filteredClients, err := al.clientService.GetFilteredUserClientsM(curUser, options.Filters, groups)
+	filteredClients, err := al.clientService.GetFilteredUserClientsFaster(curUser, options.Filters, groups)
 	if err != nil {
 		al.jsonError(w, err)
 		return

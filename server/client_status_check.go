@@ -84,7 +84,7 @@ func (t *ClientsStatusCheckTask) Run(ctx context.Context) error {
 func (t *ClientsStatusCheckTask) getDueClients() (dueClients []*clients.Client, totalCount int) {
 	var confirmedClients = 0
 	var now = time.Now()
-	activeClients := t.clientsRepo.GetAllActiveClients()
+	activeClients, _ := t.clientsRepo.GetAllActiveClients()
 	for _, c := range activeClients {
 		// Shorten the threshold aka make heartbeat older than it is because the ping response is stored after this check.
 		// Clients would get checked only every second time otherwise.

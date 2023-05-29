@@ -344,7 +344,7 @@ func TestHandleFileUploads(t *testing.T) {
 					clientService: clients.NewClientService(
 						nil,
 						nil,
-						clients.NewClientRepository([]*clients.Client{cl}, &hour, testLog),
+						clients.NewClientRepositoryForTestsSetupWithInMemoryCache([]*clients.Client{cl}, &hour, testLog),
 						testLog,
 						nil,
 					),

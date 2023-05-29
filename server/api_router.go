@@ -53,8 +53,7 @@ func (al *APIListener) initRouter() {
 	secureAPI.HandleFunc("/me/tokens/{prefix}", al.handleDeleteToken).Methods(http.MethodDelete)
 
 	secureAPI.HandleFunc("/clients", al.handleGetClients).Methods(http.MethodGet)
-	secureAPI.HandleFunc("/clientsu", al.handleGetClientsU).Methods(http.MethodGet)
-	secureAPI.HandleFunc("/clientsm", al.handleGetClientsM).Methods(http.MethodGet)
+	secureAPI.HandleFunc("/clientsFaster", al.handleGetClientsFaster).Methods(http.MethodGet)
 	clientDetails := secureAPI.PathPrefix("/clients/{client_id}").Subrouter()
 	clientDetails.Use(al.wrapClientAccessMiddleware)
 	clientDetails.HandleFunc("", al.handleGetClient).Methods(http.MethodGet)

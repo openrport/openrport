@@ -509,10 +509,11 @@ func TestHandleDeleteClientAuth(t *testing.T) {
 			assert := assert.New(t)
 
 			// given
+			repository := clients.NewClientRepositoryForTestsSetupWithInMemoryCache(tc.clients, &hour, testLog)
 			al := APIListener{
 				insecureForTests: true,
 				Server: &Server{
-					clientService: clients.NewClientService(nil, nil, clients.NewClientRepository(tc.clients, &hour, testLog), testLog, nil),
+					clientService: clients.NewClientService(nil, nil, repository, testLog, nil),
 					config: &chconfig.Config{
 						Server: chconfig.ServerConfig{
 							AuthWrite: tc.clientAuthWrite,
@@ -557,7 +558,8 @@ func TestHandleDeleteClientAuth(t *testing.T) {
 			require.NoError(err)
 			assert.ElementsMatch(tc.wantClientsAuth, clients, "clients auth not as expected")
 			assert.Equal(tc.wantClosedConn, mockConn.closed)
-			allClients := al.clientService.GetAll()
+			allClients, err := repository.GetAllClients()
+			assert.NoError(err)
 			assert.ElementsMatch(tc.wantClients, allClients)
 		})
 	}

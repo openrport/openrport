@@ -19,11 +19,12 @@ import (
 )
 
 type ClientStore interface {
-	GetAll(ctx context.Context, l *logger.Logger) ([]*Client, error)
+	GetNonObsoleteClients(ctx context.Context, l *logger.Logger) ([]*Client, error)
 	Save(ctx context.Context, client *Client) error
-	DeleteObsolete(ctx context.Context, l *logger.Logger) error
 	Delete(ctx context.Context, id string, l *logger.Logger) error
 	Close() error
+	GetAll(background context.Context, l *logger.Logger) ([]*Client, error)
+	Get(background context.Context, id string, l *logger.Logger) (*Client, error)
 }
 
 type SqliteProvider struct {
@@ -40,6 +41,20 @@ func (p *SqliteProvider) GetAll(ctx context.Context, l *logger.Logger) ([]*Clien
 	err := p.db.SelectContext(
 		ctx,
 		&res,
+		"SELECT * FROM clients",
+	)
+	if err != nil {
+		return nil, err
+	}
+	return convertClientList(res, l), nil
+}
+
+// GetAutoAll returns list of clients that can be filtered by preconfigured last connection timeout
+func (p *SqliteProvider) GetNonObsoleteClients(ctx context.Context, l *logger.Logger) ([]*Client, error) {
+	var res []*clientSqlite
+	err := p.db.SelectContext(
+		ctx,
+		&res,
 		"SELECT * FROM clients WHERE disconnected_at IS NULL OR DATETIME(disconnected_at) >= DATETIME(?) OR ?",
 		p.keepDisconnectedClientsStart(),
 		p.keepDisconnectedClients == nil,
@@ -50,8 +65,7 @@ func (p *SqliteProvider) GetAll(ctx context.Context, l *logger.Logger) ([]*Clien
 	return convertClientList(res, l), nil
 }
 
-// test only
-func (p *SqliteProvider) get(ctx context.Context, id string, l *logger.Logger) (*Client, error) {
+func (p *SqliteProvider) Get(ctx context.Context, id string, l *logger.Logger) (*Client, error) {
 	res := &clientSqlite{}
 	err := p.db.GetContext(ctx, res, "SELECT * FROM clients WHERE id = ?", id)
 	if err != nil {

@@ -20,6 +20,15 @@ type KVAPITokenProvider struct {
 	sortTranslationTable map[string]dyncopy.Field
 }
 
+func (K KVAPITokenProvider) GetAll(ctx context.Context) ([]*APIToken, error) {
+	all, err := K.kv.GetAll(ctx)
+	if err != nil {
+		return nil, err
+	}
+
+	return simpleops.ToPointerSlice(all), nil
+}
+
 func (K KVAPITokenProvider) Get(ctx context.Context, username, prefix string) (*APIToken, error) {
 	get, ok, err := K.kv.Get(ctx, genTokenKey(username, prefix))
 	if err != nil {
@@ -35,7 +44,7 @@ func genTokenKey(username string, prefix string) string {
 	return fmt.Sprintf("%v--%v", username, prefix)
 }
 
-func (K KVAPITokenProvider) GetByName(ctx context.Context, username, name string) (*APIToken, error) {
+func (K KVAPITokenProvider) GetByUserAndTokenName(ctx context.Context, username, name string) (*APIToken, error) {
 
 	filter, err := K.kv.Filter(ctx, func(token APIToken) bool {
 		return token.Username == username && token.Name == name
@@ -52,7 +61,7 @@ func (K KVAPITokenProvider) GetByName(ctx context.Context, username, name string
 
 }
 
-func (K KVAPITokenProvider) GetAll(ctx context.Context, username string) ([]*APIToken, error) {
+func (K KVAPITokenProvider) GetAllForUser(ctx context.Context, username string) ([]*APIToken, error) {
 
 	filter, err := K.kv.Filter(ctx, func(token APIToken) bool {
 		return token.Username == username

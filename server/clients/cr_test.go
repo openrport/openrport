@@ -34,7 +34,7 @@ func TestCRWithExpiration(t *testing.T) {
 	now = nowMockF
 
 	exp := 2 * time.Hour
-	repo := NewClientRepository([]*Client{c1, c2}, &exp, testLog)
+	repo := NewClientRepositoryForTestsSetupWithInMemoryCache([]*Client{c1, c2}, &exp, testLog)
 
 	assert := assert.New(t)
 	assert.NoError(repo.Save(c3))
@@ -50,7 +50,7 @@ func TestCRWithExpiration(t *testing.T) {
 	assert.NoError(err)
 	assert.Equal(2, gotCountDisconnected)
 
-	gotClients := repo.GetAllClients()
+	gotClients, _ := repo.GetAllClients()
 	assert.ElementsMatch([]*Client{c1, c2, c3}, gotClients)
 
 	// active
@@ -67,11 +67,11 @@ func TestCRWithExpiration(t *testing.T) {
 	assert.NoError(err)
 	require.Len(t, deleted, 1)
 	assert.Equal(c4, deleted[0])
-	gotClients = repo.GetAllClients()
+	gotClients, _ = repo.GetAllClients()
 	assert.ElementsMatch([]*Client{c1, c2, c3}, gotClients)
 
 	assert.NoError(repo.Delete(c3))
-	gotClients = repo.GetAllClients()
+	gotClients, _ = repo.GetAllClients()
 	assert.NoError(err)
 	assert.ElementsMatch([]*Client{c1, c2}, gotClients)
 }
@@ -79,7 +79,7 @@ func TestCRWithExpiration(t *testing.T) {
 func TestCRWithNoExpiration(t *testing.T) {
 	now = nowMockF
 
-	repo := NewClientRepository([]*Client{c1, c2, c3}, nil, testLog)
+	repo := NewClientRepositoryForTestsSetupWithInMemoryCache([]*Client{c1, c2, c3}, nil, testLog)
 	c4Active := shallowCopy(c4)
 	c4Active.DisconnectedAt = nil
 
@@ -96,7 +96,7 @@ func TestCRWithNoExpiration(t *testing.T) {
 	assert.NoError(err)
 	assert.Equal(2, gotCountDisconnected)
 
-	gotClients := repo.GetAllClients()
+	gotClients, _ := repo.GetAllClients()
 	assert.ElementsMatch([]*Client{c1, c2, c3, c4Active}, gotClients)
 
 	// active
@@ -114,7 +114,7 @@ func TestCRWithNoExpiration(t *testing.T) {
 	assert.Len(deleted, 0)
 
 	assert.NoError(repo.Delete(c4Active))
-	gotClients = repo.GetAllClients()
+	gotClients, _ = repo.GetAllClients()
 	assert.ElementsMatch([]*Client{c1, c2, c3}, gotClients)
 }
 
@@ -509,7 +509,7 @@ func TestCRWithFilter(t *testing.T) {
 		t.Run(tc.name, func(t *testing.T) {
 			t.Parallel()
 
-			repo := NewClientRepository([]*Client{c1, c2, c5}, nil, testLog)
+			repo := NewClientRepositoryForTestsSetupWithInMemoryCache([]*Client{c1, c2, c5}, nil, testLog)
 
 			actualClients, err := repo.GetFilteredUserClients(admin, tc.filters, nil)
 			require.NoError(t, err)
@@ -526,7 +526,7 @@ func TestCRWithFilter(t *testing.T) {
 }
 
 func TestCRWithUnsupportedFilter(t *testing.T) {
-	repo := NewClientRepository([]*Client{c1}, nil, testLog)
+	repo := NewClientRepositoryForTestsSetupWithInMemoryCache([]*Client{c1}, nil, testLog)
 	_, err := repo.GetFilteredUserClients(admin, []query.FilterOption{
 		{
 			Column: []string{"unknown_field"},
@@ -560,7 +560,7 @@ func TestGetUserClients(t *testing.T) {
 		},
 	}
 
-	repo := NewClientRepository(allClients, nil, testLog)
+	repo := NewClientRepositoryForTestsSetupWithInMemoryCache(allClients, nil, testLog)
 	testCases := []struct {
 		name          string
 		user          User

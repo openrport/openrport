@@ -18,7 +18,17 @@ func NewSqliteProvider(db *sqlx.DB) *SqliteProvider {
 	}
 }
 
-func (p *SqliteProvider) GetAll(ctx context.Context, username string) ([]*APIToken, error) {
+func (p *SqliteProvider) GetAll(ctx context.Context) ([]*APIToken, error) {
+	var result []*APIToken
+	err := p.db.SelectContext(
+		ctx, &result,
+		"SELECT * FROM api_tokens",
+	)
+
+	return result, err
+}
+
+func (p *SqliteProvider) GetAllForUser(ctx context.Context, username string) ([]*APIToken, error) {
 	var result []*APIToken
 	err := p.db.SelectContext(
 		ctx, &result,
@@ -52,7 +62,7 @@ func (p *SqliteProvider) Get(ctx context.Context, username, prefix string) (*API
 	return res, nil
 }
 
-func (p *SqliteProvider) GetByName(ctx context.Context, username, name string) (*APIToken, error) {
+func (p *SqliteProvider) GetByUserAndTokenName(ctx context.Context, username, name string) (*APIToken, error) {
 	res := &APIToken{}
 	err := p.db.GetContext(ctx,
 		res,

@@ -22,7 +22,16 @@ func (F FSKV) Read(ctx context.Context, key string) ([]byte, bool, error) {
 	if path.Base(p) != F.basePath {
 		return nil, false, fmt.Errorf("bad key: %v", key)
 	}
-	return os.ReadFile(path.Join(F.basePath, p))
+
+	file, err := os.ReadFile(path.Join(F.basePath, p))
+	if os.IsNotExist(err) {
+		return nil, false, nil
+	}
+
+	if err != nil {
+		return nil, false, err
+	}
+	return file, true, nil
 }
 
 func (F FSKV) Put(ctx context.Context, key string, data []byte) error {

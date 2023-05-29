@@ -14,9 +14,9 @@ func LoadInitialClients(ctx context.Context, p ClientStore, logger *logger.Logge
 	// setup a logger for the clients
 	clientLogger := logger.Fork("client")
 
-	all, err := p.GetAll(ctx, clientLogger)
+	all, err := p.GetNonObsoleteClients(ctx, clientLogger)
 	if err != nil {
-		return nil, fmt.Errorf("failed to get clients: %v", err)
+		return nil, fmt.Errorf("failed to Get clients: %v", err)
 	}
 
 	logger.Debugf("loaded %d clients", len(all))

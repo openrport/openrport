@@ -14,8 +14,6 @@ import (
 	"golang.org/x/crypto/ssh"
 
 	"github.com/hashicorp/go-version"
-	"github.com/jmoiron/sqlx"
-
 	licensecap "github.com/realvnc-labs/rport/plus/capabilities/license"
 	"github.com/realvnc-labs/rport/server/acme"
 	apiErrors "github.com/realvnc-labs/rport/server/api/errors"
@@ -31,8 +29,7 @@ import (
 
 type ClientService interface {
 	SetPlusLicenseInfoCap(licensecap licensecap.CapabilityEx)
-
-	Count() int
+	Close() error
 	CountActive() int
 	CountDisconnected() (int, error)
 	GetByID(id string) (*Client, error)
@@ -40,13 +37,11 @@ type ClientService interface {
 	GetByGroups(groups []*cgroups.ClientGroup) ([]*Client, error)
 	GetClientsByTag(tags []string, operator string, allowDisconnected bool) (clients []*Client, err error)
 	GetAllByClientID(clientID string) []*Client
-	GetAll() []*Client
-	GetUserClients(groups []*cgroups.ClientGroup, user User) []*Client
+	GetUserClients(groups []*cgroups.ClientGroup, user User) ([]*Client, error)
 	GetFilteredUserClients(user User, filterOptions []query.FilterOption, groups []*cgroups.ClientGroup) ([]*CalculatedClient, error)
-	GetFilteredUserClientsU(user User, filterOptions []query.FilterOption, groups []*cgroups.ClientGroup) ([]*CalculatedClient, error)
-	GetFilteredUserClientsM(user User, filterOptions []query.FilterOption, groups []*cgroups.ClientGroup) ([]Client, error)
+	GetFilteredUserClientsFaster(user User, filterOptions []query.FilterOption, groups []*cgroups.ClientGroup) ([]CalculatedClient, error)
 
-	PopulateGroupsWithUserClients(groups []*cgroups.ClientGroup, user User)
+	PopulateGroupsWithUserClients(groups []*cgroups.ClientGroup, user User) error
 	UpdateClientStatus()
 
 	StartClient(
@@ -88,7 +83,11 @@ type ClientServiceProvider struct {
 	mu sync.RWMutex
 }
 
-func (s *ClientServiceProvider) GetFilteredUserClientsM(user User, filterOptions []query.FilterOption, groups []*cgroups.ClientGroup) ([]Client, error) {
+func (s *ClientServiceProvider) Close() error {
+	return s.repo.Close()
+}
+
+func (s *ClientServiceProvider) GetFilteredUserClientsFaster(user User, filterOptions []query.FilterOption, groups []*cgroups.ClientGroup) ([]CalculatedClient, error) {
 	return s.repo.GetFilteredUserClientsM(user, filterOptions, groups)
 }
 
@@ -196,18 +195,12 @@ func NewClientService(
 }
 
 func InitClientService(
-	ctx context.Context,
 	tunnelProxyConfig *clienttunnel.InternalTunnelProxyConfig,
 	portDistributor *ports.PortDistributor,
-	db *sqlx.DB,
-	keepDisconnectedClients *time.Duration,
+	repo *ClientRepository,
 	logger *logger.Logger,
 	acme *acme.Acme,
 ) (*ClientServiceProvider, error) {
-	repo, err := InitClientRepository(ctx, db, keepDisconnectedClients, logger)
-	if err != nil {
-		return nil, fmt.Errorf("failed to init Client Repository: %v", err)
-	}
 
 	return NewClientService(tunnelProxyConfig, portDistributor, repo, logger, acme), nil
 }
@@ -231,7 +224,7 @@ func (s *ClientServiceProvider) UpdateClientStatus() {
 
 	s.log().Debugf("updating client status")
 
-	clientList := s.repo.GetAllActiveClients()
+	clientList, _ := s.repo.GetAllActiveClients()
 
 	for i, client := range clientList {
 		if i < s.GetMaxClients() {
@@ -240,10 +233,6 @@ func (s *ClientServiceProvider) UpdateClientStatus() {
 			client.SetPaused(true, PausedDueToMaxClientsExceeded)
 		}
 	}
-}
-
-func (s *ClientServiceProvider) Count() int {
-	return s.repo.Count()
 }
 
 func (s *ClientServiceProvider) CountActive() int {
@@ -267,7 +256,7 @@ func (s *ClientServiceProvider) GetByGroups(groups []*cgroups.ClientGroup) ([]*C
 		return nil, nil
 	}
 
-	allClients := s.repo.GetAllClients()
+	allClients, _ := s.repo.GetAllClients()
 
 	var res []*Client
 	for _, cur := range allClients {
@@ -282,8 +271,11 @@ func (s *ClientServiceProvider) GetClientsByTag(tags []string, operator string, 
 	return s.repo.GetClientsByTag(tags, operator, allowDisconnected)
 }
 
-func (s *ClientServiceProvider) PopulateGroupsWithUserClients(groups []*cgroups.ClientGroup, user User) {
-	availableClients := s.repo.GetUserClients(user, groups)
+func (s *ClientServiceProvider) PopulateGroupsWithUserClients(groups []*cgroups.ClientGroup, user User) error {
+	availableClients, err := s.repo.GetUserClients(user, groups)
+	if err != nil {
+		return err
+	}
 	for _, client := range availableClients {
 		clientID := client.GetID()
 		for _, curGroup := range groups {
@@ -295,26 +287,19 @@ func (s *ClientServiceProvider) PopulateGroupsWithUserClients(groups []*cgroups.
 	for _, curGroup := range groups {
 		sort.Strings(curGroup.ClientIDs)
 	}
+	return nil
 }
 
 func (s *ClientServiceProvider) GetAllByClientID(clientID string) []*Client {
 	return s.repo.GetAllByClientAuthID(clientID)
 }
 
-func (s *ClientServiceProvider) GetAll() []*Client {
-	return s.repo.GetAllClients()
-}
-
-func (s *ClientServiceProvider) GetUserClients(groups []*cgroups.ClientGroup, user User) []*Client {
+func (s *ClientServiceProvider) GetUserClients(groups []*cgroups.ClientGroup, user User) ([]*Client, error) {
 	return s.repo.GetUserClients(user, groups)
 }
 
 func (s *ClientServiceProvider) GetFilteredUserClients(user User, filterOptions []query.FilterOption, groups []*cgroups.ClientGroup) ([]*CalculatedClient, error) {
 	return s.repo.GetFilteredUserClients(user, filterOptions, groups)
-}
-
-func (s *ClientServiceProvider) GetFilteredUserClientsU(user User, filterOptions []query.FilterOption, groups []*cgroups.ClientGroup) ([]*CalculatedClient, error) {
-	return s.repo.GetFilteredUserClientsU(user, filterOptions, groups)
 }
 
 func (s *ClientServiceProvider) StartClient(
@@ -327,13 +312,13 @@ func (s *ClientServiceProvider) StartClient(
 	clientAddr := sshConn.RemoteAddr().String()
 	clientHost, _, err := net.SplitHostPort(clientAddr)
 	if err != nil {
-		return nil, fmt.Errorf("failed to get host for address %q: %v", clientAddr, err)
+		return nil, fmt.Errorf("failed to Get host for address %q: %v", clientAddr, err)
 	}
 
 	// if client id is in use, deny connection
 	client, err := repo.GetByID(clientID)
 	if err != nil {
-		return nil, fmt.Errorf("failed to get client by id %q", clientID)
+		return nil, fmt.Errorf("failed to Get client by id %q", clientID)
 	}
 
 	// if found existing client
@@ -399,9 +384,7 @@ func (s *ClientServiceProvider) StartClient(
 		return nil, err
 	}
 
-	// TODO: (rs): should we keep this?
-	totalClients := repo.GetAllActiveClients()
-	s.log().Debugf("total clients = %d (last: %s)", len(totalClients), client.GetName())
+	s.log().Debugf("last: %s", client.GetName())
 
 	return client, nil
 }
@@ -688,7 +671,7 @@ func (s *ClientServiceProvider) CheckClientsAccess(clients []*Client, user User,
 	return nil
 }
 
-// getExistingClientByID returns non-nil client by id. If not found or failed to get a client - an error is returned.
+// getExistingClientByID returns non-nil client by id. If not found or failed to Get a client - an error is returned.
 func (s *ClientServiceProvider) getExistingClientByID(clientID string) (*Client, error) {
 	if clientID == "" {
 		return nil, apiErrors.APIError{
@@ -886,7 +869,7 @@ func (s *ClientServiceProvider) startTunnelWithProxy(
 	// assuming that we still want to log activity in the client log
 	clientLogger.Debugf("client %s will use tunnel proxy", clientID)
 
-	// get values for tunnel proxy local host addr from original remote
+	// Get values for tunnel proxy local host addr from original remote
 	proxyHost = remote.LocalHost
 	proxyPort = remote.LocalPort
 	proxyACL = acl

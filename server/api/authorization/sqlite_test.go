@@ -98,11 +98,11 @@ func TestList(t *testing.T) {
 	err = addDemoData(dbProv.db)
 	require.NoError(t, err)
 
-	result, err := dbProv.GetAll(context.Background(), "username1")
+	result, err := dbProv.GetAllForUser(context.Background(), "username1")
 	require.NoError(t, err)
 	assert.Equal(t, demoData[0], *result[0])
 
-	result, err = dbProv.GetAll(context.Background(), "username4")
+	result, err = dbProv.GetAllForUser(context.Background(), "username4")
 	require.NoError(t, err)
 	assert.Equal(t, demoData[3], *result[0])
 	assert.Equal(t, demoData[4], *result[1])

@@ -31,7 +31,7 @@ func NewFileProvider(fileName string, cache *cache.Cache) *FileProvider {
 	}
 }
 
-// GetAll returns rport clients auth credentials from a given file.
+// GetAllForUser returns rport clients auth credentials from a given file.
 func (c *FileProvider) getAll() ([]*ClientAuth, error) {
 	idPswdPairs, err := c.load()
 	if err != nil {

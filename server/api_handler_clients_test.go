@@ -41,7 +41,7 @@ func TestHandleGetClient(t *testing.T) {
 	al := APIListener{
 		insecureForTests: true,
 		Server: &Server{
-			clientService: clients.NewClientService(nil, nil, clients.NewClientRepository([]*clients.Client{c1}, &hour, testLog), testLog, nil),
+			clientService: clients.NewClientService(nil, nil, clients.NewClientRepositoryForTestsSetupWithInMemoryCache([]*clients.Client{c1}, &hour, testLog), testLog, nil),
 			config: &chconfig.Config{
 				API: chconfig.APIConfig{
 					MaxRequestBytes: 1024 * 1024,
@@ -183,7 +183,7 @@ func TestHandleGetClients(t *testing.T) {
 	al := APIListener{
 		insecureForTests: true,
 		Server: &Server{
-			clientService: clients.NewClientService(nil, nil, clients.NewClientRepository([]*clients.Client{c1, c2}, &hour, testLog), testLog, nil),
+			clientService: clients.NewClientService(nil, nil, clients.NewClientRepositoryForTestsSetupWithInMemoryCache([]*clients.Client{c1, c2}, &hour, testLog), testLog, nil),
 			config: &chconfig.Config{
 				API: chconfig.APIConfig{
 					MaxRequestBytes: 1024 * 1024,
@@ -811,7 +811,7 @@ func TestHandlePutClientTunnelACL(t *testing.T) {
 	al := APIListener{
 		insecureForTests: true,
 		Server: &Server{
-			clientService: clients.NewClientService(nil, nil, clients.NewClientRepository([]*clients.Client{c1}, &hour, testLog), testLog, nil),
+			clientService: clients.NewClientService(nil, nil, clients.NewClientRepositoryForTestsSetupWithInMemoryCache([]*clients.Client{c1}, &hour, testLog), testLog, nil),
 			config: &chconfig.Config{
 				API: chconfig.APIConfig{
 					MaxRequestBytes: 1024 * 1024,

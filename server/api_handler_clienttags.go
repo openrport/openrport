@@ -47,7 +47,11 @@ func (al *APIListener) handleGetClientTags(w http.ResponseWriter, req *http.Requ
 		return
 	}
 
-	clients := al.clientService.GetUserClients(groups, curUser)
+	clients, err := al.clientService.GetUserClients(groups, curUser)
+	if err != nil {
+		al.jsonErrorResponseWithError(w, http.StatusInternalServerError, "Failed to get users clients.", err)
+		return
+	}
 
 	clientIDsByTag := make(map[string][]string)
 	for _, client := range clients {

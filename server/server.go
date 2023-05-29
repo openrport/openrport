@@ -20,7 +20,6 @@ import (
 	"github.com/patrickmn/go-cache"
 
 	"github.com/realvnc-labs/rport/db/migration/client_groups"
-	clientsmigration "github.com/realvnc-labs/rport/db/migration/clients"
 	jobsmigration "github.com/realvnc-labs/rport/db/migration/jobs"
 	"github.com/realvnc-labs/rport/db/sqlite"
 	rportplus "github.com/realvnc-labs/rport/plus"
@@ -61,7 +60,6 @@ type Server struct {
 	apiListener         *APIListener
 	config              *chconfig.Config
 	clientService       clients.ClientService
-	clientDB            *sqlx.DB
 	clientAuthProvider  clientsauth.Provider
 	jobProvider         JobProvider
 	clientGroupProvider cgroups.ClientGroupProvider
@@ -183,28 +181,23 @@ func NewServer(ctx context.Context, config *chconfig.Config, opts *ServerOpts) (
 	// concurrent thread access.
 	sourceOptions.MaxOpenConnections = DefaultMaxClientDBConnections
 
-	s.clientDB, err = sqlite.New(
-		path.Join(config.Server.DataDir, "clients.db"),
-		clientsmigration.AssetNames(),
-		clientsmigration.Asset,
-		sourceOptions,
-	)
-	if err != nil {
-		return nil, fmt.Errorf("failed to create clients DB instance: %v", err)
-	}
-
 	// keepDisconnectedClients is nil when cleanup of clients is disabled (keep clients forever)
 	var keepDisconnectedClients *time.Duration
 	if config.Server.PurgeDisconnectedClients {
 		keepDisconnectedClients = &config.Server.KeepDisconnectedClients
 	}
 
+	clientRepo, err := clients.BootstrapManager(ctx, clients.BoostrapConfig{
+		KeepDisconnectedClients: keepDisconnectedClients,
+		//		StorageKind:
+	}, s.Logger)
+	if err != nil {
+		return nil, err
+	}
 	s.clientService, err = clients.InitClientService(
-		ctx,
 		&s.config.Server.InternalTunnelProxyConfig,
 		ports.NewPortDistributor(config.AllowedPorts()),
-		s.clientDB,
-		keepDisconnectedClients,
+		clientRepo,
 		s.Logger,
 		s.acme,
 	)
@@ -212,7 +205,7 @@ func NewServer(ctx context.Context, config *chconfig.Config, opts *ServerOpts) (
 		return nil, err
 	}
 
-	//all := s.clientService.GetAll()
+	//all := s.clientService.GetAllForUser()
 	//c := all[0]
 	//log.Println(c)
 	//// s.clientService.
@@ -445,7 +438,7 @@ func (s *Server) Close() error {
 	if s.authDB != nil {
 		wg.Go(s.authDB.Close)
 	}
-	wg.Go(s.clientDB.Close)
+	wg.Go(s.clientService.Close)
 	wg.Go(s.jobProvider.Close)
 	wg.Go(s.clientGroupProvider.Close)
 	wg.Go(s.uiJobWebSockets.CloseConnections)

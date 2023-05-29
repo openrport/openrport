@@ -11,8 +11,8 @@ import (
 
 type DbProvider interface {
 	Get(ctx context.Context, username, prefix string) (*APIToken, error)
-	GetByName(ctx context.Context, username, name string) (*APIToken, error)
-	GetAll(ctx context.Context, username string) ([]*APIToken, error)
+	GetByUserAndTokenName(ctx context.Context, username, name string) (*APIToken, error)
+	GetAllForUser(ctx context.Context, username string) ([]*APIToken, error)
 	Save(ctx context.Context, tokenLine *APIToken) error
 	Delete(ctx context.Context, username, prefix string) error
 	io.Closer
@@ -33,7 +33,7 @@ func (m *Manager) Get(ctx context.Context, username, prefix string) (*APIToken, 
 }
 
 func (m *Manager) GetAll(ctx context.Context, username string) ([]*APIToken, error) {
-	val, err := m.db.GetAll(ctx, username)
+	val, err := m.db.GetAllForUser(ctx, username)
 	if err != nil {
 		return nil, err
 	}
@@ -71,7 +71,7 @@ func (m *Manager) Save(ctx context.Context, tokenLine *APIToken) error {
 
 func checkNameExist(ctx context.Context, db DbProvider, username, name string) error {
 	if name != "" {
-		item, err := db.GetByName(ctx, username, name)
+		item, err := db.GetByUserAndTokenName(ctx, username, name)
 		if err != nil {
 			return err
 		}

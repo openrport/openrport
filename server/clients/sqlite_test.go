@@ -28,32 +28,32 @@ func TestClientsSqliteProvider(t *testing.T) {
 	require.NoError(t, p.Save(ctx, c4))
 	require.NoError(t, p.Save(ctx, c5))
 
-	// verify get clients
-	gotAll, err := p.GetAll(ctx, testLog)
+	// verify Get clients
+	gotAll, err := p.GetNonObsoleteClients(ctx, testLog)
 	require.NoError(t, err)
 	assert.ElementsMatch(t, []*Client{c1, c2, c3, c4}, gotAll)
 
-	// verify no obsolete get clients
-	gotAll, err = noObsoleteProvider.GetAll(ctx, testLog)
+	// verify no obsolete Get clients
+	gotAll, err = noObsoleteProvider.GetNonObsoleteClients(ctx, testLog)
 	require.NoError(t, err)
 	assert.ElementsMatch(t, []*Client{c1, c2, c3, c4, c5}, gotAll)
 
 	// verify delete obsolete clients
-	gotObsolete, err := p.get(ctx, c5.GetID(), testLog)
+	gotObsolete, err := p.Get(ctx, c5.GetID(), testLog)
 	require.NoError(t, err)
 	require.EqualValues(t, c5, gotObsolete)
 
 	require.NoError(t, p.DeleteObsolete(ctx, testLog))
-	gotObsolete, err = p.get(ctx, c5.GetID(), testLog)
+	gotObsolete, err = p.Get(ctx, c5.GetID(), testLog)
 	require.NoError(t, err)
 	require.Nil(t, gotObsolete)
 
-	gotAll, err = p.GetAll(ctx, testLog)
+	gotAll, err = p.GetNonObsoleteClients(ctx, testLog)
 	require.NoError(t, err)
 	assert.ElementsMatch(t, []*Client{c1, c2, c3, c4}, gotAll)
 
 	// verify not found
-	gotNone, err := p.get(ctx, "unknown-id", testLog)
+	gotNone, err := p.Get(ctx, "unknown-id", testLog)
 	require.NoError(t, err)
 	require.Nil(t, gotNone)
 
@@ -61,10 +61,10 @@ func TestClientsSqliteProvider(t *testing.T) {
 	d := time.Date(2020, 11, 5, 12, 11, 20, 0, time.UTC)
 	c1.DisconnectedAt = &d
 	require.NoError(t, p.Save(ctx, c1))
-	gotUpdated, err := p.get(ctx, c1.GetID(), testLog)
+	gotUpdated, err := p.Get(ctx, c1.GetID(), testLog)
 	require.NoError(t, err)
 	require.EqualValues(t, c1, gotUpdated)
-	gotAll, err = p.GetAll(ctx, testLog)
+	gotAll, err = p.GetNonObsoleteClients(ctx, testLog)
 	require.NoError(t, err)
 	assert.ElementsMatch(t, []*Client{c1, c2, c3, c4}, gotAll)
 }

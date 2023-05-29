@@ -126,8 +126,8 @@ func (cc *CalculatedClient) GetConnectionState() (cs ConnectionState) {
 }
 
 func (c *Client) GetID() (id string) {
-	//c.flock.RLock()
-	//defer c.flock.RUnlock()
+	c.flock.RLock()
+	defer c.flock.RUnlock()
 	return c.ID
 }
 
