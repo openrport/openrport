@@ -5,7 +5,7 @@ import (
 	"os"
 	"testing"
 
-	plusprm "github.com/realvnc-labs/rport/plus/capabilities/extendedpermission"
+	extperm "github.com/realvnc-labs/rport/plus/capabilities/extendedpermission"
 	chshare "github.com/realvnc-labs/rport/share/logger"
 
 	"github.com/realvnc-labs/rport/share/test"
@@ -293,7 +293,7 @@ func TestListGroupsPlusEnabled(t *testing.T) {
 				NewGroup("group2", nil, nil),
 				NewGroup("group3", nil, nil, PermissionScripts),
 				NewGroup("group4",
-					&plusprm.StringInterfaceMap{
+					&extperm.PermissionParams{
 						"auth_allowed":         true,
 						"local":                []interface{}{"20000", "20001"},
 						"auto_close":           map[string]interface{}{"max": "60m", "min": "2m"},
@@ -303,7 +303,7 @@ func TestListGroupsPlusEnabled(t *testing.T) {
 					PermissionTunnels),
 				NewGroup("group5",
 					nil,
-					&plusprm.StringInterfaceMap{
+					&extperm.PermissionParams{
 						"deny":    []interface{}{"apache2", "ssh"},
 						"is_sudo": false,
 					},
@@ -409,7 +409,7 @@ func TestGetGroupPlusEnabled(t *testing.T) {
 			DetailsTable: "group_details",
 			Group:        "group4",
 			Expected: NewGroup("group4",
-				&plusprm.StringInterfaceMap{
+				&extperm.PermissionParams{
 					"auth_allowed":         true,
 					"local":                []interface{}{"20000", "20001"},
 					"auto_close":           map[string]interface{}{"max": "60m", "min": "2m"},
@@ -424,7 +424,7 @@ func TestGetGroupPlusEnabled(t *testing.T) {
 			Group:        "group5",
 			Expected: NewGroup("group5",
 				nil,
-				&plusprm.StringInterfaceMap{
+				&extperm.PermissionParams{
 					"deny":    []interface{}{"apache2", "ssh"},
 					"is_sudo": false,
 				},
@@ -505,13 +505,13 @@ func TestUpdateGroupPlusEnabled(t *testing.T) {
 		{
 			Name: "existing",
 			Group: NewGroup("group1",
-				&plusprm.StringInterfaceMap{
+				&extperm.PermissionParams{
 					"auth_allowed":         true,
 					"local":                []interface{}{"20001", "20002"},
 					"auto_close":           map[string]interface{}{"max": "30m", "min": "2m"},
 					"idle-timeout-minutes": map[string]interface{}{"min": 2.0},
 				},
-				&plusprm.StringInterfaceMap{
+				&extperm.PermissionParams{
 					"deny":    []interface{}{"apache2", "ssh"},
 					"is_sudo": false,
 				},
@@ -520,7 +520,7 @@ func TestUpdateGroupPlusEnabled(t *testing.T) {
 		{
 			Name: "existing only tunnels",
 			Group: NewGroup("group4",
-				&plusprm.StringInterfaceMap{
+				&extperm.PermissionParams{
 					"auth_allowed":         true,
 					"local":                []interface{}{"20001", "20002"},
 					"auto_close":           map[string]interface{}{"max": "30m", "min": "2m"},
@@ -530,7 +530,7 @@ func TestUpdateGroupPlusEnabled(t *testing.T) {
 		{
 			Name: "wrong format strings and ints",
 			Group: NewGroup("group4",
-				&plusprm.StringInterfaceMap{
+				&extperm.PermissionParams{
 					"local": []interface{}{20001, "20002"},
 				}, nil),
 			ExpectedError: `sql: converting argument $3 type: invalid restriction list 20001 of type int`,
@@ -538,7 +538,7 @@ func TestUpdateGroupPlusEnabled(t *testing.T) {
 		{
 			Name: "wrong rule in max / min values",
 			Group: NewGroup("group4",
-				&plusprm.StringInterfaceMap{
+				&extperm.PermissionParams{
 					"idle-timeout-Minutes": map[string]interface{}{"mex": 2.0},
 				}, nil),
 			ExpectedError: `sql: converting argument $3 type: invalid restriction rule 'mex'`,
@@ -546,7 +546,7 @@ func TestUpdateGroupPlusEnabled(t *testing.T) {
 		{
 			Name: "unparseable duration",
 			Group: NewGroup("group4",
-				&plusprm.StringInterfaceMap{
+				&extperm.PermissionParams{
 					"idle-timeout-minutes": map[string]interface{}{"max": "jk"},
 				}, nil),
 			ExpectedError: `sql: converting argument $3 type: restriction jk not parseable as time.duration: invalid type`,
@@ -554,7 +554,7 @@ func TestUpdateGroupPlusEnabled(t *testing.T) {
 		{
 			Name: "unparseable regex single string",
 			Group: NewGroup("group4",
-				&plusprm.StringInterfaceMap{
+				&extperm.PermissionParams{
 					"host_header": "[abc",
 				}, nil),
 			ExpectedError: "sql: converting argument $3 type: invalid restriction regular expression \"[abc\": error parsing regexp: missing closing ]: `[abc`",
@@ -562,7 +562,7 @@ func TestUpdateGroupPlusEnabled(t *testing.T) {
 		{
 			Name: "unparseable regex in a list of strings allow / deny",
 			Group: NewGroup("group4",
-				&plusprm.StringInterfaceMap{
+				&extperm.PermissionParams{
 					"Deny": []interface{}{"abc", "[abc"},
 				}, nil),
 			ExpectedError: "sql: converting argument $3 type: invalid restriction regular expression \"[abc\": error parsing regexp: missing closing ]: `[abc`",
@@ -570,7 +570,7 @@ func TestUpdateGroupPlusEnabled(t *testing.T) {
 		{
 			Name: "wrong type as restriction",
 			Group: NewGroup("group4",
-				&plusprm.StringInterfaceMap{
+				&extperm.PermissionParams{
 					"hello": 7.0,
 				}, nil),
 			ExpectedError: "sql: converting argument $3 type: restriction 7 of type float64 not recognized",

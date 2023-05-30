@@ -16,8 +16,8 @@ import (
 )
 
 type CapabilityEx interface {
-	ValidateExtendedTunnelPermission(r *http.Request, tr []StringInterfaceMap) error
-	ValidateExtendedCommandPermission(r *http.Request, cr []StringInterfaceMap) error
+	ValidateExtendedTunnelPermission(r *http.Request, tr []PermissionParams) error
+	ValidateExtendedCommandPermission(r *http.Request, cr []PermissionParams) error
 }
 
 type Config struct {
@@ -51,7 +51,7 @@ func (cap *Capability) GetConfigValidator() (v validator.Validator) {
 	return nil
 }
 
-type StringInterfaceMap map[string]interface{}
+type PermissionParams map[string]interface{}
 
 func lowercaseKeys(m map[string]interface{}) map[string]interface{} {
 	result := make(map[string]interface{})
@@ -81,7 +81,7 @@ func parseMinutes(m interface{}) (*time.Duration, error) {
 	return &dur, nil
 }
 
-func (m StringInterfaceMap) Value() (driver.Value, error) {
+func (m PermissionParams) Value() (driver.Value, error) {
 	m = lowercaseKeys(m)
 	for pName := range m {
 		switch restriction := m[pName].(type) {
@@ -130,7 +130,7 @@ func (m StringInterfaceMap) Value() (driver.Value, error) {
 	return driver.Value(j), nil
 }
 
-func (m *StringInterfaceMap) Scan(src interface{}) error {
+func (m *PermissionParams) Scan(src interface{}) error {
 	var source []byte
 	_m := make(map[string]interface{})
 
@@ -142,12 +142,12 @@ func (m *StringInterfaceMap) Scan(src interface{}) error {
 	case nil:
 		return nil
 	default:
-		return fmt.Errorf("incompatible type %T for StringInterfaceMap", src)
+		return fmt.Errorf("incompatible type %T for PermissionParams", src)
 	}
 	err := json.Unmarshal(source, &_m)
 	if err != nil {
 		return err
 	}
-	*m = StringInterfaceMap(_m)
+	*m = PermissionParams(_m)
 	return nil
 }
