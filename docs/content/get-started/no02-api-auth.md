@@ -500,6 +500,20 @@ curl -Ss -X PUT https://localhost/api/v1/users/Willy \
 --data-raw '{"password": "4321ssap"}'
 ```
 
+### Extended group permissions additional fields
+
+To enable the extended group permissions feature, the database must be upgraded with the following SQL statement:
+
+```sql
+ALTER TABLE `group_details` ADD COLUMN `tunnels_restricted` TEXT DEFAULT '{}';
+ALTER TABLE `group_details` ADD COLUMN `commands_restricted` TEXT DEFAULT '{}';
+```
+Upon start, the "Extended group permissions" feature will be in trial mode, if the fields are present in the database, but there is no Plus license installed.
+
+<!-- ED TODO: expand the main page that talks about permissions with the extended  -->
+<!-- ED TODO: add put api examples of creating extended permissions  -->
+
+
 ## Enabling 2FA with an Authenticator app (TotP auth)
 
 You can enable 2FA with an authenticator app e.g. [Google Authenticator](https://play.google.com/store/apps/details?id=com.google.android.apps.authenticator2&hl=de&gl=US)
