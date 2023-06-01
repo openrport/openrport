@@ -41,33 +41,34 @@ import (
 )
 
 type APIConfig struct {
-	Address                string  `mapstructure:"address"`
-	BaseURL                string  `mapstructure:"base_url"`
-	EnableAcme             bool    `mapstructure:"enable_acme"`
-	Auth                   string  `mapstructure:"auth"`
-	AuthFile               string  `mapstructure:"auth_file"`
-	AuthUserTable          string  `mapstructure:"auth_user_table"`
-	AuthGroupTable         string  `mapstructure:"auth_group_table"`
-	AuthGroupDetailsTable  string  `mapstructure:"auth_group_details_table"`
-	AuthHeader             string  `mapstructure:"auth_header"`
-	UserHeader             string  `mapstructure:"user_header"`
-	CreateMissingUsers     bool    `mapstructure:"create_missing_users"`
-	DefaultUserGroup       string  `mapstructure:"default_user_group"`
-	JWTSecret              string  `mapstructure:"jwt_secret"`
-	DocRoot                string  `mapstructure:"doc_root"`
-	CertFile               string  `mapstructure:"cert_file"`
-	KeyFile                string  `mapstructure:"key_file"`
-	AccessLogFile          string  `mapstructure:"access_log_file"`
-	UserLoginWait          float32 `mapstructure:"user_login_wait"`
-	MaxFailedLogin         int     `mapstructure:"max_failed_login"`
-	BanTime                int     `mapstructure:"ban_time"`
-	MaxTokenLifeTimeHours  int     `mapstructure:"max_token_lifetime"`
-	PasswordMinLength      int     `mapstructure:"password_min_length"`
-	PasswordZxcvbnMinscore int     `mapstructure:"password_zxcvbn_minscore"`
-	TLSMin                 string  `mapstructure:"tls_min"`
-	EnableWsTestEndpoints  bool    `mapstructure:"enable_ws_test_endpoints"`
-	MaxRequestBytes        int64   `mapstructure:"max_request_bytes"`
-	MaxFilePushSize        int64   `mapstructure:"max_filepush_size"`
+	Address                string   `mapstructure:"address"`
+	BaseURL                string   `mapstructure:"base_url"`
+	EnableAcme             bool     `mapstructure:"enable_acme"`
+	Auth                   string   `mapstructure:"auth"`
+	AuthFile               string   `mapstructure:"auth_file"`
+	AuthUserTable          string   `mapstructure:"auth_user_table"`
+	AuthGroupTable         string   `mapstructure:"auth_group_table"`
+	AuthGroupDetailsTable  string   `mapstructure:"auth_group_details_table"`
+	AuthHeader             string   `mapstructure:"auth_header"`
+	UserHeader             string   `mapstructure:"user_header"`
+	CreateMissingUsers     bool     `mapstructure:"create_missing_users"`
+	DefaultUserGroup       string   `mapstructure:"default_user_group"`
+	JWTSecret              string   `mapstructure:"jwt_secret"`
+	DocRoot                string   `mapstructure:"doc_root"`
+	CertFile               string   `mapstructure:"cert_file"`
+	KeyFile                string   `mapstructure:"key_file"`
+	AccessLogFile          string   `mapstructure:"access_log_file"`
+	UserLoginWait          float32  `mapstructure:"user_login_wait"`
+	MaxFailedLogin         int      `mapstructure:"max_failed_login"`
+	BanTime                int      `mapstructure:"ban_time"`
+	MaxTokenLifeTimeHours  int      `mapstructure:"max_token_lifetime"`
+	PasswordMinLength      int      `mapstructure:"password_min_length"`
+	PasswordZxcvbnMinscore int      `mapstructure:"password_zxcvbn_minscore"`
+	TLSMin                 string   `mapstructure:"tls_min"`
+	EnableWsTestEndpoints  bool     `mapstructure:"enable_ws_test_endpoints"`
+	MaxRequestBytes        int64    `mapstructure:"max_request_bytes"`
+	MaxFilePushSize        int64    `mapstructure:"max_filepush_size"`
+	CORS                   []string `mapstructure:"cors"`
 
 	TwoFATokenDelivery       string                 `mapstructure:"two_fa_token_delivery"`
 	TwoFATokenTTLSeconds     int                    `mapstructure:"two_fa_token_ttl_seconds"`
@@ -348,6 +349,7 @@ func (c *Config) ParseAndValidate(mLog *logger.MemLogger) error {
 	if err := c.Server.InternalTunnelProxyConfig.ParseAndValidate(); err != nil {
 		return err
 	}
+	c.Server.InternalTunnelProxyConfig.CORS = parseAndValidateCORS(mLog, c.Server.InternalTunnelProxyConfig.CORS)
 
 	filesAPI := files.NewFileSystem()
 	serverLogLevel := c.Logging.LogLevel.String()
@@ -370,7 +372,7 @@ func (c *Config) ParseAndValidate(mLog *logger.MemLogger) error {
 		return err
 	}
 
-	if err := c.parseAndValidateAPI(); err != nil {
+	if err := c.parseAndValidateAPI(mLog); err != nil {
 		return fmt.Errorf("API: %v", err)
 	}
 
@@ -427,7 +429,7 @@ func (c *Config) parseAndValidateClientAuth() error {
 	return nil
 }
 
-func (c *Config) parseAndValidateAPI() error {
+func (c *Config) parseAndValidateAPI(mLog *logger.MemLogger) error {
 	if c.API.Address != "" {
 		// API enabled
 		err := c.parseAndValidateAPIAuth()
@@ -465,6 +467,8 @@ func (c *Config) parseAndValidateAPI() error {
 		if c.API.MaxTokenLifeTimeHours < 0 || (time.Duration(c.API.MaxTokenLifeTimeHours)*time.Hour) > bearer.DefaultMaxTokenLifetime {
 			return fmt.Errorf("max_token_lifetime outside allowable ranges. must be between 0 and %.0f", bearer.DefaultMaxTokenLifetime.Hours())
 		}
+
+		c.API.CORS = parseAndValidateCORS(mLog, c.API.CORS)
 	} else {
 		// API disabled
 		if c.API.DocRoot != "" {
@@ -827,4 +831,44 @@ func generateJWTSecret() (string, error) {
 		return "", fmt.Errorf("can't generate API JWT secret: %s", err)
 	}
 	return fmt.Sprintf("%x", sha256.Sum256(data)), nil
+}
+
+func parseAndValidateCORS(mLog *logger.MemLogger, cors []string) []string {
+	result := []string{}
+	for _, c := range cors {
+		err := validateCORSOrigin(c)
+		if err != nil {
+			mLog.Errorf("invalid cors origin %q: %v", c, err)
+			continue
+		}
+		result = append(result, c)
+	}
+	return result
+}
+
+func validateCORSOrigin(c string) error {
+	if c == "*" {
+		return nil
+	}
+	u, err := url.Parse(c)
+	if err != nil {
+		return err
+	}
+	if u.Scheme != "http" && u.Scheme != "https" {
+		return fmt.Errorf("invalid scheme: %s", u.Scheme)
+	}
+	if u.Host == "" {
+		return errors.New("must have a host")
+
+	}
+	if u.Path != "" {
+		return errors.New("must not have a path")
+	}
+	if u.RawQuery != "" {
+		return errors.New("must not have query params")
+	}
+	if u.Fragment != "" {
+		return errors.New("must not contain a fragment")
+	}
+	return nil
 }

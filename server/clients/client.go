@@ -512,6 +512,11 @@ func (c *Client) BelongsTo(group *cgroups.ClientGroup) bool {
 	if !p.ClientAuthID.MatchesOneOf(c.ClientAuthID) {
 		return false
 	}
+
+	if !p.ConnectionState.MatchesOneOf(string(c.CalculateConnectionState())) {
+		return false
+	}
+
 	return true
 }
 

@@ -6,6 +6,7 @@ import (
 	"github.com/gorilla/handlers"
 	"github.com/gorilla/mux"
 	"github.com/jpillora/requestlog"
+	"github.com/rs/cors"
 
 	rportplus "github.com/realvnc-labs/rport/plus"
 	"github.com/realvnc-labs/rport/plus/capabilities/oauth"
@@ -234,6 +235,21 @@ func (al *APIListener) initRouter() {
 	}
 	if al.accessLogFile != nil {
 		r.Use(func(next http.Handler) http.Handler { return handlers.CombinedLoggingHandler(al.accessLogFile, next) })
+	}
+
+	if len(al.config.API.CORS) > 0 {
+		r.Use(cors.New(cors.Options{
+			AllowedOrigins:   al.config.API.CORS,
+			AllowCredentials: true,
+			AllowedMethods: []string{
+				http.MethodHead,
+				http.MethodGet,
+				http.MethodPost,
+				http.MethodPut,
+				http.MethodDelete,
+			},
+			AllowedHeaders: []string{"Authorization", "Content-Type"},
+		}).Handler)
 	}
 
 	r.Use(handlers.CompressHandler)

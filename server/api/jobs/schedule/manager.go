@@ -305,6 +305,7 @@ func (m *Manager) run(ctx context.Context, id string) {
 		ScheduleID:          &schedule.ID,
 		Username:            schedule.CreatedBy,
 		ClientIDs:           schedule.Details.ClientIDs,
+		ClientTags:          schedule.Details.ClientTags,
 		GroupIDs:            schedule.Details.GroupIDs,
 		Command:             schedule.Details.Command,
 		Script:              schedule.Details.Script,
