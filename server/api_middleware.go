@@ -9,6 +9,7 @@ import (
 
 	"github.com/gorilla/mux"
 
+	rportplus "github.com/realvnc-labs/rport/plus"
 	"github.com/realvnc-labs/rport/server/api"
 	errors2 "github.com/realvnc-labs/rport/server/api/errors"
 	"github.com/realvnc-labs/rport/server/api/users"
@@ -165,11 +166,33 @@ func (al *APIListener) permissionsMiddleware(permission string) mux.MiddlewareFu
 					al.jsonError(w, err)
 					return
 				}
+				if permission == users.PermissionTunnels || permission == users.PermissionCommands || permission == users.PermissionScheduler {
+					if !rportplus.IsPlusEnabled(al.config.PlusConfig) {
+						al.jsonErrorResponseWithTitle(w, http.StatusForbidden, "Extended permission validation failed because rport-plus plugin not loaded")
+						return
+					}
+					plusPermissionCapability := al.Server.plusManager.GetExtendedPermissionCapabilityEx()
+					al.Debugf("extended \"%s\" permission middleware: %v %v", permission, r.Method, r.URL.Path)
+					tr, cr := al.userService.GetEffectiveUserExtendedPermissions(currUser)
+					switch permission {
+					case users.PermissionTunnels:
+						if tr != nil {
+							err = plusPermissionCapability.ValidateExtendedTunnelPermission(r, tr)
+						}
+					case users.PermissionCommands:
+					case users.PermissionScheduler:
+						if cr != nil {
+							err = plusPermissionCapability.ValidateExtendedCommandPermission(r, cr)
+						}
+					}
+					if err != nil {
+						al.jsonErrorResponseWithDetail(w, http.StatusBadRequest, "", err.Error(), "")
+						return
+					}
+				}
 			}
-
 			next.ServeHTTP(w, r)
 		})
-
 	}
 }
 

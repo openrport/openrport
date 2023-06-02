@@ -5,7 +5,9 @@ import (
 	"os"
 	"testing"
 
+	extperm "github.com/realvnc-labs/rport/plus/capabilities/extendedpermission"
 	chshare "github.com/realvnc-labs/rport/share/logger"
+
 	"github.com/realvnc-labs/rport/share/test"
 
 	"github.com/jmoiron/sqlx"
@@ -25,6 +27,7 @@ func TestNewUserDatabase(t *testing.T) {
 		ExpectedError     string
 		twoFAOn           bool
 		totPOn            bool
+		plusEnabled       bool
 	}{
 		{
 			Name:          "invalid users tables",
@@ -53,7 +56,7 @@ func TestNewUserDatabase(t *testing.T) {
 			GroupsTable:   "invalid_groups",
 			ExpectedError: "no such column: group",
 		}, {
-			Name:              "invalid groups columns",
+			Name:              "invalid groups details columns",
 			UsersTable:        "users",
 			GroupsTable:       "groups",
 			GroupDetailsTable: "invalid_group_details",
@@ -73,12 +76,14 @@ func TestNewUserDatabase(t *testing.T) {
 			UsersTable:  "users",
 			GroupsTable: "groups",
 			totPOn:      true,
+			plusEnabled: false,
 		},
 		{
 			Name:        "2fa and totP on",
 			UsersTable:  "users",
 			GroupsTable: "groups",
 			twoFAOn:     true,
+			plusEnabled: false,
 		},
 		{
 			Name:        "2fa on",
@@ -86,6 +91,7 @@ func TestNewUserDatabase(t *testing.T) {
 			GroupsTable: "groups",
 			twoFAOn:     true,
 			totPOn:      true,
+			plusEnabled: false,
 		},
 	}
 
@@ -95,7 +101,7 @@ func TestNewUserDatabase(t *testing.T) {
 			require.NoError(t, err)
 			defer db.Close()
 
-			err = prepareTables(db, tc.twoFAOn, tc.totPOn)
+			err = prepareTables(db, tc.twoFAOn, tc.totPOn, tc.plusEnabled)
 			require.NoError(t, err)
 
 			_, err = db.Exec("CREATE TABLE `invalid_users` (username TEXT PRIMARY KEY, pass TEXT)")
@@ -105,7 +111,7 @@ func TestNewUserDatabase(t *testing.T) {
 			_, err = db.Exec("CREATE TABLE `invalid_group_details` (name TEXT, other TEXT)")
 			require.NoError(t, err)
 
-			_, err = NewUserDatabase(db, tc.UsersTable, tc.GroupsTable, tc.GroupDetailsTable, tc.twoFAOn, tc.totPOn, testLog)
+			_, err = NewUserDatabase(db, tc.UsersTable, tc.GroupsTable, tc.GroupDetailsTable, tc.twoFAOn, tc.totPOn, false, testLog)
 			if tc.ExpectedError == "" {
 				require.NoError(t, err)
 			} else {
@@ -121,13 +127,13 @@ func TestGetByUsername(t *testing.T) {
 	require.NoError(t, err)
 	defer db.Close()
 
-	err = prepareTables(db, true, false)
+	err = prepareTables(db, true, false, false)
 	require.NoError(t, err)
 
-	err = prepareDummyData(db, true, false)
+	err = prepareDummyData(db, true, false, false)
 	require.NoError(t, err)
 
-	d, err := NewUserDatabase(db, "users", "groups", "", false, false, testLog)
+	d, err := NewUserDatabase(db, "users", "groups", "", false, false, false, testLog)
 	require.NoError(t, err)
 
 	testCases := []struct {
@@ -184,13 +190,13 @@ func TestGetAll(t *testing.T) {
 	require.NoError(t, err)
 	defer db.Close()
 
-	err = prepareTables(db, false, true)
+	err = prepareTables(db, false, true, false)
 	require.NoError(t, err)
 
-	err = prepareDummyData(db, false, true)
+	err = prepareDummyData(db, false, true, false)
 	require.NoError(t, err)
 
-	d, err := NewUserDatabase(db, "users", "groups", "", false, true, testLog)
+	d, err := NewUserDatabase(db, "users", "groups", "", false, true, false, testLog)
 	require.NoError(t, err)
 
 	actualUsers, err := d.GetAll()
@@ -235,17 +241,17 @@ func TestListGroups(t *testing.T) {
 			Name:         "no details",
 			DetailsTable: "",
 			Expected: []Group{
-				NewGroup("group1"),
-				NewGroup("group2"),
+				NewGroup("group1", nil, nil),
+				NewGroup("group2", nil, nil),
 			},
 		},
 		{
 			Name:         "with details",
 			DetailsTable: "group_details",
 			Expected: []Group{
-				NewGroup("group1", PermissionCommands),
-				NewGroup("group2"),
-				NewGroup("group3", PermissionScripts),
+				NewGroup("group1", nil, nil, PermissionCommands),
+				NewGroup("group2", nil, nil),
+				NewGroup("group3", nil, nil, PermissionScripts),
 			},
 		},
 	}
@@ -254,15 +260,71 @@ func TestListGroups(t *testing.T) {
 	require.NoError(t, err)
 	defer db.Close()
 
-	err = prepareTables(db, false, false)
+	err = prepareTables(db, false, false, false)
 	require.NoError(t, err)
 
-	err = prepareDummyData(db, false, false)
+	err = prepareDummyData(db, false, false, false)
 	require.NoError(t, err)
 
 	for _, tc := range testCases {
 		t.Run(tc.Name, func(t *testing.T) {
-			d, err := NewUserDatabase(db, "users", "groups", tc.DetailsTable, false, false, testLog)
+			d, err := NewUserDatabase(db, "users", "groups", tc.DetailsTable, false, false, false, testLog)
+			require.NoError(t, err)
+
+			actualGroups, err := d.ListGroups()
+			require.NoError(t, err)
+
+			assert.ElementsMatch(t, tc.Expected, actualGroups)
+		})
+	}
+}
+
+func TestListGroupsPlusEnabled(t *testing.T) {
+	testCases := []struct {
+		Name         string
+		DetailsTable string
+		Expected     []Group
+	}{
+		{
+			Name:         "with details",
+			DetailsTable: "group_details",
+			Expected: []Group{
+				NewGroup("group1", nil, nil, PermissionCommands),
+				NewGroup("group2", nil, nil),
+				NewGroup("group3", nil, nil, PermissionScripts),
+				NewGroup("group4",
+					&extperm.PermissionParams{
+						"auth_allowed":         true,
+						"local":                []interface{}{"20000", "20001"},
+						"auto_close":           map[string]interface{}{"max": "60m", "min": "2m"},
+						"idle-timeout-minutes": map[string]interface{}{"min": 5.0},
+					},
+					nil,
+					PermissionTunnels),
+				NewGroup("group5",
+					nil,
+					&extperm.PermissionParams{
+						"deny":    []interface{}{"apache2", "ssh"},
+						"is_sudo": false,
+					},
+					PermissionCommands),
+			},
+		},
+	}
+
+	db, err := sqlx.Connect("sqlite3", ":memory:")
+	require.NoError(t, err)
+	defer db.Close()
+
+	err = prepareTables(db, false, false, true)
+	require.NoError(t, err)
+
+	err = prepareDummyData(db, false, false, true)
+	require.NoError(t, err)
+
+	for _, tc := range testCases {
+		t.Run(tc.Name, func(t *testing.T) {
+			d, err := NewUserDatabase(db, "users", "groups", tc.DetailsTable, false, false, true, testLog)
 			require.NoError(t, err)
 
 			actualGroups, err := d.ListGroups()
@@ -284,19 +346,19 @@ func TestGetGroup(t *testing.T) {
 			Name:         "no details",
 			DetailsTable: "",
 			Group:        "group1",
-			Expected:     NewGroup("group1"),
+			Expected:     NewGroup("group1", nil, nil),
 		},
 		{
 			Name:         "with details existing",
 			DetailsTable: "group_details",
 			Group:        "group1",
-			Expected:     NewGroup("group1", PermissionCommands),
+			Expected:     NewGroup("group1", nil, nil, PermissionCommands),
 		},
 		{
 			Name:         "with details not existing",
 			DetailsTable: "group_details",
 			Group:        "group2",
-			Expected:     NewGroup("group2"),
+			Expected:     NewGroup("group2", nil, nil),
 		},
 	}
 
@@ -304,15 +366,85 @@ func TestGetGroup(t *testing.T) {
 	require.NoError(t, err)
 	defer db.Close()
 
-	err = prepareTables(db, false, false)
+	err = prepareTables(db, false, false, false)
 	require.NoError(t, err)
 
-	err = prepareDummyData(db, false, false)
+	err = prepareDummyData(db, false, false, false)
 	require.NoError(t, err)
 
 	for _, tc := range testCases {
 		t.Run(tc.Name, func(t *testing.T) {
-			d, err := NewUserDatabase(db, "users", "groups", tc.DetailsTable, false, false, testLog)
+			d, err := NewUserDatabase(db, "users", "groups", tc.DetailsTable, false, false, false, testLog)
+			require.NoError(t, err)
+
+			actual, err := d.GetGroup(tc.Group)
+			require.NoError(t, err)
+
+			assert.Equal(t, tc.Expected, actual)
+		})
+	}
+}
+
+func TestGetGroupPlusEnabled(t *testing.T) {
+	testCases := []struct {
+		Name         string
+		DetailsTable string
+		Group        string
+		Expected     Group
+	}{
+		{
+			Name:         "no details",
+			DetailsTable: "",
+			Group:        "group1",
+			Expected:     NewGroup("group1", nil, nil),
+		},
+		{
+			Name:         "with details existing",
+			DetailsTable: "group_details",
+			Group:        "group1",
+			Expected:     NewGroup("group1", nil, nil, PermissionCommands),
+		},
+		{
+			Name:         "with details not existing",
+			DetailsTable: "group_details",
+			Group:        "group4",
+			Expected: NewGroup("group4",
+				&extperm.PermissionParams{
+					"auth_allowed":         true,
+					"local":                []interface{}{"20000", "20001"},
+					"auto_close":           map[string]interface{}{"max": "60m", "min": "2m"},
+					"idle-timeout-minutes": map[string]interface{}{"min": 5.0},
+				},
+				nil,
+				PermissionTunnels),
+		},
+		{
+			Name:         "with details not existing",
+			DetailsTable: "group_details",
+			Group:        "group5",
+			Expected: NewGroup("group5",
+				nil,
+				&extperm.PermissionParams{
+					"deny":    []interface{}{"apache2", "ssh"},
+					"is_sudo": false,
+				},
+				PermissionCommands),
+		},
+	}
+
+	db, err := sqlx.Connect("sqlite3", ":memory:")
+	require.NoError(t, err)
+	defer db.Close()
+
+	err = prepareTables(db, false, false, true)
+	require.NoError(t, err)
+
+	err = prepareDummyData(db, false, false, true)
+	require.NoError(t, err)
+
+	for _, tc := range testCases {
+		t.Run(tc.Name, func(t *testing.T) {
+			d, err := NewUserDatabase(db, "users", "groups", tc.DetailsTable, false, false, true, testLog)
 			require.NoError(t, err)
 
 			actual, err := d.GetGroup(tc.Group)
@@ -330,11 +462,11 @@ func TestUpdateGroup(t *testing.T) {
 	}{
 		{
 			Name:  "existing",
-			Group: NewGroup("group1", PermissionScripts),
+			Group: NewGroup("group1", nil, nil, PermissionScripts),
 		},
 		{
 			Name:  "with details not existing",
-			Group: NewGroup("group2", PermissionCommands),
+			Group: NewGroup("group2", nil, nil),
 		},
 	}
 
@@ -342,15 +474,15 @@ func TestUpdateGroup(t *testing.T) {
 	require.NoError(t, err)
 	defer db.Close()
 
-	err = prepareTables(db, false, false)
+	err = prepareTables(db, false, false, false)
 	require.NoError(t, err)
 
-	err = prepareDummyData(db, false, false)
+	err = prepareDummyData(db, false, false, false)
 	require.NoError(t, err)
 
 	for _, tc := range testCases {
 		t.Run(tc.Name, func(t *testing.T) {
-			d, err := NewUserDatabase(db, "users", "groups", "group_details", false, false, testLog)
+			d, err := NewUserDatabase(db, "users", "groups", "group_details", false, false, false, testLog)
 			require.NoError(t, err)
 
 			err = d.UpdateGroup(tc.Group.Name, tc.Group)
@@ -364,18 +496,128 @@ func TestUpdateGroup(t *testing.T) {
 	}
 }
 
+func TestUpdateGroupPlusEnabled(t *testing.T) {
+	testCases := []struct {
+		Name string
+		Group
+		ExpectedError string
+	}{
+		{
+			Name: "existing",
+			Group: NewGroup("group1",
+				&extperm.PermissionParams{
+					"auth_allowed":         true,
+					"local":                []interface{}{"20001", "20002"},
+					"auto_close":           map[string]interface{}{"max": "30m", "min": "2m"},
+					"idle-timeout-minutes": map[string]interface{}{"min": 2.0},
+				},
+				&extperm.PermissionParams{
+					"deny":    []interface{}{"apache2", "ssh"},
+					"is_sudo": false,
+				},
+				PermissionCommands, PermissionTunnels),
+		},
+		{
+			Name: "existing only tunnels",
+			Group: NewGroup("group4",
+				&extperm.PermissionParams{
+					"auth_allowed":         true,
+					"local":                []interface{}{"20001", "20002"},
+					"auto_close":           map[string]interface{}{"max": "30m", "min": "2m"},
+					"idle-timeout-minutes": map[string]interface{}{"min": 2.0},
+				}, nil, PermissionTunnels),
+		},
+		{
+			Name: "wrong format strings and ints",
+			Group: NewGroup("group4",
+				&extperm.PermissionParams{
+					"local": []interface{}{20001, "20002"},
+				}, nil),
+			ExpectedError: `sql: converting argument $3 type: invalid restriction list 20001 of type int`,
+		},
+		{
+			Name: "wrong rule in max / min values",
+			Group: NewGroup("group4",
+				&extperm.PermissionParams{
+					"idle-timeout-Minutes": map[string]interface{}{"mex": 2.0},
+				}, nil),
+			ExpectedError: `sql: converting argument $3 type: invalid restriction rule 'mex'`,
+		},
+		{
+			Name: "unparseable duration",
+			Group: NewGroup("group4",
+				&extperm.PermissionParams{
+					"idle-timeout-minutes": map[string]interface{}{"max": "jk"},
+				}, nil),
+			ExpectedError: `sql: converting argument $3 type: restriction jk not parseable as time.duration: invalid type`,
+		},
+		{
+			Name: "unparseable regex single string",
+			Group: NewGroup("group4",
+				&extperm.PermissionParams{
+					"host_header": "[abc",
+				}, nil),
+			ExpectedError: "sql: converting argument $3 type: invalid restriction regular expression \"[abc\": error parsing regexp: missing closing ]: `[abc`",
+		},
+		{
+			Name: "unparseable regex in a list of strings allow / deny",
+			Group: NewGroup("group4",
+				&extperm.PermissionParams{
+					"Deny": []interface{}{"abc", "[abc"},
+				}, nil),
+			ExpectedError: "sql: converting argument $3 type: invalid restriction regular expression \"[abc\": error parsing regexp: missing closing ]: `[abc`",
+		},
+		{
+			Name: "wrong type as restriction",
+			Group: NewGroup("group4",
+				&extperm.PermissionParams{
+					"hello": 7.0,
+				}, nil),
+			ExpectedError: "sql: converting argument $3 type: restriction 7 of type float64 not recognized",
+		},
+	}
+
+	db, err := sqlx.Connect("sqlite3", ":memory:")
+	require.NoError(t, err)
+	defer db.Close()
+
+	err = prepareTables(db, false, false, true)
+	require.NoError(t, err)
+
+	err = prepareDummyData(db, false, false, true)
+	require.NoError(t, err)
+
+	for _, tc := range testCases {
+		t.Run(tc.Name, func(t *testing.T) {
+			d, err := NewUserDatabase(db, "users", "groups", "group_details", false, false, true, testLog)
+			require.NoError(t, err)
+
+			err = d.UpdateGroup(tc.Group.Name, tc.Group)
+			if tc.ExpectedError != "" {
+				require.EqualError(t, err, tc.ExpectedError)
+			} else {
+				require.NoError(t, err)
+				actual, err := d.GetGroup(tc.Group.Name)
+				require.NoError(t, err)
+
+				assert.Equal(t, tc.Group, actual)
+			}
+		})
+	}
+}
+
 func TestDeleteGroup(t *testing.T) {
 	db, err := sqlx.Connect("sqlite3", ":memory:")
 	require.NoError(t, err)
 	defer db.Close()
 
-	err = prepareTables(db, false, false)
+	err = prepareTables(db, false, false, false)
 	require.NoError(t, err)
 
-	err = prepareDummyData(db, false, false)
+	err = prepareDummyData(db, false, false, false)
 	require.NoError(t, err)
 
-	d, err := NewUserDatabase(db, "users", "groups", "group_details", false, false, testLog)
+	d, err := NewUserDatabase(db, "users", "groups", "group_details", false, false, false, testLog)
 	require.NoError(t, err)
 
 	err = d.DeleteGroup("group1")
@@ -385,8 +627,8 @@ func TestDeleteGroup(t *testing.T) {
 	require.NoError(t, err)
 
 	expected := []Group{
-		NewGroup("group2"),
-		NewGroup("group3", PermissionScripts),
+		NewGroup("group2", nil, nil),
+		NewGroup("group3", nil, nil, PermissionScripts),
 	}
 	assert.ElementsMatch(t, expected, actual)
 }
@@ -436,10 +678,10 @@ func TestAdd(t *testing.T) {
 			require.NoError(t, err)
 			defer db.Close()
 
-			err = prepareTables(db, false, false)
+			err = prepareTables(db, false, false, false)
 			require.NoError(t, err)
 
-			d, err := NewUserDatabase(db, "users", "groups", "", false, false, testLog)
+			d, err := NewUserDatabase(db, "users", "groups", "", false, false, false, testLog)
 			require.NoError(t, err)
 
 			err = d.Add(testCase.userToChange)
@@ -617,13 +859,13 @@ func TestUpdate(t *testing.T) {
 			require.NoError(t, err)
 			defer db.Close()
 
-			err = prepareTables(db, false, false)
+			err = prepareTables(db, false, false, false)
 			require.NoError(t, err)
 
-			err = prepareDummyData(db, false, false)
+			err = prepareDummyData(db, false, false, false)
 			require.NoError(t, err)
 
-			d, err := NewUserDatabase(db, "users", "groups", "", false, false, testLog)
+			d, err := NewUserDatabase(db, "users", "groups", "", false, false, false, testLog)
 			require.NoError(t, err)
 
 			testCase := testCases[i]
@@ -642,13 +884,13 @@ func TestDelete(t *testing.T) {
 	require.NoError(t, err)
 	defer db.Close()
 
-	err = prepareTables(db, false, false)
+	err = prepareTables(db, false, false, false)
 	require.NoError(t, err)
 
-	err = prepareDummyData(db, false, false)
+	err = prepareDummyData(db, false, false, false)
 	require.NoError(t, err)
 
-	d, err := NewUserDatabase(db, "users", "groups", "", false, false, testLog)
+	d, err := NewUserDatabase(db, "users", "groups", "", false, false, false, testLog)
 	require.NoError(t, err)
 
 	err = d.Delete("user1")
@@ -664,7 +906,7 @@ func TestDelete(t *testing.T) {
 	assertGroupTableEquals(t, db, d.groupsTableName, []map[string]interface{}{})
 }
 
-func prepareTables(db *sqlx.DB, twoFAOn, totPON bool) error {
+func prepareTables(db *sqlx.DB, twoFAOn, totPON bool, plusEnabled bool) error {
 	q := "CREATE TABLE `users` (username TEXT PRIMARY KEY, password TEXT, password_expired BOOLEAN NOT NULL CHECK (password_expired IN (0, 1)) DEFAULT 0%s)"
 	dynamicFieldsQ := ""
 	if twoFAOn {
@@ -685,7 +927,12 @@ func prepareTables(db *sqlx.DB, twoFAOn, totPON bool) error {
 		return err
 	}
 
-	_, err = db.Exec(`CREATE TABLE "group_details" (name TEXT, permissions TEXT);CREATE UNIQUE INDEX "main"."group_details_name" ON "group_details" ("name" ASC);`)
+	if plusEnabled {
+		_, err = db.Exec(`CREATE TABLE "group_details" (name TEXT, permissions TEXT, tunnels_restricted TEXT, commands_restricted TEXT);CREATE UNIQUE INDEX "main"."group_details_name" ON "group_details" ("name" ASC);`)
+	} else {
+		_, err = db.Exec(`CREATE TABLE "group_details" (name TEXT, permissions TEXT);CREATE UNIQUE INDEX "main"."group_details_name" ON "group_details" ("name" ASC);`)
+	}
+
 	if err != nil {
 		return err
 	}
@@ -693,7 +940,7 @@ func prepareTables(db *sqlx.DB, twoFAOn, totPON bool) error {
 	return nil
 }
 
-func prepareDummyData(db *sqlx.DB, withTwoFA, withTotP bool) error {
+func prepareDummyData(db *sqlx.DB, withTwoFA, withTotP bool, plusEnabled bool) error {
 	var err error
 	if !withTotP {
 		_, err = db.Exec("INSERT INTO `users` (username, password) VALUES (\"user1\", \"pass1\")")
@@ -717,6 +964,28 @@ func prepareDummyData(db *sqlx.DB, withTwoFA, withTotP bool) error {
 		if err != nil {
 			return err
 		}
+	}
+
+	if plusEnabled {
+		_, err = db.Exec(`INSERT INTO group_details (name, permissions, tunnels_restricted) VALUES ("group4", '{"tunnels":true}', '{ "local": ["20000","20001"], "idle-timeout-minutes": { "min": 5 }, "auto_close": { "max": "60m", "min" : "2m" }, "auth_allowed": true }')`)
+		if err != nil {
+			return err
+		}
+		_, err = db.Exec(`INSERT INTO group_details (name, permissions, commands_restricted) VALUES ("group5", '{"commands":true}', '{ "deny": ["apache2","ssh"], "is_sudo": false }' )`)
+		if err != nil {
+			return err
+		}
+
+		_, err = db.Exec("INSERT INTO `groups` (username, `group`) VALUES (\"user4\", \"group4\")")
+		if err != nil {
+			return err
+		}
+
+		_, err = db.Exec("INSERT INTO `groups` (username, `group`) VALUES (\"user5\", \"group5\")")
+		if err != nil {
+			return err
+		}
+
 	}
 
 	_, err = db.Exec(`INSERT INTO group_details (name, permissions) VALUES ("group1", '{"commands":true}')`)

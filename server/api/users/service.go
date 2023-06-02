@@ -11,6 +11,7 @@ import (
 	"golang.org/x/crypto/bcrypt"
 
 	rportplus "github.com/realvnc-labs/rport/plus"
+	extperm "github.com/realvnc-labs/rport/plus/capabilities/extendedpermission"
 	errors2 "github.com/realvnc-labs/rport/server/api/errors"
 	"github.com/realvnc-labs/rport/server/api/message"
 	"github.com/realvnc-labs/rport/server/chconfig"
@@ -130,6 +131,12 @@ func (as *APIService) DeleteGroup(name string) error {
 	return as.Provider.DeleteGroup(name)
 }
 
+func (as *APIService) ExtendedPermissionsParsingValidation(g Group) error {
+	return errors2.APIError{
+		Message:    fmt.Sprintf("BAD %v", g.Name),
+		HTTPStatus: http.StatusBadRequest,
+	}
+}
 func (as *APIService) CheckPermission(user *User, permission string) error {
 	for _, groupName := range user.Groups {
 		group, err := as.Provider.GetGroup(groupName)
@@ -144,6 +151,24 @@ func (as *APIService) CheckPermission(user *User, permission string) error {
 		Message:    fmt.Sprintf("user does not have %q permission", permission),
 		HTTPStatus: http.StatusForbidden,
 	}
+}
+
+func (as *APIService) GetEffectiveUserExtendedPermissions(user *User) ([]extperm.PermissionParams, []extperm.PermissionParams) {
+	var tunnelsRestricted []extperm.PermissionParams
+	var commandsRestricted []extperm.PermissionParams
+
+	for _, groupName := range user.Groups {
+		group, err := as.Provider.GetGroup(groupName)
+		if err == nil {
+			if group.TunnelsRestricted != nil {
+				tunnelsRestricted = append(tunnelsRestricted, *group.TunnelsRestricted)
+			}
+			if group.CommandsRestricted != nil {
+				commandsRestricted = append(commandsRestricted, *group.CommandsRestricted)
+			}
+		}
+	}
+	return tunnelsRestricted, commandsRestricted
 }
 
 func (as *APIService) GetEffectiveUserPermissions(user *User) (map[string]bool, error) {
@@ -392,6 +417,7 @@ func newAPIAuthDatabase(authDB *sqlx.DB, config *chconfig.Config, logger *logger
 		config.API.AuthGroupDetailsTable,
 		config.API.IsTwoFAOn(),
 		config.API.TotPEnabled,
+		rportplus.IsPlusEnabled(config.PlusConfig),
 		logger,
 	)
 	return usersProvider, err
