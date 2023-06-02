@@ -40,7 +40,7 @@ func (dpm *ProviderMock) GetGroup(name string) (Group, error) {
 			return g, dpm.ErrorToGiveOnRead
 		}
 	}
-	return NewGroup(name), dpm.ErrorToGiveOnRead
+	return NewGroup(name, nil, nil), dpm.ErrorToGiveOnRead
 }
 
 func (dpm *ProviderMock) UpdateGroup(string, Group) error {
@@ -449,7 +449,7 @@ func TestDeleteUserFromProvider(t *testing.T) {
 }
 
 func TestExistsUserGroups(t *testing.T) {
-	givenGroups := []Group{NewGroup("group1"), NewGroup("group2"), NewGroup("group3"), NewGroup("group4"), AdministratorsGroup}
+	givenGroups := []Group{NewGroup("group1", nil, nil), NewGroup("group2", nil, nil), NewGroup("group3", nil, nil), NewGroup("group4", nil, nil), AdministratorsGroup}
 	db := &ProviderMock{
 		GroupsToGive: givenGroups,
 	}
@@ -535,7 +535,7 @@ func TestCheckPermission(t *testing.T) {
 		t.Run(tc.Name, func(t *testing.T) {
 			t.Parallel()
 
-			givenGroups := []Group{NewGroup("group-no-permissions"), NewGroup("group-commands", PermissionCommands), AdministratorsGroup}
+			givenGroups := []Group{NewGroup("group-no-permissions", nil, nil), NewGroup("group-commands", nil, nil, PermissionCommands), AdministratorsGroup}
 			db := &ProviderMock{
 				GroupsToGive: givenGroups,
 			}

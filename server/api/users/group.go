@@ -1,5 +1,9 @@
 package users
 
+import (
+	extperm "github.com/realvnc-labs/rport/plus/capabilities/extendedpermission"
+)
+
 const (
 	Administrators = "Administrators"
 )
@@ -9,17 +13,23 @@ var AdministratorsGroup = Group{
 	Permissions: NewPermissions(AllPermissions...),
 }
 
-type Group struct {
-	Name        string      `json:"name" db:"name"`
-	Permissions Permissions `json:"permissions" db:"permissions"`
-}
+type (
+	Group struct {
+		Name               string                    `json:"name" db:"name"`
+		Permissions        Permissions               `json:"permissions" db:"permissions"`
+		TunnelsRestricted  *extperm.PermissionParams `json:"tunnels_restricted" db:"tunnels_restricted"`
+		CommandsRestricted *extperm.PermissionParams `json:"commands_restricted" db:"commands_restricted"`
+	}
+)
 
-func NewGroup(name string, perms ...string) Group {
+func NewGroup(name string, tr *extperm.PermissionParams, cr *extperm.PermissionParams, perms ...string) Group {
 	if name == Administrators {
 		return AdministratorsGroup
 	}
 	return Group{
-		Name:        name,
-		Permissions: NewPermissions(perms...),
+		Name:               name,
+		TunnelsRestricted:  tr,
+		CommandsRestricted: cr,
+		Permissions:        NewPermissions(perms...),
 	}
 }
