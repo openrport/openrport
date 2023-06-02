@@ -30,7 +30,7 @@ or disable `attributes_file_path`.
 ### 2. Using an attributes file
 
 You can maintain attributes (tags and labels) inside a separate file.
-This file can be formatted as JSON, YAML or TOML using the file extensions `.josn`, `yaml`, or `toml`.
+This file can only be formatted as JSON.
 
 Add the `attributes_file_path` into the `[client]` section of your `rport.conf` file.  
 The following example shows how to activate attributes read from a file.
@@ -44,24 +44,6 @@ attributes_file_path = "/var/lib/rport/client_attributes.yaml"
 
 The attributes file could look like the below example.
 
-{{< tabs "attribute_examples" >}}
-{{< tab "Yaml" >}}
-
-```yaml
-tags:
-  - win
-  - server
-  - vm
-labels:
-  country: Germany
-  city: Cologne
-  datacenter: NetCologne GmbH
-```
-
-{{< /tab >}}
-
-{{< tab "Json" >}}
-
 ```json
 { 
   "tags": ["win", "server", "vm"],
@@ -74,33 +56,26 @@ labels:
 
 ```
 
-{{< /tab >}}
-{{< tab "Toml" >}}
-
-```toml
-tags = [ "win", "server", "vm" ]
-labels = { "country" = Germany, "city" = Cologne, "datacenter" = "NetCologne GmbH" }
-```
-
-{{< /tab >}}
-
-{{< /tabs >}}
-
 The file is read only on rport client start. On every file change a restart of the rport client is required.
 
-### 3. Using API or UI
+### 3. Using the API or UI
 
-__! When managing attributes through the server, attributes file will be overwritten, and the json format will be used !__
+Instead of logging in to each remote system, you can update attributes (tags and labels) via the API efficiently.
 
-To manage that remotely:
+To manage attributes remotely the following preconditions must be met:
 
-- `attributes_file_path` has to be set, read point 2.
-- path has to be writable by the client when running as daemon
-- client has to be `Active` - currently connected to the server
+- `attributes_file_path` has to be set, read point 2. Updating tags that are directly inserted into the main
+  `rport.conf` file via the API is not supported.
+- the path has to be writable by the client when running as daemon
+- the client has to be `Active` - currently connected to the server. Attributes are persisted on the client only.
+  The server API will reject update attempts if the client is disconnected.
 
-To update from the API you need to send __PUT__ request with the desired JSON to
+To update attributes via the API you need to send a __PUT__ request with the entire new JSON to
 
-`/api/v1/client/{client_id}/attributes`
+`/api/v1/client/{client_id}/attributes`.
+
+Partial updates, aka PATCH requests, are not supported.  
+Read more on the [API documentation](https://apidoc.rport.io/master/#tag/Clients-and-Tunnels/operation/ClientAttributesUpdate).
 
 ## Filtering
 
@@ -114,6 +89,6 @@ with the possible use of wildcards
 `/api/v1/clients?filter[tags]=ser*`  
 `/api/v1/clients?filter[labels]=*: Cologne`
 
-Though remember to encode space (" ") into proper url %20.
+Though remember to url-encode space (" ") into `%20`.
 
-[Read the API documentation](https://apidoc.rport.io/master/#tag/Clients-and-Tunnels/operation/ClientsGet).
+Read more on the [API documentation](https://apidoc.rport.io/master/#tag/Clients-and-Tunnels/operation/ClientsGet).

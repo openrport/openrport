@@ -15,6 +15,7 @@ import (
 
 	"github.com/asaskevich/govalidator"
 	"github.com/gorilla/mux"
+	"github.com/rs/cors"
 
 	"github.com/realvnc-labs/rport/server/acme"
 	chshare "github.com/realvnc-labs/rport/share"
@@ -31,13 +32,14 @@ var tunnelProxyCSS embed.FS
 var semanticCSS embed.FS
 
 type InternalTunnelProxyConfig struct {
-	Host         string `mapstructure:"tunnel_host"`
-	CertFile     string `mapstructure:"tunnel_proxy_cert_file"`
-	KeyFile      string `mapstructure:"tunnel_proxy_key_file"`
-	EnableAcme   bool   `mapstructure:"tunnel_enable_acme"`
-	NovncRoot    string `mapstructure:"novnc_root"`
-	TLSMin       string `mapstructure:"tls_min"`
-	GuacdAddress string `mapstructure:"guacd_address"`
+	Host         string   `mapstructure:"tunnel_host"`
+	CertFile     string   `mapstructure:"tunnel_proxy_cert_file"`
+	KeyFile      string   `mapstructure:"tunnel_proxy_key_file"`
+	EnableAcme   bool     `mapstructure:"tunnel_enable_acme"`
+	NovncRoot    string   `mapstructure:"novnc_root"`
+	TLSMin       string   `mapstructure:"tls_min"`
+	GuacdAddress string   `mapstructure:"guacd_address"`
+	CORS         []string `mapstructure:"tunnel_cors"`
 	Enabled      bool
 }
 
@@ -139,6 +141,22 @@ func (tp *InternalTunnelProxy) Start(ctx context.Context) error {
 	router.Handle("/css/semantic.css", http.FileServer(http.FS(semanticCSS)))
 
 	router = tp.tunnelProxyConnector.InitRouter(router)
+
+	if len(tp.Config.CORS) > 0 {
+		router.Use(cors.New(cors.Options{
+			AllowedOrigins:   tp.Config.CORS,
+			AllowCredentials: true,
+			AllowedMethods: []string{
+				http.MethodHead,
+				http.MethodGet,
+				http.MethodPost,
+				http.MethodPut,
+				http.MethodPatch,
+				http.MethodDelete,
+			},
+			AllowedHeaders: []string{"*"},
+		}).Handler)
+	}
 
 	tp.proxyServer = &http.Server{
 		Addr:              tp.Addr(),
