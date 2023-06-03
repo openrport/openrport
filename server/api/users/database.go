@@ -199,15 +199,23 @@ func (d *UserDatabase) UpdateGroup(name string, group Group) error {
 	var err error
 	group.Name = name
 
-	// compose the query (assume the extended fields are present)
-	qb := fmt.Sprintf("UPDATE `%s` SET name=:name, permissions=:permissions", d.groupDetailsTableName)
+	qt1 := ""
+	qt2 := ""
 	if group.TunnelsRestricted != nil {
-		qb += ", tunnels_restricted=:tunnels_restricted"
+		qt1 = ", tunnels_restricted"
+		qt2 = ", :tunnels_restricted"
 	}
+
+	qc1 := ""
+	qc2 := ""
 	if group.CommandsRestricted != nil {
-		qb += ", commands_restricted=:commands_restricted"
+		qc1 = ", commands_restricted"
+		qc2 = ", :commands_restricted"
 	}
-	qb += " WHERE name=:name"
+	// compose the query (assume the extended fields are present)
+	// We rely on a unique index. Let the database decide, if INSERT or UPDATE is needed.
+	qb := fmt.Sprintf("REPLACE INTO `%s` (name, permissions%s%s) VALUES (:name, :permissions%s%s)", d.groupDetailsTableName, qt1, qc1, qt2, qc2)
+
 	_, err = d.db.NamedExec(qb, group)
 
 	if err != nil {
