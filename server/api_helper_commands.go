@@ -39,6 +39,12 @@ func (al *APIListener) handleCommandsExecutionWS(
 		return
 	}
 
+	err = al.extendedPermissionCommandRaw(inboundMsg.Command, curUser)
+	if err != nil {
+		uiConnTS.WriteError("Extended Permission failed with ", err)
+		return
+	}
+
 	clientGroups, err := al.clientGroupProvider.GetAll(ctx)
 	if err != nil {
 		uiConnTS.WriteError("Could not get client groups", err)
