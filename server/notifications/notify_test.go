@@ -1,10 +1,12 @@
 package notifications_test
 
 import (
+	"testing"
+
+	"github.com/stretchr/testify/suite"
+
 	"github.com/realvnc-labs/rport/server/notifications"
 	"github.com/realvnc-labs/rport/server/notifications/channels/rmailer"
-	"github.com/stretchr/testify/suite"
-	"testing"
 )
 
 type MockMailer struct {
