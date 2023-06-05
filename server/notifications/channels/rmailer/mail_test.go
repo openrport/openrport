@@ -2,13 +2,15 @@ package rmailer_test
 
 import (
 	"fmt"
+	"strings"
+	"testing"
+
 	smtpmock "github.com/mocktools/go-smtp-mock/v2"
+	"github.com/stretchr/testify/suite"
+
 	"github.com/realvnc-labs/rport/server/chconfig"
 	"github.com/realvnc-labs/rport/server/notifications/channels/rmailer"
 	"github.com/realvnc-labs/rport/share/simpleops"
-	"github.com/stretchr/testify/suite"
-	"strings"
-	"testing"
 )
 
 type MailTestSuite struct {
@@ -26,7 +28,7 @@ func (ts *MailTestSuite) SetupSuite() {
 	})
 	ts.NoError(ts.server.Start())
 
-	ts.mailer = rmailer.NewRMailer(rmailer.RMailerConfig{
+	ts.mailer = rmailer.NewRMailer(rmailer.Config{
 		Host:     "localhost",
 		Port:     ts.server.PortNumber(),
 		Domain:   "example.com",
@@ -51,7 +53,7 @@ func (ts *MailTestSuite) TestMailSent() {
 
 func (ts *MailTestSuite) TestMailSMTPConfigCompatibility() {
 
-	config, err := rmailer.RMailerConfigFromSMTPConfig(chconfig.SMTPConfig{
+	config, err := rmailer.ConfigFromSMTPConfig(chconfig.SMTPConfig{
 		Server:       "testsmtp.somedomain.com",
 		AuthUsername: "test-user",
 		AuthPassword: "test-password",
@@ -61,7 +63,7 @@ func (ts *MailTestSuite) TestMailSMTPConfigCompatibility() {
 
 	ts.NoError(err)
 
-	ts.Equal(rmailer.RMailerConfig{
+	ts.Equal(rmailer.Config{
 		Host:     "testsmtp.somedomain.com",
 		Port:     -1,
 		Domain:   "somedomain.com",

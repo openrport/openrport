@@ -2,11 +2,13 @@ package rmailer
 
 import (
 	"fmt"
-	"github.com/realvnc-labs/rport/server/chconfig"
-	"github.com/wneessen/go-mail"
 	"net/url"
 	"strconv"
 	"strings"
+
+	"github.com/wneessen/go-mail"
+
+	"github.com/realvnc-labs/rport/server/chconfig"
 )
 
 type Mailer interface {
@@ -31,7 +33,7 @@ const (
 )
 
 type rMailer struct {
-	config RMailerConfig
+	config Config
 }
 
 func (rm rMailer) Send(to []string, subject string, contentType ContentType, body string) error {
@@ -94,7 +96,7 @@ type AuthUserPass struct {
 
 // NewMailerFromSMTPConfig NewMailer gives you something that is thread safe and can send mail
 func NewMailerFromSMTPConfig(smtpConfig chconfig.SMTPConfig) (Mailer, error) {
-	config, err := RMailerConfigFromSMTPConfig(smtpConfig)
+	config, err := ConfigFromSMTPConfig(smtpConfig)
 	if err != nil {
 		return nil, fmt.Errorf("can't convert SMTPConfig to RMailerConfig: %v", err)
 	}
@@ -102,13 +104,13 @@ func NewMailerFromSMTPConfig(smtpConfig chconfig.SMTPConfig) (Mailer, error) {
 	return NewRMailer(config), nil
 }
 
-func NewRMailer(config RMailerConfig) Mailer {
+func NewRMailer(config Config) Mailer {
 	return rMailer{
 		config: config,
 	}
 }
 
-type RMailerConfig struct {
+type Config struct {
 	Host         string
 	Port         int
 	Domain       string
@@ -119,10 +121,10 @@ type RMailerConfig struct {
 	NoNoop       bool
 }
 
-func RMailerConfigFromSMTPConfig(config chconfig.SMTPConfig) (RMailerConfig, error) {
+func ConfigFromSMTPConfig(config chconfig.SMTPConfig) (Config, error) {
 	u, err := url.Parse(config.Server)
 	if err != nil {
-		return RMailerConfig{}, fmt.Errorf("can't parse host from SMTP config: %v", err)
+		return Config{}, fmt.Errorf("can't parse host from SMTP config: %v", err)
 	}
 	sPort := u.Port()
 
@@ -144,16 +146,16 @@ func RMailerConfigFromSMTPConfig(config chconfig.SMTPConfig) (RMailerConfig, err
 	} else {
 		port, err = strconv.Atoi(sPort)
 		if err != nil {
-			return RMailerConfig{}, fmt.Errorf("can't parse port number: %v", err)
+			return Config{}, fmt.Errorf("can't parse port number: %v", err)
 		}
 	}
 
 	emailSplit := strings.Split(config.SenderEmail, "@")
 	if len(emailSplit) != 2 {
-		return RMailerConfig{}, fmt.Errorf("can't parse email from SMTP config")
+		return Config{}, fmt.Errorf("can't parse email from SMTP config")
 	}
 
-	return RMailerConfig{
+	return Config{
 		Host:     host,
 		Port:     port,
 		Domain:   emailSplit[1],

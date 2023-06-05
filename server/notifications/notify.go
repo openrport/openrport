@@ -4,8 +4,9 @@ import (
 	"bytes"
 	_ "embed"
 	"fmt"
-	"github.com/realvnc-labs/rport/server/notifications/channels/rmailer"
 	"html/template"
+
+	"github.com/realvnc-labs/rport/server/notifications/channels/rmailer"
 )
 
 // ContentType represents a content type for the Msg
