@@ -22,7 +22,7 @@ echo "✅ Successfully cloned"
 # Checkout the latest tag
 #
 echo "🚚 Switching to the right plus plugin branch now"
-PLUS_LATEST=$(git ls-remote --tags origin|tail -n1|awk '{print $2}'|cut -d'/' -f3)
+PLUS_LATEST=$(git ls-remote --refs --tags origin|tail -n1|awk '{print $2}'|cut -d'/' -f3)
 echo "Will checkout rport-plus branch ${PLUS_LATEST}"
 git checkout tags/"${PLUS_LATEST}" -b v"${PLUS_LATEST}"
 echo "✅ Successfully checked out rport-plus${PLUS_LATEST}"
