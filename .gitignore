@@ -52,3 +52,6 @@ cheat-sheet.txt
 
 # plus dev
 rport-plus
+
+# local ui
+docroot/
