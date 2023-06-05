@@ -179,8 +179,7 @@ func (al *APIListener) permissionsMiddleware(permission string) mux.MiddlewareFu
 						if tr != nil {
 							err = plusPermissionCapability.ValidateExtendedTunnelPermission(r, tr)
 						}
-					case users.PermissionCommands:
-					case users.PermissionScheduler:
+					case users.PermissionCommands, users.PermissionScheduler:
 						if cr != nil {
 							err = plusPermissionCapability.ValidateExtendedCommandPermission(r, cr)
 						}
