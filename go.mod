@@ -72,11 +72,12 @@ require (
 	github.com/gobeam/stringy v0.0.5
 	github.com/hashicorp/go-version v1.5.0
 	github.com/jmoiron/sqlx v1.3.5
+	github.com/mocktools/go-smtp-mock/v2 v2.0.5
 	github.com/oleiade/reflections v1.0.1
 	github.com/pkg/sftp v1.13.4
 	github.com/shirou/gopsutil/v3 v3.22.12
 	github.com/trustelem/zxcvbn v1.0.1
-	golang.org/x/exp v0.0.0-20230321023759-10a507213a29
+	github.com/wneessen/go-mail v0.3.9
 )
 
 require (
