@@ -62,14 +62,13 @@ func wrapWithTemplate(content string) (string, error) {
 	if err != nil {
 		return "", err
 	}
+
 	var buf bytes.Buffer
 	err = tmpl.Execute(&buf, struct {
 		Body string
 	}{Body: content})
-	if err != nil {
-		return "", err
-	}
-	return buf.String(), nil
+
+	return buf.String(), err
 }
 
 func NewNotifier(mailer rmailer.Mailer, runner ScriptRunner) Notifier {
