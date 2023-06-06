@@ -42,6 +42,7 @@ func (al *APIListener) handleCommandsExecutionWS(
 	err = al.extendedPermissionCommandRaw(inboundMsg.Command, curUser)
 	if err != nil {
 		uiConnTS.WriteError("Extended Permission failed with ", err)
+		al.Debugf("extended \"commands\" permission middleware: %v", err.Error())
 		return
 	}
 
