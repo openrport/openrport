@@ -52,7 +52,7 @@ func (ts *ScriptRunnerTestSuite) TestScriptTimeout() {
 
 	start := time.Now()
 	err := ts.runner.Run("./test_timeout.sh", in.Recipients, in.Subject, in.Content)
-	ts.Less(time.Now().Sub(start), ts.timeout+time.Second)
+	ts.Less(time.Since(start), ts.timeout+time.Second)
 	ts.Error(err)
 }
 
