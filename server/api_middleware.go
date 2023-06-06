@@ -145,6 +145,22 @@ func (al *APIListener) wrapClientAccessMiddleware(next http.Handler) http.Handle
 	})
 }
 
+func (al *APIListener) extendedPermissionCommandRaw(cmd string, currUser *users.User) error {
+	if !rportplus.IsPlusEnabled(al.config.PlusConfig) {
+		return errors.New("Extended permission validation failed because rport-plus plugin not loaded")
+	}
+
+	plusPermissionCapability := al.Server.plusManager.GetExtendedPermissionCapabilityEx()
+	_, cr := al.userService.GetEffectiveUserExtendedPermissions(currUser)
+	if cr != nil {
+		err := plusPermissionCapability.ValidateExtendedCommandPermissionRaw(cmd, false, cr)
+		if err != nil {
+			return err
+		}
+	}
+	return nil
+}
+
 func (al *APIListener) permissionsMiddleware(permission string) mux.MiddlewareFunc {
 	return func(next http.Handler) http.Handler {
 		return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
