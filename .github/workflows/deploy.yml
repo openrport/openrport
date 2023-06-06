@@ -57,3 +57,6 @@ jobs:
           sudo -n service rportd start
           EOF
           echo "✅ Rportd restarted on remote host"
+          . ~/.plus.env
+          scp -P ${SSH_PORT} rport-plus/rport-plus.so ${SSH_USERNAME}@${SSH_HOST}:/tmp/rport-plus-${PLUS_LATEST}.so
+          echo "✅ Rport-Plus copied to remote host"
