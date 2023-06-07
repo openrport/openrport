@@ -17,6 +17,9 @@ type CapabilityEx interface {
 	SetLicenseInfoAvailableNotifier(notifyFn LicenseInfoAvailableNotifier)
 	LicenseInfoAvailable() (avail bool)
 
+	IsTrialMode() (isTrial bool)
+	GetLicenseInfo() (licenseInfo *PlusLicenseInfo)
+
 	GetMaxClients() (maxClients int)
 	GetMaxUsers() (maxUsers int)
 }
