@@ -3,6 +3,7 @@ package status
 import (
 	"plugin"
 
+	licensecap "github.com/realvnc-labs/rport/plus/capabilities/license"
 	"github.com/realvnc-labs/rport/plus/validator"
 	"github.com/realvnc-labs/rport/share/logger"
 )
@@ -26,6 +27,11 @@ const (
 )
 
 type PlusStatusInfo struct {
+	IsEnabled    bool                       `json:"is_enabled"`
+	IsTrial      bool                       `json:"is_trial"`
+	ValidLicense bool                       `json:"valid_license"`
+	LicenseInfo  licensecap.PlusLicenseInfo `json:"lic_info"`
+
 	PlusVersion    string `json:"plus_version"`
 	PlusBuildTime  string `json:"build_time"`
 	PlusLocalBuild string `json:"local_build"`
