@@ -34,8 +34,8 @@ type Action struct {
 type NotifyAction struct {
 	Type            notifications.NotificationType `mapstructure:"type" json:"type"`
 	Recipients      notifications.RecipientList    `mapstructure:"recipients" json:"recipients"`
-	SubjectTemplate string                         `mapstructure:"subject_template" json:"subject_template"`
-	BodyTemplate    string                         `mapstructure:"template" json:"template"`
+	SubjectTemplate string                         `mapstructure:"subject" json:"subject"`
+	BodyTemplate    string                         `mapstructure:"body" json:"body"`
 }
 
 type LogAction struct {
