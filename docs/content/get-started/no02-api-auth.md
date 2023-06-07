@@ -481,9 +481,6 @@ ALTER TABLE `group_details` ADD COLUMN `commands_restricted` TEXT DEFAULT '{}';
 
 Upon start, the "Extended group permissions" feature will be in trial mode, if the fields are present in the database, but there is no Plus license installed.
 
-<!-- ED TODO: expand the main page that talks about permissions with the extended  -->
-<!-- ED TODO: add put api examples of creating extended permissions  -->
-
 ### API Usage examples
 
 To verify the user is able to authenticate execute:
