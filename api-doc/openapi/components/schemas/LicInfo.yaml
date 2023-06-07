@@ -3,10 +3,10 @@ description: >-
   if there's a valid license then contains relevant details
 properties:
   max_clients:
-    type: integer
+    type: number
     description: >-
       The maximum number of clients allowed
   max_users:
-    type: integer
+    type: number
     description: >-
       The maximum number of users allowed
