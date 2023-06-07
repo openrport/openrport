@@ -44,8 +44,8 @@ func TransformRportMeasurementToToMeasure(rm *models.Measurement) (m *measures.M
 	return m, nil
 }
 
-func TransformProcessesJSONToProcesses(ps string) (processList []*measures.Process, err error) {
-	processList = make([]*measures.Process, 0)
+func TransformProcessesJSONToProcesses(ps string) (processList []measures.Process, err error) {
+	processList = make([]measures.Process, 0)
 
 	err = json.Unmarshal([]byte(ps), &processList)
 	if err != nil {

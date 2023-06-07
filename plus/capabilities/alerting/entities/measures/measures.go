@@ -16,7 +16,7 @@ type Measure struct {
 	NetLan             *models.NetBytes `json:"netlan"`
 	NetWan             *models.NetBytes `json:"netwan"`
 
-	Processes   []*Process   `json:"processes"`
+	Processes   []Process    `json:"processes"`
 	MountPoints []MountPoint `json:"mountpoints"`
 }
 
