@@ -4,6 +4,7 @@ import (
 	"os"
 	"time"
 
+	"github.com/realvnc-labs/rport/server/clients/clientdata"
 	"github.com/realvnc-labs/rport/server/clients/clienttunnel"
 	"github.com/realvnc-labs/rport/share/logger"
 	"github.com/realvnc-labs/rport/share/models"
@@ -19,7 +20,7 @@ var (
 	testLog               = logger.NewLogger("server", logger.LogOutput{File: os.Stdout}, logger.LogLevelDebug)
 )
 
-var c1 = &Client{
+var c1 = &clientdata.Client{
 	ID:                     "aa1210c7-1899-491e-8e71-564cacaf1df8",
 	Name:                   "Random Rport Client 1",
 	OS:                     "Linux alpine-3-10-tk-01 4.19.80-0-virt #1-Alpine SMP Fri Oct 18 11:51:24 UTC 2019 x86_64 Linux",
@@ -69,7 +70,7 @@ var c1 = &Client{
 	DisconnectedAt:    nil,
 }
 
-var c2 = &Client{
+var c2 = &clientdata.Client{
 	ID:                     "2fb5eca74d7bdf5f5b879ebadb446af7c113b076354d74e1882d8101e9f4b918",
 	Name:                   "Random Rport Client 2",
 	OS:                     "Linux alpine-3-10-tk-02 4.19.80-0-virt #1-Alpine SMP Fri Oct 18 11:51:24 UTC 2019 x86_64 Linux",
@@ -108,7 +109,7 @@ var c2 = &Client{
 	DisconnectedAt: &c2DisconnectedTime,
 }
 
-var c3 = &Client{
+var c3 = &clientdata.Client{
 	ID:             "c1d3c6811e1282c675495c0b3149dfa3201883188c42727a318d4a0742564c96",
 	Name:           "Random Rport Client 3",
 	OS:             "Linux alpine-3-10-tk-03 4.19.80-0-virt #1-Alpine SMP Fri Oct 18 11:51:24 UTC 2019 x86_64 Linux",
@@ -126,7 +127,7 @@ var c3 = &Client{
 	DisconnectedAt: &c3DisconnectedTime,
 }
 
-var c4 = &Client{
+var c4 = &clientdata.Client{
 	ID:             "7d2e0e7b92115970d0aef41b8e23c080e3c41df10a042c5179c79973ae5bd235",
 	Name:           "Random Rport Client 4",
 	OS:             "Linux alpine-3-10-tk-04",
@@ -144,7 +145,7 @@ var c4 = &Client{
 	DisconnectedAt: &c4DisconnectedTime,
 }
 
-var c5 = &Client{
+var c5 = &clientdata.Client{
 	ID:                     "daflkdfjqlkerlkejrqlwedalfdfadfa",
 	Name:                   "Windows Client",
 	OS:                     "Windows",
@@ -174,12 +175,12 @@ var c5 = &Client{
 }
 
 // shallowCopy is used only in tests.
-func shallowCopy(c *Client) *Client {
+func shallowCopy(c *clientdata.Client) *clientdata.Client {
 	if c == nil {
 		return nil
 	}
 
-	return &Client{
+	return &clientdata.Client{
 		NumCPUs:                c.NumCPUs,
 		MemoryTotal:            c.MemoryTotal,
 		ID:                     c.ID,

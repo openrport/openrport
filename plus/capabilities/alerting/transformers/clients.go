@@ -1,9 +1,8 @@
 package transformers
 
 import (
-	rportclients "github.com/realvnc-labs/rport/server/clients"
-
 	"github.com/realvnc-labs/rport/plus/capabilities/alerting/entities/clientupdates"
+	rportclients "github.com/realvnc-labs/rport/server/clients/clientdata"
 )
 
 func TransformRportClientToClientUpdate(rc *rportclients.Client) (cl *clientupdates.Client, err error) {

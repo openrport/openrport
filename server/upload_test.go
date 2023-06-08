@@ -13,17 +13,18 @@ import (
 	"testing"
 	"time"
 
+	"github.com/stretchr/testify/assert"
+	"github.com/stretchr/testify/mock"
+	"github.com/stretchr/testify/require"
+
 	"github.com/realvnc-labs/rport/server/api"
 	"github.com/realvnc-labs/rport/server/api/users"
 	"github.com/realvnc-labs/rport/server/chconfig"
 	"github.com/realvnc-labs/rport/server/clients"
+	"github.com/realvnc-labs/rport/server/clients/clientdata"
 	"github.com/realvnc-labs/rport/share/files"
 	"github.com/realvnc-labs/rport/share/models"
 	"github.com/realvnc-labs/rport/share/test"
-
-	"github.com/stretchr/testify/assert"
-	"github.com/stretchr/testify/mock"
-	"github.com/stretchr/testify/require"
 )
 
 func MockUserService(user string, group string) *users.APIService {
@@ -64,7 +65,7 @@ func TestHandleFileUploads(t *testing.T) {
 		fileName            string
 		fileContent         string
 		formParts           map[string][]string
-		cl                  *clients.Client
+		cl                  *clientdata.Client
 		clientTags          []string
 		user                string
 		group               string
@@ -344,7 +345,7 @@ func TestHandleFileUploads(t *testing.T) {
 					clientService: clients.NewClientService(
 						nil,
 						nil,
-						clients.NewClientRepository([]*clients.Client{cl}, &hour, testLog),
+						clients.NewClientRepository([]*clientdata.Client{cl}, &hour, testLog),
 						testLog,
 						nil,
 					),

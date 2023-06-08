@@ -10,6 +10,7 @@ import (
 	"github.com/stretchr/testify/require"
 
 	"github.com/realvnc-labs/rport/server/api/users"
+	"github.com/realvnc-labs/rport/server/clients/clientdata"
 	"github.com/realvnc-labs/rport/share/query"
 )
 
@@ -31,10 +32,10 @@ var admin = UserMock{
 }
 
 func TestCRWithExpiration(t *testing.T) {
-	now = nowMockF
+	clientdata.Now = nowMockF
 
 	exp := 2 * time.Hour
-	repo := NewClientRepository([]*Client{c1, c2}, &exp, testLog)
+	repo := NewClientRepository([]*clientdata.Client{c1, c2}, &exp, testLog)
 
 	assert := assert.New(t)
 	assert.NoError(repo.Save(c3))
@@ -51,7 +52,7 @@ func TestCRWithExpiration(t *testing.T) {
 	assert.Equal(2, gotCountDisconnected)
 
 	gotClients := repo.GetAllClients()
-	assert.ElementsMatch([]*Client{c1, c2, c3}, gotClients)
+	assert.ElementsMatch([]*clientdata.Client{c1, c2, c3}, gotClients)
 
 	// active
 	gotClient, err := repo.GetActiveByID(c1.GetID())
@@ -68,18 +69,18 @@ func TestCRWithExpiration(t *testing.T) {
 	require.Len(t, deleted, 1)
 	assert.Equal(c4, deleted[0])
 	gotClients = repo.GetAllClients()
-	assert.ElementsMatch([]*Client{c1, c2, c3}, gotClients)
+	assert.ElementsMatch([]*clientdata.Client{c1, c2, c3}, gotClients)
 
 	assert.NoError(repo.Delete(c3))
 	gotClients = repo.GetAllClients()
 	assert.NoError(err)
-	assert.ElementsMatch([]*Client{c1, c2}, gotClients)
+	assert.ElementsMatch([]*clientdata.Client{c1, c2}, gotClients)
 }
 
 func TestCRWithNoExpiration(t *testing.T) {
-	now = nowMockF
+	clientdata.Now = nowMockF
 
-	repo := NewClientRepository([]*Client{c1, c2, c3}, nil, testLog)
+	repo := NewClientRepository([]*clientdata.Client{c1, c2, c3}, nil, testLog)
 	c4Active := shallowCopy(c4)
 	c4Active.DisconnectedAt = nil
 
@@ -97,7 +98,7 @@ func TestCRWithNoExpiration(t *testing.T) {
 	assert.Equal(2, gotCountDisconnected)
 
 	gotClients := repo.GetAllClients()
-	assert.ElementsMatch([]*Client{c1, c2, c3, c4Active}, gotClients)
+	assert.ElementsMatch([]*clientdata.Client{c1, c2, c3, c4Active}, gotClients)
 
 	// active
 	gotClient, err := repo.GetActiveByID(c1.GetID())
@@ -115,7 +116,7 @@ func TestCRWithNoExpiration(t *testing.T) {
 
 	assert.NoError(repo.Delete(c4Active))
 	gotClients = repo.GetAllClients()
-	assert.ElementsMatch([]*Client{c1, c2, c3}, gotClients)
+	assert.ElementsMatch([]*clientdata.Client{c1, c2, c3}, gotClients)
 }
 
 func TestCRWithFilter(t *testing.T) {
@@ -509,7 +510,7 @@ func TestCRWithFilter(t *testing.T) {
 		t.Run(tc.name, func(t *testing.T) {
 			t.Parallel()
 
-			repo := NewClientRepository([]*Client{c1, c2, c5}, nil, testLog)
+			repo := NewClientRepository([]*clientdata.Client{c1, c2, c5}, nil, testLog)
 
 			actualClients, err := repo.GetFilteredUserClients(admin, tc.filters, nil)
 			require.NoError(t, err)
@@ -526,7 +527,7 @@ func TestCRWithFilter(t *testing.T) {
 }
 
 func TestCRWithUnsupportedFilter(t *testing.T) {
-	repo := NewClientRepository([]*Client{c1}, nil, testLog)
+	repo := NewClientRepository([]*clientdata.Client{c1}, nil, testLog)
 	_, err := repo.GetFilteredUserClients(admin, []query.FilterOption{
 		{
 			Column: []string{"unknown_field"},
@@ -548,7 +549,7 @@ func TestGetUserClients(t *testing.T) {
 	c7 := New(t).AllowedUserGroups([]string{"group3"}).Logger(testLog).Build()                       // group3
 	c8 := New(t).AllowedUserGroups([]string{"group2", "group3"}).Logger(testLog).Build()             // group2 + group3
 	c9 := New(t).Logger(testLog).Build()
-	allClients := []*Client{c1, c2, c3, c4, c5, c6, c7, c8, c9}
+	allClients := []*clientdata.Client{c1, c2, c3, c4, c5, c6, c7, c8, c9}
 
 	clientGroups := []*cgroups.ClientGroup{
 		{
@@ -564,7 +565,7 @@ func TestGetUserClients(t *testing.T) {
 	testCases := []struct {
 		name          string
 		user          User
-		wantClientIDs []*Client
+		wantClientIDs []*clientdata.Client
 	}{
 		{
 			name:          "admin user",
@@ -574,22 +575,22 @@ func TestGetUserClients(t *testing.T) {
 		{
 			name:          "user with no groups has no access",
 			user:          &UserMock{ReturnGroups: nil},
-			wantClientIDs: []*Client{},
+			wantClientIDs: []*clientdata.Client{},
 		},
 		{
 			name:          "user with unknown group",
 			user:          &UserMock{ReturnGroups: []string{"unknown"}},
-			wantClientIDs: []*Client{},
+			wantClientIDs: []*clientdata.Client{},
 		},
 		{
 			name:          "non-admin user with access to few clients",
 			user:          &users.User{Groups: []string{"group1", "group2"}},
-			wantClientIDs: []*Client{c3, c4, c5, c6, c8},
+			wantClientIDs: []*clientdata.Client{c3, c4, c5, c6, c8},
 		},
 		{
 			name:          "non-admin user with access via client groups",
 			user:          &users.User{Groups: []string{"group6"}},
-			wantClientIDs: []*Client{c9},
+			wantClientIDs: []*clientdata.Client{c9},
 		},
 	}
 
@@ -607,7 +608,7 @@ func TestGetUserClients(t *testing.T) {
 
 func TestGetClientByTag(t *testing.T) {
 	// clients from data_test.go
-	availableClients := []*Client{c1, c2, c3, c4, c5}
+	availableClients := []*clientdata.Client{c1, c2, c3, c4, c5}
 	cases := []struct {
 		name              string
 		tags              []string
@@ -662,7 +663,7 @@ func TestGetClientByTag(t *testing.T) {
 	}
 	for _, tc := range cases {
 		t.Run(tc.name, func(t *testing.T) {
-			var matchingClients []*Client
+			var matchingClients []*clientdata.Client
 			if tc.operator == "AND" {
 				matchingClients = findMatchingANDClients(availableClients, tc.tags)
 			} else {

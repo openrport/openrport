@@ -20,6 +20,7 @@ import (
 
 	"github.com/stretchr/testify/require"
 
+	"github.com/realvnc-labs/rport/server/clients/clientdata"
 	"github.com/realvnc-labs/rport/server/clients/clienttunnel"
 	chshare "github.com/realvnc-labs/rport/share/models"
 	"github.com/realvnc-labs/rport/share/random"
@@ -27,7 +28,7 @@ import (
 
 var clientsNow, _ = time.ParseInLocation(time.RFC3339, "2020-08-19T13:09:23+03:00", nil)
 
-// nowMockF is used to override clients.now
+// nowMockF is used to override clients.Now
 var nowMockF = func() time.Time {
 	return clientsNow
 }
@@ -46,7 +47,7 @@ type ClientBuilder struct {
 
 // New returns a builder to generate a client that can be used in tests.
 func New(t *testing.T) ClientBuilder {
-	id, err := NewClientID()
+	id, err := clientdata.NewClientID()
 	require.NoError(t, err)
 	return ClientBuilder{
 		t:            t,
@@ -72,8 +73,8 @@ func (b ClientBuilder) ClientAuthID(clientAuthID string) ClientBuilder {
 
 func (b ClientBuilder) DisconnectedDuration(disconnectedDuration time.Duration) ClientBuilder {
 	// override client Now with static value
-	now = nowMockF
-	disconnectedAt := now().Add(-disconnectedDuration)
+	clientdata.Now = nowMockF
+	disconnectedAt := clientdata.Now().Add(-disconnectedDuration)
 	b.disconnectedAt = &disconnectedAt
 	return b
 }
@@ -93,8 +94,8 @@ func (b ClientBuilder) Config(cfg *clientconfig.Config) ClientBuilder {
 	return b
 }
 
-func (b ClientBuilder) Build() *Client {
-	cl := &Client{
+func (b ClientBuilder) Build() *clientdata.Client {
+	cl := &clientdata.Client{
 		NumCPUs:                2,
 		MemoryTotal:            100000,
 		ID:                     b.id,

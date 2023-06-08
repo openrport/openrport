@@ -3,9 +3,11 @@ package clients
 import (
 	"sort"
 	"strings"
+
+	"github.com/realvnc-labs/rport/server/clients/clientdata"
 )
 
-func SortByID(a []*CalculatedClient, desc bool) {
+func SortByID(a []*clientdata.CalculatedClient, desc bool) {
 	sort.Slice(a, func(i, j int) bool {
 		less := strings.ToLower(a[i].GetID()) < strings.ToLower(a[j].GetID())
 		if desc {
@@ -15,7 +17,7 @@ func SortByID(a []*CalculatedClient, desc bool) {
 	})
 }
 
-func SortByName(a []*CalculatedClient, desc bool) {
+func SortByName(a []*clientdata.CalculatedClient, desc bool) {
 	sort.Slice(a, func(i, j int) bool {
 		aiName := strings.ToLower(a[i].GetName())
 		ajName := strings.ToLower(a[j].GetName())
@@ -27,7 +29,7 @@ func SortByName(a []*CalculatedClient, desc bool) {
 	})
 }
 
-func SortByOS(a []*CalculatedClient, desc bool) {
+func SortByOS(a []*clientdata.CalculatedClient, desc bool) {
 	sort.Slice(a, func(i, j int) bool {
 		aiOS := strings.ToLower(a[i].GetOS())
 		ajOS := strings.ToLower(a[j].GetOS())
@@ -39,7 +41,7 @@ func SortByOS(a []*CalculatedClient, desc bool) {
 	})
 }
 
-func SortByHostname(a []*CalculatedClient, desc bool) {
+func SortByHostname(a []*clientdata.CalculatedClient, desc bool) {
 	sort.Slice(a, func(i, j int) bool {
 		aiHostname := strings.ToLower(a[i].GetHostname())
 		ajHostname := strings.ToLower(a[j].GetHostname())
@@ -51,7 +53,7 @@ func SortByHostname(a []*CalculatedClient, desc bool) {
 	})
 }
 
-func SortByVersion(a []*CalculatedClient, desc bool) {
+func SortByVersion(a []*clientdata.CalculatedClient, desc bool) {
 	sort.Slice(a, func(i, j int) bool {
 		aiVersion := strings.ToLower(a[i].GetVersion())
 		ajVersion := strings.ToLower(a[j].GetVersion())

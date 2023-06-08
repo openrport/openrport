@@ -8,7 +8,7 @@ import (
 
 	errors2 "github.com/realvnc-labs/rport/server/api/errors"
 	"github.com/realvnc-labs/rport/server/cgroups"
-	"github.com/realvnc-labs/rport/server/clients"
+	"github.com/realvnc-labs/rport/server/clients/clientdata"
 	"github.com/realvnc-labs/rport/share/models"
 )
 
@@ -31,7 +31,7 @@ type TargetingParams interface {
 func (al *APIListener) getOrderedClientsWithValidation(
 	ctx context.Context,
 	params TargetingParams,
-) (targetedClients []*clients.Client, groupClientsCount int, err error) {
+) (targetedClients []*clientdata.Client, groupClientsCount int, err error) {
 	err = checkTargetingParams(params)
 	if err != nil {
 		return nil, 0, err
@@ -67,7 +67,7 @@ func (al *APIListener) getOrderedClients(
 	ctx context.Context,
 	clientIDs, groupIDs []string,
 ) (
-	orderedClients []*clients.Client,
+	orderedClients []*clientdata.Client,
 	groupClientsFoundCount int,
 	err error,
 ) {
@@ -94,7 +94,7 @@ func (al *APIListener) getOrderedClients(
 	return orderedClients, groupClientsFoundCount, nil
 }
 
-func (al *APIListener) makeGroupClientsList(ctx context.Context, groupIDs []string) (groupClients []*clients.Client, err error) {
+func (al *APIListener) makeGroupClientsList(ctx context.Context, groupIDs []string) (groupClients []*clientdata.Client, err error) {
 	var groups []*cgroups.ClientGroup
 	for _, groupID := range groupIDs {
 		group, err := al.clientGroupProvider.Get(ctx, groupID)
@@ -119,8 +119,8 @@ func (al *APIListener) makeGroupClientsList(ctx context.Context, groupIDs []stri
 	return al.clientService.GetByGroups(groups)
 }
 
-func (al *APIListener) makeClientsList(clientIDs []string) (orderedClients []*clients.Client, usedClientIDs map[string]bool, err error) {
-	orderedClients = make([]*clients.Client, 0)
+func (al *APIListener) makeClientsList(clientIDs []string) (orderedClients []*clientdata.Client, usedClientIDs map[string]bool, err error) {
+	orderedClients = make([]*clientdata.Client, 0)
 	usedClientIDs = make(map[string]bool)
 
 	for _, cid := range clientIDs {
@@ -150,7 +150,7 @@ func (al *APIListener) makeClientsList(clientIDs []string) (orderedClients []*cl
 }
 
 func (al *APIListener) getOrderedClientsByTag(clientTags *models.JobClientTags) (
-	orderedClients []*clients.Client,
+	orderedClients []*clientdata.Client,
 	err error,
 ) {
 	// find the clientIDs that have matching tags
@@ -195,7 +195,7 @@ func checkTargetingParams(params TargetingParams) (err error) {
 	return nil
 }
 
-func validateNonClientsTagTargeting(params TargetingParams, groupClientsCount int, orderedClients []*clients.Client) (err error) {
+func validateNonClientsTagTargeting(params TargetingParams, groupClientsCount int, orderedClients []*clientdata.Client) (err error) {
 	if len(params.GetGroupIDs()) > 0 && groupClientsCount == 0 && len(params.GetClientIDs()) == 0 {
 		return errors2.APIError{
 			Err:        errors.New("no active clients belong to the selected group(s)"),
@@ -219,7 +219,7 @@ func validateNonClientsTagTargeting(params TargetingParams, groupClientsCount in
 	return nil
 }
 
-func validateClientTagsTargeting(orderedClients []*clients.Client) (err error) {
+func validateClientTagsTargeting(orderedClients []*clientdata.Client) (err error) {
 	if orderedClients == nil || len(orderedClients) < minClientsForTargeting {
 		return errors2.APIError{
 			Err:        errors.New("at least 1 client should be specified"),

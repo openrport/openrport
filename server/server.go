@@ -35,6 +35,7 @@ import (
 	"github.com/realvnc-labs/rport/server/cgroups"
 	"github.com/realvnc-labs/rport/server/chconfig"
 	"github.com/realvnc-labs/rport/server/clients"
+	"github.com/realvnc-labs/rport/server/clients/clientdata"
 	"github.com/realvnc-labs/rport/server/clientsauth"
 	"github.com/realvnc-labs/rport/server/monitoring"
 	"github.com/realvnc-labs/rport/server/ports"
@@ -252,7 +253,7 @@ func NewServer(ctx context.Context, config *chconfig.Config, opts *ServerOpts) (
 		alertingCap := s.plusManager.GetAlertingCapabilityEx()
 		if alertingCap != nil {
 			// TODO: (rs): this should probably be in the client service, with a reference to the alerting service
-			clientRepo.SetPostSaveHandlerFn(func(cl *clients.Client) {
+			clientRepo.SetPostSaveHandlerFn(func(cl *clientdata.Client) {
 				ascl, err := transformers.TransformRportClientToClientUpdate(cl)
 				if err != nil {
 					s.Debugf("unable to transform client update for alerting service")

@@ -14,9 +14,9 @@ import (
 	errors3 "github.com/realvnc-labs/rport/share/errors"
 
 	"github.com/realvnc-labs/rport/server/api"
-
 	"github.com/realvnc-labs/rport/server/auditlog"
 	"github.com/realvnc-labs/rport/server/clients"
+	"github.com/realvnc-labs/rport/server/clients/clientdata"
 	"github.com/realvnc-labs/rport/share/comm"
 	"github.com/realvnc-labs/rport/share/files"
 	"github.com/realvnc-labs/rport/share/models"
@@ -36,7 +36,7 @@ type UploadRequest struct {
 	GroupIDs             []string
 	ClientTags           *models.JobClientTags
 	clientsInGroupsCount int
-	Clients              []*clients.Client
+	Clients              []*clientdata.Client
 	*models.UploadedFile
 }
 
@@ -184,7 +184,7 @@ func (al *APIListener) genFilePath(uuid string) string {
 type uploadResult struct {
 	resp   *models.UploadResponse
 	err    error
-	client *clients.Client
+	client *clientdata.Client
 }
 
 type UploadOutput struct {
@@ -266,7 +266,7 @@ func (al *APIListener) consumeUploadResults(resChan chan *uploadResult, uploadRe
 	}
 }
 
-func (al *APIListener) sendFileToClient(wg *sync.WaitGroup, file *models.UploadedFile, cl *clients.Client, resChan chan *uploadResult) {
+func (al *APIListener) sendFileToClient(wg *sync.WaitGroup, file *models.UploadedFile, cl *clientdata.Client, resChan chan *uploadResult) {
 	defer wg.Done()
 
 	fileReceptionConfig := cl.GetFileReceptionConfig()

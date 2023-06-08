@@ -28,6 +28,7 @@ import (
 	"github.com/realvnc-labs/rport/server/auditlog"
 	"github.com/realvnc-labs/rport/server/chconfig"
 	"github.com/realvnc-labs/rport/server/clients"
+	"github.com/realvnc-labs/rport/server/clients/clientdata"
 	chshare "github.com/realvnc-labs/rport/share"
 	"github.com/realvnc-labs/rport/share/comm"
 	"github.com/realvnc-labs/rport/share/logger"
@@ -106,7 +107,7 @@ func NewClientListener(server *Server, privateKey ssh.Signer) (*ClientListener, 
 		)
 	}
 
-	//create ssh config
+	// create ssh config
 	cl.sshConfig = &ssh.ServerConfig{
 		ServerVersion:    "SSH-" + chshare.ProtocolVersion + "-server",
 		PasswordCallback: cl.authUser,
@@ -114,7 +115,7 @@ func NewClientListener(server *Server, privateKey ssh.Signer) (*ClientListener, 
 
 	cl.sshConfig.AddHostKey(privateKey)
 
-	//setup reverse proxy
+	// setup reverse proxy
 	if config.Server.Proxy != "" {
 		u, err := url.Parse(config.Server.Proxy)
 		if err != nil {
@@ -124,7 +125,7 @@ func NewClientListener(server *Server, privateKey ssh.Signer) (*ClientListener, 
 			return nil, fmt.Errorf("missing protocol: %s", u)
 		}
 		cl.reverseProxy = httputil.NewSingleHostReverseProxy(u)
-		//always use proxy host
+		// always use proxy host
 		cl.reverseProxy.Director = func(r *http.Request) {
 			r.URL.Scheme = u.Scheme
 			r.URL.Host = u.Host
@@ -213,7 +214,7 @@ func (cl *ClientListener) Close() error {
 
 func (cl *ClientListener) handleClient(w http.ResponseWriter, r *http.Request) {
 	cl.log().Debugf("Incoming client connection...")
-	//websockets upgrade AND has rport prefix
+	// websockets upgrade AND has rport prefix
 	upgrade := strings.ToLower(r.Header.Get("Upgrade"))
 	protocol := r.Header.Get("Sec-WebSocket-Protocol")
 	if upgrade == "websocket" && strings.HasPrefix(protocol, "rport-") {
@@ -221,11 +222,11 @@ func (cl *ClientListener) handleClient(w http.ResponseWriter, r *http.Request) {
 			cl.handleWebsocket(w, r)
 			return
 		}
-		//print into server logs and silently fall-through
+		// print into server logs and silently fall-through
 		cl.log().Infof("ignored client connection using protocol '%s', expected '%s'",
 			protocol, chshare.ProtocolVersion)
 	}
-	//proxy target was provided
+	// proxy target was provided
 	if cl.reverseProxy != nil {
 		cl.reverseProxy.ServeHTTP(w, r)
 		return
@@ -409,7 +410,7 @@ func (cl *ClientListener) getClientID(reqID string, config *chconfig.Config, cli
 		return clientAuthID, nil
 	}
 
-	return clients.NewClientID()
+	return clientdata.NewClientID()
 }
 
 func (cl *ClientListener) replyConnectionSuccess(r *ssh.Request, remotes []*models.Remote) {
@@ -635,7 +636,7 @@ func (cl *ClientListener) handleSSHChannels(clientLog *logger.Logger, chans <-ch
 				}
 			}()
 		default:
-			//handle stream type
+			// handle stream type
 			connID := cl.connStats.New()
 			go chshare.HandleTCPStream(clientLog.Fork("conn#%d", connID), &cl.connStats, stream, extraData)
 		}

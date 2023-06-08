@@ -14,6 +14,7 @@ import (
 	apierrors "github.com/realvnc-labs/rport/server/api/errors"
 	"github.com/realvnc-labs/rport/server/auditlog"
 	"github.com/realvnc-labs/rport/server/clients"
+	"github.com/realvnc-labs/rport/server/clients/clientdata"
 	"github.com/realvnc-labs/rport/server/clients/clienttunnel"
 	"github.com/realvnc-labs/rport/server/ports"
 	"github.com/realvnc-labs/rport/server/routes"
@@ -23,7 +24,7 @@ import (
 	"github.com/realvnc-labs/rport/share/query"
 )
 
-func getCorrespondingSortFunc(sorts []query.SortOption) (sortFunc func(a []*clients.CalculatedClient, desc bool), desc bool, err error) {
+func getCorrespondingSortFunc(sorts []query.SortOption) (sortFunc func(a []*clientdata.CalculatedClient, desc bool), desc bool, err error) {
 	if len(sorts) < 1 {
 		return clients.SortByID, false, nil
 	}

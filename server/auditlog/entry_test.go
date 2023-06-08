@@ -11,7 +11,7 @@ import (
 
 	"github.com/realvnc-labs/rport/server/api"
 	"github.com/realvnc-labs/rport/server/auditlog/config"
-	"github.com/realvnc-labs/rport/server/clients"
+	"github.com/realvnc-labs/rport/server/clients/clientdata"
 	"github.com/realvnc-labs/rport/share/query"
 )
 
@@ -85,7 +85,7 @@ func TestWithResponse(t *testing.T) {
 }
 
 func TestWithClient(t *testing.T) {
-	c1 := clients.Client{}
+	c1 := clientdata.Client{}
 	c1.SetID("11236310-6cad-408e-b372-a0f04d68d2df")
 	c1.SetAddress("127.0.0.1")
 	c1.SetHostname("hostname")
@@ -138,17 +138,17 @@ func TestSaveForMultipleClients(t *testing.T) {
 	auditLog := enabledAuditLog()
 	auditLog.provider = mockProvider
 
-	c1 := clients.Client{}
+	c1 := clientdata.Client{}
 	c1.SetID("c1")
 	c1.SetAddress("c1.com")
 	c1.SetHostname("hostname1")
 
-	c2 := clients.Client{}
+	c2 := clientdata.Client{}
 	c2.SetID("c2")
 	c2.SetAddress("c2.com")
 	c2.SetHostname("hostname2")
 
-	auditLog.Entry("", "").SaveForMultipleClients([]*clients.Client{&c1, &c2})
+	auditLog.Entry("", "").SaveForMultipleClients([]*clientdata.Client{&c1, &c2})
 
 	assert.Len(t, mockProvider.entries, 2)
 	assert.Equal(t, "c1", mockProvider.entries[0].ClientID)
@@ -172,8 +172,8 @@ func emptyEntry() *Entry {
 type mockClientGetter struct {
 }
 
-func (mockClientGetter) GetByID(id string) (*clients.Client, error) {
-	c1 := clients.Client{}
+func (mockClientGetter) GetByID(id string) (*clientdata.Client, error) {
+	c1 := clientdata.Client{}
 	c1.SetID("11236310-6cad-408e-b372-a0f04d68d2df")
 	c1.SetAddress("127.0.0.1")
 	c1.SetHostname("hostname")

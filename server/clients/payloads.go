@@ -3,6 +3,7 @@ package clients
 import (
 	"time"
 
+	"github.com/realvnc-labs/rport/server/clients/clientdata"
 	"github.com/realvnc-labs/rport/server/clients/clienttunnel"
 	"github.com/realvnc-labs/rport/share/clientconfig"
 	"github.com/realvnc-labs/rport/share/models"
@@ -45,7 +46,7 @@ type ClientPayload struct {
 	Labels                 *map[string]string      `json:"labels,omitempty"`
 }
 
-func ConvertToClientsPayload(clientsList []*CalculatedClient, fields []query.FieldsOption) []ClientPayload {
+func ConvertToClientsPayload(clientsList []*clientdata.CalculatedClient, fields []query.FieldsOption) []ClientPayload {
 	r := make([]ClientPayload, 0, len(clientsList))
 	for _, cur := range clientsList {
 		r = append(r, ConvertToClientPayload(cur, fields))
@@ -53,7 +54,7 @@ func ConvertToClientsPayload(clientsList []*CalculatedClient, fields []query.Fie
 	return r
 }
 
-func ConvertToClientPayload(client *CalculatedClient, fields []query.FieldsOption) ClientPayload { //nolint:gocyclo
+func ConvertToClientPayload(client *clientdata.CalculatedClient, fields []query.FieldsOption) ClientPayload { //nolint:gocyclo
 	requestedFields := query.RequestedFields(fields, "clients")
 	p := ClientPayload{}
 	for field := range OptionsSupportedFields["clients"] {
@@ -61,8 +62,8 @@ func ConvertToClientPayload(client *CalculatedClient, fields []query.FieldsOptio
 			continue
 		}
 
-		client.flock.RLock()
-		defer client.flock.RUnlock()
+		client.GetLock().RLock()
+		defer client.GetLock().RUnlock()
 
 		switch field {
 		case "id":

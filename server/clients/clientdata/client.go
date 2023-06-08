@@ -1,4 +1,4 @@
-package clients
+package clientdata
 
 import (
 	"context"
@@ -29,8 +29,8 @@ func CopyClientsToAttrs(client Client, attributes *models.Attributes) { //nolint
 	attributes.Tags = client.Tags
 }
 
-// now is used to stub time.Now in tests
-var now = time.Now
+// Now is used to stub time.Now in tests
+var Now = time.Now
 
 type ConnectionState string
 
@@ -106,6 +106,10 @@ func NewCalculatedClient(c *Client, groups []string, connectionState ConnectionS
 
 func (cc *CalculatedClient) GetConnectionState() (cs ConnectionState) {
 	return cc.ConnectionState
+}
+
+func (c *Client) GetLock() (mu *sync.RWMutex) {
+	return &c.flock
 }
 
 func (c *Client) GetID() (id string) {
@@ -506,7 +510,7 @@ func (c *Client) ToCalculated(allGroups []*cgroups.ClientGroup) *CalculatedClien
 // If a given duration is nil - returns false (never obsolete).
 func (c *Client) Obsolete(duration *time.Duration) bool {
 	disconnectedAt := c.GetDisconnectedAt()
-	return duration != nil && !c.IsConnected() && disconnectedAt.Add(*duration).Before(now())
+	return duration != nil && !c.IsConnected() && disconnectedAt.Add(*duration).Before(Now())
 }
 
 func (c *Client) NewTunnelID() (tunnelID string) {

@@ -9,11 +9,12 @@ import (
 
 	"github.com/realvnc-labs/rport/db/migration/clients"
 	"github.com/realvnc-labs/rport/db/sqlite"
+	"github.com/realvnc-labs/rport/server/clients/clientdata"
 )
 
 var DataSourceOptions = sqlite.DataSourceOptions{WALEnabled: false}
 
-func NewFakeClientProvider(t *testing.T, exp *time.Duration, cs ...*Client) *SqliteProvider {
+func NewFakeClientProvider(t *testing.T, exp *time.Duration, cs ...*clientdata.Client) *SqliteProvider {
 	db, err := sqlite.New(":memory:", clients.AssetNames(), clients.Asset, DataSourceOptions)
 	require.NoError(t, err)
 	p := newSqliteProvider(db, exp)

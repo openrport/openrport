@@ -22,6 +22,7 @@ import (
 	"github.com/realvnc-labs/rport/server/cgroups"
 	"github.com/realvnc-labs/rport/server/chconfig"
 	"github.com/realvnc-labs/rport/server/clients"
+	"github.com/realvnc-labs/rport/server/clients/clientdata"
 	"github.com/realvnc-labs/rport/server/clients/clienttunnel"
 	"github.com/realvnc-labs/rport/share/models"
 	"github.com/realvnc-labs/rport/share/query"
@@ -41,7 +42,7 @@ func TestHandleGetClient(t *testing.T) {
 	al := APIListener{
 		insecureForTests: true,
 		Server: &Server{
-			clientService: clients.NewClientService(nil, nil, clients.NewClientRepository([]*clients.Client{c1}, &hour, testLog), testLog, nil),
+			clientService: clients.NewClientService(nil, nil, clients.NewClientRepository([]*clientdata.Client{c1}, &hour, testLog), testLog, nil),
 			config: &chconfig.Config{
 				API: chconfig.APIConfig{
 					MaxRequestBytes: 1024 * 1024,
@@ -183,7 +184,7 @@ func TestHandleGetClients(t *testing.T) {
 	al := APIListener{
 		insecureForTests: true,
 		Server: &Server{
-			clientService: clients.NewClientService(nil, nil, clients.NewClientRepository([]*clients.Client{c1, c2}, &hour, testLog), testLog, nil),
+			clientService: clients.NewClientService(nil, nil, clients.NewClientRepository([]*clientdata.Client{c1, c2}, &hour, testLog), testLog, nil),
 			config: &chconfig.Config{
 				API: chconfig.APIConfig{
 					MaxRequestBytes: 1024 * 1024,
@@ -287,7 +288,7 @@ func TestGetCorrespondingSortFuncPositive(t *testing.T) {
 	testCases := []struct {
 		sortStr string
 
-		wantFunc func(a []*clients.CalculatedClient, desc bool)
+		wantFunc func(a []*clientdata.CalculatedClient, desc bool)
 		wantDesc bool
 	}{
 		{
@@ -371,17 +372,17 @@ func TestGetCorrespondingSortFuncError(t *testing.T) {
 
 type SimpleMockClientService struct {
 	ExpectedIDs   []string
-	ActiveClients []*clients.Client
+	ActiveClients []*clientdata.Client
 
 	*clients.ClientServiceProvider
 }
 
-func (mcs *SimpleMockClientService) GetActiveByID(id string) (*clients.Client, error) {
+func (mcs *SimpleMockClientService) GetActiveByID(id string) (*clientdata.Client, error) {
 	// for this test, just return the first client
 	return mcs.ActiveClients[0], nil
 }
 
-func (mcs *SimpleMockClientService) StartClientTunnels(client *clients.Client, remotes []*models.Remote) ([]*clienttunnel.Tunnel, error) {
+func (mcs *SimpleMockClientService) StartClientTunnels(client *clientdata.Client, remotes []*models.Remote) ([]*clienttunnel.Tunnel, error) {
 	tunnels := make([]*clienttunnel.Tunnel, 0, 32)
 	for i, remote := range remotes {
 		tunnels = append(tunnels, makeTunnelResponse(mcs.ExpectedIDs[i], remote))
@@ -530,7 +531,7 @@ func TestHandlePutTunnelWithName(t *testing.T) {
 
 			mockClientService := &SimpleMockClientService{
 				ExpectedIDs: []string{"10"},
-				ActiveClients: []*clients.Client{
+				ActiveClients: []*clientdata.Client{
 					c1,
 				},
 			}
@@ -733,7 +734,7 @@ func TestHandlePutTunnelUsingCaddyProxies(t *testing.T) {
 
 			mockClientService := &SimpleMockClientService{
 				ExpectedIDs: []string{"10"},
-				ActiveClients: []*clients.Client{
+				ActiveClients: []*clientdata.Client{
 					c1,
 				},
 			}
@@ -811,7 +812,7 @@ func TestHandlePutClientTunnelACL(t *testing.T) {
 	al := APIListener{
 		insecureForTests: true,
 		Server: &Server{
-			clientService: clients.NewClientService(nil, nil, clients.NewClientRepository([]*clients.Client{c1}, &hour, testLog), testLog, nil),
+			clientService: clients.NewClientService(nil, nil, clients.NewClientRepository([]*clientdata.Client{c1}, &hour, testLog), testLog, nil),
 			config: &chconfig.Config{
 				API: chconfig.APIConfig{
 					MaxRequestBytes: 1024 * 1024,

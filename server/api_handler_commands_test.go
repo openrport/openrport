@@ -29,6 +29,7 @@ import (
 	"github.com/realvnc-labs/rport/server/cgroups"
 	"github.com/realvnc-labs/rport/server/chconfig"
 	"github.com/realvnc-labs/rport/server/clients"
+	"github.com/realvnc-labs/rport/server/clients/clientdata"
 	"github.com/realvnc-labs/rport/server/test/jb"
 	"github.com/realvnc-labs/rport/share/comm"
 	"github.com/realvnc-labs/rport/share/logger"
@@ -120,7 +121,7 @@ func TestHandlePostCommand(t *testing.T) {
 		connReturnNotOk bool
 		connReturnResp  []byte
 		runningJob      *models.Job
-		clients         []*clients.Client
+		clients         []*clientdata.Client
 
 		wantStatusCode  int
 		wantTimeout     int
@@ -133,7 +134,7 @@ func TestHandlePostCommand(t *testing.T) {
 			name:           "valid cmd",
 			requestBody:    validReqBody,
 			cid:            c1.GetID(),
-			clients:        []*clients.Client{c1},
+			clients:        []*clientdata.Client{c1},
 			wantStatusCode: http.StatusOK,
 			wantTimeout:    gotCmdTimeoutSec,
 		},
@@ -141,7 +142,7 @@ func TestHandlePostCommand(t *testing.T) {
 			name:            "valid cmd with interpreter",
 			requestBody:     `{"command": "` + gotCmd + `","interpreter": "powershell"}`,
 			cid:             c1.GetID(),
-			clients:         []*clients.Client{c1},
+			clients:         []*clientdata.Client{c1},
 			wantStatusCode:  http.StatusOK,
 			wantTimeout:     defaultTimeout,
 			wantInterpreter: "powershell",
@@ -150,7 +151,7 @@ func TestHandlePostCommand(t *testing.T) {
 			name:           "invalid interpreter",
 			requestBody:    `{"command": "` + gotCmd + `","interpreter": "unsupported"}`,
 			cid:            c1.GetID(),
-			clients:        []*clients.Client{c1},
+			clients:        []*clientdata.Client{c1},
 			wantStatusCode: http.StatusBadRequest,
 			wantErrTitle:   "Invalid interpreter.",
 			wantErrDetail:  "expected interpreter to be one of: [cmd powershell tacoscript], actual: unsupported",
@@ -159,7 +160,7 @@ func TestHandlePostCommand(t *testing.T) {
 			name:           "valid cmd with no timeout",
 			requestBody:    `{"command": "/bin/date;foo;whoami"}`,
 			cid:            c1.GetID(),
-			clients:        []*clients.Client{c1},
+			clients:        []*clientdata.Client{c1},
 			wantTimeout:    defaultTimeout,
 			wantStatusCode: http.StatusOK,
 		},
@@ -167,7 +168,7 @@ func TestHandlePostCommand(t *testing.T) {
 			name:           "valid cmd with 0 timeout",
 			requestBody:    `{"command": "/bin/date;foo;whoami", "timeout_sec": 0}`,
 			cid:            c1.GetID(),
-			clients:        []*clients.Client{c1},
+			clients:        []*clientdata.Client{c1},
 			wantTimeout:    defaultTimeout,
 			wantStatusCode: http.StatusOK,
 		},
@@ -175,7 +176,7 @@ func TestHandlePostCommand(t *testing.T) {
 			name:           "empty cmd",
 			requestBody:    `{"command": "", "timeout_sec": 30}`,
 			cid:            c1.GetID(),
-			clients:        []*clients.Client{c1},
+			clients:        []*clientdata.Client{c1},
 			wantStatusCode: http.StatusBadRequest,
 			wantErrTitle:   "Command cannot be empty.",
 		},
@@ -183,7 +184,7 @@ func TestHandlePostCommand(t *testing.T) {
 			name:           "no cmd",
 			requestBody:    `{"timeout_sec": 30}`,
 			cid:            c1.GetID(),
-			clients:        []*clients.Client{c1},
+			clients:        []*clientdata.Client{c1},
 			wantStatusCode: http.StatusBadRequest,
 			wantErrTitle:   "Command cannot be empty.",
 		},
@@ -191,7 +192,7 @@ func TestHandlePostCommand(t *testing.T) {
 			name:           "empty body",
 			requestBody:    "",
 			cid:            c1.GetID(),
-			clients:        []*clients.Client{c1},
+			clients:        []*clientdata.Client{c1},
 			wantStatusCode: http.StatusBadRequest,
 			wantErrTitle:   "Missing body with json data.",
 		},
@@ -199,7 +200,7 @@ func TestHandlePostCommand(t *testing.T) {
 			name:           "invalid request body",
 			requestBody:    "sdfn fasld fasdf sdlf jd",
 			cid:            c1.GetID(),
-			clients:        []*clients.Client{c1},
+			clients:        []*clientdata.Client{c1},
 			wantStatusCode: http.StatusBadRequest,
 			wantErrTitle:   "Invalid JSON data.",
 			wantErrDetail:  "invalid character 's' looking for beginning of value",
@@ -208,7 +209,7 @@ func TestHandlePostCommand(t *testing.T) {
 			name:           "invalid request body: unknown param",
 			requestBody:    `{"command": "/bin/date;foo;whoami", "timeout": 30}`,
 			cid:            c1.GetID(),
-			clients:        []*clients.Client{c1},
+			clients:        []*clientdata.Client{c1},
 			wantStatusCode: http.StatusBadRequest,
 			wantErrTitle:   "Invalid JSON data.",
 			wantErrDetail:  "json: unknown field \"timeout\"",
@@ -217,7 +218,7 @@ func TestHandlePostCommand(t *testing.T) {
 			name:           "no active client",
 			requestBody:    validReqBody,
 			cid:            c1.GetID(),
-			clients:        []*clients.Client{},
+			clients:        []*clientdata.Client{},
 			wantStatusCode: http.StatusNotFound,
 			wantErrTitle:   fmt.Sprintf("Active client with id=%q not found.", c1.GetID()),
 		},
@@ -225,7 +226,7 @@ func TestHandlePostCommand(t *testing.T) {
 			name:           "disconnected client",
 			requestBody:    validReqBody,
 			cid:            c2.GetID(),
-			clients:        []*clients.Client{c1, c2},
+			clients:        []*clientdata.Client{c1, c2},
 			wantStatusCode: http.StatusNotFound,
 			wantErrTitle:   fmt.Sprintf("Active client with id=%q not found.", c2.GetID()),
 		},
@@ -234,7 +235,7 @@ func TestHandlePostCommand(t *testing.T) {
 			requestBody:     validReqBody,
 			jpReturnSaveErr: errors.New("save fake error"),
 			cid:             c1.GetID(),
-			clients:         []*clients.Client{c1},
+			clients:         []*clientdata.Client{c1},
 			wantStatusCode:  http.StatusInternalServerError,
 			wantErrTitle:    "Failed to persist a new job.",
 			wantErrDetail:   "save fake error",
@@ -244,7 +245,7 @@ func TestHandlePostCommand(t *testing.T) {
 			requestBody:    validReqBody,
 			connReturnErr:  errors.New("send fake error"),
 			cid:            c1.GetID(),
-			clients:        []*clients.Client{c1},
+			clients:        []*clientdata.Client{c1},
 			wantStatusCode: http.StatusInternalServerError,
 			wantErrTitle:   "Failed to execute remote command.",
 			wantErrDetail:  "failed to send request: send fake error",
@@ -254,7 +255,7 @@ func TestHandlePostCommand(t *testing.T) {
 			requestBody:    validReqBody,
 			connReturnResp: []byte("invalid ssh response data"),
 			cid:            c1.GetID(),
-			clients:        []*clients.Client{c1},
+			clients:        []*clientdata.Client{c1},
 			wantStatusCode: http.StatusConflict,
 			wantErrTitle:   "invalid client response format: failed to decode response into *comm.RunCmdResponse: invalid character 'i' looking for beginning of value",
 		},
@@ -264,7 +265,7 @@ func TestHandlePostCommand(t *testing.T) {
 			connReturnNotOk: true,
 			connReturnResp:  []byte("fake failure msg"),
 			cid:             c1.GetID(),
-			clients:         []*clients.Client{c1},
+			clients:         []*clientdata.Client{c1},
 			wantStatusCode:  http.StatusConflict,
 			wantErrTitle:    "client error: fake failure msg",
 		},
@@ -655,7 +656,7 @@ func TestHandlePostMultiClientCommand(t *testing.T) {
 			al := APIListener{
 				insecureForTests: true,
 				Server: &Server{
-					clientService: clients.NewClientService(nil, nil, clients.NewClientRepository([]*clients.Client{c1, c2, c3}, &hour, testLog), testLog, nil),
+					clientService: clients.NewClientService(nil, nil, clients.NewClientRepository([]*clientdata.Client{c1, c2, c3}, &hour, testLog), testLog, nil),
 					config: &chconfig.Config{
 						Server: chconfig.ServerConfig{
 							RunRemoteCmdTimeoutSec: defaultTimeout,
@@ -764,7 +765,7 @@ func TestHandlePostMultiClientCommandWithPausedClient(t *testing.T) {
 
 	c1 := clients.New(t).ID("client-1").Connection(connMock1).Logger(testLog).Build()
 	c1.Logger = testLog
-	c1.SetPaused(true, clients.PausedDueToMaxClientsExceeded)
+	c1.SetPaused(true, clientdata.PausedDueToMaxClientsExceeded)
 
 	c2 := clients.New(t).ID("client-2").Connection(connMock2).Logger(testLog).Build()
 	c2.Logger = testLog
@@ -789,7 +790,7 @@ func TestHandlePostMultiClientCommandWithPausedClient(t *testing.T) {
 
 	testCases := []struct {
 		name   string
-		client *clients.Client
+		client *clientdata.Client
 
 		requestBody string
 		abortOnErr  bool
@@ -820,7 +821,7 @@ func TestHandlePostMultiClientCommandWithPausedClient(t *testing.T) {
 			al := APIListener{
 				insecureForTests: true,
 				Server: &Server{
-					clientService: clients.NewClientService(nil, nil, clients.NewClientRepository([]*clients.Client{c1, c2}, &hour, testLog), testLog, nil),
+					clientService: clients.NewClientService(nil, nil, clients.NewClientRepository([]*clientdata.Client{c1, c2}, &hour, testLog), testLog, nil),
 					config: &chconfig.Config{
 						Server: chconfig.ServerConfig{
 							RunRemoteCmdTimeoutSec: defaultTimeout,
@@ -995,7 +996,7 @@ func TestHandlePostMultiClientCommandWithGroupIDs(t *testing.T) {
 			c4.SetAllowedUserGroups([]string{"group-2"})
 
 			al := makeAPIListener(curUser,
-				clients.NewClientRepository([]*clients.Client{c1, c2, c3, c4}, &hour, testLog),
+				clients.NewClientRepository([]*clientdata.Client{c1, c2, c3, c4}, &hour, testLog),
 				defaultTimeout,
 				nil,
 				testLog)
@@ -1213,7 +1214,7 @@ func TestHandlePostMultiClientCommandWithTags(t *testing.T) {
 			c2.SetAllowedUserGroups([]string{"group-1"})
 			c4.SetAllowedUserGroups([]string{"group-2"})
 
-			clientList := []*clients.Client{c1, c2, c4}
+			clientList := []*clientdata.Client{c1, c2, c4}
 
 			p := clients.NewFakeClientProvider(t, nil, nil)
 
@@ -1451,7 +1452,7 @@ func TestHandlePostMultiClientWSCommandWithTags(t *testing.T) {
 			c2.SetAllowedUserGroups([]string{"group-1"})
 			c4.SetAllowedUserGroups([]string{"group-2"})
 
-			clientList := []*clients.Client{c1, c2, c4}
+			clientList := []*clientdata.Client{c1, c2, c4}
 
 			p := clients.NewFakeClientProvider(t, nil, nil)
 
@@ -1685,7 +1686,7 @@ func TestHandlePostMultiClientScriptWithTags(t *testing.T) {
 			c2.SetAllowedUserGroups([]string{"group-1"})
 			c4.SetAllowedUserGroups([]string{"group-2"})
 
-			clientList := []*clients.Client{c1, c2, c4}
+			clientList := []*clientdata.Client{c1, c2, c4}
 
 			p := clients.NewFakeClientProvider(t, nil, nil)
 
@@ -1925,7 +1926,7 @@ func TestHandlePostMultiClientWSScriptWithTags(t *testing.T) {
 			c2.SetAllowedUserGroups([]string{"group-1"})
 			c4.SetAllowedUserGroups([]string{"group-2"})
 
-			clientList := []*clients.Client{c1, c2, c4}
+			clientList := []*clientdata.Client{c1, c2, c4}
 
 			p := clients.NewFakeClientProvider(t, nil, nil)
 
