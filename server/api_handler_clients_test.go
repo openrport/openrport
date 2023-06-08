@@ -590,6 +590,12 @@ func TestHandlePutTunnelUsingCaddyProxies(t *testing.T) {
 	connMock := test.NewConnMock()
 	connMock.ReturnOk = true
 	connMock.ReturnResponsePayload = []byte("{ \"IsAllowed\": true }")
+	user := &users.User{
+		Username: "test-user",
+	}
+	mockUsersService := &MockUsersService{
+		UserService: users.NewAPIService(users.NewStaticProvider([]*users.User{user}), false, 0, -1),
+	}
 
 	testCases := []struct {
 		Name               string
@@ -607,6 +613,7 @@ func TestHandlePutTunnelUsingCaddyProxies(t *testing.T) {
 			"data": {
 				"id": "10",
 				"name": "TUNNELNAME",
+				"owner": "test-user",
 				"protocol": "tcp",
 				"lhost": "0.0.0.0",
 				"lport": "3390",
@@ -634,6 +641,7 @@ func TestHandlePutTunnelUsingCaddyProxies(t *testing.T) {
 			"data": {
 				"id": "10",
 				"name": "",
+				"owner": "test-user",
 				"protocol": "tcp",
 				"lhost": "0.0.0.0",
 				"lport": "3390",
@@ -661,6 +669,7 @@ func TestHandlePutTunnelUsingCaddyProxies(t *testing.T) {
 			"data": {
 				"id": "10",
 				"name": "",
+				"owner": "test-user",
 				"protocol": "tcp",
 				"lhost": "0.0.0.0",
 				"lport": "3390",
@@ -688,6 +697,7 @@ func TestHandlePutTunnelUsingCaddyProxies(t *testing.T) {
 			"data": {
 				"id": "10",
 				"name": "",
+				"owner": "test-user",
 				"protocol": "tcp",
 				"lhost": "0.0.0.0",
 				"lport": "3390",
@@ -715,6 +725,7 @@ func TestHandlePutTunnelUsingCaddyProxies(t *testing.T) {
 				"data": {
 					"id": "10",
 					"name": "",
+					"owner": "test-user",
 					"protocol": "tcp",
 					"lhost": "0.0.0.0",
 					"lport": "3390",
@@ -779,7 +790,8 @@ func TestHandlePutTunnelUsingCaddyProxies(t *testing.T) {
 					},
 					clientGroupProvider: mockClientGroupProvider{},
 				},
-				Logger: testLog,
+				userService: mockUsersService,
+				Logger:      testLog,
 			}
 			al.initRouter()
 
@@ -792,6 +804,8 @@ func TestHandlePutTunnelUsingCaddyProxies(t *testing.T) {
 
 			w := httptest.NewRecorder()
 			req := httptest.NewRequest("PUT", tc.URL, nil)
+			ctx := api.WithUser(req.Context(), user.Username)
+			req = req.WithContext(ctx)
 
 			al.router.ServeHTTP(w, req)
 
