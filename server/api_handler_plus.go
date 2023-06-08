@@ -4,6 +4,7 @@ import (
 	"net/http"
 
 	rportplus "github.com/realvnc-labs/rport/plus"
+	"github.com/realvnc-labs/rport/plus/capabilities/status"
 	"github.com/realvnc-labs/rport/server/api"
 )
 
@@ -102,17 +103,36 @@ func (al *APIListener) handleGetDeviceAuth(w http.ResponseWriter, r *http.Reques
 func (al *APIListener) handlePlusStatus(w http.ResponseWriter, r *http.Request) {
 	plus := al.Server.plusManager
 	if plus == nil {
-		al.jsonErrorResponse(w, http.StatusForbidden, rportplus.ErrPlusNotAvailable)
+		statusInfo := status.PlusStatusInfo{
+			IsEnabled: false,
+			IsTrial:   true,
+		}
+		response := api.NewSuccessPayload(statusInfo)
+		al.writeJSONResponse(w, http.StatusOK, response)
 		return
 	}
 
-	capEx := plus.GetStatusCapabilityEx()
-	if capEx == nil {
+	statusCapEx := plus.GetStatusCapabilityEx()
+	if statusCapEx == nil {
 		al.jsonErrorResponse(w, http.StatusInternalServerError, rportplus.ErrCapabilityNotAvailable(rportplus.PlusStatusCapability))
 		return
 	}
 
-	statusInfo := capEx.GetStatusInfo()
+	licCapEx := plus.GetLicenseCapabilityEx()
+	if licCapEx == nil {
+		al.jsonErrorResponse(w, http.StatusInternalServerError, rportplus.ErrCapabilityNotAvailable(rportplus.PlusStatusCapability))
+		return
+	}
+
+	statusInfo := statusCapEx.GetStatusInfo()
+
+	licInfo := licCapEx.GetLicenseInfo()
+	if licInfo != nil {
+		statusInfo.ValidLicense = true
+		statusInfo.LicenseInfo = *licInfo
+	}
+	statusInfo.IsTrial = licCapEx.IsTrialMode()
+	statusInfo.IsEnabled = true
 
 	response := api.NewSuccessPayload(statusInfo)
 	al.writeJSONResponse(w, http.StatusOK, response)

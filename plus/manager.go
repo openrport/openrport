@@ -8,6 +8,7 @@ import (
 	"sync"
 
 	alertingcap "github.com/realvnc-labs/rport/plus/capabilities/alerting"
+	"github.com/realvnc-labs/rport/plus/capabilities/extendedpermission"
 	licensecap "github.com/realvnc-labs/rport/plus/capabilities/license"
 	"github.com/realvnc-labs/rport/plus/capabilities/oauth"
 	"github.com/realvnc-labs/rport/plus/capabilities/status"
@@ -19,10 +20,11 @@ import (
 )
 
 const (
-	PlusOAuthCapability    = "plus-oauth"
-	PlusStatusCapability   = "plus-status"
-	PlusLicenseCapability  = "plus-license"
-	PlusAlertingCapability = "plus-alerting"
+	PlusOAuthCapability              = "plus-oauth"
+	PlusStatusCapability             = "plus-status"
+	PlusLicenseCapability            = "plus-license"
+	PlusExtendedPermissionCapability = "plus-extendedpermission"
+	PlusAlertingCapability           = "plus-alerting"
 )
 
 var (
@@ -49,6 +51,7 @@ type Manager interface {
 	// Access specific capabilities
 	GetOAuthCapabilityEx() (capEx oauth.CapabilityEx)
 	GetStatusCapabilityEx() (capEx status.CapabilityEx)
+	GetExtendedPermissionCapabilityEx() (capEx extendedpermission.CapabilityEx)
 	GetLicenseCapabilityEx() (capEx licensecap.CapabilityEx)
 	GetAlertingCapabilityEx() (capEx alertingcap.CapabilityEx)
 
@@ -168,6 +171,21 @@ func (pm *ManagerProvider) GetStatusCapabilityEx() (capEx status.CapabilityEx) {
 			return nil
 		}
 		capEx = cap.GetStatusCapabilityEx()
+		return capEx
+	}
+
+	return nil
+}
+
+// GetExtendedPermissionCapabilityEx returns a cast version of the Plus Extended Permission capability
+func (pm *ManagerProvider) GetExtendedPermissionCapabilityEx() (capEx extendedpermission.CapabilityEx) {
+	capEntry := pm.getCap(PlusExtendedPermissionCapability)
+	if capEntry != nil {
+		cap, ok := capEntry.(*extendedpermission.Capability)
+		if !ok {
+			return nil
+		}
+		capEx = cap.GetExtendedPermissionCapabilityEx()
 		return capEx
 	}
 

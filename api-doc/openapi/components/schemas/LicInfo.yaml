@@ -1,0 +1,12 @@
+type: object
+description: >-
+  if there's a valid license then contains relevant details
+properties:
+  max_clients:
+    type: number
+    description: >-
+      The maximum number of clients allowed
+  max_users:
+    type: number
+    description: >-
+      The maximum number of users allowed

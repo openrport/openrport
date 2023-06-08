@@ -12,7 +12,7 @@ import (
 
 	rportplus "github.com/realvnc-labs/rport/plus"
 	"github.com/realvnc-labs/rport/plus/capabilities/oauth"
-	"github.com/realvnc-labs/rport/plus/capabilities/oauthmock"
+	"github.com/realvnc-labs/rport/plus/capabilities/oauth/oauthmock"
 	"github.com/realvnc-labs/rport/server/api"
 	"github.com/realvnc-labs/rport/server/api/authorization"
 	"github.com/realvnc-labs/rport/server/api/users"

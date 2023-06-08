@@ -47,6 +47,7 @@ func NewService(dbProvider DBProvider) Service {
 }
 
 func (s *monitoringService) SaveMeasurement(ctx context.Context, measurement *models.Measurement) error {
+	measurement.Timestamp = time.Now().UTC()
 	return s.DBProvider.CreateMeasurement(ctx, measurement)
 }
 

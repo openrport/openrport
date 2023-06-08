@@ -7,18 +7,24 @@ aliases:
 ---
 {{< toc >}}
 
-## On macOS (intel based)
+## On macOS (any)
+
+### Download and create config
 
 Open the terminal and as an unprivileged user download the binary and put it in `/usr/local/bin`
 
 ```shell
-curl -LOJ 'https://downloads.rport.io/rport/stable/latest.php?arch=Darwin_x86_64'
+curl -L "https://downloads.rport.io/rport/stable/latest.php?filter=darwin_$(uname -m)" -o rport-mac.tar.gz
 test -e /usr/local/bin/||sudo mkdir /usr/local/bin
-sudo tar xzf rport_*_Darwin_x86_64.tar.gz -C /usr/local/bin/ rport
+sudo tar xzf rport-mac.tar.gz -C /usr/local/bin/ rport
+rport --version
 sudo mkdir /etc/rport
-tar xzf rport_*_Darwin_x86_64.tar.gz rport.example.conf
-sudo mv rport.example.conf /etc/rport/rport.conf
-sudo mkdir /var/log/rport
+sudo tar xzf rport-mac.tar.gz -C /etc/rport rport.example.conf
+sudo mv /etc/rport/rport.example.conf /etc/rport/rport.conf
+sudo mkdir /private/var/log/rport
+sudo chown ${USER} /private/var/log/rport/
+sudo mkdir /private/var/lib/rport
+sudo chown ${USER} /private/var/lib/rport
 ```
 
 Now open the configuration file with an editor and enter your server URL, credentials, and fingerprint.
@@ -27,15 +33,75 @@ Now open the configuration file with an editor and enter your server URL, creden
 sudo vim /etc/rport/rport.conf
 ```
 
+Or automate the above step using `sed`.
+
+```shell
+FINGERPRINT="2a:c8:79:09:80:ba:7c:60:05:e5:2c:99:6d:75:56:24"
+CONNECT_URL="http://node1.rport.io:8080"
+CLIENT_ID="000002-techdev"
+PASSWORD="techdevtest123"
+CONFIG_FILE=/etc/rport/rport.conf
+sudo sed -i '' "s|#*server = .*|server = \"${CONNECT_URL}\"|g" "$CONFIG_FILE"
+sudo sed -i '' "s/#*auth = .*/auth = \"${CLIENT_ID}:${PASSWORD}\"/g" "$CONFIG_FILE"
+sudo sed -i '' "s/#*fingerprint = .*/fingerprint = \"${FINGERPRINT}\"/g" "$CONFIG_FILE"
+sudo sed -i '' "s/#*log_file = .*C.*Program Files.*/""/g" "$CONFIG_FILE"
+sudo sed -i '' "s/#*log_file = /log_file = /g" "$CONFIG_FILE"
+```
+
 Before registering a service, test it with `rport -c /etc/rport/rport.conf`. You should not get any output and the new
 client should appear on the server.
 
-For registering the service you have two options.
+For registering the service you have three options.
 
 1. You run it with your own user.
-2. You create a so-called daemon user on Mac OS [following this guide](https://gist.github.com/mwf/20cbb260ad2490d7faaa).
+2. You create a so-called system user on macOS, see below.
+3. You run it from the built-in `deamon` user account.
 
-Register and run the service.
+The third option is not recommended if you want to run scripts with sudo privileges because you would give to many
+rights to the `daemon` user. It's better to create a dedicated user `rport`.
+
+### Create an rport system users
+
+```bash
+cat<<"EOF"|sudo bash
+set -e
+username="rport"
+if id ${username} >/dev/null 2>&1;then
+  echo "User ${username} exists"
+  false
+fi
+realname="RPort"
+echo "Adding system user $username with real name ${realname}"
+
+for (( uid = 500;; --uid )) ; do
+echo "."
+if ! id -u $uid &>/dev/null; then
+if ! dscl /Local/Default -ls Groups gid | grep -q [^0-9]$uid\$ ; then
+dscl /Local/Default -create Groups/_$username
+dscl /Local/Default -create Groups/_$username Password \*
+dscl /Local/Default -create Groups/_$username PrimaryGroupID $uid
+dscl /Local/Default -create Groups/_$username RealName "$realname"
+dscl /Local/Default -create Groups/_$username RecordName _$username $username
+dscl /Local/Default -create Users/_$username
+
+dscl /Local/Default -create Users/_$username NFSHomeDirectory /private/var/lib/rport
+dscl /Local/Default -create Users/_$username Password \*
+dscl /Local/Default -create Users/_$username PrimaryGroupID $uid
+dscl /Local/Default -create Users/_$username RealName "$realname"
+dscl /Local/Default -create Users/_$username RecordName _$username $username
+dscl /Local/Default -create Users/_$username UniqueID $uid
+dscl /Local/Default -create Users/_$username UserShell /bin/sh
+dscl /Local/Default -delete /Users/_$username AuthenticationAuthority
+dscl /Local/Default -delete /Users/_$username PasswordPolicyOptions
+break
+fi
+fi
+done
+chown rport /private/var/log/rport/
+EOF
+```
+
+### Register and run the service
 
 ```shell
 sudo rport --service install --service-user <USERNAME> -c /etc/rport/rport.conf
@@ -57,7 +123,7 @@ $ sudo launchctl list|grep "rport$"
 - 0 rport
 ```
 
-Missing write permissions to the folder `/usr/local/var/log/` are most likely the reason.
+Missing write permissions to the log folder is most likely the reason.
 Open `/Library/LaunchDaemons/rport.plist` with an editor and use `tmp` as log directory for the start-up logs.
 
 ```xml
@@ -109,11 +175,3 @@ sudo launchctl list|grep "rport$"
 ```
 
 By default, rport starts at boot.
-
-## On macOS (M1/Arm based)
-
-Coming soon.
-
-## On OpenWRT
-
-Coming soon.

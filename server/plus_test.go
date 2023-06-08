@@ -80,7 +80,7 @@ func TestShouldRegisterPlusCapabilities(t *testing.T) {
 
 	// this check will flag when additional capabilities have been registered but the test
 	// not updated
-	assert.Equal(t, 4, plus.CapabilityCount)
+	assert.Equal(t, 5, plus.CapabilityCount)
 
 	// additional capabilities should be checked here to see that the server has
 	// registered them

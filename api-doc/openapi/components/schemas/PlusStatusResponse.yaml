@@ -1,5 +1,19 @@
 type: object
 properties:
+  is_enabled:
+    type: boolean
+    description: >-
+      Whether plugin is enabled or not
+  is_trial:
+    type: boolean
+    description: >-
+      Whether plugin is in trial mode or not
+  valid_license:
+    type: boolean
+    description: >-
+      Whether plugin is has a valid license or not
+  lic_info:
+    $ref: ./LicInfo.yaml
   plus_version:
     type: string
     description: >-
