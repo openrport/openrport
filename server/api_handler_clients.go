@@ -534,6 +534,18 @@ func (al *APIListener) handleDeleteClientTunnel(w http.ResponseWriter, req *http
 		return
 	}
 
+	curUser, err := al.getUserModelForAuth(req.Context())
+	if err != nil {
+		al.jsonError(w, err)
+		return
+	}
+
+	err = al.extendedPermissionDeleteTunnelRaw(tunnel, curUser)
+	if err != nil {
+		al.jsonError(w, err)
+		return
+	}
+
 	err = al.clientService.TerminateTunnel(client, tunnel, force)
 	if err != nil {
 		al.jsonErrorResponseWithTitle(w, http.StatusConflict, err.Error())
