@@ -327,6 +327,14 @@ func (al *APIListener) handlePutClientTunnel(w http.ResponseWriter, req *http.Re
 		}
 	}
 
+	// populating tunnel (remote) ownership
+	currUser, err := al.getUserModelForAuth(req.Context())
+	if err != nil {
+		al.jsonError(w, err)
+		return
+	}
+	remote.Owner = currUser.Username
+
 	// start the new tunnel only
 	tunnels, err := al.clientService.StartClientTunnels(client, []*models.Remote{remote})
 	if err != nil {
