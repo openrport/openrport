@@ -499,7 +499,7 @@ func runMain(*cobra.Command, []string) {
 	ctx, cancel := signal.NotifyContext(context.Background(), syscall.SIGINT, syscall.SIGTERM, syscall.SIGHUP)
 	defer cancel()
 
-	plusManager, err := chserver.EnablePlusIfLicensed(ctx, cfg, filesAPI)
+	plusManager, err := chserver.EnablePlusIfAvailable(ctx, cfg, filesAPI)
 	if err != nil && err != chserver.ErrPlusNotEnabled {
 		log.Fatal(err)
 	}
