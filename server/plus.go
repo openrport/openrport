@@ -10,7 +10,6 @@ import (
 	licensecap "github.com/realvnc-labs/rport/plus/capabilities/license"
 	"github.com/realvnc-labs/rport/plus/capabilities/oauth"
 	"github.com/realvnc-labs/rport/plus/capabilities/status"
-	"github.com/realvnc-labs/rport/plus/license"
 	"github.com/realvnc-labs/rport/server/chconfig"
 	"github.com/realvnc-labs/rport/share/files"
 	"github.com/realvnc-labs/rport/share/logger"
@@ -29,17 +28,6 @@ func EnablePlusIfLicensed(ctx context.Context, cfg *chconfig.Config, filesAPI fi
 	if !rportplus.IsPlusEnabled(cfg.PlusConfig) {
 		logger.Infof("not enabled")
 		return nil, ErrPlusNotEnabled
-	}
-
-	// If plus is enabled then ensure license checking is disabled until release 1.0
-	if rportplus.IsPlusEnabled(cfg.PlusConfig) {
-		if !rportplus.HasLicenseConfig(cfg.PlusConfig) {
-			cfg.PlusConfig.LicenseConfig = &license.Config{
-				CheckingEnabled: false,
-			}
-		} else {
-			cfg.PlusConfig.LicenseConfig.CheckingEnabled = true
-		}
 	}
 
 	if !rportplus.HasLicenseConfig(cfg.PlusConfig) {
