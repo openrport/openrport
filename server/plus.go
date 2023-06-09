@@ -10,6 +10,7 @@ import (
 	licensecap "github.com/realvnc-labs/rport/plus/capabilities/license"
 	"github.com/realvnc-labs/rport/plus/capabilities/oauth"
 	"github.com/realvnc-labs/rport/plus/capabilities/status"
+	"github.com/realvnc-labs/rport/plus/license"
 	"github.com/realvnc-labs/rport/server/chconfig"
 	"github.com/realvnc-labs/rport/share/files"
 	"github.com/realvnc-labs/rport/share/logger"
@@ -20,9 +21,9 @@ var (
 	ErrPlusLicenseNotConfigured = errors.New("rport-plus license not configured")
 )
 
-// EnablePlusIfLicensed will initialize a new plus manager and request registration of the desired
+// EnablePlusIfAvailable will initialize a new plus manager and request registration of the desired
 // capabilities
-func EnablePlusIfLicensed(ctx context.Context, cfg *chconfig.Config, filesAPI files.FileAPI) (plusManager rportplus.Manager, err error) {
+func EnablePlusIfAvailable(ctx context.Context, cfg *chconfig.Config, filesAPI files.FileAPI) (plusManager rportplus.Manager, err error) {
 	logger := logger.NewLogger("rport-plus", cfg.Logging.LogOutput, cfg.Logging.LogLevel)
 
 	if !rportplus.IsPlusEnabled(cfg.PlusConfig) {
@@ -30,14 +31,12 @@ func EnablePlusIfLicensed(ctx context.Context, cfg *chconfig.Config, filesAPI fi
 		return nil, ErrPlusNotEnabled
 	}
 
-	if !rportplus.HasLicenseConfig(cfg.PlusConfig) {
-		logger.Errorf(ErrPlusLicenseNotConfigured.Error())
-		return nil, ErrPlusLicenseNotConfigured
+	if rportplus.HasLicenseConfig(cfg.PlusConfig) {
+		dataDir := cfg.Server.DataDir
+		cfg.PlusConfig.LicenseConfig.DataDir = dataDir
+	} else {
+		cfg.PlusConfig.LicenseConfig = &license.Config{}
 	}
-
-	// Use the DataDir from the server config for the Rport Plus plugin license config
-	dataDir := cfg.Server.DataDir
-	cfg.PlusConfig.LicenseConfig.DataDir = dataDir
 
 	plusManager, err = rportplus.NewPlusManager(ctx, &cfg.PlusConfig, nil, logger, filesAPI)
 	if err != nil {
