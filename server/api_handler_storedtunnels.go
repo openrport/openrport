@@ -84,6 +84,7 @@ func (al *APIListener) handleDeleteStoredTunnel(w http.ResponseWriter, req *http
 		return
 	}
 
+	// ED TODO: need to check if its the same user that owned this, but need to fetch the tunnel first
 	err = al.storedTunnels.Delete(ctx, client.GetID(), tunnelID)
 	if err != nil {
 		al.jsonError(w, err)
