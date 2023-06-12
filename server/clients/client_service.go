@@ -16,6 +16,8 @@ import (
 	"github.com/hashicorp/go-version"
 	"github.com/jmoiron/sqlx"
 
+	alertingcap "github.com/realvnc-labs/rport/plus/capabilities/alerting"
+	"github.com/realvnc-labs/rport/plus/capabilities/alerting/transformers"
 	licensecap "github.com/realvnc-labs/rport/plus/capabilities/license"
 
 	"github.com/realvnc-labs/rport/server/acme"
@@ -33,6 +35,7 @@ import (
 
 type ClientService interface {
 	SetPlusLicenseInfoCap(licensecap licensecap.CapabilityEx)
+	SetPlusAlertingServiceCap(as alertingcap.Service)
 
 	Count() int
 	CountActive() int
@@ -82,6 +85,7 @@ type ClientServiceProvider struct {
 	caddyAPI          caddy.API
 	logger            *logger.Logger
 	acme              *acme.Acme
+	as                alertingcap.Service
 
 	licensecap licensecap.CapabilityEx
 
@@ -210,6 +214,25 @@ func InitClientService(
 
 func (s *ClientServiceProvider) SetPlusLicenseInfoCap(licensecap licensecap.CapabilityEx) {
 	s.licensecap = licensecap
+}
+
+func (s *ClientServiceProvider) SetPlusAlertingServiceCap(as alertingcap.Service) {
+	s.as = as
+	if as != nil {
+		repo := s.GetRepo()
+		repo.SetPostSaveHandlerFn(s.SendClientUpdateToAlerting)
+	}
+}
+
+func (s *ClientServiceProvider) SendClientUpdateToAlerting(cl *clientdata.Client) {
+	clientupdate, err := transformers.TransformRportClientToClientUpdate(cl)
+	if err != nil {
+		s.log().Debugf("unable to transform client update for alerting service")
+	}
+	err = s.as.PutClientUpdate(clientupdate)
+	if err != nil {
+		s.log().Debugf("Failed to send client update to the alerting service")
+	}
 }
 
 func (s *ClientServiceProvider) GetMaxClients() (maxClients int) {

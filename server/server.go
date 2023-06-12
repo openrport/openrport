@@ -25,7 +25,7 @@ import (
 	jobsmigration "github.com/realvnc-labs/rport/db/migration/jobs"
 	"github.com/realvnc-labs/rport/db/sqlite"
 	rportplus "github.com/realvnc-labs/rport/plus"
-	"github.com/realvnc-labs/rport/plus/capabilities/alerting/transformers"
+	alertingcap "github.com/realvnc-labs/rport/plus/capabilities/alerting"
 	"github.com/realvnc-labs/rport/server/acme"
 	"github.com/realvnc-labs/rport/server/api/jobs"
 	"github.com/realvnc-labs/rport/server/api/jobs/schedule"
@@ -35,7 +35,6 @@ import (
 	"github.com/realvnc-labs/rport/server/cgroups"
 	"github.com/realvnc-labs/rport/server/chconfig"
 	"github.com/realvnc-labs/rport/server/clients"
-	"github.com/realvnc-labs/rport/server/clients/clientdata"
 	"github.com/realvnc-labs/rport/server/clientsauth"
 	"github.com/realvnc-labs/rport/server/monitoring"
 	"github.com/realvnc-labs/rport/server/ports"
@@ -80,6 +79,7 @@ type Server struct {
 	plusManager         rportplus.Manager
 	caddyServer         *caddy.Server
 	acme                *acme.Acme
+	as                  alertingcap.Service
 }
 
 type ServerOpts struct {
@@ -89,6 +89,8 @@ type ServerOpts struct {
 
 // NewServer creates and returns a new rport server
 func NewServer(ctx context.Context, config *chconfig.Config, opts *ServerOpts) (*Server, error) {
+	var err error
+
 	s := &Server{
 		Logger:           logger.NewLogger("server", config.Logging.LogOutput, config.Logging.LogLevel),
 		config:           config,
@@ -115,30 +117,12 @@ func NewServer(ctx context.Context, config *chconfig.Config, opts *ServerOpts) (
 
 		licCap.SetLicenseInfoAvailableNotifier(s.HandlePlusLicenseInfoAvailable)
 
-		// TODO: (rs):  refactor this into separate fn
 		alertingCap := s.plusManager.GetAlertingCapabilityEx()
 		if alertingCap != nil {
-			// TODO: (rs): where is the db closed?
-			// TODO: (rs): use a fn to make the badgerdb path
-			bdb, err := badger.Open(badger.DefaultOptions(config.Server.DataDir + "/alerts.bdb"))
+			s.as, err = s.StartPlusAlertingService(ctx, alertingCap, config.Server.DataDir)
 			if err != nil {
 				return nil, err
 			}
-
-			err = alertingCap.Init(bdb)
-			if err != nil {
-				return nil, fmt.Errorf("failed to initialize the alerting service: %w", err)
-			}
-
-			as := alertingCap.GetService()
-
-			err = as.LoadLatestRuleSet()
-			if err != nil {
-				return nil, fmt.Errorf("failed to load latest ruleset: %w", err)
-			}
-
-			// TODO: (rs): will we have an enabled type flag?
-			as.Run(ctx)
 			s.Infof("Alerting capability enabled")
 		} else {
 			s.Infof("Alerting capability not available")
@@ -248,24 +232,7 @@ func NewServer(ctx context.Context, config *chconfig.Config, opts *ServerOpts) (
 	if rportplus.IsPlusEnabled(config.PlusConfig) {
 		licCapEx := s.plusManager.GetLicenseCapabilityEx()
 		s.clientService.SetPlusLicenseInfoCap(licCapEx)
-
-		clientRepo := s.clientService.GetRepo()
-		alertingCap := s.plusManager.GetAlertingCapabilityEx()
-		if alertingCap != nil {
-			// TODO: (rs): this should probably be in the client service, with a reference to the alerting service
-			clientRepo.SetPostSaveHandlerFn(func(cl *clientdata.Client) {
-				ascl, err := transformers.TransformRportClientToClientUpdate(cl)
-				if err != nil {
-					s.Debugf("unable to transform client update for alerting service")
-				}
-				as := alertingCap.GetService()
-				err = as.PutClientUpdate(ascl)
-				if err != nil {
-					s.Debugf("Failed to send client update to the alerting service")
-				}
-
-			})
-		}
+		s.clientService.SetPlusAlertingServiceCap(s.as)
 	}
 
 	s.auditLog, err = auditlog.New(
@@ -335,6 +302,31 @@ func (s *Server) HandlePlusLicenseInfoAvailable() {
 	if s.clientListener != nil && s.clientListener.server.clientService != nil {
 		s.clientListener.server.clientService.UpdateClientStatus()
 	}
+}
+
+func (s *Server) StartPlusAlertingService(ctx context.Context, alertingCap alertingcap.CapabilityEx, dataDir string) (as alertingcap.Service, err error) {
+	opts := badger.DefaultOptions(dataDir + "/alerts.bdb")
+	bdb, err := badger.Open(opts)
+	if err != nil {
+		return nil, err
+	}
+
+	err = alertingCap.Init(bdb)
+	if err != nil {
+		return nil, fmt.Errorf("failed to initialize the alerting service: %w", err)
+	}
+
+	as = alertingCap.GetService()
+
+	err = as.LoadLatestRuleSet()
+	if err != nil {
+		return nil, fmt.Errorf("failed to load latest ruleset: %w", err)
+	}
+
+	// TODO: (rs): will we have an enabled type flag?
+	as.Run(ctx)
+
+	return as, nil
 }
 
 func getClientProvider(config *chconfig.Config, db *sqlx.DB) (clientsauth.Provider, error) {
@@ -498,7 +490,10 @@ func (s *Server) Close() error {
 		return true
 	})
 
-	// TODO: (rs):  should we be shutting down the plugin capabilities here?
+	// TODO: (rs):  should we be shutting down the other plugin capabilities here?
+	if s.as != nil {
+		wg.Go(s.as.Stop)
+	}
 
 	return wg.Wait()
 }

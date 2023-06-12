@@ -22,7 +22,7 @@ type Config struct {
 
 type Service interface {
 	Run(ctx context.Context)
-	Stop()
+	Stop() (err error)
 
 	LoadRuleSet(ruleSetID rules.RuleSetID) (rs *rules.RuleSet, err error)
 	SaveRuleSet(rs *rules.RuleSet) (err error)
