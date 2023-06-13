@@ -1,12 +1,11 @@
 get:
   tags:
     - Plus
-  summary: Get status information for the Rport Plus plug-in (if enabled)
+  summary: Get status information for the Rport Plus plug-in
   operationId: PlusStatusGet
   security: []
   description: >
-    This API allows client to query plug-in status information. If returns 403 
-    - Forbidden then the plug-in is not enabled.
+    This API allows client to query plug-in status information.
   responses:
     "200":
       description: Success
@@ -17,12 +16,6 @@ get:
             properties:
               data:
                 $ref: ../components/schemas/PlusStatusResponse.yaml
-    "403":
-      description: Forbidden - Rport Plus not enabled
-      content:
-        application/json:
-          schema:
-            $ref: ../components/schemas/ErrorPayload.yaml
     "500":
       description: Server error during processing
       content:
