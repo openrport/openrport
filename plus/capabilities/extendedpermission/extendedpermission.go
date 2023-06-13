@@ -19,6 +19,7 @@ type CapabilityEx interface {
 	ValidateExtendedTunnelPermission(r *http.Request, tr []PermissionParams) error
 	ValidateExtendedCommandPermission(r *http.Request, cr []PermissionParams) error
 	ValidateExtendedCommandPermissionRaw(command string, isSudo bool, cr []PermissionParams) error
+	ValidateExtendedDeleteNonOwnedTunnelPermissionRaw(tr []PermissionParams) error
 }
 
 type Config struct {
