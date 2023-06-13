@@ -60,8 +60,10 @@ func TestHandleMeStaticAuth(t *testing.T) {
 				"uploads": true,
 				"vault": true
 			},
-			"tunnels_restricted":null,
-			"commands_restricted":null,
+            "effective_extended_permissions": {
+				"tunnels_restricted":null,
+				"commands_restricted":null
+            },
 			"group_permissions_enabled": false
 		}
 	}`
@@ -144,8 +146,10 @@ func TestHandleMeDBAuth(t *testing.T) {
 				"uploads": false,
 				"vault": true
 			},
-			"tunnels_restricted":null,
-			"commands_restricted":null,
+			"effective_extended_permissions": {
+				"tunnels_restricted":null,
+				"commands_restricted":null
+            },
 			"group_permissions_enabled": true
 		}
 	}`
