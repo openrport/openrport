@@ -225,6 +225,7 @@ func (s *ClientServiceProvider) SetPlusAlertingServiceCap(as alertingcap.Service
 }
 
 func (s *ClientServiceProvider) SendClientUpdateToAlerting(cl *clientdata.Client) {
+	// note that the transformer uses the client getters so no need for an explicit lock here
 	clientupdate, err := transformers.TransformRportClientToClientUpdate(cl)
 	if err != nil {
 		s.log().Debugf("unable to transform client update for alerting service")

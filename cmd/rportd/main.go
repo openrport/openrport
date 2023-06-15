@@ -562,14 +562,14 @@ func runMain(*cobra.Command, []string) {
 }
 
 func WriteMemoryProfile(l *logger.Logger) {
-	fmt.Println("writing mem.rportd.prof")
+	l.Debugf("writing mem.rportd.prof")
 	memf, err := os.Create("/var/lib/rport/mem.rportd.prof")
 	if err != nil {
-		fmt.Printf("could not create memory profile: %v\n", err)
+		l.Debugf("could not create memory profile: %v\n", err)
 	}
 	defer memf.Close()
 	runtime.GC()
 	if err := pprof.WriteHeapProfile(memf); err != nil {
-		fmt.Printf("could not write memory profile: %v\n", err)
+		l.Debugf("could not write memory profile: %v\n", err)
 	}
 }

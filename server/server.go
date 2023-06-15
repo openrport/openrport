@@ -320,7 +320,7 @@ func (s *Server) StartPlusAlertingService(ctx context.Context, alertingCap alert
 
 	err = as.LoadLatestRuleSet()
 	if err != nil {
-		return nil, fmt.Errorf("failed to load latest ruleset: %w", err)
+		s.Infof("failed to load latest ruleset: %v", err)
 	}
 
 	// TODO: (rs): will we have an enabled type flag?

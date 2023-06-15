@@ -72,7 +72,7 @@ type ManagerProvider struct {
 
 // NewPlusManager checks the plugin exists at the specified path, allocates a new
 // plus manager and initializes it
-func NewPlusManager(ctx context.Context, cfg *PlusConfig, pluginLoader loader.Loader, l *logger.Logger, filesAPI files.FileAPI) (pm Manager, err error) {
+func NewPlusManager(ctx context.Context, cfg *PlusConfig, pluginLoader loader.Loader, l *logger.Logger, filesAPI files.FileAPI) (pm *ManagerProvider, err error) {
 	if pluginLoader == nil {
 		pluginLoader = loader.New()
 	}

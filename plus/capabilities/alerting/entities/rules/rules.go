@@ -1,8 +1,14 @@
 package rules
 
 import (
+	"errors"
+
 	"github.com/realvnc-labs/rport/plus/capabilities/alerting/actions"
-	"github.com/realvnc-labs/rport/plus/capabilities/alerting/notifications"
+	"github.com/realvnc-labs/rport/plus/capabilities/alerting/entities/templates"
+)
+
+var (
+	ErrRuleSetNotFound = errors.New("rule set not found")
 )
 
 type RuleSetID string
@@ -32,10 +38,7 @@ type Action struct {
 }
 
 type NotifyAction struct {
-	Type            notifications.NotificationType `mapstructure:"type" json:"type"`
-	Recipients      notifications.RecipientList    `mapstructure:"recipients" json:"recipients"`
-	SubjectTemplate string                         `mapstructure:"subject" json:"subject"`
-	BodyTemplate    string                         `mapstructure:"body" json:"body"`
+	TemplateIDs []templates.TemplateID `mapstructure:"body" json:"template_ids"`
 }
 
 type LogAction struct {

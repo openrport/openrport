@@ -84,29 +84,29 @@ func (r *ClientRepository) GetPostSaveHandlerFn() (handlerFn func(cl *clientdata
 	return handlerFn
 }
 
-func (r *ClientRepository) Save(client *clientdata.Client) error {
+func (r *ClientRepository) Save(cl *clientdata.Client) error {
 	ts := time.Now()
 
 	store := r.getStore()
 
 	if store != nil {
-		err := store.Save(context.Background(), client)
+		err := store.Save(context.Background(), cl)
 		if err != nil {
 			return fmt.Errorf("failed to save client: %w", err)
 		}
 	}
 
-	r.updateClient(client)
+	r.updateClient(cl)
 
 	handlerFn := r.GetPostSaveHandlerFn()
 	if handlerFn != nil {
-		handlerFn(client)
+		handlerFn(cl)
 	}
 
 	r.log().Debugf(
 		"saved client: %s status=%s, within %s",
-		client.GetID(),
-		FormatConnectionState(client),
+		cl.GetID(),
+		FormatConnectionState(cl),
 		time.Since(ts),
 	)
 

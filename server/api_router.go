@@ -221,8 +221,14 @@ func (al *APIListener) initRouter() {
 
 	if rportplus.IsPlusEnabled(al.config.PlusConfig) {
 		alertingServiceRouter := api.PathPrefix(routes.AlertingServiceRoutesPrefix).Subrouter()
-		alertingServiceRouter.HandleFunc(routes.ASSaveRuleSetRoute, al.handleSaveRuleSet).Methods(http.MethodPost)
-		alertingServiceRouter.HandleFunc(routes.ASGetActionStatesRoute, al.handleGetActiveRuleActionStates).Methods(http.MethodGet)
+		alertingServiceRouter.HandleFunc(routes.ASRuleSetRoute+"/{"+routes.ParamRuleSetID+"}", al.handleGetRuleSet).Methods(http.MethodGet)
+		alertingServiceRouter.HandleFunc(routes.ASRuleSetRoute+"/{"+routes.ParamRuleSetID+"}", al.handleDeleteRuleSet).Methods(http.MethodDelete)
+		alertingServiceRouter.HandleFunc(routes.ASRuleSetRoute, al.handleSaveRuleSet).Methods(http.MethodPost)
+		alertingServiceRouter.HandleFunc(routes.ASActionStatesRoute, al.handleGetActiveRuleActionStates).Methods(http.MethodGet)
+		alertingServiceRouter.HandleFunc(routes.ASTemplatesRoute, al.handleGetAllTemplates).Methods(http.MethodGet)
+		alertingServiceRouter.HandleFunc(routes.ASTemplatesRoute+"/{"+routes.ParamTemplateID+"}", al.handleGetTemplate).Methods(http.MethodGet)
+		alertingServiceRouter.HandleFunc(routes.ASTemplatesRoute+"/{"+routes.ParamTemplateID+"}", al.handleDeleteTemplate).Methods(http.MethodDelete)
+		alertingServiceRouter.HandleFunc(routes.ASTemplatesRoute, al.handleSaveTemplate).Methods(http.MethodPost)
 	}
 
 	if rportplus.IsPlusOAuthEnabled(al.config.PlusConfig) {

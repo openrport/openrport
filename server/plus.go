@@ -24,7 +24,7 @@ var (
 
 // EnablePlusIfLicensed will initialize a new plus manager and request registration of the desired
 // capabilities
-func EnablePlusIfLicensed(ctx context.Context, cfg *chconfig.Config, filesAPI files.FileAPI) (plusManager rportplus.Manager, err error) {
+func EnablePlusIfLicensed(ctx context.Context, cfg *chconfig.Config, filesAPI files.FileAPI) (plusManager *rportplus.ManagerProvider, err error) {
 	logger := logger.NewLogger("rport-plus", cfg.Logging.LogOutput, cfg.Logging.LogLevel)
 
 	if !rportplus.IsPlusEnabled(cfg.PlusConfig) {
