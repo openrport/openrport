@@ -25,7 +25,7 @@ func Run(ctx context.Context, log *logger.Logger, task Task, interval time.Durat
 			log.Debugf("task finished")
 		case <-ctx.Done():
 			tick.Stop()
-			log.Debugf("context canceled %s", task)
+			log.Debugf("context canceled")
 			log.Debugf("task stopped")
 			return
 		}

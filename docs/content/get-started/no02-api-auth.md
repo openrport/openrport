@@ -345,7 +345,7 @@ CREATE TABLE `users` (
   `password` varchar(255) NOT NULL,
   `password_expired` bool NOT NULL default false,
   `two_fa_send_to` varchar(150),
-  `token` char(36) default NULL,
+  `token` varchar(128) default NULL,
   `totp_secret` longtext,
   UNIQUE KEY `username` (`username`)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8;

@@ -36,11 +36,16 @@ func (al *APIListener) handleGetMe(w http.ResponseWriter, req *http.Request) {
 		al.jsonErrorResponse(w, http.StatusInternalServerError, err)
 		return
 	}
+
+	tr, cr := al.userService.GetEffectiveUserExtendedPermissions(user)
+
 	me := UserPayload{
 		Username:                 user.Username,
 		Groups:                   user.Groups,
 		TwoFASendTo:              user.TwoFASendTo,
 		EffectiveUserPermissions: eup,
+		TunnelsRestricted:        tr,
+		CommandsRestricted:       cr,
 		GroupPermissionsEnabled:  al.userService.SupportsGroupPermissions(),
 	}
 	response := api.NewSuccessPayload(me)

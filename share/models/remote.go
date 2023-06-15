@@ -41,6 +41,7 @@ type Remote struct {
 	LocalHost          string        `json:"lhost"`
 	LocalPort          string        `json:"lport"`
 	LocalPortRandom    bool          `json:"lport_random"`
+	Owner              string        `json:"owner"`
 	RemoteHost         string        `json:"rhost"`
 	RemotePort         string        `json:"rport"`
 	Scheme             *string       `json:"scheme"`
