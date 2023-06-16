@@ -23,6 +23,7 @@ import (
 	"golang.org/x/crypto/ssh"
 
 	rportplus "github.com/realvnc-labs/rport/plus"
+	alertingcap "github.com/realvnc-labs/rport/plus/capabilities/alerting"
 	"github.com/realvnc-labs/rport/plus/capabilities/alerting/transformers"
 	"github.com/realvnc-labs/rport/server/api/middleware"
 	"github.com/realvnc-labs/rport/server/auditlog"
@@ -554,26 +555,32 @@ func (cl *ClientListener) handleSSHRequests(clientLog *logger.Logger, clientID s
 				continue
 			}
 
-			// TODO: (rs): move to post measurement save fn?
 			if rportplus.IsPlusEnabled(cl.server.config.PlusConfig) {
 				alertingCap := cl.server.plusManager.GetAlertingCapabilityEx()
 				if alertingCap != nil {
-					m, err := transformers.TransformRportMeasurementToToMeasure(measurement)
-					if err != nil {
-						clientLog.Debugf("Failed to transform measurement")
-					}
-
-					as := alertingCap.GetService()
-
-					err = as.PutMeasurement(m)
-					if err != nil {
-						clientLog.Debugf("Failed to send measurement to the alerting service")
-					}
+					cl.sendMeasurementToAlertingService(alertingCap, measurement, clientLog)
 				}
 			}
 		default:
 			clientLog.Debugf("Unknown request: %s", r.Type)
 		}
+	}
+}
+
+func (cl *ClientListener) sendMeasurementToAlertingService(
+	alertingCap alertingcap.CapabilityEx,
+	measurement *models.Measurement,
+	clientLog *logger.Logger) {
+	m, err := transformers.TransformRportMeasurementToMeasure(measurement)
+	if err != nil {
+		clientLog.Debugf("Failed to transform measurement")
+	}
+
+	as := alertingCap.GetService()
+
+	err = as.PutMeasurement(m)
+	if err != nil {
+		clientLog.Debugf("Failed to send measurement to the alerting service")
 	}
 }
 

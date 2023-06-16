@@ -90,6 +90,7 @@ require (
 	github.com/golang/snappy v0.0.4 // indirect
 	github.com/google/flatbuffers v1.12.1 // indirect
 	github.com/klauspost/compress v1.16.5 // indirect
+	go.etcd.io/bbolt v1.3.7
 	go.opencensus.io v0.23.0 // indirect
 	google.golang.org/protobuf v1.30.0 // indirect
 )

@@ -14,7 +14,7 @@ type RawMountPointsInfo map[string]uint64
 
 type mountPointsList map[string]*measures.MountPoint
 
-func TransformRportMeasurementToToMeasure(rm *models.Measurement) (m *measures.Measure, err error) {
+func TransformRportMeasurementToMeasure(rm *models.Measurement) (m *measures.Measure, err error) {
 	m = &measures.Measure{}
 
 	m.ClientID = rm.ClientID

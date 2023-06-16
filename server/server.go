@@ -9,8 +9,8 @@ import (
 	"sync"
 	"time"
 
-	"github.com/dgraph-io/badger/v4"
 	"github.com/jmoiron/sqlx"
+	"go.etcd.io/bbolt"
 	"golang.org/x/crypto/ssh"
 	"golang.org/x/sync/errgroup"
 
@@ -305,8 +305,8 @@ func (s *Server) HandlePlusLicenseInfoAvailable() {
 }
 
 func (s *Server) StartPlusAlertingService(ctx context.Context, alertingCap alertingcap.CapabilityEx, dataDir string) (as alertingcap.Service, err error) {
-	opts := badger.DefaultOptions(dataDir + "/alerts.bdb")
-	bdb, err := badger.Open(opts)
+	opts := bbolt.DefaultOptions
+	bdb, err := bbolt.Open(dataDir+"/alerts.boltdb", 0600, opts)
 	if err != nil {
 		return nil, err
 	}
@@ -318,7 +318,7 @@ func (s *Server) StartPlusAlertingService(ctx context.Context, alertingCap alert
 
 	as = alertingCap.GetService()
 
-	err = as.LoadLatestRuleSet()
+	err = as.LoadDefaultRuleSet()
 	if err != nil {
 		s.Infof("failed to load latest ruleset: %v", err)
 	}
@@ -427,6 +427,9 @@ func (s *Server) Run(ctx context.Context) error {
 	time.Sleep(250 * time.Millisecond)
 
 	s.Close()
+
+	// a little more time for everything to settle on shutdown
+	time.Sleep(250 * time.Millisecond)
 
 	return err
 }

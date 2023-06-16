@@ -3,7 +3,6 @@ package chserver
 import (
 	"bytes"
 	"encoding/json"
-	"fmt"
 	"net/http"
 	"net/http/httptest"
 	"os"
@@ -29,6 +28,8 @@ const (
 	plusMockAlertingCapability = "plus-alerting-mock"
 )
 
+// TODO: (rs): these could probably be implemented with generics, but not a priority
+
 type TemplateResponse struct {
 	Data templates.Template
 }
@@ -39,6 +40,14 @@ type TemplatesResponse struct {
 
 type RuleSetResponse struct {
 	Data rules.RuleSet
+}
+
+type ProblemResponse struct {
+	Data rules.Problem
+}
+
+type ProblemsResponse struct {
+	Data []*rules.Problem
 }
 
 type plusManagerForMockAlerting struct {
@@ -148,7 +157,7 @@ func TestShouldErrorWhenRuleSetNotFound(t *testing.T) {
 	}
 }
 
-func TestShouldReturnRuleSet(t *testing.T) {
+func TestShouldReturnDefaultRuleSet(t *testing.T) {
 	plusManager, plusConfig, plusLog := setupPlusAlerting()
 
 	_, err := plusManager.RegisterCapability(plusMockAlertingCapability, &alertingmock.Capability{
@@ -162,7 +171,7 @@ func TestShouldReturnRuleSet(t *testing.T) {
 		plusLog)
 
 	w := httptest.NewRecorder()
-	req := httptest.NewRequest("GET", routes.AllRoutesPrefix+routes.AlertingServiceRoutesPrefix+routes.ASRuleSetRoute+"/rs1", nil)
+	req := httptest.NewRequest("GET", routes.AllRoutesPrefix+routes.AlertingServiceRoutesPrefix+routes.ASRuleSetRoute, nil)
 
 	al.router.ServeHTTP(w, req)
 
@@ -177,7 +186,7 @@ func TestShouldReturnRuleSet(t *testing.T) {
 	err = json.NewDecoder(w.Body).Decode(&ruleSetInfo)
 	assert.NoError(t, err)
 
-	assert.Equal(t, rules.RuleSetID("rs1"), ruleSetInfo.Data.RuleSetID)
+	assert.Equal(t, rules.DefaultRuleSetID, ruleSetInfo.Data.RuleSetID)
 }
 
 func TestShouldSaveRuleSet(t *testing.T) {
@@ -196,17 +205,19 @@ func TestShouldSaveRuleSet(t *testing.T) {
 	mockAS := plusManager.GetAlertingCapabilityEx().GetService().(*alertingmock.MockServiceProvider)
 	require.NotNil(t, mockAS)
 
-	rs1, err := mockAS.LoadRuleSet("rs1")
+	// remove the initial latest ruleset
+	err = mockAS.DeleteRuleSet(rules.DefaultRuleSetID)
 	require.NoError(t, err)
 
-	rs2 := *rs1
-	rs2.RuleSetID = "rs2"
+	defaultRS := rules.RuleSet{
+		RuleSetID: "default1", // will be overwritten to match default
+	}
 
-	rs2JSON, err := json.Marshal(rs2)
+	defaultRSJSON, err := json.Marshal(defaultRS)
 	require.NoError(t, err)
 
 	w := httptest.NewRecorder()
-	req := httptest.NewRequest("POST", routes.AllRoutesPrefix+routes.AlertingServiceRoutesPrefix+routes.ASRuleSetRoute, bytes.NewReader(rs2JSON))
+	req := httptest.NewRequest("POST", routes.AllRoutesPrefix+routes.AlertingServiceRoutesPrefix+routes.ASRuleSetRoute, bytes.NewReader(defaultRSJSON))
 
 	al.router.ServeHTTP(w, req)
 
@@ -217,10 +228,10 @@ func TestShouldSaveRuleSet(t *testing.T) {
 		t.Errorf("Expected status code %d, got %d", http.StatusOK, res.StatusCode)
 	}
 
-	savedRS, ok := mockAS.SavedRuleSets["rs2"]
+	savedRS, ok := mockAS.RuleSets[rules.DefaultRuleSetID]
 	require.True(t, ok)
 
-	assert.Equal(t, rs2.RuleSetID, savedRS.RuleSetID)
+	assert.Equal(t, rules.DefaultRuleSetID, savedRS.RuleSetID)
 }
 
 func TestShouldDeleteRuleSet(t *testing.T) {
@@ -239,16 +250,10 @@ func TestShouldDeleteRuleSet(t *testing.T) {
 	mockAS := plusManager.GetAlertingCapabilityEx().GetService().(*alertingmock.MockServiceProvider)
 	require.NotNil(t, mockAS)
 
-	// load a rule set from the mock for the test
-	rs1, err := mockAS.LoadRuleSet("rs1")
-	require.NoError(t, err)
-
-	// save the test rule set in the mock saved rule sets
-	err = mockAS.SaveRuleSet(rs1)
-	require.NoError(t, err)
+	// default rule set already part of the test data
 
 	w := httptest.NewRecorder()
-	req := httptest.NewRequest("DELETE", routes.AllRoutesPrefix+routes.AlertingServiceRoutesPrefix+routes.ASRuleSetRoute+"/rs1", nil)
+	req := httptest.NewRequest("DELETE", routes.AllRoutesPrefix+routes.AlertingServiceRoutesPrefix+routes.ASRuleSetRoute, nil)
 
 	al.router.ServeHTTP(w, req)
 
@@ -259,12 +264,12 @@ func TestShouldDeleteRuleSet(t *testing.T) {
 		t.Errorf("Expected status code %d, got %d", http.StatusOK, res.StatusCode)
 	}
 
-	// the test rule set in the mock saved rule sets should not be present
-	_, ok := mockAS.SavedRuleSets["rs2"]
+	// the default rule set in the mock rule sets should not be present
+	_, ok := mockAS.RuleSets[rules.DefaultRuleSetID]
 	require.False(t, ok)
 }
 
-func TestShouldErrorWhenTemplateNotFound(t *testing.T) {
+func TestShouldOnGetErrorWhenTemplateNotFound(t *testing.T) {
 	plusManager, plusConfig, plusLog := setupPlusAlerting()
 
 	_, err := plusManager.RegisterCapability(plusMockAlertingCapability, &alertingmock.Capability{
@@ -315,8 +320,6 @@ func TestShouldReturnTemplate(t *testing.T) {
 		t.Errorf("Expected status code %d, got %d", http.StatusOK, res.StatusCode)
 	}
 
-	fmt.Printf("%v\n", w.Body.String())
-
 	var templateInfo TemplateResponse
 	err = json.NewDecoder(w.Body).Decode(&templateInfo)
 	assert.NoError(t, err)
@@ -364,7 +367,7 @@ func TestShouldSaveTemplate(t *testing.T) {
 	mockAS = plusManager.GetAlertingCapabilityEx().GetService().(*alertingmock.MockServiceProvider)
 	require.NotNil(t, mockAS)
 
-	savedTemplate, ok := mockAS.SavedTemplates["t10"]
+	savedTemplate, ok := mockAS.Templates["t10"]
 	require.True(t, ok)
 
 	assert.Equal(t, t10.ID, savedTemplate.ID)
@@ -386,14 +389,6 @@ func TestShouldDeleteTemplate(t *testing.T) {
 	mockAS := plusManager.GetAlertingCapabilityEx().GetService().(*alertingmock.MockServiceProvider)
 	require.NotNil(t, mockAS)
 
-	// load a template from the mock for the test
-	t1, err := mockAS.GetTemplate("t1")
-	require.NoError(t, err)
-
-	// save the test template in the mock saved templates
-	err = mockAS.SaveTemplate(t1)
-	require.NoError(t, err)
-
 	w := httptest.NewRecorder()
 	req := httptest.NewRequest("DELETE", routes.AllRoutesPrefix+routes.AlertingServiceRoutesPrefix+routes.ASTemplatesRoute+"/t1", nil)
 
@@ -407,8 +402,35 @@ func TestShouldDeleteTemplate(t *testing.T) {
 	}
 
 	// the test rule set in the mock saved templates should not be present
-	_, ok := mockAS.SavedTemplates["t1"]
+	_, ok := mockAS.Templates["t1"]
 	require.False(t, ok)
+}
+
+func TestShouldNotDeleteActiveTemplate(t *testing.T) {
+	plusManager, plusConfig, plusLog := setupPlusAlerting()
+
+	_, err := plusManager.RegisterCapability(plusMockAlertingCapability, &alertingmock.Capability{
+		Logger: plusLog,
+	})
+	require.NoError(t, err)
+
+	al := setupTestAPIListenerForAlerting(t,
+		plusManager,
+		plusConfig,
+		plusLog)
+
+	mockAS := plusManager.GetAlertingCapabilityEx().GetService().(*alertingmock.MockServiceProvider)
+	require.NotNil(t, mockAS)
+
+	w := httptest.NewRecorder()
+	req := httptest.NewRequest("DELETE", routes.AllRoutesPrefix+routes.AlertingServiceRoutesPrefix+routes.ASTemplatesRoute+"/t2", nil)
+
+	al.router.ServeHTTP(w, req)
+
+	res := w.Result()
+	defer res.Body.Close()
+
+	assert.Equal(t, http.StatusForbidden, res.StatusCode)
 }
 
 func TestShouldGetAllTemplates(t *testing.T) {
@@ -426,22 +448,6 @@ func TestShouldGetAllTemplates(t *testing.T) {
 
 	mockAS := plusManager.GetAlertingCapabilityEx().GetService().(*alertingmock.MockServiceProvider)
 	require.NotNil(t, mockAS)
-
-	// load a template from the mock for the test
-	t1, err := mockAS.GetTemplate("t1")
-	require.NoError(t, err)
-
-	// save the test template in the mock saved templates
-	err = mockAS.SaveTemplate(t1)
-	require.NoError(t, err)
-
-	// load a template from the mock for the test
-	t2, err := mockAS.GetTemplate("t2")
-	require.NoError(t, err)
-
-	// save the test template in the mock saved templates
-	err = mockAS.SaveTemplate(t2)
-	require.NoError(t, err)
 
 	w := httptest.NewRecorder()
 	req := httptest.NewRequest("GET", routes.AllRoutesPrefix+routes.AlertingServiceRoutesPrefix+routes.ASTemplatesRoute, nil)
@@ -461,4 +467,221 @@ func TestShouldGetAllTemplates(t *testing.T) {
 
 	assert.Equal(t, templates.TemplateID("t1"), templatesInfo.Data[0].ID)
 	assert.Equal(t, templates.TemplateID("t2"), templatesInfo.Data[1].ID)
+}
+
+func TestShouldOnGetErrorWhenProblemNotFound(t *testing.T) {
+	plusManager, plusConfig, plusLog := setupPlusAlerting()
+
+	_, err := plusManager.RegisterCapability(plusMockAlertingCapability, &alertingmock.Capability{
+		Logger: plusLog,
+	})
+	require.NoError(t, err)
+
+	al := setupTestAPIListenerForAlerting(t,
+		plusManager,
+		plusConfig,
+		plusLog)
+
+	w := httptest.NewRecorder()
+	req := httptest.NewRequest("GET", routes.AllRoutesPrefix+routes.AlertingServiceRoutesPrefix+routes.ASProblemsRoute+"/missing", nil)
+
+	al.router.ServeHTTP(w, req)
+
+	res := w.Result()
+	defer res.Body.Close()
+
+	if res.StatusCode != http.StatusNotFound {
+		t.Errorf("Expected status code %d, got %d", http.StatusNotFound, res.StatusCode)
+	}
+}
+
+func TestShouldGetProblem(t *testing.T) {
+	plusManager, plusConfig, plusLog := setupPlusAlerting()
+
+	_, err := plusManager.RegisterCapability(plusMockAlertingCapability, &alertingmock.Capability{
+		Logger: plusLog,
+	})
+	require.NoError(t, err)
+
+	al := setupTestAPIListenerForAlerting(t,
+		plusManager,
+		plusConfig,
+		plusLog)
+
+	w := httptest.NewRecorder()
+	req := httptest.NewRequest("GET", routes.AllRoutesPrefix+routes.AlertingServiceRoutesPrefix+routes.ASProblemsRoute+"/p1", nil)
+
+	al.router.ServeHTTP(w, req)
+
+	res := w.Result()
+	defer res.Body.Close()
+
+	if res.StatusCode != http.StatusOK {
+		t.Errorf("Expected status code %d, got %d", http.StatusOK, res.StatusCode)
+	}
+
+	var problemInfo ProblemResponse
+	err = json.NewDecoder(w.Body).Decode(&problemInfo)
+	assert.NoError(t, err)
+
+	assert.Equal(t, rules.ProblemID("p1"), problemInfo.Data.ID)
+}
+
+func TestShouldSaveProblemResolved(t *testing.T) {
+	plusManager, plusConfig, plusLog := setupPlusAlerting()
+
+	_, err := plusManager.RegisterCapability(plusMockAlertingCapability, &alertingmock.Capability{
+		Logger: plusLog,
+	})
+	require.NoError(t, err)
+
+	al := setupTestAPIListenerForAlerting(t,
+		plusManager,
+		plusConfig,
+		plusLog)
+
+	mockAS := plusManager.GetAlertingCapabilityEx().GetService().(*alertingmock.MockServiceProvider)
+	require.NotNil(t, mockAS)
+
+	p1, err := mockAS.GetProblem("p1")
+	require.NoError(t, err)
+
+	p10 := *p1
+	p10.ID = "p10"
+
+	p10JSON, err := json.Marshal(p10)
+	require.NoError(t, err)
+
+	w := httptest.NewRecorder()
+	req := httptest.NewRequest("POST", routes.AllRoutesPrefix+routes.AlertingServiceRoutesPrefix+routes.ASProblemsRoute, bytes.NewReader(p10JSON))
+
+	al.router.ServeHTTP(w, req)
+
+	res := w.Result()
+	defer res.Body.Close()
+
+	if res.StatusCode != http.StatusOK {
+		t.Errorf("Expected status code %d, got %d", http.StatusOK, res.StatusCode)
+	}
+
+	mockAS = plusManager.GetAlertingCapabilityEx().GetService().(*alertingmock.MockServiceProvider)
+	require.NotNil(t, mockAS)
+
+	savedProblem, ok := mockAS.Problems["p10"]
+	require.True(t, ok)
+
+	assert.Equal(t, p10.ID, savedProblem.ID)
+	assert.Equal(t, rules.ProblemResolved, savedProblem.State)
+}
+
+func TestShouldGetLatestProblems(t *testing.T) {
+	plusManager, plusConfig, plusLog := setupPlusAlerting()
+
+	_, err := plusManager.RegisterCapability(plusMockAlertingCapability, &alertingmock.Capability{
+		Logger: plusLog,
+	})
+	require.NoError(t, err)
+
+	al := setupTestAPIListenerForAlerting(t,
+		plusManager,
+		plusConfig,
+		plusLog)
+
+	mockAS := plusManager.GetAlertingCapabilityEx().GetService().(*alertingmock.MockServiceProvider)
+	require.NotNil(t, mockAS)
+
+	w := httptest.NewRecorder()
+	req := httptest.NewRequest("GET", routes.AllRoutesPrefix+routes.AlertingServiceRoutesPrefix+routes.ASProblemsRoute, nil)
+
+	al.router.ServeHTTP(w, req)
+
+	res := w.Result()
+	defer res.Body.Close()
+
+	if res.StatusCode != http.StatusOK {
+		t.Errorf("Expected status code %d, got %d", http.StatusOK, res.StatusCode)
+	}
+
+	var problemsInfo ProblemsResponse
+	err = json.NewDecoder(w.Body).Decode(&problemsInfo)
+	assert.NoError(t, err)
+
+	assert.Equal(t, 3, len(problemsInfo.Data))
+	assert.Equal(t, rules.ProblemID("p1"), problemsInfo.Data[0].ID)
+	assert.Equal(t, rules.ProblemID("p2"), problemsInfo.Data[1].ID)
+	assert.Equal(t, rules.ProblemID("p3"), problemsInfo.Data[2].ID)
+}
+
+func TestShouldGetLatestProblemsWithFilter(t *testing.T) {
+	plusManager, plusConfig, plusLog := setupPlusAlerting()
+
+	_, err := plusManager.RegisterCapability(plusMockAlertingCapability, &alertingmock.Capability{
+		Logger: plusLog,
+	})
+	require.NoError(t, err)
+
+	al := setupTestAPIListenerForAlerting(t,
+		plusManager,
+		plusConfig,
+		plusLog)
+
+	mockAS := plusManager.GetAlertingCapabilityEx().GetService().(*alertingmock.MockServiceProvider)
+	require.NotNil(t, mockAS)
+
+	w := httptest.NewRecorder()
+	req := httptest.NewRequest("GET", routes.AllRoutesPrefix+routes.AlertingServiceRoutesPrefix+routes.ASProblemsRoute+"?filter[problem_id]=p2", nil)
+
+	al.router.ServeHTTP(w, req)
+
+	res := w.Result()
+	defer res.Body.Close()
+
+	if res.StatusCode != http.StatusOK {
+		t.Errorf("Expected status code %d, got %d", http.StatusOK, res.StatusCode)
+	}
+
+	var problemsInfo ProblemsResponse
+	err = json.NewDecoder(w.Body).Decode(&problemsInfo)
+	assert.NoError(t, err)
+
+	assert.Equal(t, 1, len(problemsInfo.Data))
+	assert.Equal(t, rules.ProblemID("p2"), problemsInfo.Data[0].ID)
+}
+
+func TestShouldGetLatestProblemsWithSort(t *testing.T) {
+	plusManager, plusConfig, plusLog := setupPlusAlerting()
+
+	_, err := plusManager.RegisterCapability(plusMockAlertingCapability, &alertingmock.Capability{
+		Logger: plusLog,
+	})
+	require.NoError(t, err)
+
+	al := setupTestAPIListenerForAlerting(t,
+		plusManager,
+		plusConfig,
+		plusLog)
+
+	mockAS := plusManager.GetAlertingCapabilityEx().GetService().(*alertingmock.MockServiceProvider)
+	require.NotNil(t, mockAS)
+
+	w := httptest.NewRecorder()
+	req := httptest.NewRequest("GET", routes.AllRoutesPrefix+routes.AlertingServiceRoutesPrefix+routes.ASProblemsRoute+"?sort=-rule_id", nil)
+
+	al.router.ServeHTTP(w, req)
+
+	res := w.Result()
+	defer res.Body.Close()
+
+	if res.StatusCode != http.StatusOK {
+		t.Errorf("Expected status code %d, got %d", http.StatusOK, res.StatusCode)
+	}
+
+	var problemsInfo ProblemsResponse
+	err = json.NewDecoder(w.Body).Decode(&problemsInfo)
+	assert.NoError(t, err)
+
+	assert.Equal(t, 3, len(problemsInfo.Data))
+	assert.Equal(t, rules.RuleID("r2"), problemsInfo.Data[0].RuleID)
+	assert.Equal(t, rules.RuleID("r1"), problemsInfo.Data[1].RuleID)
+	assert.Equal(t, rules.RuleID("r1"), problemsInfo.Data[2].RuleID)
 }

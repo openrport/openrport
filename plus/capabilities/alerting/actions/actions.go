@@ -3,7 +3,8 @@ package actions
 type AT string
 
 const (
-	LogActionType    AT = "log_action"
-	NotifyActionType AT = "notify_action"
-	IgnoreActionType AT = "ignore_action"
+	LogActionType     AT = "log"
+	NotifyActionType  AT = "notify"
+	IgnoreActionType  AT = "ignore"
+	UnknownActionType AT = "unknown"
 )

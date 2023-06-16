@@ -550,8 +550,6 @@ func runMain(*cobra.Command, []string) {
 
 	err = s.Run(ctx)
 
-	time.Sleep(500 * time.Millisecond)
-
 	s.Logger.Debugf("run finished")
 
 	if err != nil {

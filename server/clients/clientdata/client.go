@@ -448,9 +448,10 @@ func (c *Client) SetUpdatesStatus(status *models.UpdatesStatus) {
 }
 
 func (c *Client) SetDisconnectedAt(at *time.Time) {
-	if at != nil {
-		c.Log().Debugf("%s: set to disconnected at %s", c.GetID(), at)
-	}
+	// TODO: (rs): do we want this log? very noisy when starting a server with many clients.
+	// if at != nil {
+	// 	c.Log().Debugf("%s: set to disconnected at %s", c.GetID(), at)
+	// }
 	c.flock.Lock()
 	c.DisconnectedAt = at
 	c.flock.Unlock()

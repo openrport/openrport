@@ -4,11 +4,25 @@ import (
 	"errors"
 
 	"github.com/realvnc-labs/rport/plus/capabilities/alerting/actions"
+	"github.com/realvnc-labs/rport/plus/capabilities/alerting/entities/severity"
 	"github.com/realvnc-labs/rport/plus/capabilities/alerting/entities/templates"
 )
 
+const (
+	DefaultRuleSetID RuleSetID = "default"
+)
+
 var (
-	ErrRuleSetNotFound = errors.New("rule set not found")
+	ErrRuleSetValidationFailed = errors.New("rule set validation failed")
+
+	ErrMissingRulesMsg                 = "there must be at least 1 rule in a rule set"
+	ErrMissingRuleIDMsg                = "rule id cannot be empty"
+	ErrMissingNotificationTemplatesMsg = "missing notification templates"
+	ErrMissingIgnoreSpecsMsg           = "missing ignore specs"
+	ErrActionMissingContentMsg         = "missing action content"
+	ErrMissingExprMsg                  = "expression cannot be empty"
+	ErrTemplateNotFoundMsg             = "template not found"
+	ErrFailedToCompileMsg              = "failed to compile rule"
 )
 
 type RuleSetID string
@@ -22,29 +36,46 @@ type RuleSet struct {
 	Rules     []Rule     `mapstructure:"rules" json:"rules"`
 }
 
+type State string
+
+const (
+	StateUnknown State = "UNKNOWN"
+	NotFiring    State = "NOT_FIRING"
+	Firing       State = "FIRING"
+)
+
 type Rule struct {
-	ID      RuleID     `mapstructure:"id" json:"id"`
-	Ex      string     `mapstructure:"expr" json:"expr"`
-	Actions ActionList `mapstructure:"action" json:"actions"`
+	ID       RuleID            `mapstructure:"id" json:"id"`
+	Severity severity.Severity `mapstructure:"severity" json:"severity"`
+	Ex       string            `mapstructure:"expr" json:"expr"`
+	Actions  ActionList        `mapstructure:"action" json:"actions"`
 }
 
 type ActionList []Action
 
 type Action struct {
-	ActType       actions.AT `mapstructure:"type" json:"act_type"`
-	*NotifyAction `mapstructure:",squash" json:"notify_action,omitempty"`
-	*IgnoreAction `mapstructure:",squash" json:"ignore_action,omitempty"`
-	*LogAction    `mapstructure:",squash" json:"log_action,omitempty"`
+	*NotifyList `mapstructure:",squash" json:"notify,omitempty"`
+	*IgnoreList `mapstructure:",squash" json:"ignore,omitempty"`
+	LogMessage  `mapstructure:",squash" json:"log,omitempty"`
 }
 
-type NotifyAction struct {
-	TemplateIDs []templates.TemplateID `mapstructure:"body" json:"template_ids"`
+func (at *Action) GetActType() (actType actions.AT) {
+	if at.NotifyList != nil {
+		return actions.NotifyActionType
+	}
+	if at.IgnoreList != nil {
+		return actions.IgnoreActionType
+	}
+	if at.LogMessage != "" {
+		return actions.LogActionType
+	}
+	return actions.UnknownActionType
 }
 
-type LogAction struct {
-	LogStr string `mapstructure:"log_str" json:"log_str"`
-}
+type NotifyList []templates.TemplateID
 
-type IgnoreAction struct {
-	Match string `mapstructure:"match" json:"match"`
-}
+type LogMessage string
+
+type IgnoreList []IgnoreSpec
+
+type IgnoreSpec string

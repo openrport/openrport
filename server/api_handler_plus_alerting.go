@@ -4,8 +4,12 @@ import (
 	"errors"
 	"fmt"
 	"net/http"
+	"time"
 
 	"github.com/gorilla/mux"
+
+	"github.com/realvnc-labs/rport/plus/capabilities/alerting/entities/validations"
+	"github.com/realvnc-labs/rport/server/alerts"
 
 	rportplus "github.com/realvnc-labs/rport/plus"
 	alertingcap "github.com/realvnc-labs/rport/plus/capabilities/alerting"
@@ -13,6 +17,7 @@ import (
 	"github.com/realvnc-labs/rport/plus/capabilities/alerting/entities/templates"
 	"github.com/realvnc-labs/rport/server/api"
 	"github.com/realvnc-labs/rport/server/routes"
+	"github.com/realvnc-labs/rport/share/query"
 )
 
 func (al *APIListener) getAlertingService() (as alertingcap.Service, statusCode int, err error) {
@@ -31,53 +36,47 @@ func (al *APIListener) getAlertingService() (as alertingcap.Service, statusCode 
 	return as, 0, nil
 }
 
-func (al *APIListener) handleGetRuleSet(w http.ResponseWriter, r *http.Request) {
+func (al *APIListener) handleGetRuleSet(w http.ResponseWriter, _ *http.Request) {
 	as, status, err := al.getAlertingService()
 	if err != nil {
 		al.jsonErrorResponse(w, status, err)
 	}
 
-	vars := mux.Vars(r)
-	ruleSetID := vars[routes.ParamRuleSetID]
-
-	rs, err := as.LoadRuleSet(rules.RuleSetID(ruleSetID))
-	if err != nil && !errors.Is(err, rules.ErrRuleSetNotFound) {
+	rs, err := as.LoadRuleSet(rules.DefaultRuleSetID)
+	if err != nil && !errors.Is(err, alertingcap.ErrEntityNotFound) {
 		al.jsonErrorResponse(w, http.StatusInternalServerError, err)
 		return
 	}
 
 	if rs == nil {
-		al.jsonErrorResponseWithTitle(w, http.StatusNotFound, fmt.Sprintf("ruleset with id %q not found", ruleSetID))
+		al.jsonErrorResponseWithTitle(w, http.StatusNotFound, "no ruleset available")
 		return
 	}
 
-	al.Debugf("loaded ruleset = %v", rs)
+	al.Debugf("loaded ruleset")
 
 	response := api.NewSuccessPayload(rs)
 
 	al.writeJSONResponse(w, http.StatusOK, response)
 }
 
-func (al *APIListener) handleDeleteRuleSet(w http.ResponseWriter, r *http.Request) {
+func (al *APIListener) handleDeleteRuleSet(w http.ResponseWriter, _ *http.Request) {
 	as, status, err := al.getAlertingService()
 	if err != nil {
 		al.jsonErrorResponse(w, status, err)
 	}
 
-	vars := mux.Vars(r)
-	ruleSetID := vars[routes.ParamRuleSetID]
-
-	err = as.DeleteRuleSet(rules.RuleSetID(ruleSetID))
+	err = as.DeleteRuleSet(rules.DefaultRuleSetID)
 	if err != nil {
-		if errors.Is(err, rules.ErrRuleSetNotFound) {
-			al.jsonErrorResponseWithTitle(w, http.StatusNotFound, fmt.Sprintf("ruleset with id %q not found", ruleSetID))
+		if errors.Is(err, alertingcap.ErrEntityNotFound) {
+			al.jsonErrorResponseWithTitle(w, http.StatusNotFound, "no ruleset found")
 			return
 		}
 		al.jsonErrorResponse(w, http.StatusInternalServerError, err)
 		return
 	}
 
-	al.Debugf("deleted ruleset = %s", ruleSetID)
+	al.Debugf("deleted ruleset = %s", rules.DefaultRuleSetID)
 }
 
 func (al *APIListener) handleSaveRuleSet(w http.ResponseWriter, r *http.Request) {
@@ -94,20 +93,42 @@ func (al *APIListener) handleSaveRuleSet(w http.ResponseWriter, r *http.Request)
 		return
 	}
 
-	al.Debugf("saving ruleset = %v", rs)
+	rs.RuleSetID = rules.DefaultRuleSetID
 
-	err = as.SaveRuleSet(rs)
+	errs, err := as.SaveRuleSet(rs)
 	if err != nil {
-		// TODO: (rs): test if this needs to wrap the error with some description/context?
+		if errs != nil {
+			errPayload := makeValidationErrorPayload(errs)
+			al.writeJSONResponse(w, http.StatusBadRequest, errPayload)
+			return
+		}
 		al.jsonErrorResponse(w, http.StatusInternalServerError, err)
 		return
 	}
 
-	err = as.LoadLatestRuleSet()
+	err = as.LoadDefaultRuleSet()
 	if err != nil {
 		al.jsonErrorResponse(w, http.StatusInternalServerError, err)
 		return
 	}
+
+	al.Debugf("saved ruleset = %v", rs)
+}
+
+func makeValidationErrorPayload(errs validations.ErrorList) *api.ErrorPayload {
+	validationErrs := []api.ErrorPayloadItem{}
+	for _, validationErr := range errs {
+		vErr := api.ErrorPayloadItem{
+			Code:   "",
+			Title:  "error during rule set validation",
+			Detail: fmt.Sprintf("%s: %s", validationErr.Prefix, validationErr.Err.Error()),
+		}
+		validationErrs = append(validationErrs, vErr)
+	}
+	errPayload := &api.ErrorPayload{
+		Errors: validationErrs,
+	}
+	return errPayload
 }
 
 func (al *APIListener) handleSaveTemplate(w http.ResponseWriter, r *http.Request) {
@@ -124,14 +145,18 @@ func (al *APIListener) handleSaveTemplate(w http.ResponseWriter, r *http.Request
 		return
 	}
 
-	al.Debugf("saving template = %v", template)
-
-	err = as.SaveTemplate(template)
+	errs, err := as.SaveTemplate(template)
 	if err != nil {
-		// TODO: (rs): test if this needs to wrap the error with some description/context?
+		if errs != nil {
+			errPayload := makeValidationErrorPayload(errs)
+			al.writeJSONResponse(w, http.StatusBadRequest, errPayload)
+			return
+		}
 		al.jsonErrorResponse(w, http.StatusInternalServerError, err)
 		return
 	}
+
+	al.Debugf("saved template = %v", template)
 }
 
 func (al *APIListener) handleDeleteTemplate(w http.ResponseWriter, r *http.Request) {
@@ -145,8 +170,12 @@ func (al *APIListener) handleDeleteTemplate(w http.ResponseWriter, r *http.Reque
 
 	err = as.DeleteTemplate(templates.TemplateID(tid))
 	if err != nil {
-		if errors.Is(err, templates.ErrTemplateNotFound) {
+		if errors.Is(err, alertingcap.ErrEntityNotFound) {
 			al.jsonErrorResponseWithTitle(w, http.StatusNotFound, fmt.Sprintf("template with id %q not found", tid))
+			return
+		}
+		if errors.Is(err, templates.ErrTemplateInUse) {
+			al.jsonErrorResponseWithTitle(w, http.StatusForbidden, err.Error())
 			return
 		}
 		al.jsonErrorResponse(w, http.StatusInternalServerError, err)
@@ -166,7 +195,7 @@ func (al *APIListener) handleGetTemplate(w http.ResponseWriter, r *http.Request)
 	tid := vars[routes.ParamTemplateID]
 
 	template, err := as.GetTemplate(templates.TemplateID(tid))
-	if err != nil && !errors.Is(err, templates.ErrTemplateNotFound) {
+	if err != nil && !errors.Is(err, alertingcap.ErrEntityNotFound) {
 		al.jsonErrorResponse(w, http.StatusInternalServerError, err)
 		return
 	}
@@ -183,7 +212,7 @@ func (al *APIListener) handleGetTemplate(w http.ResponseWriter, r *http.Request)
 	al.writeJSONResponse(w, http.StatusOK, response)
 }
 
-func (al *APIListener) handleGetAllTemplates(w http.ResponseWriter, r *http.Request) {
+func (al *APIListener) handleGetAllTemplates(w http.ResponseWriter, _ *http.Request) {
 	as, status, err := al.getAlertingService()
 	if err != nil {
 		al.jsonErrorResponse(w, status, err)
@@ -202,20 +231,120 @@ func (al *APIListener) handleGetAllTemplates(w http.ResponseWriter, r *http.Requ
 	al.writeJSONResponse(w, http.StatusOK, response)
 }
 
-func (al *APIListener) handleGetActiveRuleActionStates(w http.ResponseWriter, r *http.Request) {
+func (al *APIListener) handleGetProblem(w http.ResponseWriter, r *http.Request) {
 	as, status, err := al.getAlertingService()
 	if err != nil {
 		al.jsonErrorResponse(w, status, err)
 	}
 
-	// TODO: (rs): what should this limit be?
-	states, err := as.GetLatestRuleActionStates(1000)
+	vars := mux.Vars(r)
+	problemID := vars[routes.ParamProblemID]
+
+	problem, err := as.GetProblem(rules.ProblemID(problemID))
+	if err != nil && !errors.Is(err, alertingcap.ErrEntityNotFound) {
+		al.jsonErrorResponse(w, http.StatusInternalServerError, err)
+		return
+	}
+
+	if problem == nil {
+		al.jsonErrorResponseWithTitle(w, http.StatusNotFound, fmt.Sprintf("problem with id %s not found", problemID))
+		return
+	}
+
+	al.Debugf("loaded problem = %v", problem)
+
+	response := api.NewSuccessPayload(problem)
+
+	al.writeJSONResponse(w, http.StatusOK, response)
+}
+
+func (al *APIListener) handleUpdateProblem(w http.ResponseWriter, r *http.Request) {
+	as, status, err := al.getAlertingService()
+	if err != nil {
+		al.jsonErrorResponse(w, status, err)
+	}
+
+	problemUpdateRequest := &rules.ProblemUpdateRequest{}
+
+	err = parseRequestBody(r.Body, &problemUpdateRequest)
+	if err != nil {
+		al.jsonError(w, err)
+		return
+	}
+
+	if problemUpdateRequest.State == rules.ProblemActive {
+		err = as.SetProblemActive(problemUpdateRequest.ID)
+		if err != nil {
+			al.jsonErrorResponse(w, http.StatusInternalServerError, err)
+			return
+		}
+	} else {
+		err = as.SetProblemResolved(problemUpdateRequest.ID, time.Now().UTC())
+		if err != nil {
+			al.jsonErrorResponse(w, http.StatusInternalServerError, err)
+			return
+		}
+	}
+	al.Debugf("updated problem = %v", problemUpdateRequest)
+}
+
+func (al *APIListener) handleGetLatestProblems(w http.ResponseWriter, req *http.Request) {
+	as, status, err := al.getAlertingService()
+	if err != nil {
+		al.jsonErrorResponse(w, status, err)
+	}
+
+	options := query.NewOptions(req, nil, nil, alerts.ProblemsOptionsListDefaultFields)
+	errs := query.ValidateListOptions(options,
+		alerts.ProblemsOptionsSupportedSorts,
+		alerts.ProblemsOptionsSupportedFilters,
+		alerts.ProblemsOptionsSupportedFields,
+		&query.PaginationConfig{
+			MaxLimit:     500,
+			DefaultLimit: 50,
+		})
+
+	if errs != nil {
+		al.jsonError(w, errs)
+		return
+	}
+
+	sortFunc, desc, err := alerts.GetProblemsSortFunc(options.Sorts)
+	if err != nil {
+		al.jsonError(w, err)
+		return
+	}
+
+	problems, err := as.GetLatestProblems(alertingcap.NoLimit)
 	if err != nil {
 		al.jsonErrorResponse(w, http.StatusInternalServerError, err)
 		return
 	}
 
-	response := api.NewSuccessPayload(states)
+	matchingProblems := make([]*rules.Problem, 0, 128)
+
+	for _, problem := range problems {
+		matches, err := query.MatchesFilters(problem, options.Filters)
+
+		if err != nil {
+			al.jsonErrorResponse(w, http.StatusInternalServerError, err)
+			return
+		}
+
+		if matches {
+			matchingProblems = append(matchingProblems, problem)
+		}
+	}
+
+	sortFunc(matchingProblems, desc)
+
+	totalCount := len(matchingProblems)
+	start, end := options.Pagination.GetStartEnd(totalCount)
+	pagedProblems := matchingProblems[start:end]
+
+	al.Debugf("total problems = %d", len(pagedProblems))
+
+	response := api.NewSuccessPayload(pagedProblems)
 
 	al.writeJSONResponse(w, http.StatusOK, response)
 }

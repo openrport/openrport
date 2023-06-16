@@ -2,17 +2,24 @@ package alertingcap
 
 import (
 	"context"
+	"errors"
+	"time"
 
-	"github.com/dgraph-io/badger/v4"
+	"go.etcd.io/bbolt"
 
 	"github.com/realvnc-labs/rport/plus/capabilities/alerting/entities/clientupdates"
 	"github.com/realvnc-labs/rport/plus/capabilities/alerting/entities/measures"
 	"github.com/realvnc-labs/rport/plus/capabilities/alerting/entities/rules"
 	"github.com/realvnc-labs/rport/plus/capabilities/alerting/entities/templates"
+	"github.com/realvnc-labs/rport/plus/capabilities/alerting/entities/validations"
 )
 
+const NoLimit = -1
+
+var ErrEntityNotFound = errors.New("entity not found")
+
 type CapabilityEx interface {
-	Init(db *badger.DB) (err error)
+	Init(db *bbolt.DB) (err error)
 
 	GetService() (as Service)
 }
@@ -24,20 +31,23 @@ type Config struct {
 type Service interface {
 	Run(ctx context.Context)
 	Stop() (err error)
-
-	LoadRuleSet(ruleSetID rules.RuleSetID) (rs *rules.RuleSet, err error)
-	SaveRuleSet(rs *rules.RuleSet) (err error)
-	DeleteRuleSet(ruleSetID rules.RuleSetID) (err error)
-
-	GetAllTemplates() (templateList templates.TemplateList, err error)
-	GetTemplate(templateID templates.TemplateID) (template *templates.Template, err error)
-	SaveTemplate(template *templates.Template) (err error)
-	DeleteTemplate(templateID templates.TemplateID) (err error)
+	LoadDefaultRuleSet() (err error)
 
 	PutClientUpdate(cl *clientupdates.Client) (err error)
 	PutMeasurement(m *measures.Measure) (err error)
 
-	LoadLatestRuleSet() (err error)
-	SetRuleSet(rs *rules.RuleSet)
-	GetLatestRuleActionStates(limit int) (states []*rules.RuleActionState, err error)
+	GetAllTemplates() (templateList templates.TemplateList, err error)
+	GetTemplate(templateID templates.TemplateID) (template *templates.Template, err error)
+	SaveTemplate(template *templates.Template) (errs validations.ErrorList, err error)
+	DeleteTemplate(templateID templates.TemplateID) (err error)
+
+	LoadRuleSet(ruleSetID rules.RuleSetID) (rs *rules.RuleSet, err error)
+	SaveRuleSet(rs *rules.RuleSet) (errs validations.ErrorList, err error)
+	DeleteRuleSet(ruleSetID rules.RuleSetID) (err error)
+
+	GetProblem(pid rules.ProblemID) (problem *rules.Problem, err error)
+	GetLatestProblem(rid rules.RuleID, clientID string) (problem *rules.Problem, err error)
+	SetProblemActive(pid rules.ProblemID) (err error)
+	SetProblemResolved(pid rules.ProblemID, resolvedAt time.Time) (err error)
+	GetLatestProblems(limit int) (problems []*rules.Problem, err error)
 }
