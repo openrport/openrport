@@ -7,6 +7,7 @@ import (
 	"html/template"
 
 	"github.com/realvnc-labs/rport/server/notifications/channels/rmailer"
+	"github.com/realvnc-labs/rport/share/refs"
 )
 
 // ContentType represents a content type for the Msg
@@ -18,7 +19,7 @@ const (
 	ContentTypeTextJSON  ContentType = "text/json"
 )
 
-type Notification struct {
+type NotificationData struct {
 	Target      string
 	Recipients  []string
 	Subject     string
@@ -27,7 +28,7 @@ type Notification struct {
 }
 
 type Notifier interface {
-	Dispatch(notification Notification) error
+	Dispatch(origin refs.Origin, notification NotificationData) (refs.Identifiable, error)
 }
 
 type ScriptRunner interface {
@@ -39,19 +40,29 @@ type broker struct {
 	scriptRunner ScriptRunner
 }
 
-func (b broker) Dispatch(notification Notification) error {
+type NotificationID string
+
+const NotificationType refs.IdentifiableType = "notification"
+
+func (nid NotificationID) Type() refs.IdentifiableType {
+	return NotificationType
+}
+
+var identifiebleFactory = refs.MustIdentifiableFactory(NotificationType)
+
+func (b broker) Dispatch(origin refs.Origin, notification NotificationData) (refs.Identifiable, error) {
 	if notification.Target == "smtp" {
 		content := notification.Content
 		if notification.ContentType == ContentTypeTextHTML {
 			var err error
 			content, err = wrapWithTemplate(content)
 			if err != nil {
-				return fmt.Errorf("failed preparing notification to dispatch: %v", err)
+				return identifiebleFactory(""), fmt.Errorf("failed preparing notification to dispatch: %v", err)
 			}
 		}
-		return b.mailer.Send(notification.Recipients, notification.Subject, rmailer.ContentType(notification.ContentType), content)
+		return identifiebleFactory(""), b.mailer.Send(notification.Recipients, notification.Subject, rmailer.ContentType(notification.ContentType), content)
 	}
-	return b.scriptRunner.Run(notification.Target, notification.Recipients, notification.Subject, notification.Content)
+	return identifiebleFactory(""), b.scriptRunner.Run(notification.Target, notification.Recipients, notification.Subject, notification.Content)
 }
 
 //go:embed mailTemplate.tmpl

@@ -18,7 +18,16 @@ type runner struct {
 }
 
 func (r runner) Run(script string, recipients []string, subject string, body string) error {
+	ctx, cancelFunc := context.WithTimeout(context.Background(), r.scriptTimeout)
 
+	err := RunCancelableScript(ctx, script, recipients, subject, body)
+
+	cancelFunc()
+
+	return err
+}
+
+func RunCancelableScript(ctx context.Context, script string, recipients []string, subject string, body string) error {
 	args := append([]string{subject}, recipients...)
 
 	cmd := exec.Command(script, args...)
@@ -45,19 +54,19 @@ func (r runner) Run(script string, recipients []string, subject string, body str
 		return err
 	}
 
-	ctx, cancelFunc := context.WithCancel(context.Background())
+	internalCtx, cancelFunc := context.WithCancel(context.Background())
 	go func() {
 		select {
-		case <-time.After(r.scriptTimeout):
+		case <-ctx.Done():
 			err = cmd.Process.Kill()
 			if err != nil {
-				err = fmt.Errorf("error killing after timeout script: %v", err)
+				err = fmt.Errorf("killing of the script failed, script killed because of ctx cancel: %v", err)
 			} else {
-				err = fmt.Errorf("script timeout")
+				err = fmt.Errorf("script killed because of ctx cancel")
 			}
 
 			cancelFunc()
-		case <-ctx.Done():
+		case <-internalCtx.Done():
 		}
 	}()
 
@@ -66,7 +75,7 @@ func (r runner) Run(script string, recipients []string, subject string, body str
 		cancelFunc()
 	}()
 
-	<-ctx.Done()
+	<-internalCtx.Done()
 	if err != nil {
 		return err
 	}

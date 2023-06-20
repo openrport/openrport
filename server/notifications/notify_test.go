@@ -39,28 +39,28 @@ func (ts *MailTestSuite) SetupSuite() {
 }
 
 func (ts *MailTestSuite) TestNotifyMail() {
-	_ = ts.notifier.Dispatch(notifications.Notification{})
+	_, _ = ts.notifier.Dispatch(notifications.NotificationData{})
 }
 
 func (ts *MailTestSuite) TestNotifyDispatchToMail() {
-	notification := notifications.Notification{Target: "smtp", Content: "test-content-mail"}
-	err := ts.notifier.Dispatch(notification)
+	notification := notifications.NotificationData{Target: "smtp", Content: "test-content-mail"}
+	_, err := ts.notifier.Dispatch(notification)
 	ts.NoError(err)
 	ts.Equal(notification.Content, ts.mockMailer.body)
 	ts.NotEqual(notification.Content, ts.mockScriptNotifier.body)
 }
 
 func (ts *MailTestSuite) TestMailShouldHaveNiceTemplate() {
-	notification := notifications.Notification{Target: "smtp", Content: "test-content-mail", ContentType: notifications.ContentTypeTextHTML}
-	err := ts.notifier.Dispatch(notification)
+	notification := notifications.NotificationData{Target: "smtp", Content: "test-content-mail", ContentType: notifications.ContentTypeTextHTML}
+	_, err := ts.notifier.Dispatch(notification)
 	ts.NoError(err)
 	ts.Contains(ts.mockMailer.body, notification.Content)
 	ts.Greater(len(ts.mockMailer.body), len(notification.Content))
 }
 
 func (ts *MailTestSuite) TestNotifyDispatchToScript() {
-	notification := notifications.Notification{Target: "something", Content: "test-content-script"}
-	err := ts.notifier.Dispatch(notification)
+	notification := notifications.NotificationData{Target: "something", Content: "test-content-script"}
+	_, err := ts.notifier.Dispatch(notification)
 	ts.NoError(err)
 	ts.NotEqual(notification.Content, ts.mockMailer.body)
 	ts.Equal(notification.Content, ts.mockScriptNotifier.body)
