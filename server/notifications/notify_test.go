@@ -7,6 +7,7 @@ import (
 
 	"github.com/realvnc-labs/rport/server/notifications"
 	"github.com/realvnc-labs/rport/server/notifications/channels/rmailer"
+	"github.com/realvnc-labs/rport/share/refs"
 )
 
 type MockMailer struct {
@@ -38,13 +39,12 @@ func (ts *MailTestSuite) SetupSuite() {
 	ts.notifier = notifications.NewNotifier(&ts.mockMailer, &ts.mockScriptNotifier)
 }
 
-func (ts *MailTestSuite) TestNotifyMail() {
-	_, _ = ts.notifier.Dispatch(notifications.NotificationData{})
-}
+var identifiable = refs.GenerateIdentifiable("stuff")
+var origin = refs.NewOrigin(identifiable, identifiable)
 
 func (ts *MailTestSuite) TestNotifyDispatchToMail() {
 	notification := notifications.NotificationData{Target: "smtp", Content: "test-content-mail"}
-	_, err := ts.notifier.Dispatch(notification)
+	_, err := ts.notifier.Dispatch(origin, notification)
 	ts.NoError(err)
 	ts.Equal(notification.Content, ts.mockMailer.body)
 	ts.NotEqual(notification.Content, ts.mockScriptNotifier.body)
@@ -52,7 +52,7 @@ func (ts *MailTestSuite) TestNotifyDispatchToMail() {
 
 func (ts *MailTestSuite) TestMailShouldHaveNiceTemplate() {
 	notification := notifications.NotificationData{Target: "smtp", Content: "test-content-mail", ContentType: notifications.ContentTypeTextHTML}
-	_, err := ts.notifier.Dispatch(notification)
+	_, err := ts.notifier.Dispatch(origin, notification)
 	ts.NoError(err)
 	ts.Contains(ts.mockMailer.body, notification.Content)
 	ts.Greater(len(ts.mockMailer.body), len(notification.Content))
@@ -60,7 +60,7 @@ func (ts *MailTestSuite) TestMailShouldHaveNiceTemplate() {
 
 func (ts *MailTestSuite) TestNotifyDispatchToScript() {
 	notification := notifications.NotificationData{Target: "something", Content: "test-content-script"}
-	_, err := ts.notifier.Dispatch(notification)
+	_, err := ts.notifier.Dispatch(origin, notification)
 	ts.NoError(err)
 	ts.NotEqual(notification.Content, ts.mockMailer.body)
 	ts.Equal(notification.Content, ts.mockScriptNotifier.body)

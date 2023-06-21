@@ -28,7 +28,7 @@ type NotificationData struct {
 }
 
 type Notifier interface {
-	Dispatch(origin refs.Origin, notification NotificationData) (refs.Identifiable, error)
+	Dispatch(origin refs.Origin, notification NotificationData) (refs.Origin, error)
 }
 
 type ScriptRunner interface {
@@ -40,29 +40,32 @@ type broker struct {
 	scriptRunner ScriptRunner
 }
 
-type NotificationID string
+//type NotificationID string
+//func (nid NotificationID) Type() refs.IdentifiableType {
+//	return NotificationType
+//}
 
 const NotificationType refs.IdentifiableType = "notification"
+const ErrorNotificationType refs.IdentifiableType = "error-notification"
 
-func (nid NotificationID) Type() refs.IdentifiableType {
-	return NotificationType
-}
+var errorIdentifiable = refs.MustGenerator(ErrorNotificationType)
+var genNewID = refs.MustGenerator(NotificationType)
 
-var identifiebleFactory = refs.MustIdentifiableFactory(NotificationType)
+func (b broker) Dispatch(origin refs.Origin, notification NotificationData) (refs.Origin, error) {
+	me := origin.NextFromIdentifiable(genNewID())
 
-func (b broker) Dispatch(origin refs.Origin, notification NotificationData) (refs.Identifiable, error) {
 	if notification.Target == "smtp" {
 		content := notification.Content
 		if notification.ContentType == ContentTypeTextHTML {
 			var err error
 			content, err = wrapWithTemplate(content)
 			if err != nil {
-				return identifiebleFactory(""), fmt.Errorf("failed preparing notification to dispatch: %v", err)
+				return me, fmt.Errorf("failed preparing notification to dispatch: %v", err)
 			}
 		}
-		return identifiebleFactory(""), b.mailer.Send(notification.Recipients, notification.Subject, rmailer.ContentType(notification.ContentType), content)
+		return me, b.mailer.Send(notification.Recipients, notification.Subject, rmailer.ContentType(notification.ContentType), content)
 	}
-	return identifiebleFactory(""), b.scriptRunner.Run(notification.Target, notification.Recipients, notification.Subject, notification.Content)
+	return me, b.scriptRunner.Run(notification.Target, notification.Recipients, notification.Subject, notification.Content)
 }
 
 //go:embed mailTemplate.tmpl

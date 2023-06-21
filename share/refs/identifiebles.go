@@ -3,6 +3,8 @@ package refs
 import (
 	"fmt"
 	"regexp"
+
+	"github.com/oklog/ulid/v2"
 )
 
 // IdentifiableType make it easier for ide to find defined instances in the codebase, alse type can't contain (
@@ -36,6 +38,11 @@ type identifiable struct {
 	id    string
 }
 
+func GenerateIdentifiable(iType IdentifiableType) identifiable {
+	id := ulid.Make()
+	return NewIdentifiable(iType, id.String())
+}
+
 func NewIdentifiable(iType IdentifiableType, id string) identifiable {
 	return identifiable{iType: iType, id: id}
 }
@@ -55,8 +62,14 @@ func (i identifiable) String() string {
 	return string(i.iType) + "(" + i.id + ")"
 }
 
-func MustIdentifiableFactory(notificationType IdentifiableType) func(id string) identifiable {
+func MustIdentifiableFactory(iType IdentifiableType) func(id string) identifiable {
 	return func(id string) identifiable {
-		return NewIdentifiable(notificationType, id)
+		return NewIdentifiable(iType, id)
+	}
+}
+
+func MustGenerator(iType IdentifiableType) func() identifiable {
+	return func() identifiable {
+		return GenerateIdentifiable(iType)
 	}
 }

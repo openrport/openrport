@@ -14,18 +14,18 @@ type origin struct {
 }
 
 func (o origin) Source() identifiable {
-	//TODO implement me
-	panic("implement me")
+	return o.source
 }
 
 func (o origin) Parent() identifiable {
-	//TODO implement me
-	panic("implement me")
+	return o.parent
 }
 
 func (o origin) NextFromIdentifiable(nextParent identifiable) origin {
-	//TODO implement me
-	panic("implement me")
+	return origin{
+		source: o.source,
+		parent: nextParent,
+	}
 }
 
 func (o origin) Next(iType IdentifiableType, id string) origin {
