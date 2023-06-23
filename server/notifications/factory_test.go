@@ -32,7 +32,7 @@ func (suite *DispatcherTestSuite) TestDispatcherCreatesNotification() {
 	details, found, err := suite.store.Details(context.Background(), ni)
 	suite.True(found)
 	suite.Equal(notifications.NotificationDetails{
-		Origin: expectedOrigin.String(),
+		Origin: expectedOrigin,
 		Data:   notification,
 		State:  notifications.ProcessingStateQueued,
 		ID:     ni,

@@ -1,5 +1,16 @@
 package refs
 
+import (
+	"fmt"
+	"strings"
+)
+
+const (
+	Head      = "Origin(Source("
+	Separator = "), Parent("
+	Foot      = "))"
+)
+
 type Origin interface {
 	Source() identifiable
 	Parent() identifiable
@@ -33,9 +44,31 @@ func (o origin) Next(iType IdentifiableType, id string) origin {
 }
 
 func (o origin) String() string {
-	return "Origin(Source(" + o.source.String() + "), Parent(" + o.parent.String() + "))"
+	return Head + o.source.String() + Separator + o.parent.String() + Foot
 }
 
 func NewOrigin(source identifiable, parent identifiable) origin {
 	return origin{source: source, parent: parent}
+}
+
+func ParseOrigin(raw string) (origin, error) {
+
+	if len(raw) < len(Head)+len(Foot) {
+		return origin{}, fmt.Errorf("can't parse origin: %v", raw)
+	}
+	inside := raw[len(Head) : len(raw)-len(Foot)]
+	parts := strings.Split(inside, Separator)
+	if len(parts) != 2 {
+		return origin{}, fmt.Errorf("can't parse origin: %v", raw)
+	}
+	source, err := ParseIdentifiable(parts[0])
+	if err != nil {
+		return origin{}, fmt.Errorf("can't parse origin: %v", err)
+	}
+	parent, err := ParseIdentifiable(parts[1])
+	if err != nil {
+		return origin{}, fmt.Errorf("can't parse origin: %v", err)
+	}
+
+	return origin{source: source, parent: parent}, nil
 }

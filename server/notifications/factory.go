@@ -30,11 +30,21 @@ func (f dispatcher) Dispatch(ctx context.Context, origin refs.Origin, notificati
 	details := NotificationDetails{
 		Data:   notification,
 		State:  ProcessingStateQueued,
-		Origin: origin.String(),
+		Origin: origin,
 		ID:     refs.GenerateIdentifiable(NotificationType),
+		Target: FigureOutTarget(notification.Target),
 	}
 
 	return details.ID, f.store.Save(ctx, details)
+}
+
+func FigureOutTarget(target string) Target {
+	switch target {
+	case "smtp":
+		return TargetMail
+	default:
+		return TargetScript
+	}
 }
 
 func NewDispatcher(repository store) dispatcher {
@@ -44,7 +54,7 @@ func NewDispatcher(repository store) dispatcher {
 }
 
 type NotificationDetails struct {
-	Origin string
+	Origin refs.Origin
 	Data   NotificationData
 	State  ProcessingState
 	ID     refs.Identifiable

@@ -81,6 +81,8 @@ require (
 	github.com/wneessen/go-mail v0.3.9
 )
 
+require github.com/go-bindata/go-bindata v3.1.2+incompatible // indirect
+
 require (
 	github.com/andrew-d/go-termutil v0.0.0-20150726205930-009166a695a2 // indirect
 	github.com/dlclark/regexp2 v1.7.0 // indirect

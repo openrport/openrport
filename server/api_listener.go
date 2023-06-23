@@ -24,6 +24,7 @@ import (
 	"github.com/realvnc-labs/rport/db/migration/library"
 	"github.com/realvnc-labs/rport/db/sqlite"
 	rportplus "github.com/realvnc-labs/rport/plus"
+	"github.com/realvnc-labs/rport/server/notifications"
 
 	"github.com/realvnc-labs/rport/server/api/authorization"
 	"github.com/realvnc-labs/rport/server/api/session"
@@ -66,6 +67,7 @@ type APIListener struct {
 	bannedUsers       *security.BanList
 	bannedIPs         *security.MaxBadAttemptsBanList
 	twoFASrv          TwoFAService
+	notificationsREST notifications.REST
 
 	testDone chan bool // is used only in tests to be able to wait until async task is done
 

@@ -21,10 +21,10 @@ type Identifiable interface {
 
 var identifiebleRegEx = regexp.MustCompile("([^\\(]+)\\(([^\\)]+)\\)")
 
-func ParseIdentifiable(raw string) (Identifiable, error) {
+func ParseIdentifiable(raw string) (identifiable, error) {
 	matches := identifiebleRegEx.FindStringSubmatch(raw)
 	if len(matches) == 0 {
-		return nil, fmt.Errorf("cant parse identifielbe: %v", raw)
+		return identifiable{}, fmt.Errorf("cant parse identifielbe: %v", raw)
 	}
 
 	return identifiable{
