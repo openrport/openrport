@@ -49,10 +49,24 @@ func (suite *RepositoryTestSuite) TestRepositoryNotificationSavePropagatesToDeta
 	suite.Equal(details, retrieved)
 }
 
+func (suite *RepositoryTestSuite) TestRepositoryNotificationRunning() {
+	notification := suite.CreateNotification()
+
+	notification.State = notifications.ProcessingStateRunning
+
+	suite.NoError(suite.repository.SetRunning(context.Background(), notification.ID.ID()))
+
+	retrieved, found, err := suite.repository.Details(context.Background(), notification.ID.ID())
+	suite.NoError(err)
+	suite.True(found)
+	suite.Equal(notification, retrieved)
+}
+
 func (suite *RepositoryTestSuite) TestRepositoryNotificationListWithEntities() {
 	e1 := suite.CreateNotification()
 	e2 := suite.CreateNotification()
-	log.Println(e1, e2)
+	log.Println(e1)
+	log.Println(e2)
 	entities, err := suite.repository.List(context.Background())
 	suite.NoError(err)
 	suite.Len(entities, 2)

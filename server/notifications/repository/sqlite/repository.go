@@ -3,6 +3,7 @@ package sqlite
 import (
 	"context"
 	"database/sql"
+	"errors"
 	"strings"
 	"time"
 
@@ -17,7 +18,8 @@ type Repository interface {
 	//	Save(ctx context.Context, details notifications.NotificationDetails) error
 	List(ctx context.Context) ([]notifications.NotificationSummary, error)
 	Details(ctx context.Context, nid string) (notifications.NotificationDetails, bool, error)
-	Create(background context.Context, details notifications.NotificationDetails) error
+	Create(ctx context.Context, details notifications.NotificationDetails) error
+	SetRunning(ctx context.Context, nid string) error
 }
 
 const RecipientsSeparator = "@|@"
@@ -25,6 +27,25 @@ const RecipientsSeparator = "@|@"
 type repository struct {
 	db        *sqlx.DB
 	converter *query.SQLConverter
+}
+
+func (r repository) SetRunning(ctx context.Context, nid string) error {
+
+	n := SQLNotification{
+		NotificationID: nid,
+		State:          string(notifications.ProcessingStateRunning),
+	}
+
+	_, err := r.db.NamedExecContext(
+		ctx,
+		"INSERT INTO `notifications_log`"+
+			" (`notification_id`, `state`)"+
+			" VALUES "+
+			"(:notification_id,  :state)",
+		n,
+	)
+
+	return err
 }
 
 type SQLNotification struct {
@@ -72,18 +93,22 @@ func (r repository) Create(ctx context.Context, details notifications.Notificati
 }
 
 func (r repository) Details(ctx context.Context, nid string) (notifications.NotificationDetails, bool, error) {
-	q := "SELECT * FROM `notifications_log` WHERE `notification_id` = ?"
+	q := "SELECT * FROM `notifications_log` WHERE `notification_id` = ? order by oid asc"
 
 	empty := notifications.NotificationDetails{}
-	entity := SQLNotification{}
-	err := r.db.GetContext(ctx, &entity, q, nid)
+	entities := []SQLNotification{}
+	err := r.db.SelectContext(ctx, &entities, q, nid)
 	if err != nil {
-		if err == sql.ErrNoRows {
+		if errors.Is(err, sql.ErrNoRows) {
 			return empty, false, nil
 		}
 
 		return empty, false, err
 	}
+	if len(entities) == 0 {
+		return empty, false, nil
+	}
+	entity := entities[0]
 
 	origin, err := refs.ParseOrigin(entity.FullOrigin)
 	if err != nil {
@@ -104,7 +129,7 @@ func (r repository) Details(ctx context.Context, nid string) (notifications.Noti
 			Content:     entity.Body,
 			ContentType: notifications.ContentType(entity.ContentType),
 		},
-		State:  notifications.ProcessingState(entity.State),
+		State:  notifications.ProcessingState(entities[len(entities)-1].State),
 		ID:     refs.NewIdentifiable(notifications.NotificationType, entity.NotificationID),
 		Out:    entity.Out,
 		Target: notifications.FigureOutTarget(entity.Transport),
@@ -115,7 +140,13 @@ func (r repository) Details(ctx context.Context, nid string) (notifications.Noti
 }
 
 func (r repository) List(ctx context.Context) ([]notifications.NotificationSummary, error) {
-	return nil, nil
+	var res []notifications.NotificationSummary
+	err := r.db.SelectContext(
+		ctx,
+		&res,
+		"SELECT notification_id, state FROM notifications_log ORDER by notification_id",
+	)
+	return res, err
 }
 
 func NewRepository(connection *sqlx.DB) repository {
