@@ -90,7 +90,7 @@ func _001_initDownSql() (*asset, error) {
 		return nil, err
 	}
 
-	info := bindataFileInfo{name: "001_init.down.sql", size: 20, mode: os.FileMode(436), modTime: time.Unix(1684930087, 0)}
+	info := bindataFileInfo{name: "001_init.down.sql", size: 20, mode: os.FileMode(436), modTime: time.Unix(1680170683, 0)}
 	a := &asset{bytes: bytes, info: info}
 	return a, nil
 }
@@ -110,7 +110,7 @@ func _001_initUpSql() (*asset, error) {
 		return nil, err
 	}
 
-	info := bindataFileInfo{name: "001_init.up.sql", size: 477, mode: os.FileMode(436), modTime: time.Unix(1684930087, 0)}
+	info := bindataFileInfo{name: "001_init.up.sql", size: 477, mode: os.FileMode(436), modTime: time.Unix(1680170683, 0)}
 	a := &asset{bytes: bytes, info: info}
 	return a, nil
 }
@@ -130,7 +130,7 @@ func _002_commandsDownSql() (*asset, error) {
 		return nil, err
 	}
 
-	info := bindataFileInfo{name: "002_commands.down.sql", size: 21, mode: os.FileMode(436), modTime: time.Unix(1684930087, 0)}
+	info := bindataFileInfo{name: "002_commands.down.sql", size: 21, mode: os.FileMode(436), modTime: time.Unix(1680170683, 0)}
 	a := &asset{bytes: bytes, info: info}
 	return a, nil
 }
@@ -150,7 +150,7 @@ func _002_commandsUpSql() (*asset, error) {
 		return nil, err
 	}
 
-	info := bindataFileInfo{name: "002_commands.up.sql", size: 479, mode: os.FileMode(436), modTime: time.Unix(1684930087, 0)}
+	info := bindataFileInfo{name: "002_commands.up.sql", size: 479, mode: os.FileMode(436), modTime: time.Unix(1680170683, 0)}
 	a := &asset{bytes: bytes, info: info}
 	return a, nil
 }
@@ -170,7 +170,7 @@ func _003_add_fieldsDownSql() (*asset, error) {
 		return nil, err
 	}
 
-	info := bindataFileInfo{name: "003_add_fields.down.sql", size: 0, mode: os.FileMode(436), modTime: time.Unix(1684930087, 0)}
+	info := bindataFileInfo{name: "003_add_fields.down.sql", size: 0, mode: os.FileMode(436), modTime: time.Unix(1680170683, 0)}
 	a := &asset{bytes: bytes, info: info}
 	return a, nil
 }
@@ -190,7 +190,7 @@ func _003_add_fieldsUpSql() (*asset, error) {
 		return nil, err
 	}
 
-	info := bindataFileInfo{name: "003_add_fields.up.sql", size: 352, mode: os.FileMode(436), modTime: time.Unix(1684930087, 0)}
+	info := bindataFileInfo{name: "003_add_fields.up.sql", size: 352, mode: os.FileMode(436), modTime: time.Unix(1680170683, 0)}
 	a := &asset{bytes: bytes, info: info}
 	return a, nil
 }
@@ -210,7 +210,7 @@ func _004_add_timeoutDownSql() (*asset, error) {
 		return nil, err
 	}
 
-	info := bindataFileInfo{name: "004_add_timeout.down.sql", size: 0, mode: os.FileMode(436), modTime: time.Unix(1684930087, 0)}
+	info := bindataFileInfo{name: "004_add_timeout.down.sql", size: 0, mode: os.FileMode(436), modTime: time.Unix(1680170683, 0)}
 	a := &asset{bytes: bytes, info: info}
 	return a, nil
 }
@@ -230,7 +230,7 @@ func _004_add_timeoutUpSql() (*asset, error) {
 		return nil, err
 	}
 
-	info := bindataFileInfo{name: "004_add_timeout.up.sql", size: 144, mode: os.FileMode(436), modTime: time.Unix(1684930087, 0)}
+	info := bindataFileInfo{name: "004_add_timeout.up.sql", size: 144, mode: os.FileMode(436), modTime: time.Unix(1680170683, 0)}
 	a := &asset{bytes: bytes, info: info}
 	return a, nil
 }

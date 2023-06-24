@@ -86,7 +86,7 @@ func _001_initDownSql() (*asset, error) {
 		return nil, err
 	}
 
-	info := bindataFileInfo{name: "001_init.down.sql", size: 26, mode: os.FileMode(436), modTime: time.Unix(1684930087, 0)}
+	info := bindataFileInfo{name: "001_init.down.sql", size: 26, mode: os.FileMode(436), modTime: time.Unix(1680170683, 0)}
 	a := &asset{bytes: bytes, info: info}
 	return a, nil
 }
@@ -106,7 +106,7 @@ func _001_initUpSql() (*asset, error) {
 		return nil, err
 	}
 
-	info := bindataFileInfo{name: "001_init.up.sql", size: 130, mode: os.FileMode(436), modTime: time.Unix(1684930087, 0)}
+	info := bindataFileInfo{name: "001_init.up.sql", size: 130, mode: os.FileMode(436), modTime: time.Unix(1680170683, 0)}
 	a := &asset{bytes: bytes, info: info}
 	return a, nil
 }
@@ -126,7 +126,7 @@ func _002_add_allowed_user_groupsDownSql() (*asset, error) {
 		return nil, err
 	}
 
-	info := bindataFileInfo{name: "002_add_allowed_user_groups.down.sql", size: 0, mode: os.FileMode(436), modTime: time.Unix(1684930087, 0)}
+	info := bindataFileInfo{name: "002_add_allowed_user_groups.down.sql", size: 0, mode: os.FileMode(436), modTime: time.Unix(1680170683, 0)}
 	a := &asset{bytes: bytes, info: info}
 	return a, nil
 }
@@ -146,7 +146,7 @@ func _002_add_allowed_user_groupsUpSql() (*asset, error) {
 		return nil, err
 	}
 
-	info := bindataFileInfo{name: "002_add_allowed_user_groups.up.sql", size: 79, mode: os.FileMode(436), modTime: time.Unix(1684930087, 0)}
+	info := bindataFileInfo{name: "002_add_allowed_user_groups.up.sql", size: 79, mode: os.FileMode(436), modTime: time.Unix(1680170683, 0)}
 	a := &asset{bytes: bytes, info: info}
 	return a, nil
 }

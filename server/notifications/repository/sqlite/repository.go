@@ -20,6 +20,8 @@ type Repository interface {
 	Details(ctx context.Context, nid string) (notifications.NotificationDetails, bool, error)
 	Create(ctx context.Context, details notifications.NotificationDetails) error
 	SetRunning(ctx context.Context, nid string) error
+	SetDone(ctx context.Context, nid string) error
+	SetError(ctx context.Context, nid string, error string) error
 }
 
 const RecipientsSeparator = "@|@"
@@ -27,6 +29,43 @@ const RecipientsSeparator = "@|@"
 type repository struct {
 	db        *sqlx.DB
 	converter *query.SQLConverter
+}
+
+func (r repository) SetError(ctx context.Context, nid string, error string) error {
+	n := SQLNotification{
+		NotificationID: nid,
+		State:          string(notifications.ProcessingStateError),
+		Out:            error,
+	}
+
+	_, err := r.db.NamedExecContext(
+		ctx,
+		"INSERT INTO `notifications_log`"+
+			" (`notification_id`, `state`, `out`)"+
+			" VALUES "+
+			"(:notification_id, :state, :out)",
+		n,
+	)
+
+	return err
+}
+
+func (r repository) SetDone(ctx context.Context, nid string) error {
+	n := SQLNotification{
+		NotificationID: nid,
+		State:          string(notifications.ProcessingStateDone),
+	}
+
+	_, err := r.db.NamedExecContext(
+		ctx,
+		"INSERT INTO `notifications_log`"+
+			" (`notification_id`, `state`)"+
+			" VALUES "+
+			"(:notification_id,  :state)",
+		n,
+	)
+
+	return err
 }
 
 func (r repository) SetRunning(ctx context.Context, nid string) error {
@@ -120,6 +159,7 @@ func (r repository) Details(ctx context.Context, nid string) (notifications.Noti
 		recipients = strings.Split(entity.Recipients, RecipientsSeparator)
 	}
 
+	last := entities[len(entities)-1]
 	details := notifications.NotificationDetails{
 		Origin: origin,
 		Data: notifications.NotificationData{
@@ -129,9 +169,9 @@ func (r repository) Details(ctx context.Context, nid string) (notifications.Noti
 			Content:     entity.Body,
 			ContentType: notifications.ContentType(entity.ContentType),
 		},
-		State:  notifications.ProcessingState(entities[len(entities)-1].State),
+		State:  notifications.ProcessingState(last.State),
 		ID:     refs.NewIdentifiable(notifications.NotificationType, entity.NotificationID),
-		Out:    entity.Out,
+		Out:    last.Out,
 		Target: notifications.FigureOutTarget(entity.Transport),
 	}
 	tmp := details

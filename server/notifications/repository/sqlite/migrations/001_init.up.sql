@@ -1,19 +1,19 @@
 CREATE TABLE notifications_log (
     notification_id CHAR(26) NOT NULL CHECK (notification_id != ''), -- notification_id, number of the log entry, ulid
     timestamp DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,    -- timestamp, date and time of message dispatching
-    origin VARCHAR(20),         -- origin, name of the subsystem that has created the notification
-    fullOrigin VARCHAR(255) ,
-    contentType VARCHAR(50) ,
-    reference_id VARCHAR(26) ,   -- refrence_id, problem id handed over by the altering service.
-    transport TEXT,                                           -- transport, either "smtp" or name of the script
-    recipients TEXT,                                         -- recipients, serialized array
+    origin VARCHAR(20) NOT NULL DEFAULT "",         -- origin, name of the subsystem that has created the notification
+    fullOrigin VARCHAR(255)  NOT NULL DEFAULT "",
+    contentType VARCHAR(50)  NOT NULL DEFAULT "",
+    reference_id VARCHAR(26)  NOT NULL DEFAULT "",   -- refrence_id, problem id handed over by the altering service.
+    transport TEXT NOT NULL DEFAULT "",                                           -- transport, either "smtp" or name of the script
+    recipients TEXT NOT NULL DEFAULT "",                                         -- recipients, serialized array
 
     state VARCHAR(20) NOT NULL CHECK (state != ''), -- sqlite doesn't like enums
 
-    subject TEXT,
-    body TEXT,
+    subject TEXT NOT NULL DEFAULT "",
+    body TEXT NOT NULL DEFAULT "",
 
-    out TEXT -- whatever error is returned only when error is returned
+    out TEXT NOT NULL DEFAULT "" -- whatever error is returned only when error is returned
 );
 --
 

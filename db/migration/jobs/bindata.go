@@ -88,7 +88,7 @@ func _001_initDownSql() (*asset, error) {
 		return nil, err
 	}
 
-	info := bindataFileInfo{name: "001_init.down.sql", size: 109, mode: os.FileMode(436), modTime: time.Unix(1684930087, 0)}
+	info := bindataFileInfo{name: "001_init.down.sql", size: 109, mode: os.FileMode(436), modTime: time.Unix(1680170683, 0)}
 	a := &asset{bytes: bytes, info: info}
 	return a, nil
 }
@@ -108,7 +108,7 @@ func _001_initUpSql() (*asset, error) {
 		return nil, err
 	}
 
-	info := bindataFileInfo{name: "001_init.up.sql", size: 649, mode: os.FileMode(436), modTime: time.Unix(1684930087, 0)}
+	info := bindataFileInfo{name: "001_init.up.sql", size: 649, mode: os.FileMode(436), modTime: time.Unix(1680170683, 0)}
 	a := &asset{bytes: bytes, info: info}
 	return a, nil
 }
@@ -128,7 +128,7 @@ func _002_schedulesDownSql() (*asset, error) {
 		return nil, err
 	}
 
-	info := bindataFileInfo{name: "002_schedules.down.sql", size: 22, mode: os.FileMode(436), modTime: time.Unix(1684930087, 0)}
+	info := bindataFileInfo{name: "002_schedules.down.sql", size: 22, mode: os.FileMode(436), modTime: time.Unix(1680170683, 0)}
 	a := &asset{bytes: bytes, info: info}
 	return a, nil
 }
@@ -148,7 +148,7 @@ func _002_schedulesUpSql() (*asset, error) {
 		return nil, err
 	}
 
-	info := bindataFileInfo{name: "002_schedules.up.sql", size: 228, mode: os.FileMode(436), modTime: time.Unix(1684930087, 0)}
+	info := bindataFileInfo{name: "002_schedules.up.sql", size: 228, mode: os.FileMode(436), modTime: time.Unix(1680170683, 0)}
 	a := &asset{bytes: bytes, info: info}
 	return a, nil
 }
@@ -168,7 +168,7 @@ func _003_multi_job_schedule_idDownSql() (*asset, error) {
 		return nil, err
 	}
 
-	info := bindataFileInfo{name: "003_multi_job_schedule_id.down.sql", size: 0, mode: os.FileMode(436), modTime: time.Unix(1684930087, 0)}
+	info := bindataFileInfo{name: "003_multi_job_schedule_id.down.sql", size: 0, mode: os.FileMode(436), modTime: time.Unix(1680170683, 0)}
 	a := &asset{bytes: bytes, info: info}
 	return a, nil
 }
@@ -188,7 +188,7 @@ func _003_multi_job_schedule_idUpSql() (*asset, error) {
 		return nil, err
 	}
 
-	info := bindataFileInfo{name: "003_multi_job_schedule_id.up.sql", size: 50, mode: os.FileMode(436), modTime: time.Unix(1684930087, 0)}
+	info := bindataFileInfo{name: "003_multi_job_schedule_id.up.sql", size: 50, mode: os.FileMode(436), modTime: time.Unix(1680170683, 0)}
 	a := &asset{bytes: bytes, info: info}
 	return a, nil
 }
