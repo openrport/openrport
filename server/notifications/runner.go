@@ -19,6 +19,17 @@ type Target string
 const TargetMail Target = "smtp"
 const TargetScript Target = "script"
 
+var AllTargets = []Target{TargetMail, TargetScript}
+
+func (t Target) Valid() bool {
+	for _, target := range AllTargets {
+		if t == target {
+			return true
+		}
+	}
+	return false
+}
+
 type Store interface {
 	UpdatesFor(target Target) chan NotificationDetails
 	Save(ctx context.Context, details NotificationDetails) error

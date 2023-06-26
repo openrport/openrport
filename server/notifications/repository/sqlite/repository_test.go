@@ -91,6 +91,16 @@ func (suite *RepositoryTestSuite) TestRepositoryNotificationError() {
 	suite.Equal(notification, retrieved)
 }
 
+func (suite *RepositoryTestSuite) TestRepositoryNotificationStream() {
+	notification := suite.CreateNotification()
+
+	stream := suite.repository.NotificationStream(notifications.TargetScript)
+
+	retrieved := <-stream
+
+	suite.Equal(notification, retrieved)
+}
+
 func (suite *RepositoryTestSuite) TestRepositoryNotificationListWithEntities() {
 	e1 := suite.CreateNotification()
 	e2 := suite.CreateNotification()

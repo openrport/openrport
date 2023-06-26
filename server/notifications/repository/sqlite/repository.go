@@ -4,6 +4,7 @@ import (
 	"context"
 	"database/sql"
 	"errors"
+	"fmt"
 	"strings"
 	"time"
 
@@ -22,13 +23,17 @@ type Repository interface {
 	SetRunning(ctx context.Context, nid string) error
 	SetDone(ctx context.Context, nid string) error
 	SetError(ctx context.Context, nid string, error string) error
+	NotificationStream(target notifications.Target) chan notifications.NotificationDetails
 }
+
+const MaxNotificationsQueue = 1000
 
 const RecipientsSeparator = "@|@"
 
 type repository struct {
 	db        *sqlx.DB
 	converter *query.SQLConverter
+	sinks     map[notifications.Target]chan notifications.NotificationDetails
 }
 
 func (r repository) SetError(ctx context.Context, nid string, error string) error {
@@ -78,6 +83,12 @@ type SQLNotification struct {
 }
 
 func (r repository) Create(ctx context.Context, details notifications.NotificationDetails) error {
+
+	if !details.Target.Valid() {
+		return fmt.Errorf("invalid target: %v", details.Target)
+	}
+
+	r.sinks[details.Target] <- details
 
 	n := SQLNotification{
 		NotificationID: details.ID.ID(),
@@ -165,7 +176,16 @@ func (r repository) List(ctx context.Context) ([]notifications.NotificationSumma
 }
 
 func NewRepository(connection *sqlx.DB) repository {
-	return repository{
-		db: connection,
+	sinks := map[notifications.Target]chan notifications.NotificationDetails{}
+	for _, target := range notifications.AllTargets {
+		sinks[target] = make(chan notifications.NotificationDetails, MaxNotificationsQueue)
 	}
+	return repository{
+		db:    connection,
+		sinks: sinks,
+	}
+}
+
+func (r repository) NotificationStream(target notifications.Target) chan notifications.NotificationDetails {
+	return r.sinks[target]
 }
