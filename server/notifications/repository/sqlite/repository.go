@@ -20,9 +20,9 @@ type Repository interface {
 	List(ctx context.Context) ([]notifications.NotificationSummary, error)
 	Details(ctx context.Context, nid string) (notifications.NotificationDetails, bool, error)
 	Create(ctx context.Context, details notifications.NotificationDetails) error
-	SetRunning(ctx context.Context, nid string) error
-	SetDone(ctx context.Context, nid string) error
-	SetError(ctx context.Context, nid string, error string) error
+	LogRunning(ctx context.Context, nid string) error
+	LogDone(ctx context.Context, nid string) error
+	LogError(ctx context.Context, nid string, error string) error
 	NotificationStream(target notifications.Target) chan notifications.NotificationDetails
 }
 
@@ -36,15 +36,15 @@ type repository struct {
 	sinks     map[notifications.Target]chan notifications.NotificationDetails
 }
 
-func (r repository) SetError(ctx context.Context, nid string, error string) error {
+func (r repository) LogError(ctx context.Context, nid string, error string) error {
 	return r.setState(ctx, nid, notifications.ProcessingStateError, error)
 }
 
-func (r repository) SetDone(ctx context.Context, nid string) error {
+func (r repository) LogDone(ctx context.Context, nid string) error {
 	return r.setState(ctx, nid, notifications.ProcessingStateDone, "")
 }
 
-func (r repository) SetRunning(ctx context.Context, nid string) error {
+func (r repository) LogRunning(ctx context.Context, nid string) error {
 	return r.setState(ctx, nid, notifications.ProcessingStateRunning, "")
 }
 

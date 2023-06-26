@@ -142,7 +142,7 @@ func ConfigFromSMTPConfig(config chconfig.SMTPConfig) (Config, error) {
 
 	var port int
 	if sPort == "" {
-		port = -1 // note to self to set lib to Port guessing
+		port = -1
 	} else {
 		port, err = strconv.Atoi(sPort)
 		if err != nil {

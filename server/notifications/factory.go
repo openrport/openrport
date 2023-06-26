@@ -18,7 +18,7 @@ type Dispatcher interface {
 }
 
 type store interface {
-	Save(ctx context.Context, details NotificationDetails) error
+	Create(ctx context.Context, details NotificationDetails) error
 }
 
 type dispatcher struct {
@@ -35,7 +35,7 @@ func (f dispatcher) Dispatch(ctx context.Context, origin refs.Origin, notificati
 		Target: FigureOutTarget(notification.Target),
 	}
 
-	return details.ID, f.store.Save(ctx, details)
+	return details.ID, f.store.Create(ctx, details)
 }
 
 func FigureOutTarget(target string) Target {

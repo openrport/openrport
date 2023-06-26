@@ -175,14 +175,14 @@ func (suite *ProcessorTestSuite) SendMail() notifications.NotificationDetails {
 	notification := notifications.NotificationData{Target: "smtp", Content: "test-content-mail"}
 
 	queued := notifications.NotificationDetails{
-		Origin: expectedOrigin.String(),
+		Origin: expectedOrigin,
 		Target: notifications.TargetMail,
 		Data:   notification,
 		State:  notifications.ProcessingStateQueued,
 		ID:     refs.GenerateIdentifiable(notifications.NotificationType),
 	}
 
-	suite.NoError(suite.store.Save(context.Background(), queued))
+	suite.NoError(suite.store.Create(context.Background(), queued))
 	return queued
 }
 
@@ -190,14 +190,14 @@ func (suite *ProcessorTestSuite) SendScript() notifications.NotificationDetails 
 	notification := notifications.NotificationData{Target: "smtp", Content: "test-content-mail"}
 
 	queued := notifications.NotificationDetails{
-		Origin: expectedOrigin.String(),
+		Origin: expectedOrigin,
 		Target: notifications.TargetScript,
 		Data:   notification,
 		State:  notifications.ProcessingStateQueued,
 		ID:     refs.GenerateIdentifiable(notifications.NotificationType),
 	}
 
-	suite.NoError(suite.store.Save(context.Background(), queued))
+	suite.NoError(suite.store.Create(context.Background(), queued))
 	return queued
 }
 
@@ -205,14 +205,14 @@ func (suite *ProcessorTestSuite) SendUnknown() notifications.NotificationDetails
 	notification := notifications.NotificationData{Target: "smtp", Content: "test-content-mail"}
 
 	queued := notifications.NotificationDetails{
-		Origin: expectedOrigin.String(),
+		Origin: expectedOrigin,
 		Target: "never-pickup",
 		Data:   notification,
 		State:  notifications.ProcessingStateQueued,
 		ID:     refs.GenerateIdentifiable(notifications.NotificationType),
 	}
 
-	suite.NoError(suite.store.Save(context.Background(), queued))
+	suite.NoError(suite.store.Create(context.Background(), queued))
 	return queued
 }
 func TestProcessorTestSuite(t *testing.T) {

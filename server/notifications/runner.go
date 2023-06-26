@@ -31,8 +31,11 @@ func (t Target) Valid() bool {
 }
 
 type Store interface {
-	UpdatesFor(target Target) chan NotificationDetails
-	Save(ctx context.Context, details NotificationDetails) error
+	Create(ctx context.Context, details NotificationDetails) error
+	LogRunning(ctx context.Context, nid string) error
+	LogDone(ctx context.Context, nid string) error
+	LogError(ctx context.Context, nid string, error string) error
+	NotificationStream(target Target) chan NotificationDetails
 }
 
 type processor struct {
@@ -58,24 +61,21 @@ func (p *processor) start() {
 }
 
 func (p *processor) startConsumer(consumer Consumer) {
-	updates := p.store.UpdatesFor(consumer.Target())
+	updates := p.store.NotificationStream(consumer.Target())
 root:
 	for {
 		select {
 		case <-p.timeToDie.Done():
 			break root
 		case notification := <-updates:
-			notification.State = ProcessingStateRunning
 			// TODO: should rport crush when save errors?
-			p.store.Save(context.Background(), notification)
+			p.store.LogRunning(context.Background(), notification.ID.ID())
 			err := consumer.Process(notification)
 			if err == nil {
-				notification.State = ProcessingStateDone
+				p.store.LogDone(context.Background(), notification.ID.ID())
 			} else {
-				notification.State = ProcessingStateError
-				notification.Out = err.Error()
+				p.store.LogError(context.Background(), notification.ID.ID(), err.Error())
 			}
-			p.store.Save(context.Background(), notification)
 		}
 	}
 }

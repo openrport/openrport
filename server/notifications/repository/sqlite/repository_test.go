@@ -55,7 +55,7 @@ func (suite *RepositoryTestSuite) TestRepositoryNotificationRunning() {
 	notification.State = notifications.ProcessingStateRunning
 	notification.Out = ""
 
-	suite.NoError(suite.repository.SetRunning(context.Background(), notification.ID.ID()))
+	suite.NoError(suite.repository.LogRunning(context.Background(), notification.ID.ID()))
 
 	retrieved, found, err := suite.repository.Details(context.Background(), notification.ID.ID())
 	suite.NoError(err)
@@ -69,7 +69,7 @@ func (suite *RepositoryTestSuite) TestRepositoryNotificationDone() {
 	notification.State = notifications.ProcessingStateDone
 	notification.Out = ""
 
-	suite.NoError(suite.repository.SetDone(context.Background(), notification.ID.ID()))
+	suite.NoError(suite.repository.LogDone(context.Background(), notification.ID.ID()))
 
 	retrieved, found, err := suite.repository.Details(context.Background(), notification.ID.ID())
 	suite.NoError(err)
@@ -83,7 +83,7 @@ func (suite *RepositoryTestSuite) TestRepositoryNotificationError() {
 	notification.State = notifications.ProcessingStateError
 	notification.Out = "test-error"
 
-	suite.NoError(suite.repository.SetError(context.Background(), notification.ID.ID(), "test-error"))
+	suite.NoError(suite.repository.LogError(context.Background(), notification.ID.ID(), "test-error"))
 
 	retrieved, found, err := suite.repository.Details(context.Background(), notification.ID.ID())
 	suite.NoError(err)
