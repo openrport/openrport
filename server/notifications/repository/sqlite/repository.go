@@ -32,10 +32,22 @@ type repository struct {
 }
 
 func (r repository) SetError(ctx context.Context, nid string, error string) error {
+	return r.setState(ctx, nid, notifications.ProcessingStateError, error)
+}
+
+func (r repository) SetDone(ctx context.Context, nid string) error {
+	return r.setState(ctx, nid, notifications.ProcessingStateDone, "")
+}
+
+func (r repository) SetRunning(ctx context.Context, nid string) error {
+	return r.setState(ctx, nid, notifications.ProcessingStateRunning, "")
+}
+
+func (r repository) setState(ctx context.Context, nid string, state notifications.ProcessingState, out string) error {
 	n := SQLNotification{
 		NotificationID: nid,
-		State:          string(notifications.ProcessingStateError),
-		Out:            error,
+		State:          string(state),
+		Out:            out,
 	}
 
 	_, err := r.db.NamedExecContext(
@@ -44,43 +56,6 @@ func (r repository) SetError(ctx context.Context, nid string, error string) erro
 			" (`notification_id`, `state`, `out`)"+
 			" VALUES "+
 			"(:notification_id, :state, :out)",
-		n,
-	)
-
-	return err
-}
-
-func (r repository) SetDone(ctx context.Context, nid string) error {
-	n := SQLNotification{
-		NotificationID: nid,
-		State:          string(notifications.ProcessingStateDone),
-	}
-
-	_, err := r.db.NamedExecContext(
-		ctx,
-		"INSERT INTO `notifications_log`"+
-			" (`notification_id`, `state`)"+
-			" VALUES "+
-			"(:notification_id,  :state)",
-		n,
-	)
-
-	return err
-}
-
-func (r repository) SetRunning(ctx context.Context, nid string) error {
-
-	n := SQLNotification{
-		NotificationID: nid,
-		State:          string(notifications.ProcessingStateRunning),
-	}
-
-	_, err := r.db.NamedExecContext(
-		ctx,
-		"INSERT INTO `notifications_log`"+
-			" (`notification_id`, `state`)"+
-			" VALUES "+
-			"(:notification_id,  :state)",
 		n,
 	)
 
