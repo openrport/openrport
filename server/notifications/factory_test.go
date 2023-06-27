@@ -36,6 +36,7 @@ func (suite *DispatcherTestSuite) TestDispatcherCreatesNotification() {
 		Data:   notification,
 		State:  notifications.ProcessingStateQueued,
 		ID:     ni,
+		Target: notifications.TargetMail,
 	}, details)
 }
 

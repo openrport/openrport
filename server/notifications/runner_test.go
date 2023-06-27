@@ -57,7 +57,6 @@ func (suite *ProcessorTestSuite) TestProcessNotificationReceived() {
 
 	suite.awaitNotificationsProcessed()
 
-	queued.State = notifications.ProcessingStateRunning
 	suite.Equal(queued, suite.consumer.message)
 }
 

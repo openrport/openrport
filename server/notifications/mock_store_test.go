@@ -2,6 +2,7 @@ package notifications_test
 
 import (
 	"context"
+	"sync"
 
 	"github.com/realvnc-labs/rport/server/notifications"
 )
@@ -9,9 +10,13 @@ import (
 type MockStore struct {
 	notifications map[string]notifications.NotificationDetails
 	ch            map[notifications.Target]chan notifications.NotificationDetails
+	sync.RWMutex
 }
 
 func (m *MockStore) LogRunning(ctx context.Context, nid string) error {
+	m.Lock()
+	defer m.Unlock()
+
 	n := m.notifications[nid]
 	n.State = notifications.ProcessingStateRunning
 	m.notifications[nid] = n
@@ -19,6 +24,9 @@ func (m *MockStore) LogRunning(ctx context.Context, nid string) error {
 }
 
 func (m *MockStore) LogDone(ctx context.Context, nid string) error {
+	m.Lock()
+	defer m.Unlock()
+
 	n := m.notifications[nid]
 	n.State = notifications.ProcessingStateDone
 	m.notifications[nid] = n
@@ -26,6 +34,9 @@ func (m *MockStore) LogDone(ctx context.Context, nid string) error {
 }
 
 func (m *MockStore) LogError(ctx context.Context, nid string, error string) error {
+	m.Lock()
+	defer m.Unlock()
+
 	n := m.notifications[nid]
 	n.State = notifications.ProcessingStateError
 	n.Out = error
@@ -56,7 +67,10 @@ func (m *MockStore) NotificationStream(target notifications.Target) chan notific
 }
 
 func (m *MockStore) Create(ctx context.Context, notification notifications.NotificationDetails) error {
-	m.notifications[notification.ID.String()] = notification
+	m.Lock()
+	defer m.Unlock()
+
+	m.notifications[notification.ID.ID()] = notification
 	ch, found := m.ch[notification.Target]
 	if found {
 		ch <- notification
@@ -66,6 +80,9 @@ func (m *MockStore) Create(ctx context.Context, notification notifications.Notif
 }
 
 func (m *MockStore) List(ctx context.Context) ([]notifications.NotificationSummary, error) {
+	m.Lock()
+	defer m.Unlock()
+
 	tmp := make([]notifications.NotificationSummary, len(m.notifications))
 	i := 0
 	for _, n := range m.notifications {
@@ -78,7 +95,10 @@ func (m *MockStore) List(ctx context.Context) ([]notifications.NotificationSumma
 }
 
 func (m *MockStore) Details(ctx context.Context, notificationID notifications.NotificationID) (notifications.NotificationDetails, bool, error) {
-	details, found := m.notifications[notificationID.String()]
+	m.Lock()
+	defer m.Unlock()
+
+	details, found := m.notifications[notificationID.ID()]
 	return details, found, nil
 }
 

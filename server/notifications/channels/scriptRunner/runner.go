@@ -6,31 +6,11 @@ import (
 	"fmt"
 	"io"
 	"os/exec"
-	"time"
 )
 
-type ScriptRunner interface {
-	Run(script string, recipients []string, subject string, body string) error
-}
+func RunCancelableScript(ctx context.Context, script string, body string) error {
 
-type runner struct {
-	scriptTimeout time.Duration
-}
-
-func (r runner) Run(script string, recipients []string, subject string, body string) error {
-	ctx, cancelFunc := context.WithTimeout(context.Background(), r.scriptTimeout)
-
-	err := RunCancelableScript(ctx, script, recipients, subject, body)
-
-	cancelFunc()
-
-	return err
-}
-
-func RunCancelableScript(ctx context.Context, script string, recipients []string, subject string, body string) error {
-	args := append([]string{subject}, recipients...)
-
-	cmd := exec.Command(script, args...)
+	cmd := exec.Command(script)
 
 	stdin, err := cmd.StdinPipe()
 	if err != nil {
@@ -85,10 +65,4 @@ func RunCancelableScript(ctx context.Context, script string, recipients []string
 	}
 
 	return nil
-}
-
-func NewScriptRunner(scriptTimeout time.Duration) ScriptRunner {
-	return runner{
-		scriptTimeout: scriptTimeout,
-	}
 }

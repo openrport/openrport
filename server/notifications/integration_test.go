@@ -12,16 +12,19 @@ import (
 	"github.com/realvnc-labs/rport/db/sqlite"
 	"github.com/realvnc-labs/rport/server/notifications"
 	"github.com/realvnc-labs/rport/server/notifications/channels/rmailer"
+	"github.com/realvnc-labs/rport/server/notifications/channels/scriptRunner"
 	me "github.com/realvnc-labs/rport/server/notifications/repository/sqlite"
+	"github.com/realvnc-labs/rport/share/simpleops"
 )
 
 type NotificationsIntegrationTestSuite struct {
 	suite.Suite
-	dispatcher   notifications.Dispatcher
-	store        me.Repository
-	server       *smtpmock.Server
-	runner       notifications.Processor
-	mailConsumer notifications.Consumer
+	dispatcher     notifications.Dispatcher
+	store          me.Repository
+	server         *smtpmock.Server
+	runner         notifications.Processor
+	mailConsumer   notifications.Consumer
+	scriptConsumer notifications.Consumer
 }
 
 func (suite *NotificationsIntegrationTestSuite) SetupTest() {
@@ -50,8 +53,15 @@ func (suite *NotificationsIntegrationTestSuite) SetupTest() {
 		NoNoop:   true,
 	}))
 
-	suite.runner = notifications.NewProcessor(suite.store, suite.mailConsumer)
+	suite.scriptConsumer = scriptRunner.NewConsumer()
 
+	suite.runner = notifications.NewProcessor(suite.store, suite.mailConsumer, suite.scriptConsumer)
+
+}
+
+type ScriptIO struct {
+	Recipients []string `json:"recipients"`
+	Data       string   `json:"data"`
 }
 
 func (suite *NotificationsIntegrationTestSuite) TestDispatcherCreatesNotification() {
@@ -62,13 +72,31 @@ func (suite *NotificationsIntegrationTestSuite) TestDispatcherCreatesNotificatio
 		Content:     "test-content-mail",
 		ContentType: notifications.ContentTypeTextHTML,
 	}
-	nid, err := suite.dispatcher.Dispatch(context.Background(), expectedOrigin, notification)
+	_, err := suite.dispatcher.Dispatch(context.Background(), expectedOrigin, notification)
+
+	notification = notifications.NotificationData{
+		Target:      "./test.sh",
+		Recipients:  []string{"r1@example.com", "somethin323-55@test.co"},
+		Subject:     "test-subject",
+		Content:     "test-content",
+		ContentType: notifications.ContentTypeTextHTML,
+	}
+	d, err := suite.dispatcher.Dispatch(context.Background(), expectedOrigin, notification)
 	suite.NoError(err)
 	time.Sleep(time.Millisecond * 100)
+	suite.T().Log(suite.store.Details(context.Background(), d.ID()))
 
-	d, found, err := suite.store.Details(context.Background(), nid.ID())
-	suite.T().Log(d, found, err)
 	suite.ExpectedMessages(1)
+	// suite.ExpectMessage(notification.Recipients, notification.Subject, string(notification.ContentType), notification.Content)
+
+	in := ScriptIO{
+		Recipients: []string{"r1@example.com", "somethin323-55@test.co"},
+		Data:       "test-content",
+	}
+
+	out, err := simpleops.ReadJSONFileIntoStruct[ScriptIO]("out.json")
+	suite.NoError(err)
+	suite.Equal(in, out)
 }
 
 func (suite *NotificationsIntegrationTestSuite) ExpectedMessages(count int) bool {
