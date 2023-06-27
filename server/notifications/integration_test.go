@@ -79,7 +79,7 @@ func (suite *NotificationsIntegrationTestSuite) TestDispatcherCreatesNotificatio
 		Recipients:  []string{"r1@example.com", "somethin323-55@test.co"},
 		Subject:     "test-subject",
 		Content:     "test-content",
-		ContentType: notifications.ContentTypeTextHTML,
+		ContentType: notifications.ContentTypeTextPlain,
 	}
 	d, err := suite.dispatcher.Dispatch(context.Background(), expectedOrigin, notification)
 	suite.NoError(err)

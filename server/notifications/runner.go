@@ -36,6 +36,7 @@ type Store interface {
 	LogDone(ctx context.Context, nid string) error
 	LogError(ctx context.Context, nid string, error string) error
 	NotificationStream(target Target) chan NotificationDetails
+	Close() error
 }
 
 type processor struct {
@@ -68,7 +69,7 @@ root:
 		case <-p.timeToDie.Done():
 			break root
 		case notification := <-updates:
-			// TODO: should rport crush when save errors?
+			// TODO: should log on db error
 			p.store.LogRunning(context.Background(), notification.ID.ID())
 			err := consumer.Process(notification)
 			if err == nil {

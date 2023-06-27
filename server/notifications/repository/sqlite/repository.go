@@ -24,6 +24,7 @@ type Repository interface {
 	LogDone(ctx context.Context, nid string) error
 	LogError(ctx context.Context, nid string, error string) error
 	NotificationStream(target notifications.Target) chan notifications.NotificationDetails
+	Close() error
 }
 
 const MaxNotificationsQueue = 1000
@@ -188,4 +189,11 @@ func NewRepository(connection *sqlx.DB) repository {
 
 func (r repository) NotificationStream(target notifications.Target) chan notifications.NotificationDetails {
 	return r.sinks[target]
+}
+
+func (r repository) Close() error {
+	for _, ch := range r.sinks {
+		close(ch)
+	}
+	return nil
 }

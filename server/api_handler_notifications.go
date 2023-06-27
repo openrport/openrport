@@ -6,14 +6,13 @@ import (
 	"github.com/gorilla/mux"
 
 	"github.com/realvnc-labs/rport/server/routes"
-	"github.com/realvnc-labs/rport/share/query"
 )
 
 func (al *APIListener) handleGetNotifications(writer http.ResponseWriter, request *http.Request) {
 	ctx := request.Context()
 
-	options := query.GetListOptions(request)
-	result, err := al.notificationsREST.List(ctx, options)
+	// options := query.GetListOptions(request)
+	result, err := al.notificationsStorage.List(ctx)
 	if err != nil {
 		al.jsonError(writer, err)
 		return
@@ -27,7 +26,7 @@ func (al *APIListener) handleGetNotificationDetails(writer http.ResponseWriter, 
 	vars := mux.Vars(request)
 	nid := vars[routes.ParamNotificationID]
 
-	notification, found, err := al.notificationsREST.Details(ctx, nid)
+	notification, found, err := al.notificationsStorage.Details(ctx, nid)
 	if err != nil {
 		al.jsonError(writer, err)
 		return
