@@ -14,6 +14,7 @@ import (
 	"sync"
 	"time"
 
+	"github.com/jmoiron/sqlx"
 	"golang.org/x/crypto/bcrypt"
 	"golang.org/x/sync/errgroup"
 
@@ -24,6 +25,10 @@ import (
 	"github.com/realvnc-labs/rport/db/migration/library"
 	"github.com/realvnc-labs/rport/db/sqlite"
 	rportplus "github.com/realvnc-labs/rport/plus"
+	"github.com/realvnc-labs/rport/server/notifications"
+	"github.com/realvnc-labs/rport/server/notifications/channels/rmailer"
+	"github.com/realvnc-labs/rport/server/notifications/channels/scriptRunner"
+	me "github.com/realvnc-labs/rport/server/notifications/repository/sqlite"
 
 	"github.com/realvnc-labs/rport/server/api/authorization"
 	"github.com/realvnc-labs/rport/server/api/session"
@@ -76,7 +81,10 @@ type APIListener struct {
 	commandManager *command.Manager
 	storedTunnels  *storedtunnels.Manager
 
-	mu sync.RWMutex
+	mu                     sync.RWMutex
+	notificationsStorage   me.Repository
+	notificationsProcessor notifications.Processor
+	notificationsDB        *sqlx.DB
 }
 
 func (al *APIListener) Log() (l *logger.Logger) {
@@ -123,6 +131,30 @@ func NewAPIListener(
 		},
 		&vault.NotInitDbProvider{},
 	)
+
+	db, err := sqlite.New(
+		path.Join(config.Server.DataDir, "notifications.db"),
+		me.AssetNames(),
+		me.Asset,
+		config.Server.GetSQLiteDataSourceOptions(),
+	)
+	if err != nil {
+		return nil, fmt.Errorf("failed to bootstrap api: %v", err)
+	}
+
+	store := me.NewRepository(db)
+	// dispatcher := notifications.NewDispatcher(store)
+	scriptConsumer := scriptRunner.NewConsumer()
+
+	notificationConsumers := []notifications.Consumer{scriptConsumer}
+	smtpConfig, err := rmailer.ConfigFromSMTPConfig(config.SMTP)
+	if err != nil {
+		server.Logger.Errorf("failed to bootstrap smtp notifications: %v", err)
+		mailConsumer := rmailer.NewConsumer(rmailer.NewRMailer(smtpConfig))
+		notificationConsumers = append(notificationConsumers, mailConsumer)
+	}
+
+	runner := notifications.NewProcessor(logger.NewLogger("notifications", config.Logging.LogOutput, config.Logging.LogLevel), store, notificationConsumers...)
 
 	// init vault DB if it already exists
 	fs := files.NewFileSystem()
@@ -191,18 +223,21 @@ func NewAPIListener(
 
 	allog := logger.NewLogger("api-listener", config.Logging.LogOutput, config.Logging.LogLevel)
 	a := &APIListener{
-		Server:            server,
-		Logger:            allog,
-		fingerprint:       fingerprint,
-		httpServer:        chshare.NewHTTPServer(int(config.API.MaxRequestBytes), allog, HTTPServerOptions...),
-		requestLogOptions: config.InitRequestLogOptions(),
-		bannedUsers:       security.NewBanList(time.Duration(config.API.UserLoginWait) * time.Second),
-		userService:       userService,
-		vaultManager:      vault.NewManager(vaultDBProviderFactory, &vault.Aes256PassManager{}, vaultLogger),
-		scriptManager:     scriptManager,
-		commandManager:    commandManager,
-		tokenManager:      tokenManager,
-		storedTunnels:     storedtunnels.New(server.clientDB),
+		Server:                 server,
+		Logger:                 allog,
+		fingerprint:            fingerprint,
+		httpServer:             chshare.NewHTTPServer(int(config.API.MaxRequestBytes), allog, HTTPServerOptions...),
+		requestLogOptions:      config.InitRequestLogOptions(),
+		bannedUsers:            security.NewBanList(time.Duration(config.API.UserLoginWait) * time.Second),
+		userService:            userService,
+		vaultManager:           vault.NewManager(vaultDBProviderFactory, &vault.Aes256PassManager{}, vaultLogger),
+		scriptManager:          scriptManager,
+		commandManager:         commandManager,
+		tokenManager:           tokenManager,
+		storedTunnels:          storedtunnels.New(server.clientDB),
+		notificationsStorage:   store,
+		notificationsProcessor: runner,
+		notificationsDB:        db,
 	}
 
 	a.errResponseLogger = allog.Fork("error-response")
@@ -326,6 +361,10 @@ func (al *APIListener) Close() error {
 	if al.apiSessions != nil {
 		g.Go(al.apiSessions.Close)
 	}
+
+	g.Go(al.notificationsStorage.Close)
+	g.Go(al.notificationsProcessor.Close)
+	g.Go(al.notificationsDB.Close)
 
 	return g.Wait()
 }
