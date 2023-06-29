@@ -21,8 +21,6 @@ import (
 	"github.com/gorilla/mux"
 	"github.com/jpillora/requestlog"
 
-	notificationsToLogger "github.com/realvnc-labs/rport/server/notifications/channels/logger"
-
 	"github.com/realvnc-labs/rport/db/migration/api_token"
 	"github.com/realvnc-labs/rport/db/migration/library"
 	"github.com/realvnc-labs/rport/db/sqlite"
@@ -30,6 +28,7 @@ import (
 	"github.com/realvnc-labs/rport/server/notifications"
 	"github.com/realvnc-labs/rport/server/notifications/channels/rmailer"
 	"github.com/realvnc-labs/rport/server/notifications/channels/scriptRunner"
+	"github.com/realvnc-labs/rport/server/notifications/channels/toLog"
 	notificationsSQLite "github.com/realvnc-labs/rport/server/notifications/repository/sqlite"
 
 	"github.com/realvnc-labs/rport/server/api/authorization"
@@ -158,7 +157,7 @@ func NewAPIListener(
 		notificationConsumers = append(notificationConsumers, mailConsumer)
 	} else {
 		notificationsLogger.Errorf("failed to bootstrap smtp notifications: %v", err)
-		logConsumer := notificationsToLogger.NewLogConsumer(logger.NewLogger("smtp error", config.Logging.LogOutput, logger.LogLevelError), notifications.TargetMail) // consume mail notifications even if mailer is not available
+		logConsumer := toLog.NewLogConsumer(logger.NewLogger("smtp error", config.Logging.LogOutput, logger.LogLevelError), notifications.TargetMail) // consume mail notifications even if mailer is not available
 		notificationConsumers = append(notificationConsumers, logConsumer)
 	}
 
