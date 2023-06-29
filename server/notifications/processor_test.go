@@ -122,7 +122,7 @@ func (suite *ProcessorTestSuite) TestProcessNotificationStateError() {
 
 func (suite *ProcessorTestSuite) TestProcessNotificationDispatch() {
 	mail := suite.SendMail()
-	script := suite.SendUnknown()
+	script := suite.SendUnknownTarget()
 
 	time.Sleep(time.Millisecond * 10)
 
@@ -177,7 +177,7 @@ func (suite *ProcessorTestSuite) SendMail() notifications.NotificationDetails {
 	notification := notifications.NotificationData{Target: "smtp", Content: "test-content-mail"}
 
 	queued := notifications.NotificationDetails{
-		Origin: expectedOrigin,
+		Origin: problemIdentifiable,
 		Target: notifications.TargetMail,
 		Data:   notification,
 		State:  notifications.ProcessingStateQueued,
@@ -192,7 +192,7 @@ func (suite *ProcessorTestSuite) SendScript() notifications.NotificationDetails 
 	notification := notifications.NotificationData{Target: "smtp", Content: "test-content-mail"}
 
 	queued := notifications.NotificationDetails{
-		Origin: expectedOrigin,
+		Origin: problemIdentifiable,
 		Target: notifications.TargetScript,
 		Data:   notification,
 		State:  notifications.ProcessingStateQueued,
@@ -203,11 +203,11 @@ func (suite *ProcessorTestSuite) SendScript() notifications.NotificationDetails 
 	return queued
 }
 
-func (suite *ProcessorTestSuite) SendUnknown() notifications.NotificationDetails {
+func (suite *ProcessorTestSuite) SendUnknownTarget() notifications.NotificationDetails {
 	notification := notifications.NotificationData{Target: "smtp", Content: "test-content-mail"}
 
 	queued := notifications.NotificationDetails{
-		Origin: expectedOrigin,
+		Origin: problemIdentifiable,
 		Target: "never-pickup",
 		Data:   notification,
 		State:  notifications.ProcessingStateQueued,

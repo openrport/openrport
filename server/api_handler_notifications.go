@@ -74,11 +74,10 @@ func (al *APIListener) handleGetNotificationDetails(writer http.ResponseWriter, 
 		return
 	}
 
-	if found {
-		al.writeJSONResponse(writer, http.StatusOK, notification)
+	if !found {
+		al.writeJSONResponse(writer, http.StatusNotFound, nil)
 		return
 	}
 
-	al.writeJSONResponse(writer, http.StatusNotFound, nil)
-
+	al.writeJSONResponse(writer, http.StatusOK, notification)
 }

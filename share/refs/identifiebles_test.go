@@ -49,7 +49,7 @@ func TestParseIdentifiable(t *testing.T) {
 		{
 			name: "test good parse",
 			args: args{
-				raw: "bad-text(some-id)",
+				raw: "bad-text:::some-id",
 			},
 			want: identifiable{
 				iType: "bad-text",
@@ -120,7 +120,7 @@ func Test_identifiable_String(t *testing.T) {
 				iType: TestType,
 				id:    "some-weird::id",
 			},
-			want: "test-type(some-weird::id)",
+			want: "test-type:::some-weird::id",
 		},
 	}
 	for _, tt := range tests {

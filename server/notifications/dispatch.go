@@ -14,7 +14,7 @@ const ProcessingStateDone ProcessingState = "done"
 const ProcessingStateError ProcessingState = "error"
 
 type Dispatcher interface {
-	Dispatch(ctx context.Context, origin refs.Origin, notification NotificationData) (refs.Identifiable, error)
+	Dispatch(ctx context.Context, origin refs.Identifiable, notification NotificationData) (refs.Identifiable, error)
 }
 
 type store interface {
@@ -25,7 +25,7 @@ type dispatcher struct {
 	store store
 }
 
-func (f dispatcher) Dispatch(ctx context.Context, origin refs.Origin, notification NotificationData) (refs.Identifiable, error) {
+func (f dispatcher) Dispatch(ctx context.Context, origin refs.Identifiable, notification NotificationData) (refs.Identifiable, error) {
 
 	details := NotificationDetails{
 		Data:   notification,
@@ -55,7 +55,7 @@ func NewDispatcher(repository store) dispatcher {
 }
 
 type NotificationDetails struct {
-	Origin refs.Origin
+	Origin refs.Identifiable
 	Data   NotificationData
 	State  ProcessingState
 	ID     refs.Identifiable

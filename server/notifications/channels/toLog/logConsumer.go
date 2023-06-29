@@ -1,4 +1,4 @@
-package logger
+package toLog
 
 import (
 	"github.com/realvnc-labs/rport/server/notifications"

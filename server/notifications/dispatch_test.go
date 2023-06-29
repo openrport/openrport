@@ -21,19 +21,17 @@ func (suite *DispatcherTestSuite) SetupTest() {
 	suite.dispatcher = notifications.NewDispatcher(suite.store)
 }
 
-var alertingIdentifiable = refs.GenerateIdentifiable("Alerting")
 var problemIdentifiable = refs.GenerateIdentifiable("Problem")
-var expectedOrigin = refs.NewOrigin(alertingIdentifiable, problemIdentifiable)
 
 func (suite *DispatcherTestSuite) TestDispatcherCreatesNotification() {
 	notification := notifications.NotificationData{Target: "smtp", Content: "test-content-mail"}
-	ni, err := suite.dispatcher.Dispatch(context.Background(), expectedOrigin, notification)
+	ni, err := suite.dispatcher.Dispatch(context.Background(), problemIdentifiable, notification)
 	suite.NoError(err)
 	details, found, err := suite.store.Details(context.Background(), ni)
 	suite.NoError(err)
 	suite.True(found)
 	suite.Equal(notifications.NotificationDetails{
-		Origin: expectedOrigin,
+		Origin: problemIdentifiable,
 		Data:   notification,
 		State:  notifications.ProcessingStateQueued,
 		ID:     ni,

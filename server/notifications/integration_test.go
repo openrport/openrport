@@ -73,7 +73,7 @@ func (suite *NotificationsIntegrationTestSuite) TestDispatcherCreatesNotificatio
 		Content:     "test-content-mail",
 		ContentType: notifications.ContentTypeTextHTML,
 	}
-	_, err := suite.dispatcher.Dispatch(context.Background(), expectedOrigin, notification)
+	_, err := suite.dispatcher.Dispatch(context.Background(), problemIdentifiable, notification)
 	suite.NoError(err)
 
 	notification = notifications.NotificationData{
@@ -83,7 +83,7 @@ func (suite *NotificationsIntegrationTestSuite) TestDispatcherCreatesNotificatio
 		Content:     "test-content",
 		ContentType: notifications.ContentTypeTextPlain,
 	}
-	d, err := suite.dispatcher.Dispatch(context.Background(), expectedOrigin, notification)
+	d, err := suite.dispatcher.Dispatch(context.Background(), problemIdentifiable, notification)
 	suite.NoError(err)
 	time.Sleep(time.Millisecond * 100)
 	suite.T().Log(suite.store.Details(context.Background(), d.ID()))

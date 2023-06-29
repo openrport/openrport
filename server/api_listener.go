@@ -21,15 +21,16 @@ import (
 	"github.com/gorilla/mux"
 	"github.com/jpillora/requestlog"
 
+	notificationsToLogger "github.com/realvnc-labs/rport/server/notifications/channels/logger"
+
 	"github.com/realvnc-labs/rport/db/migration/api_token"
 	"github.com/realvnc-labs/rport/db/migration/library"
 	"github.com/realvnc-labs/rport/db/sqlite"
 	rportplus "github.com/realvnc-labs/rport/plus"
 	"github.com/realvnc-labs/rport/server/notifications"
-	logger2 "github.com/realvnc-labs/rport/server/notifications/channels/logger"
 	"github.com/realvnc-labs/rport/server/notifications/channels/rmailer"
 	"github.com/realvnc-labs/rport/server/notifications/channels/scriptRunner"
-	me "github.com/realvnc-labs/rport/server/notifications/repository/sqlite"
+	notificationsSQLite "github.com/realvnc-labs/rport/server/notifications/repository/sqlite"
 
 	"github.com/realvnc-labs/rport/server/api/authorization"
 	"github.com/realvnc-labs/rport/server/api/session"
@@ -82,10 +83,11 @@ type APIListener struct {
 	commandManager *command.Manager
 	storedTunnels  *storedtunnels.Manager
 
-	mu                     sync.RWMutex
-	notificationsStorage   me.Repository
+	notificationsStorage   notificationsSQLite.Repository
 	notificationsProcessor notifications.Processor
 	notificationsDB        *sqlx.DB
+
+	mu sync.RWMutex
 }
 
 func (al *APIListener) Log() (l *logger.Logger) {
@@ -135,15 +137,15 @@ func NewAPIListener(
 
 	db, err := sqlite.New(
 		path.Join(config.Server.DataDir, "notifications.db"),
-		me.AssetNames(),
-		me.Asset,
+		notificationsSQLite.AssetNames(),
+		notificationsSQLite.Asset,
 		config.Server.GetSQLiteDataSourceOptions(),
 	)
 	if err != nil {
 		return nil, fmt.Errorf("failed to bootstrap api: %v", err)
 	}
 
-	store := me.NewRepository(db)
+	store := notificationsSQLite.NewRepository(db)
 	// dispatcher := notifications.NewDispatcher(store)
 	scriptConsumer := scriptRunner.NewConsumer()
 
@@ -156,11 +158,11 @@ func NewAPIListener(
 		notificationConsumers = append(notificationConsumers, mailConsumer)
 	} else {
 		notificationsLogger.Errorf("failed to bootstrap smtp notifications: %v", err)
-		logConsumer := logger2.NewLogConsumer(logger.NewLogger("smtp error", config.Logging.LogOutput, logger.LogLevelError), notifications.TargetMail) // consume mail notifications even if mailer is not available
+		logConsumer := notificationsToLogger.NewLogConsumer(logger.NewLogger("smtp error", config.Logging.LogOutput, logger.LogLevelError), notifications.TargetMail) // consume mail notifications even if mailer is not available
 		notificationConsumers = append(notificationConsumers, logConsumer)
 	}
 
-	runner := notifications.NewProcessor(notificationsLogger, store, notificationConsumers...)
+	notificationProcessor := notifications.NewProcessor(notificationsLogger, store, notificationConsumers...)
 
 	// init vault DB if it already exists
 	fs := files.NewFileSystem()
@@ -242,7 +244,7 @@ func NewAPIListener(
 		tokenManager:           tokenManager,
 		storedTunnels:          storedtunnels.New(server.clientDB),
 		notificationsStorage:   store,
-		notificationsProcessor: runner,
+		notificationsProcessor: notificationProcessor,
 		notificationsDB:        db,
 	}
 
@@ -438,7 +440,7 @@ func (al *APIListener) handleBasicAuth(ctx context.Context, httpverb, urlpath, u
 	}
 
 	// only check token if we have one saved == I can't know if I have the token for this operation until I check the prefix inside the db
-	//   only check token if the prefix gives me a match with the db
+	//   only check token if the prefix gives notificationsSQLite a match with the db
 	// TODO: this type of tokens "User tokens", meant to be used by scripts - used in place of the password at each request - should be renamed "passwords" or "long lived passwords" or "encrypted long lived passwords"
 	prefix, password, err := authorization.Extract(password)
 	if err != nil {

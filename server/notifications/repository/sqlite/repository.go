@@ -5,6 +5,7 @@ import (
 	"database/sql"
 	"errors"
 	"fmt"
+	"log"
 	"strings"
 	"time"
 
@@ -76,10 +77,7 @@ func (r repository) setState(ctx context.Context, nid string, state notification
 
 	_, err := r.db.NamedExecContext(
 		ctx,
-		"INSERT INTO `notifications_log`"+
-			" (`notification_id`, `state`, `out`)"+
-			" VALUES "+
-			"(:notification_id, :state, :out)",
+		"INSERT INTO `notifications_log` (`notification_id`, `state`, `out`)  VALUES (:notification_id, :state, :out)",
 		n,
 	)
 
@@ -117,9 +115,9 @@ func (r repository) Create(ctx context.Context, details notifications.Notificati
 	n := SQLNotification{
 		NotificationID: details.ID.ID(),
 		Timestamp:      nil,
-		Origin:         string(details.Origin.Parent().Type()),
+		Origin:         string(details.Origin.Type()),
 		FullOrigin:     details.Origin.String(),
-		ReferenceID:    details.Origin.Parent().ID(),
+		ReferenceID:    details.Origin.ID(),
 		Transport:      details.Data.Target,
 		Recipients:     strings.Join(details.Data.Recipients, RecipientsSeparator),
 		State:          string(details.State),
@@ -131,7 +129,7 @@ func (r repository) Create(ctx context.Context, details notifications.Notificati
 
 	_, err := r.db.NamedExecContext(
 		ctx,
-		"INSERT INTO `notifications_log`"+
+		"INSERT INTO `notifications_log` "+
 			" (`notification_id`, `contentType`, `origin`, `fullOrigin`, `reference_id`, `transport`, `recipients`, `state`, `subject`, `body`, `out`)"+
 			" VALUES "+
 			"(:notification_id, :contentType, :origin, :fullOrigin, :reference_id, :transport, :recipients, :state, :subject, :body, :out)",
@@ -159,7 +157,7 @@ func (r repository) Details(ctx context.Context, nid string) (notifications.Noti
 	}
 	entity := entities[0]
 
-	origin, err := refs.ParseOrigin(entity.FullOrigin)
+	origin, err := refs.ParseIdentifiable(entity.FullOrigin)
 	if err != nil {
 		return notifications.NotificationDetails{}, false, err
 	}
@@ -195,6 +193,8 @@ func (r repository) List(ctx context.Context, options *query.ListOptions) ([]not
 	q := "SELECT notification_id, state, transport FROM notifications_log ORDER by notification_id"
 	params := []interface{}{}
 	q, params = r.converter.AppendOptionsToQuery(options, q, params)
+
+	log.Println(q)
 
 	err := r.db.SelectContext(
 		ctx,

@@ -18,13 +18,9 @@ func NewConsumer() *consumer {
 	return &consumer{}
 }
 
-type ScriptIO struct {
-	Data       map[string]any `json:"data"`
-	Recipients []string       `json:"recipients"`
-}
-
 func (c consumer) Process(details notifications.NotificationDetails) error {
 	ctx, cancelFunc := context.WithTimeout(context.Background(), ScriptTimeout)
+	defer cancelFunc()
 
 	var content interface{} = map[string]interface{}{}
 	var err error
@@ -33,7 +29,6 @@ func (c consumer) Process(details notifications.NotificationDetails) error {
 	case notifications.ContentTypeTextJSON:
 		err = json.Unmarshal([]byte(details.Data.Content), &content)
 		if err != nil {
-			cancelFunc()
 			return err
 		}
 	default:
@@ -47,13 +42,10 @@ func (c consumer) Process(details notifications.NotificationDetails) error {
 
 	data, err := json.Marshal(&tmp)
 	if err != nil {
-		cancelFunc()
 		return err
 	}
 
 	err = RunCancelableScript(ctx, details.Data.Target, string(data))
-
-	cancelFunc()
 
 	return err
 }

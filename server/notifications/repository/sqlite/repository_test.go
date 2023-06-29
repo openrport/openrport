@@ -13,9 +13,7 @@ import (
 	"github.com/realvnc-labs/rport/share/refs"
 )
 
-var alertingIdentifiable = refs.GenerateIdentifiable("Alerting")
 var problemIdentifiable = refs.GenerateIdentifiable("Problem")
-var expectedOrigin = refs.NewOrigin(alertingIdentifiable, problemIdentifiable)
 
 type RepositoryTestSuite struct {
 	suite.Suite
@@ -91,6 +89,21 @@ func (suite *RepositoryTestSuite) TestRepositoryNotificationError() {
 	suite.Equal(notification, retrieved)
 }
 
+func (suite *RepositoryTestSuite) TestRepositoryNotificationList() {
+	suite.T().Skip()
+	suite.CreateNotification()
+	notification := suite.CreateNotification()
+
+	notification.State = notifications.ProcessingStateError
+	notification.Out = "test-error"
+
+	suite.NoError(suite.repository.LogError(context.Background(), notification.ID.ID(), "test-error"))
+
+	list, err := suite.repository.List(context.Background(), nil)
+	suite.NoError(err)
+	suite.Equal(list, []notifications.NotificationSummary{})
+}
+
 func (suite *RepositoryTestSuite) TestRepositoryNotificationStream() {
 	notification := suite.CreateNotification()
 
@@ -115,7 +128,7 @@ func (suite *RepositoryTestSuite) TestRepositoryRejectNewNotificationsWhenCloseT
 	for i := 0; i < me.MaxNotificationsQueue; i++ {
 		identifiable := refs.GenerateIdentifiable(notifications.NotificationType)
 		details := notifications.NotificationDetails{
-			Origin: expectedOrigin,
+			Origin: problemIdentifiable,
 			Data: notifications.NotificationData{
 				ContentType: notifications.ContentTypeTextHTML,
 				Target:      "test-target",
@@ -142,7 +155,7 @@ func (suite *RepositoryTestSuite) TestRepositoryRejectNewNotificationsWhenCloseT
 func (suite *RepositoryTestSuite) CreateNotification() notifications.NotificationDetails {
 	identifiable := refs.GenerateIdentifiable(notifications.NotificationType)
 	details := notifications.NotificationDetails{
-		Origin: expectedOrigin,
+		Origin: problemIdentifiable,
 		Data: notifications.NotificationData{
 			ContentType: notifications.ContentTypeTextHTML,
 			Target:      "test-target",

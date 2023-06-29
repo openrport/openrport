@@ -2,7 +2,7 @@ package refs
 
 import (
 	"fmt"
-	"regexp"
+	"strings"
 
 	"github.com/oklog/ulid/v2"
 )
@@ -19,18 +19,17 @@ type Identifiable interface {
 	String() string
 }
 
-var identifiableRegEx = regexp.MustCompile(`([^\(]+)\(([^\)]+)\)`)
-
 //nolint:revive
 func ParseIdentifiable(raw string) (identifiable, error) {
-	matches := identifiableRegEx.FindStringSubmatch(raw)
-	if len(matches) == 0 {
+	parts := strings.Split(raw, ":::")
+
+	if len(parts) != 2 {
 		return identifiable{}, fmt.Errorf("cant parse identifielbe: %v", raw)
 	}
 
 	return identifiable{
-		iType: IdentifiableType(matches[1]),
-		id:    matches[2],
+		iType: IdentifiableType(parts[0]),
+		id:    parts[1],
 	}, nil
 }
 
@@ -62,7 +61,7 @@ func (i identifiable) ID() string {
 
 // String make it serializable nicely for others to store in DB and for you to reconstruct later
 func (i identifiable) String() string {
-	return string(i.iType) + "(" + i.id + ")"
+	return string(i.iType) + ":::" + i.id
 }
 
 //nolint:revive
