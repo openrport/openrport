@@ -26,6 +26,7 @@ import (
 	"github.com/realvnc-labs/rport/db/sqlite"
 	rportplus "github.com/realvnc-labs/rport/plus"
 	"github.com/realvnc-labs/rport/server/notifications"
+	logger2 "github.com/realvnc-labs/rport/server/notifications/channels/logger"
 	"github.com/realvnc-labs/rport/server/notifications/channels/rmailer"
 	"github.com/realvnc-labs/rport/server/notifications/channels/scriptRunner"
 	me "github.com/realvnc-labs/rport/server/notifications/repository/sqlite"
@@ -148,13 +149,18 @@ func NewAPIListener(
 
 	notificationConsumers := []notifications.Consumer{scriptConsumer}
 	smtpConfig, err := rmailer.ConfigFromSMTPConfig(config.SMTP)
-	if err != nil {
-		server.Logger.Errorf("failed to bootstrap smtp notifications: %v", err)
+	notificationsLogger := logger.NewLogger("notifications", config.Logging.LogOutput, config.Logging.LogLevel)
+
+	if err == nil {
 		mailConsumer := rmailer.NewConsumer(rmailer.NewRMailer(smtpConfig))
 		notificationConsumers = append(notificationConsumers, mailConsumer)
+	} else {
+		notificationsLogger.Errorf("failed to bootstrap smtp notifications: %v", err)
+		logConsumer := logger2.NewLogConsumer(logger.NewLogger("smtp error", config.Logging.LogOutput, logger.LogLevelError), notifications.TargetMail) // consume mail notifications even if mailer is not available
+		notificationConsumers = append(notificationConsumers, logConsumer)
 	}
 
-	runner := notifications.NewProcessor(logger.NewLogger("notifications", config.Logging.LogOutput, config.Logging.LogLevel), store, notificationConsumers...)
+	runner := notifications.NewProcessor(notificationsLogger, store, notificationConsumers...)
 
 	// init vault DB if it already exists
 	fs := files.NewFileSystem()

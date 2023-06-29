@@ -30,7 +30,7 @@ func (suite *RepositoryTestSuite) SetupTest() {
 }
 
 func (suite *RepositoryTestSuite) TestRepositoryEmptyListIsEmpty() {
-	items, err := suite.repository.List(context.Background())
+	items, err := suite.repository.List(context.Background(), nil)
 	suite.NoError(err)
 	suite.Len(items, 0)
 }
@@ -106,9 +106,37 @@ func (suite *RepositoryTestSuite) TestRepositoryNotificationListWithEntities() {
 	e2 := suite.CreateNotification()
 	log.Println(e1)
 	log.Println(e2)
-	entities, err := suite.repository.List(context.Background())
+	entities, err := suite.repository.List(context.Background(), nil)
 	suite.NoError(err)
 	suite.Len(entities, 2)
+}
+
+func (suite *RepositoryTestSuite) TestRepositoryRejectNewNotificationsWhenCloseToFullChannel() {
+	for i := 0; i < me.MaxNotificationsQueue; i++ {
+		identifiable := refs.GenerateIdentifiable(notifications.NotificationType)
+		details := notifications.NotificationDetails{
+			Origin: expectedOrigin,
+			Data: notifications.NotificationData{
+				ContentType: notifications.ContentTypeTextHTML,
+				Target:      "test-target",
+				Subject:     "test-subject",
+				Content:     "test-content",
+			},
+			State:  notifications.ProcessingStateQueued,
+			ID:     identifiable,
+			Out:    "test-out",
+			Target: "script",
+		}
+		err := suite.repository.Create(context.Background(), details)
+		if err != nil {
+			if i > me.MaxNotificationsQueue*0.5 {
+				suite.ErrorContains(err, "rejected")
+				return
+			}
+			suite.NoError(err)
+		}
+	}
+	suite.Fail("should reject when too many notifications wait")
 }
 
 func (suite *RepositoryTestSuite) CreateNotification() notifications.NotificationDetails {

@@ -11,12 +11,13 @@ import (
 	"github.com/jmoiron/sqlx"
 
 	"github.com/realvnc-labs/rport/server/notifications"
+	"github.com/realvnc-labs/rport/share/query"
 	"github.com/realvnc-labs/rport/share/refs"
 )
 
 type Repository interface {
-	//	Save(ctx context.Context, details notifications.NotificationDetails) error
-	List(ctx context.Context) ([]notifications.NotificationSummary, error)
+	List(ctx context.Context, options *query.ListOptions) ([]notifications.NotificationSummary, error)
+	Count(ctx context.Context, options *query.ListOptions) (int, error)
 	Details(ctx context.Context, nid string) (notifications.NotificationDetails, bool, error)
 	Create(ctx context.Context, details notifications.NotificationDetails) error
 	LogRunning(ctx context.Context, nid string) error
@@ -31,9 +32,27 @@ const MaxNotificationsQueue = 1000
 const RecipientsSeparator = "@|@"
 
 type repository struct {
-	db *sqlx.DB
-	//converter *query.SQLConverter
-	sinks map[notifications.Target]chan notifications.NotificationDetails
+	db        *sqlx.DB
+	converter *query.SQLConverter
+	sinks     map[notifications.Target]chan notifications.NotificationDetails
+}
+
+func (r repository) Count(ctx context.Context, options *query.ListOptions) (int, error) {
+	var res int
+
+	countOptions := *options
+	countOptions.Pagination = nil
+	q := "SELECT COUNT(*) FROM notifications_log ORDER by notification_id"
+	params := []interface{}{}
+	q, params = r.converter.AppendOptionsToQuery(&countOptions, q, params)
+
+	err := r.db.SelectContext(
+		ctx,
+		&res,
+		q,
+		params...,
+	)
+	return res, err
 }
 
 func (r repository) LogError(ctx context.Context, nid string, error string) error {
@@ -88,7 +107,12 @@ func (r repository) Create(ctx context.Context, details notifications.Notificati
 		return fmt.Errorf("invalid target: %v", details.Target)
 	}
 
-	r.sinks[details.Target] <- details
+	ch := r.sinks[details.Target]
+	if len(ch) > MaxNotificationsQueue*0.95 {
+		return fmt.Errorf("notification rejected due to too many queued notifications: %v", details.Target)
+	}
+
+	ch <- details
 
 	n := SQLNotification{
 		NotificationID: details.ID.ID(),
@@ -165,12 +189,18 @@ func (r repository) Details(ctx context.Context, nid string) (notifications.Noti
 	return tmp, true, nil
 }
 
-func (r repository) List(ctx context.Context) ([]notifications.NotificationSummary, error) {
+func (r repository) List(ctx context.Context, options *query.ListOptions) ([]notifications.NotificationSummary, error) {
 	var res []notifications.NotificationSummary
+
+	q := "SELECT notification_id, state, transport FROM notifications_log ORDER by notification_id"
+	params := []interface{}{}
+	q, params = r.converter.AppendOptionsToQuery(options, q, params)
+
 	err := r.db.SelectContext(
 		ctx,
 		&res,
-		"SELECT notification_id, state FROM notifications_log ORDER by notification_id",
+		q,
+		params...,
 	)
 	return res, err
 }
@@ -182,8 +212,9 @@ func NewRepository(connection *sqlx.DB) repository {
 		sinks[target] = make(chan notifications.NotificationDetails, MaxNotificationsQueue)
 	}
 	return repository{
-		db:    connection,
-		sinks: sinks,
+		db:        connection,
+		sinks:     sinks,
+		converter: query.NewSQLConverter(connection.DriverName()),
 	}
 }
 
