@@ -16,6 +16,7 @@ const (
 	ParamTemplateID     = "template_id"
 	ParamRuleID         = "rule_id"
 	ParamProblemID      = "problem_id"
+	ParamNotificationID = "notification_id"
 
 	AllRoutesPrefix             = "/api/v1"
 	AuthRoutesPrefix            = "/auth"
