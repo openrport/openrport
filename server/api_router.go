@@ -134,6 +134,9 @@ func (al *APIListener) initRouter() {
 	adminOnly.HandleFunc("/clients-auth", al.handlePostClientsAuth).Methods(http.MethodPost)
 	adminOnly.HandleFunc("/clients-auth/{client_auth_id}", al.handleDeleteClientAuth).Methods(http.MethodDelete)
 
+	adminOnly.HandleFunc("/notification-logs", al.handleGetNotifications).Methods(http.MethodGet)
+	adminOnly.HandleFunc("/notification-logs/{notification_id}", al.handleGetNotificationDetails).Methods(http.MethodGet)
+
 	commands := secureAPI.NewRoute().Subrouter()
 	commands.Use(al.permissionsMiddleware(users.PermissionCommands))
 	commands.HandleFunc("/commands", al.handlePostMultiClientCommand).Methods(http.MethodPost)
