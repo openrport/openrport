@@ -65,12 +65,15 @@ func (ts *MailTestSuite) TestMailErrorOnTooManyHangingConnections() {
 
 	mailer := ts.mailerFromPort(port)
 
-	for i := 0; i < rmailer.MaxHangingMailSends+10; i++ {
+	mailCount := rmailer.MaxHangingMailSends * 2
+
+	for i := 0; i < mailCount; i++ {
 		go func() {
+			//!!! mailer should not be run asynchronously, it's only run here like this to ensure error queue to fill up
 			_ = mailer.Send(context.Background(), []string{"tina.recipient@example.com", "just+fff@some.mail.com"}, "test subject!", rmailer.ContentTypeTextHTML, "test\r\n\r\n<b>content</b>")
 		}()
 	}
-	time.Sleep(time.Millisecond)
+	time.Sleep(time.Millisecond * 10) // wait not for all messages to be sent (could use wait group for that) but to enqueue messages into error queue
 
 	ctx, cancelFn := context.WithTimeout(context.Background(), time.Millisecond)
 	defer cancelFn()
@@ -91,9 +94,10 @@ func (ts *MailTestSuite) mailerFromPort(port int) rmailer.Mailer {
 }
 
 func (ts *MailTestSuite) neverRespondingSMTPServer(port int) {
+	logError := ts.NoError
 	go func() {
 		listener, err := net.Listen("tcp", fmt.Sprintf("localhost:%v", port))
-		ts.NoError(err)
+		logError(err)
 		for {
 			_, _ = listener.Accept()
 		}

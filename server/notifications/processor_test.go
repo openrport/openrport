@@ -68,7 +68,7 @@ func (suite *ProcessorTestSuite) awaitNotificationsProcessed() {
 		ns, err := suite.store.List(context.Background())
 		suite.NoError(err)
 		for _, n := range ns {
-			if n.State != notifications.ProcessingStateDone {
+			if n.State == notifications.ProcessingStateQueued || n.State == notifications.ProcessingStateRunning {
 				continue
 			}
 		}
@@ -168,7 +168,8 @@ func (suite *ProcessorTestSuite) TestProcessManyNotifications() {
 
 	second.State = notifications.ProcessingStateDone
 
-	out, found, _ := suite.store.Details(context.Background(), second.ID)
+	out, found, err := suite.store.Details(context.Background(), second.ID)
+	suite.NoError(err)
 	suite.True(found)
 	suite.Equal(second, out)
 }
