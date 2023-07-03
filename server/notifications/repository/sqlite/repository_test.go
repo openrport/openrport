@@ -3,28 +3,32 @@ package sqlite_test
 import (
 	"context"
 	"log"
+	"os"
 	"testing"
 
 	"github.com/stretchr/testify/suite"
 
 	"github.com/realvnc-labs/rport/db/sqlite"
 	"github.com/realvnc-labs/rport/server/notifications"
-	me "github.com/realvnc-labs/rport/server/notifications/repository/sqlite"
+	repo "github.com/realvnc-labs/rport/server/notifications/repository/sqlite"
+	"github.com/realvnc-labs/rport/share/logger"
 	"github.com/realvnc-labs/rport/share/refs"
 )
 
 var problemIdentifiable = refs.GenerateIdentifiable("Problem")
 
+var testLog = logger.NewLogger("client", logger.LogOutput{File: os.Stdout}, logger.LogLevelDebug)
+
 type RepositoryTestSuite struct {
 	suite.Suite
-	repository me.Repository
+	repository repo.Repository
 }
 
 func (suite *RepositoryTestSuite) SetupTest() {
-	db, err := sqlite.New(":memory:", me.AssetNames(), me.Asset, sqlite.DataSourceOptions{})
+	db, err := sqlite.New(":memory:", repo.AssetNames(), repo.Asset, sqlite.DataSourceOptions{})
 	suite.NoError(err)
 
-	suite.repository = me.NewRepository(db)
+	suite.repository = repo.NewRepository(db, testLog)
 }
 
 func (suite *RepositoryTestSuite) TestRepositoryEmptyListIsEmpty() {
@@ -50,10 +54,10 @@ func (suite *RepositoryTestSuite) TestRepositoryNotificationSavePropagatesToDeta
 func (suite *RepositoryTestSuite) TestRepositoryNotificationRunning() {
 	notification := suite.CreateNotification()
 
-	notification.State = notifications.ProcessingStateRunning
+	notification.State = notifications.ProcessingStateDispatching
 	notification.Out = ""
 
-	suite.NoError(suite.repository.LogRunning(context.Background(), notification.ID.ID()))
+	suite.NoError(suite.repository.SetDispatching(context.Background(), notification.ID.ID()))
 
 	retrieved, found, err := suite.repository.Details(context.Background(), notification.ID.ID())
 	suite.NoError(err)
@@ -67,7 +71,7 @@ func (suite *RepositoryTestSuite) TestRepositoryNotificationDone() {
 	notification.State = notifications.ProcessingStateDone
 	notification.Out = ""
 
-	suite.NoError(suite.repository.LogDone(context.Background(), notification.ID.ID()))
+	suite.NoError(suite.repository.SetDone(context.Background(), notification.ID.ID()))
 
 	retrieved, found, err := suite.repository.Details(context.Background(), notification.ID.ID())
 	suite.NoError(err)
@@ -81,7 +85,7 @@ func (suite *RepositoryTestSuite) TestRepositoryNotificationError() {
 	notification.State = notifications.ProcessingStateError
 	notification.Out = "test-error"
 
-	suite.NoError(suite.repository.LogError(context.Background(), notification.ID.ID(), "test-error"))
+	suite.NoError(suite.repository.SetError(context.Background(), notification.ID.ID(), "test-error"))
 
 	retrieved, found, err := suite.repository.Details(context.Background(), notification.ID.ID())
 	suite.NoError(err)
@@ -97,7 +101,7 @@ func (suite *RepositoryTestSuite) TestRepositoryNotificationList() {
 	notification.State = notifications.ProcessingStateError
 	notification.Out = "test-error"
 
-	suite.NoError(suite.repository.LogError(context.Background(), notification.ID.ID(), "test-error"))
+	suite.NoError(suite.repository.SetError(context.Background(), notification.ID.ID(), "test-error"))
 
 	list, err := suite.repository.List(context.Background(), nil)
 	suite.NoError(err)
@@ -125,10 +129,10 @@ func (suite *RepositoryTestSuite) TestRepositoryNotificationListWithEntities() {
 }
 
 func (suite *RepositoryTestSuite) TestRepositoryRejectNewNotificationsWhenCloseToFullChannel() {
-	for i := 0; i < me.MaxNotificationsQueue; i++ {
+	for i := 0; i < repo.MaxNotificationsQueue; i++ {
 		identifiable := refs.GenerateIdentifiable(notifications.NotificationType)
 		details := notifications.NotificationDetails{
-			Origin: problemIdentifiable,
+			RefID: problemIdentifiable,
 			Data: notifications.NotificationData{
 				ContentType: notifications.ContentTypeTextHTML,
 				Target:      "test-target",
@@ -142,7 +146,7 @@ func (suite *RepositoryTestSuite) TestRepositoryRejectNewNotificationsWhenCloseT
 		}
 		err := suite.repository.Create(context.Background(), details)
 		if err != nil {
-			if i > me.MaxNotificationsQueue*0.5 {
+			if i > repo.MaxNotificationsQueue*0.5 {
 				suite.ErrorContains(err, "rejected")
 				return
 			}
@@ -155,7 +159,7 @@ func (suite *RepositoryTestSuite) TestRepositoryRejectNewNotificationsWhenCloseT
 func (suite *RepositoryTestSuite) CreateNotification() notifications.NotificationDetails {
 	identifiable := refs.GenerateIdentifiable(notifications.NotificationType)
 	details := notifications.NotificationDetails{
-		Origin: problemIdentifiable,
+		RefID: problemIdentifiable,
 		Data: notifications.NotificationData{
 			ContentType: notifications.ContentTypeTextHTML,
 			Target:      "test-target",

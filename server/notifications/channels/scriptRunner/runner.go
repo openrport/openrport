@@ -34,7 +34,7 @@ func RunCancelableScript(ctx context.Context, script string, body string) error 
 		return err
 	}
 
-	internalCtx, cancelFunc := context.WithCancel(context.Background())
+	internalCtx, internalCancelFunc := context.WithCancel(context.Background())
 	go func() {
 		select {
 		case <-ctx.Done():
@@ -45,17 +45,19 @@ func RunCancelableScript(ctx context.Context, script string, body string) error 
 				err = fmt.Errorf("script killed because of ctx cancel")
 			}
 
-			cancelFunc()
+			internalCancelFunc()
 		case <-internalCtx.Done():
 		}
 	}()
 
 	go func() {
 		err = cmd.Wait()
-		cancelFunc()
+		internalCancelFunc()
 	}()
 
 	<-internalCtx.Done()
+
+	// this err will be set by the goroutine closures above
 	if err != nil {
 		return err
 	}

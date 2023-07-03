@@ -12,6 +12,7 @@ import (
 	"github.com/jmoiron/sqlx"
 
 	"github.com/realvnc-labs/rport/server/notifications"
+	"github.com/realvnc-labs/rport/share/logger"
 	"github.com/realvnc-labs/rport/share/query"
 	"github.com/realvnc-labs/rport/share/refs"
 )
@@ -21,9 +22,9 @@ type Repository interface {
 	Count(ctx context.Context, options *query.ListOptions) (int, error)
 	Details(ctx context.Context, nid string) (notifications.NotificationDetails, bool, error)
 	Create(ctx context.Context, details notifications.NotificationDetails) error
-	LogRunning(ctx context.Context, nid string) error
-	LogDone(ctx context.Context, nid string) error
-	LogError(ctx context.Context, nid string, error string) error
+	SetDispatching(ctx context.Context, nid string) error
+	SetDone(ctx context.Context, nid string) error
+	SetError(ctx context.Context, nid string, error string) error
 	NotificationStream(target notifications.Target) chan notifications.NotificationDetails
 	Close() error
 }
@@ -36,6 +37,8 @@ type repository struct {
 	db        *sqlx.DB
 	converter *query.SQLConverter
 	sinks     map[notifications.Target]chan notifications.NotificationDetails
+
+	L *logger.Logger
 }
 
 func (r repository) Count(ctx context.Context, options *query.ListOptions) (int, error) {
@@ -56,16 +59,16 @@ func (r repository) Count(ctx context.Context, options *query.ListOptions) (int,
 	return res, err
 }
 
-func (r repository) LogError(ctx context.Context, nid string, error string) error {
+func (r repository) SetError(ctx context.Context, nid string, error string) error {
 	return r.setState(ctx, nid, notifications.ProcessingStateError, error)
 }
 
-func (r repository) LogDone(ctx context.Context, nid string) error {
+func (r repository) SetDone(ctx context.Context, nid string) error {
 	return r.setState(ctx, nid, notifications.ProcessingStateDone, "")
 }
 
-func (r repository) LogRunning(ctx context.Context, nid string) error {
-	return r.setState(ctx, nid, notifications.ProcessingStateRunning, "")
+func (r repository) SetDispatching(ctx context.Context, nid string) error {
+	return r.setState(ctx, nid, notifications.ProcessingStateDispatching, "")
 }
 
 func (r repository) setState(ctx context.Context, nid string, state notifications.ProcessingState, out string) error {
@@ -88,8 +91,6 @@ type SQLNotification struct {
 	NotificationID string     `db:"notification_id"`
 	Timestamp      *time.Time `db:"timestamp"`
 	ContentType    string     `db:"contentType"`
-	Origin         string     `db:"origin"`
-	FullOrigin     string     `db:"fullOrigin"`
 	ReferenceID    string     `db:"reference_id"`
 	Transport      string     `db:"transport"`
 	Recipients     string     `db:"recipients"`
@@ -115,9 +116,7 @@ func (r repository) Create(ctx context.Context, details notifications.Notificati
 	n := SQLNotification{
 		NotificationID: details.ID.ID(),
 		Timestamp:      nil,
-		Origin:         string(details.Origin.Type()),
-		FullOrigin:     details.Origin.String(),
-		ReferenceID:    details.Origin.ID(),
+		ReferenceID:    details.RefID.String(),
 		Transport:      details.Data.Target,
 		Recipients:     strings.Join(details.Data.Recipients, RecipientsSeparator),
 		State:          string(details.State),
@@ -130,9 +129,9 @@ func (r repository) Create(ctx context.Context, details notifications.Notificati
 	_, err := r.db.NamedExecContext(
 		ctx,
 		"INSERT INTO `notifications_log` "+
-			" (`notification_id`, `contentType`, `origin`, `fullOrigin`, `reference_id`, `transport`, `recipients`, `state`, `subject`, `body`, `out`)"+
+			" (`notification_id`, `contentType`, `reference_id`, `transport`, `recipients`, `state`, `subject`, `body`, `out`)"+
 			" VALUES "+
-			"(:notification_id, :contentType, :origin, :fullOrigin, :reference_id, :transport, :recipients, :state, :subject, :body, :out)",
+			"(:notification_id, :contentType, :reference_id, :transport, :recipients, :state, :subject, :body, :out)",
 		n,
 	)
 
@@ -157,7 +156,7 @@ func (r repository) Details(ctx context.Context, nid string) (notifications.Noti
 	}
 	entity := entities[0]
 
-	origin, err := refs.ParseIdentifiable(entity.FullOrigin)
+	refID, err := refs.ParseIdentifiable(entity.ReferenceID)
 	if err != nil {
 		return notifications.NotificationDetails{}, false, err
 	}
@@ -169,7 +168,7 @@ func (r repository) Details(ctx context.Context, nid string) (notifications.Noti
 
 	last := entities[len(entities)-1]
 	details := notifications.NotificationDetails{
-		Origin: origin,
+		RefID: refID,
 		Data: notifications.NotificationData{
 			Target:      entity.Transport,
 			Recipients:  recipients,
@@ -206,7 +205,7 @@ func (r repository) List(ctx context.Context, options *query.ListOptions) ([]not
 }
 
 //nolint:revive
-func NewRepository(connection *sqlx.DB) repository {
+func NewRepository(connection *sqlx.DB, l *logger.Logger) repository {
 	sinks := map[notifications.Target]chan notifications.NotificationDetails{}
 	for _, target := range notifications.AllTargets {
 		sinks[target] = make(chan notifications.NotificationDetails, MaxNotificationsQueue)
@@ -215,6 +214,7 @@ func NewRepository(connection *sqlx.DB) repository {
 		db:        connection,
 		sinks:     sinks,
 		converter: query.NewSQLConverter(connection.DriverName()),
+		L:         l,
 	}
 }
 

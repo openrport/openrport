@@ -17,6 +17,7 @@ import (
 	"github.com/realvnc-labs/rport/plus/capabilities/alerting/entities/validations"
 	"github.com/realvnc-labs/rport/plus/capabilities/status"
 	"github.com/realvnc-labs/rport/plus/validator"
+	"github.com/realvnc-labs/rport/server/notifications"
 	"github.com/realvnc-labs/rport/share/logger"
 )
 
@@ -171,7 +172,7 @@ func NewMockServiceProvider() (mp *MockServiceProvider) {
 	return mp
 }
 
-func (mp *MockServiceProvider) Run(ctx context.Context) {
+func (mp *MockServiceProvider) Run(ctx context.Context, _ notifications.Dispatcher) {
 }
 
 func (mp *MockServiceProvider) Stop() (err error) {

@@ -37,6 +37,7 @@ import (
 	"github.com/realvnc-labs/rport/server/clients"
 	"github.com/realvnc-labs/rport/server/clientsauth"
 	"github.com/realvnc-labs/rport/server/monitoring"
+	"github.com/realvnc-labs/rport/server/notifications"
 	"github.com/realvnc-labs/rport/server/ports"
 	"github.com/realvnc-labs/rport/server/scheduler"
 	chshare "github.com/realvnc-labs/rport/share"
@@ -293,6 +294,10 @@ func NewServer(ctx context.Context, config *chconfig.Config, opts *ServerOpts) (
 		s.clientService.SetCaddyAPI(s.caddyServer)
 	}
 
+	if s.as != nil {
+		dispatcher := notifications.NewDispatcher(s.apiListener.notificationsStorage)
+		s.as.Run(ctx, dispatcher)
+	}
 	return s, nil
 }
 
@@ -304,7 +309,9 @@ func (s *Server) HandlePlusLicenseInfoAvailable() {
 	}
 }
 
-func (s *Server) StartPlusAlertingService(ctx context.Context, alertingCap alertingcap.CapabilityEx, dataDir string) (as alertingcap.Service, err error) {
+func (s *Server) StartPlusAlertingService(ctx context.Context,
+	alertingCap alertingcap.CapabilityEx,
+	dataDir string) (as alertingcap.Service, err error) {
 	opts := bbolt.DefaultOptions
 	bdb, err := bbolt.Open(dataDir+"/alerts.boltdb", 0600, opts)
 	if err != nil {
@@ -322,9 +329,6 @@ func (s *Server) StartPlusAlertingService(ctx context.Context, alertingCap alert
 	if err != nil {
 		s.Infof("failed to load latest ruleset: %v", err)
 	}
-
-	// TODO: (rs): will we have an enabled type flag?
-	as.Run(ctx)
 
 	return as, nil
 }

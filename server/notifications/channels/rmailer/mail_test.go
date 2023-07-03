@@ -2,6 +2,7 @@ package rmailer_test
 
 import (
 	"fmt"
+	"os"
 	"testing"
 
 	smtpmock "github.com/mocktools/go-smtp-mock/v2"
@@ -9,7 +10,10 @@ import (
 
 	"github.com/realvnc-labs/rport/server/chconfig"
 	"github.com/realvnc-labs/rport/server/notifications/channels/rmailer"
+	"github.com/realvnc-labs/rport/share/logger"
 )
+
+var testLog = logger.NewLogger("client", logger.LogOutput{File: os.Stdout}, logger.LogLevelDebug)
 
 type MailTestSuite struct {
 	suite.Suite
@@ -34,7 +38,7 @@ func (ts *MailTestSuite) SetupSuite() {
 		TLS:      false,
 		AuthType: rmailer.AuthTypeNone,
 		NoNoop:   true,
-	})
+	}, testLog)
 
 	if err := ts.server.Start(); err != nil {
 		fmt.Println(err)

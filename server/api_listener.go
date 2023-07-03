@@ -144,20 +144,22 @@ func NewAPIListener(
 		return nil, fmt.Errorf("failed to bootstrap api: %v", err)
 	}
 
-	store := notificationsSQLite.NewRepository(db)
-	// dispatcher := notifications.NewDispatcher(store)
-	scriptConsumer := scriptRunner.NewConsumer()
+	notificationsLogger := server.Logger.Fork("notifications")
+
+	store := notificationsSQLite.NewRepository(db, server.Logger)
+	scriptConsumer := scriptRunner.NewConsumer(notificationsLogger.Fork("scriptrunner"))
 
 	notificationConsumers := []notifications.Consumer{scriptConsumer}
-	smtpConfig, err := rmailer.ConfigFromSMTPConfig(config.SMTP)
-	notificationsLogger := logger.NewLogger("notifications", config.Logging.LogOutput, config.Logging.LogLevel)
 
+	smtpConfig, err := rmailer.ConfigFromSMTPConfig(config.SMTP)
 	if err == nil {
-		mailConsumer := rmailer.NewConsumer(rmailer.NewRMailer(smtpConfig))
+		smtpLogger := notificationsLogger.Fork("smtp")
+		smtpLogger.Debugf("using smtp config: %v", smtpConfig)
+		mailConsumer := rmailer.NewConsumer(rmailer.NewRMailer(smtpConfig, smtpLogger), smtpLogger)
 		notificationConsumers = append(notificationConsumers, mailConsumer)
 	} else {
 		notificationsLogger.Errorf("failed to bootstrap smtp notifications: %v", err)
-		logConsumer := toLog.NewLogConsumer(logger.NewLogger("smtp error", config.Logging.LogOutput, logger.LogLevelError), notifications.TargetMail) // consume mail notifications even if mailer is not available
+		logConsumer := toLog.NewLogConsumer(notificationsLogger.Fork("smtp error"), notifications.TargetMail) // consume mail notifications even if mailer is not available
 		notificationConsumers = append(notificationConsumers, logConsumer)
 	}
 

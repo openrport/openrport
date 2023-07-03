@@ -6,16 +6,20 @@ import (
 	"time"
 
 	"github.com/realvnc-labs/rport/server/notifications"
+	"github.com/realvnc-labs/rport/share/logger"
 )
 
 const ScriptTimeout = time.Second * 20
 
 type consumer struct {
+	l *logger.Logger
 }
 
 //nolint:revive
-func NewConsumer() *consumer {
-	return &consumer{}
+func NewConsumer(l *logger.Logger) *consumer {
+	return &consumer{
+		l: l,
+	}
 }
 
 func (c consumer) Process(details notifications.NotificationDetails) error {
@@ -45,9 +49,15 @@ func (c consumer) Process(details notifications.NotificationDetails) error {
 		return err
 	}
 
-	err = RunCancelableScript(ctx, details.Data.Target, string(data))
+	c.l.Debugf("running script: %s: with data: %s", details.Data.Target, string(data))
 
-	return err
+	err = RunCancelableScript(ctx, details.Data.Target, string(data))
+	if err != nil {
+		c.l.Debugf("failed running script: %s: with err: ", details.Data.Target, err)
+		return err
+	}
+
+	return nil
 }
 
 func (c consumer) Target() notifications.Target {

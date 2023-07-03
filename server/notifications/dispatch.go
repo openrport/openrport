@@ -9,12 +9,12 @@ import (
 type ProcessingState string
 
 const ProcessingStateQueued ProcessingState = "queued"
-const ProcessingStateRunning ProcessingState = "running"
+const ProcessingStateDispatching ProcessingState = "dispatching"
 const ProcessingStateDone ProcessingState = "done"
 const ProcessingStateError ProcessingState = "error"
 
 type Dispatcher interface {
-	Dispatch(ctx context.Context, origin refs.Identifiable, notification NotificationData) (refs.Identifiable, error)
+	Dispatch(ctx context.Context, refID refs.Identifiable, notification NotificationData) (refs.Identifiable, error)
 }
 
 type store interface {
@@ -25,12 +25,12 @@ type dispatcher struct {
 	store store
 }
 
-func (f dispatcher) Dispatch(ctx context.Context, origin refs.Identifiable, notification NotificationData) (refs.Identifiable, error) {
+func (f dispatcher) Dispatch(ctx context.Context, refID refs.Identifiable, notification NotificationData) (refs.Identifiable, error) {
 
 	details := NotificationDetails{
 		Data:   notification,
 		State:  ProcessingStateQueued,
-		Origin: origin,
+		RefID:  refID,
 		ID:     refs.GenerateIdentifiable(NotificationType),
 		Target: FigureOutTarget(notification.Target),
 	}
@@ -55,7 +55,7 @@ func NewDispatcher(repository store) dispatcher {
 }
 
 type NotificationDetails struct {
-	Origin refs.Identifiable
+	RefID  refs.Identifiable
 	Data   NotificationData
 	State  ProcessingState
 	ID     refs.Identifiable

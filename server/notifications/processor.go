@@ -34,9 +34,9 @@ func (t Target) Valid() bool {
 
 type Store interface {
 	Create(ctx context.Context, details NotificationDetails) error
-	LogRunning(ctx context.Context, nid string) error
-	LogDone(ctx context.Context, nid string) error
-	LogError(ctx context.Context, nid string, error string) error
+	SetDispatching(ctx context.Context, nid string) error
+	SetDone(ctx context.Context, nid string) error
+	SetError(ctx context.Context, nid string, error string) error
 	NotificationStream(target Target) chan NotificationDetails
 	Close() error
 }
@@ -72,12 +72,27 @@ root:
 		case <-p.timeToDie.Done():
 			break root
 		case notification := <-updates:
-			p.logger.Errorf("failed updating state: %v", p.store.LogRunning(context.Background(), notification.ID.ID()))
-			err := consumer.Process(notification)
-			if err == nil {
-				p.logger.Errorf("failed updating state: %v", p.store.LogDone(context.Background(), notification.ID.ID()))
-			} else {
-				p.logger.Errorf("failed updating state: %v", p.store.LogError(context.Background(), notification.ID.ID(), err.Error()))
+			// TODO: (rs): what about the primary rport ctx, used for shutdown?
+			err := p.store.SetDispatching(context.Background(), notification.ID.ID())
+			if err != nil {
+				p.logger.Errorf("failed updating state: %v", err)
+				continue root
+			}
+
+			err = consumer.Process(notification)
+			if err != nil {
+				p.logger.Errorf("failed processing notification: %v", err)
+				err = p.store.SetError(context.Background(), notification.ID.ID(), err.Error())
+				if err != nil {
+					p.logger.Errorf("failed updating state: %v", err)
+				}
+				continue root
+			}
+
+			err = p.store.SetDone(context.Background(), notification.ID.ID())
+			if err != nil {
+				p.logger.Errorf("failed updating state: %v", err)
+				continue root
 			}
 		}
 	}

@@ -13,17 +13,17 @@ type MockStore struct {
 	sync.RWMutex
 }
 
-func (m *MockStore) LogRunning(ctx context.Context, nid string) error {
+func (m *MockStore) SetDispatching(ctx context.Context, nid string) error {
 	m.Lock()
 	defer m.Unlock()
 
 	n := m.notifications[nid]
-	n.State = notifications.ProcessingStateRunning
+	n.State = notifications.ProcessingStateDispatching
 	m.notifications[nid] = n
 	return nil
 }
 
-func (m *MockStore) LogDone(ctx context.Context, nid string) error {
+func (m *MockStore) SetDone(ctx context.Context, nid string) error {
 	m.Lock()
 	defer m.Unlock()
 
@@ -33,7 +33,7 @@ func (m *MockStore) LogDone(ctx context.Context, nid string) error {
 	return nil
 }
 
-func (m *MockStore) LogError(ctx context.Context, nid string, error string) error {
+func (m *MockStore) SetError(ctx context.Context, nid string, error string) error {
 	m.Lock()
 	defer m.Unlock()
 

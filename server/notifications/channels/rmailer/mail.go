@@ -9,6 +9,7 @@ import (
 	"github.com/wneessen/go-mail"
 
 	"github.com/realvnc-labs/rport/server/chconfig"
+	"github.com/realvnc-labs/rport/share/logger"
 )
 
 type Mailer interface {
@@ -34,6 +35,8 @@ const (
 
 type rMailer struct {
 	config Config
+
+	l *logger.Logger
 }
 
 func (rm rMailer) Send(to []string, subject string, contentType ContentType, body string) error {
@@ -49,14 +52,16 @@ func (rm rMailer) Send(to []string, subject string, contentType ContentType, bod
 	m.SetBodyString(mail.ContentType(contentType), body)
 
 	client, err := rm.buildClient()
-
 	if err != nil {
 		return fmt.Errorf("failed to create mail client: %s", err)
 	}
 
+	rm.l.Debugf("dialing and sending mail message")
 	if err := client.DialAndSend(m); err != nil {
 		return fmt.Errorf("failed to send mail: %s", err)
 	}
+
+	rm.l.Debugf("sent smtp message: %v", m)
 
 	return nil
 }
@@ -94,19 +99,21 @@ type AuthUserPass struct {
 	Pass string
 }
 
+// TODO: (rs): remove this?
 // NewMailerFromSMTPConfig NewMailer gives you something that is thread safe and can send mail
-func NewMailerFromSMTPConfig(smtpConfig chconfig.SMTPConfig) (Mailer, error) {
-	config, err := ConfigFromSMTPConfig(smtpConfig)
-	if err != nil {
-		return nil, fmt.Errorf("can't convert SMTPConfig to RMailerConfig: %v", err)
-	}
+//func NewMailerFromSMTPConfig(smtpConfig chconfig.SMTPConfig, l *logger.Logger) (Mailer, error) {
+//	config, err := ConfigFromSMTPConfig(smtpConfig)
+//	if err != nil {
+//		return nil, fmt.Errorf("can't convert SMTPConfig to RMailerConfig: %v", err)
+//	}
+//
+//	return NewRMailer(config, l), nil
+//}
 
-	return NewRMailer(config), nil
-}
-
-func NewRMailer(config Config) Mailer {
+func NewRMailer(config Config, l *logger.Logger) Mailer {
 	return rMailer{
 		config: config,
+		l:      l,
 	}
 }
 

@@ -7,15 +7,18 @@ import (
 	"html/template"
 
 	"github.com/realvnc-labs/rport/server/notifications"
+	"github.com/realvnc-labs/rport/share/logger"
 )
 
 type consumer struct {
 	mailer Mailer
+
+	l *logger.Logger
 }
 
 //nolint:revive
-func NewConsumer(mailer Mailer) *consumer {
-	return &consumer{mailer: mailer}
+func NewConsumer(mailer Mailer, l *logger.Logger) *consumer {
+	return &consumer{mailer: mailer, l: l}
 }
 
 func (c consumer) Process(details notifications.NotificationDetails) error {
@@ -27,7 +30,15 @@ func (c consumer) Process(details notifications.NotificationDetails) error {
 			return fmt.Errorf("failed preparing notification to dispatch: %v", err)
 		}
 	}
-	return c.mailer.Send(details.Data.Recipients, details.Data.Subject, ContentType(details.Data.ContentType), content)
+
+	err := c.mailer.Send(details.Data.Recipients, details.Data.Subject, ContentType(details.Data.ContentType), content)
+	if err != nil {
+		c.l.Errorf("unable to send smtp message: %s, %v", details.RefID, err)
+		return err
+	}
+
+	c.l.Debugf("sent message: %s", details.RefID)
+	return nil
 }
 
 func (c consumer) Target() notifications.Target {

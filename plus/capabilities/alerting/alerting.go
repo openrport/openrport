@@ -12,6 +12,7 @@ import (
 	"github.com/realvnc-labs/rport/plus/capabilities/alerting/entities/rules"
 	"github.com/realvnc-labs/rport/plus/capabilities/alerting/entities/templates"
 	"github.com/realvnc-labs/rport/plus/capabilities/alerting/entities/validations"
+	"github.com/realvnc-labs/rport/server/notifications"
 )
 
 const NoLimit = -1
@@ -29,7 +30,7 @@ type Config struct {
 }
 
 type Service interface {
-	Run(ctx context.Context)
+	Run(ctx context.Context, notificationDispatcher notifications.Dispatcher)
 	Stop() (err error)
 	LoadDefaultRuleSet() (err error)
 

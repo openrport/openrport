@@ -31,7 +31,7 @@ func (suite *DispatcherTestSuite) TestDispatcherCreatesNotification() {
 	suite.NoError(err)
 	suite.True(found)
 	suite.Equal(notifications.NotificationDetails{
-		Origin: problemIdentifiable,
+		RefID:  problemIdentifiable,
 		Data:   notification,
 		State:  notifications.ProcessingStateQueued,
 		ID:     ni,

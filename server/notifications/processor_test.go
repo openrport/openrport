@@ -84,7 +84,7 @@ func (suite *ProcessorTestSuite) TestProcessNotificationStateRunning() {
 
 	suite.consumer.waiter <- struct{}{}
 
-	queued.State = notifications.ProcessingStateRunning
+	queued.State = notifications.ProcessingStateDispatching
 
 	out, found, _ := suite.store.Details(context.Background(), queued.ID)
 	suite.True(found)
@@ -177,7 +177,7 @@ func (suite *ProcessorTestSuite) SendMail() notifications.NotificationDetails {
 	notification := notifications.NotificationData{Target: "smtp", Content: "test-content-mail"}
 
 	queued := notifications.NotificationDetails{
-		Origin: problemIdentifiable,
+		RefID:  problemIdentifiable,
 		Target: notifications.TargetMail,
 		Data:   notification,
 		State:  notifications.ProcessingStateQueued,
@@ -192,7 +192,7 @@ func (suite *ProcessorTestSuite) SendScript() notifications.NotificationDetails 
 	notification := notifications.NotificationData{Target: "smtp", Content: "test-content-mail"}
 
 	queued := notifications.NotificationDetails{
-		Origin: problemIdentifiable,
+		RefID:  problemIdentifiable,
 		Target: notifications.TargetScript,
 		Data:   notification,
 		State:  notifications.ProcessingStateQueued,
@@ -207,7 +207,7 @@ func (suite *ProcessorTestSuite) SendUnknownTarget() notifications.NotificationD
 	notification := notifications.NotificationData{Target: "smtp", Content: "test-content-mail"}
 
 	queued := notifications.NotificationDetails{
-		Origin: problemIdentifiable,
+		RefID:  problemIdentifiable,
 		Target: "never-pickup",
 		Data:   notification,
 		State:  notifications.ProcessingStateQueued,
