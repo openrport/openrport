@@ -1,8 +1,11 @@
 package rmailer_test
 
 import (
+	"context"
 	"fmt"
+	"net"
 	"testing"
+	"time"
 
 	smtpmock "github.com/mocktools/go-smtp-mock/v2"
 	"github.com/stretchr/testify/suite"
@@ -41,12 +44,63 @@ func (ts *MailTestSuite) SetupSuite() {
 	}
 }
 
+func (ts *MailTestSuite) TestMailCancel() {
+
+	port := 11111
+	ts.neverRespondingSMTPServer(port)
+
+	mailer := ts.mailerFromPort(port)
+
+	ctx, _ := context.WithTimeout(context.Background(), time.Millisecond)
+
+	ts.ErrorContains(mailer.Send(ctx, []string{"tina.recipient@example.com", "just+fff@some.mail.com"}, "test subject!", rmailer.ContentTypeTextHTML, "test\r\n\r\n<b>content</b>"), "timeout")
+
+}
+
+func (ts *MailTestSuite) TestMailErrorOnTooManyHangingConnections() {
+
+	port := 11112
+	ts.neverRespondingSMTPServer(port)
+
+	mailer := ts.mailerFromPort(port)
+
+	for i := 0; i < rmailer.MaxHangingMailSends+10; i++ {
+		go func() {
+			_ = mailer.Send(context.Background(), []string{"tina.recipient@example.com", "just+fff@some.mail.com"}, "test subject!", rmailer.ContentTypeTextHTML, "test\r\n\r\n<b>content</b>")
+		}()
+	}
+	time.Sleep(time.Millisecond)
+
+	ctx, _ := context.WithTimeout(context.Background(), time.Millisecond)
+	ts.ErrorContains(mailer.Send(ctx, []string{"tina.recipient@example.com", "just+fff@some.mail.com"}, "test subject!", rmailer.ContentTypeTextHTML, "test\r\n\r\n<b>content</b>"), "server non-responsive")
+
+}
+
+func (ts *MailTestSuite) mailerFromPort(port int) rmailer.Mailer {
+	return rmailer.NewRMailer(rmailer.Config{
+		Host:     "localhost",
+		Port:     port,
+		Domain:   "example.com",
+		From:     "test@example.com",
+		TLS:      false,
+		AuthType: rmailer.AuthTypeNone,
+		NoNoop:   true,
+	})
+}
+
+func (ts *MailTestSuite) neverRespondingSMTPServer(port int) {
+	go func() {
+		listener, err := net.Listen("tcp", fmt.Sprintf("localhost:%v", port))
+		ts.NoError(err)
+		for {
+			_, _ = listener.Accept()
+		}
+	}()
+}
+
 func (ts *MailTestSuite) TestMailSent() {
-
-	ts.NoError(ts.mailer.Send([]string{"tina.recipient@example.com", "just+fff@some.mail.com"}, "test subject!", rmailer.ContentTypeTextHTML, "test\r\n\r\n<b>content</b>"))
-
+	ts.NoError(ts.mailer.Send(context.Background(), []string{"tina.recipient@example.com", "just+fff@some.mail.com"}, "test subject!", rmailer.ContentTypeTextHTML, "test\r\n\r\n<b>content</b>"))
 	ts.ExpectMessage([]string{"tina.recipient@example.com", "just+fff@some.mail.com"}, "test subject!", "text/html; charset=UTF-8", "test\r\n\r\n<b>content</b>")
-
 }
 
 func (ts *MailTestSuite) TestMailSMTPConfigCompatibility() {

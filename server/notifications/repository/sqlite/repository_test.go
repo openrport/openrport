@@ -91,7 +91,7 @@ func (suite *RepositoryTestSuite) TestRepositoryNotificationError() {
 
 func (suite *RepositoryTestSuite) TestRepositoryNotificationList() {
 	suite.T().Skip()
-	suite.CreateNotification()
+	_ = suite.CreateNotification()
 	notification := suite.CreateNotification()
 
 	notification.State = notifications.ProcessingStateError
@@ -101,7 +101,7 @@ func (suite *RepositoryTestSuite) TestRepositoryNotificationList() {
 
 	list, err := suite.repository.List(context.Background(), nil)
 	suite.NoError(err)
-	suite.Equal(list, []notifications.NotificationSummary{})
+	suite.Equal(list, []notifications.NotificationSummary{{}, {}})
 }
 
 func (suite *RepositoryTestSuite) TestRepositoryNotificationStream() {

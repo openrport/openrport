@@ -24,7 +24,7 @@ func (c *MockConsumer) Target() notifications.Target {
 	return c.target
 }
 
-func (c *MockConsumer) Process(notification notifications.NotificationDetails) error {
+func (c *MockConsumer) Process(ctx context.Context, notification notifications.NotificationDetails) error {
 	c.message = notification
 	if c.waiter != nil {
 		<-c.waiter

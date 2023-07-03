@@ -2,6 +2,7 @@ package rmailer
 
 import (
 	"bytes"
+	"context"
 	_ "embed"
 	"fmt"
 	"html/template"
@@ -18,7 +19,7 @@ func NewConsumer(mailer Mailer) *consumer {
 	return &consumer{mailer: mailer}
 }
 
-func (c consumer) Process(details notifications.NotificationDetails) error {
+func (c consumer) Process(ctx context.Context, details notifications.NotificationDetails) error {
 	content := details.Data.Content
 	if ContentType(details.Data.ContentType) == ContentTypeTextHTML {
 		var err error
@@ -27,7 +28,7 @@ func (c consumer) Process(details notifications.NotificationDetails) error {
 			return fmt.Errorf("failed preparing notification to dispatch: %v", err)
 		}
 	}
-	return c.mailer.Send(details.Data.Recipients, details.Data.Subject, ContentType(details.Data.ContentType), content)
+	return c.mailer.Send(ctx, details.Data.Recipients, details.Data.Subject, ContentType(details.Data.ContentType), content)
 }
 
 func (c consumer) Target() notifications.Target {

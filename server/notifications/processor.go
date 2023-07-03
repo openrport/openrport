@@ -3,6 +3,7 @@ package notifications
 import (
 	"context"
 	"sync"
+	"time"
 
 	"github.com/realvnc-labs/rport/share/logger"
 )
@@ -12,9 +13,11 @@ type Processor interface {
 }
 
 type Consumer interface {
-	Process(details NotificationDetails) error
+	Process(ctx context.Context, details NotificationDetails) error
 	Target() Target
 }
+
+const MaxProcessingTime = time.Second * 10
 
 type Target string
 
@@ -73,7 +76,9 @@ root:
 			break root
 		case notification := <-updates:
 			p.logger.Errorf("failed updating state: %v", p.store.LogRunning(context.Background(), notification.ID.ID()))
-			err := consumer.Process(notification)
+			ctx, cancelFn := context.WithTimeout(context.Background(), MaxProcessingTime)
+			err := consumer.Process(ctx, notification)
+			cancelFn()
 			if err == nil {
 				p.logger.Errorf("failed updating state: %v", p.store.LogDone(context.Background(), notification.ID.ID()))
 			} else {
