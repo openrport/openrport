@@ -51,7 +51,8 @@ func (ts *MailTestSuite) TestMailCancel() {
 
 	mailer := ts.mailerFromPort(port)
 
-	ctx, _ := context.WithTimeout(context.Background(), time.Millisecond)
+	ctx, cancelFn := context.WithTimeout(context.Background(), time.Millisecond)
+	defer cancelFn()
 
 	ts.ErrorContains(mailer.Send(ctx, []string{"tina.recipient@example.com", "just+fff@some.mail.com"}, "test subject!", rmailer.ContentTypeTextHTML, "test\r\n\r\n<b>content</b>"), "timeout")
 
@@ -71,7 +72,8 @@ func (ts *MailTestSuite) TestMailErrorOnTooManyHangingConnections() {
 	}
 	time.Sleep(time.Millisecond)
 
-	ctx, _ := context.WithTimeout(context.Background(), time.Millisecond)
+	ctx, cancelFn := context.WithTimeout(context.Background(), time.Millisecond)
+	defer cancelFn()
 	ts.ErrorContains(mailer.Send(ctx, []string{"tina.recipient@example.com", "just+fff@some.mail.com"}, "test subject!", rmailer.ContentTypeTextHTML, "test\r\n\r\n<b>content</b>"), "server non-responsive")
 
 }
