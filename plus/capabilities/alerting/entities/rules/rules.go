@@ -25,6 +25,13 @@ var (
 	ErrFailedToCompileMsg              = "failed to compile rule"
 )
 
+type AlertStatus string
+
+const (
+	Alerting AlertStatus = "ALERTING"
+	Resolved AlertStatus = "RESOLVED"
+)
+
 type RuleSetID string
 type RuleID string
 
