@@ -543,17 +543,16 @@ func TestShouldSaveProblemResolved(t *testing.T) {
 	mockAS := plusManager.GetAlertingCapabilityEx().GetService().(*alertingmock.MockServiceProvider)
 	require.NotNil(t, mockAS)
 
-	p1, err := mockAS.GetProblem("p1")
-	require.NoError(t, err)
+	updateRequest := rules.ProblemUpdateRequest{
+		ID:    "p1",
+		State: rules.ProblemResolved,
+	}
 
-	p10 := *p1
-	p10.ID = "p10"
-
-	p10JSON, err := json.Marshal(p10)
+	updateRequestJSON, err := json.Marshal(updateRequest)
 	require.NoError(t, err)
 
 	w := httptest.NewRecorder()
-	req := httptest.NewRequest("POST", routes.AllRoutesPrefix+routes.AlertingServiceRoutesPrefix+routes.ASProblemsRoute, bytes.NewReader(p10JSON))
+	req := httptest.NewRequest("POST", routes.AllRoutesPrefix+routes.AlertingServiceRoutesPrefix+routes.ASProblemsRoute, bytes.NewReader(updateRequestJSON))
 
 	al.router.ServeHTTP(w, req)
 
@@ -567,10 +566,10 @@ func TestShouldSaveProblemResolved(t *testing.T) {
 	mockAS = plusManager.GetAlertingCapabilityEx().GetService().(*alertingmock.MockServiceProvider)
 	require.NotNil(t, mockAS)
 
-	savedProblem, ok := mockAS.Problems["p10"]
+	savedProblem, ok := mockAS.Problems["p1"]
 	require.True(t, ok)
 
-	assert.Equal(t, p10.ID, savedProblem.ID)
+	assert.Equal(t, updateRequest.ID, savedProblem.ID)
 	assert.Equal(t, rules.ProblemResolved, savedProblem.State)
 }
 
@@ -607,9 +606,9 @@ func TestShouldGetLatestProblems(t *testing.T) {
 	assert.NoError(t, err)
 
 	assert.Equal(t, 3, len(problemsInfo.Data))
-	assert.Equal(t, rules.ProblemID("p1"), problemsInfo.Data[0].ID)
+	assert.Equal(t, rules.ProblemID("p1"), problemsInfo.Data[2].ID)
 	assert.Equal(t, rules.ProblemID("p2"), problemsInfo.Data[1].ID)
-	assert.Equal(t, rules.ProblemID("p3"), problemsInfo.Data[2].ID)
+	assert.Equal(t, rules.ProblemID("p3"), problemsInfo.Data[0].ID)
 }
 
 func TestShouldGetLatestProblemsWithFilter(t *testing.T) {
