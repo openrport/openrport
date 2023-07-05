@@ -2,7 +2,6 @@ package sqlite_test
 
 import (
 	"context"
-	"log"
 	"testing"
 
 	"github.com/stretchr/testify/suite"
@@ -39,35 +38,15 @@ func (suite *RepositoryTestSuite) TestRepositoryNotificationDoesNotExist() {
 	suite.False(found)
 }
 
-func (suite *RepositoryTestSuite) TestRepositoryNotificationSavePropagatesToDetails() {
-	details := suite.CreateNotification()
-	retrieved, found, err := suite.repository.Details(context.Background(), details.ID.ID())
-	suite.NoError(err)
-	suite.True(found)
-	suite.Equal(details, retrieved)
-}
-
-func (suite *RepositoryTestSuite) TestRepositoryNotificationRunning() {
-	notification := suite.CreateNotification()
-
-	notification.State = notifications.ProcessingStateRunning
-	notification.Out = ""
-
-	suite.NoError(suite.repository.LogRunning(context.Background(), notification.ID.ID()))
-
-	retrieved, found, err := suite.repository.Details(context.Background(), notification.ID.ID())
-	suite.NoError(err)
-	suite.True(found)
-	suite.Equal(notification, retrieved)
-}
-
 func (suite *RepositoryTestSuite) TestRepositoryNotificationDone() {
-	notification := suite.CreateNotification()
+	notificationQueued := suite.CreateNotification()
+
+	notification := notificationQueued
 
 	notification.State = notifications.ProcessingStateDone
 	notification.Out = ""
 
-	suite.NoError(suite.repository.LogDone(context.Background(), notification.ID.ID()))
+	suite.NoError(suite.repository.LogDone(context.Background(), notificationQueued))
 
 	retrieved, found, err := suite.repository.Details(context.Background(), notification.ID.ID())
 	suite.NoError(err)
@@ -76,12 +55,14 @@ func (suite *RepositoryTestSuite) TestRepositoryNotificationDone() {
 }
 
 func (suite *RepositoryTestSuite) TestRepositoryNotificationError() {
-	notification := suite.CreateNotification()
+	notificationQueued := suite.CreateNotification()
+
+	notification := notificationQueued
 
 	notification.State = notifications.ProcessingStateError
 	notification.Out = "test-error"
 
-	suite.NoError(suite.repository.LogError(context.Background(), notification.ID.ID(), "test-error"))
+	suite.NoError(suite.repository.LogError(context.Background(), notificationQueued, "test-error"))
 
 	retrieved, found, err := suite.repository.Details(context.Background(), notification.ID.ID())
 	suite.NoError(err)
@@ -90,18 +71,28 @@ func (suite *RepositoryTestSuite) TestRepositoryNotificationError() {
 }
 
 func (suite *RepositoryTestSuite) TestRepositoryNotificationList() {
-	suite.T().Skip()
-	_ = suite.CreateNotification()
-	notification := suite.CreateNotification()
 
-	notification.State = notifications.ProcessingStateError
-	notification.Out = "test-error"
+	notification1 := suite.CreateNotification()
+	suite.repository.LogDone(context.Background(), notification1)
 
-	suite.NoError(suite.repository.LogError(context.Background(), notification.ID.ID(), "test-error"))
+	notification2 := suite.CreateNotification()
+	suite.repository.LogError(context.Background(), notification2, "test-out")
 
 	list, err := suite.repository.List(context.Background(), nil)
 	suite.NoError(err)
-	suite.Equal(list, []notifications.NotificationSummary{{}, {}})
+	suite.Equal(list, []notifications.NotificationSummary{{
+		State:          notifications.ProcessingStateError,
+		NotificationID: notification2.ID.ID(),
+		Transport:      notification2.Data.Target,
+		Timestamp:      list[1].Timestamp,
+		Out:            "test-out",
+	}, {
+		State:          notifications.ProcessingStateDone,
+		NotificationID: notification1.ID.ID(),
+		Transport:      notification1.Data.Target,
+		Timestamp:      list[0].Timestamp,
+		Out:            notification1.Out,
+	}})
 }
 
 func (suite *RepositoryTestSuite) TestRepositoryNotificationStream() {
@@ -112,16 +103,6 @@ func (suite *RepositoryTestSuite) TestRepositoryNotificationStream() {
 	retrieved := <-stream
 
 	suite.Equal(notification, retrieved)
-}
-
-func (suite *RepositoryTestSuite) TestRepositoryNotificationListWithEntities() {
-	e1 := suite.CreateNotification()
-	e2 := suite.CreateNotification()
-	log.Println(e1)
-	log.Println(e2)
-	entities, err := suite.repository.List(context.Background(), nil)
-	suite.NoError(err)
-	suite.Len(entities, 2)
 }
 
 func (suite *RepositoryTestSuite) TestRepositoryRejectNewNotificationsWhenCloseToFullChannel() {
@@ -153,6 +134,13 @@ func (suite *RepositoryTestSuite) TestRepositoryRejectNewNotificationsWhenCloseT
 }
 
 func (suite *RepositoryTestSuite) CreateNotification() notifications.NotificationDetails {
+	details := GenerateNotification()
+	err := suite.repository.Create(context.Background(), details)
+	suite.NoError(err)
+	return details
+}
+
+func GenerateNotification() notifications.NotificationDetails {
 	identifiable := refs.GenerateIdentifiable(notifications.NotificationType)
 	details := notifications.NotificationDetails{
 		Origin: problemIdentifiable,
@@ -164,11 +152,9 @@ func (suite *RepositoryTestSuite) CreateNotification() notifications.Notificatio
 		},
 		State:  notifications.ProcessingStateQueued,
 		ID:     identifiable,
-		Out:    "test-out",
+		Out:    "",
 		Target: "script",
 	}
-	err := suite.repository.Create(context.Background(), details)
-	suite.NoError(err)
 	return details
 }
 

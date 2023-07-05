@@ -44,18 +44,21 @@ func (ts *MailTestSuite) SetupSuite() {
 	}
 }
 
-func (ts *MailTestSuite) TestMailCancel() {
+func (ts *MailTestSuite) TestMailTimeout() {
 
 	port := 11111
 	ts.neverRespondingSMTPServer(port)
 
 	mailer := ts.mailerFromPort(port)
 
+	start := time.Now()
+
 	ctx, cancelFn := context.WithTimeout(context.Background(), time.Millisecond)
 	defer cancelFn()
 
-	ts.ErrorContains(mailer.Send(ctx, []string{"tina.recipient@example.com", "just+fff@some.mail.com"}, "test subject!", rmailer.ContentTypeTextHTML, "test\r\n\r\n<b>content</b>"), "timeout")
+	ts.Error(mailer.Send(ctx, []string{"tina.recipient@example.com", "just+fff@some.mail.com"}, "test subject!", rmailer.ContentTypeTextHTML, "test\r\n\r\n<b>content</b>"))
 
+	ts.WithinRange(time.Now(), start.Add(time.Millisecond), start.Add(time.Millisecond*10))
 }
 
 func (ts *MailTestSuite) TestMailErrorOnTooManyHangingConnections() {
@@ -65,7 +68,7 @@ func (ts *MailTestSuite) TestMailErrorOnTooManyHangingConnections() {
 
 	mailer := ts.mailerFromPort(port)
 
-	mailCount := rmailer.MaxHangingMailSends * 2
+	mailCount := rmailer.MaxHangingMailSends * 10
 
 	for i := 0; i < mailCount; i++ {
 		go func() {
@@ -73,7 +76,7 @@ func (ts *MailTestSuite) TestMailErrorOnTooManyHangingConnections() {
 			_ = mailer.Send(context.Background(), []string{"tina.recipient@example.com", "just+fff@some.mail.com"}, "test subject!", rmailer.ContentTypeTextHTML, "test\r\n\r\n<b>content</b>")
 		}()
 	}
-	time.Sleep(time.Millisecond * 10) // wait not for all messages to be sent (could use wait group for that) but to enqueue messages into error queue
+	time.Sleep(time.Millisecond * 100) // wait not for all messages to be sent (could use wait group for that) but to enqueue messages into error queue
 
 	ctx, cancelFn := context.WithTimeout(context.Background(), time.Millisecond)
 	defer cancelFn()

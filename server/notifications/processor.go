@@ -37,9 +37,8 @@ func (t Target) Valid() bool {
 
 type Store interface {
 	Create(ctx context.Context, details NotificationDetails) error
-	LogRunning(ctx context.Context, nid string) error
-	LogDone(ctx context.Context, nid string) error
-	LogError(ctx context.Context, nid string, error string) error
+	LogDone(ctx context.Context, details NotificationDetails) error
+	LogError(ctx context.Context, details NotificationDetails, out string) error
 	NotificationStream(target Target) chan NotificationDetails
 	Close() error
 }
@@ -75,14 +74,20 @@ root:
 		case <-p.timeToDie.Done():
 			break root
 		case notification := <-updates:
-			p.logger.Errorf("failed updating state: %v", p.store.LogRunning(context.Background(), notification.ID.ID()))
 			ctx, cancelFn := context.WithTimeout(context.Background(), MaxProcessingTime)
+			p.logger.Infof("notification %v(%v)  started processing", notification.Target, notification.ID)
 			err := consumer.Process(ctx, notification)
 			cancelFn()
+
 			if err == nil {
-				p.logger.Errorf("failed updating state: %v", p.store.LogDone(context.Background(), notification.ID.ID()))
+				p.logger.Infof("notification %v(%v) done", notification.Target, notification.ID)
+				err = p.store.LogDone(context.Background(), notification)
 			} else {
-				p.logger.Errorf("failed updating state: %v", p.store.LogError(context.Background(), notification.ID.ID(), err.Error()))
+				p.logger.Infof("notification %v(%v) error", notification.Target, notification.ID)
+				err = p.store.LogError(context.Background(), notification, err.Error())
+			}
+			if err != nil {
+				p.logger.Errorf("failed updating state: %v", err)
 			}
 		}
 	}
