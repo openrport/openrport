@@ -73,10 +73,10 @@ func (suite *RepositoryTestSuite) TestRepositoryNotificationError() {
 func (suite *RepositoryTestSuite) TestRepositoryNotificationList() {
 
 	notification1 := suite.CreateNotification()
-	suite.repository.LogDone(context.Background(), notification1)
+	_ = suite.repository.LogDone(context.Background(), notification1)
 
 	notification2 := suite.CreateNotification()
-	suite.repository.LogError(context.Background(), notification2, "test-out")
+	_ = suite.repository.LogError(context.Background(), notification2, "test-out")
 
 	list, err := suite.repository.List(context.Background(), nil)
 	suite.NoError(err)

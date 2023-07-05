@@ -72,8 +72,8 @@ func (suite *CleanerTestSuite) TestCleanerCleansOldNotificationsAfterTimeout() {
 
 }
 
-func (suite *CleanerTestSuite) createNewNotification() bool {
-	return suite.NoError(suite.repository.LogDone(context.Background(), GenerateNotification()))
+func (suite *CleanerTestSuite) createNewNotification() {
+	suite.NoError(suite.repository.LogDone(context.Background(), GenerateNotification()))
 }
 
 func (suite *CleanerTestSuite) TestCleanerCloses() {
