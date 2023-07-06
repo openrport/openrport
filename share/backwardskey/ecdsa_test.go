@@ -14,7 +14,7 @@
 //ACTION OF CONTRACT, NEGLIGENCE OR OTHER TORTIOUS ACTION, ARISING OUT OF
 //OR IN CONNECTION WITH THE USE OR PERFORMANCE OF THIS SOFTWARE.
 
-package backwards_key_test
+package backwardskey_test
 
 import (
 	"crypto/ecdsa"
@@ -27,7 +27,7 @@ import (
 
 	"golang.org/x/crypto/hkdf"
 
-	"github.com/realvnc-labs/rport/share/backwards_key"
+	"github.com/realvnc-labs/rport/share/backwardskey"
 )
 
 func testAllCurves(t *testing.T, f func(*testing.T, elliptic.Curve)) {
@@ -63,7 +63,7 @@ func testECDSALegacy(t *testing.T, c elliptic.Curve) {
 	}
 
 	r = hkdf.New(sha512.New, []byte("test"), nil, nil)
-	got, err := backwards_key.ECDSALegacy(c, r)
+	got, err := backwardskey.ECDSALegacy(c, r)
 	if err != nil {
 		t.Fatal(err)
 	}

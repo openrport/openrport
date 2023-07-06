@@ -16,7 +16,7 @@ import (
 	"github.com/jpillora/sizestr"
 	"golang.org/x/crypto/ssh"
 
-	"github.com/realvnc-labs/rport/share/backwards_key"
+	"github.com/realvnc-labs/rport/share/backwardskey"
 	"github.com/realvnc-labs/rport/share/logger"
 )
 
@@ -43,7 +43,7 @@ func useGo19CompatibleKeyGenerator(curve elliptic.Curve, r io.Reader) (*ecdsa.Pr
 	if strings.HasPrefix(runtime.Version(), "go1.19") {
 		return ecdsa.GenerateKey(curve, r)
 	} else {
-		return backwards_key.ECDSALegacy(curve, r)
+		return backwardskey.ECDSALegacy(curve, r)
 	}
 }
 
