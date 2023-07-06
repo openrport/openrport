@@ -3,6 +3,7 @@ package notifications
 import (
 	"context"
 	"sync"
+	"time"
 
 	"github.com/realvnc-labs/rport/share/logger"
 )
@@ -12,9 +13,11 @@ type Processor interface {
 }
 
 type Consumer interface {
-	Process(details NotificationDetails) error
+	Process(ctx context.Context, details NotificationDetails) error
 	Target() Target
 }
+
+const MaxProcessingTime = time.Second * 10
 
 type Target string
 
@@ -34,9 +37,8 @@ func (t Target) Valid() bool {
 
 type Store interface {
 	Create(ctx context.Context, details NotificationDetails) error
-	SetDispatching(ctx context.Context, nid string) error
-	SetDone(ctx context.Context, nid string) error
-	SetError(ctx context.Context, nid string, error string) error
+	SetDone(ctx context.Context, details NotificationDetails) error
+	SetError(ctx context.Context, details NotificationDetails, out string) error
 	NotificationStream(target Target) chan NotificationDetails
 	Close() error
 }
@@ -72,27 +74,20 @@ root:
 		case <-p.timeToDie.Done():
 			break root
 		case notification := <-updates:
-			// TODO: (rs): what about the primary rport ctx, used for shutdown?
-			err := p.store.SetDispatching(context.Background(), notification.ID.ID())
+			ctx, cancelFn := context.WithTimeout(context.Background(), MaxProcessingTime)
+			p.logger.Infof("notification %v(%v)  started processing", notification.Target, notification.ID)
+			err := consumer.Process(ctx, notification)
+			cancelFn()
+
+			if err == nil {
+				p.logger.Infof("notification %v(%v) done", notification.Target, notification.ID)
+				err = p.store.SetDone(context.Background(), notification)
+			} else {
+				p.logger.Infof("notification %v(%v) error", notification.Target, notification.ID)
+				err = p.store.SetError(context.Background(), notification, err.Error())
+			}
 			if err != nil {
 				p.logger.Errorf("failed updating state: %v", err)
-				continue root
-			}
-
-			err = consumer.Process(notification)
-			if err != nil {
-				p.logger.Errorf("failed processing notification: %v", err)
-				err = p.store.SetError(context.Background(), notification.ID.ID(), err.Error())
-				if err != nil {
-					p.logger.Errorf("failed updating state: %v", err)
-				}
-				continue root
-			}
-
-			err = p.store.SetDone(context.Background(), notification.ID.ID())
-			if err != nil {
-				p.logger.Errorf("failed updating state: %v", err)
-				continue root
 			}
 		}
 	}
