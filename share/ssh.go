@@ -42,9 +42,8 @@ func GenerateKey(seed string) ([]byte, error) {
 func useGo19CompatibleKeyGenerator(curve elliptic.Curve, r io.Reader) (*ecdsa.PrivateKey, error) {
 	if strings.HasPrefix(runtime.Version(), "go1.19") {
 		return ecdsa.GenerateKey(curve, r)
-	} else {
-		return backwardskey.ECDSALegacy(curve, r)
 	}
+	return backwardskey.ECDSALegacy(curve, r)
 }
 
 func FingerprintKey(k ssh.PublicKey) string {
