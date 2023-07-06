@@ -10,14 +10,17 @@ import (
 	"fmt"
 	"io"
 	"net"
+	"runtime"
 	"strings"
 
 	"github.com/jpillora/sizestr"
 	"golang.org/x/crypto/ssh"
 
+	"github.com/realvnc-labs/rport/share/backwardskey"
 	"github.com/realvnc-labs/rport/share/logger"
 )
 
+// GenerateKey tries to stay compatible with go1.19 key generation
 func GenerateKey(seed string) ([]byte, error) {
 	var r io.Reader
 	if seed == "" {
@@ -25,7 +28,7 @@ func GenerateKey(seed string) ([]byte, error) {
 	} else {
 		r = NewDetermRand([]byte(seed))
 	}
-	priv, err := ecdsa.GenerateKey(elliptic.P256(), r)
+	priv, err := useGo19CompatibleKeyGenerator(elliptic.P256(), r)
 	if err != nil {
 		return nil, err
 	}
@@ -34,6 +37,13 @@ func GenerateKey(seed string) ([]byte, error) {
 		return nil, fmt.Errorf("Unable to marshal ECDSA private key: %v", err)
 	}
 	return pem.EncodeToMemory(&pem.Block{Type: "EC PRIVATE KEY", Bytes: b}), nil
+}
+
+func useGo19CompatibleKeyGenerator(curve elliptic.Curve, r io.Reader) (*ecdsa.PrivateKey, error) {
+	if strings.HasPrefix(runtime.Version(), "go1.19") {
+		return ecdsa.GenerateKey(curve, r)
+	}
+	return backwardskey.ECDSALegacy(curve, r)
 }
 
 func FingerprintKey(k ssh.PublicKey) string {
