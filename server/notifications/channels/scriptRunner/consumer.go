@@ -22,8 +22,8 @@ func NewConsumer(l *logger.Logger) *consumer {
 	}
 }
 
-func (c consumer) Process(details notifications.NotificationDetails) error {
-	ctx, cancelFunc := context.WithTimeout(context.Background(), ScriptTimeout)
+func (c consumer) Process(ctx context.Context, details notifications.NotificationDetails) error {
+	ctx, cancelFunc := context.WithTimeout(ctx, ScriptTimeout)
 	defer cancelFunc()
 
 	var content interface{} = map[string]interface{}{}
