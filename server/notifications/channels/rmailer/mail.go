@@ -30,7 +30,7 @@ func (t ContentType) Valid() error {
 	case ContentTypeTextPlain:
 		return nil
 	default:
-		return fmt.Errorf("badd content type: %v", t)
+		return fmt.Errorf("bad content type: %v", t)
 	}
 
 }
