@@ -143,6 +143,33 @@ func (ts *MailTestSuite) TestMailSMTPConfigCompatibility() {
 	}, config)
 }
 
+func (ts *MailTestSuite) TestMailContentTypeValidation() {
+
+	config, err := rmailer.ConfigFromSMTPConfig(chconfig.SMTPConfig{
+		Server:       "testsmtp.somedomain.com",
+		AuthUsername: "test-user",
+		AuthPassword: "test-password",
+		SenderEmail:  "test@somedomain.com",
+		Secure:       true,
+	})
+
+	ts.NoError(err)
+
+	ts.Equal(rmailer.Config{
+		Host:     "testsmtp.somedomain.com",
+		Port:     -1,
+		Domain:   "somedomain.com",
+		From:     "test@somedomain.com",
+		TLS:      true,
+		AuthType: rmailer.AuthTypeUserPass,
+		AuthUserPass: rmailer.AuthUserPass{
+			User: "test-user",
+			Pass: "test-password",
+		},
+		NoNoop: false,
+	}, config)
+}
+
 func (ts *MailTestSuite) ExpectedMessages(count int) bool {
 	return ts.Len(ts.server.Messages(), count)
 }
