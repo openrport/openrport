@@ -1,10 +1,12 @@
 package rmailer
 
 import (
+	"context"
 	"fmt"
 	"net/url"
 	"strconv"
 	"strings"
+	"time"
 
 	"github.com/wneessen/go-mail"
 
@@ -12,8 +14,10 @@ import (
 )
 
 type Mailer interface {
-	Send(to []string, subject string, contentType ContentType, body string) error
+	Send(ctx context.Context, to []string, subject string, contentType ContentType, body string) error
 }
+
+const MaxHangingMailSends = 20
 
 // ContentType represents a content type for the Msg
 type ContentType string
@@ -33,11 +37,36 @@ const (
 )
 
 type rMailer struct {
-	config Config
+	config    Config
+	doomQueue chan struct{}
 }
 
-func (rm rMailer) Send(to []string, subject string, contentType ContentType, body string) error {
+func (rm rMailer) Send(ctx context.Context, to []string, subject string, contentType ContentType, body string) error {
+
+	mailerOut := rm.enqueueSend(ctx, to, subject, contentType, body)
+
+	if len(rm.doomQueue) >= MaxHangingMailSends {
+		return fmt.Errorf("smtp server non-responsive")
+	}
+
+	select {
+	case <-ctx.Done():
+		select {
+		case <-time.After(time.Millisecond):
+			return fmt.Errorf("timeout sending mail")
+		case err := <-mailerOut:
+			return err
+		}
+
+	case err := <-mailerOut:
+		return err
+	}
+
+}
+
+func (rm rMailer) send(ctx context.Context, to []string, subject string, contentType ContentType, body string) error {
 	m := mail.NewMsg()
+
 	if err := m.From(rm.config.From); err != nil {
 		return fmt.Errorf("failed to set From address: %s", err)
 	}
@@ -54,10 +83,9 @@ func (rm rMailer) Send(to []string, subject string, contentType ContentType, bod
 		return fmt.Errorf("failed to create mail client: %s", err)
 	}
 
-	if err := client.DialAndSend(m); err != nil {
+	if err := client.DialAndSendWithContext(ctx, m); err != nil {
 		return fmt.Errorf("failed to send mail: %s", err)
 	}
-
 	return nil
 }
 
@@ -89,6 +117,18 @@ func (rm rMailer) buildClient() (*mail.Client, error) {
 	return client, err
 }
 
+func (rm rMailer) enqueueSend(ctx context.Context, to []string, subject string, contentType ContentType, body string) chan error {
+	done := make(chan error, 1)
+	go func() {
+		rm.doomQueue <- struct{}{}
+		done <- rm.send(ctx, to, subject, contentType, body)
+		close(done)
+		<-rm.doomQueue
+	}()
+
+	return done
+}
+
 type AuthUserPass struct {
 	User string
 	Pass string
@@ -106,7 +146,8 @@ func NewMailerFromSMTPConfig(smtpConfig chconfig.SMTPConfig) (Mailer, error) {
 
 func NewRMailer(config Config) Mailer {
 	return rMailer{
-		config: config,
+		config:    config,
+		doomQueue: make(chan struct{}, MaxHangingMailSends),
 	}
 }
 

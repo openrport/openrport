@@ -1,8 +1,11 @@
 package rmailer_test
 
 import (
+	"context"
 	"fmt"
+	"net"
 	"testing"
+	"time"
 
 	smtpmock "github.com/mocktools/go-smtp-mock/v2"
 	"github.com/stretchr/testify/suite"
@@ -41,12 +44,69 @@ func (ts *MailTestSuite) SetupSuite() {
 	}
 }
 
+func (ts *MailTestSuite) TestMailCancel() {
+
+	port := 11111
+	ts.neverRespondingSMTPServer(port)
+
+	mailer := ts.mailerFromPort(port)
+
+	ctx, cancelFn := context.WithTimeout(context.Background(), time.Millisecond)
+	defer cancelFn()
+
+	ts.ErrorContains(mailer.Send(ctx, []string{"tina.recipient@example.com", "just+fff@some.mail.com"}, "test subject!", rmailer.ContentTypeTextHTML, "test\r\n\r\n<b>content</b>"), "timeout")
+
+}
+
+func (ts *MailTestSuite) TestMailErrorOnTooManyHangingConnections() {
+
+	port := 11112
+	ts.neverRespondingSMTPServer(port)
+
+	mailer := ts.mailerFromPort(port)
+
+	mailCount := rmailer.MaxHangingMailSends * 2
+
+	for i := 0; i < mailCount; i++ {
+		go func() {
+			//!!! mailer should not be run asynchronously, it's only run here like this to ensure error queue to fill up
+			_ = mailer.Send(context.Background(), []string{"tina.recipient@example.com", "just+fff@some.mail.com"}, "test subject!", rmailer.ContentTypeTextHTML, "test\r\n\r\n<b>content</b>")
+		}()
+	}
+	time.Sleep(time.Millisecond * 10) // wait not for all messages to be sent (could use wait group for that) but to enqueue messages into error queue
+
+	ctx, cancelFn := context.WithTimeout(context.Background(), time.Millisecond)
+	defer cancelFn()
+	ts.ErrorContains(mailer.Send(ctx, []string{"tina.recipient@example.com", "just+fff@some.mail.com"}, "test subject!", rmailer.ContentTypeTextHTML, "test\r\n\r\n<b>content</b>"), "server non-responsive")
+
+}
+
+func (ts *MailTestSuite) mailerFromPort(port int) rmailer.Mailer {
+	return rmailer.NewRMailer(rmailer.Config{
+		Host:     "localhost",
+		Port:     port,
+		Domain:   "example.com",
+		From:     "test@example.com",
+		TLS:      false,
+		AuthType: rmailer.AuthTypeNone,
+		NoNoop:   true,
+	})
+}
+
+func (ts *MailTestSuite) neverRespondingSMTPServer(port int) {
+	logError := ts.NoError
+	go func() {
+		listener, err := net.Listen("tcp", fmt.Sprintf("localhost:%v", port))
+		logError(err)
+		for {
+			_, _ = listener.Accept()
+		}
+	}()
+}
+
 func (ts *MailTestSuite) TestMailSent() {
-
-	ts.NoError(ts.mailer.Send([]string{"tina.recipient@example.com", "just+fff@some.mail.com"}, "test subject!", rmailer.ContentTypeTextHTML, "test\r\n\r\n<b>content</b>"))
-
+	ts.NoError(ts.mailer.Send(context.Background(), []string{"tina.recipient@example.com", "just+fff@some.mail.com"}, "test subject!", rmailer.ContentTypeTextHTML, "test\r\n\r\n<b>content</b>"))
 	ts.ExpectMessage([]string{"tina.recipient@example.com", "just+fff@some.mail.com"}, "test subject!", "text/html; charset=UTF-8", "test\r\n\r\n<b>content</b>")
-
 }
 
 func (ts *MailTestSuite) TestMailSMTPConfigCompatibility() {
