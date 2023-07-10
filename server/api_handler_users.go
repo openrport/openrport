@@ -22,14 +22,18 @@ var (
 )
 
 type UserPayload struct {
-	Username                 string                     `json:"username"`
-	PasswordExpired          bool                       `json:"password_expired"`
-	Groups                   []string                   `json:"groups"`
-	TwoFASendTo              string                     `json:"two_fa_send_to"`
-	EffectiveUserPermissions map[string]bool            `json:"effective_user_permissions"`
-	TunnelsRestricted        []extperm.PermissionParams `json:"tunnels_restricted" db:"tunnels_restricted"`
-	CommandsRestricted       []extperm.PermissionParams `json:"commands_restricted" db:"commands_restricted"`
-	GroupPermissionsEnabled  bool                       `json:"group_permissions_enabled"`
+	Username                     string                       `json:"username"`
+	PasswordExpired              bool                         `json:"password_expired"`
+	Groups                       []string                     `json:"groups"`
+	TwoFASendTo                  string                       `json:"two_fa_send_to"`
+	EffectiveUserPermissions     map[string]bool              `json:"effective_user_permissions"`
+	EffectiveExtendedPermissions EffectiveExtendedPermissions `json:"effective_extended_permissions"`
+	GroupPermissionsEnabled      bool                         `json:"group_permissions_enabled"`
+}
+
+type EffectiveExtendedPermissions struct {
+	TunnelsRestricted  []extperm.PermissionParams `json:"tunnels_restricted"`
+	CommandsRestricted []extperm.PermissionParams `json:"commands_restricted"`
 }
 
 func (al *APIListener) handleGetUsers(w http.ResponseWriter, req *http.Request) {
