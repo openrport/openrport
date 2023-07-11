@@ -10,7 +10,7 @@ import (
 
 func RunCancelableScript(ctx context.Context, script string, body string) error {
 
-	cmd := exec.Command(script)
+	cmd := exec.CommandContext(ctx, script)
 
 	stdin, err := cmd.StdinPipe()
 	if err != nil {

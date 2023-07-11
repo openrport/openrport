@@ -5,7 +5,7 @@ import (
 	"context"
 	_ "embed"
 	"fmt"
-	"html/template"
+	"text/template"
 
 	"github.com/realvnc-labs/rport/server/notifications"
 	"github.com/realvnc-labs/rport/share/logger"
@@ -26,7 +26,7 @@ func (c consumer) Process(ctx context.Context, details notifications.Notificatio
 	content := details.Data.Content
 	if ContentType(details.Data.ContentType) == ContentTypeTextHTML {
 		var err error
-		content, err = wrapWithTemplate(details.Data.Content)
+		content, err = WrapWithTemplate(details.Data.Content)
 		if err != nil {
 			return fmt.Errorf("failed preparing notification to dispatch: %v", err)
 		}
@@ -48,7 +48,7 @@ func (c consumer) Target() notifications.Target {
 //go:embed mailTemplate.tmpl
 var mailTemplate string
 
-func wrapWithTemplate(content string) (string, error) {
+func WrapWithTemplate(content string) (string, error) {
 	tmpl, err := template.New("mail").Parse(mailTemplate)
 	if err != nil {
 		return "", err

@@ -27,6 +27,10 @@ type dispatcher struct {
 
 func (f dispatcher) Dispatch(ctx context.Context, refID refs.Identifiable, notification NotificationData) (refs.Identifiable, error) {
 
+	if err := notification.ContentType.Valid(); err != nil {
+		return nil, err
+	}
+
 	details := NotificationDetails{
 		Data:   notification,
 		State:  ProcessingStateQueued,

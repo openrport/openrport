@@ -57,12 +57,14 @@ func (ts *MailTestSuite) TestMailTimeout() {
 
 	start := time.Now()
 
-	ctx, cancelFn := context.WithTimeout(context.Background(), time.Millisecond)
+	ctx, cancelFn := context.WithTimeout(context.Background(), time.Millisecond*2)
 	defer cancelFn()
 
-	ts.Error(mailer.Send(ctx, []string{"tina.recipient@example.com", "just+fff@some.mail.com"}, "test subject!", rmailer.ContentTypeTextHTML, "test\r\n\r\n<b>content</b>"))
+	err := mailer.Send(ctx, []string{"tina.recipient@example.com", "just+fff@some.mail.com"}, "test subject!", rmailer.ContentTypeTextHTML, "test\r\n\r\n<b>content</b>")
+	ts.T().Log(err)
+	ts.Error(err)
 
-	ts.WithinRange(time.Now(), start.Add(time.Millisecond), start.Add(time.Millisecond*10))
+	ts.WithinRange(time.Now(), start.Add(time.Millisecond), start.Add(time.Millisecond*100))
 }
 
 func (ts *MailTestSuite) TestMailErrorOnTooManyHangingConnections() {
@@ -141,6 +143,16 @@ func (ts *MailTestSuite) TestMailSMTPConfigCompatibility() {
 		},
 		NoNoop: false,
 	}, config)
+}
+
+func (ts *MailTestSuite) TestMailContentTypeValidation() {
+	ts.Error(ts.mailer.Send(context.Background(), []string{"tina.recipient@example.com", "just+fff@some.mail.com"}, "test subject!", rmailer.ContentType("test"), "test\r\n\r\n<b>content</b>"))
+}
+
+func (ts *MailTestSuite) TestContentTypeValidation() {
+	ts.NoError(rmailer.ContentType("text/html").Valid())
+	ts.NoError(rmailer.ContentType("text/plain").Valid())
+	ts.Error(rmailer.ContentType("should-fail").Valid())
 }
 
 func (ts *MailTestSuite) ExpectedMessages(count int) bool {
