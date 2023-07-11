@@ -158,11 +158,11 @@ func (al *APIListener) handleSaveTemplate(w http.ResponseWriter, r *http.Request
 		if err == nil {
 			al.jsonErrorResponse(w, http.StatusConflict, errors.New("template exists"))
 			return
-		} else {
-			if !errors.Is(err, alertingcap.ErrEntityNotFound) {
-				al.jsonErrorResponse(w, http.StatusInternalServerError, err)
-				return
-			}
+		}
+
+		if !errors.Is(err, alertingcap.ErrEntityNotFound) {
+			al.jsonErrorResponse(w, http.StatusInternalServerError, err)
+			return
 		}
 	}
 

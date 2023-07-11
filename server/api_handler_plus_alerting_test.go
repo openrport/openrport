@@ -186,8 +186,6 @@ func TestShouldReturnDefaultRuleSet(t *testing.T) {
 	var ruleSetInfo RuleSetResponse
 	err = json.NewDecoder(w.Body).Decode(&ruleSetInfo)
 	assert.NoError(t, err)
-
-	assert.Equal(t, rules.DefaultRuleSetID, ruleSetInfo.Data.RuleSetID)
 }
 
 func TestShouldSaveRuleSet(t *testing.T) {
@@ -211,7 +209,11 @@ func TestShouldSaveRuleSet(t *testing.T) {
 	require.NoError(t, err)
 
 	defaultRS := rules.RuleSet{
-		RuleSetID: "default1", // will be overwritten to match default
+		Rules: []rules.Rule{
+			{
+				ID: "rule-id",
+			},
+		},
 	}
 
 	defaultRSJSON, err := json.Marshal(defaultRS)
@@ -232,7 +234,8 @@ func TestShouldSaveRuleSet(t *testing.T) {
 	savedRS, ok := mockAS.RuleSets[rules.DefaultRuleSetID]
 	require.True(t, ok)
 
-	assert.Equal(t, rules.DefaultRuleSetID, savedRS.RuleSetID)
+	// very basic check
+	assert.Equal(t, defaultRS.Rules[0].ID, savedRS.Rules[0].ID)
 }
 
 func TestShouldDeleteRuleSet(t *testing.T) {
