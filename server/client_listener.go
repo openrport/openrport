@@ -573,14 +573,16 @@ func (cl *ClientListener) sendMeasurementToAlertingService(
 	clientLog *logger.Logger) {
 	m, err := transformers.TransformRportMeasurementToMeasure(measurement)
 	if err != nil {
-		clientLog.Debugf("Failed to transform measurement")
+		clientLog.Debugf("Failed to transform measurement: %v", err)
+		return
 	}
 
 	as := alertingCap.GetService()
 
 	err = as.PutMeasurement(m)
 	if err != nil {
-		clientLog.Debugf("Failed to send measurement to the alerting service")
+		clientLog.Debugf("Failed to send measurement to the alerting service: %v", err)
+		return
 	}
 }
 

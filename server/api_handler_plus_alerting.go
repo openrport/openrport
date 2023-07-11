@@ -54,6 +54,7 @@ func (al *APIListener) handleGetRuleSet(w http.ResponseWriter, _ *http.Request) 
 	}
 
 	al.Debugf("loaded ruleset")
+	rs.RuleSetID = ""
 
 	response := api.NewSuccessPayload(rs)
 
@@ -91,6 +92,13 @@ func (al *APIListener) handleSaveRuleSet(w http.ResponseWriter, r *http.Request)
 	if err != nil {
 		al.jsonError(w, err)
 		return
+	}
+
+	if r.Method == "PUT" {
+		if rs.RuleSetID != "" {
+			al.jsonErrorResponse(w, http.StatusBadRequest, errors.New("when saving rules via PUT, the id in request body must be omitted or empty"))
+			return
+		}
 	}
 
 	rs.RuleSetID = rules.DefaultRuleSetID
@@ -143,6 +151,31 @@ func (al *APIListener) handleSaveTemplate(w http.ResponseWriter, r *http.Request
 	if err != nil {
 		al.jsonError(w, err)
 		return
+	}
+
+	if r.Method == "POST" {
+		_, err := as.GetTemplate(template.ID)
+		if err == nil {
+			al.jsonErrorResponse(w, http.StatusConflict, errors.New("template exists"))
+			return
+		} else {
+			if !errors.Is(err, alertingcap.ErrEntityNotFound) {
+				al.jsonErrorResponse(w, http.StatusInternalServerError, err)
+				return
+			}
+		}
+	}
+
+	if r.Method == "PUT" {
+		if template.ID != "" {
+			al.jsonErrorResponse(w, http.StatusBadRequest, errors.New("when saving existing templates, the template id in request body must be omitted or empty"))
+			return
+		}
+
+		vars := mux.Vars(r)
+		tid := vars[routes.ParamTemplateID]
+
+		template.ID = templates.TemplateID(tid)
 	}
 
 	errs, err := as.SaveTemplate(template)
@@ -272,14 +305,18 @@ func (al *APIListener) handleUpdateProblem(w http.ResponseWriter, r *http.Reques
 		return
 	}
 
+	vars := mux.Vars(r)
+	pid := vars[routes.ParamProblemID]
+	problemID := rules.ProblemID(pid)
+
 	if problemUpdateRequest.State == rules.ProblemActive {
-		err = as.SetProblemActive(problemUpdateRequest.ID)
+		err = as.SetProblemActive(problemID)
 		if err != nil {
 			al.jsonErrorResponse(w, http.StatusInternalServerError, err)
 			return
 		}
 	} else {
-		err = as.SetProblemResolved(problemUpdateRequest.ID, time.Now().UTC())
+		err = as.SetProblemResolved(problemID, time.Now().UTC())
 		if err != nil {
 			al.jsonErrorResponse(w, http.StatusInternalServerError, err)
 			return
@@ -294,11 +331,11 @@ func (al *APIListener) handleGetLatestProblems(w http.ResponseWriter, req *http.
 		al.jsonErrorResponse(w, status, err)
 	}
 
-	options := query.NewOptions(req, nil, nil, alerts.ProblemsOptionsListDefaultFields)
+	options := query.NewOptions(req, nil, nil, alerts.SupportedProblemsListFields)
 	errs := query.ValidateListOptions(options,
-		alerts.ProblemsOptionsSupportedSorts,
-		alerts.ProblemsOptionsSupportedFilters,
-		alerts.ProblemsOptionsSupportedFields,
+		alerts.SupportedProblemsSorts,
+		alerts.SupportedProblemsFilters,
+		alerts.SupportedProblemsFields,
 		&query.PaginationConfig{
 			MaxLimit:     500,
 			DefaultLimit: 50,
@@ -309,7 +346,7 @@ func (al *APIListener) handleGetLatestProblems(w http.ResponseWriter, req *http.
 		return
 	}
 
-	sortFunc, desc, err := alerts.GetProblemsSortFunc(options.Sorts)
+	sortFunc, desc, err := alerts.SortProblemsFunc(options.Sorts)
 	if err != nil {
 		al.jsonError(w, err)
 		return

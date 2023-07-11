@@ -38,8 +38,8 @@ type RuleID string
 type UserParams map[string]any
 
 type RuleSet struct {
-	RuleSetID RuleSetID  `mapstructure:"id" json:"id"`
-	Params    UserParams `mapstructure:"params" json:"params"`
+	RuleSetID RuleSetID  `mapstructure:"id" json:"id,omitempty"`
+	Params    UserParams `mapstructure:"params" json:"params,omitempty"`
 	Rules     []Rule     `mapstructure:"rules" json:"rules"`
 }
 

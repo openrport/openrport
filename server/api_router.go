@@ -223,20 +223,26 @@ func (al *APIListener) initRouter() {
 	authRouter.HandleFunc(routes.AuthDeviceSettingsRoute, al.handleGetAuthDeviceSettings).Methods(http.MethodGet)
 
 	if rportplus.IsPlusEnabled(al.config.PlusConfig) {
-		alertingServiceRouter := api.PathPrefix(routes.AlertingServiceRoutesPrefix).Subrouter()
+		secureASRouter := secureAPI.PathPrefix(routes.AlertingServiceRoutesPrefix).Subrouter()
 
-		alertingServiceRouter.HandleFunc(routes.ASRuleSetRoute, al.handleGetRuleSet).Methods(http.MethodGet)
-		alertingServiceRouter.HandleFunc(routes.ASRuleSetRoute, al.handleDeleteRuleSet).Methods(http.MethodDelete)
-		alertingServiceRouter.HandleFunc(routes.ASRuleSetRoute, al.handleSaveRuleSet).Methods(http.MethodPost)
+		secureASRouter.Handle(routes.ASRuleSetRoute, al.wrapAdminAccessMiddleware(http.HandlerFunc(al.handleGetRuleSet))).Methods(http.MethodGet)
+		secureASRouter.Handle(routes.ASRuleSetRoute, al.wrapAdminAccessMiddleware(http.HandlerFunc(al.handleDeleteRuleSet))).Methods(http.MethodDelete)
 
-		alertingServiceRouter.HandleFunc(routes.ASProblemsRoute+"/{"+routes.ParamProblemID+"}", al.handleGetProblem).Methods(http.MethodGet)
-		alertingServiceRouter.HandleFunc(routes.ASProblemsRoute, al.handleUpdateProblem).Methods(http.MethodPost)
-		alertingServiceRouter.HandleFunc(routes.ASProblemsRoute, al.handleGetLatestProblems).Methods(http.MethodGet)
+		secureASRouter.Handle(routes.ASRuleSetRoute, al.wrapAdminAccessMiddleware(http.HandlerFunc(al.handleSaveRuleSet))).Methods(http.MethodPut)
 
-		alertingServiceRouter.HandleFunc(routes.ASTemplatesRoute, al.handleGetAllTemplates).Methods(http.MethodGet)
-		alertingServiceRouter.HandleFunc(routes.ASTemplatesRoute+"/{"+routes.ParamTemplateID+"}", al.handleGetTemplate).Methods(http.MethodGet)
-		alertingServiceRouter.HandleFunc(routes.ASTemplatesRoute+"/{"+routes.ParamTemplateID+"}", al.handleDeleteTemplate).Methods(http.MethodDelete)
-		alertingServiceRouter.HandleFunc(routes.ASTemplatesRoute, al.handleSaveTemplate).Methods(http.MethodPost)
+		secureASRouter.Handle(routes.ASProblemsRoute+"/{"+routes.ParamProblemID+"}", al.wrapAdminAccessMiddleware(http.HandlerFunc(al.handleGetProblem))).Methods(http.MethodGet)
+		secureASRouter.Handle(routes.ASProblemsRoute, al.wrapAdminAccessMiddleware(http.HandlerFunc(al.handleGetLatestProblems))).Methods(http.MethodGet)
+
+		secureASRouter.Handle(routes.ASProblemsRoute+"/{"+routes.ParamProblemID+"}", al.wrapAdminAccessMiddleware(http.HandlerFunc(al.handleUpdateProblem))).Methods(http.MethodPut)
+
+		secureASRouter.Handle(routes.ASTemplatesRoute, al.wrapAdminAccessMiddleware(http.HandlerFunc(al.handleGetAllTemplates))).Methods(http.MethodGet)
+		secureASRouter.Handle(routes.ASTemplatesRoute+"/{"+routes.ParamTemplateID+"}",
+			al.wrapAdminAccessMiddleware(http.HandlerFunc(al.handleGetTemplate))).Methods(http.MethodGet)
+		secureASRouter.Handle(routes.ASTemplatesRoute+"/{"+routes.ParamTemplateID+"}",
+			al.wrapAdminAccessMiddleware(http.HandlerFunc(al.handleDeleteTemplate))).Methods(http.MethodDelete)
+
+		secureASRouter.Handle(routes.ASTemplatesRoute, al.wrapAdminAccessMiddleware(http.HandlerFunc(al.handleSaveTemplate))).Methods(http.MethodPost)
+		secureASRouter.Handle(routes.ASTemplatesRoute+"/{"+routes.ParamTemplateID+"}", al.wrapAdminAccessMiddleware(http.HandlerFunc(al.handleSaveTemplate))).Methods(http.MethodPut)
 	}
 
 	if rportplus.IsPlusOAuthEnabled(al.config.PlusConfig) {

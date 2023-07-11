@@ -10,7 +10,7 @@ import (
 	"github.com/realvnc-labs/rport/share/query"
 )
 
-var ProblemsOptionsListDefaultFields = map[string][]string{
+var SupportedProblemsListFields = map[string][]string{
 	"fields[problems]": {
 		"problem_id",
 		"rule_id",
@@ -21,7 +21,7 @@ var ProblemsOptionsListDefaultFields = map[string][]string{
 	},
 }
 
-var ProblemsOptionsSupportedSorts = map[string]bool{
+var SupportedProblemsSorts = map[string]bool{
 	"problem_id":  false,
 	"rule_id":     true,
 	"client_id":   true,
@@ -30,16 +30,19 @@ var ProblemsOptionsSupportedSorts = map[string]bool{
 	"resolved_at": true,
 }
 
-var ProblemsOptionsSupportedFilters = map[string]bool{
-	"problem_id":  true,
-	"rule_id":     true,
-	"client_id":   true,
-	"state":       true,
-	"created_at":  true,
-	"resolved_at": true,
+var SupportedProblemsFilters = map[string]bool{
+	"problem_id":      true,
+	"rule_id":         true,
+	"client_id":       true,
+	"state[active]":   true,
+	"state[resolved]": true,
+	"created_at[gt]":  true,
+	"resolved_at[gt]": true,
+	"created_at[lt]":  true,
+	"resolved_at[lt]": true,
 }
 
-var ProblemsOptionsSupportedFields = map[string]map[string]bool{
+var SupportedProblemsFields = map[string]map[string]bool{
 	"problems": {
 		"problem_id":  true,
 		"rule_id":     true,
@@ -50,7 +53,7 @@ var ProblemsOptionsSupportedFields = map[string]map[string]bool{
 	},
 }
 
-func ProblemsSortByRuleID(problems []*rules.Problem, desc bool) {
+func SortProblemsByRuleID(problems []*rules.Problem, desc bool) {
 	sort.Slice(problems, func(i, j int) bool {
 		less := strings.ToLower(string(problems[i].RuleID)) < strings.ToLower(string(problems[j].RuleID))
 		if desc {
@@ -60,7 +63,7 @@ func ProblemsSortByRuleID(problems []*rules.Problem, desc bool) {
 	})
 }
 
-func ProblemsSortByClientID(problems []*rules.Problem, desc bool) {
+func SortProblemsByClientID(problems []*rules.Problem, desc bool) {
 	sort.Slice(problems, func(i, j int) bool {
 		less := strings.ToLower(problems[i].ClientID) < strings.ToLower(problems[j].ClientID)
 		if desc {
@@ -70,7 +73,7 @@ func ProblemsSortByClientID(problems []*rules.Problem, desc bool) {
 	})
 }
 
-func ProblemsSortByState(problems []*rules.Problem, desc bool) {
+func SortProblemsByState(problems []*rules.Problem, desc bool) {
 	sort.Slice(problems, func(i, j int) bool {
 		less := strings.ToLower(string(problems[i].State)) < strings.ToLower(string(problems[j].State))
 		if desc {
@@ -80,7 +83,7 @@ func ProblemsSortByState(problems []*rules.Problem, desc bool) {
 	})
 }
 
-func ProblemsSortByCreatedAt(problems []*rules.Problem, desc bool) {
+func SortProblemsByCreatedAt(problems []*rules.Problem, desc bool) {
 	sort.Slice(problems, func(i, j int) bool {
 		less := problems[i].CreatedAt.Before(problems[j].CreatedAt)
 		if desc {
@@ -90,7 +93,7 @@ func ProblemsSortByCreatedAt(problems []*rules.Problem, desc bool) {
 	})
 }
 
-func ProblemsSortByResolvedAt(problems []*rules.Problem, desc bool) {
+func SortProblemsByResolvedAt(problems []*rules.Problem, desc bool) {
 	sort.Slice(problems, func(i, j int) bool {
 		less := problems[i].ResolvedAt.Before(problems[j].ResolvedAt)
 		if desc {
@@ -100,9 +103,9 @@ func ProblemsSortByResolvedAt(problems []*rules.Problem, desc bool) {
 	})
 }
 
-func GetProblemsSortFunc(sorts []query.SortOption) (sortFunc func(a []*rules.Problem, desc bool), desc bool, err error) {
+func SortProblemsFunc(sorts []query.SortOption) (sortFunc func(a []*rules.Problem, desc bool), desc bool, err error) {
 	if len(sorts) < 1 {
-		return ProblemsSortByCreatedAt, true, nil
+		return SortProblemsByCreatedAt, true, nil
 	}
 	if len(sorts) > 1 {
 		return nil, false, errors.APIError{
@@ -113,15 +116,15 @@ func GetProblemsSortFunc(sorts []query.SortOption) (sortFunc func(a []*rules.Pro
 
 	switch sorts[0].Column {
 	case "rule_id":
-		sortFunc = ProblemsSortByRuleID
+		sortFunc = SortProblemsByRuleID
 	case "client_id":
-		sortFunc = ProblemsSortByClientID
+		sortFunc = SortProblemsByClientID
 	case "state":
-		sortFunc = ProblemsSortByState
+		sortFunc = SortProblemsByState
 	case "created_at":
-		sortFunc = ProblemsSortByCreatedAt
+		sortFunc = SortProblemsByCreatedAt
 	case "resolved_at":
-		sortFunc = ProblemsSortByResolvedAt
+		sortFunc = SortProblemsByResolvedAt
 	}
 
 	return sortFunc, !sorts[0].IsASC, nil

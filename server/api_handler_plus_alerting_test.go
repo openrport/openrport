@@ -111,6 +111,7 @@ func setupTestAPIListenerForAlerting(
 	}
 
 	al = &APIListener{
+		insecureForTests: true,
 		Server: &Server{
 			config: &chconfig.Config{
 				API: chconfig.APIConfig{
@@ -217,7 +218,7 @@ func TestShouldSaveRuleSet(t *testing.T) {
 	require.NoError(t, err)
 
 	w := httptest.NewRecorder()
-	req := httptest.NewRequest("POST", routes.AllRoutesPrefix+routes.AlertingServiceRoutesPrefix+routes.ASRuleSetRoute, bytes.NewReader(defaultRSJSON))
+	req := httptest.NewRequest("PUT", routes.AllRoutesPrefix+routes.AlertingServiceRoutesPrefix+routes.ASRuleSetRoute, bytes.NewReader(defaultRSJSON))
 
 	al.router.ServeHTTP(w, req)
 
@@ -347,13 +348,13 @@ func TestShouldSaveTemplate(t *testing.T) {
 	require.NoError(t, err)
 
 	t10 := *t1
-	t10.ID = "t10"
+	t10.ID = ""
 
 	t10JSON, err := json.Marshal(t10)
 	require.NoError(t, err)
 
 	w := httptest.NewRecorder()
-	req := httptest.NewRequest("POST", routes.AllRoutesPrefix+routes.AlertingServiceRoutesPrefix+routes.ASTemplatesRoute, bytes.NewReader(t10JSON))
+	req := httptest.NewRequest("PUT", routes.AllRoutesPrefix+routes.AlertingServiceRoutesPrefix+routes.ASTemplatesRoute+"/t10", bytes.NewReader(t10JSON))
 
 	al.router.ServeHTTP(w, req)
 
@@ -370,7 +371,7 @@ func TestShouldSaveTemplate(t *testing.T) {
 	savedTemplate, ok := mockAS.Templates["t10"]
 	require.True(t, ok)
 
-	assert.Equal(t, t10.ID, savedTemplate.ID)
+	assert.Equal(t, templates.TemplateID("t10"), savedTemplate.ID)
 }
 
 func TestShouldDeleteTemplate(t *testing.T) {
@@ -544,7 +545,6 @@ func TestShouldSaveProblemResolved(t *testing.T) {
 	require.NotNil(t, mockAS)
 
 	updateRequest := rules.ProblemUpdateRequest{
-		ID:    "p1",
 		State: rules.ProblemResolved,
 	}
 
@@ -552,7 +552,7 @@ func TestShouldSaveProblemResolved(t *testing.T) {
 	require.NoError(t, err)
 
 	w := httptest.NewRecorder()
-	req := httptest.NewRequest("POST", routes.AllRoutesPrefix+routes.AlertingServiceRoutesPrefix+routes.ASProblemsRoute, bytes.NewReader(updateRequestJSON))
+	req := httptest.NewRequest("PUT", routes.AllRoutesPrefix+routes.AlertingServiceRoutesPrefix+routes.ASProblemsRoute+"/p1", bytes.NewReader(updateRequestJSON))
 
 	al.router.ServeHTTP(w, req)
 
@@ -569,7 +569,7 @@ func TestShouldSaveProblemResolved(t *testing.T) {
 	savedProblem, ok := mockAS.Problems["p1"]
 	require.True(t, ok)
 
-	assert.Equal(t, updateRequest.ID, savedProblem.ID)
+	assert.Equal(t, rules.ProblemID("p1"), savedProblem.ID)
 	assert.Equal(t, rules.ProblemResolved, savedProblem.State)
 }
 

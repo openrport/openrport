@@ -31,6 +31,5 @@ type Problem struct {
 type Problems []Problem
 
 type ProblemUpdateRequest struct {
-	ID    ProblemID    `json:"problem_id"`
 	State ProblemState `json:"state"`
 }
