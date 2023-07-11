@@ -1,11 +1,27 @@
 package notifications
 
 import (
+	"fmt"
+
 	"github.com/realvnc-labs/rport/share/refs"
 )
 
 // ContentType represents a content type for the Msg
 type ContentType string
+
+func (t ContentType) Valid() error {
+	switch t {
+	case ContentTypeTextHTML:
+		return nil
+	case ContentTypeTextPlain:
+		return nil
+	case ContentTypeTextJSON:
+		return nil
+	default:
+		return fmt.Errorf("bad content type: %v", t)
+	}
+
+}
 
 const (
 	ContentTypeTextPlain ContentType = "text/plain"
@@ -22,4 +38,3 @@ type NotificationData struct {
 }
 
 const NotificationType refs.IdentifiableType = "notification"
-const ErrorNotificationType refs.IdentifiableType = "error-notification"

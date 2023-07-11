@@ -23,6 +23,18 @@ const MaxHangingMailSends = 20
 // ContentType represents a content type for the Msg
 type ContentType string
 
+func (t ContentType) Valid() error {
+	switch t {
+	case ContentTypeTextHTML:
+		return nil
+	case ContentTypeTextPlain:
+		return nil
+	default:
+		return fmt.Errorf("bad content type: %v", t)
+	}
+
+}
+
 // List of common content types
 const (
 	ContentTypeTextPlain ContentType = "text/plain"
@@ -45,6 +57,10 @@ type rMailer struct {
 }
 
 func (rm rMailer) Send(ctx context.Context, to []string, subject string, contentType ContentType, body string) error {
+
+	if err := contentType.Valid(); err != nil {
+		return fmt.Errorf("invalid content type: %v", err)
+	}
 
 	mailerOut := rm.enqueueSend(ctx, to, subject, contentType, body)
 
