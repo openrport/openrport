@@ -18,7 +18,7 @@ type Problem struct {
 	RuleSetID RuleSetID    `json:"rule_set_id"`
 	RuleID    RuleID       `json:"rule_id"`
 	ClientID  string       `json:"client_id"`
-	Action    ActionList   `json:"actions"`
+	Actions   ActionList   `json:"actions"`
 	State     ProblemState `json:"state"`
 
 	CreatedAt  time.Time `json:"created_at"`
@@ -26,6 +26,12 @@ type Problem struct {
 
 	CUID string `json:"client_update_id"`
 	MUID string `json:"measure_update_id"`
+}
+
+func (p *Problem) Clone() (clonedProblem Problem) {
+	clonedProblem = *p
+	clonedProblem.Actions = p.Actions.Clone()
+	return clonedProblem
 }
 
 type Problems []Problem

@@ -58,7 +58,29 @@ type Rule struct {
 	Actions  ActionList        `mapstructure:"action" json:"actions"`
 }
 
+func (r *Rule) Clone() (clonedRule Rule) {
+	clonedRule = *r
+	clonedRule.Actions = r.Actions.Clone()
+	return clonedRule
+}
+
 type ActionList []Action
+
+func (al ActionList) Clone() (clonedAL ActionList) {
+	for _, action := range al {
+		clonedAL = append(clonedAL, action.Clone())
+	}
+
+	return clonedAL
+}
+
+type NotifyList []templates.TemplateID
+
+type LogMessage string
+
+type IgnoreList []IgnoreSpec
+
+type IgnoreSpec string
 
 type Action struct {
 	*NotifyList `mapstructure:",squash" json:"notify,omitempty"`
@@ -79,10 +101,18 @@ func (at *Action) GetActType() (actType actions.AT) {
 	return actions.UnknownActionType
 }
 
-type NotifyList []templates.TemplateID
-
-type LogMessage string
-
-type IgnoreList []IgnoreSpec
-
-type IgnoreSpec string
+func (at *Action) Clone() (clonedAct Action) {
+	clonedAct = Action{}
+	if at.NotifyList != nil {
+		notifyList := make(NotifyList, len(*at.NotifyList))
+		copy(notifyList, *at.NotifyList)
+		clonedAct.NotifyList = &notifyList
+	}
+	if at.IgnoreList != nil {
+		ignoreList := make(IgnoreList, len(*at.NotifyList))
+		copy(ignoreList, *at.IgnoreList)
+		clonedAct.IgnoreList = &ignoreList
+	}
+	clonedAct.LogMessage = at.LogMessage
+	return clonedAct
+}
