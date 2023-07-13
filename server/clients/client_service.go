@@ -229,10 +229,12 @@ func (s *ClientServiceProvider) SendClientUpdateToAlerting(cl *clientdata.Client
 	clientupdate, err := transformers.TransformRportClientToClientUpdate(cl)
 	if err != nil {
 		s.log().Debugf("unable to transform client update for alerting service")
+		return
 	}
 	err = s.as.PutClientUpdate(clientupdate)
 	if err != nil {
 		s.log().Debugf("Failed to send client update to the alerting service")
+		return
 	}
 }
 

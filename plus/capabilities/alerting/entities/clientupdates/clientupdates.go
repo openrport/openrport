@@ -43,4 +43,34 @@ type Client struct {
 	Measures measures.Measures `json:"-"`
 }
 
-type Clients []*Client
+func (c *Client) Clone() (clonedClient Client) {
+	clonedClient = *c
+	clonedClient.Tags = cloneSimpleArray(c.Tags)
+	clonedClient.Labels = cloneSimpleStringMap(c.Labels)
+	clonedClient.IPv4 = cloneSimpleArray(c.IPv4)
+	clonedClient.IPv6 = cloneSimpleArray(c.IPv6)
+	clonedClient.Measures = c.Measures.Clone()
+	if c.DisconnectedAt != nil {
+		at := *c.DisconnectedAt
+		clonedClient.DisconnectedAt = &at
+	}
+	if c.LastHeartbeatAt != nil {
+		at := *c.LastHeartbeatAt
+		clonedClient.LastHeartbeatAt = &at
+	}
+	return clonedClient
+}
+
+func cloneSimpleArray[T any](source []T) (result []T) {
+	result = make([]T, 0, len(source))
+	result = append(result, source...)
+	return result
+}
+
+func cloneSimpleStringMap[T any](source map[string]T) (result map[string]T) {
+	result = make(map[string]T, len(source))
+	for k, v := range source {
+		result[k] = v
+	}
+	return result
+}

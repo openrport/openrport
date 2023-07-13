@@ -358,6 +358,9 @@ func (al *APIListener) handleGetLatestProblems(w http.ResponseWriter, req *http.
 		return
 	}
 
+	// TODO: (rs):  these filters are applied against ALL existing problems loaded into RAM. Need to decide
+	// the long term approach and whether to implement via queries against the DB directly?
+
 	matchingProblems := make([]*rules.Problem, 0, 128)
 
 	for _, problem := range problems {

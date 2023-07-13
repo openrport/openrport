@@ -38,9 +38,9 @@ type RuleID string
 type UserParams map[string]any
 
 type RuleSet struct {
-	RuleSetID RuleSetID  `mapstructure:"id" json:"id,omitempty"`
-	Params    UserParams `mapstructure:"params" json:"params,omitempty"`
-	Rules     []Rule     `mapstructure:"rules" json:"rules"`
+	RuleSetID RuleSetID  `json:"id,omitempty"`
+	Params    UserParams `json:"params,omitempty"`
+	Rules     []Rule     `json:"rules"`
 }
 
 type State string
@@ -52,10 +52,10 @@ const (
 )
 
 type Rule struct {
-	ID       RuleID            `mapstructure:"id" json:"id"`
-	Severity severity.Severity `mapstructure:"severity" json:"severity"`
-	Ex       string            `mapstructure:"expr" json:"expr"`
-	Actions  ActionList        `mapstructure:"action" json:"actions"`
+	ID       RuleID            `json:"id"`
+	Severity severity.Severity `json:"severity"`
+	Ex       string            `json:"expr"`
+	Actions  ActionList        `json:"actions"`
 }
 
 func (r *Rule) Clone() (clonedRule Rule) {
@@ -83,9 +83,9 @@ type IgnoreList []IgnoreSpec
 type IgnoreSpec string
 
 type Action struct {
-	*NotifyList `mapstructure:",squash" json:"notify,omitempty"`
-	*IgnoreList `mapstructure:",squash" json:"ignore,omitempty"`
-	LogMessage  `mapstructure:",squash" json:"log,omitempty"`
+	*NotifyList `json:"notify,omitempty"`
+	*IgnoreList `json:"ignore,omitempty"`
+	LogMessage  `json:"log,omitempty"`
 }
 
 func (at *Action) GetActType() (actType actions.AT) {

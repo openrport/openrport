@@ -29,13 +29,13 @@ type ScriptDataTemplates struct {
 }
 
 type Template struct {
-	ID                  TemplateID           `mapstructure:"id" json:"id"`
-	Transport           string               `mapstructure:"transport" json:"transport"`
-	Subject             string               `mapstructure:"subject" json:"subject,omitempty"`
-	Body                string               `mapstructure:"body" json:"body,omitempty"`
-	HTML                bool                 `mapstructure:"html" json:"html"`
-	ScriptDataTemplates *ScriptDataTemplates `mapstructure:"data" json:"data,omitempty"`
-	Recipients          []string             `mapstructure:"recipients" json:"recipients,omitempty"`
+	ID                  TemplateID           `json:"id"`
+	Transport           string               `json:"transport"`
+	Subject             string               `json:"subject,omitempty"`
+	Body                string               `json:"body,omitempty"`
+	HTML                bool                 `json:"html"`
+	ScriptDataTemplates *ScriptDataTemplates `json:"data,omitempty"`
+	Recipients          []string             `json:"recipients,omitempty"`
 }
 
 type TemplateList []*Template

@@ -22,8 +22,12 @@ func TransformRportMeasurementToMeasure(rm *models.Measurement) (m *measures.Mea
 	m.CPUUsagePercent = rm.CPUUsagePercent
 	m.MemoryUsagePercent = rm.MemoryUsagePercent
 	m.IoUsagePercent = rm.IoUsagePercent
-	m.NetLan = rm.NetLan
-	m.NetWan = rm.NetWan
+	if rm.NetLan != nil {
+		m.NetLan = *rm.NetLan
+	}
+	if rm.NetWan != nil {
+		m.NetWan = *rm.NetWan
+	}
 
 	if rm.Processes != "" {
 		pl, err := TransformProcessesJSONToProcesses(rm.Processes)
