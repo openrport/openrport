@@ -80,7 +80,7 @@ type Server struct {
 	plusManager         rportplus.Manager
 	caddyServer         *caddy.Server
 	acme                *acme.Acme
-	as                  alertingcap.Service
+	alertingService     alertingcap.Service
 }
 
 type ServerOpts struct {
@@ -120,7 +120,7 @@ func NewServer(ctx context.Context, config *chconfig.Config, opts *ServerOpts) (
 
 		alertingCap := s.plusManager.GetAlertingCapabilityEx()
 		if alertingCap != nil {
-			s.as, err = s.StartPlusAlertingService(ctx, alertingCap, config.Server.DataDir)
+			s.alertingService, err = s.StartPlusAlertingService(ctx, alertingCap, config.Server.DataDir)
 			if err != nil {
 				return nil, err
 			}
@@ -233,7 +233,7 @@ func NewServer(ctx context.Context, config *chconfig.Config, opts *ServerOpts) (
 	if rportplus.IsPlusEnabled(config.PlusConfig) {
 		licCapEx := s.plusManager.GetLicenseCapabilityEx()
 		s.clientService.SetPlusLicenseInfoCap(licCapEx)
-		s.clientService.SetPlusAlertingServiceCap(s.as)
+		s.clientService.SetPlusAlertingServiceCap(s.alertingService)
 	}
 
 	s.auditLog, err = auditlog.New(
@@ -294,9 +294,9 @@ func NewServer(ctx context.Context, config *chconfig.Config, opts *ServerOpts) (
 		s.clientService.SetCaddyAPI(s.caddyServer)
 	}
 
-	if s.as != nil {
+	if s.alertingService != nil {
 		dispatcher := notifications.NewDispatcher(s.apiListener.notificationsStorage)
-		s.as.Run(ctx, dispatcher)
+		s.alertingService.Run(ctx, dispatcher)
 	}
 	return s, nil
 }
@@ -498,8 +498,8 @@ func (s *Server) Close() error {
 	})
 
 	// TODO: (rs):  should we be shutting down the other plugin capabilities here?
-	if s.as != nil {
-		wg.Go(s.as.Stop)
+	if s.alertingService != nil {
+		wg.Go(s.alertingService.Stop)
 	}
 
 	return wg.Wait()
