@@ -4,7 +4,7 @@ import (
 	"fmt"
 	"testing"
 
-	"github.com/test-go/testify/assert"
+	"github.com/stretchr/testify/assert"
 
 	"github.com/realvnc-labs/rport/plus/capabilities/alerting/entities/measures"
 )
