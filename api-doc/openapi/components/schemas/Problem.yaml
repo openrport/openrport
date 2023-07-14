@@ -1,0 +1,24 @@
+type: object
+properties:
+  problem_id:
+    type: string
+  rule_set_id:
+    type: string
+  rule_id:
+    type: string
+  client_id:
+    type: string
+  actions:
+    type: array
+    items:
+      $ref: ./Action.yaml
+  state:
+    type: string
+  created_at:
+    type: string
+  resolved_at:
+    type: string
+  client_update_id:
+    type: string
+  measure_update_id:
+    type: string

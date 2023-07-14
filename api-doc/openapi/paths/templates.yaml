@@ -1,0 +1,84 @@
+get:
+  tags:
+    - Monitoring
+  summary: Get all notification templates
+  operationId: TemplatesGet
+  description: >
+    * Returns the configured templates for the alerting service
+  responses:
+    "200":
+      description: Successful
+      content:
+        application/json:
+          schema:
+            type: object
+            properties:
+              data:
+                $ref: ../components/schemas/TemplatesResponse.yaml
+    "400":
+      description: Invalid parameters
+      content:
+        application/json:
+          schema:
+            $ref: ../components/schemas/ErrorPayload.yaml
+    "401":
+      description: Unauthorized
+      content:
+        application/json:
+          schema:
+            $ref: ../components/schemas/ErrorPayload.yaml
+    '403':
+      description: >-
+        current user should belong to Administrators group to access this
+        resource
+      content:
+        application/json:
+          schema:
+            $ref: ../components/schemas/ErrorPayload.yaml
+    "500":
+      description: Invalid Operation
+      content:
+        application/json:
+          schema:
+            $ref: ../components/schemas/ErrorPayload.yaml
+post:
+  tags:
+    - Monitoring
+  summary: Creates a template
+  operationId: TemplatePost
+  description: >-
+    Create a new template. This API requires the current user to be member of
+    group `Administrators`. Returns 403 otherwise. The `Administrators` group
+    name is hardcoded and cannot be changed at the moment.
+  requestBody:
+    description: >-
+      Template to update.
+    content:
+      '*/*':
+        schema:
+          $ref: ../components/schemas/TemplatePost.yaml
+    required: true
+  responses:
+    '204':
+      description: Successful Operation
+      content: {}
+    '400':
+      description: Invalid request parameters
+      content:
+        application/json:
+          schema:
+            $ref: ../components/schemas/ErrorPayload.yaml
+    '403':
+      description: >-
+        current user should belong to Administrators group to access this
+        resource
+      content:
+        application/json:
+          schema:
+            $ref: ../components/schemas/ErrorPayload.yaml
+    '500':
+      description: Invalid Operation
+      content:
+        application/json:
+          schema:
+            $ref: ../components/schemas/ErrorPayload.yaml

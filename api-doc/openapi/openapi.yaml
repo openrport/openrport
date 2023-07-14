@@ -169,6 +169,16 @@ paths:
     $ref: paths/schedules_{id}.yaml
   /files:
     $ref: paths/files.yaml
+  /monitoring/problems:
+    $ref: paths/problems.yaml
+  /monitoring/problems/{problem_id}:
+    $ref: paths/problems_{problem_id}.yaml
+  /monitoring/rules:
+    $ref: paths/ruleset.yaml
+  /monitoring/notification-templates/{template_id}:
+    $ref: paths/templates_{template_id}.yaml
+  /monitoring/notification-templates:
+    $ref: paths/templates.yaml
 components:
   securitySchemes:
     basic_auth:
