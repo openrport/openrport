@@ -55,12 +55,12 @@ require (
 	github.com/tklauser/numcpus v0.6.0 // indirect
 	github.com/wwt/guac v1.3.1
 	github.com/yusufpapurcu/wmi v1.2.2 // indirect
-	golang.org/x/crypto v0.1.0
-	golang.org/x/net v0.7.0
+	golang.org/x/crypto v0.7.0
+	golang.org/x/net v0.8.0
 	golang.org/x/sync v0.0.0-20210220032951-036812b2e83c
-	golang.org/x/sys v0.5.0
-	golang.org/x/term v0.5.0
-	golang.org/x/text v0.7.0
+	golang.org/x/sys v0.6.0
+	golang.org/x/term v0.6.0
+	golang.org/x/text v0.8.0
 	gopkg.in/h2non/gock.v1 v1.1.2
 	gopkg.in/ini.v1 v1.62.0 // indirect
 	gopkg.in/yaml.v2 v2.4.0 // indirect
@@ -68,15 +68,21 @@ require (
 )
 
 require (
+	filippo.io/keygen v0.0.0-20230306160926-5201437acf8e
 	github.com/aidarkhanov/nanoid/v2 v2.0.5
 	github.com/gobeam/stringy v0.0.5
 	github.com/hashicorp/go-version v1.5.0
 	github.com/jmoiron/sqlx v1.3.5
+	github.com/mocktools/go-smtp-mock/v2 v2.1.0
+	github.com/oklog/ulid/v2 v2.1.0
 	github.com/oleiade/reflections v1.0.1
 	github.com/pkg/sftp v1.13.4
 	github.com/shirou/gopsutil/v3 v3.22.12
 	github.com/trustelem/zxcvbn v1.0.1
+	github.com/wneessen/go-mail v0.3.9
 )
+
+require filippo.io/bigmod v0.0.1 // indirect
 
 require (
 	github.com/andrew-d/go-termutil v0.0.0-20150726205930-009166a695a2 // indirect

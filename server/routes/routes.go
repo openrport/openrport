@@ -12,6 +12,7 @@ const (
 	ParamScriptValueID  = "script_value_id"
 	ParamCommandValueID = "command_value_id"
 	ParamGraphName      = "graph_name"
+	ParamNotificationID = "notification_id"
 
 	AllRoutesPrefix         = "/api/v1"
 	AuthRoutesPrefix        = "/auth"

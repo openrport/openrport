@@ -9,3 +9,82 @@ properties:
     description: permissions with boolean values
     additionalProperties:
       type: boolean
+  tunnels_restricted:
+    type: object
+    description: restriction with values
+    properties:
+      local:
+        type: array
+        description: local ports restrictions
+        items:
+          type: string
+      remote:
+        type: array
+        description: remote ports restrictions
+        items:
+          type: string
+      scheme:
+        type: array
+        description: scheme protocols restrictions
+        items:
+          type: string
+      acl:
+        type: array
+        description: acl IP restrictions
+        items:
+          type: string
+      idle-timeout-minutes:
+        type: object
+        description: idle-timeout-minutes restriction with min, max values
+        properties:
+          min:
+            type: integer
+            description: minimum allowed value in minutes
+          max:
+            type: integer
+            description: maximum allowed value in minutes
+      auto-close:
+        type: object
+        description: auto-close restriction with min, max values
+        properties:
+          min:
+            type: string
+            description: minimum allowed value in the form of HH:MM
+          max:
+            type: string
+            description: maximum allowed value in the form of HH:MM
+      protocol:
+        type: array
+        description: protocol restrictions
+        items:
+          type: string
+      skip-idle-timeout:
+        type: boolean
+        description: skip-idle-timeout restriction
+      http_proxy:
+        type: boolean
+        description: http_proxy restriction
+      host_header:
+        type: string
+        description: host_header restriction regular expression
+      auth_allowed:
+        type: boolean
+        description: auth_allowed restriction
+
+  commands_restricted:
+    type: object
+    description: command restrictions with values
+    properties:
+      allow:
+        type: array
+        description: allowed commands regular expressions
+        items:
+          type: string
+      deny:
+        type: array
+        description: denied commands regular expressions
+        items:
+          type: string
+      is_sudo:
+        type: boolean
+        description: sudo flag to be allowed or denied
