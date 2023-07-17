@@ -1,0 +1,12 @@
+type: object
+properties:
+  notify:
+    type: array
+    items:
+      type: string
+  ignore:
+    type: array
+    items:
+      type: string
+  log:
+    type: string
