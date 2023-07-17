@@ -46,9 +46,9 @@ type RuleSet struct {
 type State string
 
 const (
-	StateUnknown State = "UNKNOWN"
-	NotFiring    State = "NOT_FIRING"
-	Firing       State = "FIRING"
+	StateUnknown State = "Unknown"
+	NotFiring    State = "Not Firing"
+	Firing       State = "Firing"
 )
 
 type Rule struct {
