@@ -4,9 +4,9 @@ get:
   summary: Get details for a problem
   operationId: ProblemGet
   parameters:
-    - name: client_id
+    - name: problem_id
       in: path
-      description: unique client ID
+      description: unique problem ID
       required: true
       schema:
         type: string
@@ -34,7 +34,7 @@ get:
         application/json:
           schema:
             $ref: ../components/schemas/ErrorPayload.yaml
-    '403':
+    "403":
       description: >-
         current user should belong to Administrators group to access this
         resource
@@ -68,21 +68,21 @@ put:
     description: >-
       New active state for the problem
     content:
-      '*/*':
+      "*/*":
         schema:
           $ref: ../components/schemas/ProblemPut.yaml
     required: true
   responses:
-    '204':
+    "204":
       description: Successful Operation
       content: {}
-    '400':
+    "400":
       description: Invalid request parameters
       content:
         application/json:
           schema:
             $ref: ../components/schemas/ErrorPayload.yaml
-    '403':
+    "403":
       description: >-
         current user should belong to Administrators group to access this
         resource
@@ -90,7 +90,7 @@ put:
         application/json:
           schema:
             $ref: ../components/schemas/ErrorPayload.yaml
-    '500':
+    "500":
       description: Invalid Operation
       content:
         application/json:
