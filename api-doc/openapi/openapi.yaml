@@ -170,15 +170,15 @@ paths:
   /files:
     $ref: paths/files.yaml
   /monitoring/problems:
-    $ref: paths/problems.yaml
+    $ref: paths/monitoring_problems.yaml
   /monitoring/problems/{problem_id}:
-    $ref: paths/problems_{problem_id}.yaml
+    $ref: paths/monitoring_problems_{problem_id}.yaml
   /monitoring/rules:
-    $ref: paths/ruleset.yaml
+    $ref: paths/monitoring_ruleset.yaml
   /monitoring/notification-templates/{template_id}:
-    $ref: paths/templates_{template_id}.yaml
+    $ref: paths/monitoring_notification-templates_{template_id}.yaml
   /monitoring/notification-templates:
-    $ref: paths/templates.yaml
+    $ref: paths/monitoring_notification-templates.yaml
 components:
   securitySchemes:
     basic_auth:
