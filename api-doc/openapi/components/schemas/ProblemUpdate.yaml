@@ -1,4 +1,4 @@
 type: object
 properties:
-  status:
-    type: string
+  active:
+    type: boolean

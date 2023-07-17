@@ -3,7 +3,7 @@ properties:
   id:
     type: string
   transport:
-    type: string
+    $ref: ./Transport.yaml
   subject:
     type: string
   body:

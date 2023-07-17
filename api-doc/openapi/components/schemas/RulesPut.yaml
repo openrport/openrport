@@ -1,2 +1,2 @@
 type: object
-$ref: ./Rules.yaml
+$ref: ./RuleSet.yaml

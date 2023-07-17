@@ -2,7 +2,7 @@ get:
   tags:
     - Monitoring
   summary: Get details for a notification template
-  operationId: TemplatesGet
+  operationId: TemplateGet
   parameters:
     - name: client_id
       in: path

@@ -3,11 +3,10 @@ properties:
   id:
     type: string
   severity:
-    type: string
+    $ref: ./Severity.yaml
   expr:
     type: string
   actions:
     type: array
     items:
       $ref: ./Action.yaml
-

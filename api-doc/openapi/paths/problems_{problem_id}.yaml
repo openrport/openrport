@@ -2,7 +2,7 @@ get:
   tags:
     - Monitoring
   summary: Get details for a problem
-  operationId: ProblemsGet
+  operationId: ProblemGet
   parameters:
     - name: client_id
       in: path
@@ -51,12 +51,12 @@ get:
 put:
   tags:
     - Monitoring
-  summary: Update Problem Status
+  summary: Update problem status
   operationId: ProblemPut
   description: >-
-    Update an existing template. This API requires the current user to be member of
-    group `Administrators`. Returns 403 otherwise. The `Administrators` group
-    name is hardcoded and cannot be changed at the moment.
+    Allows manual update of the active state for a problem. This API requires the current
+    user to be member of group `Administrators`. Returns 403 otherwise. The `Administrators` 
+    group name is hardcoded and cannot be changed at the moment.
   parameters:
     - name: problem_id
       in: path
@@ -66,7 +66,7 @@ put:
         type: string
   requestBody:
     description: >-
-      Problem to update.
+      New active state for the problem
     content:
       '*/*':
         schema:
