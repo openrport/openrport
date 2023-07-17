@@ -3,6 +3,7 @@ package transformers
 import (
 	"encoding/json"
 	"fmt"
+	"sort"
 	"strings"
 
 	"github.com/realvnc-labs/rport/share/models"
@@ -112,6 +113,10 @@ func TransformMountPointsJSONToMountPoints(mpJSON string) (mountPoints []measure
 	for _, mps := range mpl {
 		mountPoints = append(mountPoints, *mps)
 	}
+
+	sort.Slice(mountPoints, func(i int, j int) bool {
+		return mountPoints[i].Name < mountPoints[j].Name
+	})
 
 	return mountPoints, nil
 }

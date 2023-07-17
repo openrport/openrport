@@ -85,7 +85,7 @@ type ClientServiceProvider struct {
 	caddyAPI          caddy.API
 	logger            *logger.Logger
 	acme              *acme.Acme
-	as                alertingcap.Service
+	alertingService   alertingcap.Service
 
 	licensecap licensecap.CapabilityEx
 
@@ -217,8 +217,8 @@ func (s *ClientServiceProvider) SetPlusLicenseInfoCap(licensecap licensecap.Capa
 }
 
 func (s *ClientServiceProvider) SetPlusAlertingServiceCap(as alertingcap.Service) {
-	s.as = as
-	if as != nil {
+	s.alertingService = as
+	if s.alertingService != nil {
 		repo := s.GetRepo()
 		repo.SetPostSaveHandlerFn(s.SendClientUpdateToAlerting)
 	}
@@ -231,7 +231,7 @@ func (s *ClientServiceProvider) SendClientUpdateToAlerting(cl *clientdata.Client
 		s.log().Debugf("unable to transform client update for alerting service")
 		return
 	}
-	err = s.as.PutClientUpdate(clientupdate)
+	err = s.alertingService.PutClientUpdate(clientupdate)
 	if err != nil {
 		s.log().Debugf("Failed to send client update to the alerting service")
 		return

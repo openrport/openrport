@@ -35,20 +35,20 @@ const (
 type RuleSetID string
 type RuleID string
 
-type UserParams map[string]any
+type UserVars map[string]any
 
 type RuleSet struct {
-	RuleSetID RuleSetID  `json:"id,omitempty"`
-	Params    UserParams `json:"params,omitempty"`
-	Rules     []Rule     `json:"rules"`
+	RuleSetID RuleSetID `json:"id,omitempty"`
+	Vars      UserVars  `json:"vars,omitempty"`
+	Rules     []Rule    `json:"rules"`
 }
 
 type State string
 
 const (
-	StateUnknown State = "UNKNOWN"
-	NotFiring    State = "NOT_FIRING"
-	Firing       State = "FIRING"
+	StateUnknown State = "Unknown"
+	NotFiring    State = "Not Firing"
+	Firing       State = "Firing"
 )
 
 type Rule struct {
@@ -88,17 +88,17 @@ type Action struct {
 	LogMessage  `json:"log,omitempty"`
 }
 
-func (at *Action) GetActType() (actType actions.AT) {
+func (at *Action) GetActType() (actType actions.ActionType) {
 	if at.NotifyList != nil {
-		return actions.NotifyActionType
+		return actions.NotifyType
 	}
 	if at.IgnoreList != nil {
-		return actions.IgnoreActionType
+		return actions.IgnoreType
 	}
 	if at.LogMessage != "" {
-		return actions.LogActionType
+		return actions.LogType
 	}
-	return actions.UnknownActionType
+	return actions.UnknownType
 }
 
 func (at *Action) Clone() (clonedAct Action) {

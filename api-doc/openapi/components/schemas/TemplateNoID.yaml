@@ -1,0 +1,25 @@
+type: object
+properties:
+  transport:
+    type: string
+  subject:
+    type: string
+  body:
+    type: string
+  html:
+    type: boolean
+  data:
+    type: object
+    properties:
+      subject:
+        type: string
+      severity:
+        type: string
+      client:
+        type: string
+      webhook_url:
+        type: string
+  recipients:
+    type: array
+    items:
+      type: string

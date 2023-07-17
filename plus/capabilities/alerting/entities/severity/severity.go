@@ -3,9 +3,9 @@ package severity
 type Severity string
 
 const (
-	Information Severity = "INFORMATION"
-	Warning     Severity = "WARNING"
-	Average     Severity = "AVERAGE"
-	High        Severity = "HIGH"
-	Disaster    Severity = "DISASTER"
+	Information Severity = "Information"
+	Warning     Severity = "Warning"
+	Average     Severity = "Average"
+	High        Severity = "High"
+	Disaster    Severity = "Disaster"
 )

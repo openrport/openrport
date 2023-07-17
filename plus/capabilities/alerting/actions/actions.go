@@ -1,10 +1,10 @@
 package actions
 
-type AT string
+type ActionType string
 
 const (
-	LogActionType     AT = "log"
-	NotifyActionType  AT = "notify"
-	IgnoreActionType  AT = "ignore"
-	UnknownActionType AT = "unknown"
+	LogType     ActionType = "log"
+	NotifyType  ActionType = "notify"
+	IgnoreType  ActionType = "ignore"
+	UnknownType ActionType = "unknown"
 )

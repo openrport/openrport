@@ -19,6 +19,7 @@ import (
 	"github.com/realvnc-labs/rport/plus/validator"
 	"github.com/realvnc-labs/rport/server/notifications"
 	"github.com/realvnc-labs/rport/share/logger"
+	"github.com/realvnc-labs/rport/share/types"
 )
 
 type MockCapabilityProvider struct {
@@ -268,8 +269,8 @@ func (mp *MockServiceProvider) SetProblemResolved(pid rules.ProblemID, resolvedA
 	if !ok {
 		return alertingcap.ErrEntityNotFound
 	}
-	problem.State = rules.ProblemResolved
-	problem.ResolvedAt = resolvedAt
+	problem.Active = false
+	problem.ResolvedAt = types.NewTimeJSON(resolvedAt)
 	mp.Problems[pid] = problem
 	return nil
 }

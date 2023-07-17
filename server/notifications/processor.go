@@ -73,7 +73,10 @@ root:
 		select {
 		case <-p.timeToDie.Done():
 			break root
-		case notification := <-updates:
+		case notification, ok := <-updates:
+			if !ok {
+				break root
+			}
 			ctx, cancelFn := context.WithTimeout(context.Background(), MaxProcessingTime)
 			p.logger.Infof("notification %v(%v)  started processing", notification.Target, notification.ID)
 			err := consumer.Process(ctx, notification)
