@@ -309,7 +309,7 @@ func (al *APIListener) handleUpdateProblem(w http.ResponseWriter, r *http.Reques
 	pid := vars[routes.ParamProblemID]
 	problemID := rules.ProblemID(pid)
 
-	if problemUpdateRequest.State == rules.ProblemActive {
+	if problemUpdateRequest.Active {
 		err = as.SetProblemActive(problemID)
 		if err != nil {
 			al.jsonErrorResponse(w, http.StatusInternalServerError, err)

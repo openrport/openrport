@@ -75,7 +75,7 @@ func SortProblemsByClientID(problems []*rules.Problem, desc bool) {
 
 func SortProblemsByState(problems []*rules.Problem, desc bool) {
 	sort.Slice(problems, func(i, j int) bool {
-		less := strings.ToLower(string(problems[i].State)) < strings.ToLower(string(problems[j].State))
+		less := problems[i].Active == problems[j].Active
 		if desc {
 			return !less
 		}
@@ -95,7 +95,7 @@ func SortProblemsByCreatedAt(problems []*rules.Problem, desc bool) {
 
 func SortProblemsByResolvedAt(problems []*rules.Problem, desc bool) {
 	sort.Slice(problems, func(i, j int) bool {
-		less := problems[i].ResolvedAt.Before(problems[j].ResolvedAt)
+		less := problems[i].ResolvedAt.Before(problems[j].ResolvedAt.ToTime())
 		if desc {
 			return !less
 		}

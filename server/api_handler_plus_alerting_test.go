@@ -548,7 +548,7 @@ func TestShouldSaveProblemResolved(t *testing.T) {
 	require.NotNil(t, mockAS)
 
 	updateRequest := rules.ProblemUpdateRequest{
-		State: rules.ProblemResolved,
+		Active: false,
 	}
 
 	updateRequestJSON, err := json.Marshal(updateRequest)
@@ -573,7 +573,7 @@ func TestShouldSaveProblemResolved(t *testing.T) {
 	require.True(t, ok)
 
 	assert.Equal(t, rules.ProblemID("p1"), savedProblem.ID)
-	assert.Equal(t, rules.ProblemResolved, savedProblem.State)
+	assert.Equal(t, false, savedProblem.Active)
 }
 
 func TestShouldGetLatestProblems(t *testing.T) {
