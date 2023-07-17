@@ -48,12 +48,12 @@ func (r repository) Count(ctx context.Context, options *query.ListOptions) (int,
 	params := []interface{}{}
 	q, params = r.converter.AppendOptionsToQuery(&countOptions, q, params)
 
-	err := r.db.SelectContext(
+	row := r.db.QueryRowContext(
 		ctx,
-		&res,
 		q,
 		params...,
 	)
+	err := row.Scan(&res)
 	return res, err
 }
 
