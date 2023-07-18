@@ -21,7 +21,7 @@ properties:
       [read more](https://oss.rport.io/docs/no02-api-auth.html#database)
   effective_user_permissions:
       type: object
-      description: The effective user right inhereted from the group permissions
+      description: The effective user right inherited from the group permissions
       properties:
         commands:
           type: boolean
@@ -34,7 +34,7 @@ properties:
           description: Is user allowed to create scheduled tasks
         scripts:
           type: boolean
-          description: Is user allowed to execute scipts
+          description: Is user allowed to execute scripts
         tunnels:
           type: boolean
           description: Is user allowed to create tunnels
@@ -47,3 +47,15 @@ properties:
         auditlog:
           type: boolean
           description: Is user allowed to access the auditlog
+  effective_extended_permissions:
+    type: object
+    description: |
+      The effective extended user permissions inherited from the extended group permissions.
+      [Read more](https://plus.rport.io/extended-permissions/ext-permissions-introduction/)
+    properties:
+      tunnels_restricted:
+        type: object
+        description: Extended permissions for creating tunnels
+      commands_restricted:
+        type: object
+        description: Extended permissions for executing commands

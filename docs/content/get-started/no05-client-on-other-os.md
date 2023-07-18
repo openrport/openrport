@@ -36,10 +36,10 @@ sudo vim /etc/rport/rport.conf
 Or automate the above step using `sed`.
 
 ```shell
-FINGERPRINT="2a:c8:79:09:80:ba:7c:60:05:e5:2c:99:6d:75:56:24"
-CONNECT_URL="http://node1.rport.io:8080"
+FINGERPRINT="2b:c8:79:09:40:ba:7c:60:05:e5:2c:93:6d:75:56:10"
+CONNECT_URL="http://rport.example.com:8080"
 CLIENT_ID="000002-techdev"
-PASSWORD="techdevtest123"
+PASSWORD="thahs4chiwio3WieZe"
 CONFIG_FILE=/etc/rport/rport.conf
 sudo sed -i '' "s|#*server = .*|server = \"${CONNECT_URL}\"|g" "$CONFIG_FILE"
 sudo sed -i '' "s/#*auth = .*/auth = \"${CLIENT_ID}:${PASSWORD}\"/g" "$CONFIG_FILE"

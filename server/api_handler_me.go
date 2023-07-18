@@ -38,15 +38,18 @@ func (al *APIListener) handleGetMe(w http.ResponseWriter, req *http.Request) {
 	}
 
 	tr, cr := al.userService.GetEffectiveUserExtendedPermissions(user)
+	eep := EffectiveExtendedPermissions{
+		TunnelsRestricted:  tr,
+		CommandsRestricted: cr,
+	}
 
 	me := UserPayload{
-		Username:                 user.Username,
-		Groups:                   user.Groups,
-		TwoFASendTo:              user.TwoFASendTo,
-		EffectiveUserPermissions: eup,
-		TunnelsRestricted:        tr,
-		CommandsRestricted:       cr,
-		GroupPermissionsEnabled:  al.userService.SupportsGroupPermissions(),
+		Username:                     user.Username,
+		Groups:                       user.Groups,
+		TwoFASendTo:                  user.TwoFASendTo,
+		EffectiveUserPermissions:     eup,
+		EffectiveExtendedPermissions: eep,
+		GroupPermissionsEnabled:      al.userService.SupportsGroupPermissions(),
 	}
 	response := api.NewSuccessPayload(me)
 	al.writeJSONResponse(w, http.StatusOK, response)
