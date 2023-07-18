@@ -6,6 +6,7 @@ import (
 	"fmt"
 	"io"
 	"os/exec"
+	"time"
 )
 
 func RunCancelableScript(ctx context.Context, script string, body string) (string, error) {
@@ -48,6 +49,7 @@ func RunCancelableScript(ctx context.Context, script string, body string) (strin
 				err = fmt.Errorf("script killed because of ctx cancel")
 			}
 
+			time.Sleep(time.Millisecond * 200)
 			internalCancelFunc()
 		case <-internalCtx.Done():
 		}
