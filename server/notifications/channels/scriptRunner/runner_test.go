@@ -55,6 +55,12 @@ func (ts *ScriptRunnerTestSuite) TestScriptError() {
 	ts.Empty(out)
 }
 
+//func (ts *ScriptRunnerTestSuite) TestChanCloseBeh() {
+//	t := make(chan string, 1)
+//	close(t)
+//	t <- "asdf"
+//}
+
 func (ts *ScriptRunnerTestSuite) TestScriptStdError() {
 	out, err := scriptRunner.RunCancelableScript(context.Background(), "./test_stderr.sh", "")
 
