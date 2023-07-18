@@ -25,18 +25,18 @@ func (c *MockConsumer) Target() notifications.Target {
 	return c.target
 }
 
-func (c *MockConsumer) Process(_ context.Context, notification notifications.NotificationDetails) error {
-	c.message = notification
+func (c *MockConsumer) Process(_ context.Context, details notifications.NotificationDetails) (string, error) {
+	c.message = details
 	if c.waiter != nil {
 		<-c.waiter
 		<-c.waiter
 	}
 
 	if c.fail.Load() {
-		return fmt.Errorf("test-error")
+		return "", fmt.Errorf("test-error")
 	}
 
-	return nil
+	return "", nil
 }
 
 type ProcessorTestSuite struct {

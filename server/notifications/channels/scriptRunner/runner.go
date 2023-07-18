@@ -8,30 +8,33 @@ import (
 	"os/exec"
 )
 
-func RunCancelableScript(ctx context.Context, script string, body string) error {
+func RunCancelableScript(ctx context.Context, script string, body string) (string, error) {
 
 	cmd := exec.CommandContext(ctx, script)
 
 	stdin, err := cmd.StdinPipe()
 	if err != nil {
-		return err
+		return "", err
 	}
+
+	var okb bytes.Buffer
+	cmd.Stdout = &okb
 
 	var errb bytes.Buffer
 	cmd.Stderr = &errb
 
 	if err = cmd.Start(); err != nil { //Use start, not run
-		return err
+		return "", err
 	}
 
 	_, err = io.WriteString(stdin, body)
 	if err != nil {
-		return err
+		return "", err
 	}
 
 	err = stdin.Close()
 	if err != nil {
-		return err
+		return "", err
 	}
 
 	internalCtx, internalCancelFunc := context.WithCancel(context.Background())
@@ -59,12 +62,12 @@ func RunCancelableScript(ctx context.Context, script string, body string) error 
 
 	// this err will be set by the goroutine closures above
 	if err != nil {
-		return err
+		return okb.String(), err
 	}
 
 	if errb.Len() > 0 {
-		return fmt.Errorf("there is something on stderr: %v", errb.String())
+		return okb.String(), fmt.Errorf("there is something on stderr: %v", errb.String())
 	}
 
-	return nil
+	return okb.String(), nil
 }

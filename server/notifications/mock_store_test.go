@@ -13,12 +13,12 @@ type MockStore struct {
 	sync.RWMutex
 }
 
-func (m *MockStore) SetDone(ctx context.Context, details notifications.NotificationDetails) error {
+func (m *MockStore) SetDone(ctx context.Context, details notifications.NotificationDetails, out string) error {
 	return m.logDone(ctx, details.ID.ID())
 }
 
-func (m *MockStore) SetError(ctx context.Context, details notifications.NotificationDetails, out string) error {
-	return m.logError(ctx, details.ID.ID(), out)
+func (m *MockStore) SetError(ctx context.Context, details notifications.NotificationDetails, out, err string) error {
+	return m.logError(ctx, details.ID.ID(), err)
 }
 
 func (m *MockStore) logDone(_ context.Context, nid string) error {

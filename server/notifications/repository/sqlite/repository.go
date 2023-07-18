@@ -21,13 +21,14 @@ type Repository interface {
 	Count(ctx context.Context, options *query.ListOptions) (int, error)
 	Details(ctx context.Context, nid string) (notifications.NotificationDetails, bool, error)
 	Create(ctx context.Context, details notifications.NotificationDetails) error
-	SetDone(ctx context.Context, details notifications.NotificationDetails) error
-	SetError(ctx context.Context, details notifications.NotificationDetails, out string) error
+	SetDone(ctx context.Context, details notifications.NotificationDetails, out string) error
+	SetError(ctx context.Context, details notifications.NotificationDetails, out, err string) error
 	NotificationStream(target notifications.Target) chan notifications.NotificationDetails
 	Close() error
 }
 
 const MaxNotificationsQueue = 1000
+const MaxOutAndErrorSize = 2000 // limit outs to 2k characters
 
 const RecipientsSeparator = "@|@"
 
@@ -57,14 +58,16 @@ func (r repository) Count(ctx context.Context, options *query.ListOptions) (int,
 	return res, err
 }
 
-func (r repository) SetError(ctx context.Context, details notifications.NotificationDetails, out string) error {
+func (r repository) SetError(ctx context.Context, details notifications.NotificationDetails, out, err string) error {
 	details.Out = out
+	details.Err = err
 	details.State = notifications.ProcessingStateError
 	return r.save(ctx, details)
 }
 
-func (r repository) SetDone(ctx context.Context, details notifications.NotificationDetails) error {
+func (r repository) SetDone(ctx context.Context, details notifications.NotificationDetails, out string) error {
 	details.State = notifications.ProcessingStateDone
+	details.Out = out
 	return r.save(ctx, details)
 }
 
@@ -79,6 +82,7 @@ type SQLNotification struct {
 	Subject        string     `db:"subject"`
 	Body           string     `db:"body"`
 	Out            string     `db:"out"`
+	Err            string     `db:"err"`
 }
 
 func (r repository) Create(_ context.Context, details notifications.NotificationDetails) error {
@@ -108,16 +112,27 @@ func (r repository) save(ctx context.Context, details notifications.Notification
 		State:          string(details.State),
 		Subject:        details.Data.Subject,
 		Body:           details.Data.Content,
-		Out:            details.Out,
 		ContentType:    string(details.Data.ContentType),
+	}
+
+	if len(details.Out) > MaxNotificationsQueue {
+		n.Out = details.Out[:MaxOutAndErrorSize]
+	} else {
+		n.Out = details.Out
+	}
+
+	if len(details.Err) > MaxNotificationsQueue {
+		n.Err = details.Err[:MaxOutAndErrorSize]
+	} else {
+		n.Err = details.Err
 	}
 
 	_, err := r.db.NamedExecContext(
 		ctx,
 		"INSERT INTO `notifications_log` "+
-			" (`notification_id`, `contentType`, `reference_id`, `transport`, `recipients`, `state`, `subject`, `body`, `out`)"+
+			" (`notification_id`, `contentType`, `reference_id`, `transport`, `recipients`, `state`, `subject`, `body`, `out`, `err`)"+
 			" VALUES "+
-			"(:notification_id, :contentType, :reference_id, :transport, :recipients, :state, :subject, :body, :out)",
+			"(:notification_id, :contentType, :reference_id, :transport, :recipients, :state, :subject, :body, :out, :err)",
 		n,
 	)
 
@@ -165,6 +180,7 @@ func (r repository) Details(ctx context.Context, nid string) (notifications.Noti
 		State:  notifications.ProcessingState(last.State),
 		ID:     refs.NewIdentifiable(notifications.NotificationType, entity.NotificationID),
 		Out:    last.Out,
+		Err:    last.Err,
 		Target: notifications.FigureOutTarget(entity.Transport),
 	}
 	tmp := details
@@ -176,7 +192,7 @@ func (r repository) List(ctx context.Context, options *query.ListOptions) ([]not
 	var res []notifications.NotificationSummary
 
 	q := `
-SELECT notification_id, state, transport, timestamp, out
+SELECT notification_id, state, transport, timestamp, out, err
 FROM notifications_log ORDER by timestamp desc`
 	params := []interface{}{}
 	q, params = r.converter.AppendOptionsToQuery(options, q, params)

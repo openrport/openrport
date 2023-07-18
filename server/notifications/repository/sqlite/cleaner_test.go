@@ -73,7 +73,7 @@ func (suite *CleanerTestSuite) TestCleanerCleansOldNotificationsAfterTimeout() {
 }
 
 func (suite *CleanerTestSuite) createNewNotification() {
-	suite.NoError(suite.repository.SetDone(context.Background(), GenerateNotification()))
+	suite.NoError(suite.repository.SetDone(context.Background(), GenerateNotification(), ""))
 }
 
 func (suite *CleanerTestSuite) TestCleanerCloses() {
@@ -99,7 +99,7 @@ func (suite *CleanerTestSuite) startCleaner() db.Closeable {
 }
 
 func (suite *CleanerTestSuite) makeOldNotification() {
-	suite.NoError(suite.repository.SetDone(context.Background(), GenerateNotification()))
+	suite.NoError(suite.repository.SetDone(context.Background(), GenerateNotification(), ""))
 	time.Sleep(time.Second * 1)
 }
 

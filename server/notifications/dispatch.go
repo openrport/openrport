@@ -65,4 +65,5 @@ type NotificationDetails struct {
 	ID     refs.Identifiable
 	Out    string
 	Target Target
+	Err    string
 }

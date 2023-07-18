@@ -22,7 +22,7 @@ func NewConsumer(l *logger.Logger) *consumer {
 	}
 }
 
-func (c consumer) Process(ctx context.Context, details notifications.NotificationDetails) error {
+func (c consumer) Process(ctx context.Context, details notifications.NotificationDetails) (string, error) {
 	ctx, cancelFunc := context.WithTimeout(ctx, ScriptTimeout)
 	defer cancelFunc()
 
@@ -33,7 +33,7 @@ func (c consumer) Process(ctx context.Context, details notifications.Notificatio
 	case notifications.ContentTypeTextJSON:
 		err = json.Unmarshal([]byte(details.Data.Content), &content)
 		if err != nil {
-			return err
+			return "", err
 		}
 	default:
 		content = details.Data.Content
@@ -46,18 +46,18 @@ func (c consumer) Process(ctx context.Context, details notifications.Notificatio
 
 	data, err := json.Marshal(&tmp)
 	if err != nil {
-		return err
+		return "", err
 	}
 
 	c.l.Debugf("running script: %s: with data: %s", details.Data.Target, string(data))
 
-	err = RunCancelableScript(ctx, details.Data.Target, string(data))
+	out, err := RunCancelableScript(ctx, details.Data.Target, string(data))
 	if err != nil {
 		c.l.Debugf("failed running script: %s: with err: ", details.Data.Target, err)
-		return err
+		return out, err
 	}
 
-	return nil
+	return out, nil
 }
 
 func (c consumer) Target() notifications.Target {

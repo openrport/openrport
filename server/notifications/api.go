@@ -12,4 +12,5 @@ type NotificationSummary struct {
 	Transport      string          `db:"transport"`
 	Timestamp      string          `db:"timestamp"`
 	Out            string          `db:"out"`
+	Err            string          `db:"err"`
 }

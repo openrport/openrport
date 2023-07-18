@@ -3,6 +3,7 @@ package sqlite_test
 import (
 	"context"
 	"os"
+	"strings"
 	"testing"
 
 	"github.com/stretchr/testify/suite"
@@ -48,9 +49,9 @@ func (suite *RepositoryTestSuite) TestRepositoryNotificationDone() {
 	notification := notificationQueued
 
 	notification.State = notifications.ProcessingStateDone
-	notification.Out = ""
+	notification.Out = "out"
 
-	suite.NoError(suite.repository.SetDone(context.Background(), notificationQueued))
+	suite.NoError(suite.repository.SetDone(context.Background(), notificationQueued, "out"))
 
 	retrieved, found, err := suite.repository.Details(context.Background(), notification.ID.ID())
 	suite.NoError(err)
@@ -64,9 +65,10 @@ func (suite *RepositoryTestSuite) TestRepositoryNotificationError() {
 	notification := notificationQueued
 
 	notification.State = notifications.ProcessingStateError
-	notification.Out = "test-error"
+	notification.Out = "test-out"
+	notification.Err = "test-err"
 
-	suite.NoError(suite.repository.SetError(context.Background(), notificationQueued, "test-error"))
+	suite.NoError(suite.repository.SetError(context.Background(), notificationQueued, "test-out", "test-err"))
 
 	retrieved, found, err := suite.repository.Details(context.Background(), notification.ID.ID())
 	suite.NoError(err)
@@ -74,13 +76,28 @@ func (suite *RepositoryTestSuite) TestRepositoryNotificationError() {
 	suite.Equal(notification, retrieved)
 }
 
+func (suite *RepositoryTestSuite) TestRepositoryOutTrimming() {
+	notificationQueued := suite.CreateNotification()
+
+	length := 10000
+
+	longOut := strings.Repeat("t", length)
+	suite.NoError(suite.repository.SetError(context.Background(), notificationQueued, longOut, longOut))
+
+	retrieved, found, err := suite.repository.Details(context.Background(), notificationQueued.ID.ID())
+	suite.NoError(err)
+	suite.True(found)
+	suite.Less(len(retrieved.Out), length)
+	suite.Less(len(retrieved.Err), length)
+}
+
 func (suite *RepositoryTestSuite) TestRepositoryNotificationList() {
 
 	notification1 := suite.CreateNotification()
-	_ = suite.repository.SetDone(context.Background(), notification1)
+	_ = suite.repository.SetDone(context.Background(), notification1, "out")
 
 	notification2 := suite.CreateNotification()
-	_ = suite.repository.SetError(context.Background(), notification2, "test-out")
+	_ = suite.repository.SetError(context.Background(), notification2, "test-out", "test-err")
 
 	list, err := suite.repository.List(context.Background(), nil)
 	suite.NoError(err)
@@ -90,12 +107,14 @@ func (suite *RepositoryTestSuite) TestRepositoryNotificationList() {
 		Transport:      notification2.Data.Target,
 		Timestamp:      list[1].Timestamp,
 		Out:            "test-out",
+		Err:            "test-err",
 	}, {
 		State:          notifications.ProcessingStateDone,
 		NotificationID: notification1.ID.ID(),
 		Transport:      notification1.Data.Target,
 		Timestamp:      list[0].Timestamp,
-		Out:            notification1.Out,
+		Out:            "out",
+		Err:            "",
 	}})
 }
 
@@ -157,6 +176,7 @@ func GenerateNotification() notifications.NotificationDetails {
 		State:  notifications.ProcessingStateQueued,
 		ID:     identifiable,
 		Out:    "",
+		Err:    "",
 		Target: "script",
 	}
 	return details

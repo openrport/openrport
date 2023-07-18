@@ -13,7 +13,7 @@ type Processor interface {
 }
 
 type Consumer interface {
-	Process(ctx context.Context, details NotificationDetails) error
+	Process(ctx context.Context, details NotificationDetails) (string, error)
 	Target() Target
 }
 
@@ -37,8 +37,8 @@ func (t Target) Valid() bool {
 
 type Store interface {
 	Create(ctx context.Context, details NotificationDetails) error
-	SetDone(ctx context.Context, details NotificationDetails) error
-	SetError(ctx context.Context, details NotificationDetails, out string) error
+	SetDone(ctx context.Context, details NotificationDetails, out string) error
+	SetError(ctx context.Context, details NotificationDetails, out, err string) error
 	NotificationStream(target Target) chan NotificationDetails
 	Close() error
 }
@@ -79,15 +79,15 @@ root:
 			}
 			ctx, cancelFn := context.WithTimeout(context.Background(), MaxProcessingTime)
 			p.logger.Infof("notification %v(%v)  started processing", notification.Target, notification.ID)
-			err := consumer.Process(ctx, notification)
+			out, err := consumer.Process(ctx, notification)
 			cancelFn()
 
 			if err == nil {
 				p.logger.Infof("notification %v(%v) done", notification.Target, notification.ID)
-				err = p.store.SetDone(context.Background(), notification)
+				err = p.store.SetDone(context.Background(), notification, out)
 			} else {
 				p.logger.Infof("notification %v(%v) error", notification.Target, notification.ID)
-				err = p.store.SetError(context.Background(), notification, err.Error())
+				err = p.store.SetError(context.Background(), notification, out, err.Error())
 			}
 			if err != nil {
 				p.logger.Errorf("failed updating state: %v", err)

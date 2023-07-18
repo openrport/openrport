@@ -22,23 +22,23 @@ func NewConsumer(mailer Mailer, l *logger.Logger) *consumer {
 	return &consumer{mailer: mailer, l: l}
 }
 
-func (c consumer) Process(ctx context.Context, details notifications.NotificationDetails) error {
+func (c consumer) Process(ctx context.Context, details notifications.NotificationDetails) (string, error) {
 	content := details.Data.Content
 	if ContentType(details.Data.ContentType) == ContentTypeTextHTML {
 		var err error
 		content, err = WrapWithTemplate(details.Data.Content)
 		if err != nil {
-			return fmt.Errorf("failed preparing notification to dispatch: %v", err)
+			return "", fmt.Errorf("failed preparing notification to dispatch: %v", err)
 		}
 	}
 	err := c.mailer.Send(ctx, details.Data.Recipients, details.Data.Subject, ContentType(details.Data.ContentType), content)
 	if err != nil {
 		c.l.Errorf("unable to send smtp message: %s, %v", details.RefID, err)
-		return err
+		return "", err
 	}
 
 	c.l.Debugf("sent message: %s", details.RefID)
-	return nil
+	return "", nil
 }
 
 func (c consumer) Target() notifications.Target {

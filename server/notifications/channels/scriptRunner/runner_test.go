@@ -27,8 +27,9 @@ func (ts *ScriptRunnerTestSuite) TestParamsArePassed() {
 
 	in := "out"
 
-	err := scriptRunner.RunCancelableScript(context.Background(), "./test.sh", "out")
+	out, err := scriptRunner.RunCancelableScript(context.Background(), "./test.sh", "out")
 	ts.NoError(err)
+	ts.Empty(out)
 
 	data, err := os.ReadFile(file)
 	ts.NoError(err)
@@ -40,22 +41,25 @@ func (ts *ScriptRunnerTestSuite) TestScriptTimeout() {
 	start := time.Now()
 	timeout, cancelFunc := context.WithTimeout(context.Background(), ts.timeout)
 	defer cancelFunc()
-	err := scriptRunner.RunCancelableScript(timeout, "./test_timeout.sh", "")
+	out, err := scriptRunner.RunCancelableScript(timeout, "./test_timeout.sh", "")
 
 	ts.Less(time.Since(start), ts.timeout+time.Second)
 	ts.Error(err)
+	ts.Empty(out)
 }
 
 func (ts *ScriptRunnerTestSuite) TestScriptError() {
-	err := scriptRunner.RunCancelableScript(context.Background(), "./test_error.sh", "")
+	out, err := scriptRunner.RunCancelableScript(context.Background(), "./test_error.sh", "")
 
 	ts.Error(err)
+	ts.Empty(out)
 }
 
 func (ts *ScriptRunnerTestSuite) TestScriptStdError() {
-	err := scriptRunner.RunCancelableScript(context.Background(), "./test_stderr.sh", "")
+	out, err := scriptRunner.RunCancelableScript(context.Background(), "./test_stderr.sh", "")
 
 	ts.Error(err)
+	ts.Empty(out)
 }
 
 func TestScriptRunnerTestSuite(t *testing.T) {

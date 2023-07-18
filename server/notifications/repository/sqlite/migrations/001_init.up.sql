@@ -11,7 +11,8 @@ CREATE TABLE notifications_log (
     subject TEXT NOT NULL DEFAULT "",
     body TEXT NOT NULL DEFAULT "",
 
-    out TEXT NOT NULL DEFAULT "" -- whatever error is returned only when error is returned
+    out TEXT NOT NULL DEFAULT "", -- whatever error is returned only when error is returned
+    err TEXT NOT NULL DEFAULT "" -- whatever error is returned only when error is returned
 );
 --
 
