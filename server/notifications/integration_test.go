@@ -3,6 +3,7 @@ package notifications_test
 import (
 	"context"
 	"fmt"
+	"os"
 	"testing"
 	"time"
 
@@ -13,15 +14,17 @@ import (
 	"github.com/realvnc-labs/rport/server/notifications"
 	"github.com/realvnc-labs/rport/server/notifications/channels/rmailer"
 	"github.com/realvnc-labs/rport/server/notifications/channels/scriptRunner"
-	me "github.com/realvnc-labs/rport/server/notifications/repository/sqlite"
+	notificationsrepo "github.com/realvnc-labs/rport/server/notifications/repository/sqlite"
 	"github.com/realvnc-labs/rport/share/logger"
 	"github.com/realvnc-labs/rport/share/simpleops"
 )
 
+var testLog = logger.NewLogger("client", logger.LogOutput{File: os.Stdout}, logger.LogLevelDebug)
+
 type NotificationsIntegrationTestSuite struct {
 	suite.Suite
 	dispatcher     notifications.Dispatcher
-	store          me.Repository
+	store          notificationsrepo.Repository
 	server         *smtpmock.Server
 	runner         notifications.Processor
 	mailConsumer   notifications.Consumer
@@ -29,9 +32,9 @@ type NotificationsIntegrationTestSuite struct {
 }
 
 func (suite *NotificationsIntegrationTestSuite) SetupTest() {
-	db, err := sqlite.New(":memory:", me.AssetNames(), me.Asset, sqlite.DataSourceOptions{})
+	db, err := sqlite.New(":memory:", notificationsrepo.AssetNames(), notificationsrepo.Asset, sqlite.DataSourceOptions{})
 	suite.NoError(err)
-	suite.store = me.NewRepository(db)
+	suite.store = notificationsrepo.NewRepository(db, testLog)
 	suite.dispatcher = notifications.NewDispatcher(suite.store)
 	suite.server = smtpmock.New(smtpmock.ConfigurationAttr{
 		//LogToStdout:              true, // for debugging (especially connection)
@@ -52,9 +55,9 @@ func (suite *NotificationsIntegrationTestSuite) SetupTest() {
 		TLS:      false,
 		AuthType: rmailer.AuthTypeNone,
 		NoNoop:   true,
-	}))
+	}, testLog), testLog)
 
-	suite.scriptConsumer = scriptRunner.NewConsumer()
+	suite.scriptConsumer = scriptRunner.NewConsumer(testLog)
 
 	suite.runner = notifications.NewProcessor(logger.NewLogger("notifications", logger.NewLogOutput("out.log"), logger.LogLevelInfo), suite.store, suite.mailConsumer, suite.scriptConsumer)
 

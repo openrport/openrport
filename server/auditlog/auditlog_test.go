@@ -12,7 +12,7 @@ import (
 
 	"github.com/realvnc-labs/rport/db/migration/auditlog"
 	"github.com/realvnc-labs/rport/db/sqlite"
-	"github.com/realvnc-labs/rport/server/clients"
+	"github.com/realvnc-labs/rport/server/clients/clientdata"
 )
 
 var DataSourceOptions = sqlite.DataSourceOptions{WALEnabled: false}
@@ -31,11 +31,11 @@ func TestNotEnabled(t *testing.T) {
 		WithHTTPRequest(req).
 		WithRequest(map[string]interface{}{}).
 		WithResponse(map[string]interface{}{}).
-		WithClient(&clients.Client{}).
+		WithClient(&clientdata.Client{}).
 		WithClientID("123")
 
 	e.Save()
-	e.SaveForMultipleClients([]*clients.Client{&clients.Client{}})
+	e.SaveForMultipleClients([]*clientdata.Client{&clientdata.Client{}})
 
 	assert.Equal(t, 0, len(mockProvider.entries))
 }

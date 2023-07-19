@@ -12,13 +12,13 @@ import (
 // and sends it to the rport-plus plugin to be exchanged for valid access token and then username.
 // The username can then be used to create a user (if required) and obtain a rport bearer token
 func (al *APIListener) handleOAuthAuthorizationCode(w http.ResponseWriter, r *http.Request) {
-	plus := al.Server.plusManager
-	if plus == nil {
+	plusManager := al.Server.plusManager
+	if plusManager == nil {
 		al.jsonErrorResponse(w, http.StatusUnauthorized, rportplus.ErrPlusNotAvailable)
 		return
 	}
 
-	capEx := plus.GetOAuthCapabilityEx()
+	capEx := plusManager.GetOAuthCapabilityEx()
 	if capEx == nil {
 		al.jsonErrorResponse(w, http.StatusForbidden, rportplus.ErrCapabilityNotAvailable(rportplus.PlusOAuthCapability))
 		return
@@ -54,13 +54,13 @@ func (al *APIListener) handleOAuthAuthorizationCode(w http.ResponseWriter, r *ht
 // after the interval period returned in the device login info. If the response indicates
 // a non-retryable error then the client should stop retrying and inform the end user.
 func (al *APIListener) handleGetDeviceAuth(w http.ResponseWriter, r *http.Request) {
-	plus := al.Server.plusManager
-	if plus == nil {
+	plusManager := al.Server.plusManager
+	if plusManager == nil {
 		al.jsonErrorResponse(w, http.StatusUnauthorized, rportplus.ErrPlusNotAvailable)
 		return
 	}
 
-	capEx := plus.GetOAuthCapabilityEx()
+	capEx := plusManager.GetOAuthCapabilityEx()
 	if capEx == nil {
 		al.jsonErrorResponse(w, http.StatusForbidden, rportplus.ErrCapabilityNotAvailable(rportplus.PlusOAuthCapability))
 		return
@@ -101,8 +101,8 @@ func (al *APIListener) handleGetDeviceAuth(w http.ResponseWriter, r *http.Reques
 
 // handlePlusStatus makes a request to the plugin for it's status/version info
 func (al *APIListener) handlePlusStatus(w http.ResponseWriter, r *http.Request) {
-	plus := al.Server.plusManager
-	if plus == nil {
+	plusManager := al.Server.plusManager
+	if plusManager == nil {
 		statusInfo := status.PlusStatusInfo{
 			IsEnabled: false,
 			IsTrial:   true,
@@ -112,13 +112,13 @@ func (al *APIListener) handlePlusStatus(w http.ResponseWriter, r *http.Request) 
 		return
 	}
 
-	statusCapEx := plus.GetStatusCapabilityEx()
+	statusCapEx := plusManager.GetStatusCapabilityEx()
 	if statusCapEx == nil {
 		al.jsonErrorResponse(w, http.StatusInternalServerError, rportplus.ErrCapabilityNotAvailable(rportplus.PlusStatusCapability))
 		return
 	}
 
-	licCapEx := plus.GetLicenseCapabilityEx()
+	licCapEx := plusManager.GetLicenseCapabilityEx()
 	if licCapEx == nil {
 		al.jsonErrorResponse(w, http.StatusInternalServerError, rportplus.ErrCapabilityNotAvailable(rportplus.PlusStatusCapability))
 		return

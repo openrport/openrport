@@ -22,13 +22,13 @@ import (
 
 	clientsmigration "github.com/realvnc-labs/rport/db/migration/clients"
 	"github.com/realvnc-labs/rport/db/sqlite"
-	"github.com/realvnc-labs/rport/server/caddy"
-	"github.com/realvnc-labs/rport/server/cgroups"
-	"github.com/realvnc-labs/rport/server/clients/clienttunnel"
-	"github.com/realvnc-labs/rport/server/clientsauth"
-
 	apiErrors "github.com/realvnc-labs/rport/server/api/errors"
 	"github.com/realvnc-labs/rport/server/api/users"
+	"github.com/realvnc-labs/rport/server/caddy"
+	"github.com/realvnc-labs/rport/server/cgroups"
+	"github.com/realvnc-labs/rport/server/clients/clientdata"
+	"github.com/realvnc-labs/rport/server/clients/clienttunnel"
+	"github.com/realvnc-labs/rport/server/clientsauth"
 	"github.com/realvnc-labs/rport/server/ports"
 	chshare "github.com/realvnc-labs/rport/share"
 	"github.com/realvnc-labs/rport/share/models"
@@ -96,7 +96,7 @@ func TestStartClient(t *testing.T) {
 	for _, tc := range testCases {
 		t.Run(tc.Name, func(t *testing.T) {
 			cs := &ClientServiceProvider{
-				repo: NewClientRepository([]*Client{{
+				repo: NewClientRepository([]*clientdata.Client{{
 					ID:           "test-client",
 					ClientAuthID: "test-client-auth",
 				}}, nil, testLog),
@@ -139,9 +139,9 @@ func TestStartClientConcurrency(t *testing.T) {
 
 	totalClients := 1500
 
-	clients := []*Client{{}}
+	clients := []*clientdata.Client{{}}
 	for i := 0; i < totalClients; i++ {
-		client := Client{
+		client := clientdata.Client{
 			Name:         "test-name-" + strconv.Itoa(i),
 			ID:           "test-id-" + strconv.Itoa(i),
 			ClientAuthID: "test-client-auth-" + strconv.Itoa(i),
@@ -200,7 +200,7 @@ func TestStartClientDisconnected(t *testing.T) {
 	connMock.ReturnRemoteAddr = &net.TCPAddr{IP: net.IPv4(192, 0, 2, 1), Port: 2345}
 	now := time.Now()
 	cs := &ClientServiceProvider{
-		repo: NewClientRepository([]*Client{{
+		repo: NewClientRepository([]*clientdata.Client{{
 			ID:                "disconnected-client",
 			ClientAuthID:      "test-client-auth",
 			DisconnectedAt:    &now,
@@ -268,7 +268,7 @@ func TestDeleteOfflineClient(t *testing.T) {
 	for _, tc := range testCases {
 		t.Run(tc.name, func(t *testing.T) {
 			// given
-			clientService := NewClientService(nil, nil, NewClientRepository([]*Client{c1Active, c2Active, c3Offline, c4Offline}, &hour, testLog), testLog, nil)
+			clientService := NewClientService(nil, nil, NewClientRepository([]*clientdata.Client{c1Active, c2Active, c3Offline, c4Offline}, &hour, testLog), testLog, nil)
 			before := clientService.Count()
 			require.Equal(t, 4, before)
 
@@ -383,7 +383,7 @@ func TestCheckClientsAccess(t *testing.T) {
 	c6 := New(t).AllowedUserGroups([]string{"group3"}).Logger(testLog).Build()                       // group3
 	c7 := New(t).Logger(testLog).Build()
 
-	allClients := []*Client{c1, c2, c3, c4, c5, c6}
+	allClients := []*clientdata.Client{c1, c2, c3, c4, c5, c6}
 	clientGroups := []*cgroups.ClientGroup{
 		{
 			ID:                "1",
@@ -396,7 +396,7 @@ func TestCheckClientsAccess(t *testing.T) {
 
 	testCases := []struct {
 		name                      string
-		clients                   []*Client
+		clients                   []*clientdata.Client
 		user                      *users.User
 		wantClientIDsWithNoAccess []string
 	}{
@@ -414,7 +414,7 @@ func TestCheckClientsAccess(t *testing.T) {
 		},
 		{
 			name:                      "non-admin user with access to all groups",
-			clients:                   []*Client{c3, c4, c5, c6},
+			clients:                   []*clientdata.Client{c3, c4, c5, c6},
 			user:                      &users.User{Groups: []string{"group1", "group2", "group3"}},
 			wantClientIDsWithNoAccess: nil,
 		},
@@ -444,7 +444,7 @@ func TestCheckClientsAccess(t *testing.T) {
 		},
 		{
 			name:                      "non-admin user given access via client groups",
-			clients:                   []*Client{c7},
+			clients:                   []*clientdata.Client{c7},
 			user:                      &users.User{Groups: []string{"group4"}},
 			wantClientIDsWithNoAccess: nil,
 		},
@@ -562,10 +562,10 @@ func TestGetTunnelsToReestablish(t *testing.T) {
 			descr: "old tunnels were with random ports, but new has the same random ports",
 			oldStr: []string{
 				"192.168.0.1:3000:google.com:80",
-				"foobar.com:22", //contains randomPorts[1]
-				"3000",          //contains randomPorts[2]
-				"foobar.com:22", //contains randomPorts[3]
-				"3000",          //contains randomPorts[4]
+				"foobar.com:22", // contains randomPorts[1]
+				"3000",          // contains randomPorts[2]
+				"foobar.com:22", // contains randomPorts[3]
+				"3000",          // contains randomPorts[4]
 			},
 			newStr: []string{
 				"0.0.0.0:" + randomPorts[1] + ":foobar.com:22",
@@ -581,10 +581,10 @@ func TestGetTunnelsToReestablish(t *testing.T) {
 			descr: "old tunnels were with random ports, but new has 2 the same random ports and 2 random",
 			oldStr: []string{
 				"192.168.0.1:3000:google.com:80",
-				"foobar.com:22", //contains randomPorts[1]
-				"3000",          //contains randomPorts[2]
-				"foobar.com:22", //contains randomPorts[3]
-				"3000",          //contains randomPorts[4]
+				"foobar.com:22", // contains randomPorts[1]
+				"3000",          // contains randomPorts[2]
+				"foobar.com:22", // contains randomPorts[3]
+				"3000",          // contains randomPorts[4]
 			},
 			newStr: []string{
 				"0.0.0.0:" + randomPorts[1] + ":foobar.com:22",
@@ -600,8 +600,8 @@ func TestGetTunnelsToReestablish(t *testing.T) {
 			descr: "old tunnels were with random ports, but new has the different random port",
 			oldStr: []string{
 				"192.168.0.1:3000:google.com:80",
-				"foobar.com:22", //contains randomPorts[1]
-				"foobar.com:22", //contains randomPorts[2]
+				"foobar.com:22", // contains randomPorts[1]
+				"foobar.com:22", // contains randomPorts[2]
 			},
 			newStr: []string{
 				"0.0.0.0:" + randomPorts[2] + ":foobar.com:22",
@@ -613,8 +613,8 @@ func TestGetTunnelsToReestablish(t *testing.T) {
 			descr: "old tunnels are with random port 1 and 2, new tunnels are with random port and a port that equals to random port 1",
 			oldStr: []string{
 				"192.168.0.1:3000:google.com:80",
-				"foobar.com:22", //contains randomPorts[1]
-				"foobar.com:22", //contains randomPorts[2]
+				"foobar.com:22", // contains randomPorts[1]
+				"foobar.com:22", // contains randomPorts[2]
 			},
 			newStr: []string{
 				"foobar.com:22",
@@ -628,8 +628,8 @@ func TestGetTunnelsToReestablish(t *testing.T) {
 			descr: "old tunnels are with random port 1 and 2, new tunnels are with a port that equals to random port 1 and a random port",
 			oldStr: []string{
 				"192.168.0.1:3000:google.com:80",
-				"foobar.com:22", //contains randomPorts[1]
-				"foobar.com:22", //contains randomPorts[2]
+				"foobar.com:22", // contains randomPorts[1]
+				"foobar.com:22", // contains randomPorts[2]
 			},
 			// different order to a previous test case
 			newStr: []string{
@@ -646,12 +646,12 @@ func TestGetTunnelsToReestablish(t *testing.T) {
 				"192.168.0.1:3000:google.com:80",
 				"192.168.0.1:3000:google.com:8080",
 				"3000:site.com:80",
-				"foobar.com:3000", //contains randomPorts[4]
-				"foobar.com:3000", //contains randomPorts[5]
-				"foobar.com:3000", //contains randomPorts[6]
-				"3000",            //contains randomPorts[7]
-				"3000",            //contains randomPorts[8]
-				"3000",            //contains randomPorts[9]
+				"foobar.com:3000", // contains randomPorts[4]
+				"foobar.com:3000", // contains randomPorts[5]
+				"foobar.com:3000", // contains randomPorts[6]
+				"3000",            // contains randomPorts[7]
+				"3000",            // contains randomPorts[8]
+				"3000",            // contains randomPorts[9]
 			},
 			newStr: []string{
 				"192.168.0.1:3000:google.com:80",
@@ -953,7 +953,7 @@ func TestShouldStartTunnelsWithSubdomains(t *testing.T) {
 			)
 
 			mockCaddyAPI := &MockCaddyAPI{}
-			clientService := NewClientService(internalTunnelProxyConfig, pd, NewClientRepository([]*Client{c1}, &hour, testLog), testLog, nil)
+			clientService := NewClientService(internalTunnelProxyConfig, pd, NewClientRepository([]*clientdata.Client{c1}, &hour, testLog), testLog, nil)
 			clientService.caddyAPI = mockCaddyAPI
 
 			requestedRemote, err := models.NewRemote(tc.requestedTunnel)

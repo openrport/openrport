@@ -11,6 +11,7 @@ import (
 
 	"github.com/realvnc-labs/rport/server/chconfig"
 	"github.com/realvnc-labs/rport/server/clients"
+	"github.com/realvnc-labs/rport/server/clients/clientdata"
 	"github.com/realvnc-labs/rport/server/monitoring"
 	"github.com/realvnc-labs/rport/share/comm"
 	"github.com/realvnc-labs/rport/share/test"
@@ -58,7 +59,7 @@ func TestHandleRefreshUpdatesStatus(t *testing.T) {
 			// by default set to return success
 			connMock.ReturnOk = !tc.SSHError
 			c1.SetConnection(connMock)
-			clientService := clients.NewClientService(nil, nil, clients.NewClientRepository([]*clients.Client{c1, c2}, &hour, testLog), testLog, nil)
+			clientService := clients.NewClientService(nil, nil, clients.NewClientRepository([]*clientdata.Client{c1, c2}, &hour, testLog), testLog, nil)
 			al := APIListener{
 				insecureForTests: true,
 				Server: &Server{

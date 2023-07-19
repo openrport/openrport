@@ -1,68 +1,105 @@
 package scriptRunner
 
 import (
-	"bytes"
 	"context"
 	"fmt"
 	"io"
 	"os/exec"
+	"strings"
+	"time"
 )
 
-func RunCancelableScript(ctx context.Context, script string, body string) error {
+func RunCancelableScript(ctx context.Context, script string, body string) (string, error) {
 
-	cmd := exec.Command(script)
+	cmd := exec.CommandContext(ctx, script)
 
 	stdin, err := cmd.StdinPipe()
 	if err != nil {
-		return err
+		return "", err
 	}
 
-	var errb bytes.Buffer
+	var okb Buffer
+	defer okb.CollectiongDone()
+	cmd.Stdout = &okb
+
+	var errb Buffer
+	defer errb.CollectiongDone()
 	cmd.Stderr = &errb
 
 	if err = cmd.Start(); err != nil { //Use start, not run
-		return err
+		return "", err
 	}
 
 	_, err = io.WriteString(stdin, body)
 	if err != nil {
-		return err
+		return "", err
 	}
 
 	err = stdin.Close()
 	if err != nil {
-		return err
+		return "", err
 	}
+	// log.Println("pid: ", cmd.Process.Pid)
 
-	internalCtx, cancelFunc := context.WithCancel(context.Background())
+	killCh := make(chan error, 10)
+	doneCh := make(chan error, 10)
+
+	process, processDone := context.WithCancel(context.Background())
 	go func() {
 		select {
 		case <-ctx.Done():
-			err = cmd.Process.Kill()
+			// log.Println("pid: ", cmd.Process.Pid)
+			err := cmd.Process.Kill()
 			if err != nil {
-				err = fmt.Errorf("killing of the script failed, script killed because of ctx cancel: %v", err)
+				killCh <- fmt.Errorf("killing of the script failed, script killed because of ctx cancel: %v", err)
 			} else {
-				err = fmt.Errorf("script killed because of ctx cancel")
+				killCh <- fmt.Errorf("script killed because of ctx cancel")
 			}
 
-			cancelFunc()
-		case <-internalCtx.Done():
+		case <-process.Done():
 		}
+		close(killCh)
 	}()
 
 	go func() {
-		err = cmd.Wait()
-		cancelFunc()
+		err := cmd.Wait()
+		if err != nil {
+			doneCh <- fmt.Errorf("process error: %v", err)
+		}
+		close(doneCh)
+		processDone()
 	}()
 
-	<-internalCtx.Done()
-	if err != nil {
-		return err
+	errs := []string{}
+
+	select {
+	case <-ctx.Done():
+		select {
+		case <-process.Done():
+			for err := range doneCh {
+				errs = append(errs, err.Error())
+			}
+		case <-time.After(time.Millisecond * 200):
+			for err := range killCh {
+				errs = append(errs, err.Error())
+			}
+			errs = append(errs, fmt.Errorf("process hangs, ignoring").Error())
+		}
+	case <-process.Done():
+		for err := range doneCh {
+			errs = append(errs, err.Error())
+		}
+	}
+
+	errSummary := strings.Join(errs, ", ")
+
+	if errSummary != "" {
+		return okb.String(), fmt.Errorf("errors running script: %v, stdErr: %v", errSummary, errb.String())
 	}
 
 	if errb.Len() > 0 {
-		return fmt.Errorf("there is something on stderr: %v", errb.String())
+		return okb.String(), fmt.Errorf("there is something on stderr: %v", errb.String())
 	}
 
-	return nil
+	return okb.String(), nil
 }

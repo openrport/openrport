@@ -1,0 +1,2 @@
+type: object
+$ref: ./TemplateNoID.yaml

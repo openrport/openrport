@@ -222,6 +222,29 @@ func (al *APIListener) initRouter() {
 	authRouter.HandleFunc(routes.AuthSettingsRoute, al.handleGetAuthSettings).Methods(http.MethodGet)
 	authRouter.HandleFunc(routes.AuthDeviceSettingsRoute, al.handleGetAuthDeviceSettings).Methods(http.MethodGet)
 
+	if rportplus.IsPlusEnabled(al.config.PlusConfig) {
+		secureASRouter := secureAPI.PathPrefix(routes.AlertingServiceRoutesPrefix).Subrouter()
+
+		secureASRouter.Handle(routes.ASRuleSetRoute, al.wrapAdminAccessMiddleware(http.HandlerFunc(al.handleGetRuleSet))).Methods(http.MethodGet)
+		secureASRouter.Handle(routes.ASRuleSetRoute, al.wrapAdminAccessMiddleware(http.HandlerFunc(al.handleDeleteRuleSet))).Methods(http.MethodDelete)
+
+		secureASRouter.Handle(routes.ASRuleSetRoute, al.wrapAdminAccessMiddleware(http.HandlerFunc(al.handleSaveRuleSet))).Methods(http.MethodPut)
+
+		secureASRouter.Handle(routes.ASProblemsRoute+"/{"+routes.ParamProblemID+"}", al.wrapAdminAccessMiddleware(http.HandlerFunc(al.handleGetProblem))).Methods(http.MethodGet)
+		secureASRouter.Handle(routes.ASProblemsRoute, al.wrapAdminAccessMiddleware(http.HandlerFunc(al.handleGetLatestProblems))).Methods(http.MethodGet)
+
+		secureASRouter.Handle(routes.ASProblemsRoute+"/{"+routes.ParamProblemID+"}", al.wrapAdminAccessMiddleware(http.HandlerFunc(al.handleUpdateProblem))).Methods(http.MethodPut)
+
+		secureASRouter.Handle(routes.ASTemplatesRoute, al.wrapAdminAccessMiddleware(http.HandlerFunc(al.handleGetAllTemplates))).Methods(http.MethodGet)
+		secureASRouter.Handle(routes.ASTemplatesRoute+"/{"+routes.ParamTemplateID+"}",
+			al.wrapAdminAccessMiddleware(http.HandlerFunc(al.handleGetTemplate))).Methods(http.MethodGet)
+		secureASRouter.Handle(routes.ASTemplatesRoute+"/{"+routes.ParamTemplateID+"}",
+			al.wrapAdminAccessMiddleware(http.HandlerFunc(al.handleDeleteTemplate))).Methods(http.MethodDelete)
+
+		secureASRouter.Handle(routes.ASTemplatesRoute, al.wrapAdminAccessMiddleware(http.HandlerFunc(al.handleSaveTemplate))).Methods(http.MethodPost)
+		secureASRouter.Handle(routes.ASTemplatesRoute+"/{"+routes.ParamTemplateID+"}", al.wrapAdminAccessMiddleware(http.HandlerFunc(al.handleSaveTemplate))).Methods(http.MethodPut)
+	}
+
 	if rportplus.IsPlusOAuthEnabled(al.config.PlusConfig) {
 		api.HandleFunc(oauth.DefaultLoginURI, al.handleOAuthAuthorizationCode).Methods(http.MethodGet)
 		api.HandleFunc(oauth.DefaultDeviceLoginURI, al.handleGetDeviceAuth).Methods(http.MethodGet)

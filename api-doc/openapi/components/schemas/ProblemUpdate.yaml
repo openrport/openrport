@@ -1,0 +1,4 @@
+type: object
+properties:
+  active:
+    type: boolean

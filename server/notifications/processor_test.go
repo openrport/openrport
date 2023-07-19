@@ -3,6 +3,7 @@ package notifications_test
 import (
 	"context"
 	"fmt"
+	"sync/atomic"
 	"testing"
 	"time"
 
@@ -16,7 +17,7 @@ import (
 type MockConsumer struct {
 	message notifications.NotificationDetails
 	waiter  chan struct{}
-	fail    bool
+	fail    atomic.Bool
 	target  notifications.Target
 }
 
@@ -24,18 +25,18 @@ func (c *MockConsumer) Target() notifications.Target {
 	return c.target
 }
 
-func (c *MockConsumer) Process(ctx context.Context, notification notifications.NotificationDetails) error {
-	c.message = notification
+func (c *MockConsumer) Process(_ context.Context, details notifications.NotificationDetails) (string, error) {
+	c.message = details
 	if c.waiter != nil {
 		<-c.waiter
 		<-c.waiter
 	}
 
-	if c.fail {
-		return fmt.Errorf("test-error")
+	if c.fail.Load() {
+		return "", fmt.Errorf("test-error")
 	}
 
-	return nil
+	return "", nil
 }
 
 type ProcessorTestSuite struct {
@@ -50,7 +51,7 @@ func (suite *ProcessorTestSuite) SetupTest() {
 	suite.store = NewMockStore()
 	suite.consumer = &MockConsumer{target: notifications.TargetMail}
 	suite.consumerScript = &MockConsumer{target: notifications.TargetScript}
-	suite.processor = notifications.NewProcessor(logger.NewLogger("notifications", logger.NewLogOutput("out.log"), logger.LogLevelInfo), suite.store, suite.consumer, suite.consumerScript)
+	suite.processor = notifications.NewProcessor(logger.NewLogger("notifications", logger.NewLogOutput(""), logger.LogLevelInfo), suite.store, suite.consumer, suite.consumerScript)
 }
 
 func (suite *ProcessorTestSuite) TestProcessNotificationReceived() {
@@ -68,27 +69,13 @@ func (suite *ProcessorTestSuite) awaitNotificationsProcessed() {
 		ns, err := suite.store.List(context.Background())
 		suite.NoError(err)
 		for _, n := range ns {
-			if n.State == notifications.ProcessingStateQueued || n.State == notifications.ProcessingStateRunning {
+			if n.State == notifications.ProcessingStateQueued || n.State == notifications.ProcessingStateDispatching {
 				continue
 			}
 		}
 		wait = false
 	}
 
-}
-
-func (suite *ProcessorTestSuite) TestProcessNotificationStateRunning() {
-	suite.consumer.waiter = make(chan struct{})
-
-	queued := suite.SendMail()
-
-	suite.consumer.waiter <- struct{}{}
-
-	queued.State = notifications.ProcessingStateRunning
-
-	out, found, _ := suite.store.Details(context.Background(), queued.ID)
-	suite.True(found)
-	suite.Equal(queued, out)
 }
 
 func (suite *ProcessorTestSuite) TestProcessNotificationStateDone() {
@@ -104,11 +91,9 @@ func (suite *ProcessorTestSuite) TestProcessNotificationStateDone() {
 }
 
 func (suite *ProcessorTestSuite) TestProcessNotificationStateError() {
-	suite.T().Skip()
-
 	queued := suite.SendMail()
 
-	suite.consumer.fail = true
+	suite.consumer.fail.Store(true)
 
 	suite.awaitNotificationsProcessed()
 
@@ -153,8 +138,6 @@ func (suite *ProcessorTestSuite) TestProcessNotificationMultiprocessing() {
 	suite.Equal(script, out)
 }
 
-// TODO: test reject notification for unknown targets???
-
 func (suite *ProcessorTestSuite) TestGracefulShutdown() {
 	_ = suite.SendMail()
 	suite.NoError(suite.processor.Close())
@@ -178,7 +161,7 @@ func (suite *ProcessorTestSuite) SendMail() notifications.NotificationDetails {
 	notification := notifications.NotificationData{Target: "smtp", Content: "test-content-mail"}
 
 	queued := notifications.NotificationDetails{
-		Origin: problemIdentifiable,
+		RefID:  problemIdentifiable,
 		Target: notifications.TargetMail,
 		Data:   notification,
 		State:  notifications.ProcessingStateQueued,
@@ -193,7 +176,7 @@ func (suite *ProcessorTestSuite) SendScript() notifications.NotificationDetails 
 	notification := notifications.NotificationData{Target: "smtp", Content: "test-content-mail"}
 
 	queued := notifications.NotificationDetails{
-		Origin: problemIdentifiable,
+		RefID:  problemIdentifiable,
 		Target: notifications.TargetScript,
 		Data:   notification,
 		State:  notifications.ProcessingStateQueued,
@@ -208,7 +191,7 @@ func (suite *ProcessorTestSuite) SendUnknownTarget() notifications.NotificationD
 	notification := notifications.NotificationData{Target: "smtp", Content: "test-content-mail"}
 
 	queued := notifications.NotificationDetails{
-		Origin: problemIdentifiable,
+		RefID:  problemIdentifiable,
 		Target: "never-pickup",
 		Data:   notification,
 		State:  notifications.ProcessingStateQueued,

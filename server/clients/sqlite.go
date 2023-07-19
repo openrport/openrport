@@ -12,6 +12,7 @@ import (
 	"github.com/jmoiron/sqlx"
 
 	"github.com/realvnc-labs/rport/db/sqlite"
+	"github.com/realvnc-labs/rport/server/clients/clientdata"
 	"github.com/realvnc-labs/rport/server/clients/clienttunnel"
 	chshare "github.com/realvnc-labs/rport/share/clientconfig"
 	"github.com/realvnc-labs/rport/share/logger"
@@ -19,8 +20,8 @@ import (
 )
 
 type ClientStore interface {
-	GetAll(ctx context.Context, l *logger.Logger) ([]*Client, error)
-	Save(ctx context.Context, client *Client) error
+	GetAll(ctx context.Context, l *logger.Logger) ([]*clientdata.Client, error)
+	Save(ctx context.Context, client *clientdata.Client) error
 	DeleteObsolete(ctx context.Context, l *logger.Logger) error
 	Delete(ctx context.Context, id string, l *logger.Logger) error
 	Close() error
@@ -35,7 +36,7 @@ func newSqliteProvider(db *sqlx.DB, keepDisconnectedClients *time.Duration) *Sql
 	return &SqliteProvider{db: db, keepDisconnectedClients: keepDisconnectedClients}
 }
 
-func (p *SqliteProvider) GetAll(ctx context.Context, l *logger.Logger) ([]*Client, error) {
+func (p *SqliteProvider) GetAll(ctx context.Context, l *logger.Logger) ([]*clientdata.Client, error) {
 	var res []*clientSqlite
 	err := p.db.SelectContext(
 		ctx,
@@ -51,7 +52,7 @@ func (p *SqliteProvider) GetAll(ctx context.Context, l *logger.Logger) ([]*Clien
 }
 
 // test only
-func (p *SqliteProvider) get(ctx context.Context, id string, l *logger.Logger) (*Client, error) {
+func (p *SqliteProvider) get(ctx context.Context, id string, l *logger.Logger) (*clientdata.Client, error) {
 	res := &clientSqlite{}
 	err := p.db.GetContext(ctx, res, "SELECT * FROM clients WHERE id = ?", id)
 	if err != nil {
@@ -63,7 +64,7 @@ func (p *SqliteProvider) get(ctx context.Context, id string, l *logger.Logger) (
 	return res.convert(l), nil
 }
 
-func (p *SqliteProvider) Save(ctx context.Context, client *Client) error {
+func (p *SqliteProvider) Save(ctx context.Context, client *clientdata.Client) error {
 
 	clientForSQL := convertToSqlite(client)
 
@@ -113,19 +114,19 @@ func (p *SqliteProvider) Close() error {
 }
 
 func (p *SqliteProvider) keepDisconnectedClientsStart() time.Time {
-	t := now()
+	t := clientdata.Now()
 	if p.keepDisconnectedClients != nil {
 		t = t.Add(-*p.keepDisconnectedClients)
 	}
 	return t
 }
 
-func convertToSqlite(c *Client) (res *clientSqlite) {
+func convertToSqlite(c *clientdata.Client) (res *clientSqlite) {
 	if c == nil {
 		return nil
 	}
 
-	c.flock.RLock()
+	c.GetLock().RLock()
 	res = &clientSqlite{
 		ID:           c.ID,
 		ClientAuthID: c.ClientAuthID,
@@ -159,7 +160,7 @@ func convertToSqlite(c *Client) (res *clientSqlite) {
 			ClientConfig:           c.ClientConfiguration,
 		},
 	}
-	c.flock.RUnlock()
+	c.GetLock().RUnlock()
 	if !c.IsConnected() {
 		res.DisconnectedAt = sql.NullTime{Time: c.GetDisconnectedAtValue(), Valid: true}
 	}
@@ -230,9 +231,9 @@ func (d *clientDetails) Value() (driver.Value, error) {
 	return string(b), nil
 }
 
-func (s *clientSqlite) convert(l *logger.Logger) (res *Client) {
+func (s *clientSqlite) convert(l *logger.Logger) (res *clientdata.Client) {
 	d := s.Details
-	res = &Client{
+	res = &clientdata.Client{
 		ID:                     s.ID,
 		ClientAuthID:           s.ClientAuthID,
 		Name:                   d.Name,
@@ -270,8 +271,8 @@ func (s *clientSqlite) convert(l *logger.Logger) (res *Client) {
 	return res
 }
 
-func convertClientList(list []*clientSqlite, l *logger.Logger) []*Client {
-	res := make([]*Client, 0, len(list))
+func convertClientList(list []*clientSqlite, l *logger.Logger) []*clientdata.Client {
+	res := make([]*clientdata.Client, 0, len(list))
 	for _, cur := range list {
 		res = append(res, cur.convert(l))
 	}

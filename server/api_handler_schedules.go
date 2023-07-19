@@ -5,14 +5,13 @@ import (
 	"fmt"
 	"net/http"
 
-	"github.com/realvnc-labs/rport/server/clients"
-
 	"github.com/gorilla/mux"
 
 	"github.com/realvnc-labs/rport/server/api"
 	errors2 "github.com/realvnc-labs/rport/server/api/errors"
 	"github.com/realvnc-labs/rport/server/api/jobs/schedule"
 	"github.com/realvnc-labs/rport/server/auditlog"
+	"github.com/realvnc-labs/rport/server/clients/clientdata"
 )
 
 func (al *APIListener) handleListSchedules(w http.ResponseWriter, req *http.Request) {
@@ -25,9 +24,9 @@ func (al *APIListener) handleListSchedules(w http.ResponseWriter, req *http.Requ
 	al.writeJSONResponse(w, http.StatusOK, api.NewSuccessPayload(items))
 }
 
-func (al *APIListener) prepareHandleSchedules(req *http.Request) (schedule.Schedule, string, []*clients.Client, error) {
+func (al *APIListener) prepareHandleSchedules(req *http.Request) (schedule.Schedule, string, []*clientdata.Client, error) {
 	var scheduleInput schedule.Schedule
-	var orderedClients []*clients.Client
+	var orderedClients []*clientdata.Client
 	var username string
 	ctx := req.Context()
 	err := parseRequestBody(req.Body, &scheduleInput)

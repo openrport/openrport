@@ -7,6 +7,7 @@ import (
 	"plugin"
 	"sync"
 
+	alertingcap "github.com/realvnc-labs/rport/plus/capabilities/alerting"
 	"github.com/realvnc-labs/rport/plus/capabilities/extendedpermission"
 	licensecap "github.com/realvnc-labs/rport/plus/capabilities/license"
 	"github.com/realvnc-labs/rport/plus/capabilities/oauth"
@@ -21,8 +22,9 @@ import (
 const (
 	PlusOAuthCapability              = "plus-oauth"
 	PlusStatusCapability             = "plus-status"
-	PlusExtendedPermissionCapability = "plus-extendedpermission"
 	PlusLicenseCapability            = "plus-license"
+	PlusExtendedPermissionCapability = "plus-extendedpermission"
+	PlusAlertingCapability           = "plus-alerting"
 )
 
 var (
@@ -51,6 +53,7 @@ type Manager interface {
 	GetStatusCapabilityEx() (capEx status.CapabilityEx)
 	GetExtendedPermissionCapabilityEx() (capEx extendedpermission.CapabilityEx)
 	GetLicenseCapabilityEx() (capEx licensecap.CapabilityEx)
+	GetAlertingCapabilityEx() (capEx alertingcap.CapabilityEx)
 
 	// Access config validation
 	GetConfigValidator(capName string) (v validator.Validator)
@@ -69,7 +72,7 @@ type ManagerProvider struct {
 
 // NewPlusManager checks the plugin exists at the specified path, allocates a new
 // plus manager and initializes it
-func NewPlusManager(ctx context.Context, cfg *PlusConfig, pluginLoader loader.Loader, l *logger.Logger, filesAPI files.FileAPI) (pm Manager, err error) {
+func NewPlusManager(ctx context.Context, cfg *PlusConfig, pluginLoader loader.Loader, l *logger.Logger, filesAPI files.FileAPI) (pm *ManagerProvider, err error) {
 	if pluginLoader == nil {
 		pluginLoader = loader.New()
 	}
@@ -198,6 +201,21 @@ func (pm *ManagerProvider) GetLicenseCapabilityEx() (capEx licensecap.Capability
 			return nil
 		}
 		capEx = cap.GetLicenseCapabilityEx()
+		return capEx
+	}
+
+	return nil
+}
+
+// GetAlertingCapabilityEx returns a cast version of the Plus Alerting capability
+func (pm *ManagerProvider) GetAlertingCapabilityEx() (capEx alertingcap.CapabilityEx) {
+	capEntry := pm.getCap(PlusAlertingCapability)
+	if capEntry != nil {
+		cap, ok := capEntry.(*alertingcap.Capability)
+		if !ok {
+			return nil
+		}
+		capEx = cap.GetAlertingCapabilityEx()
 		return capEx
 	}
 

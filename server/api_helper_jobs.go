@@ -8,7 +8,7 @@ import (
 	"time"
 
 	"github.com/realvnc-labs/rport/server/api/jobs"
-	"github.com/realvnc-labs/rport/server/clients"
+	"github.com/realvnc-labs/rport/server/clients/clientdata"
 	"github.com/realvnc-labs/rport/share/comm"
 	"github.com/realvnc-labs/rport/share/models"
 	"github.com/realvnc-labs/rport/share/query"
@@ -44,7 +44,7 @@ func (al *APIListener) createAndRunJob(
 	jid, cmd, interpreter, createdBy, cwd string,
 	timeoutSec int,
 	isSudo, isScript bool,
-	client *clients.Client,
+	client *clientdata.Client,
 ) error {
 	curJob := models.Job{
 		JID:          jid,
@@ -184,7 +184,7 @@ func (al *APIListener) StartMultiClientJob(ctx context.Context, multiJobRequest 
 
 func (al *APIListener) executeMultiClientJob(
 	job *models.MultiJob,
-	orderedClients []*clients.Client,
+	orderedClients []*clientdata.Client,
 ) {
 	// for sequential execution - create a channel to get the job result
 	var curJobDoneChannel chan *models.Job

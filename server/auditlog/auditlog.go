@@ -14,7 +14,7 @@ import (
 	"github.com/realvnc-labs/rport/db/sqlite"
 
 	"github.com/realvnc-labs/rport/server/api"
-	"github.com/realvnc-labs/rport/server/clients"
+	"github.com/realvnc-labs/rport/server/clients/clientdata"
 	"github.com/realvnc-labs/rport/share/logger"
 	"github.com/realvnc-labs/rport/share/query"
 )
@@ -46,7 +46,7 @@ var (
 )
 
 type ClientGetter interface {
-	GetByID(id string) (*clients.Client, error)
+	GetByID(id string) (*clientdata.Client, error)
 }
 
 type Provider interface {

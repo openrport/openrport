@@ -12,6 +12,7 @@ import (
 	"golang.org/x/crypto/ssh"
 
 	"github.com/realvnc-labs/rport/server/clients"
+	"github.com/realvnc-labs/rport/server/clients/clientdata"
 	"github.com/realvnc-labs/rport/share/comm"
 	"github.com/realvnc-labs/rport/share/logger"
 )
@@ -66,32 +67,32 @@ func TestClientsStatusDeterminationTask(t *testing.T) {
 	)
 	now := time.Now()
 
-	c1 := clients.Client{}
+	c1 := clientdata.Client{}
 	c1.SetID("1")
 	c1.SetClientAuthID("1")
 	c1.SetConnection(connSuccess)
 	c1.Logger = myTestLog
 
-	c2 := clients.Client{}
+	c2 := clientdata.Client{}
 	c2.SetID("2")
 	c2.SetClientAuthID("2")
 	c2.SetConnection(connSuccess)
 	c2.SetLastHeartbeatAt(&now)
 	c2.Logger = myTestLog
 
-	c3 := clients.Client{}
+	c3 := clientdata.Client{}
 	c3.SetID("3")
 	c3.SetClientAuthID("3")
 	c3.SetConnection(connFailure)
 	c3.Logger = myTestLog
 
-	c4 := clients.Client{}
+	c4 := clientdata.Client{}
 	c4.SetID("4")
 	c4.SetClientAuthID("4")
 	c4.SetConnection(connTimeout)
 	c4.Logger = myTestLog
 
-	cr := clients.NewClientRepository([]*clients.Client{&c1, &c2, &c3, &c4}, nil, myTestLog)
+	cr := clients.NewClientRepository([]*clientdata.Client{&c1, &c2, &c3, &c4}, nil, myTestLog)
 	task := NewClientsStatusCheckTask(myTestLog, cr, 120*time.Second, timeout)
 
 	// Check the last heartbeat of c1 has changed due to the ping sent

@@ -7,6 +7,8 @@ import (
 
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
+
+	"github.com/realvnc-labs/rport/server/clients/clientdata"
 )
 
 func TestCleanup(t *testing.T) {
@@ -15,7 +17,7 @@ func TestCleanup(t *testing.T) {
 	c1 := New(t).ID("client-1").Logger(testLog).Build()                                               // active
 	c2 := New(t).ID("client-2").DisconnectedDuration(5 * time.Minute).Logger(testLog).Build()         // disconnected
 	c3 := New(t).ID("client-3").DisconnectedDuration(time.Hour + time.Minute).Logger(testLog).Build() // obsolete
-	clients := []*Client{c1, c2, c3}
+	clients := []*clientdata.Client{c1, c2, c3}
 	p := NewFakeClientProvider(t, &hour, c1, c2, c3)
 	defer p.Close()
 	clientsRepo := NewClientRepositoryWithDB(clients, &hour, p, testLog)
@@ -31,11 +33,11 @@ func TestCleanup(t *testing.T) {
 
 	// then
 	assert.NoError(t, err)
-	assert.ElementsMatch(t, getValues(clientsRepo.clientState), []*Client{c1, c2})
+	assert.ElementsMatch(t, getValues(clientsRepo.clientState), []*clientdata.Client{c1, c2})
 	gotClients, err := p.GetAll(ctx, testLog)
 	assert.NoError(t, err)
 
-	assert.ElementsMatch(t, []*Client{c1, c2}, gotClients)
+	assert.ElementsMatch(t, []*clientdata.Client{c1, c2}, gotClients)
 	gotObsolete, err = p.get(ctx, c3.GetID(), testLog)
 	require.NoError(t, err)
 	require.Nil(t, gotObsolete)
@@ -47,7 +49,7 @@ func TestCleanupDisabled(t *testing.T) {
 	c1 := New(t).Logger(testLog).Build()                                                      // active
 	c2 := New(t).DisconnectedDuration(5 * time.Minute).Logger(testLog).Build()                // disconnected
 	c3 := New(t).DisconnectedDuration(365*24*time.Hour + time.Minute).Logger(testLog).Build() // disconnected longer
-	clients := []*Client{c1, c2, c3}
+	clients := []*clientdata.Client{c1, c2, c3}
 	p := NewFakeClientProvider(t, nil, c1, c2, c3)
 	defer p.Close()
 	clientsRepo := NewClientRepositoryWithDB(clients, nil, p, testLog)
@@ -60,11 +62,11 @@ func TestCleanupDisabled(t *testing.T) {
 
 	// then
 	assert.NoError(t, err)
-	assert.ElementsMatch(t, getValues(clientsRepo.clientState), []*Client{c1, c2, c3})
+	assert.ElementsMatch(t, getValues(clientsRepo.clientState), []*clientdata.Client{c1, c2, c3})
 }
 
-func getValues(clients map[string]*Client) []*Client {
-	var r []*Client
+func getValues(clients map[string]*clientdata.Client) []*clientdata.Client {
+	var r []*clientdata.Client
 	for _, v := range clients {
 		r = append(r, v)
 	}

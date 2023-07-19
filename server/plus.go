@@ -6,6 +6,7 @@ import (
 	"fmt"
 
 	rportplus "github.com/realvnc-labs/rport/plus"
+	alertingcap "github.com/realvnc-labs/rport/plus/capabilities/alerting"
 	"github.com/realvnc-labs/rport/plus/capabilities/extendedpermission"
 	licensecap "github.com/realvnc-labs/rport/plus/capabilities/license"
 	"github.com/realvnc-labs/rport/plus/capabilities/oauth"
@@ -23,7 +24,7 @@ var (
 
 // EnablePlusIfAvailable will initialize a new plus manager and request registration of the desired
 // capabilities
-func EnablePlusIfAvailable(ctx context.Context, cfg *chconfig.Config, filesAPI files.FileAPI) (plusManager rportplus.Manager, err error) {
+func EnablePlusIfAvailable(ctx context.Context, cfg *chconfig.Config, filesAPI files.FileAPI) (plusManager *rportplus.ManagerProvider, err error) {
 	logger := logger.NewLogger("rport-plus", cfg.Logging.LogOutput, cfg.Logging.LogLevel)
 
 	if !rportplus.IsPlusEnabled(cfg.PlusConfig) {
@@ -94,6 +95,18 @@ func RegisterPlusCapabilities(plusManager rportplus.Manager, cfg *chconfig.Confi
 		return fmt.Errorf("unable to register plus license capability: %w", err)
 	}
 	logger.Infof("plus license capability registered")
+
+	// register the plus alerting capability
+	_, err = plusManager.RegisterCapability(rportplus.PlusAlertingCapability, &alertingcap.Capability{
+		Config: &alertingcap.Config{
+			AlertsLogPath: cfg.Server.DataDir,
+		},
+		Logger: logger,
+	})
+	if err != nil {
+		return fmt.Errorf("unable to register plus alerting capability: %w", err)
+	}
+	logger.Infof("plus alerting capability registered")
 
 	// always register the plus extended permission capability
 	_, err = plusManager.RegisterCapability(rportplus.PlusExtendedPermissionCapability, &extendedpermission.Capability{

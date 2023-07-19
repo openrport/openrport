@@ -13,10 +13,14 @@ import (
 
 var (
 	supportedFilters = map[string]bool{
-		"state":     true,
-		"origin":    true,
-		"transport": true,
-		"subject":   true,
+		"state":            true,
+		"reference_id":     true,
+		"transport":        true,
+		"subject":          true,
+		"timestamp[gt]":    true,
+		"timestamp[lt]":    true,
+		"timestamp[since]": true,
+		"timestamp[until]": true,
 	}
 	supportedSorts = map[string]bool{
 		"timestamp": true,

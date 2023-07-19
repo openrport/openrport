@@ -11,6 +11,7 @@ import (
 	"github.com/wneessen/go-mail"
 
 	"github.com/realvnc-labs/rport/server/chconfig"
+	"github.com/realvnc-labs/rport/share/logger"
 )
 
 type Mailer interface {
@@ -21,6 +22,18 @@ const MaxHangingMailSends = 20
 
 // ContentType represents a content type for the Msg
 type ContentType string
+
+func (t ContentType) Valid() error {
+	switch t {
+	case ContentTypeTextHTML:
+		return nil
+	case ContentTypeTextPlain:
+		return nil
+	default:
+		return fmt.Errorf("bad content type: %v", t)
+	}
+
+}
 
 // List of common content types
 const (
@@ -39,9 +52,15 @@ const (
 type rMailer struct {
 	config    Config
 	doomQueue chan struct{}
+
+	l *logger.Logger
 }
 
 func (rm rMailer) Send(ctx context.Context, to []string, subject string, contentType ContentType, body string) error {
+
+	if err := contentType.Valid(); err != nil {
+		return fmt.Errorf("invalid content type: %v", err)
+	}
 
 	mailerOut := rm.enqueueSend(ctx, to, subject, contentType, body)
 
@@ -78,14 +97,16 @@ func (rm rMailer) send(ctx context.Context, to []string, subject string, content
 	m.SetBodyString(mail.ContentType(contentType), body)
 
 	client, err := rm.buildClient()
-
 	if err != nil {
 		return fmt.Errorf("failed to create mail client: %s", err)
 	}
 
+	rm.l.Debugf("dialing and sending mail message")
 	if err := client.DialAndSendWithContext(ctx, m); err != nil {
 		return fmt.Errorf("failed to send mail: %s", err)
 	}
+
+	rm.l.Debugf("sent smtp message: %v", m)
 	return nil
 }
 
@@ -134,20 +155,11 @@ type AuthUserPass struct {
 	Pass string
 }
 
-// NewMailerFromSMTPConfig NewMailer gives you something that is thread safe and can send mail
-func NewMailerFromSMTPConfig(smtpConfig chconfig.SMTPConfig) (Mailer, error) {
-	config, err := ConfigFromSMTPConfig(smtpConfig)
-	if err != nil {
-		return nil, fmt.Errorf("can't convert SMTPConfig to RMailerConfig: %v", err)
-	}
-
-	return NewRMailer(config), nil
-}
-
-func NewRMailer(config Config) Mailer {
+func NewRMailer(config Config, l *logger.Logger) Mailer {
 	return rMailer{
 		config:    config,
 		doomQueue: make(chan struct{}, MaxHangingMailSends),
+		l:         l,
 	}
 }
 

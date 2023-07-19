@@ -7,7 +7,7 @@ import (
 	"time"
 
 	"github.com/realvnc-labs/rport/server/api"
-	"github.com/realvnc-labs/rport/server/clients"
+	"github.com/realvnc-labs/rport/server/clients/clientdata"
 	chshare "github.com/realvnc-labs/rport/share"
 )
 
@@ -76,7 +76,7 @@ func (e *Entry) WithResponse(response interface{}) *Entry {
 	return e
 }
 
-func (e *Entry) WithClient(c *clients.Client) *Entry {
+func (e *Entry) WithClient(c *clientdata.Client) *Entry {
 	if e == nil {
 		return e
 	}
@@ -116,7 +116,7 @@ func (e *Entry) Save() {
 	}
 }
 
-func (e *Entry) SaveForMultipleClients(clients []*clients.Client) {
+func (e *Entry) SaveForMultipleClients(clients []*clientdata.Client) {
 	if e == nil {
 		return
 	}

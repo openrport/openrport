@@ -6,19 +6,23 @@ import (
 	"time"
 
 	"github.com/realvnc-labs/rport/server/notifications"
+	"github.com/realvnc-labs/rport/share/logger"
 )
 
 const ScriptTimeout = time.Second * 20
 
 type consumer struct {
+	l *logger.Logger
 }
 
 //nolint:revive
-func NewConsumer() *consumer {
-	return &consumer{}
+func NewConsumer(l *logger.Logger) *consumer {
+	return &consumer{
+		l: l,
+	}
 }
 
-func (c consumer) Process(ctx context.Context, details notifications.NotificationDetails) error {
+func (c consumer) Process(ctx context.Context, details notifications.NotificationDetails) (string, error) {
 	ctx, cancelFunc := context.WithTimeout(ctx, ScriptTimeout)
 	defer cancelFunc()
 
@@ -29,7 +33,7 @@ func (c consumer) Process(ctx context.Context, details notifications.Notificatio
 	case notifications.ContentTypeTextJSON:
 		err = json.Unmarshal([]byte(details.Data.Content), &content)
 		if err != nil {
-			return err
+			return "", err
 		}
 	default:
 		content = details.Data.Content
@@ -42,12 +46,18 @@ func (c consumer) Process(ctx context.Context, details notifications.Notificatio
 
 	data, err := json.Marshal(&tmp)
 	if err != nil {
-		return err
+		return "", err
 	}
 
-	err = RunCancelableScript(ctx, details.Data.Target, string(data))
+	c.l.Debugf("running script: %s: with data: %s", details.Data.Target, string(data))
 
-	return err
+	out, err := RunCancelableScript(ctx, details.Data.Target, string(data))
+	if err != nil {
+		c.l.Debugf("failed running script: %s: with err: ", details.Data.Target, err)
+		return out, err
+	}
+
+	return out, nil
 }
 
 func (c consumer) Target() notifications.Target {

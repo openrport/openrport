@@ -13,7 +13,7 @@ type Processor interface {
 }
 
 type Consumer interface {
-	Process(ctx context.Context, details NotificationDetails) error
+	Process(ctx context.Context, details NotificationDetails) (string, error)
 	Target() Target
 }
 
@@ -37,9 +37,8 @@ func (t Target) Valid() bool {
 
 type Store interface {
 	Create(ctx context.Context, details NotificationDetails) error
-	LogRunning(ctx context.Context, nid string) error
-	LogDone(ctx context.Context, nid string) error
-	LogError(ctx context.Context, nid string, error string) error
+	SetDone(ctx context.Context, details NotificationDetails, out string) error
+	SetError(ctx context.Context, details NotificationDetails, out, err string) error
 	NotificationStream(target Target) chan NotificationDetails
 	Close() error
 }
@@ -74,15 +73,24 @@ root:
 		select {
 		case <-p.timeToDie.Done():
 			break root
-		case notification := <-updates:
-			p.logger.Errorf("failed updating state: %v", p.store.LogRunning(context.Background(), notification.ID.ID()))
+		case notification, ok := <-updates:
+			if !ok {
+				break root
+			}
 			ctx, cancelFn := context.WithTimeout(context.Background(), MaxProcessingTime)
-			err := consumer.Process(ctx, notification)
+			p.logger.Infof("notification %v(%v)  started processing", notification.Target, notification.ID)
+			out, err := consumer.Process(ctx, notification)
 			cancelFn()
+
 			if err == nil {
-				p.logger.Errorf("failed updating state: %v", p.store.LogDone(context.Background(), notification.ID.ID()))
+				p.logger.Infof("notification %v(%v) done", notification.Target, notification.ID)
+				err = p.store.SetDone(context.Background(), notification, out)
 			} else {
-				p.logger.Errorf("failed updating state: %v", p.store.LogError(context.Background(), notification.ID.ID(), err.Error()))
+				p.logger.Infof("notification %v(%v) error", notification.Target, notification.ID)
+				err = p.store.SetError(context.Background(), notification, out, err.Error())
+			}
+			if err != nil {
+				p.logger.Errorf("failed updating state: %v", err)
 			}
 		}
 	}

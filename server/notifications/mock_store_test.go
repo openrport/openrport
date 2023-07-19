@@ -13,17 +13,15 @@ type MockStore struct {
 	sync.RWMutex
 }
 
-func (m *MockStore) LogRunning(ctx context.Context, nid string) error {
-	m.Lock()
-	defer m.Unlock()
-
-	n := m.notifications[nid]
-	n.State = notifications.ProcessingStateRunning
-	m.notifications[nid] = n
-	return nil
+func (m *MockStore) SetDone(ctx context.Context, details notifications.NotificationDetails, out string) error {
+	return m.logDone(ctx, details.ID.ID())
 }
 
-func (m *MockStore) LogDone(ctx context.Context, nid string) error {
+func (m *MockStore) SetError(ctx context.Context, details notifications.NotificationDetails, out, err string) error {
+	return m.logError(ctx, details.ID.ID(), err)
+}
+
+func (m *MockStore) logDone(_ context.Context, nid string) error {
 	m.Lock()
 	defer m.Unlock()
 
@@ -33,7 +31,7 @@ func (m *MockStore) LogDone(ctx context.Context, nid string) error {
 	return nil
 }
 
-func (m *MockStore) LogError(ctx context.Context, nid string, error string) error {
+func (m *MockStore) logError(_ context.Context, nid string, error string) error {
 	m.Lock()
 	defer m.Unlock()
 
@@ -54,27 +52,29 @@ func NewMockStore() *MockStore {
 func (m *MockStore) NotificationStream(target notifications.Target) chan notifications.NotificationDetails {
 	m.Lock()
 	defer m.Unlock()
-
 	ch, found := m.ch[target]
+	notifications2 := m.notifications
+
 	if !found {
-		ch = make(chan notifications.NotificationDetails, len(m.notifications))
-		for _, n := range m.notifications {
+		ch = make(chan notifications.NotificationDetails, len(notifications2))
+		for _, n := range notifications2 {
 			if n.Target == target {
 				ch <- n
 			}
 		}
+
 		m.ch[target] = ch
 	}
 
 	return ch
 }
 
-func (m *MockStore) Create(ctx context.Context, notification notifications.NotificationDetails) error {
+func (m *MockStore) Create(_ context.Context, notification notifications.NotificationDetails) error {
 	m.Lock()
-	defer m.Unlock()
-
 	m.notifications[notification.ID.ID()] = notification
 	ch, found := m.ch[notification.Target]
+	m.Unlock()
+
 	if found {
 		ch <- notification
 	}
@@ -82,9 +82,9 @@ func (m *MockStore) Create(ctx context.Context, notification notifications.Notif
 	return nil
 }
 
-func (m *MockStore) List(ctx context.Context) ([]notifications.NotificationSummary, error) {
-	m.Lock()
-	defer m.Unlock()
+func (m *MockStore) List(_ context.Context) ([]notifications.NotificationSummary, error) {
+	m.RLock()
+	defer m.RUnlock()
 
 	tmp := make([]notifications.NotificationSummary, len(m.notifications))
 	i := 0
@@ -97,17 +97,17 @@ func (m *MockStore) List(ctx context.Context) ([]notifications.NotificationSumma
 	return tmp, nil
 }
 
-func (m *MockStore) Details(ctx context.Context, notificationID notifications.NotificationID) (notifications.NotificationDetails, bool, error) {
-	m.Lock()
-	defer m.Unlock()
+func (m *MockStore) Details(_ context.Context, notificationID notifications.NotificationID) (notifications.NotificationDetails, bool, error) {
+	m.RLock()
+	defer m.RUnlock()
 
 	details, found := m.notifications[notificationID.ID()]
 	return details, found, nil
 }
 
 func (m *MockStore) Close() error {
-	m.Lock()
-	defer m.Unlock()
+	m.RLock()
+	defer m.RUnlock()
 
 	for _, ch := range m.ch {
 		close(ch)

@@ -20,8 +20,8 @@ require (
 	github.com/gorilla/websocket v1.4.2
 	github.com/gregdel/pushover v1.0.0
 	github.com/h2non/parth v0.0.0-20190131123155-b4df798d6542 // indirect
-	github.com/hashicorp/errwrap v1.0.0 // indirect
-	github.com/hashicorp/go-multierror v1.1.0
+	github.com/hashicorp/errwrap v1.1.0 // indirect
+	github.com/hashicorp/go-multierror v1.1.1
 	github.com/hashicorp/hcl v1.0.0 // indirect
 	github.com/inconshreveable/mousetrap v1.0.0 // indirect
 	github.com/jordan-wright/email v4.0.1-0.20210109023952-943e75fe5223+incompatible
@@ -32,7 +32,7 @@ require (
 	github.com/kr/fs v0.1.0 // indirect
 	github.com/magiconair/properties v1.8.5 // indirect
 	github.com/mattn/go-sqlite3 v1.14.6
-	github.com/mitchellh/mapstructure v1.4.1
+	github.com/mitchellh/mapstructure v1.4.2
 	github.com/mocktools/go-smtp-mock v1.8.0
 	github.com/patrickmn/go-cache v2.1.0+incompatible
 	github.com/pelletier/go-toml v1.9.3 // indirect
@@ -68,8 +68,8 @@ require (
 )
 
 require (
-	filippo.io/keygen v0.0.0-20230306160926-5201437acf8e
 	github.com/aidarkhanov/nanoid/v2 v2.0.5
+	github.com/dgraph-io/badger/v4 v4.1.0
 	github.com/gobeam/stringy v0.0.5
 	github.com/hashicorp/go-version v1.5.0
 	github.com/jmoiron/sqlx v1.3.5
@@ -82,7 +82,23 @@ require (
 	github.com/wneessen/go-mail v0.3.9
 )
 
-require filippo.io/bigmod v0.0.1 // indirect
+require filippo.io/bigmod v0.0.1
+
+require (
+	github.com/cespare/xxhash/v2 v2.1.2 // indirect
+	github.com/dgraph-io/ristretto v0.1.1 // indirect
+	github.com/dustin/go-humanize v1.0.0 // indirect
+	github.com/gogo/protobuf v1.3.2 // indirect
+	github.com/golang/glog v0.0.0-20160126235308-23def4e6c14b // indirect
+	github.com/golang/groupcache v0.0.0-20200121045136-8c9f03a8e57e // indirect
+	github.com/golang/protobuf v1.5.2 // indirect
+	github.com/golang/snappy v0.0.4 // indirect
+	github.com/google/flatbuffers v1.12.1 // indirect
+	github.com/klauspost/compress v1.16.5 // indirect
+	go.etcd.io/bbolt v1.3.7
+	go.opencensus.io v0.23.0 // indirect
+	google.golang.org/protobuf v1.30.0 // indirect
+)
 
 require (
 	github.com/andrew-d/go-termutil v0.0.0-20150726205930-009166a695a2 // indirect

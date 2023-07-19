@@ -5,6 +5,7 @@ import (
 	"time"
 
 	"github.com/realvnc-labs/rport/server/clients"
+	"github.com/realvnc-labs/rport/server/clients/clientdata"
 	"github.com/realvnc-labs/rport/share/comm"
 	"github.com/realvnc-labs/rport/share/logger"
 )
@@ -29,7 +30,7 @@ func NewClientsStatusCheckTask(log *logger.Logger, cr *clients.ClientRepository,
 }
 
 func (t *ClientsStatusCheckTask) Run(ctx context.Context) error {
-	t.log.Debugf("running")
+	t.log.Debugf("status check running")
 	timerStart := time.Now()
 	var confirmedClients = 0
 
@@ -47,7 +48,7 @@ func (t *ClientsStatusCheckTask) Run(ctx context.Context) error {
 	}
 
 	// make a channel that will receive all the clients to ping
-	clientsToPing := make(chan *clients.Client, len(dueClients))
+	clientsToPing := make(chan *clientdata.Client, len(dueClients))
 	// make another channel for ping results
 	results := make(chan bool, len(dueClients))
 
@@ -81,7 +82,7 @@ func (t *ClientsStatusCheckTask) Run(ctx context.Context) error {
 	return nil
 }
 
-func (t *ClientsStatusCheckTask) getDueClients() (dueClients []*clients.Client, totalCount int) {
+func (t *ClientsStatusCheckTask) getDueClients() (dueClients []*clientdata.Client, totalCount int) {
 	var confirmedClients = 0
 	var now = time.Now()
 	activeClients := t.clientsRepo.GetAllActiveClients()
@@ -102,13 +103,13 @@ func (t *ClientsStatusCheckTask) getDueClients() (dueClients []*clients.Client, 
 	return dueClients, len(activeClients)
 }
 
-func (t *ClientsStatusCheckTask) PingClients(ctx context.Context, workerNum int, clientsToPing <-chan *clients.Client, results chan<- bool) {
+func (t *ClientsStatusCheckTask) PingClients(ctx context.Context, workerNum int, clientsToPing <-chan *clientdata.Client, results chan<- bool) {
 	// while there are clients to ping
 	for cl := range clientsToPing {
 		clientName := cl.GetName()
 		clientID := cl.GetID()
 		ok, response, rtt, err := comm.PingConnectionWithTimeout(ctx, cl.GetConnection(), t.pingTimeout, cl.Log())
-		//t.log.Debugf("ok=%s, error=%s, response=%s", ok, err, response)
+		// t.log.Debugf("ok=%s, error=%s, response=%s", ok, err, response)
 
 		// Old clients cannot respond properly to a ping request yet
 		if !ok && err == nil && t.isLegacyClientResponse(response) {

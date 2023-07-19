@@ -10,6 +10,7 @@ import (
 	"time"
 
 	"github.com/jmoiron/sqlx"
+	"go.etcd.io/bbolt"
 	"golang.org/x/crypto/ssh"
 	"golang.org/x/sync/errgroup"
 
@@ -24,6 +25,7 @@ import (
 	jobsmigration "github.com/realvnc-labs/rport/db/migration/jobs"
 	"github.com/realvnc-labs/rport/db/sqlite"
 	rportplus "github.com/realvnc-labs/rport/plus"
+	alertingcap "github.com/realvnc-labs/rport/plus/capabilities/alerting"
 	"github.com/realvnc-labs/rport/server/acme"
 	"github.com/realvnc-labs/rport/server/api/jobs"
 	"github.com/realvnc-labs/rport/server/api/jobs/schedule"
@@ -35,6 +37,7 @@ import (
 	"github.com/realvnc-labs/rport/server/clients"
 	"github.com/realvnc-labs/rport/server/clientsauth"
 	"github.com/realvnc-labs/rport/server/monitoring"
+	"github.com/realvnc-labs/rport/server/notifications"
 	"github.com/realvnc-labs/rport/server/ports"
 	"github.com/realvnc-labs/rport/server/scheduler"
 	chshare "github.com/realvnc-labs/rport/share"
@@ -77,6 +80,7 @@ type Server struct {
 	plusManager         rportplus.Manager
 	caddyServer         *caddy.Server
 	acme                *acme.Acme
+	alertingService     alertingcap.Service
 }
 
 type ServerOpts struct {
@@ -86,6 +90,8 @@ type ServerOpts struct {
 
 // NewServer creates and returns a new rport server
 func NewServer(ctx context.Context, config *chconfig.Config, opts *ServerOpts) (*Server, error) {
+	var err error
+
 	s := &Server{
 		Logger:           logger.NewLogger("server", config.Logging.LogOutput, config.Logging.LogLevel),
 		config:           config,
@@ -95,6 +101,7 @@ func NewServer(ctx context.Context, config *chconfig.Config, opts *ServerOpts) (
 			m: make(map[string]chan *models.Job),
 		},
 	}
+
 	s.acme = acme.New(s.Logger.Fork("acme"), config.Server.DataDir, config.Server.AcmeHTTPPort)
 	if config.Server.InternalTunnelProxyConfig.EnableAcme {
 		s.acme.AddHost(config.Server.InternalTunnelProxyConfig.Host)
@@ -110,6 +117,17 @@ func NewServer(ctx context.Context, config *chconfig.Config, opts *ServerOpts) (
 		}
 
 		licCap.SetLicenseInfoAvailableNotifier(s.HandlePlusLicenseInfoAvailable)
+
+		alertingCap := s.plusManager.GetAlertingCapabilityEx()
+		if alertingCap != nil {
+			s.alertingService, err = s.StartPlusAlertingService(ctx, alertingCap, config.Server.DataDir)
+			if err != nil {
+				return nil, err
+			}
+			s.Infof("Alerting capability enabled")
+		} else {
+			s.Infof("Alerting capability not available")
+		}
 	}
 
 	privateKey, err := initPrivateKey(config.Server.KeySeed)
@@ -215,6 +233,7 @@ func NewServer(ctx context.Context, config *chconfig.Config, opts *ServerOpts) (
 	if rportplus.IsPlusEnabled(config.PlusConfig) {
 		licCapEx := s.plusManager.GetLicenseCapabilityEx()
 		s.clientService.SetPlusLicenseInfoCap(licCapEx)
+		s.clientService.SetPlusAlertingServiceCap(s.alertingService)
 	}
 
 	s.auditLog, err = auditlog.New(
@@ -275,6 +294,10 @@ func NewServer(ctx context.Context, config *chconfig.Config, opts *ServerOpts) (
 		s.clientService.SetCaddyAPI(s.caddyServer)
 	}
 
+	if s.alertingService != nil {
+		dispatcher := notifications.NewDispatcher(s.apiListener.notificationsStorage)
+		s.alertingService.Run(ctx, dispatcher)
+	}
 	return s, nil
 }
 
@@ -284,6 +307,30 @@ func (s *Server) HandlePlusLicenseInfoAvailable() {
 	if s.clientListener != nil && s.clientListener.server.clientService != nil {
 		s.clientListener.server.clientService.UpdateClientStatus()
 	}
+}
+
+func (s *Server) StartPlusAlertingService(ctx context.Context,
+	alertingCap alertingcap.CapabilityEx,
+	dataDir string) (as alertingcap.Service, err error) {
+	opts := bbolt.DefaultOptions
+	bdb, err := bbolt.Open(dataDir+"/alerts.boltdb", 0600, opts)
+	if err != nil {
+		return nil, err
+	}
+
+	err = alertingCap.Init(bdb)
+	if err != nil {
+		return nil, fmt.Errorf("failed to initialize the alerting service: %w", err)
+	}
+
+	as = alertingCap.GetService()
+
+	err = as.LoadDefaultRuleSet()
+	if err != nil {
+		s.Infof("failed to load latest ruleset: %v", err)
+	}
+
+	return as, nil
 }
 
 func getClientProvider(config *chconfig.Config, db *sqlx.DB) (clientsauth.Provider, error) {
@@ -303,12 +350,12 @@ func getClientProvider(config *chconfig.Config, db *sqlx.DB) (clientsauth.Provid
 }
 
 func initPrivateKey(seed string) (ssh.Signer, error) {
-	//generate private key (optionally using seed)
+	// generate private key (optionally using seed)
 	key, err := chshare.GenerateKey(seed)
 	if err != nil {
 		return nil, fmt.Errorf("failed to generate key seed: %s", err)
 	}
-	//convert into ssh.PrivateKey
+	// convert into ssh.PrivateKey
 	private, err := ssh.ParsePrivateKey(key)
 	if err != nil {
 		return nil, fmt.Errorf("failed to parse key: %s", err)
@@ -333,7 +380,7 @@ func (s *Server) Run(ctx context.Context) error {
 		s.Debugf("Task to purge disconnected clients disabled")
 	}
 
-	//Run a task to Check the client connections status by sending and receiving pings
+	// Run a task to Check the client connections status by sending and receiving pings
 	clientsStatusCheckTask := NewClientsStatusCheckTask(
 		s.Logger,
 		s.clientListener.server.clientService.GetRepo(),
@@ -384,6 +431,9 @@ func (s *Server) Run(ctx context.Context) error {
 	time.Sleep(250 * time.Millisecond)
 
 	s.Close()
+
+	// a little more time for everything to settle on shutdown
+	time.Sleep(250 * time.Millisecond)
 
 	return err
 }
@@ -446,6 +496,11 @@ func (s *Server) Close() error {
 		}
 		return true
 	})
+
+	// TODO: (rs):  should we be shutting down the other plugin capabilities here?
+	if s.alertingService != nil {
+		wg.Go(s.alertingService.Stop)
+	}
 
 	return wg.Wait()
 }

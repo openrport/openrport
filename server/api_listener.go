@@ -54,6 +54,8 @@ import (
 
 const (
 	DefaultMaxCheckPortTimeout = time.Minute
+	MaxNotificationLife        = time.Hour * 24 * 30 * 3 // Keep for 30 days
+	CleanupNotificationsEvery  = time.Hour * 24          // cleanup every 24h
 )
 
 type APIListener struct {
@@ -85,6 +87,7 @@ type APIListener struct {
 	notificationsStorage   notificationsSQLite.Repository
 	notificationsProcessor notifications.Processor
 	notificationsDB        *sqlx.DB
+	notificationsCleaner   notificationsSQLite.Closeable
 
 	mu sync.RWMutex
 }
@@ -144,24 +147,27 @@ func NewAPIListener(
 		return nil, fmt.Errorf("failed to bootstrap api: %v", err)
 	}
 
-	store := notificationsSQLite.NewRepository(db)
-	// dispatcher := notifications.NewDispatcher(store)
-	scriptConsumer := scriptRunner.NewConsumer()
+	notificationsLogger := server.Logger.Fork("notifications")
+
+	store := notificationsSQLite.NewRepository(db, server.Logger)
+	scriptConsumer := scriptRunner.NewConsumer(notificationsLogger.Fork("scriptrunner"))
 
 	notificationConsumers := []notifications.Consumer{scriptConsumer}
-	smtpConfig, err := rmailer.ConfigFromSMTPConfig(config.SMTP)
-	notificationsLogger := logger.NewLogger("notifications", config.Logging.LogOutput, config.Logging.LogLevel)
 
+	smtpConfig, err := rmailer.ConfigFromSMTPConfig(config.SMTP)
 	if err == nil {
-		mailConsumer := rmailer.NewConsumer(rmailer.NewRMailer(smtpConfig))
+		smtpLogger := notificationsLogger.Fork("smtp")
+		smtpLogger.Debugf("using smtp config: %v", smtpConfig)
+		mailConsumer := rmailer.NewConsumer(rmailer.NewRMailer(smtpConfig, smtpLogger), smtpLogger)
 		notificationConsumers = append(notificationConsumers, mailConsumer)
 	} else {
 		notificationsLogger.Errorf("failed to bootstrap smtp notifications: %v", err)
-		logConsumer := toLog.NewLogConsumer(logger.NewLogger("smtp error", config.Logging.LogOutput, logger.LogLevelError), notifications.TargetMail) // consume mail notifications even if mailer is not available
+		logConsumer := toLog.NewLogConsumer(notificationsLogger.Fork("smtp error"), notifications.TargetMail) // consume mail notifications even if mailer is not available
 		notificationConsumers = append(notificationConsumers, logConsumer)
 	}
 
 	notificationProcessor := notifications.NewProcessor(notificationsLogger, store, notificationConsumers...)
+	notificationsCleaner := notificationsSQLite.StartCleaner(logger.NewLogger("cleaner", config.Logging.LogOutput, logger.LogLevelInfo), store, MaxNotificationLife, CleanupNotificationsEvery)
 
 	// init vault DB if it already exists
 	fs := files.NewFileSystem()
@@ -245,6 +251,7 @@ func NewAPIListener(
 		notificationsStorage:   store,
 		notificationsProcessor: notificationProcessor,
 		notificationsDB:        db,
+		notificationsCleaner:   notificationsCleaner,
 	}
 
 	a.errResponseLogger = allog.Fork("error-response")

@@ -4,11 +4,12 @@ import (
 	"context"
 	"fmt"
 
+	"github.com/realvnc-labs/rport/server/clients/clientdata"
 	"github.com/realvnc-labs/rport/share/logger"
 )
 
 // LoadInitialClients returns an initial Client Repository state populated with clients from the internal storage.
-func LoadInitialClients(ctx context.Context, p ClientStore, logger *logger.Logger) ([]*Client, error) {
+func LoadInitialClients(ctx context.Context, p ClientStore, logger *logger.Logger) ([]*clientdata.Client, error) {
 	logger.Debugf("loading existing clients")
 
 	// setup a logger for the clients
@@ -22,7 +23,7 @@ func LoadInitialClients(ctx context.Context, p ClientStore, logger *logger.Logge
 	logger.Debugf("loaded %d clients", len(all))
 
 	// mark previously connected clients as disconnected with current time
-	now := now()
+	now := clientdata.Now()
 
 	for _, client := range all {
 		if client.IsConnected() {

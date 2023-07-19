@@ -6,6 +6,8 @@ import (
 	"time"
 
 	"github.com/stretchr/testify/assert"
+
+	"github.com/realvnc-labs/rport/server/clients/clientdata"
 )
 
 func TestGetInitState(t *testing.T) {
@@ -20,9 +22,9 @@ func TestGetInitState(t *testing.T) {
 	testCases := []struct {
 		name string
 
-		dbClients  []*Client
+		dbClients  []*clientdata.Client
 		expiration time.Duration
-		wantRes    []*Client
+		wantRes    []*clientdata.Client
 	}{
 		{
 			name:      "no clients",
@@ -31,14 +33,14 @@ func TestGetInitState(t *testing.T) {
 		},
 		{
 			name:       "1 connected, 1 disconnected, 1 obsolete",
-			dbClients:  []*Client{c1, c2, c3},
-			wantRes:    []*Client{wantC1, c2},
+			dbClients:  []*clientdata.Client{c1, c2, c3},
+			wantRes:    []*clientdata.Client{wantC1, c2},
 			expiration: hour,
 		},
 		{
 			name:       "1 connected, 2 disconnected, 0 expiration",
-			dbClients:  []*Client{c1, c2, c3},
-			wantRes:    []*Client{wantC1},
+			dbClients:  []*clientdata.Client{c1, c2, c3},
+			wantRes:    []*clientdata.Client{wantC1},
 			expiration: 0,
 		},
 	}

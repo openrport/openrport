@@ -11,17 +11,15 @@ import (
 	"testing"
 	"time"
 
-	"github.com/realvnc-labs/rport/share/query"
-
 	"github.com/stretchr/testify/assert"
-
-	"github.com/realvnc-labs/rport/server/chconfig"
-	"github.com/realvnc-labs/rport/server/clients"
-
 	"github.com/stretchr/testify/require"
 
 	"github.com/realvnc-labs/rport/server/api"
+	"github.com/realvnc-labs/rport/server/chconfig"
+	"github.com/realvnc-labs/rport/server/clients"
+	"github.com/realvnc-labs/rport/server/clients/clientdata"
 	"github.com/realvnc-labs/rport/server/clientsauth"
+	"github.com/realvnc-labs/rport/share/query"
 )
 
 var (
@@ -384,7 +382,7 @@ func TestHandleDeleteClientAuth(t *testing.T) {
 		descr string // Test Case Description
 
 		provider        clientsauth.Provider
-		clients         []*clients.Client
+		clients         []*clientdata.Client
 		clientAuthWrite bool
 		clientAuthID    string
 		urlSuffix       string
@@ -395,7 +393,7 @@ func TestHandleDeleteClientAuth(t *testing.T) {
 		wantErrTitle    string
 		wantErrDetail   string
 		wantClosedConn  bool
-		wantClients     []*clients.Client
+		wantClients     []*clientdata.Client
 	}{
 		{
 			descr:           "auth file, success delete",
@@ -426,26 +424,26 @@ func TestHandleDeleteClientAuth(t *testing.T) {
 		{
 			descr:           "auth file, client has active client",
 			provider:        clientsauth.NewMockFileProvider([]*clientsauth.ClientAuth{cl1, cl2, cl3}, t),
-			clients:         []*clients.Client{c1},
+			clients:         []*clientdata.Client{c1},
 			clientAuthWrite: true,
 			clientAuthID:    cl1.ID,
 			wantStatusCode:  http.StatusConflict,
 			wantErrCode:     ErrCodeClientAuthHasClient,
 			wantErrTitle:    fmt.Sprintf("Client Auth expected to have no active or disconnected bound client(s), got %d.", 1),
 			wantClientsAuth: initState,
-			wantClients:     []*clients.Client{c1},
+			wantClients:     []*clientdata.Client{c1},
 		},
 		{
 			descr:           "auth file, client auth has disconnected client",
 			provider:        clientsauth.NewMockFileProvider([]*clientsauth.ClientAuth{cl1, cl2, cl3}, t),
-			clients:         []*clients.Client{c2},
+			clients:         []*clientdata.Client{c2},
 			clientAuthWrite: true,
 			clientAuthID:    cl1.ID,
 			wantStatusCode:  http.StatusConflict,
 			wantErrCode:     ErrCodeClientAuthHasClient,
 			wantErrTitle:    fmt.Sprintf("Client Auth expected to have no active or disconnected bound client(s), got %d.", 1),
 			wantClientsAuth: initState,
-			wantClients:     []*clients.Client{c2},
+			wantClients:     []*clientdata.Client{c2},
 		},
 		{
 			descr:           "auth file, auth in Read-Only mode",
@@ -460,7 +458,7 @@ func TestHandleDeleteClientAuth(t *testing.T) {
 		{
 			descr:           "auth file, client auth has active client, force",
 			provider:        clientsauth.NewMockFileProvider([]*clientsauth.ClientAuth{cl1, cl2, cl3}, t),
-			clients:         []*clients.Client{c1},
+			clients:         []*clientdata.Client{c1},
 			clientAuthWrite: true,
 			clientAuthID:    cl1.ID,
 			urlSuffix:       "?force=true",
@@ -471,7 +469,7 @@ func TestHandleDeleteClientAuth(t *testing.T) {
 		{
 			descr:           "auth file, client auth has disconnected bound client, force",
 			provider:        clientsauth.NewMockFileProvider([]*clientsauth.ClientAuth{cl1, cl2, cl3}, t),
-			clients:         []*clients.Client{c2},
+			clients:         []*clientdata.Client{c2},
 			clientAuthWrite: true,
 			clientAuthID:    cl1.ID,
 			urlSuffix:       "?force=true",
@@ -481,7 +479,7 @@ func TestHandleDeleteClientAuth(t *testing.T) {
 		{
 			descr:           "invalid force param",
 			provider:        clientsauth.NewMockFileProvider([]*clientsauth.ClientAuth{cl1, cl2, cl3}, t),
-			clients:         []*clients.Client{c1, c2},
+			clients:         []*clientdata.Client{c1, c2},
 			clientAuthWrite: true,
 			clientAuthID:    cl1.ID,
 			urlSuffix:       "?force=test",
@@ -489,7 +487,7 @@ func TestHandleDeleteClientAuth(t *testing.T) {
 			wantErrCode:     ErrCodeInvalidRequest,
 			wantErrTitle:    "Invalid force param test.",
 			wantClientsAuth: initState,
-			wantClients:     []*clients.Client{c1, c2},
+			wantClients:     []*clientdata.Client{c1, c2},
 		},
 		{
 			descr:           "auth, single client",

@@ -186,7 +186,7 @@ var ClientMountpointsFilterFields = map[string]bool{
 }
 
 var ClientGraphMetricsFields = map[string]map[string]bool{
-	"graph-metrics": map[string]bool{
+	"graph-metrics": {
 		"timestamp":            true,
 		"cpu_usage_percent":    true,
 		"memory_usage_percent": true,
@@ -194,7 +194,7 @@ var ClientGraphMetricsFields = map[string]map[string]bool{
 	},
 }
 var ClientMetricsFields = map[string]map[string]bool{
-	"metrics": map[string]bool{
+	"metrics": {
 		"timestamp":            true,
 		"cpu_usage_percent":    true,
 		"memory_usage_percent": true,
@@ -203,14 +203,14 @@ var ClientMetricsFields = map[string]map[string]bool{
 }
 
 var ClientProcessesFields = map[string]map[string]bool{
-	"processes": map[string]bool{
+	"processes": {
 		"timestamp": true,
 		"processes": true,
 	},
 }
 
 var ClientMountpointsFields = map[string]map[string]bool{
-	"mountpoints": map[string]bool{
+	"mountpoints": {
 		"timestamp":   true,
 		"mountpoints": true,
 	},

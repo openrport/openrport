@@ -24,14 +24,14 @@ func (suite *DispatcherTestSuite) SetupTest() {
 var problemIdentifiable = refs.GenerateIdentifiable("Problem")
 
 func (suite *DispatcherTestSuite) TestDispatcherCreatesNotification() {
-	notification := notifications.NotificationData{Target: "smtp", Content: "test-content-mail"}
+	notification := notifications.NotificationData{Target: "smtp", Content: "test-content-mail", ContentType: notifications.ContentTypeTextHTML}
 	ni, err := suite.dispatcher.Dispatch(context.Background(), problemIdentifiable, notification)
 	suite.NoError(err)
 	details, found, err := suite.store.Details(context.Background(), ni)
 	suite.NoError(err)
 	suite.True(found)
 	suite.Equal(notifications.NotificationDetails{
-		Origin: problemIdentifiable,
+		RefID:  problemIdentifiable,
 		Data:   notification,
 		State:  notifications.ProcessingStateQueued,
 		ID:     ni,
@@ -39,6 +39,11 @@ func (suite *DispatcherTestSuite) TestDispatcherCreatesNotification() {
 	}, details)
 }
 
+func (suite *DispatcherTestSuite) TestDispatcherErrorsOnBadContentType() {
+	notification := notifications.NotificationData{Target: "smtp", Content: "test-content-mail", ContentType: "fail"}
+	_, err := suite.dispatcher.Dispatch(context.Background(), problemIdentifiable, notification)
+	suite.Error(err)
+}
 func TestDispatcherTestSuite(t *testing.T) {
 	suite.Run(t, new(DispatcherTestSuite))
 }

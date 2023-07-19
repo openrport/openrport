@@ -17,6 +17,7 @@ import (
 	"github.com/realvnc-labs/rport/server/api/jobs/schedule"
 	"github.com/realvnc-labs/rport/server/cgroups"
 	"github.com/realvnc-labs/rport/server/clients"
+	"github.com/realvnc-labs/rport/server/clients/clientdata"
 )
 
 func TestHandlePostScheduleMultiClientJobWithTags(t *testing.T) {
@@ -179,7 +180,7 @@ func TestHandlePostScheduleMultiClientJobWithTags(t *testing.T) {
 			c2.SetAllowedUserGroups([]string{"group-1"})
 			c4.SetAllowedUserGroups([]string{"group-2"})
 
-			clientList := []*clients.Client{c1, c2, c4}
+			clientList := []*clientdata.Client{c1, c2, c4}
 
 			p := clients.NewFakeClientProvider(t, nil, nil)
 
@@ -408,7 +409,7 @@ func TestHandlePostUpdateScheduleMultiClientJobWithTags(t *testing.T) {
 			c2.SetAllowedUserGroups([]string{"group-1"})
 			c4.SetAllowedUserGroups([]string{"group-2"})
 
-			clientList := []*clients.Client{c1, c2, c4}
+			clientList := []*clientdata.Client{c1, c2, c4}
 
 			p := clients.NewFakeClientProvider(t, nil, nil)
 

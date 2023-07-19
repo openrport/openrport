@@ -9,24 +9,23 @@ import (
 
 	"github.com/gorilla/mux"
 
-	"github.com/realvnc-labs/rport/share/models"
-
 	"github.com/realvnc-labs/rport/server/api"
-	"github.com/realvnc-labs/rport/server/clients"
+	"github.com/realvnc-labs/rport/server/clients/clientdata"
 	"github.com/realvnc-labs/rport/server/routes"
 	"github.com/realvnc-labs/rport/share/comm"
+	"github.com/realvnc-labs/rport/share/models"
 )
 
 type clientCtxKeyType int
 
 const clientCtxKey clientCtxKeyType = iota
 
-func (al *APIListener) getClientFromContext(ctx context.Context) (*clients.Client, error) {
+func (al *APIListener) getClientFromContext(ctx context.Context) (*clientdata.Client, error) {
 	maybeClient := ctx.Value(clientCtxKey)
 	if maybeClient == nil {
 		return nil, fmt.Errorf("client not present in the request")
 	}
-	client, ok := maybeClient.(*clients.Client)
+	client, ok := maybeClient.(*clientdata.Client)
 	if !ok {
 		return nil, fmt.Errorf("client is not of the client type")
 	}

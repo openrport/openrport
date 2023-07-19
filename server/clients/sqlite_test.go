@@ -7,6 +7,8 @@ import (
 
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
+
+	"github.com/realvnc-labs/rport/server/clients/clientdata"
 )
 
 func TestClientsSqliteProvider(t *testing.T) {
@@ -31,12 +33,12 @@ func TestClientsSqliteProvider(t *testing.T) {
 	// verify get clients
 	gotAll, err := p.GetAll(ctx, testLog)
 	require.NoError(t, err)
-	assert.ElementsMatch(t, []*Client{c1, c2, c3, c4}, gotAll)
+	assert.ElementsMatch(t, []*clientdata.Client{c1, c2, c3, c4}, gotAll)
 
 	// verify no obsolete get clients
 	gotAll, err = noObsoleteProvider.GetAll(ctx, testLog)
 	require.NoError(t, err)
-	assert.ElementsMatch(t, []*Client{c1, c2, c3, c4, c5}, gotAll)
+	assert.ElementsMatch(t, []*clientdata.Client{c1, c2, c3, c4, c5}, gotAll)
 
 	// verify delete obsolete clients
 	gotObsolete, err := p.get(ctx, c5.GetID(), testLog)
@@ -50,7 +52,7 @@ func TestClientsSqliteProvider(t *testing.T) {
 
 	gotAll, err = p.GetAll(ctx, testLog)
 	require.NoError(t, err)
-	assert.ElementsMatch(t, []*Client{c1, c2, c3, c4}, gotAll)
+	assert.ElementsMatch(t, []*clientdata.Client{c1, c2, c3, c4}, gotAll)
 
 	// verify not found
 	gotNone, err := p.get(ctx, "unknown-id", testLog)
@@ -66,5 +68,5 @@ func TestClientsSqliteProvider(t *testing.T) {
 	require.EqualValues(t, c1, gotUpdated)
 	gotAll, err = p.GetAll(ctx, testLog)
 	require.NoError(t, err)
-	assert.ElementsMatch(t, []*Client{c1, c2, c3, c4}, gotAll)
+	assert.ElementsMatch(t, []*clientdata.Client{c1, c2, c3, c4}, gotAll)
 }

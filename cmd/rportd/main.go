@@ -7,6 +7,7 @@ import (
 	"os"
 	"os/signal"
 	"runtime"
+	"runtime/pprof"
 	"strings"
 	"syscall"
 	"time"
@@ -27,6 +28,9 @@ import (
 )
 
 const (
+	writeCPUProfile    = false
+	writeMemoryProfile = false
+
 	DefaultKeepDisconnectedClients          = time.Hour
 	DefaultPurgeDisconnectedClientsInterval = 1 * time.Minute
 	DefaultCheckClientsConnectionInterval   = 5 * time.Minute
@@ -512,6 +516,28 @@ func runMain(*cobra.Command, []string) {
 		log.Fatal(err)
 	}
 
+	if writeCPUProfile {
+		fmt.Println("creating empty cpu profile")
+		cpuprof, err := os.Create("/var/lib/rport/cpu.rportd.prof")
+		if err != nil {
+			log.Fatal(err)
+		}
+		err = pprof.StartCPUProfile(cpuprof)
+		if err != nil {
+			log.Fatal(err)
+		}
+
+		fmt.Println("deferring stop cpu profile")
+		defer func() {
+			fmt.Println("writing cpu.rportd.prof")
+			pprof.StopCPUProfile()
+		}()
+	}
+
+	if writeMemoryProfile {
+		defer WriteMemoryProfile(s.Logger)
+	}
+
 	if !service.Interactive() {
 		err = servicemanagement.RunAsService(s, *cfgPath)
 		if err != nil {
@@ -523,15 +549,25 @@ func runMain(*cobra.Command, []string) {
 	go chshare.GoStats()
 
 	err = s.Run(ctx)
+
 	s.Logger.Debugf("run finished")
 
 	if err != nil {
-		// the standard context canceled message is somewhat unclear. just let the user know that
-		// the server has shutdown.
-		if strings.Contains(err.Error(), "context canceled") {
-			log.Fatal("server shutdown")
+		if !strings.Contains(err.Error(), "context canceled") {
+			log.Fatal(err)
 		}
+	}
+}
 
-		log.Fatal(err)
+func WriteMemoryProfile(l *logger.Logger) {
+	l.Debugf("writing mem.rportd.prof")
+	memf, err := os.Create("/var/lib/rport/mem.rportd.prof")
+	if err != nil {
+		l.Debugf("could not create memory profile: %v\n", err)
+	}
+	defer memf.Close()
+	runtime.GC()
+	if err := pprof.WriteHeapProfile(memf); err != nil {
+		l.Debugf("could not write memory profile: %v\n", err)
 	}
 }

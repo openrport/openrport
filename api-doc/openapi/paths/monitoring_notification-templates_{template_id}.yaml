@@ -1,0 +1,132 @@
+get:
+  tags:
+    - Monitoring
+  summary: Get details for a notification template
+  operationId: TemplateGet
+  parameters:
+    - name: template_id
+      in: path
+      description: unique template ID
+      required: true
+      schema:
+        type: string
+  description: >
+    * Returns details for a configured notification template
+  responses:
+    "200":
+      description: Successful
+      content:
+        application/json:
+          schema:
+            type: object
+            properties:
+              data:
+                $ref: ../components/schemas/TemplateResponse.yaml
+    "400":
+      description: Invalid parameters
+      content:
+        application/json:
+          schema:
+            $ref: ../components/schemas/ErrorPayload.yaml
+    "401":
+      description: Unauthorized
+      content:
+        application/json:
+          schema:
+            $ref: ../components/schemas/ErrorPayload.yaml
+    "403":
+      description: >-
+        current user should belong to Administrators group to access this
+        resource
+      content:
+        application/json:
+          schema:
+            $ref: ../components/schemas/ErrorPayload.yaml
+    "500":
+      description: Invalid Operation
+      content:
+        application/json:
+          schema:
+            $ref: ../components/schemas/ErrorPayload.yaml
+put:
+  tags:
+    - Monitoring
+  summary: Update a template identified by the provided id
+  operationId: TemplatePut
+  description: >-
+    Update an existing template. This API requires the current user to be member of
+    group `Administrators`. Returns 403 otherwise. The `Administrators` group
+    name is hardcoded and cannot be changed at the moment.
+  parameters:
+    - name: template_id
+      in: path
+      description: unique template ID
+      required: true
+      schema:
+        type: string
+  requestBody:
+    description: >-
+      Template to update.
+    content:
+      "*/*":
+        schema:
+          $ref: ../components/schemas/TemplatePut.yaml
+    required: true
+  responses:
+    "204":
+      description: Successful Operation
+      content: {}
+    "400":
+      description: Invalid request parameters
+      content:
+        application/json:
+          schema:
+            $ref: ../components/schemas/ErrorPayload.yaml
+    "403":
+      description: >-
+        current user should belong to Administrators group to access this
+        resource
+      content:
+        application/json:
+          schema:
+            $ref: ../components/schemas/ErrorPayload.yaml
+    "500":
+      description: Invalid Operation
+      content:
+        application/json:
+          schema:
+            $ref: ../components/schemas/ErrorPayload.yaml
+delete:
+  tags:
+    - Monitoring
+  summary: Delete a template identified by the provided id
+  operationId: TemplateDelete
+  description: >-
+    Deletes a template by a given id. This API requires the current user to be
+    member of group `Administrators`. Returns 403 otherwise. The
+    `Administrators` group name is hardcoded and cannot be changed at the moment
+  parameters:
+    - name: template_id
+      in: path
+      description: unique template ID
+      required: true
+      schema:
+        type: string
+  responses:
+    "204":
+      description: Successful Operation
+      content: {}
+    "403":
+      description: >-
+        current user should belong to Administrators group to access this
+        resource
+      content:
+        application/json:
+          schema:
+            $ref: ../components/schemas/ErrorPayload.yaml
+    "500":
+      description: Invalid Operation
+      content:
+        application/json:
+          schema:
+            $ref: ../components/schemas/ErrorPayload.yaml
