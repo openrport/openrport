@@ -119,12 +119,12 @@ func MatchIfDate(dateValueStr string, filterValueStr string, filter FilterOption
 					return true, nil
 				}
 			}
-			// perform eq by check if outside of the filter date
+			// perform eq by check if outside the filter date
 			if filter.Operator == "eq" {
 				if dateValue.Before(filterDateValue) {
 					return false, nil
 				}
-				if dateValue.After(filterDateValue) {
+				if dateValue.After(filterDateValue.Add((1 * time.Hour * 24) - (1 * time.Nanosecond))) {
 					return false, nil
 				}
 				return true, nil
