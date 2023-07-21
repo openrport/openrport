@@ -609,12 +609,12 @@ func TestShouldGetLatestProblems(t *testing.T) {
 	assert.NoError(t, err)
 
 	assert.Equal(t, 3, len(problemsInfo.Data))
-	assert.Equal(t, rules.ProblemID("p1"), problemsInfo.Data[2].ID)
-	assert.Equal(t, rules.ProblemID("p2"), problemsInfo.Data[1].ID)
 	assert.Equal(t, rules.ProblemID("p3"), problemsInfo.Data[0].ID)
+	assert.Equal(t, rules.ProblemID("p2"), problemsInfo.Data[1].ID)
+	assert.Equal(t, rules.ProblemID("p1"), problemsInfo.Data[2].ID)
 }
 
-func TestShouldGetLatestProblemsWithFilter(t *testing.T) {
+func TestShouldGetLatestProblemsWithProblemIDFilter(t *testing.T) {
 	plusManager, plusConfig, plusLog := setupPlusAlerting()
 
 	_, err := plusManager.RegisterCapability(plusMockAlertingCapability, &alertingmock.Capability{
@@ -648,6 +648,188 @@ func TestShouldGetLatestProblemsWithFilter(t *testing.T) {
 
 	assert.Equal(t, 1, len(problemsInfo.Data))
 	assert.Equal(t, rules.ProblemID("p2"), problemsInfo.Data[0].ID)
+}
+
+func TestShouldGetLatestProblemsWithProblemActiveFilter(t *testing.T) {
+	plusManager, plusConfig, plusLog := setupPlusAlerting()
+
+	_, err := plusManager.RegisterCapability(plusMockAlertingCapability, &alertingmock.Capability{
+		Logger: plusLog,
+	})
+	require.NoError(t, err)
+
+	al := setupTestAPIListenerForAlerting(t,
+		plusManager,
+		plusConfig,
+		plusLog)
+
+	mockAS := plusManager.GetAlertingCapabilityEx().GetService().(*alertingmock.MockServiceProvider)
+	require.NotNil(t, mockAS)
+
+	w := httptest.NewRecorder()
+	req := httptest.NewRequest("GET", routes.AllRoutesPrefix+routes.AlertingServiceRoutesPrefix+routes.ASProblemsRoute+"?filter[active]=true", nil)
+
+	al.router.ServeHTTP(w, req)
+
+	res := w.Result()
+	defer res.Body.Close()
+
+	if res.StatusCode != http.StatusOK {
+		t.Errorf("Expected status code %d, got %d", http.StatusOK, res.StatusCode)
+	}
+
+	var problemsInfo ProblemsResponse
+	err = json.NewDecoder(w.Body).Decode(&problemsInfo)
+	assert.NoError(t, err)
+
+	assert.Equal(t, 1, len(problemsInfo.Data))
+	assert.Equal(t, rules.ProblemID("p1"), problemsInfo.Data[0].ID)
+}
+
+func TestShouldGetLatestProblemsWithProblemsNotActiveFilter(t *testing.T) {
+	plusManager, plusConfig, plusLog := setupPlusAlerting()
+
+	_, err := plusManager.RegisterCapability(plusMockAlertingCapability, &alertingmock.Capability{
+		Logger: plusLog,
+	})
+	require.NoError(t, err)
+
+	al := setupTestAPIListenerForAlerting(t,
+		plusManager,
+		plusConfig,
+		plusLog)
+
+	mockAS := plusManager.GetAlertingCapabilityEx().GetService().(*alertingmock.MockServiceProvider)
+	require.NotNil(t, mockAS)
+
+	w := httptest.NewRecorder()
+	req := httptest.NewRequest("GET", routes.AllRoutesPrefix+routes.AlertingServiceRoutesPrefix+routes.ASProblemsRoute+"?filter[active]=false", nil)
+
+	al.router.ServeHTTP(w, req)
+
+	res := w.Result()
+	defer res.Body.Close()
+
+	if res.StatusCode != http.StatusOK {
+		t.Errorf("Expected status code %d, got %d", http.StatusOK, res.StatusCode)
+	}
+
+	var problemsInfo ProblemsResponse
+	err = json.NewDecoder(w.Body).Decode(&problemsInfo)
+	assert.NoError(t, err)
+
+	assert.Equal(t, 2, len(problemsInfo.Data))
+	assert.Equal(t, rules.ProblemID("p3"), problemsInfo.Data[0].ID)
+	assert.Equal(t, rules.ProblemID("p2"), problemsInfo.Data[1].ID)
+}
+
+func TestShouldGetLatestProblemsGreaterThanDateFilter(t *testing.T) {
+	plusManager, plusConfig, plusLog := setupPlusAlerting()
+
+	_, err := plusManager.RegisterCapability(plusMockAlertingCapability, &alertingmock.Capability{
+		Logger: plusLog,
+	})
+	require.NoError(t, err)
+
+	al := setupTestAPIListenerForAlerting(t,
+		plusManager,
+		plusConfig,
+		plusLog)
+
+	mockAS := plusManager.GetAlertingCapabilityEx().GetService().(*alertingmock.MockServiceProvider)
+	require.NotNil(t, mockAS)
+
+	w := httptest.NewRecorder()
+	req := httptest.NewRequest("GET", routes.AllRoutesPrefix+routes.AlertingServiceRoutesPrefix+routes.ASProblemsRoute+"?filter[created_at][gt]="+"2023-06-30T00:00:00Z", nil)
+
+	al.router.ServeHTTP(w, req)
+
+	res := w.Result()
+	defer res.Body.Close()
+
+	if res.StatusCode != http.StatusOK {
+		t.Errorf("Expected status code %d, got %d", http.StatusOK, res.StatusCode)
+	}
+
+	var problemsInfo ProblemsResponse
+	err = json.NewDecoder(w.Body).Decode(&problemsInfo)
+	assert.NoError(t, err)
+
+	assert.Equal(t, 2, len(problemsInfo.Data))
+	assert.Equal(t, rules.ProblemID("p3"), problemsInfo.Data[0].ID)
+	assert.Equal(t, rules.ProblemID("p2"), problemsInfo.Data[1].ID)
+}
+
+func TestShouldGetLatestProblemsLessThanDateFilter(t *testing.T) {
+	plusManager, plusConfig, plusLog := setupPlusAlerting()
+
+	_, err := plusManager.RegisterCapability(plusMockAlertingCapability, &alertingmock.Capability{
+		Logger: plusLog,
+	})
+	require.NoError(t, err)
+
+	al := setupTestAPIListenerForAlerting(t,
+		plusManager,
+		plusConfig,
+		plusLog)
+
+	mockAS := plusManager.GetAlertingCapabilityEx().GetService().(*alertingmock.MockServiceProvider)
+	require.NotNil(t, mockAS)
+
+	w := httptest.NewRecorder()
+	req := httptest.NewRequest("GET", routes.AllRoutesPrefix+routes.AlertingServiceRoutesPrefix+routes.ASProblemsRoute+"?filter[created_at][lt]="+"2023-06-30T00:00:00Z", nil)
+
+	al.router.ServeHTTP(w, req)
+
+	res := w.Result()
+	defer res.Body.Close()
+
+	if res.StatusCode != http.StatusOK {
+		t.Errorf("Expected status code %d, got %d", http.StatusOK, res.StatusCode)
+	}
+
+	var problemsInfo ProblemsResponse
+	err = json.NewDecoder(w.Body).Decode(&problemsInfo)
+	assert.NoError(t, err)
+
+	assert.Equal(t, 1, len(problemsInfo.Data))
+	assert.Equal(t, rules.ProblemID("p1"), problemsInfo.Data[0].ID)
+}
+
+func TestShouldGetLatestProblemsEqualDateFilter(t *testing.T) {
+	plusManager, plusConfig, plusLog := setupPlusAlerting()
+
+	_, err := plusManager.RegisterCapability(plusMockAlertingCapability, &alertingmock.Capability{
+		Logger: plusLog,
+	})
+	require.NoError(t, err)
+
+	al := setupTestAPIListenerForAlerting(t,
+		plusManager,
+		plusConfig,
+		plusLog)
+
+	mockAS := plusManager.GetAlertingCapabilityEx().GetService().(*alertingmock.MockServiceProvider)
+	require.NotNil(t, mockAS)
+
+	w := httptest.NewRecorder()
+	req := httptest.NewRequest("GET", routes.AllRoutesPrefix+routes.AlertingServiceRoutesPrefix+routes.ASProblemsRoute+"?filter[created_at][eq]=2023-06-03", nil)
+
+	al.router.ServeHTTP(w, req)
+
+	res := w.Result()
+	defer res.Body.Close()
+
+	if res.StatusCode != http.StatusOK {
+		t.Errorf("Expected status code %d, got %d", http.StatusOK, res.StatusCode)
+	}
+
+	var problemsInfo ProblemsResponse
+	err = json.NewDecoder(w.Body).Decode(&problemsInfo)
+	assert.NoError(t, err)
+
+	assert.Equal(t, 1, len(problemsInfo.Data))
+	assert.Equal(t, rules.ProblemID("p1"), problemsInfo.Data[0].ID)
 }
 
 func TestShouldGetLatestProblemsWithSort(t *testing.T) {
