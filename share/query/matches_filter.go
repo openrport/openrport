@@ -103,7 +103,7 @@ func matchesFilter(valueMap map[string]interface{}, filter FilterOption) (bool, 
 func MatchIfDate(dateValueStr string, filterValueStr string, filter FilterOption) (match bool, err error) {
 	filterDateValue, err := time.Parse(time.RFC3339, filterValueStr)
 	if err != nil {
-		filterDateValue, err = time.Parse(time.DateOnly, filterValueStr)
+		filterDateValue, err = time.Parse("2006-01-02", filterValueStr)
 	}
 	if err == nil {
 		dateValue, err := time.Parse(time.RFC3339, dateValueStr)
