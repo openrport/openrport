@@ -133,7 +133,7 @@ func MatchIfDate(dateValueStr string, filterValueStr string, filter FilterOption
 		}
 		return false, errors.New("value not valid RFC3339 date")
 	}
-	return false, errors.New("filter value not valid RFC3339 date")
+	return false, errors.New("filter value not valid simple or RFC3339 date")
 }
 
 func toMap(v interface{}) (map[string]interface{}, error) {

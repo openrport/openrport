@@ -288,7 +288,7 @@ func TestMatchIfDate(t *testing.T) {
 			filterValueStr: "invalid-date",
 			filter:         query.FilterOption{Operator: "gt"},
 			expectedMatch:  false,
-			expectedError:  errors.New("filter value not valid RFC3339 date"),
+			expectedError:  errors.New("filter value not valid simple or RFC3339 date"),
 		},
 	}
 
