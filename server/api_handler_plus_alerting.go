@@ -384,7 +384,10 @@ func (al *APIListener) handleGetLatestProblems(w http.ResponseWriter, req *http.
 
 	al.Debugf("total problems = %d", len(pagedProblems))
 
-	response := api.NewSuccessPayload(pagedProblems)
+	response := &api.SuccessPayload{
+		Data: pagedProblems,
+		Meta: api.NewMeta(totalCount),
+	}
 
 	al.writeJSONResponse(w, http.StatusOK, response)
 }
