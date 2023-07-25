@@ -55,7 +55,7 @@ const defaultVirtualHost = `
 {{ define "DVH"}}
 https://{{.ListenAddress}}:{{.ListenPort}} {
 	tls {{.CertsFile}} {{.KeyFile}} {
-		protocols tls{{.TLSMin}}
+		protocols {{.TLSMin}}
 	}
 	respond "not found" 404
 }
@@ -66,7 +66,7 @@ const apiReverseProxySettingsTemplate = `
 {{ define "ARP"}}
 https://{{.ProxyDomain}}:{{.ProxyPort}} {
 	tls {{.CertsFile}} {{.KeyFile}} {
-		protocols tls{{.TLSMin}}
+		protocols {{.TLSMin}}
 	}
 	reverse_proxy {
 		to {{.APIScheme}}://{{.APITargetHost}}:{{.APITargetPort}}
