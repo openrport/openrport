@@ -42,7 +42,7 @@ var (
 	ErrCaddyAPICertFileNotFound                 = errors.New("caddy api cert file not found")
 	ErrUnableToCheckIfAPIKeyFileExists          = errors.New("unable to check if caddy api cert file exists")
 	ErrCaddyAPIKeyFileNotFound                  = errors.New("caddy api key file not found")
-	ErrCaddyUnknownTlsMin                       = errors.New("tls_min not a known tls protocol version")
+	ErrCaddyUnknownTLSMin                       = errors.New("tls_min not a known tls protocol version")
 )
 
 type Config struct {
@@ -55,7 +55,7 @@ type Config struct {
 	APIPort     string `mapstructure:"api_port"`
 	APICertFile string `mapstructure:"api_cert_file"`
 	APIKeyFile  string `mapstructure:"api_key_file"`
-	TlsMin      string `mapstructure:"tls_min"`
+	TLSMin      string `mapstructure:"tls_min"`
 
 	LogLevel         string `mapstructure:"-"` // taken from the rport server log level
 	DataDir          string `mapstructure:"-"` // taken from the rport server datadir
@@ -174,8 +174,8 @@ func (c *Config) ParseAndValidate(serverDataDir string, serverLogLevel string, f
 		}
 	}
 
-	if c.TlsMin != "" && c.TlsMin != "1.2" && c.TlsMin != "1.3" {
-		return ErrCaddyUnknownTlsMin
+	if c.TLSMin != "" && c.TLSMin != "1.2" && c.TLSMin != "1.3" {
+		return ErrCaddyUnknownTLSMin
 	}
 
 	c.LogLevel = serverLogLevel
@@ -260,7 +260,7 @@ func (c *Config) MakeBaseConfig(targetAPIPort string) (bc *BaseConfig, err error
 		logLevel = "info"
 	}
 
-	tlsMin := c.TlsMin
+	tlsMin := c.TLSMin
 	if tlsMin == "" {
 		tlsMin = "tls1.3"
 	}
@@ -280,7 +280,7 @@ func (c *Config) MakeBaseConfig(targetAPIPort string) (bc *BaseConfig, err error
 		ListenPort:    port,
 		CertsFile:     c.CertFile,
 		KeyFile:       c.KeyFile,
-		TlsMin:        tlsMin,
+		TLSMin:        tlsMin,
 	}
 
 	bc = &BaseConfig{
@@ -297,7 +297,7 @@ func (c *Config) MakeBaseConfig(targetAPIPort string) (bc *BaseConfig, err error
 			APIScheme:     "http",
 			APITargetHost: "127.0.0.1",
 			APITargetPort: targetAPIPort,
-			TlsMin:        tlsMin,
+			TLSMin:        tlsMin,
 		}
 
 		bc.APIReverseProxySettings = arp

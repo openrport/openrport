@@ -99,7 +99,7 @@ func TestShouldMakeDefaultVirtualHostText(t *testing.T) {
 		ListenPort:    "listen_port",
 		CertsFile:     "certs_file",
 		KeyFile:       "key_file",
-		TlsMin         "tls_min",
+		TLSMin:        "tls_min",
 	}
 
 	var b bytes.Buffer
@@ -126,7 +126,7 @@ func TestShouldMakeAPIReverseProxySettingsText(t *testing.T) {
 		APIScheme:     "api_scheme",
 		APITargetHost: "api_ip_address",
 		APITargetPort: "api_port",
-		TlsMin         "tls_min",
+		TLSMin:        "tls_min",
 	}
 
 	var b bytes.Buffer
@@ -167,7 +167,7 @@ func TestShouldMakeAllWithAPIReverseProxy(t *testing.T) {
 		ListenPort:    "listen_port",
 		CertsFile:     "certs_file",
 		KeyFile:       "key_file",
-		TlsMin         "tls_min",
+		TLSMin:        "tls_min",
 	}
 
 	arp := &APIReverseProxySettings{
@@ -179,7 +179,7 @@ func TestShouldMakeAllWithAPIReverseProxy(t *testing.T) {
 		APIScheme:     "api_scheme",
 		APITargetHost: "api_ip_address",
 		APITargetPort: "api_port",
-		TlsMin         "tls_min",
+		TLSMin:        "tls_min",
 	}
 
 	c := BaseConfig{
@@ -225,7 +225,7 @@ func TestShouldMakeAllWithoutAPIReverseProxy(t *testing.T) {
 		ListenPort:    "listen_port",
 		CertsFile:     "certs_file",
 		KeyFile:       "key_file",
-		TlsMin         "tls_min",
+		TLSMin:        "tls_min",
 	}
 
 	arp := &APIReverseProxySettings{
@@ -237,7 +237,7 @@ func TestShouldMakeAllWithoutAPIReverseProxy(t *testing.T) {
 		APIScheme:     "api_scheme",
 		APITargetHost: "api_ip_address",
 		APITargetPort: "api_port",
-		TlsMin         "tls_min",
+		TLSMin:        "tls_min",
 	}
 
 	// include everything but we shouldn't see the api  reverse proxy settings in the text later
