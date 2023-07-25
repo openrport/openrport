@@ -61,12 +61,12 @@ func TestEquality(t *testing.T) {
 	compatibleKey, err := NativeGenerateKey(seed)
 	assert.NoError(t, err)
 
-	if runtime.Version() > "go1.19.10" {
-		t.Logf("for go version: %v keys generations should be different", runtime.Version())
-		assert.NotEqual(t, string(key), string(compatibleKey))
-	} else {
+	if runtime.Version() < "go1.20" && runtime.Version() > "go1.19" {
 		t.Logf("for go version: %v keys generations should be identical", runtime.Version())
 		assert.Equal(t, string(key), string(compatibleKey))
+	} else {
+		t.Logf("for go version: %v keys generations should be different", runtime.Version())
+		assert.NotEqual(t, string(key), string(compatibleKey))
 	}
 
 }

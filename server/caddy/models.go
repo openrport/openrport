@@ -17,6 +17,7 @@ type DefaultVirtualHost struct {
 	ListenPort    string
 	CertsFile     string
 	KeyFile       string
+	TLSMin        string
 }
 
 type APIReverseProxySettings struct {
@@ -28,6 +29,7 @@ type APIReverseProxySettings struct {
 	APIScheme     string
 	APITargetHost string
 	APITargetPort string
+	TLSMin        string
 }
 
 type ExternalReverseProxy struct {
