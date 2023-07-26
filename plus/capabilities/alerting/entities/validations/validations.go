@@ -1,8 +1,8 @@
 package validations
 
 type ValidationError struct {
-	Prefix string
-	Err    error
+	Prefix string `json:"prefix"`
+	Err    error  `json:"err"`
 }
 
 type ErrorList []ValidationError

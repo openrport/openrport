@@ -6,13 +6,13 @@ import (
 	"sort"
 	"time"
 
-	"github.com/dgraph-io/badger/v4"
 	"go.etcd.io/bbolt"
 
 	alertingcap "github.com/realvnc-labs/rport/plus/capabilities/alerting"
 	"github.com/realvnc-labs/rport/plus/capabilities/alerting/entities/clientupdates"
 	"github.com/realvnc-labs/rport/plus/capabilities/alerting/entities/measures"
 	"github.com/realvnc-labs/rport/plus/capabilities/alerting/entities/rules"
+	"github.com/realvnc-labs/rport/plus/capabilities/alerting/entities/rundata"
 	"github.com/realvnc-labs/rport/plus/capabilities/alerting/entities/templates"
 	"github.com/realvnc-labs/rport/plus/capabilities/alerting/entities/validations"
 	"github.com/realvnc-labs/rport/plus/capabilities/status"
@@ -60,25 +60,24 @@ func (cap *Capability) GetConfigValidator() (v validator.Validator) {
 }
 
 // ValidateConfig does nothing for the mock implementation
-func (mp *MockCapabilityProvider) ValidateConfig() (err error) {
+func (mcp *MockCapabilityProvider) ValidateConfig() (err error) {
+	return nil
+}
+
+func (mcp *MockCapabilityProvider) Init(_ *bbolt.DB) (err error) {
 	return nil
 }
 
 // GetService returns a mock service
-func (mp *MockCapabilityProvider) InitBadgerDB(_ *badger.DB) (err error) {
-	return nil
-}
-
-func (mp *MockCapabilityProvider) Init(_ *bbolt.DB) (err error) {
-	return nil
-}
-
-// GetService returns a mock service
-func (mp *MockCapabilityProvider) GetService() (s alertingcap.Service) {
-	if mp.serviceMock == nil {
-		mp.serviceMock = &MockServiceProvider{}
+func (mcp *MockCapabilityProvider) GetService() (s alertingcap.Service) {
+	if mcp.serviceMock == nil {
+		mcp.serviceMock = &MockServiceProvider{}
 	}
-	return mp.serviceMock
+	return mcp.serviceMock
+}
+
+func (mcp *MockCapabilityProvider) RunRulesTest(ctx context.Context, runData *rundata.RunData) (results *rundata.TestResults, errs validations.ErrorList, err error) {
+	return nil, nil, nil
 }
 
 func newTestTemplates() map[templates.TemplateID]templates.Template {

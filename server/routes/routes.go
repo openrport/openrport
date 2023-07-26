@@ -25,6 +25,7 @@ const (
 	ASRuleSetRoute              = "/rules"
 	ASTemplatesRoute            = "/notification-templates"
 	ASProblemsRoute             = "/problems"
+	ASRunTestRulesRoute         = "/test"
 	TotPRoutes                  = "/me/totp-secret"
 	Verify2FaRoute              = "/verify-2fa"
 	FilesUploadRouteName        = "files"

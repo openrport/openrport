@@ -10,6 +10,7 @@ import (
 	"github.com/realvnc-labs/rport/plus/capabilities/alerting/entities/clientupdates"
 	"github.com/realvnc-labs/rport/plus/capabilities/alerting/entities/measures"
 	"github.com/realvnc-labs/rport/plus/capabilities/alerting/entities/rules"
+	"github.com/realvnc-labs/rport/plus/capabilities/alerting/entities/rundata"
 	"github.com/realvnc-labs/rport/plus/capabilities/alerting/entities/templates"
 	"github.com/realvnc-labs/rport/plus/capabilities/alerting/entities/validations"
 	"github.com/realvnc-labs/rport/server/notifications"
@@ -23,6 +24,8 @@ type CapabilityEx interface {
 	Init(db *bbolt.DB) (err error)
 
 	GetService() (as Service)
+
+	RunRulesTest(ctx context.Context, runData *rundata.RunData) (results *rundata.TestResults, errs validations.ErrorList, err error)
 }
 
 type Config struct {
