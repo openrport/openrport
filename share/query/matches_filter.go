@@ -2,9 +2,11 @@ package query
 
 import (
 	"encoding/json"
+	"errors"
 	"fmt"
 	"regexp"
 	"strings"
+	"time"
 )
 
 func MatchesFilters(v interface{}, filterOptions []FilterOption) (bool, error) {
@@ -59,6 +61,15 @@ func matchesFilter(valueMap map[string]interface{}, filter FilterOption) (bool, 
 				if matches[filterValue] { // this filter was already "assigned" to a match
 					continue
 				}
+
+				match, err := MatchIfDate(clientFieldValueToMatchStr, filterValue, filter)
+				if err == nil {
+					if match {
+						matches[filterValue] = true
+					}
+					continue
+				}
+
 				hasUnescapedWildCard := strings.Contains(filterValue, "*")
 				if !hasUnescapedWildCard {
 					if strings.EqualFold(filterValue, clientFieldValueToMatchStr) {
@@ -87,6 +98,42 @@ func matchesFilter(valueMap map[string]interface{}, filter FilterOption) (bool, 
 		return len(matches) == len(filter.Values), nil
 	}
 	return len(matches) > 0, nil
+}
+
+func MatchIfDate(dateValueStr string, filterValueStr string, filter FilterOption) (match bool, err error) {
+	filterDateValue, err := time.Parse(time.RFC3339, filterValueStr)
+	if err != nil {
+		filterDateValue, err = time.Parse("2006-01-02", filterValueStr)
+	}
+	if err == nil {
+		dateValue, err := time.Parse(time.RFC3339, dateValueStr)
+		if err == nil {
+			if filter.Operator == "gt" {
+				if dateValue.After(filterDateValue) {
+					return true, nil
+				}
+				return false, nil
+			}
+			if filter.Operator == "lt" {
+				if dateValue.Before(filterDateValue) {
+					return true, nil
+				}
+			}
+			// perform eq by check if outside the filter date
+			if filter.Operator == "eq" {
+				if dateValue.Before(filterDateValue) {
+					return false, nil
+				}
+				if dateValue.After(filterDateValue.Add((1 * time.Hour * 24) - (1 * time.Nanosecond))) {
+					return false, nil
+				}
+				return true, nil
+			}
+			return false, nil
+		}
+		return false, errors.New("value not valid RFC3339 date")
+	}
+	return false, errors.New("filter value not valid simple or RFC3339 date")
 }
 
 func toMap(v interface{}) (map[string]interface{}, error) {

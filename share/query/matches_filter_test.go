@@ -1,6 +1,7 @@
 package query_test
 
 import (
+	"errors"
 	"testing"
 
 	"github.com/stretchr/testify/assert"
@@ -190,4 +191,112 @@ func TestMatchesFiltersUnsupported(t *testing.T) {
 		},
 	})
 	assert.EqualError(t, err, "unsupported filter column: other")
+}
+
+func TestMatchIfDate(t *testing.T) {
+	testCases := []struct {
+		name           string
+		dateValueStr   string
+		filterValueStr string
+		filter         query.FilterOption
+		expectedMatch  bool
+		expectedError  error
+	}{
+		{
+			name:           "date is after filter date with gt operator",
+			dateValueStr:   "2023-07-22T00:00:00Z",
+			filterValueStr: "2023-07-21T00:00:00Z",
+			filter:         query.FilterOption{Operator: "gt"},
+			expectedMatch:  true,
+			expectedError:  nil,
+		},
+		{
+			name:           "date is after filter date with gt operator",
+			dateValueStr:   "2023-07-22T00:00:00Z",
+			filterValueStr: "2023-07-21",
+			filter:         query.FilterOption{Operator: "gt"},
+			expectedMatch:  true,
+			expectedError:  nil,
+		},
+		{
+			name:           "date is before filter date with lt operator",
+			dateValueStr:   "2023-07-20T00:00:00Z",
+			filterValueStr: "2023-07-21T00:00:00Z",
+			filter:         query.FilterOption{Operator: "lt"},
+			expectedMatch:  true,
+			expectedError:  nil,
+		},
+		{
+			name:           "date is before filter date with lt operator",
+			dateValueStr:   "2023-07-20T00:00:00Z",
+			filterValueStr: "2023-07-21",
+			filter:         query.FilterOption{Operator: "lt"},
+			expectedMatch:  true,
+			expectedError:  nil,
+		},
+		{
+			name:           "date eq exact start filter date with eq operator",
+			dateValueStr:   "2023-07-20T00:00:00Z",
+			filterValueStr: "2023-07-20",
+			filter:         query.FilterOption{Operator: "eq"},
+			expectedMatch:  true,
+			expectedError:  nil,
+		},
+		{
+			name:           "date eq filter date with eq operator",
+			dateValueStr:   "2023-07-20T01:00:00Z",
+			filterValueStr: "2023-07-20",
+			filter:         query.FilterOption{Operator: "eq"},
+			expectedMatch:  true,
+			expectedError:  nil,
+		},
+		{
+			name:           "date not eq exact end filter date with eq operator",
+			dateValueStr:   "2023-07-21T00:00:00Z",
+			filterValueStr: "2023-07-20",
+			filter:         query.FilterOption{Operator: "eq"},
+			expectedMatch:  false,
+			expectedError:  nil,
+		},
+		{
+			name:           "date eq filter date with eq operator",
+			dateValueStr:   "2023-07-20T00:10:00Z",
+			filterValueStr: "2023-07-20",
+			filter:         query.FilterOption{Operator: "eq"},
+			expectedMatch:  true,
+			expectedError:  nil,
+		},
+		{
+			name:           "date not eq filter date with eq operator",
+			dateValueStr:   "2023-07-19T00:00:00Z",
+			filterValueStr: "2023-07-20",
+			filter:         query.FilterOption{Operator: "eq"},
+			expectedMatch:  false,
+			expectedError:  nil,
+		},
+		{
+			name:           "invalid date value",
+			dateValueStr:   "invalid-date",
+			filterValueStr: "2023-07-21T00:00:00Z",
+			filter:         query.FilterOption{Operator: "gt"},
+			expectedMatch:  false,
+			expectedError:  errors.New("value not valid RFC3339 date"),
+		},
+		{
+			name:           "invalid filter date value",
+			dateValueStr:   "2023-07-22T00:00:00Z",
+			filterValueStr: "invalid-date",
+			filter:         query.FilterOption{Operator: "gt"},
+			expectedMatch:  false,
+			expectedError:  errors.New("filter value not valid simple or RFC3339 date"),
+		},
+	}
+
+	for _, tc := range testCases {
+		t.Run(tc.name, func(t *testing.T) {
+			match, err := query.MatchIfDate(tc.dateValueStr, tc.filterValueStr, tc.filter)
+			assert.Equal(t, tc.expectedMatch, match)
+			assert.Equal(t, tc.expectedError, err)
+		})
+	}
 }
