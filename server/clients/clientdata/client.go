@@ -77,6 +77,7 @@ type Client struct {
 	ClientAuthID        string                `json:"client_auth_id"`
 	AllowedUserGroups   []string              `json:"allowed_user_groups"`
 	UpdatesStatus       *models.UpdatesStatus `json:"updates_status"`
+	IPAddresses         *models.IPAddresses   `json:"ext_ip_addresses"`
 	ClientConfiguration *clientconfig.Config  `json:"client_configuration"`
 
 	Connection   ssh.Conn        `json:"-"`
@@ -445,6 +446,13 @@ func (c *Client) SetUpdatesStatus(status *models.UpdatesStatus) {
 	c.flock.Lock()
 	c.UpdatesStatus = status
 	c.flock.Unlock()
+}
+
+func (c *Client) SetIPAddresses(IPAddresses *models.IPAddresses) {
+	c.flock.Lock()
+	c.IPAddresses = IPAddresses
+	c.flock.Unlock()
+	c.Log().Debugf("IP addresses updated for '%s'", c.Name)
 }
 
 func (c *Client) SetDisconnectedAt(at *time.Time) {

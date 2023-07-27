@@ -15,6 +15,8 @@ import (
 	"sync"
 	"time"
 
+	ipAddresses "github.com/realvnc-labs/rport/client/ip_addresses"
+
 	"github.com/realvnc-labs/rport/share/random"
 
 	"github.com/denisbrodbeck/machineid"
@@ -62,6 +64,7 @@ type Client struct {
 	systemInfo         system.SysInfo
 	updates            *updates.Updates
 	monitor            *monitoring.Monitor
+	ipAddresses        *ipAddresses.IPAddresses
 	serverCapabilities *models.Capabilities
 	filesAPI           files.FileAPI
 	watchdog           *Watchdog
@@ -103,6 +106,7 @@ func NewClient(config *ClientConfigHolder, filesAPI files.FileAPI) (*Client, err
 		systemInfo:   systemInfo,
 		updates:      updates.New(logger, config.Client.UpdatesInterval),
 		monitor:      monitoring.NewMonitor(logger, config.Monitoring, systemInfo),
+		ipAddresses:  ipAddresses.New(logger, config.Client.IPAPIURL, config.Client.IPRefreshMin),
 		filesAPI:     filesAPI,
 		watchdog:     watchdog,
 	}
@@ -288,6 +292,7 @@ func (c *Client) connectionLoop(ctx context.Context, withInitialSendRequestDelay
 
 		c.updates.SetConn(sshClientConn.Connection)
 		c.monitor.SetConn(sshClientConn.Connection)
+		c.ipAddresses.SetConn(sshClientConn.Connection)
 
 		// watch for shutting down due to ctx.Done
 		go func() {
@@ -304,6 +309,7 @@ func (c *Client) connectionLoop(ctx context.Context, withInitialSendRequestDelay
 		c.setConn(nil)
 		c.updates.SetConn(nil)
 		c.monitor.SetConn(nil)
+		c.ipAddresses.SetConn(nil)
 		c.monitor.Stop()
 		cancelSwitchback()
 

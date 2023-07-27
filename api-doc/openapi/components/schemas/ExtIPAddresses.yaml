@@ -1,0 +1,18 @@
+type: object
+description: >-
+  External IP addresses of the client fetched from an IP API.
+  [Read More](https://oss.rport.io/advanced/ip-address-determination/)
+properties:
+  ipv4:
+    type: string
+    description: external ipv4 IP address of client
+  ipv6:
+    type: string
+    description: external ipv6 IP address of client
+  updated_at:
+    type: string
+    description: When were the IP addresses refreshed
+    format: date-time
+  errors:
+    type: string
+    description: Error that happened when refreshing IP addresses
