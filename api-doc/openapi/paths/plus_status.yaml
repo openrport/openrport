@@ -22,3 +22,9 @@ get:
         application/json:
           schema:
             $ref: ../components/schemas/ErrorPayload.yaml
+    '400':
+      description: Invalid request parameters
+      content:
+        application/json:
+          schema:
+            $ref: ../components/schemas/ErrorPayload.yaml
