@@ -39,7 +39,7 @@ func (cap *Capability) GetInitFuncName() (name string) {
 }
 
 // InitProvider sets the capability provider to the local mock implementation
-func (cap *Capability) InitProvider(initFn plugin.Symbol) {
+func (cap *Capability) InitProvider(_ plugin.Symbol) {
 	if cap.Provider == nil {
 		cap.Provider = &MockCapabilityProvider{
 			serviceMock: NewMockServiceProvider(),
@@ -76,7 +76,8 @@ func (mcp *MockCapabilityProvider) GetService() (s alertingcap.Service) {
 	return mcp.serviceMock
 }
 
-func (mcp *MockCapabilityProvider) RunRulesTest(ctx context.Context, runData *rundata.RunData) (results *rundata.TestResults, errs validations.ErrorList, err error) {
+func (mcp *MockCapabilityProvider) RunRulesTest(_ context.Context, _ *rundata.RunData, _ *logger.Logger) (
+	results *rundata.TestResults, errs validations.ErrorList, err error) {
 	return nil, nil, nil
 }
 
@@ -179,7 +180,7 @@ func NewMockServiceProvider() (mp *MockServiceProvider) {
 	return mp
 }
 
-func (mp *MockServiceProvider) Run(ctx context.Context, _ notifications.Dispatcher) {
+func (mp *MockServiceProvider) Run(_ context.Context, _ notifications.Dispatcher) {
 }
 
 func (mp *MockServiceProvider) Stop() (err error) {
@@ -238,11 +239,11 @@ func (mp *MockServiceProvider) DeleteTemplate(templateID templates.TemplateID) (
 	return nil
 }
 
-func (mp *MockServiceProvider) PutClientUpdate(cl *clientupdates.Client) (err error) {
+func (mp *MockServiceProvider) PutClientUpdate(_ *clientupdates.Client) (err error) {
 	return nil
 }
 
-func (mp *MockServiceProvider) PutMeasurement(m *measures.Measure) (err error) {
+func (mp *MockServiceProvider) PutMeasurement(_ *measures.Measure) (err error) {
 	return nil
 }
 
@@ -250,7 +251,7 @@ func (mp *MockServiceProvider) LoadDefaultRuleSet() (err error) {
 	return nil
 }
 
-func (mp *MockServiceProvider) SetRuleSet(rs *rules.RuleSet) {
+func (mp *MockServiceProvider) SetRuleSet(_ *rules.RuleSet) {
 }
 
 func (mp *MockServiceProvider) GetProblem(pid rules.ProblemID) (problem *rules.Problem, err error) {
@@ -262,11 +263,11 @@ func (mp *MockServiceProvider) GetProblem(pid rules.ProblemID) (problem *rules.P
 	return problem, nil
 }
 
-func (mp *MockServiceProvider) GetLatestProblem(rid rules.RuleID, clientID string) (problem *rules.Problem, err error) {
+func (mp *MockServiceProvider) GetLatestProblem(_ rules.RuleID, _ string) (problem *rules.Problem, err error) {
 	return problem, nil
 }
 
-func (mp *MockServiceProvider) SetProblemActive(pid rules.ProblemID) (err error) {
+func (mp *MockServiceProvider) SetProblemActive(_ rules.ProblemID) (err error) {
 	return nil
 }
 
@@ -281,7 +282,7 @@ func (mp *MockServiceProvider) SetProblemResolved(pid rules.ProblemID, resolvedA
 	return nil
 }
 
-func (mp *MockServiceProvider) GetLatestProblems(limit int) (problems []*rules.Problem, err error) {
+func (mp *MockServiceProvider) GetLatestProblems(_ int) (problems []*rules.Problem, err error) {
 	for _, problem := range mp.Problems {
 		p := problem
 		problems = append(problems, &p)

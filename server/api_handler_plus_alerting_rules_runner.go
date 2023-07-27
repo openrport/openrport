@@ -40,7 +40,7 @@ func (al *APIListener) handleTestRules(w http.ResponseWriter, r *http.Request) {
 
 	ctx := context.Background()
 
-	results, errs, err := asCap.RunRulesTest(ctx, &runData)
+	results, errs, err := asCap.RunRulesTest(ctx, &runData, al.Logger)
 
 	if err != nil {
 		if errs != nil {
