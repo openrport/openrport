@@ -1,6 +1,7 @@
 package refs
 
 import (
+	"encoding/json"
 	"fmt"
 	"strings"
 
@@ -62,6 +63,11 @@ func (i identifiable) ID() string {
 // String make it serializable nicely for others to store in DB and for you to reconstruct later
 func (i identifiable) String() string {
 	return string(i.iType) + ":::" + i.id
+}
+
+// MarshalJSON allows identifiable to be serialized to json
+func (i identifiable) MarshalJSON() ([]byte, error) {
+	return json.Marshal(i.String())
 }
 
 //nolint:revive

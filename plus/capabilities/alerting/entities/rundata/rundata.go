@@ -20,7 +20,7 @@ type RunData struct {
 
 type NotificationResult struct {
 	RefID        refs.Identifiable              `json:"ref_id"`
-	Notification notifications.NotificationData `json:"notifications"`
+	Notification notifications.NotificationData `json:"notification"`
 }
 
 type NotificationResults []NotificationResult
