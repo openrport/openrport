@@ -217,6 +217,8 @@ func (d *DynamicLogger) Fork(prefix string, args ...interface{}) (dl *DynamicLog
 	dl.LogController = d.LogController.Clone()
 	// remove the parent logger prefix from control
 	dl.SetControl(d.Prefix(), false)
+	// ensure the new logger is enabled
+	dl.SetControl(dl.Logger.Prefix(), true)
 	return dl
 }
 
@@ -252,7 +254,9 @@ func (d *DynamicLogger) NLogf(name string, severity LogLevel, f string, args ...
 	if name != "" && !d.LogController.IsActive(name) {
 		return
 	}
-
+	if name == "" && !d.LogController.IsActive(d.prefix) {
+		return
+	}
 	if d.Level >= severity {
 		if name == "" {
 			d.logger.Printf(severity.String()+": "+d.Prefix()+": "+f, args...)

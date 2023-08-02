@@ -10,21 +10,12 @@ import (
 	"github.com/realvnc-labs/rport/share/refs"
 )
 
-type ClientUpdateWithWait struct {
-	ClientUpdate  clientupdates.Client `json:"CL"`
-	WaitMilliSecs int                  `json:"W"`
-}
-
-type MeasureWithWait struct {
-	MeasureUpdate measures.Measure `json:"M"`
-	WaitMilliSecs int              `json:"W"`
-}
-
 type RunData struct {
-	CL []ClientUpdateWithWait `json:"client_updates"`
-	M  []MeasureWithWait      `json:"measures"`
-	RS rules.RuleSet          `json:"ruleset"`
-	NT []templates.Template   `json:"templates"`
+	CL            []clientupdates.Client `json:"client_data"`
+	M             []measures.Measure     `json:"measurements"`
+	RS            rules.RuleSet          `json:"ruleset"`
+	NT            []templates.Template   `json:"templates"`
+	WaitMilliSecs int                    `json:"delay_ms"`
 }
 
 type NotificationResult struct {
