@@ -8,7 +8,8 @@ get:
       in: query
       description: >-
         Sort option `-<field>`(desc) or `<field>`(asc). `<field>` can be one of
-        `TODO`. For example, `TODO`, etc
+        `rule_id, client_id, client_name, active, created_at, resolved_at`. 
+        For example, `TODO`, etc
       schema:
         type: string
     - name: filter
@@ -16,15 +17,22 @@ get:
       description: >-
         Filter option `filter[<FIELD>]=<VALUE>` or
         `filter[<FIELD>|<FIELD>]=<VALUE>,<VALUE>` for OR conditions, alternatively: 
-        `filter[<FIELD>]=or(<VALUE1>,<VALUE2>)` for OR conditions, and 
-        `filter[<FIELD>]=and(<VALUE1>,<VALUE2>)` for AND conditions.
+        `filter[<FIELD>]=or(<VALUE1>,<VALUE2>)` for OR conditions, and `filter[<FIELD>]=and(<VALUE1>,<VALUE2>)` for 
+        AND conditions. The `created_at` and `resolved_at` date fields are handled differently, see below.
         
-         `<FIELD>` can be one of `TODO`. 
-        
-         You can use `*` wildcards to filter on any field and for partial matches. 
+         `<FIELD>` can be one of `problem_id, rule_id, client_id, client_name, active, created_at, resolved_at`. 
+
+         You can use `*` wildcards to filter on any field and for partial matches (except the date fields). 
          Text matching is case insensitive, filters can be combined together.<br />
+
+         The `created_at` and the `resolved_at` fields can be queried with the `gt`, `lt` and `eq` filter
+         operators to perform greater than, less than and equal date match filters. The date values specified in the 
+         filter must either conform to RFC3339 or be simple date fields (e.g. 2023-07-01). Currently, the other
+         fields do not support the `gt`, `lt` and `eq` operators.
+
          Examples:<br />
          `TODO`<br />
+
       schema:
         type: string
     - name: fields[<RESOURCE>]
@@ -33,7 +41,7 @@ get:
         Fields to be returned. It should be provided in the format as
         `fields[<RESOURCE>]=<FIELDS>`, where `<RESOURCE>` is `problems` and
         `<FIELDS>` is a comma separated list of fields. Example:
-        `fields[clients]=id,name`. If no fields are specified, only TODO will be returned.
+        `fields[clients]=id,name`.
       schema:
         type: string
     - name: page
@@ -68,7 +76,7 @@ get:
         application/json:
           schema:
             $ref: ../components/schemas/ErrorPayload.yaml
-    '403':
+    "403":
       description: >-
         current user should belong to Administrators group to access this
         resource
