@@ -38,7 +38,7 @@ func TestCloneClient(t *testing.T) {
 		Hostname:                 "localhost",
 		IPv4:                     []string{"192.168.0.1", "192.168.0.2"},
 		IPv6:                     []string{"2001:db8::1", "2001:db8::2"},
-		Measures:                 measures.Measures{},
+		Measurements:             measures.Measures{},
 	}
 
 	clonedClient := client.Clone()
@@ -67,7 +67,7 @@ func TestCloneClient(t *testing.T) {
 		t.Errorf("IPv6 field of cloned client is not a new instance or has different elements")
 	}
 
-	if &clonedClient.Measures == &client.Measures || !reflect.DeepEqual(clonedClient.Measures, client.Measures) {
+	if &clonedClient.Measurements == &client.Measurements || !reflect.DeepEqual(clonedClient.Measurements, client.Measurements) {
 		t.Errorf("Measures field of cloned client is not a new instance or has different values")
 	}
 

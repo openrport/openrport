@@ -20,7 +20,7 @@ type Problem struct {
 	ResolvedAt types.TimeJSON `json:"resolved_at"`
 
 	CUID string `json:"client_update_id"`
-	MUID string `json:"measure_update_id"`
+	MUID string `json:"measurement_update_id"`
 }
 
 func (p *Problem) Clone() (clonedProblem Problem) {
