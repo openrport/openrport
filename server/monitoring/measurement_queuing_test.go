@@ -44,6 +44,7 @@ func (suite *QueuingTestSuite) SetupTest() {
 
 func (suite *QueuingTestSuite) TestEnqueue() {
 	suite.q.Enqueue(models.Measurement{})
+	time.Sleep(time.Millisecond) //
 	suite.Len(suite.saver.ms, 1)
 }
 
@@ -52,7 +53,7 @@ func (suite *QueuingTestSuite) TestSlowEnqueue() {
 	stopper := time.Now()
 	suite.q.Enqueue(models.Measurement{})
 
-	suite.Less(time.Now().Sub(stopper), time.Millisecond)
+	suite.Less(time.Since(stopper), time.Millisecond)
 }
 
 func (suite *QueuingTestSuite) TestCleanClose() {
