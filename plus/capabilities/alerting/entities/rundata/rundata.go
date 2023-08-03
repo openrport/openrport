@@ -29,6 +29,6 @@ type TestResults struct {
 	Problems      []*rules.Problem      `json:"problems"`
 	Notifications NotificationResults   `json:"notifications"`
 	LogOutput     string                `json:"log_output"`
-	Errs          validations.ErrorList `json:"validation_errors"`
-	Err           error                 `json:"err"`
+	Errs          validations.ErrorList `json:"validation_errors,omitempty"`
+	Err           error                 `json:"error,omitempty"`
 }

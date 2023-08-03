@@ -1,0 +1,18 @@
+type: object
+properties:
+  ruleset:
+    $ref: ./RuleSet.yaml
+  templates:
+    type: array
+    items:
+      $ref: ./Template.yaml
+  client_data:
+    type: array
+    items:
+      $ref: ./ClientUpdate.yaml
+  measurements:
+    type: array
+    items:
+      $ref: ./Measure.yaml
+  delay_ms:
+    type: number
