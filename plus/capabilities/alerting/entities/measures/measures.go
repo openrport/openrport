@@ -30,12 +30,6 @@ type Process struct {
 	CmdLine string `json:"cmdline"`
 }
 
-type MountPoint struct {
-	Name       string `json:"name"`
-	FreeBytes  uint64 `json:"free_b"`
-	TotalBytes uint64 `json:"total_b"`
-}
-
 type Measures []*Measure
 
 func (ms Measures) Clone() (clonedMeasures Measures) {
