@@ -17,8 +17,9 @@ import (
 var testLog = logger.NewLogger("measurement-queue", logger.LogOutput{File: os.Stdout}, logger.LogLevelDebug)
 
 type MockSaver struct {
-	ms   []*models.Measurement
-	slow atomic.Bool
+	ms    []*models.Measurement
+	count atomic.Int64
+	slow  atomic.Bool
 }
 
 func (m *MockSaver) SaveMeasurement(ctx context.Context, measurement *models.Measurement) error {
@@ -26,6 +27,7 @@ func (m *MockSaver) SaveMeasurement(ctx context.Context, measurement *models.Mea
 		time.Sleep(time.Millisecond * 10)
 	}
 	m.ms = append(m.ms, measurement)
+	m.count.Add(1)
 	return nil
 }
 
@@ -44,8 +46,7 @@ func (suite *QueuingTestSuite) SetupTest() {
 
 func (suite *QueuingTestSuite) TestEnqueue() {
 	suite.q.Enqueue(models.Measurement{})
-	time.Sleep(time.Millisecond) //
-	suite.Len(suite.saver.ms, 1)
+	suite.Equal(suite.saver.count.Load(), int64(1))
 }
 
 func (suite *QueuingTestSuite) TestSlowEnqueue() {
@@ -61,7 +62,7 @@ func (suite *QueuingTestSuite) TestCleanClose() {
 	suite.q.Enqueue(models.Measurement{})
 	_ = suite.q.Close()
 	suite.q.Enqueue(models.Measurement{})
-	suite.Len(suite.saver.ms, 1)
+	suite.Equal(suite.saver.count.Load(), int64(1))
 }
 
 func TestMeasurementQueuingTestSuite(t *testing.T) {
