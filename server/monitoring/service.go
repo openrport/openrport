@@ -15,6 +15,7 @@ import (
 )
 
 type Service interface {
+	SaveMeasurementUpdateTimestamp(ctx context.Context, measurement *models.Measurement) error
 	SaveMeasurement(ctx context.Context, measurement *models.Measurement) error
 	DeleteMeasurementsOlderThan(ctx context.Context, period time.Duration) (int64, error)
 	ListClientMetrics(context.Context, string, *query.ListOptions) (*api.SuccessPayload, error)
@@ -46,8 +47,11 @@ func NewService(dbProvider DBProvider) Service {
 	return &monitoringService{DBProvider: dbProvider}
 }
 
-func (s *monitoringService) SaveMeasurement(ctx context.Context, measurement *models.Measurement) error {
+func (s *monitoringService) SaveMeasurementUpdateTimestamp(ctx context.Context, measurement *models.Measurement) error {
 	measurement.Timestamp = time.Now().UTC()
+	return s.SaveMeasurement(ctx, measurement)
+}
+func (s *monitoringService) SaveMeasurement(ctx context.Context, measurement *models.Measurement) error {
 	return s.DBProvider.CreateMeasurement(ctx, measurement)
 }
 

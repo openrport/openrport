@@ -542,23 +542,20 @@ func (cl *ClientListener) handleSSHRequests(clientLog *logger.Logger, clientID s
 				continue
 			}
 
-			measurement := &models.Measurement{}
-			err := json.Unmarshal(r.Payload, measurement)
+			measurement := models.Measurement{}
+			err := json.Unmarshal(r.Payload, &measurement)
 			if err != nil {
 				clientLog.Errorf("Failed to unmarshal save_measurement: %s", err)
 				continue
 			}
 			measurement.ClientID = clientID
-			err = cl.server.monitoringService.SaveMeasurement(context.Background(), measurement)
-			if err != nil {
-				clientLog.Errorf("Failed to save measurement for client %s: %s", clientID, err)
-				continue
-			}
+			measurement.Timestamp = time.Now().UTC()
+			cl.server.monitoringQueue.Enqueue(measurement)
 
 			if rportplus.IsPlusEnabled(cl.server.config.PlusConfig) {
 				alertingCap := cl.server.plusManager.GetAlertingCapabilityEx()
 				if alertingCap != nil {
-					cl.sendMeasurementToAlertingService(alertingCap, measurement, clientLog)
+					cl.sendMeasurementToAlertingService(alertingCap, &measurement, clientLog)
 				}
 			}
 		default:

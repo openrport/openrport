@@ -81,6 +81,7 @@ type Server struct {
 	caddyServer         *caddy.Server
 	acme                *acme.Acme
 	alertingService     alertingcap.Service
+	monitoringQueue     monitoring.MeasurementSaver
 }
 
 type ServerOpts struct {
@@ -193,6 +194,8 @@ func NewServer(ctx context.Context, config *chconfig.Config, opts *ServerOpts) (
 
 	// even if monitoring disabled, always create the monitoring service to support queries of past data etc
 	s.monitoringService = monitoring.NewService(monitoringProvider)
+
+	s.monitoringQueue = monitoring.NewMeasurementQueuing(s.Logger.Fork("measurements-queue"), s.monitoringService, 10000)
 
 	sourceOptions := config.Server.GetSQLiteDataSourceOptions()
 
@@ -496,6 +499,8 @@ func (s *Server) Close() error {
 		}
 		return true
 	})
+
+	wg.Go(s.monitoringQueue.Close)
 
 	// TODO: (rs):  should we be shutting down the other plugin capabilities here?
 	if s.alertingService != nil {

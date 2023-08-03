@@ -10,7 +10,7 @@ import (
 
 	"github.com/jmoiron/sqlx"
 
-	monitoring "github.com/realvnc-labs/rport/db/migration/monitoring"
+	"github.com/realvnc-labs/rport/db/migration/monitoring"
 	"github.com/realvnc-labs/rport/db/sqlite"
 	"github.com/realvnc-labs/rport/share/logger"
 	"github.com/realvnc-labs/rport/share/models"
@@ -28,6 +28,10 @@ type DBProvider interface {
 	CountByClientID(context.Context, string, *query.ListOptions) (int, error)
 	Close() error
 }
+
+// MaxDeletedEntries to prevent "stop the world" after longer restart, when there is a lot of measurements to clean up
+// clean them in chunks and this is the chunk size
+const MaxDeletedEntries = 5000
 
 type SqliteProvider struct {
 	db        *sqlx.DB
@@ -197,8 +201,10 @@ func (p *SqliteProvider) CreateMeasurement(ctx context.Context, measurement *mod
 	return err
 }
 
+// DeleteMeasurementsBefore deletes entries in chunks of MaxDeletedEntries
+// to clean all you can run in loop as long as there are more than 0 rows affected
 func (p *SqliteProvider) DeleteMeasurementsBefore(ctx context.Context, compare time.Time) (int64, error) {
-	result, err := p.db.ExecContext(ctx, "DELETE FROM measurements WHERE  timestamp < ?", compare)
+	result, err := p.db.ExecContext(ctx, "DELETE FROM measurements WHERE  timestamp IN (SELECT distinct timestamp FROM measurements WHERE timestamp < ? ORDER BY timestamp LIMIT ?)", compare, MaxDeletedEntries)
 	if err != nil {
 		return 0, err
 	}
