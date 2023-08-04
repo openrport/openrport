@@ -21,11 +21,14 @@ var (
 
 type TemplateID string
 
+type CustomData map[string]string
+
 type ScriptDataTemplates struct {
-	Subject    string `json:"subject"`
-	Severity   string `json:"severity"`
-	Client     string `json:"client"`
-	WebhookURL string `json:"webhook_url"`
+	Subject    string     `json:"subject"`
+	Severity   string     `json:"severity"`
+	Client     string     `json:"client"`
+	WebhookURL string     `json:"webhook_url"`
+	Custom     CustomData `json:"custom_data"`
 }
 
 type Template struct {

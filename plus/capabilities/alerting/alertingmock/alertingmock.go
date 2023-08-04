@@ -98,6 +98,16 @@ func newTestTemplates() map[templates.TemplateID]templates.Template {
 			Body:       "The client with ID: {{.Client.ID}} has triggered rule ID: {{.Rule.ID}} BODY2",
 			HTML:       true,
 			Recipients: []string{"t3@test.com", "t4@test.com"},
+			ScriptDataTemplates: &templates.ScriptDataTemplates{
+				Subject:    "{{.Outcome}} for {{.Rule.ID}} SUBJECT2",
+				Severity:   "{{.Rule.Severity}}",
+				Client:     "{{.Client.ID}}",
+				WebhookURL: "https://test.com/rules/{{.Rule.ID}}",
+				Custom: templates.CustomData{
+					"key1": "value1",
+					"key2": "value2",
+				},
+			},
 		},
 		"t3": {
 			ID:         "t3",
