@@ -22,17 +22,17 @@ type APIResponse struct {
 	IP string `json:"ip"`
 }
 
-func GetMyIPs(apiURL string) (ips *models.IPAddresses, err error) {
+func GetMyIPs(ctx context.Context, apiURL string) (ips *models.IPAddresses, err error) {
 	ips = &models.IPAddresses{}
 
-	IPv4, err := getMyIP(apiURL, ipV4)
+	IPv4, err := getMyIP(ctx, apiURL, ipV4)
 	if err != nil {
 		ips.Error = err.Error()
 		return ips, err
 	}
 	ips.IPv4 = IPv4
 
-	IPv6, err := getMyIP(apiURL, ipV6)
+	IPv6, err := getMyIP(ctx, apiURL, ipV6)
 	if err != nil {
 		ips.Error = err.Error()
 		return ips, err
@@ -42,7 +42,7 @@ func GetMyIPs(apiURL string) (ips *models.IPAddresses, err error) {
 	return ips, nil
 }
 
-func getMyIP(apiURL string, netTransport string) (ip string, err error) {
+func getMyIP(ctx context.Context, apiURL string, netTransport string) (ip string, err error) {
 	var zeroDialer net.Dialer
 	var httpClient = &http.Client{
 		Timeout: 2 * time.Second,
@@ -54,7 +54,7 @@ func getMyIP(apiURL string, netTransport string) (ip string, err error) {
 	}
 	httpClient.Transport = transport
 
-	req, err := http.NewRequest("GET", apiURL, nil)
+	req, err := http.NewRequestWithContext(ctx, "GET", apiURL, nil)
 	if err != nil {
 		return "", fmt.Errorf("request to %s failed: %s", apiURL, err)
 	}

@@ -64,7 +64,7 @@ type Client struct {
 	systemInfo         system.SysInfo
 	updates            *updates.Updates
 	monitor            *monitoring.Monitor
-	ipAddresses        *ipAddresses.IPAddresses
+	ipAddressesFetcher *ipAddresses.Fetcher
 	serverCapabilities *models.Capabilities
 	filesAPI           files.FileAPI
 	watchdog           *Watchdog
@@ -97,18 +97,18 @@ func NewClient(config *ClientConfigHolder, filesAPI files.FileAPI) (*Client, err
 
 	systemInfo := system.NewSystemInfo(cmdExec)
 	client := &Client{
-		SessionID:    sessionID,
-		Logger:       logger,
-		configHolder: config,
-		running:      true,
-		runningc:     make(chan error, 1),
-		cmdExec:      cmdExec,
-		systemInfo:   systemInfo,
-		updates:      updates.New(logger, config.Client.UpdatesInterval),
-		monitor:      monitoring.NewMonitor(logger, config.Monitoring, systemInfo),
-		ipAddresses:  ipAddresses.New(logger, config.Client.IPAPIURL, config.Client.IPRefreshMin),
-		filesAPI:     filesAPI,
-		watchdog:     watchdog,
+		SessionID:          sessionID,
+		Logger:             logger,
+		configHolder:       config,
+		running:            true,
+		runningc:           make(chan error, 1),
+		cmdExec:            cmdExec,
+		systemInfo:         systemInfo,
+		updates:            updates.New(logger, config.Client.UpdatesInterval),
+		monitor:            monitoring.NewMonitor(logger, config.Monitoring, systemInfo),
+		ipAddressesFetcher: ipAddresses.NewFetcher(logger, config.Client.IPAPIURL, config.Client.IPRefreshMin),
+		filesAPI:           filesAPI,
+		watchdog:           watchdog,
 	}
 
 	client.sshConfig = &ssh.ClientConfig{
@@ -119,7 +119,7 @@ func NewClient(config *ClientConfigHolder, filesAPI files.FileAPI) (*Client, err
 		Timeout:         AuthTimeout,
 	}
 
-	logger.Infof("New client instance with sessionID %s", sessionID)
+	logger.Infof("NewFetcher client instance with sessionID %s", sessionID)
 	return client, nil
 }
 
@@ -290,9 +290,10 @@ func (c *Client) connectionLoop(ctx context.Context, withInitialSendRequestDelay
 		// Hand over the open SSH connection to the client
 		c.setConn(sshClientConn.Connection)
 
+		// Hand over the open SSH connection to subsystems running their own go routines
 		c.updates.SetConn(sshClientConn.Connection)
+		c.ipAddressesFetcher.SetConn(sshClientConn.Connection)
 		c.monitor.SetConn(sshClientConn.Connection)
-		c.ipAddresses.SetConn(sshClientConn.Connection)
 
 		// watch for shutting down due to ctx.Done
 		go func() {
@@ -307,10 +308,9 @@ func (c *Client) connectionLoop(ctx context.Context, withInitialSendRequestDelay
 		c.Logger.Infof("connection wait stopped")
 
 		c.setConn(nil)
-		c.updates.SetConn(nil)
-		c.monitor.SetConn(nil)
-		c.ipAddresses.SetConn(nil)
 		c.monitor.Stop()
+		c.updates.Stop()
+		c.ipAddressesFetcher.Stop()
 		cancelSwitchback()
 
 		// use of closed network connection happens when switchback closes the connection, ignore the error
@@ -579,7 +579,7 @@ func (c *Client) sendConnectionRequest(ctx context.Context, sshConn ssh.Conn, mi
 	c.Infof(msg)
 
 	for _, r := range remotes {
-		c.Infof("New tunnel: %s", r.String())
+		c.Infof("NewFetcher tunnel: %s", r.String())
 
 		serverStr := r.Local()
 		if r.HTTPProxy {
@@ -598,6 +598,12 @@ func (c *Client) afterPutCapabilities(ctx context.Context) {
 		c.monitor.Start(ctx)
 	} else {
 		c.Debugf("Server has no monitoring capability, measurement not started")
+	}
+
+	if c.serverCapabilities.IPAddressesVersion > 0 {
+		c.ipAddressesFetcher.Start(ctx)
+	} else {
+		c.Debugf("Server has no Fetcher capability, fetching not started")
 	}
 }
 

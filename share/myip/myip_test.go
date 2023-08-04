@@ -1,6 +1,7 @@
 package myip
 
 import (
+	"context"
 	"fmt"
 	"net/http"
 	"strings"
@@ -40,7 +41,8 @@ func startServer(t *testing.T) {
 
 func TestGetMyIps(t *testing.T) {
 	go startServer(t)
-	ips, err := GetMyIPs(fmt.Sprintf("http://localhost:%d/good", port))
+	ctx := context.Background()
+	ips, err := GetMyIPs(ctx, fmt.Sprintf("http://localhost:%d/good", port))
 
 	require.NoError(t, err)
 	assert.Equal(t, "127.0.0.1", ips.IPv4)
@@ -48,7 +50,8 @@ func TestGetMyIps(t *testing.T) {
 }
 
 func TestGetMyIpsFailing(t *testing.T) {
-	_, err := GetMyIPs(fmt.Sprintf("http://localhost:%d/bad", port))
+	ctx := context.Background()
+	_, err := GetMyIPs(ctx, fmt.Sprintf("http://localhost:%d/bad", port))
 
 	assert.ErrorContains(t, err, "400: something went wrong")
 }
