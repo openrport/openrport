@@ -17,6 +17,9 @@ var (
 	ErrMissingScriptSubjectMsg                = "missing data subject"
 	ErrBadlyFormedWebhookMsg                  = "badly formed webhook"
 	ErrMissingWebhookURLHostMsg               = "missing host in webhook url"
+	ErrScriptNotFoundMsg                      = "script not found"
+	ErrFailedToStatScriptFile                 = "failed to stat script file"
+	ErrScriptNotExecutableMsg                 = "script not executable"
 )
 
 type TemplateID string
