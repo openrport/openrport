@@ -141,18 +141,25 @@ func newTestRuleSets() map[rules.RuleSetID]rules.RuleSet {
 }
 
 func newTestProblems() map[rules.ProblemID]rules.Problem {
+	tz, _ := time.LoadLocation("UTC")
 	testProblems := map[rules.ProblemID]rules.Problem{
 		"p1": {
-			ID:     "p1",
-			RuleID: "r1",
+			ID:        "p1",
+			RuleID:    "r1",
+			Active:    true,
+			CreatedAt: time.Date(2023, 06, 03, 0, 0, 0, 0, tz),
 		},
 		"p2": {
-			ID:     "p2",
-			RuleID: "r1",
+			ID:         "p2",
+			RuleID:     "r1",
+			CreatedAt:  time.Date(2023, 07, 01, 0, 0, 0, 0, tz),
+			ResolvedAt: types.NewTimeJSON(time.Date(2023, 07, 01, 0, 0, 0, 0, tz)),
 		},
 		"p3": {
-			ID:     "p3",
-			RuleID: "r2",
+			ID:         "p3",
+			RuleID:     "r2",
+			CreatedAt:  time.Date(2023, 07, 02, 0, 0, 0, 0, tz),
+			ResolvedAt: types.NewTimeJSON(time.Date(2023, 07, 02, 0, 0, 0, 0, tz)),
 		},
 	}
 	return testProblems
