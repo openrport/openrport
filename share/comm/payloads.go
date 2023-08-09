@@ -7,7 +7,7 @@ import (
 )
 
 const (
-	// request types sent by server to clients
+	// RequestTypeCheckPort request types sent by server to clients
 	RequestTypeCheckPort            = "check_port"
 	RequestTypeRunCmd               = "run_cmd"
 	RequestTypeRefreshUpdatesStatus = "refresh_updates_status"
@@ -16,13 +16,14 @@ const (
 
 	RequestTypeUpdateClientAttributes = "update_client_metadata"
 
-	// request types sent by clients to server
+	// RequestTypeCmdResult request types sent by clients to server
 	RequestTypeCmdResult       = "cmd_result"
 	RequestTypeUpdatesStatus   = "updates_status"
 	RequestTypeSaveMeasurement = "save_measurement"
 	RequestTypeUpload          = "upload"
+	RequestTypeIPAddresses     = "ip_addresses"
 
-	// request types understood on both sides, client and server
+	// RequestTypePing request types understood on both sides, client and server
 	RequestTypePing = "ping"
 )
 

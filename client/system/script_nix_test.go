@@ -13,6 +13,7 @@ import (
 )
 
 func TestValidateScriptDirNix(t *testing.T) {
+	tmp := t.TempDir()
 	testCases := []struct {
 		name             string
 		dirToGive        string
@@ -22,15 +23,15 @@ func TestValidateScriptDirNix(t *testing.T) {
 	}{
 		{
 			name:          "wrong_dir_mode",
-			dirToGive:     "wrong_dir_mode",
+			dirToGive:     tmp + "/wrong_dir_mode",
 			dirModeToGive: os.FileMode(0755),
-			errToExpect:   "scripts directory wrong_dir_mode must be read-writable only by",
+			errToExpect:   "wrong_dir_mode must be read-writable only by",
 		},
 		{
 			name:          "not_writable_dir",
-			dirToGive:     "not_writable_dir",
+			dirToGive:     tmp + "/not_writable_dir",
 			dirModeToGive: os.FileMode(0444),
-			errToExpect:   "scripts directory not_writable_dir is not writable",
+			errToExpect:   "not_writable_dir is not writable",
 		},
 	}
 

@@ -12,5 +12,8 @@ var BuildVersion = "0.0.0-src"
 // SourceVersion represents a default build version that is used for binaries built from sources.
 var SourceVersion = "0.0.0-src"
 
-// MonitoringVersion repesents the current version of monitoring capability. 0 means no monitoring available.
+// MonitoringVersion represents the current version of monitoring capability. 0 means no monitoring available.
 const MonitoringVersion = 1
+
+// IPAddressesVersion represents the current version of IPAddresses fetching. 0 means no IPAddress fetching available.
+const IPAddressesVersion = 1
