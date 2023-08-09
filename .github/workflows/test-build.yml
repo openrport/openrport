@@ -3,7 +3,7 @@ on: [push]
 
 jobs:
   build_n_run:
-    name: Build and run
+    name: Build, run and upload
     runs-on: ubuntu-latest
     steps:
       - name: Checkout
@@ -20,7 +20,10 @@ jobs:
           RPORT_PLUS_PRIV_KEY: ${{ secrets.RPORT_PLUS_PRIV_KEY }}
         run: |
           echo "🚚 Building rport & rportd now ..."
-          go build -v -ldflags="-X 'github.com/realvnc-labs/rport/share.BuildVersion=$(date -u +%y.%m%d.%H%M)-$(git rev-parse HEAD)'"  -o ./ ./cmd/...
+          BRANCH=$(git status|grep "On branch"|cut -d" " -f3|tr '/' _)
+          export VERSION=$(date -u +%y.%m%d.%H%M)-${BRANCH}
+          # $(git rev-parse HEAD)
+          go build -v -ldflags="-X 'github.com/realvnc-labs/rport/share.BuildVersion=$VERSION'"  -o ./ ./cmd/...
           echo "✅ Successfully build rport"
           echo "🚚 Building Plus Plugin now ..."
           bash .github/scripts/build-plus.sh
@@ -32,3 +35,18 @@ jobs:
         run: |
           bash .github/scripts/start_rportd.sh
           bash .github/scripts/start_rport.sh
+
+      - name: Upload Build to downloads.rport.io
+        env:
+          UPLOAD_TOKEN: ${{ secrets.UPLOAD_TOKEN }}
+        shell: bash
+        run: |
+          echo "🚚 Packaging Build $VERSION ..."
+          echo "$VERSION $(git rev-parse HEAD)" > version.txt
+          TAR=${VERSION}.tar.gz
+          tar czf ${TAR} version.txt rport rportd /home/runner/work/rport/rport/rport-plus/rport-plus.so
+          echo "✅ Successfully created package $TAR"
+          ls -lh $TAR
+          FOLDER=rport-test-builds
+          echo "🚚 Uploading $TAR to $FOLDER downloads"
+          curl -fs https://download.rport.io/exec/upload.php -H "Authentication: $UPLOAD_TOKEN" -F file=@${TAR} -F dest_dir="${FOLDER}"
