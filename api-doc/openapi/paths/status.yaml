@@ -80,6 +80,10 @@ get:
                       that are not used for automatic and manual port assignment
                     items:
                       type: string
+                  password_min_length:
+                    type: integer
+                    description: >-
+                      Minimal password length required for API user accounts
               meta:
                 type: object
                 properties: {}

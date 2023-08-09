@@ -44,6 +44,7 @@ func (al *APIListener) handleGetStatus(w http.ResponseWriter, req *http.Request)
 		"excluded_ports":            al.config.Server.ExcludedPortsRaw,
 		"used_ports":                al.config.Server.UsedPortsRaw,
 		"monitoring_enabled":        al.config.Monitoring.Enabled,
+		"password_min_length":       al.config.API.PasswordMinLength,
 	})
 
 	al.writeJSONResponse(w, http.StatusOK, response)
