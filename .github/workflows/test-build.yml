@@ -1,9 +1,9 @@
-name: Build and run
+name: Build, test and upload
 on: [push]
 
 jobs:
   build_n_run:
-    name: Build, run and upload
+    name: Build, test and upload
     runs-on: ubuntu-latest
     steps:
       - name: Checkout
@@ -29,6 +29,7 @@ jobs:
           bash .github/scripts/build-plus.sh
           ls -l /home/runner/work/rport/rport/rport-plus/rport-plus.so
           echo "✅ Successfully built the plus plugin"
+          echo "$VERSION $(git rev-parse HEAD)" > version.txt
 
       - name: Test Build
         shell: bash
@@ -41,8 +42,8 @@ jobs:
           UPLOAD_TOKEN: ${{ secrets.UPLOAD_TOKEN }}
         shell: bash
         run: |
+          VERSION=$(cat version.txt | cut -d" " -f1)
           echo "🚚 Packaging Build $VERSION ..."
-          echo "$VERSION $(git rev-parse HEAD)" > version.txt
           TAR=${VERSION}.tar.gz
           tar czf ${TAR} version.txt rport rportd /home/runner/work/rport/rport/rport-plus/rport-plus.so
           echo "✅ Successfully created package $TAR"
