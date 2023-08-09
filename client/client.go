@@ -579,7 +579,7 @@ func (c *Client) sendConnectionRequest(ctx context.Context, sshConn ssh.Conn, mi
 	c.Infof(msg)
 
 	for _, r := range remotes {
-		c.Infof("NewFetcher tunnel: %s", r.String())
+		c.Infof("New tunnel: %s", r.String())
 
 		serverStr := r.Local()
 		if r.HTTPProxy {
