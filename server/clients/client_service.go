@@ -66,6 +66,7 @@ type ClientService interface {
 
 	SetUpdatesStatus(clientID string, updatesStatus *models.UpdatesStatus) error
 	SetLastHeartbeat(clientID string, heartbeat time.Time) error
+	SetIPAddresses(clientID string, IPAddresses *models.IPAddresses) error
 
 	GetRepo() *ClientRepository
 
@@ -163,6 +164,7 @@ var OptionsSupportedFields = map[string]map[string]bool{
 		"mem_total":                true,
 		"allowed_user_groups":      true,
 		"updates_status":           true,
+		"ip_addresses":             true,
 		"client_configuration":     true,
 		"groups":                   true,
 	},
@@ -655,6 +657,17 @@ func (s *ClientServiceProvider) SetUpdatesStatus(clientID string, updatesStatus 
 	}
 
 	client.SetUpdatesStatus(updatesStatus)
+
+	return s.repo.Save(client)
+}
+
+func (s *ClientServiceProvider) SetIPAddresses(clientID string, IPAddresses *models.IPAddresses) error {
+	client, err := s.getExistingClientByID(clientID)
+	if err != nil {
+		return err
+	}
+
+	client.SetIPAddresses(IPAddresses)
 
 	return s.repo.Save(client)
 }

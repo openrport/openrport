@@ -56,6 +56,7 @@ func (m *Monitor) Start(ctx context.Context) {
 }
 
 func (m *Monitor) Stop() {
+	m.conn = nil
 	if m.stopFn == nil {
 		return
 	}

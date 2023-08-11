@@ -158,6 +158,7 @@ func TestHandleGetClient(t *testing.T) {
         "cpu_model_name":"",
         "cpu_vendor":"GenuineIntel",
         "disconnected_at":null,
+        "ext_ip_addresses":null,
         "last_heartbeat_at":null,
         "client_auth_id":"user1",
         "allowed_user_groups":null,

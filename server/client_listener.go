@@ -615,6 +615,20 @@ func (cl *ClientListener) handleSSHRequests(clientLog *logger.DynamicLogger, cli
 					cl.sendMeasurementToAlertingService(alertingCap, measurement, clientLog)
 				}
 			}
+		case comm.RequestTypeIPAddresses:
+			clientLog.Debugf("IP addresses update received from: %s, payload: %s", clientID, r.Payload)
+			IPAddresses := &models.IPAddresses{}
+			err := json.Unmarshal(r.Payload, IPAddresses)
+			if err != nil {
+				clientLog.Errorf("Failed to unmarshal IP addresses: %s", err)
+				continue
+			}
+			IPAddresses.UpdatedAt = time.Now().UTC()
+			err = clientService.SetIPAddresses(clientID, IPAddresses)
+			if err != nil {
+				clientLog.Errorf("Failed to save IPAddresses status: %s", err)
+				continue
+			}
 		default:
 			clientLog.Debugf("Unknown request: %s", r.Type)
 		}

@@ -74,7 +74,7 @@ func (u *Updates) refreshLoop(ctx context.Context) {
 
 		select {
 		case <-ctx.Done():
-			u.logger.Debugf("updates refreshLoop finished")
+			u.logger.Debugf("OS updates refreshLoop finished")
 			return
 		// acceptable use of time.After, as the number of triggered refreshes is small
 		case <-time.After(u.interval):
@@ -119,7 +119,7 @@ func (u *Updates) refreshStatus(ctx context.Context) {
 	go u.sendUpdates()
 }
 
-// sendUpdates sends updates in background, it's called both after status is refreshed or conn set
+// sendUpdates sends updates in background
 func (u *Updates) sendUpdates() {
 	u.mtx.RLock()
 	defer u.mtx.RUnlock()
@@ -144,5 +144,8 @@ func (u *Updates) SetConn(c ssh.Conn) {
 	defer u.mtx.Unlock()
 
 	u.conn = c
-	go u.sendUpdates()
+}
+
+func (u *Updates) Stop() {
+	u.conn = nil
 }
