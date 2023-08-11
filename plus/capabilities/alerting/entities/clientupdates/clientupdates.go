@@ -40,7 +40,7 @@ type Client struct {
 	IPv4                   []string `json:"ipv4"`
 	IPv6                   []string `json:"ipv6"`
 
-	Measures measures.Measures `json:"-"`
+	Measurements measures.Measures `json:"-"`
 }
 
 func (c *Client) Clone() (clonedClient Client) {
@@ -49,7 +49,7 @@ func (c *Client) Clone() (clonedClient Client) {
 	clonedClient.Labels = cloneSimpleStringMap(c.Labels)
 	clonedClient.IPv4 = cloneSimpleArray(c.IPv4)
 	clonedClient.IPv6 = cloneSimpleArray(c.IPv6)
-	clonedClient.Measures = c.Measures.Clone()
+	clonedClient.Measurements = c.Measurements.Clone()
 	if c.DisconnectedAt != nil {
 		at := *c.DisconnectedAt
 		clonedClient.DisconnectedAt = &at

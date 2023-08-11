@@ -14,9 +14,11 @@ properties:
     type: boolean
   created_at:
     type: string
+    format: data-time
   resolved_at:
     type: string
+    format: data-time
   client_update_id:
     type: string
-  measure_update_id:
+  measurement_update_id:
     type: string

@@ -1,0 +1,66 @@
+title: Client
+type: object
+properties:
+  id:
+    type: string
+  name:
+    type: string
+  timestamp:
+    type: string
+    format: data-time
+  version:
+    type: string
+  address:
+    type: string
+  disconnected_at:
+    type: string
+    format: data-time
+  last_heartbeat_at:
+    type: string
+    format: data-time
+  connection_state:
+    type: string
+  tags:
+    type: array
+    items:
+      type: string
+  labels:
+    type: object
+    additionalProperties:
+      type: string
+  updates_available:
+    type: number
+  security_updates_available:
+    type: number
+  os:
+    type: string
+  os_arch:
+    type: string
+  os_family:
+    type: string
+  os_kernel:
+    type: string
+  os_full_name:
+    type: string
+  os_version:
+    type: string
+  os_virtualization_system:
+    type: string
+  os_virtualization_role:
+    type: string
+  num_cpus:
+    type: number
+  mem_total:
+    type: number
+  timezone:
+    type: string
+  hostname:
+    type: string
+  ipv4:
+    type: array
+    items:
+      type: string
+  ipv6:
+    type: array
+    items:
+      type: string

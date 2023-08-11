@@ -6,13 +6,13 @@ import (
 	"sort"
 	"time"
 
-	"github.com/dgraph-io/badger/v4"
 	"go.etcd.io/bbolt"
 
 	alertingcap "github.com/realvnc-labs/rport/plus/capabilities/alerting"
 	"github.com/realvnc-labs/rport/plus/capabilities/alerting/entities/clientupdates"
 	"github.com/realvnc-labs/rport/plus/capabilities/alerting/entities/measures"
 	"github.com/realvnc-labs/rport/plus/capabilities/alerting/entities/rules"
+	"github.com/realvnc-labs/rport/plus/capabilities/alerting/entities/rundata"
 	"github.com/realvnc-labs/rport/plus/capabilities/alerting/entities/templates"
 	"github.com/realvnc-labs/rport/plus/capabilities/alerting/entities/validations"
 	"github.com/realvnc-labs/rport/plus/capabilities/status"
@@ -39,7 +39,7 @@ func (cap *Capability) GetInitFuncName() (name string) {
 }
 
 // InitProvider sets the capability provider to the local mock implementation
-func (cap *Capability) InitProvider(initFn plugin.Symbol) {
+func (cap *Capability) InitProvider(_ plugin.Symbol) {
 	if cap.Provider == nil {
 		cap.Provider = &MockCapabilityProvider{
 			serviceMock: NewMockServiceProvider(),
@@ -60,25 +60,25 @@ func (cap *Capability) GetConfigValidator() (v validator.Validator) {
 }
 
 // ValidateConfig does nothing for the mock implementation
-func (mp *MockCapabilityProvider) ValidateConfig() (err error) {
+func (mcp *MockCapabilityProvider) ValidateConfig() (err error) {
+	return nil
+}
+
+func (mcp *MockCapabilityProvider) Init(_ *bbolt.DB) (err error) {
 	return nil
 }
 
 // GetService returns a mock service
-func (mp *MockCapabilityProvider) InitBadgerDB(_ *badger.DB) (err error) {
-	return nil
-}
-
-func (mp *MockCapabilityProvider) Init(_ *bbolt.DB) (err error) {
-	return nil
-}
-
-// GetService returns a mock service
-func (mp *MockCapabilityProvider) GetService() (s alertingcap.Service) {
-	if mp.serviceMock == nil {
-		mp.serviceMock = &MockServiceProvider{}
+func (mcp *MockCapabilityProvider) GetService() (s alertingcap.Service) {
+	if mcp.serviceMock == nil {
+		mcp.serviceMock = &MockServiceProvider{}
 	}
-	return mp.serviceMock
+	return mcp.serviceMock
+}
+
+func (mcp *MockCapabilityProvider) RunRulesTest(_ context.Context, _ *rundata.RunData, _ *logger.Logger) (
+	results *rundata.TestResults, errs validations.ErrorList, err error) {
+	return nil, nil, nil
 }
 
 func newTestTemplates() map[templates.TemplateID]templates.Template {
@@ -180,7 +180,7 @@ func NewMockServiceProvider() (mp *MockServiceProvider) {
 	return mp
 }
 
-func (mp *MockServiceProvider) Run(ctx context.Context, _ notifications.Dispatcher) {
+func (mp *MockServiceProvider) Run(_ context.Context, _ notifications.Dispatcher) {
 }
 
 func (mp *MockServiceProvider) Stop() (err error) {
@@ -239,11 +239,11 @@ func (mp *MockServiceProvider) DeleteTemplate(templateID templates.TemplateID) (
 	return nil
 }
 
-func (mp *MockServiceProvider) PutClientUpdate(cl *clientupdates.Client) (err error) {
+func (mp *MockServiceProvider) PutClientUpdate(_ *clientupdates.Client) (err error) {
 	return nil
 }
 
-func (mp *MockServiceProvider) PutMeasurement(m *measures.Measure) (err error) {
+func (mp *MockServiceProvider) PutMeasurement(_ *measures.Measure) (err error) {
 	return nil
 }
 
@@ -251,7 +251,7 @@ func (mp *MockServiceProvider) LoadDefaultRuleSet() (err error) {
 	return nil
 }
 
-func (mp *MockServiceProvider) SetRuleSet(rs *rules.RuleSet) {
+func (mp *MockServiceProvider) SetRuleSet(_ *rules.RuleSet) {
 }
 
 func (mp *MockServiceProvider) GetProblem(pid rules.ProblemID) (problem *rules.Problem, err error) {
@@ -263,11 +263,11 @@ func (mp *MockServiceProvider) GetProblem(pid rules.ProblemID) (problem *rules.P
 	return problem, nil
 }
 
-func (mp *MockServiceProvider) GetLatestProblem(rid rules.RuleID, clientID string) (problem *rules.Problem, err error) {
+func (mp *MockServiceProvider) GetLatestProblem(_ rules.RuleID, _ string) (problem *rules.Problem, err error) {
 	return problem, nil
 }
 
-func (mp *MockServiceProvider) SetProblemActive(pid rules.ProblemID) (err error) {
+func (mp *MockServiceProvider) SetProblemActive(_ rules.ProblemID) (err error) {
 	return nil
 }
 
@@ -282,7 +282,7 @@ func (mp *MockServiceProvider) SetProblemResolved(pid rules.ProblemID, resolvedA
 	return nil
 }
 
-func (mp *MockServiceProvider) GetLatestProblems(limit int) (problems []*rules.Problem, err error) {
+func (mp *MockServiceProvider) GetLatestProblems(_ int) (problems []*rules.Problem, err error) {
 	for _, problem := range mp.Problems {
 		p := problem
 		problems = append(problems, &p)

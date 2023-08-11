@@ -1,0 +1,18 @@
+type: object
+properties:
+  problems:
+    type: array
+    items:
+      $ref: ./Problem.yaml
+  notifications:
+    type: array
+    items:
+      $ref: ./NotificationRequest.yaml
+  log_output:
+    type: string
+  validation_errors:
+    type: array
+    items:
+      $ref: ./RulesValidationError.yaml
+  error:
+    type: string

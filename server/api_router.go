@@ -243,6 +243,8 @@ func (al *APIListener) initRouter() {
 
 		secureASRouter.Handle(routes.ASTemplatesRoute, al.wrapAdminAccessMiddleware(http.HandlerFunc(al.handleSaveTemplate))).Methods(http.MethodPost)
 		secureASRouter.Handle(routes.ASTemplatesRoute+"/{"+routes.ParamTemplateID+"}", al.wrapAdminAccessMiddleware(http.HandlerFunc(al.handleSaveTemplate))).Methods(http.MethodPut)
+
+		secureASRouter.Handle(routes.ASRuleSetRoute+routes.ASRunTestRulesRoute, al.wrapAdminAccessMiddleware(http.HandlerFunc(al.handleTestRules))).Methods(http.MethodPut)
 	}
 
 	if rportplus.IsPlusOAuthEnabled(al.config.PlusConfig) {

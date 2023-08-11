@@ -1,0 +1,19 @@
+type: object
+properties:
+  ref_id:
+    type: string
+  notification:
+    type: object
+    properties:
+      target:
+        $ref: ./Transport.yaml
+      subject:
+        type: string
+      recipients:
+        type: array
+        items:
+          type: string
+      content:
+        type: string
+      content_type:
+        type: string

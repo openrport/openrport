@@ -111,7 +111,10 @@ func TransformMountPointsJSONToMountPoints(mpJSON string) (mountPoints []measure
 
 	// copy the wip mount point list/map to an array
 	for _, mps := range mpl {
-		mountPoints = append(mountPoints, *mps)
+		m := *mps
+		m.FreePercent = mps.CalcFreePercent()
+		m.UsedPercent = mps.CalcUsedPercent()
+		mountPoints = append(mountPoints, m)
 	}
 
 	sort.Slice(mountPoints, func(i int, j int) bool {

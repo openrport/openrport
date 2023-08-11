@@ -1,0 +1,26 @@
+title: Measurement
+type: object
+properties:
+  uid:
+    type: string
+  client_id:
+    type: string
+  timestamp:
+    type: string
+    format: data-time
+  cpu_usage_percent:
+    type: number
+  memory_usage_percent:
+    type: number
+  netlan:
+    $ref: ./Measure_NetBytes.yaml
+  netwan:
+    $ref: ./Measure_NetBytes.yaml
+  processes:
+    type: array
+    items:
+      $ref: ./Measure_Process.yaml
+  mountpoints:
+    type: array
+    items:
+      $ref: ./Measure_Mountpoint.yaml
