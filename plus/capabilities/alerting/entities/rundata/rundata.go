@@ -18,6 +18,13 @@ type RunData struct {
 	WaitMilliSecs int                    `json:"delay_ms"`
 }
 
+type RecordingStatus int
+
+type SampleData struct {
+	CL []clientupdates.Client `json:"client_data"`
+	M  []measures.Measure     `json:"measurements"`
+}
+
 type NotificationResult struct {
 	RefID        refs.Identifiable              `json:"ref_id"`
 	Notification notifications.NotificationData `json:"notification"`
