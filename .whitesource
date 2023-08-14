@@ -22,7 +22,7 @@
     "severityThreshold": "high"
   },
   "issueSettings": {
-    "minSeverityLevel": "LOW",
+    "minSeverityLevel": "NONE",
     "issueType": "DEPENDENCY"
   },
   "remediateSettings": {
