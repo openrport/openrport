@@ -22,7 +22,7 @@ this parameter aspires to optimize server resource allocation and guarantee a mo
 
 ---
 
-## Addressing User Queries:
+## Addressing User Queries
 
 ### 1. **Can this be set to "No limit" for scalable environments?**
 
@@ -64,7 +64,7 @@ However, there are associated cascading implications:
 
 ---
 
-## Additional Recommendations:
+## Additional Recommendations
 
 - **Planning for Downtimes:** Forewarn of upcoming server downtimes, 
  encourage staggered client reconnections, or consider rolling restarts to alleviate the thundering herd effect.
