@@ -68,7 +68,6 @@ type Server struct {
 	clientAuthProvider  clientsauth.Provider
 	jobProvider         JobProvider
 	clientGroupProvider cgroups.ClientGroupProvider
-	monitoringService   monitoring.Service
 	authDB              *sqlx.DB
 	uiJobWebSockets     ws.WebSocketCache // used to push job result to UI
 	uploadWebSockets    sync.Map
@@ -81,7 +80,7 @@ type Server struct {
 	caddyServer         *caddy.Server
 	acme                *acme.Acme
 	alertingService     alertingcap.Service
-	monitoringQueue     monitoring.MeasurementSaver
+	monitoringModule    monitoring.Monitoring
 }
 
 type ServerOpts struct {
@@ -182,7 +181,7 @@ func NewServer(ctx context.Context, config *chconfig.Config, opts *ServerOpts) (
 		return nil, err
 	}
 
-	// create monitoringProvider and monitoringService
+	// create monitoringProvider and monitoringModule
 	monitoringProvider, err := monitoring.NewSqliteProvider(
 		path.Join(config.Server.DataDir, "monitoring.db"),
 		config.Server.GetSQLiteDataSourceOptions(),
@@ -193,9 +192,7 @@ func NewServer(ctx context.Context, config *chconfig.Config, opts *ServerOpts) (
 	}
 
 	// even if monitoring disabled, always create the monitoring service to support queries of past data etc
-	s.monitoringService = monitoring.NewService(monitoringProvider)
-
-	s.monitoringQueue = monitoring.NewMeasurementQueuing(s.Logger.Fork("measurements-queue"), s.monitoringService, 10000)
+	s.monitoringModule = monitoring.BootstrapMonitoring(s.Logger, monitoringProvider)
 
 	sourceOptions := config.Server.GetSQLiteDataSourceOptions()
 
@@ -403,7 +400,7 @@ func (s *Server) Run(ctx context.Context) error {
 			cleaningPeriod = s.config.Monitoring.GetDataStorageDuration()
 		}
 
-		monitoringCleanupTask := monitoring.NewCleanupTask(s.Logger, s.monitoringService, cleaningPeriod)
+		monitoringCleanupTask := monitoring.NewCleanupTask(s.Logger, s.monitoringModule, cleaningPeriod)
 		go scheduler.Run(ctx, s.Logger.Fork(fmt.Sprintf("task %T", monitoringCleanupTask)), monitoringCleanupTask, cleanupMeasurementsInterval)
 		s.Infof("Task to cleanup measurements will run with interval %v", cleanupMeasurementsInterval)
 	} else {
@@ -500,7 +497,7 @@ func (s *Server) Close() error {
 		return true
 	})
 
-	wg.Go(s.monitoringQueue.Close)
+	wg.Go(s.monitoringModule.Close)
 
 	// TODO: (rs):  should we be shutting down the other plugin capabilities here?
 	if s.alertingService != nil {

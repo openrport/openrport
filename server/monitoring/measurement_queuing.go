@@ -13,7 +13,7 @@ type saver interface {
 }
 
 type MeasurementSaver interface {
-	Enqueue(models.Measurement)
+	Notify(models.Measurement)
 	Close() error
 }
 
@@ -35,7 +35,7 @@ func (q *queue) Close() error {
 	return nil
 }
 
-func (q *queue) Enqueue(measurement models.Measurement) {
+func (q *queue) Notify(measurement models.Measurement) {
 	if q.closed.Load() {
 		return
 	}

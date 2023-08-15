@@ -111,7 +111,7 @@ func TestListClientMetrics(t *testing.T) {
 		ProcessesListPayload:   lcpp,
 		MountpointsListPayload: nil,
 	}
-	monitoringService := monitoring.NewService(dbProvider)
+	monitoringModule := monitoring.BootstrapMonitoring(testLog, dbProvider)
 	al := APIListener{
 		insecureForTests: true,
 		Server: &Server{
@@ -120,7 +120,7 @@ func TestListClientMetrics(t *testing.T) {
 					Enabled: true,
 				},
 			},
-			monitoringService: monitoringService,
+			monitoringModule: monitoringModule,
 		},
 	}
 	al.initRouter()
@@ -204,7 +204,8 @@ func TestMonitoringDisabled(t *testing.T) {
 		ProcessesListPayload:   lcpp,
 		MountpointsListPayload: nil,
 	}
-	monitoringService := monitoring.NewService(dbProvider)
+
+	monitoringModule := monitoring.BootstrapMonitoring(testLog, dbProvider)
 
 	testCases := []struct {
 		Name           string
@@ -248,7 +249,7 @@ func TestMonitoringDisabled(t *testing.T) {
 							Enabled: tc.Enabled,
 						},
 					},
-					monitoringService: monitoringService,
+					monitoringModule: monitoringModule,
 				},
 			}
 			al.initRouter()

@@ -45,23 +45,23 @@ func (suite *QueuingTestSuite) SetupTest() {
 }
 
 func (suite *QueuingTestSuite) TestEnqueue() {
-	suite.q.Enqueue(models.Measurement{})
+	suite.q.Notify(models.Measurement{})
 	suite.Equal(suite.saver.count.Load(), int64(1))
 }
 
 func (suite *QueuingTestSuite) TestSlowEnqueue() {
 	suite.saver.slow.Store(true)
 	stopper := time.Now()
-	suite.q.Enqueue(models.Measurement{})
+	suite.q.Notify(models.Measurement{})
 
 	suite.Less(time.Since(stopper), time.Millisecond)
 }
 
 func (suite *QueuingTestSuite) TestCleanClose() {
 	suite.saver.slow.Store(true)
-	suite.q.Enqueue(models.Measurement{})
+	suite.q.Notify(models.Measurement{})
 	_ = suite.q.Close()
-	suite.q.Enqueue(models.Measurement{})
+	suite.q.Notify(models.Measurement{})
 	suite.Equal(suite.saver.count.Load(), int64(1))
 }
 
