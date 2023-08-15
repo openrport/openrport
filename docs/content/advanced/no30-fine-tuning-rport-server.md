@@ -5,19 +5,19 @@ slug: "fine-tuing-rport-server"
 ---
 {{< toc >}}
 
-The `max_concurrent_ssh_handshake` parameter is a pivotal configuration detail in the rport server. 
+The `max_concurrent_ssh_handshake` parameter is a pivotal configuration detail in the rport server.
 Here, we delve deep into what it represents and its implications, especially when dealing with a large client base.
 
 ---
 
 ## What is `max_concurrent_ssh_handshake`?
 
-The `max_concurrent_ssh_handshake` parameter in the rport server was introduced as a defensive measure against 
+The `max_concurrent_ssh_handshake` parameter in the rport server was introduced as a defensive measure against
 the "thundering herd" effect. This effect becomes notably pronounced post server downtimes,
-when a deluge of clients try to reestablish their SSH connections simultaneously. 
-Handling numerous connection attempts and the extensive data associated with each handshake 
-can heavily tax both the CPU and network bandwidth, frequently leading to subsequent connection timeouts. 
-Through capping concurrent handshakes, 
+when a deluge of clients try to reestablish their SSH connections simultaneously.
+Handling numerous connection attempts and the extensive data associated with each handshake
+can heavily tax both the CPU and network bandwidth, frequently leading to subsequent connection timeouts.
+Through capping concurrent handshakes,
 this parameter aspires to optimize server resource allocation and guarantee a more streamlined reconnection process.
 
 ---
@@ -26,47 +26,47 @@ this parameter aspires to optimize server resource allocation and guarantee a mo
 
 ### 1. **Can this be set to "No limit" for scalable environments?**
 
-Setting this parameter to "No limit" isn't viable. Without a stipulated cap, 
+Setting this parameter to "No limit" isn't viable. Without a stipulated cap,
 the server risks undue strain, notably during peak reconnection periods.
 
 ### 2. **What are the effects of raising this parameter?**
 
-A loftier `max_concurrent_ssh_handshake` value allows a greater number of simultaneous SSH handshake processes. 
+A loftier `max_concurrent_ssh_handshake` value allows a greater number of simultaneous SSH handshake processes.
 However, it's crucial to remain wary of potential server resource saturation, particularly during mass reconnections.
 
 ### 3. **How should we scale?**
 
-- **Infrastructure:** Ensure your server resources 
+- **Infrastructure:** Ensure your server resources
  — CPU, memory, and network — are in sync with expected peak loads, especially post-downtime.
 
 - **Client Strategy:** Pre-configured clients come with a growing backoff mechanism,
  aiding the server during peak times. This feature should inform the server's scaling strategy.
 
-- **Tuning:** Modify the `max_concurrent_ssh_handshake` based on past data, 
+- **Tuning:** Modify the `max_concurrent_ssh_handshake` based on past data,
  anticipated load patterns, and server performance metrics post-downtimes.
 
 ### 4. **What happens if we set the baseline to 100?**
 
-Setting the `max_concurrent_ssh_handshake` to a value like 100 caps the server 
+Setting the `max_concurrent_ssh_handshake` to a value like 100 caps the server
 to processing a maximum of 100 concurrent SSH handshakes.
 
 However, there are associated cascading implications:
 
 - **Connection Queueing**: A low threshold can result in many clients queueing up, leading to prolonged waits.
 
-- **Client Timeouts**: Protracted waits can cause client-side timeouts, 
+- **Client Timeouts**: Protracted waits can cause client-side timeouts,
  notably problematic if most clients are attempting simultaneous reconnections.
 
-- **Exponential Backoff**: Given the client-side exponential backoff strategy, 
- timeouts can lead to elongated durations before subsequent reconnection attempts. 
- Consequently, a lower handshake limit can result in extended timeframes 
+- **Exponential Backoff**: Given the client-side exponential backoff strategy,
+ timeouts can lead to elongated durations before subsequent reconnection attempts.
+ Consequently, a lower handshake limit can result in extended timeframes
  before all clients manage successful reconnections.
 
 ---
 
 ## Additional Recommendations
 
-- **Planning for Downtimes:** Forewarn of upcoming server downtimes, 
+- **Planning for Downtimes:** Forewarn of upcoming server downtimes,
  encourage staggered client reconnections, or consider rolling restarts to alleviate the thundering herd effect.
 
 - **Monitoring:** Monitor essential metrics like CPU usage, network bandwidth,
@@ -75,5 +75,5 @@ However, there are associated cascading implications:
 - **Testing:** Create controlled test environments to simulate post-downtime connection dynamics,
  ensuring optimal live configurations.
 
-- **Feedback Loop:** Create alert mechanisms for potential resource overconsumption instances, 
+- **Feedback Loop:** Create alert mechanisms for potential resource overconsumption instances,
  such as CPU spikes or bandwidth bottlenecks, ensuring timely interventions.
