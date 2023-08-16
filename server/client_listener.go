@@ -255,8 +255,14 @@ func (cl *ClientListener) nextClientIndex() int32 {
 
 func (cl *ClientListener) acceptSSHConnection(w http.ResponseWriter, req *http.Request) (sshConn *ssh.ServerConn, chans <-chan ssh.NewChannel, reqs <-chan *ssh.Request,
 	clog *logger.DynamicLogger, err error) {
+
+	// throttle concurrent connections
 	// add to pending connections. will block if the chan is full
 	cl.inprogressSSHHandshakes <- struct{}{}
+	defer func() {
+		// on handshake finished, remove from pending connections, which will allow another connection to take place
+		<-cl.inprogressSSHHandshakes
+	}()
 
 	clog = logger.ForkToDynamicLogger(cl.log(), fmt.Sprintf("client#%d", cl.nextClientIndex()), true, false)
 	clog.SetControl(ClientRequestsLog, ClientRequestsLogEnabled)
@@ -269,7 +275,6 @@ func (cl *ClientListener) acceptSSHConnection(w http.ResponseWriter, req *http.R
 	wsConn, err := upgrader.Upgrade(w, req, nil)
 	if err != nil {
 		clog.Debugf("Failed to upgrade (%s)", err)
-		<-cl.inprogressSSHHandshakes
 		return nil, nil, nil, nil, err
 	}
 	conn := chshare.NewWebSocketConn(wsConn)
@@ -282,13 +287,9 @@ func (cl *ClientListener) acceptSSHConnection(w http.ResponseWriter, req *http.R
 		} else {
 			clog.Debugf("Failed to handshake (%s) from %s", err, conn.RemoteAddr().String())
 		}
-		<-cl.inprogressSSHHandshakes
 		return nil, nil, nil, nil, err
 	}
 	clog.Debugf("SSH Handshake finished after %s", time.Since(ts))
-
-	// on handshake finished, remove from pending connections, which will allow another connection to take place
-	<-cl.inprogressSSHHandshakes
 
 	return sshConn, chans, reqs, clog, err
 }

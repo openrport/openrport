@@ -44,8 +44,9 @@ jobs:
         run: |
           VERSION=$(cat version.txt | cut -d" " -f1)
           echo "🚚 Packaging Build $VERSION ..."
-          TAR=${VERSION}.tar.gz
-          tar czf ${TAR} version.txt rport rportd /home/runner/work/rport/rport/rport-plus/rport-plus.so
+          TAR=rport_${VERSION}_linux_x86_64.tar.gz
+          mv /home/runner/work/rport/rport/rport-plus/rport-plus.so .
+          tar czf ${TAR} version.txt rport rportd rport-plus.so
           echo "✅ Successfully created package $TAR"
           ls -lh $TAR
           FOLDER=rport-test-builds
