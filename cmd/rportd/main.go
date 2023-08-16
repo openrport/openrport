@@ -374,6 +374,7 @@ func init() {
 	viperCfg.SetDefault("api.password_min_length", 14)
 	viperCfg.SetDefault("api.password_zxcvbn_minscore", 0)
 	viperCfg.SetDefault("api.tls_min", "1.3")
+	viperCfg.SetDefault("notifications.notification_script_dir", "/usr/local/lib/rport/notification_scripts")
 }
 
 func bindPFlags() {

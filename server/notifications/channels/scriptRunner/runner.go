@@ -9,9 +9,11 @@ import (
 	"time"
 )
 
-func RunCancelableScript(ctx context.Context, script string, body string) (string, error) {
+func RunCancelableScript(ctx context.Context, workingDir string, script string, body string) (string, error) {
 
 	cmd := exec.CommandContext(ctx, script)
+
+	cmd.Dir = workingDir
 
 	stdin, err := cmd.StdinPipe()
 	if err != nil {

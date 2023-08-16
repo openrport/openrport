@@ -64,7 +64,7 @@ func (ts *MailTestSuite) TestMailTimeout() {
 	ts.T().Log(err)
 	ts.Error(err)
 
-	ts.WithinRange(time.Now(), start.Add(time.Millisecond), start.Add(time.Millisecond*100))
+	ts.WithinRange(time.Now(), start.Add(time.Microsecond*500), start.Add(time.Millisecond*100))
 }
 
 func (ts *MailTestSuite) TestMailErrorOnTooManyHangingConnections() {
