@@ -57,7 +57,10 @@ func (suite *NotificationsIntegrationTestSuite) SetupTest() {
 		NoNoop:   true,
 	}, testLog), testLog)
 
-	suite.scriptConsumer = scriptRunner.NewConsumer(testLog)
+	dir, err := os.Getwd()
+	suite.NoError(err)
+
+	suite.scriptConsumer = scriptRunner.NewConsumer(testLog, dir)
 
 	suite.runner = notifications.NewProcessor(logger.NewLogger("notifications", logger.NewLogOutput("out.log"), logger.LogLevelInfo), suite.store, suite.mailConsumer, suite.scriptConsumer)
 
