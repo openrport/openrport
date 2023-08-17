@@ -57,7 +57,7 @@ to processing a maximum of 100 concurrent SSH handshakes.
 However, there are associated cascading implications:
 
 - **CPU utilization**: SSH handshakes are CPU intensive and increasing this value to 100 with only 2 slow cores will 
- cause a situation in which all 100 handshakes take so long to process that they timeout and you can't establish any connection
+ cause a situation in which all 100 handshakes compete for CPU time and take so long to process that they all timeout and you can't establish any connection. While on 256 core machine it would be conservative setting.
 
 - **Connection Queueing**: A low threshold can result in many clients queueing up, leading to prolonged waits.
 
