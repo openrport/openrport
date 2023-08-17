@@ -296,8 +296,7 @@ func NewServer(ctx context.Context, config *chconfig.Config, opts *ServerOpts) (
 
 	if s.alertingService != nil {
 		dispatcher := notifications.NewDispatcher(s.apiListener.notificationsStorage)
-		// TODO: (rs): add the scripts dir from the notification config here
-		s.alertingService.Run(ctx, ".", dispatcher)
+		s.alertingService.Run(ctx, config.Notifications.NotificationScriptDir, dispatcher)
 	}
 	return s, nil
 }
