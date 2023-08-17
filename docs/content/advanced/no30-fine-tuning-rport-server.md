@@ -42,8 +42,12 @@ However, it's crucial to remain wary of potential server resource saturation, pa
 - **Client Strategy:** Pre-configured clients come with a growing backoff mechanism,
  aiding the server during peak times. This feature should inform the server's scaling strategy.
 
-- **Tuning:** Modify the `max_concurrent_ssh_handshake` based on past data,
+- **Tuning:** 
+  - Modify the `max_concurrent_ssh_handshake` based on past data,
  anticipated load patterns, and server performance metrics post-downtimes.
+  - **Binary Search Tuning**: Begin with the total client count and methodically halve the `max_concurrent_ssh_handshake` value until a stable configuration is pinpointed.
+  - **Number of cores**: from our experimentation one of the limits was CPU and in this scenario we found the total number of cores divided by 2 to yield most stable results.
+
 
 ### 4. What happens if we set the baseline to 100?
 
