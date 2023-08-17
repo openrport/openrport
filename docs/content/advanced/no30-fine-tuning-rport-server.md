@@ -56,6 +56,9 @@ to processing a maximum of 100 concurrent SSH handshakes.
 
 However, there are associated cascading implications:
 
+- **CPU utilization**: SSH handshakes are CPU intensive and increasing this value to 100 with only 2 slow cores will 
+ cause a situation in which all 100 handshakes take so long to process that they timeout and you can't establish any connection
+
 - **Connection Queueing**: A low threshold can result in many clients queueing up, leading to prolonged waits.
 
 - **Client Timeouts**: Protracted waits can cause client-side timeouts,
