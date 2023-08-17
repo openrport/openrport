@@ -12,13 +12,15 @@ import (
 const ScriptTimeout = time.Second * 20
 
 type consumer struct {
-	l *logger.Logger
+	l          *logger.Logger
+	workingDir string
 }
 
 //nolint:revive
-func NewConsumer(l *logger.Logger) *consumer {
+func NewConsumer(l *logger.Logger, workingDir string) *consumer {
 	return &consumer{
-		l: l,
+		l:          l,
+		workingDir: workingDir,
 	}
 }
 
@@ -51,7 +53,7 @@ func (c consumer) Process(ctx context.Context, details notifications.Notificatio
 
 	c.l.Debugf("running script: %s: with data: %s", details.Data.Target, string(data))
 
-	out, err := RunCancelableScript(ctx, details.Data.Target, string(data))
+	out, err := RunCancelableScript(ctx, c.workingDir, details.Data.Target, string(data))
 	if err != nil {
 		c.l.Debugf("failed running script: %s: with err: ", details.Data.Target, err)
 		return out, err

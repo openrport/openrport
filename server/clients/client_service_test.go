@@ -206,6 +206,10 @@ func TestStartClientDisconnected(t *testing.T) {
 			DisconnectedAt:    &now,
 			AllowedUserGroups: []string{"test-group"},
 			UpdatesStatus:     &models.UpdatesStatus{UpdatesAvailable: 13},
+			IPAddresses: &models.IPAddresses{
+				IPv4: "127.0.0.1",
+				IPv6: "::1",
+			},
 		}}, nil, testLog),
 		portDistributor: ports.NewPortDistributor(mapset.NewSet()),
 		logger:          testLog,
@@ -220,6 +224,8 @@ func TestStartClientDisconnected(t *testing.T) {
 	assert.Equal(t, "disconnected-client", client.GetID())
 	assert.Equal(t, "new-connection", client.GetName())
 	assert.Equal(t, []string{"test-group"}, client.GetAllowedUserGroups())
+	assert.Equal(t, "127.0.0.1", client.IPAddresses.IPv4)
+	assert.Equal(t, "::1", client.IPAddresses.IPv6)
 	assert.Equal(t, 13, client.UpdatesStatus.UpdatesAvailable)
 }
 

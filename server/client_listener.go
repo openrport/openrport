@@ -37,7 +37,19 @@ import (
 	"github.com/realvnc-labs/rport/share/security"
 )
 
-const ConnectionRequestTimeOut = 5 * 60 * time.Second
+const (
+	ConnectionRequestTimeOut = 5 * 60 * time.Second
+
+	ClientRequestsLog     = "requests"
+	ClientPingsLog        = "ping"
+	ClientMeasurementsLog = "measurements"
+)
+
+var (
+	ClientRequestsLogEnabled     = true
+	ClientPingsLogEnabled        = false
+	ClientMeasurementsLogEnabled = true
+)
 
 var upgrader = websocket.Upgrader{
 	ReadBufferSize:  1024,
@@ -241,11 +253,21 @@ func (cl *ClientListener) nextClientIndex() int32 {
 	return atomic.AddInt32(&cl.clientIndexAutoIncrement, 1)
 }
 
-func (cl *ClientListener) acceptSSHConnection(w http.ResponseWriter, req *http.Request) (sshConn *ssh.ServerConn, chans <-chan ssh.NewChannel, reqs <-chan *ssh.Request, clog *logger.Logger, err error) {
+func (cl *ClientListener) acceptSSHConnection(w http.ResponseWriter, req *http.Request) (sshConn *ssh.ServerConn, chans <-chan ssh.NewChannel, reqs <-chan *ssh.Request,
+	clog *logger.DynamicLogger, err error) {
+
+	// throttle concurrent connections
 	// add to pending connections. will block if the chan is full
 	cl.inprogressSSHHandshakes <- struct{}{}
+	defer func() {
+		// on handshake finished, remove from pending connections, which will allow another connection to take place
+		<-cl.inprogressSSHHandshakes
+	}()
 
-	clog = cl.log().Fork("client#%d", cl.nextClientIndex())
+	clog = logger.ForkToDynamicLogger(cl.log(), fmt.Sprintf("client#%d", cl.nextClientIndex()), true, false)
+	clog.SetControl(ClientRequestsLog, ClientRequestsLogEnabled)
+	clog.SetControl(ClientMeasurementsLog, ClientMeasurementsLogEnabled)
+	clog.SetControl(ClientPingsLog, ClientPingsLogEnabled)
 
 	clog.Debugf("Handling inbound web socket connection...")
 	ts := time.Now()
@@ -253,7 +275,6 @@ func (cl *ClientListener) acceptSSHConnection(w http.ResponseWriter, req *http.R
 	wsConn, err := upgrader.Upgrade(w, req, nil)
 	if err != nil {
 		clog.Debugf("Failed to upgrade (%s)", err)
-		<-cl.inprogressSSHHandshakes
 		return nil, nil, nil, nil, err
 	}
 	conn := chshare.NewWebSocketConn(wsConn)
@@ -266,18 +287,14 @@ func (cl *ClientListener) acceptSSHConnection(w http.ResponseWriter, req *http.R
 		} else {
 			clog.Debugf("Failed to handshake (%s) from %s", err, conn.RemoteAddr().String())
 		}
-		<-cl.inprogressSSHHandshakes
 		return nil, nil, nil, nil, err
 	}
 	clog.Debugf("SSH Handshake finished after %s", time.Since(ts))
 
-	// on handshake finished, remove from pending connections, which will allow another connection to take place
-	<-cl.inprogressSSHHandshakes
-
 	return sshConn, chans, reqs, clog, err
 }
 
-func (cl *ClientListener) receiveClientConnectionRequest(sshConn *ssh.ServerConn, reqs <-chan *ssh.Request, clog *logger.Logger) (connRequest *chshare.ConnectionRequest, r *ssh.Request, err error) {
+func (cl *ClientListener) receiveClientConnectionRequest(sshConn *ssh.ServerConn, reqs <-chan *ssh.Request, clog *logger.DynamicLogger) (connRequest *chshare.ConnectionRequest, r *ssh.Request, err error) {
 	pendingRequestTimer := time.NewTimer(ConnectionRequestTimeOut)
 
 	select {
@@ -355,7 +372,7 @@ func (cl *ClientListener) handleWebsocket(w http.ResponseWriter, req *http.Reque
 	ctx, cancel := context.WithCancel(cl.getCtx())
 	defer cancel()
 
-	client, err := cl.getClientService().StartClient(ctx, clientAuthID, clientID, sshConn, cl.server.config.Server.AuthMultiuseCreds, connRequest, clientLog)
+	client, err := cl.getClientService().StartClient(ctx, clientAuthID, clientID, sshConn, cl.server.config.Server.AuthMultiuseCreds, connRequest, clientLog.GetLogger())
 	if err != nil {
 		cl.replyConnectionError(r, err)
 		return
@@ -373,7 +390,7 @@ func (cl *ClientListener) handleWebsocket(w http.ResponseWriter, req *http.Reque
 
 	// now run handler for other client requests and connections
 	go cl.handleSSHRequests(clientLog, clientID, reqs)
-	go cl.handleSSHChannels(clientLog, chans)
+	go cl.handleSSHChannels(clientLog.GetLogger(), chans)
 
 	// wait until we're disconnected from the client
 	if err = sshConn.Wait(); err != nil {
@@ -388,7 +405,7 @@ func (cl *ClientListener) handleWebsocket(w http.ResponseWriter, req *http.Reque
 }
 
 // checkVersions print if client and server versions dont match.
-func checkVersions(log *logger.Logger, clientVersion string) {
+func checkVersions(log *logger.DynamicLogger, clientVersion string) {
 	if clientVersion == chshare.BuildVersion {
 		return
 	}
@@ -422,7 +439,10 @@ func (cl *ClientListener) replyConnectionSuccess(r *ssh.Request, remotes []*mode
 		return
 	}
 
-	_ = r.Reply(true, replyPayload)
+	err = r.Reply(true, replyPayload)
+	if err != nil {
+		cl.log().Errorf("error during connection success reply: %w", err)
+	}
 }
 
 func (cl *ClientListener) replyConnectionError(r *ssh.Request, err error) {
@@ -432,13 +452,19 @@ func (cl *ClientListener) replyConnectionError(r *ssh.Request, err error) {
 	}
 	if err == nil {
 		cl.log().Debugf("sending connection reply with nil error: %s", r.Type)
-		_ = r.Reply(false, nil)
+		err = r.Reply(false, nil)
+		if err != nil {
+			cl.log().Errorf("error during connection nil error reply: %w", err)
+		}
 		return
 	}
-	_ = r.Reply(false, []byte(err.Error()))
+	err = r.Reply(false, []byte(err.Error()))
+	if err != nil {
+		cl.log().Errorf("error during connection error reply: %w", err)
+	}
 }
 
-func (cl *ClientListener) handleSSHRequests(clientLog *logger.Logger, clientID string, reqs <-chan *ssh.Request) {
+func (cl *ClientListener) handleSSHRequests(clientLog *logger.DynamicLogger, clientID string, reqs <-chan *ssh.Request) {
 	clientService := cl.getClientService()
 
 	for r := range reqs {
@@ -447,7 +473,7 @@ func (cl *ClientListener) handleSSHRequests(clientLog *logger.Logger, clientID s
 			continue
 		}
 
-		// clientLog.Debugf("received request: %s from %s", r.Type, clientID)
+		clientLog.NDebugf(ClientRequestsLog, "received request: %s from %s", r.Type, clientID)
 
 		// TODO: (rs): these case handlers should be refactored into individual handling fns
 		switch r.Type {
@@ -475,7 +501,11 @@ func (cl *ClientListener) handleSSHRequests(clientLog *logger.Logger, clientID s
 			continue
 
 		case comm.RequestTypePing:
-			// clientLog.Debugf("ping received from: %s", clientID)
+			var ts time.Time
+			if ClientPingsLogEnabled {
+				clientLog.NDebugf(ClientPingsLog, "ping received from: %s", clientID)
+				ts = time.Now().UTC()
+			}
 			// ts := time.Now()
 			_ = r.Reply(true, nil)
 			err := clientService.SetLastHeartbeat(clientID, time.Now())
@@ -483,10 +513,16 @@ func (cl *ClientListener) handleSSHRequests(clientLog *logger.Logger, clientID s
 				clientLog.Errorf("Failed to save heartbeat: %s", err)
 				continue
 			}
-			// clientLog.Debugf("ping for: %s done in %s", clientID, time.Since(ts))
+			if ClientPingsLogEnabled {
+				clientLog.NDebugf(ClientPingsLog, "ping for: %s done in %s", clientID, time.Since(ts))
+			}
 
 		case comm.RequestTypeCmdResult:
 			clientLog.Debugf("saving command result from: %s", clientID)
+			var ts time.Time
+			if ClientRequestsLogEnabled {
+				ts = time.Now().UTC()
+			}
 
 			job, err := cl.saveCmdResult(r.Payload)
 			if err != nil {
@@ -520,9 +556,16 @@ func (cl *ClientListener) handleSSHRequests(clientLog *logger.Logger, clientID s
 					}(done, job)
 				}
 			}
+			if ClientRequestsLogEnabled {
+				clientLog.NDebugf(ClientRequestsLog, "%s: command results request completed at %s in %s", clientID, time.Now().UTC(), time.Since(ts))
+			}
 
 		case comm.RequestTypeUpdatesStatus:
 			clientLog.Debugf("setting updates status from: %s", clientID)
+			var ts time.Time
+			if ClientRequestsLogEnabled {
+				ts = time.Now().UTC()
+			}
 			updatesStatus := &models.UpdatesStatus{}
 			err := json.Unmarshal(r.Payload, updatesStatus)
 			if err != nil {
@@ -533,6 +576,9 @@ func (cl *ClientListener) handleSSHRequests(clientLog *logger.Logger, clientID s
 			if err != nil {
 				clientLog.Errorf("Failed to save updates status: %s", err)
 				continue
+			}
+			if ClientRequestsLogEnabled {
+				clientLog.NDebugf(ClientRequestsLog, "%s: updates updated at %s in %s", clientID, time.Now().UTC(), time.Since(ts))
 			}
 
 		case comm.RequestTypeSaveMeasurement:
@@ -549,14 +595,37 @@ func (cl *ClientListener) handleSSHRequests(clientLog *logger.Logger, clientID s
 				continue
 			}
 			measurement.ClientID = clientID
+
+			var ts time.Time
+			if ClientMeasurementsLogEnabled {
+				ts = time.Now().UTC()
+			}
 			measurement.Timestamp = time.Now().UTC()
 			cl.server.monitoringModule.Notify(measurement)
+
+			if ClientMeasurementsLogEnabled {
+				clientLog.NDebugf(ClientRequestsLog, "%s: measurement saved at %s in %s", clientID, time.Now().UTC(), time.Since(ts))
+			}
 
 			if rportplus.IsPlusEnabled(cl.server.config.PlusConfig) {
 				alertingCap := cl.server.plusManager.GetAlertingCapabilityEx()
 				if alertingCap != nil {
 					cl.sendMeasurementToAlertingService(alertingCap, &measurement, clientLog)
 				}
+			}
+		case comm.RequestTypeIPAddresses:
+			clientLog.Debugf("IP addresses update received from: %s, payload: %s", clientID, r.Payload)
+			IPAddresses := &models.IPAddresses{}
+			err := json.Unmarshal(r.Payload, IPAddresses)
+			if err != nil {
+				clientLog.Errorf("Failed to unmarshal IP addresses: %s", err)
+				continue
+			}
+			IPAddresses.UpdatedAt = time.Now().UTC()
+			err = clientService.SetIPAddresses(clientID, IPAddresses)
+			if err != nil {
+				clientLog.Errorf("Failed to save IPAddresses status: %s", err)
+				continue
 			}
 		default:
 			clientLog.Debugf("Unknown request: %s", r.Type)
@@ -567,7 +636,7 @@ func (cl *ClientListener) handleSSHRequests(clientLog *logger.Logger, clientID s
 func (cl *ClientListener) sendMeasurementToAlertingService(
 	alertingCap alertingcap.CapabilityEx,
 	measurement *models.Measurement,
-	clientLog *logger.Logger) {
+	clientLog *logger.DynamicLogger) {
 	m, err := transformers.TransformRportMeasurementToMeasure(measurement)
 	if err != nil {
 		clientLog.Debugf("Failed to transform measurement: %v", err)

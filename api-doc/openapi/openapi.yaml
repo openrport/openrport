@@ -175,6 +175,8 @@ paths:
     $ref: paths/monitoring_problems_{problem_id}.yaml
   /monitoring/rules:
     $ref: paths/monitoring_ruleset.yaml
+  /monitoring/rules/test:
+    $ref: paths/monitoring_ruleset_test.yaml
   /monitoring/notification-templates/{template_id}:
     $ref: paths/monitoring_notification-templates_{template_id}.yaml
   /monitoring/notification-templates:

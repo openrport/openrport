@@ -5,12 +5,9 @@ apis:
     root: ./openapi.yaml
     labels:
       - external
-
-styleguide:
-  extends:
-    - recommended
-
-features.openapi:
+extends:
+  - recommended
+theme.openapi:
   schemaExpansionLevel: 2
   generateCodeSamples:
     languages:

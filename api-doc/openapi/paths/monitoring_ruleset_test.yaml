@@ -1,0 +1,47 @@
+put:
+  tags:
+    - Monitoring
+  summary: Test Rules Against Test Data
+  operationId: TestRulesPut
+  description: >-
+    Allows a set of rules to be tested against a set of test data. If successful then will include
+    problems raised / resolved and notification requests (if applicable) that would be generated.
+    If unsuccessful then will include the relevant errors, including any rules validation errors.
+  requestBody:
+    description: >-
+      Rules and test data to test.
+    content:
+      "*/*":
+        schema:
+          $ref: ../components/schemas/TestRulesPut.yaml
+    required: true
+  responses:
+    "204":
+      description: Successful
+      content:
+        application/json:
+          schema:
+            type: object
+            properties:
+              data:
+                $ref: ../components/schemas/TestRulesRunResults.yaml
+    "400":
+      description: Invalid request parameters
+      content:
+        application/json:
+          schema:
+            $ref: ../components/schemas/ErrorPayload.yaml
+    "403":
+      description: >-
+        current user should belong to Administrators group to access this
+        resource
+      content:
+        application/json:
+          schema:
+            $ref: ../components/schemas/ErrorPayload.yaml
+    "500":
+      description: Invalid Operation
+      content:
+        application/json:
+          schema:
+            $ref: ../components/schemas/ErrorPayload.yaml

@@ -116,5 +116,7 @@ properties:
       type: string
   updates_status:
     $ref: ./UpdatesStatus.yaml
+  ext_ip_addresses:
+    $ref: ./ExtIPAddresses.yaml
   client_configuration:
     $ref: ./ClientConfiguration.yaml

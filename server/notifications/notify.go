@@ -30,11 +30,11 @@ const (
 )
 
 type NotificationData struct {
-	Target      string
-	Recipients  []string
-	Subject     string
-	Content     string
-	ContentType ContentType
+	Target      string      `json:"target"`
+	Recipients  []string    `json:"recipients"`
+	Subject     string      `json:"subject"`
+	Content     string      `json:"content"`
+	ContentType ContentType `json:"content_type"`
 }
 
 const NotificationType refs.IdentifiableType = "notification"

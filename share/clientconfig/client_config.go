@@ -45,6 +45,8 @@ type ClientConfig struct {
 	UpdatesInterval          time.Duration     `json:"updates_interval" mapstructure:"updates_interval"`
 	DataDir                  string            `json:"data_dir" mapstructure:"data_dir"`
 	BindInterface            string            `json:"bind_interface" mapstructure:"bind_interface"`
+	IPAPIURL                 string            `json:"ip_api_url" mapstructure:"ip_api_url"`
+	IPRefreshMin             time.Duration     `json:"ip_refresh_min" mapstructure:"ip_refresh_min"`
 
 	ProxyURL *url.URL         `json:"proxy_url"`
 	Tunnels  []*models.Remote `json:"tunnels"`

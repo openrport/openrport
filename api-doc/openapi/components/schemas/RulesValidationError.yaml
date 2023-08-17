@@ -1,0 +1,6 @@
+type: object
+properties:
+  prefix:
+    type: string
+  err:
+    type: string

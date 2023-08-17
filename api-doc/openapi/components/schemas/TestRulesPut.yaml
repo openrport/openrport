@@ -1,0 +1,2 @@
+type: object
+$ref: ./TestRulesRunData.yaml

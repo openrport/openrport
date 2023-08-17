@@ -1,0 +1,13 @@
+title: Mountpoint
+type: object
+properties:
+  name:
+    type: string
+  free_b:
+    type: number
+  total_b:
+    type: number
+  free_percent:
+    type: number
+  used_percent:
+    type: number

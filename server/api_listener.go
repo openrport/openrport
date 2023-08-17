@@ -54,8 +54,6 @@ import (
 
 const (
 	DefaultMaxCheckPortTimeout = time.Minute
-	MaxNotificationLife        = time.Hour * 24 * 30 * 3 // Keep for 30 days
-	CleanupNotificationsEvery  = time.Hour * 24          // cleanup every 24h
 )
 
 type APIListener struct {
@@ -150,7 +148,7 @@ func NewAPIListener(
 	notificationsLogger := server.Logger.Fork("notifications")
 
 	store := notificationsSQLite.NewRepository(db, server.Logger)
-	scriptConsumer := scriptRunner.NewConsumer(notificationsLogger.Fork("scriptrunner"))
+	scriptConsumer := scriptRunner.NewConsumer(notificationsLogger.Fork("scriptrunner"), config.Notifications.NotificationScriptDir)
 
 	notificationConsumers := []notifications.Consumer{scriptConsumer}
 
@@ -166,8 +164,9 @@ func NewAPIListener(
 		notificationConsumers = append(notificationConsumers, logConsumer)
 	}
 
+	notificationLogger := logger.NewLogger("cleaner", config.Logging.LogOutput, logger.LogLevelInfo)
 	notificationProcessor := notifications.NewProcessor(notificationsLogger, store, notificationConsumers...)
-	notificationsCleaner := notificationsSQLite.StartCleaner(logger.NewLogger("cleaner", config.Logging.LogOutput, logger.LogLevelInfo), store, MaxNotificationLife, CleanupNotificationsEvery)
+	notificationsCleaner := notificationsSQLite.StartCleaner(notificationLogger, store, config.Notifications.LogStorageDuration, config.Notifications.CleanupInterval)
 
 	// init vault DB if it already exists
 	fs := files.NewFileSystem()

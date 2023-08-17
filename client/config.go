@@ -82,6 +82,10 @@ func (c *ClientConfigHolder) ParseAndValidate(skipScriptsDirValidation bool) err
 		return err
 	}
 
+	if err := c.parseAndValidateIPAPIURL(); err != nil {
+		return err
+	}
+
 	return nil
 }
 
@@ -416,6 +420,20 @@ func (c *ClientConfigHolder) parseInterpreterAliases() error {
 		}
 
 		return fmt.Errorf("invalid interpreter alias %q: %v", alias, value)
+	}
+	return nil
+}
+
+func (c *ClientConfigHolder) parseAndValidateIPAPIURL() error {
+	if c.Client.IPAPIURL == "" {
+		return nil
+	}
+	u, err := url.Parse(c.Client.IPAPIURL)
+	if err != nil {
+		return fmt.Errorf("invalid ip_api_url: %s", err)
+	}
+	if !strings.HasPrefix(u.Scheme, "http") {
+		return fmt.Errorf("invalid ip_api_url. only http(s):// supported, '%s' given", u.Scheme)
 	}
 	return nil
 }

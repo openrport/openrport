@@ -20,6 +20,8 @@ import (
 	"strings"
 	"time"
 
+	"github.com/xhit/go-str2duration/v2"
+
 	"github.com/realvnc-labs/rport/db/sqlite"
 	rportplus "github.com/realvnc-labs/rport/plus"
 	"github.com/realvnc-labs/rport/server/caddy"
@@ -106,9 +108,11 @@ func (c *APIConfig) parseAndValidate2FASendToType() error {
 }
 
 const (
-	MinKeepDisconnectedClients = time.Second
-	MaxKeepDisconnectedClients = 7 * 24 * time.Hour
-	DefaultVaultDBName         = "vault.sqlite.db"
+	MinKeepDisconnectedClients     = time.Second
+	MaxKeepDisconnectedClients     = 7 * 24 * time.Hour
+	DefaultVaultDBName             = "vault.sqlite.db"
+	NotificationLogStorageDuration = "7d"
+	NotificationLogCleanupInterval = "1d"
 
 	socketPrefix = "socket:"
 )
@@ -274,17 +278,66 @@ func (mc *MonitoringConfig) GetDataStorageDuration() (duration time.Duration) {
 	return mc.duration
 }
 
-type Config struct {
-	Server     ServerConfig     `mapstructure:"server"`
-	Caddy      caddy.Config     `mapstructure:"caddy-integration"`
-	Logging    LogConfig        `mapstructure:"logging"`
-	API        APIConfig        `mapstructure:"api"`
-	Database   DatabaseConfig   `mapstructure:"database"`
-	Pushover   PushoverConfig   `mapstructure:"pushover"`
-	SMTP       SMTPConfig       `mapstructure:"smtp"`
-	Monitoring MonitoringConfig `mapstructure:"monitoring"`
+type NotificationsConfig struct {
+	NotificationScriptDir    string `mapstructure:"notification_script_dir"`
+	LogStorageDurationString string `mapstructure:"log_storage_duration"`
+	LogStorageDuration       time.Duration
+	CleanupIntervalString    string `mapstructure:"cleanup_interval"`
+	CleanupInterval          time.Duration
+}
 
-	PlusConfig rportplus.PlusConfig `mapstructure:",squash"`
+func (n *NotificationsConfig) parseAndValidateAndSetDefaults() error {
+
+	err := n.parseAndValidateTTL()
+	if err != nil {
+		return err
+	}
+
+	err = n.parseAndValidateCleanup()
+	if err != nil {
+		return err
+	}
+
+	return nil
+}
+
+func (n *NotificationsConfig) parseAndValidateTTL() error {
+	if len(n.LogStorageDurationString) == 0 {
+		n.LogStorageDurationString = NotificationLogStorageDuration
+	}
+
+	durationFromString, err := str2duration.ParseDuration(n.LogStorageDurationString)
+	if err != nil {
+		return err
+	}
+	n.LogStorageDuration = durationFromString
+	return nil
+}
+
+func (n *NotificationsConfig) parseAndValidateCleanup() error {
+	if len(n.CleanupIntervalString) == 0 {
+		n.CleanupIntervalString = NotificationLogCleanupInterval
+	}
+
+	durationFromString, err := str2duration.ParseDuration(n.CleanupIntervalString)
+	if err != nil {
+		return err
+	}
+	n.CleanupInterval = durationFromString
+	return nil
+}
+
+type Config struct {
+	Server        ServerConfig         `mapstructure:"server"`
+	Caddy         caddy.Config         `mapstructure:"caddy-integration"`
+	Logging       LogConfig            `mapstructure:"logging"`
+	API           APIConfig            `mapstructure:"api"`
+	Database      DatabaseConfig       `mapstructure:"database"`
+	Pushover      PushoverConfig       `mapstructure:"pushover"`
+	SMTP          SMTPConfig           `mapstructure:"smtp"`
+	Monitoring    MonitoringConfig     `mapstructure:"monitoring"`
+	Notifications NotificationsConfig  `mapstructure:"notifications"`
+	PlusConfig    rportplus.PlusConfig `mapstructure:",squash"`
 }
 
 var (
@@ -397,6 +450,10 @@ func (c *Config) ParseAndValidate(mLog *logger.MemLogger) error {
 		return err
 	}
 
+	if err := c.Notifications.parseAndValidateAndSetDefaults(); err != nil {
+		return err
+	}
+
 	return nil
 }
 
@@ -469,6 +526,7 @@ func (c *Config) parseAndValidateAPI(mLog *logger.MemLogger) error {
 		}
 
 		c.API.CORS = parseAndValidateCORS(mLog, c.API.CORS)
+
 	} else {
 		// API disabled
 		if c.API.DocRoot != "" {
