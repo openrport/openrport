@@ -24,17 +24,17 @@ this parameter aspires to optimize server resource allocation and guarantee a mo
 
 ## Addressing User Queries
 
-### 1. **Can this be set to "No limit" for scalable environments?**
+### 1. Can this be set to "No limit" for scalable environments?
 
 Setting this parameter to "No limit" isn't viable. Without a stipulated cap,
 the server risks undue strain, notably during peak reconnection periods.
 
-### 2. **What are the effects of raising this parameter?**
+### 2. What are the effects of raising this parameter?
 
 A loftier `max_concurrent_ssh_handshake` value allows a greater number of simultaneous SSH handshake processes.
 However, it's crucial to remain wary of potential server resource saturation, particularly during mass reconnections.
 
-### 3. **How should we scale?**
+### 3. How should we scale?
 
 - **Infrastructure:** Ensure your server resources
  — CPU, memory, and network — are in sync with expected peak loads, especially post-downtime.
@@ -45,7 +45,7 @@ However, it's crucial to remain wary of potential server resource saturation, pa
 - **Tuning:** Modify the `max_concurrent_ssh_handshake` based on past data,
  anticipated load patterns, and server performance metrics post-downtimes.
 
-### 4. **What happens if we set the baseline to 100?**
+### 4. What happens if we set the baseline to 100?
 
 Setting the `max_concurrent_ssh_handshake` to a value like 100 caps the server
 to processing a maximum of 100 concurrent SSH handshakes.
