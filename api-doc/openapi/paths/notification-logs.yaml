@@ -1,0 +1,88 @@
+get:
+  tags:
+    - Notifications
+  summary: Get the latest notifications
+  operationId: NotificationsList
+  parameters:
+    - name: sort
+      in: query
+      description: >-
+        Sort option `-<field>`(desc) or `<field>`(asc). `<field>` can be one of
+        `timestamp, state`.
+      schema:
+        type: string
+    - name: filter
+      in: query
+      description: >-
+        Filter option `filter[<FIELD>]=<VALUE>` or
+        `filter[<FIELD>|<FIELD>]=<VALUE>,<VALUE>` for OR conditions, alternatively: 
+        `filter[<FIELD>]=or(<VALUE1>,<VALUE2>)` for OR conditions, and `filter[<FIELD>]=and(<VALUE1>,<VALUE2>)` for 
+        AND conditions. The `created_at` and `resolved_at` date fields are handled differently, see below.
+        
+         `<FIELD>` can be one of `state, reference_id, transport, subject, timestamp[gt], timestamp[lt], timestamp[since], timestamp[until]`. 
+
+         You can use `*` wildcards to filter on any field and for partial matches (except the date fields). 
+         Text matching is case insensitive, filters can be combined together.<br />
+
+         The `timestamp` fields can be queried with the `gt`, `lt` and `eq` filter
+         operators to perform greater than, less than and equal date match filters. The date values specified in the 
+         filter must either conform to RFC3339 or be simple date fields (e.g. 2023-07-01). Currently, the other
+         fields do not support the `gt`, `lt` and `eq` operators.
+
+      schema:
+        type: string
+    - name: fields[<RESOURCE>]
+      in: query
+      description: >-
+        Fields to be returned. It should be provided in the format as
+        `fields[<RESOURCE>]=<FIELDS>`, where `<RESOURCE>` is `problems` and
+        `<FIELDS>` is a comma separated list of fields. Example:
+        `fields[clients]=id,name`.
+      schema:
+        type: string
+    - name: page
+      in: query
+      description: >-
+        Pagination options `page[limit]` and `page[offset]` can be used to get
+        more than the first page of results. Default limit is 50 and maximum is
+        500. The `count` property in meta shows the total number of results.
+      schema:
+        type: integer
+  description: >
+    * Returns the latest problems for the alerting service
+  responses:
+    "200":
+      description: Successful
+      content:
+        application/json:
+          schema:
+            type: object
+            properties:
+              data:
+                $ref: ../components/schemas/NotificationSummary.yaml
+    "400":
+      description: Invalid parameters
+      content:
+        application/json:
+          schema:
+            $ref: ../components/schemas/ErrorPayload.yaml
+    "401":
+      description: Unauthorized
+      content:
+        application/json:
+          schema:
+            $ref: ../components/schemas/ErrorPayload.yaml
+    "403":
+      description: >-
+        current user should belong to Administrators group to access this
+        resource
+      content:
+        application/json:
+          schema:
+            $ref: ../components/schemas/ErrorPayload.yaml
+    "500":
+      description: Invalid Operation
+      content:
+        application/json:
+          schema:
+            $ref: ../components/schemas/ErrorPayload.yaml

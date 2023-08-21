@@ -1,0 +1,26 @@
+type: object
+properties:
+  state:
+    type: string
+    description: "Processing state of the notification"
+    enum:
+      - "queued"
+      - "dispatching"
+      - "done"
+      - "error"
+  notification_id:
+    type: string
+    description: "Unique identifier of the notification"
+  transport:
+    type: string
+    description: "either \"mail\" or script path"
+  timestamp:
+    type: string
+    format: "date-time"
+    description: "Timestamp of the notification"
+  out:
+    type: string
+    description: "Output information, if any"
+  err:
+    type: string
+    description: "Error message, if any"

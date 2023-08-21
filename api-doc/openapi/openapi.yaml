@@ -181,6 +181,10 @@ paths:
     $ref: paths/monitoring_notification-templates_{template_id}.yaml
   /monitoring/notification-templates:
     $ref: paths/monitoring_notification-templates.yaml
+  /notification-logs:
+    $ref: paths/notification-logs.yaml
+  /notification-logs/{notification-id}:
+    $ref: paths/notification-logs-id.yaml
 components:
   securitySchemes:
     basic_auth:
