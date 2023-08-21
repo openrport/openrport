@@ -609,7 +609,7 @@ func (cl *ClientListener) handleSSHRequests(clientLog *logger.DynamicLogger, cli
 			measurement.ClientID = clientID
 			measurement.Timestamp = time.Now().UTC()
 
-			cl.server.monitoringModule.Notify(measurement)
+			cl.server.monitoringQueue.Notify(measurement)
 
 			if rportplus.IsPlusEnabled(cl.server.config.PlusConfig) {
 				alertingCap := cl.server.plusManager.GetAlertingCapabilityEx()
