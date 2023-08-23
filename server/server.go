@@ -186,7 +186,6 @@ func NewServer(ctx context.Context, config *chconfig.Config, opts *ServerOpts) (
 		return nil, err
 	}
 
-	// create monitoringProvider and monitoringModule
 	monitoringProvider, err := monitoring.NewSqliteProvider(
 		path.Join(config.Server.DataDir, "monitoring.db"),
 		config.Server.GetSQLiteDataSourceOptions(),
@@ -197,7 +196,7 @@ func NewServer(ctx context.Context, config *chconfig.Config, opts *ServerOpts) (
 	}
 
 	// even if monitoring disabled, always create the monitoring service to support queries of past data etc
-	s.monitoringService = monitoring.BootstrapMonitoring(s.Logger, monitoringProvider)
+	s.monitoringService = monitoring.NewService(monitoringProvider, s.Logger.Fork("monitoring"))
 
 	s.monitoringQueue = monitoring.NewMeasurementQueuing(s.Logger.Fork("measurements-queue"), s.monitoringService, 10000)
 
