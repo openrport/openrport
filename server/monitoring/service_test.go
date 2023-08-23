@@ -20,7 +20,7 @@ func TestMonitoringService_SaveMeasurement(t *testing.T) {
 	require.NoError(t, err)
 	defer dbProvider.Close()
 
-	service := NewService(dbProvider)
+	service := NewService(dbProvider, testLog)
 	minGap := time.Second
 	mClient := time.Now().UTC().Add(-minGap)
 	m := &models.Measurement{
@@ -38,7 +38,7 @@ func TestMonitoringService_ListClientMetrics(t *testing.T) {
 	require.NoError(t, err)
 	defer dbProvider.Close()
 
-	service := NewService(dbProvider)
+	service := NewService(dbProvider, testLog)
 
 	ctx := context.Background()
 
@@ -102,7 +102,7 @@ func TestMonitoringService_ListClientGraphMetrics(t *testing.T) {
 	require.NoError(t, err)
 	defer dbProvider.Close()
 
-	service := NewService(dbProvider)
+	service := NewService(dbProvider, testLog)
 
 	ctx := context.Background()
 

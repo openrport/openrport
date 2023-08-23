@@ -55,6 +55,8 @@ const (
 	LogNumGoRoutinesInterval    = time.Minute * 2
 
 	DefaultMaxClientDBConnections = 50
+
+	maxAlertingWorkers = 2
 )
 
 // Server represents a rport service
@@ -296,7 +298,7 @@ func NewServer(ctx context.Context, config *chconfig.Config, opts *ServerOpts) (
 
 	if s.alertingService != nil {
 		dispatcher := notifications.NewDispatcher(s.apiListener.notificationsStorage)
-		s.alertingService.Run(ctx, dispatcher)
+		s.alertingService.Run(ctx, dispatcher, maxAlertingWorkers)
 	}
 	return s, nil
 }
@@ -427,13 +429,15 @@ func (s *Server) Run(ctx context.Context) error {
 
 	err := s.Wait()
 
+	s.Debugf("stopping the server")
+
 	// allow time for go-routines (and the caddy server) to process their cancellations
 	time.Sleep(250 * time.Millisecond)
 
 	s.Close()
 
 	// a little more time for everything to settle on shutdown
-	time.Sleep(250 * time.Millisecond)
+	time.Sleep(500 * time.Millisecond)
 
 	return err
 }
@@ -461,7 +465,7 @@ func (s *Server) Wait() error {
 	wg := &errgroup.Group{}
 	wg.Go(s.clientListener.Wait)
 	wg.Go(s.apiListener.Wait)
-	// if caddy configured then also setup a dependencies on the caddy server running
+	// if caddy configured then also set up a dependency on the caddy server running
 	if s.config.CaddyEnabled() {
 		wg.Go(s.caddyServer.Wait)
 	}
@@ -484,8 +488,10 @@ func (s *Server) Close() error {
 	}
 	wg.Go(s.clientDB.Close)
 	wg.Go(s.jobProvider.Close)
+
 	wg.Go(s.clientGroupProvider.Close)
 	wg.Go(s.uiJobWebSockets.CloseConnections)
+
 	if s.auditLog != nil {
 		wg.Go(s.auditLog.Close)
 	}
@@ -501,10 +507,16 @@ func (s *Server) Close() error {
 
 	// TODO: (rs):  should we be shutting down the other plugin capabilities here?
 	if s.alertingService != nil {
+		s.Debugf("stopping alerting service")
 		wg.Go(s.alertingService.Stop)
 	}
 
-	return wg.Wait()
+	err := wg.Wait()
+	if err != nil {
+		s.Logger.Errorf("error closing server: %v", err)
+	}
+
+	return err
 }
 
 // jobResultChanMap is thread safe map with [jobID, chan *models.Job] pairs.

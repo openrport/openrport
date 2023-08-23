@@ -180,7 +180,7 @@ func NewMockServiceProvider() (mp *MockServiceProvider) {
 	return mp
 }
 
-func (mp *MockServiceProvider) Run(_ context.Context, _ notifications.Dispatcher) {
+func (mp *MockServiceProvider) Run(_ context.Context, _ notifications.Dispatcher, _ int) {
 }
 
 func (mp *MockServiceProvider) Stop() (err error) {

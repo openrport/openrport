@@ -9,6 +9,7 @@ import (
 	"runtime"
 	"runtime/pprof"
 	"strings"
+	"sync/atomic"
 	"syscall"
 	"time"
 
@@ -496,13 +497,29 @@ func runMain(*cobra.Command, []string) {
 		cfg.Logging.LogOutput.Shutdown()
 	}()
 	// Flush the in-memory logger
-	mLog.Flush(logger.NewLogger("server-startup", cfg.Logging.LogOutput, cfg.Logging.LogLevel))
+	initLogger := logger.NewLogger("server-init", cfg.Logging.LogOutput, cfg.Logging.LogLevel)
+	mLog.Flush(initLogger)
 
 	filesAPI := files.NewFileSystem()
 
 	// this ctx will be used to co-ordinate shutdown of the various server go-routines
-	ctx, cancel := signal.NotifyContext(context.Background(), syscall.SIGINT, syscall.SIGTERM, syscall.SIGHUP)
-	defer cancel()
+	ctx, cancel := context.WithCancel(context.Background())
+	var canceled atomic.Bool
+	defer func() {
+		if !canceled.Load() {
+			cancel()
+		}
+	}()
+
+	shutdown := make(chan os.Signal, 1)
+	signal.Notify(shutdown, syscall.SIGINT, syscall.SIGTERM, syscall.SIGHUP)
+	go func() {
+		sig := <-shutdown
+		fmt.Printf("Received %v signal, shutting down...\n", sig)
+		initLogger.Debugf("received %v signal, shutting down...\n", sig)
+		cancel()
+		canceled.Store(true)
+	}()
 
 	plusManager, err := chserver.EnablePlusIfAvailable(ctx, cfg, filesAPI)
 	if err != nil && err != chserver.ErrPlusNotEnabled {

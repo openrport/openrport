@@ -99,6 +99,7 @@ func RegisterPlusCapabilities(plusManager rportplus.Manager, cfg *chconfig.Confi
 	// register the plus alerting capability
 	_, err = plusManager.RegisterCapability(rportplus.PlusAlertingCapability, &alertingcap.Capability{
 		Config: &alertingcap.Config{
+			MaxWorkers:    maxAlertingWorkers,
 			AlertsLogPath: cfg.Server.DataDir,
 		},
 		Logger: logger,

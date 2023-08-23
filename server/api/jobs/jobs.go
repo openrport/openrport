@@ -197,7 +197,9 @@ func (p *SqliteProvider) CreateJob(job *models.Job) error {
 }
 
 func (p *SqliteProvider) Close() error {
-	return p.db.Close()
+	err := p.db.Close()
+	p.log.Debugf("jobs db closed")
+	return err
 }
 
 type jobSqlite struct {

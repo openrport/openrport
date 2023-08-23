@@ -20,7 +20,7 @@ type Monitoring interface {
 }
 
 func BootstrapMonitoring(logger *logger.Logger, dbProvider DBProvider) Monitoring {
-	service := NewService(dbProvider)
+	service := NewService(dbProvider, logger.Fork("monitoring"))
 	return &monitoringWithQueuing{
 		Service:          service,
 		MeasurementSaver: NewMeasurementQueuing(logger.Fork(QueueLoggerName), service, QueueSize),

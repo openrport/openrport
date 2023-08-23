@@ -46,9 +46,8 @@ const (
 )
 
 var (
-	ClientRequestsLogEnabled     = true
-	ClientPingsLogEnabled        = false
-	ClientMeasurementsLogEnabled = true
+	ClientRequestsLogEnabled = true
+	ClientPingsLogEnabled    = false
 )
 
 var upgrader = websocket.Upgrader{
@@ -58,9 +57,10 @@ var upgrader = websocket.Upgrader{
 }
 
 type ClientListener struct {
-	logger *logger.Logger
-	server *Server
-	ctx    context.Context
+	logger  *logger.Logger
+	server  *Server
+	ctx     context.Context
+	stopped atomic.Bool
 
 	connStats         chshare.ConnStats
 	httpServer        *chshare.HTTPServer
@@ -217,12 +217,19 @@ func (cl *ClientListener) Start(ctx context.Context, listenAddr string) error {
 
 // Wait waits for the http server to close
 func (cl *ClientListener) Wait() error {
-	return cl.httpServer.Wait()
+	cl.log().Debugf("client listener waiting...")
+	err := cl.httpServer.Wait()
+	cl.log().Debugf("client listener stopping...")
+	cl.stopped.Store(true)
+	return err
 }
 
 // Close forcibly closes the http server
 func (cl *ClientListener) Close() error {
-	return cl.httpServer.Close()
+	err := cl.httpServer.Close()
+	cl.stopped.Store(true)
+	cl.log().Debugf("client listener stopped")
+	return err
 }
 
 func (cl *ClientListener) handleClient(w http.ResponseWriter, r *http.Request) {
@@ -266,7 +273,6 @@ func (cl *ClientListener) acceptSSHConnection(w http.ResponseWriter, req *http.R
 
 	clog = logger.ForkToDynamicLogger(cl.log(), fmt.Sprintf("client#%d", cl.nextClientIndex()), true, false)
 	clog.SetControl(ClientRequestsLog, ClientRequestsLogEnabled)
-	clog.SetControl(ClientMeasurementsLog, ClientMeasurementsLogEnabled)
 	clog.SetControl(ClientPingsLog, ClientPingsLogEnabled)
 
 	clog.Debugf("Handling inbound web socket connection...")
@@ -468,6 +474,11 @@ func (cl *ClientListener) handleSSHRequests(clientLog *logger.DynamicLogger, cli
 	clientService := cl.getClientService()
 
 	for r := range reqs {
+		if cl.stopped.Load() {
+			clientLog.Debugf("client listener has been stopped. stopping requests handler for %s", clientID)
+			break
+		}
+
 		if len(r.Payload) > int(cl.server.config.Server.MaxRequestBytesClient) {
 			clientLog.Errorf("%s:request data exceeds the limit of %d bytes, actual size: %d", comm.RequestTypeSaveMeasurement, cl.server.config.Server.MaxRequestBytesClient, len(r.Payload))
 			continue
@@ -596,16 +607,8 @@ func (cl *ClientListener) handleSSHRequests(clientLog *logger.DynamicLogger, cli
 			}
 			measurement.ClientID = clientID
 
-			var ts time.Time
-			if ClientMeasurementsLogEnabled {
-				ts = time.Now().UTC()
-			}
 			measurement.Timestamp = time.Now().UTC()
 			cl.server.monitoringModule.Notify(measurement)
-
-			if ClientMeasurementsLogEnabled {
-				clientLog.NDebugf(ClientRequestsLog, "%s: measurement saved at %s in %s", clientID, time.Now().UTC(), time.Since(ts))
-			}
 
 			if rportplus.IsPlusEnabled(cl.server.config.PlusConfig) {
 				alertingCap := cl.server.plusManager.GetAlertingCapabilityEx()
@@ -631,12 +634,15 @@ func (cl *ClientListener) handleSSHRequests(clientLog *logger.DynamicLogger, cli
 			clientLog.Debugf("Unknown request: %s", r.Type)
 		}
 	}
+
+	clientLog.Debugf("Client listener for %s stopped", clientID)
 }
 
 func (cl *ClientListener) sendMeasurementToAlertingService(
 	alertingCap alertingcap.CapabilityEx,
 	measurement *models.Measurement,
 	clientLog *logger.DynamicLogger) {
+
 	m, err := transformers.TransformRportMeasurementToMeasure(measurement)
 	if err != nil {
 		clientLog.Debugf("Failed to transform measurement: %v", err)

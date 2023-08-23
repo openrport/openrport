@@ -10,6 +10,7 @@ import (
 
 	"github.com/realvnc-labs/rport/server/api"
 	"github.com/realvnc-labs/rport/server/api/errors"
+	"github.com/realvnc-labs/rport/share/logger"
 	"github.com/realvnc-labs/rport/share/models"
 	"github.com/realvnc-labs/rport/share/query"
 )
@@ -41,17 +42,24 @@ const oneMBitBytes = 125000.0 // for converting MBits to Bytes
 
 type monitoringService struct {
 	DBProvider DBProvider
+	L          *logger.Logger
 }
 
-func NewService(dbProvider DBProvider) Service {
-	return &monitoringService{DBProvider: dbProvider}
+func NewService(dbProvider DBProvider, l *logger.Logger) Service {
+	return &monitoringService{
+		DBProvider: dbProvider,
+		L:          l,
+	}
 }
 
 func (s *monitoringService) SaveMeasurementUpdateTimestamp(ctx context.Context, measurement *models.Measurement) error {
 	measurement.Timestamp = time.Now().UTC()
 	return s.SaveMeasurement(ctx, measurement)
 }
+
 func (s *monitoringService) SaveMeasurement(ctx context.Context, measurement *models.Measurement) error {
+	ts := time.Now()
+	defer s.L.Debugf("client %s measurement saved in %s", measurement.ClientID, time.Since(ts))
 	return s.DBProvider.CreateMeasurement(ctx, measurement)
 }
 
