@@ -160,7 +160,7 @@ func NewAPIListener(
 		notificationConsumers = append(notificationConsumers, mailConsumer)
 	} else {
 		notificationsLogger.Errorf("failed to bootstrap smtp notifications: %v", err)
-		logConsumer := toLog.NewLogConsumer(notificationsLogger.Fork("smtp error"), notifications.TargetMail) // consume mail notifications even if mailer is not available
+		logConsumer := toLog.NewLogConsumer(notificationsLogger.Fork("smtp undeliverable"), notifications.TargetMail) // consume mail notifications even if mailer is not available
 		notificationConsumers = append(notificationConsumers, logConsumer)
 	}
 
