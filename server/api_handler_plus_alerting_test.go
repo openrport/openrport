@@ -15,6 +15,7 @@ import (
 	alertingcap "github.com/realvnc-labs/rport/plus/capabilities/alerting"
 	"github.com/realvnc-labs/rport/plus/capabilities/alerting/alertingmock"
 	"github.com/realvnc-labs/rport/plus/capabilities/alerting/entities/rules"
+	"github.com/realvnc-labs/rport/plus/capabilities/alerting/entities/rundata"
 	"github.com/realvnc-labs/rport/plus/capabilities/alerting/entities/templates"
 	"github.com/realvnc-labs/rport/server/api/authorization"
 	"github.com/realvnc-labs/rport/server/api/users"
@@ -48,6 +49,10 @@ type ProblemResponse struct {
 
 type ProblemsResponse struct {
 	Data []*rules.Problem
+}
+
+type SampleDataResponse struct {
+	Data *rundata.SampleData
 }
 
 type plusManagerForMockAlerting struct {
@@ -287,17 +292,17 @@ func TestShouldReturnTemplate(t *testing.T) {
 func TestShouldSaveTemplate(t *testing.T) {
 	al, mockAS := setup(t)
 
-	t1, err := mockAS.GetTemplate("t1")
+	t2, err := mockAS.GetTemplate("t2")
 	require.NoError(t, err)
 
-	t10 := *t1
-	t10.ID = ""
+	t20 := *t2
+	t20.ID = ""
 
-	t10JSON, err := json.Marshal(t10)
+	t20JSON, err := json.Marshal(t20)
 	require.NoError(t, err)
 
 	w := httptest.NewRecorder()
-	req := httptest.NewRequest("PUT", routes.AllRoutesPrefix+routes.AlertingServiceRoutesPrefix+routes.ASTemplatesRoute+"/t10", bytes.NewReader(t10JSON))
+	req := httptest.NewRequest("PUT", routes.AllRoutesPrefix+routes.AlertingServiceRoutesPrefix+routes.ASTemplatesRoute+"/t20", bytes.NewReader(t20JSON))
 
 	al.router.ServeHTTP(w, req)
 
@@ -308,10 +313,16 @@ func TestShouldSaveTemplate(t *testing.T) {
 		t.Errorf("Expected status code %d, got %d", http.StatusOK, res.StatusCode)
 	}
 
-	savedTemplate, ok := mockAS.Templates["t10"]
+	savedTemplate, ok := mockAS.Templates["t20"]
 	require.True(t, ok)
 
-	assert.Equal(t, templates.TemplateID("t10"), savedTemplate.ID)
+	assert.Equal(t, templates.TemplateID("t20"), savedTemplate.ID)
+	assert.Equal(t, t20.Transport, savedTemplate.Transport)
+	assert.Equal(t, t20.Subject, savedTemplate.Subject)
+	assert.Equal(t, t20.Body, savedTemplate.Body)
+	assert.Equal(t, t20.HTML, savedTemplate.HTML)
+	assert.Equal(t, t20.ScriptDataTemplates, savedTemplate.ScriptDataTemplates)
+	assert.Equal(t, t20.Recipients, savedTemplate.Recipients)
 }
 
 func TestShouldDeleteTemplate(t *testing.T) {
@@ -616,4 +627,58 @@ func TestShouldGetLatestProblemsWithSort(t *testing.T) {
 	assert.Equal(t, rules.RuleID("r2"), problemsInfo.Data[0].RuleID)
 	assert.Equal(t, rules.RuleID("r1"), problemsInfo.Data[1].RuleID)
 	assert.Equal(t, rules.RuleID("r1"), problemsInfo.Data[2].RuleID)
+}
+
+func getSampleDataInfo(t *testing.T, w *httptest.ResponseRecorder) (sampleDataInfo SampleDataResponse) {
+	err := json.NewDecoder(w.Body).Decode(&sampleDataInfo)
+	assert.NoError(t, err)
+	return sampleDataInfo
+}
+
+func TestShouldGetSampleDataWindows(t *testing.T) {
+	al, _ := setup(t)
+
+	w := httptest.NewRecorder()
+	req := httptest.NewRequest("GET",
+		routes.AllRoutesPrefix+routes.AlertingServiceRoutesPrefix+routes.ASRuleSetRoute+routes.ASSampleDataRoute+"/windows",
+		nil)
+
+	al.router.ServeHTTP(w, req)
+
+	res := w.Result()
+	defer res.Body.Close()
+
+	if res.StatusCode != http.StatusOK {
+		require.Equal(t, http.StatusOK, res.StatusCode)
+	}
+
+	sampleDataInfo := getSampleDataInfo(t, w)
+	assert.NotZero(t, sampleDataInfo.Data)
+	sampleData := sampleDataInfo.Data
+	assert.Equal(t, "windows", sampleData.CL[0].ID)
+	assert.Equal(t, "windows", sampleData.M[0].ClientID)
+}
+
+func TestShouldGetSampleDataLinux(t *testing.T) {
+	al, _ := setup(t)
+
+	w := httptest.NewRecorder()
+	req := httptest.NewRequest("GET",
+		routes.AllRoutesPrefix+routes.AlertingServiceRoutesPrefix+routes.ASRuleSetRoute+routes.ASSampleDataRoute+"/linux",
+		nil)
+
+	al.router.ServeHTTP(w, req)
+
+	res := w.Result()
+	defer res.Body.Close()
+
+	if res.StatusCode != http.StatusOK {
+		require.Equal(t, http.StatusOK, res.StatusCode)
+	}
+
+	sampleDataInfo := getSampleDataInfo(t, w)
+	assert.NotZero(t, sampleDataInfo.Data)
+	sampleData := sampleDataInfo.Data
+	assert.Equal(t, "linux", sampleData.CL[0].ID)
+	assert.Equal(t, "linux", sampleData.M[0].ClientID)
 }

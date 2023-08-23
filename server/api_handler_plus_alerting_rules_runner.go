@@ -4,10 +4,13 @@ import (
 	"context"
 	"net/http"
 
+	"github.com/gorilla/mux"
+
 	rportplus "github.com/realvnc-labs/rport/plus"
 	alertingcap "github.com/realvnc-labs/rport/plus/capabilities/alerting"
 	"github.com/realvnc-labs/rport/plus/capabilities/alerting/entities/rundata"
 	"github.com/realvnc-labs/rport/server/api"
+	"github.com/realvnc-labs/rport/server/routes"
 )
 
 func (al *APIListener) getAlertingCapability() (capEx alertingcap.CapabilityEx, statusCode int, err error) {
@@ -28,6 +31,7 @@ func (al *APIListener) handleTestRules(w http.ResponseWriter, r *http.Request) {
 	asCap, status, err := al.getAlertingCapability()
 	if err != nil {
 		al.jsonErrorResponse(w, status, err)
+		return
 	}
 
 	runData := rundata.RunData{}
@@ -53,6 +57,27 @@ func (al *APIListener) handleTestRules(w http.ResponseWriter, r *http.Request) {
 	}
 
 	response := api.NewSuccessPayload(results)
+
+	al.writeJSONResponse(w, http.StatusOK, response)
+}
+
+func (al *APIListener) handleGetSampleData(w http.ResponseWriter, r *http.Request) {
+	as, status, err := al.getAlertingService()
+	if err != nil {
+		al.jsonErrorResponse(w, status, err)
+		return
+	}
+
+	vars := mux.Vars(r)
+	choice := vars[routes.ParamSampleDataChoice]
+
+	sampleData, err := as.GetSampleData(choice)
+	if err != nil {
+		al.jsonErrorResponse(w, status, err)
+		return
+	}
+
+	response := api.NewSuccessPayload(sampleData)
 
 	al.writeJSONResponse(w, http.StatusOK, response)
 }

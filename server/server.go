@@ -122,7 +122,7 @@ func NewServer(ctx context.Context, config *chconfig.Config, opts *ServerOpts) (
 
 		alertingCap := s.plusManager.GetAlertingCapabilityEx()
 		if alertingCap != nil {
-			s.alertingService, err = s.StartPlusAlertingService(ctx, alertingCap, config.Server.DataDir)
+			s.alertingService, err = s.StartPlusAlertingService(alertingCap, config.Server.DataDir)
 			if err != nil {
 				return nil, err
 			}
@@ -298,7 +298,7 @@ func NewServer(ctx context.Context, config *chconfig.Config, opts *ServerOpts) (
 
 	if s.alertingService != nil {
 		dispatcher := notifications.NewDispatcher(s.apiListener.notificationsStorage)
-		s.alertingService.Run(ctx, dispatcher, maxAlertingWorkers)
+		s.alertingService.Run(ctx, config.Notifications.NotificationScriptDir, dispatcher, maxAlertingWorkers)
 	}
 	return s, nil
 }
@@ -311,8 +311,7 @@ func (s *Server) HandlePlusLicenseInfoAvailable() {
 	}
 }
 
-func (s *Server) StartPlusAlertingService(ctx context.Context,
-	alertingCap alertingcap.CapabilityEx,
+func (s *Server) StartPlusAlertingService(alertingCap alertingcap.CapabilityEx,
 	dataDir string) (as alertingcap.Service, err error) {
 	opts := bbolt.DefaultOptions
 	bdb, err := bbolt.Open(dataDir+"/alerts.boltdb", 0600, opts)

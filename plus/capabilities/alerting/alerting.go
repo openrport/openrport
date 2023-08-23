@@ -39,7 +39,7 @@ type Config struct {
 }
 
 type Service interface {
-	Run(ctx context.Context, notificationDispatcher notifications.Dispatcher, maxWorkers int)
+	Run(ctx context.Context, scriptsDir string, notificationDispatcher notifications.Dispatcher, maxWorkers int)
 	Stop() (err error)
 	LoadDefaultRuleSet() (err error)
 
@@ -60,4 +60,6 @@ type Service interface {
 	SetProblemActive(pid rules.ProblemID) (err error)
 	SetProblemResolved(pid rules.ProblemID, resolvedAt time.Time) (err error)
 	GetLatestProblems(limit int) (problems []*rules.Problem, err error)
+
+	GetSampleData(choice string) (sampleData *rundata.SampleData, err error)
 }

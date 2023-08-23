@@ -98,6 +98,16 @@ func newTestTemplates() map[templates.TemplateID]templates.Template {
 			Body:       "The client with ID: {{.Client.ID}} has triggered rule ID: {{.Rule.ID}} BODY2",
 			HTML:       true,
 			Recipients: []string{"t3@test.com", "t4@test.com"},
+			ScriptDataTemplates: &templates.ScriptDataTemplates{
+				Subject:    "{{.Outcome}} for {{.Rule.ID}} SUBJECT2",
+				Severity:   "{{.Rule.Severity}}",
+				Client:     "{{.Client.ID}}",
+				WebhookURL: "https://test.com/rules/{{.Rule.ID}}",
+				Custom: templates.CustomData{
+					"key1": "value1",
+					"key2": "value2",
+				},
+			},
 		},
 		"t3": {
 			ID:         "t3",
@@ -180,7 +190,7 @@ func NewMockServiceProvider() (mp *MockServiceProvider) {
 	return mp
 }
 
-func (mp *MockServiceProvider) Run(_ context.Context, _ notifications.Dispatcher, _ int) {
+func (mp *MockServiceProvider) Run(_ context.Context, _ string, _ notifications.Dispatcher, _ int) {
 }
 
 func (mp *MockServiceProvider) Stop() (err error) {
@@ -291,4 +301,19 @@ func (mp *MockServiceProvider) GetLatestProblems(_ int) (problems []*rules.Probl
 		return problems[a].ID < problems[b].ID
 	})
 	return problems, nil
+}
+
+func (mp *MockServiceProvider) GetSampleData(choice string) (sampleData *rundata.SampleData, err error) {
+	testRunData := rundata.SampleData{
+		CL: []clientupdates.Client{{ID: "linux"}},
+		M:  []measures.Measure{{ClientID: "linux"}},
+	}
+	if choice == "windows" {
+		testRunData = rundata.SampleData{
+			CL: []clientupdates.Client{{ID: "windows"}},
+			M:  []measures.Measure{{ClientID: "windows"}},
+		}
+	}
+
+	return &testRunData, nil
 }

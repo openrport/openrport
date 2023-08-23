@@ -17,15 +17,21 @@ var (
 	ErrMissingScriptSubjectMsg                = "missing data subject"
 	ErrBadlyFormedWebhookMsg                  = "badly formed webhook"
 	ErrMissingWebhookURLHostMsg               = "missing host in webhook url"
+	ErrScriptNotFoundMsg                      = "script %s not found in %s"
+	ErrFailedToStatScriptFile                 = "failed to stat script file %s"
+	ErrScriptNotExecutableMsg                 = "script %s not executable"
 )
 
 type TemplateID string
 
+type CustomData map[string]string
+
 type ScriptDataTemplates struct {
-	Subject    string `json:"subject"`
-	Severity   string `json:"severity"`
-	Client     string `json:"client"`
-	WebhookURL string `json:"webhook_url"`
+	Subject    string     `json:"subject"`
+	Severity   string     `json:"severity"`
+	Client     string     `json:"client"`
+	WebhookURL string     `json:"webhook_url"`
+	Custom     CustomData `json:"custom_data"`
 }
 
 type Template struct {

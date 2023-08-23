@@ -605,9 +605,10 @@ func (cl *ClientListener) handleSSHRequests(clientLog *logger.DynamicLogger, cli
 				clientLog.Errorf("Failed to unmarshal save_measurement: %s", err)
 				continue
 			}
-			measurement.ClientID = clientID
 
+			measurement.ClientID = clientID
 			measurement.Timestamp = time.Now().UTC()
+
 			cl.server.monitoringModule.Notify(measurement)
 
 			if rportplus.IsPlusEnabled(cl.server.config.PlusConfig) {
