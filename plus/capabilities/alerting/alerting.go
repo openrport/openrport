@@ -35,7 +35,7 @@ type Config struct {
 }
 
 type Service interface {
-	Run(ctx context.Context, notificationDispatcher notifications.Dispatcher)
+	Run(ctx context.Context, scriptsDir string, notificationDispatcher notifications.Dispatcher)
 	Stop() (err error)
 	LoadDefaultRuleSet() (err error)
 
