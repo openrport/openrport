@@ -588,32 +588,21 @@ func (cl *ClientListener) handleSSHRequests(clientLog *logger.DynamicLogger, cli
 				continue
 			}
 
-			measurement := &models.Measurement{}
-			err := json.Unmarshal(r.Payload, measurement)
+			measurement := models.Measurement{}
+			err := json.Unmarshal(r.Payload, &measurement)
 			if err != nil {
 				clientLog.Errorf("Failed to unmarshal save_measurement: %s", err)
 				continue
 			}
 			measurement.ClientID = clientID
+			measurement.Timestamp = time.Now().UTC()
 
-			var ts time.Time
-			if ClientMeasurementsLogEnabled {
-				ts = time.Now().UTC()
-			}
-			err = cl.server.monitoringService.SaveMeasurement(context.Background(), measurement)
-			if err != nil {
-				clientLog.Errorf("Failed to save measurement for client %s: %s", clientID, err)
-				continue
-			}
-
-			if ClientMeasurementsLogEnabled {
-				clientLog.NDebugf(ClientRequestsLog, "%s: measurement saved at %s in %s", clientID, time.Now().UTC(), time.Since(ts))
-			}
+			cl.server.monitoringQueue.Notify(measurement)
 
 			if rportplus.IsPlusEnabled(cl.server.config.PlusConfig) {
 				alertingCap := cl.server.plusManager.GetAlertingCapabilityEx()
 				if alertingCap != nil {
-					cl.sendMeasurementToAlertingService(alertingCap, measurement, clientLog)
+					cl.sendMeasurementToAlertingService(alertingCap, &measurement, clientLog)
 				}
 			}
 		case comm.RequestTypeIPAddresses:

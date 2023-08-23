@@ -302,3 +302,18 @@ func (mp *MockServiceProvider) GetLatestProblems(_ int) (problems []*rules.Probl
 	})
 	return problems, nil
 }
+
+func (mp *MockServiceProvider) GetSampleData(choice string) (sampleData *rundata.SampleData, err error) {
+	testRunData := rundata.SampleData{
+		CL: []clientupdates.Client{{ID: "linux"}},
+		M:  []measures.Measure{{ClientID: "linux"}},
+	}
+	if choice == "windows" {
+		testRunData = rundata.SampleData{
+			CL: []clientupdates.Client{{ID: "windows"}},
+			M:  []measures.Measure{{ClientID: "windows"}},
+		}
+	}
+
+	return &testRunData, nil
+}

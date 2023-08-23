@@ -27,7 +27,7 @@ func TestMonitoringService_SaveMeasurement(t *testing.T) {
 		ClientID:  "test1",
 		Timestamp: mClient,
 	}
-	err = service.SaveMeasurement(context.Background(), m)
+	err = service.SaveMeasurementUpdateTimestamp(context.Background(), m)
 	require.NoError(t, err)
 	gap := m.Timestamp.Sub(mClient)
 	require.True(t, gap >= minGap, "monitoring.service must set timestamp")
