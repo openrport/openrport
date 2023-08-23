@@ -56,6 +56,8 @@ const (
 
 	DefaultMaxClientDBConnections = 50
 
+	// warning: do not increase this value without careful testing. bbolt doesn't seem to like too many concurrent
+	// read/write workers.
 	maxAlertingWorkers = 2
 )
 
@@ -314,6 +316,9 @@ func (s *Server) HandlePlusLicenseInfoAvailable() {
 func (s *Server) StartPlusAlertingService(alertingCap alertingcap.CapabilityEx,
 	dataDir string) (as alertingcap.Service, err error) {
 	opts := bbolt.DefaultOptions
+	// TODO: (rs):  previously the page size was being set in the wrong place. we still need to
+	// performance test with larger page sizes, such as the below.
+	// opts.PageSize = 1024 * 64
 	bdb, err := bbolt.Open(dataDir+"/alerts.boltdb", 0600, opts)
 	if err != nil {
 		return nil, err
