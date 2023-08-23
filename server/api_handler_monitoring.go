@@ -48,7 +48,7 @@ func (al *APIListener) handleGetClientMetrics(w http.ResponseWriter, req *http.R
 
 	queryOptions := query.NewOptions(req, monitoring.ClientMetricsSortDefault, monitoring.ClientMetricsFilterDefault, monitoring.ClientMetricsFieldsDefault)
 
-	payload, err := al.monitoringModule.ListClientMetrics(req.Context(), clientID, queryOptions)
+	payload, err := al.monitoringService.ListClientMetrics(req.Context(), clientID, queryOptions)
 	if err != nil {
 		if err == sql.ErrNoRows {
 			al.jsonErrorResponseWithTitle(w, http.StatusNotFound, fmt.Sprintf("metrics for client with id %q not found", clientID))
@@ -82,7 +82,7 @@ func (al *APIListener) handleGetClientGraphMetrics(w http.ResponseWriter, req *h
 	netLan := monitoringConfig.LanCard != nil
 	netWan := monitoringConfig.WanCard != nil
 
-	payload, err := al.monitoringModule.ListClientGraphMetrics(req.Context(), clientID, queryOptions, requestInfo, netLan, netWan)
+	payload, err := al.monitoringService.ListClientGraphMetrics(req.Context(), clientID, queryOptions, requestInfo, netLan, netWan)
 	if err != nil {
 		if err == sql.ErrNoRows {
 			al.jsonErrorResponseWithTitle(w, http.StatusNotFound, fmt.Sprintf("graph-metrics for client with id %q not found", clientID))
@@ -114,7 +114,7 @@ func (al *APIListener) handleGetClientGraphMetricsGraph(w http.ResponseWriter, r
 
 	monitoringConfig := client.GetMonitoringConfig()
 
-	payload, err := al.monitoringModule.ListClientGraph(req.Context(), clientID, queryOptions, graph, monitoringConfig.LanCard, monitoringConfig.WanCard)
+	payload, err := al.monitoringService.ListClientGraph(req.Context(), clientID, queryOptions, graph, monitoringConfig.LanCard, monitoringConfig.WanCard)
 	if err != nil {
 		if err == sql.ErrNoRows {
 			al.jsonErrorResponseWithTitle(w, http.StatusNotFound, fmt.Sprintf("graph-metrics for client with id %q not found", clientID))
@@ -133,7 +133,7 @@ func (al *APIListener) handleGetClientProcesses(w http.ResponseWriter, req *http
 
 	queryOptions := query.NewOptions(req, monitoring.ClientProcessesSortDefault, monitoring.ClientProcessesFilterDefault, monitoring.ClientProcessesFieldsDefault)
 
-	payload, err := al.monitoringModule.ListClientProcesses(req.Context(), clientID, queryOptions)
+	payload, err := al.monitoringService.ListClientProcesses(req.Context(), clientID, queryOptions)
 	if err != nil {
 		if err == sql.ErrNoRows {
 			al.jsonErrorResponseWithTitle(w, http.StatusNotFound, fmt.Sprintf("processes for client with id %q not found", clientID))
@@ -152,7 +152,7 @@ func (al *APIListener) handleGetClientMountpoints(w http.ResponseWriter, req *ht
 
 	queryOptions := query.NewOptions(req, monitoring.ClientMountpointsSortDefault, monitoring.ClientMountpointsFilterDefault, monitoring.ClientMountpointsFieldsDefault)
 
-	payload, err := al.monitoringModule.ListClientMountpoints(req.Context(), clientID, queryOptions)
+	payload, err := al.monitoringService.ListClientMountpoints(req.Context(), clientID, queryOptions)
 	if err != nil {
 		if err == sql.ErrNoRows {
 			al.jsonErrorResponseWithTitle(w, http.StatusNotFound, fmt.Sprintf("mountpoints for client with id %q not found", clientID))
