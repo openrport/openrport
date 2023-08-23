@@ -19,7 +19,10 @@ import (
 
 const NoLimit = -1
 
-var ErrEntityNotFound = errors.New("entity not found")
+var (
+	ErrEntityNotFound          = errors.New("entity not found")
+	ErrInboundUpdatesQueueFull = errors.New("measures update queue full")
+)
 
 type CapabilityEx interface {
 	Init(db *bbolt.DB) (err error)
@@ -31,11 +34,12 @@ type CapabilityEx interface {
 }
 
 type Config struct {
+	MaxWorkers    int    `mapstructure:"max_alerting_workers"`
 	AlertsLogPath string `mapstructure:"alert_log_path"`
 }
 
 type Service interface {
-	Run(ctx context.Context, scriptsDir string, notificationDispatcher notifications.Dispatcher)
+	Run(ctx context.Context, scriptsDir string, notificationDispatcher notifications.Dispatcher, maxWorkers int)
 	Stop() (err error)
 	LoadDefaultRuleSet() (err error)
 

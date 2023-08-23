@@ -160,7 +160,7 @@ func NewAPIListener(
 		notificationConsumers = append(notificationConsumers, mailConsumer)
 	} else {
 		notificationsLogger.Errorf("failed to bootstrap smtp notifications: %v", err)
-		logConsumer := toLog.NewLogConsumer(notificationsLogger.Fork("smtp error"), notifications.TargetMail) // consume mail notifications even if mailer is not available
+		logConsumer := toLog.NewLogConsumer(notificationsLogger.Fork("smtp undeliverable"), notifications.TargetMail) // consume mail notifications even if mailer is not available
 		notificationConsumers = append(notificationConsumers, logConsumer)
 	}
 
@@ -353,6 +353,8 @@ func (al *APIListener) Wait() error {
 }
 
 func (al *APIListener) Close() error {
+	al.Log().Debugf("closing APIListener...")
+
 	g := &errgroup.Group{}
 	if al.httpServer != nil {
 		g.Go(al.httpServer.Close)
@@ -379,7 +381,10 @@ func (al *APIListener) Close() error {
 	g.Go(al.notificationsProcessor.Close)
 	g.Go(al.notificationsDB.Close)
 
-	return g.Wait()
+	err := g.Wait()
+
+	al.Log().Debugf("APIListener closed")
+	return err
 }
 
 var ErrTooManyRequests = errors.New("too many requests, please try later")

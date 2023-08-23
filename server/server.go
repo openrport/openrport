@@ -55,6 +55,10 @@ const (
 	LogNumGoRoutinesInterval    = time.Minute * 2
 
 	DefaultMaxClientDBConnections = 50
+
+	// warning: do not increase this value without careful testing. bbolt doesn't seem to like too many concurrent
+	// read/write workers.
+	maxAlertingWorkers = 2
 )
 
 // Server represents a rport service
@@ -182,7 +186,6 @@ func NewServer(ctx context.Context, config *chconfig.Config, opts *ServerOpts) (
 		return nil, err
 	}
 
-	// create monitoringProvider and monitoringService
 	monitoringProvider, err := monitoring.NewSqliteProvider(
 		path.Join(config.Server.DataDir, "monitoring.db"),
 		config.Server.GetSQLiteDataSourceOptions(),
@@ -193,7 +196,7 @@ func NewServer(ctx context.Context, config *chconfig.Config, opts *ServerOpts) (
 	}
 
 	// even if monitoring disabled, always create the monitoring service to support queries of past data etc
-	s.monitoringService = monitoring.NewService(monitoringProvider)
+	s.monitoringService = monitoring.NewService(monitoringProvider, s.Logger.Fork("monitoring"))
 
 	s.monitoringQueue = monitoring.NewMeasurementQueuing(s.Logger.Fork("measurements-queue"), s.monitoringService, 10000)
 
@@ -299,7 +302,7 @@ func NewServer(ctx context.Context, config *chconfig.Config, opts *ServerOpts) (
 
 	if s.alertingService != nil {
 		dispatcher := notifications.NewDispatcher(s.apiListener.notificationsStorage)
-		s.alertingService.Run(ctx, config.Notifications.NotificationScriptDir, dispatcher)
+		s.alertingService.Run(ctx, config.Notifications.NotificationScriptDir, dispatcher, maxAlertingWorkers)
 	}
 	return s, nil
 }
@@ -315,6 +318,9 @@ func (s *Server) HandlePlusLicenseInfoAvailable() {
 func (s *Server) StartPlusAlertingService(alertingCap alertingcap.CapabilityEx,
 	dataDir string) (as alertingcap.Service, err error) {
 	opts := bbolt.DefaultOptions
+	// TODO: (rs):  previously the page size was being set in the wrong place. we still need to
+	// performance test with larger page sizes, such as the below.
+	// opts.PageSize = 1024 * 64
 	bdb, err := bbolt.Open(dataDir+"/alerts.boltdb", 0600, opts)
 	if err != nil {
 		return nil, err
@@ -429,13 +435,15 @@ func (s *Server) Run(ctx context.Context) error {
 
 	err := s.Wait()
 
+	s.Debugf("stopping the server")
+
 	// allow time for go-routines (and the caddy server) to process their cancellations
 	time.Sleep(250 * time.Millisecond)
 
 	s.Close()
 
 	// a little more time for everything to settle on shutdown
-	time.Sleep(250 * time.Millisecond)
+	time.Sleep(500 * time.Millisecond)
 
 	return err
 }
@@ -463,7 +471,7 @@ func (s *Server) Wait() error {
 	wg := &errgroup.Group{}
 	wg.Go(s.clientListener.Wait)
 	wg.Go(s.apiListener.Wait)
-	// if caddy configured then also setup a dependencies on the caddy server running
+	// if caddy configured then also set up a dependency on the caddy server running
 	if s.config.CaddyEnabled() {
 		wg.Go(s.caddyServer.Wait)
 	}
@@ -486,8 +494,10 @@ func (s *Server) Close() error {
 	}
 	wg.Go(s.clientDB.Close)
 	wg.Go(s.jobProvider.Close)
+
 	wg.Go(s.clientGroupProvider.Close)
 	wg.Go(s.uiJobWebSockets.CloseConnections)
+
 	if s.auditLog != nil {
 		wg.Go(s.auditLog.Close)
 	}
@@ -503,10 +513,16 @@ func (s *Server) Close() error {
 
 	// TODO: (rs):  should we be shutting down the other plugin capabilities here?
 	if s.alertingService != nil {
+		s.Debugf("stopping alerting service")
 		wg.Go(s.alertingService.Stop)
 	}
 
-	return wg.Wait()
+	err := wg.Wait()
+	if err != nil {
+		s.Logger.Errorf("error closing server: %v", err)
+	}
+
+	return err
 }
 
 // jobResultChanMap is thread safe map with [jobID, chan *models.Job] pairs.
