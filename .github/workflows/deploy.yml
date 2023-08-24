@@ -46,17 +46,21 @@ jobs:
           test -e ~/.ssh || mkdir ~/.ssh 
           echo "${SSH_PRIV_KEY}" > ~/.ssh/id_ed25519
           echo "${SSH_KNOWN_HOSTS}" > ~/.ssh/known_hosts
+          . ~/.plus.env
           chmod 0400 ~/.ssh/*
           ls -lah ~/.ssh/
           scp -P ${SSH_PORT} rportd ${SSH_USERNAME}@${SSH_HOST}:/tmp/.rportd
           echo "✅ Copied rportd to destination"
+          scp -P ${SSH_PORT} rport-plus/rport-plus.so ${SSH_USERNAME}@${SSH_HOST}:/tmp/rport-plus-${PLUS_LATEST}.so
+          echo "✅ Copied Rport-Plus to remote host"
           ssh -p ${SSH_PORT} ${SSH_USERNAME}@${SSH_HOST} bash << EOF
           set -e
           sudo -n service rportd stop
+          # Move rportd to the expected folder
           sudo -n mv /tmp/.rportd /usr/local/bin/rportd
+          # Move the plus plugin to the expected folder
+          sudo -n mv /tmp/rport-plus-${PLUS_LATEST}.so /usr/local/lib/rport/rport-plus.so
           sudo -n service rportd start
+          /usr/local/bin/rportd --version
           EOF
           echo "✅ Rportd restarted on remote host"
-          . ~/.plus.env
-          scp -P ${SSH_PORT} rport-plus/rport-plus.so ${SSH_USERNAME}@${SSH_HOST}:/tmp/rport-plus-${PLUS_LATEST}.so
-          echo "✅ Rport-Plus copied to remote host"
