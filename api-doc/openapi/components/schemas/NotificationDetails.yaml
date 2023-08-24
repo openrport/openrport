@@ -1,0 +1,36 @@
+type: object
+properties:
+  RefID:
+    type: string
+    description: "Reference ID, what triggered this notification"
+  Data:
+    type: object
+    description: "Notification data, what it ought to send"
+    properties:
+      ContentType:
+        type: string
+      Body:
+        type: string
+  State:
+    type: string
+    description: "Processing state"
+    enum:
+      - "queued"
+      - "dispatching"
+      - "done"
+      - "error"
+  ID:
+    type: string
+    description: "ID, identifiable by the refs library."
+  Out:
+    type: string
+    description: "for script stdout"
+  Target:
+    type: string
+    description: "with what the notification should be processed"
+    enum:
+      - "Mail"
+      - "path to script"
+  Err:
+    type: string
+    description: "Error message if applicable, if script puts anything in stderr, it will be present here"
