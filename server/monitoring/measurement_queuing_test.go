@@ -17,9 +17,10 @@ import (
 var testLog = logger.NewLogger("measurement-queue", logger.LogOutput{File: os.Stdout}, logger.LogLevelDebug)
 
 type MockSaver struct {
-	ms    []*models.Measurement
-	count atomic.Int64
-	slow  atomic.Bool
+	ms         []*models.Measurement
+	count      atomic.Int64
+	slow       atomic.Bool
+	saveCalled chan struct{}
 }
 
 func (m *MockSaver) SaveMeasurement(ctx context.Context, measurement *models.Measurement) error {
@@ -28,6 +29,7 @@ func (m *MockSaver) SaveMeasurement(ctx context.Context, measurement *models.Mea
 	}
 	m.ms = append(m.ms, measurement)
 	m.count.Add(1)
+	close(m.saveCalled)
 	return nil
 }
 
@@ -39,13 +41,15 @@ type QueuingTestSuite struct {
 
 func (suite *QueuingTestSuite) SetupTest() {
 	suite.saver = &MockSaver{
-		ms: make([]*models.Measurement, 0),
+		ms:         make([]*models.Measurement, 0),
+		saveCalled: make(chan struct{}),
 	}
 	suite.q = monitoring.NewMeasurementQueuing(testLog, suite.saver, 0)
 }
 
 func (suite *QueuingTestSuite) TestEnqueue() {
 	suite.q.Notify(models.Measurement{})
+	<-suite.saver.saveCalled
 	suite.Equal(suite.saver.count.Load(), int64(1))
 }
 
