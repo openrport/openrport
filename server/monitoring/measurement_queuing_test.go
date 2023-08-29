@@ -29,7 +29,7 @@ func (m *MockSaver) SaveMeasurement(ctx context.Context, measurement *models.Mea
 	}
 	m.ms = append(m.ms, measurement)
 	m.count.Add(1)
-	close(m.saveCalled)
+	m.saveCalled <- struct{}{}
 	return nil
 }
 
@@ -42,7 +42,7 @@ type QueuingTestSuite struct {
 func (suite *QueuingTestSuite) SetupTest() {
 	suite.saver = &MockSaver{
 		ms:         make([]*models.Measurement, 0),
-		saveCalled: make(chan struct{}),
+		saveCalled: make(chan struct{}, 1000),
 	}
 	suite.q = monitoring.NewMeasurementQueuing(testLog, suite.saver, 0)
 }
@@ -50,7 +50,7 @@ func (suite *QueuingTestSuite) SetupTest() {
 func (suite *QueuingTestSuite) TestEnqueue() {
 	suite.q.Notify(models.Measurement{})
 	<-suite.saver.saveCalled
-	suite.Equal(suite.saver.count.Load(), int64(1))
+	suite.Equal(int64(1), suite.saver.count.Load())
 }
 
 func (suite *QueuingTestSuite) TestSlowEnqueue() {
@@ -59,6 +59,16 @@ func (suite *QueuingTestSuite) TestSlowEnqueue() {
 	suite.q.Notify(models.Measurement{})
 
 	suite.Less(time.Since(stopper), time.Millisecond)
+}
+
+func (suite *QueuingTestSuite) TestOnOverflowRejectMeasurements() {
+	suite.saver.slow.Store(true)
+
+	for i := 0; i < 100; i++ {
+		suite.q.Notify(models.Measurement{})
+	}
+	time.Sleep(time.Millisecond * 100)
+	suite.Equal(int64(1), suite.saver.count.Load())
 }
 
 func (suite *QueuingTestSuite) TestCleanClose() {

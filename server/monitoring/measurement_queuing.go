@@ -3,11 +3,14 @@ package monitoring
 import (
 	"context"
 	"sync"
+	"sync/atomic"
 	"time"
 
 	"github.com/realvnc-labs/rport/share/logger"
 	"github.com/realvnc-labs/rport/share/models"
 )
+
+const OverflownMeasurementsShutdownThreshold = 1000
 
 type saver interface {
 	SaveMeasurement(ctx context.Context, measurement *models.Measurement) error
@@ -19,12 +22,13 @@ type MeasurementSaver interface {
 }
 
 type queue struct {
-	saver    saver
-	queue    chan models.Measurement
-	ctx      context.Context
-	cancelFn context.CancelFunc
-	wg       sync.WaitGroup
-	logger   *logger.Logger
+	saver         saver
+	queue         chan models.Measurement
+	ctx           context.Context
+	cancelFn      context.CancelFunc
+	wg            sync.WaitGroup
+	logger        *logger.Logger
+	overflowCount atomic.Int32
 }
 
 func (q *queue) Close() error {
@@ -34,11 +38,20 @@ func (q *queue) Close() error {
 }
 
 func (q *queue) Notify(measurement models.Measurement) bool {
+
+	if OverflownMeasurementsShutdownThreshold > -1 && q.overflowCount.Load() > OverflownMeasurementsShutdownThreshold {
+		return false // to keep system stable it's better to drop measurements then kill disk writes
+	}
+
 	select {
 	case <-q.ctx.Done():
 		return false
 	case q.queue <- measurement:
 		return true
+	default:
+		q.logger.Errorf("measurements received faster than they can be saved")
+		q.overflowCount.Add(1)
+		return false
 	}
 }
 
