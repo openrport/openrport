@@ -6,8 +6,8 @@ import (
 
 	"github.com/jmoiron/sqlx"
 
-	"github.com/realvnc-labs/rport/share/models"
-	"github.com/realvnc-labs/rport/share/query"
+	"github.com/openrport/openrport/share/models"
+	"github.com/openrport/openrport/share/query"
 )
 
 type DBProviderMock struct {

@@ -13,17 +13,17 @@ import (
 	"testing"
 	"time"
 
-	"github.com/realvnc-labs/rport/share/clientconfig"
-	"github.com/realvnc-labs/rport/share/logger"
+	"github.com/openrport/openrport/share/clientconfig"
+	"github.com/openrport/openrport/share/logger"
 
 	"golang.org/x/crypto/ssh"
 
 	"github.com/stretchr/testify/require"
 
-	"github.com/realvnc-labs/rport/server/clients/clientdata"
-	"github.com/realvnc-labs/rport/server/clients/clienttunnel"
-	chshare "github.com/realvnc-labs/rport/share/models"
-	"github.com/realvnc-labs/rport/share/random"
+	"github.com/openrport/openrport/server/clients/clientdata"
+	"github.com/openrport/openrport/server/clients/clienttunnel"
+	chshare "github.com/openrport/openrport/share/models"
+	"github.com/openrport/openrport/share/random"
 )
 
 var clientsNow, _ = time.ParseInLocation(time.RFC3339, "2020-08-19T13:09:23+03:00", nil)

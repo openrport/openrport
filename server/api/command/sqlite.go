@@ -7,8 +7,8 @@ import (
 
 	"github.com/jmoiron/sqlx"
 
-	"github.com/realvnc-labs/rport/share/query"
-	"github.com/realvnc-labs/rport/share/random"
+	"github.com/openrport/openrport/share/query"
+	"github.com/openrport/openrport/share/random"
 )
 
 type SqliteProvider struct {

@@ -15,8 +15,8 @@ import (
 
 	"github.com/stretchr/testify/require"
 
-	"github.com/realvnc-labs/rport/share/models"
-	"github.com/realvnc-labs/rport/share/random"
+	"github.com/openrport/openrport/share/models"
+	"github.com/openrport/openrport/share/random"
 )
 
 type JobBuilder struct {

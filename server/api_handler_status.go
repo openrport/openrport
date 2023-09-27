@@ -3,8 +3,8 @@ package chserver
 import (
 	"net/http"
 
-	"github.com/realvnc-labs/rport/server/api"
-	chshare "github.com/realvnc-labs/rport/share"
+	"github.com/openrport/openrport/server/api"
+	chshare "github.com/openrport/openrport/share"
 )
 
 func (al *APIListener) handleGetStatus(w http.ResponseWriter, req *http.Request) {

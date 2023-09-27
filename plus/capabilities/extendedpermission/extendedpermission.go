@@ -11,8 +11,8 @@ import (
 	"strings"
 	"time"
 
-	"github.com/realvnc-labs/rport/plus/validator"
-	"github.com/realvnc-labs/rport/share/logger"
+	"github.com/openrport/openrport/plus/validator"
+	"github.com/openrport/openrport/share/logger"
 )
 
 type CapabilityEx interface {

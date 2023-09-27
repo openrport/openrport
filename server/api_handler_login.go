@@ -7,13 +7,13 @@ import (
 	"strconv"
 	"time"
 
-	rportplus "github.com/realvnc-labs/rport/plus"
-	"github.com/realvnc-labs/rport/server/api"
-	errors2 "github.com/realvnc-labs/rport/server/api/errors"
-	"github.com/realvnc-labs/rport/server/api/users"
-	"github.com/realvnc-labs/rport/server/bearer"
-	chshare "github.com/realvnc-labs/rport/share"
-	"github.com/realvnc-labs/rport/share/logger"
+	rportplus "github.com/openrport/openrport/plus"
+	"github.com/openrport/openrport/server/api"
+	errors2 "github.com/openrport/openrport/server/api/errors"
+	"github.com/openrport/openrport/server/api/users"
+	"github.com/openrport/openrport/server/bearer"
+	chshare "github.com/openrport/openrport/share"
+	"github.com/openrport/openrport/share/logger"
 )
 
 type twoFAResponse struct {

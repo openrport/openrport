@@ -14,13 +14,13 @@ import (
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 
-	"github.com/realvnc-labs/rport/server/api"
-	"github.com/realvnc-labs/rport/server/api/session"
-	"github.com/realvnc-labs/rport/server/api/users"
-	"github.com/realvnc-labs/rport/server/bearer"
-	"github.com/realvnc-labs/rport/server/chconfig"
-	"github.com/realvnc-labs/rport/share/logger"
-	"github.com/realvnc-labs/rport/share/security"
+	"github.com/openrport/openrport/server/api"
+	"github.com/openrport/openrport/server/api/session"
+	"github.com/openrport/openrport/server/api/users"
+	"github.com/openrport/openrport/server/bearer"
+	"github.com/openrport/openrport/server/chconfig"
+	"github.com/openrport/openrport/share/logger"
+	"github.com/openrport/openrport/share/security"
 )
 
 type UserAPISessionsResponse struct {

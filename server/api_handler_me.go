@@ -8,15 +8,15 @@ import (
 
 	"github.com/gorilla/mux"
 
-	"github.com/realvnc-labs/rport/server/api"
-	"github.com/realvnc-labs/rport/server/api/authorization"
-	users "github.com/realvnc-labs/rport/server/api/users"
-	"github.com/realvnc-labs/rport/server/auditlog"
-	"github.com/realvnc-labs/rport/server/routes"
-	chshare "github.com/realvnc-labs/rport/share"
-	"github.com/realvnc-labs/rport/share/logger"
-	"github.com/realvnc-labs/rport/share/ptr"
-	"github.com/realvnc-labs/rport/share/random"
+	"github.com/openrport/openrport/server/api"
+	"github.com/openrport/openrport/server/api/authorization"
+	users "github.com/openrport/openrport/server/api/users"
+	"github.com/openrport/openrport/server/auditlog"
+	"github.com/openrport/openrport/server/routes"
+	chshare "github.com/openrport/openrport/share"
+	"github.com/openrport/openrport/share/logger"
+	"github.com/openrport/openrport/share/ptr"
+	"github.com/openrport/openrport/share/random"
 )
 
 // handleGetMe returns the currently logged-in user and the groups the user belongs to.

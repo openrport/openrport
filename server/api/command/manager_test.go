@@ -12,8 +12,8 @@ import (
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 
-	errors2 "github.com/realvnc-labs/rport/server/api/errors"
-	"github.com/realvnc-labs/rport/share/query"
+	errors2 "github.com/openrport/openrport/server/api/errors"
+	"github.com/openrport/openrport/share/query"
 )
 
 type DbProviderMock struct {

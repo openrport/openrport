@@ -12,10 +12,10 @@ import (
 	"github.com/mattn/go-sqlite3"
 	"github.com/pkg/errors"
 
-	"github.com/realvnc-labs/rport/db/sqlite"
-	"github.com/realvnc-labs/rport/share/logger"
-	"github.com/realvnc-labs/rport/share/models"
-	"github.com/realvnc-labs/rport/share/query"
+	"github.com/openrport/openrport/db/sqlite"
+	"github.com/openrport/openrport/share/logger"
+	"github.com/openrport/openrport/share/models"
+	"github.com/openrport/openrport/share/query"
 )
 
 const (

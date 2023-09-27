@@ -6,7 +6,7 @@ import (
 
 	"github.com/stretchr/testify/assert"
 
-	"github.com/realvnc-labs/rport/plus/capabilities/alerting/entities/measures"
+	"github.com/openrport/openrport/plus/capabilities/alerting/entities/measures"
 )
 
 func TestShouldTransformJSONToMountPoints(t *testing.T) {

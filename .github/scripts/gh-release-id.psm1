@@ -7,7 +7,7 @@ function Get-ReleaseId
         [Parameter(Mandatory = $true)]
         [Int64] $waitSec
     )
-    $url = "https://api.github.com/repos/realvnc-labs/rport/releases?page=1&per_page=5"
+    $url = "https://api.github.com/repos/openrport/openrport/releases?page=1&per_page=5"
     $headers = @{
         "Authorization" = "Bearer " + $env:GITHUB_TOKEN
     }

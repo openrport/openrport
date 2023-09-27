@@ -6,7 +6,7 @@ import (
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 
-	"github.com/realvnc-labs/rport/share/enums"
+	"github.com/openrport/openrport/share/enums"
 )
 
 func TestCreateUser(t *testing.T) {

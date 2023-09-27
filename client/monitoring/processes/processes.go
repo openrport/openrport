@@ -6,8 +6,8 @@ import (
 
 	"github.com/shirou/gopsutil/v3/mem"
 
-	"github.com/realvnc-labs/rport/share/clientconfig"
-	"github.com/realvnc-labs/rport/share/logger"
+	"github.com/openrport/openrport/share/clientconfig"
+	"github.com/openrport/openrport/share/logger"
 )
 
 type ProcessHandler struct {

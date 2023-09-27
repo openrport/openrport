@@ -9,15 +9,15 @@ import (
 
 	"github.com/gorilla/mux"
 
-	"github.com/realvnc-labs/rport/server/api"
-	"github.com/realvnc-labs/rport/server/api/jobs"
-	"github.com/realvnc-labs/rport/server/auditlog"
-	"github.com/realvnc-labs/rport/server/routes"
-	"github.com/realvnc-labs/rport/server/validation"
-	"github.com/realvnc-labs/rport/share/comm"
-	"github.com/realvnc-labs/rport/share/models"
-	"github.com/realvnc-labs/rport/share/query"
-	"github.com/realvnc-labs/rport/share/ws"
+	"github.com/openrport/openrport/server/api"
+	"github.com/openrport/openrport/server/api/jobs"
+	"github.com/openrport/openrport/server/auditlog"
+	"github.com/openrport/openrport/server/routes"
+	"github.com/openrport/openrport/server/validation"
+	"github.com/openrport/openrport/share/comm"
+	"github.com/openrport/openrport/share/models"
+	"github.com/openrport/openrport/share/query"
+	"github.com/openrport/openrport/share/ws"
 )
 
 type jobPayload struct {

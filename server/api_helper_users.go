@@ -4,9 +4,9 @@ import (
 	"context"
 	"net/http"
 
-	"github.com/realvnc-labs/rport/server/api"
-	errors2 "github.com/realvnc-labs/rport/server/api/errors"
-	"github.com/realvnc-labs/rport/server/api/users"
+	"github.com/openrport/openrport/server/api"
+	errors2 "github.com/openrport/openrport/server/api/errors"
+	"github.com/openrport/openrport/server/api/users"
 )
 
 // TODO: remove

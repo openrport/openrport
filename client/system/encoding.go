@@ -7,8 +7,8 @@ import (
 	"golang.org/x/text/encoding"
 	"golang.org/x/text/encoding/ianaindex"
 
-	chshare "github.com/realvnc-labs/rport/share"
-	"github.com/realvnc-labs/rport/share/clientconfig"
+	chshare "github.com/openrport/openrport/share"
+	"github.com/openrport/openrport/share/clientconfig"
 )
 
 var (

@@ -6,8 +6,8 @@ import (
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 
-	"github.com/realvnc-labs/rport/server/caddy"
-	"github.com/realvnc-labs/rport/share/files"
+	"github.com/openrport/openrport/server/caddy"
+	"github.com/openrport/openrport/share/files"
 )
 
 type mockFileSystem struct {

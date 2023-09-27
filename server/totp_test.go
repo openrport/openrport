@@ -7,7 +7,7 @@ import (
 	"testing"
 	"time"
 
-	"github.com/realvnc-labs/rport/server/api/users"
+	"github.com/openrport/openrport/server/api/users"
 
 	"github.com/pquerna/otp/totp"
 	"github.com/stretchr/testify/assert"

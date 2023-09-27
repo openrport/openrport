@@ -13,19 +13,19 @@ import (
 	"syscall"
 	"time"
 
-	"github.com/realvnc-labs/rport/cmd/rportd/servicemanagement"
-	"github.com/realvnc-labs/rport/share/logger"
+	"github.com/openrport/openrport/cmd/rportd/servicemanagement"
+	"github.com/openrport/openrport/share/logger"
 
 	"github.com/kardianos/service"
 	"github.com/spf13/cobra"
 	"github.com/spf13/viper"
 
-	chserver "github.com/realvnc-labs/rport/server"
-	"github.com/realvnc-labs/rport/server/api/message"
-	auditlog "github.com/realvnc-labs/rport/server/auditlog/config"
-	"github.com/realvnc-labs/rport/server/chconfig"
-	chshare "github.com/realvnc-labs/rport/share"
-	"github.com/realvnc-labs/rport/share/files"
+	chserver "github.com/openrport/openrport/server"
+	"github.com/openrport/openrport/server/api/message"
+	auditlog "github.com/openrport/openrport/server/auditlog/config"
+	"github.com/openrport/openrport/server/chconfig"
+	chshare "github.com/openrport/openrport/share"
+	"github.com/openrport/openrport/share/files"
 )
 
 const (

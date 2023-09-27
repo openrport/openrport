@@ -9,12 +9,12 @@ import (
 
 	"github.com/stretchr/testify/assert"
 
-	"github.com/realvnc-labs/rport/server/chconfig"
-	"github.com/realvnc-labs/rport/server/clients"
-	"github.com/realvnc-labs/rport/server/clients/clientdata"
-	"github.com/realvnc-labs/rport/server/monitoring"
-	"github.com/realvnc-labs/rport/share/comm"
-	"github.com/realvnc-labs/rport/share/test"
+	"github.com/openrport/openrport/server/chconfig"
+	"github.com/openrport/openrport/server/clients"
+	"github.com/openrport/openrport/server/clients/clientdata"
+	"github.com/openrport/openrport/server/monitoring"
+	"github.com/openrport/openrport/share/comm"
+	"github.com/openrport/openrport/share/test"
 )
 
 func TestHandleRefreshUpdatesStatus(t *testing.T) {

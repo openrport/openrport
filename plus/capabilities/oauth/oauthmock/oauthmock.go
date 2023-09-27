@@ -6,9 +6,9 @@ import (
 	"plugin"
 	"time"
 
-	"github.com/realvnc-labs/rport/plus/capabilities/oauth"
-	"github.com/realvnc-labs/rport/plus/validator"
-	"github.com/realvnc-labs/rport/share/logger"
+	"github.com/openrport/openrport/plus/capabilities/oauth"
+	"github.com/openrport/openrport/plus/validator"
+	"github.com/openrport/openrport/share/logger"
 )
 
 type MockCapabilityProvider struct {

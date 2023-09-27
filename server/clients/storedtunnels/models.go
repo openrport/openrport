@@ -3,7 +3,7 @@ package storedtunnels
 import (
 	"time"
 
-	"github.com/realvnc-labs/rport/share/types"
+	"github.com/openrport/openrport/share/types"
 )
 
 type StoredTunnel struct {

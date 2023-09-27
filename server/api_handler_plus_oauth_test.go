@@ -10,16 +10,16 @@ import (
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 
-	rportplus "github.com/realvnc-labs/rport/plus"
-	"github.com/realvnc-labs/rport/plus/capabilities/oauth"
-	"github.com/realvnc-labs/rport/plus/capabilities/oauth/oauthmock"
-	"github.com/realvnc-labs/rport/server/api"
-	"github.com/realvnc-labs/rport/server/api/authorization"
-	"github.com/realvnc-labs/rport/server/api/users"
-	"github.com/realvnc-labs/rport/server/chconfig"
-	"github.com/realvnc-labs/rport/server/routes"
-	"github.com/realvnc-labs/rport/share/logger"
-	"github.com/realvnc-labs/rport/share/security"
+	rportplus "github.com/openrport/openrport/plus"
+	"github.com/openrport/openrport/plus/capabilities/oauth"
+	"github.com/openrport/openrport/plus/capabilities/oauth/oauthmock"
+	"github.com/openrport/openrport/server/api"
+	"github.com/openrport/openrport/server/api/authorization"
+	"github.com/openrport/openrport/server/api/users"
+	"github.com/openrport/openrport/server/chconfig"
+	"github.com/openrport/openrport/server/routes"
+	"github.com/openrport/openrport/share/logger"
+	"github.com/openrport/openrport/share/security"
 )
 
 const (

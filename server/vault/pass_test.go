@@ -7,8 +7,8 @@ import (
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 
-	"github.com/realvnc-labs/rport/server/api/errors"
-	"github.com/realvnc-labs/rport/share/enc"
+	"github.com/openrport/openrport/server/api/errors"
+	"github.com/openrport/openrport/share/enc"
 )
 
 func TestInvalidPasswords(t *testing.T) {

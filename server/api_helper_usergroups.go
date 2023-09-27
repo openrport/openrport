@@ -5,9 +5,9 @@ import (
 
 	"github.com/gorilla/mux"
 
-	"github.com/realvnc-labs/rport/server/api"
-	"github.com/realvnc-labs/rport/server/api/users"
-	"github.com/realvnc-labs/rport/server/auditlog"
+	"github.com/openrport/openrport/server/api"
+	"github.com/openrport/openrport/server/api/users"
+	"github.com/openrport/openrport/server/auditlog"
 )
 
 func (al *APIListener) handleListUserGroups(w http.ResponseWriter, req *http.Request) {

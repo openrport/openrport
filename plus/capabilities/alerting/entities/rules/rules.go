@@ -3,9 +3,9 @@ package rules
 import (
 	"errors"
 
-	"github.com/realvnc-labs/rport/plus/capabilities/alerting/actions"
-	"github.com/realvnc-labs/rport/plus/capabilities/alerting/entities/severity"
-	"github.com/realvnc-labs/rport/plus/capabilities/alerting/entities/templates"
+	"github.com/openrport/openrport/plus/capabilities/alerting/actions"
+	"github.com/openrport/openrport/plus/capabilities/alerting/entities/severity"
+	"github.com/openrport/openrport/plus/capabilities/alerting/entities/templates"
 )
 
 const (

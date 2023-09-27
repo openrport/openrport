@@ -5,7 +5,7 @@ import (
 	"context"
 	"fmt"
 
-	"github.com/realvnc-labs/rport/share/logger"
+	"github.com/openrport/openrport/share/logger"
 )
 
 type CleanupTask struct {

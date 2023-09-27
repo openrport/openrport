@@ -5,9 +5,9 @@ import (
 	"sort"
 	"strings"
 
-	"github.com/realvnc-labs/rport/plus/capabilities/alerting/entities/rules"
-	"github.com/realvnc-labs/rport/server/api/errors"
-	"github.com/realvnc-labs/rport/share/query"
+	"github.com/openrport/openrport/plus/capabilities/alerting/entities/rules"
+	"github.com/openrport/openrport/server/api/errors"
+	"github.com/openrport/openrport/share/query"
 )
 
 var SupportedProblemsListFields = map[string][]string{

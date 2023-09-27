@@ -9,7 +9,7 @@ import (
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 
-	"github.com/realvnc-labs/rport/share/models"
+	"github.com/openrport/openrport/share/models"
 )
 
 func TestAptPackageMangerIsAvailable(t *testing.T) { //nolint:dupl

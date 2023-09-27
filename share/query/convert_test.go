@@ -5,7 +5,7 @@ import (
 
 	"github.com/stretchr/testify/assert"
 
-	"github.com/realvnc-labs/rport/share/query"
+	"github.com/openrport/openrport/share/query"
 )
 
 func TestConvertListOptionsToQuery(t *testing.T) {

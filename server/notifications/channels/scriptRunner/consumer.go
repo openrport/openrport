@@ -5,8 +5,8 @@ import (
 	"encoding/json"
 	"time"
 
-	"github.com/realvnc-labs/rport/server/notifications"
-	"github.com/realvnc-labs/rport/share/logger"
+	"github.com/openrport/openrport/server/notifications"
+	"github.com/openrport/openrport/share/logger"
 )
 
 const ScriptTimeout = time.Second * 20

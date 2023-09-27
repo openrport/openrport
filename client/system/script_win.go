@@ -6,7 +6,7 @@ package system
 import (
 	"os"
 
-	chshare "github.com/realvnc-labs/rport/share"
+	chshare "github.com/openrport/openrport/share"
 )
 
 func ValidateScriptDirOS(fileInfo os.FileInfo, scriptDir string) error {

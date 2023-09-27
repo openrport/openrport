@@ -4,8 +4,8 @@ import (
 	"context"
 	"fmt"
 
-	"github.com/realvnc-labs/rport/server/clients/clientdata"
-	"github.com/realvnc-labs/rport/share/logger"
+	"github.com/openrport/openrport/server/clients/clientdata"
+	"github.com/openrport/openrport/share/logger"
 )
 
 // LoadInitialClients returns an initial Client Repository state populated with clients from the internal storage.

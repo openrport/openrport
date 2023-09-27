@@ -20,19 +20,19 @@ import (
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 
-	clientsmigration "github.com/realvnc-labs/rport/db/migration/clients"
-	"github.com/realvnc-labs/rport/db/sqlite"
-	apiErrors "github.com/realvnc-labs/rport/server/api/errors"
-	"github.com/realvnc-labs/rport/server/api/users"
-	"github.com/realvnc-labs/rport/server/caddy"
-	"github.com/realvnc-labs/rport/server/cgroups"
-	"github.com/realvnc-labs/rport/server/clients/clientdata"
-	"github.com/realvnc-labs/rport/server/clients/clienttunnel"
-	"github.com/realvnc-labs/rport/server/clientsauth"
-	"github.com/realvnc-labs/rport/server/ports"
-	chshare "github.com/realvnc-labs/rport/share"
-	"github.com/realvnc-labs/rport/share/models"
-	"github.com/realvnc-labs/rport/share/test"
+	clientsmigration "github.com/openrport/openrport/db/migration/clients"
+	"github.com/openrport/openrport/db/sqlite"
+	apiErrors "github.com/openrport/openrport/server/api/errors"
+	"github.com/openrport/openrport/server/api/users"
+	"github.com/openrport/openrport/server/caddy"
+	"github.com/openrport/openrport/server/cgroups"
+	"github.com/openrport/openrport/server/clients/clientdata"
+	"github.com/openrport/openrport/server/clients/clienttunnel"
+	"github.com/openrport/openrport/server/clientsauth"
+	"github.com/openrport/openrport/server/ports"
+	chshare "github.com/openrport/openrport/share"
+	"github.com/openrport/openrport/share/models"
+	"github.com/openrport/openrport/share/test"
 )
 
 func TestStartClient(t *testing.T) {
@@ -113,7 +113,7 @@ func TestStartClient(t *testing.T) {
 
 // this is a fairly crude concurrency test for start client. currently excluded from the regular test runs as
 // it consumes a moderate amount of memory and takes some time to run. If run, remember to uncomment the t.Skip().
-// go test -count=1 -race -v github.com/realvnc-labs/rport/server/clients -run TestStartClientConcurrency
+// go test -count=1 -race -v github.com/openrport/openrport/server/clients -run TestStartClientConcurrency
 func TestStartClientConcurrency(t *testing.T) {
 	t.Skip()
 

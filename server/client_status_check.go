@@ -4,10 +4,10 @@ import (
 	"context"
 	"time"
 
-	"github.com/realvnc-labs/rport/server/clients"
-	"github.com/realvnc-labs/rport/server/clients/clientdata"
-	"github.com/realvnc-labs/rport/share/comm"
-	"github.com/realvnc-labs/rport/share/logger"
+	"github.com/openrport/openrport/server/clients"
+	"github.com/openrport/openrport/server/clients/clientdata"
+	"github.com/openrport/openrport/share/comm"
+	"github.com/openrport/openrport/share/logger"
 )
 
 const DefaultMaxWorkers = 100

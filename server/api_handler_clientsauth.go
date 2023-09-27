@@ -7,11 +7,11 @@ import (
 
 	"github.com/gorilla/mux"
 
-	"github.com/realvnc-labs/rport/server/api"
-	"github.com/realvnc-labs/rport/server/auditlog"
-	"github.com/realvnc-labs/rport/server/clientsauth"
-	"github.com/realvnc-labs/rport/server/routes"
-	"github.com/realvnc-labs/rport/share/query"
+	"github.com/openrport/openrport/server/api"
+	"github.com/openrport/openrport/server/auditlog"
+	"github.com/openrport/openrport/server/clientsauth"
+	"github.com/openrport/openrport/server/routes"
+	"github.com/openrport/openrport/share/query"
 )
 
 const (

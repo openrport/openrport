@@ -10,10 +10,10 @@ import (
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 
-	"github.com/realvnc-labs/rport/db/migration/api_token"
-	"github.com/realvnc-labs/rport/db/sqlite"
-	"github.com/realvnc-labs/rport/share/ptr"
-	"github.com/realvnc-labs/rport/share/test"
+	"github.com/openrport/openrport/db/migration/api_token"
+	"github.com/openrport/openrport/db/sqlite"
+	"github.com/openrport/openrport/share/ptr"
+	"github.com/openrport/openrport/share/test"
 )
 
 var DataSourceOptions = sqlite.DataSourceOptions{WALEnabled: false}

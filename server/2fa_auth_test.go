@@ -9,8 +9,8 @@ import (
 	"github.com/pquerna/otp/totp"
 	"github.com/stretchr/testify/require"
 
-	"github.com/realvnc-labs/rport/server/api/message"
-	"github.com/realvnc-labs/rport/server/api/users"
+	"github.com/openrport/openrport/server/api/message"
+	"github.com/openrport/openrport/server/api/users"
 )
 
 func TestValidateTotPCode(t *testing.T) {

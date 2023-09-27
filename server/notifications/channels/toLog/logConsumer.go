@@ -3,8 +3,8 @@ package toLog
 import (
 	"context"
 
-	"github.com/realvnc-labs/rport/server/notifications"
-	"github.com/realvnc-labs/rport/share/logger"
+	"github.com/openrport/openrport/server/notifications"
+	"github.com/openrport/openrport/share/logger"
 )
 
 type logConsumer struct {

@@ -8,9 +8,9 @@ import (
 	"github.com/jmoiron/sqlx"
 	"github.com/stretchr/testify/suite"
 
-	"github.com/realvnc-labs/rport/db/sqlite"
-	db "github.com/realvnc-labs/rport/server/notifications/repository/sqlite"
-	"github.com/realvnc-labs/rport/share/logger"
+	"github.com/openrport/openrport/db/sqlite"
+	db "github.com/openrport/openrport/server/notifications/repository/sqlite"
+	"github.com/openrport/openrport/share/logger"
 )
 
 type CleanerTestSuite struct {

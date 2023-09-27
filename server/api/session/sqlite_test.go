@@ -5,7 +5,7 @@ import (
 	"testing"
 	"time"
 
-	"github.com/realvnc-labs/rport/db/sqlite"
+	"github.com/openrport/openrport/db/sqlite"
 
 	"github.com/golang-jwt/jwt/v4"
 	"github.com/stretchr/testify/assert"

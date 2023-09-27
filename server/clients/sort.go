@@ -4,7 +4,7 @@ import (
 	"sort"
 	"strings"
 
-	"github.com/realvnc-labs/rport/server/clients/clientdata"
+	"github.com/openrport/openrport/server/clients/clientdata"
 )
 
 func SortByID(a []*clientdata.CalculatedClient, desc bool) {

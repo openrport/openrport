@@ -5,7 +5,7 @@ import (
 	"os/user"
 	"strconv"
 
-	chshare "github.com/realvnc-labs/rport/share"
+	chshare "github.com/openrport/openrport/share"
 )
 
 type SysUserLookup interface {

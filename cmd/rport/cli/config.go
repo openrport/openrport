@@ -9,11 +9,11 @@ import (
 	"github.com/spf13/pflag"
 	"github.com/spf13/viper"
 
-	"github.com/realvnc-labs/rport/share/models"
+	"github.com/openrport/openrport/share/models"
 
-	chclient "github.com/realvnc-labs/rport/client"
-	chshare "github.com/realvnc-labs/rport/share"
-	"github.com/realvnc-labs/rport/share/clientconfig"
+	chclient "github.com/openrport/openrport/client"
+	chshare "github.com/openrport/openrport/share"
+	"github.com/openrport/openrport/share/clientconfig"
 )
 
 func readAttributesFile(cfgPath string) (models.Attributes, error) {

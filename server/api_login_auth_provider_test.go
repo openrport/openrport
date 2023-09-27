@@ -12,14 +12,14 @@ import (
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 
-	rportplus "github.com/realvnc-labs/rport/plus"
-	"github.com/realvnc-labs/rport/plus/capabilities/oauth"
-	"github.com/realvnc-labs/rport/plus/license"
-	"github.com/realvnc-labs/rport/server/chconfig"
-	"github.com/realvnc-labs/rport/server/routes"
-	"github.com/realvnc-labs/rport/share/files"
-	"github.com/realvnc-labs/rport/share/logger"
-	"github.com/realvnc-labs/rport/share/security"
+	rportplus "github.com/openrport/openrport/plus"
+	"github.com/openrport/openrport/plus/capabilities/oauth"
+	"github.com/openrport/openrport/plus/license"
+	"github.com/openrport/openrport/server/chconfig"
+	"github.com/openrport/openrport/server/routes"
+	"github.com/openrport/openrport/share/files"
+	"github.com/openrport/openrport/share/logger"
+	"github.com/openrport/openrport/share/security"
 )
 
 // PayloadResponse represents the types that might be returned by a successful api response

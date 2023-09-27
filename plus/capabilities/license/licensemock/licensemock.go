@@ -3,9 +3,9 @@ package licensemock
 import (
 	"plugin"
 
-	licensecap "github.com/realvnc-labs/rport/plus/capabilities/license"
-	"github.com/realvnc-labs/rport/plus/validator"
-	"github.com/realvnc-labs/rport/share/logger"
+	licensecap "github.com/openrport/openrport/plus/capabilities/license"
+	"github.com/openrport/openrport/plus/validator"
+	"github.com/openrport/openrport/share/logger"
 )
 
 const (

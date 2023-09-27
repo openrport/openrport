@@ -6,7 +6,7 @@ import (
 
 	"github.com/stretchr/testify/assert"
 
-	"github.com/realvnc-labs/rport/server/api/users"
+	"github.com/openrport/openrport/server/api/users"
 )
 
 func TestValidateCredentials(t *testing.T) {

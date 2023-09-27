@@ -16,17 +16,17 @@ import (
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 
-	"github.com/realvnc-labs/rport/server/api"
-	"github.com/realvnc-labs/rport/server/api/users"
-	"github.com/realvnc-labs/rport/server/caddy"
-	"github.com/realvnc-labs/rport/server/cgroups"
-	"github.com/realvnc-labs/rport/server/chconfig"
-	"github.com/realvnc-labs/rport/server/clients"
-	"github.com/realvnc-labs/rport/server/clients/clientdata"
-	"github.com/realvnc-labs/rport/server/clients/clienttunnel"
-	"github.com/realvnc-labs/rport/share/models"
-	"github.com/realvnc-labs/rport/share/query"
-	"github.com/realvnc-labs/rport/share/test"
+	"github.com/openrport/openrport/server/api"
+	"github.com/openrport/openrport/server/api/users"
+	"github.com/openrport/openrport/server/caddy"
+	"github.com/openrport/openrport/server/cgroups"
+	"github.com/openrport/openrport/server/chconfig"
+	"github.com/openrport/openrport/server/clients"
+	"github.com/openrport/openrport/server/clients/clientdata"
+	"github.com/openrport/openrport/server/clients/clienttunnel"
+	"github.com/openrport/openrport/share/models"
+	"github.com/openrport/openrport/share/query"
+	"github.com/openrport/openrport/share/test"
 )
 
 type mockClientGroupProvider struct {

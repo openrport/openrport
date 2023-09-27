@@ -6,9 +6,9 @@ import (
 	"sort"
 	"strings"
 
-	"github.com/realvnc-labs/rport/share/models"
+	"github.com/openrport/openrport/share/models"
 
-	"github.com/realvnc-labs/rport/plus/capabilities/alerting/entities/measures"
+	"github.com/openrport/openrport/plus/capabilities/alerting/entities/measures"
 )
 
 type RawMountPointsInfo map[string]uint64

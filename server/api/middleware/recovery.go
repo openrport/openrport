@@ -3,7 +3,7 @@ package middleware
 import (
 	"fmt"
 
-	"github.com/realvnc-labs/rport/share/logger"
+	"github.com/openrport/openrport/share/logger"
 )
 
 type RecoveryLogger struct {

@@ -7,7 +7,7 @@ import (
 
 	"github.com/stretchr/testify/assert"
 
-	"github.com/realvnc-labs/rport/server/cgroups"
+	"github.com/openrport/openrport/server/cgroups"
 )
 
 func TestValidateInputClientGroup(t *testing.T) {

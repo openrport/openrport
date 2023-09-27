@@ -7,10 +7,10 @@ import (
 
 	"github.com/gorilla/mux"
 
-	"github.com/realvnc-labs/rport/server/monitoring"
-	"github.com/realvnc-labs/rport/server/routes"
-	"github.com/realvnc-labs/rport/share/comm"
-	"github.com/realvnc-labs/rport/share/query"
+	"github.com/openrport/openrport/server/monitoring"
+	"github.com/openrport/openrport/server/routes"
+	"github.com/openrport/openrport/share/comm"
+	"github.com/openrport/openrport/share/query"
 )
 
 // handleRefreshUpdatesStatus handles GET /clients/{client_id}/updates-status

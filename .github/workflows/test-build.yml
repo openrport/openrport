@@ -23,7 +23,7 @@ jobs:
           BRANCH=$(git status|grep "On branch"|cut -d" " -f3|tr '/' _)
           export VERSION=$(date -u +%y.%m%d.%H%M)-${BRANCH}
           # $(git rev-parse HEAD)
-          go build -v -ldflags="-X 'github.com/realvnc-labs/rport/share.BuildVersion=$VERSION'"  -o ./ ./cmd/...
+          go build -v -ldflags="-X 'github.com/openrport/openrport/share.BuildVersion=$VERSION'"  -o ./ ./cmd/...
           echo "✅ Successfully build rport"
           echo "🚚 Building Plus Plugin now ..."
           bash .github/scripts/build-plus.sh
@@ -51,4 +51,4 @@ jobs:
           ls -lh $TAR
           FOLDER=rport-test-builds
           echo "🚚 Uploading $TAR to $FOLDER downloads"
-          curl -fs https://download.rport.io/exec/upload.php -H "Authentication: $UPLOAD_TOKEN" -F file=@${TAR} -F dest_dir="${FOLDER}"
+          curl -fs https://download.openrport.io/exec/upload.php -H "Authentication: $UPLOAD_TOKEN" -F file=@${TAR} -F dest_dir="${FOLDER}"

@@ -4,7 +4,7 @@ import (
 	"context"
 	"os/exec"
 
-	"github.com/realvnc-labs/rport/share/logger"
+	"github.com/openrport/openrport/share/logger"
 )
 
 type CmdExecutorContext struct {

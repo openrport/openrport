@@ -10,14 +10,14 @@ import (
 	zxcvbn "github.com/trustelem/zxcvbn"
 	"golang.org/x/crypto/bcrypt"
 
-	rportplus "github.com/realvnc-labs/rport/plus"
-	extperm "github.com/realvnc-labs/rport/plus/capabilities/extendedpermission"
-	errors2 "github.com/realvnc-labs/rport/server/api/errors"
-	"github.com/realvnc-labs/rport/server/api/message"
-	"github.com/realvnc-labs/rport/server/chconfig"
-	chshare "github.com/realvnc-labs/rport/share"
-	"github.com/realvnc-labs/rport/share/enums"
-	"github.com/realvnc-labs/rport/share/logger"
+	rportplus "github.com/openrport/openrport/plus"
+	extperm "github.com/openrport/openrport/plus/capabilities/extendedpermission"
+	errors2 "github.com/openrport/openrport/server/api/errors"
+	"github.com/openrport/openrport/server/api/message"
+	"github.com/openrport/openrport/server/chconfig"
+	chshare "github.com/openrport/openrport/share"
+	"github.com/openrport/openrport/share/enums"
+	"github.com/openrport/openrport/share/logger"
 )
 
 type Provider interface {

@@ -6,10 +6,10 @@ import (
 	"fmt"
 	"net/http"
 
-	errors2 "github.com/realvnc-labs/rport/server/api/errors"
-	"github.com/realvnc-labs/rport/server/cgroups"
-	"github.com/realvnc-labs/rport/server/clients/clientdata"
-	"github.com/realvnc-labs/rport/share/models"
+	errors2 "github.com/openrport/openrport/server/api/errors"
+	"github.com/openrport/openrport/server/cgroups"
+	"github.com/openrport/openrport/server/clients/clientdata"
+	"github.com/openrport/openrport/share/models"
 )
 
 const (

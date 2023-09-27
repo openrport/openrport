@@ -7,11 +7,11 @@ import (
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 
-	rportplus "github.com/realvnc-labs/rport/plus"
-	"github.com/realvnc-labs/rport/plus/capabilities/oauth"
-	"github.com/realvnc-labs/rport/plus/validator"
-	"github.com/realvnc-labs/rport/server/chconfig"
-	"github.com/realvnc-labs/rport/share/logger"
+	rportplus "github.com/openrport/openrport/plus"
+	"github.com/openrport/openrport/plus/capabilities/oauth"
+	"github.com/openrport/openrport/plus/validator"
+	"github.com/openrport/openrport/server/chconfig"
+	"github.com/openrport/openrport/share/logger"
 )
 
 const (

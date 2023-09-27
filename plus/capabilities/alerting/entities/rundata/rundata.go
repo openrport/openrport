@@ -1,13 +1,13 @@
 package rundata
 
 import (
-	"github.com/realvnc-labs/rport/plus/capabilities/alerting/entities/clientupdates"
-	"github.com/realvnc-labs/rport/plus/capabilities/alerting/entities/measures"
-	"github.com/realvnc-labs/rport/plus/capabilities/alerting/entities/rules"
-	"github.com/realvnc-labs/rport/plus/capabilities/alerting/entities/templates"
-	"github.com/realvnc-labs/rport/plus/capabilities/alerting/entities/validations"
-	"github.com/realvnc-labs/rport/server/notifications"
-	"github.com/realvnc-labs/rport/share/refs"
+	"github.com/openrport/openrport/plus/capabilities/alerting/entities/clientupdates"
+	"github.com/openrport/openrport/plus/capabilities/alerting/entities/measures"
+	"github.com/openrport/openrport/plus/capabilities/alerting/entities/rules"
+	"github.com/openrport/openrport/plus/capabilities/alerting/entities/templates"
+	"github.com/openrport/openrport/plus/capabilities/alerting/entities/validations"
+	"github.com/openrport/openrport/server/notifications"
+	"github.com/openrport/openrport/share/refs"
 )
 
 type RunData struct {

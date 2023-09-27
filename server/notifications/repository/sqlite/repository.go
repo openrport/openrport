@@ -10,10 +10,10 @@ import (
 
 	"github.com/jmoiron/sqlx"
 
-	"github.com/realvnc-labs/rport/server/notifications"
-	"github.com/realvnc-labs/rport/share/logger"
-	"github.com/realvnc-labs/rport/share/query"
-	"github.com/realvnc-labs/rport/share/refs"
+	"github.com/openrport/openrport/server/notifications"
+	"github.com/openrport/openrport/share/logger"
+	"github.com/openrport/openrport/share/query"
+	"github.com/openrport/openrport/share/refs"
 )
 
 type Repository interface {

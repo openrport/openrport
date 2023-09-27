@@ -12,13 +12,13 @@ import (
 	"strings"
 	"time"
 
-	"github.com/realvnc-labs/rport/share/files"
+	"github.com/openrport/openrport/share/files"
 
-	"github.com/realvnc-labs/rport/client/system"
-	chshare "github.com/realvnc-labs/rport/share"
-	"github.com/realvnc-labs/rport/share/clientconfig"
-	"github.com/realvnc-labs/rport/share/logger"
-	"github.com/realvnc-labs/rport/share/models"
+	"github.com/openrport/openrport/client/system"
+	chshare "github.com/openrport/openrport/share"
+	"github.com/openrport/openrport/share/clientconfig"
+	"github.com/openrport/openrport/share/logger"
+	"github.com/openrport/openrport/share/models"
 )
 
 const DefaultMonitoringInterval = 60 * time.Second

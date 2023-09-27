@@ -12,8 +12,8 @@ import (
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 
-	"github.com/realvnc-labs/rport/share/clientconfig"
-	"github.com/realvnc-labs/rport/share/models"
+	"github.com/openrport/openrport/share/clientconfig"
+	"github.com/openrport/openrport/share/models"
 )
 
 func getDefaultValidMinConfig() ClientConfigHolder {

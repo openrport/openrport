@@ -8,7 +8,7 @@ import (
 
 	"github.com/shirou/gopsutil/v3/disk"
 
-	"github.com/realvnc-labs/rport/client/monitoring/helper"
+	"github.com/openrport/openrport/client/monitoring/helper"
 )
 
 func getPartitions(onlyUniqueDevices bool) ([]disk.PartitionStat, error) {

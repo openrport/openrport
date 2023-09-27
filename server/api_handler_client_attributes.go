@@ -9,11 +9,11 @@ import (
 
 	"github.com/gorilla/mux"
 
-	"github.com/realvnc-labs/rport/server/api"
-	"github.com/realvnc-labs/rport/server/clients/clientdata"
-	"github.com/realvnc-labs/rport/server/routes"
-	"github.com/realvnc-labs/rport/share/comm"
-	"github.com/realvnc-labs/rport/share/models"
+	"github.com/openrport/openrport/server/api"
+	"github.com/openrport/openrport/server/clients/clientdata"
+	"github.com/openrport/openrport/server/routes"
+	"github.com/openrport/openrport/share/comm"
+	"github.com/openrport/openrport/share/models"
 )
 
 type clientCtxKeyType int

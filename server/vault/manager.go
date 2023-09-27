@@ -9,12 +9,12 @@ import (
 	"sync"
 	"time"
 
-	"github.com/realvnc-labs/rport/share/logger"
-	"github.com/realvnc-labs/rport/share/query"
+	"github.com/openrport/openrport/share/logger"
+	"github.com/openrport/openrport/share/query"
 
-	"github.com/realvnc-labs/rport/share/enc"
+	"github.com/openrport/openrport/share/enc"
 
-	errors2 "github.com/realvnc-labs/rport/server/api/errors"
+	errors2 "github.com/openrport/openrport/server/api/errors"
 )
 
 var supportedFields = map[string]bool{

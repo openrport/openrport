@@ -3,7 +3,7 @@
 
 package system
 
-import chshare "github.com/realvnc-labs/rport/share"
+import chshare "github.com/openrport/openrport/share"
 
 func (i Interpreter) Get() string {
 	if i.InterpreterAliases != nil && i.InterpreterNameFromInput != "" {

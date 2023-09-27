@@ -5,7 +5,7 @@ import (
 	"testing"
 	"time"
 
-	"github.com/realvnc-labs/rport/plus/capabilities/alerting/entities/measures"
+	"github.com/openrport/openrport/plus/capabilities/alerting/entities/measures"
 )
 
 func TestCloneClient(t *testing.T) {

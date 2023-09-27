@@ -13,7 +13,7 @@ import (
 
 	"github.com/stretchr/testify/assert"
 
-	chshare "github.com/realvnc-labs/rport/share"
+	chshare "github.com/openrport/openrport/share"
 )
 
 const expectedKey = "-----BEGIN EC PRIVATE KEY-----\nMHcCAQEEIEGV9cYbglKJqaqRWLU5I8RW2Urc4knsWpnfl54N5PeLoAoGCCqGSM49\nAwEHoUQDQgAEM4X+JcCAAGUcAS/cfQ5iF8evBjwpJDhgbJZ/lQYcA6JX34WkjI4N\nalmivx1pS7D4tq7M2u6JKDK6Ff7kjWxBZQ==\n-----END EC PRIVATE KEY-----\n"

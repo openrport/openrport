@@ -5,8 +5,8 @@ import (
 	"io"
 	"sync"
 
-	"github.com/realvnc-labs/rport/server/api"
-	"github.com/realvnc-labs/rport/share/logger"
+	"github.com/openrport/openrport/server/api"
+	"github.com/openrport/openrport/share/logger"
 )
 
 type Conn interface {

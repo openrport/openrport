@@ -10,7 +10,7 @@ import (
 	"strings"
 	"text/template"
 
-	"github.com/realvnc-labs/rport/share/files"
+	"github.com/openrport/openrport/share/files"
 
 	"github.com/aidarkhanov/nanoid/v2"
 )

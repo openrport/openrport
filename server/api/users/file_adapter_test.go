@@ -7,7 +7,7 @@ import (
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 
-	chshare "github.com/realvnc-labs/rport/share/logger"
+	chshare "github.com/openrport/openrport/share/logger"
 )
 
 var user1 = &User{

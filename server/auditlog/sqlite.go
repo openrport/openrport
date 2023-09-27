@@ -7,9 +7,9 @@ import (
 
 	"github.com/jmoiron/sqlx"
 
-	"github.com/realvnc-labs/rport/db/migration/auditlog"
-	"github.com/realvnc-labs/rport/db/sqlite"
-	"github.com/realvnc-labs/rport/share/query"
+	"github.com/openrport/openrport/db/migration/auditlog"
+	"github.com/openrport/openrport/db/sqlite"
+	"github.com/openrport/openrport/share/query"
 )
 
 type SQLiteProvider struct {

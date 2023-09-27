@@ -8,7 +8,7 @@ import (
 
 	"github.com/stretchr/testify/suite"
 
-	"github.com/realvnc-labs/rport/bdd/helpers"
+	"github.com/openrport/openrport/bdd/helpers"
 )
 
 type TagsAndLabels struct {

@@ -6,9 +6,9 @@ import (
 
 	"github.com/spf13/cobra"
 
-	"github.com/realvnc-labs/rport/cmd/rportd/usercli"
-	"github.com/realvnc-labs/rport/share/enums"
-	"github.com/realvnc-labs/rport/share/logger"
+	"github.com/openrport/openrport/cmd/rportd/usercli"
+	"github.com/openrport/openrport/share/enums"
+	"github.com/openrport/openrport/share/logger"
 )
 
 const (

@@ -5,7 +5,7 @@ import (
 
 	"github.com/jmoiron/sqlx"
 
-	"github.com/realvnc-labs/rport/share/query"
+	"github.com/openrport/openrport/share/query"
 )
 
 type SQLiteProvider struct {

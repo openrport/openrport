@@ -3,10 +3,10 @@ package chserver
 import (
 	"net/http"
 
-	rportplus "github.com/realvnc-labs/rport/plus"
-	"github.com/realvnc-labs/rport/plus/capabilities/oauth"
-	"github.com/realvnc-labs/rport/server/api"
-	"github.com/realvnc-labs/rport/server/routes"
+	rportplus "github.com/openrport/openrport/plus"
+	"github.com/openrport/openrport/plus/capabilities/oauth"
+	"github.com/openrport/openrport/server/api"
+	"github.com/openrport/openrport/server/routes"
 )
 
 const BuiltInAuthProviderName = "built-in"

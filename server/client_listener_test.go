@@ -10,10 +10,10 @@ import (
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 
-	"github.com/realvnc-labs/rport/share/logger"
-	"github.com/realvnc-labs/rport/share/models"
-	"github.com/realvnc-labs/rport/share/ptr"
-	"github.com/realvnc-labs/rport/share/ws"
+	"github.com/openrport/openrport/share/logger"
+	"github.com/openrport/openrport/share/models"
+	"github.com/openrport/openrport/share/ptr"
+	"github.com/openrport/openrport/share/ws"
 )
 
 func TestHandleOutputChannel(t *testing.T) {

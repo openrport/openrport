@@ -8,7 +8,7 @@ import (
 	"strconv"
 	"strings"
 
-	email2 "github.com/realvnc-labs/rport/share/email"
+	email2 "github.com/openrport/openrport/share/email"
 )
 
 type URLService struct {

@@ -7,13 +7,13 @@ import (
 	"fmt"
 	"time"
 
-	"github.com/realvnc-labs/rport/server/api/jobs"
-	"github.com/realvnc-labs/rport/server/clients/clientdata"
-	"github.com/realvnc-labs/rport/share/comm"
-	"github.com/realvnc-labs/rport/share/models"
-	"github.com/realvnc-labs/rport/share/query"
-	"github.com/realvnc-labs/rport/share/random"
-	"github.com/realvnc-labs/rport/share/ws"
+	"github.com/openrport/openrport/server/api/jobs"
+	"github.com/openrport/openrport/server/clients/clientdata"
+	"github.com/openrport/openrport/share/comm"
+	"github.com/openrport/openrport/share/models"
+	"github.com/openrport/openrport/share/query"
+	"github.com/openrport/openrport/share/random"
+	"github.com/openrport/openrport/share/ws"
 )
 
 var ErrClientNotConnected = errors.New("client is not connected")

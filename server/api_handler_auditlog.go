@@ -4,7 +4,7 @@ import (
 	"errors"
 	"net/http"
 
-	"github.com/realvnc-labs/rport/server/auditlog"
+	"github.com/openrport/openrport/server/auditlog"
 )
 
 // handleListAuditLog handles GET /auditlog

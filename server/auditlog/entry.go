@@ -6,9 +6,9 @@ import (
 	"net/http"
 	"time"
 
-	"github.com/realvnc-labs/rport/server/api"
-	"github.com/realvnc-labs/rport/server/clients/clientdata"
-	chshare "github.com/realvnc-labs/rport/share"
+	"github.com/openrport/openrport/server/api"
+	"github.com/openrport/openrport/server/clients/clientdata"
+	chshare "github.com/openrport/openrport/share"
 )
 
 type Entry struct {

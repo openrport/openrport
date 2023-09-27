@@ -4,7 +4,7 @@
 package system
 
 import (
-	chshare "github.com/realvnc-labs/rport/share"
+	chshare "github.com/openrport/openrport/share"
 )
 
 func getCmdBuildTestcases() []cmdBuildTestCase {

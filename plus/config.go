@@ -1,8 +1,8 @@
 package rportplus
 
 import (
-	"github.com/realvnc-labs/rport/plus/capabilities/oauth"
-	"github.com/realvnc-labs/rport/plus/license"
+	"github.com/openrport/openrport/plus/capabilities/oauth"
+	"github.com/openrport/openrport/plus/license"
 )
 
 // PluginConfig contains the config related to the plugin itself

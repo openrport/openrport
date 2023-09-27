@@ -3,11 +3,11 @@ package clients
 import (
 	"time"
 
-	"github.com/realvnc-labs/rport/server/clients/clientdata"
-	"github.com/realvnc-labs/rport/server/clients/clienttunnel"
-	"github.com/realvnc-labs/rport/share/clientconfig"
-	"github.com/realvnc-labs/rport/share/models"
-	"github.com/realvnc-labs/rport/share/query"
+	"github.com/openrport/openrport/server/clients/clientdata"
+	"github.com/openrport/openrport/server/clients/clienttunnel"
+	"github.com/openrport/openrport/share/clientconfig"
+	"github.com/openrport/openrport/share/models"
+	"github.com/openrport/openrport/share/query"
 )
 
 type ClientPayload struct {

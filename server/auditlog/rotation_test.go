@@ -9,9 +9,9 @@ import (
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 
-	"github.com/realvnc-labs/rport/db/migration/auditlog"
-	"github.com/realvnc-labs/rport/db/sqlite"
-	"github.com/realvnc-labs/rport/share/query"
+	"github.com/openrport/openrport/db/migration/auditlog"
+	"github.com/openrport/openrport/db/sqlite"
+	"github.com/openrport/openrport/share/query"
 )
 
 var dso = sqlite.DataSourceOptions{WALEnabled: true}

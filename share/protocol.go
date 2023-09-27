@@ -4,8 +4,8 @@ import (
 	"encoding/json"
 	"fmt"
 
-	"github.com/realvnc-labs/rport/share/clientconfig"
-	"github.com/realvnc-labs/rport/share/models"
+	"github.com/openrport/openrport/share/clientconfig"
+	"github.com/openrport/openrport/share/models"
 )
 
 // ConnectionRequest represents configuration options when initiating client-server connection

@@ -4,7 +4,7 @@ import (
 	"os"
 	"time"
 
-	chclient "github.com/realvnc-labs/rport/client"
+	chclient "github.com/openrport/openrport/client"
 
 	"github.com/spf13/pflag"
 	"github.com/spf13/viper"

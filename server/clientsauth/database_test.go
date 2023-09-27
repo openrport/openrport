@@ -3,13 +3,13 @@ package clientsauth
 import (
 	"testing"
 
-	"github.com/realvnc-labs/rport/share/query"
+	"github.com/openrport/openrport/share/query"
 
 	"github.com/jmoiron/sqlx"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 
-	"github.com/realvnc-labs/rport/share/enums"
+	"github.com/openrport/openrport/share/enums"
 )
 
 func TestDatabaseProvider(t *testing.T) {

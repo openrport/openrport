@@ -3,7 +3,7 @@ package query
 import (
 	"net/http"
 
-	errors2 "github.com/realvnc-labs/rport/server/api/errors"
+	errors2 "github.com/openrport/openrport/server/api/errors"
 )
 
 type RetrieveOptions struct {

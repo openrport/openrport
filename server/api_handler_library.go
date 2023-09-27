@@ -7,12 +7,12 @@ import (
 
 	"github.com/gorilla/mux"
 
-	"github.com/realvnc-labs/rport/server/api"
-	"github.com/realvnc-labs/rport/server/api/command"
-	errors2 "github.com/realvnc-labs/rport/server/api/errors"
-	"github.com/realvnc-labs/rport/server/auditlog"
-	"github.com/realvnc-labs/rport/server/routes"
-	"github.com/realvnc-labs/rport/server/script"
+	"github.com/openrport/openrport/server/api"
+	"github.com/openrport/openrport/server/api/command"
+	errors2 "github.com/openrport/openrport/server/api/errors"
+	"github.com/openrport/openrport/server/auditlog"
+	"github.com/openrport/openrport/server/routes"
+	"github.com/openrport/openrport/server/script"
 )
 
 func (al *APIListener) handleListScripts(w http.ResponseWriter, req *http.Request) {

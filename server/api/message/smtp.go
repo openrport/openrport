@@ -9,7 +9,7 @@ import (
 
 	"github.com/jordan-wright/email"
 
-	email2 "github.com/realvnc-labs/rport/share/email"
+	email2 "github.com/openrport/openrport/share/email"
 )
 
 type SMTPService struct {

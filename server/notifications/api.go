@@ -1,7 +1,7 @@
 package notifications
 
 import (
-	"github.com/realvnc-labs/rport/share/refs"
+	"github.com/openrport/openrport/share/refs"
 )
 
 type NotificationID refs.Identifiable

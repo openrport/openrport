@@ -9,14 +9,14 @@ import (
 	"testing"
 	"time"
 
-	"github.com/realvnc-labs/rport/share/query"
+	"github.com/openrport/openrport/share/query"
 
-	"github.com/realvnc-labs/rport/share/enc"
+	"github.com/openrport/openrport/share/enc"
 
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 
-	errors2 "github.com/realvnc-labs/rport/server/api/errors"
+	errors2 "github.com/openrport/openrport/server/api/errors"
 )
 
 type DbProviderMock struct {

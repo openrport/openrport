@@ -9,9 +9,9 @@ import (
 
 	"github.com/stretchr/testify/suite"
 
-	"github.com/realvnc-labs/rport/server/notifications"
-	"github.com/realvnc-labs/rport/share/logger"
-	"github.com/realvnc-labs/rport/share/refs"
+	"github.com/openrport/openrport/server/notifications"
+	"github.com/openrport/openrport/share/logger"
+	"github.com/openrport/openrport/share/refs"
 )
 
 type MockConsumer struct {

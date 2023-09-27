@@ -11,8 +11,8 @@ import (
 
 	"github.com/patrickmn/go-cache"
 
-	"github.com/realvnc-labs/rport/share/enums"
-	"github.com/realvnc-labs/rport/share/query"
+	"github.com/openrport/openrport/share/enums"
+	"github.com/openrport/openrport/share/query"
 )
 
 // FileProvider is file based client provider.

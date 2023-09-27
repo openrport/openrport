@@ -4,14 +4,14 @@ import (
 	"testing"
 	"time"
 
-	"github.com/realvnc-labs/rport/server/cgroups"
+	"github.com/openrport/openrport/server/cgroups"
 
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 
-	"github.com/realvnc-labs/rport/server/api/users"
-	"github.com/realvnc-labs/rport/server/clients/clientdata"
-	"github.com/realvnc-labs/rport/share/query"
+	"github.com/openrport/openrport/server/api/users"
+	"github.com/openrport/openrport/server/clients/clientdata"
+	"github.com/openrport/openrport/share/query"
 )
 
 type UserMock struct {

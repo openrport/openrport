@@ -10,10 +10,10 @@ import (
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 
-	"github.com/realvnc-labs/rport/server/api"
-	"github.com/realvnc-labs/rport/server/api/users"
-	"github.com/realvnc-labs/rport/server/chconfig"
-	"github.com/realvnc-labs/rport/share/logger"
+	"github.com/openrport/openrport/server/api"
+	"github.com/openrport/openrport/server/api/users"
+	"github.com/openrport/openrport/server/chconfig"
+	"github.com/openrport/openrport/share/logger"
 )
 
 // TestHandleMeStaticAuth verifies group permissions are not supported

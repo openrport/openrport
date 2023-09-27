@@ -10,11 +10,11 @@ import (
 	"strings"
 	"testing"
 
-	"github.com/realvnc-labs/rport/share/errors"
-	"github.com/realvnc-labs/rport/share/files"
-	"github.com/realvnc-labs/rport/share/logger"
-	"github.com/realvnc-labs/rport/share/models"
-	"github.com/realvnc-labs/rport/share/test"
+	"github.com/openrport/openrport/share/errors"
+	"github.com/openrport/openrport/share/files"
+	"github.com/openrport/openrport/share/logger"
+	"github.com/openrport/openrport/share/models"
+	"github.com/openrport/openrport/share/test"
 
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/mock"

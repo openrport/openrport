@@ -4,8 +4,8 @@ import (
 	"context"
 	"time"
 
-	"github.com/realvnc-labs/rport/share/logger"
-	"github.com/realvnc-labs/rport/share/random"
+	"github.com/openrport/openrport/share/logger"
+	"github.com/openrport/openrport/share/random"
 )
 
 type Closeable interface {

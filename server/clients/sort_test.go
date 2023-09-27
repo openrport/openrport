@@ -5,7 +5,7 @@ import (
 
 	"github.com/stretchr/testify/assert"
 
-	"github.com/realvnc-labs/rport/server/clients/clientdata"
+	"github.com/openrport/openrport/server/clients/clientdata"
 )
 
 func TestSortByIDAsc(t *testing.T) {

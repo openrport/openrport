@@ -8,18 +8,18 @@ import (
 
 	"go.etcd.io/bbolt"
 
-	alertingcap "github.com/realvnc-labs/rport/plus/capabilities/alerting"
-	"github.com/realvnc-labs/rport/plus/capabilities/alerting/entities/clientupdates"
-	"github.com/realvnc-labs/rport/plus/capabilities/alerting/entities/measures"
-	"github.com/realvnc-labs/rport/plus/capabilities/alerting/entities/rules"
-	"github.com/realvnc-labs/rport/plus/capabilities/alerting/entities/rundata"
-	"github.com/realvnc-labs/rport/plus/capabilities/alerting/entities/templates"
-	"github.com/realvnc-labs/rport/plus/capabilities/alerting/entities/validations"
-	"github.com/realvnc-labs/rport/plus/capabilities/status"
-	"github.com/realvnc-labs/rport/plus/validator"
-	"github.com/realvnc-labs/rport/server/notifications"
-	"github.com/realvnc-labs/rport/share/logger"
-	"github.com/realvnc-labs/rport/share/types"
+	alertingcap "github.com/openrport/openrport/plus/capabilities/alerting"
+	"github.com/openrport/openrport/plus/capabilities/alerting/entities/clientupdates"
+	"github.com/openrport/openrport/plus/capabilities/alerting/entities/measures"
+	"github.com/openrport/openrport/plus/capabilities/alerting/entities/rules"
+	"github.com/openrport/openrport/plus/capabilities/alerting/entities/rundata"
+	"github.com/openrport/openrport/plus/capabilities/alerting/entities/templates"
+	"github.com/openrport/openrport/plus/capabilities/alerting/entities/validations"
+	"github.com/openrport/openrport/plus/capabilities/status"
+	"github.com/openrport/openrport/plus/validator"
+	"github.com/openrport/openrport/server/notifications"
+	"github.com/openrport/openrport/share/logger"
+	"github.com/openrport/openrport/share/types"
 )
 
 type MockCapabilityProvider struct {

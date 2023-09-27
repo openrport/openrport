@@ -8,7 +8,7 @@ import (
 
 	"github.com/stretchr/testify/assert"
 
-	"github.com/realvnc-labs/rport/share/models"
+	"github.com/openrport/openrport/share/models"
 )
 
 func TestYumPackageMangerIsAvailable(t *testing.T) {

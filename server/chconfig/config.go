@@ -22,24 +22,24 @@ import (
 
 	"github.com/xhit/go-str2duration/v2"
 
-	"github.com/realvnc-labs/rport/db/sqlite"
-	rportplus "github.com/realvnc-labs/rport/plus"
-	"github.com/realvnc-labs/rport/server/caddy"
+	"github.com/openrport/openrport/db/sqlite"
+	rportplus "github.com/openrport/openrport/plus"
+	"github.com/openrport/openrport/server/caddy"
 
-	"github.com/realvnc-labs/rport/share/files"
+	"github.com/openrport/openrport/share/files"
 
 	mapset "github.com/deckarep/golang-set"
 	"github.com/jpillora/requestlog"
 	"github.com/pkg/errors"
 
-	"github.com/realvnc-labs/rport/server/api/message"
-	auditlog "github.com/realvnc-labs/rport/server/auditlog/config"
-	"github.com/realvnc-labs/rport/server/bearer"
-	"github.com/realvnc-labs/rport/server/clients/clienttunnel"
-	"github.com/realvnc-labs/rport/server/ports"
-	chshare "github.com/realvnc-labs/rport/share"
-	"github.com/realvnc-labs/rport/share/email"
-	"github.com/realvnc-labs/rport/share/logger"
+	"github.com/openrport/openrport/server/api/message"
+	auditlog "github.com/openrport/openrport/server/auditlog/config"
+	"github.com/openrport/openrport/server/bearer"
+	"github.com/openrport/openrport/server/clients/clienttunnel"
+	"github.com/openrport/openrport/server/ports"
+	chshare "github.com/openrport/openrport/share"
+	"github.com/openrport/openrport/share/email"
+	"github.com/openrport/openrport/share/logger"
 )
 
 type APIConfig struct {

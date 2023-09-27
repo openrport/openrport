@@ -4,8 +4,8 @@ import (
 	"net/http"
 	"sort"
 
-	"github.com/realvnc-labs/rport/server/api"
-	"github.com/realvnc-labs/rport/share/query"
+	"github.com/openrport/openrport/server/api"
+	"github.com/openrport/openrport/share/query"
 )
 
 var (

@@ -5,16 +5,16 @@ import (
 	"errors"
 	"fmt"
 
-	rportplus "github.com/realvnc-labs/rport/plus"
-	alertingcap "github.com/realvnc-labs/rport/plus/capabilities/alerting"
-	"github.com/realvnc-labs/rport/plus/capabilities/extendedpermission"
-	licensecap "github.com/realvnc-labs/rport/plus/capabilities/license"
-	"github.com/realvnc-labs/rport/plus/capabilities/oauth"
-	"github.com/realvnc-labs/rport/plus/capabilities/status"
-	"github.com/realvnc-labs/rport/plus/license"
-	"github.com/realvnc-labs/rport/server/chconfig"
-	"github.com/realvnc-labs/rport/share/files"
-	"github.com/realvnc-labs/rport/share/logger"
+	rportplus "github.com/openrport/openrport/plus"
+	alertingcap "github.com/openrport/openrport/plus/capabilities/alerting"
+	"github.com/openrport/openrport/plus/capabilities/extendedpermission"
+	licensecap "github.com/openrport/openrport/plus/capabilities/license"
+	"github.com/openrport/openrport/plus/capabilities/oauth"
+	"github.com/openrport/openrport/plus/capabilities/status"
+	"github.com/openrport/openrport/plus/license"
+	"github.com/openrport/openrport/server/chconfig"
+	"github.com/openrport/openrport/share/files"
+	"github.com/openrport/openrport/share/logger"
 )
 
 var (

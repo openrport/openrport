@@ -8,7 +8,7 @@ import (
 	"path/filepath"
 	"strings"
 
-	chshare "github.com/realvnc-labs/rport/share"
+	chshare "github.com/openrport/openrport/share"
 )
 
 func (i Interpreter) Get() string {

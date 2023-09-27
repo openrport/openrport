@@ -7,8 +7,8 @@ import (
 	"fmt"
 	"time"
 
-	"github.com/realvnc-labs/rport/server/api/jobs"
-	"github.com/realvnc-labs/rport/share/models"
+	"github.com/openrport/openrport/server/api/jobs"
+	"github.com/openrport/openrport/share/models"
 )
 
 const (

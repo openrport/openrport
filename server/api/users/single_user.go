@@ -3,8 +3,8 @@ package users
 import (
 	"net/http"
 
-	errors2 "github.com/realvnc-labs/rport/server/api/errors"
-	"github.com/realvnc-labs/rport/share/enums"
+	errors2 "github.com/openrport/openrport/server/api/errors"
+	"github.com/openrport/openrport/share/enums"
 )
 
 type StaticProvider struct {

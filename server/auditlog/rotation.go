@@ -8,10 +8,10 @@ import (
 	"sync"
 	"time"
 
-	"github.com/realvnc-labs/rport/db/sqlite"
+	"github.com/openrport/openrport/db/sqlite"
 
-	"github.com/realvnc-labs/rport/share/logger"
-	"github.com/realvnc-labs/rport/share/query"
+	"github.com/openrport/openrport/share/logger"
+	"github.com/openrport/openrport/share/query"
 )
 
 const (

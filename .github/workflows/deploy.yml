@@ -20,7 +20,7 @@ jobs:
 
       - name: Build
         # set rport version to {date-time}-{github-master-head-sha}
-        run: go build -v -ldflags="-X 'github.com/realvnc-labs/rport/share.BuildVersion=$(date -u +%y.%m%d.%H%M)-$(git rev-parse HEAD)'"  -o ./ ./cmd/...
+        run: go build -v -ldflags="-X 'github.com/openrport/openrport/share.BuildVersion=$(date -u +%y.%m%d.%H%M)-$(git rev-parse HEAD)'"  -o ./ ./cmd/...
 
       - name: Build Plus Plugin
         shell: bash
