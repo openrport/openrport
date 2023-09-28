@@ -7,7 +7,7 @@ info:
   version: 1.0.0
   license:
     name: MIT
-    url: https://raw.githubusercontent.com/realvnc-labs/rport/master/LICENSE
+    url: https://raw.githubusercontent.com/openrport/openrport/master/LICENSE
 servers:
   - url: http://yourserver:3000/api/v1
   - url: https://yourserver:3000/api/v1
@@ -17,27 +17,22 @@ security:
 tags:
   - name: Login
     description: |
-      For more details https://oss.rport.io/docs/no02-api-auth.html
+      For more details https://oss.openrport.io/docs/no02-api-auth.html
   - name: Auth
     description: |
-      For more details https://plus.rport.io/auth/oauth-introduction/
-  - name: OAuth / Login
-    description: For more details https://plus.rport.io/auth/oauth-introduction/
+      For more details https://oss.openrport.io
   - name: Profile & Info
     description: Profile and System Information
   - name: Clients and Tunnels
-    description: For more details https://oss.rport.io/docs/no09-managing-tunnels.html
+    description: For more details https://oss.openrport.io/docs/no09-managing-tunnels.html
   - name: Client Groups
-    description: For more details https://oss.rport.io/docs/no04-client-groups.html
+    description: For more details https://oss.openrport.io/docs/no04-client-groups.html
   - name: Client Auth Credentials
-    description: For more details https://oss.rport.io/docs/no03-client-auth.html
+    description: For more details https://oss.openrport.io/docs/no03-client-auth.html
   - name: Commands
-    description: For more details https://oss.rport.io/docs/no06-command-execution.html
+    description: For more details https://oss.openrport.io/docs/no06-command-execution.html
   - name: Users
-    description: For more details https://oss.rport.io/docs/no12-user.html
-  - name: Plus
-    description: |
-      For more details https://plus.rport.io/auth/oauth-introduction/
+    description: For more details https://oss.openrport.io/docs/no12-user.html
 paths:
   /login:
     $ref: paths/login.yaml
@@ -51,8 +46,6 @@ paths:
     $ref: paths/oauth_login.yaml
   /oauth/login/device:
     $ref: paths/oauth_login_device.yaml
-  /plus/status:
-    $ref: paths/plus_status.yaml
   /logout:
     $ref: paths/logout.yaml
   /verify-2fa:

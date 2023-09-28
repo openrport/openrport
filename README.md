@@ -1,5 +1,7 @@
 <!-- markdownlint-disable -->
-> This a repo in an effort to continue an opensource version of original cloudradar-monitoring rport
+> This a repo in an effort to continue an opensource version of original cloudradar-monitoring rport. 
+> We are working to bring back all the component to opensource. Some documentation might be inconsistent
+> but will still be usable.
 
 ## At a glance
 
@@ -61,9 +63,9 @@ our [end-user documentation](https://kb.rport.io) with articles on user-friendly
 
 ### Technical documentation
 
-[![technical-documentation](https://img.shields.io/badge/Technical_Documentation-Read_Now-orange?style=for-the-badge&logo=Github)](https://oss.rport.io/)
+[![technical-documentation](https://img.shields.io/badge/Technical_Documentation-Read_Now-orange?style=for-the-badge&logo=Github)](https://oss.openrport.io/)
 
-our [technical documentation](https://oss.rport.io) with all background information and underlying concepts
+our [technical documentation](https://oss.openrport.io) with all background information and underlying concepts
 
 ## Feedback and Help
 
@@ -74,26 +76,25 @@ To make it a success, please share your feedback.
 ### Report bugs
 
 If you encounter errors while installing or using Rport, please let us know.
-[File an issue report](https://github.com/realvnc-labs/rport/issues) here on GitHub.
+[File an issue report](https://github.com/openrport/openrport/issues) here on GitHub.
 
 ### Ask question
 
 If you have difficulties installing or using rport, don't hesitate to ask us anything. Often questions give us a hint
 on how to improve the documentation. Do not use issue reports for asking questions.
-Use the [discussion forum](https://github.com/realvnc-labs/rport/discussions) instead.
+Use the [discussion forum](https://github.com/openrport/openrport/discussions) instead.
 
 ### Positive Feedback
 
 Please share positive feedback also. Give us a star. Write a review. Share our project page on your social media.
-Contribute to the [discussion](https://github.com/realvnc-labs/rport/discussions). Is Rport suitable for your
+Contribute to the [discussion](https://github.com/openrport/openrport/discussions). Is Rport suitable for your
 needs? What is missing?
 
 ### Stay tuned
 
-Click on the Watch button in the top right corner of the [Repository Page](https://github.com/realvnc-labs/rport).
+Click on the Watch button in the top right corner of the [Repository Page](https://github.com/openrport/openrport).
 This way you won't miss any updates and the upcoming features.
 
-We send release notes over our [mailing list](https://subscribe.rport.io).
 
 ## Credits
 
@@ -104,4 +105,3 @@ We send release notes over our [mailing list](https://subscribe.rport.io).
 
 rport uses `<major>.<minor>.<buildnumber>` version pattern for compatibility with a maximum number of package managers.
 
-Starting from version 1.0.0 packages with even `<minor>` number are considered stable.
