@@ -95,7 +95,6 @@ needs? What is missing?
 Click on the Watch button in the top right corner of the [Repository Page](https://github.com/openrport/openrport).
 This way you won't miss any updates and the upcoming features.
 
-
 ## Credits
 
 * Thanks to [jpillora/chisel](https://github.com/jpillora/chisel) for the great groundwork of tunnels
@@ -104,4 +103,3 @@ This way you won't miss any updates and the upcoming features.
 ## Versioning model
 
 rport uses `<major>.<minor>.<buildnumber>` version pattern for compatibility with a maximum number of package managers.
-
