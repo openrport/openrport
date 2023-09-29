@@ -2,6 +2,8 @@
 > This a repo in an effort to continue an opensource version of original cloudradar-monitoring rport. 
 > We are working to bring back all the component to opensource. Some documentation might be inconsistent
 > but will still be usable.
+> 
+> While we are working on the new website you can join the discord server to get help [Join Discord](https://discord.gg/HQ4wMQmzcu)
 
 ## At a glance
 
