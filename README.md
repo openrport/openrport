@@ -9,6 +9,15 @@
 
 <!-- markdownlint-restore -->
 
+------------------------------------------------------------------------------------------------------------------------------------------
+
+TO CHANGE YOUR PAIRING SERVICE TO OPENRPORT: 
+SUDO SYSTEMCTL STOP RPORTD.SERVICE
+CHANGE LINE IN /ETC/RPORT/RPORTD.CONF THAT SAYS "#PAIRING_URL=PAIRING.EXAMPLE.COM" TO "PAIRING_URL=PAIRING.OPENRPORT.IO"
+SUDO SYSTEMCTL START RPORTD.SERVICE
+
+------------------------------------------------------------------------------------------------------------------------------------------
+
 Rport helps you to manage your remote servers without the hassle of VPNs, chained SSH connections, jump-hosts, or the
 use of commercial tools like TeamViewer and its clones.
 
