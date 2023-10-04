@@ -46,7 +46,7 @@ const (
 	DefaultLogLevel                         = "info"
 	DefaultRunRemoteCmdTimeoutSec           = 60
 	DefaultMonitoringDataStorageDuration    = "7d"
-	DefaultPairingURL                       = "https://pairing.rport.io"
+	DefaultPairingURL                       = "https://pairing.openrport.io"
 )
 
 var (
