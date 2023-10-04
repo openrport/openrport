@@ -170,7 +170,7 @@ curl -s -u admin:foobaz http://localhost:3000/api/v1/clients|jq
 
 There is one client connected with an active tunnel. The second client is in standby mode.
 Read more about the [management of tunnel via the API](/docs/content/get-started/no09-managing-tunnels.md)
-or read the [API docs](https://apidoc.rport.io/master/).
+or read the [API docs](https://apidoc.openrport.io/master/).
 
 ## Running the API on a privileged port
 

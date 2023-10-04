@@ -118,7 +118,7 @@ For any kind of setup, add a configuration like this to your `/etc/rport/rportd.
 ```toml
 [caddy-integration]
   ## Enable https tunnels on random subdomains. 
-  ## See https://oss.rport.io/advanced/tunnels-on-subdomains/
+  ## See https://oss.openrport.io/advanced/tunnels-on-subdomains/
   ## Note: no defaults currently.
 
   ## Specifies the path to the caddy executable. mandatory.

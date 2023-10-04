@@ -37,7 +37,7 @@ jobs:
           bash .github/scripts/start_rportd.sh
           bash .github/scripts/start_rport.sh
 
-      - name: Upload Build to downloads.rport.io
+      - name: Upload Build to downloads.openrport.io
         env:
           UPLOAD_TOKEN: ${{ secrets.UPLOAD_TOKEN }}
         shell: bash

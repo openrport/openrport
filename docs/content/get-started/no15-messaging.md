@@ -129,5 +129,5 @@ This method requires `base_url` to be set in server config.
 Example using free 2FA service:
 
 ```text
-two_fa_token_delivery = 'https://free-2fa-sender.rport.io'
+two_fa_token_delivery = 'https://free-2fa-sender.openrport.io'
 ```

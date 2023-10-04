@@ -12,8 +12,8 @@ The command and the response are transferred through the web socket connection. 
 
 Command can be executed via:
 
-* [REST API](https://apidoc.rport.io/master/#tag/Commands)
-* [WebSocket API](https://apidoc.rport.io/master/#operation/WsCommandsGet)
+* [REST API](https://apidoc.openrport.io/master/#tag/Commands)
+* [WebSocket API](https://apidoc.openrport.io/master/#operation/WsCommandsGet)
 
 Here we would show examples how to do it via REST API.
 

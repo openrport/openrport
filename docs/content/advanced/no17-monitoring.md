@@ -35,16 +35,16 @@ file outside the data dir.
 ## Client configuration options
 
 If you client configuration after an update does not contain a `[monitoring]` section, copy it from the
-[rport.example.conf](https://github.com/realvnc-labs/rport/blob/master/rport.example.conf).
+[rport.example.conf](https://github.com/openrport/openrport/blob/master/rport.example.conf).
 To save bandwidth and disk space on the server, you can disable the monitoring for clients completely.
 Please refer to the documentation inside the configuration example to explore all options of the monitoring.
 
 ## Fetching monitoring data
 
 All collected monitoring data can be fetched using the API. Please refer to our
-[API docs](https://apidoc.rport.io/master/#tag/Monitoring).
+[API docs](https://apidoc.openrport.io/master/#tag/Monitoring).
 
 ## Processing monitoring data
 
 At the moment, either the client nor the server processes the monitoring data in any way. Sending alerts based on
-thresholds is on our roadmap. Be patient and [stay tuned](https://subscribe.rport.io).
+thresholds is on our roadmap. Be patient and [stay tuned](https://subscribe.openrport.io).

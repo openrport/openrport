@@ -32,7 +32,7 @@ easy to install daemon. It does not require any configuration or special mainten
 To run the guacamole server `guacd` you have the following options:
 
 * Use the pre-compiled packges for Ubuntu or Debian we have perpared to run the `guacd` just for RPort.
-  [downloads and instructions](https://github.com/realvnc-labs/rport-guacamole/releases)
+  [downloads and instructions](https://github.com/openrport/rport-guacamole/releases)
 * Build the Guacamole Server from source and run it, which is described
   [here](http://guacamole.incubator.apache.org/doc/gug/installing-guacamole.html).
 * Use one of the provided Docker images for guacd,

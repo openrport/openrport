@@ -26,7 +26,7 @@ Currently, rport is subdivided into the following functions:
 
 The permissions are stored on the `group_details` table of
 your [API access database](/get-started/api-authentication/#database). They are managed through
-the [update user groups API endpoint](https://apidoc.rport.io/master/#tag/User-Groups/operation/UserGroupPut).
+the [update user groups API endpoint](https://apidoc.openrport.io/master/#tag/User-Groups/operation/UserGroupPut).
 
 In addition to one of the above function permissions client permissions are needed. In other words, the function
 permissions define only what a user can do, but not on which clients he/she can do it.
@@ -43,7 +43,7 @@ rport.
 
 You can grant access to a single client to one or many user groups. The allowed user groups are stored on the clients'
 table inside the `details` object. The so-called client ACLs are managed through
-the [client ACL API endpoint](https://apidoc.rport.io/master/#tag/Clients-and-Tunnels/operation/ClientAclPost)
+the [client ACL API endpoint](https://apidoc.openrport.io/master/#tag/Clients-and-Tunnels/operation/ClientAclPost)
 
 ### Client group permissions
 
@@ -51,7 +51,7 @@ You can grant access to a client group to one or many user groups. This makes ma
 flexible.
 
 Client group access is managed through
-the [client groups API endpoint](https://apidoc.rport.io/master/#tag/Client-Groups). The underlying data is stored on
+the [client groups API endpoint](https://apidoc.openrport.io/master/#tag/Client-Groups). The underlying data is stored on
 the `client_groups` database.
 
 {{< hint type=caution title="Permissions are additive only">}} There is no option to revoke a permission. If permission

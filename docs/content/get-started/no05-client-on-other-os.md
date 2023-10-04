@@ -14,7 +14,7 @@ aliases:
 Open the terminal and as an unprivileged user download the binary and put it in `/usr/local/bin`
 
 ```shell
-curl -L "https://downloads.rport.io/rport/stable/latest.php?filter=darwin_$(uname -m)" -o rport-mac.tar.gz
+curl -L "https://downloads.openrport.io/rport/stable/latest.php?filter=darwin_$(uname -m)" -o rport-mac.tar.gz
 test -e /usr/local/bin/||sudo mkdir /usr/local/bin
 sudo tar xzf rport-mac.tar.gz -C /usr/local/bin/ rport
 rport --version

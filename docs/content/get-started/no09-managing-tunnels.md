@@ -20,7 +20,7 @@ Alternatively add tunnels to the configuration file `rport.conf`.
 
 ## Manage tunnel server-side
 
-On the server, you can supervise and manage the attached clients through the [API](https://apidoc.rport.io/master/#tag/Clients-and-Tunnels).
+On the server, you can supervise and manage the attached clients through the [API](https://apidoc.openrport.io/master/#tag/Clients-and-Tunnels).
 
 ### List
 
@@ -236,7 +236,7 @@ of `rportd.conf` manually.
   #tunnel_proxy_key_file = "/var/lib/rport/server.key" 
 ```
 
-By using `http_proxy=1` on [tunnel creation](https://apidoc.rport.io/master/#operation/ClientTunnelsPut), the proxy will
+By using `http_proxy=1` on [tunnel creation](https://apidoc.openrport.io/master/#operation/ClientTunnelsPut), the proxy will
 come up together with the tunnel. The rport server will then use two tcp ports. One for the raw tcp tunnel and one for
 the http proxy. ACLs are applied to proxy also. The raw tcp tunnel is bound to localhost only, and therefore it's not
 accessible from the outside.

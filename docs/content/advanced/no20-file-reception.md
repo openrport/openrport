@@ -28,7 +28,7 @@ flowchart TD
 
 ## Data flow
 
-- The RPort administrator uploads a file to the RPort server by using [UPLOAD API](https://apidoc.rport.io/master/#tag/Upload).
+- The RPort administrator uploads a file to the RPort server by using [UPLOAD API](https://apidoc.openrport.io/master/#tag/Upload).
   With the file, he provides all required information: target file path on client, list of client IDs or group IDs,
   desired file mode, owner/group etc.
 - The RPort server copies the file to a temporary folder `[server] {data_dir}/filepush/xxx`, where `[server] data_dir`
@@ -51,7 +51,7 @@ flowchart TD
 
 ## Upload API
 
-You can use [UPLOAD API](https://apidoc.rport.io/master/#tag/Upload) to upload a file to a Rport server.
+You can use [UPLOAD API](https://apidoc.openrport.io/master/#tag/Upload) to upload a file to a Rport server.
 
 JSON API is not well suited for uploading files, so you need to use the
 [multipart form data format](https://en.wikipedia.org/wiki/MIME#Multipart_messages).
@@ -145,7 +145,7 @@ wait for it. Therefore, the Rport server will respond with success information o
 This doesn't mean, that the distribution to the given clients was successful too.
 
 If you want to track upload process in real time, you can use a websocket API
-[our testing API for Websockets](https://apidoc.rport.io/master/#operation/WsUploadsGet) similar to commands websocket API.
+[our testing API for Websockets](https://apidoc.openrport.io/master/#operation/WsUploadsGet) similar to commands websocket API.
 
 You can also use our sandbox interface to play with the upload websocket API.
 First, enable testing endpoints by setting `enable_ws_test_endpoints` flag to true in the `[server]` section of the

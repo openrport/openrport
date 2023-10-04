@@ -58,7 +58,7 @@ the `rport.conf` file.
 ## Rport can constantly summarize pending updates and
 ## make that summary available on the rport server.
 ## On Debian/Ubuntu and SuSE Linux sudo rules are needed.
-## https://oss.rport.io/docs/no16-update-status.html
+## https://oss.openrport.io/docs/no16-update-status.html
 ## How often after the rport client has started pending updates are summarized
 ## Set 0 to disable.
 ## Supported time units: h (hours), m (minutes)

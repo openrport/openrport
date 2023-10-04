@@ -30,7 +30,7 @@ By default, the following options are activated for the client connection listen
 ##    'client-listener: Failed login attempt for client auth id "abc", forcing to wait for {client_login_wait}s ({ip})'
 ## is logged to the info log.
 ## Consider changing the log_level to 'info' to trace failed login attempts.
-## Learn more https://oss.rport.io/docs/no10-securing-the-server.html
+## Learn more https://oss.openrport.io/docs/no10-securing-the-server.html
 ## Defaults: 2.0
 #client_login_wait = 2.0
 
@@ -41,7 +41,7 @@ By default, the following options are activated for the client connection listen
 ## is logged to the info log.
 ## Banning happens on HTTP level.
 ## Consider banning on network level using fail2ban.
-## Learn more https://oss.rport.io/docs/no10-securing-the-server.html
+## Learn more https://oss.openrport.io/docs/no10-securing-the-server.html
 ## Defaults: max_failed_login = 5, ban_time = 3600
 #max_failed_login = 5
 #ban_time = 3600

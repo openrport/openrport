@@ -80,7 +80,7 @@ Prior to RPort 0.9.11 each user could have only a single API token. Starting wit
 number of API token. Tokens have a scope and an expiry date.
 
 To generate personal API token navigate to the `Settings` -> `API Tokens` on the user interface, or generate tokens
-[using the API](https://apidoc.rport.io/master/#tag/Profile-and-Info/operation/MetTokenPost).
+[using the API](https://apidoc.openrport.io/master/#tag/Profile-and-Info/operation/MetTokenPost).
 
 ## Two-Factor Auth
 
@@ -131,7 +131,7 @@ Note: 2FA is not available if you use [a single static user-password pair](/docs
 
 #### How to use it?
 
-1. Using 2FA will disable HTTP basic auth on all API endpoints except [`/login`](https://apidoc.rport.io/master/#tag/Login).
+1. Using 2FA will disable HTTP basic auth on all API endpoints except [`/login`](https://apidoc.openrport.io/master/#tag/Login).
    Login endpoints trigger sending 2FA verification code to a user. For example,
 
 ```shell
@@ -157,7 +157,7 @@ The login token has a limited time validity, which is defined in the `[api]` sec
 Verification code: 05Nfqm (valid 10m0s)
 ```
 
-1. Verify this code using [`/verify-2fa`](https://apidoc.rport.io/master/#operation/Verify2faPost) endpoint and provide
+1. Verify this code using [`/verify-2fa`](https://apidoc.openrport.io/master/#operation/Verify2faPost) endpoint and provide
    token that you received after login as Bearer Auth header (e.g. `Authorization: Bearer eyJhbGciOiJIUz...SNIP...SNAP`).
 2. If login token is valid and the provided code is correct, this API returns an auth JWT token that can be further used
    for any requests as listed in [here](no02-api-auth.md#bearer-token-auth). For example:
@@ -299,7 +299,7 @@ The password must be bcrypt-hashed.
 
 To use the database authentication you must set up a global database connection in the `[database]` section of `rportd.config` first.
 Only MySQL/MariaDB and SQLite3 are supported at the moment.
-The [example config](https://github.com/realvnc-labs/rport/blob/master/rportd.example.conf) contains all
+The [example config](https://github.com/openrport/openrport/blob/master/rportd.example.conf) contains all
 explanations on how to set up the database connection.
 
 Having the database set up, enter the following two lines to the `[api]` section of the `rportd.config` to specify the table names.

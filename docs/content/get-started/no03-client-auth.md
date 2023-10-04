@@ -87,7 +87,7 @@ Clients auth credentials can be read from and written to a database table.
 
 To use the database client authentication you must set up a global database connection in the `[database]` section of
 `rportd.conf` first. Only MySQL/MariaDB and SQLite3 are supported at the moment.
-The [example config](https://github.com/realvnc-labs/rport/blob/master/rportd.example.conf) contains all
+The [example config](https://github.com/openrport/openrport/blob/master/rportd.example.conf) contains all
 explanations on how to set up the database connection.
 
 The tables must be created manually.
@@ -124,7 +124,7 @@ Reload rportd to apply all changes.
 
 ## Manage client credentials via the API
 
-The [`/clients-auth` endpoint](https://apidoc.rport.io/master/#tag/Rport-Client-Auth-Credentials) allows you to manage
+The [`/clients-auth` endpoint](https://apidoc.openrport.io/master/#tag/Rport-Client-Auth-Credentials) allows you to manage
 clients and credentials through the API. This option is disabled if you use a single static clientauthid-password pair.
 If you want to delegate the management of client auth credentials to a third-party app writing directly to the auth-file
 or the database, consider turning the endpoint off by activating the following lines in the `rportd.conf`.
@@ -173,4 +173,4 @@ curl -X POST 'http://localhost:3000/api/v1/clients-auth' \
 ```
 
 This is just a simple example. The API supports filtering and pagination.
-[Read more](https://apidoc.rport.io/master/#tag/Rport-Client-Auth-Credentials)
+[Read more](https://apidoc.openrport.io/master/#tag/Rport-Client-Auth-Credentials)

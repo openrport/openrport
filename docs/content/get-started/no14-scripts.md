@@ -11,7 +11,7 @@ Rport allows to store your scripts for later reuse, so you can share them with y
 
 ## Scripts management
 
-You can manage script with the [REST API](https://apidoc.rport.io/master/#tag/Scripts).
+You can manage script with the [REST API](https://apidoc.openrport.io/master/#tag/Scripts).
 
 The `/library/scripts` endpoints allow you to create, update, delete and list scripts.
 
@@ -273,7 +273,7 @@ curl -X POST 'http://localhost:3000/api/v1/clients/4943d682-7874-4f7a-999c-b4ff5
 ```
 
 you can check the status of the command execution by calling
-[client commands API](https://apidoc.rport.io/master/#operation/ClientCommandsJobGet).
+[client commands API](https://apidoc.openrport.io/master/#operation/ClientCommandsJobGet).
 
 You can execute a script on multiple clients by calling `scripts` API, in this case you should provide client ids in
 the input body:
@@ -324,7 +324,7 @@ allows you to use `pwsh7` or `latestbash` as interpreter in the script execution
 
 ### Script execution via websocket interface
 
-You can use [our testing API for Websockets](https://apidoc.rport.io/master/#operation/WsCommandsGet).
+You can use [our testing API for Websockets](https://apidoc.openrport.io/master/#operation/WsCommandsGet).
 To use this API, enable testing endpoints by setting `enable_ws_test_endpoints` flag to true in the `[server]`
 section of configuration file:
 
@@ -347,7 +347,7 @@ see in the Output field.
 
 ### Execution of taco scripts
 
-[tacoscript](https://github.com/realvnc-labs/tacoscript) interpreter can be used to execute scripts in a
+[tacoscript](https://github.com/openrport/tacoscript) interpreter can be used to execute scripts in a
 Saltstack similar format for both Windows and Linux machines. Tacoscript interpreter doesn't require additional libraries
 or tools to be installed in the system and it has capabilities for:
 
@@ -387,4 +387,4 @@ date command:
 
 As a result this script will output the current date.
 In order to execute taco scripts, there should be `tacoscript` binary available in the system path
-(see here [the installation instructions](https://github.com/realvnc-labs/tacoscript#installation))
+(see here [the installation instructions](https://github.com/openrport/tacoscript#installation))

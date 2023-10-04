@@ -16,7 +16,7 @@ It's intended to be read by developers and experienced users who want to learn w
 
 ### Binaries
 
-We provide pre-compiled binaries. You can download them [here](https://github.com/realvnc-labs/rport/releases).
+We provide pre-compiled binaries. You can download them [here](https://github.com/openrport/openrport/releases).
 
 ### From source
 
@@ -65,7 +65,7 @@ See `./rportd --help` and `./rport --help` for more options, like:
 If you quickly want to run the rport server without installation, run the following commands from any unprivileged user account.
 
 ```shell
-curl -LOJ https://downloads.rport.io/rport/stable/latest.php?arch=Linux_x86_64
+curl -LOJ https://downloads.openrport.io/rport/stable/latest.php?arch=Linux_x86_64
 tar vxzf rport_*_Linux_x86_64.tar.gz rportd
 KEY=$(openssl rand -hex 18)
 ./rportd --log-level info --data-dir /var/tmp/ --key $KEY --auth user1:1234
@@ -101,7 +101,7 @@ reverse proxy is possible so you get SSH over HTTPS.
 For a proper installation execute the following steps.
 
 ```bash
-curl -LOJ https://downloads.rport.io/rportd/stable/latest.php?arch=Linux_x86_64
+curl -LOJ https://downloads.openrport.io/rportd/stable/latest.php?arch=Linux_x86_64
 sudo tar vxzf rportd_*_Linux_x86_64.tar.gz -C /usr/local/bin/ rportd
 sudo useradd -d /var/lib/rport -m -U -r -s /bin/false rport
 sudo mkdir /etc/rport/
@@ -154,7 +154,7 @@ Assume, the client is called `client1.local.localdomain`.
 On your client just install the client binary
 
 ```shell
-curl -LOJ https://downloads.rport.io/rport/stable/latest.php?arch=Linux_x86_64
+curl -LOJ https://downloads.openrport.io/rport/stable/latest.php?arch=Linux_x86_64
 sudo tar vxzf rport_*_Linux_x86_64.tar.gz -C /usr/local/bin/ rport
 ```
 
@@ -174,7 +174,7 @@ come out on the machine where the tunnel has been initiated.
 For a proper and permanent installation of the client execute the following steps.
 
 ```shell
-curl -LOJ https://downloads.rport.io/rport/stable/latest.php?arch=Linux_x86_64
+curl -LOJ https://downloads.openrport.io/rport/stable/latest.php?arch=Linux_x86_64
 sudo tar vxzf rport_*_Linux_x86_64.tar.gz -C /usr/local/bin/ rport
 sudo useradd -d /var/lib/rport -U -m -r -s /bin/false rport
 sudo mkdir /etc/rport/
@@ -207,7 +207,7 @@ This will establish a permanent tunnel and the local port 22 (SSH) of the client
 
 ## Run a Windows client
 
-On Microsoft Windows [download the latest client binary](https://downloads.rport.io/rport/stable/latest.php?arch=Windows_x86_64)
+On Microsoft Windows [download the latest client binary](https://downloads.openrport.io/rport/stable/latest.php?arch=Windows_x86_64)
 and extract it ideally to `C:\Program Files\rport`.
 Rename the `rport.example.conf` to `rport.conf` and store it in `C:\Program Files\rport` too.
 Open the `rport.conf` file with a text editor. On older Windows use an editor that supports unix line breaks,
@@ -294,6 +294,6 @@ The installation is quick and easy. [Learn more](/docs/content/get-started/no07-
 
 You can also manage clients, tunnels, and command from a user-friendly command-line utility. It's available as a
 stand-alone static binary for Windows and Linux.
-See [https://github.com/realvnc-labs/rportcli](https://github.com/realvnc-labs/rportcli).
+See [https://github.com/openrport/rportcli](https://github.com/openrport/rportcli).
 The command-line utility does not cover all API capabilities yet. But it's already a very useful tool making rport even
 more powerful.
