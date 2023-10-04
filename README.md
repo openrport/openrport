@@ -61,18 +61,18 @@ binaries only for Linux X64 because this is the ideal platform for running it se
 
 ## Instantly launch an RPort server
 
-[![Button Launch RPort  Now](https://img.shields.io/badge/RPort_Server-Launch_Now-brightgreen?style=for-the-badge&logo=Windows%20Terminal)](https://kb.rport.io/install-the-rport-server)
+[![Button Launch RPort  Now](https://img.shields.io/badge/RPort_Server-Launch_Now-brightgreen?style=for-the-badge&logo=Windows%20Terminal)](https://kb.openrport.io/install-the-rport-server)
 
 🚀 If you are curious and want to try RPort, install your server now in no time. Use our
-[server installation script](https://kb.rport.io/install-the-rport-server).
+[server installation script](https://kb.openrport.io/install-the-rport-server).
 
 ## 📖 Documentation
 
 ### End-User documentation
 
-[![end-user-documentation](https://img.shields.io/badge/End--User_Documentation-Read_Now-green?style=for-the-badge&logo=Gitbook)](https://kb.rport.io)
+[![end-user-documentation](https://img.shields.io/badge/End--User_Documentation-Read_Now-green?style=for-the-badge&logo=Gitbook)](https://kb.openrport.io)
 
-our [end-user documentation](https://kb.rport.io) with articles on user-friendly installation, settings and secure operation of RPort.
+our [end-user documentation](https://kb.openrport.io) with articles on user-friendly installation, settings and secure operation of RPort.
 
 ### Technical documentation
 
