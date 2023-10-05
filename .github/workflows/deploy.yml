@@ -22,12 +22,12 @@ jobs:
         # set rport version to {date-time}-{github-master-head-sha}
         run: go build -v -ldflags="-X 'github.com/openrport/openrport/share.BuildVersion=$(date -u +%y.%m%d.%H%M)-$(git rev-parse HEAD)'"  -o ./ ./cmd/...
 
-      - name: Build Plus Plugin
-        shell: bash
-        env:
-          RPORT_PLUS_PRIV_KEY: ${{ secrets.RPORT_PLUS_PRIV_KEY }}
-        run: |
-          bash .github/scripts/build-plus.sh
+#      - name: Build Plus Plugin
+#        shell: bash
+#        env:
+#          RPORT_PLUS_PRIV_KEY: ${{ secrets.RPORT_PLUS_PRIV_KEY }}
+#        run: |
+#          bash .github/scripts/build-plus.sh
 
       - name: Test Build
         shell: bash

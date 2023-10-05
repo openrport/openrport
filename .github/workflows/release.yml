@@ -35,16 +35,16 @@ jobs:
           echo ::set-output name=commit_sha::$(git rev-parse HEAD)
 
 
-      - name: Checkout, build and release RPort Plus
-        id: rport_plus_build
-        env:
-          RPORT_GIT_REF: ${{github.ref_name}}
-          RPORT_COMMIT_ID: ${{ steps.rport_commit_info.outputs.commit_sha }}
-          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-          RPORT_PLUS_PRIV_KEY: ${{ secrets.RPORT_PLUS_PRIV_KEY }}
-        run: | 
-          bash .github/scripts/build-plus.sh
-          bash .github/scripts/release-plus.sh
+#      - name: Checkout, build and release RPort Plus
+#        id: rport_plus_build
+#        env:
+#          RPORT_GIT_REF: ${{github.ref_name}}
+#          RPORT_COMMIT_ID: ${{ steps.rport_commit_info.outputs.commit_sha }}
+#          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+##          RPORT_PLUS_PRIV_KEY: ${{ secrets.RPORT_PLUS_PRIV_KEY }}
+#        run: |
+##          bash .github/scripts/build-plus.sh
+#          bash .github/scripts/release-plus.sh
 
       - name: Create DEB packages
         id: create_deb
@@ -78,4 +78,4 @@ jobs:
           REPO_SSH_USER: ${{ secrets.REPO_SSH_USER }}
           REPO_SSH_HOST: ${{ secrets.REPO_SSH_HOST }}
           REPO_SSH_KNOWN_HOSTS: ${{ secrets.REPO_SSH_KNOWN_HOSTS }}
-        run: bash .github/scripts/pkg-publish.sh
+#        run: bash .github/scripts/pkg-publish.sh
