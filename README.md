@@ -7,7 +7,7 @@
 
 ## Coming from RPort.io? Check this out!
 
-As a community that supports open source software, we were unpleasantly surprised by the move RealVNC made with RPort.  As mentioned on their website, support as well as all subsequent updates of RPort from version 1.0.0 will require a license.  Using the latest public opensource versions of RPort, we continue to support and develop RPort in the spirit of opensource.  We are currently working on major improvements to the software so that it is fully decoupled from RealVNC.  We created a new pairing system for running RPort servers.  You can use it as follows:
+As a community that supports open source software, we were surprised by the move RealVNC made with RPort.  As mentioned on their website, support as well as all subsequent updates of RPort from version 1.0.0 will require a license.  Using the latest public opensource versions of RPort, we continue to support and develop RPort in the spirit of opensource.  We are currently working on major improvements to the software so that it is fully decoupled from RealVNC.  We created a new pairing system for running RPort servers.  You can use it as follows:
 
 SUDO SYSTEMCTL STOP RPORTD.SERVICE
 
