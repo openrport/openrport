@@ -45,11 +45,15 @@ builds:
       - '-s -w -X {{.Env.PROJECT}}/share.BuildVersion={{.Version}}'
       - "-extldflags '-static'"
     env:
-      - CGO_ENABLED=1
+      - CGO_ENABLED=0
     goos:
       - linux
     goarch:
       - amd64
+      - arm64
+    goarm:
+      - 6
+      - 7
 archives:
   - id: rport-only
     name_template: >-

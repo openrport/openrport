@@ -2,7 +2,7 @@ param (
     [int]$major = (&{If($env:GITHUB_REF_NAME) {  [int]($env:GITHUB_REF_NAME.Split(".")[0]) } Else { $(throw "-major is required.") }}),
     [int]$minor = (&{If($env:GITHUB_REF_NAME) {  [int]($env:GITHUB_REF_NAME.Split(".")[1]) } Else { $(throw "-minor is required.") }}),
     [int]$patch = (&{If($env:GITHUB_REF_NAME) {  [int]($env:GITHUB_REF_NAME.Split(".")[2]) } Else { $(throw "-patch is required.") }}),
-    [switch]$SignMsi = $true,
+    [switch]$SignMsi = $false,
     [string]$msiFileName = "rport-client.msi"
 )
 Write-Output "Making $msiFileName ver $major.$minor.$patch"
@@ -40,7 +40,7 @@ goversioninfo.exe
 Set-Location ../../
 
 Write-Output "[*] Building rport.exe for windows"
-go build -ldflags "-s -w -X github.com/realvnc-labs/rport/share.BuildVersion=$($env:GITHUB_REF_NAME)" -o rport.exe ./cmd/rport
+go build -ldflags "-s -w -X github.com/openrport/openrport/share.BuildVersion=$($env:GITHUB_REF_NAME)" -o rport.exe ./cmd/rport
 Get-ChildItem -File *.exe
 .\rport.exe --version
 

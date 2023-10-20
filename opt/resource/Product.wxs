@@ -8,7 +8,7 @@
 	<?define UpgradeCode="181410DA-06A6-413A-A1C7-261B894D4999" ?>	<!-- YOUR-GUID-HERE -->
 
 	<!-- The URL for add/remove programs -->
-	<?define InfoURL="https://rport.io/" ?>
+	<?define InfoURL="https://openrport.io/" ?>
 
 	<?define Win64 = "yes" ?>
 	<?define rportClientExeSourcePath = "rport.exe" ?>

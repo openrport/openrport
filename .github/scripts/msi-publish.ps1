@@ -28,4 +28,4 @@ Write-Output "[*] Will upload $($upload) to the existing release $($releaseId)"
 -H "Authorization: token $($env:GITHUB_TOKEN)" `
 -H "Content-Type: application/x-msi" `
 -H "Accept: application/vnd.github.v3+json" `
-"https://uploads.github.com/repos/realvnc-labs/rport/releases/$($releaseId)/assets?name=$($upload)"
+"https://uploads.github.com/repos/openrport/openrport/releases/$($releaseId)/assets?name=$($upload)"

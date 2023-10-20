@@ -3,8 +3,8 @@
    <String Id="Language">1033</String>         <!-- Supported language and codepage codes can be found here: http://www.tramontana.co.hu/wix/lesson2.php#2.4 -->
    
    <String Id="ApplicationName">RPort</String>
-   <String Id="ManufacturerName">RealVNC</String>
-   <String Id="ManufacturerFullName">RealVNC</String>
+   <String Id="ManufacturerName">OpenRport</String>
+   <String Id="ManufacturerFullName">OpenRport</String>
    <String Id="ProductDescription">Remote Access and Remote Management Client</String>
    <String Id="Comments">Installs RPort client</String>
 
