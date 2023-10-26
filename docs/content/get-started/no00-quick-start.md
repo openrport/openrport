@@ -5,8 +5,8 @@ slug: quick-start
 ---
 
 {{< hint type=warning title="This is not an installation tutorial!" >}}
-If you want to **install and run rport (server and client), switch to the [installation tutorial](https://kb.rport.io/install-the-rport-server)**.  
-Our end-user knowledge [kb.rport.io](https://kb.rport.io) base focuses on installation and server maintenance from a user's perspective.
+If you want to **install and run rport (server and client), switch to the [installation tutorial](https://kb.openrport.io/install-the-rport-server)**.  
+Our end-user knowledge [kb.rport.io](https://kb.openrport.io) base focuses on installation and server maintenance from a user's perspective.
 
 The below documentation is a practical demonstration of the rport concepts.
 It's intended to be read by developers and experienced users who want to learn what happens behind the scenes.
