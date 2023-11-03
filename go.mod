@@ -31,7 +31,7 @@ require (
 	github.com/kardianos/service v1.1.0
 	github.com/kr/fs v0.1.0 // indirect
 	github.com/magiconair/properties v1.8.5 // indirect
-	github.com/mattn/go-sqlite3 v1.14.6
+	github.com/mattn/go-sqlite3 v1.14.17
 	github.com/mitchellh/mapstructure v1.4.2
 	github.com/mocktools/go-smtp-mock v1.8.0
 	github.com/patrickmn/go-cache v2.1.0+incompatible
