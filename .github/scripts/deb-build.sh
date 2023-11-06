@@ -25,7 +25,7 @@ else
 fi
 
 if [ -n "${GITHUB_REF_NAME}" ]; then
-    VERSION=${GITHUB_REF_NAME}
+    VERSION=${GITHUB_REF_NAME#v}
 else
     echo "🛑 ERROR: \$GITHUB_REF_NAME missing"
     false
@@ -72,13 +72,13 @@ echo "👷 Building debian package from $BIN_FILE for $DST_ARCH"
 cat <<EOF >${PKG_ROOT}/DEBIAN/control
 Package: rport
 Version: ${VERSION}
-Maintainer: RealVNC Limited <info@rport.io>
+Maintainer: OpenRport <info@openrport.io>
 Depends: libc6, sudo, passwd
 Installed-Size: ${INSTALLED_SIZE}
 Architecture: ${DST_ARCH}
 Section: misc
 Priority: optional
-Homepage: https://github.com/realvnc-labs/rport/
+Homepage: https://github.com/openrport/openrport/
 Description: Remote access and remote management of heterogeneous IT infrastructures
  RPort provides remote access to and script execution on systems
  behind firewalls and NAT
@@ -94,17 +94,17 @@ EOF
 #
 # Create a changelog, even dummy
 #
-cat <<EOF | gzip -n --best -c >${PKG_ROOT}/usr/share/doc/${PKG_NAME}/changelog.gz
+cat <<EOF | gzip -n --best -c >${PKG_ROOT}/usr/share/doc/${PKG_NAME}/changelog.Debian.gz
 rport (${VERSION}); urgency=low
 
   * new version created by GitHub action
-  * Full changelog https://github.com/realvnc-labs/rport/releases/tag/${GITHUB_REF_NAME}
+  * Full changelog https://github.com/openrport/openrport/releases/tag/${GITHUB_REF_NAME}
 EOF
-chmod 0644 ${PKG_ROOT}/usr/share/doc/${PKG_NAME}/changelog.gz
+chmod 0644 ${PKG_ROOT}/usr/share/doc/${PKG_NAME}/changelog.Debian.gz
 
 cat <<EOF >${PKG_ROOT}/usr/share/doc/${PKG_NAME}/copyright
 Format: https://www.debian.org/doc/packaging-manuals/copyright-format/1.0/
-Source: https://github.com/realvnc-labs/rport/releases/tag/${GITHUB_REF_NAME}
+Source: https://github.com/openrport/openrport/releases/tag/${GITHUB_REF_NAME}
 Copyright: $(date +%Y)
 License: MIT
 

@@ -17,7 +17,7 @@ require (
 	github.com/google/uuid v1.3.0
 	github.com/gorilla/handlers v1.5.1
 	github.com/gorilla/mux v1.8.0
-	github.com/gorilla/websocket v1.4.2
+	github.com/gorilla/websocket v1.5.0
 	github.com/gregdel/pushover v1.0.0
 	github.com/h2non/parth v0.0.0-20190131123155-b4df798d6542 // indirect
 	github.com/hashicorp/errwrap v1.1.0 // indirect
@@ -31,7 +31,7 @@ require (
 	github.com/kardianos/service v1.1.0
 	github.com/kr/fs v0.1.0 // indirect
 	github.com/magiconair/properties v1.8.5 // indirect
-	github.com/mattn/go-sqlite3 v1.14.6
+	github.com/mattn/go-sqlite3 v1.14.17
 	github.com/mitchellh/mapstructure v1.4.2
 	github.com/mocktools/go-smtp-mock v1.8.0
 	github.com/patrickmn/go-cache v2.1.0+incompatible

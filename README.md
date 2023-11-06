@@ -1,4 +1,6 @@
 <!-- markdownlint-disable -->
+
+[![Button Launch RPort  Now](https://img.shields.io/badge/Discord-Join_Now-brightgreen?style=for-the-badge&logo=discord)](https://discord.gg/HQ4wMQmzcu)
 > This a repo in an effort to continue an opensource version of original cloudradar-monitoring rport. 
 > We are working to bring back all the component to opensource. Some documentation might be inconsistent
 > but will still be usable.

@@ -59,8 +59,8 @@ Release:        1
 Summary:        Remote Management Client for the RPort-Server
 
 License:        MIT
-URL:            https://github.com/realvnc-labs/rport
-Source0:        https://github.com/realvnc-labs/rport/releases/tag/${GITHUB_REF_NAME}
+URL:            https://github.com/openrport/openrport
+Source0:        https://github.com/openrport/openrport/releases/tag/${GITHUB_REF_NAME}
 
 Requires:       passwd
 
@@ -115,7 +115,7 @@ systemctl stop rport.service || true
 %changelog
 * $(date) RealVNC Ltd. <developers@rport.io> - ${VERSION}-1
 - RPM created by GitHub Action
-- Full changelog https://github.com/realvnc-labs/rport/releases/tag/${GITHUB_REF_NAME}
+- Full changelog https://github.com/openrport/openrport/releases/tag/${GITHUB_REF_NAME}
 EOF
 rpmlint ~/rpmbuild/SPECS/rport.spec
 echo "👷 Building RPM package now ..."

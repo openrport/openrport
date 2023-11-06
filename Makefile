@@ -35,10 +35,10 @@ clean:
 	rm -f $(BINARIES)
 
 goreleaser-rm-dist:
-	goreleaser --rm-dist
+	goreleaser --clean
 
 goreleaser-snapshot:
-	goreleaser --snapshot --rm-dist
+	goreleaser --snapshot --clean
 
 docker-goreleaser:
 	docker run -it --rm --privileged \

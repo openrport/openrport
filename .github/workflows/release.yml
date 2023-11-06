@@ -78,4 +78,4 @@ jobs:
           REPO_SSH_USER: ${{ secrets.REPO_SSH_USER }}
           REPO_SSH_HOST: ${{ secrets.REPO_SSH_HOST }}
           REPO_SSH_KNOWN_HOSTS: ${{ secrets.REPO_SSH_KNOWN_HOSTS }}
-#        run: bash .github/scripts/pkg-publish.sh
+        run: bash .github/scripts/pkg-publish.sh
