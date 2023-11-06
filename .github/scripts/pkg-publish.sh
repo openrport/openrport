@@ -7,7 +7,6 @@ ls -la
 
 pkill ssh-agent||true
 eval $(ssh-agent)
-echo "$REPO_SSH_PRIV_KEY"
 ssh-add - <<<"$REPO_SSH_PRIV_KEY"
 test -e ~.ssh || mkdir -p ~/.ssh
 grep -q "$REPO_SSH_HOST" ~/.ssh/known_hosts || echo "$REPO_SSH_KNOWN_HOSTS">>~/.ssh/known_hosts
