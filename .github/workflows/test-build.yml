@@ -46,4 +46,4 @@ jobs:
           ls -lh $TAR
           FOLDER=rport-test-builds
           echo "🚚 Uploading $TAR to $FOLDER downloads"
-          curl -fs https://download.openrport.io/exec/upload.php -H "Authentication: $UPLOAD_TOKEN" -F file=@${TAR} -F dest_dir="${FOLDER}"
+          curl -f https://download.openrport.io/exec/upload.php -H "Authentication: $UPLOAD_TOKEN" -F file=@${TAR} -F dest_dir="${FOLDER}"

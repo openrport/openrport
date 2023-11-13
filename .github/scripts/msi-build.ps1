@@ -1,10 +1,15 @@
 param (
-    [int]$major = (&{If($env:GITHUB_REF_NAME) {  [int]($env:GITHUB_REF_NAME.Split(".")[0]) } Else { $(throw "-major is required.") }}),
-    [int]$minor = (&{If($env:GITHUB_REF_NAME) {  [int]($env:GITHUB_REF_NAME.Split(".")[1]) } Else { $(throw "-minor is required.") }}),
-    [int]$patch = (&{If($env:GITHUB_REF_NAME) {  [int]($env:GITHUB_REF_NAME.Split(".")[2]) } Else { $(throw "-patch is required.") }}),
     [switch]$SignMsi = $false,
     [string]$msiFileName = "rport-client.msi"
 )
+$versionParts = $env:GITHUB_REF_NAME -replace '^[^\d]+','' -split '\.'
+if ($versionParts.Length -ne 3 -or -not ($versionParts[0] -as [int] -is [int]) -or -not ($versionParts[1] -as [int] -is [int]) -or -not ($versionParts[2] -as [int] -is [int])) {
+    throw "Version information could not be parsed from GITHUB_REF_NAME: $env:GITHUB_REF_NAME"
+}
+[int]$major = $versionParts[0]
+[int]$minor = $versionParts[1]
+[int]$patch = $versionParts[2]
+
 Write-Output "Making $msiFileName ver $major.$minor.$patch"
 Write-Output "--------------------------------------"
 $ErrorActionPreference = 'Stop'
@@ -40,7 +45,7 @@ goversioninfo.exe
 Set-Location ../../
 
 Write-Output "[*] Building rport.exe for windows"
-go build -ldflags "-s -w -X github.com/openrport/openrport/share.BuildVersion=$($env:GITHUB_REF_NAME)" -o rport.exe ./cmd/rport
+go build -ldflags "-s -w -X github.com/openrport/openrport/share.BuildVersion=$major.$minor.$patch" -o rport.exe ./cmd/rport
 Get-ChildItem -File *.exe
 .\rport.exe --version
 
