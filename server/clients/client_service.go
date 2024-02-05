@@ -359,17 +359,17 @@ func (s *ClientServiceProvider) StartClient(
 	// if found existing client
 	if client != nil {
 		clog.Debugf("found existing client %s", clientID)
-		var sessionReUsed = false
 		if req.SessionID != "" && req.SessionID == client.GetSessionID() {
 			// Stored previous session id and the session id of the connection attempt are equal
-			sessionReUsed = true
 			clog.Debugf("resuming existing session %s for client %s [%s]", req.SessionID, client.GetName(), clientID)
 		}
 
-		if client.IsConnected() && !sessionReUsed {
-			clog.Debugf("client is already connected:  %s", clientID)
-			return nil, fmt.Errorf("client is already connected: %s [%s]", client.GetName(), clientID)
-		}
+		// Disable failure on session reuse
+
+		// if client.IsConnected() && !sessionReUsed {
+		// 	clog.Debugf("client is already connected:  %s", clientID)
+		// 	return nil, fmt.Errorf("client is already connected: %s [%s]", client.GetName(), clientID)
+		// }
 
 		oldTunnels := getTunnelsToReestablish(getRemotes(client.GetTunnels()), req.Remotes)
 
