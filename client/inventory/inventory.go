@@ -115,7 +115,7 @@ func (i *Inventory) refreshInventory(ctx context.Context) {
 				SoftwareInventory: make([]models.SoftwareInventory, 0),
 			}
 		} else {
-			i.logger.Infof("")
+			i.logger.Infof("Found %v software products on the systen", len(software_inventory))
 			newInventory = &models.Inventory{
 				SoftwareInventory: software_inventory,
 			}
@@ -126,7 +126,7 @@ func (i *Inventory) refreshInventory(ctx context.Context) {
 	if conInvMgr == nil {
 		i.logger.Infof("No container inventory manager could be found or used!")
 		newInventory = &models.Inventory{
-			ContainerInventory: []models.ContainerInventory{},
+			ContainerInventory: make([]models.ContainerInventory, 0),
 		}
 	} else {
 		i.logger.Infof("Using %v for container inventory", reflect.TypeOf(conInvMgr).Elem().Name())
@@ -135,9 +135,10 @@ func (i *Inventory) refreshInventory(ctx context.Context) {
 		if err != nil {
 			i.logger.Infof("Could not get container inventory from system!")
 			newInventory = &models.Inventory{
-				ContainerInventory: []models.ContainerInventory{},
+				ContainerInventory: make([]models.ContainerInventory, 0),
 			}
 		} else {
+			i.logger.Infof("Found %v container(s) on the systen", len(container_inventory))
 			newInventory = &models.Inventory{
 				ContainerInventory: container_inventory,
 			}
