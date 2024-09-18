@@ -31,7 +31,7 @@ func (p *DockerContainerInventoryManager) GetInventory(ctx context.Context, logg
 		return nil, err
 	}
 
-	var result []models.ContainerInventory
+	var result []models.ContainerInventory = make([]models.ContainerInventory, 0)
 	for _, container := range containers {
 		result = append(result, models.ContainerInventory{
 			ContainerID:   container.ID,

@@ -7,4 +7,6 @@ var softwareInventoryManagers = []SoftwareInventoryManager{
 	NewWindowsSoftwareInventoryManager(),
 }
 
-var containerInventoryManagers = []ContainerInventoryManager{}
+var containerInventoryManagers = []ContainerInventoryManager{
+	NewDockerContainerInventoryManager(),
+}
