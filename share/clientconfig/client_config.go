@@ -43,6 +43,7 @@ type ClientConfig struct {
 	TunnelAllowed            []string          `json:"tunnel_allowed" mapstructure:"tunnel_allowed"`
 	AllowRoot                bool              `json:"allow_root" mapstructure:"allow_root"`
 	UpdatesInterval          time.Duration     `json:"updates_interval" mapstructure:"updates_interval"`
+	InventoryInterval        time.Duration     `json:"inventory_interval" mapstructure:"inventory_interval"`
 	DataDir                  string            `json:"data_dir" mapstructure:"data_dir"`
 	BindInterface            string            `json:"bind_interface" mapstructure:"bind_interface"`
 	IPAPIURL                 string            `json:"ip_api_url" mapstructure:"ip_api_url"`
