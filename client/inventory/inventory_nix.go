@@ -7,4 +7,6 @@ var softwareInventoryManagers = []SoftwareInventoryManager{
 	NewDPKGSoftwareInventoryManager(),
 }
 
-var containerInventoryManagers = []ContainerInventoryManager{}
+var containerInventoryManagers = []ContainerInventoryManager{
+	NewDockerContainerInventoryManager(),
+}
