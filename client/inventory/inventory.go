@@ -97,51 +97,38 @@ func (i *Inventory) refreshLoop(ctx context.Context) {
 }
 
 func (i *Inventory) refreshInventory(ctx context.Context) {
-	var newInventory *models.Inventory
+	newInventory := &models.Inventory{
+		SoftwareInventory:  make([]models.SoftwareInventory, 0),
+		ContainerInventory: make([]models.ContainerInventory, 0),
+	}
 
 	sofInvMgr := i.getSoftwareInventoryManager(ctx)
 	if sofInvMgr == nil {
 		i.logger.Infof("No software inventory manager could be found or used!")
-		newInventory = &models.Inventory{
-			SoftwareInventory: make([]models.SoftwareInventory, 0),
-		}
 	} else {
 		i.logger.Infof("Using %v for software inventory", reflect.TypeOf(sofInvMgr).Elem().Name())
 
 		software_inventory, err := sofInvMgr.GetInventory(ctx, i.logger)
 		if err != nil {
 			i.logger.Infof("Could not get software inventory from system!")
-			newInventory = &models.Inventory{
-				SoftwareInventory: make([]models.SoftwareInventory, 0),
-			}
 		} else {
 			i.logger.Infof("Found %v software products on the systen", len(software_inventory))
-			newInventory = &models.Inventory{
-				SoftwareInventory: software_inventory,
-			}
+			newInventory.SoftwareInventory = software_inventory
 		}
 	}
 
 	conInvMgr := i.getContainerInventoryManager(ctx)
 	if conInvMgr == nil {
 		i.logger.Infof("No container inventory manager could be found or used!")
-		newInventory = &models.Inventory{
-			ContainerInventory: make([]models.ContainerInventory, 0),
-		}
 	} else {
 		i.logger.Infof("Using %v for container inventory", reflect.TypeOf(conInvMgr).Elem().Name())
 
 		container_inventory, err := conInvMgr.GetInventory(ctx, i.logger)
 		if err != nil {
 			i.logger.Infof("Could not get container inventory from system!")
-			newInventory = &models.Inventory{
-				ContainerInventory: make([]models.ContainerInventory, 0),
-			}
 		} else {
 			i.logger.Infof("Found %v container(s) on the systen", len(container_inventory))
-			newInventory = &models.Inventory{
-				ContainerInventory: container_inventory,
-			}
+			newInventory.ContainerInventory = container_inventory
 		}
 
 	}
