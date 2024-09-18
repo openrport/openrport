@@ -41,6 +41,7 @@ type ClientPayload struct {
 	AllowedUserGroups      *[]string               `json:"allowed_user_groups,omitempty"`
 	Tunnels                *[]*clienttunnel.Tunnel `json:"tunnels,omitempty"`
 	UpdatesStatus          **models.UpdatesStatus  `json:"updates_status,omitempty"`
+	Inventory              **models.Inventory      `json:"inventory,omitempty"`
 	IPAddresses            **models.IPAddresses    `json:"ext_ip_addresses,omitempty"`
 	ClientConfiguration    **clientconfig.Config   `json:"client_configuration,omitempty"`
 	Groups                 *[]string               `json:"groups,omitempty"`
@@ -131,6 +132,8 @@ func ConvertToClientPayload(client *clientdata.CalculatedClient, fields []query.
 			p.AllowedUserGroups = &client.AllowedUserGroups
 		case "updates_status":
 			p.UpdatesStatus = &client.UpdatesStatus
+		case "inventory":
+			p.Inventory = &client.Inventory
 		case "ip_addresses":
 			p.IPAddresses = &client.IPAddresses
 		case "client_configuration":

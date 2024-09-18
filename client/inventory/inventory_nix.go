@@ -3,6 +3,8 @@
 
 package inventory
 
-var softwareInventoryManagers = []SoftwareInventoryManager{}
+var softwareInventoryManagers = []SoftwareInventoryManager{
+	NewDPKGSoftwareInventoryManager(),
+}
 
 var containerInventoryManagers = []ContainerInventoryManager{}

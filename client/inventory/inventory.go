@@ -101,6 +101,7 @@ func (i *Inventory) refreshInventory(ctx context.Context) {
 
 	sofInvMgr := i.getSoftwareInventoryManager(ctx)
 	if sofInvMgr == nil {
+		i.logger.Infof("No software inventory manager could be found or used!")
 		newInventory = &models.Inventory{
 			SoftwareInventory: make([]models.SoftwareInventory, 0),
 		}
@@ -114,6 +115,7 @@ func (i *Inventory) refreshInventory(ctx context.Context) {
 				SoftwareInventory: make([]models.SoftwareInventory, 0),
 			}
 		} else {
+			i.logger.Infof("")
 			newInventory = &models.Inventory{
 				SoftwareInventory: software_inventory,
 			}
@@ -122,6 +124,7 @@ func (i *Inventory) refreshInventory(ctx context.Context) {
 
 	conInvMgr := i.getContainerInventoryManager(ctx)
 	if conInvMgr == nil {
+		i.logger.Infof("No container inventory manager could be found or used!")
 		newInventory = &models.Inventory{
 			ContainerInventory: []models.ContainerInventory{},
 		}

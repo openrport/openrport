@@ -65,6 +65,7 @@ type ClientService interface {
 	CheckClientsAccess(clients []*clientdata.Client, user User, groups []*cgroups.ClientGroup) error
 
 	SetUpdatesStatus(clientID string, updatesStatus *models.UpdatesStatus) error
+	SetInventory(clientID string, inventory *models.Inventory) error
 	SetLastHeartbeat(clientID string, heartbeat time.Time) error
 	SetIPAddresses(clientID string, IPAddresses *models.IPAddresses) error
 
@@ -164,6 +165,7 @@ var OptionsSupportedFields = map[string]map[string]bool{
 		"mem_total":                true,
 		"allowed_user_groups":      true,
 		"updates_status":           true,
+		"inventory":                true,
 		"ip_addresses":             true,
 		"client_configuration":     true,
 		"groups":                   true,
@@ -657,6 +659,17 @@ func (s *ClientServiceProvider) SetUpdatesStatus(clientID string, updatesStatus 
 	}
 
 	client.SetUpdatesStatus(updatesStatus)
+
+	return s.repo.Save(client)
+}
+
+func (s *ClientServiceProvider) SetInventory(clientID string, inventory *models.Inventory) error {
+	client, err := s.getExistingClientByID(clientID)
+	if err != nil {
+		return err
+	}
+
+	client.SetInventory(inventory)
 
 	return s.repo.Save(client)
 }

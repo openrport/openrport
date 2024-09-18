@@ -157,6 +157,7 @@ func convertToSqlite(c *clientdata.Client) (res *clientSqlite) {
 			Tunnels:                c.Tunnels,
 			AllowedUserGroups:      c.AllowedUserGroups,
 			UpdatesStatus:          c.UpdatesStatus,
+			Inventory:              c.Inventory,
 			IPAddresses:            c.IPAddresses,
 			ClientConfig:           c.ClientConfiguration,
 		},
@@ -203,6 +204,7 @@ type clientDetails struct {
 	Tunnels                []*clienttunnel.Tunnel `json:"tunnels"`
 	AllowedUserGroups      []string               `json:"allowed_user_groups"`
 	UpdatesStatus          *models.UpdatesStatus  `json:"updates_status"`
+	Inventory              *models.Inventory      `json:"inventory"`
 	IPAddresses            *models.IPAddresses    `json:"ext_ip_addresses"`
 	ClientConfig           *chshare.Config        `json:"client_configuration"`
 }
@@ -264,6 +266,7 @@ func (s *clientSqlite) convert(l *logger.Logger) (res *clientdata.Client) {
 		Timezone:               d.Timezone,
 		AllowedUserGroups:      d.AllowedUserGroups,
 		UpdatesStatus:          d.UpdatesStatus,
+		Inventory:              d.Inventory,
 		IPAddresses:            d.IPAddresses,
 		ClientConfiguration:    d.ClientConfig,
 		Logger:                 l,
