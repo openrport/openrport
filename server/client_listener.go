@@ -592,6 +592,27 @@ func (cl *ClientListener) handleSSHRequests(clientLog *logger.DynamicLogger, cli
 				clientLog.NDebugf(ClientRequestsLog, "%s: updates updated at %s in %s", clientID, time.Now().UTC(), time.Since(ts))
 			}
 
+		case comm.RequestTypeInventory:
+			clientLog.Debugf("setting inventory from %s", clientID)
+			var ts time.Time
+			if ClientRequestsLogEnabled {
+				ts = time.Now().UTC()
+			}
+			inventory := &models.Inventory{}
+			err := json.Unmarshal(r.Payload, inventory)
+			if err != nil {
+				clientLog.Errorf("Failed to unmarshal inventory: %s", err)
+				continue
+			}
+			err = clientService.SetInventory(clientID, inventory)
+			if err != nil {
+				clientLog.Errorf("Failed to save inventory: %s", err)
+				continue
+			}
+			if ClientRequestsLogEnabled {
+				clientLog.NDebugf(ClientRequestsLog, "%s: inventory updated at %s in %s", clientID, time.Now().UTC(), time.Since(ts))
+			}
+
 		case comm.RequestTypeSaveMeasurement:
 			// if server monitoring is disabled then do not save measurements even if received
 			if !cl.server.config.Monitoring.Enabled {

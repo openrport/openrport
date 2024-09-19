@@ -15,6 +15,7 @@ import (
 	"sync"
 	"time"
 
+	"github.com/openrport/openrport/client/inventory"
 	ipAddresses "github.com/openrport/openrport/client/ip_addresses"
 
 	"github.com/openrport/openrport/share/random"
@@ -63,6 +64,7 @@ type Client struct {
 	cmdExec            system.CmdExecutor
 	systemInfo         system.SysInfo
 	updates            *updates.Updates
+	inventory          *inventory.Inventory
 	monitor            *monitoring.Monitor
 	ipAddressesFetcher *ipAddresses.Fetcher
 	serverCapabilities *models.Capabilities
@@ -105,6 +107,7 @@ func NewClient(config *ClientConfigHolder, filesAPI files.FileAPI) (*Client, err
 		cmdExec:            cmdExec,
 		systemInfo:         systemInfo,
 		updates:            updates.New(logger, config.Client.UpdatesInterval),
+		inventory:          inventory.New(logger, config.Client.InventoryInterval),
 		monitor:            monitoring.NewMonitor(logger, config.Monitoring, systemInfo),
 		ipAddressesFetcher: ipAddresses.NewFetcher(logger, config.Client.IPAPIURL, config.Client.IPRefreshMin),
 		filesAPI:           filesAPI,
@@ -160,6 +163,7 @@ func (c *Client) Start(ctx context.Context) error {
 	go c.connectionLoop(ctx, true)
 
 	c.updates.Start(ctx)
+	c.inventory.Start(ctx)
 
 	return nil
 }
@@ -294,6 +298,7 @@ func (c *Client) connectionLoop(ctx context.Context, withInitialSendRequestDelay
 		c.updates.SetConn(sshClientConn.Connection)
 		c.ipAddressesFetcher.SetConn(sshClientConn.Connection)
 		c.monitor.SetConn(sshClientConn.Connection)
+		c.inventory.SetConn(sshClientConn.Connection)
 
 		// watch for shutting down due to ctx.Done
 		go func() {
@@ -311,6 +316,7 @@ func (c *Client) connectionLoop(ctx context.Context, withInitialSendRequestDelay
 		c.monitor.Stop()
 		c.updates.Stop()
 		c.ipAddressesFetcher.Stop()
+		c.inventory.Stop()
 		cancelSwitchback()
 
 		// use of closed network connection happens when switchback closes the connection, ignore the error

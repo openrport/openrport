@@ -77,6 +77,7 @@ type Client struct {
 	ClientAuthID        string                `json:"client_auth_id"`
 	AllowedUserGroups   []string              `json:"allowed_user_groups"`
 	UpdatesStatus       *models.UpdatesStatus `json:"updates_status"`
+	Inventory           *models.Inventory     `json:"inventory"`
 	IPAddresses         *models.IPAddresses   `json:"ext_ip_addresses"`
 	ClientConfiguration *clientconfig.Config  `json:"client_configuration"`
 
@@ -278,6 +279,13 @@ func (c *Client) GetUpdatesStatus() (status models.UpdatesStatus) {
 	return status
 }
 
+func (c *Client) GetInventory() (inventory models.Inventory) {
+	c.flock.RLock()
+	defer c.flock.RUnlock()
+	inventory = *c.Inventory
+	return inventory
+}
+
 func (c *Client) GetDisconnectedAt() (at *time.Time) {
 	c.flock.RLock()
 	defer c.flock.RUnlock()
@@ -445,6 +453,12 @@ func (c *Client) SetAllowedUserGroups(groups []string) {
 func (c *Client) SetUpdatesStatus(status *models.UpdatesStatus) {
 	c.flock.Lock()
 	c.UpdatesStatus = status
+	c.flock.Unlock()
+}
+
+func (c *Client) SetInventory(inventory *models.Inventory) {
+	c.flock.Lock()
+	c.Inventory = inventory
 	c.flock.Unlock()
 }
 

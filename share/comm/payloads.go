@@ -22,6 +22,7 @@ const (
 	RequestTypeSaveMeasurement = "save_measurement"
 	RequestTypeUpload          = "upload"
 	RequestTypeIPAddresses     = "ip_addresses"
+	RequestTypeInventory       = "inventory"
 
 	// RequestTypePing request types understood on both sides, client and server
 	RequestTypePing = "ping"
