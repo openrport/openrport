@@ -71,12 +71,12 @@ func (apm *Aes256PassManager) PassMatch(dbStatus DbStatus, passToCheck string) (
 // this is used to check if the provided password is correct and can potentially decrypt vault values
 func (apm *Aes256PassManager) GetEncRandValue(pass string) (encValue, decValue string, err error) {
 	timestampStr := strconv.FormatInt(time.Now().UnixNano(), 10)
-	timestampHash := sha256.New().Sum([]byte(timestampStr))
+	timestampHash := sha256.Sum256([]byte(timestampStr))
 
-	encValue, err = enc.Aes256EncryptByPassToBase64String(timestampHash, pass)
+	encValue, err = enc.Aes256EncryptByPassToBase64String(timestampHash[:], pass)
 	if err != nil {
 		return encValue, decValue, err
 	}
 
-	return encValue, string(timestampHash), nil
+	return encValue, string(timestampHash[:]), nil
 }
