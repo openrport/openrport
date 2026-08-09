@@ -28,7 +28,6 @@ var homeTemplate = template.Must(template.New("").Parse(`
 window.addEventListener("load", function(evt) {
    var output = document.getElementById("output");
    var input = document.getElementById("input");
-   var token = document.getElementById("token");
    var ws;
    var print = function(message) {
        var d = document.createElement("div");
@@ -40,7 +39,7 @@ window.addEventListener("load", function(evt) {
            return false;
        }
 
-       var wsURL = "{{.}}"+"?access_token=" + token.value;
+    var wsURL = "{{.}}";
        print("WS url: " + wsURL);
        ws = new WebSocket(wsURL);
        ws.onopen = function(evt) {
@@ -85,7 +84,6 @@ window.addEventListener("load", function(evt) {
 <form>
 <button id="open">Open</button>
 <button id="close">Close</button>
-<p><textarea id="token" rows="3" cols="60" placeholder="Enter token here..."></textarea><p>
 <textarea id="input" rows="5" cols="60" placeholder="Enter JSON request here...">
 {
   "command": "/usr/bin/whoami",
@@ -123,18 +121,10 @@ window.addEventListener("load", function(evt) {
        outCont.value += message + "\n";
    };
    document.getElementById("open").onclick = function(evt) {
-	   var token = document.getElementById("token");
-	   var params = {
-			access_token: token.value,
-      };
        if (ws) {
            return false;
        }
-		var queryString = Object.keys(params).map(function(key) {
-			return key + '=' + params[key]
-		}).join('&');
-		
-       var wsURL = "{{.}}"+"?" + queryString;
+       var wsURL = "{{.}}";
 
        print("WS url: " + wsURL);
        ws = new WebSocket(wsURL);
@@ -191,10 +181,6 @@ window.addEventListener("load", function(evt) {
 <form>
 <button id="open">Open</button>
 <button id="close">Close</button>
-<p><label for="token">Token</label>
-<br/>
-<textarea id="token" name="token" rows="3" cols="60"></textarea>
-</p>
 <p><label for="token">Script</label>
 <br/>
 <textarea id="script" name="script" rows="3" cols="60"></textarea>
@@ -239,18 +225,10 @@ window.addEventListener("load", function(evt) {
        outCont.value += message + "\n";
    };
    document.getElementById("open").onclick = function(evt) {
-	   var token = document.getElementById("token");
-	   var params = {
-			access_token: token.value,
-      };
        if (ws) {
            return false;
        }
-		var queryString = Object.keys(params).map(function(key) {
-			return key + '=' + params[key]
-		}).join('&');
-		
-       var wsURL = "{{.}}"+"?" + queryString;
+       var wsURL = "{{.}}";
 
        print("WS url: " + wsURL);
        ws = new WebSocket(wsURL);
@@ -288,10 +266,6 @@ window.addEventListener("load", function(evt) {
 <p>Click "Open" to create a connection to the server,
 <p>
 <form>
-<p><label for="token">Token</label>
-<br/>
-<textarea id="token" name="token" rows="3" cols="60"></textarea>
-</p>
 <button id="open">Open</button>
 <button id="close">Close</button>
 </form>

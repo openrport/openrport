@@ -8,13 +8,10 @@ import (
 )
 
 func (al *APIListener) handleDeleteLogout(w http.ResponseWriter, req *http.Request) {
-	tokenStr, tokenProvided := bearer.GetBearerToken(req)
+	tokenStr, tokenProvided := al.getBearerTokenFromRequest(req)
 	if tokenStr == "" || !tokenProvided {
-		// ban IP if it sends a lot of bad requests
-		if !al.handleBannedIPs(req, false) {
-			return
-		}
-		al.jsonErrorResponse(w, http.StatusBadRequest, fmt.Errorf("authorization Bearer token required"))
+		al.clearAuthCookie(w, req)
+		w.WriteHeader(http.StatusNoContent)
 		return
 	}
 
@@ -59,5 +56,6 @@ func (al *APIListener) handleDeleteLogout(w http.ResponseWriter, req *http.Reque
 		return
 	}
 
+	al.clearAuthCookie(w, req)
 	w.WriteHeader(http.StatusNoContent)
 }

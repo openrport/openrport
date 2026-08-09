@@ -135,7 +135,12 @@ func (al *APIListener) checkUserCount() (err error) {
 
 func (al *APIListener) getMaxUsers() (maxUsers int) {
 	if rportplus.IsPlusEnabled(al.config.PlusConfig) {
-		maxUsers = al.Server.plusManager.GetLicenseCapabilityEx().GetMaxUsers()
+		if al.Server.plusManager != nil {
+			licCapEx := al.Server.plusManager.GetLicenseCapabilityEx()
+			if licCapEx != nil {
+				maxUsers = licCapEx.GetMaxUsers()
+			}
+		}
 	}
 	return maxUsers
 }

@@ -105,6 +105,16 @@ put:
       description: see `auth_user`
       schema:
         type: string
+    - name: tls_insecure_skip_verify
+      in: query
+      description: >-
+        Optional. If true, disables TLS certificate verification for the upstream
+        HTTPS target behind the tunnel proxy. This is only allowed when
+        `http_proxy=true` and `scheme=https`. Enabling this option is restricted
+        to administrator users and requires server config
+        `tunnel_allow_insecure_tls_skip_verify=true`.
+      schema:
+        type: boolean
   responses:
     '200':
       description: success response

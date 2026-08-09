@@ -1,10 +1,6 @@
 package chserver
 
-import (
-	"net/http"
-
-	"github.com/gorilla/websocket"
-)
+import "github.com/gorilla/websocket"
 
 const (
 	ErrCodeMissingRouteVar = "ERR_CODE_MISSING_ROUTE_VAR"
@@ -15,5 +11,4 @@ const (
 var apiUpgrader = websocket.Upgrader{
 	ReadBufferSize:  1024,
 	WriteBufferSize: 1024,
-	CheckOrigin:     func(r *http.Request) bool { return true },
 }
