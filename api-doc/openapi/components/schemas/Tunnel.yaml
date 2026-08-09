@@ -33,6 +33,9 @@ properties:
   http_proxy:
     type: boolean
     description: True if tunnel proxy was created.
+  tls_insecure_skip_verify:
+    type: boolean
+    description: True if TLS certificate verification is disabled for HTTPS proxy upstream.
   host_header:
     type: string
     description: host name to set as http header field 'Host'

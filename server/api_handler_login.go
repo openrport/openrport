@@ -201,6 +201,7 @@ func (al *APIListener) handleLogin(username, pwd string, newpwd string, skipPass
 	response := api.NewSuccessPayload(loginResponse{
 		Token: &tokenStr,
 	})
+	al.setAuthCookie(w, req, tokenStr, lifetime)
 	al.writeJSONResponse(w, http.StatusOK, response)
 }
 
@@ -230,6 +231,7 @@ func (al *APIListener) sendJWTToken(username string, w http.ResponseWriter, req 
 	response := api.NewSuccessPayload(loginResponse{
 		Token: &tokenStr,
 	})
+	al.setAuthCookie(w, req, tokenStr, lifetime)
 	al.writeJSONResponse(w, http.StatusOK, response)
 }
 

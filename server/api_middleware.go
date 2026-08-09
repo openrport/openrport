@@ -98,7 +98,7 @@ func (al *APIListener) wrapWithAuthMiddleware(isBearerOnly bool) mux.MiddlewareF
 
 			newCtx := api.WithUser(r.Context(), username)
 
-			token, hasBearerToken := bearer.GetBearerToken(r)
+			token, hasBearerToken := al.getBearerTokenFromRequest(r)
 			if hasBearerToken {
 				err = al.updateTokenAccess(newCtx, token, time.Now(), r.UserAgent(), r.RemoteAddr)
 				if err != nil {
