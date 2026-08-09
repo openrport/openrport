@@ -119,19 +119,18 @@ func (al *APIListener) handlePlusStatus(w http.ResponseWriter, r *http.Request) 
 	}
 
 	licCapEx := plusManager.GetLicenseCapabilityEx()
-	if licCapEx == nil {
-		al.jsonErrorResponse(w, http.StatusInternalServerError, rportplus.ErrCapabilityNotAvailable(rportplus.PlusStatusCapability))
-		return
-	}
-
 	statusInfo := statusCapEx.GetStatusInfo()
-
-	licInfo := licCapEx.GetLicenseInfo()
-	if licInfo != nil {
-		statusInfo.ValidLicense = true
-		statusInfo.LicenseInfo = *licInfo
+	if licCapEx != nil {
+		licInfo := licCapEx.GetLicenseInfo()
+		if licInfo != nil {
+			statusInfo.ValidLicense = true
+			statusInfo.LicenseInfo = *licInfo
+		}
+		statusInfo.IsTrial = licCapEx.IsTrialMode()
+	} else {
+		statusInfo.ValidLicense = false
+		statusInfo.IsTrial = true
 	}
-	statusInfo.IsTrial = licCapEx.IsTrialMode()
 	statusInfo.IsEnabled = true
 
 	response := api.NewSuccessPayload(statusInfo)
