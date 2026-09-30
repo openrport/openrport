@@ -402,7 +402,7 @@ func (al *APIListener) lookupUser(r *http.Request, isBearerOnly bool) (authorize
 		}
 	}
 
-	if bearerToken, bearerAuthProvided := bearer.GetBearerToken(r); bearerAuthProvided {
+	if bearerToken, bearerAuthProvided := al.getBearerTokenFromRequest(r); bearerAuthProvided {
 		isAuthorized, token, err := al.checkBearerToken(r.Context(), bearerToken, r.URL.Path, r.Method)
 		if err != nil {
 			return isAuthorized, "", err
@@ -417,6 +417,19 @@ func (al *APIListener) lookupUser(r *http.Request, isBearerOnly bool) (authorize
 	}
 
 	return false, "", nil
+}
+
+func (al *APIListener) getBearerTokenFromRequest(r *http.Request) (string, bool) {
+	if bearerToken, bearerAuthProvided := bearer.GetBearerToken(r); bearerAuthProvided {
+		return bearerToken, true
+	}
+
+	cookie, err := r.Cookie(AuthCookieName)
+	if err != nil || cookie.Value == "" {
+		return "", false
+	}
+
+	return cookie.Value, true
 }
 
 // handleBasicAuth checks username and password against either user's password or token
@@ -583,11 +596,9 @@ func verifyPassword(saved, provided string) bool {
 	return subtle.ConstantTimeCompare([]byte(saved), []byte(provided)) == 1
 }
 
-const WebSocketAccessTokenQueryParam = "access_token"
-
 var (
-	errUnauthorized        = errors.New("unauthorized")
-	errAccessTokenRequired = errors.New("token required")
+	errUnauthorized = errors.New("unauthorized")
+	errAuthRequired = errors.New("authorization required")
 )
 
 func (al *APIListener) wsAuth(f http.Handler) http.HandlerFunc {
@@ -596,8 +607,9 @@ func (al *APIListener) wsAuth(f http.Handler) http.HandlerFunc {
 		var username string
 		var err error
 
-		tokenStr := r.URL.Query().Get(WebSocketAccessTokenQueryParam)
-		if tokenStr == "" {
+		tokenStr, hasToken := al.getBearerTokenFromRequest(r)
+
+		if !hasToken || tokenStr == "" {
 			basicUser, basicPwd, basicAuthProvided := r.BasicAuth()
 
 			if basicAuthProvided {
@@ -606,7 +618,7 @@ func (al *APIListener) wsAuth(f http.Handler) http.HandlerFunc {
 				if !al.handleBannedIPs(r, false) {
 					return
 				}
-				al.jsonErrorResponse(w, http.StatusUnauthorized, errAccessTokenRequired)
+				al.jsonErrorResponse(w, http.StatusUnauthorized, errAuthRequired)
 				return
 			}
 		} else {

@@ -263,7 +263,13 @@ func (al *APIListener) handlePutClientTunnel(w http.ResponseWriter, req *http.Re
 		remote.Scheme = &schemeStr
 	}
 
-	err = al.setTunnelProxyOptionsForRemote(req, remote)
+	currUser, err := al.getUserModelForAuth(req.Context())
+	if err != nil {
+		al.jsonError(w, err)
+		return
+	}
+
+	err = al.setTunnelProxyOptionsForRemote(req, remote, currUser.IsAdmin())
 	if err != nil {
 		al.jsonError(w, err)
 		return
@@ -329,11 +335,6 @@ func (al *APIListener) handlePutClientTunnel(w http.ResponseWriter, req *http.Re
 	}
 
 	// populating tunnel (remote) ownership
-	currUser, err := al.getUserModelForAuth(req.Context())
-	if err != nil {
-		al.jsonError(w, err)
-		return
-	}
 	remote.Owner = currUser.Username
 
 	// start the new tunnel only
@@ -355,7 +356,7 @@ func (al *APIListener) handlePutClientTunnel(w http.ResponseWriter, req *http.Re
 	al.writeJSONResponse(w, http.StatusOK, response)
 }
 
-func (al *APIListener) setTunnelProxyOptionsForRemote(req *http.Request, remote *models.Remote) (err error) {
+func (al *APIListener) setTunnelProxyOptionsForRemote(req *http.Request, remote *models.Remote, isAdmin bool) (err error) {
 	httpProxy := req.URL.Query().Get("http_proxy")
 	if httpProxy == "" {
 		httpProxy = "false"
@@ -373,6 +374,29 @@ func (al *APIListener) setTunnelProxyOptionsForRemote(req *http.Request, remote 
 	}
 	if isHTTPProxy && !remote.IsProtocol(models.ProtocolTCP) {
 		return apierrors.NewAPIError(http.StatusBadRequest, "", fmt.Sprintf("tunnel proxy not allowed with protcol %s", remote.Protocol), nil)
+	}
+
+	tlsInsecureSkipVerify := req.URL.Query().Get("tls_insecure_skip_verify")
+	if tlsInsecureSkipVerify != "" {
+		skipVerify, parseErr := strconv.ParseBool(tlsInsecureSkipVerify)
+		if parseErr != nil {
+			return apierrors.NewAPIError(http.StatusBadRequest, "", "invalid value for tls_insecure_skip_verify", parseErr)
+		}
+		if !isHTTPProxy {
+			return apierrors.NewAPIError(http.StatusBadRequest, "", "tls_insecure_skip_verify requires http_proxy to be activated on the requested tunnel", nil)
+		}
+		if remote.Scheme == nil || *remote.Scheme != "https" {
+			return apierrors.NewAPIError(http.StatusBadRequest, "", "tls_insecure_skip_verify is only allowed with scheme https", nil)
+		}
+		if skipVerify {
+			if !isAdmin {
+				return apierrors.NewAPIError(http.StatusForbidden, "", "tls_insecure_skip_verify is only allowed for administrator users", nil)
+			}
+			if !al.config.Server.InternalTunnelProxyConfig.AllowInsecureTLSSkipVerify {
+				return apierrors.NewAPIError(http.StatusForbidden, "", "tls_insecure_skip_verify is disabled by server configuration", nil)
+			}
+		}
+		remote.TLSInsecureSkipVerify = skipVerify
 	}
 
 	if isHTTPProxy && al.config.CaddyEnabled() {
