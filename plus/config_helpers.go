@@ -1,8 +1,10 @@
 package rportplus
 
 func IsPlusEnabled(config PlusConfig) bool {
-	return config.PluginConfig != nil &&
-		config.PluginConfig.PluginPath != ""
+	if config.OAuthConfig != nil {
+		return true
+	}
+	return config.PluginConfig != nil
 }
 
 func HasLicenseConfig(config PlusConfig) bool {
