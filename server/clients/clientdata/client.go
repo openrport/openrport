@@ -645,7 +645,7 @@ func (c *Client) CalculateConnectionState() ConnectionState {
 }
 
 func (c *Client) calculateConnectionStateUnlocked() ConnectionState {
-	if c.DisconnectedAt != nil {
+	if c.DisconnectedAt == nil {
 		return Connected
 	}
 	return Disconnected

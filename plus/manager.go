@@ -73,7 +73,16 @@ type ManagerProvider struct {
 // plus manager and initializes it
 func NewPlusManager(ctx context.Context, cfg *PlusConfig, pluginLoader loader.Loader, l *logger.Logger, filesAPI files.FileAPI) (pm *ManagerProvider, err error) {
 	_ = ctx
-	_ = filesAPI
+
+	if cfg != nil && cfg.PluginConfig != nil && cfg.PluginConfig.PluginPath != "" && filesAPI != nil {
+		exists, err := filesAPI.Exist(cfg.PluginConfig.PluginPath)
+		if err != nil {
+			return nil, fmt.Errorf("checking plugin path %q: %w", cfg.PluginConfig.PluginPath, err)
+		}
+		if !exists {
+			return nil, fmt.Errorf("plugin not found at path %q", cfg.PluginConfig.PluginPath)
+		}
+	}
 
 	if pluginLoader == nil {
 		pluginLoader = loader.New()
@@ -159,7 +168,9 @@ func (pm *ManagerProvider) GetStatusCapabilityEx() (capEx status.CapabilityEx) {
 func (pm *ManagerProvider) GetExtendedPermissionCapabilityEx() (capEx extendedpermission.CapabilityEx) {
 	capEntry := pm.getCap(PlusExtendedPermissionCapability)
 	if capEntry != nil {
-		if cap, ok := capEntry.(interface{ GetExtendedPermissionCapabilityEx() extendedpermission.CapabilityEx }); ok {
+		if cap, ok := capEntry.(interface {
+			GetExtendedPermissionCapabilityEx() extendedpermission.CapabilityEx
+		}); ok {
 			return cap.GetExtendedPermissionCapabilityEx()
 		}
 		return nil
@@ -172,7 +183,9 @@ func (pm *ManagerProvider) GetExtendedPermissionCapabilityEx() (capEx extendedpe
 func (pm *ManagerProvider) GetLicenseCapabilityEx() (capEx licensecap.CapabilityEx) {
 	capEntry := pm.getCap(PlusLicenseCapability)
 	if capEntry != nil {
-		if cap, ok := capEntry.(interface{ GetLicenseCapabilityEx() licensecap.CapabilityEx }); ok {
+		if cap, ok := capEntry.(interface {
+			GetLicenseCapabilityEx() licensecap.CapabilityEx
+		}); ok {
 			return cap.GetLicenseCapabilityEx()
 		}
 		return nil
@@ -185,7 +198,9 @@ func (pm *ManagerProvider) GetLicenseCapabilityEx() (capEx licensecap.Capability
 func (pm *ManagerProvider) GetAlertingCapabilityEx() (capEx alertingcap.CapabilityEx) {
 	capEntry := pm.getCap(PlusAlertingCapability)
 	if capEntry != nil {
-		if cap, ok := capEntry.(interface{ GetAlertingCapabilityEx() alertingcap.CapabilityEx }); ok {
+		if cap, ok := capEntry.(interface {
+			GetAlertingCapabilityEx() alertingcap.CapabilityEx
+		}); ok {
 			return cap.GetAlertingCapabilityEx()
 		}
 		return nil
