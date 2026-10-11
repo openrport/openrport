@@ -20,6 +20,7 @@ import (
 	"github.com/spf13/cobra"
 	"github.com/spf13/viper"
 
+	rportplus "github.com/openrport/openrport/plus"
 	chserver "github.com/openrport/openrport/server"
 	"github.com/openrport/openrport/server/api/message"
 	auditlog "github.com/openrport/openrport/server/auditlog/config"
@@ -525,10 +526,14 @@ func runMain(*cobra.Command, []string) {
 	if err != nil && err != chserver.ErrPlusNotEnabled {
 		log.Fatal(err)
 	}
+	var plusManagerOpt rportplus.Manager
+	if plusManager != nil {
+		plusManagerOpt = plusManager
+	}
 
 	s, err := chserver.NewServer(ctx, cfg, &chserver.ServerOpts{
 		FilesAPI:    filesAPI,
-		PlusManager: plusManager,
+		PlusManager: plusManagerOpt,
 	})
 	if err != nil {
 		log.Fatal(err)

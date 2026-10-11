@@ -12,7 +12,6 @@ import (
 	licensecap "github.com/openrport/openrport/plus/capabilities/license"
 	"github.com/openrport/openrport/plus/capabilities/oauth"
 	"github.com/openrport/openrport/plus/capabilities/status"
-	"github.com/openrport/openrport/plus/license"
 	"github.com/openrport/openrport/plus/loader"
 	"github.com/openrport/openrport/plus/validator"
 	"github.com/openrport/openrport/share/files"
@@ -73,31 +72,20 @@ type ManagerProvider struct {
 // NewPlusManager checks the plugin exists at the specified path, allocates a new
 // plus manager and initializes it
 func NewPlusManager(ctx context.Context, cfg *PlusConfig, pluginLoader loader.Loader, l *logger.Logger, filesAPI files.FileAPI) (pm *ManagerProvider, err error) {
-	if pluginLoader == nil {
-		pluginLoader = loader.New()
-	}
+	_ = ctx
 
-	if filesAPI != nil {
-		pluginPath := cfg.PluginConfig.PluginPath
-		exists, err := filesAPI.Exist(pluginPath)
+	if cfg != nil && cfg.PluginConfig != nil && cfg.PluginConfig.PluginPath != "" && filesAPI != nil {
+		exists, err := filesAPI.Exist(cfg.PluginConfig.PluginPath)
 		if err != nil {
-			return nil, err
+			return nil, fmt.Errorf("checking plugin path %q: %w", cfg.PluginConfig.PluginPath, err)
 		}
 		if !exists {
-			return nil, fmt.Errorf("plugin not found at path \"%s\"", pluginPath)
+			return nil, fmt.Errorf("plugin not found at path %q", cfg.PluginConfig.PluginPath)
 		}
+	}
 
-		startFn, err := pluginLoader.LoadSymbol(pluginPath, "StartPluginEx")
-		if err != nil {
-			return nil, err
-		}
-
-		if startFn != nil {
-			err = startFn.(func(ctx context.Context, cfg *license.Config, l *logger.Logger) (err error))(ctx, cfg.LicenseConfig, l)
-			if err != nil {
-				return nil, err
-			}
-		}
+	if pluginLoader == nil {
+		pluginLoader = loader.New()
 	}
 
 	pm = &ManagerProvider{}
@@ -126,6 +114,9 @@ func (pm *ManagerProvider) RegisterCapability(capName string, newCap Capability)
 	initFuncName := newCap.GetInitFuncName()
 	if initFuncName != "" {
 		// an init func name indicates that the provider should be initialized using the plugin
+		if pm.Config.PluginConfig == nil || pm.Config.PluginConfig.PluginPath == "" {
+			return nil, fmt.Errorf("plugin path required for capability %s", capName)
+		}
 		pluginPath := pm.Config.PluginConfig.PluginPath
 		initFn, err := pm.pluginLoader.LoadSymbol(pluginPath, newCap.GetInitFuncName())
 		if err != nil {
@@ -151,12 +142,10 @@ func (pm *ManagerProvider) IsEnabledCapability(capName string) (isEnabled bool) 
 func (pm *ManagerProvider) GetOAuthCapabilityEx() (capEx oauth.CapabilityEx) {
 	capEntry := pm.getCap(PlusOAuthCapability)
 	if capEntry != nil {
-		cap, ok := capEntry.(*oauth.Capability)
-		if !ok {
-			return nil
+		if cap, ok := capEntry.(interface{ GetOAuthCapabilityEx() oauth.CapabilityEx }); ok {
+			return cap.GetOAuthCapabilityEx()
 		}
-		capEx = cap.GetOAuthCapabilityEx()
-		return capEx
+		return nil
 	}
 
 	return nil
@@ -166,12 +155,10 @@ func (pm *ManagerProvider) GetOAuthCapabilityEx() (capEx oauth.CapabilityEx) {
 func (pm *ManagerProvider) GetStatusCapabilityEx() (capEx status.CapabilityEx) {
 	capEntry := pm.getCap(PlusStatusCapability)
 	if capEntry != nil {
-		cap, ok := capEntry.(*status.Capability)
-		if !ok {
-			return nil
+		if cap, ok := capEntry.(interface{ GetStatusCapabilityEx() status.CapabilityEx }); ok {
+			return cap.GetStatusCapabilityEx()
 		}
-		capEx = cap.GetStatusCapabilityEx()
-		return capEx
+		return nil
 	}
 
 	return nil
@@ -181,12 +168,12 @@ func (pm *ManagerProvider) GetStatusCapabilityEx() (capEx status.CapabilityEx) {
 func (pm *ManagerProvider) GetExtendedPermissionCapabilityEx() (capEx extendedpermission.CapabilityEx) {
 	capEntry := pm.getCap(PlusExtendedPermissionCapability)
 	if capEntry != nil {
-		cap, ok := capEntry.(*extendedpermission.Capability)
-		if !ok {
-			return nil
+		if cap, ok := capEntry.(interface {
+			GetExtendedPermissionCapabilityEx() extendedpermission.CapabilityEx
+		}); ok {
+			return cap.GetExtendedPermissionCapabilityEx()
 		}
-		capEx = cap.GetExtendedPermissionCapabilityEx()
-		return capEx
+		return nil
 	}
 
 	return nil
@@ -196,12 +183,12 @@ func (pm *ManagerProvider) GetExtendedPermissionCapabilityEx() (capEx extendedpe
 func (pm *ManagerProvider) GetLicenseCapabilityEx() (capEx licensecap.CapabilityEx) {
 	capEntry := pm.getCap(PlusLicenseCapability)
 	if capEntry != nil {
-		cap, ok := capEntry.(*licensecap.Capability)
-		if !ok {
-			return nil
+		if cap, ok := capEntry.(interface {
+			GetLicenseCapabilityEx() licensecap.CapabilityEx
+		}); ok {
+			return cap.GetLicenseCapabilityEx()
 		}
-		capEx = cap.GetLicenseCapabilityEx()
-		return capEx
+		return nil
 	}
 
 	return nil
@@ -211,12 +198,12 @@ func (pm *ManagerProvider) GetLicenseCapabilityEx() (capEx licensecap.Capability
 func (pm *ManagerProvider) GetAlertingCapabilityEx() (capEx alertingcap.CapabilityEx) {
 	capEntry := pm.getCap(PlusAlertingCapability)
 	if capEntry != nil {
-		cap, ok := capEntry.(*alertingcap.Capability)
-		if !ok {
-			return nil
+		if cap, ok := capEntry.(interface {
+			GetAlertingCapabilityEx() alertingcap.CapabilityEx
+		}); ok {
+			return cap.GetAlertingCapabilityEx()
 		}
-		capEx = cap.GetAlertingCapabilityEx()
-		return capEx
+		return nil
 	}
 
 	return nil

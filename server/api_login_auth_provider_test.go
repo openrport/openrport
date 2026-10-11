@@ -107,6 +107,7 @@ func TestHandleGetAuthProviderWhenPlusOAuthAvailable(t *testing.T) {
 		ClientID:             "1234567890",
 		ClientSecret:         "0987654321",
 		RequiredOrganization: "testorg",
+		PermittedUserList:    true,
 	}
 
 	// note: the license actually isn't given time to verify, which is why test works
@@ -179,6 +180,7 @@ func TestHandleGetAuthSettingsWhenPlusOAuthAvailable(t *testing.T) {
 		ClientID:             "1234567890",
 		ClientSecret:         "0987654321",
 		RequiredOrganization: "testorg",
+		PermittedUserList:    true,
 	}
 
 	// note: the license actually isn't given time to verify, which is why test works

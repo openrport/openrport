@@ -7,19 +7,17 @@ import (
 
 	rportplus "github.com/openrport/openrport/plus"
 	alertingcap "github.com/openrport/openrport/plus/capabilities/alerting"
-	"github.com/openrport/openrport/plus/capabilities/extendedpermission"
-	licensecap "github.com/openrport/openrport/plus/capabilities/license"
-	"github.com/openrport/openrport/plus/capabilities/oauth"
-	"github.com/openrport/openrport/plus/capabilities/status"
-	"github.com/openrport/openrport/plus/license"
+	alertinglocal "github.com/openrport/openrport/plus/capabilities/alerting/alertinglocal"
+	extendedpermissionlocal "github.com/openrport/openrport/plus/capabilities/extendedpermission/extendedpermissionlocal"
+	oauthlocal "github.com/openrport/openrport/plus/capabilities/oauth/oauthlocal"
+	statuslocal "github.com/openrport/openrport/plus/capabilities/status/statuslocal"
 	"github.com/openrport/openrport/server/chconfig"
 	"github.com/openrport/openrport/share/files"
 	"github.com/openrport/openrport/share/logger"
 )
 
 var (
-	ErrPlusNotEnabled           = errors.New("rport-plus not enabled")
-	ErrPlusLicenseNotConfigured = errors.New("rport-plus license not configured")
+	ErrPlusNotEnabled = errors.New("rport-plus not enabled")
 )
 
 // EnablePlusIfAvailable will initialize a new plus manager and request registration of the desired
@@ -33,10 +31,7 @@ func EnablePlusIfAvailable(ctx context.Context, cfg *chconfig.Config, filesAPI f
 	}
 
 	if rportplus.HasLicenseConfig(cfg.PlusConfig) {
-		dataDir := cfg.Server.DataDir
-		cfg.PlusConfig.LicenseConfig.DataDir = dataDir
-	} else {
-		cfg.PlusConfig.LicenseConfig = &license.Config{}
+		cfg.PlusConfig.LicenseConfig.DataDir = cfg.Server.DataDir
 	}
 
 	plusManager, err = rportplus.NewPlusManager(ctx, &cfg.PlusConfig, nil, logger, filesAPI)
@@ -56,7 +51,7 @@ func EnablePlusIfAvailable(ctx context.Context, cfg *chconfig.Config, filesAPI f
 // All plus capabilities must be added here.
 func RegisterPlusCapabilities(plusManager rportplus.Manager, cfg *chconfig.Config, logger *logger.Logger) (err error) {
 	if rportplus.IsPlusOAuthEnabled(cfg.PlusConfig) {
-		_, err := plusManager.RegisterCapability(rportplus.PlusOAuthCapability, &oauth.Capability{
+		_, err := plusManager.RegisterCapability(rportplus.PlusOAuthCapability, &oauthlocal.Capability{
 			Config: cfg.PlusConfig.OAuthConfig,
 			Logger: logger,
 		})
@@ -77,7 +72,7 @@ func RegisterPlusCapabilities(plusManager rportplus.Manager, cfg *chconfig.Confi
 	}
 
 	// always register the plus status capability
-	_, err = plusManager.RegisterCapability(rportplus.PlusStatusCapability, &status.Capability{
+	_, err = plusManager.RegisterCapability(rportplus.PlusStatusCapability, &statuslocal.Capability{
 		Config: nil,
 		Logger: logger,
 	})
@@ -86,18 +81,8 @@ func RegisterPlusCapabilities(plusManager rportplus.Manager, cfg *chconfig.Confi
 	}
 	logger.Infof("plus status capability registered")
 
-	// always register the plus license capability
-	_, err = plusManager.RegisterCapability(rportplus.PlusLicenseCapability, &licensecap.Capability{
-		Config: nil,
-		Logger: logger,
-	})
-	if err != nil {
-		return fmt.Errorf("unable to register plus license capability: %w", err)
-	}
-	logger.Infof("plus license capability registered")
-
 	// register the plus alerting capability
-	_, err = plusManager.RegisterCapability(rportplus.PlusAlertingCapability, &alertingcap.Capability{
+	_, err = plusManager.RegisterCapability(rportplus.PlusAlertingCapability, &alertinglocal.Capability{
 		Config: &alertingcap.Config{
 			MaxWorkers:    maxAlertingWorkers,
 			AlertsLogPath: cfg.Server.DataDir,
@@ -110,7 +95,7 @@ func RegisterPlusCapabilities(plusManager rportplus.Manager, cfg *chconfig.Confi
 	logger.Infof("plus alerting capability registered")
 
 	// always register the plus extended permission capability
-	_, err = plusManager.RegisterCapability(rportplus.PlusExtendedPermissionCapability, &extendedpermission.Capability{
+	_, err = plusManager.RegisterCapability(rportplus.PlusExtendedPermissionCapability, &extendedpermissionlocal.Capability{
 		Config: nil,
 		Logger: logger,
 	})

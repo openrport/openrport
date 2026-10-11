@@ -117,11 +117,9 @@ func NewServer(ctx context.Context, config *chconfig.Config, opts *ServerOpts) (
 
 	if rportplus.IsPlusEnabled(config.PlusConfig) {
 		licCap := s.plusManager.GetLicenseCapabilityEx()
-		if licCap == nil {
-			return nil, errors.New("failed to get license info capability from rport-plus")
+		if licCap != nil {
+			licCap.SetLicenseInfoAvailableNotifier(s.HandlePlusLicenseInfoAvailable)
 		}
-
-		licCap.SetLicenseInfoAvailableNotifier(s.HandlePlusLicenseInfoAvailable)
 
 		alertingCap := s.plusManager.GetAlertingCapabilityEx()
 		if alertingCap != nil {

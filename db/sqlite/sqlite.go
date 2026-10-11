@@ -1,17 +1,17 @@
 package sqlite
 
 import (
+	"errors"
 	"fmt"
 	"math/rand"
 	"os"
 	"time"
 
 	"github.com/golang-migrate/migrate/v4"
-	"github.com/golang-migrate/migrate/v4/database/sqlite3"
+	sqlite3migrate "github.com/golang-migrate/migrate/v4/database/sqlite3"
 	bindata "github.com/golang-migrate/migrate/v4/source/go_bindata"
 	"github.com/jmoiron/sqlx"
-	sql "github.com/mattn/go-sqlite3"
-
+	"github.com/mattn/go-sqlite3"
 	"github.com/openrport/openrport/share/logger"
 )
 
@@ -60,7 +60,7 @@ func New(dataSourceName string, assetNames []string, asset func(name string) ([]
 		return nil, fmt.Errorf("failed to init DB source driver: %v", err)
 	}
 
-	dbDriver, err := sqlite3.WithInstance(db.DB, &sqlite3.Config{})
+	dbDriver, err := sqlite3migrate.WithInstance(db.DB, &sqlite3migrate.Config{})
 	if err != nil {
 		return nil, fmt.Errorf("failed to init DB migration driver: %v", err)
 	}
@@ -80,8 +80,8 @@ func New(dataSourceName string, assetNames []string, asset func(name string) ([]
 func WithRetryWhenBusy[R any](retryAbleFn func() (result R, err error), label string, l *logger.Logger) (result R, err error) {
 	for attempt := 1; attempt <= DefaultMaxAttempts; attempt++ {
 		if attempt > 1 && err != nil {
-			sqlErr, ok := err.(sql.Error)
-			if ok && sqlErr.Code == sql.ErrBusy {
+			var sqliteErr sqlite3.Error
+			if errors.As(err, &sqliteErr) && (sqliteErr.Code == sqlite3.ErrBusy || sqliteErr.Code == sqlite3.ErrLocked) {
 				l.Debugf("%s: attempt %d: source err = %+v\n", label, attempt, err)
 				jitter := time.Duration((rand.Intn(100))) * time.Millisecond
 				time.Sleep(defaultDelayBetweenAttempts + jitter)
