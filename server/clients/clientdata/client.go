@@ -644,8 +644,10 @@ func (c *Client) CalculateConnectionState() ConnectionState {
 	return Disconnected
 }
 
+// calculateConnectionStateUnlocked is CalculateConnectionState for callers that already hold flock.
+// Re-acquiring the RWMutex read lock while holding it deadlocks once a writer is queued.
 func (c *Client) calculateConnectionStateUnlocked() ConnectionState {
-	if c.DisconnectedAt != nil {
+	if c.DisconnectedAt == nil {
 		return Connected
 	}
 	return Disconnected
